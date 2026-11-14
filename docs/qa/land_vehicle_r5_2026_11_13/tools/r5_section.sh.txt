@@ -1,0 +1,560 @@
+# ##################################################################### round 5
+# The class inventory is docs/qa/land_vehicle_r5_2026_11_13/class_inventory.md. Every
+# case asserts the exit code and the message; where a fixture could pass for the wrong
+# reason, a control shows the fixture really does what it claims.
+
+# ============================================ R5-K01 / R5-R04 (F1) clone main moves during the pushes
+# a gitflic pre-receive hook (the first remote pushed) commits an UNTRAILERED change into the clone
+fixture r5k; F=$T/r5k
+run "$F/prep.out" prepare_raw "$F" --item-id CON-904; succeeded "R5-K01 prepare exits 0" "$F/prep.out"
+C=$F/work/constitution; L=$(g "$C" rev-parse main)
+cat > "$F/remotes/gitflic.git/hooks/pre-receive" <<EOF
+#!/usr/bin/env bash
+cat > /dev/null
+$(declare -f hg)
+REALGIT=$REALGIT
+[ -e "$F/race.done" ] && exit 0
+: > "$F/race.done"
+printf 'unreviewed\n' > "$C/unreviewed.txt"
+hg -C "$C" add unreviewed.txt && hg -C "$C" -c core.hooksPath=/dev/null commit -q -m "UNREVIEWED change, no trailer" >/dev/null 2>&1
+exit 0
+EOF
+chmod +x "$F/remotes/gitflic.git/hooks/pre-receive"
+run "$F/pub.out" publish "$F"
+U=$(g "$C" rev-parse main)
+refused "R5-K01 a commit made in the clone during the pushes: publish exits 1" 1 'clone main moved during publish' "$F/pub.out"
+if [ -e "$F/race.done" ] && [ "$U" != "$L" ] && [ "$(atcount "$F" "$L")" = 9 ] && [ "$(atcount "$F" "$U")" = 0 ]; then
+  ok "R5-K01 all 9 remotes got the checked sha, 0 got the moved main (control: the hook did move clone main)"
+else bad "R5-K01 pushed sha (at checked: $(atcount "$F" "$L"), at moved: $(atcount "$F" "$U"), moved: $([ "$U" != "$L" ] && echo yes || echo no))"; fi
+run "$F/pub2.out" publish "$F"
+refused "R5-K01 publish again refuses the unreviewed commit, with the prepare-again hint" 1 'lacks a single real Roadmap-Item trailer.*run prepare again in a new workdir' "$F/pub2.out"
+if [ "$(atcount "$F" "$U")" = 0 ]; then ok "R5-K01 the unreviewed commit reached no remote"; else bad "R5-K01 the unreviewed commit reached a remote"; fi
+
+# ============================================ R5-R04b (F1) a remote URL re-pointed in the clone during the pushes
+fixture r5b; F=$T/r5b
+run "$F/prep.out" prepare_raw "$F" --item-id CON-905; succeeded "R5-R04b prepare exits 0" "$F/prep.out"
+C=$F/work/constitution; L=$(g "$C" rev-parse main)
+git init -q --bare "$F/decoy.git"; g "$F/seed" push -q "$F/decoy.git" main:refs/heads/main
+cat > "$F/remotes/gitflic.git/hooks/pre-receive" <<EOF
+#!/usr/bin/env bash
+cat > /dev/null
+$(declare -f hg)
+REALGIT=$REALGIT
+[ -e "$F/race.done" ] && exit 0
+: > "$F/race.done"
+hg -C "$C" config remote.origin.url "$F/decoy.git"
+exit 0
+EOF
+chmod +x "$F/remotes/gitflic.git/hooks/pre-receive"
+run "$F/pub.out" publish "$F"
+refused "R5-R04b origin re-pointed after the first push: refused, and the message names the remotes already pushed" 2 \
+  "remote 'origin' fetch URL in the clone differs from --remotes-file; this run already pushed the checked main to: gitflic github github_helixdevelopment github_vasic_digital gitlab_helixdevelopment1 gitlab_vasic_digital gitverse m3w; no further remote is pushed" "$F/pub.out"
+if [ -e "$F/race.done" ] && [ "$(git --git-dir="$F/decoy.git" rev-parse main)" = "$(BASE_OF "$F")" ] \
+   && [ "$(rmain "$F" origin)" = "$(BASE_OF "$F")" ] && [ "$(atcount "$F" "$L")" = 8 ]; then
+  ok "R5-R04b the decoy and origin got nothing, the other 8 got the checked sha (control: the hook re-pointed origin)"
+else bad "R5-R04b decoy/origin (decoy main $(git --git-dir="$F/decoy.git" rev-parse main), at checked $(atcount "$F" "$L"))"; fi
+g "$C" config remote.origin.url "$F/remotes/origin.git"
+run "$F/pub2.out" publish "$F"
+if [ "$RC" -eq 0 ] && [ "$(atcount "$F" "$L")" = 9 ] && [ "$(grep -c '| up-to-date |' "$F/ev/publish.md")" -eq 8 ] && grep -q '| origin | pushed |' "$F/ev/publish.md"; then
+  ok "R5-R04b after the URL is fixed, publish again pushes origin only (8 up-to-date)"
+else bad "R5-R04b re-run (rc=$RC)"; sed 's/^/    | /' "$F/pub2.out"; fi
+
+# ============================================ R5-F2 the minted id must be new (every tracker file, every trailer)
+# F2a: the id is in a tracker file that the mint did not touch (the mint adds another file)
+base_fixture r5f2a; F=$T/r5f2a
+seed_main_file "$F" docs/tracker.fake 'CON-100 old item\n'
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+printf '#!/usr/bin/env bash\nmkdir -p docs/items; printf "CON-100 item\\n" > docs/items/CON-100.md; echo CON-100\n' > "$F/mint_add.sh"; chmod +x "$F/mint_add.sh"
+mapfile -t pargs < <(PREP_ARGS "$F")
+run "$F/out" lvenv LANDER_TRACKER_PATHS="docs/tracker.fake docs/items/*" -- prepare "${pargs[@]}" --mint-cmd "$F/mint_add.sh"
+refused "R5-F2a an id already in an untouched tracker file is refused" 1 'CON-100 already appears in docs/tracker\.fake before the mint' "$F/out"
+base_fixture r5f2ac; F=$T/r5f2ac
+seed_main_file "$F" docs/tracker.fake 'CON-100 old item\n'
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+printf '#!/usr/bin/env bash\nmkdir -p docs/items; printf "CON-101 item\\n" > docs/items/CON-101.md; echo CON-101\n' > "$F/mint_add.sh"; chmod +x "$F/mint_add.sh"
+mapfile -t pargs < <(PREP_ARGS "$F")
+run "$F/out" lvenv LANDER_TRACKER_PATHS="docs/tracker.fake docs/items/*" -- prepare "${pargs[@]}" --mint-cmd "$F/mint_add.sh"
+if [ "$RC" -eq 0 ] && [ "$(rimtrailers "$F/work/constitution" "$(hash_by_subject "$F/work/constitution" 'feat: one')")" = CON-101 ]; then
+  ok "R5-F2a control: a new id CON-101 in a new file matching the glob docs/items/* is accepted"
+else bad "R5-F2a control (rc=$RC)"; sed 's/^/    | /' "$F/out"; fi
+# F2b: the id is a Roadmap-Item value of a commit on main, or of a vehicle commit
+fixture r5f2b; F=$T/r5f2b
+mkmint "$F/m.sh" 'CON-001 minted' CON-001
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-F2b an id that is a trailer of a commit on main is refused" 1 'CON-001 already appears in a Roadmap-Item line of a commit reachable from main or the vehicle' "$F/out"
+base_fixture r5f2bv; F=$T/r5f2bv
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-123\n'; vc "$F" v2.txt 'feat: two\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+mkmint "$F/m.sh" 'CON-123 minted' CON-123
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-F2b an id that is a trailer of a vehicle commit is refused" 1 'CON-123 already appears in a Roadmap-Item line of a commit reachable from main or the vehicle' "$F/out"
+fixture r5f2bc; F=$T/r5f2bc
+mkmint "$F/m.sh" 'CON-003 minted' CON-003
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+succeeded "R5-F2b control: a new id CON-003 is accepted" "$F/out"
+# F2c: a tracker file other than the one the mint wrote (glob docs/*.db)
+base_fixture r5f2c; F=$T/r5f2c
+seed_main_file "$F" docs/workable_items.db 'CON-123 old item\n'
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+printf '#!/usr/bin/env bash\nmkdir -p docs; printf "CON-123 minted\\n" > docs/workable_item.db; echo CON-123\n' > "$F/m.sh"; chmod +x "$F/m.sh"
+mapfile -t pargs < <(PREP_ARGS "$F")
+run "$F/out" lvenv LANDER_TRACKER_PATHS="docs/*.db" -- prepare "${pargs[@]}" --mint-cmd "$F/m.sh"
+refused "R5-F2c the id in another tracker file matching the glob is refused, naming that file" 1 'CON-123 already appears in docs/workable_items\.db before the mint' "$F/out"
+# F2z: leading zeros are ignored by the newness check
+for z in 'CON-77' 'CON-0077'; do
+  base_fixture "r5f2z$z"; F=$T/r5f2z$z
+  seed_main_file "$F" docs/tracker.fake "$z legacy\\n"
+  vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+  mkmint "$F/m.sh" 'CON-077 minted' CON-077
+  run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+  refused "R5-F2z the tracker holds $z: CON-077 is not new" 1 'CON-077 already appears in docs/tracker\.fake before the mint' "$F/out"
+done
+
+# ============================================ R5-F3 a tag object as --head; a placeholder after prepare
+base_fixture r5f3a; F=$T/r5f3a
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'
+g "$F/seed" tag -a -m "vehicle tag" vt vehicle
+mkbundle "$F" refs/tags/vt
+g "$F/seed" rev-parse vt > "$F/head"
+run "$F/out" prepare_raw "$F" --item-id CON-906
+refused "R5-F3a an annotated tag object as --head is refused" 1 'is a tag object, not a commit' "$F/out"
+if [ "$(g "$F/seed" cat-file -t "$(cat "$F/head")")" = tag ]; then ok "R5-F3a control: the --head given is a tag object"; else bad "R5-F3a control: the --head given is a tag object"; fi
+fixture r5f3b; F=$T/r5f3b
+run "$F/prep.out" prepare_raw "$F" --item-id CON-907
+C=$F/work/constitution
+{ printf 'd\n' > "$C/derived.txt" && g "$C" add derived.txt && g "$C" commit -q -m "derived" -m "Roadmap-Item: CON-050"; } 2>/dev/null || true
+run "$F/pub.out" publish "$F"
+refused "R5-F3b a commit after prepare whose trailer is the placeholder CON-050 is refused" 1 "lacks a single real Roadmap-Item trailer \\(found: 'CON-050'" "$F/pub.out"
+if no_remote_moved "$F" "$(BASE_OF "$F")"; then ok "R5-F3b no remote moved"; else bad "R5-F3b no remote moved"; fi
+
+# ============================================ R5-F4 ambient log.showSignature: author and committer lines kept
+base_fixture r5f4; F=$T/r5f4
+GIT_AUTHOR_NAME="Ann Author" GIT_AUTHOR_EMAIL=ann@author.invalid GIT_AUTHOR_DATE="2001-02-03T04:05:06+05:30" \
+  vc "$F" f4.txt 'feat f4\n\nRoadmap-Item: CON-050\n'
+raw=$(g "$F/seed" cat-file commit HEAD)
+signed=$(awk 'h==0 && /^$/ {h=1} h==0 && /^committer / {print; print "gpgsig -----BEGIN PGP SIGNATURE-----"; print " "; print " ZmFrZQ=="; print " -----END PGP SIGNATURE-----"; next} {print}' <<<"$raw" \
+  | g "$F/seed" hash-object -t commit -w --stdin)
+g "$F/seed" update-ref refs/heads/vehicle "$signed"
+mkbundle "$F"
+printf '#!/usr/bin/env bash\necho call >> %q\ncat > /dev/null\nexit 1\n' "$F/gpg.calls" > "$F/fakegpg"; chmod +x "$F/fakegpg"
+gccopy "$F"; gcset "$F" log.showSignature true; gcset "$F" gpg.program "$F/fakegpg"
+run "$F/prep.out" prep_gc "$F" --item-id CON-908
+C=$F/work/constitution; n=$(hash_by_subject "$C" 'feat f4')
+oh=$(g "$F/seed" cat-file commit "$signed" | grep -E '^(author|committer) ' || true)
+nh=$( [ -n "$n" ] && g "$C" cat-file commit "$n" | grep -E '^(author|committer) ' || true)
+c0=$(nlines "$F/gpg.calls")
+GIT_CONFIG_GLOBAL="$F/gc" git -C "$F/seed" log -1 vehicle > /dev/null 2>&1 || true
+c1=$(nlines "$F/gpg.calls")
+if [ "$RC" -eq 0 ] && [ -n "$n" ] && [ "$n" != "$signed" ] && [ -n "$oh" ] && [ "$oh" = "$nh" ] && [ "$c0" -eq 0 ] && [ "$c1" -ge 1 ]; then
+  ok "R5-F4 with log.showSignature=true the author and committer lines are kept byte for byte (control: git log calls gpg)"
+else bad "R5-F4 showSignature (rc=$RC gpg calls by the lander=$c0, by the control=$c1)"; printf '%s\n--\n%s\n' "$oh" "$nh" | sed 's/^/    | /'; fi
+
+# ============================================ R5-F5 ambient push.pushOption reaches no server
+fixture r5f5; F=$T/r5f5
+run "$F/prep.out" prepare_raw "$F" --item-id CON-909
+git --git-dir="$F/remotes/m3w.git" config receive.advertisePushOptions true
+# shellcheck disable=SC2016 # the generated script expands these at its own run time
+printf '#!/usr/bin/env bash\ncat > /dev/null\nprintf "%%s\\n" "${GIT_PUSH_OPTION_COUNT:-0}" >> %q\n' "$F/opts.log" > "$F/remotes/m3w.git/hooks/pre-receive"
+chmod +x "$F/remotes/m3w.git/hooks/pre-receive"
+gccopy "$F"; gcset "$F" push.pushOption SECRETOPT
+run "$F/pub.out" pub_gc "$F"
+git init -q --bare "$F/ctl.git"; git --git-dir="$F/ctl.git" config receive.advertisePushOptions true
+# shellcheck disable=SC2016 # the generated script expands these at its own run time
+printf '#!/usr/bin/env bash\ncat > /dev/null\nprintf "%%s\\n" "${GIT_PUSH_OPTION_COUNT:-0}" >> %q\n' "$F/ctl.log" > "$F/ctl.git/hooks/pre-receive"
+chmod +x "$F/ctl.git/hooks/pre-receive"
+GIT_CONFIG_GLOBAL="$F/gc" git -C "$F/seed" push -q "$F/ctl.git" main:refs/heads/main 2>/dev/null || true
+if [ "$RC" -eq 0 ] && landed_all "$F" && [ "$(cat "$F/opts.log" 2>/dev/null)" = 0 ] && [ "$(cat "$F/ctl.log" 2>/dev/null)" = 1 ]; then
+  ok "R5-F5 push.pushOption in the caller config: 9/9 landed, m3w saw 0 push options (control: a plain push sends 1)"
+else bad "R5-F5 push options (rc=$RC m3w=$(cat "$F/opts.log" 2>/dev/null) control=$(cat "$F/ctl.log" 2>/dev/null))"; fi
+
+# ============================================ R5-F6 init templates (global init.templateDir, GIT_TEMPLATE_DIR)
+fixture r5f6; F=$T/r5f6
+mkdir -p "$F/tpl/info" "$F/outside"; printf 'marker\n' > "$F/outside/marker.txt"
+printf '[core]\n\tworktree = %s\n' "$F/outside" > "$F/tpl/config"
+printf 'docs/\n' > "$F/tpl/info/exclude"
+gccopy "$F"; gcset "$F" init.templateDir "$F/tpl"
+mapfile -t pargs < <(PREP_ARGS "$F")
+run "$F/prep.out" env GIT_TEMPLATE_DIR="$F/tpl" GIT_CONFIG_GLOBAL="$F/gc" PATH="$T/shim:$PATH" "$LANDER" prepare "${pargs[@]}" --mint-cmd "$F/mint.sh"
+C=$F/work/constitution
+wt=$(git config --file "$C/.git/config" --get core.worktree 2>/dev/null || echo unset)
+outl=$(cd "$F/outside" && ls -A)
+GIT_CONFIG_GLOBAL="$F/gc" git init -q "$F/ctlrepo" 2>/dev/null || true
+cwt=$(git config --file "$F/ctlrepo/.git/config" --get core.worktree 2>/dev/null || echo unset)
+if [ "$RC" -eq 0 ] && [ "$wt" = unset ] && [ ! -e "$C/.git/info/exclude" ] && [ "$outl" = marker.txt ] && [ -s "$C/v2.txt" ] && [ "$cwt" = "$F/outside" ]; then
+  ok "R5-F6 the clone gets no template (no core.worktree, no info/exclude, outside dir untouched; control: git init copies it)"
+else bad "R5-F6 template (rc=$RC worktree=$wt outside=[$outl] control=$cwt)"; tail -3 "$F/prep.out" | sed 's/^/    | /'; fi
+
+# ============================================ R5-F7 an option value that looks like an option
+run "$T/r5f7a.out" lv prepare --bundle x --evidence-dir -h
+refused "R5-F7 '--evidence-dir -h' is a missing value, not help" 2 'option --evidence-dir needs a value' "$T/r5f7a.out"
+run "$T/r5f7b.out" lv prepare --key-prefix --help
+refused "R5-F7 '--key-prefix --help' is a missing value, not help" 2 'option --key-prefix needs a value' "$T/r5f7b.out"
+run "$T/r5f7c.out" lv publish --workdir "$T" -h
+if [ "$RC" -eq 0 ] && grep -q 'REMOTES ARE CHECKED AT EVERY USE' "$T/r5f7c.out"; then ok "R5-F7 control: -h in option position prints the help"; else bad "R5-F7 control: help (rc=$RC)"; fi
+
+# ============================================ R5-F9 tracker patterns need a literal first directory
+base_fixture r5f9; F=$T/r5f9
+for p in '*' 'docs' '*/x' './x'; do
+  run "$F/out" env LANDER_TRACKER_PATHS="$p" "$LANDER" verify --workdir "$F/work" --remotes-file "$F/remotes.txt"
+  refused "R5-F9 tracker pattern '$p' refused" 2 'each pattern needs a literal first directory' "$F/out"
+done
+run "$F/out" env LANDER_TRACKER_PATHS="../docs/x" "$LANDER" verify --workdir "$F/work" --remotes-file "$F/remotes.txt"
+refused "R5-F9 tracker pattern '../docs/x' refused" 2 "hold no '\\.\\.'" "$F/out"
+run "$F/out" env LANDER_TRACKER_PATHS="/abs/x" "$LANDER" verify --workdir "$F/work" --remotes-file "$F/remotes.txt"
+refused "R5-F9 tracker pattern '/abs/x' refused" 2 'patterns are relative to the clone root' "$F/out"
+run "$F/out" env LANDER_TRACKER_PATHS="docs/*" "$LANDER" verify --workdir "$F/work" --remotes-file "$F/remotes.txt"
+refused "R5-F9 control: 'docs/*' passes the pattern check (fails later: no clone)" 2 'no clone at' "$F/out"
+
+# ============================================ R5-F10 ids with a leading zero beyond three digits
+fixture r5f10; F=$T/r5f10
+run "$F/out" prepare_raw "$F" --item-id CON-0100
+refused "R5-F10 --item-id CON-0100 refused" 2 'item-id must match' "$F/out"
+mkmint "$F/m.sh" 'CON-0100 minted' CON-0100
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-F10 a mint printing CON-0100 is refused" 1 'mint did not print an id matching' "$F/out"
+
+# ============================================ R5-F11 a CRLF remotes file
+base_fixture r5f11; F=$T/r5f11
+sed 's/$/\r/' "$F/remotes.txt" > "$F/crlf.txt"
+run "$F/out" lv verify --workdir "$F/work" --remotes-file "$F/crlf.txt"
+if [ "$RC" -eq 2 ] && grep -q 'remotes file line 1: holds a control character other than TAB' "$F/out" && ! grep -qF "$F/remotes" "$F/out"; then
+  ok "R5-F11 a CRLF remotes file: exit 2, line 1 named, no URL shown"
+else bad "R5-F11 CRLF remotes file (rc=$RC)"; sed 's/^/    | /' "$F/out"; fi
+
+# ============================================ R5-F13 a control character inside a trailer value
+base_fixture r5f13; F=$T/r5f13
+vc "$F" v1.txt 'feat f13\n\nRoadmap-Item: CON-9\r05\n'; mkbundle "$F"
+run "$F/out" prepare_raw "$F" --item-id CON-913
+refused "R5-F13 a vehicle trailer CON-9<CR>05 is refused at prepare" 1 "lacks a single real Roadmap-Item trailer \\(found: 'CON-9\\?05'" "$F/out"
+fixture r5f13b; F=$T/r5f13b
+run "$F/prep.out" prepare_raw "$F" --item-id CON-914
+C=$F/work/constitution
+printf 'derived\n\nRoadmap-Item: CON-9\r05\n' > "$F/msg13"
+{ printf 'd\n' > "$C/derived.txt" && g "$C" add derived.txt && g "$C" commit -q --cleanup=verbatim -F "$F/msg13"; } 2>/dev/null || true
+run "$F/pub.out" publish "$F"
+refused "R5-F13 a derived commit with the trailer CON-9<CR>05 is refused at publish" 1 "lacks a single real Roadmap-Item trailer \\(found: 'CON-9\\?05'" "$F/pub.out"
+if no_remote_moved "$F" "$(BASE_OF "$F")"; then ok "R5-F13 no remote moved"; else bad "R5-F13 no remote moved"; fi
+
+# ============================================ R5-TC ambient trailer config (core.commentChar, trailer.separators)
+for tc in commentchar separators; do
+  fixture "r5tc$tc"; F=$T/r5tc$tc
+  gccopy "$F"
+  if [ "$tc" = commentchar ]; then gcset "$F" core.commentChar R; else gcset "$F" trailer.separators '='; fi
+  run "$F/prep.out" prep_gc "$F" --mint-cmd "$F/mint.sh"
+  C=$F/work/constitution
+  msgs=$(g "$C" log --format=%B main -3 2>/dev/null || true)
+  ctl=$(printf 'feat\n\nRoadmap-Item: CON-050\n' | GIT_DIR=/nonexistent GIT_CONFIG_GLOBAL="$F/gc" git interpret-trailers --parse 2>/dev/null || true)
+  if [ "$RC" -eq 0 ] && [ "$(rimtrailers "$C" "$(hash_by_subject "$C" 'feat: one')")" = CON-777 ] \
+     && [ "$(rimtrailers "$C" "$(hash_by_subject "$C" 'feat: two')")" = CON-777 ] && ! grep -Eq 'CON-050|CON-PENDING' <<<"$msgs" && [ -z "$ctl" ]; then
+    ok "R5-TC $tc in the caller config does not change the trailer parse (control: interpret-trailers with it finds none)"
+  else bad "R5-TC $tc (rc=$RC control=[$ctl])"; tail -3 "$F/prep.out" | sed 's/^/    | /'; fi
+done
+
+# ============================================ R5-N1 merge config: strategy, merge options, merge driver
+for n1 in twohead mergeoptions; do
+  fixture "r5n1$n1"; F=$T/r5n1$n1
+  gccopy "$F"
+  if [ "$n1" = twohead ]; then gcset "$F" pull.twohead ours; else gcset "$F" branch.main.mergeOptions '-s ours'; fi
+  run "$F/prep.out" prep_gc "$F" --mint-cmd "$F/mint.sh"
+  C=$F/work/constitution
+  git init -q "$F/ctl"; printf 'b\n' > "$F/ctl/b.txt"; g "$F/ctl" add b.txt; g "$F/ctl" commit -q -m b
+  g "$F/ctl" checkout -q -b side; printf 's\n' > "$F/ctl/s.txt"; g "$F/ctl" add s.txt; g "$F/ctl" commit -q -m s
+  g "$F/ctl" checkout -q main; printf 'm\n' > "$F/ctl/m.txt"; g "$F/ctl" add m.txt; g "$F/ctl" commit -q -m m
+  GIT_CONFIG_GLOBAL="$F/gc" git -C "$F/ctl" merge -q --no-edit side >/dev/null 2>&1 || true
+  if [ "$RC" -eq 0 ] && g "$C" cat-file -e main:v1.txt 2>/dev/null && g "$C" cat-file -e main:v2.txt 2>/dev/null && [ ! -e "$F/ctl/s.txt" ]; then
+    ok "R5-N1 $n1 ours in the caller config: the vehicle content is merged (control: a plain git merge drops it)"
+  else bad "R5-N1 $n1 (rc=$RC ctl s.txt $([ -e "$F/ctl/s.txt" ] && echo present || echo absent))"; tail -3 "$F/prep.out" | sed 's/^/    | /'; fi
+done
+# N1c: a merge driver named by an in-tree .gitattributes and defined in the caller config
+for n1c in driver plain; do
+  base_fixture "r5n1c$n1c"; F=$T/r5n1c$n1c
+  g "$F/seed" checkout -q main
+  printf 'l1\nl2\nl3\nl4\nl5\n' > "$F/seed/c.txt"; printf 'c.txt merge=lvdrv\n' > "$F/seed/.gitattributes"
+  g "$F/seed" add c.txt .gitattributes; g "$F/seed" commit -q -m "c.txt" -m "Roadmap-Item: CON-002"
+  for r in $REMOTES; do g "$F/seed" push -q "$F/remotes/$r.git" main:refs/heads/main; done
+  g "$F/seed" checkout -q -B vehicle main
+  printf 'l1\nl2\nl3\nl4\nL5-vehicle\n' > "$F/seed/c.txt"; g "$F/seed" add c.txt
+  g "$F/seed" commit -q -m "feat n1c" -m "Roadmap-Item: CON-050"; mkbundle "$F"
+  git clone -q "$F/remotes/origin.git" "$F/mover"
+  printf 'L1-mover\nl2\nl3\nl4\nl5\n' > "$F/mover/c.txt"; g "$F/mover" add c.txt; g "$F/mover" commit -q -m "mover" -m "Roadmap-Item: CON-003"
+  for r in $REMOTES; do g "$F/mover" push -q "$F/remotes/$r.git" main:refs/heads/main; done
+  gccopy "$F"
+  # shellcheck disable=SC2016 # the generated script expands these at its own run time
+  printf '#!/usr/bin/env bash\necho call >> %q\nprintf "DRIVER\\n" > "$2"\nexit 0\n' "$F/drv.log" > "$F/drv.sh"; chmod +x "$F/drv.sh"
+  [ "$n1c" = driver ] && gcset "$F" merge.lvdrv.driver "$F/drv.sh %O %A %B"
+  run "$F/prep.out" prep_gc "$F" --item-id CON-850
+  C=$F/work/constitution
+  if [ "$n1c" = driver ]; then
+    refused "R5-N1c a merge driver from the caller config is refused by the merge oracle" 1 'the merge result differs from the same merge computed without your global and system git config' "$F/prep.out"
+    if [ -s "$F/drv.log" ] && [ ! -e "$C/.git/land_vehicle.state" ]; then ok "R5-N1c control: the driver really ran; no prepare state"; else bad "R5-N1c control: the driver really ran"; fi
+  else
+    got=$(g "$C" show main:c.txt 2>/dev/null || true)
+    if [ "$RC" -eq 0 ] && [ "$got" = "$(printf 'L1-mover\nl2\nl3\nl4\nL5-vehicle')" ]; then
+      ok "R5-N1c control: without the driver the same merge is clean and holds both edits"
+    else bad "R5-N1c control merge (rc=$RC got=[$got])"; tail -3 "$F/prep.out" | sed 's/^/    | /'; fi
+  fi
+done
+
+# ============================================ R5-N2 a gitlink change hidden by submodule.<name>.ignore=all
+base_fixture r5n2; F=$T/r5n2
+g "$F/seed" checkout -q main
+printf '[submodule "sub"]\n\tpath = sub\n\turl = ./sub\n\tignore = all\n' > "$F/seed/.gitmodules"
+g "$F/seed" add .gitmodules
+s1=$(g "$F/seed" rev-parse main)
+g "$F/seed" update-index --add --cacheinfo "160000,$s1,sub"
+g "$F/seed" commit -q -m "submodule sub" -m "Roadmap-Item: CON-002"
+for r in $REMOTES; do g "$F/seed" push -q "$F/remotes/$r.git" main:refs/heads/main; done
+g "$F/seed" checkout -q -B vehicle main
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+s2=$(g "$F/seed" rev-parse vehicle)
+printf '#!/usr/bin/env bash\nmkdir -p docs; printf "CON-777 minted\\n" >> docs/tracker.fake\ngit update-index --cacheinfo 160000,%s,sub\necho CON-777\n' "$s2" > "$F/m.sh"; chmod +x "$F/m.sh"
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-N2 a mint that restages a gitlink hidden by ignore=all is refused" 1 'mint command changed a path it may not change \(M sub\)' "$F/out"
+git -C "$F/seed" update-index --cacheinfo "160000,$s2,sub"
+ctl=$(git -C "$F/seed" diff-index --cached --raw HEAD 2>/dev/null || true)
+git -C "$F/seed" update-index --cacheinfo "160000,$s1,sub"
+if [ -z "$ctl" ]; then ok "R5-N2 control: without --ignore-submodules=none git hides the gitlink change"; else bad "R5-N2 control: [$ctl]"; fi
+
+# ============================================ R5-N3 ambient core.sharedRepository
+fixture r5n3; F=$T/r5n3
+gccopy "$F"; gcset "$F" core.sharedRepository world
+# the caller's umask is pinned to 022 here, so the case does not depend on the umask of the shell running the test
+old_umask=$(umask); umask 022
+run "$F/prep.out" prep_gc "$F" --item-id CON-911
+C=$F/work/constitution
+m1=$(stat -c %a "$C/.git" 2>/dev/null || echo none); m2=$(stat -c %a "$C/.git/config" 2>/dev/null || echo none)
+GIT_CONFIG_GLOBAL="$F/gc" git init -q "$F/ctlrepo" 2>/dev/null || true
+c1=$(stat -c %a "$F/ctlrepo/.git" 2>/dev/null || echo none); c2=$(stat -c %a "$F/ctlrepo/.git/config" 2>/dev/null || echo none)
+umask "$old_umask"
+if [ "$RC" -eq 0 ] && [ "$m1" = 700 ] && [ "$m2" = 600 ] && [ "$c1" = 2775 ] && [ "$c2" = 664 ]; then
+  ok "R5-N3 core.sharedRepository=world in the caller config: clone .git 700, config 600 (control: git init gives 2775/664)"
+else bad "R5-N3 modes (rc=$RC clone $m1/$m2 control $c1/$c2)"; fi
+# R5-N3b (mutant N3c): the files git writes AFTER init (objects, index, logs, refs) must not get
+# group or other permission bits either; that needs the pin on every git call, not only on init.
+# Control: the same global config, umask 077, init pinned but a commit WITHOUT the pin gives such bits.
+nbad=$(find "$C/.git" -perm /077 2>/dev/null | wc -l); nall=$(find "$C/.git" 2>/dev/null | wc -l)
+( umask 077; GIT_CONFIG_GLOBAL="$F/gc" git -c core.sharedRepository=false init -q -b main "$F/ctl2" >/dev/null 2>&1
+  printf 'x\n' > "$F/ctl2/f"
+  GIT_CONFIG_GLOBAL="$F/gc" git -C "$F/ctl2" add f >/dev/null 2>&1
+  GIT_CONFIG_GLOBAL="$F/gc" git -C "$F/ctl2" -c user.name=ctl -c user.email=ctl@invalid commit -q -m ctl >/dev/null 2>&1 ) || true
+cbad=$(find "$F/ctl2/.git" -perm /077 2>/dev/null | wc -l)
+if [ "$RC" -eq 0 ] && [ "$nbad" -eq 0 ] && [ "$nall" -gt 20 ] && [ "$cbad" -gt 0 ]; then
+  ok "R5-N3b no entry of the $nall under the clone .git has a group or other bit (control: an unpinned commit under the same config gives $cbad such entries)"
+else bad "R5-N3b modes after init (rc=$RC bad=$nbad of $nall control=$cbad)"; find "$C/.git" -perm /077 2>/dev/null | head -5 | sed 's/^/    | /'; fi
+
+# ============================================ R5-RM reviewer mutants of round 4, re-expressed for round 5
+# RM02 ambient core.fsmonitor program never runs
+fixture r5rm02; F=$T/r5rm02
+printf '#!/usr/bin/env bash\necho call >> %q\nexit 1\n' "$F/fsm.log" > "$F/fsm.sh"; chmod +x "$F/fsm.sh"
+gccopy "$F"; gcset "$F" core.fsmonitor "$F/fsm.sh"
+run "$F/prep.out" prep_gc "$F" --mint-cmd "$F/mint.sh"; r1=$RC
+run "$F/pub.out" pub_gc "$F"; r2=$RC
+n0=$(nlines "$F/fsm.log")
+GIT_CONFIG_GLOBAL="$F/gc" git -C "$F/seed" status --porcelain > /dev/null 2>&1 || true
+n1=$(nlines "$F/fsm.log")
+if [ "$r1$r2" = 00 ] && [ "$n0" -eq 0 ] && [ "$n1" -ge 1 ]; then ok "R5-RM02 core.fsmonitor program ran 0 times in prepare+publish (control: git status runs it)"
+else bad "R5-RM02 fsmonitor (rc=$r1/$r2 lander runs=$n0 control runs=$n1)"; fi
+# RM04 a remotes file without a final newline keeps its last line
+fixture r5rm04; F=$T/r5rm04
+printf '%s' "$(cat "$F/remotes.txt")" > "$F/r.tmp"; cp "$F/r.tmp" "$F/remotes.txt"
+run "$F/prep.out" prepare_raw "$F" --item-id CON-916; r1=$RC
+run "$F/pub.out" publish "$F"; r2=$RC
+if [ "$r1$r2" = 00 ] && landed_all "$F" && [ "$(tail -c 1 "$F/remotes.txt" | od -An -c | tr -d ' ')" != '\n' ]; then
+  ok "R5-RM04 a remotes file without a final newline: origin (the last line) is read, 9/9 landed"
+else bad "R5-RM04 no final newline (rc=$r1/$r2)"; tail -3 "$F/prep.out" | sed 's/^/    | /'; fi
+# RM06 a TAB in a mint path is refused
+fixture r5rm06; F=$T/r5rm06
+printf '#!/usr/bin/env bash\nmkdir -p docs; printf "CON-777 minted\\n" > %q; echo CON-777\n' "docs/a"$'\t'"b" > "$F/m.sh"; chmod +x "$F/m.sh"
+mapfile -t pargs < <(PREP_ARGS "$F")
+run "$F/out" lvenv LANDER_TRACKER_PATHS="docs/*" -- prepare "${pargs[@]}" --mint-cmd "$F/m.sh"
+refused "R5-RM06 a mint path holding a TAB is refused" 1 'mint command changed a path it may not change \(A docs/a\?b\)' "$F/out"
+# RM08 a prose line above a one-space separator line is not part of the trailer block
+base_fixture r5rm08; F=$T/r5rm08
+vc "$F" k8 'feat k8\n\nroadmap-item:   CON-050 is mentioned here\n \nRoadmap-Item: CON-050\n'; mkbundle "$F"
+run "$F/prep.out" prepare_raw "$F" --item-id CON-918
+C=$F/work/constitution; h=$(hash_by_subject "$C" 'feat k8'); m=$(rawmsg "$C" "${h:-HEAD}")
+if [ "$RC" -eq 0 ] && grep -qx 'roadmap-item:   CON-050 is mentioned here' <<<"$m" && [ "$(rimtrailers "$C" "$h")" = CON-918 ]; then
+  ok "R5-RM08 the prose line above a whitespace-only separator is kept as written"
+else bad "R5-RM08 prose line (rc=$RC)"; printf '%s\n' "$m" | sed 's/^/    | /'; fi
+# RM10 a child the id-verify command leaves running does not hold the workdir lock
+fixture r5rm10; F=$T/r5rm10
+# shellcheck disable=SC2016 # the generated script expands these at its own run time
+printf '#!/usr/bin/env bash\n( exec sleep 20 ) </dev/null >/dev/null 2>&1 &\necho $! > %q\necho "## $1"\n' "$F/vbg.pid" > "$F/show_bg.sh"; chmod +x "$F/show_bg.sh"
+run "$F/prep.out" prepare "$F" --id-verify-cmd "\"$F/show_bg.sh\" \"\$1\""; r1=$RC
+if flock -n "$F/work/.land_vehicle.lock" true; then free=1; else free=0; fi
+vbg=$(cat "$F/vbg.pid" 2>/dev/null || true)
+live=0; if [[ "$vbg" =~ ^[0-9]+$ ]] && [ "$vbg" -gt 1 ] && [ "$(tr '\0' ' ' < "/proc/$vbg/cmdline" 2>/dev/null)" = "sleep 20 " ]; then live=1; kill "$vbg" 2>/dev/null || true; fi
+if [ "$r1" = 0 ] && [ "$free" = 1 ] && [ "$live" = 1 ]; then ok "R5-RM10 the id-verify child is still running and the lock is free (control: the child was alive)"
+else bad "R5-RM10 verify child (rc=$r1 lock_free=$free child_alive=$live)"; fi
+# RM13 the presence check needs a boundary on the left of the id
+fixture r5rm13; F=$T/r5rm13
+mkmint "$F/m.sh" 'XCON-777 minted' CON-777
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-RM13 a tracker holding only XCON-777 does not contain CON-777" 1 'printed CON-777 but no changed file in the clone contains it' "$F/out"
+# RM15 the newness check has no left boundary (fail closed)
+base_fixture r5rm15; F=$T/r5rm15
+seed_main_file "$F" docs/tracker.fake 'XCON-100 old\n'
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+mkmint "$F/m.sh" 'CON-100 minted' CON-100
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-RM15 main holding XCON-100 makes CON-100 not new (fail closed)" 1 'CON-100 already appears in docs/tracker\.fake before the mint' "$F/out"
+# RM23 a symlink matching a glob tracker pattern is refused by its mode
+fixture r5rm23; F=$T/r5rm23
+printf '#!/usr/bin/env bash\nmkdir -p docs; ln -s CON-777 docs/tx; echo CON-777\n' > "$F/m.sh"; chmod +x "$F/m.sh"
+mapfile -t pargs < <(PREP_ARGS "$F")
+run "$F/out" lvenv LANDER_TRACKER_PATHS="docs/t?" -- prepare "${pargs[@]}" --mint-cmd "$F/m.sh"
+refused "R5-RM23 a symlink docs/tx matching docs/t? is refused" 1 'docs/tx as a non-regular file \(mode 120000\)' "$F/out"
+# RM28 a CR before the newline of the printed id is stripped
+fixture r5rm28; F=$T/r5rm28
+printf '#!/usr/bin/env bash\nmkdir -p docs; printf "CON-559 minted\\n" >> docs/tracker.fake; printf "CON-559\\r\\n"\n' > "$F/m.sh"; chmod +x "$F/m.sh"
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+if [ "$RC" -eq 0 ] && [ "$(rimtrailers "$F/work/constitution" "$(hash_by_subject "$F/work/constitution" 'feat: two')")" = CON-559 ]; then
+  ok "R5-RM28 a mint printing CON-559<CR><LF> mints CON-559"; else bad "R5-RM28 CR in the printed id (rc=$RC)"; sed 's/^/    | /' "$F/out"; fi
+# RM31 receivepack or mirror from the caller's GLOBAL config is refused
+fixture r5rm31; F=$T/r5rm31
+run "$F/prep.out" prepare_raw "$F" --item-id CON-931
+for kv in 'remote.m3w.receivepack git-receive-pack' 'remote.github.mirror true'; do
+  gccopy "$F"; read -r k v <<<"$kv"; gcset "$F" "$k" "$v"
+  run "$F/pub.out" pub_gc "$F"
+  nm=${k#remote.}; nm=${nm%%.*}
+  refused "R5-RM31 global $k is refused" 2 "remote '$nm' has $k set" "$F/pub.out"
+done
+if no_remote_moved "$F" "$(BASE_OF "$F")"; then ok "R5-RM31 no remote moved"; else bad "R5-RM31 no remote moved"; fi
+
+# ============================================ R5-RB (F1) the read-back checks a remote before it reads it
+# origin is pushed last. Its pre-receive re-points origin in the clone to a decoy that already
+# holds the checked sha, then REJECTS the push: a read-back of the decoy would report origin PASS
+fixture r5rb; F=$T/r5rb
+run "$F/prep.out" prepare_raw "$F" --item-id CON-910; succeeded "R5-RB prepare exits 0" "$F/prep.out"
+C=$F/work/constitution; L=$(g "$C" rev-parse main)
+git init -q --bare "$F/decoy.git"; g "$C" push -q "$F/decoy.git" "$L:refs/heads/main"
+cat > "$F/remotes/origin.git/hooks/pre-receive" <<EOF
+#!/usr/bin/env bash
+cat > /dev/null
+$(declare -f hg)
+REALGIT=$REALGIT
+: > "$F/race.done"
+hg -C "$C" config remote.origin.url "$F/decoy.git"
+exit 1
+EOF
+chmod +x "$F/remotes/origin.git/hooks/pre-receive"
+run "$F/pub.out" publish "$F"
+refused "R5-RB origin re-pointed to a decoy at the checked sha during its rejected push: the read-back refuses, naming the remotes pushed" 2 \
+  "remote 'origin' fetch URL in the clone differs from --remotes-file; this run already pushed the checked main to: gitflic github github_helixdevelopment github_vasic_digital gitlab_helixdevelopment1 gitlab_vasic_digital gitverse m3w; no further remote is pushed" "$F/pub.out"
+if [ -e "$F/race.done" ] && [ "$(git --git-dir="$F/decoy.git" rev-parse main)" = "$L" ] && [ "$(rmain "$F" origin)" = "$(BASE_OF "$F")" ] \
+   && [ "$(atcount "$F" "$L")" = 8 ] && ! grep -q 'published to all' "$F/pub.out"; then
+  ok "R5-RB origin kept the base, 8 got the checked sha, no success is claimed (control: the decoy holds the checked sha)"
+else bad "R5-RB decoy read-back (origin $(rmain "$F" origin), at checked $(atcount "$F" "$L"))"; fi
+
+# ============================================ R5-BUNDLE-COPY (A1) the bundle changes while it is copied into the clone
+fixture r5bc; F=$T/r5bc
+mkdir -p "$F/cpshim"
+cat > "$F/cpshim/cp" <<EOF
+#!/usr/bin/env bash
+$(command -v cp) "\$@" || exit \$?
+dst=\${*: -1}
+case "\$dst" in */.git/land_vehicle.bundle) printf 'x' >> "\$dst"; : > "$F/cp.done" ;; esac
+EOF
+chmod +x "$F/cpshim/cp"
+mapfile -t pargs < <(PREP_ARGS "$F")
+run "$F/out" env PATH="$F/cpshim:$T/shim:$PATH" "$LANDER" prepare "${pargs[@]}" --item-id CON-911
+refused "R5-BUNDLE-COPY a bundle that changes while it is copied into the clone is refused" 1 'bundle sha256 mismatch on the copy in the clone' "$F/out"
+if [ -e "$F/cp.done" ] && [ "$(sha256sum "$F/vehicle.bundle" | awk '{print $1}')" = "$(cat "$F/sha")" ] && [ ! -e "$F/work/constitution/.git/land_vehicle.state" ]; then
+  ok "R5-BUNDLE-COPY control: the copy really changed, the original still matches its sha256; no prepare state"
+else bad "R5-BUNDLE-COPY control"; fi
+
+# ============================================ R5-KEEP (E2) a commit that already carries one real trailer is kept byte for byte
+base_fixture r5keep; F=$T/r5keep
+vc "$F" k1.txt 'feat keep\n\nRoadmap-Item: CON-912\n'
+raw=$(g "$F/seed" cat-file commit HEAD)
+signed=$(awk 'h==0 && /^$/ {h=1} h==0 && /^committer / {print; print "gpgsig -----BEGIN PGP SIGNATURE-----"; print " "; print " ZmFrZQ=="; print " -----END PGP SIGNATURE-----"; next} {print}' <<<"$raw" \
+  | g "$F/seed" hash-object -t commit -w --stdin)
+g "$F/seed" update-ref refs/heads/vehicle "$signed"
+vc "$F" k2.txt 'feat keep two\n\nRoadmap-Item: CON-050\n'
+mkbundle "$F"
+run "$F/prep.out" prepare_raw "$F" --item-id CON-912
+C=$F/work/constitution
+if [ "$RC" -eq 0 ] && g "$C" merge-base --is-ancestor "$signed" main 2>/dev/null \
+   && [ "$(g "$C" cat-file commit "$signed" | grep -c '^gpgsig ')" = 1 ] && ! grep -q "^$signed"$'\t' "$F/ev/tree_equality.tsv" \
+   && [ "$(rimtrailers "$C" "$(hash_by_subject "$C" 'feat keep two')")" = CON-912 ]; then
+  ok "R5-KEEP a signed commit with one real trailer is kept with its signature (same sha); the next commit gets the id"
+else bad "R5-KEEP (rc=$RC)"; sed 's/^/    | /' "$F/prep.out"; fi
+
+# ============================================ R5-F1g (A2) a global url.<x>.insteadOf at prepare
+# origin is fetched last. The caller's global config rewrites its URL to a decoy that holds a
+# commit the real origin does not have. assert_remote runs before each fetch, so prepare refuses
+# before anything is fetched from the decoy.
+fixture r5f1g; F=$T/r5f1g
+git clone -q --bare "$F/remotes/origin.git" "$F/decoy.git"
+git clone -q "$F/decoy.git" "$F/dwork"
+printf 'decoy\n' > "$F/dwork/decoy.txt"; g "$F/dwork" add decoy.txt
+g "$F/dwork" commit -q -m "decoy only" -m "Roadmap-Item: CON-914"; g "$F/dwork" push -q origin main
+DS=$(git --git-dir="$F/decoy.git" rev-parse main)
+gccopy "$F"; gcset "$F" "url.$F/decoy.git.insteadOf" "$F/remotes/origin.git"
+ctl=$(GIT_CONFIG_GLOBAL="$F/gc" git ls-remote "$F/remotes/origin.git" refs/heads/main | awk '{print $1}')
+run "$F/prep.out" prep_gc "$F" --item-id CON-913
+refused "R5-F1g a global insteadOf that rewrites origin is refused before origin is fetched" 2 \
+  "remote 'origin' fetch URL in the clone differs from --remotes-file" "$F/prep.out"
+C=$F/work/constitution
+if [ "$ctl" = "$DS" ] && ! g "$C" cat-file -e "$DS" 2>/dev/null && [ ! -e "$C/.git/land_vehicle.state" ]; then
+  ok "R5-F1g nothing was fetched from the decoy; no prepare state (control: with that config git ls-remote reaches the decoy)"
+else bad "R5-F1g decoy (control $ctl, decoy $DS)"; fi
+
+# ============================================ R5-F2zh / R5-F2n (B5, B6) newness: leading zeros in the history, a NUL byte in a tracker
+zh_fixture() { # zh_fixture <name>: a commit on main whose trailer is CON-0777 (published), then the vehicle
+  local F=$T/$1 r
+  base_fixture "$1"
+  g "$F/seed" checkout -q main
+  printf 'legacy\n' > "$F/seed/legacy.txt"; g "$F/seed" add legacy.txt
+  g "$F/seed" commit -q -m "legacy" -m "Roadmap-Item: CON-0777"
+  for r in $REMOTES; do g "$F/seed" push -q "$F/remotes/$r.git" main:refs/heads/main; done
+  g "$F/seed" checkout -q -B vehicle main
+  vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+}
+zh_fixture r5f2zh; F=$T/r5f2zh
+mkmint "$F/m.sh" 'CON-777 minted' CON-777
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-F2zh a commit on main with the trailer CON-0777 makes CON-777 not new" 1 \
+  'CON-777 already appears in a Roadmap-Item line of a commit reachable from main or the vehicle' "$F/out"
+zh_fixture r5f2zhc; F=$T/r5f2zhc
+mkmint "$F/m.sh" 'CON-778 minted' CON-778
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+succeeded "R5-F2zh control: with the same history, CON-778 is new and accepted" "$F/out"
+base_fixture r5f2n; F=$T/r5f2n
+seed_main_file "$F" docs/tracker.fake 'CON-7775\0row\n'
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+mkmint "$F/m.sh" 'CON-777 minted' CON-777
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-F2n a tracker with a NUL byte holding CON-7775 makes CON-777 not new (fail closed)" 1 \
+  'CON-777 already appears in docs/tracker\.fake before the mint' "$F/out"
+base_fixture r5f2nc; F=$T/r5f2nc
+seed_main_file "$F" docs/tracker.fake 'CON-7775 row\n'
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-050\n'; mkbundle "$F"
+mkmint "$F/m.sh" 'CON-777 minted' CON-777
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+succeeded "R5-F2n control: the same text without a NUL byte does not block CON-777" "$F/out"
+
+# ============================================ R5-F3c / R5-F3d (B2) a placeholder as the id is refused at once
+fixture r5f3c; F=$T/r5f3c
+run "$F/out" prepare_raw "$F" --item-id CON-050
+refused "R5-F3c --item-id CON-050 (the placeholder) is refused before a clone is made" 2 '--item-id CON-050 matches --placeholder-re' "$F/out"
+if [ ! -e "$F/work/constitution" ]; then ok "R5-F3c no clone was made"; else bad "R5-F3c no clone was made"; fi
+base_fixture r5f3d; F=$T/r5f3d
+vc "$F" v1.txt 'feat: one\n\nRoadmap-Item: CON-PENDING-x\n'; mkbundle "$F"
+mkmint "$F/m.sh" 'CON-050 minted' CON-050
+run "$F/out" prepare_raw "$F" --mint-cmd "$F/m.sh"
+refused "R5-F3d a mint printing the placeholder CON-050 is refused before the mint commit" 1 'mint printed CON-050, which matches --placeholder-re' "$F/out"
+C=$F/work/constitution
+if [ "$(g "$C" rev-parse main 2>/dev/null || echo none)" = "$(BASE_OF "$F")" ] && [ ! -e "$C/.git/land_vehicle.state" ]; then
+  ok "R5-F3d no mint commit was made in the clone (main is the base); no prepare state"
+else bad "R5-F3d clone main $(g "$C" rev-parse main 2>/dev/null || echo none)"; fi
+
+# SH2-R5 every push the round-5 cases made was plain; the log is then set aside, so the
+# round-4 cases below (T1 SH1 counts exactly 9 pushes) start from an empty push log
+if push_log_clean; then ok "SH2-R5 all $(wc -l < "$PUSHLOG") pushes of the round-5 cases are plain <sha>:refs/heads/main pushes"
+else bad "SH2-R5 pushes of the round-5 cases"; fi
+if [ "${LANDER_TEST_R5_ONLY:-0}" = 1 ]; then
+  printf '\nRESULT pass=%d fail=%d (round-5 cases only)\n' "$PASS" "$FAIL"
+  if [ "$FAIL" -eq 0 ]; then exit 0; else exit 1; fi
+fi
+cp "$PUSHLOG" "$T/push_r5.log"; : > "$PUSHLOG"
+

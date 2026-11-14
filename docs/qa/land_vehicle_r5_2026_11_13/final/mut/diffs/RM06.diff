@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM06)
+@@ -676,7 +676,7 @@
+   for ((k = 0; k + 1 < ${#R[@]}; k += 2)); do
+     meta=${R[k]}; f=${R[k+1]}; shown=${f//[[:cntrl:]]/?}
+     read -r _sm dmode _ss dsha st <<<"${meta#:}"
+-    { [[ "$st" == [AM] ]] && ! has_ctrl "$f" && tracker_path "$f"; } \
++    { [[ "$st" == [AM] ]] && tracker_path "$f"; } \
+       || die 1 "the mint command changed a path it may not change ($st $shown): only added or modified files matching LANDER_TRACKER_PATHS (${TRACKER_PATS[*]}) are allowed; see $EVIDENCE_DIR/mint_changes.tsv; nothing was landed"
+     [[ "$dmode" == 100644 || "$dmode" == 100755 ]] || die 1 "the mint command left $shown as a non-regular file (mode $dmode); nothing was landed"
+     g cat-file blob "$dsha" > "$blob" || die 1 "cannot read the recorded blob of $shown"

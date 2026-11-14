@@ -6,6 +6,11 @@
 # accepted 2026-11-06T10:47:16Z accepted_by=i@mvasic.ru set=840c5cf39886fa14 rows=53 chain=d7b4fa683adde4c0
 # accepted 2026-11-10T23:30:46Z accepted_by=i@mvasic.ru set=877c00c222394fd9 rows=55 chain=c7b6cb5288e723f0
 # accepted 2026-11-11T18:17:06Z accepted_by=i@mvasic.ru set=05ea64783939c219 rows=58 chain=d4189f35bbacd529
+# accepted 2026-11-14T21:40:42Z accepted_by=i@mvasic.ru set=53f23d1b54c5b753 rows=62 chain=73de39326ae2047e
+docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	63c38a93d87363bb
+docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	0837ba36a0a34a88
+docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	b2f4fc376f1c395c
+docs/qa/land_vehicle_r5_2026_11_13/tools/mk_mutant_table.py	8749d52c26700523
 scripts/amendment_log/tests/independent_lossless_rebuild.py	1ff98c08ece1bf81
 scripts/anchors/tests/_paths.py	c1eceac5bf69b0ff
 scripts/catalog-engine/lib/parse_mutation.py	e82605554384010c

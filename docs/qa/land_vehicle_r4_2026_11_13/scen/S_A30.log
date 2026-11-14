@@ -1,0 +1,20 @@
+== S_A30 exported GIT_INDEX_FILE pointing at a scratch 'victim' repo index (LIVE git; scratch victim)
+victim before: index_sha=ef8bfc8875a553f8 status=[A  staged.txt|] ls-files=[committed.txt,staged.txt,]
+prepare rc=0; output tail:
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-930"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/repo/scripts/release/land_vehicle.sh publish --workdir $T/a30/work --remotes-file $T/a30/remotes.txt --evidence-dir $T/a30/ev
+victim after: index_sha=ef8bfc8875a553f8 status=[A  staged.txt|] ls-files=[committed.txt,staged.txt,]
+clone own index present: yes
+victim index entries whose blob is absent from the victim object store: 0
+victim write-tree after: OK
+clone landed main tree: [a.txt,v1.txt,v2.txt,]
+publish with GIT_INDEX_FILE still exported:
+  publish rc=0 :: land_vehicle: gitflic: pushed -> PASS|land_vehicle: github: pushed -> PASS|land_vehicle: github_helixdevelopment: pushed -> PASS|
+  remote main == clone main: 9/9
+== scenarios done

@@ -1,0 +1,14 @@
+driver: one run at a time per slot, at most 2 slots; each run: systemd-run --user --scope -q -p TasksMax=2000 nice -n 10 bash <snap>/tests/release/test_land_vehicle.sh [<lander>]
+snapshot s3 (frozen copy, the suite reads its file incrementally):
+a12f02ab2bbcc17eb8fb0f389c11b527a0662c25ec04b929c7395f6a3fa391f7  <W>/snap/s3/scripts/release/land_vehicle.sh
+24fdb4040e0e9023280ae33698b22f4a0dfe32e90d29cf75f146851c5ba54771  <W>/snap/s3/tests/release/test_land_vehicle.sh
+green1 start Sat Nov 14 01:20:45 AM CET 2026 end 2026-11-14 01:42:44 CET rc=0 RESULT pass=291 fail=0
+green2 start Sat Nov 14 01:54:17 AM CET 2026 end 2026-11-14 02:12:02 CET rc=0 RESULT pass=291 fail=0
+green3 start Sat Nov 14 02:12:25 AM CET 2026 end 2026-11-14 02:31:52 CET rc=0 RESULT pass=291 fail=0
+red start Sat Nov 14 02:32:11 AM CET 2026 end 2026-11-14 02:45:52 CET rc=1 RESULT pass=222 fail=69
+canonical sha256 (PASS/FAIL/RESULT lines, 40-64 hex -> <sha>, lvtest paths -> <T>):
+green_run1 e51489fd47f365015be0fec76456d915ce6ca1105c45857e98176291914b17fa
+green_run2 e51489fd47f365015be0fec76456d915ce6ca1105c45857e98176291914b17fa
+green_run3 e51489fd47f365015be0fec76456d915ce6ca1105c45857e98176291914b17fa
+red lander: <W>/red/land_vehicle.sh = c0a3a8bc:scripts/release/land_vehicle.sh sha256 e3c86345401507cf093d56ad311faf78a29ffe9bd7438cd21672ed07247eddc6
+host: 16 cores; load average during the runs 85-90 (uptime samples 01:29, 01:42); timing is not asserted

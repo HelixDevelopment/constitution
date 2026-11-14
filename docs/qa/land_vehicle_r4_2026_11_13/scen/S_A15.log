@@ -1,0 +1,6 @@
+== S_A15 odd remote names (LIVE git)
+  name 'a/b': prepare rc=2 :: land_vehicle: ERROR: LANDER_REMOTES holds a bad remote name (each must match ^[A-Za-z0-9][A-Za-z0-9._-]*$)
+  name 'a.b-1': prepare rc=0 ::   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7
+    publish rc=0
+  name '-x': prepare rc=2 :: land_vehicle: ERROR: LANDER_REMOTES holds a bad remote name (each must match ^[A-Za-z0-9][A-Za-z0-9._-]*$)
+== scenarios done

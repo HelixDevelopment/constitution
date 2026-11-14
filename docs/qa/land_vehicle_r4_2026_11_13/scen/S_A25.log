@@ -1,0 +1,3 @@
+== S_A25 diverged remote mains (LIVE git)
+prepare rc=3 :: ERROR: remote mains have diverged (31837a1309d48739327405fa35af84d67737391a vs 240c89ad5d790510d08ff8b6519ac27b0a831b1d): integrate them first, by mer; pushes: 0; gitflic/origin unchanged: yes
+== scenarios done

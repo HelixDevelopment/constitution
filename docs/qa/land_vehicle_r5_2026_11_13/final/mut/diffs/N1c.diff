@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (N1c)
+@@ -475,7 +475,7 @@
+   -c push.pushOption= -c push.gpgSign=false -c push.followTags=false
+   -c push.recurseSubmodules=no -c push.default=nothing
+   -c protocol.ext.allow=never
+-  -c pull.twohead=ort -c pull.octopus=octopus -c branch.main.mergeOptions= -c merge.renormalize=false
++  -c pull.twohead=ort -c pull.octopus=octopus -c merge.renormalize=false
+ )
+ g() {
+   git --no-pager --no-replace-objects --literal-pathspecs -C "$CLONE" \

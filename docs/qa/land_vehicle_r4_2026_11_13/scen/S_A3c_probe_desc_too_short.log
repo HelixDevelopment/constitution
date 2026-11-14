@@ -1,0 +1,6 @@
+== S_A3c documented sed wrapper, real engine binary on a DB copy
+documented wrapper: rc=1 :: land_vehicle: ERROR: mint did not print an id matching ^CON-[0-9]+$ as its last line
+engine failure under the wrapper: rc=1 :: land_vehicle: ERROR: mint did not print an id matching ^CON-[0-9]+$ as its last line
+== scenarios done
+rc=0
+source db sha256 before 27f579eea5a0c2d12ba46bf9bd051b199865a99aa7c51c0a20a1c28e26a6e687 after 27f579eea5a0c2d12ba46bf9bd051b199865a99aa7c51c0a20a1c28e26a6e687

@@ -11,9 +11,9 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | Bug | Ready for testing | 3 |
 | Task | In progress | 2 |
 | Task | Operator-blocked | 2 |
-| Task | Queued | 146 |
+| Task | Queued | 147 |
 | Task | Ready for testing | 26 |
-| **TOTAL** | | **253** |
+| **TOTAL** | | **254** |
 
 ## Items
 
@@ -272,3 +272,4 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-296 | Task | Queued | Low | Review r8 N2 (test-instrumentation): the in-suite oracle for marker_ignorable is independent code but the same formula (isspace, U+FFFD, Cf/Zs through the same unicodedata, the same table); only its DEFAULT_IGNORABLE table is independently anchored by perl. It pins the function against regression but would not catch a spec error shared by both. Optional acceptance: when perl is installed, compare marker_ignorable with the perl-derived set (expected delta U+001C-001F), RED first on a mutant that a shared-formula error would pass.  Source: CON-030 review r8 (docs/qa/con030_review/review_con030_r8.md, copied into the tree at landing), verdict GO-pending-table, minor-class nit registered as a follow-up per section 11.4.276(G.2). Parent: CON-030. | UNSET | UNSET |
 | CON-297 | Task | Queued | Low | Review r8 N3 (test-instrumentation): the NEG control compares the oracle with the oracle minus one range, so it shows the oracle can see a range but not that the BAD comparison path can; mutant RV7c (row 195 of the mutation table) covers that path, so the value is low. Acceptance: either drive the comparison path with a known-bad function in the NEG control, or record the reasoned equivalence with RV7c.  Source: CON-030 review r8 (docs/qa/con030_review/review_con030_r8.md, copied into the tree at landing), verdict GO-pending-table, minor-class nit registered as a follow-up per section 11.4.276(G.2). Parent: CON-030. | UNSET | UNSET |
 | CON-298 | Task | Queued | Low | Review r8 N4 (test-instrumentation): reviewer mutants M8c (category in (Cf,Zs) widened to category[0] == 'C') and M8b survive the round-7 self-test and are killed only by section 2e of the round-8 self-test (reviewer rows in the review sandbox rev_con030_r8/mut/rows.tsv). Acceptance: add M8c and M8b to tests/test_run_full_suite_mutations.sh verbatim, each observed killed on the current self-test.  Source: CON-030 review r8 (docs/qa/con030_review/review_con030_r8.md, copied into the tree at landing), verdict GO-pending-table, minor-class nit registered as a follow-up per section 11.4.276(G.2). Parent: CON-030. | UNSET | UNSET |
+| CON-299 | Task | Queued | medium | Lander script scripts/release/land_vehicle.sh with its test tests/release/test_land_vehicle.sh and docs/qa/land_vehicle_r4, r5, r6 evidence; rounds 4 to 6 squashed into one commit on main; independent review round 7 verdict GO-with-follow-ups (review sha256 38f9ace693a011984c6ecb0eb9e47a6ae858e0896fb79da893cb5bc275048405); evidence class gate logic only; PROVISIONAL per 11.4.290. | UNSET | UNSET |

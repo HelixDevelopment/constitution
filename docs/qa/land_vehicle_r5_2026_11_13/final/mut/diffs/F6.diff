@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F6)
+@@ -902,7 +902,7 @@
+ 
+   # (2) fresh clone, empty template, the bundle copied into it
+   git --no-pager -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.sharedRepository=false \
+-    init -q -b main --template= --object-format="$fmt" --ref-format=files "$CLONE" 9>&- \
++    init -q -b main --object-format="$fmt" --ref-format=files "$CLONE" 9>&- \
+     || die 1 "git init of the clone failed"
+   : > "$ERRLOG"
+   local bcopy=$CLONE/.git/land_vehicle.bundle

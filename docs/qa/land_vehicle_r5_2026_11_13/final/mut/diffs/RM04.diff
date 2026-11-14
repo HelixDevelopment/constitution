@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM04)
+@@ -415,7 +415,7 @@
+   local line name url rest want n lineno=0
+   [ "$(tr -d '\000' < "$REMOTES_FILE" | wc -c)" = "$(wc -c < "$REMOTES_FILE")" ] \
+     || die 2 "remotes file holds a NUL byte (the file is not shown, it may hold a credential)"
+-  while IFS= read -r line || [ -n "$line" ]; do
++  while IFS= read -r line; do
+     lineno=$((lineno + 1))
+     if [[ "$line" == *[$'\001'-$'\010'$'\013'-$'\037'$'\177']* ]]; then
+       die 2 "remotes file line $lineno: holds a control character other than TAB (a CR from a CRLF file?); the line is not shown, it may hold a credential"

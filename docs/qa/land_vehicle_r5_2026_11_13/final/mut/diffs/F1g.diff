@@ -1,0 +1,10 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F1g)
+@@ -916,7 +916,6 @@
+   done
+   declare -A TIP=()
+   for i in "${!R_NAMES[@]}"; do
+-    assert_remote "$i"
+     g fetch -q --no-tags --refmap= "${R_NAMES[$i]}" "refs/heads/main:refs/remotes/${R_NAMES[$i]}/main" 2>>"$ERRLOG" \
+       || die 1 "fetch of main failed on remote ${R_NAMES[$i]} (unreachable, or it has no main branch: an empty mirror must be seeded first; git's message is in $ERRLOG)"
+     TIP[${R_NAMES[$i]}]=$(g rev-parse --verify "refs/remotes/${R_NAMES[$i]}/main^{commit}")

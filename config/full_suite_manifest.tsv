@@ -14,6 +14,10 @@
 #           test-named file is excluded only with `override: reason: <category>: <why>`. The excluded
 #           set is pinned by config/full_suite_excluded.lock (accept a change with
 #           --verify-manifest --accept-excluded-change <reviewer>).
+docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven mutant generator (usage: mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; writes mutated copies, a standalone run without arguments fails; not a test
+docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven reviewer mutant generator (usage: reviewer_mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; a standalone run without arguments fails; not a test
+docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	py	excluded	-	-	-	override: reason: tool: one-shot editor of tests/release/test_land_vehicle.sh (usage: edit_tests_r5.py <test file> <helpers file> <r5 section file>), kept as round-5 evidence; running it would edit a test file; not a test
+docs/qa/land_vehicle_r5_2026_11_13/tools/mk_mutant_table.py	py	excluded	-	-	-	override: reason: tool: argv-driven table builder (usage: mk_mutant_table.py <index.tsv> <notes.tsv> <out.md> <results.tsv>...) of the round-5 mutant evidence; a standalone run without arguments fails; not a test
 docs/research/quality/solutions/poc/sol01_status_custody/test_sol01.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol02_verdict_coverage/test_sol02.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol03_needled_measurement/test_sol03.sh	sh	entry	default	bash	-	auto
@@ -704,6 +708,9 @@ scripts/scheduled-work-engine	go	entry	default	go-test	-	auto: Go module with *_
 scripts/scheduled-work-engine/test/live_smoke.sh	sh	entry	heavy	bash	-	auto
 scripts/scheduled-work-engine/test/meta_mutation.sh	sh	entry	heavy	bash	-	auto
 scripts/skill_activation/test_skill_activation.sh	sh	entry	default	bash	-	auto
+scripts/sonarqube/tests/test_registry_login.sh	sh	entry	default	bash	-	auto
+scripts/sonarqube/tests/test_registry_login_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/sonarqube/tests/test_registry_login_wiring.sh	sh	entry	default	bash	-	auto
 scripts/test_portable_skill_symlink.sh	sh	entry	default	bash	-	auto
 scripts/validation/enumerate_decision_mutants.py	py	entry	heavy	python3	-	override: the decision-mutant census (CON-158 / CON-147 round 6): runs every single-edit mutant of meta_test_verification.sh, host_guard.sh and host_report.py against its regression test; exit 0 only when each is KILLED or listed EQUIVALENT with a proof; takes hours, so heavy
 scripts/validation/meta_test_verification.sh	sh	entry	heavy	bash	-	auto
@@ -899,6 +906,7 @@ tests/prompts/test_setup_prompt_round5_stops_mutants.sh	sh	member	heavy	-	tests/
 tests/prompts/test_setup_prompt_round7.sh	sh	member	default	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/prompts/test_setup_prompt_round7_mutants.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
+tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto

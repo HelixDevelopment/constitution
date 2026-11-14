@@ -1,0 +1,30 @@
+driver: one run at a time per slot, at most 2 slots; each run: systemd-run --user --scope -q -p TasksMax=2000 nice -n 10 bash <snap>/tests/release/test_land_vehicle.sh [<lander>]
+snapshot s4 (frozen copy, the suite reads its file incrementally; equal to the committed files):
+a12f02ab2bbcc17eb8fb0f389c11b527a0662c25ec04b929c7395f6a3fa391f7  <W>/snap/s4/scripts/release/land_vehicle.sh
+80c16d24e26fc9c69ff24db5d0daa1a752ab17cba51be2bb2eb99678362265ac  <W>/snap/s4/tests/release/test_land_vehicle.sh
+  scripts/release/land_vehicle.sh: snapshot == work tree
+  tests/release/test_land_vehicle.sh: snapshot == work tree
+green1 start Sat Nov 14 05:17:33 AM CET 2026 log-last-written 2026-11-14 05:39:47 CET RESULT pass=292 fail=0
+green2 start Sat Nov 14 05:40:35 AM CET 2026 log-last-written 2026-11-14 06:00:34 CET RESULT pass=292 fail=0
+green3 start Sat Nov 14 06:01:36 AM CET 2026 log-last-written 2026-11-14 06:20:28 CET RESULT pass=292 fail=0
+red start Sat Nov 14 06:21:04 AM CET 2026 log-last-written 2026-11-14 06:33:57 CET rc=1 RESULT pass=222 fail=70
+canonical sha256 (PASS/FAIL/RESULT lines, 40-64 hex -> <sha>, lvtest paths -> <T>):
+green_run1 79e8e3d63a23a4a7658ce550efe0b7f5ac2a016f33fbf9a26e8728b40dff3f1b
+green_run2 79e8e3d63a23a4a7658ce550efe0b7f5ac2a016f33fbf9a26e8728b40dff3f1b
+green_run3 79e8e3d63a23a4a7658ce550efe0b7f5ac2a016f33fbf9a26e8728b40dff3f1b
+exit status and end time of each green run, as printed by the shell that ran it (rc=$? after the run, then date):
+green1 rc=0 end Sat Nov 14 05:40:06 AM CET 2026
+green2 rc=0 end Sat Nov 14 06:00:44 AM CET 2026
+green3 rc=0 end Sat Nov 14 06:20:36 AM CET 2026
+survivors, round-5 section of the s4 test (LANDER_TEST_R5_ONLY=1), see mut/survivors_s4_r5section.tsv:
+  name	rc	result
+  F1h	0	RESULT pass=80 fail=0 (round-5 cases only)
+  F4	0	RESULT pass=80 fail=0 (round-5 cases only)
+  F13	0	RESULT pass=80 fail=0 (round-5 cases only)
+  N1a	0	RESULT pass=80 fail=0 (round-5 cases only)
+  N1b	0	RESULT pass=80 fail=0 (round-5 cases only)
+  X4	0	RESULT pass=80 fail=0 (round-5 cases only)
+red lander: <W>/red/land_vehicle.sh = c0a3a8bc:scripts/release/land_vehicle.sh sha256 e3c86345401507cf093d56ad311faf78a29ffe9bd7438cd21672ed07247eddc6
+red: FAIL lines 70, of them R5-* 51
+host: 16 cores; load average 85-90 during the s3 runs (uptime samples 01:29, 01:42); 35-37 at 06:12 and 06:18 (during s4 green3 and the survivor runs); not sampled during s4 green1, green2 and the red run; timing is not asserted
+TasksMax=2000 per scope; pids.events of the scopes were NOT captured this round (UNCONFIRMED whether the limit was ever reached; no run failed with a fork error)

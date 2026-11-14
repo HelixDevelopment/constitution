@@ -1,0 +1,7 @@
+== S_A24 vehicle with merge commits (LIVE git)
+prepare rc=0 :: land_vehicle: step 4: vehicle head a8eec1a1584eb388fdb6837b010d71ff4adbb34d -> ae6f6d14d7ec8718f271ed4bce7f920ac2beb5f3 (tree equality: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-
+tree_equality rows: 4, FAIL rows: 0
+landed commits: 4, with != 1 trailer: 0; merge commits on landed range: 1
+landed head tree == vehicle head tree: yes; CON-133 kept: 1
+publish rc=0; at main 9/9
+== scenarios done

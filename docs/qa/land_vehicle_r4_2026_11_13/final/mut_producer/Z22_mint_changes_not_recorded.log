@@ -1,0 +1,6 @@
+PASS T1 prepare exits 0
+PASS T1 placeholder trailers replaced with minted id
+PASS T1 engine mint output committed
+FAIL V8c T1 mint changes recorded in evidence
+
+RESULT pass=3 fail=1 (failfast)

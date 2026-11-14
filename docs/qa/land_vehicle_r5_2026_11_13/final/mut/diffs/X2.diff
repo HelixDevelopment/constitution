@@ -1,0 +1,10 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (X2)
+@@ -301,7 +301,6 @@
+     esac
+   done
+ }
+-lander_scrub_env
+ if [ -n "${LC_ALL+set}" ]; then CALLER_LC_ALL_SET=1; CALLER_LC_ALL=$LC_ALL; else CALLER_LC_ALL_SET=0; CALLER_LC_ALL=; fi
+ export LC_ALL=C
+ lander_exit() {

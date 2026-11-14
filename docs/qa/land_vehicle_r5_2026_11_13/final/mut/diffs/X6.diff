@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (X6)
+@@ -484,7 +484,7 @@
+ # gx: git's trailer parser with no repository and no config at all (no trailer.*,
+ # no core.commentChar, no alias); reads a message on stdin
+ gx() {
+-  env GIT_DIR=/nonexistent GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
++  env GIT_DIR=/nonexistent \
+     git interpret-trailers --no-divider --parse 9>&-
+ }
+ 

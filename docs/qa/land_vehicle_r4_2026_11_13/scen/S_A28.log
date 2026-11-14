@@ -1,0 +1,21 @@
+== S_A28 exported GIT_DIR pointing at a scratch 'victim' repo (LIVE git; victim is a scratch repo, never the live checkout)
+victim before: main=e3c40ec5c32cb2f3014eca5a5d188d2b6f09b61b remotes=0 config_sha=cfe7ba1238c9a78b
+prepare rc=0 :: land_vehicle: step 5: main fast-forwarded to 5c63fc4c361a7c92554d3c37a14ad342dc2b8cb1
+full prepare output (last 12 lines, paths shortened):
+    | 
+    | land_vehicle: prepare done. main = 5c63fc4c361a7c92554d3c37a14ad342dc2b8cb1, item CON-928.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd $T/a28/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-928"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/repo/scripts/release/land_vehicle.sh publish --workdir $T/a28/work --remotes-file $T/a28/remotes.txt --evidence-dir $T/a28/ev
+victim objects/refs: branches=*main, objects=count: 3 in-pack: 0  FETCH_HEAD=absent land_stderr=absent worktree_files=.git,precious.txt,
+victim after: main=e3c40ec5c32cb2f3014eca5a5d188d2b6f09b61b (moved: no) remotes=0 config_sha=cfe7ba1238c9a78b core.worktree=unset
+victim local-only commit still reachable from a branch: 1 branch(es); refs/land/* in victim: 0; clone dir has .git: yes
+victim reflog of main (most recent 3): commit (initial): local only work|
+== scenarios done

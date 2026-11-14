@@ -1,0 +1,110 @@
+PASS T1 prepare exits 0
+PASS T1 placeholder trailers replaced with minted id
+PASS T1 engine mint output committed
+PASS V8c T1 mint changes recorded in evidence (name-status equals the mint commit)
+PASS T2 tree-equality evidence: 2 rows PASS
+PASS T2 independent tree re-check
+PASS T1 derived-file steps printed
+PASS T1 mint path integrates by merge (documented)
+PASS T1 publish exits 0
+PASS T1 all 9 remotes at landed main, 9 PASS rows
+PASS SH1 T1 publish made 9 plain pushes (argv recorded by the shim)
+PASS T3 rejecting remote reported FAIL, 8 PASS (rc=1)
+PASS T3 verify read-back flags the lagging remote (rc=1)
+PASS S8 re-run of publish recovers (8 up-to-date + 1 pushed)
+PASS T4 non-ff remote refused at preflight (rc=1)
+PASS T4 no remote moved (8 not-pushed-preflight, 1 refused-non-ff)
+PASS T5 no force flag in lander
+PASS T5 guard catches: git push --force "$r" main
+PASS T5 guard catches: git push -f "$r" main
+PASS T5 guard catches: git push "$r" +main:refs/heads/main
+PASS T5 guard catches: git push --force-with-lease "$r" main
+PASS T6 wrong bundle sha256 refused (rc=1)
+PASS T7 head not a ref tip in the bundle refused (rc=1)
+PASS T8 moved main integrated by merge, old main is ancestor
+PASS T9 diverged remote mains refused (rc=3)
+PASS T10 mint outside a 'constitution' dir refused (rc=2)
+PASS T10 refused before any clone was created
+PASS T11 dirty tree refused (rc=2)
+PASS T11 no remote moved
+PASS S1 merge-commit vehicle: prepare exits 0
+PASS S1 merges keep 2 parents, no placeholder, no old sha, 4 trees equal, one real trailer each
+PASS S1 publish exits 0
+PASS S2-S5 prepare exits 0
+PASS S2 <TO-BE-MINTED...> placeholder replaced
+PASS S3 CRLF trailer replaced, CR stripped
+PASS S4 body prose line kept verbatim, real trailer appended
+PASS S4b only the git-parsed trailer block is rewritten
+PASS S5a missing trailer appended, Co-Authored-By kept
+PASS S5b two placeholders become one trailer, Co-Authored-By kept
+PASS S5c lowercase key replaced, no second trailer
+PASS S5e an existing real id is kept
+PASS S5f 'Roadmap-Item : X' (space before the colon) replaced, one trailer
+PASS S5g a real id containing 050 (CON-0501) is kept
+PASS S5h a --- line in the body is not a divider; trailer replaced
+PASS S2-S5 publish exits 0
+PASS S5d prepare exits 0
+PASS S5d author name, email and date preserved
+PASS S5d dropped signature recorded in evidence
+PASS S6 publish refuses when the landed vehicle is not on main (rc=1)
+PASS S6 no remote moved
+PASS S7 --item-id path fast-forwards
+PASS S7 first publish exits 0
+PASS S7 second publish: 9 up-to-date, exit 0
+PASS S7 re-run of prepare refused with a recovery hint (rc=2)
+PASS S10 mint and merge commits run without ambient hooks
+PASS S11 empty mirror refused at prepare (rc=1)
+PASS S12 untrailered commit refused at publish (rc=1)
+PASS S12 no remote moved
+PASS S13 lands only up to the given tip
+PASS M11 mint whose last line is not an id refused (rc=1)
+PASS M11 bogus --item-id refused (rc=2)
+PASS M12 vehicle already on main refused (rc=3)
+PASS M13 extra remote name refused (rc=2)
+PASS M13 duplicate remote name refused (rc=2)
+PASS M13 missing remote name refused (rc=2)
+PASS M15 publish refuses a main without the prepared base (rc=1)
+PASS X14 two distinct ids in one commit refused at prepare (rc=1)
+PASS X14b unrecognised Roadmap-Item value refused at prepare (rc=1)
+PASS X8 interpret-trailers failure aborts prepare (rc=1)
+PASS X8 nothing integrated after the abort
+PASS X8b interpret-trailers append failure aborts prepare (rc=1)
+PASS X8b nothing integrated after the abort
+PASS P1 remote without main refused at preflight (rc=1)
+PASS P1 no remote was pushed
+PASS L4 missing option value is a usage error (rc=2)
+PASS L4 option followed by another option is a usage error (rc=2)
+PASS L5 failing fetch names the remote, not its URL
+PASS L6 --key-prefix ABC: placeholder replaced with ABC-12
+PASS L6 publish with a key prefix other than the prepared one refused (rc=2)
+PASS L6 publish reads the key prefix from the state
+PASS L6 malformed key prefix refused (rc=2)
+PASS L6 --item-id with another key refused (rc=2)
+PASS U1 prepare with the older remotes file exits 0
+PASS U1 publish refuses a clone whose origin URL differs from --remotes-file (rc=2)
+PASS U1 nothing pushed, not even to the old URL; no read-back written
+PASS U1 verify refuses the URL mismatch too (rc=2)
+PASS U2 publish refuses an origin re-pointed after prepare (rc=2)
+PASS U2 nothing pushed
+PASS U3 publish refuses a push URL other than the declared one (rc=2)
+PASS U3b publish refuses remote.<name>.mirror (rc=2)
+PASS U3 nothing pushed
+PASS U3c publish exits 0 once the clone config matches again
+PASS U4 mint that prints an id but changes nothing is refused (rc=1)
+PASS U4 nothing landed (main = base, no state)
+PASS U5 mint that writes outside the clone is refused (rc=1)
+PASS U5 control: the outside mint really ran
+PASS U6 mint whose changes do not contain the id is refused (rc=1)
+PASS U7 mint that commits by itself is refused (rc=1)
+PASS U8 engine read command confirms the minted id
+PASS U8b --item-id the engine does not know is refused (rc=1)
+PASS U8b the engine itself said no such item
+PASS U8b nothing landed
+PASS U8c an engine read that does not print the id is refused (rc=1)
+PASS U9 an edited prepare state is refused (rc=2)
+PASS U9 no remote moved
+PASS U9c edited landed_vehicle_head refused (rc=2)
+PASS U9d edited vehicle_head refused (rc=2)
+FAIL U9e landed head whose tree is not the vehicle tree refused (rc=0, want rc=2 and /landed head's tree differs from the vehicle tree/)
+
+RESULT pass=107 fail=1 (failfast)

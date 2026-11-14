@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F1e)
+@@ -1075,7 +1075,7 @@
+     [ "${action[i]}" = push ] || continue
+     if [ "$PREFLIGHT_BLOCKED" -gt 0 ]; then action[i]=not-pushed-preflight; continue; fi
+     assert_remote "$i"
+-    if g push -q --no-verify --no-follow-tags --recurse-submodules=no "${R_NAMES[$i]}" "$local_main:refs/heads/main" 2>>"$ERRLOG"; then action[i]=pushed; PUSHED_NAMES+=" ${R_NAMES[$i]}"
++    if g push -q --no-verify --no-follow-tags --recurse-submodules=no "${R_NAMES[$i]}" "$local_main:refs/heads/main" 2>>"$ERRLOG"; then action[i]=pushed
+     else action[i]='push-rejected'
+     fi
+   done

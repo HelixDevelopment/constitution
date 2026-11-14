@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM13)
+@@ -616,7 +616,7 @@
+ # id_num <id>: the number of the id without leading zeros
+ id_num() { local n=${1##*-}; n=${n#"${n%%[!0]*}"}; printf '%s' "${n:-0}"; }
+ # id_in_blob <id> <file>: the exact id occurs as a token in the file (binary-safe)
+-id_in_blob() { grep -aEq -- "(^|[^A-Za-z0-9-])$1([^0-9]|\$)" "$2"; }
++id_in_blob() { grep -aEq -- "$1([^0-9]|\$)" "$2"; }
+ # id_seen_in_file <key> <num> <file>: the id (any leading zeros) may already occur.
+ # Fail closed: no left boundary, and a file holding a NUL byte is matched by substring
+ # (a binary neighbour byte can be a digit).

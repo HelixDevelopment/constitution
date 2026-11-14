@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (N3b)
+@@ -901,7 +901,7 @@
+   zero=$(printf '%*s' "${#HEAD_SHA}" '' | tr ' ' 0)
+ 
+   # (2) fresh clone, empty template, the bundle copied into it
+-  git --no-pager -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.sharedRepository=false \
++  git --no-pager -c core.hooksPath=/dev/null -c core.fsmonitor=false \
+     init -q -b main --template= --object-format="$fmt" --ref-format=files "$CLONE" 9>&- \
+     || die 1 "git init of the clone failed"
+   : > "$ERRLOG"

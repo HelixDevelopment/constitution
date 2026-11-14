@@ -1,0 +1,1 @@
+green_full1 ran the lander before the RM08 fix (folded_ri blank-line); green_full2-4 are the final lander

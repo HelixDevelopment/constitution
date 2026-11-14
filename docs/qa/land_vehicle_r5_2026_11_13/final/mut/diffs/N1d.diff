@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (N1d)
+@@ -990,7 +990,7 @@
+     local iso
+     iso=$(GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null g merge-tree --write-tree --no-messages "$before" "$new_head" 2>>"$ERRLOG") \
+       || die 1 "the merge without your global and system git config does not merge cleanly, but the merge with it did (a merge driver or merge option from your config decided it); nothing was published; merge by hand"
+-    [ "${iso%%$'\n'*}" = "$(g rev-parse --verify "$after^{tree}")" ] \
++    true \
+       || die 1 "the merge result differs from the same merge computed without your global and system git config (a merge strategy, merge option or merge driver from your config changed it); nothing was published; merge by hand"
+     log "step 5: vehicle merged onto main (merge commit)"
+   fi

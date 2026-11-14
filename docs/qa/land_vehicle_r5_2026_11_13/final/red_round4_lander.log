@@ -1,0 +1,1179 @@
+PASS R5-K01 prepare exits 0
+FAIL R5-K01 a commit made in the clone during the pushes: publish exits 1 (rc=1, want rc=1 and /clone main moved during publish/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> FAIL
+    | land_vehicle: github_helixdevelopment: pushed -> FAIL
+    | land_vehicle: github_vasic_digital: pushed -> FAIL
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> FAIL
+    | land_vehicle: gitlab_vasic_digital: pushed -> FAIL
+    | land_vehicle: gitverse: pushed -> FAIL
+    | land_vehicle: m3w: pushed -> FAIL
+    | land_vehicle: origin: pushed -> FAIL
+    | land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5k/ev/publish.md
+    | land_vehicle: ERROR: one or more remotes FAIL (see /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5k/ev/publish.md)
+FAIL R5-K01 pushed sha (at checked: 1, at moved: 8, moved: yes)
+FAIL R5-K01 publish again refuses the unreviewed commit, with the prepare-again hint (rc=0, want rc=1 and /lacks a single real Roadmap-Item trailer.*run prepare again in a new workdir/)
+    | land_vehicle: WARN: gitflic receives 31f404102e8fd155255c83ea9db04ac255be8aeb, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: up-to-date -> PASS
+    | land_vehicle: github_helixdevelopment: up-to-date -> PASS
+    | land_vehicle: github_vasic_digital: up-to-date -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: up-to-date -> PASS
+    | land_vehicle: gitlab_vasic_digital: up-to-date -> PASS
+    | land_vehicle: gitverse: up-to-date -> PASS
+    | land_vehicle: m3w: up-to-date -> PASS
+    | land_vehicle: origin: up-to-date -> PASS
+    | land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5k/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL R5-K01 the unreviewed commit reached a remote
+PASS R5-R04b prepare exits 0
+FAIL R5-R04b origin re-pointed after the first push: refused, and the message names the remotes already pushed (rc=0, want rc=2 and /remote 'origin' fetch URL in the clone differs from --remotes-file; this run already pushed the checked main to: gitflic github github_helixdevelopment github_vasic_digital gitlab_helixdevelopment1 gitlab_vasic_digital gitverse m3w; no further remote is pushed/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5b/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL R5-R04b decoy/origin (decoy main 2cd6d9316148ce49935386f56e71e01892bf0ce5, at checked 8)
+PASS R5-R04b after the URL is fixed, publish again pushes origin only (8 up-to-date)
+FAIL R5-F2a an id already in an untouched tracker file is refused (rc=0, want rc=1 and /CON-100 already appears in docs/tracker\.fake before the mint/)
+    | land_vehicle: step 1: bundle sha256 OK (0c78f9cde4db10a352a3d979b5500704b8ea43794419e6b1f1541a729ada179f)
+    | land_vehicle: step 2: newest main across 9 remotes = c4d024fd4091de169d1ea445f2437b20c909819a
+    | land_vehicle: step 1b: bundle verified, head f186655fe35dd91ba324a7e518cf0d59ab72ea60 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-100
+    | land_vehicle: step 4: vehicle head f186655fe35dd91ba324a7e518cf0d59ab72ea60 -> f31492b18dcda7431c99529b0c945b8d4e6fee10 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2a/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = 073251e8ae6b4ef4330ce2d2e79e981504039725, item CON-100.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2a/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-100"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2a/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2a/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2a/ev
+PASS R5-F2a control: a new id CON-101 in a new file matching the glob docs/items/* is accepted
+FAIL R5-F2b an id that is a trailer of a commit on main is refused (rc=0, want rc=1 and /CON-001 already appears in a Roadmap-Item line of a commit reachable from main or the vehicle/)
+    | land_vehicle: step 1: bundle sha256 OK (a8def7c71d5c746bb39e3895dff72c361103eaebf252a7b27c7b1e4f2505581a)
+    | land_vehicle: step 2: newest main across 9 remotes = 13c961db487fae2b64b5259d81218e6d97c53737
+    | land_vehicle: step 1b: bundle verified, head 22ab73624cf7db68737bc47cfdb468705898449b found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-001
+    | land_vehicle: step 4: vehicle head 22ab73624cf7db68737bc47cfdb468705898449b -> dabda7a781b9eccdf10509f595d314daec6b6ce0 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2b/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = c78f72577ff1f4fbe7da67d2cfb315bc0b976de3, item CON-001.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2b/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-001"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2b/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2b/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2b/ev
+FAIL R5-F2b an id that is a trailer of a vehicle commit is refused (rc=0, want rc=1 and /CON-123 already appears in a Roadmap-Item line of a commit reachable from main or the vehicle/)
+    | land_vehicle: step 1: bundle sha256 OK (21af511cd229f741324b8e5daba69c232304ef8db47769499e2a8430ed241043)
+    | land_vehicle: step 2: newest main across 9 remotes = e902bb05adfc04a6209275df5db31861e96cc371
+    | land_vehicle: step 1b: bundle verified, head 2a00a54f157182d0217c7e1445b42d25fe3dc0b9 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-123
+    | land_vehicle: step 4: vehicle head 2a00a54f157182d0217c7e1445b42d25fe3dc0b9 -> 04c3de2cd774d08b3aa8b5e7d12ad9da8573faec (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2bv/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = fa7bee309e8776d79d8564b9f78ea80556acaf3a, item CON-123.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2bv/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-123"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2bv/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2bv/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2bv/ev
+PASS R5-F2b control: a new id CON-003 is accepted
+FAIL R5-F2c the id in another tracker file matching the glob is refused, naming that file (rc=0, want rc=1 and /CON-123 already appears in docs/workable_items\.db before the mint/)
+    | land_vehicle: step 1: bundle sha256 OK (7194756589feb3e00ec922a40dcb9d6af92a6b94c20079839da6cda7c1c4d4a3)
+    | land_vehicle: step 2: newest main across 9 remotes = e445fb29408e9f5873458cce295e5ebdc21f2abd
+    | land_vehicle: step 1b: bundle verified, head 91f5ef9d39ddad35f193821e5ef3092c2660ddee found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-123
+    | land_vehicle: step 4: vehicle head 91f5ef9d39ddad35f193821e5ef3092c2660ddee -> c0e0ac1df35fee96c07504279de1ca7764b2313f (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2c/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = 164679e1f249e590596d6093bcc49cd1761fb26c, item CON-123.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2c/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-123"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2c/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2c/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2c/ev
+FAIL R5-F2z the tracker holds CON-77: CON-077 is not new (rc=0, want rc=1 and /CON-077 already appears in docs/tracker\.fake before the mint/)
+    | land_vehicle: step 1: bundle sha256 OK (d0a06b76fc3c5fdfd8e23df96a3e1ddbcc95d3d504c4362fd8a506928b437eba)
+    | land_vehicle: step 2: newest main across 9 remotes = 49a3f330effad71ff7c881abe8bfb3156dc09a48
+    | land_vehicle: step 1b: bundle verified, head ddf61354e67b2afa9570c0d5af96100e7f4d30e5 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-077
+    | land_vehicle: step 4: vehicle head ddf61354e67b2afa9570c0d5af96100e7f4d30e5 -> 7ab42df4737a55125a8bee7f9aa5351c1e1d6a61 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-77/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = bdbe56e316a51827f227ad1c7a5b5658479b67fa, item CON-077.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-77/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-077"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-77/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-77/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-77/ev
+FAIL R5-F2z the tracker holds CON-0077: CON-077 is not new (rc=0, want rc=1 and /CON-077 already appears in docs/tracker\.fake before the mint/)
+    | land_vehicle: step 1: bundle sha256 OK (40f3ced1b9e44a1b05fa92b0f29202d9e1e34108aa2ac8706448b74ef0a8af5f)
+    | land_vehicle: step 2: newest main across 9 remotes = 8509b44be7db8e6f3e4e3dd643f5b4f92927db33
+    | land_vehicle: step 1b: bundle verified, head 7881139df7399dc3e34be4b4050e951e0a78821f found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-077
+    | land_vehicle: step 4: vehicle head 7881139df7399dc3e34be4b4050e951e0a78821f -> 0dabaa1f8c6035abf2cde1cc63b9c83490a264ad (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-0077/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = 4ff9244fa4ba42a8e136d4f70cb5dc04eeccbcfd, item CON-077.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-0077/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-077"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-0077/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-0077/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zCON-0077/ev
+FAIL R5-F3a an annotated tag object as --head is refused (rc=0, want rc=1 and /is a tag object, not a commit/)
+    | land_vehicle: step 1: bundle sha256 OK (95b5ffbdcb134f908147535b2419d2acf50892d918c3116b5f644c18a11acb17)
+    | land_vehicle: step 2: newest main across 9 remotes = fbbbc0aeab412d5e14a5e7284fd670a719a1ac9b
+    | land_vehicle: step 1b: bundle verified, head b0fa714f77d48910f2a4b5b956a63f030b9a0dfd found as refs/tags/vt
+    | land_vehicle: step 3: tracker id = CON-906
+    | land_vehicle: step 4: vehicle head b0fa714f77d48910f2a4b5b956a63f030b9a0dfd -> b0fa714f77d48910f2a4b5b956a63f030b9a0dfd (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3a/ev/tree_equality.tsv)
+    | land_vehicle: step 5: main fast-forwarded to b0fa714f77d48910f2a4b5b956a63f030b9a0dfd
+    | 
+    | land_vehicle: prepare done. main = a84968b36e39a9081f8554de83f9c80cf5c4c366, item CON-906.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3a/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-906"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3a/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3a/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3a/ev
+PASS R5-F3a control: the --head given is a tag object
+FAIL R5-F3b a commit after prepare whose trailer is the placeholder CON-050 is refused (rc=0, want rc=1 and /lacks a single real Roadmap-Item trailer \(found: 'CON-050'/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3b/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL R5-F3b no remote moved
+FAIL R5-F4 showSignature (rc=0 gpg calls by the lander=4, by the control=5)
+    | author Ann Author <ann@author.invalid> 981153306 +0530
+    | committer Lander Test <lander@test.invalid> 1794633742 +0100
+    | --
+    | author Ann Author <ann@author.invalid> 981153306 +0530
+    | committer Lander Test <lander@test.invalid> 1794633745 +0100
+FAIL R5-F5 push options (rc=1 m3w=1 control=1)
+FAIL R5-F6 template (rc=1 worktree=/home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f6/outside outside=[a.txt
+marker.txt] control=/home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f6/outside)
+    | land_vehicle: step 2: newest main across 9 remotes = 49bf50817eb4da593a99fe813a7f188038399e25
+    | land_vehicle: step 1b: bundle verified, head 85a93f2c21ff80a87cc13621e09e75420c289505 found as refs/heads/vehicle
+    | land_vehicle: ERROR: the mint command changed a path it may not change (A marker.txt): only added or modified files matching LANDER_TRACKER_PATHS (docs/tracker.fake) are allowed; see /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f6/ev/mint_changes.tsv; nothing was landed
+FAIL R5-F7 '--evidence-dir -h' is a missing value, not help (rc=0, want rc=2 and /option --evidence-dir needs a value/)
+    | # land_vehicle.sh - land a reviewed vehicle bundle onto main (Helix Constitution).
+    | #
+    | # Repository path: scripts/release/land_vehicle.sh
+    | # Test:            tests/release/test_land_vehicle.sh
+    | #
+    | # WHAT IT DOES
+    | #   A vehicle is a git bundle holding commits that received an independent GO
+    | #   but were not pushed. This script lands them on main of every upstream,
+    | #   fast-forward only, in two phases so the lander can run the heavy derived-file
+    | #   regeneration in between:
+    | #
+    | #   prepare  (1) verify the bundle sha256, `git bundle verify`, and that the
+    | #                given head is a ref tip inside the bundle;
+    | #            (2) create a fresh clone at <workdir>/<clone-name> (default name
+    | #                `constitution`, required by the workable-items engine), fetch
+    | #                main from every declared remote, refuse if the remote mains have
+    | #                diverged, take the newest tip as main;
+    | #            (3) mint the real tracker id by running --mint-cmd inside the clone
+    | #                (the §11.4.202 BUG/TASK intake, e.g. a `--prefix CON` add); the
+    | #                LAST stdout line must be the id (<KEY>-<digits>). The mint MUST
+    | #                change at least one file in the clone (the tracker DB is tracked,
+    | #                §11.4.95) and must not commit or switch branch by itself. Every
+    | #                path it changes must be ADDED or MODIFIED (never deleted, renamed
+    | #                or a symlink) and must match one of the LANDER_TRACKER_PATHS
+    | #                patterns; the list (status and path) is written to
+    | #                <evidence-dir>/mint_changes.tsv before it is checked. The id must
+    | #                be NEW: it must not occur in the HEAD version of any modified
+    | #                file, and it must occur, as a token, in the staged version of at
+    | #                least one changed file. Otherwise prepare refuses and nothing is
+    | #                landed. The changed files are committed as-is (never hand-edited)
+    | #                as a commit ON MAIN, and that commit's name-status must equal
+    | #                mint_changes.tsv. Alternatively --item-id gives an id that was
+    | #                already minted. With --id-verify-cmd the id is then confirmed
+    | #                through the engine's own read command (both paths);
+    | #            (4) re-commit every unpushed vehicle commit whose Roadmap-Item
+    | #                trailer is missing or is a placeholder (--placeholder-re), with the
+    | #                real id, keeping author name, email, date and TREE. Only the
+    | #                trailer block as git itself parses it (`git interpret-trailers
+    | #                --parse`) is edited: a trailer-shaped line in body prose is left
+    | #                alone, the key is matched case-insensitively, carriage returns are
+    | #                stripped from the whole message, identical Roadmap-Item lines are
+    | #                de-duplicated, and a missing trailer is appended with
+    | #                `git interpret-trailers` (prepare aborts if that fails). Tree
+    | #                equality per commit is checked with `git diff-tree` and written to
+    | #                <evidence-dir>/tree_equality.tsv;
+    | #            (5) integrate onto main, never rebasing and never rewriting main:
+    | #                a fast-forward when main is an ancestor of the re-committed vehicle
+    | #                (the --item-id path with no upstream movement), otherwise a merge
+    | #                commit. On the --mint-cmd path the mint commit is already on main,
+    | #                so the integration is ALWAYS a merge commit there. Then every
+    | #                commit in main_before..main must carry exactly one Roadmap-Item
+    | #                trailer (as git parses it) whose value is <KEY>-<digits>; then the
+    | #                derived-file steps are PRINTED for the lander.
+    | #   publish  (6) refuse a dirty tree, a clone not on main, a clone whose remote
+    | #                URLs differ from --remotes-file, and a prepare state that does not
+    | #                match the refs prepare recorded; refuse unless local main contains
+    | #                both the prepared base and the landed vehicle head;
+    | #            (7) preflight EVERY remote first (read the remote main, fetch it,
+    | #                check it is an ancestor of local main). If any remote is
+    | #                non-fast-forward, unreadable or has no main, NOTHING is pushed
+    | #                (`not-pushed-preflight`) and publish exits 1. Then every commit in
+    | #                `main --not <all fetched remote mains>` (the commits that are on
+    | #                NO remote yet; independent of the state file) must carry one real
+    | #                Roadmap-Item trailer, else nothing is pushed. A commit that is
+    | #                already on at least one remote is not refused even when it reaches
+    | #                another remote without a real trailer (refusing it could never
+    | #                converge without a force push, and it was already published):
+    | #                each such (remote, commit) is a WARN line and a row of
+    | #                <evidence-dir>/publish_warnings.tsv and of the `## warnings`
+    | #                section of publish.md; the exit code is not changed by a WARN.
+    | #                Otherwise push `main:refs/heads/main` to each remote that is behind;
+    | #            (8) `git ls-remote` read-back of every remote; a per-remote PASS/FAIL
+    | #                table goes to <evidence-dir>/publish.md (+ .tsv); any FAIL => exit 1.
+    | #   verify   step (8) alone (read-back only, no push). It needs the prepare state
+    | #            and the same remote-URL check as publish.
+    | #
+    | # SAFETY
+    | #   No force push of any kind: the only push is a plain `main:refs/heads/main`.
+    | #   The test greps this file for force-type flags and refspecs prefixed with a plus
+    | #   sign, and records the argv of every push the script makes through a git shim.
+    | #   No remote URL is printed (URLs may carry credentials): git's own stderr from
+    | #   fetch, ls-remote and push is not shown; it is appended to
+    | #   <clone>/.git/land_git_stderr.log (that clone's .git/config holds the same URLs
+    | #   already). Only remote names appear in output and evidence. Nothing is
+    | #   deleted. HOME is not touched. --clone-name must be a single plain path
+    | #   component, so the clone always stays inside the workdir; an existing path or a
+    | #   (dangling) symlink at the clone path is refused. --workdir must not start with
+    | #   '-' (so `cd` never reads it as an option), CDPATH is ignored. A bad line of the
+    | #   remotes file is reported by its line number only, never by its text (the URL
+    | #   may hold a credential).
+    | #
+    | # ENVIRONMENT (cleared before the first git call)
+    | #   Variables that select or redirect a repository or inject config would make
+    | #   every `git -C <clone>` act on another repository (git exports GIT_DIR and
+    | #   GIT_INDEX_FILE to its hooks, so a lander started from a hook would write into
+    | #   the caller's repository), and trace variables would print remote URLs. The
+    | #   script unsets: GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY
+    | #   GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_CONFIG GIT_CONFIG_PARAMETERS
+    | #   GIT_CONFIG_COUNT GIT_CONFIG_KEY_* GIT_CONFIG_VALUE_* GIT_IMPLICIT_WORK_TREE
+    | #   GIT_GRAFT_FILE GIT_NO_REPLACE_OBJECTS GIT_REPLACE_REF_BASE GIT_PREFIX
+    | #   GIT_SHALLOW_FILE GIT_NAMESPACE GIT_QUARANTINE_PATH GIT_PUSH_OPTION_* GIT_TRACE*
+    | #   GIT_CURL_VERBOSE GIT_EXTERNAL_DIFF GIT_CEILING_DIRECTORIES
+    | #   GIT_DISCOVERY_ACROSS_FILESYSTEM, plus every name `git rev-parse --local-env-vars`
+    | #   prints, and CDPATH. It keeps GIT_CONFIG_GLOBAL, GIT_CONFIG_SYSTEM,
+    | #   GIT_CONFIG_NOSYSTEM (the caller's choice of config FILES), the ssh/askpass
+    | #   variables and the author/committer identity. The mint and id-verify commands
+    | #   inherit the cleared environment.
+    | #   LANDER_REMOTES   names of the remotes the remotes file must declare (each
+    | #                    ^[A-Za-z0-9][A-Za-z0-9._-]*$), default the 9 upstreams.
+    | #   LANDER_TRACKER_PATHS  space-separated bash patterns (`*` also matches '/') of
+    | #                    the paths the mint may add or modify, relative to the clone
+    | #                    root, default `docs/workable_items.db`. Its -wal/-shm sidecars
+    | #                    are gitignored: a mint that changes only them changes no
+    | #                    tracked file and is refused (fail closed).
+    | #
+    | # REAL ENGINE (mint command)
+    | #   The workable-items engine prints `add: created CON-166 (Task, status=Queued) in
+    | #   Issues`, not a bare id, so wrap it to print the id as the last line, e.g.
+    | #     --mint-cmd "<engine> add Task low --db docs/workable_items.db --title '...' \
+    | #       --prefix CON | sed -n 's/^add: created \(CON-[0-9][0-9]*\) .*/\1/p'"
+    | #   (under `bash -c` without pipefail the sed decides the status; an engine
+    | #   failure leaves the last line empty, so prepare refuses it as "did not print an
+    | #   id"). Try such a command first on a COPY of the database, never on the live
+    | #   checkout.
+    | #
+    | # LOCK
+    | #   Every subcommand takes an exclusive `flock` on <workdir>/.land_vehicle.lock
+    | #   for its whole run; a second concurrent run in the same workdir is refused
+    | #   (exit 2). The lock is released by the kernel when the process ends, so there
+    | #   is no stale lock to clean up. Every git command, the mint and the id-verify
+    | #   commands run without the lock descriptor (`9>&-`), so a process they leave
+    | #   behind (a gpg agent, a credential helper) never keeps the lock.
+    | #
+    | # HOOKS, CONFIG AND SIGNATURES (policy)
+    | #   Every git command the script runs against the clone (init, fetch, checkout,
+    | #   merge, commit, push, ls-remote) runs with `-c core.hooksPath=/dev/null` and
+    | #   `-c core.fsmonitor=false`, and commit, merge and push also pass `--no-verify`,
+    | #   so ambient hooks (pre-push, post-merge, post-checkout, reference-transaction,
+    | #   commit-msg ...) never run. The push also runs with `-c push.followTags=false
+    | #   -c push.recurseSubmodules=no --no-follow-tags`, so an ambient push.followTags
+    | #   never pushes a tag, and publish checks the tree with `status --porcelain
+    | #   --untracked-files=all`, so status.showUntrackedFiles=no never hides a file.
+    | #   Other ambient config (for example a clean/smudge filter, push.pushOption) is
+    | #   NOT neutralised; a url.insteadOf rewrite in a config FILE makes the remote-URL
+    | #   check refuse. Commit signing follows the caller's git config. The mint and
+    | #   id-verify commands run in the caller's environment. Re-committed vehicle
+    | #   commits are made with `git commit-tree`, which runs no hooks and DROPS any
+    | #   gpgsig signature of the original; tree_equality.tsv records this per commit
+    | #   (column signature_dropped). The GO binds through tree equality, not through
+    | #   the commit id or signature.
+    | #
+    | # TRAILER SHAPES REFUSED ON PURPOSE (fail closed)
+    | #   A message whose last paragraph is a `#` comment line after the trailer block,
+    | #   and a folded (continued) Roadmap-Item value, are NOT repaired: the result
+    | #   would not hold exactly one parseable trailer, so prepare refuses it in its
+    | #   post-check. Fix such a commit by hand in the vehicle and re-review it.
+    | #   `<KEY>-050` is a placeholder by default: a real item numbered 050 would be
+    | #   rewritten to the minted id. Pass --placeholder-re to change that.
+    | #
+    | # RE-RUN / RECOVERY
+    | #   prepare refuses an existing clone path. prepare pushes nothing, so after a
+    | #   failed prepare remove <workdir>/<clone-name> with a guarded delete and run
+    | #   prepare again. publish is safe to re-run: remotes already at local main are
+    | #   `up-to-date`, the rest are pushed (after the all-remote preflight).
+    | #   An empty (new) mirror without a main branch makes prepare stop with "fetch of
+    | #   main failed"; seed that mirror by hand first (fast-forward from another).
+    | #
+    | # USAGE
+    | #   land_vehicle.sh prepare --bundle FILE --sha256 HEX --head SHA --workdir DIR \
+    | #       --remotes-file FILE (--mint-cmd CMD | --item-id <KEY>-N) [--id-verify-cmd CMD] \
+    | #       [--evidence-dir DIR] [--placeholder-re ERE] [--clone-name NAME] [--key-prefix KEY]
+    | #   land_vehicle.sh publish --workdir DIR --remotes-file FILE [--evidence-dir DIR] \
+    | #       [--key-prefix KEY] [--clone-name NAME]
+    | #   land_vehicle.sh verify  --workdir DIR --remotes-file FILE [--evidence-dir DIR] [--clone-name NAME]
+    | #   land_vehicle.sh -h | --help
+    | #
+    | #   --key-prefix: tracker id key (§11.4.54: the key is data), default CON. The id
+    | #   must match ^<KEY>-[0-9]+$. publish reads the key from the prepare state; a
+    | #   different --key-prefix given to publish is refused.
+    | #   --placeholder-re default: ^(<KEY>-050|<KEY>-PENDING-[A-Za-z0-9._-]*|<TO-BE-MINTED[^>]*>)$
+    | #   --id-verify-cmd: run in the clone as `bash -c CMD land_vehicle ID` (the id is $1
+    | #   and $LAND_ITEM_ID); it must exit 0 and print the id as a token.
+    | #   --clone-name: ^[A-Za-z0-9][A-Za-z0-9._-]*$ without '..'.
+    | #   --remotes-file: one "name url" per line (# comments allowed). It must declare
+    | #   exactly the names in LANDER_REMOTES (default: the 9 constitution upstreams),
+    | #   and publish/verify refuse unless the clone's fetch URL and its only push URL
+    | #   for every name equal the URL in the file.
+    | #   Build it from the real checkout with: git remote -v | awk '$3=="(push)"{print $1, $2}'
+    | #
+    | # EXIT CODES
+    | #   0 success | 1 verification or publish FAIL | 2 usage/config error (incl. lock
+    | #   held, remote URL mismatch, bad state) | 3 integration refused (diverged mains,
+    | #   merge conflict, nothing to land). Any other status of a failing command is
+    | #   reported and mapped to 1.
+FAIL R5-F7 '--key-prefix --help' is a missing value, not help (rc=0, want rc=2 and /option --key-prefix needs a value/)
+    | # land_vehicle.sh - land a reviewed vehicle bundle onto main (Helix Constitution).
+    | #
+    | # Repository path: scripts/release/land_vehicle.sh
+    | # Test:            tests/release/test_land_vehicle.sh
+    | #
+    | # WHAT IT DOES
+    | #   A vehicle is a git bundle holding commits that received an independent GO
+    | #   but were not pushed. This script lands them on main of every upstream,
+    | #   fast-forward only, in two phases so the lander can run the heavy derived-file
+    | #   regeneration in between:
+    | #
+    | #   prepare  (1) verify the bundle sha256, `git bundle verify`, and that the
+    | #                given head is a ref tip inside the bundle;
+    | #            (2) create a fresh clone at <workdir>/<clone-name> (default name
+    | #                `constitution`, required by the workable-items engine), fetch
+    | #                main from every declared remote, refuse if the remote mains have
+    | #                diverged, take the newest tip as main;
+    | #            (3) mint the real tracker id by running --mint-cmd inside the clone
+    | #                (the §11.4.202 BUG/TASK intake, e.g. a `--prefix CON` add); the
+    | #                LAST stdout line must be the id (<KEY>-<digits>). The mint MUST
+    | #                change at least one file in the clone (the tracker DB is tracked,
+    | #                §11.4.95) and must not commit or switch branch by itself. Every
+    | #                path it changes must be ADDED or MODIFIED (never deleted, renamed
+    | #                or a symlink) and must match one of the LANDER_TRACKER_PATHS
+    | #                patterns; the list (status and path) is written to
+    | #                <evidence-dir>/mint_changes.tsv before it is checked. The id must
+    | #                be NEW: it must not occur in the HEAD version of any modified
+    | #                file, and it must occur, as a token, in the staged version of at
+    | #                least one changed file. Otherwise prepare refuses and nothing is
+    | #                landed. The changed files are committed as-is (never hand-edited)
+    | #                as a commit ON MAIN, and that commit's name-status must equal
+    | #                mint_changes.tsv. Alternatively --item-id gives an id that was
+    | #                already minted. With --id-verify-cmd the id is then confirmed
+    | #                through the engine's own read command (both paths);
+    | #            (4) re-commit every unpushed vehicle commit whose Roadmap-Item
+    | #                trailer is missing or is a placeholder (--placeholder-re), with the
+    | #                real id, keeping author name, email, date and TREE. Only the
+    | #                trailer block as git itself parses it (`git interpret-trailers
+    | #                --parse`) is edited: a trailer-shaped line in body prose is left
+    | #                alone, the key is matched case-insensitively, carriage returns are
+    | #                stripped from the whole message, identical Roadmap-Item lines are
+    | #                de-duplicated, and a missing trailer is appended with
+    | #                `git interpret-trailers` (prepare aborts if that fails). Tree
+    | #                equality per commit is checked with `git diff-tree` and written to
+    | #                <evidence-dir>/tree_equality.tsv;
+    | #            (5) integrate onto main, never rebasing and never rewriting main:
+    | #                a fast-forward when main is an ancestor of the re-committed vehicle
+    | #                (the --item-id path with no upstream movement), otherwise a merge
+    | #                commit. On the --mint-cmd path the mint commit is already on main,
+    | #                so the integration is ALWAYS a merge commit there. Then every
+    | #                commit in main_before..main must carry exactly one Roadmap-Item
+    | #                trailer (as git parses it) whose value is <KEY>-<digits>; then the
+    | #                derived-file steps are PRINTED for the lander.
+    | #   publish  (6) refuse a dirty tree, a clone not on main, a clone whose remote
+    | #                URLs differ from --remotes-file, and a prepare state that does not
+    | #                match the refs prepare recorded; refuse unless local main contains
+    | #                both the prepared base and the landed vehicle head;
+    | #            (7) preflight EVERY remote first (read the remote main, fetch it,
+    | #                check it is an ancestor of local main). If any remote is
+    | #                non-fast-forward, unreadable or has no main, NOTHING is pushed
+    | #                (`not-pushed-preflight`) and publish exits 1. Then every commit in
+    | #                `main --not <all fetched remote mains>` (the commits that are on
+    | #                NO remote yet; independent of the state file) must carry one real
+    | #                Roadmap-Item trailer, else nothing is pushed. A commit that is
+    | #                already on at least one remote is not refused even when it reaches
+    | #                another remote without a real trailer (refusing it could never
+    | #                converge without a force push, and it was already published):
+    | #                each such (remote, commit) is a WARN line and a row of
+    | #                <evidence-dir>/publish_warnings.tsv and of the `## warnings`
+    | #                section of publish.md; the exit code is not changed by a WARN.
+    | #                Otherwise push `main:refs/heads/main` to each remote that is behind;
+    | #            (8) `git ls-remote` read-back of every remote; a per-remote PASS/FAIL
+    | #                table goes to <evidence-dir>/publish.md (+ .tsv); any FAIL => exit 1.
+    | #   verify   step (8) alone (read-back only, no push). It needs the prepare state
+    | #            and the same remote-URL check as publish.
+    | #
+    | # SAFETY
+    | #   No force push of any kind: the only push is a plain `main:refs/heads/main`.
+    | #   The test greps this file for force-type flags and refspecs prefixed with a plus
+    | #   sign, and records the argv of every push the script makes through a git shim.
+    | #   No remote URL is printed (URLs may carry credentials): git's own stderr from
+    | #   fetch, ls-remote and push is not shown; it is appended to
+    | #   <clone>/.git/land_git_stderr.log (that clone's .git/config holds the same URLs
+    | #   already). Only remote names appear in output and evidence. Nothing is
+    | #   deleted. HOME is not touched. --clone-name must be a single plain path
+    | #   component, so the clone always stays inside the workdir; an existing path or a
+    | #   (dangling) symlink at the clone path is refused. --workdir must not start with
+    | #   '-' (so `cd` never reads it as an option), CDPATH is ignored. A bad line of the
+    | #   remotes file is reported by its line number only, never by its text (the URL
+    | #   may hold a credential).
+    | #
+    | # ENVIRONMENT (cleared before the first git call)
+    | #   Variables that select or redirect a repository or inject config would make
+    | #   every `git -C <clone>` act on another repository (git exports GIT_DIR and
+    | #   GIT_INDEX_FILE to its hooks, so a lander started from a hook would write into
+    | #   the caller's repository), and trace variables would print remote URLs. The
+    | #   script unsets: GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY
+    | #   GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_CONFIG GIT_CONFIG_PARAMETERS
+    | #   GIT_CONFIG_COUNT GIT_CONFIG_KEY_* GIT_CONFIG_VALUE_* GIT_IMPLICIT_WORK_TREE
+    | #   GIT_GRAFT_FILE GIT_NO_REPLACE_OBJECTS GIT_REPLACE_REF_BASE GIT_PREFIX
+    | #   GIT_SHALLOW_FILE GIT_NAMESPACE GIT_QUARANTINE_PATH GIT_PUSH_OPTION_* GIT_TRACE*
+    | #   GIT_CURL_VERBOSE GIT_EXTERNAL_DIFF GIT_CEILING_DIRECTORIES
+    | #   GIT_DISCOVERY_ACROSS_FILESYSTEM, plus every name `git rev-parse --local-env-vars`
+    | #   prints, and CDPATH. It keeps GIT_CONFIG_GLOBAL, GIT_CONFIG_SYSTEM,
+    | #   GIT_CONFIG_NOSYSTEM (the caller's choice of config FILES), the ssh/askpass
+    | #   variables and the author/committer identity. The mint and id-verify commands
+    | #   inherit the cleared environment.
+    | #   LANDER_REMOTES   names of the remotes the remotes file must declare (each
+    | #                    ^[A-Za-z0-9][A-Za-z0-9._-]*$), default the 9 upstreams.
+    | #   LANDER_TRACKER_PATHS  space-separated bash patterns (`*` also matches '/') of
+    | #                    the paths the mint may add or modify, relative to the clone
+    | #                    root, default `docs/workable_items.db`. Its -wal/-shm sidecars
+    | #                    are gitignored: a mint that changes only them changes no
+    | #                    tracked file and is refused (fail closed).
+    | #
+    | # REAL ENGINE (mint command)
+    | #   The workable-items engine prints `add: created CON-166 (Task, status=Queued) in
+    | #   Issues`, not a bare id, so wrap it to print the id as the last line, e.g.
+    | #     --mint-cmd "<engine> add Task low --db docs/workable_items.db --title '...' \
+    | #       --prefix CON | sed -n 's/^add: created \(CON-[0-9][0-9]*\) .*/\1/p'"
+    | #   (under `bash -c` without pipefail the sed decides the status; an engine
+    | #   failure leaves the last line empty, so prepare refuses it as "did not print an
+    | #   id"). Try such a command first on a COPY of the database, never on the live
+    | #   checkout.
+    | #
+    | # LOCK
+    | #   Every subcommand takes an exclusive `flock` on <workdir>/.land_vehicle.lock
+    | #   for its whole run; a second concurrent run in the same workdir is refused
+    | #   (exit 2). The lock is released by the kernel when the process ends, so there
+    | #   is no stale lock to clean up. Every git command, the mint and the id-verify
+    | #   commands run without the lock descriptor (`9>&-`), so a process they leave
+    | #   behind (a gpg agent, a credential helper) never keeps the lock.
+    | #
+    | # HOOKS, CONFIG AND SIGNATURES (policy)
+    | #   Every git command the script runs against the clone (init, fetch, checkout,
+    | #   merge, commit, push, ls-remote) runs with `-c core.hooksPath=/dev/null` and
+    | #   `-c core.fsmonitor=false`, and commit, merge and push also pass `--no-verify`,
+    | #   so ambient hooks (pre-push, post-merge, post-checkout, reference-transaction,
+    | #   commit-msg ...) never run. The push also runs with `-c push.followTags=false
+    | #   -c push.recurseSubmodules=no --no-follow-tags`, so an ambient push.followTags
+    | #   never pushes a tag, and publish checks the tree with `status --porcelain
+    | #   --untracked-files=all`, so status.showUntrackedFiles=no never hides a file.
+    | #   Other ambient config (for example a clean/smudge filter, push.pushOption) is
+    | #   NOT neutralised; a url.insteadOf rewrite in a config FILE makes the remote-URL
+    | #   check refuse. Commit signing follows the caller's git config. The mint and
+    | #   id-verify commands run in the caller's environment. Re-committed vehicle
+    | #   commits are made with `git commit-tree`, which runs no hooks and DROPS any
+    | #   gpgsig signature of the original; tree_equality.tsv records this per commit
+    | #   (column signature_dropped). The GO binds through tree equality, not through
+    | #   the commit id or signature.
+    | #
+    | # TRAILER SHAPES REFUSED ON PURPOSE (fail closed)
+    | #   A message whose last paragraph is a `#` comment line after the trailer block,
+    | #   and a folded (continued) Roadmap-Item value, are NOT repaired: the result
+    | #   would not hold exactly one parseable trailer, so prepare refuses it in its
+    | #   post-check. Fix such a commit by hand in the vehicle and re-review it.
+    | #   `<KEY>-050` is a placeholder by default: a real item numbered 050 would be
+    | #   rewritten to the minted id. Pass --placeholder-re to change that.
+    | #
+    | # RE-RUN / RECOVERY
+    | #   prepare refuses an existing clone path. prepare pushes nothing, so after a
+    | #   failed prepare remove <workdir>/<clone-name> with a guarded delete and run
+    | #   prepare again. publish is safe to re-run: remotes already at local main are
+    | #   `up-to-date`, the rest are pushed (after the all-remote preflight).
+    | #   An empty (new) mirror without a main branch makes prepare stop with "fetch of
+    | #   main failed"; seed that mirror by hand first (fast-forward from another).
+    | #
+    | # USAGE
+    | #   land_vehicle.sh prepare --bundle FILE --sha256 HEX --head SHA --workdir DIR \
+    | #       --remotes-file FILE (--mint-cmd CMD | --item-id <KEY>-N) [--id-verify-cmd CMD] \
+    | #       [--evidence-dir DIR] [--placeholder-re ERE] [--clone-name NAME] [--key-prefix KEY]
+    | #   land_vehicle.sh publish --workdir DIR --remotes-file FILE [--evidence-dir DIR] \
+    | #       [--key-prefix KEY] [--clone-name NAME]
+    | #   land_vehicle.sh verify  --workdir DIR --remotes-file FILE [--evidence-dir DIR] [--clone-name NAME]
+    | #   land_vehicle.sh -h | --help
+    | #
+    | #   --key-prefix: tracker id key (§11.4.54: the key is data), default CON. The id
+    | #   must match ^<KEY>-[0-9]+$. publish reads the key from the prepare state; a
+    | #   different --key-prefix given to publish is refused.
+    | #   --placeholder-re default: ^(<KEY>-050|<KEY>-PENDING-[A-Za-z0-9._-]*|<TO-BE-MINTED[^>]*>)$
+    | #   --id-verify-cmd: run in the clone as `bash -c CMD land_vehicle ID` (the id is $1
+    | #   and $LAND_ITEM_ID); it must exit 0 and print the id as a token.
+    | #   --clone-name: ^[A-Za-z0-9][A-Za-z0-9._-]*$ without '..'.
+    | #   --remotes-file: one "name url" per line (# comments allowed). It must declare
+    | #   exactly the names in LANDER_REMOTES (default: the 9 constitution upstreams),
+    | #   and publish/verify refuse unless the clone's fetch URL and its only push URL
+    | #   for every name equal the URL in the file.
+    | #   Build it from the real checkout with: git remote -v | awk '$3=="(push)"{print $1, $2}'
+    | #
+    | # EXIT CODES
+    | #   0 success | 1 verification or publish FAIL | 2 usage/config error (incl. lock
+    | #   held, remote URL mismatch, bad state) | 3 integration refused (diverged mains,
+    | #   merge conflict, nothing to land). Any other status of a failing command is
+    | #   reported and mapped to 1.
+FAIL R5-F7 control: help (rc=0)
+FAIL R5-F9 tracker pattern '*' refused (rc=2, want rc=2 and /each pattern needs a literal first directory/)
+    | land_vehicle: ERROR: no clone at /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f9/work/constitution (run prepare first)
+FAIL R5-F9 tracker pattern 'docs' refused (rc=2, want rc=2 and /each pattern needs a literal first directory/)
+    | land_vehicle: ERROR: no clone at /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f9/work/constitution (run prepare first)
+FAIL R5-F9 tracker pattern '*/x' refused (rc=2, want rc=2 and /each pattern needs a literal first directory/)
+    | land_vehicle: ERROR: no clone at /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f9/work/constitution (run prepare first)
+FAIL R5-F9 tracker pattern './x' refused (rc=2, want rc=2 and /each pattern needs a literal first directory/)
+    | land_vehicle: ERROR: no clone at /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f9/work/constitution (run prepare first)
+PASS R5-F9 tracker pattern '../docs/x' refused (rc=2)
+PASS R5-F9 tracker pattern '/abs/x' refused (rc=2)
+PASS R5-F9 control: 'docs/*' passes the pattern check (fails later: no clone) (rc=2)
+FAIL R5-F10 --item-id CON-0100 refused (rc=0, want rc=2 and /item-id must match/)
+    | land_vehicle: step 1: bundle sha256 OK (5c258ff7aea8cd89d140b74f7322c1640340227119ef9abfcef23760303fa137)
+    | land_vehicle: step 2: newest main across 9 remotes = 64e0ae28cafa17ef6f611aaffeba2328db7ff0fd
+    | land_vehicle: step 1b: bundle verified, head 7d39cfdc80ce4fa4fa3bb2baa32e8b20d8e8398a found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-0100
+    | land_vehicle: step 4: vehicle head 7d39cfdc80ce4fa4fa3bb2baa32e8b20d8e8398a -> 86b4828f938b22d4368a9bb92e1a6d979b24f1fb (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f10/ev/tree_equality.tsv)
+    | land_vehicle: step 5: main fast-forwarded to 86b4828f938b22d4368a9bb92e1a6d979b24f1fb
+    | 
+    | land_vehicle: prepare done. main = 86b4828f938b22d4368a9bb92e1a6d979b24f1fb, item CON-0100.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f10/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-0100"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f10/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f10/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f10/ev
+FAIL R5-F10 a mint printing CON-0100 is refused (rc=2, want rc=1 and /mint did not print an id matching/)
+    | land_vehicle: ERROR: clone path already exists: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f10/work/constitution (prepare pushes nothing; to retry, remove that scratch clone with a guarded delete and run prepare again)
+FAIL R5-F11 CRLF remotes file (rc=2)
+    | land_vehicle: ERROR: no clone at /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f11/work/constitution (run prepare first)
+FAIL R5-F13 a vehicle trailer CON-9<CR>05 is refused at prepare (rc=0, want rc=1 and /lacks a single real Roadmap-Item trailer \(found: 'CON-9\?05'/)
+    | land_vehicle: step 1: bundle sha256 OK (9cd4d87cdbddabc500242391ec0e6b78ae196fc729aad15ac7e459c61ec5527f)
+    | land_vehicle: step 2: newest main across 9 remotes = df503cb4470f4db7ea7b610fda0b4a00e64cd773
+    | land_vehicle: step 1b: bundle verified, head a6ed14b32e42fe597e437a0cb768a4a4d8074769 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-913
+    | land_vehicle: step 4: vehicle head a6ed14b32e42fe597e437a0cb768a4a4d8074769 -> 055360c9c8e4fb9c4cb8ec706e9a96ba5b0a17aa (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f13/ev/tree_equality.tsv)
+    | land_vehicle: step 5: main fast-forwarded to 055360c9c8e4fb9c4cb8ec706e9a96ba5b0a17aa
+    | 
+    | land_vehicle: prepare done. main = 055360c9c8e4fb9c4cb8ec706e9a96ba5b0a17aa, item CON-913.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f13/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-913"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f13/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f13/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f13/ev
+FAIL R5-F13 a derived commit with the trailer CON-9<CR>05 is refused at publish (rc=0, want rc=1 and /lacks a single real Roadmap-Item trailer \(found: 'CON-9\?05'/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f13b/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL R5-F13 no remote moved
+FAIL R5-TC commentchar (rc=1 control=[])
+    | land_vehicle: step 4: vehicle head 6b1f4367a1f772573a36be1c3f3c342e899dad9a -> 68ad54ecf70e7bd2311c2351a21cc3c1b9ca88b7 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5tccommentchar/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | land_vehicle: ERROR: commit d75f5963ac14da7d9839bd998e317c9ce23f254d lacks a single real Roadmap-Item trailer (found: ''; want one value matching ^CON-[0-9]+$)
+FAIL R5-TC separators (rc=1 control=[])
+    | land_vehicle: step 4: vehicle head a8b623f5c28068cd073f89aa08ac0a39991fb791 -> ec9f0e9b23b5ee80c347d539e36eec5ef0d6966e (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5tcseparators/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | land_vehicle: ERROR: commit d1fb180c187ed8c6c26b39445d814a19f368e2a9 lacks a single real Roadmap-Item trailer (found: ''; want one value matching ^CON-[0-9]+$)
+FAIL R5-N1 twohead (rc=0 ctl s.txt absent)
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1twohead/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1twohead/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1twohead/ev
+FAIL R5-N1 mergeoptions (rc=0 ctl s.txt absent)
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1mergeoptions/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1mergeoptions/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1mergeoptions/ev
+FAIL R5-N1c a merge driver from the caller config is refused by the merge oracle (rc=0, want rc=1 and /the merge result differs from the same merge computed without your global and system git config/)
+    | land_vehicle: step 1: bundle sha256 OK (110b2e1461c3a29784e7c6e1ea7f4c62165795a21ee593a1e2c53c0c214ac4c2)
+    | land_vehicle: step 2: newest main across 9 remotes = 5eda2a133f69021b1189d450d23be2fa6c409c7c
+    | land_vehicle: step 1b: bundle verified, head 9bce147ae124aa84fc09e5beacecf55ace941b6e found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-850
+    | land_vehicle: step 4: vehicle head 9bce147ae124aa84fc09e5beacecf55ace941b6e -> 896cb38b9f594428ae23ec5d25284533c99567cd (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1cdriver/ev/tree_equality.tsv)
+    | Auto-merging c.txt
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = 202da60a9cac7b17e4dbcb133562711f62f884bd, item CON-850.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1cdriver/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-850"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1cdriver/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1cdriver/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n1cdriver/ev
+FAIL R5-N1c control: the driver really ran
+PASS R5-N1c control: without the driver the same merge is clean and holds both edits
+FAIL R5-N2 a mint that restages a gitlink hidden by ignore=all is refused (rc=0, want rc=1 and /mint command changed a path it may not change \(M sub\)/)
+    | land_vehicle: step 1: bundle sha256 OK (01b1662b64694d4a4f675d7a8363680b38b765d6a87ea2ce42e30750dd08e954)
+    | land_vehicle: step 2: newest main across 9 remotes = 217067ac66d82d52bac5db2df38015b6982dcf50
+    | land_vehicle: step 1b: bundle verified, head aa8b7882855a9909186d95dd6f4925f7cf92e058 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-777
+    | land_vehicle: step 4: vehicle head aa8b7882855a9909186d95dd6f4925f7cf92e058 -> 09fa4f2b654d8ccb3012e01290a0dcc4dd8c20cf (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n2/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = b3ec746d5605b729bf652a1eb6273fa4f090200f, item CON-777.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n2/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n2/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n2/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n2/ev
+PASS R5-N2 control: without --ignore-submodules=none git hides the gitlink change
+FAIL R5-N3 modes (rc=0 clone 2775/664 control 2775/664)
+FAIL R5-N3b modes after init (rc=0 bad=94 of 94 control=13)
+    | /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n3/work/constitution/.git
+    | /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n3/work/constitution/.git/ORIG_HEAD
+    | /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n3/work/constitution/.git/hooks
+    | /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n3/work/constitution/.git/hooks/pre-commit.sample
+    | /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5n3/work/constitution/.git/hooks/update.sample
+PASS R5-RM02 core.fsmonitor program ran 0 times in prepare+publish (control: git status runs it)
+PASS R5-RM04 a remotes file without a final newline: origin (the last line) is read, 9/9 landed
+PASS R5-RM06 a mint path holding a TAB is refused (rc=1)
+PASS R5-RM08 the prose line above a whitespace-only separator is kept as written
+PASS R5-RM10 the id-verify child is still running and the lock is free (control: the child was alive)
+PASS R5-RM13 a tracker holding only XCON-777 does not contain CON-777 (rc=1)
+PASS R5-RM15 main holding XCON-100 makes CON-100 not new (fail closed) (rc=1)
+PASS R5-RM23 a symlink docs/tx matching docs/t? is refused (rc=1)
+PASS R5-RM28 a mint printing CON-559<CR><LF> mints CON-559
+PASS R5-RM31 global remote.m3w.receivepack is refused (rc=2)
+PASS R5-RM31 global remote.github.mirror is refused (rc=2)
+PASS R5-RM31 no remote moved
+PASS R5-RB prepare exits 0
+FAIL R5-RB origin re-pointed to a decoy at the checked sha during its rejected push: the read-back refuses, naming the remotes pushed (rc=0, want rc=2 and /remote 'origin' fetch URL in the clone differs from --remotes-file; this run already pushed the checked main to: gitflic github github_helixdevelopment github_vasic_digital gitlab_helixdevelopment1 gitlab_vasic_digital gitverse m3w; no further remote is pushed/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: push-rejected -> PASS
+    | land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5rb/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL R5-RB decoy read-back (origin e86620238e109c9cecd70615a17f0747d8ba2afb, at checked 8)
+FAIL R5-BUNDLE-COPY a bundle that changes while it is copied into the clone is refused (rc=0, want rc=1 and /bundle sha256 mismatch on the copy in the clone/)
+    | land_vehicle: step 1: bundle sha256 OK (a1be1058d7fea28a2dd30d2d39fd315860e85a3510c34447043eb02b262dc39e)
+    | land_vehicle: step 2: newest main across 9 remotes = 39fc461d865dc31ea6e540b93c5cc57d83045c9f
+    | land_vehicle: step 1b: bundle verified, head d239d3160ff11a54d9c48fe459d7ebeab51652c0 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-911
+    | land_vehicle: step 4: vehicle head d239d3160ff11a54d9c48fe459d7ebeab51652c0 -> 6c9e4a38d9129649275a17739ac380286249d7c1 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5bc/ev/tree_equality.tsv)
+    | land_vehicle: step 5: main fast-forwarded to 6c9e4a38d9129649275a17739ac380286249d7c1
+    | 
+    | land_vehicle: prepare done. main = 6c9e4a38d9129649275a17739ac380286249d7c1, item CON-911.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5bc/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-911"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5bc/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5bc/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5bc/ev
+FAIL R5-BUNDLE-COPY control
+PASS R5-KEEP a signed commit with one real trailer is kept with its signature (same sha); the next commit gets the id
+FAIL R5-F1g a global insteadOf that rewrites origin is refused before origin is fetched (rc=0, want rc=2 and /remote 'origin' fetch URL in the clone differs from --remotes-file/)
+    | land_vehicle: step 1: bundle sha256 OK (28964562101a092a8123c2eefe8613525f1ae95797956f8d71d3029a53aabc18)
+    | land_vehicle: step 2: newest main across 9 remotes = 516c8491a8427d2b85f7d372ee5dce1d9795144a
+    | land_vehicle: step 1b: bundle verified, head eded0221e719ff60029e27f28e7fe125328c82ee found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-913
+    | land_vehicle: step 4: vehicle head eded0221e719ff60029e27f28e7fe125328c82ee -> 6ce6094bd2ab5cc4f319159d00521acc05946011 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f1g/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = db16a9ea0cf2c6c2e3e9e3f85b9b8c6483b3ed41, item CON-913.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f1g/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-913"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f1g/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f1g/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f1g/ev
+FAIL R5-F1g decoy (control 516c8491a8427d2b85f7d372ee5dce1d9795144a, decoy 516c8491a8427d2b85f7d372ee5dce1d9795144a)
+FAIL R5-F2zh a commit on main with the trailer CON-0777 makes CON-777 not new (rc=0, want rc=1 and /CON-777 already appears in a Roadmap-Item line of a commit reachable from main or the vehicle/)
+    | land_vehicle: step 1: bundle sha256 OK (7c1043d2b1f50607b3e4a9f43dd1cadc8ec6ea8dfebf8cf9b62e8ff9a678a4ab)
+    | land_vehicle: step 2: newest main across 9 remotes = a4d94ae5363a608fc5b40f66df12d0cb4264aebe
+    | land_vehicle: step 1b: bundle verified, head 1fee03ded614a814ffd7e4bacb288d1dd2e8dd1c found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-777
+    | land_vehicle: step 4: vehicle head 1fee03ded614a814ffd7e4bacb288d1dd2e8dd1c -> eb352cd205883d581b0ca345d93fd60d06cb72ca (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zh/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = b70462832c975c0b9d381b0bfe400b335aea3457, item CON-777.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zh/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zh/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zh/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f2zh/ev
+PASS R5-F2zh control: with the same history, CON-778 is new and accepted
+PASS R5-F2n a tracker with a NUL byte holding CON-7775 makes CON-777 not new (fail closed) (rc=1)
+PASS R5-F2n control: the same text without a NUL byte does not block CON-777
+FAIL R5-F3c --item-id CON-050 (the placeholder) is refused before a clone is made (rc=0, want rc=2 and /--item-id CON-050 matches --placeholder-re/)
+    | land_vehicle: step 1: bundle sha256 OK (cc1072602df1d77b4ee6c12619d58ba3a430cb537c86a942475e1ee7f2e76e12)
+    | land_vehicle: step 2: newest main across 9 remotes = 3438ff590fd340dad35e9cbe247cc50938896423
+    | land_vehicle: step 1b: bundle verified, head 3c564cd7a8449d94b9158ef1a8d60399c07c93f8 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-050
+    | land_vehicle: step 4: vehicle head 3c564cd7a8449d94b9158ef1a8d60399c07c93f8 -> ea21b6e056413d9adf75759386c369426a9fa556 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3c/ev/tree_equality.tsv)
+    | land_vehicle: step 5: main fast-forwarded to ea21b6e056413d9adf75759386c369426a9fa556
+    | 
+    | land_vehicle: prepare done. main = ea21b6e056413d9adf75759386c369426a9fa556, item CON-050.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3c/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-050"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3c/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3c/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3c/ev
+FAIL R5-F3c no clone was made
+FAIL R5-F3d a mint printing the placeholder CON-050 is refused before the mint commit (rc=0, want rc=1 and /mint printed CON-050, which matches --placeholder-re/)
+    | land_vehicle: step 1: bundle sha256 OK (d9ddc90fc11aa881bb82f94c9774f0bfd3c8f1382c9282d94d30a30a68ee8371)
+    | land_vehicle: step 2: newest main across 9 remotes = 321ff172250679bfd3067bc08f3d6bc61af47586
+    | land_vehicle: step 1b: bundle verified, head 1efc0e115993a51764b37bb0709cb14fad794f2a found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-050
+    | land_vehicle: step 4: vehicle head 1efc0e115993a51764b37bb0709cb14fad794f2a -> c5d1ee5d7dcd78bc21f6b8f2a8d892147c5711af (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3d/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = 6cc8b79532edb0eff30347458d69cd8fb7f5c7bf, item CON-050.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3d/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-050"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3d/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3d/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/r5f3d/ev
+FAIL R5-F3d clone main 6cc8b79532edb0eff30347458d69cd8fb7f5c7bf
+    | bad push argv: -q --no-verify --no-follow-tags gitflic main:refs/heads/main
+FAIL SH2-R5 pushes of the round-5 cases
+PASS T1 prepare exits 0
+PASS T1 placeholder trailers replaced with minted id
+PASS T1 engine mint output committed
+PASS V8c T1 mint changes recorded in evidence (name-status equals the mint commit)
+PASS T2 tree-equality evidence: 2 rows PASS
+PASS T2 independent tree re-check
+PASS T1 derived-file steps printed
+PASS T1 mint path integrates by merge (documented)
+PASS T1 publish exits 0
+PASS T1 all 9 remotes at landed main, 9 PASS rows
+    | bad push argv: -q --no-verify --no-follow-tags gitflic main:refs/heads/main
+FAIL SH1 T1 publish made 9 plain pushes
+    | -q--no-verify--no-follow-tagsgitflicmain:refs/heads/main
+    | -q--no-verify--no-follow-tagsgithubmain:refs/heads/main
+    | -q--no-verify--no-follow-tagsgithub_helixdevelopmentmain:refs/heads/main
+    | -q--no-verify--no-follow-tagsgithub_vasic_digitalmain:refs/heads/main
+    | -q--no-verify--no-follow-tagsgitlab_helixdevelopment1main:refs/heads/main
+    | -q--no-verify--no-follow-tagsgitlab_vasic_digitalmain:refs/heads/main
+    | -q--no-verify--no-follow-tagsgitversemain:refs/heads/main
+    | -q--no-verify--no-follow-tagsm3wmain:refs/heads/main
+    | -q--no-verify--no-follow-tagsoriginmain:refs/heads/main
+FAIL SH1b push sources: 
+PASS T3 rejecting remote reported FAIL, 8 PASS (rc=1)
+PASS T3 verify read-back flags the lagging remote (rc=1)
+PASS S8 re-run of publish recovers (8 up-to-date + 1 pushed)
+PASS T4 non-ff remote refused at preflight (rc=1)
+PASS T4 no remote moved (8 not-pushed-preflight, 1 refused-non-ff)
+PASS T5 no force flag in lander
+PASS T5 guard catches: git push --force "$r" main
+PASS T5 guard catches: git push -f "$r" main
+PASS T5 guard catches: git push "$r" +main:refs/heads/main
+PASS T5 guard catches: git push --force-with-lease "$r" main
+PASS T6 wrong bundle sha256 refused (rc=1)
+PASS T7 head not a ref tip in the bundle refused (rc=1)
+PASS T8 moved main integrated by merge, old main is ancestor
+PASS T9 diverged remote mains refused (rc=3)
+PASS T10 mint outside a 'constitution' dir refused (rc=2)
+PASS T10 refused before any clone was created
+PASS T11 dirty tree refused (rc=2)
+PASS T11 no remote moved
+PASS S1 merge-commit vehicle: prepare exits 0
+PASS S1 merges keep 2 parents, no placeholder, no old sha, 4 trees equal, one real trailer each
+PASS S1 publish exits 0
+PASS S2-S5 prepare exits 0
+PASS S2 <TO-BE-MINTED...> placeholder replaced
+FAIL S3 CRLF trailer (message: $'feat s3\n\nRoadmap-Item: CON-777\n')
+PASS S4 body prose line kept verbatim, real trailer appended
+PASS S4b only the git-parsed trailer block is rewritten
+PASS S5a missing trailer appended, Co-Authored-By kept
+PASS S5b two placeholders become one trailer, Co-Authored-By kept
+PASS S5c lowercase key replaced, no second trailer
+PASS S5e an existing real id is kept
+PASS S5f 'Roadmap-Item : X' (space before the colon) replaced, one trailer
+PASS S5g a real id containing 050 (CON-1050) is kept
+PASS S5h a --- line in the body is not a divider; trailer replaced
+PASS S2-S5 publish exits 0
+FAIL S5g-b a trailer CON-0501 (not canonical) is refused at prepare (rc=0, want rc=1 and /lacks a single real Roadmap-Item trailer \(found: 'CON-0501'/)
+    | land_vehicle: step 1: bundle sha256 OK (1e599a547da0a7d5267b3032dc0e7db0b944d484ce5c5e40a4611b6b6c6bdb38)
+    | land_vehicle: step 2: newest main across 9 remotes = 6939a84e6e0e5832e76765aff2a64d39eb631adf
+    | land_vehicle: step 1b: bundle verified, head 29394d6b9d7132128b9ace94305a2e985705fcaf found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-788
+    | land_vehicle: step 4: vehicle head 29394d6b9d7132128b9ace94305a2e985705fcaf -> 29394d6b9d7132128b9ace94305a2e985705fcaf (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/s5gb/ev/tree_equality.tsv)
+    | land_vehicle: step 5: main fast-forwarded to 29394d6b9d7132128b9ace94305a2e985705fcaf
+    | 
+    | land_vehicle: prepare done. main = 29394d6b9d7132128b9ace94305a2e985705fcaf, item CON-788.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/s5gb/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-788"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/s5gb/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/s5gb/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/s5gb/ev
+PASS S5d prepare exits 0
+PASS S5d author name, email and date preserved
+PASS S5d dropped signature recorded in evidence
+PASS S6 publish refuses when the landed vehicle is not on main (rc=1)
+PASS S6 no remote moved
+PASS S7 --item-id path fast-forwards
+PASS S7 first publish exits 0
+PASS S7 second publish: 9 up-to-date, exit 0
+PASS S7 re-run of prepare refused with a recovery hint (rc=2)
+PASS S10 mint and merge commits run without ambient hooks
+PASS S11 empty mirror refused at prepare (rc=1)
+PASS S12 untrailered commit refused at publish (rc=1)
+PASS S12 no remote moved
+PASS S13 lands only up to the given tip
+PASS M11 mint whose last line is not an id refused (rc=1)
+PASS M11 bogus --item-id refused (rc=2)
+PASS M12 vehicle already on main refused (rc=3)
+PASS M13 extra remote name refused (rc=2)
+PASS M13 duplicate remote name refused (rc=2)
+PASS M13 missing remote name refused (rc=2)
+PASS M15 publish refuses a main without the prepared base (rc=1)
+PASS X14 two distinct ids in one commit refused at prepare (rc=1)
+PASS X14b unrecognised Roadmap-Item value refused at prepare (rc=1)
+PASS X8 interpret-trailers failure aborts prepare (rc=1)
+PASS X8 nothing integrated after the abort
+FAIL X8b a failing write of the re-commit aborts prepare (rc=0, want rc=1 and /git hash-object failed for the re-commit/)
+    | land_vehicle: step 1: bundle sha256 OK (62b088c83e82f8303a8d90a54863e1092983bc2909086da0934ac1de24e62ef8)
+    | land_vehicle: step 2: newest main across 9 remotes = a40f3c374a6e2adec262fe061adbd826b3dff059
+    | land_vehicle: step 1b: bundle verified, head 04bc7ff14670aab5b78fe384daed3e8c1f38618b found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-787
+    | land_vehicle: step 4: vehicle head 04bc7ff14670aab5b78fe384daed3e8c1f38618b -> 09ada22be9a4767698ef39b9263d507ba9f84ec4 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/x8b/ev/tree_equality.tsv)
+    | land_vehicle: step 5: main fast-forwarded to 09ada22be9a4767698ef39b9263d507ba9f84ec4
+    | 
+    | land_vehicle: prepare done. main = 09ada22be9a4767698ef39b9263d507ba9f84ec4, item CON-787.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/x8b/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-787"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/x8b/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/x8b/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/x8b/ev
+FAIL X8b control: the fault was really injected
+FAIL X8b nothing integrated after the abort
+PASS P1 remote without main refused at preflight (rc=1)
+PASS P1 no remote was pushed
+PASS L4 missing option value is a usage error (rc=2)
+PASS L4 option followed by another option is a usage error (rc=2)
+PASS L5 failing fetch names the remote, not its URL
+PASS L6 --key-prefix ABC: placeholder replaced with ABC-012
+PASS L6 publish with a key prefix other than the prepared one refused (rc=2)
+PASS L6 publish reads the key prefix from the state
+PASS L6 malformed key prefix refused (rc=2)
+PASS L6 --item-id with another key refused (rc=2)
+PASS U1 prepare with the older remotes file exits 0
+PASS U1 publish refuses a clone whose origin URL differs from --remotes-file (rc=2)
+PASS U1 nothing pushed, not even to the old URL; no read-back written
+PASS U1 verify refuses the URL mismatch too (rc=2)
+PASS U2 publish refuses an origin re-pointed after prepare (rc=2)
+PASS U2 nothing pushed
+PASS U3 publish refuses a push URL other than the declared one (rc=2)
+PASS U3b publish refuses remote.<name>.mirror (rc=2)
+PASS U3 nothing pushed
+PASS U3c publish exits 0 once the clone config matches again
+PASS U4 mint that prints an id but changes nothing is refused (rc=1)
+PASS U4 nothing landed (main = base, no state)
+PASS U5 mint that writes outside the clone is refused (rc=1)
+PASS U5 control: the outside mint really ran
+PASS U6 mint whose changes do not contain the id is refused (rc=1)
+PASS U7 mint that commits by itself is refused (rc=1)
+PASS U8 engine read command confirms the minted id
+PASS U8b --item-id the engine does not know is refused (rc=1)
+PASS U8b the engine itself said no such item
+PASS U8b nothing landed
+PASS U8c an engine read that does not print the id is refused (rc=1)
+PASS U9 an edited prepare state is refused (rc=2)
+PASS U9 no remote moved
+PASS U9c edited landed_vehicle_head refused (rc=2)
+PASS U9d edited vehicle_head refused (rc=2)
+PASS U9e landed head whose tree is not the vehicle tree refused (rc=2)
+PASS U9c-e no remote moved
+PASS U9b untrailered commit refused even with state and ref edited (rc=1)
+PASS U9b no remote moved
+FAIL U10 a commit published elsewhere AFTER prepare, without a trailer, is refused (rc=0, want rc=1 and /lacks a single real Roadmap-Item trailer.*run prepare again in a new workdir/)
+    | land_vehicle: WARN: gitflic receives f94a105ecb4e5b8b96c77ddfc060d45223d0ec7a, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: WARN: github receives f94a105ecb4e5b8b96c77ddfc060d45223d0ec7a, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: WARN: github_helixdevelopment receives f94a105ecb4e5b8b96c77ddfc060d45223d0ec7a, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: WARN: github_vasic_digital receives f94a105ecb4e5b8b96c77ddfc060d45223d0ec7a, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: WARN: gitlab_helixdevelopment1 receives f94a105ecb4e5b8b96c77ddfc060d45223d0ec7a, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: WARN: gitlab_vasic_digital receives f94a105ecb4e5b8b96c77ddfc060d45223d0ec7a, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: WARN: m3w receives f94a105ecb4e5b8b96c77ddfc060d45223d0ec7a, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: WARN: origin receives f94a105ecb4e5b8b96c77ddfc060d45223d0ec7a, already published on another remote, without a single real Roadmap-Item trailer
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/u10/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL U10 remotes moved
+PASS U10b prepare again in a new workdir exits 0
+PASS U10b the commit published before this prepare is not refused; 9 remotes at main
+FAIL V4 U10b WARN rows
+    | 
+PASS U11 prepare refused while another run holds the workdir lock (rc=2)
+PASS U11 no clone created while locked
+PASS U11 prepare exits 0 once the lock is free
+PASS U11 publish refused while locked (rc=2)
+PASS U11 no remote moved while locked
+PASS U11b concurrent prepares: one 0, one 2 (the loser says it holds the lock)
+PASS U21 a background child of the mint does not hold the workdir lock
+PASS U12 --clone-name '../escape' refused (rc=2)
+PASS U12 --clone-name 'a/b' refused (rc=2)
+PASS U12 --clone-name '..' refused (rc=2)
+PASS U12 --clone-name '.' refused (rc=2)
+FAIL U12 --clone-name '-x' refused as a missing value (rc=2, want rc=2 and /option --clone-name needs a value/)
+    | land_vehicle: ERROR: --clone-name must be one plain path component (^[A-Za-z0-9][A-Za-z0-9._-]*$, no '..')
+PASS U12 --clone-name 'a..b' refused (rc=2)
+PASS U12 --clone-name '' refused as a missing value (rc=2)
+PASS U12 nothing created outside or inside the workdir
+PASS U12 a plain --clone-name is accepted
+PASS U13 no ambient hook ran in the clone (prepare+publish, merge and ff paths)
+PASS U13 control: the ambient hooks are live
+PASS U14 --help prints the whole usage incl. the exit codes, rc 0
+PASS U14 prepare --help
+PASS U15 verify without prepare state refused (rc=2)
+PASS U15 no evidence dir created
+PASS U15 verify without a clone refused (rc=2)
+PASS U16 trailing # comment paragraph refused (fail closed) (rc=1)
+PASS U16 folded Roadmap-Item value refused (fail closed) (rc=1)
+PASS U17 prepare takes the newest remote tip (origin ahead) as main_before
+PASS U17 publish exits 0 (8 behind remotes fast-forwarded)
+PASS U18 publish refuses a clone not on main (rc=2)
+PASS U18 no remote moved
+PASS U19 rejected push: URL kept out of the output (and present in the stderr log: control)
+PASS U19 unreadable remote: ls-remote URL kept out of the output (control: in the log)
+PASS U19 verify: URL kept out of the output
+PASS U20 bundle with a missing prerequisite refused by git bundle verify (rc=1)
+PASS V1 a remotes line holding only a URL is refused by its line number (rc=2)
+PASS V1 a remotes line with a third field is refused (line 10) (rc=2)
+PASS V1 a remote name that is not a plain name is refused by line number (rc=2)
+PASS V1 the credential token appears 0 times in output and workdir (control: present in the inputs)
+PASS V1d remote name '-x' refused before any git call (rc=2)
+PASS V1d remote name 'a/b' refused before any git call (rc=2)
+PASS V1d remote name '.x' refused before any git call (rc=2)
+PASS V1e a URL starting with '-' is refused by line number (rc=2)
+PASS V2a exported GIT_DIR: prepare+publish land in the fresh clone, the victim repo is byte-identical
+PASS V2b exported GIT_WORK_TREE: prepare exits 0, the victim directory is unchanged
+PASS V2c exported GIT_INDEX_FILE: the victim index is byte-identical, the clone uses its own index
+PASS V2d exported GIT_NAMESPACE: refs/heads/main of all 9 remotes moved, no namespaced ref
+PASS V2e config injected via the environment is ignored (control: it redirects a plain git call)
+PASS V2f config injected via the environment is ignored (control: it redirects a plain git call)
+PASS V2g GIT_TRACE* cleared: no URL in the output (control: GIT_TRACE prints it for a plain git call)
+PASS V3a a mint that prints a PRE-EXISTING id is refused (rc=1)
+PASS V3a nothing landed
+PASS V3b a new id CON-777 is accepted although CON-7770 was already there (no false refusal)
+PASS V3c id CON-077 is not found inside CON-0770 (token match) (rc=1)
+PASS V3d an engine read printing CON-7770 does not confirm CON-777 (rc=1)
+PASS V3e binary tracker: CON-777 inside CON-7775 counts as already there (fail closed) (rc=1)
+PASS V4 a placeholder commit already on github gets a WARN row for each of the 8 remotes it reaches
+PASS V4 publish_warnings.tsv has a header and exactly 8 rows
+PASS V5 a gpg child left running by a signed commit does not hold the workdir lock (2 gpg runs: control)
+PASS V6 push.followTags=true in the caller config: 0 of 9 remotes got the tag
+PASS V7 an untracked file is seen although status.showUntrackedFiles=no (rc=2)
+PASS V7 no remote moved
+PASS V8a a mint that deletes a tracked file is refused (rc=1)
+PASS V8a the deletion is recorded in mint_changes.tsv; nothing landed
+PASS V8b a mint that writes outside LANDER_TRACKER_PATHS is refused (rc=1)
+PASS V8c a mint that leaves the tracker path as a symlink is refused (rc=1)
+PASS V8d deleting a file that IS a tracker path is still refused as a deletion (rc=1)
+PASS V14 LANDER_REMOTES holding 'a/b' is refused (rc=2)
+FAIL V15 (swap) a mint tree that differs from the recorded mint changes is refused (rc=0, want rc=1 and /the mint commit differs from the recorded mint changes \(the index changed after the checks\)/)
+    | land_vehicle: step 1: bundle sha256 OK (7ae0692175a2f374572e288d42f1daaa169a08d121b9ae4e881314668d28320f)
+    | land_vehicle: step 2: newest main across 9 remotes = 931723cea86deae7be84c9bd6e770394ca0e07ed
+    | land_vehicle: step 1b: bundle verified, head 37f76c9c9e366a01b16ea71092a53c47b0e30d95 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-777
+    | land_vehicle: step 4: vehicle head 37f76c9c9e366a01b16ea71092a53c47b0e30d95 -> 7243dc29f318cc677295f57d75ad7c2635f5c801 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15swap/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = da3ebe8107f403956f160a253336b1d6f0a9b21c, item CON-777.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15swap/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15swap/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15swap/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15swap/ev
+FAIL V15 (swap) fault not injected or state written
+FAIL V15 (extra) a mint tree that differs from the recorded mint changes is refused (rc=0, want rc=1 and /the mint commit differs from the recorded mint changes \(the index changed after the checks\)/)
+    | land_vehicle: step 1: bundle sha256 OK (18d0c91c0eac777d3d5e270353205d498de1704f73c7ca754063d5cbaa894bf8)
+    | land_vehicle: step 2: newest main across 9 remotes = 88065f2e230253396d5c1a2dd84daa0efe3128c1
+    | land_vehicle: step 1b: bundle verified, head 329b607c4f5dca3bf4596acc665d9a9ddc43e778 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-777
+    | land_vehicle: step 4: vehicle head 329b607c4f5dca3bf4596acc665d9a9ddc43e778 -> a5cfaae366c34875ace30c9cfe814aee331289f9 (tree equality: /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15extra/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = 0f933433306d68bbdbc6e5fc9beb29ce068afbdf, item CON-777.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15extra/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r5.Ouo7/red/land_vehicle.sh publish --workdir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15extra/work --remotes-file /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15extra/remotes.txt --evidence-dir /home/milosvasic/.cache/claude-tmp/lvtest.LhWLs1/v15extra/ev
+FAIL V15 (extra) fault not injected or state written
+FAIL V16 attributesFile (rc=1 committed=[] control=[CON-XXX minted])
+    | land_vehicle: step 1: bundle sha256 OK (8adfde3ca17a0b0505e6127de57ed7d446d9ee5d828b044e677ff9df0207f54b)
+    | land_vehicle: step 2: newest main across 9 remotes = 9e6baf2f33b681fe75068c93fb48250483495751
+    | land_vehicle: step 1b: bundle verified, head a6e6a111879ce40b2fb5cba8cd98a7a61de41a6f found as refs/heads/vehicle
+    | land_vehicle: ERROR: the mint command printed CON-777 but no changed file in the clone contains it: refusing; nothing was landed
+PASS V16c an id that an in-tree attribute's clean filter strips from the staged tracker is refused (rc=1)
+PASS V16c control: the worktree holds CON-777 and the staged blob holds CON-XXX
+PASS V9a a second push URL after the declared one is refused (rc=2)
+PASS V9a nothing pushed, the sink got nothing
+PASS V9b remote.origin.receivepack set in the clone is refused (rc=2)
+PASS V9b remote.origin.uploadpack set in the clone is refused (rc=2)
+PASS V9b no remote moved
+PASS V9c a mint that switches the branch is refused (rc=1)
+PASS V9d a push the server rewound is FAIL in the read-back, not PASS
+PASS V9e a clone URL that merely starts with the declared URL is refused (rc=2)
+PASS V9e no remote moved
+PASS V11 --workdir '-' refused (rc=2)
+PASS V11 --workdir '-Pzz' refused (rc=2)
+PASS V11 '--workdir -' did not take OLDPWD as the workdir
+PASS V11 a relative --workdir is resolved against the current directory, not CDPATH
+PASS V12 a dangling symlink at the clone path is refused (exit 2, not a raw git code) (rc=2)
+PASS V12 nothing created at the symlink target
+PASS V13 a failing git call exits 1 (not git's 128) with a message (rc=1)
+PASS V13 the fault was really injected (control)
+PASS SH0 the lander has exactly one push call site (control: an added push line counts 2)
+FAIL SH0 the push call site text
+    | bad push argv: -q --no-verify --no-follow-tags gitflic main:refs/heads/main
+FAIL SH2 recorded pushes
+
+RESULT pass=222 fail=70

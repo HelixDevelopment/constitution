@@ -1,0 +1,7 @@
+== S_A3c documented sed wrapper, real engine binary on a DB copy
+documented wrapper: rc=0 :: land_vehicle: step 3: tracker id = CON-166
+mint commit name-status: M docs/wi.db 
+engine failure under the wrapper: rc=1 :: land_vehicle: ERROR: the mint command changed a path it may not change (A docs/absent.db): only added or modified files matching LANDER_TRACKER_PATHS (docs/tracker.fake docs/wi.db) are allowed; see /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.hktu7o/a3c/ev/mint_changes.tsv; nothing was landed
+== scenarios done
+rc=0
+source db sha256 before 27f579eea5a0c2d12ba46bf9bd051b199865a99aa7c51c0a20a1c28e26a6e687 after 27f579eea5a0c2d12ba46bf9bd051b199865a99aa7c51c0a20a1c28e26a6e687

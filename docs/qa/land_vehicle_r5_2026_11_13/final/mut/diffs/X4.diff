@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (X4)
+@@ -478,7 +478,7 @@
+   -c pull.twohead=ort -c pull.octopus=octopus -c branch.main.mergeOptions= -c merge.renormalize=false
+ )
+ g() {
+-  git --no-pager --no-replace-objects --literal-pathspecs -C "$CLONE" \
++  git --no-pager --no-replace-objects -C "$CLONE" \
+     --git-dir="$CLONE/.git" --work-tree="$CLONE" "${GIT_PIN[@]}" "$@" 9>&-
+ }
+ # gx: git's trailer parser with no repository and no config at all (no trailer.*,

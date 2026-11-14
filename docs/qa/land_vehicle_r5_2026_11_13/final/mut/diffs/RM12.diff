@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM12)
+@@ -994,7 +994,7 @@
+       || die 1 "the merge result differs from the same merge computed without your global and system git config (a merge strategy, merge option or merge driver from your config changed it); nothing was published; merge by hand"
+     log "step 5: vehicle merged onto main (merge commit)"
+   fi
+-  check_trailers "" "$after" --not "$main_before"
++  check_trailers "" "$after" --not "$new_head"
+ 
+   # refs recorded next to the state file, so publish can check the state against them
+   g update-ref refs/land/main_before "$main_before" "$zero" || die 1 "cannot record refs/land/main_before"

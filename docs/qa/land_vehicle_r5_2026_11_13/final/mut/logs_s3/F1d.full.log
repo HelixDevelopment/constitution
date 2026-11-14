@@ -1,0 +1,9 @@
+PASS R5-K01 prepare exits 0
+PASS R5-K01 a commit made in the clone during the pushes: publish exits 1 (rc=1)
+PASS R5-K01 all 9 remotes got the checked sha, 0 got the moved main (control: the hook did move clone main)
+PASS R5-K01 publish again refuses the unreviewed commit, with the prepare-again hint (rc=1)
+PASS R5-K01 the unreviewed commit reached no remote
+PASS R5-R04b prepare exits 0
+FAIL R5-R04b origin re-pointed after the first push: refused, and the message names the remotes already pushed (rc=2, want rc=2 and /remote 'origin' fetch URL in the clone differs from --remotes-file; this run already pushed the checked main to: gitflic github github_helixdevelopment github_vasic_digital gitlab_helixdevelopment1 gitlab_vasic_digital gitverse m3w; no further remote is pushed/)
+
+RESULT pass=6 fail=1 (failfast)

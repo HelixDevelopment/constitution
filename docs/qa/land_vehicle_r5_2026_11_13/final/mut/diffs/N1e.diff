@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (N1e)
+@@ -988,7 +988,7 @@
+     [ "$parents" = "$after $before $new_head" ] || die 1 "the merge commit does not have exactly the parents (main, vehicle)"
+     # independent oracle: the same merge computed with no global and no system config
+     local iso
+-    iso=$(GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null g merge-tree --write-tree --no-messages "$before" "$new_head" 2>>"$ERRLOG") \
++    iso=$(g merge-tree --write-tree --no-messages "$before" "$new_head" 2>>"$ERRLOG") \
+       || die 1 "the merge without your global and system git config does not merge cleanly, but the merge with it did (a merge driver or merge option from your config decided it); nothing was published; merge by hand"
+     [ "${iso%%$'\n'*}" = "$(g rev-parse --verify "$after^{tree}")" ] \
+       || die 1 "the merge result differs from the same merge computed without your global and system git config (a merge strategy, merge option or merge driver from your config changed it); nothing was published; merge by hand"

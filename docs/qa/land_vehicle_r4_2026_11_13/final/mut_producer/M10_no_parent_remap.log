@@ -1,0 +1,8 @@
+PASS T1 prepare exits 0
+PASS T1 placeholder trailers replaced with minted id
+PASS T1 engine mint output committed
+PASS V8c T1 mint changes recorded in evidence (name-status equals the mint commit)
+PASS T2 tree-equality evidence: 2 rows PASS
+FAIL T2 independent tree re-check
+
+RESULT pass=5 fail=1 (failfast)

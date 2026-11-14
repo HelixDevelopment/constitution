@@ -1,0 +1,3 @@
+== S_A9 ambient status.showUntrackedFiles=no + an untracked derived file (LIVE git)
+publish with an untracked file in the clone: rc=2 (rc 0 = published without it)
+== scenarios done

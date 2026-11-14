@@ -1,0 +1,63 @@
+PASS R6-C0 control needle: the remotes file holds the token 9 times and a traced shell that reads it prints it (2 lines)
+PASS R6-C-shellopts tracing from the caller: prepare and publish exit 0, all 9 landed, 0 output lines and 0 evidence files hold the credential
+FAIL R6-C-bashenv (rc=0 token lines=9 evidence files=0)
+    | <W>/tmp/lvtest.B7R6Js/r6cbashenv/prep.out:+ exec /usr/bin/git --no-pager --no-replace-objects --literal-pathspecs -C <W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution --git-dir=<W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution/.git --work-tree=<W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null -c core.autocrlf=false -c core.eol=lf -c core.sparseCheckout=false -c core.useReplaceRefs=false -c core.commentChar=# -c core.sharedRepository=false -c core.untrackedCache=false -c core.checkStat=default -c diff.ignoreSubmodules=none -c log.showSignature=false -c i18n.logOutputEncoding=UTF-8 -c i18n.commitEncoding=UTF-8 -c color.ui=never -c color.diff=never -c color.status=never -c merge.log=false -c merge.autoStash=false -c rerere.enabled=false -c gc.auto=0 -c maintenance.auto=false -c submodule.recurse=false -c fetch.recurseSubmodules=false -c fetch.prune=false -c fetch.pruneTags=false -c fetch.bundleURI= -c transfer.bundleURI=false -c push.pushOption= -c push.gpgSign=false -c push.followTags=false -c push.recurseSubmodules=no -c push.default=nothing -c protocol.ext.allow=never -c pull.twohead=ort -c pull.octopus=octopus -c branch.main.mergeOptions= -c merge.renormalize=false remote add gitflic <W>/tmp/lvtest.B7R6Js/r6cbashenv.<TOK>/gitflic.git
+    | <W>/tmp/lvtest.B7R6Js/r6cbashenv/prep.out:+ exec /usr/bin/git --no-pager --no-replace-objects --literal-pathspecs -C <W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution --git-dir=<W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution/.git --work-tree=<W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null -c core.autocrlf=false -c core.eol=lf -c core.sparseCheckout=false -c core.useReplaceRefs=false -c core.commentChar=# -c core.sharedRepository=false -c core.untrackedCache=false -c core.checkStat=default -c diff.ignoreSubmodules=none -c log.showSignature=false -c i18n.logOutputEncoding=UTF-8 -c i18n.commitEncoding=UTF-8 -c color.ui=never -c color.diff=never -c color.status=never -c merge.log=false -c merge.autoStash=false -c rerere.enabled=false -c gc.auto=0 -c maintenance.auto=false -c submodule.recurse=false -c fetch.recurseSubmodules=false -c fetch.prune=false -c fetch.pruneTags=false -c fetch.bundleURI= -c transfer.bundleURI=false -c push.pushOption= -c push.gpgSign=false -c push.followTags=false -c push.recurseSubmodules=no -c push.default=nothing -c protocol.ext.allow=never -c pull.twohead=ort -c pull.octopus=octopus -c branch.main.mergeOptions= -c merge.renormalize=false remote add github <W>/tmp/lvtest.B7R6Js/r6cbashenv.<TOK>/github.git
+    | <W>/tmp/lvtest.B7R6Js/r6cbashenv/prep.out:+ exec /usr/bin/git --no-pager --no-replace-objects --literal-pathspecs -C <W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution --git-dir=<W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution/.git --work-tree=<W>/tmp/lvtest.B7R6Js/r6cbashenv/work/constitution -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null -c core.autocrlf=false -c core.eol=lf -c core.sparseCheckout=false -c core.useReplaceRefs=false -c core.commentChar=# -c core.sharedRepository=false -c core.untrackedCache=false -c core.checkStat=default -c diff.ignoreSubmodules=none -c log.showSignature=false -c i18n.logOutputEncoding=UTF-8 -c i18n.commitEncoding=UTF-8 -c color.ui=never -c color.diff=never -c color.status=never -c merge.log=false -c merge.autoStash=false -c rerere.enabled=false -c gc.auto=0 -c maintenance.auto=false -c submodule.recurse=false -c fetch.recurseSubmodules=false -c fetch.prune=false -c fetch.pruneTags=false -c fetch.bundleURI= -c transfer.bundleURI=false -c push.pushOption= -c push.gpgSign=false -c push.followTags=false -c push.recurseSubmodules=no -c push.default=nothing -c protocol.ext.allow=never -c pull.twohead=ort -c pull.octopus=octopus -c branch.main.mergeOptions= -c merge.renormalize=false remote add github_helixdevelopment <W>/tmp/lvtest.B7R6Js/r6cbashenv.<TOK>/github_helixdevelopment.git
+PASS R6-C-bashx tracing from the caller: prepare and publish exit 0, all 9 landed, 0 output lines and 0 evidence files hold the credential
+PASS R6-C4 an exported function git from the environment never runs (prepare exits 0)
+FAIL R6-C4b BASH_ENV function (rc=0, ran: yes)
+    | land_vehicle: step 1: bundle sha256 OK (ef1d3c0cfdff4c91d836e655cd1390332f2cd92e7886f805eeaf38c6bd93eb6e), copied to the clone
+    | land_vehicle: step 2: newest main across 9 remotes = be7387164574352b717758871c9480a75c1ec6d0
+    | land_vehicle: step 1b: bundle verified, head b8c92ccf1f9b8d7a9afc3034b5318b7b0724d0a8 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-922
+    | land_vehicle: step 4: vehicle head b8c92ccf1f9b8d7a9afc3034b5318b7b0724d0a8 -> 821cda36498a9d41f08b1a0324278743f004e61c (tree equality: <W>/tmp/lvtest.B7R6Js/r6c4b/ev/tree_equality.tsv)
+    | land_vehicle: step 5: main fast-forwarded to 821cda36498a9d41f08b1a0324278743f004e61c
+    | 
+    | land_vehicle: prepare done. main = 821cda36498a9d41f08b1a0324278743f004e61c, item CON-922.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd <W>/tmp/lvtest.B7R6Js/r6c4b/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-922"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   <W>/mut/M03.sh publish --workdir <W>/tmp/lvtest.B7R6Js/r6c4b/work --remotes-file <W>/tmp/lvtest.B7R6Js/r6c4b/remotes.txt --evidence-dir <W>/tmp/lvtest.B7R6Js/r6c4b/ev
+PASS R6-C4 control: the exported function runs in a plain bash
+PASS R6-C5-dashO nocasematch from the caller: a mint writing docs/TRACKER.FAKE is still refused (tracker path docs/tracker.fake) (rc=1)
+PASS R6-C5-bashopts nocasematch from the caller: a mint writing docs/TRACKER.FAKE is still refused (tracker path docs/tracker.fake) (rc=1)
+PASS R6-A1-emptykey a vehicle commit with a folded Roadmap-Item value is refused at prepare (rc=1)
+PASS R6-A1-continued a vehicle commit with a folded Roadmap-Item value is refused at prepare (rc=1)
+PASS R6-A1 control: git parses the folded form as the single trailer CON-931
+PASS R6-A1p prepare exits 0
+PASS R6-A1p a folded trailer committed after prepare is refused at publish (rc=1)
+PASS R6-A1p nothing was pushed
+PASS R6-A2 folded: CON-777 on a continuation line of a vehicle trailer makes CON-777 not new (rc=1)
+PASS R6-A2 case: a lower-case 'roadmap-item: con-777' makes CON-777 not new (rc=1)
+PASS R6-A2 spacing: 'Roadmap-Item  :   CON-0777' makes CON-777 not new (rc=1)
+PASS R6-A2 mention: 'see CON-777' in a subject makes CON-777 not new (rc=1)
+PASS R6-A2 control: with the same vehicle, CON-778 is new and accepted
+PASS R6-B tip: the vehicle tip's tracker file holds CON-777: not new (rc=1)
+PASS R6-B removed: a vehicle commit added CON-777 and a later one removed it: not new (rc=1)
+PASS R6-B case: the vehicle tracker holds con-0777: not new (rc=1)
+PASS R6-B control: the vehicle tracker holds CON-776 only, CON-777 is new and accepted, the vehicle file landed
+PASS R6-B case at main: the tracker at main holds con-777: not new (rc=1)
+PASS R6-D1 prepare exits 0
+PASS R6-D1 local main reset to the prepared base, never published: verify exits 1 (rc=1)
+PASS R6-D2 prepare exits 0
+PASS R6-D2 prepared but not published: verify exits 1, verify.md names the landed head and 9 rows 'FAIL | no'
+PASS R6-D2 publish exits 0
+PASS R6-D2 control: after publish, verify exits 0 with 9 rows 'PASS | yes'
+PASS R6-D3 verify refuses a prepare state that no longer matches the refs (rc=2)
+PASS R6-F the clone path swapped for a symlink during git init: prepare exits 1 (rc=1)
+PASS R6-F nothing was written outside the workdir and no remote moved (control: the shim did swap the path)
+PASS R6-G1 prepare exits 0
+PASS R6-G1 control: with that config git rewrites the push URL of origin to the decoy
+PASS R6-G1 pushInsteadOf rewrites origin's push URL: publish refuses before any push (rc=2)
+PASS R6-G1 no remote and not the decoy received anything
+PASS R6-G3 encoding ISO-8859-1 kept, message bytes equal except the id, header lines equal except parent
+PASS SH2-R6 every push of the round-6 cases is plain
+
+RESULT pass=38 fail=2 (round-6 cases only)

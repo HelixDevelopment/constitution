@@ -1,0 +1,10 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM28)
+@@ -648,7 +648,6 @@
+   local _sm _ss _ty dmode dsha st
+   out=$(cd "$CLONE" && run_caller_locale bash -c "$MINT_CMD" 9>&-) || die 1 "mint command failed"
+   id=${out##*$'\n'}
+-  id=${id%$'\r'}
+   id=${id#"${id%%[!$' \t']*}"}
+   id=${id%"${id##*[!$' \t']}"}
+   [[ "$id" =~ $ID_RE ]] || die 1 "mint did not print an id matching $ID_RE as its last line"

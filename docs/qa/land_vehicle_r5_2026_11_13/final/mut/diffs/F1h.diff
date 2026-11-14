@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F1h)
+@@ -1059,7 +1059,7 @@
+       rows=$(untrailered "$local_main" --not "${before[i]}") || die 1 "rev-list or trailer parse failed for the warning check"
+       while IFS=$'\t' read -r c found; do
+         [ -n "$c" ] || continue
+-        g merge-base --is-ancestor "$c" "$main_before" \
++        true \
+           || die 1 "internal: commit $c without a real trailer is not before the prepared base"
+         warns+=("${R_NAMES[$i]}"$'\t'"$c"$'\t'"published before prepare (at or before main_before); no single real Roadmap-Item trailer (found: '$found')")
+         log "WARN: ${R_NAMES[$i]} receives $c, published before prepare, without a single real Roadmap-Item trailer"

@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F11)
+@@ -417,7 +417,7 @@
+     || die 2 "remotes file holds a NUL byte (the file is not shown, it may hold a credential)"
+   while IFS= read -r line || [ -n "$line" ]; do
+     lineno=$((lineno + 1))
+-    if [[ "$line" == *[$'\001'-$'\010'$'\013'-$'\037'$'\177']* ]]; then
++    if false && [[ "$line" == *[$'\001'-$'\010'$'\013'-$'\037'$'\177']* ]]; then
+       die 2 "remotes file line $lineno: holds a control character other than TAB (a CR from a CRLF file?); the line is not shown, it may hold a credential"
+     fi
+     name="" url="" rest=""

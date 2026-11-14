@@ -1,0 +1,110 @@
+name	class
+BASH	set or computed by bash itself
+BASH_ALIASES	removed-before-rerun
+BASH_ARGC	set or computed by bash itself
+BASH_ARGV	set or computed by bash itself
+BASH_ARGV0	not imported by bash (measured)
+BASH_CMDS	removed-before-rerun
+BASH_COMMAND	set or computed by bash itself
+BASH_COMPAT	removed-before-rerun
+BASH_ENV	removed-before-rerun
+BASH_EXECUTION_STRING	set or computed by bash itself
+BASH_LINENO	set or computed by bash itself
+BASH_LOADABLES_PATH	removed-before-rerun
+BASH_MONOSECONDS	set or computed by bash itself
+BASHOPTS	removed-before-rerun
+BASHPID	set or computed by bash itself
+BASH_REMATCH	set or computed by bash itself
+BASH_SOURCE	set or computed by bash itself
+BASH_SUBSHELL	set or computed by bash itself
+BASH_TRAPSIG	set or computed by bash itself
+BASH_VERSINFO	set or computed by bash itself
+BASH_VERSION	set or computed by bash itself
+BASH_XTRACEFD	removed-before-rerun
+CDPATH	unset (round 4)
+CHILD_MAX	removed-before-rerun
+COLUMNS	interactive only
+COMP_CWORD	interactive only
+COMP_KEY	interactive only
+COMP_LINE	interactive only
+COMP_POINT	interactive only
+COMPREPLY	interactive only
+COMP_TYPE	interactive only
+COMP_WORDBREAKS	interactive only
+COMP_WORDS	interactive only
+COPROC	left to the caller on purpose
+DIRSTACK	left to the caller on purpose
+EMACS	interactive only
+ENV	removed-before-rerun
+EPOCHREALTIME	set or computed by bash itself
+EPOCHSECONDS	set or computed by bash itself
+EUID	set or computed by bash itself
+EXECIGNORE	removed-before-rerun
+FCEDIT	interactive only
+FIGNORE	interactive only
+FUNCNAME	set or computed by bash itself
+FUNCNEST	removed-before-rerun
+GLOBIGNORE	removed-before-rerun
+GLOBSORT	removed-before-rerun
+GROUPS	set or computed by bash itself
+HISTCMD	set or computed by bash itself
+HISTCONTROL	interactive only
+HISTFILE	interactive only
+HISTFILESIZE	interactive only
+HISTIGNORE	interactive only
+HISTSIZE	interactive only
+HISTTIMEFORMAT	interactive only
+HOME	left to the caller on purpose
+HOSTFILE	interactive only
+HOSTNAME	left to the caller on purpose
+HOSTTYPE	left to the caller on purpose
+IFS	not imported by bash (measured)
+IGNOREEOF	interactive only
+INPUTRC	interactive only
+INSIDE_EMACS	interactive only
+LANG	pinned by LC_ALL=C
+LC_ALL	pinned by LC_ALL=C
+LC_COLLATE	pinned by LC_ALL=C
+LC_CTYPE	pinned by LC_ALL=C
+LC_MESSAGES	pinned by LC_ALL=C
+LC_NUMERIC	pinned by LC_ALL=C
+LC_TIME	pinned by LC_ALL=C
+LINENO	set or computed by bash itself
+LINES	interactive only
+MACHTYPE	left to the caller on purpose
+MAIL	interactive only
+MAILCHECK	interactive only
+MAILPATH	interactive only
+MAPFILE	left to the caller on purpose
+OLDPWD	left to the caller on purpose
+OPTARG	left to the caller on purpose
+OPTERR	left to the caller on purpose
+OPTIND	left to the caller on purpose
+OSTYPE	left to the caller on purpose
+PATH	left to the caller on purpose
+PIPESTATUS	set or computed by bash itself
+POSIXLY_CORRECT	removed-before-rerun
+PPID	set or computed by bash itself
+PROMPT_COMMAND	interactive only
+PROMPT_DIRTRIM	interactive only
+PS0	interactive only
+PS1	interactive only
+PS2	interactive only
+PS3	interactive only
+PS4	removed-before-rerun
+PWD	left to the caller on purpose
+RANDOM	set or computed by bash itself
+READLINE_ARGUMENT	interactive only
+READLINE_LINE	interactive only
+READLINE_MARK	interactive only
+READLINE_POINT	interactive only
+REPLY	left to the caller on purpose
+SECONDS	set or computed by bash itself
+SHELL	left to the caller on purpose
+SHELLOPTS	removed-before-rerun
+SHLVL	left to the caller on purpose
+SRANDOM	set or computed by bash itself
+TIMEFORMAT	left to the caller on purpose
+TMOUT	removed-before-rerun
+TMPDIR	left to the caller on purpose
+UID	set or computed by bash itself

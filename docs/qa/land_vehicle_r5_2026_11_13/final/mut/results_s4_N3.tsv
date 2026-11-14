@@ -1,0 +1,4 @@
+name	stage	rc	result	first_fail
+N3c	full	1	RESULT pass=50 fail=1 (failfast)	FAIL R5-N3b modes after init (rc=0 bad=64 of 78 control=13)
+N3a	full	1	RESULT pass=49 fail=1 (failfast)	FAIL R5-N3 modes (rc=0 clone 755/644 control 2775/664)
+N3b	full	1	RESULT pass=49 fail=1 (failfast)	FAIL R5-N3 modes (rc=0 clone 2775/664 control 2775/664)

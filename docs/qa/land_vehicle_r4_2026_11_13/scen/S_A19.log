@@ -1,0 +1,4 @@
+== S_A19 credential URL on a failing fetch (local port 9, connection refused)
+rc=1 leak_in_output=0 leak_in_errlog=0
+land_vehicle: ERROR: fetch of main failed on remote origin (unreachable, or it has no main branch: an empty mirror must be seeded first; git's message is in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.qbRXRG/a19/work/constitution/.git/land_git_stderr.log)
+== scenarios done

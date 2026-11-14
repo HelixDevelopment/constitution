@@ -1,0 +1,14 @@
+== S_A12 trailer variants (LIVE git interpret-trailers)
+  [1] t1\\n\\nRoadmap-Item:CON-050\\n -> rc=0 trailers=[CON-912,,]
+  [2] t2\\n\\nRoadmap-Item:\\tCON-050\\n -> rc=0 trailers=[CON-912,,]
+  [3] t3\\n\\nRoadmap-Item:\ CON-050\ \ \ \\n -> rc=0 trailers=[CON-912,,]
+  [4] t4\\n\\nROADMAP-ITEM:\ CON-PENDING-x\\n -> rc=0 trailers=[CON-912,,]
+  [5] t5\\n\\nRoadmap-Item:\ \<TO-BE-MINTED\>\\n -> rc=0 trailers=[CON-912,,]
+  [6] t6\\n\\nRoadmap-Item:\ con-050\\n -> rc=1 ERROR: commit 07f9c41beeb631b849c9c5e9e345b4b0a8094412 lacks a single real Roadmap-Item trailer (found: 'con-0
+  [7] t7\\n\\nSigned-off-by:\ A\ \<a@b.c\>\\nRoadmap-Item:\ CON-050\\nReviewed-by:\ B\ \<b@c.d\>\\n -> rc=0 trailers=[CON-912,,]
+  [8] t8\\n\\nRoadmap-Item:\ CON-050\\nRoadmap-Item:\ \<TO-BE-MINTED\>\\nRoadmap-Item:\ CON-123\\n -> rc=1 ERROR: commit f76f17212dc8b4137893a2601b579c027d19e750 lacks a single real Roadmap-Item trailer (found: 'CON-9
+  [9] t9\\n\\nRoadmap-Item:\ CON-PENDING-\\n -> rc=0 trailers=[CON-912,,]
+  [10] t10\\n\\nRoadmap-Item: -> rc=1 ERROR: commit 2db7c13bc9f28d3da8805adb88e0550e4663d7c4 lacks a single real Roadmap-Item trailer (found: ''; wa
+  [11] t11\\n\\nRoadmap-Item:\ CON-050\ #\ placeholder\\n -> rc=1 ERROR: commit c2cf298e1faa97867cd0c2ef925cf1ad6ac6b11d lacks a single real Roadmap-Item trailer (found: 'CON-0
+  [12] t12\\n\\nCloses:\ #12\\nRoadmap-Item:\ CON-050\\n -> rc=0 trailers=[CON-912,,]
+== scenarios done

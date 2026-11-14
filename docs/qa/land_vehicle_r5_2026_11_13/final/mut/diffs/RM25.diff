@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM25)
+@@ -444,7 +444,7 @@
+ [ "${#TRACKER_PATS[@]}" -gt 0 ] || die 2 "LANDER_TRACKER_PATHS is empty"
+ for _p in "${TRACKER_PATS[@]}"; do
+   ! has_ctrl "$_p" || die 2 "LANDER_TRACKER_PATHS: a pattern holds a control character"
+-  [[ "$_p" != /* ]] && [[ "$_p" != *..* ]] || die 2 "LANDER_TRACKER_PATHS: patterns are relative to the clone root and hold no '..'"
++  [[ "$_p" != /* ]] || die 2 "LANDER_TRACKER_PATHS: patterns are relative to the clone root and hold no '..'"
+   [[ "$_p" == */* ]] && [[ "${_p%%/*}" =~ ^[A-Za-z0-9._-]+$ ]] && [ "${_p%%/*}" != . ] \
+     || die 2 "LANDER_TRACKER_PATHS: each pattern needs a literal first directory and a '/' (for example docs/workable_items.db); '*' or a pattern without a directory would let the mint change any file"
+ done

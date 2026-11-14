@@ -1,0 +1,6 @@
+PASS R5-K01 prepare exits 0
+PASS R5-K01 a commit made in the clone during the pushes: publish exits 1 (rc=1)
+PASS R5-K01 all 9 remotes got the checked sha, 0 got the moved main (control: the hook did move clone main)
+FAIL R5-K01 publish again refuses the unreviewed commit, with the prepare-again hint (rc=1, want rc=1 and /lacks a single real Roadmap-Item trailer.*run prepare again in a new workdir/)
+
+RESULT pass=3 fail=1 (failfast)

@@ -1,0 +1,6 @@
+== S_A10 option-like --workdir (cd semantics)
+isolated: WORKDIR=-P resolves to: $HOME (same as the caller HOME)
+lander accepts -P as a value (dies later at remotes file): rc=2 :: land_vehicle: ERROR: --workdir must not start with '-' (write ./-P for such a directory)
+--workdir - with OLDPWD set: rc=2 :: land_vehicle: ERROR: --workdir must not start with '-' (write ./- for such a directory) 
+lock file created in OLDPWD dir: 
+== scenarios done

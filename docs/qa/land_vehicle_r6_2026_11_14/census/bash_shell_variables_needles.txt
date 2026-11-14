@@ -1,0 +1,3 @@
+positive needles (must be found): SHELLOPTS BASH_ENV -> 2
+negative needle (must not be found): ZZFAKEVAR -> 0
+source: man bash (GNU bash 5.3.9(1)-release), section 'Shell Variables' up to 'Arrays', column-7 names

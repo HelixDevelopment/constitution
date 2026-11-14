@@ -1,0 +1,20 @@
+# git interpret-trailers --parse: whitespace-only line vs indented continuation (git version 2.53.0)
+## input:
+0000000   s  \n  \n   R   o   a   d   m   a   p   -   I   t   e   m   :
+0000020       C   O   N   -   1  \n      \n   S   i   g   n   e   d   -
+0000040   o   f   f   -   b   y   :       a       <   a   @   b   >  \n
+0000060
+## parsed:
+Signed-off-by: a <a@b>
+## input:
+0000000   s  \n  \n   R   o   a   d   m   a   p   -   I   t   e   m   :
+0000020       C   O   N   -   1  \n       C   O   N   -   2  \n
+0000036
+## parsed:
+Roadmap-Item: CON-1 CON-2
+## input:
+0000000   s  \n  \n   R   o   a   d   m   a   p   -   I   t   e   m   :
+0000020  \n  \t   C   O   N   -   3  \n
+0000030
+## parsed:
+Roadmap-Item: CON-3

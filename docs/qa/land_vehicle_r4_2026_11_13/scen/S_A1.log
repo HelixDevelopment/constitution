@@ -1,0 +1,11 @@
+== S_A1 remote moved between preflight and push (LIVE git; shim = fixture trigger)
+prepare rc=0
+publish rc=1; remotes at local main: 8/9; gitverse main is the concurrent commit: yes
+| gitverse | push-rejected | `f0a35b5cce343818a3d5a9276ac06965573a476f` | FAIL |
+pushed rows: 8
+land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.mUEdHr/a1/ev/publish.md
+land_vehicle: ERROR: one or more remotes FAIL (see /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.mUEdHr/a1/ev/publish.md)
+push argv lines: 9; non-plain: 9
+re-publish without integrating: rc=1; 1 preflight rows; land_vehicle: ERROR: preflight refused 1 remote(s) (non-fast-forward, unreadable or without main); nothing was pushed (see /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.mUEdHr/a1/ev/publish.md)
+resume publish rc=0; remotes at main: 9/9; concurrent commit kept: yes
+== scenarios done

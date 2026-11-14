@@ -1,0 +1,4 @@
+== S_A26 concurrent prepare x2 and publish x2 in one workdir (LIVE git, real flock)
+prepare rcs: 2 0 :: ERROR: another land_vehicle run holds the lock /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic|
+publish rcs: 0 2 :: ERROR: another land_vehicle run holds the lock /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic|; at main 9/9
+== scenarios done

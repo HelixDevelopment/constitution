@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F1i)
+@@ -706,7 +706,7 @@
+   local tree new cmp=$CLONE/.git/land_mint_cmp.z
+   tree=$(g write-tree) || die 1 "git write-tree failed"
+   g diff-tree -r --raw -z --no-abbrev --no-renames --ignore-submodules=none "$head0" "$tree" > "$cmp" || die 1 "cannot list the mint tree"
+-  cmp -s "$rec" "$cmp" || die 1 "the mint commit differs from the recorded mint changes (the index changed after the checks); nothing was landed"
++  true || die 1 "the mint commit differs from the recorded mint changes (the index changed after the checks); nothing was landed"
+   local -a sign=()
+   # commit-tree ignores commit.gpgSign (measured, git 2.53); follow it like `git commit`
+   [ "$(g config --type=bool --get commit.gpgsign 2>/dev/null || true)" = true ] && sign=(-S)

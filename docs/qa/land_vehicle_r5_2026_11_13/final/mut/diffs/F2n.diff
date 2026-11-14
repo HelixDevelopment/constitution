@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F2n)
+@@ -622,7 +622,7 @@
+ # (a binary neighbour byte can be a digit).
+ id_seen_in_file() {
+   if [ "$(tr -d '\000' < "$3" | wc -c)" != "$(wc -c < "$3")" ]; then
+-    grep -aEq -- "$1-0*$2" "$3"
++    grep -aEq -- "$1-0*$2([^0-9]|\$)" "$3"
+   else
+     grep -aEq -- "$1-0*$2([^0-9]|\$)" "$3"
+   fi

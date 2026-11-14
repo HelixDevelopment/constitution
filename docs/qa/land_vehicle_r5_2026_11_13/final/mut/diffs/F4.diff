@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F4)
+@@ -467,7 +467,7 @@
+   -c core.autocrlf=false -c core.eol=lf -c core.sparseCheckout=false
+   -c core.useReplaceRefs=false -c core.commentChar=# -c core.sharedRepository=false
+   -c core.untrackedCache=false -c core.checkStat=default -c diff.ignoreSubmodules=none
+-  -c log.showSignature=false -c i18n.logOutputEncoding=UTF-8 -c i18n.commitEncoding=UTF-8
++  -c i18n.logOutputEncoding=UTF-8 -c i18n.commitEncoding=UTF-8
+   -c color.ui=never -c color.diff=never -c color.status=never -c merge.log=false -c merge.autoStash=false -c rerere.enabled=false
+   -c gc.auto=0 -c maintenance.auto=false
+   -c submodule.recurse=false -c fetch.recurseSubmodules=false

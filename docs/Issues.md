@@ -3703,3 +3703,11 @@ Review r8 N4 (test-instrumentation): reviewer mutants M8c (category in (Cf,Zs) w
 
 Source: CON-030 review r8 (docs/qa/con030_review/review_con030_r8.md, copied into the tree at landing), verdict GO-pending-table, minor-class nit registered as a follow-up per section 11.4.276(G.2). Parent: CON-030.
 
+## CON-299 — land_vehicle lander: land reviewed vehicle bundles onto main of every upstream (scripts/release/land_vehicle.sh)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** medium
+
+Lander script scripts/release/land_vehicle.sh with its test tests/release/test_land_vehicle.sh and docs/qa/land_vehicle_r4, r5, r6 evidence; rounds 4 to 6 squashed into one commit on main; independent review round 7 verdict GO-with-follow-ups (review sha256 38f9ace693a011984c6ecb0eb9e47a6ae858e0896fb79da893cb5bc275048405); evidence class gate logic only; PROVISIONAL per 11.4.290.
+

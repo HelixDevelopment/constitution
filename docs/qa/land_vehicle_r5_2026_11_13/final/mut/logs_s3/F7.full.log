@@ -1,0 +1,27 @@
+PASS R5-K01 prepare exits 0
+PASS R5-K01 a commit made in the clone during the pushes: publish exits 1 (rc=1)
+PASS R5-K01 all 9 remotes got the checked sha, 0 got the moved main (control: the hook did move clone main)
+PASS R5-K01 publish again refuses the unreviewed commit, with the prepare-again hint (rc=1)
+PASS R5-K01 the unreviewed commit reached no remote
+PASS R5-R04b prepare exits 0
+PASS R5-R04b origin re-pointed after the first push: refused, and the message names the remotes already pushed (rc=2)
+PASS R5-R04b the decoy and origin got nothing, the other 8 got the checked sha (control: the hook re-pointed origin)
+PASS R5-R04b after the URL is fixed, publish again pushes origin only (8 up-to-date)
+PASS R5-F2a an id already in an untouched tracker file is refused (rc=1)
+PASS R5-F2a control: a new id CON-101 in a new file matching the glob docs/items/* is accepted
+PASS R5-F2b an id that is a trailer of a commit on main is refused (rc=1)
+PASS R5-F2b an id that is a trailer of a vehicle commit is refused (rc=1)
+PASS R5-F2b control: a new id CON-003 is accepted
+PASS R5-F2c the id in another tracker file matching the glob is refused, naming that file (rc=1)
+PASS R5-F2z the tracker holds CON-77: CON-077 is not new (rc=1)
+PASS R5-F2z the tracker holds CON-0077: CON-077 is not new (rc=1)
+PASS R5-F3a an annotated tag object as --head is refused (rc=1)
+PASS R5-F3a control: the --head given is a tag object
+PASS R5-F3b a commit after prepare whose trailer is the placeholder CON-050 is refused (rc=1)
+PASS R5-F3b no remote moved
+PASS R5-F4 with log.showSignature=true the author and committer lines are kept byte for byte (control: git log calls gpg)
+PASS R5-F5 push.pushOption in the caller config: 9/9 landed, m3w saw 0 push options (control: a plain push sends 1)
+PASS R5-F6 the clone gets no template (no core.worktree, no info/exclude, outside dir untouched; control: git init copies it)
+FAIL R5-F7 '--evidence-dir -h' is a missing value, not help (rc=2, want rc=2 and /option --evidence-dir needs a value/)
+
+RESULT pass=24 fail=1 (failfast)

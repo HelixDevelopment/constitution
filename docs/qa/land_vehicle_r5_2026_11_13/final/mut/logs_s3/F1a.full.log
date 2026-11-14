@@ -1,0 +1,4 @@
+PASS R5-K01 prepare exits 0
+FAIL R5-K01 a commit made in the clone during the pushes: publish exits 1 (rc=1, want rc=1 and /clone main moved during publish/)
+
+RESULT pass=1 fail=1 (failfast)
