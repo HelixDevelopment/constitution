@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 6 |
+| Revision | 7 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-14T18:30:00Z |
+| Last modified | 2026-11-15T01:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Reference for every option, state, reason, exit code, report field, integration point and safety property of the sync-all-upstreams engine. |
 | Authority | Constitution §2.1, §11.4.10, §11.4.37, §11.4.50, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.263, §11.4.273, §11.4.288(D), §12. The canonical text wins where this manual and the constitution disagree. |
 | Scope | Universal (§11.4.17); consumed by reference. |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 5: review round 4 (NO-GO) RV4-1–RV4-15 (write-time re-read of HEAD, branch and the parent's HEAD-tree gitlink; staged gitlinks reported; linear redaction; capped output; stop signals end in a report, exit 8; askpass and protocol variables pinned or dropped; evidence directory probed before any write; one lock per repository of the tree; unsafe and outside-parent gitlink paths reported) and the false claims of revision 4 corrected; revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 2: review round 2 (NO-GO) fixes F1–F13, N3; revision 3: review round 2 of the fixes (NO-GO) I-1–I-4, S-1, m-1–m-5, n-1–n-6 |
+| Fixed | revision 7: review round 6 (NO-GO) RV6-1 (a write refused before git starts leaves no marker; a half-written marker is removed), RV6-2 (a lock-only leftover attributed to the interrupted write, guarded), RV6-3 (a run-lock flock error other than 'held' guarded in both lock paths); revision 6: review round 5; revision 5: review round 4 (NO-GO) RV4-1–RV4-15 (write-time re-read of HEAD, branch and the parent's HEAD-tree gitlink; staged gitlinks reported; linear redaction; capped output; stop signals end in a report, exit 8; askpass and protocol variables pinned or dropped; evidence directory probed before any write; one lock per repository of the tree; unsafe and outside-parent gitlink paths reported) and the false claims of revision 4 corrected; revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 2: review round 2 (NO-GO) fixes F1–F13, N3; revision 3: review round 2 of the fixes (NO-GO) I-1–I-4, S-1, m-1–m-5, n-1–n-6 |
 | Fixed summary | Fetch never deletes or rewrites a ref; no repository hook or fsmonitor runs; every git call declares which exit statuses are an answer, and a call with no answer makes the run BLIND (exit 6; INCONCLUSIVE, exit 5, when it only ran out of time), never "absent" or "clean"; one guarded writer re-checks the tree and ignored files before every move; distinct exit codes 5/6/7. |
 | Continuation | — |
 
@@ -39,7 +39,7 @@ Related: [user guide](../guides/sync_upstreams_user_guide.md) · [FAQ](../faq/sy
 | `scripts/sync/sync_all_upstreams.py` | The engine (standard library only). |
 | `scripts/sync/sync_step_lib.sh` | `sync_step MODE ROOT ENGINE` — the shared step used by `setup.sh` and `post_update_hook.sh`; sets `SYNC_STEP_RC` and `SYNC_STEP_VERDICT`. |
 | `scripts/sync/fixture_lib.sh` | Test fixture library (scratch sandboxes of real bare repositories). |
-| `scripts/sync/robustness_checks.py`, `scripts/sync/race_git_shim.py` | Live robustness checks (`tests/sync/test_robustness.sh`) and the test-only shim that plays a USER acting while a run is in flight (never a stand-in for git). |
+| `scripts/sync/robustness_checks.py`, `scripts/sync/race_git_shim.py`, `scripts/sync/inproc_driver.py` | Robustness checks (`tests/sync/test_robustness.sh`; gate-logic / unit class, local repositories only), the test-only shim that plays a USER acting while a run is in flight (never a stand-in for git), and the test-only driver that runs the real engine module with ONE environment fault (a signal, the clock, the kernel) at a point no outside program can reach in time (round 7). |
 | `scripts/sync/examples/` | systemd user service + timer and a cron line. Not installed. |
 | `scripts/gates/cm_sync_upstreams_ff_only.sh` (+ `_mutation_test.sh`) | Gate `CM-SYNC-UPSTREAMS-FF-ONLY`. |
 | `tests/sync/` | The test suites; `run_all.sh` runs them all. |
@@ -298,7 +298,13 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   `write-killed:<op>`, FAILED. A marker found by a later run means a write did not end normally (its limit,
   SIGKILL, OOM, power loss): leftovers in that repository are reported `write-interrupted-earlier:<op>`,
   `dirty-tree-since-write-interrupted`, `in-progress-since-write-interrupted:<name>` (blocking, never blamed on
-  you); with no leftovers an `--apply` run removes the marker (`notes`: `write-marker-cleared:…`). Recovery
+  you); with no leftovers an `--apply` run removes the marker (`notes`: `write-marker-cleared:…`). A git lock
+  left on an otherwise clean tree (what a SIGKILLed write leaves: `index.lock`) is such a leftover too. A write
+  that cannot start gets no marker, and keeps none (review round 7): no marker is written when a stop signal or
+  the run deadline already refuses the write, and the marker is removed again when no git process was started
+  (the refusal came a moment later, or git could not be started); a marker that was created but could not be
+  written (for example a full disk) is removed again, an earlier run's marker never. Such a write left nothing,
+  so your later edits are never reported as its leftovers. Recovery
   of a write-killed repository, printed in the next steps: make sure no git process runs in it; look at
   `git status`; remove a stale `index.lock` only when no git process runs; save what is there with
   `git stash push --include-untracked -m helix-sync-write-killed`; re-run with a larger `--write-timeout`.

@@ -1269,6 +1269,123 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
             os.close(slave)
 
 
+class RoundSeven(unittest.TestCase):  # review round 7 (RV6-1 .. RV6-3)
+    def runner(self, F, deadline_in):
+        seen = []
+
+        def spawn(git_bin, repo, args, env, limit, level=1):
+            F.check_git_args(args)
+            seen.append(tuple(args))
+            return "exit", 0, "", ""
+        F.proc_run_git = spawn
+        return F.Runner("/nonexistent/git", 7, F.time.monotonic() + deadline_in, 1234), seen
+
+    def test_write_refused_now_is_runs_own_refusal(self):  # RV6-1: the pre-check and r.run never disagree
+        for stop in (False, True):
+            for hard in (False, True):
+                for left in (30, -1):
+                    for final in (False, True):
+                        F = fresh_engine("sync_engine_r7_pred")
+                        r, seen = self.runner(F, left)
+                        if stop:
+                            F.STOP_REQUESTED.set()
+                        if stop and hard:
+                            F.HARD_STOP.set()
+                        pred = r.write_refused_now(final=final)
+                        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True, final=final)
+                        self.assertEqual(pred, not res.started, (stop, hard, left, final))
+                        self.assertEqual(pred, seen == [], (stop, hard, left, final))
+
+    def test_started_is_false_only_without_a_process(self):
+        F = fresh_engine("sync_engine_r7_started")
+        r, seen = self.runner(F, 30)
+        self.assertFalse(r.run("/r", ["push", "origin"], ok=(0,), write=True).started)  # refused by the allow-list
+        for kind, code, started in (("not-runnable", None, False), ("exit", 0, True), ("exit", 5, True),
+                                    ("signal", 9, True), ("timeout", None, True), ("output-too-large", None, True)):
+            F.proc_run_git = lambda *a, _k=kind, _c=code, **kw: (_k, _c, "", "")
+            res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0, 1, 128), write=True)
+            self.assertEqual(res.started, started, kind)
+        F.STOP_REQUESTED.set()
+        self.assertFalse(r.run("/r", ["remote"], ok=(0,)).started)  # interrupted before spawn
+        F.STOP_REQUESTED.clear()
+        r2, _ = self.runner(F, -1)
+        self.assertFalse(r2.run("/r", ["remote"], ok=(0,)).started)  # deadline before spawn
+
+    def test_half_written_marker_is_removed(self):  # a created but unwritten marker would read 'unknown' later
+        import tempfile
+        F = fresh_engine("sync_engine_r7_half")
+        d = tempfile.mkdtemp(prefix="sync_unit_r7.")
+        real_os = F.os
+
+        class FailingWrite:
+            def __getattr__(self, name):
+                if name in ("write", "fsync"):
+                    def boom(*a):
+                        raise OSError(28, "No space left on device")
+                    return boom
+                return getattr(real_os, name)
+        try:
+            F.os = FailingWrite()
+            self.assertFalse(F.write_marker(d, "fast-forward", SHA, "r1"))
+            F.os = real_os
+            self.assertFalse(os.path.exists(os.path.join(d, F.WRITE_MARKER)))
+            self.assertIsNone(F.read_marker(d))
+            with open(os.path.join(d, F.WRITE_MARKER), "w") as fh:  # an EARLIER marker is never removed by a failure
+                fh.write(json.dumps({"op": "advance-pin"}))
+            F.os = FailingWrite()
+            self.assertFalse(F.write_marker(d, "fast-forward", SHA, "r1"))
+            F.os = real_os
+            self.assertTrue(os.path.exists(os.path.join(d, F.WRITE_MARKER)))
+        finally:
+            F.os = real_os
+            for n in os.listdir(d):
+                os.unlink(os.path.join(d, n))
+            os.rmdir(d)
+
+    def test_lock_only_leftover_is_attributed(self):  # RV6-2 (mutant RV6B): an in-progress-only leftover
+        rec = {"initialised": True, "kind": "root", "branch": "main", "dirty": False, "in_progress": ["index.lock"],
+               "write_interrupted_earlier": "fast-forward", "upstream_state": "linear"}
+        reasons = E.reasons_for(rec, False, "main")
+        self.assertIn("write-interrupted-earlier:fast-forward", reasons)
+        self.assertIn("in-progress-since-write-interrupted:index.lock", reasons)
+        self.assertNotIn("in-progress:index.lock", reasons)
+
+    def test_flock_error_is_not_another_run(self):  # RV6-3 (mutant RV6E): ENOLCK is not EWOULDBLOCK
+        import errno
+        import tempfile
+        F = fresh_engine("sync_engine_r7_flock")
+        d = tempfile.mkdtemp(prefix="sync_unit_r7l.")
+        real = F.fcntl
+
+        class Flock:
+            def __init__(self, exc):
+                self.exc = exc
+
+            def flock(self, fd, how):
+                raise self.exc
+
+            def __getattr__(self, name):
+                return getattr(real, name)
+        x = type("X", (), {})()
+        x.rec = {"_common_dir": d}
+        try:
+            for exc, held in ((OSError(errno.ENOLCK, "No locks available"), False),
+                              (BlockingIOError(errno.EWOULDBLOCK, "busy"), True)):
+                fds = []
+                F.fcntl = Flock(exc)
+                got = F.lock_repositories([x], "/nonexistent-root-common", fds)
+                F.fcntl = real
+                for fd_ in fds:
+                    os.close(fd_)
+                self.assertEqual((got[0], got[1]), (os.path.join(os.path.realpath(d), "helix-sync-upstreams.lock"),
+                                                    held), exc)
+        finally:
+            F.fcntl = real
+            for n in os.listdir(d):
+                os.unlink(os.path.join(d, n))
+            os.rmdir(d)
+
+
 if __name__ == "__main__":
     r = unittest.main(exit=False, verbosity=1).result
     n, f, s = r.testsRun, len(r.failures) + len(r.errors), len(r.skipped)

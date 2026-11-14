@@ -501,12 +501,15 @@ def git_env(base=None):
 class GitResult:
     """One git call. ``answered`` is True only when git exited with a status the call site declared as an answer
     (and, when the call site declared a shape, the output has it). Otherwise ``why`` says why there is no answer."""
-    def __init__(self, answered, rc, out, err, why):
+    def __init__(self, answered, rc, out, err, why, started=True):
         self.answered = answered
         self.rc = rc
         self.out = out
         self.err = err
         self.why = why
+        # False only when NO git process was started (refused by a stop or the deadline, refused by the allow-list,
+        # or the kernel could not start it): such a call cannot have changed anything (review round 7, RV6-1)
+        self.started = started
 
     def text(self):
         """The output of an answered call that exited 0, stripped; else None."""
@@ -549,11 +552,11 @@ class Runner:
         sub = args[0] if args else "?"
         if STOP_REQUESTED.is_set() and (not final or HARD_STOP.is_set()):
             self.no_answer(repo, sub, "interrupted")
-            return GitResult(False, None, "", "stopped by a signal", "interrupted")
+            return GitResult(False, None, "", "stopped by a signal", "interrupted", started=False)
         left = self.remaining()
         if left <= 0 and not final:
             self.no_answer(repo, sub, "deadline")
-            return GitResult(False, None, "", "run deadline passed", "deadline")
+            return GitResult(False, None, "", "run deadline passed", "deadline", started=False)
         if write:
             limit = self.write_timeout
         elif final:
@@ -570,7 +573,7 @@ class Runner:
                                                 limit, level)
         except GitRefused as e:
             self.no_answer(repo, sub, "refused")
-            return GitResult(False, None, "", "refused: %s" % e, "refused")
+            return GitResult(False, None, "", "refused: %s" % e, "refused", started=False)
         if kind == "exit" and code in ok:
             if code == 0 and want is not None and not want.match(out.strip()):
                 self.no_answer(repo, sub, "malformed-output")
@@ -581,7 +584,16 @@ class Runner:
             return GitResult(False, code, out, err, "write-killed")
         if not (network and why == "timeout"):
             self.no_answer(repo, sub, why)
-        return GitResult(False, code, out, err, why)
+        return GitResult(False, code, out, err, why, started=(kind != "not-runnable"))
+
+    def write_refused_now(self, final=False):
+        """True when run() would refuse a write right now, before starting git: the same predicate as run() for
+        ``write=True`` (a non-final write: a stop signal or the deadline; a final one, the second half of a write:
+        only a second stop signal). Both only ever become true, never false again, so a write this says may start
+        can still be refused by run() a moment later; write_git then removes its marker (review round 7, RV6-1)."""
+        if final:
+            return STOP_REQUESTED.is_set() and HARD_STOP.is_set()
+        return STOP_REQUESTED.is_set() or self.remaining() <= 0
 
     def unresolved_for(self, repo):
         with self.lock:
@@ -816,14 +828,20 @@ def write_marker(gitdir, op, target, run_id):
     path = marker_path(gitdir)
     if not path:
         return False
+    existed = path_kind(path) != "absent"
     try:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+    except OSError:
+        return False
+    try:
         try:
             os.write(fd, json.dumps({"op": op, "target": target, "run_id": run_id, "started": now_utc()}).encode())
             os.fsync(fd)
         finally:
             os.close(fd)
-    except OSError:
+    except OSError:  # created but not written: a half marker would read as 'unknown' later (review round 7)
+        if not existed:
+            clear_marker(gitdir)
         return False
     return True
 
@@ -1358,16 +1376,25 @@ def write_git(r, repo, op, target):
         return "blocked"
     # 5. the write: the marker first (a write that does not end normally is attributed later), then git under the
     #    write's own limit (a stop signal, the per-call timeout and the run deadline never end it; RV5-1)
+    #    Review round 7 (RV6-1): the marker's whole life is bounded here. A write r.run would refuse NOW (a stop
+    #    signal, the deadline) gets no marker; a marker is removed when git ended the write itself (answered) AND
+    #    when no git process was started at all (refused a moment later, or not startable): neither can have left
+    #    anything. It stays only when a started git did not end normally (killed, a signal, an undeclared status).
     gitdir = rec.get("_gitdir") or ""
-    if not write_marker(gitdir, op, target, r.run_id):
-        rec["actions"].append({"op": "none", "why": "blocked:write-marker-unwritable", "for": op})
-        return "blocked"
+    marked = False
+    if not r.write_refused_now():
+        if not write_marker(gitdir, op, target, r.run_id):
+            rec["actions"].append({"op": "none", "why": "blocked:write-marker-unwritable", "for": op})
+            return "blocked"
+        marked = True
     if op == "fast-forward":
         res = r.run(p, ["merge", "--ff-only", target], ok=(0, 1, 128), write=True)
     else:
         res = r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128), write=True)
     act["rc"] = res.rc
     act["error"] = redact(res.err).strip()[-300:] if (res.rc or not res.answered) else ""
+    if marked and not res.started:  # no git process: nothing was written, so nothing is attributed to it later
+        clear_marker(gitdir)
     if res.answered:  # git ended the write itself, with a declared status: nothing is left half-done by a kill
         clear_marker(gitdir)
     if res.why == "write-killed":
@@ -1404,12 +1431,17 @@ def write_git(r, repo, op, target):
         # the second half of the same consented write: runs even after a stop signal (final); a stop signal never
         # ends it, only its own --write-timeout does (SIGTERM first, then SIGKILL; write-killed:stage-pin)
         pgitdir = repo.parent.rec.get("_gitdir") or ""
-        if not write_marker(pgitdir, "stage-pin", target, r.run_id):
-            act["why"] = "blocked:write-marker-unwritable"
-            rec["actions"].append(act)
-            rec["failed"] = True  # the child moved and its pin was not staged: never silent
-            return "failed"
+        marked2 = False
+        if not r.write_refused_now(final=True):
+            if not write_marker(pgitdir, "stage-pin", target, r.run_id):
+                act["why"] = "blocked:write-marker-unwritable"
+                rec["actions"].append(act)
+                rec["failed"] = True  # the child moved and its pin was not staged: never silent
+                return "failed"
+            marked2 = True
         res2 = r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]], ok=(0, 128), write=True, final=True)
+        if marked2 and not res2.started:  # the add never started: the parent holds nothing of it (RV6-1)
+            clear_marker(pgitdir)
         if res2.answered:
             clear_marker(pgitdir)
         act["staged_rc"] = res2.rc
@@ -1423,6 +1455,8 @@ def write_git(r, repo, op, target):
             return "failed"
         if not res2.answered or res2.rc != 0:
             act["error"] = redact(res2.err).strip()[-300:]
+            if not res2.answered:  # the child moved, the pin was not staged: say why (review round 7)
+                act["why"] = "unresolved:stage-pin:" + str(res2.why)
             rec["actions"].append(act)
             if res2.answered:
                 rec["failed"] = True

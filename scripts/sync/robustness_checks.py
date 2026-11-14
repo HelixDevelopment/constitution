@@ -5,11 +5,15 @@ Behavioural checks that drive the REAL engine (the wrapper in $SX_ENGINE, defaul
 sync_all_upstreams.sh) through its real invocation path against REAL git repositories in a sandbox
 (tempfile.mkdtemp under $TMPDIR; file:// and 127.0.0.1 only, no network, no forge, nothing in $HOME).
 
-Evidence class (section 11.4.289): LIVE-class for the engine and git. Some checks stand a small program in for a
+Evidence class (section 11.4.289): gate-logic / unit class (section 11.4.289(C)(2)): the real engine and the real git
+binary, against local file:// repositories only; nothing here is evidence of forge behaviour (ssh keys, rate limits,
+server-side refusals), which stays UNCONFIRMED. Some checks stand a small program in for a
 HOSTILE REMOTE or a USER (labelled per check as "fixture"): a remote.<name>.uploadpack program that writes a
 long or hostile stderr, hangs, or prints an Authorization header; an askpass / ext:: helper that records it was
 run; scripts/sync/race_git_shim.py, which acts as a user between the engine's inspection and its write and then
-runs the real git. None of them replaces the engine or git.
+runs the real git; scripts/sync/inproc_driver.py (round 7), which loads the real engine module and injects ONE
+environment fault (a signal, the clock, the kernel) at a point no outside program can hit in time. None of them
+replaces the engine or git.
 
 Hostile text (long lines, control characters, credential-shaped strings) is built here, in Python, never in a
 shell heredoc. Clean-up goes through scripts/lib/safe_rm.sh (safe_rm_rf, restricted to the sandbox). A process
@@ -1296,6 +1300,162 @@ def c_blind_beats_failed(box):
     ok("blind_failed.blind_exit_6", rc == 6 and root.get("result") == "blind", "rc=%s %s" % (rc, root.get("result")))
 
 
+# ───────────────────────── review round 7 (RV6-1 .. RV6-3) ─────────────────────────
+DRIVER = os.path.join(HERE, "inproc_driver.py")
+ENGINE_PY = os.path.join(os.path.dirname(os.path.abspath(ENGINE)), "sync_all_upstreams.py")
+
+
+def inproc(box, fault, *args):
+    """Runs the engine module next to $SX_ENGINE in-process under scripts/sync/inproc_driver.py with ONE fault (a
+    signal, the clock or the kernel, at a point no outside program can hit in time; fixture). Returns
+    (rc, stdout, stderr, driver record, report)."""
+    argv, o = box.engine_argv(*args)
+    argv = [PY, "-I", DRIVER, ENGINE_PY, fault] + argv[2:] + ["--out", o]
+    r = subprocess.run(argv, env=box.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=600)
+    drv = {}
+    for line in r.stdout.splitlines():
+        if line.startswith("DRIVER "):
+            drv = json.loads(line[7:])
+    rep = None
+    try:
+        with open(os.path.join(o, "sync_report.json"), encoding="utf-8") as f:
+            rep = json.load(f)
+    except (OSError, ValueError):
+        pass
+    return drv.get("rc"), r.stdout, r.stderr, drv, rep
+
+
+def c_refused_write_leaves_no_marker(box):
+    """RV6-1. A write that is refused before git starts (a stop signal or the run deadline landing just before or
+    just after the write's marker is written; a git process the kernel cannot start) leaves NO marker: the write
+    never started, so a later run must never attribute the user's own edits to 'an interrupted write'. For the
+    'before' faults the marker is not even written. Covers both write call sites of write_git (fast-forward merge
+    and the pin checkout)."""
+    cases = [("stop-after-marker", "ff"), ("deadline-after-marker", "ff"), ("stop-before-marker", "ff"),
+             ("deadline-before-marker", "ff"), ("spawn-fails-write", "ff"), ("stop-after-marker", "pin"),
+             ("deadline-after-marker", "pin"), ("spawn-fails-write", "pin")]
+    for i, (fault, kind) in enumerate(cases):
+        tag = "%s.%s" % (kind, fault)
+        if kind == "ff":
+            r_url, r_seed = box.bare("HelixDevelopment", "rw%d" % i)
+            work = box.clone(r_url, "rw%d" % i)
+            before = box.git(work, "rev-parse", "HEAD")
+            box.commit(r_seed, "upstream moves")
+            rc, so, se, drv, rep = inproc(box, fault, "--apply", "--root", work, "--quiet")
+            repo_dir = work
+            want_op = "fast-forward"
+        else:
+            sub_box = Box("refused_pin%d" % i)  # pin_behind_tree uses fixed names: one sandbox per pin case
+            try:
+                work, s1, s2, r1 = pin_behind_tree(sub_box)
+                repo_dir = os.path.join(work, "libs/a")
+                before = sub_box.git(repo_dir, "rev-parse", "HEAD")
+                rc, so, se, drv, rep = inproc(sub_box, fault, "--apply", "--advance-pins", "--root", work, "--quiet")
+                want_op = "advance-pin"
+                check_refused(sub_box, tag, fault, repo_dir, work, before, rc, se, drv, want_op, "libs/a")
+            finally:
+                sub_box.cleanup()
+            continue
+        check_refused(box, tag, fault, repo_dir, work, before, rc, se, drv, want_op, ".")
+
+
+def check_refused(box, tag, fault, repo_dir, work, before, rc, se, drv, want_op, rel):
+    gitdir = box.git(repo_dir, "rev-parse", "--absolute-git-dir")
+    ok("refused_marker.%s.ran" % tag, rc is not None, "rc=%s stderr=%s" % (rc, se[-300:]))
+    ok("refused_marker.%s.not_moved" % tag, box.git(repo_dir, "rev-parse", "HEAD") == before)
+    ok("refused_marker.%s.no_marker" % tag, not os.path.exists(os.path.join(gitdir, MARKER)))
+    if fault.endswith("before-marker"):
+        ok("refused_marker.%s.marker_never_written" % tag, drv.get("markers") == [], drv)
+    else:
+        ok("refused_marker.%s.marker_was_written" % tag, drv.get("markers") == [want_op], drv)
+    with open(os.path.join(repo_dir, "README"), "a") as f:  # the user's own work, made after the refused run
+        f.write("user work after the refused run\n")
+    rc2, so2, se2, rep2, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    reasons = rec(rep2, rel).get("reasons", [])
+    ok("refused_marker.%s.user_edit_is_users" % tag, "dirty-tree" in reasons, reasons)
+    ok("refused_marker.%s.not_blamed_on_engine" % tag, not [x for x in reasons if "write-interrupted" in x],
+       reasons)
+
+
+def c_refused_stage_pin_leaves_no_marker(box):
+    """RV6-1 (second write site). The stage-pin 'add' of an advance-pin is refused (a second stop signal right after
+    its marker is written): the add never started, so the parent's marker is removed; the child's move and the
+    unstaged pin are reported by this run, and a later run does not blame the user's root edit on the engine."""
+    work, s1, s2, r1 = pin_behind_tree(box)
+    sub = os.path.join(work, "libs/a")
+    rc, so, se, drv, rep = inproc(box, "hardstop-after-stage-marker", "--apply", "--advance-pins", "--root", work,
+                                  "--quiet")
+    a = rec(rep, "libs/a")
+    pin = [x for x in a.get("actions") or [] if x.get("op") == "advance-pin"]
+    ok("refused_stage.markers", drv.get("markers") == ["advance-pin", "stage-pin"], drv)
+    ok("refused_stage.child_moved", box.git(sub, "rev-parse", "HEAD") == s2)
+    ok("refused_stage.not_staged", box.git(work, "ls-files", "-s", "libs/a").split()[1] == s1)
+    ok("refused_stage.reported_unresolved", bool(pin) and str(pin[-1].get("why", "")).startswith("unresolved:"), pin)
+    ok("refused_stage.no_parent_marker", not os.path.exists(os.path.join(work, ".git", MARKER)))
+    ok("refused_stage.no_child_marker", not os.path.exists(
+        os.path.join(box.git(sub, "rev-parse", "--absolute-git-dir"), MARKER)))
+    with open(os.path.join(work, "README"), "a") as f:
+        f.write("user work\n")
+    rc2, so2, se2, rep2, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    reasons = rec(rep2, ".").get("reasons", [])
+    ok("refused_stage.user_edit_is_users", "dirty-tree" in reasons, reasons)
+    ok("refused_stage.not_blamed_on_engine", not [x for x in reasons if "write-interrupted" in x], reasons)
+    # the second signal lands BEFORE the stage-pin marker would be written: the marker is never written at all
+    box2 = Box("refused_stage_before")
+    try:
+        work2, s1b, s2b, r1b = pin_behind_tree(box2)
+        rc3, so3, se3, drv3, rep3 = inproc(box2, "hardstop-before-stage-marker", "--apply", "--advance-pins",
+                                           "--root", work2, "--quiet")
+        ok("refused_stage.before.child_moved", box2.git(os.path.join(work2, "libs/a"), "rev-parse", "HEAD") == s2b)
+        ok("refused_stage.before.stage_marker_never_written", drv3.get("markers") == ["advance-pin"], drv3)
+        ok("refused_stage.before.no_parent_marker", not os.path.exists(os.path.join(work2, ".git", MARKER)))
+        ok("refused_stage.before.not_staged", box2.git(work2, "ls-files", "-s", "libs/a").split()[1] == s1b)
+    finally:
+        box2.cleanup()
+
+
+def c_marker_and_lock_on_clean_tree(box):
+    """RV6-2 (reviewer discriminator). What a SIGKILLed write leaves (ground truth, git 2.53: the write's marker
+    plus git's index.lock) on an otherwise clean tree: the lock is attributed to the interrupted write
+    ('in-progress-since-write-interrupted:index.lock' with 'write-interrupted-earlier:fast-forward'), never reported
+    as the user's own operation. Control: the same lock with no marker is the user's ('in-progress:index.lock')."""
+    r_url, r_seed = box.bare("HelixDevelopment", "ml")
+    work = box.clone(r_url, "ml")
+    gd = os.path.join(work, ".git")
+    with open(os.path.join(gd, MARKER), "w") as f:
+        json.dump({"op": "fast-forward", "target": "0" * 40, "run_id": "x", "started": "x"}, f)
+    open(os.path.join(gd, "index.lock"), "w").close()
+    ok("marker_lock.control_tree_clean", box.git(work, "status", "--porcelain=v1", "--untracked-files=normal") == "")
+    rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    reasons = rec(rep, ".").get("reasons", [])
+    ok("marker_lock.exit_4", rc == 4, "rc=%s" % rc)
+    ok("marker_lock.attributed", "write-interrupted-earlier:fast-forward" in reasons and
+       "in-progress-since-write-interrupted:index.lock" in reasons, reasons)
+    ok("marker_lock.not_users", "in-progress:index.lock" not in reasons, reasons)
+    ok("marker_lock.marker_kept", os.path.exists(os.path.join(gd, MARKER)))
+    os.unlink(os.path.join(gd, MARKER))
+    rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    reasons = rec(rep, ".").get("reasons", [])
+    ok("marker_lock.control_users", "in-progress:index.lock" in reasons and
+       not [x for x in reasons if "write-interrupted" in x], reasons)
+
+
+def c_flock_error_not_another_run(box):
+    """RV6-3. A run lock whose flock fails with an error other than 'held' (ENOLCK; fixture: the kernel) is not
+    'another sync run': FAILED exit 1 with its own message, for the root lock and for a per-repository lock.
+    Control: EWOULDBLOCK on the per-repository lock is another run (exit 7)."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    for fault, want_rc, want_msg in (("flock-error-root", 1, "cannot take the run lock"),
+                                     ("flock-error-repo", 1, "cannot open the run lock"),
+                                     ("flock-held-repo", 7, "another sync run holds")):
+        rc, so, se, drv, rep = inproc(box, fault, "--check", "--no-fetch", "--root", work, "--quiet")
+        ok("flock_error.%s.exit_%d" % (fault, want_rc), rc == want_rc, "rc=%s %s" % (rc, se[-300:]))
+        ok("flock_error.%s.message" % fault, want_msg in se, se[-300:])
+        if want_rc != 7:
+            ok("flock_error.%s.not_another_run" % fault, "another sync run" not in se, se[-300:])
+            ok("flock_error.%s.result_failed" % fault, "RESULT: FAILED exit=1" in so, so[-300:])
+
+
 CHECKS = [
     ("race_commit", c_race_commit_detached_sub), ("race_switch", c_race_switch_root_branch),
     ("race_sub_branch", c_race_branch_in_sub), ("race_control", c_race_control_commit_on_main),
@@ -1323,6 +1483,9 @@ CHECKS = [
     ("staged_root", c_staged_gitlink_root_behind), ("lock_open", c_lock_open_error), ("ctrl_c", c_ctrl_c_at_prompt),
     ("update_none", c_update_none_not_followed), ("interrupted_labels", c_interrupted_fetch_labels),
     ("blind_failed", c_blind_beats_failed), ("stale_marker", c_stale_marker_on_clean_current_tree),
+    # review round 7
+    ("refused_marker", c_refused_write_leaves_no_marker), ("refused_stage", c_refused_stage_pin_leaves_no_marker),
+    ("marker_lock", c_marker_and_lock_on_clean_tree), ("flock_error", c_flock_error_not_another_run),
 ]
 
 
