@@ -389,7 +389,7 @@ done
 # the strings are assembled from fragments, so this file carries no credential-shaped literal
 secrets=(
   'aws-access-key-id|"AK" + "IA" + "Q" * 16|"AK" + "IA" + "Q" * 15'
-  'aws-secret-assign|"aws_secret_" + "access_key = " + "a" * 40|"aws_secret_" + "access_key = " + "a" * 39'
+  'aws-secret-assign|"aws_secret_" + "access_key = " + "a" * 40|"aws_secret_" + "access_key = " + "a" * 7'
   'github-token|"gh" + "p_" + "a" * 30|"gh" + "p_" + "a" * 29'
   'github-fine-grained-pat|"github" + "_pat_" + "a" * 30|"github" + "_pat_" + "a" * 29'
   'gitlab-pat|"gl" + "pat-" + "a" * 20|"gl" + "pat-" + "a" * 19'
@@ -400,13 +400,15 @@ secrets=(
   'jwt|"ey" + "J" + "b" * 8 + ".ey" + "J" + "c" * 8 + ".d"|"ey" + "J" + "b" * 7 + ".ey" + "J" + "c" * 7 + ".d"'
   'slack-token|"xo" + "xp-" + "1" * 10|"xo" + "xp-" + "1" * 9'
   'openai-anthropic-key|"s" + "k-ant-" + "a" * 32|"s" + "k-" + "a" * 31'
-  'url-userinfo-password|"git+ssh://bob:" + "w" * 6 + "@host"|"git+ssh://bob:" + "w" * 5 + "@host"'
+  'url-userinfo-password|"git+ssh://bob:" + "w" + "@host"|"git+ssh://bob:" + "$" + "{PW}@host"'
   'bearer-token|"Authorization: " + "Bearer " + "a" * 20|"Authorization: " + "Bearer " + "a" * 19'
-  'password-assign|"api_" + "key: \"" + "x" * 8 + "\""|"api_" + "key: \"" + "x" * 7 + "\""'
+  'password-assign|"api_" + "key: \"" + "Zq7Zq7Zq" + "\""|"api_" + "key: \"" + "Zq7Zq7Z" + "\""'
   'stripe-key|"r" + "k_" + "test_" + "a" * 20|"r" + "k_" + "test_" + "a" * 19'
   'npm-token|"np" + "m_" + "a" * 36|"np" + "m_" + "a" * 35'
   'telegram-bot-token|"12345678" + ":AA" + "a" * 33|"12345678" + ":AA" + "a" * 32'
-  'password-assign-unquoted|"DB_PASS" + "WORD=" + "x" * 8|"DB_PASS" + "WORD=" + "x" * 7'
+  'password-assign-unquoted|"DB_PASS" + "WORD=" + "Zq7Zq7Zq"|"DB_PASS" + "WORD=" + "Zq7Zq7Z"'
+  'password-colon-unquoted|"pass" + "word: " + "Zq7Zq7Zq"|"pass" + "word: " + "Zq7Zq7Z"'
+  'secret-colon-unquoted|"tok" + "en: " + "Zq7Zq7Zq"|"tok" + "en: " + "Zqzqzqzq"'
   'basic-auth|"Authorization: " + "Basic " + "a" * 8|"Authorization: " + "Basic " + "a" * 7'
 )
 for s in "${secrets[@]}"; do
@@ -416,6 +418,50 @@ for s in "${secrets[@]}"; do
   expect "SECRET positive needle $pname" 1 "^FINDING SECRET FX-002 $pname on description,body_md\$" --db "$tmp/sp$n.db" "${F[@]}"
   mkfixture "$tmp/sn$n.db" "rows[\"FX-002\"][\"description\"] = G + \"\\nvalue \" + ($neg) + \" end\"" || { bad "SECRET negative $pname" "fixture build failed"; continue; }
   expect_silent "SECRET negative needle $pname" SECRET --db "$tmp/sn$n.db" "${F[@]}"
+done
+# round 6 (R5-3): the whole keyed-credential shape class, one fabricated positive per member (key name x
+# key quoting x separator x value quoting, headers, URL query and user-info); the expected pattern is named
+shapes=(
+  'json-quoted-key|password-assign|"{\"pass" + "word\": \"" + "Zq7Zq7Zq" + "\"}"'
+  'python-dict|password-assign|"{" + chr(39) + "client_" + "secret" + chr(39) + ": " + chr(39) + "Zq7Zq7Zq" + chr(39) + "}"'
+  'yaml-unquoted-password|password-colon-unquoted|"pass" + "word: " + "hunterhunter"'
+  'yaml-unquoted-api-key|password-colon-unquoted|"api_" + "key: " + "Zq7Zq7Zq"'
+  'yaml-quoted-key|password-colon-unquoted|"\"api" + "key\": " + "Zq7Zq7Zq"'
+  'x-api-key-header|password-colon-unquoted|"X-Api" + "-Key: " + "Zq7Zq7Zq"'
+  'x-auth-token-header|password-colon-unquoted|"X-Auth" + "-Token: " + "Zq7Zq7Zq"'
+  'access-key-colon|password-colon-unquoted|"access_" + "key: " + "Zq7Zq7Zq"'
+  'private-key-colon|password-colon-unquoted|"private" + "-key: " + "Zq7Zq7Zq"'
+  'passphrase-walrus|password-assign-unquoted|"pass" + "phrase := " + "Zq7Zq7Zq"'
+  'apikey-fat-arrow|password-assign|"api" + "key => " + chr(39) + "Zq7Zq7Zq" + chr(39)'
+  'refresh-token-env|password-assign-unquoted|"REFRESH_" + "TOKEN=" + "Zq7Zq7Zq"'
+  'url-query-token|password-assign-unquoted|"https://h/x?access_" + "token=" + "Zq7Zq7Zq" + "&y=1"'
+  'url-short-password|url-userinfo-password|"https://u:" + "pw@h/r"'
+  'authorization-token|bearer-token|"Authorization: " + "Token " + "a" * 20'
+  'secret-key-colon|password-colon-unquoted|"SECRET" + "_KEY: " + "Zq7Zq7Zq"'
+)
+for s in "${shapes[@]}"; do
+  sname=${s%%|*}; rest=${s#*|}; pname=${rest%%|*}; pos=${rest#*|}
+  n=$((n + 1))
+  mkfixture "$tmp/sh$n.db" "rows[\"FX-002\"][\"description\"] = G + \"\\nvalue \" + ($pos) + \" end\"" || { bad "SECRET shape $sname" "fixture build failed"; continue; }
+  expect "SECRET shape $sname" 1 "^FINDING SECRET FX-002 $pname on description,body_md\$" --db "$tmp/sh$n.db" "${F[@]}"
+done
+# and the negatives of that class: prose, references, masks and a key that is not a credential key
+nshapes=(
+  'prose-token|"Tok" + "en: obtained from the host at run time"'
+  'prose-password|"Pass" + "word: none"'
+  'reference-env|"pass" + "word: $" + "{DB_PASSWORD}"'
+  'reference-angle|"api_" + "key: <" + "your-key-here>"'
+  'mask-stars|"pass" + "word: " + "*" * 12'
+  'mask-x|"\"api_" + "key\": \"" + "x" * 12 + "\""'
+  'not-a-key|"api_" + "key_file: /etc/app/k.pem"'
+  'passwordless|"pass" + "wordless: enabled_for_all"'
+  'url-masked-userinfo|"https://u:" + "****@h/r"'
+)
+for s in "${nshapes[@]}"; do
+  sname=${s%%|*}; neg=${s#*|}
+  n=$((n + 1))
+  mkfixture "$tmp/nsh$n.db" "rows[\"FX-002\"][\"description\"] = G + \"\\nvalue \" + ($neg) + \" end\"" || { bad "SECRET non-shape $sname" "fixture build failed"; continue; }
+  expect_silent "SECRET non-shape $sname" SECRET --db "$tmp/nsh$n.db" "${F[@]}"
 done
 
 # golden-good variants that must stay silent (false-positive guards, section 11.4.201(1))
@@ -601,8 +647,8 @@ if [ ! -f "$realdb" ]; then
   bad "real database present" "$realdb missing"
 else
   O=(--origin "tracker-intake vehicle 2026-11-12" --require-dup-check --repo-root "$root")
-  expect "real DB: intake batch clean (44 items, rendered documents read)" 0 \
-    '^RESULT: PASS selected=44 findings=0 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md$' --db "$realdb" "${O[@]}"
+  expect "real DB: intake batch clean (46 items, rendered documents read)" 0 \
+    '^RESULT: PASS selected=46 findings=0 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md$' --db "$realdb" "${O[@]}"
   # mutate_real <name> <want-rc> <python snippet> <pattern>...: every pattern must be in the output.
   # setdesc rewrites the description and the copy of it inside body_md (as the engine would);
   # setdesc(..., body=False) leaves body_md alone. setcol writes one column (body_md untouched).

@@ -176,6 +176,11 @@ rwgot() { # rwgot <name> <text> <want-text>: --write, then exit status and file 
   python3 -I "$tool" rewrite --map "$tmp/m.tsv" --write --target-db "$tmp/tg.db" --own CON-1 "$tmp/w5.txt" >"$tmp/out" 2>&1; rc=$?
   same "$1" "$rc|$(cat "$tmp/w5.txt")" "0|$3"
 }
+# round 6 (R5-4, ROV7): an id of four or more digits is one token; the Rewriter reads every digit
+printf 'old\tnew\nCON-1000\tCON-1005\nCON-12345\tCON-12346\n' >"$tmp/m1000.tsv"
+printf 'see CON-1000 and CON-12345.\n' >"$tmp/w1000.txt"
+python3 -I "$tool" rewrite --map "$tmp/m1000.tsv" --write --target-db "$tmp/tg.db" "$tmp/w1000.txt" >"$tmp/out" 2>&1; rc=$?
+same "ROV7: ids of four and five digits are rewritten" "$rc|$(cat "$tmp/w1000.txt")" "0|see CON-1005 and CON-12346."
 rwcase "R4-4: a spaced en dash partly-moved range is refused" 1 'range CON-4 – CON-6 is partly moved \(2 of 3 ids\)' 'span CON-4 – CON-6 here'
 rwcase "R4-4: a worded 'to' partly-moved range is refused" 1 'range CON-4 to CON-6 is partly moved' 'span CON-4 to CON-6'
 rwcase "R4-4: a worded 'through' partly-moved range is refused" 1 'range CON-4 through CON-6 is partly moved' 'span CON-4 through CON-6'
@@ -534,7 +539,9 @@ xp "R4-1a: plan of a disjoint merge whose target text names a target id the map 
 grep -q "^MERGE $(id 8): vehicle severity,title, target description (disjoint columns)\$" "$tmp/out" && ok "R4-1a: the merge line" || bad "R4-1a: the merge line" "$(grep MERGE "$tmp/out" | tr '\n' '|')"
 xp "R4-1a: dry run" 0 '^RESULT: DRY-RUN ' replay --plan "$tmp/p5.json"
 grep -F "\"--id=$(id 8)\"" "$tmp/out" >"$tmp/p5step.txt"
-grep -qF "\"--description=$D Base item 8; see $(id 9) for the related target item.\"" "$tmp/p5step.txt" && ok "R4-1a: the target's description is passed verbatim" || bad "R4-1a: the target's description is passed verbatim" "$(cut -c1-400 "$tmp/p5step.txt")"
+# round 6 (R5-1, inverts round 5's R4-1a case): --description re-renders the body, so a field-only change never
+# passes it, not even with the target's text
+grep -qF -- '"--description=' "$tmp/p5step.txt" && bad "R5-1: a field-only merge passes no --description" "$(cut -c1-400 "$tmp/p5step.txt")" || ok "R5-1: a field-only merge passes no --description"
 grep -qF "\"--title=Remint base item 8, see $(id 15)\"" "$tmp/p5step.txt" && grep -qF '"--severity=High"' "$tmp/p5step.txt" && ok "R4-1a: the vehicle's title (rewritten) and severity are passed" || bad "R4-1a: the vehicle's columns" "$(cut -c1-400 "$tmp/p5step.txt")"
 cpdb t5 r5
 xp "R4-1a: replay" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p5.json" --apply --engine "$wi" --db docs/r5.db
@@ -669,9 +676,12 @@ grep -F "\"reopen\", \"--id=$(id 8)\"" "$tmp/out" | grep -qF -- '"--why=design-r
 cpdb t r17
 xp "replay of the reopen followed by an update" 0 '^RESULT: APPLIED ' replay --plan "$tmp/x17.json" --apply --engine "$wi" --db docs/r17.db
 xp "verify of the reopen followed by an update" 0 '^RESULT: PASS ' verify --plan "$tmp/x17.json" --vehicle-db docs/x17.db --base-db docs/b.db --target-db docs/t.db --db docs/r17.db
-# fail closed (characterization of an engine defect, round 5, owed to the conductor): after a reopen,
-# `update --severity` changes the column but leaves the body's Severity line; the replay updates before it
-# closes, so the landed body differs, and verify refuses to certify it (never a PASS on a body that differs)
+# fail closed (round 6 wording, R5-6): two facts combine here. (1) The engine defect owed as its own item: a
+# field-only `update --severity` changes the column and leaves the body's Severity line as it was. (2) The replay
+# ORDER differs from the vehicle's: the vehicle closed (a re-render, Severity Low), reopened, then changed the
+# severity (the line stays Low); the replay updates first and closes after, so the close re-renders the body
+# with Severity High. The two bodies differ only in that line, and verify refuses to certify it (never a PASS on
+# a body that differs). The defect alone does not make a landing fail; the order alone would not either.
 cpdb x17 x17s; W update --id "$(id 8)" --db docs/x17s.db --location Issues --severity High
 xp "plan of a reopen followed by a severity update" 0 '^RESULT: PLAN mode=REPLAY own=5 ' plan --vehicle-db docs/x17s.db --base-db docs/b.db --target-db docs/t.db --out "$tmp/x17s.json" --repo-root .
 cpdb t r17s
@@ -720,9 +730,9 @@ xp "verify of the own block" 0 '^RESULT: PASS ' verify --plan "$tmp/x21.json" --
 # that names a moved id is refused at plan time, in a path and as a bare id; a foreign declaration keeps it
 printf 'evidence\n' >"$repo/docs/qa/$(id 9).txt" || exit 2
 cpdb v x21p; W update --id "$(id 10)" --db docs/x21p.db --location Issues --reproduction-state UNREPRODUCED --reproduction-evidence "docs/qa/$(id 9).txt" --states-updated-by "remint test" --states-updated-at 2026-11-13T10:00:00Z
-pr "an evidence path naming a moved id" "^REFUSED: own $(id 10) reproduction_evidence: moved id $(id 9) is part of a path; a path is never rewritten" x21p
+pr "an evidence path naming a moved id" "^REFUSED own $(id 10) reproduction_evidence: moved id $(id 9) is part of a path; a path is never rewritten" x21p
 cpdb v x21b; W update --id "$(id 10)" --db docs/x21b.db --location Issues --investigation-state root-cause-unconfirmed --investigation-evidence "$(id 9)" --states-updated-by "remint test" --states-updated-at 2026-11-13T10:00:00Z
-pr "an evidence value that is a moved id" "^REFUSED: own $(id 10) investigation_evidence: '$(id 9)' names an id the map moves, in a value that is never rewritten" x21b
+pr "an evidence value that is a moved id" "^REFUSED own $(id 10) investigation_evidence: '$(id 9)' names an id the map moves, in a value that is never rewritten" x21b
 # (item 10's own Foreign line declares id 11 foreign for that item: its evidence path naming id 11 is kept)
 printf 'evidence\n' >"$repo/docs/qa/$(id 11).txt" || exit 2
 cpdb v x21f; W update --id "$(id 10)" --db docs/x21f.db --location Issues --reproduction-state UNREPRODUCED --reproduction-evidence "docs/qa/$(id 11).txt" --states-updated-by "remint test" --states-updated-at 2026-11-13T10:00:00Z
@@ -732,14 +742,14 @@ xp "replay of the foreign evidence path" 0 '^RESULT: APPLIED ' replay --plan "$t
 same "landed: the foreign evidence path as written" "$(q "$repo/docs/r21f.db" 'select reproduction_evidence from items where atm_id=?' "$(id 12)")" "docs/qa/$(id 11).txt"
 xp "verify of the foreign evidence path" 0 '^RESULT: PASS ' verify --plan "$tmp/x21f.json" --vehicle-db docs/x21f.db --base-db docs/b.db --target-db docs/t.db --db docs/r21f.db
 cpdb v x21c; W close "$(id 8)" --db docs/x21c.db --status completed --evidence "docs/qa/$(id 9).txt"
-pr "a closure evidence path naming a moved id" "^REFUSED: base $(id 8) closure evidence: moved id $(id 9) is part of a path" x21c
+pr "a closure evidence path naming a moved id" "^REFUSED base $(id 8) closure evidence: moved id $(id 9) is part of a path" x21c
 cpdb v x21r; W close "$(id 8)" --db docs/x21r.db --status completed --evidence "$EV"
 W reopen --id "$(id 8)" --db docs/x21r.db --why design-reconsidered --who AI --when 2026-11-13 --incident "docs/qa/$(id 9).txt"
-pr "a reopen incident path naming a moved id" "^REFUSED: base $(id 8) Reopened row evidence_path: moved id $(id 9) is part of a path" x21r
+pr "a reopen incident path naming a moved id" "^REFUSED base $(id 8) Reopened row evidence_path: moved id $(id 9) is part of a path" x21r
 cpdb v x21o; W obsolete-details "$(id 5)" --db docs/x21o.db --since 2026-11-12 --reason not-reproducible --superseding none --evidence "docs/qa/$(id 9).txt"
-pr "an obsolete_details evidence path naming a moved id" "^REFUSED: base $(id 5) obsolete_details.triple_check_evidence: moved id $(id 9) is part of a path" x21o
+pr "an obsolete_details evidence path naming a moved id" "^REFUSED base $(id 5) obsolete_details.triple_check_evidence: moved id $(id 9) is part of a path" x21o
 cpdb v x21a; W update --id "$(id 9)" --db docs/x21a.db --location Issues --assigned-to "owner of $(id 10)"
-pr "an own assignee naming a moved id" "^REFUSED: own $(id 9) assigned_to: 'owner of $(id 10)' names an id the map moves" x21a
+pr "an own assignee naming a moved id" "^REFUSED own $(id 9) assigned_to: 'owner of $(id 10)' names an id the map moves" x21a
 # block_steps: a block whose time stamp the vehicle left empty (the engine stores an empty --states-updated-at
 # as NULL, and an omitted one as the time of the replay) lands with the empty stamp
 cpdb v x22; W update --id "$(id 8)" --db docs/x22.db --location Issues --reproduction-state UNREPRODUCED --states-updated-by "remint test" --states-updated-at=
@@ -793,7 +803,7 @@ xp "plan against a target that changed the same obsolete_details row" 1 "^CONFLI
 # keep() on a base item's update: a non-text column the vehicle changed is passed as written, so a moved id in
 # it is refused (never rewritten)
 cpdb v x32; W update --id "$(id 4)" --db docs/x32.db --location Issues --assigned-to "owner of $(id 10)"
-pr "a base assignee naming a moved id" "^REFUSED: base $(id 4) assigned_to: 'owner of $(id 10)' names an id the map moves" x32
+pr "a base assignee naming a moved id" "^REFUSED base $(id 4) assigned_to: 'owner of $(id 10)' names an id the map moves" x32
 # make_plan: the same obsolete_details change on both sides is still a conflict (a lifecycle unit changed on
 # one side and anything changed on the other is a conflict, M10), named as such and not as two rows differing
 cpdb t t33; W obsolete-details "$(id 5)" --db docs/t33.db --since 2026-11-12 --reason not-reproducible --superseding none --evidence "$EV"
@@ -808,7 +818,7 @@ xp "verify FAIL: a unit only the target changed, landed wrong under --resolve ve
 # (the signature changes the block's content: the engine stamps a block only when its content changes)
 cpdb v x35; W update --id "$(id 10)" --db docs/x35.db --location Issues --reproduction-state UNREPRODUCED --reproduction-signature "fails in x35" --states-updated-by "agent of $(id 9)" --states-updated-at 2026-11-13T10:00:00Z
 same "fixture: the block author names a moved id" "$(q "$repo/docs/x35.db" 'select reproduction_updated_by from items where atm_id=?' "$(id 10)")" "agent of $(id 9)"
-pr "a block author naming a moved id" "^REFUSED: own $(id 10) reproduction_updated_by: 'agent of $(id 9)' names an id the map moves" x35
+pr "a block author naming a moved id" "^REFUSED own $(id 10) reproduction_updated_by: 'agent of $(id 9)' names an id the map moves" x35
 # make_plan (branch sweep): an Obsolete base item the vehicle reopened without touching its obsolete_details
 # row gets the reopen step only; the row is the base's, the target left it alone, so it is not a vehicle unit
 cpdb b x37; W reopen --id "$(id 5)" --db docs/x37.db --why design-reconsidered --who AI --when 2026-11-13 --incident "$EV"
@@ -873,6 +883,39 @@ grep -q '^RESULT: FAIL mode=FAST-FORWARD items=[0-9]* mismatches=1 ' "$tmp/out" 
 # names it is reported, beside gamma's own created_by)
 cpdb r_after nref; W update --id "$(id 13)" --db docs/nref.db --location Fixed --created-by Conductor
 vn "an id whose landed item is not the item it named in the vehicle" "^MISMATCH $(id 11) description: $(id 11) now names $(id 13), which is not the item $(id 11) named in the vehicle$" nref
+# round 6 (R5-4): one killing case per reviewer mutant that survived round 5 (ROV2..ROV7, ROV10)
+# ROV3 / ROV10: the referent check names the item whose type, or whose title, no longer matches; compare_row
+# also reports the changed column of that item, so only the referent line on the naming item isolates the clause
+cpdb r_after nrty; fx_sql "$repo/docs/nrty.db" "update items set type='Bug' where atm_id=?" "$(id 13)"
+vn "an id whose landed item has another type" "^MISMATCH $(id 11) description: $(id 11) now names $(id 13), which is not the item $(id 11) named in the vehicle$" nrty
+cpdb r_after nrti; W update --id "$(id 13)" --db docs/nrti.db --location Fixed --title "Remint fixture other item"
+vn "an id whose landed item has another title" "^MISMATCH $(id 11) description: $(id 11) now names $(id 13), which is not the item $(id 11) named in the vehicle$" nrti
+# ROV6: a wrong triple_check_evidence on a landed obsolete_details row
+cpdb r_after nodx; fx_sql "$repo/docs/nodx.db" "update obsolete_details set triple_check_evidence='docs/qa/other.txt' where atm_id=?" "$(id 13)"
+vn "an obsolete_details evidence path" "^MISMATCH $(id 13) obsolete_details.triple_check_evidence: landed 'docs/qa/other.txt', vehicle '$EV'$" nodx
+# ROV2: a new vehicle id in non-ASCII digits is outside the own set verify reads, on a plan whose refusals were removed
+cpdb x2 x2u; fx_sql "$repo/docs/x2u.db" "update items set atm_id='CON-١٢' where atm_id='AA-001'"
+xp "plan: a new id in non-ASCII digits is not landable" 1 '^RESULT: NOT-LANDABLE mode=FAST-FORWARD ' plan --vehicle-db docs/x2u.db --base-db docs/b.db --target-db docs/tff.db --out "$tmp/x2u.json"
+python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["refusals"]=[];json.dump(p,open(sys.argv[2],"w"))' "$tmp/x2u.json" "$tmp/x2us.json" || exit 2
+xp "verify FAIL: a new id in non-ASCII digits, on a plan whose refusals were removed" 1 '^MISMATCH CON-١٢: a new vehicle id that is not CON-<ASCII digits>; the planner refuses it$' verify --plan "$tmp/x2us.json" --vehicle-db docs/x2u.db --base-db docs/b.db --target-db docs/tff.db --db docs/x2u.db
+grep -q "^MISMATCH the plan's map keys" "$tmp/out" && bad "verify: the non-ASCII id is not read into the own set" "$(grep -m1 '^MISMATCH the plan' "$tmp/out")" || ok "verify: the non-ASCII id is not read into the own set"
+# ROV4: a plain close followed by the engine's obsolete-details row (a reason and another evidence path); the
+# close step replays the plain close's evidence, never the later row's
+printf 'other evidence\n' >"$repo/docs/qa/y.txt" || exit 2
+cpdb v vce; W add Task Low --db docs/vce.db --id "$(id 14)" --title "Remint fixture zeta item" --description "$D Closed, then given its obsolete details." --created-by Claude
+W close "$(id 14)" --db docs/vce.db --status obsolete --evidence "$EV"
+W obsolete-details "$(id 14)" --db docs/vce.db --since 2026-11-13 --reason feature-removed --superseding none --evidence docs/qa/y.txt
+xp "plan of an own item closed, then given obsolete details with another evidence path" 0 '^RESULT: PLAN mode=REPLAY own=6 ' plan --vehicle-db docs/vce.db --base-db docs/b.db --target-db docs/t.db --out "$tmp/vce.json" --repo-root .
+same "plan: the close step replays the plain close's evidence" "$(python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));print("|".join(a for s in p["steps"] if s["kind"]=="close" and sys.argv[2] in s["argv"] for a in s["argv"] if a.startswith("--evidence=")))' "$tmp/vce.json" "$(id 16)")" "--evidence=$EV"
+# ROV5: a base item whose base text declares a Foreign line the vehicle drops; the base declaration still covers
+# the base text, so the planner reads no ambiguity there
+fdesc="$D Base item 8 names $(id 11).${NL}Foreign ids (other tracker): $(id 11)"
+cpdb b bfo; W update --id "$(id 8)" --db docs/bfo.db --location Issues --description "$fdesc"
+cpdb bfo vfo; W update --id "$(id 8)" --db docs/vfo.db --location Issues --description "$D Base item 8, changed by the vehicle."
+W add Task Low --db docs/vfo.db --id "$(id 11)" --title "Remint fixture eta item" --description "$D An own item the base text names." --created-by Claude
+cpdb bfo tfo; W update --id "$(id 4)" --db docs/tfo.db --location Issues --title "Remint base item 4, renamed by the target"
+xp "plan: a base Foreign line the vehicle drops still covers the base text" 0 '^RESULT: PLAN mode=REPLAY own=1 ' plan --vehicle-db docs/vfo.db --base-db docs/bfo.db --target-db docs/tfo.db --out "$tmp/vfo.json" --repo-root .
+grep -q '^REFUSED ' "$tmp/out" && bad "plan: no refusal for the base text the base declaration covers" "$(grep -m1 '^REFUSED ' "$tmp/out" | cut -c1-300)" || ok "plan: no refusal for the base text the base declaration covers"
 # round 5, final branch sweep: a plan map entry that is not a pair is BLIND, never read as its first two parts
 python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["map"][0]=p["map"][0]+["extra"];json.dump(p,open(sys.argv[2],"w"))' "$tmp/plan.json" "$tmp/plan_trip.json" || exit 2
 xp "verify: a plan map entry that is not a pair is BLIND" 3 'plan map entry does not parse' verify --plan "$tmp/plan_trip.json" "${PLAN[@]}" --db docs/r_after.db
@@ -882,10 +925,12 @@ xp "verify: a plan map entry that is not a pair is BLIND" 3 'plan map entry does
 # statements written in this suite (their second argument), never input read from outside it.
 gp() { # gp <name> <python statement that breaks the loaded tool m> <pattern>
   python3 -I -B - "$tool" "$2" >"$tmp/out" 2>&1 <<'PY'
-import importlib.util, sys
-s = importlib.util.spec_from_file_location("remint_ids_under_test", sys.argv[1])
-m = importlib.util.module_from_spec(s)
-s.loader.exec_module(m)
+import importlib.machinery, importlib.util, sys
+# an explicit source loader: the tool path may end in any suffix (a RED run of a committed copy saved as
+# *.py.txt), which spec_from_file_location alone cannot load
+ld = importlib.machinery.SourceFileLoader("remint_ids_under_test", sys.argv[1])
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader(ld.name, ld))
+ld.exec_module(m)
 exec(sys.argv[2])
 sys.exit(m.main(["verify", "--plan", "/nonexistent/plan.json", "--vehicle-db", "x", "--base-db", "x", "--target-db", "x", "--db", "x"]))
 PY
@@ -896,10 +941,12 @@ gp "verify is BLIND when its landing units miss a column" 'm.V_UNITS = m.V_UNITS
 tf() { # tf <name> <python expression on the loaded tool m> <expected printed value>
   local got
   got=$(python3 -I -B - "$tool" "$2" 2>&1 <<'PY'
-import importlib.util, sys
-s = importlib.util.spec_from_file_location("remint_ids_under_test", sys.argv[1])
-m = importlib.util.module_from_spec(s)
-s.loader.exec_module(m)
+import importlib.machinery, importlib.util, sys
+# an explicit source loader: the tool path may end in any suffix (a RED run of a committed copy saved as
+# *.py.txt), which spec_from_file_location alone cannot load
+ld = importlib.machinery.SourceFileLoader("remint_ids_under_test", sys.argv[1])
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader(ld.name, ld))
+ld.exec_module(m)
 print(eval(sys.argv[2]))
 PY
 )
@@ -945,8 +992,10 @@ vn "a replayed item that landed as two rows" "^MISMATCH $(id 1): not one landed 
 cpdb v vas; W update --id "$(id 8)" --db docs/vas.db --location Issues --assigned-to "Owner of $(id 13)"
 cpdb t tas; W update --id "$(id 8)" --db docs/tas.db --location Issues --assigned-to "Owner of $(id 15)"
 PA=(--vehicle-db docs/vas.db --base-db docs/b.db --target-db docs/tas.db)
-xp "plan: both sides changed the assignee to texts equal only under the map" 1 "^REFUSED: base $(id 8) assigned_to: 'Owner of $(id 13)' names an id the map moves" plan "${PA[@]}" --out "$tmp/pas.json"
-[ ! -e "$tmp/pas.json" ] && ok "plan: a refused plan writes no plan file" || bad "plan: a refused plan writes no plan file" "$tmp/pas.json exists"
+xp "plan: both sides changed the assignee to texts equal only under the map" 1 "^REFUSED base $(id 8) assigned_to: 'Owner of $(id 13)' names an id the map moves" plan "${PA[@]}" --out "$tmp/pas.json"
+# round 6 (R5-2): the plan is written all the same, as the usage text says, and holds the refusal
+same "plan: a refused plan is written, with its refusal and no step" "$(python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));print(p["mode"], len(p["refusals"]), len(p["steps"]), p["refusals"][0][:24])' "$tmp/pas.json" 2>&1)" "REFUSED 1 0 base $(id 8) assigned_to"
+xp "replay refuses the written refused plan" 1 'cannot be replayed' replay --plan "$tmp/pas.json"
 python3 -I -c 'import hashlib,json,sys
 p = json.load(open(sys.argv[1]))
 p["sha256"] = {k: hashlib.sha256(open(f, "rb").read()).hexdigest() for k, f in zip(("vehicle", "base", "target"), sys.argv[3:6])}
@@ -964,7 +1013,7 @@ xp "plan: --resolve vehicle of the obsolete_details conflict" 0 '^RESULT: PLAN m
 cpdb tod rod
 xp "replay of the obsolete_details --resolve vehicle" 0 '^RESULT: APPLIED ' replay --plan "$tmp/podv.json" --apply --engine "$wi" --db docs/rod.db
 xp "verify of the obsolete_details --resolve vehicle" 0 '^RESULT: PASS mode=REPLAY' verify --plan "$tmp/podv.json" "${POD[@]}" --db docs/rod.db
-grep -qF "KNOWN $(id 6): body_md not compared (the target also changed the item: obsolete_details)" "$tmp/out" && ok "verify names the target's obsolete_details change" || bad "verify names the target's obsolete_details change" "$(grep -E '^(KNOWN|MISMATCH)' "$tmp/out" | tr '\n' '|' | cut -c1-300)"
+grep -q "body_md not compared" "$tmp/out" && bad "R5-1: verify compares the body although the target changed obsolete_details" "$(grep -E '^(KNOWN|MISMATCH)' "$tmp/out" | tr '\n' '|' | cut -c1-300)" || ok "R5-1: verify compares the body although the target changed obsolete_details"
 # (g) a base item's obsolete_details the vehicle changed must land as the vehicle wrote it
 cpdb r_after nod5; W obsolete-details "$(id 5)" --db docs/nod5.db --since 2026-11-01 --reason not-reproducible --superseding none --evidence "$EV"
 vn "a base item's obsolete_details field" "^MISMATCH $(id 5) obsolete_details.since: landed '2026-11-01', vehicle '2026-11-12'" nod5
@@ -1041,6 +1090,79 @@ cpdb t rkn
 xp "replay of the twice-closed own item" 0 '^RESULT: APPLIED ' replay --plan "$tmp/pkn.json" --apply --engine "$wi" --db docs/rkn.db
 xp "verify of the twice-closed own item" 0 '^RESULT: PASS mode=REPLAY' verify --plan "$tmp/pkn.json" "${PKN[@]}" --db docs/rkn.db
 grep -qE "^KNOWN $(id 15): lifecycle history rows vehicle 3, landed [0-9]+ \(history is not carried; M-14\)\$" "$tmp/out" && ok "verify: a lifecycle-count KNOWN line when the counts differ" || bad "verify: a lifecycle-count KNOWN line when the counts differ" "$(grep -E "^(KNOWN|MISMATCH) $(id 15)" "$tmp/out" | tr '\n' '|' | cut -c1-300)"
+# ---- (10) round 6: body_md is a unit of the merge (R5-1); an id that does not move is never refused (R5-2) ----
+# A base item whose body carries authored text beyond the engine template (as 54 of the 263 real base items do):
+# no engine command writes such a body, so the fixture is a raw edit of a SCRATCH copy (fx_sql)
+cpdb b ba
+AUTH=$'\n### Operator decisions\n\nAuthored line one, kept by every field-only step.\n- authored bullet two\n'
+fx_sql "$repo/docs/ba.db" "update items set body_md = body_md || ? where atm_id=?" "$AUTH" "$(id 8)"
+abody() { q "$repo/docs/$1.db" "select body_md from items where atm_id=?" "$(id 8)"; }
+cpdb ba vba; W update --id "$(id 8)" --db docs/vba.db --location Issues --severity High
+cpdb ba tba; W update --id "$(id 8)" --db docs/tba.db --location Issues --title "Remint base item 8, renamed by the target"
+PBA=(--vehicle-db docs/vba.db --base-db docs/ba.db --target-db docs/tba.db)
+xp "R5-1: plan of a field-only merge on an item with an authored body" 0 '^RESULT: PLAN mode=REPLAY own=0 base_changes=1 steps=1 ' plan "${PBA[@]}" --out "$tmp/pba.json"
+xp "R5-1: dry run" 0 '^RESULT: DRY-RUN steps=1' replay --plan "$tmp/pba.json"
+grep -qF -- '--description=' "$tmp/out" && bad "R5-1: the step passes no --description" "$(head -1 "$tmp/out" | cut -c1-300)" || ok "R5-1: the step passes no --description"
+cpdb tba rba
+xp "R5-1: replay" 0 '^RESULT: APPLIED steps=1' replay --plan "$tmp/pba.json" --apply --engine "$wi" --db docs/rba.db
+xp "R5-1: verify PASS with the body compared" 0 '^RESULT: PASS mode=REPLAY .* known=0$' verify --plan "$tmp/pba.json" "${PBA[@]}" --db docs/rba.db
+same "R5-1: the authored body lands (target body; only the target's heading differs from the base)" "$(abody rba)" "$(abody tba)"
+case "$(abody rba)" in *"Authored line one, kept by every field-only step."*"- authored bullet two"*) ok "R5-1: the authored lines are in the landed body" ;; *) bad "R5-1: the authored lines are in the landed body" "$(abody rba | tr '\n' '|' | cut -c1-300)" ;; esac
+# the reviewer's second case: the target changed another item; the body is compared with the vehicle's
+cpdb ba tbo; W update --id "$(id 4)" --db docs/tbo.db --location Issues --title "Remint base item 4, renamed by the target"
+PBO=(--vehicle-db docs/vba.db --base-db docs/ba.db --target-db docs/tbo.db)
+xp "R5-1: plan when the target changed another item" 0 '^RESULT: PLAN mode=REPLAY own=0 base_changes=1 steps=1 ' plan "${PBO[@]}" --out "$tmp/pbo.json"
+cpdb tbo rbo
+xp "R5-1: replay when the target changed another item" 0 '^RESULT: APPLIED steps=1' replay --plan "$tmp/pbo.json" --apply --engine "$wi" --db docs/rbo.db
+xp "R5-1: verify PASS when the target changed another item" 0 '^RESULT: PASS mode=REPLAY .* known=0$' verify --plan "$tmp/pbo.json" "${PBO[@]}" --db docs/rbo.db
+same "R5-1: the authored body is the vehicle's" "$(abody rbo)" "$(abody vba)"
+# the oracle: authored text lost, a heading or a Status line that does not follow the landed columns
+cpdb rba rbl; fx_sql "$repo/docs/rbl.db" "update items set body_md = replace(body_md, 'Authored line one', 'Authored line 1') where atm_id=?" "$(id 8)"
+xp "R5-1: verify FAIL on a landing that lost authored text" 1 "^MISMATCH $(id 8) body_md: the target's text outside the engine slots is not kept\$" verify --plan "$tmp/pba.json" "${PBA[@]}" --db docs/rbl.db
+cpdb rba rbh; fx_sql "$repo/docs/rbh.db" "update items set body_md = replace(body_md, 'renamed by the target', 'renamed by somebody') where atm_id=?" "$(id 8)"
+xp "R5-1: verify FAIL on a heading that does not name the landed title" 1 "^MISMATCH $(id 8) body_md: the heading does not name the landed title\$" verify --plan "$tmp/pba.json" "${PBA[@]}" --db docs/rbh.db
+cpdb rba rbs; fx_sql "$repo/docs/rbs.db" "update items set body_md = replace(body_md, '**Status:** Queued', '**Status:** In progress') where atm_id=?" "$(id 8)"
+xp "R5-1: verify FAIL on a Status line that does not name the landed status" 1 "^MISMATCH $(id 8) body_md: no Status line names the landed status 'Queued'\$" verify --plan "$tmp/pba.json" "${PBA[@]}" --db docs/rbs.db
+cpdb rbo rbol; fx_sql "$repo/docs/rbol.db" "update items set body_md = replace(body_md, 'Authored line one', 'Authored line 1') where atm_id=?" "$(id 8)"
+xp "R5-1: verify FAIL on lost authored text when the target left the item alone" 1 "^MISMATCH $(id 8) body_md: text differs outside the ids" verify --plan "$tmp/pbo.json" "${PBO[@]}" --db docs/rbol.db
+# a re-render (the vehicle's description change) on a body the target changed outside the slots is a conflict
+cpdb ba tbx; fx_sql "$repo/docs/tbx.db" "update items set body_md = body_md || ? where atm_id=?" $'Target authored addition.\n' "$(id 8)"
+cpdb ba vbx; W update --id "$(id 8)" --db docs/vbx.db --location Issues --description "$D Base item 8, re-described by the vehicle."
+PBX=(--vehicle-db docs/vbx.db --base-db docs/ba.db --target-db docs/tbx.db)
+xp "R5-1: a re-render of a body the target changed outside the slots is a CONFLICT" 1 "^CONFLICT $(id 8): the target changed the body outside the engine slots and the vehicle's update re-renders it" plan "${PBX[@]}" --out "$tmp/pbx.json"
+grep -q "^MERGE $(id 8):" "$tmp/out" && bad "R5-1: the conflict is not also listed as a merge" "$(grep '^MERGE' "$tmp/out")" || ok "R5-1: the conflict is not also listed as a merge"
+xp "R5-1: --resolve vehicle of the body conflict" 0 '^RESULT: PLAN mode=REPLAY own=0 base_changes=1 steps=1 ' plan "${PBX[@]}" --out "$tmp/pbxv.json" --resolve "$(id 8)=vehicle"
+cpdb tbx rbxv
+xp "R5-1: replay of --resolve vehicle" 0 '^RESULT: APPLIED steps=1' replay --plan "$tmp/pbxv.json" --apply --engine "$wi" --db docs/rbxv.db
+xp "R5-1: verify of --resolve vehicle" 0 '^RESULT: PASS mode=REPLAY .* known=0$' verify --plan "$tmp/pbxv.json" "${PBX[@]}" --db docs/rbxv.db
+xp "R5-1: --resolve target of the body conflict" 0 '^RESULT: PLAN mode=REPLAY own=0 base_changes=1 steps=0 ' plan "${PBX[@]}" --out "$tmp/pbxt.json" --resolve "$(id 8)=target"
+# no re-render: the vehicle's field-only change keeps the target's authored addition
+PBY=(--vehicle-db docs/vba.db --base-db docs/ba.db --target-db docs/tbx.db)
+xp "R5-1: a field-only change on a body the target changed is a plan" 0 '^RESULT: PLAN mode=REPLAY own=0 base_changes=1 steps=1 ' plan "${PBY[@]}" --out "$tmp/pby.json"
+cpdb tbx rby
+xp "R5-1: replay of the field-only change" 0 '^RESULT: APPLIED steps=1' replay --plan "$tmp/pby.json" --apply --engine "$wi" --db docs/rby.db
+xp "R5-1: verify of the field-only change" 0 '^RESULT: PASS mode=REPLAY .* known=0$' verify --plan "$tmp/pby.json" "${PBY[@]}" --db docs/rby.db
+case "$(abody rby)" in *"Target authored addition."*) ok "R5-1: the target's addition lands" ;; *) bad "R5-1: the target's addition lands" "lost" ;; esac
+# the oracle, without the planner's conflict: a plan forged onto tbx re-renders the body and drops the addition
+cpdb ba tbn
+xp "R5-1: plan of the re-render with an untouched target" 0 '^RESULT: PLAN mode=REPLAY ' plan --vehicle-db docs/vbx.db --base-db docs/ba.db --target-db docs/tbn.db --no-fast-forward --out "$tmp/pbn.json"
+python3 -I -c 'import hashlib,json,sys;p=json.load(open(sys.argv[1]));p["sha256"]["target"]=hashlib.sha256(open(sys.argv[2],"rb").read()).hexdigest();json.dump(p,open(sys.argv[3],"w"))' "$tmp/pbn.json" "$repo/docs/tbx.db" "$tmp/pbf.json" || exit 2
+cpdb tbx rbf
+xp "R5-1: replay of the forged plan" 0 '^RESULT: APPLIED steps=1' replay --plan "$tmp/pbf.json" --apply --engine "$wi" --db docs/rbf.db
+xp "R5-1: verify FAIL: a re-render replaced the target's authored body" 1 "^MISMATCH $(id 8) body_md: a re-render replaced a body the target changed outside the engine slots\$" verify --plan "$tmp/pbf.json" "${PBX[@]}" --db docs/rbf.db
+# the main landing (a description re-render on one side, a severity on the other) is compared, never KNOWN
+xp "R5-1: verify of the main landing" 0 '^RESULT: PASS mode=REPLAY' verify --plan "$tmp/plan.json" "${PLAN[@]}" --db docs/r_after.db
+grep -q "body_md not compared" "$tmp/out" && bad "R5-1: the main landing's body is compared" "$(grep 'body_md' "$tmp/out" | tr '\n' '|' | cut -c1-300)" || ok "R5-1: the main landing's body is compared"
+# R5-2: a path naming an own id is refused only when the map moves that id
+mkdir -p "$repo/docs/qa/$(id 9)" && printf 'red\n' >"$repo/docs/qa/$(id 9)/red.txt" || exit 2
+cpdb b vpi; W add Task Low --db docs/vpi.db --id "$(id 9)" --title "Remint own item for the identity map" --description "$D Own item." --created-by Claude
+W close "$(id 8)" --db docs/vpi.db --status completed --evidence "docs/qa/$(id 9)/red.txt"
+cpdb b tpi
+xp "R5-2: FAST-FORWARD: a base path naming an own id that does not move is not refused" 0 "^RESULT: PLAN mode=FAST-FORWARD own=1 " plan --vehicle-db docs/vpi.db --base-db docs/b.db --target-db docs/tpi.db --out "$tmp/ppi.json"
+xp "R5-2: --no-fast-forward with an identity map is not refused either" 0 "^RESULT: PLAN mode=REPLAY own=1 .* first=$(id 9) last=$(id 9)\$" plan --vehicle-db docs/vpi.db --base-db docs/b.db --target-db docs/tpi.db --no-fast-forward --out "$tmp/ppn.json"
+cpdb t tpm
+xp "R5-2: the same path is refused when the id moves" 1 "^REFUSED base $(id 8) closure evidence: moved id $(id 9) is part of a path" plan --vehicle-db docs/vpi.db --base-db docs/b.db --target-db docs/tpm.db --out "$tmp/ppm.json"
+[ -s "$tmp/ppm.json" ] && ok "R5-2: the refused plan is written" || bad "R5-2: the refused plan is written" "no file"
 same "the real database is untouched" "$(sha256sum "$realdb" | cut -d' ' -f1)" "$real_sha"
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

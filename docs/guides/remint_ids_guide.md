@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-11-13 |
-| Last modified | 2026-11-14T03:21:25Z |
+| Last modified | 2026-11-14T18:45:00Z |
 | Status | active |
 | Status summary | User guide and manual for landing a vehicle's tracker changes onto a target tracker: a three-way plan (base, vehicle, target), ids the vehicle minted moved to the target's next free numbers, every change replayed through the workable-items engine, conflicts reported, never guessed. |
 | Authority | Constitution §11.4.54 (ids never renumbered once landed), §11.4.93 (the engine is the only writer of the database), §11.4.249 (the verifier is not the producer), §11.4.288 (landing on `main`) — the canonical text wins where this guide and the constitution disagree. |
 | Scope | Universal (§11.4.17); the prefix, the database paths and the file list are consumer DATA (§11.4.35). |
 | Issues | not wired into a seam: a lander runs it by hand |
 | Issues summary | The vehicle's history rows, `created_at` and `last_modified` are not carried (see the honest boundary); verify reports them as KNOWN. |
-| Fixed | revision 3: tracker-intake round 5 (review R4-1, R4-2, R4-4, R4-5, R4-9): a merge never rewrites target text and passes only the units the vehicle changed; a state block both sides changed is a conflict; every range form is checked, a chain of tight ranges pair by pair; ASCII digits only; read-only URIs quoted and `-wal` sidecars refused everywhere; an automated branch sweep of the planner and verify, and the defects it found (a value passed as written that names a moved id, an empty block stamp, a reopen kept in Fixed.md); revision 2: tracker-intake round 4 (review findings R3-1, R3-2 and the minors): three-way plan, base-item changes, conflicts, FAST-FORWARD, a separate verify oracle; revision 1: tracker-intake round 3 (review R2-7) |
+| Fixed | revision 4: tracker-intake round 6 (review R5-1, R5-2, R5-4, R5-6): an update step passes `--description` only when the vehicle changed it, so a field-only change keeps the target's body; a re-render (a close, or an update with `--description`) over a body the target changed outside the engine slots is a CONFLICT; verify compares body_md (kept text, heading, Status line) instead of a KNOWN line; a path naming an id that does not move is not refused, and a refused plan is still written (mode REFUSED); revision 3: tracker-intake round 5 (review R4-1, R4-2, R4-4, R4-5, R4-9): a merge never rewrites target text and passes only the units the vehicle changed; a state block both sides changed is a conflict; every range form is checked, a chain of tight ranges pair by pair; ASCII digits only; read-only URIs quoted and `-wal` sidecars refused everywhere; an automated branch sweep of the planner and verify, and the defects it found (a value passed as written that names a moved id, an empty block stamp, a reopen kept in Fixed.md); revision 2: tracker-intake round 4 (review findings R3-1, R3-2 and the minors): three-way plan, base-item changes, conflicts, FAST-FORWARD, a separate verify oracle; revision 1: tracker-intake round 3 (review R2-7) |
 | Fixed summary | Round 4 merged an item the target also changed by replaying the vehicle's whole state block and its text re-pointed through the map, so a target change was lost or its reference re-pointed at a re-minted item (R4-1). Round 3 replayed only the items the vehicle minted, so a landing lost the vehicle's changes to base items (R3-1) and verify re-ran the producer's own logic (R3-2). |
 | Continuation | — |
 
@@ -31,7 +31,7 @@
 ## Why it exists
 
 Two vehicles that start from one base both mint ids from the base's maximum. The tracker-intake
-vehicle minted CON-299..CON-342; the fix227 vehicle, from the same base, minted CON-300..CON-311.
+vehicle minted CON-299..CON-344 (CON-343 and CON-344 in its round 6); the fix227 vehicle, from the same base, minted CON-300..CON-311.
 Whichever lands second collides. A vehicle also changes items it did not mint: it closes base items,
 edits their text and records their reproduction state. The engine has no rename command and the
 binary `docs/workable_items.db` cannot be merged by git, so the second vehicle is replayed onto the
@@ -122,6 +122,18 @@ pinned by a case:
   by the branch sweep, where an omitted stamp landed as the time of the replay);
   status and location through `close` and `reopen` (with the evidence of the vehicle's new closure
   or Reopened history row); the `obsolete_details` row through `obsolete-details`.
+  Only the columns V changed are passed; `--description` only when V changed the description,
+  because `update --description` (and `close`) render `body_md` again from the engine template,
+  while a field-only update keeps the body and edits only its engine slots (the heading for
+  `--title`, the Status line). Round 6 (R5-1): before, every update passed `--description` and a base
+  item's authored body text was lost.
+- **Body (round 6, R5-1)**: the engine slots of `body_md` are the heading, the template lines
+  (Status, Type, Severity, Created-By, Assigned-To, Evidence), the Reproduction and Investigation
+  lines, Reopened-Details and its bullets, and Obsolete-Details. When the plan would re-render an
+  item whose body the target changed outside those slots, the item is a CONFLICT (`--resolve
+  vehicle` lands the re-render, `--resolve target` keeps the target). verify compares the body: the
+  text outside the slots must be kept (exactly, when the target left the item alone), the heading
+  must name the landed title and a Status line the landed status.
 - **The `obsolete_details` row** is replayed on every lifecycle path that ends on, or passes
   through, an Obsolete status (close, close then reopen, a changed row on an item left Obsolete),
   because the engine writes it only on an Obsolete item. A row on an item left open is refused.
@@ -159,7 +171,10 @@ pinned by a case:
   than `superseding`; a type, severity, author, assignee or status word) is refused when it names an
   id the map moves, whether in a path or not, because nothing rewrites it. An id the item declares
   foreign is kept. Before round 5 an evidence path naming a moved own id passed the plan and only
-  verify failed. This refusal, like a rewrite refusal, stops the plan at once (exit 1, `REFUSED:`).
+  verify failed. This refusal, like a rewrite refusal, stops the plan at once (exit 1, a `REFUSED <reason>`
+  line). Round 6 (R5-2): only an id the map actually moves is refused (a FAST-FORWARD or an identity map
+  refuses nothing), and the refused plan is still written (mode `REFUSED`, its refusals, no steps), so
+  the reason is on disk; replay refuses such a plan.
 - **Foreign ids in scripts** (`--repo-root`): an id named by a script is not a moved id when it is
   declared foreign by the item's own `Foreign ids` line, by `plan --foreign`, or, inside the script,
   by a comment line `# Foreign ids (...): ...` (also `//` and `--`). A `Foreign ids` text that is
@@ -297,11 +312,13 @@ Evidence class gate-logic (§11.4.289): the tests drive the real engine on scrat
 onto the live database has been run. The branch sweep proves each branch is decided by a test; it
 does not prove the specification complete. An id split by a Unicode format character is not
 recognised by `rewrite` (it sees two tokens); the intake lint is the guard for that shape. An engine
-defect found in round 5 and not yet registered in the tracker (owed to the conductor): `update
---severity` changes the column but leaves the `**Severity:**` line of `body_md` as it was, while the
-replay passes `--description`, which renders the body again; a vehicle whose body kept the old line
-therefore lands with another body, and verify reports the body MISMATCH (the suite pins this as a
-characterization case): such a landing is refused, never certified. Not carried: the vehicle's history rows (the engine writes new
+defect found in round 5 (owed to the conductor as its own item): a field-only `update --severity`
+changes the column but leaves the `**Severity:**` line of `body_md` as it was. Alone it does not make a
+landing fail (round 6 passes no `--description` on a field-only change, so the vehicle and the landing
+keep the same line); together with a replay order that differs from the vehicle's (the vehicle closed,
+reopened, then changed the severity; the replay updates first and closes after, so the close renders the
+body again), the two bodies differ in that line, and verify refuses to certify it (the suite pins this as
+a characterization case). Not carried: the vehicle's history rows (the engine writes new
 ones on replay; the old rows stay in the vehicle bundle), `created_at` (the replay time for own
 items; for a base item it closes, the engine's close rewrites it, engine defect CON-339) and
 `last_modified`. `verify` reports these as KNOWN, never as a pass. The engine's own defects reproduce

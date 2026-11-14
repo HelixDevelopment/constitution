@@ -4384,7 +4384,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Severity:** Low
 **Created-By:** Conductor
 
-**What:** Review round 7 finding N8 (nit, process-doc, CON-310 scope): rc_url_has_userinfo '  https://u:p@h/r' (leading blanks) returns 1; git treats such a URL as scp-like, the u:p@h/r part then sits in ssh's argv. Amend the vehicle's CON-310 description with a sentence naming the leading-blanks shape and an acceptance criterion that a test with leading blanks (and a tab) is refused (exit 3 before any network command). CON-310 lives on the fix227 vehicle, not on main 02c10935, so the amendment is applied by the lander through the engine (update --id) after re-minting; UNKNOWN: its final id.
+**What:** Review round 7 finding N8 (nit, process-doc, CON-310 scope): rc_url_has_userinfo on an https URL with leading blanks whose user-info part carries a password (the shape '  https://<user>:<password>@<host>/<path>', written here with placeholders only) returns 1; git treats such a URL as scp-like, and the user-info part then sits in ssh's argv. Amend the vehicle's CON-310 description with a sentence naming the leading-blanks shape and an acceptance criterion that a test with leading blanks (and a tab) is refused (exit 3 before any network command). CON-310 lives on the fix227 vehicle, not on main 02c10935, so the amendment is applied by the lander through the engine (update --id) after re-minting; UNKNOWN: its final id.
 
 **Affected scope / file-scope manifest:**
 scripts/release/redact_cut.sh rc_url_has_userinfo on the fix227 vehicle; the vehicle's CON-310 tracker item
@@ -4675,4 +4675,50 @@ obsolete-details refuses a superseding id that is not an item (an anchor letter 
 Parent / links: round-2 review of this vehicle (docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md, finding R2-6); umbrella CON-299 (tracker intake umbrella)
 Duplicate check (section 11.4.214): DISTINCT; CON-340 (reopen leaves the obsolete_details row) is another defect of the same commands. Method: every open item compared by title and What-line word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v3/inventory/dup_candidates_v3.tsv).
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
+
+## CON-343 — workable-items update --severity, --type, --created-by and --assigned-to leave the body's matching lines stale (round-5 review R5-6)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_14_v6/runs/engine_field_repro.txt` — red-command `HELIX_RELEASE_PREFIX=CON bash docs/qa/tracker_intake_2026_11_14_v6/tools/engine_field_repro.sh scripts/workable-items/bin/workable-items docs/workable_items.db <empty dir>` — green-command `the same command; GREEN when all four lines read SYNCED` — env `engine sha256 9edd2dc3dfe33dd33ad4583256bd8c96650cf7edd01b77da5022d701f2a70e2c; evidence sha256 7206cb29f45934a86888878aaeecc182e116cb031d7c33eacdc45bf5a43930df` — signature `the output has a line starting STALE` — updated 2026-11-14T17:40:51Z — by `Claude`
+**Investigation:** not-started — updated 2026-11-14T17:39:42Z — by `Claude`
+
+**What:** a field-only `update --severity`, `--type`, `--created-by` or `--assigned-to` writes the new value into the items column but leaves the old value on the body's Severity, Type, Created-By or Assigned-To line, so Issues.md shows a value the database no longer holds (body/column drift, section 11.4.106). The Status line is already re-rendered on such an update; these four lines are not.
+
+**Affected scope / file-scope manifest:**
+scripts/workable-items/cmd/workable-items/mutate.go (update); the body renderer it calls; their tests
+
+**Reproduction / context:**
+Found by the round-5 review of the tracker-intake vehicle (probe p01, --severity only; the other three flags were UNCONFIRMED there). Reproduced on the host on a scratch copy of the vehicle database, every write through the engine, all four flags STALE: docs/qa/tracker_intake_2026_11_14_v6/runs/engine_field_repro.txt (script docs/qa/tracker_intake_2026_11_14_v6/tools/engine_field_repro.sh, evidence sha256 7206cb29f45934a86888878aaeecc182e116cb031d7c33eacdc45bf5a43930df). The cause is not investigated. The re-mint planner (scripts/workable-items/remint_ids.py) replays field-only updates through the same command, so a landed body carries the same stale line as the vehicle's; its verify compares the two bodies and does not hide the drift.
+
+**Acceptance criteria:**
+the four lines name the column value after a field-only update; validate fails on a body whose Severity, Type, Created-By or Assigned-To line disagrees with its column; the probe script prints SYNCED for all four; tests with paired mutants pin each flag.
+
+Parent / links: round-5 review of the tracker-intake vehicle (finding R5-6, owed item 2); umbrella CON-299 (tracker intake umbrella)
+Duplicate check (section 11.4.214): DISTINCT; CON-341 (update re-renders the header and drops the Reopened-Details and Evidence lines) and CON-340 (reopen leaves the Obsolete-Details line; it also names mutate.go) are other defects of the same commands, CON-090 (update records an evidence path without a sha256) and CON-337 (update --status outside the closed set exits 0) other defects of update. Method: the 301 open items searched for workable-items update, mutate.go, --severity and severity line, each hit compared by What line.
+Origin: tracker-intake vehicle 2026-11-12, filed in its round 6 on 2026-11-14 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
+
+## CON-344 — Remove the 154 pre-existing identity strings (home paths and user names) from the tracker database (round-5 review owed item 5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+**What:** the base tracker database (main at 02c10935, before the tracker-intake vehicle) holds 154 identity strings in item text: 38 home-directory paths, 38 home-path fragments and 78 user-name hits. They identify the operator's host account and do not belong in tracked text (section 11.4.10). The vehicle adds none; its leak scan counts them as pre-existing.
+
+**Affected scope / file-scope manifest:**
+docs/workable_items.db (item text only, through the engine); docs/Issues.md, docs/Fixed.md and their Summaries (re-exported)
+
+**Reproduction / context:**
+Counted by the leak scan of the tracker-intake vehicle: docs/qa/tracker_intake_2026_11_12_v5/runs/leak_scan.txt (the base-only scan; the scan prints no matched text). Out of the vehicle's scope (section 11.4.293), so it is carried here. Not reproduced again in round 6.
+
+**Acceptance criteria:**
+every one of the strings is rewritten through the engine with a placeholder (for example <home> or <user>), the Issues and Fixed documents are re-exported, and the leak scan, with its control needles passing, reports zero identity hits on the database and on the documents.
+
+Parent / links: round-5 review of the tracker-intake vehicle (owed item 5); umbrella CON-299 (tracker intake umbrella)
+Duplicate check (section 11.4.214): DISTINCT; no open item names identity strings in the tracker database. Method: every open item searched for the words identity, home path and user name.
+Origin: tracker-intake vehicle 2026-11-12, filed in its round 6 on 2026-11-14 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 

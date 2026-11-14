@@ -22,7 +22,9 @@
 #   round-4 reviewer's lint mutants (LV6 mapped onto the round-5 load, which keeps a second location row
 #   instead of dropping it); the LN-mutants cover the checks added in round 5 (format characters, the
 #   ASCII fast path, the earliest character, unquoted assignments and their reference-value guard,
-#   Basic auth, non-ASCII ids, second location rows, the -wal sidecar, URI quoting); S1 mutates the
+#   Basic auth, non-ASCII ids, second location rows, the -wal sidecar, URI quoting; LN4 and LN5 remapped
+#   onto the round-6 key list); the LS-mutants cover the round-6 keyed-credential shape class (key quoting,
+#   each separator, colon values, masks, references, header keys, URL user-info, the Token scheme); S1 mutates the
 #   suite's own cleanup (round-2 review R2-10).
 # ENV   INTAKE_LINT_MUT_JOBS  parallel mutants (default 3)
 #       INTAKE_LINT_MUT_ONLY  run only the mutants whose id is listed (comma separated)
@@ -151,8 +153,20 @@ mutants=(
   'LN1 CONTROL-CHAR: format characters (Cf) not reported|L|yes|        if CONTROL_CHAR.match(ch) or unicodedata.category(ch) == "Cf":|||        if CONTROL_CHAR.match(ch):'
   'LN2 CONTROL-CHAR: every text read through the ASCII class|L|yes|    if text.isascii():\n        cm = CONTROL_CHAR.search(text)|||    if True:\n        cm = CONTROL_CHAR.search(text)'
   'LN3 CONTROL-CHAR: the last character reported, not the earliest|L|no|    for ch in text:\n        if CONTROL_CHAR.match(ch) or|||    for ch in reversed(text):\n        if CONTROL_CHAR.match(ch) or'
-  'LN4 SECRET: an unquoted PASSWORD= not reported|L|yes|(?:\b|_)(?:password|passwd|secret|api_?key|token)\s*=\s*(?!|||(?:\b|_)(?:passwd|secret|api_?key|token)\s*=\s*(?!'
-  "LN5 SECRET: a reference value (\$VAR, <placeholder>) reported as a secret|L|no|(?![\$<{%'\\\"\`(\\[])|||"
+  $'LN4 SECRET: the password key family not read (remapped onto the round-6 key list)|L|yes|r"(?:pass(?:word|wd|phrase)|client|||r"(?:client'
+  $'LN5 SECRET: a reference value ($VAR, <placeholder>) reported as a secret (remapped onto the round-6 unquoted assignment)|L|no|(?::=|=>|=)\\s*(?![$<{%\'\\"`(\\[])|||(?::=|=>|=)\\s*'
+  $'LS1 SECRET: a quoted key (JSON) not read|L|no|r"[\\"\']?\\s*(?::=|=>|:|=)\\s*[\\"\']|||r"\\s*(?::=|=>|:|=)\\s*[\\"\']'
+  $'LS2 SECRET: the quoted value after a colon not read|L|no|r"[\\"\']?\\s*(?::=|=>|:|=)\\s*[\\"\']|||r"[\\"\']?\\s*(?::=|=>|=)\\s*[\\"\']'
+  $'LS3 SECRET: an unquoted colon value after a strong key not read|L|yes|[^\\s\'\\"`,;]{8,}")),\\n    ("secret-colon|||[^\\s\'\\"`,;]{80,}")),\\n    ("secret-colon'
+  $'LS4 SECRET: a generic-key colon value read without a digit (too broad)|L|yes|(?=[^\\s\'\\"`,;]*[0-9])|||'
+  $'LS5 SECRET: a masked colon value reported|L|no|(?![xX*.#-]+(?:[\\s,;]|$))|||'
+  $'LS6 SECRET: a short URL user-info password not read|L|yes|(?![$<{%*]|[xX]+@)[^/\\s@]+@|||(?![$<{%*]|[xX]+@)[^/\\s@]{6,}@'
+  $'LS7 SECRET: a URL user-info reference reported|L|yes|(?![$<{%*]|[xX]+@)|||'
+  $'LS8 SECRET: Authorization: Token not read|L|no|(?:bearer|token)\\s+|||(?:bearer)\\s+'
+  $'LS9 SECRET: the => separator of a quoted value not read|L|no|r"[\\"\']?\\s*(?::=|=>|:|=)\\s*[\\"\']|||r"[\\"\']?\\s*(?::=|:|=)\\s*[\\"\']'
+  $'LS10 SECRET: the := separator of an unquoted value not read|L|no|(?::=|=>|=)\\s*(?![$<{%\'|||(?:=>|=)\\s*(?![$<{%\''
+  $'LS11 SECRET: a header key after a hyphen (X-Api-Key) not read|L|no|(?:\\b|_)" + _SECRET_KEYS + r"[\\"\']?\\s*:(?!=)|||(?:^|\\s|_)" + _SECRET_KEYS + r"[\\"\']?\\s*:(?!=)'
+  $'LS12 SECRET: a masked quoted value reported|L|no|(?![xX*.#-]+[\\"\'])|||'
   'LN6 SECRET: Authorization: Basic not reported|L|yes|(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{8,}|||(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{80,}'
   'LN7 XREF-DANGLING: an id in non-ASCII digits not reported|L|yes|state_text(r)) if not u.group(1).isascii()}):|||state_text(r)) if False}):'
   'LN8 a second location row not linted|L|no|                for e in extras.get(r["id"], ()):|||                for e in ():'

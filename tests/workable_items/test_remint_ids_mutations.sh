@@ -28,7 +28,9 @@
 #   check and its control of untouched items, check_od, check_history, the referent condition, and the
 #   planner's refusal of a removed obsolete_details row; N89..N91: three survivors of the sixth sweep
 #   run, i.e. FAST-FORWARD verify's id-set and table checks and the CON-339 note on a created_at
-#   MISMATCH, which run 5 had counted killed only through a flaky case).
+#   MISMATCH, which run 5 had counted killed only through a flaky case). ROV-mutants: the round-5
+#   reviewer's mutants (ROV1..ROV10) verbatim, except ROV3 (the clause without its line continuation), and
+#   ROVFIX, the round-5 defect R5-1 put back (a field-only update passes the target's description).
 #   S-mutants: the suite's own fixture instrument (fx_sql).
 # ENV   WORKABLE_ITEMS        path of the workable-items engine binary (default: the tracked
 #                             scripts/workable-items/bin/workable-items; exit 2 when not executable)
@@ -111,11 +113,11 @@ mutants=(
   'X41 verify: a vehicle-side non-text column not compared|T|                elif norm(v[c]) != norm(r[c]):\n                    bad.append("%s %s: landed %r, vehicle %r"|||                elif False:\n                    bad.append("%s %s: landed %r, vehicle %r"'
   'X42 rewrite: an id inside a path rewritten|T|    if before == "/" or after[:1] == "/" or re.match(r"\.\w", after):|||    if False:'
   'RV1 verify: target-side units not compared with the target (round-4 reviewer)|T|            elif norm(t[c]) != norm(r[c]):\n                bad.append("%s %s: landed %r, target %r (%s)"|||            elif False:\n                bad.append("%s %s: landed %r, target %r (%s)"'
-  'RV2 plan: merged base item always takes the vehicle description (round-4 reviewer)|T|            desc = vland("description") if "description" in ucols else norm(t["description"])|||            desc = vland("description")'
+  'RV2 plan: merged base item always takes the vehicle description (round-4 reviewer; remapped to the round-6 update argv)|T|            argv = ["update", "--id=" + i, "--db", "{DB}", "--location=" + loc]|||            argv = ["update", "--id=" + i, "--db", "{DB}", "--location=" + loc, "--description=" + vland("description")]'
   'RV3 plan/rewrite: en dash ranges no longer recognised (round-4 reviewer)|T|-([0-9]+))(\.\.|–)(" + p|||-([0-9]+))(\.\.)(" + p'
   'RV4 verify: own-item created_at drift not reported as KNOWN (round-4 reviewer)|T|            known.append("%s created_at: replay time %s (vehicle %s), not carried" % (new, r["created_at"], v["created_at"]))|||            pass'
   'RV5 verify: base-item created_at drift without a closure is KNOWN (round-4 reviewer)|T|            (known if closed else bad).append(|||            known.append('
-  'RV6 verify: base-item body_md not compared (round-4 reviewer)|T|            same_text(i, "body_md", v["body_md"], r["body_md"], fset)|||            pass'
+  'RV6 verify: base-item body_md not compared (round-4 reviewer; remapped to the round-6 check_body call)|T|        check_body(i, v, b, t, r, tdiff, rv, fset, plan["steps"], same_text, bad)|||        pass'
   'RV7a plan: vehicle lifecycle + target change no longer a conflict (round-4 reviewer)|T|        if clash or (dt and life_v) or (dv and life_t):|||        if clash or (dv and life_t):'
   'RV7b plan: target lifecycle + vehicle change no longer a conflict (round-4 reviewer)|T|        if clash or (dt and life_v) or (dv and life_t):|||        if clash or (dt and life_v):'
   'N1 plan: a target stamp-only change of a block is not a target change|T|            if not changed(t, b, cols):\n                dt += changed(t, b, STAMPS[n])|||            if False:\n                dt += changed(t, b, STAMPS[n])'
@@ -124,7 +126,7 @@ mutants=(
   'N4 plan: a column clash is downgraded to the same change|T|                (same if vland(c) == norm(t[c]) else clash).append(c)|||                same.append(c)'
   'N5 plan: column convergence compares the unmapped vehicle text|T|(same if vland(c) == norm(t[c]) else clash)|||(same if norm(v[c]) == norm(t[c]) else clash)'
   'N6 plan: a converged block is written anyway|T|            if n in v_blocks and "the %s block" % n not in same:|||            if n in v_blocks:'
-  'N7 plan: the target description runs through the map (R4-1a reverted)|T|            desc = vland("description") if "description" in ucols else norm(t["description"])|||            desc = vland("description") if "description" in ucols else rewr.text(norm(t["description"]), foreign, label)[0]'
+  'N7 plan: the target description runs through the map (R4-1a reverted; remapped to the round-6 update argv)|T|            argv = ["update", "--id=" + i, "--db", "{DB}", "--location=" + loc]|||            argv = ["update", "--id=" + i, "--db", "{DB}", "--location=" + loc] + ([] if "description" in ucols else ["--description=" + rewr.text(norm(t["description"]), foreign, label)[0]])'
   'N8 plan: a target stamp change does not mark its block changed|T|changed(t, b, cols + STAMPS[n])]|||changed(t, b, cols)]'
   'N9 plan: columns the vehicle did not change are written|T|        ucols = [c for c in UPDATE_COLS if c in dv and vland(c) != norm(t[c])]|||        ucols = [c for c in UPDATE_COLS if vland(c) != norm(t[c])]'
   'N10 plan: an unlandable --resolve vehicle of stamps is not refused|T|            for n in stuck:\n                refuse(|||            for n in []:\n                refuse('
@@ -209,6 +211,17 @@ mutants=(
   'N89 verify FAST-FORWARD: landed ids that are not the vehicle ids not reported|T|        if set(R) != set(V):|||        if False:'
   'N90 verify FAST-FORWARD: a table that differs from the vehicle not reported|T|            if table_rows(cr, t) != table_rows(cv, t):|||            if False:'
   'N91 verify: a created_at MISMATCH carries the CON-339 note of a KNOWN line|T|" (KNOWN engine defect CON-339: close rewrites it)" if closed else ""|||" (KNOWN engine defect CON-339: close rewrites it)" if True else ""'
+  'ROV1 verify FAST-FORWARD: item_history not compared|T|for t in OTHER_TABLES + ["obsolete_details", "item_history"]:|||for t in OTHER_TABLES + ["obsolete_details"]:'
+  'ROV2 verify: a new vehicle id in non-ASCII digits read into the own set|T|idrx = re.compile(re.escape(prefix) + r"-[0-9]+")|||idrx = re.compile(re.escape(prefix) + r"-\d+")'
+  'ROV3 verify: the referent check ignores the item type|T|or vr[0]["type"] != rr[0]["type"] or norm(vr[0]["created_by"])|||or norm(vr[0]["created_by"])'
+  'ROV4 planner: the close step replays the latest closure row, not the plain close|T|    pick = (plain or cl)\n|||    pick = cl\n'
+  'ROV5 planner: a base item foreign set read from the vehicle row only|T|        foreign = item_foreign([v, b], prefix, a.foreign)\n|||        foreign = item_foreign([v], prefix, a.foreign)\n'
+  'ROV6 verify: obsolete_details triple_check_evidence not compared|T|for c in ("since", "reason", "triple_check_evidence"):|||for c in ("since", "reason"):'
+  'ROV7 Rewriter: ids of at most three digits|T|tok = re.compile(r"(?<![\w-])" + p + r"-([0-9]+)\b(?!-)")|||tok = re.compile(r"(?<![\w-])" + p + r"-([0-9]{1,3})\b(?!-)")'
+  'ROV8 verify: foreign-id declarations of one digit only|T|idp = re.compile(re.escape(prefix) + r"-([0-9]+)")|||idp = re.compile(re.escape(prefix) + r"-([0-9])")'
+  'ROV9 verify: the referent check ignores created_by|T| or norm(vr[0]["created_by"]) != norm(rr[0]["created_by"]):|||:'
+  'ROV10 verify: the referent check ignores the title|T|if not vr or not rr or v_split(norm(vr[0]["title"])|||if not vr or not rr or False and v_split(norm(vr[0]["title"])'
+  'ROVFIX planner: a field-only update re-renders the body through a forced --description (the round-5 defect R5-1)|T|"--db", "{DB}", "--location=" + loc]\n            for c in ucols:|||"--db", "{DB}", "--location=" + loc, "--description=" + norm(t["description"])]\n            for c in ucols:'
   'S1 suite: a failing fixture edit is ignored|S|echo "setup: fx_sql failed: $2" >&2; exit 2;|||true;'
   'S2 suite: a fixture edit that matches no row is accepted|S|if n == 0:  # DML that matched no row; DDL reports -1|||if False:'
   'S3 suite: fx_sql may touch the real database|S|  [ "$a" != "$b" ] || { echo "setup: fx_sql refuses the real database" >&2; exit 2; }\n  case "$a" in "$tmp"/*) ;; *) echo "setup: fx_sql edits only scratch copies under the temp dir" >&2; exit 2 ;; esac|||  :'

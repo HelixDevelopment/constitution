@@ -136,6 +136,10 @@ SECTION_MARKERS = [
 ]
 # Credential shapes (section 11.4.10). The set matches the independent reviewer's 18-pattern scan of
 # 2026-11-13; every member has a positive and a negative control needle in selfcheck().
+_SECRET_KEYS = (r"(?:pass(?:word|wd|phrase)|client[_-]?secret|secret[_-]?key|api[_-]?key|access[_-]?key|private[_-]?key"
+                r"|(?:auth|access|refresh|bearer|session)[_-]?token)")
+_SECRET_KEYS_GENERIC = r"(?:secret|token)"
+_SECRET_KEY_ANY = "(?:" + _SECRET_KEYS + "|" + _SECRET_KEYS_GENERIC + ")"
 SECRET_PATTERNS = [
     ("aws-access-key-id", re.compile(r"\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA)[0-9A-Z]{16}\b")),
     ("aws-secret-assign", re.compile(r"(?i)aws_?secret_?access_?key\s*[:=]\s*['\"]?[A-Za-z0-9/+]{40}")),
@@ -149,13 +153,27 @@ SECRET_PATTERNS = [
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+")),
     ("slack-token", re.compile(r"\bxox[abposre]-[A-Za-z0-9-]{10,}\b")),
     ("openai-anthropic-key", re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{32,}\b")),
-    ("url-userinfo-password", re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]{6,}@")),
-    ("bearer-token", re.compile(r"(?i)authorization:\s*bearer\s+[A-Za-z0-9._~+/=-]{20,}")),
-    ("password-assign", re.compile(r"(?i)\b(?:password|passwd|secret|api_?key|token)\s*[=:]\s*['\"][^'\"\s]{8,}['\"]")),
-    # an unquoted assignment (shell, env file, URL query); a value that starts like a reference
-    # ($VAR, <placeholder>, {template}, %VAR%, a quote, `(`, `[`) is not a value (round 4, R4-3)
+    # a URL that carries a password in its user-info part, of any length; a reference ($VAR, <x>, {x}, %X%)
+    # or a mask (*, x) is not a value (round 6, R5-3)
+    ("url-userinfo-password", re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]+:(?![$<{%*]|[xX]+@)[^/\s@]+@")),
+    ("bearer-token", re.compile(r"(?i)authorization:\s*(?:bearer|token)\s+[A-Za-z0-9._~+/=-]{20,}")),
+    # keyed credential assignments (round 6, R5-3): the class is key name x key quoting x separator x
+    # value quoting. Key names: see _SECRET_KEYS (strong) and _SECRET_KEYS_GENERIC; the key may be quoted
+    # (JSON, Python, YAML) and may carry a prefix joined by "_" (DB_PASSWORD) or "-" (X-Api-Key); the
+    # separators are ":=", "=>", ":" and "="; the value is quoted or unquoted, 8 or more characters, and
+    # neither a reference nor a mask. The inventory is docs/qa/tracker_intake_2026_11_14_v6/class_inventory.md.
+    ("password-assign", re.compile(
+        r"(?i)(?:\b|_)" + _SECRET_KEY_ANY + r"[\"']?\s*(?::=|=>|:|=)\s*[\"'](?![$<{%])(?![xX*.#-]+[\"'])[^\"'\s]{8,}[\"']")),
+    # an unquoted "=", ":=" or "=>" assignment (shell, env file, URL query, Perl or Ruby hash)
     ("password-assign-unquoted", re.compile(
-        r"(?i)(?:\b|_)(?:password|passwd|secret|api_?key|token)\s*=\s*(?![$<{%'\"`(\[])[^\s'\"`]{8,}")),
+        r"(?i)(?:\b|_)" + _SECRET_KEY_ANY + r"[\"']?\s*(?::=|=>|=)\s*(?![$<{%'\"`(\[])(?![xX*.#-]+(?:[\s'\"`]|$))[^\s'\"`]{8,}")),
+    # an unquoted ":" (YAML, an HTTP header such as X-Api-Key, a log line): any value after a strong key;
+    # after the generic keys "secret" and "token" only a value that holds a letter and a digit, since
+    # prose writes "Token: ..." with a word after it
+    ("password-colon-unquoted", re.compile(
+        r"(?i)(?:\b|_)" + _SECRET_KEYS + r"[\"']?\s*:(?!=)\s*(?![$<{%'\"`(\[])(?![xX*.#-]+(?:[\s,;]|$))[^\s'\"`,;]{8,}")),
+    ("secret-colon-unquoted", re.compile(
+        r"(?i)(?:\b|_)" + _SECRET_KEYS_GENERIC + r"[\"']?\s*:(?!=)\s*(?![$<{%'\"`(\[])(?=[^\s'\"`,;]*[0-9])(?=[^\s'\"`,;]*[A-Za-z])[^\s'\"`,;]{8,}")),
     ("basic-auth", re.compile(r"(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{8,}")),
     ("stripe-key", re.compile(r"\b[rs]k_(?:live|test)_[A-Za-z0-9]{20,}\b")),
     ("npm-token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
@@ -938,6 +956,7 @@ def secret_needles():
     """(name, positive at the pattern's minimum, negative just below it); assembled from fragments so
     that this file never carries a credential-shaped literal."""
     a, q = "a", "Q"
+    v8 = "Zq7" * 2 + "Zq"  # eight characters, neither a mask nor a reference
     return [
         ("aws-access-key-id", "AK" + "IA" + q * 16, "AK" + "IA" + q * 15),
         ("aws-secret-assign", "aws_secret_" + "access_key = " + a * 40, "aws_secret_" + "access_key = " + a * 39),
@@ -951,10 +970,12 @@ def secret_needles():
         ("jwt", "ey" + "J" + a * 8 + ".ey" + "J" + a * 8 + ".x", "ey" + "J" + a * 7 + ".ey" + "J" + a * 7 + ".x"),
         ("slack-token", "xo" + "xb-" + "1" * 10, "xo" + "xb-" + "1" * 9),
         ("openai-anthropic-key", "s" + "k-" + a * 32, "s" + "k-" + a * 31),
-        ("url-userinfo-password", "https://u:" + "p" * 6 + "@h", "https://u:" + "p" * 5 + "@h"),
+        ("url-userinfo-password", "https://u:" + "p" + "@h", "https://u:" + "$" + "P@h"),
         ("bearer-token", "Authorization: " + "Bearer " + a * 20, "Authorization: " + "Bearer " + a * 19),
-        ("password-assign", "pass" + "word = '" + "x" * 8 + "'", "pass" + "word = '" + "x" * 7 + "'"),
-        ("password-assign-unquoted", "DB_PASS" + "WORD=" + "x" * 8, "DB_PASS" + "WORD=" + "x" * 7),
+        ("password-assign", "pass" + "word = '" + v8 + "'", "pass" + "word = '" + v8[:7] + "'"),
+        ("password-assign-unquoted", "DB_PASS" + "WORD=" + v8, "DB_PASS" + "WORD=" + v8[:7]),
+        ("password-colon-unquoted", "pass" + "word: " + v8, "pass" + "word: " + v8[:7]),
+        ("secret-colon-unquoted", "tok" + "en: " + v8, "tok" + "en: " + "Zqzqzqzq"),
         ("basic-auth", "Authorization: " + "Basic " + a * 8, "Authorization: " + "Basic " + a * 7),
         ("stripe-key", "s" + "k_" + "live_" + a * 20, "s" + "k_" + "live_" + a * 19),
         ("npm-token", "np" + "m_" + a * 36, "np" + "m_" + a * 35),

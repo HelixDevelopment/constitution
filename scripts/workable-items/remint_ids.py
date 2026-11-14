@@ -2,7 +2,8 @@
 """remint_ids.py -- land a vehicle's tracker changes onto a target tracker, three-way.
 
 Documentation (section 11.4.18): docs/guides/remint_ids_guide.md. Class inventory behind this
-revision: docs/qa/tracker_intake_2026_11_12_v5/class_inventory.md.
+revision: docs/qa/tracker_intake_2026_11_14_v6/class_inventory.md (round 6; the v5 one
+is kept beside it).
 
 WHY   Two vehicles that branch from one base both mint ids from the base's maximum, so their ids
       collide when the second lands, and the binary tracker database cannot be merged by git. A
@@ -68,6 +69,17 @@ MERGE  A base item both sides changed is merged per unit: each update column, ea
       resolved =vehicle: replaying the same content changes nothing and the engine stamps a block
       only when its content changes, so the plan refuses it and names =target. A vehicle that
       removed a base item's obsolete_details row is refused: no engine command removes one.
+BODY  body_md is derived, and the steps write it in two ways (round 6, R5-1). A step RE-RENDERS
+      it from the engine template, dropping every authored line, when it passes --description or
+      closes the item; every other step edits only ENGINE SLOTS (the item's heading, the Status,
+      Reproduction, Investigation, Reopened-Details (with its attribution bullets) and
+      Obsolete-Details lines, the trailing newline). So --description is passed only when the
+      vehicle changed the description, and a re-render on an item whose body the target changed
+      outside the slots is a conflict (the re-render would drop the target's text). verify
+      compares the body every time: with the vehicle's body when the target left the item and its
+      body alone, otherwise with the target's body outside the slots (no re-render) or with the
+      vehicle's body outside the slots and the template meta lines (re-render), and checks the
+      heading against the landed title and the Status line against the landed status.
 DATABASES  Every database is opened read-only by its path (URI-quoted, so `?` and `#` are file name
       characters), and a database with a non-empty -wal sidecar is refused (the sha256 of the main
       file would not describe what sqlite reads).
@@ -455,6 +467,35 @@ def status_word(s):
     return norm(s).split(" ")[0]
 
 
+SLOT_PREFIXES = ("**Status:**", "**Reproduction:**", "**Investigation:**", "**Reopened-Details:**",
+                 "**Obsolete-Details:**")
+TEMPLATE_PREFIXES = ("**Type:**", "**Severity:**", "**Created-By:**", "**Assigned-To:**", "**Evidence:**")
+REOPEN_BULLET = re.compile(r"^- \*\*(?:By|On|Reason|Evidence):\*\*")
+
+
+def body_lines(body):
+    """body_md as lines, with the trailing newline the engine adds to every body it stores."""
+    b = norm(body)
+    if b and not b.endswith("\n"):
+        b += "\n"
+    return b.split("\n")
+
+
+def is_slot(line, iid, template=False):
+    """True for a line an engine step writes without re-rendering (an engine slot); with template, also
+    the meta lines of the engine's body template, which a re-render fills from the landed columns."""
+    if line.startswith("## %s — " % iid) or line.startswith("## %s. " % iid):
+        return True
+    if line.startswith(SLOT_PREFIXES) or REOPEN_BULLET.match(line):
+        return True
+    return template and line.startswith(TEMPLATE_PREFIXES)
+
+
+def unslotted(body, iid, template=False):
+    """The lines of body that are not engine slots, in order: the text a slot edit must keep."""
+    return [x for x in body_lines(body) if not is_slot(x, iid, template)]
+
+
 def closure_evidence(rows):
     """The evidence of the latest `close` row (empty reason) among rows; else of the latest closure row."""
     cl = [h for h in rows if h["event_type"] in CLOSURE_EVENTS and norm(h["evidence_path"])]
@@ -652,7 +693,9 @@ def make_plan(a):
             raise Blind("--resolve %r: want ID=target or ID=vehicle" % spec)
         resolutions[mm.group(1)] = mm.group(2)
 
-    rewr = Rewriter(m, prefix)
+    # round 6 (R5-2): only an id that actually moves is the rewriter's business; under FAST-FORWARD (and any
+    # identity pair) nothing is rewritten, so a path or a base text naming such an id is not refused
+    rewr = Rewriter({o: n for o, n in m.items() if o != n}, prefix)
     steps = []
 
     def one_row(db, i):
@@ -761,23 +804,33 @@ def make_plan(a):
             continue
         loc = norm(t["current_location"])
         ucols = [c for c in UPDATE_COLS if c in dv and vland(c) != norm(t[c])]
+        isteps = []
         if ucols:
-            # --description re-renders body_md, so it is always passed: the vehicle's text when the vehicle
-            # changed the description, else the target's text verbatim (never through the map)
-            desc = vland("description") if "description" in ucols else norm(t["description"])
-            argv = ["update", "--id=" + i, "--db", "{DB}", "--location=" + loc, "--description=" + desc]
+            # round 6 (R5-1): --description re-renders body_md from the template, so it is passed only when
+            # the vehicle changed the description; a field-only update keeps the target's body and edits
+            # only its engine slots (the heading for --title)
+            argv = ["update", "--id=" + i, "--db", "{DB}", "--location=" + loc]
             for c in ucols:
-                if c != "description":
-                    argv.append("--%s=%s" % (c.replace("_", "-"), vland(c)))
-            steps.append({"item": i, "from": i, "kind": "update", "argv": argv})
+                argv.append("--%s=%s" % (c.replace("_", "-"), vland(c)))
+            isteps.append({"item": i, "from": i, "kind": "update", "argv": argv})
         for n, cols in BLOCKS:
             if n in v_blocks and "the %s block" % n not in same:
                 k, argv = block_steps(i, loc, v, cols, rewr, foreign, label, n)
-                steps.append({"item": i, "from": i, "kind": k, "argv": argv})
+                isteps.append({"item": i, "from": i, "kind": k, "argv": argv})
         if life_v:
             for k, argv in lifecycle_steps(i, (norm(t["status"]), loc), v, vb_od if "obsolete_details" in dv else None,
                                            new_hist, rewr, foreign, label, refuse):
-                steps.append({"item": i, "from": i, "kind": k, "argv": argv})
+                isteps.append({"item": i, "from": i, "kind": k, "argv": argv})
+        rerender = [s["kind"] for s in isteps if s["kind"] == "close"
+                    or (s["kind"] == "update" and any(x.startswith("--description=") for x in s["argv"]))]
+        if rerender and res is None and unslotted(t["body_md"], i) != unslotted(b["body_md"], i):
+            if merges and merges[-1].startswith(i + ":"):
+                merges.pop()  # not a merge after all
+            conflicts.append("%s: the target changed the body outside the engine slots and the vehicle's %s re-renders "
+                             "it from the template, which would drop the target's text; --resolve %s=target or =vehicle "
+                             "decides" % (i, " and ".join(sorted(set(rerender))), i))
+            continue
+        steps.extend(isteps)
         if norm(v["created_at"]) != norm(b["created_at"]):
             notes.append("%s: created_at changed in the vehicle (%s -> %s); not carried (no engine command sets it; "
                          "a close rewrites it, engine defect CON-339)" % (i, b["created_at"], v["created_at"]))
@@ -834,7 +887,18 @@ def make_plan(a):
 
 
 def cmd_plan(a):
-    plan = make_plan(a)
+    try:
+        plan = make_plan(a)
+    except Refusal as e:
+        # round 6 (R5-2): a refusal raised while the plan is made (the rewriter's, mostly) still writes a plan,
+        # as the usage text says, so it can be read; it holds that one refusal and no step, and replay and
+        # verify refuse it
+        paths = {"vehicle": a.vehicle_db, "base": a.base_db, "target": a.target_db}
+        plan = {"schema": PLAN_SCHEMA, "prefix": a.prefix, "mode": "REFUSED",
+                "sha256": {k: sha256_file(p) for k, p in paths.items()}, "map": [], "resolutions": {},
+                "foreign_extra": list(a.foreign), "base_changes": [], "merges": [], "conflicts": [],
+                "refusals": [str(e)], "notes": ["the plan stopped at this refusal; later items were not read"],
+                "steps": []}
     with open(a.out, "w", encoding="utf-8") as h:
         json.dump(plan, h, ensure_ascii=False, indent=1, sort_keys=True)
         h.write("\n")
@@ -1223,10 +1287,7 @@ def cmd_verify(a):
         if not od_changed and OR.get(i) != OT.get(i):
             bad.append("%s obsolete_details: differs from the target, and the vehicle did not change it" % i)
         tdiff = sorted(tch) + (["obsolete_details"] if t_od else [])
-        if not tdiff:
-            same_text(i, "body_md", v["body_md"], r["body_md"], fset)
-        else:
-            known.append("%s: body_md not compared (the target also changed the item: %s)" % (i, ",".join(tdiff)))
+        check_body(i, v, b, t, r, tdiff, rv, fset, plan["steps"], same_text, bad)
         if od_changed:
             check_od(i, OV.get(i), OR.get(i), m, fset, prefix, bad)
         if norm(r["created_at"]) != norm(t["created_at"]):
@@ -1273,6 +1334,35 @@ def cmd_verify(a):
     if not [i for i in T if i not in replayed]:
         raise Blind("no untouched target item to compare (the control comparison saw nothing)")
     return report(bad, known, len(m) + len(replayed), "REPLAY")
+
+
+def check_body(i, v, b, t, r, tdiff, rv, fset, steps, same_text, bad):
+    """body_md of a replayed base item, never KNOWN (round 6, R5-1). The oracle reads from the plan only which
+    steps of the item re-render the body (a close, an update with --description); everything else it derives
+    from the four databases. A target that left the item and its body alone: the landed body is the vehicle's.
+    No re-render: the landed body is the target's outside the engine slots (target text is never rewritten).
+    A re-render: the landed body is the vehicle's outside the slots and the template meta lines, unless the
+    target changed the body outside the slots (then the target's text was lost, unless --resolve vehicle chose
+    that). In every case the heading names the landed title and the Status line the landed status."""
+    rerender = any(s.get("item") == i and (s.get("kind") == "close" or (s.get("kind") == "update" and any(
+        str(x).startswith("--description=") for x in s.get("argv", [])))) for s in steps)
+    t_body = unslotted(t["body_md"], i) != unslotted(b["body_md"], i)
+    if not tdiff and norm(t["body_md"]) == norm(b["body_md"]):
+        same_text(i, "body_md", v["body_md"], r["body_md"], fset)
+    elif not rerender:
+        if unslotted(r["body_md"], i) != unslotted(t["body_md"], i):
+            bad.append("%s body_md: the target's text outside the engine slots is not kept" % i)
+    else:
+        if t_body and not rv:
+            bad.append("%s body_md: a re-render replaced a body the target changed outside the engine slots" % i)
+        same_text(i, "body_md", "\n".join(unslotted(v["body_md"], i, True)), "\n".join(unslotted(r["body_md"], i, True)), fset)
+    lines = body_lines(r["body_md"])
+    heads = [x for x in lines if x.startswith("## %s — " % i) or x.startswith("## %s. " % i)]
+    if heads and heads[0] not in ("## %s — %s" % (i, norm(r["title"])), "## %s. %s" % (i, norm(r["title"]))):
+        bad.append("%s body_md: the heading does not name the landed title" % i)
+    if any(x.startswith("**Status:**") for x in body_lines(t["body_md"]) + body_lines(v["body_md"])) \
+            and "**Status:** " + norm(r["status"]) not in lines:
+        bad.append("%s body_md: no Status line names the landed status %r" % (i, norm(r["status"])))
 
 
 def check_od(i, want, got, m, fset, prefix, bad):
