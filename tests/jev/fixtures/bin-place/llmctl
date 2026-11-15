@@ -52,6 +52,10 @@
 # the epoch in the file when a capacity call / a start / a stop ends: a slow call, replayed without a wall clock.
 # PLACE_START_SNAPSHOT=1: a start first copies $JEV_STATE_DIR/leases.json to $STUB_LOG/leases_at_start.<p>.json (the
 # registry WHILE the starting mark is set; a gate-logic instrument, it changes nothing the producer reads).
+# Round 9 (review R8-1): PLACE_STOP_SNAPSHOT=1: a stop first copies $JEV_STATE_DIR/leases.json to
+# $STUB_LOG/leases_at_stop.<p>.<n>.json and the test clock to clock_at_stop.<p>.<n> (n = 1, 2, ... per stop of <p>);
+# PLACE_STOP_GATE=<dir>: a stop of <p> creates <dir>/reached.stop.<p> and waits (at most PLACE_STOP_GATE_WAIT s, default
+# 120) for <dir>/go.stop.<p>: a deterministic interleaving of two sessions without timing windows.
 # Every call is logged to $STUB_LOG/llmctl.log. A call made while the CALLER holds the placement lease lock (an open file
 # descriptor on $JEV_STATE_DIR/placement.lock is inherited by this process) is ALSO logged as "LOCKHELD llmctl ..."
 # (review R4-3: no llmctl call may run under the lease lock).
@@ -131,7 +135,16 @@ case "${1:-} ${2:-}" in
              [ -z "${PLACE_START_SLEEP:-}" ] || sleep "$PLACE_START_SLEEP"
              clock_add "${PLACE_START_CLOCK_ADD:-}"
              [ "${PLACE_START_RC:-0}" = 75 ] || touch "$logdir/running.$(key "${2:?}")"; exit "${PLACE_START_RC:-0}" ;;
-  "stop "*) [ -z "${PLACE_STOP_SLEEP:-}" ] || sleep "$PLACE_STOP_SLEEP"
+  "stop "*) if [ "${PLACE_STOP_SNAPSHOT:-}" = 1 ] && [ -n "${JEV_STATE_DIR:-}" ]; then
+              sn=1; while [ -e "$logdir/leases_at_stop.${2:?}.$sn.json" ]; do sn=$((sn+1)); done
+              cp -- "$JEV_STATE_DIR/leases.json" "$logdir/leases_at_stop.${2:?}.$sn.json" 2>/dev/null || true
+              [ -z "${JEV_NOW_FILE:-}" ] || tr -dc '0-9' < "$JEV_NOW_FILE" > "$logdir/clock_at_stop.${2:?}.$sn"
+            fi
+            if [ -n "${PLACE_STOP_GATE:-}" ]; then   # round 9: <dir>/reached.stop.<p> then wait for <dir>/go.stop.<p>
+              : > "$PLACE_STOP_GATE/reached.stop.${2:?}"; gi=0
+              while [ ! -e "$PLACE_STOP_GATE/go.stop.${2:?}" ] && [ "$gi" -lt "$(( ${PLACE_STOP_GATE_WAIT:-120} * 10 ))" ]; do sleep 0.1; gi=$((gi+1)); done
+            fi
+            [ -z "${PLACE_STOP_SLEEP:-}" ] || sleep "$PLACE_STOP_SLEEP"
             clock_add "${PLACE_STOP_CLOCK_ADD:-}"
             [ "${PLACE_STOP_RC:-0}" = 0 ] || exit "$PLACE_STOP_RC"
             rm -f -- "$logdir/running.$(key "${2:?}")" ;;

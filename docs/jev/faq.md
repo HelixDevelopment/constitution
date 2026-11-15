@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 6 |
+| Revision | 7 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-14T23:09:27Z |
+| Last modified | 2026-11-15T11:43:50Z |
 | Status | active |
 | Status summary | Short answers to recurring questions, each tied to the source that settles it. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement); revision 4 adds questions 28 and 29 (placement freshness, round 7); revision 5 corrects question 23 (the capacity source is vendored) |
+| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement); revision 4 adds questions 28 and 29 (placement freshness, round 7); revision 5 corrects question 23 (the capacity source is vendored); revision 7 adds questions 30 and 31 (round 9: one mark per stop, monotonic ages) |
 | Fixed summary | — |
 | Continuation | none |
 
@@ -130,3 +130,9 @@ Another session changed the lease registry (started, stopped, joined or released
 
 **29. Why does a held model stay unrouted for a while after its starter died?**
 Clearing a dead starter's mark sets the set's health to `pending` at the current observation counter (a floor): only an observation that begins after the clear may judge the set, so a capacity answer read before the start finished can never mark a running model gone. A live starter's mark is kept until the mark itself is older than `MARK_TTL` (the start/stop timeout + 2 s + retries × lock timeout + 30 s). The age counts from the mark's own `at`, stamped when the mark is written (round 8; up to round 7 it was stamped at the producer's process start, so a mark set late in a long acquire could be cleared while its starter was still running). Run `status` or the next `acquire` to observe the set.
+
+**30. Why does `acquire` or `release` log `stop of <p> (...) not run at its turn: <reason>`?**
+When one call has to stop several sets, each set is marked `stopping` and judged again under the lock immediately before its own `llmctl stop`, never at planning time (round 9, review R8-1). Up to round 8 every listed set got one mark written when the stops were planned, so the mark of a later set aged while the earlier stops ran and another session could clear the mark of a live stopper and join the set. Now a set that was joined, started, marked by another process, observed `ok` again (a disposal) or removed meanwhile is simply not stopped, and the reason is logged. That is not a failure: `release` exits 0 for it. A stop that returns rc 0 while the set holds a lease never deletes the set (`stopped_while_held` is recorded and the set is not routed until the next observation; when the unit is gone every lease is released as `endpoint_gone`). Gate-logic evidence only, `docs/qa/jev_s3s4_20261112/round9/`.
+
+**31. Can a clock step (NTP) clear a live mark or reap a live lease?**
+Not on a host with `/proc` (round 9, review R8-6). Every mark and lease heartbeat carries `mono` = `<boot id>:<uptime seconds>` next to the wall-clock `at` / `heartbeat_at`, and an age is judged on the monotonic difference when both records are from this boot. A record from another boot counts as expired; a record without `mono` (written by an older producer, or a host without `/proc`) is judged on wall time as before. While an acquire runs a bounded llmctl call, a lease whose holder is named by that process's live mark is not aged out. Gate-logic evidence only.

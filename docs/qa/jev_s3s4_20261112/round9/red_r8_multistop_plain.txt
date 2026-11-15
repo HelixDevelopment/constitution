@@ -1,0 +1,13 @@
+stops-begun: llmctl stop decide-a,llmctl stop decide-b
+clock-now: 44 s after T0; A alive: yes
+second-set mark before observer: [{"p":"decide-b","stopping":1700000000}]
+observer rc=0
+observer stderr: [jev-place] cleared the stopping mark of decide-b (its process is gone or the mark is older than 43s); the set is judged by the next observation newer than this 
+after observer: [{"p":"decide-b","stopping":null,"health":"pending","cleared":{"mark":"stopping","at":1700000044}}]
+A still alive: yes
+A rc=5
+after A: {}
+running units after A: 
+C heartbeat: rc=3
+llmctl log: llmctl decide status --json,llmctl decide capacity --json,llmctl capacity --json,llmctl stop decide-a,llmctl stop decide-b,llmctl capacity --json,llmctl capacity --json,llmctl capacity --json
+RESULT: LIVE stopper's mark CLEARED early

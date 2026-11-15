@@ -30,6 +30,9 @@
 #               mark, stop_failed {at, rc}); once the stop mark is cleared (stopper process gone, or older than MARK_TTL,
 #               see "Round 7") the next release retries the stop, and the next acquire judges the set like any other
 #               lease-less set (joined when its unit is `ok`, stopped when it is degraded or gone). Never orphaned.
+#               Also when the stop's mark or result could not be recorded (lock timeout). A stop that is NOT run because
+#               the set changed before its turn (joined meanwhile, gone, marked by another process; see "Round 9") is not
+#               a failure: release exits 0 for it and logs "not run at its turn: <reason>".
 # Env (names only):
 #   JEV_LLMCTL_BIN (default llmctl), JEV_LLMCTL_TIMEOUT (default 20 s, read calls), JEV_LLMCTL_START_TIMEOUT (default 300 s,
 #   start and stop), JEV_PLACE_PROFILES (comma list: candidate order; default = every systemone-native decide profile in
@@ -42,7 +45,27 @@
 #   JEV_STATE_DIR / JEV_HOME (state), CMA_PROVIDERS_DIR (endpoint cache dir), LLMCTL_GATEWAY_URL / LLMCTL_CACERT (default
 #   from the `llmctl decide status --json` registry, else https://127.0.0.1:8095; https:// only), JEV_NOW_FILE /
 #   JEV_NOW_EPOCH (clock seams, ONLY with JEV_TEST=1: an advancing clock read from a file, else a fixed clock; see
-#   "THE CLOCK" below).
+#   "THE CLOCK" below), JEV_MONO_FILE (monotonic-clock seam, ONLY with JEV_TEST=1, see "THE MONOTONIC CLOCK"),
+#   JEV_TRACE_FILE (ONLY with JEV_TEST=1: a trace of every bounded llmctl call and every registry write, read by the
+#   gate-logic census tests/jev/fixtures/mark_census.py).
+#
+# Round 9 (structural, review of 3bd53782: R8-1 to R8-6; census docs/qa/jev_s3s4_20261112/round9/census.md):
+# * ONE MARK, ONE BOUNDED CALL (R8-1). A `stopping` mark is written by stop_turn -> arm_stop_locked under the lock
+#   IMMEDIATELY before the one `llmctl stop` it covers, never at planning time. plan_locked and release_locked only LIST
+#   the stops; each listed set is judged again at its own turn (it must still exist, be constitution-started, hold no
+#   lease, carry no mark; a disposal must still be recorded degraded or absent; an owed stop must still carry its failed
+#   start or owed stop). A set joined, stopped, marked or observed ok meanwhile is not stopped ("not run at its turn").
+#   So MARK_TTL, which bounds ONE bounded call plus its record waits, bounds every mark a live process holds.
+# * A STOP NEVER DELETES A LEASED SET (R8-2). finish_stop_locked deletes a set on stop rc 0 only when it holds no lease
+#   and its mark is ours (pid AND pid_start) or gone. Otherwise the set is KEPT with stopped_while_held {at, mono, leases,
+#   kind} and health `pending` at the current observation counter; the next observation that sees the unit absent
+#   releases every lease as endpoint_gone (announced, §11.4.291(J)(6)). Another stopper's mark is never cleared.
+# * A LEASE IS NOT AGED OUT WHILE ITS OWN ACQUIRE RUNS A BOUNDED CALL (the same class, "a stamp held across bounded
+#   calls"). reap_locked keeps a lease whose holder is named by a LIVE mark (that call is MARK_TTL-bounded); a dead pid is
+#   never kept this way. During an acquire every registry write also refreshes that holder's heartbeat. An acquire that
+#   stops a set takes no join in the same plan: the join is decided after the stops, on a fresh answer.
+# * AGES ON A MONOTONIC CLOCK (R8-6), see "THE MONOTONIC CLOCK" below. Every mark carries {at, mono, pid, pid_start,
+#   holder}; every lease carries heartbeat_mono.
 #
 # Round 7 (structural, review of eb29803b: NF-1, NF-2, NF-3; inventory docs/qa/jev_s3s4_20261112/round7/inventory.md):
 # * THE WHOLE CONTRACT TABLE (NF-1). capacity_read checks every row of the §11.4.291(C) table (CONTRACT_TABLE: schema,
@@ -183,16 +206,57 @@ clock_now() {
   fi
   printf '%s\n' "$t"
 }
+# round 9 (review R8-6): THE MONOTONIC CLOCK for every age DECISION (a mark's age, a lease heartbeat's age). Wall time
+# (`date +%s`) can step (NTP, a manual set), so an age judged on it can expire a live mark or lease early, or keep a dead
+# one late. The ages are compared ACROSS processes (one writes a mark, another judges it), so the source must be
+# host-wide: /proc/uptime (seconds since boot; it never steps), qualified by the boot id
+# (/proc/sys/kernel/random/boot_id), because uptime restarts at a reboot. Every mark and every lease heartbeat carries
+# `mono` = "<boot id>:<uptime seconds>" next to the wall `at` / `heartbeat_at` (kept for people and for older readers).
+# age_of judges: same boot -> monotonic difference; another boot -> expired (a record from before a reboot is never
+# fresh); no `mono` (written by an older producer, or a host without /proc) -> the wall difference, the round-8 rule.
+# When /proc gives no boot id or uptime, MONO_TOK is empty and every age is judged on wall time (stated, not hidden).
+# Test seams (ONLY with JEV_TEST=1): JEV_MONO_FILE (a file holding the monotonic seconds; boot id "test"); else, when a
+# wall seam is set, the monotonic clock FOLLOWS the wall seam (boot id "test"), so a test that advances JEV_NOW_FILE
+# advances both. A test that steps only JEV_NOW_FILE with JEV_MONO_FILE set replays an NTP step.
+mono_now() { # -> "<boot>:<seconds>" or "" (no monotonic source)
+  local b="" u=""
+  if [ "${JEV_TEST:-}" = "1" ] && [ -n "${JEV_MONO_FILE:-}" ]; then
+    u="$(head -c 32 "$JEV_MONO_FILE" 2>/dev/null | tr -dc '0-9')"; [ -n "$u" ] && { printf 'test:%s\n' "$u"; return 0; }
+    printf '!unreadable\n'; return 0   # a sentinel: clock_refresh (the caller's shell, not this subshell) exits 2
+  fi
+  if [ "${JEV_TEST:-}" = "1" ] && { [ -n "${JEV_NOW_FILE:-}" ] || [ -n "${JEV_NOW_EPOCH:-}" ]; }; then printf 'test:%s\n' "$NOW"; return 0; fi
+  b="$(tr -dc '0-9a-f-' < /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+  u="$(cut -d. -f1 < /proc/uptime 2>/dev/null | tr -dc '0-9' || true)"
+  if [ -n "$b" ] && [ -n "$u" ]; then printf '%s:%s\n' "$b" "$u"; else printf '\n'; fi
+}
 clock_refresh() {
   NOW="$(clock_now)"
   case "$NOW" in ''|*[!0-9]*) echo "jev-place: the clock could not be read (JEV_NOW_FILE unreadable or not an epoch; config error)" >&2; exit 2 ;; esac
+  MONO_TOK="$(mono_now)"
+  case "$MONO_TOK" in '!'*) echo "jev-place: the monotonic clock could not be read (JEV_MONO_FILE unreadable or not a number; config error)" >&2; exit 2 ;; esac
+  MONO_BOOT="${MONO_TOK%%:*}"; MONO_T="${MONO_TOK##*:}"
+}
+AGE_EXPIRED=1099511627776   # 2^40 s: the age of a record from another boot (always older than any TTL)
+# age_of <wall-at> <mono|null|""> -> seconds since the record was written, judged at NOW / MONO_TOK (see above)
+age_of() {
+  local at="${1:-0}" mo="${2:-}" b t
+  case "$at" in ''|*[!0-9]*) at=0 ;; esac
+  if [ -n "$MONO_TOK" ] && [ -n "$mo" ] && [ "$mo" != null ]; then
+    b="${mo%%:*}"; t="${mo##*:}"
+    case "$t" in ''|*[!0-9]*) echo "$AGE_EXPIRED"; return 0 ;; esac
+    if [ "$b" = "$MONO_BOOT" ]; then echo $(( MONO_T - t )); else echo "$AGE_EXPIRED"; fi
+    return 0
+  fi
+  echo $(( NOW - at ))
 }
 clock_refresh
 for n in "$RTMO" "$STMO" "$TTL_DEFAULT" "$LOCK_TMO" "$MAXN" "$CADENCE" "$RETRIES"; do case "$n" in ''|*[!0-9]*) echo "jev-place: numeric setting expected, got '$n' (config error)" >&2; exit 2 ;; esac; done
 [ "$RETRIES" -ge 1 ] || { echo "jev-place: JEV_RECORD_RETRIES must be at least 1 (config error)" >&2; exit 2; }
 # round 7 (NF-3): the longest a LIVE process holds a starting / stopping mark: the bounded llmctl call (STMO + the 2 s
 # kill-after of `timeout`) plus every record wait (RETRIES x LOCK_TMO); 30 s of slack on top. A mark older than this
-# whose process is still alive is a hung marker and is cleared.
+# whose process is still alive is a hung marker and is cleared. Round 9 (R8-1): this bound holds because every mark
+# covers exactly ONE bounded call (it is written immediately before it); a mark covering several calls would need N times
+# this and was the R8-1 defect.
 MARK_TTL=$(( STMO + 2 + RETRIES * LOCK_TMO + 30 ))
 log() { printf '[jev-place] %s\n' "$*" >&2; }
 WORK="$(mktemp -d)"; trap 'rm -rf "${WORK:?}"' EXIT
@@ -202,8 +266,12 @@ if [ -z "$PROJECT" ] && command -v git >/dev/null 2>&1; then PROJECT="$(basename
 HOLDER=""            # the holder of the running subcommand (acquire / heartbeat / release), named in the placement record
 GW_DEFAULT="https://127.0.0.1:8095"
 
+# trace_ev (ONLY with JEV_TEST=1 and JEV_TRACE_FILE set; round 9, R8-1 census): one line per bounded call and per registry
+# write, read by tests/jev/fixtures/mark_census.py (a gate-logic instrument). It never runs in production.
+trace_ev() { [ "${JEV_TEST:-}" = "1" ] && [ -n "${JEV_TRACE_FILE:-}" ] && printf '%s %s %s\n' "$1" "$$" "$2" >> "$JEV_TRACE_FILE"; return 0; }
 bounded() { # bounded <seconds> <out> cmd... -> rc of cmd (124/137 on timeout)
   local t="$1" o="$2" rc=0; shift 2
+  trace_ev call "$*"
   timeout --kill-after=2 "$t" "$@" >"$o" 2>"$o.err" </dev/null || rc=$?
   return "$rc"
 }
@@ -410,10 +478,18 @@ leases_token() {
 }
 # leases_save (content on stdin; caller holds the lock): the registry write with the next generation, then THE one cache
 # derivation point
+# Round 9 (R8-1 class, "a lease held across bounded calls"): during an acquire, EVERY registry write also refreshes the
+# heartbeat of the acquire's own holder (ACQ_REFRESH=1, set by `acquire` only), so the session's lease never ages across
+# the llmctl calls its own acquire makes (each write follows at most one bounded call); a lease that is gone stays gone.
 leases_save() {
   local g; g="$(leases_gen)"
-  jq -c --argjson g "$(( g + 1 ))" '.gen = $g' > "$WORK/leases.next" || { log "internal: the lease registry write was not JSON; nothing written"; return 2; }
+  jq -c --argjson g "$(( g + 1 ))" --arg h "$HOLDER" --arg rf "${ACQ_REFRESH:-0}" --argjson now "$NOW" --arg mo "$MONO_TOK" \
+    '.gen = $g | if $rf == "1" and $h != "" then (if (.sets | type) == "object" then .sets |= map_values(if (.leases | type) == "array" then .leases |= map(if .holder == $h then .heartbeat_at = $now | .heartbeat_mono = (if $mo=="" then null else $mo end) else . end) else . end) else . end) else . end' \
+    > "$WORK/leases.next" || { log "internal: the lease registry write was not JSON; nothing written"; return 2; }
   jev_write_atomic "$LEASES" < "$WORK/leases.next"
+  if [ "${JEV_TEST:-}" = "1" ] && [ -n "${JEV_TRACE_FILE:-}" ]; then
+    trace_ev save "$(jq -c '(.sets // {}) | if type == "object" then map_values({stopping: (.stopping.pid? // null), starting: (.starting.pid? // null)}) else {} end' "$WORK/leases.next" 2>/dev/null || echo '{}')"
+  fi
   derive_cache || log "endpoint cache could not be derived (rc $?)"
 }
 
@@ -455,7 +531,12 @@ proc_start() { # proc_start <pid> -> the process start time (clock ticks since b
   set -- $st; printf '%s\n' "${20:-}"
 }
 ME_START="$(proc_start "$$")"
-me_mark() { jq -nc --argjson now "$NOW" --arg pid "$$" --arg pst "$ME_START" '{at:$now, pid:($pid|tonumber), pid_start:($pst|tonumber? // null)}'; }
+# me_mark -> a mark naming THIS process: {at (wall), mono, pid, pid_start, holder}. Round 9 (R8-1): a mark is written
+# under the lock IMMEDIATELY before the one bounded llmctl call it covers (arm_stop_locked, mark_start_locked,
+# finish_start_locked), never at planning time for a later call; `holder` names the session this process acts for
+# (reap_locked suspends that holder's lease TTL while the mark is live, see there).
+me_mark() { jq -nc --argjson now "$NOW" --arg pid "$$" --arg pst "$ME_START" --arg mo "$MONO_TOK" --arg h "$HOLDER" \
+  '{at:$now, mono:(if $mo=="" then null else $mo end), pid:($pid|tonumber), pid_start:($pst|tonumber? // null), holder:(if $h=="" then null else $h end)}'; }
 pid_alive() { # pid_alive <pid> <recorded-start|""|null> -> 0 alive, 1 dead, 2 unknown (/proc unavailable)
   local pid="$1" rec="${2:-}" cur
   [ -d /proc/self ] || return 2
@@ -465,7 +546,16 @@ pid_alive() { # pid_alive <pid> <recorded-start|""|null> -> 0 alive, 1 dead, 2 u
   [ -n "$(head -c 64 "/proc/$pid/cmdline" 2>/dev/null | tr -d '\0')" ] || return 1
   return 0
 }
-holder_alive() { # holder_alive <pid> <heartbeat_at> <ttl> [pid_start]
+pid_dead() { # pid_dead <pid|null|""> <pid_start> -> 0 when a recorded pid is provably gone (reused, a zombie, or kill -0 fails
+  # without /proc); 1 when there is no pid or it is alive
+  local rc=0
+  [ -n "$1" ] && [ "$1" != null ] || return 1
+  pid_alive "$1" "${2:-}" || rc=$?
+  case "$rc" in 0) return 1 ;; 1) return 0 ;; esac
+  kill -0 "$1" 2>/dev/null && return 1
+  return 0
+}
+holder_alive() { # holder_alive <pid> <heartbeat_at> <ttl> [pid_start] [heartbeat_mono]
   local pid="$1" hb="$2" ttl="$3" rc=0
   if [ -n "$pid" ] && [ "$pid" != "null" ]; then
     pid_alive "$pid" "${4:-}" || rc=$?
@@ -473,36 +563,48 @@ holder_alive() { # holder_alive <pid> <heartbeat_at> <ttl> [pid_start]
     # no /proc: kill -0 cannot tell a reused pid, so the heartbeat TTL bounds the lease as well
     kill -0 "$pid" 2>/dev/null || return 1
   fi
-  [ $(( NOW - hb )) -le "$ttl" ]
+  [ "$(age_of "$hb" "${5:-}")" -le "$ttl" ]
 }
 
-reap_locked() { # drops dead holders from every set (caller holds the lock); never stops a model
+reap_locked() { # drops dead holders from every set and clears dead / expired marks (caller holds the lock); never stops a model
   # every loop variable is local: bash scoping is dynamic, so a bare `read pid ttl` here would clear the CALLER's pid/ttl
-  local cur out prof h pid hb ttl pst sat spid sst arc mk; cur="$(leases_load)"; out="$cur"
-  while IFS="$US" read -r prof h pid hb ttl pst; do
-    [ -n "$prof" ] || continue
-    if ! holder_alive "$pid" "$hb" "$ttl" "$pst"; then
-      log "reaped dead lease holder=$h profile=$prof"
-      out="$(jq -c --arg p "$prof" --arg h "$h" '.sets[$p].leases |= map(select(.holder != $h))' <<<"$out")"
-    fi
-  done < <(jq -r '.sets | to_entries[] | .key as $p | .value.leases[]? | [$p, (.holder // ""), (.pid // "null"), (.heartbeat_at // 0), (.ttl // 0), (.pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$cur")
-  # a `stopping` or `starting` mark is cleared when its process is gone (pid + start time) or the mark is older than
-  # MARK_TTL (age of the mark's own `at`, stamped when it was written: round 8, R7-A), the longest a LIVE marker can
-  # hold it (§11.4.291(J)); the set is then judged like any other set by an
-  # observation NEWER than the clearing: round 7 (NF-3) records the current observation counter as the set's floor
-  # (state pending), as finish_start_locked does, so an answer read before the clearing (it may predate the start the
-  # dead marker made) never judges the set (no false endpoint_gone)
-  while IFS="$US" read -r prof mk sat spid sst; do
+  local cur out prof h pid hb ttl pst hmo sat smo spid sst arc mk age mh live_h=" "; cur="$(leases_load)"; out="$cur"
+  # (1) marks. A `stopping` or `starting` mark is cleared when its process is gone (pid + start time) or the mark is older
+  # than MARK_TTL (age_of its own `at` / `mono`, written immediately before the one llmctl call it covers: round 9, R8-1;
+  # judged at the time of THIS locked section: round 8, R7-A; monotonic: round 9, R8-6), the longest a LIVE marker can
+  # hold it (§11.4.291(J)); the set is then judged like any other set by an observation NEWER than the clearing: round 7
+  # (NF-3) records the current observation counter as the set's floor (state pending), as finish_start_locked does, so
+  # an answer read before the clearing (it may predate the start the dead marker made) never judges the set (no false
+  # endpoint_gone). A mark that is kept is LIVE; the holder it names (the session the marker acts for) is collected.
+  while IFS="$US" read -r prof mk sat smo spid sst mh; do
     [ -n "$prof" ] || continue
     # a mark without a pid cannot name a dead process: only its age clears it (review R2 nit RS3)
     arc=0; if [ "$spid" != "null" ] && [ -n "$spid" ]; then pid_alive "$spid" "$sst" || arc=$?; fi
-    if [ "$arc" = 1 ] || [ $(( NOW - sat )) -gt "$MARK_TTL" ]; then
+    age="$(age_of "$sat" "$smo")"
+    if [ "$arc" = 1 ] || [ "$age" -gt "$MARK_TTL" ]; then
       log "cleared the $mk mark of $prof (its process is gone or the mark is older than ${MARK_TTL}s); the set is judged by the next observation newer than this"
-      out="$(jq -c --arg p "$prof" --arg m "$mk" --argjson now "$NOW" --argjson f "$(obs_counter)" \
-        '.sets[$p][$m] = null | .sets[$p].mark_cleared = {mark:$m, at:$now} | .sets[$p].health = {state:"pending", reason:"\($m) mark cleared; not observed since", seq:$f, at:$now}' <<<"$out")"
+      out="$(jq -c --arg p "$prof" --arg m "$mk" --argjson now "$NOW" --arg mo "$MONO_TOK" --argjson f "$(obs_counter)" \
+        '.sets[$p][$m] = null | .sets[$p].mark_cleared = {mark:$m, at:$now, mono:(if $mo=="" then null else $mo end)} | .sets[$p].health = {state:"pending", reason:"\($m) mark cleared; not observed since", seq:$f, at:$now}' <<<"$out")"
+    elif [ -n "$mh" ] && [ "$mh" != null ]; then live_h+="$mh "
     fi
   done < <(jq -r '.sets | to_entries[] | .key as $p | .value as $v | ("stopping", "starting") as $m | select(($v[$m] // null) != null)
-                  | [$p, $m, ($v[$m].at // 0), ($v[$m].pid // "null"), ($v[$m].pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$out")
+                  | [$p, $m, ($v[$m].at // 0), ($v[$m].mono // "null"), ($v[$m].pid // "null"), ($v[$m].pid_start // "null"), ($v[$m].holder // "null")] | map(tostring) | join("\u001f")' <<<"$cur")
+  # (2) leases. A holder whose pid is dead is dropped. A heartbeat older than the lease TTL drops the lease, EXCEPT while
+  # a LIVE mark names the holder (round 9, R8-1 class): this producer is then running a bounded llmctl call FOR that
+  # session (its acquire), which cannot heartbeat while it waits, and the suspension ends when the mark ends (its own
+  # MARK_TTL bounds it). A dead pid is never suspended.
+  while IFS="$US" read -r prof h pid hb ttl pst hmo; do
+    [ -n "$prof" ] || continue
+    if ! holder_alive "$pid" "$hb" "$ttl" "$pst" "$hmo"; then
+      if ! pid_dead "$pid" "$pst"; then
+        case "$live_h" in *" $h "*)
+          log "lease of holder=$h on $prof: heartbeat older than its TTL, kept while a live mark names the holder (an acquire for it is in flight)"
+          continue ;; esac
+      fi
+      log "reaped dead lease holder=$h profile=$prof"
+      out="$(jq -c --arg p "$prof" --arg h "$h" '.sets[$p].leases |= map(select(.holder != $h))' <<<"$out")"
+    fi
+  done < <(jq -r '.sets | to_entries[] | .key as $p | .value.leases[]? | [$p, (.holder // ""), (.pid // "null"), (.heartbeat_at // 0), (.ttl // 0), (.pid_start // "null"), (.heartbeat_mono // "null")] | map(tostring) | join("\u001f")' <<<"$out")
   [ "$out" = "$cur" ] || printf '%s\n' "$out" | leases_save
 }
 
@@ -523,7 +625,8 @@ lease_obj_args() { # lease_obj_args <pid> -> the start time of a --pid holder ("
 # lease_json <holder> <pid> <pid_start> <ttl> <started_by_this_session true|false> -> one lease object (R5-8)
 lease_json() {
   jq -nc --arg h "$1" --arg pid "$2" --arg pst "$3" --argjson now "$NOW" --argjson ttl "$4" --argjson sb "$5" --arg proj "$PROJECT" \
-    '{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), pid_start:($pst|tonumber? // null), heartbeat_at:$now, ttl:$ttl,
+    --arg mo "$MONO_TOK" '{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), pid_start:($pst|tonumber? // null), heartbeat_at:$now,
+      heartbeat_mono:(if $mo=="" then null else $mo end), ttl:$ttl,
       project:(if $proj=="" then null else $proj end), started_by_this_session:$sb}'
 }
 
@@ -620,29 +723,95 @@ cmd_verdict() {
 
 # ---- the ONE stop helper (review R4-1, R4-3) -----------------------------------------------------------------------
 # finish_stop_locked <profile> <stop-rc> <kind> (caller holds the lock). kind: release | dispose | owed | cleanup.
-#   rc 0     : the set is removed (the derived cache follows), placement `stopped`.
+#   rc 0     : the set is removed (the derived cache follows), placement `stopped`, when it holds no lease and its mark
+#              is ours or gone; else it is KEPT (stopped_while_held, health pending; round 9, R8-2, see below).
 #   rc != 0  : the model may still run, so the set is KEPT and records stop_failed {at, rc}:
 #              release -> the stopping mark (this process) is kept until this process is gone (then a later release
 #                         retries; a later acquire judges the lease-less set like any other);
 #              dispose -> stopping cleared, stop_owed {at, reason}: never joined, retried by every acquire and release;
 #              owed / cleanup -> stopping cleared, the start_failed / stop_owed record stays: never joined, retried.
 finish_stop_locked() {
-  local p="$1" rc="$2" kind="$3" cur
+  local p="$1" rc="$2" kind="$3" cur ours leased floor
   cur="$(leases_load)"
+  # round 9 (R8-1, R8-2): the result is recorded against the set as it is NOW. The `stopping` mark counts as ours only
+  # when it names this process (pid AND start time); a mark cleared meanwhile (this stop outlived MARK_TTL) or taken by
+  # another stopper is never cleared or overwritten here.
+  ours="$(jq -r --arg p "$p" --arg pid "$$" --arg pst "$ME_START" '(.sets[$p].stopping // null) as $m
+      | $m != null and (($m.pid // null) | tostring) == $pid and ((($m.pid_start // null) | tostring) == (if $pst == "" then "null" else $pst end))' <<<"$cur")"
+  leased="$(jq -r --arg p "$p" '(.sets[$p].leases // []) | length' <<<"$cur")"
   if [ "$rc" = 0 ]; then
-    cur="$(jq -c --arg p "$p" 'del(.sets[$p])' <<<"$cur")"
+    if [ "$(jq -r --arg p "$p" '.sets[$p] == null' <<<"$cur")" = true ]; then
+      write_placement "$p" "" "llmctl stop $p rc=0 ($kind); the set was already gone from the registry" "$(current_route)" false 0 stopped
+      return 0
+    fi
+    if [ "$leased" = 0 ] && { [ "$ours" = true ] || [ "$(jq -r --arg p "$p" '(.sets[$p].stopping // null) == null' <<<"$cur")" = true ]; }; then
+      cur="$(jq -c --arg p "$p" 'del(.sets[$p])' <<<"$cur")"
+      printf '%s\n' "$cur" | leases_save
+      write_placement "$p" "" "llmctl stop $p rc=0 ($kind)" "$(current_route)" false 0 stopped
+      return 0
+    fi
+    # R8-2: a set that holds a lease (or carries another stopper's mark) is NEVER deleted: deleting it would drop a
+    # session's lease without telling it. The unit is stopped, so the set leaves the route at once (health pending at
+    # the current observation counter: only an observation newer than this stop judges it; when the unit is absent there
+    # every lease is released as endpoint_gone, §11.4.291(J)(6)), and the anomaly is recorded.
+    floor="$(obs_counter)"
+    log "llmctl stop $p rc=0 ($kind), but the set holds $leased lease(s) or another stopper's mark: the set is KEPT (never deleted with a lease); it is not routed until an observation newer than this stop"
+    cur="$(jq -c --arg p "$p" --argjson now "$NOW" --arg mo "$MONO_TOK" --argjson f "$floor" --argjson n "$leased" --arg ours "$ours" --arg k "$kind" \
+      '(if $ours == "true" then .sets[$p].stopping = null else . end)
+       | .sets[$p].stopped_while_held = {at:$now, mono:(if $mo=="" then null else $mo end), leases:$n, kind:$k}
+       | .sets[$p].health = {state:"pending", reason:"stopped (llmctl stop rc 0) while it held \($n) lease(s); not observed since", seq:$f, at:$now}' <<<"$cur")"
     printf '%s\n' "$cur" | leases_save
-    write_placement "$p" "" "llmctl stop $p rc=0 ($kind)" "$(current_route)" false 0 stopped
+    write_placement "$p" "" "llmctl stop $p rc=0 ($kind) while the set held $leased lease(s) or another stopper's mark; set kept, not routed until observed again" "$(current_route)" true 0 stopped
+    return 0
+  fi
+  if [ "$(jq -r --arg p "$p" '.sets[$p] == null' <<<"$cur")" = true ]; then
+    write_placement "$p" "" "llmctl stop $p rc=$rc ($kind; failed or timed out); the set was gone from the registry" "$(current_route)" true 0 stop_failed
     return 0
   fi
   case "$kind" in
     release) cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson rc "$rc" '.sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")" ;;
-    dispose) cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson rc "$rc" --arg why "${DISPOSE_WHY[$p]:-disposal}" \
-                 '.sets[$p].stopping = null | .sets[$p].stop_owed = {at:$now, reason:$why} | .sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")" ;;
-    *)       cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson rc "$rc" '.sets[$p].stopping = null | .sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")" ;;
+    dispose) cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson rc "$rc" --arg why "${DISPOSE_WHY[$p]:-disposal}" --arg ours "$ours" \
+                 '(if $ours == "true" then .sets[$p].stopping = null else . end) | .sets[$p].stop_owed = {at:$now, reason:$why} | .sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")" ;;
+    *)       cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson rc "$rc" --arg ours "$ours" '(if $ours == "true" then .sets[$p].stopping = null else . end) | .sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")" ;;
   esac
   printf '%s\n' "$cur" | leases_save
   write_placement "$p" "" "llmctl stop $p rc=$rc ($kind; failed or timed out); the set is kept and the stop is retried" "$(current_route)" true 0 stop_failed
+}
+# arm_stop_locked <profile> <kind> (caller holds the lock; round 9, R8-1) -> 0: the set is marked `stopping` NOW, by this
+# process, for the ONE bounded stop that follows at once; 1: not stopped by this turn (the reason is logged). The set is
+# judged again here, at its own turn, never by a judgement made before an earlier stop: it must still exist, be
+# constitution-started, hold no lease and carry no mark; dispose: still unflagged and recorded degraded or absent; owed:
+# still carrying start_failed or stop_owed. A mark is therefore never held across more than one bounded llmctl call.
+arm_stop_locked() {
+  local p="$1" kind="$2" cur why
+  reap_locked
+  cur="$(leases_load)"
+  why="$(jq -r --arg p "$p" --arg k "$kind" '(.sets[$p] // null) as $s
+    | if $s == null then "the set is gone"
+      elif ($s.constitution_started // false) != true then "not constitution-started"
+      elif (($s.leases // []) | length) > 0 then "it holds \(($s.leases // []) | length) lease(s) now"
+      elif ($s.stopping // null) != null then "another process is stopping it"
+      elif ($s.starting // null) != null then "another process is starting it"
+      elif $k == "dispose" and ((($s.start_failed // null) != null) or (($s.stop_owed // null) != null)) then "it carries a failed start or an owed stop (an owed stop, not a disposal)"
+      elif $k == "dispose" and ((($s.health.state // "") | IN("degraded", "absent")) | not) then "its recorded instance state is \($s.health.state // "unobserved") now, not degraded or absent"
+      elif $k == "owed" and (($s.start_failed // null) == null and ($s.stop_owed // null) == null) then "it no longer carries a failed start or an owed stop"
+      else "" end' <<<"$cur")"
+  if [ -n "$why" ]; then log "stop of $p ($kind) not run at its turn: $why"; return 1; fi
+  cur="$(jq -c --arg p "$p" --argjson m "$(me_mark)" '.sets[$p].stopping = $m' <<<"$cur")"
+  printf '%s\n' "$cur" | leases_save
+}
+# stop_turn <profile> <kind> -> 0 stopped, 1 the stop failed, 4 its result or its mark could not be recorded, 5 not run at
+# its turn (arm_stop_locked refused). Every planned stop (owed, dispose, release) goes through here: mark at its own turn,
+# then the bounded stop. A mark that cannot be taken (lock timeout after RETRIES waits) means no stop.
+stop_turn() {
+  local p="$1" kind="$2" arc=4 i=0
+  while [ "$i" -lt "$RETRIES" ]; do
+    arc=0; with_lock arm_stop_locked "$p" "$kind" || arc=$?
+    [ "$arc" = 4 ] || break
+    i=$((i+1)); log "stop of $p: lock wait $i/$RETRIES for its stopping mark timed out"
+  done
+  case "$arc" in 0) ;; 4) log "stop of $p ($kind) not run: its stopping mark could not be written (lock timeout)"; return 4 ;; *) return 5 ;; esac
+  do_stop "$p" "$kind"
 }
 # do_stop <profile> <kind> -> 0 stopped, 1 the stop failed, 4 the result could not be recorded (every record wait timed out).
 # The set was marked `stopping` (or is a release set) under the lock; the bounded stop itself runs WITHOUT the lock.
@@ -670,8 +839,8 @@ do_stop() {
 
 # ---- acquire: plan under the lock, llmctl calls outside it ------------------------------------------------------------
 # plan_locked <holder> <pid> <ttl> <gen|""> <nostart 0|1> (caller holds the lock; NO llmctl call). Reads $WORK/cap.json
-# (CAP_ST, OBS_TICKET) and $WORK/cands (CAND_RC). Sets: PLAN_STOPS (lines "<profile><US><kind>", each set already marked
-# stopping), START_CANDS (lines "<profile><US><verdict><US><threads><US><reason>"), BASE_GEN (the registry token the
+# (CAP_ST, OBS_TICKET) and $WORK/cands (CAND_RC). Sets: PLAN_STOPS (lines "<profile><US><kind>"; NOT marked: each set
+# is marked and judged again at its own turn by stop_turn, round 9), START_CANDS (lines "<profile><US><verdict><US><threads><US><reason>"), BASE_GEN (the registry token the
 # start candidates were judged against; empty when there is no start candidate), and the result F_RC / F_OUT plus the
 # placement record F_P F_V F_R F_ST F_TH F_EV F_CODE. rc 99: the registry token is not <gen>, the one the capacity
 # answer was read against (the caller reads again). <nostart> 1: joins by recorded health and stops only; no adoption and
@@ -679,13 +848,13 @@ do_stop() {
 declare -A DISPOSE_WHY=()
 STOP_TRIED=""; START_TRIED=""   # profiles this acquire already stopped / tried to start: never stopped / started again by it
 plan_locked() {
-  local holder="$1" pid="$2" ttl="$3" g0="$4" nostart="${5:-0}" cur pst mark p jp v th r st hs leased cs lline ref_p="" ref_v="" ref_r="" ref_ev="" any_undet=0 undet_why="" nofit_why="" foreign held=""
+  local holder="$1" pid="$2" ttl="$3" g0="$4" nostart="${5:-0}" cur pst p jp v th r st hs leased cs lline ref_p="" ref_v="" ref_r="" ref_ev="" any_undet=0 undet_why="" nofit_why="" foreign held=""
   BASE_GEN=""
   # THE freshness rule (round 7, NF-2), first seam: the answer was read against token <gen>; any registry write since
   # (another session's start, stop, join, heartbeat or reap, or this process's own) makes it stale
   if [ -n "$g0" ] && [ "$(leases_token)" != "$g0" ]; then return 99; fi
   PLAN_STOPS=""; START_CANDS=""; F_RC=5; F_OUT=""; F_P=""; F_V="does_not_fit"; F_R="no candidate profile fits"; F_ST=false; F_TH=0; F_EV=no_fit; F_CODE=""
-  pst="$(lease_obj_args "$pid")"; mark="$(me_mark)"
+  pst="$(lease_obj_args "$pid")"
   # the https gateway read before the lock is part of the registry: the derived cache uses it. Written only when it
   # changed: every write is a new generation, and a write that changes nothing would make a concurrent acquire's answer
   # stale for no reason (round 7)
@@ -706,10 +875,9 @@ plan_locked() {
   while IFS= read -r p; do
     [ -n "$p" ] || continue
     case " $STOP_TRIED " in *" $p "*) log "owed stop of $p: already tried by this acquire; retried by the next acquire or release"; continue ;; esac
-    cur="$(jq -c --arg p "$p" --argjson m "$mark" '.sets[$p].stopping = $m' <<<"$cur")"
+    # round 9 (R8-1): NOT marked here; stop_turn marks the set under the lock right before ITS OWN stop
     PLAN_STOPS+="$p${US}owed"$'\n'
   done < <(jq -r '.sets | to_entries[] | select(((.value.start_failed // null) != null or (.value.stop_owed // null) != null) and (.value.stopping // null) == null and (.value.starting // null) == null and (.value.leases | length) == 0) | .key' <<<"$cur")
-  [ -z "$PLAN_STOPS" ] || printf '%s\n' "$cur" | leases_save
   # (B) every existing, unmarked set, judged by its RECORDED health (the observation above, or a newer one): joined when
   # ok; a lease-less constitution-started set whose unit is degraded or gone is stopped (dispose); a set that still has a
   # live lease is never stopped here; nothing is judged or stopped on an undetermined answer or an unknown state.
@@ -721,6 +889,12 @@ plan_locked() {
       r="$(jq -r --arg p "$jp" '.sets[$p].health.reason // "not observed"' <<<"$cur")"
       leased="$(jq -r --arg p "$jp" '.sets[$p].leases | length' <<<"$cur")"
       cs="$(jq -r --arg p "$jp" '.sets[$p].constitution_started == true' <<<"$cur")"
+      if [ "$hs" = ok ] && [ -n "$PLAN_STOPS" ]; then
+        # round 9 (R8-1 class, "a lease held across bounded calls"): this plan also stops a set, so the join is NOT taken
+        # now (its lease would age through the stops); the acquire runs the stops, reads a fresh answer and joins then
+        log "lease set $jp is joinable; the join is taken after this acquire's stops (a fresh plan)"
+        continue
+      fi
       if [ "$hs" = ok ]; then
         cur="$(jq -c --arg p "$jp" --arg h "$holder" --argjson l "$(lease_json "$holder" "$pid" "$pst" "$ttl" false)" \
           '.sets[$p].leases = ([.sets[$p].leases[] | select(.holder != $h)] + [$l]) | .route_pref = $p' <<<"$cur")"
@@ -730,9 +904,7 @@ plan_locked() {
         return 0
       fi
       if [ "$leased" = 0 ] && [ "$cs" = true ] && { [ "$hs" = degraded ] || [ "$hs" = absent ]; } && ! case " $STOP_TRIED " in *" $jp "*) true ;; *) false ;; esac; then
-        log "disposing $jp: no lease left, constitution-started, instance $hs ($r); bounded llmctl stop outside the lock"
-        cur="$(jq -c --arg p "$jp" --argjson m "$mark" '.sets[$p].stopping = $m' <<<"$cur")"
-        printf '%s\n' "$cur" | leases_save
+        log "disposing $jp: no lease left, constitution-started, instance $hs ($r); bounded llmctl stop outside the lock (marked at its turn)"
         DISPOSE_WHY[$jp]="instance $hs: $r"
         PLAN_STOPS+="$jp${US}dispose"$'\n'
         continue
@@ -908,7 +1080,7 @@ cmd_acquire() {
       [ -n "$p" ] || continue
       STOP_TRIED+=" $p"
       [ "$kind" != dispose ] || DISPOSED+=" $p"
-      do_stop "$p" "$kind" || true
+      stop_turn "$p" "$kind" || true
     done <<<"$PLAN_STOPS"
     if [ "$F_RC" = 0 ]; then
       record_placement "$F_P" "$F_V" "$F_R" "$(current_route)" "$F_ST" "$F_TH" "$F_EV"
@@ -1032,20 +1204,18 @@ cmd_acquire() {
 }
 
 release_locked() {
-  local holder="$1" cur prof mark r0 r1 stops=""
+  local holder="$1" cur prof r0 r1 stops=""
   r0="$(current_route)"
   finalize_locked 1 0
-  mark="$(me_mark)"
   cur="$(leases_load)"
   cur="$(jq -c --arg h "$holder" '.sets |= map_values(.leases |= map(select(.holder != $h)))' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
-  # EVERY constitution-started set with no lease left (JEV_PLACE_MAX>1 starts several) and no mark: mark stopping (others
-  # refuse), then stop OUTSIDE the lock. A set still starting is finished by its starter (it stops it when no lease is
-  # left). The mark names this process (pid + start time) so a dead stopper's mark is cleared.
+  # EVERY constitution-started set with no lease left (JEV_PLACE_MAX>1 starts several) and no mark is a stop candidate;
+  # round 9 (R8-1): it is NOT marked here. stop_turn marks each set under the lock right before ITS OWN stop, outside this
+  # section, and judges it again then (a set joined meanwhile keeps running). A set still starting is finished by its
+  # starter (it stops it when no lease is left).
   while IFS= read -r prof; do
     [ -n "$prof" ] || continue
-    cur="$(jq -c --arg p "$prof" --argjson m "$mark" '.sets[$p].stopping = $m' <<<"$cur")"
-    printf '%s\n' "$cur" | leases_save
     echo "$prof"; stops+=" $prof"
   done < <(jq -r '.sets | to_entries[] | select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null and (.value.starting // null) == null) | .key' <<<"$cur")
   # an empty set this producer did not start is just forgotten (an operator-started model is never stopped)
@@ -1067,7 +1237,7 @@ hb_locked() { # hb_locked <holder> (caller holds the lock) -> 0 refreshed, 3 the
     log "heartbeat: holder $1 holds no lease (released, reaped, released because its endpoint is gone, or never taken); route locally only after a new acquire - a lease is never assumed (§11.4.291(J)(1))"
     return 3
   fi
-  c="$(jq -c --arg h "$1" --argjson now "$NOW" '.sets |= map_values(.leases |= map(if .holder == $h then .heartbeat_at = $now else . end))' <<<"$c")"
+  c="$(jq -c --arg h "$1" --argjson now "$NOW" --arg mo "$MONO_TOK" '.sets |= map_values(.leases |= map(if .holder == $h then .heartbeat_at = $now | .heartbeat_mono = (if $mo=="" then null else $mo end) else . end))' <<<"$c")"
   printf '%s\n' "$c" | leases_save
 }
 
@@ -1085,7 +1255,7 @@ case "$sub" in
       echo "jev-place: lease TTL ${ttl}s is not greater than the re-evaluation cadence ${CADENCE}s (JEV_REEVAL_CADENCE) + the llmctl timeout ${RTMO}s (JEV_LLMCTL_TIMEOUT): config error, refused (§11.4.291(J)(1))" >&2
       exit 2
     fi
-    HOLDER="$holder"
+    HOLDER="$holder"; ACQ_REFRESH=1
     rc=0; cmd_acquire "$holder" "$pid" "$ttl" || rc=$?
     if [ "$rc" = 4 ]; then record_placement "" "undetermined" "lease_lock_timeout: no lease taken" "$(fallback_route)" false 0 lease_lock_timeout; log "lease_lock_timeout: no lease taken"; fi
     exit "$rc" ;;
@@ -1106,7 +1276,8 @@ case "$sub" in
     while IFS= read -r stopprof; do
       [ -n "$stopprof" ] || continue
       # a stop can take as long as a start (model unload, unit shutdown): bounded by the START/STOP timeout, not RTMO
-      do_stop "$stopprof" release || rrc=6
+      src=0; stop_turn "$stopprof" release || src=$?
+      case "$src" in 0|5) ;; *) rrc=6 ;; esac
     done <<< "$stopprofs"
     exit "$rrc" ;;
   reap)

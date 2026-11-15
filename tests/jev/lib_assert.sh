@@ -106,7 +106,7 @@ make_fixture_env() {
   export GIT_SSH_COMMAND=/bin/false   # no network, ever
   unset LLMCTL_STATUS_JSON LLMCTL_CAPACITY_JSON FIXTURE_ENDPOINTS LLMCTL_DIR CLAUDE_TOOLKIT_DIR LLMCTL_ENDPOINT LLMCTL_DECIDE_PORT LLMCTL_CACERT \
         LLMCTL_API_KEY TYPESAFE_API_KEY OPENROUTER_API_KEY JEV_API_KEY JEV_API_KEYS_FILE CMA_KEYS_FILE CMA_JEV_PINS_FILE JEV_BEFORE JEV_AFTER \
-        JEV_TEST JEV_REQUIRE_VALIDATED_CMD JEV_DECISION_PROFILES JEV_PINS_FILE JEV_BASE_URL JEV_DETECTION_FILE JEV_SKIP_VALIDATION JEV_DETECTION_MAX_AGE JEV_HOME JEV_STATUS_NO_VALIDATE JEV_NOW_FILE TYPESAFE_BASE_URL CLAUDE_CONFIG_DIR   # CLAUDE_CONFIG_DIR: the operator's real alias dir must never be read (jev_mcp_files), HOME is already the sandbox
+        JEV_TEST JEV_REQUIRE_VALIDATED_CMD JEV_DECISION_PROFILES JEV_PINS_FILE JEV_BASE_URL JEV_DETECTION_FILE JEV_SKIP_VALIDATION JEV_DETECTION_MAX_AGE JEV_HOME JEV_STATUS_NO_VALIDATE JEV_NOW_FILE JEV_MONO_FILE JEV_TRACE_FILE TYPESAFE_BASE_URL CLAUDE_CONFIG_DIR   # CLAUDE_CONFIG_DIR: the operator's real alias dir must never be read (jev_mcp_files), HOME is already the sandbox
   export JEV_HOSTED_PROBE=0   # hermetic default: no hosted probe (tests that exercise probing set it to 1 and stub curl)
   mkdir -p "$CMA_PROVIDERS_DIR"
   mkdir -p "$JEV_STATE_DIR" "$JEV_EVIDENCE_DIR" "$JEV_CONFIG_DIR"
@@ -173,6 +173,7 @@ run_hook_host() {
   (cd "$HOST_P" && env CONST_DIR="$HOST_C" PROJECT_ROOT="$HOST_P" HOME="$HOST_P/home" \
      BOOTSTRAP_STUB_LOG="$HOST_P/bootstrap.log" JEV_STATE_DIR="$HOST_P/.jev-state" "$@" \
      bash "$HOST_C/scripts/post_update_hook.sh" </dev/null >"$HOST_P/hook.out" 2>&1)
+  # shellcheck disable=SC2034  # HOOK_RC is read by the suites that source this file (test_post_update_hook_trigger.sh and others)
   HOOK_RC=$?
 }
 

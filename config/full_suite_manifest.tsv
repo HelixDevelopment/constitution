@@ -819,6 +819,7 @@ tests/jev/fixtures/bin/jev-label-stub	sh	fixture	-	-	-	fixture path (not a test 
 tests/jev/fixtures/bin/kimi	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/jev_server.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/mark_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/install.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/jev-setup.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/lib_assert.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/jev/test_anchor_renumber_integrity.sh
@@ -859,6 +860,7 @@ tests/jev/test_s4_placement.sh	sh	member	default	-	tests/jev/run_all.sh	auto: in
 tests/jev/test_s4_round6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_round7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_round8.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round9.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_tab_fields.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/layout/hermetic_lint.py	py	excluded	-	-	-	reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point

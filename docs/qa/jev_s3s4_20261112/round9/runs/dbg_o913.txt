@@ -1,0 +1,94 @@
+ok 1 - P99 A disposes decide-a first (its stop of decide-a is in flight)
+ok 2 - P99 then decide-b (its stop of decide-b is in flight)
+ok 3 - P99 CONTROL: the first stop took 44 s of the test clock (MARK_TTL is 43 s)
+ok 4 - P99 while decide-a is stopped, decide-b carries NO mark yet (it is marked at its own turn)
+ok 5 - P99 decide-b's mark carries the time of ITS turn (after the first stop), not the plan's
+ok 6 - P110 the producer's own stopping mark: pid, pid_start (its start time), mono, holder
+ok 7 - P99 an observer keeps the live stopper's mark (its age is 0, not 44)
+ok 8 - P99 after the observer the mark is still A's
+ok 9 - P99 C (the unit is ok for it) is refused while decide-b is stopping and holds no lease
+ok 10 - P99 C's refusal names endpoint_stopping (§11.4.291(J)(3))
+ok 11 - P99 A stops each set once; the registry is empty; nothing was lost (C never held a lease)
+ok 12 - P99 no unit runs at the end
+ok 13 - P100 A disposes decide-a first (its stop of decide-a is in flight)
+ok 14 - P100 B (refused: decide-a is stopping) disposes decide-b, which nobody had marked yet
+ok 15 - P100 A does not stop decide-b again: one stop of each set
+ok 16 - P100 A judges decide-b at its turn and says why it is not stopped
+ok 17 - P101 the release of sA stops decide-a first (its stop of decide-a is in flight)
+ok 18 - P101 decide-b is not marked while decide-a is stopped
+ok 19 - P101 C joins decide-b while decide-a's stop is in flight
+ok 20 - P101 the release stops decide-a only
+ok 21 - P101 the release judges decide-b at its turn
+ok 22 - P101 C still holds its lease and decide-b runs
+ok 23 - P102a A disposes decide-b (its stop of decide-b is in flight)
+ok 24 - P102a the set is KEPT when its stop returns with a lease in it (the anomaly recorded), then the lease is released as endpoint_gone; A's mark is cleared
+ok 25 - P102a A says the set is kept
+ok 26 - P102a the lease is released through endpoint_gone (announced), never dropped silently
+ok 27 - P102b A disposes decide-b (its stop of decide-b is in flight)
+ok 28 - P102b the set is kept and the other stopper's mark is not cleared by A
+ok 29 - P103 CONTROL: a live marker's mark 300 s old (MARK_TTL 338) is kept
+ok 30 - P103 after a 100 s capacity read the mark is 400 s old at the judging lock: cleared; mark_cleared and health carry that time
+ok 31 - P104 CONTROL: a pid-less lease 850 s old (TTL 900) is kept
+ok 32 - P104 after a 100 s capacity read it is 950 s old at the judging lock: reaped
+ok 33 - P105 gone.at is the time of the observation that found the unit gone (after its 100 s read)
+ok 34 - P106 the failed disposal stop (read +100 s, stop +25 s) records stop_owed.at and stop_failed.at at T0+125; A's mark is cleared
+ok 35 - P108 the heartbeat stamps heartbeat_at and heartbeat_mono after its 100 s read
+ok 36 - P109 A started decide-a and is paused at its record step (paused at flock call 7)
+ok 37 - P110 the producer's own starting mark: pid, pid_start (its start time), mono, holder, written after the 100 s read
+ok 38 - P109 started_at and stop_failed.at are the time the result was recorded (read +100, start +50); the failed release stop keeps A's mark
+ok 39 - P111 the wall clock stepped +10000 s, monotonic +10 s: the live mark is kept
+ok 40 - P111 the wall clock stepped back to the mark's time, monotonic +400 s: the mark is cleared
+ok 41 - P111 a mark from another boot is expired
+ok 42 - P111 a mark with no mono (an older producer), wall age 10 s: kept
+ok 43 - P111 the same mark at wall age 400 s: cleared (the wall rule)
+ok 44 - P111 an empty JEV_MONO_FILE: exit 2
+ok 45 - P111 the config error says so
+ok 46 - P111 a pid-less lease, wall +5000 s, monotonic +10 s: kept
+ok 47 - P111 wall +0 s, monotonic +901 s (TTL 900): reaped
+ok 48 - P111 CONTROL: the boot id is readable in this run
+ok 49 - P111 with no seam the mark and the lease carry mono = <boot id>:<uptime seconds>
+ok 50 - P112 A (a pid-less holder, TTL 60 s) started decide-a and is paused at its record step (paused at flock call 7)
+ok 51 - P112 CONTROL: the start took 100 s; the lease was written at the start mark (100 s > TTL 60 s)
+ok 52 - P112 an observer keeps the lease while A's live starting mark names its holder
+ok 53 - P112 the observer says why
+ok 54 - P112 A refreshed its lease when it recorded the start; an observer at once keeps it
+ok 55 - P112 the suspension ended with the mark: 61 s after the refresh the pid-less lease is reaped
+DBG-BEGIN
+[jev-place] lease of holder=hD on decide-b: heartbeat older than its TTL, kept while a live mark names the holder (an acquire for it is in flight)
+[jev-place] endpoint_gone: the unit of decide-b is gone (no own unit reported, verdict fits); every lease released (holders hD); route none; nothing is restarted (§11.4.291(J)(6))
+DBG-REG {
+  "gen": 2,
+  "sets": {
+    "decide-a": {
+      "constitution_started": true,
+      "started_at": null,
+      "stopping": null,
+      "starting": {
+        "at": 1700000000,
+        "mono": null,
+        "pid": 10757,
+        "pid_start": 9439868,
+        "holder": "hD"
+      },
+      "leases": []
+    },
+    "decide-b": {
+      "constitution_started": true,
+      "started_at": 1700000000,
+      "starting": null,
+      "stopping": null,
+      "leases": [],
+      "health": {
+        "state": "absent",
+        "reason": "",
+        "seq": 1,
+        "at": 1700000000
+      },
+      "gone": {
+        "at": 1700000000,
+        "detail": "no own unit reported, verdict fits"
+      }
+    }
+  }
+}
+DBG-END
