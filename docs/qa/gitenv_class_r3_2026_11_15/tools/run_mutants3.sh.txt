@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# run_mutants3.sh <id>...: for each mutant id, make a fresh worktree at 005bcfd1, apply the round-3 patch, apply the
+# mutant with mk_mut3.py, then run (1) the census on that tree and (2) tests/test_git_env_class.sh --only-census.
+# An id ending in _nn is the same mutant with the census's control needles disabled.
+# A mutant is KILLED when either check exits non-zero; SURVIVED when both exit 0. One line per mutant on stdout.
+set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
+W=<scratch>
+export TMPDIR=<tmp>
+OUTD="$W/ev/mutants"; mkdir -p "$OUTD"
+for id in "$@"; do
+    m="$W/mut/$id"
+    if [ -e "$m" ]; then git -C "$W/repo" worktree remove --force "${m:?}" >/dev/null 2>&1; fi
+    git -C "$W/repo" worktree add -q --detach "$m" 005bcfd1 || { echo "$id SETUP-FAIL worktree"; continue; }
+    git -C "$m" apply "$W/ev/r3_uncommitted.patch" || { echo "$id SETUP-FAIL patch"; continue; }
+    python3 "$W/ev/tools/mk_mut3.py" "$m" "${id%_nn}" >"$OUTD/$id.apply.txt" 2>&1 || { echo "$id SETUP-FAIL mutant $(tail -1 "$OUTD/$id.apply.txt")"; continue; }
+    case "$id" in *_nn) # the twin: the census's own control needles disabled, so only the test fixtures can kill it
+        python3 - "$m/scripts/validation/git_env_class_census.py" <<'PY' >>"$OUTD/$id.apply.txt" 2>&1 || { echo "$id SETUP-FAIL nn"; continue; }
+import sys
+p = sys.argv[1]; t = open(p).read()
+a = "    bad, ncases = needles(canon)\n    if bad:\n"
+assert t.count(a) == 1, "nn anchor"
+open(p, "w").write(t.replace(a, "    bad, ncases = needles(canon)\n    if False:\n"))
+print("needles disabled")
+PY
+    ;; esac
+    rc1=0; ( cd "$m" && nice -n 10 python3 -I scripts/validation/git_env_class_census.py --root . ) >"$OUTD/$id.census.txt" 2>&1 || rc1=$?
+    rc2=0; ( cd "$m" && nice -n 10 bash tests/test_git_env_class.sh --only-census ) >"$OUTD/$id.test.txt" 2>&1 || rc2=$?
+    v=SURVIVED; { [ "$rc1" != 0 ] || [ "$rc2" != 0 ]; } && v=KILLED
+    printf '%s\t%s\tcensus_rc=%s\t%s\ttest_rc=%s\t%s\n' "$id" "$v" "$rc1" "$(tail -n 1 "$OUTD/$id.census.txt" | cut -c1-120)" \
+        "$rc2" "$(grep -E 'passed=|FAIL' "$OUTD/$id.test.txt" | tail -n 3 | tr '\n' ' ' | cut -c1-200)"
+done

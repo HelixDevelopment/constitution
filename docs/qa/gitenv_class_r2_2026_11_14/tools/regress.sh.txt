@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# regress.sh <tree> <label> <list> <outdir>: run each suite one at a time with no ambient git variables;
+# record exit, seconds, suite and its last summary line.
+set -u
+tree="${1:?}"; label="${2:?}"; list="${3:?}"; outd="${4:?}"
+out="$outd/$label"; mkdir -p "$out"; : > "$out/summary.tsv"
+while read -r t; do
+  [ -z "$t" ] && continue
+  awk '{exit !($1 < 60)}' /proc/loadavg || { echo "load too high" >> "$out/summary.tsv"; exit 3; }
+  s=$(date +%s); n=$(echo "$t" | tr '/' '_')
+  ( cd "$tree" && env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_CEILING_DIRECTORIES timeout 1500 bash "$t" > "$out/$n.log" 2>&1 ); rc=$?
+  printf '%s\t%s\t%s\t%s\n' "$rc" "$(( $(date +%s) - s ))" "$t" "$(grep -aE 'passed=|PASS=|FAIL=|RESULT|PASS:|failed' "$out/$n.log" | tail -n 1 | cut -c1-100)" >> "$out/summary.tsv"
+done < "$list"
+echo done >> "$out/summary.tsv"

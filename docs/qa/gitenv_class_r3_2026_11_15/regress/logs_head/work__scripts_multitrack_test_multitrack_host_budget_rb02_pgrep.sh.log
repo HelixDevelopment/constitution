@@ -1,0 +1,10 @@
+PASS: RED[it1]: pre-fix (strict-filter=0) guard WRONGLY REFUSES (rc=2) on a carrier-only process set — footgun reproduced
+PASS: RED[it1]: pre-fix (liveness-gate=0) guard WRONGLY REFUSES (rc=2) a VANISHED(dead) matched PID — vanished-PID footgun reproduced (§11.4.201)
+PASS: RED[it2]: pre-fix (strict-filter=0) guard WRONGLY REFUSES (rc=2) on a carrier-only process set — footgun reproduced
+PASS: RED[it2]: pre-fix (liveness-gate=0) guard WRONGLY REFUSES (rc=2) a VANISHED(dead) matched PID — vanished-PID footgun reproduced (§11.4.201)
+PASS: RED[it3]: pre-fix (strict-filter=0) guard WRONGLY REFUSES (rc=2) on a carrier-only process set — footgun reproduced
+PASS: RED[it3]: pre-fix (liveness-gate=0) guard WRONGLY REFUSES (rc=2) a VANISHED(dead) matched PID — vanished-PID footgun reproduced (§11.4.201)
+PASS: determinism: 3/3 iterations byte-identical (RED_MODE=1)
+
+== RB-02 pgrep test (RED_MODE=1): PASS ==  PASS=7 FAIL=0 SKIP=0
+Evidence: <scratch>/qa-results/multitrack/rb02_pgrep_test_20261115T011833Z

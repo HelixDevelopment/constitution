@@ -1,0 +1,151 @@
+== B1: trailing newline in keys (regex $ class) ==
+  PASS key with trailing newline refused (qtype) (rc=4)
+  PASS qtype newline key refused at the key-shape layer
+  PASS key with trailing newline refused (agent) (rc=4)
+  PASS key with trailing newline refused (static) (rc=4)
+  PASS answers key with newline refused (rc=4)
+  PASS answers newline key refused at the key-shape layer
+  PASS answers value with newline refused (rc=4)
+  PASS decisions.yml unchanged after B1 attempts
+  PASS check still clean (rc=0)
+== B2: --export confinement ==
+  PASS export onto existing CLAUDE.md refused (rc=3)
+  PASS CLAUDE.md untouched
+  PASS export into .git refused (rc=3)
+  PASS export into .git (new file) refused (rc=3)
+  PASS .git/config untouched
+  PASS .git/newfile not created
+  PASS export into .constitution refused (rc=3)
+  PASS export new file ok (rc=0)
+  PASS export written
+  PASS export onto existing export refused (rc=3)
+  PASS export with --force-export (rc=0)
+  PASS force export backed up
+== B3/R22: printed bootstrap command implies exactly the recorded consents ==
+  PASS claude consent without clone/settings: no --yes
+  PASS claude consent without settings consent: claude not wired
+  PASS missing consent is explained
+  PASS pi consent without clone consent: no --yes
+  PASS pi + clone consent: --yes --agent pi
+  PASS claude + clone + settings consent: --yes --agent claude
+  PASS claude dropped, kimi kept when settings consent absent
+  PASS R22 enforce flag printed
+  PASS no consent recorded: no --yes/--allow-clone/--install-tools
+  PASS install consent only: --install-tools without --allow-clone
+  PASS hosted off: JEV_HOSTED_PROBE=0
+== B4: key discovery and var names are locked ==
+  PASS discovery off refused (rc=4)
+  PASS empty var_names refused (rc=4)
+  PASS subset var_names refused (rc=4)
+== I1: endpoints must keep local ==
+  PASS drop local refused (rc=4)
+  PASS hosted only refused (rc=4)
+  PASS local only ok (rc=0)
+== I2/R04/R05: excluded classes and default-deny enforce ==
+  PASS excluded review enforce refused (rc=4)
+  PASS excluded review shadow refused (rc=4)
+  PASS excluded merge enforce refused (rc=4)
+  PASS excluded merge shadow refused (rc=4)
+  PASS excluded finding_layer enforce refused (rc=4)
+  PASS excluded finding_layer shadow refused (rc=4)
+  PASS excluded qa enforce refused (rc=4)
+  PASS excluded qa shadow refused (rc=4)
+  PASS excluded readiness enforce refused (rc=4)
+  PASS excluded readiness shadow refused (rc=4)
+  PASS excluded evidence enforce refused (rc=4)
+  PASS excluded evidence shadow refused (rc=4)
+  PASS excluded verifier enforce refused (rc=4)
+  PASS excluded verifier shadow refused (rc=4)
+  PASS excluded code_review enforce refused (rc=4)
+  PASS excluded code_review shadow refused (rc=4)
+  PASS excluded reviews enforce refused (rc=4)
+  PASS excluded reviews shadow refused (rc=4)
+  PASS excluded qa_check enforce refused (rc=4)
+  PASS excluded qa_check shadow refused (rc=4)
+  PASS excluded merge_conflict enforce refused (rc=4)
+  PASS excluded merge_conflict shadow refused (rc=4)
+  PASS excluded pre_merge enforce refused (rc=4)
+  PASS excluded pre_merge shadow refused (rc=4)
+  PASS excluded verify_step enforce refused (rc=4)
+  PASS excluded verify_step shadow refused (rc=4)
+  PASS excluded evidence_gate enforce refused (rc=4)
+  PASS excluded evidence_gate shadow refused (rc=4)
+  PASS excluded verifier off ok (rc=0)
+  PASS unknown type enforce refused (default-deny) (rc=4)
+  PASS refused by default-deny (layer oracle)
+  PASS unknown type shadow ok (rc=0)
+  PASS eligible gate enforce ok (rc=0)
+== I3: managed-block drift ==
+  PASS check clean (rc=0)
+  PASS edited block -> check 4 (rc=4)
+  PASS edited block -> gate FAIL (rc=1)
+  PASS re-run repairs the block (rc=0)
+  PASS check clean after repair (rc=0)
+  PASS removed block -> check 4 (rc=4)
+== I4: unknown or secret-shaped keys never echoed ==
+  PASS long unknown key refused (rc=4)
+  PASS long unknown key not echoed
+  PASS secret key refused (rc=4)
+  PASS secret key not echoed
+  PASS answers unknown key refused (rc=4)
+  PASS answers unknown key not echoed
+== I5: ambient JEV_BOOTSTRAP_* consent needs --accept-env ==
+  PASS env without --accept-env (rc=0)
+  PASS mode NOT taken from env without --accept-env (round 3, I-8)
+  PASS agent consent NOT taken without --accept-env
+  PASS clone consent NOT taken without --accept-env
+  PASS ignored env names reported
+  PASS env with --accept-env (rc=0)
+  PASS agent consent taken with --accept-env
+== I6: --doc targets ==
+  PASS --doc .git/config refused (rc=3)
+  PASS .git/config untouched by --doc
+  PASS --doc .constitution/x.md refused (rc=3)
+  PASS --doc non-markdown without markers refused (rc=3)
+  PASS notes.txt untouched
+  PASS --doc non-markdown with markers ok (rc=0)
+  PASS --doc new markdown ok (rc=0)
+  PASS new markdown has block
+== I7: lock file symlink ==
+  PASS symlinked lock refused (rc=3)
+  PASS lock symlink target untouched
+== I8/R17/R21: user scope lock, backup, symlink ==
+  PASS user write 1 (rc=0)
+  PASS user write 2 (rc=0)
+  PASS R17 user file backed up (beside the user file, round 3)
+  PASS I8 concurrent user writer refused (rc=5)
+  PASS R21 user file symlink refused (rc=3)
+  PASS R21 symlink target untouched
+== R10: control characters refused ==
+  PASS control char refused (rc=4)
+  PASS control char refused by the control-char check
+  PASS control char refused (rc=4)
+  PASS control char refused by the control-char check
+  PASS control char refused (rc=4)
+  PASS control char refused by the control-char check
+  PASS control char refused (rc=4)
+  PASS control char refused by the control-char check
+  PASS control char in --doc path refused (rc=3)
+  PASS no file created for control-char --doc path
+  PASS control char in --doc path refused (rc=3)
+  PASS no file created for control-char --doc path
+  PASS control char in --doc path refused (rc=3)
+  PASS no file created for control-char --doc path
+== minor: non-UTF-8 doc, CRLF, strict schema_version ==
+  PASS non-UTF-8 doc refused cleanly (rc=4)
+  PASS no traceback
+  PASS CRLF doc (rc=0)
+  PASS CRLF kept: no bare LF line
+  PASS CRLF doc user text kept
+  PASS schema_version 1 accepted (positive control) (rc=0)
+  PASS schema_version "1" refused (rc=4)
+  PASS schema_version "1" refused for the schema
+  PASS schema_version true refused (rc=4)
+  PASS schema_version true refused for the schema
+  PASS schema_version 1.0 refused (rc=4)
+  PASS schema_version 1.0 refused for the schema
+  PASS schema_version 2 refused (rc=4)
+  PASS schema_version 2 refused for the schema
+  PASS missing schema_version refused (rc=4)
+  PASS missing schema_version refused for the schema
+test_round2: pass=136 fail=0

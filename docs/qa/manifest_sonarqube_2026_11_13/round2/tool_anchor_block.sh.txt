@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# lines 309-312 of cm_anchor_record_complete.sh, verbatim (block-level probe)
+set -u
+tmp="$1"; build_log="$1/build.log"
+( cd "$tmp" && git init -q --bare remote.git && git init -q seed \
+  && cd seed && git config user.email gate@local && git config user.name gate \
+  && echo needle > f && git add f && git commit -qm seed && git branch -M main \
+  && git push -q ../remote.git main ) >>"$build_log" 2>&1
+echo "block rc=$?"

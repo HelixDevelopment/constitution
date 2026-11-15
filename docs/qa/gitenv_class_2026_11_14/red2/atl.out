@@ -1,0 +1,8 @@
+label=atl_none mode=none script=scripts/gates/cm_agent_type_label.sh rc=0 seconds=246
+repo_head=42fd128819608ef1d110e32cd1b9d4a6de6c335c
+sentinel_fingerprint_before=fe74428a270f2196c0cee9af9bf21e1e4a60e5560a03915099998d88d8e158ee
+sentinel_fingerprint_after=fe74428a270f2196c0cee9af9bf21e1e4a60e5560a03915099998d88d8e158ee
+sentinel_head_before=9f308c83e74d264b8d914b6ddd8f54f7f49793d0 after=9f308c83e74d264b8d914b6ddd8f54f7f49793d0 branch_before=refs/heads/sentinel after=refs/heads/sentinel
+sentinel_index_entries_after=1
+SENTINEL=UNCHANGED
+--- log tail ---

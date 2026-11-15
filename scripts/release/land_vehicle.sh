@@ -340,6 +340,7 @@ set -euo pipefail
 LV_DIRTY=" BASH_ENV ENV SHELLOPTS BASHOPTS POSIXLY_CORRECT BASH_COMPAT BASH_XTRACEFD PS4 GLOBIGNORE GLOBSORT EXECIGNORE FUNCNEST TMOUT CHILD_MAX BASH_LOADABLES_PATH BASH_CMDS BASH_ALIASES "
 # lv_dirty_env: prints `-u NAME` lines for every such variable in the environment and
 # every exported function (BASH_FUNC_*), read from the real environment (env -0)
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 lv_dirty_env() {
   local e n
   while IFS= read -r -d '' e; do

@@ -1,0 +1,155 @@
+# F6: hi_init_state resets every internal variable (one case per variable)
+  ok   reset by hi_init_state: HI_AGENT_PID
+  ok   reset by hi_init_state: HI_CLONE_TIMEOUT
+  ok   reset by hi_init_state: HI_DETECT_PROVIDERS
+  ok   reset by hi_init_state: HI_GX_BIN
+  ok   reset by hi_init_state: HI_GX_COMMIT_OK
+  ok   reset by hi_init_state: HI_GX_INIT_OK
+  ok   reset by hi_init_state: HI_UMASK0
+  ok   reset by hi_init_state: O_ACTION
+  ok   reset by hi_init_state: O_AGENT
+  ok   reset by hi_init_state: O_BUDGET
+  ok   reset by hi_init_state: O_COMMIT
+  ok   reset by hi_init_state: O_DECISION
+  ok   reset by hi_init_state: O_DRY
+  ok   reset by hi_init_state: O_EDIT_DOCS
+  ok   reset by hi_init_state: O_EFFORT
+  ok   reset by hi_init_state: O_FOLLOWUPS
+  ok   reset by hi_init_state: O_GIT_INIT
+  ok   reset by hi_init_state: O_HOOKS
+  ok   reset by hi_init_state: O_INSECURE
+  ok   reset by hi_init_state: O_JSON
+  ok   reset by hi_init_state: O_MODEL
+  ok   reset by hi_init_state: O_NONINT
+  ok   reset by hi_init_state: O_NOT_SELF
+  ok   reset by hi_init_state: O_REF
+  ok   reset by hi_init_state: O_REPORT
+  ok   reset by hi_init_state: O_RESTORE
+  ok   reset by hi_init_state: O_ROOT
+  ok   reset by hi_init_state: O_SET
+  ok   reset by hi_init_state: O_SETUP
+  ok   reset by hi_init_state: O_SSH
+  ok   reset by hi_init_state: O_TIMEOUT
+  ok   reset by hi_init_state: O_UNRESTRICTED
+  ok   reset by hi_init_state: O_UPSTREAM
+  ok   reset by hi_init_state: O_URLS
+  ok   reset by hi_init_state: O_YES
+  ok   reset by hi_init_state: S_AFTER
+  ok   reset by hi_init_state: S_AGENT_EVIDENCE
+  ok   reset by hi_init_state: S_AGENT_LINE
+  ok   reset by hi_init_state: S_AGENT_STATUS
+  ok   reset by hi_init_state: S_BEFORE
+  ok   reset by hi_init_state: S_BK
+  ok   reset by hi_init_state: S_CHANGED
+  ok   reset by hi_init_state: S_CLONE
+  ok   reset by hi_init_state: S_COST_KNOWN
+  ok   reset by hi_init_state: S_FOLLOW
+  ok   reset by hi_init_state: S_KEY
+  ok   reset by hi_init_state: S_LAYOUT
+  ok   reset by hi_init_state: S_LOCK
+  ok   reset by hi_init_state: S_LOCK_RECLAIM
+  ok   reset by hi_init_state: S_LOCK_TMP
+  ok   reset by hi_init_state: S_MANIFEST
+  ok   reset by hi_init_state: S_MODE
+  ok   reset by hi_init_state: S_NOTES
+  ok   reset by hi_init_state: S_PRESTATUS
+  ok   reset by hi_init_state: S_PUSHED
+  ok   reset by hi_init_state: S_RC
+  ok   reset by hi_init_state: S_REF
+  ok   reset by hi_init_state: S_SID
+  ok   reset by hi_init_state: S_SPENT
+  ok   reset by hi_init_state: S_STATUS
+  ok   reset by hi_init_state: S_SUBREL
+  ok   reset by hi_init_state: S_TAGS
+  ok   reset by hi_init_state: S_TMP_PATHS
+  ok   reset by hi_init_state: S_UNR_CONSENT
+  ok   reset by hi_init_state: S_UPDATER
+  ok   reset by hi_init_state: S_URL
+  ok   reset by hi_init_state: S_VERIFY
+  ok   reset by hi_init_state: S_VERIFY_OVERALL
+  ok   reset by hi_init_state: S_WRITTEN
+  ok   control needle: the variable list is not vacuous (69 variables)
+  ok   HI_GX_TIMEOUT is unset by hi_init_state
+# B1 / F1: resolution order and reachability against the LIVE remote
+  ok   a local tag does not shadow the remote branch of the same name
+  ok   a local-only tag resolves as a local ref
+  ok   control needle: the live list names the pushed branch tips
+  ok   a pushed commit is reachable on the live remote
+  ok   an ancestor of a live tip is reachable
+  ok   a local-only commit is NOT reachable on the live remote
+  ok   control: the stale tracking ref origin/topic still exists locally
+  ok   a commit only a stale tracking ref knows is NOT reachable
+  ok   a remote that cannot be asked proves nothing (empty live list)
+  ok   a malformed sha is never reachable
+  ok   an unknown remote contributes nothing
+# F5: push detection logic
+  ok   identical marks: no push
+  ok   a reflog mark moved: push
+  ok   the remote advertises other branches: push
+  ok   a remote that answered before and cannot be asked after fails closed
+[constitution] WARN: no-push check: remote 'origin' of the project could not be asked before the agent run; a push to it cannot be seen (skipped, not trusted)
+  ok   unasked before, asked after: not counted (no baseline)
+  ok   R: an unchanged tracking ref is no push
+  ok   R: a ref that moved with a fetch in its reflog is no push
+  ok   R: a ref that moved with no fetch in its reflog is a push
+  ok   R: a new tracking ref with no fetch in its reflog is a push
+# F7 / B6: external text reaches the terminal only through the sanitising emitters
+  ok   bidi overrides, isolates, ESC and BEL are stripped
+  ok   visible text survives the sanitiser
+  ok   plain text is unchanged
+  ok   hi_say sanitises
+  ok   hi_err sanitises
+  ok   install_constitution.sh: every print to the terminal that expands a variable goes through the sanitiser
+  ok   control needle: install_constitution.sh uses the sanitiser (12 places)
+  ok   update_constitution.sh: every print to the terminal that expands a variable goes through the sanitiser
+  ok   control needle: update_constitution.sh uses the sanitiser (6 places)
+  ok   mutant: an injected raw print is found by the static scan
+# F8: the truncation sentinel check compares the LAST line with the sentinel call
+  ok   installer: last line is the sentinel call
+  ok   mutant: a copy whose last line lacks the sentinel is told apart
+  ok   a copy without the sentinel refuses (exit 2)
+# F10: protocol.file.allow only for local URLs
+  ok   local path: -c protocol.file.allow=always
+  ok   file URL: -c protocol.file.allow=always
+  ok   https URL: no protocol override
+  ok   ssh URL: no protocol override
+  ok   every 'submodule update --init' call in the installer goes through hi_git_url (3 of 6 code lines)
+# B17: the add path no longer relies on hi_on_remote of the local clone's own refs
+  ok   hi_do_add proves reachability against hi_remote_live
+  ok   hi_do_add never calls hi_on_remote without a live list
+# F1 end to end: the updater refuses a ref only a stale remote-tracking branch knows
+  ok   control: the tracking ref origin/stale-topic exists after --check
+  ok   control: while the branch exists upstream the updater accepts it (exit 0)
+  ok   control: the gitlink moved to the branch tip
+  ok   after the branch is deleted upstream the updater refuses the stale ref (exit != 0)
+  ok   the refusal says no remote has it
+  ok   the gitlink was NOT moved to the unfetchable commit
+# F4: a committed symlink 'submodules' -> outside is refused before anything is cloned
+  ok   symlinked submodules dir: exit 3
+  ok   nothing was placed outside the project
+  ok   the message names the symlink
+  ok   control: the same project without the symlink installs (exit 0)
+# F5 / B9: a push by the agent is detected (UNIT-CLASS: the claude binary is a labelled FAKE)
+  ok   control: an agent that does not push ends with exit 0
+  ok   push mode 'plain' is detected (exit 5)
+  ok   push mode 'nolog' is detected (exit 5)
+  ok   push mode 'expire' is detected (exit 5)
+  ok   push mode 'sub' is detected (exit 5)
+# B17: the add path proves the ref against the LIVE remote (a branch deleted after the clone is refused)
+  ok   control: the installer paused after the clone
+  ok   the installer refuses a ref the remote no longer has (exit != 0)
+  ok   the message says the remote does not advertise it
+  ok   no gitlink was added
+# bounded clone timeout (UNIT-CLASS: a git shim that hangs on clone, labelled)
+  ok   a hanging clone is cut off by the timeout (took 5s, well under 60)
+  ok   the install fails instead of hanging (exit != 0)
+  ok   outside test mode the clone-timeout switch does nothing (no HELIX_INSTALLER_TEST)
+# B14: the updater's INT and TERM traps remove its lock (UNIT-CLASS: the hook is a labelled fixture that sleeps)
+  ok   INT: control: the updater reached the hook
+  ok   INT during the hook: exit 130
+  ok   INT: no lock or temp file left
+  ok   TERM: control: the updater reached the hook
+  ok   TERM during the hook: exit 143
+  ok   TERM: no lock or temp file left
+  ok   --help documents that a TERM/INT is acted on after the foreground child exits
+round6: PASS 140 FAIL 0

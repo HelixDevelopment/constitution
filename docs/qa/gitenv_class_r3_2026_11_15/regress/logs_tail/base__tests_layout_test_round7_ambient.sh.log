@@ -1,0 +1,43 @@
+PASS: SA: ambient CONST_DIR naming ANOTHER project's checkout -> setup.sh refuses (rc=2), says why
+PASS: SA: ... nothing written in either project, post-update hook never called
+PASS: SA-control: CONST_DIR naming THIS checkout -> accepted, hooks installed in A only (rc=0)
+PASS: SA-cwd: A's setup.sh run from INSIDE project B (no env) -> writes A, never B (rc=0)
+PASS: SV: vendored copy + ambient PROJECT_ROOT of another repo -> that repo byte-for-byte unchanged (rc=0)
+PASS: SV: ... the owning work tree got the hooks, the hook ran for it, the ambient value was reported
+PASS: SV-control: EXPLICIT --project-root of the other repo -> honoured (hooks there, rc=0)
+PASS: SV: vendored copy + ambient CONST_DIR of another checkout -> refused (rc=2), nothing written
+PASS: G4-lib: custom-path GITLINK (vendor/helix) wins over a plain ./constitution copy (<tmp>/layout_test.KpL7CM/projG/vendor/helix)
+PASS: G4-post-merge: the gitlink bump at vendor/helix is resolved (not the plain copy) and reported
+PASS: G4-control: a tree with only the plain copy still resolves it (<tmp>/layout_test.KpL7CM/plain_custom/constitution)
+PASS: G5: de-initialised gitlink moved + a plain ./constitution copy -> 'no initialized checkout' warning, the copy is NOT used
+PASS: G5 control: the post-merge hook really ran (it is installed and executable)
+PASS: PA-1: ambient PROJECT_ROOT of another repo -> that repo byte-for-byte unchanged by EVERY step (rc=1)
+PASS: PA-1: ... the owner got the writes (git hook + .claude) and the WARNING names the ignored value
+PASS: PA-1: ... the steps that write into a project really ran (positive control: STEP 2, 3, 4, 4b, 4c, 4d headers)
+PASS: PA-2: run from INSIDE another repo (ambient cwd, no PROJECT_ROOT) -> that repo unchanged, the owner got the writes (rc=1)
+PASS: PA-3: ambient CONST_DIR of ANOTHER checkout -> refused (rc=1), says why, nothing written in either project
+PASS: PA-3 control: CONST_DIR + PROJECT_ROOT naming this checkout and its owner -> runs, owner written (rc=1)
+PASS: PA-4: EXPLICIT --project-root of another repo -> honoured (hook installed there, rc=1)
+PASS: PA-5: vendored real copy + ambient PROJECT_ROOT of another repo -> that repo unchanged, the owning work tree chosen (rc=1)
+PASS: PL (valid delegation value) under a HELD install lock: the hook ran its writing steps (owner written, STEP 4 reached)
+PASS: PL (valid): no lock-based refusal, and the install lock is byte-for-byte untouched and still present
+PASS: PL (foreign-live delegation value) under a HELD install lock: the hook ran its writing steps (owner written, STEP 4 reached)
+PASS: PL (foreign-live): no lock-based refusal, and the install lock is byte-for-byte untouched and still present
+PASS: PL (dead delegation value) under a HELD install lock: the hook ran its writing steps (owner written, STEP 4 reached)
+PASS: PL (dead): no lock-based refusal, and the install lock is byte-for-byte untouched and still present
+PASS: PL (garbage delegation value) under a HELD install lock: the hook ran its writing steps (owner written, STEP 4 reached)
+PASS: PL (garbage): no lock-based refusal, and the install lock is byte-for-byte untouched and still present
+PASS: PL (unset delegation value) under a HELD install lock: the hook ran its writing steps (owner written, STEP 4 reached)
+PASS: PL (unset): no lock-based refusal, and the install lock is byte-for-byte untouched and still present
+PASS: PO fixture: pu_owner_of extracted from post_update_hook.sh
+PASS: PO: owner of real_amb/submodules/constitution: lib='<tmp>/layout_test.KpL7CM/real_amb'(0) == post_update='<tmp>/layout_test.KpL7CM/real_amb'(0)
+PASS: PO: owner of real_vendored/constitution: lib='<tmp>/layout_test.KpL7CM/real_vendored'(0) == post_update='<tmp>/layout_test.KpL7CM/real_vendored'(0)
+PASS: PO: owner of standalone: lib=''(1) == post_update=''(1)
+PASS: PO: owner of nogit/constitution: lib=''(1) == post_update=''(1)
+PASS: PO: owner of projA/submodules/constitution: lib='<tmp>/layout_test.KpL7CM/projA'(0) == post_update='<tmp>/layout_test.KpL7CM/projA'(0)
+PASS: PO-needle: a submodule's owner is its project (<tmp>/layout_test.KpL7CM/real_amb)
+PASS: PO-needle: a standalone clone has NO owner
+PASS: setup.sh parses
+PASS: post_update_hook.sh parses
+----
+round7_ambient: PASS=41 FAIL=0

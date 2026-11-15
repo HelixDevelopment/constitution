@@ -1,0 +1,2 @@
+INFO: no triplet manifest in <scratch>/qa-results/fastcycle/us1/red/T015 (0 *_FC1_* log(s) present without a mode=real manifest are not consumed: without one their timer setting and window cannot be verified) -- run capture_fc_timer_triplet.sh
+FATAL: no real pre_build evidence log found (no triplet manifest, and no FC_TIMER_GOLDEN_LOG / prebuild_full_run_*.log in <scratch>/qa-results/fastcycle/us1/red/T015).

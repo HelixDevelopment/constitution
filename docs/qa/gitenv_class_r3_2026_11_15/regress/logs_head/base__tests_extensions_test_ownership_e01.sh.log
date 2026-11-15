@@ -1,0 +1,161 @@
+### E01 add writes the fact
+  ok   setup: P2 adds
+  ok   E01 add wrote <id>.added.json in the state dir
+  ok   E01 fact file is mode 0600
+  ok   E01 fact is bound to the constitution root realpath
+  ok   E01 fact names the tree identity
+  ok   E01 fact holds no secret key material
+  ok   E01 a fact made by add says so (via add)
+  ok   E01 a fact made by add carries no attestation
+### E01 the F-1 attack: copied lock, then enable, then remove
+  ok   E01 enable did NOT create the add-only fact in the second clone
+  ok   E01 remove after enable in a copied-lock clone is refused (rc 3)
+  ok   E01 the shared tree is intact
+  ok   E01 the real owner still verifies
+### E01 enable by the owner keeps the fact and the owner can still remove
+  ok   E01 owner enable rc 0
+  ok   E01 fact still there after owner enable
+### E01 forged / mismatched facts are refused
+  ok   E01 fact with a bad MAC refused
+  ok   E01 tree intact after bad-MAC refusal
+  ok   E01 fact signed for another constitution root refused
+  ok   E01 tree intact after wrong-root refusal
+  ok   E01 fact for another digest refused
+  ok   E01 no fact (installed before facts existed): refused rc 3
+  ok   E01 the refusal says what is missing
+  ok   E01 tree intact
+  ok   E01 fact for another tree identity: remove drops only the lock entry (rc 0)
+  ok   E01 the tree it could not prove is left in place
+  ok   E01 the decision is reported
+  ok   E01 setup: fresh add
+  ok   E01 control: the genuine owner with the genuine fact removes (rc 0)
+  ok   E01 control: tree gone
+  ok   E01 control: fact deleted with the lock entry
+### E01 an add killed after the lock was written rolls the fact forward
+  ok   E01 the add was killed at add:locked (journal left behind)
+  ok   E01 before recovery the fact is not there yet
+  ok   E01 after recovery the fact exists
+  ok   E01 the recovered owner can remove (rc 0)
+### R2 Q1 legacy install: refusal names adopt-install; adopt-install is explicit and attested
+  ok   R2 setup: P3 adds
+  ok   R2 legacy: remove refused rc 3
+  ok   R2 legacy: the refusal names the next step (adopt-install)
+  ok   R2 legacy: the refusal no longer claims only the add checkout can remove it
+  ok   R2 legacy: the refusal says a copy of the checkout carries the fact too
+  ok   R2 legacy: re-add is still a no-op (rc 0)
+  ok   R2 legacy: re-add created no fact (nothing adopted implicitly, D6)
+  ok   R2 legacy: re-add points at adopt-install
+  ok   R2 adopt-install without an attestation reference: usage rc 2
+  ok   R2 no fact after the usage error
+  ok   R2 adopt-install without a terminal (CONSTITUTION_EXT_NO_TTY=1): rc 3
+  ok   R2 no fact without confirmation
+  ok   R3 A1 the no-terminal refusal says an operator at a terminal is needed
+  ok   R3 A1 the no-terminal refusal names no bypass flag (--yes)
+  ok   R3 A1 the no-terminal refusal says nothing was adopted
+  ok   R3 A1 adopt-install does not accept --yes (usage rc 2)
+  ok   R3 A1 the --yes refusal is the usage error
+  ok   R3 A1 no fact after adopt-install --yes
+  ok   R3 A1 no controlling terminal: rc 3
+  ok   R3 A1 the /dev/tty refusal says an operator at a terminal is needed
+  ok   R3 A1 the /dev/tty refusal names no bypass flag (--yes)
+  ok   R3 A1 no fact without a controlling terminal
+  ok   R2 adopt-install dry-run rc 0
+  ok   R2 dry-run wrote no fact
+  ok   R2 a token-shaped attestation reference is refused (rc 2)
+  ok   R2 the token refusal is about the reference, not a flag
+  ok   R3 R2 a wrong id typed at the tty prompt: rc 3
+  ok   R3 R2 the tty prompt was shown
+  ok   R3 R2 a wrong id is refused as not confirmed
+  ok   R3 R2 no fact after a wrong id
+  ok   R3 R2 an empty answer at the tty prompt: rc 3
+  ok   R3 R2 no fact after an empty answer
+  ok   R4 N3 a superstring of the id (hooks-fixture-extra) at the tty prompt: rc 3
+  ok   R4 N3 the prompt was shown for the superstring case
+  ok   R4 N3 no fact after a superstring of the id
+  ok   R4 N3 a case variant of the id (HOOKS-FIXTURE) at the tty prompt: rc 3
+  ok   R4 N3 the prompt was shown for the case-variant case
+  ok   R4 N3 no fact after a case variant of the id
+  ok   R4 N3 CONSTITUTION_EXT_NO_TTY=1 at a real terminal, right id ready: rc 3
+  ok   R4 N3 CONSTITUTION_EXT_NO_TTY=1: no prompt is shown
+  ok   R4 N3 CONSTITUTION_EXT_NO_TTY=1: the refusal says terminal prompts are disabled
+  ok   R4 N3 no fact with CONSTITUTION_EXT_NO_TTY=1 at a terminal
+  ok   R2 adopt-install with attestation and the id typed at the tty: rc 0
+  ok   R3 R2 the tty prompt was shown before the fact was written
+  ok   R2 adopt-install wrote the fact
+  ok   R2 the fact is marked adopted, not added
+  ok   R2 the fact records the attestation reference
+  ok   R2 the adopted fact is mode 0600
+  ok   R2 the audit log records adopt-install with its attestation
+  ok   R2 the audit line names the attestation
+  ok   R2 adopt-install over a valid fact: rc 0, nothing to do
+  ok   R2 the valid fact is not rewritten
+  ok   R2 after adoption the checkout removes it (rc 0)
+  ok   R2 tree gone after remove of the adopted install
+  ok   R2 adopted fact deleted with the lock entry
+  ok   R2 adopt-install of an id not in the lock: rc 3
+  ok   R3 adopt-install of an id not in the lock (operator at a terminal, right id ready): rc 3
+  ok   R3 adopt-install of an id not in the lock: refused before the confirmation prompt
+  ok   R3 adopt-install of an id not in the lock: no fact written
+### R2 Q1 adopt-install refuses what it cannot check
+  ok   R2 setup: P4 adds
+  ok   R2 copied lock with no state record: adopt-install refused rc 3
+  ok   R2 no fact in the copied-lock clone
+  ok   R3 copied lock with no state record (operator at a terminal, right id ready): rc 3
+  ok   R3 copied lock with no state record: refused before the confirmation prompt
+  ok   R3 copied lock with no state record: no fact written
+  ok   R2 tree differs from the lock: adopt-install refused rc 5
+  ok   R2 no fact for a tree that does not verify
+  ok   R3 tree differs from the lock (operator at a terminal, right id ready): rc 5
+  ok   R3 tree differs from the lock: refused before the confirmation prompt
+  ok   R3 tree differs from the lock: no fact written
+  ok   R2 tree absent: adopt-install refused rc 3
+  ok   R2 tree is a symlink: adopt-install refused rc 3
+  ok   R2 no fact through a symlinked tree
+  ok   R3 tree is a symlink (operator at a terminal, right id ready): rc 3
+  ok   R3 tree is a symlink: refused before the confirmation prompt
+  ok   R3 tree is a symlink: no fact written
+  ok   R2 adopt-install over a fact that does not verify: refused rc 3
+  ok   R2 an existing fact that does not verify is never overwritten
+  ok   R2 setup: P9 enables the bundled hello-fixture
+  ok   R2 a bundled lock entry is never adopted as an install (rc 3)
+  ok   R2 no fact for a bundled entry
+  ok   R3 a bundled lock entry (operator at a terminal, right id ready): rc 3
+  ok   R3 a bundled lock entry: refused before the confirmation prompt
+  ok   R3 a bundled lock entry: no fact written
+### R2 F6 a symlink at a per-id state path fails closed BEFORE anything is staged
+  ok   R2 F6 hooks-fixture.added.json is a symlink: add refused rc 5
+  ok   R2 F6 hooks-fixture.added.json: the symlink target was not written
+  ok   R2 F6 hooks-fixture.added.json: no tree was installed
+  ok   R2 F6 hooks-fixture.added.json: no journal left behind
+  ok   R2 F6 hooks-fixture.added.json: no lock entry
+  ok   R2 F6 hooks-fixture.json is a symlink: add refused rc 5
+  ok   R2 F6 hooks-fixture.json: the symlink target was not written
+  ok   R2 F6 hooks-fixture.json: no tree was installed
+  ok   R2 F6 hooks-fixture.json: no journal left behind
+  ok   R2 F6 hooks-fixture.json: no lock entry
+### R2 F7 recovery that deletes the state record deletes the fact too
+  ok   R2 setup: P7 adds
+  ok   R2 F7 the remove was killed after the lock was written (journal left)
+  ok   R2 F7 precondition: lock entry already gone
+  ok   R2 F7 precondition: the fact is still there before recovery
+  ok   R2 F7 remove-journal recovery deleted the state record
+  ok   R2 F7 remove-journal recovery deleted the fact
+  ok   R2 F7 the tree is gone
+  ok   R2 setup: P8 adds
+  ok   R2 F7 precondition: fact present before the commit-journal recovery
+  ok   R2 F7 commit-journal recovery deleted the state record
+  ok   R2 F7 commit-journal recovery deleted the fact
+### R3 A1 the P10 chain stays closed: copied lock + enable + adopt-install without a terminal keeps the tree
+  ok   R3 A1 setup: P10 adds
+  ok   R3 A1 setup: P11 enable on the copied lock writes a state record
+  ok   R3 A1 precondition: P11 holds a state record
+  ok   R3 A1 P11 remove refused (no install fact)
+  ok   R3 A1 the remove refusal names no bypass flag for adopt-install
+  ok   R3 A1 P11 adopt-install --yes is a usage error
+  ok   R3 A1 P11 adopt-install without a terminal refused
+  ok   R3 A1 P11 holds no install fact
+  ok   R3 A1 P11 remove still refused
+  ok   R3 A1 the shared tree P10 installed is still there
+  ok   R3 A1 P10 still verifies its install
+  ok   R3 A1 cleanup: P10 removes its own install
+ownership-e01: PASS 150 FAIL 0

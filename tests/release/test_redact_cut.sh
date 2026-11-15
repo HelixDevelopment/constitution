@@ -13,6 +13,7 @@
 # Exit 0 when every case passes, 1 when a case failed, 77 when a case was SKIPPED (round 9, F5: suite_exit of
 # tests/release/env_allow.sh; RELEASE_TESTS_ALLOW_SKIP=1 makes a skip exit 0). Prints "RESULT: pass=N fail=M".
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 L="${RC_LIB:-$ROOT/scripts/release/redact_cut.sh}"
 pass=0; fail=0

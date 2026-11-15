@@ -32,11 +32,15 @@
 #   through cl__git, which scrubs in a subshell, so the resolver answers
 #   correctly even for a caller that forgot. The scrubbed set
 #   (CL_GIT_SCRUB_VARS) is the REPOSITORY-LOCATING class only: where the
-#   repository, work tree, index, object store, namespace and discovery ceiling
+#   repository, work tree, index, object store, namespace and history view
 #   are. NOT scrubbed (deliberately): configuration (GIT_CONFIG_*), author and
 #   committer identity, transport/auth (GIT_SSH*, GIT_ASKPASS, SSH_AUTH_SOCK),
-#   GIT_TEMPLATE_DIR (git init only) and GIT_DISCOVERY_ACROSS_FILESYSTEM
-#   (unset == the safe default, no repository is chosen by it).
+#   GIT_TEMPLATE_DIR (git init only) and the two discovery LIMITS
+#   GIT_CEILING_DIRECTORIES and GIT_DISCOVERY_ACROSS_FILESYSTEM: they never
+#   point git at another repository, they only bound where discovery may look,
+#   and clearing a caller's ceiling widens discovery past a fence the caller
+#   set on purpose (gitenv-class review round 2, F1: measured, the installer
+#   then planned an install into the enclosing repository).
 #   scripts/post_update_hook.sh, scripts/hooks/post-merge and
 #   scripts/hooks/constitution-submodule-post-checkout must run as lone copies
 #   and carry the same list inline; tests/layout/test_round8_git_env.sh checks
@@ -70,7 +74,7 @@ CONSTITUTION_LAYOUT_RELS="submodules/constitution constitution"
 
 # The repository-locating GIT_* variables (see the header). ONE list; the lone
 # copies (post_update_hook.sh, the two hooks) repeat it inline.
-CL_GIT_SCRUB_VARS="GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX"
+CL_GIT_SCRUB_VARS="GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX"
 
 # cl_scrub_git_env [quiet] — unset every ambient repository-locating GIT_*
 # variable in the CURRENT shell (unset-and-proceed: the repository is found

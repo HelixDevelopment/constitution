@@ -1,0 +1,41 @@
+guard-track-branch-label.sh AGENT-TYPE check test suite
+  PASS  U01 general-purpose + T1 types exist -> WARN, allow
+  PASS  U02 same + ENFORCE=1 -> BLOCK
+  PASS  U03 subagent_type absent -> WARN, allow
+  PASS  U03b subagent_type absent + ENFORCE -> BLOCK
+  PASS  U04 label type T1-main-sonnet-medium -> silent allow
+  PASS  U05a specialist Explore -> never touched (enforce)
+  PASS  U05b plugin specialist -> never touched (enforce)
+  PASS  U05c Plan -> never touched (enforce)
+  PASS  U06 no generated types at all -> silent allow (enforce)
+  PASS  U07 types only for T2, dispatch is T1 -> silent (enforce)
+  PASS  U07b dispatch T2 with T2 types -> WARN
+  PASS  U10 hand-made (unmarked) T1 type does not count (enforce)
+  PASS  U11 type track T2 but label T1 -> WARN
+  PASS  U11b same + ENFORCE -> BLOCK
+  PASS  U12 non-agent tool Bash -> untouched
+  PASS  U13 TaskCreate has no subagent_type notion -> silent
+  PASS  U13b Task tool general-purpose -> WARN
+  PASS  U09 invalid label still BLOCKS first (format)
+  PASS  U14 honest '?' track label -> type check skipped
+  PASS  U08a ENFORCE + audited bypass -> allow
+  PASS  U08b bypass reason is audited to stderr
+  PASS  U08c EMPTY bypass reason does not bypass
+  PASS  U15 WARN emits valid additionalContext JSON naming the T1 types
+  PASS  U16 no-jq fallback still blocks general-purpose under ENFORCE
+  PASS  U16b no-jq fallback still sees the model override under ENFORCE
+  PASS  U18 model override opus on a sonnet type -> WARN
+  PASS  U18b same + ENFORCE -> BLOCK
+  PASS  U19 effort override high on a -low type + ENFORCE -> BLOCK
+  PASS  U20 matching model+effort parameters -> silent (enforce)
+  PASS  U20c effort parameter in other case (LOW) equal to the type -> silent (R2-6)
+  PASS  U20b full model id naming the same family -> silent
+  PASS  U20c model 'inherit' on a label type -> BLOCK (enforce)
+  PASS  U18c warning names the overriding model
+  PASS  U21 quote/backslash in subagent_type -> valid JSON additionalContext
+  PASS  U22 label T7 with type T007-main-sonnet-low -> same track, silent (enforce)
+  PASS  U22b label T01 with generated T1 types + general-purpose -> WARN
+  PASS  U17 hook bash -n clean
+
+  total: PASS=37 FAIL=0
+  RESULT: PASS

@@ -1,0 +1,14 @@
+label=atl_git_dir mode=git_dir script=scripts/gates/cm_agent_type_label.sh rc=1 seconds=227
+repo_head=42fd128819608ef1d110e32cd1b9d4a6de6c335c
+sentinel_fingerprint_before=3fdd8b63978db9da376f48f0db1893eae0d991253a844589382d760fb621be8a
+sentinel_fingerprint_after=fc052ba80e8cd1b1da8dd44b941fe150889f75699e06479bded749c61492976e
+sentinel_head_before=56f10a66ee073726cfc8f6947bad48eaf823eddd after=30a517e5dadcbaf1b99aa13bf86bda6d933c4980 branch_before=refs/heads/sentinel after=refs/heads/sentinel
+sentinel_index_entries_after=1
+SENTINEL=CHANGED
+--- log tail ---
+✅ HOOK: a model/effort parameter that overrides the type blocks under ENFORCE; matching parameters pass
+✅ HOOK: WARN payload is valid JSON for a subagent_type with a quote and a backslash
+✅ HOOK: empty bypass reason does not bypass
+✅ HOOK: hand-made T<N> types do not count as generated (golden-FALSE)
+----------------------------------------------------------------------
+❌ CM-AGENT-TYPE-LABEL: FAIL

@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""mk_class_mutants.py <repo> <outdir>
+Census mutants: copies of scripts/validation/git_env_class_census.py, one change each, written to
+<outdir>/census/<name>.py. Gate mutants: for cm_anchor_record_complete.sh and cm_agent_type_label.sh a
+copy of the whole repository is too heavy, so the gate mutants are written as patch descriptions
+(<outdir>/gates/<name>.edit = path TAB old TAB new) and applied in place by the runner and reverted after.
+Every change must apply exactly once, else exit 2 (a no-op mutant)."""
+import os, sys
+repo, out = sys.argv[1:3]
+cen = open(os.path.join(repo, "scripts/validation/git_env_class_census.py"), encoding="utf-8").read()
+C = {
+    "cz1_order": [("            if at > line:\n", "            if False:\n")],
+    "cz2_list": [("            if words != canon:\n", "            if False:\n")],
+    "cz3_stale": [("    for f in sorted(set(exempt) - members):\n", "    for f in []:\n")],
+    "cz4_order_no_needles": [("            if at > line:\n", "            if False:\n"), ("    if bad:\n        return blind(", "    if False:\n        return blind(")],
+    "cz5_list_no_needles": [("            if words != canon:\n", "            if False:\n"), ("    if bad:\n        return blind(", "    if False:\n        return blind(")],
+    "cz6_reason_any": [("cols[1] not in REASONS or ", "")],
+}
+os.makedirs(os.path.join(out, "census"), exist_ok=True)
+for name, edits in C.items():
+    t = cen
+    for old, new in edits:
+        if t.count(old) != 1:
+            print("NO-OP census mutant %s: %r x%d" % (name, old[:40], t.count(old))); sys.exit(2)
+        t = t.replace(old, new)
+    open(os.path.join(out, "census", name + ".py"), "w", encoding="utf-8").write(t)
+    print("census", name)
+# gate mutants: remove the scrub line of each named gate
+os.makedirs(os.path.join(out, "gates"), exist_ok=True)
+for name, rel in (("gx1_anchor_no_scrub", "scripts/gates/cm_anchor_record_complete.sh"),
+                  ("gx2_agent_label_no_scrub", "scripts/gates/cm_agent_type_label.sh")):
+    t = open(os.path.join(repo, rel), encoding="utf-8").read()
+    lines = [l for l in t.split("\n") if l.startswith("for _ge_v in ") and "git-env-hermetic" in l]
+    if len(lines) != 1:
+        print("NO-OP gate mutant %s: %d scrub lines" % (name, len(lines))); sys.exit(2)
+    with open(os.path.join(out, "gates", name + ".edit"), "w", encoding="utf-8") as fh:
+        fh.write(rel + "\n" + lines[0] + "\n")
+    print("gate", name)

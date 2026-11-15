@@ -1,0 +1,28 @@
+PASS rotate with --source rc=0
+PASS archive 03_first_rot.md created
+PASS archive holds the previous latest.md
+PASS latest.md now holds the source
+PASS lock released
+PASS 01_old.md untouched
+PASS rotate without --source (rc=0)
+PASS 04 archive = previous latest
+PASS latest.md unchanged copy without --source
+PASS latest.md and archive are distinct files
+PASS dry-run rc=0
+PASS dry-run plan names 05_third_rot.md
+PASS dry-run changed nothing (digest equal)
+PASS same NAME again is a collision (rc=3)
+PASS missing --source file (rc=3)
+PASS --source is a directory (rc=3)
+PASS --source without PROMPT block (rc=3)
+PASS no NAME (rc=2)
+PASS unknown flag (rc=2)
+PASS --help (rc=0)
+PASS latest.md missing refuses (rc=3)
+PASS refusals changed nothing
+PASS rotate inside git repo (rc=0)
+PASS git sees latest.md modified
+PASS git sees new 03_git_rot.md
+PASS archive equals committed latest.md
+PASS exactly two paths changed in git
+RESULT: integration pass=27 fail=0 skip=0

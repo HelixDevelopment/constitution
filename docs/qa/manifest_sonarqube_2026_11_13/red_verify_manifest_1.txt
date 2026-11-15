@@ -1,0 +1,5 @@
+MANIFEST: census file without manifest row: scripts/sonarqube/tests/test_registry_login.sh
+MANIFEST: census file without manifest row: scripts/sonarqube/tests/test_registry_login_mutation_test.sh
+MANIFEST: census file without manifest row: scripts/sonarqube/tests/test_registry_login_wiring.sh
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=27 py/fixture=14 py/member=24 runall/entry=9 sh/entry=357 sh/excluded=26 sh/fixture=111 sh/member=313 total=901
+RESULT: MANIFEST-MISMATCH (3 problem(s); nothing was run)

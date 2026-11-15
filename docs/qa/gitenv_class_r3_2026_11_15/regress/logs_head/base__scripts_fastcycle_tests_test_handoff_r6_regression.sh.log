@@ -1,0 +1,36 @@
+=== R6 regression guard: control needle -- fixtures + the fixed tool + pinned copy all exist ===
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/orchestration/handoff.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r6_fix.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_r6_dangling_symlink_dep/handoff.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_r6_nan_handoff_id/handoff.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_r6_typed_id_dedup/handoff.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_r6_dangling_symlink_dep/tree_current/dep_a/broken_link not found (not even a symlink)
+NOT ok control needle FAILED: broken_link is not actually a symlink (fixture setup regressed)
+
+=== R6-I1(a): dangling symlink under a git-tree external dep's tree_current/ ===
+NOT ok R6-I1(a) real (fixed) tool: rc=2 (wanted 1/EXIT_FINDING), out_exists=no
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r6_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok R6-I1(a) guard-viability BLIND: pinned copy wrote no --out but its
+     stderr does not show the expected Traceback+FileNotFoundError -- python3: can't open file '<tmp>/tmp.aF5KgQgG7F/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+
+=== R6-I1(b): non-finite JSON constant (handoff_id: NaN) in --handoff ===
+NOT ok R6-I1(b) real (fixed) tool: rc=2 (wanted 2), out_exists=no, stderr=python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r6_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok R6-I1(b) guard-viability BLIND: pinned copy wrote no --out but its
+     stderr does not show the expected Traceback+ValueError -- python3: can't open file '<tmp>/tmp.aF5KgQgG7F/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+
+=== N1: mixed-type affects_verified ids ([1, true]) must NOT collapse in facts_needing_reverification ===
+NOT ok N1 real (fixed) tool: rc=2 (wanted 1), out_exists=no
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r6_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok N1 guard-viability BLIND: the pinned pre-R6-fix copy wrote no --out
+     at all (wanted a real, GEOMETRICALLY-COLLAPSED document, not a
+     crash) -- python3: can't open file '<tmp>/tmp.aF5KgQgG7F/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+
+=== R6 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

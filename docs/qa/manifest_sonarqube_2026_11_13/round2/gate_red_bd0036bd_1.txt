@@ -1,0 +1,10 @@
+# run: rc=1 wall=11s load_start=95.61 load_end=94.97 cmd=bash <scratch>/repo/scripts/gates/cm_full_suite_manifest_complete.sh --root <scratch>/redbd.q3loD2/c
+CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (missing row, stale row, unaccepted excluded set, stale guide block, duplicated row)
+CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL — census file without manifest row: scripts/sonarqube/tests/test_registry_login.sh
+CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL — census file without manifest row: scripts/sonarqube/tests/test_registry_login_mutation_test.sh
+CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL — census file without manifest row: scripts/sonarqube/tests/test_registry_login_wiring.sh
+CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL — <scratch>/redbd.q3loD2/c (HEAD bd0036bdcd80): 3 manifest problem(s) in the committed tree.
+  fix: bash scripts/run_full_suite.sh --generate-manifest --write && bash scripts/run_full_suite.sh --sync-guide,
+       review the new rows, commit them with the test files; a duplicated row or a row with the wrong column
+       count is fixed by hand in config/full_suite_manifest.tsv; an excluded-set change needs the operator's
+       --verify-manifest --accept-excluded-change <rostered id>

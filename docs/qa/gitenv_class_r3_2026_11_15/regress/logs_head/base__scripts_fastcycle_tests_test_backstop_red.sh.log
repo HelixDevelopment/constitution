@@ -1,0 +1,110 @@
+== T060 RED: full backstop lane, drift monitor, guard-freshness queue (plan T-C10; FR-006, FR-022, SC-003) ==
+ok tool exists at <scratch>/base/scripts/fastcycle/gates/backstop.sh -- T-C10/T077 has landed; the invocation
+   checks in Section D below are the real functional tests to run
+NOTE: <scratch>/base/scripts/fastcycle/gates/ holds 10 non-.gitkeep file(s) already --
+      re-check whether T-C10 (or a sibling gates/ task) has
+      partially landed
+FAIL: control needle FAILED: specs/004-fast-dev-cycles/contracts/ itself
+   could not be resolved -- cannot confirm the no-contract claim
+PASS: control needle: nothing under <scratch>/base/scripts/fastcycle/gates/ imports this test's
+   own reference drift/freshness-queue modules -- their
+   independence is confirmed LIVE, not assumed
+PASS: bs_selection_hole: reference detector reports DRIFT gate=GATE-HOLE
+   fast=ABSENT full=FAIL (exit 1) -- matching this fixture's own
+   README claim; the golden-bad pair is confirmed non-vacuous
+PASS: bs_selection_hole: reference detector reports DRIFT_COUNT=1 --
+   exactly the one planted hole, no phantom drifts on GATE-A/B/C
+PASS: bs_negctrl_equal: reference detector reports NO_DRIFT DRIFT_COUNT=0
+   (exit 0) -- matching this fixture's own README claim; the
+   negative-control pair is confirmed non-vacuous
+PASS: control needle: bs_negctrl_equal/GATE-B is genuinely FAIL in
+   BOTH fast_verdicts.json and full_verdicts.json (raw JSON
+   read directly) -- the NO_DRIFT verdict above is proven to
+   come from 'the fast lane ALSO caught this FAIL', never
+   from 'nothing failed anywhere'
+PASS: control needle: an intersection-only ('ignore gates absent from
+   fast') comparison of bs_selection_hole's own two documents
+   finds ZERO drifts -- disagreeing with the correct reference
+   detector's DRIFT_COUNT=1 above -- proving this fixture
+   genuinely REQUIRES the 'gate entirely absent from fast'
+   branch of DEC-17's rule, not merely a coincidence of the
+   'present with wrong verdict' branch
+PASS: bs_freshness_queue: reference builder emits the exact
+   required drain order GUARD-HIGH, GUARD-MID, GUARD-TIE,
+   GUARD-NEVER (most-reopened-first, then stalest-first on
+   the GUARD-MID/GUARD-TIE tie) -- exit 0
+PASS: bs_freshness_queue: GUARD-FRESH (reopens_count=99, the
+   single highest of all 5 guards) is genuinely ABSENT from
+   the queue output -- the freshness gate correctly
+   excludes it despite its reopens_count, confirming this
+   negative control is non-vacuous
+PASS: bs_freshness_queue: reference builder reports FRESH_COUNT=1
+   STALE_COUNT=4, matching the registry's 1 fresh / 4 stale
+   guard split
+PASS: control needle: a staleness-ONLY ordering of the same stale
+   set puts GUARD-NEVER FIRST (order: GUARD-NEVER GUARD-HIGH GUARD-MID GUARD-TIE),
+   which DIFFERS from the correct most-reopened-first order
+   above -- proving reopens_count genuinely dominates the
+   primary sort, this is not a fixture where both orderings
+   coincide
+PASS: control needle: ranking ALL 5 guards by reopens_count alone
+   (ignoring freshness) puts GUARD-FRESH at rank 1 -- which
+   the correct freshness-gated queue above correctly
+   EXCLUDES entirely, proving the freshness gate is a real,
+   necessary, separate mechanism from the reopens-count
+   ranking
+PASS: determinism: two consecutive reference-builder runs on the
+   same registry+fingerprint produce byte-identical output
+PASS: bs_selection_hole: backstop.sh compare reports drift naming
+   GATE-HOLE and exits 1 (block) as expected
+PASS: bs_negctrl_equal: backstop.sh compare reports NO_DRIFT and
+   exits 0 as expected
+PASS: bs_freshness_queue: backstop.sh freshness-queue ranks GUARD-HIGH
+   first (most-reopened) and excludes GUARD-FRESH entirely,
+   exit 0 as expected
+
+=== T060 contract stub 1/3: compare wire format (drift detection + block) ===
+NOT YET IMPLEMENTED: backstop.sh MUST accept 'compare --fast
+  <fast_verdicts.json> --full <full_verdicts.json> --out <drift.json>
+  [--apply --map <gate_map.json>]' -- inputs are verdicts/v1-shaped
+  documents (reusing affected-set-and-verdict-cache.md's existing
+  schema); DEC-17 drift = full verdict FAIL and fast verdict != FAIL
+  for the same gate_id (absent from fast counts as != FAIL). Exit 0
+  + stdout first line 'NO_DRIFT' when DRIFT_COUNT is 0; exit 1
+  (block, release blocker per DEC-17/C-001) + one 'DRIFT gate=<id>
+  fast=<verdict|ABSENT> full=FAIL' line per drifting gate (sorted by
+  gate_id) + 'DRIFT_COUNT=<n>' otherwise. --out writes a
+  backstop_drift/v1 document per C-002; the --apply --map pair (the
+  DEC-17/AS-010a force-full write-back) is out of this RED test's
+  scope -- see fixtures/backstop/README.md 'What this RED test does
+  NOT cover'.
+
+=== T060 contract stub 2/3: freshness-queue wire format ===
+NOT YET IMPLEMENTED: backstop.sh MUST accept 'freshness-queue
+  --registry <registry.json> --fingerprint <fp> --out <queue.json>'.
+  A guard is STALE (queued) iff its stored last_verdict_fingerprint
+  != <fp> (never-executed counts as stale); a guard whose stored
+  fingerprint MATCHES <fp> is FRESH and is excluded from the queue
+  REGARDLESS of reopens_count (§11.4.226's freshness contract
+  gates membership). Queue order: reopens_count descending
+  (§11.4.189 most-reopened-first) PRIMARY, staleness descending
+  (older/absent last_verdict_at first) SECONDARY tie-break only.
+  Exit 0 always; stdout one 'QUEUE <rank> guard=<id> reopens=<n>'
+  line per queued guard in drain order, then 'FRESH_COUNT=<n>'
+  'STALE_COUNT=<m>'.
+
+=== T060 contract stub 3/3: run subcommand + honest scope ===
+NOT YET IMPLEMENTED: 'backstop.sh run --config <cfg> --no-cache --out
+  <full_verdicts.json>' composes $FC/gates/gate_runner.sh over EVERY
+  gate (no --affected narrowing, --no-cache) to produce the full
+  lane's verdicts/v1 document consumed by 'compare' above -- NOT
+  exercised by this RED test's fixtures (it requires a real gate
+  corpus + gate_runner.sh, neither constructed here; T077's own
+  implementer-task job, §11.4.240). The scheduling triggers DEC-17
+  names for WHEN the full lane runs (before every release tag,
+  nightly on main when the fast lane ran that day, on any gate-
+  engine/map/key change) and the --apply --map force-full write-back
+  are likewise out of this RED test's scope -- see
+  fixtures/backstop/README.md 'What this RED test does NOT cover'.
+
+SUMMARY pass=15 fail=1

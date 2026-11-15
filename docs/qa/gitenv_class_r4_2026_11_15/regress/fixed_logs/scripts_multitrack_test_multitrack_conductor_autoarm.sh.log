@@ -1,0 +1,10 @@
+OK   (A) STARTED with derived alias=claudeTEST943306 track=track-1 transcript=/mnt/DATA1TB/claude-work/tmp/caa.iUseyq/.claude-claudeTEST943306/projects/-mnt-DATA1TB-claude-work-tmp-caa.iUseyq-proj/session.jsonl
+OK   (A) monitor launched exactly once with correct daemon args
+OK   (B) 2nd call emitted ALREADY (idempotent)
+OK   (B) no 2nd monitor started (invocation-count still 1)
+OK   (C) no-transcript path emitted a non-silent NOTE (never a silent no-op)
+OK   (C) nothing launched on the graceful-absent path
+OK   (D) /mnt/track3 -> track-3 derived
+OK   (D) non-/mnt path -> track-1 default derived
+
+== conductor auto-arm test : PASS == (evidence: /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/qa-results/multitrack_native_first_resume/20261115T115541Z/autoarm)

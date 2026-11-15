@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# sentinel_run.sh <repo-root> <out-dir> <label> <mode: git_dir|git_index_file|both|none> <script-relpath> [args...]
+# Builds a fresh sentinel repository, runs <script> from <repo-root> with the chosen ambient git
+# variable(s) aimed at the sentinel, and records whether the sentinel changed (fingerprint of every
+# path's type/size/mode and every file's sha256, .git included; mtimes excluded so a read is not a change).
+set -u
+REPO="${1:?}"; OUT="${2:?}"; LABEL="${3:?}"; MODE="${4:?}"; REL="${5:?}"; shift 5
+mkdir -p "$OUT"
+SB="$(mktemp -d "$OUT/sb.XXXX")"
+SEN="$SB/sentinel"
+for _v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES; do unset "$_v"; done
+git init -q -b sentinel "$SEN" && echo s >"$SEN/s" && git -C "$SEN" add s \
+  && git -C "$SEN" -c user.email=s@s -c user.name=s commit -q -m sentinel || { echo "setup failed"; exit 2; }
+fp() { (cd "$SEN" && { find . -printf '%p\t%y\t%s\t%m\n' | sort; find . -type f -exec sha256sum {} + | sort -k 2; } | sha256sum | cut -c1-64); }
+f0="$(fp)"; h0="$(git -C "$SEN" rev-parse HEAD)"; b0="$(git -C "$SEN" symbolic-ref HEAD)"
+case "$MODE" in
+  git_dir) ENVS=(GIT_DIR="$SEN/.git") ;;
+  git_index_file) ENVS=(GIT_INDEX_FILE="$SEN/.git/index") ;;
+  both) ENVS=(GIT_DIR="$SEN/.git" GIT_INDEX_FILE="$SEN/.git/index") ;;
+  none) ENVS=() ;;
+  *) echo "bad mode"; exit 2 ;;
+esac
+start=$(date +%s)
+( cd "$REPO" && env "${ENVS[@]}" bash "$REL" "$@" ) >"$OUT/$LABEL.log" 2>&1
+rc=$?
+end=$(date +%s)
+f1="$(fp)"; h1="$(git -C "$SEN" rev-parse HEAD 2>/dev/null)"; b1="$(git -C "$SEN" symbolic-ref HEAD 2>/dev/null)"
+st=UNCHANGED; [ "$f0" = "$f1" ] || st=CHANGED
+{
+  echo "label=$LABEL mode=$MODE script=$REL rc=$rc seconds=$((end - start))"
+  echo "repo_head=$(git -C "$REPO" rev-parse HEAD)"
+  echo "sentinel_fingerprint_before=$f0"
+  echo "sentinel_fingerprint_after=$f1"
+  echo "sentinel_head_before=$h0 after=$h1 branch_before=$b0 after=$b1"
+  echo "sentinel_index_entries_after=$(git -C "$SEN" ls-files -s | wc -l)"
+  echo "SENTINEL=$st"
+  echo "--- log tail ---"; tail -n 6 "$OUT/$LABEL.log"
+} >"$OUT/$LABEL.result.txt"
+cat "$OUT/$LABEL.result.txt" | head -8

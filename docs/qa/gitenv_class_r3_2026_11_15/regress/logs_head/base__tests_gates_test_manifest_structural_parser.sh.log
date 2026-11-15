@@ -1,0 +1,56 @@
+== prune consumer ==
+PASS prune: control well-formed
+PASS prune: F1 bare-dash item
+PASS prune: F1 quoted key
+PASS prune: F1 space before colon
+PASS prune: F3 duplicate key -> literals only
+PASS prune: flow-style deps -> literals only (cross-check)
+PASS prune: deps: [] -> literals only
+PASS prune: CRLF well-formed
+PASS prune: tab indentation -> literals only
+PASS prune: anchor/alias
+PASS prune: multi-document -> literals only
+PASS prune: deps not a list -> literals only
+PASS prune: no-PyYAML (switch) -> literals only (safe direction)
+PASS prune: no-PyYAML prints a stderr note
+PASS prune: F5 nested scalar list inside a dep is ignored, dep still parsed
+PASS prune: F5 nested list of mappings: inner third_party/path NOT promoted to a dep
+== ref gate consumer ==
+PASS ref-gate: control both match (rc 0)
+PASS ref-gate: control drift detected (rc 1)
+PASS ref-gate: F2 bare-dash dep must not hide a's drift (rc 1)
+PASS ref-gate: F2 quoted key dep must not hide a's drift (rc 1)
+PASS ref-gate: F2 space-before-colon fields parsed (drift seen) (rc 1)
+PASS ref-gate: F3 duplicate key -> BLIND (rc 2)
+PASS ref-gate: F5 nested list inside a dep: ref still compared (drift seen) (rc 1)
+PASS ref-gate: F5 nested list inside a dep: match -> 0 (rc 0)
+PASS ref-gate: flow-style deps -> BLIND (rc 2)
+PASS ref-gate: deps: [] -> BLIND (rc 2)
+PASS ref-gate: CRLF well-formed -> 0 (rc 0)
+PASS ref-gate: tab indentation -> BLIND (rc 2)
+PASS ref-gate: anchors well-formed -> 0 (rc 0)
+PASS ref-gate: multi-document -> BLIND (rc 2)
+PASS ref-gate: no-PyYAML (switch) -> BLIND, never PASS (rc 2)
+== control chars / separators in values (round 5: M-1, M-2) ==
+PASS prune: M-1 NUL in path (third_party true) must not emit src
+PASS prune: M-1 DEL in path
+PASS prune: M-1 other C0 (BEL) in path
+PASS prune: M-2 \n escape in value
+PASS prune: M-2 US separator escape in value
+PASS prune: M-2 CR escape in value
+PASS prune: M-2 literal block scalar (embedded newline)
+PASS prune: M-2 US+LF forging a second record in one value
+PASS tsv.py rc 6 for value 'src\\0'
+PASS tsv.py rc 6 for value 'src\\nx'
+PASS tsv.py rc 6 for value 'src\\x1fx'
+PASS tsv.py rc 6 for value 'src\\rx'
+PASS ref-gate: M-2 ref gate: newline in ref value -> BLIND (rc 2)
+== test overrides are NOT honoured in production (round 5: M-3) ==
+PASS override HELIX_DEPS_TSV_PY ignored without HELIX_TEST_MODE (real parser used)
+PASS ignored override prints a stderr note
+PASS override honoured with HELIX_TEST_MODE=1 under the temp root
+PASS override outside the temp root ignored even in test mode
+PASS FORCE_NO_YAML ignored without HELIX_TEST_MODE (real parse)
+== no remaining hand-written parser ==
+PASS no hand-parse residue in prune lib / ref gate
+== 50 passed, 0 failed ==

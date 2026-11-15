@@ -3,6 +3,7 @@
 # Real git and real sqlite3; the oracle is a fixture tracker whose expected facts are written by hand
 # below (never computed by the script under test). Exit 0 when every case passes; "RESULT: pass=N fail=M".
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 # round 6 (K3): the release scripts pass an allow-listed environment to their children; the state-file
 # variables of the test doubles are added to that list here (rc_env_lockdown refuses credential-like names)
 # round 11: RELEASE_ENV_KEEP reaches LOCAL children only (sqlite3 here); git runs through rc_net with the fixed

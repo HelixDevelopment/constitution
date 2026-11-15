@@ -1,0 +1,2 @@
+FAIL control: suite fails on unmutated copies: FAIL I9 test-mode outside lib rc=0: gate_env_override: ignoring SETUP_PROMPT_EXTRACT_LIB (guard lib missing: fail closed)
+RESULT: round3_mutants pass=0 fail=1 skip=0

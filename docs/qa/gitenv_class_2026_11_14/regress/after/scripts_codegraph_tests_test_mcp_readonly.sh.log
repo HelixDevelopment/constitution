@@ -1,0 +1,16 @@
+workdir <tmp>
+RESULT R1 PASS builder produces an executable runner + receipt with >=3 mcpro1 anchors
+RESULT R2 PASS RO runner answers tools/call on a drifted fixture (read path works)
+RESULT R3 PASS fd proof: RO runner holds codegraph.db O_RDONLY only (control: stock has rw)
+RESULT R4 PASS RO session on a drifted tree leaves logical DB + main file identical (control: stock changes it)
+RESULT R5 PASS dropped bulk indexes are NOT recreated by an RO session (control: stock recreates them)
+RESULT R6 PASS RO runner never starts the watcher (control: stock logs 'File watcher active')
+RESULT R7 PASS planted lock file untouched by an RO session (control: stock disturbs it)
+RESULT R8 PASS control build ok AND shape mismatch (anchor 2x) => exit 2, names the anchor, no runner dir
+RESULT R9 PASS RO runner REFUSES 'codegraph sync' (DB + planted lock untouched, non-zero exit naming helix-mcpro1; control: stock performs it)
+RESULT R10 PASS RO runner REFUSES 'codegraph index' (DB + planted lock untouched, non-zero exit naming helix-mcpro1; control: stock performs it)
+RESULT R11 PASS RO runner never starts a detached daemon even with no CODEGRAPH_NO_DAEMON (control: stock leaves daemon.log)
+RESULT R12 PASS FileLock.acquire throws + stale lock untouched on the RO runner (control: stock unlinks it)
+RESULT R13 PASS mcpro1 registered + selectable, NOT in the default patch set, exclusive with writer patches
+RESULT R14 PASS RO runner never claims a writer slot / daemon file during a live session (control: stock creates writer.pid)
+SUMMARY cases=14 failed=0

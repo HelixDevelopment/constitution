@@ -19,6 +19,7 @@
 #   H9  the key VALUE never appears in the bootstrap output or consent.json of a DEFAULT-ON run (needle scan with a control)
 # Keys are DUMMY values assembled from fragments. These are GATE-LOGIC tests (stub curl, fixture toolkit; §11.4.289(C)(2)):
 # they prove the decisions, never that a real endpoint works (the live run is docs/qa/jev_s3s4_20261112/).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 export HELIX_TEST_MODE=1
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

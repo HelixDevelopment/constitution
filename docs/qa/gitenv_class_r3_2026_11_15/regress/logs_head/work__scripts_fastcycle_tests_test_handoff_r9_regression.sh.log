@@ -1,0 +1,66 @@
+=== R9 regression guard: control needle -- fixed tool + lib both exist ===
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/orchestration/handoff.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/lib/fc_common.py not found
+
+=== R9b-I1: python -OO no longer crashes; a stale --out is never left claiming a wrong verdict ===
+NOT ok R9b-I1 real (fixed) tool FAILED: rc=2 out_exists=yes stderr=python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.J9hFEF6AjN/mut_doc/orchestration/handoff.py'
+NOT ok R9b-I1 (__doc__ fallback) guard-viability: mutation anchor not found (content drifted)
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.J9hFEF6AjN/mut_stale/orchestration/handoff.py'
+NOT ok R9b-I1 (stale-out) guard-viability: mutation anchor not found (content drifted)
+
+=== R9-I1: closed/unwritable stderr (2>/dev/full) no longer exits 120 with --out unwritten ===
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.J9hFEF6AjN/inj_boundary/orchestration/handoff.py'
+NOT ok R9-I1 real (fixed) tool: injection anchor not found (content drifted)
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.J9hFEF6AjN/mut_print/lib/fc_entry.py'
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.J9hFEF6AjN/mut_print/orchestration/handoff.py'
+NOT ok R9-I1 (_safe_print) guard-viability: mutation/injection anchor not found (content drifted)
+
+=== R9-M2: validate on a non-UTF-8 --handoff path never overwrites its own correct
+    VALID report with an internal_error doc just because the success print fails ===
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.J9hFEF6AjN/valid_src.json'
+NOT ok R9-M2 real (fixed) tool FAILED: 
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.J9hFEF6AjN/mut_print_only/lib/fc_entry.py'
+NOT ok R9-M2 (_safe_print) guard-viability: mutation anchor not found (content drifted)
+NOT ok R9-M2 (_safe_print) guard-viability BLIND: RESULT_FAIL mutation-anchor-not-found
+
+=== R9-M3: resume-check refuses a symlink escaping tree_current/ (lexically-safe, really outside) ===
+NOT ok R9-M3 real (fixed) tool FAILED: 
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.J9hFEF6AjN/mut_symlink/orchestration/handoff.py'
+NOT ok R9-M3 guard-viability: mutation anchor not found (content drifted)
+
+=== R9 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

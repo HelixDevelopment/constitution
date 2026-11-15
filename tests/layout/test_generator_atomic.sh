@@ -16,6 +16,7 @@
 #      GEN_KILL_POINTS (default "after_stage mid_commit before_prune").
 # The pause hook inside the generator is honoured only with HELIX_TEST_MODE=1 and a dir under the temp root.
 LT_SUITE="generator_atomic"
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 . "$(cd "$(dirname "$0")" && pwd)/lib_layout_harness.sh"
 GEN_SRC_ROOT="$LAYOUT_SRC_ROOT"
 KILL_POINTS="${GEN_KILL_POINTS:-after_stage mid_commit before_prune}"

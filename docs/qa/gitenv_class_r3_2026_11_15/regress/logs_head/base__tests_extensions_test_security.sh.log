@@ -1,0 +1,302 @@
+  ok   traversal path: refused with 3
+  ok   traversal path: no state change
+  ok   traversal path: no gh secret echoed
+  ok   traversal path: no aws secret echoed
+  ok   traversal path: no sk secret echoed
+  ok   traversal path: no pem secret echoed
+  ok   absolute path: refused with 3
+  ok   absolute path: no state change
+  ok   absolute path: no gh secret echoed
+  ok   absolute path: no aws secret echoed
+  ok   absolute path: no sk secret echoed
+  ok   absolute path: no pem secret echoed
+  ok   symlink escape: refused with 3
+  ok   symlink escape: no state change
+  ok   symlink escape: no gh secret echoed
+  ok   symlink escape: no aws secret echoed
+  ok   symlink escape: no sk secret echoed
+  ok   symlink escape: no pem secret echoed
+  ok   internal symlink: refused with 3
+  ok   internal symlink: no state change
+  ok   internal symlink: no gh secret echoed
+  ok   internal symlink: no aws secret echoed
+  ok   internal symlink: no sk secret echoed
+  ok   internal symlink: no pem secret echoed
+  ok   fifo special file: refused with 3
+  ok   fifo special file: no state change
+  ok   fifo special file: no gh secret echoed
+  ok   fifo special file: no aws secret echoed
+  ok   fifo special file: no sk secret echoed
+  ok   fifo special file: no pem secret echoed
+  ok   unknown top key: refused with 3
+  ok   unknown top key: no state change
+  ok   unknown top key: no gh secret echoed
+  ok   unknown top key: no aws secret echoed
+  ok   unknown top key: no sk secret echoed
+  ok   unknown top key: no pem secret echoed
+  ok   unknown nested key: refused with 3
+  ok   unknown nested key: no state change
+  ok   unknown nested key: no gh secret echoed
+  ok   unknown nested key: no aws secret echoed
+  ok   unknown nested key: no sk secret echoed
+  ok   unknown nested key: no pem secret echoed
+  ok   duplicate key: refused with 3
+  ok   duplicate key: no state change
+  ok   duplicate key: no gh secret echoed
+  ok   duplicate key: no aws secret echoed
+  ok   duplicate key: no sk secret echoed
+  ok   duplicate key: no pem secret echoed
+  ok   deep yaml: refused with 3
+  ok   deep yaml: no state change
+  ok   deep yaml: no gh secret echoed
+  ok   deep yaml: no aws secret echoed
+  ok   deep yaml: no sk secret echoed
+  ok   deep yaml: no pem secret echoed
+  ok   huge yaml: refused with 3
+  ok   huge yaml: no state change
+  ok   huge yaml: no gh secret echoed
+  ok   huge yaml: no aws secret echoed
+  ok   huge yaml: no sk secret echoed
+  ok   huge yaml: no pem secret echoed
+  ok   huge file in tree: refused with 3
+  ok   huge file in tree: no state change
+  ok   huge file in tree: no gh secret echoed
+  ok   huge file in tree: no aws secret echoed
+  ok   huge file in tree: no sk secret echoed
+  ok   huge file in tree: no pem secret echoed
+  ok   secret gh: refused with 3
+  ok   secret gh: no state change
+  ok   secret gh: no gh secret echoed
+  ok   secret gh: no aws secret echoed
+  ok   secret gh: no sk secret echoed
+  ok   secret gh: no pem secret echoed
+  ok   secret aws: refused with 3
+  ok   secret aws: no state change
+  ok   secret aws: no gh secret echoed
+  ok   secret aws: no aws secret echoed
+  ok   secret aws: no sk secret echoed
+  ok   secret aws: no pem secret echoed
+  ok   secret pem: refused with 3
+  ok   secret pem: no state change
+  ok   secret pem: no gh secret echoed
+  ok   secret pem: no aws secret echoed
+  ok   secret pem: no sk secret echoed
+  ok   secret pem: no pem secret echoed
+  ok   env value not name: refused with 3
+  ok   env value not name: no state change
+  ok   env value not name: no gh secret echoed
+  ok   env value not name: no aws secret echoed
+  ok   env value not name: no sk secret echoed
+  ok   env value not name: no pem secret echoed
+  ok   hostile id: refused with 3
+  ok   hostile id: no state change
+  ok   hostile id: no gh secret echoed
+  ok   hostile id: no aws secret echoed
+  ok   hostile id: no sk secret echoed
+  ok   hostile id: no pem secret echoed
+  ok   id injection: refused with 3
+  ok   id injection: no state change
+  ok   id injection: no gh secret echoed
+  ok   id injection: no aws secret echoed
+  ok   id injection: no sk secret echoed
+  ok   id injection: no pem secret echoed
+  ok   command name injection: refused with 3
+  ok   command name injection: no state change
+  ok   command name injection: no gh secret echoed
+  ok   command name injection: no aws secret echoed
+  ok   command name injection: no sk secret echoed
+  ok   command name injection: no pem secret echoed
+  ok   binding to missing tool: refused with 3
+  ok   binding to missing tool: no state change
+  ok   binding to missing tool: no gh secret echoed
+  ok   binding to missing tool: no aws secret echoed
+  ok   binding to missing tool: no sk secret echoed
+  ok   binding to missing tool: no pem secret echoed
+  ok   binding to missing path: refused with 3
+  ok   binding to missing path: no state change
+  ok   binding to missing path: no gh secret echoed
+  ok   binding to missing path: no aws secret echoed
+  ok   binding to missing path: no sk secret echoed
+  ok   binding to missing path: no pem secret echoed
+  ok   binding path escape: refused with 3
+  ok   binding path escape: no state change
+  ok   binding path escape: no gh secret echoed
+  ok   binding path escape: no aws secret echoed
+  ok   binding path escape: no sk secret echoed
+  ok   binding path escape: no pem secret echoed
+  ok   missing SKILL.md: refused with 3
+  ok   missing SKILL.md: no state change
+  ok   missing SKILL.md: no gh secret echoed
+  ok   missing SKILL.md: no aws secret echoed
+  ok   missing SKILL.md: no sk secret echoed
+  ok   missing SKILL.md: no pem secret echoed
+  ok   bad CHECKSUMS: refused with 5
+  ok   bad CHECKSUMS: no state change
+  ok   bad CHECKSUMS: no gh secret echoed
+  ok   bad CHECKSUMS: no aws secret echoed
+  ok   bad CHECKSUMS: no sk secret echoed
+  ok   bad CHECKSUMS: no pem secret echoed
+  ok   missing required tool: refused with 3
+  ok   missing required tool: no state change
+  ok   missing required tool: no gh secret echoed
+  ok   missing required tool: no aws secret echoed
+  ok   missing required tool: no sk secret echoed
+  ok   missing required tool: no pem secret echoed
+  ok   missing anchor: refused with 3
+  ok   missing anchor: no state change
+  ok   missing anchor: no gh secret echoed
+  ok   missing anchor: no aws secret echoed
+  ok   missing anchor: no sk secret echoed
+  ok   missing anchor: no pem secret echoed
+  ok   constitution too old: refused with 3
+  ok   constitution too old: no state change
+  ok   constitution too old: no gh secret echoed
+  ok   constitution too old: no aws secret echoed
+  ok   constitution too old: no sk secret echoed
+  ok   constitution too old: no pem secret echoed
+  ok   setuid file: refused with 3
+  ok   setuid file: no state change
+  ok   setuid file: no gh secret echoed
+  ok   setuid file: no aws secret echoed
+  ok   setuid file: no sk secret echoed
+  ok   setuid file: no pem secret echoed
+  ok   unpinned local dir without waiver refused (3)
+  ok   names waiver
+  ok   no consent and no tty refused (3)
+  ok   names consent
+  ok   nothing installed without consent
+  ok   consented add
+  ok   hooks disabled after add
+  ok   mcp disabled after add
+  ok   extension disabled after add
+  ok   lock records hooks disabled
+  ok   lock records mcp disabled
+  ok   lock components disagreeing with enabled fails verify (5)
+  ok   names components
+  ok   restored lock verifies
+  ok   policy cleanup
+  ok   no safe_rm: delete refused (3)
+  ok   names safe_rm
+  ok   option-looking source refused
+  ok   no injected file
+  ok   ext:: transport refused
+  ok   no ext:: file
+  ok   hostile agent name usage (2)
+  ok   hostile id arg usage (2)
+  ok   hostile waiver id usage (2)
+  ok   short sha usage (2)
+  ok   catalog import
+  ok   revoked add refused (3)
+  ok   says revoked
+  ok   add after catalog clears revocation
+  ok   verify flags revoked (5)
+  ok   verify ok again
+  ok   malformed catalog exits 1
+  ok   tamper detected (5)
+  ok   lock does not launder tampering (5)
+  ok   added file detected (5)
+  ok   extension code never executed
+  ok   no pwn file from id injection
+### round-3 findings
+  ok   B1 non-UTF-8 SKILL.md with !`: validate fails (1)
+  ok   B1 non-UTF-8 SKILL.md with !`: no traceback
+  ok   B1 non-UTF-8 SKILL.md with !`: add refused (3)
+  ok   B1 non-UTF-8 SKILL.md with !`: nothing installed
+  ok   m5 construct in another file of the exposed command dir: validate fails (1)
+  ok   m5 construct in another file of the exposed command dir: no traceback
+  ok   m5 construct in another file of the exposed command dir: add refused (3)
+  ok   m5 construct in another file of the exposed command dir: nothing installed
+  ok   m5 non-UTF-8 file in the exposed command dir: validate fails (1)
+  ok   m5 non-UTF-8 file in the exposed command dir: no traceback
+  ok   m5 non-UTF-8 file in the exposed command dir: add refused (3)
+  ok   m5 non-UTF-8 file in the exposed command dir: nothing installed
+  ok   B1 bundled non-UTF-8 body: enable refused (3)
+  ok   B1 no internal error
+  ok   I1 front matter variant 1: validate fails (1)
+  ok   I1 front matter variant 1: no traceback
+  ok   I1 front matter variant 1: add refused (3)
+  ok   I1 front matter variant 1: nothing installed
+  ok   I1 front matter variant 2: validate fails (1)
+  ok   I1 front matter variant 2: no traceback
+  ok   I1 front matter variant 2: add refused (3)
+  ok   I1 front matter variant 2: nothing installed
+  ok   I1 front matter variant 3: validate fails (1)
+  ok   I1 front matter variant 3: no traceback
+  ok   I1 front matter variant 3: add refused (3)
+  ok   I1 front matter variant 3: nothing installed
+  ok   I1 front matter variant 4: validate fails (1)
+  ok   I1 front matter variant 4: no traceback
+  ok   I1 front matter variant 4: add refused (3)
+  ok   I1 front matter variant 4: nothing installed
+  ok   I1 front matter variant 5: validate fails (1)
+  ok   I1 front matter variant 5: no traceback
+  ok   I1 front matter variant 5: add refused (3)
+  ok   I1 front matter variant 5: nothing installed
+  ok   I1 front matter variant 6: validate fails (1)
+  ok   I1 front matter variant 6: no traceback
+  ok   I1 front matter variant 6: add refused (3)
+  ok   I1 front matter variant 6: nothing installed
+  ok   I1 negative control: plain front matter validates
+  ok   I2 MCP /bin/sh -c curl|sh: validate fails (1)
+  ok   I2 MCP /bin/sh -c curl|sh: no traceback
+  ok   I2 MCP /bin/sh -c curl|sh: add refused (3)
+  ok   I2 MCP /bin/sh -c curl|sh: nothing installed
+  ok   I2 shell inside the MCP JSON file: validate fails (1)
+  ok   I2 shell inside the MCP JSON file: no traceback
+  ok   I2 shell inside the MCP JSON file: add refused (3)
+  ok   I2 shell inside the MCP JSON file: nothing installed
+  ok   I2 declared shell MCP installs
+  ok   I2 consent shows the MCP command
+  ok   I2 consent shows the shell capability
+  ok   I2 consent binds the MCP file content
+  ok   N12 add
+  ok   N12 consent lists env var names
+  ok   N13 consent lists hooks
+  ok   N13 consent binds the hook script content
+  ok   N14 consent lists MCP network
+  ok   m3 consent shows the trust tier
+  ok   m3 consent shows the waiver id
+  ok   m3 enable consent shows the waiver id
+  ok   I3 enable bundled
+  ok   I3 verify after enable
+  ok   I3 MCP command changed: verify fails (5)
+  ok   I3 lock refuses to refresh a widened enabled entry (3)
+  ok   I3 lock names re-consent
+  ok   I3 still failing after lock (5)
+  ok   I3 wire refused after widening
+  ok   I3 no shim written
+  ok   I3 re-consent
+  ok   I3 re-consent shows the new command
+  ok   I3 verify after re-consent
+  ok   I3 hook script body changed: verify fails (5)
+  ok   I3 lock refuses (hook body)
+  ok   I3 re-consent after hook change
+  ok   I3 verify ok again
+  ok   N02 live-owner staging dir kept
+  ok   N02 control: dead-owner staging dir collected by the same run
+  ok   N05 wire
+  ok   N05 unwire
+  ok   N05 user symlink at the shim path kept
+  ok   N28 marker below line 3 does not bind: unwire refused (5)
+  ok   N28 user file intact
+  ok   N06 verify fails (5)
+  ok   N06 names the root containment rule
+  ok   N06 unwire refused (5)
+  ok   N06 file kept
+  ok   m4 wire killed at wire:tmp (137)
+  ok   m4 temporary link left by the kill
+  ok   m4 read-only list
+  ok   I3 a read-only command recovers nothing
+  ok   m4 recovery run (a mutating command)
+  ok   m4 recovery removed the temporary link
+  ok   m4 an unrelated file matching the pattern is kept
+  ok   m1 project == root refused (3)
+  ok   m2 catalog with latest=list rejected (1)
+  ok   m2 no internal error
+  ok   catalog import
+  ok   corrupt previous catalog: import refused without --replace (5)
+  ok   corrupt previous catalog: --replace imports
+  ok   N26 tty answer 'n' declines (3)
+  ok   N26 tty answer 'maybe' declines (3)
+  ok   N26 tty answer 'y' grants (0)
+security: PASS 300 FAIL 0

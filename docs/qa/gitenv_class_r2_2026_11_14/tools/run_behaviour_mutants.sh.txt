@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# run_behaviour_mutants.sh <workdir> <commit> <id:mode>...
+# mode: census (the census exit) | fast (tests/test_git_env_class.sh --fast) | manifest
+# (tests/test_full_suite_manifest_gate_git_env.sh). Each mutant runs in its own detached worktree of the
+# scratch clone <workdir>/repo at <commit>; the continuum submodule is cloned LOCALLY from the clone's copy.
+set -u
+W="${1:?}"; C="${2:?}"; shift 2
+O="$W/ev/mutants/behaviour"; mkdir -p "$O" "$W/mutwt"
+RV=<scratchpad>/rev_gitenv.Kha0
+clean() { env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE "$@"; }
+for spec in "$@"; do
+    awk '{exit !($1 < 60)}' /proc/loadavg || { echo "load too high: $(cat /proc/loadavg)"; exit 3; }
+    id="${spec%%:*}"; mode="${spec#*:}"; wt="$W/mutwt/$id"
+    [ -e "$wt" ] && clean git -C "$W/repo" worktree remove --force "$wt"
+    clean git -C "$W/repo" worktree add -q --detach "$wt" "$C" || { echo "SETUP $id"; continue; }
+    rmdir "$wt/submodules/continuum" 2>/dev/null
+    clean git clone -q --no-hardlinks "$W/repo/submodules/continuum" "$wt/submodules/continuum" \
+        && clean git -C "$wt/submodules/continuum" checkout -q 213ad07bbe8d82763eb44bfeade3929b2ef177ec
+    case "$id" in
+        M*) python3 -I "$RV/mkmut.py" "$wt" "$id" ;;
+        N*) python3 -I "$W/tools/mk_r2_behaviour_mutants.py" "$wt" "$id" ;;
+    esac >"$O/$id.apply.txt" 2>&1 || { echo "NO-OP $id: $(cat "$O/$id.apply.txt")"; continue; }
+    (cd "$wt" && clean python3 -I scripts/validation/git_env_class_census.py) >"$O/$id.census.txt" 2>&1; crc=$?
+    brc=-
+    case "$mode" in
+        fast) (cd "$wt" && clean bash tests/test_git_env_class.sh --fast) >"$O/$id.fast.txt" 2>&1; brc=$? ;;
+        manifest) (cd "$wt" && clean bash tests/test_full_suite_manifest_gate_git_env.sh) >"$O/$id.manifest.txt" 2>&1; brc=$? ;;
+    esac
+    v=SURVIVED; { [ "$crc" -ne 0 ] || { [ "$brc" != - ] && [ "$brc" -ne 0 ]; }; } && v=KILLED
+    printf '%s\t%s\tcensus_rc=%s\t%s_rc=%s\t%s\n' "$v" "$id" "$crc" "$mode" "$brc" "$(tail -n 1 "$O/$id.census.txt" | cut -c1-120)"
+done

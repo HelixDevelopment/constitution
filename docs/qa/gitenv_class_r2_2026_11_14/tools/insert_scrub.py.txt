@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""insert_scrub.py <repo> <file>... : insert the canonical shell scrub line (from CL_GIT_SCRUB_VARS) at
+column 0 right after the preamble (shebang, comments, blank lines, set/shopt/export/plain assignments).
+Refuses a file that already holds a canonical line."""
+import os, re, sys
+sys.path.insert(0, os.path.join(sys.argv[1], "scripts/validation"))
+import git_env_class_census as c
+repo = sys.argv[1]
+lib = open(os.path.join(repo, "scripts/lib/constitution_layout.sh")).read()
+canon = re.search(r'^CL_GIT_SCRUB_VARS="([^"]+)"$', lib, re.M).group(1)
+LINE = 'for _ge_v in %s; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller\'s repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)' % canon
+for f in sys.argv[2:]:
+    p = os.path.join(repo, f); s = open(p).read(); raw = s.split("\n")
+    if any(c.CANON_SH_ANY.match(l) for l in raw):
+        sys.exit("REFUSE: %s already holds a canonical line" % f)
+    code = c.code_lines("sh", s)
+    at = None
+    for i, r in enumerate(raw):
+        if i == 0 and r.startswith("#!"):
+            continue
+        t = code[i].strip()
+        if not t or c.PREAMBLE.match(t):
+            continue
+        at = i; break
+    if at is None:
+        sys.exit("REFUSE: %s has no code" % f)
+    raw.insert(at, LINE)
+    open(p, "w").write("\n".join(raw))
+    print("INSERT %s:%d before: %s" % (f, at + 1, raw[at + 1][:80]))

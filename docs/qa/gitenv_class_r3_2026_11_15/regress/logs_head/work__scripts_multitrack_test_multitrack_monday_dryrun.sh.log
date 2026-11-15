@@ -1,0 +1,16 @@
+RED_MODE=1  REPO_ROOT=<scratch>  EV=<scratch>/qa-results/multitrack/rb13_test_2026-11-15T01-18-36Z-1156107
+PASS: RED pre-link L1 bootstrap still wires cleanly (rc=0) -- the break below is isolated to the spawn link, not spurious upstream breakage [evidence: <tmp>/mt_rb13_test.56pnWm/red_1/bootstrap.log]
+PASS: RED pre-link L2 orchestrator bind still wires cleanly (rc=0) [evidence: <tmp>/mt_rb13_test.56pnWm/red_1/bind.log]
+PASS: RED L3 (the deliberately-broken link): with the headless-spawn worker STUBBED-OUT (MT_CLAUDE_BIN=no-op, simulating 'unwired'), spawn breaks LOUDLY at the FIRST missing link (rc=6, 'no session_id captured') -- never a silent/fake success [evidence: <tmp>/mt_rb13_test.56pnWm/red_1/red_spawn.log]
+PASS: RED pre-link L1 bootstrap still wires cleanly (rc=0) -- the break below is isolated to the spawn link, not spurious upstream breakage [evidence: <tmp>/mt_rb13_test.56pnWm/red_2/bootstrap.log]
+PASS: RED pre-link L2 orchestrator bind still wires cleanly (rc=0) [evidence: <tmp>/mt_rb13_test.56pnWm/red_2/bind.log]
+PASS: RED L3 (the deliberately-broken link): with the headless-spawn worker STUBBED-OUT (MT_CLAUDE_BIN=no-op, simulating 'unwired'), spawn breaks LOUDLY at the FIRST missing link (rc=6, 'no session_id captured') -- never a silent/fake success [evidence: <tmp>/mt_rb13_test.56pnWm/red_2/red_spawn.log]
+PASS: RED pre-link L1 bootstrap still wires cleanly (rc=0) -- the break below is isolated to the spawn link, not spurious upstream breakage [evidence: <tmp>/mt_rb13_test.56pnWm/red_3/bootstrap.log]
+PASS: RED pre-link L2 orchestrator bind still wires cleanly (rc=0) [evidence: <tmp>/mt_rb13_test.56pnWm/red_3/bind.log]
+PASS: RED L3 (the deliberately-broken link): with the headless-spawn worker STUBBED-OUT (MT_CLAUDE_BIN=no-op, simulating 'unwired'), spawn breaks LOUDLY at the FIRST missing link (rc=6, 'no session_id captured') -- never a silent/fake success [evidence: <tmp>/mt_rb13_test.56pnWm/red_3/red_spawn.log]
+=== §11.4.50 determinism check: red_normalized_iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 RED iterations byte-identical (normalized) [evidence: <scratch>/qa-results/multitrack/rb13_test_2026-11-15T01-18-36Z-1156107/red_normalized_iter1.txt]
+SKIP: L9 Monday-flip real-token smoke: swap the mock claude for the real binary + real tokens in the alias roster; the SAME RB-13 path exercises real workers with NO code change (operator_attended -- claude1/2/3 native accounts exhausted this week (plan §6); this GREEN run against the mock proves the mechanism now) [evidence: <scratch>/qa-results/multitrack/rb13_test_2026-11-15T01-18-36Z-1156107]
+
+RED_MODE=1  PASS=10 FAIL=0 SKIP=1
+Evidence: <scratch>/qa-results/multitrack/rb13_test_2026-11-15T01-18-36Z-1156107

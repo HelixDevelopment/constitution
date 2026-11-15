@@ -1,0 +1,36 @@
+ok   golden-TRUE: unmutated copy passes the suite
+ok   m1_oracle_no_prune killed: oracle default prune disabled
+ok   m2_dcfc_no_prune killed: dcfc default prune disabled
+ok   m3_lib_accepts_unsafe killed: unsafe manifest paths no longer dropped
+ok   m4_lib_no_helix_deps killed: helix-deps third_party ignored
+ok   m5_matcher_no_terminator killed: prose with trailing words parsed as annotation
+ok   m6_matcher_no_prefix killed: mid-sentence prose parsed as annotation
+ok   m7_ast_idiom_off killed: assert-False idiom flagged again (AST)
+ok   m8_ast_broad_exempt killed: broad/AssertionError handlers exempted (AST)
+ok   m9_ast_non_test_exempt killed: non-test helpers exempted (AST)
+ok   m10_ast_first_stmt killed: non-terminal assert exempted (AST)
+ok   m11_text_idiom_off killed: assert-False idiom flagged again (text)
+ok   m12_text_bare_exempt killed: bare except exempted (text)
+ok   m13_text_nested_exempt killed: nested assert exempted (text)
+ok   m14_lib_prunes_gitmodules killed: own-org .gitmodules paths pruned again (pre-2026-11-01 behaviour)
+ok   m15_lib_no_dirnames killed: directory names third_party/site-packages no longer emitted by the resolver
+FAIL m16_lib_wrong_default_path: mutation did not apply (stale anchor)
+FAIL m17_lib_prunes_all_deps: mutation did not apply (stale anchor)
+FAIL m18_lib_no_nested: mutation did not apply (stale anchor)
+FAIL m19_lib_nested_no_prefix: mutation did not apply (stale anchor)
+FAIL m20_lib_nested_reads_pruned: mutation did not apply (stale anchor)
+FAIL m21_lib_nested_ignores_listed_own: mutation did not apply (stale anchor)
+FAIL m22_lib_nested_no_raw_validation: mutation did not apply (stale anchor)
+FAIL m23_lib_tp_any_value: mutation did not apply (stale anchor)
+FAIL m24_lib_field_order: mutation did not apply (stale anchor)
+FAIL m25_reader_tp_any SURVIVED: reader marks third_party: false as true
+FAIL m26_lib_depth_unbounded: mutation did not apply (stale anchor)
+FAIL m27_lib_depth_too_small: mutation did not apply (stale anchor)
+FAIL m28_lib_manifest_symlink: mutation did not apply (stale anchor)
+FAIL m30_lib_trailing_slash: mutation did not apply (stale anchor)
+ok   m31_reader_drops_path killed: reader loses the explicit path: field
+ok   m32_oracle_name_based_paths killed: manifest-derived prune matches by basename at any depth (M3)
+ok   m33_dcfc_name_based_paths killed: manifest-derived prune matches by basename at any depth (M3)
+FAIL m29: mutation did not apply
+mutants: 33
+META FAIL

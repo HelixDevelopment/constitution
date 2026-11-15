@@ -1,0 +1,106 @@
+# flag injection is rejected before anything runs
+  ok   agent with ; -> exit 2
+  ok   agent with ;: no PWNED marker
+  ok   agent command subst -> exit 2
+  ok   agent command subst: no PWNED marker
+  ok   ext:: transport url -> exit 2
+  ok   ext:: transport url: no PWNED marker
+  ok   --upload-pack as url -> exit 2
+  ok   --upload-pack as url: no PWNED marker
+  ok   url with backticks -> exit 2
+  ok   url with backticks: no PWNED marker
+  ok   ref option-like -> exit 2
+  ok   ref option-like: no PWNED marker
+  ok   model with ; -> exit 2
+  ok   model with ;: no PWNED marker
+  ok   timeout non-numeric -> exit 2
+  ok   timeout non-numeric: no PWNED marker
+  ok   upstream key unknown -> exit 2
+  ok   upstream key unknown: no PWNED marker
+  ok   report path with newline -> exit 2
+  ok   report path with newline: no PWNED marker
+  ok   injection attempts wrote nothing
+# --restore: hostile backups and manifest entries are refused (IMPORTANT-4)
+  ok   --restore with only .git entries: exit 0 (entries skipped)
+  ok   --restore names the refused .git entry
+  ok   --restore reports 0 restored
+  ok   .git/config unchanged after hostile --restore
+  ok   core.fsmonitor never executed (no PWNED-FSMONITOR)
+  ok   --restore with constitution/abs/.. entries: exit 0
+  ok   --restore e2 restored nothing
+  ok   no file appeared under constitution/
+  ok   --restore a..b.md: exit 0
+  ok   a..b.md restored
+  ok   docs/x..y/z.md restored
+  ok   --restore symlinked backup file: exit 0
+  ok   symlinked backup file not restored
+  ok   --restore backup dir mode 755: refused exit 2
+  ok   mode refusal explained
+  ok   mode-755 backup restored nothing
+  ok   --restore through a symlinked backup dir: refused exit 2
+  ok   --restore nested deeper than one stamp dir: refused exit 2
+  ok   --restore of a backup tracked by git: refused exit 2
+  ok   tracked refusal explained
+  ok   tracked backup: .git/config unchanged
+  ok   tracked backup: CLAUDE.md not written
+  ok   tracked backup: fsmonitor never executed
+  ok   --restore absolute entry with a backup copy: exit 0
+  ok   absolute entry refused by name
+  ok   absolute entry: nothing restored into the project
+  ok   --restore ../ entry with a reachable copy: exit 0
+  ok   .. entry refused by name
+  ok   .. entry: nothing written outside the project
+  ok   hi_backup_dir created a backup dir
+  ok   installer-made backup dir is mode 700 (umask 022)
+  ok   installer-made backup files/ is mode 700 (umask 022)
+  ok   installer-made backup is accepted by --restore (exit 0)
+  ok   installer-made backup: file restored
+  ok   control needle: normal --restore exit 0
+  ok   control needle: normal file restored
+# hostile but legal project path (spaces, $(), quotes) is handled as data
+  ok   hostile path install exit 0
+  ok   hostile path gitlink
+  ok   hostile path: no PWNED anywhere
+# symlinked governance file is never edited through the link
+  ok   symlinked CLAUDE.md -> exit 3
+  ok   outside file untouched
+  ok   symlink refusal wrote nothing
+# credentials are never printed or stored
+  ok   credential-url fallback install exit 0
+  ok   no sentinel in console output
+  ok   no sentinel in report or backups
+  ok   no sentinel in written governance files
+# root refusal (UNIT seam: HELIX_INSTALLER_TEST_EUID=0 can only add the restriction)
+  ok   root without --yes -> exit 3
+  ok   root refusal wrote nothing
+  ok   root with --yes proceeds (dry-run) exit 0
+  ok   non-zero test euid is ignored (cannot hide real root)
+# truncated download never runs anything
+  ok   truncated prefixes executed: none had any effect (of 480)
+  ok   truncation loop really ran
+  ok   positive control: the complete script with the same args installs
+  ok   positive control gitlink
+# truncated download with NO argument (plain curl | bash) never runs anything
+  ok   zero-arg truncated prefixes: none ran (of 480)
+  ok   zero-arg loop really ran
+  ok   control needle: the complete file with no argument does run (prints an installer line)
+  ok   control needle: the complete file is not mistaken for a truncated one
+  ok   control needle run wrote nothing (input closed before any change)
+# test switches are not honoured outside test mode (M-3)
+  ok   ambient HELIX_INSTALLER_LIB_MODE=1 while RUN: a warning names it
+  ok   ambient HELIX_INSTALLER_LIB_MODE=1: the dry run still runs (exit 0)
+  ok   ambient HELIX_INSTALLER_LIB_MODE=1: the plan is printed (not a silent no-op)
+  ok   ambient HELIX_UPDATER_LIB_MODE=1 while RUN: a warning names it
+  ok   ambient HELIX_UPDATER_LIB_MODE=1: --help still runs (exit 0)
+  ok   HELIX_INSTALLER_TEST_EUID without HELIX_INSTALLER_TEST=1: warned
+  ok   HELIX_INSTALLER_TEST_EUID without test mode: ignored (dry run exit 0)
+  ok   HELIX_INSTALLER_TTY without HELIX_INSTALLER_TEST=1: warned
+  ok   HELIX_INSTALLER_TTY without test mode: the file is not used as the terminal (no tty -> exit 2)
+  ok   ... and says there is no terminal
+# '... | sh' never runs a file named like the shell from the current directory (M-4)
+  ok   a planted ./sh with the marker did not run
+  ok   piped into sh: refused with exit 2
+  ok   piped into sh: the message says to pipe into bash
+  ok   control: sh PATH/install_constitution.sh re-executes under bash (exit 0)
+  ok   control: ... and says so
+security: PASS 95 FAIL 0

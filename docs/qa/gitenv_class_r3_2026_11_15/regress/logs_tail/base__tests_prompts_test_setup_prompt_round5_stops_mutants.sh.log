@@ -1,0 +1,78 @@
+PASS control: 69 site rows read
+PASS killed S1-SYMLINK
+PASS killed S1-CHMOD
+PASS killed S1-MKTEMP
+PASS killed S1-REFS
+PASS killed S1-BUNDLE
+PASS killed S1-CPTOP
+PASS killed S1-CPDIR
+PASS killed S1-HOOKS
+PASS killed S1-EXCL
+PASS killed S2-CRED
+PASS killed S2-STATUS
+PASS killed S2-EMPTY
+PASS killed S2-INIT
+PASS killed S2-OWN
+PASS killed S3-CRED
+PASS killed S3-ININIT
+PASS killed S3-INOWN
+PASS killed S3-EXISTS
+PASS killed S3-NOMIRROR
+PASS killed S3-MKDIR
+PASS killed S3-ADD
+PASS killed S3-LSR
+PASS killed S3-CO
+PASS killed S3-GADD
+PASS killed S4-CRED
+PASS killed S4-STATUS
+PASS killed S4-EMPTY
+PASS killed S4-INIT
+PASS killed S4-OWN
+PASS killed S4-NODIRTY
+PASS killed S4-NOREMOTE
+PASS killed S4-NOUNPUSHED
+PASS killed S4-PARENT
+PASS killed S4-EXISTS
+PASS killed S4-MKDIR
+PASS killed S4-MV
+PASS killed S4-GM
+PASS killed S4-INITM
+PASS killed S4-LINK
+PASS killed S4-STILL
+PASS killed S5-CRED
+PASS killed S5-OC-TOP
+PASS killed S5-OC-WT
+PASS killed S5-OC-FOREIGN
+PASS killed S5-UNP-NOREMOTE
+PASS killed S5-STATUS
+PASS killed S5-EMPTY
+PASS killed S5-INIT
+PASS killed S5-OWN
+PASS killed S5-DIRTY
+PASS killed S5-NOREMOTE
+PASS killed S5-UNPUSHED
+PASS killed S5-FETCHOK
+PASS killed S5-HEAD
+PASS killed S5-LSR
+PASS killed S5-TARGET
+PASS killed S5-NOFF
+PASS killed S5-CO
+PASS killed S5-ADD
+PASS killed S6B-RC
+PASS killed S7A-INVALID
+PASS killed S7A-CRED
+PASS killed S7A-ADD
+PASS killed S10-BRANCH
+PASS killed S10-NOREMOTE
+PASS killed S10-FETCH
+PASS killed S10-AHEAD
+PASS killed S5-GMCRED-NONE
+PASS killed S10-PUSH
+PASS killed helper copy mutant STEP2 (is another repository: its git dir)
+PASS killed helper copy mutant STEP3 (is a worktree of the parent project)
+PASS killed helper copy mutant STEP4 ([ "$ok" = 1 ] || return 1)
+PASS killed helper copy mutant STEP2 (done < <(git config -f .gitmodules --get-regexp)
+PASS killed helper copy mutant STEP3 (credrx=')
+PASS killed helper copy mutant STEP4 (redact() {)
+MUTANTS killed=75 survived=0
+RESULT: round5_stops_mutants pass=76 fail=0 skip=0

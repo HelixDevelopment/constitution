@@ -1,0 +1,109 @@
+== unit: catalogue validation ==
+  PASS unknown key refused (rc=4)
+  PASS floor below 0.90 refused (rc=4)
+  PASS floor raised accepted (rc=0)
+  PASS min_sample below 30 refused (rc=4)
+  PASS cadence 30 days refused (rc=4)
+  PASS hosted.enforce=true refused (rc=4)
+  PASS hosted.enforce=false no-op ok (rc=0)
+  PASS validate_strict=false refused (rc=4)
+  PASS token arm off refused (rc=4)
+  PASS ratio above 1.0 refused (rc=4)
+  PASS endpoint reorder refused (rc=4)
+  PASS endpoint subset ok (rc=0)
+  PASS excluded class enforce refused (rc=4)
+  PASS excluded class off ok (rc=0)
+  PASS bad type name refused (rc=4)
+  PASS unknown agent refused (rc=4)
+  PASS agent consent ok (rc=0)
+  PASS bad enum refused (rc=4)
+  PASS contradiction off+enforce (rc=4)
+  PASS contradiction never_enforce (rc=4)
+  PASS key var name outside set (rc=4)
+  PASS duplicate --set refused (rc=2)
+  PASS bad profile name refused (rc=4)
+  PASS budget negative refused (rc=4)
+  PASS budget ok (rc=0)
+== integration: files, blocks, show, reset, import/export ==
+  PASS decisions.yml written
+  PASS sha sidecar written
+  PASS inherits submodules/constitution
+  PASS floor override stored
+  PASS refused values never stored
+  PASS CLAUDE.md user text kept
+  PASS CLAUDE.md block present
+  PASS AGENTS.md block present
+  PASS GEMINI.md not created
+  PASS block names inheritance
+  PASS exactly one BEGIN marker
+  PASS backup dir created
+  PASS show --json rc0
+  PASS show reports source project
+  PASS show reports constitution default
+  PASS check clean (rc=0)
+  PASS export rc0
+  PASS export has floor
+  PASS export path outside project refused (rc=3)
+  PASS outside export not written
+  PASS unset key (rc=0)
+  PASS unset removed
+  PASS reset (rc=0)
+  PASS reset empties overrides
+  PASS block says all inherited
+  PASS import (rc=0)
+  PASS import restored floor
+  PASS answers file (rc=0)
+  PASS answers applied
+  PASS set wins over answers (rc=0)
+  PASS set precedence
+== integration: env JEV_BOOTSTRAP_* mapping ==
+  PASS env mapping (rc=0)
+  PASS env mode
+  PASS env agents
+  PASS env clone
+  PASS env bad mode refused (rc=4)
+== integration: legacy ./constitution layout and no TTY ==
+  PASS legacy layout (rc=0)
+  PASS inherits constitution
+  PASS no TTY no flag -> 2 (rc=2)
+  PASS missing project root (rc=3)
+== user scope and conflicts ==
+  PASS user scope write (rc=0)
+  PASS user file inside sandbox
+  PASS conflict reported
+== security ==
+  PASS secret-looking value refused (rc=4)
+  PASS secret absent from tree
+  PASS secret not echoed
+  PASS injection in key refused (rc=4)
+  PASS newline in value refused (rc=4)
+  PASS markdown injection refused (rc=4)
+  PASS symlinked doc refused (rc=3)
+  PASS symlink target untouched
+  PASS --doc traversal refused (rc=3)
+  PASS settings consent recorded (rc=0)
+  PASS settings.json untouched
+  PASS broken markers refused (rc=4)
+  PASS broken-marker doc untouched
+  PASS duplicate complete blocks refused (rc=4)
+  PASS duplicate-block doc untouched
+  PASS END before BEGIN refused (rc=4)
+  PASS tampered weakening file -> check 4 (rc=4)
+  PASS tampered file blocks writes (rc=4)
+  PASS valid manual edit still flagged (rc=4)
+  PASS accept-external-edits adopts (rc=0)
+  PASS check clean after adopt (rc=0)
+== idempotency, dry-run, determinism ==
+  PASS second run byte-identical
+  PASS second run no new backup
+  PASS second run says no-change
+  PASS dry-run (rc=0)
+  PASS dry-run wrote nothing
+  PASS dry-run shows bootstrap command
+  PASS determinism x3 decisions.yml
+  PASS determinism x3 CLAUDE.md
+== plan (read-only integration with the real jev-status.sh) ==
+  PASS plan (rc=0)
+  PASS plan names jev-status
+  PASS plan never ran bootstrap (no state dir created)
+test_core: pass=100 fail=0

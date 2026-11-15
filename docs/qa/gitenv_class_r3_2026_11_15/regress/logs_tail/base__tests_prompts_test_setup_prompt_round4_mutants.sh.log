@@ -1,0 +1,26 @@
+PASS control: round 4 suite PASSES on unmutated copies (RESULT: round4 pass=97 fail=0 skip=1)
+PASS mutant V1 KILLED by: FAIL M-V1 STEP6B rc=0: constitution setup check: all good|
+PASS mutant V4 KILLED by: FAIL IMP-2 latest.md: forbidden command(s): 744: rrun git push --force-with-lease --recurse-submodules=no "" HEAD:refs/heads/main || { echo |FAIL IMP-2 extractor misses: rrun git push --recurse-submodules=no "" HEAD:refs/heads/main|
+PASS mutant V6 KILLED by: FAIL M-V6 STEP1 exclude: # git ls-files --others --exclude-from=.git/info/exclude|FAIL M-V6 backup dir visible to git|
+PASS mutant V7 KILLED by: FAIL IMP-2 latest.md: forbidden command(s): 344: rrun git submodule update --init --recursive -- submodules/constitution || exit 3  ||FAIL IMP-2 extractor misses: git submodule update --init -- submodules/constitution|
+PASS mutant OC-STEP4-RAW KILLED by: FAIL IMP-1 STEP4 own_checkout STOP message: decoy token LEAKED: STOP: the legacy constitution path is not the submodule's own checkout; noth|FAIL IMP-1 STEP4 redacted URL not shown: STOP: the legacy constitution path is not the submodule's own checkout; nothing moved: constitution|
+PASS mutant OC-STEP3-RAW KILLED by: FAIL IMP-1 STEP3 in-place own_checkout message: decoy token LEAKED: STOP: submodules/constitution is not the submodule's own checkout: submo|FAIL IMP-1 own_checkout copies=4 redacting=3|
+PASS mutant STEP2-INIT-RAW KILLED by: FAIL IMP-1 STEP2 local token URL rc=3: Cloning into '<tmp>/tmp.KtqJ9PwtS5/p/submodules/constitution'...|FAIL IMP-1 STEP2 init failure with a local token URL: decoy token LEAKED: fatal: clone of 'https://x-access-token:FAKE_TOKEN_123@unreachable|
+PASS mutant STEP5-INIT-RAW KILLED by: FAIL IMP-1 STEP5 local token URL rc=3: Cloning into '<tmp>/tmp.IvJ1uWeqQS/p/submodules/constitution'...|FAIL IMP-1 STEP5 init failure with a local token URL: decoy token LEAKED: fatal: clone of 'https://x-access-token:FAKE_TOKEN_123@unreachable|
+PASS mutant STEP3-MIRROR-RAW KILLED by: FAIL IMP-1 raw URL echo: 355:    echo "unreachable: $u"|
+PASS mutant STEP0-RAW KILLED by: FAIL IMP-1 STEP0 inventory: decoy token LEAKED: submodule.constitution.url https://x-access-token:FAKE_TOKEN_123@example.invalid/r.git|FAIL IMP-1 STEP0 inventory: <tmp>/tmp.YDDoCpqWNi/p|
+PASS mutant REDACT-WEAK KILLED by: FAIL IMP-1 STEP2 own_checkout STOP message: decoy token LEAKED: STOP: submodules/constitution is not the submodule's own checkout: submodule|FAIL IMP-1 STEP2 redacted URL not shown: STOP: submodules/constitution is not the submodule's own checkout: submodules/constitution is anoth|
+PASS mutant STEP1-PEM KILLED by: FAIL M-3 STEP1 copied secrets: <tmp>/tmp.r8ktC3crLA/p/.constitution-install-backup/20261115T032029Z.f4EI8i/.claude/se|FAIL M-3 secret exclusion *.pem not in both STEP1 and STEP4G|
+PASS mutant STEP1-CRED KILLED by: FAIL M-3 STEP1 copied secrets: <tmp>/tmp.rycsAB8xHv/p/.constitution-install-backup/20261115T032036Z.COVnD2/skills/x/c|FAIL M-3 secret exclusion credentials* not in both STEP1 and STEP4G|
+PASS mutant STEP10-RECURSE KILLED by: FAIL IMP-2 extractor misses: rrun git push --recurse-submodules=no "" HEAD:refs/heads/main|FAIL M-5 STEP10 pushed the submodule|
+PASS mutant STEP5-NO-FILTER KILLED by: FAIL M-8 release pipeline count 3 < 4|FAIL M-8 STEP5 tag choice not the remote release pipeline|
+PASS mutant STEP3-LEXICAL KILLED by: FAIL M-8 release pipeline count 3 < 4|FAIL M-8 STEP3 tag choice not the remote release pipeline|
+PASS mutant STEP3-NO-VASIC KILLED by: FAIL M-7 STEP3 list differs: https://github.com/HelixDevelopment/HelixConstitution.git https://gitlab.com/helixdevelopment1/helixconstitutio|
+PASS mutant STEP5-LOCAL-TAGS KILLED by: FAIL M-8 a local tag listing is still used to choose the release|FAIL M-8 STEP5 rc=0 HEAD=helixconstitution-v1: already in place: submodules/constitution is at helixconstitution-v99|
+PASS mutant STEP8-CONSENT KILLED by: FAIL M-4 latest unsafe bootstrap line:   env -u JEV_BOOTSTRAP_ALLOW_CLONE -u JEV_BOOTSTRAP_INSTALL_TOOLS -u JEV_BOOTSTRAP_DOWNLOAD_PROFILE -|FAIL M-4 STEP8 bootstrap saw: C=1 A=unset I=unset P=0|
+PASS mutant FU02-CONSENT KILLED by: FAIL M-4 fu02 unsafe bootstrap line:   2. env -u JEV_BOOTSTRAP_ALLOW_CLONE -u JEV_BOOTSTRAP_INSTALL_TOOLS -u JEV_BOOTSTRAP_DOWNLOAD_PROFILE |
+PASS mutant FU01-V3-LOCAL KILLED by: FAIL M-8 follow-up V3 differs|FAIL M-8 a local tag listing is still used to choose the release|
+PASS mutant HDR-NO-VASIC KILLED by: FAIL M-7 header list differs: https://github.com/HelixDevelopment/HelixConstitution.git https://gitlab.com/helixdevelopment1/helixconstituti|FAIL M-7 github-vasic missing|
+PASS mutant INLINE-FORCE KILLED by: FAIL IMP-2 follow-up 01: forbidden command(s): 57: git push --force origin HEAD:main||
+PASS mutant REMOTE-V-RAW KILLED by: FAIL IMP-1 inline URL-printing line without redaction:   git -C submodules/constitution submodule update --init -- "<that-path>" 2>&1 | sed |
+RESULT: round4_mutants pass=25 fail=0 skip=0

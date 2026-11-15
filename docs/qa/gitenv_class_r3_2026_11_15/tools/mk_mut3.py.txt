@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""mk_mut3.py <worktree> <id>: apply one mutant to a copy of the round-3 tree.
+
+Reviewer mutants (rev3_gitenv.Vlkl/tools/mkrm.py, re-applied here verbatim in intent; RM2b as described in the
+review: the canonical line deleted and EVERY git call of cm_gitlink_on_remote.sh routed through $GITBIN):
+  RM1 RM2 RM2b RM3 RM4 RM5
+NONE is the control: no change (it must SURVIVE).
+Own mutants (producer-authored, round 3):
+  M1  census membership back to detected writes only (a member must have a detected write)
+  M2  list_clear() always true (any loop + any unset counts as a clear: the RM1 carrier)
+  M3  a no-git-execution row no longer checks for detected writes
+  M4  a prefix row is accepted outside a fixtures/ directory
+  M5  the canonical line removed from scripts/gates/cm_rule_binds_to_seam.sh
+  M6  the preamble quote-balance check removed (a canonical line inside a multi-line string counts)
+  M7  the javascript scrub accepted anywhere in the file
+  M8  the canonical line removed from the v4r8 test (python helper g writes)
+  M9  the mention detector made case-sensitive (`GIT` names no longer make a file a member)
+"""
+import re
+import sys
+
+wt, mid = sys.argv[1], sys.argv[2]
+CEN = "scripts/validation/git_env_class_census.py"
+CANON = re.compile(r'^for _ge_v in [A-Z_ ]+; do unset "\$_ge_v"; done; unset _ge_v.*\n', re.M)
+
+
+def edit(rel, fn):
+    p = wt + "/" + rel
+    t = open(p, encoding="utf-8").read()
+    n = fn(t)
+    assert n != t, "mutant %s did not change %s" % (mid, rel)
+    open(p, "w", encoding="utf-8").write(n)
+
+
+def sub1(a, b):
+    def f(t):
+        assert t.count(a) >= 1, "mutant %s: anchor not found: %r" % (mid, a[:60])
+        return t.replace(a, b, 1)
+    return f
+
+
+if mid == "NONE":
+    pass  # control: the round-3 tree as is (must SURVIVE)
+elif mid == "RM1":
+    edit("scripts/gates/cm_full_suite_manifest_complete.sh",
+         sub1('for _v in "${_git_scrub[@]}"; do unset "$_v"; done', 'for _v in "${_git_scrub[@]}"; do : "$_v"; done'))
+elif mid in ("RM2", "RM2b"):
+    def f(t):
+        t = CANON.sub("", t, count=1)
+        t = t.replace("\nset ", "\nGITBIN=git\nset ", 1) if "\nset " in t else "GITBIN=git\n" + t
+        if mid == "RM2":
+            return re.sub(r'(?<![\w./$-])git -C ', '$GITBIN -C ', t)
+        return "\n".join(l if l.lstrip().startswith("#") else re.sub(r'(?<![\w./$-])git(?= )', '$GITBIN', l)
+                         for l in t.split("\n"))
+    edit("scripts/gates/cm_gitlink_on_remote.sh", f)
+elif mid == "RM3":
+    edit("scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh", lambda t: CANON.sub("", t, count=1))
+elif mid == "RM4":
+    edit("scripts/hooks/post-merge", sub1("GIT_NAMESPACE", "GIT_NAMESPACE GIT_CEILING_DIRECTORIES"))
+elif mid == "RM5":
+    edit("scripts/release_tag.sh", sub1('do unset "$_ge_v"; done; unset _ge_v', 'do unset "$_ge_w"; done; unset _ge_v'))
+elif mid == "M1":
+    edit(CEN, sub1('    return "NOSCRUB", mline, "mentions git (first at line %d) and has no file-level scrub" % mline, ws',
+                   '    return None, 0, "", []'))
+elif mid == "M2":
+    edit(CEN, sub1('    joined = re.sub(r"\\\\\\n", " ", text)\n', '    return True\n    joined = re.sub(r"\\\\\\n", " ", text)\n'))
+elif mid == "M3":
+    edit(CEN, sub1('''        if ws:
+            return "UNSCRUBBED", ws[0][0], "row no-git-execution, but a git write is detected: %s" % ws[0][1][:120]
+''', ''))
+elif mid == "M4":
+    edit(CEN, sub1('''if reason != "fixture-tree" or "/fixtures/" not in "/" + path:''', '''if reason != "fixture-tree":'''))
+elif mid == "M5":
+    edit("scripts/gates/cm_rule_binds_to_seam.sh", lambda t: CANON.sub("", t, count=1))
+elif mid == "M6":
+    edit(CEN, sub1('''        if not PREAMBLE.match(c) or c.count('"') % 2 or c.count("'") % 2 or c.endswith("\\\\"):''',
+                   '''        if not PREAMBLE.match(c):'''))
+elif mid == "M7":
+    edit(CEN, sub1('''        if not l.strip() or JS_PREAMBLE.match(l):
+            continue
+        return None''', '''        continue'''))
+elif mid == "M8":
+    edit("scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh", lambda t: CANON.sub("", t, count=1))
+elif mid == "M9":
+    edit(CEN, sub1('MENTION = re.compile(r"(?<![A-Za-z])git", re.I)', 'MENTION = re.compile(r"(?<![A-Za-z])git")'))
+else:
+    sys.exit("unknown mutant " + mid)
+print("applied", mid)

@@ -1,0 +1,60 @@
+=== R6 regression guard: control needle -- the not-iterable crash pattern ===
+ok control needle: the crash pattern matches the pre-3.14 and 3.14 texts and not an unrelated TypeError
+=== R6 regression guard: control needle -- fixtures + the fixed tool + pinned copy all exist ===
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/orchestration/custody_sweep.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r6_nondict_int.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r6_nondict_null.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r6_backup_path_list.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r6_nan_proposal.json not found
+ok control needle: this is the FIRST test file in this suite to invoke
+   custody_sweep.py's verify-proposal/inventory subcommands against
+   the real tool -- test_custody_sweep_red.sh (T129) is an absence-
+   check baseline only, and never exercises this tool's live behaviour
+
+=== R6-I3(1)/nondict-int: --proposal top-level value is the bare int 5 ===
+NOT ok R6-I3(1)/int real (fixed) tool: rc=2 (wanted 2), out_exists=no -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R6-I3(1)/int guard-viability BLIND: cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/tmp.LBoZ4FOFB9/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+
+=== R6-I3(1)/nondict-null: --proposal top-level value is JSON null ===
+NOT ok R6-I3(1)/null real (fixed) tool: rc=2 (wanted 2), out_exists=no -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R6-I3(1)/null guard-viability BLIND: cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/tmp.LBoZ4FOFB9/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+
+=== R6-I3(2): backup_artifact_path is a JSON list, not a string ===
+NOT ok R6-I3(2) real (fixed) tool: rc=2 (wanted 2), out_exists=no -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R6-I3(2) guard-viability BLIND: cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/tmp.LBoZ4FOFB9/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+
+=== R6-I1(b) sibling: non-finite JSON constant (note: NaN) anywhere in --proposal ===
+NOT ok R6-I1(b)-sibling real (fixed) tool: rc=2 (wanted 2), out_exists=no -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R6-I1(b)-sibling guard-viability BLIND: pinned copy did not
+     cleanly accept, rc=2, out_exists=no -- cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/tmp.LBoZ4FOFB9/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+
+=== R6-I2 sibling: unwritable --out (parent path component is a regular FILE) -- inventory ===
+NOT ok R6-I2-sibling/inventory real (fixed) tool: rc=2 (wanted 2) -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R6-I2-sibling/inventory guard-viability BLIND: cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/tmp.LBoZ4FOFB9/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+
+=== R6-I2 sibling STATIC control needle: ALL THREE write_doc(...) call sites (inventory/propose/verify-proposal) are guarded ===
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok R6-I2-sibling static control needle FAILED: found 
+     OSError-guarded write_doc(...) call(s) inside
+     cmd_inventory/cmd_propose/cmd_verify_proposal (wanted 3)
+
+=== R6 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

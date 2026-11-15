@@ -1,0 +1,35 @@
+=== UNIT: named-catalogue sub-system (HELIXQA / HXOTA), all 5 forms ===
+PASS: S-cat-form1-colon [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-form1-colon.txt]
+PASS: S-cat-form2-nscolon [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-form2-nscolon.txt]
+PASS: S-cat-form3-slash [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-form3-slash.txt]
+PASS: S-cat-form4-nsslash [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-form4-nsslash.txt]
+PASS: S-cat-form5-arrow [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-form5-arrow.txt]
+PASS: S-cat-alias-hxota [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-alias-hxota.txt]
+PASS: S-cat-action-field [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-action-field.txt]
+PASS: S-cat-residual [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-residual.txt]
+PASS: S-cat-expansion-shape [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-cat-expansion-shape.txt]
+=== UNIT: auto-discovered submodule token (FOO_WIDGET) ===
+PASS: S-disc-name [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-disc-name.txt]
+PASS: S-disc-arrow [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-disc-arrow.txt]
+PASS: S-disc-slash [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-disc-slash.txt]
+=== FAN-OUT: duplicate checkouts collapse to one sub-system ===
+PASS: S-fanout-both-paths-listed [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-fanout-both-paths-listed.txt]
+=== AMBIG: colliding abbreviation → ASK (no guess) ===
+PASS: S-ambig-AB-asks [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-ambig-AB-asks.txt]
+PASS: S-ambig-alpha-beta [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-ambig-alpha-beta.txt]
+PASS: S-ambig-alpha-bravo [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-ambig-alpha-bravo.txt]
+=== PRECEDENCE + grammar honour + escape ===
+PASS: S-prec-background-action [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-prec-background-action.txt]
+PASS: S-prec-reminder-action [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-prec-reminder-action.txt]
+PASS: S-unknown-asks [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-unknown-asks.txt]
+PASS: S-lowercase-noop [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-lowercase-noop.txt]
+PASS: S-lowercase-disc-noop [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-lowercase-disc-noop.txt]
+PASS: S-escape-literal [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-escape-literal.txt]
+PASS: S-stacked-subsystem-then-action [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-stacked-subsystem-then-action.txt]
+=== DETERMINISM: N=3 per case ===
+PASS: S-det-cat-consistent [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-det-cat-consistent.txt]
+PASS: S-det-disc-consistent [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-det-disc-consistent.txt]
+PASS: S-det-ambig-consistent [evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079/S-det-ambig-consistent.txt]
+====================================================================
+RESULT: PASS=26 FAIL=0  (evidence: <scratch>/base/qa-results/action_prefix/20261115T012618Z_1267079)
+ALL PASS

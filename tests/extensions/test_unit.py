@@ -9,6 +9,8 @@ under a mktemp directory and removed with shutil only inside it.
 Run: python3 -I tests/extensions/test_unit.py   (prints "unit: PASS n FAIL m"; exit 0 iff m == 0)
 The engine directory may be overridden with CONSTITUTION_EXT_DIR (mutation tests use that).
 """
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 import hashlib
 import json
 import os

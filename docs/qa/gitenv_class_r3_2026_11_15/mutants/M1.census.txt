@@ -1,0 +1,1 @@
+git-env-class-census: BLIND - control needle: sh comment only: got None, want UNSCRUBBED (); sh comment only, text row: got None, want EXEMPT (); sh read only: got None, want UNSCRUBBED (); sh fixture tree, text: got None, want EXEMPT (); py docstring only: got None, want UNSCRUBBED (); js no scrub: got None, want UNSCRUBBED ()

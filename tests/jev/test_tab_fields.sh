@@ -11,6 +11,7 @@
 #   F5 jev-calibrate: a decision whose answer is "" keeps its endpoint|model attribution.
 #   F6 (round 5, N1) STATIC: no Jev read site (scripts/jev, the skill, the cm_jev gates) reads with IFS=TAB.
 # Keys are DUMMY values. Evidence class: gate-logic / unit (§11.4.289(C)(2)): stub tools, fixture records, no network.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 export HELIX_TEST_MODE=1
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; export FIXTURES="$HERE/fixtures"

@@ -1,0 +1,85 @@
+PASS STEP1 block present (markers)
+PASS STEP2 block present (markers)
+PASS STEP3 block present (markers)
+PASS STEP4 block present (markers)
+PASS STEP4G block present (markers)
+PASS STEP5 block present (markers)
+PASS STEP6B block present (markers)
+PASS STEP10 block present (markers)
+PASS STEP5 fast-forward rc=0
+PASS STEP5 FF checked out the newest tag
+PASS STEP5 FF staged the gitlink
+PASS STEP5 diverged stops rc=3 (NOT-FF)
+PASS STEP5 diverged: no checkout
+PASS STEP5 diverged: nothing staged
+PASS STEP5 HEAD newer than tag: rc=0 (kept)
+PASS STEP5 newer: never downgraded
+PASS STEP5 newer: nothing staged
+PASS STEP5 dirty submodule stops rc=3 (local changes), nothing changed
+PASS STEP5 dirty: local edit preserved
+PASS STEP5 unpushed commit stops rc=3 (unpushed), nothing changed
+PASS STEP4 dirty legacy submodule stops rc=3
+PASS STEP4 dirty: no git mv happened
+PASS STEP4 clean legacy submodule moved (rc=0)
+PASS STEP4 .gitmodules path updated
+PASS STEP3 already-registered submodule: rc=0
+PASS STEP3 says 'already in place'
+PASS STEP3 .gitmodules unchanged
+PASS STEP1 backup created (rc=0)
+PASS STEP1 .claude/settings.json backed up
+PASS STEP1 settings.local.json and .env NOT in backup
+PASS STEP1 CLAUDE.md + bundle in backup
+PASS STEP10 push refused on a non-main branch (rc=3)
+PASS STEP10 nothing pushed
+PASS STEP10 push on main fast-forwards the upstream (rc=0)
+PASS IMP-1 fixture: submodule dir empty after a plain clone
+PASS IMP-1 STEP5 uninit+reachable: parent HEAD unchanged, still on a branch
+PASS IMP-1 STEP5 uninit+reachable rc=0
+PASS IMP-1 STEP5 submodule initialised (own checkout)
+PASS IMP-1 STEP5 updated the SUBMODULE to v2
+PASS IMP-1 STEP5 uninit+unreachable stops rc=3
+PASS IMP-1 STEP5 unreachable: parent HEAD/index untouched
+PASS IMP-1 fixture: submodule dir empty after a plain clone
+PASS IMP-1 STEP2 uninit+reachable: parent HEAD unchanged, still on a branch
+PASS IMP-1 STEP2 uninit+reachable rc=0
+PASS IMP-1 STEP2 submodule initialised (own checkout)
+PASS IMP-1 STEP2 uninit+unreachable stops rc=3
+PASS IMP-1 STEP2 unreachable: parent HEAD/index untouched
+PASS IMP-1 STEP2 lost .git link (status prefix '-'): rc=0 (repaired or stopped), parent branch and HEAD untouched
+PASS IMP-1 STEP5 lost .git link (status prefix '-'): rc=0 (repaired or stopped), parent branch and HEAD untouched
+PASS IMP-2 STEP4 uninit legacy reachable: initialised then moved (rc=0)
+PASS IMP-2 STEP4 moved submodule is its own checkout
+PASS IMP-2 STEP4 uninit legacy unreachable stops rc=3
+PASS IMP-2 STEP4 no 'R constitution -> ...' left behind
+PASS IMP-2 STEP4 unreachable: legacy path, .gitmodules and parent untouched
+PASS M4 STEP1 two runs -> two distinct backup dirs
+PASS M4 STEP1 unchanged refs: second run skips the bundle (SAME_AS)
+PASS M4 STEP1 first bundle still valid
+PASS M4 STEP1 changed refs: a new bundle is written
+PASS M5 STEP4G prints the full count (251)
+PASS M5 STEP4G output bounded to 200 hit lines
+PASS M5 STEP4G node_modules/vendor/build excluded
+PASS M5 STEP4G control needle sees .gitmodules
+PASS M8 STEP6B ok -> rc=0 (setup.sh itself exited 0)
+PASS M8 STEP6B parse -> rc=3 (setup.sh itself exited 1)
+PASS M8 STEP6B missing -> rc=3 (setup.sh itself exited 1)
+PASS M8 STEP3 falls back to the next reachable mirror
+PASS M8 STEP3 newest tag checked out
+PASS M8 STEP3 no mirror reachable -> rc=3, nothing added
+PASS I5 no tracked-only git grep for legacy references
+PASS I5 S7 searches settings.local.json
+PASS I5 S7 searches GEMINI.md
+PASS I5 S7 searches QWEN.md
+PASS I5 S7 has a control needle
+PASS I5 follow-up V6 not tracked-only
+PASS M4 6b names git rev-parse --git-path hooks
+PASS M4 6b names the hook backup directory
+PASS M4 stale 'COPIES every file' removed
+PASS M5 STEP 2 no longer claims the hook replaces setup.sh
+PASS M7 I1 says 'a line starting with'
+PASS M9 installer downloaded from the release tag
+PASS M9 trust decision stated for main-only mirrors
+PASS M3 no bare $bk after STEP 1
+PASS M3 ${bk:?} used after STEP 1
+PASS M4 re-run text states a new backup per run
+RESULT: behaviour pass=84 fail=0 skip=0

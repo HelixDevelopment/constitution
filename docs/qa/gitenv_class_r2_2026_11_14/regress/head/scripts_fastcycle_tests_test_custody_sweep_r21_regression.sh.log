@@ -1,0 +1,17 @@
+=== R21 regression guard: control needle -- tool + libs exist, git/python/mkfifo usable ===
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py not found
+
+=== MINOR-1: a FIFO named ORIG_HEAD (top-level per-worktree pseudo-ref) is refused instantly, never blocks ===
+ok P1 evidence: ORIG_HEAD under the per-worktree admin dir is a real FIFO
+NOT ok P1 expected a non-hang (rc!=124) REFUSED naming ORIG_HEAD as non-regular, got rc=2 verdict=NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.iw9xpuQP9o/out.2730350.96.json')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR21_1_toplevel_pseudoref_check_removed: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.iw9xpuQP9o/mut_MR21_1_toplevel_pseudoref_check_removed/orchestration/custody_sweep.py')
+
+summary: 1 check(s) passed
+=== R21 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

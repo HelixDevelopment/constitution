@@ -1,0 +1,30 @@
+# M1 interactive menu: out-of-range number re-asks
+  ok   after 99 the menu re-asked and took 0 (none)
+  ok   message names the bad number and the range
+  ok   the question was asked twice
+  ok   --agent 5 (a bare number) in non-interactive mode -> exit 2
+  ok   --agent 5: says a number is only a menu choice
+  ok   --agent 5: project unchanged
+# M2 leftover staging clone from a killed run is reported, never deleted
+  ok   install still succeeds
+  ok   warning names the leftover clone
+  ok   report notes carry it
+  ok   leftover clone was NOT deleted
+  ok   dry run reports it too
+# M3 exponent-form cost is normalised
+  ok   hi_account_cost cost=1e-03 adds 0.001
+  ok   hi_account_cost cost=2.5E-2 adds 0.025
+  ok   hi_account_cost cost=1e-03x is not a number -> untrackable
+  ok   precondition: jq itself prints the exponent form (1.5E-7)
+  ok   jq branch (python hidden) prints a plain decimal cost (result=success session=s1 rate_limited=0 cost=0)
+  ok   jq branch and python branch print the same line
+  ok   the cost stays trackable
+# M4 a missing core tool stops the installer up front (exit 3)
+  ok   precondition: timeout is really hidden
+  ok   missing timeout -> exit 3
+  ok   message names the missing tool
+  ok   project unchanged
+# M5 verify keeps the user's umask for git status (index not 0600)
+  ok   install exit 0
+  ok   submodule index mode under umask 022
+minor: PASS 24 FAIL 0

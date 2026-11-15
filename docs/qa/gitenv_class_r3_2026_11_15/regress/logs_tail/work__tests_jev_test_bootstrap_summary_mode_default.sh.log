@@ -1,0 +1,7 @@
+ok - control needle: the summary line is visible to the extractor
+ok - M1a env file without JEV_MODE -> mode=shadow
+ok - M1b missing env file -> mode=shadow
+ok - M2 JEV_MODE=enforce -> mode=enforce
+ok - M3 quoted export form -> mode=observe
+ok - M4 mutation: the old '|| echo shadow' form yields 'mode=' (RED reproduced, so M1 discriminates)
+== RESULT: 6 passed, 0 failed ==

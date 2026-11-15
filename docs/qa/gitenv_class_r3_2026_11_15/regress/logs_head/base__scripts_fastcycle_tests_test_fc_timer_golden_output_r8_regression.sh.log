@@ -1,0 +1,18 @@
+ok   control needle: <scratch>/base/scripts/fastcycle/tests/capture_fc_timer_triplet.sh resolves
+ok   control needle: <scratch>/base/scripts/fastcycle/tests/test_fc_timer_golden_output.sh resolves
+=== (Q1) R8-I3: a SEQUENTIAL triplet whose tree changed during the capture is REFUSED, never compared, never claims 'ran concurrently' ===
+ok   (Q1) sequential + tree-changed triplet is refused with an honest reason, never compared, never claims concurrency
+=== (Q2) golden-FALSE: a SEQUENTIAL triplet whose tree did NOT change is still accepted and compared ===
+ok   (Q2) a sequential triplet with an unchanged tree is NOT over-refused by the (Q1) fix
+=== (Q3) golden-FALSE: a CONCURRENT triplet whose tree changed is still accepted and compared, and its concurrency claim is still truthful ===
+ok   (Q3) a concurrent triplet whose tree changed is still compared, and its 'ran concurrently' claim is still accurate for it
+=== (Q4) R8-M2: a manifest claiming concurrency=sequential but FORGED overlapping member epochs is refused, naming the contradiction ===
+ok   (Q4) a sequential manifest with forged-overlapping member epochs (FC0a/FC0b genuinely overlap) is refused, naming the contradiction
+=== (Q5) golden-FALSE: a SEQUENTIAL manifest whose member epochs only TOUCH at a shared boundary second is NOT refused ===
+ok   (Q5) touching-boundary sequential member epochs (finish of one == start of the next) are NOT a false-positive refusal
+=== (M-Q1) drop the round-8 sequential-and-changed refusal ===
+ok   (M-Q1) without the refusal, the mutant WRONGLY compares (Q1)'s sequential+tree-changed triplet and prints the false 'ran concurrently' claim -- the (Q1) fix is genuinely load-bearing
+=== (M-Q4) revert the strict boundary test to inclusive (the false-positive form measured + fixed this same round) ===
+ok   (M-Q4) the inclusive-boundary mutant WRONGLY refuses (Q5)'s genuinely-sequential touching-boundary triplet -- the strict-inequality fix is genuinely load-bearing
+
+=== T048 ROUND-8 GOLDEN REGRESSION GUARD (R8-I3): ALL CHECKS PASS ===

@@ -2,6 +2,7 @@
 # UNIT-CLASS test (test doubles: a local Gitea-API stub server and a curl PATH shim, labelled per
 # §11.4.289(C)). It proves the script's logic; it is NOT live proof against m3w.org.
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 # round 6 (K3): the release scripts pass an allow-listed environment to their children; the state-file
 # variables of the test doubles are added to that list here (rc_env_lockdown refuses credential-like names).
 # Round 11: RELEASE_ENV_KEEP reaches LOCAL children only (jq, sed, ...); the network children (curl, git) run

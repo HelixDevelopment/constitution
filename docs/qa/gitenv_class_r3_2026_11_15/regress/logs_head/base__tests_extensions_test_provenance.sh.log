@@ -1,0 +1,296 @@
+### P1 forged wiring entry over a user's own command file (exact attack)
+  ok   no traceback: unwire --agent all
+  ok   P1 absolute: unwire over a forged entry refused
+  ok   P1 absolute: user's own command file survives unwire
+  ok   no traceback: verify
+  ok   P1 absolute: verify reports the forged entry (5)
+  ok   no traceback: unwire --agent all
+  ok   P1 relative: unwire over a forged entry refused
+  ok   P1 relative: user's own command file survives unwire
+  ok   no traceback: verify
+  ok   P1 relative: verify reports the forged entry (5)
+  ok   P1 refusal explains the missing binding
+  ok   P1 verify names an id that is not in the lock
+  ok   no traceback: enable hello-fixture --yes
+  ok   P1 enable bundled
+  ok   P1 state key exists before the forged record
+  ok   no traceback: unwire --agent all
+  ok   P1 forged signed record (no key) does not bind
+  ok   P1 user file survives forged signed record
+  ok   no traceback: verify
+  ok   P1 verify reports the forged signed record
+  ok   no traceback: wire --agent opencode
+  ok   P1 absolute: wire over a forged entry refused
+  ok   P1 absolute: user's file not overwritten by wire
+  ok   no traceback: unwire hello-fixture --agent opencode
+  ok   P1 absolute: unwire of the forged real-id entry refused
+  ok   P1 absolute: user's file not deleted by unwire
+  ok   no traceback: wire --agent opencode
+  ok   P1 relative: wire over a forged entry refused
+  ok   P1 relative: user's file not overwritten by wire
+  ok   no traceback: unwire hello-fixture --agent opencode
+  ok   P1 relative: unwire of the forged real-id entry refused
+  ok   P1 relative: user's file not deleted by unwire
+  ok   no traceback: wire --agent all
+  ok   P1 normal wire after cleanup
+  ok   P1 local signed wiring record written
+  ok   no traceback: verify
+  ok   P1 verify after normal wire
+  ok   P1 old-format wiring file has absolute paths
+  ok   no traceback: verify
+  ok   P1 old absolute-format wiring refused by verify (5)
+  ok   P1 old format named as non-portable
+  ok   no traceback: verify
+  ok   P1 verify after restoring the relative wiring
+  ok   no traceback: unwire --agent all
+  ok   P1 normal unwire
+  ok   P1 normal unwire removed the engine's shim
+  ok   P1 user's mine.md untouched throughout
+  ok   no traceback: disable hello-fixture
+  ok   P1 disable
+### P2 portable wiring: wire, commit, clone, verify/unwire/disable in the clone
+  ok   P2 submodule add
+  ok   no traceback: enable hello-fixture --yes
+  ok   P2 enable bundled
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/pinst --waiver-id WP2 --yes
+  ok   P2 add installed
+  ok   no traceback: enable pinst --yes
+  ok   P2 enable installed
+  ok   no traceback: wire --agent all
+  ok   P2 wire all
+  ok   P2 claude link target is relative
+  ok   P2 wiring file holds no absolute sandbox path
+  ok   P2 commit of wired state
+  ok   P2 clone
+  ok   P2 clone: claude link resolves inside the clone
+  ok   P2 clone link resolves under the clone
+  ok   no traceback: verify
+  ok   P2 clone verify fails before re-consent (R17)
+  ok   P2 clone verify never says 'outside the project'
+  ok   P2 clone names the missing installed tree
+  ok   P2 clone message is actionable (git-ignored)
+  ok   no traceback: enable hello-fixture --yes
+  ok   P2 clone re-consent bundled
+  ok   no traceback: verify hello-fixture
+  ok   P2 clone verify bundled after re-consent
+  ok   no traceback: unwire --agent all
+  ok   P2 clone unwire
+  ok   P2 clone: bundled claude link removed
+  ok   P2 clone: installed (dangling) claude link removed
+  ok   P2 clone: installed opencode shim removed
+  ok   P2 clone: bundled gemini shim removed
+  ok   no traceback: disable hello-fixture
+  ok   P2 clone disable bundled
+  ok   no traceback: disable pinst
+  ok   P2 clone disable installed
+  ok   no traceback: verify
+  ok   P2 original checkout still verifies
+### P3 catalog revocation enforced by wire and enable
+  ok   no traceback: enable hello-fixture --yes
+  ok   P3 enable before revocation
+  ok   no traceback: catalog <tmp>/helix-ext-test.kUGkfw/rev.json
+  ok   P3 import revoking catalog
+  ok   no traceback: wire --agent all
+  ok   P3 wire of a revoked extension refused (3)
+  ok   P3 wire names the revocation
+  ok   P3 no shim written for a revoked extension
+  ok   P3 no opencode shim for a revoked extension
+  ok   P3 enable of a revoked extension refused (3)
+  ok   P3 revoked enable wrote no lock
+### P4 agent-side execution constructs in command bodies
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax1
+  ok   P4 [shell !{date}] undeclared construct: validate fails (1)
+  ok   P4 [!{date}] names agent_shell
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/ax1 --waiver-id WP4 --yes
+  ok   P4 [shell !{date}] undeclared construct: add refused (3)
+  ok   P4 [shell !{date}] not installed
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax1
+  ok   P4 [shell !{date}] declared construct validates (0)
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax2
+  ok   P4 [shell !`date`] undeclared construct: validate fails (1)
+  ok   P4 [!`date`] names agent_shell
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/ax2 --waiver-id WP4 --yes
+  ok   P4 [shell !`date`] undeclared construct: add refused (3)
+  ok   P4 [shell !`date`] not installed
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax2
+  ok   P4 [shell !`date`] declared construct validates (0)
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax3
+  ok   P4 [files @{/etc/hosts}] undeclared construct: validate fails (1)
+  ok   P4 [@{/etc/hosts}] names reads_files
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/ax3 --waiver-id WP4 --yes
+  ok   P4 [files @{/etc/hosts}] undeclared construct: add refused (3)
+  ok   P4 [files @{/etc/hosts}] not installed
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax3
+  ok   P4 [files @{/etc/hosts}] declared construct validates (0)
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax4
+  ok   P4 [files read @/etc/hosts now] undeclared construct: validate fails (1)
+  ok   P4 [read @/etc/hosts now] names reads_files
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/ax4 --waiver-id WP4 --yes
+  ok   P4 [files read @/etc/hosts now] undeclared construct: add refused (3)
+  ok   P4 [files read @/etc/hosts now] not installed
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax4
+  ok   P4 [files read @/etc/hosts now] declared construct validates (0)
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax5
+  ok   P4 [files see @./notes.md] undeclared construct: validate fails (1)
+  ok   P4 [see @./notes.md] names reads_files
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/ax5 --waiver-id WP4 --yes
+  ok   P4 [files see @./notes.md] undeclared construct: add refused (3)
+  ok   P4 [files see @./notes.md] not installed
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax5
+  ok   P4 [files see @./notes.md] declared construct validates (0)
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax6
+  ok   P4 [shell FM] undeclared construct: validate fails (1)
+  ok   P4 [FM] names agent_shell
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/ax6 --waiver-id WP4 --yes
+  ok   P4 [shell FM] undeclared construct: add refused (3)
+  ok   P4 [shell FM] not installed
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/ax6
+  ok   P4 [shell FM] declared construct validates (0)
+  ok   P4 declared shell construct installs
+  ok   P4 consent lists agent-shell even with --json (stderr)
+  ok   no traceback: enable ax1 --yes
+  ok   P4 enable declared
+  ok   P4 enable consent lists agent-shell
+  ok   no traceback: wire ax1 --agent gemini
+  ok   P4 wire declared
+  ok   P4 consented construct copied into the gemini shim
+  ok   no traceback: unwire --agent all
+  ok   no traceback: remove ax1 --yes
+  ok   P4 cleanup
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/axd
+  ok   P4 an e-mail address is not file injection (0)
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/axm
+  ok   B1 an @word at a token start is file injection unless declared (round 4 class rule) (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.kUGkfw/axu
+  ok   P4 agent_shell naming an unknown command fails (1)
+  ok   P4 bundled undeclared construct: enable refused (3)
+  ok   no traceback: enable hello-fixture --yes
+  ok   P4 enable clean bundled
+  ok   no traceback: lock
+  ok   P4 lock refuses to refresh an enabled entry that gained an undeclared construct (3)
+  ok   M3 a refused refresh says the lock is only partially written
+  ok   M3 no unqualified 'lock written:' when an entry was refused
+  ok   no traceback: wire --agent all
+  ok   P4 wire refuses after the refused refresh (5)
+  ok   P4 no shim written
+  ok   P4 no shim written for undeclared construct
+  ok   no traceback: enable hello-fixture --yes
+  ok   I2 enable
+  ok   no traceback: wire --agent claude
+  ok   I2 wire claude
+  ok   I2 claude shim resolves into the snapshot store
+  ok   I2 shim still serves the consented text after the update
+  ok   no traceback: verify hello-fixture
+  ok   I2 verify reports the change (5)
+  ok   no traceback: lock
+  ok   I2 lock refreshes a change that adds no capability (0)
+  ok   I2 shim unchanged after lock (only wire changes what the agent sees)
+  ok   no traceback: wire --agent claude
+  ok   I2 wire after the refresh
+  ok   I2 shim serves the new text after wire
+  ok   no traceback: lock
+  ok   I2 lock refuses a change that adds an undeclared construct (3)
+  ok   no traceback: wire --agent claude
+  ok   I2 wire refuses it
+  ok   I2 the agent never sees the undeclared construct
+  ok   no traceback: lock
+  ok   I2 lock after the construct is removed again
+  ok   I2 the superseded snapshot was removed
+  ok   no traceback: verify hello-fixture
+  ok   I2 verify clean after re-wire
+  ok   no traceback: unwire --agent claude
+  ok   I2 unwire
+  ok   I2 snapshot store emptied by unwire
+  ok   no traceback: enable hello-fixture --yes
+  ok   M26 enable
+  ok   no traceback: lock
+  ok   no traceback: verify hello-fixture
+  ok   M26 capabilities changed since consent: verify (5)
+  ok   M26 message
+  ok   no traceback: wire --agent all
+  ok   P4 wire refuses when capabilities changed since consent (5)
+  ok   P4 no shim when consent is stale
+### P5 reviewer mutation gaps
+  ok   no traceback: enable hello-fixture --yes
+  ok   no traceback: wire --agent opencode --target <tmp>/helix-ext-test.kUGkfw/proj-evil
+  ok   M01 sibling directory sharing the project prefix refused (3)
+  ok   M01 nothing written in the sibling
+  ok   M03 group/other-readable nonce file: kill seam inert (enable completes)
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/m12 --waiver-id W12 --yes
+  ok   M12 setup add
+  ok   no traceback: disable m12
+  ok   M12 disable of a tampered entry still disables (0)
+  ok   no traceback: verify m12
+  ok   M12 disable did not launder the tampered consent (5)
+  ok   M12 names consent
+  ok   no traceback: remove m12 --yes
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/m13 --waiver-id W13 --yes
+  ok   no traceback: verify m13
+  ok   M13 state key with mode 0644 fails verify (5)
+  ok   M13 names the mode
+  ok   no traceback: remove m13 --yes
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/m16 --waiver-id W16 --yes
+  ok   M16 installed extension with a bundled id refused (3)
+  ok   M16 says bundled
+  ok   M16 nothing installed
+On branch main
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.constitution/
+
+nothing added to commit but untracked files present (use "git add" to track)
+  ok   M17 import discovery-only catalog
+  ok   M17 install from a discovery-only catalog refused (3)
+  ok   M17 says discovery-only
+  ok   M17 nothing installed
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/m20 --waiver-id W20 --yes
+  ok   M20 add
+  ok   M20 installed regular file mode normalised to 644
+  ok   M20 installed executable mode normalised to 755
+  ok   no traceback: remove m20 --yes
+  ok   no traceback: add file://<tmp>/helix-ext-test.kUGkfw/m24repo --sha 5d52fa7b888d763eb43c95348ec30498dcf3f332 --waiver-id W24 --yes
+  ok   M24 gitlink in a git source refused (3)
+  ok   M24 names submodules
+  ok   M24 nothing installed
+### P6 MINOR findings
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/m12 --waiver-id <fake_token:gh> --yes
+  ok   secret-shaped --waiver-id refused (2)
+  ok   waiver token not echoed
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/m12 --waiver-id <fake_token:sk> --yes
+  ok   sk- shaped --waiver-id refused (2)
+  ok   W12-style waiver never recorded secret
+  ok   no traceback: add https://example.invalid/x.git?private_token=plainvalue77 --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --sha256 0000000000000000000000000000000000000000000000000000000000000000 --yes
+  ok   query-string token in URL refused (3)
+  ok   query-string token not echoed
+  ok   no traceback: --dry-run add https://example.invalid/x.git?ref=main&access_token=plainvalue88 --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --sha256 0000000000000000000000000000000000000000000000000000000000000000 --yes
+  ok   dry-run never echoes a query token
+  ok   no traceback: --dry-run add https://example.invalid/x.git?ref=plainvalue99 --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --sha256 0000000000000000000000000000000000000000000000000000000000000000 --yes
+  ok   dry-run of an allowed query URL succeeds (0)
+  ok   dry-run says what it would clone
+  ok   dry-run redacts every query value
+  ok   dry-run shows the redaction marker
+  ok   no traceback: add file://<tmp>/helix-ext-test.kUGkfw/gsrepo --sha 2f4cfb5f8a6e5d12f8f25d3a8db11ee3be75b506 --yes
+  ok   git source with --sha but no content sha256 refused (3)
+  ok   names --sha256
+  ok   no traceback: add file://<tmp>/helix-ext-test.kUGkfw/gsrepo --sha 2f4cfb5f8a6e5d12f8f25d3a8db11ee3be75b506 --sha256 5b2864f703dff940f70af5f2f92fd70a3f93b9e33568fcf791ee07ec29583d0e --yes
+  ok   git source with --sha and --sha256 installs
+  ok   no traceback: remove gsx --yes
+  ok   symlinked audit log refused up front
+  ok   symlinked audit log: nothing written (no lock)
+  ok   symlinked audit log target untouched
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/proj/vendor/inproj --dev --waiver-id WIP --yes
+  ok   in-project --dev source installs
+  ok   in-project source recorded project-relative
+  ok   in-project source not recorded as an absolute path
+  ok   no traceback: remove inproj --yes
+  ok   no traceback: add <tmp>/helix-ext-test.kUGkfw/bv --waiver-id WBV --yes
+  ok   no traceback: verify bv
+  ok   lock string with bidi char fails verify (5)
+  ok   verify never prints a raw bidi character
+  ok   verify escapes it
+  ok   no traceback: remove bv --yes
+  ok   root without extensions/ still lists (lock taken on the root)
+  ok   R13 root lock holder started
+  ok   R13 engine waits for the root lock (timeout 124)
+  ok   R13 engine runs after the root lock is released
+provenance: PASS 283 FAIL 0

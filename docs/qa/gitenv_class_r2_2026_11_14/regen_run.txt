@@ -1,0 +1,127 @@
+EDIT scripts/lib/constitution_layout.sh: CL_GIT_SCRUB_VARS -> 14 names
+EDIT scripts/anchors/tests/test_generate_us3.py: 1 canonical line(s) regenerated
+EDIT scripts/badges/compute_badges.sh: 1 canonical line(s) regenerated
+EDIT scripts/badges/test_static_badges.sh: 1 canonical line(s) regenerated
+EDIT scripts/badges/test_twins_badge_formats_switch.sh: 1 canonical line(s) regenerated
+EDIT scripts/codegraph/codegraph_mcp_preflight.sh: 1 canonical line(s) regenerated
+EDIT scripts/codegraph/scope_render.py: 1 canonical line(s) regenerated
+EDIT scripts/codegraph/tests/t_scope_cases.py: 1 canonical line(s) regenerated
+EDIT scripts/codegraph/tests/t_scope_fixture.py: 1 canonical line(s) regenerated
+EDIT scripts/codegraph/tests/test_mcp_readonly.sh: 1 canonical line(s) regenerated
+EDIT scripts/codegraph/tests/test_update_and_resync.sh: 1 canonical line(s) regenerated
+EDIT scripts/constitution_cmd/constitution_cmd.sh: 1 canonical line(s) regenerated
+EDIT scripts/extensions/bridge_supply_chain_check.sh: 1 canonical line(s) regenerated
+EDIT scripts/extensions/install_speckit_superpowers_bridge.sh: 1 canonical line(s) regenerated
+EDIT scripts/extensions/install_speckit_superpowers_bridge_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/extensions/probe_bridge_layers.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/closure/churn_rank.py: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/cycle/baseline_replay.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/host/host_report.py: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/orchestration/custody_sweep.py: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/review/lib/precheck_pack_build_run.py: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/review/precheck_pack_build.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/fixtures/churn_rank/build_frozen_repo.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/fixtures/consumer_migrate/build_fixtures.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/fixtures/cycle_report/build_asof_scenario.py: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_affected_set_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_baseline_replay_r2_findings.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_baseline_replay_r4_findings.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_baseline_replay_r6_findings.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_baseline_replay_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_baseline_replay_worktree_cleanup.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_build_deploy_qa_events_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_churn_rank_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_consumer_audit_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_consumer_migrate_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_custody_sweep_r7_regression.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_custody_sweep_r8_regression.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_custody_sweep_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_cycle_report_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_fastcycle_r6_mutations.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_fc_commit_stage_timer_mutations.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_fc_commit_stage_timer_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_governance_subset_conservative.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_mutation_anchor_census.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_plan_struct_landing_rulediff_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_precheck_pack_build_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_precheck_shellcheck_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_repo_verify_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tests/test_tower_detector_red.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/timing/fc_timer_selftest.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tokens/test_dispatch_stamp_r5_regression.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh: 1 canonical line(s) regenerated
+EDIT scripts/fastcycle/verify/repo_verify.py: 1 canonical line(s) regenerated
+EDIT scripts/full_suite/run_full_suite.py: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_agent_type_label.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_anchor_record_complete.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_canonical_root_clarity_mutation_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_decisions_wizard_safety.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_git_hooks_installed.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_gitlink_on_remote.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_helix_deps_manifest_present_mutation_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_helix_deps_ref_matches_gitlink.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_hub_engine_no_ownorg_nesting.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_hub_engine_no_ownorg_nesting_mutation_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_installer_no_push_no_force.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_installer_no_push_no_force_mutation_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_installer_script_modes.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_installer_script_modes_mutation_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_llmctl_submodule_nonrecursive_mutation_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_oracle_strategy_named_and_independent.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_pr_delivery_anchor_wired.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_setup_prompt_latest_present.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/covenant_propagation_superspec_exclusion_topology_test.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/fixtures/jev/bin/bootstrap.sh: 1 canonical line(s) regenerated
+EDIT scripts/gates/gate_ledger.sh: 1 canonical line(s) regenerated
+EDIT scripts/helix_code/helix_code_home.sh: 1 canonical line(s) regenerated
+EDIT scripts/hooks/guard-work-track-binding.sh: 1 canonical line(s) regenerated
+EDIT scripts/hooks/test_credential_scan_lib.sh: 1 canonical line(s) regenerated
+EDIT scripts/hooks/test_guard_branch_consistency.sh: 1 canonical line(s) regenerated
+EDIT scripts/hooks/test_guard_destructive_paths.sh: 1 canonical line(s) regenerated
+EDIT scripts/hooks/test_guard_forbidden_commands.sh: 1 canonical line(s) regenerated
+EDIT scripts/hooks/test_guard_work_track_binding.sh: 1 canonical line(s) regenerated
+EDIT scripts/hooks/test_label_sync_hooks.sh: 1 canonical line(s) regenerated
+EDIT scripts/install_constitution.sh: 1 canonical line(s) regenerated
+EDIT scripts/label-sync/adapters/tests/test_real_agents.sh: 1 canonical line(s) regenerated
+EDIT scripts/label-sync/render/tests/test_render.sh: 1 canonical line(s) regenerated
+EDIT scripts/multitrack/test_install_agent_label_defs.sh: 1 canonical line(s) regenerated
+EDIT scripts/multitrack/test_multitrack_cwd_hook_consumer_root.sh: 1 canonical line(s) regenerated
+EDIT scripts/multitrack/test_multitrack_redpin_mutations.sh: 1 canonical line(s) regenerated
+EDIT scripts/multitrack/test_multitrack_work_binding_submodule_db.sh: 1 canonical line(s) regenerated
+EDIT scripts/multitrack/test_ruler_suite_discovery.sh: 1 canonical line(s) regenerated
+EDIT scripts/release/tag_and_release.sh: 1 canonical line(s) regenerated
+EDIT scripts/release_tag.sh: 1 canonical line(s) regenerated
+EDIT scripts/update_constitution.sh: 1 canonical line(s) regenerated
+EDIT tests/test_git_env_class.sh: 1 canonical line(s) regenerated
+EDIT scripts/deps_manifest/helix_deps_manifest.py:287 token removed
+EDIT scripts/fastcycle/consumers/audit.py:101 token removed
+EDIT scripts/fastcycle/consumers/migrate.sh:245 token removed
+EDIT scripts/hooks/constitution-submodule-post-checkout:130 token removed
+EDIT scripts/hooks/post-merge:141 token removed
+EDIT scripts/jev/bootstrap.sh:84 token removed
+EDIT scripts/jev/bootstrap.sh:97 token removed
+EDIT scripts/label-sync/install_label_sync.sh:94 token removed
+EDIT scripts/lib/hook_install.sh:65 token removed
+EDIT scripts/multitrack/multitrack_constitution_sync.sh:218 token removed
+EDIT scripts/post_update_hook.sh:125 token removed
+EDIT scripts/gates/cm_full_suite_manifest_complete.sh:103 token removed
+EDIT scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh:71 token removed
+EDIT tests/test_full_suite_manifest_gate_git_env.sh:50 token removed
+EDIT scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh:43 token removed
+EDIT scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh:42 token removed
+EDIT scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh:43 token removed
+EDIT scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh:86 token removed
+EDIT scripts/fastcycle/tests/test_custody_sweep_r19_regression.sh:106 token removed
+EDIT scripts/fastcycle/tests/test_custody_sweep_r21_regression.sh:53 token removed
+EDIT scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh:75 token removed
+canonical=GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX
+edits=125 canonical_lines=103

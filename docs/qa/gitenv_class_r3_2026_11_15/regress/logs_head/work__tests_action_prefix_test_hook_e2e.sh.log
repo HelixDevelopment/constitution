@@ -1,0 +1,45 @@
+=== §11.4.140 LAYER-2 hook e2e — run 20261115T012600Z (N=3) ===
+hook:      <scratch>/work/scripts/hooks/action_prefix_expand.sh
+evidence:  <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z
+
+--- parse-clean (§11.4.67) ---
+  parse OK (#!/usr/bin/env): scripts/hooks/action_prefix_expand.sh
+  parse OK (#!/usr/bin/env): scripts/action_prefix_lib.sh
+  parse OK (#!/usr/bin/env): scripts/install_action_prefix.sh
+  parse OK (#!/usr/bin/env): tests/action_prefix/test_hook_e2e.sh
+PASS [parse-clean] all in-scope scripts parse under sh -n AND bash -n
+
+--- 4 valid grammar forms (MUST expand) ---
+PASS [form1_colon_bare] BACKGROUND :: do X — additionalContext carries BACKGROUND expansion + residual 'do X'  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/form1_colon_bare_iter1.json]
+PASS [form2_colon_namespace] DEFAULT::BACKGROUND :: do X — additionalContext carries BACKGROUND expansion + residual 'do X'  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/form2_colon_namespace_iter1.json]
+PASS [form3_slash_bare] /BACKGROUND do X — additionalContext carries BACKGROUND expansion + residual 'do X'  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/form3_slash_bare_iter1.json]
+PASS [form4_slash_namespace] /DEFAULT::BACKGROUND do X — additionalContext carries BACKGROUND expansion + residual 'do X'  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/form4_slash_namespace_iter1.json]
+
+--- escape (MUST pass through, no expansion) ---
+PASS [escape_backslash] \BACKGROUND :: x — empty stdout, prompt passes through unchanged  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/escape_backslash_iter1.json]
+
+--- unknown action (MUST NOT expand) ---
+PASS [unknown_foobar] FOOBAR :: x — unknown token NOT expanded (clarify-ASK note (§11.4.66/§11.4.105))  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/unknown_foobar_iter1.json]
+
+--- non-action prompt (MUST pass through) ---
+PASS [nonaction_plain] just a normal prompt — empty stdout, prompt passes through unchanged  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/nonaction_plain_iter1.json]
+
+--- installer wiring into a SANDBOX .claude/settings.json (§11.4.75) ---
+PASS [installer-wiring] UserPromptSubmit hook wired by-reference -> <tmp>/apx_install_sandbox.SGx5l3/const/scripts/hooks/action_prefix_expand.sh (resolves, executable)  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/sandbox_settings.json]
+PASS [installer-wiring-fires] driving the WIRED hook path expands BACKGROUND  [evidence: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z/installer_wired_invoke.json]
+
+=== PER-CASE VERDICT TABLE (form -> emitted-expansion Y/N) ===
+  FORM / CASE                      | EMITTED EXPANSION?                           | VERDICT
+  ---------------------------------+----------------------------------------------+-------
+  BACKGROUND :: do X               | Y (expansion+residual)                       | PASS  
+  DEFAULT::BACKGROUND :: do X      | Y (expansion+residual)                       | PASS  
+  /BACKGROUND do X                 | Y (expansion+residual)                       | PASS  
+  /DEFAULT::BACKGROUND do X        | Y (expansion+residual)                       | PASS  
+  \BACKGROUND :: x                 | N (empty stdout, pass-through)               | PASS  
+  FOOBAR :: x                      | N (not expanded: clarify-ASK note (§11.4.66/§11.4.105)) | PASS  
+  just a normal prompt             | N (empty stdout, pass-through)               | PASS  
+
+=== SUMMARY ===
+PASS: 10   FAIL: 0   (N_ITER=3 determinism)
+evidence dir: <scratch>/work/qa-results/action_prefix/hook_e2e/20261115T012600Z
+RESULT: GREEN

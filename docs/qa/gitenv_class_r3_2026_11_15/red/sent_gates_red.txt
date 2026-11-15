@@ -1,0 +1,29 @@
+# RED on 005bcfd1 (005bcfd187da198903e81833b00daa4421a6f29b), 2026-11-14T23:27:33Z
+script=scripts/gates/cm_rule_binds_to_seam.sh args=--selftest mode=none rc=0 sentinel=UNCHANGED objects=3 head=87300b9 sentinel
+  out: 
+  out: cm_rule_binds_to_seam.sh --selftest: pass=11 fail=0
+script=scripts/gates/cm_rule_binds_to_seam_mutation_test.sh args= mode=none rc=0 sentinel=UNCHANGED objects=3 head=f431400 sentinel
+  out: 
+  out: cm_rule_binds_to_seam_mutation_test.sh: pass=12 fail=0
+script=scripts/gates/cm_gitlink_on_remote_mutation_test.sh args= mode=none rc=1 sentinel=UNCHANGED objects=3 head=807da23 sentinel
+  out: == RESULT: 18 passed, 1 failed ==
+  out: ❌ META FAIL
+script=scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh args= mode=none rc=0 sentinel=UNCHANGED objects=3 head=03b1871 sentinel
+  out: ✅ META OK:   order-independent parse still BLINDs on an unresolvable tag — gate exit 2 as required
+  out: ✅ META: all expectations held
+script=scripts/gates/cm_rule_binds_to_seam.sh args=--selftest mode=git_dir rc=0 sentinel=CHANGED objects=6 head=7969e06 base
+  out: 
+  out: cm_rule_binds_to_seam.sh --selftest: pass=11 fail=0
+script=scripts/gates/cm_rule_binds_to_seam_mutation_test.sh args= mode=git_dir rc=0 sentinel=CHANGED objects=10 head=e28ddb3 base
+  out: 
+  out: cm_rule_binds_to_seam_mutation_test.sh: pass=12 fail=0
+script=scripts/gates/cm_gitlink_on_remote_mutation_test.sh args= mode=git_dir rc=1 sentinel=CHANGED objects=17 head=d7c0813 s3
+  out: == RESULT: 6 passed, 13 failed ==
+  out: ❌ META FAIL
+script=scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh args= mode=git_dir rc=1 sentinel=CHANGED objects=8 head=94536cd nested
+  out: ✅ META OK:   order-independent parse still BLINDs on an unresolvable tag — gate exit 2 as required
+  out: ❌ META: violations above
+# control: hermetic gate
+script=scripts/gates/cm_gitlink_on_remote.sh args=--help mode=git_dir rc=0 sentinel=UNCHANGED objects=3 head=de2f634 sentinel
+  out:   §11.4.28, §11.4.113, §11.4.288(D), §11.4.6, §1.1 (paired mutation: cm_gitlink_on_remote_mutation_test.sh).
+  out: Classification: universal (§11.4.17).

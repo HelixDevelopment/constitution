@@ -1,0 +1,199 @@
+== B-1: secret-shaped key segments are refused and never persisted or echoed ==
+  PASS secret-shaped key refused (question_types.ab0123456789abcdef0123456789abcdef.mode=shadow) (rc=4)
+  PASS secret-shaped key refused (question_types.ghp_abcdefghijklmnopqr.mode=shadow) (rc=4)
+  PASS secret-shaped key refused (question_types.ghp_abcdefghijklmnopqr.mode=bogus) (rc=4)
+  PASS secret-shaped key refused (agents.ghp_abcdefghijklmnopqr.wiring=consent) (rc=4)
+  PASS secret-shaped key refused (ghp_abcdefghijklmnopqr.mode=x) (rc=4)
+  PASS secret-shaped key refused (question_types.ghp_abcdefghijklmnopqr.mode=enforce) (rc=4)
+  PASS refusal names key material
+  PASS S1 never written or echoed
+  PASS S2 never written or echoed
+  PASS secret-shaped key in answers refused (rc=4)
+  PASS answers refusal does not echo the key
+  PASS secret-shaped --unset refused (rc=4)
+  PASS --unset refusal does not echo the key
+  PASS secret-shaped --scope value refused without echo (rc=2)
+  PASS argparse error does not echo the value
+  PASS secret-shaped --doc path refused (rc=3)
+  PASS --doc refusal does not echo the path
+  PASS no file named after the secret
+  PASS secret-shaped key in file refused by --check (rc=4)
+  PASS --check does not echo the key
+  PASS --show refuses (no echo) (rc=4)
+  PASS --show does not echo the key
+  PASS secret-shaped inherits refused (rc=4)
+  PASS inherits refusal does not echo
+  PASS ordinary type name accepted (rc=0)
+== I-1: --dry-run writes NOTHING in every mode ==
+  PASS dry-run --export new.yml (dry) (rc=0)
+  PASS dry-run --export new.yml wrote nothing (dry)
+  PASS dry-run --export new.yml (dry_fresh) (rc=0)
+  PASS dry-run --export new.yml wrote nothing (dry_fresh)
+  PASS dry-run --export exists.yml --force-export (dry) (rc=0)
+  PASS dry-run --export exists.yml --force-export wrote nothing (dry)
+  PASS dry-run --export exists.yml --force-export (dry_fresh) (rc=0)
+  PASS dry-run --export exists.yml --force-export wrote nothing (dry_fresh)
+  PASS dry-run --export - (dry) (rc=0)
+  PASS dry-run --export - wrote nothing (dry)
+  PASS dry-run --export - (dry_fresh) (rc=0)
+  PASS dry-run --export - wrote nothing (dry_fresh)
+  PASS dry-run --set calibration.floor=0.96 (dry) (rc=0)
+  PASS dry-run --set calibration.floor=0.96 wrote nothing (dry)
+  PASS dry-run --set calibration.floor=0.96 (dry_fresh) (rc=0)
+  PASS dry-run --set calibration.floor=0.96 wrote nothing (dry_fresh)
+  PASS dry-run --unset calibration.floor (dry) (rc=0)
+  PASS dry-run --unset calibration.floor wrote nothing (dry)
+  PASS dry-run --unset calibration.floor (dry_fresh) (rc=0)
+  PASS dry-run --unset calibration.floor wrote nothing (dry_fresh)
+  PASS dry-run --reset (dry) (rc=0)
+  PASS dry-run --reset wrote nothing (dry)
+  PASS dry-run --reset (dry_fresh) (rc=0)
+  PASS dry-run --reset wrote nothing (dry_fresh)
+  PASS dry-run --answers <tmp>/dec_test.8tZvUh/dry_ans.yml (dry) (rc=0)
+  PASS dry-run --answers <tmp>/dec_test.8tZvUh/dry_ans.yml wrote nothing (dry)
+  PASS dry-run --answers <tmp>/dec_test.8tZvUh/dry_ans.yml (dry_fresh) (rc=0)
+  PASS dry-run --answers <tmp>/dec_test.8tZvUh/dry_ans.yml wrote nothing (dry_fresh)
+  PASS dry-run --import <tmp>/dec_test.8tZvUh/dry_imp.yml (dry) (rc=0)
+  PASS dry-run --import <tmp>/dec_test.8tZvUh/dry_imp.yml wrote nothing (dry)
+  PASS dry-run --import <tmp>/dec_test.8tZvUh/dry_imp.yml (dry_fresh) (rc=0)
+  PASS dry-run --import <tmp>/dec_test.8tZvUh/dry_imp.yml wrote nothing (dry_fresh)
+  PASS dry-run --scope user --set calibration.floor=0.97 (dry) (rc=0)
+  PASS dry-run --scope user --set calibration.floor=0.97 wrote nothing (dry)
+  PASS dry-run --scope user --set calibration.floor=0.97 (dry_fresh) (rc=0)
+  PASS dry-run --scope user --set calibration.floor=0.97 wrote nothing (dry_fresh)
+  PASS dry-run --doc EXTRA.md --set calibration.floor=0.96 (dry) (rc=0)
+  PASS dry-run --doc EXTRA.md --set calibration.floor=0.96 wrote nothing (dry)
+  PASS dry-run --doc EXTRA.md --set calibration.floor=0.96 (dry_fresh) (rc=0)
+  PASS dry-run --doc EXTRA.md --set calibration.floor=0.96 wrote nothing (dry_fresh)
+  PASS fresh project still has no .constitution
+== I-2: managed block without decisions.yml is drift ==
+  PASS stale block, no yml -> check 4 (rc=4)
+  PASS drift message names the doc
+  PASS no yml, no block -> check 0 (control) (rc=0)
+== I-3: structure-aware markers ==
+  PASS fenced example markers ignored (rc=0)
+  PASS fenced example kept verbatim
+  PASS real block appended after the fence
+  PASS re-run is a no-change with the fence present (rc=0)
+  PASS no-change reported
+  PASS check clean with fenced example (rc=0)
+  PASS END line with trailing user text refused (rc=4)
+  PASS user note not lost (file untouched)
+  PASS legacy-named markers are not ours (rc=0)
+  PASS legacy block kept verbatim
+  PASS our block added once
+== I-4: locked values are never stored; a provider-pin change cannot brick the wizard ==
+  PASS set locked value equal to the lock (no-op) (rc=0)
+  PASS keys.var_names not stored
+  PASS hosted.enforce not stored
+  PASS stale locked value: --show still works (rc=0)
+  PASS stale locked value is reported
+  PASS stale locked value: --reset recovers (rc=0)
+  PASS reset dropped the stale value
+  PASS check clean after recovery (rc=0)
+  PASS invalid stored entry blocks unrelated writes (rc=4)
+  PASS --unset of the invalid entry recovers (rc=0)
+  PASS valid entries survive recovery
+  PASS invalid entry removed
+  PASS weakened static lock still refused by --check (rc=4)
+== I-5: printed bootstrap command neutralises ambient JEV_BOOTSTRAP_* ==
+  PASS printed command unsets JEV_BOOTSTRAP_CONSENT
+  PASS printed command unsets JEV_BOOTSTRAP_ALLOW_CLONE
+  PASS printed command unsets JEV_BOOTSTRAP_INSTALL_TOOLS
+  PASS printed command unsets JEV_BOOTSTRAP_AGENTS
+  PASS printed command unsets JEV_BOOTSTRAP_MODE
+  PASS printed command unsets JEV_BOOTSTRAP_DEFER
+  PASS printed command unsets JEV_BOOTSTRAP_DOWNLOAD_PROFILE
+  PASS ambient consent does not reach bootstrap
+  PASS download profile pinned explicitly
+== I-6: in-project symlinked doc is resolved and de-duplicated ==
+  PASS in-project symlinked doc accepted (rc=0)
+  PASS symlink kept as a symlink
+  PASS one block in the shared target
+  PASS check clean with symlinked doc (rc=0)
+  PASS shared target written exactly once (de-duplicated)
+  PASS symlink into .git refused (rc=3)
+  PASS .git target untouched
+== I-7: discriminating tests (re-read under lock, intent window, every excluded stem) ==
+  PASS first writer done during the window (rc=0)
+  PASS second writer done (rc=0)
+  PASS both concurrent changes kept (state re-read under lock)
+  PASS intent window is not a hand edit (writes allowed) (rc=0)
+  PASS intent cleared after recovery
+  PASS check clean after intent recovery (rc=0)
+  PASS bare excluded stem review: enforce refused (rc=4)
+  PASS bare excluded stem review: shadow refused (rc=4)
+  PASS stem review refused by the exclusion lock
+  PASS bare excluded stem merge: enforce refused (rc=4)
+  PASS bare excluded stem merge: shadow refused (rc=4)
+  PASS stem merge refused by the exclusion lock
+  PASS bare excluded stem conflict: enforce refused (rc=4)
+  PASS bare excluded stem conflict: shadow refused (rc=4)
+  PASS stem conflict refused by the exclusion lock
+  PASS bare excluded stem finding: enforce refused (rc=4)
+  PASS bare excluded stem finding: shadow refused (rc=4)
+  PASS stem finding refused by the exclusion lock
+  PASS bare excluded stem qa: enforce refused (rc=4)
+  PASS bare excluded stem qa: shadow refused (rc=4)
+  PASS stem qa refused by the exclusion lock
+  PASS bare excluded stem readiness: enforce refused (rc=4)
+  PASS bare excluded stem readiness: shadow refused (rc=4)
+  PASS stem readiness refused by the exclusion lock
+  PASS bare excluded stem ready: enforce refused (rc=4)
+  PASS bare excluded stem ready: shadow refused (rc=4)
+  PASS stem ready refused by the exclusion lock
+  PASS bare excluded stem evidence: enforce refused (rc=4)
+  PASS bare excluded stem evidence: shadow refused (rc=4)
+  PASS stem evidence refused by the exclusion lock
+  PASS bare excluded stem verif: enforce refused (rc=4)
+  PASS bare excluded stem verif: shadow refused (rc=4)
+  PASS stem verif refused by the exclusion lock
+  PASS bare excluded stem verdict: enforce refused (rc=4)
+  PASS bare excluded stem verdict: shadow refused (rc=4)
+  PASS stem verdict refused by the exclusion lock
+== I-8: JEV_BOOTSTRAP_MODE needs --accept-env ==
+  PASS env mode without --accept-env: not recorded (rc=0)
+  PASS layer.mode not recorded
+  PASS ignored mode is named
+  PASS env mode with --accept-env recorded (rc=0)
+  PASS layer.mode recorded
+== MINOR: clean refusals, contradictions, bounded backups, user backup outside the project ==
+  PASS --export into missing dir refused (rc=3)
+  PASS no traceback (missing dir)
+  PASS missing-dir refusal names the --export target
+  PASS --dry-run --export into missing dir refused too (no false 'would export') (rc=3)
+  PASS --export onto a directory refused (rc=3)
+  PASS no traceback (directory)
+  PASS --export into backup dir refused (rc=3)
+  PASS …by the forbidden-directory rule (the directory exists)
+  PASS .constitution as a regular file refused (rc=3)
+  PASS no traceback (.constitution file)
+  PASS .constitution file untouched
+  PASS --show with .constitution as a regular file refused (rc=3)
+  PASS --show names the broken layout
+  PASS --check with .constitution as a regular file refused (rc=3)
+  PASS hosted.allowed=false + explicit hosted endpoint refused (rc=4)
+  PASS hosted.allowed=false + default endpoints ok (rc=0)
+  PASS effective endpoints drop hosted (rc=0)
+  PASS effective preference has no hosted
+  PASS type enforce under shadow layer refused (rc=4)
+  PASS refused as a contradiction
+  PASS type enforce under enforce layer ok (rc=0)
+  PASS backup count bounded (keep=3)
+  PASS newest backup kept
+  PASS foreign backup dirs never pruned
+  PASS user write with backup (rc=0)
+  PASS user backup not inside the project
+  PASS user backup beside the user file
+  PASS user backup location is printed
+== refactor survivors (MT4, MT6, N19): layers the round-3 refactor left as the only guard ==
+  PASS --export onto a symlink refused (even with --force-export) (rc=3)
+  PASS --export symlink refusal names the symlink
+  PASS export symlink kept as a symlink
+  PASS export symlink target untouched
+  PASS --check: duplicate markers with no decisions file refused (rc=4)
+  PASS --check names the duplicate markers (not a stale-block verdict)
+  PASS unknown non-secret key refused (rc=4)
+  PASS unknown key is not echoed
+  PASS unknown key shown as a hash label
+test_round3: pass=187 fail=0

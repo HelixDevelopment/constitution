@@ -1,0 +1,31 @@
+ADVISORY lint: 0 findings on the real tests
+PASS: lint ran over the real tests (advisory result printed above)
+PASS: lint: the exemptions are exactly the expected list
+PASS: lint fixtures: 6+12 reviewer violators + 6 more flagged, 13 golden-FALSE carriers clean, 1 exemption seen
+PASS: lint mutant L1_no_continuation killed
+PASS: lint mutant L2_unassigned_not_real killed
+PASS: lint mutant L3_no_held_var killed
+PASS: lint mutant L4_empty_redirect_ok killed
+PASS: lint mutant L5_no_keywords killed
+PASS: lint mutant L6_no_for_var killed
+PASS: lint mutant L7_no_raw_assign killed
+PASS: lint mutant L8_unset_redirects killed
+PASS: lint mutant L9_no_heredoc_skip killed
+PASS: lint mutant L11_heredoc_in_quotes killed
+PASS: lint mutant L10_installers_redirectable killed
+PASS: lint mutant L12_no_wrapper_opt_value killed
+PASS: lint mutant L13_no_source_or_shell_vars killed
+PASS: lint mutant L14_no_shell_opt_value killed
+PASS: lint mutant L15_no_func_wrapper killed
+PASS: lint mutant L16_no_tail_var killed
+PASS: lint mutant L17_no_xargs_stdin killed
+PASS: lint mutant L18_no_dash_c killed
+PASS: lint mutant L19_xargs_any_sep killed
+PASS: lint mutant L20_func_any_body killed
+PASS: guard: generator rc 0 with a redirected root
+PASS: guard: the tracked generated sets are byte-identical
+PASS: guard: the checksum was really computed (64 hex)
+PASS: guard: sandbox got the Claude plugin command set
+PASS: guard mutant: a generator ignoring the redirect leaves the sandbox empty (detected)
+----
+hermetic_generator: PASS=28 FAIL=0

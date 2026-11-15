@@ -1,0 +1,85 @@
+UNSCRUBBED	sh	tests/constitution_cmd/test_constitution_cmd.sh	60	( cd "$d" && git init -q -b main . && git add -A && git commit -qm init && git tag helixconstitution-v1 ) >/dev/null 2>&1
+UNSCRUBBED	sh	tests/constitution_cmd/test_constitution_cmd_pty.sh	51	git -C "$d" init -q && git -C "$d" add -A && git -C "$d" commit -q -m vendored \
+UNSCRUBBED	sh	tests/constitution_cmd/test_wiring_cmd.sh	33	( cd "$P" && git init -q -b main . && printf '# demo\n' >README.md && git add README.md && git commit -qm init ) >/dev/null 2>&1
+UNSCRUBBED	sh	tests/decisions/lib.sh	29	git -C "$p" init -q -b main 2>/dev/null || git -C "$p" init -q
+UNSCRUBBED	sh	tests/decisions/repo_guard.sh	98	git -C "$r" init -q 2>/dev/null
+UNSCRUBBED	sh	tests/decisions/test_core.sh	79	P3="$SB/p3"; mkdir -p "$P3/constitution"; git -C "$P3" init -q
+UNSCRUBBED	sh	tests/decisions/test_round10.sh	32	git -C "$p" init -q -b main 2>/dev/null || git -C "$p" init -q
+UNSCRUBBED	sh	tests/decisions/test_round11.sh	27	git -C "$p" init -q -b main 2>/dev/null || git -C "$p" init -q; printf '# P\n' >"$p/CLAUDE.md"; printf '%s' "$p"; }
+UNSCRUBBED	sh	tests/decisions/test_round3.sh	59	Pn="$SB/dry_fresh"; mkdir -p "$Pn"; mkdir -p "$Pn/submodules/constitution"; git -C "$Pn" init -q
+UNSCRUBBED	sh	tests/decisions/test_round5.sh	92	P2="$SB/legacy"; mkdir -p "$P2/constitution"; git -C "$P2" init -q 2>/dev/null; printf '# P\n' >"$P2/CLAUDE.md"; printf '# c\n' >"$P2/constitution/CLAUDE.md"
+UNSCRUBBED	sh	tests/decisions/test_round6.sh	178	mkdir -p "$SB/pwhome/submodules/constitution" "$SB/other"; git -C "$SB/pwhome" init -q 2>/dev/null
+UNSCRUBBED	sh	tests/decisions/test_round7.sh	264	r = subprocess.run(["git", "config", "-f", p, "-z", "--get-regexp", r"^submodule\..*\.path$"], capture_output=True)
+UNSCRUBBED	sh	tests/decisions/test_round8.sh	61	r = subprocess.run(["git", "config", "-f", p, "-z", "--get-regexp", r"^submodule\..*\.path$"], capture_output=True)
+UNSCRUBBED	sh	tests/decisions/test_round9.sh	25	git -C "$p" init -q -b main 2>/dev/null || git -C "$p" init -q
+UNSCRUBBED	sh	tests/extensions/lib.sh	72	git -C "$r" init -q && git -C "$r" add -A && git -C "$r" commit -q -m "fixture root" \
+UNSCRUBBED	sh	tests/extensions/test_attacks.sh	169	mkext "$SB/b4a" b4a; mkdir -p "$SB/b4a/sub"; git -C "$SB/b4a/sub" init -q
+UNSCRUBBED	sh	tests/extensions/test_integration.sh	15	git clone -q --bare --no-recurse-submodules "$REPO" "$UP/c.git" || { nok "bare clone"; finish; exit 1; }
+UNSCRUBBED	sh	tests/extensions/test_provenance.sh	131	git -C "$R2" add -A && git -C "$R2" commit -q -m "bundle fixture"
+UNSCRUBBED	py	tests/extensions/test_unit.py	453	_git_raw("init", "-q", self.src)
+UNSCRUBBED	sh	tests/extensions/test_wiring_ledger.sh	201	git -C "$IP" add -A >/dev/null 2>&1; git -C "$IP" commit -qm inv >/dev/null 2>&1
+UNSCRUBBED	sh	tests/gates/test_default_scan_root.sh	32	git -C "$1" init -q 2>/dev/null
+UNSCRUBBED	sh	tests/gates/test_gate_env_overrides_guarded.sh	46	git -C "$sb/fx" update-ref refs/remotes/origin/main HEAD
+UNSCRUBBED	sh	tests/gates/test_manifest_structural_parser.sh	29	env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git -C "$d" init -q . 2>/dev/null
+UNSCRUBBED	sh	tests/gates/test_oracle_frozen_exclusions.sh	57	commit() { "${GIT[@]}" -C "$1" add -A >/dev/null 2>&1; "${GIT[@]}" -C "$1" commit -qm "$2" >/dev/null 2>&1; git -C "$1" update-ref refs/remotes/origin/main HEAD
+UNSCRUBBED	sh	tests/gates/test_oracle_ratchet_and_consumer_skips.sh	80	mkdir -p "$d/config"; git -C "$d" init -q 2>/dev/null
+UNSCRUBBED	sh	tests/gates/test_oracle_verdict_fields.sh	20	git -C "$sb/g" update-ref refs/remotes/github_x/main HEAD
+UNSCRUBBED	sh	tests/gates/test_standalone_canon_gates.sh	34	git -C "$d" init -q 2>/dev/null; git -C "$d" -c user.email=t@t -c user.name=t add -A >/dev/null 2>&1
+UNSCRUBBED	sh	tests/gates/test_workable_items_db_sidecars_ignored.sh	47	write through wrapper G, which does not scrub: G -C "$d" init -q . && G -C "$d" add -A >/dev/null && G -C "$d" commit -q -m base || return 1
+UNSCRUBBED	sh	tests/hooks_range/test_post_update_hook_range.sh	30	git -C "$C" init -q -b main
+UNSCRUBBED	sh	tests/install/lib.sh	65	git clone -q --bare "$HELIX_TEST_UPSTREAM_SEED/upstream.git" "$d/upstream.git" || return 1
+UNSCRUBBED	sh	tests/install/mutants_round11.sh	14	git clone -q --no-recurse-submodules "$repo" "$tmp/pristine" || exit 2
+UNSCRUBBED	sh	tests/install/test_agent.sh	60	pusher)   git init -q --bare "$log.dest.git" && git remote add dest "$log.dest.git" && git push -q dest HEAD:refs/heads/x 2>>"$log"
+UNSCRUBBED	sh	tests/install/test_chaos.sh	44	git -C "$P" add CLAUDE.md AGENTS.md; git -C "$P" commit -qm docs
+UNSCRUBBED	sh	tests/install/test_detection.sh	41	S="$SB/std"; new_project "$S"; git -C "$S" -c protocol.file.allow=always submodule add -q "$UP" submodules/constitution >/dev/null 2>&1
+UNSCRUBBED	sh	tests/install/test_e2e.sh	34	git -C "$P" commit -qm "add constitution"
+UNSCRUBBED	sh	tests/install/test_git_wrapper.sh	62	refused "-c alias" -c 'alias.p=!git push' p
+UNSCRUBBED	sh	tests/install/test_integration.sh	18	eq ".gitmodules path" "submodules/constitution" "$(git -C "$P" config -f .gitmodules submodule.submodules/constitution.path)"
+UNSCRUBBED	sh	tests/install/test_round10.sh	24	mkinstalled() { new_project "$1"; run_installer "$1" "${BASE[@]}" --ref helixconstitution-v999.0; git -C "$1" commit -qm add; }
+UNSCRUBBED	sh	tests/install/test_round11.sh	20	mkinstalled() { new_project "$1"; run_installer "$1" "${BASE[@]}" --ref helixconstitution-v999.0; git -C "$1" commit -qm add; }
+UNSCRUBBED	sh	tests/install/test_round6.sh	43	RR="$SB/rr"; mkdir -p "$RR"; git init -q --bare "$RR/o.git"; git clone -q "$RR/o.git" "$RR/w" 2>/dev/null
+UNSCRUBBED	sh	tests/install/test_round8.sh	22	new_project "$1"; run_installer "$1" "${BASE[@]}"; git -C "$1" commit -qm add
+UNSCRUBBED	sh	tests/install/test_round9.sh	27	mkinstalled() { new_project "$1"; run_installer "$1" "${BASE[@]}"; git -C "$1" commit -qm add; }
+UNSCRUBBED	sh	tests/install/test_security.sh	84	git -C "$TP" add -f .constitution-install-backup; git -C "$TP" commit -qm evil-backup
+UNSCRUBBED	sh	tests/install/test_self_guard.sh	22	git clone -q --shared --no-recurse-submodules "$REPO" "$C" || { echo "shared clone failed" >&2; exit 2; }
+UNSCRUBBED	sh	tests/install/test_stress_perf.sh	23	git -C "$P" commit -qm add
+UNSCRUBBED	sh	tests/install/test_updater.sh	15	new_project "$1"; git -C "$1" -c protocol.file.allow=always submodule add -q "$UP" "$2" >/dev/null 2>&1
+UNSCRUBBED	sh	tests/install/test_upstream_main.sh	37	git clone -q --shared --no-checkout --no-recurse-submodules "$SRC" "$r" || return 1
+UNSCRUBBED	sh	tests/jev/lib_assert.sh	154	git -C "$HOST_C" init -q && git -C "$HOST_C" add -A && git -C "$HOST_C" commit -q -m base
+UNSCRUBBED	sh	tests/jev/test_bootstrap_provision_fallback.sh	28	assert_not_contains "$STUB_LOG/git.log" " clone " "(a) no git clone attempted when submodule present"
+UNSCRUBBED	sh	tests/jev/test_mcp_register_hardening.sh	66	git -C "$HOST_C" init -q && git -C "$HOST_C" add -A && git -C "$HOST_C" commit -q -m v71
+UNSCRUBBED	sh	tests/layout/test_consumer_trust_lock.sh	194	lt_check "I6 opt-out: git config constitution.autoPropagate false -> not run" test "$(calls)" = 0
+UNSCRUBBED	sh	tests/layout/test_hermetic_generator.sh	195	lt_ok "guard skipped: tree under test is not a git checkout (SKIP, no tracked sets to compare)"
+HERMETIC	sh	tests/layout/test_layout_mutations.sh	273	calls the library scrub (cl_scrub_git_env)
+UNSCRUBBED	sh	tests/layout/test_pending_update_layout.sh	86	lt_check "[$rel] plain pull: hint names the quoted 'cd' + 'git submodule update' command" \
+UNSCRUBBED	sh	tests/layout/test_post_merge_layout.sh	92	eval 'grep -q "checkout is at" "$LT_SB/stale.err" && grep -q "git submodule update" "$LT_SB/stale.err"'
+UNSCRUBBED	sh	tests/layout/test_round4_hardening.sh	188	eval 'test "$(cat "$SH"/* | sha256sum)" = "$sh_sum" && test "$(ls -A "$SH" | wc -l)" = 1 && test -z "$(git -C "$P" config --get constitution.autoPropagate)" && 
+UNSCRUBBED	sh	tests/layout/test_round6_hardening.sh	222	lt_check "R11: direct path with git config constitution.autoPropagate=false -> NOT run, says disabled" \
+UNSCRUBBED	sh	tests/layout/test_round7_ambient.sh	154	git -C "$P/$REL" checkout -q "$RV2"
+HERMETIC	sh	tests/layout/test_round8_git_env.sh	141	calls the library scrub (cl_scrub_git_env)
+UNSCRUBBED	sh	tests/layout/test_setup_layout.sh	333	test "$(git -C "$TM" config --local --get constitution.autoPropagate)" = true
+UNSCRUBBED	py	tests/prompts/allowlist_bypass_forms.py	49	"perl -e 'system(\"git push %s\")'" % F, "python3 -c 'import os; os.system(\"git reset --hard\")'",
+UNSCRUBBED	sh	tests/prompts/test_rotate_hardening.sh	130	S="$(mk_sandbox)"; git -C "$S" init -q; D="$(mk_setup_dir "$S")"; git -C "$S" add -A; git -C "$S" commit -q -m i
+UNSCRUBBED	sh	tests/prompts/test_rotate_integration.sh	49	G="$(mk_sandbox)"; git -C "$G" init -q; GD="$(mk_setup_dir "$G")"
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_behaviour.sh	52	git_q init -q "$w"; printf 'one\n' >"$w/f"; git -C "$w" add f; git -C "$w" commit -q -m c1
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_content.sh	30	'git submodule add .*submodules/constitution' \
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round3.sh	57	git_q init -q "$w"; printf 'one\n' >"$w/f"; printf 'keep\n' >"$w/k"; git -C "$w" add f k; git -C "$w" commit -q -m c1
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round3_mutants.sh	42	elif mid == 'R4-6': s = in_block(s, '# STEP10-BEGIN', '# STEP10-END', 'git merge-base --is-ancestor "refs/remotes/$r/main" HEAD ||', 'true ||')
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round4.sh	62	git_q init -q "$w"; printf 'one\n' >"$w/f"; printf 'keep\n' >"$w/k"; git -C "$w" add f k; git -C "$w" commit -q -m c1
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round4_mutants.sh	28	'V4':  ('STEP10', 'git push --recurse-submodules=no', 'git push --force-with-lease --recurse-submodules=no'),
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round5.sh	49	git_q init -q "$w"; printf 'one\n' >"$w/f"; printf 'keep\n' >"$w/k"; git -C "$w" add f k; git -C "$w" commit -q -m c1
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round5_mutants.sh	56	elif mid == 'S5-FETCHOK':    blk('STEP5', 'rrun git -C "$c" fetch --tags origin || { echo "STOP: fetch failed"; exit 3; }', 'rrun git -C "$c" fetch --tags origi
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round5_stops.sh	38	git_q init -q "$w"; printf 'one\n' >"$w/f"; printf 'keep\n' >"$w/k"; git -C "$w" add f k; git -C "$w" commit -q -m c1
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round5_stops_mutants.sh	52	"STEP2|done < <(git config -f .gitmodules --get-regexp|return 1|return 0" \
+UNSCRUBBED	sh	tests/prompts/test_setup_prompt_round7.sh	47	mk_new() { git_q init -q "$1/p"; printf '# p\n' >"$1/p/README.md"; git -C "$1/p" add README.md; git -C "$1/p" commit -q -m init; }
+UNSCRUBBED	sh	tests/release/test_publish_gitea.sh	13	cd "$W" && git init -q repo && cd repo && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m c && git tag rel-1 && git tag rel-2
+UNSCRUBBED	sh	tests/release/test_tag_and_release.sh	115	mk c7; git --git-dir="$D/r2.git" config receive.advertiseAtomic false; reject_main "$D/r2.git"; run
+UNSCRUBBED	sh	tests/test_cli_agent_plugins.sh	355	git init -q . && \
+UNSCRUBBED	sh	tests/test_full_suite_manifest_gate_git_env.sh	125	GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git init -q --template= "$d" || setup_bug "git init $d"
+HERMETIC	sh	tests/test_git_env_class.sh	85	canonical scrub at line 38
+UNSCRUBBED	sh	tests/test_no_head_red_builder.sh	54	[ -n "$ROOT" ] || { echo "FATAL: not inside a git checkout"; exit 90; }
+UNSCRUBBED	sh	tests/test_no_head_red_builder_mutations.sh	34	[ -n "$ROOT" ] || { echo "FATAL: not inside a git checkout"; exit 90; }
+UNSCRUBBED	sh	tests/test_post_update_hub_gates.sh	40	git -C "$c" init -q && git -C "$c" add -A && git -C "$c" commit -q -m a && git -C "$c" commit -q --allow-empty -m b
+UNSCRUBBED	sh	tests/test_run_full_suite.sh	36	git init -q "$1" && gitc "$1" commit -q --allow-empty -m init
+UNSCRUBBED	sh	tests/test_run_full_suite_go.sh	95	mkdir -p "$1"; git init -q "$1" && gitc "$1" commit -q --allow-empty -m init
+UNSCRUBBED	sh	tests/test_verify_helix_deps_manifests.sh	41	mkdir -p "$1"; git -C "$1" init -q

@@ -1,5 +1,5 @@
 #!/bin/bash
-# mint.sh <repo>: round 11 (re-mint at the landing on main e90d4aea; a first run on bcac0882 gave CON-401..405, never landed). Files the Jev S3/S4 item and its four drafts through
+# mint.sh <repo>: round 11 (re-mint at the landing on main f67d926c; earlier runs on bcac0882 and e90d4aea gave CON-401..405 and CON-402..406, never landed).
 # the workable-items engine (never a hand-edited DB),
 # PWD = the repo root, --prefix CON. Prints "<key> <id>" per item to stdout; the ids are read back from the DB.
 set -euo pipefail

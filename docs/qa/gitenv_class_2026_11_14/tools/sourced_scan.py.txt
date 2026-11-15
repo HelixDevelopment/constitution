@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""sourced_scan.py <repo> <members.txt>
+For every member, lists tracked files that SOURCE it (shell `source X`/`. X`) or IMPORT it (python
+`import <module>` / `from <module> import`), and files that copy or install it as a git hook.
+Control needle: scripts/lib/constitution_layout.sh must be reported as sourced (it is a known library)."""
+import os, re, subprocess, sys
+repo, mf = sys.argv[1:3]
+env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+files = subprocess.run(["git", "-C", repo, "ls-files", "-z"], capture_output=True, env=env).stdout.decode().split("\0")
+texts = {}
+for f in files:
+    p = os.path.join(repo, f)
+    if not f or not os.path.isfile(p) or os.path.islink(p) or os.path.getsize(p) > 3_000_000:
+        continue
+    b = open(p, "rb").read()
+    if b"\0" in b:
+        continue
+    texts[f] = b.decode("utf-8", "replace")
+members = [l.strip() for l in open(mf) if l.strip()]
+def scan(m):
+    b = os.path.basename(m)
+    out = []
+    if m.endswith(".py"):
+        mod = re.escape(b[:-3])
+        rx = re.compile(r"^\s*(?:import\s+(?:[\w.]+\.)?%s\b|from\s+(?:[\w.]+\.)?%s\s+import)" % (mod, mod), re.M)
+    else:
+        rx = re.compile(r"(?:^|[;&|(\s])(?:source|\.)\s+[^#\n]*%s\b" % re.escape(b), re.M)
+    hk = re.compile(r"(?:hooks/|hooksPath)[^\n]*%s|%s[^\n]*(?:\.git/hooks|hooksPath)" % (re.escape(b), re.escape(b)))
+    for f, t in texts.items():
+        if f == m:
+            continue
+        if rx.search(t):
+            out.append(("SOURCED", f))
+        elif hk.search(t):
+            out.append(("HOOKREF", f))
+    return out
+ctl = scan("scripts/lib/constitution_layout.sh")
+if not any(k == "SOURCED" for k, _ in ctl):
+    print("BLIND: control needle (constitution_layout.sh sourced) not found"); sys.exit(2)
+print("control: constitution_layout.sh sourced by %d files" % sum(1 for k, _ in ctl if k == "SOURCED"))
+for m in members:
+    for k, f in scan(m):
+        print("%s\t%s\t<- %s" % (k, m, f))

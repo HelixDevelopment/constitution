@@ -1,0 +1,34 @@
+PASS: I-A: 8 fresh contenders x 20 rounds -> exactly one run every round (bad rounds=0, worst calls=1)
+PASS: I-A: ... no lock or reclaim leftover after any round (rounds with leftovers=0)
+PASS: I-A legacy: directory lock with a dead owner -> reclaimed (WARNING), runs once, nothing left
+PASS: I-A legacy: directory lock with a LIVE owner -> never reclaimed, WARNING, stamp kept
+PASS: I-A: file lock with a LIVE owner -> contention WARNING, nothing run, lock intact
+PASS: I-A: file lock with a dead owner -> reclaimed, runs once, released
+PASS: I-A: fresh EMPTY file lock (being written) -> not reclaimed, WARNING
+PASS: I-A: old EMPTY file lock -> reclaimed, runs once
+PASS: I-A: symlink lock (to a regular file) -> renamed away, target untouched, runs once
+PASS: I-A: symlink lock to a FIFO -> no hang (rc=0), reclaimed, runs once, FIFO untouched
+PASS: I-A: a FIFO at the lock path -> no hang (rc=0), reclaimed, runs once
+PASS: m-C fixture: upgrade ran once and recorded v2 applied
+PASS: m-C: post-merge direct path, gitlink moved back to an OLDER commit -> NOT run, WARNING names the downgrade
+PASS: m-C: ... applied ref stays v2
+PASS: m-C control: direct path with an upgrade (v2 -> v3) runs once
+PASS: m-A: a hostile scripts/lib/constitution_layout.sh in the checkout is NOT sourced by post-merge
+PASS: m-A: ... post-merge still resolved the constitution and wrote the pending stamp
+PASS: m-B/m-A: setup prints the branch-switch limitation and the setup self-run truth
+PASS: I-C: .git/hooks -> shared dir symlink -> setup refuses (rc=1 == 1), names the physical dir
+PASS: I-C: ... shared dir untouched, no config written, nothing run
+PASS: I-C: --allow-global-hooks-path -> installs post-merge into the shared dir (rc=0), backup in the common dir
+PASS: I-C: submodule hooks dir -> shared dir symlink -> setup refuses (rc=1 == 1), nothing written anywhere
+PASS: I-C: ... with the flag: project post-merge installed, the consumer NOT put in the shared dir (rc=0)
+PASS: I-C golden-FALSE: .git/hooks -> a dir inside .git -> accepted (rc=0), installed
+PASS: I-B local: differing user post-merge BACKED UP to <common-dir>/constitution-hook-backup before replace (rc=1)
+PASS: I-B local: a re-run with the identical hook installed is a no-op (no new backup, n=1)
+PASS: I-B symlinked .git/hooks: shared dir NOT touched, WARNING names it (rc=1)
+PASS: I-B global core.hooksPath: machine-wide dir NOT touched, WARNING says global scope (rc=1)
+PASS: I-B global + CONSTITUTION_ALLOW_GLOBAL_HOOKS_PATH=1: installed there, the shared hook backed up in the project common dir
+PASS: A2 (all steps): PROJECT_ROOT naming another repo -> ignored with a WARNING, no hook written there, the owner gets it (rc=1)
+PASS: post-merge parses
+PASS: consumer parses
+----
+round4_hardening: PASS=32 FAIL=0

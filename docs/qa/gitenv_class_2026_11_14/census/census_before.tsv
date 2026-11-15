@@ -1,0 +1,220 @@
+UNSCRUBBED	py	scripts/anchors/tests/test_generate_us3.py	171	subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+UNSCRUBBED	sh	scripts/badges/compute_badges.sh	232	git -C "$d" init -q 2>/dev/null
+UNSCRUBBED	sh	scripts/badges/test_static_badges.sh	46	git -C "$d" init -q 2>/dev/null
+UNSCRUBBED	sh	scripts/badges/test_twins_badge_formats_switch.sh	43	git -C "$d" init -q 2>/dev/null
+UNSCRUBBED	sh	scripts/codegraph/codegraph_mcp_preflight.sh	217	( cd "$FX" && git init -q . && git config user.email t@t && git config user.name t && git add -A && git commit -qm fixture ) >/dev/null 2>&1
+UNSCRUBBED	py	scripts/codegraph/scope_render.py	145	proc = subprocess.run(["git", "config", "-f", path, "--null", "--get-regexp", r"^submodule\..*\.(path|url)$"],
+UNSCRUBBED	py	scripts/codegraph/tests/t_scope_cases.py	121	subprocess.run(["git", "config", "-f", ".gitmodules", "--unset", "submodule.tp_top.url"], cwd=f["root"], check=True)
+UNSCRUBBED	py	scripts/codegraph/tests/t_scope_fixture.py	48	git(path, "init", "-q")
+UNSCRUBBED	sh	scripts/codegraph/tests/test_mcp_readonly.sh	68	( cd "$d" && git init -q . && git config user.email t@t && git config user.name t
+UNSCRUBBED	sh	scripts/codegraph/tests/test_update_and_resync.sh	30	git -C "$W/repo" init -q
+UNSCRUBBED	sh	scripts/constitution_cmd/constitution_cmd.sh	163	printf 'pinned: unknown (not a git checkout)\n'
+UNSCRUBBED	sh	scripts/extensions/bridge_supply_chain_check.sh	98	echo "WangX0111/superspec, extension id 'superspec', self-branded 'Superpowers Bridge'. MEDIUM risk: adoptable ONLY pinned to an immutable commit SHA — NEVER th
+UNSCRUBBED	sh	scripts/extensions/install_speckit_superpowers_bridge.sh	306	SUBMODULE_STATUS=$(git -C "$ROOT" submodule status -- submodules/superspec 2>/dev/null || true)
+UNSCRUBBED	sh	scripts/extensions/install_speckit_superpowers_bridge_test.sh	341	( cd "$src" && git init -q -b main && echo x > f && git add f \
+UNSCRUBBED	sh	scripts/extensions/probe_bridge_layers.sh	134	run_probe "L3_submodule_status" 'git submodule status -- submodules/superspec 2>&1 || echo "NOT-A-SUBMODULE"'
+UNSCRUBBED	py	scripts/fastcycle/closure/churn_rank.py	194	r = subprocess.run(["git", "init", "-q", "."], cwd=tmp, capture_output=True, text=True)
+HERMETIC	sh	scripts/fastcycle/consumers/migrate.sh	357	own reviewed scrub naming every variable of the list
+UNSCRUBBED	sh	scripts/fastcycle/cycle/baseline_replay.sh	1049	git -C "$tgt" config -f .gitmodules --get-regexp '^submodule\..*\.path$' >"${list_file:?}" 2>/dev/null
+UNSCRUBBED	py	scripts/fastcycle/host/host_report.py	742	rc, out, _err = run_cmd(["git", "worktree", "list", "--porcelain"], timeout=30, env=dict(os.environ, GIT_DIR=""))
+UNSCRUBBED	py	scripts/fastcycle/orchestration/custody_sweep.py	686	rc, out, _ = _run(["git", "-C", root, "stash", "list"], check=False)
+UNSCRUBBED	py	scripts/fastcycle/review/lib/precheck_pack_build_run.py	414	if git("read-tree", base, env=ienv).returncode != 0:
+UNSCRUBBED	sh	scripts/fastcycle/review/precheck_pack_build.sh	290	git -C "$REPO" worktree remove --force "$WT_PATH" >/dev/null 2>&1
+UNSCRUBBED	sh	scripts/fastcycle/tests/fixtures/churn_rank/build_frozen_repo.sh	43	git init -q .
+UNSCRUBBED	sh	scripts/fastcycle/tests/fixtures/consumer_migrate/build_fixtures.sh	28	git init --bare -q -b main "$MINI_CONST_BARE"
+UNSCRUBBED	py	scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py	243	rc, out, _ = _run(["git", "-C", root, "stash", "list"], check=False)
+UNSCRUBBED	py	scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py	243	rc, out, _ = _run(["git", "-C", root, "stash", "list"], check=False)
+UNSCRUBBED	py	scripts/fastcycle/tests/fixtures/cycle_report/build_asof_scenario.py	216	git(repo, "init", "-q")
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_affected_set_red.sh	162	( cd "$repo" && git init -q && git config user.email t@t && git config user.name t \
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_baseline_replay_r2_findings.sh	159	wt_count() { git -C "$1" worktree list --porcelain 2>/dev/null | grep -c '^worktree '; }
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_baseline_replay_r4_findings.sh	60	git -C "$r" init -q
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_baseline_replay_r6_findings.sh	99	wt_count() { git -C "$1" worktree list --porcelain 2>/dev/null | grep -c '^worktree '; }
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_baseline_replay_red.sh	119	git -C "$r" init -q
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_baseline_replay_worktree_cleanup.sh	52	git -C "$NEEDLE_REPO" init -q
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_build_deploy_qa_events_red.sh	209	echo "SKIP: cannot resolve the consuming project's root from $HERE (not inside a git submodule checkout) -- docs/build/resources/builds.tsv is consumer-project-
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh	133	git -C "$TREE" init -q && echo t > "$TREE/t.txt" && git -C "$TREE" add t.txt \
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_churn_rank_red.sh	195	git init -q .
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_consumer_audit_red.sh	166	echo "   real git checkout -- see the Section A control needle above"
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_consumer_migrate_red.sh	183	&& git add probe.txt \
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh	26	git -C "$CANON" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "SKIP: $CANON is not a git checkout, the tracked scripts/ tree cannot be copied reason
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh	253	own scrub lacks GIT_COMMON_DIR,GIT_SHALLOW_FILE,GIT_GRAFT_FILE,GIT_REPLACE_REF_BASE,GIT_NO_REPLACE_OBJECTS,GIT_QUARANTINE_PATH,GIT_INTERNAL_SUPER_PREFIX
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_custody_sweep_r7_regression.sh	182	git init --quiet "$R74_ROOT"
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_custody_sweep_r8_regression.sh	88	mkdir -p "$TMP/reporoot" && git init --quiet "$TMP/reporoot"
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_custody_sweep_red.sh	166	echo "=== REAL-STATE: live git stash list (re-verified, never assumed) ==="
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh	30	git init -q "$1" && git -C "$1" config user.email t@t && git -C "$1" config user.name t || return 1
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh	172	own scrub lacks GIT_SHALLOW_FILE,GIT_GRAFT_FILE,GIT_REPLACE_REF_BASE,GIT_NO_REPLACE_OBJECTS,GIT_QUARANTINE_PATH,GIT_INTERNAL_SUPER_PREFIX
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_cycle_report_red.sh	1932	mkdir -p "$C19R" && git -C "$C19R" init -q && \
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_fastcycle_r6_mutations.sh	459	("R5-F2c", BR, [('    git -C "$_FC_WT_REPO" worktree unlock "${_FC_WT_PATH:?}" >/dev/null 2>&1\n    git -C "$_FC_WT_REPO" worktree remove -f -f "${_FC_WT_PATH:?
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_fc_commit_stage_timer_mutations.sh	79	COMMIT_MESSAGE="${COMMIT_MESSAGE:-} [timed]"; echo x > "$AOSP_ROOT/.fc_marker"; git -C "$AOSP_ROOT" add -f .fc_marker 2>/dev/null || true
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_fc_commit_stage_timer_red.sh	68	git init -q --bare "$d/remote.git"
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh	518	"""A repo + a worktree left `locked: initializing` by a SIGKILLed `git worktree add`
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_governance_subset_conservative.sh	53	git -C "$R" init -q; git -C "$R" config user.email t@t; git -C "$R" config user.name t
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_mutation_anchor_census.sh	64	a = '    git -C "$_FC_WT_REPO" worktree unlock "${_FC_WT_PATH:?}" >/dev/null 2>&1\n    git -C "$_FC_WT_REPO" worktree remove -f -f "${_FC_WT_PATH:?}" >/dev/null
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_plan_struct_landing_rulediff_red.sh	521	&& git init -q \
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_precheck_pack_build_red.sh	86	git -C "$CONST_ROOT" worktree remove --force "$_wt" >/dev/null 2>&1
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_precheck_shellcheck_red.sh	88	base() { ( cd "$R" && git init -q . && $GIT add -A && $GIT commit -q -m base ) >/dev/null 2>&1; BASE=$(git -C "$R" rev-parse HEAD); }
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_repo_verify_red.sh	53	git init -q -b main "$CN" 2>/dev/null
+UNSCRUBBED	sh	scripts/fastcycle/tests/test_tower_detector_red.sh	155	check("U8e git-is-not-a-symbol", m.normalize_symbol("f.sh", "git add f.sh") == "FILE:f.sh")
+UNSCRUBBED	sh	scripts/fastcycle/timing/fc_timer_selftest.sh	253	git -C "$FPREPO" init -q 2>/dev/null
+UNSCRUBBED	sh	scripts/fastcycle/tokens/test_dispatch_stamp_r5_regression.sh	321	&& git init -q \
+UNSCRUBBED	sh	scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh	159	echo "FAIL: scratch consumer setup (git init / submodule add) failed"
+UNSCRUBBED	py	scripts/fastcycle/verify/repo_verify.py	363	rc, out, err = _run(["git", "config", "--file", gm, "--null", "--get-regexp",
+UNSCRUBBED	py	scripts/full_suite/run_full_suite.py	1594	p = subprocess.run(["git", "-C", root, "config", "-f", ".gitmodules", "--null", "--get-regexp",
+UNSCRUBBED	sh	scripts/gates/cm_agent_type_label.sh	147	git -C "$P" init -q -b main 2>/dev/null; git -C "$P" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null
+UNSCRUBBED	sh	scripts/gates/cm_anchor_record_complete.sh	309	( cd "$tmp" && git init -q --bare remote.git && git init -q seed \
+UNSCRUBBED	sh	scripts/gates/cm_canonical_root_clarity_mutation_test.sh	257	git -C "${_s}/constitution" init -q ) || { echo "META: git init failed" >&2; exit 2; }
+UNSCRUBBED	sh	scripts/gates/cm_decisions_wizard_safety.sh	38	git -C "$p" init -q
+HERMETIC	sh	scripts/gates/cm_full_suite_manifest_complete.sh	210	own reviewed scrub naming every variable of the list
+HERMETIC	sh	scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh	113	own reviewed scrub naming every variable of the list
+UNSCRUBBED	sh	scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh	92	git -C "${scratch}" init -q 2>/dev/null || true
+UNSCRUBBED	sh	scripts/gates/cm_git_hooks_installed.sh	373	HOOK_DIR=$(git -C "$REPO" config --get core.hooksPath 2>/dev/null || true)
+UNSCRUBBED	sh	scripts/gates/cm_gitlink_on_remote.sh	63	key="$(git -C "$root" config -f .gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk -v p="$path" '$2==p{print $1; exit}')"
+UNSCRUBBED	sh	scripts/gates/cm_helix_deps_manifest_present_mutation_test.sh	44	mkdir -p "$1"; git -C "$1" init -q
+UNSCRUBBED	sh	scripts/gates/cm_helix_deps_ref_matches_gitlink.sh	79	gurl="$(git -C "$root" config -f .gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk -v p="$path" '$2==p{print $1; exit}')"
+UNSCRUBBED	sh	scripts/gates/cm_hub_engine_no_ownorg_nesting.sh	68	pathkeys="$(git config -f "$root/.gitmodules" --get-regexp '^submodule\..*\.path$' | awk '$2 ~ /^submodules\// {print $1 "\t" $2}' || true)"
+UNSCRUBBED	sh	scripts/gates/cm_hub_engine_no_ownorg_nesting_mutation_test.sh	36	local d="$1"; [ -d "$d/.git" ] || { mkdir -p "$d"; git -C "$d" init -q; }
+UNSCRUBBED	sh	scripts/gates/cm_installer_no_push_no_force.sh	1143	"HI_CLAUDE_DENY='WebFetch,WebSearch,Bash(git push *),Bash(git push),Bash(git * push *),Bash(git * push),Bash(*git push*),Bash(*git * push*),Bash(env git*),Bash(
+UNSCRUBBED	sh	scripts/gates/cm_installer_no_push_no_force_mutation_test.sh	69	n=G1; d="$(mkcase)"; inject "$d/install_constitution.sh" '# git push origin main --force; git reset --hard'; run "golden-FALSE: comment" 0 "$d"
+UNSCRUBBED	sh	scripts/gates/cm_installer_script_modes.sh	74	mkdir "$work/n" && git -C "$work/n" init -q 2>/dev/null || { echo "⚠ $GATE: BLIND (exit 2) — cannot create the self-check repository"; exit 2; }
+UNSCRUBBED	sh	scripts/gates/cm_installer_script_modes_mutation_test.sh	27	mkdir -p "$d/scripts/gates" "$d/tests/install" && git -C "$d" init -q || return 1
+UNSCRUBBED	sh	scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh	25	mkdir -p "$1"; GIT -C "$1" init -q . || { bad "fixture: git init failed ($1)"; return 1; }
+UNSCRUBBED	sh	scripts/gates/cm_llmctl_submodule_nonrecursive_mutation_test.sh	21	blob() { printf '%s\n' "$2" | git -C "$1" hash-object -w --stdin; }
+UNSCRUBBED	sh	scripts/gates/cm_oracle_strategy_named_and_independent.sh	327	excl_blob_id() { git -C "$1" hash-object --path="$2" -- "$2" 2>/dev/null; }
+UNSCRUBBED	sh	scripts/gates/cm_pr_delivery_anchor_wired.sh	329	'`git fetch --prune`'
+UNSCRUBBED	sh	scripts/gates/cm_setup_prompt_latest_present.sh	72	stale_re='(^|[^A-Za-z0-9_./-])(\./constitution|constitution/)|(git submodule add[^#]*[[:space:]]|cd[[:space:]]+|git -C[[:space:]]+)(\./)?constitution([[:space:]
+UNSCRUBBED	sh	scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh	75	r="$(base LEGACY-ADD)"; doc "git submodule add git@github.com:HelixDevelopment/HelixConstitution.git constitution" >"$(L LEGACY-ADD)"; fx LEGACY-ADD 1
+UNSCRUBBED	sh	scripts/gates/covenant_propagation_superspec_exclusion_topology_test.sh	28	git clone -q --shared --no-recurse-submodules "$REPO" "$C" 2>/dev/null \
+UNSCRUBBED	sh	scripts/gates/fixtures/jev/bin/bootstrap.sh	48	git clone "$url" "$dest"
+UNSCRUBBED	sh	scripts/gates/gate_ledger.sh	303	echo "BLIND: impl-dir ${_rts_impl} is not inside a git repository — tracked-ness is unresolvable there, so this tool refuses rather than counting untracked work
+UNSCRUBBED	sh	scripts/helix_code/helix_code_home.sh	88	git -C "$home" submodule update --init --recursive >&2 || true
+HERMETIC	sh	scripts/hooks/constitution-submodule-post-checkout	409	own reviewed scrub naming every variable of the list
+UNSCRUBBED	sh	scripts/hooks/guard-work-track-binding.sh	299	if (s ~ /(\$\(|`)/) print "DYN"                 # `git add $(…)` dynamic set
+HERMETIC	sh	scripts/hooks/post-merge	190	own reviewed scrub naming every variable of the list
+UNSCRUBBED	sh	scripts/hooks/test_credential_scan_lib.sh	952	NEW_COMMIT=$(printf '%s' "$COMMIT_MSG" | git -C "$FC_BARE" -c user.name=fastcycle-migrate -c user.email=fastcycle-migrate@example.invalid commit-tree "$NEW_TREE
+UNSCRUBBED	sh	scripts/hooks/test_guard_branch_consistency.sh	83	run_case "git checkout existing (no -b)"               0 '{"tool_name":"Bash","tool_input":{"command":"git checkout main"}}'
+UNSCRUBBED	sh	scripts/hooks/test_guard_destructive_paths.sh	91	B 0 "git commit msg"      "git commit -m 'forbid $RM $RF $HM'"
+UNSCRUBBED	sh	scripts/hooks/test_guard_forbidden_commands.sh	59	GIT_PUSH_LIT=$'git ''push'                 # 'git push'
+UNSCRUBBED	sh	scripts/hooks/test_guard_work_track_binding.sh	204	git init -q -b main "$REPO"
+UNSCRUBBED	sh	scripts/hooks/test_label_sync_hooks.sh	95	git -C "$PROJ" init -q -b main
+UNSCRUBBED	sh	scripts/install_constitution.sh	92	install_constitution.sh — add or update the Helix Constitution (git submodule at submodules/constitution).
+HERMETIC	sh	scripts/jev/bootstrap.sh	331	own reviewed scrub naming every variable of the list
+UNSCRUBBED	sh	scripts/label-sync/adapters/tests/test_real_agents.sh	89	(cd "$H/proj" && git init -q . && runenv timeout 90 nice -n 10 crush run --data-dir "$H/data" "list files" >"$H/crush.out" 2>&1 </dev/null)
+HERMETIC	sh	scripts/label-sync/install_label_sync.sh	310	own reviewed scrub naming every variable of the list
+UNSCRUBBED	sh	scripts/label-sync/render/tests/test_render.sh	582	git init -q -b "${r##*:}" "${r%%:*}" && git -C "${r%%:*}" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+HERMETIC	sh	scripts/multitrack/multitrack_constitution_sync.sh	135	own reviewed scrub naming every variable of the list
+UNSCRUBBED	sh	scripts/multitrack/test_install_agent_label_defs.sh	35	git -C "$d" init -q -b main 2>/dev/null
+UNSCRUBBED	sh	scripts/multitrack/test_multitrack_cwd_hook_consumer_root.sh	72	git init -q "$WT_A" >/dev/null 2>&1 || exit 1
+UNSCRUBBED	sh	scripts/multitrack/test_multitrack_redpin_mutations.sh	62	[ -n "$CONST_ROOT" ] || { echo "FATAL: not inside a git checkout"; exit 90; }
+UNSCRUBBED	sh	scripts/multitrack/test_multitrack_work_binding_submodule_db.sh	130	git init -q -b main "$OUTER"
+UNSCRUBBED	sh	scripts/multitrack/test_ruler_suite_discovery.sh	95	mk_canon "$W/c1/canonX" 0 77 "" topology_unsupported; git -C "$W/c1/canonX" init -q
+UNSCRUBBED	sh	scripts/release/tag_and_release.sh	106	if ! git fetch -q --no-tags "$r" refs/heads/main 2>"${TMPDIR:-/tmp}/tar_fetch.$$"; then
+UNSCRUBBED	sh	scripts/release_tag.sh	16	git tag -a "$tag" -m "Release $tag"
+HERMETIC	sh	scripts/setup.sh	340	calls the library scrub (cl_scrub_git_env / cl__git)
+UNSCRUBBED	sh	scripts/update_constitution.sh	384	[ "$COMMIT" = 1 ] && HI_GX_COMMIT_OK=1   # the only place that enables git commit (CM-INSTALLER-NO-PUSH-NO-FORCE)
+UNSCRUBBED	go	scripts/workable-items/cmd/workable-items/group.go	169	cmd = exec.Command("git", "-C", *repo, "checkout", canonical)
+git-env-class-census: FAIL - UNSCRUBBED scripts/anchors/tests/test_generate_us3.py (line 171): subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+git-env-class-census: FAIL - UNSCRUBBED scripts/badges/compute_badges.sh (line 232): git -C "$d" init -q 2>/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/badges/test_static_badges.sh (line 46): git -C "$d" init -q 2>/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/badges/test_twins_badge_formats_switch.sh (line 43): git -C "$d" init -q 2>/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/codegraph/codegraph_mcp_preflight.sh (line 217): ( cd "$FX" && git init -q . && git config user.email t@t && git config user.name t && git add -A && git commit -qm fixture ) >/dev/null 2>&1
+git-env-class-census: FAIL - UNSCRUBBED scripts/codegraph/scope_render.py (line 145): proc = subprocess.run(["git", "config", "-f", path, "--null", "--get-regexp", r"^submodule\..*\.(path|url)$"],
+git-env-class-census: FAIL - UNSCRUBBED scripts/codegraph/tests/t_scope_cases.py (line 121): subprocess.run(["git", "config", "-f", ".gitmodules", "--unset", "submodule.tp_top.url"], cwd=f["root"], check=True)
+git-env-class-census: FAIL - UNSCRUBBED scripts/codegraph/tests/t_scope_fixture.py (line 48): git(path, "init", "-q")
+git-env-class-census: FAIL - UNSCRUBBED scripts/codegraph/tests/test_mcp_readonly.sh (line 68): ( cd "$d" && git init -q . && git config user.email t@t && git config user.name t
+git-env-class-census: FAIL - UNSCRUBBED scripts/codegraph/tests/test_update_and_resync.sh (line 30): git -C "$W/repo" init -q
+git-env-class-census: FAIL - UNSCRUBBED scripts/constitution_cmd/constitution_cmd.sh (line 163): printf 'pinned: unknown (not a git checkout)\n'
+git-env-class-census: FAIL - UNSCRUBBED scripts/extensions/bridge_supply_chain_check.sh (line 98): echo "WangX0111/superspec, extension id 'superspec', self-branded 'Superpowers Bridge'. MEDIUM risk: adoptable ONLY pinned to an immutable commit SHA — NEVER th
+git-env-class-census: FAIL - UNSCRUBBED scripts/extensions/install_speckit_superpowers_bridge.sh (line 306): SUBMODULE_STATUS=$(git -C "$ROOT" submodule status -- submodules/superspec 2>/dev/null || true)
+git-env-class-census: FAIL - UNSCRUBBED scripts/extensions/install_speckit_superpowers_bridge_test.sh (line 341): ( cd "$src" && git init -q -b main && echo x > f && git add f \
+git-env-class-census: FAIL - UNSCRUBBED scripts/extensions/probe_bridge_layers.sh (line 134): run_probe "L3_submodule_status" 'git submodule status -- submodules/superspec 2>&1 || echo "NOT-A-SUBMODULE"'
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/closure/churn_rank.py (line 194): r = subprocess.run(["git", "init", "-q", "."], cwd=tmp, capture_output=True, text=True)
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/cycle/baseline_replay.sh (line 1049): git -C "$tgt" config -f .gitmodules --get-regexp '^submodule\..*\.path$' >"${list_file:?}" 2>/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/host/host_report.py (line 742): rc, out, _err = run_cmd(["git", "worktree", "list", "--porcelain"], timeout=30, env=dict(os.environ, GIT_DIR=""))
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/orchestration/custody_sweep.py (line 686): rc, out, _ = _run(["git", "-C", root, "stash", "list"], check=False)
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/review/lib/precheck_pack_build_run.py (line 414): if git("read-tree", base, env=ienv).returncode != 0:
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/review/precheck_pack_build.sh (line 290): git -C "$REPO" worktree remove --force "$WT_PATH" >/dev/null 2>&1
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/fixtures/churn_rank/build_frozen_repo.sh (line 43): git init -q .
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/fixtures/consumer_migrate/build_fixtures.sh (line 28): git init --bare -q -b main "$MINI_CONST_BARE"
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py (line 243): rc, out, _ = _run(["git", "-C", root, "stash", "list"], check=False)
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py (line 243): rc, out, _ = _run(["git", "-C", root, "stash", "list"], check=False)
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/fixtures/cycle_report/build_asof_scenario.py (line 216): git(repo, "init", "-q")
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_affected_set_red.sh (line 162): ( cd "$repo" && git init -q && git config user.email t@t && git config user.name t \
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_baseline_replay_r2_findings.sh (line 159): wt_count() { git -C "$1" worktree list --porcelain 2>/dev/null | grep -c '^worktree '; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_baseline_replay_r4_findings.sh (line 60): git -C "$r" init -q
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_baseline_replay_r6_findings.sh (line 99): wt_count() { git -C "$1" worktree list --porcelain 2>/dev/null | grep -c '^worktree '; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_baseline_replay_red.sh (line 119): git -C "$r" init -q
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_baseline_replay_worktree_cleanup.sh (line 52): git -C "$NEEDLE_REPO" init -q
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_build_deploy_qa_events_red.sh (line 209): echo "SKIP: cannot resolve the consuming project's root from $HERE (not inside a git submodule checkout) -- docs/build/resources/builds.tsv is consumer-project-
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh (line 133): git -C "$TREE" init -q && echo t > "$TREE/t.txt" && git -C "$TREE" add t.txt \
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_churn_rank_red.sh (line 195): git init -q .
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_consumer_audit_red.sh (line 166): echo "   real git checkout -- see the Section A control needle above"
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_consumer_migrate_red.sh (line 183): && git add probe.txt \
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh (line 26): git -C "$CANON" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "SKIP: $CANON is not a git checkout, the tracked scripts/ tree cannot be copied reason
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh (line 253): own scrub lacks GIT_COMMON_DIR,GIT_SHALLOW_FILE,GIT_GRAFT_FILE,GIT_REPLACE_REF_BASE,GIT_NO_REPLACE_OBJECTS,GIT_QUARANTINE_PATH,GIT_INTERNAL_SUPER_PREFIX
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_custody_sweep_r7_regression.sh (line 182): git init --quiet "$R74_ROOT"
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_custody_sweep_r8_regression.sh (line 88): mkdir -p "$TMP/reporoot" && git init --quiet "$TMP/reporoot"
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_custody_sweep_red.sh (line 166): echo "=== REAL-STATE: live git stash list (re-verified, never assumed) ==="
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh (line 30): git init -q "$1" && git -C "$1" config user.email t@t && git -C "$1" config user.name t || return 1
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh (line 172): own scrub lacks GIT_SHALLOW_FILE,GIT_GRAFT_FILE,GIT_REPLACE_REF_BASE,GIT_NO_REPLACE_OBJECTS,GIT_QUARANTINE_PATH,GIT_INTERNAL_SUPER_PREFIX
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_cycle_report_red.sh (line 1932): mkdir -p "$C19R" && git -C "$C19R" init -q && \
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_fastcycle_r6_mutations.sh (line 459): ("R5-F2c", BR, [('    git -C "$_FC_WT_REPO" worktree unlock "${_FC_WT_PATH:?}" >/dev/null 2>&1\n    git -C "$_FC_WT_REPO" worktree remove -f -f "${_FC_WT_PATH:?
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_fc_commit_stage_timer_mutations.sh (line 79): COMMIT_MESSAGE="${COMMIT_MESSAGE:-} [timed]"; echo x > "$AOSP_ROOT/.fc_marker"; git -C "$AOSP_ROOT" add -f .fc_marker 2>/dev/null || true
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_fc_commit_stage_timer_red.sh (line 68): git init -q --bare "$d/remote.git"
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh (line 518): """A repo + a worktree left `locked: initializing` by a SIGKILLed `git worktree add`
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_governance_subset_conservative.sh (line 53): git -C "$R" init -q; git -C "$R" config user.email t@t; git -C "$R" config user.name t
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_mutation_anchor_census.sh (line 64): a = '    git -C "$_FC_WT_REPO" worktree unlock "${_FC_WT_PATH:?}" >/dev/null 2>&1\n    git -C "$_FC_WT_REPO" worktree remove -f -f "${_FC_WT_PATH:?}" >/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_plan_struct_landing_rulediff_red.sh (line 521): && git init -q \
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_precheck_pack_build_red.sh (line 86): git -C "$CONST_ROOT" worktree remove --force "$_wt" >/dev/null 2>&1
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_precheck_shellcheck_red.sh (line 88): base() { ( cd "$R" && git init -q . && $GIT add -A && $GIT commit -q -m base ) >/dev/null 2>&1; BASE=$(git -C "$R" rev-parse HEAD); }
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_repo_verify_red.sh (line 53): git init -q -b main "$CN" 2>/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_tower_detector_red.sh (line 155): check("U8e git-is-not-a-symbol", m.normalize_symbol("f.sh", "git add f.sh") == "FILE:f.sh")
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/timing/fc_timer_selftest.sh (line 253): git -C "$FPREPO" init -q 2>/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tokens/test_dispatch_stamp_r5_regression.sh (line 321): && git init -q \
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh (line 159): echo "FAIL: scratch consumer setup (git init / submodule add) failed"
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/verify/repo_verify.py (line 363): rc, out, err = _run(["git", "config", "--file", gm, "--null", "--get-regexp",
+git-env-class-census: FAIL - UNSCRUBBED scripts/full_suite/run_full_suite.py (line 1594): p = subprocess.run(["git", "-C", root, "config", "-f", ".gitmodules", "--null", "--get-regexp",
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_agent_type_label.sh (line 147): git -C "$P" init -q -b main 2>/dev/null; git -C "$P" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_anchor_record_complete.sh (line 309): ( cd "$tmp" && git init -q --bare remote.git && git init -q seed \
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_canonical_root_clarity_mutation_test.sh (line 257): git -C "${_s}/constitution" init -q ) || { echo "META: git init failed" >&2; exit 2; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_decisions_wizard_safety.sh (line 38): git -C "$p" init -q
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh (line 92): git -C "${scratch}" init -q 2>/dev/null || true
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_git_hooks_installed.sh (line 373): HOOK_DIR=$(git -C "$REPO" config --get core.hooksPath 2>/dev/null || true)
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_gitlink_on_remote.sh (line 63): key="$(git -C "$root" config -f .gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk -v p="$path" '$2==p{print $1; exit}')"
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_helix_deps_manifest_present_mutation_test.sh (line 44): mkdir -p "$1"; git -C "$1" init -q
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_helix_deps_ref_matches_gitlink.sh (line 79): gurl="$(git -C "$root" config -f .gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk -v p="$path" '$2==p{print $1; exit}')"
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_hub_engine_no_ownorg_nesting.sh (line 68): pathkeys="$(git config -f "$root/.gitmodules" --get-regexp '^submodule\..*\.path$' | awk '$2 ~ /^submodules\// {print $1 "\t" $2}' || true)"
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_hub_engine_no_ownorg_nesting_mutation_test.sh (line 36): local d="$1"; [ -d "$d/.git" ] || { mkdir -p "$d"; git -C "$d" init -q; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_installer_no_push_no_force.sh (line 1143): "HI_CLAUDE_DENY='WebFetch,WebSearch,Bash(git push *),Bash(git push),Bash(git * push *),Bash(git * push),Bash(*git push*),Bash(*git * push*),Bash(env git*),Bash(
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_installer_no_push_no_force_mutation_test.sh (line 69): n=G1; d="$(mkcase)"; inject "$d/install_constitution.sh" '# git push origin main --force; git reset --hard'; run "golden-FALSE: comment" 0 "$d"
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_installer_script_modes.sh (line 74): mkdir "$work/n" && git -C "$work/n" init -q 2>/dev/null || { echo "⚠ $GATE: BLIND (exit 2) — cannot create the self-check repository"; exit 2; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_installer_script_modes_mutation_test.sh (line 27): mkdir -p "$d/scripts/gates" "$d/tests/install" && git -C "$d" init -q || return 1
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh (line 25): mkdir -p "$1"; GIT -C "$1" init -q . || { bad "fixture: git init failed ($1)"; return 1; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_llmctl_submodule_nonrecursive_mutation_test.sh (line 21): blob() { printf '%s\n' "$2" | git -C "$1" hash-object -w --stdin; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_oracle_strategy_named_and_independent.sh (line 327): excl_blob_id() { git -C "$1" hash-object --path="$2" -- "$2" 2>/dev/null; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_pr_delivery_anchor_wired.sh (line 329): '`git fetch --prune`'
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_setup_prompt_latest_present.sh (line 72): stale_re='(^|[^A-Za-z0-9_./-])(\./constitution|constitution/)|(git submodule add[^#]*[[:space:]]|cd[[:space:]]+|git -C[[:space:]]+)(\./)?constitution([[:space:]
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh (line 75): r="$(base LEGACY-ADD)"; doc "git submodule add git@github.com:HelixDevelopment/HelixConstitution.git constitution" >"$(L LEGACY-ADD)"; fx LEGACY-ADD 1
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/covenant_propagation_superspec_exclusion_topology_test.sh (line 28): git clone -q --shared --no-recurse-submodules "$REPO" "$C" 2>/dev/null \
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/fixtures/jev/bin/bootstrap.sh (line 48): git clone "$url" "$dest"
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/gate_ledger.sh (line 303): echo "BLIND: impl-dir ${_rts_impl} is not inside a git repository — tracked-ness is unresolvable there, so this tool refuses rather than counting untracked work
+git-env-class-census: FAIL - UNSCRUBBED scripts/helix_code/helix_code_home.sh (line 88): git -C "$home" submodule update --init --recursive >&2 || true
+git-env-class-census: FAIL - UNSCRUBBED scripts/hooks/guard-work-track-binding.sh (line 299): if (s ~ /(\$\(|`)/) print "DYN"                 # `git add $(…)` dynamic set
+git-env-class-census: FAIL - UNSCRUBBED scripts/hooks/test_credential_scan_lib.sh (line 952): NEW_COMMIT=$(printf '%s' "$COMMIT_MSG" | git -C "$FC_BARE" -c user.name=fastcycle-migrate -c user.email=fastcycle-migrate@example.invalid commit-tree "$NEW_TREE
+git-env-class-census: FAIL - UNSCRUBBED scripts/hooks/test_guard_branch_consistency.sh (line 83): run_case "git checkout existing (no -b)"               0 '{"tool_name":"Bash","tool_input":{"command":"git checkout main"}}'
+git-env-class-census: FAIL - UNSCRUBBED scripts/hooks/test_guard_destructive_paths.sh (line 91): B 0 "git commit msg"      "git commit -m 'forbid $RM $RF $HM'"
+git-env-class-census: FAIL - UNSCRUBBED scripts/hooks/test_guard_forbidden_commands.sh (line 59): GIT_PUSH_LIT=$'git ''push'                 # 'git push'
+git-env-class-census: FAIL - UNSCRUBBED scripts/hooks/test_guard_work_track_binding.sh (line 204): git init -q -b main "$REPO"
+git-env-class-census: FAIL - UNSCRUBBED scripts/hooks/test_label_sync_hooks.sh (line 95): git -C "$PROJ" init -q -b main
+git-env-class-census: FAIL - UNSCRUBBED scripts/install_constitution.sh (line 92): install_constitution.sh — add or update the Helix Constitution (git submodule at submodules/constitution).
+git-env-class-census: FAIL - UNSCRUBBED scripts/label-sync/adapters/tests/test_real_agents.sh (line 89): (cd "$H/proj" && git init -q . && runenv timeout 90 nice -n 10 crush run --data-dir "$H/data" "list files" >"$H/crush.out" 2>&1 </dev/null)
+git-env-class-census: FAIL - UNSCRUBBED scripts/label-sync/render/tests/test_render.sh (line 582): git init -q -b "${r##*:}" "${r%%:*}" && git -C "${r%%:*}" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+git-env-class-census: FAIL - UNSCRUBBED scripts/multitrack/test_install_agent_label_defs.sh (line 35): git -C "$d" init -q -b main 2>/dev/null
+git-env-class-census: FAIL - UNSCRUBBED scripts/multitrack/test_multitrack_cwd_hook_consumer_root.sh (line 72): git init -q "$WT_A" >/dev/null 2>&1 || exit 1
+git-env-class-census: FAIL - UNSCRUBBED scripts/multitrack/test_multitrack_redpin_mutations.sh (line 62): [ -n "$CONST_ROOT" ] || { echo "FATAL: not inside a git checkout"; exit 90; }
+git-env-class-census: FAIL - UNSCRUBBED scripts/multitrack/test_multitrack_work_binding_submodule_db.sh (line 130): git init -q -b main "$OUTER"
+git-env-class-census: FAIL - UNSCRUBBED scripts/multitrack/test_ruler_suite_discovery.sh (line 95): mk_canon "$W/c1/canonX" 0 77 "" topology_unsupported; git -C "$W/c1/canonX" init -q
+git-env-class-census: FAIL - UNSCRUBBED scripts/release/tag_and_release.sh (line 106): if ! git fetch -q --no-tags "$r" refs/heads/main 2>"${TMPDIR:-/tmp}/tar_fetch.$$"; then
+git-env-class-census: FAIL - UNSCRUBBED scripts/release_tag.sh (line 16): git tag -a "$tag" -m "Release $tag"
+git-env-class-census: FAIL - UNSCRUBBED scripts/update_constitution.sh (line 384): [ "$COMMIT" = 1 ] && HI_GX_COMMIT_OK=1   # the only place that enables git commit (CM-INSTALLER-NO-PUSH-NO-FORCE)
+git-env-class-census: FAIL - UNSCRUBBED scripts/workable-items/cmd/workable-items/group.go (line 169): cmd = exec.Command("git", "-C", *repo, "checkout", canonical)
+git-env-class-census: FAIL - members=114 hermetic=9 exempt=0 unscrubbed=105

@@ -1,0 +1,88 @@
+== finding 6: parent swapped into a nested repository after the guard ==
+  PASS real engine (swap before the identity check): nothing is written into the nested repository (hit=0)
+  PASS real engine: no temp file left in the original directory
+  PASS real engine (swap before the identity check): exits non-zero (rc=3)
+  PASS real engine (swap after the identity check): nothing lands in the nested repository (hit=0)
+  PASS real engine: the command did not report success after losing its temp file (rc=3)
+== finding 6 mutants ==
+  PASS mutant A (path-based rename) built
+  PASS mutant A is caught: its rename lands in the nested repository (hit=1)
+  PASS mutant B (no identity check) built
+  PASS real engine (swap, temp file left): refused rc 3 and x.md written nowhere (rc=3)
+  PASS mutant B is caught: without the identity check the run succeeds (rc=0)
+  PASS mutant C (parent opened following a final symlink) built
+  PASS UNIT: a symlinked parent is refused by the real _open_parent
+  PASS UNIT mutant C is caught: the symlinked parent is opened
+== finding 1: the newest backup survives KEEP=1 (both scopes); printed path exists ==
+  PASS project: the last printed backup path exists
+  PASS project: exactly 1 backup kept
+  PASS user: the last printed backup path exists
+  PASS user: exactly 1 backup kept
+  PASS mutant (name ignores existing backups) built
+  PASS mutant is caught: the just-made backup was pruned (path missing)
+== finding 2: ONE emitter for every print site; resolved names escaped; secret-shaped resolved paths refused ==
+  PASS hostile resolved names: rc 0
+  PASS …no ESC byte in stdout/stderr
+  PASS …no forged 'written: FORGED.md' line
+  PASS …no traceback
+  PASS …no decisions.intent left behind
+  PASS …a later --reset works (rc 0)
+  PASS …--check over the hostile names has no raw ESC and no traceback
+  PASS …--export prints 'exported:' (rc 0)
+  PASS secret-shaped resolved doc path: refused rc 3
+  PASS …and never shown
+  PASS non-UTF-8 root: --show rc 0, no traceback
+  PASS non-UTF-8 root: write rc 0
+  PASS census needle: the scanner sees 2 planted raw output calls
+  PASS census: raw print/sys.stdout.write sites in the engine = 0 except the emitter's own stream.write (got 0 sys.*.write)
+  PASS mutant (emitter does not escape) built
+  PASS mutant is caught: raw ESC reaches the terminal
+  PASS mutant (no secret policy for resolved doc paths) built
+  PASS mutant is caught: the secret-shaped resolved path is accepted
+== finding 3: --inherits is remembered; M05 (the recorded path stays protected) ==
+  PASS a later write without the flag works
+  PASS a later --reset without the flag works
+  PASS --show --json reports vendor/constit
+  PASS --doc into the recorded inherits path is refused (rc 3)
+  PASS mutant M05 built
+  PASS mutant M05 is caught: the write into the inherited path is allowed
+  PASS mutant (recorded inherits ignored) built
+  PASS mutant is caught: the later write without the flag is blocked (rc 3)
+== finding 4: .gitmodules PATH=, quoted values, trailing ; comments ==
+  PASS mod1: write into the submodule path refused (rc 3)
+  PASS mod2: write into the submodule path refused (rc 3)
+  PASS mod3: write into the submodule path refused (rc 3)
+  PASS mutants K Q S built
+  PASS mutant K (case-sensitive keys) is caught
+  PASS mutant Q (quotes literal) is caught
+  PASS mutant S (no trailing comment) is caught
+== finding 5: a non-UTF-8 .gitmodules does not refuse the run ==
+  PASS --check rc 0
+  PASS write rc 0
+  PASS --reset rc 0
+  PASS mutant (strict decode) is caught: rc != 0
+== finding 7: --check with a pending intent is not clean ==
+  PASS rc 4
+  PASS mutant is caught: rc 0 with the intent pending
+== finding 8 + reviewer mutants M09 M20 M21 M23, 0700 bases ==
+  PASS nonexistent --inherits: usage error rc 2
+  PASS --scope user from HOME rc 0
+  PASS symlinked HOME is HOME: refused rc 3
+  PASS mutant M20 is caught: accepted
+  PASS M09: not in a repo: refused rc 3
+  PASS mutant M09 is caught: accepted
+  PASS M23: ancestor repository accepted rc 0
+  PASS mutant M23 built
+  PASS mutant M23 is caught: the ancestor repository is not seen (rc 3)
+  PASS M21: root whose .git is a FILE accepted
+  PASS M21: nested dir whose .git is a FILE is foreign (rc 3)
+  PASS mutants M21a M21b built
+  PASS mutant M21a is caught: root with .git FILE refused
+  PASS mutant M21b is caught: nested .git FILE not foreign
+  PASS M18: the backup path with a long segment is printed in full
+  PASS mutant M18 is caught: the path is redacted
+  PASS user backup base tightened to 0700
+  PASS project backup base tightened to 0700
+  PASS mutant (no tighten) built
+  PASS mutant is caught: base stays 0755
+test_round10: pass=78 fail=0

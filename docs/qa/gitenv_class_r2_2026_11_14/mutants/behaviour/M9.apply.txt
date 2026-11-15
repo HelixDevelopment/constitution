@@ -1,0 +1,1 @@
+scripts/gates/cm_anchor_record_complete.sh

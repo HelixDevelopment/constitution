@@ -1,0 +1,55 @@
+# run: rc=1 wall=124s load_start=54.15 load_end=52.33 cmd=bash scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh --gate <scratch>/gates_snap/gate_r1.sh
+ok   GREEN control: generated, committed manifest passes (exit 0)
+ok   read-only: the inspected fixture is unchanged (paths, sizes, mtimes, modes, inodes)
+ok   RO2: a stat-dirty tracked file with unchanged content PASSes without a NOTE (exit 0)
+ok   RO2: the gate did not refresh (rewrite) the inspected repository's index
+FAIL RO3: an unreadable index still judges HEAD; the NOTE says unknown: exit 2, want 0 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — runner exit 2 (want 0 or 3): run_full_suite: git ls-files -s -z failed: fatal: .git/index: index file smaller than expected  
+ok   G1: a committed non-census file does not trip the gate (exit 0)
+FAIL W1: an untracked census file is not judged (PASS + NOTE): exit 2, want 0 — CM-FULL-SUITE-MANIFEST-COMPLETE: untracked census file without manifest row (working tree only): tests/a/test_untracked.sh CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — every problem (1) is an untracked census file: the committed tree cannot be judged from this working tree 
+FAIL W2: an untracked test_[o]ne.sh next to test_one.sh is not judged (P04): exit 1, want 0 —        review the new rows, commit them with the test files; an excluded-set change needs the operator's        --verify-manifest --accept-excluded-change <rostered id> 
+FAIL W3: an untracked dangling test symlink is not judged (P05): exit 1, want 0 —        review the new rows, commit them with the test files; an excluded-set change needs the operator's        --verify-manifest --accept-excluded-change <rostered id> 
+FAIL W4: a test deleted only on disk is not judged (P06): exit 1, want 0 —        review the new rows, commit them with the test files; an excluded-set change needs the operator's        --verify-manifest --accept-excluded-change <rostered id> 
+FAIL W5: a staged, uncommitted rename is not judged (P14): exit 1, want 0 —        review the new rows, commit them with the test files; an excluded-set change needs the operator's        --verify-manifest --accept-excluded-change <rostered id> 
+FAIL W6: a guide edited only on disk is not judged (P26): exit 1, want 0 —        review the new rows, commit them with the test files; an excluded-set change needs the operator's        --verify-manifest --accept-excluded-change <rostered id> 
+FAIL M1: a committed census file without a row FAILs: output lacks 'FAIL — census file without manifest row: tests/a/test_registry_login.sh'
+ok   M2: a deleted row FAILs (exit 1)
+ok   M3: a stale row FAILs (exit 1)
+ok   M4: a stale guide census block FAILs (exit 1)
+ok   M5: three committed census files without rows, all named (exit 1)
+FAIL M6: an excluded row without an accepted lock FAILs (temp path stripped): output lacks 'FAIL — excluded set (1 row(s)) is not accepted: config/full_suite_excluded.lock is absent'
+FAIL M7: a committed stale row hidden by the file left on disk FAILs (P07a): exit 0, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <tmp>/m7: manifest matches the census (2 census file(s)) 
+FAIL W7: an uncommitted runner edit is not used; HEAD's own runner judges HEAD (FAIL + NOTE): exit 2, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — control needle: the runner did not report the fixture's file without a row (rc 0, want 3); it cannot be trusted to see a missing row: census: sh/entry=2 total=2 RESULT: MANIFEST-OK  
+FAIL D1: a committed duplicated row FAILs with the runner's reason (F1): exit 2, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — runner reported MANIFEST-MISMATCH but no MANIFEST: problem line could be read 
+FAIL D2: a committed row with six columns FAILs with the runner's reason (F1): exit 2, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — runner reported MANIFEST-MISMATCH but no MANIFEST: problem line could be read 
+FAIL D3: HEAD with the runner but no manifest FAILs: exit 2, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — manifest missing: <tmp>/d3/config/full_suite_manifest.tsv (the runner exists; generate it with: bash scripts/run_full_suite.sh --generate-manifest --write) 
+FAIL D4: a committed manifest line with a vertical tab FAILs with the runner's reason: exit 2, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — runner reported MANIFEST-MISMATCH but no MANIFEST: problem line could be read 
+FAIL D5: a committed excluded lock with a vertical tab FAILs with the runner's reason: exit 2, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — runner reported MANIFEST-MISMATCH but no MANIFEST: problem line could be read 
+FAIL B1: HEAD with a manifest but no runner is BLIND: output lacks 'no runner file'
+ok   B2: a runner that answers OK to anything is caught by the control needle (exit 2)
+FAIL N1: a needle answer with exit 0 is BLIND: output lacks 'control needle: the runner exited 0'
+ok   N2: a runner blind to the needle's 'census file without manifest row:' line is BLIND (F5) (exit 2)
+FAIL N3: a runner blind to the needle's 'stale manifest row' line is BLIND (F5): exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <tmp>/n3: manifest matches the census (2 census file(s)) 
+FAIL N4: a runner blind to the needle's 'excluded set (1 row(s))' line is BLIND (F5): exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <tmp>/n4: manifest matches the census (2 census file(s)) 
+FAIL N5: a runner blind to the needle's 'census block is stale' line is BLIND (F5): exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <tmp>/n5: manifest matches the census (2 census file(s)) 
+FAIL N6: a runner blind to the needle's 'RESULT: MANIFEST-MISMATCH' line is BLIND (F5): exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <tmp>/n6: manifest matches the census (2 census file(s)) 
+FAIL N7: a runner that accepts a duplicated row is BLIND: exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <tmp>/n7: manifest matches the census (2 census file(s)) 
+ok   N8: a runner that cannot generate the needle manifest is BLIND (exit 2)
+ok   R1: exit 0 without 'RESULT: MANIFEST-OK' is BLIND (exit 2)
+ok   R2: MANIFEST-OK on a census total of 0 is BLIND (exit 2)
+ok   R3: an unexpected runner exit code is BLIND (exit 2)
+ok   R4: exit 3 without a result line is BLIND (exit 2)
+FAIL R5: a 'census instrument blind' refusal is BLIND, not FAIL: output lacks 'not a manifest defect'
+FAIL R6: a malformed 'manifest line' refusal is BLIND: output lacks 'not a manifest defect'
+FAIL R7: a MANIFEST-MISMATCH with no MANIFEST: line and no readable reason is BLIND: output lacks 'without a MANIFEST: line or a readable reason'
+FAIL X1: --root below the top of the work tree (runner on disk there) is BLIND: output lacks 'not the top of its git work tree'
+FAIL X2: an unborn HEAD with files on disk is BLIND: output lacks 'HEAD is unborn'
+ok   X3: a directory that is not a git repository but has a runner is BLIND (exit 2)
+FAIL X4: no git on PATH (a runner on disk) is BLIND and says why: output lacks 'git not found'
+ok   SKIP: an empty git repository (exit 3)
+ok   SKIP: a plain empty directory (exit 3)
+FAIL SKIP: HEAD carries neither file (both only on disk): exit 2, want 3 — CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND — control needle: the runner did not report the fixture's file without a row (rc 0, want 3); it cannot be trusted to see a missing row:  
+ok   usage: --root without a value (exit 64)
+ok   usage: an unknown argument (exit 64)
+ok   usage: --help (exit 0)
+ok   no leak: 47 gate runs left nothing in their TMPDIR
+[mutation:manifest-complete] passed=23 failed=30

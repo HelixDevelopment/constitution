@@ -15,6 +15,7 @@
 # The tag script then stops at its own CHANGELOG precondition (the probe tag is not in CHANGELOG.md); that is after the
 # ssh fetch, which is the step measured here (one ssh session per case, the sshd log shows it).
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 REPO="$(cd "${1:?REPO}" && pwd)"; OLD="${2:?OLDREV}"; OUT="${3:?OUT}"
 T="$(mktemp -d "${TMPDIR:-/tmp}/sendenv10.XXXXXX")"; : "${T:?}"
 SSHD_PID=""

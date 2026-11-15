@@ -1,0 +1,14 @@
+import re, subprocess, sys, os
+root = sys.argv[1]
+paths = [l.split("\t")[1] for l in open(sys.argv[2]).read().splitlines() if l.startswith("UNSCR")]
+WR = r"(?:init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge|reset|stash|rm|mv|push|worktree|apply|am|cherry-pick|rebase|clone|submodule|fetch|pull|notes|gc|repack|checkout-index|commit-tree|hash-object|symbolic-ref|restore|clean|write-tree|fast-import|bundle|pack-objects|prune|replace|filter-branch)"
+SH = re.compile(r"^[^#\n]*(?<![\w./$-])git(?:\s+(?:-C\s+\S+|-c\s+\S+|--\S+))*\s+" + WR + r"\b")
+for f in paths:
+    p = os.path.join(root, f)
+    b = open(p, "rb").read()
+    if b"\0" in b:
+        print("BINARY", f); continue
+    t = b.decode("utf-8", "replace").splitlines()
+    hits = [i for i, l in enumerate(t) if SH.search(l) or re.search(r"""["']git["']\s*,""", l)]
+    first = t[0][:30] if t else ""
+    print(f"{len(hits):3d} {first!r:34} {f}  L{hits[0]+1 if hits else 0}: {t[hits[0]].strip()[:90] if hits else ''}")

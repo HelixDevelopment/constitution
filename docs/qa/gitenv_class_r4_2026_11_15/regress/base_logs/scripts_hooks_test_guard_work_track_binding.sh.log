@@ -1,0 +1,65 @@
+§11.4.191 guard-work-track-binding.sh hermetic test suite
+hook: /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r3/scripts/hooks/guard-work-track-binding.sh
+resolver: /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r3/scripts/hooks/../multitrack/multitrack_work_binding.sh
+registry: /mnt/DATA1TB/claude-work/tmp/gwtb.mjuC16/registry.db (mistiq-vader=feature/mistiq-vader/track-2, unified-product=main/track-1)
+precondition: the hook derives track '?' for the fixture cwd (fixture root /mnt/DATA1TB/claude-work/tmp/gwtb.mjuC16)
+
+-- A. dispatch path --
+  PASS  dispatch mistiq ticket onto (T1/main) BLOCKED              (exit 2)
+  PASS  dispatch mistiq ticket onto (T2/feature/mistiq-vader)      (exit 0)
+  PASS  dispatch main ticket onto (T1/main) allowed                (exit 0)
+  PASS  dispatch unclassified ticket ATM-902 allowed               (exit 0)
+  PASS  dispatch mistiq ticket onto (T3/feature/dolby-remap) BLOCKED (exit 2)
+  PASS  dispatch with NO label passes (sibling hook handles)       (exit 0)
+  PASS  dispatch labeled with NO ticket allowed                    (exit 0)
+  PASS  Task tool: mistiq ticket onto (T1/main) BLOCKED            (exit 2)
+  PASS  TaskCreate: mistiq ticket onto (T2/feature/mistiq-vader)   (exit 0)
+  PASS  dispatch unknown ticket SPK-500 (no item row) allowed      (exit 0)
+  PASS  non-Bash non-Agent tool (Read) passes through              (exit 0)
+  PASS  single-track: ticket onto (T1/main) allowed                (exit 0)
+  PASS  single-track: ticket onto (T2/main) BLOCKED (pinned track) (exit 2)
+  PASS  single-track: ticket onto (T1/feature/mistiq-vader) BLOCKED (exit 2)
+  PASS  single-track: ticket onto (T2/feature/mistiq-vader) BLOCKED (exit 2)
+  PASS  pinned track enforced for token-reduction (T2/main) BLOCKED (exit 2)
+-- B. commit path --
+  PASS  mistiq file staged on main BLOCKED                         (exit 2)
+  PASS  mistiq file staged on feature/mistiq-vader allowed         (exit 0)
+  PASS  unclassified README staged on main allowed                 (exit 0)
+  PASS  test_scrcpy_*.sh staged on main BLOCKED (glob)             (exit 2)
+  PASS  test_other.sh staged on main allowed (glob precision)      (exit 0)
+  PASS  mistiq on main + # guardrails:allow => WARN allowed        (exit 0)
+  PASS  non-commit Bash (git status) allowed                       (exit 0)
+  PASS  commit_all.sh broad stage, mistiq dirty on main BLOCKED    (exit 2)
+  PASS  dynamic $(…) pathspec commit BLOCKED (fail-closed)       (exit 2)
+  PASS  dynamic $(…) pathspec + escape => WARN allowed           (exit 0)
+  PASS  commit path, registry unreadable => fail-closed BLOCK      (exit 2)
+  PASS  single-track: unified file staged on main allowed          (exit 0)
+  PASS  single-track: unified file staged on feature branch BLOCKED (exit 2)
+-- C. resolver-direct --
+  PASS  resolver: mistiq file wrong TRACK (branch OK) BLOCKED      (exit 2)
+  PASS  resolver: mistiq file unknown track '?' allowed            (exit 0)
+  PASS  resolver: ambiguous file scope => fail-closed BLOCK        (exit 2)
+  PASS  resolver: unreadable DB => fail-closed BLOCK               (exit 2)
+  PASS  resolver: single-track file on (main, track-1) allowed     (exit 0)
+  PASS  resolver: single-track file on (main, track-2) BLOCKED     (exit 2)
+  PASS  resolver: single-track file on (feature, track-1) BLOCKED  (exit 2)
+  PASS  resolver: single-track file, unknown track '?' on main allowed (exit 0)
+  PASS  resolver: single-line injection ticket => fail-closed      (exit 2)
+  PASS  resolver: NEWLINE injection ticket => fail-closed          (exit 2)
+  PASS  resolver: valid-format ticket accepted (unclassified)      (exit 0)
+  PASS  resolve prints owning group 'mistiq-vader'                
+-- D. submodule-context DB resolution --
+  PASS  submodule: unclassified file on main allowed (parent DB found) (exit 0)
+  PASS  submodule: sub-work file on main BLOCKED (parent DB enforced) (exit 2)
+  PASS  submodule: sub-work file on feature/sub-work allowed       (exit 0)
+  PASS  submodule: explicit absent WI_DB override still fail-closed BLOCK (exit 2)
+-- E. track derivation from the physical cwd --
+  PASS  resolver control: this-track file on track-12 allowed      (exit 0)
+  PASS  resolver control: other-track file on track-12 BLOCKED     (exit 2)
+  PASS  cwd outside /mnt/track<N> (track '?'): this-track file staged on main allowed (exit 0)
+  PASS  cwd outside /mnt/track<N> (track '?'): other-track file staged on main allowed (exit 0)
+  SKIP  7 cases: the hook run from a cwd under /mnt/track<N>       (the fixture root /mnt/DATA1TB/claude-work/tmp/gwtb.mjuC16 is under /mnt, which the namespace replaces; no writable /mnt/track<N> directory on this host)
+
+  skipped: 7 case(s) not run, not counted as PASS (section E: the fixture root /mnt/DATA1TB/claude-work/tmp/gwtb.mjuC16 is under /mnt, which the namespace replaces; no writable /mnt/track<N> directory on this host)
+  total: PASS=49 FAIL=0
+  RESULT: PASS (49 cases run, 7 skipped)

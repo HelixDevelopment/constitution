@@ -1,0 +1,3 @@
+RED OK: mutated (class-flipped) orchestrator picked PROVIDER 'deepseek' while a native was healthy — defect reproduced as expected
+
+== native-first test (RED_MODE=1) : PASS == (evidence: <scratch>/qa-results/multitrack_native_first_resume/20261115T011838Z)

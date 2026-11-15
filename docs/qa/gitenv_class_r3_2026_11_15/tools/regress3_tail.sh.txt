@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# regress3.sh <list> <out-tsv>: run every listed test in the base tree (005bcfd1) and in the fixed tree, with no
+# ambient git variable, and record exit status + last line for each. Base and fixed run side by side (2 jobs).
+set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
+W=<scratch>
+export TMPDIR=<tmp>
+LIST="${1:?list}"; OUT="${2:?out}"
+L="$W/ev/regress_logs_tail"; mkdir -p "$L"
+: >"$OUT"
+run1() { # <tree> <test> -> "rc<TAB>secs<TAB>last line"
+    local tree="$1" t="$2" rc=0 s e log
+    log="$L/$(basename "$tree")__$(printf '%s' "$t" | tr '/' '_').log"
+    s=$(date +%s)
+    case "$t" in
+        *.py) ( cd "$W/$tree" && timeout 900 nice -n 10 python3 "$t" ) >"$log" 2>&1 || rc=$? ;;
+        *) ( cd "$W/$tree" && timeout 900 nice -n 10 bash "$t" ) >"$log" 2>&1 || rc=$? ;;
+    esac
+    e=$(date +%s)
+    printf '%s\t%s\t%s' "$rc" "$((e - s))" "$(grep -v '^[[:space:]]*$' "$log" | tail -n 1 | tr '\t' ' ' | cut -c1-160)"
+}
+while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    while [ "$(cut -d. -f1 /proc/loadavg)" -gt 60 ]; do sleep 30; done
+    if [ "${REGRESS_SEQ:-0}" = 1 ]; then
+        run1 base "$t" >"$OUT.b"; run1 work "$t" >"$OUT.w"
+    else
+        run1 base "$t" >"$OUT.b" & pb=$!
+        run1 work "$t" >"$OUT.w" & pw=$!
+        wait "$pb" "$pw"
+    fi
+    printf '%s\t%s\t%s\n' "$t" "$(cat "$OUT.b")" "$(cat "$OUT.w")" >>"$OUT"
+done <"$LIST"
+echo DONE >>"$OUT"

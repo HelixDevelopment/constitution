@@ -295,6 +295,7 @@
 # resets every disposition but the caller's ignored stop signals (fc_supervisor.py spawn / KEEP_IGNORED).
 # ATM-1220 r4 (B2): set BEFORE the stop-signal block below, whose DEGRADED warning is the first write to stderr
 # (measured on 76ac981: degraded env + dead stderr reader = killed by SIGPIPE, rc -13, no report).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 trap '' PIPE
 case "${1:-}" in
   replay|replay-sample|selfcheck)

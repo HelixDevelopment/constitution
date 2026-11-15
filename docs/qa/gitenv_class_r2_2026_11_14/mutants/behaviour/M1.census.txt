@@ -1,0 +1,2 @@
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_anchor_record_complete.sh (line 309): ( cd "$tmp" && git init -q --bare remote.git && git init -q seed \
+git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1

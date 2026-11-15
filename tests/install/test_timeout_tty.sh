@@ -35,6 +35,7 @@
 # shellcheck disable=SC1090  # the files under test are sourced by variable
 # shellcheck disable=SC2034  # T_NAME is read by finish() in lib.sh
 T_NAME=timeout_tty
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 new_sandbox
@@ -151,6 +152,15 @@ VREF = re.compile(r"\$\{?([A-Za-z_]\w*)\}?\.(sh|bash|py)\b")
 LOOP = re.compile(r"\bfor\s+([A-Za-z_]\w*)\s+in\s+([^;&|]+?)\s*(?:;|$)")
 IGN = "trap \x27\x27 TTIN TTOU"
 SKIP = (".git", "submodules", "node_modules", "tests")
+def nocomment(line):
+    # drop a trailing comment: an unquoted # at the start or after a blank (a file named there is not run)
+    q = None
+    for i, ch in enumerate(line):
+        if q:
+            if ch == q: q = None
+        elif ch in "\x22\x27": q = ch
+        elif ch == "#" and (i == 0 or line[i - 1] in " \t"): return line[:i]
+    return line
 def closure(root, entries):
     base = {}
     for dp, dn, fn in os.walk(root):
@@ -166,7 +176,7 @@ def closure(root, entries):
         seen.add(f)
         try: text = open(os.path.join(root, f), encoding="utf-8", errors="replace").read().splitlines()
         except OSError: continue
-        code = [l for l in text if not l.lstrip().startswith("#")]
+        code = [nocomment(l) for l in text if not l.lstrip().startswith("#")]
         loops = {}
         for line in code:
             for m in LOOP.finditer(line):
@@ -206,19 +216,25 @@ for f in closure(root, sys.argv[2:]):
 # list); d.sh is named only in a comment and tests/e.sh is under tests/, so neither is followed. Sites: a standalone
 # ignore covers a later site (fa yes), none (fb no), an ignore inside a group covers its own line only (fc yes, then
 # no), an ignore AFTER the timeout on the same line is not credited (no), --foreground (fg), a timeout word list in
-# a string (no), and the bare site of c.sh
+# a string (no), and the bare site of c.sh. A file named only in a trailing comment (d.sh again) is not followed,
+# while a reference before a trailing comment (lib/f.sh) and one after a quoted '#' (lib/g.sh) are (merge of the
+# gitenv-r4 vehicle: the trailing note of the git-env scrub line names two files, which are not run)
 CN="$SB/tcensus_tree"; mkdir -p "$CN/lib" "$CN/scripts/x" "$CN/tests"
 printf '%s\n' "fa() {" "  trap '' TTIN TTOU" '  timeout 5 x' "}" "fb() {" '  timeout 5 y' "}" \
-  '. "$(dirname "$0")/lib/b.sh"' 'bash tests/e.sh' '# d.sh is not run from here' >"$CN/a.sh"
+  '. "$(dirname "$0")/lib/b.sh"' 'bash tests/e.sh' '# d.sh is not run from here' \
+  'true  # d.sh is named only in a trailing comment' 'bash lib/f.sh  # a trailing comment after a real reference' \
+  "printf '%s # ' x; bash lib/g.sh" >"$CN/a.sh"
 printf '%s\n' "fc() {" "  { trap '' TTIN TTOU; timeout 5 z; } | cat" '  timeout 5 w | cat' \
   "  { timeout 5 v; trap '' TTIN TTOU; } | cat" '  timeout --foreground 5 f' '  _to="timeout 5"' "}" \
   'for g in c; do bash "$R/scripts/x/$g.sh"; done' >"$CN/lib/b.sh"
 printf '%s\n' 'timeout 5 cc' >"$CN/scripts/x/c.sh"
 printf '%s\n' 'timeout 5 dd' >"$CN/d.sh"
+printf '%s\n' 'timeout 5 ff' >"$CN/lib/f.sh"
+printf '%s\n' 'timeout 5 gg' >"$CN/lib/g.sh"
 printf '%s\n' 'timeout 5 ee' >"$CN/tests/e.sh"
 ndl_got="$( (cd "$CN" && python3 -I -c "$census" . a.sh) | awk -F'\t' '{ print $1 "|" $2 "|" $3 }')"
 ndl_want="$(printf '%s\n' 'a.sh|fa|yes' 'a.sh|fb|no' 'lib/b.sh|fc|yes' 'lib/b.sh|fc|no' 'lib/b.sh|fc|no' \
-  'lib/b.sh|fc|fg' 'lib/b.sh|fc|no' 'scripts/x/c.sh|-|no')"
+  'lib/b.sh|fc|fg' 'lib/b.sh|fc|no' 'lib/f.sh|-|no' 'lib/g.sh|-|no' 'scripts/x/c.sh|-|no')"
 ENTRIES=(scripts/install_constitution.sh scripts/update_constitution.sh scripts/post_update_hook.sh scripts/jev/bootstrap.sh)
 if [ "$ndl_got" = "$ndl_want" ] && sites="$(cd "$REPO" && python3 -I -c "$census" . "${ENTRIES[@]}")" && [ -n "$sites" ]; then
   ok "timeout census control needles: reachability, ignored / bare / --foreground / ignore-after-timeout sites told apart"

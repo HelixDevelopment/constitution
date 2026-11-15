@@ -1,0 +1,3 @@
+NONE	0	0	SURVIVED	git-env-class-census: PASS - members=551 hermetic=470 exempt=81 unscrubbed=0 | [git-env-class] passed=134 failed=0 skipped=2 
+M17	0	1	KILLED	git-env-class-census: PASS - members=551 hermetic=470 exempt=81 unscrubbed=0 | FAIL B4_guard_status: the binding guard rewrote the caller's repository index [git-env-class] passed=133 failed=1 skipped=2 
+M21	0	1	KILLED	git-env-class-census: PASS - members=551 hermetic=470 exempt=81 unscrubbed=0 | FAIL B4_guard_label: the guard did not name the GIT_DIR repository's branch:   Correct prefix for THIS checkout+session: '(T?/HEAD - claude3 - ? - ?) ' [git-env-class] passed=133 failed=1 skipped=2 

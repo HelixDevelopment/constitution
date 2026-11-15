@@ -1,0 +1,17 @@
+§11.4.191/§11.4.135 multitrack_work_binding.sh submodule-DB-discovery regression guard
+resolver: /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r3/scripts/multitrack/multitrack_work_binding.sh
+
+-- 1. GREEN: direct regression case (unclassified file, submodule cwd, no --db) --
+  PASS  resolver-direct: unclassified file, submodule cwd, WI_DB unset, no --db -> allowed (parent DB found) (exit 0)
+-- 2. parent DB genuinely CONSULTED (not merely found) --
+  PASS  resolver-direct: sub-work file on main (wrong branch) -> BLOCKED (parent DB enforced) (exit 2)
+  PASS  resolver-direct: sub-work file on feature/sub-work (correct branch) -> allowed (exit 0)
+-- 3. fail-closed unweakened: no DB anywhere in the chain --
+  PASS  resolver-direct: no workable-items DB anywhere in the chain -> fail-closed BLOCK (exit 2)
+-- 4. RED-polarity: mutated copy (superproject-walk removed) reproduces pre-fix BLOCK --
+  PASS  mutation sanity-check: superproject-walk block neutralised in scratch copy
+  PASS  RED-polarity: mutated resolver (walk removed) -> fail-closed BLOCK (pre-fix behaviour reproduced) (exit 2)
+  PASS  real resolver untouched by this suite (byte-identical post-run)       
+
+  total: PASS=7 FAIL=0
+  RESULT: PASS (all 7 cases)

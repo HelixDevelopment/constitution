@@ -1,0 +1,2 @@
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_anchor_record_complete.sh (line 312): canonical scrub line at line 103 is not effective (not at column 0 in the preamble: inside a block, a function or after other code)
+git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1

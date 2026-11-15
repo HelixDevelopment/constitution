@@ -1,0 +1,12 @@
+ok   C1: census of this tree PASS, 114 members
+ok   C2a: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2b: census exit 0, 'PASS'
+ok   C2c: census exit 1, 'UNSCRUBBED scripts/x.sh'
+FAIL C2d: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (17 samples) git-env-class-census: PASS - members=1 hermetic=1 exempt=0 unscrubbed=0 
+ok   C2e: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2f: census exit 0, 'PASS'
+ok   C2g: census exit 0, 'exempt=1'
+ok   C2h: census exit 1, 'stale row'
+ok   C2i: census exit 1, 'malformed'
+ok   C3: census exit 2, 'BLIND'
+[git-env-class] passed=10 failed=1 skipped=0 (census cases only)

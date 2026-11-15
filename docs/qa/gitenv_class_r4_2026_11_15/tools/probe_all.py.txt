@@ -1,0 +1,28 @@
+import sys, os, subprocess, importlib.util, collections
+root = sys.argv[1]
+spec = importlib.util.spec_from_file_location("c", os.path.join(root, "scripts/validation/git_env_class_census.py"))
+c = importlib.util.module_from_spec(spec); spec.loader.exec_module(c)
+import re
+canon = re.search(r'^CL_GIT_SCRUB_VARS="([^"]+)"', open(os.path.join(root,"scripts/lib/constitution_layout.sh")).read(), re.M).group(1).split()
+env = c.git_env(canon)
+fs = [f for f in subprocess.run(["git","-C",root,"ls-files","-z"],capture_output=True,env=env).stdout.decode("utf-8","surrogateescape").split("\0") if f]
+cnt = collections.Counter(); out=[]
+for f in fs:
+    if f.startswith(("scripts/","tests/")): continue
+    p=os.path.join(root,f)
+    if os.path.islink(p) or not os.path.isfile(p): cnt["nonfile"]+=1; continue
+    b=open(p,"rb").read()
+    if b"\0" in b: cnt["bin"]+=1; continue
+    t=b.decode("utf-8","replace"); lang=c.lang_of(f,t[:200])
+    if c.SKIP_EXT.search(f): 
+        if lang and not f.endswith((".md",".txt")): cnt["skipext_code?"]+=1
+        cnt["skipext"]+=1; continue
+    if lang is None:
+        cnt["data"]+=1
+        if os.access(p, os.X_OK): out.append(("EXEC-NOLANG","-",f,0,""))
+        continue
+    cnt["code:"+lang.split(":")[0]]+=1
+    st,l,d,ws=c.judge(lang,t,canon)
+    if st: out.append((st,lang,f,l,d[:100]))
+print(cnt)
+for r in sorted(out,key=lambda r:r[2]): print("\t".join(map(str,r)))

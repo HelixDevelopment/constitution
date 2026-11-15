@@ -1,0 +1,101 @@
+PASS: [submodules/constitution] setup.sh exits 0 (rc=0)
+PASS: [submodules/constitution] post-update hook called with PROJECT_ROOT=<project>
+PASS: [submodules/constitution] post-merge installed in the PROJECT's .git/hooks
+PASS: [submodules/constitution] nothing written to <project>/submodules/.git
+PASS: [submodules/constitution] submodule's own hooks dir untouched (no post-merge there)
+PASS: [submodules/constitution] non-hook guard NOT copied into .git/hooks
+PASS: [submodules/constitution] test suite NOT copied into .git/hooks
+PASS: [submodules/constitution] __pycache__ NOT copied into .git/hooks
+PASS: [submodules/constitution] post-merge in the PROJECT's hooks dir is EXECUTABLE
+PASS: [submodules/constitution] consumer installed as the SUBMODULE's post-checkout, executable, same bytes
+PASS: [submodules/constitution] consumer NOT installed in the PROJECT's hooks dir
+PASS: [submodules/constitution] no backup dir left inside the hooks dir (old location unused)
+PASS: [submodules/constitution] existing consumer post-merge backed up before overwrite
+PASS: [submodules/constitution] idempotent re-run: exit 0, hooks identical, no new backup
+PASS: [submodules/constitution] determinism: 3 runs -> identical hooks dir
+PASS: [submodules/constitution] --project-root DIR honoured (rc=0)
+PASS: [submodules/constitution] --project-root=DIR honoured (rc=0)
+PASS: [constitution] setup.sh exits 0 (rc=0)
+PASS: [constitution] post-update hook called with PROJECT_ROOT=<project>
+PASS: [constitution] post-merge installed in the PROJECT's .git/hooks
+PASS: [constitution] nothing written to <project>/submodules/.git
+PASS: [constitution] submodule's own hooks dir untouched (no post-merge there)
+PASS: [constitution] non-hook guard NOT copied into .git/hooks
+PASS: [constitution] test suite NOT copied into .git/hooks
+PASS: [constitution] __pycache__ NOT copied into .git/hooks
+PASS: [constitution] post-merge in the PROJECT's hooks dir is EXECUTABLE
+PASS: [constitution] consumer installed as the SUBMODULE's post-checkout, executable, same bytes
+PASS: [constitution] consumer NOT installed in the PROJECT's hooks dir
+PASS: [constitution] no backup dir left inside the hooks dir (old location unused)
+PASS: [constitution] existing consumer post-merge backed up before overwrite
+PASS: [constitution] idempotent re-run: exit 0, hooks identical, no new backup
+PASS: [constitution] determinism: 3 runs -> identical hooks dir
+PASS: [constitution] --project-root DIR honoured (rc=0)
+PASS: [constitution] --project-root=DIR honoured (rc=0)
+PASS: [collision submodules/constitution] colliding project hook -> non-zero exit, never silent (rc=1)
+PASS: [collision submodules/constitution] the collision is named in the output
+PASS: [collision submodules/constitution] the user's own post-merge survives in a backup
+PASS: [collision submodules/constitution] the constitution post-merge is the installed one
+PASS: [collision submodules/constitution] a non-colliding project hook is still installed
+PASS: [collision submodules/constitution] re-run: same refusal, no flip-flop, no new backup (rc=1 backups 1->1)
+PASS: [collision submodules/constitution] re-run: the user's backup is still intact
+PASS: [collision submodules/constitution] same-stamp second backup: first backup kept AND second saved
+PASS: [collision constitution] colliding project hook -> non-zero exit, never silent (rc=1)
+PASS: [collision constitution] the collision is named in the output
+PASS: [collision constitution] the user's own post-merge survives in a backup
+PASS: [collision constitution] the constitution post-merge is the installed one
+PASS: [collision constitution] a non-colliding project hook is still installed
+PASS: [collision constitution] re-run: same refusal, no flip-flop, no new backup (rc=1 backups 1->1)
+PASS: [collision constitution] re-run: the user's backup is still intact
+PASS: [collision constitution] same-stamp second backup: first backup kept AND second saved
+PASS: identical project hook (same bytes) is not a collision -> exit 0 (rc=0)
+PASS: hostile backup stamp (../) refused with exit 2 (rc=2)
+PASS: core.hooksPath at a tracked dir -> WARNING printed
+PASS: I4: local core.hooksPath to a SHARED dir outside git dir + work tree -> refused (rc=1), nothing written
+PASS: I4: ... --allow-global-hooks-path installs there (rc=0), no tracked-dir warning (false-positive guard)
+PASS: symlinked hook: setup exits 0 (rc=0)
+PASS: symlinked hook: backed up AS A LINK with the same target
+PASS: symlinked hook: canary content appears in NO backup file
+PASS: symlinked hook: canary untouched
+PASS: symlinked hook: replaced by the constitution post-merge (regular file, executable)
+PASS: dangling symlink hook: recorded as a link (target kept), then replaced (rc=0)
+PASS: regular hook backup keeps its mode (0750)
+PASS: unreadable hook: backup fails -> setup refuses (rc=1 != 0), original left in place
+PASS: backup dir not writable: setup refuses (rc=1 != 0), original hook left in place
+PASS: FIFO hook: refused without blocking (rc=1, not 124), FIFO left in place
+PASS: core.hooksPath -> tracked dir: backup lives under .git/constitution-hook-backup
+PASS: core.hooksPath -> tracked dir: NO backup anywhere in the work tree
+PASS: setup consumes a matching pending stamp: OLD/NEW handed to the post-update hook, stamp removed (rc=0)
+PASS: setup records the applied ref
+PASS: unknown flag -> exit 2 (rc=2)
+PASS: --project-root without value -> exit 2 (rc=2)
+PASS: --project-root to a missing dir -> exit 2 (rc=2)
+PASS: --check-only -> exit 0
+PASS: non-git project root -> non-zero + clear message (rc=1)
+PASS: non-git project root -> no .git dir fabricated
+PASS: read-only hooks dir -> non-zero exit, never a silent success (rc=1)
+PASS: read-only hooks dir -> consumer hook intact
+PASS: I4: global core.hooksPath -> setup refuses (rc=1 == 1) with a clear message
+PASS: I4: ... the machine-wide hooks dir is untouched (no replace, no new file, no backup)
+PASS: I4: ... and nothing ran (post-update hook not called)
+PASS: I4: --allow-global-hooks-path: installs post-merge there (rc=0), but NOT the consumer as the global post-checkout
+PASS: I4: global RELATIVE core.hooksPath -> refused by scope (rc=1), nothing written
+PASS: I1: post-update hook fails -> setup exits 1 (rc=1) with a clear FAILED message
+PASS: I1: ... the project post-merge IS installed anyway
+PASS: I1: ... the submodule consumer IS installed anyway
+PASS: I1: ... no applied ref recorded and the stamp kept (a re-run retries)
+PASS: I1: re-run after the cause is fixed: exit 0, stamp consumed, applied recorded (rc=0)
+PASS: RM5: stamp NEW != checkout -> not consumed (no range handed over, stamp kept)
+PASS: RM4: setup via a symlinked project path consumes the stamp (physical ROOT match, rc=0)
+PASS: m3: relative symlink backed up as a link (target as stored) + .link file (rc=0)
+PASS: m3: .link records ABSOLUTE=<hooks dir>/my-post-merge.sh (an existing file) and the cp -P restore
+PASS: m4: --check-only right after setup -> in sync, exit 0 (rc=0)
+PASS: m4: --check-only after the installed consumer drifted -> DRIFT with both sha256, exit 1 (rc=1)
+PASS: m4: --check-only with the post-merge missing -> NOT INSTALLED, exit 1 (rc=1)
+PASS: I6: setup prints the trust model (what runs, from which commit, how to disable)
+PASS: I6: default choice recorded as autoPropagate=true (local config)
+PASS: I6: --auto-propagate=off records false and reports OFF (rc=0)
+PASS: I6: a later run without the flag keeps the recorded choice (false)
+PASS: I6: --auto-propagate=<bad> -> usage error 2 (rc=2)
+----
+setup_layout: PASS=99 FAIL=0

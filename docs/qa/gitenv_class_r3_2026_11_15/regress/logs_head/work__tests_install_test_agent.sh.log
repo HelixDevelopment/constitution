@@ -1,0 +1,226 @@
+# sandbox PATH really hides host agents
+  ok   opencode resolves to the fake
+  ok   claude resolves to the fake
+# success: exact argv, env scrub, session id, report
+  ok   success exit 0
+  ok   exact claude argv (nothing added, nothing missing)
+  ok   ANTHROPIC_API_KEY was scrubbed from the agent env
+  ok   ANTHROPIC_BASE_URL was scrubbed for claude
+  ok   ANTHROPIC_AUTH_TOKEN was scrubbed for claude
+  ok   agent ran in the project root
+  ok   agent ran with the user's umask (not the installer's private 0077)
+  ok   session id is a UUID
+  ok   report agent_status
+  ok   claude never gets --dangerously-skip-permissions
+  ok   report agent_permissions for claude
+  ok   report consent.unrestricted_agent for claude
+  ok   report agent_evidence
+  ok   report limits.budget_usd enforced
+  ok   only one agent call when follow-ups are off (default)
+  ok   output never shows a secret value
+  ok   backup dir mode 700
+  ok   agent transcript mode 600
+  ok   agent stderr log mode 600
+  ok   agent dir mode 700
+# provider alias: inherited routing/auth variables are scrubbed, then the alias applies its own
+  ok   provider alias exit 0
+  ok   provider alias: its OWN ANTHROPIC_BASE_URL reached the agent
+  ok   provider alias: the inherited base URL did not
+  ok   provider alias: inherited ANTHROPIC_AUTH_TOKEN removed
+  ok   provider alias: ANTHROPIC_API_KEY still removed
+  ok   bare alias exit 0
+  ok   bare alias: inherited ANTHROPIC_BASE_URL removed
+  ok   bare alias: inherited ANTHROPIC_AUTH_TOKEN removed
+  ok   bare alias: inherited CLAUDE_CONFIG_DIR removed
+# provider alias lookup matches the id literally (a '.' in the id is not a regex wildcard, M2)
+  ok   alias zaiXglm does not satisfy --agent zai.glm (exit 3)
+  ok   zai.glm refusal names the missing alias
+  ok   control needle: a real zai.glm alias passes the preflight (exit 0)
+# success is read from the stream, never from the exit code
+  ok   exit 1 + is_error=false result -> success (exit 0)
+  ok   exit 0 + is_error=true -> agent failure (exit 4)
+  ok   is_error=false but subtype error_max_budget_usd -> agent failure (exit 4)
+  ok   subtype success but no is_error field -> agent failure (exit 4)
+  ok   no result event -> agent failure (exit 4)
+  ok   429 -> agent failure (exit 4)
+  ok   429 reported as rate limit
+# model / effort / budget flags pass through (flag=value form too)
+  ok   model opus
+  ok   effort high
+  ok   budget 0.5
+# follow-ups + TOTAL budget accounting
+  ok   follow-ups on: exit 0
+  ok   follow-ups on: 3 calls (main + 2)
+  ok   call 2 = resume with the remaining budget 1.2
+  ok   call 3 gets the remaining budget 0.4
+  ok   report budget_spent_usd
+  ok   budget exhausted after follow-up one: exit 0 (setup itself succeeded)
+  ok   budget exhausted: only 2 calls
+  ok   follow-up one got the 0.5 left
+  ok   follow-up two recorded as skipped-budget-exhausted
+  ok   cost unknown: 3 calls
+  ok   cost unknown: each follow-up gets the full budget again
+  ok   cost unknown: the user is told the remaining budget cannot be tracked
+  ok   cost unknown: report says unknown
+  ok   first follow-up fails -> exit 4
+  ok   dependent second follow-up NOT run (2 calls)
+# timeout
+  ok   timed-out agent -> exit 4
+  ok   timeout honoured (< 20 s)
+  ok   the user is told the agent timed out after 2s
+  ok   a failing (not timed-out) agent is not reported as timed out
+# post-verify catches an agent that damaged the inheritance block
+  ok   vandal agent -> verification failed (exit 5)
+  ok   report verify.overall fail
+# kimi: exact argv; limits it cannot honour are refused, not silently ignored
+  ok   kimi drivable exit 0
+  ok   exact kimi argv
+  ok   log says model/effort/budget NOT enforced for kimi
+  ok   report limits.budget_usd not-enforced
+  ok   kimi + --model opus -> exit 2
+  ok   kimi + --model opus: agent never called
+  ok   kimi + --effort high -> exit 2
+  ok   kimi + --effort high: agent never called
+  ok   kimi + --max-budget-usd 1 -> exit 2
+  ok   kimi + --max-budget-usd 1: agent never called
+  ok   kimi plan says budget not enforced
+# opencode / pi: exit code only -> UNVERIFIED (exit 6), never success
+  ok   opencode exit 0 + output -> exit 6 (unverified)
+  ok   opencode: the FAKE ran (no real binary)
+  ok   opencode report agent_status
+  ok   opencode report status
+  ok   opencode report agent_evidence
+  ok   opencode: told UNVERIFIED
+  ok   opencode failing -> exit 4
+  ok   pi exit 0 + output -> exit 6 (unverified)
+  ok   pi: the FAKE ran (no real binary)
+  ok   pi report agent_status
+  ok   pi report status
+  ok   pi report agent_evidence
+  ok   pi: told UNVERIFIED
+  ok   pi failing -> exit 4
+# git variables from the caller (e.g. a git hook) never reach the agent (M-1)
+  ok   hostile GIT_* in the caller env: exit 0
+  ok   control: the fake records git variables (identity kept)
+  ok   GIT_DIR did not reach the agent
+  ok   GIT_WORK_TREE did not reach the agent
+  ok   GIT_INDEX_FILE did not reach the agent
+  ok   GIT_EDITOR did not reach the agent
+  ok   GIT_CONFIG_PARAMETERS did not reach the agent
+  ok   GIT_CONFIG_COUNT did not reach the agent
+  ok   GIT_CONFIG_KEY_0 did not reach the agent
+  ok   GIT_CONFIG_VALUE_0 did not reach the agent
+  ok   GIT_PROXY_COMMAND did not reach the agent
+  ok   GIT_ASKPASS did not reach the agent
+  ok   GIT_SSH_COMMAND did not reach the agent
+  ok   GIT_EXEC_PATH did not reach the agent
+  ok   GIT_OBJECT_DIRECTORY did not reach the agent
+# agent text with terminal escapes is printed only after sanitising (M-2)
+  ok   escaped session id: exit 0
+  ok   no raw ESC/BEL reached the terminal
+  ok   the malformed session id is reported and replaced
+  ok   report session_id is the installer's own UUID
+  ok   escaped failure line: exit 4
+  ok   control: the failure line is printed
+  ok   failure line: no raw ESC reached the terminal
+  ok   failure line: no C1 CSI (U+009B) reached the terminal
+# SIGINT to the installer's process group / SIGTERM to the installer stop the agent promptly (I-3)
+  ok   SIGINT (group, sleepy) during the agent run: exit 130
+  ok   SIGINT (group, sleepy): the installer exited within 20 s (took 0s)
+  ok   SIGINT (group, sleepy): control: the agent had started
+  ok   SIGINT (group, sleepy): the agent process is gone
+  ok   SIGINT (group, sleepy): the agent's child is gone
+tests/install/test_agent.sh: line 313: /proc/79898/cmdline: No such file or directory
+  ok   SIGINT (group, sleepy): interrupted message names the backups
+  ok   SIGINT (group, sleepy): no lock left behind
+  ok   SIGTERM (pid, sleepy) during the agent run: exit 143
+  ok   SIGTERM (pid, sleepy): the installer exited within 20 s (took 0s)
+  ok   SIGTERM (pid, sleepy): control: the agent had started
+  ok   SIGTERM (pid, sleepy): the agent process is gone
+  ok   SIGTERM (pid, sleepy): the agent's child is gone
+tests/install/test_agent.sh: line 313: /proc/82155/cmdline: No such file or directory
+  ok   SIGTERM (pid, sleepy): interrupted message names the backups
+  ok   SIGTERM (pid, sleepy): no lock left behind
+  ok   SIGTERM (pid, stubborn) during the agent run: exit 143
+  ok   SIGTERM (pid, stubborn): the installer exited within 20 s (took 0s)
+  ok   SIGTERM (pid, stubborn): control: the agent had started
+  ok   SIGTERM (pid, stubborn): the agent process is gone
+  ok   SIGTERM (pid, stubborn): the agent's child is gone
+tests/install/test_agent.sh: line 313: /proc/84572/cmdline: No such file or directory
+  ok   SIGTERM (pid, stubborn): interrupted message names the backups
+  ok   SIGTERM (pid, stubborn): no lock left behind
+# a push during the agent run fails the run with exit 5 (I-6); a fetch does not
+  ok   agent pushed: exit 5
+  ok   control: the fake really pushed (an 'update by push' reflog entry)
+  ok   the push is reported
+  ok   push: report verify.overall = fail
+  ok   push: nothing was committed
+  ok   agent fetched (no push): exit 0
+e0f5a14d8cb73982bffe3dc42a5f690f79cedb24
+  ok   control: the fake really fetched (a remote-tracking ref exists)
+  ok   fetch: no push reported
+  ok   the plan names the deny list with the git push forms
+# non-claude agents run with their OWN default permissions: explicit consent is required
+  ok   kimi without --allow-unrestricted-agent (non-interactive) -> exit 3
+  ok   kimi refused: agent never called
+  ok   kimi refused: the fake never ran
+  ok   kimi refused: the reason names the flag
+  ok   kimi refused: the reason says it runs with its own default permissions
+  ok   kimi refused: nothing was added to the project
+  ok   kimi --dry-run without the flag -> exit 3 too
+  ok   kimi --dry-run with the flag -> exit 0
+  ok   kimi plan states the agent runs with ITS OWN default permissions
+  ok   kimi plan states it can run shell commands
+  ok   kimi dry-run report agent_permissions
+  ok   kimi dry-run report consent.unrestricted_agent
+  ok   opencode without --allow-unrestricted-agent (non-interactive) -> exit 3
+  ok   opencode refused: agent never called
+  ok   opencode refused: the fake never ran
+  ok   opencode refused: the reason names the flag
+  ok   opencode refused: the reason says it runs with its own default permissions
+  ok   opencode refused: nothing was added to the project
+  ok   opencode --dry-run without the flag -> exit 3 too
+  ok   opencode --dry-run with the flag -> exit 0
+  ok   opencode plan states the agent runs with ITS OWN default permissions
+  ok   opencode plan states it can run shell commands
+  ok   opencode dry-run report agent_permissions
+  ok   opencode dry-run report consent.unrestricted_agent
+  ok   pi without --allow-unrestricted-agent (non-interactive) -> exit 3
+  ok   pi refused: agent never called
+  ok   pi refused: the fake never ran
+  ok   pi refused: the reason names the flag
+  ok   pi refused: the reason says it runs with its own default permissions
+  ok   pi refused: nothing was added to the project
+  ok   pi --dry-run without the flag -> exit 3 too
+  ok   pi --dry-run with the flag -> exit 0
+  ok   pi plan states the agent runs with ITS OWN default permissions
+  ok   pi plan states it can run shell commands
+  ok   pi dry-run report agent_permissions
+  ok   pi dry-run report consent.unrestricted_agent
+  ok   kimi with the flag runs (exit 0)
+  ok   kimi with the flag: the agent was called
+  ok   kimi report agent_permissions
+  ok   kimi report consent.unrestricted_agent
+  ok   claude + the flag: accepted (the flag is irrelevant for claude), exit 0
+  ok   claude plan states acceptEdits and the deny list
+  ok   claude plan states it never uses --dangerously-skip-permissions
+  ok   claude + flag: report consent.unrestricted_agent stays not-needed
+  ok   no agent: report agent_permissions no-agent
+# interactive consent question (default NO); the answers come from a read-only file (prompts go to stderr)
+  ok   interactive kimi, consent answered with Enter (default n) -> exit 3
+  ok   interactive: the question was asked with default n
+  ok   interactive: the warning says it can run shell commands in the project
+  ok   interactive declined: no plan printed
+  ok   interactive opencode, consent n -> exit 3
+  ok   declined: agent never called
+  ok   interactive kimi, consent y -> dry run exit 0
+  ok   interactive y: plan states ITS OWN default permissions
+  ok   interactive y: report consent.unrestricted_agent
+  ok   interactive + the flag: no question needed, exit 0
+  ok   interactive + the flag: the consent question was not asked
+  ok   interactive claude: no consent question, exit 0
+  ok   interactive claude: no unrestricted-agent question
+  ok   opencode not installed -> exit 3
+  ok   detect-only agent refused (exit 3)
+  ok   unknown native alias (no config dir) -> exit 3
+agent_unit_fake: PASS 204 FAIL 0

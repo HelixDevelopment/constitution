@@ -1,0 +1,7 @@
+# run: rc=0 wall=1s load_start=45.54 load_end=45.54 cmd=bash <scratch>/probes/class_probe.sh <scratch>/redclone scripts/gates/cm_anchor_record_complete.sh dir
+gate=scripts/gates/cm_anchor_record_complete.sh mode=dir env=GIT_DIR=<scratch>/probes/sen.O7Demq/.git gate_rc=4 wall=0s
+SENTINEL: unchanged (fingerprint 7a09279a3cf05e11b43bfbee265e00717e28d03f28f24e03b7d6270edf3e31e5)
+--- gate output tail:
+RESULT gate REFUSE
+🛑 REFUSE   CM-ANCHOR-RECORD-COMPLETE: engine root '<scratch>/redclone/scripts/gates/../../submodules/continuum' carries no go.mod
+   The gate decided NOTHING. This is not a pass (§11.4.201(6)).

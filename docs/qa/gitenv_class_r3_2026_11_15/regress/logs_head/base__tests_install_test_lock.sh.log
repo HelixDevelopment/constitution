@@ -1,0 +1,102 @@
+# 8 concurrent contenders, 20 rounds, no lock present
+  ok   fresh lock: exactly one contender proceeded in every round
+# 8 concurrent contenders, 20 rounds, a stale lock (dead pid) present
+  ok   stale lock: exactly one contender reclaimed it in every round
+# a FIFO / symlink planted at the lock path is never opened
+  ok   fifo at the lock path: hi_lock returned (no hang on open)
+  ok   fifo at the lock path: refused (rc=3)
+  ok   fifo at the lock path: left in place (not deleted)
+  ok   symlink-to-fifo at the lock path: hi_lock returned (no hang on open)
+  ok   symlink-to-fifo at the lock path: refused (rc=3)
+  ok   symlink-to-fifo at the lock path: left in place (not deleted)
+# the lock cannot be created at all (no ln on PATH): refused with the TRUE reason, never 'not a regular file'
+  ok   installer, no ln: refused (rc=3)
+  ok   installer, no ln: says the lock could not be created
+  ok   installer, no ln: does NOT claim a non-regular file is there
+  ok   installer, no ln: nothing left at the lock path
+  ok   updater, no ln: refused (rc=3)
+  ok   updater, no ln: says the lock could not be created
+  ok   updater, no ln: does NOT claim a non-regular file is there
+  ok   updater, no ln: nothing left at the lock path
+# a normal lock/unlock cycle leaves nothing behind (control needle)
+  ok   control: hi_lock succeeds when no lock exists
+  ok   control: the lock file exists while held
+  ok   control: unlock removed the lock
+  ok   control: no temp/reclaim files left
+# paired mutants: the harness must SEE a double acquire
+  ok   the two mutants could be built (the lock uses ln for the lock and for the reclaim marker)
+  ok   mutant (non-exclusive create): a double acquire is observed (20 of 20 rounds)
+  ok   mutant (unserialised stale reclaim): a double acquire is observed (20 of 20 rounds)
+# the updater's lock (up_lock): same primitive, same lock file as the installer
+  ok   updater, fresh lock: exactly one contender proceeded in every round
+  ok   updater, stale lock: exactly one contender reclaimed it in every round
+# installer and updater exclude each other (4 installer + 4 updater contenders per round)
+  ok   mixed installer+updater: exactly one proceeded in every round
+# updater: a FIFO / symlink planted at the lock path is never opened
+  ok   updater, fifo at the lock path: refused without hanging (rc=3)
+  ok   updater, fifo at the lock path: left in place
+  ok   updater, symlink-to-fifo at the lock path: refused without hanging (rc=3)
+  ok   updater, symlink-to-fifo at the lock path: left in place
+# updater paired mutant: non-exclusive create must show a double acquire
+  ok   updater mutant could be built (up_lock uses ln)
+  ok   updater mutant (non-exclusive create): a double acquire is observed (20 of 20 rounds)
+# reclaim race (I-4): the stale lock was replaced by a live run while A was between its check and the marker
+  ok   inst: control: run A paused after it judged the lock stale
+  ok   inst: run A refused (rc=3)
+  ok   inst: run A reports that another run took the lock
+  ok   inst: the live run's lock is untouched
+  ok   inst: no reclaim marker left
+  ok   upd: control: run A paused after it judged the lock stale
+  ok   upd: run A refused (rc=3)
+  ok   upd: run A reports that another run took the lock
+  ok   upd: the live run's lock is untouched
+  ok   upd: no reclaim marker left
+# paired mutant: without the re-check under the marker, A takes the live run's lock (the harness sees it)
+  ok   re-check mutant could be built
+  ok   mutant (no re-check): A took the lock (rc=0)
+  ok   mutant (no re-check): the live run's lock was replaced
+# a test switch outside test mode does nothing: no pause without HELIX_INSTALLER_TEST=1
+  ok   no TEST PAUSE without HELIX_INSTALLER_TEST=1
+  ok   the stale lock was reclaimed at once (rc=0)
+# liveness (M-6): 'Operation not permitted' is alive; a pid that started after the lock was written is gone
+  ok   inst: a lock naming pid 1 is not reclaimed (rc=3)
+  ok   inst: the pid-1 lock is left as it was
+  ok   inst: control: a live pid that predates the lock holds it (rc=3)
+  ok   inst: the same live pid, lock written an hour before it started: reclaimed (rc=0)
+  ok   inst: the reclaim says the old lock was stale
+  ok   upd: a lock naming pid 1 is not reclaimed (rc=3)
+  ok   upd: the pid-1 lock is left as it was
+  ok   upd: control: a live pid that predates the lock holds it (rc=3)
+  ok   upd: the same live pid, lock written an hour before it started: reclaimed (rc=0)
+  ok   upd: the reclaim says the old lock was stale
+# F2: a signal during hi_lock / up_lock never deletes a LIVE holder's lock and leaves no temp or marker file
+  ok   inst: control: the contender paused after reading the live holder's lock
+  ok   inst: TERM while another run holds the lock: exit 143
+  ok   inst: the live holder's lock is untouched
+  ok   inst: no temp or marker file left
+  ok   inst: control: the contender paused at the reclaim point
+  ok   inst: TERM at the reclaim point: exit 143
+  ok   inst: the stale lock is not removed by a run that never took it
+  ok   inst: no temp or marker file left (stale case)
+  ok   inst: no reclaim marker left
+  ok   upd: control: the contender paused after reading the live holder's lock
+  ok   upd: TERM while another run holds the lock: exit 143
+  ok   upd: the live holder's lock is untouched
+  ok   upd: no temp or marker file left
+  ok   upd: control: the contender paused at the reclaim point
+  ok   upd: TERM at the reclaim point: exit 143
+  ok   upd: the stale lock is not removed by a run that never took it
+  ok   upd: no temp or marker file left (stale case)
+  ok   upd: no reclaim marker left
+# F2 paired mutants: with the old shape (lock path set before ownership, unconditional unlock) the live lock IS deleted
+  ok   signal mutants could be built
+  ok   mutant (installer, old shape): the live holder's lock was deleted
+  ok   mutant (updater, old shape): the live holder's lock was deleted
+# B18: after a successful stale reclaim the .reclaim marker and the temp file are gone
+  ok   inst: stale reclaim succeeded (rc=0)
+  ok   inst: only the lock itself exists afterwards (no .reclaim, no temp)
+  ok   upd: stale reclaim succeeded (rc=0)
+  ok   upd: only the lock itself exists afterwards (no .reclaim, no temp)
+  ok   keep-reclaim mutant could be built
+  ok   mutant (marker kept): a .reclaim file is observed
+lock: PASS 84 FAIL 0

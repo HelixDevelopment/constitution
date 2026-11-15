@@ -1,0 +1,125 @@
+  ok   check at latest: exit 0
+  ok   check at latest says no
+  ok   check after advance says yes
+  ok   check changed nothing
+  ok   dry-run exit 0
+  ok   dry-run changed nothing
+  ok   fast-forward exit 0
+  ok   fast-forward HEAD
+  ok   gitlink staged
+  ok   not committed
+  ok   before + after printed
+  ok   re-run exit 0
+  ok   re-run already up to date
+  ok   older target: exit 0
+  ok   older target: ahead, no change
+# refusals
+  ok   local changes -> exit 3
+  ok   local changes: nothing changed
+  ok   unpushed commit -> exit 3
+  ok   diverged target -> exit 3
+  ok   diverged: HEAD unchanged
+  ok   option-like ref -> exit 2
+  ok   network loss -> exit 3
+# a tag created only locally never counts as 'pushed' (reviewer mutant E)
+fatal: unable to read tree (0e12d84f0e9d9a1aa3d8a5162c95ec00fb58b312)
+  ok   unpushed commit carrying a local-only tag -> exit 3
+  ok   refusal says unpushed
+  ok   local-only tag: HEAD unchanged
+# --commit and legacy layout
+  ok   --commit exit 0
+  ok   --commit: clean afterwards
+  ok   --commit: committed gitlink
+  ok   legacy layout update exit 0
+  ok   legacy layout reached newest tag
+# post-update hook seam (TEST FIXTURE hook committed to the upstream)
+  ok   update with hook exit 0
+  ok   hook ran from the project root with Jev off, no arguments (this older hook does not parse --project-root)
+# target = newest RELEASE tag by version order: v999.9 < v999.10 < v999.100; pre-releases skipped
+  ok   ordering: exit 0
+  ok   ordering: newest release v999.100 chosen (not v999.9 lexical, not v999.101-rc1)
+  ok   a pre-release can still be pinned with --ref
+  ok   pinned pre-release reached
+# run lock: the updater takes the SAME lock as the installer (one of them at a time per project)
+  ok   lock held by a live run -> exit 3
+  ok   lock held: message names the holder
+  ok   lock held: HEAD unchanged
+  ok   lock held: the other run's lock is left alone
+  ok   stale lock (dead pid), --check: exit 0
+  ok   --check reports the update
+  ok   --check released the lock
+  ok   stale lock (dead pid) is reclaimed: exit 0
+  ok   stale lock: update applied
+  ok   no lock, temp or reclaim file left
+  ok   FIFO at the lock path: updater returned (never opened it)
+  ok   FIFO at the lock path: refused (rc=3)
+  ok   FIFO at the lock path: left in place
+# control: a normal updater run leaves no lock behind
+  ok   control: re-run exit 0
+  ok   control: no lock files after a normal run
+# lock hand-over: an updater started BY the installer (HELIX_CONSTITUTION_LOCK_DELEGATED=<holder pid>)
+  ok   delegated by the live holder: exit 0
+  ok   delegated: update applied
+  ok   delegated: the holder's lock is left in place (the updater never removes a lock it does not own)
+  ok   delegation naming a pid that is NOT the holder: refused (exit 3)
+  ok   wrong delegation: lock unchanged
+  ok   malformed delegation value [x2117758] while the lock is held: refused (exit 3)
+  ok   malformed delegation value [2117758 ] while the lock is held: refused (exit 3)
+  ok   malformed delegation value [-1] while the lock is held: refused (exit 3)
+  ok   malformed delegation value [] while the lock is held: refused (exit 3)
+  ok   refusal message carries no stray exit code (die prints only the message)
+  ok   delegation naming a DEAD holder: not honoured, the stale lock is reclaimed normally (exit 0)
+  ok   dead-holder delegation: lock released afterwards
+  ok   delegation set but no lock at all: takes its own lock (exit 0)
+  ok   no-lock delegation: its own lock released
+# a tag with a leading zero (v01000.0) is not a release tag: never the default target
+  ok   leading-zero tag: --check exit 0
+  ok   leading-zero tag is not offered as an update
+  ok   control: target printed is the newest real release
+# the post-update hook gets PROJECT_ROOT / CONST_DIR from the updater, never from a hostile ambient env
+  ok   hostile ambient CONST_DIR/PROJECT_ROOT: update exit 0
+  ok   control: the env-recording hook ran
+  ok   hook got CONST_DIR = the updated submodule (not the ambient value)
+  ok   hook got PROJECT_ROOT = the project (not the ambient value)
+  ok   hook was handed the run lock (delegation pid == pid recorded in the lock, non-empty)
+  ok   hook got --project-root = the project (explicit argument, W1 round 7)
+  ok   nothing was written to the ambient victim directories
+  ok   the lock is released after the hook
+# ref resolution: a branch name means the REMOTE branch, never a stale local branch of that name (I-1)
+  ok   control: the local main is stale
+  ok   --ref main with a stale local main: exit 0
+  ok   --ref main reached the upstream main (not the stale local branch)
+  ok   --ref main: the target printed is the upstream main
+# the target commit must be on a remote too, not only the current one (I-2)
+  ok   --ref localonly (a commit no remote has) -> exit 3
+  ok   --ref localonly: the refusal says the target is not on a remote
+  ok   --ref localonly: HEAD unchanged
+  ok   --ref localonly: gitlink unchanged
+  ok   --ref localonly: nothing staged
+  ok   --ref 1d5a445fe2fe6fd0eca1cbe34fdcbb02e5e98d04 (a commit no remote has) -> exit 3
+  ok   --ref 1d5a445fe2fe6fd0eca1cbe34fdcbb02e5e98d04: the refusal says the target is not on a remote
+  ok   --ref 1d5a445fe2fe6fd0eca1cbe34fdcbb02e5e98d04: HEAD unchanged
+  ok   --ref 1d5a445fe2fe6fd0eca1cbe34fdcbb02e5e98d04: gitlink unchanged
+  ok   --ref 1d5a445fe2fe6fd0eca1cbe34fdcbb02e5e98d04: nothing staged
+  ok   --ref 1d5a445fe2fe (a commit no remote has) -> exit 3
+  ok   --ref 1d5a445fe2fe: the refusal says the target is not on a remote
+  ok   --ref 1d5a445fe2fe: HEAD unchanged
+  ok   --ref 1d5a445fe2fe: gitlink unchanged
+  ok   --ref 1d5a445fe2fe: nothing staged
+  ok   --ref <pushed sha>: exit 0
+  ok   a local-only ref NAME on a pushed commit: exit 0 (ahead, no change)
+  ok   a local-only ref is announced as LOCAL
+# hook capability probe (F9): an explicit marker line near the top, never a text pattern inside the hook's code
+  ok   marker line lists project-root -> the hook gets --project-root: update exit 0
+  ok   marker line lists project-root -> the hook gets --project-root: the fixture hook ran
+  ok   marker line lists project-root -> the hook gets --project-root
+  ok   no marker, but the code parses --project-root -> no argument: update exit 0
+  ok   no marker, but the code parses --project-root -> no argument: the fixture hook ran
+  ok   no marker, but the code parses --project-root -> no argument
+  ok   marker not at the start of a line -> no argument: update exit 0
+  ok   marker not at the start of a line -> no argument: the fixture hook ran
+  ok   marker not at the start of a line -> no argument
+  ok   marker names a different capability (project-rootx) -> no argument: update exit 0
+  ok   marker names a different capability (project-rootx) -> no argument: the fixture hook ran
+  ok   marker names a different capability (project-rootx) -> no argument
+updater: PASS 110 FAIL 0

@@ -1,0 +1,404 @@
+NOT ok control needle #1 failed: a KNOWN-PRESENT sibling file inside
+     the SAME orchestration/ directory (<scratch>/constitution/scripts/fastcycle/orchestration/completion_probe.sh, T122) does not
+     resolve -- this test's relative-path computation is broken, so
+     the absence check below proves nothing (section 11.4.273)
+NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is
+     unavailable in this environment -- this is an environment gap,
+     not a finding
+-- <scratch>/constitution/scripts/fastcycle/orchestration does not exist at all yet
+NOT ok orchestration/handoff.py is absent -- T133/T134 (plan.md
+     T-B04/T-B05's implementation tasks, SEPARATE later tasks from
+     this RED test) have not landed yet. THIS IS THE CORRECT,
+     EXPECTED T126 RED BASELINE -- the fixtures + independent
+     derivation below stand as the interim contract T134 must
+     satisfy to turn this GREEN.
+NOT ok fixture rr_inconsistent_internal_state/handoff.json missing
+NOT ok fixture rr_inconsistent_internal_state/expected_verdict.json missing
+NOT ok fixture rr_inconsistent_internal_state/scenario.json missing
+NOT ok fixture rr_stale_external_dependency/handoff.json missing
+NOT ok fixture rr_stale_external_dependency/expected_verdict.json missing
+NOT ok fixture rr_stale_external_dependency/scenario.json missing
+NOT ok fixture rr_nondeterministic_replay/handoff.json missing
+NOT ok fixture rr_nondeterministic_replay/expected_verdict.json missing
+NOT ok fixture rr_nondeterministic_replay/scenario.json missing
+NOT ok fixture rr_unrecorded_external_effect/handoff.json missing
+NOT ok fixture rr_unrecorded_external_effect/expected_verdict.json missing
+NOT ok fixture rr_unrecorded_external_effect/scenario.json missing
+NOT ok fixture rr_inconsistent_transition/handoff.json missing
+NOT ok fixture rr_inconsistent_transition/expected_verdict.json missing
+NOT ok fixture rr_inconsistent_transition/scenario.json missing
+NOT ok fixture rr_negctrl_all_unchanged/handoff.json missing
+NOT ok fixture rr_negctrl_all_unchanged/expected_verdict.json missing
+NOT ok fixture rr_negctrl_all_unchanged/scenario.json missing
+ok all six scenario directories carry handoff.json + expected_verdict.json + scenario.json
+
+=== T126 five 'Safe to Resume?' failure classes + CT-5 negative control, independent DERIVED oracle ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_internal_state/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.76JWgNPmBM/rr_inconsistent_internal_state.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_inconsistent_internal_state.derived.json'
+NOT ok rr_inconsistent_internal_state: 
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_stale_external_dependency/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.76JWgNPmBM/rr_stale_external_dependency.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_stale_external_dependency.derived.json'
+NOT ok rr_stale_external_dependency: 
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_nondeterministic_replay/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.76JWgNPmBM/rr_nondeterministic_replay.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_nondeterministic_replay.derived.json'
+NOT ok rr_nondeterministic_replay: 
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_unrecorded_external_effect/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.76JWgNPmBM/rr_unrecorded_external_effect.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_unrecorded_external_effect.derived.json'
+NOT ok rr_unrecorded_external_effect: 
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_transition/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.76JWgNPmBM/rr_inconsistent_transition.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_inconsistent_transition.derived.json'
+NOT ok rr_inconsistent_transition: 
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.76JWgNPmBM/rr_negctrl_all_unchanged.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_negctrl_all_unchanged.derived.json'
+NOT ok rr_negctrl_all_unchanged: 
+
+=== Discrimination check (section 11.4.107(10)/11.4.201(1)): each golden-bad fixture flags EXACTLY its own target class; the negative control flags none ===
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; d=json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_internal_state/scenario.json')); print(d['target_class'] or '')
+                             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_internal_state/scenario.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(len(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_internal_state/expected_verdict.json'))['unsafe_reasons']))
+                                     ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_internal_state/expected_verdict.json'
+NOT ok discrimination rr_inconsistent_internal_state (negative-control): expected zero
+     unsafe_reasons, got  -- a derivation that flags the
+     unchanged-dependency fixture is exactly the false-positive
+     this negative control exists to catch
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; d=json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_stale_external_dependency/scenario.json')); print(d['target_class'] or '')
+                             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_stale_external_dependency/scenario.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(len(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_stale_external_dependency/expected_verdict.json'))['unsafe_reasons']))
+                                     ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_stale_external_dependency/expected_verdict.json'
+NOT ok discrimination rr_stale_external_dependency (negative-control): expected zero
+     unsafe_reasons, got  -- a derivation that flags the
+     unchanged-dependency fixture is exactly the false-positive
+     this negative control exists to catch
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; d=json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_nondeterministic_replay/scenario.json')); print(d['target_class'] or '')
+                             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_nondeterministic_replay/scenario.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(len(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_nondeterministic_replay/expected_verdict.json'))['unsafe_reasons']))
+                                     ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_nondeterministic_replay/expected_verdict.json'
+NOT ok discrimination rr_nondeterministic_replay (negative-control): expected zero
+     unsafe_reasons, got  -- a derivation that flags the
+     unchanged-dependency fixture is exactly the false-positive
+     this negative control exists to catch
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; d=json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_unrecorded_external_effect/scenario.json')); print(d['target_class'] or '')
+                             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_unrecorded_external_effect/scenario.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(len(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_unrecorded_external_effect/expected_verdict.json'))['unsafe_reasons']))
+                                     ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_unrecorded_external_effect/expected_verdict.json'
+NOT ok discrimination rr_unrecorded_external_effect (negative-control): expected zero
+     unsafe_reasons, got  -- a derivation that flags the
+     unchanged-dependency fixture is exactly the false-positive
+     this negative control exists to catch
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; d=json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_transition/scenario.json')); print(d['target_class'] or '')
+                             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_transition/scenario.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(len(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_transition/expected_verdict.json'))['unsafe_reasons']))
+                                     ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_transition/expected_verdict.json'
+NOT ok discrimination rr_inconsistent_transition (negative-control): expected zero
+     unsafe_reasons, got  -- a derivation that flags the
+     unchanged-dependency fixture is exactly the false-positive
+     this negative control exists to catch
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; d=json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/scenario.json')); print(d['target_class'] or '')
+                             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/scenario.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(len(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/expected_verdict.json'))['unsafe_reasons']))
+                                     ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/expected_verdict.json'
+NOT ok discrimination rr_negctrl_all_unchanged (negative-control): expected zero
+     unsafe_reasons, got  -- a derivation that flags the
+     unchanged-dependency fixture is exactly the false-positive
+     this negative control exists to catch
+
+=== CT-5 negative control: rr_negctrl_all_unchanged proceeds SAFE, without forced re-verification ===
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/expected_verdict.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/expected_verdict.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(len(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/expected_verdict.json'))['facts_needing_reverification']))
+                                     ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_negctrl_all_unchanged/expected_verdict.json'
+NOT ok CT-5: expected safe=True and zero reverify facts, got
+     safe= reverify_count=
+
+=== Paired mutations (section 1.1, one per failure class): disabling any ONE check wrongly reports SAFE ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_internal_state/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<tmp>/tmp.76JWgNPmBM/rr_inconsistent_internal_state.mut.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_inconsistent_internal_state.mut.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_internal_state/expected_verdict.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_internal_state/expected_verdict.json'
+NOT ok mutation (1/5 drop internal-state check) FAILED: mutated_safe=
+     correct_safe= (expected mutated=True, correct=False)
+     -- this fixture would not catch this mutation and needs revising
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_stale_external_dependency/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<tmp>/tmp.76JWgNPmBM/rr_stale_external_dependency.mut.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_stale_external_dependency.mut.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_stale_external_dependency/expected_verdict.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_stale_external_dependency/expected_verdict.json'
+NOT ok mutation (2/5 drop external-dep check) FAILED: mutated_safe=
+     correct_safe= (expected mutated=True, correct=False)
+     -- this fixture would not catch this mutation and needs revising
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_nondeterministic_replay/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<tmp>/tmp.76JWgNPmBM/rr_nondeterministic_replay.mut.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_nondeterministic_replay.mut.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_nondeterministic_replay/expected_verdict.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_nondeterministic_replay/expected_verdict.json'
+NOT ok mutation (3/5 drop nondeterminism check) FAILED: mutated_safe=
+     correct_safe= (expected mutated=True, correct=False)
+     -- this fixture would not catch this mutation and needs revising
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_unrecorded_external_effect/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<tmp>/tmp.76JWgNPmBM/rr_unrecorded_external_effect.mut.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_unrecorded_external_effect.mut.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_unrecorded_external_effect/expected_verdict.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_unrecorded_external_effect/expected_verdict.json'
+NOT ok mutation (4/5 drop unrecorded-effect check) FAILED: mutated_safe=
+     correct_safe= (expected mutated=True, correct=False)
+     -- this fixture would not catch this mutation and needs revising
+Traceback (most recent call last):
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 171, in main
+    result = derive_resume_check(
+        fixture_dir,
+    ...<4 lines>...
+        skip_transition=("--skip-transition-check" in flags),
+    )
+  File "<tmp>/tmp.76JWgNPmBM/derive.py", line 57, in derive_resume_check
+    with open(os.path.join(fixture_dir, "handoff.json"), encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_transition/handoff.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<tmp>/tmp.76JWgNPmBM/rr_inconsistent_transition.mut.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.76JWgNPmBM/rr_inconsistent_transition.mut.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_transition/expected_verdict.json'))['safe_to_resume_without_reverification'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/rr_inconsistent_transition/expected_verdict.json'
+NOT ok mutation (5/5 drop transition check) FAILED: mutated_safe=
+     correct_safe= (expected mutated=True, correct=False)
+     -- this fixture would not catch this mutation and needs revising
+
+=== Real-tool invocation checks SKIPPED: orchestration/handoff.py not present ===
+NOT ok real-invocation checks skipped -- this contributes to the
+     overall RED exit below, which is the CORRECT state until T134
+     lands.
+
+=== T126 RED BASELINE CONFIRMED: orchestration/handoff.py does not
+    exist yet (T133/T134 are separate, later tasks). The five 'Safe
+    to Resume?' failure-class fixtures + the CT-5 negative control +
+    the discrimination check + all five paired mutations, all
+    independently re-derived and self-validated above, are the
+    interim contract T134 must satisfy to turn this GREEN. ===

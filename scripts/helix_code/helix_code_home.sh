@@ -37,6 +37,15 @@ _HELIX_CODE_HOME_LOADED=1
 
 # --- internal helpers --------------------------------------------------------
 
+# Every git call goes through hc__git. This file is SOURCED, so the scrub runs in a
+# subshell and never clears the consumer shell's own git variables (CON-402).
+hc__git() {
+  (
+    for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: subshell-scoped (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+    exec git "$@"
+  )
+}
+
 hc__script_dir() {
   cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P
 }
@@ -49,12 +58,12 @@ hc__project_root() {
     return 0
   fi
   local sp
-  sp="$(git -C "$(hc__script_dir)" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
+  sp="$(hc__git -C "$(hc__script_dir)" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
   if [ -n "$sp" ]; then
     printf '%s' "$sp"
     return 0
   fi
-  git -C "$(hc__script_dir)" rev-parse --show-toplevel 2>/dev/null
+  hc__git -C "$(hc__script_dir)" rev-parse --show-toplevel 2>/dev/null
 }
 
 # Load a project-local .env value without exporting the whole file.
@@ -85,7 +94,7 @@ hc_home() {
 
   # case (a): present + non-empty → ensure submodules, use it
   if [ -d "$home/.git" ] && [ -n "$(ls -A "$home" 2>/dev/null)" ]; then
-    git -C "$home" submodule update --init --recursive >&2 || true
+    hc__git -C "$home" submodule update --init --recursive >&2 || true
     printf '%s' "$home"
     return 0
   fi
@@ -94,7 +103,7 @@ hc_home() {
   mkdir -p "$home"
   if [ -z "$(ls -A "$home" 2>/dev/null)" ]; then
     echo "[helix_code_home] Cloning HelixCode into $home ..." >&2
-    git clone --recursive git@github.com:HelixDevelopment/HelixCode.git "$home" >&2
+    hc__git clone --recursive git@github.com:HelixDevelopment/HelixCode.git "$home" >&2
   fi
   printf '%s' "$home"
 }

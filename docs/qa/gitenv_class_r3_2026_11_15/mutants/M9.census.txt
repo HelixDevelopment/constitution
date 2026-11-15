@@ -1,0 +1,1 @@
+git-env-class-census: BLIND - control needle: mention detector on '$GITBIN': got False; mention detector on "g('x') # Git": got False; mention detector on 'GIT_DIR': got False

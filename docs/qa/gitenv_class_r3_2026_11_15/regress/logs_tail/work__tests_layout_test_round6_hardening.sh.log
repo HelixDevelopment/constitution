@@ -1,0 +1,63 @@
+  L1[reuse]: inode old=29884812 new=29884812 (reused: yes) calls=0
+PASS: L1[reuse]: a LIVE holder's lock created in the reclaim window is never taken over -> hook NOT run
+PASS: L1[reuse]: ... the live holder's lock is still in place (NONCE=liveD)
+PASS: L1[reuse]: ... the stamp stays (propagation PENDING)
+  L1[keep]: inode old=29884784 new=29884975 (reused: no) calls=0
+PASS: L1[keep]: a LIVE holder's lock created in the reclaim window is never taken over -> hook NOT run
+PASS: L1[keep]: ... the live holder's lock is still in place (NONCE=liveD)
+PASS: L1[keep]: ... the stamp stays (propagation PENDING)
+PASS: L1-control: a really dead lock is reclaimed (WARNING) and the hook runs exactly once
+PASS: L1-control: ... and the lock is released afterwards
+PASS: L1-ownerless: a FRESH owner-less lock made in the reclaim window is put back, hook NOT run
+PASS: L2: lock taken over after acquisition -> post-update hook NOT run, WARNING says so
+PASS: L2: ... the new holder's lock is left alone, stamp kept
+PASS: L3 fixture: lock functions extracted (lock_path_taken, lock_create, lock_is_mine, kv)
+PASS: L3: another creator wins right after the existence check -> lock_create REFUSES, their lock intact
+PASS: L3-control: a free path -> lock_create acquires (NONCE=me)
+PASS: L4: post-merge direct path with a LIVE propagation lock -> NOT run, WARNING names the lock + re-run command
+PASS: L4: ... it stops at the lock (never falls through to the later ownership check; kills X8)
+PASS: L4: ... the holder's lock is untouched and nothing is recorded as applied
+PASS: L4: ... a pending stamp is recorded (ROOT = physical project root, NEW=3d6ba87e4e6601d8789dce1f8234e6108c5d45e9) and the WARNING says so (M-3)
+PASS: L4-control: no lock -> the direct path runs once, records v3, leaves no lock behind
+PASS: R11: direct path with git config constitution.autoPropagate=false -> NOT run, says disabled
+PASS: R21: squash merge moving only a NON-constitution gitlink -> no constitution squash warning
+PASS: S1: stamp OLD abbreviated (12 hex) and no applied record -> nothing run (never guesses a range)
+PASS: S1-control: the same stamp with the full 40-hex OLD -> runs once
+PASS: P1: ambient PROJECT_ROOT of another repo -> no hook installed there
+PASS: P1: ... setup used the checkout's own superproject and said it ignored the ambient value (rc=0)
+PASS: P1-control: an EXPLICIT --project-root is honoured (rc=0)
+PASS: P1-control: an ambient PROJECT_ROOT equal to the superproject -> no 'ignoring' note
+PASS: T1a: .git/hooks symlinked into a TRACKED work-tree dir (no core.hooksPath) -> WARNING says TRACKED (rc=0)
+PASS: T1a: ... the committed project hook was backed up before it was replaced
+PASS: T1b: local core.hooksPath = TRACKED dir -> WARNING says TRACKED (rc=0)
+PASS: T1c (golden-FALSE): untracked in-work-tree hooks dir -> rc=0, installed, NO tracked warning
+PASS: T1d (golden-FALSE): plain .git/hooks -> NO tracked warning
+PASS: D1: legacy gitlink bump with a vendored plain submodules/ copy -> NOT 'no initialized checkout'
+PASS: D1: ... post-merge resolved the GITLINK (constitution) and reported the update
+PASS: D1-lib: cl_find_in_project_no_override prefers the gitlink layout in a mid-migration tree (<tmp>/layout_test.O4Q6bQ/w_dual/constitution)
+PASS: D1-lib control: a plain (non-git) tree still resolves its vendored copy (<tmp>/layout_test.O4Q6bQ/plain_only/submodules/constitution)
+PASS: C1: HOOKS_DIR given as an in-work-tree symlink to a shared dir -> refused (physical path)
+PASS: C1-control: the repository's own .git/hooks -> allowed
+PASS: R20: MODE=gitdir with a hooks dir in the WORK TREE -> refused
+PASS: R20-control: the same dir in MODE=repo -> allowed
+PASS: X1 fixture: put_back extracted
+PASS: X1: file put back onto an EXISTING lock -> refused (rc=1), the existing lock kept, the renamed one kept
+PASS: X1-control: file put back when the lock path is free -> restored (rc=0)
+PASS: X1-dir: legacy dir lock put back onto an EXISTING (empty) dir -> refused (rc=1), nothing moved into or over it (mv -T -n)
+PASS: X1-dir control: dir put back when the path is free -> restored (rc=0)
+PASS: X6: chi_under <wt>-hooks <wt> -> NOT inside (rc=1)
+PASS: X6-control: chi_under <wt>/hooks <wt> -> inside (rc=0)
+PASS: X6-behaviour: a hooks dir next to the work tree (<wt>-hooks, shared-looking) is refused in repo mode (rc=1)
+PASS: X2: stamp OLD is a full id UNKNOWN to the submodule -> not run, says the upgrade cannot be proven
+PASS: X3: CONSTITUTION_AUTO_PROPAGATE=OFF (upper case) disables the consumer, stamp kept
+PASS: X3-control: the same pending update with the opt-out unset -> runs once
+PASS: X3-post-merge: CONSTITUTION_AUTO_PROPAGATE=Off on the direct path -> not run, says disabled
+PASS: X9 positive control: the wrapper really answered post-merge's --show-toplevel (inside the hook)
+PASS: X9: git reports a symlinked top level -> the stamp ROOT is still the PHYSICAL project root
+PASS: X9: ... and the consumer consumes it (runs once for NEW, stamp removed)
+PASS: M-2: setup.sh with a LIVE propagation lock -> post-update hook NOT run, exit 1, the lock untouched (rc=1)
+PASS: M-2 control: no lock -> setup runs the hook once, exit 0, no lock left behind (rc=0)
+PASS: consumer hook parses under bash -n
+PASS: post-merge parses under bash -n
+----
+round6_hardening: PASS=59 FAIL=0

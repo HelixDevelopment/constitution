@@ -33,6 +33,8 @@ Exit:    0 ok, 1 finding, 2 usage/config/unparseable input, 3 self-test failed (
          64 lowercase hex chars (upper/mixed case, padded, short, long, non-hex are MALFORMED = 2, never a mismatch 1). run_meta never affects the hash. Without --verify: prints the hash.
 Side-effects: emit writes --out (except code 3). Python stdlib only.
 """
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 import argparse
 import datetime
 import errno
