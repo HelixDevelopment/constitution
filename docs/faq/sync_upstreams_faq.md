@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 6 |
+| Revision | 7 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T14:30:00Z |
+| Last modified | 2026-11-15T21:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Questions raised while designing, building and testing `scripts/sync/sync_all_upstreams.sh`, with the answers the engine gives. |
 | Authority | Constitution §11.4.84, §11.4.113, §11.4.233(G), §11.4.288(D). The canonical text wins where this FAQ and the constitution disagree. |
@@ -135,3 +135,9 @@ the leftovers to that write, not to you. To recover: make sure no git process ru
 `git status`, save what is there with `git stash push --include-untracked -m helix-sync-write-left-changes`,
 remove the lock only after making sure no git process holds it, then run again. The lock sets the engine
 checks are listed in the manual (Git locks and half-applied writes).
+
+**20. My repository is on a branch other than main (or a linked worktree). Are the same locks checked?**
+Yes. With `--branch <name>` the branch lock checked is `refs/heads/<name>.lock` in the common directory, for
+the full name (`feature/x` gives `refs/heads/feature/x.lock`). In a linked worktree the per-worktree locks are
+looked for in that worktree's own git directory, not in another worktree's. Both are tested live since review
+round 10 (`tests/sync/test_robustness.sh --only branch_lock,wt_param,run_lock,write_race`).

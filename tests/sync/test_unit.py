@@ -1737,6 +1737,113 @@ class RoundNine(unittest.TestCase):  # review round 9: the path access layer and
         self.assertEqual(E.marker_write_id(self.d), "other:1:1")
 
 
+class RoundTen(unittest.TestCase):  # review round 10 (RV9-1 .. RV9-6)
+    def setUp(self):
+        import tempfile
+        self.d = tempfile.mkdtemp(prefix="sync_unit_r10.")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.d)  # a mkdtemp directory of this test, never anything else
+
+    def test_branch_parameter_of_the_lock_path(self):  # RV9-1 / Z04: the branch is substituted, never assumed
+        g = self.d
+        for br in ("main", "dev", "feature/x", "a.b-c/d_e"):
+            got = dict(E.lock_paths(g, g, br, "merge"))
+            self.assertEqual(got["refs/heads/%s.lock" % br], os.path.join(g, "refs", "heads", *(br + ".lock").split("/")))
+            self.assertEqual([n for n in got if n.startswith("refs/heads/")], ["refs/heads/%s.lock" % br], br)
+        self.assertEqual([n for n, _ in E.lock_paths(g, g, None, "merge") if "refs/heads" in n], [])  # unknown: none
+        r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600, 4321)
+        r.register_site(g, g, "feature/x")
+        os.makedirs(os.path.join(g, "refs", "heads", "feature"))
+        for other in ("refs/heads/main.lock", "refs/heads/x.lock", "refs/heads/feature.lock"):  # golden-FALSE
+            open(os.path.join(g, other), "w").close()
+            self.assertIsNone(E.gitdir_write_block(r, g), other)
+            os.unlink(os.path.join(g, other))
+        open(os.path.join(g, "refs/heads/feature/x.lock"), "w").close()
+        self.assertEqual(E.gitdir_write_block(r, g), "in-progress:refs/heads/feature/x.lock")
+
+    def test_git_dir_and_common_dir_parameters(self):  # RV9-1: per-worktree names in the git dir, ref locks in common
+        common = self.d
+        wt = os.path.join(common, "worktrees", "id1")
+        other = os.path.join(common, "worktrees", "id2")
+        os.makedirs(wt)
+        os.makedirs(other)
+        got = dict(E.lock_paths(wt, common, "dev"))
+        for n in E.WRITE_LOCKS:
+            self.assertEqual(got[n], os.path.join(wt, n), n)
+        for n in ("packed-refs.lock", "refs/heads/dev.lock", "reftable/tables.list.lock"):
+            self.assertEqual(got["common:" + n], os.path.join(common, n), n)
+        self.assertFalse([p for p in got.values() if p.startswith(other + os.sep)])  # another worktree id: never
+        for name in ("MERGE_HEAD", "HEAD.lock"):
+            for base, busy in ((wt, True), (other, False), (common, False)):
+                open(os.path.join(base, name), "w").close()
+                self.assertEqual(bool(E.in_progress(wt, common, "dev")), busy, (name, base))
+                os.unlink(os.path.join(base, name))
+        for base, busy in ((wt, True), (other, False), (common, False)):  # the marker path: this git dir only
+            os.mkfifo(os.path.join(base, E.WRITE_MARKER))
+            self.assertEqual("write-marker-path-not-a-file:fifo" in E.in_progress(wt, common, "dev"), busy, base)
+            os.unlink(os.path.join(base, E.WRITE_MARKER))
+        self.assertEqual(E.marker_path(wt), os.path.join(wt, E.WRITE_MARKER))
+        r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600, 4321)
+        r.register_site(wt, common, "dev")
+        self.assertEqual(r.site(wt), (common, "dev"))
+        open(os.path.join(common, "packed-refs.lock"), "w").close()
+        self.assertEqual(E.gitdir_write_block(r, wt), "in-progress:common:packed-refs.lock")
+
+    def test_marker_read_statuses(self):  # RV9-2 / Z11: a too-large or unreadable marker is 'unknown', never None
+        mp = os.path.join(self.d, E.WRITE_MARKER)
+        with open(mp, "w") as f:
+            f.write(json.dumps({"op": "fast-forward", "pad": "x" * 5000}))
+        self.assertEqual(E.fs_read(mp, 4096)[0], "too-large")
+        self.assertEqual(E.read_marker(self.d), "unknown")
+        os.unlink(mp)
+        with open(mp, "w") as f:
+            f.write(json.dumps({"op": "fast-forward"}))
+        self.assertEqual(E.read_marker(self.d), "fast-forward")
+        if os.geteuid() != 0:
+            os.chmod(mp, 0)
+            self.assertEqual(E.read_marker(self.d), "unknown")
+            os.chmod(mp, 0o600)
+        os.unlink(mp)
+        self.assertIsNone(E.read_marker(self.d))
+
+    def staged(self, links_now, rc=128, answer=True):
+        child_gitlink = SHA
+        parent = E.Repo("/nonexistent/p", ".", 0, None)
+        repo = E.Repo("/nonexistent/p/libs/a", "libs/a", 1, parent)
+        repo.rec.update(path_in_parent="libs/a", recorded_gitlink=child_gitlink, head_before=SHA, branch=None)
+
+        def answer_(repo_, a):
+            if not answer:
+                return "signal", 9, "", ""
+            if a[:2] == ["ls-files", "-s"] and repo_ == parent.abspath:
+                return "exit", 0, "".join("160000 %s 0\t%s\0" % (s, p) for p, s in links_now.items()), ""
+            return "exit", 0, "", ""
+        r = scripted_runner(answer_)
+        return E.write_settled(r, repo, "stage-pin", "b" * 40, E.GitResult(True, rc, "", "", None), None)
+
+    def test_failed_stage_pin_settled_only_when_the_gitlink_is_unchanged(self):  # RV9-3 / Z01
+        self.assertTrue(self.staged({"libs/a": SHA}))  # git refused before writing: the recorded gitlink is still there
+        self.assertFalse(self.staged({"libs/a": "c" * 40}))  # the failed add changed the gitlink: NOT settled
+        self.assertFalse(self.staged({}))  # the gitlink is gone from the index: NOT settled
+        self.assertFalse(self.staged({"libs/a": SHA}, answer=False))  # an unanswered read: NOT settled
+        self.assertTrue(self.staged({"libs/a": "c" * 40}, rc=0))  # exit 0: git completed the stage-pin
+
+    def test_failed_write_settled_check_reads_head_and_index_only(self):  # RV9-6: the stated limit, pinned
+        def answer(repo, a):
+            if a[:2] == ["ls-files", "-s"]:
+                return "exit", 0, "I0", ""
+            if a[0] == "rev-parse":
+                return "exit", 0, SHA + "\n", ""
+            return "exit", 0, "?? stray_by_write.txt\n", ""
+        r = scripted_runner(answer)
+        repo = E.Repo("/nonexistent/w", ".", 0, None)
+        repo.rec.update(head_before=SHA, branch="main", _gitdir=self.d)
+        self.assertTrue(E.write_settled(r, repo, "fast-forward", "b" * 40, E.GitResult(True, 128, "", "", None), "I0"))
+        self.assertEqual(sorted({a[0] for _, a in r.seen}), ["ls-files", "rev-parse"])  # no work-tree read (limit)
+
+
 if __name__ == "__main__":
     r = unittest.main(exit=False, verbosity=1).result
     n, f, s = r.testsRun, len(r.failures) + len(r.errors), len(r.skipped)

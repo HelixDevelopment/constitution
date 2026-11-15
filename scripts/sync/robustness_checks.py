@@ -2007,6 +2007,354 @@ def c_marker_unremovable(box):
         b.cleanup()
 
 
+# ───────────────────────── review round 10 (RV9-1 .. RV9-6) ─────────────────────────
+# RV9-1, class "a lock or marker path built from a parameter": every parameter the engine substitutes into a path
+# it checks before a write: the BRANCH ({branch} of refs/heads/{branch}.lock), the GIT DIR of the write (per
+# worktree: <common>/worktrees/<id>, so the worktree id too), the COMMON DIR, and the fixed NAMES joined to each
+# (the git-dir locks, MERGE_HEAD and the other operation names, the write marker, the run lock). Each has a check
+# here that a wrong substitution fails: a lock at the right path blocks, the same name at a wrong path does not.
+BRANCHES = ("main", "dev", "feature/x")
+
+
+def branch_tree(box, layout, br, name="brt"):
+    """A root checked out on branch ``br`` one commit behind its upstream ``br``. layout 'plain': a clone (git dir ==
+    common dir); 'wt': a LINKED worktree of a clone whose own worktree is on 'side' (git dir
+    <common>/worktrees/<id>). Returns (work, gitdir, common, args)."""
+    r_url, r_seed = box.bare("HelixDevelopment", name)
+    if br != "main":
+        box.git(r_seed, "push", "-q", "origin", "HEAD:refs/heads/" + br)
+    clone = box.clone(r_url, "c_" + name)
+    if layout == "plain":
+        if br != "main":
+            box.git(clone, "checkout", "-q", "-b", br, "--track", "origin/" + br)
+        work = clone
+    else:
+        box.git(clone, "checkout", "-q", "-b", "side")
+        work = box.p("work", "lw_" + name)
+        if br == "main":
+            box.git(clone, "worktree", "add", "-q", work, "main")
+        else:
+            box.git(clone, "worktree", "add", "-q", "--track", "-b", br, work, "origin/" + br)
+    box.commit(r_seed, "upstream moves")
+    if br != "main":
+        box.git(r_seed, "push", "-q", "origin", "HEAD:refs/heads/" + br)
+    gd = box.git(work, "rev-parse", "--absolute-git-dir")
+    common = box.git(work, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if (os.path.realpath(gd) != os.path.realpath(common)) != (layout == "wt"):
+        raise RuntimeError("fixture layout %s: git dir %s common %s" % (layout, gd, common))
+    if box.git(work, "symbolic-ref", "--short", "HEAD") != br:
+        raise RuntimeError("fixture not on %s" % br)
+    return work, gd, common, ["--apply", "--branch", br, "--root", work, "--quiet"]
+
+
+def label_of(layout, name):
+    return ("common:" + name) if layout == "wt" else name
+
+
+def assert_blocked(tag, b, work, before, rc, rep, lk=None, want_reason=None):
+    st = b.git(work, "status", "--porcelain=v1", "--untracked-files=normal")
+    ok(tag + ".not_moved", b.git(work, "rev-parse", "HEAD") == before)
+    ok(tag + ".no_half_write", st == "", repr(st))
+    ok(tag + ".exit_4", rc == 4, "rc=%s" % rc)
+    if lk:
+        ok(tag + ".lock_untouched", os.path.isfile(lk) and os.path.getsize(lk) == 0)
+    reasons = [y for x in (rep or {}).get("repos", []) for y in (x.get("reasons") or [])]
+    if want_reason:
+        ok(tag + ".reason", want_reason in reasons, reasons)
+    return reasons
+
+
+def assert_moved(tag, b, work, rc, se, br):
+    ok(tag + ".golden_false_exit_0", rc == 0, "rc=%s %s" % (rc, se[-300:]))
+    ok(tag + ".golden_false_moved", b.git(work, "rev-parse", "HEAD") == b.git(work, "rev-parse", "origin/" + br))
+
+
+def c_branch_lock_class(box):
+    """RV9-1 (reviewer mutant Z04 survived: every lock test used branch main). The branch ref lock git takes for a
+    fast-forward is <common>/refs/heads/<CHECKED-OUT BRANCH>.lock, for a plain clone and for a linked worktree, for
+    'main', a non-main name and a hierarchical name. A stale one blocks before git starts (exit 4, no write, tree
+    clean, the lock named by its label). Golden-FALSE (section 11.4.201(1)): the ref lock of ANOTHER branch (main
+    when the root is on another branch; the last name component of feature/x; dev when on main) does not block.
+    With an earlier-run marker the marker is KEPT (never cleared 'left-nothing') for a non-main branch too."""
+    for layout in ("plain", "wt"):
+        for i, br in enumerate(BRANCHES):
+            name = "refs/heads/%s.lock" % br
+            tag = "branch_lock.%s.%s" % (layout, br.replace("/", "_"))
+            b = Box("bl_%s_%d" % (layout, i))
+            try:
+                work, gd, common, args = branch_tree(b, layout, br)
+                before = b.git(work, "rev-parse", "HEAD")
+                lk = os.path.join(common, name)
+                plant_file(lk)
+                rc, so, se, rep, _ = b.run(*args, timeout=300)
+                assert_blocked(tag, b, work, before, rc, rep, lk, "in-progress:" + label_of(layout, name))
+            except Exception as e:
+                ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+            finally:
+                b.cleanup()
+            others = {"main": ("refs/heads/dev.lock",), "dev": ("refs/heads/main.lock",),
+                      "feature/x": ("refs/heads/main.lock", "refs/heads/x.lock", "refs/heads/feature.lock",
+                                    "refs/heads/feature_x.lock")}[br]
+            for j, other in enumerate(others):
+                tagf = "%s.golden_false.%s" % (tag, other.replace("/", "_"))
+                b = Box("blf_%s_%d_%d" % (layout, i, j))
+                try:
+                    work, gd, common, args = branch_tree(b, layout, br)
+                    plant_file(os.path.join(common, other))
+                    rc, so, se, rep, _ = b.run(*args, timeout=300)
+                    assert_moved(tagf, b, work, rc, se, br)
+                except Exception as e:
+                    ok(tagf + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+                finally:
+                    b.cleanup()
+            if br == "main":
+                continue
+            tagm = tag + ".earlier_marker"
+            b = Box("blm_%s_%d" % (layout, i))
+            try:
+                work, gd, common, args = branch_tree(b, layout, br)
+                before = b.git(work, "rev-parse", "HEAD")
+                plant_file(os.path.join(gd, MARKER), EARLIER)
+                plant_file(os.path.join(common, name))
+                rc, so, se, rep, _ = b.run(*args, timeout=300)
+                assert_blocked(tagm, b, work, before, rc, rep)
+                ok(tagm + ".marker_kept", os.path.isfile(os.path.join(gd, MARKER)))
+                notes = all_notes(rep)
+                ok(tagm + ".never_left_nothing", not [n for n in notes if "left-nothing" in n], notes)
+            except Exception as e:
+                ok(tagm + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+            finally:
+                b.cleanup()
+
+
+def c_worktree_param_class(box):
+    """RV9-1, the other parameters of the class, in a linked worktree (git dir <common>/worktrees/<id> != common
+    dir): the GIT DIR (and with it the worktree id), the COMMON DIR and the names joined to each. Blocks: HEAD.lock,
+    MERGE_HEAD and a FIFO at the write-marker path in THIS worktree's git dir; packed-refs.lock in the common dir;
+    an earlier-run marker in this worktree's git dir plus index.lock there (attributed, marker kept). Golden-FALSE:
+    the same names in ANOTHER worktree's git dir (a second linked worktree: a different worktree id) and in the
+    main worktree's git dir (== the common dir: its HEAD.lock, MERGE_HEAD, marker) do not block, and the main
+    worktree's marker is left untouched."""
+    cases = (("own", "HEAD.lock", "plain", True), ("own", "MERGE_HEAD", "plain", True),
+             ("own", MARKER, "fifo", True), ("own", MARKER + "+index.lock", "earlier", True),
+             ("common", "packed-refs.lock", "plain", True),
+             ("other", "HEAD.lock", "plain", False), ("other", "index.lock", "plain", False),
+             ("other", "MERGE_HEAD", "plain", False), ("other", MARKER, "fifo", False),
+             ("common", "HEAD.lock", "plain", False), ("common", "MERGE_HEAD", "plain", False),
+             ("common", MARKER, "earlier", False), ("common", MARKER, "fifo", False))
+    for i, (where, name, kind, blocks) in enumerate(cases):
+        tag = "wt_param.%s.%s.%s" % (where, name.replace("/", "_").replace("+", "_"), kind)
+        b = Box("wtp_%d" % i)
+        try:
+            work, gd, common, args = branch_tree(b, "wt", "feature/x", "wtp")
+            clone = b.p("work", "c_wtp")
+            other = b.p("work", "lw_other")
+            b.git(clone, "worktree", "add", "-q", "-b", "other", other, "side")
+            ogd = b.git(other, "rev-parse", "--absolute-git-dir")
+            ok(tag + ".fixture_ids_differ", os.path.realpath(ogd) != os.path.realpath(gd), (ogd, gd))
+            base = {"own": gd, "other": ogd, "common": common}[where]
+            before = b.git(work, "rev-parse", "HEAD")
+            main_name = name.split("+")[0]
+            path = os.path.join(base, main_name)
+            if kind == "fifo":
+                os.mkfifo(path)
+            elif kind == "earlier":
+                plant_file(path, EARLIER)
+                if "+" in name:
+                    plant_file(os.path.join(base, name.split("+")[1]))
+            else:
+                plant_file(path)
+            rc, so, se, rep, _ = b.run(*args, timeout=120)
+            if blocks:
+                reasons = assert_blocked(tag, b, work, before, rc, rep)
+                if kind == "earlier":
+                    ok(tag + ".marker_kept", os.path.isfile(path))
+                    ok(tag + ".attributed", "write-interrupted-earlier:fast-forward" in reasons, reasons)
+                elif kind == "fifo":
+                    ok(tag + ".named", "in-progress:write-marker-path-not-a-file:fifo" in reasons, reasons)
+                    ok(tag + ".untouched", kind_now(path) == "fifo", kind_now(path))
+                else:
+                    want = "in-progress:" + ("common:" if where == "common" else "") + main_name
+                    ok(tag + ".named", want in reasons, reasons)
+            else:
+                assert_moved(tag, b, work, rc, se, "feature/x")
+                ok(tag + ".golden_false_untouched", kind_now(path) == ("fifo" if kind == "fifo" else "regular"),
+                   kind_now(path))
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
+HOLDER = ("import fcntl, os, sys\nfd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)\n"
+          "fcntl.flock(fd, fcntl.LOCK_EX)\nsys.stdout.write('held\\n')\nsys.stdout.flush()\nsys.stdin.read()\n")
+
+
+def c_run_lock_common(box):
+    """RV9-1, the run lock: one run per repository, keyed by the COMMON dir (RV4-11), so a run over the main
+    worktree and a run over a linked worktree of the same repository exclude each other. Fixture: a holder process
+    (started here, ended here) flocks <common>/helix-sync-upstreams.lock; a run rooted at the linked worktree exits
+    7 (LOCKED) and changes nothing. Golden-FALSE: the same file name held in the linked worktree's OWN git dir is
+    not the run lock: the run proceeds (exit 0, moved)."""
+    for where, locked in (("common", True), ("own", False)):
+        tag = "run_lock.%s" % where
+        b = Box("rl_%s" % where)
+        p = None
+        try:
+            work, gd, common, args = branch_tree(b, "wt", "dev", "rl")
+            path = os.path.join(common if where == "common" else gd, "helix-sync-upstreams.lock")
+            before = b.git(work, "rev-parse", "HEAD")
+            p = subprocess.Popen([PY, "-I", "-c", HOLDER, path], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                 text=True)
+            ok(tag + ".holder_ready", p.stdout.readline().strip() == "held")
+            rc, so, se, rep, _ = b.run(*args, timeout=120)
+            if locked:
+                ok(tag + ".exit_7", rc == 7, "rc=%s %s" % (rc, se[-300:]))
+                ok(tag + ".not_moved", b.git(work, "rev-parse", "HEAD") == before)
+            else:
+                assert_moved(tag, b, work, rc, se, "dev")
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            if p is not None:
+                p.stdin.close()  # the holder (our own child) ends when its stdin closes
+                p.wait(timeout=30)
+            b.cleanup()
+
+
+def nth_call(log, sub, repo):
+    """How many calls of ``sub`` in ``repo`` the engine made, from the race shim's call log."""
+    n = 0
+    for line in open(log, encoding="utf-8"):
+        f = line.rstrip("\n").split("\t")
+        if len(f) >= 2 and f[0] == sub and f[1] == os.path.realpath(repo):
+            n += 1
+    return n
+
+
+def c_write_time_lock_race(box):
+    """RV9-1 + RV9-4 (reviewer mutants Z04, Z07, the site of begin_write). A lock git takes for the write appears
+    AFTER inspection (fixture: the race shim, another git process): (a) at the fetch, so the write-time step-1
+    re-check must name it: the action reason is exactly 'blocked:tree-changed-before-write'; (b) at the LAST read
+    before the write (step 4's symbolic-ref, after step 1 passed), so begin_write's own re-check must catch it: the
+    action reason is exactly 'blocked:in-progress:<label>'. Plain clone on 'dev' and linked worktree on 'feature/x'
+    (the branch ref lock, a common-dir lock and, in the worktree, its own HEAD.lock). Either way: exit 4, nothing
+    moved, tree clean. Without the lock (control) the same run fast-forwards."""
+    cases = [("plain", "dev", "common", "refs/heads/dev.lock"), ("wt", "feature/x", "common", "refs/heads/feature/x.lock"),
+             ("wt", "feature/x", "common", "packed-refs.lock"), ("wt", "feature/x", "own", "HEAD.lock"),
+             ("plain", "dev", "own", "index.lock")]
+    for i, (layout, br, where, name) in enumerate(cases):
+        # the number of symbolic-ref calls before the write, measured on a control run of the same tree
+        b = Box("wtr_ctl_%d" % i)
+        nsym = None
+        try:
+            work, gd, common, args = branch_tree(b, layout, br, "wtr")
+            log = b.p("calls.log")
+            rc, so, se, rep, _ = b.run(*args, path_prefix=b.shim(), env={"SXR_GIT": GIT, "SXR_LOG": log}, timeout=300)
+            assert_moved("write_race.%d.control" % i, b, work, rc, se, br)
+            nsym = nth_call(log, "symbolic-ref", work) - 1  # the last one is step 6's verify, after the write
+            ok("write_race.%d.control_calls" % i, nsym >= 2, nsym)
+        except Exception as e:
+            ok("write_race.%d.control.fixture" % i, False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+        if not nsym:
+            continue
+        for at in ("fetch", "last-read"):
+            tag = "write_race.%s.%s.%s.%s.%s" % (layout, br.replace("/", "_"), where, name.replace("/", "_"), at)
+            b = Box("wtr_%d_%s" % (i, at))
+            try:
+                work, gd, common, args = branch_tree(b, layout, br, "wtr")
+                lk = os.path.join(common if where == "common" else gd, name)
+                before = b.git(work, "rev-parse", "HEAD")
+                sub, nth = ("fetch", 1) if at == "fetch" else ("symbolic-ref", nsym)
+                env = race_env(b, "plant", "%s@%s" % (sub, work), work, SXR_PLANT=lk, SXR_NTH=str(nth))
+                rc, so, se, rep, _ = b.run(*args, path_prefix=b.shim(), env=env, timeout=300)
+                ok(tag + ".fired", os.path.exists(b.p("mark")) and os.path.isfile(lk))
+                assert_blocked(tag, b, work, before, rc, rep, lk)
+                label = label_of(layout, name) if where == "common" else name
+                want = "blocked:tree-changed-before-write" if at == "fetch" else "blocked:in-progress:" + label
+                whys = [str(a.get("why")) for x in (rep or {}).get("repos", []) for a in (x.get("actions") or [])]
+                ok(tag + ".reason", want in whys, whys)
+            except Exception as e:
+                ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+            finally:
+                b.cleanup()
+
+
+def c_marker_read_status_class(box):
+    """RV9-2 (reviewer mutant Z11), the class "every status the marker read can return": a marker larger than the
+    read cap (5 kB of valid JSON) and a marker that cannot be read (mode 0000) are an earlier write of an UNKNOWN
+    op, never "no marker": --check notes 'write-marker-present:unknown-left-nothing' on a clean tree and predicts
+    nothing it would not do; --apply (the tree is clean, nothing else is in progress) clears it as
+    'write-marker-cleared:unknown-left-nothing' and fast-forwards (exit 0). Control: invalid JSON reads the same."""
+    big = json.loads(EARLIER.decode())
+    big["pad"] = "x" * 5000
+    for kind in ("too_large", "unreadable", "invalid_json"):
+        for mode in ("--check", "--apply"):
+            tag = "marker_read.%s.%s" % (kind, mode[2:])
+            b = Box("mr_%s_%s" % (kind, mode[2:]))
+            try:
+                r_url, r_seed = b.bare("HelixDevelopment", "mr")
+                work = b.clone(r_url, "mr")
+                b.commit(r_seed, "upstream moves")
+                mp = os.path.join(work, ".git", MARKER)
+                plant_file(mp, json.dumps(big).encode() if kind == "too_large" else
+                           b"{not json" if kind == "invalid_json" else EARLIER)
+                if kind == "unreadable":
+                    os.chmod(mp, 0)
+                ok(tag + ".fixture_size", kind != "too_large" or os.path.getsize(mp) > 4096)
+                rc, so, se, rep, _ = b.run(mode, "--root", work, "--quiet", timeout=300)
+                notes = all_notes(rep)
+                if mode == "--check":
+                    ok(tag + ".exit_3", rc == 3, "rc=%s %s" % (rc, se[-300:]))
+                    ok(tag + ".noted_unknown", "write-marker-present:unknown-left-nothing" in notes, notes)
+                    ok(tag + ".marker_untouched", os.path.lexists(mp))
+                else:
+                    ok(tag + ".exit_0", rc == 0, "rc=%s %s" % (rc, se[-300:]))
+                    ok(tag + ".cleared_noted", "write-marker-cleared:unknown-left-nothing" in notes, notes)
+                    ok(tag + ".marker_removed", not os.path.lexists(mp))
+                    ok(tag + ".moved", b.git(work, "rev-parse", "HEAD") == b.git(work, "rev-parse", "origin/main"))
+            except Exception as e:
+                ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+            finally:
+                b.cleanup()
+
+
+def c_work_tree_only_half_write(box):
+    """RV9-6, the STATED LIMIT, pinned live (review round 10 tried a 'git status must stay empty' check and withdrew
+    it: the autostash race, a user's edit between step 1 and the write, would then be blamed on the write). A write
+    git ANSWERS with a failure that left HEAD and the index unchanged but changed the WORK TREE (fixture model: the
+    write leaves an untracked file, then git refuses at a held index.lock / ORIG_HEAD.lock) is read as settled: the
+    marker is removed and the run is FAILED (exit 1). Nothing is lost: the file stays, and the next run reports the
+    tree dirty. Golden-FALSE: the same refusal with no work-tree change, identical outcome. When the follow-up
+    (content compared with the target tree) lands, the 'worktree_changed' rows flip to marker_kept."""
+    for i, (rel, wt) in enumerate((("index.lock", True), ("ORIG_HEAD.lock", True), ("index.lock", False))):
+        tag = "wt_only.%s.%s" % (rel.replace(".", "_"), "worktree_changed_known_limit" if wt else "golden_false")
+        b = Box("wto_%d" % i)
+        try:
+            work, repo_dir, gd, args = site_tree(b, "ff")
+            rc, so, se, drv, rep = inproc(b, "lockspawn:%s:ff%s" % (rel, ":wt" if wt else ""),
+                                          *(args + ["--root", work, "--quiet"]))
+            st = b.git(repo_dir, "status", "--porcelain=v1", "--untracked-files=normal")
+            ok(tag + ".fixture_effect", st == ("?? stray_by_write.txt" if wt else ""), repr(st))
+            ok(tag + ".head_not_moved", b.git(repo_dir, "rev-parse", "HEAD") != b.git(repo_dir, "rev-parse",
+                                                                                         "origin/main"))
+            whys = [str(a.get("why")) for x in (rep or {}).get("repos", []) for a in (x.get("actions") or [])]
+            ok(tag + ".marker_removed", not os.path.lexists(os.path.join(gd, MARKER)))
+            ok(tag + ".not_reported_left_changes", not [w for w in whys if "write-left-changes" in w], whys)
+            ok(tag + ".exit_failed", rc == 1, "rc=%s %s" % (rc, se[-300:]))
+            if wt:
+                rc2, so2, se2, rep2, _ = b.run("--check", "--no-fetch", "--root", work, "--quiet", timeout=300)
+                reasons = [y for x in (rep2 or {}).get("repos", []) for y in (x.get("reasons") or [])]
+                ok(tag + ".next_run_sees_dirty", any("dirty" in y for y in reasons), reasons)
+                ok(tag + ".file_kept", os.path.isfile(os.path.join(repo_dir, "stray_by_write.txt")))
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
 CHECKS = [
     ("race_commit", c_race_commit_detached_sub), ("race_switch", c_race_switch_root_branch),
     ("race_sub_branch", c_race_branch_in_sub), ("race_control", c_race_control_commit_on_main),
@@ -2044,6 +2392,10 @@ CHECKS = [
     ("lock_matrix", c_stale_lock_matrix), ("worktree_locks", c_worktree_locks), ("marker_kind", c_marker_path_kinds),
     ("lock_kind", c_lock_path_kinds), ("half_write", c_half_write), ("marker_vanish", c_marker_vanish),
     ("earlier_lock", c_earlier_marker_lock_apply), ("marker_unremovable", c_marker_unremovable),
+    # review round 10
+    ("branch_lock", c_branch_lock_class), ("wt_param", c_worktree_param_class), ("run_lock", c_run_lock_common),
+    ("write_race", c_write_time_lock_race), ("marker_read", c_marker_read_status_class),
+    ("wt_only", c_work_tree_only_half_write),
 ]
 
 

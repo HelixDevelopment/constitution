@@ -48,6 +48,10 @@ Review round 9 (RV8-1, RV8-3):
   lockspawn:<lock>:<site>  a lock file (git-dir relative, or common/<path> for the common dir) appears right before
                          the write git of <site> starts and is removed right after it ended: another git process
                          that held the lock while the engine's write ran (git then fails, possibly half-way)
+Review round 10 (RV9-6):
+  lockspawn:<lock>:<site>:wt  as lockspawn, and the write also leaves an untracked work-tree file
+                         (stray_by_write.txt) before git refuses: a failed write that changed ONLY the work tree
+                         (a model of the class; git 2.53 itself was not measured to do this)
 """
 import errno
 import importlib.util
@@ -255,6 +259,9 @@ def main(argv):
                 lock_done.append(lk)
                 os.makedirs(os.path.dirname(lk), exist_ok=True)
                 open(lk, "w").close()  # another git process holds this lock while the engine's write runs
+                if lockspawn[3:] == ["wt"]:  # the write changed the work tree only, then failed (RV9-6 model)
+                    with open(os.path.join(repo, "stray_by_write.txt"), "w") as f_:
+                        f_.write("left by a failed write\n")
                 try:
                     return real_run_git(git_bin, repo, args_, env, limit, level)
                 finally:

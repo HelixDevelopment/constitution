@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 9 |
+| Revision | 10 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T14:30:00Z |
+| Last modified | 2026-11-15T21:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Reference for every option, state, reason, exit code, report field, integration point and safety property of the sync-all-upstreams engine. |
 | Authority | Constitution §2.1, §11.4.10, §11.4.37, §11.4.50, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.263, §11.4.273, §11.4.288(D), §12. The canonical text wins where this manual and the constitution disagree. |
@@ -324,14 +324,23 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   `refs/heads/<branch>.lock` and `reftable/tables.list.lock` in the common directory. `checkout --detach`
   takes the same set without `ORIG_HEAD.lock` and without the branch lock. `add` takes `index.lock` only. In
   a linked worktree the first group is in `<common>/worktrees/<id>/` and the second in the common directory;
-  these are reported as `common:<name>`. Measured by planting a stale lock: `HEAD.lock` lets
+  these are reported as `common:<name>`. The branch lock is the CHECKED-OUT branch's ref lock with its full
+  name: on `feature/x` it is `refs/heads/feature/x.lock`, never `refs/heads/main.lock` and never
+  `refs/heads/x.lock` (review round 10; tested for a clone and a linked worktree on `main`, `dev` and
+  `feature/x`). Another worktree's git directory, and the main worktree's own `HEAD.lock`, `MERGE_HEAD` and
+  marker, are not checked for a run on a linked worktree; the run lock is the common directory's, so a run over
+  the main worktree and a run over a linked worktree of the same repository exclude each other (exit 7). Measured by planting a stale lock: `HEAD.lock` lets
   `merge --ff-only` and `checkout --detach` rewrite the index and work tree before they fail with status 128,
   and the branch lock does the same to `merge --ff-only`. A stale `packed-refs.lock` or `AUTO_MERGE.lock` does
   not stop git; the engine refuses on them anyway, because a present lock may belong to a git process that is
   running now. The engine now refuses such a write before it
   starts (`blocked:in-progress:<name>`). When a write fails with any status, the engine also compares HEAD
   and the index (`git ls-files -s -z`) with their state before the write. If either changed, it reports
-  `write-left-changes:<op>`, FAILED, and keeps the marker (`write-interrupted`). The next run then attributes
+  `write-left-changes:<op>`, FAILED, and keeps the marker (`write-interrupted`). Known limit: a failed write
+  that changed only the work tree (not HEAD, not the index) is read as settled, because it cannot be told from
+  a user's edit made in the same moment without comparing file content with the target; no such case was
+  measured with git 2.53, nothing is lost (the next run reports the tree dirty), and the content comparison is
+  a tracked follow-up (review round 10). The next run then attributes
   the leftovers to the write, never to you. An earlier marker that cannot be removed (for example the git
   directory is not writable) is kept and reported `write-marker-kept:cannot-remove:<reason>`; it is never
   reported as cleared. A non-regular object at the marker path (FIFO, directory, socket, symbolic link,

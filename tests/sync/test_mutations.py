@@ -12,7 +12,7 @@ The table holds M01-M73 (the fixers' own mutants), K01-K17 and R1-R6 (the round-
 X01-X07 and X02b (the round-3 reviewer's mutants, verbatim), N01-N25 (the round-4 fixer's own mutants), V01-V24 (the
 round-4 reviewer's mutants), P01-P34 (the round-5 fixer's own mutants), RR01-RR40 (the round-5 reviewer's
 mutants, ids R01-R40 renamed so they do not clash with the round-2 R1-R6; RR37 and RR38 re-anchored to the
-round-6 text) Q01-Q19 (the round-6 fixer's own mutants), RV6A-RV6G (the round-6 reviewer's mutants, verbatim anchors), S01-S14 (the round-7 fixer's own mutants), RV7A-RV7L (the round-7 reviewer's mutants) T01-T17 (the round-8 fixer's own mutants), W01-W10 (the round-8 reviewer's mutants) and U01-U18 (the round-9 fixer's own mutants); round 9 re-anchored M70, X06, N01, V05, V07, V13, P24, P27, RR38, Q05, Q09, RV6F, S02, S03, S09, S10, RV7E, T02, T13, W04 and W06 (same meaning; the lines they mutated were replaced by the path-access layer, the lock sets and the settled end_write); round 8 re-anchored RR14, RR38, Q04, Q05, Q09, Q18, RV6F, S01-S04, S09, S10 and RV7A, RV7B, RV7C, RV7E, RV7I (same meaning; the marker lines they mutated were replaced by begin_write / end_write); M32, M58, M37b were re-anchored in round 6 (same
+round-6 text) Q01-Q19 (the round-6 fixer's own mutants), RV6A-RV6G (the round-6 reviewer's mutants, verbatim anchors), S01-S14 (the round-7 fixer's own mutants), RV7A-RV7L (the round-7 reviewer's mutants) T01-T17 (the round-8 fixer's own mutants), W01-W10 (the round-8 reviewer's mutants), U01-U18 (the round-9 fixer's own mutants), Z01, Z04, Z07, Z11, Z12 (the round-9 reviewer's mutants, anchors verbatim) and Y01-Y09, Y12, Y13 (the round-10 fixer's own mutants); round 9 re-anchored M70, X06, N01, V05, V07, V13, P24, P27, RR38, Q05, Q09, RV6F, S02, S03, S09, S10, RV7E, T02, T13, W04 and W06 (same meaning; the lines they mutated were replaced by the path-access layer, the lock sets and the settled end_write); round 8 re-anchored RR14, RR38, Q04, Q05, Q09, Q18, RV6F, S01-S04, S09, S10 and RV7A, RV7B, RV7C, RV7E, RV7I (same meaning; the marker lines they mutated were replaced by begin_write / end_write); M32, M58, M37b were re-anchored in round 6 (same
 meaning); anchors follow the round-5 text (M08,
 M27, M53, M58, M67, M37b, M72, X05, X07, N07, N11-N14, V13, V21, V22 were re-anchored, same meaning). X04, N22 and N23 change the process-group guard and therefore only ever run the static
 gate and the unit suite (whose KillGroup tests replace the engine's ``os`` with a recorder; section 11.4.263).
@@ -915,6 +915,57 @@ MUTANTS = [
     ('U18', 'RV8-2: FETCH_HEAD is read with a blocking open (a FIFO there hangs the fetch evaluation)',
      '    status, raw = fs_read(path, FETCH_HEAD_CAP)  # bounded memory (RV4-4), never blocks on a FIFO (round 9)',
      '    status, raw = ("ok", open(path, "rb").read(FETCH_HEAD_CAP + 1)) if path_kind(path) != "absent" else ("absent", b"")', ['unit']),
+    # round 10: the round-9 reviewer's mutants Z01, Z04, Z07, Z11, Z12 (anchors verbatim; Z12 equivalent, below) and
+    # the round-10 fixer's own Y01-Y09, Y12, Y13 (RV9-1 class: every parameter of a lock or marker path; Y10/Y11
+    # were dropped with the withdrawn RV9-6 check)
+    ('Z01', 'reviewer r9: a failed stage-pin (git add) is always settled: the marker is cleared whatever the parent index shows',
+     'return links is not None and links.get(rec["path_in_parent"]) == rec.get("recorded_gitlink")',
+     'return True', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Z04', 'reviewer r9: the branch ref lock is always refs/heads/main.lock whatever branch is checked out',
+     'n = n.format(branch=branch)',
+     'n = n.format(branch="main")', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Z07', 'reviewer r9: write-time step 1 re-check drops the common dir and branch (git-dir locks only)',
+     'busy = (in_progress(rec["_gitdir"], rec.get("_common_dir"), rec.get("branch")) if',
+     'busy = (in_progress(rec["_gitdir"]) if', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Z11', 'reviewer r9: the marker read accepts a too-large marker as unknown->None (no marker): read_marker ignores too-large',
+     '    if status == "absent" or status.startswith("not-regular:"):',
+     '    if status in ("absent", "too-large") or status.startswith("not-regular:"):', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Z12', 'reviewer r9: fs_remove follows the lstat kind only for "absent": an unreadable path is unlinked anyway',
+     '    if k != "regular":\n        return k if k == "unreadable" else "not-regular:" + k',
+     '    if k not in ("regular", "unreadable"):\n        return "not-regular:" + k', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y01', "RV9-1 class: the git-dir locks are looked for in the common dir (a linked worktree's own HEAD.lock missed)",
+     'out.append((n, os.path.join(gitdir, n)))',
+     'out.append((n, os.path.join(common, n)))', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y02', "RV9-1 class: the common-dir locks are looked for in the write's git dir",
+     'out.append((label, os.path.join(common, n)))',
+     'out.append((label, os.path.join(gitdir, n)))', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y03', 'RV9-1 class: the branch ref lock uses the last name component only (feature/x -> x.lock)',
+     'n = n.format(branch=branch)',
+     'n = n.format(branch=branch.split("/")[-1])', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y04', 'RV9-1 class: the branch name is flattened (feature/x -> feature_x.lock)',
+     'n = n.format(branch=branch)',
+     'n = n.format(branch=branch.replace("/", "_"))', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y05', 'RV9-1 class: MERGE_HEAD and the other operation names are looked for in the common dir',
+     'names = [(n, os.path.join(gitdir, n)) for n in ("MERGE_HEAD",',
+     'names = [(n, os.path.join(common or gitdir, n)) for n in ("MERGE_HEAD",', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y06', 'RV9-1 class: the write-marker path kind is read in the common dir',
+     'mk = path_kind(os.path.join(gitdir, WRITE_MARKER))',
+     'mk = path_kind(os.path.join(common or gitdir, WRITE_MARKER))', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y07', 'RV9-1 class: inspection registers the git dir without its branch (begin_write misses the branch ref lock)',
+     'r.register_site(gitdir, common, rec["branch"])',
+     'r.register_site(gitdir, common, None)', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y08', 'RV9-1 class: inspection registers the git dir as its own common dir (begin_write misses common-dir locks)',
+     'r.register_site(gitdir, common, rec["branch"])',
+     'r.register_site(gitdir, gitdir, rec["branch"])', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y09', "RV9-1 class: the root's run lock is keyed by its git dir, not its common dir (worktree runs overlap)",
+     'common = g_out(r, root, ["rev-parse", "--path-format=absolute", "--git-common-dir"], ok=(0,), want=ABS_PATH_RE)',
+     'common = g_out(r, root, ["rev-parse", "--absolute-git-dir"], ok=(0,), want=ABS_PATH_RE)', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y12', "RV9-1 class: a common-dir lock of a linked worktree loses its 'common:' label (the reason names the wrong place)",
+     'label = ("common:" + n) if split else n',
+     'label = n', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('Y13', "RV9-1 class: an unknown branch is taken as main (a detached repository is blocked by main's ref lock)",
+     'if not branch:\n                    continue',
+     'if not branch:\n                    branch = "main"', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
 ]
 # id -> proof. A mutant listed here may survive; it is reported EQUIVALENT, never KILLED.
 # M59 is no longer listed (round 4): its round-2 proof ended with "head_after = head_before (None)", which stopped
@@ -922,6 +973,12 @@ MUTANTS = [
 # run and is read after it (a fault at inspect_local's read) makes the mutant report moved=True for a repository
 # that never moved; the record check of tests/sync/test_faults.sh catches it.
 EQUIVALENT = {
+    "Z12": "(round 10, the round-9 reviewer's proof, re-checked) fs_remove's lstat says 'unreadable' only when lstat "
+           "itself fails with an error other than ENOENT/ENOTDIR (EACCES on a directory of the path, ELOOP, EIO). "
+           "With EACCES on a path component, unlink() of the same path fails with EACCES too; with ELOOP or EIO "
+           "unlink fails the same way. The mutant then returns 'failed:<errno>' instead of 'unreadable': both keep "
+           "the marker (clear_marker's callers keep it on any status other than 'removed' / 'absent'), so no run "
+           "changes what it removes or writes; only the reported status word differs.",
     "M37": "(round 3) the consent check inside follow_children is dead code. integrate() calls follow_children only "
            "when `moved` is true, and `moved` is true only when (a) write_git() returned 'done' for a fast-forward, "
            "which runs only under consent 'integrate'; (b) write_git() returned 'done' for an advance-pin, which runs "

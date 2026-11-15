@@ -1216,7 +1216,10 @@ def write_settled(r, repo, op, target, res, pre_index):
     output read in step 3b); a failed stage-pin: the gitlink at its path is still the recorded one. Lock files are
     NOT read here: git removes its own locks before it answers, so a lock present now is another process's, and the
     next run's in_progress reports it either way. Every read is final; one that does not answer is NOT settled.
-    Limit (stated): a failed write that changed the work tree but not the index cannot be told from a user's edit."""
+    Limit (stated; review round 10 tried and withdrew a 'git status must stay empty' check): a failed write that
+    changed the work tree but not the index cannot be told from a user's edit made between step 1 and the write
+    (the autostash race fixture is such an edit: blaming it on the write would be a false positive). Telling them
+    apart needs the changed files' content compared with the target tree: tracked follow-up, not done here."""
     rec = repo.rec
     if res.rc == 0:
         return True
