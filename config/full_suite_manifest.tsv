@@ -776,6 +776,16 @@ tests/extensions/test_stress_perf.sh	sh	member	heavy	-	tests/extensions/run_all.
 tests/extensions/test_unit.py	py	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_wiring_ledger.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: invoked by tests/extensions/run_all.sh
 tests/extensions/test_wiring_ledger_mutations.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: invoked by tests/extensions/run_all.sh
+tests/forge/fixtures/curl_recorder.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/forge/fixtures/forge_fixture_server.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/forge/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/forge/test_forge_credentials.sh
+tests/forge/test_forge_credentials.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_detect.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_gitea.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_gitflic.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_github_gitlab.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_gitverse.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/gates/test_con144_blk_read_order.sh	sh	entry	default	bash	-	auto
 tests/gates/test_default_scan_root.sh	sh	entry	default	bash	-	auto
 tests/gates/test_execution_record_selfpath.sh	sh	entry	default	bash	-	auto

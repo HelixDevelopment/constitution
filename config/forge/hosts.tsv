@@ -1,0 +1,12 @@
+# config/forge/hosts.tsv -- DATA for scripts/forge/forge.sh: which forge answers for which git host.
+# TAB-separated columns: host  provider  api_base  token_vars  note
+#   provider   one of github gitlab gitea gitflic gitverse (gitea covers Forgejo)
+#   api_base   https only, no userinfo; the token is sent ONLY to this origin
+#   token_vars comma list of variable NAMES looked up in order (env, keys file, project .env); never values
+# A host with no row is GAP unknown_forge: nothing is guessed. Edit by recorded operator decision only.
+github.com	github	https://api.github.com	GITHUB_TOKEN,GH_TOKEN	GitHub REST v3
+gitlab.com	gitlab	https://gitlab.com/api/v4	GITLAB_TOKEN	GitLab REST v4; no pre-release flag
+codeberg.org	gitea	https://codeberg.org/api/v1	CODEBERG_GITEA_TOKEN,CODEBERG_TOKEN	Forgejo; Releases unit off on the constitution repo (2026-11-12)
+git.m3w.org	gitea	https://git.m3w.org/api/v1	M3W_GITEA_TOKEN	Gitea (self-hosted)
+gitflic.ru	gitflic	https://api.gitflic.ru	GITFLIC_TOKEN	GitFlic own API; release lookup pages through the list
+gitverse.ru	gitverse	https://api.gitverse.ru	GITVERSE_TOKEN	GitVerse; release list answers 404 (ambiguous)
