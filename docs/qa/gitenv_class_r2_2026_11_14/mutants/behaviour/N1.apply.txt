@@ -1,0 +1,1 @@
+N1 scripts/install_constitution.sh

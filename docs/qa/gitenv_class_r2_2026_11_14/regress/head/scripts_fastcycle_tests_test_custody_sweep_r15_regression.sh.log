@@ -1,0 +1,161 @@
+=== R15 regression guard: control needle -- tool + libs exist, git usable ===
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py not found
+
+=== BLOCKING-1 deinit'd submodule with an unpushed commit (admin modules/) ===
+ok B1 evidence: PRECIOUS lives only in the admin dir's modules/sub; submodule status reads clean
+NOT ok B1 deinit'd submodule: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.27795.json')
+
+=== BLOCKING-2a abandoned detached-HEAD commit (only in the worktree's own reflog) ===
+ok B2a evidence: the orphan commit is held by no ref, only by the per-worktree logs/HEAD
+NOT ok B2a reflog-only commit: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.598.json')
+
+=== BLOCKING-2b commit held ONLY by a per-worktree ref (refs/worktree/saved, no reflog) ===
+ok B2b evidence: SAVED is held only by the per-worktree ref file (not in any reflog)
+NOT ok B2b per-worktree-ref-only commit: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.17889.json')
+NOT ok B2c per-worktree ref to an ANCHORED commit (ref itself is per-worktree state): expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.30296.json')
+
+=== MINOR-3 in-progress operation state (merge --no-commit, rebase stopped at 'edit') ===
+ok M3a evidence: MERGE_HEAD present, no conflict
+NOT ok M3a merge in progress: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.14395.json')
+ok M3b evidence: rebase-merge/ present (stopped at edit)
+NOT ok M3b rebase stopped at edit: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.10630.json')
+NOT ok M3c unrecognised admin entry (config.worktree): expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.6420.json')
+
+=== IMPORTANT-1 stash whose base commit only the stash keeps alive ===
+ok I1 evidence: other.txt is in the base commit only; no ref but refs/stash holds it; the patch omits it
+NOT ok I1 stash base history unanchored: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.28299.json')
+
+=== IMPORTANT-2 ambient git-redirection variables (git exports these to every hook) ===
+ok I2 evidence: with GIT_INDEX_FILE=<main index> the worktree's staged-only change is invisible to git
+NOT ok I2 baseline (no ambient var): expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.14742.json')
+NOT ok I2 ambient GIT_INDEX_FILE: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.27808.json')
+NOT ok I2 ambient GIT_DIR: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.1592.json')
+
+=== MINOR-1 a tracked path literally named '"q"' (C-quote-shaped) ===
+NOT ok MINOR-1 staged-only content of '"q"' (decoy 'q' holds the same bytes): expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.1676.json')
+
+=== golden-good controls: the new checks must NOT refuse restorable work ===
+NOT ok G1 branch commit + tracked edit: expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.30425.json')
+NOT ok G2 detach + back (every reflog commit anchored): expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.24938.json')
+NOT ok G3 plain stash on a live branch: expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.30662.json')
+NOT ok G4 restorable worktree under ambient GIT_INDEX_FILE/GIT_DIR (no over-refusal): expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/out.2704681.31435.json')
+
+=== unit level: gap 5 (stash apply rc) + MINOR-2 (TOCTOU) ===
+NOT ok unit expected G5_stash_garbage_backup=False; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok unit expected G5_reason_names_apply=True; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok unit expected M2_tamper_after_hash=ALLOWED; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+
+=== MINOR-4 a hanging clean filter is bounded by the git timeout (process group killed) ===
+NOT ok MINOR-4 expected REFUSED in <20s, got NO_DOC in 0s
+
+=== guard viability (paired mutations) ===
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MB1_modules_check: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MB1_modules_check/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MB2_reflog_unanchored: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MB2_reflog_unanchored/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MB3_per_worktree_ref_existence: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MB3_per_worktree_ref_existence/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MB4_in_progress_whitelisted: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MB4_in_progress_whitelisted/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MB5_unknown_entry_allowed: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MB5_unknown_entry_allowed/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MB6_history_gate: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MB6_history_gate/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MI1_stash_history_check: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MI1_stash_history_check/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MI2_stash_counts_as_anchor: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MI2_stash_counts_as_anchor/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation ME1_inherit_ambient_env: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_ME1_inherit_ambient_env/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MM1_stdin_paths_unquoting: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MM1_stdin_paths_unquoting/orchestration/custody_sweep.py')
+
+=== guard viability: unit level ===
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MG5_stash_apply_rc_ignored: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MG5_stash_apply_rc_ignored/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MM2_oracle_rereads_path: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.nAkAgBXHby/mut_MM2_oracle_rereads_path/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MT1_kill_only_git: anchor not found
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MT2_no_timeout: anchor not found
+
+=== evidence: performing the destructive action really loses the data ===
+ok B1 loss proven: after 'worktree remove --force' the PRECIOUS submodule commit exists nowhere
+ok B2 control: with the worktree STILL present, plain 'gc --prune=now' (no explicit reflog expire) leaves 3a5e913ebb302d5ca91b92dbefd702394abffaa9 intact
+ok B2 loss proven: commit 3a5e913ebb302d5ca91b92dbefd702394abffaa9 gone after 'worktree remove --force' + plain 'gc --prune=now' (removal alone, isolated from any explicit reflog expire, caused it)
+ok B3 control: with the worktree STILL present, 'gc --prune=now' run FROM THE WORKTREE leaves 77f6f9dc3f8382355167d551dea7f2956fb36bc4 intact
+ok B3 loss proven: commit 77f6f9dc3f8382355167d551dea7f2956fb36bc4 gone after remove --force + reflog expire + gc (control above shows this is removal itself, not gc's invocation context)
+ok I1 loss proven: the stash base commit c38dce2ab7ac8cee2522279e0ded6f4b78c0570e (other.txt) gone after drop + gc
+
+summary: 13 check(s) passed
+=== R15 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

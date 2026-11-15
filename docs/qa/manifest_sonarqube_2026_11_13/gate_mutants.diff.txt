@@ -1,0 +1,144 @@
+=== gm1_no_needle_check.sh
+@@ -84,7 +84,6 @@
+ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || blind "$ROOT is not a git work tree (the census reads git ls-files)"
+ 
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+ trap cleanup EXIT
+ 
+@@ -105,7 +104,7 @@
+ printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' >"$N/tests/a/test_needle_unlisted.sh"
+ git -C "$N" add tests/a/test_needle_unlisted.sh >/dev/null 2>&1 || blind "git add failed in the needle fixture"
+ runrun "$N" "$TMP/needle_verify.log"
+-if [ "$RC" != 3 ] || ! grep -qxF 'MANIFEST: census file without manifest row: tests/a/test_needle_unlisted.sh' "$TMP/needle_verify.log"; then
++if false && ! grep -qxF 'MANIFEST: census file without manifest row: tests/a/test_needle_unlisted.sh' "$TMP/needle_verify.log"; then
+     blind "control needle: the runner did not report the fixture's file without a row (rc $RC, want 3); it cannot be trusted to see a missing row: $(tail -n 3 "$TMP/needle_verify.log" | tr '\n' ' ')"
+ fi
+ say "$GATE: control needle seen (the runner reports a tracked census file without a row)"
+=== gm2_rc3_is_pass.sh
+@@ -84,7 +84,6 @@
+ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || blind "$ROOT is not a git work tree (the census reads git ls-files)"
+ 
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+ trap cleanup EXIT
+ 
+@@ -121,7 +120,7 @@
+         grep '^NOTE: ' "$LOG" | while IFS= read -r l; do say "$GATE: $l"; done
+         echo "$GATE: PASS — $ROOT: manifest matches the census ($total census file(s))"
+         exit 0 ;;
+-    3) : ;;
++    3) echo "PASS"; exit 0 ;;
+     *) blind "runner exit $RC (want 0 or 3): $(tail -n 5 "$LOG" | tr '\n' ' ')" ;;
+ esac
+ grep -q '^RESULT: MANIFEST-MISMATCH ' "$LOG" || blind "runner exit 3 without a MANIFEST-MISMATCH result (a census or manifest read error): $(tail -n 5 "$LOG" | tr '\n' ' ')"
+=== gm3_untracked_counts_committed.sh
+@@ -84,7 +84,6 @@
+ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || blind "$ROOT is not a git work tree (the census reads git ls-files)"
+ 
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+ trap cleanup EXIT
+ 
+@@ -135,7 +134,7 @@
+             if git -C "$ROOT" ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+                 committed=$((committed + 1)); echo "$GATE: FAIL — tracked census file without manifest row: $f"
+             else
+-                untracked=$((untracked + 1)); echo "$GATE: untracked census file without manifest row (working tree only): $f"
++                committed=$((committed + 1)); echo "$GATE: untracked census file without manifest row (working tree only): $f"
+             fi ;;
+         *)
+             committed=$((committed + 1)); echo "$GATE: FAIL — $p" ;;
+=== gm4_tracked_is_untracked.sh
+@@ -84,7 +84,6 @@
+ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || blind "$ROOT is not a git work tree (the census reads git ls-files)"
+ 
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+ trap cleanup EXIT
+ 
+@@ -132,7 +131,7 @@
+     case "$p" in
+         "census file without manifest row: "*)
+             f="${p#census file without manifest row: }"
+-            if git -C "$ROOT" ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
++            if false; then
+                 committed=$((committed + 1)); echo "$GATE: FAIL — tracked census file without manifest row: $f"
+             else
+                 untracked=$((untracked + 1)); echo "$GATE: untracked census file without manifest row (working tree only): $f"
+=== gm5_zero_total_ok.sh
+@@ -84,7 +84,6 @@
+ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || blind "$ROOT is not a git work tree (the census reads git ls-files)"
+ 
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+ trap cleanup EXIT
+ 
+@@ -117,7 +116,7 @@
+ case "$RC" in
+     0)
+         grep -qxF 'RESULT: MANIFEST-OK' "$LOG" || blind "runner exit 0 without 'RESULT: MANIFEST-OK': $(tail -n 3 "$LOG" | tr '\n' ' ')"
+-        [ -n "$total" ] && [ "$total" -gt 0 ] || blind "runner reported MANIFEST-OK on a census total of '${total:-none}' (a blind census is not a complete manifest)"
++        true || blind "runner reported MANIFEST-OK on a census total of '${total:-none}' (a blind census is not a complete manifest)"
+         grep '^NOTE: ' "$LOG" | while IFS= read -r l; do say "$GATE: $l"; done
+         echo "$GATE: PASS — $ROOT: manifest matches the census ($total census file(s))"
+         exit 0 ;;
+=== gm6_other_rc_pass.sh
+@@ -84,7 +84,6 @@
+ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || blind "$ROOT is not a git work tree (the census reads git ls-files)"
+ 
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+ trap cleanup EXIT
+ 
+@@ -122,7 +121,7 @@
+         echo "$GATE: PASS — $ROOT: manifest matches the census ($total census file(s))"
+         exit 0 ;;
+     3) : ;;
+-    *) blind "runner exit $RC (want 0 or 3): $(tail -n 5 "$LOG" | tr '\n' ' ')" ;;
++    *) exit 0; blind "runner exit $RC (want 0 or 3): $(tail -n 5 "$LOG" | tr '\n' ' ')" ;;
+ esac
+ grep -q '^RESULT: MANIFEST-MISMATCH ' "$LOG" || blind "runner exit 3 without a MANIFEST-MISMATCH result (a census or manifest read error): $(tail -n 5 "$LOG" | tr '\n' ' ')"
+ 
+=== gm7_skip_is_pass.sh
+@@ -76,7 +76,7 @@
+ MANIFEST="$ROOT/config/full_suite_manifest.tsv"
+ if [ ! -e "$RUNNER" ] && [ ! -e "$MANIFEST" ]; then
+     echo "$GATE: SKIP — $ROOT has neither scripts/run_full_suite.sh nor config/full_suite_manifest.tsv (nothing inspected)"
+-    exit 3
++    exit 0
+ fi
+ [ -f "$RUNNER" ] || blind "runner missing: $RUNNER (a manifest exists, so the census cannot be checked)"
+ [ -f "$MANIFEST" ] || blind "manifest missing: $MANIFEST (the runner exists; generate it with: bash scripts/run_full_suite.sh --generate-manifest --write)"
+@@ -84,7 +84,6 @@
+ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || blind "$ROOT is not a git work tree (the census reads git ls-files)"
+ 
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+ trap cleanup EXIT
+ 
+=== gm8_other_problem_ignored.sh
+@@ -84,7 +84,6 @@
+ git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || blind "$ROOT is not a git work tree (the census reads git ls-files)"
+ 
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+ trap cleanup EXIT
+ 
+@@ -138,7 +137,7 @@
+                 untracked=$((untracked + 1)); echo "$GATE: untracked census file without manifest row (working tree only): $f"
+             fi ;;
+         *)
+-            committed=$((committed + 1)); echo "$GATE: FAIL — $p" ;;
++            : ;;
+     esac
+ done < <(grep '^MANIFEST: ' "$LOG")
+ 

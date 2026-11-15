@@ -50,6 +50,7 @@
 #   checkout failed · 2 usage · 3 blocked (dirty, unpushed, diverged, network, not a submodule, root = itself)
 #
 # Classification: universal (§11.4.17). Honours §11.4.113 (no force/reset/push) and §9.2 (no commit lost).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HI_SOURCED=0; (return 0 2>/dev/null) && HI_SOURCED=1   # 1 only when this file is sourced (tests), never when run
 # >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh)
 # What the caller's shell hands down never changes what this script decides (docs/qa/installer_sigpipe_2026_11_13/

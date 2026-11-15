@@ -69,6 +69,7 @@
 # nothing (gh and glab use their own stored login: gh auth login, glab auth login).
 set +x   # first: an inherited xtrace (bash -x, SHELLOPTS=xtrace) traces this one line only
 set -u
+unset -v GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py; written as unset -v because the network-spawn gate of tests/release/channel_census.py admits only that form)
 LC_ALL=C; export LC_ALL
 
 TAG="" SHA="" REMOTES="" TITLE="" MESSAGE="" PRERELEASE=0 DRY=0 BADGE_CHECK=1

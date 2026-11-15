@@ -1,0 +1,10 @@
+== portable-skill-symlink guard (RED_MODE=1) ==
+   const_root=<scratch>/work
+   evidence=<tmp>/portable_symlink_test_20261115T012437Z-1235579
+PASS  RED cross-check: construct absent from working tree but present in git history — strawman mirrors code that genuinely shipped
+        [absolute] <tmp>/portable_symlink_test_20261115T012437Z-1235579/red/B/skills/strawman -> <tmp>/portable_symlink_test_20261115T012437Z-1235579/red/A/constitution/skills/strawman
+        [DANGLING after relocation] <tmp>/portable_symlink_test_20261115T012437Z-1235579/red/B/skills/strawman
+      RED/strawman: inspected 1 planted link(s); generated at <tmp>/portable_symlink_test_20261115T012437Z-1235579/red/A, relocated to <tmp>/portable_symlink_test_20261115T012437Z-1235579/red/B
+PASS  RED: strawman absolute-path generator BREAKS under relocation — harness demonstrably detects the defect class
+
+== summary: PASS=2 FAIL=0 SKIP=0 (evidence: <tmp>/portable_symlink_test_20261115T012437Z-1235579) ==

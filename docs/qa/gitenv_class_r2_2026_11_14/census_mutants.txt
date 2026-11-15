@@ -1,0 +1,31 @@
+KILLED	r2_comments_kept_nn	rc=1	FAIL C1: census of this tree exit 1, members '151' (want 0, PASS, >= 100): git-env-class-census: FAIL - UNSCRUBBED scripts/validation/test_e
+KILLED	r2_comments_kept	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh comment only: g
+KILLED	r2_env_i_loose_nn	rc=1	FAIL C2s2: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (39 samples) git-env-class-censu
+KILLED	r2_env_i_loose	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh env -i elsewher
+KILLED	r2_legacy_clear_off_nn	rc=1	FAIL C2u: census exit 0 (want 1 and 'never clears'): git-env-class-census: control needles seen (39 samples) git-env-class-census: PASS - me
+KILLED	r2_legacy_clear_off	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh legacy names bu
+KILLED	r2_limit_canon_blind_off_nn	rc=1	FAIL C3b: census exit 1 (want 2 and 'holds the discovery limit GIT_CEILING_DIRECTORIES'): git-env-class-census: FAIL - UNSCRUBBED scripts/x.
+KILLED	r2_limit_canon_blind_off	rc=1	FAIL C3b: census exit 2 (want 2 and 'holds the discovery limit GIT_CEILING_DIRECTORIES'): git-env-class-census: BLIND - control needle: sh c
+KILLED	r2_limit_check_off_nn	rc=1	FAIL C2j2: census exit 0 (want 1 and 'discovery limit'): git-env-class-census: control needles seen (39 samples) git-env-class-census: PASS 
+KILLED	r2_limit_check_off	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh extra ceiling u
+KILLED	r2_list_off_nn	rc=1	FAIL C2c: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (39 samples) git-env-class-census
+KILLED	r2_list_off	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh scrub short: go
+KILLED	r2_order_off_nn	rc=1	FAIL C2v: census exit 0 (want 1 and 'comes after the first git write'): git-env-class-census: control needles seen (39 samples) git-env-clas
+KILLED	r2_order_off	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: py scrub after the
+KILLED	r2_preamble_off_nn	rc=1	FAIL C2l: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (39 samples) git-env-class-census
+KILLED	r2_preamble_off	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh scrub in if fal
+KILLED	r2_py_docstring_kept_nn	rc=1	FAIL C2w: census exit 0 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: control needles seen (39 samples) git-env-class-census
+KILLED	r2_py_docstring_kept	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: py docstring carri
+KILLED	r2_py_get_ok_nn	rc=1	FAIL C2k: census exit 0 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: control needles seen (39 samples) git-env-class-census
+KILLED	r2_py_get_ok	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: py pop->get: got T
+KILLED	r2_py_in_sh_off_nn	rc=1	FAIL C2n: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (39 samples) git-env-class-census
+KILLED	r2_py_in_sh_off	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh python heredoc:
+KILLED	r2_reason_any_nn	rc=1	FAIL C2i: census exit 0 (want 1 and 'malformed'): git-env-class-census: control needles seen (39 samples) git-env-class-census: PASS - membe
+KILLED	r2_reason_any	rc=1	FAIL C2i: census exit 0 (want 1 and 'malformed'): git-env-class-census: control needles seen (39 samples) git-env-class-census: PASS - membe
+KILLED	r2_stale_off_nn	rc=1	FAIL C2h: census exit 0 (want 1 and 'stale row'): git-env-class-census: control needles seen (39 samples) git-env-class-census: PASS - membe
+KILLED	r2_stale_off	rc=1	FAIL C2h: census exit 0 (want 1 and 'stale row'): git-env-class-census: control needles seen (39 samples) git-env-class-census: PASS - membe
+KILLED	r2_wrapper_any_scrubbed_nn	rc=1	FAIL C2o: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (39 samples) git-env-class-census
+KILLED	r2_wrapper_any_scrubbed	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh env -i elsewher
+KILLED	r2_wrappers_off_nn	rc=1	FAIL C2o: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - zero members found under scripts/ (the detecto
+KILLED	r2_wrappers_off	rc=1	FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh env -i wrapper:
+killed=30 survived=0

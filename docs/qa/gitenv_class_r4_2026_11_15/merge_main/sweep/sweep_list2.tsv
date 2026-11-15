@@ -1,0 +1,2 @@
+test_timeout_tty	1200	none,both	bash	tests/install/test_timeout_tty.sh
+test_release_tooling_mutations	10800	none	bash	tests/release/test_release_tooling_mutations.sh

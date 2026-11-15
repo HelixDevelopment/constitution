@@ -1,0 +1,124 @@
+PASS RED pin ca88eda44ff928e161448d559d0fc07881d3dfea: pinned pre-change gate has no --write-baseline / ratchet baseline
+PASS RED: pinned pre-change gate FAILs a repo that sits exactly at its baseline (rc=1) -- no ratchet existed
+PASS GREEN: new gate PASSes at baseline (rc=0, ORACLE-VERDICT PASS ratchet)
+PASS above baseline -> rc=1 with 'exceeds baseline 3'
+PASS below baseline -> rc=0 and tells how to lower it
+PASS --write-baseline lowers 9 -> 3 (rc=0)
+PASS idempotency: second --write-baseline leaves the baseline byte-identical
+PASS --write-baseline refuses to raise (rc=1, baseline unchanged)
+PASS file absent from the baseline counts against a baseline of 0
+PASS new unannotated function fails even with baseline slack (not an over-baseline failure)
+PASS golden-FALSE: new function WITH annotation passes (rc=0)
+PASS modified legacy unannotated function fails
+PASS golden-FALSE: untouched legacy siblings are not failed (exactly 1 modified report)
+PASS golden-FALSE: edit outside test functions passes
+PASS F2 RED->GREEN: deletion-only hunk that strips an annotation is not silently skipped (rc=1)
+PASS F2 golden-FALSE: deleting a whole annotated test function passes (rc=0)
+PASS F2 golden-FALSE: deletion-only hunk with no annotation removed passes (rc=0)
+PASS F2 §1.1 mutation: deletion tracking disabled -> stripped annotation slips through (mutant detectable, rc=0)
+PASS F2b RED->GREEN: replace-hunk that swaps an annotation line above a def marks the function modified (rc=1)
+PASS F2b §1.1 mutation: window rule disabled -> replaced annotation slips through (mutant detectable, rc=0)
+PASS F2b golden-FALSE: only the touched function (test_d) is reported, siblings are not
+PASS sandbox carries the real gate_env_override.sh
+PASS ambient ORACLE_GUARD_BASELINE ignored without HELIX_TEST_MODE (real guard)
+PASS uncommitted edit of an unannotated legacy function fails
+PASS untracked new test file with an unannotated function fails
+PASS default base is the non-sliding base (sees add_e though the last commit is README only, rc=1); --base HEAD~2 (= that base) accepted (rc=1); verdict carries base=<sha12>
+PASS I2: --base HEAD (newer than the non-sliding base) refused rc=2 (rc=2)
+PASS I2: --base HEAD~1 (newer than the non-sliding base) refused rc=2 (rc=2)
+PASS I2: --base older than the non-sliding base (the root commit) accepted and stricter (rc=1)
+PASS I2: unresolvable --base refused rc=2
+PASS I2: ORACLE_GUARD_BASE=HEAD is ignored (FAIL stays FAIL, noted) (rc=1)
+PASS I3: remote github_x/main only: base found, empty commits cannot slide it (rc=1)
+PASS I3: no remote main at all -> BLIND rc=2, never HEAD~1 (rc=2)
+PASS I3: oldest remote merge-base chosen (github_y lag keeps the range wide) (rc=1)
+PASS M4: stale baseline entry (file renamed away) reported under --quiet (rc=0)
+PASS M4: --write-baseline prunes the stale entry
+PASS non-git root: new-function check explicitly SKIPPED, ratchet still PASS
+PASS non-git root: count above baseline still FAILs
+PASS missing baseline -> rc=2 BLIND, never a pass
+PASS --strict needs no baseline and keeps the legacy absolute behaviour (rc=1)
+PASS chaos: non-integer baseline count -> rc=2 BLIND
+PASS chaos: duplicate baseline entry (would hide a raise) -> rc=2 BLIND
+PASS chaos: empty baseline = ceiling 0 everywhere -> rc=1, not a pass
+PASS chaos: unreadable baseline never yields a pass (rc=1)
+PASS security: hostile directory name executes nothing and is handled (rc=0)
+PASS security: prose 'Independent oracle: ...' is a carrier, not an annotation (new function still fails)
+PASS security: traversal-looking baseline key is inert data (stale entry, no read outside the root)
+PASS adopt RED: unadopted new unannotated file FAILs the ratchet (rc=1)
+PASS adopt without --reason refused (rc=2), baseline and log untouched
+PASS adopt with blank --reason refused (rc=2)
+PASS --reason without --adopt-new-files refused (rc=2)
+PASS adopt combined with --write-baseline refused (rc=2)
+PASS adopt adds new file at today's count, existing entry unchanged (rc=0)
+PASS adoption log line: date, file count, total added, reason
+PASS after adoption the default ratchet PASSes (rc=0)
+PASS idempotent: second adoption is a no-op (no baseline change, no new log line)
+PASS ratchet still FAILs afterwards on a new unannotated test file (rc=1)
+PASS ratchet FAILs when an adopted file grows (rc=1)
+PASS adoption cannot raise an existing file: refused rc=1, nothing written
+PASS adoption does not lower an existing entry (9 stays 9)
+PASS adoption without an existing baseline refused (rc=2)
+PASS F2 RED: committed-but-unpushed unannotated new test cannot be adopted (rc=1)
+PASS F2 empty commits do not slide the adoption base (rc=1)
+PASS F2 untracked new unannotated test cannot be adopted (rc=1)
+PASS F2 modified legacy functions of an unbaselined file cannot be adopted (rc=1)
+PASS I2: --adopt-new-files --base HEAD refused rc=2, baseline and log untouched (rc=2)
+PASS I2: ambient ORACLE_GUARD_BASE=HEAD cannot make adoption accept a new unannotated file (rc=1)
+PASS F2 adoption without an upstream and without --base refused (rc=2)
+PASS F2 rule (3) still FAILs the unpushed new function after empty commits (rc 1 then 1)
+PASS §1.1 mutation: blank-reason guard removed -> adoption proceeds (mutant detectable)
+PASS §1.1 mutation: raise-guard removed -> adoption would pass with an over-baseline file (mutant detectable)
+PASS §1.1 mutation: adoption records a too-low count -> ratchet still FAILs (mutant detectable)
+PASS §1.1 mutation: new-function adoption refusal removed -> sneak adopted (mutant detectable)
+PASS §1.1 mutation: sliding HEAD~1 base restored -> empty commits hide the new function (mutant detectable)
+PASS determinism: 3 identical outputs ( d92836a872f86c2d d92836a872f86c2d d92836a872f86c2d )
+PASS performance: 3 ratchet runs in 550 ms (< 30 s budget)
+PASS idempotency: a gate run writes nothing into the scanned repo
+PASS chaos: concurrent runs agree
+PASS e2e canon root: ratchet PASS with live total == baseline total (0) (rc=0)
+FAIL e2e canon root: strict mode count == scan without exclusions (0 >= baseline total 0)
+PASS consumer-shaped root without a baseline -> rc=2 BLIND
+PASS consumer adopts: --write-baseline then ratchet PASS (rc=0)
+PASS B1 RED->GREEN: top-level test_b right after test_a's trailing annotation is NOT annotated under --strict (rc=1)
+PASS B1: method test_b inside a class is NOT annotated by test_a's trailing annotation (rc=1)
+PASS B1 golden-FALSE: comment-only/decorator-prefixed/inline-def-line annotations still count (rc=0)
+PASS B1 CRLF: annotation in a CRLF file is recognised (rc=0)
+PASS B1 CRLF §1.1 mutation: \r not stripped -> annotation missed (mutant detectable, rc=1)
+PASS B1 rule 3: editing only test_a's last line does not flag the unannotated neighbour test_b (rc=0)
+PASS B1 §1.1 mutation: above-def zone reverted -> false PASS returns (mutant detectable, rc=0)
+PASS B1 §1.1 mutation: window reaches into the prior body -> rule-3 false flag returns (mutant detectable, rc=1)
+PASS §1.1 mutation: baseline comparison neutralised -> the over-baseline case flips to PASS (mutant detectable)
+PASS §1.1 mutation: new-function check disabled -> the new-function case flips to PASS
+PASS §1.1 mutation: missing-baseline guard removed -> no longer BLIND (rc=1)
+PASS §1.1 mutation: raise-guard removed -> --write-baseline raises the baseline (mutant detectable)
+PASS §1.1 mutation: newer-than-nonsliding --base accepted -> the I2 refusal test flips (mutant detectable, rc=0)
+PASS §1.1 mutation: only origin searched -> github_x-only checkout goes BLIND (mutant detectable, rc=2)
+PASS RED: canon-like root without the declaration fails closed (rc=1)
+PASS GREEN: --standalone-canon -> honest SKIP rc=3 + VERDICT topology_unsupported
+PASS chaos/dual: token artifact present + flag -> audited, still FAILs (rc=1)
+PASS dual: OpenDesign declared in a manifest + flag -> audited, still FAILs (rc=1)
+PASS golden-FALSE: clean token-bound consumer + flag -> PASS (rc=0)
+PASS security: no environment opt-in exists (ambient variables do not SKIP)
+PASS security: hostile root name handled (rc=3)
+PASS determinism: OpenDesign SKIP output identical x3
+PASS RED: canon-like project with an index but no declared MCP server fails closed without the declaration (rc=1)
+PASS GREEN: --standalone-canon -> honest SKIP rc=3 + VERDICT topology_unsupported
+PASS dual: .mcp.json present + flag -> audited, violation still FAILs (rc=1)
+PASS dual: explicit --mcp-json file + flag -> audited (rc=1)
+PASS security: no environment opt-in for the CodeGraph SKIP
+PASS determinism: CodeGraph SKIP output identical x3
+PASS F5 RED: --standalone-canon on a non-canon root (no Constitution.md) refused, not SKIP (od rc=2)
+PASS F5 RED: --standalone-canon on a non-canon project (no Constitution.md) refused, not SKIP (cg rc=2)
+PASS F5 vendored canon (submodule of a consumer) is not a canon root: refused (od rc=2)
+PASS F5 vendored canon refused (cg rc=2)
+PASS M1 RED: empty Constitution.md is not a canon marker: refused (od rc=2)
+PASS M1: heading but no scripts/gates is not a canon marker (rc=2)
+PASS §1.1 mutation: strong canon marker removed -> empty Constitution.md SKIPs (mutant detectable, rc=3)
+PASS §1.1 mutation: OpenDesign SKIP branch disabled -> no SKIP (mutant detectable)
+PASS §1.1 mutation: CodeGraph SKIP made unconditional -> hides the consumer violation (mutant detectable, rc=3)
+PASS §1.1 mutation: manifest-declaration guard removed -> hides a declared-OpenDesign violation (mutant detectable)
+PASS §1.1 mutation: OpenDesign canon-identity check removed -> non-canon root SKIPs (mutant detectable)
+PASS §1.1 mutation: CodeGraph canon-identity check removed -> non-canon project SKIPs (mutant detectable)
+PASS §1.1 mutation: vendored-submodule exclusion removed -> vendored canon SKIPs (mutant detectable)
+passed=122 failed=1

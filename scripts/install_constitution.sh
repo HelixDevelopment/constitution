@@ -29,6 +29,7 @@
 # §11.4.187 (stream-json result, never exit code), §11.4.287 (no recursive delete), §11.4.10 (secrets).
 #
 # This block must stay POSIX sh: when a non-bash shell runs the file it re-executes it under bash.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 if [ -z "${BASH_VERSION:-}" ]; then
   # only a file named like the installer (…sh path) is re-executed: under `… | sh` $0 is the shell's own name,
   # and a file of that name in the current directory must never be run

@@ -34,6 +34,7 @@
 # Safety: only the two sshd processes this script started are signalled (pid > 1 and a command line that names this
 # run's own config); the scratch directory is removed with safe_rm_rf (§11.4.287).
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 SRC="$(cd "${1:?CHECKOUT}" && pwd)"; OUT="${2:?OUT}"
 # the directory name must not hold the word "sendenv": the round-10 reader (3fe216bd) fails closed on that word
 # anywhere in ./.git/config, and the throwaway remote's URL holds this path (measured: a run under a directory named

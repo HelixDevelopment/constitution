@@ -1,0 +1,172 @@
+== B-A: CommonMark fences; the doc never accumulates managed blocks; an unhealthy doc is never worsened ==
+  PASS [unclosed] BEGIN count never grows across 4 runs
+  PASS [unclosed] refused (rc 4)
+  PASS [unclosed] doc untouched
+  PASS [unclosed] refusal names the unclosed fence
+  PASS [unclosed] decisions.yml not written while a doc is refused
+  PASS [unclosed_tilde] BEGIN count never grows across 4 runs
+  PASS [unclosed_tilde] refused (rc 4)
+  PASS [unclosed_tilde] doc untouched
+  PASS [unclosed_tilde] refusal names the unclosed fence
+  PASS [unclosed_tilde] decisions.yml not written while a doc is refused
+  PASS [short_close] BEGIN count never grows across 4 runs
+  PASS [short_close] refused (rc 4)
+  PASS [short_close] doc untouched
+  PASS [short_close] refusal names the unclosed fence
+  PASS [short_close] decisions.yml not written while a doc is refused
+  PASS [mixed_close] BEGIN count never grows across 4 runs
+  PASS [mixed_close] refused (rc 4)
+  PASS [mixed_close] doc untouched
+  PASS [mixed_close] refusal names the unclosed fence
+  PASS [mixed_close] decisions.yml not written while a doc is refused
+  PASS [block_then_unclosed] BEGIN count never grows across 4 runs
+  PASS [block_then_unclosed] written (rc 0)
+  PASS [block_then_unclosed] exactly one live block added at most
+  PASS [block_then_unclosed] no stale value beside the current one
+  PASS [block_then_unclosed] --check clean (rc=0)
+  PASS [bt_info_backtick] BEGIN count never grows across 4 runs
+  PASS [bt_info_backtick] written (rc 0)
+  PASS [bt_info_backtick] exactly one live block added at most
+  PASS [bt_info_backtick] no stale value beside the current one
+  PASS [bt_info_backtick] --check clean (rc=0)
+  PASS [tilde_info_backtick] BEGIN count never grows across 4 runs
+  PASS [tilde_info_backtick] written (rc 0)
+  PASS [tilde_info_backtick] exactly one live block added at most
+  PASS [tilde_info_backtick] no stale value beside the current one
+  PASS [tilde_info_backtick] --check clean (rc=0)
+  PASS [fenced_example] BEGIN count never grows across 4 runs
+  PASS [fenced_example] written (rc 0)
+  PASS [fenced_example] exactly one live block added at most
+  PASS [fenced_example] no stale value beside the current one
+  PASS [fenced_example] --check clean (rc=0)
+  PASS [longer_close] BEGIN count never grows across 4 runs
+  PASS [longer_close] written (rc 0)
+  PASS [longer_close] exactly one live block added at most
+  PASS [longer_close] no stale value beside the current one
+  PASS [longer_close] --check clean (rc=0)
+  PASS [indent3_fence] BEGIN count never grows across 4 runs
+  PASS [indent3_fence] written (rc 0)
+  PASS [indent3_fence] exactly one live block added at most
+  PASS [indent3_fence] no stale value beside the current one
+  PASS [indent3_fence] --check clean (rc=0)
+  PASS [indent4_code] BEGIN count never grows across 4 runs
+  PASS [indent4_code] written (rc 0)
+  PASS [indent4_code] exactly one live block added at most
+  PASS [indent4_code] no stale value beside the current one
+  PASS [indent4_code] --check clean (rc=0)
+  PASS [tab_code] BEGIN count never grows across 4 runs
+  PASS [tab_code] written (rc 0)
+  PASS [tab_code] exactly one live block added at most
+  PASS [tab_code] no stale value beside the current one
+  PASS [tab_code] --check clean (rc=0)
+  PASS [nested_longer] BEGIN count never grows across 4 runs
+  PASS [nested_longer] written (rc 0)
+  PASS [nested_longer] exactly one live block added at most
+  PASS [nested_longer] no stale value beside the current one
+  PASS [nested_longer] --check clean (rc=0)
+  PASS [u2028_not_a_line_end] BEGIN count never grows across 4 runs
+  PASS [u2028_not_a_line_end] written (rc 0)
+  PASS [u2028_not_a_line_end] exactly one live block added at most
+  PASS [u2028_not_a_line_end] no stale value beside the current one
+  PASS [u2028_not_a_line_end] --check clean (rc=0)
+  PASS [block_after_closed] BEGIN count never grows across 4 runs
+  PASS [block_after_closed] written (rc 0)
+  PASS [block_after_closed] exactly one live block added at most
+  PASS [block_after_closed] no stale value beside the current one
+  PASS [block_after_closed] --check clean (rc=0)
+== B-A: property test, deterministic random fence layouts (UNIT-CLASS, real engine) ==
+  PASS property: BEGIN count never grows, every write carries the current block (400 layouts x 4 runs)
+  PASS property instrument saw refusals AND writes (not blind)
+      property: cases=400 runs=1600 refused=1120 violations=0
+== I-A: the printed bootstrap command neutralises every variable the bootstrap scripts read ==
+  PASS census source readable: bootstrap.sh
+  PASS census source readable: lib_decide.sh
+  PASS census source readable: lib_keys.sh
+  PASS census source readable: jev-calibrate.sh
+  PASS census source readable: jev-probe.sh
+  PASS census control needle: JEV_BOOTSTRAP_NESTED found
+  PASS census control needle: JEV_CALIBRATE_FLOOR found
+  PASS census negative control: fabricated name absent
+  PASS every variable read by the bootstrap scripts is classified (unset or deliberately passed)
+      census: 48 names, unclassified: none
+  PASS printed command unsets JEV_CALIBRATE_FLOOR
+  PASS printed command unsets JEV_CALIBRATE_MIN_SAMPLE
+  PASS printed command unsets JEV_BOOTSTRAP_NESTED
+  PASS printed command unsets JEV_BOOTSTRAP_HOME
+  PASS printed command unsets JEV_SKIP_VALIDATION
+  PASS printed command unsets JEV_TEST
+  PASS printed command unsets LLMCTL_REF_OVERRIDE
+  PASS printed command unsets JEV_CONSTITUTION_ROOT
+  PASS calibration floor always explicit (default 0.9)
+  PASS calibration min sample always explicit (default 30)
+  PASS state locations are passed, not unset
+  PASS printed prefix starts with env
+  PASS ambient JEV_CALIBRATE_FLOOR=0.5 does not reach bootstrap (got 0.9|unset)
+  PASS wizard from a constitution with a new bootstrap variable (rc=0)
+  PASS new bootstrap variable is unset by the run-time re-scan
+== I-B: OS errors are pre-flighted; never a traceback, an absolute path, or a half-applied change ==
+  PASS read-only doc directory refused before any write (rc=3)
+  PASS message names the unwritable directory
+  PASS no traceback (read-only directory)
+  PASS no absolute path (read-only directory)
+  PASS decisions.yml unchanged after a pre-flight refusal
+  PASS no intent journal left after a pre-flight refusal
+  PASS 0444 doc refused (not silently replaced) (rc=3)
+  PASS 0444 refusal names the read-only file
+  PASS 0444 doc untouched and still 0444
+  PASS nothing written for a refused run
+  PASS hard-linked doc refused (rc=3)
+  PASS hard-link refusal message
+  PASS hard link kept (same inode)
+  PASS mid-run permission loss: clean blocked exit (rc 3)
+  PASS no traceback (mid-run failure)
+  PASS no absolute path (mid-run failure)
+  PASS mid-run failure names the intent journal
+  PASS intent journal present after the failure
+  PASS next run completes the change (rc=0)
+  PASS check clean after self-heal (rc=0)
+  PASS intent journal gone after self-heal
+  PASS concurrent editor change detected (rc 4)
+  PASS lost-update message
+  PASS the editor's change survives
+  PASS re-run after the concurrent edit applies cleanly (rc=0)
+  PASS editor change still there after the re-run
+  PASS oversized answers file refused (rc=4)
+  PASS size refusal message
+  PASS FIFO answers file refused without blocking (rc=3)
+  PASS pre-flight refuses a read-only FS and a full FS, passes a healthy one (unit-class)
+  PASS unwritable project root (no .constitution yet) is a clean block (rc=3)
+  PASS no traceback (unwritable project root)
+  PASS no absolute path (unwritable project root)
+  PASS top-level OS error names the file and the OS reason
+  SKIP live EROFS/ENOSPC: user-namespace mounts are refused on this host (unshare: uid_map not permitted); topology_unsupported
+== MINOR: output sanitising, redaction precision, file modes ==
+  PASS unknown option with a token value is a usage error (rc=2)
+  PASS unrecognized-argument values not echoed
+  PASS invalid --scope choice is a usage error (rc=2)
+  PASS invalid choice value not echoed
+  PASS --doc with a bidi override refused (rc=3)
+  PASS no raw bidi character in any output
+  PASS excluded type refused (rc=4)
+  PASS anchor text is not eaten by the redaction
+  PASS new decisions.yml honours umask 077 (mode 600)
+  PASS new decisions.yml under umask 022 (mode 644)
+  PASS redact replaces secret-shaped runs and escapes bidi, C1 and C0 controls; has_control covers them (unit-class)
+  PASS post-write verification refuses a block the next scan would not see (append and replace; unit-class)
+== LEAK: user-scope files never land in the project tree
+  PASS user file inside the project refused (write) (rc=3)
+  PASS refusal names the reason
+  PASS user file inside the project refused (dry-run) (rc=3)
+  PASS in-project user file unchanged
+  PASS no .decisions-backup/ or lock created in the project
+  PASS user dir symlinked into the project refused (rc=3)
+  PASS symlink refusal is the in-project guard (resolved path)
+  PASS XDG_CONFIG_HOME inside the project refused (rc=3)
+  PASS no xdg tree created in the project
+  PASS relative CONSTITUTION_DECISIONS_USER_FILE refused (rc=3)
+  PASS relative refusal names the reason
+  PASS no rel/ tree created in the project
+  PASS user file outside the project still written (with backup) (rc=0)
+  PASS backup beside the user file
+  PASS still nothing user-scope in the project
+test_round4: pass=162 fail=0

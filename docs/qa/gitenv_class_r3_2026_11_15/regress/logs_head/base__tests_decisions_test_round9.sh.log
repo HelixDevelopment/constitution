@@ -1,0 +1,22 @@
+== RV6: a BEGIN marker line with trailing user text is not a marker; the doc is refused, never rewritten ==
+  PASS real engine: rc 4
+  PASS real engine: refusal says duplicate or unbalanced ... not touched
+  PASS real engine: KEEPME count stays 1
+  PASS mutant RV6 built
+  PASS mutant RV6 is caught (rc 0 and KEEPME lost: rc=0 KEEPME=0)
+== RV7: a line '```text' inside a bare-fence block is not a CommonMark close; the fenced example is kept ==
+  PASS real engine: rc 0
+  PASS real engine: fenced example kept (KEEPME 1)
+  PASS real engine: new block appended (2 BEGIN lines: example + managed)
+  PASS mutant RV7 built
+  PASS mutant RV7 is caught (rc=0 KEEPME=0 not the real outcome rc 0 / KEEPME 1 / 2 blocks)
+== RV7: property test with closing-with-text lines in the layout pool (UNIT-CLASS, real engine) ==
+  PASS property: no growth, no write without the current block
+  PASS property instrument not blind (writes and closing-with-text layouts present)
+      property: cases=400 runs=1200 refused=957 closing-with-text-layouts=267 violations=0
+== RV4 (UNIT-CLASS): stdout.flush raising ValueError -> run_cli(['--version']) is rc 1 'internal error (ValueError)' ==
+  PASS real engine: rc=1
+  PASS real engine: stderr names 'internal error (ValueError)'
+  PASS mutant RV4 built
+  PASS mutant RV4 is caught (not rc=1 with the internal-error line): rc=0 stderr=''
+test_round9: pass=16 fail=0

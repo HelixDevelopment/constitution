@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# classify_vars.sh - one experiment per variable of CL_GIT_SCRUB_VARS (15 names at e0373341) plus
+# GIT_DISCOVERY_ACROSS_FILESYSTEM: does an ambient value REDIRECT git to another repository / index /
+# object store / ref view (scrub it), or only LIMIT discovery the caller asked for (never scrub it)?
+# Each row prints the observed output with and without the variable. Local only, no network.
+set -u
+export LC_ALL=C GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+for v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX GIT_DISCOVERY_ACROSS_FILESYSTEM; do unset "$v"; done
+W="$(mktemp -d "${TMPDIR:?}/classify.XXXX")" || exit 2
+g() { git -c user.email=a@b -c user.name=t -c core.hooksPath=/dev/null "$@"; }
+mk() { g init -q -b main --template= "$1" && printf '%s\n' "$2" >"$1/f" && g -C "$1" add f && g -C "$1" commit -q -m "$2"; }
+mk "$W/target" target1; printf 'two\n' >>"$W/target/f"; g -C "$W/target" commit -qam target2
+mk "$W/decoy" decoy1
+T="$W/target"; D="$W/decoy"
+row() { printf '%-34s | %-9s | without: %s | with: %s\n' "$1" "$2" "$3" "$4"; }
+q() { "$@" 2>&1 | tr '\n' ' ' | cut -c1-90; }
+
+row GIT_DIR REDIRECT "$(q g -C "$T" log -1 --format=%s)" "$(GIT_DIR="$D/.git" q g -C "$T" log -1 --format=%s)"
+mkdir -p "$W/wt"
+row GIT_WORK_TREE REDIRECT "$(q g -C "$T" rev-parse --show-toplevel)" "$(GIT_WORK_TREE="$W/wt" q g -C "$T" rev-parse --show-toplevel)"
+cp "$D/.git/index" "$W/decoy_index"; b="$(sha256sum <"$W/decoy_index" | cut -c1-12)"
+printf 'x\n' >"$T/new"; GIT_INDEX_FILE="$W/decoy_index" g -C "$T" add new; a="$(sha256sum <"$W/decoy_index" | cut -c1-12)"; rm -f "$T/new"
+row GIT_INDEX_FILE REDIRECT "decoy index $b" "after 'git -C target add new': decoy index $a (written)"
+row GIT_PREFIX "FOREIGN" "$(q g -C "$T" rev-parse --show-prefix)/$(q g -C "$T" ls-files)" "$(GIT_PREFIX=sub/ q g -C "$T" rev-parse --show-prefix)/$(GIT_PREFIX=sub/ q g -C "$T" ls-files)"
+row GIT_COMMON_DIR REDIRECT "$(q g -C "$T" log -1 --format=%s main)" "$(GIT_COMMON_DIR="$D/.git" q g -C "$T" log -1 --format=%s main)"
+o1="$(find "$D/.git/objects" -type f | wc -l)"; h="$(printf 'od\n' | GIT_OBJECT_DIRECTORY="$D/.git/objects" g -C "$T" hash-object -w --stdin)"; o2="$(find "$D/.git/objects" -type f | wc -l)"
+row GIT_OBJECT_DIRECTORY REDIRECT "decoy objects $o1" "after 'git -C target hash-object -w': decoy objects $o2 (written)"
+db="$(g -C "$D" rev-parse HEAD:f)"
+row GIT_ALTERNATE_OBJECT_DIRECTORIES REDIRECT "$(q g -C "$T" cat-file -t "$db")" "$(GIT_ALTERNATE_OBJECT_DIRECTORIES="$D/.git/objects" q g -C "$T" cat-file -t "$db")"
+GIT_NAMESPACE=ns g -C "$T" update-ref refs/heads/nsref HEAD
+row GIT_NAMESPACE "TRANSFER" "refs written: $(q g -C "$T" for-each-ref --format=%\(refname\))" "(update-ref ran with GIT_NAMESPACE=ns)"
+mkdir -p "$W/fence/run"; g init -q --template= "$W/fence" >/dev/null 2>&1; rm -rf -- "${W:?}/fence/.git"; mk "$W/encl" encl; mkdir -p "$W/encl/tmp/run"
+row GIT_CEILING_DIRECTORIES LIMIT "$(cd "$W/encl/tmp/run" && q g rev-parse --show-toplevel)" "$(cd "$W/encl/tmp/run" && GIT_CEILING_DIRECTORIES="$W/encl/tmp" q g rev-parse --show-toplevel)"
+row GIT_DISCOVERY_ACROSS_FILESYSTEM WIDEN "(not in the list; only widens discovery across a mount boundary, which the caller asks for; never scrubbed)" "-"
+h1="$(g -C "$T" rev-parse HEAD~1)"; g -C "$T" rev-parse HEAD >"$W/shallow"
+row GIT_SHALLOW_FILE REDIRECT "$(q g -C "$T" rev-list --count HEAD)" "$(GIT_SHALLOW_FILE="$W/shallow" q g -C "$T" rev-list --count HEAD)"
+printf '%s\n' "$(g -C "$T" rev-parse HEAD)" >"$W/graft"
+row GIT_GRAFT_FILE REDIRECT "$(q g -C "$T" rev-list --count HEAD)" "$(GIT_GRAFT_FILE="$W/graft" g -C "$T" rev-list --count HEAD 2>/dev/null)"
+h2="$(g -C "$T" rev-parse HEAD)"; g -C "$T" update-ref "refs/other/$h2" "$h1"
+row GIT_REPLACE_REF_BASE REDIRECT "$(q g -C "$T" log -1 --format=%s "$h2")" "$(GIT_REPLACE_REF_BASE=refs/other/ q g -C "$T" log -1 --format=%s "$h2")"
+g -C "$T" update-ref "refs/replace/$h2" "$h1"
+row GIT_NO_REPLACE_OBJECTS VIEW "$(q g -C "$T" log -1 --format=%s "$h2")" "$(GIT_NO_REPLACE_OBJECTS=1 q g -C "$T" log -1 --format=%s "$h2")"
+g -C "$T" update-ref -d "refs/replace/$h2"
+row GIT_QUARANTINE_PATH REDIRECT "$(q g -C "$T" update-ref refs/heads/q HEAD; echo rc=$?)" "$(GIT_QUARANTINE_PATH="$W/quar" q g -C "$T" update-ref refs/heads/q2 HEAD; echo rc=$?)"
+row GIT_INTERNAL_SUPER_PREFIX "FOREIGN" "$(q g -C "$T" ls-files)" "$(GIT_INTERNAL_SUPER_PREFIX=sup/ q g -C "$T" ls-files)"
+rm -rf -- "${W:?}"

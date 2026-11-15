@@ -1,0 +1,95 @@
+"""make_mutants_r2.py <gate.sh> <outdir> : write fixer-authored mutants of the round-2 gate, one exact
+edit each. Every edit must apply exactly once, else the script exits 2 (a no-op mutant is a test bug).
+rmNN = the reviewer's round-1 mutant re-built on the round-2 code (same intent); nNN = new for round 2."""
+import os
+import sys
+
+src_path, outdir = sys.argv[1], sys.argv[2]
+src = open(src_path, encoding="utf-8").read()
+
+NEEDLE_UNLISTED = '    "MANIFEST: census file without manifest row: tests/a/test_needle_unlisted.sh" \\\n'
+NEEDLE_STALE = '    "MANIFEST: stale manifest row (no such test file / module): tests/a/test_needle_stale.sh" \\\n'
+NEEDLE_EXCL = ('    "MANIFEST: excluded set (1 row(s)) is not accepted: $N/config/full_suite_excluded.lock is absent; '
+               'review the rows and run --verify-manifest --accept-excluded-change <reviewer>" \\\n')
+NEEDLE_GUIDE_TAIL = ('--accept-excluded-change <reviewer>" \\\n'
+                     '    "MANIFEST: docs/guides/full_suite_runner_guide.md: census block is stale (run --sync-guide)"; do')
+
+M = {
+    "rm01_needle_rc_unchecked": ('[ "$RC" = 3 ] || blind "control needle: the runner exited',
+                                 'true || blind "control needle: the runner exited'),
+    "rm02_needle_line_unchecked": ('    grep -qxF -- "$_want" "$TMP/needle_verify.log" || blind', '    true || blind'),
+    "rm03_needle_unlisted_untracked": ('>"$N/docs/guides/full_suite_runner_guide.md"\npgit "$N" add -A >/dev/null 2>&1 || blind "git add failed in the needle fixture"',
+                                       '>"$N/docs/guides/full_suite_runner_guide.md"\n: needle-left-untracked'),
+    "rm04_ok_line_unchecked": ("grep -qxF 'RESULT: MANIFEST-OK' \"$LOG\" || blind", "true || blind"),
+    "rm05_fatal_relay_pass": ('the runner refused the committed manifest: RESULT: MANIFEST-MISMATCH ($fatal)"\n    fix_text\n    exit 1',
+                              'the runner refused the committed manifest: RESULT: MANIFEST-MISMATCH ($fatal)"\n    fix_text\n    exit 0'),
+    "rm05b_unreadable_mismatch_pass": ('[ -n "$fatal" ] || blind', '[ -n "$fatal" ] || exit 0'),
+    "rm06_no_mismatch_line_ok": ("grep -q '^RESULT: MANIFEST-MISMATCH ' \"$LOG\" || blind \"runner exit 3 without",
+                                 "true || blind \"runner exit 3 without"),
+    "rm07_skip_on_either": ('if [ "$r_in" = absent ] && [ "$m_in" = absent ]; then',
+                            'if [ "$r_in" = absent ] || [ "$m_in" = absent ]; then'),
+    "rm08_manifest_missing_unchecked": ('if [ "$m_in" != blob ]; then', 'if false; then'),
+    "rm10_problems_gt1": ('if [ "$problems" -gt 0 ]; then', 'if [ "$problems" -gt 1 ]; then'),
+    "rm12_fail_exit_2": ('manifest problem(s) in the committed tree."\n    fix_text\n    exit 1',
+                         'manifest problem(s) in the committed tree."\n    fix_text\n    exit 2'),
+    "rm13_no_cleanup_trap": ("trap cleanup EXIT", ": no-trap"),
+    "rm14_needle_gen_rc_ignored": ('[ "$RC" = 0 ] || blind "control needle: the runner could not generate',
+                                   'true || blind "control needle: the runner could not generate'),
+    "rm15_total_head": ("p' \"$LOG\" | tail -n 1)\"", "p' \"$LOG\" | head -n 1)\""),
+    "rm16_other_rc_to_mismatch": ('    *) blind "runner exit $RC on HEAD $SHORT (want 0 or 3): $(oneline "$LOG" 5)" ;;', '    *) : ;;'),
+    "rm17_no_git_check": ('command -v git >/dev/null 2>&1 || disk_skip "git not found"', ': no-git-check'),
+    "rm18_no_toplevel_check": ('[ "$TOP" = "$ROOT" ] || disk_skip', 'true || disk_skip'),
+    "n01_no_scrub": ('for _v in "${_git_scrub[@]}"; do unset "$_v"; done', ': no-scrub'),
+    "n02_scrub_without_index_file": ('_git_scrub=(GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_INDEX_VERSION',
+                                     '_git_scrub=(GIT_DIR GIT_WORK_TREE GIT_INDEX_VERSION'),
+    "n03_judge_work_tree": ('runrun "$S" "$LOG"', 'runrun "$ROOT" "$LOG"'),
+    "n04_work_tree_runner": ('RUNNER="$S/$RUNNER_REL"', 'RUNNER="$ROOT/$RUNNER_REL"'),
+    "n05_needle_unlisted_unchecked": (NEEDLE_UNLISTED, ''),
+    "n06_needle_stale_unchecked": (NEEDLE_STALE, ''),
+    "n07_needle_excluded_unchecked": (NEEDLE_EXCL, ''),
+    "n08_needle_guide_unchecked": (NEEDLE_GUIDE_TAIL, '--accept-excluded-change <reviewer>"; do'),
+    "n09_known_refusal_blind": ('"manifest missing: "*|"manifest: "*|"excluded lock: "*) echo fail ;;',
+                                '"manifest missing: "*|"manifest: "*|"excluded lock: "*) echo blind ;;'),
+    "n10_unknown_refusal_fail": ('        *) echo blind ;;\n    esac\n}', '        *) echo fail ;;\n    esac\n}'),
+    "n11_line_number_unchecked": ("            case \"$n\" in ''|*[!0-9]*) echo blind ;; *) echo fail ;; esac ;;",
+                                  "            echo fail ;;"),
+    "n12_rgit_no_literal_pathspecs": ('rgit() { git --literal-pathspecs --no-optional-locks', 'rgit() { git --no-optional-locks'),
+    "n13_note_removed": ('note_uncommitted\ntotal=', 'total='),
+    "n14_staged_flag_lost": ("[ \"$x\" = ' ' ] || staged=yes", "[ \"$x\" = ' ' ] || staged=no"),
+    "n15_optional_locks_on": ('rgit() { git --literal-pathspecs --no-optional-locks -c core.fsmonitor=false',
+                              'rgit() { git --literal-pathspecs -c core.fsmonitor=false'),
+    "n17_fatal_relay_blind": ('if [ "$(classify_fatal "$fatal")" = fail ]; then', 'if false; then'),
+    "n18_needle_stale_row_not_written": ('s += "tests/a/test_needle_stale.sh\\tsh\\tentry\\tdefault\\tbash\\t-\\tauto\\n"', 's += ""'),
+    "n19_temp_prefix_kept": ('    echo "$GATE: FAIL — ${p//"$S/"/}"', '    echo "$GATE: FAIL — $p"'),
+    "n20_rename_origin_not_skipped": ('            case "$x" in R|C) skip=1 ;; esac', '            : no-rename-skip'),
+    "n21_status_failure_reads_clean": ('        staged=unknown; unstaged=unknown; untracked=unknown', '        :'),
+    "n22_status_diff_refresh": ('    if ! rgit status --porcelain=v1 -z --untracked-files=normal --ignore-submodules=dirty >"$TMP/status.z" 2>/dev/null; then',
+                                '    rgit diff --quiet -- >/dev/null 2>&1\n    if ! rgit status --porcelain=v1 -z --untracked-files=normal --ignore-submodules=dirty >"$TMP/status.z" 2>/dev/null; then'),
+}
+
+os.makedirs(outdir, exist_ok=True)
+out = {}
+for k, (a, b) in M.items():
+    n = src.count(a)
+    if n != 1:
+        print("NOAPPLY %s count=%d" % (k, n))
+        sys.exit(2)
+    out[k] = src.replace(a, b)
+
+# n16: the whole duplicated-row needle removed (both its checks), a block edit.
+start = src.find('runrun "$TMP/needle_dup" "$TMP/needle_dup.log"\n')
+endmark = 'as a committed-manifest defect"\n'
+end = src.find(endmark, start)
+if start < 0 or end < 0 or src.count(endmark) != 1:
+    print("NOAPPLY n16_dup_needle_removed")
+    sys.exit(2)
+out["n16_dup_needle_removed"] = src[:start] + ": dup-needle-removed\n" + src[end + len(endmark):]
+
+for k, v in sorted(out.items()):
+    if v == src:
+        print("NOOP %s" % k)
+        sys.exit(2)
+    p = os.path.join(outdir, k + ".sh")
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(v)
+print("wrote %d mutants to %s" % (len(out), outdir))

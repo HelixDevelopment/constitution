@@ -89,10 +89,10 @@ lt_check "LB-1c (control, no ambient): cl_project_root_of = the superproject" te
 # cl_scrub_git_env itself
 sc_out="$(env GIT_DIR=/x GIT_WORK_TREE=/y GIT_INDEX_FILE=/z GIT_CEILING_DIRECTORIES=/c GIT_AUTHOR_NAME=keepme GIT_CONFIG_GLOBAL=/dev/null \
     bash -c ". '$LIB'; cl_scrub_git_env 2>\"$LT_SB/sc.err\"; printf 'D=[%s] W=[%s] I=[%s] C=[%s] A=[%s] G=[%s]' \"\${GIT_DIR-unset}\" \"\${GIT_WORK_TREE-unset}\" \"\${GIT_INDEX_FILE-unset}\" \"\${GIT_CEILING_DIRECTORIES-unset}\" \"\$GIT_AUTHOR_NAME\" \"\$GIT_CONFIG_GLOBAL\"")"
-lt_check "LB-5: cl_scrub_git_env unsets the repository-locating class and keeps identity/config ($sc_out)" \
-    test "$sc_out" = "D=[unset] W=[unset] I=[unset] C=[unset] A=[keepme] G=[/dev/null]"
+lt_check "LB-5: cl_scrub_git_env unsets the repository-locating class and keeps identity/config and the caller's discovery limit ($sc_out)" \
+    test "$sc_out" = "D=[unset] W=[unset] I=[unset] C=[/c] A=[keepme] G=[/dev/null]"
 lt_check "LB-6: ... and logs ONE notice naming the dropped variables, never their values" \
-    eval 'grep -q "NOTICE: ignoring the ambient git environment (GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_CEILING_DIRECTORIES)" "$LT_SB/sc.err" && ! grep -q "/x\|/y\|/z" "$LT_SB/sc.err" && [ "$(wc -l < "$LT_SB/sc.err")" = 1 ]'
+    eval 'grep -q "NOTICE: ignoring the ambient git environment (GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE)" "$LT_SB/sc.err" && ! grep -q "/x\|/y\|/z" "$LT_SB/sc.err" && [ "$(wc -l < "$LT_SB/sc.err")" = 1 ]'
 env A=1 bash -c ". '$LIB'; cl_scrub_git_env 2>\"$LT_SB/sc2.err\""
 lt_check "LB-7 (control): nothing ambient -> no notice" test ! -s "$LT_SB/sc2.err"
 lt_check "LB-8: the decoy repository was never touched by any lib call" test "$(snap "$O")" = "$o0"
@@ -492,7 +492,7 @@ def rd(p):
     return open(os.path.join(root, p), encoding="utf-8", errors="replace").read()
 def vars_in(text):
     return set(re.findall(r"\bGIT_[A-Z_]+\b", text))
-EXPECT = set("GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split())
+EXPECT = set("GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split())
 lib = rd("scripts/lib/constitution_layout.sh")
 m = re.search(r'^CL_GIT_SCRUB_VARS="([^"]+)"', lib, re.M)
 canon = set(m.group(1).split())
@@ -555,8 +555,8 @@ print("NCALLING", len(calling))
 PY
 )"
 printf '%s\n' "$st_out" | sed 's/^/    /' | head -40
-lt_check "ST-1: the canonical list was read (15 variables) and equals the literal list kept in this test" \
-    eval 'grep -qx "CANON 15" <<<"$st_out" && grep -qx "CANONEQ ok" <<<"$st_out"'
+lt_check "ST-1: the canonical list was read (14 variables) and equals the literal list kept in this test" \
+    eval 'grep -qx "CANON 14" <<<"$st_out" && grep -qx "CANONEQ ok" <<<"$st_out"'
 lt_check "ST-2: every lone copy of the scrub list holds ALL canonical variables" \
     eval '! grep -E "^LIST .*missing=" <<<"$st_out" | grep -q . && [ "$(grep -c "^LIST .* ok$" <<<"$st_out")" = 10 ]'
 lt_check "ST-3: the pure copies add no variable that is not in the canonical list" \
@@ -565,12 +565,14 @@ lt_check "ST-4: every git-calling script in the owned set carries a scrub (none 
     eval '! grep -q UNSCRUBBED <<<"$st_out" && [ "$(sed -n "s/^NCALLING //p" <<<"$st_out")" -ge 10 ]'
 
 # ============================================================================
-# SV: RUNTIME, table-driven over ALL 15 repository-locating variables: dropping any
+# SV: RUNTIME, table-driven over ALL 14 repository-locating variables: dropping any
 #     ONE of them from any scrubbing copy lets that variable reach the child git.
-#     The 15 names are a LITERAL list in this test (not read from the code under test,
+#     The 14 names are a LITERAL list in this test (not read from the code under test,
 #     so a rename applied consistently in every copy is still caught).
 # ============================================================================
-SV_VARS="GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX"
+SV_VARS="GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX"
+# a discovery LIMIT is the caller's and must reach the child git through every copy (gitenv-class round 2, F1)
+SV_LIMIT=GIT_CEILING_DIRECTORIES
 SV_STUB="$LT_SB/sv_stub"; mkdir -p "$SV_STUB"; SV_REALGIT="$(command -v git)"
 # the stub `git` reports whether the variable named in $SV_WATCH reached it, then runs the real git
 printf '#!/bin/sh\nif eval "[ -n \\"\\${$SV_WATCH+x}\\" ]"; then echo "LEAK:$SV_WATCH"; else echo "CLEAN:$SV_WATCH"; fi\nexec "%s" "$@"\n' "$SV_REALGIT" > "$SV_STUB/git"
@@ -599,7 +601,9 @@ for sv_copy in lib lone main jb ls jbs; do
         sv_n=$((sv_n+1)); r="$(sv_run "$sv_copy" "$sv_v")"
         [ "$r" = "CLEAN:$sv_v" ] || sv_bad="$sv_bad $sv_v($r)"
     done
-    lt_check "SV-$sv_copy: no one of the $sv_n repository-locating variables reaches the child git through the '$sv_copy' scrub${sv_bad:+ (LEAKING:$sv_bad)}" test -z "$sv_bad" -a "$sv_n" = 15
+    lt_check "SV-$sv_copy: no one of the $sv_n repository-locating variables reaches the child git through the '$sv_copy' scrub${sv_bad:+ (LEAKING:$sv_bad)}" test -z "$sv_bad" -a "$sv_n" = 14
+    r="$(sv_run "$sv_copy" "$SV_LIMIT")"
+    lt_check "SV-$sv_copy-limit: the caller's $SV_LIMIT still reaches the child git through the '$sv_copy' scrub -> '$r'" test "$r" = "LEAK:$SV_LIMIT"
 done
 # positive control for the instrument itself: a variable outside the class is NOT scrubbed (the stub can see)
 r="$(env GIT_AUTHOR_NAME=x SV_WATCH=GIT_AUTHOR_NAME PATH="$SV_STUB:$PATH" bash -c ". '$LAYOUT_SRC_ROOT/scripts/lib/constitution_layout.sh'; cl__git --version" 2>/dev/null | sed -n 1p)"

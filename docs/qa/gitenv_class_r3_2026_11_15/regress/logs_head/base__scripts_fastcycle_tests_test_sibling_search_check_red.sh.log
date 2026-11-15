@@ -1,0 +1,24 @@
+== T088 RED (shell half): sibling-instance search artefact validator (plan T-D03; contract CR-004; FR-011, SC-004) ==
+ok tool exists at <scratch>/base/scripts/fastcycle/closure/sibling_search_check.sh -- T096 has landed; Section C's real
+   triple_harness.sh invocation below is the functional test to run
+NOTE: <scratch>/base/scripts/fastcycle/closure/ holds 4 non-.gitkeep file(s) already --
+      re-check whether T096 (or a sibling closure task) has
+      partially landed
+PASS: control needle: the shared self-validation harness <scratch>/base/scripts/fastcycle/tests/lib/triple_harness.sh
+   genuinely exists (T007/T008/T010 landed it) -- Section C can
+   drive the (today, absent) tool through it
+PASS: control needle: this RED test's own fixture directory <scratch>/base/scripts/fastcycle/tests/fixtures/sibling_search_check
+   genuinely exists on disk
+FAIL: self-check FAILED: <scratch>/constitution/scripts/workable-items/cmd/workable-items does not exist -- the control needle
+   every fixture in <scratch>/base/scripts/fastcycle/tests/fixtures/sibling_search_check cites (crud.go:requireEvidencePath)
+   cannot possibly be real; re-derive REPO_ROOT before trusting
+   anything in Section C
+PASS: C1: triple_harness.sh reports ALL 5 fixtures matched their
+    expectation against the real sibling_search_check.sh:
+    {"actual":1,"class":"golden-bad","expected":"1","fixture":"golden-bad","ok":true}
+    {"actual":1,"class":"golden-bad-invalid-disposition","expected":"1","fixture":"golden-bad-invalid-disposition","ok":true}
+    {"actual":1,"class":"golden-bad-needle-not-found","expected":"1","fixture":"golden-bad-needle-not-found","ok":true}
+    {"actual":0,"class":"golden-good","expected":"0","fixture":"golden-good","ok":true}
+    {"actual":0,"class":"negative-control","expected":"0","fixture":"negative-control","ok":true}
+
+== Summary: ok 3 / NOT ok 1 ==

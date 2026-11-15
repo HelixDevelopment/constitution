@@ -1,0 +1,56 @@
+# F1 built-in updater: committed v71 < staged v72 < checkout v72.1 (hand-staged), marker variants
+  ok   control: the checkout has no updater script (built-in path)
+  ok   built-in, marker naming another commit: exit 3
+  ok   built-in path really used (control needle)
+  ok   built-in, foreign marker: staged gitlink kept
+  ok   built-in, foreign marker: checkout not moved
+  ok   built-in, stale marker (staged-before differs): exit 3
+  ok   built-in, stale marker: staged kept
+  ok   built-in, old-format marker (target only): exit 3
+  ok   built-in, old-format marker: staged kept
+  ok   built-in, symlinked marker is not read: exit 3
+  ok   built-in, symlinked marker: staged kept
+  ok   built-in positive control (valid marker): exit 0
+  ok   built-in positive control: staged the checkout
+  ok   built-in positive control: marker removed
+# F1/F2 the marker written by a real built-in update is '<target> <staged-before>' and is never written through a symlink
+  ok   built-in update with a symlinked marker present: exit 0
+  ok   built-in: the marker symlink was not written through
+  ok   built-in: staged v72.1
+# F1 a real cut-off built-in update writes '<target> <staged-before>'
+  ok   built-in first update: exit 0
+  ok   built-in second update cut off: non-zero exit
+  ok   built-in real marker: '<target> <staged-before>'
+# F1 seam: the marker exists at the moment of the built-in checkout (written BEFORE it)
+  ok   seam: built-in update exit 0
+  ok   seam control needle: the wrapper saw the checkout
+  ok   seam: marker was PRESENT at every built-in checkout
+  ok   seam: marker content at the built-in checkout is '<target> <staged-before>'
+# F2 updater: committed V0 < staged V1 < checkout V2 (hand-staged), marker variants
+  ok   updater, foreign marker: exit 3
+  ok   updater, foreign marker: staged kept
+  ok   updater, stale marker: exit 3
+  ok   updater, stale marker: staged kept
+  ok   updater, old-format marker: exit 3
+  ok   updater, old-format marker: staged kept
+  ok   updater, symlinked marker is not read: exit 3
+  ok   updater, symlinked marker: staged kept
+  ok   updater positive control (valid marker): exit 0
+  ok   updater positive control: staged V2
+# F2 the updater never writes its marker through a symlink; a real update writes '<target> <staged-before>'
+  ok   updater with a symlinked marker present: exit 0
+  ok   updater: the marker symlink was not written through
+  ok   update cut off by a held index.lock: exit 1
+  ok   real marker: two fields '<target> <staged-before>'
+# F2 seam: the marker exists at the moment of the updater checkout
+  ok   seam: updater exit 0
+  ok   seam control needle: the wrapper saw the checkout
+  ok   seam: marker was PRESENT at every updater checkout
+  ok   seam: marker content at the updater checkout is '<target> <staged-before>'
+# F3 hi_mark_hash: sha256sum first, cksum as the fallback, neither => fail closed
+  ok   control needle: cksum-only PATH has no sha256sum
+  ok   both tools: sha256sum is used
+  ok   cksum only: cksum fallback
+  ok   no tool: hi_mark_hash exits non-zero
+  ok   --help: neither sha256sum nor cksum fails closed
+round11: PASS 47 FAIL 0

@@ -1,0 +1,5 @@
+# B2 probe: scrubbed helix_code_home.sh vs a copy with its git-env-hermetic line removed; cwd = plain repo p, ambient GIT_DIR = sentinel s
+lib=repo/scripts/helix_code/helix_code_home.sh
+caller=b2probe.LRJj/s/.git inner=.git
+lib=b2probe.LRJj/unscrubbed.sh
+caller=b2probe.LRJj/s/.git inner=b2probe.LRJj/s/.git

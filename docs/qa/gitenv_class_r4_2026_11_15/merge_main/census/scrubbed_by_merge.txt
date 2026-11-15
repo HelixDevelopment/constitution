@@ -1,0 +1,17 @@
+docs/qa/con227_234_2026_11_11/round10/probe_sendenv_sshd.sh
+docs/qa/con227_234_2026_11_11/round11/make_spawn_sites.py
+docs/qa/con227_234_2026_11_11/round11/probe_sendenv_leak_sshd.sh
+docs/qa/con227_234_2026_11_11/round5/census_print_sites.py
+docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh
+docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh
+scripts/release/land_vehicle.sh
+scripts/workable-items/mutation/created_at_r2_mutation_runner.py
+tests/install/test_sigpipe.sh
+tests/install/test_timeout_tty.sh
+tests/release/channel_census.py
+tests/release/env_census.py
+tests/release/net_probe.py
+tests/release/test_channel_census.sh
+tests/release/test_land_vehicle.sh
+tests/release/test_redact_cut.sh
+tests/release/test_release_tooling_mutations.sh

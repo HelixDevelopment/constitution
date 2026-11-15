@@ -1,0 +1,14 @@
+label=red_hss mode=git_dir script=tests/security/test_history_secret_scan.sh rc=1 seconds=11
+repo_head=e90d4aeaf4ce49fd4da99b5903b5cc31356ba01d
+sentinel_fingerprint_before=2d7ea5d204503fbcbac38708a733cad89626f26d3fb4e8fb715bf5038998a091
+sentinel_fingerprint_after=5457e342a4f3237609049979c787918e4303531f02fb0c434d6fee40af2d799c
+sentinel_head_before=64951ed2f34a0a5077c2442985bbd989c0457745 after=98979f039af08415d4785d2da8e8ee0993ce1e65 branch_before=refs/heads/sentinel after=refs/heads/sentinel
+sentinel_index_entries_after=3
+SENTINEL=CHANGED
+--- log tail ---
+     | git error: clone of remote #1 failed
+ok   43 group-readable (0640) keys file -> 2, no scan
+ok   44 other-readable (0604) keys file -> 2
+FAIL 45 always-find exact matcher -> BLIND 3 (negative control found)
+     | git error: clone of remote #1 failed
+RESULT: 20/45 passed

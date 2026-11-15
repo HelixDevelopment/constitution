@@ -1,0 +1,6 @@
+ok   case0 baseline    unmutated gate FAILs(1) naming post-merge
+ok   case1 MUTATION    installer-literal declared set -> gate goes SILENT (rc=0),
+                       reproducing the measured omission blindness
+ok   case2 neg-control  every declared hook installed -> PASS(0), no false refusal
+ok   quiescence      in-repo gate unchanged (sha256 9a53c67e99a9119774fc9434f9bcb8bcecbbb33ba67d9843b21a719b82edc0f4)
+MUTATION-TEST GREEN (baseline fires / mutation silences / neg-control quiet / repo clean)

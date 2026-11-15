@@ -1,0 +1,13 @@
+FAIL GREEN control: generated manifest passes: output lacks 'control needle seen'
+ok   golden-FALSE: a tracked non-census file does not trip the gate (exit 0)
+FAIL M1: tracked census file without a row FAILs: exit 0, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL M2: a deleted row FAILs: exit 0, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL M3: a stale row FAILs: exit 0, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL M4: a stale guide census block FAILs: exit 0, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL M5: three tracked census files without rows, all named: exit 0, want 1 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL B1: only an untracked census file is BLIND, not FAIL, not PASS: exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL B2: a runner that answers OK to anything is caught by the control needle: exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL B3: runner missing while the manifest exists is BLIND: exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL B4: an unexpected runner exit code is BLIND: exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+FAIL SKIP: no runner and no manifest: exit 0, want 3 — CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — stub 
+[mutation:manifest-complete] passed=1 failed=11

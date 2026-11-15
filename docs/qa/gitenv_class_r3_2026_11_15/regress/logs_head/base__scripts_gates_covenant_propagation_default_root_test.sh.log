@@ -1,0 +1,7 @@
+ok - helper covenant_propagation_default_root exists
+ok - plain repo resolves to itself
+ok - vendored constitution inside a git consumer resolves to the consumer
+ok - constitution dir whose parent is not a git repo resolves to itself
+ok - no --root from unrelated cwd equals explicit --root (rc)
+ok - no --root names the repo root, not the cwd-relative parent
+# pass=6 fail=0

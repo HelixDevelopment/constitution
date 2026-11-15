@@ -1,0 +1,2 @@
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh (line 108): own scrub lacks GIT_SHALLOW_FILE,GIT_GRAFT_FILE,GIT_REPLACE_REF_BASE,GIT_NO_REPLACE_OBJECTS,GIT_QUARANTINE_PATH,GIT_INTERNAL_SUPER_PREFIX
+git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1

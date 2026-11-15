@@ -1,0 +1,137 @@
+docs/qa/ownership_wave2/repro_p8.sh	kill -
+install_upstreams.sh	git push
+scripts/codegraph/codegraph_mcp_health.py	os.kill
+scripts/codegraph/codegraph_safe.sh	kill -
+scripts/codegraph/tests/test_mcp_readonly.sh	kill "$
+scripts/constitution_ext/ext_engine.py	os.kill
+scripts/credscan/tests/test_credscan.py	kill -
+scripts/extensions/install_speckit_superpowers_bridge_test.sh	shutdown
+scripts/extensions/probe_bridge_layers.sh	systemctl
+scripts/extensions/validate_bridge.sh	curl 
+scripts/fastcycle/consumers/migrate.sh	ssh 
+scripts/fastcycle/cycle/fc_supervisor.py	shutdown
+scripts/fastcycle/gates/lib/io_trace_build_map.py	reboot
+scripts/fastcycle/lib/fc_common.py	killpg
+scripts/fastcycle/orchestration/custody_sweep.py	git push
+scripts/fastcycle/orchestration/handoff.py	shutdown
+scripts/fastcycle/orchestration/sc006_exercise.sh	kill -
+scripts/fastcycle/review/review_record.py	podman
+scripts/fastcycle/tests/check_deps.sh	kill -
+scripts/fastcycle/tests/check_safepath_census.py	rsync
+scripts/fastcycle/tests/test_baseline_replay_r2_findings.sh	kill -
+scripts/fastcycle/tests/test_baseline_replay_r6_findings.sh	kill -
+scripts/fastcycle/tests/test_check_deps.sh	kill -
+scripts/fastcycle/tests/test_consumer_migrate_red.sh	git push
+scripts/fastcycle/tests/test_core_ondemand_red.sh	pkill
+scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh	killpg
+scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh	killpg
+scripts/fastcycle/tests/test_custody_sweep_r19_regression.sh	os.kill
+scripts/fastcycle/tests/test_escape_classify_red.sh	pkill
+scripts/fastcycle/tests/test_fc_commit_stage_timer_red.sh	git push
+scripts/fastcycle/tests/test_fc_common_red.sh	pkill
+scripts/fastcycle/tests/test_fc_safepath_v4r13.sh	os.kill
+scripts/fastcycle/tests/test_fc_safepath_v4r15.sh	kill "$
+scripts/fastcycle/tests/test_fc_supervisor_unit.sh	os.kill
+scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh	pkill
+scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh	pkill
+scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh	shutdown
+scripts/fastcycle/tests/test_fc_timer_golden_output.sh	curl 
+scripts/fastcycle/tests/test_io_trace_build_map_r6_regression.sh	adb 
+scripts/fastcycle/tests/test_precheck_pack_build_red.sh	pkill
+scripts/fastcycle/tests/test_precheck_shellcheck_red.sh	kill "$
+scripts/fastcycle/tests/test_precheck_slicer_red.sh	pkill
+scripts/fastcycle/tests/test_repo_verify_red.sh	ssh 
+scripts/fastcycle/tests/test_token_attribution_red.sh	kill -
+scripts/fastcycle/timing/fc_timer_selftest.sh	kill -
+scripts/fastcycle/tokens/test_dispatch_stamp_r7_matrix.sh	killpg
+scripts/fastcycle/verify/repo_verify.py	git push
+scripts/full_suite/run_full_suite.py	os.kill
+scripts/gates/cm_anchor_record_complete.sh	git push
+scripts/gates/cm_codegraph_mcp_health_mutation_test.sh	kill "$
+scripts/gates/cm_dangerous_combination_fail_closed.sh	os.kill
+scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	os.kill
+scripts/gates/cm_installer_no_push_no_force.sh	git push
+scripts/gates/cm_installer_no_push_no_force_mutation_test.sh	rsync
+scripts/gates/cm_jev_bootstrap_idempotent.sh	pkill
+scripts/gates/cm_killpg_pgid_guard.sh	killpg
+scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh	killpg
+scripts/gates/cm_test_mock_pid_explicit_int.sh	killpg
+scripts/gates/scanner_gate_false_positive_repairs_test.sh	killpg
+scripts/hooks/constitution-submodule-post-checkout	kill -
+scripts/hooks/guard-destructive-paths.py	rsync
+scripts/hooks/guard-forbidden-commands.sh	git push
+scripts/hooks/test_guard_branch_consistency.sh	git push
+scripts/hooks/test_guard_bypasses.py	sudo
+scripts/hooks/test_guard_destructive_paths.sh	sudo
+scripts/hooks/test_guard_forbidden_commands.sh	sudo
+scripts/hooks/test_label_sync_hooks.sh	kill -
+scripts/install_constitution.sh	curl 
+scripts/jev/bootstrap.sh	curl 
+scripts/label-sync/adapters/tests/test_real_agents.sh	kill "$
+scripts/label-sync/prove_adapter_mutations.sh	kill -
+scripts/label-sync/render/tests/test_render.sh	kill "$
+scripts/multitrack/multitrack_alias_orchestrator.sh	reboot
+scripts/multitrack/multitrack_checkout_owner_lock.sh	kill -
+scripts/multitrack/multitrack_device_lock.sh	reboot
+scripts/multitrack/multitrack_fallback_monitor.sh	kill "$
+scripts/multitrack/multitrack_sessions.sh	kill -
+scripts/multitrack/multitrack_supervisor.sh	reboot
+scripts/multitrack/test_multitrack_conductor_autoarm.sh	pkill
+scripts/multitrack/test_multitrack_host_budget_rb02_pgrep.sh	pkill
+scripts/multitrack/test_multitrack_monday_dryrun.sh	kill "$
+scripts/multitrack/test_multitrack_redpin_mutations.sh	kill "$
+scripts/multitrack/test_multitrack_sessions_pid_status.sh	kill "$
+scripts/multitrack/test_multitrack_supervisor.sh	kill -
+scripts/multitrack/test_multitrack_supervisor_wiring.sh	kill -
+scripts/post_update_hook.sh	ssh 
+scripts/prompts/rotate_setup_prompt.sh	kill -
+scripts/release/tag_and_release.sh	git push
+scripts/release_publish_gitea.sh	curl 
+scripts/release_tag.sh	git push
+scripts/skill_activation/test_skill_activation.sh	kill "$
+scripts/update_constitution.sh	ssh 
+scripts/validation/enumerate_decision_mutants.py	os.kill
+scripts/validation/test_enumerate_decision_mutants_r2_regression.sh	os.kill
+scripts/validation/test_meta_test_verification_r1_regression.sh	killpg
+tests/constitution_cmd/test_constitution_cmd_pty.sh	killpg
+tests/decisions/test_round7.sh	os.kill
+tests/extensions/test_ownership_e01.sh	os.kill
+tests/extensions/test_security.sh	curl 
+tests/extensions/test_unit.py	curl 
+tests/gates/test_gate_env_census_jq_regions.sh	sudo
+tests/gates/test_gate_env_overrides_guarded.sh	killpg
+tests/gates/test_manifest_structural_parser.sh	killpg
+tests/install/test_agent.sh	ssh 
+tests/install/test_chaos.sh	kill -
+tests/install/test_e2e.sh	curl 
+tests/install/test_git_wrapper.sh	git push
+tests/install/test_lock.sh	kill -
+tests/install/test_round10.sh	git push
+tests/install/test_round6.sh	ssh 
+tests/install/test_round8.sh	kill -
+tests/install/test_round9.sh	git push
+tests/install/test_unit.sh	ssh 
+tests/install/test_updater.sh	kill "$
+tests/jev/test_detection_matrix.sh	kill "$
+tests/jev/test_hosted_key_discovery.sh	curl 
+tests/layout/lib_layout_harness.sh	kill "$
+tests/layout/test_consumer_trust_lock.sh	kill "$
+tests/layout/test_generator_atomic.sh	pkill
+tests/layout/test_layout_mutations.sh	kill -
+tests/layout/test_round4_hardening.sh	kill "$
+tests/layout/test_round6_hardening.sh	kill "$
+tests/layout/test_round7_ambient.sh	kill "$
+tests/layout/test_round8_git_env.sh	kill "$
+tests/prompts/allowlist_bypass_forms.py	git push
+tests/prompts/git_allowlist.py	sudo
+tests/prompts/test_rotate_hardening.sh	kill "$
+tests/prompts/test_setup_prompt_content.sh	git push
+tests/prompts/test_setup_prompt_round4.sh	git push
+tests/prompts/test_setup_prompt_round4_mutants.sh	git push
+tests/prompts/test_setup_prompt_round5.sh	ssh 
+tests/prompts/test_setup_prompt_round5_stops.sh	git push
+tests/prompts/test_setup_prompt_round7.sh	sudo
+tests/release/test_publish_gitea.sh	curl 
+tests/release/test_tag_and_release.sh	git push
+tests/test_no_head_red_builder.sh	git push
+tests/test_run_full_suite.sh	killpg

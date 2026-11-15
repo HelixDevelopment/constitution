@@ -1,0 +1,2 @@
+git-env-class-census: FAIL - UNSCRUBBED scripts/install_constitution.sh (line 93): canonical scrub line with a list that differs from CL_GIT_SCRUB_VARS
+git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1

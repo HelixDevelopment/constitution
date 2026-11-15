@@ -1,0 +1,11 @@
+— cm_escape_ratchet.sh OUTSIDE self-check (real CLI path) —
+gate under test: /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r4/scripts/gates/cm_escape_ratchet.sh
+SELFCHECK	PASS	golden-good: a clean cycle within baseline ALLOWs (rc=0, reason matched)
+SELFCHECK	PASS	golden-good tally: the automated_seam find is counted as CAUGHT (escapes=0 caught_by_automated_seam=1)
+SELFCHECK	PASS	golden-bad: an escape-count INCREASE REFUSEs (rc=1, reason matched)
+SELFCHECK	PASS	golden-bad names the offending rows (ATM-1, ATM-2 both appear in the refusal)
+SELFCHECK	PASS	negative-control: manual_qa_ran=false is NO DATA POINT, not a refusal (rc=0, reason matched)
+SELFCHECK	PASS	negative-control: baseline UNCHANGED at 3 even under --ratchet (a cycle nobody inspected cannot ratchet)
+SELFCHECK	PASS	operator-pending: an UNSET baseline SKIPs honestly, never invents a metric (rc=0, reason matched)
+SELFCHECK	PASS	no pollution: the production ledger and baseline are byte-identical before/after
+SELFCHECK	SUMMARY	pass=8 fail=0 refusals_observed=1

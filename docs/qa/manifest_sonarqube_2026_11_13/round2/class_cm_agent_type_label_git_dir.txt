@@ -1,0 +1,21 @@
+# run: rc=0 wall=319s load_start=46.32 load_end=44.52 cmd=bash <scratch>/probes/class_probe.sh <scratch>/redclone scripts/gates/cm_agent_type_label.sh dir
+gate=scripts/gates/cm_agent_type_label.sh mode=dir env=GIT_DIR=<scratch>/probes/sen.anT9x1/.git gate_rc=1 wall=318s
+SENTINEL: CHANGED (before e85a21ad582110e20186027690a881dbd4fb86328c4bfd07030f31266fe34682 after 3fcc5999afda05b8db0322104200ef5a00e6b74694082fac01a247cbdc4533db)
+--- state diff (before/after):
+1,2c1,6
+< refs/heads/sentinelbranch 079c435
+< 079c435 sentinel
+---
+> refs/heads/sentinelbranch c3039cb
+> c3039cb i
+> 621ab6e i
+> 6ebfca6 i
+> 9ca0232 i
+> 222bb08 i
+--- gate output tail:
+✅ HOOK: a model/effort parameter that overrides the type blocks under ENFORCE; matching parameters pass
+✅ HOOK: WARN payload is valid JSON for a subagent_type with a quote and a backslash
+✅ HOOK: empty bypass reason does not bypass
+✅ HOOK: hand-made T<N> types do not count as generated (golden-FALSE)
+----------------------------------------------------------------------
+❌ CM-AGENT-TYPE-LABEL: FAIL

@@ -1,0 +1,8 @@
+round-2 section: pass=103 fail=0
+round-3 section: pass=52 fail=0
+round-4 section: pass=36 fail=0
+round-5 section: pass=93 fail=0
+round-5 survey section: pass=25 fail=0
+round-7 section: pass=98 fail=0
+G5 table-driven cases: 1146
+guard bypass tests: pass=2429 fail=0

@@ -1,0 +1,26 @@
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) UNIT-1: L1 not WIRED → installer refuses (rc=1), naming L1
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) UNIT-2: L2 not WIRED → installer refuses (rc=1), explicitly never calling init
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) UNIT-3: --superb-from without --superb-vetted-by → installer refuses (rc=1)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) UNIT-4: default (un-vetted) state → installer PASSes, L4 reported skipped ('skipped-not-vetted'), no state mutation (superb never registered)
+  SKIP  [install_speckit_superpowers_bridge tests] INTEGRATION-1 (real root): reason=topology_unsupported (no .specify/ under <scratch>/gitenv_class.MjjE/red) (not counted as PASS)
+  SKIP  [install_speckit_superpowers_bridge tests] INTEGRATION-1L / FULL-AUTOMATION-1L / INTEGRATION-1L-MUT (live specify-init fixture): reason=topology_unsupported (missing dependency: no local superspec checkout (extension.yml) found; set SUPERSPEC_SRC (no dependency-absent code in the closed set, so topology_unsupported)) (not counted as PASS)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) META-1: real specify + an unusable superspec checkout -> the suite FAILs (LIVE-FIXTURE-BUILD), it does not SKIP, and the child announced REDUCED MODE (rc=1)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) META-2: a leaked BRIDGE_TEST_LIVE_FIXTURE_ONLY (no nonce / stale nonce file / wrong value) makes the suite FAIL loudly (SEAM-GUARD), never a silent reduced PASS
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) NET-CLASS: fixture-build failure is classified network-absent only with a network signature AND a down network probe; every other case is a FAIL
+  SKIP  [install_speckit_superpowers_bridge tests] NET-LIVE: reason=topology_unsupported (needs the real specify and a superspec checkout: missing dependency: no local superspec checkout (extension.yml) found; set SUPERSPEC_SRC (no dependency-absent code in the closed set, so topology_unsupported)) (not counted as PASS)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) CWD-1: L4 run from a foreign cwd — every specify call ran inside --root, registered superb dir NOT deleted (rc=0)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) CWD-2: failed registration probe did NOT trigger rm -rf of .specify/extensions/superb
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) CWD-3: probe rc=1 printing a parseable '[]' did NOT trigger rm -rf of .specify/extensions/superb
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) REL-1: relative SPECIFY_BIN + relative --report-file + relative local --superb-from were resolved against the caller's cwd; every specify call ran in --root with the absolute archive path (rc=0)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) REL-2: relative local SUPERSPEC_FROM=./localsrc reached the L3 install as the absolute path @pin, called inside --root (rc=0)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) WARN-1: unresolved relative --superb-from values (missing path, existing scp-shaped path) are warned on stderr; an existing relative path and a URL are not
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) PROBE-1: probe_bridge_layers.sh used SPECIFY_BIN for L2 cli presence (exactly <tmp>/probe1/caller/specify), L3 extension list and L4 catalog search
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) GATELOGIC-1F: real installer + real probe, STUB specify/claude, against a spec-kit-shaped fixture consumer root PASSes, evidence written
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) GATELOGIC-1M: mutated fixture (carrier removed) → verdict FAIL (not skipped), naming L1
+  SKIP  [install_speckit_superpowers_bridge tests] FULL-AUTOMATION-1 (real root): reason=topology_unsupported (no .specify/ under <scratch>/gitenv_class.MjjE/red) (not counted as PASS)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) GATELOGIC-2F: two consecutive autonomous runs on the fixture consumer both PASS with identical per-layer status ('already-wired-pin-verified skipped-not-vetted PASS')
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) CHAOS-1 setup: interruption genuinely captured mid-install (partial dir present, in-progress marker present, NOT registered in state)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) CHAOS-1 scope: the stale-superb cleanup left the sibling extension directory (.specify/extensions/superspec) intact
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) CHAOS-1 recovery: re-run after a SIGKILL-interrupted install cleans stale state and completes successfully (rc=0, superb registered, no stale in-progress marker)
+  PASS  [install_speckit_superpowers_bridge tests] (unit/stub-class) ROOT-1: resolved ROOT (<scratch>/gitenv_class.MjjE/red) is a repo root containing this script; real-root evidence is written inside the repo only
+== install_speckit_superpowers_bridge tests: PASS (live=0 stub-class=21 skipped=4 [skips are not passes; stub-class is not live evidence]; full suite) ==

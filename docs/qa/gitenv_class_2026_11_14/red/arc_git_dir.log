@@ -1,0 +1,3 @@
+RESULT gate REFUSE
+🛑 REFUSE   CM-ANCHOR-RECORD-COMPLETE: engine root '<scratch>/gitenv_class.MjjE/red/scripts/gates/../../submodules/continuum' carries no go.mod
+   The gate decided NOTHING. This is not a pass (§11.4.201(6)).

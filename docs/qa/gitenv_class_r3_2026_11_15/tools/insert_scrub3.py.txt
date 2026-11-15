@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""insert_scrub3.py <repo> <file>... : insert the canonical file-level scrub of the git-env class.
+
+shell  : the canonical line at column 0 right after the preamble (shebang, comments, blank lines, whole-line
+         set/shopt/umask/plain assignments), using the census's own preamble rule;
+python : `import os as _ge_os` + the canonical `for _ge_v in "...".split(): _ge_os.environ.pop(_ge_v, None)`
+         right after the module docstring and `from __future__` imports (ast), else before the first statement.
+The list is CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh. After writing, the file is re-parsed
+(`bash -n` / `sh -n` for shell, ast for python) and re-judged by the census's classifier; any file that does
+not come out with a file-level scrub, or fails to parse, is restored byte for byte and reported REFUSE.
+A file that already holds a scrub form is refused untouched. Exit 0 when every file was inserted, 1 otherwise.
+"""
+import ast
+import os
+import re
+import subprocess
+import sys
+
+repo = sys.argv[1]
+sys.path.insert(0, os.path.join(repo, "scripts/validation"))
+import git_env_class_census as c  # noqa: E402
+
+lib = open(os.path.join(repo, "scripts/lib/constitution_layout.sh"), encoding="utf-8").read()
+canon = re.search(r'^CL_GIT_SCRUB_VARS="([^"]+)"$', lib, re.M).group(1)
+NOTE = ("git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS "
+        "of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)")
+SH_LINE = 'for _ge_v in %s; do unset "$_ge_v"; done; unset _ge_v  # %s' % (canon, NOTE)
+PY_LINES = ["import os as _ge_os  # " + NOTE,
+            'for _ge_v in "%s".split(): _ge_os.environ.pop(_ge_v, None)' % canon]
+bad = 0
+for f in sys.argv[2:]:
+    p = os.path.join(repo, f)
+    orig = open(p, "rb").read()
+    s = orig.decode("utf-8")
+    raw = s.split("\n")
+    lang = c.lang_of(f, s[:200])
+    if "_ge_v" in s or "cl_scrub_git_env" in s:
+        print("REFUSE %s: already holds a scrub form" % f)
+        bad += 1
+        continue
+    if lang == "sh":
+        code = c.code_lines("sh", s)
+        at = None
+        for i, r in enumerate(raw):
+            if i == 0 and r.startswith("#!"):
+                continue
+            t = code[i].strip()
+            if not t:
+                continue
+            if c.PREAMBLE.match(t) and not (t.count('"') % 2 or t.count("'") % 2 or t.endswith("\\")):
+                continue
+            at = i
+            break
+        if at is None:
+            at = len(raw) - 1 if raw and raw[-1] == "" else len(raw)
+        raw.insert(at, SH_LINE)
+    elif lang == "py":
+        tree = ast.parse(s)
+        at = 0
+        body = tree.body
+        k = 0
+        if body and isinstance(body[0], ast.Expr) and isinstance(getattr(body[0], "value", None), ast.Constant) \
+                and isinstance(body[0].value.value, str):
+            at = body[0].end_lineno
+            k = 1
+        while k < len(body) and isinstance(body[k], ast.ImportFrom) and body[k].module == "__future__":
+            at = body[k].end_lineno
+            k += 1
+        if at == 0:
+            if body:
+                first = body[k]
+                decos = getattr(first, "decorator_list", []) or []
+                at = min([first.lineno] + [d.lineno for d in decos]) - 1
+                # keep leading comment lines (shebang, coding, licence) above the scrub
+                while at > 0 and raw[at - 1].strip() == "":
+                    at -= 1
+            else:
+                at = len(raw) - 1 if raw and raw[-1] == "" else len(raw)
+        for j, l in enumerate(PY_LINES):
+            raw.insert(at + j, l)
+    else:
+        print("REFUSE %s: language %s has no insertion form here" % (f, lang))
+        bad += 1
+        continue
+    new = "\n".join(raw)
+    open(p, "w", encoding="utf-8").write(new)
+    ok = True
+    why = ""
+    if lang == "sh":
+        sh = "bash"
+        first = raw[0] if raw else ""
+        if first.startswith("#!") and re.search(r"\b(dash|sh)\b", first) and "bash" not in first:
+            sh = "sh"
+            tmpo = p + ".orig_parse_probe"
+            open(tmpo, "wb").write(orig)
+            ro = subprocess.run(["sh", "-n", tmpo], capture_output=True, text=True)
+            os.unlink(tmpo)
+            if ro.returncode != 0:
+                sh = "bash"   # the original already fails `sh -n` (pre-existing; it is run by bash): check with bash
+                print("NOTE %s: original already fails sh -n (%s); parse-checked with bash -n" % (f, ro.stderr.strip()[:120]))
+        r = subprocess.run([sh, "-n", p], capture_output=True, text=True)
+        if r.returncode != 0:
+            ok, why = False, "%s -n: %s" % (sh, r.stderr.strip()[:200])
+    else:
+        try:
+            ast.parse(new)
+        except SyntaxError as e:
+            ok, why = False, "ast: %s" % e
+    if ok:
+        st, line, detail, _ws = c.judge(lang, new, canon.split())
+        if st != "HERMETIC":
+            ok, why = False, "census after insert: %s (%s)" % (st, detail[:160])
+    if not ok:
+        open(p, "wb").write(orig)
+        print("REFUSE %s: %s (restored)" % (f, why))
+        bad += 1
+        continue
+    print("INSERT %s:%d (%s)" % (f, at + 1, lang))
+sys.exit(1 if bad else 0)

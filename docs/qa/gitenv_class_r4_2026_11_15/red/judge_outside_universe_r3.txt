@@ -1,0 +1,25 @@
+Counter({'skipext': 1208, 'data': 660, 'code:sh': 50, 'nonfile': 27, 'bin': 22, 'code:py': 14})
+UNSCRUBBED	sh	docs/qa/con030_review/con030_class_repro.sh	8	no file-level scrub; git write: mkdir -p "$F"; git init -q "$F/lib"; gitc "$F/lib" commit -q --allow
+UNSCRUBBED	sh	docs/qa/con030_review/review_r3_drv_ign_sub.sh	7	no file-level scrub; git write: mkdir -p "$F"; git init -q "$F/lib"; printf 'out/\n' > "$F/lib/.giti
+NOSCRUB	sh	docs/qa/ownership_wave2/repro_p8.sh	5	mentions git (first at line 5) and has no file-level scrub
+NOSCRUB	sh	docs/research/quality/solutions/poc/sol08_scope_coverage/scope_coverage.sh	17	mentions git (first at line 17) and has no file-level scrub
+UNSCRUBBED	sh	docs/research/quality/solutions/poc/sol08_scope_coverage/test_sol08.sh	31	no file-level scrub; git write: mkdir -p "$1"; git -C "$1" init -q
+NOSCRUB	sh	find_constitution.sh	8	mentions git (first at line 8) and has no file-level scrub
+UNSCRUBBED	sh	install_upstreams.sh	414	no file-level scrub; git write: echo "      version of this script it may misdirect 'git push ${exis
+NOSCRUB	sh	plugins/scheduled-work/build.sh	7	mentions git (first at line 7) and has no file-level scrub
+NOSCRUB	py	progressive/gen_evidence.py	7	mentions git (first at line 7) and has no file-level scrub
+UNSCRUBBED	py	progressive/generate_split.py	123	no file-level scrub; git write: ("git", ("git", "commit", "push", "branch", "submodule")),
+UNSCRUBBED	py	progressive/mutation_matrix.py	57	no file-level scrub; git write: for args in (["git", "init", "-q"], ["git", "config", "user.email", 
+UNSCRUBBED	py	progressive/token_harness.py	135	no file-level scrub; git write: subprocess.run(["git", "init", "-q"], cwd=work / "w", check=True)
+UNSCRUBBED	py	progressive/validate_submodule.py	59	no file-level scrub; git write: rc, st = sh(["git", "submodule", "status", "--recursive"])
+NOSCRUB	sh	skills/multitrack/register.sh	9	mentions git (first at line 9) and has no file-level scrub
+NOSCRUB	sh	skills/session-sync/session-sync.sh	62	mentions git (first at line 62) and has no file-level scrub
+NOSCRUB	sh	skills/skill-catalog/register.sh	10	mentions git (first at line 10) and has no file-level scrub
+NOSCRUB	sh	upstreams/codeberg.sh	3	mentions git (first at line 3) and has no file-level scrub
+NOSCRUB	sh	upstreams/gitflic.sh	3	mentions git (first at line 3) and has no file-level scrub
+NOSCRUB	sh	upstreams/github.sh	3	mentions git (first at line 3) and has no file-level scrub
+NOSCRUB	sh	upstreams/gitlab.sh	3	mentions git (first at line 3) and has no file-level scrub
+NOSCRUB	sh	upstreams/gitverse.sh	3	mentions git (first at line 3) and has no file-level scrub
+NOSCRUB	sh	upstreams/m3w.sh	3	mentions git (first at line 3) and has no file-level scrub
+NOSCRUB	sh	upstreams/vasic_digital_github.sh	3	mentions git (first at line 3) and has no file-level scrub
+NOSCRUB	sh	upstreams/vasic_digital_gitlab.sh	3	mentions git (first at line 3) and has no file-level scrub

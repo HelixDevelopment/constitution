@@ -1,0 +1,51 @@
+PASS: [submodules/constitution] setup installed the consumer as the SUBMODULE's post-checkout (executable)
+PASS: [submodules/constitution] setup recorded the applied ref = v1
+PASS: [submodules/constitution] pull --recurse-submodules exits 0 (rc=0)
+PASS: [submodules/constitution] pull --recurse-submodules: checkout reached v2
+PASS: [submodules/constitution] pull --recurse-submodules: post-update ran EXACTLY once (got 1)
+PASS: [submodules/constitution] pull --recurse-submodules: OLD=v1 NEW=v2 handed over
+PASS: [submodules/constitution] pull --recurse-submodules: PROJECT_ROOT=<project>, run from the project root
+PASS: [submodules/constitution] pull --recurse-submodules: stamp consumed
+PASS: [submodules/constitution] pull --recurse-submodules: applied ref = v2
+PASS: [submodules/constitution] re-update / re-pull: still exactly one run (got 1)
+PASS: [submodules/constitution] -c submodule.recurse=true pull: rc=0, ran once with OLD=v2 NEW=v3 (calls=1)
+PASS: [submodules/constitution] plain pull: rc=0, NOT run on the stale checkout
+PASS: [submodules/constitution] plain pull: stamp written with OLD=v3 NEW=v4
+PASS: [submodules/constitution] plain pull: hint names the quoted 'cd' + 'git submodule update' command
+PASS: [submodules/constitution] second plain pull keeps the EARLIEST OLD (v3) and NEW=v5
+PASS: [submodules/constitution] git submodule update: rc=0, ran once with OLD=v3 NEW=v5 (calls=1)
+PASS: [submodules/constitution] git submodule update: stamp consumed
+PASS: [submodules/constitution] conflicting pull stops (rc=1 != 0), nothing run
+PASS: [submodules/constitution] conflict resolved + committed: still nothing run (post-merge not invoked)
+PASS: [submodules/constitution] conflict path: git submodule update runs it once with OLD=applied(v5) NEW=v6 (calls=1)
+PASS: [submodules/constitution] consumer missing: WARNING says not installed + gives quoted cd and the env range
+PASS: [constitution] setup installed the consumer as the SUBMODULE's post-checkout (executable)
+PASS: [constitution] setup recorded the applied ref = v1
+PASS: [constitution] pull --recurse-submodules exits 0 (rc=0)
+PASS: [constitution] pull --recurse-submodules: checkout reached v2
+PASS: [constitution] pull --recurse-submodules: post-update ran EXACTLY once (got 1)
+PASS: [constitution] pull --recurse-submodules: OLD=v1 NEW=v2 handed over
+PASS: [constitution] pull --recurse-submodules: PROJECT_ROOT=<project>, run from the project root
+PASS: [constitution] pull --recurse-submodules: stamp consumed
+PASS: [constitution] pull --recurse-submodules: applied ref = v2
+PASS: [constitution] re-update / re-pull: still exactly one run (got 1)
+PASS: [constitution] -c submodule.recurse=true pull: rc=0, ran once with OLD=v2 NEW=v3 (calls=1)
+PASS: [constitution] plain pull: rc=0, NOT run on the stale checkout
+PASS: [constitution] plain pull: stamp written with OLD=v3 NEW=v4
+PASS: [constitution] plain pull: hint names the quoted 'cd' + 'git submodule update' command
+PASS: [constitution] second plain pull keeps the EARLIEST OLD (v3) and NEW=v5
+PASS: [constitution] git submodule update: rc=0, ran once with OLD=v3 NEW=v5 (calls=1)
+PASS: [constitution] git submodule update: stamp consumed
+PASS: [constitution] conflicting pull stops (rc=1 != 0), nothing run
+PASS: [constitution] conflict resolved + committed: still nothing run (post-merge not invoked)
+PASS: [constitution] conflict path: git submodule update runs it once with OLD=applied(v5) NEW=v6 (calls=1)
+PASS: [constitution] consumer missing: WARNING says not installed + gives quoted cd and the env range
+PASS: GIT_DIR exported into post-merge: runs directly once with OLD=v1 NEW=v2 (no stale/stamp path)
+PASS: deinit'd + unrelated pull: no hook output at all
+PASS: deinit'd + gitlink bump: exactly ONE concise warning line naming the init command (got 1)
+PASS: M-e fixture: vendor/other is a gitlink and NOT a constitution checkout
+PASS: M-a: non-gitlink submodules/constitution trojan lib NOT sourced; ../ and absolute .gitmodules paths NOT sourced
+PASS: no constitution found + only a NON-constitution gitlink moved: no warning (M-e scope)
+PASS: consumer hook parses under bash -n
+----
+pending_update_layout: PASS=49 FAIL=0

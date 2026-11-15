@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""sweep.py <worktree> <outdir> <list.tsv>: run every row (label<TAB>timeout<TAB>modes<TAB>argv words...) under
+the round-3 reviewer sentinel harness sent.sh, one fresh HOME per run (tempfile.mkdtemp under TMPDIR, passed in
+the child environment, never a shell reassignment). Prints one sent.sh result line per run into outdir/res.tsv.
+Homes are listed in outdir/homes.txt for a guarded removal afterwards (safe_rm_rf)."""
+import os
+import subprocess
+import sys
+import tempfile
+import time
+
+wt, out, lst = sys.argv[1], sys.argv[2], sys.argv[3]
+TMP = os.environ["TMPDIR"]
+SENT = "/mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/tools/sent.sh"
+os.makedirs(out, exist_ok=True)
+res = open(os.path.join(out, "res.tsv"), "a")
+homes = open(os.path.join(out, "homes.txt"), "a")
+env0 = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+for line in open(lst):
+    if not line.strip() or line.startswith("#"):
+        continue
+    f = line.rstrip("\n").split("\t")
+    label, tmo, modes, argv = f[0], f[1], f[2].split(","), f[3:]
+    for mode in modes:
+        while float(open("/proc/loadavg").read().split()[0]) >= 60:
+            time.sleep(20)
+        home = tempfile.mkdtemp(prefix="swhome.", dir=TMP)
+        assert home.startswith(TMP + "/swhome.")
+        homes.write(home + "\n")
+        homes.flush()
+        env = dict(env0, HOME=home, SENT_KEEP=os.path.join(out, "keep"))
+        t0 = time.time()
+        p = subprocess.run([SENT, mode, tmo, label] + argv, cwd=wt, env=env, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        last = [l for l in p.stdout.splitlines() if l.startswith(label + "\t")]
+        res.write("%s\t%.0fs\n" % (last[-1] if last else "%s\t%s\tNO-RESULT\t%s" % (label, mode, p.stdout[-200:].replace("\n", " ")), time.time() - t0))
+        res.flush()
+print("done")

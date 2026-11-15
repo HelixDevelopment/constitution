@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""gen_sweep.py <census.tsv> <outdir> <parts> <timeout>: write <parts> batch scripts that run every HERMETIC
+member under sent.sh mode "both" from the scratch repo root. Each run gets its own fresh HOME directory, created
+here with tempfile.mkdtemp and written into the batch script as a literal path (never an expansion)."""
+import os
+import shlex
+import sys
+import tempfile
+
+tsv, out, parts, tmo = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+EXCL = set(l.split("\t")[0] for l in open(sys.argv[5])) if len(sys.argv) > 5 else set()
+B = "/mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR"
+TMP = "/mnt/DATA1TB/claude-work/tmp"
+members = []
+for line in open(tsv, encoding="utf-8"):
+    f = line.rstrip("\n").split("\t")
+    if len(f) >= 3 and f[0] == "HERMETIC" and f[1] in ("sh", "py", "js") and f[2] not in EXCL:
+        members.append((f[1], f[2]))
+os.makedirs(out, exist_ok=True)
+open(os.path.join(out, "sweep_list.tsv"), "w").write("".join("%s\t%s\n" % m for m in members))
+for p in range(parts):
+    lines = ["#!/bin/bash", "set -u", "export TMPDIR=%s" % TMP, "cd %s/repo || exit 9" % B]
+    for i, (lang, path) in enumerate(members):
+        if i % parts != p:
+            continue
+        home = tempfile.mkdtemp(prefix="swhome.", dir=TMP)
+        assert home.startswith(TMP + "/swhome.")
+        interp = {"sh": "bash", "py": "python3", "js": "node"}[lang]
+        lines.append('while [ "$(cut -d" " -f1 /proc/loadavg | cut -d. -f1)" -ge 60 ]; do sleep 20; done')
+        lines.append("HOME=%s SENT_KEEP=%s/keep %s/tools/sent.sh both %d %s %s %s </dev/null >>%s/res%02d.tsv 2>&1"
+                     % (shlex.quote(home), out, B, tmo, shlex.quote(path), interp, shlex.quote(path), out, p))
+        lines.append("rm -rf -- %s" % shlex.quote(home))
+    lines.append("echo DONE >>%s/res%02d.tsv" % (out, p))
+    open(os.path.join(out, "batch%02d.sh" % p), "w").write("\n".join(lines) + "\n")
+print("members", len(members))

@@ -1,0 +1,8 @@
+install_upstreams	none	rc=0	UNCHANGED	hits=0
+install_upstreams	gitdir	rc=0	CHANGED	hits=43
+install_upstreams	both	rc=0	CHANGED	hits=86
+mutation_matrix.make_sandbox	none	rc=0	UNCHANGED	hits=0
+mutation_matrix.make_sandbox	gitdir	rc=0	CHANGED	hits=6
+mutation_matrix.make_sandbox	both	rc=0	CHANGED	hits=12
+multitrack_device_lock.help	none	rc=0	UNCHANGED	hits=0
+multitrack_device_lock.help	gitdir	rc=0	UNCHANGED	hits=2

@@ -1,0 +1,405 @@
+.......Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.....Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.........................Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.....constitution_ext: recovered: removed <tmp>/ext-unit-eng.rkehq9f1/proj/.opencode/commands/hello-fixture.md.tmp-4194303-deadbeef left by an interrupted wire
+...........Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - (none)
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+............Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+constitution_ext: recovered: removed <tmp>/ext-unit-eng.lucf04qr/proj/.constitution/extensions.snapshots/hello-fixture/hello-fixture/126de64f36016bff2a53c82225164d8bde224fd8b14379df950c8b87a731d52d.tmp-4194300-ab12cd34 left by an interrupted wire
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+constitution_ext: WARNING: ignored the journal <tmp>/ext-unit-eng.y7m04qxs/proj/.constitution/extensions.txn (not a JSON object): nothing was rolled back or deleted. Inspect it, then delete it; add/remove refuse while it is present.
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+constitution_ext: NOTE: <tmp>/ext-unit-eng.xqy80aun/root/extensions/_installed/.trash-4194303-deadbeef is left in place: no journal of this project names it (it may belong to another project's interrupted remove; that project's next command recovers it)
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+...Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+...Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by r4 (install):
+  trust tier: community
+  waiver id: WU
+  - command:c
+  - hook:session_start:h.sh
+  - mcp-command:m/mcpServers.x=["node","mcp/server.js"]  (the exact program and arguments an MCP client starts)
+  - mcp-server:m/x
+  - mcp:m
+  - sha256:h.sh=ab08508fdf5ca4da5c4995987bc41c56c048aaa5eeb046417ae4049b7d40286e  (the content of this file is part of the consent; any change needs a new consent)
+  - sha256:s.json=b0f74530be6be92743ad3aa4fd906041fb0cbc596d892fda08080a7e9677ce40  (the content of this file is part of the consent; any change needs a new consent)
+  - tree-sha256:6453c0ce6970c1f7d5777b4c5f9ed76866c625cef7d7a585275c6ce9b1394c55  (everything a hook, MCP server or program of this extension can load is part of the consent; any change to the tree needs a new consent)
+Capabilities requested by r4 (enable):
+  trust tier: community
+  waiver id: WU
+  - command:c
+  - hook:session_start:h.sh
+  - mcp-command:m/mcpServers.x=["node","mcp/server.js"]  (the exact program and arguments an MCP client starts)
+  - mcp-server:m/x
+  - mcp:m
+  - sha256:h.sh=ab08508fdf5ca4da5c4995987bc41c56c048aaa5eeb046417ae4049b7d40286e  (the content of this file is part of the consent; any change needs a new consent)
+  - sha256:s.json=b0f74530be6be92743ad3aa4fd906041fb0cbc596d892fda08080a7e9677ce40  (the content of this file is part of the consent; any change needs a new consent)
+  - tree-sha256:6453c0ce6970c1f7d5777b4c5f9ed76866c625cef7d7a585275c6ce9b1394c55  (everything a hook, MCP server or program of this extension can load is part of the consent; any change to the tree needs a new consent)
+...Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+...Capabilities requested by r4 (install):
+  trust tier: community
+  waiver id: WU
+  - command:c
+  - hook:session_start:h.sh
+  - mcp-command:m/mcpServers.x=["node","mcp/server.js"]  (the exact program and arguments an MCP client starts)
+  - mcp-server:m/x
+  - mcp:m
+  - sha256:h.sh=ab08508fdf5ca4da5c4995987bc41c56c048aaa5eeb046417ae4049b7d40286e  (the content of this file is part of the consent; any change needs a new consent)
+  - sha256:s.json=b0f74530be6be92743ad3aa4fd906041fb0cbc596d892fda08080a7e9677ce40  (the content of this file is part of the consent; any change needs a new consent)
+  - tree-sha256:6453c0ce6970c1f7d5777b4c5f9ed76866c625cef7d7a585275c6ce9b1394c55  (everything a hook, MCP server or program of this extension can load is part of the consent; any change to the tree needs a new consent)
+Capabilities requested by r4 (enable):
+  trust tier: community
+  waiver id: WU
+  - command:c
+  - hook:session_start:h.sh
+  - mcp-command:m/mcpServers.x=["node","mcp/server.js"]  (the exact program and arguments an MCP client starts)
+  - mcp-server:m/x
+  - mcp:m
+  - sha256:h.sh=ab08508fdf5ca4da5c4995987bc41c56c048aaa5eeb046417ae4049b7d40286e  (the content of this file is part of the consent; any change needs a new consent)
+  - sha256:s.json=b0f74530be6be92743ad3aa4fd906041fb0cbc596d892fda08080a7e9677ce40  (the content of this file is part of the consent; any change needs a new consent)
+  - tree-sha256:6453c0ce6970c1f7d5777b4c5f9ed76866c625cef7d7a585275c6ce9b1394c55  (everything a hook, MCP server or program of this extension can load is part of the consent; any change to the tree needs a new consent)
+..Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.......Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+constitution_ext: WARNING: --replace dropped 1 previous revocation(s)
+constitution_ext: WARNING: --replace dropped 1 previous revocation(s)
+....Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+......................constitution_ext: recovered: rolled back interrupted remove of x
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.8bsi1rsy/elsewhere/.trash-1-abcdef01 alone: this journal cannot prove it is the tree it moved out of <tmp>/ext-unit-eng.8bsi1rsy/root/extensions/_installed/x (it may belong to another project that shares this constitution root); x was not restored
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.ac8btugm/root/extensions/_installed/.trash-1-abcdef01 alone: this journal cannot prove it is the tree it moved out of <tmp>/ext-unit-eng.ac8btugm/root/extensions/_installed/x (it may belong to another project that shares this constitution root); x was not restored
+............Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+Capabilities requested by hello-fixture (enable):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.c6fgvf7f/root/extensions/_installed/.trash-1-abcdef01 alone: this journal cannot prove it is the tree it removed (it may belong to another project that shares this constitution root); delete it by hand if it is yours; the state record of x was kept too
+.constitution_ext: recovered: completed interrupted remove of x
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.bfh2rrit/root/extensions/_installed/.trash-1-abcdef01 alone: this journal cannot prove it is the tree it removed (it may belong to another project that shares this constitution root); delete it by hand if it is yours; the state record of x was kept too
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.muj1ae89/root/extensions/_installed/notatrash alone: this journal cannot prove it is the tree it moved out of <tmp>/ext-unit-eng.muj1ae89/root/extensions/_installed/x (it may belong to another project that shares this constitution root); x was not restored
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.ijw4yctl/root/extensions/_installed/.trash-1-abcdef01 alone: this journal cannot prove it is the tree it moved out of <tmp>/ext-unit-eng.ijw4yctl/root/extensions/_installed/sub/x (it may belong to another project that shares this constitution root); x was not restored
+..Capabilities requested by hello-fixture (install):
+  trust tier: community
+  waiver id: WU
+  - command:hello-fixture
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.mkzen65b/root/extensions/_installed/.trash-1-abcdef01 alone: this journal cannot prove it is the tree it moved out of <tmp>/ext-unit-eng.mkzen65b/root/extensions/_installed/x (it may belong to another project that shares this constitution root); x was not restored
+.constitution_ext: recovered: rolled back interrupted remove of x
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.gktpl9ax/root/extensions/_installed/.trash-1-abcdef01 alone: this journal cannot prove it is the tree it moved out of <tmp>/ext-unit-eng.gktpl9ax/root/extensions/_installed/x (it may belong to another project that shares this constitution root); x was not restored
+.constitution_ext: WARNING: left <tmp>/ext-unit-eng.p5wgm6dq/root/extensions/_installed/.trash-1-abcdef01 alone: this journal cannot prove it is the tree it moved out of <tmp>/ext-unit-eng.p5wgm6dq/root/extensions/_installed/x (it may belong to another project that shares this constitution root); x was not restored
+......................................................
+----------------------------------------------------------------------
+Ran 213 tests in 21.685s
+
+OK
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 1 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.dtqpitws/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 1 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.5g3tps_l/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 1 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.lucf04qr/proj
+lock written: <tmp>/ext-unit-eng.lucf04qr/proj/.constitution/extensions.lock.yml
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 1 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.c7mn4iij/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 1 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.c2sjck1x/proj
+removed 1 shim(s)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 1 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.4iz_5_xx/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+hello-fixture                    1.0.0        installed  enabled  ok
+OK   hello-fixture
+lock written: <tmp>/ext-unit-eng.xqy80aun/proj/.constitution/extensions.lock.yml
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 1 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.w30rthh_/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.wr8fuwg2/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.3fr_r5hg/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.qji_ib8o/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.yv7h72g_/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.q0xv_jwv/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.l4ivie_x/proj
+installed r4 1.0.0 (disabled; run enable r4)
+enabled r4 (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.miwwx2ox/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed r4 1.0.0 (disabled; run enable r4)
+enabled r4 (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.uwz212ez/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+wired 2 shim(s) for 1 extension(s) into <tmp>/ext-unit-eng.p2x1qjjt/proj
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+imported catalog c: 0 extensions, 1 revoked, install_allowed=true
+imported catalog c: 0 extensions, 1 revoked, install_allowed=true
+imported catalog c: 0 extensions, 2 revoked, install_allowed=true
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+enabled hello-fixture (hooks/MCP marked enabled in the lock; commands materialise with wire)
+installed hello-fixture 1.0.0 (disabled; run enable hello-fixture)
+removed hello-fixture
+unit: PASS 213 FAIL 0

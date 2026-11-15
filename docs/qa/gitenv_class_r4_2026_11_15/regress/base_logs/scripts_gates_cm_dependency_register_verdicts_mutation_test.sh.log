@@ -1,0 +1,21 @@
+=== paired §1.1 mutation for cm_dependency_register_verdicts.sh ===
+tracked target (READ-ONLY to this harness): /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r3/scripts/gates/lib/dependency_register.sh
+mutating an out-of-repo copy at:            /mnt/DATA1TB/claude-work/tmp/gm_pair.nF575W/gates/lib/dependency_register.sh
+--- direction 0: baseline on the unmutated copy ---
+  [ok]   baseline DRV-A4-NAME-COLLISION-AMBIGUOUS = PASS (there is something for the mutation to flip)
+  [ok]   baseline DRV-A2-VERDICT-CLOSED-SET = PASS (surgical control)
+  [ok]   baseline DRV-A3-EVIDENCE-FIELD = PASS (surgical control)
+  [ok]   baseline DRV-A5-EXACT-MATCH-VERIFIED = PASS (surgical control)
+--- applying the BEHAVIOURAL mutation ---
+  [ok]   the mutated copy still parses — the flip is behavioural, not a syntax error
+  [ok]   the copy differs from the tracked file (the mutation applied)
+--- direction 1: mutated -> DRV-A4-NAME-COLLISION-AMBIGUOUS must FAIL ---
+  [ok]   DRV-A4-NAME-COLLISION-AMBIGUOUS flipped PASS -> FAIL under the mutation
+  [ok]   DRV-A2-VERDICT-CLOSED-SET stayed PASS — the mutation is SURGICAL (§11.4.194(6)(d))
+  [ok]   DRV-A3-EVIDENCE-FIELD stayed PASS — the mutation is SURGICAL (§11.4.194(6)(d))
+  [ok]   DRV-A5-EXACT-MATCH-VERIFIED stayed PASS — the mutation is SURGICAL (§11.4.194(6)(d))
+--- direction 2: restored -> DRV-A4-NAME-COLLISION-AMBIGUOUS must return to PASS ---
+  [ok]   DRV-A4-NAME-COLLISION-AMBIGUOUS restored to PASS — the flip tracks the mutation in BOTH directions
+  [ok]   tracked file unchanged (sha256 8d50125add75b30f80a331831569b8c09e10985e2e70ae4284073144b9b9e3d9) — single-resource-owner respected (§11.4.84)
+
+=== MUTATION PAIR VALID ===

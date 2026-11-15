@@ -1,0 +1,2 @@
+test_tag_and_release	1800	none,both	bash	tests/release/test_tag_and_release.sh
+test_channel_census	1200	none,both	bash	tests/release/test_channel_census.sh

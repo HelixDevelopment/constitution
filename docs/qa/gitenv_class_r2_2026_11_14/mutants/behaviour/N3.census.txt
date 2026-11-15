@@ -1,0 +1,2 @@
+git-env-class-census: FAIL - UNSCRUBBED scripts/fastcycle/tests/test_anchor_citations_red.sh (line 380): git("init", "-q", "-b", "main")
+git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1

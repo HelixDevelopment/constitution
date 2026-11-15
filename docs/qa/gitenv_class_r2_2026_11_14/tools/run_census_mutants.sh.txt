@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# run_census_mutants.sh <workdir>: run tests/test_git_env_class.sh --only-census against every census
+# mutant in <workdir>/mut/census; a mutant is KILLED when the test exits non-zero.
+set -u
+W="${1:?}"; O="$W/ev/mutants/census"; mkdir -p "$O"
+k=0; s=0
+for m in "$W"/mut/census/*.py; do
+    awk '{exit !($1 < 60)}' /proc/loadavg || { echo "load too high: $(cat /proc/loadavg)"; exit 3; }
+    n="$(basename "$m" .py)"
+    (cd "$W/repo" && bash tests/test_git_env_class.sh --census "$m" --only-census) >"$O/$n.txt" 2>&1; rc=$?
+    if [ "$rc" -ne 0 ]; then v=KILLED; k=$((k+1)); else v=SURVIVED; s=$((s+1)); fi
+    printf '%s\t%s\trc=%s\t%s\n' "$v" "$n" "$rc" "$(grep -m1 '^FAIL' "$O/$n.txt" | cut -c1-140)"
+done
+echo "killed=$k survived=$s"

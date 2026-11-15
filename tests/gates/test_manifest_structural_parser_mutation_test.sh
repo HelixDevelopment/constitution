@@ -2,6 +2,7 @@
 # Paired 1.1 mutation test for tests/gates/test_manifest_structural_parser.sh: each mutant is applied to a
 # sandbox COPY of the real files and the suite (TEST_CANON=<copy>) MUST fail; the unmutated copy MUST pass.
 set -uo pipefail
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 canon="$(cd "$here/../.." && pwd)"
 sb="$(mktemp -d)"; : "${sb:?}"; trap 'rm -rf -- "${sb:?}"' EXIT

@@ -1,0 +1,3 @@
+git-env-class-census: inventory: tracked=2691 universe=1627 (go=177 js=11 py=185 sh=1254) data=1061 binary=2 symlink=1 members=513 non_members=1114
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_gitlink_on_remote.sh (line 64): no file-level scrub; git write: key="$($GITBIN -C "$root" config -f .gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk -v p="$path" '$2==p{print $1; exit}')"
+git-env-class-census: FAIL - members=513 hermetic=448 exempt=64 unscrubbed=1

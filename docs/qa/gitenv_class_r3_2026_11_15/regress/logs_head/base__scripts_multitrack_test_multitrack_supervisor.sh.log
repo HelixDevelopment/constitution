@@ -1,0 +1,9 @@
+PASS: R1[iter=1] no-durable-mechanism: 2 tracks known pre-wipe, 0 recoverable post-tmpfs-wipe -- D-2 defect reproduced [evidence: <scratch>/base/qa-results/multitrack/rb07_test_2026-11-15T01-24-03Z-1222829/r1_iter1.txt]
+PASS: R2[iter=1] state co-located with the volatile registry: pre=2 post-wipe=0 recoverable via watch --once -- D-2 reproduced under misconfiguration (the exact GREEN-gate mutation target) [evidence: <scratch>/base/qa-results/multitrack/rb07_test_2026-11-15T01-24-03Z-1222829/r2_watch_iter1.log]
+PASS: R1[iter=2] no-durable-mechanism: 2 tracks known pre-wipe, 0 recoverable post-tmpfs-wipe -- D-2 defect reproduced [evidence: <scratch>/base/qa-results/multitrack/rb07_test_2026-11-15T01-24-03Z-1222829/r1_iter2.txt]
+PASS: R2[iter=2] state co-located with the volatile registry: pre=2 post-wipe=0 recoverable via watch --once -- D-2 reproduced under misconfiguration (the exact GREEN-gate mutation target) [evidence: <scratch>/base/qa-results/multitrack/rb07_test_2026-11-15T01-24-03Z-1222829/r2_watch_iter2.log]
+PASS: R1[iter=3] no-durable-mechanism: 2 tracks known pre-wipe, 0 recoverable post-tmpfs-wipe -- D-2 defect reproduced [evidence: <scratch>/base/qa-results/multitrack/rb07_test_2026-11-15T01-24-03Z-1222829/r1_iter3.txt]
+PASS: R2[iter=3] state co-located with the volatile registry: pre=2 post-wipe=0 recoverable via watch --once -- D-2 reproduced under misconfiguration (the exact GREEN-gate mutation target) [evidence: <scratch>/base/qa-results/multitrack/rb07_test_2026-11-15T01-24-03Z-1222829/r2_watch_iter3.log]
+PASS: DETERMINISM: verdict fingerprint identical across 3 iterations (R1=PASS;R2=PASS;) [evidence: <scratch>/base/qa-results/multitrack/rb07_test_2026-11-15T01-24-03Z-1222829/fingerprint_iter1.txt]
+
+=== RB-07 supervisor test summary (RED_MODE=1): PASS=7 FAIL=0 ===

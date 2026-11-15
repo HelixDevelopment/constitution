@@ -1,0 +1,23 @@
+scripts/hooks/test_guard_branch_consistency.sh	0	  total: PASS=46 FAIL=0
+scripts/hooks/test_guard_track_branch_label.sh	0	  total: PASS=38 FAIL=0
+scripts/hooks/test_guard_work_track_binding.sh	0	  total: PASS=49 FAIL=0
+scripts/hooks/test_guard_agent_type_label.sh	0	  total: PASS=37 FAIL=0
+scripts/gates/cm_track_branch_label_mutation_test.sh	0	✅ META PASS: CM-TRACK-BRANCH-LABEL is a genuine (non-bluff) gate
+scripts/gates/cm_codegraph_mcp_health_mutation_test.sh	0	
+scripts/gates/cm_control_needle_required_mutation_test.sh	0	  [ok]   CNR-A3 flipped PASS -> FAIL: with the comparison gone, a needle that found NOTHING is accepted as certification
+scripts/gates/cm_dependency_register_verdicts_mutation_test.sh	0	
+scripts/gates/cm_escape_ratchet_selftest.sh	0	SELFCHECK	SUMMARY	pass=8 fail=0 refusals_observed=1
+scripts/gates/cm_mechanism_observed_refusing_mutation_test.sh	0	
+scripts/gates/cm_opendesign_ui_system_mutation_test.sh	0	
+scripts/gates/cm_bridge_layer_presence_mutation_test.sh	0	== CM-BRIDGE-LAYER-PRESENCE mutation: PASS (4/4 cases) ==
+scripts/multitrack/test_multitrack_excluded_aliases.sh	0	PASS=13 FAIL=0
+scripts/multitrack/test_multitrack_conductor_autoarm.sh	0	
+scripts/multitrack/test_multitrack_monday_dryrun.sh	0	RED_MODE=1  PASS=10 FAIL=0 SKIP=1
+scripts/multitrack/test_multitrack_work_binding_submodule_db.sh	0	  total: PASS=7 FAIL=0
+scripts/fastcycle/tests/test_prebuild_tsv_root_wiring_red.sh	77	
+scripts/fastcycle/tests/test_dispatch_stamp_red.sh	0	=== contract 3/5 + 4/5: extraction mode prints only the id and always exits 0 ===
+scripts/fastcycle/tokens/test_dispatch_stamp.sh	0	  total: PASS=295 FAIL=0
+docs/research/quality/solutions/poc/sol08_scope_coverage/test_sol08.sh	0	RESULT: PASS=5 FAIL=0
+tests/gates/test_gate_env_overrides_guarded.sh	0	== 117 passed, 0 failed ==
+tests/extensions/test_security.sh	0	
+DONE

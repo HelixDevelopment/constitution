@@ -1,0 +1,39 @@
+=== R5-I3 regression guard: control needle -- fixtures + the fixed tool + pinned copy all exist ===
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py not found
+NOT ok control needle FAILED: pinned pre-fix copy <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r5i3_fix.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/as_r5i3_malformed_top_level_not_object.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/as_r5i3_malformed_live_agents_not_int.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/as_r5i3_malformed_aliases_not_list.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/as_r5i3_malformed_aliases_list_of_scalars.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/as_negctrl_single_alias.json not found
+
+=== Real-tool invocation (FIXED limit_class.py): every malformed fixture reports EXIT_USAGE (2), distinct from EXIT_OK (0) and EXIT_PLACE_REFUSED (1) ===
+NOT ok as_r5i3_malformed_top_level_not_object: real (fixed) place invocation rc=2 but stderr does not name a malformed field -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+NOT ok as_r5i3_malformed_live_agents_not_int: real (fixed) place invocation rc=2 but stderr does not name a malformed field -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+NOT ok as_r5i3_malformed_aliases_not_list: real (fixed) place invocation rc=2 but stderr does not name a malformed field -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+NOT ok as_r5i3_malformed_aliases_list_of_scalars: real (fixed) place invocation rc=2 but stderr does not name a malformed field -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+
+=== Real-tool invocation (FIXED limit_class.py): the reused negative-control fixture is UNAFFECTED, still exits 0 (EXIT_OK) ===
+NOT ok as_negctrl_single_alias: real (fixed) place invocation rc=2 (wanted 0), out_exists=no -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+
+=== Guard-viability: each malformed fixture's PINNED pre-R5-I3-fix copy CRASHES uncaught (checked-in, never HEAD-relative) ===
+NOT ok guard-viability (as_r5i3_malformed_top_level_not_object) BLIND: the pinned pre-R5-I3-fix copy wrote no
+     --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r5i3_fix.py': [Errno 2] No such file or directory
+NOT ok guard-viability (as_r5i3_malformed_live_agents_not_int) BLIND: the pinned pre-R5-I3-fix copy wrote no
+     --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r5i3_fix.py': [Errno 2] No such file or directory
+NOT ok guard-viability (as_r5i3_malformed_aliases_not_list) BLIND: the pinned pre-R5-I3-fix copy wrote no
+     --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r5i3_fix.py': [Errno 2] No such file or directory
+NOT ok guard-viability (as_r5i3_malformed_aliases_list_of_scalars) BLIND: the pinned pre-R5-I3-fix copy wrote no
+     --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r5i3_fix.py': [Errno 2] No such file or directory
+
+=== Guard-viability control needle: the PINNED pre-R5-I3-fix copy is NOT universally broken -- the reused negative-control fixture still exits 0 against it ===
+NOT ok guard-viability control needle BLIND: the pinned pre-R5-I3-fix copy did
+     NOT cleanly exit 0 on the well-formed negative-control fixture (rc=2) --
+     the pinned copy may itself be broken in an unrelated way, which would make
+     every crash-detection check above meaningless -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r5i3_fix.py': [Errno 2] No such file or directory
+
+=== R5-I3 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ===

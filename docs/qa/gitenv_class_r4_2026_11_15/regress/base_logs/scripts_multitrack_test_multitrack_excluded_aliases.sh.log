@@ -1,0 +1,19 @@
+=== ATM-834 excluded_aliases — engine: /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r3/scripts/multitrack
+--- A. parser (mt_config_excluded_aliases)
+  PASS  P1 absent key -> EMPTY (zero-change compatibility)
+  PASS  P2 flow sequence [a, b]
+  PASS  P3 bare comma list
+  PASS  P4 block sequence
+  PASS  P5 quotes + trailing comment stripped
+  PASS  P6 empty flow sequence -> EMPTY
+  PASS  P7 block list stops at the next top-level key
+--- B. resolver wiring
+  PASS  B1 ZERO-CHANGE: key absent -> claude2/3/4 -> track-2/3/4 (identical to pre-change)
+  PASS  B2 ZERO-CHANGE: conductor still rc=10 (stay-home), a normal alias rc=0
+  PASS  B3 excluded alias -> rc=10 STAY-HOME (never worktree-bound, like the conductor)
+  PASS  B4 excluded alias filtered from the positional list -> claude2->track-2, claude4->track-3 (no orphaned slot)
+  PASS  B5 CARRIER GUARD: 'claude10' excluded does NOT exclude 'claude1' (whole-line match)
+  PASS  MUT §1.1: filter removed -> claude4 shifts back to track-4 (the off-by-one returns; filter IS load-bearing)
+
+--- C. RESULT
+PASS=13 FAIL=0

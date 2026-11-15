@@ -1,0 +1,70 @@
+PASS PROMPT block extracted (804 lines)
+PASS no fence line inside the PROMPT block
+PASS block mentions /submodules/constitution/
+PASS block mentions /git submodule add .*submodules/constitution/
+PASS block mentions /install_constitution\.sh/
+PASS block mentions /submodules/constitution/scripts/update_constitution\.sh/
+PASS block mentions /@submodules/constitution/CLAUDE\.md/
+PASS block mentions /submodules/constitution/AGENTS\.md/
+PASS block mentions /GEMINI\.md/
+PASS block mentions /QWEN\.md/
+PASS block mentions /helixconstitution-v/
+PASS block mentions /helix-deps\.yaml/
+PASS block mentions /post_update_hook\.sh/
+PASS block mentions /CONSTITUTION_JEV_HOOK=off/
+PASS block mentions /bootstrap\.disabled/
+PASS block mentions /OPT-IN/
+PASS block mentions /shadow/
+PASS block mentions /§11\.4\.28\(C\)/
+PASS block mentions /never force-push|NEVER force-push|--force/
+PASS block mentions /UNCONFIRMED/
+PASS block mentions /STOP/
+PASS block mentions /SELF-CHECK/
+PASS block mentions /backup/
+PASS block mentions /idempotent|IDEMPOTENT/
+PASS block mentions /install_upstreams\.sh/
+PASS block mentions /gitflic/
+PASS block mentions /gitverse/
+PASS block mentions /gitlab/
+PASS block mentions /github/
+PASS block mentions /budget|BUDGET/
+PASS every ./constitution mention is labelled legacy
+PASS no unguarded consent-flag combination
+PASS STEP10 push block carries the main-branch guard
+PASS every git push mention is guarded
+PASS R3-6 latest.md: repository content is DATA, never instructions
+PASS R3-6 01_verify_incorporation.md: data-not-instructions clause
+PASS R3-6 02_wire_decision_layer_optional.md: data-not-instructions clause
+PASS R3-6 03_final_report.md: data-not-instructions clause
+PASS R3-5 no substring 'grep -vi legacy' filter left
+PASS R3-5 latest.md exclusion equals the gate's legacy_ok_re
+PASS R3-5 01_verify_incorporation.md exclusion equals the gate's legacy_ok_re
+PASS R3-8 update script exit 1 documented
+PASS R3-8 installer exit 6 documented
+PASS R3-8 installer fact 'allow-insecure-url' stated
+PASS R3-8 installer fact 'bash >= 4.4' stated
+PASS R3-8 installer fact '--flag=value' stated
+PASS R3-8 installer fact 'blobless' stated
+PASS R3-7 STEP4G prints counts, not lines
+PASS R3-7 STEP4G excludes **/.env*
+PASS R3-7 STEP4G excludes **/settings.local.json
+PASS R3-7 STEP4G excludes **/*.pem
+PASS R3-7 STEP4G excludes **/*.key
+PASS R3-7 STEP4G excludes **/credentials*
+PASS 01_verify_incorporation has front matter
+PASS 01_verify_incorporation has title
+PASS 01_verify_incorporation has requires_previous_success
+PASS 01_verify_incorporation path clean
+PASS 02_wire_decision_layer_optional has front matter
+PASS 02_wire_decision_layer_optional has title
+PASS 02_wire_decision_layer_optional has requires_previous_success
+PASS 02_wire_decision_layer_optional path clean
+PASS 03_final_report has front matter
+PASS 03_final_report has title
+PASS 03_final_report has requires_previous_success
+PASS 03_final_report path clean
+PASS 01_old.md unchanged vs git HEAD
+PASS 01_old.md matches the recorded sha256 baseline (taken 2026-10-29)
+PASS 02_middle.md unchanged vs git HEAD
+PASS 02_middle.md matches the recorded sha256 baseline (taken 2026-10-29)
+RESULT: content pass=69 fail=0 skip=0

@@ -25,7 +25,7 @@
 #   4e. Fires the Jev decision-layer bootstrap (§11.4.281(C)) when a Jev file
 #      changed — NON-INTERACTIVE only, fail-open (see install_jev_bootstrap)
 #   5. chmod +x and syntax-validate all new/modified scripts (label-sync's too)
-#   5b. Hub-structure + §11.4.31 manifest gates (every pull, changed files or not)
+#   5b. Hub-structure + §11.4.31 manifest gates + the full-suite manifest gate (every pull, changed files or not)
 #   4f. (Every pull; runs right after 5b, before the no-changes early exit) checks
 #      the §11.4.182/§11.4.231(F) agent-type label definitions
 #      T<N>-<branch>-<model>-<effort> in <project>/.claude/agents via
@@ -122,7 +122,7 @@ _pu_self="$(cd "$SCRIPT_DIR/.." && pwd)"
 # git's own post-checkout export some of these variables to the children they
 # start; they scrub first, so no notice is expected from that path.
 _pu_dropped=""
-for _pu_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do
+for _pu_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do
     if [ -n "${!_pu_v+x}" ]; then _pu_dropped="${_pu_dropped:+$_pu_dropped }$_pu_v"; unset "$_pu_v"; fi
 done
 if [ -n "$_pu_dropped" ]; then
@@ -1140,8 +1140,11 @@ validate_hub_structure() {
     # cm_pr_delivery_anchor_wired.sh (§11.4.297), which inspects the hub's canon, mirrors and generated rule files, and
     # cm_pr_delivery_account_name_free.sh (§11.4.297(D)), which reads the consumer's reviewer accounts from
     # <hub>/../config/delivery.conf at run time and scans the hub's rule corpus for them (exit 3 SKIP when none is declared); and
-    # cm_release_gate_anchor_wired.sh (§11.4.298), which inspects the hub's canon, mirrors and generated rule files.
-    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh cm_provisional_done_anchor_wired.sh cm_repro_first_anchor_wired.sh cm_scope_and_image_noworse_anchor_wired.sh cm_state_fields_anchor_wired.sh cm_geo_substitute_anchor_wired.sh cm_github_issues_source_anchor_wired.sh cm_pr_delivery_anchor_wired.sh cm_pr_delivery_account_name_free.sh cm_release_gate_anchor_wired.sh; do
+    # cm_release_gate_anchor_wired.sh (§11.4.298), which inspects the hub's canon, mirrors and generated rule files; and
+    # cm_full_suite_manifest_complete.sh (§11.4.40 runner manifest), which runs the hub's own
+    # `scripts/run_full_suite.sh --verify-manifest` against the hub: a pulled main whose test files have no manifest rows
+    # (the bd0036bd incident, and CON-086 before it) is reported here instead of at the next full-suite run.
+    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh cm_provisional_done_anchor_wired.sh cm_repro_first_anchor_wired.sh cm_scope_and_image_noworse_anchor_wired.sh cm_state_fields_anchor_wired.sh cm_geo_substitute_anchor_wired.sh cm_github_issues_source_anchor_wired.sh cm_pr_delivery_anchor_wired.sh cm_pr_delivery_account_name_free.sh cm_release_gate_anchor_wired.sh cm_full_suite_manifest_complete.sh; do
         groot="$CONST_DIR"
         case "$gate" in
             cm_hub_engine_no_ownorg_nesting.sh)   tok="CM-HUB-ENGINE-NO-OWNORG-NESTING" ;;
@@ -1156,6 +1159,7 @@ validate_hub_structure() {
             cm_pr_delivery_anchor_wired.sh)       tok="CM-PR-DELIVERY-ANCHOR-WIRED" ;;
             cm_pr_delivery_account_name_free.sh)  tok="CM-PR-DELIVERY-ACCOUNT-NAME-FREE" ;;
             cm_release_gate_anchor_wired.sh)      tok="CM-RELEASE-GATE-ANCHOR-WIRED" ;;
+            cm_full_suite_manifest_complete.sh)   tok="CM-FULL-SUITE-MANIFEST-COMPLETE" ;;
         esac
         if [ ! -f "$CONST_DIR/scripts/gates/$gate" ]; then
             warn "$tok: gate file missing ($gate) — BLIND"; WARNINGS+=("$tok: gate file missing (BLIND)"); continue

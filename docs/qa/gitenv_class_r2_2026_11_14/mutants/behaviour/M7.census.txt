@@ -1,0 +1,2 @@
+git-env-class-census: FAIL - UNSCRUBBED scripts/helix_code/helix_code_home.sh (line 97): bare git write outside the scrubbed wrapper: git -C "$home" submodule update --init --recursive >&2 || true
+git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1

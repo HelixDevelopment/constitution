@@ -1,0 +1,36 @@
+== A: parent moved, symlink at the old name (inode unchanged) ==
+  PASS real engine: nothing lands in the moved directory (hit=0)
+  PASS real engine: exits 3 (rc=3)
+  PASS real engine: the refusal says the parent changed
+  PASS mutant A (realpath not compared) built
+  PASS mutant A is caught: x.md lands in the moved directory (hit=1 rc=0)
+== B: user files that merely start like a wizard temp survive; a genuine stale wizard temp is cleaned ==
+  PASS real engine (project run): all 5 root + 2 dir look-alike files survive (survivors=7, want 7)
+  PASS real engine (project run): genuine stale wizard temps (root, doc dir, .constitution) are cleaned
+  PASS real engine (user run): look-alike files survive (survivors=6, want 6)
+  PASS real engine (user run): a genuine stale wizard temp in the user-file dir is cleaned
+  PASS mutant B (prefix match) built
+  PASS mutant B is caught (project run): look-alikes are deleted (survivors=0)
+  PASS mutant B is caught (user run): the look-alike is deleted (survivors=5)
+  PASS mutant B2 (hex length loosened) built
+  PASS mutant B2 is caught: a 13-hex / short look-alike is deleted (survivors=6)
+  PASS atomic_write's temp form is '.<name>.tmp.<12 hex>' (matches the cleanup pattern)
+== C: a relative XDG_CONFIG_HOME is ignored (user layer must not land in the caller's cwd) ==
+  PASS real engine: nothing written into the cwd repository (landed=0)
+  PASS real engine: the user file went to $HOME/.config (home=1)
+  PASS mutant C (relative XDG honoured) built
+  PASS mutant C is caught: the cwd repository receives the file (landed=1 home=0)
+== C census: relative HOME is never trusted (user_file fallback and home_dirs) ==
+OK
+  PASS real engine: relative HOME ignored
+  PASS mutant H (relative HOME trusted) built
+  PASS mutant H is caught (rc=1)
+== E: CONSTITUTION_DECISIONS_BACKUP_KEEP 0 / negative / non-numeric falls back to 20 ==
+  PASS real engine: BACKUP_KEEP='0' keeps >= 3 backups (kept=4)
+  PASS real engine: BACKUP_KEEP='-3' keeps >= 3 backups (kept=4)
+  PASS real engine: BACKUP_KEEP='abc' keeps >= 3 backups (kept=4)
+  PASS real engine: BACKUP_KEEP='' keeps >= 3 backups (kept=4)
+  PASS real engine: BACKUP_KEEP=2 prunes to 2 (kept=2)
+  PASS mutant E (0 accepted) built
+  PASS mutant E is caught: BACKUP_KEEP=0 prunes everything (kept=0)
+test_round11: pass=29 fail=0

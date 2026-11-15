@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# regress.sh <W> <label> <tree>: runs a fixed sample of tests (scrubbed class members and the
+# layout git-env test) in <tree> with no ambient git variables, one at a time, and writes
+# <W>/ev/regress/<label>/<name>.log plus a summary line "rc<TAB>seconds<TAB>test".
+set -u
+W="${1:?}"; L="${2:?}"; T="${3:?}"
+O="$W/ev/regress/$L"; mkdir -p "$O"
+for _v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY; do unset "$_v"; done
+: >"$O/summary.tsv"
+while read -r t; do
+  [ -n "$t" ] || continue
+  n="$(printf '%s' "$t" | tr '/' '_')"
+  s=$(date +%s)
+  case "$t" in *.py) (cd "$T" && timeout 900 python3 "$t") ;; *) (cd "$T" && timeout 900 bash "$t") ;; esac >"$O/$n.log" 2>&1
+  rc=$?
+  printf '%s\t%s\t%s\n' "$rc" "$(( $(date +%s) - s ))" "$t" >>"$O/summary.tsv"
+done <"$W/tools/regress_list.txt"
+echo DONE

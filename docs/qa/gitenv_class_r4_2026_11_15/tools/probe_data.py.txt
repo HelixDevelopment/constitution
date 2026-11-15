@@ -1,0 +1,20 @@
+import sys, os, subprocess, importlib.util, collections, re
+root=sys.argv[1]
+spec = importlib.util.spec_from_file_location("c", os.path.join(root, "scripts/validation/git_env_class_census.py"))
+c = importlib.util.module_from_spec(spec); spec.loader.exec_module(c)
+fs=[f for f in subprocess.run(["git","-C",root,"ls-files","-z","-s"],capture_output=True).stdout.decode().split("\0") if f]
+ext=collections.Counter(); ex=[]; modes=collections.Counter()
+for ent in fs:
+    meta,f=ent.split("\t",1); mode=meta.split()[0]; modes[mode]+=1
+    p=os.path.join(root,f)
+    if mode in ("160000","120000"): continue
+    b=open(p,"rb").read()
+    if b"\0" in b: continue
+    t=b.decode("utf-8","replace")
+    lang=c.lang_of(f,t[:200])
+    if lang is None or c.SKIP_EXT.search(f):
+        e=os.path.splitext(f)[1] or "(none)"
+        ext[e]+=1
+        if mode=="100755": ex.append(f)
+        if e=="(none)" : print("NOEXT",f, repr(t[:40]))
+print(modes); print(ext.most_common()); print("exec data:",ex)

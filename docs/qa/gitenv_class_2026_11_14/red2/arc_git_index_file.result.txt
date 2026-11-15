@@ -1,0 +1,14 @@
+label=arc_git_index_file mode=git_index_file script=scripts/gates/cm_anchor_record_complete.sh rc=4 seconds=0
+repo_head=42fd128819608ef1d110e32cd1b9d4a6de6c335c
+sentinel_fingerprint_before=7022504bcf7de4cdf978ede65bd4c9d3d6ccc682a3fe2c6caf9feb1a4dea23ce
+sentinel_fingerprint_after=7022504bcf7de4cdf978ede65bd4c9d3d6ccc682a3fe2c6caf9feb1a4dea23ce
+sentinel_head_before=4c9f4c6a73dc0557b3a091caf2f08a18ea998338 after=4c9f4c6a73dc0557b3a091caf2f08a18ea998338 branch_before=refs/heads/sentinel after=refs/heads/sentinel
+sentinel_index_entries_after=1
+SENTINEL=UNCHANGED
+--- log tail ---
+──────────────────────────────────────────────────────────────────────
+error obtaining VCS status: exit status 128
+	Use -buildvcs=false to disable VCS stamping.
+RESULT gate REFUSE
+🛑 REFUSE   CM-ANCHOR-RECORD-COMPLETE: the shell seam could not be built (go build exit 1)
+   The gate decided NOTHING. This is not a pass (§11.4.201(6)).

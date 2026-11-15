@@ -1,0 +1,7 @@
+PASS: B tracked repo with 0% id references -> LOW-COVERAGE named
+PASS: A id-referencing repo passes coverage
+PASS: D exempt repo enumerated with reason, not failed
+PASS: C on-disk repo absent from the manifest -> UNREGISTERED-REPO (the corpus-3 hole closed)
+PASS: E empty workspace -> blind (2), never a green nothing
+----------------------------------------
+RESULT: PASS=5 FAIL=0

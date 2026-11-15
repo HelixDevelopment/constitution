@@ -1,0 +1,1 @@
+git-env-class-census: BLIND - no CL_GIT_SCRUB_VARS list holding GIT_DIR and GIT_INDEX_FILE in <scratch>/mutwt/M5/scripts/lib/constitution_layout.sh

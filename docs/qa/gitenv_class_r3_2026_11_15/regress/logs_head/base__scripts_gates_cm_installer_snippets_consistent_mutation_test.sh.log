@@ -1,0 +1,7 @@
+  ok   golden real installer PASS (rc=0)
+  ok   golden-FALSE: docs with canonical raw + web link PASS (rc=0)
+  ok   M1 altered upstream URL -> FAIL (rc=1)
+  ok   M2 snippet piped to sh -> FAIL (rc=1)
+  ok   M3 duplicate snippet line -> FAIL (rc=1)
+  ok   M4 doc with non-canonical raw URL -> FAIL (rc=1)
+META PASS: CM-INSTALLER-SNIPPETS-CONSISTENT kills every mutant

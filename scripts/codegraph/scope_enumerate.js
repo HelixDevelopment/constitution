@@ -29,6 +29,7 @@
 //              §11.4.79 / §11.4.201 / §11.4.273.
 // ============================================================================
 'use strict';
+for (const _ge_v of "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(" ")) delete process.env[_ge_v];  // git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');

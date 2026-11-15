@@ -1,0 +1,21 @@
+PASS: control: the CURRENT scripts/multitrack/multitrack_alias_orchestrator.sh carries the fix ('; xp=val($0,"expires")' x1) and not the pre-fix construct [evidence: <scratch>/base/scripts/multitrack/multitrack_alias_orchestrator.sh]
+PASS: RED pin e60cbde2e33e7d0542a937331763f6be7e739c9a resolves and its scripts/multitrack/multitrack_alias_orchestrator.sh is the pre-fix artifact (has the pre-fix construct, lacks the fix) [evidence: <tmp>/mt_recon_test.SXYWaY/multitrack_alias_orchestrator_prefix.sh]
+PASS: RED: pre-fix pinned copy's reconcile awk emits a gawk syntax error AND bindings.snapshot stays EMPTY (byte count 0, defect genuinely present) [evidence: <tmp>/mt_recon_test.SXYWaY/red_1.err]
+PASS: RED: pre-fix pinned copy's reconcile awk emits a gawk syntax error AND bindings.snapshot stays EMPTY (byte count 0, defect genuinely present) [evidence: <tmp>/mt_recon_test.SXYWaY/red_2.err]
+PASS: RED: pre-fix pinned copy's reconcile awk emits a gawk syntax error AND bindings.snapshot stays EMPTY (byte count 0, defect genuinely present) [evidence: <tmp>/mt_recon_test.SXYWaY/red_3.err]
+=== §11.4.50 determinism check (RED_MODE=1): normalized iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 iterations byte-identical (normalized, RED_MODE=1) [evidence: <scratch>/base/qa-results/multitrack/reconcile_test_2026-11-15T01-18-38Z-1157118/normalized_m1_iter1.txt]
+PASS: GREEN: reconcile runs clean (no gawk syntax error, rc=0) [evidence: <tmp>/mt_recon_test.SXYWaY/green_1.err]
+PASS: GREEN: reconciled bindings.snapshot BYTE-IDENTICAL to hand-computed expected (BIND/FALLBACK/HEARTBEAT/UNBIND/REAP semantics all correct) [evidence: <tmp>/mt_recon_test.SXYWaY/reg_m0_1/aliasdir/bindings.snapshot]
+PASS: GREEN: sibling subcommands (bind/heartbeat/fallback/status/unbind/reap) all still exit 0 and correctly leave bindings empty after the unbind [evidence: <tmp>/mt_recon_test.SXYWaY/sib_1/aliasdir/bindings.snapshot]
+PASS: GREEN: reconcile runs clean (no gawk syntax error, rc=0) [evidence: <tmp>/mt_recon_test.SXYWaY/green_2.err]
+PASS: GREEN: reconciled bindings.snapshot BYTE-IDENTICAL to hand-computed expected (BIND/FALLBACK/HEARTBEAT/UNBIND/REAP semantics all correct) [evidence: <tmp>/mt_recon_test.SXYWaY/reg_m0_2/aliasdir/bindings.snapshot]
+PASS: GREEN: sibling subcommands (bind/heartbeat/fallback/status/unbind/reap) all still exit 0 and correctly leave bindings empty after the unbind [evidence: <tmp>/mt_recon_test.SXYWaY/sib_2/aliasdir/bindings.snapshot]
+PASS: GREEN: reconcile runs clean (no gawk syntax error, rc=0) [evidence: <tmp>/mt_recon_test.SXYWaY/green_3.err]
+PASS: GREEN: reconciled bindings.snapshot BYTE-IDENTICAL to hand-computed expected (BIND/FALLBACK/HEARTBEAT/UNBIND/REAP semantics all correct) [evidence: <tmp>/mt_recon_test.SXYWaY/reg_m0_3/aliasdir/bindings.snapshot]
+PASS: GREEN: sibling subcommands (bind/heartbeat/fallback/status/unbind/reap) all still exit 0 and correctly leave bindings empty after the unbind [evidence: <tmp>/mt_recon_test.SXYWaY/sib_3/aliasdir/bindings.snapshot]
+=== §11.4.50 determinism check (RED_MODE=0): normalized iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 iterations byte-identical (normalized, RED_MODE=0) [evidence: <scratch>/base/qa-results/multitrack/reconcile_test_2026-11-15T01-18-38Z-1157118/normalized_m0_iter1.txt]
+
+RED_MODE=both  PASS=16 FAIL=0 SKIP=0
+Evidence: <scratch>/base/qa-results/multitrack/reconcile_test_2026-11-15T01-18-38Z-1157118

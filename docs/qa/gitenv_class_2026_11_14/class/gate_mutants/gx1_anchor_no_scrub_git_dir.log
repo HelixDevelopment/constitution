@@ -1,0 +1,40 @@
+──────────────────────────────────────────────────────────────────────
+CM-ANCHOR-RECORD-COMPLETE — engine: <scratch>/gitenv_class.MjjE/mut/class/copy_gx1_anchor_no_scrub/submodules/continuum
+──────────────────────────────────────────────────────────────────────
+🔎 needle N2 — non-zero exit observable through the seam path (saw 2)
+RESULT A1_seam_write_complete PASS
+✅ PASS     A1_seam_write_complete — record carries head_digest=2aaeffc9812a6ecbe9741122c6047c3756ec6cdc59cd78d578717601ac755f2b and entry_count=12, and the count equals the 12 chain records counted independently by this gate
+🔎 needle N1 — the strength reader reads 'mechanism' out of a record that has one
+RESULT A2_unprobed_strength_is_unknown PASS
+✅ PASS     A2_unprobed_strength_is_unknown — with no remote the probe SKIPped and the record says 'unknown' — neither policy nor mechanism was claimed (§11.4.6)
+RESULT A3_written_strength_equals_probe PASS
+✅ PASS     A3_written_strength_equals_probe — the record says 'policy' and the probe established 'policy' (probe verdict PASS) — recorded == probed, which is the T327 clause
+RESULT A4_unprobed_mechanism_detected PASS
+✅ PASS     A4_unprobed_mechanism_detected — a record claiming 'mechanism' against a probe that established 'policy' is DETECTED and the seam exits 3
+RESULT A6_honest_policy_accepted PASS
+✅ PASS     A6_honest_policy_accepted — the honestly-recorded 'policy' anchor cross-checks clean against a live probe (exit 0) — the gate does not condemn the true record
+RESULT A7_carrier_not_a_claim PASS
+✅ PASS     A7_carrier_not_a_claim — a record whose bytes mention 'mechanism' 1× but whose anchor_strength is 'policy' still PASSes — the token is not the thing (§11.4.201(7)(a))
+RESULT A5a_missing_entry_count_refused PASS
+✅ PASS     A5a_missing_entry_count_refused — an anchor with no entry_count REFUSEs (exit 4) and the refusal names entry_count as the reason
+RESULT A5b_missing_head_digest_refused PASS
+✅ PASS     A5b_missing_head_digest_refused — an anchor with no head_digest REFUSEs (exit 4) and the refusal names head_digest as the reason
+🔎 needle N3 — the ORACLE-line parser sees a known-present id
+RESULT A8_probe_verified_mechanism_accepted PASS
+✅ PASS     A8_probe_verified_mechanism_accepted — pkg/anchor behaved as required (err=<nil>)
+RESULT A9_unprobed_mechanism_refused PASS
+✅ PASS     A9_unprobed_mechanism_refused — pkg/anchor behaved as required (err=anchor: recorded strength claims a value the probe never established: recorded "mechanism" against a probe that could not decide (anchor: no protection probe was supplied))
+RESULT A9b_nil_probe_is_skip_unknown PASS
+✅ PASS     A9b_nil_probe_is_skip_unknown — pkg/anchor behaved as required (verdict=SKIP strength=unknown)
+RESULT A10_overstated_mechanism_refused PASS
+✅ PASS     A10_overstated_mechanism_refused — pkg/anchor behaved as required (err=anchor: recorded strength claims more than the probe found: recorded "mechanism", probe established "policy" (harness probe found no mechanical prevention))
+RESULT A11_probed_policy_accepted PASS
+✅ PASS     A11_probed_policy_accepted — pkg/anchor behaved as required (err=<nil>)
+RESULT A12a_complete_record_accepted PASS
+✅ PASS     A12a_complete_record_accepted — pkg/anchor behaved as required (err=<nil>)
+RESULT A12b_missing_entry_count_refused PASS
+✅ PASS     A12b_missing_entry_count_refused — pkg/anchor behaved as required (err=anchor: entry_count is absent (an anchor without a count cannot detect wholesale deletion) (got 0))
+RESULT A12c_missing_head_digest_refused PASS
+✅ PASS     A12c_missing_head_digest_refused — pkg/anchor behaved as required (err=anchor: head_digest is absent or malformed (got ""))
+──────────────────────────────────────────────────────────────────────
+✅ CM-ANCHOR-RECORD-COMPLETE: PASS — the anchor record is complete (head_digest + entry_count) and its strength equals the probe's verified result; unprobed 'mechanism' is refused and probe-verified 'mechanism' is accepted

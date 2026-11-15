@@ -1,0 +1,62 @@
+=== R8 regression guard: control needle -- fixed tool + lib both exist ===
+NOT ok control needle FAILED: <scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py not found
+NOT ok control needle FAILED: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py not found
+
+=== R8-I1 repro (1): reverting propose_action_for's entry.get(...) point-fix ===
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.MciC5QASzK/r1_boundary_still_widened/orchestration/custody_sweep.py'
+NOT ok R8-I1 repro (1a) mutation anchor not found (content drifted)
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.MciC5QASzK/r1_both_reverted/orchestration/custody_sweep.py'
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.MciC5QASzK/r1_both_reverted/orchestration/custody_sweep.py'
+NOT ok R8-I1 repro (1b) mutation anchor not found (content drifted)
+
+=== R8-I1 repro (2): {KeyError, IndexError, AttributeError} injected at the top of cmd_verify_proposal ===
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.MciC5QASzK/inj_KeyError/orchestration/custody_sweep.py'
+NOT ok R8-I1 repro (2, KeyError) mutation anchor not found (content drifted)
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.MciC5QASzK/inj_IndexError/orchestration/custody_sweep.py'
+NOT ok R8-I1 repro (2, IndexError) mutation anchor not found (content drifted)
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.MciC5QASzK/inj_AttributeError/orchestration/custody_sweep.py'
+NOT ok R8-I1 repro (2, AttributeError) mutation anchor not found (content drifted)
+
+=== R8-I1(c): the RuntimeError branch (--repo-root not a git checkout) now writes --out too ===
+NOT ok R8-I1(c) FAILED: rc=2 out_exists=no stderr=python3: can't open file '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+
+=== R8-I2: selftest's scratch-repo git calls are fully isolated from an inherited GIT_DIR/GIT_WORK_TREE ===
+NOT ok R8-I2 real (fixed) tool FAILED: rc=2 before_md5=faa4c6783b78dc39e7256fbc04a5b686
+   after_md5=faa4c6783b78dc39e7256fbc04a5b686
+     python3: can't open file '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.MciC5QASzK/r8i2_reverted/orchestration/custody_sweep.py'
+NOT ok R8-I2 guard-viability: env-strip mutation anchor not found (content drifted)
+
+=== R8 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

@@ -1,0 +1,145 @@
+PASS control tag_and_release.sh passes its suite
+PASS control derive_release_facts.sh passes its suite
+PASS control render_release_entry.py passes its suite
+PASS control release_publish_gitea.sh passes its suite
+PASS control redact_cut.sh passes its suite
+PASS control env_allow.sh passes its suite
+PASS control channel_census.py passes its suite
+PASS control env_census.py passes its suite
+PASS T2 killed
+PASS T3 killed
+PASS T4 killed
+PASS T6 killed
+PASS T5 killed
+PASS D1 killed
+PASS D5 killed
+PASS O1 killed
+PASS O2 killed
+PASS O3 killed
+PASS O4 killed
+PASS O7 killed
+PASS O5 killed
+PASS O6 killed
+PASS F1 killed
+PASS R2 killed
+PASS R5 killed
+PASS R6 killed
+PASS F6 killed
+PASS N1 killed
+PASS N2 killed
+PASS N4 killed
+PASS P1 killed
+PASS P2 killed
+PASS P3 killed
+PASS P4 killed
+PASS P5 killed
+PASS P6 killed
+PASS P7 killed
+PASS P8 killed
+PASS P9 killed
+PASS P10 killed
+PASS Q1 killed
+PASS Q2 killed
+PASS Q3 killed
+PASS Q4 killed
+PASS Q5 killed
+PASS Q6 killed
+PASS Q7 killed
+PASS Q8 killed
+PASS Q9 killed
+PASS Q10 killed
+PASS Q11 killed
+PASS Q12 killed
+PASS S11 killed
+PASS S1 killed
+PASS S2 killed
+PASS S3 killed
+PASS S4 killed
+PASS S5 killed
+PASS S6 killed
+PASS S7 killed
+PASS S8 killed
+PASS S9 killed
+PASS S10 killed
+PASS S12 killed
+PASS S13 killed
+PASS S14 killed
+PASS S15 killed
+PASS S16 killed
+PASS V3 killed
+PASS V4 killed
+PASS V5 killed
+PASS V8 killed
+PASS V11 killed
+PASS V12 equivalent, survives as recorded
+PASS V13 killed
+PASS V13b killed
+PASS V13c killed
+PASS U1 killed
+PASS U2 killed
+PASS U3 killed
+PASS U4 killed
+PASS U5 killed
+PASS U6 killed
+PASS U7 killed
+PASS U8 killed
+PASS U9 killed
+PASS U10 killed
+PASS U11 killed
+PASS U12 killed
+PASS U13 killed
+PASS U14 killed
+PASS U15 killed
+PASS U16 killed
+PASS U17 killed
+PASS X6 killed by its property
+PASS X7 killed by its property
+PASS X9b killed by its property
+PASS X10 killed by its property
+PASS X12 equivalent, survives as recorded
+PASS X12b killed by its property
+PASS X13 killed by its property
+PASS X14 killed by its property
+FAIL X15 STALE: the replaced text is not found exactly once in tag_and_release.sh
+PASS X17 killed by its property
+PASS X1 killed
+PASS X2 killed
+PASS X3 killed
+PASS X4 killed
+PASS X5 killed
+PASS X8 killed
+PASS X11 killed by its property
+PASS X16 killed
+PASS X18 equivalent, survives as recorded
+PASS X19 killed
+PASS X20 killed
+PASS Y1 killed by its property
+PASS Y2 killed by its property
+PASS Y3 killed by its property
+PASS Y4 killed by its property
+PASS Y5 killed by its property
+PASS Y6 killed by its property
+PASS Y7 killed by its property
+PASS Y8 killed by its property
+PASS Y9 killed by its property
+PASS Y10 killed by its property
+PASS Y11 killed by its property
+PASS Y12 killed by its property
+PASS Y13 killed by its property
+PASS Y14 killed by its property
+PASS Y15 killed by its property
+PASS Y16 killed by its property
+PASS Y17 killed by its property
+PASS Y18 killed by its property
+PASS Y19 killed by its property
+PASS Y20 killed by its property
+PASS Y21 killed by its property
+PASS Y22 killed by its property
+PASS Y23 killed by its property
+PASS Y24 killed by its property
+PASS Y25 killed by its property
+PASS Z1 killed
+PASS Z2 killed
+PASS Z3 killed
+PASS Z4 killed
+PASS Z5 killed

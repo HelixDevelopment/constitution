@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""regen_scrub_lists.py <repo> [--check]
+Round 2 of the gitenv-class vehicle: GIT_CEILING_DIRECTORIES is a discovery LIMIT, not a redirect, so it
+leaves every scrub list of the repository-locating class.
+ 1. CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh loses the name (the canonical list).
+ 2. Every canonical scrub line (shell `for _ge_v in <list>; do unset ...` and python
+    `for _ge_v in "<list>".split(): _ge_os.environ.pop(...)`) in a tracked file under scripts/ or tests/
+    is regenerated from the canonical list (the whole word list is replaced, so any drift is removed too).
+ 3. In the named lone copies (shell word lists, `-u` options, python tuples) the single token is removed
+    on the lines that hold it inside a scrub statement; the line must contain the token exactly once.
+Prints one line per edit; with --check prints what would change and exits 1 if anything would.
+"""
+import os, re, subprocess, sys
+
+repo = sys.argv[1]
+check = "--check" in sys.argv[2:]
+TOK = "GIT_CEILING_DIRECTORIES"
+LIB = "scripts/lib/constitution_layout.sh"
+LONE = [  # (path, regex identifying the scrub line that holds the token)
+    ("scripts/deps_manifest/helix_deps_manifest.py", r'^\s+"GIT_CEILING_DIRECTORIES", "GIT_SHALLOW_FILE"'),
+    ("scripts/fastcycle/consumers/audit.py", r'^\s+"GIT_CEILING_DIRECTORIES", "GIT_SHALLOW_FILE"'),
+    ("scripts/fastcycle/consumers/migrate.sh", r"^\s+GIT_INDEX_FILE GIT_PREFIX GIT_CEILING_DIRECTORIES GIT_GRAFT_FILE \\$"),
+    ("scripts/hooks/constitution-submodule-post-checkout", r"^\s+GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE"),
+    ("scripts/hooks/post-merge", r"^\s+GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE"),
+    ("scripts/jev/bootstrap.sh", r"^\s+GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE"),
+    ("scripts/jev/bootstrap.sh", r"^\s+-u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_NAMESPACE -u GIT_CEILING_DIRECTORIES -u GIT_SHALLOW_FILE"),
+    ("scripts/label-sync/install_label_sync.sh", r"^\s+GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE"),
+    ("scripts/lib/hook_install.sh", r"^\s+GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE"),
+    ("scripts/multitrack/multitrack_constitution_sync.sh", r"^\s+for _v in GIT_DIR .*GIT_CEILING_DIRECTORIES"),
+    ("scripts/post_update_hook.sh", r"^for _pu_v in GIT_DIR .*GIT_CEILING_DIRECTORIES"),
+    ("scripts/gates/cm_full_suite_manifest_complete.sh", r"^\s+GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE GIT_CEILING_DIRECTORIES$"),
+    ("scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh", r"^\s+GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE GIT_CEILING_DIRECTORIES$"),
+    ("tests/test_full_suite_manifest_gate_git_env.sh", r"^\s+GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE GIT_CEILING_DIRECTORIES$"),
+] + [("scripts/fastcycle/tests/%s" % f, r"^\s+GIT_CONFIG GIT_CONFIG_COUNT (?:GIT_CONFIG_PARAMETERS )?GIT_CEILING_DIRECTORIES GIT_NAMESPACE GIT_PREFIX")
+     for f in ("test_custody_sweep_r11_regression.sh", "test_custody_sweep_r13_regression.sh", "test_custody_sweep_r15_regression.sh",
+               "test_custody_sweep_r17_regression.sh", "test_custody_sweep_r19_regression.sh", "test_custody_sweep_r21_regression.sh",
+               "test_custody_sweep_stash_patch_r22_regression.sh")]
+
+edits = []
+
+
+def rd(p):
+    return open(os.path.join(repo, p), encoding="utf-8").read()
+
+
+def wr(p, s):
+    if not check:
+        open(os.path.join(repo, p), "w", encoding="utf-8").write(s)
+
+
+def drop_token(line):
+    n = line.count(TOK)
+    if n != 1:
+        raise SystemExit("REFUSE: %d tokens in %r" % (n, line))
+    for pat, rep in ((r'"GIT_CEILING_DIRECTORIES", ', ""), (r"-u GIT_CEILING_DIRECTORIES ", ""), (r" GIT_CEILING_DIRECTORIES\b", ""),
+                     (r"GIT_CEILING_DIRECTORIES ", "")):
+        new, k = re.subn(pat, rep, line, count=1)
+        if k:
+            return new
+    raise SystemExit("REFUSE: no rule removes the token from %r" % line)
+
+
+# 1. canonical list
+lib = rd(LIB)
+m = re.search(r'^CL_GIT_SCRUB_VARS="([^"]+)"$', lib, re.M)
+words = m.group(1).split()
+if TOK in words:
+    words = [w for w in words if w != TOK]
+    lib = lib[:m.start(1)] + " ".join(words) + lib[m.end(1):]
+    wr(LIB, lib)
+    edits.append("%s: CL_GIT_SCRUB_VARS -> %d names" % (LIB, len(words)))
+canon = " ".join(words)
+
+# 2. canonical lines everywhere (scripts/ and tests/)
+SH = re.compile(r'^(\s*for _ge_v in )([A-Z_ ]+)(; do unset "\$_ge_v"; done; unset _ge_v.*)$')
+PY = re.compile(r'^(for _ge_v in ")([A-Z_ ]+)("\.split\(\):\s*_ge_os\.environ\.pop\(_ge_v, None\).*)$')
+env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+files = subprocess.run(["git", "-C", repo, "ls-files", "-z", "--", "scripts", "tests"], capture_output=True, env=env, check=True).stdout.decode().split("\0")
+nlines = 0
+for f in files:
+    p = os.path.join(repo, f)
+    if not f or os.path.islink(p) or not os.path.isfile(p):
+        continue
+    try:
+        s = open(p, encoding="utf-8").read()
+    except UnicodeDecodeError:
+        continue
+    if "_ge_v" not in s:
+        continue
+    out = []
+    changed = 0
+    for line in s.split("\n"):
+        mm = SH.match(line) or PY.match(line)
+        if mm and mm.group(2).strip() != canon:
+            line = mm.group(1) + canon + mm.group(3)
+            changed += 1
+        out.append(line)
+    if changed:
+        wr(f, "\n".join(out))
+        nlines += changed
+        edits.append("%s: %d canonical line(s) regenerated" % (f, changed))
+
+# 3. lone copies
+for f, rx in LONE:
+    s = rd(f)
+    lines = s.split("\n")
+    hits = [i for i, l in enumerate(lines) if re.search(rx, l)]
+    if len(hits) != 1:
+        raise SystemExit("REFUSE: %s: %d lines match %r" % (f, len(hits), rx))
+    i = hits[0]
+    lines[i] = drop_token(lines[i])
+    wr(f, "\n".join(lines))
+    edits.append("%s:%d token removed" % (f, i + 1))
+
+for e in edits:
+    print(("WOULD " if check else "EDIT ") + e)
+print("canonical=%s" % canon)
+print("edits=%d canonical_lines=%d" % (len(edits), nlines))
+sys.exit(1 if (check and edits) else 0)

@@ -1,0 +1,2 @@
+git-env-class-census: control needles seen (37 samples)
+git-env-class-census: PASS - members=133 hermetic=130 exempt=3 unscrubbed=0

@@ -1,0 +1,11 @@
+== layout A (local main: 1)
+  ok   layout A precondition: local main differs from HEAD
+  ok   layout A: upstream main~1 is the commit under test
+  ok   layout A: upstream HEAD is main
+  ok   layout A: upstream lib.sh is the lib.sh under test
+== layout B (local main: 0)
+  ok   layout B precondition: no local main
+  ok   layout B: upstream main~1 is the commit under test
+  ok   layout B: upstream HEAD is main
+  ok   layout B: upstream lib.sh is the lib.sh under test
+test_upstream_main: PASS 8 FAIL 0

@@ -1,0 +1,120 @@
+NOT ok control needle #1 failed: a KNOWN-PRESENT sibling file
+     (<scratch>/constitution/scripts/fastcycle/lib/fc_common.py) does not resolve -- this test's relative-path
+     computation is broken, so the absence check below proves
+     nothing (§11.4.273)
+NOT ok control needle #2 could not read the tracker DB (<scratch>/docs/workable_items.db): BLIND unable to open database file
+-- <scratch>/constitution/scripts/fastcycle/closure does not exist at all yet
+NOT ok closure/reopen_rate.py is absent -- T100 (plan.md T-D06's
+     implementation task, a SEPARATE later task from this RED test) has
+     not landed yet. THIS IS THE CORRECT, EXPECTED T091 RED BASELINE --
+     the fixtures + independent derivation below stand as the interim
+     contract (per contracts/common-conventions.md's own convention for
+     open-gap tools: 'their interface, output and RED fixtures are fixed
+     by the plan task text until a contract is written') T100 must satisfy.
+NOT ok fixture directory <scratch>/constitution/scripts/fastcycle/tests/fixtures/reopen_rate/golden_window missing
+NOT ok fixture directory <scratch>/constitution/scripts/fastcycle/tests/fixtures/reopen_rate/golden_bad_mismatched_populations missing
+NOT ok fixture directory <scratch>/constitution/scripts/fastcycle/tests/fixtures/reopen_rate/empty_window missing
+NOT ok fixture directory <scratch>/constitution/scripts/fastcycle/tests/fixtures/reopen_rate/negative_control_retroactive missing
+
+=== T100 contract check 1/4: golden_window (matched population, DERIVED oracle) ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.jHW8WJrTRZ/derive.py", line 164, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.jHW8WJrTRZ/derive.py", line 151, in main
+    with open(fixture_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/reopen_rate/golden_window/tracker_export.json'
+NOT ok golden_window: the independent derivation did NOT match the
+     fixture's hand-computed expected_report (comparator: 'Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    derived = json.load(open('<tmp>/tmp.jHW8WJrTRZ/golden_window.derived.json'))
+                        ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.jHW8WJrTRZ/golden_window.derived.json'').
+     Derived: 
+
+=== T100 contract check 2/4: golden_bad_mismatched_populations (R1 '18 of 31' class, DERIVED oracle) ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.jHW8WJrTRZ/derive.py", line 164, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.jHW8WJrTRZ/derive.py", line 151, in main
+    with open(fixture_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/reopen_rate/golden_bad_mismatched_populations/tracker_export.json'
+NOT ok golden_bad_mismatched_populations: match='Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    derived = json.load(open('<tmp>/tmp.jHW8WJrTRZ/golden_bad.derived.json'))
+                        ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.jHW8WJrTRZ/golden_bad.derived.json''
+     bug_refused_with_mb004='Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    derived = json.load(open('<tmp>/tmp.jHW8WJrTRZ/golden_bad.derived.json'))
+                        ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.jHW8WJrTRZ/golden_bad.derived.json''
+     Derived: 
+
+=== Self-validation control needle (§11.4.107(10)/§11.4.201(1)): golden vs golden-bad discriminate ===
+NOT ok control needle (derivation discrimination) FAILED: golden_window
+     Bug rate='Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json;print(json.load(open('<tmp>/tmp.jHW8WJrTRZ/golden_window.derived.json'))['by_type']['Bug']['rate'])
+                                ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.jHW8WJrTRZ/golden_window.derived.json''
+     golden_bad Bug rate='Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json;print(json.load(open('<tmp>/tmp.jHW8WJrTRZ/golden_bad.derived.json'))['by_type']['Bug']['rate'])
+                                ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.jHW8WJrTRZ/golden_bad.derived.json''
+     -- these must be a real number and RATE_NOT_COMPUTABLE respectively;
+     if they are not, the derivation function is a rubber stamp and
+     checks 1/4 and 2/4 above cannot be trusted.
+
+=== T100 contract check 3/4: empty_window (honest empty state, DERIVED oracle) ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.jHW8WJrTRZ/derive.py", line 164, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.jHW8WJrTRZ/derive.py", line 151, in main
+    with open(fixture_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/reopen_rate/empty_window/window.json'
+NOT ok empty_window: expected state=NO_DATA_IN_WINDOW, derived: 
+NOT ok control needle (empty-window discrimination) FAILED: golden_window's
+     real, non-empty data was reported NO_DATA_IN_WINDOW -- the derivation's
+     empty-window detection over-fires; check 3/4 above is untrustworthy.
+
+=== T100 contract check 4/4: negative_control_retroactive (CT-5, DERIVED oracle) ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.jHW8WJrTRZ/derive.py", line 164, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.jHW8WJrTRZ/derive.py", line 151, in main
+    with open(fixture_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/reopen_rate/negative_control_retroactive/tracker_export.json'
+NOT ok negative_control_retroactive: match='Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    derived = json.load(open('<tmp>/tmp.jHW8WJrTRZ/negative_control.derived.json'))
+                        ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.jHW8WJrTRZ/negative_control.derived.json''
+     bug_passed_not_refused='Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    derived = json.load(open('<tmp>/tmp.jHW8WJrTRZ/negative_control.derived.json'))
+                        ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.jHW8WJrTRZ/negative_control.derived.json''
+     Derived: 
+
+=== Self-validation control needle: golden-bad refuses, negative-control passes (same shape, opposite verdicts) ===
+NOT ok control needle (shape discrimination) FAILED: both fixtures'
+     surface-similar 'one odd item' cases produced the same class of
+     verdict -- the derivation cannot be trusted to discriminate them.
+
+=== Real-tool invocation checks SKIPPED: closure/reopen_rate.py not present ===
+NOT ok real-invocation checks skipped -- this contributes to the overall
+     RED exit below, which is the CORRECT state until T100 lands.
+
+=== T091 RED BASELINE CONFIRMED: closure/reopen_rate.py does not exist yet
+    (T100 is a separate, later task). The four fixtures above + their
+    independently re-derived, self-validated expected_report blocks are
+    the interim contract T100 must satisfy to turn this GREEN. ===

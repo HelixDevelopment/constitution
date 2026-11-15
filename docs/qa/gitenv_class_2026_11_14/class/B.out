@@ -1,0 +1,9 @@
+census cz1_order rc=1
+census cz2_list rc=1
+census cz3_stale rc=1
+census cz4_order_no_needles rc=1
+census cz5_list_no_needles rc=1
+census cz6_reason_any rc=1
+gate_mutants rc=0
+regress before rc=0
+regress after rc=0

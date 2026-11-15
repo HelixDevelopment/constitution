@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -u
+W="${1:?}"; O="$W/ev/class"; mkdir -p "$O"
+loadok() { awk '{exit !($1 < 60)}' /proc/loadavg || { echo "load too high: $(cat /proc/loadavg)"; exit 3; }; }
+streamA() {
+  for i in 1 2 3; do loadok; (cd "$W/repo" && bash tests/test_git_env_class.sh --fast) >"$O/fast_run$i.txt" 2>&1; echo "fast$i rc=$?"; done
+  loadok; (cd "$W/repo" && bash tests/test_git_env_class.sh) >"$O/full_run1.txt" 2>&1; echo "full1 rc=$?"
+}
+streamB() {
+  for m in "$W"/mut/class/census/*.py; do n=$(basename "$m" .py); (cd "$W/repo" && bash tests/test_git_env_class.sh --census "$m" --only-census) >"$O/census_mutant_$n.txt" 2>&1; echo "census $n rc=$?"; done
+  loadok; bash "$W/tools/gate_mutants.sh" "$W" >"$O/gate_mutants.txt" 2>&1; echo "gate_mutants rc=$?"
+  loadok; bash "$W/tools/regress.sh" "$W" before "$W/red" >/dev/null 2>&1; echo "regress before rc=$?"
+  loadok; bash "$W/tools/regress.sh" "$W" after "$W/repo" >/dev/null 2>&1; echo "regress after rc=$?"
+}
+streamA >"$O/A.out" 2>&1 &
+streamB >"$O/B.out" 2>&1 &
+wait
+echo DONE

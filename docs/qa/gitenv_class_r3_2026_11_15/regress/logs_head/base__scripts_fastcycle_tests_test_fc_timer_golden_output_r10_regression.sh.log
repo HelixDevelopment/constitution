@@ -1,0 +1,18 @@
+ok   control needle: <scratch>/base/scripts/fastcycle/tests/capture_fc_timer_triplet.sh resolves
+ok   control needle: <scratch>/base/scripts/fastcycle/tests/test_fc_timer_golden_output.sh resolves
+=== (Q6) R10-M3: a manifest claiming concurrency=sequential with a FORGED FC0b-vs-FC1 overlap (FC0a disjoint from both) is refused ===
+ok   (Q6) a sequential manifest with a forged FC0b-vs-FC1 overlap (FC0a disjoint from both) is refused, naming the contradiction
+=== (Q7) R10-M3: a manifest claiming concurrency=sequential with a FORGED FC0a-vs-FC1 overlap (FC0b disjoint from both) is refused ===
+ok   (Q7) a sequential manifest with a forged FC0a-vs-FC1 overlap (FC0b disjoint from both) is refused, naming the contradiction
+=== (M-Q6) guard-viability: drop the FC0b-vs-FC1 overlap term -- (Q6) must wrongly be accepted ===
+ok   (M-Q6) without the FC0b-vs-FC1 overlap term, the mutant WRONGLY accepts (Q6)'s forged-overlapping manifest -- that term is genuinely load-bearing
+=== (M-Q7) guard-viability: drop the FC0a-vs-FC1 overlap term -- (Q7) must wrongly be accepted ===
+ok   (M-Q7) without the FC0a-vs-FC1 overlap term, the mutant WRONGLY accepts (Q7)'s forged-overlapping manifest -- that term is genuinely load-bearing
+=== (C1) R10-M4: an INVALID concurrency value ('garbage') with a forced tree change is REFUSED, never silently treated as concurrent ===
+ok   (C1) a garbled concurrency value is refused (FAIL) naming the closed-set violation, never silently compared
+=== (C2) R10-M4: a DUPLICATED concurrency key (so _mf_get returns empty) with a forced tree change is REFUSED the same way ===
+ok   (C2) a duplicated concurrency key (ambiguous -> _mf_get returns empty) is refused the same way as a garbled value
+=== (M-C1) guard-viability: bypass the new closed-set validation entirely -- (C1) must reproduce the pre-fix false 'ran concurrently' claim ===
+ok   (M-C1) with the closed-set validation bypassed, the mutant reproduces the pre-fix behaviour -- it no longer refuses (C1)'s garbled-concurrency manifest and WRONGLY compares it, printing a false IDENTICAL verdict for a value that was never proven to be either concurrent or sequential; the validation is genuinely load-bearing
+
+=== T048 ROUND-10 FINDINGS REGRESSION GUARD (R10-M3/M4): ALL CHECKS PASS ===

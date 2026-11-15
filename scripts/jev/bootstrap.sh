@@ -79,9 +79,10 @@ set -euo pipefail
 # goes through jb__git, which drops the repository-locating variables in a subshell.
 # The list equals CL_GIT_SCRUB_VARS (scripts/lib/constitution_layout.sh);
 # tests/layout/test_round8_git_env.sh checks that.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 jb__git() {
     ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
-            GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE \
+            GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE \
             GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH \
             GIT_INTERNAL_SUPER_PREFIX 2>/dev/null; exec git "$@" )
 }
@@ -94,7 +95,7 @@ jb__git() {
 # go through the scrub too, so it cannot matter.
 jb__scrubbed() {
     env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_PREFIX -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY \
-        -u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_NAMESPACE -u GIT_CEILING_DIRECTORIES -u GIT_SHALLOW_FILE \
+        -u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_NAMESPACE -u GIT_SHALLOW_FILE \
         -u GIT_GRAFT_FILE -u GIT_REPLACE_REF_BASE -u GIT_NO_REPLACE_OBJECTS -u GIT_QUARANTINE_PATH \
         -u GIT_INTERNAL_SUPER_PREFIX "$@"
 }

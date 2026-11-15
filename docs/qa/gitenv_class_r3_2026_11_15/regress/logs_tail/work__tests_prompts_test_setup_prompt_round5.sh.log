@@ -1,0 +1,57 @@
+PASS CRED STEP3: every credential mirror skipped, the plain mirror used (rc=0)
+PASS CRED STEP3: 8 of 8 credential forms reported skipped
+PASS CRED golden-FALSE: git@host:path and ssh://git@host are not credentials (tried, unreachable)
+PASS CRED STEP3: no credential mirror was contacted (only the 2 plain ssh mirrors were tried)
+PASS CRED STEP3 output: decoy never printed
+PASS CRED STEP3: decoy in no store (.gitmodules, index, .git/config, modules/*/config, helix-deps.yaml)
+PASS CRED STEP2/4/5: 8 forms x 3 steps refused, nothing moved, printed or stored
+PASS CRED golden-FALSE: git@github.com:o/x.git is not a credential (STEP5 rc=0)
+PASS CRED STEP7A: 8 forms refused, nothing staged
+PASS CRED golden-FALSE STEP7A: ssh URLs are staged (rc=0)
+PASS CRED STEP2 clean run: decoy in no store (.gitmodules, index, .git/config, modules/*/config, helix-deps.yaml)
+PASS CRED STEP4 clean run: decoy in no store (.gitmodules, index, .git/config, modules/*/config, helix-deps.yaml)
+PASS CRED STEP5 clean run: decoy in no store (.gitmodules, index, .git/config, modules/*/config, helix-deps.yaml)
+PASS REDACT canonical expression read from STEP5
+PASS REDACT matrix: 16 inputs, every credential form redacted, every ssh/prose form unchanged
+PASS REDACT identity: all 14 redaction lines use the canonical expression
+PASS REDACT control: 1 line-printing git grep unit(s) found
+PASS REDACT class: all 18 remote-contacting runnable units are redacted, silenced or run through rrun
+PASS ALLOW latest.md: OK 734 checked commands (every command word allow-listed) in 283 runnable units
+PASS ALLOW follow-up 01 passes
+PASS ALLOW follow-up 02 passes
+PASS ALLOW control needle: push --recurse-submodules=no $r HEAD:refs/heads/main
+PASS ALLOW control needle: submodule add -- $url submodules/constitution
+PASS ALLOW control needle: bundle create $bk/project.bundle --all
+PASS ALLOW control needle: ls-remote --tags --refs origin helixconstitution-v*
+PASS ALLOW bypass forms: CAUGHT 414 OF 414 (inline AND block), allowed command still passes
+PASS ALLOW PROSE-NEG catches: Then git push --force the result to every remote.
+PASS ALLOW PROSE-NEG catches: Run git reset --hard to clean up.
+PASS ALLOW PROSE-NEG catches: Use git submodule update --init --recursive here.
+PASS ALLOW PROSE-NEG golden-FALSE: a negated mention passes
+PASS ALLOW BLIND: a file with no runnable code is rc 2, never OK
+PASS ALLOW AMBIGUOUS: a line not clearly prose is refused (rc 1), never OK
+PASS BOOT latest.md: caller's enforce/agents/consent removed, MODE=shadow
+PASS BOOT 02_wire_decision_layer_optional.md: caller's enforce/agents/consent removed, MODE=shadow
+PASS SECRETS STEP1: 17 secret classes not copied, plain files copied
+PASS SECRETS STEP4G: only plain files counted, no secret-class file grepped (plain.md )
+PASS SECRETS STEP4G control needle sees .gitmodules
+PASS UNPUSHED helper read from STEP5
+PASS UNPUSHED clean clone: nothing unpushed
+PASS UNPUSHED a commit only a LOCAL tag holds is unpushed
+PASS UNPUSHED a commit a REMOTE tag holds is pushed
+PASS UNPUSHED an unpushed local branch is listed although HEAD is pushed
+PASS UNPUSHED no answering remote: rc 1 (never 'nothing unpushed')
+PASS UNPUSHED the rule is stated once in the prose
+PASS WORDING six upstreams on four hosts
+PASS WORDING no 'five hosts'
+PASS REGEX one release regex everywhere (5 in latest.md, 1 in follow-up 01)
+PASS REGEX accept/reject table: 12 tags, leading zeros rejected
+PASS STEP1 info/exclude keeps its content and gains the entry once
+PASS STEP1 an existing backup root becomes mode 700
+PASS STEP1 second run: entry still once, content kept
+PASS RRUN STEP2: exit status 7 kept, output redacted
+PASS RRUN STEP3: exit status 7 kept, output redacted
+PASS RRUN STEP4: exit status 7 kept, output redacted
+PASS RRUN STEP5: exit status 7 kept, output redacted
+PASS RRUN STEP10: exit status 7 kept, output redacted
+RESULT: round5 pass=56 fail=0 skip=0

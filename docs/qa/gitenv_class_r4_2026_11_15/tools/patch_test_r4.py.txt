@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""Round-4 edits of tests/test_git_env_class.sh (run from the repo root)."""
+import sys
+
+P = "tests/test_git_env_class.sh"
+s = open(P).read()
+
+
+def rep(old, new, count=1):
+    global s
+    n = s.count(old)
+    if n != count:
+        sys.exit("anchor count %d != %d: %r" % (n, count, old[:80]))
+    s = s.replace(old, new)
+
+
+# header
+rep("""#   C1  the census of this tree is PASS, its closed-world inventory is printed and not trivially small, every
+#       file an independent instrument (`git grep -i -P '(?<![A-Za-z])git'` over sh/py/js under scripts/ and
+#       tests/) finds is a census member, and the six round-3 writers are HERMETIC (review R3-1);""",
+"""#   C1  the census of this tree is PASS, its closed-world inventory accounts for every tracked path and is not
+#       trivially small, every file an independent instrument (`git grep -i -P '(?<![A-Za-z])git'` over
+#       sh/py/js/bash/zsh/ksh in the WHOLE tree) finds is a census member (C1b), every tracked code file in which
+#       an independent write regex sees a git write is a census member (C1d, round 4 R4-1; control needle:
+#       install_upstreams.sh, the writer round 3 missed), the round-3 and round-4 writers are HERMETIC and the
+#       three guards carry subject-follows-caller rows;""")
+rep("""#   B3  behaviour of the round-3 writers (review R3-1): cm_rule_binds_to_seam.sh --selftest, its mutation test and
+#       the gitlink / helix-deps mutation tests run with GIT_DIR aimed at a sentinel, which must stay unchanged and
+#       the verdict must equal the run without the variable.""",
+"""#   B3  behaviour of the round-3 writers (review R3-1): cm_rule_binds_to_seam.sh --selftest, its mutation test and
+#       the gitlink / helix-deps mutation tests run with GIT_DIR aimed at a sentinel, which must stay unchanged and
+#       the verdict must equal the run without the variable;
+#   B4  behaviour of round-4 members outside scripts/ and tests/ and of R4-2/R4-7 (review of 104bc231):
+#       install_upstreams.sh in a throwaway repository, progressive/mutation_matrix.py make_sandbox, and
+#       multitrack_device_lock.sh --help (a reader of a sourced library) under GIT_DIR (and GIT_INDEX_FILE) aimed
+#       at a sentinel: sentinel unchanged; the PreToolUse guards are NOT scrubbed (subject-follows-caller): the
+#       label guard names the GIT_DIR repository's branch, and the binding guard's `git status` takes no optional
+#       lock (a stale index in the GIT_DIR repository is not rewritten; needle: a plain `git status` does).""")
+
+# C1 floors
+rep("""[ "${members:-0}" -ge 400 ] && [ "${universe:-0}" -ge 1000 ]""",
+    """[ "${members:-0}" -ge 500 ] && [ "${universe:-0}" -ge 1500 ] && grep -q 'unclassified=0 ' "$T/c1.log" && grep -qE 'tracked=([0-9]+) accounted=\\1 ' "$T/c1.log\"""")
+rep("""(want 0, PASS, >= 1000, >= 400)""", """(want 0, PASS, >= 1500, >= 500, unclassified=0, tracked=accounted)""")
+
+# C1b whole tree
+rep("""( cd "$ROOT" && git grep -l -I -i -P '(?<![A-Za-z])git' -- 'scripts/*.sh' 'scripts/*.py' 'scripts/*.js' 'scripts/*.bash' 'tests/*.sh' 'tests/*.py' 'tests/*.js' 'tests/*.bash' ) | sort >"$T/c1_indep.txt"
+cut -f3 "$T/c1.log" | grep -E '^(scripts|tests)/' | sort -u >"$T/c1_members.txt\"""",
+"""( cd "$ROOT" && git grep -l -I -i -P '(?<![A-Za-z])git' -- '*.sh' '*.py' '*.js' '*.bash' '*.zsh' '*.ksh' ) | sort >"$T/c1_indep.txt"
+cut -f3 "$T/c1.log" | sort -u >"$T/c1_members.txt\"""")
+rep("""elif [ "$nind" -ge 300 ] && [ -z "$missing" ]; then""", """elif [ "$nind" -ge 450 ] && [ -z "$missing" ]; then""")
+
+# C1c list + C1d
+rep("""         scripts/fastcycle/cycle/fc_supervisor.py scripts/codegraph/scope_enumerate.js; do""",
+    """         scripts/fastcycle/cycle/fc_supervisor.py scripts/codegraph/scope_enumerate.js \\
+         install_upstreams.sh find_constitution.sh progressive/mutation_matrix.py progressive/validate_submodule.py \\
+         scripts/multitrack/multitrack_device_lock.sh docs/qa/ownership_wave2/repro_p8.sh; do""")
+rep("""# ---- C2 fixtures ------------------------------------------------------------------------------""",
+r"""for f in scripts/hooks/guard-branch-consistency.sh scripts/hooks/guard-track-branch-label.sh scripts/hooks/guard-work-track-binding.sh; do
+    if grep -qP "^EXEMPT\t[a-z]+\t\Q$f\E\t[0-9]+\tsubject-follows-caller" "$T/c1.log"; then ok "C1c: $f is EXEMPT subject-follows-caller (R4-7)"
+    else ko "C1c: $f: $(grep -F "$f" "$T/c1.log" | head -n 1)"; fi
+done
+# C1d (R4-1): an independent write instrument over the WHOLE tree (its own ls-files, its own code test, its own
+# regex): every tracked code file in which `git [-C x|-c k=v]... <write>` appears outside a comment line must be
+# a census member. Control needle: install_upstreams.sh (a writer at the root, outside round 3's universe).
+python3 -I - "$ROOT" >"$T/c1d.txt" 2>&1 <<'PY'
+import os, re, subprocess, sys
+root = sys.argv[1]
+env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+out = subprocess.run(["git", "-C", root, "ls-files", "-z", "-s"], capture_output=True, env=env, check=True).stdout.decode()
+W = re.compile(r"(?<![\w./-])git(?:\s+-[Cc]\s+\S+)*\s+(?:init|add|commit|push|config|remote|reset|checkout|switch|branch|tag|merge|rebase|rm|mv|stash|worktree|submodule|update-ref|update-index|symbolic-ref|notes|fetch|pull|clone|apply|am|cherry-pick|revert|gc|prune)\b")
+CODE = (".sh", ".bash", ".zsh", ".ksh", ".py", ".js", ".mjs", ".cjs")
+for rec in out.split("\0"):
+    if not rec:
+        continue
+    meta, path = rec.split("\t", 1)
+    mode = meta.split()[0]
+    if mode in ("160000", "120000"):
+        continue
+    p = os.path.join(root, path)
+    try:
+        raw = open(p, "rb").read()
+    except OSError:
+        continue
+    if b"\0" in raw[:8192]:
+        continue
+    base = os.path.basename(path)
+    code = base.endswith(CODE) or ("." not in base and (raw.startswith(b"#!") or mode == "100755"))
+    if not code:
+        continue
+    text = raw.decode("utf-8", "replace")
+    for line in text.split("\n"):
+        st = line.lstrip()
+        if st.startswith("#") or st.startswith("//"):
+            continue
+        if W.search(line):
+            print(path)
+            break
+PY
+sort -u "$T/c1d.txt" >"$T/c1d_writers.txt"
+nw="$(wc -l <"$T/c1d_writers.txt")"
+outside="$(comm -23 "$T/c1d_writers.txt" "$T/c1_members.txt" | head -n 5 | tr '\n' ' ')"
+if ! grep -qxF install_upstreams.sh "$T/c1d_writers.txt"; then ko "C1d: the independent write instrument does not find install_upstreams.sh (control needle): the instrument is blind"
+elif [ "$nw" -ge 150 ] && [ -z "$outside" ]; then ok "C1d: all $nw tracked code files with a git write (independent instrument, whole tree) are census members"
+else ko "C1d: $nw writer files found; not census members: $outside"; fi
+
+# ---- C2 fixtures ------------------------------------------------------------------------------""")
+
+# C2 r4 fixtures, before C3
+rep("""census_case C2ag 0 "$(fx ag scripts/x.sh "$(printf '#!/usr/bin/env bash\\necho digit legitimate')")" "members=1 \"""",
+r"""census_case C2ag 0 "$(fx ag scripts/x.sh "$(printf '#!/usr/bin/env bash\necho digit legitimate')")" "members=1 "
+
+# round 4 (review of 104bc231). R4-1: the universe is the whole tree: a writer at the root, under docs/ or in an
+# executable file without a shebang (the kernel runs it as shell) is a member; an unknown extension fails the run.
+census_case C2r4a 1 "$(fx r4a tool.sh "$(printf '#!/usr/bin/env bash\ngit init -q')")" "UNSCRUBBED tool.sh"
+census_case C2r4a2 1 "$(fx r4a2 docs/qa/repro.sh "$(printf '#!/usr/bin/env bash\ngit -C "$d" commit -q -m x')")" "UNSCRUBBED docs/qa/repro.sh"
+D="$(fx r4b bin/run "$(printf 'git init -q x')")"
+chmod +x "$D/bin/run" && gitc "$D" update-index --chmod=+x bin/run || setup_bug "chmod r4b"
+census_case C2r4b 1 "$D" "UNSCRUBBED bin/run"
+D="$(fx r4b2 bin/notes "$(printf 'git init -q x')")"
+census_case C2r4b2 0 "$D" "PASS"   # boundary: an extensionless file without exec bit or shebang is data (it runs only as `sh file`, like any text file)
+census_case C2r4c 1 "$(fx r4c scripts/x.weird "$(printf 'whatever')")" "unclassified"
+census_case C2r4c2 0 "$(fx r4c2 docs/notes.md "$(printf '#!/bin/sh\ngit init -q x')")" "PASS"
+# R4-2: a reader of a sourced library that runs git (unwrapped) must itself be hermetic
+D="$(fx r4d scripts/lib2.sh "$(printf '#!/usr/bin/env bash\nlib_top() { git rev-parse --show-toplevel; }')")"
+printf '#!/usr/bin/env bash\n. "$(dirname "$0")/lib2.sh"\nlib_top\n' >"$D/scripts/reader.sh"
+gitc "$D" add -A || setup_bug "add r4d"
+printf 'scripts/lib2.sh\tsourced-library\tread only\n' >"$D/config/git_env_class_exemptions.tsv"
+census_case C2r4d 1 "$D" "(R4-2)"
+printf '#!/usr/bin/env bash\n%s\n. "$(dirname "$0")/lib2.sh"\nlib_top\n' "$SCRUB_SH" >"$D/scripts/reader.sh"
+census_case C2r4d2 0 "$D" "PASS"
+# R4-3: `set -e; git ...` is not a preamble line
+census_case C2r4e 1 "$(fx r4e scripts/x.sh "$(printf '#!/usr/bin/env bash\nset -e; git init -q x\n%s\ngit add f' "$SCRUB_SH")")" "UNSCRUBBED scripts/x.sh"
+census_case C2r4e2 0 "$(fx r4e2 scripts/x.sh "$(printf '#!/usr/bin/env bash\nset -e\nshopt -s nullglob\numask 022\n%s\ngit init -q x' "$SCRUB_SH")")" "PASS"
+# R4-4: an entry-function-scrub row needs the clear in the entry function, before its first git call, and no
+# git at top level
+D="$(fx r4f scripts/x.sh "$(printf '#!/usr/bin/env bash\ngit init -q x\nmain() {\n  local _v\n  for _v in %s; do unset "$_v"; done\n  git add f\n}\nmain "$@"' "$CANON")")"
+printf 'scripts/x.sh\tentry-function-scrub\tclaimed\n' >"$D/config/git_env_class_exemptions.tsv"
+census_case C2r4f 1 "$D" "row entry-function-scrub, but"
+D="$(fx r4f2 scripts/x.sh "$(printf '#!/usr/bin/env bash\nmain() {\n  git add f\n  local _v\n  for _v in %s; do unset "$_v"; done\n}\nmain "$@"' "$CANON")")"
+printf 'scripts/x.sh\tentry-function-scrub\tclaimed\n' >"$D/config/git_env_class_exemptions.tsv"
+census_case C2r4f2 1 "$D" "row entry-function-scrub, but"
+# R4-5: a list-operating clear over the wrong list, or inside a heredoc, is not a clear
+D="$(fx r4g scripts/x.sh "$(printf '#!/usr/bin/env bash\n# %s\nmain() {\n  local _v\n  for _v in A B; do unset "$_v"; done\n  git add f\n}\nmain "$@"' "$CANON")")"
+printf 'scripts/x.sh\tentry-function-scrub\tclaimed\n' >"$D/config/git_env_class_exemptions.tsv"
+census_case C2r4g 1 "$D" "row entry-function-scrub, but"
+D="$(fx r4g2 scripts/x.sh "$(printf '#!/usr/bin/env bash\nmain() {\n  cat <<EOF\nfor _v in %s; do unset "$_v"; done\nEOF\n  git add f\n}\nmain "$@"' "$CANON")")"
+printf 'scripts/x.sh\tentry-function-scrub\tclaimed\n' >"$D/config/git_env_class_exemptions.tsv"
+census_case C2r4g2 1 "$D" "row entry-function-scrub, but"
+# R4-7: a subject-follows-caller row holds for a read-only guard and fails for a writing one
+D="$(fx r4h scripts/hooks/g.sh "$(printf '#!/usr/bin/env bash\nB="$(git rev-parse --abbrev-ref HEAD)"\necho "stage with git add <paths>" >&2')")"
+printf 'scripts/hooks/g.sh\tsubject-follows-caller\tread-only guard\n' >"$D/config/git_env_class_exemptions.tsv"
+census_case C2r4h 0 "$D" "PASS"
+D="$(fx r4h2 scripts/hooks/g.sh "$(printf '#!/usr/bin/env bash\ngit add -A')")"
+printf 'scripts/hooks/g.sh\tsubject-follows-caller\tclaimed read-only\n' >"$D/config/git_env_class_exemptions.tsv"
+census_case C2r4h2 1 "$D" "row subject-follows-caller, but a git write is detected\"""")
+
+# B4 after B3
+rep("""b3_member B3_helixdeps_mut scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh
+""",
+r"""b3_member B3_helixdeps_mut scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh
+
+# ---- B4 round 4 (review of 104bc231) -----------------------------------------------------------------------
+# install_upstreams.sh configures remotes of the repository it lives in, so it runs from a copy inside a
+# throwaway repository (never this checkout); no remote is contacted.
+for mode in none git_dir both; do
+    iu="$T/iu_$mode"; mkdir -p "$iu" || setup_bug "mkdir iu"
+    GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git init -q --template= "$iu" || setup_bug "init iu"
+    cp "$ROOT/install_upstreams.sh" "$iu/" && cp -r "$ROOT/upstreams" "$iu/" || setup_bug "copy iu"
+    sen="$T/sen_iu_$mode"; mksen "$sen"; f0="$(fingerprint "$sen")"
+    case "$mode" in none) env_=() ;; git_dir) env_=(GIT_DIR="$sen/.git") ;; both) env_=(GIT_DIR="$sen/.git" GIT_INDEX_FILE="$sen/.git/index") ;; esac
+    rc=0; ( cd "$iu" && env "${env_[@]}" GIT_CONFIG_GLOBAL=/dev/null timeout 120 bash ./install_upstreams.sh ) </dev/null >"$T/iu_$mode.log" 2>&1 || rc=$?
+    nrem="$(git -C "$iu" remote | wc -l)"
+    if [ "$rc" = 0 ] && [ "$nrem" -ge 2 ]; then ok "B4_install_upstreams [$mode]: exit 0, $nrem remotes in its own repository"
+    else ko "B4_install_upstreams [$mode]: exit $rc, $nrem remotes in its own repository: $(tail -n 2 "$T/iu_$mode.log" | tr '\n' ' ')"; fi
+    if [ "$(fingerprint "$sen")" = "$f0" ]; then ok "B4_install_upstreams [$mode]: sentinel unchanged"; else ko "B4_install_upstreams [$mode]: the sentinel repository was written"; fi
+done
+# progressive/mutation_matrix.py make_sandbox: importing the module runs its scrub; its git init/add/commit
+# must land in the sandbox. The consumer pin it reads last is absent in this repository (FileNotFoundError
+# after the git steps), which is expected here.
+for mode in git_dir both; do
+    sen="$T/sen_mm_$mode"; mksen "$sen"; f0="$(fingerprint "$sen")"
+    case "$mode" in git_dir) env_=(GIT_DIR="$sen/.git") ;; both) env_=(GIT_DIR="$sen/.git" GIT_INDEX_FILE="$sen/.git/index") ;; esac
+    mkdir -p "$T/mm_$mode" || setup_bug "mkdir mm"
+    rc=0; ( cd "$ROOT" && env "${env_[@]}" GIT_CONFIG_GLOBAL=/dev/null python3 -c '
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1] + "/progressive")
+import mutation_matrix as mm
+mm.ROOT = Path(sys.argv[1])
+try:
+    mm.make_sandbox(Path(sys.argv[2]))
+except FileNotFoundError:
+    pass
+' "$ROOT" "$T/mm_$mode" ) >"$T/mm_$mode.log" 2>&1 || rc=$?
+    if [ "$rc" = 0 ] && git -C "$T/mm_$mode/consumer/constitution" rev-parse --verify -q HEAD >/dev/null; then ok "B4_mutation_matrix [$mode]: the sandbox got its own commit"
+    else ko "B4_mutation_matrix [$mode]: exit $rc, no commit in the sandbox: $(tail -n 2 "$T/mm_$mode.log" | tr '\n' ' ')"; fi
+    if [ "$(fingerprint "$sen")" = "$f0" ]; then ok "B4_mutation_matrix [$mode]: sentinel unchanged"; else ko "B4_mutation_matrix [$mode]: the sentinel repository was written"; fi
+done
+member B4_device_lock_help 0 "git_dir" scripts/multitrack/multitrack_device_lock.sh --help
+# R4-7: the guards follow the caller's repository. The label guard is copied alone into a temp dir so its
+# sibling labeler is unreachable and its own git fallback answers; under GIT_DIR it must name the GIT_DIR
+# repository's branch ("sentinel"), not the cwd repository's.
+sen="$T/sen_guard"; mksen "$sen"
+plain="$T/plain_guard"; GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git init -q -b plainb --template= "$plain" || setup_bug "init plain_guard"
+mkdir -p "$T/guard_copy" && cp "$ROOT/scripts/hooks/guard-track-branch-label.sh" "$T/guard_copy/" || setup_bug "copy guard"
+out="$( cd "$plain" && printf '%s' '{"tool_name":"Agent","tool_input":{"description":"no label","prompt":"x"}}' | GIT_DIR="$sen/.git" bash "$T/guard_copy/guard-track-branch-label.sh" 2>&1 )"
+if printf '%s\n' "$out" | grep -qF "(T?/sentinel - "; then ok "B4_guard_label: under GIT_DIR the guard names the GIT_DIR repository's branch (subject follows the caller)"
+else ko "B4_guard_label: the guard did not name the GIT_DIR repository's branch: $(printf '%s' "$out" | grep -m1 'Correct prefix')"; fi
+# the binding guard's `git status` must not rewrite the caller-selected repository's index (optional lock).
+# Needle first: a plain `git status` under the same variables on a stale index DOES rewrite it.
+touch -d '2001-01-01 00:00' "$sen/s"; f0="$(fingerprint "$sen")"
+( cd "$plain" && GIT_DIR="$sen/.git" GIT_WORK_TREE="$sen" GIT_CONFIG_GLOBAL=/dev/null git status --porcelain ) >/dev/null 2>&1
+if [ "$(fingerprint "$sen")" != "$f0" ]; then ok "B4_guard_status needle: a plain git status rewrites a stale index"
+else ko "B4_guard_status needle: a plain git status did not rewrite the stale index, so the case below proves nothing"; fi
+touch -d '2002-01-01 00:00' "$sen/s"; f0="$(fingerprint "$sen")"
+( cd "$plain" && printf '%s' '{"tool_name":"Bash","tool_input":{"command":"git commit -a -m x"}}' | GIT_DIR="$sen/.git" GIT_WORK_TREE="$sen" GIT_CONFIG_GLOBAL=/dev/null bash "$ROOT/scripts/hooks/guard-work-track-binding.sh" ) >"$T/guard_wtb.log" 2>&1
+if [ "$(fingerprint "$sen")" = "$f0" ]; then ok "B4_guard_status: the binding guard left the caller's repository unchanged (no optional lock)"
+else ko "B4_guard_status: the binding guard rewrote the caller's repository index"; fi
+""")
+
+# K4 whole tree
+rep("""# K4: every scrub line of the canonical form in a tracked file (shell and python, scripts/ and tests/) is RUN with""",
+    """# K4: every scrub line of the canonical form in a tracked file (shell and python, whole tree) is RUN with""")
+rep("""files = subprocess.run(["git", "-C", root, "ls-files", "-z", "--", "scripts", "tests"], capture_output=True, env=clean).stdout.decode().split("\\0")""",
+    """files = subprocess.run(["git", "-C", root, "ls-files", "-z"], capture_output=True, env=clean).stdout.decode().split("\\0")""")
+
+open(P, "w").write(s)
+print("patched")

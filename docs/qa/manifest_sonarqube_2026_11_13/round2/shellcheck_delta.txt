@@ -1,0 +1,6 @@
+# shellcheck delta, bd0036bd -> 752e822b (version: 0.11.0)
+scripts/gates/cm_full_suite_manifest_complete.sh base=absent new=0 text-identical(line numbers stripped)=yes
+scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh base=absent new=0 text-identical(line numbers stripped)=yes
+scripts/post_update_hook.sh base=6 new=6 text-identical(line numbers stripped)=yes
+tests/test_full_suite_manifest_gate_git_env.sh base=absent new=0 text-identical(line numbers stripped)=yes
+tests/test_post_update_hub_gates.sh base=1 new=1 text-identical(line numbers stripped)=yes

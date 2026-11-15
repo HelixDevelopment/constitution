@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# spot_mutants.sh <repo> <mutdir> <out> <id>...: run the paired mutation test against each mutant (final-gate set)
+set -u
+repo="$1"; md="$2"; out="$3"; shift 3
+: >"$out"
+for id in "$@"; do
+  s=$(date +%s); rc=0
+  log="$out.$id.log"
+  (cd "$repo" && bash scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh --gate "$md/$id.sh") >"$log" 2>&1 || rc=$?
+  v=SURVIVED; [ "$rc" -ne 0 ] && v=KILLED
+  printf '%s mut_rc=%s %s wall=%ss failing_cases=%s first=%s\n' "$id" "$rc" "$v" "$(( $(date +%s)-s ))" "$(grep -c '^FAIL' "$log")" "$(grep -m1 '^FAIL' "$log" | cut -c1-160)" >>"$out"
+done

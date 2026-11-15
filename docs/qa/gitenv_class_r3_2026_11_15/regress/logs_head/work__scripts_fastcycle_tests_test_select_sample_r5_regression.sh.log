@@ -1,0 +1,1 @@
+SKIP: <scratch>/constitution/scripts/fastcycle/cycle/select_sample.py or the consumer tracker DB <scratch>/docs/workable_items.db absent (test targets a consumer layout with canon at constitution/, not canon alone) reason=topology_unsupported

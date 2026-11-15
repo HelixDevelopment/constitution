@@ -1,0 +1,43 @@
+=== R17 regression guard: control needle -- tool + libs exist, git usable ===
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py not found
+
+=== IMPORTANT-1 a commit reachable only as the OLD oid of a surviving reflog line ===
+ok R1 evidence: L is reachable from no ref, and appears in logs/HEAD ONLY as an old-oid (never a new-oid)
+NOT ok R1 reflog old-oid-only commit: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.QvHL2TwhrT/out.2716787.6785.json')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR1_reflog_old_oid_collected: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.QvHL2TwhrT/mut_MR1_reflog_old_oid_collected/orchestration/custody_sweep.py')
+
+=== MINOR-1 a filter that escapes the killed process group (setsid) is bounded, not re-blocked forever ===
+NOT ok MINOR-1 expected REFUSED in <15s, got NO_DOC in 0s
+NOT ok MINOR-1 (2nd run) expected REFUSED in <15s, got NO_DOC in 0s
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR17_1_abandon_path_disabled: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.QvHL2TwhrT/mut_MR17_1_abandon_path_disabled/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR17_2_kill_only_direct_child: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.QvHL2TwhrT/mut_MR17_2_kill_only_direct_child/orchestration/custody_sweep.py')
+
+=== MINOR-2 chmod 000 on an admin refs/ subdirectory must REFUSE (fail-closed), never silently ALLOW ===
+ok M2 evidence: refs/worktree/saved exists before the permission attack
+NOT ok M2 chmod 000 on admin refs/worktree/ -> fail-closed REFUSED (never a silent ALLOW): expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.QvHL2TwhrT/out.2716787.3143.json')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR17_3_walk_onerror_removed: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.QvHL2TwhrT/mut_MR17_3_walk_onerror_removed/orchestration/custody_sweep.py')
+
+summary: 2 check(s) passed
+=== R17 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

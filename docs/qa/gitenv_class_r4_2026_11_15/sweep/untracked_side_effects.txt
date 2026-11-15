@@ -1,0 +1,82 @@
+d .claude 
+d .gemini 
+d .qwen 
+d prompts 
+f .claude/settings.json.bak 
+d .claude/skills 
+f .claude/settings.json 
+d .gemini/commands 
+d .qwen/commands 
+l prompts/background.md ../actions/generated/codex/background.md
+l prompts/default-feature.md ../actions/generated/codex/default-feature.md
+l prompts/jev_bootstrap.md ../actions/generated/codex/jev_bootstrap.md
+l prompts/default-background.md ../actions/generated/codex/default-background.md
+l prompts/constitution.md ../actions/generated/codex/constitution.md
+l prompts/important.md ../actions/generated/codex/important.md
+l prompts/task.md ../actions/generated/codex/task.md
+l prompts/default-important.md ../actions/generated/codex/default-important.md
+l prompts/default-critical.md ../actions/generated/codex/default-critical.md
+l prompts/feature.md ../actions/generated/codex/feature.md
+l prompts/reminder.md ../actions/generated/codex/reminder.md
+l prompts/note.md ../actions/generated/codex/note.md
+l prompts/default-constitution.md ../actions/generated/codex/default-constitution.md
+l prompts/jev_status.md ../actions/generated/codex/jev_status.md
+l prompts/critical.md ../actions/generated/codex/critical.md
+l prompts/default-task.md ../actions/generated/codex/default-task.md
+l .claude/skills/action-prefix-system ../../skills/action-prefix-system
+l .gemini/commands/note.toml ../../actions/generated/gemini/note.toml
+l .gemini/commands/background.toml ../../actions/generated/gemini/background.toml
+l .gemini/commands/constitution.toml ../../actions/generated/gemini/constitution.toml
+l .gemini/commands/default-feature.toml ../../actions/generated/gemini/default-feature.toml
+l .gemini/commands/feature.toml ../../actions/generated/gemini/feature.toml
+l .gemini/commands/jev_status.toml ../../actions/generated/gemini/jev_status.toml
+l .gemini/commands/default-important.toml ../../actions/generated/gemini/default-important.toml
+l .gemini/commands/critical.toml ../../actions/generated/gemini/critical.toml
+l .gemini/commands/default-background.toml ../../actions/generated/gemini/default-background.toml
+l .gemini/commands/reminder.toml ../../actions/generated/gemini/reminder.toml
+l .gemini/commands/default-bug.toml ../../actions/generated/gemini/default-bug.toml
+l .gemini/commands/default-constitution.toml ../../actions/generated/gemini/default-constitution.toml
+l .gemini/commands/default-note.toml ../../actions/generated/gemini/default-note.toml
+l .gemini/commands/default-jev_bootstrap.toml ../../actions/generated/gemini/default-jev_bootstrap.toml
+l .gemini/commands/default-issue.toml ../../actions/generated/gemini/default-issue.toml
+l .gemini/commands/default-jev_status.toml ../../actions/generated/gemini/default-jev_status.toml
+l .qwen/commands/default-background.toml ../../actions/generated/qwen/default-background.toml
+l .qwen/commands/reminder.toml ../../actions/generated/qwen/reminder.toml
+l .qwen/commands/default-bug.toml ../../actions/generated/qwen/default-bug.toml
+l .qwen/commands/default-constitution.toml ../../actions/generated/qwen/default-constitution.toml
+l .qwen/commands/default-note.toml ../../actions/generated/qwen/default-note.toml
+l .qwen/commands/default-jev_bootstrap.toml ../../actions/generated/qwen/default-jev_bootstrap.toml
+l .qwen/commands/critical.toml ../../actions/generated/qwen/critical.toml
+l .qwen/commands/default-critical.toml ../../actions/generated/qwen/default-critical.toml
+l .qwen/commands/task.toml ../../actions/generated/qwen/task.toml
+l .qwen/commands/issue.toml ../../actions/generated/qwen/issue.toml
+l .qwen/commands/bug.toml ../../actions/generated/qwen/bug.toml
+l .qwen/commands/important.toml ../../actions/generated/qwen/important.toml
+l .qwen/commands/jev_bootstrap.toml ../../actions/generated/qwen/jev_bootstrap.toml
+l .qwen/commands/default-task.toml ../../actions/generated/qwen/default-task.toml
+l .gemini/commands/default-critical.toml ../../actions/generated/gemini/default-critical.toml
+l .gemini/commands/task.toml ../../actions/generated/gemini/task.toml
+l .gemini/commands/issue.toml ../../actions/generated/gemini/issue.toml
+l .gemini/commands/bug.toml ../../actions/generated/gemini/bug.toml
+l .gemini/commands/important.toml ../../actions/generated/gemini/important.toml
+l .gemini/commands/jev_bootstrap.toml ../../actions/generated/gemini/jev_bootstrap.toml
+l .gemini/commands/default-task.toml ../../actions/generated/gemini/default-task.toml
+l .gemini/commands/default-reminder.toml ../../actions/generated/gemini/default-reminder.toml
+l .qwen/commands/default-issue.toml ../../actions/generated/qwen/default-issue.toml
+l .qwen/commands/note.toml ../../actions/generated/qwen/note.toml
+l .qwen/commands/background.toml ../../actions/generated/qwen/background.toml
+l .qwen/commands/constitution.toml ../../actions/generated/qwen/constitution.toml
+l .qwen/commands/default-feature.toml ../../actions/generated/qwen/default-feature.toml
+l .qwen/commands/feature.toml ../../actions/generated/qwen/feature.toml
+l .qwen/commands/jev_status.toml ../../actions/generated/qwen/jev_status.toml
+l .qwen/commands/default-important.toml ../../actions/generated/qwen/default-important.toml
+l .qwen/commands/default-reminder.toml ../../actions/generated/qwen/default-reminder.toml
+l .qwen/commands/default-jev_status.toml ../../actions/generated/qwen/default-jev_status.toml
+l prompts/default-jev_bootstrap.md ../actions/generated/codex/default-jev_bootstrap.md
+l prompts/default-jev_status.md ../actions/generated/codex/default-jev_status.md
+l prompts/default-note.md ../actions/generated/codex/default-note.md
+l prompts/default-bug.md ../actions/generated/codex/default-bug.md
+l prompts/bug.md ../actions/generated/codex/bug.md
+l prompts/default-reminder.md ../actions/generated/codex/default-reminder.md
+l prompts/default-issue.md ../actions/generated/codex/default-issue.md
+l prompts/issue.md ../actions/generated/codex/issue.md

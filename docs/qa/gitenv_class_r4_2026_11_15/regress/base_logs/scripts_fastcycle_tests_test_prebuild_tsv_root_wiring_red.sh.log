@@ -1,0 +1,1 @@
+SKIP: consumer-project files absent under /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR: /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/device/rockchip/rk3588/tests/pre_build_verification.sh /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/device/rockchip/rk3588/tests (test targets a consumer layout, not canon alone) reason=topology_unsupported

@@ -1,0 +1,11 @@
+  ok   golden: every scoped script executable -> PASS (rc=0)
+  ok   F1 untracked scoped script 0644 -> FAIL (rc=1)
+  ok   F2 tracked 100644 (worktree 0755) -> FAIL (rc=1)
+  ok   F3 nothing in scope -> BLIND (rc=2)
+  ok   F4 golden-FALSE: only a shebang-less fragment is 0644 -> PASS (rc=0)
+  ok   F5 hook-chmod scope: scripts/other.sh 0644 -> FAIL (rc=1)
+  ok   F5 control: the installer scope ignores scripts/other.sh -> PASS (rc=0)
+  ok   mutant K1 killed (f1 rc=2, f2 rc=2)
+  ok   mutant K2 killed (f1 rc=2, f2 rc=2)
+  ok   mutant K3 killed (f1 rc=2, f2 rc=2)
+META PASS: CM-INSTALLER-SCRIPT-MODES classifies every fixture and kills every mutant

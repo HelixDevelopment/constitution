@@ -1,0 +1,7 @@
+  ok   run 1 exit 0
+  ok   run 2 exit 0
+  ok   run 3 exit 0
+  ok   run 1 == run 2
+  ok   run 2 == run 3
+  signature: 50d2203b30a43601856f326c71b9b388aa2f820b 04ff8cf5bd5a30f2 d892dd9b0114021e 2545dd54ec700e9b 663adc81473f78db 7fc5b3cf2ab9388f8532119b56e3984671e54ef6 becd1f2f2d62f84e
+determinism: PASS 5 FAIL 0

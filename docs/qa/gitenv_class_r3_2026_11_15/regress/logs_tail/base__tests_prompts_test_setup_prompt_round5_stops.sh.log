@@ -1,0 +1,159 @@
+PASS COVERAGE STEP1 site covered by S1-SYMLINK
+PASS COVERAGE STEP1 site covered by S1-CHMOD
+PASS COVERAGE STEP1 site covered by S1-MKTEMP
+PASS COVERAGE STEP1 site covered by S1-REFS
+PASS COVERAGE STEP1 site covered by S1-BUNDLE
+PASS COVERAGE STEP1 site covered by S1-CPTOP
+PASS COVERAGE STEP1 site covered by S1-CPDIR
+PASS COVERAGE STEP1 site covered by S1-HOOKS
+PASS COVERAGE STEP1 site covered by S1-EXCL
+PASS COVERAGE STEP2 site covered by S2-CRED
+PASS COVERAGE STEP2 site covered by S2-STATUS
+PASS COVERAGE STEP2 site covered by S2-EMPTY
+PASS COVERAGE STEP2 site covered by S2-INIT
+PASS COVERAGE STEP2 site covered by S2-OWN
+PASS COVERAGE STEP3 site covered by S3-CRED
+PASS COVERAGE STEP3 site covered by S3-ININIT
+PASS COVERAGE STEP3 site covered by S3-INOWN
+PASS COVERAGE STEP3 site covered by S3-EXISTS
+PASS COVERAGE STEP3 site covered by S3-NOMIRROR
+PASS COVERAGE STEP3 site covered by S3-MKDIR
+PASS COVERAGE STEP3 site covered by S3-ADD
+PASS COVERAGE STEP3 site covered by S3-LSR
+PASS COVERAGE STEP3 site covered by S3-CO
+PASS COVERAGE STEP3 site covered by S3-GADD
+PASS COVERAGE STEP4 site covered by S4-CRED
+PASS COVERAGE STEP4 site covered by S4-STATUS
+PASS COVERAGE STEP4 site covered by S4-EMPTY
+PASS COVERAGE STEP4 site covered by S4-INIT
+PASS COVERAGE STEP4 site covered by S4-OWN
+PASS COVERAGE STEP4 site covered by S4-NODIRTY
+PASS COVERAGE STEP4 site covered by S4-NOREMOTE
+PASS COVERAGE STEP4 site covered by S4-NOUNPUSHED
+PASS COVERAGE STEP4 site covered by S4-PARENT
+PASS COVERAGE STEP4 site covered by S4-EXISTS
+PASS COVERAGE STEP4 site covered by S4-MKDIR
+PASS COVERAGE STEP4 site covered by S4-MV
+PASS COVERAGE STEP4 site covered by S4-GM
+PASS COVERAGE STEP4 site covered by S4-INITM
+PASS COVERAGE STEP4 site covered by S4-LINK
+PASS COVERAGE STEP4 site covered by S4-STILL
+PASS COVERAGE STEP5 site covered by S5-GMCRED-NONE
+PASS COVERAGE STEP5 site covered by S5-CRED
+PASS COVERAGE STEP5 site covered by S5-UNP-NOREMOTE
+PASS COVERAGE STEP5 site covered by S5-OC-TOP
+PASS COVERAGE STEP5 site covered by S5-OC-WT
+PASS COVERAGE STEP5 site covered by S5-OC-FOREIGN
+PASS COVERAGE STEP5 site covered by S5-STATUS
+PASS COVERAGE STEP5 site covered by S5-EMPTY
+PASS COVERAGE STEP5 site covered by S5-INIT
+PASS COVERAGE STEP5 site covered by S5-OWN
+PASS COVERAGE STEP5 site covered by S5-DIRTY
+PASS COVERAGE STEP5 site covered by S5-NOREMOTE
+PASS COVERAGE STEP5 site covered by S5-UNPUSHED
+PASS COVERAGE STEP5 site covered by S5-FETCHOK
+PASS COVERAGE STEP5 site covered by S5-HEAD
+PASS COVERAGE STEP5 site covered by S5-LSR
+PASS COVERAGE STEP5 site covered by S5-TARGET
+PASS COVERAGE STEP5 site covered by S5-NOFF
+PASS COVERAGE STEP5 site covered by S5-CO
+PASS COVERAGE STEP5 site covered by S5-ADD
+PASS COVERAGE STEP6B site covered by S6B-RC
+PASS COVERAGE STEP7A site covered by S7A-INVALID
+PASS COVERAGE STEP7A site covered by S7A-CRED
+PASS COVERAGE STEP7A site covered by S7A-ADD
+PASS COVERAGE control: the enumerator found 64 STOP sites (+18 in helper copies)
+PASS ROWS checked: 69 rows, each naming one site line (failures listed above, if any)
+PASS IDENTITY credrx: one definition in 4 blocks (STEP2,STEP3,STEP4,STEP5)
+PASS IDENTITY gm_cred: one definition in 4 blocks (STEP2,STEP3,STEP4,STEP5)
+PASS IDENTITY own_checkout: one definition in 4 blocks (STEP2,STEP3,STEP4,STEP5)
+PASS IDENTITY redact: one definition in 5 blocks (STEP10,STEP2,STEP3,STEP4,STEP5)
+PASS IDENTITY rrun: one definition in 5 blocks (STEP10,STEP2,STEP3,STEP4,STEP5)
+PASS IDENTITY unpushed: one definition in 2 blocks (STEP4,STEP5)
+PASS IDENTITY control: own_checkout found in 4 blocks
+PASS IDENTITY control: unpushed found in 2 blocks
+PASS IDENTITY control: gm_cred found in 4 blocks
+PASS IDENTITY control: credrx found in 4 blocks
+PASS IDENTITY control: redact found in 5 blocks
+PASS IDENTITY control: rrun found in 5 blocks
+PASS S1-SYMLINK (STEP1): rc=3, last line matches
+PASS S1-CHMOD (STEP1): rc=3, last line matches
+PASS S1-MKTEMP (STEP1): rc=3, last line matches
+PASS S1-REFS (STEP1): rc=3, last line matches
+PASS S1-BUNDLE (STEP1): rc=3, last line matches
+PASS S1-CPTOP (STEP1): rc=3, last line matches
+PASS S1-CPDIR (STEP1): rc=3, last line matches
+PASS S1-HOOKS (STEP1): rc=3, last line matches
+PASS S1-EXCL (STEP1): rc=3, last line matches
+PASS S2-CRED (STEP2): rc=3, last line matches
+PASS S2-STATUS (STEP2): rc=3, last line matches
+PASS S2-EMPTY (STEP2): rc=3, last line matches
+PASS S2-INIT (STEP2): rc=3, last line matches
+PASS S2-OWN (STEP2): rc=3, last line matches
+PASS S3-CRED (STEP3): rc=3, last line matches
+PASS S3-ININIT (STEP3): rc=3, last line matches
+PASS S3-INOWN (STEP3): rc=3, last line matches
+PASS S3-EXISTS (STEP3): rc=3, last line matches
+PASS S3-NOMIRROR (STEP3): rc=3, last line matches
+PASS S3-MKDIR (STEP3): rc=3, last line matches
+PASS S3-ADD (STEP3): rc=3, last line matches
+PASS S3-LSR (STEP3): rc=3, last line matches
+PASS S3-CO (STEP3): rc=3, last line matches
+PASS S3-GADD (STEP3): rc=3, last line matches
+PASS S4-CRED (STEP4): rc=3, last line matches
+PASS S4-STATUS (STEP4): rc=3, last line matches
+PASS S4-EMPTY (STEP4): rc=3, last line matches
+PASS S4-INIT (STEP4): rc=3, last line matches
+PASS S4-OWN (STEP4): rc=3, last line matches
+PASS S4-NODIRTY (STEP4): rc=3, last line matches
+PASS S4-NOREMOTE (STEP4): rc=3, last line matches
+PASS S4-NOUNPUSHED (STEP4): rc=3, last line matches
+PASS S4-PARENT (STEP4): rc=3, last line matches
+PASS S4-EXISTS (STEP4): rc=3, last line matches
+PASS S4-MKDIR (STEP4): rc=3, last line matches
+PASS S4-MV (STEP4): rc=3, last line matches
+PASS S4-GM (STEP4): rc=3, last line matches
+PASS S4-INITM (STEP4): rc=3, last line matches
+PASS S4-LINK (STEP4): rc=3, last line matches
+PASS S4-STILL (STEP4): rc=3, last line matches
+PASS S5-CRED (STEP5): rc=3, last line matches
+PASS S5-OC-TOP (STEP5): rc=3, last line matches
+PASS S5-OC-WT (STEP5): rc=3, last line matches
+PASS S5-OC-FOREIGN (STEP5): rc=3, last line matches
+PASS S5-UNP-NOREMOTE (STEP5): rc=3, last line matches
+PASS S5-STATUS (STEP5): rc=3, last line matches
+PASS S5-EMPTY (STEP5): rc=3, last line matches
+PASS S5-INIT (STEP5): rc=3, last line matches
+PASS S5-OWN (STEP5): rc=3, last line matches
+PASS S5-DIRTY (STEP5): rc=3, last line matches
+PASS S5-NOREMOTE (STEP5): rc=3, last line matches
+PASS S5-UNPUSHED (STEP5): rc=3, last line matches
+PASS S5-FETCHOK (STEP5): rc=3, last line matches
+PASS S5-HEAD (STEP5): rc=3, last line matches
+PASS S5-LSR (STEP5): rc=3, last line matches
+PASS S5-TARGET (STEP5): rc=3, last line matches
+PASS S5-NOFF (STEP5): rc=3, last line matches
+PASS S5-CO (STEP5): rc=3, last line matches
+PASS S5-ADD (STEP5): rc=3, last line matches
+PASS S6B-RC (STEP6B): rc=3, last line matches
+PASS S7A-INVALID (STEP7A): rc=3, last line matches
+PASS S7A-CRED (STEP7A): rc=3, last line matches
+PASS S7A-ADD (STEP7A): rc=3, last line matches
+PASS S10-BRANCH (STEP10): rc=3, last line matches
+PASS S10-NOREMOTE (STEP10): rc=3, last line matches
+PASS S10-FETCH (STEP10): rc=3, last line matches
+PASS S10-AHEAD (STEP10): rc=3, last line matches
+PASS S5-GMCRED-NONE (STEP5): rc=0, last line matches
+PASS S10-PUSH (STEP10): rc=3, last line matches
+PASS X-S6B-PARSE (STEP6B): rc=3, last line matches
+PASS X-S6B-MISSING (STEP6B): rc=3, last line matches
+PASS X-S6B-NOTCONST (STEP6B): rc=3, last line matches
+PASS X-S6B-NOOK (STEP6B): rc=3, last line matches
+PASS X-S7A-SCP (STEP7A): rc=3, last line matches
+PASS G-STEP1 (STEP1): rc=0, last line matches
+PASS G-STEP3 (STEP3): rc=0, last line matches
+PASS G-STEP4 (STEP4): rc=0, last line matches
+PASS G-STEP5 (STEP5): rc=0, last line matches
+PASS G-STEP7A (STEP7A): rc=0, last line matches
+PASS G-STEP10 (STEP10): rc=0, last line matches
+RESULT: round5_stops pass=158 fail=0 skip=0

@@ -1,0 +1,376 @@
+[mutation:pr-delivery] GREEN kept: GREEN control: genuine tree
+[mutation:pr-delivery] GREEN kept: mid-body citation of §11.4.297 inside another anchor's block is not a second block
+[mutation:pr-delivery] GREEN kept: an unrelated project H2 section after the CLAUDE.md block does not break the mirror check
+[mutation:pr-delivery] GREEN kept: prefix-colliding heading §11.4.2970 is not counted as §11.4.297
+[mutation:pr-delivery] GREEN kept: whitespace-only change inside the block keeps the gate green
+[mutation:pr-delivery] RED flip: marker removed: except the project-specific parts (the account names of assignees and reviewers)
+[mutation:pr-delivery] RED flip: marker removed: no account name enters this constitution
+[mutation:pr-delivery] RED flip: marker removed: the agent that creates a pull request self-reviews it (real review comments in the pull request) and then merges it
+[mutation:pr-delivery] RED flip: marker removed: the author agent of a pull request reviews and merges it, unless the project configures a human merge gate
+[mutation:pr-delivery] RED flip: marker removed: a delivery mode a consuming project selects only by a recorded operator decision
+[mutation:pr-delivery] RED flip: marker removed: in ONE tracked configuration file
+[mutation:pr-delivery] RED flip: marker removed: the landing form (`ff-only` or `merge-commit`)
+[mutation:pr-delivery] RED flip: marker removed: the merger (`author-agent` by default, or `human`, a human merge gate, clause (C)(2))
+[mutation:pr-delivery] RED flip: marker removed: `off`, `expected` = warn and write an audit line, `enforced` = refuse
+[mutation:pr-delivery] RED flip: marker removed: An unknown key or a value outside its closed set makes the delivery refuse before anything is committed
+[mutation:pr-delivery] RED flip: marker removed: Without the declaration, §11.4.288 applies as written
+[mutation:pr-delivery] RED flip: marker removed: AMENDS §11.4.288 at exactly three points
+[mutation:pr-delivery] RED flip: marker removed: every other sentence of §11.4.288 binds such a project unchanged
+[mutation:pr-delivery] RED flip: marker removed: is the recorded necessity of §11.4.288(B)(2)
+[mutation:pr-delivery] RED flip: marker removed: It legitimises no other vehicle
+[mutation:pr-delivery] RED flip: marker removed: is the landing step of §11.4.288(B)(1)
+[mutation:pr-delivery] RED flip: marker removed: Against §11.4.288(B)(1), which lets no approval wait hold a GO'd change off `main`, this point admits exactly two: an approval the project configures as required (condition (f) of clause (C)(2)) and, under a human merge gate, the merge by the human merger.
+[mutation:pr-delivery] RED flip: marker removed: it is never parked silently
+[mutation:pr-delivery] RED flip: marker removed: whose second parent is the reviewed head
+[mutation:pr-delivery] RED flip: marker removed: A squash merge and a rebase merge are FORBIDDEN
+[mutation:pr-delivery] RED flip: marker removed: with a plain value: one or more item ids
+[mutation:pr-delivery] RED flip: marker removed: and nothing else on that line
+[mutation:pr-delivery] RED flip: marker removed: the delivery refuses before anything is staged
+[mutation:pr-delivery] RED flip: marker removed: one task branch named `<prefix>/<id>-<slug>`
+[mutation:pr-delivery] RED flip: marker removed: `Multi-Task-Reason:`
+[mutation:pr-delivery] RED flip: marker removed: is reused for every later commit of that task
+[mutation:pr-delivery] RED flip: marker removed: and one open pull request against the base at a time: after that pull request has landed and its branch is retired and pruned (clause (C)(4)), a later commit of the same task id opens a new task branch and a new pull request.
+[mutation:pr-delivery] RED flip: marker removed: For a submodule pull request clause (F)(2) keeps the task branch until the parent pull request that records it has landed, so a delete-at-merge option is never used there, even on a single declared upstream.
+[mutation:pr-delivery] RED flip: marker removed: the pull request stays open (the refusal never closes it, and once it is reported as this point requires, merge condition (c) of clause (C)(2) holds for that account)
+[mutation:pr-delivery] RED flip: marker removed: the delivery refuses and lists those commits
+[mutation:pr-delivery] RED flip: marker removed: A detached `HEAD` is refused
+[mutation:pr-delivery] RED flip: marker removed: the remote tip is read with `git ls-remote`
+[mutation:pr-delivery] RED flip: marker removed: a push tool's exit status is not evidence
+[mutation:pr-delivery] RED flip: marker removed: Opening is idempotent
+[mutation:pr-delivery] RED flip: marker removed: land one at a time in a recorded order
+[mutation:pr-delivery] RED flip: marker removed: merge, never rebase, never force
+[mutation:pr-delivery] RED flip: marker removed: The commit and publish steps of the delivery tooling never merge, close, force-push or delete
+[mutation:pr-delivery] RED flip: marker removed: under a human merge gate no agent and no tool takes it
+[mutation:pr-delivery] RED flip: marker removed: it reads the whole diff of the head it will merge and posts a review on that pull request
+[mutation:pr-delivery] RED flip: marker removed: every finding is a review comment anchored to the diff line it concerns
+[mutation:pr-delivery] RED flip: marker removed: A review with no reading record
+[mutation:pr-delivery] RED flip: marker removed: it is never posted through another account to obtain an approval
+[mutation:pr-delivery] RED flip: marker removed: The self-review is read back from the platform
+[mutation:pr-delivery] RED flip: marker removed: it is never the source-correctness GO
+[mutation:pr-delivery] RED flip: marker removed: the producer never gates its own change
+[mutation:pr-delivery] RED flip: marker removed: By default the merger is the author agent, which owns the merge process
+[mutation:pr-delivery] RED flip: marker removed: (a) the source-correctness GO is recorded, as a record the merger reads, for exactly the head being merged
+[mutation:pr-delivery] RED flip: marker removed: the merge call pins the reviewed head where the platform offers it
+[mutation:pr-delivery] RED flip: marker removed: A project configures a HUMAN MERGE GATE (merger `human`)
+[mutation:pr-delivery] RED flip: marker removed: no agent presses a merge button or calls a merge interface of the hosting platform
+[mutation:pr-delivery] RED flip: marker removed: so the source-correctness GO of §11.4.288 stays merge condition (a)
+[mutation:pr-delivery] RED flip: marker removed: is not a reviewer assignment and never counts as one
+[mutation:pr-delivery] RED flip: marker removed: the state merged, the merge commit id and the form check
+[mutation:pr-delivery] RED flip: marker removed: the task branch is KEPT
+[mutation:pr-delivery] RED flip: marker removed: only when its head is an ancestor of `main` on every declared upstream
+[mutation:pr-delivery] RED flip: marker removed: `git fetch --prune`
+[mutation:pr-delivery] RED flip: marker removed: is not given new work until that branch is pruned
+[mutation:pr-delivery] RED flip: marker removed: without the read-back is a bluff
+[mutation:pr-delivery] RED flip: marker removed: one list per repository where the repositories differ
+[mutation:pr-delivery] RED flip: marker removed: `pr_reviewers` is the default
+[mutation:pr-delivery] RED flip: marker removed: an absent key never means "no reviewers"
+[mutation:pr-delivery] RED flip: marker removed: no environment variable or command-line switch replaces or empties it
+[mutation:pr-delivery] RED flip: marker removed: This constitution names no account
+[mutation:pr-delivery] RED flip: marker removed: the hosting platform refuses a review request from the author
+[mutation:pr-delivery] RED flip: marker removed: no reviewer is possible
+[mutation:pr-delivery] RED flip: marker removed: an assignment counts only when the platform shows it
+[mutation:pr-delivery] RED flip: marker removed: is reported with the platform's own text
+[mutation:pr-delivery] RED flip: marker removed: never removes the account from the list
+[mutation:pr-delivery] RED flip: marker removed: is never worked around by requesting another account
+[mutation:pr-delivery] RED flip: marker removed: cited by a repository-relative path
+[mutation:pr-delivery] RED flip: marker removed: `git show <head>:<path> | sha256sum`
+[mutation:pr-delivery] RED flip: marker removed: is INCONCLUSIVE for that pull request, never PASS
+[mutation:pr-delivery] RED flip: marker removed: it never replaces it
+[mutation:pr-delivery] RED flip: marker removed: standing list of tool-written paths
+[mutation:pr-delivery] RED flip: marker removed: with the reason `generated-regeneration`
+[mutation:pr-delivery] RED flip: marker removed: No fifth reason is added to §11.4.293(A)(4)
+[mutation:pr-delivery] RED flip: marker removed: is an INTERPRETATION of §11.4.293(A)(4), stated here as one and not an amendment of it
+[mutation:pr-delivery] RED flip: marker removed: a row written or edited by hand, and any other path, is never `generated-regeneration`
+[mutation:pr-delivery] RED flip: marker removed: on a task branch with the same name as the parent's
+[mutation:pr-delivery] RED flip: marker removed: The submodule pull request lands first
+[mutation:pr-delivery] RED flip: marker removed: only after the submodule pull request is read back as merged
+[mutation:pr-delivery] RED flip: marker removed: A merge on the hosting platform moves `main` on that host only
+[mutation:pr-delivery] RED flip: marker removed: `PRESENT` (it contains the pinned commit), `MIRROR-LAG <tip>` (it does not) or `UNREACHABLE`
+[mutation:pr-delivery] RED flip: marker removed: only when every declared upstream reads `PRESENT`
+[mutation:pr-delivery] RED flip: marker removed: "pushed to all upstreams" is never written without the per-upstream read-back
+[mutation:pr-delivery] RED flip: marker removed: `ENFORCED` (the mechanism exists at the repository's `HEAD` and runs by default on the delivery path)
+[mutation:pr-delivery] RED flip: marker removed: `PROVISIONAL` (it exists only as a staged patch or a draft, or has run only against stubs
+[mutation:pr-delivery] RED flip: marker removed: `UNCONFIRMED` (it is implemented nowhere
+[mutation:pr-delivery] RED flip: marker removed: These words are not item statuses
+[mutation:pr-delivery] RED flip: marker removed: No text calls a branch protected on the hosting platform unless the platform's protection read-back records it
+[mutation:pr-delivery] RED flip: marker removed: a test double is legal here because the test proves the tooling's own logic
+[mutation:pr-delivery] RED flip: marker removed: a scan proving that the commit and publish steps hold no merge, close, force-push or delete call
+[mutation:pr-delivery] RED flip: marker removed: and any merge call under a human merge gate
+[mutation:pr-delivery] RED flip: marker removed: that was merged without a source-correctness GO recorded for the merged head
+[mutation:pr-delivery] RED flip: marker removed: while the remote base tip was not an ancestor of the merged head
+[mutation:pr-delivery] RED flip: marker removed: a merge without a recorded GO for the merged head, a merge on a stale base
+[mutation:pr-delivery] RED flip: marker removed: A stub run is `PROVISIONAL` evidence of the tooling
+[mutation:pr-delivery] RED flip: marker removed: read at run time from the consumer's own configuration and never stored here
+[mutation:pr-delivery] RED flip: marker removed: `SKIP` (exit 3) when no consumer list exists
+[mutation:pr-delivery] RED flip: marker removed: never a substitute for the source-correctness GO
+[mutation:pr-delivery] RED flip: marker removed: A project without the declaration keeps §11.4.288 as written
+[mutation:pr-delivery] RED flip: marker removed: Honest boundary
+[mutation:pr-delivery] RED flip: marker removed: CM-COVENANT-114-297-PROPAGATION
+[mutation:pr-delivery] RED flip: marker removed: CM-PR-DELIVERY-ANCHOR-WIRED
+[mutation:pr-delivery] RED flip: marker removed: OWED-GATE-182
+[mutation:pr-delivery] RED flip: marker removed: OWED-GATE-183
+[mutation:pr-delivery] RED flip: marker removed: OWED-GATE-184
+[mutation:pr-delivery] RED flip: marker removed: It merges only when all of these are read back: (a) the source-correctness GO is recorded, as a record the merger reads, for exactly the head being merged (a GO for an earlier head, a GO that cannot be read, or no GO refuses the merge); (b) its self-review of that head is on the platform with every finding answered; (c) the reviewer requests of clause (D) are shown by the platform, or a refused reviewer is reported under clause (D)(4); (d) the head on the platform equals the reviewed head (a head that moved after the self-review or the GO is reviewed again first, and the merge call pins the reviewed head where the platform offers it); (e) the serial order of clause (B)(5) admits it; (f) every approval the project configures as required is present; (g) the remote base tip, fetched right before the merge, is an ancestor of the reviewed head (when the base has moved, it is merged into the task branch under clause (B)(5) and the new head is reviewed again first). It merges only in the declared form of point (A.3).
+[mutation:pr-delivery] RED flip: marker removed: then no agent presses a merge button or calls a merge interface of the hosting platform: the author agent self-reviews, reports the pull request ready with (a) to (g) read back, and the human merger lands it.
+[mutation:pr-delivery] RED flip: marker removed: (A.3) THE LANDING FORM. The landing is a fast-forward of `main` to the reviewed head (the form of §11.4.288(B)(3)) or a merge commit on `main` whose first parent is the previous `main` tip and whose second parent is the reviewed head.
+[mutation:pr-delivery] RED flip: marker removed: the task branch is deleted locally and on every upstream that holds it only when its head is an ancestor of `main` on every declared upstream (the §11.4.288(B)(4) count is zero). A platform option that deletes the branch at merge time is used only when the platform is the only declared upstream; otherwise the branch is deleted after the parity read-back of clause (F)(4), never at merge time. A task id whose merged branch
+[mutation:pr-delivery] RED flip: marker removed: (A.1) NECESSITY. The declared decision is the recorded necessity of §11.4.288(B)(2) for every task branch the delivery tooling creates; its identifier in the configuration is the record. It legitimises no other vehicle.
+[mutation:pr-delivery] RED flip: marker removed: (A.2) THE MERGE IS THE LANDING. The merge of a pull request that holds its source-correctness GO (§11.4.288 Terms), made under clause (C) by its author agent after the read-back self-review or, where the project configures a human merge gate, by the human merger, is the landing step of §11.4.288(B)(1). It adds no wait beyond the merge conditions of clause (C)(2): no manual QA, no open hardening item and no approval beyond what the project configures as required holds a GO'd pull request open. A pull request whose GO is older than the declared merge window is reported as stale in every report until it lands or is closed; it is never parked silently.
+[mutation:pr-delivery] RED flip: marker removed: A review with no reading record (an approval alone, a bare "looks good" or an empty body) is not a self-review. A platform that refuses an approval by the author records the self-review as a comment review; it is never posted through another account to obtain an approval. The self-review is read back from the platform (the review entry, the head commit id it names and its comments) before the merge.
+[mutation:pr-delivery] RED flip: marker removed: It is the author's own multi-pass check (§11.4.92) made visible in the pull request: it is never the source-correctness GO, which stays the independent review of §11.4.142 / §11.4.209 / §11.4.235 (§11.4.240: the producer never gates its own change), and it never replaces the configured reviewers of clause (D).
+[mutation:pr-delivery] RED flip: marker removed: In both forms the reviewed head already contains the remote base tip (merge condition (g) of clause (C)(2)), so the content that lands is the content that was reviewed and tested, as §11.4.288(B)(3) requires; a merge commit made on a stale base is not this form.
+[mutation:pr-delivery] RED flip: clause heading removed: **(A) DECLARATION, AND THE RECONCILIATION WITH §11.4.288.**
+[mutation:pr-delivery] RED flip: clause heading removed: **(B) ONE TASK, ONE BRANCH, ONE PULL REQUEST.**
+[mutation:pr-delivery] RED flip: clause heading removed: **(C) SELF-REVIEW AND MERGE BY THE AUTHOR AGENT, UNLESS A HUMAN MERGE GATE IS CONFIGURED; READ BACK, THEN RETIRED.**
+[mutation:pr-delivery] RED flip: clause heading removed: **(D) REVIEWERS: A CONFIGURED LIST, REQUESTED AND READ BACK, NEVER NAMED HERE.**
+[mutation:pr-delivery] RED flip: clause heading removed: **(E) EVIDENCE A REVIEWER CAN RESOLVE.**
+[mutation:pr-delivery] RED flip: clause heading removed: **(F) SUBMODULE PULL REQUESTS, THE PIN BUMP AND MIRROR PARITY.**
+[mutation:pr-delivery] RED flip: clause heading removed: **(G) ENFORCEMENT WORDS.**
+[mutation:pr-delivery] RED flip: clause heading removed: **(H) GATES, TESTS AND PAIRED MUTATIONS.**
+[mutation:pr-delivery] RED flip: clause heading removed: **(I) WHAT THIS ANCHOR DOES NOT CHANGE.**
+[mutation:pr-delivery] RED flip: clause heading removed: (A.1) NECESSITY.
+[mutation:pr-delivery] RED flip: clause heading removed: (A.2) THE MERGE IS THE LANDING.
+[mutation:pr-delivery] RED flip: clause heading removed: (A.3) THE LANDING FORM.
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --squash-merge-OK
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --rebase-merge-OK
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --merge-without-GO
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --merge-on-stale-base
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --merge-without-self-review
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --self-review-is-the-GO
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --agent-merges-under-human-gate
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --merge-moved-head
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --multi-task-branch
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --annotated-roadmap-item
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --skip-push-readback
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --skip-reviewer-readback
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --drop-refused-reviewer
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --reviewer-names-in-constitution
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --evidence-outside-repo-OK
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --delete-branch-before-parity
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --pin-before-submodule-merge
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --claim-mirror-parity-without-readback
+[mutation:pr-delivery] RED flip: escape-hatch flag removed: --claim-server-side-protection
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.6
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.17
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.35
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.66
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.92
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.113
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.142
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.181
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.188
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.202
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.209
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.227
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.233
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.235
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.240
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.273
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.288
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.289
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.290
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.292
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.293
+[mutation:pr-delivery] RED flip: cross-reference removed: §11.4.296
+[mutation:pr-delivery] RED flip: cross-reference removed: §1.1
+[mutation:pr-delivery] RED flip: cross-reference removed: §2.1
+[mutation:pr-delivery] RED flip: cross-reference removed: §9.2
+[mutation:pr-delivery] RED flip: canon block no longer names the account-name gate
+[mutation:pr-delivery] RED flip: the account-name gate no longer declares its token
+[mutation:pr-delivery] RED flip: line-start Classification line removed
+[mutation:pr-delivery] RED flip: Canonical authority line removed
+[mutation:pr-delivery] RED flip: non-compliance line weakened
+[mutation:pr-delivery] RED flip: W1 any condition suffices
+[mutation:pr-delivery] RED flip: W2 conditions (b) to (f) dropped
+[mutation:pr-delivery] RED flip: W3 the self-review may stand in for the GO
+[mutation:pr-delivery] RED flip: W4 an agent may merge under a human merge gate
+[mutation:pr-delivery] RED flip: W5 squash allowed in (A.3)
+[mutation:pr-delivery] RED flip: W9 retirement before parity
+[mutation:pr-delivery] RED flip: H2 base ancestry read only at push time
+[mutation:pr-delivery] RED flip: the §11.4.288 note loses the base-tip condition
+[mutation:pr-delivery] RED flip: the §11.4.288 note no longer bounds the admitted waits to two
+[mutation:pr-delivery] RED flip: mirror loses the GO and base-tip conditions: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror drops the configured approvals: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror headline drops the GO condition: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror drops 'at a time': CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror drops the kept submodule branch: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the GO and base-tip conditions: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror drops the configured approvals: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror headline drops the GO condition: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror drops 'at a time': AGENTS.md
+[mutation:pr-delivery] RED flip: mirror drops the kept submodule branch: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the GO and base-tip conditions: QWEN.md
+[mutation:pr-delivery] RED flip: mirror drops the configured approvals: QWEN.md
+[mutation:pr-delivery] RED flip: mirror headline drops the GO condition: QWEN.md
+[mutation:pr-delivery] RED flip: mirror drops 'at a time': QWEN.md
+[mutation:pr-delivery] RED flip: mirror drops the kept submodule branch: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the GO and base-tip conditions: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror drops the configured approvals: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror headline drops the GO condition: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror drops 'at a time': GEMINI.md
+[mutation:pr-delivery] RED flip: mirror drops the kept submodule branch: GEMINI.md
+[mutation:pr-delivery] RED flip: decoy: heading demoted, mid-body citations remain
+[mutation:pr-delivery] RED flip: duplicate canon heading
+[mutation:pr-delivery] RED flip: second block-start form in canon
+[mutation:pr-delivery] RED flip: heading no longer names 'Pull-request delivery'
+[mutation:pr-delivery] RED flip: heading no longer names 'one pull request per task id at a time'
+[mutation:pr-delivery] RED flip: heading drops 'at a time'
+[mutation:pr-delivery] RED flip: heading no longer names 'no account is named in this constitution'
+[mutation:pr-delivery] RED flip: heading no longer names the author agent's self-review
+[mutation:pr-delivery] RED flip: heading no longer names the human merge gate
+[mutation:pr-delivery] RED flip: heading loses the mandate date
+[mutation:pr-delivery] RED flip: refinement note removed from §11.4.288
+[mutation:pr-delivery] RED flip: refinement note in §11.4.288 no longer cites §11.4.297
+[mutation:pr-delivery] RED flip: refinement note removed from §11.4.292
+[mutation:pr-delivery] RED flip: refinement note in §11.4.292 no longer cites §11.4.297
+[mutation:pr-delivery] RED flip: refinement note removed from §11.4.293
+[mutation:pr-delivery] RED flip: refinement note in §11.4.293 no longer cites §11.4.297
+[mutation:pr-delivery] RED flip: the §11.4.288 note no longer bounds the amendment to three points
+[mutation:pr-delivery] RED flip: the §11.4.288 note no longer forbids squash and rebase
+[mutation:pr-delivery] RED flip: the §11.4.288 note no longer keeps the rest binding
+[mutation:pr-delivery] RED flip: the §11.4.288 note no longer names the read-back self-review
+[mutation:pr-delivery] RED flip: the §11.4.288 note no longer names the human merge gate
+[mutation:pr-delivery] RED flip: the §11.4.293 note adds a fifth reason
+[mutation:pr-delivery] RED flip: the §11.4.293 note no longer calls the reading an interpretation
+[mutation:pr-delivery] RED flip: mirror block deleted: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror block duplicated: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the landing forms: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the squash/rebase ban: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the author agent's self-review: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the human merge gate: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the reviewer key: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses 'never named here': CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the parity words: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the enforcement words: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the gate token: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the account-name gate token: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror loses the canonical pointer: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror file missing: CLAUDE.md
+[mutation:pr-delivery] RED flip: mirror block deleted: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror block duplicated: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the landing forms: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the squash/rebase ban: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the author agent's self-review: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the human merge gate: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the reviewer key: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses 'never named here': AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the parity words: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the enforcement words: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the gate token: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the account-name gate token: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror loses the canonical pointer: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror file missing: AGENTS.md
+[mutation:pr-delivery] RED flip: mirror block deleted: QWEN.md
+[mutation:pr-delivery] RED flip: mirror block duplicated: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the landing forms: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the squash/rebase ban: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the author agent's self-review: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the human merge gate: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the reviewer key: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses 'never named here': QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the parity words: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the enforcement words: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the gate token: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the account-name gate token: QWEN.md
+[mutation:pr-delivery] RED flip: mirror loses the canonical pointer: QWEN.md
+[mutation:pr-delivery] RED flip: mirror file missing: QWEN.md
+[mutation:pr-delivery] RED flip: mirror block deleted: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror block duplicated: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the landing forms: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the squash/rebase ban: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the author agent's self-review: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the human merge gate: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the reviewer key: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses 'never named here': GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the parity words: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the enforcement words: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the gate token: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the account-name gate token: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror loses the canonical pointer: GEMINI.md
+[mutation:pr-delivery] RED flip: mirror file missing: GEMINI.md
+[mutation:pr-delivery] RED flip: index entry for 11.4.297 gone
+[mutation:pr-delivery] RED flip: index propagation_gate wrong
+[mutation:pr-delivery] RED flip: index group wrong
+[mutation:pr-delivery] RED flip: index classification wrong
+[mutation:pr-delivery] RED flip: group file loses the block
+[mutation:pr-delivery] RED flip: group file missing
+[mutation:pr-delivery] RED flip: progressive rule file missing
+[mutation:pr-delivery] RED flip: catalog entry gone
+[mutation:pr-delivery] RED flip: catalog file pointer wrong
+[mutation:pr-delivery] RED flip: data-pack row removed
+[mutation:pr-delivery] RED flip: data-pack row points at the wrong anchor
+[mutation:pr-delivery] RED flip: generated propagation gate missing
+[mutation:pr-delivery] RED flip: generated propagation mutation test missing
+[mutation:pr-delivery] RED flip: seam binding row removed
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-182 removed
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-182 carries the wrong id
+[mutation:pr-delivery] RED flip: deferral id OWED-GATE-182 registered twice
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-182 names a gate the canon does not name
+[mutation:pr-delivery] RED flip: canon block no longer names the OWED-GATE-182 gate
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-182 names no CM-* gate
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-183 removed
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-183 carries the wrong id
+[mutation:pr-delivery] RED flip: deferral id OWED-GATE-183 registered twice
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-183 names a gate the canon does not name
+[mutation:pr-delivery] RED flip: canon block no longer names the OWED-GATE-183 gate
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-183 names no CM-* gate
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-184 removed
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-184 carries the wrong id
+[mutation:pr-delivery] RED flip: deferral id OWED-GATE-184 registered twice
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-184 names a gate the canon does not name
+[mutation:pr-delivery] RED flip: canon block no longer names the OWED-GATE-184 gate
+[mutation:pr-delivery] RED flip: deferral row OWED-GATE-184 names no CM-* gate
+[mutation:pr-delivery] RED flip: this gate's own mutation test missing
+[mutation:pr-delivery] RED flip: the account-name gate missing
+[mutation:pr-delivery] RED flip: the account-name gate's mutation test missing
+[mutation:pr-delivery] RED flip: hook no longer runs the gate
+[mutation:pr-delivery] RED flip: hook no longer names the token
+[mutation:pr-delivery] RED flip: hook no longer runs the account-name gate
+[mutation:pr-delivery] RED flip: hook no longer names the account-name token
+[mutation:pr-delivery] RED flip: hook file missing
+[mutation:pr-delivery] RED flip: audit-2 P1-additive-selfreview-merge-after-window keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P2-parity-accepts-unreachable keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P3-formcheck-any-parent keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P4-empty-reviewer-list-ok keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P5-evidence-no-sha keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P6-task-branch-force-push keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P7-drop-weakest-mechanism keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P8-findings-after-merge keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P9-I-exempts-retirement keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P10-unknown-key-ignored keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P11-serial-exception keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P12-drop-H3-early-delete-FAIL keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P13-escape-hatch-added keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P14-CONTROL-g-direction-swapped keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P15-sole-author-selfreview-counts keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P16-288note-keep-branches keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P17-293note-any-tool-row keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P18-carriers-selfreview-is-GO keeps every marker, caught by its pin: CLAUDE.md
+[mutation:pr-delivery] RED flip: audit-2 P18-carriers-selfreview-is-GO keeps every marker, caught by its pin: AGENTS.md
+[mutation:pr-delivery] RED flip: audit-2 P18-carriers-selfreview-is-GO keeps every marker, caught by its pin: QWEN.md
+[mutation:pr-delivery] RED flip: audit-2 P18-carriers-selfreview-is-GO keeps every marker, caught by its pin: GEMINI.md
+[mutation:pr-delivery] RED flip: audit-2 P19-human-gate-lapses keeps every marker, caught by its pin
+[mutation:pr-delivery] RED flip: audit-2 P20-carriers-drop-human-gate keeps every marker, caught by its pin: CLAUDE.md
+[mutation:pr-delivery] RED flip: audit-2 P20-carriers-drop-human-gate keeps every marker, caught by its pin: AGENTS.md
+[mutation:pr-delivery] RED flip: audit-2 P20-carriers-drop-human-gate keeps every marker, caught by its pin: QWEN.md
+[mutation:pr-delivery] RED flip: audit-2 P20-carriers-drop-human-gate keeps every marker, caught by its pin: GEMINI.md
+[mutation:pr-delivery] GREEN kept: whitespace-only change inside a pinned mirror block keeps the gate green
+[mutation:pr-delivery] GREEN kept: whitespace-only change inside a pinned refinement note keeps the gate green
+[mutation:pr-delivery] RED flip: audit-3 B1 continuation line after the §11.4.288 note, caught by its pin
+[mutation:pr-delivery] RED flip: audit-3 B1 continuation line after the §11.4.292 note, caught by its pin
+[mutation:pr-delivery] RED flip: audit-3 B1 continuation line after the §11.4.293 note, caught by its pin
+[mutation:pr-delivery] RED flip: audit-3 B1 lead-in line directly before the §11.4.288 note, caught by its pin
+[mutation:pr-delivery] RED flip: audit-3 R1 '#' line that is no heading after the §11.4.288 note, caught by its pin
+[mutation:pr-delivery] RED flip: audit-3 R1 '#' line that is no heading after the §11.4.292 note, caught by its pin
+[mutation:pr-delivery] RED flip: audit-3 R1 '#' lead-in line that is no heading before the §11.4.288 note, caught by its pin
+[mutation:pr-delivery] GREEN kept: a refinement note re-wrapped across two lines (a whitespace-only change) keeps the gate green
+[mutation:pr-delivery] GREEN kept: --print-digests on the genuine tree prints the pinned values
+[mutation:pr-delivery] GREEN kept: a gate copy re-pinned from --print-digests passes the reviewed text change
+[mutation:pr-delivery] RED flip: the pin check alone names audit-2 P1 (pins off: exit 0; gate: exit 1)
+[mutation:pr-delivery] BLIND asserted: pin digest that keeps whitespace -> the digest control needle refuses (BLIND)
+[mutation:pr-delivery] BLIND asserted: note extractor that reads only the marker line -> the note paragraph control needle refuses (BLIND)
+[mutation:pr-delivery] BLIND asserted: note extractor that ends a note at any line starting with '#' -> the note paragraph control needle refuses (BLIND)
+[mutation:pr-delivery] BLIND asserted: heading extractor broken -> the control needle refuses (BLIND)
+[mutation:pr-delivery] BLIND asserted: Constitution.md missing
+[mutation:pr-delivery] BLIND asserted: real-file control needle (§11.4.286 heading) lost
+[mutation:pr-delivery] PASS: 365 RED/BLIND cases and 10 GREEN cases (1 control + 9 golden-FALSE) behaved as required — cm_pr_delivery_anchor_wired.sh genuinely discriminates

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# manifest_batch.sh <W>: mutants of the manifest gate through the mutation test, GREEN runs 2 and 3,
+# and the git-environment sentinel test; two jobs at a time.
+W="${1:?}"; R="$W/repo"; E="$W/ev/manifest"
+job() {
+    case "$1" in
+        green*) bash "$R/scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh" >"$E/${1}.txt" 2>&1; echo "rc=$?" >>"$E/${1}.txt" ;;
+        gitenv*) bash "$R/tests/test_full_suite_manifest_gate_git_env.sh" >"$E/${1}.txt" 2>&1; echo "rc=$?" >>"$E/${1}.txt" ;;
+        *) bash "$R/scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh" --gate "$W/mut/manifest/$1.sh" >"$E/mutant_$1.txt" 2>&1; echo "rc=$?" >>"$E/mutant_$1.txt" ;;
+    esac
+}
+export -f job; export W R E
+printf '%s\n' mN1_xdg mN1_penv_only mN1_nosystem rv01 rv03 rv04 green_mutation_test_run2 green_mutation_test_run3 gitenv_test_run1 \
+    | xargs -P 2 -I{} bash -c 'job "$@"' _ {}
+echo DONE

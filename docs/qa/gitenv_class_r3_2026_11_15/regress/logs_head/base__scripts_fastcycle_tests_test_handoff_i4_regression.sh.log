@@ -1,0 +1,193 @@
+=== I4+R2-I2+R3-I1+R4-I1+R5-I1 regression guard: control needle -- fixtures + the fixed tool + pinned copies all exist ===
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/orchestration/handoff.py not found
+NOT ok control needle FAILED: rr_unverifiable_external_dependency_kind missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_unverifiable_ground_truth missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_missing_ground_truth_empty_effects missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_ground_truth_file missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_external_dep missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_ground_truth_entry missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_pending_step missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_id_collision_none missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_pending_step_wrong_type missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_ground_truth_entry_wrong_type missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_effects_performed_entry missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_verified_entry missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_malformed_external_dep_wrong_type missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_written_at_not_string missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_verified_not_list missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_external_deps_not_list missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_pending_not_list missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_effects_performed_not_list_gt_present missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_effects_performed_not_list_gt_absent missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_phase_not_string missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_affects_verified_not_list missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_affects_verified_contains_dict missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_affects_verified_mixed_types missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_shape_effects_performed_string_fail_open missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: rr_id_type_collision_bool_int missing handoff.json or expected_verdict.json
+NOT ok control needle FAILED: pinned pre-fix copy <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_i4_fix.py not found
+NOT ok control needle FAILED: pinned pre-fix copy <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r2i2_fix.py not found
+NOT ok control needle FAILED: pinned pre-fix copy <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r3i1_fix.py not found
+NOT ok control needle FAILED: pinned pre-fix copy <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r4i1_fix.py not found
+NOT ok control needle FAILED: pinned pre-fix copy <scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py not found
+
+=== Real-tool invocation (FIXED handoff.py): every fixture reports UNSAFE, matching its own expected_verdict.json ===
+NOT ok rr_unverifiable_external_dependency_kind: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_unverifiable_ground_truth: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_missing_ground_truth_empty_effects: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_ground_truth_file: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_external_dep: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_ground_truth_entry: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_pending_step: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_id_collision_none: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_pending_step_wrong_type: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_ground_truth_entry_wrong_type: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_effects_performed_entry: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_verified_entry: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_malformed_external_dep_wrong_type: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_written_at_not_string: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_verified_not_list: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_external_deps_not_list: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_pending_not_list: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_effects_performed_not_list_gt_present: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_effects_performed_not_list_gt_absent: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_phase_not_string: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_affects_verified_not_list: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_affects_verified_contains_dict: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_affects_verified_mixed_types: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_shape_effects_performed_string_fail_open: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok rr_id_type_collision_bool_int: real resume-check invocation wrote no --out document -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+
+=== Guard-viability: each fixture's PINNED pre-fix copy does NOT reproduce the fixed verdict (checked-in, never HEAD-relative) ===
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_i4_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_unverifiable_external_dependency_kind BLIND: pinned pre-I4-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_i4_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_unverifiable_ground_truth BLIND: pinned pre-I4-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r2i2_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_missing_ground_truth_empty_effects BLIND: pinned pre-R2-I2-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r2i2_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_malformed_ground_truth_file BLIND: pinned pre-R2-I2-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r2i2_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_malformed_external_dep BLIND: pinned pre-R2-I2-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r3i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_malformed_ground_truth_entry BLIND: pinned pre-R3-I1-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r3i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_malformed_pending_step BLIND: pinned pre-R3-I1-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r3i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_id_collision_none BLIND: pinned pre-R3-I1-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r4i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_malformed_pending_step_wrong_type) BLIND: the pinned pre-R4-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r4i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_malformed_ground_truth_entry_wrong_type) BLIND: the pinned pre-R4-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r4i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_malformed_effects_performed_entry) BLIND: the pinned pre-R4-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r4i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_malformed_verified_entry) BLIND: the pinned pre-R4-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r4i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_malformed_external_dep_wrong_type) BLIND: the pinned pre-R4-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_written_at_not_string) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_verified_not_list) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_external_deps_not_list) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_pending_not_list) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_effects_performed_not_list_gt_present) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_effects_performed_not_list_gt_absent) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_phase_not_string) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_affects_verified_not_list) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_affects_verified_contains_dict) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability (rr_shape_affects_verified_mixed_types) BLIND: the pinned pre-R5-I1-fix copy wrote
+     no --out document but its stderr does not show the expected
+     Traceback+TypeError crash signature -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_shape_effects_performed_string_fail_open BLIND: pinned pre-R5-I1-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok guard-viability rr_id_type_collision_bool_int BLIND: pinned pre-R5-I1-fix copy wrote no --out document -- python3: can't open file '<tmp>/tmp.sR9NXV3qWQ/orchestration_scratch/handoff.py': [Errno 2] No such file or directory
+
+=== I4+R2-I2+R3-I1+R4-I1+R5-I1+R5-I2 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ===

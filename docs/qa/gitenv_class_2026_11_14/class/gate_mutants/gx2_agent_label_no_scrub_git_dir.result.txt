@@ -1,0 +1,14 @@
+label=gx2_agent_label_no_scrub_git_dir mode=git_dir script=scripts/gates/cm_agent_type_label.sh rc=1 seconds=295
+repo_head=42fd128819608ef1d110e32cd1b9d4a6de6c335c
+sentinel_fingerprint_before=7e8668ffe7600ac15404f5865b5f5b3478199740038956d0fe8949615094d1e0
+sentinel_fingerprint_after=96d2660a33b858bfdc28003b077d7573803c23cbe13945f095e3f5eecfab75f4
+sentinel_head_before=6c81aafe9fb6ffdc603db6f6e1ea263a7a3d7369 after=e1038afd01ac8b225841fc57275b06e3e391b244 branch_before=refs/heads/sentinel after=refs/heads/sentinel
+sentinel_index_entries_after=1
+SENTINEL=CHANGED
+--- log tail ---
+✅ HOOK: a model/effort parameter that overrides the type blocks under ENFORCE; matching parameters pass
+✅ HOOK: WARN payload is valid JSON for a subagent_type with a quote and a backslash
+✅ HOOK: empty bypass reason does not bypass
+✅ HOOK: hand-made T<N> types do not count as generated (golden-FALSE)
+----------------------------------------------------------------------
+❌ CM-AGENT-TYPE-LABEL: FAIL

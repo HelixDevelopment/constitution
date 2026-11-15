@@ -1,0 +1,103 @@
+=== R7 regression guard: control needle -- fixtures + fixed tool + pinned copy all exist ===
+NOT ok control needle FAILED: <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py not found
+NOT ok control needle FAILED: <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle FAILED: <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py not found
+NOT ok control needle FAILED: <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r7_inventory_nondict.json not found
+NOT ok control needle FAILED: <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r7_inventory_entries_nonlist.json not found
+NOT ok control needle FAILED: <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r7_inventory_entry_nondict.json not found
+NOT ok control needle FAILED: <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r7_inventory_backup_nondict.json not found
+NOT ok control needle FAILED: <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/cs_r7_inventory_backup_path_list.json not found
+
+=== R7-I3: propose crashes on every class of malformed --inventory ===
+--- missing --inventory file ---
+ok R7-I3 (missing file) real (fixed) tool: propose fails closed with EXIT_USAGE (2),
+   writes no --out, no traceback -- python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I3 (missing file) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+--- nondict (cs_r7_inventory_nondict.json) ---
+ok R7-I3 (nondict) real (fixed) tool: propose fails closed with EXIT_USAGE (2),
+   writes no --out, no traceback -- python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I3 (nondict) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+--- entries-nonlist (cs_r7_inventory_entries_nonlist.json) ---
+ok R7-I3 (entries-nonlist) real (fixed) tool: propose fails closed with EXIT_USAGE (2),
+   writes no --out, no traceback -- python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I3 (entries-nonlist) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+--- entry-nondict (cs_r7_inventory_entry_nondict.json) ---
+ok R7-I3 (entry-nondict) real (fixed) tool: propose fails closed with EXIT_USAGE (2),
+   writes no --out, no traceback -- python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I3 (entry-nondict) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+--- backup-nondict (cs_r7_inventory_backup_nondict.json) ---
+ok R7-I3 (backup-nondict) real (fixed) tool: propose fails closed with EXIT_USAGE (2),
+   writes no --out, no traceback -- python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I3 (backup-nondict) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+--- backup-path-list (cs_r7_inventory_backup_path_list.json) ---
+ok R7-I3 (backup-path-list) real (fixed) tool: propose fails closed with EXIT_USAGE (2),
+   writes no --out, no traceback -- python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I3 (backup-path-list) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+
+=== R7-I4: derive_verdict crashes on unreadable backup / int|NUL entry_id ===
+--- unreadable-but-existing backup_artifact_path ---
+NOT ok R7-I4 (unreadable backup) real (fixed) tool: rc=2 out_exists=no stderr=python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I4 (unreadable backup) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+--- entry_id is a JSON int ---
+NOT ok R7-I4 (int entry_id) real (fixed) tool: out_exists=no stderr=python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I4 (int entry_id) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+--- entry_id contains an embedded NUL byte ---
+NOT ok R7-I4 (NUL entry_id) real (fixed) tool: out_exists=no stderr=python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I4 (NUL entry_id) guard-viability BLIND: cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+
+=== R7-I6: selftest's golden-good case is fully self-contained ===
+NOT ok R7-I6 real (fixed) tool: selftest rc=2, output:
+     python3: can't open file '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': [Errno 2] No such file or directory
+NOT ok R7-I6 guard-viability BLIND: pinned copy's selftest rc=2
+     (expected a golden-good REFUSED failure on this host's current state):
+     cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py': No such file or directory
+     cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+     cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+     python3: can't open file '<tmp>/orchestration_scratch/custody_sweep.py': [Errno 2] No such file or directory
+
+=== Top-level dispatch boundary: main() wraps EVERY subcommand in ONE except Exception boundary ===
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok top-level dispatch boundary MISSING or malformed
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/live_boundary/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok top-level dispatch boundary LIVE PROOF: mutation anchor not found (content drifted)
+
+=== Malformed-input fuzz probe: no traceback ever, rc always in {0,1,2,3,4}, rc=1 only with an --out file written ===
+ok malformed-input fuzz probe: 20 adversarial propose/verify-proposal
+   documents -- zero tracebacks, every rc in {0,1,2,3,4}, every rc=1 paired
+   with a genuinely-written --out document
+
+=== R7 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

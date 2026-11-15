@@ -1,0 +1,105 @@
+== I-1: backup names are strictly monotonic; prune never deletes the backup just made ==
+  PASS KEEP=1, 5 writes in one second: the printed backup always exists, only the newest kept
+  PASS KEEP=3, 7 writes in one second: three newest kept
+  PASS KEEP=1 with a clock that goes BACKWARDS: the newest backup is still kept
+  PASS user scope KEEP=1, 5 writes in one second
+  PASS user scope KEEP=3, 6 writes in one second
+== I-2: ONE emitter; escaping of filesystem-derived output; non-UTF-8 never crashes ==
+  PASS write through a symlinked doc whose real name holds ESC, bidi and newline (rc=0)
+  PASS …no raw ESC/bidi in stdout/stderr
+  PASS …the 'written:' line stays ONE line (newline escaped)
+  PASS …and the backup line is clean
+  PASS dry-run through the same symlink (rc=0)
+  PASS …'would update' clean
+  PASS --check drift list (rc=4)
+  PASS …drift list clean and single-line
+  PASS --show with an ESC-named project root and symlinked doc (rc=0)
+  PASS …show clean
+  PASS non-UTF-8 doc name (symlink target): write completes, no crash (rc=0)
+  PASS …no traceback / UnicodeEncodeError
+  PASS …no intent left behind
+  PASS …a later write works (rc=0)
+  PASS …--check is clean (rc=0)
+  PASS …--reset works (rc=0)
+  PASS …no intent after reset
+  PASS …--show works (rc=0)
+  PASS …--show --json works (rc=0)
+  PASS …--show --json is valid JSON
+  PASS a symlinked doc resolving to a secret-shaped name is refused like a direct --doc (rc=3)
+  PASS …the key-shaped name is never shown
+  PASS …nothing written
+  PASS …--check refuses too (rc=3)
+  PASS …and does not show it
+  PASS direct --doc of the same name stays refused (rc=3)
+  PASS --export through a symlinked parent with ESC/bidi/newline in its name (rc=0)
+  PASS …exported line clean and single-line
+  PASS a foreign refusal naming a resolved path with control characters (rc=3)
+  PASS …stderr is one clean line
+  PASS static: no print() and no sys.stdout/sys.stderr use outside _emit
+== UNIT-CLASS: the exit-code reporter keeps validated paths un-redacted and still redacts secrets ==
+  PASS UNIT: report_exception Precondition not redacted, Refused redacted
+  PASS UNIT: the passwd-entry home directory is refused even when $HOME differs
+== I-3: --inherits is remembered, validated and consistent ==
+  PASS write with --inherits vendor/constit (rc=0)
+  PASS a LATER write without the flag is not blocked (rc=0)
+  PASS …the recorded inherits is kept
+  PASS --show reports the recorded path (rc=0)
+  PASS …text
+  PASS …json
+  PASS the recorded inherits path still protects: --doc into it refused (M05) (rc=3)
+  PASS …also with the flag given explicitly (rc=3)
+  PASS …--export into it refused (rc=3)
+  PASS a nonexistent --inherits path is a usage error (rc=2)
+  PASS …also for --show (rc=2)
+  PASS a recorded inherits that no longer exists blocks the write (not silently replaced) (rc=3)
+  PASS …decisions.yml unchanged
+  PASS a crafted decisions.yml naming inherits does not waive the repository check (recorded path replaces only the constitution check) (rc=3)
+  PASS …says git repository
+== MINOR: .gitmodules grammar (git config syntax) and non-UTF-8 bytes ==
+  PASS .gitmodules form protects 'd1' (rc=3)
+  PASS .gitmodules form protects 'd two' (rc=3)
+  PASS .gitmodules form protects 'd3' (rc=3)
+  PASS .gitmodules form protects 'd4' (rc=3)
+  PASS .gitmodules form protects 'd5' (rc=3)
+  PASS .gitmodules form protects 'd6' (rc=3)
+  PASS .gitmodules form protects 'd#7' (rc=3)
+  PASS a commented-out path does not protect d8 (rc=0)
+  PASS a path in a non-submodule section does not protect d9 (rc=0)
+  PASS non-UTF-8 .gitmodules: --check reports instead of refusing (rc=0)
+  PASS …--show works (rc=0)
+  PASS …a write works (rc=0)
+  PASS …and still protects its path (rc=3)
+  PASS …--reset works (rc=0)
+== MINOR: the resolved parent is re-checked immediately before the replace (TOCTOU) ==
+  PASS the swapped parent is refused (rc 3)
+  PASS …x.md was not written through the swapped link
+  PASS …the message says the parent changed
+  PASS after restoring, the next run completes the write (rc=0)
+  PASS …x.md has the block
+== MINOR: --check is not clean while the intent is pending ==
+  PASS baseline --check clean (rc=0)
+  PASS --check with a pending intent is rc 4 (rc=4)
+  PASS …says an unfinished write
+  PASS a completing run clears it (rc=0)
+  PASS --check with the sidecar missing is rc 4 (rc=4)
+== MINOR: user scope needs no project repo; HOME checks use realpath of $HOME and the passwd entry; 0700 bases ==
+  PASS --scope user with the project root = HOME (no repo, no constitution) (rc=0)
+  PASS …the user file exists
+  PASS --scope user from HOME as the working directory (rc=0)
+  PASS --scope user in a bare non-repo directory (rc=0)
+  PASS …the user file still may not resolve inside a real project (rc=3)
+  PASS a symlinked $HOME is still the HOME directory (project scope refused) (rc=3)
+  PASS a pre-existing 0755 project backup base is tightened to 0700
+  PASS a pre-existing 0755 user backup base is tightened to 0700
+== reviewer-mutant gaps: M09 not-in-repo, M21 .git FILE, M23 ancestor .git, M24 export onto a directory ==
+  PASS M09: constitution dir present but no git repository anywhere: refused (rc=3)
+  PASS …names the git requirement
+  PASS M23: the repository is an ANCESTOR of the project root: accepted (rc=0)
+  PASS M21: a project root whose .git is a FILE (worktree/submodule checkout) is accepted (rc=0)
+  PASS M21: a nested directory whose .git is a FILE is foreign (rc=3)
+  PASS M24: --export onto a directory (rc=3)
+  PASS …says it is a directory
+== resolved paths: a leaf symlink is not followed, parent resolution is checked ==
+  PASS --export through an in-project symlinked parent is allowed and shown resolved (rc=0)
+  PASS …the shown path is the resolved one
+test_round6: pass=94 fail=0

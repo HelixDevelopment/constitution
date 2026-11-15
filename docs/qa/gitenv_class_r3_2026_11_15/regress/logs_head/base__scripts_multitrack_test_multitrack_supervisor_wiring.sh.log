@@ -1,0 +1,1 @@
+SKIP: the RB-05 mock claude is not reachable (no outer project root above <scratch>/base, no MT_TEST_MOCK_CLAUDE; looked for '<none>'); this test needs the consumer fixture scripts/multitrack/rb05_fixtures/mock_claude.sh reason=rb05_mock_absent

@@ -1,0 +1,138 @@
+# run: rc=1 wall=32s load_start=54.64 load_end=55.26 cmd=bash tests/test_post_update_hub_gates.sh
+BAD  PASS: output lacks /CM-FULL-SUITE-MANIFEST-COMPLETE: PASS/
+     [0;32m[INFO][0m  Project root:      <tmp>/PASS/proj
+     [0;32m[INFO][0m  Script dir:        <tmp>/PASS/const/scripts
+     
+     [0;36m== STEP 1: Detecting changes in constitution submodule ==[0m
+     [1;33m[WARN][0m  ORIG_HEAD not set — using HEAD~1 as baseline (may miss deeper changes)
+     [0;32m[INFO][0m  No files changed in this update — nothing to propagate.
+     
+     [0;36m== STEP 5b: Hub-structure gates (one source of truth) ==[0m
+     [0;32m[INFO][0m  CM-HUB-ENGINE-NO-OWNORG-NESTING: PASS
+     [0;32m[INFO][0m  CM-LLMCTL-SUBMODULE-NONRECURSIVE: PASS
+     [0;32m[INFO][0m  CM-HELIX-DEPS-MANIFEST-PRESENT: PASS
+     [0;32m[INFO][0m  CM-PROVISIONAL-DONE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-REPRO-FIRST-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-STATE-FIELDS-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-GEO-SUBSTITUTE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-GITHUB-ISSUES-SOURCE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-PR-DELIVERY-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS
+     [0;32m[INFO][0m  CM-RELEASE-GATE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-RELEASE-GATE-ANCHOR-WIRED: PASS
+     
+     [0;36m== STEP 4f: Agent-type label definitions (T<N>-<branch>-<model>-<effort>) ==[0m
+     [1;33m[WARN][0m  install_agent_label_defs.sh missing: <tmp>/PASS/const/scripts/multitrack/install_agent_label_defs.sh — agent-type label definitions NOT generated.
+     [0;32m[INFO][0m  No relevant changes detected. Nothing to propagate.
+ok   HUB-FAIL (hook rc=1)
+ok   LLMCTL-BLIND (hook rc=0)
+ok   HUB-SKIP (hook rc=0)
+ok   MANIFEST-FAIL (hook rc=1)
+ok   MANIFEST-BLIND (hook rc=0)
+ok   PDONE-FAIL (hook rc=1)
+ok   PDONE-BLIND (hook rc=0)
+ok   PDONE-SKIP (hook rc=0)
+ok   REPRO-FAIL (hook rc=1)
+ok   REPRO-BLIND (hook rc=0)
+ok   REPRO-SKIP (hook rc=0)
+ok   NOWORSE-FAIL (hook rc=1)
+ok   NOWORSE-BLIND (hook rc=0)
+ok   NOWORSE-SKIP (hook rc=0)
+ok   STATEFIELDS-FAIL (hook rc=1)
+ok   STATEFIELDS-BLIND (hook rc=0)
+ok   STATEFIELDS-SKIP (hook rc=0)
+ok   GEO-FAIL (hook rc=1)
+ok   GEO-BLIND (hook rc=0)
+ok   GEO-SKIP (hook rc=0)
+ok   GHISSUES-FAIL (hook rc=1)
+ok   GHISSUES-BLIND (hook rc=0)
+ok   GHISSUES-SKIP (hook rc=0)
+ok   PRDELIVERY-FAIL (hook rc=1)
+ok   PRDELIVERY-BLIND (hook rc=0)
+ok   PRDELIVERY-SKIP (hook rc=0)
+ok   ACCTNAME-FAIL (hook rc=1)
+ok   ACCTNAME-BLIND (hook rc=0)
+ok   ACCTNAME-SKIP (hook rc=0)
+ok   RELGATE-FAIL (hook rc=1)
+ok   RELGATE-BLIND (hook rc=0)
+ok   RELGATE-SKIP (hook rc=0)
+BAD  SUITEMANIFEST-FAIL: output lacks /CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL/
+     [0;32m[INFO][0m  CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS
+     [0;32m[INFO][0m  CM-RELEASE-GATE-ANCHOR-WIRED: PASS
+     [0;31m[ERROR][0m CM-RELEASE-GATE-ANCHOR-WIRED: FAIL
+     
+     [0;36m== STEP 4f: Agent-type label definitions (T<N>-<branch>-<model>-<effort>) ==[0m
+     [1;33m[WARN][0m  install_agent_label_defs.sh missing: <tmp>/SUITEMANIFEST-FAIL/const/scripts/multitrack/install_agent_label_defs.sh — agent-type label definitions NOT generated.
+     [0;32m[INFO][0m  No relevant changes detected. Nothing to propagate.
+     
+     [0;36m== SUMMARY ==[0m
+     
+       [0;36mSkills installed:[0m   0
+     
+       [0;36mMCP configs merged:[0m 0
+     
+       [0;36mHooks installed:[0m    0
+     
+       [0;36mScripts validated:[0m  0
+     
+       [1;33mWarnings (1):[0m
+         - install_agent_label_defs.sh missing — agent-type label definitions not generated
+     
+       [0;31mErrors (1):[0m
+         - CM-RELEASE-GATE-ANCHOR-WIRED: FAIL (see its output above)
+     
+       [0;31mPost-update hook completed with errors.[0m
+BAD  SUITEMANIFEST-BLIND: output lacks /CM-FULL-SUITE-MANIFEST-COMPLETE: BLIND/
+     [0;32m[INFO][0m  Project root:      <tmp>/SUITEMANIFEST-BLIND/proj
+     [0;32m[INFO][0m  Script dir:        <tmp>/SUITEMANIFEST-BLIND/const/scripts
+     
+     [0;36m== STEP 1: Detecting changes in constitution submodule ==[0m
+     [1;33m[WARN][0m  ORIG_HEAD not set — using HEAD~1 as baseline (may miss deeper changes)
+     [0;32m[INFO][0m  No files changed in this update — nothing to propagate.
+     
+     [0;36m== STEP 5b: Hub-structure gates (one source of truth) ==[0m
+     [0;32m[INFO][0m  CM-HUB-ENGINE-NO-OWNORG-NESTING: PASS
+     [0;32m[INFO][0m  CM-LLMCTL-SUBMODULE-NONRECURSIVE: PASS
+     [0;32m[INFO][0m  CM-HELIX-DEPS-MANIFEST-PRESENT: PASS
+     [0;32m[INFO][0m  CM-PROVISIONAL-DONE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-REPRO-FIRST-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-STATE-FIELDS-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-GEO-SUBSTITUTE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-GITHUB-ISSUES-SOURCE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-PR-DELIVERY-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS
+     [0;32m[INFO][0m  CM-RELEASE-GATE-ANCHOR-WIRED: PASS
+     [1;33m[WARN][0m  CM-RELEASE-GATE-ANCHOR-WIRED: BLIND (rc=2)
+     
+     [0;36m== STEP 4f: Agent-type label definitions (T<N>-<branch>-<model>-<effort>) ==[0m
+     [1;33m[WARN][0m  install_agent_label_defs.sh missing: <tmp>/SUITEMANIFEST-BLIND/const/scripts/multitrack/install_agent_label_defs.sh — agent-type label definitions NOT generated.
+     [0;32m[INFO][0m  No relevant changes detected. Nothing to propagate.
+BAD  SUITEMANIFEST-SKIP: output lacks /CM-FULL-SUITE-MANIFEST-COMPLETE: SKIP/
+     [0;32m[INFO][0m  Project root:      <tmp>/SUITEMANIFEST-SKIP/proj
+     [0;32m[INFO][0m  Script dir:        <tmp>/SUITEMANIFEST-SKIP/const/scripts
+     
+     [0;36m== STEP 1: Detecting changes in constitution submodule ==[0m
+     [1;33m[WARN][0m  ORIG_HEAD not set — using HEAD~1 as baseline (may miss deeper changes)
+     [0;32m[INFO][0m  No files changed in this update — nothing to propagate.
+     
+     [0;36m== STEP 5b: Hub-structure gates (one source of truth) ==[0m
+     [0;32m[INFO][0m  CM-HUB-ENGINE-NO-OWNORG-NESTING: PASS
+     [0;32m[INFO][0m  CM-LLMCTL-SUBMODULE-NONRECURSIVE: PASS
+     [0;32m[INFO][0m  CM-HELIX-DEPS-MANIFEST-PRESENT: PASS
+     [0;32m[INFO][0m  CM-PROVISIONAL-DONE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-REPRO-FIRST-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-STATE-FIELDS-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-GEO-SUBSTITUTE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-GITHUB-ISSUES-SOURCE-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-PR-DELIVERY-ANCHOR-WIRED: PASS
+     [0;32m[INFO][0m  CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS
+     [0;32m[INFO][0m  CM-RELEASE-GATE-ANCHOR-WIRED: PASS
+     [1;33m[WARN][0m  CM-RELEASE-GATE-ANCHOR-WIRED: SKIP (nothing inspected — not a PASS)
+     
+     [0;36m== STEP 4f: Agent-type label definitions (T<N>-<branch>-<model>-<effort>) ==[0m
+     [1;33m[WARN][0m  install_agent_label_defs.sh missing: <tmp>/SUITEMANIFEST-SKIP/const/scripts/multitrack/install_agent_label_defs.sh — agent-type label definitions NOT generated.
+     [0;32m[INFO][0m  No relevant changes detected. Nothing to propagate.
+FAIL

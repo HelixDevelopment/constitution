@@ -1,0 +1,129 @@
+== I-1: a cross-layer contradiction never bricks read or recovery paths ==
+  PASS setup: user-scope write from project A succeeded
+  PASS --show in B still works (rc=0)
+  PASS --show reports the contradiction
+  PASS --show --json in B still works (rc=0)
+  PASS --show --json stays valid JSON
+  PASS --check reports (not refuses): rc 4, as for drift (rc=4)
+  PASS --check says WARNING contradiction and how to recover
+  PASS --plan in B still works (rc=0)
+  PASS --reset in B recovers (rc=0)
+  PASS --unset endpoints.preference in B recovers (rc=0)
+  PASS after the unset, --check is clean (rc=0)
+  PASS --export - in B still works (rc=0)
+  PASS --import of a clean file recovers B (rc=0)
+  PASS --scope user --reset from B recovers the user layer (rc=0)
+  PASS after the user reset, B --check is clean (rc=0)
+  PASS an unrelated write in a contradicted project is allowed (the contradiction is not NEW) (rc=0)
+  PASS a write that would CREATE a new contradiction is still refused (rc=4)
+  PASS …with the contradiction message
+  PASS layer.mode analogue: B --show still works (rc=0)
+  PASS layer.mode analogue: B --check reports rc 4 (rc=4)
+  PASS layer.mode analogue: B --reset recovers (rc=0)
+  PASS layer.mode analogue: B clean afterwards (rc=0)
+== MINOR: never_enforce contradiction, not pre-empted by the layer-mode check ==
+  PASS layer.mode=enforce + gate=enforce + gate in never_enforce refused (rc=4)
+  PASS …by the never_enforce rule (message oracle)
+  PASS …and not by the layer-mode rule
+== I-2: no write target resolves into the inherited constitution, a gitlink or another repository ==
+  PASS default AGENTS.md symlinked into the constitution: wizard runs, target skipped (rc=0)
+  PASS …the constitution carrier is byte-identical
+  PASS …the skip is announced
+  PASS …CLAUDE.md of the project got the block
+  PASS --check ignores the skipped symlinked default doc (rc=0)
+  PASS --doc into the constitution refused (exit 3) (rc=3)
+  PASS …message names the rule
+  PASS --doc via an in-project symlink into the constitution refused (rc=3)
+  PASS --export into the constitution refused (rc=3)
+  PASS --export through a symlinked directory into the constitution refused (rc=3)
+  PASS --doc inside a directory with its own .git refused (rc=3)
+  PASS --doc under a .gitmodules path refused (rc=3)
+  PASS --export under a .gitmodules path refused (rc=3)
+  PASS nothing was written into submodules/vendor/ext
+  PASS legacy ./constitution carrier is also protected (rc=3)
+  PASS …legacy carrier untouched
+== I-3: a project precondition; a bare directory or HOME gets nothing without --inherits ==
+  PASS bare dir (no repo, no constitution) refused (rc=3)
+  PASS …nothing created
+  PASS …message says what is missing
+  PASS bare dir: --show still works (read-only) (rc=0)
+  PASS bare dir: --dry-run also refused (rc=3)
+  PASS bare dir: explicit --inherits accepted (the path must exist, round 6) (rc=0)
+  PASS --inherits with a bad value refused (rc=2)
+  PASS git repo without an inherited constitution refused (rc=3)
+  PASS the HOME directory itself refused (rc=3)
+  PASS …explicit --inherits lets the operator override (rc=0)
+  PASS a project that has the constitution still works (rc=0)
+== MINOR: --project-root inside .git refused ==
+  PASS --project-root .git refused (rc=3)
+  PASS --project-root .git/hooks refused (rc=3)
+== I-4: recovery never copies key material into backups; backups are private ==
+  PASS --reset --accept-external-edits recovers a secret-shaped stored entry (rc=0)
+  PASS secret is in no backup file
+grep: --exclude-dir=.git: No such file or directory
+  PASS secret is in no file of the project
+  PASS secret not echoed
+  PASS backup dirs are 0700
+  PASS backup files are 0600
+  PASS the redacted backup says so
+  PASS gitignore guidance printed once backups exist
+  PASS user-scope --reset recovers a secret-shaped entry (rc=0)
+  PASS secret in no user backup
+  PASS user backup dir 0700, file 0600
+  PASS --export --force-export replaces a secret-bearing file (rc=0)
+  PASS …its backup does not hold the secret
+== I-5: validated filesystem paths are never redacted ==
+  PASS --show --json with a long path segment (rc=0)
+  PASS project_root is the exact real path
+  PASS project_file / user_file are exact
+  PASS --show (text) with a long path segment (rc=0)
+  PASS text output holds the real path
+  PASS user write under a long path (rc=0)
+  PASS user backup line holds the real path
+  PASS the secret redaction still works (values)
+== I-6: honest wording about layer.mode=off and no false 'only tighten' claim ==
+  PASS off: block names the §11.4.279(E) conflict
+  PASS off: decisions.yml header names it
+  PASS off: no 'only tighten' claim in the block
+  PASS off: no 'only tighten' claim in decisions.yml
+  PASS off: bootstrap line says what off does
+  PASS off: --check still clean (wording is part of the block) (rc=0)
+  PASS non-off: no 'only tighten' either
+  PASS plan has no unqualified 'only tighten' claim
+== MINOR: PROFILE_RE charset is pinned (UNIT-CLASS, real engine) ==
+  PASS PROFILE_RE accepts exactly the documented charset
+  PASS profile 'a b' refused by the CLI (rc=4)
+  PASS profile 'a/b' refused by the CLI (rc=4)
+  PASS profile '../x' refused by the CLI (rc=4)
+  PASS profile 'a;b' refused by the CLI (rc=4)
+  PASS profile 'a$b' refused by the CLI (rc=4)
+== MINOR: the number grammar is tight ==
+  PASS calibration.floor=0.9_5 refused (rc=4)
+  PASS calibration.floor=0x1 refused (rc=4)
+  PASS calibration.floor=nan refused (rc=4)
+  PASS calibration.floor=inf refused (rc=4)
+  PASS calibration.floor=9e refused (rc=4)
+  PASS calibration.floor=0.95e0.1 refused (rc=4)
+  PASS calibration.floor=1,0 refused (rc=4)
+  PASS calibration.floor=٠.٩٥ refused (rc=4)
+  PASS calibration.min_sample=3_0 refused (rc=4)
+  PASS calibration.min_sample=0x1e refused (rc=4)
+  PASS calibration.min_sample=30.5 refused (rc=4)
+  PASS calibration.min_sample=3e1 refused (rc=4)
+  PASS calibration.min_sample=  refused (rc=4)
+  PASS calibration.min_sample=٣٠ refused (rc=4)
+  PASS calibration.floor=0.95 ok (rc=0)
+  PASS calibration.floor=9.5e-1 ok (rc=0)
+  PASS calibration.min_sample=45 ok (rc=0)
+== MINOR: backup pruning is guarded (UNIT-CLASS, real engine) ==
+  PASS prune only works inside a wizard backup location and never follows links
+== MINOR: discriminating FORBIDDEN_TOP case (the directory exists, so the rule is what answers) ==
+  PASS --export into an EXISTING backup dir refused (rc=3)
+  PASS …by the forbidden-directory rule
+  PASS --export into an EXISTING .constitution refused (rc=3)
+  PASS …by the forbidden-directory rule
+== MINOR: docs state the registry exit list and the unclosed-comment risk ==
+  PASS registry proposal lists exit 1
+  PASS plan states enforce needs the exact type name
+  PASS plan records the unclosed <!-- risk as UNCONFIRMED
+test_round5: pass=114 fail=0

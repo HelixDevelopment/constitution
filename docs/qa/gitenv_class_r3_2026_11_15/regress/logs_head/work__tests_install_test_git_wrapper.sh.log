@@ -1,0 +1,143 @@
+# install_constitution.sh
+  ok   install_constitution.sh refuses: push
+  ok   install_constitution.sh refuses: ${P}ush
+  ok   install_constitution.sh refuses: $'\x70ush'
+  ok   install_constitution.sh refuses: p\ush
+  ok   install_constitution.sh refuses: x=pu; ${x}sh
+  ok   install_constitution.sh refuses: $(printf pu)sh
+  ok   install_constitution.sh refuses: send-pack
+  ok   install_constitution.sh refuses: reset --hard
+  ok   install_constitution.sh refuses: checkout -f
+  ok   install_constitution.sh refuses: checkout -qf
+  ok   install_constitution.sh refuses: checkout a branch
+  ok   install_constitution.sh refuses: fetch --force
+  ok   install_constitution.sh refuses: fetch +refspec
+  ok   install_constitution.sh refuses: clone --upload-pack
+  ok   install_constitution.sh refuses: -c alias
+  ok   install_constitution.sh refuses: config core.hooksPath
+  ok   install_constitution.sh refuses: rm without --cached
+  ok   install_constitution.sh refuses: commit (no HI_GX_COMMIT_OK)
+  ok   install_constitution.sh refuses: init (no HI_GX_INIT_OK)
+  ok   install_constitution.sh refuses: --git-dir=x push
+  ok   install_constitution.sh refuses: no subcommand
+  ok   install_constitution.sh refuses: fetch -- origin +refspec (after --)
+  ok   install_constitution.sh refuses: fetch origin +refspec (bare)
+  ok   install_constitution.sh refuses: fetch --refmap=+...
+  ok   install_constitution.sh refuses: fetch --refmap (separate)
+  ok   install_constitution.sh refuses: fetch --update-head-ok
+  ok   install_constitution.sh refuses: fetch with a refspec (not the fixed shape)
+  ok   install_constitution.sh refuses: fetch from a URL instead of a remote name
+  ok   install_constitution.sh refuses: submodule update --recursive
+  ok   install_constitution.sh refuses: submodule update --recursive after --
+  ok   install_constitution.sh refuses: submodule add ext:: URL
+  ok   install_constitution.sh refuses: submodule status (unused)
+  ok   install_constitution.sh refuses: remote set-url to ext::
+  ok   install_constitution.sh refuses: remote set-url to an https URL (only absolute paths are set by the installer)
+  ok   install_constitution.sh refuses: clone -- --upload-pack=
+  ok   install_constitution.sh refuses: clone ext:: URL
+  ok   install_constitution.sh refuses: clone without --
+  ok   install_constitution.sh refuses: clone extra option
+  ok   install_constitution.sh refuses: ls-remote ext:: URL
+  ok   install_constitution.sh refuses: ls-remote option-like URL after --
+  ok   install_constitution.sh refuses: add without --
+  ok   install_constitution.sh refuses: add a +path
+  ok   install_constitution.sh refuses: init with an option
+  ok   install_constitution.sh refuses: a +word anywhere (rev-parse)
+  ok   install_constitution.sh allows: fetch fixed shape
+  ok   install_constitution.sh allows: clone fixed shape
+  ok   install_constitution.sh allows: submodule update fixed shape
+  ok   install_constitution.sh allows: submodule add fixed shape
+  ok   install_constitution.sh allows: remote set-url origin /abs
+  ok   install_constitution.sh allows: ls-remote -- url ref
+  ok   install_constitution.sh allows: ls-remote --tags NAME
+  ok   install_constitution.sh: git ran
+  ok   install_constitution.sh: inherited GIT_DIR/WORK_TREE/CONFIG_*/EXEC_PATH/SSH/TEMPLATE_DIR/EXTERNAL_DIFF/INDEX_FILE removed
+  ok   install_constitution.sh: GIT_SSH_COMMAND is the installer's own (BatchMode), never the inherited one
+  ok   install_constitution.sh: a PATH change after the first call does not swap git
+  ok   install_constitution.sh allows: rev-parse
+  ok   install_constitution.sh allows: -C + --no-optional-locks status
+  ok   install_constitution.sh allows: checkout --detach <sha>
+  ok   install_constitution.sh allows: rm --cached
+  ok   install_constitution.sh allows: protocol.file ls-remote
+  ok   install_constitution.sh: commit reaches git only with HI_GX_COMMIT_OK=1
+  ok   install_constitution.sh: refusal message does not print URL credentials
+# update_constitution.sh
+  ok   update_constitution.sh refuses: push
+  ok   update_constitution.sh refuses: ${P}ush
+  ok   update_constitution.sh refuses: $'\x70ush'
+  ok   update_constitution.sh refuses: p\ush
+  ok   update_constitution.sh refuses: x=pu; ${x}sh
+  ok   update_constitution.sh refuses: $(printf pu)sh
+  ok   update_constitution.sh refuses: send-pack
+  ok   update_constitution.sh refuses: reset --hard
+  ok   update_constitution.sh refuses: checkout -f
+  ok   update_constitution.sh refuses: checkout -qf
+  ok   update_constitution.sh refuses: checkout a branch
+  ok   update_constitution.sh refuses: fetch --force
+  ok   update_constitution.sh refuses: fetch +refspec
+  ok   update_constitution.sh refuses: clone --upload-pack
+  ok   update_constitution.sh refuses: -c alias
+  ok   update_constitution.sh refuses: config core.hooksPath
+  ok   update_constitution.sh refuses: rm without --cached
+  ok   update_constitution.sh refuses: commit (no HI_GX_COMMIT_OK)
+  ok   update_constitution.sh refuses: init (no HI_GX_INIT_OK)
+  ok   update_constitution.sh refuses: --git-dir=x push
+  ok   update_constitution.sh refuses: no subcommand
+  ok   update_constitution.sh refuses: fetch -- origin +refspec (after --)
+  ok   update_constitution.sh refuses: fetch origin +refspec (bare)
+  ok   update_constitution.sh refuses: fetch --refmap=+...
+  ok   update_constitution.sh refuses: fetch --refmap (separate)
+  ok   update_constitution.sh refuses: fetch --update-head-ok
+  ok   update_constitution.sh refuses: fetch with a refspec (not the fixed shape)
+  ok   update_constitution.sh refuses: fetch from a URL instead of a remote name
+  ok   update_constitution.sh refuses: submodule update --recursive
+  ok   update_constitution.sh refuses: submodule update --recursive after --
+  ok   update_constitution.sh refuses: submodule add ext:: URL
+  ok   update_constitution.sh refuses: submodule status (unused)
+  ok   update_constitution.sh refuses: remote set-url to ext::
+  ok   update_constitution.sh refuses: remote set-url to an https URL (only absolute paths are set by the installer)
+  ok   update_constitution.sh refuses: clone -- --upload-pack=
+  ok   update_constitution.sh refuses: clone ext:: URL
+  ok   update_constitution.sh refuses: clone without --
+  ok   update_constitution.sh refuses: clone extra option
+  ok   update_constitution.sh refuses: ls-remote ext:: URL
+  ok   update_constitution.sh refuses: ls-remote option-like URL after --
+  ok   update_constitution.sh refuses: add without --
+  ok   update_constitution.sh refuses: add a +path
+  ok   update_constitution.sh refuses: init with an option
+  ok   update_constitution.sh refuses: a +word anywhere (rev-parse)
+  ok   update_constitution.sh allows: fetch fixed shape
+  ok   update_constitution.sh allows: clone fixed shape
+  ok   update_constitution.sh allows: submodule update fixed shape
+  ok   update_constitution.sh allows: submodule add fixed shape
+  ok   update_constitution.sh allows: remote set-url origin /abs
+  ok   update_constitution.sh allows: ls-remote -- url ref
+  ok   update_constitution.sh allows: ls-remote --tags NAME
+  ok   update_constitution.sh: git ran
+  ok   update_constitution.sh: inherited GIT_DIR/WORK_TREE/CONFIG_*/EXEC_PATH/SSH/TEMPLATE_DIR/EXTERNAL_DIFF/INDEX_FILE removed
+  ok   update_constitution.sh: GIT_SSH_COMMAND is the installer's own (BatchMode), never the inherited one
+  ok   update_constitution.sh: a PATH change after the first call does not swap git
+  ok   update_constitution.sh allows: rev-parse
+  ok   update_constitution.sh allows: -C + --no-optional-locks status
+  ok   update_constitution.sh allows: checkout --detach <sha>
+  ok   update_constitution.sh allows: rm --cached
+  ok   update_constitution.sh allows: protocol.file ls-remote
+  ok   update_constitution.sh: commit reaches git only with HI_GX_COMMIT_OK=1
+  ok   update_constitution.sh: refusal message does not print URL credentials
+# REAL git (no fake): a forced fetch refspec never moves a local branch (round-4 IMPORTANT-2)
+  ok   real git: 'fetch --quiet -- origin +refs/heads/main:refs/heads/main' refused (exit 3)
+  ok   real git: local main NOT moved by 'fetch --quiet -- origin +refs/heads/main:refs/heads/main'
+  ok   real git: 'fetch --quiet origin main --refmap=+refs/heads/*:refs/heads/*' refused (exit 3)
+  ok   real git: local main NOT moved by 'fetch --quiet origin main --refmap=+refs/heads/*:refs/heads/*'
+  ok   real git: 'fetch --quiet --tags origin +refs/heads/main:refs/heads/main' refused (exit 3)
+  ok   real git: local main NOT moved by 'fetch --quiet --tags origin +refs/heads/main:refs/heads/main'
+  ok   real git: 'fetch --update-head-ok --quiet origin +main:main' refused (exit 3)
+  ok   real git: local main NOT moved by 'fetch --update-head-ok --quiet origin +main:main'
+  ok   control needle: raw git with the forced refspec DOES move the branch (dropping the local commit)
+  ok   real git: the fixed fetch shape runs (exit 0)
+  ok   real git: fixed fetch leaves local main alone
+# a real install: an inherited HI_GX_COMMIT_OK=1 does not enable a commit
+  ok   install exit 0
+  ok   no commit was made (HEAD unchanged; --commit was not asked)
+  ok   no refusal was needed on a normal run
+git-wrapper: PASS 138 FAIL 0

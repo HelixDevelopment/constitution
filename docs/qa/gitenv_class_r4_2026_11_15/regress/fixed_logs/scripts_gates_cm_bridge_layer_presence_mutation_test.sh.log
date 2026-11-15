@@ -1,0 +1,6 @@
+  NOTE  [CM-BRIDGE-LAYER-PRESENCE mutation] no consumer probe report under /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r4/qa-results/hxc159/bridge_layers - using a labelled GATE-LOGIC fixture report (unit class, proves nothing about real layers)
+  PASS  [CM-BRIDGE-LAYER-PRESENCE mutation] golden-good: pristine deps-file + latest report → gate PASSes (rc=0)
+  PASS  [CM-BRIDGE-LAYER-PRESENCE mutation] M1: phase declaring an L5 dependency → gate FAILs (rc=1), naming the mutated phase + layer
+  PASS  [CM-BRIDGE-LAYER-PRESENCE mutation] M2: phase declaring a dependency on an unknown layer id → gate FAILs (rc=1), naming the mutated phase
+  PASS  [CM-BRIDGE-LAYER-PRESENCE mutation] negative control: a phase declaring only genuinely-WIRED layers still PASSes inside a mutated-elsewhere sandbox (rc=0)
+== CM-BRIDGE-LAYER-PRESENCE mutation: PASS (4/4 cases) ==

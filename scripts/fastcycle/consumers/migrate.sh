@@ -233,16 +233,17 @@ fi
 # the same class of reason.
 # Round 8: the repository-locating class is the same list as
 # scripts/lib/constitution_layout.sh CL_GIT_SCRUB_VARS (GIT_INDEX_FILE,
-# GIT_PREFIX, GIT_CEILING_DIRECTORIES, ... were missing here: an ambient
+# GIT_PREFIX, ... were missing here: an ambient
 # GIT_INDEX_FILE made the early `git status` read another repository's index);
-# GIT_TEMPLATE_DIR is this tool's own addition (see above).
-# tests/layout/test_round8_git_env.sh checks that every one of the 15 is here.
+# GIT_TEMPLATE_DIR is this tool's own addition (see above). The discovery limit
+# GIT_CEILING_DIRECTORIES is NOT in the class (gitenv-class round 2, F1).
+# tests/layout/test_round8_git_env.sh checks that every one of the 14 is here.
 for _fc_unset_var in \
     GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_OBJECT_DIRECTORY \
     GIT_TEMPLATE_DIR \
     GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR \
     GIT_SHALLOW_FILE GIT_REPLACE_REF_BASE GIT_NAMESPACE \
-    GIT_INDEX_FILE GIT_PREFIX GIT_CEILING_DIRECTORIES GIT_GRAFT_FILE \
+    GIT_INDEX_FILE GIT_PREFIX GIT_GRAFT_FILE \
     GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX
 do
     unset "$_fc_unset_var" 2>/dev/null || true

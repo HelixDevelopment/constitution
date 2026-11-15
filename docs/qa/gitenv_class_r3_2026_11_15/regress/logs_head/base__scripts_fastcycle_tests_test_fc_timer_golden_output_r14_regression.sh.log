@@ -1,0 +1,10 @@
+ok   control needle: <scratch>/base/scripts/fastcycle/tests/capture_fc_timer_triplet.sh resolves
+ok   control needle: <scratch>/base/scripts/fastcycle/tests/test_fc_timer_golden_output.sh resolves
+=== (ADV3) R14-I2 exact repro: an OK/FAIL-style gate flips OK->FAIL in FC1 only, exit codes held EQUAL (isolating the verdict-SET check from the exit-code check) -- check [verdict-set] must FAIL, not silently PASS ===
+ok   (ADV3) overall FAIL (rc=1): with exit codes held equal, the exit-code check correctly PASSes trivially, but the verdict-set check now SEES the OK->FAIL flip and correctly hard-FAILs -- the pre-round-15 OK/FAIL blind spot is closed
+=== (ADV4) R14-I2 WARNING: shape: a log_warn()-style line appears ONLY in FC1, exit codes held EQUAL -- check [verdict-set] must FAIL, not silently PASS ===
+ok   (ADV4) overall FAIL (rc=1): a WARNING:-only difference (never matched by the pre-round-15 literal 'WARN:') is now genuinely caught by the verdict-set check
+=== (M-I2-verdictre) guard-viability: revert VERDICT_RE to the pre-round-15 pattern -- BOTH (ADV3) and (ADV4) must WRONGLY flip to overall PASS ===
+ok   (M-I2-verdictre) without the extended VERDICT_RE, BOTH (ADV3)'s OK/FAIL flip AND (ADV4)'s WARNING: line WRONGLY become invisible again (rc=0 PASS on both) -- the extension is genuinely load-bearing for both shapes
+
+=== T048 ROUND-14 FINDINGS REGRESSION GUARD (R14-I2): ALL CHECKS PASS ===

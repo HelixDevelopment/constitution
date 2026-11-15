@@ -562,6 +562,7 @@ scripts/gates/cm_evidence_analyzer_self_validated_mutation_test.sh	sh	entry	heav
 scripts/gates/cm_faq_from_real_questions_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_feature_directive_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_first_refusal_observed_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_geo_substitute_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -933,6 +934,8 @@ tests/security/test_github_actions_inventory_disable.sh	sh	entry	default	bash	-	
 tests/security/test_history_secret_scan.sh	sh	entry	default	bash	-	auto
 tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
+tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto
+tests/test_git_env_class.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder_mutations.sh	sh	entry	default	bash	-	override: fast (measured 5.6 s, one shared clone, no sweep); paired mutations of the redpin census guard
 tests/test_post_update_hub_gates.sh	sh	entry	default	bash	-	auto

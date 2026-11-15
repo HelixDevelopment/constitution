@@ -1,0 +1,18 @@
+import re, subprocess, sys, os
+root = sys.argv[1]
+files = subprocess.run(["git", "-C", root, "ls-files", "-z", "scripts"], capture_output=True).stdout.decode().split("\0")
+WR = r"(?:init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge|reset|stash|rm|mv|push|worktree|apply|am|cherry-pick|rebase|clone|submodule|fetch|pull|notes|gc|repack|checkout-index|commit-tree|hash-object|symbolic-ref|restore|clean|write-tree|fast-import|bundle|pack-objects|prune|replace|filter-branch)"
+SH = re.compile(r"(?m)^[^#\n]*(?<![\w./$-])git(?:\s+(?:-C\s+\S+|-c\s+\S+|--\S+))*\s+" + WR + r"\b")
+PYR = re.compile(r"""["']git["']\s*,\s*(?:["'][^"']*["']\s*,\s*)*["']""" + WR + r"""["']""")
+MARK = re.compile(r"cl_scrub_git_env|cl__git|chi__git|jb__git|ls__git|scrub_git_env|git_env\(\)|^\s*unset GIT_DIR|for _pu_v in GIT_DIR|for _v in GIT_DIR|for _fc_unset_var|GIT_SCRUB_VARS|_git_scrub|env -u GIT_DIR", re.M)
+for f in files:
+    if not f or re.search(r"\.(md|txt|json|tsv|yaml|yml|lock|html|pdf|docx|csv)$", f):
+        continue
+    p = os.path.join(root, f)
+    if not os.path.isfile(p) or os.path.islink(p):
+        continue
+    t = open(p, encoding="utf-8", errors="replace").read()
+    hit = (PYR.search(t) or SH.search(t)) if f.endswith(".py") else SH.search(t)
+    if not hit:
+        continue
+    print(("SCRUB" if MARK.search(t) else "UNSCR") + "\t" + f)

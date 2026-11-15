@@ -1,0 +1,2 @@
+git-env-class-census: FAIL - UNSCRUBBED scripts/release_tag.sh (line 16): git tag -a "$tag" -m "Release $tag"
+git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1

@@ -1,0 +1,28 @@
+ok   C1: census of this tree PASS, 114 members
+ok   C2a: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2b: census exit 0, 'PASS'
+ok   C2c: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2d: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2e: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2f: census exit 0, 'PASS'
+ok   C2g: census exit 0, 'exempt=1'
+ok   C2h: census exit 1, 'stale row'
+ok   C2i: census exit 1, 'malformed'
+ok   C3: census exit 2, 'BLIND'
+ok   B needle: a bare git commit under GIT_DIR changes the sentinel
+ok   B1_anchor [none]: exit 0
+ok   B1_anchor [none]: sentinel unchanged
+ok   B1_anchor [git_dir]: exit 0
+ok   B1_anchor [git_dir]: sentinel unchanged
+ok   B1_anchor [git_index_file]: exit 0
+ok   B1_anchor [git_index_file]: sentinel unchanged
+ok   B1_anchor [both]: exit 0
+ok   B1_anchor [both]: sentinel unchanged
+ok   B1_agent_label [none]: exit 0
+ok   B1_agent_label [none]: sentinel unchanged
+ok   B1_agent_label [both]: exit 0
+ok   B1_agent_label [both]: sentinel unchanged
+ok   B2: sourcing helix_code_home.sh keeps the caller's GIT_DIR
+ok   B2: hc__git answers its own cwd repository, not the caller's GIT_DIR
+ok   B2: sentinel unchanged
+[git-env-class] passed=27 failed=0 skipped=0

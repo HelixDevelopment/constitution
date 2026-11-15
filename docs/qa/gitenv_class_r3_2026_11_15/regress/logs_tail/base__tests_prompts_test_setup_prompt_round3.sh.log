@@ -1,0 +1,66 @@
+PASS block 2 present
+PASS block 4 present
+PASS block 4G present
+PASS block 5 present
+PASS block 10 present
+PASS block S7 present
+PASS follow-up 01 V6 block present
+PASS R4-1 STEP5 untracked file in the submodule stops rc=3 (local changes)
+PASS R4-1 STEP5 untracked: HEAD unchanged, nothing staged
+PASS R4-1 STEP5 non-conflicting tracked edit stops rc=3, HEAD unchanged
+PASS R4-2 STEP4 staged .gitmodules edit stops rc=3, nothing moved
+PASS R4-2 STEP4 unstaged .gitmodules edit stops rc=3 with the precondition message
+PASS R4-2 STEP4 unrecorded gitlink move stops rc=3, nothing moved
+PASS R4-5 fresh lock without pid NOT reaped within the grace (rc=3, nothing changed)
+PASS R4-5 the same lock older than the grace is recovered and the rotation done
+PASS R4-6 STEP10 remote ahead stops rc=3 with the precondition message
+PASS R4-6 STEP10 nothing pushed to ANY remote when one is ahead
+PASS R4-6 STEP10 golden-FALSE: no remote ahead -> every remote pushed (rc=0)
+PASS I2 STEP2 core.worktree elsewhere (status prefix ' ') stops rc=3, parent untouched
+PASS I2 STEP2 message names the real directory, not 'the parent project'
+PASS I3 STEP2 parent worktree at the submodule path stops rc=3, nothing changed
+PASS I3 STEP2 parent worktree: message says so
+PASS I3 STEP2 foreign nested repository stops rc=3, nothing changed
+PASS I3 STEP2 foreign repo: message says so
+PASS I3 STEP2 golden-FALSE: non-absorbed legitimate clone accepted (rc=0)
+PASS I4 STEP2 .git pointing nowhere: rc=3 with git's real error
+PASS I2 STEP5 core.worktree elsewhere (status prefix ' ') stops rc=3, parent untouched
+PASS I2 STEP5 message names the real directory, not 'the parent project'
+PASS I3 STEP5 parent worktree at the submodule path stops rc=3, nothing changed
+PASS I3 STEP5 parent worktree: message says so
+PASS I3 STEP5 foreign nested repository stops rc=3, nothing changed
+PASS I3 STEP5 foreign repo: message says so
+PASS I3 STEP5 golden-FALSE: non-absorbed legitimate clone accepted (rc=0)
+PASS I4 STEP5 .git pointing nowhere: rc=3 with git's real error
+PASS I2 STEP4 core.worktree elsewhere (status prefix ' ') stops rc=3, parent untouched
+PASS I2 STEP4 message names the real directory, not 'the parent project'
+PASS I3 STEP4 parent worktree at the submodule path stops rc=3, nothing changed
+PASS I3 STEP4 parent worktree: message says so
+PASS I3 STEP4 foreign nested repository stops rc=3, nothing changed
+PASS I3 STEP4 foreign repo: message says so
+PASS I3 STEP4 golden-FALSE: non-absorbed legitimate clone accepted (rc=0)
+PASS I4 STEP4 .git pointing nowhere: rc=3 with git's real error
+PASS I5 S7 counts the stale path inside a 'legacy_x' file name (1 hit)
+PASS I5 S7 class-matched control needles pass
+PASS I5 S7 file needle sees CLAUDE.md
+PASS I5 S7 file needle sees AGENTS.md
+PASS I5 S7 file needle sees .claude/settings.json
+PASS I5 S7 blank file reads 0 (BLIND), not trivially true
+PASS I5 V6 counts the stale path inside a 'legacy_x' file name (1 hit)
+PASS I5 V6 class-matched control needles pass
+PASS I5 V6 file needle sees CLAUDE.md
+PASS I5 V6 file needle sees AGENTS.md
+PASS I5 V6 file needle sees .claude/settings.json
+PASS I5 V6 blank file reads 0 (BLIND), not trivially true
+PASS I7 STEP4G decoy secret never printed
+PASS I7 STEP4G secret-class files not searched
+PASS I7 STEP4G lists src/a.sh:2 (file:count)
+PASS I7 STEP4G total count
+PASS I7 STEP4G listing is file:count only (no hit lines)
+PASS I7 STEP4G control needle sees .gitmodules
+PASS I9 gate default library accepted (PASS)
+PASS I9 gate explicit library inside its own scripts/lib accepted
+PASS I9 gate library outside scripts/lib ignored without test mode (own library used)
+PASS I9 retired SETUP_PROMPT_EXTRACT_LIB_TRUST=1 does not re-open the override
+PASS I9 outside library honoured (announced) under HELIX_TEST_MODE=1 + temp path
+RESULT: round3 pass=65 fail=0 skip=0

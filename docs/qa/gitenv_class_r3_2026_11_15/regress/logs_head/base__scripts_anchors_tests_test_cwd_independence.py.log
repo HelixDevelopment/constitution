@@ -1,0 +1,7 @@
+PASS test_canon_root_and_unrelated_cwd
+PASS test_consumer_shaped_root
+PASS test_deleted_cwd_chaos
+PASS test_determinism_idempotency_performance
+PASS test_hostile_cwd_names
+PASS test_mutation_cwd_relative_source_is_caught
+6/6 passed

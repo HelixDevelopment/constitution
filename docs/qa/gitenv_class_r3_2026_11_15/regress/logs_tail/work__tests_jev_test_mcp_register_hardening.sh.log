@@ -1,0 +1,43 @@
+ok 1 - R1 register.sh rc 0 over a stale entry
+ok 2 - R1 timestamped backup of the old file exists
+ok 3 - R1 backup holds the ORIGINAL stale content
+ok 4 - R1 no unexpanded placeholder remains in .mcp.json
+ok 5 - R1 jev re-rendered with an absolute toolkit path
+ok 6 - R1 unrelated server kept
+ok 7 - R1 idempotent: second run changes nothing
+ok 8 - R1 second run makes no further backup
+ok 9 - R1b a clean user entry is never replaced
+ok 10 - R2 hook rc 0
+ok 11 - R2 stale jev removed from the project .mcp.json
+ok 12 - R2 unrelated server kept in the project file
+ok 13 - R2 stale jev removed from ~/.mcp.json too
+ok 14 - R2 a timestamped backup was taken of each repaired file
+ok 15 - R2 idempotent: no new backup on a second run
+ok 16 - R2 still absent after a second run
+ok 17 - R2b hook never removes a clean user entry
+ok 18 - A placeholder-shaped value (JEV_BASE_URL=https://${HOME} ) refused with rc 2
+ok 19 - A rc 2 left the whole sandbox tree byte-identical
+ok 20 - A placeholder-shaped value (CLAUDE_TOOLKIT_DIR=/opt/${JEV_BASE_URL} ) refused with rc 2
+ok 21 - A rc 2 left the whole sandbox tree byte-identical
+ok 22 - A placeholder-shaped value (JEV_MODEL=a${B}c ) refused with rc 2
+ok 23 - A rc 2 left the whole sandbox tree byte-identical
+ok 24 - K key-shaped JEV_KEY_VAR refused with rc 2
+ok 25 - K refusal wrote nothing
+ok 26 - K the offending value is never echoed
+ok 27 - K message names the variable
+ok 28 - K invalid name [1ABC] refused
+ok 29 - K [1ABC] wrote nothing
+ok 30 - K invalid name [A-B] refused
+ok 31 - K [A-B] wrote nothing
+ok 32 - K invalid name [A B] refused
+ok 33 - K [A B] wrote nothing
+ok 34 - K empty JEV_KEY_VAR falls back to the default
+ok 35 - K a valid name is accepted and rendered
+ok 36 - S2 JEV_MODE=enforce accepted
+ok 37 - S2 operator JEV_MODE (calibrated) honoured in the rendered entry
+ok 38 - S2 operator JEV_MODE honoured in the env file
+ok 39 - S2 JEV_MODE outside shadow|enforce refused
+ok 40 - S2 refusal wrote nothing
+ok 41 - S3 newline in a value refused
+ok 42 - S3 refusal wrote nothing
+# test_mcp_register_hardening.sh: pass=42 fail=0 skip=0
