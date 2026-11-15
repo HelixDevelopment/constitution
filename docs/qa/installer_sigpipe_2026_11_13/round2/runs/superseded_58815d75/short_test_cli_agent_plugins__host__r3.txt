@@ -1,0 +1,21 @@
+== cli-agent-plugins hermetic suite (sandbox: <scratch>/ev.sbBs/tmpC/tmp.U6QSCUlmuU) ==
+  PASS  [cli-agent-plugins] C1 generation: HELIX_ACTION_REGISTRY honoured for INPUT — ZZTESTACTION produced the Claude pair + gemini/qwen TOML + codex MD, carrying its registry expansion
+  PASS  [cli-agent-plugins] C1 out-root: the generator honours $HELIX_ACTION_OUT_ROOT — input and output are independently steerable, so pointing it at a foreign registry cannot rewrite the real command tree
+  PASS  [cli-agent-plugins] C2 determinism: two consecutive generations are byte-identical (sha256 manifest of every generated file)
+  PASS  [cli-agent-plugins] C3 collision (golden-good): ZZCONFLICT declares slash_conflicts=[zzhost] → zzconflict.md carries the CONFLICT note naming the host command
+  PASS  [cli-agent-plugins] C3 collision (NEGATIVE control): ZZCLEAN declares no conflict → zzclean.md carries NO conflict note (no false-positive conflict)
+  PASS  [cli-agent-plugins] C3 collision (alias): the collision-free alias default-zzconflict.md carries no conflict note (it is the escape hatch, not the colliding form)
+  PASS  [cli-agent-plugins] C4 install: all 11 SKILL.md skill(s) linked into .claude/skills/ as SYMLINKS pointing into the constitution (by reference)
+  PASS  [cli-agent-plugins] C4 install: IDEMPOTENT — the second run leaves .claude/skills/ byte-for-byte identical (same names, same targets)
+  PASS  [cli-agent-plugins] C6 no-fake-success: with `claude` off PATH the installer reports the absence + the exact manual commands, and NEVER claims the plugin is installed
+  PASS  [cli-agent-plugins] C5b RED baseline: reproduced the defect — `printf | while read; do ARR+=() done` leaves the array EMPTY (0 elems) while the process-substitution form keeps both elems (2). The bug class is real and detectable.
+  PASS  [cli-agent-plugins] C5b GREEN: post_update_hook.sh feeds its classification loop by process substitution (`done < <(printf ...)`), NOT by a pipe — the subshell bug cannot recur
+  PASS  [cli-agent-plugins] C5 post-update: a changed skill is DETECTED (non-zero count), installed, and the §11.4.164 seam runs install_cli_agent_plugins.sh, which links it into .claude/skills/ — the subshell-bug regression guard is GREEN
+  PASS  [cli-agent-plugins] C5c default CONST_DIR: invoked with NO env at all, the hook resolves the constitution from its OWN location, detects the changed skill, and wires it (regression guard for the '../..' off-by-one)
+  PASS  [cli-agent-plugins] C5c static: CONST_DIR is always `$SCRIPT_DIR/..` (the constitution root, never the parent project, never an ambient CONST_DIR)
+  PASS  [cli-agent-plugins] C5e fail-closed: a CONST_DIR that is not the constitution root ABORTS loudly (rc=1) instead of silently propagating nothing
+  PASS  [cli-agent-plugins] C5f seam: post-merge invokes <constitution>/scripts/post_update_hook.sh by path, and the hook self-resolves CONST_DIR from that path (C5c) — so the §11.4.164 auto-propagation works on a real pull without any env passing
+
+
+== cli-agent-plugins summary: 16 passed, 0 failed, 0 finding(s) ==
+rc=0 secs=75 bash=5.3.9(1)-release

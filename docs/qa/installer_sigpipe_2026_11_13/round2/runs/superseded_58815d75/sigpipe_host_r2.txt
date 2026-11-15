@@ -1,0 +1,81 @@
+bash=5.3.9(1)-release
+# 1. static scan, classes (a) and (c)
+  ok   needles: the scanner flags every known spelling and no safe form (42 needle lines)
+  ok   needles: exit 1 when something is found
+  ok   needles: one finding per flagged line
+  ok   needle: a file the scanner cannot read is reported blind (exit 2), never clean
+  ok   no here-string, here-document or early reader in scripts/install_constitution.sh
+  ok   needle appended to scripts/install_constitution.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/update_constitution.sh
+  ok   needle appended to scripts/update_constitution.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/install_cli_agent_plugins.sh
+  ok   needle appended to scripts/install_cli_agent_plugins.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/install_action_prefix.sh
+  ok   needle appended to scripts/install_action_prefix.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/portable_symlink_lib.sh
+  ok   needle appended to scripts/portable_symlink_lib.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/lib/constitution_layout.sh
+  ok   needle appended to scripts/lib/constitution_layout.sh: exactly one finding, at its line, printed with the original line
+# 2. class (b): the caller's shell state
+  ok   hi_reset_shell_state found in the installer
+  ok   hi_reset_shell_state in scripts/update_constitution.sh is identical to the installer's
+  ok   hi_reset_shell_state in scripts/install_cli_agent_plugins.sh is identical to the installer's
+  ok   hi_reset_shell_state in scripts/install_action_prefix.sh is identical to the installer's
+  ok   the hi_shell_state block is identical in the installer and the updater
+  ok   scripts/install_constitution.sh: HI_SOURCED set (line 45), reset called (line 73) before the first <( (line 76)
+  ok   scripts/update_constitution.sh: HI_SOURCED set (line 53), reset called (line 81) before the first <( (line 84)
+  ok   the installer refuses (exit 3) when process substitution does not work
+  ok   the updater refuses (exit 3) when process substitution does not work
+  ok   scripts/install_cli_agent_plugins.sh: reset called in run mode, right before set -euo pipefail
+  ok   scripts/install_action_prefix.sh: reset called in run mode, right before set -euo pipefail
+  ok   hi_reset_shell_state undoes what a caller changed (options, BASH_COMPAT, CDPATH, GLOBIGNORE, TMOUT)
+  ok   a SOURCED scripts/install_constitution.sh keeps the caller's shell
+  ok   a SOURCED scripts/update_constitution.sh keeps the caller's shell
+  ok   run with any of 9 inherited settings, the installer prints what a clean run prints (--version --help --print-snippets)
+# 3. hi_push_changed under three temporary-file conditions
+  info: normal: a SMALL here-string ok under bash 5.3.9(1)-release (not a check: bash 5.1 uses a pipe for it even with BASH_COMPAT=50)
+  ok   normal, 0 tail lines: control needle and all 15 cases
+  ok   normal, 0 tail lines: runs 1, 2 and 3 identical
+  ok   normal, 200 tail lines: control needle and all 15 cases
+  ok   normal, 200 tail lines: runs 1, 2 and 3 identical
+  info: notemp50: a SMALL here-string failed under bash 5.3.9(1)-release (not a check: bash 5.1 uses a pipe for it even with BASH_COMPAT=50)
+  ok   notemp50, 0 tail lines: control needle and all 15 cases
+  ok   notemp50, 0 tail lines: runs 1, 2 and 3 identical
+  ok   notemp50, 200 tail lines: control needle and all 15 cases
+  ok   notemp50, 200 tail lines: runs 1, 2 and 3 identical
+  info: notemp44: a SMALL here-string failed under bash 5.3.9(1)-release (not a check: bash 5.1 uses a pipe for it even with BASH_COMPAT=50)
+  ok   notemp44, 0 tail lines: control needle and all 15 cases
+  ok   notemp44, 0 tail lines: runs 1, 2 and 3 identical
+  ok   notemp44, 200 tail lines: control needle and all 15 cases
+  ok   notemp44, 200 tail lines: runs 1, 2 and 3 identical
+  ok   normal, 2000 tail lines (about 136 KB per mark): same z_before z_after r_moved
+  ok   notemp50, 2000 tail lines (about 136 KB per mark): same z_before z_after r_moved
+# 4. the other helpers under the same conditions
+  ok   the reference regex: the shipped hook declares project-root, the near misses do not
+  ok   normal: installer helpers
+  ok   normal: updater up_hook_declares_project_root agrees with the regex it replaces
+  ok   notemp50: installer helpers
+  ok   notemp50: updater up_hook_declares_project_root agrees with the regex it replaces
+  ok   notemp44: installer helpers
+  ok   notemp44: updater up_hook_declares_project_root agrees with the regex it replaces
+# 5. differential fuzz against the bash builtins and grep / awk
+  ok   2500 comparisons, no mismatch
+# 6. ref names and urls with $(...) and backticks are data
+  ok   normal: unchanged marks with command text read as unchanged, a moved ref as moved
+  ok   notemp50: unchanged marks with command text read as unchanged, a moved ref as moved
+  ok   no command text was run (no pwn file in the sandbox)
+# 7. class (d): the CLI installer counts a link it cannot create
+  ok   writable: exit 0, every skill linked, none failed
+  ok   SHELLOPTS=noglob inherited: the same skills are linked (class b)
+  ok   read-only .claude/skills: exit 1, every failure counted and warned, nothing linked
+# 8. behavioural paired mutants (each must misread a case above)
+  ok   mutant Z-reads-before-only: the after-only Z case misreads
+  ok   mutant Z-pipe: a large before-only Z case misreads (SIGPIPE under pipefail)
+  ok   mutant Z-pipe: flagged by the static scan
+  ok   mutant Z-here-string: the Z case misreads with no temporary file
+  ok   mutant Z-here-string: flagged by the static scan
+  ok   mutant loop-here-string: unchanged marks read as a push with no temporary file
+  ok   mutant loop-here-string: flagged by the static scan
+  ok   mutant no-reset: 6 (flag, environment) pairs differ from a clean run
+sigpipe: PASS 67 FAIL 0
+rc=0 secs=150

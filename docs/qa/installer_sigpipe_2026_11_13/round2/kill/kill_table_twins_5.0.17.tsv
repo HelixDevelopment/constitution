@@ -1,0 +1,7 @@
+id	bash	verdict	section	first_failing_check	mutation	seconds
+N04t	host	KILLED	2,8 (4 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [], first <( [76]	reset call removed (installer and updater)	85
+N04t	5.0.17	KILLED	2,8 (4 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [], first <( [76]	reset call removed (installer and updater)	146
+N05t	host	KILLED	2 (2 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [78], first <( [75]	reset call moved after the first <( (installer and updater)	85
+N05t	5.0.17	KILLED	2 (3 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [78], first <( [75]	reset call moved after the first <( (installer and updater)	149
+N27t	host	KILLED	2,8 (5 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [], first <( [76]	installer and updater reset even when sourced	85
+N27t	5.0.17	KILLED	2,8 (5 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [], first <( [76]	installer and updater reset even when sourced	148

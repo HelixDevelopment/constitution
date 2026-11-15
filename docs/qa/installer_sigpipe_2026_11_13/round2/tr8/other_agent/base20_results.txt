@@ -1,0 +1,21 @@
+# the unchanged test_round8.sh run 20 times by the other agent (logs runs/base20/run<n>.log, not copied): the last summary line of each
+run1  round8: PASS 86 FAIL 0
+run2  round8: PASS 86 FAIL 0
+run3  round8: PASS 86 FAIL 0
+run4  round8: PASS 86 FAIL 0
+run5  round8: PASS 86 FAIL 0
+run6  round8: PASS 86 FAIL 0
+run7  round8: PASS 86 FAIL 0
+run8  round8: PASS 86 FAIL 0
+run9  round8: PASS 86 FAIL 0
+run10 round8: PASS 86 FAIL 0
+run11 round8: PASS 86 FAIL 0
+run12 round8: PASS 86 FAIL 0
+run13 round8: PASS 86 FAIL 0
+run14 round8: PASS 86 FAIL 0
+run15 round8: PASS 86 FAIL 0
+run16 round8: PASS 86 FAIL 0
+run17 round8: PASS 86 FAIL 0
+run18 round8: PASS 86 FAIL 0
+run19 round8: PASS 86 FAIL 0
+run20 round8: PASS 86 FAIL 0

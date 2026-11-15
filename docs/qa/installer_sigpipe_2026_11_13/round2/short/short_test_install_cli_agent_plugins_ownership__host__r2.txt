@@ -1,0 +1,237 @@
+PASS B1 user dangling prompts link kept
+PASS B1 user dangling gemini link kept
+PASS B1 user dangling qwen link kept
+PASS B4 user dangling */skills/foo link kept
+PASS B2 user symlink at generated name kept
+PASS B2 user target file untouched
+PASS B2 refusal reported (rc non-zero or warn)
+PASS own links wired (a different gemini cmd linked)
+PASS own dangling command link reaped
+PASS own dangling skill link reaped
+PASS user dangling still kept after 2nd run
+PASS B3 .gemini symlinked outside: decoy untouched
+PASS B3 .gemini symlinked outside: rc non-zero
+PASS B3 .qwen symlinked outside: decoy untouched
+PASS B3 .qwen symlinked outside: rc non-zero
+PASS B3 prompts symlinked outside: decoy untouched
+PASS B3 prompts symlinked outside: rc non-zero
+PASS B3 .claude symlinked outside: decoy untouched
+PASS B3 .claude symlinked outside: rc non-zero
+PASS B3 .gemini/commands symlinked outside: decoy untouched
+PASS B3 .gemini symlinked inside project ok
+PASS R1 user link to other constitution file kept
+PASS R4 .qwen -> sibling-prefix dir: sibling empty
+PASS R4 .qwen -> sibling-prefix dir: rc non-zero
+PASS F1 standalone install_action_prefix refuses outside .claude
+PASS final: decoy + home untouched
+PASS H1/jq hard-linked settings.json.bak: outside file unchanged
+PASS H1/jq hard-linked settings.json.bak: project wired (rc 0 + hook)
+PASS H1/jq hard-linked settings.json.tmp: outside file unchanged
+PASS H1/jq hard-linked settings.json.tmp: project wired (rc 0 + hook)
+PASS H1/jq hard-linked settings.json: outside file unchanged
+PASS H1/jq hard-linked settings.json: project wired (rc 0 + hook)
+PASS H1/nojq hard-linked settings.json.bak: outside file unchanged
+PASS H1/nojq hard-linked settings.json.bak: project wired (rc 0 + hook)
+PASS H1/nojq hard-linked settings.json.tmp: outside file unchanged
+PASS H1/nojq hard-linked settings.json.tmp: project wired (rc 0 + hook)
+PASS H1/nojq hard-linked settings.json: outside file unchanged
+PASS H1/nojq hard-linked settings.json: project wired (rc 0 + hook)
+PASS H1 all cases (production script)
+PASS H1 control: python fallback installs hook (rc 0)
+PASS LC/jq cp -al snapshot: rc 0, project wired
+PASS LC/jq cp -al snapshot: other link keeps old content
+PASS LC/jq cp -al snapshot: warning on stderr
+PASS LC/nojq cp -al snapshot: rc 0, project wired
+PASS LC/nojq cp -al snapshot: other link keeps old content
+PASS LC/nojq cp -al snapshot: warning on stderr
+PASS MODE/jq symlinked settings.json -> 644 file: rc 0
+PASS MODE/jq symlinked settings.json: not group/other-writable (got 644)
+PASS MODE/jq symlinked settings.json: replaced by a regular file
+PASS MODE/jq symlinked settings.json: stderr warning names the symlink
+PASS MODE/jq umask 000: new settings.json is 644
+PASS MODE/jq umask 000: new .bak is 644
+PASS MODE/jq umask 000: new .claude is 755 (no group/other write)
+PASS MODE/jq umask 077: new settings.json is 600
+PASS MODE/jq umask 077: new .bak is 600
+PASS MODE/jq umask 077: new .claude is 700 (no group/other write)
+PASS MODE/jq umask 027: new settings.json is 640
+PASS MODE/jq umask 027: new .bak is 640
+PASS MODE/jq umask 027: new .claude is 750 (no group/other write)
+PASS MODE/jq umask 022: new settings.json is 644
+PASS MODE/jq umask 022: new .bak is 644
+PASS MODE/jq umask 022: new .claude is 755 (no group/other write)
+PASS MODE/jq existing 600 settings.json keeps 600
+PASS MODE/nojq symlinked settings.json -> 644 file: rc 0
+PASS MODE/nojq symlinked settings.json: not group/other-writable (got 644)
+PASS MODE/nojq symlinked settings.json: replaced by a regular file
+PASS MODE/nojq symlinked settings.json: stderr warning names the symlink
+PASS MODE/nojq umask 000: new settings.json is 644
+PASS MODE/nojq umask 000: new .bak is 644
+PASS MODE/nojq umask 000: new .claude is 755 (no group/other write)
+PASS MODE/nojq umask 077: new settings.json is 600
+PASS MODE/nojq umask 077: new .bak is 600
+PASS MODE/nojq umask 077: new .claude is 700 (no group/other write)
+PASS MODE/nojq umask 027: new settings.json is 640
+PASS MODE/nojq umask 027: new .bak is 640
+PASS MODE/nojq umask 027: new .claude is 750 (no group/other write)
+PASS MODE/nojq umask 022: new settings.json is 644
+PASS MODE/nojq umask 022: new .bak is 644
+PASS MODE/nojq umask 022: new .claude is 755 (no group/other write)
+PASS MODE/nojq existing 600 settings.json keeps 600
+PASS MODE all cases (production script)
+PASS INVALID/jq #0: rc non-zero
+PASS INVALID/jq #0: settings.json byte-identical
+PASS INVALID/jq #0: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #1: rc non-zero
+PASS INVALID/jq #1: settings.json byte-identical
+PASS INVALID/jq #1: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #2: rc non-zero
+PASS INVALID/jq #2: settings.json byte-identical
+PASS INVALID/jq #2: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #3: rc non-zero
+PASS INVALID/jq #3: settings.json byte-identical
+PASS INVALID/jq #3: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #4: rc non-zero
+PASS INVALID/jq #4: settings.json byte-identical
+PASS INVALID/jq #4: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #5: rc non-zero
+PASS INVALID/jq #5: settings.json byte-identical
+PASS INVALID/jq #5: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #6: rc non-zero
+PASS INVALID/jq #6: settings.json byte-identical
+PASS INVALID/jq #6: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #7: rc non-zero
+PASS INVALID/jq #7: settings.json byte-identical
+PASS INVALID/jq #7: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #8: rc non-zero
+PASS INVALID/jq #8: settings.json byte-identical
+PASS INVALID/jq #8: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #9: rc non-zero
+PASS INVALID/jq #9: settings.json byte-identical
+PASS INVALID/jq #9: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #10: rc non-zero
+PASS INVALID/jq #10: settings.json byte-identical
+PASS INVALID/jq #10: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/jq #11: rc non-zero
+PASS INVALID/jq #11: settings.json byte-identical
+PASS INVALID/jq #11: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #0: rc non-zero
+PASS INVALID/nojq #0: settings.json byte-identical
+PASS INVALID/nojq #0: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #1: rc non-zero
+PASS INVALID/nojq #1: settings.json byte-identical
+PASS INVALID/nojq #1: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #2: rc non-zero
+PASS INVALID/nojq #2: settings.json byte-identical
+PASS INVALID/nojq #2: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #3: rc non-zero
+PASS INVALID/nojq #3: settings.json byte-identical
+PASS INVALID/nojq #3: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #4: rc non-zero
+PASS INVALID/nojq #4: settings.json byte-identical
+PASS INVALID/nojq #4: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #5: rc non-zero
+PASS INVALID/nojq #5: settings.json byte-identical
+PASS INVALID/nojq #5: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #6: rc non-zero
+PASS INVALID/nojq #6: settings.json byte-identical
+PASS INVALID/nojq #6: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #7: rc non-zero
+PASS INVALID/nojq #7: settings.json byte-identical
+PASS INVALID/nojq #7: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #8: rc non-zero
+PASS INVALID/nojq #8: settings.json byte-identical
+PASS INVALID/nojq #8: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #9: rc non-zero
+PASS INVALID/nojq #9: settings.json byte-identical
+PASS INVALID/nojq #9: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #10: rc non-zero
+PASS INVALID/nojq #10: settings.json byte-identical
+PASS INVALID/nojq #10: clear REFUSED message, no traceback, no 'wired'
+PASS INVALID/nojq #11: rc non-zero
+PASS INVALID/nojq #11: settings.json byte-identical
+PASS INVALID/nojq #11: clear REFUSED message, no traceback, no 'wired'
+PASS DIR/jq settings.json directory: rc 1
+PASS DIR/jq settings.json directory: clear message, no hard-link warning
+PASS DIR/jq settings.json directory: still a directory, no leftover files
+PASS DIR/nojq settings.json directory: rc 1
+PASS DIR/nojq settings.json directory: clear message, no hard-link warning
+PASS DIR/nojq settings.json directory: still a directory, no leftover files
+PASS INVALID all cases (production script)
+PASS SDR lying readlink, .claude -> outside: rc non-zero
+PASS SDR lying readlink, .claude -> outside: nothing written outside
+PASS SDR all cases (production script)
+PASS F-NF/jq #1: rc!=0, unchanged, REFUSED
+PASS F-BAK/jq #1: refused run creates no .bak
+PASS F-NF/jq #2: rc!=0, unchanged, REFUSED
+PASS F-BAK/jq #2: refused run creates no .bak
+PASS F-NF/jq #3: rc!=0, unchanged, REFUSED
+PASS F-BAK/jq #3: refused run creates no .bak
+PASS F-NF/jq #4: rc!=0, unchanged, REFUSED
+PASS F-BAK/jq #4: refused run creates no .bak
+PASS F-BAK/jq refused run keeps existing .bak
+PASS F-BAK/jq first run ok + .bak is the original
+PASS F-BAK/jq repeated success keeps the FIRST original .bak
+PASS F-RO/jq 0444 settings.json: wired, mode stays 444
+PASS F-DEEP/jq: rc!=0, REFUSED, no traceback, unchanged
+PASS F-NF/nojq #1: rc!=0, unchanged, REFUSED
+PASS F-BAK/nojq #1: refused run creates no .bak
+PASS F-NF/nojq #2: rc!=0, unchanged, REFUSED
+PASS F-BAK/nojq #2: refused run creates no .bak
+PASS F-NF/nojq #3: rc!=0, unchanged, REFUSED
+PASS F-BAK/nojq #3: refused run creates no .bak
+PASS F-NF/nojq #4: rc!=0, unchanged, REFUSED
+PASS F-BAK/nojq #4: refused run creates no .bak
+PASS F-BAK/nojq refused run keeps existing .bak
+PASS F-BAK/nojq first run ok + .bak is the original
+PASS F-BAK/nojq repeated success keeps the FIRST original .bak
+PASS F-RO/nojq 0444 settings.json: wired, mode stays 444
+PASS F-DEEP/nojq: rc!=0, REFUSED, no traceback, unchanged
+PASS F-BAK/jq dangling .bak symlink: replaced by a regular file, target not created
+PASS F-BAK/nojq dangling .bak symlink: replaced by a regular file, target not created
+PASS F-NUM/python keeps token "big": 1e400
+PASS F-NUM/python keeps token "small": 1e-400
+PASS F-NUM/python keeps token "p": 1.0000000000000000001
+PASS F-NUM/python keeps token "e": 1.5e3
+PASS F-NUM/python keeps token "i": 123456789012345678901234567890
+PASS F-NUM/python keeps token "z": -0.0
+PASS F-NUM/python keeps token "s": "1e400"
+PASS F-NUM/python: rc 0, wired, strict JSON
+PASS F-SIG/jq TERM: rc 143, no temp files, settings unchanged
+PASS F-SIG/python INT: rc 130, no temp files, settings unchanged
+PASS F-SPACE/jq: install rc 0 and stored command runs under sh -c (hook rc 0)
+PASS F-SPACE/nojq: install rc 0 and stored command runs under sh -c (hook rc 0)
+PASS F15 all cases (production script)
+PASS MUTANT LC is killed by the suite
+PASS MUTANT MV is killed by the suite
+PASS MUTANT BAK is killed by the suite
+PASS MUTANT BAKORIG is killed by the suite
+PASS MUTANT BAKORDER is killed by the suite
+Terminated                 "${@:2}" bash "$ACT" "$1" > "$sb/out" 2>&1
+PASS MUTANT TRAP is killed by the suite
+PASS MUTANT QUOTE is killed by the suite
+PASS MUTANT PYNUM is killed by the suite
+PASS MUTANT PYNAN is killed by the suite
+PASS MUTANT BOM is killed by the suite
+PASS MUTANT JQNAN is killed by the suite
+PASS MUTANT STAT is killed by the suite
+PASS MUTANT SDR is killed by the suite
+PASS MUTANT PYVAL is killed by the suite
+PASS MUTANT PYNULL is killed by the suite
+PASS MUTANT PYHOOKS is killed by the suite
+PASS MUTANT JQNOVAL is killed by the suite
+PASS MUTANT JQMULTI is killed by the suite
+PASS MUTANT JQNULL is killed by the suite
+PASS MUTANT JQHOOKS is killed by the suite
+PASS MUTANT MODE is killed by the suite
+PASS MUTANT SYM is killed by the suite
+PASS MUTANT DIR is killed by the suite
+PASS MUTANT LC+JQ is killed by the suite
+PASS M1 dangling .tmp -> outside: rc 1
+PASS M1 dangling .tmp -> outside: nothing created outside
+PASS M4 .claude -> sibling-prefix: sibling empty
+PASS M4 .claude -> sibling-prefix: rc non-zero
+PASS M2 link_skills .claude -> sibling-prefix: sibling empty
+PASS H3 installer ignores ambient HELIX_ACTION_OUT_ROOT (installer)
+PASS H3 installer ignores ambient HELIX_ACTION_OUT_ROOT (prefix)
+rc=0 secs=479 bash=5.3.9(1)-release

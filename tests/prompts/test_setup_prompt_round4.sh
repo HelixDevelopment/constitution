@@ -325,7 +325,7 @@ run_step 10 "$S/p"; rc=$?
 [ "$rc" -eq 0 ] && [ "$(git -C "$S/up.git" rev-parse main 2>/dev/null)" = "$(git -C "$S/p" rev-parse HEAD)" ] && ok "M-5 STEP10 project pushed (rc=0)" || no "M-5 STEP10 rc=$rc: $(out_of "$S/p")"
 
 # =================== M-7: six mirrors, same order as the installer ==================
-inst="$(sed -n "/^hi_upstream_table()/,/^EOF/p" "$REPO/scripts/install_constitution.sh" | awk -F'|' 'NF == 4 { print $3 }')"
+inst="$(HELIX_INSTALLER_LIB_MODE=1 bash -c '. "$1"; hi_upstream_table' _ "$REPO/scripts/install_constitution.sh" | awk -F'|' 'NF == 4 { print $3 }')"
 hdr="$(awk '/^Clone URLs/{f=1;next} f && /^  \(SSH/{exit} f && /^  [a-z-]+ +https:/{print $2}' <<<"$block")"
 s3="$(grep -oE '\$\{CONSTITUTION_URLS:-[^}]*\}' <<<"$(blk_of STEP3 "$block")" | sed -E 's/^\$\{CONSTITUTION_URLS:-//; s/\}$//' | tr ' ' '\n')"
 [ "$(wc -l <<<"$inst")" -eq 6 ] && ok "M-7 control: the installer table has 6 upstreams" || no "M-7 installer table: $inst"

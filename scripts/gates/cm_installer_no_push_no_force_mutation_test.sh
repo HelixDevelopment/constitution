@@ -17,7 +17,8 @@
 #   resolution and set-url checks. The last S mutants (round 5) run code from a path (python FILE, -m) and
 #   replace user files (cp/ln/mv/touch outside their sanctioned places, rsync, curl, ssh). G7: python -c LITERAL
 #   and the push-mark count literal still PASS. Golden-FALSE G5/G6: /dev/null and fd redirections, IFS prefix, the exact
-#   fetch shape, a literal trap and arithmetic reads still PASS.
+#   fetch shape, a literal trap and arithmetic reads still PASS. SP-*: the shell-state reset's pinned shopt calls and
+#   the multi-line printf/echo literal carrier (installer SIGPIPE round 2).
 # The table printed at the end says, per mutant, which check killed it: static (a)/(b)/(c) or runtime (d).
 # Usage: cm_installer_no_push_no_force_mutation_test.sh   Exit 0 proof holds · 1 survivor/misclassified · 2 env.
 # Classification: universal (§11.4.17).
@@ -368,6 +369,33 @@ n=R12-A8; d="$(mkcase)"
 edit_in_fn "$d" install_constitution.sh hi_marker_set '  [ -L "$pend" ] && return 0' '  hi_marker_path() { printf "%s" "$O_ROOT/.gitmodules"; }
   [ -L "$pend" ] && return 0'
 run "R12 mutant A8: hi_marker_path redefined NESTED inside hi_marker_set" 1 "$d"
+
+# installer SIGPIPE round 2 (2026-11-14): the shell-state reset's two shopt calls are sanctioned as exact text (option
+# lists included), and a multi-line literal argument of printf/echo is printed text for the raw scan (c), like a quoted
+# data heredoc. SP-G1 is golden-FALSE; every SP-M* mutant MUST fail.
+n=SP-G1; d="$(mkcase)"; inject "$d/install_constitution.sh" "printf '%s\n' 'never git push --force,
+never reset --hard, never rebase' >&2"
+run "golden-FALSE: a multi-line printf literal (help text) with push/--force/reset words" 0 "$d"
+n=SP-M1; d="$(mkcase)"; inject "$d/install_constitution.sh" "x='never
+git push origin main
+done'"
+run "a multi-line literal that is not printed (an assignment) is still raw-scanned" 1 "$d"
+n=SP-M2; d="$(mkcase)"; inject "$d/install_constitution.sh" "printf '%s\n' 'a
+b'; git -C \"\$sub\" push origin main"
+run "code after a multi-line printf literal, on its last line" 1 "$d"
+n=SP-M3; d="$(mkcase)"; inject "$d/install_constitution.sh" "y=\"
+printf '%s\n' 'a
+\"; hi_gx push origin main; z='
+'"
+run "a printf line inside a double-quoted string is not a printed literal" 1 "$d"
+n=SP-M4; d="$(mkcase)"; edit_both "$d" 'shopt -s extquote globasciiranges 2>/dev/null' 'shopt -s extquote globasciiranges expand_aliases 2>/dev/null'
+run "the sanctioned shopt -s call with one more option (expand_aliases), both copies" 1 "$d"
+n=SP-M5; d="$(mkcase)"; inject "$d/install_constitution.sh" 'shopt -s expand_aliases'
+run "shopt outside the shell-state reset" 1 "$d"
+n=SP-M6; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_version_of "awk 'NR == 1'" "awk 'NR <= 2'"
+run "hi_version_of awk program changed (not on the allow-list)" 1 "$d"
+n=SP-M7; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_parse_stream "import json, re, sys" "import json, os, re, sys"
+run "hi_parse_stream program imports os" 1 "$d"
 
 total="$(grep -c . "$TABLE")"
 echo "# $total cases; table: rc / checks that fired (a structure, b allow-list, c raw denylist, d runtime) / mutant"

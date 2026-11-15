@@ -1,0 +1,13 @@
+iter 3 FAIL: A said: [constitution] ERROR: another installer run (pid 872885) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 37 FAIL: A said: [constitution] ERROR: another installer run (pid 943060) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: TEST PAUSE reclaim|[update-constitution] another run took <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3|
+iter 38 FAIL: A said: [constitution] ERROR: another installer run (pid 944214) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 54 FAIL: A said: [constitution] ERROR: another installer run (pid 969193) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 63 FAIL: A said: [constitution] ERROR: another installer run (pid 982874) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 67 FAIL: A said: [constitution] ERROR: another installer run (pid 989045) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 73 FAIL: A said: [constitution] ERROR: another installer run (pid 998385) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 107 FAIL: A said: [constitution] ERROR: another installer run (pid 1051063) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 120 FAIL: A said: [constitution] ERROR: another installer run (pid 1070384) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 125 FAIL: A said: [constitution] ERROR: another installer run (pid 1077784) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 127 FAIL: A said: [constitution] ERROR: another installer run (pid 1080609) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 131 FAIL: A said: [constitution] ERROR: another installer run (pid 1086993) holds <scratch>/tmp/helix-install-test.25Nu3i/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+DELAY=0 ITER=150 mutant_case_fail=12 stale_read_then_refused=1

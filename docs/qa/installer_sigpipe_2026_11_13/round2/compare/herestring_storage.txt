@@ -1,0 +1,9 @@
+# where the here-string is kept; size = word length in bytes (the document is one byte longer, the newline)
+# columns: default settings; then BASH_COMPAT=50 at 100 bytes and at 102400 bytes
+5.3.9(1)-release: 4095:pipe 4096:pipe 8190:pipe 8191:pipe 8192:file 16384:file 65536:file 131072:file | compat50:100:file compat50:102400:file
+5.0.17(1)-release: 4095:file 4096:file 8190:file 8191:file 8192:file 16384:file 65536:file 131072:file | compat50:100:file compat50:102400:file
+5.1.16(1)-release: 4095:pipe 4096:pipe 8190:pipe 8191:pipe 8192:file 16384:file 65536:file 131072:file | compat50:100:pipe compat50:102400:file
+5.1.4(1)-release: 4095:pipe 4096:pipe 8190:pipe 8191:pipe 8192:file 16384:file 65536:file 131072:file | compat50:100:pipe compat50:102400:file
+5.2.15(1)-release: 4095:pipe 4096:pipe 8190:pipe 8191:pipe 8192:file 16384:file 65536:file 131072:file | compat50:100:file compat50:102400:file
+5.2.26(1)-release: 4095:pipe 4096:pipe 8190:pipe 8191:pipe 8192:file 16384:file 65536:file 131072:file | compat50:100:file compat50:102400:file
+5.2.37(1)-release: 4095:pipe 4096:pipe 8190:pipe 8191:pipe 8192:file 16384:file 65536:file 131072:file | compat50:100:file compat50:102400:file

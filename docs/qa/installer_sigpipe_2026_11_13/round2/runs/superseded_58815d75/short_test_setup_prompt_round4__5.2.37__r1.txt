@@ -1,0 +1,100 @@
+PASS block STEP0 present
+PASS block STEP1 present
+PASS block STEP2 present
+PASS block STEP3 present
+PASS block STEP4 present
+PASS block STEP5 present
+PASS block STEP6B present
+PASS block STEP10 present
+PASS IMP-1 STEP2 foreign repo still refused (rc=3)
+PASS IMP-1 STEP2 own_checkout STOP message: decoy token never printed
+PASS IMP-1 STEP2 URL shown with userinfo redacted
+PASS IMP-1 STEP5 foreign repo still refused (rc=3)
+PASS IMP-1 STEP5 own_checkout STOP message: decoy token never printed
+PASS IMP-1 STEP5 URL shown with userinfo redacted
+PASS IMP-1 STEP4 foreign repo still refused (rc=3)
+PASS IMP-1 STEP4 own_checkout STOP message: decoy token never printed
+PASS IMP-1 STEP4 URL shown with userinfo redacted
+PASS IMP-1 STEP2 token-URL .gitmodules refused before init (rc=3)
+PASS IMP-1 STEP2 submodule init / fetch output: decoy token never printed
+PASS IMP-1 STEP5 token-URL .gitmodules refused before init (rc=3)
+PASS IMP-1 STEP5 submodule init / fetch output: decoy token never printed
+PASS IMP-1 STEP4 token-URL .gitmodules refused before init (rc=3)
+PASS IMP-1 STEP4 submodule init / fetch output: decoy token never printed
+PASS IMP-1 STEP2 local token URL: init fails, URL shown redacted (rc=3)
+PASS IMP-1 STEP2 init failure with a local token URL: decoy token never printed
+PASS IMP-1 STEP5 local token URL: init fails, URL shown redacted (rc=3)
+PASS IMP-1 STEP5 init failure with a local token URL: decoy token never printed
+PASS IMP-1 STEP4 local token URL: init fails, URL shown redacted (rc=3)
+PASS IMP-1 STEP4 init failure with a local token URL: decoy token never printed
+PASS IMP-1 STEP3 both token mirrors skipped, nothing added (rc=3)
+PASS IMP-1 STEP3 skipped mirror lines: decoy token never printed
+PASS IMP-1 STEP3 both mirror lines shown redacted
+PASS IMP-1 STEP3 in-place foreign repo refused (rc=3)
+PASS IMP-1 STEP3 in-place own_checkout message: decoy token never printed
+PASS IMP-1 STEP0 inventory: decoy token never printed
+PASS IMP-1 STEP0 lists path and the redacted URL
+PASS IMP-1 STEP10 pushed through the token remote (rc=0)
+PASS IMP-1 STEP10 fetch/push output: decoy token never printed
+PASS IMP-1 STEP10 unreachable token remote stops rc=3
+PASS IMP-1 STEP10 fetch failure output: decoy token never printed
+PASS IMP-1 all 4 own_checkout copies redact the origin URL
+PASS IMP-1 no echo/printf of $u/$url without redact
+PASS IMP-1 inline URL-printing lines (STEP4 nested init, 6e remote -v) redact
+PASS IMP-2 latest.md: no forbidden command in 283 runnable lines
+PASS IMP-2 follow-up 01: no forbidden command in 17 runnable lines
+PASS IMP-2 follow-up 02: no forbidden command in 3 runnable lines
+PASS IMP-2 follow-up 03: prose only, no runnable command
+PASS IMP-2 control needle (latest.md): rrun git push --recurse-submodules=no "" HEAD:refs/heads/main
+PASS IMP-2 control needle (latest.md): rrun git submodule update --init -- ""
+PASS IMP-2 control needle (latest.md): git submodule update --init -- submodules/constitution
+PASS IMP-2 control needle (latest.md): bash submodules/constitution/scripts/update_constitution.sh --check
+PASS IMP-2 control needle (latest.md): git -C submodules/constitution submodule update --init -- ""
+PASS IMP-2 control needle (latest.md): git config -f .gitmodules --get-regexp
+PASS IMP-2 control needle (latest.md): bootstrap.sh --non-interactive
+PASS IMP-2 control needle (latest.md): git bundle verify
+PASS IMP-2 control needle (follow-up 02): bootstrap line
+PASS IMP-2 control needle (follow-up 01): V2 line
+PASS IMP-2 golden-FALSE: prose rules 2 and 10 are not scanned as code
+PASS IMP-2 golden-FALSE precondition: the prose does mention them
+PASS IMP-2 positive control catches: git push --force origin HEAD:main
+PASS IMP-2 positive control catches: git rebase origin/main
+PASS IMP-2 positive control catches: git reset --hard HEAD
+PASS IMP-2 positive control catches: git commit --no-verify -m x
+PASS IMP-2 positive control catches: git push origin +HEAD:main
+PASS IMP-2 positive control catches: git submodule update --init --recursive -- x
+PASS M-V1 STEP6B without 'post_update_hook.sh: OK' stops rc=3
+PASS M-V1 STEP6B golden-FALSE: 'post_update_hook.sh: OK' -> rc=0
+PASS M-3 STEP1 ran (rc=0)
+PASS M-3 STEP1 copied no secret-class file (*.pem *.key credentials* .env* settings.local.json)
+PASS M-3 STEP1 golden-FALSE: ordinary files still copied
+PASS M-V6 STEP1 adds .constitution-install-backup/ to info/exclude
+PASS M-V6 STEP1 backup dir invisible to git status
+PASS M-V6 STEP1 re-run does not duplicate the exclude line
+PASS M-3 STEP1 and STEP4G both exclude *.pem
+PASS M-3 STEP1 and STEP4G both exclude *.key
+PASS M-3 STEP1 and STEP4G both exclude credentials*
+PASS M-3 STEP1 and STEP4G both exclude .env*
+PASS M-3 STEP1 and STEP4G both exclude settings.local.json
+PASS M-4 latest: every bootstrap run unsets the three consent variables
+PASS M-4 fu02: every bootstrap run unsets the three consent variables
+PASS M-4 STEP8 line hides inherited consent variables from the bootstrap
+PASS M-5 STEP10 did not push the submodule (push.recurseSubmodules=on-demand overridden)
+PASS M-5 STEP10 project pushed (rc=0)
+PASS M-7 control: the installer table has 6 upstreams
+PASS M-7 header mirror list = installer upstreams (6, same order)
+PASS M-7 STEP3 default list = installer upstreams (6, same order)
+PASS M-7 github-vasic named in the header
+PASS M-8 installer uses the prompt's release regex
+PASS M-8 update script uses the prompt's release regex
+PASS M-8 the release pipeline appears 4 times in the prompt (header, STEP2, STEP3, STEP5)
+PASS M-8 STEP3 picks from remote tags with the release pipeline
+PASS M-8 STEP5 picks from remote tags with the release pipeline
+PASS M-8 follow-up V3 uses the same pipeline
+PASS M-8 no local-tag release choice left
+PASS M-8 every ls-remote tag choice is filtered
+PASS M-8 STEP5 picks v10 (not the local-only v99, not v11-rc1, not v9 by string order)
+PASS M-8 STEP3 picks v10 (not v11-rc1)
+SKIP UNCONFIRMED: R3 rotate lock owned by another uid refused: needs a second uid (root); not exercised
+RESULT: round4 pass=97 fail=0 skip=1
+rc=0 secs=16 bash=5.2.37(1)-release

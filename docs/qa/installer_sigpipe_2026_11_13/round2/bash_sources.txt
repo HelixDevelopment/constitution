@@ -1,0 +1,9 @@
+# bash copies used in round 2: version, sha256 of the binary, image id, image (already on the host, not pulled)
+3.2.57  f9715281580947e678b376d5a421cdbe2a008a7bf1d8cdb3076c453639165f0a 031109e9f704 docker.io/library/bash:3.2
+5.0.17  82eb9515d25272dca1006d424d929353009a81af7ee790236fe0ff109b8562ff 40876b9dd828 docker.io/dperson/openvpn-client:latest
+5.1.4   d86b21405852d8642ca41afae9dcf0f532e2d67973b0648b0af7c26933f1becb 4c6a3895fd98 docker.io/atmoz/sftp:latest
+5.1.16  59474588a312b6b6e73e5a42a59bf71e62b55416b6c9d5e4a6e1c630c2a9ecd4 ac1502203bff docker.io/library/mongo:7
+5.2.15  55b89ab22bee4792a210f493a53fb066accd5d30b69837c28d98be5ff863efcf 43f84a0b210f mirror.gcr.io/library/debian:bookworm-slim
+5.2.26  a7d4e2e63bef19fffee19920e82211f88e5e72cca19b7278f05a88499665e35a 8c7e4042cd99 docker.io/grafana/grafana:11.3.1
+5.2.37  223fe8564b60636bc738b6178d3ba9a50ef7d791266b0efae6363bb716e4c47f 596c6d80c879 docker.io/library/debian:trixie-slim
+host    3efccc187bafa75ff1e37d246270ab3e7aa559f242c7a52bf3ec2a1b5450bdbd host /usr/bin/bash (5.3.9(1)-release)

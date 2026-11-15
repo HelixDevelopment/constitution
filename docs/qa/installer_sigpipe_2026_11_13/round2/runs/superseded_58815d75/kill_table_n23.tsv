@@ -1,0 +1,3 @@
+id	bash	verdict	section	first_failing_check	mutation	seconds
+N23	host	KILLED	6	notemp50: unchanged marks with command text read as unchanged, a moved ref as moved	R membership via [[ -v assoc[key] ]]	58
+N23	5.0.17	KILLED	6	normal: unchanged marks with command text read as unchanged, a moved ref as moved	R membership via [[ -v assoc[key] ]]	91

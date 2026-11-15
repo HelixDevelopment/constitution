@@ -1,0 +1,49 @@
+--- a/tests/install/test_round8.sh
++++ b/tests/install/test_round8.sh
+@@ -99,6 +99,21 @@
+ upd "$P" --no-hook --commit; check "then nothing more to do" grep -q 'already up to date' <<<"$OUT"
+ 
+ if [ "${R8_SKIP_CHAOS:-0}" != 1 ]; then
++drain_group() { # PGID SECONDS -> 0 when no process of the group is left within SECONDS (polled every 0.1 s)
++  local g="$1" n=$(( $2 * 10 ))
++  [[ "$g" =~ ^[0-9]+$ ]] && [ "$g" -gt 1 ] || return 0
++  while kill -0 -- "-$g" 2>/dev/null; do n=$((n-1)); [ "$n" -gt 0 ] || return 1; sleep 0.1; done
++}
++stale_index_locks() { # P -> index.lock files under P/.git that NO live process holds open (relative to P)
++  local P="$1" lf out=""
++  while IFS= read -r lf; do
++    [ -n "$lf" ] || continue
++    # one find over every fd link (a readlink per fd forks thousands of processes on a busy host); the sandbox path
++    # has no glob characters, so -lname matches it literally
++    find /proc/[0-9]*/fd -maxdepth 1 -lname "$lf" -print -quit 2>/dev/null | grep -q . || out="$out ${lf#"$P"/}"
++  done < <(find "$P/.git" -name index.lock 2>/dev/null)
++  printf '%s' "${out# }"
++}
+ echo "# I-1 chaos on the UPDATE path: INT/TERM to the process group at many points of a real update, then a clean re-run converges"
+ j=0; cut=0
+ for sig in INT TERM; do
+@@ -111,9 +126,23 @@
+     pgid="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')"
+     if [[ "$pgid" =~ ^[0-9]+$ ]] && [ "$pgid" -gt 1 ]; then kill -s "$sig" -- "-$pgid" 2>/dev/null; fi
+     wait "$pid" 2>/dev/null; rc1=$?; [ "$rc1" != 0 ] && cut=$((cut+1))
++    # `wait` returns when the installer itself is gone; members of its group (the delegated updater, a git child)
++    # can still be exiting. A re-run started before they are gone meets their run lock (rc 3): drain first (bounded).
++    drain_group "$pgid" 30 || nok "update SIG$sig after ${delay}s: killed group $pgid still alive after 30 s"
++    # git creates index.lock BEFORE it installs its signal cleanup handler (measured: openat(index.lock) precedes
++    # rt_sigaction(SIGTERM)); a signal in that window leaves a stale lock that no process holds. That is git's
++    # limitation, not the installer's: the re-run must then fail LOUDLY on the lock with nothing changed, and converge
++    # once the stale lock is removed as git's message instructs.
++    stale="$(stale_index_locks "$P")"
++    if [ -n "$stale" ]; then
++      g_before="$(gitlink "$P")"; run_installer "$P" "${BASE[@]}"
++      check "update SIG$sig after ${delay}s: stale git lock ($stale) -> re-run refuses loudly" eval '[ "$RC" != 0 ] && grep -q "index.lock" <<<"$OUT"'
++      eq "update SIG$sig after ${delay}s: stale git lock -> gitlink unchanged by the refused re-run" "$g_before" "$(gitlink "$P")"
++      for lf in $stale; do rm -f -- "${P:?}/${lf:?}"; done
++    fi
+     run_installer "$P" "${BASE[@]}"
+     if [ "$RC" = 0 ] && [ "$(gitlink "$P")" = "$VT" ] && [ "$(git -C "$P/submodules/constitution" rev-parse HEAD)" = "$VT" ]; then
+-      ok "update SIG$sig after ${delay}s (first rc=$rc1): re-run converged to the new gitlink"
++      ok "update SIG$sig after ${delay}s (first rc=$rc1${stale:+, stale git lock removed first}): re-run converged to the new gitlink"
+     else nok "update SIG$sig after ${delay}s (first rc=$rc1): re-run rc=$RC gitlink=$(gitlink "$P")"; printf '%s\n' "$OUT" | tail -6; fi
+   done
+ done

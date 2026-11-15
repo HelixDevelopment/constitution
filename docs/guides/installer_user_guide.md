@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 9 |
+| Revision | 10 |
 | Created | 2026-10-29 |
-| Last modified | 2026-10-31T12:00:00Z |
+| Last modified | 2026-11-14T12:00:00Z |
 | Status | draft |
 | Status summary | How to install or update the Helix Constitution in a project with one command. Reconciled with the scripts (--help and source) on 2026-10-30 (round 11: update-pending marker records target and staged-before, symlinked markers refused on both sides, fingerprint tool order and fail-closed rule; round 12: no-push source gate documented as a best-effort tripwire with listed known limits, `--project-root` and `--detect-layout` documented); not verified by a live end-to-end install. |
 | Authority | Tool documentation for `scripts/install_constitution.sh` and `scripts/update_constitution.sh`; no new anchor. §11.4.18, §11.4.257, §11.4.212 govern. |
@@ -125,6 +125,7 @@ KNOWN LIMITS (the gate does not see these; each is also recorded in the gate hea
 - A value that reaches a function as an argument (`"$1"`) is pinned where it is bound, not at the callers.
 - Binding forms the lexer does not model (namerefs, `${!x}`, indirect expansions, `eval`-free tricks through `declare -n` in a sourced file) are only caught by the raw token count of the wrapper switches.
 - What an agent does inside its own run, what `setup.sh`, the post-update hook and the Jev bootstrap do, and the user's own alias file are outside its scope.
+- The raw word scan treats a multi-line argument of `printf` or `echo` that is made only of single-quoted parts (the `--help` text) as printed text, like the body of a quoted here-document, when the lexer and a separate line check both see it as such. The structure check still checks what that output feeds, and the gate's control needles show that a literal which is not printed, code after the literal, and a `printf` line inside a double-quoted string or an unquoted here-document are still scanned.
 
 The real protection is the runtime tests, the runtime no-push check after an agent run (exercised in `tests/install/test_round6.sh`: the pushes are real `git push` commands performed by a labelled FAKE `claude` (unit-class, §11.4.289) into bare repositories the test itself creates, and the check compares `ls-remote` fingerprints) and `tests/install/test_git_wrapper.sh` (every forbidden git form is refused by `hi_gx` and never reaches git). Treat a green gate as "no obvious bypass", never as "no bypass".
 

@@ -1,0 +1,12 @@
+CONTROL	host	PASS	8		no mutation	84.87799286842346
+N04t	host	KILLED	2,8 (4 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [], first <( [76]	reset call removed (installer and updater)	81
+N05t	host	KILLED	2 (2 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [78], first <( [75]	reset call moved after the first <( (installer and updater)	80
+N16t	host	KILLED	5 (1 FAIL)	2500 comparisons, no mismatch	hi_read_fields keeps trailing blanks (both copies)	87
+N17t	host	KILLED	5 (1 FAIL)	2500 comparisons, no mismatch	hi_split_lines without set -f (both copies)	85
+N18t	host	KILLED	4,5 (4 FAIL)	normal: installer helpers	hi_line_in matches a substring (both copies)	85
+N19t	host	KILLED	4,5 (4 FAIL)	normal: installer helpers	hi_has_line_prefix matches anywhere (both copies)	84
+N21t	host	KILLED	2 (1 FAIL)	hi_reset_shell_state undoes what a caller changed (options, BASH_COMPAT, CDPATH, GLOBIGNORE, TMOUT)	reset no longer unsets BASH_COMPAT (all four copies)	83
+N22t	host	SURVIVED	8		reset leaves posix mode on (all four copies)	85
+N27t	host	KILLED	2,8 (5 FAIL)	scripts/install_constitution.sh: HI_SOURCED line [45], reset call [], first <( [76]	installer and updater reset even when sourced	85
+N22u	host	KILLED	2 (2 FAIL)	hi_reset_shell_state undoes what a caller changed (options, BASH_COMPAT, CDPATH, GLOBIGNORE, TMOUT)	reset leaves posix mode on: POSIXLY_CORRECT kept AND posix dropped from set +o (all four copies)	81
+killed 9 / 10

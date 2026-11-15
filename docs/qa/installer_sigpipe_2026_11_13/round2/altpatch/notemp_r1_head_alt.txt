@@ -1,0 +1,145 @@
+== bash=host installer=r1 (b3ebb6fed2ba1c44) mode=temp
+bash=5.3.9(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+needle_large_herestring_readable=yes
+needle_small_herestring_readable=yes
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=host installer=r1 (b3ebb6fed2ba1c44) mode=notemp
+bash=5.3.9(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+<scratch> line 9: cannot create temp file for here-document: File too large
+needle_large_herestring_readable=no
+<scratch> line 11: cannot create temp file for here-document: File too large
+needle_small_herestring_readable=no
+rlines=10 marks_bytes=797 Z_rc=1 Z=missed moved_ref_rc=1 changed_L_rc=1 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=1 Z=missed moved_ref_rc=1 changed_L_rc=1 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=1 Z=missed moved_ref_rc=1 changed_L_rc=1 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=1 Z=missed moved_ref_rc=1 changed_L_rc=1 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=host installer=head (51a1373724174757) mode=temp
+bash=5.3.9(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+needle_large_herestring_readable=yes
+needle_small_herestring_readable=yes
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=host installer=head (51a1373724174757) mode=notemp
+bash=5.3.9(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+<scratch> line 9: cannot create temp file for here-document: File too large
+needle_large_herestring_readable=no
+<scratch> line 11: cannot create temp file for here-document: File too large
+needle_small_herestring_readable=no
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=host installer=alt (05b812058a7164bc) mode=temp
+bash=5.3.9(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+needle_large_herestring_readable=yes
+needle_small_herestring_readable=yes
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=host installer=alt (05b812058a7164bc) mode=notemp
+bash=5.3.9(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+<scratch> line 9: cannot create temp file for here-document: File too large
+needle_large_herestring_readable=no
+<scratch> line 11: cannot create temp file for here-document: File too large
+needle_small_herestring_readable=no
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=5.2.37 installer=r1 (b3ebb6fed2ba1c44) mode=temp
+bash=5.2.37(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+needle_large_herestring_readable=yes
+needle_small_herestring_readable=yes
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=5.2.37 installer=r1 (b3ebb6fed2ba1c44) mode=notemp
+bash=5.2.37(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+<scratch> line 9: cannot create temp file for here-document: File too large
+needle_large_herestring_readable=no
+<scratch> line 11: cannot create temp file for here-document: File too large
+needle_small_herestring_readable=no
+rlines=10 marks_bytes=797 Z_rc=1 Z=missed moved_ref_rc=1 changed_L_rc=1 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=1 Z=missed moved_ref_rc=1 changed_L_rc=1 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=1 Z=missed moved_ref_rc=1 changed_L_rc=1 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=1 Z=missed moved_ref_rc=1 changed_L_rc=1 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=5.2.37 installer=head (51a1373724174757) mode=temp
+bash=5.2.37(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+needle_large_herestring_readable=yes
+needle_small_herestring_readable=yes
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=5.2.37 installer=head (51a1373724174757) mode=notemp
+bash=5.2.37(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+<scratch> line 9: cannot create temp file for here-document: File too large
+needle_large_herestring_readable=no
+<scratch> line 11: cannot create temp file for here-document: File too large
+needle_small_herestring_readable=no
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=5.2.37 installer=alt (05b812058a7164bc) mode=temp
+bash=5.2.37(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+needle_large_herestring_readable=yes
+needle_small_herestring_readable=yes
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+== bash=5.2.37 installer=alt (05b812058a7164bc) mode=notemp
+bash=5.2.37(1)-release tmpdir=~/.cache/claude-tmp tmp_writable=yes
+<scratch> line 9: cannot create temp file for here-document: File too large
+needle_large_herestring_readable=no
+<scratch> line 11: cannot create temp file for here-document: File too large
+needle_small_herestring_readable=no
+rlines=10 marks_bytes=797 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=100 marks_bytes=6827 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=200 marks_bytes=13627 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=2000 marks_bytes=137027 Z_rc=0 Z=refused moved_ref_rc=0 changed_L_rc=0 (rc 0 = push seen/refused, 1 = proceed)
+rlines=10 unchanged_rc=1 (1 = proceed, expected)
+rlines=200 unchanged_rc=1 (1 = proceed, expected)
+rlines=2000 unchanged_rc=1 (1 = proceed, expected)
+notemp_run: done

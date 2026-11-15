@@ -1,0 +1,5 @@
+CONTROL	host	PASS	8		no mutation	83.9837121963501
+N04	host	KILLED	2,8 (4 FAIL)	the hi_shell_state block is identical in the installer and the updater	reset call removed (installer)	78
+N05	host	KILLED	2 (2 FAIL)	the hi_shell_state block is identical in the installer and the updater	reset call moved after the first <( (installer)	79
+N26	host	KILLED	2,7 (2 FAIL)	scripts/install_cli_agent_plugins.sh: reset called in run mode, right before set -euo pipefail	CLI reset call removed	77
+killed 3 / 3

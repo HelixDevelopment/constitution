@@ -1,0 +1,22 @@
+2026-11-14T06:42:06Z kill table start (commit 1914a91b1febe60237e10d9ca3423cf8e45e429f)
+2026-11-14T06:48:03Z kill table rc=0
+2026-11-14T06:53:18Z kill table N23 rc=0
+2026-11-14T06:54:51Z sigpipe host r1 rc=0 secs=93
+2026-11-14T06:57:20Z sigpipe 5.0.17 r1 rc=0 secs=149
+2026-11-14T06:59:14Z sigpipe 5.1.4 r1 rc=0 secs=114
+2026-11-14T07:00:50Z sigpipe 5.1.16 r1 rc=0 secs=96
+2026-11-14T07:02:19Z sigpipe 5.2.15 r1 rc=0 secs=89
+2026-11-14T07:03:50Z sigpipe 5.2.37 r1 rc=0 secs=91
+2026-11-14T07:05:15Z sigpipe host r2 rc=0 secs=84
+2026-11-14T07:07:36Z sigpipe 5.0.17 r2 rc=0 secs=141
+2026-11-14T07:09:20Z sigpipe 5.1.4 r2 rc=0 secs=104
+2026-11-14T07:10:54Z sigpipe 5.1.16 r2 rc=0 secs=94
+2026-11-14T07:12:23Z sigpipe 5.2.15 r2 rc=0 secs=89
+2026-11-14T07:14:02Z sigpipe 5.2.37 r2 rc=0 secs=99
+2026-11-14T07:15:28Z sigpipe host r3 rc=0 secs=86
+2026-11-14T07:18:00Z sigpipe 5.0.17 r3 rc=0 secs=152
+2026-11-14T07:19:53Z sigpipe 5.1.4 r3 rc=0 secs=113
+2026-11-14T07:21:32Z sigpipe 5.1.16 r3 rc=0 secs=99
+2026-11-14T07:23:07Z sigpipe 5.2.15 r3 rc=0 secs=95
+2026-11-14T07:24:46Z sigpipe 5.2.37 r3 rc=0 secs=99
+2026-11-14T07:24:46Z lane A done

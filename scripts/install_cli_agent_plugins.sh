@@ -61,6 +61,28 @@
 # Classification: universal (§11.4.17)
 # Last verified: 2026-07-15
 
+# >>> hi_reset_shell_state (identical in install_constitution.sh, update_constitution.sh,
+# install_cli_agent_plugins.sh and install_action_prefix.sh): the caller's shell state is not inherited when
+# the file is run (docs/qa/installer_sigpipe_2026_11_13/round2)
+hi_reset_shell_state() {
+  local o
+  for o in BASH_COMPAT POSIXLY_CORRECT CDPATH TMOUT GLOBIGNORE; do unset "$o" 2>/dev/null; done
+  IFS=$' \t\n'
+  for o in posix allexport noclobber noglob errexit nounset keyword physical monitor errtrace functrace; do
+    set +o "$o" 2>/dev/null
+  done
+  for o in braceexpand hashall; do set -o "$o" 2>/dev/null; done
+  # one shopt call per direction: a name this bash does not know is skipped and the others still apply (bash 3.2
+  # to 5.3); the no-push gate pins these two lines, option lists included
+  shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar \
+    failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit localvar_unset cdable_vars \
+    extdebug execfail inherit_errexit assoc_expand_once array_expand_once patsub_replacement 2>/dev/null
+  shopt -s extquote globasciiranges 2>/dev/null
+  unset BASH_COMPAT 2>/dev/null   # bash 5.0 and later set it to their own version when a compatNN option is unset
+  return 0
+}
+# <<< hi_reset_shell_state
+(return 0 2>/dev/null) || hi_reset_shell_state
 set -euo pipefail
 
 self_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)"
@@ -171,8 +193,10 @@ link_skills() {
   [ -d "$skills_src" ] || { warn "no skills dir at $skills_src"; return 1; }
   # The project's .claude (and .claude/skills) must really live inside the project: a symlinked
   # .claude pointing elsewhere would make us write outside it. Refuse, honestly.
-  local proj_real claude_real
-  proj_real="$(cd "$project_root" && pwd -P)"
+  # called as `link_skills || rc=1`: errexit is OFF in here, so every step that matters is checked explicitly
+  local proj_real claude_real failed=0
+  proj_real="$(cd "$project_root" && pwd -P)" && [ -n "$proj_real" ] \
+    || { warn "cannot resolve the project root $project_root — REFUSED, nothing written"; return 1; }
   if [ -L "$project_root/.claude" ] || [ -L "$skills_dst" ]; then
     claude_real="$(readlink -m -- "$skills_dst" 2>/dev/null)" || claude_real=""
     case "$claude_real" in
@@ -180,7 +204,7 @@ link_skills() {
       *) warn "$project_root/.claude (or .claude/skills) is a symlink that resolves outside the project — REFUSED, nothing written"; return 1 ;;
     esac
   fi
-  mkdir -p "$skills_dst"
+  mkdir -p "$skills_dst" || { warn "could not create $skills_dst — REFUSED"; return 1; }
   case "$(cd "$skills_dst" && pwd -P)" in
     "$proj_real"/*) ;;
     *) warn "$skills_dst resolves outside the project — REFUSED"; return 1 ;;
@@ -214,23 +238,23 @@ link_skills() {
       # Replace only a link that already points at OUR skill (or is our own dangling one).
       cur="$(readlink -f -- "$dst" 2>/dev/null || true)"
       if [ "$cur" = "$(readlink -f -- "${src%/}")" ] || { [ ! -e "$dst" ] && ic_link_owned "$dst" skills; }; then
-        hc_ln_relative "${src%/}" "$dst"
-        linked=$((linked + 1))
+        if hc_ln_relative "${src%/}" "$dst"; then linked=$((linked + 1))
+        else warn "could not link $dst"; failed=$((failed + 1)); fi
       else
         warn "$dst is a symlink to somewhere else (user-owned?) — REFUSED, left untouched"
         refused=$((refused + 1))
       fi
     elif [ ! -e "$dst" ]; then
-      hc_ln_relative "${src%/}" "$dst"
-      linked=$((linked + 1))
+      if hc_ln_relative "${src%/}" "$dst"; then linked=$((linked + 1))
+      else warn "could not link $dst"; failed=$((failed + 1)); fi
     else
       warn "$dst exists and is NOT a symlink ($([ -d "$dst" ] && echo directory || echo 'regular file')) — REFUSED, left untouched (remove it to re-link)"
       refused=$((refused + 1))
     fi
   done
 
-  ok "linked $linked skill(s) into .claude/skills/ (${skipped} legacy dir(s) without SKILL.md skipped, ${refused} refused)"
-  [ "$refused" -eq 0 ] || return 1
+  ok "linked $linked skill(s) into .claude/skills/ (${skipped} legacy dir(s) without SKILL.md skipped, ${refused} refused, ${failed} failed)"
+  [ "$refused" -eq 0 ] && [ "$failed" -eq 0 ] || return 1
   return 0
 }
 
@@ -244,7 +268,8 @@ link_agent_commands() {
 
   # agent:source-subdir:destination-dir-relative-to-project:extension
   local specs="gemini:.gemini/commands:toml qwen:.qwen/commands:toml codex:prompts:md"
-  local spec agent dst_rel ext src_dir dst_dir f base total=0 refused_dirs=0
+  local spec agent dst_rel ext src_dir dst_dir f base total=0 refused_dirs=0 failed=0
+  # called as `link_agent_commands || rc=1`: errexit is OFF in here, so every step that matters is checked explicitly
 
   for spec in $specs; do
     agent="${spec%%:*}"
@@ -260,7 +285,7 @@ link_agent_commands() {
       refused_dirs=$((refused_dirs + 1))
       continue
     fi
-    mkdir -p "$dst_dir"
+    mkdir -p "$dst_dir" || { warn "could not create $dst_dir — REFUSED"; refused_dirs=$((refused_dirs + 1)); continue; }
 
     # Reap DANGLING symlinks first: when an action is removed from the registry
     # the generator prunes its command file, which would otherwise leave a broken
@@ -278,12 +303,9 @@ link_agent_commands() {
       base="$(basename "$f")"
       # Only ever replace our own symlink or a free slot — never clobber a real
       # file the operator wrote by hand.
-      if [ ! -e "$dst_dir/$base" ] && [ ! -L "$dst_dir/$base" ]; then
-        hc_ln_relative "$f" "$dst_dir/$base"
-        n=$((n + 1))
-      elif ic_link_owned "$dst_dir/$base" actions/generated; then
-        hc_ln_relative "$f" "$dst_dir/$base"
-        n=$((n + 1))
+      if { [ ! -e "$dst_dir/$base" ] && [ ! -L "$dst_dir/$base" ]; } || ic_link_owned "$dst_dir/$base" actions/generated; then
+        if hc_ln_relative "$f" "$dst_dir/$base"; then n=$((n + 1))
+        else warn "could not link $dst_dir/$base"; failed=$((failed + 1)); fi
       else
         warn "$dst_dir/$base exists and is not our symlink (user-owned file or link) — left untouched"
       fi
@@ -293,7 +315,7 @@ link_agent_commands() {
   done
 
   [ "$total" -gt 0 ] || warn "no per-agent commands linked (nothing generated?)"
-  [ "$refused_dirs" -eq 0 ] || return 1
+  [ "$refused_dirs" -eq 0 ] && [ "$failed" -eq 0 ] || return 1
   return 0
 }
 
@@ -342,6 +364,7 @@ marketplace_hint_path() {
 }
 
 install_plugin() {
+  local plugin_list   # `claude plugin list` is captured, then tested in the shell (no pipe, no here-string)
   if ! command -v claude >/dev/null 2>&1; then
     warn "the \`claude\` CLI is NOT on PATH — the plugin was NOT installed."
     warn "ONE-TIME operator step, from the project root:"
@@ -356,7 +379,7 @@ install_plugin() {
   claude plugin marketplace add "$const_root" >/dev/null 2>&1 || true
   claude plugin install "${PLUGIN_NAME}@${MARKETPLACE_NAME}" >/dev/null 2>&1 || true
 
-  if claude plugin list 2>/dev/null | grep -q "$PLUGIN_NAME"; then
+  if plugin_list="$(claude plugin list 2>/dev/null)" && [[ "$plugin_list" == *"$PLUGIN_NAME"* ]]; then
     ok "plugin '${PLUGIN_NAME}@${MARKETPLACE_NAME}' is INSTALLED (verified via \`claude plugin list\`)"
     return 0
   fi
@@ -395,7 +418,7 @@ if [ "$check_only" -eq 1 ]; then
   fi
 
   if command -v claude >/dev/null 2>&1; then
-    if claude plugin list 2>/dev/null | grep -q "$PLUGIN_NAME"; then
+    if plugin_list="$(claude plugin list 2>/dev/null)" && [[ "$plugin_list" == *"$PLUGIN_NAME"* ]]; then
       ok "project side: plugin '${PLUGIN_NAME}' is installed + enabled"
     else
       warn "project side: plugin '${PLUGIN_NAME}' is NOT installed"; rc=1

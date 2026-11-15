@@ -1,0 +1,76 @@
+"""Mutants of the no-push gate's printed-literal mask (raw scan (c)): each is applied to a COPY of the gate and the
+copy is run on the real installer and updater. A mutant is KILLED when the copy says BLIND (exit 2: a control needle
+failed) or FAIL (exit 1); SURVIVED when it says PASS (exit 0). The unmutated copy must PASS first.
+
+usage: python3 -I gate_mask_mutants.py REPO WORKDIR OUT.tsv
+"""
+import os
+import subprocess
+import sys
+
+REPO, WORK, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+GATE = os.path.join(REPO, "scripts/gates/cm_installer_no_push_no_force.sh")
+FILES = [os.path.join(REPO, "scripts/install_constitution.sh"), os.path.join(REPO, "scripts/update_constitution.sh")]
+
+MUT = [
+    ("GM1", "mask any command's multi-line literal (no printf/echo condition)",
+     '        if not words or words[0].raw not in ("printf", "echo"): continue\n',
+     "        if not words: continue\n"),
+    ("GM2", "mask to the end of the literal's last line",
+     "            spans.append((w.pos, w.pos + len(w.raw)))\n",
+     '            spans.append((w.pos, text.find("\\n", w.pos + len(w.raw)) if text.find("\\n", w.pos + len(w.raw)) >= 0 else len(text)))\n'),
+    ("GM3", "mask any multi-line word (no all-literal check)",
+     '            if w.pos is None or "\\n" not in w.raw or not LIT_WORD.fullmatch(w.raw): continue\n',
+     '            if w.pos is None or "\\n" not in w.raw: continue\n'),
+    ("GM4", "no line check (PRINT_HEAD) on the literal's first line",
+     "            if not PRINT_HEAD.match(text[text.rfind(\"\\n\", 0, w.pos) + 1:w.pos]): continue\n", ""),
+    ("GM5", "double-quoted parts count as literal",
+     "LIT_WORD = re.compile(r\"(?:'[^']*'|\\\\[^\\n])+\")",
+     "LIT_WORD = re.compile(r\"(?:'[^']*'|\\\"[^\\\"]*\\\"|\\\\[^\\n])+\")"),
+    ("GM6", "the mask is not applied (raw scan reads the original text)",
+     '    for n, line in enumerate(print_literal_mask(text).split("\\n"), 1):\n',
+     '    for n, line in enumerate(text.split("\\n"), 1):\n'),
+    ("GM7", "shopt dropped from the exact-pair commands (any shopt allowed as a safe builtin)",
+     '"claude-providers", "shopt"}\n', '"claude-providers"}\nSAFE_BUILTIN.add("shopt")\n'),
+]
+
+
+def run(gate_copy, tag):
+    d = os.path.join(WORK, tag)
+    os.makedirs(d, exist_ok=True)
+    env = dict(os.environ, TMPDIR=d)
+    p = subprocess.run(["nice", "-n", "10", "bash", gate_copy] + sum([["--file", f] for f in FILES], []),
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, cwd=d, timeout=1800)
+    last = (p.stdout.decode("utf-8", "replace").strip().splitlines() or [""])[-1]
+    return p.returncode, last
+
+
+def main():
+    src = open(GATE, encoding="utf-8").read()
+    rows = []
+    ctl = os.path.join(WORK, "gate_control.sh")
+    open(ctl, "w", encoding="utf-8").write(src)
+    rc, last = run(ctl, "control")
+    rows.append(("control", "unmutated copy", "PASS" if rc == 0 else "CONTROL-FAILED rc=%d" % rc, last[:120]))
+    if rc != 0:
+        print("control failed:", rc, last); write(rows); return 1
+    for mid, desc, old, new in MUT:
+        if src.count(old) != 1:
+            rows.append((mid, desc, "ANCHOR (%d matches)" % src.count(old), "")); continue
+        g = os.path.join(WORK, "gate_%s.sh" % mid)
+        open(g, "w", encoding="utf-8").write(src.replace(old, new, 1))
+        rc, last = run(g, mid)
+        verdict = {0: "SURVIVED", 1: "KILLED (FAIL)", 2: "KILLED (BLIND)"}.get(rc, "rc=%d" % rc)
+        rows.append((mid, desc, verdict, last[:160]))
+    write(rows)
+    return 0
+
+
+def write(rows):
+    with open(OUT, "w", encoding="utf-8") as fh:
+        fh.write("id\tmutation\tresult\tlast line\n")
+        for r in rows: fh.write("\t".join(r) + "\n")
+    for r in rows: print("\t".join(r))
+
+
+sys.exit(main())

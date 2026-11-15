@@ -1,0 +1,10 @@
+# shenum: the binary used for the inventory and an offline rebuild from the same source must be identical
+used sha256 258dee4751d229f3430fdaa94af37bcc92052168f20e89b96a5d9714477667d1
+  path	shenum
+  mod	shenum	(devel)
+  dep	mvdan.cc/sh/v3	v3.13.1	h1:DP3TfgZhDkT7lerUdnp6PTGKyxxzz6T+cOlY/xEvfWk=
+rebuild sha256 258dee4751d229f3430fdaa94af37bcc92052168f20e89b96a5d9714477667d1
+  path	shenum
+  mod	shenum	(devel)
+  dep	mvdan.cc/sh/v3	v3.13.1	h1:DP3TfgZhDkT7lerUdnp6PTGKyxxzz6T+cOlY/xEvfWk=
+RESULT: IDENTICAL

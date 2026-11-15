@@ -1,0 +1,60 @@
+# The review's alternative patch (probes/alt_patch/hi_push_changed.diff) against the head 1914a91b
+# 1. every '<<<' left in scripts/install_constitution.sh at the head (grep -n '<<<'): comments only
+114:hi_line_in() { # needle text → 0 when a line of needle equals a line of text (`grep -qxF -- needle <<<"$text"`)
+123:# <<< hi_shell_state
+290:# <<< hi_text_safe
+473:# <<< hi_gx
+1052:# <<< hi_lock_helpers
+1343:# <<< hi_resolve_ref_in
+1375:# <<< hi_remote_live
+1394:# <<< hi_gitlink_rel
+# control needle: the same grep on the base bd0036bd counts 18 lines
+# 2. the Z check of hi_push_changed at the head (the alt patch's line 13-14 change):
+1792:  if hi_has_line_prefix "$b$nl$a" 'Z '; then   # a remote answered but no fingerprint tool exists: fail closed
+# 3. hi_has_line_prefix / hi_line_in / hi_split_lines at the head (pure bash, no temporary file):
+hi_split_lines() { # text → HI_LINES: its lines, bytes kept; empty lines are dropped
+  local IFS=$'\n' f=0
+  case $- in *f*) f=1 ;; esac
+  set -f
+  HI_LINES=($1)
+  [ "$f" = 1 ] || set +f
+}
+# shellcheck disable=SC2206  # a deliberate split on the separator, with globbing off
+hi_split() { # separator text → HI_SPLIT: the fields of the first line of text, as `IFS=<separator> read -r -a` gives them
+  local IFS="$1" f=0 nl=$'\n'
+  case $- in *f*) f=1 ;; esac
+  set -f
+  HI_SPLIT=(${2%%"$nl"*})
+  [ "$f" = 1 ] || set +f
+}
+# shellcheck disable=SC2295  # $ws holds blanks only: no pattern character, quoting it changes nothing
+hi_read_fields() { # line n → HI_F: the n values `read -r v1 ... vn` (default IFS) assigns for that line
+  local s="$1" n="$2" w ws=$' \t\n'
+  HI_F=()
+  s="${s#"${s%%[!$ws]*}"}"
+  while [ "$n" -gt 1 ]; do
+    w="${s%%[$ws]*}"
+    HI_F+=("$w")
+    s="${s#"$w"}"
+    s="${s#"${s%%[!$ws]*}"}"
+    n=$((n - 1))
+  done
+  s="${s%"${s##*[!$ws]}"}"
+  HI_F+=("$s")
+}
+hi_has_line_prefix() { # text prefix → 0 when a line of text starts with prefix (`grep -q "^prefix"` for a literal)
+  local nl=$'\n'
+  [[ "$nl$1" == *"$nl$2"* ]]
+}
+hi_line_in() { # needle text → 0 when a line of needle equals a line of text (`grep -qxF -- needle <<<"$text"`)
+  local nl=$'\n' rest="$1" p
+  while :; do
+    p="${rest%%"$nl"*}"
+    [[ "$nl$2$nl" == *"$nl$p$nl"* ]] && return 0
+    [ "$p" = "$rest" ] && return 1
+    rest="${rest#*"$nl"}"
+  done
+}
+# 4. hi_verify's former here-string site at the head:
+1921:    if hi_legacy_path_in "$blk"; then hi_check no_legacy_path_in_written fail
+1987:hi_legacy_path_in() {
