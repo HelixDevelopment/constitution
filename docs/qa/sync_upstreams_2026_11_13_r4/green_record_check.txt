@@ -1,0 +1,21 @@
+# driver: a copy of tests/sync/test_faults.sh (round-4 tree) with two lines changed: the fixture library is sourced from the repository by absolute path, and the fault loop reads only the plan rows whose git arguments are "rev-parse --verify -q HEAD^{commit}" (the head reads); FAULT_MODES=rc77. The summary check "faults: only 8 fault runs" fails in both runs BY DESIGN of this reduced driver (the full suite needs >= 60).
+# engine: the round-4 engine, unmodified
+== sync-faults (sandbox <scratch>/syncfix4.Jiag/tmp/headreads_real/helix-sync-test.82Q7aP)
+  ok   control: APPLIED exit 0
+  ok   control: 88 git calls logged
+  ok   control: root fast-forwarded
+  ok   control: libs/a followed its new pin
+  ok   control: vendor/t advanced
+  ok   control: the report says libs/a followed its new pin
+  ok   control: root, libs/a and vendor/t moved on disk
+  ok   control: the report's moved set equals the repositories whose HEAD changed on disk
+  ok   sites: 26 git call sites enumerated from the AST
+  ok   sites: every call site is reached by the control run (and recognisable)
+  ok   oracle: the gate prints its call-site table
+  ok   oracle: the engine's call sites equal the oracle's (prefix, ok=, want=) multiset
+  ok   oracle: every logged call has exactly one exit-128 class
+  FAIL faults: only 8 fault runs
+  ok   faults: every no-answer made the run BLIND and moved nothing it should not
+  ok   needle: an injected first-call failure is BLIND
+  ok   needle: the engine names the call
+sync-faults: PASS 16 FAIL 1

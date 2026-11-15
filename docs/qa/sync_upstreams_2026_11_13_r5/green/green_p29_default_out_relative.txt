@@ -1,0 +1,9 @@
+# real engine, check default_out_relative
+== default_out_relative
+  ok   default_out_relative.refused
+  ok   default_out_relative.nothing_in_tree
+  ok   default_out_relative.outside_cwd_refused
+  ok   default_out_relative.outside_cwd_nothing_written
+  ok   default_out_relative.control_absolute_accepted
+sync-robustness: PASS 5 FAIL 0
+rc=0

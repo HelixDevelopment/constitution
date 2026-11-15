@@ -1,0 +1,89 @@
+# command: shellcheck -S warning over every .sh file this vehicle changed since bc1a03a5 or added (git diff --name-only bc1a03a5 -- '*.sh'; untracked *.sh) plus every .sh under scripts/sync and tests/sync: 17 files, the same list on the r4 tree
+# findings: 16 locations;  14 SC2034 (warning); 1 SC2154 (warning); 2 SC2155 (warning); 1 SC2194 (warning);
+# files: scripts/gates/cm_sync_upstreams_ff_only_mutation_test.sh scripts/gates/cm_sync_upstreams_ff_only.sh scripts/sync/fixture_lib.sh scripts/sync/sync_all_upstreams.sh scripts/sync/sync_step_lib.sh tests/install/lib.sh tests/sync/run_all.sh tests/sync/test_chaos.sh tests/sync/test_determinism.sh tests/sync/test_e2e.sh tests/sync/test_faults.sh tests/sync/test_full_automation.sh tests/sync/test_hardening.sh tests/sync/test_integration.sh tests/sync/test_perf.sh tests/sync/test_security.sh tests/sync/test_ui.sh 
+
+In scripts/sync/fixture_lib.sh line 40:
+  export GIT_CEILING_DIRECTORIES="$(dirname "$SB")"
+         ^---------------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In scripts/sync/fixture_lib.sh line 100:
+  SX_OUT="$(PATH="$SB/shim:$PATH" bash "$SX_ENGINE" --out "$o" --run-id "r$SX_N" "$@" 2>"$SB/out/r$SX_N.err")"; SX_RC=$?
+  ^----^ SC2034 (warning): SX_OUT appears unused. Verify use (or export if used externally).
+                                                                                                                ^---^ SC2034 (warning): SX_RC appears unused. Verify use (or export if used externally).
+
+
+In scripts/sync/fixture_lib.sh line 101:
+  SX_ERR="$(cat "$SB/out/r$SX_N.err")"
+  ^----^ SC2034 (warning): SX_ERR appears unused. Verify use (or export if used externally).
+
+
+In scripts/sync/fixture_lib.sh line 103:
+  SX_TSV="$o/sync_report.tsv"
+  ^----^ SC2034 (warning): SX_TSV appears unused. Verify use (or export if used externally).
+
+
+In scripts/sync/fixture_lib.sh line 123:
+  W="$SB/work/root"
+  ^-- SC2034 (warning): W appears unused. Verify use (or export if used externally).
+
+
+In scripts/sync/sync_step_lib.sh line 51:
+  SYNC_STEP_RC=$rc
+  ^----------^ SC2034 (warning): SYNC_STEP_RC appears unused. Verify use (or export if used externally).
+
+
+In scripts/sync/sync_step_lib.sh line 60:
+    *) SYNC_STEP_VERDICT=BLIND;             echo "[sync-upstreams] $mode: BLIND (exit $rc; nothing was decided)" ;;
+       ^---------------^ SC2034 (warning): SYNC_STEP_VERDICT appears unused. Verify use (or export if used externally).
+
+
+In tests/install/lib.sh line 52:
+  export GIT_CEILING_DIRECTORIES="$(dirname "$SB")"
+         ^---------------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In tests/install/lib.sh line 221:
+  OUT="$(cd "$p" && bash "$INSTALLER" "$@" 2>&1)"; RC=$?
+  ^-^ SC2034 (warning): OUT appears unused. Verify use (or export if used externally).
+                                                   ^-- SC2034 (warning): RC appears unused. Verify use (or export if used externally).
+
+
+In tests/sync/test_chaos.sh line 11:
+trap 'for p in $BG; do case "$p" in ""|*[!0-9]*|0|1) ;; *) kill "$p" 2>/dev/null ;; esac; done; sx_cleanup' EXIT
+     ^-- SC2154 (warning): p is referenced but not assigned.
+
+
+In tests/sync/test_chaos.sh line 177:
+  SX_OUT="$(PATH="$SB/flaky:$PATH" bash "$SX_ENGINE" --out "$o" --run-id "r$SX_N" "$@" 2>"$o.err")"; SX_RC=$?
+  ^----^ SC2034 (warning): SX_OUT appears unused. Verify use (or export if used externally).
+
+
+In tests/sync/test_determinism.sh line 15:
+  for i in 1 2 3; do
+  ^-^ SC2034 (warning): i appears unused. Verify use (or export if used externally).
+
+
+In tests/sync/test_faults.sh line 78:
+  local label="$1" t="$SB/t_$1"
+        ^---^ SC2034 (warning): label appears unused. Verify use (or export if used externally).
+
+
+In tests/sync/test_faults.sh line 257:
+while IFS=$'\t' read -r n repo want fw gw cls args; do
+                                       ^-- SC2034 (warning): gw appears unused. Verify use (or export if used externally).
+
+
+In tests/sync/test_hardening.sh line 165:
+out="$(PATH="$SB/shim:$PATH" bash "$SX_ENGINE" --check --no-fetch --root "$W" --out "$SB/userdir3" 2>&1)"; rc=$?
+^-^ SC2034 (warning): out appears unused. Verify use (or export if used externally).
+
+
+In tests/sync/test_security.sh line 36:
+  case " add cat-file checkout config fetch for-each-ref ls-files merge merge-base remote rev-list rev-parse status symbolic-ref ls-tree " in
+       ^-- SC2194 (warning): This word is constant. Did you forget the $ on a variable?
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2034 -- OUT appears unused. Verify use (o...
+  https://www.shellcheck.net/wiki/SC2154 -- p is referenced but not assigned.
+  https://www.shellcheck.net/wiki/SC2155 -- Declare and assign separately to ...

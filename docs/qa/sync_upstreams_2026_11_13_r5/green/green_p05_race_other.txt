@@ -1,0 +1,9 @@
+# real engine, check race_other
+== race_other
+  ok   race_other.action_fired_control
+  ok   race_other.head_moved_recorded
+  ok   race_other.reason_head_changed_during_run
+  ok   race_other.changed_by_other
+  ok   race_other.not_reported_updated
+sync-robustness: PASS 5 FAIL 0
+rc=0

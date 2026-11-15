@@ -1,0 +1,9 @@
+# P05 mutant (if moved and _wrote_to != head_after -> if False), check race_other
+== race_other
+  ok   race_other.action_fired_control
+  ok   race_other.head_moved_recorded
+  FAIL race_other.reason_head_changed_during_run  (['write-blocked:head-changed-before-write'])
+  FAIL race_other.changed_by_other  (None)
+  ok   race_other.not_reported_updated
+sync-robustness: PASS 3 FAIL 2
+rc=1

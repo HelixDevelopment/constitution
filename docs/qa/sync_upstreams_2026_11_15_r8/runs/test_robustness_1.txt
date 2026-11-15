@@ -1,0 +1,456 @@
+== race_commit
+  ok   race_commit.action_fired
+  ok   race_commit.user_commit_still_checked_out
+  ok   race_commit.not_reported_updated
+  ok   race_commit.run_not_applied
+  ok   race_commit.refusal_recorded
+== race_switch
+  ok   race_switch.action_fired
+  ok   race_switch.topic_not_moved
+  ok   race_switch.main_not_moved
+  ok   race_switch.run_not_applied
+  ok   race_switch.refusal_recorded
+== race_sub_branch
+  ok   race_sub_branch.action_fired
+  ok   race_sub_branch.submodule_still_on_branch
+  ok   race_sub_branch.head_not_moved
+== race_control
+  ok   race_control.user_commit_kept_on_main
+  ok   race_control.not_applied
+== race_other
+  ok   race_other.action_fired_control
+  ok   race_other.head_moved_recorded
+  ok   race_other.reason_head_changed_during_run
+  ok   race_other.changed_by_other
+  ok   race_other.not_reported_updated
+== autostash
+  ok   autostash.action_fired
+  ok   autostash.head_not_moved
+  ok   autostash.no_stash_created
+  ok   autostash.user_edit_kept
+  ok   autostash.failed_verdict
+  ok   autostash.no_marker_after_answered_failure
+== sigterm_write
+  ok   sigterm_write.signal_sent
+  ok   sigterm_write.exit_8
+  ok   sigterm_write.result_line
+  ok   sigterm_write.report_written
+  ok   sigterm_write.move_recorded
+  ok   sigterm_write.root_really_at_r2
+  ok   sigterm_write.no_traceback
+== no_new_call
+  ok   no_new_call.control_trigger_seen
+  ok   no_new_call.control_interrupted
+  ok   no_new_call.only_final_reads_after_stop
+  ok   no_new_call.no_call_started_after_stop
+== final_cap
+  ok   final_cap.control_interrupted
+  ok   final_cap.control_final_reads_started_and_hung
+  ok   final_cap.ends_within_cap
+  ok   final_cap.timed_out_read_recorded
+== sigterm_fetch
+  ok   sigterm_fetch.fetch_hanging
+  ok   sigterm_fetch.exits_fast
+  ok   sigterm_fetch.exit_8
+  ok   sigterm_fetch.no_traceback
+  ok   sigterm_fetch.no_orphan
+  ok   sigterm_fetch.report_interrupted
+== sigint_fetch
+  ok   sigint_fetch.fetch_hanging
+  ok   sigint_fetch.exits_fast
+  ok   sigint_fetch.exit_8
+  ok   sigint_fetch.no_traceback
+  ok   sigint_fetch.no_orphan
+  ok   sigint_fetch.report_interrupted
+== staged_gitlink
+  ok   staged_gitlink.index_untouched
+  ok   staged_gitlink.reason_reported
+  ok   staged_gitlink.attention
+== escaped_after_exit
+  ok   escaped_after_exit.control_grandchild_alive_after_run
+  ok   escaped_after_exit.answer_not_waiting_for_the_pipe
+  ok   escaped_after_exit.remote_reachable
+  ok   escaped_after_exit.root_behind_exit_3
+== long_line
+  ok   long_line.bounded_time
+  ok   long_line.report_written
+== huge_stderr
+  ok   huge_stderr.peak_rss_bounded
+  ok   huge_stderr.run_ended_with_report
+== askpass
+  ok   askpass.core_askPass_not_run
+  ok   askpass.GIT_ASKPASS_not_run
+  ok   askpass.SSH_ASKPASS_not_run
+  ok   askpass.remote_reported_unreachable_auth
+== askpass_ssh_only
+  ok   askpass_ssh_only.not_run
+== ext_env
+  ok   ext_env.helper_not_run
+== ext_repo
+  ok   ext_repo.helper_not_run
+== protocol_from_user
+  ok   protocol_from_user.fetched
+== trace_env
+  ok   trace_env.no_trace_file
+== auth_header
+  ok   auth_header.control_needle_seen
+  ok   auth_header.value_redacted
+  ok   auth_header.failed_merge_exit_1
+== secret8
+  ok   secret8.absent_everywhere
+== ctrl_url
+  ok   ctrl_url.url_reported
+  ok   ctrl_url.no_del_or_c1
+== invalid_remote
+  ok   invalid_remote[bad.lock].not_moved
+  ok   invalid_remote[bad.lock].attention
+  ok   invalid_remote[-dash].not_moved
+  ok   invalid_remote[-dash].attention
+== diverged
+  ok   diverged.child_held
+  ok   diverged.attention
+== no_upstream_main
+  ok   no_upstream_main.child_held
+  ok   no_upstream_main.attention
+== lock_symlink
+  ok   lock_symlink.exit_1
+  ok   lock_symlink.target_not_created
+  ok   lock_symlink.submodule_exit_1
+  ok   lock_symlink.submodule_target_not_created
+  ok   lock_symlink.control_no_link_runs
+== lock_overlap
+  ok   lock_overlap.exit_7
+  ok   lock_overlap.root_not_moved
+== out_unwritable
+  ok   out_unwritable.exit_2
+  ok   out_unwritable.not_moved
+  ok   out_unwritable.existing_dir_exit_2
+  ok   out_unwritable.existing_dir_not_moved
+  ok   out_unwritable.control_writable_dir_accepted
+== out_lost
+  ok   out_lost.moved
+  ok   out_lost.exit_1
+  ok   out_lost.move_on_stderr
+== default_out_symlink
+  ok   default_out_symlink.refused
+  ok   default_out.nothing_in_tree
+== default_out_relative
+  ok   default_out_relative.refused
+  ok   default_out_relative.nothing_in_tree
+  ok   default_out_relative.outside_cwd_refused
+  ok   default_out_relative.outside_cwd_nothing_written
+  ok   default_out_relative.control_absolute_accepted
+== unsafe_path
+  ok   unsafe_path[-dash].reported
+  ok   unsafe_path[-dash].attention
+  ok   unsafe_path[back\slash].reported
+  ok   unsafe_path[back\slash].attention
+== outside_parent
+  ok   outside_parent.not_inspected
+  ok   outside_parent.attention
+== write_deadline
+  ok   write_deadline.control_slow
+  ok   write_deadline.head_at_target
+  ok   write_deadline.no_index_lock
+  ok   write_deadline.tree_clean
+  ok   write_deadline.move_recorded
+  ok   write_deadline.not_unresolved
+  ok   write_deadline.applied
+  ok   write_deadline.marker_removed
+== write_timeout
+  ok   write_timeout.failed_exit_1
+  ok   write_timeout.ended_before_finish
+  ok   write_timeout.reason_write_killed
+  ok   write_timeout.term_sufficed
+  ok   write_timeout.no_index_lock_after_term
+  ok   write_timeout.head_not_moved
+  ok   write_timeout.recovery_steps
+  ok   write_timeout.recovery_printed
+  ok   write_timeout.marker_kept
+  ok   write_timeout.control_leftovers_present
+  ok   write_timeout.rerun_attributes
+  ok   write_timeout.rerun_no_plain_dirty_tree
+  ok   write_timeout.rerun_attention_not_moved
+  ok   write_timeout.recovered_apply
+  ok   write_timeout.marker_cleared
+  ok   write_timeout.marker_clear_noted
+== write_kill
+  ok   write_kill.failed_exit_1
+  ok   write_kill.reason
+  ok   write_kill.named_signal
+  ok   write_kill.locks_listed_when_left
+  ok   write_kill.bounded
+== marker_success
+  ok   marker_success.applied
+  ok   marker_success.no_marker
+== switch_at_merge
+  ok   switch_at_merge.fired
+  ok   switch_at_merge.reported
+  ok   switch_at_merge.not_updated
+== sigterm_pin
+  ok   sigterm_pin.signalled
+  ok   sigterm_pin.exit_8
+  ok   sigterm_pin.child_at_s2
+  ok   sigterm_pin.index_staged_s2
+  ok   sigterm_pin.action_verified
+== marker_inspect
+  ok   marker_inspect.fired
+  ok   marker_inspect.root_not_moved
+  ok   marker_inspect.attention
+== wrote_then_other
+  ok   wrote_then_other.fired
+  ok   wrote_then_other.reason
+  ok   wrote_then_other.changed_by_other
+  ok   wrote_then_other.attention
+== staged_root
+  ok   staged_root.attention_exit_4
+  ok   staged_root.blocked_before_write
+  ok   staged_root.root_not_moved
+  ok   staged_root.stage_kept
+  ok   staged_root.control_moved
+  ok   staged_root.control_stage_kept
+== lock_open
+  ok   lock_open.sub_exit_1
+  ok   lock_open.sub_own_message
+  ok   lock_open.root_exit_1
+  ok   lock_open.root_own_message
+  ok   lock_open.control_runs
+== ctrl_c
+  ok   ctrl_c.prompted
+  ok   ctrl_c.ends_without_enter
+  ok   ctrl_c.exit_8
+  ok   ctrl_c.nothing_moved
+== update_none
+  ok   update_none.root_moved
+  ok   update_none.child_not_followed
+  ok   update_none.reason
+  ok   update_none.attention
+  ok   update_none.gitmodules_root_moved
+  ok   update_none.gitmodules_rebase_not_followed
+  ok   update_none.gitmodules_reason
+  ok   update_none.control_follows
+== interrupted_labels
+  ok   interrupted_labels.exit_8
+  ok   interrupted_labels.no_unreachable
+  ok   interrupted_labels.no_no_upstream
+  ok   interrupted_labels.labelled
+== blind_failed
+  ok   blind_failed.fired
+  ok   blind_failed.malformed_recorded
+  ok   blind_failed.blind_exit_6
+== stale_marker
+  ok   stale_marker.check_keeps
+  ok   stale_marker.check_notes_present
+  ok   stale_marker.check_not_blocked
+  ok   stale_marker.apply_clears
+  ok   stale_marker.apply_notes_cleared
+  ok   stale_marker.apply_current
+== refused_marker
+  ok   refused_marker.ff.stop-after-marker.ran
+  ok   refused_marker.ff.stop-after-marker.not_moved
+  ok   refused_marker.ff.stop-after-marker.no_marker
+  ok   refused_marker.ff.stop-after-marker.marker_was_written
+  ok   refused_marker.ff.stop-after-marker.user_edit_is_users
+  ok   refused_marker.ff.stop-after-marker.not_blamed_on_engine
+  ok   refused_marker.ff.deadline-after-marker.ran
+  ok   refused_marker.ff.deadline-after-marker.not_moved
+  ok   refused_marker.ff.deadline-after-marker.no_marker
+  ok   refused_marker.ff.deadline-after-marker.marker_was_written
+  ok   refused_marker.ff.deadline-after-marker.user_edit_is_users
+  ok   refused_marker.ff.deadline-after-marker.not_blamed_on_engine
+  ok   refused_marker.ff.stop-before-marker.ran
+  ok   refused_marker.ff.stop-before-marker.not_moved
+  ok   refused_marker.ff.stop-before-marker.no_marker
+  ok   refused_marker.ff.stop-before-marker.marker_never_written
+  ok   refused_marker.ff.stop-before-marker.user_edit_is_users
+  ok   refused_marker.ff.stop-before-marker.not_blamed_on_engine
+  ok   refused_marker.ff.deadline-before-marker.ran
+  ok   refused_marker.ff.deadline-before-marker.not_moved
+  ok   refused_marker.ff.deadline-before-marker.no_marker
+  ok   refused_marker.ff.deadline-before-marker.marker_never_written
+  ok   refused_marker.ff.deadline-before-marker.user_edit_is_users
+  ok   refused_marker.ff.deadline-before-marker.not_blamed_on_engine
+  ok   refused_marker.ff.spawn-fails-write.ran
+  ok   refused_marker.ff.spawn-fails-write.not_moved
+  ok   refused_marker.ff.spawn-fails-write.no_marker
+  ok   refused_marker.ff.spawn-fails-write.marker_was_written
+  ok   refused_marker.ff.spawn-fails-write.user_edit_is_users
+  ok   refused_marker.ff.spawn-fails-write.not_blamed_on_engine
+  ok   refused_marker.pin.stop-after-marker.ran
+  ok   refused_marker.pin.stop-after-marker.not_moved
+  ok   refused_marker.pin.stop-after-marker.no_marker
+  ok   refused_marker.pin.stop-after-marker.marker_was_written
+  ok   refused_marker.pin.stop-after-marker.user_edit_is_users
+  ok   refused_marker.pin.stop-after-marker.not_blamed_on_engine
+  ok   refused_marker.pin.deadline-after-marker.ran
+  ok   refused_marker.pin.deadline-after-marker.not_moved
+  ok   refused_marker.pin.deadline-after-marker.no_marker
+  ok   refused_marker.pin.deadline-after-marker.marker_was_written
+  ok   refused_marker.pin.deadline-after-marker.user_edit_is_users
+  ok   refused_marker.pin.deadline-after-marker.not_blamed_on_engine
+  ok   refused_marker.pin.spawn-fails-write.ran
+  ok   refused_marker.pin.spawn-fails-write.not_moved
+  ok   refused_marker.pin.spawn-fails-write.no_marker
+  ok   refused_marker.pin.spawn-fails-write.marker_was_written
+  ok   refused_marker.pin.spawn-fails-write.user_edit_is_users
+  ok   refused_marker.pin.spawn-fails-write.not_blamed_on_engine
+== refused_stage
+  ok   refused_stage.markers
+  ok   refused_stage.child_moved
+  ok   refused_stage.not_staged
+  ok   refused_stage.reported_unresolved
+  ok   refused_stage.no_parent_marker
+  ok   refused_stage.no_child_marker
+  ok   refused_stage.user_edit_is_users
+  ok   refused_stage.not_blamed_on_engine
+  ok   refused_stage.before.child_moved
+  ok   refused_stage.before.stage_marker_never_written
+  ok   refused_stage.before.no_parent_marker
+  ok   refused_stage.before.not_staged
+== marker_lock
+  ok   marker_lock.control_tree_clean
+  ok   marker_lock.exit_4
+  ok   marker_lock.attributed
+  ok   marker_lock.not_users
+  ok   marker_lock.marker_kept
+  ok   marker_lock.control_users
+== flock_error
+  ok   flock_error.flock-error-root.exit_1
+  ok   flock_error.flock-error-root.message
+  ok   flock_error.flock-error-root.not_another_run
+  ok   flock_error.flock-error-root.result_failed
+  ok   flock_error.flock-error-repo.exit_1
+  ok   flock_error.flock-error-repo.message
+  ok   flock_error.flock-error-repo.not_another_run
+  ok   flock_error.flock-error-repo.result_failed
+  ok   flock_error.flock-held-repo.exit_7
+  ok   flock_error.flock-held-repo.message
+== sibling_kill
+  ok   sibling_kill.every_write_held_its_own_marker
+  ok   sibling_kill.exit_1
+  ok   sibling_kill.one_add_only
+  ok   sibling_kill.a_moved
+  ok   sibling_kill.b_not_moved
+  ok   sibling_kill.b_blocked_before_move
+  ok   sibling_kill.marker_kept
+  ok   sibling_kill.marker_is_the_killed_writes
+  ok   sibling_kill.lock_left
+  ok   sibling_kill.later_run_attributes
+  ok   sibling_kill.not_blamed_on_user
+  ok   sibling_kill.control.every_write_held_its_own_marker
+  ok   sibling_kill.control_exit_0
+  ok   sibling_kill.control_both_staged
+  ok   sibling_kill.control_nothing_left
+== sibling_wipe
+  ok   sibling_wipe.every_write_held_its_own_marker
+  ok   sibling_wipe.one_add_only
+  ok   sibling_wipe.b_not_moved
+  ok   sibling_wipe.b_blocked_by_state
+== marker_pre
+  ok   marker_pre.plant-ff.planted
+  ok   marker_pre.plant-ff.foreign_marker_intact
+  ok   marker_pre.plant-ff.no_write_into_that_git_dir
+  ok   marker_pre.plant-ff.every_write_held_its_own_marker
+  ok   marker_pre.plant-ff.not_exit_0
+  ok   marker_pre.plant-ff.not_moved
+  ok   marker_pre.plant-ff.reported
+  ok   marker_pre.plant-pin.planted
+  ok   marker_pre.plant-pin.foreign_marker_intact
+  ok   marker_pre.plant-pin.no_write_into_that_git_dir
+  ok   marker_pre.plant-pin.every_write_held_its_own_marker
+  ok   marker_pre.plant-pin.not_exit_0
+  ok   marker_pre.plant-pin.not_moved
+  ok   marker_pre.plant-pin.reported
+  ok   marker_pre.plant-follow.planted
+  ok   marker_pre.plant-follow.foreign_marker_intact
+  ok   marker_pre.plant-follow.no_write_into_that_git_dir
+  ok   marker_pre.plant-follow.every_write_held_its_own_marker
+  ok   marker_pre.plant-follow.not_exit_0
+  ok   marker_pre.plant-follow.not_moved
+  ok   marker_pre.plant-follow.reported
+  ok   marker_pre.plant-stage.planted
+  ok   marker_pre.plant-stage.foreign_marker_intact
+  ok   marker_pre.plant-stage.no_write_into_that_git_dir
+  ok   marker_pre.plant-stage.every_write_held_its_own_marker
+  ok   marker_pre.plant-stage.not_exit_0
+  ok   marker_pre.plant-stage.reported
+  ok   marker_pre.race-ff.planted
+  ok   marker_pre.race-ff.foreign_marker_intact
+  ok   marker_pre.race-ff.no_write_into_that_git_dir
+  ok   marker_pre.race-ff.every_write_held_its_own_marker
+  ok   marker_pre.race-ff.not_exit_0
+  ok   marker_pre.race-ff.not_moved
+  ok   marker_pre.race-ff.reported
+  ok   marker_pre.race-pin.planted
+  ok   marker_pre.race-pin.foreign_marker_intact
+  ok   marker_pre.race-pin.no_write_into_that_git_dir
+  ok   marker_pre.race-pin.every_write_held_its_own_marker
+  ok   marker_pre.race-pin.not_exit_0
+  ok   marker_pre.race-pin.not_moved
+  ok   marker_pre.race-pin.reported
+  ok   marker_pre.race-follow.planted
+  ok   marker_pre.race-follow.foreign_marker_intact
+  ok   marker_pre.race-follow.no_write_into_that_git_dir
+  ok   marker_pre.race-follow.every_write_held_its_own_marker
+  ok   marker_pre.race-follow.not_exit_0
+  ok   marker_pre.race-follow.not_moved
+  ok   marker_pre.race-follow.reported
+  ok   marker_pre.race-stage.planted
+  ok   marker_pre.race-stage.foreign_marker_intact
+  ok   marker_pre.race-stage.no_write_into_that_git_dir
+  ok   marker_pre.race-stage.every_write_held_its_own_marker
+  ok   marker_pre.race-stage.not_exit_0
+  ok   marker_pre.race-stage.reported
+  ok   marker_pre.swap-ff.planted
+  ok   marker_pre.swap-ff.foreign_marker_intact
+  ok   marker_pre.swap-ff.no_write_into_that_git_dir
+  ok   marker_pre.swap-ff.every_write_held_its_own_marker
+  ok   marker_pre.swap-ff.not_exit_0
+  ok   marker_pre.swap-ff.not_moved
+  ok   marker_pre.swap-ff.reported
+  ok   marker_pre.swap-pin.planted
+  ok   marker_pre.swap-pin.foreign_marker_intact
+  ok   marker_pre.swap-pin.no_write_into_that_git_dir
+  ok   marker_pre.swap-pin.every_write_held_its_own_marker
+  ok   marker_pre.swap-pin.not_exit_0
+  ok   marker_pre.swap-pin.not_moved
+  ok   marker_pre.swap-pin.reported
+  ok   marker_pre.swap-follow.planted
+  ok   marker_pre.swap-follow.foreign_marker_intact
+  ok   marker_pre.swap-follow.no_write_into_that_git_dir
+  ok   marker_pre.swap-follow.every_write_held_its_own_marker
+  ok   marker_pre.swap-follow.not_exit_0
+  ok   marker_pre.swap-follow.not_moved
+  ok   marker_pre.swap-follow.reported
+  ok   marker_pre.swap-stage.planted
+  ok   marker_pre.swap-stage.foreign_marker_intact
+  ok   marker_pre.swap-stage.no_write_into_that_git_dir
+  ok   marker_pre.swap-stage.every_write_held_its_own_marker
+  ok   marker_pre.swap-stage.not_exit_0
+  ok   marker_pre.swap-stage.reported
+  ok   marker_pre.plant-pinparent.planted
+  ok   marker_pre.plant-pinparent.foreign_marker_intact
+  ok   marker_pre.plant-pinparent.no_write_into_that_git_dir
+  ok   marker_pre.plant-pinparent.every_write_held_its_own_marker
+  ok   marker_pre.plant-pinparent.not_exit_0
+  ok   marker_pre.plant-pinparent.not_moved
+  ok   marker_pre.plant-pinparent.reported
+== stop_pin
+  ok   stop_pin.every_write_held_its_own_marker
+  ok   stop_pin.exit_8
+  ok   stop_pin.add_ran
+  ok   stop_pin.staged_s2
+  ok   stop_pin.nothing_left
+== parent_lock
+  ok   parent_lock.not_exit_0
+  ok   parent_lock.child_not_moved
+  ok   parent_lock.no_write_started
+  ok   parent_lock.blocked_before_move
+  ok   parent_lock.lock_kept
+  ok   parent_lock.late.exit_1
+  ok   parent_lock.late.no_add_started
+  ok   parent_lock.late.stage_blocked_reported
+  ok   parent_lock.late.child_failed
+  ok   parent_lock.late.lock_kept_no_marker
+sync-robustness: PASS 395 FAIL 0
+rc=0

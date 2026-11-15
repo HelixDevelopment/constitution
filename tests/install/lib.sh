@@ -60,14 +60,58 @@ cleanup_sandbox() {
 }
 
 # make_upstream DIR — DIR/upstream.git (bare, real clone of this repo) + DIR/upwork (work clone).
+# A SHALLOW source, or a PARTIAL one (any promisor remote, extensions.partialClone, or a partial-clone filter
+# on any remote), is refused: a bare upstream cloned from it is incomplete too, and every blobless installer
+# clone of it then lazily fetches missing objects back through the same chain, recursively, which set off a
+# runaway process storm on the review host (fixer round 2, F6). Every clone is time-bounded.
+_bounded_git() { timeout -k 5 "${HELIX_TEST_GIT_TIMEOUT:-300}" git "$@"; }
+# _partial_refused LINES — status 0 (refuse) when the `git config --get-regexp` LINES name a partial clone:
+#   extensions.partialclone (any value), remote.*.partialclonefilter (any value), remote.*.promisor that is not
+#   false (false/no/off/0 or an empty value are false; a value-less key is true), or any line it cannot parse.
+# Pure bash over a here-string: the old `printf | grep -Eqi` under `set -o pipefail` returned 141 when grep stopped
+# reading early (a match near the top of a large config), and the `||` turned that 141 into "not partial": the guard
+# accepted the very input it exists to refuse (review round 3, F4; host safety, a runaway lazy-fetch storm).
+# Keys are compared case-insensitively (git prints section and variable names in lower case; the remote name keeps
+# its case). A value that itself holds ".promisor" can only make the guard refuse more, never less.
+_partial_refused() {
+  local line lc v
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ -n "$line" ] || continue
+    lc="${line,,}"
+    if [[ "$lc" =~ ^extensions\.partialclone(\ |$) ]] || [[ "$lc" =~ ^remote\..*\.partialclonefilter(\ |$) ]]; then
+      return 0
+    elif [[ "$lc" =~ ^remote\..*\.promisor(\ (.*))?$ ]]; then
+      [ -n "${BASH_REMATCH[1]}" ] || return 0   # value-less key: a boolean true
+      v="${BASH_REMATCH[2]}"
+      case "$v" in false|no|off|0|"") ;; *) return 0 ;; esac
+    else
+      return 0                                   # a line we cannot read is never clean
+    fi
+  done <<<"$1"
+  return 1
+}
+_refuse_shallow() {  # _refuse_shallow GIT_DIR_OR_WORKTREE LABEL
+  local sh pc rc
+  sh="$(git -C "$1" rev-parse --is-shallow-repository 2>/dev/null)" || { echo "make_upstream: cannot inspect $2 ($1)" >&2; return 1; }
+  # every remote, not only origin (review round 2, m-5); config --get-regexp exits 1 when nothing matches
+  pc="$(git -C "$1" config --get-regexp '^(remote\..*\.(promisor|partialclonefilter)|extensions\.partialclone)$' 2>/dev/null)"; rc=$?
+  if [ "$rc" -gt 1 ]; then echo "make_upstream: cannot read the config of $2 ($1)" >&2; return 1; fi
+  if [ "$sh" != false ] || _partial_refused "$pc"; then
+    echo "make_upstream: refusing a shallow or partial $2 ($1): clone the repository in full first" >&2
+    return 1
+  fi
+}
 make_upstream() {
   local d="${1:?}"
   if [ -n "${HELIX_TEST_UPSTREAM_SEED:-}" ] && [ -d "$HELIX_TEST_UPSTREAM_SEED/upstream.git" ]; then
-    git clone -q --bare "$HELIX_TEST_UPSTREAM_SEED/upstream.git" "$d/upstream.git" || return 1
+    _refuse_shallow "$HELIX_TEST_UPSTREAM_SEED/upstream.git" "seed upstream" || return 1
+    _bounded_git clone -q --bare "$HELIX_TEST_UPSTREAM_SEED/upstream.git" "$d/upstream.git" || return 1
   else
-    git clone -q --bare --no-recurse-submodules "$REPO" "$d/upstream.git" || return 1
+    _refuse_shallow "$REPO" "source repository" || return 1
+    _bounded_git clone -q --bare --no-recurse-submodules "$REPO" "$d/upstream.git" || return 1
     git -C "$d/upstream.git" remote remove origin 2>/dev/null || true
   fi
+  _refuse_shallow "$d/upstream.git" "fixture upstream" || return 1
   # serve partial clones like GitHub/GitLab do (the installer clones blobless)
   git -C "$d/upstream.git" config uploadpack.allowFilter true || return 1
   # The upstream main IS the commit under test: REPO's checked-out HEAD, whatever branch REPO is on.
@@ -81,7 +125,7 @@ make_upstream() {
     git -C "$d/upstream.git" update-ref refs/heads/main "$under_test" || return 1
   fi
   git -C "$d/upstream.git" symbolic-ref HEAD refs/heads/main || return 1
-  git clone -q "$d/upstream.git" "$d/upwork" || return 1
+  _bounded_git clone -q "$d/upstream.git" "$d/upwork" || return 1
   if [ -z "${HELIX_TEST_UPSTREAM_SEED:-}" ] || [ ! -d "$HELIX_TEST_UPSTREAM_SEED/upstream.git" ]; then
     # the clone carries the REAL follow-ups; drop them so the run depends only on the labelled fixtures below
     # (real-repo state must never change the follow-up count the tests assert)

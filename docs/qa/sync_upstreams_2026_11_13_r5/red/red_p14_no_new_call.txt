@@ -1,0 +1,8 @@
+# mutant P14, check no_new_call
+== no_new_call
+  ok   no_new_call.control_trigger_seen
+  ok   no_new_call.control_interrupted
+  ok   no_new_call.only_final_reads_after_stop
+  FAIL no_new_call.no_call_started_after_stop  (git_calls 27, calls seen by the shim 23 (before 23 after 0))
+sync-robustness: PASS 3 FAIL 1
+rc=1

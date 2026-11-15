@@ -1,0 +1,9 @@
+# mutant P24, check out_unwritable
+== out_unwritable
+  ok   out_unwritable.exit_2
+  ok   out_unwritable.not_moved
+  FAIL out_unwritable.existing_dir_exit_2  (rc=1)
+  FAIL out_unwritable.existing_dir_not_moved  ()
+  ok   out_unwritable.control_writable_dir_accepted
+sync-robustness: PASS 3 FAIL 2
+rc=1

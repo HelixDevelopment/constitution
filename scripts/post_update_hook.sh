@@ -26,6 +26,9 @@
 #      changed — NON-INTERACTIVE only, fail-open (see install_jev_bootstrap)
 #   5. chmod +x and syntax-validate all new/modified scripts (label-sync's too)
 #   5b. Hub-structure + §11.4.31 manifest gates + the full-suite manifest gate (every pull, changed files or not)
+#   5c. (Every pull) read-only upstream sync check of the whole project tree:
+#      scripts/sync/sync_all_upstreams.sh --check [--no-fetch]; CONSTITUTION_SYNC_CHECK=offline (default,
+#      no network) | fetch | off; never changes the tree, never fails the hook (BLIND / INCONCLUSIVE warn)
 #   4f. (Every pull; runs right after 5b, before the no-changes early exit) checks
 #      the §11.4.182/§11.4.231(F) agent-type label definitions
 #      T<N>-<branch>-<model>-<effort> in <project>/.claude/agents via
@@ -1176,6 +1179,35 @@ validate_hub_structure() {
 }
 
 # ============================================================================
+# STEP 5c — Upstream sync check (read-only) of the whole project tree
+# ============================================================================
+# Runs on EVERY pull, changed files or not. scripts/sync/sync_all_upstreams.sh in CHECK mode only (it never
+# fast-forwards, stages or commits from here): CONSTITUTION_SYNC_CHECK=offline (default: --check --no-fetch,
+# no network, reports from the refs already present), fetch (--check: fetches every remote of the project and of
+# every submodule), off (skipped). The verdict is printed; CURRENT / UPDATES-AVAILABLE / ATTENTION never change
+# this hook's exit status (they describe the tree, not the propagation); BLIND and INCONCLUSIVE (the engine
+# could not decide) are recorded as WARNINGS; LOCKED (another run holds the lock) is reported.
+check_upstream_sync() {
+    header "STEP 5c: Upstream sync check (scripts/sync/sync_all_upstreams.sh --check)"
+    local m="${CONSTITUTION_SYNC_CHECK:-offline}" lib="$CONST_DIR/scripts/sync/sync_step_lib.sh"
+    case "$m" in
+        off) info "upstream sync check: off (CONSTITUTION_SYNC_CHECK=off)"; return 0 ;;
+        offline|fetch) ;;
+        *) warn "CONSTITUTION_SYNC_CHECK=$m is not offline|fetch|off: skipped"; WARNINGS+=("upstream sync check: unknown mode $m"); return 0 ;;
+    esac
+    if [ ! -f "$lib" ]; then info "upstream sync check: SKIP (this constitution has no scripts/sync/)"; return 0; fi
+    # shellcheck source=sync/sync_step_lib.sh
+    . "$lib"
+    sync_step "$([ "$m" = fetch ] && echo check || echo offline)" "$PROJECT_ROOT" "$CONST_DIR/scripts/sync/sync_all_upstreams.sh" || :
+    if [ "$SYNC_STEP_VERDICT" = BLIND ] || [ "$SYNC_STEP_VERDICT" = INCONCLUSIVE ] || [ "$SYNC_STEP_VERDICT" = INTERRUPTED ]; then
+        warn "upstream sync check: $SYNC_STEP_VERDICT (exit $SYNC_STEP_RC)"; WARNINGS+=("upstream sync check: $SYNC_STEP_VERDICT (exit $SYNC_STEP_RC)")
+    else
+        info "upstream sync check: $SYNC_STEP_VERDICT"
+    fi
+    return 0
+}
+
+# ============================================================================
 # STEP 6 — Report summary
 # ============================================================================
 report_summary() {
@@ -1273,6 +1305,7 @@ main() {
     hint_installed_hook_drift
     detect_changes
     run_step validate_hub_structure   # 5b: every pull, changed files or not; isolated like steps 2-5
+    run_step check_upstream_sync      # 5c: every pull; read-only --check of the whole tree (CONSTITUTION_SYNC_CHECK)
 
     # §11.4.182 / §11.4.231(F): always (idempotent), independent of what changed.
     run_step install_agent_label_defs

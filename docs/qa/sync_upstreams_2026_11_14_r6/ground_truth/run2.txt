@@ -1,0 +1,5 @@
+git: git version 2.53.0
+op=merge signal=SIGTERM rc=-15 lock_during=True index_lock_left=False status_lines=2 first=['?? .gitattributes', '?? f0.slow']
+op=merge signal=SIGKILL rc=-9 lock_during=True index_lock_left=True status_lines=2 first=['?? .gitattributes', '?? f0.slow']
+op=checkout signal=SIGTERM rc=-15 lock_during=True index_lock_left=False status_lines=2 first=['?? .gitattributes', '?? f0.slow']
+op=checkout signal=SIGKILL rc=-9 lock_during=True index_lock_left=True status_lines=2 first=['?? .gitattributes', '?? f0.slow']

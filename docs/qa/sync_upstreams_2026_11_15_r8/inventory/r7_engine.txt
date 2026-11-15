@@ -1,0 +1,33 @@
+control needle: def write_git found 1 (want 1); write_markerX calls 0 (want 0)
+
+== write paths: r.run(..., write=True) (3)
+  line 1391  in write_git    token=None from None
+  line 1393  in write_git    token=None from None
+  line 1442  in write_git    token=None from None
+
+== marker calls (8)
+  line 1397  clear_marker in write_git
+  line 1399  clear_marker in write_git
+  line 1386  write_marker in write_git
+  line 1444  clear_marker in write_git
+  line 1446  clear_marker in write_git
+  line 844  clear_marker in write_marker
+  line 1436  write_marker in write_git
+  line 1922  clear_marker in run
+
+== R4 token checked at the spawn choke point: NO
+
+== violations (10)
+  R1 line 1391 in write_git: write call without a begin_write token
+  R1 line 1393 in write_git: write call without a begin_write token
+  R3 line 1397: clear_marker called in write_git
+  R3 line 1399: clear_marker called in write_git
+  R1 line 1442 in write_git: write call without a begin_write token
+  R2 line 1386: write_marker called in write_git
+  R3 line 1444: clear_marker called in write_git
+  R3 line 1446: clear_marker called in write_git
+  R2 line 1436: write_marker called in write_git
+  R4 Runner.run does not check token_refusal (inside `if write:`) before proc_run_git
+
+INSTRUMENT: SEES
+rc=1
