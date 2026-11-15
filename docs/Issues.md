@@ -4719,5 +4719,86 @@ What: three security hardening scripts under scripts/security/ with their hermet
 **Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/gitenv_class_2026_11_14/red2/arc_git_dir.result.txt` — red-command `bash docs/qa/gitenv_class_2026_11_14/tools/sentinel_run.sh.txt <repo> <out> arc_git_dir git_dir scripts/gates/cm_anchor_record_complete.sh (on 42fd1288)` — green-command `same command on the landed head; SENTINEL=UNCHANGED` — env `host, fresh sentinel repository, GIT_DIR=<sentinel>/.git` — signature `sentinel repository CHANGED under GIT_DIR while the gate exits 0` — updated 2026-11-15T20:22:33Z — by `Claude Opus 5.5 (lander subagent)`
 **Investigation:** root-cause-found-with-evidence — root-cause `GIT_DIR beats git -C and cd; GIT_INDEX_FILE names the index every index-writing command uses; setting or clearing them toggles the sentinel change` — evidence `docs/qa/gitenv_class_2026_11_14/red2/arc_none.result.txt` — updated 2026-11-15T20:18:26Z — by `Claude Opus 5.5 (lander subagent)`
 
-What: a script that runs a writing git command under a caller that set GIT_DIR or GIT_INDEX_FILE (a pre-commit hook, a wrapper) wrote into the caller repository (RED on 42fd1288: cm_agent_type_label.sh made a foreign commit under GIT_DIR; cm_anchor_record_complete.sh renamed a branch and added a commit, a false GREEN). Scope: every tracked code file whose text contains git; entry points scrub the 14-name class at file level, sourced libraries scrub in their git wrappers, GIT_CEILING_DIRECTORIES is kept as the caller limit; scripts/validation/git_env_class_census.py is a closed-world census over git ls-files with exemptions in config/git_env_class_exemptions.tsv; tests/test_git_env_class.sh and tests/test_full_suite_manifest_gate_git_env.sh prove it. Evidence: docs/qa/gitenv_class_2026_11_14/ (round 1), docs/qa/gitenv_class_r2_2026_11_14/, docs/qa/gitenv_class_r3_2026_11_15/, docs/qa/gitenv_class_r4_2026_11_15/. Acceptance: census PASS on main, the four packs SHA256SUMS verify, the class tests pass, review follow-ups F-R5-1 to F-R5-8 tracked. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and host-fixture (section 11.4.289), no live-target proof.
+What: a script that runs a writing git command under a caller that set GIT_DIR or GIT_INDEX_FILE (a pre-commit hook, a wrapper) wrote into the caller repository (RED on 42fd1288: cm_agent_type_label.sh made a foreign commit under GIT_DIR; cm_anchor_record_complete.sh renamed a branch and added a commit, a false GREEN). Scope: every tracked code file whose text contains git; entry points scrub the 14-name class at file level, sourced libraries scrub in their git wrappers, GIT_CEILING_DIRECTORIES is kept as the caller limit; scripts/validation/git_env_class_census.py is a closed-world census over git ls-files with exemptions in config/git_env_class_exemptions.tsv; tests/test_git_env_class.sh and tests/test_full_suite_manifest_gate_git_env.sh prove it. Evidence: docs/qa/gitenv_class_2026_11_14/ (round 1), docs/qa/gitenv_class_r2_2026_11_14/, docs/qa/gitenv_class_r3_2026_11_15/, docs/qa/gitenv_class_r4_2026_11_15/. Acceptance: census PASS on main, the four packs SHA256SUMS verify, the class tests pass, review follow-ups F-R5-1 to F-R5-8 tracked as CON-403 to CON-410 (reviews kept in docs/qa/gitenv_class_r4_2026_11_15/landing/). Status PROVISIONAL (section 11.4.290); evidence class gate-logic and host-fixture (section 11.4.289), no live-target proof.
+
+## CON-403 — git-env census: pinned-fixture rows are not checked against the file (a live gate or a new writer can be exempted by a row alone)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: the pinned-fixture reason (49 rows) is accepted without checking the file; reviewer mutants R503 and R514 survive. Scope: scripts/validation/git_env_class_census.py, config/git_env_class_exemptions.tsv. Reproduction: add a pinned-fixture row for a live gate that writes with git; the census stays PASS. Acceptance: a pinned-fixture row needs the path listed with a matching sha256 in a SHA256SUMS or config/full_suite_excluded.lock and not referenced by a manifest entry or non-docs code (or a closed-evidence-tool reason restricted to docs/qa/**); R503 and R514 killed. Class: test-instrumentation, important; close before the next release tag. Review F-R5-1 (F12). Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+## CON-404 — git-env census: placement of an own (LEGACY) scrub is not checked (reviewer mutant R505 survives)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: an own scrub (unset -v list form) is accepted wherever it sits; R505 survives. The 9 real instances are correct. Scope: scripts/validation/git_env_class_census.py. Acceptance: an own scrub after the first git call or inside a block is UNSCRUBBED; R505 killed. Class: test-instrumentation, minor. Review F-R5-2 (F13). Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+## CON-405 — git-env scrub lines moved 4 of 33 shellcheck directives: 3 disables became file-wide (56 findings hidden), 1 source= directive lost (SC1091)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: inserting the scrub line displaced shellcheck directives; three disable directives now apply file-wide and hide 56 findings, one source= directive no longer applies. The gitenv README claim that shellcheck results are unchanged is wrong for those 4 files. Scope: the 4 files named in review F9. Acceptance: each scrub sits above its directive (or the directive below the scrub); shellcheck results equal the pre-scrub results; README corrected. Class: test-instrumentation (lint scope, no behaviour change) + process-doc, minor. Review F-R5-3 (F9). Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+## CON-406 — Stale SHA256SUMS line docs/qa/engine_created_at_2026_11_13/round2 test_apply_restore_plan.sh after the git-env scrub
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: the git-env vehicle added a scrub line to docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh, so its pack SHA256SUMS line no longer verifies. The second stale line the review found (docs/qa/gitenv_class_2026_11_14/README.md) was refreshed at the CON-402 landing. No gate reads SHA256SUMS. Acceptance: decide whether the pack records the scrubbed file (update the line with a note) or the original (restore the original as a pinned copy); sha256sum -c passes. Class: process-doc, minor. Review F-R5-4 (F11). Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+## CON-407 — git-env census: no-git-execution rows are checked for writes only (a git read passes, R508); redact_cut.sh row wording imprecise
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: a no-git-execution row is only checked against the write detector, so a file that reads with git passes (R508). The redact_cut.sh row says it runs no git, but rc_net is the exec site of its callers' git (safe by its allow-list). Scope: scripts/validation/git_env_class_census.py, config/git_env_class_exemptions.tsv. Acceptance: no-git-execution also fails on git reads; R508 killed; the redact_cut row reworded. Class: test-instrumentation + process-doc, minor. Review F-R5-5. Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+## CON-408 — workable-items Go reads under an ambient GIT_DIR read the wrong repository (closure_seam.go fingerprint, db.go timer fingerprint, version_tags.go)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: Go code under scripts/workable-items runs git reads (git -C dir rev-parse HEAD and others) that inherit an ambient GIT_DIR, so closure_seam.go currentArtifactFingerprint, the db.go timer fingerprint and version_tags.go read another repository's state (section 11.4.201 subject drift). Pre-existing, not introduced by CON-402; the documented Go boundary (go-binary-owed). Scope: scripts/workable-items/cmd/workable-items/{closure_seam.go,db.go,version_tags.go} and the committed binary. Reproduction: UNREPRODUCED on this item; run the closure-seam fingerprint with GIT_DIR aimed at a sentinel repository and compare with the real HEAD. Acceptance: each exec.Command for git clears the 14-name class (env) and the binary is rebuilt; a test with an ambient GIT_DIR reads the right repository. Class: source-defect (pre-existing), minor. Review F-R5-6. Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+## CON-409 — Release-tooling mutation suite: about 206 of 383 mutants carry no kill verdict on the merged tree; full run owed before the next release tag
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: after the git-env scrub of the release scripts, the reviewer killed a 41-mutant sample (41/41) but about 206 mutants have no verdict on the merged tree. Scope: tests/release/test_release_tooling_mutations.sh on the CON-402 landed head. Acceptance: before the next release tag (section 11.4.40) run the full 383-mutant suite (about 8 h, or add sharding) on the landed head and record the verdict per mutant; every survivor filed. Class: test-instrumentation, important. Review F-R5-7 (F10). Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+## CON-410 — git-env class scope note: GIT_CONFIG_COUNT/KEY/VALUE and GIT_CONFIG_PARAMETERS stay outside the 14-name class; core.hooksPath injection not measured
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: the scrub list does not include GIT_CONFIG_* or GIT_CONFIG_PARAMETERS (documented). One probe (GIT_CONFIG_COUNT/KEY/VALUE core.worktree=<foreign>) did not redirect git -C A checkout -- f. core.hooksPath injection through these variables is not measured. Acceptance: measure core.hooksPath and other config-injected redirections; either extend the class with evidence or record why not. Class: process-doc, nit. Review F-R5-8. Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+## CON-411 — Full-suite manifest lacked rows for the 3 sonarqube registry-login tests on main bd0036bd (recurrence of the CON-086 class); gate CM-FULL-SUITE-MANIFEST-COMPLETE added at the pull seam
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+On main bd0036bd, bash scripts/run_full_suite.sh --verify-manifest ended RESULT: MANIFEST-MISMATCH (3 problems; nothing was run) because scripts/sonarqube/tests/test_registry_login.sh, test_registry_login_mutation_test.sh and test_registry_login_wiring.sh were committed (ff539dc8) without manifest rows. Same class as CON-086 (still open, linked per section 11.4.214; minted as a separate item because the files and the commit differ, the section 11.4.214(3) mint-with-link default). The vehicle adds scripts/gates/cm_full_suite_manifest_complete.sh (control-needled --verify-manifest of HEAD through a clean export, ambient git variables cleared), its paired mutation test, a git-environment sentinel test and post_update_hook.sh step 5b wiring. Placeholder id in the vehicle text: CON-PENDING-MANIFEST-SONARQUBE. Evidence: docs/qa/manifest_sonarqube_2026_11_13/. Independent review round 2: GO-with-follow-ups (N1 to N6, minor-class). Status PROVISIONAL (section 11.4.290). Review: review_manifest_r2.md sha256 86daee5ebb2bbcc08251f97c746da88bac2b886b4d5df2c504310eb73b950287 (session scratchpad, not in the tree). Landed inside the CON-402 squash (the gitenv vehicle descends from this vehicle head 42fd1288 and carries newer versions of its files, which also fix N1 to N6); no separate squash.
 

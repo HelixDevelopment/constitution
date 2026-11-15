@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Item | CON-PENDING-MANIFEST-SONARQUBE (recurrence of CON-086, same class; §11.4.214 link, CON-086 still open) |
-| Item note (round 2, F7) | The `Roadmap-Item:` trailer stays the placeholder `CON-PENDING-MANIFEST-SONARQUBE`; no tracker id is minted in this vehicle. The relation to CON-086 is a link only: CON-086 is open, so it is neither reopened nor closed here, and `docs/Issues.md` is not edited by this vehicle. |
+| Item | CON-411 (minted at the landing on main inside the CON-402 squash; recurrence of CON-086, same class; §11.4.214 link, CON-086 still open) |
+| Item note (round 2, F7) | The `Roadmap-Item:` trailer stays the placeholder `CON-PENDING-MANIFEST-SONARQUBE`; no tracker id is minted in this vehicle. At the landing on main the item was minted as CON-411. The relation to CON-086 is a link only: CON-086 is open, so it is neither reopened nor closed here, and `docs/Issues.md` is not edited by this vehicle. |
 | Base | main `bd0036bd` |
 | Status | PROVISIONAL (host fixtures and host checks only). Round-1 independent review: NO-GO. Round-2 fix set: see "Round 2" below; its independent review is pending. |
 | Producer | Claude Opus 5.5 (fixer subagent); effort not settable on this dispatch path, not claimed |
