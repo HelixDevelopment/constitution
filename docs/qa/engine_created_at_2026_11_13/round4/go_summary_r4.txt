@@ -1,0 +1,6 @@
+$ go test -count=1 -v ./...   (module scripts/workable-items, go1.26.4, twice, in two worktrees of the round-4 tree, under systemd-run --user --scope -p TasksMax=2000 nice -n 10)
+run1: rc=0 PASS=877 FAIL=0 SKIP=6; full log sha256 3f06ee7da303aef538e4a113441f7dee92f9ff4ec3116818d48ca680af3d0e73
+run2: rc=0 PASS=877 FAIL=0 SKIP=6; full log sha256 96fd5afaf07aa5931518b762420b2e78f8aad5e6d2ee99fd8ee3bf907098f615
+verdict sets (timings stripped, sorted): run1 sha256 4ef81050e6ea6e05e2b26fe51e0cabeef90e08cf8e3b06d18104fadc5a5e67cd, run2 sha256 4ef81050e6ea6e05e2b26fe51e0cabeef90e08cf8e3b06d18104fadc5a5e67cd; cmp: identical
+round-3 verdicts (round3/go_verdicts_r3_run1.txt, 796) missing or changed in round 4: 0; new verdicts: 87, every one from created_at_r4_test.go: 0 not-R4
+control needle: a fabricated verdict line is reported missing: 1 of 1

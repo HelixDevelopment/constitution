@@ -1,0 +1,22 @@
+PASS A1-dry-run-default
+PASS A2-apply
+PASS A3-idempotent
+PASS A4-final-row-without-newline
+PASS A5-symlinked-evidence-dir-refused
+PASS A5b-symlinked-evidence-file-refused
+PASS A6-dotdot-refused
+PASS A6b-dotdot-inside-root-refused
+PASS A7-absolute-refused
+PASS A8-sha-mismatch-blind
+PASS A9-preexisting-wrong-file
+PASS A10-row-by-row
+PASS A11-fix227-column
+PASS A11b-fix227-id-used
+PASS A11c-main-column
+PASS A12-bad-landing
+PASS A13-git-show-fails
+PASS A14-empty-plan
+PASS A15-dry-run-refusal
+PASS A16-usage
+RESULT: pass=20 fail=0
+rc=0

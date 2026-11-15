@@ -1,0 +1,502 @@
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-obsolete
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-001 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/c1.md)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-fixed
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-001 Issues→Fixed (status=Fixed (→ Fixed.md), evidence=qa/con339/c2.md)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-completed
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-002 Issues→Fixed (status=Completed (→ Fixed.md), evidence=qa/con339/c3.md)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/update-title
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+update: WIT-002 updated in Issues (status=Queued, type=Task)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/update-fixed
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+update: WIT-003 updated in Fixed (status=Obsolete (→ Fixed.md), type=Bug)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/reopen-fixed
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+reopen: WIT-003 reopened, relocated Fixed→Issues (By:AI On:2026-11-13 Reason:test-failed Evidence:qa/con339/reopen.log)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/move-to-issues
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+move: WIT-003 relocated Fixed→Issues (status=Ready for testing, reason=con339 property case: Fixed to Issues)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/move-to-fixed
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+move: WIT-004 relocated Issues→Fixed (status=Obsolete (→ Fixed.md), reason=con339 property case: Issues to Fixed)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/block
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+block: WIT-002 set Operator-blocked in Issues (WHAT:needs an operator decision on the fixture)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/obsolete-details
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+obsolete-details: WIT-003 written (Since:2026-11-13 Reason:not-reproducible Superseding:none Evidence:qa/con339/od.md)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/states-import
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+states import: 1 row(s), 1 change(s), 0 unchanged
+  investigation=in-progress 1
+  reproduction=UNREPRODUCED 1
+states import: applied 1 change(s) from states.tsv
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/states-freeze
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+states freeze: 1 closed item(s) would be exempted (closed before arming, no reproduction record); 0 unconditional closure problem(s) stay reported by validate
+states freeze: gate armed at 2026-11-03T12:00:00Z by conductor; 1 exemption(s) recorded
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/repair-bodies
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+repair-bodies: scanned 4 items — already canonical (0 rewrite, 0 populate, 0 backfill-segment); no changes
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/version-tags
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+version-tags: populated 4 item(s) in <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandversion-tags758703100/001/workable_items.db
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/group-set-item
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+group add: created grp-con339 (destination=main priority=3 state=open)
+group set: classified WIT-002 -> group=grp-con339 destination=main
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/correct-history-evidence
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+correct-history-evidence: WIT-003 history id=5 (Obsolete) evidence_path set to qa/con339/corrected.md (audit row appended)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/diary-add
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+diary add: recorded entry_id=1 on WIT-001 (SKIP, tested_by=AI-agent)
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/add-new-item
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+add: created WIT-005 (Task, status=Queued) in Issues
+=== RUN   TestCON339_CreatedAtPreservedByEveryMutatingCommand/sync-roundtrip
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr342321599/003/Issues.md (522 bytes)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr342321599/003/Fixed.md (249 bytes)
+<scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr342321599/003/Issues.md: 3 items, 3 segments
+<scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr342321599/003/Fixed.md: 1 items, 1 segments
+synced 4 total items into <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr342321599/001/workable_items.db
+--- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand (8.35s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-obsolete (0.37s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-fixed (0.40s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-completed (0.29s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/update-title (0.40s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/update-fixed (0.51s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/reopen-fixed (0.58s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/move-to-issues (0.50s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/move-to-fixed (0.40s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/block (0.67s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/obsolete-details (0.45s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/states-import (0.66s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/states-freeze (0.40s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/repair-bodies (0.32s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/version-tags (0.60s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/group-set-item (0.41s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/correct-history-evidence (0.39s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/diary-add (0.38s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/add-new-item (0.27s)
+    --- PASS: TestCON339_CreatedAtPreservedByEveryMutatingCommand/sync-roundtrip (0.33s)
+=== RUN   TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-001 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/md-move.md)
+add: created WIT-006 (Task, status=Queued) in Issues
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt647389351/004/Issues.md (530 bytes)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt647389351/004/Fixed.md (473 bytes)
+<scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt647389351/004/Issues.md: 3 items, 3 segments
+<scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt647389351/004/Fixed.md: 2 items, 2 segments
+synced 5 total items into <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt647389351/001/workable_items.db
+--- PASS: TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt (0.41s)
+=== RUN   TestCON339_CommandEnumerationGuard
+--- PASS: TestCON339_CommandEnumerationGuard (0.00s)
+=== RUN   TestCON339_ItemsWriteSitesCarryCreatedAt
+--- PASS: TestCON339_ItemsWriteSitesCarryCreatedAt (0.13s)
+=== RUN   TestCON339R2_LookupFallbackDoesNotCrossIDPrefix
+--- PASS: TestCON339R2_LookupFallbackDoesNotCrossIDPrefix (0.00s)
+=== RUN   TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt
+add: created WIT-10 (Task, status=Queued) in Issues
+add: created WIT-100 (Task, status=Queued) in Issues
+close: moved WIT-10 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/r2/WIT-10.md)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt47805968/004/Issues.md (197 bytes)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt47805968/004/Fixed.md (235 bytes)
+<scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt47805968/004/Issues.md: 1 items, 1 segments
+<scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt47805968/004/Fixed.md: 1 items, 1 segments
+synced 2 total items into <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt47805968/001/workable_items.db
+--- PASS: TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt (0.31s)
+=== RUN   TestCON339R2_InnerSnapshotWinsOverPrior
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_InnerSnapshotWinsOverPrior1144109122/003/Issues.md (522 bytes)
+--- PASS: TestCON339R2_InnerSnapshotWinsOverPrior (0.41s)
+=== RUN   TestCON339R2_ReplaceDocumentWithoutPriorKeepsCreatedAt
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_ReplaceDocumentWithoutPriorKeepsCreatedAt2434938711/003/Issues.md (522 bytes)
+--- PASS: TestCON339R2_ReplaceDocumentWithoutPriorKeepsCreatedAt (0.44s)
+=== RUN   TestCON339R2_PriorFillsOnlyAbsentKeys
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_PriorFillsOnlyAbsentKeys2293184146/003/Issues.md (522 bytes)
+--- PASS: TestCON339R2_PriorFillsOnlyAbsentKeys (0.40s)
+=== RUN   TestCON339R2_NewItemInMarkdownGetsTheWriteTime
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+add: created WIT-006 (Task, status=Queued) in Issues
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_NewItemInMarkdownGetsTheWriteTime2302958621/004/Issues.md (716 bytes)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_NewItemInMarkdownGetsTheWriteTime2302958621/004/Fixed.md (249 bytes)
+<scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_NewItemInMarkdownGetsTheWriteTime2302958621/004/Issues.md: 4 items, 4 segments
+<scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_NewItemInMarkdownGetsTheWriteTime2302958621/004/Fixed.md: 1 items, 1 segments
+synced 5 total items into <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_NewItemInMarkdownGetsTheWriteTime2302958621/001/workable_items.db
+--- PASS: TestCON339R2_NewItemInMarkdownGetsTheWriteTime (0.44s)
+=== RUN   TestCON339R2_CloseDualRepCarriesTheClosedRowsValue
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-001 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/r2/dualrep.md)
+--- PASS: TestCON339R2_CloseDualRepCarriesTheClosedRowsValue (0.33s)
+=== RUN   TestCON339R2_LookupExactUsesRepresentation
+--- PASS: TestCON339R2_LookupExactUsesRepresentation (0.00s)
+=== RUN   TestCON339R2_ReplaceDocumentDualRepKeepsEachRowsValue
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+wrote <scratch>/engine_created_at_r2.aU4l/gotmp/TestCON339R2_ReplaceDocumentDualRepKeepsEachRowsValue2030915862/003/Issues.md (522 bytes)
+--- PASS: TestCON339R2_ReplaceDocumentDualRepKeepsEachRowsValue (0.50s)
+=== RUN   TestRestoreCreatedAtR2_FirstEventBoundary
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_FirstEventBoundary (0.34s)
+=== RUN   TestRestoreCreatedAtR2_CurrentValueBoundary
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_CurrentValueBoundary (0.38s)
+=== RUN   TestRestoreCreatedAtR2_AlreadyNeedsValidEvidence
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_AlreadyNeedsValidEvidence (0.35s)
+=== RUN   TestRestoreCreatedAtR2_OnlyOpenedEventAttests
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_OnlyOpenedEventAttests (0.32s)
+=== RUN   TestRestoreCreatedAtR2_EvidenceTypeMustMatch
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_EvidenceTypeMustMatch (0.32s)
+=== RUN   TestRestoreCreatedAtR2_EvidenceTitleMustMatch
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_EvidenceTitleMustMatch (0.37s)
+=== RUN   TestRestoreCreatedAtR2_EveryEvidenceRowIdentityChecked
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_EveryEvidenceRowIdentityChecked (0.39s)
+=== RUN   TestRestoreCreatedAtR2_JournalSidecarRefused
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_JournalSidecarRefused (0.36s)
+=== RUN   TestRestoreCreatedAtR2_NonCanonicalValues
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_NonCanonicalValues (0.36s)
+=== RUN   TestRestoreCreatedAtR2_ConcurrentChangeIsRefused
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_ConcurrentChangeIsRefused (0.29s)
+=== RUN   TestRestoreCreatedAtR2_AuditFailureRollsBack
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_AuditFailureRollsBack (0.37s)
+=== RUN   TestRestoreCreatedAtR2_DryRunDoesNotWrite
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_DryRunDoesNotWrite (0.50s)
+=== RUN   TestRestoreCreatedAtR2_ValueBeforeTrackerRefused
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_ValueBeforeTrackerRefused (0.37s)
+=== RUN   TestRestoreCreatedAtR2_ValueBeforeTrackerBoundary
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_ValueBeforeTrackerBoundary (0.51s)
+=== RUN   TestRestoreCreatedAtR2_DBUnreadable
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_DBUnreadable (0.31s)
+=== RUN   TestRestoreCreatedAtR2_EvidenceIsLiveDBByLink
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_EvidenceIsLiveDBByLink (0.31s)
+=== RUN   TestRestoreCreatedAtR2_AuditRowContent
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_AuditRowContent (0.40s)
+=== RUN   TestRestoreCreatedAtR2_ItemsRowAttestationPreferred
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_ItemsRowAttestationPreferred (0.29s)
+=== RUN   TestRestoreCreatedAtR2_OtherItemsHistoryDoesNotBound
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_OtherItemsHistoryDoesNotBound (0.38s)
+=== RUN   TestRestoreCreatedAtR2_LateHistoryRowDoesNotBound
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_LateHistoryRowDoesNotBound (0.70s)
+=== RUN   TestRestoreCreatedAtR2_LocationNarrowsTheTarget
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR2_LocationNarrowsTheTarget (0.40s)
+=== RUN   TestCON339_CreatedAtFallbackIsEarliestOfTheItem
+--- PASS: TestCON339_CreatedAtFallbackIsEarliestOfTheItem (0.00s)
+=== RUN   TestRestoreCreatedAt_RestoresFromOpenedEvent
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 2 items, all invariants satisfied
+--- PASS: TestRestoreCreatedAt_RestoresFromOpenedEvent (0.32s)
+=== RUN   TestRestoreCreatedAt_ReadOnlyEvidence
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+restore-created-at: WIT-010 [Issues/section] created_at "2026-01-05 12:00:00" -> "2026-01-01 10:00:00" (attested-by=opened-event:WIT-010, evidence-sha256=bcab7cf4e663611261ae78ecadc693a589c39b892cca317f43d321092663bbec)
+--- PASS: TestRestoreCreatedAt_ReadOnlyEvidence (0.45s)
+=== RUN   TestRestoreCreatedAt_RestoresFromItemsRow
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAt_RestoresFromItemsRow (0.51s)
+=== RUN   TestRestoreCreatedAt_IdempotentAndDryRun
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+restore-created-at: WIT-010 [Issues/section] created_at "2026-01-05 12:00:00" -> "2026-01-01 10:00:00" (attested-by=opened-event:WIT-010, evidence-sha256=05d328f989fd2002d7072bae611c3edbcbd7fd2282cde118b51cdd12a7e54177)
+--- PASS: TestRestoreCreatedAt_IdempotentAndDryRun (0.57s)
+=== RUN   TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+add: created WIT-012 (Bug, status=Queued) in Issues
+restore-created-at: WIT-012 [Issues/section] created_at "2026-01-06 00:00:00" -> "2026-01-01 10:00:00" (attested-by=opened-event:WIT-010, evidence-sha256=1a8eed31711170b0713113e2796ab3e290d795257d52c235185f1ad293b1a614)
+--- PASS: TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem (0.83s)
+=== RUN   TestRestoreCreatedAt_AmbiguousRowNeedsNarrowing
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+restore-created-at: WIT-010 [Issues/section] created_at "2026-01-05 12:00:00" -> "2026-01-01 10:00:00" (attested-by=opened-event:WIT-010, evidence-sha256=1a8eed31711170b0713113e2796ab3e290d795257d52c235185f1ad293b1a614)
+--- PASS: TestRestoreCreatedAt_AmbiguousRowNeedsNarrowing (0.74s)
+=== RUN   TestRestoreCreatedAt_Refusals
+=== RUN   TestRestoreCreatedAt_Refusals/missing_reason
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/blank_reason
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/multi-line_reason
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/missing_evidence
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/missing_value
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/positional_argument
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/bad_location
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/bad_representation
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/bad_by
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/ISO-8601_value
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/impossible_date
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/trailing_space
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/date_only
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/sha_not_hex
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/sha_upper_case
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/sha_mismatch
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/live_db_missing
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/evidence_missing
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/evidence_is_a_directory
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/evidence_is_the_live_db
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/evidence_has_a_wal
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/evidence_not_a_database
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/item_not_found
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/location_narrows_to_nothing
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/evidence_names_another_item
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/evidence_id_absent
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/value_not_in_evidence
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/value_later_than_first_event
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/value_later_than_current
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/no_history
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/history_time_unreadable
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAt_Refusals/current_value_unreadable
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAt_Refusals (11.53s)
+    --- PASS: TestRestoreCreatedAt_Refusals/missing_reason (0.32s)
+    --- PASS: TestRestoreCreatedAt_Refusals/blank_reason (0.27s)
+    --- PASS: TestRestoreCreatedAt_Refusals/multi-line_reason (0.23s)
+    --- PASS: TestRestoreCreatedAt_Refusals/missing_evidence (0.37s)
+    --- PASS: TestRestoreCreatedAt_Refusals/missing_value (0.38s)
+    --- PASS: TestRestoreCreatedAt_Refusals/positional_argument (0.92s)
+    --- PASS: TestRestoreCreatedAt_Refusals/bad_location (0.36s)
+    --- PASS: TestRestoreCreatedAt_Refusals/bad_representation (0.41s)
+    --- PASS: TestRestoreCreatedAt_Refusals/bad_by (0.27s)
+    --- PASS: TestRestoreCreatedAt_Refusals/ISO-8601_value (0.37s)
+    --- PASS: TestRestoreCreatedAt_Refusals/impossible_date (0.27s)
+    --- PASS: TestRestoreCreatedAt_Refusals/trailing_space (0.32s)
+    --- PASS: TestRestoreCreatedAt_Refusals/date_only (0.29s)
+    --- PASS: TestRestoreCreatedAt_Refusals/sha_not_hex (0.34s)
+    --- PASS: TestRestoreCreatedAt_Refusals/sha_upper_case (0.52s)
+    --- PASS: TestRestoreCreatedAt_Refusals/sha_mismatch (0.28s)
+    --- PASS: TestRestoreCreatedAt_Refusals/live_db_missing (0.28s)
+    --- PASS: TestRestoreCreatedAt_Refusals/evidence_missing (0.36s)
+    --- PASS: TestRestoreCreatedAt_Refusals/evidence_is_a_directory (0.34s)
+    --- PASS: TestRestoreCreatedAt_Refusals/evidence_is_the_live_db (0.33s)
+    --- PASS: TestRestoreCreatedAt_Refusals/evidence_has_a_wal (0.33s)
+    --- PASS: TestRestoreCreatedAt_Refusals/evidence_not_a_database (0.39s)
+    --- PASS: TestRestoreCreatedAt_Refusals/item_not_found (0.38s)
+    --- PASS: TestRestoreCreatedAt_Refusals/location_narrows_to_nothing (0.41s)
+    --- PASS: TestRestoreCreatedAt_Refusals/evidence_names_another_item (0.37s)
+    --- PASS: TestRestoreCreatedAt_Refusals/evidence_id_absent (0.35s)
+    --- PASS: TestRestoreCreatedAt_Refusals/value_not_in_evidence (0.30s)
+    --- PASS: TestRestoreCreatedAt_Refusals/value_later_than_first_event (0.36s)
+    --- PASS: TestRestoreCreatedAt_Refusals/value_later_than_current (0.32s)
+    --- PASS: TestRestoreCreatedAt_Refusals/no_history (0.34s)
+    --- PASS: TestRestoreCreatedAt_Refusals/history_time_unreadable (0.37s)
+    --- PASS: TestRestoreCreatedAt_Refusals/current_value_unreadable (0.37s)
+PASS
+ok  	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	34.713s
+exit=0

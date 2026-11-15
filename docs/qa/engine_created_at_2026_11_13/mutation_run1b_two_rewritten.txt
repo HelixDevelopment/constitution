@@ -1,0 +1,7 @@
+$ python3 -I scripts/workable-items/mutation/created_at_mutation_runner.py --only restore-no-audit-row,restore-evidence-id-ignored
+date -u: 2026-11-13T21:13:43Z
+CONTROL PASS unmutated ^(TestCON339_|TestRestoreCreatedAt)
+KILLED restore-no-audit-row (the restore writes no item_history row) by TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem,TestRestoreCreatedAt_RestoresFromItemsRow,TestRestoreCreatedAt_RestoresFromOpenedEvent
+KILLED restore-evidence-id-ignored (--evidence-id is ignored) by TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem,TestRestoreCreatedAt_Refusals
+SUMMARY killed=2 survived=0 verdict=PASS
+exit=0

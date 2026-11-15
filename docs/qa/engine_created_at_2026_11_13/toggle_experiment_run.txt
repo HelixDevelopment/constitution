@@ -1,0 +1,87 @@
+$ cd <repo root>; bash docs/qa/engine_created_at_2026_11_13/toggle_experiment.sh <git show bd0036bd:docs/workable_items.db> CON-243 CON-244 docs/qa/engine_created_at_2026_11_13/repro_con339.sh base=<base build> close-only=<close-only build> full-fix=<full-fix build>
+engine wi_base_1264: a3d7a6c357f1bd56f8b16d05aeb1a1e848fffe6fc34a6272ded8308f9f4d70c1
+engine wi_close_only: 0f33e7e9f49434b3eb58849e3e6cdaa5dbfc962c366ce30c345e8a483b61da38
+engine wi_full_fix: f65557693113b6f6b1bbf937135f756038bc09ac29de12857f603f2bfcbc13ff
+date -u: 2026-11-13T20:42:04Z
+source db sha256: 117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4
+===== leg base
+  engine: a3d7a6c357f1bd56f8b16d05aeb1a1e848fffe6fc34a6272ded8308f9f4d70c1
+  db sha256 at start: 117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4
+  == N control needles
+    positive (created_at of the open item): '2026-11-11 15:38:57'
+    negative (an id that cannot exist): ''
+  == C0 in-place control: update --title keeps the row
+    rc=0 created_at before='2026-11-11 15:38:57' after='2026-11-11 15:38:57'
+  == C1 close
+    | close: moved CON-243 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=docs/qa/engine_created_at_2026_11_13/repro_con339.sh)
+    rc=0 created_at before='2026-11-11 15:38:57' after='2026-11-13 20:42:06' (last_modified after='2026-11-13 20:42:06')
+    C1 VERDICT REWRITTEN
+  == S1 sync db-to-md then md-to-db (same documents)
+    | <tmpdir>/tmp.RuEqu7kUDx/Issues.md: 252 items, 252 segments
+    | <tmpdir>/tmp.RuEqu7kUDx/Fixed.md: 11 items, 11 segments
+    | synced 263 total items into <tmpdir>/tmp.h315A66Afm/base.db
+    rows before 263, after 263, common 263, created_at unchanged 0, changed 263
+    e.g. CON-001@Issues@section: 2026-11-11 15:38:57 -> 2026-11-13 20:42:08
+    e.g. CON-002@Issues@section: 2026-11-11 15:38:57 -> 2026-11-13 20:42:08
+    e.g. CON-003@Issues@section: 2026-11-11 15:38:57 -> 2026-11-13 20:42:08
+    db-to-md rc=0 md-to-db rc=0
+    S1 VERDICT REWRITTEN
+  db sha256 at end: 3e83d4ad0fd9a11873fd2143f8a1391e252edc2783c729f99df3a2b632dd3bfe
+  RESULT: created_at REWRITTEN (CON-339 reproduced)
+  repro exit=1
+===== leg close-only
+  engine: 0f33e7e9f49434b3eb58849e3e6cdaa5dbfc962c366ce30c345e8a483b61da38
+  db sha256 at start: 117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4
+  == N control needles
+    positive (created_at of the open item): '2026-11-11 15:38:57'
+    negative (an id that cannot exist): ''
+  == C0 in-place control: update --title keeps the row
+    rc=0 created_at before='2026-11-11 15:38:57' after='2026-11-11 15:38:57'
+  == C1 close
+    | close: moved CON-243 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=docs/qa/engine_created_at_2026_11_13/repro_con339.sh)
+    rc=0 created_at before='2026-11-11 15:38:57' after='2026-11-11 15:38:57' (last_modified after='2026-11-13 20:42:10')
+    C1 VERDICT preserved
+  == S1 sync db-to-md then md-to-db (same documents)
+    | <tmpdir>/tmp.yUIlqiLcUl/Issues.md: 252 items, 252 segments
+    | <tmpdir>/tmp.yUIlqiLcUl/Fixed.md: 11 items, 11 segments
+    | synced 263 total items into <tmpdir>/tmp.h315A66Afm/close-only.db
+    rows before 263, after 263, common 263, created_at unchanged 0, changed 263
+    e.g. CON-001@Issues@section: 2026-11-11 15:38:57 -> 2026-11-13 20:42:11
+    e.g. CON-002@Issues@section: 2026-11-11 15:38:57 -> 2026-11-13 20:42:11
+    e.g. CON-003@Issues@section: 2026-11-11 15:38:57 -> 2026-11-13 20:42:11
+    db-to-md rc=0 md-to-db rc=0
+    S1 VERDICT REWRITTEN
+  db sha256 at end: 787b2614a6301a3fc5472d83a7991561e4b5e7762ff7964d4a2cdf9a958d2662
+  RESULT: created_at REWRITTEN (CON-339 reproduced)
+  repro exit=1
+===== leg full-fix
+  engine: f65557693113b6f6b1bbf937135f756038bc09ac29de12857f603f2bfcbc13ff
+  db sha256 at start: 117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4
+  == N control needles
+    positive (created_at of the open item): '2026-11-11 15:38:57'
+    negative (an id that cannot exist): ''
+  == C0 in-place control: update --title keeps the row
+    rc=0 created_at before='2026-11-11 15:38:57' after='2026-11-11 15:38:57'
+  == C1 close
+    | close: moved CON-243 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=docs/qa/engine_created_at_2026_11_13/repro_con339.sh)
+    rc=0 created_at before='2026-11-11 15:38:57' after='2026-11-11 15:38:57' (last_modified after='2026-11-13 20:42:13')
+    C1 VERDICT preserved
+  == S1 sync db-to-md then md-to-db (same documents)
+    | <tmpdir>/tmp.4OPD1h9dDk/Issues.md: 252 items, 252 segments
+    | <tmpdir>/tmp.4OPD1h9dDk/Fixed.md: 11 items, 11 segments
+    | synced 263 total items into <tmpdir>/tmp.h315A66Afm/full-fix.db
+    rows before 263, after 263, common 263, created_at unchanged 263, changed 0
+    db-to-md rc=0 md-to-db rc=0
+    S1 VERDICT preserved
+  db sha256 at end: 5bf6308d0dba03db6950dbe304688c2dcb7bd828c652a7d3d66c1a2b707188a6
+  RESULT: created_at preserved by every leg
+  repro exit=0
+===== summary
+  leg         C1 = close, S1 = sync md-to-db
+  base        C1=REWRITTEN  S1=REWRITTEN
+  close-only  C1=preserved  S1=REWRITTEN
+  full-fix    C1=preserved  S1=preserved
+  expected: base:REWRITTEN/REWRITTEN close-only:preserved/REWRITTEN full-fix:preserved/preserved
+  observed: base:REWRITTEN/REWRITTEN close-only:preserved/REWRITTEN full-fix:preserved/preserved
+TOGGLE RESULT: matches (each fix site toggles exactly its own leg)
+exit=0

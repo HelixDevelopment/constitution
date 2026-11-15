@@ -1,0 +1,15 @@
+# github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items [github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items.test]
+cmd/workable-items/created_at_snapshot_test.go:13:10: undefined: createdAtSnapshot
+cmd/workable-items/restore_created_at_test.go:133:53: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:183:53: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:202:53: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:212:11: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:217:52: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:239:56: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:243:11: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:261:56: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:265:11: undefined: restoreCreatedAtCmd
+cmd/workable-items/restore_created_at_test.go:265:11: too many errors
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items [build failed]
+FAIL
+exit=1

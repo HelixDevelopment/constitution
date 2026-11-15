@@ -719,6 +719,7 @@ scripts/validation/test_enumerate_decision_mutants.sh	sh	entry	default	bash	-	ov
 scripts/validation/test_enumerate_decision_mutants_r2_regression.sh	sh	entry	default	bash	-	override: tier default: real run_bounded on a `timeout` child (3 s bound) plus the stale-ledger classifier (CON-162 n1, n2); no census run, seconds
 scripts/validation/test_meta_test_verification_r1_regression.sh	sh	entry	heavy	bash	-	auto
 scripts/workable-items	go	entry	default	go-test	-	auto: Go module with *_test.go
+scripts/workable-items/mutation/created_at_mutation_runner.py	py	entry	heavy	python3	-	override: tier heavy: builds one Go test binary per mutant (27 mutants, 17 to 23 minutes measured on 2026-11-13); CON-339
 scripts/workable-items/mutation/states_mutation_runner.py	py	entry	heavy	python3	-	auto
 tests/action_prefix/meta_test_action_prefix_grammar.sh	sh	entry	heavy	bash	-	auto
 tests/action_prefix/test_action_prefix_grammar.sh	sh	entry	default	bash	-	auto
@@ -931,3 +932,5 @@ tests/test_verify_helix_deps_manifests.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/meta_test_token_efficiency.sh	sh	entry	heavy	bash	-	auto
 tests/token_efficiency/test_token_efficiency_integration.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/test_token_efficiency_unit.sh	sh	entry	default	bash	-	auto
+docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh	sh	entry	default	bash	-	auto
+scripts/workable-items/mutation/created_at_r2_mutation_runner.py	py	entry	heavy	python3	-	override: tier heavy: 135 mutants in a temporary worktree of HEAD, full mode about 60 minutes in two shards measured on 2026-11-14 at load 29 to 46; CON-339 rounds 2 to 4
