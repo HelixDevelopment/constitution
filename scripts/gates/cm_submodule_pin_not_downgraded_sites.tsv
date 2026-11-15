@@ -36,6 +36,9 @@ S026	 "${nul// /}	${nul// /}	1	charset	NULROW	blob-nul-unchecked	F3: the space p
 S027	Z=UTC date +	date +	1	date	TZPAIR,EXPBND,TODAY	today-local,today-past,today-future	F2: today is the UTC date (TZPAIR: Kiritimati and Etc/GMT+12 against UTC)
 S028	ctext="$(blo	ctext="$(	1	charset	NULROW	conf-nul-unchecked,blob-nul-unchecked	F3: the config text; a NUL makes blob rc 3 (config disabled), never a silently shortened line
 S029	[ "$crc" = 3 ]	[ "$crc" = 3 ]	1	rc	I036b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I036b
+S029a	sha1) basec=4b825dc	sha1	1	text	nc	unborn-base-fallback-dropped	not constructible: git's object-format value (git rev-parse --show-object-format): git prints exactly sha1 or sha256, so no near miss of the arm label can be produced by git; the arm itself is killed by UNBORN
+S029b	sha256) basec=6ef19b	sha256	1	text	nc	unborn-sha256-arm-dropped,unborn-object-format-unchecked	not constructible: git's object-format value: git prints exactly sha1 or sha256, so no near miss of the arm label can be produced by git; the arm is killed by UNBORN256
+S029c	;; *) blind0 "HEAD is unborn	*	1	rc	I029b	-	internal (arm): the fail-closed default of the object-format case (unknown format -> BLIND); unreachable with real git (inventory I029b)
 S030	[ "$crc" = 2 ]	[ "$crc" = 2 ]	1	rc	I039	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I039
 S031	[ "$crc" = 0 ]	[ "$crc" = 0 ]	1	rc	I040	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I040
 S032	IFS= read -r l	IFS=	1	charset	CONFWS	conf-read-ifs-dropped	config lines read verbatim: a padded key is unknown (no trim)
