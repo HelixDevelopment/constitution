@@ -1,0 +1,11 @@
+  PASS  fallback (no env): HEAD~1 range sees beta only (control needle)
+  PASS  env range c1..c3 used: sees alpha AND beta (differs from fallback => range matters)
+  PASS  env range announces itself
+  PASS  invalid (non-hex) env falls back with a note, alpha not seen
+  PASS  valid-format but unknown commit falls back with a note
+  PASS  only one var set falls back
+  PASS  CONSTITUTION_JEV_HOOK=off honoured with range set
+  PASS  m5: 64-hex (sha256) range accepted and used (sees gamma AND delta)
+  PASS  m4: identical installed consumer -> no drift hint (false-positive guard)
+  PASS  m4: drifted installed consumer -> exactly one hint line naming setup.sh
+== hooks_range summary: 10 passed, 0 failed ==

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# F-2 RED: run the verbatim driver's control needle N times; count left=0 / sid misses
+d="${1:?driver}"; n="${2:?count}"; out="${3:?out}"
+: >"$out"
+for i in $(seq 1 "$n"); do
+  r="$(python3 -I "$d" 10 'trap "" HUP; sleep 30 & rc=0')"
+  printf '%s\t%s\n' "$i" "$r" >>"$out"
+done

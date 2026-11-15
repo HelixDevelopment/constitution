@@ -1,0 +1,24 @@
+  GNU timeout: /usr/bin/gnutimeout   uutils timeout: /usr/bin/timeout
+  ok   timeout census control needles: an ignored site and a bare site are told apart
+  ok   every timeout site of the six scripts is classified (new sites must be added here)
+  ok   hi_run_agent: the job that runs the timeout array ignores SIGTTIN/SIGTTOU
+  ok   hi_lock_pid and up_lock_pid only read a regular non-symlink file
+  ok   the program under gnutimeout does not inherit the ignore (SIGTTIN/SIGTTOU reset)
+  ok   the program under timeout does not inherit the ignore (SIGTTIN/SIGTTOU reset)
+  ok   T1 installer hi_gx, HI_GX_TIMEOUT=2 [gnu]: rc=124 after 2.0s (budget 2s), nothing left
+  ok   T2 updater hi_gx, HI_GX_TIMEOUT=2 [gnu]: rc=124 after 2.0s (budget 2s), nothing left
+  ok   T3 hi_version_of (5 s) [gnu]: rc=0 after 5.0s (budget 5s), nothing left
+  ok   T4 hi_detect_agents: claude-list-accounts (20 s) [gnu]: rc=0 after 20.1s (budget 20s), nothing left
+  ok   T5 hi_detect_agents: claude-providers list (20 s) [gnu]: rc=0 after 20.1s (budget 20s), nothing left
+  ok   T6 hi_run_agent (O_TIMEOUT=2, --kill-after=10) [gnu]: rc=1 after 2.1s (budget 2s), nothing left
+  ok   T7 installer hi_gx, a stub that reads /dev/tty [gnu]: rc=124 after 2.1s (budget 2s), nothing left
+  ok   control needle [uutils]: a direct timeout of the tty stub hangs (rc=CAPPED secs=12.2 left=0)
+  ok   T1 installer hi_gx, HI_GX_TIMEOUT=2 [uutils]: rc=124 after 2.1s (budget 2s), nothing left
+  ok   T2 updater hi_gx, HI_GX_TIMEOUT=2 [uutils]: rc=124 after 2.0s (budget 2s), nothing left
+  ok   T3 hi_version_of (5 s) [uutils]: rc=0 after 5.1s (budget 5s), nothing left
+  ok   T4 hi_detect_agents: claude-list-accounts (20 s) [uutils]: rc=0 after 20.2s (budget 20s), nothing left
+  ok   T5 hi_detect_agents: claude-providers list (20 s) [uutils]: rc=0 after 20.3s (budget 20s), nothing left
+  ok   T6 hi_run_agent (O_TIMEOUT=2, --kill-after=10) [uutils]: rc=1 after 2.1s (budget 2s), nothing left
+  ok   T7 installer hi_gx, a stub that reads /dev/tty [uutils]: rc=124 after 2.1s (budget 2s), nothing left
+timeout_tty: PASS 21 FAIL 0
+rc=0

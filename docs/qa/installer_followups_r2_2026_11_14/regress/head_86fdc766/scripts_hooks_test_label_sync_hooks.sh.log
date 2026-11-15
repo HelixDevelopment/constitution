@@ -1,0 +1,577 @@
+== 0. the scripts under test exist (RED until implemented) ==
+✅ PASS  hook script present: label-sync-lib.sh
+✅ PASS  hook script present: label-sync-session-start.sh
+✅ PASS  hook script present: label-sync-prompt.sh
+✅ PASS  hook script present: label-sync-agent-register.sh
+✅ PASS  hook script present: label-sync-subagent-start.sh
+✅ PASS  hook script present: label-sync-subagent-stop.sh
+✅ PASS  hook script present: label-sync-stop.sh
+✅ PASS  hook script present: label-sync-session-end.sh
+✅ PASS  hook script present: label-sync-model-switch.sh
+✅ PASS  hook script present: label-sync-alias-switch.sh
+✅ PASS  hook script present: request_history_append.sh
+✅ PASS  installer present
+✅ PASS  toolkit wrapper present
+== 1. SessionStart registers the session entity ==
+✅ PASS  session-start exit 0 (got '0' want '0')
+✅ PASS  session entity kind (got 'session' want 'session')
+✅ PASS  session entity session_id (got '11111111-aaaa-bbbb-cccc-000000000001' want '11111111-aaaa-bbbb-cccc-000000000001')
+✅ PASS  session label (alias+model derived from env/transcript) (got '(T1/main - claude1 - opus - ?)' want '(T1/main - claude1 - opus - ?)')
+✅ PASS  session pid recorded (got '4183715' want '4183715')
+✅ PASS  session state running (got 'running' want 'running')
+✅ PASS  SessionStart output is empty or valid JSON
+== 2. UserPromptSubmit: heartbeat + additionalContext + ledger exactly once ==
+✅ PASS  prompt exit 0 (got '0' want '0')
+✅ PASS  heartbeat advanced updated_at (2026-11-14T21:09:50.902808304Z -> 2026-11-14T21:09:52.723876832Z)
+✅ PASS  additionalContext carries the live label (got: [label-sync] current work-stream label: (T1/main - claude1 - opus - ?))
+✅ PASS  additionalContext hookEventName (got 'UserPromptSubmit' want 'UserPromptSubmit')
+✅ PASS  ledger has exactly 1 row after 1 prompt (got '1' want '1')
+✅ PASS  ledger row: prompt content (got 'first request: do X' want 'first request: do X')
+✅ PASS  ledger row: alias (got 'claude1' want 'claude1')
+✅ PASS  ledger row: model (got 'opus' want 'opus')
+✅ PASS  ledger row: track (got '1' want '1')
+✅ PASS  ledger row: effort unknown is literal UNKNOWN (never invented) (got 'UNKNOWN' want 'UNKNOWN')
+✅ PASS  ledger row carries an explicit timezone stamp
+✅ PASS  duplicate delivery of the same prompt within the dedupe window is NOT re-appended (got '1' want '1')
+✅ PASS  a different prompt appends exactly one more row (got '2' want '2')
+✅ PASS  the same text re-submitted AFTER the window is a new prompt (counted) (got '3' want '3')
+✅ PASS  multiline prompt stored verbatim (got 'line1 "quoted"
+line2 \ back' want 'line1 "quoted"
+line2 \ back')
+✅ PASS  no ledger path invented when the project has no docs/requests dir
+✅ PASS  F7 an existing docs/requests dir does NOT auto-create a ledger (opt-in only)
+✅ PASS  F7 a RELATIVE LABEL_SYNC_REQUEST_LEDGER resolves against CLAUDE_PROJECT_DIR
+✅ PASS  F7 the helper run DIRECTLY with no opt-in creates no ledger either (docs/requests exists)
+✅ PASS  F7 the directly-executed helper does not auto-create a ledger from docs/requests either
+== 3. PreToolUse Agent|Task registers the subagent; non-agent tools ignored ==
+✅ PASS  agent-register exit 0 (never blocks) (got '0' want '0')
+✅ PASS  agent-register prints nothing (no noise)
+✅ PASS  subagent registered kind (got 'subagent' want 'subagent')
+✅ PASS  subagent parent is the session (got 'session:11111111-aaaa-bbbb-cccc-000000000001' want 'session:11111111-aaaa-bbbb-cccc-000000000001')
+✅ PASS  subagent label parsed from the description (got '(T1/main - claude1 - opus - high)' want '(T1/main - claude1 - opus - high)')
+✅ PASS  non-agent tool: exit 0 (got '0' want '0')
+✅ PASS  non-agent tool registers nothing
+✅ PASS  unlabelled dispatch: exit 0 (the guard blocks, we never do) (got '0' want '0')
+✅ PASS  unlabelled dispatch registers nothing (guard will block it; no phantom)
+✅ PASS  stale-alias dispatch registers nothing (guard blocks it; no phantom)
+✅ PASS  subagent-start exit 0 (got '0' want '0')
+✅ PASS  subagent still running after SubagentStart (got 'running' want 'running')
+✅ PASS  subagent-stop exit 0 (got '0' want '0')
+✅ PASS  SubagentStop marks the correlated subagent done (got 'done' want 'done')
+== 4. Stop / SessionEnd ==
+✅ PASS  second subagent running (got 'running' want 'running')
+✅ PASS  Stop exit 0 (got '0' want '0')
+✅ PASS  Stop marks the session idle (got 'idle' want 'idle')
+✅ PASS  Stop reaps an UNADOPTED pending subagent (denied/never-started => no phantom) (got 'done' want 'done')
+✅ PASS  next prompt revives the idle session to running (got 'running' want 'running')
+✅ PASS  SessionEnd exit 0 (got '0' want '0')
+✅ PASS  SessionEnd marks the session done (got 'done' want 'done')
+✅ PASS  SessionEnd marks remaining subagents of the session done (got 'done' want 'done')
+✅ PASS  verify still OK after the whole lifecycle
+== 5. alias switch signal ==
+✅ PASS  alias-switch exit 0 (got '0' want '0')
+✅ PASS  alias-switch relabels followers immediately (got '(T1/main - claude2 - sonnet - xhigh)' want '(T1/main - claude2 - sonnet - xhigh)')
+✅ PASS  alias-switch with no alias is a usage error (exit 2) (got '2' want '2')
+✅ PASS  alias-switch rejects unknown flag (exit 2) (got '2' want '2')
+== 6. RESUMED under a DIFFERENT alias: the session re-pins to its own new alias ==
+✅ PASS  before resume: session pinned to its derived alias claude1 (got '(T1/main - claude1 - opus - ?)' want '(T1/main - claude1 - opus - ?)')
+✅ PASS  before resume: session binding is its own (pinned, not following the global active alias) (got 'own' want 'own')
+✅ PASS  before resume: labelled subagent shows its own declared triple (got '(T1/main - claude1 - opus - ?)' want '(T1/main - claude1 - opus - ?)')
+✅ PASS  before resume: alias-less subagent inherits via its session (got '(T1/main - claude1 - opus - ?)' want '(T1/main - claude1 - opus - ?)')
+✅ PASS  resume exit 0 (got '0' want '0')
+✅ PASS  after resume under claude2: session label shows claude2 (got '(T1/main - claude2 - sonnet - ?)' want '(T1/main - claude2 - sonnet - ?)')
+✅ PASS  after resume: the inheriting child follows its session to claude2 (no republish write) (got 'claude2' want 'claude2')
+✅ PASS  after resume: the labelled child keeps the alias it declared (it ran under claude1) (got 'claude1' want 'claude1')
+✅ PASS  after resume: the hook did NOT touch the operator-global active alias (got 'claude1' want 'claude1')
+✅ PASS  later operator switch: the pinned session keeps its own alias claude2 (got 'claude2' want 'claude2')
+✅ PASS  later operator switch: the inheriting child keeps its session's alias (got 'claude2' want 'claude2')
+✅ PASS  later operator switch: an alias-less ROOT follower does follow (claude3) (got '(T1/main - claude3 - haiku - low)' want '(T1/main - claude3 - haiku - low)')
+✅ PASS  resume under the SAME alias does not switch the active alias (got 'claude1' want 'claude1')
+✅ PASS  same-alias resume leaves exactly one session entity
+== 6b. hooks never write the operator-global active context (no read-compare-write race) ==
+✅ PASS  an empty active model is left empty by the hooks (only an explicit switch sets it) (got '' want '')
+✅ PASS  no hook script calls switch-alias (only the CLI signal / toolkit wrapper may)
+== 6c. markdown twin of the ledger (opt-in via marker) ==
+✅ PASS  md twin: block inserted right after the marker (newest first)
+✅ PASS  md twin: prior content preserved
+✅ PASS  md twin: jsonl row also written
+== 7. fail-soft: hooks exit 0 and print nothing when the bus/state/binary is unusable ==
+✅ PASS  session-start: state dir unusable => exit 0, silent (rc=0 out='')
+✅ PASS  session-start: binary missing => exit 0, silent (rc=0)
+✅ PASS  session-start: garbage stdin => exit 0, silent (rc=0)
+✅ PASS  session-start: empty stdin => exit 0 (rc=0)
+✅ PASS  session-start: LABEL_SYNC_DISABLE=1 => exit 0, silent
+✅ PASS  prompt: state dir unusable => exit 0, silent (rc=0 out='')
+✅ PASS  prompt: binary missing => exit 0, silent (rc=0)
+✅ PASS  prompt: garbage stdin => exit 0, silent (rc=0)
+✅ PASS  prompt: empty stdin => exit 0 (rc=0)
+✅ PASS  prompt: LABEL_SYNC_DISABLE=1 => exit 0, silent
+✅ PASS  agent-register: state dir unusable => exit 0, silent (rc=0 out='')
+✅ PASS  agent-register: binary missing => exit 0, silent (rc=0)
+✅ PASS  agent-register: garbage stdin => exit 0, silent (rc=0)
+✅ PASS  agent-register: empty stdin => exit 0 (rc=0)
+✅ PASS  agent-register: LABEL_SYNC_DISABLE=1 => exit 0, silent
+✅ PASS  subagent-start: state dir unusable => exit 0, silent (rc=0 out='')
+✅ PASS  subagent-start: binary missing => exit 0, silent (rc=0)
+✅ PASS  subagent-start: garbage stdin => exit 0, silent (rc=0)
+✅ PASS  subagent-start: empty stdin => exit 0 (rc=0)
+✅ PASS  subagent-start: LABEL_SYNC_DISABLE=1 => exit 0, silent
+✅ PASS  subagent-stop: state dir unusable => exit 0, silent (rc=0 out='')
+✅ PASS  subagent-stop: binary missing => exit 0, silent (rc=0)
+✅ PASS  subagent-stop: garbage stdin => exit 0, silent (rc=0)
+✅ PASS  subagent-stop: empty stdin => exit 0 (rc=0)
+✅ PASS  subagent-stop: LABEL_SYNC_DISABLE=1 => exit 0, silent
+✅ PASS  stop: state dir unusable => exit 0, silent (rc=0 out='')
+✅ PASS  stop: binary missing => exit 0, silent (rc=0)
+✅ PASS  stop: garbage stdin => exit 0, silent (rc=0)
+✅ PASS  stop: empty stdin => exit 0 (rc=0)
+✅ PASS  stop: LABEL_SYNC_DISABLE=1 => exit 0, silent
+✅ PASS  session-end: state dir unusable => exit 0, silent (rc=0 out='')
+✅ PASS  session-end: binary missing => exit 0, silent (rc=0)
+✅ PASS  session-end: garbage stdin => exit 0, silent (rc=0)
+✅ PASS  session-end: empty stdin => exit 0 (rc=0)
+✅ PASS  session-end: LABEL_SYNC_DISABLE=1 => exit 0, silent
+✅ PASS  model-switch: state dir unusable => exit 0, silent (rc=0 out='')
+✅ PASS  model-switch: binary missing => exit 0, silent (rc=0)
+✅ PASS  model-switch: garbage stdin => exit 0, silent (rc=0)
+✅ PASS  model-switch: empty stdin => exit 0 (rc=0)
+✅ PASS  model-switch: LABEL_SYNC_DISABLE=1 => exit 0, silent
+== 8. latency bound (median of 5 per hook; default bound 150 ms, an override is honoured only under HELIX_TEST_MODE=1 and the effective bound is printed per check; load-aware) ==
+✅ PASS  latency stop median 129 ms < 150 ms (wall)
+⏭️  SKIP  latency agent-register: wall 168 ms >= 150 ms but host loaded (loadavg1 42.08 / 16 cores > 0.25/core; cpu 80 ms) [reason=host_loaded] (not counted as PASS)
+❌ FAIL  latency prompt median 309 ms < 150 ms (wall; load 42.08/16 cores not above 0.25/core, cpu 154 ms)
+⏭️  SKIP  latency session-start: wall 261 ms >= 150 ms but host loaded (loadavg1 42.08 / 16 cores > 0.25/core; cpu 125 ms) [reason=host_loaded] (not counted as PASS)
+✅ PASS  latency subagent-stop median 98 ms < 150 ms (wall)
+✅ PASS  latency rule: slow + loaded => SKIP (got 'SKIP' want 'SKIP')
+✅ PASS  latency rule: slow + not loaded + no contention => strict FAIL (got 'FAIL' want 'FAIL')
+✅ PASS  latency rule: slow + not loaded + CPU contention + cpu under bound => CPU_PASS (got 'CPU_PASS' want 'CPU_PASS')
+✅ PASS  latency rule: slow wall + CPU median over the bound + loaded => FAIL (genuine regression, no SKIP) (got 'FAIL' want 'FAIL')
+✅ PASS  latency rule: slow wall + CPU median over the bound + contended => FAIL (got 'FAIL' want 'FAIL')
+✅ PASS  latency rule: fast => PASS even when loaded (got 'PASS' want 'PASS')
+✅ PASS  injected loadavg 9.00 honoured (HELIX_TEST_MODE=1, temp path) => loaded flag (got '1' want '1')
+✅ PASS  injected loadavg 0.01 => not loaded flag (got '0' want '0')
+✅ PASS  injected loadavg IGNORED without HELIX_TEST_MODE=1 (reads /proc/loadavg) (got '/proc/loadavg' want '/proc/loadavg')
+✅ PASS  injected loadavg IGNORED outside the temp root (got '/proc/loadavg' want '/proc/loadavg')
+== 9. toolkit wrapper (cma_label_hook.sh) ==
+✅ PASS  wrapper sources cleanly
+✅ PASS  wrapper: native launch reached the real cma_run exactly once (got '1' want '1')
+✅ PASS  wrapper: args forwarded unchanged (got 'run:/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/home/.claude-claude2:--resume abc' want 'run:/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/home/.claude-claude2:--resume abc')
+✅ PASS  wrapper: native launch published alias_switch (active alias) BEFORE the real launcher ran (got 'active1:claude2' want 'active1:claude2')
+✅ PASS  wrapper: provider launch published provider alias + REAL model from the registry (got 'active2:deepseek:deepseek-v4-pro' want 'active2:deepseek:deepseek-v4-pro')
+✅ PASS  wrapper: provider launch reached the real cma_run_provider exactly once (got '1' want '1')
+✅ PASS  wrapper: provider exit status propagated (got 'rc=7' want 'rc=7')
+✅ PASS  wrapper never reads/prints the provider API key
+✅ PASS  wrapper: native launch under .claude-claude2 sets active alias claude2 (got 'claude2' want 'claude2')
+✅ PASS  wrapper: label tooling disabled/absent never blocks the launch
+✅ PASS  wrapper: launch exit status preserved when tooling is absent (got 'rc=3' want 'rc=3')
+== 10. installer ==
+✅ PASS  dry-run (default) exit 0 (got '0' want '0')
+✅ PASS  dry-run writes NOTHING (settings byte-identical) (got 'c7fd16164932386ded6df11ab927930aa4aeb55361ff43a07ed029a6df77d23d' want 'c7fd16164932386ded6df11ab927930aa4aeb55361ff43a07ed029a6df77d23d')
+✅ PASS  dry-run left no backup file
+✅ PASS  dry-run prints a unified diff
+✅ PASS  dry-run diff mentions our SessionStart hook
+✅ PASS  explicit --dry-run exit 0 (got '0' want '0')
+✅ PASS  explicit --dry-run still writes nothing
+✅ PASS  apply exit 0 (got '0' want '0')
+✅ PASS  apply produced valid JSON
+✅ PASS  apply made a backup of the previous settings
+✅ PASS  unrelated key env preserved (got '{"FOO":"bar"}' want '{"FOO":"bar"}')
+✅ PASS  unrelated key permissions preserved (got '{"allow":["Bash(ls:*)"]}' want '{"allow":["Bash(ls:*)"]}')
+✅ PASS  unrelated PreToolUse * guard hook preserved
+✅ PASS  unrelated Agent|Task hook preserved
+✅ PASS  unrelated Stop user hook preserved
+✅ PASS  event SessionStart wired
+✅ PASS  event UserPromptSubmit wired
+✅ PASS  event PreToolUse wired
+✅ PASS  event SubagentStart wired
+✅ PASS  event SubagentStop wired
+✅ PASS  event Stop wired
+✅ PASS  event SessionEnd wired
+✅ PASS  PreToolUse label hook uses the Agent|Task matcher
+✅ PASS  statusLine wired to the renderer
+✅ PASS  hook commands reference the constitution via $CLAUDE_PROJECT_DIR (portable, never copied)
+✅ PASS  PostModelSwitch NOT wired by default (opt-in; event unconfirmed in docs)
+✅ PASS  apply x3 => byte-identical settings (idempotent) (got '57305c6afb4e965536f1faeb41f52ae28214eb6f8490d3e3f52f61eac6f351e3' want '57305c6afb4e965536f1faeb41f52ae28214eb6f8490d3e3f52f61eac6f351e3')
+✅ PASS  idempotent re-apply creates no extra backup (got '1' want '1')
+✅ PASS  no duplicated entries: our SessionStart hook appears exactly once (got '1' want '1')
+✅ PASS  no duplicated entries: total label-sync hook commands (got '7' want '7')
+✅ PASS  --with-model-switch wires PostModelSwitch
+✅ PASS  invalid JSON refused (exit 1) (got '1' want '1')
+✅ PASS  invalid JSON file left byte-identical (got '6646398d3a5dcf2c9f3508a239f533ad32e025295bc4c9af1043098dd5a87629' want '6646398d3a5dcf2c9f3508a239f533ad32e025295bc4c9af1043098dd5a87629')
+✅ PASS  invalid JSON: no backup/temp litter
+✅ PASS  invalid JSON refusal message names the file
+✅ PASS  invalid JSON refused in dry-run too (exit 1) (got '1' want '1')
+✅ PASS  fresh project apply exit 0 (got '0' want '0')
+✅ PASS  fresh project: settings.json created and valid
+✅ PASS  dry-run on a fresh project creates nothing
+✅ PASS  existing foreign statusLine NOT clobbered (got 'my-own-statusline' want 'my-own-statusline')
+✅ PASS  foreign statusLine reported honestly
+✅ PASS  missing renderer at --apply => exit 2 (got '2' want '2')
+✅ PASS  missing renderer: clear message names the path
+✅ PASS  missing renderer: nothing written
+✅ PASS  missing renderer in DRY-RUN is only a note (exit 0) (got '0' want '0')
+✅ PASS  --no-statusline wires hooks without the renderer (exit 0) (got '0' want '0')
+✅ PASS  --no-statusline: hooks present, statusLine absent
+✅ PASS  user scope with --home exit 0 (got '0' want '0')
+✅ PASS  user scope wrote under --home/.claude/settings.json
+✅ PASS  user scope uses absolute hook paths
+✅ PASS  --home isolation: the process HOME was not written (got '.cache .claude-claude1 .claude-claude2 .config .local ' want '.cache .claude-claude1 .claude-claude2 .config .local ')
+✅ PASS  --config-dir targets <dir>/settings.json
+✅ PASS  --platform all dry-run exit 0 (got '0' want '0')
+✅ PASS  --platform all reports non-Claude platforms honestly
+✅ PASS  unknown platform => usage exit 2 (got '2' want '2')
+✅ PASS  backup is the pre-install original (no label-sync hooks inside)
+✅ PASS  --uninstall --apply exit 0 (got '0' want '0')
+✅ PASS  --uninstall removes every label-sync hook (got '0' want '0')
+✅ PASS  --uninstall keeps unrelated hooks
+✅ PASS  --uninstall removes our statusLine
+== 11. post_update_hook.sh wiring (default NON-destructive) ==
+✅ PASS  post-update (default mode) finished
+✅ PASS  post-update default mode did NOT modify the consumer settings (non-destructive) (got '7b7c6b9ea648b5ceef683442ab331d42105b50daf7e70521ea42bd1553796c73' want '7b7c6b9ea648b5ceef683442ab331d42105b50daf7e70521ea42bd1553796c73')
+✅ PASS  post-update default mode RECORDED what would be wired
+✅ PASS  post-update default mode names the apply switch
+✅ PASS  post-update apply mode wired the hooks
+✅ PASS  post-update apply is idempotent (got 'b48e059191832903869cee0254e9c75c3d2b142bccc9ca8fb0179b123cdd3677' want 'b48e059191832903869cee0254e9c75c3d2b142bccc9ca8fb0179b123cdd3677')
+== 12. F3: ids from stdin are validated — no path traversal, no rm -rf of a stdin path ==
+✅ PASS  F3 session-start: traversal session_id => exit 0 (got '0' want '0')
+✅ PASS  F3 prompt: traversal session_id => exit 0 (got '0' want '0')
+✅ PASS  F3 stop: traversal session_id => exit 0 (got '0' want '0')
+✅ PASS  F3 session-end: traversal session_id => exit 0 (got '0' want '0')
+✅ PASS  F3 session-end with a traversal session_id leaves the victim dir intact
+✅ PASS  F3 no session entity registered for a traversal id
+✅ PASS  F3 subagent-start traversal agent_id => exit 0 (got '0' want '0')
+✅ PASS  F3 traversal agent_id wrote nothing outside the state dir
+✅ PASS  F3 traversal agent_id wrote nothing outside the state dir (2)
+✅ PASS  F3 subagent-stop traversal agent_id leaves the victim file
+✅ PASS  F3 invalid session_id 'a b' => exit 0 (got '0' want '0')
+✅ PASS  F3 invalid session_id 'a
+b' => exit 0 (got '0' want '0')
+✅ PASS  F3 invalid session_id 'a/b' => exit 0 (got '0' want '0')
+✅ PASS  F3 invalid session_id '..' => exit 0 (got '0' want '0')
+✅ PASS  F3 invalid session_id 'xxxxxxxxxxxx' => exit 0 (got '0' want '0')
+✅ PASS  F3 invalid session_id '' => exit 0 (got '0' want '0')
+✅ PASS  F3 NUL-bearing session_id registers nothing (not silently collapsed to 'ab')
+✅ PASS  F3 newline-bearing session_id registers nothing
+✅ PASS  F3 an invalid CLAUDE_CODE_SESSION_ID fallback is rejected too
+✅ PASS  F3 control needle: the legitimate session IS seen by the same list instrument
+✅ PASS  F3 ledger helper: traversal sid => row still written (zero-loss), sid UNKNOWN (got 'UNKNOWN' want 'UNKNOWN')
+✅ PASS  F3 ledger helper: traversal sid never names a dedupe-state file outside its dir
+✅ PASS  F3 session-end source has no rm -rf
+== 13. F1: two terminals on two aliases — each keeps ITS OWN alias through N alias_switch events ==
+✅ PASS  F1 the second launch DID flip the operator-global active alias (control) (got 'claude2' want 'claude2')
+✅ PASS  F1[init] session A entity alias (got 'claude1' want 'claude1')
+✅ PASS  F1[init] session A additionalContext carries ITS OWN alias claude1 (got: [label-sync] current work-stream label: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[init] session A statusline shows ITS OWN alias claude1 (got: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[init] session B entity alias (got 'claude2' want 'claude2')
+✅ PASS  F1[init] session B additionalContext carries ITS OWN alias claude2 (got: [label-sync] current work-stream label: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[init] session B statusline shows ITS OWN alias claude2 (got: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[init] alias-less child of A inherits A's alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch1:claude3] session A entity alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch1:claude3] session A additionalContext carries ITS OWN alias claude1 (got: [label-sync] current work-stream label: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch1:claude3] session A statusline shows ITS OWN alias claude1 (got: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch1:claude3] session B entity alias (got 'claude2' want 'claude2')
+✅ PASS  F1[switch1:claude3] session B additionalContext carries ITS OWN alias claude2 (got: [label-sync] current work-stream label: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch1:claude3] session B statusline shows ITS OWN alias claude2 (got: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch1:claude3] alias-less child of A inherits A's alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch2:claude1] session A entity alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch2:claude1] session A additionalContext carries ITS OWN alias claude1 (got: [label-sync] current work-stream label: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch2:claude1] session A statusline shows ITS OWN alias claude1 (got: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch2:claude1] session B entity alias (got 'claude2' want 'claude2')
+✅ PASS  F1[switch2:claude1] session B additionalContext carries ITS OWN alias claude2 (got: [label-sync] current work-stream label: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch2:claude1] session B statusline shows ITS OWN alias claude2 (got: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch2:claude1] alias-less child of A inherits A's alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch3:claude2] session A entity alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch3:claude2] session A additionalContext carries ITS OWN alias claude1 (got: [label-sync] current work-stream label: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch3:claude2] session A statusline shows ITS OWN alias claude1 (got: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch3:claude2] session B entity alias (got 'claude2' want 'claude2')
+✅ PASS  F1[switch3:claude2] session B additionalContext carries ITS OWN alias claude2 (got: [label-sync] current work-stream label: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch3:claude2] session B statusline shows ITS OWN alias claude2 (got: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch3:claude2] alias-less child of A inherits A's alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch4:deepseek] session A entity alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch4:deepseek] session A additionalContext carries ITS OWN alias claude1 (got: [label-sync] current work-stream label: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch4:deepseek] session A statusline shows ITS OWN alias claude1 (got: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch4:deepseek] session B entity alias (got 'claude2' want 'claude2')
+✅ PASS  F1[switch4:deepseek] session B additionalContext carries ITS OWN alias claude2 (got: [label-sync] current work-stream label: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch4:deepseek] session B statusline shows ITS OWN alias claude2 (got: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch4:deepseek] alias-less child of A inherits A's alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch5:claude4] session A entity alias (got 'claude1' want 'claude1')
+✅ PASS  F1[switch5:claude4] session A additionalContext carries ITS OWN alias claude1 (got: [label-sync] current work-stream label: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch5:claude4] session A statusline shows ITS OWN alias claude1 (got: (T1/main - claude1 - opus - ?))
+✅ PASS  F1[switch5:claude4] session B entity alias (got 'claude2' want 'claude2')
+✅ PASS  F1[switch5:claude4] session B additionalContext carries ITS OWN alias claude2 (got: [label-sync] current work-stream label: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch5:claude4] session B statusline shows ITS OWN alias claude2 (got: (T1/main - claude2 - sonnet - ?))
+✅ PASS  F1[switch5:claude4] alias-less child of A inherits A's alias (got 'claude1' want 'claude1')
+✅ PASS  F1 control: an alias-less root DOES follow the last switch (got 'claude4' want 'claude4')
+== 13b. F9: hooks bound the writer-lock wait (--lock-timeout 500ms) and leave no orphan labelctl ==
+✅ PASS  F9 prompt hook with the writer lock held: exit 0 (got '0' want '0')
+✅ PASS  F9 prompt hook with the lock held returns within 1.2 s — ONE bounded wait (got 785 ms; core default 2 s per call)
+✅ PASS  F9 Stop hook with the lock held returns within 1.2 s — no retry on a busy lock (got 602 ms)
+✅ PASS  F9 a hook killed mid-call leaves no labelctl child running 1.2 s later (got '0' want '0')
+✅ PASS  F9 hooks pass --lock-timeout to every labelctl call (lib)
+== 14. F4/F5: subagent pairing never guesses; every hook is idempotent under double firing ==
+✅ PASS  F5 double PreToolUse => exactly one pending registration (got '1' want '1')
+✅ PASS  F5 the pending registration is keyed by tool_use_id
+✅ PASS  F5 double PreToolUse => exactly one subagent entity (got '1' want '1')
+✅ PASS  F5 SubagentStart pairs the single candidate (got 'subagent:toolu_D1' want 'subagent:toolu_D1')
+✅ PASS  F5 a DOUBLE SubagentStart never re-pairs the agent to another pending registration (got 'subagent:toolu_D1' want 'subagent:toolu_D1')
+✅ PASS  F5 ...and the other pending registration is still waiting
+✅ PASS  F5 double SubagentStop: exit 0 and the entity is done (got '0/done' want '0/done')
+✅ PASS  F5 double SubagentStop never touches the other registration (got 'running' want 'running')
+✅ PASS  F4 two same-type pending registrations => the SubagentStart is NOT paired (no guess)
+✅ PASS  F4 ambiguous: both registrations stay pending
+✅ PASS  F4 ambiguous: SubagentStop of the unpaired agent marks NEITHER done (D2) (got 'running' want 'running')
+✅ PASS  F4 ambiguous: SubagentStop of the unpaired agent marks NEITHER done (P2) (got 'running' want 'running')
+✅ PASS  F4 a unique type match IS paired (got 'subagent:toolu_E1' want 'subagent:toolu_E1')
+✅ PASS  nested dispatch (agent_id of a paired subagent) gets that subagent as parent (got 'subagent:toolu_E1' want 'subagent:toolu_E1')
+✅ PASS  F4 Stop (fired twice) cleans the ambiguous registrations: D2 done (got 'done' want 'done')
+✅ PASS  F4 Stop cleans the ambiguous registrations: P2 done (got 'done' want 'done')
+✅ PASS  control needle: before SessionEnd an agentmap entry of this session IS visible
+✅ PASS  F5 double SessionEnd exit 0 (got '0' want '0')
+✅ PASS  SessionEnd removes the session's pending dir
+✅ PASS  SessionEnd removes the session's agentmap entries
+✅ PASS  SessionEnd marks the never-started registration done (got 'done' want 'done')
+== 15. F2/F7/F11: ledger — large prompts never lost, secrets redacted, failures visible, twin bounded ==
+scripts/hooks/test_label_sync_hooks.sh: line 737: /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/f2/h.jsonl: No such file or directory
+   (prompt of 131072 bytes through the hook via a pipe: 347 ms)
+✅ PASS  F2 131072-byte prompt: hook exit 0 (got '0' want '0')
+✅ PASS  F2 131072-byte prompt: exactly one NEW ledger row (got '1' want '1')
+✅ PASS  F2 131072-byte prompt stored byte-identical (sha256) (got '1501ef3f3fbba062dffe6aed5be9002ad126da53d6808fc6a92fea247e8518ae' want '1501ef3f3fbba062dffe6aed5be9002ad126da53d6808fc6a92fea247e8518ae')
+✅ PASS  F2 131072-byte prompt: prompt_bytes recorded (got '131072' want '131072')
+✅ PASS  F2 131072-byte prompt handled within 4 s (hook timeout is 5 s; got 347 ms)
+   (prompt of 1048576 bytes through the hook via a pipe: 561 ms)
+✅ PASS  F2 1048576-byte prompt: hook exit 0 (got '0' want '0')
+✅ PASS  F2 1048576-byte prompt: exactly one NEW ledger row (got '1' want '1')
+✅ PASS  F2 1048576-byte prompt stored byte-identical (sha256) (got '5d0c687f18181f6047caccbf2d6f8a93c2fbc0523823f99d9ce0d34f1886d075' want '5d0c687f18181f6047caccbf2d6f8a93c2fbc0523823f99d9ce0d34f1886d075')
+✅ PASS  F2 1048576-byte prompt: prompt_bytes recorded (got '1048576' want '1048576')
+✅ PASS  F2 1048576-byte prompt handled within 4 s (hook timeout is 5 s; got 561 ms)
+   (prompt of 8388608 bytes through the hook via a pipe: 2363 ms)
+✅ PASS  F2 8388608-byte prompt: hook exit 0 (got '0' want '0')
+✅ PASS  F2 8388608-byte prompt: exactly one NEW ledger row (got '1' want '1')
+✅ PASS  F2 8388608-byte prompt stored byte-identical (sha256) (got '03b35ac27221e28349259c5e97349e69575d57896d239814021f3996e2ca74d8' want '03b35ac27221e28349259c5e97349e69575d57896d239814021f3996e2ca74d8')
+✅ PASS  F2 8388608-byte prompt: prompt_bytes recorded (got '8388608' want '8388608')
+✅ PASS  F2 8388608-byte prompt handled within 4 s (hook timeout is 5 s; got 2363 ms)
+✅ PASS  F2 no prompt temp file left behind
+✅ PASS  F2 failing append => a 'lost' row is still appended (got 'lost' want 'lost')
+✅ PASS  F2 lost row carries the prompt sha256 (got '34b2b5c9d98319a13fd60a2ecf49e5845b64a4f2185a2c1260134584b880543f' want '34b2b5c9d98319a13fd60a2ecf49e5845b64a4f2185a2c1260134584b880543f')
+✅ PASS  F2 lost row carries the byte count (got '15' want '15')
+✅ PASS  F2 lost row: failure counter incremented (got '1' want '1')
+✅ PASS  F2 lost row: failure visible on stderr under LABEL_SYNC_DEBUG=1
+✅ PASS  F2 lost row: the prompt text itself is not in the lost row
+✅ PASS  F7 no perl => row prompt_kind withheld (got 'withheld' want 'withheld')
+✅ PASS  F7 withheld row never contains the unredacted text
+✅ PASS  F7 withheld counted as a ledger failure (got '1' want '1')
+✅ PASS  F2 oversize prompt => row prompt_kind oversize (got 'oversize' want 'oversize')
+✅ PASS  F2 oversize row: sha256 recorded (got 'ee07216f641886936f16a9610a03eb47c66854714c597de9d9931b196a6e9b8b' want 'ee07216f641886936f16a9610a03eb47c66854714c597de9d9931b196a6e9b8b')
+✅ PASS  F2 oversize row: no text stored (got 'null' want 'null')
+✅ PASS  F7 secret 'ghp_ABCDEFGHIJ' NOT stored in the ledger
+✅ PASS  F7 secret 'glpat-abcdefghij' NOT stored in the ledger
+✅ PASS  F7 secret 'xoxb-1234567890' NOT stored in the ledger
+✅ PASS  F7 secret 'AKIAABCDEFGHIJKLMNOP' NOT stored in the ledger
+✅ PASS  F7 secret 'sk-ant-api03-abc' NOT stored in the ledger
+✅ PASS  F7 secret 'hunter2' NOT stored in the ledger
+✅ PASS  F7 secret 'b3BlbnNzaC1rZXktdjEAAAA' NOT stored in the ledger
+✅ PASS  F7 control needle: non-secret text IS stored (the grep instrument can see the row)
+✅ PASS  F7 redaction count recorded (got '7' want '7')
+✅ PASS  F7 redacted row is labelled verbatim-redacted (got 'verbatim-redacted' want 'verbatim-redacted')
+✅ PASS  F7 dedupe state stores a hash, never the prompt text
+✅ PASS  F11 the same prompt from two DIFFERENT sessions inside the window => two rows (got '2' want '2')
+✅ PASS  F11 md twin larger than LABEL_SYNC_LEDGER_MD_MAX is NOT rewritten (got '1ebd2153d84a367aa4a662a4c1bf9b28d1c21d1b2f2c755f533ec0cb3771750b' want '1ebd2153d84a367aa4a662a4c1bf9b28d1c21d1b2f2c755f533ec0cb3771750b')
+✅ PASS  F11 ...while the jsonl row is still written
+✅ PASS  F11 md twin stores at most a bounded excerpt of a 128 KiB prompt (twin is 4472 bytes)
+✅ PASS  F11 md twin points at the full text in the jsonl
+== 16. F11: SessionStart's own 'model' field wins over the transcript lookup; toolkit wrapper is zsh-safe ==
+✅ PASS  F11 SessionStart payload model (haiku) is used, not the transcript's (opus) (got 'haiku' want 'haiku')
+✅ PASS  F11 a non-string payload model is ignored (falls back to the derived model) (got 'opus' want 'opus')
+✅ PASS  F11 toolkit wrapper CODE (comments excluded) does not use 'declare -F' (a FLOAT typeset in zsh)
+✅ PASS  F11 control needle: the same comment-stripping instrument DOES see code lines (typeset -f)
+== 17. F6: post_update_hook.sh in a WORKTREE / non-git consumer never aborts before step 4c ==
+✅ PASS  F6 fixture: the consumer is a worktree (.git is a FILE, no .git/hooks dir)
+✅ PASS  F6 worktree consumer: post_update_hook exits 0 (got '0' want '0')
+✅ PASS  F6 worktree consumer: step 4c ran
+✅ PASS  F6 worktree consumer: the run reached step 5 and the summary
+✅ PASS  F6 worktree consumer: label-sync hooks were wired
+✅ PASS  F6 a real git hook name (post-merge) is installed into git's hooks path (/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/wtmain/.git/hooks)
+✅ PASS  F6 a NON-hook file (test_label_sync_hooks.sh) is NOT copied into the hooks dir
+✅ PASS  F6 a NON-hook file (guard-*.sh) is NOT copied into the hooks dir
+✅ PASS  F6 non-git consumer: post_update_hook exits 0 (missing hooks dir is a warning, not an abort) (got '0' want '0')
+✅ PASS  F6 non-git consumer: step 4c still ran
+✅ PASS  F6 installer refusal inside step 4c is reported as a warning
+✅ PASS  R01 ...and that warning survives the step subshell into the SUMMARY's Warnings list
+✅ PASS  F6 ...and the hook still reaches step 5 (step 4c never aborts the run)
+✅ PASS  R1 a refused label-sync install is a WARNING, not a failed step (hook exit 0) (got '0' want '0')
+✅ PASS  R1 ...no 'step install_label_sync FAILED' line
+✅ PASS  4b fixture: install_cli_agent_plugins.sh is ABSENT
+✅ PASS  4b missing installer: step 4b actually ran (control needle)
+✅ PASS  4b missing installer is reported as a warning
+✅ PASS  4b missing installer: post_update_hook exits 0 (got '0' want '0')
+✅ PASS  4b missing installer: step 4c STILL ran
+✅ PASS  4b missing installer: label-sync hooks were still wired by step 4c
+✅ PASS  4b missing installer: the run reached step 5
+== 18. F8/F5/F7: installer edge cases ==
+✅ PASS  F8 apply over an operator-customised entry: exit 0 (got '0' want '0')
+✅ PASS  F8 refreshed entry count stays 1 (got '1' want '1')
+✅ PASS  F8 operator-set timeout (30) preserved on refresh (got '30' want '30')
+✅ PASS  F8 operator extra key preserved on refresh (got 'true' want 'true')
+✅ PASS  F8 operator env prefix preserved, path refreshed (got: FOO=1 BAR='x y' bash "/mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/label-sync/)
+✅ PASS  F8 file mode 0644 preserved (not silently tightened/loosened) (got '644' want '644')
+✅ PASS  F8 symlinked settings: apply exit 0 (got '0' want '0')
+✅ PASS  F8 symlinked settings.json is STILL a symlink
+✅ PASS  F8 the symlink TARGET carries the wiring
+✅ PASS  F8 the symlink target's mode (0640) preserved (got '640' want '640')
+✅ PASS  F8 --with-model-switch with the script missing => exit 2 (got '2' want '2')
+✅ PASS  F8 --with-model-switch missing script: nothing written
+✅ PASS  F8 constitution path with shell metacharacter (a$(touch x)b) => exit 2 (got '2' want '2')
+✅ PASS  F8 metacharacter path (a$(touch x)b): nothing written
+✅ PASS  F8 metacharacter path (a$(touch x)b): refused FOR the metacharacter (not another precondition)
+✅ PASS  F8 constitution path with shell metacharacter (a`id`b) => exit 2 (got '2' want '2')
+✅ PASS  F8 metacharacter path (a`id`b): nothing written
+✅ PASS  F8 metacharacter path (a`id`b): refused FOR the metacharacter (not another precondition)
+✅ PASS  F8 constitution path with shell metacharacter (a"b) => exit 2 (got '2' want '2')
+✅ PASS  F8 metacharacter path (a"b): nothing written
+✅ PASS  F8 metacharacter path (a"b): refused FOR the metacharacter (not another precondition)
+✅ PASS  F8 constitution path with shell metacharacter (a\b) => exit 2 (got '2' want '2')
+✅ PASS  F8 metacharacter path (a\b): nothing written
+✅ PASS  F8 metacharacter path (a\b): refused FOR the metacharacter (not another precondition)
+✅ PASS  F8 project scope without --force-statusline: exit 0 (got '0' want '0')
+✅ PASS  F8 project scope without --force-statusline: statusLine NOT written
+✅ PASS  F8 project scope without --force-statusline: warns and names the flag
+✅ PASS  F8 project scope WITH --force-statusline: statusLine written
+✅ PASS  uninstall keeps a FOREIGN statusLine (got 'my-own' want 'my-own')
+✅ PASS  F8 settings dir locked by another writer => exit 2 (got '2' want '2')
+✅ PASS  F8 locked: settings untouched (got 'ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356' want 'ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356')
+✅ PASS  F8 lock released => apply proceeds (got '0' want '0')
+✅ PASS  F5 dry-run with the other scope wired: exit 0 (got '0' want '0')
+✅ PASS  F5 dry-run WARNS that the user scope already carries label-sync hooks
+✅ PASS  F5 --apply refused while the other scope is wired (exit 2) (got '2' want '2')
+✅ PASS  F5 refused: nothing written
+✅ PASS  F5 --allow-both-scopes overrides (exit 0) (got '0' want '0')
+✅ PASS  F5 --other-settings names the other scope explicitly (refused when wired) (got '2' want '2')
+✅ PASS  F7 --request-ledger apply exit 0 (got '0' want '0')
+✅ PASS  F7 --request-ledger writes env.LABEL_SYNC_REQUEST_LEDGER (got 'docs/requests/history.jsonl' want 'docs/requests/history.jsonl')
+✅ PASS  F7 warns: the ledger is inside a git work tree and NOT ignored (git add . would commit prompts)
+✅ PASS  F7 no tracking warning once the ledger path is git-ignored
+== 19. review-2: branch names with ')' / '"' / unicode / 200 chars; honest pinned wording; model switch survives the next prompt ==
+✅ PASS  F1[fix(ui)] fixture branch checked out
+✅ PASS  F1/F10[fix(ui)] SessionStart output is valid JSON
+✅ PASS  F1[fix(ui)] the derived alias is kept (not lost to a mis-split) (got 'claude2' want 'claude2')
+✅ PASS  F1[fix(ui)] the session is pinned (follow_active false) (got 'false' want 'false')
+✅ PASS  F1[fix(ui)] SessionStart says pinned only because it IS pinned (got: [label-sync] work-stream label of this session: (T?/fix(ui_ - claude2 - sonnet - ?) (pinned to the a)
+✅ PASS  F1[fix(ui)] after an alias switch the session still shows its own alias claude2
+✅ PASS  F1[fix(ui)] labelctl register --derive succeeds (was exit 2 on ')') (got '0' want '0')
+✅ PASS  F1[fix(ui)] --derive pins the derived alias (got: (T?/fix(ui_ - claude2 - ? - ?))
+✅ PASS  F1[q"uote] fixture branch checked out
+✅ PASS  F1/F10[q"uote] SessionStart output is valid JSON
+✅ PASS  F1[q"uote] the derived alias is kept (not lost to a mis-split) (got 'claude2' want 'claude2')
+✅ PASS  F1[q"uote] the session is pinned (follow_active false) (got 'false' want 'false')
+✅ PASS  F1[q"uote] SessionStart says pinned only because it IS pinned (got: [label-sync] work-stream label of this session: (T?/q"uote - claude2 - sonnet - ?) (pinned to the al)
+✅ PASS  F1[q"uote] after an alias switch the session still shows its own alias claude2
+✅ PASS  F1[q"uote] labelctl register --derive succeeds (was exit 2 on ')') (got '0' want '0')
+✅ PASS  F1[q"uote] --derive pins the derived alias (got: (T?/q"uote - claude2 - ? - ?))
+✅ PASS  F1[größe-ünï] fixture branch checked out
+✅ PASS  F1/F10[größe-ünï] SessionStart output is valid JSON
+✅ PASS  F1[größe-ünï] the derived alias is kept (not lost to a mis-split) (got 'claude2' want 'claude2')
+✅ PASS  F1[größe-ünï] the session is pinned (follow_active false) (got 'false' want 'false')
+✅ PASS  F1[größe-ünï] SessionStart says pinned only because it IS pinned (got: [label-sync] work-stream label of this session: (T?/größe-ünï - claude2 - sonnet - ?) (pinned to the)
+✅ PASS  F1[größe-ünï] after an alias switch the session still shows its own alias claude2
+✅ PASS  F1[größe-ünï] labelctl register --derive succeeds (was exit 2 on ')') (got '0' want '0')
+✅ PASS  F1[größe-ünï] --derive pins the derived alias (got: (T?/größe-ünï - claude2 - ? - ?))
+✅ PASS  F1[feat/xxxxxxx] fixture branch checked out
+✅ PASS  F1/F10[feat/xxxxxxx] SessionStart output is valid JSON
+✅ PASS  F1[feat/xxxxxxx] the derived alias is kept (not lost to a mis-split) (got 'claude2' want 'claude2')
+✅ PASS  F1[feat/xxxxxxx] the session is pinned (follow_active false) (got 'false' want 'false')
+✅ PASS  F1[feat/xxxxxxx] SessionStart says pinned only because it IS pinned (got: [label-sync] work-stream label of this session: (T?/feat/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+✅ PASS  F1[feat/xxxxxxx] after an alias switch the session still shows its own alias claude2
+✅ PASS  F1[feat/xxxxxxx] labelctl register --derive succeeds (was exit 2 on ')') (got '0' want '0')
+✅ PASS  F1[feat/xxxxxxx] --derive pins the derived alias (got: (T?/feat/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+✅ PASS  F10 the '"' in a branch survives the JSON escape (decoded additionalContext) (got 'q"uote' want 'q"uote')
+✅ PASS  F1 an alias-less session is NOT reported pinned (got: [label-sync] work-stream label of this session: (T1/main - ? - ? - ?) (follows the operator's active alias: no alias cou)
+✅ PASS  F1 control: that session really follows (follow_active true) (got 'true' want 'true')
+✅ PASS  F3 fixture: session starts on opus (got 'opus' want 'opus')
+✅ PASS  F3 PostModelSwitch sets sonnet (got 'sonnet' want 'sonnet')
+✅ PASS  F3 the next prompt does NOT undo the switch from the pre-switch transcript (got 'sonnet' want 'sonnet')
+✅ PASS  F3 additionalContext carries the switched model (got: [label-sync] current work-stream label: (T1/main - claude1 - sonnet - ?))
+✅ PASS  F3 a re-asserting hook (agent register) keeps the switched model too (got 'sonnet' want 'sonnet')
+✅ PASS  R4 a '<synthetic>' assistant entry does NOT undo the recorded switch (got 'sonnet' want 'sonnet')
+✅ PASS  F3 a NEWER assistant entry proves the live model (haiku) and wins (got 'haiku' want 'haiku')
+✅ PASS  F3 the superseded switch record is removed
+✅ PASS  R4 the labeler skips a trailing '<synthetic>' entry (model stays haiku) (got 'haiku' want 'haiku')
+✅ PASS  F3 SessionEnd removes the switch record
+== 20. review-2 C/D/E/L: post_update_hook isolates steps, resolves MCP paths, runs the adapters step, syntax-checks label-sync scripts ==
+✅ PASS  C an unparseable consumer .mcp.json: the hook still completes (exit 1 only for the planted syntax error) (got '1' want '1')
+✅ PASS  C every step ran despite the bad .mcp.json: STEP 3
+✅ PASS  C every step ran despite the bad .mcp.json: STEP 4:
+✅ PASS  C every step ran despite the bad .mcp.json: STEP 4b
+✅ PASS  C every step ran despite the bad .mcp.json: STEP 4c
+✅ PASS  C every step ran despite the bad .mcp.json: STEP 4d
+✅ PASS  C every step ran despite the bad .mcp.json: STEP 5
+✅ PASS  C every step ran despite the bad .mcp.json: SUMMARY
+✅ PASS  C the unparseable .mcp.json is reported as a warning
+✅ PASS  C the unparseable .mcp.json is left byte-identical (got 'ff9ce953633c98e6fb6f40d55d165796d6b4541d8ae93a163f4ed04d37ffb872' want 'ff9ce953633c98e6fb6f40d55d165796d6b4541d8ae93a163f4ed04d37ffb872')
+✅ PASS  L a label-sync script with a syntax error is caught by step 5
+✅ PASS  R1 step 5 keeps going after a syntax error: the SECOND broken script is reported too
+✅ PASS  R1 a recorded syntax error does not end validate_scripts as FAILED
+✅ PASS  E step 4d ran install_adapters.sh in DRY-RUN by default
+✅ PASS  E the default adapters step wrote NOTHING into the user's home (got '0' want '0')
+✅ PASS  R3 the merged MCP entry launches through sh (resolves the project root itself) (got 'sh' want 'sh')
+✅ PASS  R3 ...and names the vendored server path as $0 (got 'constitution/scripts/label-sync/mcp/label-mcp.sh' want 'constitution/scripts/label-sync/mcp/label-mcp.sh')
+✅ PASS  D ...and that file exists from the project root
+✅ PASS  R3 started from a nested sub-directory the server is found and runs at the project root (got 'probe-ran /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/c20' want 'probe-ran /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/c20')
+✅ PASS  R3 started from the project root it runs the same server (got 'probe-ran /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/c20' want 'probe-ran /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/c20')
+✅ PASS  R3.4 started below a nested constitution/ the launcher still runs the server next to .mcp.json (got 'probe-ran /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/c20' want 'probe-ran /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/c20')
+✅ PASS  R3.5 a server key with a space is launched through sh (got 'sh' want 'sh')
+✅ PASS  R3.5 ...and no word-split garbage keys appear (got '0' want '0')
+✅ PASS  R3 started outside the project it fails loudly instead of running something else (got: label-sync MCP launcher: constitution not found above /)
+✅ PASS  D no guessed "type" key in the merged entry (got 'false' want 'false')
+✅ PASS  E LABEL_SYNC_ADAPTERS=off skips the adapters step
+✅ PASS  C a failing step is recorded with its exit code
+✅ PASS  C the steps after a failing step still ran: STEP 4d
+✅ PASS  C the steps after a failing step still ran: STEP 5
+✅ PASS  C the steps after a failing step still ran: SUMMARY
+== 21. review-2 finding 13: the default binary cache is keyed per checkout (path) and per commit ==
+✅ PASS  13 two checkouts get two different default caches (/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/xdg/constitution-label-sync/bin-d7981bd9 vs /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/xdg/constitution-label-sync/bin-d7981bda)
+✅ PASS  13 the hooks resolve the SAME cache dir as labelctl.sh (fork-free key) (got '/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/xdg/constitution-label-sync/bin-d7981bd9' want '/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/ls_hooks_test.fj2tdE/xdg/constitution-label-sync/bin-d7981bd9')
+✅ PASS  13 fixture: the launcher builds checkout A (go present) (got '0' want '0')
+✅ PASS  13 control: binaries the launcher just built are fresh (no go needed) (got '0' want '0')
+✅ PASS  R5 identical source with newer mtimes is still fresh (no go => used, not exit 2) (got '0' want '0')
+✅ PASS  R5 a commit that does not touch the module keeps the binaries fresh (got '0' want '0')
+✅ PASS  R3.2 a committed SHELL-script edit under the module does not make the Go binaries stale (got '0' want '0')
+✅ PASS  R5 an UNCOMMITTED source edit makes them stale (no go => exit 2) (got '2' want '2')
+✅ PASS  R5 a commit that changes the module source makes them stale (no go => exit 2) (got '2' want '2')
+✅ PASS  R3.2 fixture: built from a DIRTY tree (go present) (got '0' want '0')
+✅ PASS  R3.2 a binary built from uncommitted sources is stale once they are reverted (exit 2) (got '2' want '2')
+✅ PASS  R3.3 fixture: built in an archive checkout without .git (got '0' want '0')
+✅ PASS  R3.3 identical sources in a checkout without .git stay fresh (no go => used, not exit 2) (got '0' want '0')
+✅ PASS  R5 a prebuilt LABEL_SYNC_BIN without a stamp and newer than every source is used (no go) (got '0' want '0')
+== 22. re-review 1/3: errexit inside every post-update step; per-item failures are ERRORs; exit/set -u contained ==
+✅ PASS  R1 skills that cannot be linked make the hook exit 1 (got '1' want '1')
+✅ PASS  R3.6 EVERY changed skill is attempted: foo's failure recorded
+✅ PASS  R3.6 ...and bar's failure recorded too (no stop at the first)
+✅ PASS  R1 never 'completed successfully' after a failed install
+✅ PASS  R1 no 'Linked' line for a link that failed
+✅ PASS  R1 the link was not created
+✅ PASS  R1 the steps after the failures still ran: STEP 3
+✅ PASS  R1 the steps after the failures still ran: STEP 5
+✅ PASS  R1 the steps after the failures still ran: SUMMARY
+✅ PASS  R1 an unhandled command failing inside a step makes the hook exit 1 (got '1' want '1')
+✅ PASS  R1 ...the step is reported FAILED
+✅ PASS  R1 ...it ended at that command (no skill was attempted)
+✅ PASS  R1 ...and the next steps still ran: SUMMARY
+✅ PASS  R1 an 'exit' inside a step ends only that step (hook exit 1, not aborted) (got '1' want '1')
+✅ PASS  R1 ...recorded with the step's exit code
+✅ PASS  R1 ...and the next steps still ran: SUMMARY
+✅ PASS  R3.6 ...and the directory in the way is left in place, untouched
+✅ PASS  R3.6 a git hook that cannot be installed is an ERROR (hook exit 1), like a skill link (got '1' want '1')
+✅ PASS  R3.6 ...named in the errors
+✅ PASS  R11 the fault seams are inert without POST_UPDATE_HOOK_TEST_MODE=1 (clean run exit 0) (got '0' want '0')
+✅ PASS  R11 ...no forced failure appears
+✅ PASS  R11 ...and the real step did its work (link created)
+✅ PASS  R3.8 a skill script whose NAME contains a newline is validated as ONE path (no false SYNTAX ERROR)
+✅ PASS  R3.6 control: the hook really was installed on the clean run
+== 23. re-review 3 finding 8, whole class: the step-1 changed-file list is NUL-safe (no glob, no quotePath) ==
+✅ PASS  R3.8b the run with glob/non-ASCII skill names is clean (exit 0) (got '0' want '0')
+✅ PASS  R3.8b a skill named 'g*' is linked under its literal name (not glob-expanded)
+✅ PASS  R3.8b ...the consumer's cwd files never became skill names
+✅ PASS  R3.8b a non-ASCII skill name ('ü') is detected and linked (git quotePath not fed to the classifier)
+✅ PASS  R3.8b control: a plain skill is linked
+----------------------------------------------------------------------
+label-sync hooks suite: 538 passed, 1 failed, 2 skipped

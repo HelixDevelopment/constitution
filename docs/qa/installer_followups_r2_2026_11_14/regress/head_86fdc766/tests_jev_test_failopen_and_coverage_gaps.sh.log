@@ -1,0 +1,24 @@
+ok 1 - A1 hook rc 0 although bootstrap fails (fail-open)
+ok 2 - A1 degraded to --defer
+ok 3 - A1 pending stamp written
+ok 4 - A1 failure surfaced as a WARNING (never silent)
+ok 5 - A1 failure is NOT escalated to a hook ERROR
+ok 6 - A1-NEG: healthy bootstrap does NOT defer
+ok 7 - A2 hook rc 0 even when bootstrap AND --defer both fail
+ok 8 - A2 total failure is logged loudly, not swallowed
+skip - A3 jev-gate.sh not available in this tree (claude_toolkit submodule not populated / only a stand-in); UNCONFIRMED here — set JEV_GATE_SCRIPT to run
+ok 9 - A4 docs/jev/governance-guide.md declares the fail-open semantic
+ok 10 - A4 skills/jev-decision-layer/SKILL.md declares the fail-open semantic
+ok 11 - B register.sh rc 0
+ok 12 - B opencode coverage-gap note written
+ok 13 - B verbatim: hook intercepts direct tool calls only
+ok 14 - B verbatim: MCP-tool calls named as NOT covered
+ok 15 - B verbatim: subagent/task calls named as NOT covered
+ok 16 - B verbatim: states those classes bypass the gate
+ok 17 - B NEG: note never claims full coverage
+ok 18 - B plugin source repeats the coverage-gap caveat
+ok 19 - B note byte-stable across re-registration
+ok 20 - B SKILL.md limitations record the opencode gap
+ok 21 - B gate CM-JEV-WIRING green with the note present
+ok 22 - B NEG: CM-JEV-WIRING RED when the opencode gap note is removed
+# test_failopen_and_coverage_gaps.sh: pass=22 fail=0 skip=1

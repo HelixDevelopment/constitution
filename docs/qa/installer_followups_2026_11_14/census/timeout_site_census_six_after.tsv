@@ -1,0 +1,8 @@
+scripts/install_constitution.sh	hi_gx	yes	472	if [ -n "${HI_GX_TIMEOUT:-}" ]; then exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
+scripts/install_constitution.sh	hi_version_of	yes	602	v="$(cd / && trap '' TTIN TTOU && timeout 5 "$1" --version </dev/null 2>&1 | awk 'NR == 1')"   # awk reads to EOF: no SIGPIPE
+scripts/install_constitution.sh	hi_detect_agents	yes	616	{ trap '' TTIN TTOU; timeout 20 claude-list-accounts 2>/dev/null </dev/null; } | awk '$1 ~ /^claude[0-9]+$/ { print $1 "|" $3 }' | sort -u \
+scripts/install_constitution.sh	hi_detect_agents	yes	622	{ trap '' TTIN TTOU; timeout 20 claude-providers list 2>/dev/null </dev/null; } | awk '
+scripts/install_constitution.sh	hi_lock_pid	no	1061	timeout 5 head -c 20 -- "$f" 2>/dev/null | tr -cd '0-9'
+scripts/install_constitution.sh	hi_run_agent	no	1651	local -a cmd=(timeout --kill-after=10 "$O_TIMEOUT" env -u ANTHROPIC_API_KEY)
+scripts/update_constitution.sh	hi_gx	yes	286	if [ -n "${HI_GX_TIMEOUT:-}" ]; then exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
+scripts/update_constitution.sh	up_lock_pid	no	387	timeout 5 head -c 20 -- "$f" 2>/dev/null | tr -cd '0-9'

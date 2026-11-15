@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # run_all.sh — runs every installer/updater suite and the four installer gates with their meta-tests.
 # Each suite sandboxes itself under mktemp -d (tests/install/lib.sh); nothing touches $HOME or this repo.
-# Usage: bash tests/install/run_all.sh [--quick]   (--quick skips chaos and stress/perf)
+# Usage: bash tests/install/run_all.sh [--quick]   (--quick skips chaos, stress/perf and timeout_tty)
 # Exit: 0 every suite and gate passed · 1 at least one failed.
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; gates="$here/../../scripts/gates"
 quick=0; [ "${1:-}" = "--quick" ] && quick=1
-suites=(test_unit test_integration test_updater test_e2e test_agent test_security test_determinism test_detection test_self_guard test_git_wrapper test_minor test_lock test_round6 test_round8 test_round9 test_round10 test_round11 test_upstream_main test_sigpipe)
-[ "$quick" = 1 ] || suites+=(test_chaos test_stress_perf)
+suites=(test_unit test_integration test_updater test_e2e test_agent test_security test_determinism test_detection test_self_guard test_git_wrapper test_minor test_lock test_round6 test_round8 test_round9 test_round10 test_round11 test_upstream_main test_sigpipe test_python_isolation test_shell_state_patsub)
+[ "$quick" = 1 ] || suites+=(test_chaos test_stress_perf test_timeout_tty)
 failed=()
 for s in "${suites[@]}"; do
   echo "=== $s"; t0=$SECONDS

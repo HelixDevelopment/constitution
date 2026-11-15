@@ -1,0 +1,14 @@
+tests/install/test_shell_state_patsub.sh	0
+tests/install/test_unit.sh	0
+tests/install/test_python_isolation.sh	0
+tests/install/test_sigpipe.sh	0
+scripts/gates/cm_installer_no_push_no_force.sh	0
+scripts/hooks/test_label_sync_hooks.sh	1
+scripts/gates/cm_installer_script_modes.sh	0
+scripts/gates/cm_installer_script_modes_mutation_test.sh	0
+scripts/gates/cm_installer_snippets_consistent.sh	0
+scripts/gates/cm_installer_snippets_consistent_mutation_test.sh	0
+scripts/gates/cm_installer_truncation_safe.sh	0
+scripts/gates/cm_installer_truncation_safe_mutation_test.sh	0
+scripts/gates/cm_installer_no_push_no_force_mutation_test.sh	0
+DONE

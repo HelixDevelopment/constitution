@@ -1,0 +1,7 @@
+CONTROL	unmutated	test_timeout_tty.sh	PASS rc=0 130s	
+TT-M1	hi_gx ignore removed (both files, block kept identical)	test_timeout_tty.sh	KILLED rc=1 168s	FAIL every timeout site of the six scripts is classified (new sites must be added here) (expected [install_constitution.sh|hi_gx|yes
+TT-M2	hi_version_of ignore removed	test_timeout_tty.sh	KILLED rc=1 143s	FAIL every timeout site of the six scripts is classified (new sites must be added here) (expected [install_constitution.sh|hi_gx|yes
+TT-M3	hi_detect_agents ignore removed (claude-list-accounts)	test_timeout_tty.sh	KILLED rc=1 148s	FAIL every timeout site of the six scripts is classified (new sites must be added here) (expected [install_constitution.sh|hi_gx|yes
+TT-M4	hi_detect_agents ignore removed (claude-providers list)	test_timeout_tty.sh	KILLED rc=1 149s	FAIL every timeout site of the six scripts is classified (new sites must be added here) (expected [install_constitution.sh|hi_gx|yes
+TT-M5	hi_run_agent ignore removed	test_timeout_tty.sh	KILLED rc=1 157s	FAIL hi_run_agent: the job that runs the timeout array ignores SIGTTIN/SIGTTOU (expected [1] got [0])
+rc=0

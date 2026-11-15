@@ -1,0 +1,244 @@
+  ok   installer sources in library mode without running main
+# validators
+  ok   agent id accepted: claude
+  ok   agent id accepted: claude1
+  ok   agent id accepted: claude12
+  ok   agent id accepted: deepseek
+  ok   agent id accepted: kimi
+  ok   agent id accepted: opencode
+  ok   agent id accepted: pi
+  ok   agent id accepted: kc-foo
+  ok   agent id accepted: helixllm-a.b
+  ok   agent id accepted: none
+  ok   agent id rejected: []
+  ok   agent id rejected: [-x]
+  ok   agent id rejected: [--yolo]
+  ok   agent id rejected: [a b]
+  ok   agent id rejected: [a;b]
+  ok   agent id rejected: [a$(id)]
+  ok   agent id rejected: [a`id`]
+  ok   agent id rejected: [a
+b]
+  ok   agent id rejected: [../x]
+  ok   agent id rejected: [a/b]
+  ok   ref accepted: main
+  ok   ref accepted: helixconstitution-v72.1
+  ok   ref accepted: v1.0.0
+  ok   ref accepted: a5cee41
+  ok   ref accepted: refs/tags/x
+  ok   ref rejected: []
+  ok   ref rejected: [-b]
+  ok   ref rejected: [--upload-pack=x]
+  ok   ref rejected: [a..b]
+  ok   ref rejected: [a b]
+  ok   ref rejected: [x;rm]
+  ok   ref rejected: [a
+b]
+  ok   ref rejected: [a~1]
+  ok   ref rejected: [a^]
+  ok   url accepted: https://github.com/HelixDevelopment/HelixConstitution.git
+  ok   url accepted: git@github.com:HelixDevelopment/HelixConstitution.git
+  ok   url accepted: ssh://git@example.org:2222/o/r.git
+  ok   url accepted: file:///tmp/x/upstream.git
+  ok   url accepted: /tmp/x/upstream.git
+  ok   url rejected: []
+  ok   url rejected: [-oProxyCommand=x]
+  ok   url rejected: [ext::sh -c id]
+  ok   url rejected: [https://x/$(id)]
+  ok   url rejected: [https://x/`id`]
+  ok   url rejected: [https://x/a b]
+  ok   url rejected: [https://x/a
+b]
+  ok   url rejected: [https://x/a;b]
+  ok   url rejected: [fd::3]
+  ok   url rejected: [--upload-pack=touch /tmp/p]
+  ok   url rejected: [relative/path.git]
+  ok   url rejected: [https://x/a'b]
+  ok   model accepted: sonnet
+  ok   model accepted: opus
+  ok   model accepted: haiku
+  ok   model accepted: claude-sonnet-4-5
+  ok   model accepted: provider/model:tag
+  ok   model rejected: []
+  ok   model rejected: [-x]
+  ok   model rejected: [a b]
+  ok   model rejected: [a;b]
+  ok   model rejected: [$(id)]
+  ok   effort accepted: low
+  ok   effort accepted: medium
+  ok   effort accepted: high
+  ok   effort accepted: xhigh
+  ok   effort accepted: max
+  ok   effort rejected: []
+  ok   effort rejected: [huge]
+  ok   effort rejected: [high;x]
+  ok   number accepted: 0
+  ok   number accepted: 1
+  ok   number accepted: 2
+  ok   number accepted: 1800
+  ok   number accepted: 0.5
+  ok   number accepted: 2.25
+  ok   number rejected: []
+  ok   number rejected: [-1]
+  ok   number rejected: [1e9]
+  ok   number rejected: [x]
+  ok   number rejected: [1;2]
+  ok   number rejected: [1 2]
+  ok   timeout accepted: 1
+  ok   timeout accepted: 60
+  ok   timeout accepted: 1800
+  ok   timeout accepted: 86400
+  ok   timeout rejected: []
+  ok   timeout rejected: [0]
+  ok   timeout rejected: [00]
+  ok   timeout rejected: [86401]
+  ok   timeout rejected: [999999]
+  ok   timeout rejected: [-5]
+  ok   timeout rejected: [1.5]
+  ok   timeout rejected: [x]
+  ok   budget accepted: 0.01
+  ok   budget accepted: 0.5
+  ok   budget accepted: 2
+  ok   budget accepted: 50
+  ok   budget accepted: 50.0
+  ok   budget rejected: []
+  ok   budget rejected: [0]
+  ok   budget rejected: [0.0]
+  ok   budget rejected: [0.00]
+  ok   budget rejected: [50.01]
+  ok   budget rejected: [51]
+  ok   budget rejected: [1000]
+  ok   budget rejected: [-1]
+  ok   budget rejected: [x]
+  ok   bash 4.4 accepted
+  ok   bash 5.0 accepted
+  ok   bash 4 3 rejected (empty arrays under set -u)
+  ok   bash 4 0 rejected (empty arrays under set -u)
+  ok   bash 3 2 rejected (empty arrays under set -u)
+# json + url sanitising
+  ok   json escape quotes/backslash/newline/tab/control
+  ok   credentials stripped from https url
+  ok   token-only userinfo stripped
+  ok   ssh url unchanged
+  ok   password with @ fully stripped
+  ok   upper-case scheme credentials stripped
+  ok   ssh:// user:password stripped (last @)
+  ok   ssh:// plain user kept
+  ok   query token redacted
+  ok   credentials + query + fragment
+  ok   local path unchanged
+  ok   has-password: password containing @
+  ok   has-password: query token
+  ok   has-password: plain https not flagged
+  ok   has-password: ssh user not flagged
+  ok   scrub: no secret fragment left (p@ss, w0rd, pa@, SEKRIT)
+  ok   scrub: host and path kept
+  ok   scrub: query redacted
+# prompt extraction
+  ok   first fenced block under ## PROMPT (longer fence, inner fence kept)
+  ok   missing fence under ## PROMPT -> failure
+  ok   missing ## PROMPT heading -> failure
+  ok   follow-up body after front matter
+  ok   follow-up requires_previous_success false
+  ok   follow-up without front matter = whole body
+  ok   follow-up requires default true
+# newest tag
+  ok   newest helixconstitution tag by version sort
+  ok   no matching tag -> empty
+  ok   pre-release tags never chosen by default
+  ok   v9 < v10 < v100 (version order, not lexical)
+# release tags: numeric parts never have a leading zero (the prompt's single release regex)
+  ok   leading-zero tags never chosen (v072 / v72.01 / v00)
+  ok   zero parts without a leading zero are fine (v0, v72.0)
+  ok   only-leading-zero tags -> empty
+# release regex drift: installer, updater and the setup prompt use ONE identical regex
+  prompt_grep_distinct=1 prompt_grep_count=4
+  prompt_prose_has_canonical=yes
+  installer_assign=1
+  installer_other_literals=0
+  installer_equal=yes
+  updater_assign=1
+  updater_other_literals=0
+  updater_equal=yes
+  ok   control: the prompt carries its release regex at least 4 times
+  ok   the prompt uses exactly one distinct release regex
+  ok   the prompt's prose names the same regex its commands use
+  ok   installer defines HI_RELEASE_TAG_RE exactly once
+  ok   installer has no second release-regex literal
+  ok   installer release regex == the prompt's
+  ok   updater defines HI_RELEASE_TAG_RE exactly once
+  ok   updater has no second release-regex literal
+  ok   updater release regex == the prompt's
+# stream-json parser (UNIT fixtures, not live evidence)
+  ok   success result
+  ok   is_error true -> failure
+  ok   no result event -> none
+  ok   429 detected
+  ok   garbage lines ignored
+  ok   LAST result event decides
+  ok   cost read from total_cost_usd
+  ok   non-numeric cost -> unknown
+# snippet table + cli
+  ok   --print-snippets exit 0
+  ok   snippet present: https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitlab.com/helixdevelopment1/helixconstitution/-/raw/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitlab.com/vasic-digital/HelixConstitution/-/raw/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitflic.ru/project/helixdevelopment/helixconstitution/blob/raw?file=scripts/install_constitution.sh&branch=main
+  ok   snippet present: https://gitverse.ru/api/repos/helixdevelopment/HelixConstitution/raw/branch/main/scripts/install_constitution.sh
+  ok   exactly 5 snippet lines
+  ok   --version prints installer version
+  ok   --help exit 0
+  ok   --help documents --project-root
+  ok   --help documents --upstream
+  ok   --help documents --ref
+  ok   --help documents --agent
+  ok   --help documents --model
+  ok   --help documents --effort
+  ok   --help documents --max-budget-usd
+  ok   --help documents --timeout-sec
+  ok   --help documents --non-interactive
+  ok   --help documents --yes
+  ok   --help documents --dry-run
+  ok   --help documents --decision-layer
+  ok   --help documents --followups
+  ok   --help documents --commit
+  ok   --help documents --report-json
+  ok   --help documents --print-snippets
+  ok   unknown flag -> exit 2
+  ok   flag missing value -> exit 2
+  ok   invalid effort -> exit 2
+  ok   --timeout-sec 0 -> exit 2
+  ok   --timeout-sec 86401 -> exit 2
+  ok   --max-budget-usd 0 -> exit 2
+  ok   --max-budget-usd 50.5 -> exit 2
+  ok   --flag=value accepted
+  ok   --flag=value is validated (--effort=huge -> 2)
+  ok   boolean flag with =value -> exit 2
+  ok   a lone -- is accepted
+  ok   argument after -- -> exit 2
+  ok   http:// upstream refused without --allow-insecure-url (exit 2)
+  ok   insecure refusal names the flag
+  ok   git:// upstream refused (exit 2)
+  ok   --help documents --allow-insecure-url
+  ok   --help documents --max-budget-usd
+  ok   --help documents --timeout-sec
+  ok   --help says which agents cannot enforce model/effort/budget
+  ok   no TTY and no --non-interactive -> exit 2
+# truncation sentinel
+  ok   last line is the sentinel main call
+  ok   sentinel-less main printed nothing useful
+  ok   main without the sentinel refuses (exit 2)
+# shared blocks are byte-identical in the installer and the updater (one implementation, no drift)
+  ok   control: block hi_resolve_ref_in present in the installer
+  ok   block hi_resolve_ref_in identical in installer and updater
+  ok   control: block hi_lock_helpers present in the installer
+  ok   block hi_lock_helpers identical in installer and updater
+  ok   control: block hi_text_safe present in the installer
+  ok   block hi_text_safe identical in installer and updater
+  ok   control: block hi_remote_live present in the installer
+  ok   block hi_remote_live identical in installer and updater
+  ok   control: block hi_gitlink_rel present in the installer
+  ok   block hi_gitlink_rel identical in installer and updater
+  ok   control: block hi_shell_state present in the installer
+  ok   block hi_shell_state identical in installer and updater
+unit: PASS 222 FAIL 0

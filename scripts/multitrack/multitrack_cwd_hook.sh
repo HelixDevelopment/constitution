@@ -362,7 +362,8 @@ _cwh_owner_busy() {
     # Non-blocking by contract (the tool's `check` uses `flock -n`); `timeout`
     # is defence-in-depth against a wedged filesystem on the realpath call.
     if command -v timeout >/dev/null 2>&1; then
-        out="$(timeout 5 bash "$tool" check "$wt" 2>/dev/null)"; rc=$?
+        # SIGTTIN/SIGTTOU ignored inside the substitution only (uutils timeout does not ignore them itself)
+        out="$(trap '' TTIN TTOU; timeout 5 bash "$tool" check "$wt" 2>/dev/null)"; rc=$?
     else
         out="$(bash "$tool" check "$wt" 2>/dev/null)"; rc=$?
     fi

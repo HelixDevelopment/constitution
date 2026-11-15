@@ -1,0 +1,8 @@
+[test_skill_action] A OK: registry rows valid, generated commands drift-free
+[test_skill_action] B cross-check OK: register.sh output passes CM-JEV-WIRING
+[test_skill_action] B OK: twice-run = single registration per platform
+[test_skill_action] C OK: mcp/templates/jev-decisions.json.tmpl valid, declares jev server, documented as template
+[test_skill_action] C2 OK: no live mcp/*jev*.json (unexpanded template cannot be merged as live config)
+[test_skill_action] C2b OK: no inline duplicate in register.sh
+[test_skill_action] D OK: register.sh renders the template (no placeholders left, values substituted, CA omitted when unset)
+[test_skill_action] PASS

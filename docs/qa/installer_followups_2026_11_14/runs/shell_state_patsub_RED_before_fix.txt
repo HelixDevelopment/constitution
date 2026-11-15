@@ -1,0 +1,21 @@
+  ok   control: hi_reset_shell_state found in install_constitution.sh
+  ok   install_constitution.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9)
+  ok   install_constitution.sh: & in a replacement stays literal after the reset
+  ok   control: hi_reset_shell_state found in update_constitution.sh
+  ok   update_constitution.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9)
+  ok   update_constitution.sh: & in a replacement stays literal after the reset
+  ok   control: hi_reset_shell_state found in install_cli_agent_plugins.sh
+  ok   install_cli_agent_plugins.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9)
+  ok   install_cli_agent_plugins.sh: & in a replacement stays literal after the reset
+  ok   control: hi_reset_shell_state found in install_action_prefix.sh
+  ok   install_action_prefix.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9)
+  ok   install_action_prefix.sh: & in a replacement stays literal after the reset
+  ok   census control needles: a defaults claim without the exception is flagged, one with it is not
+  FAIL every comment that says the reset restores bash's defaults names the patsub_replacement exception (expected [] got [/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/followups.SEZe/repo/scripts/install_constitution.sh:46	# >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh) # What the caller's shell hands down never changes what this script decid
+/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/followups.SEZe/repo/scripts/update_constitution.sh:54	# >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh) # What the caller's shell hands down never changes what this script decid
+/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/followups.SEZe/repo/scripts/gates/cm_installer_no_push_no_force.sh:413	# Exact (function, command text) pairs for the file-changing commands and for mutating hi_gx/hi_git calls, and the # literal sed/awk program words. Filled from ])
+    /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/followups.SEZe/repo/scripts/install_constitution.sh:46	# >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh) # What the caller's shell hands down never changes what this script decid
+/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/followups.SEZe/repo/scripts/update_constitution.sh:54	# >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh) # What the caller's shell hands down never changes what this script decid
+/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/followups.SEZe/repo/scripts/gates/cm_installer_no_push_no_force.sh:413	# Exact (function, command text) pairs for the file-changing commands and for mutating hi_gx/hi_git calls, and the # literal sed/awk program words. Filled from 
+shell_state_patsub: PASS 13 FAIL 1
+rc=1

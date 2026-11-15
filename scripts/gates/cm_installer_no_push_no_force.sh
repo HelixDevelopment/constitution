@@ -31,7 +31,9 @@
 #      git call that changes anything (add, rm, checkout, commit, init, clone, fetch, submodule, config writes,
 #      remote set-url) only as an exact (function, command text) pair. Anything else (tar, patch, unlink, ex,
 #      ed, perl, ...) FAILs as "not on the allow-list". (This replaces a deny-list that every new command word
-#      could walk around.)
+#      could walk around.) Every listed pair, program text and exemption must still be used by a scanned line:
+#      an entry nothing uses any more is a finding ("no longer used"), so the lists cannot keep permissions the
+#      scripts no longer need.
 #      WRITE POLICY: a write to a name that changes what git or the shell runs (PATH, BASH_ENV, LD_*, GIT_* other
 #      than GIT_TERMINAL_PROMPT, HI_GX_COMMIT_OK/INIT_OK/BIN, …) in any form (assignment, prefix, export/declare/
 #      local/readonly, env NAME=, printf -v, read/mapfile, for NAME, (( … )), nameref -n) is allowed only at the
@@ -413,8 +415,9 @@ MUTATING_GIT = {"add", "rm", "checkout", "commit", "init", "clone", "fetch", "su
 # Exact (function, command text) pairs for the file-changing commands and for mutating hi_gx/hi_git calls, and the
 # literal sed/awk program words. Filled from the files' real, reviewed calls; editing a call makes it a finding
 # until this list is updated by a reviewer.
-# the shell-state reset (block hi_shell_state, identical in both files): every bash option back to its default; the
-# exact option lists are pinned (no other shopt call is allowed)
+# the shell-state reset (block hi_shell_state, identical in both files): every bash option back to its default,
+# except patsub_replacement, which is turned off (bash 5.2 and later turn it on); the exact option lists are
+# pinned (no other shopt call is allowed)
 RESET_SHOPT = [
     ('hi_reset_shell_state', 'shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit localvar_unset cdable_vars extdebug execfail inherit_errexit assoc_expand_once array_expand_once patsub_replacement'),
     ('hi_reset_shell_state', 'shopt -s extquote globasciiranges'),
@@ -1652,6 +1655,17 @@ def main(files):
         for fn, t, why in lst:
             if (base, fn, t) not in used:
                 findings.append((base, 0, "(a) exemption no longer used (remove it from the gate): %s %s" % (fn, t)))
+    # the other membership allow lists, with the same rule: an entry that no scanned line uses is stale (keys as in
+    # analyse()); SANCTIONED_WRITES, SANCTIONED_REDIRS, SWITCH_TOKENS and VAR_PINS are compared as exact counts
+    # in runtime()/var_bindings, so a missing use already fails there
+    stale = [(b, "prog", pw, "PROGS", None) for b, s in PROGS.items() for pw in s]
+    stale += [(b, "ext:" + str(fn), t, "EXT_EXACT", fn) for b, l in EXT_EXACT.items() for fn, t in l]
+    stale += [(b, "gx:" + str(fn), t, "GX_EXACT", fn) for b, l in GX_EXACT.items() for fn, t in l]
+    stale += [(b, "file:" + str(fn), t, "SANCTIONED_FILE_CMDS", fn) for b, l in SANCTIONED_FILE_CMDS.items() for fn, t in l]
+    for base, kind, t, lname, fn in stale:
+        if not any(os.path.basename(p) == base for p in files): continue
+        if (base, kind, t) not in used:
+            findings.append((base, 0, "(a) %s entry no longer used (remove it from the gate): %s %s" % (lname, fn, t[:120])))
     for p, n, msg in findings:
         print("  FAIL %s:%d %s" % (p, n, msg))
     if findings:

@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Show the state of every process under a pty-run `bash -c 'TIMEOUT ... 3 sh -c "stty -echo </dev/tty; sleep 100"'`
+6 s after start (budget 3 s), then kill the whole tree. argv: TIMEOUT_BIN [opts...]"""
+import os, pty, sys, time, signal, subprocess
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp("bash", ["bash", "-c", '"$@"; echo "PROBE_RC=$?"', "probe"] + sys.argv[1:] + ["3", "sh", "-c", "stty -echo </dev/tty; sleep 100"])
+time.sleep(6)
+sid = os.getsid(pid)
+assert sid == pid and sid != os.getsid(0), 'not the child session'
+out = subprocess.run(["ps", "-s", str(sid), "-o", "pid,ppid,pgid,tpgid,stat,args"], capture_output=True, text=True).stdout
+print(" ".join(sys.argv[1:])); print(out, end="")
+pids = [int(l.split()[0]) for l in out.splitlines()[1:]]
+for p in pids:
+    if p > 1:
+        try: os.kill(p, signal.SIGKILL)
+        except ProcessLookupError: pass
+os.waitpid(pid, 0)

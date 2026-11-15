@@ -46,7 +46,9 @@ HI_SOURCED=0; (return 0 2>/dev/null) && HI_SOURCED=1   # 1 only when this file i
 # >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh)
 # What the caller's shell hands down never changes what this script decides (docs/qa/installer_sigpipe_2026_11_13/
 # round2). hi_reset_shell_state returns every option a caller can pass on (BASH_COMPAT, POSIXLY_CORRECT, SHELLOPTS,
-# BASHOPTS, `bash -e`, `bash -o posix`, CDPATH, TMOUT, GLOBIGNORE) to bash's defaults. It runs only when the file is
+# BASHOPTS, `bash -e`, `bash -o posix`, CDPATH, TMOUT, GLOBIGNORE) to bash's defaults, with one exception:
+# `patsub_replacement` is turned OFF (bash 5.2 and later turn it on), so `&` in the replacement of
+# ${var//pat/rep} stays a literal `&`, as in bash 5.1 and older. It runs only when the file is
 # RUN (a test that sources the file keeps its own shell), and before the first function that needs it is parsed:
 # bash 5.0 and older in posix mode reject `<(...)` while parsing. Not covered: BASH_ENV and exported functions, which
 # run before the first line of this file. The text helpers below work inside the shell: no here-string and no
@@ -466,7 +468,11 @@ hi_gx() {
       esac
     done
     export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10"
-    if [ -n "${HI_GX_TIMEOUT:-}" ]; then exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
+    # timeout moves itself and git into a background process group of the terminal: when git touches the terminal
+    # the kernel sends SIGTTOU/SIGTTIN to the whole group, and uutils timeout (unlike GNU) does not ignore them, so it
+    # stopped with git and its limit never fired. Ignored for timeout only: GNU and uutils timeout reset them for git
+    # (measured); busybox timeout passes the ignore on to git, but it makes no new process group, so none is sent.
+    if [ -n "${HI_GX_TIMEOUT:-}" ]; then trap '' TTIN TTOU; exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
     else exec "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"; fi
   )
 }
@@ -594,7 +600,11 @@ hi_uuid() {
 # ───────────────────────────── detection ─────────────────────────────
 hi_version_of() { # path → first line of `--version`, run from / with a 5 s limit
   local v
-  v="$(cd / && timeout 5 "$1" --version </dev/null 2>&1 | awk 'NR == 1')"   # awk reads to EOF: no SIGPIPE
+  # SIGTTIN/SIGTTOU ignored for timeout (it resets them for the program): a program that touches the terminal from
+  # timeout's background group would stop uutils timeout with it, and the 5 s limit would never fire (the same in
+  # hi_detect_agents, hi_gx and hi_run_agent)
+  # (the group scopes the ignore to timeout; awk does not inherit it)
+  v="$(cd / && { trap '' TTIN TTOU; timeout 5 "$1" --version </dev/null 2>&1; } | awk 'NR == 1')"   # awk reads to EOF: no SIGPIPE
   v="${v//[[:cntrl:]]/}"; v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
   printf '%s' "${v:0:120}"
 }
@@ -608,13 +618,13 @@ hi_detect_agents() {
   done < <(hi_agent_table)
   cl="$(command -v claude 2>/dev/null)"; cv=""; [ -n "$cl" ] && cv="$(hi_version_of "$cl")"
   if command -v claude-list-accounts >/dev/null 2>&1; then
-    timeout 20 claude-list-accounts 2>/dev/null </dev/null | awk '$1 ~ /^claude[0-9]+$/ { print $1 "|" $3 }' | sort -u \
+    { trap '' TTIN TTOU; timeout 20 claude-list-accounts 2>/dev/null </dev/null; } | awk '$1 ~ /^claude[0-9]+$/ { print $1 "|" $3 }' | sort -u \
       | while IFS='|' read -r a st; do
           printf '%s|native-alias|drivable|%s|%s|%s|creds:%s\n' "$a" "$([ -n "$cl" ] && echo true || echo false)" "$cl" "$cv" "${st:-?}"
         done
   fi
   if [ "${HI_DETECT_PROVIDERS:-1}" = 1 ] && command -v claude-providers >/dev/null 2>&1; then
-    timeout 20 claude-providers list 2>/dev/null </dev/null | awk '
+    { trap '' TTIN TTOU; timeout 20 claude-providers list 2>/dev/null </dev/null; } | awk '
       /^##/ { done = 1 } done { next } NR == 1 { next } NF >= 3 && $1 ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ { print $1 "|" $3 }' \
       | while IFS='|' read -r a st; do
           hi_validate_agent_id "$a" || continue
@@ -1660,7 +1670,10 @@ hi_run_agent() {
   : >"$log" && : >"$log.stderr" && chmod 600 "$log" "$log.stderr" || return 1   # transcripts are private
   # a background job + wait: a signal reaches the installer's trap at once (bash defers traps while a
   # foreground child runs, and timeout puts the agent in its own process group, out of reach of Ctrl-C)
-  (cd "$O_ROOT" && umask "${HI_UMASK0:-$(umask)}" && hi_scrub_git_env && exec "${cmd[@]}") </dev/null >>"$log" 2>>"$log.stderr" &
+  # SIGTTIN/SIGTTOU ignored in the job, so in timeout (which resets them for the agent: the agent still stops when
+  # it touches the terminal, and is killed at the limit): otherwise uutils timeout stopped with the agent and the
+  # time limit never fired
+  (trap '' TTIN TTOU; cd "$O_ROOT" && umask "${HI_UMASK0:-$(umask)}" && hi_scrub_git_env && exec "${cmd[@]}") </dev/null >>"$log" 2>>"$log.stderr" &
   HI_AGENT_PID=$!
   wait "$HI_AGENT_PID"; rc=$?
   HI_AGENT_PID=""

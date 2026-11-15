@@ -1,0 +1,229 @@
+# golden
+  ok   G0     rc=0 -        real installer + updater
+  ok   G1     rc=0 -        golden-FALSE: comment
+  ok   G2     rc=0 -        golden-FALSE: message carriers
+  ok   G3     rc=0 -        golden-FALSE: [[ =~ ]] regex
+  ok   G4     rc=0 -        golden-FALSE: allowed wrapper call
+  ok   G5     rc=0 -        golden-FALSE: /dev/null + fd dup redirections, IFS prefix, GIT_TERMINAL_PROMPT
+  ok   G6     rc=0 -        golden-FALSE: exact fetch shape, literal trap, arithmetic read
+  ok   G7     rc=0 -        golden-FALSE: python -c LITERAL, the push-mark count literal
+  ok   P1     rc=1 a,c      exempt deny literal followed by a real push
+  ok   P2     rc=1 c        a different deny literal is not exempt
+  ok   P3     rc=1 c        the deny text under another name is not exempt
+# static mutants (one line injected into hi_builtin_update)
+  ok   S1     rc=1 a,c      git -C "$O_ROOT" push origin main
+  ok   S2     rc=1 a,c      git -C "$sub" send-pack origin HEAD
+  ok   S3     rc=1 a,c      git -C "$sub" checkout -qf main
+  ok   S4     rc=1 a,c      git -C "$sub" checkout --force "$tsha"
+  ok   S5     rc=1 a,c      git -C "$sub" reset -q --hard
+  ok   S6     rc=1 a,c      git -C "$sub" reset --har
+  ok   S7     rc=1 a,c      rm -f -r "$O_ROOT/$HI_SUB"
+  ok   S8     rc=1 a,c      rm -rf "$O_ROOT/$HI_SUB"
+  ok   S9     rc=1 a,c      find "$sub" -delete
+  ok   S10    rc=1 a,c      find "$sub" -name x -exec rm {} +
+  ok   S11    rc=1 a,c      git -C "$sub" branch -Df main
+  ok   S12    rc=1 a,c      git -C "$sub" update-ref -m x -d refs/heads/main
+  ok   S13    rc=1 a,c      git -C "$sub" update-ref refs/heads/main HEAD~3
+  ok   S14    rc=1 a,c      git -C "$sub" switch --discard-changes main
+  ok   S15    rc=1 a,c      git -C "$sub" checkout -B main
+  ok   S16    rc=1 a,c      git -C "$sub" tag -f v1
+  ok   S17    rc=1 a,c      git -C "$sub" commit --amend -m x
+  ok   S18    rc=1 a,c      git -C "$sub" clean -fdx
+  ok   S19    rc=1 a        P=p; git -C "$sub" ${P}ush
+  ok   S20    rc=1 a,c      git -C "$sub" $'\x70ush'
+  ok   S21    rc=1 a        git -C "$sub" p\ush
+  ok   S22    rc=1 a        x=pu; git -C "$sub" ${x}sh
+  ok   S23    rc=1 a        printf 'git push\n' | bash
+  ok   S24    rc=1 a,c      bash <<<"git push"
+  ok   S25    rc=1 a,c      gg() { git "$@"; }; gg push
+  ok   S26    rc=1 a,c      command git -C "$sub" push
+  ok   S27    rc=1 a,c      timeout 5 git -C "$sub" push
+  ok   S28    rc=1 a,c      env A=1 git -C "$sub" push
+  ok   S29    rc=1 a        hi_user_umask git -C "$sub" status
+  ok   S30    rc=1 a,c      xargs git push </dev/null
+  ok   S31    rc=1 a,c      cmd=(git push --force); "${cmd[@]}"
+  ok   S32    rc=1 a,c      cmd=(git "push" "--force-with-lease"); "${cmd[@]}"
+  ok   S33    rc=1 a,c      git -C "$sub" "push" origin HEAD
+  ok   S34    rc=1 a,c      sh -c "git -C $sub reset --hard"
+  ok   S35    rc=1 a,c      bash -c "hi_gx push"
+  ok   S36    rc=1 a,c      op=push; git -C "$sub" "$op"
+  ok   S37    rc=1 a,c      op=push; hi_gx -C "$sub" "$op"
+  ok   S38    rc=1 a        hi_gx -C "$sub" ${P}ush
+  ok   S39    rc=1 a,c      hi_gx -C "$sub" push
+  ok   S40    rc=1 a,c      hi_git push origin main
+  ok   S41    rc=1 a,c      hi_git_url "$u" fetch --force origin
+  ok   S42    rc=1 a        hi_gx -c core.hooksPath=/tmp status
+  ok   S43    rc=1 a,c      eval "$O_AGENT"
+  ok   S44    rc=1 a        . "$O_ROOT/x.sh"
+  ok   S45    rc=1 a        source "$O_ROOT/x.sh"
+  ok   S46    rc=1 a,c      "$G" push
+  ok   S47    rc=1 a,c      $G push
+  ok   S48    rc=1 a,c      printf 'x' >&2; git push
+  ok   S49    rc=1 a,c      hi_say "$(git -C "$sub" push origin HEAD)"
+  ok   S50    rc=1 a,c      die 3 "`git push`"
+  ok   S51    rc=1 a        alias g=git
+  ok   S52    rc=1 a,c      perl -e 'system("git push")'
+  ok   S53    rc=1 a        python3 -c "$code"
+  ok   S54    rc=1 a,c      awk 'BEGIN { system("git push") }'
+  ok   S55    rc=1 a        v="$(git -C "$sub" rev-parse HEAD)"
+  ok   S56    rc=1 a        hi_gx -C "$sub" fetch --quiet -- origin +refs/heads/main:refs/heads/main
+  ok   S57    rc=1 a,c      hi_gx -C "$sub" fetch --quiet origin main --refmap=+refs/heads/*:refs/heads/*
+  ok   S58    rc=1 a        HI_GX_COMMIT_OK=1 hi_gx -C "$O_ROOT" commit -qm x
+  ok   S59    rc=1 a        printf -v HI_GX_COMMIT_OK 1
+  ok   S60    rc=1 a        declare -g HI_GX_COMMIT_OK=1
+  ok   S61    rc=1 a        HI_GX_INIT_OK=1
+  ok   S62    rc=1 a        PATH="$sub:$PATH"
+  ok   S63    rc=1 a,c      export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0="sh $sub/x"
+  ok   S64    rc=1 a,c      export GIT_CONFIG_PARAMETERS="'core.hooksPath'='/tmp'"
+  ok   S65    rc=1 a,c      trap 'hi_gx -C "$sub" push' EXIT
+  ok   S66    rc=1 a        trap "$O_AGENT" EXIT
+  ok   S67    rc=1 a,c      rm -R -- "$O_ROOT/$HI_SUB"
+  ok   S68    rc=1 a,c      rm --recursive "$O_ROOT/$HI_SUB"
+  ok   S69    rc=1 a,c      chmod -R 777 "$O_ROOT"
+  ok   S70    rc=1 a,c      truncate -s 0 "$O_ROOT/CLAUDE.md"
+  ok   S71    rc=1 a        hi_gx -C "$sub" submodule update --init --recursive
+  ok   S72    rc=1 a,c      hi_gx -C "$sub" remote set-url origin "ext::sh -c touch% /tmp/p"
+  ok   S73    rc=1 a,c      export GIT_EXEC_PATH="$sub"
+  ok   S74    rc=1 a,c      git=hi_gx; $git push
+  ok   S75    rc=1 a        mapfile -t c <<<"push"; hi_gx -C "$sub" "${c[0]}"
+  ok   S76    rc=1 a        : >"$O_ROOT/CLAUDE.md"
+  ok   S77    rc=1 a        { printf 'x\n'; } >"$O_ROOT/AGENTS.md"
+  ok   S78    rc=1 a        printf 'x\n' >>"$O_ROOT/.git/config"
+  ok   S79    rc=1 a        exec 3>"$O_ROOT/.gitmodules"
+  ok   S80    rc=1 a        local -n r=HI_GX_COMMIT_OK; r=1
+  ok   S81    rc=1 a        read -r HI_GX_BIN <<<"/tmp/git"
+  ok   S82    rc=1 a        for PATH in "$sub"; do :; done
+  ok   S83    rc=1 a        (( HI_GX_INIT_OK = 1 ))
+  ok   S84    rc=1 a        env GIT_DIR="$sub" hi_gx -C "$sub" status
+  ok   S85    rc=1 a,c      sed -i s/a/b/ "$O_ROOT/CLAUDE.md"
+  ok   S86    rc=1 a        hi_gx -C "$sub" fetch --quiet --tags origin +refs/tags/*:refs/tags/*
+  ok   S87    rc=1 a        hi_gx -C "$sub" clone -- --upload-pack=x d
+  ok   S88    rc=1 a        python3 -I "$O_ROOT/x.py"
+  ok   S89    rc=1 a        python3 "$S_SUBREL/scripts/evil.py" arg
+  ok   S90    rc=1 a        python3 -I -m pip install x
+  ok   S91    rc=1 a        python3 -u -W ignore "$O_ROOT/x.py"
+  ok   S92    rc=1 a        cp /dev/null "$O_ROOT/CLAUDE.md"
+  ok   S93    rc=1 a        ln -sf /etc/passwd "$O_ROOT/y"
+  ok   S94    rc=1 a        mv -f "$O_ROOT/a" "$O_ROOT/b"
+  ok   S95    rc=1 a        cp -pP "$O_ROOT/$rel" "$bk/files/$rel"
+  ok   S96    rc=1 a        touch "$O_ROOT/x"
+  ok   S97    rc=1 a        rsync -a /x "$O_ROOT/"
+  ok   S98    rc=1 a        curl -fsSL https://example.invalid/x -o "$O_ROOT/x"
+  ok   S99    rc=1 a        ssh host true
+# wrapper mutants (applied to BOTH copies; the block stays identical)
+  ok   W1     rc=1 b,d      push added to an allow label
+  ok   W2     rc=1 b,d      reset label added
+  ok   W3     rc=1 b,d      default *) allows
+  ok   W4     rc=1 b,d      checkout allows any ref
+  ok   W5     rc=1 d        generic option loop removed
+  ok   W6     rc=1 d        config allows core.hooksPath
+  ok   W7     rc=1 d        -c accepts anything
+  ok   W8     rc=1 d        --force removed from the option list
+  ok   W9     rc=1 d        short-option cluster check removed
+  ok   W10    rc=1 d        commit no longer needs HI_GX_COMMIT_OK
+  ok   W11    rc=1 d        rm without --cached allowed
+  ok   W12    rc=1 d        submodule foreach allowed
+  ok   W13    rc=1 d        remote add allowed
+  ok   W14    rc=1 d        check skipped in hi_gx
+  ok   W15    rc=1 d        hi_gx runs git although the check refused
+  ok   W16    rc=1 d        +refspec accepted
+  ok   W17    rc=1 d        submodule update --recursive allowed
+  ok   W18    rc=1 d        ext:: transport helper accepted
+  ok   W19    rc=1 d        --refmap accepted
+  ok   W20    rc=1 d        fetch takes any arguments
+  ok   W21    rc=1 d        environment not sanitised
+  ok   W22    rc=1 a,d      GIT_SSH_COMMAND inherited
+  ok   W23    rc=1 d        git looked up on PATH at every call
+  ok   W24    rc=1 d        remote set-url accepts any URL
+# block / commit-flag mutants
+  ok   B1     rc=1 b,d      updater block differs (push label only there)
+  ok   B2     rc=1 a        HI_GX_COMMIT_OK=1 set a second time
+# round-6 reviewer mutants (allow-list): one line injected after the hi_write_docs staging add; each MUST fail
+  ok   R1     rc=1 a        reviewer mutant: rm -f -- "$O_ROOT/README.md"
+  ok   R2     rc=1 a        reviewer mutant: chmod 000 "$O_ROOT/README.md"
+  ok   R3     rc=1 a        reviewer mutant: awk -v f="$O_ROOT/README.md" 'BEGIN { printf "" > f }'
+  ok   R4     rc=1 a        reviewer mutant: sed -n "w $O_ROOT/README.md" /dev/null
+  ok   R5     rc=1 a        reviewer mutant: python3 -I -c 'import sys; open(sys.argv[1], "w")' "$O_ROOT/README.md"
+  ok   R6     rc=1 a        reviewer mutant: tar -xf "$S_BK/x.tar" -C "$O_ROOT"
+  ok   R7     rc=1 a        reviewer mutant: patch -s "$O_ROOT/README.md" "$S_BK/x.diff"
+  ok   R8     rc=1 a        reviewer mutant: unlink "$O_ROOT/README.md"
+  ok   R9     rc=1 a        reviewer mutant: cat /dev/null >"$O_ROOT/README.md"
+  ok   R10    rc=1 a,c      reviewer mutant: rm -f -r -- "$O_ROOT/docs"
+  ok   R11    rc=1 a        reviewer mutant: printf "%s\n" "$O_ROOT/README.md" | xargs rm -f
+  ok   R12    rc=1 a,c      reviewer mutant: find "$O_ROOT" -name README.md -delete
+  ok   R13    rc=1 a        reviewer mutant: hi_gx -C "$O_ROOT" submodule add --quiet -- "$S_URL" ../../outside
+  ok   R14    rc=1 a        reviewer mutant: mkdir -p "$O_ROOT/.git/hooks" && ln -s /bin/true "$O_ROOT/.git/hooks/pre-commit"
+  ok   R15    rc=1 a        reviewer mutant: ex -sc "%d|wq" "$O_ROOT/README.md"
+  ok   R16    rc=1 a        reviewer mutant: cp /dev/null "$O_ROOT/README.md"
+  ok   R17    rc=1 a        reviewer mutant: hi_gx -C "$O_ROOT" config --unset helix-installer.clone
+  ok   R18    rc=1 a        reviewer mutant: perl -e 'unlink shift' "$O_ROOT/README.md"
+  ok   R19    rc=1 a        reviewer mutant: install -m 755 /bin/true "$O_ROOT/README.md"
+  ok   R20    rc=1 a        reviewer mutant: dd if=/dev/zero of="$O_ROOT/README.md" count=1
+  ok   U1     rc=1 a        reviewer mutant U1: a delete in the updater
+  ok   W1     rc=1 a        W2 mutant W1: the resume marker written over a project file
+  ok   W2     rc=1 a        W2 mutant W2: the marker clear also deletes a project file
+  ok   W3     rc=1 a        W2 mutant W3: the installer marker written over a project file
+  ok   W4     rc=1 a        W2 mutant W4: the installer marker clear also deletes a project file
+  ok   M6     rc=1 a        R11 mutant M6: hi_marker_clear re-pointed at .gitmodules
+  ok   M7     rc=1 a        R11 mutant M7: hi_marker_set re-pointed at .git/config
+  ok   M8     rc=1 a        R11 mutant M8: updater PEND re-pointed at .gitmodules
+  ok   M10    rc=1 a        R11 mutant M10: hi_marker_path returns .gitmodules
+  ok   V-ex-hi_backup_dir rc=1 a        R11 census mutant: ex re-pointed in hi_backup_dir (install_constitution.sh)
+  ok   V-bk-hi_backup_file rc=1 a        R11 census mutant: bk re-pointed in hi_backup_file (install_constitution.sh)
+  ok   V-rel-hi_backup_file rc=1 a        R11 census mutant: rel re-pointed in hi_backup_file (install_constitution.sh)
+  ok   V-bk-hi_do_add rc=1 a        R11 census mutant: bk re-pointed in hi_do_add (install_constitution.sh)
+  ok   V-fdst-hi_do_add rc=1 a        R11 census mutant: fdst re-pointed in hi_do_add (install_constitution.sh)
+  ok   V-stage-hi_do_add rc=1 a        R11 census mutant: stage re-pointed in hi_do_add (install_constitution.sh)
+  ok   V-th-hi_gitmodules_user_dirty rc=1 a        R11 census mutant: th re-pointed in hi_gitmodules_user_dirty (install_constitution.sh)
+  ok   V-ti-hi_gitmodules_user_dirty rc=1 a        R11 census mutant: ti re-pointed in hi_gitmodules_user_dirty (install_constitution.sh)
+  ok   V-tw-hi_gitmodules_user_dirty rc=1 a        R11 census mutant: tw re-pointed in hi_gitmodules_user_dirty (install_constitution.sh)
+  ok   V-lockp-hi_lock rc=1 a        R11 census mutant: lockp re-pointed in hi_lock (install_constitution.sh)
+  ok   V-tmp-hi_lock rc=1 a        R11 census mutant: tmp re-pointed in hi_lock (install_constitution.sh)
+  ok   V-m-hi_manifest_step rc=1 a        R11 census mutant: m re-pointed in hi_manifest_step (install_constitution.sh)
+  ok   V-pend-hi_marker_clear rc=1 a        R11 census mutant: pend re-pointed in hi_marker_clear (install_constitution.sh)
+  ok   V-p-hi_marker_path rc=1 a        R11 census mutant: p re-pointed in hi_marker_path (install_constitution.sh)
+  ok   V-pend-hi_marker_set rc=1 a        R11 census mutant: pend re-pointed in hi_marker_set (install_constitution.sh)
+  ok   V-bk-hi_move_aside rc=1 a        R11 census mutant: bk re-pointed in hi_move_aside (install_constitution.sh)
+  ok   V-rel-hi_move_aside rc=1 a        R11 census mutant: rel re-pointed in hi_move_aside (install_constitution.sh)
+  ok   V-t-hi_open_tty rc=1 a        R11 census mutant: t re-pointed in hi_open_tty (install_constitution.sh)
+  ok   V-bk-hi_recover_partial rc=1 a        R11 census mutant: bk re-pointed in hi_recover_partial (install_constitution.sh)
+  ok   V-gd-hi_recover_partial rc=1 a        R11 census mutant: gd re-pointed in hi_recover_partial (install_constitution.sh)
+  ok   V-dir-hi_restore rc=1 a        R11 census mutant: dir re-pointed in hi_restore (install_constitution.sh)
+  ok   V-norm-hi_restore rc=1 a        R11 census mutant: norm re-pointed in hi_restore (install_constitution.sh)
+  ok   V-rootabs-hi_restore rc=1 a        R11 census mutant: rootabs re-pointed in hi_restore (install_constitution.sh)
+  ok   V-log-hi_run_agent rc=1 a        R11 census mutant: log re-pointed in hi_run_agent (install_constitution.sh)
+  ok   V-f-hi_write_docs rc=1 a        R11 census mutant: f re-pointed in hi_write_docs (install_constitution.sh)
+  ok   V-tmp-hi_write_docs rc=1 a        R11 census mutant: tmp re-pointed in hi_write_docs (install_constitution.sh)
+  ok   V-f-hi_write_report rc=1 a        R11 census mutant: f re-pointed in hi_write_report (install_constitution.sh)
+  ok   V-path-hi_write_report rc=1 a        R11 census mutant: path re-pointed in hi_write_report (install_constitution.sh)
+  ok   V-HI_SUB-- rc=1 a        R11 census mutant: HI_SUB re-pointed in - (install_constitution.sh)
+  ok   V-O_ROOT-- rc=1 a        R11 census mutant: O_ROOT re-pointed in - (install_constitution.sh)
+  ok   V-S_BK-- rc=1 a        R11 census mutant: S_BK re-pointed in - (install_constitution.sh)
+  ok   V-S_LOCK-- rc=1 a        R11 census mutant: S_LOCK re-pointed in - (install_constitution.sh)
+  ok   V-S_LOCK_RECLAIM-- rc=1 a        R11 census mutant: S_LOCK_RECLAIM re-pointed in - (install_constitution.sh)
+  ok   V-S_LOCK_TMP-- rc=1 a        R11 census mutant: S_LOCK_TMP re-pointed in - (install_constitution.sh)
+  ok   V-lockp-up_lock rc=1 a        R11 census mutant: lockp re-pointed in up_lock (update_constitution.sh)
+  ok   V-tmp-up_lock rc=1 a        R11 census mutant: tmp re-pointed in up_lock (update_constitution.sh)
+  ok   V-PEND-- rc=1 a        R11 census mutant: PEND re-pointed in - (update_constitution.sh)
+  ok   V-UP_LOCK-- rc=1 a        R11 census mutant: UP_LOCK re-pointed in - (update_constitution.sh)
+  ok   V-UP_RECLAIM-- rc=1 a        R11 census mutant: UP_RECLAIM re-pointed in - (update_constitution.sh)
+  ok   V-UP_TMP-- rc=1 a        R11 census mutant: UP_TMP re-pointed in - (update_constitution.sh)
+  ok   R12-G1 rc=1 a        R12 mutant G1: array-element binding pend[0]= in hi_marker_set
+  ok   R12-G2 rc=0 -        R12 KNOWN LIMIT G2: hi_marker_path printf of .gitmodules (producer text) survives
+  ok   R12-G3 rc=1 a        R12 mutant G3: second definition of hi_marker_path before main()
+  ok   R12-G4 rc=1 a        R12 mutant G4: ${PEND:=...} binding in up_marker_set
+  ok   R12-A8 rc=1 a        R12 mutant A8: hi_marker_path redefined NESTED inside hi_marker_set
+  ok   SP-G1  rc=0 -        golden-FALSE: a multi-line printf literal (help text) with push/--force/reset words
+  ok   SP-M1  rc=1 c        a multi-line literal that is not printed (an assignment) is still raw-scanned
+  ok   SP-M2  rc=1 a,c      code after a multi-line printf literal, on its last line
+  ok   SP-M3  rc=1 a,c      a printf line inside a double-quoted string is not a printed literal
+  ok   SP-M4  rc=1 a        the sanctioned shopt -s call with one more option (expand_aliases), both copies
+  ok   SP-M5  rc=1 a        shopt outside the shell-state reset
+  ok   SP-M6  rc=1 a        hi_version_of awk program changed (not on the allow-list)
+  ok   SP-M7  rc=1 a        hi_parse_stream program imports os
+  ok   ST-1   rc=1 a        PROGS entry 'NR <= 20' no longer used (updater)
+  ok   ST-2   rc=1 a        EXT_EXACT entry chmod 600 of the agent logs no longer used (installer)
+  ok   ST-3   rc=1 a        GX_EXACT entry (marker write) no longer used (installer)
+  ok   ST-4   rc=1 a        SANCTIONED_FILE_CMDS entry (--restore copy) no longer used (installer)
+# 222 cases; table: rc / checks that fired (a structure, b allow-list, c raw denylist, d runtime) / mutant
+META PASS: CM-INSTALLER-NO-PUSH-NO-FORCE kills every mutant (222 cases)

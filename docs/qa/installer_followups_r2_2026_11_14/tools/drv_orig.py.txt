@@ -1,0 +1,49 @@
+import os, pty, re, select, signal, subprocess, sys, time
+cap = float(sys.argv[1]); script = sys.argv[2]
+def members(sid):
+    o = subprocess.run(["ps", "-s", str(sid), "-o", "pid="], capture_output=True, text=True).stdout.split()
+    return [int(p) for p in o if int(p) > 1 and int(p) != os.getpid()]
+def kill_all(sid):
+    if sid <= 1 or sid == os.getsid(0): return
+    for p in members(sid):
+        try: os.kill(p, signal.SIGKILL)
+        except ProcessLookupError: pass
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp("bash", ["bash", "-c", script + "\nprintf \"\\nDRV_RC=%s\\n\" \"$rc\""])
+t0 = time.monotonic(); out = b""; rc = "CAPPED"; sid = 0
+while True:
+    if not sid:
+        try:
+            g = os.getsid(pid)
+            if g == pid: sid = g
+        except ProcessLookupError: pass
+    r, _, _ = select.select([fd], [], [], 0.2)
+    if r:
+        try: out += os.read(fd, 65536)
+        except OSError: pass
+    w, st = os.waitpid(pid, os.WNOHANG)
+    if w == pid:
+        # read what the shell printed; bounded: a leftover that holds the terminal open would keep EOF away
+        t2 = time.monotonic()
+        try:
+            while time.monotonic() - t2 < 2:
+                r, _, _ = select.select([fd], [], [], 0.2)
+                if not r: continue
+                b = os.read(fd, 65536)
+                if not b: break
+                out += b
+        except OSError: pass
+        m = re.search(rb"DRV_RC=(\d+)", out); rc = m.group(1).decode() if m else "none"; break
+    if time.monotonic() - t0 > cap:
+        if sid: kill_all(sid)
+        os.waitpid(pid, 0); break
+el = time.monotonic() - t0
+# a member killed together with the cut command can still be exiting when the shell returns (an orphaned stty
+# of the stub, for one): drain for up to 3 s before counting; a real leftover (sleep 300) is still there then
+left = members(sid) if sid else []
+t1 = time.monotonic()
+while left and time.monotonic() - t1 < 3: time.sleep(0.1); left = members(sid)
+if left: kill_all(sid)
+if os.environ.get("TT_DEBUG") == "1": sys.stderr.write("DRV-OUT %r\n" % out[-400:])
+print("rc=%s secs=%.1f left=%d" % (rc, el, len(left)))

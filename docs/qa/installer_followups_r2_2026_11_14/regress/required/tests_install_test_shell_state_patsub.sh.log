@@ -1,0 +1,15 @@
+  ok   control: hi_reset_shell_state found in install_constitution.sh
+  ok   install_constitution.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9)
+  ok   install_constitution.sh: & in a replacement stays literal after the reset
+  ok   control: hi_reset_shell_state found in update_constitution.sh
+  ok   update_constitution.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9)
+  ok   update_constitution.sh: & in a replacement stays literal after the reset
+  ok   control: hi_reset_shell_state found in install_cli_agent_plugins.sh
+  ok   install_cli_agent_plugins.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9)
+  ok   install_cli_agent_plugins.sh: & in a replacement stays literal after the reset
+  ok   control: hi_reset_shell_state found in install_action_prefix.sh
+  ok   install_action_prefix.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9)
+  ok   install_action_prefix.sh: & in a replacement stays literal after the reset
+  ok   census control needles: a defaults claim without the exception is flagged, one with it is not
+  ok   every comment that says the reset restores bash's defaults names the patsub_replacement exception
+shell_state_patsub: PASS 14 FAIL 0

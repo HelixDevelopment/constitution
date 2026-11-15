@@ -1,0 +1,22 @@
+=== §11.4.119 cwd-hook checkout-owner guard — hook: /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/multitrack/multitrack_cwd_hook.sh
+--- A. FAIL-OPEN PROOF (the hook must NEVER withhold the worktree on any error path)
+  PASS  N1 golden-good: free checkout -> worktree printed, exit 0, silent
+  PASS  N2 NEGATIVE CONTROL: free checkout + enforce -> worktree printed, silent
+  PASS  F1 fail-open: lock tool ABSENT -> worktree still printed
+  PASS  F2 fail-open: lock tool UNREADABLE -> worktree still printed
+  PASS  F3 fail-open: tool exits 1 (crash) -> worktree still printed
+  PASS  F4 fail-open: tool exits 7 (unexpected rc) -> worktree still printed
+  PASS  F5 fail-open: lock dir UNWRITABLE -> worktree still printed
+  PASS  F6 owner process DEAD -> checkout read as FREE, worktree printed, silent
+  PASS  F7 fail-open: resolver MISSING -> nothing printed, exit 0 (pre-existing behaviour)
+  PASS  F8 conductor path: no worktree resolved -> no owner check, nothing printed
+  PASS  GB1 GOLDEN-BAD (warn): live owner via symlink alias -> WARNED, worktree still printed (human never blocked)
+  PASS  GB2 GOLDEN-BAD (enforce): live owner -> WARNED + worktree WITHHELD, exit 0 (session still starts)
+  PASS  GB3 MULTITRACK_AUTOMATED=1 selects enforce -> worktree withheld
+  PASS  F9 escape hatch: policy=off with a live owner -> no check, worktree printed
+  PASS  F10 fail-open: malformed policy value -> permissive 'warn', worktree printed
+  PASS  MUT §1.1: blinded probe -> GB2 breaks (guard is load-bearing, not decorative)
+  PASS  F11 fail-open: HANGING tool -> bounded (5s) and worktree still printed
+
+--- B. RESULT
+PASS=17 FAIL=0

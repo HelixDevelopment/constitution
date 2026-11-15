@@ -54,7 +54,9 @@ HI_SOURCED=0; (return 0 2>/dev/null) && HI_SOURCED=1   # 1 only when this file i
 # >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh)
 # What the caller's shell hands down never changes what this script decides (docs/qa/installer_sigpipe_2026_11_13/
 # round2). hi_reset_shell_state returns every option a caller can pass on (BASH_COMPAT, POSIXLY_CORRECT, SHELLOPTS,
-# BASHOPTS, `bash -e`, `bash -o posix`, CDPATH, TMOUT, GLOBIGNORE) to bash's defaults. It runs only when the file is
+# BASHOPTS, `bash -e`, `bash -o posix`, CDPATH, TMOUT, GLOBIGNORE) to bash's defaults, with one exception:
+# `patsub_replacement` is turned OFF (bash 5.2 and later turn it on), so `&` in the replacement of
+# ${var//pat/rep} stays a literal `&`, as in bash 5.1 and older. It runs only when the file is
 # RUN (a test that sources the file keeps its own shell), and before the first function that needs it is parsed:
 # bash 5.0 and older in posix mode reject `<(...)` while parsing. Not covered: BASH_ENV and exported functions, which
 # run before the first line of this file. The text helpers below work inside the shell: no here-string and no
@@ -280,7 +282,11 @@ hi_gx() {
       esac
     done
     export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10"
-    if [ -n "${HI_GX_TIMEOUT:-}" ]; then exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
+    # timeout moves itself and git into a background process group of the terminal: when git touches the terminal
+    # the kernel sends SIGTTOU/SIGTTIN to the whole group, and uutils timeout (unlike GNU) does not ignore them, so it
+    # stopped with git and its limit never fired. Ignored for timeout only: GNU and uutils timeout reset them for git
+    # (measured); busybox timeout passes the ignore on to git, but it makes no new process group, so none is sent.
+    if [ -n "${HI_GX_TIMEOUT:-}" ]; then trap '' TTIN TTOU; exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
     else exec "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"; fi
   )
 }

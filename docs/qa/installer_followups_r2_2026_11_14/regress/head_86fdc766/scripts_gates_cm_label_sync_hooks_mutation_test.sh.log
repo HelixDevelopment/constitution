@@ -1,0 +1,18 @@
+✅ META OK:   clean fixture — gate passed as required
+✅ META OK:   event hook missing — gate failed as required
+✅ META OK:   installer not executable — gate failed as required
+✅ META OK:   hook without Purpose header — gate failed as required
+✅ META OK:   HOOKS.md lacks statusLine — gate failed as required
+✅ META OK:   HOOKS.md absent — gate failed as required
+✅ META OK:   post_update_hook lacks wiring — gate failed as required
+✅ META OK:   post_update default not dry-run — gate failed as required
+✅ META OK:   hook exits 1 on garbage — gate failed as required
+✅ META OK:   hook prints noise on garbage — gate failed as required
+✅ META OK:   toolkit wrapper missing — gate failed as required
+✅ META OK:   hook syntax error — gate failed as required
+✅ META OK:   mutant table missing — gate failed as required
+✅ META OK:   mutant table does not compile — gate failed as required
+✅ META OK:   jq/git/go absent — gate exit 2 (cannot determine), not a pass
+✅ META OK:   suite exit 2 — gate exit 2 (cannot determine)
+✅ META OK:   passing suite — gate exit 0 (control)
+✅ META: all expectations held
