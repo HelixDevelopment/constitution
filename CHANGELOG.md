@@ -1,5 +1,14 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-15 — CON-312 installer SIGPIPE under pipefail: no pipe into an early-exit reader at any decision
+
+**Status of this entry: UNRELEASED; PROVISIONAL (§11.4.290), not VERIFIED-DONE; evidence class gate-logic and unit (§11.4.289); independent review round 2 GO-with-follow-ups (`review_installer_sigpipe_r2.md`, sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997).**
+
+- `scripts/install_constitution.sh`, `scripts/update_constitution.sh`, `scripts/install_cli_agent_plugins.sh`, `scripts/install_action_prefix.sh`: a `printf | grep -q` membership test under `pipefail` returned 141 when `printf` died of SIGPIPE, so a match read as no match (an unchanged remote read as a push; a missing fingerprint tool not seen). Fixed without a temporary file or a pipe at the decision; the review measured no here-string or here-document left in the installer, the updater or the action-prefix libraries (AST count 0, base 19).
+- `scripts/gates/cm_installer_no_push_no_force.sh`: deny-by-default scanner; its mutation test kills all 218 cases.
+- New `tests/install/test_sigpipe.sh` (PASS 67 / FAIL 0, 3 of 3 runs); `test_lock.sh` stale-poll race and `test_round8.sh` chaos-loop hardening (the F9 race stays UNREPRODUCED).
+- Evidence: `docs/qa/installer_sigpipe_2026_11_13/`. Squash of vehicle head 2e397cba; the unreviewed intermediate commits are not carried.
+
 ## Unreleased — 2026-11-12 — sync every upstream of a project tree, fast-forward only (`scripts/sync/`), wired into `setup.sh` (interactive and non-interactive) and `post_update_hook.sh` (read-only check)
 
 **Status of this entry: UNRELEASED; implemented and tested on host fixtures only (real git against real bare repositories in scratch directories, no network, no forge); not VERIFIED-DONE; pending independent review (CON-PENDING-SYNC-UPSTREAMS). Independent review round 1 of `1752be71`: NO-GO (1 critical, 5 important, 7 minor, 3 nit). Independent review round 2: NO-GO (findings I-1 to I-4, S-1, m-1 to m-5, n-1 to n-6), fixed in round 3 (a structural round, §11.4.276(E)). Independent review round 3: NO-GO (F1, F2, F4, F5, F8, F9 important; F3, F6 minor; F7 nit); the round-4 fixes below (a structural round past `R_max`; rounds continue until GO, operator decision 2026-11-11) were reviewed in round 4: NO-GO (RV4-1 to RV4-9 important, RV4-10 to RV4-15 minor). The round-5 fixes (a structural round by a fresh fixer, §11.4.276(E)) are PROVISIONAL and have not been reviewed yet.** Operator order 2026-11-12 22:26 (relayed): regularly fetch and pull from all upstreams and all submodules recursively, and build that into every first-time init / setup mechanism, with tests of every supported type.

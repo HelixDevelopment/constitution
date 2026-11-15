@@ -1,0 +1,11 @@
+# tools/exit3_census.py over the five run_all.sh logs of the superseded head 58815d75
+runall_host_r1.log: 19 suites; checks that expected 0 and got 3: 0; free-space refusal text: 0
+runall_5.2.37_r1.log: 19 suites; checks that expected 0 and got 3: 0; free-space refusal text: 0
+runall_host_r2.log: 19 suites; checks that expected 0 and got 3: 0; free-space refusal text: 0
+runall_5.2.37_r2.log: 19 suites; checks that expected 0 and got 3: 5; free-space refusal text: 0
+  agent_unit_fake        PASS 173 FAIL 31; expected 0 got 3: 5; free-space refusal text: 0
+runall_host_r3.log: 19 suites; checks that expected 0 and got 3: 22; free-space refusal text: 3
+  integration            PASS 115 FAIL 31; expected 0 got 3: 8; free-space refusal text: 0
+  agent_unit_fake        PASS 114 FAIL 90; expected 0 got 3: 12; free-space refusal text: 1
+  self-guard             PASS 115 FAIL 2; expected 0 got 3: 2; free-space refusal text: 2
+exit 0

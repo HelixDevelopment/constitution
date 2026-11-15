@@ -1,0 +1,15 @@
+# stale-lock probe control needles: a lock a live process holds is not stale, the same lock closed is
+  FAIL stale-lock probe: a lock held open by a live process is not reported (expected [] got [.git/index.lock])
+  ok   stale-lock probe: the same lock, closed, is reported
+needles: PASS 1 FAIL 1
+rc=1
+# stale-lock probe control needles: a lock a live process holds is not stale, the same lock closed is
+  FAIL stale-lock probe: a lock held open by a live process is not reported (expected [] got [.git/index.lock])
+  ok   stale-lock probe: the same lock, closed, is reported
+needles: PASS 1 FAIL 1
+rc=1
+# stale-lock probe control needles: a lock a live process holds is not stale, the same lock closed is
+  FAIL stale-lock probe: a lock held open by a live process is not reported (expected [] got [.git/index.lock])
+  ok   stale-lock probe: the same lock, closed, is reported
+needles: PASS 1 FAIL 1
+rc=1

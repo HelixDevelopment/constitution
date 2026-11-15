@@ -1,0 +1,4 @@
+"printf '%s\\n' 'a\ngit push\nb' | bash\n"                     full: (a) shell run (only the listed script runs are allowed): bash                              raw (c) alone: no finding (masked)
+"echo 'a\ngit push\nb' | sh\n"                                 full: (a) shell run (only the listed script runs are allowed): sh                                raw (c) alone: no finding (masked)
+"printf '%s\\n' 'a\ngit push\nb' >f.sh\n"                      full: (a) redirection writes a file outside the sanctioned places: None > f.sh                   raw (c) alone: no finding (masked)
+"printf '%s\\n' 'usage:\ngit push is never run\nend' >&2\n"    full: PASS                                                                                       raw (c) alone: no finding (masked)

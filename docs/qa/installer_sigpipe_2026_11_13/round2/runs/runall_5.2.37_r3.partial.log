@@ -1,0 +1,458 @@
+=== test_unit
+  ok   installer sources in library mode without running main
+# validators
+  ok   agent id accepted: claude
+  ok   agent id accepted: claude1
+  ok   agent id accepted: claude12
+  ok   agent id accepted: deepseek
+  ok   agent id accepted: kimi
+  ok   agent id accepted: opencode
+  ok   agent id accepted: pi
+  ok   agent id accepted: kc-foo
+  ok   agent id accepted: helixllm-a.b
+  ok   agent id accepted: none
+  ok   agent id rejected: []
+  ok   agent id rejected: [-x]
+  ok   agent id rejected: [--yolo]
+  ok   agent id rejected: [a b]
+  ok   agent id rejected: [a;b]
+  ok   agent id rejected: [a$(id)]
+  ok   agent id rejected: [a`id`]
+  ok   agent id rejected: [a
+b]
+  ok   agent id rejected: [../x]
+  ok   agent id rejected: [a/b]
+  ok   ref accepted: main
+  ok   ref accepted: helixconstitution-v72.1
+  ok   ref accepted: v1.0.0
+  ok   ref accepted: a5cee41
+  ok   ref accepted: refs/tags/x
+  ok   ref rejected: []
+  ok   ref rejected: [-b]
+  ok   ref rejected: [--upload-pack=x]
+  ok   ref rejected: [a..b]
+  ok   ref rejected: [a b]
+  ok   ref rejected: [x;rm]
+  ok   ref rejected: [a
+b]
+  ok   ref rejected: [a~1]
+  ok   ref rejected: [a^]
+  ok   url accepted: https://github.com/HelixDevelopment/HelixConstitution.git
+  ok   url accepted: git@github.com:HelixDevelopment/HelixConstitution.git
+  ok   url accepted: ssh://git@example.org:2222/o/r.git
+  ok   url accepted: file:///tmp/x/upstream.git
+  ok   url accepted: /tmp/x/upstream.git
+  ok   url rejected: []
+  ok   url rejected: [-oProxyCommand=x]
+  ok   url rejected: [ext::sh -c id]
+  ok   url rejected: [https://x/$(id)]
+  ok   url rejected: [https://x/`id`]
+  ok   url rejected: [https://x/a b]
+  ok   url rejected: [https://x/a
+b]
+  ok   url rejected: [https://x/a;b]
+  ok   url rejected: [fd::3]
+  ok   url rejected: [--upload-pack=touch /tmp/p]
+  ok   url rejected: [relative/path.git]
+  ok   url rejected: [https://x/a'b]
+  ok   model accepted: sonnet
+  ok   model accepted: opus
+  ok   model accepted: haiku
+  ok   model accepted: claude-sonnet-4-5
+  ok   model accepted: provider/model:tag
+  ok   model rejected: []
+  ok   model rejected: [-x]
+  ok   model rejected: [a b]
+  ok   model rejected: [a;b]
+  ok   model rejected: [$(id)]
+  ok   effort accepted: low
+  ok   effort accepted: medium
+  ok   effort accepted: high
+  ok   effort accepted: xhigh
+  ok   effort accepted: max
+  ok   effort rejected: []
+  ok   effort rejected: [huge]
+  ok   effort rejected: [high;x]
+  ok   number accepted: 0
+  ok   number accepted: 1
+  ok   number accepted: 2
+  ok   number accepted: 1800
+  ok   number accepted: 0.5
+  ok   number accepted: 2.25
+  ok   number rejected: []
+  ok   number rejected: [-1]
+  ok   number rejected: [1e9]
+  ok   number rejected: [x]
+  ok   number rejected: [1;2]
+  ok   number rejected: [1 2]
+  ok   timeout accepted: 1
+  ok   timeout accepted: 60
+  ok   timeout accepted: 1800
+  ok   timeout accepted: 86400
+  ok   timeout rejected: []
+  ok   timeout rejected: [0]
+  ok   timeout rejected: [00]
+  ok   timeout rejected: [86401]
+  ok   timeout rejected: [999999]
+  ok   timeout rejected: [-5]
+  ok   timeout rejected: [1.5]
+  ok   timeout rejected: [x]
+  ok   budget accepted: 0.01
+  ok   budget accepted: 0.5
+  ok   budget accepted: 2
+  ok   budget accepted: 50
+  ok   budget accepted: 50.0
+  ok   budget rejected: []
+  ok   budget rejected: [0]
+  ok   budget rejected: [0.0]
+  ok   budget rejected: [0.00]
+  ok   budget rejected: [50.01]
+  ok   budget rejected: [51]
+  ok   budget rejected: [1000]
+  ok   budget rejected: [-1]
+  ok   budget rejected: [x]
+  ok   bash 4.4 accepted
+  ok   bash 5.0 accepted
+  ok   bash 4 3 rejected (empty arrays under set -u)
+  ok   bash 4 0 rejected (empty arrays under set -u)
+  ok   bash 3 2 rejected (empty arrays under set -u)
+# json + url sanitising
+  ok   json escape quotes/backslash/newline/tab/control
+  ok   credentials stripped from https url
+  ok   token-only userinfo stripped
+  ok   ssh url unchanged
+  ok   password with @ fully stripped
+  ok   upper-case scheme credentials stripped
+  ok   ssh:// user:password stripped (last @)
+  ok   ssh:// plain user kept
+  ok   query token redacted
+  ok   credentials + query + fragment
+  ok   local path unchanged
+  ok   has-password: password containing @
+  ok   has-password: query token
+  ok   has-password: plain https not flagged
+  ok   has-password: ssh user not flagged
+  ok   scrub: no secret fragment left (p@ss, w0rd, pa@, SEKRIT)
+  ok   scrub: host and path kept
+  ok   scrub: query redacted
+# prompt extraction
+  ok   first fenced block under ## PROMPT (longer fence, inner fence kept)
+  ok   missing fence under ## PROMPT -> failure
+  ok   missing ## PROMPT heading -> failure
+  ok   follow-up body after front matter
+  ok   follow-up requires_previous_success false
+  ok   follow-up without front matter = whole body
+  ok   follow-up requires default true
+# newest tag
+  ok   newest helixconstitution tag by version sort
+  ok   no matching tag -> empty
+  ok   pre-release tags never chosen by default
+  ok   v9 < v10 < v100 (version order, not lexical)
+# release tags: numeric parts never have a leading zero (the prompt's single release regex)
+  ok   leading-zero tags never chosen (v072 / v72.01 / v00)
+  ok   zero parts without a leading zero are fine (v0, v72.0)
+  ok   only-leading-zero tags -> empty
+# release regex drift: installer, updater and the setup prompt use ONE identical regex
+  prompt_grep_distinct=1 prompt_grep_count=4
+  prompt_prose_has_canonical=yes
+  installer_assign=1
+  installer_other_literals=0
+  installer_equal=yes
+  updater_assign=1
+  updater_other_literals=0
+  updater_equal=yes
+  ok   control: the prompt carries its release regex at least 4 times
+  ok   the prompt uses exactly one distinct release regex
+  ok   the prompt's prose names the same regex its commands use
+  ok   installer defines HI_RELEASE_TAG_RE exactly once
+  ok   installer has no second release-regex literal
+  ok   installer release regex == the prompt's
+  ok   updater defines HI_RELEASE_TAG_RE exactly once
+  ok   updater has no second release-regex literal
+  ok   updater release regex == the prompt's
+# stream-json parser (UNIT fixtures, not live evidence)
+  ok   success result
+  ok   is_error true -> failure
+  ok   no result event -> none
+  ok   429 detected
+  ok   garbage lines ignored
+  ok   LAST result event decides
+  ok   cost read from total_cost_usd
+  ok   non-numeric cost -> unknown
+# snippet table + cli
+  ok   --print-snippets exit 0
+  ok   snippet present: https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitlab.com/helixdevelopment1/helixconstitution/-/raw/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitlab.com/vasic-digital/HelixConstitution/-/raw/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitflic.ru/project/helixdevelopment/helixconstitution/blob/raw?file=scripts/install_constitution.sh&branch=main
+  ok   snippet present: https://gitverse.ru/api/repos/helixdevelopment/HelixConstitution/raw/branch/main/scripts/install_constitution.sh
+  ok   exactly 5 snippet lines
+  ok   --version prints installer version
+  ok   --help exit 0
+  ok   --help documents --project-root
+  ok   --help documents --upstream
+  ok   --help documents --ref
+  ok   --help documents --agent
+  ok   --help documents --model
+  ok   --help documents --effort
+  ok   --help documents --max-budget-usd
+  ok   --help documents --timeout-sec
+  ok   --help documents --non-interactive
+  ok   --help documents --yes
+  ok   --help documents --dry-run
+  ok   --help documents --decision-layer
+  ok   --help documents --followups
+  ok   --help documents --commit
+  ok   --help documents --report-json
+  ok   --help documents --print-snippets
+  ok   unknown flag -> exit 2
+  ok   flag missing value -> exit 2
+  ok   invalid effort -> exit 2
+  ok   --timeout-sec 0 -> exit 2
+  ok   --timeout-sec 86401 -> exit 2
+  ok   --max-budget-usd 0 -> exit 2
+  ok   --max-budget-usd 50.5 -> exit 2
+  ok   --flag=value accepted
+  ok   --flag=value is validated (--effort=huge -> 2)
+  ok   boolean flag with =value -> exit 2
+  ok   a lone -- is accepted
+  ok   argument after -- -> exit 2
+  ok   http:// upstream refused without --allow-insecure-url (exit 2)
+  ok   insecure refusal names the flag
+  ok   git:// upstream refused (exit 2)
+  ok   --help documents --allow-insecure-url
+  ok   --help documents --max-budget-usd
+  ok   --help documents --timeout-sec
+  ok   --help says which agents cannot enforce model/effort/budget
+  ok   no TTY and no --non-interactive -> exit 2
+# truncation sentinel
+  ok   last line is the sentinel main call
+  ok   sentinel-less main printed nothing useful
+  ok   main without the sentinel refuses (exit 2)
+# shared blocks are byte-identical in the installer and the updater (one implementation, no drift)
+  ok   control: block hi_resolve_ref_in present in the installer
+  ok   block hi_resolve_ref_in identical in installer and updater
+  ok   control: block hi_lock_helpers present in the installer
+  ok   block hi_lock_helpers identical in installer and updater
+  ok   control: block hi_text_safe present in the installer
+  ok   block hi_text_safe identical in installer and updater
+  ok   control: block hi_remote_live present in the installer
+  ok   block hi_remote_live identical in installer and updater
+  ok   control: block hi_gitlink_rel present in the installer
+  ok   block hi_gitlink_rel identical in installer and updater
+  ok   control: block hi_shell_state present in the installer
+  ok   block hi_shell_state identical in installer and updater
+unit: PASS 222 FAIL 0
+=== test_unit OK (2s)
+=== test_integration
+# ADD into a fresh project
+  ok   ADD exit 0
+  ok   .gitmodules path
+  ok   .gitmodules url
+  ok   gitlink = newest tag commit
+  ok   submodule HEAD = newest tag commit
+  ok   CLAUDE.md imports submodules/constitution/CLAUDE.md
+  ok   CLAUDE.md inheritance heading
+  ok   AGENTS.md base-rules pointer
+  ok   no legacy ./constitution path in written files
+  ok   nested hub engines NOT initialised (non-recursive)
+  ok   not committed by default
+  ok   backup dir excluded via .git/info/exclude
+  ok   report status
+  ok   report mode
+  ok   report commit_after
+  ok   report verify.overall
+# ADD is a blobless partial clone with the full commit graph and tags (I1)
+  ok   promisor remote configured
+  ok   partial clone filter blob:none
+  ok   blobs really omitted (missing objects: 8350)
+  ok   not shallow (no --depth: updater needs the commit graph)
+  ok   full commit graph: v72.1 is an ancestor of HEAD
+  ok   tags kept
+  ok   gitdir absorbed into the project (.git is a gitfile)
+  ok   installer marker removed after a complete add
+  ok   fixture really has MANY blobs missing before checkout (SIGPIPE precondition: 3811 >= 300)
+  ok   report.clone = blobless (no SIGPIPE-driven false 'full')
+  ok   no false 'does not support partial clone' warning
+  ok   final message says blobless clone
+  ok   submodule worktree is clean (lazy blob fetch worked)
+  ok   submodule files keep the user's umask (not the installer's private 077)
+# private backups and reports (I7)
+  ok   backup dir mode 700
+  ok   report.json in backup mode 600
+  ok   --report-json file mode 600
+  ok   git status shows only expected paths
+# idempotency: second run is a no-op that says so
+  ok   second run exit 0
+  ok   second run says already up to date
+  ok   second run changes nothing
+  ok   second run report mode
+# UPDATE after the upstream advances (fast-forward)
+  ok   UPDATE exit 0
+  ok   submodule fast-forwarded to new tag
+  ok   gitlink staged in parent
+  ok   V0 is an ancestor of V1 (fast-forward)
+  ok   before/after sha printed
+  ok   report mode update
+  ok   report commit_before
+  ok   updater ran (delegated) on the blobless clone
+  ok   after the update the blobless worktree is clean
+  ok   after the update a file of the new commit is readable
+  ok   re-run after update exit 0
+  ok   re-run after update is a no-op
+# --commit on
+  ok   commit run exit 0
+  ok   exactly one new commit
+  ok   commit message names submodules/constitution
+  ok   worktree clean after commit
+  ok   nothing pushed: project has no remote
+# dry run: zero writes
+  ok   dry run exit 0
+  ok   dry run prints the plan
+  ok   dry run wrote nothing (incl .git)
+# preconditions
+  ok   not a git repo -> exit 3
+  ok   not a git repo: nothing written
+  ok   --git-init then ADD exit 0
+  ok   --git-init gitlink
+  ok   dirty touched path (CLAUDE.md) -> exit 3
+  ok   dirty refusal wrote nothing
+  ok   unrelated dirty file does not block (exit 0)
+  ok   unrelated dirty file untouched
+  ok   existing CLAUDE.md: exit 0
+  ok   existing CLAUDE.md content preserved
+  ok   original CLAUDE.md backed up
+# interrupted 'git submodule add' of THIS installer: gitlink staged, .gitmodules not yet written (chaos repro)
+  ok   user-staged gitlink without .gitmodules entry: refused (exit 3)
+  ok   refusal explains how to unstage
+  ok   user-staged gitlink: nothing touched (full tree incl .git and index)
+  ok   user-staged gitlink: no backup dir created
+  ok   embedded repo staged: refused with exit 3 (not 1)
+  ok   embedded repo staged: nothing touched
+  ok   precondition: gitlink staged
+  ok   precondition: no .gitmodules entry
+  ok   half-added layout detected as partial
+  ok   half-added (installer marker): re-run exit 0
+  ok   half-added: registered in .gitmodules
+  ok   half-added: gitlink at newest tag (v999.1)
+  ok   committed gitlink w/o .gitmodules: refused (exit 3)
+  ok   committed gitlink w/o .gitmodules: nothing written
+  ok   refusal names the inconsistency
+# refusal paths leave no backup dir and no exclude edit
+  ok   user content at submodules/constitution: refused (exit 3)
+  ok   user content refusal: full tree (incl .git) unchanged
+  ok   user content refusal: no backup dir
+  ok   user content refusal: exclude not edited
+# partial layout: .gitmodules carrying the user's own uncommitted edits is refused
+  ok   our section only: layout partial
+  ok   partial + user edits in .gitmodules: refused (exit 3)
+  ok   partial + user edits: nothing touched
+  ok   partial with only our own section: recovered (exit 0)
+  ok   other submodule entry preserved
+# run inside a submodule
+  ok   inside a submodule without --project-root: refused (exit 3)
+  ok   inside-submodule refusal names --project-root
+  ok   inside-submodule refusal: superproject untouched
+  ok   inside a submodule with --project-root: allowed (dry-run exit 0)
+  ok   inside-submodule: warned
+# --restore never writes through a symlinked parent directory
+  ok   --restore with symlinked parent: exit 0
+  ok   outside file untouched
+  ok   symlinked parent reported
+# blobless clone falls back to a full clone when the server refuses filtering
+  ok   no-filter server: ADD exit 0
+  ok   no-filter server: warned about the full clone
+  ok   no-filter server: no missing objects (full clone)
+# upstream fallback + unreachable
+  ok   fallback to second upstream exit 0
+  ok   report used the reachable upstream
+  ok   http:// upstream without --allow-insecure-url -> exit 2
+  ok   no reachable upstream -> exit 3
+  ok   unreachable: nothing written
+  ok   insecure URL allowed with a warning
+# legacy ./constitution layout
+  ok   legacy: exit 0
+  ok   legacy: report mode
+  ok   legacy: manual migration steps printed
+  ok   legacy: nothing moved automatically
+# pinned old ref without the updater -> built-in fast-forward fallback
+  ok   ADD at v72.1 exit 0
+  ok   gitlink at v72.1
+  ok   v72.1 has no update_constitution.sh
+  ok   built-in update exit 0
+  ok   built-in update reached newest tag
+  ok   built-in updater announced
+# report json is valid JSON with required keys
+  ok   report parses + has keys
+# built-in updater picks the newest tag by VERSION order (v9 < v10 < v100), not by text order
+  ok   built-in version-order update exit 0
+  ok   built-in updater used
+  ok   built-in update chose v999.100 (version order)
+# built-in updater: a target no remote has is refused; --ref main means the REMOTE main (I-1, I-2)
+  ok   built-in --ref localonly (no remote has it) -> refused (exit 3)
+  ok   built-in --ref localonly: the built-in updater was used
+  ok   built-in --ref localonly: the refusal says the target is not on a remote
+  ok   built-in --ref localonly: gitlink unchanged
+  ok   built-in --ref localonly: HEAD unchanged
+  ok   built-in --ref 68ef9450b8cd8610ada12f56ab9a952413918bd9 (no remote has it) -> refused (exit 3)
+  ok   built-in --ref 68ef9450b8cd8610ada12f56ab9a952413918bd9: the built-in updater was used
+  ok   built-in --ref 68ef9450b8cd8610ada12f56ab9a952413918bd9: the refusal says the target is not on a remote
+  ok   built-in --ref 68ef9450b8cd8610ada12f56ab9a952413918bd9: gitlink unchanged
+  ok   built-in --ref 68ef9450b8cd8610ada12f56ab9a952413918bd9: HEAD unchanged
+  ok   built-in --ref main: exit 0
+  ok   built-in --ref main: the built-in updater was used
+  ok   built-in --ref main reached the upstream main (not the stale local branch)
+# a run killed after 'git submodule add' (installer marker still set) is completed by the next run (M-5)
+  ok   control: the state is a registered submodule with its own .git directory and the marker
+  ok   interrupted add: the next run exits 0
+  ok   interrupted add: announced
+  ok   interrupted add: the gitdir was absorbed (.git is a file)
+  ok   interrupted add: the marker is gone
+  ok   interrupted add: gitlink and .gitmodules entry present
+# changed paths are read NUL-separated: spaces, quotes, non-ASCII and renames are reported as they are (M-7)
+  ok   pre-existing odd names: exit 0
+  ok   changed_paths holds the names verbatim (no C quoting, no 'a -> b')
+  ok   pre-existing odd names: verify.overall = pass
+integration: PASS 146 FAIL 0
+=== test_integration OK (113s)
+=== test_updater
+  ok   check at latest: exit 0
+  ok   check at latest says no
+  ok   check after advance says yes
+  ok   check changed nothing
+  ok   dry-run exit 0
+  ok   dry-run changed nothing
+  ok   fast-forward exit 0
+  ok   fast-forward HEAD
+  ok   gitlink staged
+  ok   not committed
+  ok   before + after printed
+  ok   re-run exit 0
+  ok   re-run already up to date
+  ok   older target: exit 0
+  ok   older target: ahead, no change
+# refusals
+  ok   local changes -> exit 3
+  ok   local changes: nothing changed
+  ok   unpushed commit -> exit 3
+  ok   diverged target -> exit 3
+  ok   diverged: HEAD unchanged
+  ok   option-like ref -> exit 2
+  ok   network loss -> exit 3
+# a tag created only locally never counts as 'pushed' (reviewer mutant E)
+fatal: unable to read tree (453eb8e9939d3d31e3589172707c28563c5ca5ff)
+  ok   unpushed commit carrying a local-only tag -> exit 3
+  ok   refusal says unpushed
+  ok   local-only tag: HEAD unchanged
+# --commit and legacy layout
+  ok   --commit exit 0
+  ok   --commit: clean afterwards
+  ok   --commit: committed gitlink
+  ok   legacy layout update exit 0
+  ok   legacy layout reached newest tag
+# post-update hook seam (TEST FIXTURE hook committed to the upstream)
+  ok   update with hook exit 0
+  ok   hook ran from the project root with Jev off, no arguments (this older hook does not parse --project-root)
+# target = newest RELEASE tag by version order: v999.9 < v999.10 < v999.100; pre-releases skipped
+  ok   ordering: exit 0
+  ok   ordering: newest release v999.100 chosen (not v999.9 lexical, not v999.101-rc1)

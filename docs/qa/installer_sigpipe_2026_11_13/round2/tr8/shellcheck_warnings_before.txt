@@ -1,0 +1,7 @@
+      1 warning: h0 appears unused. Verify use (or export if used externally). [SC2034]
+      1 warning: name appears unused. Verify use (or export if used externally). [SC2034]
+      1 warning: PA appears unused. Verify use (or export if used externally). [SC2034]
+      1 warning: PB appears unused. Verify use (or export if used externally). [SC2034]
+      3 warning: ShellCheck can't follow non-constant source. Use a directive to specify location. [SC1090]
+      1 warning: T_NAME appears unused. Verify use (or export if used externally). [SC2034]
+      1 warning: V6 appears unused. Verify use (or export if used externally). [SC2034]

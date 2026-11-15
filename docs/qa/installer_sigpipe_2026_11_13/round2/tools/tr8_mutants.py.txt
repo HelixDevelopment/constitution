@@ -1,0 +1,76 @@
+"""tr8_mutants.py TEST_ROUND8 NEEDLES_SH WORK OUT_TSV [BASH] — mutants of the stale-lock probe and drain_session of
+test_round8.sh. Each mutant is one textual change to a copy of the file; the anchor must occur exactly once; the
+needle harness (tools/tr8_needles.sh) runs on the copy in a fresh empty directory under WORK. KILLED when the harness
+exits 1 (a needle failed), SURVIVED when it exits 0, ERROR otherwise. A control run on the unmutated file must pass
+first, or nothing is reported (exit 3). Writes OUT_TSV; exit 0 when every mutant is KILLED, 1 otherwise. Deletes
+nothing: the caller removes WORK.
+"""
+import os
+import subprocess
+import sys
+import tempfile
+
+PIPE_FORM = ('    find /proc/[0-9]*/fd -maxdepth 1 -lname "$lf" -print -quit 2>/dev/null | grep -q . '
+             '|| out="$out ${lf#"$P"/}"')
+FIXED_FORM = ('    holder="$(find /proc/[0-9]*/fd -maxdepth 1 -lname "$lf" -print -quit 2>/dev/null)"\n'
+              '    [ -n "$holder" ] || out="$out ${lf#"$P"/}"')
+MUTANTS = [
+    ("TM1", "probe back to the proposed pipe form (status of find | grep -q . under pipefail)", FIXED_FORM, PIPE_FORM),
+    ("TM2", "probe never reports a lock", '[ -n "$holder" ] || out="$out ${lf#"$P"/}"', '[ -n "$holder" ] || :'),
+    ("TM3", "-lname replaced by -name (fd links never match)", '-maxdepth 1 -lname "$lf"', '-maxdepth 1 -name "$lf"'),
+    ("TM4", "held/stale test inverted", '[ -n "$holder" ] ||', '[ -z "$holder" ] ||'),
+    ("TM5", "probe reads only its own descriptors", 'find /proc/[0-9]*/fd -maxdepth', 'find /proc/self/fd -maxdepth'),
+    ("TM6", "lock search uses a wrong file name", 'find "$P/.git" -name index.lock', 'find "$P/.git" -name index.lck'),
+    ("TM7", "reported path not made relative to P", 'out="$out ${lf#"$P"/}"', 'out="$out ${lf}"'),
+    ("TM8", "drain_session never waits (returns 0 at once)",
+     '  while left="$(ps -s "$s" -o pid= 2>/dev/null)"; [ -n "$left" ]; do',
+     '  return 0; while left="$(ps -s "$s" -o pid= 2>/dev/null)"; [ -n "$left" ]; do'),
+    ("TM9", "drain_session never reports a drained session",
+     '[ "$n" -gt 0 ] || return 1; sleep 0.1; done\n}', '[ "$n" -gt 0 ] || return 1; sleep 0.1; done; return 1\n}'),
+    ("TM10", "drain_session back to the process-group probe of the proposal",
+     'while left="$(ps -s "$s" -o pid= 2>/dev/null)"; [ -n "$left" ]; do', 'while kill -0 -- "-$s" 2>/dev/null; do'),
+    ("TM11", "drain_session lists the leader pid instead of the session", 'ps -s "$s" -o pid=', 'ps -p "$s" -o pid='),
+    ("TM12", "drain_session uses a ps selector this ps does not have (blind ps)", 'ps -s "$s" -o pid=',
+     'ps --no-such-selector "$s" -o pid='),
+]
+
+
+def run(path, harness, work, bash):
+    d = tempfile.mkdtemp(prefix="tm.", dir=work)
+    env = {k: v for k, v in os.environ.items() if k not in ("LD_PRELOAD", "LD_LIBRARY_PATH")}
+    p = subprocess.run([bash, harness, path, d], capture_output=True, text=True, timeout=300, env=env)
+    return p.returncode, p.stdout + p.stderr
+
+
+def main():
+    src, harness, work, out = sys.argv[1:5]
+    bash = sys.argv[5] if len(sys.argv) > 5 else "bash"
+    text = open(src, encoding="utf-8").read()
+    rc, log = run(src, harness, work, bash)
+    if rc != 0:
+        print("control run on the unmutated file did not pass (rc=%d):\n%s" % (rc, log))
+        sys.exit(3)
+    rows = ["id\tverdict\tfirst failing needle\tmutation"]
+    allk = True
+    for mid, desc, old, new in MUTANTS:
+        n = text.count(old)
+        if n != 1:
+            rows.append("%s\tBAD-ANCHOR(%d)\t-\t%s" % (mid, n, desc))
+            allk = False
+            continue
+        fd, path = tempfile.mkstemp(prefix=mid + ".", suffix=".sh", dir=work)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text.replace(old, new))
+        rc, log = run(path, harness, work, bash)
+        first = next((l.strip()[5:] for l in log.splitlines() if l.strip().startswith("FAIL ")), "-")
+        verdict = {1: "KILLED", 0: "SURVIVED"}.get(rc, "ERROR(rc=%d)" % rc)
+        allk = allk and verdict == "KILLED"
+        rows.append("%s\t%s\t%s\t%s" % (mid, verdict, first, desc))
+    with open(out, "w", encoding="utf-8") as f:
+        f.write("\n".join(rows) + "\n")
+    print("\n".join(rows))
+    print("control: PASS; killed %d / %d" % (sum(r.split("\t")[1] == "KILLED" for r in rows[1:]), len(MUTANTS)))
+    sys.exit(0 if allk else 1)
+
+
+main()

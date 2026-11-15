@@ -1,0 +1,27 @@
+SAME     install_constitution.sh --help (output and exit status)    9041 bytes
+SAME     install_constitution.sh --version (output and exit status) 35 bytes
+SAME     install_constitution.sh --print-snippets (output and exit status) 636 bytes
+SAME     install_constitution.sh hi_upstream_table (library mode)   1267 bytes
+SAME     install_constitution.sh hi_agent_table (library mode)      196 bytes
+SAME OUTPUT install_constitution.sh hi_parse_stream Python program  text differs in 1 line(s); output and exit status equal on all 23 fixtures
+         -pat = re.compile(r'"api_?[eE]rror_?[sS]tatus"\s*:\s*429')
+         +pat = re.compile(r"\"api_?[eE]rror_?[sS]tatus\"\s*:\s*429")
+SAME     install_action_prefix.sh merge_with_python program         2914 bytes
+exit=0
+## control needle: one character changed in the new help text, one in the action-prefix program, and the
+## installer's hi_parse_stream program reports rate_limited=2 (all three must show DIFFERS)
+DIFFERS  install_constitution.sh --help (output and exit status)    base 9041 bytes, new 9041 bytes
+SAME     install_constitution.sh --version (output and exit status) 35 bytes
+SAME     install_constitution.sh --print-snippets (output and exit status) 636 bytes
+SAME     install_constitution.sh hi_upstream_table (library mode)   1267 bytes
+SAME     install_constitution.sh hi_agent_table (library mode)      196 bytes
+DIFFERS  install_constitution.sh hi_parse_stream Python program     text differs and the output differs on 6 of 23 fixtures: fixed_03.jsonl, fixed_04.jsonl, fixed_05.jsonl, fixed_06.jsonl, fixed_18.jsonl, random_1.jsonl
+         -pat = re.compile(r'"api_?[eE]rror_?[sS]tatus"\s*:\s*429')
+         +pat = re.compile(r"\"api_?[eE]rror_?[sS]tatus\"\s*:\s*429")
+         -        if pat.search(line): rl = 1
+         +        if pat.search(line): rl = 2
+DIFFERS  install_action_prefix.sh merge_with_python program         base 2914 bytes, new 2915 bytes
+         -import json, os, re, secrets, sys
+         +import json, os, re, secrets, sys 
+exit=1
+RESULT: PASS (every item SAME or SAME OUTPUT; the three control changes DIFFER)

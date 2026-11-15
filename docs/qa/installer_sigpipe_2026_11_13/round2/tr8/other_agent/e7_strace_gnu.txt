@@ -1,0 +1,27 @@
+3999229 setpgid(0, 0)                   = 0
+3999337 ioctl(0, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(0, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(1, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(1, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(2, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(2, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(0, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(0, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(0, TCGETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = 0
+3999337 ioctl(0, TCSETS2, {c_iflag=ICRNL|IXON, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE, ...}) = ? ERESTARTSYS (To be restarted if SA_RESTART is set)
+3999229 --- SIGTTOU {si_signo=SIGTTOU, si_code=SI_KERNEL} ---
+3999337 --- SIGTTOU {si_signo=SIGTTOU, si_code=SI_KERNEL} ---
+3999337 --- stopped by SIGTTOU ---
+3999229 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_STOPPED, si_pid=3999337, si_uid=1000, si_status=SIGTTOU, si_utime=1 /* 0.01 s */, si_stime=1 /* 0.01 s */} ---
+3999229 --- SIGALRM {si_signo=SIGALRM, si_code=SI_TIMER, si_timerid=0, si_overrun=0, si_int=0, si_ptr=NULL} ---
+3999229 kill(3999337, SIGTERM)          = 0
+3999229 kill(0, SIGTERM)                = 0
+3999229 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=3999229, si_uid=1000} ---
+3999229 kill(3999337, SIGCONT)          = 0
+3999337 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=3999229, si_uid=1000} ---
+3999229 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_CONTINUED, si_pid=3999337, si_uid=1000, si_status=SIGCONT, si_utime=1 /* 0.01 s */, si_stime=1 /* 0.01 s */} ---
+3999229 kill(0, SIGCONT)                = 0
+3999229 --- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=3999229, si_uid=1000} ---
+3999337 +++ killed by SIGTERM +++
+3999229 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_KILLED, si_pid=3999337, si_uid=1000, si_status=SIGTERM, si_utime=1 /* 0.01 s */, si_stime=1 /* 0.01 s */} ---
+3999229 +++ exited with 124 +++

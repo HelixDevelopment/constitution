@@ -170,6 +170,9 @@ reclaim_race() { # script body
   clean_lock
   sleep 0 & dead=$!; wait "$dead" 2>/dev/null; printf '%s\n' "$dead" >"$LOCK"
   sleep 300 & live=$!
+  # empty A's output file HERE, before A starts: the `>"$SB/ra"` below runs in the child, so the poll could
+  # otherwise read the PREVIOUS race's "TEST PAUSE reclaim" and swap the lock before A has even read it
+  : >"$SB/ra"
   HELIX_INSTALLER_TEST=1 HELIX_INSTALLER_TEST_PAUSE=reclaim HELIX_INSTALLER_TEST_RESUME="$SB/resume" \
     bash -c "$2" a "$1" "$P" >"$SB/ra" 2>&1 &
   a=$!

@@ -1,0 +1,31 @@
+== bd0036bdcd80 fix(sonarqube): validate user and password separately, no IFS splitting of secrets (round-
+✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form refused; control needles ok)
+   exit=0
+== 6f28765c46dd fix(install): no pipe into an early-exit reader under pipefail (SIGPIPE 141 read as no mat
+✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form refused; control needles ok)
+   exit=0
+== 58815d755620 fix(install): review round 2: one rule per class, no temporary-file or caller-shell depend
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:67 (a) command not on the allow-list: shopt -u "$o"
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:69 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:571 (a) python -c with a non-literal or process-spawning program
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:571 (a) python program is not a literal (-c 'LITERAL' or - with a quoted heredoc)
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:598 (a) awk program not on the allow-list: 'NR == 1'
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:618 (a) awk program not on the allow-list: '
+      /^##/ { done = 1 } done { next } NR == 1 { next } NF >= 3 && $1 ~ /^[A-Z
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:188 (c) forbidden: push
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:193 (c) forbidden: push
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:199 (c) forbidden: push
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:201 (c) forbidden: push
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:202 (c) forbidden: push
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:204 (c) forbidden: push
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:205 (c) forbidden: push
+  FAIL <work>/58815d755620/scripts/install_constitution.sh:210 (c) forbidden: push
+  FAIL <work>/58815d755620/scripts/update_constitution.sh:75 (a) command not on the allow-list: shopt -u "$o"
+  FAIL <work>/58815d755620/scripts/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <work>/58815d755620/scripts/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <work>/58815d755620/scripts/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+   exit=1
+== 1914a91b1feb fix(install): round 2 left the no-push gate red on its own files (18 findings); literal sh
+✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form refused; control needles ok)
+   exit=0

@@ -1,0 +1,44 @@
+2026-11-14T07:24:46Z lane C start (commit 1914a91b1febe60237e10d9ca3423cf8e45e429f)
+2026-11-14T07:40:16Z twins host rc=0
+2026-11-14T07:55:57Z twins 5.0.17 rc=0
+2026-11-14T08:01:17Z no-stop N04 N05 N26 rc=0
+2026-11-14T08:01:57Z short test_cli_agent_plugins host r1 rc=0 secs=40
+2026-11-14T08:11:05Z short test_install_cli_agent_plugins_ownership host r1 rc=0 secs=548
+2026-11-14T08:11:36Z short test_action_prefix_grammar host r1 rc=0 secs=31
+2026-11-14T08:18:58Z short meta_test_action_prefix_grammar host r1 rc=0 secs=442
+2026-11-14T08:19:05Z short test_setup_prompt_round4 host r1 rc=0 secs=7
+2026-11-14T08:19:05Z coA status after host r1: 0 changed path(s)
+2026-11-14T08:19:42Z short test_cli_agent_plugins 5.2.37 r1 rc=0 secs=37
+2026-11-14T08:26:26Z short test_install_cli_agent_plugins_ownership 5.2.37 r1 rc=0 secs=404
+2026-11-14T08:26:50Z short test_action_prefix_grammar 5.2.37 r1 rc=0 secs=24
+2026-11-14T08:33:34Z short meta_test_action_prefix_grammar 5.2.37 r1 rc=0 secs=404
+2026-11-14T08:33:40Z short test_setup_prompt_round4 5.2.37 r1 rc=0 secs=6
+2026-11-14T08:33:40Z coA status after 5.2.37 r1: 0 changed path(s)
+2026-11-14T08:34:17Z short test_cli_agent_plugins host r2 rc=0 secs=37
+2026-11-14T08:42:16Z short test_install_cli_agent_plugins_ownership host r2 rc=0 secs=479
+2026-11-14T08:42:46Z short test_action_prefix_grammar host r2 rc=0 secs=30
+2026-11-14T08:49:57Z short meta_test_action_prefix_grammar host r2 rc=0 secs=431
+2026-11-14T08:50:02Z short test_setup_prompt_round4 host r2 rc=0 secs=5
+2026-11-14T08:50:02Z coA status after host r2: 0 changed path(s)
+2026-11-14T08:50:42Z short test_cli_agent_plugins 5.2.37 r2 rc=0 secs=40
+2026-11-14T08:58:43Z short test_install_cli_agent_plugins_ownership 5.2.37 r2 rc=0 secs=481
+2026-11-14T08:59:13Z short test_action_prefix_grammar 5.2.37 r2 rc=0 secs=30
+2026-11-14T09:06:15Z short meta_test_action_prefix_grammar 5.2.37 r2 rc=0 secs=422
+2026-11-14T09:06:20Z short test_setup_prompt_round4 5.2.37 r2 rc=0 secs=5
+2026-11-14T09:06:20Z coA status after 5.2.37 r2: 0 changed path(s)
+2026-11-14T09:06:58Z short test_cli_agent_plugins host r3 rc=0 secs=38
+2026-11-14T09:15:04Z short test_install_cli_agent_plugins_ownership host r3 rc=0 secs=486
+2026-11-14T09:15:34Z short test_action_prefix_grammar host r3 rc=0 secs=29
+2026-11-14T09:22:51Z short meta_test_action_prefix_grammar host r3 rc=0 secs=436
+2026-11-14T09:22:57Z short test_setup_prompt_round4 host r3 rc=0 secs=6
+2026-11-14T09:22:57Z coA status after host r3: 0 changed path(s)
+2026-11-14T09:23:38Z short test_cli_agent_plugins 5.2.37 r3 rc=0 secs=41
+2026-11-14T09:31:47Z short test_install_cli_agent_plugins_ownership 5.2.37 r3 rc=0 secs=489
+2026-11-14T09:32:16Z short test_action_prefix_grammar 5.2.37 r3 rc=0 secs=29
+2026-11-14T09:39:17Z short meta_test_action_prefix_grammar 5.2.37 r3 rc=0 secs=421
+2026-11-14T09:39:22Z short test_setup_prompt_round4 5.2.37 r3 rc=0 secs=5
+2026-11-14T09:39:22Z coA status after 5.2.37 r3: 0 changed path(s)
+2026-11-14T09:41:50Z sigpipe 5.2.26 r1 rc=0 secs=148
+2026-11-14T09:44:17Z sigpipe 5.2.26 r2 rc=0 secs=147
+2026-11-14T09:46:42Z sigpipe 5.2.26 r3 rc=0 secs=145
+2026-11-14T09:46:42Z lane C done

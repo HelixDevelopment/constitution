@@ -1,0 +1,5 @@
+sid=902617 member=902626
+ 902626  902626  902617 timeout
+ 902638  902626  902617 sleep
+drain_group (proposal) with a live member in its own group: rc=0 (0 = reported drained)
+0

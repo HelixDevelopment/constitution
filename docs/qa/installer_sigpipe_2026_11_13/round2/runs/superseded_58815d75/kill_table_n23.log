@@ -1,0 +1,5 @@
+CONTROL	host	PASS	8		no mutation	133.60178065299988
+CONTROL	5.0.17	PASS	8		no mutation	222.57253980636597
+N23	host	KILLED	6	notemp50: unchanged marks with command text read as unchanged, a moved ref as moved	R membership via [[ -v assoc[key] ]]	58
+N23	5.0.17	KILLED	6	normal: unchanged marks with command text read as unchanged, a moved ref as moved	R membership via [[ -v assoc[key] ]]	91
+killed 2 / 2

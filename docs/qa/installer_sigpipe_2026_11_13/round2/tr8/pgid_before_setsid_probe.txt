@@ -1,0 +1,1 @@
+runs=200 pgid==pid(own group)=200 pgid==test_shell_group=0 other=0 gone=0

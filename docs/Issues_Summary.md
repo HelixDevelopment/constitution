@@ -6,14 +6,14 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 
 | Type | Status | Count |
 |---|---|---|
-| Bug | In progress | 16 |
+| Bug | In progress | 17 |
 | Bug | Queued | 59 |
 | Bug | Ready for testing | 3 |
 | Task | In progress | 10 |
 | Task | Operator-blocked | 2 |
 | Task | Queued | 150 |
 | Task | Ready for testing | 26 |
-| **TOTAL** | | **266** |
+| **TOTAL** | | **267** |
 
 ## Items
 
@@ -285,3 +285,4 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-309 | Task | Queued | Low | rc_env_lockdown (round 6, K3) passes only an allow-list to children, and RELEASE_ENV_KEEP refuses any name that looks like a credential, PROXY included (a proxy URL can carry a user name and password). http_proxy, https_proxy, HTTPS_PROXY, ALL_PROXY and NO_PROXY therefore never reach git, curl, gh or glab. Decide: keep (a release host without a proxy), or pass the proxy variables after the same userinfo check as the remote URLs (rc_url_has_userinfo). Record: docs/qa/con227_234_2026_11_11/round6/threat_model.md. | UNSET | UNSET |
 | CON-310 | Task | Queued | Low | rc_url_has_userinfo (round 6, K1) refuses a remote URL that carries a userinfo part (user:password@ or token@ after a scheme), and rc_safe_url never prints a path or a query. Two shapes are not refused: an scp-like or ssh:// URL with a user name only (git@host:org/repo.git, the normal form, carries no secret but the user name reaches git argv and /proc/PID/cmdline), and an https URL whose query string holds a token (https://host/repo.git?token=...), which git puts in the argv of git-remote-https. Decide per shape: accept the ssh user name as not secret (likely), and refuse or strip a query string on a push or fetch URL. Found by the round-6 review (L7, scratchpad/review_fix227_r6.md); record: docs/qa/con227_234_2026_11_11/round7/threat_model.md. | UNSET | UNSET |
 | CON-311 | Task | Queued | Low | Round 7 found (L5 of the round-6 review) that a handler installed with 'trap cleanup EXIT INT TERM' (or a similar list) runs cleanup on INT or TERM and then returns, so bash continues with the next command instead of stopping; the release suites and the mutation harness were fixed (the handler exits with 128 plus the signal number). The same shape is in 35 tracked scripts outside tests/release (measured on the round-7 head with: git grep -nE '^\s*trap [a-z_]+ EXIT( INT)? (INT\|TERM)' -- ':!tests/release'; 35 lines in 35 files). Out of scope of CON-234; each site needs the same fix and a test that sends TERM and checks the exit status and that no later command ran. Record: docs/qa/con227_234_2026_11_11/round7/threat_model.md. | UNSET | UNSET |
+| CON-312 | Bug | In progress | Medium | scripts/install_constitution.sh runs under set -u -o pipefail; hi_push_changed tested membership with printf \| grep -qxF. grep -q exits at the first match, printf dies of SIGPIPE, the pipeline returns 141 and a MATCH reads as NO MATCH: an unchanged remote is read as a push (false refusal, exit 5) and a missing fingerprint tool (Z line) is not seen (false pass of a fail-closed check). Fixed on vehicle/installer-sigpipe-r2 (head 2e397cba): no pipe into an early-exit reader under pipefail in the installer, updater and action-prefix libraries (here-string count 0), deny-by-default no-push gate scanner, test_sigpipe.sh (PASS 67 / FAIL 0, 3 of 3 runs), test_lock stale-poll race and test_round8 chaos-loop hardening (F9 race UNREPRODUCED). Review round 2 GO-with-follow-ups (review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997); follow-ups F1, F3, F4 filed separately. Evidence: docs/qa/installer_sigpipe_2026_11_13/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289). | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |

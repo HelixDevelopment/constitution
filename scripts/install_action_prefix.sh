@@ -51,6 +51,28 @@
 #
 # Classification: universal (§11.4.17)
 
+# >>> hi_reset_shell_state (identical in install_constitution.sh, update_constitution.sh,
+# install_cli_agent_plugins.sh and install_action_prefix.sh): the caller's shell state is not inherited when
+# the file is run (docs/qa/installer_sigpipe_2026_11_13/round2)
+hi_reset_shell_state() {
+  local o
+  for o in BASH_COMPAT POSIXLY_CORRECT CDPATH TMOUT GLOBIGNORE; do unset "$o" 2>/dev/null; done
+  IFS=$' \t\n'
+  for o in posix allexport noclobber noglob errexit nounset keyword physical monitor errtrace functrace; do
+    set +o "$o" 2>/dev/null
+  done
+  for o in braceexpand hashall; do set -o "$o" 2>/dev/null; done
+  # one shopt call per direction: a name this bash does not know is skipped and the others still apply (bash 3.2
+  # to 5.3); the no-push gate pins these two lines, option lists included
+  shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar \
+    failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit localvar_unset cdable_vars \
+    extdebug execfail inherit_errexit assoc_expand_once array_expand_once patsub_replacement 2>/dev/null
+  shopt -s extquote globasciiranges 2>/dev/null
+  unset BASH_COMPAT 2>/dev/null   # bash 5.0 and later set it to their own version when a compatNN option is unset
+  return 0
+}
+# <<< hi_reset_shell_state
+(return 0 2>/dev/null) || hi_reset_shell_state
 set -euo pipefail
 
 self_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)"
@@ -180,8 +202,8 @@ merge_with_jq() {
 
 merge_with_python() {
   NEW_TMP="$(mktemp "$settings_dir/.settings.new.XXXXXX")" || return 1
-  HELIX_HOOK_CMD="$hook_cmd" python3 - "$settings" "$NEW_TMP" <<'PYEOF'
-import json, os, re, secrets, sys
+  local prog   # the program is an argument, never a here-document (no temporary file); stdin is not read
+  prog='import json, os, re, secrets, sys
 path, outpath = sys.argv[1], sys.argv[2]
 cmd = os.environ["HELIX_HOOK_CMD"]
 def refuse(msg):
@@ -236,7 +258,7 @@ def main():
     if not already():
         refuse("hook entry missing after merge (internal error)")
     out = json.dumps(data, indent=2, allow_nan=False)
-    out = re.sub(r'"' + re.escape(PREFIX) + r'([-+0-9.eE]+)@@"', r'\1', out) + "\n"
+    out = re.sub(r'\''"'\'' + re.escape(PREFIX) + r'\''([-+0-9.eE]+)@@"'\'', r'\''\1'\'', out) + "\n"
     with open(outpath, "w", encoding="utf-8") as fh:
         fh.write(out)
     # strict re-parse of what was written, and equality with the in-memory merge result
@@ -250,7 +272,8 @@ except RecursionError:
     refuse("is nested too deeply")
 except Exception as exc:
     refuse("could not be processed (%s)" % exc)
-PYEOF
+'
+  HELIX_HOOK_CMD="$hook_cmd" python3 -c "$prog" "$settings" "$NEW_TMP" </dev/null
 }
 
 # Validate and merge FIRST (nothing but $NEW_TMP is written); a refused run never touches .bak.

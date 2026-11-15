@@ -1,0 +1,5 @@
+grep: <scratch>/tmp/helix-install-test.pBuEEQ/ra: No such file or directory
+iter 24 FAIL: loop_iters=0 loop_secs=0 dead=1292327 live=1292349 total_secs=0 A said: [constitution] ERROR: another installer run (pid 1292349) holds <scratch>/tmp/helix-install-test.pBuEEQ/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 29 FAIL: loop_iters=0 loop_secs=0 dead=1298324 live=1298339 total_secs=0 A said: [constitution] ERROR: another installer run (pid 1298339) holds <scratch>/tmp/helix-install-test.pBuEEQ/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+iter 78 FAIL: loop_iters=0 loop_secs=0 dead=1356866 live=1356872 total_secs=0 A said: [constitution] ERROR: another installer run (pid 1356872) holds <scratch>/tmp/helix-install-test.pBuEEQ/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: 
+DELAY=0 ITER=80 mutant_case_fail=3 stale_read_then_refused=0

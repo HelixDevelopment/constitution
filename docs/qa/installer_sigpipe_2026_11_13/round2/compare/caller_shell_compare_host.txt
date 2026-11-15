@@ -1,0 +1,69 @@
+bash: 5.3.9(1)-release
+== base: <scratch>/basetree.2C9z/b/scripts/install_constitution.sh (cbef578f8645a830)
+  clean --version: 34 bytes, rc=0
+    POSIXLY_CORRECT=1                              --version        DIFFERS rc=2 | first: < install_constitution.sh 1.0.0
+    SHELLOPTS=posix                                --version        DIFFERS rc=2 | first: < install_constitution.sh 1.0.0
+    SHELLOPTS=noglob:nounset                       --version        same
+    SHELLOPTS=errexit                              --version        same
+    BASHOPTS=nocasematch:extglob:failglob:nullglob --version        same
+    BASH_COMPAT=44                                 --version        same
+    CDPATH=/nonexistent                            --version        same
+    GLOBIGNORE=*                                   --version        same
+    TMOUT=1                                        --version        same
+    notemp                                         --version        same
+  clean --help: 9040 bytes, rc=0
+    POSIXLY_CORRECT=1                              --help           DIFFERS rc=2 | first: < install_constitution.sh — add or update the Helix Constitution (git submodule at submodules/constitution).
+    SHELLOPTS=posix                                --help           DIFFERS rc=2 | first: < install_constitution.sh — add or update the Helix Constitution (git submodule at submodules/constitution).
+    SHELLOPTS=noglob:nounset                       --help           same
+    SHELLOPTS=errexit                              --help           same
+    BASHOPTS=nocasematch:extglob:failglob:nullglob --help           same
+    BASH_COMPAT=44                                 --help           same
+    CDPATH=/nonexistent                            --help           same
+    GLOBIGNORE=*                                   --help           same
+    TMOUT=1                                        --help           same
+    notemp                                         --help           DIFFERS rc=0 | first: < install_constitution.sh — add or update the Helix Constitution (git submodule at submodules/constitution).
+  clean --print-snippets: 635 bytes, rc=0
+    POSIXLY_CORRECT=1                              --print-snippets DIFFERS rc=2 | first: < curl -fsSL 'https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh' | bash
+    SHELLOPTS=posix                                --print-snippets DIFFERS rc=2 | first: < curl -fsSL 'https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh' | bash
+    SHELLOPTS=noglob:nounset                       --print-snippets same
+    SHELLOPTS=errexit                              --print-snippets same
+    BASHOPTS=nocasematch:extglob:failglob:nullglob --print-snippets same
+    BASH_COMPAT=44                                 --print-snippets same
+    CDPATH=/nonexistent                            --print-snippets same
+    GLOBIGNORE=*                                   --print-snippets same
+    TMOUT=1                                        --print-snippets same
+    notemp                                         --print-snippets DIFFERS rc=0 | first: < curl -fsSL 'https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh' | bash
+== new: <scratch>/ev2.SZvM/coA/scripts/install_constitution.sh (51a1373724174757)
+  clean --version: 34 bytes, rc=0
+    POSIXLY_CORRECT=1                              --version        same
+    SHELLOPTS=posix                                --version        same
+    SHELLOPTS=noglob:nounset                       --version        same
+    SHELLOPTS=errexit                              --version        same
+    BASHOPTS=nocasematch:extglob:failglob:nullglob --version        same
+    BASH_COMPAT=44                                 --version        same
+    CDPATH=/nonexistent                            --version        same
+    GLOBIGNORE=*                                   --version        same
+    TMOUT=1                                        --version        same
+    notemp                                         --version        same
+  clean --help: 9040 bytes, rc=0
+    POSIXLY_CORRECT=1                              --help           same
+    SHELLOPTS=posix                                --help           same
+    SHELLOPTS=noglob:nounset                       --help           same
+    SHELLOPTS=errexit                              --help           same
+    BASHOPTS=nocasematch:extglob:failglob:nullglob --help           same
+    BASH_COMPAT=44                                 --help           same
+    CDPATH=/nonexistent                            --help           same
+    GLOBIGNORE=*                                   --help           same
+    TMOUT=1                                        --help           same
+    notemp                                         --help           same
+  clean --print-snippets: 635 bytes, rc=0
+    POSIXLY_CORRECT=1                              --print-snippets same
+    SHELLOPTS=posix                                --print-snippets same
+    SHELLOPTS=noglob:nounset                       --print-snippets same
+    SHELLOPTS=errexit                              --print-snippets same
+    BASHOPTS=nocasematch:extglob:failglob:nullglob --print-snippets same
+    BASH_COMPAT=44                                 --print-snippets same
+    CDPATH=/nonexistent                            --print-snippets same
+    GLOBIGNORE=*                                   --print-snippets same
+    TMOUT=1                                        --print-snippets same
+    notemp                                         --print-snippets same

@@ -1,0 +1,15 @@
+# first run of tools/gate_mask_mutants.py on the patched gate, BEFORE two RAW_MUST_FIND needles were added
+# (transcribed from the session output of that run; the tool overwrote its .tsv on the second run)
+id	mutation	result
+control	unmutated copy	PASS
+GM1	mask any command's multi-line literal (no printf/echo condition)	SURVIVED
+GM2	mask to the end of the literal's last line	KILLED (BLIND)
+GM3	mask any multi-line word (no all-literal check)	SURVIVED
+GM4	no line check (PRINT_HEAD) on the literal's first line	KILLED (BLIND)
+GM5	double-quoted parts count as literal	SURVIVED
+GM6	the mask is not applied (raw scan reads the original text)	KILLED (BLIND)
+GM7	shopt dropped from the exact-pair commands (any shopt allowed as a safe builtin)	KILLED (BLIND)
+# root cause of the three survivors: the needle for a double-quoted multi-line argument used a double-quoted format
+# string, which PRINT_HEAD already rejects, so GM3 and GM5 never reached it; no needle had a multi-line literal after
+# echo in a command whose first word is not printf/echo (GM1). Added: printf '%s\n' "a\n$(hi_gx push)\nb" and
+# ssh h \<newline>echo 'a\ngit push\nb'. Second run: all seven KILLED (gate_mask_mutants.tsv).
