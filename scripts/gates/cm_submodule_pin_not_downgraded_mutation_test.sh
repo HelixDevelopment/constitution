@@ -1276,7 +1276,7 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   awk -F'\t' -v OFS='\t' '$5=="sha" && !d {$6="-"; d=1} {print}' "$s11tab" >"$tmp/s11t2.tsv"
   so1="$(s11g="$tmp/s11g.sh" s11lint static 2>&1)"; sr1=$?; so2="$(s11t="$tmp/s11t1.tsv" s11lint static 2>&1)"; sr2=$?; so3="$(s11t="$tmp/s11t2.tsv" s11lint static 2>&1)"; sr3=$?
   if [ "$sr1" = 1 ] && grep -q 'BAD  site lint S1 gate line' <<<"$so1" && [ "$sr2" = 1 ] && grep -q "BAD  site lint S1 gate line .* token '\$1\"\"==p\"\"'" <<<"$so2" \
-      && [ "$sr3" = 1 ] && grep -q 'BAD  site lint S3 S[0-9]*: data row without a fixture key' <<<"$so3"; then
+      && [ "$sr3" = 1 ] && grep -q 'BAD  site lint S3 S[0-9][0-9]*[a-z]*: data row without a fixture key' <<<"$so3"; then
     echo "ok   site lint control needles: an added compare, a removed row and an emptied data row are refused (S1, S1, S3)"
   else echo "BAD  site lint control needles: rc $sr1/$sr2/$sr3"; printf '%s\n' "$so1" "$so2" "$so3" | grep BAD | head -5; bad=1; fi
 fi
