@@ -1,0 +1,4 @@
+# scripts/run_full_suite.sh --verify-manifest, 2026-11-12T21:58:41Z
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=27 py/fixture=17 py/member=24 runall/entry=9 sh/entry=361 sh/excluded=26 sh/fixture=114 sh/member=313 total=911
+RESULT: MANIFEST-OK
+rc=0

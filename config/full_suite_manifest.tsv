@@ -922,6 +922,16 @@ tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
 tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
+tests/security/fixtures/bin/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/bin/gh	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/bin/gitleaks	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/fake_gh.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/fake_gitleaks.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/forge_fixture.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/test_forge_branch_protect.sh	sh	entry	default	bash	-	auto
+tests/security/test_github_actions_inventory_disable.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_secret_scan.sh	sh	entry	default	bash	-	auto
+tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder_mutations.sh	sh	entry	default	bash	-	override: fast (measured 5.6 s, one shared clone, no sweep); paired mutations of the redpin census guard

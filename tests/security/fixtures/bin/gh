@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# gh shim for tests/security: `gh auth token` prints a fake token; `gh api ...` is answered by fake_gh.py from $FAKE_GH_STATE.
+printf '%s\n' "$*" >> "${SEC_TEST_LOG:?}/gh_argv.log"
+# The environment the script let through: a GH_HOST or an enterprise token must never reach gh.
+printf 'ENV GH_HOST=%s GH_ENTERPRISE_TOKEN=%s GITHUB_ENTERPRISE_TOKEN=%s\n' "${GH_HOST-unset}" "${GH_ENTERPRISE_TOKEN+set}" "${GITHUB_ENTERPRISE_TOKEN+set}" >> "${SEC_TEST_LOG:?}/gh_env.log"
+if [ "${1:-} ${2:-}" = "auth token" ]; then printf '%s' "${FAKE_GH_TOKEN:-FAKEGH_TOKEN_9f8e7d6c5b4a}"; exit 0; fi
+exec python3 -I "$(dirname "$0")/../fake_gh.py" "$@"
