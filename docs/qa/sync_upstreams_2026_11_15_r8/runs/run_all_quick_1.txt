@@ -24,13 +24,13 @@ usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
 sync_all_upstreams.sh: error: argument --branch: expected one argument
 ......................................................................................
 ----------------------------------------------------------------------
-Ran 111 tests in 9.866s
+Ran 111 tests in 10.026s
 
 OK
 sync-unit: PASS 111 FAIL 0 SKIP 0
 === test_unit OK
 === test_integration
-== sync-integration (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.hqnlV9)
+== sync-integration (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.YWXEPM)
   ok   fresh clone: exit 0
   ok   fresh clone: verdict CURRENT
   ok   discovery: 4 repositories
@@ -181,9 +181,9 @@ sync-unit: PASS 111 FAIL 0 SKIP 0
   ok   follow blocked: exit 1
   ok   follow blocked: verdict FAILED
 sync-integration: PASS 149 FAIL 0
-=== test_integration OK (71s)
+=== test_integration OK (81s)
 === test_e2e
-== sync-e2e (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.GAjss9)
+== sync-e2e (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.cenv2i)
   ok   --help: exit 0
   ok   --help lists --apply
   ok   user run from a subdirectory: exit 0
@@ -211,7 +211,7 @@ sync-integration: PASS 149 FAIL 0
 sync-e2e: PASS 24 FAIL 0
 === test_e2e OK (6s)
 === test_full_automation
-== sync-full-automation (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.NagsOa)
+== sync-full-automation (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.97cYIS)
   ok   off: verdict OFF
   ok   off: prints the command
   ok   offline: CURRENT (nothing fetched yet)
@@ -247,9 +247,9 @@ sync-e2e: PASS 24 FAIL 0
   ok   setup bad env value: exit 2
   ok   setup --check-only never runs the sync
 sync-full-automation: PASS 34 FAIL 0
-=== test_full_automation OK (13s)
+=== test_full_automation OK (15s)
 === test_security
-== sync-security (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.nYcech)
+== sync-security (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.bj9v82)
   ok   full apply: exit 0
   ok   control needle: the shim recorded 111 calls
   ok   no ' push ' in any git call
@@ -334,9 +334,9 @@ sync-full-automation: PASS 34 FAIL 0
   ok   core.sshCommand: report names it
   ok   core.sshCommand: remote reported unreachable
 sync-security: PASS 83 FAIL 0
-=== test_security OK (16s)
+=== test_security OK (19s)
 === test_determinism
-== sync-determinism (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.A1jWBi)
+== sync-determinism (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.Dtqjdn)
   ok   --check: 3 identical canonical hashes
   ok   --check: 3 identical TSV files
   ok   --check: the JSON hash field equals the printed one
@@ -353,9 +353,9 @@ sync-security: PASS 83 FAIL 0
   ok   apply 2 and 3: identical hash
   ok   apply 3: nothing moved
 sync-determinism: PASS 15 FAIL 0
-=== test_determinism OK (23s)
+=== test_determinism OK (28s)
 === test_ui
-== sync-ui (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.tlsNRT)
+== sync-ui (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.APE0BD)
   ok   prompt 1 shows the scope
   ok   prompt 1 asks before fetching
   ok   no: zero fetch calls
@@ -383,9 +383,9 @@ sync-determinism: PASS 15 FAIL 0
   ok   no terminal: exit 2
   ok   no terminal: says why
 sync-ui: PASS 26 FAIL 0
-=== test_ui OK (15s)
+=== test_ui OK (20s)
 === test_hardening
-== sync-hardening (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.ofxvcC)
+== sync-hardening (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.WXqRHs)
   ok   hooks: control needle: a plain git checkout DOES run a hook here
   ok   hooks: --apply over ff + follow + advance-pin: exit 0
   ok   hooks: root fast-forwarded
@@ -506,7 +506,7 @@ sync-ui: PASS 26 FAIL 0
   ok   M70: the FIFO is still a FIFO
   ok   M70 control: a regular report of ours is reused (exit 0)
 sync-hardening: PASS 119 FAIL 0
-=== test_hardening OK (62s)
+=== test_hardening OK (77s)
 === cm_sync_upstreams_ff_only
 CM-SYNC-UPSTREAMS-FF-ONLY: PASS — imports and module attributes on the allow-list, no dynamic access; one spawn point (proc_run_git: argv from git_argv(check_git_args(args))) and one guarded signal point (proc_kill_group); 29 git call sites (plus the g_out forwarder) with literal allow-listed argv and bounded answer statuses, equal to the 29-row call-site oracle; 25 accepted shapes carry the exact safe argv (each safe key once); git_env scrubs 27 injectors; 15 redaction shapes + 4 secret paths; 56/56 forbidden shapes refused; control needle 25/25 accepted
 RUN_ALL: PASS

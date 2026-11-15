@@ -89,25 +89,83 @@ itself runs (git does not read our marker). Calls of git outside `Runner.run` ar
   `marker_lock`, `flock_error`) on the r6 engine, re-run now: PASS 44 FAIL 32, 76 checks. It matches the
   reviewer's re-measure and replaces the r7 file's 42/30 (72 checks).
 - `red/r8_checks_on_r7_engine.txt`: the round-8 checks (`sibling_kill`, `sibling_wipe`, `marker_pre`, `stop_pin`,
-  `parent_lock`, `autostash`, `flock_error`) on the r7 engine: PASS 53 FAIL 80. Every new check fails on r7
+  `parent_lock`, `autostash`, `flock_error`) on the r7 engine: PASS 56 FAIL 82. Every new check fails on r7
   (control needle: the instrument sees the defect).
-- `red/r8_checks_on_r8_engine_green.txt`: the same checks on this branch: PASS 133 FAIL 0.
+- `red/r8_checks_on_r8_engine_green.txt`: the same checks on this branch: PASS 138 FAIL 0.
 
 `parent_lock` also found a second member of the class on r7: a user's `index.lock` appearing in the parent after
 inspection let r7 move the child and then fail the stage-pin (child moved, pin not staged). On r8 the child is
-not moved.
+not moved. Two cases are checked: the lock is there before the advance-pin starts (step 3a refuses, the child is
+not moved), and the lock appears while the advance-pin checkout runs, after step 3a passed (fault
+`lock-parent-at-pin-checkout`: the stage-pin's own `begin_write` refuses, exit 1, only the checkout ran, the child
+is `failed`, the lock is kept and no marker is left).
 
 ## Mutants
 
-MUTANTS_SECTION
+`tests/sync/test_mutations.py` now holds 273 mutants. Every anchor must occur exactly once in the file it edits
+(the harness refuses otherwise). Changes this round:
+
+- Re-anchored to the new structure with the same meaning: RR14, RR38, Q04, Q05, Q09, Q18, RV6F, S01 to S04, S09,
+  S10.
+- Adopted from the review: RV7A to RV7L. RV7A, RV7B, RV7C, RV7E and RV7I needed new anchors because round 8
+  replaced the code they edited; the meaning is kept and stated in each description (RV7I: `O_EXCL` replaced by
+  `O_TRUNC`, the only way to overwrite a marker that is left). RV6A to RV6G stay adopted.
+- Own mutants T01 to T17 (17), each a member of the RV7-1 class or of RV7-6.
+
+| Run | Mutants | Killed | Survived | File |
+|---|---|---|---|---|
+| 1 (every mutant touched this round) | 56 | 52 | 4 (S08, RV7G, T15, T17) | `mutants/mutants_r8_run1.txt` |
+| 2 (the four survivors, after the fixes below) | 4 | 4 | 0 | `mutants/mutants_r8_run2_survivors.txt` |
+
+The four survivors were test gaps, not equivalent mutants:
+
+- S08: the unit test for the allow-list refusal had no write token, so the token check refused it first and the
+  allow-list was never reached. The test now passes a live token and asserts `("refused", False)`.
+- RV7G (root run lock taken blocking): the reviewer's evidence kills it with `chaos`; its suite list now runs
+  `chaos` too (killed in 436 s).
+- T15 and T17: no check covered a lock that appears after step 3a passed. The late `parent_lock` case (above)
+  kills both.
+
+RV7I dies in `unit` (no chaos needed). Run 1 was made before the merge of `origin/main`; the merge changed no file
+under `scripts/sync/` or `tests/sync/` (checked with `git diff 66591e5d HEAD -- scripts/sync tests/sync`, empty).
+The full mutation run over all 273 mutants was not repeated this round.
 
 ## Suite runs
 
-RUNS_SECTION
+All runs were made under `systemd-run --user --scope -p TasksMax=2000 nice -n 10`, one at a time, host load
+under 30.
+
+| Run | When | Result | File |
+|---|---|---|---|
+| `tests/sync/run_all.sh --quick`, run 1 | after the merge | `RUN_ALL: PASS`, rc 0 | `runs/run_all_quick_1.txt` |
+| same, run 2 | after the merge | `RUN_ALL: PASS`, rc 0 | `runs/run_all_quick_2.txt` |
+| same, run 3 | after the merge | `RUN_ALL: PASS`, rc 0 | `runs/run_all_quick_3.txt` |
+| `CM-SYNC-UPSTREAMS-FF-ONLY` | after the merge | PASS (29 call sites, 56/56 forbidden shapes refused, needle 25/25), rc 0 | `runs/gate_run.txt` |
+| gate meta-test | after the merge | PASS (91 cases), rc 0 | `runs/gate_meta.txt` |
+| `tests/sync/test_robustness.sh` | after the merge | PASS 395 FAIL 0, rc 0 | `runs/test_robustness_1.txt` |
+| `tests/sync/test_chaos.sh` | before the merge | PASS 58 FAIL 0 | `runs/test_chaos_1.txt` |
+| `tests/sync/test_perf.sh` | before the merge | PASS 13 FAIL 0 | `runs/test_perf_1.txt` |
+| `tests/sync/test_faults.sh` | before the merge | PASS 21 FAIL 0 | `runs/test_faults_1.txt` |
+
+Quick-suite counts (each run): unit 111, integration 149, e2e 24, full automation 34, security 83,
+determinism 15, ui 26, hardening 119, all FAIL 0, plus the gate. The verdict lines of the three runs, with
+durations removed, have the same sha256 (`e3165c41...`). The chaos, perf and faults runs were made on commit
+`66591e5d`; the merge did not change any file under `scripts/sync/`, `tests/sync/` or the gate, so they were
+not repeated.
 
 ## Landing
 
-LANDING_SECTION
+- Branch `sync-r8`: `66591e5d` (the round-8 fixes) on top of the round-7 head `baa88df8`, then `a2455f56`, a
+  merge of `origin/main` `d0a6832f` (CON-312 installer SIGPIPE). Conflicts: `CHANGELOG.md` (both entries kept,
+  main's first) and the generated census line of `docs/guides/full_suite_runner_guide.md`, regenerated with
+  `bash scripts/run_full_suite.sh --sync-guide`; `--verify-manifest` then gives `RESULT: MANIFEST-OK`
+  (total=932).
+- `112fc6ec`: a second merge of `origin/main` `464cd498` (CON-313 workable-items `created_at`), which moved while
+  this round ran. The same two files conflicted and were resolved the same way; `--verify-manifest` gives
+  `RESULT: MANIFEST-OK` (total=935). Neither merge changed a file under `scripts/sync/`, `tests/sync/` or the gate
+  and its meta-test (`git diff --name-only 66591e5d 112fc6ec` over those paths is empty), so the suite runs above
+  hold for the final tree. The evidence commit follows.
+- Nothing was pushed. Landing on `main` waits for the independent review of round 8 (§11.4.142, §11.4.288).
 
 ## Honest limits
 

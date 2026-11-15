@@ -447,5 +447,10 @@
   ok   parent_lock.no_write_started
   ok   parent_lock.blocked_before_move
   ok   parent_lock.lock_kept
-sync-robustness: PASS 390 FAIL 0
+  ok   parent_lock.late.exit_1
+  ok   parent_lock.late.no_add_started
+  ok   parent_lock.late.stage_blocked_reported
+  ok   parent_lock.late.child_failed
+  ok   parent_lock.late.lock_kept_no_marker
+sync-robustness: PASS 395 FAIL 0
 rc=0
