@@ -1,0 +1,7 @@
+== CM-CLI-AGENT-PLUGINS-WIRED mutation (sandbox: /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.5MmWateW4Z) ==
+  PASS  [CM-CLI-AGENT-PLUGINS-WIRED mutation] GOLDEN-GOOD: pristine copy PASSes the gate (the gate is not fail-on-everything)
+  PASS  [CM-CLI-AGENT-PLUGINS-WIRED mutation] M1 (deleted commands/task.md): gate FAILed as required (cited invariant: 3/commands)
+  PASS  [CM-CLI-AGENT-PLUGINS-WIRED mutation] M2 (CONFLICT note stripped from bug.md): gate FAILed as required (cited invariant: 5/conflict)
+  PASS  [CM-CLI-AGENT-PLUGINS-WIRED mutation] M3 (installer call removed from post_update_hook.sh): gate FAILed as required (cited invariant: 9/autoload)
+  PASS  [CM-CLI-AGENT-PLUGINS-WIRED mutation] M4 (blanked SKILL.md description): gate FAILed as required (cited invariant: 6/skills)
+== CM-CLI-AGENT-PLUGINS-WIRED mutation: PASS — gate proven non-bluff (1 golden-good + 4 mutations) ==

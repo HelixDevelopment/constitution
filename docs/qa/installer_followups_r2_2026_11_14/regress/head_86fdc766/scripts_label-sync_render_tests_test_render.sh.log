@@ -1,0 +1,190 @@
+PASS  renderer present: lib.sh
+PASS  renderer present: statusline.sh
+PASS  renderer present: title.sh
+PASS  renderer present: shell-hook.sh
+PASS  renderer present: shell-integration.bash
+PASS  renderer present: shell-integration.zsh
+PASS  renderer present: shell-integration.fish
+PASS  renderer present: tmux-status.sh
+PASS  renderer present: labelrun
+PASS  renderer present: watch-labels.sh
+PASS  A1 statusline prints this session's live label
+PASS  A2 alias switch changes the very next statusline output
+PASS  A3 statusline is exactly one line
+PASS  A4 statusline latency avg 60ms < 100ms (20 runs, busd up)
+METRIC statusline_avg_ms=60
+PASS  A5 unknown session => honest ? fields
+PASS  A5b unknown session => marker
+PASS  A6 bus/state down => rc 0 (fail soft)
+PASS  A6b state down => ? fields
+PASS  A6c state down => marker
+PASS  A7 garbage stdin => rc 0
+PASS  A7b garbage stdin => still a ? label
+PASS  A7c empty stdin => rc 0
+PASS  A8 state down + derive => labeler label
+PASS  A8b derived marker
+PASS  A9 un-heartbeated session shows staleness marker
+PASS  A9b heartbeat revives (marker gone)
+PASS  B1 OSC 0 sequence written
+PASS  B2 control chars stripped (no escape injection)
+PASS  B3 non-tty, no sink => rc 0
+PASS  B3b non-tty, no sink => no output
+PASS  B4 TERM=dumb => rc 0
+PASS  B4b TERM=dumb => nothing written
+PASS  B5 tmux passthrough wraps in DCS
+PASS  B5b tmux without --passthrough: plain OSC (tmux sets pane title itself)
+PASS  B6 title from snapshot label of a session
+PASS  C0 integration exports LABEL_SYNC_SHELL_ID
+PASS  C1 shell entity registered then unregistered on shell exit
+PASS  C1b shell entity kind
+PASS  C2 title carries the live label (alias claude7)
+PASS  C3 unchanged seq => title NOT rewritten (cheap skip)
+PASS  C4 alias switch => title refreshed on next prompt
+PASS  C4b refreshed title carries claude8
+PASS  C5 command entity records argv0 only
+PASS  C6 secret arg never recorded (token)
+PASS  C6b secret arg never recorded (password=)
+PASS  C6c env-prefix secret never recorded
+PASS  C6d no digest of the command text is recorded (digest removed, finding 7)
+PASS  C12 plain terminal (no Claude alias env) registers following the active alias
+PASS  C7 finished commands (and the exit-time in-flight one) are not left running
+PASS  C8 prompt hook, seq unchanged: 723us avg < 5000us
+PASS  C8b prompt hook after an out-of-band seq change (jq refresh): 17362us avg < 100000us
+PASS  C8c per-command DEBUG-trap loop overhead 129us < 2000us
+METRIC prompt_unchanged_us=723 prompt_changed_us=17362 debug_loop_us=129
+PASS  C9 unusable state: prompt hook rc 0
+PASS  C9b unusable state: prompt hook returns in 19375us
+PASS  C10 shell-integration never passes command text in argv ($BASH_COMMAND not in a command line)
+PASS  C10b command text is never piped to the helper either
+PASS  C11 real Claude alias env pins the shell (follow_active=false)
+PASS  C11b pinned shell keeps its own alias across switch-alias
+PASS  C13 labeler alias WITHOUT a Claude alias env does not pin (follow_active=true)
+PASS  C13b that shell follows switch-alias
+PASS  C14 shell id matches the CONTRACT id grammar even for a hostname with _ and space (shell-evil-host-name-48375-1794690607)
+PASS  D1 exit 0 propagated
+PASS  D2 exit 7 propagated
+PASS  D3 child killed by SIGTERM => 143
+PASS  D4 command not found => 127
+PASS  D5 stdin passed through to the child
+PASS  D5b stdout of the child untouched, banner absent when stderr not a tty
+PASS  D6 --kind flow registered
+PASS  D6b --name recorded
+PASS  D7 SIGTERM to labelrun => 143
+PASS  D7b entity marked done after SIGTERM
+PASS  D7c supervised child terminated by forwarded signal
+PASS  D8 entity parent = enclosing shell id
+PASS  D9 labelctl unavailable: command still runs, exit propagated
+PASS  D10 banner (label) printed on a tty
+PASS  D12 SIGINT to labelrun => child ends, exit 130
+PASS  D12b SIGINT handled in 196ms < 1500ms (child did not ignore it)
+PASS  D13 tty Ctrl-C delivered to the child exactly once (trap active: INT not ignored)
+PASS  D13b external SIGINT to labelrun is not duplicated onto a tty-foreground child
+PASS  D11 no entity left running after all runs (running: none)
+PASS  E1 table lists a label
+PASS  E1b table lists the other-alias label
+PASS  E1c alias group header
+PASS  E1d no screen-clear escape when not a tty
+PASS  E2 watch redraws after a seq change (new alias shown)
+PASS  E2b first frame also present
+PASS  F1 tmux-status by pane pid prints that shell's label
+PASS  F2 tmux-status unknown pid => honest ?
+PASS  F3 tmux-status replaces # (tmux format injection) in the label
+PASS  G0 checker: clean text => 0
+PASS  G0b checker sees C1 (c2 9d)
+PASS  G0c checker sees bidi
+PASS  G0d checker sees ESC
+PASS  G0e checker sees invalid UTF-8
+PASS  G1 [C] ls_sanitize strips C0/DEL/C1/bidi/invalid UTF-8, never joins bytes into a C1
+PASS  G1b [C] huge input capped at 512 bytes
+PASS  G1c [C] cap lands on a character boundary (valid UTF-8, 510 bytes)
+PASS  G1 [C.utf8] ls_sanitize strips C0/DEL/C1/bidi/invalid UTF-8, never joins bytes into a C1
+PASS  G1b [C.utf8] huge input capped at 512 bytes
+PASS  G1c [C.utf8] cap lands on a character boundary (valid UTF-8, 510 bytes)
+PASS  G2 [C] statusline: hostile snapshot label => no control/C1/bidi/invalid byte
+PASS  G2b [C] statusline still shows the label text
+PASS  G2c [C] statusline output capped (36 bytes)
+PASS  G3 [C] statusline derived path: hostile labeler => clean
+PASS  G3b [C] derived label still shown
+/mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/label-sync/render/title.sh: line 42: warning: command substitution: ignored null byte in input
+PASS  G4 [C] title.sh --entity: payload between ESC]0; and BEL is clean
+PASS  G4b [C] title carries the label text
+PASS  G4c [C] title.sh --text with raw C1/bidi/invalid bytes => clean
+PASS  G5 [C] tmux-status --entity => clean
+PASS  G5b [C] tmux label shown
+PASS  G5c [C] tmux-status --active => clean
+PASS  G6 [C] watch-labels => clean
+PASS  G6b [C] watch shows the row
+PASS  G6c [C] an embedded newline cannot forge a table row
+PASS  G7 [C] shell integration title => clean
+PASS  G7b [C] PS1 segment (__LS_SEG) => clean
+PASS  G7c [C] segment shows label
+PASS  G8 [C] shell-hook diagnostics => clean
+PASS  G8b [C] diagnostic still printed
+PASS  G2 [C.utf8] statusline: hostile snapshot label => no control/C1/bidi/invalid byte
+PASS  G2b [C.utf8] statusline still shows the label text
+PASS  G2c [C.utf8] statusline output capped (36 bytes)
+PASS  G3 [C.utf8] statusline derived path: hostile labeler => clean
+PASS  G3b [C.utf8] derived label still shown
+/mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/label-sync/render/title.sh: line 42: warning: command substitution: ignored null byte in input
+PASS  G4 [C.utf8] title.sh --entity: payload between ESC]0; and BEL is clean
+PASS  G4b [C.utf8] title carries the label text
+PASS  G4c [C.utf8] title.sh --text with raw C1/bidi/invalid bytes => clean
+PASS  G5 [C.utf8] tmux-status --entity => clean
+PASS  G5b [C.utf8] tmux label shown
+PASS  G5c [C.utf8] tmux-status --active => clean
+PASS  G6 [C.utf8] watch-labels => clean
+PASS  G6b [C.utf8] watch shows the row
+PASS  G6c [C.utf8] an embedded newline cannot forge a table row
+PASS  G7 [C.utf8] shell integration title => clean
+PASS  G7b [C.utf8] PS1 segment (__LS_SEG) => clean
+PASS  G7c [C.utf8] segment shows label
+PASS  G8 [C.utf8] shell-hook diagnostics => clean
+PASS  G8b [C.utf8] diagnostic still printed
+PASS  G9 labelrun tty banner => clean
+PASS  G9b banner printed
+PASS  G10 first-word FAKE secret 'hunter2hunter2' never recorded
+PASS  G10 first-word FAKE secret 'ghp_FAKEFAKEFAKE' never recorded
+PASS  G10 first-word FAKE secret 'AKIAFAKEFAKE' never recorded
+PASS  G10 first-word FAKE secret 'glpat-FAKEFAKE' never recorded
+PASS  G10 first-word FAKE secret 'xoxb-FAKE' never recorded
+PASS  G10 first-word FAKE secret 'sk-FAKEFAKE' never recorded
+PASS  G10 first-word FAKE secret '0123456789abcdef0123' never recorded
+PASS  G10 first-word FAKE secret 'ghp_FAKEfnFAKEfn' never recorded
+PASS  G10b positive control: a resolvable function IS recorded
+PASS  G10c every secret-shaped first word recorded as argv0=?
+PASS  G11 shell-hook backstop redacts token-shaped argv0 even if passed (6 of 6)
+PASS  G11b backstop positive control: /usr/bin/ls recorded as basename
+PASS  G20 DEBUG trap preserves $_ (first command of a cycle)
+PASS  G20b DEBUG trap preserves $_ (later command, early-return path)
+PASS  G20c DEBUG trap preserves $_ after a prompt cycle
+PASS  G22 script (set -T): a pre-existing DEBUG trap still runs (chained, not dropped)
+PASS  G22b interactive bash: a DEBUG trap set before sourcing still runs after the first prompt
+PASS  G22c interactive bash: our hook is installed too (chained first)
+PASS  G23 a pre-existing PROMPT_COMMAND still runs (chained, not clobbered)
+PASS  G23b array PROMPT_COMMAND keeps the previous element and appends ours
+PASS  G21 set -eu shell, missing seq file: hooks never end the shell
+PASS  G21b set -eu shell exits 0
+PASS  G21c set -eu shell, label lookup finds nothing: hooks never end the shell
+PASS  G30 no LABEL_SYNC_SALT in any child's environment
+PASS  G30b no salt/digest code left in the integrations
+PASS  H1 statusline shows the session entity, not an earlier agent of that session
+PASS  H1b control: the agent really sorts first in the snapshot
+PASS  H2 fixture: the shell starts on hb1
+PASS  H3 git checkout in the shell's repo => the shell entity's branch follows
+PASS  H4 cd into another repo => branch follows
+PASS  H4b cd into another repo => cwd follows
+PASS  H4d cd within the same repo (HEAD unchanged) => cwd follows
+PASS  H4c cd outside any repo => branch CLEARED, never kept from the previous repo
+PASS  H6b the bash integration numbers its refreshes (4 place changes => last applied seq 4)
+PASS  H5 unchanged cwd + HEAD => no refresh (cheap path); a cd => refresh
+PASS  H6 fixture: the newer refresh (seq 5) moved the shell to hb2
+PASS  H6 an OLDER refresh (seq 3) arriving later does not overwrite the newer place
+PASS  H6 control: a newer refresh (seq 6) still applies
+PASS  H7 a refresh that ran before shell-start registered the shell is applied (retried once)
+PASS  H8 the newest of 30 concurrent refreshes (seq 30, repo 2) wins
+PASS  H8 the storm was coalesced: derived at most 10 times for 30 requests (measured 2)
+PASS  H10 an older request published while the worker is busy never replaces the newer one (seq 2, repo 2 applied)
+PASS  H10b a refresh whose publish had to wait for the request lock is still applied (seq 3, repo 1)
+PASS  H11 a request whose update failed is applied by the next refresh (seq 5, repo 2)
+PASS  H9 the dead shell's refresh files went with its swept entity
+RESULT pass=185 fail=0

@@ -1,0 +1,8 @@
+gnu	-	none	tcsetattr	124	3.0	BOUNDED	left=0
+gnu	-	none	read	124	3.0	BOUNDED	left=3
+gnu	-	none	resets_ttou	124	3.0	BOUNDED	left=2
+gnu	-	none	no_tty	124	3.0	BOUNDED	left=2
+gnu	-	ign	tcsetattr	124	3.0	BOUNDED	left=2
+gnu	-	ign	read	124	3.0	BOUNDED	left=2
+gnu	-	ign	resets_ttou	124	3.0	BOUNDED	left=2
+gnu	-	ign	no_tty	124	3.0	BOUNDED	left=0

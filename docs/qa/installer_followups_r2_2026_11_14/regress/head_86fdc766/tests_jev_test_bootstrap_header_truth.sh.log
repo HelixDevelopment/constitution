@@ -1,0 +1,14 @@
+ok - control needle: header extraction sees the exit-code section
+ok - H1 no 'touches NO network' claim
+ok - H2 header names JEV_HOSTED_PROBE
+ok - H2 header names the off switch
+ok - H3 exit code 0 documented
+ok - H3 exit code 1 documented
+ok - H3 exit code 2 documented
+ok - H3 exit code 3 documented
+ok - H3 exit code 4 documented
+ok - H3 exit code 5 documented
+ok - H4 body uses documented exit 0
+ok - H4 body uses documented exit 2
+ok - H4 body uses documented exit 3
+# test_bootstrap_header_truth.sh: pass=13 fail=0 skip=0

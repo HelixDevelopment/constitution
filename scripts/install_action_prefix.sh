@@ -273,7 +273,9 @@ except RecursionError:
 except Exception as exc:
     refuse("could not be processed (%s)" % exc)
 '
-  HELIX_HOOK_CMD="$hook_cmd" python3 -c "$prog" "$settings" "$NEW_TMP" </dev/null
+  # -I: isolated (no current directory and no PYTHONPATH on sys.path, no user site): a json.py next to the caller
+  # cannot replace the standard module
+  HELIX_HOOK_CMD="$hook_cmd" python3 -I -c "$prog" "$settings" "$NEW_TMP" </dev/null
 }
 
 # Validate and merge FIRST (nothing but $NEW_TMP is written); a refused run never touches .bak.

@@ -1,0 +1,2 @@
+  FAIL install_constitution.sh:0 (a) PROGS entry no longer used (remove it from the gate): None '$1 == q { print $9 }'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (1 finding(s))

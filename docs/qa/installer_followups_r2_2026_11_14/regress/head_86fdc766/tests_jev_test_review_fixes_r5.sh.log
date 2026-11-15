@@ -1,0 +1,44 @@
+ok 1 - I5-1 enforce reachable with a validator that rejects '--' and extra args
+ok 2 - I5-1 the validator receives exactly: <profile>
+ok 3 - I5-1 no '--' in the validator argv
+ok 4 - I5-1 real llmctl: 'require-validated -- X' is rejected (rc 2)
+ok 5 - I5-1 real llmctl: '--' form is a usage error
+ok 6 - I5-1 real llmctl: single-arg form reaches the profile lookup
+ok 7 - I5-2 JEV_HOME set, JEV_CONFIG_DIR unset: register.sh stores shadow (hosted base in the box env file)
+ok 8 - I5-2 jev-status agrees (shadow) for the same box
+ok 9 - I5-2 jev-status reads the BOX env file (stored enforce)
+ok 10 - I5-2 bootstrap writes the env file under $JEV_HOME/.config/jev
+ok 11 - I5-2 bootstrap wrote nothing under $HOME/.config/jev
+ok 12 - I5-2 jev_config_dir = $JEV_HOME/.config/jev when JEV_CONFIG_DIR is unset
+ok 13 - I5-2 JEV_CONFIG_DIR wins
+ok 14 - I5-2 resolver finds the box env file via JEV_HOME
+ok 15 - m5-1 loopback then hosted (last wins) => shadow
+ok 16 - m5-1 hosted then loopback (ANY occurrence hosted) => shadow
+ok 17 - m5-1 'export JEV_BASE_URL=hosted' honoured => shadow
+ok 18 - m5-1 quoted hosted value => shadow
+ok 19 - m5-1 a value needing shell expansion cannot be determined => shadow
+ok 20 - m5-1 control: two loopback assignments (plain + export) => enforce
+ok 21 - m5-1 control: indented export with single quotes, loopback => enforce
+ok 22 - m5-1 JEV_MODE: last assignment wins in jev-status
+ok 23 - m5-1 JEV_MODE: 'export JEV_MODE=' is read by jev-status
+ok 24 - m5-1 register rewrites an 'export JEV_MODE=' line: a shell sourcing the file sees shadow
+ok 25 - m5-2 hosted base in $HOME/.claude-*/.mcp.json => shadow
+ok 26 - m5-2 hosted base nested in ~/.claude.json => shadow
+ok 27 - m5-2 control: loopback in every toolkit MCP location => enforce
+ok 28 - m5-3 control: JEV_TEST=1 honours JEV_NOW_EPOCH (old record counts fresh)
+ok 29 - m5-3 JEV_TEST unset: JEV_NOW_EPOCH ignored => old record is stale
+ok 30 - m5-3 JEV_TEST unset: JEV_DETECTION_MAX_AGE ignored too
+ok 31 - m5-4 malformed .mcp.json carrying a hosted URL => shadow
+ok 32 - m5-4 unparseable .mcp.json with no readable URL fails closed => shadow
+ok 33 - m5-5 no promoted threshold: bootstrap downgrades the env file to shadow
+ok 34 - m5-5 ... and downgrades the MCP entry's env.JEV_MODE too
+ok 35 - M4 stored enforce with every enforce condition holding SURVIVES a bootstrap re-run without --enforce
+ok 36 - m5-5 ... and the MCP entry follows to enforce
+ok 37 - m5-5 jev-status reports an MCP/env mode mismatch (json)
+ok 38 - m5-5 jev-status human view names the MCP mismatch
+ok 39 - m5-5 control: matching modes => no mismatch
+ok 40 - m5-6 governance guide: no contradictory '(or unset)'
+ok 41 - m5-7 jev-status header no longer claims it contacts no endpoint
+ok 42 - I5-1 bootstrap reference no longer calls the argv shape UNCONFIRMED
+ok 43 - nit make_fixture_env x3 leaves no mktemp dirs behind
+# test_review_fixes_r5.sh: pass=43 fail=0 skip=0

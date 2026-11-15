@@ -18,7 +18,9 @@
 #   replace user files (cp/ln/mv/touch outside their sanctioned places, rsync, curl, ssh). G7: python -c LITERAL
 #   and the push-mark count literal still PASS. Golden-FALSE G5/G6: /dev/null and fd redirections, IFS prefix, the exact
 #   fetch shape, a literal trap and arithmetic reads still PASS. SP-*: the shell-state reset's pinned shopt calls and
-#   the multi-line printf/echo literal carrier (installer SIGPIPE round 2).
+#   the multi-line printf/echo literal carrier (installer SIGPIPE round 2). ST-*: an allow-list entry (PROGS,
+#   EXT_EXACT, GX_EXACT, SANCTIONED_FILE_CMDS) that no scanned line uses any more is reported as stale
+#   (installer follow-ups).
 # The table printed at the end says, per mutant, which check killed it: static (a)/(b)/(c) or runtime (d).
 # Usage: cm_installer_no_push_no_force_mutation_test.sh   Exit 0 proof holds · 1 survivor/misclassified · 2 env.
 # Classification: universal (§11.4.17).
@@ -396,6 +398,20 @@ n=SP-M6; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_version_of "a
 run "hi_version_of awk program changed (not on the allow-list)" 1 "$d"
 n=SP-M7; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_parse_stream "import json, re, sys" "import json, os, re, sys"
 run "hi_parse_stream program imports os" 1 "$d"
+
+# installer follow-ups (2026-11-14): an allow-list entry of PROGS, EXT_EXACT, GX_EXACT or SANCTIONED_FILE_CMDS that
+# no scanned line uses any more is reported as stale (as EXEMPT and DYN_NAME_EXEMPT already were). Each ST-* mutant
+# removes the only use of one entry without adding a finding of its own; only the stale check can kill it.
+n=ST-1; d="$(mkcase)"
+OLD="| awk 'NR <= 20' |" NEW="| awk 'NR <= 10' |" python3 -I -c 'import os,sys
+p=sys.argv[1]; s=open(p).read(); assert s.count(os.environ["OLD"])==1; open(p,"w").write(s.replace(os.environ["OLD"], os.environ["NEW"], 1))' "$d/update_constitution.sh" || exit 2
+run "PROGS entry 'NR <= 20' no longer used (updater)" 1 "$d"
+n=ST-2; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_run_agent ' && chmod 600 "$log" "$log.stderr" ||' ' ||'
+run "EXT_EXACT entry chmod 600 of the agent logs no longer used (installer)" 1 "$d"
+n=ST-3; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_do_add '  hi_gx -C "$stage" config helix-installer.clone true || return 1' '  true || return 1'
+run "GX_EXACT entry (marker write) no longer used (installer)" 1 "$d"
+n=ST-4; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_restore ' && cp -p -- "$dir/files/$norm" "$rootabs/$norm" &&' ' &&'
+run "SANCTIONED_FILE_CMDS entry (--restore copy) no longer used (installer)" 1 "$d"
 
 total="$(grep -c . "$TABLE")"
 echo "# $total cases; table: rc / checks that fired (a structure, b allow-list, c raw denylist, d runtime) / mutant"

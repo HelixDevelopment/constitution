@@ -949,11 +949,15 @@ install_jev_bootstrap() {
         mkdir -p "$pdir" 2>/dev/null && : >"$pdir/bootstrap.pending" 2>/dev/null || :
         return 0
     fi
-    local -a runner=(bash)
-    if command -v timeout >/dev/null 2>&1; then runner=(timeout "${JEV_HOOK_TIMEOUT:-900}" bash); fi
+    # bounded by timeout when it is installed. SIGTTIN/SIGTTOU are ignored first (in the subshell only): timeout runs
+    # its command in a background process group of the terminal, and uutils timeout does not ignore the two signals
+    # itself, so a child that touched the terminal would stop timeout too and the limit would never fire (measured,
+    # docs/qa/installer_followups_2026_11_14/). GNU and uutils timeout reset both signals for bootstrap.sh.
+    local tmo=""
+    if command -v timeout >/dev/null 2>&1; then tmo="${JEV_HOOK_TIMEOUT:-900}"; fi
     local rc=0
     # cd to PROJECT_ROOT (the .jev/bootstrap.disabled opt-out marker is project-level; the bootstrap.pending stamp is state-level: <state dir>/bootstrap.pending, the file jev-status reads). Evidence is NOT written here: bootstrap.sh resolves it via lib_decide.sh (<state>/evidence unless JEV_EVIDENCE_DIR is set), independent of the cwd.
-    (cd "$PROJECT_ROOT" && "${runner[@]}" "$boot" --non-interactive) || rc=$?
+    (cd "$PROJECT_ROOT" || exit 1; if [ -n "$tmo" ]; then trap '' TTIN TTOU; exec timeout "$tmo" bash "$boot" --non-interactive; fi; exec bash "$boot" --non-interactive) || rc=$?
     if [ "$rc" -eq 0 ]; then
         info "jev-bootstrap: completed (non-interactive)"
     elif [ "$rc" -eq 3 ]; then
@@ -961,7 +965,7 @@ install_jev_bootstrap() {
         WARNINGS+=("jev-bootstrap: operator action required (rc 3)")
     else
         warn "jev-bootstrap: failed (rc $rc) — degrading to --defer (never breaks the pull)"
-        if (cd "$PROJECT_ROOT" && "${runner[@]}" "$boot" --defer); then
+        if (cd "$PROJECT_ROOT" || exit 1; if [ -n "$tmo" ]; then trap '' TTIN TTOU; exec timeout "$tmo" bash "$boot" --defer; fi; exec bash "$boot" --defer); then
             WARNINGS+=("jev-bootstrap: failed (rc $rc), deferred — run /jev_bootstrap")
         else
             WARNINGS+=("jev-bootstrap: failed (rc $rc) even with --defer")

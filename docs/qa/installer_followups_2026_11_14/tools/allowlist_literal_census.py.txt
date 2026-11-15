@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Literal-presence census of the no-push gate's PROGS / EXT_EXACT / GX_EXACT entries (and EXEMPT for control).
+Reads the gate's embedded Python (between `<<'PYGATE'` and `PYGATE`), exec's only the allow-list assignments
+(from `EXEMPT = {` up to the lexer marker), and checks each entry's text occurs in the scanned file.
+A literal-substring check is a LEAD, not the verdict (the gate's own used-set is the verdict).
+Control needles: one known-present program, one fabricated absent program.  argv: GATE INSTALL UPDATE"""
+import sys, re, os
+gate, inst, upd = sys.argv[1:4]
+g = open(gate).read()
+body = g.split("<<'PYGATE'", 1)[1].split("\nPYGATE", 1)[0]
+start = body.index("\nEXEMPT = {"); end = body.index("# ───────────────────────── lexer")
+pre = body[:start]
+ns = {}
+# allow-list section only; constants it needs (RESET_SHOPT etc.) are inside it
+exec(compile(body[start:end], "allowlists", "exec"), ns)
+texts = {"install_constitution.sh": open(inst).read(), "update_constitution.sh": open(upd).read()}
+def norm(t): return t
+ok = True
+needle_present = ("install_constitution.sh", "'NR == 1'"); needle_absent = ("install_constitution.sh", "'NR == 999 { fabricated }'")
+pc = needle_present[1] in texts[needle_present[0]]; nc = needle_absent[1] in texts[needle_absent[0]]
+print("CONTROL positive found=%s (want True)  negative found=%s (want False)" % (pc, nc))
+if not pc or nc: print("BLIND"); sys.exit(2)
+for name in ("PROGS", "EXT_EXACT", "GX_EXACT"):
+    for base, entries in ns[name].items():
+        for e in entries:
+            t = e if isinstance(e, str) else e[1]
+            fn = None if isinstance(e, str) else e[0]
+            if name == "PROGS":
+                hit = t in texts[base]
+            else:
+                hit = t in texts[base]
+            if not hit:
+                print("ABSENT\t%s\t%s\t%s\t%r" % (name, base, fn, t))
+print("done")

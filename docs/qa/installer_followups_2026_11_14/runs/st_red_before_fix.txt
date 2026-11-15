@@ -1,0 +1,4 @@
+G0	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form refused; control needles ok) 
+ST-1	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form refused; control needles ok) 
+ST-2	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form refused; control needles ok) 
+ST-3	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form refused; control needles ok) 

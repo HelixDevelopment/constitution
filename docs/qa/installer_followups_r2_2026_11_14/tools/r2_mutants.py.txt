@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Round-2 paired mutants of the installer follow-ups. usage: python3 -I r2_mutants.py REPO COMMIT WORKROOT OUTTSV [ID...]
+
+Each mutant: a detached git worktree of COMMIT under WORKROOT, exact replacements (each OLD must occur exactly the
+stated number of times), then the named test runs there; KILLED when the test exits non-zero. A control run on the
+unmutated worktree must exit 0 first. Worktrees are removed with `git worktree remove --force`. At most two run at
+a time (each under systemd-run --user --scope -p TasksMax=2000 nice -n 10).
+"""
+import os, subprocess, sys, time, concurrent.futures
+
+I, U, H = "scripts/install_constitution.sh", "scripts/update_constitution.sh", "scripts/post_update_hook.sh"
+TT, PY = "tests/install/test_timeout_tty.sh", "tests/install/test_python_isolation.sh"
+IG = "trap '' TTIN TTOU; "
+GX_OLD = "then trap '' TTIN TTOU; exec timeout"
+NI = "exec timeout \"$tmo\" bash \"$boot\" --non-interactive"
+DF = "exec timeout \"$tmo\" bash \"$boot\" --defer"
+MUT = [
+    # the five round-1 mutants (TT-M2 re-anchored on the new hi_version_of group) and the reviewer's RV-M1..M5
+    ("TT-M1", "hi_gx ignore removed (both files)", [(I, GX_OLD, "then exec timeout", 1), (U, GX_OLD, "then exec timeout", 1)], TT),
+    ("TT-M2b", "hi_version_of ignore removed (group form)", [(I, "{ trap '' TTIN TTOU; timeout 5 \"$1\" --version", "{ timeout 5 \"$1\" --version", 1)], TT),
+    ("TT-M3", "hi_detect_agents ignore removed (claude-list-accounts)",
+     [(I, "{ trap '' TTIN TTOU; timeout 20 claude-list-accounts 2>/dev/null </dev/null; }", "timeout 20 claude-list-accounts 2>/dev/null </dev/null", 1)], TT),
+    ("TT-M4", "hi_detect_agents ignore removed (claude-providers list)",
+     [(I, "{ trap '' TTIN TTOU; timeout 20 claude-providers list 2>/dev/null </dev/null; }", "timeout 20 claude-providers list 2>/dev/null </dev/null", 1)], TT),
+    ("TT-M5", "hi_run_agent ignore removed", [(I, "(trap '' TTIN TTOU; cd \"$O_ROOT\" && umask", "(cd \"$O_ROOT\" && umask", 1)], TT),
+    ("RV-M1", "hi_gx: only TTIN ignored", [(I, GX_OLD, "then trap '' TTIN; exec timeout", 1)], TT),
+    ("RV-M2", "claude-list-accounts: the ignore moved after timeout",
+     [(I, "{ trap '' TTIN TTOU; timeout 20 claude-list-accounts 2>/dev/null </dev/null; }", "{ timeout 20 claude-list-accounts 2>/dev/null </dev/null; trap '' TTIN TTOU; }", 1)], TT),
+    ("RV-M3", "stale PROGS entry added to the gate",
+     [("scripts/gates/cm_installer_no_push_no_force.sh", "        \"'$1 == i { print $2 }'\",\n", "        \"'$1 == i { print $2 }'\",\n        \"'$1 == q { print $9 }'\",\n", 1)],
+     "scripts/gates/cm_installer_no_push_no_force.sh"),
+    ("RV-M4", "install_action_prefix python3 -P instead of -I", [("scripts/install_action_prefix.sh", "python3 -I -c \"$prog\"", "python3 -P -c \"$prog\"", 1)], PY),
+    ("RV-M5", "hi_run_agent: TTOU restored", [(I, "(trap '' TTIN TTOU; cd \"$O_ROOT\"", "(trap '' TTIN TTOU; trap - TTOU; cd \"$O_ROOT\"", 1)], TT),
+    # round 2: the hook site (F-1) and the rest of the class
+    ("HK-M1", "post_update_hook: ignore removed from the run", [(H, IG + NI, NI, 1)], TT),
+    ("HK-M2", "post_update_hook: ignore removed from the --defer retry", [(H, IG + DF, DF, 1)], TT),
+    ("HK-M3", "post_update_hook: ignore placed after timeout (RV-M2 shape)", [(H, IG + NI + ";", NI + "; trap '' TTIN TTOU;", 1)], TT),
+    ("BS-M1", "bootstrap run_bounded ignore removed", [("scripts/jev/bootstrap.sh", "(trap '' TTIN TTOU; exec timeout --kill-after=2 \"$t\"", "(exec timeout --kill-after=2 \"$t\"", 1)], TT),
+    ("BS-M2", "bootstrap run_gate ignore removed", [("scripts/jev/bootstrap.sh", "(trap '' TTIN TTOU; exec timeout --kill-after=2 \"$GATE_TMO\"", "(exec timeout --kill-after=2 \"$GATE_TMO\"", 1)], TT),
+    ("LD-M1", "lib_decide require-validated ignore removed", [("scripts/jev/lib_decide.sh", "(trap '' TTIN TTOU; LLMCTL_VALIDATE_STRICT=1 timeout", "(LLMCTL_VALIDATE_STRICT=1 timeout", 1)], TT),
+    ("LK-M1", "lib_keys keys-file ignore removed", [("scripts/jev/lib_keys.sh", "out=\"$(trap '' TTIN TTOU; timeout", "out=\"$(timeout", 1)], TT),
+    ("LS-M1", "label-sync ls_ctl ignore removed", [("scripts/label-sync/hooks/label-sync-lib.sh", "(trap '' TTIN TTOU; exec timeout \"$LABEL_SYNC_CTL_TIMEOUT\"", "(exec timeout \"$LABEL_SYNC_CTL_TIMEOUT\"", 1)], TT),
+    ("SL-M1", "statusline ignore removed", [("scripts/label-sync/render/statusline.sh", "trap '' TTIN TTOU; CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_SESSION_ID", 1)], TT),
+    ("MB-M1", "multitrack_balance ignore removed", [("scripts/multitrack/multitrack_balance.sh", "_code=$(trap '' TTIN TTOU; $_to curl", "_code=$($_to curl", 1)], TT),
+    ("MC-M1", "multitrack_cwd_hook ignore removed", [("scripts/multitrack/multitrack_cwd_hook.sh", "out=\"$(trap '' TTIN TTOU; timeout 5", "out=\"$(timeout 5", 1)], TT),
+    ("JD-M1", "cm_jev_detection _run ignore removed", [("scripts/gates/cm_jev_detection.sh", "_run() { (trap '' TTIN TTOU; exec timeout", "_run() { (exec timeout", 1)], TT),
+    # the test's own census (F-3 and the derived file set)
+    ("CS-M1", "census credits an ignore anywhere on the line again (F-3)", [(TT, "elif IGN in line[:s.start()] or seen_ign:", "elif IGN in line[:s.start()] or seen_ign or (IGN in line):", 1)], TT),
+    ("CS-M2", "census closure stops following scripts/x/$v.sh", [(TT, "                for w in loops.get(m.group(1), []):", "                for w in []:", 1)], TT),
+    ("CS-M3", "census back to the six fixed files (no closure)", [(TT, "for f in closure(root, sys.argv[2:]):", "for f in sys.argv[2:]:", 1)], TT),
+]
+
+
+def sh(args, cwd=None, log=None):
+    return subprocess.run(args, cwd=cwd, stdout=log or subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+
+def one(repo, commit, root, case):
+    mid, desc, edits, test = case
+    wt = os.path.join(root, mid)
+    r = sh(["git", "-C", repo, "worktree", "add", "-q", "--detach", wt, commit])
+    if r.returncode: return [(mid, desc, "-", "WORKTREE-FAILED", r.stdout.strip()[:160])]
+    for f, old, new, n in edits:
+        p = os.path.join(wt, f); s = open(p, encoding="utf-8").read()
+        if s.count(old) != n:
+            sh(["git", "-C", repo, "worktree", "remove", "--force", wt])
+            return [(mid, desc, "-", "ANCHOR-MISSING %s count %d" % (f, s.count(old)), "")]
+        open(p, "w", encoding="utf-8").write(s.replace(old, new))
+    lp = os.path.join(root, "%s__%s.log" % (mid, os.path.basename(test)))
+    t0 = time.time()
+    with open(lp, "w") as lf:
+        rc = sh(["systemd-run", "--user", "--scope", "-q", "-p", "TasksMax=2000", "nice", "-n", "10", "bash", test], cwd=wt, log=lf).returncode
+    first = ""
+    for line in open(lp, encoding="utf-8", errors="replace"):
+        if line.startswith(("  FAIL", "  BLIND", "FAIL", "BLIND")): first = line.strip()[:200]; break
+    sh(["git", "-C", repo, "worktree", "remove", "--force", wt])
+    if mid == "CONTROL": verdict = "PASS" if rc == 0 else "CONTROL-FAILED"
+    else: verdict = "KILLED" if rc != 0 else "SURVIVED"
+    return [(mid, desc, os.path.basename(test), "%s rc=%d %ds" % (verdict, rc, round(time.time() - t0)), first)]
+
+
+def main():
+    repo, commit, root, out = sys.argv[1:5]
+    want = set(sys.argv[5:]); root = os.path.abspath(root); os.makedirs(root, exist_ok=True)
+    rows = one(repo, commit, root, ("CONTROL", "unmutated", [], TT))
+    print("\t".join(rows[0])); sys.stdout.flush()
+    if not rows[0][3].startswith("PASS"): open(out, "w").write("\t".join(rows[0]) + "\n"); sys.exit(1)
+    cases = [m for m in MUT if not want or m[0] in want]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+        for res in ex.map(lambda c: one(repo, commit, root, c), cases):
+            for r in res: rows.append(r); print("\t".join(map(str, r))); sys.stdout.flush()
+    with open(out, "w") as f:
+        for r in rows: f.write("\t".join(map(str, r)) + "\n")
+
+
+main()

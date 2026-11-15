@@ -386,7 +386,9 @@ tool_path() { # tool_path <tool> -> checkout path recorded in provenance ('' if 
 TIMED_OUT_NOTES=""
 run_bounded() {
   local t="$1" out="$2" rc=0; shift 2
-  if command -v timeout >/dev/null 2>&1; then timeout --kill-after=2 "$t" "$@" >"$out" 2>/dev/null </dev/null || rc=$?
+  # SIGTTIN/SIGTTOU ignored in the subshell only: uutils timeout does not ignore them itself and would be stopped with a
+  # tool that touches the terminal (its background process group), so the limit would never fire (CON-112 class)
+  if command -v timeout >/dev/null 2>&1; then (trap '' TTIN TTOU; exec timeout --kill-after=2 "$t" "$@" >"$out" 2>/dev/null </dev/null) || rc=$?
   else "$@" >"$out" 2>/dev/null </dev/null || rc=$?; fi
   if [ "$rc" = "124" ] || [ "$rc" = "137" ]; then
     TIMED_OUT_NOTES="${TIMED_OUT_NOTES:+$TIMED_OUT_NOTES; }$(basename "$1") $2 timed out after ${t}s"
@@ -397,7 +399,7 @@ run_bounded() {
 TOOL_TMO="${JEV_TOOL_TIMEOUT:-30}"; GATE_TMO="${JEV_GATE_TIMEOUT:-60}"
 run_gate() { # run_gate <script> <outfile> -> the gate's rc (124/137 = timeout); stdout+stderr to <outfile>
   local rc=0
-  if command -v timeout >/dev/null 2>&1; then timeout --kill-after=2 "$GATE_TMO" bash "$1" >"$2" 2>&1 </dev/null || rc=$?
+  if command -v timeout >/dev/null 2>&1; then (trap '' TTIN TTOU; exec timeout --kill-after=2 "$GATE_TMO" bash "$1" >"$2" 2>&1 </dev/null) || rc=$?
   else bash "$1" >"$2" 2>&1 </dev/null || rc=$?; fi
   return "$rc"
 }

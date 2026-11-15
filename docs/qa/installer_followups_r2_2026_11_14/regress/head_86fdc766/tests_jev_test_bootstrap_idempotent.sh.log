@@ -1,0 +1,21 @@
+ok 1 - first run rc 0
+ok 2 - second run rc 0
+ok 3 - resulting-state digests identical across runs
+ok 4 - second run reports no-change for all 7 stages
+ok 5 - detect-models no-change line
+ok 6 - bootstrap.stamp byte-stable on third run
+ok 7 - --defer exits rc 0
+ok 8 - --defer writes pending stamp
+ok 9 - --defer reports deferral
+ok 10 - jev-status --json surfaces bootstrap.pending=true
+ok 11 - changed-input run (--enforce) rc 0
+ok 12 - NEG: --enforce changes configure inputs, stage is NOT reported no-change
+ok 13 - NEG: mode is part of stage-1 key, stage re-runs
+ok 14 - NEG: fewer than 7 no-change lines after an input change (3)
+ok 15 - NEG: enforce refused without calibrated thresholds, env stays shadow
+ok 16 - NEG: unknown flag exits nonzero
+ok 17 - converged: run 3 reports no-change for all 7 stages
+ok 18 - converged: state byte-identical on a further run
+note - consented first-contact run 2 reported 5/7 no-change (inputs created by run 1 legitimately re-run)
+ok 19 - converged: agent wiring applied exactly once across 4 runs
+# test_bootstrap_idempotent.sh: pass=19 fail=0 skip=0

@@ -1,0 +1,19 @@
+scripts/gates/cm_jev_detection.sh	blind_or_note	yes	213	if command -v timeout >/dev/null 2>&1; then _run() { (trap '' TTIN TTOU; exec timeout --kill-after=2 "$_tmo" "$@"); }; else _run() { "$@"; }; fi
+scripts/install_constitution.sh	hi_gx	yes	475	if [ -n "${HI_GX_TIMEOUT:-}" ]; then trap '' TTIN TTOU; exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
+scripts/install_constitution.sh	hi_version_of	yes	607	v="$(cd / && { trap '' TTIN TTOU; timeout 5 "$1" --version </dev/null 2>&1; } | awk 'NR == 1')"   # awk reads to EOF: no SIGPIPE
+scripts/install_constitution.sh	hi_detect_agents	yes	621	{ trap '' TTIN TTOU; timeout 20 claude-list-accounts 2>/dev/null </dev/null; } | awk '$1 ~ /^claude[0-9]+$/ { print $1 "|" $3 }' | sort -u \
+scripts/install_constitution.sh	hi_detect_agents	yes	627	{ trap '' TTIN TTOU; timeout 20 claude-providers list 2>/dev/null </dev/null; } | awk '
+scripts/install_constitution.sh	hi_lock_pid	no	1066	timeout 5 head -c 20 -- "$f" 2>/dev/null | tr -cd '0-9'
+scripts/install_constitution.sh	hi_run_agent	no	1656	local -a cmd=(timeout --kill-after=10 "$O_TIMEOUT" env -u ANTHROPIC_API_KEY)
+scripts/jev/bootstrap.sh	run_bounded	yes	391	if command -v timeout >/dev/null 2>&1; then (trap '' TTIN TTOU; exec timeout --kill-after=2 "$t" "$@" >"$out" 2>/dev/null </dev/null) || rc=$?
+scripts/jev/bootstrap.sh	run_gate	yes	402	if command -v timeout >/dev/null 2>&1; then (trap '' TTIN TTOU; exec timeout --kill-after=2 "$GATE_TMO" bash "$1" >"$2" 2>&1 </dev/null) || rc=$?
+scripts/jev/lib_decide.sh	jev_effective_mode	yes	332	(trap '' TTIN TTOU; LLMCTL_VALIDATE_STRICT=1 timeout 60 $rv "$p" >/dev/null 2>&1) \
+scripts/jev/lib_keys.sh	_jev_key_value	yes	28	out="$(trap '' TTIN TTOU; timeout --kill-after=1 "$tmo" bash -c 'set +e +u +o pipefail; . "$1" >/dev/null 2>&1 </dev/null; v="$2"; printf "%s" "${!v:-
+scripts/label-sync/hooks/label-sync-lib.sh	ls_ctl	yes	119	(trap '' TTIN TTOU; exec timeout "$LABEL_SYNC_CTL_TIMEOUT" "$LS_CTL_BIN" --lock-timeout "$lt" "$@" 2>/dev/null)
+scripts/label-sync/render/statusline.sh	-	yes	91	derived="$( { [ -n "$cwd" ] && cd "$cwd" 2>/dev/null; trap '' TTIN TTOU; CLAUDE_CODE_SESSION_ID="$sid" timeout 1 bash "$labeler" 2>/dev/null | head -n
+scripts/multitrack/multitrack_balance.sh	mt_provider_operability_probe	no	406	_to=""; command -v timeout >/dev/null 2>&1 && _to="timeout $MT_BAL_PROBE_TIMEOUT"
+scripts/multitrack/multitrack_cwd_hook.sh	_cwh_owner_busy	yes	366	out="$(trap '' TTIN TTOU; timeout 5 bash "$tool" check "$wt" 2>/dev/null)"; rc=$?
+scripts/post_update_hook.sh	install_jev_bootstrap	yes	960	(cd "$PROJECT_ROOT" || exit 1; if [ -n "$tmo" ]; then trap '' TTIN TTOU; exec timeout "$tmo" bash "$boot" --non-interactive; fi; exec bash "$boot" --n
+scripts/post_update_hook.sh	install_jev_bootstrap	yes	968	if (cd "$PROJECT_ROOT" || exit 1; if [ -n "$tmo" ]; then trap '' TTIN TTOU; exec timeout "$tmo" bash "$boot" --defer; fi; exec bash "$boot" --defer); 
+scripts/update_constitution.sh	hi_gx	yes	289	if [ -n "${HI_GX_TIMEOUT:-}" ]; then trap '' TTIN TTOU; exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
+scripts/update_constitution.sh	up_lock_pid	no	390	timeout 5 head -c 20 -- "$f" 2>/dev/null | tr -cd '0-9'

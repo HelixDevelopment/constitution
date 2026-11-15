@@ -1,0 +1,14 @@
+  ok   census control needles: a -I line reads as isolated, a line without -I as not isolated
+  ok   every python3 invocation in the six install scripts runs with -I (5 found)
+  ok   control: jq is absent on the test PATH
+  ok   control: python3 -c in that directory imports the planted json.py
+  ok   control: python3 -c with that PYTHONPATH imports the planted json.py
+  ok   install_action_prefix.sh (python path) exits 0
+  ok   the merge ran: the hook entry is in settings.json
+  ok   a json.py in the current directory was not imported
+  ok   a json.py on PYTHONPATH was not imported
+  ok   install_action_prefix.sh (python path, PYTHONPATH planted) exits 0
+  ok   the merge ran (PYTHONPATH case)
+  ok   a json.py on PYTHONPATH alone was not imported
+python_isolation: PASS 12 FAIL 0
+rc=0

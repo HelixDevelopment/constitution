@@ -1,0 +1,3 @@
+scripts/hooks/test_label_sync_hooks.sh	0
+scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh	1
+DONE
