@@ -1,0 +1,77 @@
+== refused_marker
+  ok   refused_marker.ff.stop-after-marker.ran
+  ok   refused_marker.ff.stop-after-marker.not_moved
+  FAIL refused_marker.ff.stop-after-marker.no_marker  ()
+  ok   refused_marker.ff.stop-after-marker.marker_was_written
+  FAIL refused_marker.ff.stop-after-marker.user_edit_is_users  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_marker.ff.stop-after-marker.not_blamed_on_engine  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  ok   refused_marker.ff.deadline-after-marker.ran
+  ok   refused_marker.ff.deadline-after-marker.not_moved
+  FAIL refused_marker.ff.deadline-after-marker.no_marker  ()
+  ok   refused_marker.ff.deadline-after-marker.marker_was_written
+  FAIL refused_marker.ff.deadline-after-marker.user_edit_is_users  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_marker.ff.deadline-after-marker.not_blamed_on_engine  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  ok   refused_marker.ff.stop-before-marker.ran
+  ok   refused_marker.ff.stop-before-marker.not_moved
+  FAIL refused_marker.ff.stop-before-marker.no_marker  ()
+  FAIL refused_marker.ff.stop-before-marker.marker_never_written  ({'rc': 8, 'markers': ['fast-forward']})
+  FAIL refused_marker.ff.stop-before-marker.user_edit_is_users  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_marker.ff.stop-before-marker.not_blamed_on_engine  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  ok   refused_marker.ff.deadline-before-marker.ran
+  ok   refused_marker.ff.deadline-before-marker.not_moved
+  FAIL refused_marker.ff.deadline-before-marker.no_marker  ()
+  FAIL refused_marker.ff.deadline-before-marker.marker_never_written  ({'rc': 5, 'markers': ['fast-forward']})
+  FAIL refused_marker.ff.deadline-before-marker.user_edit_is_users  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_marker.ff.deadline-before-marker.not_blamed_on_engine  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  ok   refused_marker.ff.spawn-fails-write.ran
+  ok   refused_marker.ff.spawn-fails-write.not_moved
+  FAIL refused_marker.ff.spawn-fails-write.no_marker  ()
+  ok   refused_marker.ff.spawn-fails-write.marker_was_written
+  FAIL refused_marker.ff.spawn-fails-write.user_edit_is_users  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_marker.ff.spawn-fails-write.not_blamed_on_engine  (['write-interrupted-earlier:fast-forward', 'dirty-tree-since-write-interrupted'])
+  ok   refused_marker.pin.stop-after-marker.ran
+  ok   refused_marker.pin.stop-after-marker.not_moved
+  FAIL refused_marker.pin.stop-after-marker.no_marker  ()
+  ok   refused_marker.pin.stop-after-marker.marker_was_written
+  FAIL refused_marker.pin.stop-after-marker.user_edit_is_users  (['write-interrupted-earlier:advance-pin', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_marker.pin.stop-after-marker.not_blamed_on_engine  (['write-interrupted-earlier:advance-pin', 'dirty-tree-since-write-interrupted'])
+  ok   refused_marker.pin.deadline-after-marker.ran
+  ok   refused_marker.pin.deadline-after-marker.not_moved
+  FAIL refused_marker.pin.deadline-after-marker.no_marker  ()
+  ok   refused_marker.pin.deadline-after-marker.marker_was_written
+  FAIL refused_marker.pin.deadline-after-marker.user_edit_is_users  (['write-interrupted-earlier:advance-pin', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_marker.pin.deadline-after-marker.not_blamed_on_engine  (['write-interrupted-earlier:advance-pin', 'dirty-tree-since-write-interrupted'])
+  ok   refused_marker.pin.spawn-fails-write.ran
+  ok   refused_marker.pin.spawn-fails-write.not_moved
+  FAIL refused_marker.pin.spawn-fails-write.no_marker  ()
+  ok   refused_marker.pin.spawn-fails-write.marker_was_written
+  FAIL refused_marker.pin.spawn-fails-write.user_edit_is_users  (['write-interrupted-earlier:advance-pin', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_marker.pin.spawn-fails-write.not_blamed_on_engine  (['write-interrupted-earlier:advance-pin', 'dirty-tree-since-write-interrupted'])
+== refused_stage
+  ok   refused_stage.markers
+  ok   refused_stage.child_moved
+  ok   refused_stage.not_staged
+  FAIL refused_stage.reported_unresolved  ([{'error': 'stopped by a signal', 'op': 'advance-pin', 'rc': 0, 'staged_rc': None, 'to': 'fd7c8736d03caedcb8dc14f4b40677744da21db1'}])
+  FAIL refused_stage.no_parent_marker  ()
+  ok   refused_stage.no_child_marker
+  FAIL refused_stage.user_edit_is_users  (['write-interrupted-earlier:stage-pin', 'dirty-tree-since-write-interrupted'])
+  FAIL refused_stage.not_blamed_on_engine  (['write-interrupted-earlier:stage-pin', 'dirty-tree-since-write-interrupted'])
+== marker_lock
+  ok   marker_lock.control_tree_clean
+  ok   marker_lock.exit_4
+  ok   marker_lock.attributed
+  ok   marker_lock.not_users
+  ok   marker_lock.marker_kept
+  ok   marker_lock.control_users
+== flock_error
+  ok   flock_error.flock-error-root.exit_1
+  ok   flock_error.flock-error-root.message
+  ok   flock_error.flock-error-root.not_another_run
+  ok   flock_error.flock-error-root.result_failed
+  ok   flock_error.flock-error-repo.exit_1
+  ok   flock_error.flock-error-repo.message
+  ok   flock_error.flock-error-repo.not_another_run
+  ok   flock_error.flock-error-repo.result_failed
+  ok   flock_error.flock-held-repo.exit_7
+  ok   flock_error.flock-held-repo.message
+sync-robustness: PASS 42 FAIL 30
