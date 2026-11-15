@@ -24,8 +24,10 @@ D=docs/qa/tracker_intake_2026_11_12_v5
 S=${ENGINE_REPRO:-$D/engine_repro.sh}
 [ -f "$S" ] || { echo "usage: run from the repository root" >&2; exit 2; }
 REAL=docs/workable_items.db
+# guarded deletes (section 11.4.287, round-8 review N6): safe_rm_rf refuses an empty or protected path
+. scripts/lib/safe_rm.sh || { echo "precondition: run from the repository root" >&2; exit 2; }
 tmp=$(mktemp -d)
-cleanup(){ rm -rf "${tmp:?}"; }
+cleanup(){ safe_rm_rf "${tmp:?}"; }
 trap cleanup EXIT
 pass=0; fail=0
 ok(){ pass=$((pass+1)); echo "PASS $1"; }

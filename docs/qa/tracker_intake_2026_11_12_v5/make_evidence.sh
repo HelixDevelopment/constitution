@@ -39,8 +39,10 @@ LINT=scripts/workable-items/intake_lint.py
 [ -x "$WI" ] || { echo "precondition: engine binary not executable" >&2; exit 3; }
 git cat-file -e "$BASE:docs/workable_items.db" 2>/dev/null || { echo "precondition: no database at $BASE" >&2; exit 3; }
 ROOT=$(pwd)
+# guarded deletes (section 11.4.287, round-8 review N6): safe_rm_rf refuses an empty or protected path
+. scripts/lib/safe_rm.sh || { echo "precondition: run from the repository root" >&2; exit 3; }
 tmp=$(mktemp -d)
-cleanup(){ rm -rf "${tmp:?}"; }
+cleanup(){ safe_rm_rf "${tmp:?}"; }
 trap cleanup EXIT
 INTAKE=$(python3 -I -c 'print(",".join("CON-%03d" % i for i in range(299, 343)))')
 git show "$BASE:docs/workable_items.db" > "$tmp/base.db"
@@ -119,7 +121,7 @@ for spec in "$@"; do
     mkdir -p "$mt/$(dirname "$f")"; cp "$f" "$mt/$f"
   done < "$overlay"
   ( cd "$mt" && "$WI" validate --db "$landed" ) > "$o/validate.txt" 2>&1; echo "rc=$?" >> "$o/validate.txt"
-  rm -rf "${mt:?}"
+  safe_rm_rf "${mt:?}"
 done
 cd "$ROOT" || exit 3
 if [ -n "${ENGINE_REPRO_IDS:-}" ]; then

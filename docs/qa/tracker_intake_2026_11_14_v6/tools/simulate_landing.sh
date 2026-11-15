@@ -24,8 +24,10 @@ R=scripts/workable-items/remint_ids.py
 [ -f "$D/tools/simulate_landing.sh" ] && [ -f "$T5/landing_facts.py" ] || { echo "precondition: run from the repository root" >&2; exit 3; }
 [ -x "$WI" ] || { echo "precondition: engine binary not executable" >&2; exit 3; }
 git cat-file -e "$BASE:docs/workable_items.db" 2>/dev/null || { echo "precondition: no database at $BASE" >&2; exit 3; }
+# guarded deletes (section 11.4.287, round-8 review N6): safe_rm_rf refuses an empty or protected path
+. scripts/lib/safe_rm.sh || { echo "precondition: run from the repository root" >&2; exit 3; }
 tmp=$(mktemp -d)
-cleanup(){ rm -rf -- "${tmp:?}"; }
+cleanup(){ safe_rm_rf "${tmp:?}"; }
 trap cleanup EXIT
 git show "$BASE:docs/workable_items.db" > "$tmp/base.db"
 V=docs/workable_items.db
@@ -64,7 +66,7 @@ for spec in "$@"; do
     mkdir -p "$mt/$(dirname "$f")"; cp "$f" "$mt/$f"
   done < "$overlay"
   ( cd "$mt" && "$WI" validate --db "$landed" ) > "$o/validate.txt" 2>&1; echo "rc=$?" >> "$o/validate.txt"
-  rm -rf -- "${mt:?}"
+  safe_rm_rf "${mt:?}"
 done
 echo "landing simulations written under $D/remint"
 exit 0

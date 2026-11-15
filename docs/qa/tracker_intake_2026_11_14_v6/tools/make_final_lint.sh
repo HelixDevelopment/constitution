@@ -27,8 +27,10 @@ run() { # run <want-rc> <title> <shown argv> -- <real argv>
   cat "$tmp/out"; echo "rc=$rc"
   [ "$rc" = "$want" ] || bad=1
 }
+# guarded deletes (section 11.4.287, round-8 review N6): safe_rm_rf refuses an empty or protected path
+. scripts/lib/safe_rm.sh || { echo "precondition: run from the repository root" >&2; exit 2; }
 tmp=$(mktemp -d) || exit 2
-trap 'rm -rf -- "${tmp:?}"' EXIT
+trap 'safe_rm_rf "${tmp:?}"' EXIT
 run 0 "the vehicle's own items (CON-299..CON-344)" \
   "python3 -I $lint --db $db --ids <CON-299..CON-344> --prefix CON --repo-root ." -- \
   --db "$db" --ids "$ids" --prefix CON --repo-root .

@@ -964,6 +964,15 @@ tf "v_split fact: a skeleton has one piece more than its id tokens" 'all(len(m.v
 # neither side has a row (the control: a row on one side only is reported, so the instrument sees an append)
 tf "check_od fact: no row on either side appends nothing" '(lambda b: (m.check_od("CON-1", None, None, {}, set(), "CON", b), b)[1])([])' "[]"
 tf "check_od fact control: a row on one side only is reported" '(lambda b: (m.check_od("CON-1", None, {"since": "x"}, {}, set(), "CON", b), b)[1])([])' "['CON-1 obsolete_details: present in the landed database only']"
+# round 8 (review N3): the verify oracle's body rules, one case per member the round-8 reviewer's RR3, RR4 and
+# RR5 removed without a failing case: a close re-renders the body; the Evidence meta line is a template line
+# a re-render fills; the '## ID. title' heading is a slot like the '## ID — title' one. Each has a control.
+tf "check_body: a close counts as a re-render (a target body change it replaced is reported)" '(lambda bad: (m.check_body("CON-1", {"body_md": "## CON-1 — T\nvehicle text\n", "title": "T"}, {"body_md": "## CON-1 — T\nbase text\n"}, {"body_md": "## CON-1 — T\ntarget text\n"}, {"body_md": "## CON-1 — T\nvehicle text\n", "title": "T", "status": "Open"}, True, False, set(), [{"item": "CON-1", "kind": "close"}], lambda *a: None, bad), bad)[1])([])' "['CON-1 body_md: a re-render replaced a body the target changed outside the engine slots']"
+tf "check_body control: with no re-render step the target text is required instead" '(lambda bad: (m.check_body("CON-1", {"body_md": "## CON-1 — T\nvehicle text\n", "title": "T"}, {"body_md": "## CON-1 — T\nbase text\n"}, {"body_md": "## CON-1 — T\ntarget text\n"}, {"body_md": "## CON-1 — T\nvehicle text\n", "title": "T", "status": "Open"}, True, False, set(), [], lambda *a: None, bad), bad)[1])([])' "[\"CON-1 body_md: the target's text outside the engine slots is not kept\"]"
+tf "is_slot: the Evidence meta line is a template line" 'm.is_slot("**Evidence:** docs/qa/x.txt", "CON-1", True)' "True"
+tf "is_slot control: the Evidence meta line is not a slot outside the template" 'm.is_slot("**Evidence:** docs/qa/x.txt", "CON-1")' "False"
+tf "is_slot: the '## ID. title' heading form is a slot" 'm.is_slot("## CON-1. Title", "CON-1")' "True"
+tf "is_slot control: another id's '## ID. title' heading is not a slot" 'm.is_slot("## CON-2. Title", "CON-1")' "False"
 tf "verify text rules: a range of moved ids around a foreign id mixes them" 'm.v_text_rules("see CON-5..CON-7", {"CON-5": "CON-20", "CON-6": "CON-21", "CON-7": "CON-22"}, m.v_foreign_numbers(["Foreign ids (other): CON-6"], "CON", []), "CON")' "range 'CON-5..CON-7' mixes foreign and moved ids"
 # round 5, final branch sweep: the shared-item loop of verify, one case per branch. dupsql copies an item's row
 # as a second row of another representation (created_at and last_modified copied, so two copies are identical)

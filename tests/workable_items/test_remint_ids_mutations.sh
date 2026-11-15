@@ -32,7 +32,9 @@
 #   reviewer's mutants (ROV1..ROV10) verbatim, except ROV3 (the clause without its line continuation), and
 #   ROVFIX, the round-5 defect R5-1 put back (a field-only update passes the target's description).
 #   RM-mutants: the round-6 reviewer's mutants (RM1..RM8) verbatim; RM2, RM3, RM6 and RM8 are killed by the
-#   round-7 cases of section (11) of the suite. S-mutants: the suite's own fixture instrument (fx_sql).
+#   round-7 cases of section (11) of the suite. RR-mutants: the round-8 reviewer's mutants (RR1..RR9)
+#   verbatim; RR3, RR4 and RR5 are killed by the round-8 check_body and is_slot cases of the suite.
+#   S-mutants: the suite's own fixture instrument (fx_sql).
 # ENV   WORKABLE_ITEMS        path of the workable-items engine binary (default: the tracked
 #                             scripts/workable-items/bin/workable-items; exit 2 when not executable)
 #       REMINT_IDS_MUT_JOBS   parallel mutants (default 3)
@@ -234,6 +236,15 @@ mutants=(
   'S1 suite: a failing fixture edit is ignored|S|echo "setup: fx_sql failed: $2" >&2; exit 2;|||true;'
   'S2 suite: a fixture edit that matches no row is accepted|S|if n == 0:  # DML that matched no row; DDL reports -1|||if False:'
   'S3 suite: fx_sql may touch the real database|S|  [ "$a" != "$b" ] || { echo "setup: fx_sql refuses the real database" >&2; exit 2; }\n  case "$a" in "$tmp"/*) ;; *) echo "setup: fx_sql edits only scratch copies under the temp dir" >&2; exit 2 ;; esac|||  :'
+  'RR1 check_body: the landed Status line not checked (reviewer round 8, verbatim edit; the match stops before the line continuation)|T|    if any(x.startswith("**Status:**") for x in body_lines(t["body_md"]) + body_lines(v["body_md"]))|||    if False and any(x.startswith("**Status:**") for x in body_lines(t["body_md"]) + body_lines(v["body_md"]))'
+  'RR2 check_body: a re-render over a target-changed body never flagged (reviewer round 8, verbatim)|T|        if t_body and not rv:\n|||        if t_body and False:\n'
+  'RR3 check_body: a close no longer counts as a re-render (reviewer round 8, verbatim)|T|rerender = any(s.get("item") == i and (s.get("kind") == "close" or (|||rerender = any(s.get("item") == i and (False or ('
+  'RR4 template prefixes: Evidence dropped (reviewer round 8, verbatim)|T|"**Assigned-To:**", "**Evidence:**")|||"**Assigned-To:**")'
+  'RR5 is_slot: the '"'"'## ID. title'"'"' heading form not a slot (reviewer round 8, verbatim)|T| or line.startswith("## %s. " % iid):\n        return True\n    if line.startswith(SLOT_PREFIXES)|||:\n        return True\n    if line.startswith(SLOT_PREFIXES)'
+  'RR6 planner: --resolve ignored for the body conflict (reviewer round 8, verbatim)|T|if rerender and res is None and unslotted(t["body_md"], i) != unslotted(b["body_md"], i):|||if rerender and unslotted(t["body_md"], i) != unslotted(b["body_md"], i):'
+  'RR7 check_body: the unchanged-target branch keyed on tdiff only (reviewer round 8, verbatim)|T|    if not tdiff and norm(t["body_md"]) == norm(b["body_md"]):\n|||    if not tdiff:\n'
+  'RR8 planner: the created_at note never emitted (reviewer round 8, verbatim)|T|        steps.extend(isteps)\n        if norm(v["created_at"]) != norm(b["created_at"]):\n|||        steps.extend(isteps)\n        if False:\n'
+  'RR9 check_body: heading compared with the vehicle title, not the landed one (reviewer round 8, verbatim)|T|    if heads and heads[0] not in ("## %s — %s" % (i, norm(r["title"])), "## %s. %s" % (i, norm(r["title"]))):|||    if heads and heads[0] not in ("## %s — %s" % (i, norm(v["title"])), "## %s. %s" % (i, norm(v["title"]))):'
 )
 
 mkcopy() { # mkcopy <src> <dest> <old> <new>  (\n in old/new is a newline)

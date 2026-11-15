@@ -88,7 +88,7 @@ def needles(ident):
 def show(kind, match):
     if kind in ("home-path", "home-fragment", "user-name"):
         return "kind=%s" % kind
-    return "kind=%s len=%d prefix=%r" % (kind, len(match), match[:6])
+    return "kind=%s len=%d" % (kind, len(match))  # round-8 review N6: no character of the match
 
 
 def db_values(path):

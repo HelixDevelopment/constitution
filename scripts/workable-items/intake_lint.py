@@ -134,21 +134,36 @@ SECTION_MARKERS = [
     ("Acceptance criteria", re.compile(r"^\*\*Acceptance criteria:\*\*", re.M)),
     ("Parent / links", re.compile(r"^Parent / links:", re.M)),
 ]
-# Credential shapes (section 11.4.10). Every member has a positive and a negative control needle in
-# selfcheck(). The keyed class (round 7, review finding F1) is enumerated and measured member by member by
-# docs/qa/tracker_intake_2026_11_14_v7/tools/secret_class_census.py; its rule and its honest boundary are
-# docs/qa/tracker_intake_2026_11_14_v7/class_inventory.md section L. A surface is read in its NFKC form, so a
-# full-width colon or equals sign, or full-width letters, read as their ASCII forms (SECRET_NFKC).
+# Credential shapes (section 11.4.10). Round 8 (review findings N1, N2): the keyed shapes are no longer one
+# regular expression per shape. A surface goes through three separate stages:
+#   1. a FRONT END (secret_views) that makes the views the rules read: the NFKC form (full-width and
+#      mathematical letters, full-width separators), with the format characters (category Cf: zero-width,
+#      soft hyphen, tag characters, bidi controls) removed and the Latin lookalikes of the Cyrillic and Greek
+#      alphabets folded to Latin (SECRET_FOLD); plus, when the text holds escapes, a view with the escapes
+#      decoded (\uXXXX, \xHH, \\, \/, \", \'), and when it holds %XX, a percent-decoded view;
+#   2. EXTRACTORS (KEYED_RULES) that find a key and its value in one syntax each, and say nothing about the
+#      value: an assignment (=, :=, =>, :, quoted or not), a call argument pair ('KEY', 'VALUE'), a setter
+#      call, a --flag, a tool's short -p flag, whitespace after the key, netrc, an XML element, an XML
+#      key/value attribute pair, a YAML block scalar, a pgpass line, a URL user-info password;
+#   3. a VALUE CLASSIFIER (credential_value) that decides whether the value is a credential: long enough,
+#      not a reference, a mask, a placeholder, a code expression or a path, and, for the generic and short
+#      key tiers, holding a letter and a digit.
+# Every rule has a positive and a negative control needle in selfcheck(). The class, its census and its
+# boundary are docs/qa/tracker_intake_2026_11_15_v8/class_inventory.md; the shared fixtures that both the
+# lint and the independent leak scan are tested against are tests/workable_items/secret_shape_fixtures.py.
 SECRET_NFKC = True
+SECRET_STRIP_FORMAT = True
+SECRET_FOLD = True
+SECRET_DECODE_ESCAPES = True
+SECRET_DECODE_PERCENT = True
 # strong keys: any value of 8 or more characters
 _SECRET_KEYS = (r"(?:pass(?:word|wd|phrase)|client[_.-]?secret|secret[_.-]?key|api[_.-]?key|access[_.-]?key|private[_.-]?key"
                 r"|credentials?|(?:auth|access|refresh|bearer|session|api|id|oauth|app)[_.-]?token)")
-# generic keys: after an unquoted colon, a value with a letter and a digit (prose writes "Token: ...")
+# generic keys: a value with a letter and a digit after an unquoted colon (prose writes "Token: ...")
 _SECRET_KEYS_GENERIC = r"(?:secret|token)"
 # short keys: a value with a letter and a digit, never a path; an unquoted colon value is not read (the
 # "PASS: case_x" label of a test report)
 _SECRET_KEYS_SHORT = r"(?:pwd|pass|auth)"
-_SECRET_KEY_ANY = "(?:" + _SECRET_KEYS + "|" + _SECRET_KEYS_GENERIC + ")"
 # where a strong or generic key may start: anywhere, so a prefix joined by "_" (DB_PASSWORD), "-"
 # (X-Api-Key), "." (app.password) or by nothing (PGPASSWORD) is read; a short key needs a character
 # that is not a letter or digit before it (bypass, oauth are words, not keys)
@@ -156,8 +171,316 @@ _KEY_LEAD = r"(?:\b|_|(?<=[A-Za-z0-9.-]))"
 _SHORT_LEAD = r"(?<![A-Za-z0-9])"
 # the key may be quoted, also with an escaped quote (JSON written inside a string)
 _KQ = r"(?:\\?[\"'`])?"
-# a value with a letter and a digit
-_LD = r"(?=[^\s'\"`,;<]*[0-9])(?=[^\s'\"`,;<]*[A-Za-z])"
+# the key alternatives, named by tier
+_KEY_STRONG = _KEY_LEAD + r"(?P<strong>" + _SECRET_KEYS + r")"
+_KEY_GENERIC = _KEY_LEAD + r"(?P<generic>" + _SECRET_KEYS_GENERIC + r")"
+_KEY_SHORT = _SHORT_LEAD + r"(?P<short>" + _SECRET_KEYS_SHORT + r")"
+_KEY = r"(?:" + _KEY_STRONG + "|" + _KEY_GENERIC + "|" + _KEY_SHORT + r")"
+# a quoted value: up to the same closing quote, an escape sequence (\\, \", \u00e9, \/) is part of it
+_QVAL = r"\\?(?P<q>[\"'`])(?P<v>(?:\\[^\n]|(?!\\?(?P=q))[^\n\\])*)\\?(?P=q)"
+# the Latin lookalikes of Cyrillic and Greek letters (the confusables a key can be spelled with)
+_FOLD = str.maketrans({
+    "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p", "\u0441": "c", "\u0443": "y", "\u0445": "x",
+    "\u0456": "i", "\u0458": "j", "\u0455": "s", "\u0501": "d", "\u051b": "q", "\u051d": "w", "\u04bb": "h",
+    "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041a": "K", "\u041c": "M", "\u041d": "H", "\u041e": "O",
+    "\u0420": "P", "\u0421": "C", "\u0422": "T", "\u0425": "X", "\u0406": "I", "\u0408": "J", "\u0405": "S",
+    "\u03b1": "a", "\u03bf": "o", "\u03c1": "p", "\u03c4": "t", "\u03ba": "k", "\u03bd": "v", "\u03b9": "i",
+    "\u0391": "A", "\u0392": "B", "\u0395": "E", "\u0396": "Z", "\u0397": "H", "\u0399": "I", "\u039a": "K",
+    "\u039c": "M", "\u039d": "N", "\u039f": "O", "\u03a1": "P", "\u03a4": "T", "\u03a5": "Y", "\u03a7": "X",
+    "\u0131": "i", "\u0261": "g", "\u217c": "l", "\u2170": "i",
+})
+_ESC = re.compile(r"\\(u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}|[\\/\"'])")
+_PCT = re.compile(r"%[0-9A-Fa-f]{2}")
+
+
+def _clean(t):
+    """Remove the format characters and fold the lookalikes (the front end's per-view step)."""
+    if not t.isascii():
+        if SECRET_STRIP_FORMAT:
+            t = "".join(ch for ch in t if unicodedata.category(ch) != "Cf")
+        if SECRET_FOLD:
+            t = t.translate(_FOLD)
+    return t
+
+
+def _unescape(m):
+    s = m.group(1)
+    if s[0] in "ux":
+        return chr(int(s[1:], 16))
+    return s
+
+
+def secret_views(text):
+    """The views of a surface that the credential rules read (stage 1 of the round-8 design)."""
+    t = unicodedata.normalize("NFKC", text) if SECRET_NFKC else text
+    t = _clean(t)
+    views = [t]
+    if SECRET_DECODE_ESCAPES and "\\" in t:
+        d = _clean(unicodedata.normalize("NFKC", _ESC.sub(_unescape, t)))
+        if d not in views:
+            views.append(d)
+    if SECRET_DECODE_PERCENT and _PCT.search(t):
+        for base in list(views):
+            p = _clean(urllib.parse.unquote(base))
+            if p not in views:
+                views.append(p)
+    return views
+
+
+# words and shapes a value is not: placeholders, code, references, masks, paths
+_PLACEHOLDER_WORDS = {
+    "changeme", "change_me", "change-me", "changeit", "replaceme", "replace_me", "placeholder", "redacted",
+    "example", "examples", "sample", "dummy", "password", "passwd", "passphrase", "secret", "token",
+    "required", "optional", "none", "null", "nil", "undefined", "true", "false", "enabled", "disabled",
+    "rotated", "unset", "notset", "default", "hidden", "omitted", "removed", "changed", "provided",
+}
+_PLACEHOLDER = re.compile(r"(?i)^(?:your|my|enter|insert|put|some)[-_.]|[-_.](?:here|goes[-_]here|placeholder)$")
+_CODE_CALL = re.compile(r"^[A-Za-z_][\w]*(?:\.[A-Za-z_]\w*)*\s*[(\[]")
+_CODE_ATTR = re.compile(r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+$")
+_PATH = re.compile(r"^(?:/|~/|~$|\./|\.\./)")
+_MASK = re.compile(r"^[xX*.#\s-]+$")
+_REF_START = "$<{%"
+
+
+def _has_ld(v):
+    return any(c.isdigit() for c in v) and any(c.isalpha() for c in v)
+
+
+def credential_value(tier, v, quote, allow_space=False, generic_ld=True):
+    """Stage 3: is v (the raw value an extractor found) a credential? tier is "strong", "generic" or
+    "short"; quote is the quote character the value was written in ("" when unquoted). A short-key value
+    always needs a letter and a digit, a generic-key value unless generic_ld is False (an "=" assignment)."""
+    if len(v) < 8:
+        return False
+    if _MASK.match(v):
+        return False
+    if v[0] in _REF_START:
+        # a single-quoted '$...' is a literal in shell; a value of mixed case with a digit is not a
+        # variable name (references are written UPPER_SNAKE or lower_snake)
+        if not (quote == "'" and v[0] == "$" and re.fullmatch(r"\$[A-Za-z0-9]{7,}", v)
+                and any(c.isupper() for c in v) and any(c.islower() for c in v) and any(c.isdigit() for c in v)):
+            return False
+    if any(c in v for c in " \t") and not allow_space:
+        return False
+    low = v.lower()
+    if low in _PLACEHOLDER_WORDS or _PLACEHOLDER.search(v):
+        return False
+    if _PATH.match(v):
+        return False
+    if not quote and (_CODE_CALL.match(v) or (_CODE_ATTR.match(v) and not any(c.isdigit() for c in v))):
+        return False
+    if (tier == "short" or (tier == "generic" and generic_ld)) and not _has_ld(v):
+        return False
+    if tier == "short" and v[0] in ".>":
+        return False
+    return True
+
+
+def _tier(m):
+    for t in ("strong", "generic", "short"):
+        if m.groupdict().get(t):
+            return t
+    return "strong"
+
+
+def _x_assign_quoted(view):
+    """key [quote] (:=|=>|:|=) "value": password-assign, password-assign-spaced, short-key-assign."""
+    for m in _RX_ASSIGN_Q.finditer(view):
+        tier, v, q = _tier(m), m.group("v"), m.group("q")
+        if tier == "short":
+            if credential_value("short", v, q):
+                yield "short-key-assign", m.group(0)
+        elif re.search(r"[ \t]", v):
+            if tier == "strong" and credential_value("strong", v.strip(), q, allow_space=True) and v.strip():
+                yield "password-assign-spaced", m.group(0)
+        elif credential_value(tier, v, q, generic_ld=False):
+            yield "password-assign", m.group(0)
+
+
+def _x_assign_unquoted(view):
+    """key [quote] (:=|=>|=) value: password-assign-unquoted, short-key-assign."""
+    for m in _RX_ASSIGN_U.finditer(view):
+        tier, v = _tier(m), m.group("v")
+        if v[:1] in "'\"`(\\[>" or not v:
+            continue
+        if tier == "short":
+            v = re.split(r"[,;]", v)[0]
+            if credential_value("short", v, ""):
+                yield "short-key-assign", m.group(0)
+        elif credential_value(tier, v, "", generic_ld=False):
+            yield "password-assign-unquoted", m.group(0)
+
+
+def _x_colon_unquoted(view):
+    """key [quote] : value: password-colon-unquoted (strong), secret-colon-unquoted (generic)."""
+    for m in _RX_COLON_U.finditer(view):
+        tier, v = _tier(m), m.group("v")
+        if not v or v[:1] in "'\"`(\\[":
+            continue
+        if tier == "strong" and credential_value("strong", v, ""):
+            yield "password-colon-unquoted", m.group(0)
+        elif tier == "generic" and credential_value("generic", v, ""):
+            yield "secret-colon-unquoted", m.group(0)
+
+
+def _x_argument_pair(view):
+    """('KEY', 'VALUE'): define(), os.environ.get(key, default), cfg.Get(), a JSON array pair."""
+    for m in _RX_ARGPAIR.finditer(view):
+        tier, v, q = _tier(m), m.group("v"), m.group("q")
+        if credential_value(tier, v, q):
+            yield "argument-pair", m.group(0)
+
+
+def _x_setter(view):
+    """setPassword("VALUE"), set_api_key('VALUE')."""
+    for m in _RX_SETTER.finditer(view):
+        tier, v, q = _tier(m), m.group("v"), m.group("q")
+        if credential_value(tier, v, q):
+            yield "setter-call", m.group(0)
+
+
+def _x_flag_space(view):
+    """--password VALUE, --db-token VALUE (a letter and a digit after a generic or short key)."""
+    for m in _RX_FLAG.finditer(view):
+        tier, v = _tier(m), m.group("v").strip("'\"`")
+        if re.fullmatch(r"[A-Z][A-Z0-9_]*", v):
+            continue  # a usage-line placeholder: --password PASSWORD
+        if v[:1] in "(-[":
+            continue
+        if credential_value(tier, v, "'" if m.group("v")[:1] == "'" else ""):
+            yield "password-flag-space", m.group(0)
+
+
+def _x_short_flag(view):
+    """A tool's short flag: mysql -pVALUE (joined; "-p VALUE" is a prompt and a database name),
+    sshpass -p VALUE, curl -u USER:VALUE."""
+    for rx in (_RX_MYSQL_P, _RX_SSHPASS_P, _RX_CURL_U):
+        for m in rx.finditer(view):
+            v = m.group("v").strip("'\"`")
+            if credential_value("strong", v, ""):
+                yield "short-flag-value", m.group(0)
+
+
+def _x_space(view):
+    """DB_PASSWORD VALUE (fish set -x): a strong key written as an identifier (a prefix, a key name of
+    several parts such as client_secret, or upper case), whitespace, a value with a letter and a digit;
+    "password policy2026" and "Password reset2026" are prose (section-B row B14)."""
+    for m in _RX_SPACE.finditer(view):
+        tok, key, v = m.group("tok"), m.group("strong"), m.group("v")
+        if v[:1] in "$<{%'\"`(\\[/~-":
+            continue
+        ident = len(tok) > len(key) or (key.isupper() and len(key) > 3) or bool(re.search(r"[_.-]", key))
+        if ident and _has_ld(v) and credential_value("strong", v, ""):
+            yield "password-space", m.group(0)
+
+
+def _x_netrc(view):
+    for m in _RX_NETRC.finditer(view):
+        if credential_value("strong", m.group("v"), "netrc"):
+            yield "password-netrc", m.group(0)
+
+
+def _x_xml_element(view):
+    """<password>VALUE</password>, <db_token type="x">VALUE</db_token>."""
+    for m in _RX_XML_EL.finditer(view):
+        tier, v = _tier(m), m.group("v")
+        if m.group("ctag") != m.group("otag"):
+            continue
+        if credential_value(tier, v, "<"):
+            yield "xml-credential-element", m.group(0)
+
+
+def _x_xml_attr(view):
+    """<add key="Password" value="VALUE"/>, <param name="token" value="VALUE"/>,
+    <entry key="password">VALUE</entry>."""
+    for m in _RX_XML_ATTR_V.finditer(view):
+        if credential_value(_tier(m), m.group("v"), m.group("q2")):
+            yield "xml-attribute-pair", m.group(0)
+    for m in _RX_XML_ATTR_T.finditer(view):
+        if m.group("ctag") == m.group("otag") and credential_value(_tier(m), m.group("v"), "<"):
+            yield "xml-attribute-pair", m.group(0)
+
+
+def _x_yaml_block(view):
+    """password: |  (or >-) with the value on the next, indented line; the value's first word is read
+    (a value with a space inside is section-B row B15). A short key needs a letter and a digit."""
+    for m in _RX_YAML_BLOCK.finditer(view):
+        tier, v = _tier(m), m.group("v").split()[0]
+        if credential_value(tier, v, "|"):
+            yield "yaml-block-scalar", m.group(0)
+
+
+def _x_pgpass(view):
+    """host:port:database:user:password (a ~/.pgpass line). The password needs a letter and a digit: the
+    five-field colon shape is also a time stamp or a log field (a letters-only value is section-B row B20)."""
+    for m in _RX_PGPASS.finditer(view):
+        v = m.group("v")
+        if _has_ld(v) and credential_value("strong", v, ""):
+            yield "pgpass-line", m.group(0)
+
+
+def _x_url(view):
+    """scheme://user:PASSWORD@host (any case of the scheme; the user may be empty)."""
+    for m in _RX_URL.finditer(view):
+        v = m.group("v")
+        if v[0] in "$<{%*" or re.fullmatch(r"[xX*]+", v):
+            continue  # a reference or a mask
+        if re.match(r"\d+/", v):
+            continue  # a port and a path (h:8080/...)
+        if "/" in v and (v.endswith("/") or not _has_ld(v)):
+            continue  # a path segment before an @ (http://host:port/users/@me)
+        yield "url-userinfo-password", m.group(0)
+
+
+_SEP_Q = r"\s*(?::=|=>|:|=)\s*"
+_RX_ASSIGN_Q = re.compile(r"(?i)" + _KEY + _KQ + _SEP_Q + _QVAL)
+_RX_ASSIGN_U = re.compile(r"(?i)" + _KEY + _KQ + r"\s*(?::=|=>|=)\s*(?P<v>[^\s'\"`]*)")
+_RX_COLON_U = re.compile(r"(?i)" + r"(?:" + _KEY_STRONG + "|" + _KEY_GENERIC + r")" + _KQ + r"\s*:(?!=)\s*(?P<v>[^\s'\"`,;]*)")
+_RX_ARGPAIR = re.compile(
+    r"(?i)(?P<kq>[\"'`])[\w.-]*?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>" + _SECRET_KEYS_GENERIC
+    + r")|(?:(?<=[\"'`])|(?<=[_.-]))(?P<short>" + _SECRET_KEYS_SHORT + r"))(?P=kq)\s*,\s*(?P<q>[\"'`])"
+    r"(?P<v>(?:\\[^\n]|(?!(?P=q))[^\n\\])*)(?P=q)")
+_RX_SETTER = re.compile(
+    r"(?i)(?<![A-Za-z0-9])set_?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>" + _SECRET_KEYS_GENERIC
+    + r"))\s*\(\s*(?P<q>[\"'`])(?P<v>(?:\\[^\n]|(?!(?P=q))[^\n\\])*)(?P=q)\s*\)")
+_RX_FLAG = re.compile(
+    r"(?i)(?<![\w-])--[\w.-]*?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>" + _SECRET_KEYS_GENERIC
+    + r")|(?P<short>" + _SECRET_KEYS_SHORT + r"))\s+\\?(?P<v>[\"'`]?[^\s\"'`]+)")
+_RX_MYSQL_P = re.compile(r"\b(?:mysql|mysqldump|mysqladmin|mysqlimport|mysqlsh|mariadb(?:-dump)?)\b[^\n|;&]*?\s-p(?P<v>[^\s-][^\s]*)")
+_RX_SSHPASS_P = re.compile(r"\bsshpass\b[^\n|;&]*?\s-p\s*(?P<v>[^\s-]\S*)")
+_RX_CURL_U = re.compile(r"\bcurl\b[^\n|;&]*?\s(?:-u|--user)\s+[\"']?[^\s:\"']+:(?P<v>[^\s\"'@]+)")
+_RX_SPACE = re.compile(r"(?i)(?<![\w.-])(?P<tok>[\w.-]*?" + _KEY_LEAD + r"(?P<strong>" + _SECRET_KEYS + r"))[ \t]+(?P<v>[^\s'\"`,;]+)")
+_RX_NETRC = re.compile(r"(?i)\blogin\s+\S+\s+pass(?:word|wd)\s+(?P<v>\S+)")
+_RX_XML_EL = re.compile(
+    r"(?i)<(?P<otag>[\w.-]*?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>" + _SECRET_KEYS_GENERIC
+    + r")|(?:(?<=<)|(?<=[_.-]))(?P<short>" + _SECRET_KEYS_SHORT + r")))(?:\s[^<>]*)?>\s*(?P<v>[^<>\s]+)\s*</(?P<ctag>[\w.-]+)\s*>")
+_ATTR_KEY = (r"\b(?:key|name)\s*=\s*(?P<q1>[\"'])[\w.:-]*?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>"
+             + _SECRET_KEYS_GENERIC + r")|(?:(?<=[\"'])|(?<=[_.:-]))(?P<short>" + _SECRET_KEYS_SHORT + r"))(?P=q1)")
+_RX_XML_ATTR_V = re.compile(r"(?i)<[\w:.-]+\s[^<>]*?" + _ATTR_KEY + r"[^<>]*?\bvalue\s*=\s*(?P<q2>[\"'])(?P<v>[^\"'<>]*)(?P=q2)")
+_RX_XML_ATTR_T = re.compile(r"(?i)<(?P<otag>[\w:.-]+)\s[^<>]*?" + _ATTR_KEY + r"[^<>]*>\s*(?P<v>[^<>\s]+)\s*</(?P<ctag>[\w:.-]+)\s*>")
+_RX_YAML_BLOCK = re.compile(r"(?im)(?:" + _KEY_STRONG + "|" + _KEY_GENERIC + "|" + _KEY_SHORT + r")" + _KQ
+                            + r"[ \t]*:[ \t]*[|>][-+0-9]*[ \t]*\r?\n[ \t]+(?P<v>\S[^\n]*)")
+_RX_PGPASS = re.compile(r"(?m)^[ \t]*[^\s:#]+:(?:\d{1,5}|\*):[^\s:]+:[^\s:]+:(?P<v>\S+?)[ \t]*\r?$")
+_RX_URL = re.compile(r"(?i)(?<![\w+.-])[a-z][a-z0-9+.-]*://[^/\s:@\[\]]*:(?P<v>[^\s@]+)@")
+
+# the extractors (stage 2) and the rule names each can report
+KEYED_EXTRACTORS = [
+    (_x_url, ("url-userinfo-password",)),
+    (_x_assign_quoted, ("password-assign", "password-assign-spaced", "short-key-assign")),
+    (_x_assign_unquoted, ("password-assign-unquoted", "short-key-assign")),
+    (_x_colon_unquoted, ("password-colon-unquoted", "secret-colon-unquoted")),
+    (_x_argument_pair, ("argument-pair",)),
+    (_x_setter, ("setter-call",)),
+    (_x_flag_space, ("password-flag-space",)),
+    (_x_short_flag, ("short-flag-value",)),
+    (_x_space, ("password-space",)),
+    (_x_netrc, ("password-netrc",)),
+    (_x_xml_element, ("xml-credential-element",)),
+    (_x_xml_attr, ("xml-attribute-pair",)),
+    (_x_yaml_block, ("yaml-block-scalar",)),
+    (_x_pgpass, ("pgpass-line",)),
+]
+# the token shapes: a vendor prefix or a fixed format (stage 2 for a credential that carries no key)
 SECRET_PATTERNS = [
     ("aws-access-key-id", re.compile(r"\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA)[0-9A-Z]{16}\b")),
     ("aws-secret-assign", re.compile(r"(?i)aws_?secret_?access_?key\s*[:=]\s*['\"]?[A-Za-z0-9/+]{40}")),
@@ -171,58 +494,15 @@ SECRET_PATTERNS = [
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+")),
     ("slack-token", re.compile(r"\bxox[abposre]-[A-Za-z0-9-]{10,}\b")),
     ("openai-anthropic-key", re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{32,}\b")),
-    # a URL that carries a password in its user-info part, of any length, "/" inside it too, the user name
-    # may be empty (redis://:pw@h); a reference ($VAR, <x>, {x}, %X%) or a mask (*, x) is not a value, and
-    # digits followed by "/" or the end are a port, not a password (round 7, F1)
-    ("url-userinfo-password", re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]*:(?![$<{%*]|[xX]+@|\d+(?:[/\s]|$))[^\s@]+@")),
     ("bearer-token", re.compile(r"(?i)authorization:\s*(?:bearer|token)\s+[A-Za-z0-9._~+/=-]{20,}")),
-    # keyed credential assignments: key name x key lead x key quoting x separator x value quoting x value
-    # kind. The separators are ":=", "=>", ":" and "="; a value is 8 or more characters and neither a
-    # reference nor a mask.
-    ("password-assign", re.compile(
-        r"(?i)" + _KEY_LEAD + _SECRET_KEY_ANY + _KQ + r"\s*(?::=|=>|:|=)\s*\\?([\"'`])(?![$<{%])(?![xX*.#-]+\\?\1)[^\"'`\s\\]{8,}\\?\1")),
-    # a quoted value with a space in it, after a strong key (a passphrase)
-    ("password-assign-spaced", re.compile(
-        r"(?i)" + _KEY_LEAD + _SECRET_KEYS + _KQ + r"\s*(?::=|=>|:|=)\s*\\?([\"'`])(?![$<{%])(?=[^\"'`\\\n]*[ \t])(?![xX*.#\s-]+\\?\1)[^\"'`\\\n]{8,}\\?\1")),
-    # an unquoted "=", ":=" or "=>" assignment (shell, env file, URL query, Perl or Ruby hash); a value
-    # starting with ">" is the second half of "=>"
-    ("password-assign-unquoted", re.compile(
-        r"(?i)" + _KEY_LEAD + _SECRET_KEY_ANY + _KQ + r"\s*(?::=|=>|=)\s*(?![$<{%'\"`(\[\\>])(?![xX*.#-]+(?:[\s'\"`]|$))[^\s'\"`]{8,}")),
-    # an unquoted ":" (YAML, an HTTP header such as X-Api-Key, a log line): any value after a strong key;
-    # after the generic keys "secret" and "token" only a value that holds a letter and a digit
-    ("password-colon-unquoted", re.compile(
-        r"(?i)" + _KEY_LEAD + _SECRET_KEYS + _KQ + r"\s*:(?!=)\s*(?![$<{%'\"`(\[\\])(?![xX*.#-]+(?:[\s,;]|$))[^\s'\"`,;]{8,}")),
-    ("secret-colon-unquoted", re.compile(
-        r"(?i)" + _KEY_LEAD + _SECRET_KEYS_GENERIC + _KQ + r"\s*:(?!=)\s*(?![$<{%'\"`(\[\\])" + _LD + r"[^\s'\"`,;]{8,}")),
-    # a short key (MYSQL_PWD, DB_PASS, REDIS_AUTH, a Docker "auth" entry): "=", ":=", "=>" with or without
-    # quotes, ":" with quotes
-    ("short-key-assign", re.compile(
-        r"(?i)" + _SHORT_LEAD + _SECRET_KEYS_SHORT + _KQ + r"\s*(?:(?::=|=>|=)\s*\\?[\"'`]?|:(?!=)\s*\\?[\"'`])(?![$<{%/~.>])"
-        + _LD + r"[^\s'\"`,;\\]{8,}")),
-    # a --flag followed by a space and the value (mysql --password X): any value after a strong key,
-    # a letter and a digit after a generic or short key; an upper-case placeholder (--password PASSWORD)
-    # is not a value
-    ("password-flag-space", re.compile(
-        r"(?i)(?<![\w-])--[\w.-]*?(?:" + _SECRET_KEYS + r"(?=\s)|(?:" + _SECRET_KEYS_GENERIC + "|" + _SECRET_KEYS_SHORT
-        + r")(?=\s+\\?[\"'`]?" + _LD + r"))\s+\\?[\"'`]?(?![$<{%(\[-])(?!(?-i:[A-Z][A-Z0-9_]*)(?:[\s'\"`]|$))"
-        r"(?![xX*.#-]+(?:[\s'\"`]|$))[^\s'\"`]{8,}")),
-    # a strong key, whitespace, and a value with a letter and a digit (fish "set -x DB_PASSWORD X")
-    ("password-space", re.compile(
-        r"(?i)" + _KEY_LEAD + _SECRET_KEYS + r"[ \t]+(?![$<{%'\"`(\[\\/~-])" + _LD + r"[^\s'\"`,;]{8,}")),
-    # netrc: machine H login U password P, any value
-    ("password-netrc", re.compile(
-        r"(?i)\blogin\s+\S+\s+pass(?:word|wd)\s+(?![$<{%'\"`])(?![xX*.#-]+(?:\s|$))\S{8,}")),
-    # an XML element named by a key (<password>P</password>, <db_password type="x">P</db_password>): any
-    # value after a strong key, a letter and a digit after a generic or short key
-    ("xml-credential-element", re.compile(
-        r"(?i)<([\w.-]*?" + _SECRET_KEYS + r")(?:\s[^<>]*)?>\s*(?![$<{%])(?![xX*.#-]+\s*<)[^<>\s]{8,}\s*</\1\s*>"
-        r"|<((?:[\w.-]*?" + _SECRET_KEYS_GENERIC + r")|(?:[\w.-]*[_.-])?" + _SECRET_KEYS_SHORT + r")(?:\s[^<>]*)?>\s*(?![$<{%])"
-        r"(?=[^<>\s]*[0-9])(?=[^<>\s]*[A-Za-z])[^<>\s]{8,}\s*</\2\s*>")),
     ("basic-auth", re.compile(r"(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{8,}")),
     ("stripe-key", re.compile(r"\b[rs]k_(?:live|test)_[A-Za-z0-9]{20,}\b")),
     ("npm-token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
     ("telegram-bot-token", re.compile(r"\b\d{8,10}:AA[A-Za-z0-9_-]{33}\b")),
 ]
+# the rules whose shape is a whole line (their needles are written on a line of their own)
+LINE_RULES = {"pgpass-line"}
+SECRET_RULE_NAMES = [n for n, _ in SECRET_PATTERNS] + [n for _, ns in KEYED_EXTRACTORS for n in ns if n != "short-key-assign"] + ["short-key-assign"]
 EPHEMERAL_PATTERNS = [
     ("scratchpad", re.compile(r"scratchpad|/\.cache/claude-tmp/", re.I)),
     ("tmp-path", re.compile(r"(?<![\w.-])/(?:var/)?tmp/[^\s,;)`'\"]+")),
@@ -597,14 +877,24 @@ def surfaces(r, rendered):
 
 
 def secret_hits(text):
-    """(pattern name, match) for every SECRET pattern found in text, read in its NFKC form when
-    SECRET_NFKC is set (round 7, F1). The leak scan of the evidence pack calls this function, so the two
-    scans read one class; the match is for its caller to mask, never to print."""
-    t = unicodedata.normalize("NFKC", text) if SECRET_NFKC else text
-    for name, pat in SECRET_PATTERNS:
-        m = pat.search(t)
-        if m:
-            yield name, m.group(0)
+    """(rule name, match) for every credential rule found in text: the token shapes and the keyed
+    extractors, over every view of the front end (secret_views). The match is for its caller to mask,
+    never to print. The leak scan of the evidence pack is a SEPARATE implementation (round 8, N2)."""
+    views = secret_views(text)
+    found = {}
+    for t in views:
+        for name, pat in SECRET_PATTERNS:
+            if name not in found:
+                m = pat.search(t)
+                if m:
+                    found[name] = m.group(0)
+        for ex, _names in KEYED_EXTRACTORS:
+            for name, s in ex(t):
+                if name not in found:
+                    found[name] = s
+    for name in SECRET_RULE_NAMES:
+        if name in found:
+            yield name, found[name]
 
 
 def scan_surfaces(r, rendered):
@@ -1033,7 +1323,13 @@ def secret_needles():
         ("password-assign-spaced", "pass" + "word = '" + "ab cd ef" + "'", "pass" + "word = '" + "ab cd e" + "'"),
         ("short-key-assign", "DB_PA" + "SS=" + v8, "DB_PA" + "SS=" + v8[:7]),
         ("password-flag-space", "--pass" + "word " + v8, "--pass" + "word " + v8[:7]),
-        ("password-space", "pass" + "word " + v8, "pass" + "word " + v8[:7]),
+        ("password-space", "DB_PASS" + "WORD " + v8, "DB_PASS" + "WORD " + v8[:7]),
+        ("argument-pair", "define('DB_PASS" + "WORD', '" + v8 + "')", "define('DB_PASS" + "WORD', '" + v8[:7] + "')"),
+        ("setter-call", "ds.setPass" + "word(\"" + v8 + "\")", "ds.setPass" + "word(\"" + v8[:7] + "\")"),
+        ("short-flag-value", "mysql -uroot -p" + v8 + " db", "mysql -uroot -p" + v8[:7] + " db"),
+        ("xml-attribute-pair", "<add key=\"Pass" + "word\" value=\"" + v8 + "\"/>", "<add key=\"Pass" + "word\" value=\"" + v8[:7] + "\"/>"),
+        ("yaml-block-scalar", "pass" + "word: |\n  " + v8, "pass" + "word: |\n  " + v8[:7]),
+        ("pgpass-line", "h:5432:db:u:" + v8, "h:5432:db:u:" + v8[:7]),
         ("password-netrc", "login u pass" + "word " + "abcdefgh", "login u pass" + "word " + "abcdefg"),
         ("xml-credential-element", "<pass" + "word>" + v8 + "</pass" + "word>", "<pass" + "word>" + v8[:7] + "</pass" + "word>"),
         ("basic-auth", "Authorization: " + "Basic " + a * 8, "Authorization: " + "Basic " + a * 7),
@@ -1319,10 +1615,12 @@ def selfcheck():
         if not any("rendered:Issues_Summary.md" in f[2] for f in got):
             failed.append("surface/%s/rendered" % code)
     for name, pos, neg in secret_needles():
-        pat = dict(SECRET_PATTERNS).get(name)
-        if pat is None or not pat.search("x " + pos + " y") or pat.search("x " + neg + " y"):
+        wrap = ("x\n", "\ny") if name in LINE_RULES else ("x ", " y")  # a whole-line shape needs its own line
+        got_pos = [n for n, _ in secret_hits(wrap[0] + pos + wrap[1])]
+        got_neg = [n for n, _ in secret_hits(wrap[0] + neg + wrap[1])]
+        if name not in SECRET_RULE_NAMES or name not in got_pos or name in got_neg:
             failed.append("SECRET/" + name)
-    if len(secret_needles()) != len(SECRET_PATTERNS):
+    if sorted(n for n, _, _ in secret_needles()) != sorted(SECRET_RULE_NAMES):
         failed.append("SECRET/needle-count")
     return failed
 

@@ -60,6 +60,18 @@ bad() {
   if [ "${INTAKE_LINT_FAILFAST:-}" = 1 ]; then echo "RESULT: pass=$pass fail=$fail (stopped at the first failure)"; exit 1; fi
 }
 
+# (0) round 8 (review N1 to N3): the shared-fixture oracle of the credential rules, run first because it
+# is fast and drives the lint's own functions over every fixture row (the reviewer's 51 shapes, 52
+# lookalikes and 6 backslash values, and the fixer's rows); its output carries labels only
+shape_out=$tmp/shapes.txt
+python3 -I "$root/tests/workable_items/test_secret_shapes.py" "$lint" >"$shape_out" 2>&1
+shape_rc=$?
+if [ "$shape_rc" = 0 ]; then
+  ok "SECRET shape oracle: $(tail -n 1 "$shape_out")"
+else
+  bad "SECRET shape oracle" "rc=$shape_rc: $(grep -E '^(FAIL|BLIND|setup)' "$shape_out" | head -n 8 | tr '\n' '|')"
+fi
+
 # run_lint <out-file> <args...>  -> sets rc
 run_lint() {
   local out=$1; shift
@@ -413,9 +425,15 @@ secrets=(
   'password-assign-spaced|"pass" + "word = \"" + "ab cd ef" + "\""|"pass" + "word = \"" + "ab cd e" + "\""'
   'short-key-assign|"DB_PA" + "SS=" + "Zq7Zq7Zq"|"DB_PA" + "SS=" + "Zq7Zq7Z"'
   'password-flag-space|"--pass" + "word " + "Zq7Zq7Zq"|"--pass" + "word " + "Zq7Zq7Z"'
-  'password-space|"pass" + "word " + "Zq7Zq7Zq"|"pass" + "word " + "Zq7Zq7Z"'
+  'password-space|"DB_PASS" + "WORD " + "Zq7Zq7Zq"|"DB_PASS" + "WORD " + "Zq7Zq7Z"'
   'password-netrc|"login u pass" + "word " + "abcdefgh"|"login u pass" + "word " + "abcdefg"'
   'xml-credential-element|"<pass" + "word>" + "Zq7Zq7Zq" + "</pass" + "word>"|"<pass" + "word>" + "Zq7Zq7Z" + "</pass" + "word>"'
+  'argument-pair|"define(" + chr(39) + "DB_PASS" + "WORD" + chr(39) + ", " + chr(39) + "Zq7Zq7Zq" + chr(39) + ")"|"define(" + chr(39) + "DB_PASS" + "WORD" + chr(39) + ", " + chr(39) + "Zq7Zq7Z" + chr(39) + ")"'
+  'setter-call|"ds.setPass" + "word(\"" + "Zq7Zq7Zq" + "\")"|"ds.setPass" + "word(\"" + "Zq7Zq7Z" + "\")"'
+  'short-flag-value|"mysql -uroot -p" + "Zq7Zq7Zq" + " db"|"mysql -uroot -p" + "Zq7Zq7Z" + " db"'
+  'xml-attribute-pair|"<add key=\"Pass" + "word\" value=\"" + "Zq7Zq7Zq" + "\"/>"|"<add key=\"Pass" + "word\" value=\"" + "Zq7Zq7Z" + "\"/>"'
+  'yaml-block-scalar|"pass" + "word: " + chr(124) + "\n  " + "Zq7Zq7Zq"|"pass" + "word: " + chr(124) + "\n  " + "Zq7Zq7Z"'
+  'pgpass-line|"\nh:5432:db:u:" + "Zq7Zq7Zq" + "\n"|"\nh:5432:db:u:" + "Zq7Zq7Z" + "\n"'
 )
 for s in "${secrets[@]}"; do
   pname=${s%%|*}; rest=${s#*|}; pos=${rest%%|*}; neg=${rest#*|}

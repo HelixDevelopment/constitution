@@ -1,0 +1,4 @@
+$ python3 -I probe_bs.py <round-6 lint> <round-7 lint>
+intake_lint_v6.py dq-backslash-mid=password-assign json-escaped-bs=password-assign json-u-escape=password-assign yaml-dq-escape=password-assign sq-backslash=password-assign api-key-json-bs=password-assign
+intake_lint.py dq-backslash-mid=MISS json-escaped-bs=MISS json-u-escape=MISS yaml-dq-escape=MISS sq-backslash=MISS api-key-json-bs=MISS
+rc=0
