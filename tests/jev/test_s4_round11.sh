@@ -26,6 +26,8 @@
 #         next acquire retries the stop, it does not join the unit.
 #   R11-10 (mutant W09) a start recorded after the arm plus a lease taken before the stop's record: kept for the holder, not
 #         stopped again.
+#   R11-11 (mutant W07, R10-3) B's stop result meets the set while it still carries A's rc 75 start record: the refused
+#         start is never treated as a start (no owed stop, no second stop, never constitution-started).
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
@@ -297,6 +299,26 @@ go "$T/gB" "$((NB+2))"; waitb "$BP" 120
 assert_eqx "1 decide-a  hX 1" "$(stopsof decide-a) $(running) $(holders decide-a) $(L '.sets["decide-a"].stopped_while_held.leases')" \
   "R11-10 the set is kept for hX (stopped_while_held), the unit hX holds is not stopped again"
 hasnt "$T/b.err" "a start of decide-a was recorded after this stop was armed" "R11-10 the start-after-arm rule applies only to a lease-less set"
+
+# ---- R11-11 (mutant W07, operator decision on R10-3): B's stop result lands between A's rc 75 record and A's next lock --
+# In R11-2 A runs on to its next plan at once, and that plan forgets the set (not constitution-started, no lease) before
+# B records, so B finds no set. Here A is held after its record, so B's result meets the set that still carries A's rc 75
+# start record: a refused start started nothing, so B never treats it as a start (no kept set, no owed stop, no second
+# stop) and the set is never constitution-started.
+mc_launch 75 "$NA,$((NA+2))" "$NB,$((NB+2))"
+reach "$T/gB" "$NB" "R11-11 B is paused before its arm step"
+go "$T/gB" "$NB"; reachstop "$SG" decide-a "R11-11 B armed its stop"
+: > "$SG/go.start.decide-a"; reach "$T/gA" "$NA" "R11-11 A's start returned rc 75; A is paused before its record step"
+go "$T/gA" "$NA"; reach "$T/gA" "$((NA+2))" "R11-11 A recorded the refusal; A is paused before its next lock call"
+if grep -q "^flock#$((NA+2)) -u" "$T/gA/calls.log" || ! grep -q "^flock#$((NA+2)) " "$T/gA/calls.log"; then fail "R11-11 CONTROL: A's call $((NA+2)) is not a lock call"; else ok "R11-11 CONTROL: A's call $((NA+2)) is a lock call"; fi
+assert_eqx "75 false $(L '.sets["decide-a"].stopping.pid')" "$(L '.sets["decide-a"].start_kept.rc') $(L '.sets["decide-a"].constitution_started') $(L '.sets["decide-a"].start_kept.seen_stopping.pid')" \
+  "R11-11 CONTROL: the set still carries A's rc 75 record with B's stopping mark and is not constitution-started"
+gostop "$SG" decide-a; reach "$T/gB" "$((NB+2))" "R11-11 B's stop returned; B is paused before its record step"
+go "$T/gB" "$((NB+2))"; waitb "$BP" 120
+hasnt "$T/b.err" "was recorded after this stop was armed" "R11-11 B's stop result never treats the refused start as a start"
+assert_eqx "1 {}" "$(stopsof decide-a) $(jq -c .sets "$JEV_STATE_DIR/leases.json")" "R11-11 one stop only and the set is gone (no owed stop of a unit that never started)"
+go "$T/gA" "$((NA+2))"; waitb "$AP" 120
+assert_eqx "1  {}" "$(stopsof decide-a) $(running) $(jq -c .sets "$JEV_STATE_DIR/leases.json")" "R11-11 after A ends: no unit, no set, no further stop"
 
 count_lockheld
 assert_eqx 0 "$LOCKHELD_TOTAL" "P67 no llmctl call ran while the lease lock was held (across this file)"
