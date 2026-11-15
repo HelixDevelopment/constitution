@@ -3853,7 +3853,7 @@ Round 7 found (L5 of the round-6 review) that a handler installed with 'trap cle
 **Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/installer_sigpipe_2026_11_13/harness/harness_old_run1.txt` — red-command `bash docs/qa/installer_sigpipe_2026_11_13/tools/red_harness.sh (old = b5a1815a installer)` — green-command `bash docs/qa/installer_sigpipe_2026_11_13/tools/red_harness.sh (new = this change); bash tests/install/test_sigpipe.sh` — signature `hi_push_changed reads b == a as a push; Z line not seen (pipeline status 141 from SIGPIPE)` — updated 2026-11-15T09:28:26Z — by `Claude Opus 5.5 (lander subagent)`
 **Investigation:** root-cause-found-with-evidence — root-cause `a pipe into an early-exit reader (grep -q) under pipefail: the writer dies of SIGPIPE and the pipeline status 141 turns a match into no match` — evidence `docs/qa/installer_sigpipe_2026_11_13/README.md` — updated 2026-11-15T09:28:26Z — by `Claude Opus 5.5 (lander subagent)`
 
-scripts/install_constitution.sh runs under set -u -o pipefail; hi_push_changed tested membership with printf | grep -qxF. grep -q exits at the first match, printf dies of SIGPIPE, the pipeline returns 141 and a MATCH reads as NO MATCH: an unchanged remote is read as a push (false refusal, exit 5) and a missing fingerprint tool (Z line) is not seen (false pass of a fail-closed check). Fixed on vehicle/installer-sigpipe-r2 (head 2e397cba): no pipe into an early-exit reader under pipefail in the installer, updater and action-prefix libraries (here-string count 0), deny-by-default no-push gate scanner, test_sigpipe.sh (PASS 67 / FAIL 0, 3 of 3 runs), test_lock stale-poll race and test_round8 chaos-loop hardening (F9 race UNREPRODUCED). Review round 2 GO-with-follow-ups (review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997); follow-ups F1, F3, F4 filed separately. Evidence: docs/qa/installer_sigpipe_2026_11_13/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289).
+scripts/install_constitution.sh runs under set -u -o pipefail; hi_push_changed tested membership with printf | grep -qxF. grep -q exits at the first match, printf dies of SIGPIPE, the pipeline returns 141 and a MATCH reads as NO MATCH: an unchanged remote is read as a push (false refusal, exit 5) and a missing fingerprint tool (Z line) is not seen (false pass of a fail-closed check). Fixed on vehicle/installer-sigpipe-r2 (head 2e397cba): no pipe into an early-exit reader under pipefail in the installer, updater and action-prefix libraries (here-string count 0), deny-by-default no-push gate scanner, test_sigpipe.sh (PASS 67 / FAIL 0, 3 of 3 runs), test_lock stale-poll race and test_round8 chaos-loop hardening (F9 race UNREPRODUCED). Review round 2 GO-with-follow-ups (review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997); follow-ups F1, F3, F4 filed separately. Evidence: docs/qa/installer_sigpipe_2026_11_13/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289). Installer SIGPIPE r2 follow-ups F2 and F6 filed as CON-389 and CON-390 (F1, F3, F4, F5 are CON-363 to CON-366).
 
 ## CON-313 — workable-items engine: close and sync md-to-db rewrite items.created_at; restore-created-at repairs rewritten rows
 
@@ -3864,7 +3864,7 @@ scripts/install_constitution.sh runs under set -u -o pipefail; hi_push_changed t
 **Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/engine_created_at_2026_11_13/red_go_tests_base.txt` — red-command `go test ./... in scripts/workable-items on the base engine source (created_at_preservation_test.go)` — green-command `go test -count=1 ./... in scripts/workable-items on this change` — signature `close-*: section created_at rewritten to the command time, want the original value` — updated 2026-11-15T10:51:33Z — by `Claude Opus 5.5 (lander subagent)`
 **Investigation:** root-cause-found-with-evidence — root-cause `close and sync md-to-db wrote items.created_at from the current time instead of keeping the stored value` — evidence `docs/qa/engine_created_at_2026_11_13/README.md` — updated 2026-11-15T10:51:33Z — by `Claude Opus 5.5 (lander subagent)`
 
-The engine's close (and sync md-to-db) rewrote items.created_at to the time of the command, so a closed item lost its creation time. Fixed on the engine vehicle (head fa1c9302, rounds 1-4): close and sync md-to-db keep created_at; a new restore-created-at command restores a rewritten value from a committed evidence database (sha256-checked, audit history row, refuses a value later than the item's first history event); docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh applies restore_plan.tsv (CON-243, CON-308) through it. The vehicle's text calls this item CON-339, a provisional id of the unlanded tracker-intake vehicle b48091ea; re-minted at landing on main (section 11.4.214). Review round 4 GO-with-follow-ups (review_engine_r4.md sha256 c21872afec82e1bb1471f4f9314efc0990299bfa99c6c312e92cabadac243b6d). go test 877 PASS / 0 FAIL / 6 SKIP twice; applier suite 100/0. Evidence: docs/qa/engine_created_at_2026_11_13/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289). The restore plan was applied in part after landing: commit 464cd498 restored CON-243 (created_at 2026-11-11 15:38:57 to 15:34:35, history row 543, evidence bd0036bd:docs/workable_items.db sha256 117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4). The CON-308 row was deliberately not applied: it assumes the tracker-intake vehicle's ids (main's CON-308 is a different item) and its evidence commit 1a307322 is not in this repository; it is tracked as CON-387.
+The engine's close (and sync md-to-db) rewrote items.created_at to the time of the command, so a closed item lost its creation time. Fixed on the engine vehicle (head fa1c9302, rounds 1-4): close and sync md-to-db keep created_at; a new restore-created-at command restores a rewritten value from a committed evidence database (sha256-checked, audit history row, refuses a value later than the item's first history event); docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh applies restore_plan.tsv (CON-243, CON-308) through it. The vehicle's text calls this item CON-339, a provisional id of the unlanded tracker-intake vehicle b48091ea; re-minted at landing on main (section 11.4.214). Review round 4 GO-with-follow-ups (review_engine_r4.md sha256 c21872afec82e1bb1471f4f9314efc0990299bfa99c6c312e92cabadac243b6d). go test 877 PASS / 0 FAIL / 6 SKIP twice; applier suite 100/0. Evidence: docs/qa/engine_created_at_2026_11_13/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289). The restore plan was applied in part after landing: commit 464cd498 restored CON-243 (created_at 2026-11-11 15:38:57 to 15:34:35, history row 543, evidence bd0036bd:docs/workable_items.db sha256 117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4). The CON-308 row was deliberately not applied: it assumes the tracker-intake vehicle's ids (main's CON-308 is a different item) and its evidence commit 1a307322 is not in this repository; it is tracked as CON-387. Follow-up register drafts filed (section 11.4.214, filing wave CON-388): CON-PENDING-MDRT-DATALOSS as CON-391, CON-PENDING-226-ROWS (D-05) as CON-392, CON-PENDING-CON243-NONUNIFORM as CON-393, CON-PENDING-EVIDENCE-PROVENANCE as CON-394, D-01 CON-395, D-02 CON-396, D-03 CON-397, D-04 CON-398, D-06 CON-399, D-07 CON-400; D-08 to D-10 are CON-370 to CON-372.
 
 ## CON-314 — Installer timeouts hang under uutils timeout when the command touches the terminal (SIGTTIN/SIGTTOU not ignored at every timeout reachable from install, update, post-update hook and bootstrap)
 
@@ -4575,4 +4575,129 @@ What: a jev_server.py fixture process was alive with parent systemd --user (re-p
 **Created-By:** Claude Opus 5.5 (filing subagent)
 
 What: the created_at restore plan of CON-313 had rows for CON-243 and CON-308; commit 464cd498 applied the CON-243 row only. The CON-308 row assumes the tracker-intake vehicle's ids and evidence commit 1a307322, which is not in this repository, so it was left for that landing and an operator decision. Scope: docs/workable_items.db row CON-308 (the intake vehicle's id map). Reproduction: not applicable. Acceptance: when tracker intake lands, the row re-derived against the landed ids and applied through the engine's restore-created-at with evidence, or dropped by operator decision. Source: commit 464cd498; CON-313. Parent CON-313.
+
+## CON-388 — Follow-up filing wave 2 2026-11-15: register the follow-ups the audit found missing (installer SIGPIPE r2 F2/F6, engine created_at register drafts)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: register, through the engine, the approved follow-ups that the post-wave audit found missing from the tracker: installer SIGPIPE review r2 F2 and F6, and the engine created_at follow-up register drafts CON-PENDING-MDRT-DATALOSS, CON-PENDING-226-ROWS (register D-05), CON-PENDING-CON243-NONUNIFORM, CON-PENDING-EVIDENCE-PROVENANCE and D-01 to D-04, D-06, D-07. Scope: docs/workable_items.db and docs/Issues.md, docs/Issues_Summary.md regenerated from it. Not re-filed (already tracked): register D-08 to D-10 (CON-370 to CON-372), engine round-4 nits (CON-367 to CON-369), CON-308 restore row (CON-387), fix227 r14 G1 (recurrence link already in CON-234), round-13 review F4 pin sentence (already in CON-362). idguard round-9 items are held back (vehicle parked, unreviewed). Reproduction: not applicable (process item). Acceptance: every filed item carries what, scope, reproduction, acceptance and source; no duplicate minted; engine validate OK and diff in sync; run_full_suite.sh --verify-manifest MANIFEST-OK; pushed fast-forward to every reachable upstream. Source: the follow-up audit of 2026-11-15 (control-needled tracker census, reported to the conductor); session-74ce2b36 scratchpad (outside the repository)/rev_sigpipe_r2.7Vlo/review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997; docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754.
+
+## CON-389 — Installer SIGPIPE scanner: a backtick command substitution inside an assignment makes the lexer report 'cannot lex' (rc 2, BLIND) for the whole file
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: one legal construct (a backtick command substitution in an assignment) makes the SIGPIPE scanner's lexer give up on the whole file with rc 2 (BLIND). This is fail-safe, but it blinds the scan of every other line of that file. Scope: scripts/gates/cm_installer_no_push_no_force.sh SIGPIPE scanner and tests/install/test_sigpipe.sh. Reproduction: shown by the installer SIGPIPE r2 review (finding F2, nit, test-instrumentation); not re-run in this filing. Acceptance: the lexer handles backtick substitution in an assignment (or reports BLIND only for the affected statement), with a needle case in test_sigpipe.sh. Source: session-74ce2b36 scratchpad (outside the repository)/rev_sigpipe_r2.7Vlo/review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997. Review r2 F2. Parent CON-312; same scanner family as CON-363.
+
+## CON-390 — Reviewer-process incident (SIGPIPE r2 F6): a sed range evaluated with empty SB/REPO/INSTALLER variables wrote to / (every write refused, no damage); harden extraction scripts and briefs
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: while extracting the scanner, the round-2 reviewer evaluated a sed range of test_sigpipe.sh with empty SB, REPO and INSTALLER variables; every write targeted / and failed with permission denied. The range held no rm, the repo was clean afterwards and nothing new was under /. This is the empty-variable shape of the section 11.4.287 incident, on writes instead of deletes; the destructive-path guard covers recursive deletes only. Scope: reviewer and subagent scratch tooling and the section 11.4.287(D) dispatch-brief text; scripts/hooks/guard-destructive-paths.py only if the operator decides to widen it. Reproduction: not applicable (incident record); the reviewer disclosed it and redid the extraction in Python. Acceptance: the dispatch-brief clause also tells agents to guard path variables used as write targets (${VAR:?} or a mktemp root check) and to extract code with a non-shell tool; whether the guard should also refuse writes aimed at / from an empty variable is recorded as an operator decision (changing the guard needs one). Source: session-74ce2b36 scratchpad (outside the repository)/rev_sigpipe_r2.7Vlo/review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997. Review r2 F6 (nit, process-doc, not a finding against the change). Related incident class: CON-305 (J7). Parent CON-312.
+
+## CON-391 — workable-items engine: an unchanged sync db-to-md then md-to-db round trip rewrites description on 38 rows and sets severity to NULL on 3 rows (silent data loss)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T16:42:09Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T16:42:09Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: an unchanged sync db-to-md followed by sync md-to-db of the base tracker replaced description with different text on 38 rows (for example CON-030, CON-246) and set severity from Low to NULL on 3 rows (CON-266, CON-267, CON-268). Scope: workable-items engine sync db-to-md / sync md-to-db; pre-existing, measured by the engine created_at round-1 reviewer on the base bd0036bd binary and on the vehicle binary with the same result. Reproduction: UNREPRODUCED in this repository's evidence: the register records the reviewer's column census as reproduced-host-fixture, but that census file is not in the repository, so no state above UNREPRODUCED is set (section 11.4.294(C)). Reproduce first on a copy of docs/workable_items.db (section 11.4.292). Acceptance: a round trip of an unchanged database leaves every column of every row unchanged except last_modified, with a column census as the oracle and a regression test. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register CON-PENDING-MDRT-DATALOSS. Parent CON-313; related to register D-02 (filed as CON-396).
+
+## CON-392 — Decide the 226 tracker rows whose created_at is later than their first item_history event (restore with restore-created-at, or record why not)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: at bd0036bd, 226 of 263 items hold a created_at later than their first item_history row; 222 hold 2026-11-11 15:38:57 and 4 hold 2026-11-11 15:34:52 (two batch times that fit earlier document rebuilds). The cause of each row was not traced. Scope: docs/workable_items.db items.created_at; the restore-created-at command and docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh. Reproduction: not applicable (decision item); counts are the register's measurement at bd0036bd, not re-measured here. Acceptance: one recorded operator decision; if restore, a plan file and an applier run with an audit row per item. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register CON-PENDING-226-ROWS = register D-05 (one item). Operator decision. Parent CON-313; CON-243 alone was restored in 464cd498; see CON-393.
+
+## CON-393 — CON-243 is restored to its Opened time but its same-second siblings CON-242 and CON-244 keep 15:38:57 (created_at non-uniform)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the restore moved CON-243 to its Opened time 2026-11-11 15:34:35 (commit 464cd498); CON-242 and CON-244 were opened in the same second and keep 15:38:57, so the three disagree. Scope: items CON-242, CON-243, CON-244 created_at. Reproduction: not applicable (data consistency record). Acceptance: resolved together with CON-392: either the siblings are restored the same way or the non-uniformity is recorded as accepted. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register CON-PENDING-CON243-NONUNIFORM; listed separately so the non-uniformity stays visible. Parent CON-313.
+
+## CON-394 — restore-created-at: evidence is checked only against the sha256 the caller names; read it from a committed git blob so a hand-built evidence file is refused
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: restore-created-at checks the sha256 the caller names, so a hand-built evidence file that records an earlier value inside the tracker's lifetime passes; round 2 added only the lower bound VALUE-BEFORE-TRACKER. Scope: workable-items restore-created-at and its applier. Reproduction: not applicable (design gap, by reading). Acceptance: --evidence-commit and --evidence-path read with git cat-file so the engine computes the sha itself, or a gate that resolves every audit row's evidence sha256 to a committed blob; a test with a hand-built evidence file that is not a committed blob is refused. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register CON-PENDING-EVIDENCE-PROVENANCE. Parent CON-313.
+
+## CON-395 — workable-items: group set --item, repair-bodies, version-tags and sync md-to-db write no item_history rows
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T16:42:10Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T16:42:10Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: these four write paths change items without an item_history row, so the section 11.4.34 audit trail misses their changes. Scope: workable-items engine commands group set --item, repair-bodies, version-tags, sync md-to-db. Reproduction: UNREPRODUCED in this filing; found while working on the engine created_at vehicle. Acceptance: each path writes a history row for every change (or the exception is documented and gated), with a test per path. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-01 (CON-PENDING-FOUND-DEFECTS). Parent CON-313.
+
+## CON-396 — workable-items: close drops forensic_anchor, closure_criteria, composes_with, parent_atm_id, session_ref, version_tags; sync md-to-db drops destination, logic_group, parent_atm_id, session_ref, version_tags and resets last_modified
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T16:42:10Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T16:42:10Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: close loses six columns of the closed item and sync md-to-db loses five columns and resets last_modified; silent field loss. Scope: workable-items engine close and sync md-to-db. Reproduction: UNREPRODUCED in this filing; found while working on the engine created_at vehicle. Acceptance: close and md-to-db keep every listed column (or carry it through the Markdown), proven by a column census before and after, with tests. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-02. Parent CON-313; related to CON-391.
+
+## CON-397 — Tracker-intake vehicle b48091ea holds duplicated Obsolete history rows (ids 592/593, 614/615, 616/617); dedupe before or at its landing
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the unlanded tracker-intake vehicle b48091ea has pairs of duplicated Obsolete item_history rows (ids 592/593, 614/615, 616/617). Scope: the tracker-intake vehicle's database (not on main); its landing. Reproduction: not re-checked in this filing (vehicle not on main). Acceptance: at landing, the duplicate pairs are explained or removed through the engine, and the cause (double write on Obsolete) is fixed or recorded. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-03. Related to CON-387 (same vehicle). Parent CON-313.
+
+## CON-398 — workable-items: subtask add and subtask status are not dispatched by main()
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T16:42:10Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T16:42:10Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the subtask add and subtask status subcommands exist but main() does not dispatch them, so they cannot be run. Scope: workable-items engine main() dispatch. Reproduction: UNREPRODUCED in this filing; found by reading while working on the engine created_at vehicle. Acceptance: both subcommands are dispatched (or removed after the section 11.4.124 investigation), with a test that runs each. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-04. Parent CON-313.
+
+## CON-399 — apply_restore_plan.sh applies plan rows one by one, not atomically across rows (documented in its header)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the created_at restore applier applies each plan row in its own engine call; a failure part way leaves earlier rows applied. Scope: docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh. Reproduction: not applicable (documented limit). Acceptance: either the applier validates every row before the first write and applies them in one transaction, or the per-row limit stays documented with a recorded decision. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-06. Parent CON-313.
+
+## CON-400 — restore-created-at --dry-run needs write access to the live database (opens it like a real run)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: --dry-run opens the database the same way as a real run, so it needs write access and cannot run on a read-only copy. Scope: workable-items restore-created-at. Reproduction: not applicable (documented limit). Acceptance: --dry-run opens the database read-only (or the limit stays documented with a recorded decision), with a test on a read-only file. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-07. Parent CON-313.
 
