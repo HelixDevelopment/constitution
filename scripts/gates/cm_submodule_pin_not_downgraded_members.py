@@ -24,18 +24,28 @@ What it enumerates (one single-line edit per mutant; the closed operator set, no
            `==` compare on its own. The census of the class (every normalisation / casing / locale path of the gate
            and the hook) is docs/qa/con046_review/r12_runs/norm_census.py; what it finds outside this kind is stated
            there (none in the round-12 gate)
+  NORMCLS  (round 13, review r12 R12-1) for each `.casefold()` and each class of CF_CLASSES (the KILLABLE casefold-only
+           characters that change the equality, keyed casefold length / general category / first word of the name):
+           that one class lowered with `.lower()` instead, every other character still casefolded. The suite checks
+           CF_CLASSES against its own whole-code-space enumeration on every run (META exit 2 on a difference)
 A mutant that does not parse (`bash -n`) is listed as `nonviable` and not run (it is not a member, it is a syntax error).
 
 Usage:
   cm_submodule_pin_not_downgraded_members.py list <gate>            -> TSV: name, line, kind, before, after, viable
   cm_submodule_pin_not_downgraded_members.py emit <gate> <dir>      -> writes <dir>/<name>.sh per viable mutant; prints
                                                                       the same TSV
+  cm_submodule_pin_not_downgraded_members.py cfclasses              -> CF_CLASSES, one per line
 The name is `gen-<kind>-<sha1 of (line text, kind, occurrence)>[:10]`, so it is stable across edits of OTHER lines.
 Exit 0 ok, 2 usage / unreadable gate. Deterministic: the same gate text always yields the same list (sorted by line).
 Honest boundary (§11.4.6): the operator set above is a floor, not every possible mutation; it closes the member classes
 the reviews found, and the hand-written inventory (cm_submodule_pin_not_downgraded_inventory.tsv) still owns the rest.
 """
 import hashlib, os, re, subprocess, sys
+
+# round 13 (R12-2 redesign): the KILLABLE casefold-only classes of Unicode 16.0 (python 3.14) under the gate's NFKC-class
+# caseless pipeline plus the pinned confusables skeleton, measured by the suite's enumeration (the 12 other classes have
+# no observable class-lowering mutant; FOLD13ALL kills the whole-casefold one)
+CF_CLASSES = ['1/Ll/CHEROKEE', '1/Ll/CYRILLIC', '1/Ll/GREEK', '1/Lu/CHEROKEE', '1/Mn/COMBINING', '2/Ll/LATIN']
 
 def code_lines(text):
     lines = text.split('\n')
@@ -182,6 +192,19 @@ def gen_line(i, x, py):
         for m in re.finditer(r'\.(casefold|lower|upper)\(\)', x):
             for rep in {'casefold': ['lower'], 'lower': ['casefold'], 'upper': ['casefold']}[m.group(1)]:
                 sub('NORM', m.start(), m.end(), '.%s()' % rep)
+            if m.group(1) == 'casefold':
+                o = match_paren_back(x, m.start() - 1)
+                if o is not None:
+                    st = o
+                    while st > 0 and (x[st - 1].isalnum() or x[st - 1] in '_.'):
+                        st -= 1
+                    op = x[st:m.start()]
+                    for k in CF_CLASSES:
+                        ln, cat, word = k.split('/')
+                        rep = ('"".join(c.lower() if (len(c.casefold())==%s and unicodedata.category(c)=="%s" and '
+                               '(unicodedata.name(c,"?")+" ").split()[0]=="%s") else c.casefold() for c in %s)'
+                               % (ln, cat, word, op))
+                        sub('NORMCLS', st, m.end(), rep)
         for m in re.finditer(r'(?<![\w.])f\(', x):
             close = match_paren(x, m.end() - 1)
             if close is not None and (x.startswith('==', close + 1) or x[:m.start()].endswith('==')):
@@ -211,6 +234,21 @@ def match_paren(x, i):
         j += 1
     return None
 
+def match_paren_back(x, j):
+    """index of the '(' matching the ')' at x[j], or None (one line, no quote handling needed for the operand)"""
+    if j < 0 or x[j] != ')':
+        return None
+    depth = 0
+    while j >= 0:
+        if x[j] == ')':
+            depth += 1
+        elif x[j] == '(':
+            depth -= 1
+            if depth == 0:
+                return j
+        j -= 1
+    return None
+
 def build(gate):
     try:
         text = open(gate, encoding='utf-8').read()
@@ -236,6 +274,8 @@ def viable(src):
     return p.returncode == 0
 
 def main():
+    if sys.argv[1:] == ['cfclasses']:
+        print('\n'.join(CF_CLASSES)); return
     if len(sys.argv) < 3 or sys.argv[1] not in ('list', 'emit') or (sys.argv[1] == 'emit' and len(sys.argv) != 4):
         print('usage: cm_submodule_pin_not_downgraded_members.py list <gate> | emit <gate> <dir>', file=sys.stderr); sys.exit(2)
     rows = build(sys.argv[2])

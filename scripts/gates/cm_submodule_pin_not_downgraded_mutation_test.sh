@@ -55,7 +55,13 @@
 # Fixtures are throwaway repos under a mktemp dir; the real repo is never touched. HOME is a temp dir.
 # Exit 0 proof holds · 1 misclassified/survivor/hook failure · 2 env error.
 set -uo pipefail
+# git-env census (r4): clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of
+# scripts/lib/constitution_layout.sh); every fixture command sets what it needs per call (GIT_INDEX_FILE=... git ...).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)"; gate="${GATE_UNDER_TEST:-$here/cm_submodule_pin_not_downgraded.sh}"
+# round 13 (R12-2): the gate reads its confusables table next to itself; mutants and fixtures run copies elsewhere, so
+# point every run at the real table (sha256-pinned inside the gate, so the override cannot weaken it; CONF13 unsets it).
+export CM_PIN_CONFUSABLES="$here/cm_submodule_pin_not_downgraded_confusables.tsv"
 hook="$here/../hooks/pre-commit-submodule-pin-not-downgraded"
 [ -r "$gate" ] || { echo "META: gate missing" >&2; exit 2; }
 [ -r "$hook" ] || { echo "META: hook missing" >&2; exit 2; }
@@ -142,6 +148,69 @@ gkcat="$(printf '%s' "${gkl[@]}")"
 case "$gkcat" in *$'\xe2\x80\xa8'*) ;; *) echo "META: git-kept whitespace measurement blind (U+2028 not kept)" >&2; exit 2 ;; esac
 case "$gkcat" in *' '*) echo "META: git-kept whitespace measurement blind (ASCII space kept)" >&2; exit 2 ;; esac
 echo "isspace() characters git keeps at the end of a name and an email: ${#gkl[@]} (measured through git var)"
+# ── round 13 (CON-046, review r12 R12-1 + R12-2, §11.4.276(C)): the CASEFOLD-ONLY characters, enumerated over the whole
+# code space with the gate's own authoriser pipeline (caseless compatibility k(s) = NFKD(casefold(NFD(s))), the UTS #39
+# skeleton from the vendored, sha256-pinned confusables table, iterated to a fixpoint) against its lowercase twin G (the
+# same pipeline with lower() for casefold()), never typed by hand. A character c counts when F(c) != G(c) AND the equality
+# changes (G(c) != G(F(c))); characters whose F and G differ but split the code space into the same equality classes are
+# counted apart as relation-equal. Classes: casefold length / general category / first word of the name. A class is
+# KILLABLE when leaving just that class to lower() (the NORM-CLASS mutant) waives the class string against its F-fold;
+# the killable classes must equal the member generator's static list. The other classes are recorded with their size:
+# no class-lowering mutant can be told from the gate on any input from that class alone (measured here), so FOLD13ALL
+# (the whole casefold to lower) is their killer. Needles: U+00DF and U+0345 are counted and killable, U+13A0 is counted,
+# `a` is in no set, the table hash is the gate's pin; every fixture string survives `git var` unchanged.
+mapfile -d '' cfl < <(python3 -I - "$CM_PIN_CONFUSABLES" <<'PYEOF'
+import sys,unicodedata as u,hashlib
+N=u.normalize; b=open(sys.argv[1],"rb").read(); T={}
+for l in b.decode("utf-8").split("\n")[:-1]:
+    x,y=l.split("\t"); T[chr(int(x,16))]="".join(chr(int(z,16)) for z in y.split())
+def mk(fold):
+    k=lambda s:N("NFKD",fold(N("NFD",s)))
+    g=lambda s:k(N("NFD","".join(T.get(c,c) for c in N("NFD",k(s)))))
+    def f(s):
+        for _ in range(8):
+            t=g(s)
+            if t==s: return t
+            s=t
+        raise ValueError("unsettled")
+    return f
+F=mk(str.casefold); G=mk(str.lower)
+key=lambda c:"%d/%s/%s"%(len(c.casefold()),u.category(c),u.name(c,"?").split()[0])
+D=[];E=[]
+for cp in range(0x110000):
+    c=chr(cp)
+    if 0xD800<=cp<=0xDFFF or u.category(c).startswith("C") or F(c)==G(c): continue
+    (D if G(c)!=G(F(c)) else E).append(c)
+cls={}
+for c in D: cls.setdefault(key(c),[]).append(c)
+kill=[]; rest=[]
+for k in sorted(cls):
+    a=" ".join(cls[k]); X=mk(lambda s,k=k:"".join(c.lower() if key(c)==k else c.casefold() for c in s))
+    (kill if X(a)!=X(F(a)) else rest).append(k)
+ok=("\xdf" in D and "ͅ" in D and "Ꭰ" in D and "a" not in D+E and key("\xdf") in kill and key("ͅ") in kill
+    and hashlib.sha256(b).hexdigest()=="e5afc46b542187fb7c2955fb172c14e56798fae316f826ac3c2ddb0e3c9ee74f")
+out=["N",str(len(D)),str(len(E)),str(len(cls)),u.unidata_version,"ok" if ok else "bad",str(len(kill)),
+     " ".join("%s:%d"%(k,len(cls[k])) for k in rest)]
+for k in ["ALL"]+kill:
+    a=" ".join(D if k=="ALL" else cls[k]); fa=F(a)
+    if not (F(a)==F(fa) and G(a)!=G(fa) and a==a.strip()): out[5]="bad"
+    out+=[k,a,fa]
+sys.stdout.buffer.write(b"".join(x.encode()+b"\0" for x in out))
+PYEOF
+)
+[ "${cfl[0]:-}" = N ] && [ "${cfl[5]:-}" = ok ] && [ "${cfl[1]:-0}" -ge 150 ] && [ "${cfl[6]:-0}" -ge 5 ] || { echo "META: the casefold-only enumeration is blind or wrong (${cfl[*]:0:7})" >&2; exit 2; }
+cfkeys=(); cfauth=(); cfcmt=(); for ((i=8; i<${#cfl[@]}; i+=3)); do cfkeys+=("${cfl[i]}"); cfauth+=("${cfl[i+1]}"); cfcmt+=("${cfl[i+2]}"); done
+[ "$(printf '%s\n' "${cfkeys[@]:1}")" = "$(python3 -I "$here/cm_submodule_pin_not_downgraded_members.py" cfclasses)" ] || { echo "META: the killable casefold-only classes (${cfkeys[*]:1}) differ from the member generator's static list (Unicode ${cfl[4]}); update CF_CLASSES" >&2; exit 2; }
+for c in "${cfcmt[@]}" "${cfauth[@]}"; do id="$(GIT_COMMITTER_NAME="$c" git var GIT_COMMITTER_IDENT 2>/dev/null)"; [ "${id%% <*}" = "$c" ] || { echo "META: a casefold-only fixture string does not survive git var unchanged" >&2; exit 2; }; done
+echo "casefold-only characters (Unicode ${cfl[4]}, confusables table pinned): ${cfl[1]} in ${cfl[3]} classes that change the equality, ${cfl[6]} killable one by one, ${cfl[2]} relation-equal (enumerated over the whole code space)"
+echo "casefold-only classes no class mutant can be told from (killed only by FOLD13ALL): ${cfl[7]}"
+# ── round 13 (review r12 N1): a UTF-8 locale whose bash `=~` range [0-9] is WIDER than ASCII (the defect class), found,
+# never assumed. Needle: under it U+0660 (Arabic-Indic zero) matches ^[0-9]$; under C and C.UTF-8 it does not (control).
+lwide=""; for lw in en_US.UTF-8 en_GB.UTF-8 $(locale -a 2>/dev/null | grep -i 'utf-\?8$' | LC_ALL=C sort); do
+  LC_ALL="$lw" bash -c '[[ $1 =~ ^[0-9]$ ]]' _ $'\xd9\xa0' 2>/dev/null && { lwide="$lw"; break; }; done
+[ -n "$lwide" ] || { echo "META: no installed UTF-8 locale widens [0-9] (the locale fixtures LOC13/HLOC13 would be blind)" >&2; exit 2; }
+for lw in C C.UTF-8; do LC_ALL="$lw" bash -c '[[ $1 =~ ^[0-9]$ ]]' _ $'\xd9\xa0' 2>/dev/null && { echo "META: under $lw [0-9] matches U+0660 (the narrow control is blind)" >&2; exit 2; }; done
+echo "locale fixtures: wide locale $lwide (its [0-9] matches U+0660), narrow controls C and C.UTF-8"
 setdates() { # R7-7 (round 8): every date fixture is computed at the start of the classify that uses it (inside its own
   # job), and the job's vector carries the date it started and ended on; a job whose dates differ is INCONCLUSIVE
   d10="$(date -d '+10 days' +%F)"; d30="$(date -d '+30 days' +%F)"; d31="$(date -d '+31 days' +%F)"
@@ -246,7 +315,7 @@ classify() { # gate-path -> one-line verdict vector, then ` DATE=<start>~<end>` 
   mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" t "$d10" CON-046)\n"; e="$(run "$r" "$g"),"
   waive "$r" "$(wf sub "$B" "$A" T@T "$d10" CON-046)\n"; e+="$(run "$r" "$g")"; out+="SELFAUTH=$e "
   # R2-m3 authoriser: leading space, <..> form, author identity (name, email), Cyrillic case under LC_ALL=C, NFD vs
-  # NFC; last: a distinct authoriser under LC_ALL=C with a Cyrillic committer is accepted (positive control)
+  # NFC (canonical equivalents); last: a distinct authoriser under LC_ALL=C with a Cyrillic committer is accepted (positive control)
   mk;r=$R; stage "$r" "$A"; e=""
   waive "$r" "$(wf sub "$B" "$A" ' me' "$d10" CON-046)\n"; e+="$(run "$r" "$g"),"
   waive "$r" "$(wf sub "$B" "$A" '<me@x>' "$d10" CON-046)\n"; e+="$(run "$r" "$g"),"
@@ -254,10 +323,10 @@ classify() { # gate-path -> one-line verdict vector, then ` DATE=<start>~<end>` 
   waive "$r" "$(wf sub "$B" "$A" ZZ@Z "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_AUTHOR_NAME=zz GIT_AUTHOR_EMAIL=zz@z),"
   waive "$r" "$(wf sub "$B" "$A" 'МИЛОШ ВАСИЋ' "$d10" CON-046)\n"; e+="$(run "$r" "$g" LC_ALL=C GIT_COMMITTER_NAME='Милош Васић'),"
   waive "$r" "$(wf sub "$B" "$A" $'Milos\xcc\x8c' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=$'Milo\xc5\xa1'),"
-  # round 12 (review r11 F1): one killer per NFC call of f = NFC(casefold(NFC(s))). Field 7: committer U+0399 U+0308
-  # U+0301 (decomposed capital iota, dialytika, tonos), authoriser U+0390: equal only when the OUTER NFC recomposes the
-  # casefold result (RVR11-01 drops it). Field 8: committer U+03B1 U+0345 U+0301 (not in NFC: ypogegrammeni before
-  # tonos), authoriser its NFC U+1FB4: equal only when the INNER NFC reorders before casefold (RVR11-02 drops it).
+  # round 12 (review r11 F1), kept in round 13: field 7: committer U+0399 U+0308 U+0301 (decomposed capital iota,
+  # dialytika, tonos), authoriser U+0390; field 8: committer U+03B1 U+0345 U+0301 (ypogegrammeni before tonos),
+  # authoriser U+1FB4. Both are canonical caseless matches; under the round-13 k(s) = NFKD(casefold(NFD(s))) field 8
+  # kills RVR11-02 (inner NFD dropped: casefold of U+1FB4 puts iota before tonos).
   waive "$r" "$(wf sub "$B" "$A" $'\xce\x90' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=$'\xce\x99\xcc\x88\xcc\x81'),"
   waive "$r" "$(wf sub "$B" "$A" $'\xe1\xbe\xb4' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=$'\xce\xb1\xcd\x85\xcc\x81'),"
   waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; e+="$(run "$r" "$g" LC_ALL=C GIT_COMMITTER_NAME='Милош Васић')"; out+="AUTHNORM=$e "
@@ -362,6 +431,7 @@ classify() { # gate-path -> one-line verdict vector, then ` DATE=<start>~<end>` 
   out+="$(members8 "$g")"
   out+="$(members10 "$g")"
   out+="$(members11 "$g")"
+  out+="$(members13 "$g")"
   echo "${out}DATE=$ds~$(date +%F)"
 }
 # ── round 6: the class inventory (§11.4.276(C)). One fixture per guard of the gate that no earlier fixture falsifies;
@@ -381,6 +451,10 @@ inventory() { # gate path -> vector part
   mk;r=$R; o+="LEV=$(run "$r" "$g" PATH="$tmp/fklev:$PATH")/$(cnt 'local-env-vars returned nothing') "
   # unborn HEAD: base is the empty tree; a new gitlink is no downgrade -> PASS
   mk; u="$tmp/ub.$RANDOM"; git init -q "$u"; git -C "$u" update-index --add --cacheinfo 160000,"$B",sub; o+="UNBORN=$(run "$u" "$g")/$(cnt 'PASS (0 staged') "
+  # the same in a sha256 repository: the empty tree is named per object format (round 13, git-env census r4: the gate
+  # no longer runs hash-object, it spells git's built-in empty-tree id for sha1 and sha256)
+  u="$tmp/ub2.$RANDOM"; git init -q --object-format=sha256 "$u"; h=$(printf x | git -C "$u" hash-object --stdin)
+  git -C "$u" update-index --add --cacheinfo 160000,"$h",sub; o+="UNBORN256=$(run "$u" "$g")/$(cnt 'PASS (0 staged') "
   # --base that does not resolve, and --base that names a tree (not a commit) -> BLIND, named
   mk;r=$R; stage "$r" "$A"; o+="BASEBAD=$(run "$r" "$g" -- --base nosuchrev)/$(cnt 'does not resolve to a commit'),$(run "$r" "$g" -- --base 'HEAD^{tree}')/$(cnt 'does not resolve to a commit') "
   # config: comments and blank lines are skipped; a line without '=' is named; 0 days is refused; an unknown key is named
@@ -1016,7 +1090,64 @@ mapfile -t s11keys < <(printf '%s\n' "${s11keys[@]}" | LC_ALL=C sort -u)
 for f in $(compgen -A function g11_); do printf '%s\n' "${s11keys[@]}" | grep -qx "${f#g11_}" || { echo "META: generator $f is named by no site-table row" >&2; exit 2; }; done
 [ "${#s11keys[@]}" -ge 20 ] || { echo "META: the site table names ${#s11keys[@]} generators (expected 20 or more; table unread?)" >&2; exit 2; }
 members11() { local g="$1" k o=""; for k in "${s11keys[@]}"; do o+="$("g11_$k" "$g")"; done; echo "$o"; }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/135 F_HELPSHORT=0/135 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 ARGNEAR=00000/22222222222222 CONFHASH=0,1,1, CONFKEYNEAR=0/11111/0/111 CONFSPLIT=1/1/0 CRMID=1/1 DOWN2=1/1 DUPNEAR=1/1/0 HASHMID=0 IDDELIM=1/1 ITEMCASE=1,1,0, NULROW=1/1,1/1,1/1,1/1,0 PATHNEAR=0/111111111 PATHWS=1,1, SEPINJECT=1/1 SPENTFIELDS=0,0,1 SPENTPATHNEAR=000000000/1 SYMNEAR=2/1,2/1, TSVSPACE=1,0 TZPAIR=0,1,1,0/+1400/-1200 WSID4=11111111/8/19/0 "
+# ── round 13 (CON-046, review r12 R12-1, N1, R12-2, §11.4.276(C)/(E)(3)): class-exhaustive fixtures for the authoriser
+# normalisation and for the locale. FOLD13ALL: every casefold-only character of the enumeration at once (authoriser the
+# characters, committer their f-fold): refused, and a lower() mutant that fixes any subset short of all is waived.
+# FOLD13CLS: the same per KILLABLE class (killers of the generated NORM-CLASS mutants). COMPAT13 (operator decision on
+# R12-2: NFKC-class caseless matching plus the UTS #39 confusable skeleton): refused as a self-waive are fullwidth `ｍilos`,
+# dotless `alı` (vs ali), Cyrillic `milоs`, Greek `milοs`, mixed-script `аli` (vs ali), `mi1os`, `rnilos` (vs milos) and
+# U+1FBC U+0342 vs U+1FB7 (the canonical caseless match), `%` vs `o/o` (skeleton then NFKD: kills NFKD-to-NFD, the
+# one-pass and the outer-NFKD-dropped mutants) and U+03D2 vs `y` (kills NFKC-both), and an authoriser U+3164 (Hangul filler: empty skeleton, refused as
+# malformed; kills empty-skeleton-authoriser-ok); waived are U+0386 U+038A vs U+1FB4 U+0301 (Unicode-distinct
+# once the canonical order is respected) and the negative controls release-mgr and milo (vs milos) and `Milos Vasic` vs
+# its Cyrillic spelling (a transliteration, not a confusable). CONF13: the table next to a copied gate is found (0); the
+# gate without it refuses and names the table (1m); a table one line short (1), an absent path (1); the real one (0).
+# LOC13: each locale case under the wide locale, C and C.UTF-8 (item rWIDE/rC/rCUTF8, the wide one first so a
+# fail-open under it reads as `fo`): Arabic-Indic, fullwidth and mixed item digits, the ASCII control, item prefix `ÉQ`
+# and its ASCII control, max_waiver_days in Arabic-Indic digits, an Arabic-Indic expiry. HLOC13: an Arabic-Indic item
+# through `git commit` with the hook in each locale, then the ASCII control.
+m13run() { local r="$1" g="$2" L o=""; shift 2; for L in "$lwide" C C.UTF-8; do o+="$(run "$r" "$g" LC_ALL="$L" "$@")/"; done; echo "${o%/}"; }
+members13() { # gate path -> vector part
+  local g="$1" o="" r e k lay rr
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" "${cfauth[0]}" "$d10" CON-046)\n"; o+="FOLD13ALL=$(run "$r" "$g" GIT_COMMITTER_NAME="${cfcmt[0]}") "
+  e=""; for ((k=1; k<${#cfkeys[@]}; k++)); do waive "$r" "$(wf sub "$B" "$A" "${cfauth[k]}" "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME="${cfcmt[k]}"),"; done; o+="FOLD13CLS=${e%,} "
+  e=""
+  waive "$r" "$(wf sub "$B" "$A" $'\xef\xbd\x8dilos' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" $'al\xc4\xb1' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=ali),"
+  waive "$r" "$(wf sub "$B" "$A" $'mil\xd0\xbes' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" $'mil\xce\xbfs' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" $'\xd0\xb0li' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=ali),"
+  waive "$r" "$(wf sub "$B" "$A" mi1os "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" rnilos "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" $'\xe1\xbe\xbc\xcd\x82' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=$'\xe1\xbe\xb7'),"
+  waive "$r" "$(wf sub "$B" "$A" $'\xce\x86\xce\x8a' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=$'\xe1\xbe\xb4\xcc\x81'),"
+  waive "$r" "$(wf sub "$B" "$A" % "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=o/o),"
+  waive "$r" "$(wf sub "$B" "$A" $'\xcf\x92' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=y),"
+  waive "$r" "$(wf sub "$B" "$A" $'\xe3\x85\xa4' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" release-mgr "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" milo "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" 'Milos Vasic' "$d10" CON-046)\n"; e+="$(run "$r" "$g" GIT_COMMITTER_NAME=$'\xd0\x9c\xd0\xb8\xd0\xbb\xd0\xbe\xd1\x88 \xd0\x92\xd0\xb0\xd1\x81\xd0\xb8\xd1\x9b')"
+  o+="COMPAT13=$e "
+  e=""; lay="$(mktemp -d "$tmp/conf.XXXXXX")"; cp "$g" "$lay/gate.sh"; cp "$CM_PIN_CONFUSABLES" "$lay/cm_submodule_pin_not_downgraded_confusables.tsv"
+  waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; e+="$(run "$r" "$lay/gate.sh" -u CM_PIN_CONFUSABLES),"
+  rm -f "$lay/cm_submodule_pin_not_downgraded_confusables.tsv"; e+="$(run "$r" "$lay/gate.sh" -u CM_PIN_CONFUSABLES)$(grep -q "confusables table" "$tmp/out" && echo m),"
+  sed '$d' "$CM_PIN_CONFUSABLES" >"$lay/short.tsv"; e+="$(run "$r" "$g" CM_PIN_CONFUSABLES="$lay/short.tsv"),"
+  e+="$(run "$r" "$g" CM_PIN_CONFUSABLES="$lay/absent.tsv"),"; e+="$(run "$r" "$g")"; o+="CONF13=$e "
+  e=""
+  for k in $'CON-\xd9\xa0\xd9\xa4\xd9\xa7' $'CON-\xef\xbc\x90\xef\xbc\x95\xef\xbc\x98' $'CON-1\xef\xbc\x921' CON-047; do
+    waive "$r" "$(wf sub "$B" "$A" ops "$d10" "$k")\n"; e+="$(m13run "$r" "$g"),"; done
+  mk;r=$R; conf "$r" $'item_prefix=\xc3\x89Q\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" $'\xc3\x89Q-047')\n"; e+="$(m13run "$r" "$g"),"
+  mk;r=$R; conf "$r" 'item_prefix=EQ\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" EQ-047)\n"; e+="$(m13run "$r" "$g"),"
+  mk;r=$R; conf "$r" $'max_waiver_days=\xd9\xa3\xd9\xa0\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; e+="$(m13run "$r" "$g"),"
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops $'\xd9\xa2\xd9\xa0\xd9\xa2\xd9\xa6-\xd9\xa1\xd9\xa1-\xd9\xa2\xd9\xa5' CON-046)\n"; e+="$(m13run "$r" "$g")"; o+="LOC13=$e "
+  lay="$(mktemp -d "$tmp/lay.XXXXXX")"; mkdir -p "$lay/scripts/gates" "$lay/scripts/hooks"
+  cp "$g" "$lay/scripts/gates/cm_submodule_pin_not_downgraded.sh"; cp "$hook" "$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"
+  e=""; for k in "$lwide" C C.UTF-8 ctl; do lc_sup "$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"; rr=$SR; git -C "$rr/sub" checkout -q "$uA"
+    if [ "$k" = ctl ]; then lrow "$(git -C "$rr" rev-parse HEAD)" >"$rr/.submodule_pin_waivers"; git -C "$rr" add .submodule_pin_waivers; e+="$(LC_ALL="$lwide" lgc "$rr" -a -m rb)/$(lpin "$rr")"
+    else printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' sub "$uB" "$uA" ops "$d10" $'CON-\xd9\xa0\xd9\xa4\xd9\xa7' "$(git -C "$rr" rev-parse HEAD)" >"$rr/.submodule_pin_waivers"
+      git -C "$rr" add .submodule_pin_waivers; e+="$(LC_ALL="$k" lgc "$rr" -a -m rb)/$(lpin "$rr"),"; fi; done; o+="HLOC13=$e "
+  echo "$o"; }
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 UNBORN256=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/157 F_HELPSHORT=0/157 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 ARGNEAR=00000/22222222222222 CONFHASH=0,1,1, CONFKEYNEAR=0/11111/0/111 CONFSPLIT=1/1/0 CRMID=1/1 DOWN2=1/1 DUPNEAR=1/1/0 HASHMID=0 IDDELIM=1/1 ITEMCASE=1,1,0, NULROW=1/1,1/1,1/1,1/1,0 PATHNEAR=0/111111111 PATHWS=1,1, SEPINJECT=1/1 SPENTFIELDS=0,0,1 SPENTPATHNEAR=000000000/1 SYMNEAR=2/1,2/1, TSVSPACE=1,0 TZPAIR=0,1,1,0/+1400/-1200 WSID4=11111111/8/19/0 FOLD13ALL=1 FOLD13CLS=1,1,1,1,1,1 COMPAT13=1,1,1,1,1,1,1,1,0,1,1,1,0,0,0 CONF13=0,1m,1,1,0 LOC13=1/1/1,1/1/1,1/1/1,0/0/0,1/1/1,0/0/0,1/1/1,1/1/1 HLOC13=1/B,1/B,1/B,0/A "
 # ── the inventory lint (round 7, CON-146): the guard inventory is checked, not trusted. static (Part 1): L1 every anchor
 # occurs exactly once in the gate's code; L2 every code line that is not pure syntax is covered by an anchor; L3 every
 # line has at least as many rows as members (1 + the && / || joins of a shell line, 1 + the `or` / `and` joins of a
@@ -1258,6 +1389,12 @@ pr_needargc() { local g="$1" x="" f; mk;r=$R; git -C "$r/sub" checkout -q "$B"; 
   f=$(git -C "$r/sub" rev-parse HEAD); stage "$r" "$f"
   x+="last:$(run "$r" "$g" -- --base),empty:$(run "$r" "$g" -- --base ''),lastw:$(run "$r" "$g" -- --waivers),emptyw:$(run "$r" "$g" -- --waivers '')"; echo "$x"; }
 pr_maxdays() { local g="$1" x="" v; for v in 999 1000 365; do mk;r=$R; conf "$r" "max_waiver_days=$v\n"; git -C "$r" commit -q -m conf; stage "$r" "$A"
+pr_loc13() { local g="$1" x="" k; mk;r=$R; stage "$r" "$A" # round 13: item digits and prefix letters under the WIDE locale
+  for k in $'CON-\xd9\xa0\xd9\xa4\xd9\xa7' $'CON-\xef\xbc\x90\xef\xbc\x95\xef\xbc\x98' CON-047 CON-04; do waive "$r" "$(wf sub "$B" "$A" ops "$d10" "$k")\n"; x+="$(run "$r" "$g" LC_ALL="$lwide"),"; done
+  mk;r=$R; conf "$r" $'item_prefix=\xc3\x89Q\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" $'\xc3\x89Q-047')\n"; x+="$(run "$r" "$g" LC_ALL="$lwide")"; echo "$x"; }
+pr_expcmp() { local g="$1" x="" e L; mk;r=$R; stage "$r" "$A" # round 13: the expiry compare at the day boundaries, three locales
+  for L in "$lwide" C C.UTF-8; do for e in "$(date -d '-1 day' +%F)" "$(date +%F)" "$(date -d '+1 day' +%F)" "$d30" "$d31"; do
+    waive "$r" "$(wf sub "$B" "$A" ops "$e" CON-046)\n"; x+="$(run "$r" "$g" LC_ALL="$L"),"; done; done; echo "$x"; }
     waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; x+="$v:$(run "$r" "$g"),"; done; echo "$x"; }
 pr_identpad() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
   x+="padname:$(run "$r" "$g" GIT_COMMITTER_NAME='  ops ' GIT_AUTHOR_NAME=$' ops\t')/$(cnt 'self-waive\|authoriser'),"
@@ -1353,16 +1490,73 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant RM1-ident-guard '/committer or author identity unresolvable/d'
   mutant self-authoriser-allowed 's/    return 10 if any(.*) else 0/    return 0/'
   mutant R3n4-failure-reported-as-self 's/^      10) WHY=/      1|10) WHY=/'
-  mutant no-casefold-no-nfc 's/^    f=lambda s: .*/    f=lambda s: s/'
-  mutant casefold-without-nfc 's/unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())/s.casefold()/'
+  mutant no-casefold-no-nfc 's/^    k=lambda s: .*/    k=lambda s: s/' # ADAPTED r13: no caseless normalisation at all
+  mutant casefold-without-nfc 's/unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())/s.casefold()/' # ADAPTED r13
   # ---- round-11 independent reviewer mutants (not written by the author) ----
-  mutant RVR11-01-outer-nfc-dropped 's/unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())/unicodedata.normalize("NFC", s).casefold()/'
-  mutant RVR11-02-inner-nfc-dropped 's/unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())/unicodedata.normalize("NFC", s.casefold())/'
+  mutant RVR11-01-outer-nfc-dropped 's/unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())/unicodedata.normalize("NFD", s).casefold()/' # ADAPTED r13: outer NFKD
+  mutant RVR11-02-inner-nfc-dropped 's/unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())/unicodedata.normalize("NFKD", s.casefold())/' # ADAPTED r13: inner NFD
   mutant RVR11-03-kids-first-parent-skipped 's/for(i=2;i<=NF;i++) if(\$i""==b"")/for(i=3;i<=NF;i++) if($i""==b"")/'
   mutant RVR11-04-spent-base-field-unchecked 's/ \&\& \$3""==n"" \&\& \$7""==b"" {f=0}/ \&\& $3""==n"" {f=0}/'
   mutant RVR11-05-main-diff-renames-on 's/pg diff --cached --raw -z --no-abbrev --no-renames /pg diff --cached --raw -z --no-abbrev -M /'
   mutant RVR11-06-today-local-tz 's/^today="\$(TZ=UTC date +%Y-%m-%d)"/today="$(date +%Y-%m-%d)"/'
   mutant RVR11-07-stash-counted 's/rev-list --exclude=refs\/stash --all --parents/rev-list --all --parents/'
+  # ── round 13 (R12-2 redesign, own mutants): the pinned table and the skeleton pipeline
+  mutant conf-sha-unchecked '/hashlib.sha256(b).hexdigest()!=/d'
+  mutant conf-missing-is-ok 's/^        return 5$/        return 0/'
+  mutant conf-path-ignored 's/python3 -I -c "\$IDPY" "\$conft"/python3 -I -c "$IDPY" \/dev\/null/'
+  mutant skel-map-dropped 's/T.get(c,c) for c/c for c/'
+  mutant skel-fixpoint-one-pass 's/^            if t==s: return t$/            return t/'
+  mutant skel-nfkd-to-nfd 's/normalize("NFKD", unicodedata.normalize("NFD", s)/normalize("NFD", unicodedata.normalize("NFD", s)/'
+  mutant empty-skeleton-authoriser-ok '/^    if not f(a): return 3$/d'
+  mutant conf-default-path-wrong 's|_confusables.tsv}" # sha256|_x.tsv}" # sha256|'
+  mutant conf-read-argv0 's/b=open(sys.argv\[1\],"rb")/b=open(sys.argv[0],"rb")/'
+  mutant conf-table-dict-dropped '/^    T={}$/d'
+  mutant conf-table-first-line-only 's/split("\\n")\[:-1\]:/split("\\n")[:1]:/'
+  mutant conf-table-key-unparsed 's/T\[chr(int(x,16))\]=/T[x]=/'
+  mutant skel-fixpoint-zero-rounds 's/for _ in range(8):/for _ in range(0):/'
+  mutant skel-loop-no-skeleton 's/^            t=g(s)$/            t=k(s)/'
+  mutant skel-fixpoint-no-advance '/^            s=t$/d'
+  mutant conf-rc5-message-lost 's/^      5) WHY=/      9) WHY=/'
+  mutant skel-rc5-as-ok 's/^      0) spent /      0|5) spent /'
+  # ── round 13 (§11.4.276(D), §11.4.194(6)(d)): the round-12 reviewer's mutants RVX-01..14, adopted verbatim from
+  # rv12.fpb0/wtx (here-docs keep the text byte for byte). RVX-09, RVX-10 and RVX-14 are equivalence claims under the
+  # LC_ALL=C pin (eqp below, each with a control that also deletes the pin); every other one must be killed.
+  mutf RVX-01-nfc-to-nfkc-both <<'RVXEOF'
+s/unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())/unicodedata.normalize("NFKC", unicodedata.normalize("NFKC", s).casefold())/
+RVXEOF
+  mutf RVX-02-casefold-to-upper <<'RVXEOF'
+s/unicodedata.normalize("NFD", s).casefold())/unicodedata.normalize("NFD", s).upper())/
+RVXEOF
+  mutf RVX-03-nfc-to-nfd-both <<'RVXEOF'
+s/unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())/unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())/
+RVXEOF
+  mutf RVX-04-auth-strip-ascii-only <<'RVXEOF'
+s/if not a or a!=a.strip() or/if not a or a!=a.strip(" ") or/
+RVXEOF
+  mutf RVX-05-category-C-to-Cc-only <<'RVXEOF'
+s/unicodedata.category(c).startswith("C")/unicodedata.category(c)=="Cc"/
+RVXEOF
+  mutf RVX-06-any-to-all <<'RVXEOF'
+s/return 10 if any(i.strip()/return 10 if all(i.strip()/
+RVXEOF
+  mutf RVX-07-ident-strip-ascii-only <<'RVXEOF'
+s/i.strip() and f(i.strip())==f(a)/i.strip(" \\t") and f(i.strip(" \\t"))==f(a)/
+RVXEOF
+  mutf RVX-08-names-only-no-emails <<'RVXEOF'
+s/for i in p\[1:\]) else 0/for i in p[1::2]) else 0/
+RVXEOF
+  mutf RVX-11-days-digit-class <<'RVXEOF'
+s/\[\[ "\$v" =~ \^\[1-9\]\[0-9\]{0,2}\$ \]\]/[[ "$v" =~ ^[[:digit:]]{1,3}$ ]]/
+RVXEOF
+  mutf RVX-12-casefold-lower-sharp-s-fix <<'RVXEOF'
+s/unicodedata.normalize("NFD", s).casefold())/unicodedata.normalize("NFD", s).lower().replace("\\u00df","ss"))/
+RVXEOF
+  mutf RVX-13-locale-en-forced <<'RVXEOF'
+s/^today="\$(TZ=UTC date +%Y-%m-%d)"/export LC_ALL=en_US.UTF-8; today="$(TZ=UTC date +%Y-%m-%d)"/
+RVXEOF
+  # own round-13 mutants: the pin removed, and the pin set to a wide locale
+  mutant locale-unpinned '/^export LC_ALL=C$/d'
+  mutant locale-pin-en 's/^export LC_ALL=C$/export LC_ALL=en_US.UTF-8/'
   mutant authoriser-form-unchecked 's/ or a!=a.strip() or "<" in a or ">" in a//'
   mutant empty-authoriser-allowed 's/if not a or /if /'
   mutant author-not-compared 's/"\$(idname "\$aident")" "\$(idmail "\$aident")"/"" ""/'
@@ -1415,7 +1609,9 @@ NMEOF
   mutant root-cd-fail-ignored 's/ \&\& pwd -P)" || exit 2; shift 2 ;;/ \&\& pwd -P)"; shift 2 ;;/'
   mutant not-a-worktree-unchecked 's/^top="\$(git -C "\$root" rev-parse --show-toplevel 2>\/dev\/null)" || blind0 .*$/top="$(git -C "$root" rev-parse --show-toplevel 2>\/dev\/null)"/'
   mutant local-env-vars-unchecked '/local-env-vars returned nothing/d'
-  mutant unborn-base-fallback-dropped 's/; \[ -n "\$basec" \] || basec="\$(pg hash-object -t tree \/dev\/null)"//'
+  mutant unborn-base-fallback-dropped 's/^    sha1) basec=4b825dc642cb6eb9a060e54bf8d69288fbee4904 ;;$/    sha1) ;;/'
+  mutant unborn-sha256-arm-dropped 's/^    sha256) basec=6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321 ;;/    sha256) ;;/'
+  mutant unborn-object-format-unchecked 's/|| case "\$(pg rev-parse --show-object-format 2>\/dev\/null)" in$/|| case sha1 in/'
   mutant base-resolve-unchecked 's/ || blind0 "--base \$base does not resolve to a commit"//'
   mutant base-peel-dropped 's/"\$base^{commit}"/"$base"/'
   mutant blob-absent-is-unreadable 's/^  id="\$(pg rev-parse -q --verify "\$1:\$2" 2>\/dev\/null)" || return 1$/  id="$(pg rev-parse -q --verify "$1:$2" 2>\/dev\/null)" || return 2/'
@@ -1650,7 +1846,7 @@ MEOF
 s/    if not a or a!=a.strip()/    if True or not a or a!=a.strip()/
 MEOF
   mutf normalise-to-empty <<'MEOF'
-s/^    f=lambda s: .*/    f=lambda s: ""/
+s/^    k=lambda s: .*/    k=lambda s: ""/
 MEOF
   mutf self-always <<'MEOF'
 s/    return 10 if any(.*) else 0/    return 10/
@@ -1818,7 +2014,7 @@ MEOF
 s/^  \[ "\$kidsrc" = shallow \] \&\&/  [ "$kidsrc" = nope ] \&\&/
 MEOF
   mutf shallow-says-spent <<'MEOF'
-s/git fetch --unshallow)"; return 2; }/git fetch --unshallow)"; return 0; }/
+s/fetch --unshallow in the superproject)"; return 2; }/fetch --unshallow in the superproject)"; return 0; }/
 MEOF
   mutf history-test-always <<'MEOF'
 s/^  \[ "\$kidsrc" = ok \] ||/  [ "$kidsrc" = nope ] ||/
@@ -2227,6 +2423,28 @@ MEOF
 s/python3 missing; cannot check authoriser"; continue; }/python3 missing; cannot check authoriser"; return 1; }/
 --
 /python3 missing; cannot check authoriser/d
+MEOF
+  # round 13: under the LC_ALL=C pin [[:upper:]] and [A-Z] name the same characters, so RVX-09 decides alike; its
+  # control applies the same sed AND deletes the pin, and then the wide locale (also C.UTF-8) lets `ÉQ` through.
+  # RVX-10 is equivalent with or without the pin: measured 2026-11-15 (tools/locprobe.sh) glibc's [[:digit:]] is the
+  # ASCII 0-9 under en_US.UTF-8, C.UTF-8 and C, while [0-9] is wider only under en_US.UTF-8 (the pin closes that);
+  # its control keeps the class and shortens the bound, so the probe's two-digit item `CON-04` is waived
+  eqp RVX-09-prefix-upper-class pr_loc13 <<'MEOF'
+s/\[\[ "\$v" =~ \^\[A-Z\]\[A-Z0-9\]+\$ \]\]/[[ "$v" =~ ^[[:upper:]][[:upper:][:digit:]]+$ ]]/
+--
+s/\[\[ "\$v" =~ \^\[A-Z\]\[A-Z0-9\]+\$ \]\]/[[ "$v" =~ ^[[:upper:]][[:upper:][:digit:]]+$ ]]/
+/^export LC_ALL=C$/d
+MEOF
+  eqp RVX-10-item-digit-class pr_loc13 <<'MEOF'
+s/\[\[ "\$i" =~ \^\${prefix}-\[0-9\]{3,}\$ \]\]/[[ "$i" =~ ^${prefix}-[[:digit:]]{3,}$ ]]/
+--
+s/\[\[ "\$i" =~ \^\${prefix}-\[0-9\]{3,}\$ \]\]/[[ "$i" =~ ^${prefix}-[[:digit:]]{2,}$ ]]/
+MEOF
+  # the expiry is a validated YYYY-MM-DD, so `! e > today && e != today` is `e < today`; control: the compare reversed
+  eqp RVX-14-expiry-collation-le pr_expcmp <<'MEOF'
+s/\[\[ "\$e" < "\$today" \]\]/[[ ! "$e" > "$today" \&\& "$e" != "$today" ]]/
+--
+s/\[\[ "\$e" < "\$today" \]\]/[[ "$e" > "$today" ]]/
 MEOF
   eqp eq-site-spent-aborts pr_spent <<'MEOF'
 s/(a row waives one commit only)" ;;/(a row waives one commit only)"; return 1 ;;/

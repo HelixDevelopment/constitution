@@ -11,6 +11,8 @@
 # row waives one transition in one single-parent commit on top of the commit the row names (the gate header has the rule).
 # Needs bash and GNU readlink (`readlink -f`); without them the gate is not found and the hook prints SKIP (not guarded).
 # If the gate later disappears from beside a symlinked hook, the hook prints SKIP on stderr and no longer guards.
+# Locale: the gate exports LC_ALL=C itself (round 13, review r12 N1), so its verdict is the same under any caller
+# locale; this hook's own commands (readlink -f, dirname, git rev-parse) compare nothing (paired test: HLOC13).
 self="$(readlink -f "${BASH_SOURCE[0]:-$0}")"; gate="$(dirname "$self")/../gates/cm_submodule_pin_not_downgraded.sh"
 if [ ! -r "$gate" ]; then
   echo "CM-SUBMODULE-PIN-NOT-DOWNGRADED: SKIP — gate not found beside this hook ($gate); install by SYMLINK into the constitution layout. NOT GUARDED." >&2; exit 0; fi

@@ -99,12 +99,28 @@
 # The other checks on a row:
 #   - expiry is a real YYYY-MM-DD date, today <= expiry <= today + max_waiver_days (inclusive); "today" is the UTC date
 #     (TZ=UTC), so the caller's TZ cannot move the decision by a day (round 11, CON-046 review r10 F2);
-#   - tracked_item matches <item_prefix>-NNN (3+ digits; NOT checked to exist in the tracker);
+#   - tracked_item matches <item_prefix>-NNN (3+ ASCII digits; NOT checked to exist in the tracker);
 #   - authoriser: no leading/trailing whitespace, no `<`/`>`, no character of Unicode general category C (Cc control,
-#     Cf format such as U+200B, Cs surrogate, Co private use, Cn unassigned), and after Unicode NFC + casefold
-#     (locale independent, python3) it equals none of committer name, committer email, author name, author email
-#     (git var GIT_COMMITTER_IDENT / GIT_AUTHOR_IDENT); an unresolvable identity, python3 missing or failing, means
-#     not waived;
+#     Cf format such as U+200B, Cs surrogate, Co private use, Cn unassigned), and it is NOT the producer: under the
+#     Unicode compatibility caseless form k(s) = NFKD(casefold(NFD(s))) followed by the UTS #39 confusable skeleton
+#     (each character mapped to its prototype, then NFD, then k again, repeated until nothing changes; locale
+#     independent, python3) it equals none of committer name, committer email, author name, author email (git var
+#     GIT_COMMITTER_IDENT / GIT_AUTHOR_IDENT). The skeleton map is the vendored table
+#     cm_submodule_pin_not_downgraded_confusables.tsv next to this gate (CM_PIN_CONFUSABLES overrides the path; the
+#     content is sha256-pinned here, so an override cannot change it), generated from the host ICU 78.2 (Unicode
+#     confusables data) by docs/qa/con046_review/r13_runs/tools/gen_confusables.py and checked against ICU's whole-
+#     string skeleton (round 13, operator decision on review r12 R12-2: the strict option). Refused as a self-waive,
+#     so: a compatibility spelling of the producer's name (fullwidth `ｍilos`), a confusable one (dotless `alı`,
+#     Cyrillic or Greek `о`, mixed script, `mi1os`, `rnilos` for `milos`), a canonical caseless match (U+1FBC U+0342 vs
+#     U+1FB7) and every character whose full casefold differs from its lowercase in a way that changes the equality
+#     (163 code points, Unicode 16.0, enumerated by the paired test over the whole code space; fixtures COMPAT13,
+#     FOLD13ALL, FOLD13CLS). An authoriser whose skeleton is empty (only invisible fillers such as U+3164 or
+#     variation selectors: 267 non-C code points) identifies nobody and is refused as malformed. An unresolvable identity, python3 missing or failing, the table missing or not the pinned
+#     one (rc 5), or a skeleton that does not settle in 8 rounds, means not waived. FALSE-REFUSAL RISK (accepted by the
+#     operator): a genuinely different person whose name is a confusable of the producer's (rn/m, 1/l/I, 0/O, Cherokee
+#     or Cyrillic letters that look Latin, `%` vs `o/o`) cannot authorise that producer's waiver; a different name
+#     that is not a confusable (release-mgr, milo for milos, a transliteration such as `Milos Vasic` for `Милош Васић`)
+#     still can (COMPAT13 negative controls);
 #   - a row with a CR (CRLF line ending) is refused and says so;
 #   - a waiver file (index copy or --waivers file) that holds a NUL byte waives nothing (bash would drop the byte
 #     silently and git shows such a file as binary, so the reviewed text is not the read text); a same-parent commit's
@@ -123,6 +139,12 @@
 #   cm_submodule_pin_not_downgraded.sh [--root <repo>] [--base <rev>] [--waivers <file>] [-h]
 #   --root is normalised to the repository top level (so diff.relative and a subdirectory --root cannot hide a path);
 #   --base defaults to HEAD (empty tree when HEAD is unborn). A submodule checkout path that is a symlink is BLIND.
+# Locale (round 13, review r12 N1): the gate exports LC_ALL=C before any check. Bash `=~` bracket ranges and `[[ < ]]`
+# compare by the caller's locale: under en_US.UTF-8 `[0-9]` also matched Arabic-Indic and fullwidth digits and `[A-Z]`
+# matched `É`, so a malformed item id or item prefix was honoured there and refused under C (measured, 6 locales x 3
+# runs). With LC_ALL=C every range, class and compare is ASCII / byte order, and every child (python3, date, git, awk)
+# runs in C; the authoriser check decodes UTF-8 itself, so it is unaffected. The paired test runs the locale cases
+# under C, C.UTF-8 and a UTF-8 locale whose `[0-9]` is wider (LOC13 / HLOC13) and requires one verdict for all three.
 # Exit: 0 PASS · 1 FAIL · 2 BLIND (a usage error also exits 2). Read-only (git plumbing; every git call that reads
 # objects runs with GIT_NO_LAZY_FETCH=1, GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null, so no network, no
 # replace refs and no legacy grafts; `rev-parse --show-toplevel` and `rev-parse --local-env-vars` read no objects and
@@ -136,9 +158,11 @@
 # guard inventory (one row per guard member and site, checked by that test): cm_submodule_pin_not_downgraded_inventory.tsv.
 set -uo pipefail
 shopt -s lastpipe
+export LC_ALL=C
 GATE="CM-SUBMODULE-PIN-NOT-DOWNGRADED"
 self="${BASH_SOURCE[0]:-$0}"
 root="$(cd "$(dirname "$self")/../.." && pwd -P)"; waivers=""; base=""
+conft="${CM_PIN_CONFUSABLES:-$(dirname "$self")/cm_submodule_pin_not_downgraded_confusables.tsv}" # sha256-pinned in IDPY
 need() { [ "$1" -ge 2 ] && [ -n "$2" ] || { echo "$GATE: $3 needs a value" >&2; exit 2; }; } # <argc> <value> <flag>
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -159,7 +183,10 @@ sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT
 pg() { GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null git -C "$root" "$@"; }        # superproject
 headc="$(pg rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null)"
 if [ -z "$base" ]; then
-  basec="$headc"; [ -n "$basec" ] || basec="$(pg hash-object -t tree /dev/null)"
+  # unborn HEAD: the empty tree, spelled as git's built-in constant per object format (no hash-object: read-only)
+  basec="$headc"; [ -n "$basec" ] || case "$(pg rev-parse --show-object-format 2>/dev/null)" in
+    sha1) basec=4b825dc642cb6eb9a060e54bf8d69288fbee4904 ;;
+    sha256) basec=6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321 ;; *) blind0 "HEAD is unborn and the object format is unknown" ;; esac
 else
   basec="$(pg rev-parse -q --verify "$base^{commit}" 2>/dev/null)" || blind0 "--base $base does not resolve to a commit"
 fi
@@ -199,13 +226,29 @@ else wsrc="index :.submodule_pin_waivers"; wtext="$(pg show :.submodule_pin_waiv
 cident="$(pg var GIT_COMMITTER_IDENT 2>/dev/null)"; aident="$(pg var GIT_AUTHOR_IDENT 2>/dev/null)"
 idname() { printf '%s' "${1%% <*}"; }
 idmail() { local m="${1#*<}"; printf '%s' "${m%%>*}"; }
-IDPY='import sys,unicodedata
+IDPY='import sys,unicodedata,hashlib
 def main():
     p=[x.decode("utf-8") for x in sys.stdin.buffer.read().split(b"\0")]
     if len(p)!=5: return 4
     a=p[0]
     if not a or a!=a.strip() or "<" in a or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3
-    f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())
+    try:
+        b=open(sys.argv[1],"rb").read()
+    except OSError:
+        return 5
+    if hashlib.sha256(b).hexdigest()!="e5afc46b542187fb7c2955fb172c14e56798fae316f826ac3c2ddb0e3c9ee74f": return 5
+    T={}
+    for l in b.decode("utf-8").split("\n")[:-1]:
+        x,y=l.split("\t"); T[chr(int(x,16))]="".join(chr(int(z,16)) for z in y.split())
+    k=lambda s: unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())
+    g=lambda s: k(unicodedata.normalize("NFD", "".join(T.get(c,c) for c in unicodedata.normalize("NFD", k(s)))))
+    def f(s):
+        for _ in range(8):
+            t=g(s)
+            if t==s: return t
+            s=t
+        raise ValueError("skeleton did not settle")
+    if not f(a): return 3
     return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0
 try:
     rc=main()
@@ -228,7 +271,7 @@ spent() { # <path> <old> <new> -> 0 spent (SPENT=commit), 1 unspent, 2 cannot te
         $1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}' "$basec" "$hx")"
     else kidsrc=err; fi
   fi
-  [ "$kidsrc" = shallow ] && { SPENT="the superproject is shallow or its shallow state is unknown (a commit on the same parent may be hidden; git fetch --unshallow)"; return 2; }
+  [ "$kidsrc" = shallow ] && { SPENT="the superproject is shallow or its shallow state is unknown (a commit on the same parent may be hidden; run fetch --unshallow in the superproject)"; return 2; }
   [ "$kidsrc" = ok ] || { SPENT="git rev-list --all failed (a broken ref?)"; return 2; }
   for k in $kids; do
     t="$(blob "$k" .submodule_pin_waivers)"; rc=$?
@@ -261,7 +304,7 @@ waived() { # <path> <old_sha> <new_sha> -> 0 when a valid row waives this transi
     [ -z "$mergeh" ] || { WHY="a merge is in progress (MERGE_HEAD ${mergeh:0:12}): a waiver is valid only in a single-parent commit; commit the rollback on its own"; continue; }
     [ -n "$cident" ] && [ -n "$aident" ] || { WHY="committer or author identity unresolvable; cannot check authoriser"; continue; }
     command -v python3 >/dev/null 2>&1 || { WHY="python3 missing; cannot check authoriser"; continue; }
-    printf '%s\0%s\0%s\0%s\0%s' "$a" "$(idname "$cident")" "$(idmail "$cident")" "$(idname "$aident")" "$(idmail "$aident")" | python3 -I -c "$IDPY"; irc=$?
+    printf '%s\0%s\0%s\0%s\0%s' "$a" "$(idname "$cident")" "$(idmail "$cident")" "$(idname "$aident")" "$(idmail "$aident")" | python3 -I -c "$IDPY" "$conft"; irc=$?
     case "$irc" in
       0) spent "$1" "$2" "$3"; case $? in
            1) return 0 ;;
@@ -269,7 +312,8 @@ waived() { # <path> <old_sha> <new_sha> -> 0 when a valid row waives this transi
            *) WHY="$SPENT; cannot prove the row is unspent" ;;
          esac ;;
       10) WHY="authoriser '$a' is the committer or author (producer cannot self-waive)" ;;
-      3) WHY="authoriser '$a' is empty or has surrounding whitespace, <>, or control characters" ;;
+      3) WHY="authoriser '$a' is empty or has surrounding whitespace, <>, control characters, or no visible skeleton" ;;
+      5) WHY="confusables table $conft is missing or is not the pinned one; cannot check authoriser" ;;
       *) WHY="authoriser check failed (python3 rc $irc)" ;;
     esac
   done <<<"$cand"
@@ -285,13 +329,13 @@ while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
   [ "$osha" != "$nsha" ] || continue
   checked=$((checked+1)); sub="$root/$path"; subp="$(cd "$sub" 2>/dev/null && pwd -P)"
   if [ -z "$subp" ] || ! sg -C "$sub" rev-parse --git-dir >/dev/null 2>&1; then
-    blindmsg "$path" "submodule checkout missing or not a repository" "git submodule update --init -- $path"; continue; fi
+    blindmsg "$path" "submodule checkout missing or not a repository" "run submodule update --init -- $path in the superproject"; continue; fi
   if [ "$subp" != "$root/$path" ]; then
-    blindmsg "$path" "checkout path is a symlink (resolves to $subp)" "replace it with a real checkout: git submodule update --init -- $path"; continue; fi
+    blindmsg "$path" "checkout path is a symlink (resolves to $subp)" "replace it with a real checkout: run submodule update --init -- $path in the superproject"; continue; fi
   if [ "$(sg -C "$sub" rev-parse --show-toplevel 2>/dev/null)" != "$subp" ]; then
-    blindmsg "$path" "path is not its own repository (resolves into the parent worktree)" "git submodule update --init -- $path"; continue; fi
+    blindmsg "$path" "path is not its own repository (resolves into the parent worktree)" "run submodule update --init -- $path in the superproject"; continue; fi
   shallow="$(sg -C "$sub" rev-parse --is-shallow-repository 2>/dev/null)"
-  if [ "$shallow" = false ]; then fetchfix="git -C $path fetch (then retry)"; else fetchfix="git -C $path fetch --unshallow (then retry)"; fi
+  if [ "$shallow" = false ]; then fetchfix="run fetch in $path (then retry)"; else fetchfix="run fetch --unshallow in $path (then retry)"; fi
   if ! sg -C "$sub" cat-file -e "${osha}^{commit}" 2>/dev/null; then
     blindmsg "$path" "old pin ${osha:0:7} not in the submodule object store" "$fetchfix"; continue; fi
   if ! sg -C "$sub" cat-file -e "${nsha}^{commit}" 2>/dev/null; then
@@ -301,7 +345,7 @@ while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
   sg -C "$sub" merge-base --is-ancestor "$nsha" "$osha" 2>/dev/null; back=$?
   if [ "$back" = 0 ]; then
     if waived "$path" "$osha" "$nsha"; then echo "$GATE: WAIVED $path ${osha:0:7} -> ${nsha:0:7} (waiver row bound to parent ${basec:0:12} in $wsrc)"
-    else echo "$GATE: FAIL $path — staged pin ${nsha:0:7} is an ANCESTOR of the base pin ${osha:0:7} (downgrade; waiver: $WHY). Advance the submodule checkout to the pin (git submodule update) or stage a valid waiver"; fail=1; fi
+    else echo "$GATE: FAIL $path — staged pin ${nsha:0:7} is an ANCESTOR of the base pin ${osha:0:7} (downgrade; waiver: $WHY). Advance the submodule checkout to the pin (run submodule update) or stage a valid waiver"; fail=1; fi
   elif [ "$fwd" = 1 ] && [ "$back" = 1 ] && [ "$shallow" = false ]; then
     echo "$GATE: WARN $path ${osha:0:7} -> ${nsha:0:7} DIVERGED (neither is an ancestor of the other; old pin's commits may be dropped — review by hand)"
   else

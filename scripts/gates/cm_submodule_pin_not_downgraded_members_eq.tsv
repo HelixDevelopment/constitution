@@ -10,7 +10,7 @@ gen-andor-5d778c1c49	eq-need-argc-redundant	every caller passes "${2:-}": argc <
 gen-rxq-1faaa1a2b7	eq-maxdays-upper-bound-by-le	a 4-digit value is >= 1000 > 365: the -le 365 member refuses it
 gen-strip-99db10f56c	eq-ident-strip-truthiness	i.lstrip() is empty exactly when i.strip() is, for every string (truthiness only; the comparison half is a killed member)
 gen-strip-7144af3e42	eq-ident-strip-truthiness	i.rstrip() is empty exactly when i.strip() is, for every string (truthiness only)
-gen-pybool-6ef1faee03	eq-idpy-strip-and-dropped	a is non-empty and has no control characters; f maps no such a to the empty string, so an empty i never matches
+gen-pybool-6ef1faee03	eq-idpy-strip-and-dropped	a is non-empty and f(a) is non-empty (round 13: an empty-skeleton authoriser is refused first, rc 3), so an empty i never matches
 gen-rxq-774fef6d84	eq-expiry-tail-by-roundtrip	month digits loosened: `date +%Y-%m-%d` prints a two-digit month (GNU and uutils), so `= "$e"` refuses any other width
 gen-rxq-53ad123043	eq-expiry-tail-by-roundtrip	day digits loosened: the round trip prints a two-digit day, so `= "$e"` refuses any other width
 gen-rxq-da7dc34398	eq-expiry-tail-by-roundtrip	$ dropped: the round trip prints nothing after the day, so `= "$e"` refuses any trailing text

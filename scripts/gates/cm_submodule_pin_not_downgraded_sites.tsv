@@ -63,7 +63,10 @@ S053	' "${1%% <*}	${1%% <*}	1	ident	nc,IDDELIM	idname-empty	not constructible: g
 S054	l m="${1#*<}	${1#*<}	1	ident	nc,IDDELIM	idmail-empty	not constructible: one < in a git ident (IDDELIM)
 S055	s' "${m%%>*}	${m%%>*}	1	ident	nc,IDDELIM	idmail-empty	not constructible: one > in a git ident (IDDELIM)
 S056	split(b"\0")	split(b"\0")	1	charset	nc,PYFAIL	idpy-split-wrong	not constructible: a bash argument cannot hold a NUL, so the five NUL-joined fields cannot carry one
-S057	decode("utf-8")	decode("utf-8")	1	charset	AUTHUTF8,PYFAIL	authoriser-crash-uncaught	invalid UTF-8 is a python failure (rc 4), never a match
+S057	x.decode("utf-8")	decode("utf-8")	1	charset	AUTHUTF8,PYFAIL	authoriser-crash-uncaught	invalid UTF-8 is a python failure (rc 4), never a match
+S057b	b.decode("utf-8")	decode("utf-8")	1	charset	nc,CONF13	conf-sha-unchecked	not constructible: the table bytes are sha256-pinned on the line before, so no other bytes reach this decode (the pin is killed by conf-sha-unchecked, CONF13)
+S057c	hashlib.sha256(b).hexdigest()!=	hashlib.sha256(b).hexdigest()!="e5afc46b542187fb7c2955fb172c14e56798fae316f826ac3c2ddb0e3c9ee74f"	1	sha	CONF13	conf-sha-unchecked	round 13 (R12-2): the table content pin; a table one line short is refused (rc 5)
+S057d	if t==s: return t	t==s	1	struct	-	-	round 13 (R12-2): the fixpoint test of the skeleton loop; inventory I070f (skel-fixpoint-one-pass) guards it
 S058	if len(p)!=5	len(p)!=5	1	num	nc	eq-idpy-len-dropped	equivalent: printf always yields five fields (eq-idpy-len-dropped)
 S059	a!=a.strip()	a!=a.strip()	1	ident	WSAUTH,ZSAUTH,AUTHNORM	RV7-04-authoriser-lstrip-only,RV8-02-authoriser-ascii-strip,RV9-10-auth-zs-only-pad	an authoriser padded with ANY isspace() character is refused
 S060	 or "<" in a	"<" in a	1	ident	AUTHLTGT	auth-lt-dropped	an authoriser holding < is refused
@@ -72,7 +75,6 @@ S062	a!=a.strip()	a.strip()	1	ident	WSAUTH,ZSAUTH	RV8-02-authoriser-ascii-strip,
 S063	.startswith("C")	.startswith("C")	1	ident	AUTHCTRL	authoriser-control-chars-allowed	any control / format / unassigned character (category C*) is refused
 S064	if not a or 	not a	1	ident	EMPTYAUTH,NOAUTH	empty-authoriser-allowed	an empty authoriser is refused
 S065	).casefold()	casefold()	1	ident	AUTHNORM	no-casefold-no-nfc,V13-casefold-to-lower	full case folding (Cyrillic, sharp s)
-S066	normalize("NFC", s)	normalize("NFC", s)	1	ident	AUTHNORM	casefold-without-nfc,no-casefold-no-nfc	NFC before and after the fold
 S067	f(i.strip())==f(a)	f(i.strip())==f(a)	1	ident	WSID4,WSID,IDENTONE,SELFAUTH	RV10-05-email-space-strip,ident-names-ascii-strip,RV8-01-ident-compare-unstripped,RV9-11-ident-zs-only-strip,self-authoriser-allowed	F1: ONE normalisation for all FOUR identity fields (names and emails): every isspace() character git keeps is stripped (WSID4)
 S068	ny(i.strip()	i.strip()	1	ident	WSID4,WSID	RV10-05-email-space-strip,ident-names-ascii-strip,RV9-11-ident-zs-only-strip,eq-ident-strip-truthiness	F1: the same strip on every field (the truthiness strip is equivalent, eq-ident-strip-truthiness)
 S069	ny(i.strip()	i.strip()	2	ident	WSID4,WSID	RV10-05-email-space-strip,ident-names-ascii-strip,RV9-11-ident-zs-only-strip,eq-ident-strip-truthiness	F1: the same strip on every field (the truthiness strip is equivalent, eq-ident-strip-truthiness)
@@ -132,6 +134,7 @@ S122	0) WHY="waiv	0	1	rc	I128	-	internal (arm): an exit code, flag or mode value
 S123	*) WHY="$SPE	*	1	rc	I129	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I129
 S124	10) WHY="aut	10	1	rc	I130,I131	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I130,I131
 S125	3) WHY="auth	3	1	rc	I132	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I132
+S125b	5) WHY="conf	5	1	rc	I132b	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I132b
 S126	*) WHY="auth	*	1	rc	I133	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I133
 S127	IFS= read -r -	IFS=	1	charset	PATHWS	pathread-ifs-dropped	the -z path record is read verbatim (a path with surrounding spaces is judged at that path)
 S128	IFS= read -r -	IFS=	2	charset	PATHWS	pathread-ifs-dropped	the -z path record is read verbatim (a path with surrounding spaces is judged at that path)
