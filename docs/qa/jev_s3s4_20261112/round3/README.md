@@ -43,11 +43,10 @@ The S4 RED run used the round-2 `jev-place.sh` (from `git show c2489197:scripts/
 
 ### R2-7, note for the lander
 
-`dc654757` carries `Roadmap-Item: CON-PENDING-JEV-CONSTITUTION`. It is unpushed, so no published history changes, but
-this vehicle does not rewrite it (§11.4.113: no rewrite on this branch). At landing the lander re-commits that commit
-tree-equal (same tree, same parent) with the trailer `Roadmap-Item: CON-299`, and rebuilds the later commits of the
-series on top of it with their trees unchanged, before the first push. Check: `git diff <old> <new>` empty for every
-commit of the series. Every round-3 commit carries `Roadmap-Item: CON-299`.
+`dc654757` carries `Roadmap-Item: CON-PENDING-JEV-CONSTITUTION`. Superseded on 2026-11-15 (round 10, review R9-8):
+no commit of the series is re-committed or rebuilt (§11.4.113, no history rewrite). The trailers stay as written and the
+round-10 mapping note (`docs/qa/jev_s3s4_20261112/round10/README.md`, and CHANGELOG.md) maps `CON-299`,
+`CON-PENDING-JEV` and `CON-PENDING-JEV-CONSTITUTION` to the id minted at landing.
 
 ## Mutants
 

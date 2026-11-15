@@ -42,7 +42,7 @@ hermetic RED run used `JEV_HERMETIC_GATE_UNDER_TEST`.
 | Y7 | KILLED | P36: a cleanup stop that times out (rc 124) keeps the owned set. | P36 |
 | Y11 | KILLED | S9 `echo /x/jev-gate.sh` and the structural matcher. | S9 |
 | nit | FIXED | CHANGELOG round-3 entry: "42 (the reviewer's 20, X1 to X19 and X11b, plus 22 new)". | n/a |
-| R2-7 | OPEN, for the lander | Unchanged from round 3: `dc654757` carries `Roadmap-Item: CON-PENDING-JEV-CONSTITUTION`. Every commit of this vehicle is unpushed, so re-committing it tree-equal with `Roadmap-Item: CON-299` before the first push rewrites no published ref; this vehicle still does not do it. Every round-4 commit carries `Roadmap-Item: CON-299`. | n/a |
+| R2-7 | OPEN, for the lander | Unchanged from round 3: `dc654757` carries `Roadmap-Item: CON-PENDING-JEV-CONSTITUTION`. Superseded on 2026-11-15 (round 10, R9-8): it is not re-committed; the round-10 mapping note maps the placeholder trailers to the minted id (no history rewrite). Every round-4 commit carries `Roadmap-Item: CON-299`. | n/a |
 
 ## Mutants (this round)
 

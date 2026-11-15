@@ -1,0 +1,58 @@
+R9-01	r10	survived	
+CTRL	r10	survived	
+R9-01	r9	killed	FAIL - P112 A refreshed its lease when it recorded the start; an observer at once keeps it (expected [0 1 1700000100] got [0 0 null])
+CTRL	r9	survived	
+R9-02	r10	killed	FAIL - P117 the mark older than MARK_TTL is cleared and the expired lease of the holder it named is reaped in the same reap (expected [null ] got [null hX])
+R9-03	r10	survived	
+R9-03	r9	survived	
+CTRL	r8	survived	
+R9-03	r8	survived	
+CTRL	r7	survived	
+R9-03	r7	survived	
+CTRL	r6	survived	
+R9-03	r6	survived	
+CTRL	pl	survived	
+R9-04	r10	killed	FAIL - P118 decide-b's stop runs at its turn: the stop of decide-b never began
+R9-03	pl	survived	
+R9-05	r10	survived	
+R9-06	r10	survived	
+R9-05	r9	killed	FAIL - P111 a mark from another boot is expired (expected [null] got [{
+R9-06	r9	survived	
+R9-07	r10	survived	
+R9-07	r9	survived	
+R9-06	r8	killed	FAIL - P93a a live starter's mark is kept at MARK_TTL of its own age (process age MARK_TTL + 100 s) (expected [true] got [false])
+R9-08	r10	survived	
+R9-07	r8	survived	
+R9-08	r9	survived	
+R9-07	r7	survived	
+R9-08	r8	survived	
+R9-08	r7	killed	FAIL - P87 decide-b is not started while decide-c is stopping (expected [0 decide-a 0] got [0 decide-a 1])
+R9-09	r10	survived	
+R9-07	r6	survived	
+R9-09	r9	killed	FAIL - P110 the producer's own stopping mark: pid, pid_start (its start time), mono, holder (expected [16 10601653 test:1700000044 sA] got [16 10601653 test:1700000000 sA])
+R9-10	r10	killed	FAIL - P116 the expired lease of hO is reaped; hM, named by the live mark, is kept (expected [hM true] got [hO,hM true])
+R9-11	r10	killed	FAIL - P119 the kept set has health pending and no llmctl-local entry is derived for it (not routed until observed again) (expected [1 pending no] got [1 ok yes])
+R9-12	r10	survived	
+R9-12	r9	survived	
+R9-07	pl	survived	
+R9-13	r10	survived	
+R9-13	r9	survived	
+R9-12	r8	survived	
+R9-13	r8	killed	FAIL - P98 a pid-less lease is alive at its TTL (900 s) (expected [1] got [0])
+M10-01	r10	killed	FAIL - P115a A's failed start keeps B's lease, writes no stopping mark and stops nothing under B (the unit still runs) (expected [5 sB true null 0 decide-a ] got [5  null null 1 ])
+R9-12	r7	survived	
+M10-02	r10	killed	FAIL - P115e the other process's stopping mark is kept and A runs no stop of its own (A's own starting mark is cleared) (expected [5 5341 null 0] got [5 null null 1])
+M10-03	r10	killed	FAIL - P115f the set is SOLE (claim gone, no other lease): the failed start's cleanup stop runs and the set is removed (expected [5 1  {}] got [5 0 decide-a  {
+M10-04	r10	killed	FAIL - P115c A's start returns rc 0 after its own lease was released: not placed for A (no profile printed, exit 5); B keeps the set; nothing stopped (expected [5  sB 0 decide-a ] got [0 decide-a sB 0
+M10-05	r10	killed	FAIL - P115g A does not adopt decide-a as operator-started after its own start of it was refused (expected [5 {}] got [0 {
+M10-06	r10	killed	FAIL - P120 the same mark at wall age 400 s: cleared (before round 10 it was never cleared) (expected [null] got [{
+M10-07	r10	killed	FAIL - P120 a mark with no mono stamped 1000 s in the future: a negative age is expired, not fresh for ever (expected [null] got [{
+M10-08	r10	killed	FAIL - P121 the expired lease of the acquiring holder is reaped before the plan's gateway write (no [reaped dead lease holder=sA profile=decide-a] in /mnt/DATA1TB/claude-work/scratch/jev_r10.uPH6/tmp/
+R9-12	r6	survived	
+M10-09	r10	killed	FAIL - P115a the result is recorded (start_kept, claim gone) and the kept set is not routed until an observation newer than it (expected [gone 1 pending no] got [gone 1 ok yes])
+M10-10	r10	killed	FAIL - P115a A's failed start keeps B's lease, writes no stopping mark and stops nothing under B (the unit still runs) (expected [5 sB true null 0 decide-a ] got [5  true null 0 decide-a ])
+M10-11	r10	killed	FAIL - P115e the other process's stopping mark is kept and A runs no stop of its own (A's own starting mark is cleared) (expected [5 5318 null 0] got [5 null null 0])
+M10-12	r10	killed	FAIL - P115c A's start returns rc 0 after its own lease was released: not placed for A (no profile printed, exit 5); B keeps the set; nothing stopped (expected [5  sB 0 decide-a ] got [0 decide-a sB 0
+M10-13	r10	killed	FAIL - P115a A's failed start keeps B's lease, writes no stopping mark and stops nothing under B (the unit still runs) (expected [5 sB true null 0 decide-a ] got [5  null null 2 ])
+M10-14	r10	killed	FAIL - P115a A's failed start keeps B's lease, writes no stopping mark and stops nothing under B (the unit still runs) (expected [5 sB true null 0 decide-a ] got [5 sB false null 0 decide-a ])
+R9-12	pl	killed	FAIL - P24 the lease records the holder's process start time (expected [number] got [null])

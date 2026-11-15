@@ -1,5 +1,14 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-15 — Jev S3/S4 round 10 (CON-PENDING-JEV, structural): fixes for the independent review of `911c5b9a` (NO-GO, R9-1 to R9-9); gate-logic evidence only, PROVISIONAL
+
+- R9-1 (host safety): `finish_start_locked` wrote the lease set from a start result with no ownership check, so a lease another session took while the start ran was dropped and a model could be orphaned. One rule now covers every result: `set_view` reads the claim on the writer's mark (pid AND pid start time), the other holders' leases and the other mark, and `rule_sole` lets a result delete or replace a set, or write a mark on it, only when the claim is ours or gone and nobody else holds or marks it; otherwise only this acquire's own lease is dropped and the set is kept, `pending`, for its holders. `finish_stop_locked` uses the same helper. New results `handed` and `failed_kept`; an acquire never re-adopts a set it tried to start. Census of every result-writing site: `docs/qa/jev_s3s4_20261112/round10/census.md`.
+- R9-2 to R9-5: the reviewer survivors R9-10, R9-11, R9-04 and R9-02 are killed (P116, P119, P118, P117) and kept as permanent mutants. R9-6: `age_of` no longer gives a negative age (a monotonic time ahead of the reader falls through to wall time; a future wall `at` is expired), P120. R9-7: `plan_locked` reaps before the gateway write, P121.
+- R9-8: the round-3 and round-4 entries no longer advise re-committing a commit to change its trailer; a mapping note replaces it (the placeholder trailers `CON-PENDING-JEV-CONSTITUTION`, `CON-299` and `CON-PENDING-JEV` on this vehicle map to the Jev item minted at landing; no history is rewritten). R9-9: `Constitution.md` Last modified equals the commit time.
+- The §11.4.291 refinement sentence (Constitution.md and `groups/host-and-resource-safety.md`, byte-equal) now names the result of a start or a stop and the limits of the round-9 and round-10 censuses; `constitution_index.yaml` regenerated.
+- New suite `tests/jev/test_s4_round10.sh` (P115 to P123): RED 18 failures on `911c5b9a`; GREEN 50 / 0 ×3 (identical normalised verdicts), 52 / 0 with P123. Regression on the round-10 producer: round 9 70 / 0, round 8 47 / 0, round 7 157 / 0, round 6 183 / 0, placement 266 / 0.
+- Mutants: 28 (CTRL, R9-01 to R9-13, M10-01 to M10-14): 26 killed, R9-03 equivalent, CTRL survives (`docs/qa/jev_s3s4_20261112/round10/mutants.md`).
+
 ## Unreleased — 2026-11-15 — Jev S3/S4 round 9 (CON-PENDING-JEV, structural): fixes for the independent review of `3bd53782` (NO-GO, R8-1 to R8-8); gate-logic evidence only, PROVISIONAL
 
 - R8-1 (host safety, the class of R7-A in a second place): a stopping mark written when the stops were planned covered several stops run one after another, so a later set's mark aged through the earlier stops and an observer could clear a LIVE stopper's mark. `scripts/jev/jev-place.sh` now writes each mark under the lock immediately before the one bounded `llmctl` call it covers (`stop_turn` / `arm_stop_locked`, the set judged again at its own turn; a stop no longer owed is not run and the reason is logged); `plan_locked` and `release_locked` only list the stops.
@@ -70,7 +79,7 @@
 - Nit: the round-3 entry's mutant count reads "the reviewer's 20, X1 to X19 and X11b, plus 22 new" (19 plus 22 was 41, not 42).
 - Mutants of this round: 20 (Y2, Y7, Y11 and Z1 to Z16c), 18 KILLED, 2 EQUIVALENT (Z3, Z16, justified), 0 SURVIVED. Evidence: `docs/qa/jev_s3s4_20261112/round4/`. All gate-logic class (stub llmctl and curl, §11.4.289(C)(2)); nothing live was captured.
 - Final checks: `tests/jev/run_all.sh` ran 34, failed 0 (rc 0, on 7c7ec0c); `test_gate_pairs.sh` PASS with no keys and with fake keys; the four Jev gate mutation tests PASS; `--verify-manifest` MANIFEST-OK (909 rows); gate ledger ratchet PASS (394/394).
-- R2-7 is still left to the lander: `dc654757` carries the placeholder trailer `CON-PENDING-JEV-CONSTITUTION`. All vehicle commits are unpushed, so re-committing it tree-equal with `Roadmap-Item: CON-299` before the first push rewrites no published ref; this vehicle does not do it. Every round-4 commit carries `Roadmap-Item: CON-299`.
+- R2-7 is still left to the lander: `dc654757` carries the placeholder trailer `CON-PENDING-JEV-CONSTITUTION`. It is not re-committed: its trailer stays as written, and the mapping note of round 10 (below) maps the placeholder trailers to the minted id. No history is rewritten. Every round-4 commit carries `Roadmap-Item: CON-299`.
 
 ## Unreleased — 2026-11-12 — CON-299 Jev S3/S4 round 3: fixes for the independent review of `c2489197` (NO-GO, R2-1 to R2-7, nits, surviving mutants X1, X6, X7, X16, X19)
 
@@ -81,7 +90,7 @@
 - R2-5 `lib_decide.sh` `jev_settings_wired`: wired only when the PreToolUse command word has basename exactly `jev-gate.sh`. Test S8.
 - R2-6: P29 (start time is `/proc` stat field 22, independent oracle), P30 (zombie holder reaped), S8 (X16), `tests/jev/test_run_all_leak_detector.sh` (X19, with a blinded control).
 - Nits: `write_placement` refuses an `event` outside its closed set (P32, P32b); a stop mark without a pid is cleared only by age (P31); `t4_gate.sh` SC2164 (edited after capture, noted in the pack).
-- R2-7 is left to the lander: `dc654757` carries a placeholder trailer and must be re-committed tree-equal with `Roadmap-Item: CON-299` before the first push; this vehicle does not rewrite history.
+- R2-7 is left to the lander: `dc654757` carries a placeholder trailer; it is not re-committed, and the round-10 mapping note maps the placeholder trailers to the minted id (no history rewrite).
 - Mutants: 42 (the reviewer's 20, X1 to X19 and X11b, plus 22 new), 41 killed, 1 equivalent (N4, justified). Evidence: `docs/qa/jev_s3s4_20261112/round3/`. All gate-logic class (stub llmctl and curl, §11.4.289(C)(2)); nothing live was re-captured.
 
 ## Unreleased — 2026-11-12 — CON-299 Jev S3/S4 round 2: fixes for the independent review of `dc654757` (NO-GO, F1 to F8 and the surviving mutants RM5, RM11, RM12, RM15)

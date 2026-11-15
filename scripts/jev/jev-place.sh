@@ -49,6 +49,21 @@
 #   JEV_TRACE_FILE (ONLY with JEV_TEST=1: a trace of every bounded llmctl call and every registry write, read by the
 #   gate-logic census tests/jev/fixtures/mark_census.py).
 #
+# Round 10 (structural, review of 911c5b9a: R9-1 to R9-7; census docs/qa/jev_s3s4_20261112/round10/census.md):
+# * ONE OWNERSHIP RULE FOR EVERY RESULT RECORD (R9-1). A start's result (finish_start_locked) and a stop's result
+#   (finish_stop_locked) are recorded through ONE reader, set_view, and ONE rule, rule_sole: a result deletes or replaces a
+#   set, or writes a new mark on it, only when the set is SOLE (the mark that covered the call is ours, pid AND pid_start,
+#   or gone; no other holder has a lease; no other mark is set). Otherwise only this process's own part changes: its
+#   own lease is dropped, its own mark cleared, a foreign mark never touched, and the set is kept for its holders (health
+#   pending; a gone unit then releases them as endpoint_gone, announced). Before round 10 a failed start replaced the set
+#   with leases:[] and a refused start deleted it, so a session that joined after the starter's mark was cleared (a
+#   live starter older than MARK_TTL: SIGSTOP, a host suspend) lost its lease without notice, and the model was stopped
+#   under it or re-adopted as operator-started. A profile an acquire tried to start is never adopted by that acquire as
+#   operator-started. A start whose own lease was released while others hold the set is `handed` to them (not stopped,
+#   not placed for this holder).
+# * The plan reaps before its gateway write (R9-7); an age whose monotonic time is ahead of the reader is judged on wall
+#   time, and a negative wall age is expired (R9-6).
+#
 # Round 9 (structural, review of 3bd53782: R8-1 to R8-6; census docs/qa/jev_s3s4_20261112/round9/census.md):
 # * ONE MARK, ONE BOUNDED CALL (R8-1). A `stopping` mark is written by stop_turn -> arm_stop_locked under the lock
 #   IMMEDIATELY before the one `llmctl stop` it covers, never at planning time. plan_locked and release_locked only LIST
@@ -56,7 +71,7 @@
 #   lease, carry no mark; a disposal must still be recorded degraded or absent; an owed stop must still carry its failed
 #   start or owed stop). A set joined, stopped, marked or observed ok meanwhile is not stopped ("not run at its turn").
 #   So MARK_TTL, which bounds ONE bounded call plus its record waits, bounds every mark a live process holds.
-# * A STOP NEVER DELETES A LEASED SET (R8-2). finish_stop_locked deletes a set on stop rc 0 only when it holds no lease
+# * A STOP NEVER DELETES A LEASED SET (R8-2; round 10 extends the rule to every result record, see above). finish_stop_locked deletes a set on stop rc 0 only when it holds no lease
 #   and its mark is ours (pid AND pid_start) or gone. Otherwise the set is KEPT with stopped_while_held {at, mono, leases,
 #   kind} and health `pending` at the current observation counter; the next observation that sees the unit absent
 #   releases every lease as endpoint_gone (announced, §11.4.291(J)(6)). Another stopper's mark is never cleared.
@@ -244,9 +259,13 @@ age_of() {
   if [ -n "$MONO_TOK" ] && [ -n "$mo" ] && [ "$mo" != null ]; then
     b="${mo%%:*}"; t="${mo##*:}"
     case "$t" in ''|*[!0-9]*) echo "$AGE_EXPIRED"; return 0 ;; esac
-    if [ "$b" = "$MONO_BOOT" ]; then echo $(( MONO_T - t )); else echo "$AGE_EXPIRED"; fi
-    return 0
+    if [ "$b" != "$MONO_BOOT" ]; then echo "$AGE_EXPIRED"; return 0; fi
+    # round 10 (R9-6): a record whose monotonic time is AHEAD of the reader (a corrupted file; containers that share the
+    # state dir and the boot id but read a virtualised /proc/uptime) has no usable monotonic age: it is judged on wall
+    # time instead, and a wall age that is negative too is expired (never "fresh for ever")
+    if [ "$t" -le "$MONO_T" ]; then echo $(( MONO_T - t )); return 0; fi
   fi
+  if [ "$at" -gt "$NOW" ]; then echo "$AGE_EXPIRED"; return 0; fi
   echo $(( NOW - at ))
 }
 clock_refresh
@@ -730,21 +749,53 @@ cmd_verdict() {
 #                         retries; a later acquire judges the lease-less set like any other);
 #              dispose -> stopping cleared, stop_owed {at, reason}: never joined, retried by every acquire and release;
 #              owed / cleanup -> stopping cleared, the start_failed / stop_owed record stays: never joined, retried.
+# ---- THE one ownership rule for a result record (round 10, review of 911c5b9a, R9-1) ------------------------------------
+# A result record (finish_start_locked after `llmctl start`, finish_stop_locked after `llmctl stop`) is written against
+# the set as it is NOW, under the lock, after a bounded call that ran WITHOUT the lock. While the call ran, the mark that
+# covered it may have been cleared (a live marker older than MARK_TTL: SIGSTOP, a host suspend, an overloaded host) and
+# another session may have joined the set, marked it, or the set may have been dropped. set_view is the ONE place that
+# reads that state; every result site decides from its fields and from nothing else:
+#   set_view <json> <profile> <mark starting|stopping> <own holder|""> -> "<claim> <others> <mine> <othermark>"
+#     claim     noset | ours (the mark names this process: pid AND pid_start) | gone (the mark is null) | foreign
+#     others    leases held by holders other than <own holder> (every lease when <own holder> is empty)
+#     mine      1 when <own holder> holds a lease in the set, else 0
+#     othermark 1 when the OTHER mark (stopping for a start, starting for a stop) is set, else 0
+# THE RULE (rule_sole): a result may DELETE or REPLACE a set, or write a new mark on it, only when the set is SOLE: its
+# claim is ours or gone, no other holder has a lease (others 0) and no other mark is set (othermark 0). Otherwise the
+# result changes only what is this process's own: it drops this acquire's own lease (start), clears its mark only when
+# the claim is ours, never clears or overwrites another process's mark, keeps the set, and when other leases remain sets
+# health `pending` at the current observation counter (the set is routed again only after an observation newer than this
+# result; a unit that is gone then releases every lease as endpoint_gone, announced, §11.4.291(J)(6)). A set this
+# producer started is never handed over as constitution_started:false.
+set_view() {
+  jq -r --arg p "$2" --arg m "$3" --arg h "$4" --arg pid "$$" --arg pst "$ME_START" '(.sets[$p] // null) as $s
+    | if $s == null then "noset 0 0 0"
+      else ($s[$m] // null) as $k
+      | (if $m == "starting" then "stopping" else "starting" end) as $o
+      | (if $k == null then "gone"
+         elif (($k.pid // null) | tostring) == $pid and ((($k.pid_start // null) | tostring) == (if $pst == "" then "null" else $pst end)) then "ours"
+         else "foreign" end) as $c
+      | "\($c) \([($s.leases // [])[] | select($h == "" or .holder != $h)] | length) \(if $h != "" and any(($s.leases // [])[]; .holder == $h) then 1 else 0 end) \(if ($s[$o] // null) != null then 1 else 0 end)"
+      end' <<<"$1"
+}
+# rule_sole <claim> <others> <othermark> -> 0 when the set is SOLE (see THE RULE above)
+rule_sole() { case "$1" in ours|gone) ;; *) return 1 ;; esac; [ "$2" = 0 ] && [ "$3" = 0 ]; }
 finish_stop_locked() {
-  local p="$1" rc="$2" kind="$3" cur ours leased floor
+  local p="$1" rc="$2" kind="$3" cur ours leased floor claim others mine omark
   cur="$(leases_load)"
-  # round 9 (R8-1, R8-2): the result is recorded against the set as it is NOW. The `stopping` mark counts as ours only
-  # when it names this process (pid AND start time); a mark cleared meanwhile (this stop outlived MARK_TTL) or taken by
-  # another stopper is never cleared or overwritten here.
-  ours="$(jq -r --arg p "$p" --arg pid "$$" --arg pst "$ME_START" '(.sets[$p].stopping // null) as $m
-      | $m != null and (($m.pid // null) | tostring) == $pid and ((($m.pid_start // null) | tostring) == (if $pst == "" then "null" else $pst end))' <<<"$cur")"
-  leased="$(jq -r --arg p "$p" '(.sets[$p].leases // []) | length' <<<"$cur")"
+  # round 9 (R8-1, R8-2), round 10 (R9-1: the same rule as finish_start_locked, through set_view): the result is recorded
+  # against the set as it is NOW. The `stopping` mark counts as ours only when it names this process (pid AND start
+  # time); a mark cleared meanwhile (this stop outlived MARK_TTL) or taken by another stopper is never cleared or
+  # overwritten here. Every lease counts (a stopper holds no lease of the set it stops).
+  read -r claim others mine omark <<<"$(set_view "$cur" "$p" stopping "")"
+  ours=false; [ "$claim" != ours ] || ours=true
+  leased="$others"
   if [ "$rc" = 0 ]; then
-    if [ "$(jq -r --arg p "$p" '.sets[$p] == null' <<<"$cur")" = true ]; then
+    if [ "$claim" = noset ]; then
       write_placement "$p" "" "llmctl stop $p rc=0 ($kind); the set was already gone from the registry" "$(current_route)" false 0 stopped
       return 0
     fi
-    if [ "$leased" = 0 ] && { [ "$ours" = true ] || [ "$(jq -r --arg p "$p" '(.sets[$p].stopping // null) == null' <<<"$cur")" = true ]; }; then
+    if rule_sole "$claim" "$others" "$omark"; then
       cur="$(jq -c --arg p "$p" 'del(.sets[$p])' <<<"$cur")"
       printf '%s\n' "$cur" | leases_save
       write_placement "$p" "" "llmctl stop $p rc=0 ($kind)" "$(current_route)" false 0 stopped
@@ -764,7 +815,7 @@ finish_stop_locked() {
     write_placement "$p" "" "llmctl stop $p rc=0 ($kind) while the set held $leased lease(s) or another stopper's mark; set kept, not routed until observed again" "$(current_route)" true 0 stopped
     return 0
   fi
-  if [ "$(jq -r --arg p "$p" '.sets[$p] == null' <<<"$cur")" = true ]; then
+  if [ "$claim" = noset ]; then
     write_placement "$p" "" "llmctl stop $p rc=$rc ($kind; failed or timed out); the set was gone from the registry" "$(current_route)" true 0 stop_failed
     return 0
   fi
@@ -855,18 +906,20 @@ plan_locked() {
   if [ -n "$g0" ] && [ "$(leases_token)" != "$g0" ]; then return 99; fi
   PLAN_STOPS=""; START_CANDS=""; F_RC=5; F_OUT=""; F_P=""; F_V="does_not_fit"; F_R="no candidate profile fits"; F_ST=false; F_TH=0; F_EV=no_fit; F_CODE=""
   pst="$(lease_obj_args "$pid")"
+  # the reap is a registry write too: a dead holder dropped or a mark cleared after the capacity read makes the answer
+  # stale (a cleared mark sets a floor this answer cannot pass, NF-3), so the answer is read again (rc 99) rather than
+  # used; with <nostart> 1 (no start can follow) the plan goes on and judges by recorded health only.
+  # Round 10 (R9-7): the reap runs BEFORE any other registry write of this plan. Every write of an acquire refreshes the
+  # acquiring holder's heartbeat (ACQ_REFRESH), so a write before the reap revived that holder's already-expired lease.
+  jp="$(leases_token)"
+  reap_locked
+  if [ -n "$g0" ] && [ "$(leases_token)" != "$jp" ]; then log "the reap changed the registry after the capacity read; reading it again"; return 99; fi
   # the https gateway read before the lock is part of the registry: the derived cache uses it. Written only when it
   # changed: every write is a new generation, and a write that changes nothing would make a concurrent acquire's answer
   # stale for no reason (round 7)
   cur="$(leases_load)"; jp="$cur"
   cur="$(jq -c --arg u "$GW_URL" --arg ca "$GW_CA" --arg src "$GW_SRC" '.gateway = {url:$u, ca:$ca, source:$src}' <<<"$cur")"
   [ "$cur" = "$jp" ] || printf '%s\n' "$cur" | leases_save
-  # the reap is a registry write too: a dead holder dropped or a mark cleared after the capacity read makes the answer
-  # stale (a cleared mark sets a floor this answer cannot pass, NF-3), so the answer is read again (rc 99) rather than
-  # used; with <nostart> 1 (no start can follow) the plan goes on and judges by recorded health only
-  jp="$(leases_token)"
-  reap_locked
-  if [ -n "$g0" ] && [ "$(leases_token)" != "$jp" ]; then log "the reap changed the registry after the capacity read; reading it again"; return 99; fi
   finalize_locked 0 0
   cur="$(leases_load)"
   # marks set by OTHER processes before this plan (our own marks below are added after this read)
@@ -946,6 +999,8 @@ plan_locked() {
   while IFS= read -r p; do
     [ -n "$p" ] || continue
     jq -e --arg p "$p" '.sets[$p] != null' <<<"$cur" >/dev/null && continue
+    # round 10 (R9-1): a profile this acquire tried to start is never adopted by it as operator-started
+    case " $START_TRIED " in *" $p "*) log "candidate $p: this acquire tried to start it; it is not adopted as operator-started"; continue ;; esac
     IFS="$US" read -r st v th r <<<"$(inst_state "$p")"
     [ "$st" = ok ] || continue
     cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$holder" "$pid" "$pst" "$ttl" false)" \
@@ -1003,31 +1058,63 @@ mark_start_locked() {
     '.sets[$p] = {constitution_started:true, started_at:null, stopping:null, starting:$m, leases:[$l]}' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
 }
-# finish_start_locked <profile> <start-rc> -> sets START_RES placed | released | refused | failed (and marks `stopping`
-# for released / failed: the caller then runs do_stop <profile> release|cleanup)
+# finish_start_locked <profile> <start-rc> -> sets START_RES (caller holds the lock). Round 10 (R9-1): every branch goes
+# through set_view and THE RULE (above); a set is deleted, replaced or newly marked only when it is SOLE.
+#   placed    rc 0, this acquire's lease is still in the set: the set is a held set (pending until observed)
+#   released  rc 0, no lease left and the set is SOLE: marked `stopping` by this process; the caller runs do_stop release
+#   handed    rc 0, this acquire's lease is gone but other holders hold the set (or another process marks it): kept for
+#             them, never stopped by this acquire; it is not placed for this holder
+#   refused   rc 75 (no partial start): a SOLE set is removed; otherwise only this acquire's own lease is dropped and the
+#             set is kept (constitution-started: never re-adopted as operator-started)
+#   failed    rc other, SOLE: start_failed + a `stopping` mark by this process; the caller runs do_stop cleanup
+#   failed_kept rc other, not SOLE: this acquire's lease dropped, the set kept for the others (health pending,
+#             start_failed_while_held recorded), no cleanup stop by this acquire (the last release of the set stops it)
 finish_start_locked() {
-  local p="$1" src="$2" cur leased floor
+  local p="$1" src="$2" cur floor claim others mine omark
   cur="$(leases_load)"
-  leased="$(jq -r --arg p "$p" '(.sets[$p].leases // []) | length' <<<"$cur")"
-  if [ "$src" = 0 ]; then
-    if [ "$leased" = 0 ]; then
-      cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson m "$(me_mark)" '.sets[$p] = ((.sets[$p] // {constitution_started:true, leases:[]}) + {started_at:$now, starting:null, stopping:$m})' <<<"$cur")"
-      START_RES=released
-    else
-      # floor: an observation whose ticket was taken before this point read the capacity before the start, so it never
-      # judges the started set (an absent unit there would otherwise be read as endpoint_gone)
-      floor="$(obs_counter)"
-      cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson f "$floor" \
-        '.sets[$p].starting = null | .sets[$p].started_at = $now | .sets[$p].health = {state:"pending", reason:"started; not observed yet", seq:$f, at:$now} | .route_pref = $p' <<<"$cur")"
-      START_RES=placed
-    fi
-  elif [ "$src" = 75 ]; then
-    cur="$(jq -c --arg p "$p" 'del(.sets[$p])' <<<"$cur")"
-    START_RES=refused
+  read -r claim others mine omark <<<"$(set_view "$cur" "$p" starting "$HOLDER")"
+  floor="$(obs_counter)"
+  if [ "$src" = 0 ] && [ "$claim" != noset ] && [ "$mine" = 1 ]; then
+    # floor: an observation whose ticket was taken before this point read the capacity before the start, so it never
+    # judges the started set (an absent unit there would otherwise be read as endpoint_gone)
+    cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson f "$floor" --arg c "$claim" \
+      '(if $c == "ours" then .sets[$p].starting = null else . end) | .sets[$p].started_at = $now | .sets[$p].health = {state:"pending", reason:"started; not observed yet", seq:$f, at:$now} | .route_pref = $p' <<<"$cur")"
+    START_RES=placed
+  elif [ "$claim" = noset ]; then
+    # the set is gone (dropped meanwhile): nobody holds or marks it. 75 started nothing; otherwise the unit may be up and
+    # this producer started it, so it is recorded as ours (constitution-started) and stopped by this process
+    case "$src" in
+      75) START_RES=refused ;;
+      0)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson m "$(me_mark)" '.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[]}' <<<"$cur")"
+          START_RES=released ;;
+      *)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson src "$src" --argjson m "$(me_mark)" \
+            '.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[], start_failed:{at:$now, rc:$src}}' <<<"$cur")"
+          START_RES=failed ;;
+    esac
+  elif rule_sole "$claim" "$others" "$omark"; then
+    # SOLE: no other holder, no other mark; this acquire's own lease (if any) is dropped with the set's new state
+    case "$src" in
+      0)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson m "$(me_mark)" --arg h "$HOLDER" \
+            '.sets[$p] = (.sets[$p] + {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[(.sets[$p].leases // [])[] | select(.holder != $h)]})' <<<"$cur")"
+          START_RES=released ;;
+      75) cur="$(jq -c --arg p "$p" 'del(.sets[$p])' <<<"$cur")"
+          START_RES=refused ;;
+      *)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson src "$src" --argjson m "$(me_mark)" --arg h "$HOLDER" \
+            '.sets[$p] = (.sets[$p] + {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[(.sets[$p].leases // [])[] | select(.holder != $h)], start_failed:{at:$now, rc:$src}})' <<<"$cur")"
+          START_RES=failed ;;
+    esac
   else
-    cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson src "$src" --argjson m "$(me_mark)" \
-      '.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[], start_failed:{at:$now, rc:$src}}' <<<"$cur")"
-    START_RES=failed
+    # NOT SOLE (R9-1): another holder joined after this process's mark was cleared, or another process marks the set.
+    # Only what is ours changes: this acquire's lease is dropped, our mark is cleared only when it is ours, a foreign mark
+    # is never touched, the set stays constitution-started and is kept for its holders
+    log "the result of llmctl start $p (rc $src) found the set held by $others other lease(s)$( [ "$omark" = 1 ] && printf ' and marked by another process' ) (claim $claim): only this acquire's own lease is dropped; the set is kept for them and is not stopped by this acquire"
+    cur="$(jq -c --arg p "$p" --argjson now "$NOW" --arg mo "$MONO_TOK" --argjson f "$floor" --arg c "$claim" --arg h "$HOLDER" --argjson src "$src" --argjson n "$others" \
+      '(if $c == "ours" then .sets[$p].starting = null else . end)
+       | .sets[$p].constitution_started = true
+       | .sets[$p].leases = [(.sets[$p].leases // [])[] | select(.holder != $h)]
+       | .sets[$p].start_kept = {at:$now, mono:(if $mo=="" then null else $mo end), rc:$src, leases:$n, claim:$c}
+       | (if $n > 0 then .sets[$p].health = {state:"pending", reason:"llmctl start rc \($src) recorded while \($n) other lease(s) held the set; not observed since", seq:$f, at:$now} else . end)' <<<"$cur")"
+    case "$src" in 0) START_RES=handed ;; 75) START_RES=refused ;; *) START_RES=failed_kept ;; esac
   fi
   printf '%s\n' "$cur" | leases_save
 }
@@ -1166,6 +1253,10 @@ cmd_acquire() {
             log "started $p but its lease was released during the start; stopping it again; no further candidate is started"
             do_stop "$p" release || true
             break ;;
+          handed)
+            # round 10 (R9-1): started, but this acquire's lease is gone and other holders hold the set: kept for them
+            log "started $p but its lease was released during the start and the set is held by other sessions: kept for them, not stopped and not placed for $holder; no further candidate is started"
+            break ;;
           refused)
             log "llmctl start $p refused (75): does_not_fit"
             START_TRIED+=" $p"
@@ -1186,6 +1277,13 @@ cmd_acquire() {
               break
             fi
             if [ "$n" = 0 ]; then replan=1; break; fi ;;
+          failed_kept)
+            # round 10 (R9-1): the start failed, but other sessions hold the set (they joined after this process's mark
+            # was cleared): their leases are kept, the set is judged by the next observation, no cleanup stop here
+            log "llmctl start $p failed rc=$src: $(head -c 300 "$WORK/start.out.err" 2>/dev/null | tr '\n' ' ')"
+            START_TRIED+=" $p"
+            out_v="$v"; out_ev="start_failed"; out_r="llmctl start $p failed rc=$src; the set is held by other sessions and kept for them (no cleanup stop by this acquire)"; out_p="$p"; out_th="$th"
+            break ;;
         esac
       done <<<"$START_CANDS"
     fi

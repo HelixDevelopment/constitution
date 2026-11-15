@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-15T11:43:50Z |
+| Last modified | 2026-11-15T17:19:38Z |
 | Status | active |
 | Status summary | Symptom, cause, action, and the command that shows which it is. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -109,6 +109,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 | `acquire` / `release` logs `stop of <p> (<kind>) not run at its turn: <reason>` | Between planning the stop and its own turn the set changed: another session joined it, another process marked or started it, a disposal candidate was observed `ok` again, or it is gone | Round 9: each set is marked and judged again immediately before its own `llmctl stop`. Nothing to do; `release` exits 0 for it. The set is judged again by the next acquire or release. |
 | `llmctl stop <p> rc=0 ..., but the set holds N lease(s) or another stopper's mark: the set is KEPT` | A lease or another stopper's mark appeared on the set while its stop ran (an older constitution pin writing the shared registry, or a crafted state) | Round 9 (R8-2): the set is never deleted with a lease; `stopped_while_held` is recorded and the set is not routed until an observation newer than the stop. If the unit is gone, that observation releases every lease as `endpoint_gone`; the sessions get exit 3 from `heartbeat` and acquire again. |
 | Exit 2: `the monotonic clock could not be read (JEV_MONO_FILE ...)` | A test run (`JEV_TEST=1`) set `JEV_MONO_FILE` to an unreadable file or a non-number | A config error of the test seam; never seen outside `JEV_TEST=1`. Without `/proc` the producer judges ages on wall time and says so in its header. |
+| `acquire` logs `the result of llmctl start <p> (rc N) found the set held by M other lease(s) ...: only this acquire's own lease is dropped` | Another session joined the set while this acquire's start ran (its starting mark was cleared as older than `MARK_TTL`, for example after SIGSTOP or a host suspend), or another process marks the set | Round 10 (R9-1): the set is kept for its holders, `start_kept {rc, leases, claim}` is recorded and health is `pending`; nothing is stopped under the other holders and the set stays constitution-started, so their last release stops the model. The acquire exits 5 (rc 0: not placed for this holder; other rc: `start_failed`). Show it: `jq '.sets["<p>"].start_kept' "$JEV_STATE_DIR/leases.json"`. |
 | `heartbeat` exits 3 | The holder holds no lease (released, reaped, released because its endpoint is gone, or never taken) | A lease is never assumed: route locally only after a new `acquire`. |
 | `acquire` exits 2: `lease TTL ... is not greater than the re-evaluation cadence` | `--ttl` (or `JEV_LEASE_TTL`) is not greater than `JEV_REEVAL_CADENCE` (default 300 s) + `JEV_LLMCTL_TIMEOUT` (default 20 s) | A config error (§11.4.291(J)(1)): raise the TTL or lower the cadence. |
 | `acquire` exits 5 with event `gateway_refused` | The gateway URL (from `LLMCTL_GATEWAY_URL`, the llmctl registry, or the default) is not `https://` or is malformed | Only `https://` is registered: the key `LLMCTL_API_KEY` never goes over plain HTTP. When no gateway is listed, or `llmctl decide status` fails, the default `https://127.0.0.1:8095` is applied and logged. |
