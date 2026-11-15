@@ -29,7 +29,12 @@ other lease and no other mark. Otherwise only what is the writer's own changes: 
 cleared when it is still ours, a foreign mark is never touched, and the set is kept (constitution-started) for its
 holders, with health `pending` so it is not routed until an observation newer than the result.
 
-## Enumeration (control needle: the grep for `leases_save` returns 19 call sites; every function below holds one)
+## Enumeration (control needle: the grep for `leases_save` returns 19 lines; every function below holds a call site)
+
+Correction at round 11 (review finding N-1): the 19 lines are not 19 call sites. Measured on the round-10 file with
+`tests/jev/fixtures/write_census.py` (and cross-checked with `grep -c '| leases_save'`): 15 call sites, 1 definition
+(`leases_save() {`) and 3 comment lines (`../round11/census_r10.txt`). The round-10 review counted 17 call sites, 1
+definition and 1 comment; that count does not match either instrument, so it is recorded here as not confirmed.
 
 Found with `grep -n '^[a-z_]*() {' scripts/jev/jev-place.sh` and `grep -n leases_save`, read line by line.
 

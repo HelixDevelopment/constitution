@@ -781,8 +781,8 @@ set_view() {
 # rule_sole <claim> <others> <othermark> -> 0 when the set is SOLE (see THE RULE above)
 rule_sole() { case "$1" in ours|gone) ;; *) return 1 ;; esac; [ "$2" = 0 ] && [ "$3" = 0 ]; }
 finish_stop_locked() {
-  local p="$1" rc="$2" kind="$3" cur ours leased floor claim others mine omark
-  cur="$(leases_load)"
+  local p="$1" rc="$2" kind="$3" cur ours leased floor claim others mine omark after am
+  cur="$(leases_load)"; STOP_RES=""
   # round 9 (R8-1, R8-2), round 10 (R9-1: the same rule as finish_start_locked, through set_view): the result is recorded
   # against the set as it is NOW. The `stopping` mark counts as ours only when it names this process (pid AND start
   # time); a mark cleared meanwhile (this stop outlived MARK_TTL) or taken by another stopper is never cleared or
@@ -790,6 +790,33 @@ finish_stop_locked() {
   read -r claim others mine omark <<<"$(set_view "$cur" "$p" stopping "")"
   ours=false; [ "$claim" != ours ] || ours=true
   leased="$others"
+  # round 11 (R10-1): a start result recorded AFTER this stop was armed (start_kept.seen_stopping is the very mark this
+  # process wrote; a pid+start-time match when this process wrote no mark of its own) may have brought the unit up again
+  # after, or while, this stop ran (llmctl may order the two calls either way). Such a set is never SOLE for this result:
+  # it is kept constitution-started with stop_owed, and the stop is retried (do_stop, once) or run by the next acquire.
+  # rc 75 started nothing and does not count. The record is answered once: seen_stopping moves to answered_stop, so the
+  # retried stop (its mark may be byte-equal: same process, same clock reading) is judged on the set as it is then.
+  am="${ARMED_MARK[$p]:-}"; [ -n "$am" ] || am=null
+  after="$(jq -r --arg p "$p" --argjson am "$am" --arg pid "$$" --arg pst "$ME_START" '(.sets[$p].start_kept // null) as $k
+    | if $k == null or ($k.rc // 0) == 75 or ($k.seen_stopping // null) == null then "no"
+      elif $am != null then (if $k.seen_stopping == $am then "yes" else "no" end)
+      elif (($k.seen_stopping.pid // null) | tostring) == $pid and ((($k.seen_stopping.pid_start // null) | tostring) == (if $pst == "" then "null" else $pst end)) then "yes"
+      else "no" end' <<<"$cur")"
+  if [ "$after" = yes ] && [ "$leased" = 0 ]; then
+    log "llmctl stop $p rc=$rc ($kind), but a start of $p was recorded after this stop was armed (start_kept, rc $(jq -r --arg p "$p" '.sets[$p].start_kept.rc' <<<"$cur")): the unit may be up again, so the set is KEPT constitution-started with an owed stop (never deleted, never handed over)"
+    cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson f "$(obs_counter)" --arg ours "$ours" --arg k "$kind" --argjson rc "$rc" \
+      '(if $ours == "true" then .sets[$p].stopping = null else . end)
+       | .sets[$p].constitution_started = true
+       | .sets[$p].start_kept.answered_stop = .sets[$p].start_kept.seen_stopping
+       | .sets[$p].start_kept.seen_stopping = null
+       | .sets[$p].stop_owed = {at:$now, reason:"a start was recorded after the \($k) stop (rc \($rc)) was armed; the unit may be up again"}
+       | (if $rc != 0 then .sets[$p].stop_failed = {at:$now, rc:$rc} else . end)
+       | .sets[$p].health = {state:"pending", reason:"a start was recorded after a stop was armed; not observed since", seq:$f, at:$now}' <<<"$cur")"
+    printf '%s\n' "$cur" | leases_save
+    write_placement "$p" "" "llmctl stop $p rc=$rc ($kind); a start was recorded after this stop was armed: set kept with an owed stop" "$(current_route)" true 0 "$( [ "$rc" = 0 ] && echo stopped || echo stop_failed )"
+    STOP_RES=owed_after_start
+    return 0
+  fi
   if [ "$rc" = 0 ]; then
     if [ "$claim" = noset ]; then
       write_placement "$p" "" "llmctl stop $p rc=0 ($kind); the set was already gone from the registry" "$(current_route)" false 0 stopped
@@ -848,7 +875,8 @@ arm_stop_locked() {
       elif $k == "owed" and (($s.start_failed // null) == null and ($s.stop_owed // null) == null) then "it no longer carries a failed start or an owed stop"
       else "" end' <<<"$cur")"
   if [ -n "$why" ]; then log "stop of $p ($kind) not run at its turn: $why"; return 1; fi
-  cur="$(jq -c --arg p "$p" --argjson m "$(me_mark)" '.sets[$p].stopping = $m' <<<"$cur")"
+  local m; m="$(me_mark)"; ARMED_MARK[$p]="$m"
+  cur="$(jq -c --arg p "$p" --argjson m "$m" '.sets[$p].stopping = $m' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
 }
 # stop_turn <profile> <kind> -> 0 stopped, 1 the stop failed, 4 its result or its mark could not be recorded, 5 not run at
@@ -885,6 +913,14 @@ do_stop() {
     i=$((i+1)); log "record step for llmctl stop $p: lock wait $i/$RETRIES timed out"
   done
   if [ "$frc" != 0 ]; then log "the result of llmctl stop $p (rc $src) could not be recorded (lock rc $frc); the stopping mark expires and the next release / acquire re-judges the set"; return 4; fi
+  if [ "$STOP_RES" = owed_after_start ]; then
+    # round 11 (R10-1): bounded: one owed retry per profile per process; otherwise the next acquire runs it (plan step A)
+    case " $OWED_RETRIED " in
+      *" $p "*) log "owed stop of $p: already retried by this process; run by the next acquire"; return 1 ;;
+    esac
+    OWED_RETRIED+=" $p"; log "retrying the stop of $p at once (owed: a start was recorded after this stop was armed)"
+    stop_turn "$p" owed; return $?
+  fi
   [ "$src" = 0 ]
 }
 
@@ -897,6 +933,10 @@ do_stop() {
 # answer was read against (the caller reads again). <nostart> 1: joins by recorded health and stops only; no adoption and
 # no start candidate (the answer could not be read against an unchanged registry, STALE_MAX times).
 declare -A DISPOSE_WHY=()
+# round 11 (R10-1): the exact stopping mark this process wrote on a set (arm_stop_locked, or finish_start_locked for its
+# own release / cleanup stop); finish_stop_locked compares it with a start result recorded meanwhile (start_kept.seen_stopping)
+declare -A ARMED_MARK=()
+OWED_RETRIED=""; STOP_RES=""; START_WHY=""
 STOP_TRIED=""; START_TRIED=""   # profiles this acquire already stopped / tried to start: never stopped / started again by it
 plan_locked() {
   local holder="$1" pid="$2" ttl="$3" g0="$4" nostart="${5:-0}" cur pst p jp v th r st hs leased cs lline ref_p="" ref_v="" ref_r="" ref_ev="" any_undet=0 undet_why="" nofit_why="" foreign held=""
@@ -1001,6 +1041,9 @@ plan_locked() {
     jq -e --arg p "$p" '.sets[$p] != null' <<<"$cur" >/dev/null && continue
     # round 10 (R9-1): a profile this acquire tried to start is never adopted by it as operator-started
     case " $START_TRIED " in *" $p "*) log "candidate $p: this acquire tried to start it; it is not adopted as operator-started"; continue ;; esac
+    # round 11 (R10-1): nor a profile this acquire stopped or disposed: a unit running after this acquire's own stop was
+    # started by a start this producer made (the owed stop of its kept set covers it), not by the operator
+    case " $STOP_TRIED ${DISPOSED:-} " in *" $p "*) log "candidate $p: this acquire stopped it; a unit running now is not adopted as operator-started"; continue ;; esac
     IFS="$US" read -r st v th r <<<"$(inst_state "$p")"
     [ "$st" = ok ] || continue
     cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$holder" "$pid" "$pst" "$ttl" false)" \
@@ -1070,8 +1113,8 @@ mark_start_locked() {
 #   failed_kept rc other, not SOLE: this acquire's lease dropped, the set kept for the others (health pending,
 #             start_failed_while_held recorded), no cleanup stop by this acquire (the last release of the set stops it)
 finish_start_locked() {
-  local p="$1" src="$2" cur floor claim others mine omark
-  cur="$(leases_load)"
+  local p="$1" src="$2" cur floor claim others mine omark m
+  cur="$(leases_load)"; m="$(me_mark)"; START_WHY=""
   read -r claim others mine omark <<<"$(set_view "$cur" "$p" starting "$HOLDER")"
   floor="$(obs_counter)"
   if [ "$src" = 0 ] && [ "$claim" != noset ] && [ "$mine" = 1 ]; then
@@ -1085,37 +1128,51 @@ finish_start_locked() {
     # this producer started it, so it is recorded as ours (constitution-started) and stopped by this process
     case "$src" in
       75) START_RES=refused ;;
-      0)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson m "$(me_mark)" '.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[]}' <<<"$cur")"
+      0)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson m "$m" '.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[]}' <<<"$cur")"
           START_RES=released ;;
-      *)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson src "$src" --argjson m "$(me_mark)" \
+      *)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson src "$src" --argjson m "$m" \
             '.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[], start_failed:{at:$now, rc:$src}}' <<<"$cur")"
           START_RES=failed ;;
     esac
   elif rule_sole "$claim" "$others" "$omark"; then
     # SOLE: no other holder, no other mark; this acquire's own lease (if any) is dropped with the set's new state
     case "$src" in
-      0)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson m "$(me_mark)" --arg h "$HOLDER" \
+      0)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson m "$m" --arg h "$HOLDER" \
             '.sets[$p] = (.sets[$p] + {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[(.sets[$p].leases // [])[] | select(.holder != $h)]})' <<<"$cur")"
           START_RES=released ;;
       75) cur="$(jq -c --arg p "$p" 'del(.sets[$p])' <<<"$cur")"
           START_RES=refused ;;
-      *)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson src "$src" --argjson m "$(me_mark)" --arg h "$HOLDER" \
+      *)  cur="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson src "$src" --argjson m "$m" --arg h "$HOLDER" \
             '.sets[$p] = (.sets[$p] + {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[(.sets[$p].leases // [])[] | select(.holder != $h)], start_failed:{at:$now, rc:$src}})' <<<"$cur")"
           START_RES=failed ;;
     esac
   else
     # NOT SOLE (R9-1): another holder joined after this process's mark was cleared, or another process marks the set.
     # Only what is ours changes: this acquire's lease is dropped, our mark is cleared only when it is ours, a foreign mark
-    # is never touched, the set stays constitution-started and is kept for its holders
-    log "the result of llmctl start $p (rc $src) found the set held by $others other lease(s)$( [ "$omark" = 1 ] && printf ' and marked by another process' ) (claim $claim): only this acquire's own lease is dropped; the set is kept for them and is not stopped by this acquire"
-    cur="$(jq -c --arg p "$p" --argjson now "$NOW" --arg mo "$MONO_TOK" --argjson f "$floor" --arg c "$claim" --arg h "$HOLDER" --argjson src "$src" --argjson n "$others" \
-      '(if $c == "ours" then .sets[$p].starting = null else . end)
-       | .sets[$p].constitution_started = true
+    # is never touched, and the set is kept.
+    # Round 11 (R10-1): the stopping mark seen here is recorded (start_kept.seen_stopping). When no other lease is left
+    # (others 0: the only non-sole reason is another process's stopping mark) and this start may have brought the unit up
+    # (rc not 75), the set also gets stop_owed: the stopper compares that record with the mark it wrote and keeps the set
+    # with an owed stop instead of deleting it (finish_stop_locked), and when the stopper is gone the owed stop is run by
+    # the next acquire (plan step A); the set is never routed meanwhile (derive_cache skips stop_owed). Round 11 (R10-3):
+    # rc 75 started nothing (no partial start, §11.4.277(E)), so it never makes the set constitution-started; a set made
+    # by this acquire's own mark (started_at null) is then constitution-started by nobody (§11.4.291(G)).
+    if [ "$others" -gt 0 ]; then START_WHY="the set is held by $others other lease(s)"
+    else START_WHY="no other lease holds the set, but another process (pid $(jq -r --arg p "$p" '.sets[$p].stopping.pid // "?"' <<<"$cur")) marks it stopping"; fi
+    [ "$omark" = 1 ] && [ "$others" -gt 0 ] && START_WHY="$START_WHY and another process marks it stopping"
+    log "the result of llmctl start $p (rc $src) found that $START_WHY (claim $claim): only this acquire's own lease is dropped; the set is kept and is not stopped by this acquire$( [ "$others" = 0 ] && [ "$src" != 75 ] && printf '; it carries an owed stop (stop_owed), run by that stopper or by the next acquire')"
+    cur="$(jq -c --arg p "$p" --argjson now "$NOW" --arg mo "$MONO_TOK" --argjson f "$floor" --arg c "$claim" --arg h "$HOLDER" --argjson src "$src" --argjson n "$others" --arg why "$START_WHY" \
+      '(.sets[$p].stopping // null) as $seen
+       | (if $c == "ours" then .sets[$p].starting = null else . end)
+       | (if $src == 75 then .sets[$p].constitution_started = ((.sets[$p].constitution_started == true) and ((.sets[$p].started_at // null) != null))
+          else .sets[$p].constitution_started = true end)
        | .sets[$p].leases = [(.sets[$p].leases // [])[] | select(.holder != $h)]
-       | .sets[$p].start_kept = {at:$now, mono:(if $mo=="" then null else $mo end), rc:$src, leases:$n, claim:$c}
+       | .sets[$p].start_kept = {at:$now, mono:(if $mo=="" then null else $mo end), rc:$src, leases:$n, claim:$c, seen_stopping:$seen}
+       | (if $n == 0 and $src != 75 then .sets[$p].stop_owed = {at:$now, reason:"llmctl start rc \($src) recorded while \($why); the unit this start may have brought up is owed a stop"} else . end)
        | (if $n > 0 then .sets[$p].health = {state:"pending", reason:"llmctl start rc \($src) recorded while \($n) other lease(s) held the set; not observed since", seq:$f, at:$now} else . end)' <<<"$cur")"
     case "$src" in 0) START_RES=handed ;; 75) START_RES=refused ;; *) START_RES=failed_kept ;; esac
   fi
+  case "$START_RES" in released|failed) ARMED_MARK[$p]="$m" ;; esac
   printf '%s\n' "$cur" | leases_save
 }
 
@@ -1255,7 +1312,7 @@ cmd_acquire() {
             break ;;
           handed)
             # round 10 (R9-1): started, but this acquire's lease is gone and other holders hold the set: kept for them
-            log "started $p but its lease was released during the start and the set is held by other sessions: kept for them, not stopped and not placed for $holder; no further candidate is started"
+            log "started $p but its lease was released during the start and $START_WHY: kept, not stopped by this acquire and not placed for $holder; no further candidate is started"
             break ;;
           refused)
             log "llmctl start $p refused (75): does_not_fit"
@@ -1282,7 +1339,7 @@ cmd_acquire() {
             # was cleared): their leases are kept, the set is judged by the next observation, no cleanup stop here
             log "llmctl start $p failed rc=$src: $(head -c 300 "$WORK/start.out.err" 2>/dev/null | tr '\n' ' ')"
             START_TRIED+=" $p"
-            out_v="$v"; out_ev="start_failed"; out_r="llmctl start $p failed rc=$src; the set is held by other sessions and kept for them (no cleanup stop by this acquire)"; out_p="$p"; out_th="$th"
+            out_v="$v"; out_ev="start_failed"; out_r="llmctl start $p failed rc=$src; $START_WHY: the set is kept (no cleanup stop by this acquire)"; out_p="$p"; out_th="$th"
             break ;;
         esac
       done <<<"$START_CANDS"

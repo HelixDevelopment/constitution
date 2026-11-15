@@ -56,6 +56,9 @@
 # $STUB_LOG/leases_at_stop.<p>.<n>.json and the test clock to clock_at_stop.<p>.<n> (n = 1, 2, ... per stop of <p>);
 # PLACE_STOP_GATE=<dir>: a stop of <p> creates <dir>/reached.stop.<p> and waits (at most PLACE_STOP_GATE_WAIT s, default
 # 120) for <dir>/go.stop.<p>: a deterministic interleaving of two sessions without timing windows.
+# Round 11 (review R10-1): PLACE_START_GATE=<dir>: a start of <p> creates <dir>/reached.start.<p> and waits (at most
+# PLACE_START_GATE_WAIT s, default 120) for <dir>/go.start.<p> BEFORE it brings the unit up (the running.<key> file appears
+# only after the gate): the moment the unit comes up is placed exactly between another session's stop and record steps.
 # Every call is logged to $STUB_LOG/llmctl.log. A call made while the CALLER holds the placement lease lock (an open file
 # descriptor on $JEV_STATE_DIR/placement.lock is inherited by this process) is ALSO logged as "LOCKHELD llmctl ..."
 # (review R4-3: no llmctl call may run under the lease lock).
@@ -132,6 +135,10 @@ case "${1:-} ${2:-}" in
     if [ "${PLACE_STATUS_NOGW:-}" = 1 ]; then echo '{"registry":{"services":[]}}'; exit 0; fi
     jq -nc --arg u "${PLACE_STATUS_URL:-https://127.0.0.1:18095}" '{registry:{services:[{name:"decide-gateway", url:$u, labels:{kind:"gateway", ca_file:"/nonexistent/ca.crt"}}]}}' ;;
   "start "*) if [ "${PLACE_START_SNAPSHOT:-}" = 1 ] && [ -n "${JEV_STATE_DIR:-}" ]; then cp -- "$JEV_STATE_DIR/leases.json" "$logdir/leases_at_start.${2:?}.json" 2>/dev/null || true; fi
+             if [ -n "${PLACE_START_GATE:-}" ]; then
+               : > "$PLACE_START_GATE/reached.start.${2:?}"; gi=0
+               while [ ! -e "$PLACE_START_GATE/go.start.${2:?}" ] && [ "$gi" -lt "$(( ${PLACE_START_GATE_WAIT:-120} * 10 ))" ]; do sleep 0.1; gi=$((gi+1)); done
+             fi
              [ -z "${PLACE_START_SLEEP:-}" ] || sleep "$PLACE_START_SLEEP"
              clock_add "${PLACE_START_CLOCK_ADD:-}"
              [ "${PLACE_START_RC:-0}" = 75 ] || touch "$logdir/running.$(key "${2:?}")"; exit "${PLACE_START_RC:-0}" ;;

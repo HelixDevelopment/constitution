@@ -151,19 +151,21 @@ assert_eqx "0 yes" "$hrc $(routed)" "P115a B's lease is held (heartbeat 0); the 
 assert_eqx "0 1  {}" "$rrc $(stopsof decide-a) $(running) $(L '.sets')" "P115a B's last release stops the model this producer started: never orphaned"
 
 p115 refuse
-assert_eqx "0 decide-a sB,sA true 0 decide-a " "$A115RC $(cat "$T/a115.out") $(holders decide-a) $(L '.sets["decide-a"].constitution_started') $(stopsof decide-a) $(running)" \
-  "P115b A's refused start (75) keeps B's lease; the re-plan joins the running set B holds and it stays constitution-started (never re-adopted as operator-started)"
+# round 11 (review R10-3): rc 75 started nothing, so the set A's own mark made (started_at null) is NOT constitution-started:
+# the unit B joined was started by someone else and is never stopped by this producer (§11.4.291(G))
+assert_eqx "0 decide-a sB,sA false 0 decide-a " "$A115RC $(cat "$T/a115.out") $(holders decide-a) $(L '.sets["decide-a"].constitution_started') $(stopsof decide-a) $(running)" \
+  "P115b A's refused start (75) keeps B's lease; the re-plan joins the running set B holds; the set is not constitution-started (rc 75 started nothing)"
 hasnt "$T/a115.err" "not constitution-started" "P115b A does not adopt the unit as operator-started"
 "$PLACE" heartbeat sB > /dev/null 2> /dev/null; hrc=$?
 "$PLACE" release sA > /dev/null 2> /dev/null; r1=$?
 assert_eqx "0 0 0" "$hrc $r1 $(stopsof decide-a)" "P115b B holds its lease; A's release is not the last one and stops nothing"
 "$PLACE" release sB > /dev/null 2> "$T/rb115.err"; rrc=$?
-assert_eqx "0 1 " "$rrc $(stopsof decide-a) $(running)" "P115b the last release stops the model this producer started (never orphaned)"
+assert_eqx "0 0 decide-a  {}" "$rrc $(stopsof decide-a) $(running) $(L '.sets')" "P115b the last release stops nothing: the unit was not started by this producer (rc 75); the set is forgotten (R10-3)"
 
 p115 handed
 assert_eqx "5  sB 0 decide-a " "$A115RC $(cat "$T/a115.out") $(holders decide-a) $(stopsof decide-a) $(running)" \
   "P115c A's start returns rc 0 after its own lease was released: not placed for A (no profile printed, exit 5); B keeps the set; nothing stopped"
-has "$T/a115.err" "kept for them, not stopped and not placed" "P115c A says the set is handed to B"
+has "$T/a115.err" "the set is held by 1 other lease(s): kept, not stopped by this acquire and not placed" "P115c A says the set is kept for B and why (round 11, R10-1: the real reason is named)"
 "$PLACE" heartbeat sB > /dev/null 2> /dev/null; hrc=$?
 assert_eqx 0 "$hrc" "P115c B still holds its lease"
 

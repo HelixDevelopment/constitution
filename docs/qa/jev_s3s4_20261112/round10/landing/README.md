@@ -14,9 +14,11 @@ Merge of `main` 2031bc05 into the vehicle at 4f57924a. Conflicts were resolved b
   round 8 give the same normalised verdict sets as before the merge.
 - `tests/jev/run_all.sh` ran 40 tests and 3 failed (`merged_runall.txt`): `test_bootstrap_e2e_stub_server.sh`,
   `test_decision_layer_gaps.sh` and `test_detection_matrix.sh`. Each one needs a loopback stub server. The same three
-  fail on `main` 2031bc05 under the same runner (`ctlmain_*.txt`), so the failure comes from the runner's lack of network
-  and not from the merge. They were not run outside the sandbox, because that would touch the operator's real host. Their
-  result outside the sandbox is UNCONFIRMED.
+  fail on `main` 2031bc05 under the same runner (`ctlmain_*.txt`), so the failure is not from the merge. Correction at
+  round 11 (review finding N-3): the cause is not a missing network. bwrap's network namespace has loopback; the runner's
+  refusal guard refuses `curl` (rc 126), and each of the three tests probes its loopback stub server with `curl`. With
+  `curl` allowed and the network namespace still empty, all three pass (31/0, 39/0 and 40/0;
+  `../../round11/loopback_*.txt`).
 - Gates: index fresh, gate ledger ratchet and covenant propagation 279 to 286 and 291 PASS; bootstrap idempotent GREEN;
   token reduction BLIND (no BEFORE/AFTER harness configured). `cm_jev_detection` and `cm_jev_wiring` are RED because of
   the operator's real host state (the detection record and opencode.json). `main_*.txt` shows the same RED on `main`. On the
