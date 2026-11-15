@@ -1,0 +1,27 @@
+name	stage	rc	result	first_fail
+F3a	full	1	RESULT pass=17 fail=1 (failfast)	FAIL R5-F3a an annotated tag object as --head is refused (rc=1, want rc=1 and /is a tag object, not a commit/)
+F3b	full	1	RESULT pass=10 fail=1 (failfast)	FAIL R5-F2a control (rc=0)
+F3c	full	1	RESULT pass=74 fail=1 (failfast)	FAIL R5-F3c --item-id CON-050 (the placeholder) is refused before a clone is made (rc=1, want rc=2 and /--item-id CON-050 matches --placeholder-re/)
+F3d	full	1	RESULT pass=76 fail=1 (failfast)	FAIL R5-F3d a mint printing the placeholder CON-050 is refused before the mint commit (rc=1, want rc=1 and /mint printed CON-050, which matches --placeholder-re/)
+F5	full	1	RESULT pass=22 fail=1 (failfast)	FAIL R5-F5 push options (rc=1 m3w=1 control=1)
+F6	full	1	RESULT pass=23 fail=1 (failfast)	FAIL R5-F6 template (rc=1 worktree=/home/milosvasic/.cache/claude-tmp/lvtest.Hqx8TB/r5f6/outside outside=[marker.txt] control=/home/milosvasic/.cache/claude-tmp/lvtest.Hqx8TB/r5f6/outside)
+F7	full	1	RESULT pass=24 fail=1 (failfast)	FAIL R5-F7 '--evidence-dir -h' is a missing value, not help (rc=2, want rc=2 and /option --evidence-dir needs a value/)
+F9	full	1	RESULT pass=27 fail=1 (failfast)	FAIL R5-F9 tracker pattern '*' refused (rc=2, want rc=2 and /each pattern needs a literal first directory/)
+F10	full	1	RESULT pass=34 fail=1 (failfast)	FAIL R5-F10 --item-id CON-0100 refused (rc=0, want rc=2 and /item-id must match/)
+F11	full	1	RESULT pass=36 fail=1 (failfast)	FAIL R5-F11 CRLF remotes file (rc=2)
+N1c	full	1	RESULT pass=43 fail=1 (failfast)	FAIL R5-N1 mergeoptions (rc=1 ctl s.txt absent)
+N1d	full	1	RESULT pass=44 fail=1 (failfast)	FAIL R5-N1c a merge driver from the caller config is refused by the merge oracle (rc=0, want rc=1 and /the merge result differs from the same merge computed without your global and system git config/)
+N1e	full	1	RESULT pass=44 fail=1 (failfast)	FAIL R5-N1c a merge driver from the caller config is refused by the merge oracle (rc=0, want rc=1 and /the merge result differs from the same merge computed without your global and system git config/)
+N2	full	1	RESULT pass=47 fail=1 (failfast)	FAIL R5-N2 a mint that restages a gitlink hidden by ignore=all is refused (rc=1, want rc=1 and /mint command changed a path it may not change \(M sub\)/)
+N3a	full	1	RESULT pass=49 fail=1 (failfast)	FAIL R5-N3 modes (rc=0 clone 755/644 control 2775/664)
+N3b	full	1	RESULT pass=49 fail=1 (failfast)	FAIL R5-N3 modes (rc=0 clone 2775/664 control 2775/664)
+N3c	full	0	RESULT pass=291 fail=0	SURVIVED
+E2	full	1	RESULT pass=67 fail=1 (failfast)	FAIL R5-KEEP (rc=0)
+X1	full	1	RESULT pass=198 fail=1 (failfast)	FAIL U11 prepare refused while another run holds the workdir lock (rc=0, want rc=2 and /holds the lock/)
+X2	full	1	RESULT pass=239 fail=1 (failfast)	FAIL V2a exported GIT_DIR (rc=1/2)
+X3	full	1	RESULT pass=214 fail=1 (failfast)	FAIL U13 ambient hooks (rc=0/0/0/0)
+X5	full	1	RESULT pass=65 fail=1 (failfast)	FAIL R5-BUNDLE-COPY a bundle that changes while it is copied into the clone is refused (rc=1, want rc=1 and /bundle sha256 mismatch on the copy in the clone/)
+X6	full	1	RESULT pass=40 fail=1 (failfast)	FAIL R5-TC commentchar (rc=1 control=[])
+N1a	full	0	RESULT pass=291 fail=0	SURVIVED
+N1b	full	0	RESULT pass=291 fail=0	SURVIVED
+X4	full	0	RESULT pass=291 fail=0	SURVIVED

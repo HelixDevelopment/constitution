@@ -1,0 +1,6 @@
+== base --help, no writable temporary file: 280 bytes of output; messages: <scratch>/basetree.2C9z/b/scripts/install_constitution.sh: line 91: cannot create temp file for here-document: File too large ; rc=0
+== new --help, no writable temporary file: 9040 bytes of output; messages: ; rc=0
+== base --print-snippets, no writable temporary file: 280 bytes of output; messages: <scratch>/basetree.2C9z/b/scripts/install_constitution.sh: line 56: cannot create temp file for here-document: File too large ; rc=0
+== new --print-snippets, no writable temporary file: 635 bytes of output; messages: ; rc=0
+== base --version under POSIXLY_CORRECT=1: install_constitution.sh: incomplete script (truncated download?); refusing to run rc=2
+== new --version under POSIXLY_CORRECT=1: install_constitution.sh 1.0.0 rc=0

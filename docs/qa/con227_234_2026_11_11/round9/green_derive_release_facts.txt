@@ -1,0 +1,105 @@
+PASS L4 the SIGHUP detector sees an ignored and a not ignored SIGHUP (control needles)
+PASS L2 control: the census sees names that are not identifiers
+PASS L2 control (N1): LC_ZZTOKEN is a finding (no name prefix)
+PASS L2 control (N3): an inherited descriptor is a finding
+PASS L2 shellopts: the run completes (rc 0)
+PASS L2 shellopts: git was recorded (control needle)
+PASS L2 shellopts: sqlite3 was recorded (control needle)
+PASS L2 shellopts: no child has a name outside the allow-list, a marker, fd 9 or another inherited descriptor (ENVCENSUS records=56 checked=51 findings=0)
+PASS L2 dasha: the run completes (rc 0)
+PASS L2 dasha: git was recorded (control needle)
+PASS L2 dasha: sqlite3 was recorded (control needle)
+PASS L2 dasha: no child has a name outside the allow-list, a marker, fd 9 or another inherited descriptor (ENVCENSUS records=57 checked=46 findings=0)
+PASS F2 control: descriptor 7 is a finding for a plain child
+PASS F2 control: descriptor 300 is a finding for a plain child
+PASS F2 control: descriptor 12345 is a finding for a plain child
+PASS F2 control: descriptor 100000 is a finding for a plain child
+PASS F1: the run with descriptors 7 300 12345 100000 completes (rc 0)
+PASS F1: git was recorded (control needle)
+PASS F1: no child of the derive script inherits a descriptor of 1, 3, 5 or 6 digits (ENVCENSUS records=48 checked=46 findings=0)
+PASS exit 0
+PASS commit count
+PASS items total
+PASS open count
+PASS status Ready ids
+PASS severity case-folded
+PASS severity ids
+PASS raw spellings kept
+PASS states count
+PASS states ids
+PASS UNSET counted, not listed
+PASS any-state count
+PASS UNSET/UNSET ids not listed
+PASS provisional ids
+PASS overdue: undated and past-dated, not future
+PASS verified after prev tag date only
+PASS count line
+PASS positive control T-004 present
+PASS negative control T-999 absent
+PASS unknown tag exits 3
+PASS quote value: exit 0
+PASS quote severity counted
+PASS quote severity ids exact
+PASS quote state ids exact
+PASS other severity unchanged
+PASS quote: open count
+PASS no sqlite error printed
+PASS boundary: exit 0
+PASS boundary: tag date is the fixture's
+PASS D5: UNSET reproduction with a set investigation state counts
+PASS D1: closed on the tag date is not verified since it
+PASS D1: count line
+PASS F6: exit 0
+PASS F6: a remote with no refs has no unmerged ref
+PASS F6: a remote with no refs lists nothing
+PASS F6: a real unmerged ref is counted (control needle)
+PASS F6: a real unmerged ref is listed with its count (control needle)
+PASS CON-228 [reproduction_state]: missing column exits 3
+PASS CON-228 [reproduction_state]: no partial facts on stdout
+PASS CON-228 [reproduction_state]: the refusal is named on stderr
+PASS CON-228 [closure_date]: missing column exits 3
+PASS CON-228 [closure_date]: no partial facts on stdout
+PASS CON-228 [closure_date]: the refusal is named on stderr
+PASS CON-228 [body_md]: missing column exits 3
+PASS CON-228 [body_md]: no partial facts on stdout
+PASS CON-228 [body_md]: the refusal is named on stderr
+PASS F6: no CHANGELOG.md at the base exits 3
+PASS F6: no partial facts on stdout
+PASS F6: the refusal is the script's own line naming CHANGELOG.md
+PASS F6: the refusal does not blame a tracker query
+PASS G1-class: a git warning does not fail the run and facts are printed (control)
+PASS G1-class: the warning is printed, redacted (positive needle)
+PASS G1-class: no secret on stderr
+PASS V1: an invalid caller value is a usage error
+PASS V1: the invalid value is not echoed
+PASS V2: an invalid caller value is a usage error
+PASS V2: the invalid value is not echoed
+PASS V3: an invalid caller value is a usage error
+PASS V3: the invalid value is not echoed
+PASS V4: an invalid caller value is a usage error
+PASS V4: the invalid value is not echoed
+PASS V: an option-shaped unknown argument is named (control)
+PASS V: safe base, tag and remote names are accepted (control)
+PASS V13: the directory mode is read during the run (control needle)
+PASS V13: the private directory is mode 700
+PASS X10 TERM: the sqlite3 double ran (control needle)
+PASS X10 TERM: the run ends through its trap (rc 143)
+PASS X10 TERM: nothing left under TMPDIR
+PASS X10 TERM: the buffered stderr is flushed (positive needle)
+PASS X10 TERM: the secret is not printed
+PASS X10 HUP: the sqlite3 double ran (control needle)
+PASS X10 HUP: the run ends through its trap (rc 129)
+PASS X10 HUP: nothing left under TMPDIR
+PASS X10 HUP: the buffered stderr is flushed (positive needle)
+PASS X10 HUP: the secret is not printed
+PASS K3: git environment recorded (control needle)
+PASS K3: sqlite3 environment recorded (control needle)
+PASS K3: date environment recorded (control needle)
+PASS K3: no caller *TOKEN* variable reaches a child of the derive script
+PASS no tracker exits 3
+PASS temp files removed
+PASS temp-file counter sees a leftover (control)
+PASS L1 the lint sees derive_release_facts.sh (control)
+PASS L1 no external command before rc_env_clean
+PASS L1 needle: a date inserted at line 2 is found
+RESULT: pass=104 fail=0

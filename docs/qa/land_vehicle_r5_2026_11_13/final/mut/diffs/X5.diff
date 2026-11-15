@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (X5)
+@@ -908,7 +908,7 @@
+   local bcopy=$CLONE/.git/land_vehicle.bundle
+   cp -- "$BUNDLE" "$bcopy" || die 1 "cannot copy the bundle into the clone"
+   actual=$(sha256sum "$bcopy" | awk '{print $1}')
+-  [ "$actual" = "$want" ] || die 1 "bundle sha256 mismatch on the copy in the clone: expected $want got $actual (the bundle changed while it was copied)"
++  true || die 1 "bundle sha256 mismatch on the copy in the clone: expected $want got $actual (the bundle changed while it was copied)"
+   log "step 1: bundle sha256 OK ($actual), copied to the clone"
+   local i tip
+   for i in "${!R_NAMES[@]}"; do

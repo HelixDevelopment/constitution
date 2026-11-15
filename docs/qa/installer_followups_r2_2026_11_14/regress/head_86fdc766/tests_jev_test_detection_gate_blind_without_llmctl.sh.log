@@ -1,0 +1,15 @@
+PASS empty record + no llmctl, no test mode: BLIND rc 2
+PASS output names the record path
+PASS no GREEN verdict
+PASS same under HELIX_TEST_MODE=1: GREEN rc 0
+PASS GREEN line names the record path
+PASS N2a llmctl exits 1 with valid error JSON: BLIND rc 2
+PASS N2a2 llmctl exits 1 with a well-shaped empty status: BLIND rc 2
+PASS N2b status shape [echo null]: BLIND rc 2
+PASS N2b status shape [echo 42]: BLIND rc 2
+PASS N2b status shape [echo "{\"profiles\":\"x\"}"]: BLIND rc 2
+PASS N2 control: well-formed empty status stays GREEN rc 0
+PASS GREEN line prints the llmctl path consulted
+PASS N2 positive control: running decide profile + empty record: RED rc 1
+PASS N2c lib_decide.sh missing: BLIND rc 2
+== 14 passed, 0 failed ==

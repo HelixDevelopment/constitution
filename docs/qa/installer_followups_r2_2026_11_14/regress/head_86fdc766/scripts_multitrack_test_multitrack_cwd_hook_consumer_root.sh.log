@@ -1,0 +1,15 @@
+=== §11.4.177 cwd-hook consumer-root resolution
+    engine copy : /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.CIFFWF6oj5/consumer_a/scripts/multitrack/multitrack_cwd_hook.sh
+    consumer A  : /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.CIFFWF6oj5/consumer_a  (worktree /tmp/cwhroot_aaa.izQVSt)
+    consumer B  : /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.CIFFWF6oj5/consumer_b  (worktree /tmp/cwhroot_bbb.4tuBfy)
+
+  PASS  C2 no binding + neutral cwd -> self-located consumer A (UNCHANGED)
+  PASS  C1 operator binding names consumer B -> B
+  PASS  C3 MT_REPO_ROOT pin outranks the binding file -> B
+  PASS  C4 cwd inside consumer B, no binding -> B (invocation context)
+  PASS  C5 binding -> non-consumer path is IGNORED, falls back to A
+  PASS  C6 alias-specific binding key beats 'default'
+  PASS  C7 hook stdout is exactly one line (cd-target contract)
+  PASS  C8 cwd inside consumer A, no binding -> A
+
+TOTAL=8 PASSED=8 FAILED=0

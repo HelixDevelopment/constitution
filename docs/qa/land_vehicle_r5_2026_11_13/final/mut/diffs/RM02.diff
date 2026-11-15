@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM02)
+@@ -462,7 +462,7 @@
+ # Every git call against the clone: explicit repository, no pager, no replace refs,
+ # literal pathspecs, the pinned settings of the header, no lock descriptor.
+ GIT_PIN=(
+-  -c core.hooksPath=/dev/null -c core.fsmonitor=false
++  -c core.hooksPath=/dev/null
+   -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null
+   -c core.autocrlf=false -c core.eol=lf -c core.sparseCheckout=false
+   -c core.useReplaceRefs=false -c core.commentChar=# -c core.sharedRepository=false

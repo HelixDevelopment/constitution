@@ -1,0 +1,62 @@
+# name	class	note (KILL: killed by an assertion on the intended behaviour; KILL-MESSAGE: killed only because a later check refuses the same fault with another message; EQUIVALENT: survives, with a proof)
+RM01	KILL	the round-4 survivor: R5-K01 commits in the clone during the pushes
+RM02	KILL	R5-RM02 counts fsmonitor program runs (lander 0, control run without the pin >0)
+RM03	KILL	first FAIL is R5-F2a (a glob tracker pattern docs/*.fake); R5-F2c also uses a glob
+RM04	KILL	R5-RM04 remotes file without a final newline
+RM05	KILL	R5-F13: the round-4 CR strip re-introduced lets CON-9<CR>05 pass
+RM06	KILL	R5-RM06 a TAB in a mint path
+RM08	KILL	R5-RM08 prose above a whitespace-only line
+RM09	KILL	U8: the fake verify command reads docs/tracker.fake relative to its cwd, so it fails outside the clone
+RM10	KILL	R5-RM10 a verify child that keeps running: the lock is held by it under the mutant
+RM12	KILL	first FAIL is R5-F13: the CON-9<CR>05 vehicle commit is only refused by prepare's final range check, which the mutant narrows to the commits after the vehicle head (U10b is the round-4 test written for it and comes later in the suite)
+RM13	KILL	R5-RM13 XCON-777 must not count as CON-777 for presence
+RM15	KILL	R5-RM15 XCON-100 must count for newness (fail closed)
+RM16	KILL	P1: a remote without main; under the mutant publish exits 1 but without the 'preflight refused ... nothing was pushed' text, because the publish trailer checks now also run when preflight refused (the exact failing command inside was not captured)
+RM20	KILL	V13: a failing git call must exit 1 with a message, not 0 (the trap no longer maps the undocumented status)
+RM23	KILL	R5-RM23 a symlink matching the tracker pattern (mode 120000)
+RM25	KILL	R5-F9 '../docs/x' must be refused at start-up for its '..'
+RM28	KILL	R5-RM28 a CR inside the printed id
+RM31	KILL	R5-RM31 a GLOBAL remote.<n>.receivepack is refused
+F1a	KILL	R5-K01: pushing the name main sends the moved main
+F1b	KILL	R5-K01: no now-check, so the moved main goes unreported (rc 0)
+F1c	KILL	R5-K01 second publish: without the main_before check the unreviewed commit becomes a WARN row instead of a refusal
+F1d	KILL	R5-R04b: no assert_remote before each push
+F1e	KILL	R5-R04b: the refusal must name the remotes already pushed
+F1f	KILL	R5-RB: the read-back must re-assert the URL before ls-remote
+F1g	KILL	R5-F1g: a global insteadOf rewrite of origin before the first fetch
+F1h	EQUIVALENT	the WARN loop and the check before it run in the same branch (push mode, no preflight refusal). The check before it dies when untrailered(local_main --not main_before) is not empty; a WARN row is untrailered(local_main --not before[i]), the same predicate on the same objects, so every row commit is reachable from main_before and the ancestor check is always true. The only difference: git merge-base itself failing (an object error after rev-list and cat-file read the same objects); not testable without fault injection. Survived the full suite (291/0)
+F1i	KILL-MESSAGE	V15 (swap) wants the first message ('... (the index changed after the checks)'). Without that compare, the second one (line 716: diff-tree of the commit-tree result, whose tree is the same write-tree result, against the record) sees the identical mismatch and dies with rc 1 'the mint commit differs from the recorded mint changes' before update-ref, so main is unchanged: same outcome, only the message differs (rc 1 measured in V15)
+F2a	KILL	R5-F2a: the id in an untouched tracker file
+F2b	KILL	R5-F2b: the id as a trailer on main
+F2c	KILL	first FAIL is the R5-F2b vehicle case (CON-123 as a trailer of a vehicle commit): the history search must cover the vehicle
+F2z1	KILL	R5-F2z: CON-0077 in a tracker makes CON-077 not new
+F2z2	KILL	first FAIL is R5-F2b: num has its leading zeros stripped (CON-001 gives 1), so without 0* the pattern CON-1 never matches the stored CON-001; R5-F2zh (CON-0777 vs CON-777) comes later
+F2n	KILL	R5-F2n: a NUL-byte tracker matched by substring
+F4	EQUIVALENT	log.showSignature only changes git log, git show and git whatchanged. The census of every git call in the lander (23 subcommands through g(): rev-parse, merge-base, cat-file, rev-list, update-ref, symbolic-ref, status, remote, merge, fetch, diff-tree, config, bundle, write-tree, push, merge-tree, ls-tree, ls-remote, hash-object, diff-index, commit-tree, checkout, add; direct calls: init, interpret-trailers) has no log, show or whatchanged (control needle 'g rev-parse' found, 'g zzneedle' not). The pin is defence in depth; R5-F4 (signature display in the caller config) passes with and without it because every value is read with cat-file. Survived 291/0
+F13	EQUIVALENT	ID_RE is ^KEY-(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2,})$ with KEY validated as ^[A-Z][A-Z0-9]*$, matched by bash [[ =~ ]] (POSIX ERE without REG_NEWLINE, LC_ALL=C), so ^ and $ anchor the whole value and a matching value holds only A-Z, 0-9 and '-'; no control character can pass. Measured: without has_ctrl, R5-F13 (CON-9<CR>05 refused) still passes. Survived 291/0
+F3a	KILL	R5-F3a an annotated tag object as --head
+F3b	KILL	first FAIL is the R5-F2a control: the vehicle trailer CON-050 matches the placeholder pattern; under the mutant it counts as real, so the vehicle commit is not re-committed with the minted CON-101 and prepare exits 0 with the placeholder kept (R5-F3b comes later)
+F3c	KILL	R5-F3c --item-id CON-050 (the placeholder) refused before a clone is made
+F3d	KILL	R5-F3d a mint printing the placeholder is refused before the mint commit
+F5	KILL	R5-F5 a global push.pushOption must not reach the servers
+F6	KILL	R5-F6 an init template (global init.templateDir) holding core.worktree and info/exclude: under the mutant the clone's work tree moves to the outside directory
+F7	KILL	R5-F7 '--evidence-dir -h' is a missing value, not help
+F9	KILL	R5-F9 tracker pattern '*' refused
+F10	KILL	R5-F10 --item-id CON-0100 refused (not the canonical form)
+F11	KILL	R5-F11 a CRLF remotes file is refused with a line number
+N1c	KILL	R5-N1 (mergeoptions): with branch.main.mergeOptions=-s ours from the caller config left in force, the merge drops the vehicle content and the lander's own oracle then refuses (rc 1), where the real lander lands it with rc 0 (measured: -s ort on the command line does not override mergeOptions)
+N1d	KILL	R5-N1c a merge driver from the caller config changes the merge result; the oracle refuses it
+N1e	KILL	R5-N1c: an oracle run with the caller config applies the same driver, so it agrees with the merge
+N2	KILL	R5-N2 a gitlink change hidden by submodule.<name>.ignore=all
+N3a	KILL	R5-N3: umask 022 gives the clone .git 755 and config 644
+N3b	KILL	R5-N3: init without the pin under a global sharedRepository=world gives 2775/664
+N3c	KILL	killed on the final test (snapshot s4) by R5-N3b: 64 of the 78 entries under the clone .git got group or other bits. It SURVIVED the s3 test, which checked only .git and config; R5-N3b was added for it (see README)
+E2	KILL	R5-KEEP a signed commit that already carries one real trailer must keep its sha and signature
+X1	KILL	U11 the workdir lock
+X2	KILL	V2a an exported GIT_DIR
+X3	KILL	U13 ambient hooks never run
+X5	KILL-MESSAGE	R5-BUNDLE-COPY wants 'bundle sha256 mismatch on the copy'; without the re-hash the changed copy is still refused (rc 1, measured) by a later check (bundle verify, the head ref, or the head type). A changed copy that passed those checks would have to contain the commit --head names, so it delivers the same content-addressed objects (this relies on SHA-1DC collision resistance)
+X6	KILL	R5-TC: the trailer parser must not read the caller's core.commentChar
+N1a	EQUIVALENT	defence in depth, one of two layers removed: the merge still passes -s ort, and git merge reads pull.twohead only when no strategy is given; branch.main.mergeOptions is pinned empty separately and the oracle still compares the tree. Measured: R5-N1 (pull.twohead=ours and branch.main.mergeOptions='-s ours' in the caller config) passes. Survived 291/0
+N1b	EQUIVALENT	defence in depth, the other layer removed: without -s on the command line git merge takes its default strategy from pull.twohead, which is pinned to ort; mergeOptions stays pinned empty and the oracle stays. Measured: R5-N1 passes. Survived 291/0
+X4	EQUIVALENT	no git call in the lander passes a pathspec: add -A (no path), checkout -B main <sha>, cat-file blob <sha>, ls-tree <tree>, diff-index/diff-tree/status with no paths (census of the 23 g() subcommands, see F4); --literal-pathspecs only changes how pathspec arguments are read. Survived 291/0

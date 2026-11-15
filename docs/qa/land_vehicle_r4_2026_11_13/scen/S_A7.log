@@ -1,0 +1,12 @@
+== S_A7 commit signing whose gpg spawns a long-lived child (fake gpg = fixture)
+prepare rc=0 :: land_vehicle: step 5: vehicle merged onto main (merge commit)
+fake gpg invocations recorded: 2; signed commits on landed main: 0
+  pid 2975963 fds: 0->/dev/null 1->/dev/null 2->/dev/null 
+  pid 2977330 fds: 0->/dev/null 1->/dev/null 2->/dev/null 
+  pid 2978014 fds: 0->/dev/null 1->/dev/null 2->/dev/null 
+  pid 2978059 fds: 0->/dev/null 1->/dev/null 2->/dev/null 
+alive children: 4
+background children of gpg holding .land_vehicle.lock after prepare exited: 0
+publish right after prepare: rc=0 :: 
+publish after the children ended: rc=0
+== scenarios done

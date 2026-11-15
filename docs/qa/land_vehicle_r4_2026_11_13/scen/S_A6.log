@@ -1,0 +1,4 @@
+== S_A6 malformed remotes line carrying a credential URL (no network: dies in load_remotes)
+rc=2 leak_in_output=0
+    | land_vehicle: ERROR: remotes file line 1: want exactly two fields 'name url' (the line is not shown, it may hold a credential)
+== scenarios done

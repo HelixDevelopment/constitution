@@ -1,0 +1,5 @@
+# the negative-control installer: the head with the after-marks removed from the Z check (diff head negctl)
+1792c1792
+<   if hi_has_line_prefix "$b$nl$a" 'Z '; then   # a remote answered but no fingerprint tool exists: fail closed
+---
+>   if hi_has_line_prefix "$b" 'Z '; then   # a remote answered but no fingerprint tool exists: fail closed

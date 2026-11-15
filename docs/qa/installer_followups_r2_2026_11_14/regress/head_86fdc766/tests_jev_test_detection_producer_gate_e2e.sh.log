@@ -1,0 +1,21 @@
+ok 1 - gate present
+ok 2 - E1 bootstrap rc 0 (fail-open without consent)
+ok 3 - E1 detection written
+ok 4 - E1 llmctl source=unavailable
+ok 5 - E1 unavailable carries a non-empty reason
+ok 6 - E1 capacity.decision_instances is a number
+ok 7 - E1 decision_instances == instances
+ok 8 - E1 claimed-reachable endpoints carry .url
+ok 9 - E1 pending reason recorded
+ok 10 - E1 gate cm_jev_detection accepts the degraded-but-honest record (real gate rc)
+ok 11 - E4 no managed-clone dir created without consent
+ok 12 - E2 bootstrap rc 0
+ok 13 - E2 toolkit source=submodule
+ok 14 - E2 cache endpoint reachable:null
+ok 15 - E2 cache endpoint basis=resolution-only
+ok 16 - E2 gate accepts the full record (real gate rc)
+ok 17 - E3a unknown tool source is rejected
+ok 18 - E3b non-boolean/null reachable is rejected
+ok 19 - E3c unavailable without a reason is rejected
+ok 20 - E3d missing capacity.decision_instances is rejected
+# test_detection_producer_gate_e2e.sh: pass=20 fail=0 skip=0

@@ -1,0 +1,6 @@
+$ go test -count=1 -v ./...   (module scripts/workable-items, go1.26.4, twice, in two worktrees of the round-3 tree)
+run1: rc=0 PASS=790 FAIL=0 SKIP=6; full log sha256 393d492733dfdeaa069b772797ed53824c9a1845af56d5f7ecacaac1a22011a4
+run2: rc=0 PASS=790 FAIL=0 SKIP=6; full log sha256 faf5fcf80fbc66aa97d49818ba11f4728e173a7c41263e2955131cbfc1f234ce
+verdict sets (timings stripped, sorted): run1 sha256 e753ea6868eb3b924d498afcbe000d39ed8326c3d79343d30c3dd73beffa7232, run2 sha256 e753ea6868eb3b924d498afcbe000d39ed8326c3d79343d30c3dd73beffa7232; cmp: identical
+round-2 verdicts (round2/go_verdicts_r2_run1.txt, 678) missing or changed in round 3: 0; new verdicts: 118, every one from created_at_r3_test.go: 0  not-R3
+control needle: a fabricated verdict line is reported missing: 1 of 1

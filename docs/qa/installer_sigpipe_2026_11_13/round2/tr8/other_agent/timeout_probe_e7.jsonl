@@ -1,0 +1,4 @@
+{"exp": "E7-pty", "extra": [], "helper_stopped": true, "impl": "uutils", "rc": null, "seconds": 15.13, "tcset_ok": false}
+{"exp": "E7-pty", "extra": ["--foreground"], "helper_stopped": false, "impl": "uutils", "rc": "0", "seconds": 0.27, "tcset_ok": true}
+{"exp": "E7-pty", "extra": [], "helper_stopped": false, "impl": "gnu", "rc": "124", "seconds": 6.16, "tcset_ok": false}
+{"exp": "E7-pty", "extra": ["--foreground"], "helper_stopped": false, "impl": "gnu", "rc": "0", "seconds": 1.15, "tcset_ok": true}

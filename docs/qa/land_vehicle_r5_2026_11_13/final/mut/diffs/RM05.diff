@@ -1,0 +1,10 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM05)
+@@ -563,6 +563,7 @@
+     [[ "${key,,}" =~ ^roadmap-item[[:space:]]*$ ]] || continue
+     v=${line#*:}
+     v=${v#"${v%%[![:space:]]*}"}
++    v=${v//$'\r'/}
+     RI_VALS+=("$v")
+   done <<<"$parsed"
+ }

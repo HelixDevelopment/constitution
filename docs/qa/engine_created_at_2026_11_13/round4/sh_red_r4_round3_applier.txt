@@ -1,0 +1,102 @@
+PASS A1-dry-run-default
+PASS A2-apply
+PASS A3-idempotent
+PASS A4-final-row-without-newline
+PASS A5-symlinked-evidence-dir-refused
+PASS A5b-symlinked-evidence-file-refused
+PASS A6-dotdot-refused
+PASS A6b-dotdot-inside-root-refused
+PASS A7-absolute-refused
+PASS A8-sha-mismatch-blind
+PASS A9-preexisting-wrong-file
+PASS A10-row-by-row
+PASS A11-fix227-column
+PASS A11b-fix227-id-used
+PASS A11c-main-column
+PASS A12-bad-landing
+PASS A13-git-show-fails
+PASS A14-empty-plan
+PASS A15-dry-run-refusal
+PASS A16-usage
+PASS B1-N1-control
+PASS B1-N1-d1-in
+PASS B1-N1-d1-out
+PASS B1-N2-control
+PASS B1-N2-d1-in
+PASS B1-N2-d1-out
+PASS B1-N2-d2-in
+PASS B1-N2-d2-out
+PASS B1-N3-control
+PASS B1-N3-d1-in
+PASS B1-N3-d1-out
+PASS B1-N3-d2-in
+PASS B1-N3-d2-out
+PASS B1-N3-d3-in
+PASS B1-N3-d3-out
+PASS B1-N4-control
+PASS B1-N4-d1-in
+PASS B1-N4-d1-out
+PASS B1-N4-d2-in
+PASS B1-N4-d2-out
+PASS B1-N4-d3-in
+PASS B1-N4-d3-out
+PASS B1-N4-d4-in
+PASS B1-N4-d4-out
+PASS B1-N5-control
+PASS B1-N5-d1-in
+PASS B1-N5-d1-out
+PASS B1-N5-d2-in
+PASS B1-N5-d2-out
+PASS B1-N5-d3-in
+PASS B1-N5-d3-out
+PASS B1-N5-d4-in
+PASS B1-N5-d4-out
+PASS B1-N5-d5-in
+PASS B1-N5-d5-out
+PASS B2-root-link1
+PASS B2-root-link2
+PASS B2-root-relative
+PASS B2-root-trailing-slash
+PASS B2-root-is-a-file
+PASS B2-root-missing
+PASS B3-engine-missing
+PASS B3-db-missing
+PASS B3-plan-missing
+PASS B3-unknown-argument
+PASS B3-option-without-value
+PASS B4-racing-link-outside
+PASS B4-racing-link-prefix-sibling
+PASS B4-shim-control
+PASS B5-dslash-control
+PASS B5-dslash-link-in
+PASS B5-dslash-link-out
+PASS B5-dslash-link-first
+PASS B5-dslash-link-file
+PASS B5-lead-dot-control
+PASS B5-lead-dot-link
+PASS B5-mid-dot-control
+PASS B5-mid-dot-link
+PASS B5-triple-slash-control
+PASS B5-triple-slash-link
+FAIL B5-dot: rc=3 tree-unchanged=no mv: '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_dot/0CWMwy' and '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_dot/./0CWMwy' are the same file
+PASS B5-dot-dot
+PASS B5-dot-dot-mid
+FAIL B5-dir-dot: rc=3 tree-unchanged=no mv: '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_dir-dot/evidence/C9TJJG' and '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_dir-dot/evidence/./C9TJJG' are the same file
+FAIL B5-dir-slash: rc=3 tree-unchanged=no mv: '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_dir-slash/evidence/.cBYH2Q' and '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_dir-slash/evidence/.cBYH2Q' are the same file
+FAIL B5-file-slash: rc=3 tree-unchanged=no mktemp: failed to create file via template '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_file-slash/evidence/snap.db/.XXXXXX': No such file or directory
+FAIL B5-newdir-dot: rc=3 tree-unchanged=no mv: '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_newdir-dot/newdir/rB1kXh' and '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_newdir-dot/newdir/./rB1kXh' are the same file
+FAIL B5-newdir-slash: rc=3 tree-unchanged=yes mktemp: failed to create file via template '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_newdir-slash/newdir/.XXXXXX': No such file or directory
+PASS B5-abs-double-slash
+FAIL B5-dest-is-dir: rc=3 tree-unchanged=no BLIND: evidence/snap.db sha256  is not the plan's 4126e10aace8e8622a4b716d32df46a8891ebd59907b08618e13364d95aca32b
+FAIL B5-dest-is-fifo: rc=0 tree-unchanged=no RESULT: rows=1 refused=0 mode=apply
+PASS B5-loop-first
+PASS B5-loop-mid
+PASS B5-dangling-dir
+PASS B5-dangling-file
+PASS B5-dangling-file-out
+FAIL B5-empty-evidence-file: rc=3 BLIND: row WIT-010: evidence directory /mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0 is outside --root /mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/apply_plan_test.a5CfH0/root_b5_empty
+PASS B6-engine-not-executable
+PASS B7-no-temp-file-dry
+PASS B7-no-temp-file-apply
+RESULT: pass=91 fail=9
+rc=1

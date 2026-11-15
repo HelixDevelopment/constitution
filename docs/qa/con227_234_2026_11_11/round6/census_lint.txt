@@ -1,0 +1,3 @@
+=== channel_census_lint (GREEN: the round-6 table and lint on the round-6 scripts), 2026-11-12T00:01:21+01:00, private TMPDIR, one suite at a time
+CENSUS invocations=127 rows=123 secret_lines=11 findings=0
+exit=0

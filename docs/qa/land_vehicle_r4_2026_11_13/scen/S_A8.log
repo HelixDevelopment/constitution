@@ -1,0 +1,3 @@
+== S_A8 ambient push.followTags=true + an annotated tag in the clone (LIVE git)
+publish rc=0; remotes that received tag v-derived: 0/9; shim argv non-plain lines: 9
+== scenarios done

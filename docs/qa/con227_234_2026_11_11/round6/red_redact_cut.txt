@@ -1,0 +1,171 @@
+=== test_redact_cut (RED: round-6 tests, round-5 scripts of 9cd1539a), 2026-11-11T23:50:01+01:00, private TMPDIR, one suite at a time
+PASS K1 plain text untouched
+PASS K2 URL without userinfo or credential parameter untouched
+PASS K3 scp-style git@host:path untouched
+PASS K4 mail address untouched
+PASS K5 non-credential query parameter untouched
+PASS U1 basic userinfo
+PASS U2 raw '/' in the password (git 2.53 prints it verbatim)
+PASS U3 raw '@' in the password
+PASS U4 raw space in the password
+PASS U5 raw '?' and '#' in the password
+PASS U6 raw quote in the password
+PASS U7 percent-encoded password
+PASS U8 two URLs on one line
+PASS U9 colon in the user part
+PASS U10 userinfo longer than 64 bytes (300)
+PASS U11 ssh:// scheme
+PASS U12 git:// scheme
+PASS U13 ftp:// scheme
+PASS U14 svn+ssh:// scheme
+PASS U15 http:// scheme
+PASS U16 upper-case scheme
+PASS U17 user only, no password
+PASS U18 scheme-less user:password@host:path
+PASS U19 the host part is kept
+PASS U20 a path '@' after :// is over-redacted (by design: detail lost, never a secret)
+PASS Q-access_token query value
+PASS Q-token query value
+PASS Q-private_token query value
+PASS Q-private-token query value
+PASS Q-key query value
+PASS Q-api_key query value
+PASS Q-apikey query value
+PASS Q-password query value
+PASS Q-passwd query value
+PASS Q-pwd query value
+PASS Q-secret query value
+PASS Q-client_secret query value
+PASS Q-sig query value
+PASS Q-signature query value
+PASS Q-auth query value
+PASS Q-X-Amz-Signature query value
+PASS Q-X-Amz-Credential query value
+PASS Q-X-Amz-Security-Token query value
+PASS Q-refresh_token query value
+PASS Q-id_token query value
+PASS Q-session query value
+PASS Q-jwt query value
+PASS Q-upper Access_Token
+PASS Q-first parameter
+PASS Q-form outside a URL
+PASS Q-fragment value
+PASS Q-other parameters kept
+PASS Q-two credential parameters on one line
+PASS Q-two URLs each with a credential parameter
+PASS A1 Authorization: Basic
+PASS A2 Authorization: Bearer
+PASS A3 authorization lower case
+PASS A4 PRIVATE-TOKEN header
+PASS A5 X-Gitlab-Token header
+PASS A6 X-Api-Key header
+PASS A7 Cookie header
+PASS A8 Proxy-Authorization header
+PASS A9 bare Bearer token in prose
+PASS T1 GitHub classic token
+PASS T2 GitHub fine-grained token
+PASS T3 GitLab token
+PASS L1 invalid UTF-8 byte under a UTF-8 caller locale
+PASS L2 NUL byte in the password
+PASS L3 several lines each redacted
+PASS L4 CRLF line end
+PASS C1 redact first, then cut
+PASS C2 budget is exact
+PASS C3 '@' near the cut at offset 1990
+PASS C3 '@' near the cut at offset 1995
+PASS C3 '@' near the cut at offset 1998
+PASS C3 '@' near the cut at offset 2000
+PASS C3 '@' near the cut at offset 2003
+PASS C4 a 100000-byte line is processed within 20 s
+PASS C5 secret at the end of a 100000-byte line
+PASS C6 a truncated flush says so
+PASS C7 an untruncated flush has no marker
+PASS C8 empty input prints nothing
+PASS C9 a missing byte count is refused
+PASS C10 a non-numeric byte count is refused
+PASS C11 the byte budget holds under a UTF-8 caller locale
+PASS C12 NUL bytes are dropped from the output
+PASS J1a password with 'token:' inside the userinfo (R1 must not run before R3)
+PASS J1b password with 'secret: ' inside the userinfo
+PASS J1c the host after the userinfo is kept (positive needle)
+PASS J1d scheme-less user:password@host with 'token:' in the password (R4 before R1)
+PASS J2a a 4500-byte credential value does not let the next parameter through
+PASS J2b 12000-byte value, second parameter and token shape
+PASS J2c a line longer than 16384 bytes is not printed, only its length
+PASS J2d a line of exactly 16384 bytes is still printed (boundary)
+PASS V3 Cookie header with a non-credential cookie name
+PASS V4 a token shape straddling the cut prints no prefix of it
+PASS V5 Bearer followed by a TAB
+PASS E1 real git: raw '/' in the password
+PASS E2 real git: unknown host
+PASS E3 real git: missing local repository
+PASS E4 real git: connection refused
+PASS E5 HTTP 403
+PASS E6 authentication failed
+PASS E7 hook declined, the deciding phrase on the LAST line (multi-line input, V11 class)
+PASS E8 non-fast-forward
+PASS E9 empty input
+PASS E10 text with no known phrase
+PASS E11 TLS
+PASS E12 remote ref
+PASS E13 the deciding phrase after 5000 bytes is still seen
+PASS E14 upper case phrase
+PASS E15 seven hostile inputs: one closed-set word each, no input byte
+PASS E16 NUL bytes and a UTF-8 caller locale
+PASS W1 https with path and query
+PASS W2 userinfo is never printed
+PASS W3 user only
+PASS W4 plain host
+PASS W5 IPv6 literal
+PASS W6 not a URL
+PASS W7 a raw '/' password (git verbatim shape)
+PASS W8 empty
+PASS G1 trace switches removed, redaction forced, prompts off, trace2 disabled
+FAIL N1a percent-encoded = (leaked: ZZN1A; output: GET /x?access_token%3DZZN1A&b=1)
+FAIL N1b spaced PASSWORD = X (leaked: ZZN1B; output: PASSWORD = ZZN1B rest)
+FAIL N1c JSON token (leaked: ZZN1C; output: {"token":"ZZN1C","a":1})
+FAIL N1d JSON password, spaced colon (leaked: ZZN1D; output: {"password" : "ZZN1D"})
+PASS N1e JSON control (no credential key)
+PASS N1f spaced control (no credential key)
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+FAIL K1 https-userpass: https://u:ZZK1@h.invalid/r (got 'allow', want 'refuse')
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+FAIL K1 https-user-only: https://ghp_ZZK1TOKEN@h.invalid/r (got 'allow', want 'refuse')
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+FAIL K1 http-userpass: http://u:ZZK1@h.invalid/r (got 'allow', want 'refuse')
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+FAIL K1 upper-scheme: HTTPS://u:ZZK1@h.invalid/r (got 'allow', want 'refuse')
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+FAIL K1 ftp: ftp://u@h.invalid/r (got 'allow', want 'refuse')
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+FAIL K1 ssh-userpass: ssh://u:ZZK1@h.invalid/r (got 'allow', want 'refuse')
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+FAIL K1 ssh-pct3a: ssh://u%3AZZK1@h.invalid/r (got 'allow', want 'refuse')
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+FAIL K1 scp-userpass: u:ZZK1@h.invalid:r.git (got 'allow', want 'refuse')
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+PASS K1 ssh-user-only: ssh://git@h.invalid/r
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+PASS K1 scp-user-only: git@h.invalid:r.git
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+PASS K1 https-plain: https://h.invalid/r
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+PASS K1 at-in-path: https://h.invalid/a@b
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+PASS K1 local-abs: /srv/repo.git
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+PASS K1 local-rel: ./repo@x
+tests/release/test_redact_cut.sh: line 203: rc_url_has_userinfo: command not found
+PASS K1 file-url: file:///srv/r.git
+_: line 2: rc_env_lockdown: command not found
+PASS K3 lockdown census ran (control needle)
+PASS K3 allow-listed HOME kept
+PASS K3 RELEASE_ENV_KEEP name kept
+FAIL K3 a non-listed or credential-like name reaches children: child:BASH_FUNC_f%% GH_TOKEN HOME KEEPME PATH PWD RELEASE_ENV_KEEP SHLVL XYZ ZZK3_TOKEN } shell:b a fn:f
+PASS K3 the shell keeps the values
+FAIL K3 exported function reaches children: child:BASH_FUNC_f%% GH_TOKEN HOME KEEPME PATH PWD RELEASE_ENV_KEEP SHLVL XYZ ZZK3_TOKEN } shell:b a fn:f
+_: line 1: rc_env_lockdown: command not found
+PASS K3 _rpg_tok: the census sees a kept name (control needle)
+FAIL K3 _rpg_tok: RELEASE_ENV_KEEP keeps a *TOK* name exported
+RESULT: pass=136 fail=15
+exit=1

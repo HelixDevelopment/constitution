@@ -1,0 +1,8 @@
+== bash 3.2.57, base installer, clean --version: [constitution] ERROR: bash 4.4 or newer is required (this is bash 3.2.57(1)-release); on macOS: brew install bash, then pipe into that bash rc=3
+== bash 3.2.57, base installer, posix --version: <scratch>/basetree.2C9z/b/scripts/install_constitution.sh: line 87: syntax error near unexpected token `<' <scratch>/basetree.2C9z/b/scripts/install_constitution.sh: line 87: `  done < <(hi_upstream_table)' rc=2
+== bash 3.2.57, new installer, clean --version: [constitution] ERROR: bash 4.4 or newer is required (this is bash 3.2.57(1)-release); on macOS: brew install bash, then pipe into that bash rc=3
+== bash 3.2.57, new installer, posix --version: [constitution] ERROR: bash 4.4 or newer is required (this is bash 3.2.57(1)-release); on macOS: brew install bash, then pipe into that bash rc=3
+== bash 5.0.17, base installer, clean --version: install_constitution.sh 1.0.0 rc=0
+== bash 5.0.17, base installer, posix --version: <scratch>/basetree.2C9z/b/scripts/install_constitution.sh: line 87: syntax error near unexpected token `<' <scratch>/basetree.2C9z/b/scripts/install_constitution.sh: line 87: `  done < <(hi_upstream_table)' rc=2
+== bash 5.0.17, new installer, clean --version: install_constitution.sh 1.0.0 rc=0
+== bash 5.0.17, new installer, posix --version: install_constitution.sh 1.0.0 rc=0

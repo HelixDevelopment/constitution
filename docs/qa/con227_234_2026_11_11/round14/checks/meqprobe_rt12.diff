@@ -1,0 +1,13 @@
+diff --git a/tests/release/test_release_tooling_mutations.sh b/tests/release/test_release_tooling_mutations.sh
+index 512bec10..93adb416 100644
+--- a/tests/release/test_release_tooling_mutations.sh
++++ b/tests/release/test_release_tooling_mutations.sh
+@@ -571,7 +571,7 @@ mp CW8 'K10 R9-4' "$LIB" '|COOKIE|SESSION|' '|COOKIE|'   # SESSION
+ mp CW9 'K10 R9-4' "$LIB" '|SESSION|JWT|' '|SESSION|'   # JWT
+ mp CW10 'K10 R9-4' "$LIB" '|JWT|PROXY ]]' '|JWT ]]'   # PROXY (the first form also removed JWT and was killed by ZW_JWT, not ZW_PROXY)
+ # --- round 11: the reviewer's round-10 mutants R01-R22 adopted as RT* (see the header); R01-R11, R14-R16, R22: N/A ---
+-meq RT12 "$PUB" 'HELP=0   # round 10 (R9-2): -h sets it; it is never taken from the caller' '# HELP=0 removed by reviewer mutant' 'rc_env_clean drops a caller HELP (the re-executed script starts from an empty environment and HELP is not in its READS), so HELP is unset and reads as 0 in the test [ "${HELP:-0}" ]; round-10 review probe: with HELP=1 in the caller the mutant prints "--tag is required", not the help'
++meq RT12 "$PUB" 'HELP=0   # round 10 (R9-2): -h sets it; it is never taken from the caller' 'HELP=1   # round-14 F5 probe: forced, so this meq mutant is killed' 'rc_env_clean drops a caller HELP (the re-executed script starts from an empty environment and HELP is not in its READS), so HELP is unset and reads as 0 in the test [ "${HELP:-0}" ]; round-10 review probe: with HELP=1 in the caller the mutant prints "--tag is required", not the help'
+ mp RT13 'R11' "$LIB" "_RC_LOCALE_CODESET='utf-?8|" "_RC_LOCALE_CODESET='[a-z]+:[a-z]+|utf-?8|"   # R13 re-applied to the closed codeset list: a codeset holding ":" (en_US.ab:cd) kept
+ mp RT17 'descriptor' "$LIB" 'case "$n" in 0|1|2|9) continue ;; esac' 'case "$n" in 0|1|2|9|1[0-9]) continue ;; esac'   # R17 verbatim: descriptors 10-19 not closed
+ mp RT18 'K10 R9-4' "$LIB" 'COOKIE|SESSION|JWT|PROXY ]]' 'COOKIE|SESSION|JWT ]]'   # R18 verbatim

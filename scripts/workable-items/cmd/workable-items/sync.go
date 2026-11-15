@@ -34,6 +34,15 @@ func syncMDToDB(args []string) int {
 	}
 	defer db.Close()
 
+	// CON-339: one created_at snapshot taken before both document
+	// transactions, so an item the Markdown moved from Issues to Fixed keeps
+	// its creation time (the Issues transaction deletes its row first).
+	snap, err := takeCreatedAtSnapshot(db)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sync md-to-db: snapshot created_at: %v\n", err)
+		return exitUsage
+	}
+
 	total := 0
 	if *issuesPath != "" {
 		content, err := os.ReadFile(*issuesPath)
@@ -42,7 +51,7 @@ func syncMDToDB(args []string) int {
 			return exitUsage
 		}
 		items, segs := parseIssues(string(content))
-		if err := replaceDocument(db, "Issues", items, segs); err != nil {
+		if err := replaceDocumentWithSnapshot(db, "Issues", items, segs, snap); err != nil {
 			fmt.Fprintf(os.Stderr, "sync md-to-db: persist issues: %v\n", err)
 			return exitUsage
 		}
@@ -60,7 +69,7 @@ func syncMDToDB(args []string) int {
 			return exitUsage
 		}
 		items, segs := parseFixed(string(content))
-		if err := replaceDocument(db, "Fixed", items, segs); err != nil {
+		if err := replaceDocumentWithSnapshot(db, "Fixed", items, segs, snap); err != nil {
 			fmt.Fprintf(os.Stderr, "sync md-to-db: persist fixed: %v\n", err)
 			return exitUsage
 		}

@@ -1,0 +1,14 @@
+# V12 / X18 equivalence probe (round 11). Static part: the network allow-list _RC_NET_KEEP of scripts/release/redact_cut.sh
+names on _RC_NET_KEEP: 23
+positive needle GIT_SSH_COMMAND on the list: 1
+trace/verbose names on the list (GIT_TRACE*, GIT_CURL_VERBOSE): 0
+constants rc_net exports:  LC_ALL GIT_TRACE_REDACT GIT_TERMINAL_PROMPT GIT_TRACE2 GIT_TRACE2_EVENT GIT_TRACE2_PERF 
+# netgate (every git call of the four scripts goes through rc_net):
+NETGATE invocations=128 network_through_rc_net=51 findings=0
+netgate rc=0
+# local lockdown keep list (rc_env_lockdown, runs BEFORE rc_git_env in both scripts): trace/verbose names on it:
+count=0  (positive needle GIT_SSH_COMMAND: 1)
+# RELEASE_ENV_KEEP refuses every GIT_* name (line: 240)
+# call order (rc_env_clean line < rc_git_env line):
+scripts/release_publish_gitea.sh: rc_env_clean@58 rc_git_env@62
+scripts/release/tag_and_release.sh: rc_env_clean@80 rc_git_env@82

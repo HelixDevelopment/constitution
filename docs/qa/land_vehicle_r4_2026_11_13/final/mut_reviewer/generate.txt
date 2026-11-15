@@ -1,0 +1,13 @@
+MR01_push_url_first_only OK
+MR02_only_mirror_key_checked OK
+MR03_id_in_text_substring OK
+MR04_no_branch_check_after_mint OK
+MR05_publish_dirty_ignores_untracked OK
+MR07_trailer_range_first_remote_only OK
+MR08_pushed_is_pass_without_readback OK
+MR09_shared_lock OK
+MR12_verify_id_substring OK
+MR15_newest_tip_keeps_older OK
+MR20_rejected_reported_as_pushed OK
+MR21_remotes_extra_field_ok OK
+MR22_url_prefix_match OK

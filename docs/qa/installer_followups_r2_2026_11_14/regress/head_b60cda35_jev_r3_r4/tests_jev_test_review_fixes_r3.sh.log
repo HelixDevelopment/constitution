@@ -1,0 +1,62 @@
+ok 1 - EM-POS loopback base + local endpoint + promoted + validated PASS => enforce
+ok 2 - EM-POS require-validated is called with LLMCTL_VALIDATE_STRICT=1 for the profile
+ok 3 - EM-I3-3 hosted base URL => shadow even with promoted thresholds
+ok 4 - EM-I3-3 userinfo/lookalike base 'https://127.0.0.1@evil.example/' => shadow
+ok 5 - EM-I3-3 userinfo/lookalike base 'http://127.0.0.1:80@evil.example/' => shadow
+ok 6 - EM-I3-3 userinfo/lookalike base 'https://localhost.evil.example' => shadow
+ok 7 - EM-I3-3 userinfo/lookalike base 'https://[::1]@evil.example/' => shadow
+ok 8 - EM-R2 an UNPROMOTED type with a numeric threshold => shadow
+ok 9 - EM-I3-1 no thresholds file => shadow
+ok 10 - EM-I3-3 hosted-only record => shadow
+ok 11 - EM no detection record => shadow
+ok 12 - EM enforce is never inferred from a thresholds file alone
+ok 13 - EM-R4 a FAILING require-validated => shadow
+ok 14 - EM-m-r3-2 overrides without JEV_TEST=1 never enable enforce
+ok 15 - EM-m-r3-2 the ignore is noted in the reason
+ok 16 - BS-1 bootstrap --enforce rc 0
+ok 17 - BS-I3-1 --enforce + an unpromoted thresholds file stays shadow
+ok 18 - BS-I3-1 --enforce + promoted thresholds but NO local endpoint/validator stays shadow
+ok 19 - BS-I3-2 stored enforce + thresholds removed => the env file is rewritten to shadow
+ok 20 - BS-I3-2 jev-status --json says shadow
+ok 21 - RG-POS promoted + local record + validated => enforce
+ok 22 - RG-POS the MCP env.JEV_MODE agrees
+ok 23 - RG-I3-2 thresholds removed + rerun => env file downgraded to shadow
+ok 24 - RG-I3-2 thresholds removed + rerun => MCP env.JEV_MODE downgraded to shadow
+ok 25 - RG-I3-3 hosted base URL + promoted thresholds => shadow
+ok 26 - RG-I3-3 hosted base URL => MCP env.JEV_MODE shadow
+ok 27 - RG-I3-3 userinfo base URL => shadow
+ok 28 - PR-m-r3-1 unkeyed probe of 'http://127.0.0.1:80@evil.example/' exits 2
+ok 29 - PR-m-r3-1 curl was never started for 'http://127.0.0.1:80@evil.example/'
+ok 30 - PR-m-r3-1 unkeyed probe of 'http://[::1]@evil.example/' exits 2
+ok 31 - PR-m-r3-1 curl was never started for 'http://[::1]@evil.example/'
+ok 32 - PR-m-r3-1 unkeyed probe of 'http://localhost:1@evil.example/' exits 2
+ok 33 - PR-m-r3-1 curl was never started for 'http://localhost:1@evil.example/'
+ok 34 - PR-m-r3-1 the llmctl-* id exemption is gone (id llmctl-x + public URL => exit 2)
+ok 35 - PR-m-r3-1 no curl for the llmctl-x public URL
+ok 36 - PR-POS a genuine loopback URL is probed unkeyed
+ok 37 - PR-m-r3-3 curl -q is the FIRST argument (probe)
+ok 38 - PR-nit --globoff on the probe curl
+ok 39 - PP-nit encoded/odd path '/v1/%25' on a pinned origin is refused
+ok 40 - PP-nit encoded/odd path '/v1/..;/x' on a pinned origin is refused
+ok 41 - PP-nit encoded/odd path '/v1/%u0041' on a pinned origin is refused
+ok 42 - PP-nit encoded/odd path '/v1/%7f' on a pinned origin is refused
+ok 43 - PP-nit encoded/odd path '/v1/{a}' on a pinned origin is refused
+ok 44 - PP-nit encoded/odd path '/v1/[a]' on a pinned origin is refused
+ok 45 - AP-m-r3-3 curl -q is the FIRST argument (auth_probe)
+ok 46 - AP-nit --globoff on auth_probe
+ok 47 - AP-R1 the key is never on curl's argv
+ok 48 - AP-R1 the key travels on STDIN (-K -)
+ok 49 - Q-m-r3-3 jev-probe.sh builds its curl args with -q first
+ok 50 - Q-m-r3-3 lib_keys.sh builds its curl args with -q first
+ok 51 - Q-m-r3-3 bootstrap.sh builds its curl args with -q first
+ok 52 - R2 mutation anchor found
+ok 53 - R2 MUTANT (no promoted==true) wrongly enforces an unpromoted type  [the real code says shadow, see EM-R2]
+ok 54 - R4 mutation anchor found
+ok 55 - R4 MUTANT (failed require-validated ignored) wrongly enforces  [the real code says shadow, see EM-R4]
+ok 56 - R5 mutation anchor found
+ok 57 - R5 MUTANT (hosted-only deferral removed) wrongly enforces  [the real code says shadow, see EM-I3-3]
+ok 58 - R1 mutation anchor found
+ok 59 - R1 MUTANT (key via -H on argv) is caught: the key shows on curl's argv
+ok 60 - R3 mutation anchor found
+ok 61 - R3 MUTANT (record ca_file on a keyed probe) is caught: --cacert reaches curl
+# test_review_fixes_r3.sh: pass=61 fail=0 skip=0

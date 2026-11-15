@@ -1,0 +1,10 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM01)
+@@ -1079,6 +1079,7 @@
+     else action[i]='push-rejected'
+     fi
+   done
++  local_main=$(g rev-parse main)
+   # pass 3: read-back
+   {
+     printf '# land_vehicle %s read-back\n\n' "$mode"

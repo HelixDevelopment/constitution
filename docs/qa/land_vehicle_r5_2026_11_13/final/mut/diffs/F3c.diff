@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F3c)
+@@ -885,7 +885,7 @@
+   [ -z "$MINT_CMD" ] || [ -z "$ITEM_ID" ] || die 2 "give --mint-cmd or --item-id, not both"
+   if [ -n "$ITEM_ID" ]; then
+     [[ "$ITEM_ID" =~ $ID_RE ]] || die 2 "--item-id must match $ID_RE"
+-    ! [[ "$ITEM_ID" =~ $PLACEHOLDER_RE ]] || die 2 "--item-id $ITEM_ID matches --placeholder-re; refusing"
++    true || die 2 "--item-id $ITEM_ID matches --placeholder-re; refusing"
+   fi
+   [ ! -e "$CLONE" ] && [ ! -L "$CLONE" ] || die 2 "clone path already exists: $CLONE (prepare pushes nothing; to retry, remove that scratch clone with a guarded delete and run prepare again)"
+   if [ -n "$MINT_CMD" ] && [ "$CLONE_NAME" != constitution ]; then

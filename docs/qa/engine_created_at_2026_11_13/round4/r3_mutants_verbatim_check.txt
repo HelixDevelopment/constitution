@@ -1,0 +1,4 @@
+$ python3 -I verbatim_check_r3.py scripts/workable-items/mutation/created_at_r2_mutation_runner.py <review>/probes/rev3_mutants.py   (rev3_mutants.py sha256 c8a7a62dc7d5529edb56e6a9f4036c123560e0acdf2d91b37094cd529ca06db4; exit 0)
+runner R3 tuples: 13 review tuples: 13 identical (name, old, new, intent): True
+differing tuples: 0
+control: one-character change detected: True

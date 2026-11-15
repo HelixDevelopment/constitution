@@ -1,0 +1,10 @@
+Re-mint map at the merge of main 581a2939 into vehicle/fix227 (round 5), 2026-11-11
+CON-249 -> CON-269	CON-234 follow-up: derive_release_facts.sh in a shallow clone prints a silently truncated commit count (G6 of review fix227 round 2)
+CON-250 -> CON-270	CON-234 follow-up: tag_and_release.sh prints the GitHub repository id returned by gh api without checking that it is a number
+CON-251 -> CON-271	CON-234 follow-up: known limits of the redact-then-cut helper (parameter value with a raw blank or & # ; quote < >, a credential split over two lines, a bare-word secret)
+CON-252 -> CON-272	CON-234 follow-up: the SIGINT trap of the release scripts is not exercised by a test
+new CON-273	CON-234 follow-up (J7): a guard that refuses pkill / killall / pgrep -f driven signals in agent sessions
+new CON-274	Incident (J7): unscoped pkill -f "sleep 30" -P 1 run by the round-4 release-tooling fixer; effect UNKNOWN
+new CON-275	CON-234 follow-up: release scripts run network commands unbounded when timeout(1) is absent
+new CON-276	CON-234 follow-up: after SIGKILL the release scripts leave their 0700 run directory (release notes, local stderr)
+Re-mint note (round 6, 2026-11-12): these ids were re-minted again at the merge of main 66ad6efe: CON-269..CON-276 -> CON-300..CON-307 in order; see ../round6/remint_map.txt.

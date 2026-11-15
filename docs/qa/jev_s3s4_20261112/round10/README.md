@@ -48,7 +48,7 @@ R9-11 are now permanent mutants killed by round-10 rows. R9-07 survived the firs
 
 The vehicle's commits carry the trailers `Roadmap-Item: CON-PENDING-JEV-CONSTITUTION` (`dc654757`), `CON-299` (rounds 4
 to 7) and `CON-PENDING-JEV` (rounds 8 to 10). On `main`, CON-299 is a different item. At landing, the Jev S3/S4 item is
-minted through the workable-items engine and every one of these three trailers on this vehicle maps to that minted id
+minted through the workable-items engine and every one of these three trailers on this vehicle maps to that minted id: CON-388
 (recorded in the item's description and in the landing CHANGELOG entry). The trailers are not rewritten.
 
 ## Checksums touched by this round
@@ -56,7 +56,7 @@ minted through the workable-items engine and every one of these three trailers o
 R9-8 edited the prose of `round3/README.md` (the history-rewrite advice), so its line in the top-level `SHA256SUMS`
 is updated to the new content (old `4e6950bc…f9fb`). No other evidence file of an earlier round is changed.
 
-## Follow-ups (drafts minted at landing, not here)
+## Follow-ups (drafts minted at landing: CON-389 O6-1, CON-390 CLOCK-BOOTSTRAP, CON-391 MONO-FALLBACK, CON-392 DEPS-LLMCTL-REF)
 
 O6-1 (intermittent `test_review_fixes_r2.sh` P2, root cause UNKNOWN), CLOCK-BOOTSTRAP, MONO-FALLBACK (a host without
 `/proc` judges ages on wall time), DEPS-LLMCTL-REF (`helix-deps.yaml` names llmctl ref `3877467` while the gitlink is

@@ -1,0 +1,10 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (E2)
+@@ -834,7 +834,6 @@
+   if [ "$rc0" = 0 ]; then NEWMSG=$msg
+   else fix_message "$c" "$msg" "$id" || die 1 "trailer rewrite failed for $c"
+   fi
+-  if [ "$NEWMSG" = "$msg" ] && [ "$changed" = 0 ]; then MAP[$c]=$c; return 0; fi
+   # new header: parents mapped, signature dropped, every other line byte for byte
+   local skip=0 sig=no
+   for line in "${H[@]}"; do

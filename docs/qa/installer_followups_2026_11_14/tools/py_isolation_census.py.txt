@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Census: every line where python3/python is invoked as a command (after start, ;, |, &&, ||, (, $(, `, env X=Y,
+or VAR=val prefixes) in the given files; classifies -I present / absent. Comment-only lines are skipped.
+Prints TSV file line state text. Control needles must hold (argv[1]=FILE:LINE known -I present,
+argv[2]=FILE:LINE known -I absent); otherwise BLIND exit 2.  argv: POS NEG FILE..."""
+import re, sys
+pos, neg, files = sys.argv[1], sys.argv[2], sys.argv[3:]
+cmd = re.compile(r'(?:^|[;&|(`]|\$\(|\bthen\b|\bdo\b|\belse\b|&&|\|\|)\s*(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|\'[^\']*\'|\S*)\s+)*(?:env\s+(?:-\S+\s+)*(?:[A-Za-z_]\w*=\S*\s+)*)?(?:command\s+)?(python3?)(?=\s)(\s+[^|;&)]*)?')
+res = {}
+for f in files:
+    for n, line in enumerate(open(f, encoding="utf-8", errors="replace"), 1):
+        s = line.split("#", 1)[0] if line.lstrip().startswith("#") else line
+        if line.lstrip().startswith("#"): continue
+        for m in cmd.finditer(line):
+            args = (m.group(2) or "").split()
+            state = "I" if any(re.fullmatch(r"-[A-Za-z]*I[A-Za-z]*", a) for a in args[:3]) else "NO-I"
+            res[(f, n)] = state
+            print("%s\t%d\t%s\t%s" % (f, n, state, line.strip()[:140]))
+def st(k):
+    f, n = k.rsplit(":", 1); return res.get((f, int(n)))
+print("CONTROL pos=%s neg=%s" % (st(pos), st(neg)))
+if st(pos) != "I" or st(neg) != "NO-I": print("BLIND"); sys.exit(2)

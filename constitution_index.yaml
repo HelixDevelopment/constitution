@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-11-15T17:20:13.213827+00:00'
+generated_at: '2026-11-15T17:23:03.321527+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 911c5b9a9cf353e13c7038fd2f3a1007076ba02b
-  source_sha256: 42ec29e54b068e5e6b6af9b82e69948b26310422354e8328ced1c10677f50e9f
+  commit: 4f57924acda70907f5c934676e92cfecb17d2c82
+  source_sha256: a72571cbf7abd4e5a36c7d64a218bd2d44e9bc8eda7f7d314d6a2972a0c08321
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -22,7 +22,7 @@ groups:
   anchor_count: 26
 - name: governance-and-constitution-meta
   path: constitution/groups/governance-and-constitution-meta.md
-  anchor_count: 40
+  anchor_count: 41
 - name: host-and-resource-safety
   path: constitution/groups/host-and-resource-safety.md
   anchor_count: 23
@@ -4383,6 +4383,22 @@ anchors:
   - 11.4.31
   - 11.4.6
   - 11.4.80
+- id: 11.4.184(J)
+  title: '— Registry authentication for image-pulling SonarQube scans: integral, documented,
+    works out of the box (operator mandate, 2026-11-12; EXTENSION of §11.4.184, not
+    a new anchor).'
+  group: governance-and-constitution-meta
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
+  propagation_gate: null
+  binds_principle: []
+  cross_references:
+  - 11.4.10
+  - 11.4.161
+  - 11.4.177
+  - 11.4.184
+  - 11.4.28
+  - 11.4.289
 - id: 11.4.185
   title: — Manual QA-team testing as the mandatory FINAL confirmation of done (User
     mandate, 2026-07-07).

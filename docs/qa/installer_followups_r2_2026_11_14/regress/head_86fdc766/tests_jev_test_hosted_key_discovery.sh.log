@@ -1,0 +1,112 @@
+ok 1 - K1 bootstrap rc 0
+ok 2 - K1 hosted endpoint recorded from the real key (OpenRouter has no key: not listed)
+ok 3 - K1 host comes from the claude_toolkit pin, https
+ok 4 - K1 key_var NAME recorded
+ok 5 - K1 reachable=true from a real authenticated probe
+ok 6 - K1 auth status CLASS recorded (2xx)
+ok 7 - K1 reachable_basis=probe
+ok 8 - K1 model from the pin
+ok 9 - K1 the probe carried the Authorization header on stdin config
+ok 10 - K1 NEG: key never on a curl command line
+ok 11 - K1 key state recorded by NAME
+ok 12 - K1 OpenRouter key absent, recorded with a reason
+ok 13 - K1 absent key carries a reason
+ok 14 - K1 immediately in shadow mode
+ok 15 - K1 key value appears in no output/evidence/state file
+ok 16 - K1 CONTROL NEEDLE: the scan does see the key in the keys file (instrument can see)
+ok 17 - K1 report-stage detection gate PASSes with a probed hosted endpoint
+ok 18 - K7 --enforce with only hosted endpoints stays shadow (hosted never enforce)
+ok 19 - K7 the deferral says why
+ok 20 - K7b --enforce + PROMOTED thresholds + passing validator, hosted-only endpoints => shadow
+ok 21 - K7b the deferral names the hosted-endpoint reason
+ok 22 - K2 HTTP 401 => class 401
+ok 23 - K2 HTTP 401 => reachable=true
+ok 24 - K2 HTTP 403 => class 403
+ok 25 - K2 HTTP 403 => reachable=true
+ok 26 - K2 HTTP 000 => class timeout
+ok 27 - K2 HTTP 000 => reachable=false
+ok 28 - K2 HTTP 500 => class other
+ok 29 - K2 HTTP 500 => reachable=true
+ok 30 - K3 placeholder [x] => no endpoint
+ok 31 - K3 [x] classified placeholder
+ok 32 - K3 [x] explicit reason names the variable
+ok 33 - K3 [x] NEG: no probe is made with a placeholder (curl never invoked)
+ok 34 - K3 placeholder [short] => no endpoint
+ok 35 - K3 [short] classified placeholder
+ok 36 - K3 [short] explicit reason names the variable
+ok 37 - K3 [short] NEG: no probe is made with a placeholder (curl never invoked)
+ok 38 - K3 placeholder [changeme] => no endpoint
+ok 39 - K3 [changeme] classified placeholder
+ok 40 - K3 [changeme] explicit reason names the variable
+ok 41 - K3 [changeme] NEG: no probe is made with a placeholder (curl never invoked)
+ok 42 - K3 placeholder [your-key-here] => no endpoint
+ok 43 - K3 [your-key-here] classified placeholder
+ok 44 - K3 [your-key-here] explicit reason names the variable
+ok 45 - K3 [your-key-here] NEG: no probe is made with a placeholder (curl never invoked)
+ok 46 - K3 placeholder [aaaaaaaaaaaaaaaaaaaaaaaa] => no endpoint
+ok 47 - K3 [aaaaaaaaaaaaaaaaaaaaaaaa] classified placeholder
+ok 48 - K3 [aaaaaaaaaaaaaaaaaaaaaaaa] explicit reason names the variable
+ok 49 - K3 [aaaaaaaaaaaaaaaaaaaaaaaa] NEG: no probe is made with a placeholder (curl never invoked)
+ok 50 - K3 placeholder VALUE is not echoed either
+ok 51 - K4 missing keys file is lawful (rc 0)
+ok 52 - K4 no endpoint without a key
+ok 53 - K4 reason: keys file missing
+ok 54 - K4 unreadable keys file is lawful (rc 0)
+ok 55 - K4 reason: keys file not readable
+ok 56 - K5 group/world-readable keys file => perms_warning true
+ok 57 - K5 the warning tells the operator what to do
+ok 58 - K5 the key is still used (warning, not refusal)
+ok 59 - K5-NEG mode 600 => no warning
+ok 60 - K6 JEV_API_KEYS_FILE wins over CMA_KEYS_FILE and ~/api_keys.sh
+ok 61 - K6 CMA_KEYS_FILE wins over ~/api_keys.sh
+ok 62 - K6 default ~/api_keys.sh when neither override is set
+ok 63 - K6-NEG a wrong key is a recorded 401 class, not a silent success
+ok 64 - K8 probed hosted endpoint + real key: GREEN
+ok 65 - K8 hosted endpoint reachable=null while a real key is present => RED
+ok 66 - K8 the failure names the key variable (never its value)
+ok 67 - K8 hosted endpoint reachable=false while a real key is present => RED
+ok 68 - K8 gate output/evidence carries no key value
+ok 69 - K8-NEG reachable=null with only a PLACEHOLDER key is not a failure
+ok 70 - K8-NEG reachable=null on an endpoint with no key_var (nothing to prove) stays lawful
+ok 71 - K8-NEG absent record still RED
+ok 72 - K9 cm_jev_detection.sh --root <dir> reads <dir>/.jev/jev-detection.json
+ok 73 - K9 --root without a record is RED (not silently green)
+ok 74 - K9 unknown option is a usage error (rc 2)
+ok 75 - K9 the JEV_DETECTION_FILE env var still works
+ok 76 - K10 decisions with .question (no .class), as jev-gate.sh writes them, satisfy clause 4
+ok 77 - K10-NEG a log covering only the 'gate' class still FAILs for routing/score
+ok 78 - K10 an explicit .class still takes precedence over .question
+ok 79 - K11 relocated CMA_PROVIDERS_DIR: bootstrap still reads the cache sync-jev wrote under HOME
+ok 80 - K12 bootstrap rc 0 without toolkit/pins
+ok 81 - K12 hosted endpoint discovered from the key file ALONE (empty cache, no pins file)
+ok 82 - K12 key_discovery.keys_file_present is true for an existing file
+ok 83 - K12 the real file mode is recorded
+ok 84 - K12 variable NAME listed with its state
+ok 85 - K12 the built-in default pins are used, and the record says so
+ok 86 - K12 mode 600 => no perms warning
+ok 87 - K12 no key value in any output/evidence
+ok 88 - K12 mode 644 => perms_warning true
+ok 89 - K12 mode 644 recorded
+ok 90 - K12 env -i + real-HOME layout: endpoint still discovered
+ok 91 - K12 env -i: keys_file_present true
+ok 92 - K12 env -i: mode recorded
+ok 93 - K12-NEG missing file => keys_file_present false
+ok 94 - K12-NEG names are listed (absent) even with no file
+ok 95 - K16 bootstrap rc 0 with an env-only key
+ok 96 - K16 precondition: no keys file exists
+ok 97 - K16 the env-sourced key still yields the hosted endpoint
+ok 98 - K16 source says the key came from the process environment
+ok 99 - K16 nothing is labelled api-keys-file when no keys file exists
+ok 100 - K16 no key value in any output/evidence
+ok 101 - K13 a models.json deep in unrelated project dirs is not scanned (bounded walk)
+ok 102 - K13-NEG a decision id inside an agent config dir is still caught
+ok 103 - K14 bootstrap completes (rc 0) with an llmctl that never answers
+ok 104 - K14 bounded: finished in 6s (< 40s) with a hanging llmctl
+ok 105 - K14 the timeout is reported, not silent
+ok 106 - K14 bootstrap completes with a gate that never returns
+ok 107 - K14 bounded: finished in 4s with a hanging gate
+ok 108 - K14 the hanging gate is reported as TIMEOUT
+ok 109 - K15 the no-probe failure names jev-probe.sh
+ok 110 - K15 and shows the exact env assignment to use
+ok 111 - K15 bootstrap-reference documents the one-line rerun
+# test_hosted_key_discovery.sh: pass=111 fail=0 skip=0

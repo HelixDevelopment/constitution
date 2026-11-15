@@ -1,0 +1,33 @@
+5.3.9    shopt-unknown-name       rc_u=1 extglob=off nullglob=off rc_s=1 dotglob=on control_rc=0     ok
+5.3.9    unset-POSIXLY_CORRECT set-o-posix            unset: on->off  control (no unset): on->on   ok
+5.3.9    unset-POSIXLY_CORRECT env-POSIXLY_CORRECT    unset: on->off  control (no unset): on->on   ok
+5.3.9    unset-POSIXLY_CORRECT env-SHELLOPTS          unset: on->off  control (no unset): on->on   ok
+3.2.57   shopt-unknown-name       rc_u=1 extglob=off nullglob=off rc_s=1 dotglob=on control_rc=0     ok
+3.2.57   unset-POSIXLY_CORRECT set-o-posix            unset: on->off  control (no unset): on->on   ok
+3.2.57   unset-POSIXLY_CORRECT env-POSIXLY_CORRECT    unset: on->off  control (no unset): on->on   ok
+3.2.57   unset-POSIXLY_CORRECT env-SHELLOPTS          unset: on->off  control (no unset): on->on   ok
+5.0.17   shopt-unknown-name       rc_u=1 extglob=off nullglob=off rc_s=1 dotglob=on control_rc=0     ok
+5.0.17   unset-POSIXLY_CORRECT set-o-posix            unset: on->off  control (no unset): on->on   ok
+5.0.17   unset-POSIXLY_CORRECT env-POSIXLY_CORRECT    unset: on->off  control (no unset): on->on   ok
+5.0.17   unset-POSIXLY_CORRECT env-SHELLOPTS          unset: on->off  control (no unset): on->on   ok
+5.1.16   shopt-unknown-name       rc_u=1 extglob=off nullglob=off rc_s=1 dotglob=on control_rc=0     ok
+5.1.16   unset-POSIXLY_CORRECT set-o-posix            unset: on->off  control (no unset): on->on   ok
+5.1.16   unset-POSIXLY_CORRECT env-POSIXLY_CORRECT    unset: on->off  control (no unset): on->on   ok
+5.1.16   unset-POSIXLY_CORRECT env-SHELLOPTS          unset: on->off  control (no unset): on->on   ok
+5.1.4    shopt-unknown-name       rc_u=1 extglob=off nullglob=off rc_s=1 dotglob=on control_rc=0     ok
+5.1.4    unset-POSIXLY_CORRECT set-o-posix            unset: on->off  control (no unset): on->on   ok
+5.1.4    unset-POSIXLY_CORRECT env-POSIXLY_CORRECT    unset: on->off  control (no unset): on->on   ok
+5.1.4    unset-POSIXLY_CORRECT env-SHELLOPTS          unset: on->off  control (no unset): on->on   ok
+5.2.15   shopt-unknown-name       rc_u=1 extglob=off nullglob=off rc_s=1 dotglob=on control_rc=0     ok
+5.2.15   unset-POSIXLY_CORRECT set-o-posix            unset: on->off  control (no unset): on->on   ok
+5.2.15   unset-POSIXLY_CORRECT env-POSIXLY_CORRECT    unset: on->off  control (no unset): on->on   ok
+5.2.15   unset-POSIXLY_CORRECT env-SHELLOPTS          unset: on->off  control (no unset): on->on   ok
+5.2.26   shopt-unknown-name       rc_u=1 extglob=off nullglob=off rc_s=1 dotglob=on control_rc=0     ok
+5.2.26   unset-POSIXLY_CORRECT set-o-posix            unset: on->off  control (no unset): on->on   ok
+5.2.26   unset-POSIXLY_CORRECT env-POSIXLY_CORRECT    unset: on->off  control (no unset): on->on   ok
+5.2.26   unset-POSIXLY_CORRECT env-SHELLOPTS          unset: on->off  control (no unset): on->on   ok
+5.2.37   shopt-unknown-name       rc_u=1 extglob=off nullglob=off rc_s=1 dotglob=on control_rc=0     ok
+5.2.37   unset-POSIXLY_CORRECT set-o-posix            unset: on->off  control (no unset): on->on   ok
+5.2.37   unset-POSIXLY_CORRECT env-POSIXLY_CORRECT    unset: on->off  control (no unset): on->on   ok
+5.2.37   unset-POSIXLY_CORRECT env-SHELLOPTS          unset: on->off  control (no unset): on->on   ok
+RESULT: PASS

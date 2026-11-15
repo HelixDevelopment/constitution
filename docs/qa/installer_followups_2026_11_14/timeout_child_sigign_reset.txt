@@ -1,0 +1,7 @@
+# child SigIgn under timeout, with TTIN/TTOU ignored in the caller (TTIN bit 0x100000, TTOU bit 0x200000)
+== control: no timeout, caller ignores
+SigIgn:	0000000000300000
+== /usr/bin/gnutimeout (/usr/bin/gnutimeout)
+SigIgn:	0000000000000000
+== /usr/bin/timeout (/usr/lib/cargo/bin/coreutils/timeout)
+SigIgn:	0000000000000000

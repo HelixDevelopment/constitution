@@ -170,7 +170,7 @@ mkmut r2; mutate "$T/mut/r2/scripts/jev/lib_decide.sh" 'select(.promoted == true
 assert_rc 0 "$mrc" "R2 mutation anchor found"
 assert_eq "enforce" "$(LIBDIR="$T/mut/r2/scripts/jev" eff enforce "" "$T/loc.json" "$T/unp.json" | cut -f1)" "R2 MUTANT (no promoted==true) wrongly enforces an unpromoted type  [the real code says shadow, see EM-R2]"
 # R4: ignore a failed require-validated
-mkmut r4; mutate "$T/mut/r4/scripts/jev/lib_decide.sh" 'LLMCTL_VALIDATE_STRICT=1 timeout 60 $rv "$p" >/dev/null 2>&1 \' 'LLMCTL_VALIDATE_STRICT=1 timeout 60 $rv "$p" >/dev/null 2>&1 || true; true \' >"$T/m.out"; mrc=$?
+mkmut r4; mutate "$T/mut/r4/scripts/jev/lib_decide.sh" 'LLMCTL_VALIDATE_STRICT=1 timeout 60 $rv "$p" >/dev/null 2>&1) \' 'LLMCTL_VALIDATE_STRICT=1 timeout 60 $rv "$p" >/dev/null 2>&1 || true; true) \' >"$T/m.out"; mrc=$?
 assert_rc 0 "$mrc" "R4 mutation anchor found"
 jev_test_enforce_env 1; promoted "$T/thr.json"
 assert_eq "enforce" "$(LIBDIR="$T/mut/r4/scripts/jev" eff enforce "" "$T/loc.json" "$T/thr.json" | cut -f1)" "R4 MUTANT (failed require-validated ignored) wrongly enforces  [the real code says shadow, see EM-R4]"

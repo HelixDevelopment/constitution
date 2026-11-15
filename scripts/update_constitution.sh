@@ -50,6 +50,87 @@
 #   checkout failed · 2 usage · 3 blocked (dirty, unpushed, diverged, network, not a submodule, root = itself)
 #
 # Classification: universal (§11.4.17). Honours §11.4.113 (no force/reset/push) and §9.2 (no commit lost).
+HI_SOURCED=0; (return 0 2>/dev/null) && HI_SOURCED=1   # 1 only when this file is sourced (tests), never when run
+# >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh)
+# What the caller's shell hands down never changes what this script decides (docs/qa/installer_sigpipe_2026_11_13/
+# round2). hi_reset_shell_state returns every option a caller can pass on (BASH_COMPAT, POSIXLY_CORRECT, SHELLOPTS,
+# BASHOPTS, `bash -e`, `bash -o posix`, CDPATH, TMOUT, GLOBIGNORE) to bash's defaults, with one exception:
+# `patsub_replacement` is turned OFF (bash 5.2 and later turn it on), so `&` in the replacement of
+# ${var//pat/rep} stays a literal `&`, as in bash 5.1 and older. It runs only when the file is
+# RUN (a test that sources the file keeps its own shell), and before the first function that needs it is parsed:
+# bash 5.0 and older in posix mode reject `<(...)` while parsing. Not covered: BASH_ENV and exported functions, which
+# run before the first line of this file. The text helpers below work inside the shell: no here-string and no
+# here-document (bash keeps those in a temporary file, always before bash 5.1 and above 8 KiB after it; when the file
+# cannot be written the command is skipped and a check reads as passed), and no pipe into a reader that can exit
+# early (under pipefail the writer then dies of SIGPIPE, 141, and a match reads as no match).
+hi_reset_shell_state() {
+  local o
+  for o in BASH_COMPAT POSIXLY_CORRECT CDPATH TMOUT GLOBIGNORE; do unset "$o" 2>/dev/null; done
+  IFS=$' \t\n'
+  for o in posix allexport noclobber noglob errexit nounset keyword physical monitor errtrace functrace; do
+    set +o "$o" 2>/dev/null
+  done
+  for o in braceexpand hashall; do set -o "$o" 2>/dev/null; done
+  # one shopt call per direction: a name this bash does not know is skipped and the others still apply (bash 3.2
+  # to 5.3); the no-push gate pins these two lines, option lists included
+  shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar \
+    failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit localvar_unset cdable_vars \
+    extdebug execfail inherit_errexit assoc_expand_once array_expand_once patsub_replacement 2>/dev/null
+  shopt -s extquote globasciiranges 2>/dev/null
+  unset BASH_COMPAT 2>/dev/null   # bash 5.0 and later set it to their own version when a compatNN option is unset
+  return 0
+}
+[ "${HI_SOURCED:-0}" = 1 ] || hi_reset_shell_state   # run, not sourced: the caller's shell state is not inherited
+hi_plumbing_ok() { # 0 when process substitution works here (bash needs /dev/fd, or a writable TMPDIR for a fifo)
+  local x=""
+  { IFS= read -r x < <(printf 'ok\n'); } 2>/dev/null
+  [ "$x" = ok ]
+}
+# shellcheck disable=SC2206  # a deliberate split on newlines, with globbing off
+hi_split_lines() { # text → HI_LINES: its lines, bytes kept; empty lines are dropped
+  local IFS=$'\n' f=0
+  case $- in *f*) f=1 ;; esac
+  set -f
+  HI_LINES=($1)
+  [ "$f" = 1 ] || set +f
+}
+# shellcheck disable=SC2206  # a deliberate split on the separator, with globbing off
+hi_split() { # separator text → HI_SPLIT: the fields of the first line of text, as `IFS=<separator> read -r -a` gives them
+  local IFS="$1" f=0 nl=$'\n'
+  case $- in *f*) f=1 ;; esac
+  set -f
+  HI_SPLIT=(${2%%"$nl"*})
+  [ "$f" = 1 ] || set +f
+}
+# shellcheck disable=SC2295  # $ws holds blanks only: no pattern character, quoting it changes nothing
+hi_read_fields() { # line n → HI_F: the n values `read -r v1 ... vn` (default IFS) assigns for that line
+  local s="$1" n="$2" w ws=$' \t\n'
+  HI_F=()
+  s="${s#"${s%%[!$ws]*}"}"
+  while [ "$n" -gt 1 ]; do
+    w="${s%%[$ws]*}"
+    HI_F+=("$w")
+    s="${s#"$w"}"
+    s="${s#"${s%%[!$ws]*}"}"
+    n=$((n - 1))
+  done
+  s="${s%"${s##*[!$ws]}"}"
+  HI_F+=("$s")
+}
+hi_has_line_prefix() { # text prefix → 0 when a line of text starts with prefix (`grep -q "^prefix"` for a literal)
+  local nl=$'\n'
+  [[ "$nl$1" == *"$nl$2"* ]]
+}
+hi_line_in() { # needle text → 0 when a line of needle equals a line of text (`grep -qxF -- needle <<<"$text"`)
+  local nl=$'\n' rest="$1" p
+  while :; do
+    p="${rest%%"$nl"*}"
+    [[ "$nl$2$nl" == *"$nl$p$nl"* ]] && return 0
+    [ "$p" = "$rest" ] && return 1
+    rest="${rest#*"$nl"}"
+  done
+}
+# <<< hi_shell_state
 set -uo pipefail
 # >>> hi_text_safe (identical in install_constitution.sh and update_constitution.sh)
 # THE sanitiser for every byte this script did not write itself: text from git (log subjects, tag and branch
@@ -201,7 +282,11 @@ hi_gx() {
       esac
     done
     export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10"
-    if [ -n "${HI_GX_TIMEOUT:-}" ]; then exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
+    # timeout moves itself and git into a background process group of the terminal: when git touches the terminal
+    # the kernel sends SIGTTOU/SIGTTIN to the whole group, and uutils timeout (unlike GNU) does not ignore them, so it
+    # stopped with git and its limit never fired. Ignored for timeout only: GNU and uutils timeout reset them for git
+    # (measured); busybox timeout passes the ignore on to git, but it makes no new process group, so none is sent.
+    if [ -n "${HI_GX_TIMEOUT:-}" ]; then trap '' TTIN TTOU; exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
     else exec "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"; fi
   )
 }
@@ -229,12 +314,13 @@ hi_remote_tags_of() {
 # dir sha live → 0 when sha is one of the live commits or an ancestor of one (so a fresh clone can fetch it)
 hi_on_remote() {
   local l
+  local -a ll=()
   [[ "$2" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || return 1
-  while IFS= read -r l; do
-    [ -n "$l" ] || continue
+  hi_split_lines "$3"; ll=(${HI_LINES[@]+"${HI_LINES[@]}"})   # in the shell, never a here-string (hi_shell_state)
+  for l in ${ll[@]+"${ll[@]}"}; do
     [ "$l" = "$2" ] && return 0
     hi_gx -C "$1" merge-base --is-ancestor "$2" "$l" 2>/dev/null && return 0
-  done <<<"$3"
+  done
   return 1
 }
 # <<< hi_remote_live
@@ -253,7 +339,7 @@ hi_gitlink_rel() {
 }
 # dir relpath → the gitlink the HEAD COMMIT of dir records for that submodule (empty when none / no commit yet)
 hi_gitlink_committed() {
-  local l; l="$(hi_gx -C "$1" ls-tree HEAD -- "$2" 2>/dev/null | head -n 1)"
+  local l nl=$'\n'; l="$(hi_gx -C "$1" ls-tree HEAD -- "$2" 2>/dev/null)"; l="${l%%"$nl"*}"
   case "$l" in "160000 commit "*) l="${l#160000 commit }"; printf '%s' "${l%%[[:space:]]*}" ;; esac
 }
 # <<< hi_gitlink_rel
@@ -279,7 +365,7 @@ hi_holder_alive() {
     case "$msg" in *"No such process"*) return 1 ;; esac
   fi
   st="$(cat "/proc/$p/stat" 2>/dev/null)" || return 0
-  st="${st##*) }"; read -r -a st <<<"$st"; start="${st[19]:-}"
+  st="${st##*) }"; hi_split $' \t\n' "$st"; st=(${HI_SPLIT[@]+"${HI_SPLIT[@]}"}); start="${st[19]:-}"
   hz="$(getconf CLK_TCK 2>/dev/null)"; bt="$(awk '$1 == "btime" { print $2; exit }' /proc/stat 2>/dev/null)"
   mt="$(stat -c %Y -- "$f" 2>/dev/null || stat -f %m -- "$f" 2>/dev/null)"
   [[ "$start" =~ ^[0-9]+$ && "$hz" =~ ^[1-9][0-9]*$ && "$bt" =~ ^[0-9]+$ && "$mt" =~ ^[0-9]+$ ]] || return 0
@@ -357,11 +443,19 @@ up_unlock() { # removes the lock only while it still records this process
   UP_LOCK=""
   return 0
 }
+up_hook_declares_project_root() { # text → 0 when a "# HELIX_HOOK_CAPABILITIES:" line declares project-root (C locale)
+  local LC_ALL=C l re='^#[[:space:]]*HELIX_HOOK_CAPABILITIES:([^[:cntrl:]]*[[:space:]])?project-root([[:space:]]|$)'
+  local -a hl=()
+  hi_split_lines "$1"; hl=(${HI_LINES[@]+"${HI_LINES[@]}"})
+  for l in ${hl[@]+"${hl[@]}"}; do [[ $l =~ $re ]] && return 0; done
+  return 1
+}
 if [ "${HELIX_UPDATER_LIB_MODE:-}" = 1 ]; then   # tests source the functions above without running anything
   (return 0 2>/dev/null) && return 0   # only a SOURCED copy stops here
   printf 'update_constitution.sh: WARNING: ignoring HELIX_UPDATER_LIB_MODE=1 (a test switch for sourcing; this file is being run)\n' >&2
 fi
 exec 9>&2   # hi_gx refusals reach the user even when a call's stderr is redirected
+hi_plumbing_ok || die 3 "process substitution does not work here (no /dev/fd, and no writable TMPDIR for a fifo); refusing (nothing changed)"
 hi_gx_bin || exit 3   # git resolved once, before anything can change PATH
 
 CHECK=0; REF=""; DRY=0; HOOK=1; JEV=off; COMMIT=0; ROOT=""
@@ -397,7 +491,8 @@ ROOT="$(cd -P -- "$ROOT" 2>/dev/null && pwd)" || die 2 "project root does not ex
 SUB="$(cd -P -- "$SUB" && pwd)"
 case "$ROOT/" in "$SUB"/*) die 3 "the project root $ROOT is the constitution repository itself (or a directory inside it); refusing: run the updater from the project that records the constitution as a submodule (nothing changed)" ;; esac
 case "$SUB/" in "$ROOT"/?*) REL="${SUB#"$ROOT"/}" ;; *) die 3 "$SUB is not inside the project $ROOT" ;; esac
-hi_gx -C "$ROOT" ls-files -s -- "$REL" | grep -q '^160000 ' || die 3 "$REL is not a registered submodule of $ROOT"
+# captured, then tested in the shell (hi_shell_state; docs/qa/installer_sigpipe_2026_11_13)
+if ! { UP_LSF="$(hi_gx -C "$ROOT" ls-files -s -- "$REL")" && hi_has_line_prefix "$UP_LSF" '160000 '; }; then die 3 "$REL is not a registered submodule of $ROOT"; fi
 
 UP_ROOT="$ROOT"
 trap 'up_unlock' EXIT; trap 'exit 130' INT; trap 'exit 143' HUP TERM   # BEFORE any lock work
@@ -406,7 +501,7 @@ if [ -n "$(hi_gx -C "$SUB" status --porcelain 2>/dev/null)" ]; then
   PEND0="$(hi_gx -C "$ROOT" rev-parse --git-path helix-update-pending 2>/dev/null)"
   case "$PEND0" in /*|"") ;; *) PEND0="$ROOT/$PEND0" ;; esac
   if [ -n "$PEND0" ] && [ -f "$PEND0" ] && [ ! -L "$PEND0" ]; then
-    die 3 "$REL has uncommitted changes and an earlier update to $(head -n 1 -- "$PEND0" 2>/dev/null | cut -d' ' -f1 | head -c 64 | tr -cd '0-9a-f') was interrupted (marker $PEND0): the changes are most likely that half-written checkout, not yours. Review them with: git -C $REL status; if none are yours: git -C $REL stash (keeps a copy) then re-run this script (nothing changed)"
+    die 3 "$REL has uncommitted changes and an earlier update to $(head -n 1 -- "$PEND0" 2>/dev/null | cut -d' ' -f1 | cut -b 1-64 | tr -cd '0-9a-f') was interrupted (marker $PEND0): the changes are most likely that half-written checkout, not yours. Review them with: git -C $REL status; if none are yours: git -C $REL stash (keeps a copy) then re-run this script (nothing changed)"
   fi
   die 3 "$REL has local changes; commit/push or stash them first (nothing changed)"
 fi
@@ -428,8 +523,13 @@ done < <(hi_gx -C "$SUB" remote)
 # remotes), a hex string to that commit; a local tag/branch is used only when no remote has the name (KIND
 # local-ref, which the caller announces). The caller still requires the commit to be on a remote.
 hi_resolve_ref_in() {
-  local d="$1" ref="$2" o r sha
-  o="$(printf '%s\n' "$3" | awk -v n="$ref" '$1 == n { print $2; exit }')"
+  local d="$1" ref="$2" o="" r sha line
+  local -a tl=()
+  hi_split_lines "$3"; tl=(${HI_LINES[@]+"${HI_LINES[@]}"})
+  for line in ${tl[@]+"${tl[@]}"}; do   # the first line naming ref, compared as a string (in the shell: hi_shell_state)
+    hi_read_fields "$line" 3
+    if [ "${HI_F[0]}" = "$ref" ]; then o="${HI_F[1]}"; break; fi
+  done
   if [ -n "$o" ] && sha="$(hi_gx -C "$d" rev-parse --verify --quiet "$o^{commit}" 2>/dev/null)"; then printf 'remote-tag %s\n' "$sha"; return 0; fi
   if sha="$(hi_gx -C "$d" rev-parse --verify --quiet "refs/remotes/$ref^{commit}" 2>/dev/null)"; then printf 'remote-branch %s\n' "$sha"; return 0; fi
   while read -r r; do
@@ -464,7 +564,7 @@ say "project: $ROOT"; say "submodule: $REL"; say "before: $CUR"; say "target: $T
 # marker file in the project's git dir ("<target sha> <staged-before>", written before the checkout, removed after the hook) and the
 # index gitlink are what the re-run reads to FINISH that update instead of reporting "already up to date".
 up_gitlink_of() { # dir relpath → the commit the INDEX of dir records for that submodule (empty when none)
-  local l; l="$(hi_gx -C "$1" ls-files -s -- "$2" 2>/dev/null | head -n 1)"
+  local l nl=$'\n'; l="$(hi_gx -C "$1" ls-files -s -- "$2" 2>/dev/null)"; l="${l%%"$nl"*}"
   case "$l" in "160000 "*) l="${l#160000 }"; printf '%s' "${l%% *}" ;; esac
 }
 # marker = "<target sha> <staged-before>" (staged-before: the gitlink staged at that moment, "-" when none); a symlinked
@@ -536,8 +636,8 @@ if [ -z "$RESUME" ]; then
   up_marker_set   # always (the staged-gitlink rule above reads it); with --no-hook it is removed right after staging
   hi_gx -C "$SUB" checkout --quiet --detach "$TSHA" || die 1 "checkout of $TSHA failed"
   say "after: $TSHA ($n commit(s))"
-  hi_gx -C "$SUB" log --oneline --no-decorate "$CUR..$TSHA" | head -n 20 | hi_text_filter | sed 's/^/  /' >&2
-  hi_gx -C "$SUB" diff "$CUR" "$TSHA" -- CHANGELOG.md 2>/dev/null | hi_text_filter | sed -n 's/^+## /  changelog: /p' | head -n 10 >&2
+  hi_gx -C "$SUB" log --oneline --no-decorate "$CUR..$TSHA" | awk 'NR <= 20' | hi_text_filter | sed 's/^/  /' >&2
+  hi_gx -C "$SUB" diff "$CUR" "$TSHA" -- CHANGELOG.md 2>/dev/null | hi_text_filter | sed -n 's/^+## /  changelog: /p' | awk 'NR <= 10' >&2
 fi
 hi_gx -C "$ROOT" add -- "$REL" || die 1 "could not stage $REL (is $ROOT/.git/index.lock held by another git process?); $REL is already at $TSHA: re-run this script to finish the update"
 [ "$HOOK" = 1 ] || up_marker_clear   # staged: nothing of this update is left to finish (no hook to run)
@@ -556,8 +656,10 @@ if [ "$HOOK" = 1 ]; then
     # are not assumed to reject it, they are simply not given anything they did not declare). The hook takes no install lock
     # and ignores HELIX_CONSTITUTION_LOCK_DELEGATED; the variable is still set for older hooks that read it.
     hook_args=()
-    head -n 80 -- "$SUB/scripts/post_update_hook.sh" 2>/dev/null \
-      | grep -qE '^#[[:space:]]*HELIX_HOOK_CAPABILITIES:([^[:cntrl:]]*[[:space:]])?project-root([[:space:]]|$)' \
+    # captured, then tested in the shell (hi_shell_state: a pipe into `grep -q` can kill head with SIGPIPE under
+    # pipefail, and a here-string needs a temporary file: either way a declared capability would read as absent)
+    hook_head="$(head -n 80 -- "$SUB/scripts/post_update_hook.sh" 2>/dev/null)" \
+      && up_hook_declares_project_root "$hook_head" \
       && hook_args=(--project-root "$ROOT")
     # git variables that would redirect or reconfigure git (e.g. GIT_DIR from a git hook) are removed first
     (cd "$ROOT" && for v in ${!GIT_*}; do case "$v" in GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM|GIT_CONFIG_NOSYSTEM|GIT_CEILING_DIRECTORIES|GIT_AUTHOR_*|GIT_COMMITTER_*|GIT_SSL_CAINFO|GIT_SSL_CAPATH|GIT_ALLOW_PROTOCOL|GIT_PROTOCOL_FROM_USER|GIT_TERMINAL_PROMPT) ;; *) unset "$v" ;; esac; done

@@ -1,0 +1,26 @@
+CAUGHT	R01_jobs_x	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin jobs is not on the closed list of builtins the release scripts use (it can run, define or look
+CAUGHT	R02_builtin_jobs_x	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin builtin of a word that is not a builtin of the closed list: fx.sh:3 | key=813d4ea5
+CAUGHT	R03_func_defined_after_use	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a function named like a builtin or a program (it changes what the name runs): fx.sh:4 git | key=f66a08
+CAUGHT	R04_func_in_subshell	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a function defined outside the top level (in a function, a compound command, a subshell or a substitut
+CAUGHT	R05_func_in_dead_branch	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a function defined outside the top level (in a function, a compound command, a subshell or a substitut
+CAUGHT	R06_allow_exec_comment	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING interpreter or exec wrapper not on the allow-list: tag_and_release.sh:3 bash (via -) | key=886a3ec8
+CAUGHT	R07_allow_exec_same_line	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING interpreter or exec wrapper not on the allow-list: tag_and_release.sh:3 bash (via -) | key=326ebfb1
+CAUGHT	R08_printf_v_attached_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin printf with a format that is not a static string, or with an option (-v writes a name): fx.sh:
+CAUGHT	R09_arith_assign_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: arithmetic outside the closed grammar: the character '=' (an assignment
+CAUGHT	R10_param_default_assign_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: ${PATH:=$PWD/evil}: the operator := (:= and = assign; @, / and the othe
+CAUGHT	R11_wait_p_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: & (a background job runs past the statement that started it): fx.sh:3 i
+CAUGHT	R12_wait_p_subscript	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: & (a background job runs past the statement that started it): fx.sh:3 i
+CAUGHT	R13_printf_v_attached_subscript	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin printf with a format that is not a static string, or with an option (-v writes a name): fx.sh:
+CAUGHT	R14_set_a_bash_env	gate_rc=1/1	bash_rc=timeout	leak=0	ctrl=1		FINDING unmodelled construct, refused: ${BASH_ENV:=$PWD/evil.sh}: the operator := (:= and = assign; @, / and t
+CAUGHT	R15_heredoc_delim_continuation	gate_rc=1/1	bash_rc=127	leak=1	ctrl=1		FINDING unmodelled construct, refused: the redirection operator <<: fx.sh:3 in - | key=a5619b20
+CAUGHT	R16_heredoc_body_in_comsub	gate_rc=1/1	bash_rc=127	leak=1	ctrl=1		FINDING unmodelled construct, refused: the redirection operator <<: fx.sh:3 in - | key=1f438845
+CAUGHT	R17_sqlite_separator_eats_safe	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING sqlite3 that can run a command or is not on the pin: fx.sh:3 (-safe is not the first argument (an opti
+CAUGHT	R18_sqlite_nullvalue_eats_safe	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING sqlite3 that can run a command or is not on the pin: fx.sh:3 (-safe is not the first argument (an opti
+CAUGHT	R19_gawk_inet_computed	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING awk that can run a command or is not on the pin: fx.sh:3 (a awk program that is not on the whitelist o
+CAUGHT	R20_gawk_inet_octal_escape	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING awk that can run a command or is not on the pin: fx.sh:3 (a awk program that is not on the whitelist o
+CAUGHT	R21_gawk_inet_operand	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING awk that can run a command or is not on the pin: fx.sh:3 (a awk program that is not on the whitelist o
+CAUGHT	R22_source_same_basename	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin . other than the exact forms of SOURCE_OK at the top level of a script (round 13, R22): fx.sh:
+CAUGHT	R23_cond_procsubst	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: < or > inside [[ ]] (an order test or a process substitution): fx.sh:3 
+CAUGHT	R90_ctrl_plain_git	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:3 git (via -) | key=57b21b0e
+CAUGHT	R91_ctrl_comment_continuation	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:4 git (via -) | key=57b21b0e
+NO-LEAK	R92_ctrl_neg_clean	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		

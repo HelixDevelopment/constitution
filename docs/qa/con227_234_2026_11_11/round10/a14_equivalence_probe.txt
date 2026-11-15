@@ -1,0 +1,5 @@
+# round 10: LIVE probe of the recorded-equivalent mutant A14 (an empty READS variable not carried across rc_env_clean). The real publisher of the round-10 tree and an A14 copy, a local tag, no token (unset) and an empty token: identical output and status. RELEASE_NET_TIMEOUT (the other READS value) is not probed here (it needs an API run); its empty and unset values take the same default by reading.
+real token=unset rc=3 out=SKIPPED-NO-TOKEN: env var M3W_GITEA_TOKEN is not set; nothing was published
+real token=empty rc=3 out=SKIPPED-NO-TOKEN: env var M3W_GITEA_TOKEN is not set; nothing was published
+a14 token=unset rc=3 out=SKIPPED-NO-TOKEN: env var M3W_GITEA_TOKEN is not set; nothing was published
+a14 token=empty rc=3 out=SKIPPED-NO-TOKEN: env var M3W_GITEA_TOKEN is not set; nothing was published

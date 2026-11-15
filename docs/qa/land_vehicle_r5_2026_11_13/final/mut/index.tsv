@@ -1,0 +1,62 @@
+name	sha256	description
+RM01	dc936464e65032a242556d13db8c72505ac4044e109dd55cec8b96b92cf12432	read-back compares with main re-read after the pushes
+RM02	c4a3a6c3796c79ef424b389e9aa8371835388667ad2f6131fb35fc7c179e8a86	g() no longer pins core.fsmonitor=false
+RM03	9ba3314a2db301bc615ea953492b56b31c0a523ebcce59fee5fd8ea0d3b77649	tracker patterns compared as literal strings (no glob)
+RM04	970b25fb94ee7a8e2a2bebd083cde496d5d1dd7f995bdbf08b9dec93e7a8053a	a remotes file without a final newline loses its last line
+RM05	37f78e28d06e2c7f9f216ead9d25d10f2d833b05ae1b70d4a4b2398243f30642	re-expressed: the trailer value is normalised (CR removed) before validation
+RM06	8d2cc568a8db651ab5757c444f27b5528b4136d9ee8b8646619997c26218c7b3	a TAB or newline in a mint path is no longer refused
+RM08	a4e599b4ba564ac9313cce14275969284ddca69b64837bfa0f07f0686131d367	only an EMPTY line (not a whitespace-only line) opens the trailer block
+RM09	6462fe60d9f9f9cc4223bdce8b08d3bbeb5f5fd96cf603b14cc86c03bd6f0a87	the id-verify command runs in the caller's cwd
+RM10	1a34d25835c37191124888ada12e420cfd3e4a69a8651cb00b0fab5ee1e7f5ac	the id-verify command inherits the lock descriptor
+RM12	664f270e1cda14f18045efc533e8aa08120f341c1c4fb5bf2f0c2acda9b44350	prepare's final trailer check covers only commits after the landed vehicle head
+RM13	53e55e10f0e0f51dffe041d3fda057672671de450d1c0dc80728dd769cef4fea	the presence check accepts the id glued to a letter on its left
+RM15	aa1c85dea371866b5c29357dd9eccb4304e7d78060e72fb06caee9aa89a5ca1f	the newness check (text file) requires a left boundary
+RM16	dce20baeb564fb98b43b23fdcd8e90b9e7d1a73d0d62686b675eb8c618b00c6b	the publish trailer checks also run when preflight refused a remote
+RM20	09932f0607cb4178d3a36a67eba8e6184c3564572fc202740516a8b8b1715747	an undocumented failing status is mapped to 0
+RM23	832c9d15097e96b24e2c76592a4debb10cb7d97d5b39f2398a621b95c0f4606f	re-expressed: the mode check accepts any mode starting with 1 (120000 symlink)
+RM25	8195fad91ffb1cee045fdc03a456e932c869d62a351e0914807933a82b339ca5	LANDER_TRACKER_PATHS may hold '..'
+RM28	5ba0fe5c035ec8ccb0afe4e897fe2c58d49b43ecf26267a083bfe4d6655b5b1b	the mint id keeps a trailing CR
+RM31	0532e40d898d0d7ccd0dfd8edfd36eb24b49cfc4b242786cc3f545ca5eca5850	remote.<name>.* keys read from the clone's LOCAL config only
+F1a	0f45ea934c2aa6ab8d5312598c3f78f9ef96fe66b063256429ddd2362a303c5a	the push sends the name main, not the checked sha
+F1b	c460b946a70a7829e8e00cd1a61a8499562b30e67ec49abd5c32bf3fe5315330	no check that clone main is unchanged after the read-back
+F1c	c114ed61b2931bb4a06f95b033c0002c57bb3273ff61615ddba0c75ccf1a673a	publish no longer checks the commits after the prepared base (WARN laundering)
+F1d	2d53df7d0b2efc8bc20459d9108de04f256a97ba29a9b8e72ddd6c011ddf2f8b	no assert_remote immediately before each push
+F1e	c13844a777ab01f57687b4c8d4c11815bfed5a53bbaf0a70ee7ca11361fce463	the refusal message does not name the remotes already pushed
+F1f	c94b990003615cba38cc4c5a0ace3739b1edc35e9cd4d45ff2a6d74a36d94ed1	no assert_remote before ls-remote (preflight and read-back)
+F1g	a55b7e05fe7d4216c92948a1d56657d819714a60b2ec83bf730affa5f7cd5ed9	no assert_remote before each fetch at prepare
+F1h	94e3e2dc37404ec7bc78cda9e4b698788a9f3ab94714131399ccd2161ead417e	the internal ancestor check of a WARN row is removed
+F1i	4a735f3dcada2fdfda688fa8b3426c4a4e70f89f5badcf4f4a95304420cf7b9d	the mint record is no longer compared with the write-tree result
+F2a	5fbcba060bf84780a978c40007dc6e9b53565c75bee7ebf2f070f9b493111285	no newness search in the tracker files at main
+F2b	c59261ca8ee6ffe82eece0b4feb62d00614e7c86167dfcd01af02280ccce9d2c	no newness search in the Roadmap-Item lines of the history
+F2c	e7ad12052a1f476d9d49c48be48f76bb0673e91036de9f0fb76c51f0afb51eb5	the history search covers main only, not the vehicle
+F2z1	e9e63b15883c33975dbfcd9b3b6a8842dac078c2e12e05e46463c857c18c7770	newness in a text file no longer ignores leading zeros
+F2z2	ea5d0e39f11c90ced837e50d35ce6bffb74de6ea3020aab80beacb45a452f1be	newness in the history no longer ignores leading zeros
+F2n	f834af47fe67a3809d9a97ceeac1bccf1249a241aff4c8b9cbeb87daac00f7f5	a file holding a NUL byte is matched with a right boundary (not by substring)
+F3a	98f74b73522788b673b020d1eb11a31965d15df3755c9541a425512379376cb0	a non-commit --head is no longer refused
+F3b	570a430ff9b6d656c510c5154fec7e22f15a18e6fff4af957ce4fc7471b3b03d	the trailer checks accept a placeholder value
+F3c	f7942e7ad6286050a198f4771ad8d94f142109a23b4b58a8c3226ecc6f657668	--item-id may be a placeholder
+F3d	af329cbee9d2fe9d4dcc498381a13d470256ce0cc47ad9400f4d2c192b5dde05	a mint printing a placeholder is not refused at once
+F4	ee4fb97ebc4dbaa43f335e5fa818d58ae1a97a161e69ed951a8554593a4e2151	log.showSignature is no longer pinned
+F5	b3a7626a968fbb3c32d95e5e7f588c03b029d7f4a14adbbb2368516535405acd	push.pushOption is no longer cleared
+F6	a210fd46da5630683b71c389d565cfda861d7a4fa2a01e32b7e4c115c004816a	git init uses the default template
+F7	6a70cdca5c92fc28e28a23be3fbcfa4db51413f6d295d5da1ddc1fbfb63840b4	an option value starting with '-' is accepted
+F9	7360be45f8b337221707ce31c120c08bf998fb31c5c130c67d8f54f621baf63d	a tracker pattern needs no literal first directory
+F10	07b149ea76807eb1317557ac4d0f970ad2e5820b45e17fd5a2a03c227d60c834	the id pattern is the round-4 one (three or more digits)
+F11	fbb2dc735f2a1fcdf851051d4ef2f1e6bf3fc0b68b701b198a69aaa08ffcc780	a remotes-file line with a control character (a CR) is no longer refused
+F13	dd180d258b4b8cd99acdb539eb11dbbf22c320f8b37c2ff35a2c50f552541ce1	real_trailer no longer refuses a control character (ID_RE is anchored)
+N1a	94966318d25e4f14d0c1773ec872bd57b91d9e8a0bf076f42a1ea73ee5e3a2d5	pull.twohead is no longer pinned (-s ort stays)
+N1b	712a1d50ceeaae8b351258eb807820df75961b17162a6e09c98410439ff8ccda	the merge no longer passes -s ort (pull.twohead=ort stays)
+N1c	1a1129f28722137ed1a5f72c8a788dd86b669d4aa65a4a82905ae31bd1cd8cbe	branch.main.mergeOptions is no longer cleared
+N1d	855a7b1ca992124d1987f492113efbc03aee1d8991009bd654f803f76b04bff9	the merge tree is no longer compared with the oracle
+N1e	83f5da7af4a0be2482738e1dc2cc2ebe773660dce929163f8ff30c909e335773	the oracle merge runs with the caller's global and system config
+N2	e3662ea87b8f911eaac2e6f21a0e76513b782427ee76118941ae5ec18670cac4	the mint record no longer passes --ignore-submodules=none
+N3a	055afc0389e5ea2f5fc62b433448e6fba0968ee2fec6e79caa88d0079fb30d7e	the file mode creation mask is 022, not 077
+N3b	5592bcda188ed7578252502011e888ab2e8f956e684766b1c1e4944c04137259	git init no longer pins core.sharedRepository=false
+N3c	03c598242e212e7a78703844829a521f1b0afdddb03abed6355d266fab32a6da	g() no longer pins core.sharedRepository=false
+E2	896d32cf88f6310c2346063c33c8b07329f81a6b00700f5b1bd582a1f7b39e81	a commit that already carries one real trailer is re-committed (signature dropped)
+X1	e5d2f20a0c94d346cde88e14729a1b7259d5467d815e600c38f6cf1261bdb42d	the workdir lock is not taken
+X2	a2ad2fb64736c5a176c379abd8db4c48b51c7643aec94e013a15c52f1f5b3dd6	the GIT_* environment is not scrubbed
+X3	e2a035f17221f9256ada8596cdd904dc42189b2ba3db352527b37704dbb7ff83	g() no longer pins core.hooksPath=/dev/null
+X4	2e0b78bab9f7a172385685b587d3ad8486340a0bb1555f7fa17f4938f2955783	g() no longer passes --literal-pathspecs
+X5	2e154a5f055073ee0c349b9b5166536dda8487e0063c6dfb9cde053dfecf9ec5	the bundle copy in the clone is not hashed again
+X6	e7c5627bf141ba9cc7ef0ecececa38608d4c336a31752894b49509816caad157	the trailer parser reads the caller's config

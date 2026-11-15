@@ -1,0 +1,16 @@
+CONTROL sh PASS
+KILLED R3S01-walk-stops-at-empty-component (a path with an empty component (a//b) is walked only up to it) by B5-dslash-link-file:,B5-dslash-link-in:
+KILLED R3S02-engine-exists-not-executable (a non-executable engine is not reported BLIND by the applier) by B6-engine-not-executable:
+KILLED R3S03-no-id-dash-accepted (a '-' id for the landing is passed to the engine) by A11-fix227-column:
+KILLED R3S05-cp-leaves-temp-file (the temporary extraction file is left in the evidence directory) by B5-dslash-control:,B5-lead-dot-control:,B5-mid-dot-control:,B5-triple-slash-control:,B7-no-temp-file-apply:,B7-no-temp-file-dry:
+KILLED R3S06-header-row-not-skipped (the column header row is applied as a data row) by A1-dry-run-default:,A10-row-by-row:,A11-fix227-column:,A11b-fix227-id-used:,A11c-main-column:,A15-dry-run-refusal:,A2-apply:,A3-idempotent:
+KILLED MW01-shape-check-removed (an evidence_file that does not end in a file name is not refused) by B5-file-slash:
+KILLED MW02-shape-check-no-trailing-slash (an evidence_file ending in / is not refused) by B5-file-slash:
+SURVIVED MW03-shape-check-no-slash-dot (an evidence_file ending in /. is not refused)
+SURVIVED MW04-shape-check-no-dot (an evidence_file . is not refused)
+SURVIVED MW05-shape-check-no-empty (an empty evidence_file is not refused by the shape check)
+KILLED MW06-nonregular-dest-check-removed (an existing directory or FIFO at the evidence path is written into or replaced) by B5-dest-is-dir:,B5-dest-is-fifo:
+KILLED MW07-nonregular-dest-only-dirs (only a directory at the evidence path is refused (a FIFO is replaced)) by B5-dest-is-fifo:
+KILLED MW08-walk-ignores-dangling-links (a dangling symbolic link in the evidence path passes the walk) by B5-dangling-file-out:,B5-dangling-file:
+WORKTREE CLEAN AFTER RUN: True
+TALLY {'KILLED': 10, 'SURVIVED': 3} unexplained survivors: ['MW03-shape-check-no-slash-dot', 'MW04-shape-check-no-dot', 'MW05-shape-check-no-empty']

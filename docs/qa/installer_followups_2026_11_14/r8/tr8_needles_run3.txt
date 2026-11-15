@@ -1,0 +1,9 @@
+# stale-lock probe control needles: a lock a live process holds is not stale, the same lock closed is
+  ok   stale-lock probe: a lock held open by a live process is not reported
+  ok   stale-lock probe: the same lock, closed, is reported
+# drain_session control needles: a session whose leader is gone but a member lives is not drained, also when the member has a group of its own; once the members are gone it is
+  ok   drain_session: leader gone, two members alive -> not drained after 1 s
+  ok   drain_session: only the member in a group of its own alive -> not drained after 1 s
+  ok   drain_session: every member gone -> drained
+needles: PASS 5 FAIL 0
+rc=0

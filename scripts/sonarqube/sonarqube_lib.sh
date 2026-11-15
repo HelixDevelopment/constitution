@@ -98,3 +98,41 @@ sq_evidence_dir() {
     ts="$(date -u +%Y%m%dT%H%M%SZ)"
     printf '%s/qa-results/sonarqube/%s' "${root}" "${ts}"
 }
+
+# --- Registry authentication before image pulls (§11.4.184(J)) ---------------
+# The only image pull in this directory is `compose up` in sonarqube_container.sh
+# (host sonar-scanner pulls nothing), so that is where this is called. Consumer
+# DATA only: env DOCKER_* or the env file (SONAR_REGISTRY_ENV_FILE, default
+# ${XDG_CONFIG_HOME:-~/.config}/helix/sonar_registry.env, no group/other bits).
+# Nothing configured: logged SKIP, return 0. Config error / failed login: non-zero
+# (caller fails closed). SONAR_REGISTRY_LOGIN=off disables. Never prints a secret.
+sq_registry_login_auto() {
+    # Secrets are never expanded under xtrace: tracing is switched off for the body
+    # and restored; the body also tests set-ness with ${!v+x}, not the value.
+    local _xt=0 _rc
+    case $- in *x*) _xt=1; set +x ;; esac
+    _sq_registry_login_auto_body; _rc=$?
+    [ "${_xt}" = 1 ] && set -x
+    return "${_rc}"
+}
+_sq_registry_login_auto_body() {
+    local rl rc ef v
+    [ "${SONAR_REGISTRY_LOGIN:-auto}" = "off" ] && { sq_log "registry auth: disabled (SONAR_REGISTRY_LOGIN=off)"; return 0; }
+    rl="${SQ_LIB_DIR}/registry_login.sh"
+    [ -f "${rl}" ] || { sq_err "registry_login.sh missing next to the library"; return 2; }
+    # DOCKER_* set by a sourced (non-exporting) .env must reach the child process.
+    for v in DOCKER_REGISTRY DOCKER_USERNAME DOCKER_PASSWORD DOCKER_TOKEN DOCKER_AUTH_CONFIG; do
+        [ -n "${!v+x}" ] && export "${v?}"
+    done
+    ef="${SONAR_REGISTRY_ENV_FILE:-${XDG_CONFIG_HOME:-${HOME:-/nonexistent}/.config}/helix/sonar_registry.env}"
+    if [ -z "${DOCKER_USERNAME+x}${DOCKER_PASSWORD+x}${DOCKER_TOKEN+x}${DOCKER_REGISTRY+x}${DOCKER_AUTH_CONFIG+x}" ] && [ ! -e "${ef}" ] && [ -z "${SONAR_REGISTRY_ENV_FILE:-}" ]; then
+        sq_log "registry auth: SKIP credentials_absent (set DOCKER_* or ${ef}); continuing without registry login"
+        return 0
+    fi
+    bash "${rl}" login; rc=$?
+    case "${rc}" in
+        0)  return 0 ;;
+        3)  sq_log "registry auth: SKIP (see reason above); continuing"; return 0 ;;
+        *)  return "${rc}" ;;
+    esac
+}

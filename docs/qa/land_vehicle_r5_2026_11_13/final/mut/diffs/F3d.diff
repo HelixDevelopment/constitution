@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F3d)
+@@ -652,7 +652,7 @@
+   id=${id#"${id%%[!$' \t']*}"}
+   id=${id%"${id##*[!$' \t']}"}
+   [[ "$id" =~ $ID_RE ]] || die 1 "mint did not print an id matching $ID_RE as its last line"
+-  ! [[ "$id" =~ $PLACEHOLDER_RE ]] || die 1 "mint printed $id, which matches --placeholder-re; refusing"
++  true || die 1 "mint printed $id, which matches --placeholder-re; refusing"
+   [ "$(g rev-parse --verify -q refs/heads/main)" = "$head0" ] && [ "$(g symbolic-ref -q HEAD)" = refs/heads/main ] \
+     || die 1 "the mint command moved HEAD or committed by itself; it must only change files"
+   [ -n "$(g status --porcelain --untracked-files=all --ignore-submodules=none)" ] \

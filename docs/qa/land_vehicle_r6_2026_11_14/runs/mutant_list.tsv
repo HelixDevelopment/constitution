@@ -1,0 +1,15 @@
+M01	drop set +x +v (first statement)
+M02	never re-exec (condition inverted)
+M03	BASH_ENV not in the dirty list
+M04	exported functions kept
+M05	folded_ri always false
+M06	commit-object newness grep case-sensitive
+M07	commit-object newness only on Roadmap-Item lines (r5 form)
+M08	tracker newness over main only (vehicle commits dropped)
+M09	tracker newness case-sensitive (text branch)
+M10	verify without check_state
+M11	verify without the landed-head ancestry check
+M12	read-back: landed head always counted as on the remote
+M13	clone path: post-init identity check dropped
+M14	seen-blob de-duplication skips every blob
+M15	folded_ri counts a whitespace-only line as a continuation (the RM08 regression)

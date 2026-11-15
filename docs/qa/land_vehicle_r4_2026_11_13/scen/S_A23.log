@@ -1,0 +1,3 @@
+== S_A23 ambient trailer.ri.cmd in global config, vehicle commit without any trailer (LIVE git)
+prepare rc=1 :: ERROR: commit 0251ddcd4182d649d5d1c572a73b6b2dd4a3e597 lacks a single real Roadmap-Item trailer (found: 'CON-999 CON-923'; want one value matching ^CON-[0-9]+$)
+== scenarios done

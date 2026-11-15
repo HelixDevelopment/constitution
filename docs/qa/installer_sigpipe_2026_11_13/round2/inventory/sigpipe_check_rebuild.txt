@@ -1,0 +1,7 @@
+# tools/build_sigpipe_check.py tools/sigscan_check_template.sh.txt tools/sigscan.py OUT (the two first files
+# are build_test.py and test_sigpipe.tmpl.sh, renamed in this directory), compared with
+# tests/install/test_sigpipe.sh of 1914a91b
+build rc=0
+committed sha256 c595e7f698b8a1dfeb803241aa843f1c1ec73ad362ffda427ff9295580b40a6a
+rebuilt   sha256 c595e7f698b8a1dfeb803241aa843f1c1ec73ad362ffda427ff9295580b40a6a
+RESULT: IDENTICAL

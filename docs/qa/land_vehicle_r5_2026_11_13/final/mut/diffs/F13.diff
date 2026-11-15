@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F13)
+@@ -576,7 +576,7 @@
+   for v in "${RI_VALS[@]}"; do RI_FOUND+="${RI_FOUND:+, }${v//[[:cntrl:]]/?}"; done
+   [ "${#RI_VALS[@]}" -eq 1 ] || return 1
+   v=${RI_VALS[0]}
+-  ! has_ctrl "$v" && [[ "$v" =~ $ID_RE ]] && ! [[ "$v" =~ $PLACEHOLDER_RE ]]
++  [[ "$v" =~ $ID_RE ]] && ! [[ "$v" =~ $PLACEHOLDER_RE ]]
+ }
+ # commit_msg <commit> <var>: the raw message of the commit, byte for byte
+ commit_msg() {

@@ -1,0 +1,46 @@
+PASS T1 prepare exits 0
+PASS T1 placeholder trailers replaced with minted id
+PASS T1 engine mint output committed
+PASS V8c T1 mint changes recorded in evidence (name-status equals the mint commit)
+PASS T2 tree-equality evidence: 2 rows PASS
+PASS T2 independent tree re-check
+PASS T1 derived-file steps printed
+PASS T1 mint path integrates by merge (documented)
+PASS T1 publish exits 0
+PASS T1 all 9 remotes at landed main, 9 PASS rows
+PASS SH1 T1 publish made 9 plain pushes (argv recorded by the shim)
+PASS T3 rejecting remote reported FAIL, 8 PASS (rc=1)
+PASS T3 verify read-back flags the lagging remote (rc=1)
+PASS S8 re-run of publish recovers (8 up-to-date + 1 pushed)
+PASS T4 non-ff remote refused at preflight (rc=1)
+PASS T4 no remote moved (8 not-pushed-preflight, 1 refused-non-ff)
+PASS T5 no force flag in lander
+PASS T5 guard catches: git push --force "$r" main
+PASS T5 guard catches: git push -f "$r" main
+PASS T5 guard catches: git push "$r" +main:refs/heads/main
+PASS T5 guard catches: git push --force-with-lease "$r" main
+PASS T6 wrong bundle sha256 refused (rc=1)
+PASS T7 head not a ref tip in the bundle refused (rc=1)
+PASS T8 moved main integrated by merge, old main is ancestor
+PASS T9 diverged remote mains refused (rc=3)
+PASS T10 mint outside a 'constitution' dir refused (rc=2)
+PASS T10 refused before any clone was created
+PASS T11 dirty tree refused (rc=2)
+PASS T11 no remote moved
+PASS S1 merge-commit vehicle: prepare exits 0
+PASS S1 merges keep 2 parents, no placeholder, no old sha, 4 trees equal, one real trailer each
+PASS S1 publish exits 0
+PASS S2-S5 prepare exits 0
+PASS S2 <TO-BE-MINTED...> placeholder replaced
+PASS S3 CRLF trailer replaced, CR stripped
+PASS S4 body prose line kept verbatim, real trailer appended
+PASS S4b only the git-parsed trailer block is rewritten
+PASS S5a missing trailer appended, Co-Authored-By kept
+PASS S5b two placeholders become one trailer, Co-Authored-By kept
+PASS S5c lowercase key replaced, no second trailer
+PASS S5e an existing real id is kept
+PASS S5f 'Roadmap-Item : X' (space before the colon) replaced, one trailer
+PASS S5g a real id containing 050 (CON-0501) is kept
+FAIL S5h --- line in body
+
+RESULT pass=43 fail=1 (failfast)

@@ -1,0 +1,105 @@
+# round-2 runner, mode targeted, head 457481f6 (first round-2 commit), two shards; superseded for the 8 non-killed rows by the recheck below
+CONTROL go (targeted) PASS
+CONTROL sh PASS
+KILLED RM01-prefix-no-separator (fallback matches any id that starts with this id (CON-24 takes CON-243's value)) by TestCON339R2_LookupFallbackDoesNotCrossIDPrefix,TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt
+KILLED RM03-new-item-epoch (a genuinely new item re-inserted by md-to-db gets a fixed epoch instead of the write time) by TestCON339R2_NewItemInMarkdownGetsTheWriteTime
+KILLED RM05-close-ignores-representation (close reads created_at from whichever Issues row of the id sorts first (table before section)) by TestCON339R2_CloseDualRepCarriesTheClosedRowsValue
+KILLED RM07-lookup-exact-ignores-rep (exact lookup always uses the section key (a table row takes the section row's value)) by TestCON339R2_LookupExactUsesRepresentation,TestCON339R2_ReplaceDocumentDualRepKeepsEachRowsValue
+KILLED RR02-current-tolerance-1s (a value one second later than the current created_at is accepted) by TestRestoreCreatedAtR2_CurrentValueBoundary
+KILLED RR04-any-history-event-attests (any history row of the evidence item (not only Opened) attests the value) by TestRestoreCreatedAtR2_OnlyOpenedEventAttests
+KILLED RR06-journal-sidecar-not-checked (a non-empty -journal next to the evidence is not refused) by TestRestoreCreatedAtR2_JournalSidecarRefused
+KILLED RR08-reason-newline-allowed (a multi-line --reason with LF is accepted) by TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/multi-line_reason
+KILLED RR10-any-evidence-row-matches (only the first evidence row of the id is identity-checked) by TestRestoreCreatedAtR2_EveryEvidenceRowIdentityChecked
+KILLED RR12-audit-omits-old (the audit row no longer records the replaced value) by TestRestoreCreatedAt_RestoresFromOpenedEvent
+KILLED RR14-history-bound-uses-evidence-db (the first-event bound is read from the evidence db instead of the live db) by TestRestoreCreatedAtR2_LateHistoryRowDoesNotBound,TestRestoreCreatedAtR2_OnlyOpenedEventAttests,TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/history_time_unreadable,TestRestoreCreatedAt_Refusals/no_history,TestRestoreCreatedAt_Refusals/value_later_than_first_event
+KILLED MR01-tracker-bound-removed (VALUE-BEFORE-TRACKER never refuses) by TestRestoreCreatedAtR2_ValueBeforeTrackerBoundary,TestRestoreCreatedAtR2_ValueBeforeTrackerRefused
+BUILD-BROKEN MR03-tracker-slack-zero (no slack: a value 1 s before the tracker's first row is refused)
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items [build failed]
+FAIL
+# github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items
+# [github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items]
+cmd/workable-items/restore_created_at.go:374:122: github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items.rcaRefuse format %s has arg rcaTrackerSlack of wrong type int
+cmd/workable-items/created_at_r2_test.go:640:29: (*testing.common).Fatalf format %s has arg rcaTrackerSlack of wrong type int
+
+KILLED MR05-tracker-glob-removed (a malformed history row becomes the tracker minimum) by TestRestoreCreatedAtR2_TrackerBoundIgnoresMalformedRows
+SURVIVED MR07-tracker-unreadable-ignored (an unreadable tracker minimum is not refused (zero time: every value passes))
+SURVIVED MR09-cas-ignores-location (the UPDATE also hits the id's other location)
+KILLED MR11-commit-becomes-rollback (the write is rolled back and success is reported) by TestRestoreCreatedAtR2_AlreadyNeedsValidEvidence,TestRestoreCreatedAtR2_AuditRowContent,TestRestoreCreatedAtR2_FirstEventBoundary,TestRestoreCreatedAtR2_ItemsRowAttestationPreferred,TestRestoreCreatedAtR2_LocationNarrowsTheTarget,TestRestoreCreatedAt_AmbiguousRowNeedsNarrowing,TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem,TestRestoreCreatedAt_IdempotentAndDryRun
+KILLED MR13-audit-evidence-absolute (the audit row records the host-absolute evidence path) by TestRestoreCreatedAt_RestoresFromOpenedEvent
+KILLED MR15-dry-run-writes (--dry-run writes) by TestRestoreCreatedAtR2_DryRunDoesNotWrite,TestRestoreCreatedAt_IdempotentAndDryRun
+KILLED MR17-sha-mismatch-ignored (the evidence file's sha256 is not compared) by TestRestoreCreatedAtR2_AlreadyNeedsValidEvidence,TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/sha_mismatch
+KILLED MR19-empty-sidecar-refused (an empty -wal/-journal is refused (false positive)) by TestRestoreCreatedAtR2_JournalSidecarRefused
+KILLED MR21-identity-and (only an item differing in BOTH type and title is refused) by TestRestoreCreatedAtR2_EveryEvidenceRowIdentityChecked,TestRestoreCreatedAtR2_EvidenceTitleMustMatch,TestRestoreCreatedAtR2_EvidenceTypeMustMatch
+KILLED MR23-evidence-item-missing-ignored (an evidence DB without the item passes (attestation by an Opened row of a deleted item)) by TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem,TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/evidence_id_absent
+KILLED MR25-first-is-latest (the item's LATEST history row is taken as its first) by TestRestoreCreatedAtR2_LateHistoryRowDoesNotBound
+KILLED MR27-no-history-accepted (an item with no history is restored (zero first time)) by TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/no_history
+KILLED MR29-location-filter-dropped (--location does not narrow) by TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/location_narrows_to_nothing
+KILLED MR31-positional-allowed (one stray positional argument is ignored) by TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/positional_argument
+STALE MR33-close-reads-fixed (anchor count 2)
+KILLED MS02-symlink-walk-removed (a symlinked evidence component is not refused by the walk (F7)) by A5b-symlinked-evidence-file-refused:
+KILLED MS04-dotdot-allowed (an evidence path with .. is accepted) by A6b-dotdot-inside-root-refused:
+KILLED MS06-apply-by-default (the applier writes without --apply) by A1-dry-run-default:,A15-dry-run-refusal:
+SURVIVED MS08-landing-columns-swapped (--landing main reads the fix227 id column)
+KILLED MS10-refused-exit-0 (a run with refused rows exits 0) by A10-row-by-row:,A11b-fix227-id-used:,A15-dry-run-refusal:
+WORKTREE CLEAN AFTER RUN: True
+TALLY {'BUILD-BROKEN': 1, 'KILLED': 28, 'STALE': 1, 'SURVIVED': 3} unexplained survivors: ['MR07-tracker-unreadable-ignored', 'MR09-cas-ignores-location', 'MS08-landing-columns-swapped']
+CONTROL go (targeted) PASS
+CONTROL sh PASS
+KILLED RM02-prior-overrides-inner (the caller's earlier snapshot wins over the rows present at the start of the transaction) by TestCON339R2_InnerSnapshotWinsOverPrior
+KILLED RM04-sync-snapshot-after-issues (md-to-db passes an empty prior snapshot (moved item loses created_at)) by TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt,TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt
+KILLED RM06-inner-snapshot-after-delete (replaceDocument takes no in-transaction snapshot (only the caller's prior; nil for replaceDocument callers)) by TestCON339R2_InnerSnapshotWinsOverPrior,TestCON339R2_ReplaceDocumentDualRepKeepsEachRowsValue,TestCON339R2_ReplaceDocumentWithoutPriorKeepsCreatedAt
+KILLED RR01-first-event-tolerance-1s (a value one second after the first history row is accepted) by TestRestoreCreatedAtR2_FirstEventBoundary
+KILLED RR03-already-before-evidence ('already' answered before any evidence check (bad evidence exits 0 when the value is already set)) by TestRestoreCreatedAtR2_AlreadyNeedsValidEvidence
+KILLED RR05-type-not-compared (evidence identity check ignores the type) by TestRestoreCreatedAtR2_EvidenceTypeMustMatch
+KILLED RR07-no-compare-and-set (the UPDATE no longer checks the value it replaces (no compare-and-set)) by TestRestoreCreatedAtR2_ConcurrentChangeIsRefused
+SURVIVED RR09-no-roundtrip-format-check (the round-trip format check is dropped (is it redundant with time.Parse?)) [EQUIVALENT: exhaustive proof docs/qa/engine_created_at_2026_11_13/round2/rr09_equivalence.txt: every string the regexp accepts and time.Parse accepts round-trips (0 counterexamples)]
+KILLED RR11-bad-history-row-skipped (an unparseable history created_at is skipped instead of refused) by TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/history_time_unreadable
+SURVIVED RR13-sha-of-other-file (control mutant: syntactically different, semantically equivalent (expected SURVIVED, equivalence check of the runner)) [EQUIVALENT: reviewer's control: evAbs + "" is evAbs; os.Remove is never called]
+KILLED RR15-dry-run-skips-current-bound (dry run does not apply the later-than-current refusal (dry run reports a would-write the real run refuses)) by TestRestoreCreatedAtR2_CurrentValueBoundary
+KILLED MR02-tracker-slack-sign (the slack moves the bound later instead of earlier) by TestRestoreCreatedAtR2_AlreadyNeedsValidEvidence,TestRestoreCreatedAtR2_AuditFailureRollsBack,TestRestoreCreatedAtR2_AuditRowContent,TestRestoreCreatedAtR2_ConcurrentChangeIsRefused,TestRestoreCreatedAtR2_CurrentValueBoundary,TestRestoreCreatedAtR2_DryRunDoesNotWrite,TestRestoreCreatedAtR2_FirstEventBoundary,TestRestoreCreatedAtR2_ItemsRowAttestationPreferred
+KILLED MR04-tracker-slack-61 (the slack grows by one second) by TestRestoreCreatedAtR2_ValueBeforeTrackerBoundary
+BUILD-BROKEN MR06-tracker-bound-uses-item-first (the lower bound is the item's own first row, not the tracker's)
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items [build failed]
+FAIL
+# github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items [github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items.test]
+cmd/workable-items/restore_created_at.go:369:2: declared and not used: trackerT
+
+KILLED MR08-cas-accepts-zero-rows (a CAS that matched no row is reported as written) by TestRestoreCreatedAtR2_ConcurrentChangeIsRefused
+KILLED MR10-cas-ignores-representation (the UPDATE also hits the other representation) by TestRestoreCreatedAt_AmbiguousRowNeedsNarrowing
+BUILD-BROKEN MR12-audit-row-skipped (no audit history row)
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items [build failed]
+FAIL
+# github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items [github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items.test]
+cmd/workable-items/restore_created_at.go:389:2: declared and not used: audit
+
+KILLED MR14-audit-by-fixed (--by is not recorded) by TestRestoreCreatedAt_RestoresFromItemsRow
+KILLED MR16-already-writes (an equal value is written again with a new audit row) by TestRestoreCreatedAtR2_AlreadyNeedsValidEvidence,TestRestoreCreatedAt_IdempotentAndDryRun
+KILLED MR18-samefile-by-path (a hard link or symlink to the live DB passes as evidence) by TestRestoreCreatedAtR2_EvidenceIsLiveDBByLink
+KILLED MR20-evidence-path-unchecked (absolute / .. / out-of-repo evidence paths pass) by TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/evidence_missing
+KILLED MR22-attest-same-day (an items row of the same day attests any time) by TestRestoreCreatedAtR2_AuditRowContent,TestRestoreCreatedAtR2_OnlyOpenedEventAttests,TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem,TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/value_not_in_evidence,TestRestoreCreatedAt_RestoresFromOpenedEvent
+KILLED MR24-first-event-direction (the first-event bound is inverted) by TestRestoreCreatedAtR2_CurrentValueBoundary,TestRestoreCreatedAtR2_FirstEventBoundary,TestRestoreCreatedAtR2_LateHistoryRowDoesNotBound,TestRestoreCreatedAtR2_OtherItemsHistoryDoesNotBound,TestRestoreCreatedAtR2_TrackerBoundIsTheWholeTracker,TestRestoreCreatedAtR2_ValueBeforeTrackerBoundary,TestRestoreCreatedAtR2_ValueBeforeTrackerRefused,TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem
+KILLED MR26-history-of-all-items (every item's history bounds this item) by TestRestoreCreatedAtR2_OtherItemsHistoryDoesNotBound,TestRestoreCreatedAtR2_TrackerBoundIgnoresMalformedRows,TestRestoreCreatedAtR2_TrackerBoundIsTheWholeTracker,TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/no_history
+KILLED MR28-ambiguous-takes-first (an id with several rows silently restores the first) by TestRestoreCreatedAt_AmbiguousRowNeedsNarrowing
+KILLED MR30-by-unchecked (--by accepts anything) by TestRestoreCreatedAt_Refusals,TestRestoreCreatedAt_Refusals/bad_by
+KILLED MR32-refusal-exit-ok (every refusal exits 0) by TestRestoreCreatedAtR2_AlreadyNeedsValidEvidence,TestRestoreCreatedAtR2_AuditFailureRollsBack,TestRestoreCreatedAtR2_ConcurrentChangeIsRefused,TestRestoreCreatedAtR2_CurrentValueBoundary,TestRestoreCreatedAtR2_DBUnreadable,TestRestoreCreatedAtR2_EveryEvidenceRowIdentityChecked,TestRestoreCreatedAtR2_EvidenceIsLiveDBByLink,TestRestoreCreatedAtR2_EvidenceTitleMustMatch
+KILLED MS01-final-row-dropped (a last plan row without a trailing newline is dropped (F2)) by A4-final-row-without-newline:
+SURVIVED MS03-realdir-check-weakened (the resolved evidence directory may lie outside --root (F7))
+KILLED MS05-sha-unchecked (the extracted evidence file's sha256 is not compared with the plan) by A8-sha-mismatch-blind:,A9-preexisting-wrong-file:
+KILLED MS07-refusal-not-counted (an engine refusal is not counted) by A10-row-by-row:,A11b-fix227-id-used:,A15-dry-run-refusal:
+KILLED MS09-empty-plan-ok (a plan with no rows is a success) by A14-empty-plan:
+SURVIVED MS11-git-show-failure-ignored (a failed git show continues with an empty evidence file)
+WORKTREE CLEAN AFTER RUN: True
+TALLY {'BUILD-BROKEN': 2, 'KILLED': 27, 'SURVIVED': 4} unexplained survivors: ['MS03-realdir-check-weakened', 'MS11-git-show-failure-ignored']
+# recheck after the fixes, head 86a93864
+CONTROL go (targeted) PASS
+CONTROL sh PASS
+KILLED MR03-tracker-slack-zero (no slack: a value 1 s before the tracker's first row is refused) by TestRestoreCreatedAtR2_CurrentValueBoundary,TestRestoreCreatedAtR2_ValueBeforeTrackerBoundary,TestRestoreCreatedAt_RestoresFromItemsRow
+KILLED MR06-tracker-bound-uses-item-first (the lower bound is the item's own first row, not the tracker's) by TestRestoreCreatedAtR2_TrackerBoundIsTheWholeTracker,TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem
+KILLED MR07-tracker-unreadable-ignored (an unreadable tracker minimum is not refused (zero time: every value passes)) by TestRestoreCreatedAtR2_TrackerMinimumNotARealTimeRefused
+KILLED MR09-cas-ignores-location (the UPDATE also hits the id's other location) by TestRestoreCreatedAtR2_CASNamesTheLocation
+KILLED MR10-cas-ignores-representation (the UPDATE also hits the other representation) by TestRestoreCreatedAtR2_CASNamesTheRepresentation,TestRestoreCreatedAt_AmbiguousRowNeedsNarrowing
+KILLED MR12-audit-row-skipped (no audit history row) by TestRestoreCreatedAtR2_AuditFailureRollsBack,TestRestoreCreatedAtR2_AuditRowContent,TestRestoreCreatedAtR2_ItemsRowAttestationPreferred,TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem,TestRestoreCreatedAt_RestoresFromItemsRow,TestRestoreCreatedAt_RestoresFromOpenedEvent
+KILLED MR33-close-reads-fixed (close reads created_at from a row that does not exist yet (nil: datetime('now'))) by TestCON339R2_CloseDualRepCarriesTheClosedRowsValue,TestCON339R2_InnerSnapshotWinsOverPrior,TestCON339R2_MDToDBMoveWithPrefixSiblingKeepsOwnCreatedAt,TestCON339R2_NewItemInMarkdownGetsTheWriteTime,TestCON339R2_PriorFillsOnlyAbsentKeys,TestCON339R2_ReplaceDocumentDualRepKeepsEachRowsValue,TestCON339R2_ReplaceDocumentWithoutPriorKeepsCreatedAt,TestCON339_CreatedAtPreservedByEveryMutatingCommand
+KILLED MS08-landing-columns-swapped (--landing main reads the fix227 id column) by A11c-main-column:
+WORKTREE CLEAN AFTER RUN: True
+TALLY {'KILLED': 8} unexplained survivors: []

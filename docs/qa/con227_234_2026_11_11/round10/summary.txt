@@ -1,0 +1,6 @@
+suite=redact_cut rc=0 secs=5 RESULT: pass=365 fail=0
+suite=channel_census rc=0 secs=10 RESULT: pass=39 fail=0
+suite=derive_release_facts rc=0 secs=20 RESULT: pass=104 fail=0
+suite=publish_gitea rc=0 secs=18 RESULT pass=146 fail=0
+suite=tag_and_release rc=0 secs=116 RESULT: pass=300 fail=0
+suite=render_release_entry rc=0 secs=1 RESULT: pass=19 fail=0

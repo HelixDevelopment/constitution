@@ -1,0 +1,4 @@
+# RED for L4: the ROUND-6 derive suite run under an ignored SIGHUP (trap '' HUP in the parent shell), round-6 scripts (git 2765038f, 2026-11-12)
+FAIL X10 HUP: rc 0, want 129
+RESULT: pass=79 fail=1
+EXIT 1

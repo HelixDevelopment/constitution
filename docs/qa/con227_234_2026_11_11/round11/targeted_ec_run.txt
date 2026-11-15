@@ -1,0 +1,11 @@
+FAIL control tag_and_release.sh does not pass its suite: RESULT: pass=306 fail=1
+PASS control derive_release_facts.sh passes its suite
+PASS control render_release_entry.py passes its suite
+PASS control release_publish_gitea.sh passes its suite
+PASS control redact_cut.sh passes its suite
+PASS control env_allow.sh passes its suite
+PASS control channel_census.py passes its suite
+PASS control env_census.py passes its suite
+PASS EC1 killed by its property (FAIL R11 RACE: instrument blind or records lost (133 81 200 200 199))
+PASS EC2 killed by its property (FAIL R11 RACE: 199 records misattributed (interleaved log))
+DONE

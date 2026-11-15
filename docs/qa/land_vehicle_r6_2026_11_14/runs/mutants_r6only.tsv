@@ -1,0 +1,15 @@
+M01	0	0	
+M02	1	6	FAIL R6-C-shellopts (rc=2 token lines=0 evidence files=0)|FAIL R6-C-bashenv (rc=2 token lines=0 evidence files=0)|FAIL R6-C4 exported function (rc=2, ran: no)
+M03	1	2	FAIL R6-C-bashenv (rc=0 token lines=9 evidence files=0)|FAIL R6-C4b BASH_ENV function (rc=0, ran: yes)
+M04	1	1	FAIL R6-C4 exported function (rc=0, ran: yes)
+M05	1	4	FAIL R6-A1-emptykey a vehicle commit with a folded Roadmap-Item value is refused at prepar|FAIL R6-A1-continued a vehicle commit with a folded Roadmap-Item value is refused at prepa|FAIL R6-A1p a folded trailer committed after prepare is refused at publish (rc=0, want rc=
+M06	1	1	FAIL R6-A2 case: a lower-case 'roadmap-item: con-777' makes CON-777 not new (rc=1, want rc
+M07	1	2	FAIL R6-A2 folded: CON-777 on a continuation line of a vehicle trailer makes CON-777 not n|FAIL R6-A2 mention: 'see CON-777' in a subject makes CON-777 not new (rc=0, want rc=1 and 
+M08	1	3	FAIL R6-B tip: the vehicle tip's tracker file holds CON-777: not new (rc=0, want rc=1 and |FAIL R6-B removed: a vehicle commit added CON-777 and a later one removed it: not new (rc=|FAIL R6-B case: the vehicle tracker holds con-0777: not new (rc=0, want rc=1 and /CON-777 
+M09	1	2	FAIL R6-B case: the vehicle tracker holds con-0777: not new (rc=0, want rc=1 and /CON-777 |FAIL R6-B case at main: the tracker at main holds con-777: not new (rc=0, want rc=1 and /C
+M10	1	1	FAIL R6-D3 verify refuses a prepare state that no longer matches the refs (rc=0, want rc=2
+M11	1	1	FAIL R6-D1 local main reset to the prepared base, never published: verify exits 1 (rc=1, w
+M12	1	1	FAIL R6-D2 (rc=1)
+M13	1	1	FAIL R6-F the clone path swapped for a symlink during git init: prepare exits 1 (rc=1, wan
+M14	1	4	FAIL R6-B tip: the vehicle tip's tracker file holds CON-777: not new (rc=0, want rc=1 and |FAIL R6-B removed: a vehicle commit added CON-777 and a later one removed it: not new (rc=|FAIL R6-B case: the vehicle tracker holds con-0777: not new (rc=0, want rc=1 and /CON-777 
+M15	0	0	

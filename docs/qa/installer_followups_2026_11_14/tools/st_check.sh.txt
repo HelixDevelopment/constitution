@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# st_check.sh: run in a repo copy (cwd); exit 0 when G0 passes and every ST-* stale mutant is refused (rc 1).
+set -uo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; o="$(mktemp -d "${TMPDIR:-/tmp}/stchk.XXXXXX")"
+res="$(bash "$here/st_red.sh" "$PWD" "$o")"; printf '%s\n' "$res"
+bad="$(printf '%s\n' "$res" | awk -F'\t' '($1 == "G0" && $2 != "rc=0") || ($1 ~ /^ST-/ && $2 != "rc=1")')"
+case "$o" in "${TMPDIR:-/tmp}"/stchk.*) rm -rf -- "${o:?}" ;; esac
+[ -z "$bad" ] || { printf '  FAIL %s\n' "$bad"; exit 1; }

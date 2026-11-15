@@ -1,0 +1,144 @@
+== T168 RED: consumer migration (plan T-G05; FR-025, SC-010); candidate fingerprint=unknown ==
+ok tool exists at /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/fastcycle/consumers/migrate.sh -- T-G05 has landed; Section C's real
+   invocation checks below are the functional tests to run
+NOTE: /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/fastcycle/consumers/ holds 5 non-.gitkeep file(s)
+      already -- re-check whether T-G03/T-G04/T-G05 has
+      partially landed
+PASS: control needle: /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/fastcycle/tests/fixtures/consumer_migrate/build_fixtures.sh fixture builder is present
+NOTE: /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/fastcycle/verify/repo_verify.py (recursive verifier, CA-026) already exists --
+      Section C's golden-migrate check can exercise the real
+      double-verify, not just report it absent
+PASS: fixture builder: real bare-remote + checkout fixtures built successfully under /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.ADccl59Ppp/fixtures
+PASS: B1 mechanism self-check: ca_bad_dirty_local's checkout genuinely
+   has an uncommitted file, real per 'git status --porcelain' --
+   the dirty-tree-detection mechanism CA-020 relies on is sound
+PASS: B1b mechanism self-check: ca_good_migrate's checkout is genuinely clean
+PASS: B2 mechanism self-check: a real push into ca_bad_rejecting_remote's
+   bare repo is genuinely rejected by its pre-receive hook, and
+   the remote's ref is UNCHANGED before/after (fe37a5a88c1b2b1ce044f8ebd794e7ec20b6fab7)
+   -- the remote-rejection mechanism CA-020/CA-025 relies on is
+   proven sound
+PASS: C1 dirty-local: migrate.sh recorded NOT-MIGRATED (dirty-local) and the checkout's tree hash is unchanged
+PASS: C2 rejecting-remote: migrate.sh recorded NOT-MIGRATED (push: ...) and the remote ref is unchanged (nothing force-pushed)
+PASS: C2b rejecting-remote: the remote's tip never became the migration's NEW_SHA -- confirms no disguised force-push landed
+PASS: C3a golden: migrate.sh reports MIGRATED for ca_good_migrate
+PASS: C3b golden: the consumer's constitution gitlink was bumped to the migration target (11e08a34f988d24f39de80d0ebcab5bfc1845caf)
+PASS: C3c golden (CA-026): repo_verify.py --recursive reports CLEAN twice with equal body_hash (ec0f54c629d681d682cac430c19c8744a63321258a5aeccdb358b5f291f8a6fe)
+PASS: C4 C-006 static safety: /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/fastcycle/consumers/migrate.sh's source contains no force-push/force-with-lease/+refspec/reset-hard/stash/clean invocation
+PASS: C4i R20-M2 positive push-shape: /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/fastcycle/consumers/migrate.sh contains exactly one 'git push' invocation, of the known-safe push-by-commit-id shape
+PASS: C4j guard-viability: C4i genuinely flags a push-by-branch-name bypass injected into a scratch copy
+PASS: C4b I3 guard-viability: the widened C4 grep genuinely flags a 'push -f' short-flag bypass injected into a scratch copy
+PASS: C4c I3 guard-viability: the widened C4 grep genuinely flags a '+$BRANCH' variable-prefixed force-refspec bypass injected into a scratch copy
+PASS: C4d R2-B1(b) cross-line force-refspec scan: /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/fastcycle/consumers/migrate.sh's source contains no variable assigned a '+'-prefixed refspec that is later used on any push line
+2862: variable 'RS' (assigned a '+'-prefixed refspec) used on a push line:         if ! git -C "$FC_BARE" -c protocol.file.allow=always push "$url" "$RS" 2>"$MIGRATE_SCRATCH/migrate_push_$r.err"; then
+PASS: C4e guard-viability (positive): C4d's scanner genuinely flags the reviewer's exact RS="+$BRANCH:$BRANCH" variable-indirection bypass injected into a scratch copy
+PASS: C4f guard-viability (negative control): C4d's scanner does NOT flag the real, unmutated /mnt/DATA1TB/claude-work/scratch/fixr2.CVjh/repo/scripts/fastcycle/consumers/migrate.sh -- no false positive
+PASS: C4g R2-B1(b) dynamic: migrate.sh correctly refuses (preflight or push) against a remote that diverged and genuinely ACCEPTS force pushes
+PASS: C4h R2-B1(b) dynamic (the load-bearing assertion): the remote's tip is UNCHANGED (32094c53bc66478d3a6bab2971bb780a2b9d8721) -- migrate.sh had a genuine opportunity to force-push through and did not take it (a remote that rejects force AND non-force alike, like C2's, cannot prove this)
+PASS: C5 I6 negative control: an unbound {"verdict":"GO"} review-ref (no project_id/target_commit) is correctly refused as review-no-go, even for an otherwise-golden target
+PASS: D0 worktree fixture: real 'git worktree add' checkout built at /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.M7cnNkZ91r/wt_checkout with .git as a linked pointer file
+PASS: D1 worktree backup refusal: migrate.sh recorded NOT-MIGRATED (backup: backup-failed) for a genuine worktree checkout
+PASS: D2 worktree backup refusal: the worktree checkout's tree hash is unchanged (no data change on refusal)
+PASS: D3 worktree backup refusal: no .fastcycle_migrate_backup_* directory was left behind (refused before any write)
+PASS: E1 non-canonical .gitmodules section name: migrate.sh reports MIGRATED despite a [submodule "HelixConstitution"] (not "constitution") section
+PASS: E2 non-canonical .gitmodules section name: the constitution gitlink was bumped to the migration target (038404a08b85e5f5ad1f88a161e024fbd3b0f88a), resolved by PATH not section name
+PASS: F1 B3 load-bearing: FASTCYCLE_VERIFY_TOOL_OVERRIDE pointed at a nonexistent path correctly turns an otherwise-golden migration into NOT-MIGRATED (verify: verification-not-clean) -- migrate.sh's own step 9 genuinely gates on CA-026
+PASS: F2 B3+I1 honesty: the F1 refusal record still names the real landed commit via the dedicated 'commit' field (data_change correctly stays NONE per data-model.md #13.3 -- no UNCOMMITTED residue) even though the terminal outcome is NOT-MIGRATED
+PASS: F3b R5 I3: an already-at-target consumer with NO bound review is refused review-no-go before any write (data_change NONE, tree clean) -- never a MIGRATED record without review_ref
+PASS: F3 I4 already-at-target convergence: a fresh clone already at the migration target converges to MIGRATED via the verify-only path (no spurious 'git commit failed')
+PASS: F3c R5 I3: the already-at-target MIGRATED record carries review_ref and backup_marker (data-model #13.3 enforced, not amended)
+PASS: G1 I2 overall outcome: the mixed-remote migration correctly reports NOT-MIGRATED (push: ...) (one remote genuinely rejected)
+PASS: G2 I2 all-remotes-attempted: the SECOND remote's tip genuinely advanced (84cb2d5f11474f81f4da8a8f6c0a5377fc6b004e -> 696ed9ac9467ff1fa1badd66b14c47434d218351) despite the FIRST remote rejecting -- migrate.sh tried both, never stopping at the first rejection
+PASS: G3 I2 no force-push: the rejecting remote's tip is unchanged (nothing force-pushed through it)
+PASS: G4 I2 per-remote honesty: the migration record's push_results names both the successful remote (second:pushed) and the rejected one (origin:...), the commit field names the local commit that landed, and data_change correctly stays NONE
+PASS: H1 B2 hook-cwd: post_update_hook.sh's own real pwd, captured while migrate.sh's caller cwd was deliberately set to $WORK, equals $WORKDIR (/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.CFxD8C4Zw4/checkout) -- the hook ran against the CONSUMER, never the caller's ambient cwd
+PASS: H1b R3 finding 5(c): the hook received PROJECT_ROOT=$WORKDIR and CONST_DIR=$WORKDIR/constitution explicitly (not merely a correct cwd)
+PASS: H2 I5 consumer-gates discovery: a CLAUDE.md 'Consumer gates: tools/always_fails.sh' marker is genuinely discovered and run, and its real non-zero exit blocks the migration as NOT-MIGRATED (consumer-gates: consumer-gates-red)
+PASS: H3 I1 restore-on-gate-failure: after the consumer-gates refusal the checkout is genuinely clean (empty git status) and the record's data_change is NONE
+PASS: H3b I2 restore-on-gate-failure (index): the staged INDEX entry for constitution was genuinely reset to the pre-migration gitlink (307ab0b85ff519afedfdfcc5a0bb3d52139aee61) -- a no-op restore would leave the bumped 557b0cd9b37bfab2d51ad1137194d4c02cfaf3bc staged instead
+PASS: H3c R3 finding 6: a re-run after a gates refusal reaches the gates again (no self-inflicted dirty-local from the tool's own log files)
+PASS: I1 R3 finding 4: an unpublished local product commit makes migrate.sh refuse at preflight (divergent-branches) and the remote tip is unchanged -- nothing unrelated was published
+PASS: I2 R3 finding 4 record: the refusal record carries the closed-set reason, a detail naming the unpublished commit(s), and data_change NONE
+PASS: I3 R3 finding 4 defence: a hook-created commit in $WORKDIR's own top-level checkout is refused (naming the unexpected commit) before the build even starts, remote tip unchanged
+PASS: I4 R3 finding 2: the real hook's .mcp.json + skills/ output is staged INTO the migration commit (files: .mcp.json constitution skills/example.md ), the record is MIGRATED and the tree is clean -- no untracked residue left after commit+push
+PASS: I5 R3 finding 9: post_update_hook.sh ran under bash (bash), never sh
+PASS: I6 R3 finding 8 + R5 M1: the MIGRATED record's verification content addresses equal the sha256 of the persisted reports' REAL bytes, and the backup marker carries its content address
+PASS: I7 R3 finding 5(b): an out-of-allow-list hook artefact is refused with the closed-set reason, and data_change names the real residue (HOOK_WROTE_HERE)
+PASS: I8 R3 finding 5(a): a review record whose target_commit names a DIFFERENT constitution commit is refused review-no-go
+PASS: I9 R3 finding 3 verify decision (not-clean): migrate.sh refuses MIGRATED when the verifier reports not-clean
+PASS: I9 R3 finding 3 verify decision (hash-differs): migrate.sh refuses MIGRATED when the verifier reports hash-differs
+PASS: I9 R3 finding 3 verify decision (rc-nonzero): migrate.sh refuses MIGRATED when the verifier reports rc-nonzero
+PASS: I10 R3 finding 3 negative control (§11.4.201(1)): the same stub reporting CLEAN x2 with rc=0 and equal hashes yields MIGRATED -- the decision is not a refuse-everything gate
+PASS: I11 R3 finding 3 guard-viability: the reviewer's hash-only mutation of the step-9 decision wrongly reports MIGRATED on a NOT_CLEAN verify -- exactly what I9 refuses, so I9 is load-bearing
+PASS: I12 R3 m4: two back-to-back runs produced 2 distinct backup containers, none nested in another
+PASS: I13 R3 finding 1(b): a dry run writes outcome DRY-RUN with no not_migrated_reason (never a counted NOT-MIGRATED record)
+PASS: J1 symlink safety: an absolute-target symlink (the real install_skills() shape) is refused before any write, remote and local HEAD unchanged
+PASS: J1 guard-viability: with ONLY the dedicated absolute-path branch dropped, harvest()'s own escape check independently catches the same input (an absolute target IS an escaping target under posixpath join semantics) -- overlapping coverage confirmed, never a silent gap
+PASS: J1b guard-viability (both layers): with harvest()'s symlink-safety branches AND the belt-and-braces scan_symlinks_raw check BOTH dropped, the host-specific symlink finally reaches the remote -- confirming there is no hidden THIRD protection and the TWO real layers are what actually stand between this input and publication
+PASS: J2 symlink safety: a relative symlink target that escapes the repository is refused, remote unchanged
+PASS: J2 guard-viability: with ONLY harvest()'s escape check dropped, the INDEPENDENT belt-and-braces candidate-tree scan still catches the escaping symlink one layer later -- defense in depth confirmed, not decoration
+PASS: J3 negative control: a genuinely portable relative symlink (resolves inside the repo) migrates cleanly end to end -- no false positive
+PASS: J4 gitlink-boundary safety: a hook-created nested git repository (git status reports it as a leaf directory, never descended into) under an allow-listed path is refused before any write, remote unchanged
+PASS: J4 guard-viability: with ONLY the specific gitlink-boundary branch dropped, the directory still refuses (via the generic unsupported-file-type fallback), confirming no fall-through path exists that would stage it as ordinary content
+PASS: J5 .gitmodules protection: a hook that rewrites .gitmodules (even a single key) is refused before any write, remote unchanged
+PASS: J5 guard-viability: with ONLY the EARLY dedicated .gitmodules refusal dropped, the INDEPENDENT belt-and-braces candidate-tree check still catches the rewrite one layer later (naming the changed blob ids) -- defense in depth confirmed, not decoration
+PASS: J6 allow-list enforcement: an out-of-allow-list hook artefact is refused with the closed-set reason, and data_change names the real residue (HOOK_WROTE_HERE)
+PASS: J6 guard-viability: with ONLY the shared CA-022 allow-list widened to match everything, the out-of-scope artefact is published (rc=0 MIGRATED) -- the allow-list is load-bearing
+PASS: J7 detached-HEAD refusal: a detached checkout is refused before any write (no branch to fast-forward), remote unchanged
+PASS: J7 guard-viability: with ONLY the detached-HEAD check dropped, the specific honest refusal disappears (the tool instead fails later, confusingly, against a bogus 'HEAD' branch name) -- the check is load-bearing for an honest, early refusal
+PASS: J8 already-at-target review binding: a fresh already-at-target clone with NO review-ref is refused review-no-go (never silently MIGRATED), tree clean
+PASS: J8 guard-viability: with ONLY the already-at-target review check disabled, a reviewless fresh clone reports MIGRATED with no review_ref -- violating data-model.md #13.3; the check is load-bearing
+PASS: J9 constitution-gitlink invariant: a hook that deletes the whole submodule checkout directory has NO effect on the published result -- the gitlink is published at exactly $NEW_SHA (6384c8e1ddfc995fad37df96ac965407816250e3), and $WORKDIR self-heals (submodule re-materialized by the post-publish sync)
+PASS: J9 guard-viability: with the unconditional gitlink write dropped, the candidate tree's stale 'constitution' entry is caught by the independent belt-and-braces check -- TWO layers both had to be proven here, confirming neither is decoration
+PASS: J10 R20-B1 shape 1 (decoy parent) CLOSED: X (carrying the unreviewed content) never reaches origin's history (rc=1 out=backup: /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.ZY9GFFDwpj/j10/.fastcycle_migrate_backup_20261114T212013Z.tUCCdB/git (hash=ddd70f36e4661b4fc4e417b16bfcf886a7e0e23aee9c5fb1e4e93e49229a9605)
+NOT-MIGRATED (push: non-fast-forward) (per-remote: origin:remote-base-mismatch; pushed ok to: mirrorA))
+PASS: J10 guard-viability: with BOTH the preflight and push-time exact-tip-match checks relaxed to 'any tip', the R20-B1 leak reproduces -- X reaches origin's history; the exact-match checks are what close this exploit class
+PASS: J11 R20-B1 shape 2 (decoy tree) CLOSED: X (carrying the unreviewed content) never reaches origin's history (rc=1 out=backup: /mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.ZY9GFFDwpj/j11/.fastcycle_migrate_backup_20261114T212024Z.thO2uV/git (hash=2eb5ef6cae81fdba05ee7ea7a981f270e527aa9cc866cc468e4c4363ed3984b4)
+NOT-MIGRATED (push: non-fast-forward) (per-remote: origin:remote-base-mismatch; pushed ok to: mirrorA))
+PASS: J11 guard-viability: with BOTH exact-tip-match checks relaxed, the R20-B1 shape-2 leak also reproduces -- X reaches origin's history; the SAME pair of checks closes both shapes
+PASS: J44 Gap-1 template-copy safety: a hostile host init.templateDir (objects/info/alternates) has no effect on a real migration -- --template= defeats the template-copy mechanism, migration completes cleanly
+PASS: J44b guard-viability: with ONLY --template= reverted, the hostile init.templateDir's alternates file IS copied into $FC_BARE and is independently caught by fc_bare_assert_no_alternates (fc-bare-has-alternates-file) -- both layers proven genuinely load-bearing
+PASS: K1 filter-driver safety (T177 Round 22, R21-I1): a hostile filter.<name>.smudge driver configured purely in the already-initialised constitution submodule's own LOCAL, untracked git config (+matching local attributes, no tracked-content change) does NOT execute during this tool's own checkout of that submodule -- migration still completes correctly (MIGRATED, gitlink bumped to $R3_NEW), the marker command never ran
+PASS: K1 guard-viability: with the discovered-filter-override loop disabled (reverting to this fix's pre-Round-22 behaviour), the SAME hostile smudge driver DOES fire during this tool's own submodule checkout -- K1's fix is genuinely load-bearing, not decoration
+PASS: K-clean (T177 Round 23): a hostile clean-shaped filter driver in $WORKDIR's own untracked config never executes during a real migration (MIGRATED, gitlink=$R3_NEW, marker never written)
+PASS: K-include (T177 Round 23): a hostile include-shaped filter driver in $WORKDIR's own untracked config never executes during a real migration (MIGRATED, gitlink=$R3_NEW, marker never written)
+PASS: K-worktree (T177 Round 23): a hostile worktree-shaped filter driver in $WORKDIR's own untracked config never executes during a real migration (MIGRATED, gitlink=$R3_NEW, marker never written)
+PASS: K-process (R22-M3): a required long-running process driver is fully inert (process emptied, required=false) -- MIGRATED, the attacker's process command never runs, and the checked-out CLAUDE.md is byte-identical to $R3_NEW's blob
+PASS: K-unreadable (fail-closed): an effective config that cannot be read is a refusal before any write (rc=4, remote unchanged) -- never treated as 'no drivers'
+PASS: K-lfs-extension (T177 Round 24, R23-B1): a GLOBAL-scope filter driver's own git-lfs-style local-extension mechanism (lfs.extension.<name>.clean, no filter.* entry anywhere in local scope) does NOT execute during a real migration -- MIGRATED, gitlink=$R3_NEW, checked-out content byte-identical to $R3_NEW's blob, the attacker's local-extension command never ran
+PASS: K-lfs-extension guard-viability: with TRUSTED_SCOPES reverted to trust global/system (the Round 23 pre-fix value), the SAME git-lfs-style global-driver/local-extension shape FIRES again -- K-lfs-extension's fix is genuinely load-bearing, not decoration
+PASS: K-protocol-allowlist (T177 Round 25, R24-B1): under $TOOL's OWN real process-wide override block, ssh:// and https:// fail with a network-level error (not 'transport not allowed'), while ext:: remains refused -- the allow-list fix genuinely restores the protocols this tool needs without reopening the exotic-protocol hardening
+PASS: K-protocol-allowlist guard-viability: with the allow-list lines removed (the Round 24 pre-fix override set), ssh:// is refused again ('transport not allowed') -- K-protocol-allowlist's fix is genuinely load-bearing, not decoration
+PASS: K-insteadof-redirect (T177 Round 25, R24-B2): a PREFIX-matching `url.*.insteadOf` hijack planted in BOTH the submodule's and $WORKDIR's own local config, targeting the real, predictable MIGRATE_SCRATCH prefix, does NOT redirect either the hop-2 transfer or the step-9 sync transfer -- MIGRATED, gitlink=$R3_NEW, checked-out content byte-identical to $R3_NEW's blob
+PASS: K-insteadof-redirect guard-viability: with hop 2 and the sync fetch reverted to their pre-Round-25 fetch-into-the-untrusted-side shape, the SAME prefix-matching insteadOf hijack breaks the migration (rc=1, not MIGRATED) -- the push-based fix is genuinely load-bearing, not decoration
+PASS: K-submodule-url-hijack (T177 Round 25, R24-I1): a LOCAL submodule.constitution.url override pointing at an attacker repository does NOT redirect the first-time clone -- MIGRATED, the submodule's own remote.origin.url is the TRUSTED .gitmodules URL, and the checked-out content is $R3_NEW's real blob, never the attacker's content
+PASS: K-submodule-url-hijack guard-viability: with the submodule.<name>.url pin removed, the SAME local override redirects the first-time clone to the attacker repository (remote.origin.url=$K_SUI_ATTACKER) -- K-submodule-url-hijack's fix is genuinely load-bearing, not decoration
+PASS: K-submodule-noncanonical-section (T177 Round 26, R25-I1): for a [submodule "const"]/path=constitution consumer, local submodule.const.url and submodule.const.update hijacks are BOTH rejected -- MIGRATED, gitlink=$K_NCS_NEW, remote.origin.url is the TRUSTED .gitmodules URL, the attacker's update command never ran
+PASS: K-submodule-noncanonical-section guard-viability: re-keying the pins by $3 (PATH) instead of $CONST_SECTION re-opens the hijack for a non-default-section consumer (remote.origin.url=/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.r1JmYaC6NO/k_ncs_attacker.git update-cmd-fired=yes) -- the $CONST_SECTION keying is genuinely load-bearing, not decoration
+PASS: K-submodule-equals-section (T177 Round 28, R27-M-1): for a [submodule "c=x"]/path=constitution consumer, local submodule.c=x.url and submodule.c=x.update hijacks are BOTH rejected end to end -- MIGRATED, gitlink=$K_ES_NEW, remote.origin.url is the TRUSTED .gitmodules URL, the attacker's update command never ran
+PASS: K-submodule-equals-section guard-viability: reverting to the OLD, pre-R26-I2 `-c` form re-opens the hijack for an `=`-containing section name (remote.origin.url=/mnt/DATA1TB/claude-work/tmp/fixr2.g9qS/tmp.r1JmYaC6NO/k_es_attacker.git update-cmd-fired=yes) -- the fc_gcc_add-based fix is genuinely load-bearing for this exact character, not decoration
+PASS: K-receive-hooks (T177 Round 26, R25-B1): pre-receive and reference-transaction hooks planted in BOTH the submodule's and $WORKDIR's own .git/hooks do NOT fire during a real migration -- MIGRATED, gitlink=$R3_NEW, no hook marker written
+PASS: K-receive-hooks guard-viability: with hop 2 and the sync fetch reverted to the Round 25 push-based shape, the SAME planted receive-side hooks FIRE ([fired,fired,fired,fired,fired,fired,]) -- K-receive-hooks's fix is genuinely load-bearing, not decoration
+PASS: K-bounded-transfer (T177 Round 27, R26-I1): migrating ONE commit ahead on a 15-commit-deep upstream (45 total objects) grows the destination's own object count by only 4 -- the transfer is genuinely bounded to the real delta, not the full history
+PASS: K-bounded-transfer guard-viability: with the $5 base-commit argument dropped (Round 26's own unbounded shape), the SAME one-commit-ahead migration grows the destination's object count by 45 (vs the bounded arm's 4) -- the $5 boundary is genuinely load-bearing, not decoration
+PASS: K-bounded-transfer-sync-hop (T177 Round 28, R27-Important-2): the step-9 SYNC hop, measured at $WORKDIR's OWN top-level object count (not merely the submodule's), grows by only 2 against a 15-commit-deep CONSUMER history (66 total objects) -- the sync hop's own bound is independently proven, not merely assumed from the submodule hop's
+PASS: K-bounded-transfer-sync-hop guard-viability: with ONLY the sync call's $5 argument dropped (submodule hop's own $5 left intact), the SAME migration grows $WORKDIR's own top-level object count by 68 (vs the bounded arm's 2) -- the sync hop's OWN $5 boundary is independently load-bearing
+PASS: K-partial-clone-lazy-fetch (T177 Round 29, R28-Important-A): fc_transfer_objects_into(), tested directly against FIVE distinct promisor config spellings (true/yes/1/valueless-key/partialclonefilter-only) each with a genuinely-missing blob and an attacker promisor sshCommand, transfers the target commit successfully WITHOUT running the attacker's command under ANY spelling
+PASS: K-partial-clone-lazy-fetch-ordering (T177 Round 29, R28-Important-B): with the base commit's OWN object missing from a promisor-configured destination (the shape that fired the attacker's command from the OLD destination-side cat-file -e probe BEFORE the Round 28 detector ever ran), fc_transfer_objects_into() still transfers the target commit successfully with no attacker command execution
+PASS: K-partial-clone-lazy-fetch guard-viability 1 (T177 Round 29): neutralising the missing-objects detection (so it never recognises ANY missing object) reproduces the attacker's command firing on a promisor=yes destination -- the detection logic is independently load-bearing, not merely present
+PASS: K-partial-clone-lazy-fetch-corrupt-base (T177 Round 30, independent-review Important): with the base commit's own object PRESENT BUT CORRUPT (not deleted) in a promisor-configured destination, fc_transfer_objects_into() never runs the attacker's command, whether or not the transfer itself succeeds against the already-corrupt object store (out=error: inflate: data stream error (incorrect header check)
+error: unable to unpack cc7f85f92343e490c2f3168448ce1943a109fcdf header
+fatal: cannot read existing object info cc7f85f92343e490c2f3168448ce1943a109fcdf
+FTO_RC=1)
+PASS: K-partial-clone-lazy-fetch guard-viability 2 (T177 Round 30): discarding rev-list's own exit status (keeping its stdout capture identical) reproduces the attacker's command firing against a corrupt-base destination -- the exit-status check is independently load-bearing, distinct from guard-viability-1's missing-objects detection
+PASS: K-verify-wiring: both step-9 verifications were invoked with --neutralize-repo-filters (recorded from the verifier's own argv at runtime)
+PASS: K guard-viability K_drop_clean_var: with `clean` dropped from the discovered driver variables (the reviewer's own R22-I1 mutation) -- the hostile driver FIRES again ([PARENTCLEAN SUBCLEAN ]); that mechanism is load-bearing
+PASS: K guard-viability K_local_only: with discovery narrowed back to `git config --local` (the Round 22 shape), an include.path-defined driver -- the hostile driver FIRES again ([INCCLEAN INCSMUDGE ]); that mechanism is load-bearing
+PASS: K guard-viability K_local_only_wt: with discovery narrowed back to `git config --local`, a --worktree-defined driver -- the hostile driver FIRES again ([WTCLEAN WTSMUDGE ]); that mechanism is load-bearing
+PASS: K guard-viability K_no_early_install: with the install before the step-1 dirty check removed (later installs still present), the step-1 status read -- the hostile driver FIRES again ([PARENTCLEAN SUBCLEAN ]); that mechanism is load-bearing
+PASS: K guard-viability K_process_value_exec: with the process override VALUE replaced by a command (instead of empty) -- the hostile driver FIRES again ([VALUEMUT ]); that mechanism is load-bearing
+PASS: K layer-independence: with the empty-process override REMOVED, the smudge/clean=`cat` layer alone still keeps the clean-shape drivers inert (MIGRATED, marker never written) -- the second layer is real, not decoration
+PASS: K guard-viability (R22-M3): with process overridden to `cat` (the Round 22 value), git's long-running-filter handshake breaks and the migration no longer succeeds (rc=1) while the attacker command still never runs -- emptying process is what makes K-process pass
+PASS: K guard-viability (verify wiring): with the flag dropped from both verify invocations, the recording stub sees the verifier run WITHOUT it -- K-verify-wiring observes the real argv, not a constant
+
+== Summary: ok 121 / NOT ok 0 ==

@@ -1,0 +1,17 @@
+cmd/workable-items/attribution_test.go
+cmd/workable-items/correct_evidence.go
+cmd/workable-items/correct_evidence_test.go
+cmd/workable-items/db.go
+cmd/workable-items/diary.go
+cmd/workable-items/fastcycle_status_consistency_test.go
+cmd/workable-items/f_dbtool_representation_scope_test.go
+cmd/workable-items/mutate.go
+cmd/workable-items/obsolete_test.go
+cmd/workable-items/parse_shape2_decoupling_test.go
+cmd/workable-items/status_body_sync_test.go
+cmd/workable-items/subtask_test.go
+cmd/workable-items/sync_diff_desync_test.go
+cmd/workable-items/sync_diff_test.go
+cmd/workable-items/validate_blocked_test.go
+cmd/workable-items/validate_evidence_test.go
+cmd/workable-items/version_tags.go

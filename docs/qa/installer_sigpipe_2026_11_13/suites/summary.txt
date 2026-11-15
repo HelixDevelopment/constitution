@@ -1,0 +1,8 @@
+old run1 rc=0 secs=4493 RUN_ALL: PASS
+new run1 rc=0 secs=4548 RUN_ALL: PASS
+old run2 rc=0 secs=4136 RUN_ALL: PASS
+new run2 rc=0 secs=4181 RUN_ALL: PASS
+old run3 rc=0 secs=4486 RUN_ALL: PASS
+new run3 rc=1 secs=4568 RUN_ALL: FAIL (test_round8)
+old run4 rc=0 secs=4952 RUN_ALL: PASS
+new run4 rc=0 secs=4957 RUN_ALL: PASS

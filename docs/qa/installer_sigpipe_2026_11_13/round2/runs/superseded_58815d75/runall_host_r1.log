@@ -1,0 +1,2366 @@
+=== test_unit
+  ok   installer sources in library mode without running main
+# validators
+  ok   agent id accepted: claude
+  ok   agent id accepted: claude1
+  ok   agent id accepted: claude12
+  ok   agent id accepted: deepseek
+  ok   agent id accepted: kimi
+  ok   agent id accepted: opencode
+  ok   agent id accepted: pi
+  ok   agent id accepted: kc-foo
+  ok   agent id accepted: helixllm-a.b
+  ok   agent id accepted: none
+  ok   agent id rejected: []
+  ok   agent id rejected: [-x]
+  ok   agent id rejected: [--yolo]
+  ok   agent id rejected: [a b]
+  ok   agent id rejected: [a;b]
+  ok   agent id rejected: [a$(id)]
+  ok   agent id rejected: [a`id`]
+  ok   agent id rejected: [a
+b]
+  ok   agent id rejected: [../x]
+  ok   agent id rejected: [a/b]
+  ok   ref accepted: main
+  ok   ref accepted: helixconstitution-v72.1
+  ok   ref accepted: v1.0.0
+  ok   ref accepted: a5cee41
+  ok   ref accepted: refs/tags/x
+  ok   ref rejected: []
+  ok   ref rejected: [-b]
+  ok   ref rejected: [--upload-pack=x]
+  ok   ref rejected: [a..b]
+  ok   ref rejected: [a b]
+  ok   ref rejected: [x;rm]
+  ok   ref rejected: [a
+b]
+  ok   ref rejected: [a~1]
+  ok   ref rejected: [a^]
+  ok   url accepted: https://github.com/HelixDevelopment/HelixConstitution.git
+  ok   url accepted: git@github.com:HelixDevelopment/HelixConstitution.git
+  ok   url accepted: ssh://git@example.org:2222/o/r.git
+  ok   url accepted: file:///tmp/x/upstream.git
+  ok   url accepted: /tmp/x/upstream.git
+  ok   url rejected: []
+  ok   url rejected: [-oProxyCommand=x]
+  ok   url rejected: [ext::sh -c id]
+  ok   url rejected: [https://x/$(id)]
+  ok   url rejected: [https://x/`id`]
+  ok   url rejected: [https://x/a b]
+  ok   url rejected: [https://x/a
+b]
+  ok   url rejected: [https://x/a;b]
+  ok   url rejected: [fd::3]
+  ok   url rejected: [--upload-pack=touch /tmp/p]
+  ok   url rejected: [relative/path.git]
+  ok   url rejected: [https://x/a'b]
+  ok   model accepted: sonnet
+  ok   model accepted: opus
+  ok   model accepted: haiku
+  ok   model accepted: claude-sonnet-4-5
+  ok   model accepted: provider/model:tag
+  ok   model rejected: []
+  ok   model rejected: [-x]
+  ok   model rejected: [a b]
+  ok   model rejected: [a;b]
+  ok   model rejected: [$(id)]
+  ok   effort accepted: low
+  ok   effort accepted: medium
+  ok   effort accepted: high
+  ok   effort accepted: xhigh
+  ok   effort accepted: max
+  ok   effort rejected: []
+  ok   effort rejected: [huge]
+  ok   effort rejected: [high;x]
+  ok   number accepted: 0
+  ok   number accepted: 1
+  ok   number accepted: 2
+  ok   number accepted: 1800
+  ok   number accepted: 0.5
+  ok   number accepted: 2.25
+  ok   number rejected: []
+  ok   number rejected: [-1]
+  ok   number rejected: [1e9]
+  ok   number rejected: [x]
+  ok   number rejected: [1;2]
+  ok   number rejected: [1 2]
+  ok   timeout accepted: 1
+  ok   timeout accepted: 60
+  ok   timeout accepted: 1800
+  ok   timeout accepted: 86400
+  ok   timeout rejected: []
+  ok   timeout rejected: [0]
+  ok   timeout rejected: [00]
+  ok   timeout rejected: [86401]
+  ok   timeout rejected: [999999]
+  ok   timeout rejected: [-5]
+  ok   timeout rejected: [1.5]
+  ok   timeout rejected: [x]
+  ok   budget accepted: 0.01
+  ok   budget accepted: 0.5
+  ok   budget accepted: 2
+  ok   budget accepted: 50
+  ok   budget accepted: 50.0
+  ok   budget rejected: []
+  ok   budget rejected: [0]
+  ok   budget rejected: [0.0]
+  ok   budget rejected: [0.00]
+  ok   budget rejected: [50.01]
+  ok   budget rejected: [51]
+  ok   budget rejected: [1000]
+  ok   budget rejected: [-1]
+  ok   budget rejected: [x]
+  ok   bash 4.4 accepted
+  ok   bash 5.0 accepted
+  ok   bash 4 3 rejected (empty arrays under set -u)
+  ok   bash 4 0 rejected (empty arrays under set -u)
+  ok   bash 3 2 rejected (empty arrays under set -u)
+# json + url sanitising
+  ok   json escape quotes/backslash/newline/tab/control
+  ok   credentials stripped from https url
+  ok   token-only userinfo stripped
+  ok   ssh url unchanged
+  ok   password with @ fully stripped
+  ok   upper-case scheme credentials stripped
+  ok   ssh:// user:password stripped (last @)
+  ok   ssh:// plain user kept
+  ok   query token redacted
+  ok   credentials + query + fragment
+  ok   local path unchanged
+  ok   has-password: password containing @
+  ok   has-password: query token
+  ok   has-password: plain https not flagged
+  ok   has-password: ssh user not flagged
+  ok   scrub: no secret fragment left (p@ss, w0rd, pa@, SEKRIT)
+  ok   scrub: host and path kept
+  ok   scrub: query redacted
+# prompt extraction
+  ok   first fenced block under ## PROMPT (longer fence, inner fence kept)
+  ok   missing fence under ## PROMPT -> failure
+  ok   missing ## PROMPT heading -> failure
+  ok   follow-up body after front matter
+  ok   follow-up requires_previous_success false
+  ok   follow-up without front matter = whole body
+  ok   follow-up requires default true
+# newest tag
+  ok   newest helixconstitution tag by version sort
+  ok   no matching tag -> empty
+  ok   pre-release tags never chosen by default
+  ok   v9 < v10 < v100 (version order, not lexical)
+# release tags: numeric parts never have a leading zero (the prompt's single release regex)
+  ok   leading-zero tags never chosen (v072 / v72.01 / v00)
+  ok   zero parts without a leading zero are fine (v0, v72.0)
+  ok   only-leading-zero tags -> empty
+# release regex drift: installer, updater and the setup prompt use ONE identical regex
+  prompt_grep_distinct=1 prompt_grep_count=4
+  prompt_prose_has_canonical=yes
+  installer_assign=1
+  installer_other_literals=0
+  installer_equal=yes
+  updater_assign=1
+  updater_other_literals=0
+  updater_equal=yes
+  ok   control: the prompt carries its release regex at least 4 times
+  ok   the prompt uses exactly one distinct release regex
+  ok   the prompt's prose names the same regex its commands use
+  ok   installer defines HI_RELEASE_TAG_RE exactly once
+  ok   installer has no second release-regex literal
+  ok   installer release regex == the prompt's
+  ok   updater defines HI_RELEASE_TAG_RE exactly once
+  ok   updater has no second release-regex literal
+  ok   updater release regex == the prompt's
+# stream-json parser (UNIT fixtures, not live evidence)
+  ok   success result
+  ok   is_error true -> failure
+  ok   no result event -> none
+  ok   429 detected
+  ok   garbage lines ignored
+  ok   LAST result event decides
+  ok   cost read from total_cost_usd
+  ok   non-numeric cost -> unknown
+# snippet table + cli
+  ok   --print-snippets exit 0
+  ok   snippet present: https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitlab.com/helixdevelopment1/helixconstitution/-/raw/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitlab.com/vasic-digital/HelixConstitution/-/raw/main/scripts/install_constitution.sh
+  ok   snippet present: https://gitflic.ru/project/helixdevelopment/helixconstitution/blob/raw?file=scripts/install_constitution.sh&branch=main
+  ok   snippet present: https://gitverse.ru/api/repos/helixdevelopment/HelixConstitution/raw/branch/main/scripts/install_constitution.sh
+  ok   exactly 5 snippet lines
+  ok   --version prints installer version
+  ok   --help exit 0
+  ok   --help documents --project-root
+  ok   --help documents --upstream
+  ok   --help documents --ref
+  ok   --help documents --agent
+  ok   --help documents --model
+  ok   --help documents --effort
+  ok   --help documents --max-budget-usd
+  ok   --help documents --timeout-sec
+  ok   --help documents --non-interactive
+  ok   --help documents --yes
+  ok   --help documents --dry-run
+  ok   --help documents --decision-layer
+  ok   --help documents --followups
+  ok   --help documents --commit
+  ok   --help documents --report-json
+  ok   --help documents --print-snippets
+  ok   unknown flag -> exit 2
+  ok   flag missing value -> exit 2
+  ok   invalid effort -> exit 2
+  ok   --timeout-sec 0 -> exit 2
+  ok   --timeout-sec 86401 -> exit 2
+  ok   --max-budget-usd 0 -> exit 2
+  ok   --max-budget-usd 50.5 -> exit 2
+  ok   --flag=value accepted
+  ok   --flag=value is validated (--effort=huge -> 2)
+  ok   boolean flag with =value -> exit 2
+  ok   a lone -- is accepted
+  ok   argument after -- -> exit 2
+  ok   http:// upstream refused without --allow-insecure-url (exit 2)
+  ok   insecure refusal names the flag
+  ok   git:// upstream refused (exit 2)
+  ok   --help documents --allow-insecure-url
+  ok   --help documents --max-budget-usd
+  ok   --help documents --timeout-sec
+  ok   --help says which agents cannot enforce model/effort/budget
+  ok   no TTY and no --non-interactive -> exit 2
+# truncation sentinel
+  ok   last line is the sentinel main call
+  ok   sentinel-less main printed nothing useful
+  ok   main without the sentinel refuses (exit 2)
+# shared blocks are byte-identical in the installer and the updater (one implementation, no drift)
+  ok   control: block hi_resolve_ref_in present in the installer
+  ok   block hi_resolve_ref_in identical in installer and updater
+  ok   control: block hi_lock_helpers present in the installer
+  ok   block hi_lock_helpers identical in installer and updater
+  ok   control: block hi_text_safe present in the installer
+  ok   block hi_text_safe identical in installer and updater
+  ok   control: block hi_remote_live present in the installer
+  ok   block hi_remote_live identical in installer and updater
+  ok   control: block hi_gitlink_rel present in the installer
+  ok   block hi_gitlink_rel identical in installer and updater
+  ok   control: block hi_shell_state present in the installer
+  ok   block hi_shell_state identical in installer and updater
+unit: PASS 222 FAIL 0
+=== test_unit OK (5s)
+=== test_integration
+# ADD into a fresh project
+  ok   ADD exit 0
+  ok   .gitmodules path
+  ok   .gitmodules url
+  ok   gitlink = newest tag commit
+  ok   submodule HEAD = newest tag commit
+  ok   CLAUDE.md imports submodules/constitution/CLAUDE.md
+  ok   CLAUDE.md inheritance heading
+  ok   AGENTS.md base-rules pointer
+  ok   no legacy ./constitution path in written files
+  ok   nested hub engines NOT initialised (non-recursive)
+  ok   not committed by default
+  ok   backup dir excluded via .git/info/exclude
+  ok   report status
+  ok   report mode
+  ok   report commit_after
+  ok   report verify.overall
+# ADD is a blobless partial clone with the full commit graph and tags (I1)
+  ok   promisor remote configured
+  ok   partial clone filter blob:none
+  ok   blobs really omitted (missing objects: 8343)
+  ok   not shallow (no --depth: updater needs the commit graph)
+  ok   full commit graph: v72.1 is an ancestor of HEAD
+  ok   tags kept
+  ok   gitdir absorbed into the project (.git is a gitfile)
+  ok   installer marker removed after a complete add
+  ok   fixture really has MANY blobs missing before checkout (SIGPIPE precondition: 3811 >= 300)
+  ok   report.clone = blobless (no SIGPIPE-driven false 'full')
+  ok   no false 'does not support partial clone' warning
+  ok   final message says blobless clone
+  ok   submodule worktree is clean (lazy blob fetch worked)
+  ok   submodule files keep the user's umask (not the installer's private 077)
+# private backups and reports (I7)
+  ok   backup dir mode 700
+  ok   report.json in backup mode 600
+  ok   --report-json file mode 600
+  ok   git status shows only expected paths
+# idempotency: second run is a no-op that says so
+  ok   second run exit 0
+  ok   second run says already up to date
+  ok   second run changes nothing
+  ok   second run report mode
+# UPDATE after the upstream advances (fast-forward)
+  ok   UPDATE exit 0
+  ok   submodule fast-forwarded to new tag
+  ok   gitlink staged in parent
+  ok   V0 is an ancestor of V1 (fast-forward)
+  ok   before/after sha printed
+  ok   report mode update
+  ok   report commit_before
+  ok   updater ran (delegated) on the blobless clone
+  ok   after the update the blobless worktree is clean
+  ok   after the update a file of the new commit is readable
+  ok   re-run after update exit 0
+  ok   re-run after update is a no-op
+# --commit on
+  ok   commit run exit 0
+  ok   exactly one new commit
+  ok   commit message names submodules/constitution
+  ok   worktree clean after commit
+  ok   nothing pushed: project has no remote
+# dry run: zero writes
+  ok   dry run exit 0
+  ok   dry run prints the plan
+  ok   dry run wrote nothing (incl .git)
+# preconditions
+  ok   not a git repo -> exit 3
+  ok   not a git repo: nothing written
+  ok   --git-init then ADD exit 0
+  ok   --git-init gitlink
+  ok   dirty touched path (CLAUDE.md) -> exit 3
+  ok   dirty refusal wrote nothing
+  ok   unrelated dirty file does not block (exit 0)
+  ok   unrelated dirty file untouched
+  ok   existing CLAUDE.md: exit 0
+  ok   existing CLAUDE.md content preserved
+  ok   original CLAUDE.md backed up
+# interrupted 'git submodule add' of THIS installer: gitlink staged, .gitmodules not yet written (chaos repro)
+  ok   user-staged gitlink without .gitmodules entry: refused (exit 3)
+  ok   refusal explains how to unstage
+  ok   user-staged gitlink: nothing touched (full tree incl .git and index)
+  ok   user-staged gitlink: no backup dir created
+  ok   embedded repo staged: refused with exit 3 (not 1)
+  ok   embedded repo staged: nothing touched
+  ok   precondition: gitlink staged
+  ok   precondition: no .gitmodules entry
+  ok   half-added layout detected as partial
+  ok   half-added (installer marker): re-run exit 0
+  ok   half-added: registered in .gitmodules
+  ok   half-added: gitlink at newest tag (v999.1)
+  ok   committed gitlink w/o .gitmodules: refused (exit 3)
+  ok   committed gitlink w/o .gitmodules: nothing written
+  ok   refusal names the inconsistency
+# refusal paths leave no backup dir and no exclude edit
+  ok   user content at submodules/constitution: refused (exit 3)
+  ok   user content refusal: full tree (incl .git) unchanged
+  ok   user content refusal: no backup dir
+  ok   user content refusal: exclude not edited
+# partial layout: .gitmodules carrying the user's own uncommitted edits is refused
+  ok   our section only: layout partial
+  ok   partial + user edits in .gitmodules: refused (exit 3)
+  ok   partial + user edits: nothing touched
+  ok   partial with only our own section: recovered (exit 0)
+  ok   other submodule entry preserved
+# run inside a submodule
+  ok   inside a submodule without --project-root: refused (exit 3)
+  ok   inside-submodule refusal names --project-root
+  ok   inside-submodule refusal: superproject untouched
+  ok   inside a submodule with --project-root: allowed (dry-run exit 0)
+  ok   inside-submodule: warned
+# --restore never writes through a symlinked parent directory
+  ok   --restore with symlinked parent: exit 0
+  ok   outside file untouched
+  ok   symlinked parent reported
+# blobless clone falls back to a full clone when the server refuses filtering
+  ok   no-filter server: ADD exit 0
+  ok   no-filter server: warned about the full clone
+  ok   no-filter server: no missing objects (full clone)
+# upstream fallback + unreachable
+  ok   fallback to second upstream exit 0
+  ok   report used the reachable upstream
+  ok   http:// upstream without --allow-insecure-url -> exit 2
+  ok   no reachable upstream -> exit 3
+  ok   unreachable: nothing written
+  ok   insecure URL allowed with a warning
+# legacy ./constitution layout
+  ok   legacy: exit 0
+  ok   legacy: report mode
+  ok   legacy: manual migration steps printed
+  ok   legacy: nothing moved automatically
+# pinned old ref without the updater -> built-in fast-forward fallback
+  ok   ADD at v72.1 exit 0
+  ok   gitlink at v72.1
+  ok   v72.1 has no update_constitution.sh
+  ok   built-in update exit 0
+  ok   built-in update reached newest tag
+  ok   built-in updater announced
+# report json is valid JSON with required keys
+  ok   report parses + has keys
+# built-in updater picks the newest tag by VERSION order (v9 < v10 < v100), not by text order
+  ok   built-in version-order update exit 0
+  ok   built-in updater used
+  ok   built-in update chose v999.100 (version order)
+# built-in updater: a target no remote has is refused; --ref main means the REMOTE main (I-1, I-2)
+  ok   built-in --ref localonly (no remote has it) -> refused (exit 3)
+  ok   built-in --ref localonly: the built-in updater was used
+  ok   built-in --ref localonly: the refusal says the target is not on a remote
+  ok   built-in --ref localonly: gitlink unchanged
+  ok   built-in --ref localonly: HEAD unchanged
+  ok   built-in --ref 8cce095b12917903a9d941803635605eddd4589c (no remote has it) -> refused (exit 3)
+  ok   built-in --ref 8cce095b12917903a9d941803635605eddd4589c: the built-in updater was used
+  ok   built-in --ref 8cce095b12917903a9d941803635605eddd4589c: the refusal says the target is not on a remote
+  ok   built-in --ref 8cce095b12917903a9d941803635605eddd4589c: gitlink unchanged
+  ok   built-in --ref 8cce095b12917903a9d941803635605eddd4589c: HEAD unchanged
+  ok   built-in --ref main: exit 0
+  ok   built-in --ref main: the built-in updater was used
+  ok   built-in --ref main reached the upstream main (not the stale local branch)
+# a run killed after 'git submodule add' (installer marker still set) is completed by the next run (M-5)
+  ok   control: the state is a registered submodule with its own .git directory and the marker
+  ok   interrupted add: the next run exits 0
+  ok   interrupted add: announced
+  ok   interrupted add: the gitdir was absorbed (.git is a file)
+  ok   interrupted add: the marker is gone
+  ok   interrupted add: gitlink and .gitmodules entry present
+# changed paths are read NUL-separated: spaces, quotes, non-ASCII and renames are reported as they are (M-7)
+  ok   pre-existing odd names: exit 0
+  ok   changed_paths holds the names verbatim (no C quoting, no 'a -> b')
+  ok   pre-existing odd names: verify.overall = pass
+integration: PASS 146 FAIL 0
+=== test_integration OK (254s)
+=== test_updater
+  ok   check at latest: exit 0
+  ok   check at latest says no
+  ok   check after advance says yes
+  ok   check changed nothing
+  ok   dry-run exit 0
+  ok   dry-run changed nothing
+  ok   fast-forward exit 0
+  ok   fast-forward HEAD
+  ok   gitlink staged
+  ok   not committed
+  ok   before + after printed
+  ok   re-run exit 0
+  ok   re-run already up to date
+  ok   older target: exit 0
+  ok   older target: ahead, no change
+# refusals
+  ok   local changes -> exit 3
+  ok   local changes: nothing changed
+  ok   unpushed commit -> exit 3
+  ok   diverged target -> exit 3
+  ok   diverged: HEAD unchanged
+  ok   option-like ref -> exit 2
+  ok   network loss -> exit 3
+# a tag created only locally never counts as 'pushed' (reviewer mutant E)
+fatal: unable to read tree (5bb6b55fc74cdf0293bde9426b84cf132a081354)
+  ok   unpushed commit carrying a local-only tag -> exit 3
+  ok   refusal says unpushed
+  ok   local-only tag: HEAD unchanged
+# --commit and legacy layout
+  ok   --commit exit 0
+  ok   --commit: clean afterwards
+  ok   --commit: committed gitlink
+  ok   legacy layout update exit 0
+  ok   legacy layout reached newest tag
+# post-update hook seam (TEST FIXTURE hook committed to the upstream)
+  ok   update with hook exit 0
+  ok   hook ran from the project root with Jev off, no arguments (this older hook does not parse --project-root)
+# target = newest RELEASE tag by version order: v999.9 < v999.10 < v999.100; pre-releases skipped
+  ok   ordering: exit 0
+  ok   ordering: newest release v999.100 chosen (not v999.9 lexical, not v999.101-rc1)
+  ok   a pre-release can still be pinned with --ref
+  ok   pinned pre-release reached
+# run lock: the updater takes the SAME lock as the installer (one of them at a time per project)
+  ok   lock held by a live run -> exit 3
+  ok   lock held: message names the holder
+  ok   lock held: HEAD unchanged
+  ok   lock held: the other run's lock is left alone
+  ok   stale lock (dead pid), --check: exit 0
+  ok   --check reports the update
+  ok   --check released the lock
+  ok   stale lock (dead pid) is reclaimed: exit 0
+  ok   stale lock: update applied
+  ok   no lock, temp or reclaim file left
+  ok   FIFO at the lock path: updater returned (never opened it)
+  ok   FIFO at the lock path: refused (rc=3)
+  ok   FIFO at the lock path: left in place
+# control: a normal updater run leaves no lock behind
+  ok   control: re-run exit 0
+  ok   control: no lock files after a normal run
+# lock hand-over: an updater started BY the installer (HELIX_CONSTITUTION_LOCK_DELEGATED=<holder pid>)
+  ok   delegated by the live holder: exit 0
+  ok   delegated: update applied
+  ok   delegated: the holder's lock is left in place (the updater never removes a lock it does not own)
+  ok   delegation naming a pid that is NOT the holder: refused (exit 3)
+  ok   wrong delegation: lock unchanged
+  ok   malformed delegation value [x2260148] while the lock is held: refused (exit 3)
+  ok   malformed delegation value [2260148 ] while the lock is held: refused (exit 3)
+  ok   malformed delegation value [-1] while the lock is held: refused (exit 3)
+  ok   malformed delegation value [] while the lock is held: refused (exit 3)
+  ok   refusal message carries no stray exit code (die prints only the message)
+  ok   delegation naming a DEAD holder: not honoured, the stale lock is reclaimed normally (exit 0)
+  ok   dead-holder delegation: lock released afterwards
+  ok   delegation set but no lock at all: takes its own lock (exit 0)
+  ok   no-lock delegation: its own lock released
+# a tag with a leading zero (v01000.0) is not a release tag: never the default target
+  ok   leading-zero tag: --check exit 0
+  ok   leading-zero tag is not offered as an update
+  ok   control: target printed is the newest real release
+# the post-update hook gets PROJECT_ROOT / CONST_DIR from the updater, never from a hostile ambient env
+  ok   hostile ambient CONST_DIR/PROJECT_ROOT: update exit 0
+  ok   control: the env-recording hook ran
+  ok   hook got CONST_DIR = the updated submodule (not the ambient value)
+  ok   hook got PROJECT_ROOT = the project (not the ambient value)
+  ok   hook was handed the run lock (delegation pid == pid recorded in the lock, non-empty)
+  ok   hook got --project-root = the project (explicit argument, W1 round 7)
+  ok   nothing was written to the ambient victim directories
+  ok   the lock is released after the hook
+# ref resolution: a branch name means the REMOTE branch, never a stale local branch of that name (I-1)
+  ok   control: the local main is stale
+  ok   --ref main with a stale local main: exit 0
+  ok   --ref main reached the upstream main (not the stale local branch)
+  ok   --ref main: the target printed is the upstream main
+# the target commit must be on a remote too, not only the current one (I-2)
+  ok   --ref localonly (a commit no remote has) -> exit 3
+  ok   --ref localonly: the refusal says the target is not on a remote
+  ok   --ref localonly: HEAD unchanged
+  ok   --ref localonly: gitlink unchanged
+  ok   --ref localonly: nothing staged
+  ok   --ref 767eea7d3c5f8cbec09178e2b69de4e237955922 (a commit no remote has) -> exit 3
+  ok   --ref 767eea7d3c5f8cbec09178e2b69de4e237955922: the refusal says the target is not on a remote
+  ok   --ref 767eea7d3c5f8cbec09178e2b69de4e237955922: HEAD unchanged
+  ok   --ref 767eea7d3c5f8cbec09178e2b69de4e237955922: gitlink unchanged
+  ok   --ref 767eea7d3c5f8cbec09178e2b69de4e237955922: nothing staged
+  ok   --ref 767eea7d3c5f (a commit no remote has) -> exit 3
+  ok   --ref 767eea7d3c5f: the refusal says the target is not on a remote
+  ok   --ref 767eea7d3c5f: HEAD unchanged
+  ok   --ref 767eea7d3c5f: gitlink unchanged
+  ok   --ref 767eea7d3c5f: nothing staged
+  ok   --ref <pushed sha>: exit 0
+  ok   a local-only ref NAME on a pushed commit: exit 0 (ahead, no change)
+  ok   a local-only ref is announced as LOCAL
+# hook capability probe (F9): an explicit marker line near the top, never a text pattern inside the hook's code
+  ok   marker line lists project-root -> the hook gets --project-root: update exit 0
+  ok   marker line lists project-root -> the hook gets --project-root: the fixture hook ran
+  ok   marker line lists project-root -> the hook gets --project-root
+  ok   no marker, but the code parses --project-root -> no argument: update exit 0
+  ok   no marker, but the code parses --project-root -> no argument: the fixture hook ran
+  ok   no marker, but the code parses --project-root -> no argument
+  ok   marker not at the start of a line -> no argument: update exit 0
+  ok   marker not at the start of a line -> no argument: the fixture hook ran
+  ok   marker not at the start of a line -> no argument
+  ok   marker names a different capability (project-rootx) -> no argument: update exit 0
+  ok   marker names a different capability (project-rootx) -> no argument: the fixture hook ran
+  ok   marker names a different capability (project-rootx) -> no argument
+updater: PASS 110 FAIL 0
+=== test_updater OK (78s)
+=== test_e2e
+# curl | bash over HTTP
+  ok   curl|bash exit 0
+  ok   curl|bash: gitlink = newest tag
+  ok   curl|bash: CLAUDE.md inheritance
+  ok   curl|bash: report status
+  ok   http server really served the script
+# update path via curl | bash after the upstream advances
+  ok   curl|bash update exit 0
+  ok   update fast-forwarded
+  ok   update staged gitlink
+  ok   fast-forward relation
+# curl file:// | bash
+  ok   file:// curl|bash exit 0
+  ok   file:// gitlink
+# sh invocation
+  ok   sh FILE re-execs under bash: exit 0
+  ok   sh FILE says so and works
+curl: (23) Failure writing output to destination, passed 16384 returned 4096
+  ok   curl|sh refused with exit 2
+  ok   curl|sh tells the user to pipe into bash
+  ok   curl|sh wrote nothing
+# interactive run on a real pseudo-terminal
+  ok   interactive dry-run-then-decline exit 0
+  ok   interactive: questions were shown on the terminal
+  ok   interactive: plan shown
+  ok   interactive decline: nothing written
+  ok   interactive decline: full tree incl. .git byte-identical
+  ok   interactive decline: no backup dir
+  ok   interactive apply exit 0
+  ok   interactive apply: gitlink
+  ok   interactive apply: CLAUDE.md written
+# interactive limits are validated (0 and over-cap refused, re-asked; EOF -> exit 2)
+  ok   interactive timeout 0 / 86401 then EOF -> exit 2
+  ok   interactive timeout: invalid answer shown twice
+  ok   interactive budget 0 / 50.01 then EOF -> exit 2
+  ok   interactive budget: invalid answer shown twice
+  ok   interactive limit refusals: the agent never ran
+  ok   interactive limit refusals wrote nothing
+e2e: PASS 31 FAIL 0
+=== test_e2e OK (43s)
+=== test_agent
+# sandbox PATH really hides host agents
+  ok   opencode resolves to the fake
+  ok   claude resolves to the fake
+# success: exact argv, env scrub, session id, report
+  ok   success exit 0
+  ok   exact claude argv (nothing added, nothing missing)
+  ok   ANTHROPIC_API_KEY was scrubbed from the agent env
+  ok   ANTHROPIC_BASE_URL was scrubbed for claude
+  ok   ANTHROPIC_AUTH_TOKEN was scrubbed for claude
+  ok   agent ran in the project root
+  ok   agent ran with the user's umask (not the installer's private 0077)
+  ok   session id is a UUID
+  ok   report agent_status
+  ok   claude never gets --dangerously-skip-permissions
+  ok   report agent_permissions for claude
+  ok   report consent.unrestricted_agent for claude
+  ok   report agent_evidence
+  ok   report limits.budget_usd enforced
+  ok   only one agent call when follow-ups are off (default)
+  ok   output never shows a secret value
+  ok   backup dir mode 700
+  ok   agent transcript mode 600
+  ok   agent stderr log mode 600
+  ok   agent dir mode 700
+# provider alias: inherited routing/auth variables are scrubbed, then the alias applies its own
+  ok   provider alias exit 0
+  ok   provider alias: its OWN ANTHROPIC_BASE_URL reached the agent
+  ok   provider alias: the inherited base URL did not
+  ok   provider alias: inherited ANTHROPIC_AUTH_TOKEN removed
+  ok   provider alias: ANTHROPIC_API_KEY still removed
+  ok   bare alias exit 0
+  ok   bare alias: inherited ANTHROPIC_BASE_URL removed
+  ok   bare alias: inherited ANTHROPIC_AUTH_TOKEN removed
+  ok   bare alias: inherited CLAUDE_CONFIG_DIR removed
+# provider alias lookup matches the id literally (a '.' in the id is not a regex wildcard, M2)
+  ok   alias zaiXglm does not satisfy --agent zai.glm (exit 3)
+  ok   zai.glm refusal names the missing alias
+  ok   control needle: a real zai.glm alias passes the preflight (exit 0)
+# success is read from the stream, never from the exit code
+  ok   exit 1 + is_error=false result -> success (exit 0)
+  ok   exit 0 + is_error=true -> agent failure (exit 4)
+  ok   is_error=false but subtype error_max_budget_usd -> agent failure (exit 4)
+  ok   subtype success but no is_error field -> agent failure (exit 4)
+  ok   no result event -> agent failure (exit 4)
+  ok   429 -> agent failure (exit 4)
+  ok   429 reported as rate limit
+# model / effort / budget flags pass through (flag=value form too)
+  ok   model opus
+  ok   effort high
+  ok   budget 0.5
+# follow-ups + TOTAL budget accounting
+  ok   follow-ups on: exit 0
+  ok   follow-ups on: 3 calls (main + 2)
+  ok   call 2 = resume with the remaining budget 1.2
+  ok   call 3 gets the remaining budget 0.4
+  ok   report budget_spent_usd
+  ok   budget exhausted after follow-up one: exit 0 (setup itself succeeded)
+  ok   budget exhausted: only 2 calls
+  ok   follow-up one got the 0.5 left
+  ok   follow-up two recorded as skipped-budget-exhausted
+  ok   cost unknown: 3 calls
+  ok   cost unknown: each follow-up gets the full budget again
+  ok   cost unknown: the user is told the remaining budget cannot be tracked
+  ok   cost unknown: report says unknown
+  ok   first follow-up fails -> exit 4
+  ok   dependent second follow-up NOT run (2 calls)
+# timeout
+  ok   timed-out agent -> exit 4
+  ok   timeout honoured (< 20 s)
+  ok   the user is told the agent timed out after 2s
+  ok   a failing (not timed-out) agent is not reported as timed out
+# post-verify catches an agent that damaged the inheritance block
+  ok   vandal agent -> verification failed (exit 5)
+  ok   report verify.overall fail
+# kimi: exact argv; limits it cannot honour are refused, not silently ignored
+  ok   kimi drivable exit 0
+  ok   exact kimi argv
+  ok   log says model/effort/budget NOT enforced for kimi
+  ok   report limits.budget_usd not-enforced
+  ok   kimi + --model opus -> exit 2
+  ok   kimi + --model opus: agent never called
+  ok   kimi + --effort high -> exit 2
+  ok   kimi + --effort high: agent never called
+  ok   kimi + --max-budget-usd 1 -> exit 2
+  ok   kimi + --max-budget-usd 1: agent never called
+  ok   kimi plan says budget not enforced
+# opencode / pi: exit code only -> UNVERIFIED (exit 6), never success
+  ok   opencode exit 0 + output -> exit 6 (unverified)
+  ok   opencode: the FAKE ran (no real binary)
+  ok   opencode report agent_status
+  ok   opencode report status
+  ok   opencode report agent_evidence
+  ok   opencode: told UNVERIFIED
+  ok   opencode failing -> exit 4
+  ok   pi exit 0 + output -> exit 6 (unverified)
+  ok   pi: the FAKE ran (no real binary)
+  ok   pi report agent_status
+  ok   pi report status
+  ok   pi report agent_evidence
+  ok   pi: told UNVERIFIED
+  ok   pi failing -> exit 4
+# git variables from the caller (e.g. a git hook) never reach the agent (M-1)
+  ok   hostile GIT_* in the caller env: exit 0
+  ok   control: the fake records git variables (identity kept)
+  ok   GIT_DIR did not reach the agent
+  ok   GIT_WORK_TREE did not reach the agent
+  ok   GIT_INDEX_FILE did not reach the agent
+  ok   GIT_EDITOR did not reach the agent
+  ok   GIT_CONFIG_PARAMETERS did not reach the agent
+  ok   GIT_CONFIG_COUNT did not reach the agent
+  ok   GIT_CONFIG_KEY_0 did not reach the agent
+  ok   GIT_CONFIG_VALUE_0 did not reach the agent
+  ok   GIT_PROXY_COMMAND did not reach the agent
+  ok   GIT_ASKPASS did not reach the agent
+  ok   GIT_SSH_COMMAND did not reach the agent
+  ok   GIT_EXEC_PATH did not reach the agent
+  ok   GIT_OBJECT_DIRECTORY did not reach the agent
+# agent text with terminal escapes is printed only after sanitising (M-2)
+  ok   escaped session id: exit 0
+  ok   no raw ESC/BEL reached the terminal
+  ok   the malformed session id is reported and replaced
+  ok   report session_id is the installer's own UUID
+  ok   escaped failure line: exit 4
+  ok   control: the failure line is printed
+  ok   failure line: no raw ESC reached the terminal
+  ok   failure line: no C1 CSI (U+009B) reached the terminal
+# SIGINT to the installer's process group / SIGTERM to the installer stop the agent promptly (I-3)
+  ok   SIGINT (group, sleepy) during the agent run: exit 130
+  ok   SIGINT (group, sleepy): the installer exited within 20 s (took 0s)
+  ok   SIGINT (group, sleepy): control: the agent had started
+  ok   SIGINT (group, sleepy): the agent process is gone
+  ok   SIGINT (group, sleepy): the agent's child is gone
+<scratch>/ev.sbBs/coB/tests/install/test_agent.sh: line 312: /proc/3740704/cmdline: No such file or directory
+  ok   SIGINT (group, sleepy): interrupted message names the backups
+  ok   SIGINT (group, sleepy): no lock left behind
+  ok   SIGTERM (pid, sleepy) during the agent run: exit 143
+  ok   SIGTERM (pid, sleepy): the installer exited within 20 s (took 0s)
+  ok   SIGTERM (pid, sleepy): control: the agent had started
+  ok   SIGTERM (pid, sleepy): the agent process is gone
+  ok   SIGTERM (pid, sleepy): the agent's child is gone
+<scratch>/ev.sbBs/coB/tests/install/test_agent.sh: line 312: /proc/3777460/cmdline: No such file or directory
+  ok   SIGTERM (pid, sleepy): interrupted message names the backups
+  ok   SIGTERM (pid, sleepy): no lock left behind
+  ok   SIGTERM (pid, stubborn) during the agent run: exit 143
+  ok   SIGTERM (pid, stubborn): the installer exited within 20 s (took 0s)
+  ok   SIGTERM (pid, stubborn): control: the agent had started
+  ok   SIGTERM (pid, stubborn): the agent process is gone
+  ok   SIGTERM (pid, stubborn): the agent's child is gone
+<scratch>/ev.sbBs/coB/tests/install/test_agent.sh: line 312: /proc/3815374/cmdline: No such file or directory
+  ok   SIGTERM (pid, stubborn): interrupted message names the backups
+  ok   SIGTERM (pid, stubborn): no lock left behind
+# a push during the agent run fails the run with exit 5 (I-6); a fetch does not
+  ok   agent pushed: exit 5
+  ok   control: the fake really pushed (an 'update by push' reflog entry)
+  ok   the push is reported
+  ok   push: report verify.overall = fail
+  ok   push: nothing was committed
+  ok   agent fetched (no push): exit 0
+7ae0be691fdc3f8ceedf0ae38d106182301d7273
+  ok   control: the fake really fetched (a remote-tracking ref exists)
+  ok   fetch: no push reported
+  ok   the plan names the deny list with the git push forms
+# non-claude agents run with their OWN default permissions: explicit consent is required
+  ok   kimi without --allow-unrestricted-agent (non-interactive) -> exit 3
+  ok   kimi refused: agent never called
+  ok   kimi refused: the fake never ran
+  ok   kimi refused: the reason names the flag
+  ok   kimi refused: the reason says it runs with its own default permissions
+  ok   kimi refused: nothing was added to the project
+  ok   kimi --dry-run without the flag -> exit 3 too
+  ok   kimi --dry-run with the flag -> exit 0
+  ok   kimi plan states the agent runs with ITS OWN default permissions
+  ok   kimi plan states it can run shell commands
+  ok   kimi dry-run report agent_permissions
+  ok   kimi dry-run report consent.unrestricted_agent
+  ok   opencode without --allow-unrestricted-agent (non-interactive) -> exit 3
+  ok   opencode refused: agent never called
+  ok   opencode refused: the fake never ran
+  ok   opencode refused: the reason names the flag
+  ok   opencode refused: the reason says it runs with its own default permissions
+  ok   opencode refused: nothing was added to the project
+  ok   opencode --dry-run without the flag -> exit 3 too
+  ok   opencode --dry-run with the flag -> exit 0
+  ok   opencode plan states the agent runs with ITS OWN default permissions
+  ok   opencode plan states it can run shell commands
+  ok   opencode dry-run report agent_permissions
+  ok   opencode dry-run report consent.unrestricted_agent
+  ok   pi without --allow-unrestricted-agent (non-interactive) -> exit 3
+  ok   pi refused: agent never called
+  ok   pi refused: the fake never ran
+  ok   pi refused: the reason names the flag
+  ok   pi refused: the reason says it runs with its own default permissions
+  ok   pi refused: nothing was added to the project
+  ok   pi --dry-run without the flag -> exit 3 too
+  ok   pi --dry-run with the flag -> exit 0
+  ok   pi plan states the agent runs with ITS OWN default permissions
+  ok   pi plan states it can run shell commands
+  ok   pi dry-run report agent_permissions
+  ok   pi dry-run report consent.unrestricted_agent
+  ok   kimi with the flag runs (exit 0)
+  ok   kimi with the flag: the agent was called
+  ok   kimi report agent_permissions
+  ok   kimi report consent.unrestricted_agent
+  ok   claude + the flag: accepted (the flag is irrelevant for claude), exit 0
+  ok   claude plan states acceptEdits and the deny list
+  ok   claude plan states it never uses --dangerously-skip-permissions
+  ok   claude + flag: report consent.unrestricted_agent stays not-needed
+  ok   no agent: report agent_permissions no-agent
+# interactive consent question (default NO); the answers come from a read-only file (prompts go to stderr)
+  ok   interactive kimi, consent answered with Enter (default n) -> exit 3
+  ok   interactive: the question was asked with default n
+  ok   interactive: the warning says it can run shell commands in the project
+  ok   interactive declined: no plan printed
+  ok   interactive opencode, consent n -> exit 3
+  ok   declined: agent never called
+  ok   interactive kimi, consent y -> dry run exit 0
+  ok   interactive y: plan states ITS OWN default permissions
+  ok   interactive y: report consent.unrestricted_agent
+  ok   interactive + the flag: no question needed, exit 0
+  ok   interactive + the flag: the consent question was not asked
+  ok   interactive claude: no consent question, exit 0
+  ok   interactive claude: no unrestricted-agent question
+  ok   opencode not installed -> exit 3
+  ok   detect-only agent refused (exit 3)
+  ok   unknown native alias (no config dir) -> exit 3
+agent_unit_fake: PASS 204 FAIL 0
+=== test_agent OK (432s)
+=== test_security
+# flag injection is rejected before anything runs
+  ok   agent with ; -> exit 2
+  ok   agent with ;: no PWNED marker
+  ok   agent command subst -> exit 2
+  ok   agent command subst: no PWNED marker
+  ok   ext:: transport url -> exit 2
+  ok   ext:: transport url: no PWNED marker
+  ok   --upload-pack as url -> exit 2
+  ok   --upload-pack as url: no PWNED marker
+  ok   url with backticks -> exit 2
+  ok   url with backticks: no PWNED marker
+  ok   ref option-like -> exit 2
+  ok   ref option-like: no PWNED marker
+  ok   model with ; -> exit 2
+  ok   model with ;: no PWNED marker
+  ok   timeout non-numeric -> exit 2
+  ok   timeout non-numeric: no PWNED marker
+  ok   upstream key unknown -> exit 2
+  ok   upstream key unknown: no PWNED marker
+  ok   report path with newline -> exit 2
+  ok   report path with newline: no PWNED marker
+  ok   injection attempts wrote nothing
+# --restore: hostile backups and manifest entries are refused (IMPORTANT-4)
+  ok   --restore with only .git entries: exit 0 (entries skipped)
+  ok   --restore names the refused .git entry
+  ok   --restore reports 0 restored
+  ok   .git/config unchanged after hostile --restore
+  ok   core.fsmonitor never executed (no PWNED-FSMONITOR)
+  ok   --restore with constitution/abs/.. entries: exit 0
+  ok   --restore e2 restored nothing
+  ok   no file appeared under constitution/
+  ok   --restore a..b.md: exit 0
+  ok   a..b.md restored
+  ok   docs/x..y/z.md restored
+  ok   --restore symlinked backup file: exit 0
+  ok   symlinked backup file not restored
+  ok   --restore backup dir mode 755: refused exit 2
+  ok   mode refusal explained
+  ok   mode-755 backup restored nothing
+  ok   --restore through a symlinked backup dir: refused exit 2
+  ok   --restore nested deeper than one stamp dir: refused exit 2
+  ok   --restore of a backup tracked by git: refused exit 2
+  ok   tracked refusal explained
+  ok   tracked backup: .git/config unchanged
+  ok   tracked backup: CLAUDE.md not written
+  ok   tracked backup: fsmonitor never executed
+  ok   --restore absolute entry with a backup copy: exit 0
+  ok   absolute entry refused by name
+  ok   absolute entry: nothing restored into the project
+  ok   --restore ../ entry with a reachable copy: exit 0
+  ok   .. entry refused by name
+  ok   .. entry: nothing written outside the project
+  ok   hi_backup_dir created a backup dir
+  ok   installer-made backup dir is mode 700 (umask 022)
+  ok   installer-made backup files/ is mode 700 (umask 022)
+  ok   installer-made backup is accepted by --restore (exit 0)
+  ok   installer-made backup: file restored
+  ok   control needle: normal --restore exit 0
+  ok   control needle: normal file restored
+# hostile but legal project path (spaces, $(), quotes) is handled as data
+  ok   hostile path install exit 0
+  ok   hostile path gitlink
+  ok   hostile path: no PWNED anywhere
+# symlinked governance file is never edited through the link
+  ok   symlinked CLAUDE.md -> exit 3
+  ok   outside file untouched
+  ok   symlink refusal wrote nothing
+# credentials are never printed or stored
+  ok   credential-url fallback install exit 0
+  ok   no sentinel in console output
+  ok   no sentinel in report or backups
+  ok   no sentinel in written governance files
+# root refusal (UNIT seam: HELIX_INSTALLER_TEST_EUID=0 can only add the restriction)
+  ok   root without --yes -> exit 3
+  ok   root refusal wrote nothing
+  ok   root with --yes proceeds (dry-run) exit 0
+  ok   non-zero test euid is ignored (cannot hide real root)
+# truncated download never runs anything
+  ok   truncated prefixes executed: none had any effect (of 499)
+  ok   truncation loop really ran
+  ok   positive control: the complete script with the same args installs
+  ok   positive control gitlink
+# truncated download with NO argument (plain curl | bash) never runs anything
+  ok   zero-arg truncated prefixes: none ran (of 499)
+  ok   zero-arg loop really ran
+  ok   control needle: the complete file with no argument does run (prints an installer line)
+  ok   control needle: the complete file is not mistaken for a truncated one
+  ok   control needle run wrote nothing (input closed before any change)
+# test switches are not honoured outside test mode (M-3)
+  ok   ambient HELIX_INSTALLER_LIB_MODE=1 while RUN: a warning names it
+  ok   ambient HELIX_INSTALLER_LIB_MODE=1: the dry run still runs (exit 0)
+  ok   ambient HELIX_INSTALLER_LIB_MODE=1: the plan is printed (not a silent no-op)
+  ok   ambient HELIX_UPDATER_LIB_MODE=1 while RUN: a warning names it
+  ok   ambient HELIX_UPDATER_LIB_MODE=1: --help still runs (exit 0)
+  ok   HELIX_INSTALLER_TEST_EUID without HELIX_INSTALLER_TEST=1: warned
+  ok   HELIX_INSTALLER_TEST_EUID without test mode: ignored (dry run exit 0)
+  ok   HELIX_INSTALLER_TTY without HELIX_INSTALLER_TEST=1: warned
+  ok   HELIX_INSTALLER_TTY without test mode: the file is not used as the terminal (no tty -> exit 2)
+  ok   ... and says there is no terminal
+# '... | sh' never runs a file named like the shell from the current directory (M-4)
+  ok   a planted ./sh with the marker did not run
+  ok   piped into sh: refused with exit 2
+  ok   piped into sh: the message says to pipe into bash
+  ok   control: sh PATH/install_constitution.sh re-executes under bash (exit 0)
+  ok   control: ... and says so
+security: PASS 95 FAIL 0
+=== test_security OK (163s)
+=== test_determinism
+  ok   run 1 exit 0
+  ok   run 2 exit 0
+  ok   run 3 exit 0
+  ok   run 1 == run 2
+  ok   run 2 == run 3
+  signature: dc73292c5c8515ac3fd7b8e5fde6997def1850f9 7352777d9e4656d7 d892dd9b0114021e 2545dd54ec700e9b 663adc81473f78db 7fc5b3cf2ab9388f8532119b56e3984671e54ef6 544081412851bd93
+determinism: PASS 5 FAIL 0
+=== test_determinism OK (36s)
+=== test_detection
+# agents (real host detection vs independent oracle)
+  ok   --detect-agents exit 0
+  ok   --detect-agents output is JSON
+  ok   claude installed flag matches command -v
+  ok   claude tier
+  ok   kimi installed flag matches command -v
+  ok   kimi tier
+  ok   opencode installed flag matches command -v
+  ok   opencode tier
+  ok   pi installed flag matches command -v
+  ok   pi tier
+  ok   aider installed flag matches command -v
+  ok   aider tier
+  ok   codex installed flag matches command -v
+  ok   codex tier
+  ok   gemini installed flag matches command -v
+  ok   gemini tier
+  ok   qwen installed flag matches command -v
+  ok   qwen tier
+  ok   cursor-agent installed flag matches command -v
+  ok   cursor-agent tier
+  ok   amp installed flag matches command -v
+  ok   amp tier
+  ok   goose installed flag matches command -v
+  ok   goose tier
+  SKIP native aliases: claude-list-accounts not installed (reason: topology_unsupported)
+  ok   detection made no file in the sandbox cwd
+# layout detection
+  ok   no constitution -> none
+  ok   submodules/constitution -> standard
+  ok   ./constitution -> legacy
+  ok   both -> both
+  ok   plain directory (not a registered submodule) -> partial
+detection: PASS 30 FAIL 0
+=== test_detection OK (14s)
+=== test_self_guard
+# layer 1: file presence
+  ok   real run from root: exit 3
+  ok   real run from root: says why
+  ok   real run from root: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   dry run from root: exit 3
+  ok   dry run from root: says why
+  ok   dry run from root: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   real run from scripts/: exit 3
+  ok   real run from scripts/: says why
+  ok   real run from scripts/: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   dry run from scripts/: exit 3
+  ok   dry run from scripts/: says why
+  ok   dry run from scripts/: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   --project-root clone (real): exit 3
+  ok   --project-root clone (real): says why
+  ok   --project-root clone (real): clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   --project-root clone/scripts (dry): exit 3
+  ok   --project-root clone/scripts (dry): says why
+  ok   --project-root clone/scripts (dry): clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   --restore: exit 3
+  ok   --restore: says why
+  ok   --restore: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   interactive mode refuses before asking (no tty needed): exit 3
+  ok   interactive mode refuses before asking (no tty needed): says why
+  ok   interactive mode refuses before asking (no tty needed): clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   --detect-layout exit 0
+  ok   --detect-layout reports constitution-repo
+  ok   --detect-layout changed nothing
+  ok   no submodules/constitution entry in the clone's .gitmodules
+  ok   no submodules/constitution gitdir was created
+# layer 2: the constitution's first commit in HEAD history (a layer-1 marker file removed)
+  ok   first-commit layer: exit 3
+  ok   first-commit layer: unchanged
+  ok   first-commit layer named
+# layer 3: a remote URL of a known constitution upstream (unrelated history)
+  ok   upstream-URL layer: exit 3
+  ok   upstream-URL layer: unchanged
+  ok   upstream-URL layer (ssh, no .git suffix, second remote): exit 3
+# golden-FALSE: a consumer project with its own Constitution.md is not refused
+  ok   consumer with Constitution.md installs (exit 0)
+# round-4 IMPORTANT-1: layer 1 is a marker set present in EVERY constitution commit that has Constitution.md
+  ok   helixconstitution-v69 shallow clone really is shallow (precondition)
+  ok   shallow helixconstitution-v69, off-table https remote: exit 3
+  ok   shallow helixconstitution-v69, off-table https remote: says why
+  ok   shallow helixconstitution-v69, off-table https remote: unchanged
+  ok   shallow helixconstitution-v69, off-table remote, --dry-run: exit 3
+  ok   shallow helixconstitution-v69, off-table remote, --dry-run: says why
+  ok   shallow helixconstitution-v69, off-table remote, --dry-run: unchanged
+  ok   shallow helixconstitution-v69: --detect-layout says constitution-repo
+  ok   shallow helixconstitution-v69, local-path remote: exit 3
+  ok   shallow helixconstitution-v69, local-path remote: says why
+  ok   shallow helixconstitution-v69, local-path remote: unchanged
+  ok   helixconstitution-v69: no scripts/install_constitution.sh in the tag (precondition: old tags lack it)
+  ok   full clone at helixconstitution-v69, no remote: exit 3
+  ok   full clone at helixconstitution-v69, no remote: says why
+  ok   full clone at helixconstitution-v69, no remote: unchanged
+  ok   helixconstitution-v71 shallow clone really is shallow (precondition)
+  ok   shallow helixconstitution-v71, off-table https remote: exit 3
+  ok   shallow helixconstitution-v71, off-table https remote: says why
+  ok   shallow helixconstitution-v71, off-table https remote: unchanged
+  ok   shallow helixconstitution-v71, off-table remote, --dry-run: exit 3
+  ok   shallow helixconstitution-v71, off-table remote, --dry-run: says why
+  ok   shallow helixconstitution-v71, off-table remote, --dry-run: unchanged
+  ok   shallow helixconstitution-v71: --detect-layout says constitution-repo
+  ok   shallow helixconstitution-v71, local-path remote: exit 3
+  ok   shallow helixconstitution-v71, local-path remote: says why
+  ok   shallow helixconstitution-v71, local-path remote: unchanged
+  ok   helixconstitution-v71: no scripts/install_constitution.sh in the tag (precondition: old tags lack it)
+  ok   full clone at helixconstitution-v71, no remote: exit 3
+  ok   full clone at helixconstitution-v71, no remote: says why
+  ok   full clone at helixconstitution-v71, no remote: unchanged
+  ok   helixconstitution-v72.1 shallow clone really is shallow (precondition)
+  ok   shallow helixconstitution-v72.1, off-table https remote: exit 3
+  ok   shallow helixconstitution-v72.1, off-table https remote: says why
+  ok   shallow helixconstitution-v72.1, off-table https remote: unchanged
+  ok   shallow helixconstitution-v72.1, off-table remote, --dry-run: exit 3
+  ok   shallow helixconstitution-v72.1, off-table remote, --dry-run: says why
+  ok   shallow helixconstitution-v72.1, off-table remote, --dry-run: unchanged
+  ok   shallow helixconstitution-v72.1: --detect-layout says constitution-repo
+  ok   shallow helixconstitution-v72.1, local-path remote: exit 3
+  ok   shallow helixconstitution-v72.1, local-path remote: says why
+  ok   shallow helixconstitution-v72.1, local-path remote: unchanged
+  ok   helixconstitution-v72.1: no scripts/install_constitution.sh in the tag (precondition: old tags lack it)
+  ok   full clone at helixconstitution-v72.1, no remote: exit 3
+  ok   full clone at helixconstitution-v72.1, no remote: says why
+  ok   full clone at helixconstitution-v72.1, no remote: unchanged
+# shallow + Constitution.md is refused even without the template markers (heuristic layer, overridable)
+  ok   shallow consumer with its own Constitution.md: exit 3
+  ok   shallow consumer with its own Constitution.md: says why
+  ok   shallow consumer with its own Constitution.md: unchanged
+  ok   the refusal names the override flag
+  ok   golden-FALSE: shallow consumer with --not-constitution-repo installs (exit 0)
+# --not-constitution-repo never overrides the strong layers (first commit, known upstream URL)
+  ok   full clone + --not-constitution-repo (first-commit layer still refuses): exit 3
+  ok   full clone + --not-constitution-repo (first-commit layer still refuses): says why
+  ok   full clone + --not-constitution-repo (first-commit layer still refuses): unchanged
+  ok   known upstream remote + --not-constitution-repo: exit 3
+  ok   known upstream remote + --not-constitution-repo: says why
+  ok   known upstream remote + --not-constitution-repo: unchanged
+# layer 3 URL normalisation: ports, userinfo with '@', case, trailing slash, scp form
+  ok   remote https://github.com:443/HelixDevelopment/HelixConstitution.git: exit 3
+  ok   remote https://github.com:443/HelixDevelopment/HelixConstitution.git: says why
+  ok   remote https://github.com:443/HelixDevelopment/HelixConstitution.git: unchanged
+  ok   remote ssh://***@github.com:22/HelixDevelopment/HelixConstitution.git: exit 3
+  ok   remote ssh://***@github.com:22/HelixDevelopment/HelixConstitution.git: says why
+  ok   remote ssh://***@github.com:22/HelixDevelopment/HelixConstitution.git: unchanged
+  ok   remote https://***@GitHub.COM/HelixDevelopment/HelixConstitution/: exit 3
+  ok   remote https://***@GitHub.COM/HelixDevelopment/HelixConstitution/: says why
+  ok   remote https://***@GitHub.COM/HelixDevelopment/HelixConstitution/: unchanged
+  ok   remote git@gitlab.com:helixdevelopment1/helixconstitution: exit 3
+  ok   remote git@gitlab.com:helixdevelopment1/helixconstitution: says why
+  ok   remote git@gitlab.com:helixdevelopment1/helixconstitution: unchanged
+  ok   remote ssh://***@gitflic.ru:2222/helixdevelopment/helixconstitution.git/: exit 3
+  ok   remote ssh://***@gitflic.ru:2222/helixdevelopment/helixconstitution.git/: says why
+  ok   remote ssh://***@gitflic.ru:2222/helixdevelopment/helixconstitution.git/: unchanged
+  ok   remote https://gitverse.ru//helixdevelopment/HelixConstitution.git: exit 3
+  ok   remote https://gitverse.ru//helixdevelopment/HelixConstitution.git: says why
+  ok   remote https://gitverse.ru//helixdevelopment/HelixConstitution.git: unchanged
+  ok   hi_norm_url drops the port and userinfo up to the last @
+  ok   hi_norm_url: scp form
+# golden-FALSE (M1): a consumer with its own Constitution.md AND a vendored installer is not refused
+  ok   consumer with Constitution.md + vendored installer installs (exit 0)
+# updater: project root == the constitution
+  ok   updater --project-root = constitution: exit 3
+  ok   updater says why
+  ok   updater --project-root = constitution/scripts: exit 3
+  ok   updater changed nothing
+self-guard: PASS 117 FAIL 0
+=== test_self_guard OK (115s)
+=== test_git_wrapper
+# install_constitution.sh
+  ok   install_constitution.sh refuses: push
+  ok   install_constitution.sh refuses: ${P}ush
+  ok   install_constitution.sh refuses: $'\x70ush'
+  ok   install_constitution.sh refuses: p\ush
+  ok   install_constitution.sh refuses: x=pu; ${x}sh
+  ok   install_constitution.sh refuses: $(printf pu)sh
+  ok   install_constitution.sh refuses: send-pack
+  ok   install_constitution.sh refuses: reset --hard
+  ok   install_constitution.sh refuses: checkout -f
+  ok   install_constitution.sh refuses: checkout -qf
+  ok   install_constitution.sh refuses: checkout a branch
+  ok   install_constitution.sh refuses: fetch --force
+  ok   install_constitution.sh refuses: fetch +refspec
+  ok   install_constitution.sh refuses: clone --upload-pack
+  ok   install_constitution.sh refuses: -c alias
+  ok   install_constitution.sh refuses: config core.hooksPath
+  ok   install_constitution.sh refuses: rm without --cached
+  ok   install_constitution.sh refuses: commit (no HI_GX_COMMIT_OK)
+  ok   install_constitution.sh refuses: init (no HI_GX_INIT_OK)
+  ok   install_constitution.sh refuses: --git-dir=x push
+  ok   install_constitution.sh refuses: no subcommand
+  ok   install_constitution.sh refuses: fetch -- origin +refspec (after --)
+  ok   install_constitution.sh refuses: fetch origin +refspec (bare)
+  ok   install_constitution.sh refuses: fetch --refmap=+...
+  ok   install_constitution.sh refuses: fetch --refmap (separate)
+  ok   install_constitution.sh refuses: fetch --update-head-ok
+  ok   install_constitution.sh refuses: fetch with a refspec (not the fixed shape)
+  ok   install_constitution.sh refuses: fetch from a URL instead of a remote name
+  ok   install_constitution.sh refuses: submodule update --recursive
+  ok   install_constitution.sh refuses: submodule update --recursive after --
+  ok   install_constitution.sh refuses: submodule add ext:: URL
+  ok   install_constitution.sh refuses: submodule status (unused)
+  ok   install_constitution.sh refuses: remote set-url to ext::
+  ok   install_constitution.sh refuses: remote set-url to an https URL (only absolute paths are set by the installer)
+  ok   install_constitution.sh refuses: clone -- --upload-pack=
+  ok   install_constitution.sh refuses: clone ext:: URL
+  ok   install_constitution.sh refuses: clone without --
+  ok   install_constitution.sh refuses: clone extra option
+  ok   install_constitution.sh refuses: ls-remote ext:: URL
+  ok   install_constitution.sh refuses: ls-remote option-like URL after --
+  ok   install_constitution.sh refuses: add without --
+  ok   install_constitution.sh refuses: add a +path
+  ok   install_constitution.sh refuses: init with an option
+  ok   install_constitution.sh refuses: a +word anywhere (rev-parse)
+  ok   install_constitution.sh allows: fetch fixed shape
+  ok   install_constitution.sh allows: clone fixed shape
+  ok   install_constitution.sh allows: submodule update fixed shape
+  ok   install_constitution.sh allows: submodule add fixed shape
+  ok   install_constitution.sh allows: remote set-url origin /abs
+  ok   install_constitution.sh allows: ls-remote -- url ref
+  ok   install_constitution.sh allows: ls-remote --tags NAME
+  ok   install_constitution.sh: git ran
+  ok   install_constitution.sh: inherited GIT_DIR/WORK_TREE/CONFIG_*/EXEC_PATH/SSH/TEMPLATE_DIR/EXTERNAL_DIFF/INDEX_FILE removed
+  ok   install_constitution.sh: GIT_SSH_COMMAND is the installer's own (BatchMode), never the inherited one
+  ok   install_constitution.sh: a PATH change after the first call does not swap git
+  ok   install_constitution.sh allows: rev-parse
+  ok   install_constitution.sh allows: -C + --no-optional-locks status
+  ok   install_constitution.sh allows: checkout --detach <sha>
+  ok   install_constitution.sh allows: rm --cached
+  ok   install_constitution.sh allows: protocol.file ls-remote
+  ok   install_constitution.sh: commit reaches git only with HI_GX_COMMIT_OK=1
+  ok   install_constitution.sh: refusal message does not print URL credentials
+# update_constitution.sh
+  ok   update_constitution.sh refuses: push
+  ok   update_constitution.sh refuses: ${P}ush
+  ok   update_constitution.sh refuses: $'\x70ush'
+  ok   update_constitution.sh refuses: p\ush
+  ok   update_constitution.sh refuses: x=pu; ${x}sh
+  ok   update_constitution.sh refuses: $(printf pu)sh
+  ok   update_constitution.sh refuses: send-pack
+  ok   update_constitution.sh refuses: reset --hard
+  ok   update_constitution.sh refuses: checkout -f
+  ok   update_constitution.sh refuses: checkout -qf
+  ok   update_constitution.sh refuses: checkout a branch
+  ok   update_constitution.sh refuses: fetch --force
+  ok   update_constitution.sh refuses: fetch +refspec
+  ok   update_constitution.sh refuses: clone --upload-pack
+  ok   update_constitution.sh refuses: -c alias
+  ok   update_constitution.sh refuses: config core.hooksPath
+  ok   update_constitution.sh refuses: rm without --cached
+  ok   update_constitution.sh refuses: commit (no HI_GX_COMMIT_OK)
+  ok   update_constitution.sh refuses: init (no HI_GX_INIT_OK)
+  ok   update_constitution.sh refuses: --git-dir=x push
+  ok   update_constitution.sh refuses: no subcommand
+  ok   update_constitution.sh refuses: fetch -- origin +refspec (after --)
+  ok   update_constitution.sh refuses: fetch origin +refspec (bare)
+  ok   update_constitution.sh refuses: fetch --refmap=+...
+  ok   update_constitution.sh refuses: fetch --refmap (separate)
+  ok   update_constitution.sh refuses: fetch --update-head-ok
+  ok   update_constitution.sh refuses: fetch with a refspec (not the fixed shape)
+  ok   update_constitution.sh refuses: fetch from a URL instead of a remote name
+  ok   update_constitution.sh refuses: submodule update --recursive
+  ok   update_constitution.sh refuses: submodule update --recursive after --
+  ok   update_constitution.sh refuses: submodule add ext:: URL
+  ok   update_constitution.sh refuses: submodule status (unused)
+  ok   update_constitution.sh refuses: remote set-url to ext::
+  ok   update_constitution.sh refuses: remote set-url to an https URL (only absolute paths are set by the installer)
+  ok   update_constitution.sh refuses: clone -- --upload-pack=
+  ok   update_constitution.sh refuses: clone ext:: URL
+  ok   update_constitution.sh refuses: clone without --
+  ok   update_constitution.sh refuses: clone extra option
+  ok   update_constitution.sh refuses: ls-remote ext:: URL
+  ok   update_constitution.sh refuses: ls-remote option-like URL after --
+  ok   update_constitution.sh refuses: add without --
+  ok   update_constitution.sh refuses: add a +path
+  ok   update_constitution.sh refuses: init with an option
+  ok   update_constitution.sh refuses: a +word anywhere (rev-parse)
+  ok   update_constitution.sh allows: fetch fixed shape
+  ok   update_constitution.sh allows: clone fixed shape
+  ok   update_constitution.sh allows: submodule update fixed shape
+  ok   update_constitution.sh allows: submodule add fixed shape
+  ok   update_constitution.sh allows: remote set-url origin /abs
+  ok   update_constitution.sh allows: ls-remote -- url ref
+  ok   update_constitution.sh allows: ls-remote --tags NAME
+  ok   update_constitution.sh: git ran
+  ok   update_constitution.sh: inherited GIT_DIR/WORK_TREE/CONFIG_*/EXEC_PATH/SSH/TEMPLATE_DIR/EXTERNAL_DIFF/INDEX_FILE removed
+  ok   update_constitution.sh: GIT_SSH_COMMAND is the installer's own (BatchMode), never the inherited one
+  ok   update_constitution.sh: a PATH change after the first call does not swap git
+  ok   update_constitution.sh allows: rev-parse
+  ok   update_constitution.sh allows: -C + --no-optional-locks status
+  ok   update_constitution.sh allows: checkout --detach <sha>
+  ok   update_constitution.sh allows: rm --cached
+  ok   update_constitution.sh allows: protocol.file ls-remote
+  ok   update_constitution.sh: commit reaches git only with HI_GX_COMMIT_OK=1
+  ok   update_constitution.sh: refusal message does not print URL credentials
+# REAL git (no fake): a forced fetch refspec never moves a local branch (round-4 IMPORTANT-2)
+  ok   real git: 'fetch --quiet -- origin +refs/heads/main:refs/heads/main' refused (exit 3)
+  ok   real git: local main NOT moved by 'fetch --quiet -- origin +refs/heads/main:refs/heads/main'
+  ok   real git: 'fetch --quiet origin main --refmap=+refs/heads/*:refs/heads/*' refused (exit 3)
+  ok   real git: local main NOT moved by 'fetch --quiet origin main --refmap=+refs/heads/*:refs/heads/*'
+  ok   real git: 'fetch --quiet --tags origin +refs/heads/main:refs/heads/main' refused (exit 3)
+  ok   real git: local main NOT moved by 'fetch --quiet --tags origin +refs/heads/main:refs/heads/main'
+  ok   real git: 'fetch --update-head-ok --quiet origin +main:main' refused (exit 3)
+  ok   real git: local main NOT moved by 'fetch --update-head-ok --quiet origin +main:main'
+  ok   control needle: raw git with the forced refspec DOES move the branch (dropping the local commit)
+  ok   real git: the fixed fetch shape runs (exit 0)
+  ok   real git: fixed fetch leaves local main alone
+# a real install: an inherited HI_GX_COMMIT_OK=1 does not enable a commit
+  ok   install exit 0
+  ok   no commit was made (HEAD unchanged; --commit was not asked)
+  ok   no refusal was needed on a normal run
+git-wrapper: PASS 138 FAIL 0
+=== test_git_wrapper OK (20s)
+=== test_minor
+# M1 interactive menu: out-of-range number re-asks
+  ok   after 99 the menu re-asked and took 0 (none)
+  ok   message names the bad number and the range
+  ok   the question was asked twice
+  ok   --agent 5 (a bare number) in non-interactive mode -> exit 2
+  ok   --agent 5: says a number is only a menu choice
+  ok   --agent 5: project unchanged
+# M2 leftover staging clone from a killed run is reported, never deleted
+  ok   install still succeeds
+  ok   warning names the leftover clone
+  ok   report notes carry it
+  ok   leftover clone was NOT deleted
+  ok   dry run reports it too
+# M3 exponent-form cost is normalised
+  ok   hi_account_cost cost=1e-03 adds 0.001
+  ok   hi_account_cost cost=2.5E-2 adds 0.025
+  ok   hi_account_cost cost=1e-03x is not a number -> untrackable
+  ok   precondition: jq itself prints the exponent form (1.5E-7)
+  ok   jq branch (python hidden) prints a plain decimal cost (result=success session=s1 rate_limited=0 cost=0)
+  ok   jq branch and python branch print the same line
+  ok   the cost stays trackable
+# M4 a missing core tool stops the installer up front (exit 3)
+  ok   precondition: timeout is really hidden
+  ok   missing timeout -> exit 3
+  ok   message names the missing tool
+  ok   project unchanged
+# M5 verify keeps the user's umask for git status (index not 0600)
+  ok   install exit 0
+  ok   submodule index mode under umask 022
+minor: PASS 24 FAIL 0
+=== test_minor OK (56s)
+=== test_lock
+# 8 concurrent contenders, 20 rounds, no lock present
+  ok   fresh lock: exactly one contender proceeded in every round
+# 8 concurrent contenders, 20 rounds, a stale lock (dead pid) present
+  ok   stale lock: exactly one contender reclaimed it in every round
+# a FIFO / symlink planted at the lock path is never opened
+  ok   fifo at the lock path: hi_lock returned (no hang on open)
+  ok   fifo at the lock path: refused (rc=3)
+  ok   fifo at the lock path: left in place (not deleted)
+  ok   symlink-to-fifo at the lock path: hi_lock returned (no hang on open)
+  ok   symlink-to-fifo at the lock path: refused (rc=3)
+  ok   symlink-to-fifo at the lock path: left in place (not deleted)
+# the lock cannot be created at all (no ln on PATH): refused with the TRUE reason, never 'not a regular file'
+  ok   installer, no ln: refused (rc=3)
+  ok   installer, no ln: says the lock could not be created
+  ok   installer, no ln: does NOT claim a non-regular file is there
+  ok   installer, no ln: nothing left at the lock path
+  ok   updater, no ln: refused (rc=3)
+  ok   updater, no ln: says the lock could not be created
+  ok   updater, no ln: does NOT claim a non-regular file is there
+  ok   updater, no ln: nothing left at the lock path
+# a normal lock/unlock cycle leaves nothing behind (control needle)
+  ok   control: hi_lock succeeds when no lock exists
+  ok   control: the lock file exists while held
+  ok   control: unlock removed the lock
+  ok   control: no temp/reclaim files left
+# paired mutants: the harness must SEE a double acquire
+  ok   the two mutants could be built (the lock uses ln for the lock and for the reclaim marker)
+  ok   mutant (non-exclusive create): a double acquire is observed (20 of 20 rounds)
+  ok   mutant (unserialised stale reclaim): a double acquire is observed (18 of 20 rounds)
+# the updater's lock (up_lock): same primitive, same lock file as the installer
+  ok   updater, fresh lock: exactly one contender proceeded in every round
+  ok   updater, stale lock: exactly one contender reclaimed it in every round
+# installer and updater exclude each other (4 installer + 4 updater contenders per round)
+  ok   mixed installer+updater: exactly one proceeded in every round
+# updater: a FIFO / symlink planted at the lock path is never opened
+  ok   updater, fifo at the lock path: refused without hanging (rc=3)
+  ok   updater, fifo at the lock path: left in place
+  ok   updater, symlink-to-fifo at the lock path: refused without hanging (rc=3)
+  ok   updater, symlink-to-fifo at the lock path: left in place
+# updater paired mutant: non-exclusive create must show a double acquire
+  ok   updater mutant could be built (up_lock uses ln)
+  ok   updater mutant (non-exclusive create): a double acquire is observed (19 of 20 rounds)
+# reclaim race (I-4): the stale lock was replaced by a live run while A was between its check and the marker
+  ok   inst: control: run A paused after it judged the lock stale
+  ok   inst: run A refused (rc=3)
+  ok   inst: run A reports that another run took the lock
+  ok   inst: the live run's lock is untouched
+  ok   inst: no reclaim marker left
+  ok   upd: control: run A paused after it judged the lock stale
+  ok   upd: run A refused (rc=3)
+  ok   upd: run A reports that another run took the lock
+  ok   upd: the live run's lock is untouched
+  ok   upd: no reclaim marker left
+# paired mutant: without the re-check under the marker, A takes the live run's lock (the harness sees it)
+  ok   re-check mutant could be built
+  ok   mutant (no re-check): A took the lock (rc=0)
+  ok   mutant (no re-check): the live run's lock was replaced
+# a test switch outside test mode does nothing: no pause without HELIX_INSTALLER_TEST=1
+  ok   no TEST PAUSE without HELIX_INSTALLER_TEST=1
+  ok   the stale lock was reclaimed at once (rc=0)
+# liveness (M-6): 'Operation not permitted' is alive; a pid that started after the lock was written is gone
+  ok   inst: a lock naming pid 1 is not reclaimed (rc=3)
+  ok   inst: the pid-1 lock is left as it was
+  ok   inst: control: a live pid that predates the lock holds it (rc=3)
+  ok   inst: the same live pid, lock written an hour before it started: reclaimed (rc=0)
+  ok   inst: the reclaim says the old lock was stale
+  ok   upd: a lock naming pid 1 is not reclaimed (rc=3)
+  ok   upd: the pid-1 lock is left as it was
+  ok   upd: control: a live pid that predates the lock holds it (rc=3)
+  ok   upd: the same live pid, lock written an hour before it started: reclaimed (rc=0)
+  ok   upd: the reclaim says the old lock was stale
+# F2: a signal during hi_lock / up_lock never deletes a LIVE holder's lock and leaves no temp or marker file
+  ok   inst: control: the contender paused after reading the live holder's lock
+  ok   inst: TERM while another run holds the lock: exit 143
+  ok   inst: the live holder's lock is untouched
+  ok   inst: no temp or marker file left
+  ok   inst: control: the contender paused at the reclaim point
+  ok   inst: TERM at the reclaim point: exit 143
+  ok   inst: the stale lock is not removed by a run that never took it
+  ok   inst: no temp or marker file left (stale case)
+  ok   inst: no reclaim marker left
+  ok   upd: control: the contender paused after reading the live holder's lock
+  ok   upd: TERM while another run holds the lock: exit 143
+  ok   upd: the live holder's lock is untouched
+  ok   upd: no temp or marker file left
+  ok   upd: control: the contender paused at the reclaim point
+  ok   upd: TERM at the reclaim point: exit 143
+  ok   upd: the stale lock is not removed by a run that never took it
+  ok   upd: no temp or marker file left (stale case)
+  ok   upd: no reclaim marker left
+# F2 paired mutants: with the old shape (lock path set before ownership, unconditional unlock) the live lock IS deleted
+  ok   signal mutants could be built
+  ok   mutant (installer, old shape): the live holder's lock was deleted
+  ok   mutant (updater, old shape): the live holder's lock was deleted
+# B18: after a successful stale reclaim the .reclaim marker and the temp file are gone
+  ok   inst: stale reclaim succeeded (rc=0)
+  ok   inst: only the lock itself exists afterwards (no .reclaim, no temp)
+  ok   upd: stale reclaim succeeded (rc=0)
+  ok   upd: only the lock itself exists afterwards (no .reclaim, no temp)
+  ok   keep-reclaim mutant could be built
+  ok   mutant (marker kept): a .reclaim file is observed
+lock: PASS 84 FAIL 0
+=== test_lock OK (318s)
+=== test_round6
+# F6: hi_init_state resets every internal variable (one case per variable)
+  ok   reset by hi_init_state: HI_AGENT_PID
+  ok   reset by hi_init_state: HI_CLONE_TIMEOUT
+  ok   reset by hi_init_state: HI_DETECT_PROVIDERS
+  ok   reset by hi_init_state: HI_GX_BIN
+  ok   reset by hi_init_state: HI_GX_COMMIT_OK
+  ok   reset by hi_init_state: HI_GX_INIT_OK
+  ok   reset by hi_init_state: HI_UMASK0
+  ok   reset by hi_init_state: O_ACTION
+  ok   reset by hi_init_state: O_AGENT
+  ok   reset by hi_init_state: O_BUDGET
+  ok   reset by hi_init_state: O_COMMIT
+  ok   reset by hi_init_state: O_DECISION
+  ok   reset by hi_init_state: O_DRY
+  ok   reset by hi_init_state: O_EDIT_DOCS
+  ok   reset by hi_init_state: O_EFFORT
+  ok   reset by hi_init_state: O_FOLLOWUPS
+  ok   reset by hi_init_state: O_GIT_INIT
+  ok   reset by hi_init_state: O_HOOKS
+  ok   reset by hi_init_state: O_INSECURE
+  ok   reset by hi_init_state: O_JSON
+  ok   reset by hi_init_state: O_MODEL
+  ok   reset by hi_init_state: O_NONINT
+  ok   reset by hi_init_state: O_NOT_SELF
+  ok   reset by hi_init_state: O_REF
+  ok   reset by hi_init_state: O_REPORT
+  ok   reset by hi_init_state: O_RESTORE
+  ok   reset by hi_init_state: O_ROOT
+  ok   reset by hi_init_state: O_SET
+  ok   reset by hi_init_state: O_SETUP
+  ok   reset by hi_init_state: O_SSH
+  ok   reset by hi_init_state: O_TIMEOUT
+  ok   reset by hi_init_state: O_UNRESTRICTED
+  ok   reset by hi_init_state: O_UPSTREAM
+  ok   reset by hi_init_state: O_URLS
+  ok   reset by hi_init_state: O_YES
+  ok   reset by hi_init_state: S_AFTER
+  ok   reset by hi_init_state: S_AGENT_EVIDENCE
+  ok   reset by hi_init_state: S_AGENT_LINE
+  ok   reset by hi_init_state: S_AGENT_STATUS
+  ok   reset by hi_init_state: S_BEFORE
+  ok   reset by hi_init_state: S_BK
+  ok   reset by hi_init_state: S_CHANGED
+  ok   reset by hi_init_state: S_CLONE
+  ok   reset by hi_init_state: S_COST_KNOWN
+  ok   reset by hi_init_state: S_FOLLOW
+  ok   reset by hi_init_state: S_KEY
+  ok   reset by hi_init_state: S_LAYOUT
+  ok   reset by hi_init_state: S_LOCK
+  ok   reset by hi_init_state: S_LOCK_RECLAIM
+  ok   reset by hi_init_state: S_LOCK_TMP
+  ok   reset by hi_init_state: S_MANIFEST
+  ok   reset by hi_init_state: S_MODE
+  ok   reset by hi_init_state: S_NOTES
+  ok   reset by hi_init_state: S_PRESTATUS
+  ok   reset by hi_init_state: S_PUSHED
+  ok   reset by hi_init_state: S_RC
+  ok   reset by hi_init_state: S_REF
+  ok   reset by hi_init_state: S_SID
+  ok   reset by hi_init_state: S_SPENT
+  ok   reset by hi_init_state: S_STATUS
+  ok   reset by hi_init_state: S_SUBREL
+  ok   reset by hi_init_state: S_TAGS
+  ok   reset by hi_init_state: S_TMP_PATHS
+  ok   reset by hi_init_state: S_UNR_CONSENT
+  ok   reset by hi_init_state: S_UPDATER
+  ok   reset by hi_init_state: S_URL
+  ok   reset by hi_init_state: S_VERIFY
+  ok   reset by hi_init_state: S_VERIFY_OVERALL
+  ok   reset by hi_init_state: S_WRITTEN
+  ok   control needle: the variable list is not vacuous (69 variables)
+  ok   HI_GX_TIMEOUT is unset by hi_init_state
+# B1 / F1: resolution order and reachability against the LIVE remote
+  ok   a local tag does not shadow the remote branch of the same name
+  ok   a local-only tag resolves as a local ref
+  ok   control needle: the live list names the pushed branch tips
+  ok   a pushed commit is reachable on the live remote
+  ok   an ancestor of a live tip is reachable
+  ok   a local-only commit is NOT reachable on the live remote
+  ok   control: the stale tracking ref origin/topic still exists locally
+  ok   a commit only a stale tracking ref knows is NOT reachable
+  ok   a remote that cannot be asked proves nothing (empty live list)
+  ok   a malformed sha is never reachable
+  ok   an unknown remote contributes nothing
+# F5: push detection logic
+  ok   identical marks: no push
+  ok   a reflog mark moved: push
+  ok   the remote advertises other branches: push
+  ok   a remote that answered before and cannot be asked after fails closed
+[constitution] WARN: no-push check: remote 'origin' of the project could not be asked before the agent run; a push to it cannot be seen (skipped, not trusted)
+  ok   unasked before, asked after: not counted (no baseline)
+  ok   R: an unchanged tracking ref is no push
+  ok   R: a ref that moved with a fetch in its reflog is no push
+  ok   R: a ref that moved with no fetch in its reflog is a push
+  ok   R: a new tracking ref with no fetch in its reflog is a push
+# F7 / B6: external text reaches the terminal only through the sanitising emitters
+  ok   bidi overrides, isolates, ESC and BEL are stripped
+  ok   visible text survives the sanitiser
+  ok   plain text is unchanged
+  ok   hi_say sanitises
+  ok   hi_err sanitises
+  ok   install_constitution.sh: every print to the terminal that expands a variable goes through the sanitiser
+  ok   control needle: install_constitution.sh uses the sanitiser (12 places)
+  ok   update_constitution.sh: every print to the terminal that expands a variable goes through the sanitiser
+  ok   control needle: update_constitution.sh uses the sanitiser (6 places)
+  ok   mutant: an injected raw print is found by the static scan
+# F8: the truncation sentinel check compares the LAST line with the sentinel call
+  ok   installer: last line is the sentinel call
+  ok   mutant: a copy whose last line lacks the sentinel is told apart
+  ok   a copy without the sentinel refuses (exit 2)
+# F10: protocol.file.allow only for local URLs
+  ok   local path: -c protocol.file.allow=always
+  ok   file URL: -c protocol.file.allow=always
+  ok   https URL: no protocol override
+  ok   ssh URL: no protocol override
+  ok   every 'submodule update --init' call in the installer goes through hi_git_url (3 of 6 code lines)
+# B17: the add path no longer relies on hi_on_remote of the local clone's own refs
+  ok   hi_do_add proves reachability against hi_remote_live
+  ok   hi_do_add never calls hi_on_remote without a live list
+# F1 end to end: the updater refuses a ref only a stale remote-tracking branch knows
+  ok   control: the tracking ref origin/stale-topic exists after --check
+  ok   control: while the branch exists upstream the updater accepts it (exit 0)
+  ok   control: the gitlink moved to the branch tip
+  ok   after the branch is deleted upstream the updater refuses the stale ref (exit != 0)
+  ok   the refusal says no remote has it
+  ok   the gitlink was NOT moved to the unfetchable commit
+# F4: a committed symlink 'submodules' -> outside is refused before anything is cloned
+  ok   symlinked submodules dir: exit 3
+  ok   nothing was placed outside the project
+  ok   the message names the symlink
+  ok   control: the same project without the symlink installs (exit 0)
+# F5 / B9: a push by the agent is detected (UNIT-CLASS: the claude binary is a labelled FAKE)
+  ok   control: an agent that does not push ends with exit 0
+  ok   push mode 'plain' is detected (exit 5)
+  ok   push mode 'nolog' is detected (exit 5)
+  ok   push mode 'expire' is detected (exit 5)
+  ok   push mode 'sub' is detected (exit 5)
+# B17: the add path proves the ref against the LIVE remote (a branch deleted after the clone is refused)
+  ok   control: the installer paused after the clone
+  ok   the installer refuses a ref the remote no longer has (exit != 0)
+  ok   the message says the remote does not advertise it
+  ok   no gitlink was added
+# bounded clone timeout (UNIT-CLASS: a git shim that hangs on clone, labelled)
+  ok   a hanging clone is cut off by the timeout (took 6s, well under 60)
+  ok   the install fails instead of hanging (exit != 0)
+  ok   outside test mode the clone-timeout switch does nothing (no HELIX_INSTALLER_TEST)
+# B14: the updater's INT and TERM traps remove its lock (UNIT-CLASS: the hook is a labelled fixture that sleeps)
+  ok   INT: control: the updater reached the hook
+  ok   INT during the hook: exit 130
+  ok   INT: no lock or temp file left
+  ok   TERM: control: the updater reached the hook
+  ok   TERM during the hook: exit 143
+  ok   TERM: no lock or temp file left
+  ok   --help documents that a TERM/INT is acted on after the foreground child exits
+round6: PASS 140 FAIL 0
+=== test_round6 OK (314s)
+=== test_round8
+# I-1 updater: cut off after checkout (index.lock) then re-run
+  ok   install exit 0
+  ok   locked index: updater fails (non-zero)
+  ok   locked index: submodule moved (constructed by the real checkout)
+  ok   locked index: gitlink still old
+  ok   failure message tells to re-run
+  ok   --check on the half-done state reports UPDATE_AVAILABLE=yes
+  ok   --check changed nothing
+  ok   --dry-run exit 0
+  ok   --dry-run changed nothing
+  ok   re-run exit 0
+  ok   re-run: gitlink is the new commit
+  ok   re-run says it finished the interrupted update
+  ok   third run exit 0
+  ok   third run: plain already up to date
+# I-1 installer (update path) on the same half-done state
+  ok   installer with locked index: non-zero
+  ok   gitlink still old
+  ok   installer re-run converges (exit 0)
+  ok   installer re-run: gitlink new
+  ok   installer re-run does not claim a no-op
+# I-1 hand-constructed half state (reviewer shape): checkout done, nothing staged, no lock
+  ok   installer on half state: exit 0 (not exit 5 after 'up to date')
+  ok   gitlink reconciled
+# I-1 hook-pending: cut off after staging, before the hook ran
+  ok   update without hook exit 0
+On branch main
+nothing to commit, working tree clean
+  ok   updater killed during the hook: non-zero
+  ok   gitlink was staged before the hook
+  ok   re-run exit 0
+  ok   re-run ran the hook that was cut off
+  ok   next run: plain up to date, hook not re-run again
+# I-1 built-in updater (constitution versions without update_constitution.sh): half state reconciled
+  ok   install at v71 exit 0
+  ok   control: v71 has no updater script (built-in path in use)
+  ok   built-in update with locked index: non-zero
+  ok   built-in: gitlink still old
+  ok   built-in re-run exit 0
+  ok   built-in re-run: gitlink is v72.1
+  ok   built-in re-run says it finished the update
+# I-1 --commit resume: gitlink staged by an earlier run, commit never made
+  ok   stage-only update exit 0
+  ok   re-run with --commit exit 0
+  ok   the commit was made by the resumed run
+  ok   then nothing more to do
+# I-1 chaos on the UPDATE path: INT/TERM to the process group at many points of a real update, then a clean re-run converges
+  ok   update SIGINT after 0.05s (first rc=130): re-run converged to the new gitlink
+  ok   update SIGINT after 0.2s (first rc=130): re-run converged to the new gitlink
+  ok   update SIGINT after 0.4s (first rc=130): re-run converged to the new gitlink
+  ok   update SIGINT after 0.7s (first rc=130): re-run converged to the new gitlink
+  ok   update SIGINT after 1.1s (first rc=130): re-run converged to the new gitlink
+  ok   update SIGTERM after 0.05s (first rc=143): re-run converged to the new gitlink
+  ok   update SIGTERM after 0.2s (first rc=143): re-run converged to the new gitlink
+  ok   update SIGTERM after 0.4s (first rc=143): re-run converged to the new gitlink
+  ok   update SIGTERM after 0.7s (first rc=143): re-run converged to the new gitlink
+  ok   update SIGTERM after 1.1s (first rc=143): re-run converged to the new gitlink
+  ok   signals really cut off some update runs (10 of 10)
+# I-2 push detection: REAL bare remote, REAL pushes, project path with SPACES
+  ok   control needle: marks carry an L line for the configured remote
+  ok   control needle: marks carry R lines for the tracking ref (path with spaces parsed)
+  ok   no push (control)
+  ok   branch push detected
+  ok   TAG push to a configured remote detected (I-2a)
+  ok   refs/notes push detected (I-2b)
+  ok   branch deletion on the remote detected
+  ok   push with reflogs off detected
+  ok   R class works when the project path contains a space (I-2c)
+  ok   LIMIT (documented): push by URL to an unconfigured repository is not seen
+  ok   the unconfigured repository really received the push (control needle)
+  ok   --help lists that limit
+[constitution] WARN: no-push check: remote 'dead' of the project could not be asked before the agent run; a push to it cannot be seen (skipped, not trusted)
+[constitution] WARN: no-push check: url <scratch>/ev.sbBs/tmpB/helix-install-test.3ZFggc/rb/nonexistent.git of the project could not be asked before the agent run; a push to it cannot be seen (skipped, not trusted)
+  ok   an unreachable remote is skipped, not a push
+# M-2 --recurse-submodules refused by its own layer (read-only subcommands, no other layer applies)
+  ok   install_constitution.sh: 'status --porcelain --recurse-submodules' refused (exit 3)
+  ok   install_constitution.sh: 'ls-files --recurse-submodules' refused (exit 3)
+  ok   install_constitution.sh: 'diff --recurse-submodules' refused (exit 3)
+  ok   install_constitution.sh: 'log --recurse-submodules=yes' refused (exit 3)
+  ok   install_constitution.sh: control needle: plain 'status --porcelain' allowed (exit 0)
+  ok   update_constitution.sh: 'status --porcelain --recurse-submodules' refused (exit 3)
+  ok   update_constitution.sh: 'ls-files --recurse-submodules' refused (exit 3)
+  ok   update_constitution.sh: 'diff --recurse-submodules' refused (exit 3)
+  ok   update_constitution.sh: 'log --recurse-submodules=yes' refused (exit 3)
+  ok   update_constitution.sh: control needle: plain 'status --porcelain' allowed (exit 0)
+# M-3 hi_stop_agent signals the group only when pgid == agent pid (group never ours otherwise)
+  ok   the agent job was stopped and the shell kept running (REACHED_END)
+  ok   a process of the shell's own group (pgid != agent pid) survived
+  ok   isolated shell exited normally
+# M-4 trailing dot / space in a .git segment: REAL backup files exist, restore must not create them
+  ok   restore exit 0
+  ok   control needle: the ordinary entry WAS restored
+  ok   '.git.' dir not created
+  ok   '.git ' (trailing space) dir not created
+  ok   'sub/.GIT. ' not created
+# M-6 failed blobless clone: the move-aside target already exists as a FILE (failure injected with a git shim)
+  ok   install converges through the full-clone retry (exit 0)
+  ok   gitlink recorded
+  ok   the failure was injected (control needle)
+# M-1 DEFAULT --run-setup (on): the committed setup.sh really runs in a sandbox project (fake HOME inside the sandbox)
+  ok   default-setup install exit 0
+  ok   setup.sh was run by default
+  ok   setup.sh effect: git hooks installed in the project (control: not there before)
+# UNCONFIRMED: this used the setup.sh committed at the sandbox clone's HEAD; the working-tree setup.sh is being changed by another stream and was not exercised here.
+round8: PASS 86 FAIL 0
+=== test_round8 OK (350s)
+=== test_round9
+# H-1 real teammate flow: teammate bumps the gitlink to main (beyond the newest tag), user git pull, no submodule update
+  ok   precondition: the project records the teammate's commit
+  ok   precondition: the checkout is still the old commit (pull did not update it)
+  ok   updater: recorded gitlink AHEAD of HEAD -> exit 3
+  ok   updater: tells to run git submodule update
+  ok   updater: the newer gitlink is kept
+  ok   updater: nothing staged
+  ok   updater: checkout not moved
+  ok   --check: exit 3
+  ok   --check does NOT say UPDATE_AVAILABLE=yes
+  ok   --dry-run: exit 3
+  ok   --commit: exit 3
+  ok   --commit: no commit made
+  ok   --commit: gitlink kept
+  ok   --ref older than the recorded gitlink: exit 3
+  ok   --ref older: gitlink kept
+  ok   installer re-run (delegated updater): exit 3
+  ok   installer re-run: gitlink kept
+  ok   installer re-run: nothing staged
+  ok   installer re-run: report status blocked
+# H-1 the fix the message names converges
+  ok   after git submodule update: updater exit 0
+  ok   after git submodule update: gitlink still the newer commit (never moved back)
+# H-1 recorded gitlink ahead, newest tag == the recorded gitlink
+  ok   ahead (== newest tag): exit 3
+  ok   nothing staged
+  ok   --check not yes
+# H-1 DIVERGED: recorded gitlink on a side branch, checkout at the newest tag (old code: 'finished an interrupted update')
+  ok   diverged: exit 3
+  ok   diverged: recorded gitlink kept
+  ok   diverged: nothing staged
+  ok   diverged --check: exit 3
+  ok   diverged --check not yes
+  ok   diverged: installer re-run exit 3
+  ok   diverged: installer kept the gitlink
+# H-1 recorded gitlink unknown to the checkout (never fetched): refused, not treated as interrupted
+  ok   unknown recorded commit: exit 3
+  ok   unknown: gitlink kept
+# H-1 positive controls: the recorded gitlink OLDER than HEAD (an interrupted update) is still finished
+  ok   precondition: recorded gitlink is the older v999.0
+  ok   older recorded, HEAD == target: exit 0
+  ok   staged the HEAD commit
+  ok   says it finished an interrupted update
+# M-2 --commit never commits a staged gitlink that moves the committed one backwards
+  ok   staged downgrade + --commit: exit 3
+  ok   no commit made
+  ok   committed gitlink unchanged
+  ok   staged downgrade without --commit: exit 3 too
+# H-1 built-in updater (constitution version without update_constitution.sh)
+  ok   install at v71 exit 0
+  ok   control: v71 has no updater script
+  ok   built-in: recorded gitlink ahead, older --ref: exit 3
+  ok   built-in: gitlink kept
+  ok   built-in: nothing staged
+  ok   built-in: names git submodule update
+  ok   built-in path was really used (control needle)
+  ok   built-in: default target: exit 3 too
+  ok   built-in default: gitlink kept
+  ok   built-in: no commit
+  ok   built-in: staged downgrade, committed newer: exit 3
+  ok   built-in: committed gitlink unchanged
+  ok   built-in: the staged gitlink was not moved
+  ok   built-in: still no commit
+# M-1 dirty submodule while the update-pending marker names an interrupted update
+  ok   dirty + marker: exit 3
+  ok   message names the interrupted update (not only 'your local changes')
+  ok   dirty without marker: the plain local-changes message
+  ok   dirty without marker: no interrupted claim
+# H-3 shipped scripts are executable; the fixture records them 100755 without any chmod in lib.sh
+  ok   fixture commit records the installer 100755
+  ok   fixture commit records the updater 100755
+  ok   lib.sh carries no chmod of the shipped scripts
+  ok   update with a chmod +x hook: exit 0
+  ok   the submodule is clean after the hook chmod-ed every script (shipped modes)
+  ok   the next update is not blocked by a dirty submodule
+# I-1 push detection (REAL clones and bare remotes; clone-based fixture, never push-seeded)
+warning: You appear to have cloned an empty repository.
+warning: You appear to have cloned an empty repository.
+  ok   control needle: the clone has no 'update by push' reflog (not push-seeded)
+  ok   control needle: marks name the project's remote
+  ok   control needle: marks name the constitution's remote (index 1)
+  ok   no push (control)
+  ok   no push in the constitution (control)
+  ok   C1 push then 'git remote remove origin' detected
+  ok   C1 control: the push really reached the remote
+  ok   C5 tag push then remote removal detected
+  ok   a remote removed during the run fails closed (no push needed)
+  ok   index 1: tag push from the constitution detected
+  ok   index 1: push then remote removal detected
+  ok   index 1: branch push with reflogs off detected
+# I-2 the constitution submodule's remote (index 1): every advertised-ref change, reflogs OFF (no M/R evidence)
+  ok   index 1: branch push (reflogs off) detected
+  ok   index 1 branch control: the branch reached the remote
+  ok   index 1: tag push (reflogs off) detected
+  ok   index 1 tag control: the tag reached the remote
+  ok   index 1: notes push (reflogs off) detected
+  ok   index 1 notes control: the notes ref reached the remote
+  ok   index 1: tag DELETION push detected
+  ok   index 1 deletion control: the tag is gone from the remote
+  ok   index 1: branch DELETION push detected
+  ok   index 1 branch-deletion control: the branch is gone from the remote
+  ok   index 1: no push after the cases (control)
+  ok   control needle: marks carry the pushurl as its own V line
+  ok   tag push to the remote's PUSHURL detected
+  ok   pushurl control: the tag landed in the pushurl repository
+  ok   tag push then set-url (url and pushurl) to a dead path detected
+  ok   --help LIMITS still list the unconfigured-URL push
+  ok   --help names remote removal as detected
+# H-2 fresh project, NO helix-deps.yaml, DEFAULTS (setup.sh runs): exit 0, manifest scaffolded, valid, staged
+  ok   fresh project, defaults: exit 0
+  ok   setup.sh really ran (control needle)
+  ok   helix-deps.yaml created
+  ok   helix-deps.yaml staged (tracked)
+  ok   helix-deps.yaml mode follows the user's umask (022 -> 644)
+PASS	<scratch>/ev.sbBs/tmpB/helix-install-test.Yhbz1r/h2/helix-deps.yaml	file	well-formed helix-deps.yaml
+  ok   the manifest validates
+  ok   report lists helix-deps.yaml among written_files
+  ok   backup records helix-deps.yaml as created
+# H-2 same with --commit on: the manifest is committed with the constitution
+  ok   --commit on, no manifest: exit 0
+  ok   --commit on: helix-deps.yaml is in the commit
+  ok   --commit on: submodule in the commit
+# H-2 a scaffold that needs human input (an own-org submodule): untracked, exact steps, distinct status
+  ok   needs completion: exit 1
+  ok   needs completion: distinct report status
+  ok   needs completion: file left untracked
+  ok   needs completion: prints the validate step
+  ok   needs completion: prints the git add step
+  ok   needs completion: says the manifest needs completion
+  ok   needs completion: not reported as a bare setup failure
+# H-2 an existing manifest is never touched (manifest-present path)
+  ok   manifest present: exit 0
+  ok   manifest present: content unchanged
+  ok   manifest present: not listed as written
+# H-2 dry run names the manifest step and writes nothing
+  ok   dry run exit 0
+  ok   plan names helix-deps.yaml
+  ok   dry run changed nothing
+round9: PASS 118 FAIL 0
+=== test_round9 OK (371s)
+=== test_round10
+# F4 the H-1 message says NEWER (not only 'git submodule update', which every refusal says)
+  ok   recorded newer: exit 3
+  ok   updater message: the recorded gitlink is NEWER than the checkout
+  ok   updater message: not the diverged wording
+  ok   installer re-run: exit 3
+  ok   installer re-run (delegated): NEWER wording
+# F5 a hand-staged gitlink (committed V0 < staged V1 < checkout V2) is never overwritten
+  ok   precondition: committed V0
+  ok   precondition: staged V1
+  ok   precondition: no update-pending marker
+  ok   updater (plain): staged differs from committed and checkout -> exit 3
+  ok   updater (plain): staged gitlink kept
+  ok   updater --check: staged differs from committed and checkout -> exit 3
+  ok   updater --check: staged gitlink kept
+  ok   updater --dry-run: staged differs from committed and checkout -> exit 3
+  ok   updater --dry-run: staged gitlink kept
+  ok   updater --commit: staged differs from committed and checkout -> exit 3
+  ok   updater --commit: staged gitlink kept
+  ok   message names the staged gitlink and says it is not overwritten
+  ok   message gives the way out (git add or git restore --staged)
+  ok   no commit made
+  ok   --check does not say UPDATE_AVAILABLE=yes
+  ok   installer re-run (delegated): exit 3
+  ok   installer re-run: staged gitlink kept
+  ok   with a newer target (fast-forward path): exit 3
+  ok   fast-forward path: staged kept
+  ok   fast-forward path: checkout not moved
+# F5 controls: staged == checkout, or staged == committed, still update
+  ok   staged == checkout: exit 0
+  ok   staged the target
+  ok   staged == committed: exit 0
+  ok   staged the target (v999.3)
+# F5 positive control: a REAL interrupted double update (--no-hook) is finished
+  ok   first update (staged, not committed): exit 0
+  ok   first update staged V1
+  ok   second update cut off by a held index.lock: exit 1
+  ok   cut-off state: checkout moved to V2
+  ok   cut-off state: staged still V1
+  ok   cut-off state: committed still V0
+  ok   re-run finishes the interrupted update: exit 0
+  ok   re-run staged V2
+  ok   says it finished an interrupted update
+  ok   marker gone after the finished update
+# F5 the same with the hook enabled (the hook never runs: the add is what fails)
+  ok   hook case: first update exit 0
+  ok   hook case: cut off exit 1
+  ok   hook case: the marker names the cut-off target
+  ok   hook case: re-run (--no-hook) finishes: exit 0
+  ok   hook case: staged V2
+# F5 a marker naming ANOTHER commit does not license the overwrite
+  ok   foreign marker: exit 3
+  ok   foreign marker: staged kept
+# F5 built-in updater (checkout without update_constitution.sh): committed v71 < staged v72 < checkout v72.1
+  ok   install at v71 exit 0
+  ok   control: the checkout has no updater script (built-in path)
+  ok   built-in: staged differs -> exit 3
+  ok   built-in path really used (control needle)
+  ok   built-in: staged kept
+  ok   built-in: checkout not moved
+  ok   built-in: message names the staged gitlink
+  ok   built-in, target == checkout (finish path): exit 3 too
+  ok   built-in finish path: staged kept
+  ok   built-in control: staged == checkout -> exit 0
+# F5 built-in: a REAL interrupted double update (v71 -> v72 staged, v72 -> v72.1 cut off by index.lock) is finished
+  ok   built-in first update: exit 0
+  ok   built-in first update staged v72
+  ok   built-in first update really built-in (control needle)
+  ok   built-in second update cut off: non-zero exit
+  ok   built-in cut-off: checkout at v72.1
+  ok   built-in cut-off: staged still v72
+  ok   built-in re-run finishes it: exit 0
+  ok   built-in re-run staged v72.1
+  ok   built-in marker gone after the finish
+# F3 a DANGLING helix-deps.yaml symlink counts as present: never written through, never replaced
+  ok   dangling symlink: report manifest=present
+  ok   dangling symlink: still a symlink
+  ok   dangling symlink: target unchanged
+  ok   dangling symlink: nothing written through it
+  ok   dangling symlink: no 'created helix-deps.yaml'
+# F3 umask 077: the created manifest is 600
+  ok   umask 077: report manifest=created
+  ok   umask 077: helix-deps.yaml is 600
+# F2 push detection fails closed on a remote that answered before and cannot be asked after
+warning: You appear to have cloned an empty repository.
+warning: You appear to have cloned an empty repository.
+  ok   no push (control)
+  ok   plain tag push detected (control)
+  ok   tag push then insteadOf to a dead path detected
+  ok   insteadOf control: the tag reached the remote
+  ok   tag push then protocol.file.allow=never detected
+  ok   protocol control: the tag reached the remote
+  ok   tag push then chmod 000 of the bare remote detected
+  ok   chmod control: the tag reached the remote
+  ok   tag push then mv of the bare remote detected
+  ok   mv control: the tag reached the remote
+  ok   no push after the restores (control)
+  ok   no push, but the remote answered before and cannot be asked BY NAME after (url still answers): fails closed
+  ok   no push after restoring uploadpack (control)
+# F2 index 1 (the constitution checkout) and the pushurl
+  ok   index 1: tag push then chmod 000 detected
+  ok   push to the PUSHURL, then the pushurl repository made unaskable: detected
+  ok   pushurl control: the tag landed in the pushurl repository
+# F2 the fingerprint tool: cksum absent (sha256sum used, the test_agent sandbox shape), and no tool at all (fail closed)
+  ok   control needle: no cksum in the sha256sum-only PATH
+  ok   control needle: no hasher at all in the bare PATH
+  ok   sha256sum only, no push: not flagged
+  ok   sha256sum only: L lines carry a non-empty fingerprint
+  ok   sha256sum only: tag push detected
+  ok   no fingerprint tool at all: fails closed
+  ok   no fingerprint tool: says so
+  ok   no fingerprint tool: Z lines written, never an empty hash
+# F2 a remote that could NOT be asked before the run is skipped (not trusted) and named
+  ok   control needle: marks record deadremote as unaskable (U)
+  ok   control needle: marks record its url as unaskable (X)
+  ok   unaskable both times, no push: not flagged
+  ok   the skipped remote is named
+  ok   a push to origin with deadremote present: still detected
+  ok   --help: a remote that answered before and not after fails the run
+  ok   --help: only a remote that could not be asked before the run either is skipped
+  ok   --help: the old blanket 'a remote that cannot be asked is skipped' is gone
+round10: PASS 104 FAIL 0
+=== test_round10 OK (237s)
+=== test_round11
+# F1 built-in updater: committed v71 < staged v72 < checkout v72.1 (hand-staged), marker variants
+  ok   control: the checkout has no updater script (built-in path)
+  ok   built-in, marker naming another commit: exit 3
+  ok   built-in path really used (control needle)
+  ok   built-in, foreign marker: staged gitlink kept
+  ok   built-in, foreign marker: checkout not moved
+  ok   built-in, stale marker (staged-before differs): exit 3
+  ok   built-in, stale marker: staged kept
+  ok   built-in, old-format marker (target only): exit 3
+  ok   built-in, old-format marker: staged kept
+  ok   built-in, symlinked marker is not read: exit 3
+  ok   built-in, symlinked marker: staged kept
+  ok   built-in positive control (valid marker): exit 0
+  ok   built-in positive control: staged the checkout
+  ok   built-in positive control: marker removed
+# F1/F2 the marker written by a real built-in update is '<target> <staged-before>' and is never written through a symlink
+  ok   built-in update with a symlinked marker present: exit 0
+  ok   built-in: the marker symlink was not written through
+  ok   built-in: staged v72.1
+# F1 a real cut-off built-in update writes '<target> <staged-before>'
+  ok   built-in first update: exit 0
+  ok   built-in second update cut off: non-zero exit
+  ok   built-in real marker: '<target> <staged-before>'
+# F1 seam: the marker exists at the moment of the built-in checkout (written BEFORE it)
+  ok   seam: built-in update exit 0
+  ok   seam control needle: the wrapper saw the checkout
+  ok   seam: marker was PRESENT at every built-in checkout
+  ok   seam: marker content at the built-in checkout is '<target> <staged-before>'
+# F2 updater: committed V0 < staged V1 < checkout V2 (hand-staged), marker variants
+  ok   updater, foreign marker: exit 3
+  ok   updater, foreign marker: staged kept
+  ok   updater, stale marker: exit 3
+  ok   updater, stale marker: staged kept
+  ok   updater, old-format marker: exit 3
+  ok   updater, old-format marker: staged kept
+  ok   updater, symlinked marker is not read: exit 3
+  ok   updater, symlinked marker: staged kept
+  ok   updater positive control (valid marker): exit 0
+  ok   updater positive control: staged V2
+# F2 the updater never writes its marker through a symlink; a real update writes '<target> <staged-before>'
+  ok   updater with a symlinked marker present: exit 0
+  ok   updater: the marker symlink was not written through
+  ok   update cut off by a held index.lock: exit 1
+  ok   real marker: two fields '<target> <staged-before>'
+# F2 seam: the marker exists at the moment of the updater checkout
+  ok   seam: updater exit 0
+  ok   seam control needle: the wrapper saw the checkout
+  ok   seam: marker was PRESENT at every updater checkout
+  ok   seam: marker content at the updater checkout is '<target> <staged-before>'
+# F3 hi_mark_hash: sha256sum first, cksum as the fallback, neither => fail closed
+  ok   control needle: cksum-only PATH has no sha256sum
+  ok   both tools: sha256sum is used
+  ok   cksum only: cksum fallback
+  ok   no tool: hi_mark_hash exits non-zero
+  ok   --help: neither sha256sum nor cksum fails closed
+round11: PASS 47 FAIL 0
+=== test_round11 OK (126s)
+=== test_upstream_main
+== layout A (local main: 1)
+  ok   layout A precondition: local main differs from HEAD
+  ok   layout A: upstream main~1 is the commit under test
+  ok   layout A: upstream HEAD is main
+  ok   layout A: upstream lib.sh is the lib.sh under test
+== layout B (local main: 0)
+  ok   layout B precondition: no local main
+  ok   layout B: upstream main~1 is the commit under test
+  ok   layout B: upstream HEAD is main
+  ok   layout B: upstream lib.sh is the lib.sh under test
+test_upstream_main: PASS 8 FAIL 0
+=== test_upstream_main OK (10s)
+=== test_sigpipe
+# 1. static scan, classes (a) and (c)
+  ok   needles: the scanner flags every known spelling and no safe form (42 needle lines)
+  ok   needles: exit 1 when something is found
+  ok   needles: one finding per flagged line
+  ok   needle: a file the scanner cannot read is reported blind (exit 2), never clean
+  ok   no here-string, here-document or early reader in scripts/install_constitution.sh
+  ok   needle appended to scripts/install_constitution.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/update_constitution.sh
+  ok   needle appended to scripts/update_constitution.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/install_cli_agent_plugins.sh
+  ok   needle appended to scripts/install_cli_agent_plugins.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/install_action_prefix.sh
+  ok   needle appended to scripts/install_action_prefix.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/portable_symlink_lib.sh
+  ok   needle appended to scripts/portable_symlink_lib.sh: exactly one finding, at its line, printed with the original line
+  ok   no here-string, here-document or early reader in scripts/lib/constitution_layout.sh
+  ok   needle appended to scripts/lib/constitution_layout.sh: exactly one finding, at its line, printed with the original line
+# 2. class (b): the caller's shell state
+  ok   hi_reset_shell_state found in the installer
+  ok   hi_reset_shell_state in scripts/update_constitution.sh is identical to the installer's
+  ok   hi_reset_shell_state in scripts/install_cli_agent_plugins.sh is identical to the installer's
+  ok   hi_reset_shell_state in scripts/install_action_prefix.sh is identical to the installer's
+  ok   the hi_shell_state block is identical in the installer and the updater
+  ok   scripts/install_constitution.sh: HI_SOURCED set (line 45), reset called (line 73) before the first <( (line 76)
+  ok   scripts/update_constitution.sh: HI_SOURCED set (line 53), reset called (line 81) before the first <( (line 84)
+  ok   the installer refuses (exit 3) when process substitution does not work
+  ok   the updater refuses (exit 3) when process substitution does not work
+  ok   scripts/install_cli_agent_plugins.sh: reset called in run mode, right before set -euo pipefail
+  ok   scripts/install_action_prefix.sh: reset called in run mode, right before set -euo pipefail
+  ok   hi_reset_shell_state undoes what a caller changed (options, BASH_COMPAT, CDPATH, GLOBIGNORE, TMOUT)
+  ok   a SOURCED scripts/install_constitution.sh keeps the caller's shell
+  ok   a SOURCED scripts/update_constitution.sh keeps the caller's shell
+  ok   run with any of 9 inherited settings, the installer prints what a clean run prints (--version --help --print-snippets)
+# 3. hi_push_changed under three temporary-file conditions
+  info: normal: a SMALL here-string ok under bash 5.3.9(1)-release (not a check: bash 5.1 uses a pipe for it even with BASH_COMPAT=50)
+  ok   normal, 0 tail lines: control needle and all 15 cases
+  ok   normal, 0 tail lines: runs 1, 2 and 3 identical
+  ok   normal, 200 tail lines: control needle and all 15 cases
+  ok   normal, 200 tail lines: runs 1, 2 and 3 identical
+  info: notemp50: a SMALL here-string failed under bash 5.3.9(1)-release (not a check: bash 5.1 uses a pipe for it even with BASH_COMPAT=50)
+  ok   notemp50, 0 tail lines: control needle and all 15 cases
+  ok   notemp50, 0 tail lines: runs 1, 2 and 3 identical
+  ok   notemp50, 200 tail lines: control needle and all 15 cases
+  ok   notemp50, 200 tail lines: runs 1, 2 and 3 identical
+  info: notemp44: a SMALL here-string failed under bash 5.3.9(1)-release (not a check: bash 5.1 uses a pipe for it even with BASH_COMPAT=50)
+  ok   notemp44, 0 tail lines: control needle and all 15 cases
+  ok   notemp44, 0 tail lines: runs 1, 2 and 3 identical
+  ok   notemp44, 200 tail lines: control needle and all 15 cases
+  ok   notemp44, 200 tail lines: runs 1, 2 and 3 identical
+  ok   normal, 2000 tail lines (about 136 KB per mark): same z_before z_after r_moved
+  ok   notemp50, 2000 tail lines (about 136 KB per mark): same z_before z_after r_moved
+# 4. the other helpers under the same conditions
+  ok   the reference regex: the shipped hook declares project-root, the near misses do not
+  ok   normal: installer helpers
+  ok   normal: updater up_hook_declares_project_root agrees with the regex it replaces
+  ok   notemp50: installer helpers
+  ok   notemp50: updater up_hook_declares_project_root agrees with the regex it replaces
+  ok   notemp44: installer helpers
+  ok   notemp44: updater up_hook_declares_project_root agrees with the regex it replaces
+# 5. differential fuzz against the bash builtins and grep / awk
+  ok   2500 comparisons, no mismatch
+# 6. ref names and urls with $(...) and backticks are data
+  ok   normal: unchanged marks with command text read as unchanged, a moved ref as moved
+  ok   notemp50: unchanged marks with command text read as unchanged, a moved ref as moved
+  ok   no command text was run (no pwn file in the sandbox)
+# 7. class (d): the CLI installer counts a link it cannot create
+  ok   writable: exit 0, every skill linked, none failed
+  ok   SHELLOPTS=noglob inherited: the same skills are linked (class b)
+  ok   read-only .claude/skills: exit 1, every failure counted and warned, nothing linked
+# 8. behavioural paired mutants (each must misread a case above)
+  ok   mutant Z-reads-before-only: the after-only Z case misreads
+  ok   mutant Z-pipe: a large before-only Z case misreads (SIGPIPE under pipefail)
+  ok   mutant Z-pipe: flagged by the static scan
+  ok   mutant Z-here-string: the Z case misreads with no temporary file
+  ok   mutant Z-here-string: flagged by the static scan
+  ok   mutant loop-here-string: unchanged marks read as a push with no temporary file
+  ok   mutant loop-here-string: flagged by the static scan
+  ok   mutant no-reset: 6 (flag, environment) pairs differ from a clean run
+sigpipe: PASS 67 FAIL 0
+=== test_sigpipe OK (123s)
+=== cm_installer_truncation_safe.sh
+✅ CM-INSTALLER-TRUNCATION-SAFE: PASS (809 truncated prefixes executed twice (with --print-snippets and with no argument), none did anything; control needles 5 snippet lines, 1 installer lines)
+=== cm_installer_truncation_safe_mutation_test.sh
+  ok   golden real installer PASS (rc=0)
+  ok   M1 sentinel dropped -> FAIL (rc=1)
+  ok   M2 sentinel check disabled -> FAIL (rc=1)
+  ok   M3 top-level work before main -> FAIL (rc=1)
+  ok   A sentinel check only with >= 1 argument -> FAIL (rc=1)
+META PASS: CM-INSTALLER-TRUNCATION-SAFE kills every mutant
+=== cm_installer_no_push_no_force.sh
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:67 (a) command not on the allow-list: shopt -u "$o"
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:69 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:571 (a) python -c with a non-literal or process-spawning program
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:571 (a) python program is not a literal (-c 'LITERAL' or - with a quoted heredoc)
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:598 (a) awk program not on the allow-list: 'NR == 1'
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:618 (a) awk program not on the allow-list: '
+      /^##/ { done = 1 } done { next } NR == 1 { next } NF >= 3 && $1 ~ /^[A-Z
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:188 (c) forbidden: push
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:193 (c) forbidden: push
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:199 (c) forbidden: push
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:201 (c) forbidden: push
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:202 (c) forbidden: push
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:204 (c) forbidden: push
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:205 (c) forbidden: push
+  FAIL <scratch>/ev.sbBs/coB/scripts/install_constitution.sh:210 (c) forbidden: push
+  FAIL <scratch>/ev.sbBs/coB/scripts/update_constitution.sh:75 (a) command not on the allow-list: shopt -u "$o"
+  FAIL <scratch>/ev.sbBs/coB/scripts/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/coB/scripts/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/coB/scripts/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+=== cm_installer_no_push_no_force_mutation_test.sh
+# golden
+  FAIL G0     want=0 got=1 real installer + updater
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG0/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG0/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG0/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  FAIL G1     want=0 got=1 golden-FALSE: comment
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG1/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG1/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG1/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  FAIL G2     want=0 got=1 golden-FALSE: message carriers
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG2/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG2/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG2/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  FAIL G3     want=0 got=1 golden-FALSE: [[ =~ ]] regex
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG3/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG3/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG3/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  FAIL G4     want=0 got=1 golden-FALSE: allowed wrapper call
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG4/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG4/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG4/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  FAIL G5     want=0 got=1 golden-FALSE: /dev/null + fd dup redirections, IFS prefix, GIT_TERMINAL_PROMPT
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG5/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG5/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG5/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  FAIL G6     want=0 got=1 golden-FALSE: exact fetch shape, literal trap, arithmetic read
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG6/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG6/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG6/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  FAIL G7     want=0 got=1 golden-FALSE: python -c LITERAL, the push-mark count literal
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG7/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG7/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cG7/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  ok   P1     rc=1 a,c      exempt deny literal followed by a real push
+  ok   P2     rc=1 a,c      a different deny literal is not exempt
+  ok   P3     rc=1 a,c      the deny text under another name is not exempt
+# static mutants (one line injected into hi_builtin_update)
+  ok   S1     rc=1 a,c      git -C "$O_ROOT" push origin main
+  ok   S2     rc=1 a,c      git -C "$sub" send-pack origin HEAD
+  ok   S3     rc=1 a,c      git -C "$sub" checkout -qf main
+  ok   S4     rc=1 a,c      git -C "$sub" checkout --force "$tsha"
+  ok   S5     rc=1 a,c      git -C "$sub" reset -q --hard
+  ok   S6     rc=1 a,c      git -C "$sub" reset --har
+  ok   S7     rc=1 a,c      rm -f -r "$O_ROOT/$HI_SUB"
+  ok   S8     rc=1 a,c      rm -rf "$O_ROOT/$HI_SUB"
+  ok   S9     rc=1 a,c      find "$sub" -delete
+  ok   S10    rc=1 a,c      find "$sub" -name x -exec rm {} +
+  ok   S11    rc=1 a,c      git -C "$sub" branch -Df main
+  ok   S12    rc=1 a,c      git -C "$sub" update-ref -m x -d refs/heads/main
+  ok   S13    rc=1 a,c      git -C "$sub" update-ref refs/heads/main HEAD~3
+  ok   S14    rc=1 a,c      git -C "$sub" switch --discard-changes main
+  ok   S15    rc=1 a,c      git -C "$sub" checkout -B main
+  ok   S16    rc=1 a,c      git -C "$sub" tag -f v1
+  ok   S17    rc=1 a,c      git -C "$sub" commit --amend -m x
+  ok   S18    rc=1 a,c      git -C "$sub" clean -fdx
+  ok   S19    rc=1 a,c      P=p; git -C "$sub" ${P}ush
+  ok   S20    rc=1 a,c      git -C "$sub" $'\x70ush'
+  ok   S21    rc=1 a,c      git -C "$sub" p\ush
+  ok   S22    rc=1 a,c      x=pu; git -C "$sub" ${x}sh
+  ok   S23    rc=1 a,c      printf 'git push\n' | bash
+  ok   S24    rc=1 a,c      bash <<<"git push"
+  ok   S25    rc=1 a,c      gg() { git "$@"; }; gg push
+  ok   S26    rc=1 a,c      command git -C "$sub" push
+  ok   S27    rc=1 a,c      timeout 5 git -C "$sub" push
+  ok   S28    rc=1 a,c      env A=1 git -C "$sub" push
+  ok   S29    rc=1 a,c      hi_user_umask git -C "$sub" status
+  ok   S30    rc=1 a,c      xargs git push </dev/null
+  ok   S31    rc=1 a,c      cmd=(git push --force); "${cmd[@]}"
+  ok   S32    rc=1 a,c      cmd=(git "push" "--force-with-lease"); "${cmd[@]}"
+  ok   S33    rc=1 a,c      git -C "$sub" "push" origin HEAD
+  ok   S34    rc=1 a,c      sh -c "git -C $sub reset --hard"
+  ok   S35    rc=1 a,c      bash -c "hi_gx push"
+  ok   S36    rc=1 a,c      op=push; git -C "$sub" "$op"
+  ok   S37    rc=1 a,c      op=push; hi_gx -C "$sub" "$op"
+  ok   S38    rc=1 a,c      hi_gx -C "$sub" ${P}ush
+  ok   S39    rc=1 a,c      hi_gx -C "$sub" push
+  ok   S40    rc=1 a,c      hi_git push origin main
+  ok   S41    rc=1 a,c      hi_git_url "$u" fetch --force origin
+  ok   S42    rc=1 a,c      hi_gx -c core.hooksPath=/tmp status
+  ok   S43    rc=1 a,c      eval "$O_AGENT"
+  ok   S44    rc=1 a,c      . "$O_ROOT/x.sh"
+  ok   S45    rc=1 a,c      source "$O_ROOT/x.sh"
+  ok   S46    rc=1 a,c      "$G" push
+  ok   S47    rc=1 a,c      $G push
+  ok   S48    rc=1 a,c      printf 'x' >&2; git push
+  ok   S49    rc=1 a,c      hi_say "$(git -C "$sub" push origin HEAD)"
+  ok   S50    rc=1 a,c      die 3 "`git push`"
+  ok   S51    rc=1 a,c      alias g=git
+  ok   S52    rc=1 a,c      perl -e 'system("git push")'
+  ok   S53    rc=1 a,c      python3 -c "$code"
+  ok   S54    rc=1 a,c      awk 'BEGIN { system("git push") }'
+  ok   S55    rc=1 a,c      v="$(git -C "$sub" rev-parse HEAD)"
+  ok   S56    rc=1 a,c      hi_gx -C "$sub" fetch --quiet -- origin +refs/heads/main:refs/heads/main
+  ok   S57    rc=1 a,c      hi_gx -C "$sub" fetch --quiet origin main --refmap=+refs/heads/*:refs/heads/*
+  ok   S58    rc=1 a,c      HI_GX_COMMIT_OK=1 hi_gx -C "$O_ROOT" commit -qm x
+  ok   S59    rc=1 a,c      printf -v HI_GX_COMMIT_OK 1
+  ok   S60    rc=1 a,c      declare -g HI_GX_COMMIT_OK=1
+  ok   S61    rc=1 a,c      HI_GX_INIT_OK=1
+  ok   S62    rc=1 a,c      PATH="$sub:$PATH"
+  ok   S63    rc=1 a,c      export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0="sh $sub/x"
+  ok   S64    rc=1 a,c      export GIT_CONFIG_PARAMETERS="'core.hooksPath'='/tmp'"
+  ok   S65    rc=1 a,c      trap 'hi_gx -C "$sub" push' EXIT
+  ok   S66    rc=1 a,c      trap "$O_AGENT" EXIT
+  ok   S67    rc=1 a,c      rm -R -- "$O_ROOT/$HI_SUB"
+  ok   S68    rc=1 a,c      rm --recursive "$O_ROOT/$HI_SUB"
+  ok   S69    rc=1 a,c      chmod -R 777 "$O_ROOT"
+  ok   S70    rc=1 a,c      truncate -s 0 "$O_ROOT/CLAUDE.md"
+  ok   S71    rc=1 a,c      hi_gx -C "$sub" submodule update --init --recursive
+  ok   S72    rc=1 a,c      hi_gx -C "$sub" remote set-url origin "ext::sh -c touch% /tmp/p"
+  ok   S73    rc=1 a,c      export GIT_EXEC_PATH="$sub"
+  ok   S74    rc=1 a,c      git=hi_gx; $git push
+  ok   S75    rc=1 a,c      mapfile -t c <<<"push"; hi_gx -C "$sub" "${c[0]}"
+  ok   S76    rc=1 a,c      : >"$O_ROOT/CLAUDE.md"
+  ok   S77    rc=1 a,c      { printf 'x\n'; } >"$O_ROOT/AGENTS.md"
+  ok   S78    rc=1 a,c      printf 'x\n' >>"$O_ROOT/.git/config"
+  ok   S79    rc=1 a,c      exec 3>"$O_ROOT/.gitmodules"
+  ok   S80    rc=1 a,c      local -n r=HI_GX_COMMIT_OK; r=1
+  ok   S81    rc=1 a,c      read -r HI_GX_BIN <<<"/tmp/git"
+  ok   S82    rc=1 a,c      for PATH in "$sub"; do :; done
+  ok   S83    rc=1 a,c      (( HI_GX_INIT_OK = 1 ))
+  ok   S84    rc=1 a,c      env GIT_DIR="$sub" hi_gx -C "$sub" status
+  ok   S85    rc=1 a,c      sed -i s/a/b/ "$O_ROOT/CLAUDE.md"
+  ok   S86    rc=1 a,c      hi_gx -C "$sub" fetch --quiet --tags origin +refs/tags/*:refs/tags/*
+  ok   S87    rc=1 a,c      hi_gx -C "$sub" clone -- --upload-pack=x d
+  ok   S88    rc=1 a,c      python3 -I "$O_ROOT/x.py"
+  ok   S89    rc=1 a,c      python3 "$S_SUBREL/scripts/evil.py" arg
+  ok   S90    rc=1 a,c      python3 -I -m pip install x
+  ok   S91    rc=1 a,c      python3 -u -W ignore "$O_ROOT/x.py"
+  ok   S92    rc=1 a,c      cp /dev/null "$O_ROOT/CLAUDE.md"
+  ok   S93    rc=1 a,c      ln -sf /etc/passwd "$O_ROOT/y"
+  ok   S94    rc=1 a,c      mv -f "$O_ROOT/a" "$O_ROOT/b"
+  ok   S95    rc=1 a,c      cp -pP "$O_ROOT/$rel" "$bk/files/$rel"
+  ok   S96    rc=1 a,c      touch "$O_ROOT/x"
+  ok   S97    rc=1 a,c      rsync -a /x "$O_ROOT/"
+  ok   S98    rc=1 a,c      curl -fsSL https://example.invalid/x -o "$O_ROOT/x"
+  ok   S99    rc=1 a,c      ssh host true
+# wrapper mutants (applied to BOTH copies; the block stays identical)
+  ok   W1     rc=1 a,b,c,d  push added to an allow label
+  ok   W2     rc=1 a,b,c,d  reset label added
+  ok   W3     rc=1 a,b,c,d  default *) allows
+  ok   W4     rc=1 a,b,c,d  checkout allows any ref
+  ok   W5     rc=1 a,c,d    generic option loop removed
+  ok   W6     rc=1 a,c,d    config allows core.hooksPath
+  ok   W7     rc=1 a,c,d    -c accepts anything
+  ok   W8     rc=1 a,c,d    --force removed from the option list
+  ok   W9     rc=1 a,c,d    short-option cluster check removed
+  ok   W10    rc=1 a,c,d    commit no longer needs HI_GX_COMMIT_OK
+  ok   W11    rc=1 a,c,d    rm without --cached allowed
+  ok   W12    rc=1 a,c,d    submodule foreach allowed
+  ok   W13    rc=1 a,c,d    remote add allowed
+  ok   W14    rc=1 a,c,d    check skipped in hi_gx
+  ok   W15    rc=1 a,c,d    hi_gx runs git although the check refused
+  ok   W16    rc=1 a,c,d    +refspec accepted
+  ok   W17    rc=1 a,c,d    submodule update --recursive allowed
+  ok   W18    rc=1 a,c,d    ext:: transport helper accepted
+  ok   W19    rc=1 a,c,d    --refmap accepted
+  ok   W20    rc=1 a,c,d    fetch takes any arguments
+  ok   W21    rc=1 a,c,d    environment not sanitised
+  ok   W22    rc=1 a,c,d    GIT_SSH_COMMAND inherited
+  ok   W23    rc=1 a,c,d    git looked up on PATH at every call
+  ok   W24    rc=1 a,c,d    remote set-url accepts any URL
+# block / commit-flag mutants
+  ok   B1     rc=1 a,b,c,d  updater block differs (push label only there)
+  ok   B2     rc=1 a,c      HI_GX_COMMIT_OK=1 set a second time
+# round-6 reviewer mutants (allow-list): one line injected after the hi_write_docs staging add; each MUST fail
+  ok   R1     rc=1 a,c      reviewer mutant: rm -f -- "$O_ROOT/README.md"
+  ok   R2     rc=1 a,c      reviewer mutant: chmod 000 "$O_ROOT/README.md"
+  ok   R3     rc=1 a,c      reviewer mutant: awk -v f="$O_ROOT/README.md" 'BEGIN { printf "" > f }'
+  ok   R4     rc=1 a,c      reviewer mutant: sed -n "w $O_ROOT/README.md" /dev/null
+  ok   R5     rc=1 a,c      reviewer mutant: python3 -I -c 'import sys; open(sys.argv[1], "w")' "$O_ROOT/README.md"
+  ok   R6     rc=1 a,c      reviewer mutant: tar -xf "$S_BK/x.tar" -C "$O_ROOT"
+  ok   R7     rc=1 a,c      reviewer mutant: patch -s "$O_ROOT/README.md" "$S_BK/x.diff"
+  ok   R8     rc=1 a,c      reviewer mutant: unlink "$O_ROOT/README.md"
+  ok   R9     rc=1 a,c      reviewer mutant: cat /dev/null >"$O_ROOT/README.md"
+  ok   R10    rc=1 a,c      reviewer mutant: rm -f -r -- "$O_ROOT/docs"
+  ok   R11    rc=1 a,c      reviewer mutant: printf "%s\n" "$O_ROOT/README.md" | xargs rm -f
+  ok   R12    rc=1 a,c      reviewer mutant: find "$O_ROOT" -name README.md -delete
+  ok   R13    rc=1 a,c      reviewer mutant: hi_gx -C "$O_ROOT" submodule add --quiet -- "$S_URL" ../../outside
+  ok   R14    rc=1 a,c      reviewer mutant: mkdir -p "$O_ROOT/.git/hooks" && ln -s /bin/true "$O_ROOT/.git/hooks/pre-commit"
+  ok   R15    rc=1 a,c      reviewer mutant: ex -sc "%d|wq" "$O_ROOT/README.md"
+  ok   R16    rc=1 a,c      reviewer mutant: cp /dev/null "$O_ROOT/README.md"
+  ok   R17    rc=1 a,c      reviewer mutant: hi_gx -C "$O_ROOT" config --unset helix-installer.clone
+  ok   R18    rc=1 a,c      reviewer mutant: perl -e 'unlink shift' "$O_ROOT/README.md"
+  ok   R19    rc=1 a,c      reviewer mutant: install -m 755 /bin/true "$O_ROOT/README.md"
+  ok   R20    rc=1 a,c      reviewer mutant: dd if=/dev/zero of="$O_ROOT/README.md" count=1
+  ok   U1     rc=1 a,c      reviewer mutant U1: a delete in the updater
+  ok   W1     rc=1 a,c      W2 mutant W1: the resume marker written over a project file
+  ok   W2     rc=1 a,c      W2 mutant W2: the marker clear also deletes a project file
+  ok   W3     rc=1 a,c      W2 mutant W3: the installer marker written over a project file
+  ok   W4     rc=1 a,c      W2 mutant W4: the installer marker clear also deletes a project file
+  ok   M6     rc=1 a,c      R11 mutant M6: hi_marker_clear re-pointed at .gitmodules
+  ok   M7     rc=1 a,c      R11 mutant M7: hi_marker_set re-pointed at .git/config
+  ok   M8     rc=1 a,c      R11 mutant M8: updater PEND re-pointed at .gitmodules
+  ok   M10    rc=1 a,c      R11 mutant M10: hi_marker_path returns .gitmodules
+  ok   V-ex-hi_backup_dir rc=1 a,c      R11 census mutant: ex re-pointed in hi_backup_dir (install_constitution.sh)
+  ok   V-bk-hi_backup_file rc=1 a,c      R11 census mutant: bk re-pointed in hi_backup_file (install_constitution.sh)
+  ok   V-rel-hi_backup_file rc=1 a,c      R11 census mutant: rel re-pointed in hi_backup_file (install_constitution.sh)
+  ok   V-bk-hi_do_add rc=1 a,c      R11 census mutant: bk re-pointed in hi_do_add (install_constitution.sh)
+  ok   V-fdst-hi_do_add rc=1 a,c      R11 census mutant: fdst re-pointed in hi_do_add (install_constitution.sh)
+  ok   V-stage-hi_do_add rc=1 a,c      R11 census mutant: stage re-pointed in hi_do_add (install_constitution.sh)
+  ok   V-th-hi_gitmodules_user_dirty rc=1 a,c      R11 census mutant: th re-pointed in hi_gitmodules_user_dirty (install_constitution.sh)
+  ok   V-ti-hi_gitmodules_user_dirty rc=1 a,c      R11 census mutant: ti re-pointed in hi_gitmodules_user_dirty (install_constitution.sh)
+  ok   V-tw-hi_gitmodules_user_dirty rc=1 a,c      R11 census mutant: tw re-pointed in hi_gitmodules_user_dirty (install_constitution.sh)
+  ok   V-lockp-hi_lock rc=1 a,c      R11 census mutant: lockp re-pointed in hi_lock (install_constitution.sh)
+  ok   V-tmp-hi_lock rc=1 a,c      R11 census mutant: tmp re-pointed in hi_lock (install_constitution.sh)
+  ok   V-m-hi_manifest_step rc=1 a,c      R11 census mutant: m re-pointed in hi_manifest_step (install_constitution.sh)
+  ok   V-pend-hi_marker_clear rc=1 a,c      R11 census mutant: pend re-pointed in hi_marker_clear (install_constitution.sh)
+  ok   V-p-hi_marker_path rc=1 a,c      R11 census mutant: p re-pointed in hi_marker_path (install_constitution.sh)
+  ok   V-pend-hi_marker_set rc=1 a,c      R11 census mutant: pend re-pointed in hi_marker_set (install_constitution.sh)
+  ok   V-bk-hi_move_aside rc=1 a,c      R11 census mutant: bk re-pointed in hi_move_aside (install_constitution.sh)
+  ok   V-rel-hi_move_aside rc=1 a,c      R11 census mutant: rel re-pointed in hi_move_aside (install_constitution.sh)
+  ok   V-t-hi_open_tty rc=1 a,c      R11 census mutant: t re-pointed in hi_open_tty (install_constitution.sh)
+  ok   V-bk-hi_recover_partial rc=1 a,c      R11 census mutant: bk re-pointed in hi_recover_partial (install_constitution.sh)
+  ok   V-gd-hi_recover_partial rc=1 a,c      R11 census mutant: gd re-pointed in hi_recover_partial (install_constitution.sh)
+  ok   V-dir-hi_restore rc=1 a,c      R11 census mutant: dir re-pointed in hi_restore (install_constitution.sh)
+  ok   V-norm-hi_restore rc=1 a,c      R11 census mutant: norm re-pointed in hi_restore (install_constitution.sh)
+  ok   V-rootabs-hi_restore rc=1 a,c      R11 census mutant: rootabs re-pointed in hi_restore (install_constitution.sh)
+  ok   V-log-hi_run_agent rc=1 a,c      R11 census mutant: log re-pointed in hi_run_agent (install_constitution.sh)
+  ok   V-f-hi_write_docs rc=1 a,c      R11 census mutant: f re-pointed in hi_write_docs (install_constitution.sh)
+  ok   V-tmp-hi_write_docs rc=1 a,c      R11 census mutant: tmp re-pointed in hi_write_docs (install_constitution.sh)
+  ok   V-f-hi_write_report rc=1 a,c      R11 census mutant: f re-pointed in hi_write_report (install_constitution.sh)
+  ok   V-path-hi_write_report rc=1 a,c      R11 census mutant: path re-pointed in hi_write_report (install_constitution.sh)
+  ok   V-HI_SUB-- rc=1 a,c      R11 census mutant: HI_SUB re-pointed in - (install_constitution.sh)
+  ok   V-O_ROOT-- rc=1 a,c      R11 census mutant: O_ROOT re-pointed in - (install_constitution.sh)
+  ok   V-S_BK-- rc=1 a,c      R11 census mutant: S_BK re-pointed in - (install_constitution.sh)
+  ok   V-S_LOCK-- rc=1 a,c      R11 census mutant: S_LOCK re-pointed in - (install_constitution.sh)
+  ok   V-S_LOCK_RECLAIM-- rc=1 a,c      R11 census mutant: S_LOCK_RECLAIM re-pointed in - (install_constitution.sh)
+  ok   V-S_LOCK_TMP-- rc=1 a,c      R11 census mutant: S_LOCK_TMP re-pointed in - (install_constitution.sh)
+  ok   V-lockp-up_lock rc=1 a,c      R11 census mutant: lockp re-pointed in up_lock (update_constitution.sh)
+  ok   V-tmp-up_lock rc=1 a,c      R11 census mutant: tmp re-pointed in up_lock (update_constitution.sh)
+  ok   V-PEND-- rc=1 a,c      R11 census mutant: PEND re-pointed in - (update_constitution.sh)
+  ok   V-UP_LOCK-- rc=1 a,c      R11 census mutant: UP_LOCK re-pointed in - (update_constitution.sh)
+  ok   V-UP_RECLAIM-- rc=1 a,c      R11 census mutant: UP_RECLAIM re-pointed in - (update_constitution.sh)
+  ok   V-UP_TMP-- rc=1 a,c      R11 census mutant: UP_TMP re-pointed in - (update_constitution.sh)
+  ok   R12-G1 rc=1 a,c      R12 mutant G1: array-element binding pend[0]= in hi_marker_set
+  FAIL R12-G2 want=0 got=1 R12 KNOWN LIMIT G2: hi_marker_path printf of .gitmodules (producer text) survives
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cR12-G2/update_constitution.sh:77 (a) command not on the allow-list: shopt -s "$o"
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cR12-G2/update_constitution.sh:633 (a) awk program not on the allow-list: 'NR <= 20'
+  FAIL <scratch>/ev.sbBs/tmpB/cm_nopush_meta.MkTEOr/cR12-G2/update_constitution.sh:634 (a) awk program not on the allow-list: 'NR <= 10'
+❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (18 finding(s))
+  ok   R12-G3 rc=1 a,c      R12 mutant G3: second definition of hi_marker_path before main()
+  ok   R12-G4 rc=1 a,c      R12 mutant G4: ${PEND:=...} binding in up_marker_set
+  ok   R12-A8 rc=1 a,c      R12 mutant A8: hi_marker_path redefined NESTED inside hi_marker_set
+# 210 cases; table: rc / checks that fired (a structure, b allow-list, c raw denylist, d runtime) / mutant
+META FAIL: 9 case(s)
+=== cm_installer_snippets_consistent.sh
+✅ CM-INSTALLER-SNIPPETS-CONSISTENT: PASS (5 snippet lines match the 5-URL oracle)
+=== cm_installer_snippets_consistent_mutation_test.sh
+  ok   golden real installer PASS (rc=0)
+  ok   golden-FALSE: docs with canonical raw + web link PASS (rc=0)
+  ok   M1 altered upstream URL -> FAIL (rc=1)
+  ok   M2 snippet piped to sh -> FAIL (rc=1)
+  ok   M3 duplicate snippet line -> FAIL (rc=1)
+  ok   M4 doc with non-canonical raw URL -> FAIL (rc=1)
+META PASS: CM-INSTALLER-SNIPPETS-CONSISTENT kills every mutant
+=== cm_installer_script_modes.sh
+✅ CM-INSTALLER-SCRIPT-MODES: PASS (34 executable script(s) in scope 'installer' ship as 100755; 0 shebang-less .sh skipped; classifier self-check 4/4)
+=== cm_installer_script_modes_mutation_test.sh
+  ok   golden: every scoped script executable -> PASS (rc=0)
+  ok   F1 untracked scoped script 0644 -> FAIL (rc=1)
+  ok   F2 tracked 100644 (worktree 0755) -> FAIL (rc=1)
+  ok   F3 nothing in scope -> BLIND (rc=2)
+  ok   F4 golden-FALSE: only a shebang-less fragment is 0644 -> PASS (rc=0)
+  ok   F5 hook-chmod scope: scripts/other.sh 0644 -> FAIL (rc=1)
+  ok   F5 control: the installer scope ignores scripts/other.sh -> PASS (rc=0)
+  ok   mutant K1 killed (f1 rc=2, f2 rc=2)
+  ok   mutant K2 killed (f1 rc=2, f2 rc=2)
+  ok   mutant K3 killed (f1 rc=2, f2 rc=2)
+META PASS: CM-INSTALLER-SCRIPT-MODES classifies every fixture and kills every mutant
+RUN_ALL: FAIL (cm_installer_no_push_no_force.sh cm_installer_no_push_no_force_mutation_test.sh)

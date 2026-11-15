@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F10)
+@@ -378,7 +378,7 @@
+ KEY_PREFIX=${KEY_PREFIX:-CON}
+ [[ "$KEY_PREFIX" =~ ^[A-Z][A-Z0-9]*$ ]] || die 2 "--key-prefix must match ^[A-Z][A-Z0-9]*\$"
+ set_key() { # set_key <KEY>: the canonical id pattern (the engine prints %s-%03d)
+-  ID_RE="^${1}-(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2,})\$"
++  ID_RE="^${1}-[0-9]{3,}\$"
+ }
+ set_key "$KEY_PREFIX"
+ PLACEHOLDER_RE=${PLACEHOLDER_RE:-"^(${KEY_PREFIX}-050|${KEY_PREFIX}-PENDING-[A-Za-z0-9._-]*|<TO-BE-MINTED[^>]*>)\$"}

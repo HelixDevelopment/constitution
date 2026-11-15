@@ -1,0 +1,5 @@
+with-trap     SIGTERM: returncode 143
+with-trap     SIGHUP: returncode 129
+without-trap  SIGTERM: returncode -15
+without-trap  SIGHUP: returncode -1
+RESULT: the exit status DIFFERS (the trap is observable)

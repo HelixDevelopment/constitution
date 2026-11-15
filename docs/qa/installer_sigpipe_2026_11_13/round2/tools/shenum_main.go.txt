@@ -1,0 +1,572 @@
+// shenum — class inventory enumerator for CON-PENDING-INSTALLER-SIGPIPE round 2.
+//
+// Parses bash files with mvdan.cc/sh (LangBash) and prints one TSV row per node of interest:
+//
+//	file  line  col  kind  func  ctx  detail
+//
+// kinds:
+//
+//	PIPE      a pipeline with >= 2 stages; detail = op list and every reader stage (stage >= 2) as
+//	          name[:EARLY|:ALL|:FUNC|:COMPOUND|:DYNAMIC|:UNKNOWN] (class c)
+//	HERESTR   a here-string redirect <<<  (class a / e)
+//	HEREDOC   a here-document redirect << or <<-  (class a / e)
+//	PROCSUB   a process substitution <( ) or >( )
+//	DECLSUB   local/declare/export/readonly NAME=...$(...)...: the declaration's status masks the
+//	          substitution's status (class d)
+//	FUNCCOND  a call of a function defined in the same file, in a condition context (if/while
+//	          condition, either side of && or ||, negated): errexit is off inside it (class d)
+//	PATMATCH  [[ == / != / =~ ]] and case patterns: nocasematch / compat31 sensitive (class b)
+//	SETOPT    set / shopt calls (class b / d)
+//	PARSEERR  the file did not parse (the enumerator is blind on it)
+//
+// ctx is the chain of syntactic contexts from the node outwards, e.g. "if-cond>func".
+// The tool decides nothing; triage is done by hand and recorded in the inventory.
+package main
+
+import (
+	"fmt"
+	"os"
+	"regexp"
+	"strings"
+
+	"mvdan.cc/sh/v3/syntax"
+)
+
+type frame struct {
+	n   syntax.Node
+	tag string
+}
+
+var pr = syntax.NewPrinter()
+
+func text(n syntax.Node) string {
+	var sb strings.Builder
+	pr.Print(&sb, n)
+	s := strings.ReplaceAll(sb.String(), "\t", " ")
+	s = strings.ReplaceAll(s, "\n", " ⏎ ")
+	if len(s) > 200 {
+		s = s[:200] + "…"
+	}
+	return s
+}
+
+func lit(w *syntax.Word) (string, bool) {
+	if w == nil {
+		return "", false
+	}
+	s := w.Lit()
+	if s == "" && len(w.Parts) > 0 {
+		// single-quoted or double-quoted plain text counts as literal for option/program inspection
+		var sb strings.Builder
+		for _, p := range w.Parts {
+			switch x := p.(type) {
+			case *syntax.Lit:
+				sb.WriteString(x.Value)
+			case *syntax.SglQuoted:
+				sb.WriteString(x.Value)
+			case *syntax.DblQuoted:
+				for _, q := range x.Parts {
+					if l, ok := q.(*syntax.Lit); ok {
+						sb.WriteString(l.Value)
+					} else {
+						return "", false
+					}
+				}
+			default:
+				return "", false
+			}
+		}
+		return sb.String(), true
+	}
+	return s, s != ""
+}
+
+var wrappers = map[string]bool{"command": true, "builtin": true, "exec": true, "env": true, "nice": true, "timeout": true, "stdbuf": true, "nohup": true, "ionice": true, "setsid": true}
+var readAll = map[string]bool{"cat": true, "sort": true, "uniq": true, "wc": true, "tr": true, "cut": true, "tee": true, "tail": true,
+	"base64": true, "od": true, "xxd": true, "sha256sum": true, "sha1sum": true, "md5sum": true, "cksum": true, "jq": true,
+	"xargs": true, "column": true, "paste": true, "fold": true, "rev": true, "nl": true, "python3": true, "python": true}
+
+var reAwkExit = regexp.MustCompile(`\bexit\b`)
+var reSedQuit = regexp.MustCompile(`(^|[;{}\s])[0-9$/]*[^;{}\s]*[qQ]([;}\s]|$)`)
+var reAwkEnd = regexp.MustCompile(`\bEND\s*\{`)
+
+// awkExitOutsideEnd reports whether an awk program has `exit` outside its END blocks. An exit in
+// END runs after all input was read, so it cannot close the pipe early.
+func awkExitOutsideEnd(p string) bool {
+	for {
+		loc := reAwkEnd.FindStringIndex(p)
+		if loc == nil {
+			break
+		}
+		depth, i := 0, loc[1]-1
+		inStr := false
+		for ; i < len(p); i++ {
+			ch := p[i]
+			if inStr {
+				if ch == '\\' {
+					i++
+				} else if ch == '"' {
+					inStr = false
+				}
+				continue
+			}
+			if ch == '"' {
+				inStr = true
+			} else if ch == '{' {
+				depth++
+			} else if ch == '}' {
+				depth--
+				if depth == 0 {
+					break
+				}
+			}
+		}
+		if i >= len(p) {
+			return true // unbalanced: conservative
+		}
+		p = p[:loc[0]] + p[i+1:]
+	}
+	return reAwkExit.MatchString(p)
+}
+
+// classify a reader stage: name and class
+func classify(st *syntax.Stmt, funcs map[string]bool) string {
+	switch c := st.Cmd.(type) {
+	case *syntax.WhileClause:
+		early := false
+		syntax.Walk(c, func(n syntax.Node) bool {
+			if ce, ok := n.(*syntax.CallExpr); ok && len(ce.Args) > 0 {
+				if s, ok := lit(ce.Args[0]); ok && (s == "break" || s == "return" || s == "exit") {
+					early = true
+				}
+			}
+			return true
+		})
+		if early {
+			return "while-loop:EARLY"
+		}
+		return "while-loop:ALL"
+	case *syntax.CallExpr:
+		args := c.Args
+		pre := ""
+		if len(c.Assigns) > 0 {
+			pre = "ENV+"
+		}
+		i := 0
+		for i < len(args) {
+			s, ok := lit(args[i])
+			if !ok {
+				return pre + "DYNAMIC:DYNAMIC"
+			}
+			s = strings.TrimPrefix(s, "\\")
+			if !wrappers[s] {
+				break
+			}
+			pre += s + "+"
+			i++
+			// skip wrapper options / env assignments / durations
+			for i < len(args) {
+				t, ok := lit(args[i])
+				if !ok {
+					break
+				}
+				if strings.HasPrefix(t, "-") || strings.Contains(t, "=") || regexp.MustCompile(`^[0-9.]+[smhd]?$`).MatchString(t) {
+					i++
+					continue
+				}
+				break
+			}
+		}
+		if i >= len(args) {
+			return pre + "EMPTY:UNKNOWN"
+		}
+		name, _ := lit(args[i])
+		name = strings.TrimPrefix(name, "\\")
+		rest := []string{}
+		for _, a := range args[i+1:] {
+			if s, ok := lit(a); ok {
+				rest = append(rest, s)
+			} else {
+				rest = append(rest, "$?")
+			}
+		}
+		cls := "UNKNOWN"
+		switch name {
+		case "grep", "egrep", "fgrep", "zgrep", "rg":
+			cls = "ALL"
+			for _, o := range rest {
+				if o == "--" {
+					break
+				}
+				if strings.HasPrefix(o, "--") {
+					if o == "--quiet" || o == "--silent" || strings.HasPrefix(o, "--max-count") || o == "--files-with-matches" || o == "--files-without-match" {
+						cls = "EARLY"
+					}
+					continue
+				}
+				if strings.HasPrefix(o, "-") && strings.ContainsAny(o[1:], "qmlL") {
+					cls = "EARLY"
+				}
+			}
+		case "head", "read", "true", ":", "false", "exit", "return", "dd":
+			cls = "EARLY"
+		case "sed":
+			cls = "ALL"
+			for _, o := range rest {
+				if !strings.HasPrefix(o, "-") && reSedQuit.MatchString(o) {
+					cls = "EARLY?"
+				}
+			}
+		case "awk", "gawk", "mawk", "nawk":
+			cls = "ALL"
+			for _, o := range rest {
+				if !strings.HasPrefix(o, "-") && awkExitOutsideEnd(o) {
+					cls = "EARLY?"
+				}
+			}
+		case "python3", "python", "perl", "node", "ruby":
+			cls = "INTERP" // reads stdin only if the program does: triage by hand
+		case "mapfile", "readarray":
+			cls = "ALL"
+			for _, o := range rest {
+				if strings.HasPrefix(o, "-") && strings.Contains(o, "n") {
+					cls = "EARLY"
+				}
+			}
+		default:
+			if readAll[name] {
+				cls = "ALL"
+			} else if funcs[name] {
+				cls = "FUNC"
+			}
+		}
+		return pre + name + ":" + cls
+	default:
+		return fmt.Sprintf("%T:COMPOUND", st.Cmd)
+	}
+}
+
+func lw(w *syntax.Word) string {
+	if w == nil {
+		return ""
+	}
+	if s, ok := lit(w); ok {
+		return s
+	}
+	return text(w)
+}
+
+// replAmp: an unquoted (or double-quoted) & in a ${v//p/r} replacement means "the matched text"
+// under patsub_replacement (bash 5.2 default on). Single-quoted & is literal everywhere.
+func replAmp(w *syntax.Word) bool {
+	for _, p := range w.Parts {
+		switch x := p.(type) {
+		case *syntax.Lit:
+			v := strings.ReplaceAll(x.Value, `\&`, "")
+			if strings.Contains(v, "&") {
+				return true
+			}
+		case *syntax.DblQuoted:
+			for _, q := range x.Parts {
+				if l, ok := q.(*syntax.Lit); ok && strings.Contains(strings.ReplaceAll(l.Value, `\&`, ""), "&") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func quotedAny(w *syntax.Word) bool {
+	for _, p := range w.Parts {
+		switch p.(type) {
+		case *syntax.SglQuoted, *syntax.DblQuoted:
+			return true
+		}
+	}
+	return false
+}
+
+var reRange = regexp.MustCompile(`\[[^]]*[^\\]-[^]]`)
+
+// globRange: an unquoted bracket expression with a range, whose meaning depends on
+// globasciiranges / the locale.
+func globRange(w *syntax.Word) bool {
+	var sb strings.Builder
+	for _, p := range w.Parts {
+		if l, ok := p.(*syntax.Lit); ok {
+			sb.WriteString(l.Value)
+		} else {
+			sb.WriteString(" ")
+		}
+	}
+	return reRange.MatchString(sb.String())
+}
+
+func stages(b *syntax.BinaryCmd, out *[]*syntax.Stmt, ops *[]string) {
+	if l, ok := b.X.Cmd.(*syntax.BinaryCmd); ok && (l.Op == syntax.Pipe || l.Op == syntax.PipeAll) && len(b.X.Redirs) == 0 && !b.X.Negated {
+		stages(l, out, ops)
+	} else {
+		*out = append(*out, b.X)
+	}
+	*ops = append(*ops, b.Op.String())
+	*out = append(*out, b.Y)
+}
+
+func main() {
+	rc := 0
+	for _, f := range os.Args[1:] {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		file, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(string(data)), f)
+		if err != nil {
+			fmt.Printf("%s\t0\t0\tPARSEERR\t-\t-\t%s\n", f, strings.ReplaceAll(err.Error(), "\t", " "))
+			rc = 3
+			continue
+		}
+		funcs := map[string]bool{}
+		syntax.Walk(file, func(n syntax.Node) bool {
+			if fd, ok := n.(*syntax.FuncDecl); ok && fd.Name != nil {
+				funcs[fd.Name.Value] = true
+			}
+			return true
+		})
+		var stack []frame
+		ctx := func() (string, string) {
+			fn := "-"
+			var parts []string
+			for i := len(stack) - 1; i >= 0; i-- {
+				if stack[i].tag != "" {
+					parts = append(parts, stack[i].tag)
+				}
+				if fd, ok := stack[i].n.(*syntax.FuncDecl); ok && fn == "-" && fd.Name != nil {
+					fn = fd.Name.Value
+				}
+			}
+			if len(parts) > 6 {
+				parts = parts[:6]
+			}
+			if len(parts) == 0 {
+				return fn, "top"
+			}
+			return fn, strings.Join(parts, ">")
+		}
+		emit := func(n syntax.Node, kind, detail string) {
+			fn, c := ctx()
+			fmt.Printf("%s\t%d\t%d\t%s\t%s\t%s\t%s\n", f, n.Pos().Line(), n.Pos().Col(), kind, fn, c, detail)
+		}
+		// tag a child statement by its role in its parent
+		tagOf := func(parent syntax.Node, child syntax.Node) string {
+			switch p := parent.(type) {
+			case *syntax.IfClause:
+				for _, s := range p.Cond {
+					if s == child {
+						return "if-cond"
+					}
+				}
+			case *syntax.WhileClause:
+				for _, s := range p.Cond {
+					if s == child {
+						return "while-cond"
+					}
+				}
+			case *syntax.BinaryCmd:
+				switch p.Op {
+				case syntax.AndStmt, syntax.OrStmt:
+					if p.X == child {
+						return "andor-left"
+					}
+					return "andor-right"
+				case syntax.Pipe, syntax.PipeAll:
+					return "pipe-stage"
+				}
+			case *syntax.CmdSubst:
+				return "cmdsubst"
+			case *syntax.ProcSubst:
+				return "procsubst"
+			case *syntax.FuncDecl:
+				return "func"
+			}
+			if s, ok := child.(*syntax.Stmt); ok && s.Negated {
+				return "negated"
+			}
+			return ""
+		}
+		syntax.Walk(file, func(n syntax.Node) bool {
+			if n == nil {
+				stack = stack[:len(stack)-1]
+				return true
+			}
+			tag := ""
+			if len(stack) > 0 {
+				tag = tagOf(stack[len(stack)-1].n, n)
+			}
+			if s, ok := n.(*syntax.Stmt); ok && s.Negated && tag == "" {
+				tag = "negated"
+			}
+			stack = append(stack, frame{n, tag})
+			switch x := n.(type) {
+			case *syntax.BinaryCmd:
+				if x.Op == syntax.Pipe || x.Op == syntax.PipeAll {
+					// only the outermost of a chain
+					if len(stack) >= 2 {
+						if pp, ok := stack[len(stack)-2].n.(*syntax.Stmt); ok && len(stack) >= 3 {
+							if pb, ok := stack[len(stack)-3].n.(*syntax.BinaryCmd); ok && (pb.Op == syntax.Pipe || pb.Op == syntax.PipeAll) && pb.X == pp {
+								return true
+							}
+						}
+					}
+					var st []*syntax.Stmt
+					var ops []string
+					stages(x, &st, &ops)
+					var rd []string
+					for _, s := range st[1:] {
+						rd = append(rd, classify(s, funcs))
+					}
+					emit(x, "PIPE", "ops="+strings.Join(ops, ",")+" readers="+strings.Join(rd, ",")+" | "+text(x))
+					for _, r := range rd {
+						cl := r[strings.LastIndex(r, ":")+1:]
+						switch cl {
+						case "EARLY", "EARLY?":
+							emit(x, "EARLY", r+" | "+text(x))
+						case "ALL":
+						default:
+							emit(x, "READER", r+" | "+text(x))
+						}
+					}
+					if x.Op == syntax.PipeAll {
+						emit(x, "VERS", "|& (bash 4.0)")
+					}
+				}
+			case *syntax.Redirect:
+				switch x.Op {
+				case syntax.WordHdoc:
+					emit(x, "HERESTR", "<<< "+text(x.Word))
+				case syntax.Hdoc, syntax.DashHdoc:
+					emit(x, "HEREDOC", x.Op.String()+" "+text(x.Word))
+				}
+			case *syntax.ProcSubst:
+				emit(x, "PROCSUB", text(x))
+			case *syntax.DeclClause:
+				for _, a := range x.Args {
+					if a.Naked && a.Value != nil {
+						if o, ok := lit(a.Value); ok && strings.HasPrefix(o, "-") {
+							if o == "-" {
+								emit(x, "VERS", x.Variant.Value+" - (bash 4.4)")
+							} else if strings.ContainsAny(o[1:], "An") {
+								emit(x, "VERS", x.Variant.Value+" "+o+" (-A 4.0, -n 4.3)")
+							}
+						}
+					}
+					if a.Naked && a.Name != nil && a.Name.Value == "-" {
+						emit(x, "VERS", x.Variant.Value+" - (bash 4.4)")
+					}
+				}
+				for _, a := range x.Args {
+					has := false
+					if a.Value != nil {
+						syntax.Walk(a.Value, func(m syntax.Node) bool {
+							if _, ok := m.(*syntax.CmdSubst); ok {
+								has = true
+							}
+							return true
+						})
+					}
+					if has {
+						emit(x, "DECLSUB", x.Variant.Value+" "+a.Name.Value)
+					}
+				}
+			case *syntax.CallExpr:
+				if len(x.Args) > 0 {
+					if s, ok := lit(x.Args[0]); ok {
+						if s == "set" || s == "shopt" {
+							emit(x, "SETOPT", text(x))
+						}
+						for _, a := range x.Args[1:] {
+							o, ok := lit(a)
+							if !ok || !strings.HasPrefix(o, "-") || strings.HasPrefix(o, "--") {
+								continue
+							}
+							switch {
+							case s == "wait" && strings.ContainsAny(o[1:], "np"):
+								emit(x, "VERS", "wait "+o+" (-n 4.3, -p 5.1)")
+							case (s == "mapfile" || s == "readarray") && strings.Contains(o[1:], "d"):
+								emit(x, "VERS", s+" -d (bash 4.4)")
+							case s == "read" && strings.Contains(o[1:], "N"):
+								emit(x, "VERS", "read -N (bash 4.1)")
+							}
+						}
+						if funcs[s] {
+							_, c := ctx()
+							if strings.Contains(c, "if-cond") || strings.Contains(c, "while-cond") || strings.Contains(c, "andor-left") || strings.Contains(c, "negated") {
+								emit(x, "FUNCCOND", s)
+							}
+						}
+					}
+				}
+			case *syntax.BinaryTest:
+				if x.Op == syntax.TsMatch || x.Op == syntax.TsNoMatch || x.Op == syntax.TsReMatch || x.Op == syntax.TsMatchShort {
+					emit(x, "PATMATCH", text(x.X)+" "+x.Op.String()+" "+text(x.Y))
+				}
+				if x.Op == syntax.TsBefore || x.Op == syntax.TsAfter {
+					emit(x, "VERS", "[[ "+x.Op.String()+" ]] string order (locale collation; compat31/40) "+text(x))
+				}
+				if w, ok := x.Y.(*syntax.Word); ok {
+					if x.Op == syntax.TsReMatch && quotedAny(w) {
+						emit(x, "VERS", "quoted =~ right side (compat31 changes it) "+text(x))
+					}
+					if (x.Op == syntax.TsMatch || x.Op == syntax.TsNoMatch || x.Op == syntax.TsMatchShort) && globRange(w) {
+						emit(x, "VERS", "[[ == ]] bracket range (globasciiranges) "+text(x))
+					}
+				}
+			case *syntax.CaseClause:
+				emit(x, "PATMATCH", "case "+text(x.Word))
+				for _, it := range x.Items {
+					if it.Op == syntax.Fallthrough || it.Op == syntax.Resume {
+						emit(x, "VERS", "case "+it.Op.String()+" (bash 4.0)")
+					}
+					for _, pw := range it.Patterns {
+						if globRange(pw) {
+							emit(x, "VERS", "case pattern bracket range (globasciiranges) "+text(pw))
+						}
+					}
+				}
+			case *syntax.CoprocClause:
+				emit(x, "VERS", "coproc (bash 4.0)")
+			case *syntax.ParamExp:
+				if x.Exp != nil {
+					switch x.Exp.Op {
+					case syntax.OtherParamOps:
+						emit(x, "VERS", "${..@"+lw(x.Exp.Word)+"} (bash 4.4; U/u/L/K 5.1+) "+text(x))
+					case syntax.UpperFirst, syntax.UpperAll, syntax.LowerFirst, syntax.LowerAll:
+						emit(x, "VERS", "case modification (bash 4.0) "+text(x))
+					}
+				}
+				if x.Repl != nil && x.Repl.With != nil && replAmp(x.Repl.With) {
+					emit(x, "VERS", "& in ${//} replacement (patsub_replacement, bash 5.2) "+text(x))
+				}
+				if x.Param != nil {
+					switch x.Param.Value {
+					case "EPOCHSECONDS", "EPOCHREALTIME", "BASH_ARGV0":
+						emit(x, "VERS", x.Param.Value+" (bash 5.0)")
+					case "SRANDOM":
+						emit(x, "VERS", "SRANDOM (bash 5.1)")
+					}
+				}
+				if x.Index != nil {
+					if u, ok := x.Index.(*syntax.UnaryArithm); ok && u.Op == syntax.Minus {
+						emit(x, "VERS", "negative array index (bash 4.3) "+text(x))
+					}
+				}
+				if x.Excl && x.Names != 0 {
+					emit(x, "VERS", "${!prefix@} "+text(x))
+				}
+			}
+			return true
+		})
+	}
+	os.Exit(rc)
+}

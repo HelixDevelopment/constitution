@@ -14,6 +14,10 @@
 #           test-named file is excluded only with `override: reason: <category>: <why>`. The excluded
 #           set is pinned by config/full_suite_excluded.lock (accept a change with
 #           --verify-manifest --accept-excluded-change <reviewer>).
+docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven mutant generator (usage: mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; writes mutated copies, a standalone run without arguments fails; not a test
+docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven reviewer mutant generator (usage: reviewer_mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; a standalone run without arguments fails; not a test
+docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	py	excluded	-	-	-	override: reason: tool: one-shot editor of tests/release/test_land_vehicle.sh (usage: edit_tests_r5.py <test file> <helpers file> <r5 section file>), kept as round-5 evidence; running it would edit a test file; not a test
+docs/qa/land_vehicle_r5_2026_11_13/tools/mk_mutant_table.py	py	excluded	-	-	-	override: reason: tool: argv-driven table builder (usage: mk_mutant_table.py <index.tsv> <notes.tsv> <out.md> <results.tsv>...) of the round-5 mutant evidence; a standalone run without arguments fails; not a test
 docs/research/quality/solutions/poc/sol01_status_custody/test_sol01.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol02_verdict_coverage/test_sol02.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol03_needled_measurement/test_sol03.sh	sh	entry	default	bash	-	auto
@@ -704,6 +708,9 @@ scripts/scheduled-work-engine	go	entry	default	go-test	-	auto: Go module with *_
 scripts/scheduled-work-engine/test/live_smoke.sh	sh	entry	heavy	bash	-	auto
 scripts/scheduled-work-engine/test/meta_mutation.sh	sh	entry	heavy	bash	-	auto
 scripts/skill_activation/test_skill_activation.sh	sh	entry	default	bash	-	auto
+scripts/sonarqube/tests/test_registry_login.sh	sh	entry	default	bash	-	auto
+scripts/sonarqube/tests/test_registry_login_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/sonarqube/tests/test_registry_login_wiring.sh	sh	entry	default	bash	-	auto
 scripts/test_portable_skill_symlink.sh	sh	entry	default	bash	-	auto
 scripts/validation/enumerate_decision_mutants.py	py	entry	heavy	python3	-	override: the decision-mutant census (CON-158 / CON-147 round 6): runs every single-edit mutant of meta_test_verification.sh, host_guard.sh and host_report.py against its regression test; exit 0 only when each is KILLED or listed EQUIVALENT with a proof; takes hours, so heavy
 scripts/validation/meta_test_verification.sh	sh	entry	heavy	bash	-	auto
@@ -712,6 +719,7 @@ scripts/validation/test_enumerate_decision_mutants.sh	sh	entry	default	bash	-	ov
 scripts/validation/test_enumerate_decision_mutants_r2_regression.sh	sh	entry	default	bash	-	override: tier default: real run_bounded on a `timeout` child (3 s bound) plus the stale-ledger classifier (CON-162 n1, n2); no census run, seconds
 scripts/validation/test_meta_test_verification_r1_regression.sh	sh	entry	heavy	bash	-	auto
 scripts/workable-items	go	entry	default	go-test	-	auto: Go module with *_test.go
+scripts/workable-items/mutation/created_at_mutation_runner.py	py	entry	heavy	python3	-	override: tier heavy: builds one Go test binary per mutant (27 mutants, 17 to 23 minutes measured on 2026-11-13); CON-339
 scripts/workable-items/mutation/states_mutation_runner.py	py	entry	heavy	python3	-	auto
 tests/action_prefix/meta_test_action_prefix_grammar.sh	sh	entry	heavy	bash	-	auto
 tests/action_prefix/test_action_prefix_grammar.sh	sh	entry	default	bash	-	auto
@@ -796,6 +804,7 @@ tests/install/test_git_wrapper.sh	sh	member	default	-	tests/install/run_all.sh	a
 tests/install/test_integration.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_lock.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_minor.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_python_isolation.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_round10.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_round11.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_round6.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
@@ -803,7 +812,10 @@ tests/install/test_round8.sh	sh	member	default	-	tests/install/run_all.sh	auto: 
 tests/install/test_round9.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_security.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_self_guard.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_shell_state_patsub.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_sigpipe.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
 tests/install/test_stress_perf.sh	sh	member	heavy	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_timeout_tty.sh	sh	member	heavy	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_unit.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_updater.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_upstream_main.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
@@ -914,8 +926,16 @@ tests/prompts/test_setup_prompt_round5_stops.sh	sh	member	default	-	tests/prompt
 tests/prompts/test_setup_prompt_round5_stops_mutants.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/prompts/test_setup_prompt_round7.sh	sh	member	default	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/prompts/test_setup_prompt_round7_mutants.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
+tests/release/channel_census.py	py	excluded	-	-	-	reason: oracle: channel census instrument and lint run by tests/release/test_channel_census.sh and case L1 of the tag, publisher and derive suites; tested (control-needled) by test_channel_census.sh
+tests/release/env_allow.sh	sh	excluded	-	-	-	reason: library: shell library sourced (through $HERE) by the tag, publisher and derive suites and the mutation harness: allow-list, dirty entries, hup_ignored and its control; not a test entry point
+tests/release/env_census.py	py	excluded	-	-	-	reason: tool: runtime environment census (recorders and check) run by the tag, publisher and derive suites (C48, case 29, L2); not a test entry point
+tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network probe run by tests/release/test_tag_and_release.sh (cases C41, C43, C44); not a test entry point
+tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
+tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
+tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
+tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
@@ -931,3 +951,5 @@ tests/test_verify_helix_deps_manifests.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/meta_test_token_efficiency.sh	sh	entry	heavy	bash	-	auto
 tests/token_efficiency/test_token_efficiency_integration.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/test_token_efficiency_unit.sh	sh	entry	default	bash	-	auto
+docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh	sh	entry	default	bash	-	auto
+scripts/workable-items/mutation/created_at_r2_mutation_runner.py	py	entry	heavy	python3	-	override: tier heavy: 135 mutants in a temporary worktree of HEAD, full mode about 60 minutes in two shards measured on 2026-11-14 at load 29 to 46; CON-339 rounds 2 to 4

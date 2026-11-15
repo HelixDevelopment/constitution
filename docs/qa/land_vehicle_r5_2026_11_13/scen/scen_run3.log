@@ -1,0 +1,36 @@
+PASS S01 prepare with a mint (rc=0)
+PASS S01 publish (rc=0)
+PASS S01 9/9 at the checked main; the servers saw 9 updates, all fast-forward
+PASS S02 publish again (rc=0)
+PASS S02 publish again: 9 up-to-date, the servers saw 0 updates
+PASS S03 prepare (merge) (rc=0)
+PASS S03 publish (rc=0)
+PASS S03 the merge commit reached 9/9; the servers saw 9 fast-forward updates
+PASS S04 prepare (rc=0)
+PASS S04 publish (rc=0)
+PASS S04 matching/followTags/pushOption/pushDefault: only refs/heads/main, ff, 0 push options, 0 tags on the servers (control: a plain push with the same config sends the tag, rc 0)
+PASS S05 prepare (rc=0)
+PASS S05 publish with a global remote.github.push (rc=2)
+PASS S05 refused naming remote.github.push; the servers saw 0 updates
+PASS S06 prepare (rc=0)
+PASS S06 publish against a diverged gitverse (rc=1)
+PASS S06 preflight refused gitverse; the servers saw 0 updates
+PASS S07 prepare (rc=0)
+PASS S07 publish while the clone main moves (rc=1)
+PASS S07 the servers received the checked sha 9 times and the moved main 0 times
+PASS S07 publish again refuses the unreviewed commit (rc=1)
+PASS S07 the unreviewed commit never reached a server
+PASS S08 prepare with an ssh remote that cannot be reached (rc=1)
+PASS S08 a remotes file line with three fields (rc=2)
+PASS S08 prepare (FAKETOKEN in every remote path) (rc=0)
+PASS S08 publish with gitverse unreadable (rc=1)
+PASS S08 publish with github rejecting (rc=1)
+PASS S08 verify with a mismatching ssh URL (rc=2)
+PASS S08 verify (github still behind) (rc=1)
+PASS S08 0 of 13 output/evidence files hold FAKETOKEN (controls: the clone's stderr log holds it 1 time(s); a planted needle is found; a fabricated needle is not; gitverse is named; the bad line is named by number)
+PASS S09 prepare with a tag object as --head (rc=1)
+PASS S09 refused as a tag object; the servers saw 0 updates
+PASS SUMMARY control: the server loggers recorded 44 ref updates
+SUMMARY nonff=0 deletions=0 nonmain=0 server_tags=0 leaks=0
+PASS SUMMARY 0 non-fast-forward, 0 deletions, 0 non-main refs, 0 tags on any server, 0 leaks
+RESULT pass=34 fail=0

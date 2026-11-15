@@ -1,0 +1,43 @@
+ok 1 - non-interactive run exits rc 0
+ok 2 - stage 1/7 reported
+ok 3 - stage 2/7 reported
+ok 4 - stage 3/7 reported
+ok 5 - stage 4/7 reported
+ok 6 - stage 5/7 reported
+ok 7 - stage 6/7 reported
+ok 8 - stage 7/7 reported
+ok 9 - jev-detection.json written
+ok 10 - detection records the running local decision profile
+ok 11 - llmctl provenance source=submodule
+ok 12 - toolkit provenance source=submodule
+ok 13 - bootstrap stamp written
+ok 14 - tool installers invoked
+ok 15 - llmctl installer ran (consented via --install-tools)
+ok 16 - toolkit installer ran (consented via --install-tools)
+ok 17 - per-agent jev-setup invoked
+ok 18 - jev-setup --check is called first
+ok 19 - jev-setup applied only with --yes consent
+ok 20 - claude home wired
+ok 21 - kimi home wired
+ok 22 - jev env file written
+ok 23 - default mode is shadow
+ok 24 - decisions.jsonl scaffolded
+ok 25 - report-json written
+ok 26 - report-json logs detect-models ok
+ok 27 - non-TTY without --non-interactive exits rc 2
+ok 28 - rc-2 path returned in 1s (<5s, no hang)
+ok 29 - rc-2 error message explains
+ok 30 - no-consent run rc 0 (degraded states are reported, not fatal)
+ok 31 - NEG: tool installers did NOT run without --install-tools
+ok 32 - NEG: agent home NOT edited without --yes
+ok 33 - NEG: jev-setup never called with --yes without consent
+ok 34 - NEG: awaiting-consent state is recorded as pending, not hidden
+ok 35 - NEG: pending reason names consent
+ok 36 - consented follow-up run wires the agent home
+ok 37 - completed run discharges the pending stamp
+ok 38 - NEG: missing jq => rc 2 (cannot determine), never 0
+ok 39 - NEG: error names the missing prerequisite
+ok 40 - NEG: no detection evidence fabricated without jq
+ok 41 - NEG: malformed --agent value rejected (rc 2)
+ok 42 - NEG: invalid JEV_BOOTSTRAP_MODE rejected (rc 2)
+# test_bootstrap_noninteractive.sh: pass=42 fail=0 skip=0

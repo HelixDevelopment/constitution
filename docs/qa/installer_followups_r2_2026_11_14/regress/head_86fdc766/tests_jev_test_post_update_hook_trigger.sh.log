@@ -1,0 +1,27 @@
+ok 1 - 1 hook rc 0
+ok 2 - 1 scripts/jev/ change fired bootstrap with --non-interactive
+ok 3 - 1 healthy bootstrap is not deferred
+ok 4 - 1 hook reports the Jev change it detected
+ok 5 - 1b trigger path skills/jev-decision-layer/SKILL.md fires bootstrap
+ok 6 - 1b trigger path mcp/templates/jev-decisions.json.tmpl fires bootstrap
+ok 7 - 1b trigger path actions/registry.yaml fires bootstrap
+ok 8 - 1c template change is not merged as a live MCP config
+ok 9 - 1c template is not treated as an MCP server name
+ok 10 - 1d any .json under mcp/templates/ is a template, never merged live
+ok 11 - 2 unrelated change: hook rc 0
+ok 12 - 2 NEG: unrelated change does not fire bootstrap
+ok 13 - 3 opt-out marker: bootstrap not fired
+ok 14 - 3 the skip is logged, never silent
+ok 15 - 3b CM-JEV-BOOTSTRAP-IDEMPOTENT passes with the opt-out marker present
+ok 16 - 3c CONSTITUTION_JEV_HOOK=off: bootstrap not fired
+ok 17 - 3c kill-switch skip is logged
+ok 18 - 4 hook rc 0 although bootstrap fails (fail-open: the pull is never broken)
+ok 19 - 4 failure degraded to --defer
+ok 20 - 4 pending stamp written
+ok 21 - 4 degradation is logged loudly
+ok 22 - 5 rc 3 does not break the pull
+ok 23 - 5 rc 3 surfaced to the operator
+ok 24 - 5 NEG: rc 3 is not papered over with --defer
+ok 25 - 6 missing bootstrap script: hook rc 0
+ok 26 - 6 missing script recorded as pending (at the state-level path jev-status reads), not ignored
+# test_post_update_hook_trigger.sh: pass=26 fail=0 skip=0

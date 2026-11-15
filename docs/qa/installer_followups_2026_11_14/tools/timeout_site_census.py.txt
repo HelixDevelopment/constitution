@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Census of `timeout` used as a command (or as the first word of an array that is executed) in bash files.
+Prints FILE<TAB>FUNCTION<TAB>IGNORED<TAB>LINE, IGNORED = yes when `trap '' TTIN TTOU` is on the same line or on an
+earlier line of the same function body. Control needles via argv[1] (a file with a known ignored and a known
+not-ignored site).  argv: NEEDLEFILE FILE..."""
+import re, sys
+CMD = re.compile(r"(?:^|[;&|({`]|\$\(|\bthen\b|\bdo\b|\belse\b|&&|\|\||=\()\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:exec\s+|command\s+)?timeout(?=\s)")
+FN = re.compile(r"^([A-Za-z_][\w:-]*)\(\)\s*\{")
+IGN = "trap '' TTIN TTOU"
+def scan(f):
+    out = []; fn = "-"; seen_ign = False
+    for n, line in enumerate(open(f, encoding="utf-8", errors="replace"), 1):
+        m = FN.match(line)
+        if m: fn = m.group(1); seen_ign = False
+        elif line.startswith("}"): fn = "-"; seen_ign = False
+        if line.lstrip().startswith("#"): continue
+        code = line
+        if CMD.search(code):
+            ign = IGN in code[:CMD.search(code).start() + 1] or seen_ign or (IGN in code)
+            out.append((f, fn, "yes" if ign else "no", n, line.strip()[:150]))
+        if IGN in code: seen_ign = True
+    return out
+nd = scan(sys.argv[1])
+if [r[2] for r in nd] != ["yes", "no"]: print("BLIND", nd); sys.exit(2)
+for f in sys.argv[2:]:
+    for f_, fn, ign, n, t in scan(f): print("%s\t%s\t%s\t%d\t%s" % (f_, fn, ign, n, t))

@@ -1,0 +1,69 @@
+PASS instrument: the fixture invocations are found exactly (quotes, comments, case patterns, wrappers, exec of "/usr/bin/bash" and exec with redirections only)
+PASS instrument: a line naming a secret variable is listed (control needle)
+PASS lint: the table matches the scripts (rc 0)
+PASS lint: the census counts 128 invocations (positive needle)
+PASS lint finds: a new command with no row
+PASS lint finds: a changed line (stale row and no row)
+PASS lint finds: a new reference to the token
+PASS lint finds: a new command fed the token by a pipe
+PASS lint finds: an external command before rc_env_clean
+PASS lint finds: rc_env_clean removed from the publisher
+PASS lint finds: a secret channel on a row that may not carry it
+PASS lint finds: a value outside the vocabulary
+PASS lint finds: the curl row removed (no row, and its token line is unlisted)
+PASS lint: an empty table is BLIND (rc 2), never clean
+PASS lint finds: a network row not marked net-allowlist
+PASS lint finds: a script the parser cannot read
+PASS lint: the same result with the normal PATH and with an empty PATH (CENSUS invocations=128 rows=124 secret_lines=13 findings=0)
+PASS netgate: the release scripts start every network child through rc_net (rc 0)
+PASS netgate: 51 network calls are seen through rc_net (positive needle)
+PASS netgate finds: a bare git
+PASS netgate finds: a bare curl
+PASS netgate finds: a bare ssh
+PASS netgate finds: git in backticks
+PASS netgate finds: git under env
+PASS netgate finds: git under nice
+PASS netgate finds: bash -c with a quoted git
+PASS netgate finds: a command in a variable
+PASS netgate finds: eval
+PASS netgate finds: an unknown command (default deny)
+PASS netgate finds: awk running a command
+PASS netgate finds: nt defined without rc_net
+PASS netgate finds: git through an untrusted nt
+PASS netgate: the clean fixture passes, 5 network calls through rc_net, nt and net (control)
+PASS netgate: a script with no command is BLIND (rc 2)
+PASS netgate: 138 control needles with an empty PATH, 127 findings with their reason and 11 passes, as expected
+PASS netgate: the same SITE census with the normal PATH and with an empty PATH (rc 0 both, deterministic)
+PASS netgate: the golden-FALSE corpus: 128 sites of the real scripts, every one labelled with a class of the closed set, none a finding
+PASS runtime: 24 commands (24 from the table) get a recorder (control needle)
+PASS runtime: flock, cat and rm found for the recorders (control needle)
+PASS runtime: concurrent recorders never interleave (git sed misattributed: 100 100 0)
+PASS runtime: the publisher run completes (control, rc 0)
+PASS runtime: the curl call is recorded (control needle)
+PASS runtime: the request URL is in the recorded argv (positive needle)
+PASS runtime: every command the publisher ran is in the table
+PASS runtime: no argv and no environment of any child holds the token
+PASS runtime: no caller *TOKEN* variable reaches a child
+PASS runtime: the environment census reads PATH (control needle)
+PASS runtime: the curl child has LC_ALL=C (rc_net)
+PASS runtime: no RELEASE_ENV_KEEP name reaches the curl child
+PASS runtime: a local child (jq) has the RELEASE_ENV_KEEP name (control)
+PASS runtime: every name of the curl child is on NET_ALLOW (the recorder shell adds: PWD )
+PASS L5 the harness ends on SIGTERM through its handler: exit 143 (0 s after the signal)
+PASS L5 no process of the harness run is left
+PASS L5 the harness removed its work directory
+PASS N5 --only an unknown name: exit 2
+PASS N5 --only an unknown name: says so
+PASS N5 --only a real name: exit 0 (control needle)
+PASS N6 suite_exit fail=0 skipped=0
+PASS N6 suite_exit fail=1 skipped=0
+PASS N6 suite_exit fail=0 skipped=1
+PASS N6 suite_exit fail=1 skipped=1
+PASS N6 suite_exit with RELEASE_TESTS_ALLOW_SKIP=1: a skip is not a failure
+PASS N6 suite_exit with RELEASE_TESTS_ALLOW_SKIP='0': a skip exits 77
+PASS N6 suite_exit with RELEASE_TESTS_ALLOW_SKIP='': a skip exits 77
+PASS N6 suite_exit with RELEASE_TESTS_ALLOW_SKIP='yes': a skip exits 77
+PASS N6 suite_exit with RELEASE_TESTS_ALLOW_SKIP='true': a skip exits 77
+PASS N6 suite_exit with RELEASE_TESTS_ALLOW_SKIP='11': a skip exits 77
+PASS N6 suite_exit with RELEASE_TESTS_ALLOW_SKIP=1: a failure still exits 1
+RESULT: pass=68 fail=0

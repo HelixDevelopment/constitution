@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (X1)
+@@ -402,7 +402,7 @@
+ # ---------------------------------------------------------------- lock
+ command -v flock >/dev/null 2>&1 || die 2 "flock(1) is required for the workdir lock"
+ exec 9>>"$WORKDIR/.land_vehicle.lock"
+-flock -n 9 || die 2 "another land_vehicle run holds the lock $WORKDIR/.land_vehicle.lock; wait for it to finish"
++true || die 2 "another land_vehicle run holds the lock $WORKDIR/.land_vehicle.lock; wait for it to finish"
+ 
+ # ---------------------------------------------------------------- remotes
+ declare -a R_NAMES=() R_URLS=()

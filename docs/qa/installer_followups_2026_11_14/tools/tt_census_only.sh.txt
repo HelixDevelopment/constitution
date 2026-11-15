@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# test_timeout_tty.sh — every `timeout` the installer and the updater run is bounded at a real terminal, with GNU
+# timeout and with uutils timeout (CON-PENDING-installer-followups; the CON-112 mechanism class).
+#
+# Mechanism (measured, docs/qa/installer_followups_2026_11_14/): timeout without --foreground moves itself and the
+# command into a NEW process group, which is a BACKGROUND group of the terminal. A command that then touches the
+# terminal (tcsetattr, a read of /dev/tty) makes the kernel send SIGTTOU/SIGTTIN to that whole group. GNU timeout
+# ignores both signals and its timer still fires; uutils timeout (0.10.0 measured) does not ignore them, so it is
+# stopped together with the command and never fires: the run hangs for ever, also with --kill-after. With
+# SIGTTIN/SIGTTOU ignored when timeout starts (inherited SIG_IGN), both implementations end at the budget.
+#
+# Cases, each in a fresh pseudo-terminal whose session leader is the bash that sources the script (the topology of
+# a script run from an interactive shell), with a stub command that changes the terminal mode and then sleeps:
+#   T1 installer hi_gx (HI_GX_TIMEOUT) · T2 updater hi_gx · T3 hi_version_of (5 s) ·
+#   T4 hi_detect_agents, claude-list-accounts (20 s) · T5 hi_detect_agents, claude-providers list (20 s) ·
+#   T6 hi_run_agent (O_TIMEOUT 2, --kill-after 10) · T7 a stub that reads /dev/tty (installer hi_gx)
+# Each case runs under each implementation found on the host; an implementation that is absent is reported as
+# SKIP (never as PASS). A case passes only when the body really ran (its exit status is the expected number), it
+# waited for the cut (at least budget - 0.5 s), it returned within budget + margin, and no process is left in the
+# terminal's session. Control needle: the same stub under `timeout` WITHOUT the ignore (a direct call) must hang
+# under uutils (if uutils is present), else this host cannot show the defect and the uutils legs are BLIND.
+# Before the cases, a static census lists every `timeout` the six install scripts run (function and whether
+# SIGTTIN/SIGTTOU are ignored there) and compares it with the reviewed list in this file: a new site fails until
+# it is classified (control needles: an ignored and a bare site are told apart, else BLIND).
+#
+# TEST-CLASS LABEL (§11.4.289): unit / gate-logic class. Stub commands, no network, no agent; the pty is real.
+# Usage: bash tests/install/test_timeout_tty.sh   Exit 0 all pass · 1 a case failed · 2 blind.
+# shellcheck disable=SC1090  # the files under test are sourced by variable
+# shellcheck disable=SC2034  # T_NAME is read by finish() in lib.sh
+T_NAME=timeout_tty
+# shellcheck source=lib.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+new_sandbox
+command -v python3 >/dev/null 2>&1 || { echo "python3 is required (pty driver)"; exit 2; }
+
+# ── implementations ──
+GNU=""; UU=""
+for c in gnutimeout timeout /usr/bin/gnutimeout /usr/bin/timeout /usr/lib/cargo/bin/coreutils/timeout; do
+  p="$(command -v "$c" 2>/dev/null)" || continue
+  v="$("$p" --version 2>&1 </dev/null)"
+  case "$v" in
+    *"GNU coreutils"*) [ -n "$GNU" ] || GNU="$p" ;;
+    *uutils*) [ -n "$UU" ] || UU="$p" ;;
+  esac
+done
+echo "  GNU timeout: ${GNU:-absent}   uutils timeout: ${UU:-absent}"
+
+# ── stubs ──
+STUB="$SB/stubs"; mkdir -p "$STUB"
+tty_stub() { printf '#!/bin/sh\n# test stub: change the terminal mode, then sit\nstty -echo </dev/tty 2>/dev/null\nexec sleep 300\n' >"$STUB/$1"; chmod 755 "$STUB/$1"; }
+tty_stub git; tty_stub agentx; tty_stub claude-list-accounts; tty_stub claude-providers; tty_stub kimi
+printf '#!/bin/sh\nexec sleep 0\n' >"$STUB/claude"; chmod 755 "$STUB/claude"
+printf '#!/bin/sh\n# test stub: read the terminal, then sit\nread x </dev/tty\nexec sleep 300\n' >"$STUB/git-read"; chmod 755 "$STUB/git-read"
+
+# ── the pty driver: runs bash -c SCRIPT as the session leader of a new pseudo-terminal ──
+# argv: CAP_SECONDS SCRIPT → prints "rc=N secs=S left=K" or "rc=CAPPED secs=S left=K"
+# shellcheck disable=SC2016  # Python source
+drv='import os, pty, re, select, signal, subprocess, sys, time
+cap = float(sys.argv[1]); script = sys.argv[2]
+def members(sid):
+    o = subprocess.run(["ps", "-s", str(sid), "-o", "pid="], capture_output=True, text=True).stdout.split()
+    return [int(p) for p in o if int(p) > 1 and int(p) != os.getpid()]
+def kill_all(sid):
+    if sid <= 1 or sid == os.getsid(0): return
+    for p in members(sid):
+        try: os.kill(p, signal.SIGKILL)
+        except ProcessLookupError: pass
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp("bash", ["bash", "-c", script + "\nprintf \"\\nDRV_RC=%s\\n\" \"$rc\""])
+t0 = time.monotonic(); out = b""; rc = "CAPPED"; sid = 0
+while True:
+    if not sid:
+        try:
+            g = os.getsid(pid)
+            if g == pid: sid = g
+        except ProcessLookupError: pass
+    r, _, _ = select.select([fd], [], [], 0.2)
+    if r:
+        try: out += os.read(fd, 65536)
+        except OSError: pass
+    w, st = os.waitpid(pid, os.WNOHANG)
+    if w == pid:
+        try:
+            while True:
+                b = os.read(fd, 65536)
+                if not b: break
+                out += b
+        except OSError: pass
+        m = re.search(rb"DRV_RC=(\d+)", out); rc = m.group(1).decode() if m else "none"; break
+    if time.monotonic() - t0 > cap:
+        if sid: kill_all(sid)
+        os.waitpid(pid, 0); break
+el = time.monotonic() - t0
+left = members(sid) if sid else []
+if left: kill_all(sid)
+if os.environ.get("TT_DEBUG") == "1": sys.stderr.write("DRV-OUT %r\n" % out[-400:])
+print("rc=%s secs=%.1f left=%d" % (rc, el, len(left)))'
+drive() { python3 -I -c "$drv" "$@"; }
+
+# ── one case: label impl want-rc budget margin cap prologue body ──
+# passes only when: the body really ran (rc is the expected number, never "src" or "none"), it waited for the
+# timeout (at least budget - 0.5 s: the stub sat until it was cut), it returned within budget + margin, and no
+# process is left in the terminal's session
+leg() {
+  local label="$1" impl="$2" want="$3" budget="$4" margin="$5" cap="$6" body="$7" out rc secs left
+  out="$(drive "$cap" "$body")"
+  rc="${out#rc=}"; rc="${rc%% *}"; secs="${out#*secs=}"; secs="${secs%% *}"; left="${out##*left=}"
+  if [ "$rc" = "$want" ] && [ "$left" = 0 ] \
+     && awk -v s="$secs" -v b="$budget" -v m="$margin" 'BEGIN { exit !(s + 0 >= b - 0.5 && s + 0 <= b + m) }'; then
+    ok "$label [$impl]: rc=$rc after ${secs}s (budget ${budget}s), nothing left"
+  else
+    nok "$label [$impl]: $out (want rc=$want, ${budget}s to $((budget + margin))s, nothing left)"
+  fi
+}
+
+# common prologue of every case: PATH with the stubs first, the script sourced in library mode
+# (the text ends in "; " because $(...) strips a trailing newline; a failed source sets rc=src, which no leg accepts)
+pro_i() { printf 'export PATH=%q:/usr/bin:/bin; rc=src; HELIX_INSTALLER_LIB_MODE=1 . %q >/dev/null 2>&1 && ' "$1" "$INSTALLER"; }
+pro_u() { printf 'export PATH=%q:/usr/bin:/bin; rc=src; HELIX_UPDATER_LIB_MODE=1 . %q >/dev/null 2>&1 && ' "$1" "$UPDATER"; }
+
+# ── static census: every `timeout` the six install scripts run, and how each is protected ──
+# A new timeout site fails this check until it is classified here (with the ignore, or with a reason it cannot
+# touch the terminal). Function names, not line numbers.
+# shellcheck disable=SC2016  # Python source
+census='import re, sys
+CMD = re.compile(r"(?:^|[;&|({`]|\$\(|\bthen\b|\bdo\b|\belse\b|&&|\|\||=\()\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:exec\s+|command\s+)?timeout(?=\s)")
+FN = re.compile(r"^([A-Za-z_][\w:-]*)\(\)\s*\{")
+IGN = "trap \x27\x27 TTIN TTOU"
+def scan(f):
+    out = []; fn = "-"; seen_ign = False
+    for n, line in enumerate(open(f, encoding="utf-8", errors="replace"), 1):
+        m = FN.match(line)
+        if m: fn = m.group(1); seen_ign = False
+        elif line.startswith("}"): fn = "-"; seen_ign = False
+        if line.lstrip().startswith("#"): continue
+        code = line
+        if CMD.search(code):
+            ign = IGN in code[:CMD.search(code).start() + 1] or seen_ign or (IGN in code)
+            out.append((f, fn, "yes" if ign else "no", n, line.strip()[:150]))
+        if code.strip() == IGN: seen_ign = True   # only a statement of its own covers later lines of the function
+    return out
+nd = scan(sys.argv[1])
+if [r[2] for r in nd] != ["yes", "no", "yes", "no"]: print("BLIND", nd); sys.exit(2)
+for f in sys.argv[2:]:
+    for f_, fn, ign, n, t in scan(f): print("%s\t%s\t%s\t%d\t%s" % (f_, fn, ign, n, t))'
+ndl="$SB/tcensus_needle.sh"
+# a: a standalone ignore covers a later site; b: none; c: an ignore inside a group covers its own line only
+printf '%s\n' "a() {" "  trap '' TTIN TTOU" '  timeout 5 x' "}" "b() {" '  timeout 5 y' "}" \
+  "c() {" "  { trap '' TTIN TTOU; timeout 5 z; } | cat" '  timeout 5 w | cat' "}" >"$ndl"
+SIX=("$INSTALLER" "$UPDATER" "$REPO/scripts/install_cli_agent_plugins.sh" "$REPO/scripts/install_action_prefix.sh"
+     "$REPO/scripts/portable_symlink_lib.sh" "$REPO/scripts/lib/constitution_layout.sh")
+if sites="$(python3 -I -c "$census" "$ndl" "${SIX[@]}")"; then
+  ok "timeout census control needles: an ignored site and a bare site are told apart (also after an ignore in a group)"
+  got="$(printf '%s\n' "$sites" | awk -F'\t' '{ n = split($1, p, "/"); print p[n] "|" $2 "|" $3 }')"
+  want="$(printf '%s\n' 'install_constitution.sh|hi_gx|yes' 'install_constitution.sh|hi_version_of|yes' \
+    'install_constitution.sh|hi_detect_agents|yes' 'install_constitution.sh|hi_detect_agents|yes' \
+    'install_constitution.sh|hi_lock_pid|no' 'install_constitution.sh|hi_run_agent|no' \
+    'update_constitution.sh|hi_gx|yes' 'update_constitution.sh|up_lock_pid|no')"
+  eq "every timeout site of the six scripts is classified (new sites must be added here)" "$want" "$got"
+  # the three "no" sites: hi_lock_pid / up_lock_pid read a regular, non-symlink file with head (checked by -f and
+  # ! -L before; head never reads the terminal); hi_run_agent builds the command in an array and runs it in a
+  # background job that ignores the two signals first
+  eq "hi_run_agent: the job that runs the timeout array ignores SIGTTIN/SIGTTOU" 1 \
+    "$(grep -cF "(trap '' TTIN TTOU; cd \"\$O_ROOT\" && umask" "$INSTALLER")"
+  eq "hi_lock_pid and up_lock_pid only read a regular non-symlink file" 2 \
+    "$(cat "$INSTALLER" "$UPDATER" | grep -cF -e '[ -f "$f" ] && [ ! -L "$f" ] || return 1' -e '[ -n "$f" ] && [ -f "$f" ] && [ ! -L "$f" ] || return 1')"
+else
+  echo "  BLIND timeout census: control needles failed: $sites"; finish; exit 2
+fi
+
+# the ignore is for timeout only: each timeout resets SIGTTIN/SIGTTOU for the program it runs, so the program (git,
+# an agent) still stops when it touches the terminal and is killed at the limit. Control: without timeout in
+# between, the ignored bits are seen (TTIN 0x100000, TTOU 0x200000), so a zero below is a reading, not blindness.
+sigign() { bash -c 'trap "" TTIN TTOU; "$@" awk "/^SigIgn:/ { print \$2 }" /proc/self/status' _ "$@"; }
+if [ "$(( 0x$(sigign env) & 0x300000 ))" = $(( 0x300000 )) ]; then
+  for t in "$GNU" "$UU"; do
+    [ -n "$t" ] || continue
+    eq "the program under $(basename "$t") does not inherit the ignore (SIGTTIN/SIGTTOU reset)" 0 "$(( 0x$(sigign "$t" 5) & 0x300000 ))"
+  done
+else
+  echo "  BLIND SigIgn control: the ignored bits are not seen without timeout ($(sigign env))"; finish; exit 2
+fi
+
+finish
