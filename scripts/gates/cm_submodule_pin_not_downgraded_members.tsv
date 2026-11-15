@@ -46,12 +46,17 @@ gen-pybool-4eddc7783b	207	PYBOOL	if not a or a!=a.strip() or "<" in a or ">" in 
 gen-pybool-3defd62a48	207	PYBOOL	if not a or a!=a.strip() or "<" in a or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3	if not a or a!=a.strip() or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3	viable
 gen-pybool-a9e2e40ab0	207	PYBOOL	if not a or a!=a.strip() or "<" in a or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3	if not a or a!=a.strip() or "<" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3	viable
 gen-pybool-71888b8254	207	PYBOOL	if not a or a!=a.strip() or "<" in a or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3	if not a or a!=a.strip() or "<" in a or ">" in a: return 3	viable
+gen-norm-d6488cc903	208	NORM	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())	f=lambda s: unicodedata.normalize("NFC", s).casefold()	viable
+gen-norm-5f221ef89a	208	NORM	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())	f=lambda s: unicodedata.normalize("NFC", s.casefold())	viable
+gen-norm-1e01bc5d9d	208	NORM	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).lower())	viable
 gen-strip-99db10f56c	209	STRIP	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0	return 10 if any(i.lstrip() and f(i.strip())==f(a) for i in p[1:]) else 0	viable
 gen-strip-7144af3e42	209	STRIP	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0	return 10 if any(i.rstrip() and f(i.strip())==f(a) for i in p[1:]) else 0	viable
 gen-strip-38f694f31b	209	STRIP	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0	return 10 if any(i.strip() and f(i.lstrip())==f(a) for i in p[1:]) else 0	viable
 gen-strip-a8ce0752e7	209	STRIP	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0	return 10 if any(i.strip() and f(i.rstrip())==f(a) for i in p[1:]) else 0	viable
 gen-pybool-6ef1faee03	209	PYBOOL	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0	return 10 if any(f(i.strip())==f(a) for i in p[1:]) else 0	viable
 gen-pybool-5018f48fae	209	PYBOOL	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0	return 10 if any(i.strip() for i in p[1:]) else 0	viable
+gen-norm-8961072579	209	NORM	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0	return 10 if any(i.strip() and i.strip()==f(a) for i in p[1:]) else 0	viable
+gen-norm-fbc19b3fc8	209	NORM	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0	return 10 if any(i.strip() and f(i.strip())==a for i in p[1:]) else 0	viable
 gen-cmp-e4baf2058f	220	CMP	if [ -z "$kidsrc" ]; then	if [ -n "$kidsrc" ]; then	viable
 gen-cmp-7493aea0b0	225	CMP	if [ "$(pg rev-parse --is-shallow-repository 2>/dev/null)" != false ]; then kidsrc=shallow	if [ "$(pg rev-parse --is-shallow-repository 2>/dev/null)" = false ]; then kidsrc=shallow	viable
 gen-cmp-5b34bd4e40	231	CMP	[ "$kidsrc" = shallow ] && { SPENT="the superproject is shallow or its shallow state is unknown (a commit on the same parent may be hidden; git fetch --unshallow)"; return 2; }	[ "$kidsrc" != shallow ] && { SPENT="the superproject is shallow or its shallow state is unknown (a commit on the same parent may be hidden; git fetch --unshallow)"; return 2; }	viable

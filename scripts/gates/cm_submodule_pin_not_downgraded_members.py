@@ -18,6 +18,12 @@ What it enumerates (one single-line edit per mutant; the closed operator set, no
   ANDOR    every operand of a shell `&&` / `||` chain that is a test: dropped (forced true before `&&`, forced false before `||`)
   PYBOOL   every operand of a python ` or ` / ` and ` chain in the authoriser check: dropped
   NEG      every `if ! ` / `elif ! `: the `!` dropped
+  NORM     (round 12, review r11 F1) every Unicode normalisation / casing member of the python authoriser check: each
+           `unicodedata.normalize(FORM, x)` call dropped ON ITS OWN (-> x), each `.casefold()` swapped for `.lower()`
+           (and `.lower()` / `.upper()` for `.casefold()`), and the normaliser `f(..)` dropped on each operand of an
+           `==` compare on its own. The census of the class (every normalisation / casing / locale path of the gate
+           and the hook) is docs/qa/con046_review/r12_runs/norm_census.py; what it finds outside this kind is stated
+           there (none in the round-12 gate)
 A mutant that does not parse (`bash -n`) is listed as `nonviable` and not run (it is not a member, it is a syntax error).
 
 Usage:
@@ -168,7 +174,42 @@ def gen_line(i, x, py):
         if am:
             muts.append(('PYBOOL', x, x[:am.start(1)] + am.group(2) + x[am.end(2):]))
             muts.append(('PYBOOL', x, x[:am.start(1)] + am.group(1) + x[am.end(2):]))
+        # NORM (round 12, review r11 F1): every Unicode normalisation / casing member of the authoriser check
+        for m in re.finditer(r'unicodedata\.normalize\("(?:NFC|NFD|NFKC|NFKD)", ', x):
+            close = match_paren(x, x.index('(', m.start()))
+            if close is not None:
+                sub('NORM', m.start(), close + 1, x[m.end():close])  # that one normalize call dropped
+        for m in re.finditer(r'\.(casefold|lower|upper)\(\)', x):
+            for rep in {'casefold': ['lower'], 'lower': ['casefold'], 'upper': ['casefold']}[m.group(1)]:
+                sub('NORM', m.start(), m.end(), '.%s()' % rep)
+        for m in re.finditer(r'(?<![\w.])f\(', x):
+            close = match_paren(x, m.end() - 1)
+            if close is not None and (x.startswith('==', close + 1) or x[:m.start()].endswith('==')):
+                sub('NORM', m.start(), close + 1, x[m.end():close])  # the normaliser dropped on that operand only
     return muts
+
+def match_paren(x, i):
+    """index of the ')' matching the '(' at x[i], or None (one line, quotes respected)"""
+    if i < 0 or i >= len(x) or x[i] != '(':
+        return None
+    depth = 0; q = None; j = i
+    while j < len(x):
+        c = x[j]
+        if q:
+            if c == '\\':
+                j += 2; continue
+            if c == q:
+                q = None
+        elif c in '"\'':
+            q = c
+        elif c == '(':
+            depth += 1
+        elif c == ')':
+            depth -= 1
+            if depth == 0:
+                return j
+        j += 1
+    return None
 
 def build(gate):
     try:

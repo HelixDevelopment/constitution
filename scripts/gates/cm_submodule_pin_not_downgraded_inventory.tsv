@@ -60,7 +60,7 @@ I034d	[ "${nul// /}" = 0 ]	blob-nul-unchecked	-	fo	Round 11 (F3): test member: N
 I034e	= 0 ] || return 3	blob-nul-as-unreadable	-	ch	Round 11 (F3): reaction member: rc 3 vs 2 changes only the reason (NULROW counts the NUL message)
 I035	pg cat-file blob "$id" 2>/dev/null || return 2	V06-blob-cat-p	-	ch	test member: cat-file blob vs -p
 I035b	"$id" 2>/dev/null || return 2	blob-unreadable-is-absent	-	fo	reaction member: unreadable read as absent (fo, CHILDTREE)
-I036	today="$(TZ=UTC date +%Y-%m-%d)"	today-past,today-future,today-local	-	both	today: past (fo: expired rows honoured) / future (fr)
+I036	today="$(TZ=UTC date +%Y-%m-%d)"	today-past,today-future,today-local,RVR11-06-today-local-tz	-	both	today: past (fo: expired rows honoured) / future (fr)
 I036b	if [ "$crc" = 3 ]; then conferr=	conf-nul-unchecked	-	fo	Round 11 (F3): a base config holding a NUL disables waivers (NULROW (d))
 I037	maxd=30; prefix=CON; conferr=""	default-days-31,default-days-29,default-prefix-wrong	-	both	defaults: 31 (fo) / 29 (fr, HORIZON d30) / prefix (fr)
 I038	ctext="$(blob "$basec" .submodule_pin_gate.conf)"; crc=$?	config-from-index	-	ch	config read from the base commit (CONF)
@@ -101,7 +101,7 @@ I067b	!=a.strip() or "<"	RV7-04-authoriser-lstrip-only	-	fo	trailing half of str
 I068	or "<" in a	auth-lt-dropped	-	fo	'<' member (AUTHLTGT); fr form is auth-form-always (I066)
 I068b	or ">" in a	auth-gt-dropped	-	fo	'>' member (AUTHLTGT); fr form is auth-form-always (I066)
 I069	any(unicodedata.category(c).startswith("C") for c in a)	authoriser-control-chars-allowed,V12-authoriser-only-Cc	-	fo	control characters (KV12ZWSP); fr form is auth-form-always
-I070	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())	no-casefold-no-nfc,casefold-without-nfc,V13-casefold-to-lower,normalise-to-empty	-	both	normalisation: weaker (fo, AUTHNORM, KV13SHARPS) / everything equal (fr)
+I070	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())	no-casefold-no-nfc,casefold-without-nfc,V13-casefold-to-lower,normalise-to-empty,RVR11-01-outer-nfc-dropped,RVR11-02-inner-nfc-dropped	-	both	normalisation: weaker (fo, AUTHNORM, KV13SHARPS) / everything equal (fr) Round 12 (review r11 F1): each NFC call has its own killer (AUTHNORM fields 7 and 8: committer U+0399 U+0308 U+0301 vs authoriser U+0390 kills the outer NFC dropped, RVR11-01; committer U+03B1 U+0345 U+0301 vs its NFC U+1FB4 kills the inner NFC dropped, RVR11-02); the generated NORM kind drops each normalize call, swaps casefold for lower and drops f on each == operand
 I071	return 10 if any(	self-authoriser-allowed,self-always,RV10-05-email-space-strip,ident-names-ascii-strip	-	both	self-waive: allowed (fo) / always (fr)
 I071b	i.strip() and f(i.strip())==f(a)	-	eq-idpy-strip-and-dropped	none	equivalent: an empty identity field never equals a non-empty authoriser (an empty authoriser is refused first; differential proof)
 I071c	==f(a) for i in p[1:]	RV8-01-ident-compare-unstripped,RV9-11-ident-zs-only-strip	eq-ident-strip-truthiness	fo	round 9: the comparison strips the identity, and git keeps a non-ASCII space in a name, so an unstripped compare (RV8-01) or a one-sided strip (generated gen-strip-38f694f31b / gen-strip-a8ce0752e7) lets the committer self-waive (ZSID, fo; no false-refusal form); the truthiness halves (i.lstrip() / i.rstrip() and) are equivalent for every string (eq-ident-strip-truthiness). Round 8 claimed all halves equivalent (FALSE, review F1) Round 10: RV9-11 (strip Zs + ASCII only) lets a U+0085 / U+2028 / U+2029 padded identity self-waive (WSID, fo).
@@ -115,9 +115,9 @@ I078	hx=""	N4-head-always-excluded,RV10-08-spent-exclude-head-always	-	ch	HEAD e
 I079	pg diff-index --cached --quiet --ignore-submodules=none "${headc:-$basec}"	NM1-n4-ignore-submodules-dropped,NM6-n4-worktree-not-index-ADAPTED,N4-porcelain-diff,N4-quiet-dropped,N4-compares-base	-	both	test member: is the judged index HEAD's tree (N4INDEX, KNM1, KNM1GM)
 I079b	2>/dev/null && hx="$headc"	N4-head-always-excluded,V14-n4-hx-is-base	-	ch	reaction member: which commit is excluded
 I080	!= false ]; then kidsrc=shallow	M1-shallow-superproject-unchecked,NM2-shallow-unknown-is-deep,shallow-always	-	both	shallow superproject: unchecked (fo) / always (fr)
-I081	elif all="$(pg rev-list --exclude=refs/stash --all --parents 2>/dev/null)"; then kidsrc=ok	RM8-scope-branches-only,RM14-single-worktree,M2-stash-counted,NM8-stash-exclude-after-all,V15-spent-hides-remotes,V16-spent-hides-notes,spent-hides-tags,spent-no-parents	-	both	candidate set: narrower (fo, KVREFS) / stash counted (fr, STASH)
+I081	elif all="$(pg rev-list --exclude=refs/stash --all --parents 2>/dev/null)"; then kidsrc=ok	RM8-scope-branches-only,RM14-single-worktree,M2-stash-counted,NM8-stash-exclude-after-all,V15-spent-hides-remotes,V16-spent-hides-notes,spent-hides-tags,spent-no-parents,RVR11-07-stash-counted	-	both	candidate set: narrower (fo, KVREFS) / stash counted (fr, STASH)
 I082	kids="$(printf '%s\n' "$all" | awk 'BEGIN{b=ARGV[1]; h=ARGV[2]	spent-head-counted	-	ch	children filter
-I083	$1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}	spent-head-counted,NM3-first-parent-only,spent-any-parent-is-base,kids-awk-never-matches,RV10-03-spent-first-parent-only	-	both	child-of-base: any parent (fr) / none (fo)
+I083	$1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}	spent-head-counted,NM3-first-parent-only,spent-any-parent-is-base,kids-awk-never-matches,RV10-03-spent-first-parent-only,RVR11-03-kids-first-parent-skipped	-	both	child-of-base: any parent (fr) / none (fo)
 I084	else kidsrc=err; fi	kidsrc-err-is-ok	-	fo	rev-list failure -> cannot tell; as ok (fo)
 I085	[ "$kidsrc" = shallow ] &&	shallow-test-never	-	ch	test member: exit-equivalent, any kidsrc other than ok refuses on the next line ([ "$kidsrc" = ok ] || return 2), so the member only selects the reason (SHALLOWSUP / KNM2 count it); the fo form of shallow detection is I084 (M1-shallow-superproject-unchecked); round 8 need corrected from fo
 I085b	git fetch --unshallow)"; return 2; }	shallow-reason-dropped,shallow-says-spent	-	ch	reaction member: dropped falls through to the ok check (return 2, other reason), says-spent returns spent (refused, other reason): every form refuses, only the reason differs (SHALLOWSUP / KNM2); round 8 need corrected from both
@@ -136,7 +136,7 @@ I092	NF==7 && $1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	NM9-spent-extra-f
 I092b	$1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	RM11-spent-ignores-path,spent-numeric-path,RV10-07-spent-path-ignored,spent-path-nocase,spent-path-prefix	-	fr	path member (K11PATH, SPENTNUM)
 I092c	$2""==o"" && $3""==n"" && $7""==b""	RM12-spent-ignores-old,spent-old-prefix12	-	fr	old-pin member (K12OLD); Round 10: a sibling row with a near-miss old pin must not spend (SPENTNEAR field 1)
 I092d	$3""==n"" && $7""==b""	NM4-spent-ignores-new,spent-new-prefix12	-	fr	new-pin member (KNM4); Round 10: a sibling row with a near-miss new pin must not spend (SPENTNEAR field 2)
-I092e	$7""==b"" {f=0}	spent-base-ignored,spent-base-prefix12	-	fr	base member (SIBOTHER); Round 10: a sibling row with a near-miss base must not spend (SPENTNEAR field 3)
+I092e	$7""==b"" {f=0}	spent-base-ignored,spent-base-prefix12,RVR11-04-spent-base-field-unchecked	-	fr	base member (SIBOTHER); Round 10: a sibling row with a near-miss base must not spend (SPENTNEAR field 3)
 I092f	 {f=0} END{exit f}' "$1"	spent-awk-always-match	-	fr	match result: always (fr)
 I093	&& { SPENT="$k"; return 0; }	spender-ignored	-	fo	a spender found is ignored (fo)
 I094	  return 1<NL>}<NL>WHY=""	spent-default-spent	-	fr	NOTE anchor shared by three lines: see L1 exemption; spent default unspent -> spent (fr)
@@ -193,7 +193,7 @@ I134	done <<<"$cand"	rows-exhausted-is-waived	-	ch	rows source
 I134b	done <<<"$cand"<NL>  return 1	rows-exhausted-is-waived	-	fo	default after all rows: waived (fo)
 I135	fail=0; blind=0; checked=0	fail-init-1,blind-init-1,count-not-incremented	-	fr	initial state: fail/blind set (fr)
 I136	blindmsg() { echo "$GATE: BLIND $1 — $2. Fix: $3"; blind=1; }	blind-is-pass	-	fo	BLIND recorded
-I137	pg diff --cached --raw -z --no-abbrev --no-renames --ignore-submodules=none "$basec" |	RM2-ignore-submodules,RM3-renames,no-z-parsing,base-ignored	-	ch	index diff (IGNSUB, RENAME)
+I137	pg diff --cached --raw -z --no-abbrev --no-renames --ignore-submodules=none "$basec" |	RM2-ignore-submodules,RM3-renames,no-z-parsing,base-ignored,RVR11-05-main-diff-renames-on	-	ch	index diff (IGNSUB, RENAME)
 I138	while IFS= read -r -d '' meta && IFS= read -r -d '' path; do	no-z-parsing	-	ch	NUL records
 I138b	IFS= read -r -d '' path; do	path-read-not-nul,pathread-ifs-dropped	-	fo	path record member
 I139	[ -n "$path" ]	path-test-inverted	-	fo	test member: inverted (fo)
