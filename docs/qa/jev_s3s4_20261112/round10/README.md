@@ -51,6 +51,11 @@ to 7) and `CON-PENDING-JEV` (rounds 8 to 10). On `main`, CON-299 is a different 
 minted through the workable-items engine and every one of these three trailers on this vehicle maps to that minted id
 (recorded in the item's description and in the landing CHANGELOG entry). The trailers are not rewritten.
 
+## Checksums touched by this round
+
+R9-8 edited the prose of `round3/README.md` (the history-rewrite advice), so its line in the top-level `SHA256SUMS`
+is updated to the new content (old `4e6950bc…f9fb`). No other evidence file of an earlier round is changed.
+
 ## Follow-ups (drafts minted at landing, not here)
 
 O6-1 (intermittent `test_review_fixes_r2.sh` P2, root cause UNKNOWN), CLOCK-BOOTSTRAP, MONO-FALLBACK (a host without
