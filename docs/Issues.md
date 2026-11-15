@@ -4701,7 +4701,16 @@ What: the created_at restore applier applies each plan row in its own engine cal
 
 What: --dry-run opens the database the same way as a real run, so it needs write access and cannot run on a read-only copy. Scope: workable-items restore-created-at. Reproduction: not applicable (documented limit). Acceptance: --dry-run opens the database read-only (or the limit stays documented with a recorded decision), with a test on a read-only file. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-07. Parent CON-313.
 
-## CON-401 — Jev S3/S4: honest bootstrap exit codes, default-on wiring, capacity-gated local placement, per-endpoint calibration, status control view
+## CON-401 — Security hardening scripts: forge branch protection (force-push and deletion of main), GitHub Actions inventory and pinned disable, read-only history secret scan (landed from the security-scripts vehicle, review r4 GO-with-follow-ups)
+
+**Status:** In progress
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: three security hardening scripts under scripts/security/ with their hermetic tests under tests/security/ and the guide docs/guides/security_hardening_scripts.md: forge_branch_protect.sh (blocks force-push and deletion of main on the forges that host the constitution; plan by default, apply guarded by FORGE_PROTECT_APPLY=yes, one target, a matching --apply-confirm and the built-in apply allowlist; each token bound to its host on port 443; gh pinned to --hostname github.com), github_actions_inventory_disable.sh (inventories GitHub Actions in the own orgs; disables Actions only for the 9 repositories pinned in scripts/security/actions_disable_allowlist.txt and built into the script) and history_secret_scan.sh (read-only full-history secret scan of one repository across all its remotes, with control needles planted inside the scanned mirror). Landed on main as one squash commit of the security-scripts vehicle head e940110e (bundle security_scripts_r3.bundle sha256 10210425e886491453bd8cc0059670648f6095e15cac8149f9eef8ba6c249faa, round 3 on rounds 1-2 70c3a26d and 3d6339b3, which were NO-GO intermediates and are not carried). The vehicle commits carry the placeholder trailer Roadmap-Item CON-PENDING-SECURITY; this item is its real id (section 11.4.214; vehicle text not rewritten). Scope: scripts/security/, tests/security/, docs/guides/security_hardening_scripts.md, docs/qa/security_scripts_2026_11_12/, the README docs link and the full-suite manifest rows. Reproduction: not applicable (new tooling, built test-first; RED and GREEN logs per round in docs/qa/security_scripts_2026_11_12/). Acceptance: independent review GO (done: review r4 GO-with-follow-ups, session-74ce2b36 scratchpad (outside the repository)/review_security_scripts_r4.md sha256 cc5bbe1a2e5012651ab71f22fafc0ba8b4f1b6a859716be34b94958d14338c4a; forge 168/168, actions 44/44, history 45/45, 5 of 17 reviewer mutants survive, all test-instrumentation); follow-ups R4-1 to R4-5 are CON-316 to CON-320 (filed earlier, not re-filed); VERIFIED only after a live run against the real forges under the separate operator authority (section 11.4.289; the tests are hermetic gate-logic tests against a loopback fixture and a fake gh and gitleaks, never a live proof). The guide's own header still says round 3 is not yet independently reviewed; that line is stale since review r4 and is part of the vehicle text, left as reviewed. Codeberg force-push blocking (CON-322), Gitea glob-rule ordering, the Dependabot effect (CON-323) and a real-gitleaks run stay UNCONFIRMED. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289). No script was executed against a real forge or host by the landing.
+
+## CON-402 — Jev S3/S4: honest bootstrap exit codes, default-on wiring, capacity-gated local placement, per-endpoint calibration, status control view
 
 **Status:** In progress
 **Type:** Task
@@ -4715,27 +4724,27 @@ UNKNOWN: whether the toolkit (claude_toolkit, owned elsewhere) will fail over fr
 Ids: this item was carried on the vehicle as CON-299 (rounds 1 to 7), CON-PENDING-JEV (rounds 8 to 10) and, in the trailer of dc654757, CON-PENDING-JEV-CONSTITUTION. main minted CON-299 for another item (land_vehicle lander), so this item is minted anew at landing (§11.4.54, §11.4.214). The round-10 landing pack (never landed) minted it as CON-388 on the vehicle database; main then minted CON-388 to CON-400 for other items, so it was minted again at the round-11 landing. Commit trailers are not rewritten; the mapping note is in CHANGELOG.md and docs/qa/jev_s3s4_20261112/round10/README.md.
 Status: rounds 1 to 11 of independent review; the round-11 head is gate-logic evidence only (§11.4.289(C)(2)), PROVISIONAL (§11.4.290); live acceptance (T5 local placement) is open.
 
-## CON-402 — Intermittent failure of tests/jev/test_review_fixes_r2.sh P2 (bootstrap row), root cause UNKNOWN
+## CON-403 — Intermittent failure of tests/jev/test_review_fixes_r2.sh P2 (bootstrap row), root cause UNKNOWN
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
-**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T19:49:00Z — by `jev-r11-fixer`
-**Investigation:** not-started — updated 2026-11-15T19:49:00Z — by `jev-r11-fixer`
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T20:10:45Z — by `jev-r11-fixer`
+**Investigation:** not-started — updated 2026-11-15T20:10:45Z — by `jev-r11-fixer`
 
 What: P2 of tests/jev/test_review_fixes_r2.sh failed once in a full run during Jev round 6 and has not been seen again; round 7 added an instrument (keep_bs_evidence keeps bs.out/err, gate.out, status.json, cap.json and the rc). Reproduction: 12 of 12 standalone repetitions and every run_all run passed (round 7); not reproduced in rounds 8 to 10. Next: run P2 in a loop under normal host load (at least 50 runs) and keep every instrument dump of a failure. Acceptance: a captured failing run with the instrument output, a root cause shown by a decisive experiment (§11.4.292(G)) and a RED-to-GREEN row, or closure as not-reproducible with the attempts and a control needle. Draft: docs/qa/jev_s3s4_20261112/round8/item_draft_O6-1.md (was CON-PENDING-O6-1).
 
-## CON-403 — Jev bootstrap.sh and jev-calibrate.sh stamp record times with the process-start clock after long work
+## CON-404 — Jev bootstrap.sh and jev-calibrate.sh stamp record times with the process-start clock after long work
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Low
-**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T19:49:00Z — by `jev-r11-fixer`
-**Investigation:** root-cause-unconfirmed — updated 2026-11-15T19:49:00Z — by `jev-r11-fixer`
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T20:10:45Z — by `jev-r11-fixer`
+**Investigation:** root-cause-unconfirmed — updated 2026-11-15T20:10:45Z — by `jev-r11-fixer`
 
 What: scripts/jev/bootstrap.sh and scripts/jev/jev-calibrate.sh read the clock once at process start and stamp generated_at, probed_at, pending_at, first_created and calibrated_at with it after long work (probes). The error makes records look older (fail-closed for freshness checks); no unsafe effect is known. Fix: stamp each field at write time. Found by the Jev round-8 census (census_stale_clock.md). Draft: docs/qa/jev_s3s4_20261112/round8/item_draft_clock_bootstrap.md (was CON-PENDING-CLOCK-BOOTSTRAP).
 
-## CON-404 — Jev placement: ages on wall time where no monotonic source exists (decide fail-closed or a visible warning)
+## CON-405 — Jev placement: ages on wall time where no monotonic source exists (decide fail-closed or a visible warning)
 
 **Status:** Queued
 **Type:** Task
@@ -4743,7 +4752,7 @@ What: scripts/jev/bootstrap.sh and scripts/jev/jev-calibrate.sh read the clock o
 
 What: scripts/jev/jev-place.sh judges mark and lease ages on a monotonic clock (boot id and uptime) where /proc provides one; a host without readable /proc, and records written by an older producer without mono, are judged on wall time, so a wall-clock step can expire a live mark or lease early or keep a dead one late. Acceptance: an operator decision (§11.4.66) between refusing local placement on such a host (fail closed to the fallback route) and keeping the wall-time rule with a visible warning in status; either way status --json names the clock source in use (monotonic or wall) and a test pins it. Draft: docs/qa/jev_s3s4_20261112/round9/item_draft_mono_fallback.md (was CON-PENDING-MONO-FALLBACK).
 
-## CON-405 — helix-deps.yaml llmctl ref is stale: records 3877467 while the recorded gitlink is 391d8177
+## CON-406 — helix-deps.yaml llmctl ref is stale: records 3877467 while the recorded gitlink is 391d8177
 
 **Status:** Queued
 **Type:** Task

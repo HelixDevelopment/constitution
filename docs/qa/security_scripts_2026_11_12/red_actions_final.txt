@@ -1,0 +1,112 @@
+ok   1 workflow repo selected
+ok   2 archived repo not selected
+ok   3 fork with a workflow selected
+ok   4 dynamic Pages repo excluded
+FAIL 5 Pages deployed by a custom workflow (GET /pages build_type workflow) excluded
+     | repo	visibility	archived	fork	workflow_files	dynamic	actions_enabled	allowed	last_run	selected
+     | T/ci	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/arch	public	true	false	ci.yml(active)	-	true	all	-|-|-	no
+     | T/forkci	public	false	true	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/pagesdyn	public	false	false	ci.yml(active)	pages/pages-build-deployment	true	all	-|-|-	excluded-pages
+     | T/custompages	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/noci	public	false	false	-	-	true	all	-	no
+     | T/off	public	false	false	ci.yml(active)	-	?	all	-|-|-	no
+     | T/permfail	public	false	false	ci.yml(active)	-	?	-	-|-|-	no
+     | T/wffail	ERR
+     | T/pgfail	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+ok   6 repo without workflows not selected
+ok   7 repo with Actions already disabled not selected
+FAIL 8 permissions GET failure -> ERR row (scope never silently shrinks)
+     | repo	visibility	archived	fork	workflow_files	dynamic	actions_enabled	allowed	last_run	selected
+     | T/ci	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/arch	public	true	false	ci.yml(active)	-	true	all	-|-|-	no
+     | T/forkci	public	false	true	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/pagesdyn	public	false	false	ci.yml(active)	pages/pages-build-deployment	true	all	-|-|-	excluded-pages
+     | T/custompages	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/noci	public	false	false	-	-	true	all	-	no
+     | T/off	public	false	false	ci.yml(active)	-	?	all	-|-|-	no
+     | T/permfail	public	false	false	ci.yml(active)	-	?	-	-|-|-	no
+     | T/wffail	ERR
+     | T/pgfail	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+ok   9 workflows GET failure -> ERR row
+FAIL 10 Pages GET failure (not 404) -> ERR row
+     | repo	visibility	archived	fork	workflow_files	dynamic	actions_enabled	allowed	last_run	selected
+     | T/ci	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/arch	public	true	false	ci.yml(active)	-	true	all	-|-|-	no
+     | T/forkci	public	false	true	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/pagesdyn	public	false	false	ci.yml(active)	pages/pages-build-deployment	true	all	-|-|-	excluded-pages
+     | T/custompages	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/noci	public	false	false	-	-	true	all	-	no
+     | T/off	public	false	false	ci.yml(active)	-	?	all	-|-|-	no
+     | T/permfail	public	false	false	ci.yml(active)	-	?	-	-|-|-	no
+     | T/wffail	ERR
+     | T/pgfail	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+FAIL 11 every row has 11 columns
+     | repo	visibility	archived	fork	workflow_files	dynamic	actions_enabled	allowed	last_run	selected
+     | T/ci	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/arch	public	true	false	ci.yml(active)	-	true	all	-|-|-	no
+     | T/forkci	public	false	true	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/pagesdyn	public	false	false	ci.yml(active)	pages/pages-build-deployment	true	all	-|-|-	excluded-pages
+     | T/custompages	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/noci	public	false	false	-	-	true	all	-	no
+     | T/off	public	false	false	ci.yml(active)	-	?	all	-|-|-	no
+     | T/permfail	public	false	false	ci.yml(active)	-	?	-	-|-|-	no
+     | T/wffail	ERR
+     | T/pgfail	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+FAIL 12 ERR rows -> exit 1
+     | repo	visibility	archived	fork	workflow_files	dynamic	actions_enabled	allowed	last_run	selected
+     | T/ci	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/arch	public	true	false	ci.yml(active)	-	true	all	-|-|-	no
+     | T/forkci	public	false	true	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/pagesdyn	public	false	false	ci.yml(active)	pages/pages-build-deployment	true	all	-|-|-	excluded-pages
+     | T/custompages	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/noci	public	false	false	-	-	true	all	-	no
+     | T/off	public	false	false	ci.yml(active)	-	?	all	-|-|-	no
+     | T/permfail	public	false	false	ci.yml(active)	-	?	-	-|-|-	no
+     | T/wffail	ERR
+     | T/pgfail	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+ok   13 clean org -> exit 0
+FAIL 14 org listing failure -> ERR row, exit 1, other org still listed
+     | repo	visibility	archived	fork	workflow_files	dynamic	actions_enabled	allowed	last_run	selected
+     | gh: error (HTTP 500)
+ok   15 --select enabled selects every enabled non-archived repo
+ok   16 --org with --repos-file -> 2
+ok   17 unknown argument -> 2
+ok   18 bad repos-file line -> 2
+FAIL 19 apply without GH_ACTIONS_APPLY -> 3, no PUT
+     | unknown argument: --repos-file
+FAIL 20 apply without --repos-file -> 3, no PUT, refused for the missing pin
+     | repo	visibility	archived	fork	workflow_files	dynamic	actions_enabled	allowed	last_run	selected
+     | T/ci	public	false	false	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/forkci	public	false	true	ci.yml(active)	-	true	all	-|-|-	yes
+     | T/noci	public	false	false	-	-	true	all	-	no
+     | # would: PUT /repos/T/ci/actions/permissions {"enabled":false}
+     | # readback T/ci enabled=false
+     | # would: PUT /repos/T/forkci/actions/permissions {"enabled":false}
+     | # readback T/forkci enabled=false
+FAIL 21 apply with a wrong confirm token -> 3, no PUT
+     | unknown argument: --repos-file
+FAIL 22 plan prints the confirm token and SCOPE MATCH, exit 0
+     | unknown argument: --repos-file
+FAIL 23 apply pinned 3 repos across 2 orgs -> exit 0
+     | unknown argument: --repos-file
+FAIL 24 exactly the pinned repos were PUT, each with enabled=false
+     | unknown argument: --repos-file
+FAIL 25 every read-back reported DISABLED
+     | unknown argument: --repos-file
+FAIL 26 re-run after apply: already-disabled, no PUT, exit 0
+     | unknown argument: --repos-file
+FAIL 27 a live-selected repo outside the pin -> refused 3, diff printed, no PUT
+     | unknown argument: --repos-file
+FAIL 28 a pinned repo not selected live (archived) -> refused 3, no PUT
+     | unknown argument: --repos-file
+FAIL 29 a pinned repo that serves Pages -> refused 3, no PUT
+     | unknown argument: --repos-file
+FAIL 30 an ERR row in a pinned org -> apply refused, exit 1, no PUT
+     | unknown argument: --repos-file
+FAIL 31 a failed PUT -> exit 1 (other repos still done)
+     | unknown argument: --repos-file
+FAIL 32 read-back still enabled=true -> exit 1
+     | unknown argument: --repos-file
+ok   33 shipped allowlist lists exactly 9 repos
+RESULT: 13/33 passed

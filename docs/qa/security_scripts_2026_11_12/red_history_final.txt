@@ -1,0 +1,98 @@
+ok   1 clean repo -> exit 0, findings=0
+FAIL 2 needles reported OK on the clean run
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+ok   3 work directory removed
+ok   4 scanner called with --redact and --log-opts=--all -m on the bare mirror
+FAIL 5 exactly one scanner run
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+ok   6 secret only in the 2nd remote (deleted later) -> exit 1, one finding
+ok   7 needle findings are not in the report
+ok   8 no token value in stdout, stderr or any output file
+FAIL 9 scanner exits 126 after writing [] -> SCANNER-ERROR 6
+     | BLIND: control needle failed
+FAIL 10 scanner crash without report -> 6
+     | jq: error: Could not open file <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/hss.0WAI/pos.json: No such file or directory
+     | <scratchpad>/secfix.OWV1/constitution/../../secfix_redtree/scripts/security/history_secret_scan.sh: line 52: [: : integer expected
+     | BLIND: control needle failed
+ok   11 work directory removed after a failure
+FAIL 12 scanner blind on the bare mirror -> BLIND 3 (needles live in the mirror)
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+ok   13 always-blind scanner -> 3
+FAIL 14 scanner exit 0 with no report -> SCANNER-ERROR 6, never clean
+     | jq: error: Could not open file <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/hss.A3tG/pos.json: No such file or directory
+     | <scratchpad>/secfix.OWV1/constitution/../../secfix_redtree/scripts/security/history_secret_scan.sh: line 52: [: : integer expected
+     | BLIND: control needle failed
+FAIL 15 tip-only scanner (no history) -> BLIND 3 on the history needle first
+     | BLIND: control needle failed
+FAIL 16 scanner misses only the history needle -> BLIND 3 naming it
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+FAIL 17 scanner misses only the merge-only needle -> BLIND 3 naming it
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+FAIL 18 always-find scanner -> 3 (negative needle)
+     | findings=1 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+FAIL 19 exit 0 with findings (inconsistent) -> 6
+     | findings=1 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+FAIL 20 scanner that drops -m (merge diffs) -> BLIND 3 on the merge needle
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+FAIL 21 missing safe_rm.sh -> 5 (not 1)
+     | <scratchpad>/secfix.OWV1/constitution/../../secfix_redtree/scripts/security/history_secret_scan.sh: line 36: <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/nonexistent/safe_rm.sh: No such file or directory
+FAIL 22 jq missing -> 5
+     | <scratchpad>/secfix.OWV1/constitution/../../secfix_redtree/scripts/security/history_secret_scan.sh: line 52: jq: command not found
+     | <scratchpad>/secfix.OWV1/constitution/../../secfix_redtree/scripts/security/history_secret_scan.sh: line 52: [: : integer expected
+     | BLIND: control needle failed
+ok   23 no scanner -> 4, nothing downloaded
+ok   24 no URL -> 2
+FAIL 25 SCRATCH unset -> 2
+     | <scratchpad>/secfix.OWV1/constitution/../../secfix_redtree/scripts/security/history_secret_scan.sh: line 33: SCRATCH: set SCRATCH to a scratch directory
+FAIL 26 URL with user:password -> 2, URL not printed
+     | fatal: unable to access 'https://example.invalid/r.git/': Could not resolve host: example.invalid
+FAIL 27 https URL with a user part -> 2
+     | fatal: unable to access 'https://example.invalid/r.git/': Could not resolve host: example.invalid
+FAIL 28 unknown option -> 2
+     | error: unknown option `bogus'
+     | usage: git clone [<options>] [--] <repo> [<dir>]
+     | 
+     |     -v, --[no-]verbose    be more verbose
+     |     -q, --[no-]quiet      be more quiet
+     |     --[no-]progress       force progress reporting
+     |     --[no-]reject-shallow don't clone shallow repository
+     |     -n, --no-checkout     don't create a checkout
+     |     --checkout            opposite of --no-checkout
+     |     --[no-]bare           create a bare repository
+     |     --[no-]mirror         create a mirror repository (implies --bare)
+     |     -l, --[no-]local      to clone from a local repository
+     |     --no-hardlinks        don't use local hardlinks, always copy
+     |     --hardlinks           opposite of --no-hardlinks
+     |     -s, --[no-]shared     setup as shared repository
+     |     --[no-]recurse-submodules[=<pathspec>]
+     |                           initialize submodules in the clone
+     |     --[no-]recursive[=<pathspec>]
+     |                           alias of --recurse-submodules
+     |     -j, --[no-]jobs <n>   number of submodules cloned in parallel
+     |     --[no-]template <template-directory>
+     |                           directory from which templates will be used
+     |     --[no-]reference <repo>
+     |                           reference repository
+     |     --[no-]reference-if-able <repo>
+     |                           reference repository
+     |     --[no-]dissociate     use --reference only while cloning
+     |     -o, --[no-]origin <name>
+     |                           use <name> instead of 'origin' to track upstream
+     |     -b, --[no-]branch <branch>
+FAIL 29 unreachable remote -> git error 7
+     | fatal: repository '<scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/does-not-exist' does not exist
+FAIL 30 --keys-file is performed: KEY_A found, KEY_B not, exit 1
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+     | exact-match pass: see REPORT.md §1 for the python used on 2026-11-12 (names + counts only)
+FAIL 31 placeholder value skipped, controls not in the output
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+     | exact-match pass: see REPORT.md §1 for the python used on 2026-11-12 (names + counts only)
+ok   32 no key value anywhere in stdout, stderr or output
+ok   33 key value never in any process argv recorded by the scanner shim
+FAIL 34 --keys-file on a repo without the values -> exit 0
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+     | exact-match pass: see REPORT.md §1 for the python used on 2026-11-12 (names + counts only)
+FAIL 35 group/other-readable keys file -> 2
+     | findings=0 -> <scratchpad>/secfix.OWV1/constitution/../../tmp.mKrhxgbhGn/scratch/out.tsv (classify each: fixture vs real)
+     | exact-match pass: see REPORT.md §1 for the python used on 2026-11-12 (names + counts only)
+RESULT: 12/35 passed
