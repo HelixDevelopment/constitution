@@ -17,6 +17,7 @@
 - [RED and GREEN](#red-and-green)
 - [Mutants](#mutants)
 - [Suite runs](#suite-runs)
+- [Integration with main](#integration-with-main)
 - [Honest limits](#honest-limits)
 
 ## What the findings were
@@ -81,6 +82,18 @@ name. Unit tests kill all three in the real table.
   2 equivalent, 0 survived, 0 harness errors.
 - `runs/sync_guide.txt` and `runs/verify_manifest.txt`: `scripts/run_full_suite.sh --sync-guide` and
   `--verify-manifest`.
+
+## Integration with main
+
+Main moved to `f67d926c` (CON-401, CON-402, tracker ids up to CON-411) while this round ran. Main was merged into the
+vehicle (commit `2170f21c`). There were four additive conflicts, and each was resolved by keeping both sides: the
+README docs row, `config/full_suite_manifest.tsv`, step 5b/5c of `scripts/post_update_hook.sh`, and the census in
+`docs/guides/full_suite_runner_guide.md` (regenerated with `--sync-guide`). The conflicts were resolved on Opus,
+effort UNKNOWN (§11.4.211). After the merge, in `merge/`: `run_all.sh --quick` gave `RUN_ALL: PASS` with the same
+verdict hash `b538ebf8…5cbe`, `test_post_update_hub_gates.sh`, `test_run_full_suite.sh` and
+`test_full_suite_manifest_gate_git_env.sh` passed, and `--verify-manifest` gave MANIFEST-OK (census total 951).
+`sh -n` of the hook fails identically on main; it is a bash script (`bash -n` passes). The full mutation run
+predates the merge. The merge changed no file under `scripts/sync/` or `tests/sync/`.
 
 ## Honest limits
 
