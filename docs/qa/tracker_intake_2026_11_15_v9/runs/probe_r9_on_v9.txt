@@ -1,0 +1,93 @@
+POS p01-key-suffix HIT password-assign-unquoted
+POS p02-key-suffix-apikey-v2 HIT password-assign-unquoted
+POS p03-py-bytes HIT password-assign
+POS p04-py-fstring HIT password-assign
+POS p05-py-raw HIT password-assign
+POS p06-split-concat-c HIT password-assign
+POS p07-split-concat-plus HIT password-assign
+POS p08-sql-identified-by HIT password-space-quoted
+POS p09-sql-with-password HIT password-space-quoted
+POS p10-openssl-pass HIT short-flag-value
+POS p11-redis-cli-a HIT short-flag-value
+POS p12-docker-login-p HIT short-flag-value
+POS p13-azure-accountkey HIT password-assign-unquoted
+POS p14-camel-userpass HIT short-key-assign
+POS p15-camel-adminpwd HIT short-key-assign
+POS p16-html-entity-json HIT password-assign
+POS p17-html-numeric-key HIT password-assign-unquoted
+POS p18-double-percent HIT password-assign-unquoted
+POS p19-octal-escape-key HIT password-assign-unquoted
+POS p20-combining-mark HIT password-assign-unquoted
+POS p21-cgj-in-key HIT password-assign-unquoted
+POS p22-variation-selector HIT password-assign-unquoted
+POS p23-latin-alpha HIT password-assign-unquoted
+POS p24-small-caps HIT password-assign-unquoted
+POS p25-armenian-o HIT password-assign-unquoted
+POS p26-cherokee-mixed HIT password-assign-unquoted
+POS p27-german-key HIT password-assign-unquoted
+POS p28-signing-key HIT password-assign-unquoted
+POS p29-encryption-key HIT password-colon-unquoted
+POS p30-master-key HIT password-assign-unquoted
+POS p31-bearer-16 HIT authorization-header
+POS p32-authorization-apikey HIT password-space,authorization-header
+POS p33-htpasswd-b HIT short-flag-value
+POS p34-toml-inline-table HIT password-assign
+POS p35-ini-colon-space-key HIT password-assign-unquoted
+POS p36-k8s-stringdata-json HIT short-key-assign
+POS p37-env-json-escaped-twice HIT password-assign
+POS p38-uuencoded-url-at HIT url-userinfo-password
+POS p39-line-continuation HIT password-assign-unquoted
+POS p40-hex-escape-value HIT password-assign
+POS p41-mongo-p HIT short-flag-value
+POS p42-psql-conninfo HIT password-assign-unquoted
+POS p43-unicode-escape-key-json HIT password-assign
+POS p44-fullwidth-equals HIT password-assign-unquoted
+POS p45-nbsp-around-sep HIT password-assign-unquoted
+POS p46-tab-sep-tsv HIT password-space
+POS p47-key-in-brackets HIT password-assign-unquoted
+POS p48-js-object-noquote HIT password-assign
+POS p49-go-struct-backtick HIT password-assign
+POS p50-gpg-passphrase HIT password-flag-space
+NEG n01-vault-ref ok 
+NEG n02-sops-enc ok 
+NEG n03-test-report ok 
+NEG n04-ref-plus ok 
+NEG n05-k8s-secretkeyref ok 
+NEG n06-helm-tpl ok 
+NEG n07-gha-secret ok 
+NEG n08-erb ok 
+NEG n09-placeholder-angle ok 
+NEG n10-masked ok 
+NEG n11-getenv ok 
+NEG n12-prose-rule-name ok 
+NEG n13-token-count ok 
+NEG n14-url-port ok 
+NEG n15-file-flag ok 
+NEG n16-pass-ok ok 
+NEG n17-hash-field ok 
+NEG n18-doc-example ok 
+NEG n19-commit-sha-word ok 
+NEG n20-azure-keyvault-ref ok 
+SUMMARY pos=50 miss=0 neg=20 fp=0
+MISSED 
+FPS 
+CONTROL positive ok; negative: True
+TIME password-eq-repeat     len= 180000 1.443s
+TIME backslash-run          len=  40010 0.146s
+TIME quote-backslash-mix    len=  40007 0.106s
+TIME dash-ident-run         len=  40010 0.062s
+TIME word-run-no-key        len= 100000 0.087s
+TIME dot-run-space          len=  40011 0.046s
+TIME xml-open-run           len=  80000 0.209s
+TIME xml-attr-run           len=  90000 0.219s
+TIME url-colon-run          len=  40004 0.056s
+TIME pgpass-colon-run       len=  40004 0.414s
+TIME flag-run               len=  40007 0.036s
+TIME yaml-block-run         len=  40012 0.068s
+TIME pct-run                len=  90000 0.169s
+TIME uescape-run            len= 120000 0.284s
+TIME mysql-run              len=  40006 0.096s
+TIME space-key-run          len=  60008 0.066s
+TIME colon-many             len=  90000 1.997s
+elapsed=5.62s maxrss=43048KB
+rc=0

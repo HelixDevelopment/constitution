@@ -1,0 +1,35 @@
+STALE cf_strip_dropped: the text to replace occurs 0 times
+STALE nfkc_dropped: the text to replace occurs 0 times
+STALE fold_dropped: the text to replace occurs 0 times
+STALE unescape_views_dropped: the text to replace occurs 0 times
+STALE percent_view_dropped: the text to replace occurs 0 times
+KILLED quoted_value_dropped
+KILLED quoted_no_escape
+STALE word_pwd_dropped: the text to replace occurs 0 times
+KILLED word_token_dropped
+STALE word_auth_dropped: the text to replace occurs 0 times
+KILLED filler_value_dropped
+KILLED minlen_9
+KILLED special_dropped
+KILLED digit_required_dropped
+KILLED quoted_letters_dropped
+KILLED url_case_dropped
+KILLED url_digits_dropped
+STALE short_flag_user_dropped: the text to replace occurs 0 times
+KILLED short_flag_joined_dropped
+KILLED pgpass_star_dropped
+KILLED pgpass_dropped
+KILLED window_dropped
+STALE key_rest_kept: the text to replace occurs 0 times
+KILLED vendor_aws
+KILLED vendor_github
+KILLED vendor_slack
+KILLED vendor_auth_header
+KILLED home_path
+KILLED user_name
+KILLED report_dropped
+KILLED prints_match
+CONTROL: the unmutated scan reports the fake hit and prints none of it
+CONTROL FAILED: leak_scan_test.py on the unmutated scan rc=1
+RESULT: mutants=31 bad=10
+rc=1

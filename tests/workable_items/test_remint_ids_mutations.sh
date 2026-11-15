@@ -27,7 +27,7 @@
 #   self-checks and its text rules; N72..N88: the rest of that run's survivors, i.e. verify's segment
 #   check and its control of untouched items, check_od, check_history, the referent condition, and the
 #   planner's refusal of a removed obsolete_details row; N89..N91: three survivors of the sixth sweep
-#   run, i.e. FAST-FORWARD verify's id-set and table checks and the CON-339 note on a created_at
+#   run, i.e. FAST-FORWARD verify's id-set and table checks and the engine-defect note on a created_at
 #   MISMATCH, which run 5 had counted killed only through a flaky case). ROV-mutants: the round-5
 #   reviewer's mutants (ROV1..ROV10) verbatim, except ROV3 (the clause without its line continuation), and
 #   ROVFIX, the round-5 defect R5-1 put back (a field-only update passes the target's description).
@@ -90,7 +90,7 @@ mutants=(
   'X7 plan always FAST-FORWARD|T|    fast_forward = all(table_rows(con["target"], t) == table_rows(con["base"], t) for t in KNOWN_TABLES)|||    fast_forward = True'
   'X8 replay: target sha256 not checked|T|    if got != plan["sha256"]["target"]:|||    if False:'
   'X9 replay: -wal sidecar not checked|T|    wal = a.db + "-wal"\n    if os.path.isfile(wal) and os.path.getsize(wal) > 0:|||    wal = a.db + "-wal"\n    if False:'
-  'X10 verify: untouched target items not compared|T|        if R.get(i) != T[i]:|||        if False:'
+  'X10 verify: untouched target items not compared (remapped round 9)|T|        elif R.get(i) != T[i]:\n            bad.append("%s: an item the landing must not touch|||        elif False:\n            bad.append("%s: an item the landing must not touch'
   'X11 --resolve target ignored|T|        if res == "target":\n            continue|||        if False:\n            continue'
   'X12 stamp-only change not refused|T|        for n in stamp_only:|||        for n in []:'
   'X13 body_md-only change not refused|T|            if norm(v["body_md"]) != norm(b["body_md"]):|||            if False:'
@@ -182,11 +182,11 @@ mutants=(
   'N49 verify: a plan the planner did not call landable is verified (T2)|T|    if plan["conflicts"] or plan["refusals"]:\n        raise Refusal("the plan has %d conflict(s) and %d refusal(s): it was never|||    if False:\n        raise Refusal("the plan has %d conflict(s) and %d refusal(s): it was never'
   'N50 verify: a new vehicle id outside the prefix not flagged (T3)|T|        if not idrx.fullmatch(i):|||        if False:'
   'N51 verify: the own set counts a new id outside the prefix|T|    own = sorted((i for i in set(V) - set(B) if idrx.fullmatch(i)), key=num)|||    own = sorted((i for i in set(V) - set(B) if True), key=num)'
-  'N52 verify: the referent of a rewritten id not checked|T|            if x != y and "." not in x and "–" not in x:|||            if False:'
+  'N52 verify: the referent of a rewritten id not checked (remapped round 9)|T|            if x != y and "." not in x and "–" not in x and sup.get(x) != y:|||            if False:'
   'N53 verify: a vehicle or base item with two rows not flagged|T|        if len(V[i]) != 1 or len(B[i]) != 1:|||        if False:'
   'N54 verify: an item nobody changed checked as replayed (the planner skips it)|T|        if vb_same:\n            continue|||        if False:\n            continue'
   'N55 verify: an item whose only change is a time stamp checked as replayed|T|        if not dv and not od_changed:|||        if False:'
-  'N56 verify: a replayed item that landed as two rows not flagged|T|        if i not in R or len(R[i]) != 1:|||        if False:'
+  'N56 verify: a replayed item that landed as two rows not flagged (remapped round 9)|T|        replayed.add(i)\n        if i not in R or len(R[i]) != 1:|||        replayed.add(i)\n        if False:'
   'N57 verify: a column outside the rewrite set compared under the map|T|            if c in TEXT_REWRITE:\n                return v_compare|||            if True:\n                return v_compare'
   'N58 verify: a plan map entry that is not a pair is read|T|        if not (isinstance(pair, list) and len(pair) == 2):|||        if False:'
   'N59 replay: a failing engine step does not stop the replay|T|        if r.returncode != 0:|||        if False:'
@@ -221,7 +221,7 @@ mutants=(
   'N88 verify: a rewritten id naming another item not reported (the referent condition)|T|                    bad.append("%s %s: %s now names %s, which is not the item %s named in the vehicle" % (i, col, x, y, x))|||                    pass'
   'N89 verify FAST-FORWARD: landed ids that are not the vehicle ids not reported|T|        if set(R) != set(V):|||        if False:'
   'N90 verify FAST-FORWARD: a table that differs from the vehicle not reported|T|            if table_rows(cr, t) != table_rows(cv, t):|||            if False:'
-  'N91 verify: a created_at MISMATCH carries the CON-339 note of a KNOWN line|T|" (KNOWN engine defect CON-339: close rewrites it)" if closed else ""|||" (KNOWN engine defect CON-339: close rewrites it)" if True else ""'
+  'N91 verify: a created_at MISMATCH carries the engine-defect note of a KNOWN line|T|" (KNOWN engine defect: close rewrites it)" if closed else ""|||" (KNOWN engine defect: close rewrites it)" if True else ""'
   'ROV1 verify FAST-FORWARD: item_history not compared|T|for t in OTHER_TABLES + ["obsolete_details", "item_history"]:|||for t in OTHER_TABLES + ["obsolete_details"]:'
   'ROV2 verify: a new vehicle id in non-ASCII digits read into the own set|T|idrx = re.compile(re.escape(prefix) + r"-[0-9]+")|||idrx = re.compile(re.escape(prefix) + r"-\d+")'
   'ROV3 verify: the referent check ignores the item type|T|or vr[0]["type"] != rr[0]["type"] or norm(vr[0]["created_by"])|||or norm(vr[0]["created_by"])'
@@ -233,6 +233,30 @@ mutants=(
   'ROV9 verify: the referent check ignores created_by|T| or norm(vr[0]["created_by"]) != norm(rr[0]["created_by"]):|||:'
   'ROV10 verify: the referent check ignores the title|T|if not vr or not rr or v_split(norm(vr[0]["title"])|||if not vr or not rr or False and v_split(norm(vr[0]["title"])'
   'ROVFIX planner: a field-only update re-renders the body through a forced --description (the round-5 defect R5-1)|T|"--db", "{DB}", "--location=" + loc]\n            for c in ucols:|||"--db", "{DB}", "--location=" + loc, "--description=" + norm(t["description"])]\n            for c in ucols:'
+  'RW1 next free id skips one (reviewer round 9, verbatim)|T|start = max(num(i) for i in T if rx.fullmatch(i)) + 1|||start = max(num(i) for i in T if rx.fullmatch(i)) + 2'
+  'RW3 foreign span upper bound exclusive (reviewer round 9, verbatim)|T|return n in nums or any(lo <= n <= hi for lo, hi in spans)|||return n in nums or any(lo <= n < hi for lo, hi in spans)'
+  'RW4 path check ignores slash before id (reviewer round 9, verbatim)|T|    if before == "/" or after[:1] == "/" or re.match(r"\.\w", after):|||    if after[:1] == "/" or re.match(r"\.\w", after):'
+  'RW5 token boundary allows trailing dash (reviewer round 9, verbatim)|T|tok = re.compile(r"(?<![\w-])" + p + r"-([0-9]+)\b(?!-)")|||tok = re.compile(r"(?<![\w-])" + p + r"-([0-9]+)\b")'
+  'RW6 width from last own id (reviewer round 9, verbatim)|T|width = len(own[0].rsplit("-", 1)[1])|||width = 2'
+  'RW7 vehicle-stay collision not refused (reviewer round 9, verbatim)|T|                if new in stay:\n|||                if new in stay and False:\n'
+  'RW8 between-range connector dropped (reviewer round 9, verbatim)|T|(\s+(?i:and)\s+)|||(\s+(?i:andx)\s+)'
+  'OR1 plan r9: the superseded vehicle id is minted too|T|        minted = [o for o in own if o not in sup]|||        minted = list(own)'
+  'OR2 plan r9: the superseded id is not mapped onto the target item|T|            m.update(sup)|||            pass'
+  'OR3 plan r9: --supersede onto a base item accepted|T|            elif tid in B:\n                refuse(tag + "%s is a base item|||            elif False:\n                refuse(tag + "%s is a base item'
+  'OR4 plan r9: two vehicle ids onto one target item accepted|T|            if len(vids) > 1:|||            if len(vids) > 2:'
+  'OR5 plan r9: the supersede target naming its vehicle id not checked (XREF-SUPERSEDED off)|T|            names = sorted(set(names) | set(selfref), key=num)|||            names = sorted(set(names), key=num)'
+  'OR6 plan r9: the converged-text exemption dropped|T| and minted_new[x.group(0)] not in vnames}, key=num)|||}, key=num)'
+  'OR7 plan r9: the annotation is not appended|T|"--description=" + norm(t["description"]) + "\\n\\n" + line]})|||"--description=" + norm(t["description"])]})'
+  'OR8 plan r9: a resolution reason that names an id accepted|T|                elif re.search(r"(?<![\w-])[A-Z]+-[0-9]+\b", reason):|||                elif False:'
+  'OR9 plan r9: the landing check is not appended to the Duplicate check line|T|                lines_[k_] = lines_[k_].rstrip() + " " + landing_checks[new]|||                pass'
+  'OR10 verify r9: the supersede target naming its vehicle id not required to be annotated|T|                     | {x for x in t_names if sup.get(x) == i and not t_foreign(x)}, key=num)|||, key=num)'
+  'OR11 verify r9: the landing checks of the plan not recomputed|T|    if want_lc != plan["landing_checks"]:|||    if False:'
+  'OR12 verify r9: the audit copy of a superseded row not compared|T|                    or au[0].get("description") != norm(V[old][0]["description"]):|||                    or False:'
+  'OR13 verify r9: a re-bound id in the landed text not reported|T|            if x not in T and x in R and not (num(x) in nums_r|||            if False and x not in T and x in R and not (num(x) in nums_r'
+  'OR14 verify r9: a superseded id may land on a base item|T|        if tid not in T or tid in B:|||        if tid not in T:'
+  'OR15 plan r9: an own item with no Duplicate check line accepted for a landing check|T|                elif len(DUP_LINE.findall(norm(vrow["description"]))) != 1:|||                elif False:'
+  'OR16 plan r9: a verdict outside the closed set accepted|T|                elif verdict not in DUP_VERDICTS:|||                elif False:'
+  'OR17 verify r9: the annotated item compared to the target without the annotation|T|            if norm(r["description"]) != norm(t["description"]) + "\\n\\n" + want_annot[i]:|||            if norm(r["description"]) != norm(t["description"]) + "\\n\\n" + want_annot[i] and False:'
   'S1 suite: a failing fixture edit is ignored|S|echo "setup: fx_sql failed: $2" >&2; exit 2;|||true;'
   'S2 suite: a fixture edit that matches no row is accepted|S|if n == 0:  # DML that matched no row; DDL reports -1|||if False:'
   'S3 suite: fx_sql may touch the real database|S|  [ "$a" != "$b" ] || { echo "setup: fx_sql refuses the real database" >&2; exit 2; }\n  case "$a" in "$tmp"/*) ;; *) echo "setup: fx_sql edits only scratch copies under the temp dir" >&2; exit 2 ;; esac|||  :'
@@ -245,6 +269,16 @@ mutants=(
   'RR7 check_body: the unchanged-target branch keyed on tdiff only (reviewer round 8, verbatim)|T|    if not tdiff and norm(t["body_md"]) == norm(b["body_md"]):\n|||    if not tdiff:\n'
   'RR8 planner: the created_at note never emitted (reviewer round 8, verbatim)|T|        steps.extend(isteps)\n        if norm(v["created_at"]) != norm(b["created_at"]):\n|||        steps.extend(isteps)\n        if False:\n'
   'RR9 check_body: heading compared with the vehicle title, not the landed one (reviewer round 8, verbatim)|T|    if heads and heads[0] not in ("## %s — %s" % (i, norm(r["title"])), "## %s. %s" % (i, norm(r["title"]))):|||    if heads and heads[0] not in ("## %s — %s" % (i, norm(v["title"])), "## %s. %s" % (i, norm(v["title"]))):'
+)
+
+# Equivalent mutants (section 11.4.276(D), review r9 F4): an edit that cannot change the tool's answer is not
+# run as a mutant; it is listed with its evidence file. The harness checks that the edit still matches the
+# tool once (a code change re-opens the question) and that the evidence shows its control needle ok and a
+# clean RESULT. RW2: the "new id already exists in the target" refusal cannot fire, every new id is above the
+# highest target id of the prefix (tools/equiv_rw2.py runs the tool's own three lines on 200000 cases).
+# id description | evidence file (repo-relative) | evidence RESULT line | old ||| new
+equivalent=(
+  'RW2 collision with target id not refused (reviewer round 9, verbatim; equivalent)|docs/qa/tracker_intake_2026_11_15_v9/runs/equiv_RW2.txt|RESULT cases=200000 collisions=0|                if new in T:\n                    refuse(|||                if new in T and False:\n                    refuse('
 )
 
 mkcopy() { # mkcopy <src> <dest> <old> <new>  (\n in old/new is a newline)
@@ -304,5 +338,16 @@ for i in "${sel[@]}"; do
   if [ -f "$tmp/v$i" ]; then cat "$tmp/v$i"; grep -q '^PASS' "$tmp/v$i" || fail=1
   else echo "FAIL ${mutants[$i]%%|*}: no verdict"; fail=1; fi
 done
-echo "RESULT: mutants=${#sel[@]} $([ "$fail" = 0 ] && echo 'all killed' || echo 'FAILED')"
+neq=0
+for e in "${equivalent[@]}"; do
+  id=${e%% *}; rest=${e#*|}; ev=${rest%%|*}; rest=${rest#*|}; want=${rest%%|*}; rest=${rest#*|}; old=${rest%%|||*}; new=${rest#*|||}
+  if [ -n "${REMINT_IDS_MUT_ONLY:-}" ]; then case ",$REMINT_IDS_MUT_ONLY," in *",$id,"*) ;; *) continue ;; esac; fi
+  neq=$((neq + 1))
+  if ! mkcopy "$src" "$tmp/eq.py" "$old" "$new" 2>"$tmp/eq.err"; then echo "FAIL $id: equivalent edit is stale (re-run its evidence tool)"; fail=1
+  elif ! [ -f "$root/$ev" ]; then echo "FAIL $id: no evidence file $ev"; fail=1
+  elif grep -q '^CONTROL needle .* ok$' "$root/$ev" && grep -qx "$want" "$root/$ev" && grep -qx 'rc=0' "$root/$ev"; then
+    echo "EQUIV $id: $want"
+  else echo "FAIL $id: the evidence does not show an equivalent mutant: $ev"; fail=1; fi
+done
+echo "RESULT: mutants=${#sel[@]} equivalent=$neq $([ "$fail" = 0 ] && echo 'all killed' || echo 'FAILED')"
 [ "$fail" = 0 ]

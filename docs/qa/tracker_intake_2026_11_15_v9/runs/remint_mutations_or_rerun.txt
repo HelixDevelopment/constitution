@@ -1,0 +1,7 @@
+PASS control: unmutated copy passes the suite (RESULT: pass=518 fail=0)
+PASS OR1 plan r9: the superseded vehicle id is minted too: rc=1 first-failure=R9-F2: superseding a middle own id leaves no gap in the minted ids: got: old	new|CON-
+PASS OR11 verify r9: the landing checks of the plan not recomputed: rc=1 first-failure=R9-F2: verify FAIL: the plan's landing checks edited: rc=0 want=1: KNOWN CON-347 crea
+PASS OR12 verify r9: the audit copy of a superseded row not compared: rc=1 first-failure=R9-F2: verify FAIL: the plan's audit copy of the superseded row edited: rc=0 want=1: 
+PASS OR14 verify r9: a superseded id may land on a base item: rc=1 first-failure=R9-F2: verify FAIL: a superseded id landing on a base item: /^MISMATCH CON-357 -> CON
+RESULT: mutants=4 equivalent=0 all killed
+rc=0

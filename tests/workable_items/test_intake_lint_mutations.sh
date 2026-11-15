@@ -159,10 +159,10 @@ mutants=(
   'LV4 rendered: a non-item ## heading does not end the item section (round-4 reviewer)|L|no|                    cur = hm.group(1) if hm else None|||                    cur = hm.group(1) if hm else cur'
   $'LV5 SECRET: pattern anchored at the surface start (round-4 reviewer; remapped onto secret_hits)|L|yes|        m = pat.search(t)|||        m = pat.match(t)'
   'LV6 load: a second location row dropped (round-4 reviewer, mapped)|L|no|        if i in items:  # a second location row is linted too|||        if False:  # a second location row is linted too'
-  'LN1 CONTROL-CHAR: format characters (Cf) not reported|L|yes|        if CONTROL_CHAR.match(ch) or unicodedata.category(ch) == "Cf":|||        if CONTROL_CHAR.match(ch):'
+  'LN1 CONTROL-CHAR: format characters (Cf) not reported (remapped round 9)|L|yes|        if CONTROL_CHAR.match(ch) or unicodedata.category(ch) == "Cf" or INVISIBLE_CHAR.match(ch):|||        if CONTROL_CHAR.match(ch) or INVISIBLE_CHAR.match(ch):'
   'LN2 CONTROL-CHAR: every text read through the ASCII class|L|yes|    if text.isascii():\n        cm = CONTROL_CHAR.search(text)|||    if True:\n        cm = CONTROL_CHAR.search(text)'
   'LN3 CONTROL-CHAR: the last character reported, not the earliest|L|no|    for ch in text:\n        if CONTROL_CHAR.match(ch) or|||    for ch in reversed(text):\n        if CONTROL_CHAR.match(ch) or'
-  $'LN4 SECRET: the password key family not read (remapped onto the round-6 key list)|L|yes|r"(?:pass(?:word|wd|phrase)|client|||r"(?:client'
+  $'LN4 SECRET: the password key family not read (remapped onto the round-9 STRONG_HEADS)|L|yes|STRONG_HEADS = frozenset({"password", "passwd", "passphrase", "passwort"|||STRONG_HEADS = frozenset({"passwort"'
   'LN5 SECRET: a reference value ($VAR, <placeholder>) reported as a secret (remapped onto the round-8 value classifier)|L|no|    if v[0] in _REF_START:\n|||    if False:\n'
   $'LS1 SECRET: a quoted key (JSON) not read (remapped onto _KQ)|L|no|_KQ = r"(?:\\\\?[\\"\'`])?"|||_KQ = r""'
   'LS2 SECRET: the quoted value after a colon not read (remapped onto _SEP_Q)|L|no|_SEP_Q = r"\s*(?::=|=>|:|=)\s*"|||_SEP_Q = r"\s*(?::=|=>|=)\s*"'
@@ -173,8 +173,8 @@ mutants=(
   'LS7 SECRET: a URL user-info reference reported (remapped)|L|no|        if v[0] in "$<{%*" or re.fullmatch|||        if v[0] in "*" or re.fullmatch'
   $'LS8 SECRET: Authorization: Token not read|L|no|(?:bearer|token)\\s+|||(?:bearer)\\s+'
   'LS9 SECRET: the => separator of a quoted value not read (remapped onto _SEP_Q)|L|no|_SEP_Q = r"\s*(?::=|=>|:|=)\s*"|||_SEP_Q = r"\s*(?::=|:|=)\s*"'
-  'LS10 SECRET: the := separator of an unquoted value not read (remapped)|L|no|_KQ + r"\s*(?::=|=>|=)\s*(?P<v>[^\s|||_KQ + r"\s*(?:=>|=)\s*(?P<v>[^\s'
-  $'LS11 SECRET: a header key after a hyphen (X-Api-Key) not read (remapped onto _KEY_LEAD)|L|no|_KEY_LEAD = r"(?:\\b|_|(?<=[A-Za-z0-9.-]))"|||_KEY_LEAD = r"(?:^|(?<=\\s)|_)"'
+  'LS10 SECRET: the := separator of an unquoted value not read (remapped round 9)|L|no|_KQ + r"\s*(?::=|=>|=)\s*(?=(?P<v>|||_KQ + r"\s*(?:=>|=)\s*(?=(?P<v>'
+  $'LS11 SECRET: a header key after a hyphen (X-Api-Key) not read (remapped onto the round-9 key split)|L|no|_WSPLIT = re.compile(r"[\\W_]+")|||_WSPLIT = re.compile(r"[^\\w-]+|_+")'
   'LS12 SECRET: a masked quoted value reported (remapped onto _MASK)|L|no|    if _MASK.match(v):\n|||    if _MASK.match(v) and not quote:\n'
   'LN6 SECRET: Authorization: Basic not reported|L|yes|(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{8,}|||(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{80,}'
   'LN7 XREF-DANGLING: an id in non-ASCII digits not reported|L|yes|state_text(r)) if not u.group(1).isascii()}):|||state_text(r)) if False}):'
@@ -183,34 +183,68 @@ mutants=(
   'LN10 a finding both rows carry reported twice|L|no|                        if f not in raw:|||                        if True:'
   'LN11 a non-empty -wal sidecar read|L|no|    if os.path.isfile(wal) and os.path.getsize(wal) > 0:\n        raise Blind(|||    if False:\n        raise Blind('
   'LN12 the database path read as URI syntax|L|no|urllib.parse.quote(os.path.abspath(db))|||os.path.abspath(db)'
+  'RV1 Cf strip narrowed to ZWSP (reviewer round 9, ported to the round-9 code)|L|no|            drop.add("Cf")|||            t = t.replace("\u200b", "")'
+  'RV3 \x escapes not decoded (reviewer round 9, verbatim)|L|no|u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}||||u[0-9A-Fa-f]{4}|'
+  'RV4 min value length 8->9 (reviewer round 9, verbatim)|L|no|    if len(v) < 8:\n        return False\n    if _MASK.match(v):|||    if len(v) < 9:\n        return False\n    if _MASK.match(v):'
+  'RV5 mask regex unanchored at end (reviewer round 9, verbatim)|L|no|r"^[xX*.#\s-]+$"|||r"^[xX*.#\s-]+"'
+  'RV6 percent not a reference start (reviewer round 9, verbatim)|L|no|_REF_START = "$<{%"|||_REF_START = "$<{"'
+  'RV7 placeholder suffix -here dropped (reviewer round 9, verbatim)|L|no|[-_.](?:here|goes[-_]here|placeholder)$|||[-_.](?:goes[-_]here|placeholder)$'
+  'RV8 URL digit-start password treated as port (reviewer round 9, verbatim)|L|no|if re.match(r"\d+/", v):|||if re.match(r"\d+", v):'
+  'RV9 pgpass wildcard port dropped (reviewer round 9, verbatim)|L|no|[^\s:#]+:(?:\d{1,5}|\*):|||[^\s:#]+:(?:\d{1,5}):'
+  'RV10 Greek omicron unfolded (reviewer round 9, verbatim)|L|no|"\u03b1": "a", "\u03bf": "o",|||"\u03b1": "a",'
+  'RV11 upper-case identifier key needs >8 chars (reviewer round 9, verbatim)|L|no|(key.isupper() and len(key) > 3)|||(key.isupper() and len(key) > 8)'
+  'RV12 tab allowed inside a value (reviewer round 9, ported to the round-9 code)|L|no|    if "\t" in v:\n        return False  # a tab inside|||    if False:\n        return False  # a tab inside'
+  'RV13 percent view only when at start (reviewer round 9, ported to the round-9 code)|L|no|_PCT.search(t) else None|||_PCT.match(t) else None'
+  'RV14 stripe restricted-key prefix dropped (reviewer round 9, verbatim)|L|no|\b[rs]k_(?:live|test)_|||\bsk_(?:live|test)_'
+  'RV15 telegram id min 8->9 digits (reviewer round 9, verbatim)|L|no|\b\d{8,10}:AA|||\b\d{9,10}:AA'
+  'RV16 xml close-tag check removed (reviewer round 9, ported to the round-9 code)|L|no|        if tier is None or m.group("ctag") != m.group("key"):\n            continue|||        if tier is None or not m.group("ctag"):\n            continue'
+  'RV17 flag usage placeholder accepts lower case (reviewer round 9, verbatim)|L|no|if re.fullmatch(r"[A-Z][A-Z0-9_]*", v):|||if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", v):'
+  'RV18 code-attr exclusion ignores digits (reviewer round 9, verbatim)|L|no|(_CODE_ATTR.match(v) and not any(c.isdigit() for c in v))|||_CODE_ATTR.match(v)'
+  'RV19 short-key ">" guard dropped (reviewer round 9, verbatim)|L|no|    if tier == "short" and v[0] in ".>":\n        return False\n|||'
+  'RV20 single-quoted $literal allowed for double quotes (reviewer round 9, verbatim)|L|no|if not (quote == "'\''" and v[0] == "$"|||if not (quote in "'\''\"" and v[0] == "$"'
+  'OL1 SECRET r9: the loose two-letter qualifier rule off (PGid_token)|L|no|_qualified(prev, w, head, quals, loose=(i > 0 and ws[i - 1][1]) or upper)|||_qualified(prev, w, head, quals, loose=False)'
+  'OL2 SECRET r9: a word that ends with a strong head is not a key (PGPASSWORD)|L|no|any(_like(w, h) for h in STRONG_HEADS) or any(_ends_like(w, h) for h in SUFFIX_HEADS):|||any(_like(w, h) for h in STRONG_HEADS):'
+  'OL3 SECRET r9: META_WORDS after the head ignored (password_policy reported)|L|no|    return all(x.isdigit() or re.fullmatch(r"v[0-9]+", x) or x not in META_WORDS for x in tail)|||    return True'
+  'OL4 SECRET r9: KEY_NEGATIVE ignored (public_key reported)|L|no|            return None if prev in KEY_NEGATIVE else "short"|||            return "short"'
+  'OL5 SECRET r9: the HTML entity view off|L|no|SECRET_DECODE_ENTITIES = True|||SECRET_DECODE_ENTITIES = False'
+  'OL6 SECRET r9: adjacent string literals not joined|L|no|SECRET_JOIN_LITERALS = True|||SECRET_JOIN_LITERALS = False'
+  'OL7 SECRET r9: marks (Mn, Me) not stripped from a key|L|no|SECRET_STRIP_MARKS = True|||SECRET_STRIP_MARKS = False'
+  'OL8 SECRET r9: the Latin-by-name fold off (small capitals)|L|no|SECRET_FOLD_LATIN_NAMES = True|||SECRET_FOLD_LATIN_NAMES = False'
+  'OL9 SECRET r9: the decoding closure one layer deep (double percent)|L|no|SECRET_VIEW_LAYERS = 3|||SECRET_VIEW_LAYERS = 1'
+  'OL10 SECRET r9: the string prefix (b, f, r) before a quoted value not read|L|no|_QPRE = r"(?P<sp>(?<![\w])[bBrRuUfF]{1,2})?"|||_QPRE = r"(?P<sp>)"'
+  'OL11 SECRET r9: the bracketed key subscript not read (config[password])|L|no|(?:\[\s*\\?[\"'\''`]?[\w.\-]{1,255}\\?[\"'\''`]?\s*\]){0,4}|||(?:\[\s*\\?[\"'\''`]?[\w.\-]{1,255}\\?[\"'\''`]?\s*\]){0,0}'
+  'OL12 SECRET r9: a quoted value after whitespace (IDENTIFIED BY) not read|L|no|        if tier == "strong" and _has_ld(v) and credential_value("strong", v, q):\n            yield "password-space-quoted"|||        if False:\n            yield "password-space-quoted"'
+  'OL13 SECRET r9: the Authorization header of another scheme not read|L|no|        if credential_value("generic", v, ""):\n            yield "authorization-header"|||        if False:\n            yield "authorization-header"'
+  'OL14 SECRET r9: openssl pass: not read|L|no|    r"(?<![\w-])-(?:pass|passin|passout)\s+pass:(?P<v>\S+)",\n|||'
+  'OL15 SECRET r9: redis-cli -a not read|L|no|    r"\bredis-cli\b[^\\n|;&]*?\s-a\s+(?P<v>[^\s-]\S*)",\n|||'
+  'OL16 SECRET r9: the secret-manager reference guard off (vault:...)|L|no|    if _REF_URI.match(v) or _REF_ANNOT.match(v) or _REF_ARN.match(v):|||    if _REF_ARN.match(v):'
   'S1 suite cleanup refusal not an error|S|no|    echo "CLEANUP REFUSED: temp dir left behind: $tmp" >&2\n    exit 2|||    echo "CLEANUP REFUSED: temp dir left behind: $tmp" >&2'
-  $'LR1 SECRET: a key joined to a prefix by nothing (PGPASSWORD) not read|L|no|_KEY_LEAD = r"(?:\\b|_|(?<=[A-Za-z0-9.-]))"|||_KEY_LEAD = r"(?:\\b|_)"'
-  $'LR2 SECRET: the NFKC form not read (full-width separators and letters)|L|no|SECRET_NFKC = True|||SECRET_NFKC = False'
-  'LR3 SECRET: an unquoted value starting with > read (remapped)|L|no|        if v[:1] in "'"'"'\"`(\\[>" or not v:|||        if v[:1] in "'"'"'\"`(\\[" or not v:'
-  'LR4 SECRET: a backtick-quoted value not read (remapped onto _QVAL)|L|no|_QVAL = r"\\?(?P<q>[\"'"'"'`])|||_QVAL = r"\\?(?P<q>[\"'"'"'])'
+  $'LR1 SECRET: a key joined to a prefix by nothing (PGPASSWORD) not read (remapped onto SUFFIX_HEADS)|L|no| or any(_ends_like(w, h) for h in SUFFIX_HEADS)|||'
+  $'LR3 SECRET: an unquoted value starting with > read (remapped round 9)|L|no|        if tier is None or v[:1] in "\'\\"`(\\\\[>" or not v:|||        if tier is None or v[:1] in "\'\\"`(\\\\[" or not v:'
+  $'LR4 SECRET: a backtick-quoted value not read (remapped onto the round-9 _QVAL)|L|no|_QVAL = _QPRE + r"\\\\?(?P<q>[\\"\'`])|||_QVAL = _QPRE + r"\\\\?(?P<q>[\\"\'])'
   'LR5 SECRET: an escaped closing quote (JSON in a string) not read (remapped onto _QVAL)|L|no|[^\\n\\])*)\\?(?P=q)"\n|||[^\\n\\])*)(?P=q)"\n'
-  $'LR6 SECRET: a short key read inside a word (bypass, oauth)|L|no|_SHORT_LEAD = r"(?<![A-Za-z0-9])"|||_SHORT_LEAD = r""'
-  'LR7 SECRET: a short key with a quoted value (Docker auth) not read (remapped)|L|no|        if tier == "short":\n            if credential_value("short", v, q):|||        if tier == "short":\n            if False:'
+  $'LR6 SECRET: a short key read inside a word (bypass, oauth) (remapped onto the round-9 short heads)|L|no|    if w in SHORT_HEADS:\\n|||    if w in SHORT_HEADS or w.endswith(("pass", "auth")):\\n'
+  'LR7 SECRET: a short key with a quoted value (Docker auth) not read (remapped round 9)|L|no|            if credential_value(tier, v, q):\n                yield "short-key-assign"|||            if False:\n                yield "short-key-assign"'
   'LR8 SECRET: a path after a short key read as a value (remapped)|L|no|    if _PATH.match(v):\n|||    if _PATH.match(v) and tier != "short":\n'
   'LR9 SECRET: an upper-case flag placeholder (--password PASSWORD) read as a value (remapped)|L|no|        if re.fullmatch(r"[A-Z][A-Z0-9_]*", v):\n            continue  # a usage-line placeholder|||        if False:\n            continue  # a usage-line placeholder'
   $'LR10 SECRET: a netrc password keyword not read|L|no|\\blogin\\s+\\S+\\s+pass(?:word|wd)\\s+|||\\blogin\\s+\\S+\\s+passwd\\s+'
-  'LR11 SECRET: an XML element named by a strong key not read (remapped)|L|no|        if m.group("ctag") != m.group("otag"):\n            continue\n        if credential_value(tier, v, "<"):|||        if m.group("ctag") != m.group("otag") or tier == "strong":\n            continue\n        if credential_value(tier, v, "<"):'
-  'LR12 SECRET: an XML element named by a generic key not read (remapped)|L|no|        if m.group("ctag") != m.group("otag"):\n            continue\n        if credential_value(tier, v, "<"):|||        if m.group("ctag") != m.group("otag") or tier == "generic":\n            continue\n        if credential_value(tier, v, "<"):'
+  'LR11 SECRET: an XML element named by a strong key not read (remapped round 9)|L|no|        if tier is None or m.group("ctag") != m.group("key"):\n            continue|||        if tier is None or m.group("ctag") != m.group("key") or tier == "strong":\n            continue'
+  'LR12 SECRET: an XML element named by a generic key not read (remapped round 9)|L|no|        if tier is None or m.group("ctag") != m.group("key"):\n            continue|||        if tier is None or m.group("ctag") != m.group("key") or tier == "generic":\n            continue'
   'LR13 SECRET: a quoted value with a space (a passphrase) not read (remapped)|L|no|            if tier == "strong" and credential_value("strong", v.strip(), q, allow_space=True) and v.strip():|||            if False:'
   'LR14 SECRET: a strong key, whitespace and a value (fish set) not read (remapped)|L|no|        if ident and _has_ld(v) and credential_value("strong", v, ""):|||        if False:'
   'LR15 SECRET: a URL with an empty user name (redis://:pw@h) not read (remapped)|L|no|://[^/\s:@\[\]]*:|||://[^/\s:@\[\]]+:'
   'LR16 SECRET: a URL password with a slash in it not read (remapped)|L|no|        if "/" in v and (v.endswith("/") or not _has_ld(v)):|||        if "/" in v:'
   'LR17 SECRET: a URL port and path read as a password (remapped)|L|no|        if re.match(r"\d+/", v):\n            continue|||        if False:\n            continue'
-  $'LR18 SECRET: the round-7 key names (credentials, *_token) not read|L|no|r"|credentials?|(?:auth|access|refresh|bearer|session|api|id|oauth|app)[_.-]?token)")|||r")")'
-  $'LR19 SECRET: a dot-joined strong key (api.key) not read|L|no|api[_.-]?key|||api[_-]?key'
+  $'LR18 SECRET: the round-7 key names (credentials) not read (remapped onto STRONG_HEADS)|L|no|"salasana", "credential", "credentials"})|||"salasana"})'
+  $'LR19 SECRET: a dot-joined strong key (api.key) not read (remapped onto the round-9 key split)|L|no|_WSPLIT = re.compile(r"[\\W_]+")|||_WSPLIT = re.compile(r"[^\\w.]+|_+")'
   'RL1 SECRET: the views not read, the raw text searched (reviewer round 8, ported)|L|no|    views = secret_views(text)\n|||    views = [text]\n'
-  'RL2 SECRET: short key auth dropped (reviewer round 8, verbatim)|L|no|_SECRET_KEYS_SHORT = r"(?:pwd|pass|auth)"|||_SECRET_KEYS_SHORT = r"(?:pwd|pass)"'
+  'RL2 SECRET: short key auth dropped (reviewer round 8, ported to the round-9 head words)|L|no|SHORT_HEADS = frozenset({"pwd", "pass", "pw", "auth", |||SHORT_HEADS = frozenset({"pwd", "pass", "pw", '
   'RL3 SECRET: password-assign-spaced without its space requirement (reviewer round 8, ported)|L|no|        elif re.search(r"[ \t]", v):|||        elif re.search(r"[ \t]", v) or tier == "strong":'
-  'RL4 SECRET: the XML closing tag need not match the opening key (reviewer round 8, ported)|L|no|        if m.group("ctag") != m.group("otag"):\n            continue\n        if credential_value(tier, v, "<"):|||        if False:\n            continue\n        if credential_value(tier, v, "<"):'
-  'RL5 SECRET: password-space reads a space, not a tab (reviewer round 8, ported)|L|no|_SECRET_KEYS + r"))[ \t]+(?P<v>|||_SECRET_KEYS + r"))[ ]+(?P<v>'
+  'RL4 SECRET: the XML closing tag need not match the opening key (reviewer round 8, ported round 9)|L|no|        if tier is None or m.group("ctag") != m.group("key"):\n            continue|||        if tier is None:\n            continue'
+  'RL5 SECRET: password-space reads a space, not a tab (reviewer round 8, ported round 9)|L|no|(?P<sep>[ \t]+)|||(?P<sep>[ ]+)'
   'RL6 SECRET: a digit-only value accepted where a letter and a digit are needed (reviewer round 8, ported)|L|no|    return any(c.isdigit() for c in v) and any(c.isalpha() for c in v)\n|||    return any(c.isdigit() for c in v)\n'
   'RL7 SECRET: the URL x-mask exclusion dropped (reviewer round 8, ported)|L|no|        if v[0] in "$<{%*" or re.fullmatch(r"[xX*]+", v):|||        if v[0] in "$<{%*":'
-  'RL8 SECRET: the --flag boundary lookbehind dropped (reviewer round 8, ported)|L|no|r"(?i)(?<![\w-])--[\w.-]*?(?:(?P<strong>"|||r"(?i)--[\w.-]*?(?:(?P<strong>"'
+  'RL8 SECRET: the --flag boundary lookbehind dropped (reviewer round 8, ported round 9)|L|no|_RX_FLAG = re.compile(r"(?i)(?<![\w-])--(?P<key>|||_RX_FLAG = re.compile(r"(?i)--(?P<key>'
   'RL9 SECRET: the minimum value length 8 to 9 (reviewer round 8, ported from the netrc minimum)|L|no|    if len(v) < 8:\n|||    if len(v) < 9:\n'
   'RL10 SECRET: secret_hits stops after the first rule found (reviewer round 8, ported)|L|no|        if name in found:\n            yield name, found[name]\n|||        if name in found:\n            yield name, found[name]\n            return\n'
   'R8-1 SECRET front end: format characters not removed|L|no|SECRET_STRIP_FORMAT = True|||SECRET_STRIP_FORMAT = False'
@@ -220,19 +254,19 @@ mutants=(
   'R8-5 SECRET front end: Cyrillic a not folded|L|no|"\u0430": "a", "\u0435"|||"\u0435"'
   'R8-6 SECRET front end: \u escapes not decoded|L|no|_ESC = re.compile(r"\\(u[0-9A-Fa-f]{4}|||_ESC = re.compile(r"\\(q[0-9A-Fa-f]{4}'
   'R8-7 SECRET: a quoted value holding a backslash not read (the round-7 regression, N1)|L|no|(?P<v>(?:\\[^\\n]|(?!\\?(?P=q))[^\\n\\])*)\\?(?P=q)"\n|||(?P<v>(?:(?!\\?(?P=q))[^\\n\\])*)\\?(?P=q)"\n'
-  'R8-8 SECRET: argument pairs not read|L|no|        if credential_value(tier, v, q):\n            yield "argument-pair"|||        if False:\n            yield "argument-pair"'
+  'R8-8 SECRET: argument pairs not read (remapped round 9)|L|no|        if tier and credential_value(tier, v, q):\n            yield "argument-pair"|||        if False:\n            yield "argument-pair"'
   'R8-9 SECRET: the argument-pair separator not a comma|L|no|(?P=kq)\s*,\s*(?P<q>|||(?P=kq)\s*;\s*(?P<q>'
-  'R8-10 SECRET: setter calls not read|L|no|        if credential_value(tier, v, q):\n            yield "setter-call"|||        if False:\n            yield "setter-call"'
-  'R8-11 SECRET: the snake-case setter (set_api_key) not read|L|no|(?<![A-Za-z0-9])set_?(?:|||(?<![A-Za-z0-9])set(?:'
-  'R8-12 SECRET: the key/value XML attribute pair not read|L|no|        if credential_value(_tier(m), m.group("v"), m.group("q2")):|||        if False:'
-  'R8-13 SECRET: an entry element whose closing tag differs read|L|no|        if m.group("ctag") == m.group("otag") and credential_value(_tier(m), m.group("v"), "<"):|||        if credential_value(_tier(m), m.group("v"), "<"):'
+  'R8-10 SECRET: setter calls not read (remapped round 9)|L|no|        if tier in ("strong", "generic") and credential_value(tier, v, q):\n            yield "setter-call"|||        if False:\n            yield "setter-call"'
+  'R8-11 SECRET: the snake-case setter (set_api_key) not read (remapped round 9)|L|no|r"(?<![A-Za-z0-9])set_?(?P<key>|||r"(?<![A-Za-z0-9])set(?P<key>'
+  'R8-12 SECRET: the key/value XML attribute pair not read (remapped round 9)|L|no|        if tier and credential_value(tier, m.group("v"), m.group("q2")):|||        if False:'
+  'R8-13 SECRET: an entry element whose closing tag differs read (remapped round 9)|L|no|if tier and m.group("ctag") == m.group("otag") and credential_value(tier, m.group("v"), "<"):|||if tier and credential_value(tier, m.group("v"), "<"):'
   'R8-14 SECRET: the XML attribute name= key not read|L|no|\b(?:key|name)\s*=\s*(?P<q1>|||\b(?:key)\s*=\s*(?P<q1>'
   'R8-15 SECRET: mysqldump'"'"'s -p flag not read|L|no|(?:mysql|mysqldump|mysqladmin|||(?:mysql|mysqladmin'
-  'R8-16 SECRET: sshpass -p not read|L|no|    for rx in (_RX_MYSQL_P, _RX_SSHPASS_P, _RX_CURL_U):|||    for rx in (_RX_MYSQL_P, _RX_CURL_U):'
+  'R8-16 SECRET: sshpass -p not read (remapped round 9)|L|no|    r"\bsshpass\b[^\\n|;&]*?\s-p\s*(?P<v>[^\s-]\S*)",\n|||'
   'R8-17 SECRET: curl --user not read|L|no|(?:-u|--user)\s+|||(?:-u)\s+'
-  'R8-18 SECRET: the mysql flag read in any case (-P port read as -p)|L|no|_RX_MYSQL_P = re.compile(r"\b(?:|||_RX_MYSQL_P = re.compile(r"(?i)\b(?:'
+  'R8-18 SECRET: the mysql flag read in any case (-P port read as -p) (remapped round 9)|L|no|    r"\b(?:mysql|mysqldump|||    r"(?i)\b(?:mysql|mysqldump'
   'R8-19 SECRET: the folded YAML block scalar (>) not read|L|no|[ \t]*:[ \t]*[|>][-+0-9]*|||[ \t]*:[ \t]*[|][-+0-9]*'
-  'R8-20 SECRET: YAML block scalars not read|L|no|        if credential_value(tier, v, "|"):\n            yield "yaml-block-scalar"|||        if False:\n            yield "yaml-block-scalar"'
+  'R8-20 SECRET: YAML block scalars not read (remapped round 9)|L|no|        if tier and credential_value(tier, v, "|"):\n            yield "yaml-block-scalar"|||        if False:\n            yield "yaml-block-scalar"'
   'R8-21 SECRET: a pgpass line with * fields not read|L|no|:(?:\d{1,5}|\*):|||:(?:\d{1,5}):'
   'R8-22 SECRET: a pgpass value without a digit read (a time stamp)|L|no|        if _has_ld(v) and credential_value("strong", v, ""):\n            yield "pgpass-line"|||        if credential_value("strong", v, ""):\n            yield "pgpass-line"'
   'R8-23 SECRET: the URL scheme read in lower case only|L|no|_RX_URL = re.compile(r"(?i)(?<!|||_RX_URL = re.compile(r"(?<!'
@@ -246,7 +280,20 @@ mutants=(
   'R8-31 SECRET: a short key read without a letter and a digit|L|no|if (tier == "short" or (tier == "generic" and generic_ld)) and not _has_ld(v):|||if (tier == "generic" and generic_ld) and not _has_ld(v):'
   'R8-32 SECRET: a short-key value starting with a dot read|L|no|    if tier == "short" and v[0] in ".>":|||    if False:'
   'R8-33 SECRET: a generic key'"'"'s quoted = value needs a digit|L|no|        elif credential_value(tier, v, q, generic_ld=False):|||        elif credential_value(tier, v, q, generic_ld=True):'
-  'R8-34 SECRET: percent decoding applied to the first view only|L|no|        for base in list(views):|||        for base in views[:1]:'
+  'R8-34 SECRET: the decoding closure applied to the first view of a layer only (remapped round 9)|L|no|        for v in frontier:\n            for f in _TRANSFORMS:|||        for v in frontier[:1]:\n            for f in _TRANSFORMS:'
+)
+
+# Equivalent mutants (section 11.4.276(D), review r9 F4): an edit the harness would apply but that cannot
+# change the lint's answer. They are not run as mutants; each is listed with its evidence file, a run of
+# docs/qa/tracker_intake_2026_11_15_v9/tools/equiv_check.py on the same edit (every census member, every
+# fixture row, 200000 seeded fuzz strings and every code point inside and before a key; views and rule
+# names compared; its control needle SECRET_FOLD off must differ). The harness checks that the edit still
+# matches the lint exactly once (so a code change re-opens the question) and that the evidence says
+# view_differences=0 hit_differences=0 with the control needle ok.
+# id description | evidence file (repo-relative) | old ||| new
+equivalent=(
+  'RV2 escape view without NFKC (reviewer round 9): _clean() applies NFKD then NFKC to every non-ASCII view, and NFKD(NFKC(s)) = NFKD(s)|docs/qa/tracker_intake_2026_11_15_v9/runs/equiv_RV2.txt|                d = _clean(unicodedata.normalize("NFKC", d))|||                d = _clean(d)'
+  'LR2 SECRET_NFKC off: the same identity for the first view; an ASCII text is NFKC-invariant|docs/qa/tracker_intake_2026_11_15_v9/runs/equiv_LR2.txt|SECRET_NFKC = True|||SECRET_NFKC = False'
 )
 
 mkcopy() { # mkcopy <src> <dest> <old> <new>  (\n in old/new is a newline)
@@ -312,5 +359,19 @@ for i in "${sel[@]}"; do
   if [ -f "$tmp/v$i" ]; then cat "$tmp/v$i"; grep -q '^PASS' "$tmp/v$i" || fail=1
   else echo "FAIL ${mutants[$i]%%|*}: no verdict"; fail=1; fi
 done
-echo "RESULT: mutants=${#sel[@]} $([ "$fail" = 0 ] && echo 'all killed as declared' || echo 'FAILED')"
+neq=0
+for e in "${equivalent[@]}"; do
+  id=${e%% *}; rest=${e#*|}; ev=${rest%%|*}; rest=${rest#*|}; old=${rest%%|||*}; new=${rest#*|||}
+  if [ -n "${INTAKE_LINT_MUT_ONLY:-}" ]; then case ",$INTAKE_LINT_MUT_ONLY," in *",$id,"*) ;; *) continue ;; esac; fi
+  neq=$((neq + 1))
+  if ! mkcopy "$src" "$tmp/eq.py" "$old" "$new" 2>"$tmp/eq.err"; then echo "FAIL $id: equivalent edit is stale (re-run equiv_check.py)"; fail=1
+  elif ! [ -f "$root/$ev" ]; then echo "FAIL $id: no evidence file $ev"; fail=1
+  elif ! grep -qx "EDIT edit_sha256=$(printf '%s|||%s' "$old" "$new" | sha256sum | cut -d' ' -f1)" "$root/$ev"; then
+    echo "FAIL $id: the evidence was made for another edit (re-run equiv_check.py): $ev"; fail=1
+  elif grep -q '^CONTROL needle (SECRET_FOLD off): hit_differences>=1 ok$' "$root/$ev" \
+       && grep -q '^RESULT corpus=[0-9]* view_differences=0 hit_differences=0 fuzz=[1-9][0-9]* codepoints=True$' "$root/$ev"; then
+    echo "EQUIV $id: $(grep '^RESULT' "$root/$ev")"
+  else echo "FAIL $id: the evidence does not show an equivalent mutant: $ev"; fail=1; fi
+done
+echo "RESULT: mutants=${#sel[@]} equivalent=$neq $([ "$fail" = 0 ] && echo 'all killed as declared' || echo 'FAILED')"
 [ "$fail" = 0 ]

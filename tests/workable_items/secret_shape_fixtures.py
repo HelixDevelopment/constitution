@@ -27,6 +27,8 @@ VL = "zqx" + "wvbn" + "mkjh"         # 11 letters only
 VS = "Qz7k" + "Wm4!" + "R@t9"        # special chars
 V8 = "Zq7" * 2 + "Zq"                # 8 chars, letter + digit
 AWS = "AK" + "IA" + "Q" * 16
+V9 = "FAKE" + "va1ue9Zq"           # the round-9 reviewer's value: 12 chars, letter + digit, says FAKE
+B64_9 = "RkFL" + "RXZhMXVlOVpx"     # the round-9 reviewer's base64-looking fake
 
 # ---- the reviewer's 51 credential shapes (probe_r8.py POS), verbatim; want and detail are the round-8 rule
 RV_POS = [
@@ -68,10 +70,12 @@ RV_POS = [
     ("rv-pos-special-in-url", "postgres://u:" + "Qz7k#Wm4@h/db", "hit"),
     ("rv-pos-url-digits-pw", "redis://:" + "12345678" + "@h:6379", "hit"),
     ("rv-pos-url-upper-scheme", "HTTPS://u:" + V + "@h/", "hit"),
-    ("rv-pos-key-word", "key=" + V, "B9"),
-    ("rv-pos-pin-key", "pin=" + "48213977", "B9"),
-    ("rv-pos-cookie-session", "Cookie: session=" + V + V, "B9"),
-    ("rv-pos-bearer-short", "Authorization: Bearer " + V, "B12"),
+    # B9 and B12 came into the class in round 9 (review r9 F1: the safer reading, documented in
+    # class_inventory.md); these rows were "miss" rows of section B before
+    ("rv-pos-key-word", "key=" + V, "hit"),
+    ("rv-pos-pin-key", "pin=" + "48213977", "hit"),
+    ("rv-pos-cookie-session", "Cookie: session=" + V + V, "hit"),
+    ("rv-pos-bearer-short", "Authorization: Bearer " + V, "hit"),
     ("rv-pos-x-api-key-lower", "x-api-key: " + V, "hit"),
     ("rv-pos-token-letters-colon", "token: " + VL, "B4"),
     ("rv-pos-pgpass-line", "h:5432:db:u:" + V, "hit"),
@@ -210,7 +214,7 @@ OWN = [
     ("own-greek-omicron", "passw\u03bfrd=" + V8, "hit"),
     ("own-cyrillic-upper", "\u0420ASSWORD=" + V8, "hit"),
     ("own-cyrillic-prose", "\u043f\u0430\u0440\u043e\u043b\u044c " + V8, "negative"),
-    ("own-armenian-lookalike", "passw\u0585rd=" + V8, "B18"),
+    ("own-armenian-lookalike", "passw\u0585rd=" + V8, "hit"),  # B18 in the class from round 9
     # single-quoted '$' literal
     ("own-dollar-literal-ref-upper", PW + "='$DB_PASS'", "negative"),
     ("own-dollar-literal-ref-lower", PW + "='$db_pass1'", "negative"),
@@ -265,6 +269,122 @@ OWN = [
     # R8-34: percent decoding also runs over the escape-decoded view
     ("own-r834-escape-then-percent", "pa%73s" + "\\" + "x77ord=" + V, "hit"),
     ("own-r834-json-escape-then-percent", '"pa%73s' + "\\" + 'u0077ord": "' + V + '"', "hit"),
+    # round 9: the reviewer mutant RV2 (an escaped full-width key needs NFKC after the escape view) and
+    # RV12 (a tab inside a value is a table cell, not a credential: a false-positive guard)
+    ("own-rv2-escaped-fullwidth-key", '{"\\uff50ass' + 'word": "' + V8 + '"}', "hit"),
+    ("own-rv12-tab-in-value", "pw" + 'd="col1\tcol2val9"', "negative"),
+]
+
+# ---- the round-9 reviewer's 50 credential shapes (probes/probe_r9.py POS), verbatim (rebuilt from
+# fragments, value V9 / B64_9); every one is in the lint's class from round 9 on
+R9_POS = [
+    ('r9-pos-p01-key-suffix', 'DB_P' + 'ASSW' + 'ORD_' + 'PROD' + '=' + V9),
+    ('r9-pos-p02-key-suffix-apikey-v2', 'API_' + 'KEY_' + 'V2=' + V9),
+    ('r9-pos-p03-py-bytes', 'pass' + 'word' + '=b"' + V9 + '"'),
+    ('r9-pos-p04-py-fstring', 'toke' + 'n = ' + "f'" + V9 + "'"),
+    ('r9-pos-p05-py-raw', 'api_' + 'key ' + '= r"' + V9 + '"'),
+    ('r9-pos-p06-split-concat-c', 'pass' + 'word' + ' = "' + 'FAKE' + 'va" ' + '"1ue' + '9Zq"'),
+    ('r9-pos-p07-split-concat-plus', 'pass' + 'word' + ' = "' + 'FAKE' + 'va" ' + '+ "1' + 'ue9Z' + 'q"'),
+    ('r9-pos-p08-sql-identified-by', 'CREA' + 'TE U' + 'SER ' + 'app ' + 'IDEN' + 'TIFI' + 'ED B' + "Y '" + V9 + "';"),
+    ('r9-pos-p09-sql-with-password', 'ALTE' + 'R US' + 'ER a' + 'pp W' + 'ITH ' + 'PASS' + 'WORD' + " '" + V9 + "';"),
+    ('r9-pos-p10-openssl-pass', 'open' + 'ssl ' + 'pkcs' + '12 -' + 'expo' + 'rt -' + 'pass' + 'out ' + 'pass' + ':' + V9 + ' -ou' + 't x.' + 'p12'),
+    ('r9-pos-p11-redis-cli-a', 'redi' + 's-cl' + 'i -h' + ' db ' + '-a ' + V9 + ' pin' + 'g'),
+    ('r9-pos-p12-docker-login-p', 'dock' + 'er l' + 'ogin' + ' -u ' + 'bot ' + '-p ' + V9 + ' reg' + 'istr' + 'y.ex' + 'ampl' + 'e'),
+    ('r9-pos-p13-azure-accountkey', 'Defa' + 'ultE' + 'ndpo' + 'ints' + 'Prot' + 'ocol' + '=htt' + 'ps;A' + 'ccou' + 'ntNa' + 'me=x' + ';Acc' + 'ount' + 'Key=' + B64_9 + '==;'),
+    ('r9-pos-p14-camel-userpass', 'user' + 'Pass' + '=' + V9),
+    ('r9-pos-p15-camel-adminpwd', 'admi' + 'nPwd' + '=' + V9),
+    ('r9-pos-p16-html-entity-json', '{&qu' + 'ot;p' + 'assw' + 'ord&' + 'quot' + ';: &' + 'quot' + ';' + V9 + '&quo' + 't;}'),
+    ('r9-pos-p17-html-numeric-key', 'pass' + '&#11' + '9;or' + 'd=' + V9),
+    ('r9-pos-p18-double-percent', 'pass' + '%257' + '7ord' + '=' + V9),
+    ('r9-pos-p19-octal-escape-key', '\\160' + 'assw' + 'ord=' + V9),
+    ('r9-pos-p20-combining-mark', 'pa\u0301s' + 'swor' + 'd=' + V9),
+    ('r9-pos-p21-cgj-in-key', 'pass' + '\u034fwor' + 'd=' + V9),
+    ('r9-pos-p22-variation-selector', 'pass' + '\ufe0fwor' + 'd=' + V9),
+    ('r9-pos-p23-latin-alpha', 'p\u0251ss' + 'word' + '=' + V9),
+    ('r9-pos-p24-small-caps', '\u1d18\u1d00\ua731\ua731' + '\u1d21\u1d0f\u0280\u1d05' + '=' + V9),
+    ('r9-pos-p25-armenian-o', 'pass' + 'w\u0585rd' + '=' + V9),
+    ('r9-pos-p26-cherokee-mixed', '\u13e2ass' + 'word' + '=' + V9),
+    ('r9-pos-p27-german-key', 'pass' + 'wort' + '=' + V9),
+    ('r9-pos-p28-signing-key', 'SIGN' + 'ING_' + 'KEY=' + V9),
+    ('r9-pos-p29-encryption-key', 'encr' + 'ypti' + 'on_k' + 'ey: ' + V9),
+    ('r9-pos-p30-master-key', 'MAST' + 'ER_K' + 'EY=' + V9),
+    ('r9-pos-p31-bearer-16', 'Auth' + 'oriz' + 'atio' + 'n: B' + 'eare' + 'r ' + V9 + '123'),
+    ('r9-pos-p32-authorization-apikey', 'Auth' + 'oriz' + 'atio' + 'n: A' + 'piKe' + 'y ' + V9 + V9),
+    ('r9-pos-p33-htpasswd-b', 'htpa' + 'sswd' + ' -b ' + '/etc' + '/ngi' + 'nx/.' + 'htpa' + 'sswd' + ' adm' + 'in ' + V9),
+    ('r9-pos-p34-toml-inline-table', 'db =' + ' { u' + 'ser ' + '= "x' + '", p' + 'assw' + 'ord ' + '= "' + V9 + '" }'),
+    ('r9-pos-p35-ini-colon-space-key', 'Pass' + 'word' + ' = ' + V9),
+    ('r9-pos-p36-k8s-stringdata-json', '{"st' + 'ring' + 'Data' + '":{"' + 'DB_P' + 'ASS"' + ':"' + V9 + '"}}'),
+    ('r9-pos-p37-env-json-escaped-twice', '"{\\\\' + '\\"pa' + 'sswo' + 'rd\\\\' + '\\":\\' + '\\\\"' + V9 + '\\\\\\"' + '}"'),
+    ('r9-pos-p38-uuencoded-url-at', 'http' + 's://' + 'bot:' + V9 + '%40x' + '@git' + '.exa' + 'mple' + '/r.g' + 'it'),
+    ('r9-pos-p39-line-continuation', 'pass' + 'word' + '=FAK' + 'Eva1' + '\\\nue' + '9Zq'),
+    ('r9-pos-p40-hex-escape-value', 'pass' + 'word' + '="\\x' + '46\\x' + '41\\x' + '4b\\x' + '45va' + '1ue9' + 'Zq"'),
+    ('r9-pos-p41-mongo-p', 'mong' + 'osh ' + '--us' + 'erna' + 'me b' + 'ot -' + 'p ' + V9),
+    ('r9-pos-p42-psql-conninfo', 'psql' + " 'ho" + 'st=d' + 'b us' + 'er=b' + 'ot p' + 'assw' + 'ord=' + V9 + ' dbn' + 'ame=' + "x'"),
+    ('r9-pos-p43-unicode-escape-key-json', '{"pa' + 'ss\\u' + '0077' + 'ord"' + ': "' + V9 + '"}'),
+    ('r9-pos-p44-fullwidth-equals', 'pass' + 'word' + '\uff1d' + V9),
+    ('r9-pos-p45-nbsp-around-sep', 'pass' + 'word' + '\xa0=\xa0' + V9),
+    ('r9-pos-p46-tab-sep-tsv', 'pass' + 'word' + '\t' + V9),
+    ('r9-pos-p47-key-in-brackets', 'conf' + 'ig[p' + 'assw' + 'ord]' + '=' + V9),
+    ('r9-pos-p48-js-object-noquote', '{pas' + 'swor' + "d:'" + V9 + "'}"),
+    ('r9-pos-p49-go-struct-backtick', 'Pass' + 'word' + ': `' + V9 + '`,'),
+    ('r9-pos-p50-gpg-passphrase', 'gpg ' + '--ba' + 'tch ' + '--pa' + 'ssph' + 'rase' + ' ' + V9 + ' -d ' + 'x.gp' + 'g'),
+]
+# ---- the round-9 reviewer's 20 lookalikes (probes/probe_r9.py NEG), verbatim: none may be reported
+R9_NEG = [
+    ('r9-neg-n01-vault-ref', 'pass' + 'word' + ': va' + 'ult:' + 'secr' + 'et/d' + 'ata/' + 'db#p' + 'assw' + 'ord'),
+    ('r9-neg-n02-sops-enc', 'pass' + 'word' + ': EN' + 'C[AE' + 'S256' + '_GCM' + ',dat' + 'a:ab' + 'c,iv' + ':def' + ',tag' + ':ghi' + ',typ' + 'e:st' + 'r]'),
+    ('r9-neg-n03-test-report', 'resu' + 'lt p' + 'ass=' + 'lint' + '_sui' + 'te_2' + ' fai' + 'l=0'),
+    ('r9-neg-n04-ref-plus', 'pass' + 'word' + ': re' + 'f+aw' + 'sssm' + '://p' + 'rod/' + 'db/p' + 'assw' + 'ord'),
+    ('r9-neg-n05-k8s-secretkeyref', 'pass' + 'word' + ': se' + 'cret' + 'KeyR' + 'ef.n' + 'ame'),
+    ('r9-neg-n06-helm-tpl', 'pass' + 'word' + ': "{' + '{ .V' + 'alue' + 's.db' + '.pas' + 'swor' + 'd }}' + '"'),
+    ('r9-neg-n07-gha-secret', 'toke' + 'n: $' + '{{ s' + 'ecre' + 'ts.G' + 'ITHU' + 'B_TO' + 'KEN ' + '}}'),
+    ('r9-neg-n08-erb', 'pass' + 'word' + ': <%' + '= EN' + "V['D" + 'B_PA' + 'SSWO' + "RD']" + ' %>'),
+    ('r9-neg-n09-placeholder-angle', 'pass' + 'word' + '=<yo' + 'ur-d' + 'b-pa' + 'sswo' + 'rd>'),
+    ('r9-neg-n10-masked', 'pass' + 'word' + '=***' + '****' + '****' + '****' + '*'),
+    ('r9-neg-n11-getenv', 'pass' + 'word' + ' = o' + 's.ge' + 'tenv' + "('DB" + '_PAS' + 'SWOR' + "D')"),
+    ('r9-neg-n12-prose-rule-name', 'the ' + 'pass' + 'word' + '-ass' + 'ign-' + 'unqu' + 'oted' + ' rul' + 'e fi' + 'red'),
+    ('r9-neg-n13-token-count', 'toke' + 'n_co' + 'unt=' + '1234' + '5678' + '90'),
+    ('r9-neg-n14-url-port', 'http' + '://l' + 'ocal' + 'host' + ':808' + '0/pa' + 'th@v' + '2'),
+    ('r9-neg-n15-file-flag', '--pa' + 'sswo' + 'rd-f' + 'ile ' + '/run' + '/sec' + 'rets' + '/db'),
+    ('r9-neg-n16-pass-ok', 'PASS' + ': te' + 'st_p' + 'assw' + 'ord_' + 'rota' + 'tion' + '_202' + '6'),
+    ('r9-neg-n17-hash-field', 'pass' + 'word' + '_has' + 'h=$a' + 'rgon' + '2id$' + 'v=19' + '$m=6' + '5536'),
+    ('r9-neg-n18-doc-example', 'toke' + 'n=ex' + 'ampl' + 'e'),
+    ('r9-neg-n19-commit-sha-word', 'the ' + 'secr' + 'et h' + 'its ' + 'were' + ' 235' + ' (se' + 'cret' + '_hit' + 's=23' + '5)'),
+    ('r9-neg-n20-azure-keyvault-ref', 'pass' + 'word' + ': @M' + 'icro' + 'soft' + '.Key' + 'Vaul' + 't(Se' + 'cret' + 'Uri=' + 'http' + 's://' + 'kv/s' + 'ecre' + 'ts/d' + 'b)'),
+]
+
+# ---- round 9, F4: rows that pin the reviewer's surviving mutants and the round-9 key rules (each row names
+# the mutant it kills; the values are the fakes above)
+R9_ADOPT = [
+    ('r9-adopt-rv2-escaped-fullwidth-key', '{"\\uff50ass' + 'word": "' + V9 + '"}', "hit"),
+    ('r9-adopt-rv12-tab-inside-value', 'pwd="col1\tcol2val9"', "negative"),
+    ('r9-adopt-rv13-percent-not-at-start', 'x=1 pass%77' + 'ord=' + V9, "hit"),
+    ('r9-adopt-rv4-short-key-length-8', 'pwd=' + V8, "hit"),
+    ('r9-adopt-ol1-two-letter-qualifier', 'PGid_tok' + 'en: ' + VL, "hit"),
+    ('r9-adopt-ol1-two-letter-qualifier-upper', 'PGID_TOK' + 'EN: ' + VL, "hit"),
+    # the first round-9 harness run left six mutants alive on surfaces no row held (each row names it)
+    ('r9-adopt-rv10-omicron-short-key', 'sessi\u03bfn=' + V8, "hit"),       # RV10, R8-2: a short head has no wildcard
+    ('r9-adopt-r85-cyrillic-a-short-key', 'p\u0430ss=' + V8, "hit"),        # R8-5
+    ('r9-adopt-ol4-public-key', 'public_' + 'key=' + V8, "negative"),         # OL4: KEY_NEGATIVE
+    ('r9-adopt-r825-your-mixed-case', 'pass' + 'word=your_' + 'Secret99', "negative"),  # R8-25: not an identifier
+    ('r9-adopt-r830-underscore-key-space', '_pass' + 'word ' + V8, "hit"),   # R8-30: one key word, a separator
+    ('r9-adopt-r834-second-view-of-a-layer', 'x\\x41 pass%2526%2523119;ord=' + V9, "hit"),  # R8-34
+    # the stale mutants of the first round-9 harness run, remapped onto the round-9 key classifier
+    ('r9-adopt-lr1-prefix-joined-head', 'PGPASS' + 'WORD=' + V8, "hit"),     # LR1: SUFFIX_HEADS
+    ('r9-adopt-lr18-credentials-key', 'credent' + 'ials=' + V8, "hit"),     # LR18: credential(s)
+    ('r9-adopt-lr19-dot-joined-api-key', 'api.' + 'key=' + V8, "hit"),       # LR19: a dot splits a key
+    # LR5 (an escaped closing quote): a value written between escaped quotes inside a plain-quoted string,
+    # found by tools/equiv_check.py (14 fuzz differences) and reduced by delta debugging
+    ('r9-adopt-lr5-escaped-quotes-in-plain-string', 'tok' + 'en="\\"' + V9 + '\\"', "hit"),
+    # the independent leak scan's mutation run left the Hangul-filler strip alive: no row held a filler
+    # (a non-Cf invisible letter) inside a key word
+    ('r9-adopt-scan-hangul-filler-in-key', 'pass\u3164' + 'word=' + V, "hit"),
+    ('r9-adopt-scan-choseong-filler-in-key', 'tok\u115f' + 'en=' + V, "hit"),
+    # the scan's normalisation steps, each held by a row the lint reports: a Greek letter with a tonos for
+    # a Latin one (NFKD takes the tonos off, the fold then reads a Latin letter)
+    ('r9-adopt-scan-omicron-tonos-in-token', 't\u03cc' + 'ken=' + V, "hit"),
+    ('r9-adopt-scan-epsilon-tonos-for-a', 'p\u03ad' + 'ssword=' + V, "hit"),
+    ('r9-adopt-lr5-backtick-escape-close', 'pw' + 'd: `\\q' + V9 + '\\`', "hit"),
 ]
 
 FIXTURES = (
@@ -272,9 +392,13 @@ FIXTURES = (
     + [(lb, t, "miss", "negative") for lb, t in RV_NEG]
     + [(lb, t, "hit", None) for lb, t in RV_BS]
     + [(lb, t, "hit" if w == "hit" else "miss", w) for lb, t, w in OWN]
+    + [(lb, t, "hit", None) for lb, t in R9_POS]
+    + [(lb, t, "miss", "negative") for lb, t in R9_NEG]
+    + [(lb, t, "hit" if w == "hit" else "miss", w) for lb, t, w in R9_ADOPT]
 )
 
-# the exact rule names the lint reports for each "hit" row (frozen in round 8; a change is a reviewed edit)
+# the exact rule names the lint reports for each "hit" row (frozen in round 8, extended in round 9; a change
+# is a reviewed edit)
 EXPECT_RULES = {
     "rv-pos-php-define": ('argument-pair',),
     "rv-pos-getenv-default-py": ('argument-pair',),
@@ -298,7 +422,7 @@ EXPECT_RULES = {
     "rv-pos-soft-hyphen-key": ('password-assign-unquoted',),
     "rv-pos-tag-char-key": ('password-assign-unquoted',),
     "rv-pos-nbsp-separator": ('password-assign-unquoted',),
-    "rv-pos-ideographic-space-flag": ('password-flag-space', 'password-space',),
+    "rv-pos-ideographic-space-flag": ('password-flag-space',),
     "rv-pos-fullwidth-equals": ('password-assign-unquoted',),
     "rv-pos-math-bold-key": ('password-assign-unquoted',),
     "rv-pos-circled-letters": ('password-assign-unquoted',),
@@ -354,7 +478,7 @@ EXPECT_RULES = {
     "own-code-attr-digit": ('password-assign-unquoted',),
     "own-space-upper": ('password-space',),
     "own-rl5-tab-space": ('password-space',),
-    "own-rl5-tab-flag": ('password-flag-space', 'password-space',),
+    "own-rl5-tab-flag": ('password-flag-space',),
     "own-rl3-no-space": ('password-assign',),
     "own-rl10-two-rules": ('aws-access-key-id', 'password-assign',),
     "own-rl10-three-rules": ('password-assign-unquoted', 'password-flag-space', 'xml-attribute-pair',),
@@ -370,8 +494,133 @@ EXPECT_RULES = {
     "own-lr5-double-escaped": ('password-assign',),
     "own-r834-escape-then-percent": ('password-assign-unquoted',),
     "own-r834-json-escape-then-percent": ('password-assign',),
+    # round 9: the B9, B12 and B18 rows that came into the class, RV2, and the round-9 reviewer's 50 shapes
+    'rv-pos-key-word': ('short-key-assign',),
+    'rv-pos-pin-key': ('short-key-assign',),
+    'rv-pos-cookie-session': ('short-key-assign',),
+    'rv-pos-bearer-short': ('authorization-header',),
+    'own-armenian-lookalike': ('password-assign-unquoted',),
+    'own-rv2-escaped-fullwidth-key': ('password-assign',),
+    'r9-pos-p01-key-suffix': ('password-assign-unquoted',),
+    'r9-pos-p02-key-suffix-apikey-v2': ('password-assign-unquoted',),
+    'r9-pos-p03-py-bytes': ('password-assign',),
+    'r9-pos-p04-py-fstring': ('password-assign',),
+    'r9-pos-p05-py-raw': ('password-assign',),
+    'r9-pos-p06-split-concat-c': ('password-assign',),
+    'r9-pos-p07-split-concat-plus': ('password-assign',),
+    'r9-pos-p08-sql-identified-by': ('password-space-quoted',),
+    'r9-pos-p09-sql-with-password': ('password-space-quoted',),
+    'r9-pos-p10-openssl-pass': ('short-flag-value',),
+    'r9-pos-p11-redis-cli-a': ('short-flag-value',),
+    'r9-pos-p12-docker-login-p': ('short-flag-value',),
+    'r9-pos-p13-azure-accountkey': ('password-assign-unquoted',),
+    'r9-pos-p14-camel-userpass': ('short-key-assign',),
+    'r9-pos-p15-camel-adminpwd': ('short-key-assign',),
+    'r9-pos-p16-html-entity-json': ('password-assign',),
+    'r9-pos-p17-html-numeric-key': ('password-assign-unquoted',),
+    'r9-pos-p18-double-percent': ('password-assign-unquoted',),
+    'r9-pos-p19-octal-escape-key': ('password-assign-unquoted',),
+    'r9-pos-p20-combining-mark': ('password-assign-unquoted',),
+    'r9-pos-p21-cgj-in-key': ('password-assign-unquoted',),
+    'r9-pos-p22-variation-selector': ('password-assign-unquoted',),
+    'r9-pos-p23-latin-alpha': ('password-assign-unquoted',),
+    'r9-pos-p24-small-caps': ('password-assign-unquoted',),
+    'r9-pos-p25-armenian-o': ('password-assign-unquoted',),
+    'r9-pos-p26-cherokee-mixed': ('password-assign-unquoted',),
+    'r9-pos-p27-german-key': ('password-assign-unquoted',),
+    'r9-pos-p28-signing-key': ('password-assign-unquoted',),
+    'r9-pos-p29-encryption-key': ('password-colon-unquoted',),
+    'r9-pos-p30-master-key': ('password-assign-unquoted',),
+    'r9-pos-p31-bearer-16': ('authorization-header',),
+    'r9-pos-p32-authorization-apikey': ('password-space', 'authorization-header'),
+    'r9-pos-p33-htpasswd-b': ('short-flag-value',),
+    'r9-pos-p34-toml-inline-table': ('password-assign',),
+    'r9-pos-p35-ini-colon-space-key': ('password-assign-unquoted',),
+    'r9-pos-p36-k8s-stringdata-json': ('short-key-assign',),
+    'r9-pos-p37-env-json-escaped-twice': ('password-assign',),
+    'r9-pos-p38-uuencoded-url-at': ('url-userinfo-password',),
+    'r9-pos-p39-line-continuation': ('password-assign-unquoted',),
+    'r9-pos-p40-hex-escape-value': ('password-assign',),
+    'r9-pos-p41-mongo-p': ('short-flag-value',),
+    'r9-pos-p42-psql-conninfo': ('password-assign-unquoted',),
+    'r9-pos-p43-unicode-escape-key-json': ('password-assign',),
+    'r9-pos-p44-fullwidth-equals': ('password-assign-unquoted',),
+    'r9-pos-p45-nbsp-around-sep': ('password-assign-unquoted',),
+    'r9-pos-p46-tab-sep-tsv': ('password-space',),
+    'r9-pos-p47-key-in-brackets': ('password-assign-unquoted',),
+    'r9-pos-p48-js-object-noquote': ('password-assign',),
+    'r9-pos-p49-go-struct-backtick': ('password-assign',),
+    'r9-pos-p50-gpg-passphrase': ('password-flag-space',),
+    'r9-adopt-rv2-escaped-fullwidth-key': ('password-assign',),
+    'r9-adopt-rv13-percent-not-at-start': ('password-assign-unquoted',),
+    'r9-adopt-rv4-short-key-length-8': ('short-key-assign',),
+    'r9-adopt-ol1-two-letter-qualifier': ('password-colon-unquoted',),
+    'r9-adopt-ol1-two-letter-qualifier-upper': ('password-colon-unquoted',),
+    'r9-adopt-scan-hangul-filler-in-key': ('password-assign-unquoted',),
+    'r9-adopt-scan-choseong-filler-in-key': ('password-assign-unquoted',),
+    'r9-adopt-scan-omicron-tonos-in-token': ('password-assign-unquoted',),
+    'r9-adopt-scan-epsilon-tonos-for-a': ('password-assign-unquoted',),
+    'r9-adopt-rv10-omicron-short-key': ('short-key-assign',),
+    'r9-adopt-r85-cyrillic-a-short-key': ('short-key-assign',),
+    'r9-adopt-r830-underscore-key-space': ('password-space',),
+    'r9-adopt-r834-second-view-of-a-layer': ('password-assign-unquoted',),
+    'r9-adopt-lr1-prefix-joined-head': ('password-assign-unquoted',),
+    'r9-adopt-lr18-credentials-key': ('password-assign-unquoted',),
+    'r9-adopt-lr19-dot-joined-api-key': ('password-assign-unquoted',),
+    'r9-adopt-lr5-escaped-quotes-in-plain-string': ('password-assign', 'password-assign-unquoted'),
+    'r9-adopt-lr5-backtick-escape-close': ('short-key-assign',),
 }
 
 # control needles of the oracle itself: a known member and a prose line (section 11.4.273)
 CONTROL_POSITIVE = "DB_" + PW.upper() + "=" + V8
 CONTROL_NEGATIVE = "a plain line with no credential"
+
+
+def selfcheck():
+    """The rows' own invariants (round 9: the module is a full-suite entry, not an excluded helper): every
+    label once, want in {hit, miss}, a hit row with a non-empty rule tuple in EXPECT_RULES, a miss row with
+    a reason, no EXPECT_RULES entry for a label that is not a hit row, and the reviewer lists at their
+    verbatim sizes.
+    Returns a list of problems (labels only, never a row's text, section 11.4.10)."""
+    probs = []
+    labels = [r[0] for r in FIXTURES]
+    seen = set()
+    for lab in labels:
+        if lab in seen:
+            probs.append("label twice: %s" % lab)
+        seen.add(lab)
+    hits = {}
+    for r in FIXTURES:
+        if len(r) != 4 or not isinstance(r[1], str) or not r[1]:
+            probs.append("row shape: %s" % r[0])
+            continue
+        lab, _text, want, detail = r
+        if want == "hit":
+            hits[lab] = detail
+            rules = EXPECT_RULES.get(lab)
+            if not isinstance(rules, tuple) or not rules or not all(isinstance(x, str) and x for x in rules):
+                probs.append("hit row without a rule tuple in EXPECT_RULES: %s" % lab)
+        elif want == "miss":
+            if not isinstance(detail, str) or not detail:
+                probs.append("miss row without a reason: %s" % lab)
+        else:
+            probs.append("want not hit/miss: %s" % lab)
+    for lab in EXPECT_RULES:
+        if lab not in hits:
+            probs.append("EXPECT_RULES names a label that is not a hit row: %s" % lab)
+    for name, lst, n in (("RV_POS", RV_POS, 51), ("RV_NEG", RV_NEG, 52), ("RV_BS", RV_BS, 6),
+                         ("R9_POS", R9_POS, 50), ("R9_NEG", R9_NEG, 20)):
+        if len(lst) != n:
+            probs.append("%s holds %d rows, the reviewer's list holds %d" % (name, len(lst), n))
+    if CONTROL_POSITIVE == CONTROL_NEGATIVE:
+        probs.append("the control needles are equal")
+    return probs
+
+
+if __name__ == "__main__":
+    import sys
+    p = selfcheck()
+    for x in p:
+        print("FAIL " + x)
+    print("RESULT rows=%d hit=%d problems=%d" % (len(FIXTURES), sum(1 for r in FIXTURES if r[2] == "hit"), len(p)))
+    sys.exit(1 if p else 0)

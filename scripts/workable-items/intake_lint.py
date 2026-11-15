@@ -98,7 +98,9 @@
 #   instrument could not see, so no verdict is given).
 # EVIDENCE CLASS  gate-logic only (section 11.4.289): it reads text, it does not prove an item true.
 import argparse
+import functools
 import hashlib
+import html
 import os
 import re
 import sqlite3
@@ -134,51 +136,118 @@ SECTION_MARKERS = [
     ("Acceptance criteria", re.compile(r"^\*\*Acceptance criteria:\*\*", re.M)),
     ("Parent / links", re.compile(r"^Parent / links:", re.M)),
 ]
-# Credential shapes (section 11.4.10). Round 8 (review findings N1, N2): the keyed shapes are no longer one
-# regular expression per shape. A surface goes through three separate stages:
-#   1. a FRONT END (secret_views) that makes the views the rules read: the NFKC form (full-width and
-#      mathematical letters, full-width separators), with the format characters (category Cf: zero-width,
-#      soft hyphen, tag characters, bidi controls) removed and the Latin lookalikes of the Cyrillic and Greek
-#      alphabets folded to Latin (SECRET_FOLD); plus, when the text holds escapes, a view with the escapes
-#      decoded (\uXXXX, \xHH, \\, \/, \", \'), and when it holds %XX, a percent-decoded view;
-#   2. EXTRACTORS (KEYED_RULES) that find a key and its value in one syntax each, and say nothing about the
-#      value: an assignment (=, :=, =>, :, quoted or not), a call argument pair ('KEY', 'VALUE'), a setter
-#      call, a --flag, a tool's short -p flag, whitespace after the key, netrc, an XML element, an XML
-#      key/value attribute pair, a YAML block scalar, a pgpass line, a URL user-info password;
+# Credential shapes (section 11.4.10). Round 9 (review r9 finding F1, section 11.4.276(E): replace, do not
+# layer): round 8 matched the KEY of a keyed credential against lists of spellings written into every
+# extractor's regular expression, so every spelling outside the lists (a suffix after the key, a camelCase
+# short key, a key in brackets, a qualified "key") was a silent miss. Round 9 keeps the three stages and
+# replaces the key half of stage 2 by a structural classifier:
+#   1. a FRONT END (secret_views) that makes the views the rules read: NFKC; every format character (Cf),
+#      every combining and enclosing mark (Mn, Me, after an NFKD decomposition, so an accent or an
+#      invisible mark such as U+034F or a variation selector inside a key is removed) and the Hangul
+#      fillers removed; the Cyrillic and Greek lookalike table and a Latin-by-name fold (small capitals,
+#      Latin alpha, dotless i, long s) applied; then, as a closure of up to three layers, the views with
+#      escapes decoded (\uXXXX, \xHH, octal \NNN, \\, \/, \", \'), percent-encoding decoded (so a double
+#      %25 layer is two steps), HTML entities decoded, and adjacent string literals joined ("ab" "cd",
+#      "ab" + "cd", 'ab' . 'cd', 'ab' || 'cd');
+#   2. EXTRACTORS (KEYED_EXTRACTORS) that find a KEY TOKEN and its value in one syntax each (an
+#      assignment, an argument pair, a setter call, a --flag, whitespace, a quoted value after whitespace,
+#      netrc, an XML element, an XML key/value attribute pair, a YAML block scalar, a pgpass line, a URL
+#      user-info password, an Authorization header, a tool's own password flag). The key token is any
+#      identifier-like token (letters, digits, "_", ".", "-", bracketed subscripts); key_tier() splits it
+#      into words (camelCase, snake_case, kebab-case, dots, brackets, letter-digit boundaries) and decides
+#      the tier from the words: a head word (password, passphrase, credential, secret, token, a qualified
+#      key such as signing/encryption/master/account/api/private key, a short head such as pwd, pass,
+#      auth, key, session, cookie) followed only by words that do not name a PROPERTY of the credential
+#      (policy, count, hash, file, length, url ...: META_WORDS), so DB_PASSWORD_PROD, API_KEY_V2,
+#      password2, SECRET_KEY_BASE, userPass, config[password] are keys and password_policy, token_count,
+#      passwordless, secret_hits are not. A non-ASCII letter the folds do not know may stand for one letter
+#      of a long head (an Armenian or Cherokee lookalike);
 #   3. a VALUE CLASSIFIER (credential_value) that decides whether the value is a credential: long enough,
-#      not a reference, a mask, a placeholder, a code expression or a path, and, for the generic and short
-#      key tiers, holding a letter and a digit.
+#      not a reference (including a secret-manager reference such as vault:..., ref+...://...,
+#      @Microsoft.KeyVault(...)), a mask, a placeholder, a code expression or a path, and, for the generic
+#      and short key tiers, holding a letter and a digit and not an identifier such as lint_suite_2.
 # Every rule has a positive and a negative control needle in selfcheck(). The class, its census and its
-# boundary are docs/qa/tracker_intake_2026_11_15_v8/class_inventory.md; the shared fixtures that both the
+# boundary are docs/qa/tracker_intake_2026_11_15_v9/class_inventory.md; the shared fixtures that both the
 # lint and the independent leak scan are tested against are tests/workable_items/secret_shape_fixtures.py.
 SECRET_NFKC = True
 SECRET_STRIP_FORMAT = True
+SECRET_STRIP_MARKS = True
 SECRET_FOLD = True
+SECRET_FOLD_LATIN_NAMES = True
 SECRET_DECODE_ESCAPES = True
 SECRET_DECODE_PERCENT = True
-# strong keys: any value of 8 or more characters
-_SECRET_KEYS = (r"(?:pass(?:word|wd|phrase)|client[_.-]?secret|secret[_.-]?key|api[_.-]?key|access[_.-]?key|private[_.-]?key"
-                r"|credentials?|(?:auth|access|refresh|bearer|session|api|id|oauth|app)[_.-]?token)")
-# generic keys: a value with a letter and a digit after an unquoted colon (prose writes "Token: ...")
-_SECRET_KEYS_GENERIC = r"(?:secret|token)"
-# short keys: a value with a letter and a digit, never a path; an unquoted colon value is not read (the
-# "PASS: case_x" label of a test report)
-_SECRET_KEYS_SHORT = r"(?:pwd|pass|auth)"
-# where a strong or generic key may start: anywhere, so a prefix joined by "_" (DB_PASSWORD), "-"
-# (X-Api-Key), "." (app.password) or by nothing (PGPASSWORD) is read; a short key needs a character
-# that is not a letter or digit before it (bypass, oauth are words, not keys)
-_KEY_LEAD = r"(?:\b|_|(?<=[A-Za-z0-9.-]))"
-_SHORT_LEAD = r"(?<![A-Za-z0-9])"
-# the key may be quoted, also with an escaped quote (JSON written inside a string)
-_KQ = r"(?:\\?[\"'`])?"
-# the key alternatives, named by tier
-_KEY_STRONG = _KEY_LEAD + r"(?P<strong>" + _SECRET_KEYS + r")"
-_KEY_GENERIC = _KEY_LEAD + r"(?P<generic>" + _SECRET_KEYS_GENERIC + r")"
-_KEY_SHORT = _SHORT_LEAD + r"(?P<short>" + _SECRET_KEYS_SHORT + r")"
-_KEY = r"(?:" + _KEY_STRONG + "|" + _KEY_GENERIC + "|" + _KEY_SHORT + r")"
-# a quoted value: up to the same closing quote, an escape sequence (\\, \", \u00e9, \/) is part of it
-_QVAL = r"\\?(?P<q>[\"'`])(?P<v>(?:\\[^\n]|(?!\\?(?P=q))[^\n\\])*)\\?(?P=q)"
-# the Latin lookalikes of Cyrillic and Greek letters (the confusables a key can be spelled with)
+SECRET_DECODE_ENTITIES = True
+SECRET_JOIN_LITERALS = True
+SECRET_SPLIT_KEYS = True
+SECRET_WILDCARD = True
+SECRET_VIEW_LAYERS = 3
+SECRET_MAX_VIEWS = 24
+# ---- the key words (stage 2's key classifier) ------------------------------------------------------
+# strong heads: any value of 8 or more characters
+STRONG_HEADS = frozenset({"password", "passwd", "passphrase", "passwort", "kennwort", "contrasena", "senha",
+                          "wachtwoord", "lozinka", "salasana", "credential", "credentials"})
+# a word may END with a strong head (PGPASSWORD, dbpasswd, mypassphrase, pgcredential); "passwordless"
+# does not end with a head and is not a key
+SUFFIX_HEADS = tuple(sorted(STRONG_HEADS, key=len, reverse=True))
+# generic heads: an "=" value of 8 characters, a colon value with a letter and a digit
+GENERIC_HEADS = frozenset({"secret", "token", "creds"})
+# short heads: a value with a letter and a digit; the word must be a whole word (bypass, oauth, compass,
+# keyword are words, not keys), except in an all-upper-case shell name (DBPASS)
+SHORT_HEADS = frozenset({"pwd", "pass", "pw", "auth", "key", "session", "sid", "cookie"})
+UPPER_SUFFIX_SHORT = ("pass", "pwd")
+# a word joined to a short head (camelCase or an all-upper name) that makes an English word, not a key:
+# byPass, BYPASS, compass, oAuth, trespass, surpass
+SHORT_JOIN_NEGATIVE = frozenset({"by", "o", "com", "sur", "tres", "over", "under", "im", "en", "mis", "re", "pre",
+                                 "out", "up", "bi", "en", "ex"})
+# numeric heads: a value of digits only (a PIN)
+NUMERIC_HEADS = frozenset({"pin"})
+# a word before "key", "token" or "secret" that makes it a credential (strong), or a word that makes it
+# something else (a public key, a database key, a page token)
+KEY_QUALIFIERS = frozenset({"secret", "private", "access", "api", "signing", "sign", "encryption", "encrypt",
+                            "enc", "master", "account", "client", "shared", "app", "application", "session",
+                            "auth", "hmac", "jwt", "aes", "crypt", "crypto", "cipher", "decryption", "storage",
+                            "service", "admin", "root", "consumer", "subscription", "webhook", "license",
+                            "licence", "deploy", "ssh", "gpg", "pgp", "rsa", "ecdsa", "otp", "totp", "mfa",
+                            "recovery", "wrapping", "kms"})
+KEY_NEGATIVE = frozenset({"public", "pub", "foreign", "primary", "sort", "partition", "hash", "cache", "map",
+                          "dict", "row", "lookup", "idempotency", "unique", "composite", "natural",
+                          "surrogate", "routing", "shard", "object", "group", "config", "registry",
+                          "translation", "i18n", "react", "item", "field", "column", "index", "json",
+                          "yaml", "sorting", "keyboard", "hot", "short", "cut", "home", "end", "dedup",
+                          "join", "match", "node", "entry", "the", "a"})
+TOKEN_QUALIFIERS = frozenset({"auth", "access", "refresh", "bearer", "session", "api", "id", "oauth", "app",
+                              "bot", "personal", "deploy", "service", "github", "gitlab", "slack", "npm",
+                              "pypi", "registry", "webhook", "jwt", "client", "user", "admin", "security",
+                              "sas", "discord", "telegram", "hf", "ci", "runner", "trigger", "private",
+                              "secret", "master", "root"})
+TOKEN_NEGATIVE = frozenset({"page", "next", "continuation", "cancellation", "cursor", "pagination", "lexer",
+                            "parser", "design", "sync", "input", "output", "max", "min", "eos", "bos", "pad",
+                            "unk", "special", "stop", "sep", "cls", "mask", "end", "start", "the", "a",
+                            "csrf", "xsrf"})
+SECRET_QUALIFIERS = frozenset({"client", "app", "application", "consumer", "shared", "webhook", "jwt", "api",
+                               "signing", "session", "cookie", "hmac", "oauth", "aws", "encryption", "master",
+                               "root", "bot"})
+# a word after the head that names a property of the credential, not the credential itself
+META_WORDS = frozenset({
+    "policy", "policies", "count", "counts", "hits", "hit", "hash", "hashed", "digest", "file", "files", "path",
+    "paths", "dir", "length", "len", "size", "min", "max", "type", "types", "kind", "url", "uri", "endpoint",
+    "host", "field", "fields", "name", "names", "label", "header", "reset", "expiry", "expires",
+    "expiration", "expire", "ttl", "age", "rotation", "rotate", "rotated", "rule", "rules", "hint", "prompt",
+    "enabled", "disabled", "required", "optional", "set", "changed", "strength", "salt", "algorithm", "algo",
+    "format", "mode", "regex", "pattern", "lifetime", "timeout", "history", "attempts", "retries", "command",
+    "cmd", "env", "var", "variable", "ref", "reference", "id", "ids", "version", "manager", "store", "vault",
+    "provider", "source", "scope", "scopes", "audience", "issuer", "owner", "location", "prefix", "suffix",
+    "list", "map", "table", "column", "check", "checks", "test", "tests", "validator", "validation", "valid",
+    "verified", "verify", "input", "output", "box", "form", "button", "page", "screen", "text",
+    "placeholder", "generator", "less", "usage", "limit", "limits", "budget", "budgets", "spent", "used",
+    "cost", "costs", "rate", "estimate", "estimates", "stats", "metrics", "lookup", "error", "errors", "status",
+    "state", "flow", "grant", "endpoint", "server", "service", "helper", "util", "utils", "cache", "dump",
+    "log", "logs", "event", "events", "length", "chars", "char", "count", "number", "num", "scan", "scanner",
+    "scanning", "leak", "leaks", "shape", "shapes", "class", "census", "fixture", "fixtures", "rows", "row",
+    "word", "words", "case", "cases", "needle", "needles", "pair", "pairs", "line", "lines", "only", "free",
+    "field", "storage", "ui", "dialog", "modal", "visible", "visibility", "toggle", "show", "hidden", "auth",
+})
+# ---- stage 1: the front end -------------------------------------------------------------------------
 _FOLD = str.maketrans({
     "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p", "\u0441": "c", "\u0443": "y", "\u0445": "x",
     "\u0456": "i", "\u0458": "j", "\u0455": "s", "\u0501": "d", "\u051b": "q", "\u051d": "w", "\u04bb": "h",
@@ -189,17 +258,51 @@ _FOLD = str.maketrans({
     "\u039c": "M", "\u039d": "N", "\u039f": "O", "\u03a1": "P", "\u03a4": "T", "\u03a5": "Y", "\u03a7": "X",
     "\u0131": "i", "\u0261": "g", "\u217c": "l", "\u2170": "i",
 })
-_ESC = re.compile(r"\\(u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}|[\\/\"'])")
+# Latin letters that NFKC keeps, folded by their Unicode name: LATIN LETTER SMALL CAPITAL P, LATIN SMALL
+# LETTER ALPHA, LATIN SMALL LETTER DOTLESS J, LATIN SMALL LETTER LONG S, ...
+_LATIN_NAME = re.compile(r"^LATIN (?:(SMALL|CAPITAL) )?LETTER (?:SMALL CAPITAL )?([A-Z]|ALPHA|DOTLESS [IJ]|LONG S|"
+                         r"OPEN [EO]|SCRIPT [A-Z]|IOTA|UPSILON|TURNED [A-Z]|REVERSED [A-Z])$")
+_LATIN_WORD = {"ALPHA": "a", "IOTA": "i", "UPSILON": "u", "LONG S": "s"}
+# the invisible letters a key can carry that are neither a format character nor a mark
+_FILLERS = frozenset("\u115f\u1160\u3164\uffa0")
+_ESC = re.compile(r"\\(u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}|[0-7]{3}|[\\/\"'])")
 _PCT = re.compile(r"%[0-9A-Fa-f]{2}")
+_ENT = re.compile(r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});")
+# a closing quote, an optional concatenation operator and an opening quote of the same kind between two
+# value characters: "ab" "cd", "ab" + "cd", 'ab' . 'cd', 'ab' || 'cd'
+_JOIN = re.compile(r"(?<=[^\s\"'`\\])([\"'])[ \t]*(?:\+|\.|\|\|)?[ \t]*\1(?=[^\s\"'`,;:)\]}])")
+
+
+@functools.lru_cache(maxsize=4096)
+def _latin_fold(ch):
+    m = _LATIN_NAME.match(unicodedata.name(ch, ""))
+    if not m:
+        return ch
+    word = m.group(2)
+    out = _LATIN_WORD.get(word, word[-1])
+    return out.upper() if m.group(1) == "CAPITAL" else out.lower()
 
 
 def _clean(t):
-    """Remove the format characters and fold the lookalikes (the front end's per-view step)."""
-    if not t.isascii():
+    """Remove the format characters, the marks and the fillers, and fold the lookalikes (the per-view
+    step of the front end)."""
+    if t.isascii():
+        return t
+    if SECRET_STRIP_MARKS:
+        t = unicodedata.normalize("NFKD", t)
+    if SECRET_STRIP_FORMAT or SECRET_STRIP_MARKS:
+        drop = set()
         if SECRET_STRIP_FORMAT:
-            t = "".join(ch for ch in t if unicodedata.category(ch) != "Cf")
-        if SECRET_FOLD:
-            t = t.translate(_FOLD)
+            drop.add("Cf")
+        if SECRET_STRIP_MARKS:
+            drop |= {"Mn", "Me"}
+        t = "".join(ch for ch in t if unicodedata.category(ch) not in drop and ch not in _FILLERS)
+    if SECRET_STRIP_MARKS:
+        t = unicodedata.normalize("NFKC", t)
+    if SECRET_FOLD:
+        t = t.translate(_FOLD)
+    if SECRET_FOLD_LATIN_NAMES and not t.isascii():
+        t = "".join(ch if ch.isascii() else _latin_fold(ch) for ch in t)
     return t
 
 
@@ -207,27 +310,168 @@ def _unescape(m):
     s = m.group(1)
     if s[0] in "ux":
         return chr(int(s[1:], 16))
+    if s[0].isdigit():
+        return chr(int(s, 8))
     return s
 
 
+def _v_escapes(t):
+    return _ESC.sub(_unescape, t) if SECRET_DECODE_ESCAPES and "\\" in t else None
+
+
+def _v_percent(t):
+    return urllib.parse.unquote(t) if SECRET_DECODE_PERCENT and _PCT.search(t) else None
+
+
+def _v_entities(t):
+    return html.unescape(t) if SECRET_DECODE_ENTITIES and "&" in t and _ENT.search(t) else None
+
+
+def _v_join(t):
+    return _JOIN.sub("", t) if SECRET_JOIN_LITERALS and _JOIN.search(t) else None
+
+
+_TRANSFORMS = (_v_escapes, _v_percent, _v_entities, _v_join)
+
+
 def secret_views(text):
-    """The views of a surface that the credential rules read (stage 1 of the round-8 design)."""
+    """The views of a surface that the credential rules read (stage 1). The decoding transforms are
+    applied as a closure of up to SECRET_VIEW_LAYERS layers (an entity inside a percent-encoded value, a
+    double percent layer), every new view NFKC-normalised and cleaned again."""
     t = unicodedata.normalize("NFKC", text) if SECRET_NFKC else text
     t = _clean(t)
     views = [t]
-    if SECRET_DECODE_ESCAPES and "\\" in t:
-        d = _clean(unicodedata.normalize("NFKC", _ESC.sub(_unescape, t)))
-        if d not in views:
-            views.append(d)
-    if SECRET_DECODE_PERCENT and _PCT.search(t):
-        for base in list(views):
-            p = _clean(urllib.parse.unquote(base))
-            if p not in views:
-                views.append(p)
+    frontier = [t]
+    for _layer in range(SECRET_VIEW_LAYERS):
+        new = []
+        for v in frontier:
+            for f in _TRANSFORMS:
+                d = f(v)
+                if d is None:
+                    continue
+                d = _clean(unicodedata.normalize("NFKC", d))
+                if d not in views and len(views) < SECRET_MAX_VIEWS:
+                    views.append(d)
+                    new.append(d)
+        if not new:
+            break
+        frontier = new
     return views
 
 
-# words and shapes a value is not: placeholders, code, references, masks, paths
+# ---- stage 2, the key half: key tokens and their tier -----------------------------------------------
+_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[A-Za-z])(?=[0-9])|(?<=[0-9])(?=[A-Za-z])")
+_WSPLIT = re.compile(r"[\W_]+")
+
+
+def key_parts(tok):
+    """The words of a key token, each with a flag: True when it is joined to the word before it without a
+    separator (a camelCase hump or a letter-digit boundary), False after a separator (_, -, ., brackets,
+    quotes, $) or at the start."""
+    out = []
+    for part in _WSPLIT.split(tok):
+        if not part:
+            continue
+        subs = _CAMEL.sub(" ", part).split() if SECRET_SPLIT_KEYS else [part]
+        out += [(w.lower(), k > 0) for k, w in enumerate(subs)]
+    return out
+
+
+def key_words(tok):
+    """The words of a key token: split at camelCase humps, letter-digit boundaries, and every character
+    that is not a letter or a digit."""
+    return [w for w, _ in key_parts(tok)]
+
+
+def _like(w, h):
+    """w spells the head h: equal, or (a lookalike the folds do not know) of the same length with at most
+    two non-ASCII letters where h has a letter, for a head of five letters or more."""
+    if w == h:
+        return True
+    if not SECRET_WILDCARD or w.isascii() or len(w) != len(h) or len(h) < 5:
+        return False
+    odd = 0
+    for a, b in zip(w, h):
+        if a == b:
+            continue
+        if a.isascii() or not a.isalpha():
+            return False
+        odd += 1
+    return odd <= 2
+
+
+def _ends_like(w, h):
+    return len(w) > len(h) and _like(w[-len(h):], h)
+
+
+_TIER_RANK = {"strong": 4, "generic": 3, "short": 2, "numeric": 1}
+
+
+def _qualified(prev, w, head, quals, loose=False):
+    """head after a qualifier word (api key), joined to a qualifier (apikey), or after a word that ends with a
+    qualifier of three letters or more (PGapi_key reads as "p gapi key"). loose (the previous word was split
+    off a run of capitals, or the key is all capitals) also admits a two-letter qualifier at the end of the
+    previous word: "PGid_token" splits as "p gid token" and "PGID_TOKEN" as "pgid token", and the camel
+    split cannot tell "PG id" from "P Gid" (round 9 census). The safer reading counts it as qualified."""
+    n = 2 if loose else 3
+    if w == head:
+        return prev in quals or any(len(q) >= n and prev.endswith(q) for q in quals)
+    if w.endswith(head):
+        pre = w[:-len(head)]
+        return pre in quals or any(len(q) >= 3 and pre.endswith(q) for q in quals)
+    return False
+
+
+def _word_tier(ws, i, upper):
+    w, joined = ws[i]
+    prev = ws[i - 1][0] if i > 0 else ""
+    if any(_like(w, h) for h in STRONG_HEADS) or any(_ends_like(w, h) for h in SUFFIX_HEADS):
+        return "strong"
+    if w == "key" or (w.endswith("key") and len(w) > 3):
+        if _qualified(prev, w, "key", KEY_QUALIFIERS):
+            return "strong"
+        if w == "key":
+            return None if prev in KEY_NEGATIVE else "short"
+        return None
+    for head, quals, neg in (("token", TOKEN_QUALIFIERS, TOKEN_NEGATIVE), ("secret", SECRET_QUALIFIERS, frozenset())):
+        if _like(w, head) or (w.endswith(head) and len(w) > len(head)):
+            if _qualified(prev, w, head, quals, loose=(i > 0 and ws[i - 1][1]) or upper):
+                return "strong"
+            if _like(w, head):
+                return None if prev in neg else "generic"
+            pre = w[:-len(head)]
+            return None if pre in neg or any(len(n) >= 4 and pre.endswith(n) for n in neg) else "generic"
+    if w in GENERIC_HEADS:
+        return "generic"
+    if w in SHORT_HEADS:
+        return None if joined and prev in SHORT_JOIN_NEGATIVE else "short"
+    if upper and len(w) > 4 and w.endswith(UPPER_SUFFIX_SHORT):
+        pre = w[:-4] if w.endswith("pass") else w[:-3]
+        return None if pre in SHORT_JOIN_NEGATIVE else "short"
+    if w in NUMERIC_HEADS:
+        return "numeric"
+    return None
+
+
+def _tail_ok(tail):
+    return all(x.isdigit() or re.fullmatch(r"v[0-9]+", x) or x not in META_WORDS for x in tail)
+
+
+@functools.lru_cache(maxsize=65536)
+def key_tier(tok):
+    """The tier of a key token ("strong", "generic", "short", "numeric") or None: the strongest head word
+    whose following words name no property of the credential."""
+    ws = key_parts(tok)
+    upper = bool(re.fullmatch(r"[A-Z0-9_]+", tok)) and any(c.isalpha() for c in tok)
+    best = None
+    for i in range(len(ws)):
+        t = _word_tier(ws, i, upper)
+        if t and _tail_ok([w for w, _ in ws[i + 1:]]) and (best is None or _TIER_RANK[t] > _TIER_RANK[best]):
+            best = t
+    return best
+
+
+# ---- stage 3: the value classifier ------------------------------------------------------------------
 _PLACEHOLDER_WORDS = {
     "changeme", "change_me", "change-me", "changeit", "replaceme", "replace_me", "placeholder", "redacted",
     "example", "examples", "sample", "dummy", "password", "passwd", "passphrase", "secret", "token",
@@ -240,6 +484,14 @@ _CODE_ATTR = re.compile(r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+$")
 _PATH = re.compile(r"^(?:/|~/|~$|\./|\.\./)")
 _MASK = re.compile(r"^[xX*.#\s-]+$")
 _REF_START = "$<{%"
+# a secret-manager or URI reference: vault:secret/data/db#k, ref+awsssm://p/k, op://vault/item,
+# @Microsoft.KeyVault(SecretUri=...)
+_REF_URI = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]{1,}:(?://)?\S*[/#]")
+_REF_ANNOT = re.compile(r"^@[A-Za-z][\w.]*\(")
+# an Amazon resource name (arn:aws:secretsmanager:...:secret:name)
+_REF_ARN = re.compile(r"^arn:aws[\w-]*:[\w-]+:")
+# an identifier, not a credential, after a generic or short key: lint_suite_2, cache-v2-entry
+_IDENT_VALUE = re.compile(r"^[a-z]+[0-9]*(?:[_.-](?:[a-z]+[0-9]*|[0-9]+))+$")
 
 
 def _has_ld(v):
@@ -247,9 +499,12 @@ def _has_ld(v):
 
 
 def credential_value(tier, v, quote, allow_space=False, generic_ld=True):
-    """Stage 3: is v (the raw value an extractor found) a credential? tier is "strong", "generic" or
-    "short"; quote is the quote character the value was written in ("" when unquoted). A short-key value
-    always needs a letter and a digit, a generic-key value unless generic_ld is False (an "=" assignment)."""
+    """Stage 3: is v (the raw value an extractor found) a credential? tier is "strong", "generic",
+    "short" or "numeric"; quote is the quote character the value was written in ("" when unquoted). A
+    short-key value always needs a letter and a digit, a generic-key value unless generic_ld is False (an
+    "=" assignment); a numeric-key value is digits only (a PIN, four digits or more)."""
+    if tier == "numeric":
+        return bool(re.fullmatch(r"[0-9]{4,12}", v))
     if len(v) < 8:
         return False
     if _MASK.match(v):
@@ -260,16 +515,22 @@ def credential_value(tier, v, quote, allow_space=False, generic_ld=True):
         if not (quote == "'" and v[0] == "$" and re.fullmatch(r"\$[A-Za-z0-9]{7,}", v)
                 and any(c.isupper() for c in v) and any(c.islower() for c in v) and any(c.isdigit() for c in v)):
             return False
-    if any(c in v for c in " \t") and not allow_space:
+    if "\t" in v:
+        return False  # a tab inside a value is a table cell, also after a strong key (review r9 RV12)
+    if " " in v and not allow_space:
         return False
     low = v.lower()
     if low in _PLACEHOLDER_WORDS or _PLACEHOLDER.search(v):
         return False
     if _PATH.match(v):
         return False
+    if _REF_URI.match(v) or _REF_ANNOT.match(v) or _REF_ARN.match(v):
+        return False
     if not quote and (_CODE_CALL.match(v) or (_CODE_ATTR.match(v) and not any(c.isdigit() for c in v))):
         return False
     if (tier == "short" or (tier == "generic" and generic_ld)) and not _has_ld(v):
+        return False
+    if tier in ("short", "generic") and _IDENT_VALUE.match(v):
         return False
     if tier == "short" and v[0] in ".>":
         return False
@@ -277,18 +538,33 @@ def credential_value(tier, v, quote, allow_space=False, generic_ld=True):
 
 
 def _tier(m):
-    for t in ("strong", "generic", "short"):
-        if m.groupdict().get(t):
-            return t
+    if "key" in m.groupdict() and m.group("key") is not None:
+        return key_tier(m.group("key"))
     return "strong"
+
+
+# ---- stage 2, the extractors ------------------------------------------------------------------------
+# a key token: a letter or "_", then letters, digits, "_", ".", "-", then bracketed subscripts
+# (config[password], os.environ["DB_PASSWORD"]); it does not start after a letter, digit, "_" or "."
+_KTOK = r"(?P<key>[^\W\d][\w.\-]{0,255}(?:\[\s*\\?[\"'`]?[\w.\-]{1,255}\\?[\"'`]?\s*\]){0,4})"
+_KBEG = r"(?<![\w.])"
+# the key may be quoted, also with an escaped quote (JSON written inside a string)
+_KQ = r"(?:\\?[\"'`])?"
+# a quoted value: an optional string prefix (b"", f'', r"", rb''), then up to the same closing quote; an
+# escape sequence (\\, \", \u00e9, \/) is part of it
+_QPRE = r"(?P<sp>(?<![\w])[bBrRuUfF]{1,2})?"
+_QVAL = _QPRE + r"\\?(?P<q>[\"'`])(?P<v>(?:\\[^\n]|(?!\\?(?P=q))[^\n\\])*)\\?(?P=q)"
+_SEP_Q = r"\s*(?::=|=>|:|=)\s*"
 
 
 def _x_assign_quoted(view):
     """key [quote] (:=|=>|:|=) "value": password-assign, password-assign-spaced, short-key-assign."""
     for m in _RX_ASSIGN_Q.finditer(view):
         tier, v, q = _tier(m), m.group("v"), m.group("q")
-        if tier == "short":
-            if credential_value("short", v, q):
+        if tier is None:
+            continue
+        if tier in ("short", "numeric"):
+            if credential_value(tier, v, q):
                 yield "short-key-assign", m.group(0)
         elif re.search(r"[ \t]", v):
             if tier == "strong" and credential_value("strong", v.strip(), q, allow_space=True) and v.strip():
@@ -298,17 +574,18 @@ def _x_assign_quoted(view):
 
 
 def _x_assign_unquoted(view):
-    """key [quote] (:=|=>|=) value: password-assign-unquoted, short-key-assign."""
+    """key [quote] (:=|=>|=) value: password-assign-unquoted, short-key-assign. The value is read in a
+    lookahead, so a key inside the value (AccountName=x;AccountKey=v) is read too."""
     for m in _RX_ASSIGN_U.finditer(view):
         tier, v = _tier(m), m.group("v")
-        if v[:1] in "'\"`(\\[>" or not v:
+        if tier is None or v[:1] in "'\"`(\\[>" or not v:
             continue
-        if tier == "short":
-            v = re.split(r"[,;]", v)[0]
-            if credential_value("short", v, ""):
-                yield "short-key-assign", m.group(0)
+        if tier in ("short", "numeric"):
+            v = re.split(r"[,;&]", v)[0]
+            if credential_value(tier, v, ""):
+                yield "short-key-assign", m.group(0) + v
         elif credential_value(tier, v, "", generic_ld=False):
-            yield "password-assign-unquoted", m.group(0)
+            yield "password-assign-unquoted", m.group(0) + v
 
 
 def _x_colon_unquoted(view):
@@ -318,16 +595,16 @@ def _x_colon_unquoted(view):
         if not v or v[:1] in "'\"`(\\[":
             continue
         if tier == "strong" and credential_value("strong", v, ""):
-            yield "password-colon-unquoted", m.group(0)
+            yield "password-colon-unquoted", m.group(0) + v
         elif tier == "generic" and credential_value("generic", v, ""):
-            yield "secret-colon-unquoted", m.group(0)
+            yield "secret-colon-unquoted", m.group(0) + v
 
 
 def _x_argument_pair(view):
     """('KEY', 'VALUE'): define(), os.environ.get(key, default), cfg.Get(), a JSON array pair."""
     for m in _RX_ARGPAIR.finditer(view):
         tier, v, q = _tier(m), m.group("v"), m.group("q")
-        if credential_value(tier, v, q):
+        if tier and credential_value(tier, v, q):
             yield "argument-pair", m.group(0)
 
 
@@ -335,7 +612,7 @@ def _x_setter(view):
     """setPassword("VALUE"), set_api_key('VALUE')."""
     for m in _RX_SETTER.finditer(view):
         tier, v, q = _tier(m), m.group("v"), m.group("q")
-        if credential_value(tier, v, q):
+        if tier in ("strong", "generic") and credential_value(tier, v, q):
             yield "setter-call", m.group(0)
 
 
@@ -343,18 +620,21 @@ def _x_flag_space(view):
     """--password VALUE, --db-token VALUE (a letter and a digit after a generic or short key)."""
     for m in _RX_FLAG.finditer(view):
         tier, v = _tier(m), m.group("v").strip("'\"`")
+        if tier is None or tier == "numeric":
+            continue
         if re.fullmatch(r"[A-Z][A-Z0-9_]*", v):
             continue  # a usage-line placeholder: --password PASSWORD
         if v[:1] in "(-[":
             continue
         if credential_value(tier, v, "'" if m.group("v")[:1] == "'" else ""):
-            yield "password-flag-space", m.group(0)
+            yield "password-flag-space", m.group(0) + m.group("v")
 
 
 def _x_short_flag(view):
-    """A tool's short flag: mysql -pVALUE (joined; "-p VALUE" is a prompt and a database name),
-    sshpass -p VALUE, curl -u USER:VALUE."""
-    for rx in (_RX_MYSQL_P, _RX_SSHPASS_P, _RX_CURL_U):
+    """A tool's own password flag: mysql -pVALUE (joined; "-p VALUE" is a prompt and a database name),
+    sshpass -p VALUE, curl -u USER:VALUE, redis-cli -a VALUE, docker login -p VALUE, mongosh -p VALUE,
+    htpasswd -b FILE USER VALUE, openssl -passout pass:VALUE, sqlcmd -P VALUE, smbclient -U USER%VALUE."""
+    for rx in _TOOL_FLAGS:
         for m in rx.finditer(view):
             v = m.group("v").strip("'\"`")
             if credential_value("strong", v, ""):
@@ -362,16 +642,28 @@ def _x_short_flag(view):
 
 
 def _x_space(view):
-    """DB_PASSWORD VALUE (fish set -x): a strong key written as an identifier (a prefix, a key name of
-    several parts such as client_secret, or upper case), whitespace, a value with a letter and a digit;
-    "password policy2026" and "Password reset2026" are prose (section-B row B14)."""
+    """DB_PASSWORD VALUE (fish set -x), password<TAB>VALUE (a TSV row): a strong key written as an
+    identifier (a prefix, a key name of several parts such as client_secret, or upper case) and
+    whitespace, or any strong key and a tab; then a value with a letter and a digit. "password policy2026"
+    and "Password reset2026" are prose (section-B row B14)."""
     for m in _RX_SPACE.finditer(view):
-        tok, key, v = m.group("tok"), m.group("strong"), m.group("v")
-        if v[:1] in "$<{%'\"`(\\[/~-":
+        key, sep, v = m.group("key"), m.group("sep"), m.group("v")
+        if v[:1] in "$<{%'\"`(\\[/~-" or key_tier(key) != "strong":
             continue
-        ident = len(tok) > len(key) or (key.isupper() and len(key) > 3) or bool(re.search(r"[_.-]", key))
+        ws = key_words(key)
+        ident = len(ws) > 1 or (key.isupper() and len(key) > 3) or bool(re.search(r"[_.-]", key)) or "\t" in sep
         if ident and _has_ld(v) and credential_value("strong", v, ""):
             yield "password-space", m.group(0)
+
+
+def _x_space_quoted(view):
+    """A strong key, whitespace and a QUOTED value: ALTER USER u WITH PASSWORD 'VALUE',
+    CREATE USER u IDENTIFIED BY 'VALUE', password "VALUE"; the value needs a letter and a digit."""
+    for m in _RX_SPACE_Q.finditer(view):
+        v, q = m.group("v"), m.group("q")
+        tier = "strong" if m.group("key") is None else key_tier(m.group("key"))
+        if tier == "strong" and _has_ld(v) and credential_value("strong", v, q):
+            yield "password-space-quoted", m.group(0)
 
 
 def _x_netrc(view):
@@ -384,7 +676,7 @@ def _x_xml_element(view):
     """<password>VALUE</password>, <db_token type="x">VALUE</db_token>."""
     for m in _RX_XML_EL.finditer(view):
         tier, v = _tier(m), m.group("v")
-        if m.group("ctag") != m.group("otag"):
+        if tier is None or m.group("ctag") != m.group("key"):
             continue
         if credential_value(tier, v, "<"):
             yield "xml-credential-element", m.group(0)
@@ -394,10 +686,12 @@ def _x_xml_attr(view):
     """<add key="Password" value="VALUE"/>, <param name="token" value="VALUE"/>,
     <entry key="password">VALUE</entry>."""
     for m in _RX_XML_ATTR_V.finditer(view):
-        if credential_value(_tier(m), m.group("v"), m.group("q2")):
+        tier = _tier(m)
+        if tier and credential_value(tier, m.group("v"), m.group("q2")):
             yield "xml-attribute-pair", m.group(0)
     for m in _RX_XML_ATTR_T.finditer(view):
-        if m.group("ctag") == m.group("otag") and credential_value(_tier(m), m.group("v"), "<"):
+        tier = _tier(m)
+        if tier and m.group("ctag") == m.group("otag") and credential_value(tier, m.group("v"), "<"):
             yield "xml-attribute-pair", m.group(0)
 
 
@@ -406,7 +700,7 @@ def _x_yaml_block(view):
     (a value with a space inside is section-B row B15). A short key needs a letter and a digit."""
     for m in _RX_YAML_BLOCK.finditer(view):
         tier, v = _tier(m), m.group("v").split()[0]
-        if credential_value(tier, v, "|"):
+        if tier and credential_value(tier, v, "|"):
             yield "yaml-block-scalar", m.group(0)
 
 
@@ -432,36 +726,49 @@ def _x_url(view):
         yield "url-userinfo-password", m.group(0)
 
 
-_SEP_Q = r"\s*(?::=|=>|:|=)\s*"
-_RX_ASSIGN_Q = re.compile(r"(?i)" + _KEY + _KQ + _SEP_Q + _QVAL)
-_RX_ASSIGN_U = re.compile(r"(?i)" + _KEY + _KQ + r"\s*(?::=|=>|=)\s*(?P<v>[^\s'\"`]*)")
-_RX_COLON_U = re.compile(r"(?i)" + r"(?:" + _KEY_STRONG + "|" + _KEY_GENERIC + r")" + _KQ + r"\s*:(?!=)\s*(?P<v>[^\s'\"`,;]*)")
+def _x_authorization(view):
+    """Authorization: <scheme> VALUE for any scheme but Basic (ApiKey, Token, a short Bearer); a value of
+    8 characters with a letter and a digit. A Bearer or Token value of 20 characters or more is the
+    bearer-token rule's."""
+    for m in _RX_AUTHZ.finditer(view):
+        scheme, v = m.group("scheme").lower(), m.group("v")
+        if scheme == "basic" or (scheme in ("bearer", "token") and len(v) >= 20):
+            continue
+        if credential_value("generic", v, ""):
+            yield "authorization-header", m.group(0)
+
+
+_RX_ASSIGN_Q = re.compile(r"(?i)" + _KBEG + _KTOK + _KQ + _SEP_Q + _QVAL)
+_RX_ASSIGN_U = re.compile(r"(?i)" + _KBEG + _KTOK + _KQ + r"\s*(?::=|=>|=)\s*(?=(?P<v>[^\s'\"`]{0,1024}))")
+_RX_COLON_U = re.compile(r"(?i)" + _KBEG + _KTOK + _KQ + r"\s*:(?!=)\s*(?=(?P<v>[^\s'\"`,;]{0,1024}))")
 _RX_ARGPAIR = re.compile(
-    r"(?i)(?P<kq>[\"'`])[\w.-]*?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>" + _SECRET_KEYS_GENERIC
-    + r")|(?:(?<=[\"'`])|(?<=[_.-]))(?P<short>" + _SECRET_KEYS_SHORT + r"))(?P=kq)\s*,\s*(?P<q>[\"'`])"
-    r"(?P<v>(?:\\[^\n]|(?!(?P=q))[^\n\\])*)(?P=q)")
+    r"(?i)(?P<kq>[\"'`])" + _KTOK + r"(?P=kq)\s*,\s*(?P<q>[\"'`])(?P<v>(?:\\[^\n]|(?!(?P=q))[^\n\\])*)(?P=q)")
 _RX_SETTER = re.compile(
-    r"(?i)(?<![A-Za-z0-9])set_?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>" + _SECRET_KEYS_GENERIC
-    + r"))\s*\(\s*(?P<q>[\"'`])(?P<v>(?:\\[^\n]|(?!(?P=q))[^\n\\])*)(?P=q)\s*\)")
-_RX_FLAG = re.compile(
-    r"(?i)(?<![\w-])--[\w.-]*?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>" + _SECRET_KEYS_GENERIC
-    + r")|(?P<short>" + _SECRET_KEYS_SHORT + r"))\s+\\?(?P<v>[\"'`]?[^\s\"'`]+)")
-_RX_MYSQL_P = re.compile(r"\b(?:mysql|mysqldump|mysqladmin|mysqlimport|mysqlsh|mariadb(?:-dump)?)\b[^\n|;&]*?\s-p(?P<v>[^\s-][^\s]*)")
-_RX_SSHPASS_P = re.compile(r"\bsshpass\b[^\n|;&]*?\s-p\s*(?P<v>[^\s-]\S*)")
-_RX_CURL_U = re.compile(r"\bcurl\b[^\n|;&]*?\s(?:-u|--user)\s+[\"']?[^\s:\"']+:(?P<v>[^\s\"'@]+)")
-_RX_SPACE = re.compile(r"(?i)(?<![\w.-])(?P<tok>[\w.-]*?" + _KEY_LEAD + r"(?P<strong>" + _SECRET_KEYS + r"))[ \t]+(?P<v>[^\s'\"`,;]+)")
+    r"(?<![A-Za-z0-9])set_?(?P<key>[A-Za-z][\w]*?)\s*\(\s*(?P<q>[\"'`])(?P<v>(?:\\[^\n]|(?!(?P=q))[^\n\\])*)(?P=q)\s*\)")
+_RX_FLAG = re.compile(r"(?i)(?<![\w-])--(?P<key>[\w.-]{1,256}?)\s+(?=\\?(?P<v>[\"'`]?[^\s\"'`]{1,1024}))")
+_TOOL_FLAGS = [re.compile(p) for p in (
+    r"\b(?:mysql|mysqldump|mysqladmin|mysqlimport|mysqlsh|mariadb(?:-dump)?)\b[^\n|;&]*?\s-p(?P<v>[^\s-][^\s]*)",
+    r"\bsshpass\b[^\n|;&]*?\s-p\s*(?P<v>[^\s-]\S*)",
+    r"\bcurl\b[^\n|;&]*?\s(?:-u|--user)\s+[\"']?[^\s:\"']+:(?P<v>[^\s\"'@]+)",
+    r"\bredis-cli\b[^\n|;&]*?\s-a\s+(?P<v>[^\s-]\S*)",
+    r"\bdocker\s+login\b[^\n|;&]*?\s-p\s+(?P<v>[^\s-]\S*)",
+    r"\b(?:mongo|mongosh|mongodump|mongorestore|mongoexport|mongoimport)\b[^\n|;&]*?\s-p\s+(?P<v>[^\s-]\S*)",
+    r"\bhtpasswd\s+-[A-Za-z]*b[A-Za-z]*\s+(?:-\S+\s+)*[^\s-]\S*\s+[^\s-]\S*\s+(?P<v>[^\s-]\S*)",
+    r"(?<![\w-])-(?:pass|passin|passout)\s+pass:(?P<v>\S+)",
+    r"\bsqlcmd\b[^\n|;&]*?\s-P\s+(?P<v>[^\s-]\S*)",
+    r"\bsmbclient\b[^\n|;&]*?\s-U\s+[^\s%]+%(?P<v>\S+)",
+)]
+_RX_SPACE = re.compile(r"(?i)(?<![\w.-])(?P<key>[^\W\d][\w.-]{0,255})(?P<sep>[ \t]+)(?=(?P<v>[^\s'\"`,;]{1,1024}))")
+_RX_SPACE_Q = re.compile(r"(?i)(?:" + _KBEG + _KTOK + r"|\bidentified\s+by)[ \t]+" + _QVAL)
 _RX_NETRC = re.compile(r"(?i)\blogin\s+\S+\s+pass(?:word|wd)\s+(?P<v>\S+)")
-_RX_XML_EL = re.compile(
-    r"(?i)<(?P<otag>[\w.-]*?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>" + _SECRET_KEYS_GENERIC
-    + r")|(?:(?<=<)|(?<=[_.-]))(?P<short>" + _SECRET_KEYS_SHORT + r")))(?:\s[^<>]*)?>\s*(?P<v>[^<>\s]+)\s*</(?P<ctag>[\w.-]+)\s*>")
-_ATTR_KEY = (r"\b(?:key|name)\s*=\s*(?P<q1>[\"'])[\w.:-]*?(?:(?P<strong>" + _SECRET_KEYS + r")|(?P<generic>"
-             + _SECRET_KEYS_GENERIC + r")|(?:(?<=[\"'])|(?<=[_.:-]))(?P<short>" + _SECRET_KEYS_SHORT + r"))(?P=q1)")
+_RX_XML_EL = re.compile(r"(?i)<" + _KTOK.replace("[\\w.\\-]{0,255}", "[\\w.\\-:]{0,255}", 1) + r"(?:\s[^<>]*)?>\s*(?P<v>[^<>\s]+)\s*</(?P<ctag>[\w.:-]+)\s*>")
+_ATTR_KEY = r"\b(?:key|name)\s*=\s*(?P<q1>[\"'])(?P<key>[\w.:-]+)(?P=q1)"
 _RX_XML_ATTR_V = re.compile(r"(?i)<[\w:.-]+\s[^<>]*?" + _ATTR_KEY + r"[^<>]*?\bvalue\s*=\s*(?P<q2>[\"'])(?P<v>[^\"'<>]*)(?P=q2)")
 _RX_XML_ATTR_T = re.compile(r"(?i)<(?P<otag>[\w:.-]+)\s[^<>]*?" + _ATTR_KEY + r"[^<>]*>\s*(?P<v>[^<>\s]+)\s*</(?P<ctag>[\w:.-]+)\s*>")
-_RX_YAML_BLOCK = re.compile(r"(?im)(?:" + _KEY_STRONG + "|" + _KEY_GENERIC + "|" + _KEY_SHORT + r")" + _KQ
-                            + r"[ \t]*:[ \t]*[|>][-+0-9]*[ \t]*\r?\n[ \t]+(?P<v>\S[^\n]*)")
+_RX_YAML_BLOCK = re.compile(r"(?im)" + _KBEG + _KTOK + _KQ + r"[ \t]*:[ \t]*[|>][-+0-9]*[ \t]*\r?\n[ \t]+(?P<v>\S[^\n]*)")
 _RX_PGPASS = re.compile(r"(?m)^[ \t]*[^\s:#]+:(?:\d{1,5}|\*):[^\s:]+:[^\s:]+:(?P<v>\S+?)[ \t]*\r?$")
 _RX_URL = re.compile(r"(?i)(?<![\w+.-])[a-z][a-z0-9+.-]*://[^/\s:@\[\]]*:(?P<v>[^\s@]+)@")
+_RX_AUTHZ = re.compile(r"(?i)\bauthorization\s*[:=]\s*(?P<scheme>[A-Za-z][\w-]*)\s+(?P<v>[A-Za-z0-9._~+/=-]+)")
 
 # the extractors (stage 2) and the rule names each can report
 KEYED_EXTRACTORS = [
@@ -474,11 +781,13 @@ KEYED_EXTRACTORS = [
     (_x_flag_space, ("password-flag-space",)),
     (_x_short_flag, ("short-flag-value",)),
     (_x_space, ("password-space",)),
+    (_x_space_quoted, ("password-space-quoted",)),
     (_x_netrc, ("password-netrc",)),
     (_x_xml_element, ("xml-credential-element",)),
     (_x_xml_attr, ("xml-attribute-pair",)),
     (_x_yaml_block, ("yaml-block-scalar",)),
     (_x_pgpass, ("pgpass-line",)),
+    (_x_authorization, ("authorization-header",)),
 ]
 # the token shapes: a vendor prefix or a fixed format (stage 2 for a credential that carries no key)
 SECRET_PATTERNS = [
@@ -521,17 +830,23 @@ EPHEMERAL_PATTERNS = [
 ]
 # NUL, C0 other than tab and newline, DEL, C1, and the two Unicode line separators
 CONTROL_CHAR = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]")
+# the invisible characters that are not Cf (round 9, review r9 F1): COMBINING GRAPHEME JOINER, the Hangul
+# fillers, the Khmer inherent vowels, the Mongolian free variation selectors and the variation selectors;
+# a key spelled with one of them reads as a different key to a pattern and the same key to a reader
+INVISIBLE_CHAR = re.compile("[\u034f\u115f\u1160\u17b4\u17b5\u180b-\u180f\u3164\ufe00-\ufe0f\uffa0\U000e0100-\U000e01ef]")
 
 
 def control_char(text):
     """The earliest control character, line separator or format character (Cf) in text, or None. Cf
     holds the bidi overrides and isolates (Trojan Source), the BOM, the soft hyphen, the zero-width
-    characters and the tag characters, which change what a reader sees without being visible."""
+    characters and the tag characters, which change what a reader sees without being visible; and the
+    invisible characters that are not Cf (INVISIBLE_CHAR: variation selectors, the combining grapheme
+    joiner, the Hangul fillers)."""
     if text.isascii():
         cm = CONTROL_CHAR.search(text)
         return cm.group(0) if cm else None
     for ch in text:
-        if CONTROL_CHAR.match(ch) or unicodedata.category(ch) == "Cf":
+        if CONTROL_CHAR.match(ch) or unicodedata.category(ch) == "Cf" or INVISIBLE_CHAR.match(ch):
             return ch
     return None
 CODES = {
@@ -1336,6 +1651,8 @@ def secret_needles():
         ("stripe-key", "s" + "k_" + "live_" + a * 20, "s" + "k_" + "live_" + a * 19),
         ("npm-token", "np" + "m_" + a * 36, "np" + "m_" + a * 35),
         ("telegram-bot-token", "123456789" + ":AA" + a * 33, "123456789" + ":AA" + a * 32),
+        ("password-space-quoted", "WITH PASS" + "WORD '" + v8 + "'", "WITH PASS" + "WORD '" + v8[:7] + "'"),
+        ("authorization-header", "Authorization: " + "ApiKey " + v8, "Authorization: " + "ApiKey " + v8[:7]),
     ]
 
 

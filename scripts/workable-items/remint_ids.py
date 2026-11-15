@@ -17,7 +17,8 @@ WHY   Two vehicles that branch from one base both mint ids from the base's maxim
 USAGE
   remint_ids.py plan --vehicle-db V --base-db B --target-db T --out PLAN.json [--map-out MAP.tsv]
                      [--prefix CON] [--resolve ID=target|vehicle ...] [--foreign IDS ...]
-                     [--repo-root DIR] [--no-fast-forward]
+                     [--repo-root DIR] [--no-fast-forward] [--supersede VID=TID ...]
+                     [--annotate-foreign TID ...] [--dup-resolution TSV]
       Read-only. Writes the plan (JSON): the sha256 of the three databases, the id map, every base
       item change, every conflict, every refusal and the engine steps. When the target equals the
       base table for table, the plan is FAST-FORWARD (the vehicle database is the landed database)
@@ -25,6 +26,19 @@ USAGE
       that runs a file which names a moved id is refused (the file would test the wrong item),
       unless the id is foreign: declared by the item's own Foreign line, by --foreign, or by a
       comment line in the file (`# Foreign ids (...): ...`, also `//` and `--`).
+      --supersede VID=TID (section 11.4.214, round 9): the vehicle's own item VID is the same defect
+      as TID, an item the target added after the base; no row is minted for VID, the map sends VID
+      to TID, every reference is rewritten to TID and the vehicle row is kept in the plan
+      ("superseded") for audit. REPLAY landings only.
+      --annotate-foreign TID: TID is a target item whose text names an id the target does not hold
+      and this landing mints for another item (the provisional id of an unlanded vehicle). Without
+      the option the plan refuses it as XREF-REBOUND; with it the item's description gains the
+      ANNOTATE_LINE naming those ids as foreign, so no reader takes them for the new items.
+      --dup-resolution TSV: header vehicle_id<TAB>target_id<TAB>verdict<TAB>reason; one row per
+      pair the lint reports as sharing a path, verdict DISTINCT, DISTINCT-but-similar or UNDECIDED
+      (SAME-DEFECT goes through --supersede); the reason names no id and holds no ';'. The landing
+      appends "Landing check (section 11.4.214) against target <sha12>: ..." to the vehicle item's
+      Duplicate check line, which the lint reads as naming the target item.
       Exit 0 a plan without conflicts or refusals; 1 conflicts or refusals (the plan is written so
       they can be read; replay refuses it).
   remint_ids.py replay --plan PLAN.json [--apply --engine BIN --db TARGET_COPY]
@@ -84,8 +98,8 @@ DATABASES  Every database is opened read-only by its path (URI-quoted, so `?` an
       characters), and a database with a non-empty -wal sidecar is refused (the sha256 of the main
       file would not describe what sqlite reads).
 NOT CARRIED  The vehicle's history rows (the engine writes new ones on replay, M-14), created_at
-      (the replay time for own items; the engine's close rewrites it for a base item it closes,
-      engine defect CON-339) and last_modified. verify reports these as KNOWN, never as a pass.
+      (the replay time for own items; the engine's close rewrites it for a base item it closes, a
+      known engine defect tracked in the tracker, see the guide) and last_modified. verify reports these as KNOWN, never as a pass.
 EXIT  0 done; 1 a refusal, a conflict or a verify mismatch; 2 usage; 3 BLIND (a database, file or
       plan that cannot be read or does not have the expected shape, a non-UTF-8 file, a failed
       control needle).
@@ -102,7 +116,15 @@ import subprocess
 import sys
 import urllib.parse
 
-PLAN_SCHEMA = "remint_ids.plan/5"
+PLAN_SCHEMA = "remint_ids.plan/6"
+# round 9 (F2): the line --annotate-foreign appends to a target item whose own text names an id the target
+# does not hold and the landing mints for another item (the provisional id of an unlanded vehicle); verify
+# carries its own copy of this text (V_ANNOTATE) and recomputes the ids, so a changed constant is caught
+ANNOTATE_LINE = ("Foreign ids (provisional ids of an unlanded vehicle, named before this landing; not the items "
+                 "that hold these numbers after it): ")
+DUP_VERDICTS = ("DISTINCT", "DISTINCT-but-similar", "UNDECIDED")
+DUP_HEADER = "vehicle_id\ttarget_id\tverdict\treason"
+DUP_LINE = re.compile(r"^Duplicate check \(section 11\.4\.214\):", re.M)
 KNOWN_TABLES = {
     "items", "item_history", "sqlite_sequence", "obsolete_details", "operator_block_details",
     "firebase_metadata", "logic_groups", "doc_segments", "test_diary", "repro_gate_exemptions", "meta",
@@ -147,6 +169,46 @@ class Blind(Exception):
 
 def num(iid):
     return int(iid.rsplit("-", 1)[1])
+
+
+def parse_supersede(specs):
+    """--supersede VEHICLE_ID=TARGET_ID ...: a vehicle item the target already holds (the same defect,
+    filed on the target meanwhile). The id lands on the target's item: no row is minted for it and every
+    vehicle reference to it is rewritten to the target's id (section 11.4.214: a report lands on the
+    existing item)."""
+    out = []
+    for spec in specs:
+        mm = re.fullmatch(r"([A-Z]+-[0-9]+)=([A-Z]+-[0-9]+)", spec)
+        if not mm:
+            raise Blind("--supersede %r: want VEHICLE_ID=TARGET_ID" % spec)
+        out.append((mm.group(1), mm.group(2)))
+    return out
+
+
+def read_dup_resolution(path):
+    """--dup-resolution FILE: rows (line, vehicle_id, target_id, verdict, reason), the duplicate checks the
+    lander made at landing time against target items the vehicle never saw (round 9, F3)."""
+    try:
+        lines = open(path, encoding="utf-8").read().splitlines()
+    except (OSError, UnicodeDecodeError) as e:
+        raise Blind("--dup-resolution %s: unreadable: %s" % (path, e))
+    if not lines or lines[0] != DUP_HEADER:
+        raise Blind("--dup-resolution %s: no 'vehicle_id<TAB>target_id<TAB>verdict<TAB>reason' header" % path)
+    rows = []
+    for n, line in enumerate(lines[1:], 2):
+        if not line:
+            continue
+        f = line.split("\t")
+        if len(f) != 4:
+            raise Blind("--dup-resolution %s line %d: want four TAB-separated fields" % (path, n))
+        rows.append((n, f[0], f[1], f[2], f[3]))
+    return rows
+
+
+def landing_check(rows, target_sha):
+    """The text appended to an own item's Duplicate check line for its landing-time rows."""
+    return "Landing check (section 11.4.214) against target %s: %s." % (
+        target_sha[:12], "; ".join("%s: %s, %s" % (t, v, r) for t, v, r in rows))
 
 
 def sha256_file(path):
@@ -666,11 +728,34 @@ def make_plan(a):
         if hist["vehicle"].get(hid) != h:
             refuse("item_history row %d (%s): the vehicle rewrote or deleted a base history row" % (hid, h["atm_id"]))
 
+    sup_specs = parse_supersede(a.supersede)
+    sup = {}
     if fast_forward and not a.no_fast_forward:
         m = {i: i for i in own}
         mode = "FAST-FORWARD"
+        if sup_specs:
+            refuse("--supersede needs a REPLAY landing: the target is the base, so it added no item to land on")
     else:
         mode = "REPLAY"
+        # round 9 (F2): a superseded vehicle id lands on the target's item; only the others are minted
+        onto = {}
+        for vid, tid in sup_specs:
+            tag = "--supersede %s=%s: " % (vid, tid)
+            if vid not in own:
+                refuse(tag + "%s is not an id the vehicle minted" % vid)
+            elif tid not in T:
+                refuse(tag + "the target holds no %s" % tid)
+            elif tid in B:
+                refuse(tag + "%s is a base item, not one the target added" % tid)
+            elif vid in sup:
+                refuse(tag + "%s is given twice" % vid)
+            else:
+                onto.setdefault(tid, []).append(vid)
+                sup[vid] = tid
+        for tid, vids in sorted(onto.items()):
+            if len(vids) > 1:
+                refuse("--supersede %s: two vehicle ids land on %s" % (", ".join("%s=%s" % (v, tid) for v in vids), tid))
+        minted = [o for o in own if o not in sup]
         if not own:
             m = {}
         else:
@@ -678,13 +763,14 @@ def make_plan(a):
                 raise Blind("the target holds no %s id: the next free number cannot be known" % prefix)
             width = len(own[0].rsplit("-", 1)[1])
             start = max(num(i) for i in T if rx.fullmatch(i)) + 1
-            m = {o: "%s-%0*d" % (prefix, width, start + k) for k, o in enumerate(own)}
+            m = {o: "%s-%0*d" % (prefix, width, start + k) for k, o in enumerate(minted)}
             stay = set(V) - set(own)
             for old, new in m.items():
                 if new in T:
                     refuse("new id %s already exists in the target" % new)
                 if new in stay:
                     refuse("new id %s is an item of the vehicle that is not moved" % new)
+            m.update(sup)
 
     resolutions = {}
     for spec in a.resolve:
@@ -833,12 +919,98 @@ def make_plan(a):
         steps.extend(isteps)
         if norm(v["created_at"]) != norm(b["created_at"]):
             notes.append("%s: created_at changed in the vehicle (%s -> %s); not carried (no engine command sets it; "
-                         "a close rewrites it, engine defect CON-339)" % (i, b["created_at"], v["created_at"]))
+                         "a close rewrites it, known engine defect)" % (i, b["created_at"], v["created_at"]))
 
+    superseded, annotations, landing_checks, dup_rows = [], {}, {}, []
     if mode == "REPLAY":
+        minted_new = {m[o]: o for o in own if o not in sup}
+        # round 9 (F2): a target item whose own text names an id the target does not hold and this landing
+        # mints for another item is a cross-reference the landing would silently re-bind (XREF-REBOUND);
+        # --annotate-foreign appends a Foreign ids line that declares it, anything else refuses
+        annotate = set(a.annotate_foreign)
+        tok = id_patterns(prefix)[1]
+        replayed_items = {s_["item"] for s_ in steps}
+        for i in sorted(T):
+            if len(T[i]) != 1:
+                continue
+            t = T[i][0]
+            ft = item_foreign([t], prefix, a.foreign)
+            # an id the vehicle's own text of the same item names as the item it lands as is the vehicle's
+            # meaning, not a re-binding (a target that converged on the vehicle's post-map text)
+            vnames = {x.group(0) for r_ in V.get(i, []) for c in TEXT_REWRITE for x in tok.finditer(norm(r_[c]))}
+            names = sorted({x.group(0) for c in TEXT_REWRITE for x in tok.finditer(norm(t[c]))
+                            if x.group(0) not in T and x.group(0) in minted_new and not ft.has(num(x.group(0)))
+                            and minted_new[x.group(0)] not in vnames}, key=num)
+            # the item a --supersede lands on that names the superseded vehicle id calls itself by the vehicle's
+            # provisional id; after the landing that number is another item (the target's, or one this landing
+            # mints), so it is a re-bound reference too (XREF-SUPERSEDED), unless the item declares it foreign
+            selfref = sorted({x.group(0) for c in TEXT_REWRITE for x in tok.finditer(norm(t[c]))
+                              if sup.get(x.group(0)) == i and not ft.has(num(x.group(0)))}, key=num)
+            names = sorted(set(names) | set(selfref), key=num)
+            if not names:
+                if i in annotate:
+                    refuse("--annotate-foreign %s: the item names no provisional vehicle id" % i)
+                continue
+            if i not in annotate:
+                for x in names:
+                    if x in selfref:
+                        refuse("XREF-SUPERSEDED %s: names %s, the vehicle id this landing supersedes onto %s; after the "
+                               "landing %s is %s; --annotate-foreign %s declares it a foreign id"
+                               % (i, x, i, x, "the target's own item" if x in T else
+                                  "the vehicle's %s" % minted_new[x] if x in minted_new else "no item", i))
+                    else:
+                        refuse("XREF-REBOUND %s: names %s, which the target does not hold and this landing mints for the "
+                               "vehicle's %s; --annotate-foreign %s declares it a foreign id" % (i, x, minted_new[x], i))
+                continue
+            if i in replayed_items:
+                refuse("--annotate-foreign %s: the landing also replays a vehicle change of the item; annotate it by "
+                       "hand after the landing" % i)
+                continue
+            line = ANNOTATE_LINE + ", ".join(names)
+            annotations[i] = line
+            steps.append({"item": i, "from": i, "kind": "annotate",
+                          "argv": ["update", "--id=" + i, "--db", "{DB}", "--location=" + norm(t["current_location"]),
+                                   "--description=" + norm(t["description"]) + "\n\n" + line]})
+        for i in sorted(annotate - set(T)):
+            refuse("--annotate-foreign %s: the item names no provisional vehicle id" % i)
+        # round 9 (F3): landing-time duplicate checks against target items the vehicle never saw
+        seen = {}
+        if a.dup_resolution:
+            for n, vid, tid, verdict, reason in read_dup_resolution(a.dup_resolution):
+                tag = "--dup-resolution line %d: " % n
+                vrow = V.get(vid, [None])[0]
+                if verdict == "SAME-DEFECT":
+                    refuse(tag + "SAME-DEFECT lands through --supersede %s=%s, not as a landing check" % (vid, tid))
+                elif verdict not in DUP_VERDICTS:
+                    refuse(tag + "verdict %r is outside %s" % (verdict, ", ".join(DUP_VERDICTS)))
+                elif tid not in T:
+                    refuse(tag + "the target holds no %s" % tid)
+                elif vid not in minted_new.values():
+                    refuse(tag + "%s is not an own item minted by this landing" % vid)
+                elif not reason.strip() or ";" in reason or "\n" in reason:
+                    refuse(tag + "the reason is empty or holds a semicolon")
+                elif re.search(r"(?<![\w-])[A-Z]+-[0-9]+\b", reason):
+                    refuse(tag + "the reason names an id; name the item by its words, the target id is the row's")
+                elif (vid, tid) in seen:
+                    refuse(tag + "%s and %s given twice (line %d)" % (vid, tid, seen[(vid, tid)]))
+                elif len(DUP_LINE.findall(norm(vrow["description"]))) != 1:
+                    refuse(tag + "%s has no Duplicate check line, or more than one" % vid)
+                else:
+                    seen[(vid, tid)] = n
+                    dup_rows.append([vid, tid, verdict, reason])
+        target_sha = sha256_file(paths["target"])
+        for vid in sorted({r_[0] for r_ in dup_rows}, key=num):
+            rows_ = sorted(((t_, v_, r_) for o_, t_, v_, r_ in dup_rows if o_ == vid), key=lambda x: num(x[0]))
+            landing_checks[m[vid]] = landing_check(rows_, target_sha)
         for old in own:
             v = one_row(V, old)
             if v is None:
+                continue
+            if old in sup:
+                superseded.append({"vehicle_id": old, "target_id": sup[old], "title": norm(v["title"]),
+                                   "type": norm(v["type"]), "status": norm(v["status"]),
+                                   "description": norm(v["description"]),
+                                   "description_sha256": hashlib.sha256(norm(v["description"]).encode()).hexdigest()})
                 continue
             new = m[old]
             label = "own %s" % old
@@ -846,6 +1018,11 @@ def make_plan(a):
             rw = {}
             for col in TEXT_REWRITE:
                 rw[col], _ = rewr.text(norm(v[col]), foreign, "%s %s" % (label, col))
+            if new in landing_checks:
+                lines_ = rw["description"].split("\n")
+                k_ = next(k for k, ln in enumerate(lines_) if DUP_LINE.match(ln))
+                lines_[k_] = lines_[k_].rstrip() + " " + landing_checks[new]
+                rw["description"] = "\n".join(lines_)
             kv = {c: rewr.keep(norm(v[c]), foreign, "%s %s" % (label, c))
                   for c in ("type", "severity", "created_by", "assigned_to")}
             argv = ["add", kv["type"], kv["severity"], "--db", "{DB}", "--id=" + new,
@@ -882,6 +1059,9 @@ def make_plan(a):
         "resolutions": resolutions, "foreign_extra": list(a.foreign), "base_changes": base_changes, "merges": merges,
         "conflicts": conflicts, "refusals": refusals, "notes": notes,
         "steps": steps if mode == "REPLAY" else [],
+        "supersede": [[v_, t_] for v_, t_ in sorted(sup.items(), key=lambda x: num(x[0]))],
+        "superseded": superseded, "annotations": annotations, "dup_resolutions": dup_rows,
+        "landing_checks": landing_checks,
     }
     return plan
 
@@ -898,7 +1078,8 @@ def cmd_plan(a):
                 "sha256": {k: sha256_file(p) for k, p in paths.items()}, "map": [], "resolutions": {},
                 "foreign_extra": list(a.foreign), "base_changes": [], "merges": [], "conflicts": [],
                 "refusals": [str(e)], "notes": ["the plan stopped at this refusal; later items were not read"],
-                "steps": []}
+                "steps": [], "supersede": [], "superseded": [], "annotations": {}, "dup_resolutions": [],
+                "landing_checks": {}}
     with open(a.out, "w", encoding="utf-8") as h:
         json.dump(plan, h, ensure_ascii=False, indent=1, sort_keys=True)
         h.write("\n")
@@ -909,6 +1090,12 @@ def cmd_plan(a):
         print("BASE-CHANGE %s vehicle=%s target=%s%s" % (c["id"], ",".join(c["vehicle_changed"]),
                                                        ",".join(c["target_changed"]) or "-",
                                                        " resolved=" + c["resolution"] if c["resolution"] else ""))
+    for v_, t_ in plan["supersede"]:
+        print("SUPERSEDE %s -> %s (lands on the target's item; no row minted)" % (v_, t_))
+    for t_, line in sorted(plan["annotations"].items()):
+        print("ANNOTATE %s: %s" % (t_, line))
+    for n_, lc in sorted(plan["landing_checks"].items()):
+        print("LANDING-CHECK %s: %s" % (n_, lc))
     for x in plan["merges"]:
         print("MERGE " + x)
     for x in plan["notes"]:
@@ -932,7 +1119,8 @@ def load_plan(path):
         raise Blind("plan unreadable: %s" % e)
     if not isinstance(plan, dict) or plan.get("schema") != PLAN_SCHEMA:
         raise Blind("plan has no %s schema: %s" % (PLAN_SCHEMA, path))
-    for k in ("sha256", "map", "steps", "conflicts", "refusals", "resolutions", "mode", "prefix"):
+    for k in ("sha256", "map", "steps", "conflicts", "refusals", "resolutions", "mode", "prefix", "supersede",
+              "superseded", "annotations", "dup_resolutions", "landing_checks"):
         if k not in plan:
             raise Blind("plan lacks %r" % k)
     return plan
@@ -1182,7 +1370,16 @@ def cmd_verify(a):
             if table_rows(cr, t) != table_rows(cv, t):
                 bad.append("FAST-FORWARD: table %s differs from the vehicle" % t)
         return report(bad, known, len(V), "FAST-FORWARD")
-    want_ids = set(T) | set(m.values())
+    sup = {}
+    for pair in plan["supersede"]:
+        if not (isinstance(pair, list) and len(pair) == 2) or m.get(pair[0]) != pair[1]:
+            raise Blind("plan supersede entry is not a map pair: %r" % (pair,))
+        sup[pair[0]] = pair[1]
+    for vid, tid in sup.items():
+        if tid not in T or tid in B:
+            bad.append("%s -> %s: a superseded id must land on an item the target added" % (vid, tid))
+    minted = {o: n for o, n in m.items() if o not in sup}
+    want_ids = set(T) | set(minted.values())
     if set(R) != want_ids:
         bad.append("landed ids: missing %s, extra %s" % (sorted(want_ids - set(R))[:5], sorted(set(R) - want_ids)[:5]))
     inv = {new: old for old, new in m.items()}
@@ -1200,7 +1397,7 @@ def cmd_verify(a):
         _, tw = v_split(norm(want), prefix)
         _, tg = v_split(norm(got), prefix)
         for x, y in zip(tw, tg):
-            if x != y and "." not in x and "–" not in x:
+            if x != y and "." not in x and "–" not in x and sup.get(x) != y:
                 vr, rr = V.get(x), R.get(y)
                 if not vr or not rr or v_split(norm(vr[0]["title"]), prefix)[0] != v_split(norm(rr[0]["title"]), prefix)[0] \
                         or vr[0]["type"] != rr[0]["type"] or norm(vr[0]["created_by"]) != norm(rr[0]["created_by"]):
@@ -1293,25 +1490,93 @@ def cmd_verify(a):
         if norm(r["created_at"]) != norm(t["created_at"]):
             closed = [h for h in HR.values() if h["atm_id"] == i and h["id"] not in HT and h["event_type"] in CLOSURE_EVENTS]
             (known if closed else bad).append("%s created_at: landed %s, target %s%s" % (
-                i, r["created_at"], t["created_at"], " (KNOWN engine defect CON-339: close rewrites it)" if closed else ""))
+                i, r["created_at"], t["created_at"], " (KNOWN engine defect: close rewrites it)" if closed else ""))
         check_history(i, i, HV, HB, HT, HR, bad, known, own_item=False)
 
+    # round 9 (F2): an id a target item names that the target does not hold, that this landing mints for
+    # another item, and that the landed item does not declare foreign is a re-bound cross-reference
+    vtok = re.compile(r"(?<![\w-])" + re.escape(prefix) + r"-[0-9]+\b(?!-)")
+    want_annot = {}
+    for i in sorted(set(T)):
+        if len(T[i]) != 1:
+            continue
+        t_names = {x.group(0) for c in TEXT_REWRITE for x in vtok.finditer(norm(T[i][0][c]))}
+        nums_t, spans_t = v_foreign_numbers([norm(T[i][0][c]) for c in TEXT_REWRITE], prefix, plan.get("foreign_extra") or [])
+        v_names = {x.group(0) for r_ in V.get(i, []) for c in TEXT_REWRITE for x in vtok.finditer(norm(r_[c]))}
+        meant = {x for x in t_names if inv.get(x) in v_names}
+        t_foreign = lambda x: num(x) in nums_t or any(lo <= num(x) <= hi for lo, hi in spans_t)
+        reb = sorted({x for x in t_names if x not in T and x in set(minted.values()) and x not in meant
+                      and not t_foreign(x)}
+                     # the supersede target naming the superseded vehicle id (its own provisional id)
+                     | {x for x in t_names if sup.get(x) == i and not t_foreign(x)}, key=num)
+        if reb:
+            want_annot[i] = V_ANNOTATE + ", ".join(reb)
+        if i not in R or len(R[i]) != 1:
+            continue
+        r_texts = [norm(R[i][0][c]) for c in TEXT_REWRITE]
+        r_names = {x.group(0) for t_ in r_texts for x in vtok.finditer(t_)}
+        nums_r, spans_r = v_foreign_numbers(r_texts, prefix, plan.get("foreign_extra") or [])
+        for x in sorted((t_names & r_names) - meant, key=num):
+            if x not in T and x in R and not (num(x) in nums_r or any(lo <= num(x) <= hi for lo, hi in spans_r)):
+                bad.append("XREF-REBOUND %s: names %s, absent from the target and now another item, and not declared "
+                           "foreign" % (i, x))
+    if want_annot != plan["annotations"]:
+        bad.append("the plan's annotations %s are not the ones the target's text needs %s"
+                   % (sorted(plan["annotations"]), sorted(want_annot)))
     for i in sorted(set(T)):
         if i in replayed:
             continue
-        if R.get(i) != T[i]:
+        if i in want_annot and i in R and len(R[i]) == 1 and len(T[i]) == 1:
+            r, t = R[i][0], T[i][0]
+            if norm(r["description"]) != norm(t["description"]) + "\n\n" + want_annot[i]:
+                bad.append("%s description: not the target's description with the plan's annotation" % i)
+            if want_annot[i] not in norm(r["body_md"]):
+                bad.append("%s body_md: the annotation is not in the rendered body" % i)
+            for c in ITEM_COLUMNS:
+                if c not in ("description", "body_md", "last_modified") and norm(r[c]) != norm(t[c]):
+                    bad.append("%s %s: an annotated item differs from the target outside its description" % (i, c))
+        elif R.get(i) != T[i]:
             bad.append("%s: an item the landing must not touch differs from the target" % i)
         if OR.get(i) != OT.get(i):
             bad.append("%s: obsolete_details differs from the target on an untouched item" % i)
 
+    want_lc = {}
+    for row in plan["dup_resolutions"]:
+        if not (isinstance(row, list) and len(row) == 4) or row[0] not in minted or row[1] not in T:
+            bad.append("a --dup-resolution row of the plan does not name an own minted item and a target item: %r" % (row,))
+            continue
+        want_lc.setdefault(minted[row[0]], []).append((row[1], row[2], row[3]))
+    want_lc = {n: "Landing check (section 11.4.214) against target %s: %s." % (
+        plan["sha256"]["target"][:12], "; ".join("%s: %s, %s" % x for x in sorted(rows, key=lambda x: num(x[0]))))
+        for n, rows in want_lc.items()}
+    if want_lc != plan["landing_checks"]:
+        bad.append("the plan's landing checks are not the ones its --dup-resolution rows give")
     for old in own:
         new = m.get(old)
+        if old in sup:
+            au = [x for x in plan["superseded"] if x.get("vehicle_id") == old]
+            if len(au) != 1 or len(V[old]) != 1 or au[0].get("title") != norm(V[old][0]["title"]) \
+                    or au[0].get("description") != norm(V[old][0]["description"]):
+                bad.append("%s -> %s: the plan's audit copy of the superseded vehicle row is not the vehicle's" % (old, new))
+            continue
         if new is None or new not in R or len(R[new]) != 1 or len(V[old]) != 1:
             bad.append("%s -> %s: not one landed row" % (old, new))
             continue
         v, r = V[old][0], R[new][0]
         fset = fset_for([v])
         cols_exact = exact_all[:]
+        if new in want_lc:
+            lc = " " + want_lc[new]
+            r = dict(r)
+            lines_ = norm(r["description"]).split("\n")
+            hit = [k for k, ln in enumerate(lines_) if ln.startswith("Duplicate check (section 11.4.214):")]
+            if len(hit) == 1 and lines_[hit[0]].endswith(lc):
+                body_line = lines_[hit[0]]
+                lines_[hit[0]] = body_line[:-len(lc)]
+                r["description"] = "\n".join(lines_)
+                r["body_md"] = norm(r["body_md"]).replace(body_line, lines_[hit[0]], 1)
+            else:
+                bad.append("%s description: the Duplicate check line does not end with the plan's landing check" % new)
         compare_row(new, v, r, fset, TEXT_REWRITE, cols_exact)
         same_text(new, "body_md", v["body_md"], r["body_md"], fset)
         if norm(r["created_at"]) != norm(v["created_at"]):
@@ -1334,6 +1599,10 @@ def cmd_verify(a):
     if not [i for i in T if i not in replayed]:
         raise Blind("no untouched target item to compare (the control comparison saw nothing)")
     return report(bad, known, len(m) + len(replayed), "REPLAY")
+
+
+V_ANNOTATE = ("Foreign ids (provisional ids of an unlanded vehicle, named before this landing; not the items "
+              "that hold these numbers after it): ")
 
 
 def check_body(i, v, b, t, r, tdiff, rv, fset, steps, same_text, bad):
@@ -1517,6 +1786,9 @@ def main(argv):
     p.add_argument("--foreign", action="append", default=[])
     p.add_argument("--repo-root")
     p.add_argument("--no-fast-forward", action="store_true")
+    p.add_argument("--supersede", action="append", default=[])
+    p.add_argument("--annotate-foreign", action="append", default=[])
+    p.add_argument("--dup-resolution")
     p = sub.add_parser("replay")
     p.add_argument("--plan", required=True)
     p.add_argument("--apply", action="store_true")

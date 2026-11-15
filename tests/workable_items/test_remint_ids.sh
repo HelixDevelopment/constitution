@@ -252,17 +252,19 @@ cpdb() { cp "$repo/docs/$1.db" "$repo/docs/$2.db" || exit 2; }
 D="**What:** remint fixture item for the remint_ids test, never landed in a tracker."
 NL=$'\n'
 EV=docs/qa/x.txt
-# base: eight items; 5 and 6 are closed Obsolete duplicates; 7 names an id the vehicle mints later
+# base: eight items; 5 and 6 are closed Obsolete duplicates. Round 9 (F2): base item 7 no longer names an id
+# the vehicle mints later in the main fixture: unchanged on the target, that text is re-bound by the landing
+# (XREF-REBOUND), so the case moved to its own databases (b11, v11, t11) in section (7)
 for k in 1 3 4 5 6 8; do W add Task Low --db docs/b.db --id "$(id $k)" --title "Remint base item $k" --description "$D Base item $k." --created-by Claude; done
 W add Bug Medium --db docs/b.db --id "$(id 2)" --title "Remint base item 2" --description "$D Base item 2." --created-by Claude
-W add Task Low --db docs/b.db --id "$(id 7)" --title "Remint base item 7" --description "$D Base item 7 names $(id 11) before it exists." --created-by Claude
+W add Task Low --db docs/b.db --id "$(id 7)" --title "Remint base item 7" --description "$D Base item 7." --created-by Claude
 W close "$(id 5)" --db docs/b.db --status obsolete --evidence "$EV"
 W obsolete-details "$(id 5)" --db docs/b.db --since 2026-11-13 --reason duplicate-of --superseding "$(id 1)" --evidence "$EV"
 W close "$(id 6)" --db docs/b.db --status obsolete --evidence "$EV"
 W obsolete-details "$(id 6)" --db docs/b.db --since 2026-11-13 --reason duplicate-of --superseding "$(id 2)" --evidence "$EV"
 # round 7 (F2): the base items get a fixed past created_at. The engine writes created_at to the second, and
-# a close rewrites it to the current second (CON-339); without this the vehicle's close of base item 3
-# changed created_at only when it fell in a later second than the base add, so the CON-339 note and KNOWN
+# a close rewrites it to the current second (the known engine defect); without this the vehicle's close of base item 3
+# changed created_at only when it fell in a later second than the base add, so the engine-defect note and KNOWN
 # line came and went with the host's timing (reproduced: tools/created_at_repro.sh of the round-7 pack)
 fx_sql "$repo/docs/b.db" "update items set created_at='2026-02-03 04:05:06' where atm_id in ($(for k in 1 2 3 4 5 6 7 8; do printf "'%s'," "$(id $k)"; done | sed 's/,$//'))"
 cpdb b v; cpdb b t
@@ -307,7 +309,7 @@ grep -q "^MERGE $(id 1): vehicle description, target severity (disjoint columns)
 for k in 1 2 3 5 6; do grep -q "^BASE-CHANGE $(id $k) " "$tmp/out" || bad "plan: base change $(id $k) listed" "missing"; done
 grep -qE "^NOTE ($(id 4)|$(id 7)|$(id 8)):" "$tmp/out" && bad "plan: no note for an item the vehicle left unchanged" "$(grep '^NOTE ' "$tmp/out" | tr '\n' '|' | cut -c1-300)" || ok "plan: no note for an item the vehicle left unchanged"
 same "plan: a merge line only for the item both sides changed" "$(grep -c '^MERGE ' "$tmp/out")" "1"
-same "plan: a created_at note only for the item the vehicle's close rewrote (CON-339)" "$(grep -o '^NOTE [^:]*: created_at changed in the vehicle' "$tmp/out" | tr '\n' '|')" "NOTE $(id 3): created_at changed in the vehicle|"
+same "plan: a created_at note only for the item the vehicle's close rewrote (the known engine defect)" "$(grep -o '^NOTE [^:]*: created_at changed in the vehicle' "$tmp/out" | tr '\n' '|')" "NOTE $(id 3): created_at changed in the vehicle|"
 same "plan: the three databases are not written" "$(sha3)" "$before"
 same "plan: an update step passes --description once" "$(python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));print(sum(a.startswith("--description=") for s in p["steps"] if s["item"]==sys.argv[2] and s["kind"]=="update" for a in s["argv"]))' "$tmp/plan.json" "$(id 1)")" "1"
 same "plan: map file" "$(cat "$tmp/map.tsv")" "$(printf 'old\tnew\n%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s' "$(id 9)" "$(id 11)" "$(id 10)" "$(id 12)" "$(id 11)" "$(id 13)" "$(id 12)" "$(id 14)" "$(id 13)" "$(id 15)")"
@@ -319,7 +321,7 @@ cpdb t r
 (cd "$repo" && "$wi" validate --db docs/r.db) >"$tmp/val.before" 2>&1
 xp "replay --apply through the engine" 0 '^RESULT: APPLIED steps=20 items=5$' replay --plan "$tmp/plan.json" --apply --engine "$wi" --db docs/r.db
 xp "verify PASS after the replay" 0 '^RESULT: PASS mode=REPLAY items=10 mismatches=0 known=[0-9]+$' verify --plan "$tmp/plan.json" "${PLAN[@]}" --db docs/r.db
-grep -q "^KNOWN $(id 3) created_at: .*CON-339" "$tmp/out" && ok "verify: the close rewriting created_at is KNOWN (CON-339), never a pass" || bad "verify: CON-339 KNOWN line" "$(tr '\n' '|' <"$tmp/out" | cut -c1-300)"
+grep -q "^KNOWN $(id 3) created_at: .*KNOWN engine defect: close rewrites it" "$tmp/out" && ok "verify: the close rewriting created_at is KNOWN (the known engine defect), never a pass" || bad "verify: engine-defect KNOWN line" "$(tr '\n' '|' <"$tmp/out" | cut -c1-300)"
 # the landed values, read directly (a third angle beside the planner and verify)
 R=$repo/docs/r.db
 same "landed: base description change carried and rewritten; target severity kept" "$(q "$R" 'select description, severity from items where atm_id=?' "$(id 1)")" "$D Base item one, changed by the vehicle; see $(id 13).|Medium"
@@ -489,8 +491,17 @@ cpdb v x9; fx_sql "$repo/docs/x9.db" "update items set logic_group='needle' wher
 pr "an own item with a column add cannot carry" "^REFUSED $(id 13): logic_group is set \('needle'\), which add cannot carry" x9
 cpdb v x10; fx_sql "$repo/docs/x10.db" "update items set representation='table' where atm_id=?" "$(id 13)"
 pr "an own item with another representation" "^REFUSED $(id 13): representation 'table' cannot be replayed" x10
-cpdb v x11; W update --id "$(id 7)" --db docs/x11.db --location Issues --title "Remint base item 7, renamed by the vehicle"
-pr "a base text that already names an id the vehicle minted later" "^REFUSED $(id 7): the base text of description already names $(id 11), an id the vehicle minted later \(ambiguous\)" x11
+N7="$D Base item 7 names $(id 11) before it exists."
+for x in b11 v11 t11; do cpdb "${x:0:1}" "$x"; fx_sql "$repo/docs/$x.db" "update items set description=? where atm_id=?" "$N7" "$(id 7)"; done
+cpdb v11 x11; W update --id "$(id 7)" --db docs/x11.db --location Issues --title "Remint base item 7, renamed by the vehicle"
+xp "plan refusal: a base text that already names an id the vehicle minted later" 1 "^REFUSED $(id 7): the base text of description already names $(id 11), an id the vehicle minted later \(ambiguous\)" \
+  plan --vehicle-db docs/x11.db --base-db docs/b11.db --target-db docs/t11.db --out "$tmp/x11.json"
+# round 9 (F2): the same text left unchanged by the vehicle is re-bound by the landing: refused, never silent
+xp "R9-F2: an unchanged target text naming an id the landing mints for another item is refused (XREF-REBOUND)" 1 \
+  "^REFUSED XREF-REBOUND $(id 7): names $(id 11), which the target does not hold and this landing mints for the vehicle's $(id 9)" \
+  plan --vehicle-db docs/v11.db --base-db docs/b11.db --target-db docs/t11.db --out "$tmp/v11.json"
+xp "R9-F2: --annotate-foreign lands it with a Foreign ids line" 0 "^ANNOTATE $(id 7): Foreign ids \(provisional ids of an unlanded vehicle" \
+  plan --vehicle-db docs/v11.db --base-db docs/b11.db --target-db docs/t11.db --out "$tmp/v11.json" --annotate-foreign "$(id 7)"
 cpdb v x12; W close "$(id 8)" --db docs/x12.db --status obsolete --evidence "$EV"
 W obsolete-details "$(id 8)" --db docs/x12.db --since 2026-11-13 --reason duplicate-of --superseding "$(id 1)" --evidence "$EV"
 W reopen --id "$(id 8)" --db docs/x12.db --why design-reconsidered --who AI --when 2026-11-13 --incident "$EV"
@@ -519,10 +530,21 @@ cpdb t y3; fx_sql "$repo/docs/y3.db" "update meta set value='0' where key='schem
 xp "plan: a schema_version that differs is BLIND" 3 'schema_version differs or is missing' plan --vehicle-db docs/v.db --base-db docs/b.db --target-db docs/y3.db --out "$tmp/b4.json"
 cpdb v y4; W add Task Low --db docs/y4.db --id ZZ-001 --title "Other prefix item" --description "$D An item of another prefix." --created-by Claude
 xp "plan: a target without an id of the prefix is BLIND" 3 'the target holds no ZZ id' plan --vehicle-db docs/y4.db --base-db docs/b.db --target-db docs/t.db --out "$tmp/b5.json" --prefix ZZ
+# round 9 (review r9 F4, mutant RW6): a new id is written with the width of the vehicle's own ids, so an
+# unpadded WZ-2 becomes WZ-3 (not WZ-03) and a padded WZ-002 becomes WZ-003 (not WZ-03); the main fixture's
+# three-digit ids above 100 cannot tell the two apart
+for w in 1 3; do
+  wid() { printf 'WZ-%0*d' "$w" "$1"; }
+  cpdb b w${w}b; W add Task Low --db "docs/w${w}b.db" --id "$(wid 1)" --title "Width base item" --description "$D A base item of the WZ prefix." --created-by Claude
+  cpdb "w${w}b" "w${w}v"; cpdb "w${w}b" "w${w}t"
+  W add Task Low --db "docs/w${w}v.db" --id "$(wid 2)" --title "Width vehicle item" --description "$D A vehicle item of the WZ prefix." --created-by Claude
+  W add Task Low --db "docs/w${w}t.db" --id "$(wid 2)" --title "Width target item" --description "$D A target item holding the same number." --created-by Claude
+  xp "plan: a new id keeps the width $w of the vehicle's own ids" 0 "^RESULT: PLAN mode=REPLAY own=1 .* first=$(wid 3) last=$(wid 3)\$" plan --vehicle-db "docs/w${w}v.db" --base-db "docs/w${w}b.db" --target-db "docs/w${w}t.db" --out "$tmp/w${w}.json" --prefix WZ
+done
 printf '{"schema": "other"}\n' >"$tmp/badplan.json"
-xp "replay: a plan of another schema is BLIND" 3 'plan has no remint_ids.plan/5 schema' replay --plan "$tmp/badplan.json"
+xp "replay: a plan of another schema is BLIND" 3 'plan has no remint_ids.plan/6 schema' replay --plan "$tmp/badplan.json"
 python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["schema"]="remint_ids.plan/4";json.dump(p,open(sys.argv[2],"w"))' "$tmp/plan.json" "$tmp/plan4.json" || exit 2
-xp "replay: a round-4 plan (re-pointed target text, R4-1) is refused as another schema" 3 'plan has no remint_ids.plan/5 schema' replay --plan "$tmp/plan4.json"
+xp "replay: a round-4 plan (re-pointed target text, R4-1) is refused as another schema" 3 'plan has no remint_ids.plan/6 schema' replay --plan "$tmp/plan4.json"
 printf 'not json\n' >"$tmp/notjson.json"
 xp "replay: an unreadable plan is BLIND" 3 'plan unreadable' replay --plan "$tmp/notjson.json"
 python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));del p["steps"];json.dump(p,open(sys.argv[2],"w"))' "$tmp/plan.json" "$tmp/nosteps.json" || exit 2
@@ -584,7 +606,7 @@ cpdb r_after n16; W update --id "$(id 1)" --db docs/n16.db --location Issues --s
 vn "a target-side column the vehicle did not change (RV1)" "^MISMATCH $(id 1) severity: landed 'Low', target 'Medium' \(a column the vehicle did not change\)" n16
 cpdb r_after n17; fx_sql "$repo/docs/n17.db" "update items set created_at='2026-01-01 00:00:00' where atm_id=?" "$(id 1)"
 vn "a base created_at drift with no closure (RV5)" "^MISMATCH $(id 1) created_at: landed 2026-01-01 00:00:00" n17
-vn "a base created_at drift with no closure carries no CON-339 note" "^MISMATCH $(id 1) created_at: landed 2026-01-01 00:00:00, target [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\$" n17
+vn "a base created_at drift with no closure carries no engine-defect note" "^MISMATCH $(id 1) created_at: landed 2026-01-01 00:00:00, target [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\$" n17
 cpdb r_after n18; fx_sql "$repo/docs/n18.db" "update items set body_md = body_md || ' x' where atm_id=?" "$(id 2)"
 vn "a base body_md the target did not change (RV6)" "^MISMATCH $(id 2) body_md: " n18
 # RV4: an own item's created_at is never carried, and verify says so
@@ -974,6 +996,11 @@ tf "is_slot control: the Evidence meta line is not a slot outside the template" 
 tf "is_slot: the '## ID. title' heading form is a slot" 'm.is_slot("## CON-1. Title", "CON-1")' "True"
 tf "is_slot control: another id's '## ID. title' heading is not a slot" 'm.is_slot("## CON-2. Title", "CON-1")' "False"
 tf "verify text rules: a range of moved ids around a foreign id mixes them" 'm.v_text_rules("see CON-5..CON-7", {"CON-5": "CON-20", "CON-6": "CON-21", "CON-7": "CON-22"}, m.v_foreign_numbers(["Foreign ids (other): CON-6"], "CON", []), "CON")' "range 'CON-5..CON-7' mixes foreign and moved ids"
+# round 9, F4 (reviewer mutant RW3): the end id of a declared foreign range is foreign (inclusive bounds),
+# for an item's own Foreign ids line and for --foreign; the ids just outside are not
+tf "R9-RW3: verify reads both ends of an item's foreign range as foreign" '[m.v_is_foreign(n, m.v_foreign_numbers(["Foreign ids (other): CON-5..CON-7"], "CON", [])) for n in (4, 5, 6, 7, 8)]' "[False, True, True, True, False]"
+tf "R9-RW3: verify reads both ends of a --foreign range as foreign" '[m.v_is_foreign(n, m.v_foreign_numbers([], "CON", ["CON-5..CON-7"])) for n in (4, 5, 7, 8)]' "[False, True, True, False]"
+tf "R9-RW3: the end id of a foreign range is kept by the verify text rules" 'm.v_text_rules("see CON-7", {"CON-7": "CON-22"}, m.v_foreign_numbers(["Foreign ids (other): CON-5..CON-7"], "CON", []), "CON")' "None"
 # round 5, final branch sweep: the shared-item loop of verify, one case per branch. dupsql copies an item's row
 # as a second row of another representation (created_at and last_modified copied, so two copies are identical)
 dupsql="insert into items (atm_id, type, status, severity, title, description, current_location, representation, created_at, last_modified) select atm_id, type, status, severity, title, description, current_location, 'table', created_at, last_modified from items where atm_id=?"
@@ -1207,6 +1234,124 @@ xp "R5-2: --no-fast-forward with an identity map is not refused either" 0 "^RESU
 cpdb t tpm
 xp "R5-2: the same path is refused when the id moves" 1 "^REFUSED base $(id 8) closure evidence: moved id $(id 9) is part of a path" plan --vehicle-db docs/vpi.db --base-db docs/b.db --target-db docs/tpm.db --out "$tmp/ppm.json"
 [ -s "$tmp/ppm.json" ] && ok "R5-2: the refused plan is written" || bad "R5-2: the refused plan is written" "no file"
+# ---- (12) round 9 (F2): a vehicle item the target already filed lands on the target's item (--supersede);
+# a target item whose text names a provisional vehicle id is annotated, never left naming another item
+# (--annotate-foreign, XREF-REBOUND); landing-time duplicate checks against items the vehicle never saw (F3)
+cpdb t t9s
+T9SD="$D Same defect as the vehicle's epsilon item; the vehicle's text calls it $(id 13), a provisional id, re-minted at landing."
+W add Task Low --db docs/t9s.db --id "$(id 12)" --title "Target filing of the epsilon defect" --description "$T9SD" --created-by Claude
+cpdb v v9s
+W update --id "$(id 9)" --db docs/v9s.db --location Issues --description "$D Parent / links: see $(id 11) (remint fixture gamma) and the range $(id 9)..$(id 10). See also $(id 13) (remint fixture epsilon)."
+W update --id "$(id 10)" --db docs/v9s.db --location Issues --description "$D Links to $(id 9).${NL}Foreign ids (fix227 tracker): $(id 11)${NL}Duplicate check (section 11.4.214): DISTINCT; fixture method."
+P9S=(--vehicle-db docs/v9s.db --base-db docs/b.db --target-db docs/t9s.db)
+xp "R9-F2: without --supersede the landing re-binds the target's text: XREF-REBOUND refused" 1 "^REFUSED XREF-REBOUND $(id 12): names $(id 13), which the target does not hold and this landing mints for the vehicle's $(id 9)" \
+  plan "${P9S[@]}" --out "$tmp/p9sa.json"
+xp "R9-F2: --supersede alone still leaves the re-binding (the supersede target names its own vehicle id)" 1 "^REFUSED XREF-SUPERSEDED $(id 12): names $(id 13), the vehicle id this landing supersedes onto $(id 12); after the landing $(id 13) is the vehicle's $(id 9)" \
+  plan "${P9S[@]}" --out "$tmp/p9sb.json" --supersede "$(id 13)=$(id 12)"
+printf 'vehicle_id\ttarget_id\tverdict\treason\n%s\t%s\tDISTINCT-but-similar\tshares only a fixture file\n' "$(id 10)" "$(id 4)" >"$tmp/dup9s.tsv"
+S9S=(--supersede "$(id 13)=$(id 12)" --annotate-foreign "$(id 12)" --dup-resolution "$tmp/dup9s.tsv")
+xp "R9-F2: plan with --supersede, --annotate-foreign and --dup-resolution" 0 '^RESULT: PLAN mode=REPLAY own=5 .* conflicts=0 refusals=0 ' \
+  plan "${P9S[@]}" --out "$tmp/p9s.json" --map-out "$tmp/m9s.tsv" "${S9S[@]}"
+same "R9-F2: the map lands the superseded id on the target's item and mints the rest from max(target)+1" "$(cat "$tmp/m9s.tsv")" \
+  "$(printf 'old\tnew\n%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s' "$(id 9)" "$(id 13)" "$(id 10)" "$(id 14)" "$(id 11)" "$(id 15)" "$(id 12)" "$(id 16)" "$(id 13)" "$(id 12)")"
+same "R9-F2: the plan keeps the superseded vehicle row for audit" "$(python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));print("|".join(s["vehicle_id"]+">"+s["target_id"]+":"+s["title"] for s in p["superseded"]))' "$tmp/p9s.json")" "$(id 13)>$(id 12):Remint fixture epsilon item"
+same "R9-F2: no add step for the superseded item" "$(python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));print(sum(1 for s in p["steps"] if s["kind"]=="add" and s["from"]==sys.argv[2]))' "$tmp/p9s.json" "$(id 13)")" "0"
+cpdb t9s r9s
+xp "R9-F2: replay" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p9s.json" --apply --engine "$wi" --db docs/r9s.db
+xp "R9-F2: verify PASS" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/p9s.json" "${P9S[@]}" --db docs/r9s.db
+R9S=$repo/docs/r9s.db
+same "R9-F2: the superseded item has no landed row" "$(q "$R9S" "select count(*) from items where title='Remint fixture epsilon item'")" "0"
+same "R9-F2: a vehicle reference to the superseded id names the target's item" "$(q "$R9S" 'select description from items where atm_id=?' "$(id 13)" | grep -o 'See also [A-Z]*-[0-9]* (remint fixture epsilon)')" "See also $(id 12) (remint fixture epsilon)"
+FL="Foreign ids (provisional ids of an unlanded vehicle, named before this landing; not the items that hold these numbers after it): $(id 13)"
+same "R9-F2: the target's item is annotated with a Foreign ids line" "$(q "$R9S" 'select description from items where atm_id=?' "$(id 12)")" "$T9SD${NL}${NL}$FL"
+case "$(q "$R9S" 'select body_md from items where atm_id=?' "$(id 12)")" in *"$FL"*) ok "R9-F2: the annotation is in the rendered body" ;; *) bad "R9-F2: the annotation is in the rendered body" "missing" ;; esac
+LC="Landing check (section 11.4.214) against target $(sha256sum "$repo/docs/t9s.db" | cut -c1-12): $(id 4): DISTINCT-but-similar, shares only a fixture file."
+same "R9-F3: the landing-time duplicate check is appended to the Duplicate check line" "$(q "$R9S" 'select description from items where atm_id=?' "$(id 14)" | grep '^Duplicate check')" "Duplicate check (section 11.4.214): DISTINCT; fixture method. $LC"
+same "R9-F2: the colliding target items are untouched" "$(q "$R9S" 'select title from items where atm_id in (?, ?) order by atm_id' "$(id 9)" "$(id 10)")" "$(printf 'Colliding target item one\nColliding target item two')"
+v9s() { xp "R9-F2: verify FAIL: $1" 1 "$2" verify --plan "$tmp/p9s.json" "${P9S[@]}" --db "docs/$3.db"; }
+cpdb r9s n9sa; W update --id "$(id 12)" --db docs/n9sa.db --location Issues --description "$T9SD"
+v9s "the target item's annotation removed (XREF-REBOUND)" "^MISMATCH XREF-REBOUND $(id 12): names $(id 13), absent from the target and now another item, and not declared foreign" n9sa
+cpdb r9s n9sb; W update --id "$(id 12)" --db docs/n9sb.db --location Issues --description "$T9SD${NL}${NL}Foreign ids (other words): $(id 13)"
+v9s "the annotation text changed" "^MISMATCH $(id 12) description: not the target's description with the plan's annotation" n9sb
+cpdb r9s n9sc; W add Task Low --db docs/n9sc.db --id "$(id 30)" --title "Remint fixture epsilon item" --description "$D Plain own item, now in progress." --created-by Claude
+v9s "the superseded item landed after all" "^MISMATCH landed ids: .*extra \['$(id 30)'\]" n9sc
+cpdb r9s n9sd; W update --id "$(id 14)" --db docs/n9sd.db --location Issues --description "$D Links to $(id 13).${NL}Foreign ids (fix227 tracker): $(id 11)${NL}Duplicate check (section 11.4.214): DISTINCT; fixture method."
+v9s "the landing check dropped" "^MISMATCH $(id 14) description: the Duplicate check line does not end with the plan's landing check" n9sd
+cpdb r9s n9se; W update --id "$(id 13)" --db docs/n9se.db --location Issues --description "$D Parent / links: see $(id 15) (remint fixture gamma) and the range $(id 13)..$(id 14). See also $(id 16) (remint fixture epsilon)."
+v9s "a superseded reference pointed elsewhere" "^MISMATCH $(id 13) description: id $(id 13) landed as $(id 16), expected $(id 12)" n9se
+# the target ALSO holds the superseded vehicle id as another item (it filed more items after the one the
+# vehicle duplicates): the supersede target still calls itself by the vehicle's provisional id (XREF-SUPERSEDED)
+cpdb t9s t9h
+W add Task Low --db docs/t9h.db --id "$(id 13)" --title "Another target item" --description "$D Target-only item." --created-by Claude
+P9H=(--vehicle-db docs/v9s.db --base-db docs/b.db --target-db docs/t9h.db)
+xp "R9-F2: the target holds the superseded id as another item: XREF-SUPERSEDED refused" 1 "^REFUSED XREF-SUPERSEDED $(id 12): names $(id 13), the vehicle id this landing supersedes onto $(id 12); after the landing $(id 13) is the target's own item" \
+  plan "${P9H[@]}" --out "$tmp/p9ha.json" --supersede "$(id 13)=$(id 12)" --dup-resolution "$tmp/dup9s.tsv"
+xp "R9-F2: with --annotate-foreign the plan is landable" 0 '^RESULT: PLAN mode=REPLAY own=5 .* conflicts=0 refusals=0 ' \
+  plan "${P9H[@]}" --out "$tmp/p9h.json" --map-out "$tmp/m9h.tsv" "${S9S[@]}"
+same "R9-F2: the annotation names the superseded id" "$(python3 -I -c 'import json,sys;print(json.load(open(sys.argv[1]))["annotations"][sys.argv[2]])' "$tmp/p9h.json" "$(id 12)")" "$FL"
+cpdb t9h r9h
+xp "R9-F2: replay (target holds the superseded id)" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p9h.json" --apply --engine "$wi" --db docs/r9h.db
+xp "R9-F2: verify PASS (target holds the superseded id)" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/p9h.json" "${P9H[@]}" --db docs/r9h.db
+cpdb r9h n9ha; W update --id "$(id 12)" --db docs/n9ha.db --location Issues --description "$T9SD"
+xp "R9-F2: verify FAIL: the annotation removed (target holds the superseded id)" 1 "^MISMATCH $(id 12) description: not the target's description with the plan's annotation" \
+  verify --plan "$tmp/p9h.json" "${P9H[@]}" --db docs/n9ha.db
+python3 -I - "$tmp/p9h.json" "$tmp/p9hx.json" "$(id 12)" <<'PY'
+import json, sys
+p = json.load(open(sys.argv[1])); p["annotations"].pop(sys.argv[3]); json.dump(p, open(sys.argv[2], "w"))
+PY
+xp "R9-F2: verify FAIL: a plan with the self-reference annotation dropped" 1 "^MISMATCH the plan's annotations \\[\\] are not the ones the target's text needs" \
+  verify --plan "$tmp/p9hx.json" "${P9H[@]}" --db docs/r9h.db
+cpdb t9h t9hf
+W update --id "$(id 12)" --db docs/t9hf.db --location Issues --description "$T9SD${NL}Foreign ids (tracker-intake vehicle): $(id 13)"
+xp "R9-F2: a supersede target that declares the id foreign itself needs no annotation" 0 '^RESULT: PLAN mode=REPLAY own=5 .* refusals=0 ' \
+  plan --vehicle-db docs/v9s.db --base-db docs/b.db --target-db docs/t9hf.db --out "$tmp/p9hf.json" --supersede "$(id 13)=$(id 12)" --dup-resolution "$tmp/dup9s.tsv"
+# a superseded id that is not the vehicle's last own id: the ids after it are minted without a gap
+# (round-9 mutant OR1 is equivalent on the case above, where the superseded id is the last one)
+xp "R9-F2: plan superseding a middle own id" 0 '^RESULT: PLAN mode=REPLAY own=5 .* conflicts=0 refusals=0 ' \
+  plan "${P9S[@]}" --out "$tmp/p9m.json" --map-out "$tmp/m9m.tsv" --supersede "$(id 11)=$(id 12)" --annotate-foreign "$(id 12)" --dup-resolution "$tmp/dup9s.tsv"
+same "R9-F2: superseding a middle own id leaves no gap in the minted ids" "$(cat "$tmp/m9m.tsv")" \
+  "$(printf 'old\tnew\n%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s' "$(id 9)" "$(id 13)" "$(id 10)" "$(id 14)" "$(id 11)" "$(id 12)" "$(id 12)" "$(id 15)" "$(id 13)" "$(id 16)")"
+# verify recomputes from the plan's own inputs; a plan edited after it was made is caught (round-9
+# mutants OR11, OR12, OR14)
+tp9s() { # tp9s <name> <pattern> <python edit of p>
+  python3 -I - "$tmp/p9s.json" "$tmp/p9t.json" "$(id 13)" "$(id 4)" "$3" <<'PY' || exit 2
+import json, sys
+p = json.load(open(sys.argv[1])); vid, base = sys.argv[3], sys.argv[4]
+exec(sys.argv[5])
+json.dump(p, open(sys.argv[2], "w"))
+PY
+  xp "R9-F2: verify FAIL: $1" 1 "$2" verify --plan "$tmp/p9t.json" "${P9S[@]}" --db docs/r9s.db
+}
+tp9s "the plan's landing checks edited" "^MISMATCH the plan's landing checks are not the ones its --dup-resolution rows give" \
+  'k = next(iter(p["landing_checks"])); p["landing_checks"][k] = p["landing_checks"][k].replace("fixture", "other")'
+tp9s "the plan's audit copy of the superseded row edited" "^MISMATCH $(id 13) -> $(id 12): the plan's audit copy of the superseded vehicle row is not the vehicle's" \
+  'p["superseded"][0]["description"] += " edited"'
+tp9s "a superseded id landing on a base item" "^MISMATCH $(id 13) -> $(id 4): a superseded id must land on an item the target added" \
+  'p["supersede"] = [[vid, base]]; p["map"] = [[o, base] if o == vid else [o, n] for o, n in p["map"]]'
+# refusals and BLIND
+pr9s() { xp "R9-F2: refused: $1" 1 "$2" plan "${P9S[@]}" --out "$tmp/p9sr.json" --annotate-foreign "$(id 12)" "${@:3}"; }
+pr9s "--supersede of an id the vehicle did not mint" "^REFUSED --supersede $(id 4)=$(id 12): $(id 4) is not an id the vehicle minted" --supersede "$(id 4)=$(id 12)" --supersede "$(id 13)=$(id 12)"
+pr9s "--supersede onto an id the target does not hold" "^REFUSED --supersede $(id 13)=$(id 30): the target holds no $(id 30)" --supersede "$(id 13)=$(id 30)"
+pr9s "--supersede onto a base item" "^REFUSED --supersede $(id 13)=$(id 4): $(id 4) is a base item, not one the target added" --supersede "$(id 13)=$(id 4)"
+pr9s "two vehicle ids onto one target item" "^REFUSED --supersede .*: two vehicle ids land on $(id 12)" --supersede "$(id 13)=$(id 12)" --supersede "$(id 11)=$(id 12)"
+xp "R9-F2: --annotate-foreign on an item with nothing to annotate is refused" 1 "^REFUSED --annotate-foreign $(id 4): the item names no provisional vehicle id" \
+  plan "${P9S[@]}" --out "$tmp/p9sr.json" --supersede "$(id 13)=$(id 12)" --annotate-foreign "$(id 12)" --annotate-foreign "$(id 4)"
+xp "R9-F2: a malformed --supersede is a usage error (BLIND)" 3 "--supersede 'x': want VEHICLE_ID=TARGET_ID" plan "${P9S[@]}" --out "$tmp/p9sr.json" --supersede x
+xp "R9-F2: --supersede under FAST-FORWARD is refused" 1 "^REFUSED --supersede needs a REPLAY landing" plan --vehicle-db docs/v9s.db --base-db docs/b.db --target-db docs/b.db --out "$tmp/p9sr.json" --supersede "$(id 13)=$(id 1)"
+dr9s() { # dr9s <name> <pattern> <tsv body>
+  printf 'vehicle_id\ttarget_id\tverdict\treason\n%s' "$3" >"$tmp/dr.tsv"
+  xp "R9-F3: refused: $1" 1 "$2" plan "${P9S[@]}" --out "$tmp/p9sr.json" --supersede "$(id 13)=$(id 12)" --annotate-foreign "$(id 12)" --dup-resolution "$tmp/dr.tsv"
+}
+dr9s "a SAME-DEFECT row (that is --supersede)" "^REFUSED --dup-resolution line 2: SAME-DEFECT lands through --supersede" "$(printf '%s\t%s\tSAME-DEFECT\tx\n' "$(id 10)" "$(id 4)")"
+dr9s "a verdict outside the closed set" "^REFUSED --dup-resolution line 2: verdict 'MAYBE'" "$(printf '%s\t%s\tMAYBE\tx\n' "$(id 10)" "$(id 4)")"
+dr9s "an unknown target id" "^REFUSED --dup-resolution line 2: the target holds no $(id 30)" "$(printf '%s\t%s\tDISTINCT\tx\n' "$(id 10)" "$(id 30)")"
+dr9s "a vehicle id that is not minted here" "^REFUSED --dup-resolution line 2: $(id 4) is not an own item minted by this landing" "$(printf '%s\t%s\tDISTINCT\tx\n' "$(id 4)" "$(id 1)")"
+dr9s "an own item with no Duplicate check line" "^REFUSED --dup-resolution line 2: $(id 11) has no Duplicate check line" "$(printf '%s\t%s\tDISTINCT\tx\n' "$(id 11)" "$(id 4)")"
+dr9s "a reason that names an id" "^REFUSED --dup-resolution line 2: the reason names an id" "$(printf '%s\t%s\tDISTINCT\tlike %s\n' "$(id 10)" "$(id 4)" "$(id 1)")"
+dr9s "a row given twice" "^REFUSED --dup-resolution line 3: $(id 10) and $(id 4) given twice" "$(printf '%s\t%s\tDISTINCT\tx\n%s\t%s\tDISTINCT\ty\n' "$(id 10)" "$(id 4)" "$(id 10)" "$(id 4)")"
+printf 'wrong header\n' >"$tmp/drh.tsv"
+xp "R9-F3: a --dup-resolution file with no header is BLIND" 3 "--dup-resolution .*: no 'vehicle_id<TAB>target_id<TAB>verdict<TAB>reason' header" \
+  plan "${P9S[@]}" --out "$tmp/p9sr.json" --supersede "$(id 13)=$(id 12)" --annotate-foreign "$(id 12)" --dup-resolution "$tmp/drh.tsv"
 same "the real database is untouched" "$(sha256sum "$realdb" | cut -d' ' -f1)" "$real_sha"
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

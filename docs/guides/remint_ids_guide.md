@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-11-13 |
-| Last modified | 2026-11-14T18:45:00Z |
+| Last modified | 2026-11-15T17:00:00Z |
 | Status | active |
 | Status summary | User guide and manual for landing a vehicle's tracker changes onto a target tracker: a three-way plan (base, vehicle, target), ids the vehicle minted moved to the target's next free numbers, every change replayed through the workable-items engine, conflicts reported, never guessed. |
 | Authority | Constitution §11.4.54 (ids never renumbered once landed), §11.4.93 (the engine is the only writer of the database), §11.4.249 (the verifier is not the producer), §11.4.288 (landing on `main`) — the canonical text wins where this guide and the constitution disagree. |
 | Scope | Universal (§11.4.17); the prefix, the database paths and the file list are consumer DATA (§11.4.35). |
 | Issues | not wired into a seam: a lander runs it by hand |
 | Issues summary | The vehicle's history rows, `created_at` and `last_modified` are not carried (see the honest boundary); verify reports them as KNOWN. |
-| Fixed | revision 4: tracker-intake round 6 (review R5-1, R5-2, R5-4, R5-6): an update step passes `--description` only when the vehicle changed it, so a field-only change keeps the target's body; a re-render (a close, or an update with `--description`) over a body the target changed outside the engine slots is a CONFLICT; verify compares body_md (kept text, heading, Status line) instead of a KNOWN line; a path naming an id that does not move is not refused, and a refused plan is still written (mode REFUSED); revision 3: tracker-intake round 5 (review R4-1, R4-2, R4-4, R4-5, R4-9): a merge never rewrites target text and passes only the units the vehicle changed; a state block both sides changed is a conflict; every range form is checked, a chain of tight ranges pair by pair; ASCII digits only; read-only URIs quoted and `-wal` sidecars refused everywhere; an automated branch sweep of the planner and verify, and the defects it found (a value passed as written that names a moved id, an empty block stamp, a reopen kept in Fixed.md); revision 2: tracker-intake round 4 (review findings R3-1, R3-2 and the minors): three-way plan, base-item changes, conflicts, FAST-FORWARD, a separate verify oracle; revision 1: tracker-intake round 3 (review R2-7) |
+| Fixed | revision 5: tracker-intake round 9 (review F2, F3): `--supersede`, `--annotate-foreign`, `--dup-resolution`; XREF-REBOUND and XREF-SUPERSEDED refusals; verify checks the superseded audit copy, the annotations and the landing checks; revision 4: tracker-intake round 6 (review R5-1, R5-2, R5-4, R5-6): an update step passes `--description` only when the vehicle changed it, so a field-only change keeps the target's body; a re-render (a close, or an update with `--description`) over a body the target changed outside the engine slots is a CONFLICT; verify compares body_md (kept text, heading, Status line) instead of a KNOWN line; a path naming an id that does not move is not refused, and a refused plan is still written (mode REFUSED); revision 3: tracker-intake round 5 (review R4-1, R4-2, R4-4, R4-5, R4-9): a merge never rewrites target text and passes only the units the vehicle changed; a state block both sides changed is a conflict; every range form is checked, a chain of tight ranges pair by pair; ASCII digits only; read-only URIs quoted and `-wal` sidecars refused everywhere; an automated branch sweep of the planner and verify, and the defects it found (a value passed as written that names a moved id, an empty block stamp, a reopen kept in Fixed.md); revision 2: tracker-intake round 4 (review findings R3-1, R3-2 and the minors): three-way plan, base-item changes, conflicts, FAST-FORWARD, a separate verify oracle; revision 1: tracker-intake round 3 (review R2-7) |
 | Fixed summary | Round 4 merged an item the target also changed by replaying the vehicle's whole state block and its text re-pointed through the map, so a target change was lost or its reference re-pointed at a re-minted item (R4-1). Round 3 replayed only the items the vehicle minted, so a landing lost the vehicle's changes to base items (R3-1) and verify re-ran the producer's own logic (R3-2). |
 | Continuation | — |
 
@@ -21,6 +21,7 @@
 - [The landing sequence](#the-landing-sequence)
 - [Commands](#commands)
 - [How a plan is built](#how-a-plan-is-built)
+- [Round 9: duplicates and cross-references](#round-9-duplicates-and-cross-references)
 - [Rewrite rules](#rewrite-rules)
 - [Which text files to rewrite](#which-text-files-to-rewrite)
 - [Exit codes](#exit-codes)
@@ -79,6 +80,7 @@ the commit whose database was the target; a plan is bound to that database by it
 | `replay --plan PLAN.json --apply --engine BIN --db COPY` | COPY, through the engine | refuses a plan with a conflict or a refusal, a plan of another schema (a round-4 plan carried re-pointed target text), and a COPY whose sha256 is not the plan's target sha256; stops at the first failing step and says the copy must be discarded |
 | `verify --plan PLAN.json --vehicle-db V --base-db B --target-db T --db R [--require-segments]` | nothing | the separate oracle (below) |
 | `rewrite --map MAP.tsv [--write --target-db T] [--foreign IDS] [--own IDS] FILE...` | the files, with `--write` | rewrites moved ids in text files; dry run by default; every file is checked before the first is written |
+| `plan ... [--supersede VID=TID ...] [--annotate-foreign TID ...] [--dup-resolution TSV]` | the plan and the map only | round 9: land a vehicle item on a target item that is the same defect; declare the provisional ids a target item names foreign; record the duplicate check of every vehicle and target item pair (see "Round 9: duplicates and cross-references" below) |
 | `refs --map MAP.tsv --repo-root DIR` | nothing | every tracked text file that names a moved id, with its class: LIVE (rewrite it), EVIDENCE (under `docs/qa/`, never rewritten), DATABASE (never rewritten; the plan replays it) |
 
 Every subcommand opens its databases read-only with the path URI-quoted (`?` and `#` are file-name
@@ -181,6 +183,45 @@ pinned by a case:
   not a comment line of the script declares nothing.
 - **FAST-FORWARD**: T equals B in every table; no steps.
 
+## Round 9: duplicates and cross-references
+
+Round 9 (review F2, F3) found two landing defects the plan did not see: a vehicle item that the target
+already held as the same defect was minted again under a new number, and a target item that named a
+vehicle's provisional id (written before the vehicle landed) was silently re-bound to the item that
+holds that number after the landing.
+
+- **`--supersede VID=TID`** (§11.4.214, recurrence links, never mints): VID is an item the vehicle
+  minted and TID an item the target added after the base, the same defect. No row is minted for VID;
+  the map sends VID to TID, every reference is rewritten to TID, and the vehicle row is kept in the
+  plan (`superseded`) for audit only; its text is not carried. Refused on a FAST-FORWARD landing, for
+  a TID the base already held, and for two vehicle ids onto one TID.
+- **XREF-REBOUND**: a target item whose text names an id the target does not hold and the landing mints
+  for another item is refused, because after the landing the reader would take the reference for the
+  new item. **XREF-SUPERSEDED**: the item a `--supersede` lands on names the superseded vehicle id
+  (its own provisional id); it is refused the same way. Both refusals name what the id is after the
+  landing.
+- **`--annotate-foreign TID`** answers either refusal: the landing appends to TID's description the
+  line `Foreign ids (provisional ids of an unlanded vehicle, ...): <ids>`, so the ids are declared
+  foreign and are never rewritten. An item that already declares the ids foreign needs no annotation;
+  annotating an item that names no provisional id, or one the landing also replays a vehicle change
+  for, is refused.
+- **`--dup-resolution TSV`**: header `vehicle_id<TAB>target_id<TAB>verdict<TAB>reason`, one row per
+  pair the intake lint reports as SHARED-PATH between a vehicle item and a target item; verdict
+  `DISTINCT`, `DISTINCT-but-similar` or `UNDECIDED` (`SAME-DEFECT` goes through `--supersede`); the
+  reason names no id and holds no `;`. The landing appends `Landing check (section 11.4.214) against
+  target <sha12>: ...` to the vehicle item's `Duplicate check` line, which the lint reads as naming the
+  target item, so the landed tracker passes `--require-dup-check`. An `UNDECIDED` row is an honest
+  record that an operator must decide, never a hidden merge.
+- **verify** checks, from its own copy of the annotation text: that no superseded id was minted, that
+  the audit copy equals the vehicle row, that every annotation names exactly the ids the item names,
+  that every landing check is appended and names the target sha, and that no landed item re-binds a
+  reference (XREF-REBOUND or XREF-SUPERSEDED in the landed text). A plan whose annotations or landing
+  checks differ from the ones verify recomputes is a MISMATCH.
+
+The evidence-pack tool `docs/qa/tracker_intake_2026_11_15_v9/tools/simulate_landing.sh` runs plan,
+replay, validate, verify and the intake lint of the LANDED result (the minted items, the supersede
+targets and the annotated items, with `--require-dup-check`) against a named commit of `main`.
+
 ## Rewrite rules
 
 - A token `P-n` is replaced when it is in the map. One pass: `CON-1 -> CON-2` and `CON-2 -> CON-3`
@@ -249,7 +290,7 @@ file is the key to its old ids. The item text is rewritten by the replay, not by
   writes, the removed obsolete_details row), and 19 cases for the survivors of its sixth run
   (FAST-FORWARD verify: a landing with an item the vehicle does not hold, one missing a vehicle item,
   and each of the seven other tables differing on its own, with exactly that one mismatch; a
-  created_at MISMATCH without the CON-339 note; `check_od` with no row on either side, the fact behind
+  created_at MISMATCH without the engine-defect note; `check_od` with no row on either side, the fact behind
   a register entry). Fixtures that no engine command can produce are
   made by `fx_sql` on scratch copies only; it refuses the real database and stops the run on a
   failing or empty edit. `REMINT_IDS` names the tool under test; four in-process cases load that
@@ -320,6 +361,6 @@ reopened, then changed the severity; the replay updates first and closes after, 
 body again), the two bodies differ in that line, and verify refuses to certify it (the suite pins this as
 a characterization case). Not carried: the vehicle's history rows (the engine writes new
 ones on replay; the old rows stay in the vehicle bundle), `created_at` (the replay time for own
-items; for a base item it closes, the engine's close rewrites it, engine defect CON-339) and
+items; for a base item it closes, the engine's close rewrites it, a known engine defect) and
 `last_modified`. `verify` reports these as KNOWN, never as a pass. The engine's own defects reproduce
 on replay. A plan is valid only for the target whose sha256 it records; plan once, replay once.
