@@ -17,7 +17,10 @@ unmerged_refs_block (one line per remote counted). An empty FACTS value renders 
 Refuses (exit 3, nothing on stdout) when a placeholder has no value, a MANUAL value is empty or still
 says TODO/TBD, a MANUAL block is unused (a typo would otherwise drop text silently), or a FACTS count
 key open_status[...] / open_severity[...] is not rendered by the template (a status or severity value
-new at cut time would otherwise drop silently; extend the template). Exit 2 = usage.
+new at cut time would otherwise drop silently; extend the template), or the MANUAL value retest_statement
+does not START with one of the verdict tokens PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN (the §11.4.40 retest
+sentence of an entry is conditional on a recorded verdict, so an entry never implies a pass; the token is
+checked, the base, tier and log that follow it are not). Exit 2 = usage.
 """
 import re
 import sys
@@ -28,6 +31,11 @@ EMPTY = "(none recorded in the tracker)"
 def die(msg, rc):
     sys.stderr.write("render_release_entry: %s\n" % msg)
     sys.exit(rc)
+
+
+# The retest sentence of a release entry is conditional on a recorded verdict (§11.4.40, §11.4.230(F.3)(1)):
+# the manual value must START with one of these tokens, so a claim of a pass cannot be written without it.
+RETEST_VERDICT = re.compile(r"(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)(?![\w-])")
 
 
 def main(argv):
@@ -68,6 +76,9 @@ def main(argv):
             val = manual.get(name)
             if val is None or not val.strip() or re.search(r"\b(TODO|TBD)\b", val):
                 missing.append(key)
+                return m.group(0)
+            if name == "retest_statement" and not RETEST_VERDICT.match(val.strip()):
+                missing.append("MANUAL:retest_statement (must start with PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN)")
                 return m.group(0)
             used.add(name)
             return val

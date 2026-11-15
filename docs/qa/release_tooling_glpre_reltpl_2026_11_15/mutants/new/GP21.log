@@ -1,0 +1,3 @@
+PASS GP21 killed by its property (FAIL GL1 read back through glab api on the pinned host)
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0
+rc=0

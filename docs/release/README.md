@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-11-11 |
 | Status | active, PROVISIONAL (scripts tested on host fixtures only; no release has been cut with them yet) |
 
@@ -62,7 +62,10 @@ time only minutes away can be in the past when the release is created; the read-
 ## Manual keys of the v73.4 template
 
 `cut_date`, `waiver_authoriser`, `waiver_decision_and_source`, `waiver_expiry`, `retest_item_id`,
-`verified_date`, `verified_block`, `killpg_summary_line`, `provisional_changes_block`,
+`retest_statement` (revision 4, CON-417: the §11.4.40 retest sentence of the entry; it must start
+with `PASS-FULL`, `PARTIAL-TOPOLOGY`, `FAIL` or `NOT RUN`, followed by the base, tier and log, and the
+renderer refuses any other start with exit 3, so the entry never implies a pass; the renderer checks the
+token only, not the base, tier or log that follow it), `verified_date`, `verified_block`, `killpg_summary_line`, `provisional_changes_block`,
 `followups_tracking`, `known_defects_block`, `next_candidate_statement`. Every other key is mechanical.
 
 ## Cut steps
