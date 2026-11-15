@@ -1,0 +1,4 @@
+real rc 1 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: FAIL sub — staged pin 865cfd3 is an ANCESTOR of the base pin 83aa328 (downgrade; waiver: authoriser 'ΐ' is the committer or author (producer cannot self-waive)). Advan
+mutant rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub 83aa328 -> 865cfd3 (waiver row bound to parent a6208784fca4 in index :.submodule_pin_waivers)
+real-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub 83aa328 -> 865cfd3 (waiver row bound to parent a6208784fca4 in index :.submodule_pin_waivers)
+mutant-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub 83aa328 -> 865cfd3 (waiver row bound to parent a6208784fca4 in index :.submodule_pin_waivers)

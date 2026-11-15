@@ -1,0 +1,4 @@
+real rc 1 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: FAIL sub — staged pin 0089d9d is an ANCESTOR of the base pin ddb94a8 (downgrade; waiver: authoriser 'ᾴ' is the committer or author (producer cannot self-waive)). Advan
+mutant rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub ddb94a8 -> 0089d9d (waiver row bound to parent bd22ee0c79ba in index :.submodule_pin_waivers)
+real-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub ddb94a8 -> 0089d9d (waiver row bound to parent bd22ee0c79ba in index :.submodule_pin_waivers)
+mutant-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub ddb94a8 -> 0089d9d (waiver row bound to parent bd22ee0c79ba in index :.submodule_pin_waivers)
