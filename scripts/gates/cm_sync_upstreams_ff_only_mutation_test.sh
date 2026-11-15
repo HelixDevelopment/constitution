@@ -31,7 +31,9 @@
 #                   NO-NEW-SESSION · OK-128-AT-READ (bounded but not the oracle's) · OK-TWO · WANT-DROPPED ·
 #                   FETCH-ELSEWHERE · WRITE-VIA-CONST · CFG-CASE-OVERRIDE · CFG-EXTRA-KEY · TRACE-KEPT ·
 #                   CURL-VERBOSE-KEPT · AUTH-NOT-REDACTED · REDACT-URL-LINEWISE · REPORT-KEY-RAW · REGISTRY-OFF ·
-#                   ARGPARSE-RAW · SITE-MOVED (a read moved into a lambda: another scope)
+#                   ARGPARSE-RAW · SITE-MOVED (a read moved into a lambda: another scope); round 9 re-anchored
+#                   COMPUTED-ARGS, OK-NOT-LITERAL, X06-OK-ALL, OK-128-AT-READ, OK-TWO to index_gitlinks' new form
+#                   (final=final), same meaning
 #   FAIL-expected, the GATE mutated (its oracle is load-bearing in both directions): ORACLE-ROW-DROPPED (a call
 #                   site with no row) · ORACLE-CLASS-WRONG (a row whose exit-128 class contradicts its ok=)
 #   BLIND-expected (rc 2): SYNTAX (engine unparseable) · MISSING (engine absent)
@@ -191,9 +193,9 @@ case_ RUN-AS-VALUE 1 py 'def now_utc():' 'def _r(r):
 
 
 def now_utc():'
-case_ COMPUTED-ARGS 1 py '["ls-files", "-s", "-z"], ok=(0,))' 'list(("ls-files", "-s", "-z")), ok=(0,))'
+case_ COMPUTED-ARGS 1 py '["ls-files", "-s", "-z"], ok=(0,), final=final)' 'list(("ls-files", "-s", "-z")), ok=(0,), final=final)'
 case_ NO-OK-DECLARED 1 py '    names = g_out(r, p, ["remote"], ok=(0,))' '    names = g_out(r, p, ["remote"])'
-case_ OK-NOT-LITERAL 1 py '["ls-files", "-s", "-z"], ok=(0,))' '["ls-files", "-s", "-z"], ok=tuple(range(256)))'
+case_ OK-NOT-LITERAL 1 py '["ls-files", "-s", "-z"], ok=(0,), final=final)' '["ls-files", "-s", "-z"], ok=tuple(range(256)), final=final)'
 case_ POPEN-SHELL-KW 1 py 'start_new_session=True)' 'start_new_session=True, shell=False)'
 case_ NO-HOOKSPATH 1 py '"core.hooksPath=/dev/null", ' ""
 case_ NO-FSMONITOR 1 py '"core.fsmonitor=false", ' ""
@@ -211,7 +213,7 @@ case_ X02-DIRECT-MERGE 1 py '                res = write_git(r, repo, "fast-forw
 case_ X02B-DIRECT-MERGE-RECORDED 1 py '                res = write_git(r, repo, "fast-forward", rec["target"])' '                _x = r.run(p, ["merge", "--ff-only", rec["target"]], ok=(0, 1, 128)); rec["actions"].append({"op": "fast-forward", "to": rec["target"], "rc": _x.rc, "error": ""}); res = "done" if (_x.answered and _x.rc == 0) else "failed"'
 case_ X04-OR-TRUE 1 py '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' '    if isinstance(pgid, int) and (pgid > 1 or True):'
 case_ X05-WINDOW-48 1 py '    at = line.rfind("@")' '    at = line.rfind("@", 0, line.find("://") + 48)'
-case_ X06-OK-ALL 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' "    res = r.run(repo, [\"ls-files\", \"-s\", \"-z\"], ok=($(seq -s ', ' 0 255)))"
+case_ X06-OK-ALL 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,), final=final)' "    res = r.run(repo, [\"ls-files\", \"-s\", \"-z\"], ok=($(seq -s ', ' 0 255)), final=final)"
 case_ X07-HOOKS-OVERRIDE 1 py '"fetch.recurseSubmodules=false", "core.askPass=",' '"fetch.recurseSubmodules=false", "core.askPass=", "core.hooksPath=.githooks",'
 case_ KILLPG-OR 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if isinstance(pgid, int) and pgid > 1 or pgid == p.pid:'
 case_ KILLPG-NOT 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if not (isinstance(pgid, int) and pgid > 1 and pgid == p.pid):'
@@ -245,8 +247,8 @@ def now_utc():'
 case_ UPDATE-STRATEGY-OK-128 1 py '    cf = r.run(repo, ["config", "-z", "--get-regexp", r"^submodule\..*\.update$"], ok=(0, 1))' '    cf = r.run(repo, ["config", "-z", "--get-regexp", r"^submodule\..*\.update$"], ok=(0, 1, 128))'
 case_ CONFIG-WRITE-SHAPE 1 py '    cf = r.run(repo, ["config", "-z", "--get-regexp", r"^submodule\..*\.update$"], ok=(0, 1))' '    cf = r.run(repo, ["config", "-z", "--unset-all", r"^submodule\..*\.update$"], ok=(0, 1))'
 case_ NO-NEW-SESSION 1 py 'stderr=subprocess.PIPE, env=env, start_new_session=True)' 'stderr=subprocess.PIPE, env=env, start_new_session=False)'
-case_ OK-128-AT-READ 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 128))'
-case_ OK-TWO 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 2))'
+case_ OK-128-AT-READ 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,), final=final)' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 128), final=final)'
+case_ OK-TWO 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,), final=final)' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 2), final=final)'
 case_ WANT-DROPPED 1 py '["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), want=SHA_RE, final=final)' '["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), final=final)'
 case_ FETCH-ELSEWHERE 1 py 'def now_utc():' 'def _f(r, p):
     return r.run(p, fetch_args("origin", False), ok=(0, 1, 128))
@@ -273,6 +275,9 @@ case_ REPORT-KEY-RAW 1 py '            rk = redact(k)  # a key' '            rk 
 case_ REGISTRY-OFF 1 py '        _KNOWN.update(p for p in pieces if len(p) >= 8)' '        pass'
 case_ ARGPARSE-RAW 1 py '(self.prog, redact(message))' '(self.prog, message)'
 case_ SITE-MOVED 1 py '    names = g_out(r, p, ["remote"], ok=(0,))' '    names = (lambda: g_out(r, p, ["remote"], ok=(0,)))()'
+# round 9: the errno / stat modules added for the path-access layer are allow-listed by exact name only
+case_ STAT-NAME-UNLISTED 1 py '        if not stat.S_ISREG(st.st_mode):' '        if not stat.filemode(st.st_mode):'
+case_ ERRNO-ALIASED 1 py 'import errno' 'import errno as e_'
 # the GATE mutated: its oracle must be load-bearing in both directions
 gcase_() {
   local label="$1" old="$2" new="$3" d="$tmp/$1" g="$tmp/$1.gate.sh"

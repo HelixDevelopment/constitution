@@ -37,6 +37,7 @@ Safety (Constitution §11.4.113, §9.2, §11.4.84, §11.4.10, §11.4.201, §11.4
 import argparse
 import concurrent.futures
 import datetime
+import errno
 import fcntl
 import hashlib
 import json
@@ -45,6 +46,7 @@ import re
 import select
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -106,7 +108,19 @@ GD_MOVES = {GD_NONE: (GD_WRITING, GD_EARLIER, GD_CLEARED), GD_CLEARED: (GD_WRITI
 MARKER_WRITTEN, MARKER_EXISTS, MARKER_UNWRITABLE = "written", "exists", "unwritable"
 TOKEN_REFUSALS = ("no-write-token", "write-token-stale", "write-marker-not-ours")
 # Lock files a killed write may leave (checked and listed in the report, never removed by the engine)
-WRITE_LOCKS = ("index.lock", "HEAD.lock", "ORIG_HEAD.lock", "packed-refs.lock")
+# The lock files git itself takes for each engine write (review round 9, RV8-1; ground truth: git 2.53, strace of
+# each write, plus a stale-lock matrix, docs/qa/sync_upstreams_2026_11_15_r9/ground_truth/). GITDIR_LOCKS are in the
+# write's own git dir (per worktree), COMMON_LOCKS in the git common dir ("{branch}" = the checked-out branch). A
+# STALE one of these makes git refuse, or (HEAD.lock, the branch ref lock) rewrite the index and work tree first and
+# THEN fail: a half-applied write. Every one is checked before every write, and before an earlier marker is cleared.
+OP_GIT = {"fast-forward": "merge", "advance-pin": "checkout", "follow-pin": "checkout", "stage-pin": "add"}
+GITDIR_LOCKS = {"merge": ("index.lock", "HEAD.lock", "ORIG_HEAD.lock", "AUTO_MERGE.lock"),
+                "checkout": ("index.lock", "HEAD.lock", "AUTO_MERGE.lock"),
+                "add": ("index.lock",)}
+COMMON_LOCKS = {"merge": ("packed-refs.lock", "refs/heads/{branch}.lock", "reftable/tables.list.lock"),
+                "checkout": ("packed-refs.lock", "reftable/tables.list.lock"),
+                "add": ()}
+WRITE_LOCKS = tuple(sorted({n for v in GITDIR_LOCKS.values() for n in v}))  # every git-dir lock of any write
 
 # -c pairs on EVERY git call: whatever the repository's own (or the user's) config says, no hook,
 # fsmonitor, auto-gc/maintenance, submodule recursion, autostash, ext:: transport, prune or askpass program runs
@@ -547,6 +561,16 @@ class Runner:
         self.unresolved = {}  # realpath(repo) -> set of "<subcommand>:<why>" (a call that did not answer)
         self.gitdirs = {}  # realpath(git dir) -> GD_* state of its write marker in this run (review round 8)
         self.writes = 0  # write ids handed out in this run
+        self.sites = {}  # realpath(git dir) -> (common dir, branch) of an inspected repository (review round 9)
+
+    def register_site(self, gitdir, common, branch):
+        with self.lock:
+            self.sites[os.path.realpath(gitdir)] = (common or gitdir, branch)
+
+    def site(self, gitdir):
+        """(common dir, branch) of an inspected git dir, or None: a git dir this run did not inspect."""
+        with self.lock:
+            return self.sites.get(os.path.realpath(gitdir)) if gitdir else None
 
     def gd_state(self, gitdir):
         with self.lock:
@@ -725,30 +749,221 @@ def pick_newest(shas, ancestor):
     return None
 
 
+# ───────────────────────────── path access layer ─────────────────────────────
+# Review round 9 (RV8-2 / RV8-4, the class "a filesystem object at or around a path the engine reads, creates,
+# clears or checks"): EVERY filesystem access of the engine goes through path_kind and the fs_* functions below
+# (enforced by docs/qa/.../class_inventory_write_paths.py, rule R5). None of them ever blocks on, follows, opens for
+# reading, or removes an object that is not a regular file (a FIFO, a socket, a device, a directory, a symbolic link):
+# a read opens O_NONBLOCK|O_NOFOLLOW and requires S_ISREG on the OPEN file (fstat), so an object swapped in after the
+# lstat is still refused; a removal removes a regular file only and reports, never raises. Exemptions (stated, never
+# hidden): os.path.realpath / abspath / join (resolve names, open nothing), the controlling terminal (fs_open_tty).
+KIND_OF_MODE = ((stat.S_ISDIR, "dir"), (stat.S_ISREG, "regular"), (stat.S_ISLNK, "symlink"), (stat.S_ISFIFO, "fifo"),
+                (stat.S_ISSOCK, "socket"), (stat.S_ISCHR, "char-device"), (stat.S_ISBLK, "block-device"))
+READ_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC
+
+
+def kind_of_mode(mode):
+    for test, name in KIND_OF_MODE:
+        if test(mode):
+            return name
+    return "other"
+
+
 def path_kind(path):
-    """'absent', 'dir', 'other' (a file, a symbolic link, ...) or 'unreadable', from ONE os.lstat (the last component
-    is never followed). os.path.exists / isdir / lexists read "permission denied" as "not there"; here only "no such
-    file" (or a path component that is not a directory) is absent, every other error is unreadable (review round 3,
-    F1 class B: an unread path is never read as absent)."""
+    """'absent', 'unreadable', or the kind of what is at ``path`` ('dir', 'regular', 'symlink', 'fifo', 'socket',
+    'char-device', 'block-device', 'other'), from ONE os.lstat (the last component is never followed).
+    os.path.exists / isdir / lexists read "permission denied" as "not there"; here only "no such file" (or a path
+    component that is not a directory) is absent, every other error is unreadable (review round 3, F1 class B: an
+    unread path is never read as absent)."""
     try:
         st = os.lstat(path)
     except (FileNotFoundError, NotADirectoryError):
         return "absent"
     except OSError:
         return "unreadable"
-    return "dir" if (st.st_mode & 0o170000) == 0o040000 else "other"
+    return kind_of_mode(st.st_mode)
 
 
-def in_progress(gitdir):
-    """Operations in progress in ``gitdir``; a marker that cannot be read counts as in progress ('<name>?unreadable')."""
+def fs_is_regular(path):
+    return path_kind(path) == "regular"
+
+
+def fs_read(path, cap):
+    """(status, bytes) of the regular file at ``path``: 'ok', 'absent', 'unreadable', 'too-large' (more than ``cap``
+    bytes: unread, never half-read) or 'not-regular:<kind>'. Never blocks: a FIFO, a socket or a device is refused
+    by the lstat, and again by fstat on the open descriptor (O_NONBLOCK) when it was swapped in after the lstat."""
+    k = path_kind(path)
+    if k != "regular":
+        return (k if k in ("absent", "unreadable") else "not-regular:" + k), b""
+    try:
+        fd = os.open(path, READ_FLAGS)
+    except (FileNotFoundError, NotADirectoryError):
+        return "absent", b""
+    except OSError as e:
+        return ("not-regular:symlink" if e.errno == 40 else "unreadable"), b""  # ELOOP: a link swapped in
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            return "not-regular:" + kind_of_mode(st.st_mode), b""
+        chunks, n = [], 0
+        while n <= cap:
+            chunk = os.read(fd, min(65536, cap + 1 - n))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            n += len(chunk)
+    except OSError:
+        return "unreadable", b""
+    finally:
+        os.close(fd)
+    data = b"".join(chunks)
+    return ("too-large", b"") if len(data) > cap else ("ok", data)
+
+
+def fs_create_excl(path, data):
+    """CREATE ``path`` exclusively (O_EXCL|O_NOFOLLOW, 0600) with ``data``: 'written'; 'exists' when anything at all
+    is already there (never opened, overwritten or removed); 'unwritable'. A file this call created and could not
+    write whole is removed again (it was this call's own)."""
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    except FileExistsError:
+        return "exists"
+    except OSError:
+        return "unwritable"
+    try:
+        try:
+            os.write(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except OSError:
+        fs_remove(path)
+        return "unwritable"
+    return "written"
+
+
+def fs_remove(path):
+    """Remove the REGULAR file at ``path``: 'removed', 'absent', 'not-regular:<kind>' (nothing removed: a FIFO, a
+    directory, a symbolic link, ... is never removed), 'unreadable' or 'failed:<errno name>'. Never raises."""
+    k = path_kind(path)
+    if k == "absent":
+        return "absent"
+    if k != "regular":
+        return k if k == "unreadable" else "not-regular:" + k
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        return "absent"
+    except OSError as e:
+        return "failed:" + (errno_name(e.errno))
+    return "removed"
+
+
+def errno_name(n):
+    return errno.errorcode.get(n or 0, str(n))
+
+
+def fs_open_lock(path):
+    """(fd, None) for this engine's run lock at ``path`` (created 0600 when absent), or (None, why). Only a regular
+    file is a lock: the open never blocks (O_NONBLOCK; a FIFO with no writer would wait forever) and fstat must show
+    a regular file, else the descriptor is closed and the object left untouched (review round 9, RV8-2 class)."""
+    try:
+        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC, 0o600)
+    except OSError as e:
+        return None, e.strerror or str(e)
+    try:
+        st = os.fstat(fd)
+    except OSError as e:
+        os.close(fd)
+        return None, e.strerror or str(e)
+    if not stat.S_ISREG(st.st_mode):
+        os.close(fd)
+        return None, "not a regular file (%s)" % kind_of_mode(st.st_mode)
+    return fd, None
+
+
+def fs_probe_dir(path):
+    """Create the directory ``path`` (0700) when absent and prove it writable with a real file (mkstemp, then
+    removed): None, or the error text."""
+    try:
+        os.makedirs(path, mode=0o700, exist_ok=True)
+        fd_, probe_ = tempfile.mkstemp(prefix=".sync_probe.", dir=path)
+        os.close(fd_)
+        os.unlink(probe_)
+    except OSError as e:
+        return e.strerror or str(e)
+    return None
+
+
+def fs_ensure_dir(path):
+    os.makedirs(path, mode=0o700, exist_ok=True)
+
+
+def fs_write_atomic(path, data):
+    """Write ``data`` to a fresh, unpredictable temporary file (O_EXCL, mode 0600) in the same directory and
+    rename it over ``path``."""
+    fd, tmp = tempfile.mkstemp(prefix=".sync_report.", dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def fs_open_tty():
+    """The controlling terminal (exemption: a character device by design, opened only with --interactive)."""
+    return os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
+
+
+def lock_paths(gitdir, common, branch, git_sub=None):
+    """[(label, path)] of the lock files git takes for the write ``git_sub`` ('merge', 'checkout', 'add'), or for
+    ANY engine write when None, in ``gitdir`` and the common dir ``common``. The label is the git-dir-relative name,
+    'common:<name>' for a common-dir lock of a linked worktree (git dir != common dir)."""
+    subs = [git_sub] if git_sub else sorted(GITDIR_LOCKS)
+    common = common or gitdir
+    split = os.path.realpath(common) != os.path.realpath(gitdir)
+    out, seen = [], set()
+    for sub in subs:
+        for n in GITDIR_LOCKS[sub]:
+            if n not in seen:
+                seen.add(n)
+                out.append((n, os.path.join(gitdir, n)))
+        for n in COMMON_LOCKS[sub]:
+            if "{branch}" in n:
+                if not branch:
+                    continue
+                n = n.format(branch=branch)
+            label = ("common:" + n) if split else n
+            if label not in seen:
+                seen.add(label)
+                out.append((label, os.path.join(common, n)))
+    return out
+
+
+def in_progress(gitdir, common=None, branch=None):
+    """Operations and locks in progress in ``gitdir`` (and its common dir ``common``; the branch ref lock of
+    ``branch``): every lock file ANY engine write takes (lock_paths; review round 9, RV8-1, was index.lock only), and
+    anything at the write-marker path that is not a regular file ('write-marker-path-not-a-file:<kind>', never
+    opened or removed; RV8-2 / RV8-4). An entry that cannot be read counts as in progress ('<name>?unreadable')."""
     found = []
-    for n in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply",
-              "index.lock"):
-        k = path_kind(os.path.join(gitdir, n))
+    names = [(n, os.path.join(gitdir, n)) for n in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG",
+                                                     "rebase-merge", "rebase-apply")]
+    for n, path in names + lock_paths(gitdir, common, branch):
+        k = path_kind(path)
         if k == "unreadable":
             found.append(n + "?unreadable")
         elif k != "absent":
             found.append(n)
+    mk = path_kind(os.path.join(gitdir, WRITE_MARKER))
+    if mk not in ("absent", "regular", "unreadable"):
+        found.append("write-marker-path-not-a-file:" + mk)
     return found
 
 
@@ -792,11 +1007,14 @@ def parse_ls_tree(out):
     return res
 
 
-def index_gitlinks(r, repo):
-    """{path: sha} of the gitlinks recorded in the index, or None when git gave no answer (recorded)."""
-    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))
+def index_gitlinks(r, repo, final=False, raw=None):
+    """{path: sha} of the gitlinks recorded in the index, or None when git gave no answer (recorded). ``raw``, a
+    list, receives the whole 'ls-files -s -z' output (write_settled compares it after a failed write)."""
+    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,), final=final)
     if not res.answered:
         return None
+    if raw is not None:
+        raw.append(res.out)
     links = {}
     for x in res.out.split("\0"):
         if not x:
@@ -855,21 +1073,19 @@ def marker_path(gitdir):
 
 def read_marker(gitdir):
     """The op of an earlier write that did not end normally (its marker is present), 'unknown' when the marker
-    cannot be read, None when there is no marker (review round 6, RV5-1)."""
+    cannot be read, None when there is no marker (review round 6, RV5-1) or the object at its path is not a
+    regular file (review round 9: never opened; in_progress reports it and blocks the git dir)."""
     path = marker_path(gitdir)
     if not path:
         return None
-    k = path_kind(path)
-    if k == "absent":
+    status, data = fs_read(path, 4096)
+    if status == "absent" or status.startswith("not-regular:"):  # not a marker: in_progress reports it (RV8-2/4)
         return None
+    if status != "ok":
+        return "unknown"
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-        try:
-            data = os.read(fd, 4096)
-        finally:
-            os.close(fd)
         op = json.loads(data.decode("utf-8", "replace")).get("op")
-    except (OSError, ValueError, AttributeError):
+    except (ValueError, AttributeError):
         return "unknown"
     return op if op in ("fast-forward", "advance-pin", "follow-pin", "stage-pin") else "unknown"
 
@@ -877,16 +1093,14 @@ def read_marker(gitdir):
 def marker_write_id(gitdir):
     """The write id recorded in ``gitdir``'s marker, read now; None when there is no marker or it is unreadable."""
     path = marker_path(gitdir)
-    if not path or path_kind(path) != "other":  # O_NOFOLLOW below refuses a symbolic link
+    if not path:
+        return None
+    status, data = fs_read(path, 4096)  # never blocks (RV8-2): a FIFO here is "not ours", never waited on
+    if status != "ok":
         return None
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-        try:
-            data = os.read(fd, 4096)
-        finally:
-            os.close(fd)
         wid = json.loads(data.decode("utf-8", "replace")).get("write_id")
-    except (OSError, ValueError, AttributeError):
+    except (ValueError, AttributeError):
         return None
     return wid if isinstance(wid, str) and wid else None
 
@@ -899,32 +1113,16 @@ def write_marker(gitdir, op, target, run_id, write_id=""):
     path = marker_path(gitdir)
     if not path:
         return MARKER_UNWRITABLE
-    try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    except FileExistsError:
-        return MARKER_EXISTS
-    except OSError:
-        return MARKER_UNWRITABLE
-    try:
-        try:
-            os.write(fd, json.dumps({"op": op, "target": target, "run_id": run_id, "write_id": write_id,
-                                     "started": now_utc()}).encode())
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    except OSError:  # this call created the file (O_EXCL): removing it removes nothing of anyone else
-        clear_marker(gitdir)
-        return MARKER_UNWRITABLE
-    return MARKER_WRITTEN
+    got = fs_create_excl(path, json.dumps({"op": op, "target": target, "run_id": run_id, "write_id": write_id,
+                                           "started": now_utc()}).encode())
+    return {"written": MARKER_WRITTEN, "exists": MARKER_EXISTS}.get(got, MARKER_UNWRITABLE)
 
 
 def clear_marker(gitdir):
+    """Remove the marker of ``gitdir``: the fs_remove status ('removed', 'absent', 'not-regular:<kind>', ...). Only a
+    regular file is ever removed; it never raises (review round 9, RV8-4)."""
     path = marker_path(gitdir)
-    if path:
-        try:
-            os.unlink(path)
-        except FileNotFoundError:
-            pass
+    return fs_remove(path) if path else "absent"
 
 
 class WriteToken:
@@ -936,18 +1134,20 @@ class WriteToken:
 
 
 def gitdir_write_block(r, gitdir):
-    """Why NO write may go into ``gitdir`` now, or None (review round 8, RV7-1), read NOW: an unknown git dir; its
-    marker state in this run is unresolved (an earlier write of this run was killed or interrupted, is still in
-    progress, or a marker of an earlier run was kept); a marker (or anything else) is at the marker path; an
-    operation or lock is in progress there (index.lock included: a killed write's lock is never written over)."""
-    if not marker_path(gitdir):
+    """Why NO write may go into ``gitdir`` now, or None (review round 8, RV7-1), read NOW: an unknown git dir (not
+    inspected in this run: its common dir and branch are not known, so its locks cannot be checked); its marker state
+    in this run is unresolved (an earlier write of this run was killed or interrupted, is still in progress, or a
+    marker of an earlier run was kept); a marker (or anything else) is at the marker path; an operation or ANY lock
+    git takes for an engine write is present (review round 9, RV8-1: in the git dir AND the common dir)."""
+    site = r.site(gitdir) if marker_path(gitdir) else None
+    if site is None:
         return "unknown-git-dir"
     state = r.gd_state(gitdir)
     if state in GD_UNRESOLVED:
         return "earlier-write-unresolved:" + state
     if path_kind(marker_path(gitdir)) != "absent":
         return "write-marker-present"
-    busy = in_progress(gitdir)
+    busy = in_progress(gitdir, site[0], site[1])
     if busy:
         return "in-progress:" + ",".join(busy)
     return None
@@ -976,28 +1176,58 @@ def begin_write(r, gitdir, op, target, final=False):
     return WriteToken(gitdir, op, write_id), None
 
 
-def end_write(r, token, res):
-    """The end of a write that held ``token``: git answered (any declared status, 0 or not) or no git process was
-    started -> the marker is removed (GD_CLEARED); the write's own limit ended it -> GD_KILLED; any other end (a
-    signal, an undeclared status, malformed output) -> GD_INTERRUPTED. The last two keep the marker, so a later
-    run attributes what the git dir shows to that write."""
+def end_write(r, token, res, settled=True):
+    """The end of a write that held ``token``. The marker is removed (GD_CLEARED) only when no git process was
+    started, or git answered AND the repository is SETTLED (``settled``, write_settled: review round 9, RV8-1, git
+    can answer a failure after it already rewrote the index and work tree), and only while the marker on disk is
+    still this write's own. An answered write that left changes -> GD_INTERRUPTED; the write's own limit ended it ->
+    GD_KILLED; any other end (a signal, an undeclared status, malformed output) -> GD_INTERRUPTED. Every case but
+    the first keeps the marker, so a later run attributes what the git dir shows to that write."""
     if token is None:
         return
     if res.why in TOKEN_REFUSALS:  # the marker on disk is not (or no longer) this write's: never touched
         r.gd_move(token.gitdir, GD_INTERRUPTED)
-    elif res.answered or not res.started:
-        clear_marker(token.gitdir)
+    elif (res.answered and settled) or not res.started:
+        if marker_write_id(token.gitdir) == token.write_id:
+            clear_marker(token.gitdir)
         r.gd_move(token.gitdir, GD_CLEARED)
+    elif res.answered:  # git answered, but the repository shows what the write left (half-applied): marker kept
+        r.gd_move(token.gitdir, GD_INTERRUPTED)
     elif res.why == "write-killed":
         r.gd_move(token.gitdir, GD_KILLED)
     else:
         r.gd_move(token.gitdir, GD_INTERRUPTED)
 
 
-def locks_left(gitdir, branch):
-    """Lock files present in ``gitdir`` (and the branch's ref lock), as git-dir-relative paths."""
-    names = list(WRITE_LOCKS) + (["refs/heads/%s.lock" % branch] if branch else [])
-    return [n for n in names if gitdir and path_kind(os.path.join(gitdir, n)) != "absent"]
+def locks_left(gitdir, branch, common=None, git_sub=None):
+    """Lock files git takes for a write (``git_sub``, or any engine write) that are present now in ``gitdir`` and
+    its common dir, as labels (lock_paths)."""
+    if not gitdir:
+        return []
+    return [n for n, path in lock_paths(gitdir, common, branch, git_sub) if path_kind(path) != "absent"]
+
+
+def write_settled(r, repo, op, target, res, pre_index):
+    """True when the write ``op`` that git answered with ``res`` left the repository showing nothing of a half-done
+    write (review round 9, RV8-1; ground truth: a merge or checkout that meets a held HEAD.lock or branch ref lock
+    rewrites the index and work tree, then exits 128). Exit 0: git completed the write (step 6 verifies where HEAD
+    is; a move by someone else is reported there, never attributed to this write). A FAILURE (exit != 0): HEAD is
+    unchanged and the index is byte-for-byte what it was before the write (``pre_index``, the 'ls-files -s -z'
+    output read in step 3b); a failed stage-pin: the gitlink at its path is still the recorded one. Lock files are
+    NOT read here: git removes its own locks before it answers, so a lock present now is another process's, and the
+    next run's in_progress reports it either way. Every read is final; one that does not answer is NOT settled.
+    Limit (stated): a failed write that changed the work tree but not the index cannot be told from a user's edit."""
+    rec = repo.rec
+    if res.rc == 0:
+        return True
+    if op == "stage-pin":
+        links = index_gitlinks(r, repo.parent.abspath, final=True)
+        return links is not None and links.get(rec["path_in_parent"]) == rec.get("recorded_gitlink")
+    head = read_head(r, repo.abspath, final=True)
+    if head is None or head != rec.get("head_before"):
+        return False
+    now = r.run(repo.abspath, ["ls-files", "-s", "-z"], ok=(0,), final=True)
+    return now.answered and pre_index is not None and now.out == pre_index
 
 
 # ───────────────────────────── per-repository work ─────────────────────────────
@@ -1026,7 +1256,9 @@ def inspect_local(r, repo, branch):
     gitdir, fetch_head, common = (paths[0], paths[1], paths[2]) if len(paths) == 3 and all(paths) else ("", "", "")
     rec["_gitdir"] = gitdir
     rec["_common_dir"] = common
-    rec["in_progress"] = in_progress(gitdir) if gitdir else ["unknown-git-dir"]
+    if gitdir:
+        r.register_site(gitdir, common, rec["branch"])
+    rec["in_progress"] = in_progress(gitdir, common, rec["branch"]) if gitdir else ["unknown-git-dir"]
     earlier = read_marker(gitdir)
     if earlier:
         rec["write_interrupted_earlier"] = earlier
@@ -1082,13 +1314,10 @@ def fetched_branches(path):
     """Branch names the last fetch reported in FETCH_HEAD (``path``), or None when it cannot be read."""
     if not path or not os.path.isabs(path):
         return None
-    try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            data = f.read(FETCH_HEAD_CAP + 1)
-    except OSError:
+    status, raw = fs_read(path, FETCH_HEAD_CAP)  # bounded memory (RV4-4), never blocks on a FIFO (round 9)
+    if status != "ok":  # an oversized FETCH_HEAD is unread, never half-read
         return None
-    if len(data) > FETCH_HEAD_CAP:  # bounded memory (RV4-4): an oversized FETCH_HEAD is unread, never half-read
-        return None
+    data = raw.decode("utf-8", "replace")
     names = set()
     for line in data.splitlines():
         m = re.match(r"^[0-9a-f]{40,64}\t[^\t]*\tbranch '(.*)' of ", line)
@@ -1260,6 +1489,8 @@ def reasons_for(rec, strict_pins, branch):
     reasons += [("in-progress%s:" % tail) + x for x in rec.get("in_progress", [])]
     if rec.get("write_killed"):
         reasons.append("write-killed:" + rec["write_killed"])
+    if rec.get("write_left_changes"):
+        reasons.append("write-left-changes:" + rec["write_left_changes"])
     if rec.get("not_followed"):
         reasons.append("not-followed:update-" + rec["not_followed"])
     if rec.get("head_unreadable"):
@@ -1456,7 +1687,8 @@ def write_git(r, repo, op, target):
     if not st.answered:
         rec["actions"].append({"op": "none", "why": "unresolved:status-recheck", "for": op})
         return "no-answer"
-    busy = in_progress(rec.get("_gitdir") or "") if rec.get("_gitdir") else ["unknown-git-dir"]
+    busy = (in_progress(rec["_gitdir"], rec.get("_common_dir"), rec.get("branch")) if rec.get("_gitdir")
+            else ["unknown-git-dir"])
     if st.out.strip() or busy:
         rec["actions"].append({"op": "none", "why": "blocked:tree-changed-before-write", "for": op})
         return "blocked"
@@ -1485,7 +1717,8 @@ def write_git(r, repo, op, target):
     # 3b. a gitlink the user has STAGED in this repository (index differs from HEAD's tree), read NOW, that the
     #    move would change is never overwritten: blocked before git (review round 6, RV5-3; git itself would refuse
     #    the merge only half-way, as a failure)
-    links = index_gitlinks(r, p)
+    pre_index = []
+    links = index_gitlinks(r, p, raw=pre_index)
     if links is None:
         rec["actions"].append({"op": "none", "why": "unresolved:staged-gitlinks", "for": op})
         return "no-answer"
@@ -1536,10 +1769,18 @@ def write_git(r, repo, op, target):
         res = r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128), write=True, token=tok)
     act["rc"] = res.rc
     act["error"] = redact(res.err).strip()[-300:] if (res.rc or not res.answered) else ""
-    end_write(r, tok, res)
+    settled = write_settled(r, repo, op, target, res, pre_index[0] if pre_index else None) if res.answered else True
+    end_write(r, tok, res, settled)
+    if res.answered and not settled:  # git answered, the repository shows a half-done write (RV8-1): marker kept
+        act["why"] = "write-left-changes:" + op
+        act["locks_left"] = locks_left(gitdir, rec.get("branch"), rec.get("_common_dir"), OP_GIT[op])
+        rec["actions"].append(act)
+        rec["write_left_changes"] = op
+        rec["failed"] = True
+        return "failed"
     if res.why == "write-killed":
         act["why"] = "write-killed:" + op
-        act["locks_left"] = locks_left(gitdir, rec.get("branch"))
+        act["locks_left"] = locks_left(gitdir, rec.get("branch"), rec.get("_common_dir"))
         rec["actions"].append(act)
         rec["write_killed"] = op
         rec["failed"] = True
@@ -1579,11 +1820,20 @@ def write_git(r, repo, op, target):
             return "failed"
         res2 = r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]], ok=(0, 128), write=True, final=True,
                      token=tok2)
-        end_write(r, tok2, res2)
+        settled2 = write_settled(r, repo, "stage-pin", target, res2, None) if res2.answered else True
+        end_write(r, tok2, res2, settled2)
         act["staged_rc"] = res2.rc
+        if res2.answered and not settled2:
+            act["why"] = "write-left-changes:stage-pin"
+            act["locks_left"] = locks_left(pgitdir, None, repo.parent.rec.get("_common_dir"), "add")
+            rec["actions"].append(act)
+            repo.parent.rec["write_left_changes"] = "stage-pin"
+            repo.parent.rec["failed"] = True
+            rec["failed"] = True
+            return "failed"
         if res2.why == "write-killed":
             act["why"] = "write-killed:stage-pin"
-            act["locks_left"] = locks_left(pgitdir, None)
+            act["locks_left"] = locks_left(pgitdir, None, repo.parent.rec.get("_common_dir"))
             rec["actions"].append(act)
             repo.parent.rec["write_killed"] = "stage-pin"
             repo.parent.rec["failed"] = True
@@ -1752,42 +2002,19 @@ def tsv_rows(report):
 def evidence_file_ours(path, kind):
     """True when ``path`` does not exist, or is a regular file (not a symlink) that an earlier run of this engine
     wrote (n-3): a user's own file of that name is never overwritten."""
-    try:
-        st = os.lstat(path)
-    except FileNotFoundError:
+    status, raw = fs_read(path, 64 * 1024 * 1024)  # a symlink, a directory, a FIFO, ...: never ours, never opened
+    if status == "absent":
         return True
-    except OSError:
+    if status != "ok":
         return False
-    if (st.st_mode & 0o170000) != 0o100000:  # not a regular file (a symlink, a directory, ...)
-        return False
-    if st.st_size > 64 * 1024 * 1024:
-        return False
+    text = raw.decode("utf-8", "replace")
+    if kind == "tsv":
+        return text.split("\n", 1)[0] == "\t".join(TSV_COLS)
     try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            if kind == "tsv":
-                return f.readline().rstrip("\n") == "\t".join(TSV_COLS)
-            data = json.load(f)
-    except (OSError, ValueError):
+        data = json.loads(text)
+    except ValueError:
         return False
     return isinstance(data, dict) and data.get("schema") == SCHEMA
-
-
-def write_atomic(path, data):
-    """Write ``data`` to a fresh, unpredictable temporary file (O_EXCL, mode 0600) in the same directory and
-    rename it over ``path``."""
-    fd, tmp = tempfile.mkstemp(prefix=".sync_report.", dir=os.path.dirname(path))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
 
 
 def control_needle(r, root):
@@ -1802,7 +2029,7 @@ def control_needle(r, root):
 class Tty:
     """The controlling terminal, unbuffered (a tty is not seekable, so no "r+" text stream)."""
     def __init__(self):
-        self.fd = os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
+        self.fd = fs_open_tty()
 
     def _write(self, text):
         os.write(self.fd, text.encode("utf-8", "replace"))
@@ -1943,14 +2170,10 @@ def main(argv):
             return EXIT_USAGE
     # the evidence directory must be writable BEFORE anything is changed (RV4-8): created, then probed with a real
     # file (mkstemp + unlink); a run that would end unable to write its report never starts writing the project
-    try:
-        os.makedirs(out_dir, mode=0o700, exist_ok=True)
-        fd_, probe_ = tempfile.mkstemp(prefix=".sync_probe.", dir=out_dir)
-        os.close(fd_)
-        os.unlink(probe_)
-    except OSError as e:
+    err_ = fs_probe_dir(out_dir)
+    if err_:
         print("sync-upstreams: ERROR: cannot write the evidence directory %s (%s); nothing was done"
-              % (redact(out_dir), redact(e.strerror or str(e))), file=sys.stderr)
+              % (redact(out_dir), redact(err_)), file=sys.stderr)
         return EXIT_USAGE
     tty = None
     if a.interactive:
@@ -1966,11 +2189,10 @@ def main(argv):
         print("RESULT: BLIND exit=%d" % EXIT_BLIND)
         return EXIT_BLIND
     lock_path = os.path.join(common, "helix-sync-upstreams.lock")
-    try:
-        lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-    except OSError as e:  # not "another run": the lock cannot be opened at all (review round 6, RV5-2)
+    lock_fd, lerr = fs_open_lock(lock_path)
+    if lock_fd is None:  # not "another run": the lock cannot be opened at all (RV5-2), or is no file (round 9)
         print("sync-upstreams: ERROR: cannot open the run lock %s (%s); nothing was done"
-              % (redact(lock_path), redact(e.strerror or str(e))), file=sys.stderr)
+              % (redact(lock_path), redact(lerr)), file=sys.stderr)
         print("RESULT: FAILED exit=%d" % EXIT_FAIL)
         return EXIT_FAIL
     try:
@@ -2014,10 +2236,9 @@ def lock_repositories(live, root_common, held):
             continue
         seen.add(real)
         path = os.path.join(real, "helix-sync-upstreams.lock")
-        try:
-            fd_ = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-        except OSError as e:
-            return path, None, e.strerror or str(e)  # None: the lock file could not be OPENED (review round 8)
+        fd_, lerr = fs_open_lock(path)
+        if fd_ is None:
+            return path, None, lerr  # None: the lock file could not be OPENED (review round 8), or is no file (r9)
         held.append(fd_)
         try:
             fcntl.flock(fd_, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -2060,11 +2281,16 @@ def run(a, r, mode, root, run_id, out_dir, tty, held, root_common):
             if gd:
                 r.gd_move(gd, GD_EARLIER)
         elif mode == "apply":
-            clear_marker(gd)
-            x.rec.setdefault("notes", []).append("write-marker-cleared:%s-left-nothing" % earlier)
-            x.rec.pop("write_interrupted_earlier", None)
-            if gd:
-                r.gd_move(gd, GD_CLEARED)
+            gone = clear_marker(gd)
+            if gone in ("removed", "absent"):
+                x.rec.setdefault("notes", []).append("write-marker-cleared:%s-left-nothing" % earlier)
+                x.rec.pop("write_interrupted_earlier", None)
+                if gd:
+                    r.gd_move(gd, GD_CLEARED)
+            else:  # it could not be removed (RV8-4): kept, never reported cleared
+                x.rec.setdefault("notes", []).append("write-marker-kept:cannot-remove:%s" % gone)
+                if gd:
+                    r.gd_move(gd, GD_EARLIER)
         else:
             x.rec.setdefault("notes", []).append("write-marker-present:%s-left-nothing" % earlier)
             if gd:
@@ -2122,6 +2348,13 @@ def run(a, r, mode, root, run_id, out_dir, tty, held, root_common):
                          "status'; remove %s/index.lock only if it is still there; keep any leftovers with 'git -C %s "
                          "stash push --include-untracked -m helix-sync-write-killed'; then re-run with a larger "
                          "--write-timeout" % (rec["path"], x.abspath, gd, x.abspath))
+        if rec.get("write_left_changes"):  # git answered a write that it had half-applied (round 9, RV8-1)
+            hints.append("write-left-changes recovery for %s: git ended a %s with an error after it changed the "
+                         "repository; inspect 'git -C %s status'; keep any leftovers with 'git -C %s stash push "
+                         "--include-untracked -m helix-sync-write-left-changes'; remove a lock file only after making "
+                         "sure no git process runs; the marker %s stays until a later --apply finds the tree clean"
+                         % (rec["path"], rec["write_left_changes"], x.abspath, x.abspath,
+                            WRITE_MARKER))
         rec["reasons"] = reasons_for(rec, a.strict_pins, a.branch)
         unresolved = r.unresolved_for(x.abspath)
         if unresolved:  # a call that did not answer is never read as "absent" / "clean" / "unchanged" / "moved"
@@ -2150,8 +2383,8 @@ def run(a, r, mode, root, run_id, out_dir, tty, held, root_common):
             any_unresolved = True
         elif moved and mode == "apply" and not blocking:  # moved, but blocked afterwards: attention (F2)
             rec["result"] = "updated"
-            if os.path.isfile(os.path.join(x.abspath, "scripts", "post_update_hook.sh")) and \
-                    os.path.isfile(os.path.join(x.abspath, "Constitution.md")) and x.parent is not None:
+            if fs_is_regular(os.path.join(x.abspath, "scripts", "post_update_hook.sh")) and \
+                    fs_is_regular(os.path.join(x.abspath, "Constitution.md")) and x.parent is not None:
                 hints.append("bash %s/scripts/post_update_hook.sh --project-root %s" % (rec["path"], x.parent.rel))
         elif rec["reasons"]:
             rec["result"] = "attention"
@@ -2198,9 +2431,9 @@ def run(a, r, mode, root, run_id, out_dir, tty, held, root_common):
     report["redaction_backstop"] = hits  # field paths the backstop had to clean: always [] (tests/sync/*)
     report["canonical_sha256"] = canonical_sha256(report)
     try:
-        os.makedirs(out_dir, mode=0o700, exist_ok=True)
-        write_atomic(os.path.join(out_dir, "sync_report.json"), json.dumps(report, indent=2, sort_keys=True) + "\n")
-        write_atomic(os.path.join(out_dir, "sync_report.tsv"), tsv_rows(report))
+        fs_ensure_dir(out_dir)
+        fs_write_atomic(os.path.join(out_dir, "sync_report.json"), json.dumps(report, indent=2, sort_keys=True) + "\n")
+        fs_write_atomic(os.path.join(out_dir, "sync_report.tsv"), tsv_rows(report))
     except OSError as e:
         # the evidence directory was writable at the start (main); losing it now is a FAILED run, never a usage
         # error: the project may already have moved, so every move is printed here (RV4-8)

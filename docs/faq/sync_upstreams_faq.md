@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 5 |
+| Revision | 6 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-14T18:30:00Z |
+| Last modified | 2026-11-15T14:30:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Questions raised while designing, building and testing `scripts/sync/sync_all_upstreams.sh`, with the answers the engine gives. |
 | Authority | Constitution §11.4.84, §11.4.113, §11.4.233(G), §11.4.288(D). The canonical text wins where this FAQ and the constitution disagree. |
@@ -124,3 +124,14 @@ so nothing is fetched or changed unless you opt in (`--sync-upstreams=check|appl
 `CONSTITUTION_SYNC_CHECK=fetch`). This is what the code on this revision does. An operator decision of
 2026-11-14 (relayed, not verbatim) moves the defaults to on, online and bounded; that change is separate work
 and is not made in this revision, so until it lands the answer above stays true.
+
+**19. A run says `write-left-changes:fast-forward` or `blocked:in-progress:HEAD.lock`. What happened?**
+A git lock file was left behind, usually by a git process that was killed. `blocked:in-progress:<name>` means
+the engine found the lock before the write and did not start it; nothing changed. `write-left-changes:<op>`
+means git ended the write with an error after it had already changed the index or HEAD. With git 2.53 a stale
+`HEAD.lock` or `refs/heads/<branch>.lock` does exactly this to `merge --ff-only`: the index and work tree are
+updated, then the ref update fails with status 128. The engine keeps its marker so the next run attributes
+the leftovers to that write, not to you. To recover: make sure no git process runs in that repository, look at
+`git status`, save what is there with `git stash push --include-untracked -m helix-sync-write-left-changes`,
+remove the lock only after making sure no git process holds it, then run again. The lock sets the engine
+checks are listed in the manual (Git locks and half-applied writes).

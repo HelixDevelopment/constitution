@@ -42,6 +42,12 @@ the marker of that write's git dir held at that moment (``spawns``), and the byt
   stop-at-pin-checkout   the stop signal lands while the advance-pin checkout runs (its second half, the stage-pin
                          add, must still run, holding its marker)
   none                   no fault (a control run with the spawn audit)
+Review round 9 (RV8-1, RV8-3):
+  vanish-<site>          the write's own marker is REMOVED right after it was created, before git starts (Runner.run's
+                         token check must refuse: a write never starts without its marker; reviewer mutant W03)
+  lockspawn:<lock>:<site>  a lock file (git-dir relative, or common/<path> for the common dir) appears right before
+                         the write git of <site> starts and is removed right after it ended: another git process
+                         that held the lock while the engine's write ran (git then fails, possibly half-way)
 """
 import errno
 import importlib.util
@@ -75,6 +81,7 @@ def main(argv):
     created = {}  # git dir -> bytes of the LAST marker this run created there
     spawns = []
     planted = {}  # git dir -> bytes of the foreign marker the driver planted
+    vanished = set()  # git dirs whose own marker the driver removed (vanish-<site>)
 
     def deadline_now():
         eng.Runner.remaining = lambda self: -1.0
@@ -94,6 +101,9 @@ def main(argv):
                 pass
             if fault.startswith("swap-") and site == op and os.path.realpath(gitdir) not in planted:
                 plant(gitdir)  # after the marker was created, before git starts
+            if fault.startswith("vanish-") and site == op and os.path.realpath(gitdir) not in vanished:
+                vanished.add(os.path.realpath(gitdir))
+                os.unlink(os.path.join(gitdir, eng.WRITE_MARKER))  # after the marker was created, before git starts
         if fault == "stop-after-marker":
             eng.STOP_REQUESTED.set()
         elif fault == "deadline-after-marker":
@@ -215,6 +225,13 @@ def main(argv):
 
     real_run_git = eng.proc_run_git
     adds = []
+    lockspawn = fault.split(":") if fault.startswith("lockspawn:") else None
+    lock_done = []
+    SUB_OF = {"ff": "merge", "pin": "checkout", "follow": "checkout", "stage": "add"}
+
+    def common_of(repo):
+        return subprocess.run(["git", "-C", repo, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip()
 
     def run_git(git_bin, repo, args_, env, limit, level=1):
         if args_[:1] and args_[0] in WRITES:
@@ -231,6 +248,17 @@ def main(argv):
                 eng.STOP_REQUESTED.set()
             if args_[0] == "checkout" and fault == "lock-parent-at-pin-checkout" and pend:
                 open(os.path.join(pend.pop(), "index.lock"), "w").close()  # after step 3a, while the child moves
+            if lockspawn and not lock_done and args_[0] == SUB_OF[lockspawn[2]]:
+                rel = lockspawn[1]
+                base = common_of(repo) if rel.startswith("common/") else gd
+                lk = os.path.join(base, rel[len("common/"):] if rel.startswith("common/") else rel)
+                lock_done.append(lk)
+                os.makedirs(os.path.dirname(lk), exist_ok=True)
+                open(lk, "w").close()  # another git process holds this lock while the engine's write runs
+                try:
+                    return real_run_git(git_bin, repo, args_, env, limit, level)
+                finally:
+                    os.unlink(lk)  # ... and has ended
             if args_[0] == "add" and fault.startswith("kill-first-add"):
                 adds.append(repo)
                 if len(adds) == 1:

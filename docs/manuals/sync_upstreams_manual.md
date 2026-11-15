@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 9 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T12:00:00Z |
+| Last modified | 2026-11-15T14:30:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Reference for every option, state, reason, exit code, report field, integration point and safety property of the sync-all-upstreams engine. |
 | Authority | Constitution §2.1, §11.4.10, §11.4.37, §11.4.50, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.263, §11.4.273, §11.4.288(D), §12. The canonical text wins where this manual and the constitution disagree. |
@@ -317,6 +317,31 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   of a write-killed repository, printed in the next steps: make sure no git process runs in it; look at
   `git status`; remove a stale `index.lock` only when no git process runs; save what is there with
   `git stash push --include-untracked -m helix-sync-write-killed`; re-run with a larger `--write-timeout`.
+* Git locks and half-applied writes (review round 9). Before a write, and before an earlier run's marker is
+  removed, the engine checks every lock file the write's own git subcommand takes (measured with git 2.53 by
+  tracing the write; `docs/qa/sync_upstreams_2026_11_15_r9/ground_truth/`). `merge --ff-only` takes `index.lock`, `HEAD.lock`,
+  `ORIG_HEAD.lock`, `AUTO_MERGE.lock` in the repository's git directory, and `packed-refs.lock`,
+  `refs/heads/<branch>.lock` and `reftable/tables.list.lock` in the common directory. `checkout --detach`
+  takes the same set without `ORIG_HEAD.lock` and without the branch lock. `add` takes `index.lock` only. In
+  a linked worktree the first group is in `<common>/worktrees/<id>/` and the second in the common directory;
+  these are reported as `common:<name>`. Measured by planting a stale lock: `HEAD.lock` lets
+  `merge --ff-only` and `checkout --detach` rewrite the index and work tree before they fail with status 128,
+  and the branch lock does the same to `merge --ff-only`. A stale `packed-refs.lock` or `AUTO_MERGE.lock` does
+  not stop git; the engine refuses on them anyway, because a present lock may belong to a git process that is
+  running now. The engine now refuses such a write before it
+  starts (`blocked:in-progress:<name>`). When a write fails with any status, the engine also compares HEAD
+  and the index (`git ls-files -s -z`) with their state before the write. If either changed, it reports
+  `write-left-changes:<op>`, FAILED, and keeps the marker (`write-interrupted`). The next run then attributes
+  the leftovers to the write, never to you. An earlier marker that cannot be removed (for example the git
+  directory is not writable) is kept and reported `write-marker-kept:cannot-remove:<reason>`; it is never
+  reported as cleared. A non-regular object at the marker path (FIFO, directory, socket, symbolic link,
+  device) is reported `write-marker-path-not-a-file:<kind>`, blocks writes and is never opened, read or
+  removed. Every engine read, exclusive create, removal and lock open goes through one path-access layer
+  (`path_kind`, `fs_read`, `fs_create_excl`, `fs_remove`, `fs_open_lock`). Reads and the run-lock open use
+  `O_NOFOLLOW | O_NONBLOCK` and accept only a regular file (checked again with `fstat` on the open
+  descriptor), so a FIFO cannot hang any mode, `--check` included. The exclusive create uses
+  `O_EXCL | O_NOFOLLOW`, which never opens an object that is already there. `fs_remove` unlinks regular files
+  only.
 * Staged gitlinks of the repository being moved (review round 6): a fast-forward or pin write is refused
   (`blocked:gitlink-staged-would-change`) when the index stages a gitlink that differs from HEAD and the
   target commit would change that path; an unanswered read of the staged gitlinks is `unresolved:staged-gitlinks`.

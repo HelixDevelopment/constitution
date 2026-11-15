@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T12:00:00Z |
+| Last modified | 2026-11-15T14:30:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Task-oriented guide for `scripts/sync/sync_all_upstreams.sh`: check, apply, interactive use, setup and post-update integration, scheduling. |
 | Authority | Constitution §11.4.37, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.288(D). The canonical text wins where this guide and the constitution disagree. |
@@ -107,7 +107,7 @@ line). They run `--check` only and are **not installed** by anything: copying th
 | 3 | `UPDATES-AVAILABLE` | Something is behind and nothing else needs you. Run `--apply`. |
 | 4 | `ATTENTION` | Something needs a human: diverged, ahead, dirty, unreachable remote, a pin not on main, root not on main, a symbolic link or a file where a submodule should be (`pin-not-a-directory`), a submodule left on its branch (`kept-on-branch:…`), an ignored file the move would overwrite, a submodule moved on its own branch (modified gitlink), a branch deleted upstream, a staged pin (`gitlink-staged:…`), a write a re-check refused (`write-blocked:…`), a gitlink path that is unsafe or leads outside its parent. |
 | 5 | `INCONCLUSIVE` | A git call ran out of time (`--timeout`, `--deadline`); those repositories are `unresolved` and were not moved. Re-run with more time. On expiry the call's process group gets SIGTERM, then SIGKILL 5 s later, and git is reaped with a 5 s limit; no fixed total is promised for the stop. A write is never ended by these limits or by a stop signal, only by `--write-timeout` (default 3600 s). |
-| 1 | `FAILED` | An integration step failed, a write ran past `--write-timeout` (`write-killed:<op>`; the next steps print how to recover), a run lock cannot be opened or taken (not another run: `cannot open the run lock` or `cannot take the run lock`), or a submodule cannot fetch the pin its parent moved to (`follow-blocked:new-pin-unfetchable`; the submodule stays where it was); the report names it. |
+| 1 | `FAILED` | An integration step failed, a write ran past `--write-timeout` (`write-killed:<op>`; the next steps print how to recover), git ended a write with an error after it had changed the index or HEAD (`write-left-changes:<op>`, usually a stale git lock file; the next steps print how to recover), a run lock cannot be opened or taken (not another run: `cannot open the run lock` or `cannot take the run lock`), or a submodule cannot fetch the pin its parent moved to (`follow-blocked:new-pin-unfetchable`; the submodule stays where it was); the report names it. |
 | 2 | usage | Bad arguments; `--out` (or the default evidence directory) inside the work tree after symbolic links are resolved, not writable when the run starts, or holding a report file this engine did not write (or a link, a FIFO); a relative cache directory; `--interactive` without a terminal. Nothing was done. |
 | 6 | `BLIND` | The self-check (control needle) failed, or a git call gave no answer for another reason (killed by a signal, an exit status the call does not expect, output of the wrong shape), or a submodule's `.git` cannot be read (a broken `gitdir:` pointer, an unknown repository extension, dubious ownership); the repositories concerned are `blind` and were not moved. |
 | 7 | `LOCKED` | Another run holds the lock of this root or of a repository of this tree; nothing was fetched or changed. |

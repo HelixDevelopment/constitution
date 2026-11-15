@@ -404,7 +404,7 @@ class Evidence(unittest.TestCase):  # review round 2, n-3
         p = os.path.join(self.d, "sync_report.json")
         trap = os.path.join(self.d, "sync_report.json.tmp")
         os.symlink("/nonexistent/target", trap)  # the round-2 predictable name: never opened
-        E.write_atomic(p, "x")
+        E.fs_write_atomic(p, "x")
         with open(p) as f:
             self.assertEqual(f.read(), "x")
         self.assertEqual(sorted(os.listdir(self.d)), ["sync_report.json", "sync_report.json.tmp"])
@@ -607,9 +607,12 @@ class ProbeChild(TempDir):  # review round 3, F1 and class B: an unread path is 
         self.assertEqual(E.path_kind(os.path.join(self.d, "nope")), "absent")
         self.assertEqual(E.path_kind(os.path.join(f, "below-a-file")), "absent")  # ENOTDIR
         self.assertEqual(E.path_kind(self.d), "dir")
-        self.assertEqual(E.path_kind(f), "other")
-        self.assertEqual(E.path_kind(os.path.join(self.d, "ln")), "other")  # the last component is not followed
-        self.assertEqual(E.path_kind(os.path.join(self.d, "dangling")), "other")
+        self.assertEqual(E.path_kind(f), "regular")
+        self.assertEqual(E.path_kind(os.path.join(self.d, "ln")), "symlink")  # the last component is not followed
+        self.assertEqual(E.path_kind(os.path.join(self.d, "dangling")), "symlink")
+        os.mkfifo(os.path.join(self.d, "fifo"))  # review round 9: every kind is named, none is "other"
+        self.assertEqual(E.path_kind(os.path.join(self.d, "fifo")), "fifo")
+        self.assertEqual(E.path_kind("/dev/null"), "char-device")
         self.assertEqual(E.path_kind(os.path.join(self.d, "x" * 5000)), "unreadable")  # ENAMETOOLONG
 
     def test_path_kind_permission_denied_is_unreadable(self):
@@ -628,8 +631,11 @@ class ProbeChild(TempDir):  # review round 3, F1 and class B: an unread path is 
         os.mkdir(os.path.join(g, "rebase-merge"))
         self.assertEqual(E.in_progress(g), ["MERGE_HEAD", "rebase-merge"])
         self.lock(g)
+        # review round 9 (RV8-1): every lock any engine write takes is checked, not only index.lock
         self.assertEqual(E.in_progress(g), [n + "?unreadable" for n in ("MERGE_HEAD", "CHERRY_PICK_HEAD",
-                         "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply", "index.lock")])
+                         "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply", "index.lock", "HEAD.lock",
+                         "AUTO_MERGE.lock", "packed-refs.lock", "reftable/tables.list.lock", "ORIG_HEAD.lock")])
+        self.assertIn("refs/heads/main.lock?unreadable", E.in_progress(g, g, "main"))
 
     def probe(self, path, answer):
         r = scripted_runner(lambda repo, a: answer)
@@ -739,9 +745,17 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
             return "exit", 0, "", ""
         return answer
 
+    @staticmethod
+    def register(r, *repos):
+        """What inspect_local does for each repository (review round 9: a git dir this run did not inspect is never
+        written)."""
+        for x in repos:
+            r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+
     def run_integrate(self, branch):
         r = scripted_runner(self.make_answer(branch))
         root, c = self.tree(branch)
+        self.register(r, root, c)
         E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
         return r, c
 
@@ -761,6 +775,7 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
     def test_marker_unwritable_blocks_the_write(self):  # RV5-1 (round 6): no marker, no write
         r = scripted_runner(self.make_answer(None))
         root, c = self.tree(None)
+        self.register(r, root, c)
         os.chmod(self.gitdir, 0o555)
         try:
             E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
@@ -778,6 +793,7 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
             return inner(repo, a)
         r = scripted_runner(answer)
         root, c = self.tree(None)
+        self.register(r, root, c)
         E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
         pin = [x for x in c.rec["actions"] if x.get("op") == "advance-pin"]
         self.assertEqual(pin[-1].get("why"), "write-killed:stage-pin")
@@ -791,6 +807,7 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
     def test_a_stop_starts_no_write(self):  # RR40 (round 6): after a stop integrate starts no write, says why
         r = scripted_runner(self.make_answer(None))
         root, c = self.tree(None)
+        self.register(r, root, c)
         E.STOP_REQUESTED.set()
         try:
             E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
@@ -1032,6 +1049,7 @@ class RoundFive(unittest.TestCase):
             return got if got is not None else base(repo, a)
         r = scripted_runner(answer)
         root, c = fx.tree(None)
+        Integrate.register(r, root, c)
         try:
             E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
         finally:
@@ -1248,7 +1266,9 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
             os.symlink("/nonexistent/x", os.path.join(d, E.WRITE_MARKER))
             # never written through a link (O_EXCL: the link itself is "already there")
             self.assertEqual(E.write_marker(d, "fast-forward", SHA, "r1"), E.MARKER_EXISTS)
-            self.assertEqual(E.read_marker(d), "unknown")
+            # review round 9: a link at the marker path is no marker (never opened); in_progress reports it
+            self.assertIsNone(E.read_marker(d))
+            self.assertIn("write-marker-path-not-a-file:symlink", E.in_progress(d))
             self.assertIsNone(E.marker_write_id(d))
             os.unlink(os.path.join(d, E.WRITE_MARKER))
             self.assertEqual(E.write_marker("", "fast-forward", SHA, "r1"), E.MARKER_UNWRITABLE)  # no git dir
@@ -1425,6 +1445,7 @@ class RoundEight(unittest.TestCase):  # review round 8 (RV7-1): the per-git-dir 
         self.d = tempfile.mkdtemp(prefix="sync_unit_r8.")
         self.r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600, 4321)
         self.r.run_id = "r8"
+        self.r.register_site(self.d, self.d, "main")
 
     def tearDown(self):
         for n in os.listdir(self.d):
@@ -1475,17 +1496,21 @@ class RoundEight(unittest.TestCase):  # review round 8 (RV7-1): the per-git-dir 
         self.assertEqual(self.r.token_refusal(tok), "write-token-stale")
 
     def test_end_write_transitions(self):
-        cases = ((E.GitResult(True, 0, "", "", None), E.GD_CLEARED, False),
-                 (E.GitResult(True, 1, "", "", None), E.GD_CLEARED, False),  # RV7E: answered rc != 0 clears
-                 (E.GitResult(False, None, "", "", "refused", started=False), E.GD_CLEARED, False),
-                 (E.GitResult(False, None, "", "", "write-killed"), E.GD_KILLED, True),
-                 (E.GitResult(False, 9, "", "", "signal"), E.GD_INTERRUPTED, True))
-        for res, state, kept in cases:
+        cases = ((E.GitResult(True, 0, "", "", None), E.GD_CLEARED, False, True),
+                 (E.GitResult(True, 1, "", "", None), E.GD_CLEARED, False, True),  # RV7E: answered, settled: clears
+                 # review round 9 (RV8-1): answered, but the repository shows a half-done write: marker kept
+                 (E.GitResult(True, 128, "", "", None), E.GD_INTERRUPTED, True, False),
+                 (E.GitResult(False, None, "", "", "refused", started=False), E.GD_CLEARED, False, True),
+                 (E.GitResult(False, None, "", "", "refused", started=False), E.GD_CLEARED, False, False),
+                 (E.GitResult(False, None, "", "", "write-killed"), E.GD_KILLED, True, True),
+                 (E.GitResult(False, 9, "", "", "signal"), E.GD_INTERRUPTED, True, True))
+        for res, state, kept, settled in cases:
             r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
             r.run_id = "r8"
+            r.register_site(self.d, self.d, None)
             tok, why = E.begin_write(r, self.d, "advance-pin", SHA)
             self.assertIsNone(why)
-            E.end_write(r, tok, res)
+            E.end_write(r, tok, res, settled)
             self.assertEqual(r.gd_state(self.d), state, res.why)
             self.assertEqual(os.path.exists(os.path.join(self.d, E.WRITE_MARKER)), kept, res.why)
             if kept:
@@ -1499,9 +1524,217 @@ class RoundEight(unittest.TestCase):  # review round 8 (RV7-1): the per-git-dir 
         self.assertEqual(E.marker_write_id(self.d), "earlier:1:1")
         os.unlink(os.path.join(self.d, E.WRITE_MARKER))
         gone = os.path.join(self.d, "no-such-dir")
+        self.r.register_site(gone, gone, "main")
         tok, why = E.begin_write(self.r, gone, "fast-forward", SHA)
         self.assertEqual((tok, why), (None, "blocked:write-marker-unwritable"))
         self.assertEqual(self.r.gd_state(gone), E.GD_NONE)
+
+
+class RoundNine(unittest.TestCase):  # review round 9: the path access layer and the lock sets (RV8-1 .. RV8-4)
+    def setUp(self):
+        import tempfile
+        self.d = tempfile.mkdtemp(prefix="sync_unit_r9.")
+        self.r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600, 4321)
+        self.r.run_id = "r9"
+        self.r.register_site(self.d, self.d, "main")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.d)  # a mkdtemp directory of this test, never anything else
+
+    def kinds(self):
+        """{kind: path} with one object of every kind the engine may meet at a path it reads."""
+        import socket
+        k = {}
+        k["fifo"] = os.path.join(self.d, "fifo")
+        os.mkfifo(k["fifo"])
+        k["dir"] = os.path.join(self.d, "dir")
+        os.mkdir(k["dir"])
+        k["symlink"] = os.path.join(self.d, "ln")
+        os.symlink("/dev/zero", k["symlink"])
+        k["socket"] = os.path.join(self.d, "s")
+        old = os.getcwd()
+        os.chdir(self.d)
+        try:
+            so = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            so.bind("s")
+            so.close()
+        finally:
+            os.chdir(old)
+        k["char-device"] = "/dev/null"
+        return k
+
+    def test_fs_read_never_opens_a_non_regular_file(self):
+        import signal as sig
+        sig.signal(sig.SIGALRM, lambda *a: (_ for _ in ()).throw(AssertionError("fs_read blocked")))
+        sig.alarm(10)  # a blocking open on the FIFO (the r8 defect, RV8-2) would end here, never hang the suite
+        try:
+            for kind, path in self.kinds().items():
+                self.assertEqual(E.fs_read(path, 4096), ("not-regular:" + kind, b""), kind)
+        finally:
+            sig.alarm(0)
+        f = os.path.join(self.d, "f")
+        with open(f, "wb") as fh:
+            fh.write(b"abc")
+        self.assertEqual(E.fs_read(f, 3), ("ok", b"abc"))
+        self.assertEqual(E.fs_read(f, 2), ("too-large", b""))  # never half-read
+        self.assertEqual(E.fs_read(os.path.join(self.d, "nope"), 9), ("absent", b""))
+
+    def test_fs_read_refuses_a_fifo_swapped_in_after_the_lstat(self):
+        f = os.path.join(self.d, "f")
+        fifo = os.path.join(self.d, "fifo")
+        os.mkfifo(fifo)
+        open(f, "w").close()
+        real = E.path_kind
+
+        def swap(path):
+            k = real(path)
+            if path == f:
+                os.unlink(f)
+                os.rename(fifo, f)
+            return k
+        E.path_kind = swap
+        import signal as sig
+        sig.signal(sig.SIGALRM, lambda *a: (_ for _ in ()).throw(AssertionError("fs_read blocked")))
+        sig.alarm(10)
+        try:
+            self.assertEqual(E.fs_read(f, 9), ("not-regular:fifo", b""))  # fstat on the open descriptor
+        finally:
+            sig.alarm(0)
+            E.path_kind = real
+
+    def test_fs_remove_removes_regular_files_only_and_never_raises(self):
+        for kind, path in self.kinds().items():
+            self.assertEqual(E.fs_remove(path), "not-regular:" + kind, kind)
+            self.assertNotEqual(E.path_kind(path), "absent", kind)  # left untouched
+        f = os.path.join(self.d, "f")
+        open(f, "w").close()
+        self.assertEqual(E.fs_remove(f), "removed")
+        self.assertEqual(E.fs_remove(f), "absent")
+        box = os.path.join(self.d, "box")
+        os.mkdir(box)
+        open(os.path.join(box, "g"), "w").close()
+        os.chmod(box, 0o500)
+        try:
+            if os.geteuid() != 0:
+                self.assertEqual(E.fs_remove(os.path.join(box, "g")), "failed:EACCES")
+        finally:
+            os.chmod(box, 0o700)
+
+    def test_clear_marker_on_every_kind_reports_and_keeps_it(self):  # RV8-4
+        mp = os.path.join(self.d, E.WRITE_MARKER)
+        os.mkdir(mp)
+        self.assertEqual(E.clear_marker(self.d), "not-regular:dir")
+        self.assertEqual(E.path_kind(mp), "dir")
+        self.assertIsNone(E.read_marker(self.d))
+        self.assertIn("write-marker-path-not-a-file:dir", E.in_progress(self.d))
+        self.assertEqual(E.gitdir_write_block(self.r, self.d), "write-marker-present")
+        os.rmdir(mp)
+        os.mkfifo(mp)
+        import signal as sig
+        sig.signal(sig.SIGALRM, lambda *a: (_ for _ in ()).throw(AssertionError("marker read blocked")))
+        sig.alarm(10)
+        try:  # RV8-2: every marker reader on a FIFO answers at once
+            self.assertIsNone(E.read_marker(self.d))
+            self.assertIsNone(E.marker_write_id(self.d))
+            self.assertIn("write-marker-path-not-a-file:fifo", E.in_progress(self.d))
+            self.assertEqual(E.clear_marker(self.d), "not-regular:fifo")
+        finally:
+            sig.alarm(0)
+        self.assertEqual(E.path_kind(mp), "fifo")
+
+    def test_fs_open_lock_refuses_non_regular_objects(self):
+        import signal as sig
+        sig.signal(sig.SIGALRM, lambda *a: (_ for _ in ()).throw(AssertionError("lock open blocked")))
+        sig.alarm(10)
+        try:
+            for kind, path in self.kinds().items():
+                if kind == "char-device":
+                    continue  # /dev/null is not ours to open read-write here
+                fd, why = E.fs_open_lock(path)
+                self.assertIsNone(fd, kind)
+                self.assertTrue(why, kind)
+        finally:
+            sig.alarm(0)
+        fd, why = E.fs_open_lock(os.path.join(self.d, "lock"))
+        self.assertIsNone(why)
+        os.close(fd)
+        self.assertEqual(E.path_kind(os.path.join(self.d, "lock")), "regular")
+
+    def test_fetched_branches_on_a_fifo_answers_at_once(self):
+        fifo = os.path.join(self.d, "FETCH_HEAD")
+        os.mkfifo(fifo)
+        import signal as sig
+        sig.signal(sig.SIGALRM, lambda *a: (_ for _ in ()).throw(AssertionError("FETCH_HEAD read blocked")))
+        sig.alarm(10)
+        try:
+            self.assertIsNone(E.fetched_branches(fifo))
+        finally:
+            sig.alarm(0)
+
+    def test_lock_sets_follow_the_measured_ground_truth(self):
+        g = self.d
+        labels = lambda sub, common=None, branch="main": [n for n, _ in E.lock_paths(g, common or g, branch, sub)]
+        self.assertEqual(labels("merge"), ["index.lock", "HEAD.lock", "ORIG_HEAD.lock", "AUTO_MERGE.lock",
+                                           "packed-refs.lock", "refs/heads/main.lock", "reftable/tables.list.lock"])
+        self.assertEqual(labels("checkout"), ["index.lock", "HEAD.lock", "AUTO_MERGE.lock", "packed-refs.lock",
+                                              "reftable/tables.list.lock"])
+        self.assertEqual(labels("add"), ["index.lock"])
+        wt = os.path.join(g, "worktrees", "w")
+        os.makedirs(wt)
+        got = dict(E.lock_paths(wt, g, "main", "merge"))
+        self.assertEqual(got["HEAD.lock"], os.path.join(wt, "HEAD.lock"))  # per worktree
+        self.assertEqual(got["common:refs/heads/main.lock"], os.path.join(g, "refs/heads/main.lock"))
+        self.assertNotIn(os.path.join(g, "HEAD.lock"), got.values())  # the main worktree's HEAD.lock: not taken
+        for name in ("HEAD.lock", "ORIG_HEAD.lock", "AUTO_MERGE.lock", "packed-refs.lock"):
+            open(os.path.join(g, name), "w").close()
+            self.assertEqual(E.gitdir_write_block(self.r, g), "in-progress:" + name, name)
+            os.unlink(os.path.join(g, name))
+        os.makedirs(os.path.join(g, "refs", "heads"))
+        open(os.path.join(g, "refs", "heads", "main.lock"), "w").close()
+        self.assertEqual(E.gitdir_write_block(self.r, g), "in-progress:refs/heads/main.lock")
+        os.unlink(os.path.join(g, "refs", "heads", "main.lock"))
+        open(os.path.join(g, "refs", "heads", "other.lock"), "w").close()  # golden-FALSE: not taken for main
+        self.assertIsNone(E.gitdir_write_block(self.r, g))
+        open(os.path.join(g, "config.lock"), "w").close()  # golden-FALSE: measured, no effect on a write
+        self.assertIsNone(E.gitdir_write_block(self.r, g))
+
+    def test_an_uninspected_git_dir_is_never_written(self):
+        other = os.path.join(self.d, "other")
+        os.mkdir(other)
+        self.assertEqual(E.gitdir_write_block(self.r, other), "unknown-git-dir")
+        self.assertEqual(E.begin_write(self.r, other, "fast-forward", SHA), (None, "blocked:unknown-git-dir"))
+        self.assertEqual(os.listdir(other), [])
+
+    def settle(self, head_now, index_now, rc=128, op="fast-forward"):
+        def answer(repo, a):
+            if a[:2] == ["ls-files", "-s"]:
+                return "exit", 0, index_now, ""
+            if a[0] == "rev-parse":
+                return "exit", 0, head_now + "\n", ""
+            return "exit", 0, "", ""
+        r = scripted_runner(answer)
+        repo = E.Repo("/nonexistent/w", ".", 0, None)
+        repo.rec.update(head_before=SHA, branch="main", _gitdir=self.d)
+        return E.write_settled(r, repo, op, "b" * 40, E.GitResult(True, rc, "", "", None), "I0")
+
+    def test_write_settled(self):  # RV8-1: an answered failure that changed the index or HEAD is NOT settled
+        self.assertTrue(self.settle(SHA, "I0"))  # refused cleanly: settled, the marker may go
+        self.assertFalse(self.settle(SHA, "I1"))  # the index changed (git's half-applied merge)
+        self.assertFalse(self.settle("c" * 40, "I0"))  # HEAD moved although git failed
+        self.assertTrue(self.settle("c" * 40, "I1", rc=0))  # exit 0: git completed; step 6 checks HEAD
+        r = scripted_runner(lambda repo, a: ("signal", 9, "", ""))  # a read that does not answer: not settled
+        repo = E.Repo("/nonexistent/w", ".", 0, None)
+        repo.rec.update(head_before=SHA, branch="main", _gitdir=self.d)
+        self.assertFalse(E.write_settled(r, repo, "follow-pin", SHA, E.GitResult(True, 1, "", "", None), "I0"))
+
+    def test_end_write_never_removes_a_marker_that_is_not_its_own(self):
+        tok, why = E.begin_write(self.r, self.d, "fast-forward", SHA)
+        self.assertIsNone(why)
+        os.unlink(os.path.join(self.d, E.WRITE_MARKER))
+        E.write_marker(self.d, "fast-forward", SHA, "other", "other:1:1")  # replaced while git ran
+        E.end_write(self.r, tok, E.GitResult(True, 0, "", "", None), True)
+        self.assertEqual(E.marker_write_id(self.d), "other:1:1")
 
 
 if __name__ == "__main__":

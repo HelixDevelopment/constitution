@@ -8,8 +8,9 @@
 # can send a signal at ONE place only (guarded), and that the argument shapes it accepts cannot push, force,
 # rewrite or delete:
 #   (1) STATIC (Python AST, the file is never imported for this part):
-#       a. IMPORT ALLOW-LIST: only `import <m>` of argparse, concurrent.futures, datetime, fcntl, hashlib,
-#          json, os, re, shutil, signal, subprocess, sys, tempfile, threading, time; no `from` import, no alias,
+#       a. IMPORT ALLOW-LIST: only `import <m>` of argparse, concurrent.futures, datetime, errno, fcntl, hashlib,
+#          json, os, re, select, shutil, signal, stat, subprocess, sys, tempfile, threading, time (review round 9:
+#          errno and stat, read-only modules for the path-access layer; select was already in MODULES); no `from` import, no alias,
 #          no import below module level;
 #       b. ATTRIBUTE ALLOW-LIST: every use of an imported module is one exact dotted name from a fixed list
 #          (os.path.join, subprocess.Popen, ...); a bare module name (an alias, a module passed on) is
@@ -142,6 +143,9 @@ SITES = [
     ("commit_present", "['rev-parse', '--verify', '-q', '%s^{commit}' % sha]", (0, 1), "SHA_RE", "blind"),
     ("probe_child", "['rev-parse', '--show-toplevel']", (0,), "ABS_PATH_RE", "blind"),
     ("index_gitlinks", "['ls-files', '-s', '-z']", (0,), "-", "blind"),
+    # review round 9 (RV8-1): the index after a write git answered with a failure, compared with the index
+    # before it; an unanswered read means "not proven settled", so the marker is kept
+    ("write_settled", "['ls-files', '-s', '-z']", (0,), "-", "blind"),
     ("head_gitlinks", "['ls-tree', '-r', '-z', 'HEAD']", (0,), "-", "blind"),
     # review round 6 (RV5-3): the gitlinks of the write's target tree, read at write time
     ("tree_gitlinks", "['ls-tree', '-r', '-z', target]", (0,), "-", "blind"),
@@ -235,8 +239,8 @@ def dotted(n):
     return ""
 
 
-MODULES = {"argparse", "concurrent.futures", "datetime", "fcntl", "hashlib", "json", "os", "re", "select", "shutil",
-           "signal", "subprocess", "sys", "tempfile", "threading", "time"}
+MODULES = {"argparse", "concurrent.futures", "datetime", "errno", "fcntl", "hashlib", "json", "os", "re", "select",
+           "shutil", "signal", "stat", "subprocess", "sys", "tempfile", "threading", "time"}
 ALLOW = {"argparse.ArgumentParser", "concurrent.futures.ThreadPoolExecutor", "datetime.datetime.now",
          "datetime.timezone.utc", "fcntl.LOCK_EX", "fcntl.LOCK_NB", "fcntl.flock", "hashlib.sha256", "json.dumps",
          "json.load", "json.loads", "os.O_CREAT", "os.O_EXCL", "os.O_NOCTTY", "os.O_NOFOLLOW", "os.O_RDWR", "os.close", "os.cpu_count",
@@ -249,7 +253,10 @@ ALLOW = {"argparse.ArgumentParser", "concurrent.futures.ThreadPoolExecutor", "da
          "select.select", "shutil.which", "signal.SIGKILL", "signal.SIGHUP", "signal.SIGINT", "signal.SIGTERM",
          "signal.signal", "threading.Event", "subprocess.DEVNULL", "subprocess.PIPE", "subprocess.Popen",
          "subprocess.TimeoutExpired", "sys.argv", "sys.exit", "sys.stderr", "tempfile.mkstemp", "threading.Lock",
-         "time.monotonic"}
+         "time.monotonic",
+         # review round 9 (RV8-2, RV8-4): the path-access layer opens non-blocking and checks the open descriptor
+         "os.O_CLOEXEC", "os.O_NONBLOCK", "os.fstat", "errno.errorcode", "errno.errorcode.get", "stat.S_ISREG", "stat.S_ISDIR",
+         "stat.S_ISLNK", "stat.S_ISFIFO", "stat.S_ISSOCK", "stat.S_ISCHR", "stat.S_ISBLK"}
 # the ONE spawn point and the ONE signal point: these names may appear only inside the named function
 SCOPED = {"subprocess.Popen": "proc_run_git", "subprocess.DEVNULL": "proc_run_git", "subprocess.PIPE": "proc_run_git",
           "subprocess.TimeoutExpired": "proc_run_git", "os.killpg": "proc_kill_group",
