@@ -5,10 +5,10 @@
 | Revision | 4 |
 | Created | 2026-11-12 |
 | Last modified | 2026-11-15T17:22:22Z |
-| Status | evidence (CON-388, In progress; carried as CON-299 on the vehicle) |
+| Status | evidence (CON-401, In progress; carried as CON-299 on the vehicle) |
 | Host | the reference host (16 CPUs, load average about 30 during the runs) |
 
-Live runs for CON-388 (carried as CON-299 on the vehicle before landing; on `main` CON-299 is another item) (Jev streams S3 and S4, operator decision of 2026-11-12). Every run used the real host, the
+Live runs for CON-401 (carried as CON-299 on the vehicle before landing; on `main` CON-299 is another item) (Jev streams S3 and S4, operator decision of 2026-11-12). Every run used the real host, the
 real `llmctl` on PATH, the operator's keys file read BY PATH (values never printed; the pack was scanned for every
 key value after it was assembled and none is present), and sandbox directories for every Jev state, config,
 evidence and provider-cache path. No operator agent home was written: T4 ran with a sandbox `HOME`; the mtimes of
