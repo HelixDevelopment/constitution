@@ -1,0 +1,11 @@
+shellcheck version: 0.11.0 (counts of -f gcc lines; base = pristine bd0036bd)
+scripts/post_update_hook.sh base=6 new=6
+tests/test_post_update_hub_gates.sh base=1 new=1
+scripts/gates/cm_full_suite_manifest_complete.sh (new) findings=0
+scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh (new) findings=0
+finding-text diff (line numbers stripped) base vs new for the two modified files:
+diff rc=0
+bash -n ok scripts/gates/cm_full_suite_manifest_complete.sh
+bash -n ok scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh
+bash -n ok scripts/post_update_hook.sh
+bash -n ok tests/test_post_update_hub_gates.sh

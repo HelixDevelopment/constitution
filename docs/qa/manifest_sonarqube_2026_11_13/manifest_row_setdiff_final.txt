@@ -1,0 +1,6 @@
+544a545
+> scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh	sh	entry	heavy	bash	-	auto
+690a692,694
+> scripts/sonarqube/tests/test_registry_login_mutation_test.sh	sh	entry	heavy	bash	-	auto
+> scripts/sonarqube/tests/test_registry_login.sh	sh	entry	default	bash	-	auto
+> scripts/sonarqube/tests/test_registry_login_wiring.sh	sh	entry	default	bash	-	auto

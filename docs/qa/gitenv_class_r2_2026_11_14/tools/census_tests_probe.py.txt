@@ -1,0 +1,638 @@
+#!/usr/bin/env python3
+"""git_env_class_census.py - census of the "ambient git variables redirect a write" class.
+
+Purpose
+  A script that runs a WRITING git command (init, add, commit, config, checkout, ...) inherits the
+  caller's repository-locating git variables. GIT_DIR beats `git -C <dir>` and `cd <dir>`, and
+  GIT_INDEX_FILE names the index every index-writing command uses, so under a git hook (a
+  pre-commit hook receives GIT_INDEX_FILE, wrappers set GIT_DIR) such a script writes into another
+  repository: measured 2026-11-13 for scripts/gates/cm_agent_type_label.sh and
+  scripts/gates/cm_anchor_record_complete.sh (a sentinel repository's branch moved, its config
+  and index were written). This tool enumerates EVERY tracked file under scripts/ that can run a
+  writing git command and classifies each one (§11.4.276(C): the class is enumerated with an
+  instrument, never fixed one instance at a time):
+
+    HERMETIC   every git write of the file is covered by an EFFECTIVE scrub of the class:
+               - the canonical line `for _ge_v in <list>; do unset "$_ge_v"; done; unset _ge_v`
+                 (shell) at column 0 in the file's preamble (only comments, blank lines, `set`,
+                 `shopt` and plain assignments before it), or the two-line python form
+                 `import os as _ge_os` + `for _ge_v in "<list>".split(): _ge_os.environ.pop(_ge_v,
+                 None)` as TOP-LEVEL statements of the module (checked with ast, so a copy inside a
+                 docstring, a function or an `if` block does not count); the list must equal
+                 CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh word for word and the scrub
+                 must come before the first write;
+               - or a git wrapper function whose own body scrubs (the canonical line inside a
+                 subshell, cl_scrub_git_env, or a reviewed own scrub), through which the write goes;
+               - or one of the reviewed scrubs that already existed (cl_scrub_git_env / cl__git and
+                 the lone copies that tests/layout/test_round8_git_env.sh checks), found in CODE
+                 (comments and docstrings removed), that names every variable of the list AND
+                 actually clears it (an unset / env -u / pop / del / an environment built without
+                 those names);
+    EXEMPT     listed in config/git_env_class_exemptions.tsv with a closed reason code;
+    UNSCRUBBED neither: a member of the class with no effective protection, or a member whose scrub
+               also clears a discovery LIMIT (see below).
+
+  Writes are found in three ways: a bare `git <write>` (shell, also a python shell string handed to
+  a process call), a python list form `["git", ..., "<write>"]` or a call of a python function whose
+  name contains `git` - in python files AND in shell files (python heredocs) - and a call of a shell
+  wrapper function (a function whose body runs `git ... "$@"`) with a writing subcommand.
+
+  Discovery limits (round 2, review of e0373341 F1): GIT_CEILING_DIRECTORIES and
+  GIT_DISCOVERY_ACROSS_FILESYSTEM do not redirect git, they bound (or, by the caller's explicit
+  choice, widen) repository DISCOVERY. Clearing GIT_CEILING_DIRECTORIES lets git find a repository the
+  caller fenced off (measured: the installer planned an install into the enclosing repository).
+  They must never be in the canonical list (else BLIND) and a scrub statement of a member that clears
+  one is UNSCRUBBED. A name next to `|` is a case pattern (a keep-list) and is not a scrub.
+
+  The detector is a line scan, so it finds git commands that appear in strings and heredocs too;
+  that is deliberate (a heredoc often becomes a script that runs), and a file whose git words are
+  only text is exempted with the reason `no-git-execution`, never silently skipped.
+
+Control needles (§11.4.273): before the tree is judged the classifier is run on built-in samples
+  covering every verdict and every detector. A wrong answer on any sample is BLIND.
+
+Honest boundary (§11.4.6)
+  A line scan of tracked files under scripts/ only (tests/ is not in this census; its git-environment
+  tests are tests/layout/test_round8_git_env.sh, tests/test_full_suite_manifest_gate_git_env.sh and
+  tests/test_git_env_class.sh, whose K4 case RUNS every canonical scrub line of scripts/ and tests/).
+  It does not see a git call made through a python function whose name has no `git` in it, a shell
+  wrapper whose body does not pass "$@" / $@ / "$*", nor a tool that runs git itself (`go build`
+  stamps VCS data by calling git). Position is checked for the canonical forms only; a reviewed own
+  scrub (legacy) or a cl_scrub_git_env call is accepted wherever it is in the code. `config` counts as
+  a write even in a read-only `config --get`, which over-counts and never under-counts. HERMETIC means
+  an effective scrub is present and placed as above, not that every code path was run: the behaviour
+  is shown separately by tests/test_git_env_class.sh with a sentinel repository.
+
+Usage
+  git_env_class_census.py [--root <repo>] [--exemptions <tsv>] [--tsv]
+  --tsv prints one `<status>\t<lang>\t<path>\t<line>\t<detail>` row per member.
+
+Exit codes
+  0 every member is HERMETIC or EXEMPT; 1 at least one UNSCRUBBED member, an exemption for a file
+  that is not a member, or a malformed exemption row; 2 BLIND (no canonical list, a canonical list
+  that holds a discovery limit, a control needle failed, git could not list the tree, or zero
+  members were found); 64 usage.
+
+Side effects: none; reads the tree through `git ls-files` run with the class cleared.
+Dependencies: python3 (3.8+), git. Classification: universal (§11.4.17).
+"""
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
+import ast
+import io
+import os
+import re
+import subprocess
+import sys
+import tokenize
+
+TOOL = "git-env-class-census"
+REASONS = {
+    "no-git-execution": "the git words are text (messages, patterns, payloads, comments); the file never runs git",
+    "pinned-fixture": "a byte-pinned historical copy that a test compares or replays verbatim; it is never run as an entry point",
+    "go-binary-owed": "Go source compiled into a committed binary; the fix needs a reviewed rebuild of that binary (owed, tracked)",
+}
+# Discovery limits: bound (or, by explicit choice, widen) where git looks for a repository; never scrubbed.
+LIMIT_VARS = ("GIT_CEILING_DIRECTORIES", "GIT_DISCOVERY_ACROSS_FILESYSTEM")
+WRITE = (r"init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge|reset|"
+         r"stash|rm|mv|push|worktree|apply|am|cherry-pick|rebase|clone|submodule|fetch|pull|notes|gc|repack|"
+         r"checkout-index|commit-tree|hash-object|symbolic-ref|restore|clean|write-tree|fast-import|bundle|"
+         r"pack-objects|prune|replace|filter-branch|mktree|mktag|unpack-objects|index-pack")
+GOPT = r"(?:\s+(?:-C\s+\S+|-c\s+\S+|--[\w-]+(?:=\S+)?))*"
+# shell: `git` as a word, any global options, then a writing subcommand
+SH_RE = re.compile(r"(?<![\w./$-])git" + GOPT + r"\s+(?:" + WRITE + r")\b")
+SH_GITWORD = re.compile(r"(?<![\w./$-])git\b")
+# python: ["git", ..., "<write>", ...] with only string literals before the subcommand
+PY_RE = re.compile(r"""["']git["']\s*,\s*(?:(?:["'][^"'\n]*["']|[\w.\[\]]+)\s*,\s*)*["'](?:""" + WRITE + r""")["']""")
+# python: a shell command line handed to a process call on the same line
+PYCALL_RE = re.compile(r"subprocess\.|os\.system\(|os\.popen\(|Popen\(|check_output\(|check_call\(|shell=True")
+# python: a git wrapper called with a writing subcommand, e.g. git(repo, "commit", ...) or _git("add", ...)
+PYW_RE = re.compile(r"""\b\w*git\w*\((?:[^,()"'\n]+,\s*)?["'](?:""" + WRITE + r""")["']""")
+# go: exec.Command("git", ..., "<write>", ...)
+GO_RE = re.compile(r"""exec\.Command(?:Context)?\([^)]*"git"\s*,\s*(?:"[^"\n]*"\s*,\s*|[\w.*]+\s*,\s*)*"(?:""" + WRITE + r""")\"""")
+CANON_SH = re.compile(r"""^for _ge_v in ([A-Z_ ]+); do unset "\$_ge_v"; done; unset _ge_v(?:\s+#.*)?$""")
+CANON_SH_ANY = re.compile(r"""^\s*for _ge_v in ([A-Z_ ]+); do unset "\$_ge_v"; done; unset _ge_v(?:\s+#.*)?$""")
+LIBCALL = re.compile(r"(?:^|[\s;&|(])cl_scrub_git_env\b")
+LIB_WRAPPERS = ("cl__git",)   # defined in scripts/lib/constitution_layout.sh with a scrubbing body
+LEGACY = re.compile(r"chi__git|jb__git|ls__git|\bscrub_git_env\b|^\s*unset GIT_DIR|for _pu_v in GIT_DIR|for _v in GIT_DIR|"
+                    r"for _fc_unset_var|GIT_SCRUB_VARS|^_git_scrub=\(", re.M)
+# a scrub must really clear: unset / env -u (shell); pop / del / an environment built without the names (python)
+SH_CLEARS = re.compile(r"\bunset\b|(?:^|\s)-u\s+\S")
+PY_CLEARS = re.compile(r"\.pop\(|\bdel\s+os\.environ|unsetenv\(|\bnot\s+in\s+\w*SCRUB\w*")
+PREAMBLE = re.compile(r"""^(?:set\s|shopt\s|umask\s|export\s+[A-Za-z_]\w*=[^$`();&|<>]*$|[A-Za-z_]\w*=[^$`();&|<>]*$)""")
+FUNC_RE = re.compile(r"^(\s*)(?:function\s+)?([A-Za-z_][\w]*)\s*\(\)\s*(\{.*)?$")
+SKIP_EXT = re.compile(r"\.(md|txt|json|jsonl|tsv|yaml|yml|lock|html|pdf|docx|csv|toml|cfg|ini|svg|png|sum|mod)$")
+
+
+def lang_of(path, head):
+    if path.endswith((".sh", ".bash")):
+        return "sh"
+    if path.endswith(".py"):
+        return "py"
+    if path.endswith(".go"):
+        return "go"
+    first = head.split("\n", 1)[0]
+    if first.startswith("#!"):
+        if re.search(r"\b(ba|da|z)?sh\b", first):
+            return "sh"
+        if "python" in first:
+            return "py"
+    return None
+
+
+def strip_sh_comment(line):
+    """The line without a shell comment (a `#` at the start of a word, outside quotes)."""
+    q = None
+    i = 0
+    while i < len(line):
+        c = line[i]
+        if q is None:
+            if c == "\\":
+                i += 2
+                continue
+            if c in "'\"":
+                q = c
+            elif c == "#" and (i == 0 or line[i - 1] in " \t;&|("):
+                return line[:i]
+        elif c == q:
+            q = None
+        elif c == "\\" and q == '"':
+            i += 2
+            continue
+        i += 1
+    return line
+
+
+def code_lines(lang, text):
+    """List of the file's lines with comments (and python docstrings) blanked; same line numbering."""
+    lines = text.split("\n")
+    if lang == "sh":
+        return [strip_sh_comment(l) if not l.lstrip().startswith("#") else "" for l in lines]
+    if lang == "go":
+        return ["" if l.lstrip().startswith("//") else l for l in lines]
+    out = list(lines)
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(text).readline):
+            if tok.type == tokenize.COMMENT:
+                r, c = tok.start
+                out[r - 1] = out[r - 1][:c]
+        tree = ast.parse(text)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Expr) and isinstance(getattr(node, "value", None), ast.Constant) \
+                    and isinstance(node.value.value, str):
+                for r in range(node.lineno, node.end_lineno + 1):
+                    out[r - 1] = ""
+    except (SyntaxError, tokenize.TokenError, ValueError):
+        out = ["" if l.lstrip().startswith("#") else l for l in lines]
+    return out
+
+
+def sh_functions(code):
+    """{name: (start, end, body_text)} for shell functions (one-line or block), 1-based lines."""
+    funcs = {}
+    n = len(code)
+    i = 0
+    while i < n:
+        m = FUNC_RE.match(code[i])
+        if not m:
+            i += 1
+            continue
+        indent, name, rest = m.group(1), m.group(2), m.group(3) or ""
+        if rest.count("{") and rest.rstrip().endswith("}") and rest.count("{") <= rest.count("}"):
+            funcs[name] = (i + 1, i + 1, rest)
+            i += 1
+            continue
+        body = [rest]
+        j = i + 1
+        while j < n and j < i + 60:
+            body.append(code[j])
+            if re.match(r"^" + re.escape(indent) + r"\}\s*;?\s*$", code[j]) or (indent == "" and re.match(r"^\}\s*$", code[j])):
+                break
+            j += 1
+        funcs[name] = (i + 1, j + 1, "\n".join(body))
+        i = j + 1
+    return funcs
+
+
+def names_all(text, canon):
+    return all(re.search(r"\b" + v + r"\b", text) for v in canon)
+
+
+def block_scrubs(body, canon):
+    """True iff a function body really clears the class (canonical line, library call, or own scrub)."""
+    for l in body.split("\n"):
+        m = CANON_SH_ANY.match(l)
+        if m and m.group(1).split() == canon:
+            return True
+    if LIBCALL.search(body) or re.search(r"\bcl__git\b", body):
+        return True
+    # `env -i ... git`: git runs in an environment built from nothing, so no caller variable reaches it
+    if re.search(r"(?<![\w./$-])env\s+-i\b(?:[^;&|\n]|\\\n)*?(?<![\w./$-])git\b", body):
+        return True
+    return bool(SH_CLEARS.search(body)) and names_all(body, canon)
+
+
+def wrappers(code, canon):
+    """{name: scrubbed?} for shell wrapper functions: the body runs git (or another wrapper) with "$@"."""
+    funcs = sh_functions(code)
+    out = {}
+    for name, (_s, _e, body) in funcs.items():
+        if name == "git":
+            continue
+        if SH_GITWORD.search(body) and re.search(r'"\$@"|\$@|"\$\*"', body):
+            out[name] = block_scrubs(body, canon)
+    known = dict(out)
+    known.update({w: True for w in LIB_WRAPPERS})
+    changed = True
+    while changed:   # a wrapper of a wrapper inherits the callee's verdict
+        changed = False
+        for name, (_s, _e, body) in funcs.items():
+            if name in known or name == "git":
+                continue
+            for w, sc in list(known.items()):
+                if re.search(r"(?<![\w./$-])" + re.escape(w) + r"\b", body) and re.search(r'"\$@"|\$@', body):
+                    known[name] = sc or block_scrubs(body, canon)
+                    out[name] = known[name]
+                    changed = True
+                    break
+    for w in LIB_WRAPPERS:
+        out.setdefault(w, True)
+    return out, funcs
+
+
+def writes(lang, code, wraps):
+    """[(line, src, via)] for every writing git command; via is None (bare) or the wrapper's name."""
+    found = []
+    wre = None
+    if wraps:
+        wre = re.compile(r"(?<![\w./$-])(" + "|".join(re.escape(w) for w in sorted(wraps, key=len, reverse=True)) + r")"
+                         + GOPT + r"\s+(?:" + WRITE + r")\b")
+    for i, line in enumerate(code, 1):
+        if not line.strip():
+            continue
+        hit = None
+        if lang == "sh":
+            if SH_RE.search(line) or PY_RE.search(line) or PYW_RE.search(line):
+                hit = (i, line.strip(), None)
+            elif wre is not None:
+                m = wre.search(line)
+                if m:
+                    hit = (i, line.strip(), m.group(1))
+        elif lang == "py":
+            if PY_RE.search(line) or PYW_RE.search(line) or (SH_RE.search(line) and PYCALL_RE.search(line)):
+                hit = (i, line.strip(), None)
+        elif lang == "go" and GO_RE.search(line):
+            hit = (i, line.strip(), None)
+        if hit:
+            found.append(hit)
+    return found
+
+
+def py_top_scrub(text, canon):
+    """(line, words) of a top-level canonical python scrub, or None. Checked on the ast."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    alias = False
+    for node in tree.body:
+        if isinstance(node, ast.Import) and any(a.name == "os" and a.asname == "_ge_os" for a in node.names):
+            alias = True
+            continue
+        if not (alias and isinstance(node, ast.For) and isinstance(node.target, ast.Name) and node.target.id == "_ge_v"):
+            continue
+        it = node.iter
+        if not (isinstance(it, ast.Call) and isinstance(it.func, ast.Attribute) and it.func.attr == "split"
+                and isinstance(it.func.value, ast.Constant) and isinstance(it.func.value.value, str)):
+            continue
+        if len(node.body) != 1 or not isinstance(node.body[0], ast.Expr):
+            continue
+        c = node.body[0].value
+        ok = (isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) and c.func.attr == "pop"
+              and isinstance(c.func.value, ast.Attribute) and c.func.value.attr == "environ"
+              and isinstance(c.func.value.value, ast.Name) and c.func.value.value.id == "_ge_os"
+              and len(c.args) == 2 and isinstance(c.args[0], ast.Name) and c.args[0].id == "_ge_v")
+        if ok:
+            return node.lineno, it.func.value.value.split()
+    return None
+
+
+def sh_top_scrub(code_raw, code):
+    """(line, words) of a canonical shell scrub at column 0 in the preamble, or None."""
+    for i, raw in enumerate(code_raw, 1):
+        c = code[i - 1].strip()
+        if i == 1 and raw.startswith("#!"):
+            continue
+        m = CANON_SH.match(raw)
+        if m:
+            return i, m.group(1).split()
+        if not c:
+            continue
+        if not PREAMBLE.match(c):
+            return None
+    return None
+
+
+def limit_hits(lang, text, code):
+    """[(line, name)] where a scrub statement clears a discovery limit."""
+    hits = []
+    if lang == "sh":
+        i = 0
+        while i < len(code):
+            j = i
+            logical = code[i]
+            while logical.rstrip().endswith("\\") and j + 1 < len(code):
+                j += 1
+                logical = logical.rstrip()[:-1] + " " + code[j]
+            logical = re.sub(r"'[^']*'", lambda m: "'" + " " * (len(m.group(0)) - 2) + "'", logical)  # payload text in quotes
+            clearing = SH_CLEARS.search(logical) or re.match(r"^\s*for\s+\w+\s+in\b", logical)
+            if clearing:
+                for v in LIMIT_VARS:
+                    for m in re.finditer(r"\b" + v + r"\b", logical):
+                        a, b = m.start(), m.end()
+                        before = logical[a - 1] if a else " "
+                        after = logical[b] if b < len(logical) else " "
+                        if before == "|" or after in "|)" or after == "=" or before == "$" or logical[max(0, a - 2):a] == "${":
+                            continue   # a case pattern (keep-list), an assignment or an expansion
+                        hits.append((i + 1, v))
+            i = j + 1
+    elif lang == "py":
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            return hits
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                tg = node.targets if isinstance(node, ast.Assign) else [node.target]
+                names = [t.id for t in tg if isinstance(t, ast.Name)]
+                if any(re.search(r"SCRUB|UNSET|CLEAR", n, re.I) for n in names):
+                    for c in ast.walk(node.value):
+                        if isinstance(c, ast.Constant) and isinstance(c.value, str):
+                            for v in LIMIT_VARS:
+                                if re.search(r"\b" + v + r"\b", c.value):
+                                    hits.append((node.lineno, v))
+            if isinstance(node, ast.For) and isinstance(node.target, ast.Name) and node.target.id == "_ge_v":
+                for c in ast.walk(node.iter):
+                    if isinstance(c, ast.Constant) and isinstance(c.value, str):
+                        for v in LIMIT_VARS:
+                            if re.search(r"\b" + v + r"\b", c.value):
+                                hits.append((node.lineno, v))
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in ("pop", "unsetenv") \
+                    and node.args and isinstance(node.args[0], ast.Constant) and node.args[0].value in LIMIT_VARS:
+                hits.append((node.lineno, node.args[0].value))
+    return hits
+
+
+def classify(lang, text, canon):
+    """-> (member, status, line, detail). status in HERMETIC, UNSCRUBBED (EXEMPT is applied by the caller)."""
+    raw = text.split("\n")
+    code = code_lines(lang, text)
+    wraps, funcs = (wrappers(code, canon) if lang == "sh" else ({}, {}))
+    ws = writes(lang, code, wraps)
+    if not ws:
+        return False, None, 0, ""
+    first = ws[0][0]
+    # line ranges of scrubbed wrapper bodies: a bare write inside one is covered by its own scrub
+    covered_ranges = [(s, e) for n, (s, e, _b) in funcs.items() if wraps.get(n)]
+    top = None
+    kind = None
+    if lang == "sh":
+        top = sh_top_scrub(raw, code)
+        kind = "canonical"
+        if top is None:
+            for i, l in enumerate(raw, 1):
+                m = CANON_SH_ANY.match(l)
+                if m and not any(s <= i <= e for s, e in covered_ranges):
+                    return True, "UNSCRUBBED", first, "canonical scrub line at line %d is not effective (not at column 0 in the preamble: inside a block, a function or after other code)" % i
+    elif lang == "py":
+        top = py_top_scrub(text, canon)
+        kind = "canonical"
+        if top is None and re.search(r"^\s*for _ge_v in ", text, re.M):
+            m = re.search(r"^\s*for _ge_v in ", text, re.M)
+            at = text[:m.start()].count("\n") + 1
+            if code[at - 1].strip():
+                return True, "UNSCRUBBED", first, "python scrub at line %d is not effective (not the top-level `_ge_os.environ.pop` form)" % at
+    if top is not None:
+        if top[1] != canon:
+            return True, "UNSCRUBBED", first, "canonical scrub line with a list that differs from CL_GIT_SCRUB_VARS"
+    codetext = "\n".join(code)
+    lib = None
+    if top is None and lang in ("sh", "py"):
+        if lang == "sh" and LIBCALL.search(codetext):
+            lib = "calls the library scrub (cl_scrub_git_env)"
+        elif LEGACY.search(codetext):
+            clears = SH_CLEARS.search(codetext) if lang == "sh" else PY_CLEARS.search(codetext)
+            missing = [v for v in canon if not re.search(r"\b" + v + r"\b", codetext)]
+            if missing:
+                return True, "UNSCRUBBED", first, "own scrub lacks " + ",".join(missing)
+            if not clears:
+                return True, "UNSCRUBBED", first, "own scrub names the list but never clears it (no unset / -u / pop / del)"
+            lib = "own reviewed scrub naming and clearing every variable of the list"
+    for line, src, via in ws:
+        if via is not None:
+            if wraps.get(via):
+                continue
+            if top is not None and top[0] < line:
+                continue
+            if lib is not None:
+                continue
+            return True, "UNSCRUBBED", line, "write through wrapper %s, which does not scrub: %s" % (via, src[:120])
+        if any(s <= line <= e for s, e in covered_ranges):
+            continue
+        if top is not None:
+            if top[0] < line:
+                continue
+            return True, "UNSCRUBBED", line, "canonical scrub at line %d comes after the first git write at line %d" % (top[0], line)
+        if lib is not None:
+            continue
+        if covered_ranges:
+            return True, "UNSCRUBBED", line, "bare git write outside the scrubbed wrapper: %s" % src[:120]
+        return True, "UNSCRUBBED", line, src[:160]
+    lh = limit_hits(lang, text, code)
+    if lh:
+        return True, "UNSCRUBBED", lh[0][0], "the scrub at line %d clears the discovery limit %s (a caller's fence; never scrubbed)" % lh[0]
+    if top is not None:
+        return True, "HERMETIC", first, "canonical scrub at line %d" % top[0]
+    if lib is not None:
+        return True, "HERMETIC", first, lib
+    return True, "HERMETIC", first, "every write goes through a scrubbed wrapper"
+
+
+def needles(canon):
+    """Run the classifier on samples whose answer is known; return a list of failures."""
+    lst = " ".join(canon)
+    sh_scrub = 'for _ge_v in %s; do unset "$_ge_v"; done; unset _ge_v\n' % lst
+    py_scrub = 'import os as _ge_os\nfor _ge_v in "%s".split(): _ge_os.environ.pop(_ge_v, None)\n' % lst
+    cases = [
+        ("sh bare init", "sh", "#!/bin/sh\ngit init -q x\n", (True, "UNSCRUBBED")),
+        ("sh -C commit", "sh", '#!/bin/bash\ngit -C "$d" -c user.name=t commit -qm m\n', (True, "UNSCRUBBED")),
+        ("sh comment only", "sh", "#!/bin/sh\n# git init is not run here\necho hi\n", (False, None)),
+        ("sh read only", "sh", "#!/bin/sh\ngit -C x rev-parse HEAD\n", (False, None)),
+        ("sh canonical", "sh", "#!/bin/sh\n" + sh_scrub + "git init -q x\n", (True, "HERMETIC")),
+        ("sh canonical after set", "sh", "#!/bin/sh\nset -eu\nexport LC_ALL=C\n" + sh_scrub + "git init -q x\n", (True, "HERMETIC")),
+        ("sh scrub late", "sh", "#!/bin/sh\ngit init -q x\n" + sh_scrub, (True, "UNSCRUBBED")),
+        ("sh scrub short", "sh", "#!/bin/sh\n" + sh_scrub.replace(" GIT_INDEX_FILE", "") + "git init -q x\n", (True, "UNSCRUBBED")),
+        ("sh scrub with ceiling", "sh", "#!/bin/sh\n" + sh_scrub.replace(" GIT_SHALLOW_FILE", " GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE") + "git init -q x\n", (True, "UNSCRUBBED")),
+        ("sh extra ceiling unset", "sh", "#!/bin/sh\n" + sh_scrub + "unset GIT_CEILING_DIRECTORIES\ngit init -q x\n", (True, "UNSCRUBBED")),
+        ("sh ceiling keep-list", "sh", "#!/bin/bash\n" + sh_scrub + 'for v in ${!GIT_*}; do case "$v" in GIT_CEILING_DIRECTORIES|GIT_AUTHOR_*) ;; *) unset "$v" ;; esac; done\ngit init -q x\n', (True, "HERMETIC")),
+        ("sh scrub in if false", "sh", "#!/bin/sh\nif false; then\n" + sh_scrub + "fi\ngit init -q x\n", (True, "UNSCRUBBED")),
+        ("sh no-op loop", "sh", '#!/bin/sh\n# CL_GIT_SCRUB_VARS\nfor _ge_v in %s; do : "$_ge_v"; done; unset _ge_v\ngit init -q x\n' % lst, (True, "UNSCRUBBED")),
+        ("sh legacy partial", "sh", "#!/bin/sh\nunset GIT_DIR GIT_WORK_TREE\ngit add f\n", (True, "UNSCRUBBED")),
+        ("sh library call", "sh", "#!/bin/sh\n. ./constitution_layout.sh\ncl_scrub_git_env quiet\ngit add f\n", (True, "HERMETIC")),
+        ("sh library call in comment", "sh", "#!/bin/sh\n# cl_scrub_git_env quiet\ngit add f\n", (True, "UNSCRUBBED")),
+        ("sh python heredoc", "sh", "#!/bin/sh\npython3 - <<'PY'\nimport subprocess\nsubprocess.run([\"git\", \"init\", \"d\"])\nPY\n", (True, "UNSCRUBBED")),
+        ("sh env -i wrapper", "sh", '#!/bin/sh\ng() {\n    env -i PATH="$PATH" \\\n        git -c a=b "$@"\n}\ng commit -m x\n', (True, "HERMETIC")),
+        ("sh env -i elsewhere", "sh", '#!/bin/sh\ng() { env -i true; git -c a=b "$@"; }\ng commit -m x\n', (True, "UNSCRUBBED")),
+        ("sh limit name in quoted payload", "sh", '#!/bin/sh\n' + sh_scrub + "sed 's/x/env -u GIT_CEILING_DIRECTORIES y/' f\ngit commit -m x\n", (True, "HERMETIC")),
+        ("sh unscrubbed wrapper", "sh", '#!/bin/sh\ng() { git -c a=b "$@"; }\ng commit -m x\n', (True, "UNSCRUBBED")),
+        ("sh wrapper after scrub", "sh", '#!/bin/sh\n' + sh_scrub + 'g() { git -c a=b "$@"; }\ng commit -m x\n', (True, "HERMETIC")),
+        ("sh scrubbed wrapper", "sh", '#!/bin/sh\nw() {\n  (\n    ' + sh_scrub + '    exec git "$@"\n  )\n}\nw -C d commit -m x\n', (True, "HERMETIC")),
+        ("sh scrubbed wrapper bypassed", "sh", '#!/bin/sh\nw() {\n  (\n    ' + sh_scrub + '    exec git "$@"\n  )\n}\nw -C d commit -m x\ngit -C d submodule update\n', (True, "UNSCRUBBED")),
+        ("py list form", "py", 'import subprocess\nsubprocess.run(["git", "-C", d, "commit", "-m", "x"])\n', (True, "UNSCRUBBED")),
+        ("py docstring", "py", 'import subprocess\n"""call git add yourself"""\n', (False, None)),
+        ("py shell string", "py", 'import os\nos.system("git add -A")\n', (True, "UNSCRUBBED")),
+        ("py canonical", "py", py_scrub + 'import subprocess\nsubprocess.run(["git", "init", d])\n', (True, "HERMETIC")),
+        ("py pop->get", "py", '# list = CL_GIT_SCRUB_VARS\n' + py_scrub.replace("environ.pop", "environ.get") + 'import subprocess\nsubprocess.run(["git", "init", d])\n', (True, "UNSCRUBBED")),
+        ("py scrub in if", "py", 'if False:\n' + "".join("    " + l + "\n" for l in py_scrub.rstrip("\n").split("\n")) + 'import subprocess\nsubprocess.run(["git", "init", d])\n', (True, "UNSCRUBBED")),
+        ("py docstring carrier", "py", '"""cl_scrub_git_env GIT_SCRUB_VARS %s"""\nimport subprocess\nsubprocess.run(["git", "init", d])\n' % lst, (True, "UNSCRUBBED")),
+        ("py legacy clears", "py", 'import os\nGIT_SCRUB_VARS = %r\nfor v in GIT_SCRUB_VARS:\n    os.environ.pop(v, None)\nimport subprocess\nsubprocess.run(["git", "init", d])\n' % (tuple(canon),), (True, "HERMETIC")),
+        ("py legacy with ceiling", "py", 'import os\nGIT_SCRUB_VARS = %r\nfor v in GIT_SCRUB_VARS:\n    os.environ.pop(v, None)\nimport subprocess\nsubprocess.run(["git", "init", d])\n' % (tuple(canon) + ("GIT_CEILING_DIRECTORIES",),), (True, "UNSCRUBBED")),
+        ("py wrapper", "py", 'def git(*a): pass\ngit(repo, "commit", "-m", "x")\n', (True, "UNSCRUBBED")),
+        ("py docstring only", "py", '"""run git init by hand"""\nprint(1)\n', (False, None)),
+        ("go exec", "go", 'package m\nfunc f() { exec.Command("git", "-C", r, "checkout", b) }\n', (True, "UNSCRUBBED")),
+        ("go comment", "go", 'package m\n// git checkout -b x\n', (False, None)),
+    ]
+    bad = []
+    for name, lang, text, want in cases:
+        member, status, _, _ = classify(lang, text, canon)
+        if (member, status) != want:
+            bad.append("%s: got %s/%s, want %s/%s" % (name, member, status, want[0], want[1]))
+    return bad, len(cases)
+
+
+def git_env(canon):
+    """The caller's environment without the canonical class (the census's own `git ls-files` is a read)."""
+    env = dict(os.environ)
+    for v in canon:
+        env.pop(v, None)
+    return env
+
+
+def main(argv):
+    root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    exf = None
+    tsv = False
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--root", "--exemptions") and i + 1 < len(argv):
+            if a == "--root":
+                root = os.path.abspath(argv[i + 1])
+            else:
+                exf = argv[i + 1]
+            i += 2
+        elif a == "--tsv":
+            tsv = True
+            i += 1
+        elif a in ("-h", "--help"):
+            print(__doc__)
+            return 0
+        else:
+            print("usage: git_env_class_census.py [--root <repo>] [--exemptions <tsv>] [--tsv]", file=sys.stderr)
+            return 64
+    if exf is None:
+        exf = os.path.join(root, "config", "git_env_class_exemptions.tsv")
+
+    def blind(msg):
+        print("%s: BLIND - %s" % (TOOL, msg))
+        return 2
+
+    lib = os.path.join(root, "scripts", "lib", "constitution_layout.sh")
+    try:
+        m = re.search(r'^CL_GIT_SCRUB_VARS="([^"]+)"', open(lib, encoding="utf-8").read(), re.M)
+    except OSError as e:
+        return blind("cannot read the canonical list in %s: %s" % (lib, e))
+    if not m or "GIT_DIR" not in m.group(1).split() or "GIT_INDEX_FILE" not in m.group(1).split():
+        return blind("no CL_GIT_SCRUB_VARS list holding GIT_DIR and GIT_INDEX_FILE in %s" % lib)
+    canon = m.group(1).split()
+    lim = [v for v in canon if v in LIMIT_VARS]
+    if lim:
+        return blind("the canonical list CL_GIT_SCRUB_VARS holds the discovery limit %s (it must never be scrubbed)" % ",".join(lim))
+    bad, ncases = needles(canon)
+    if bad:
+        return blind("control needle: " + "; ".join(bad))
+
+    p = subprocess.run(["git", "-C", root, "ls-files", "-z", "--", "tests"], capture_output=True, env=git_env(canon))
+    if p.returncode != 0:
+        return blind("git ls-files failed in %s: %s" % (root, p.stderr.decode("utf-8", "replace").strip()))
+    files = [f for f in p.stdout.decode("utf-8", "surrogateescape").split("\0") if f]
+    if not files:
+        return blind("git ls-files listed no file under scripts/ of %s" % root)
+
+    problems = []
+    exempt = {}
+    if os.path.exists(exf):
+        for n, raw in enumerate(open(exf, encoding="utf-8").read().split("\n"), 1):
+            if not raw.strip() or raw.startswith("#"):
+                continue
+            cols = raw.split("\t")
+            if len(cols) != 3 or cols[1] not in REASONS or not cols[2].strip():
+                problems.append("exemption line %d is malformed (want <path>TAB<reason>TAB<justification>, reason one of %s)" % (n, ",".join(sorted(REASONS))))
+                continue
+            if cols[0] in exempt:
+                problems.append("exemption line %d repeats %s" % (n, cols[0]))
+            exempt[cols[0]] = (cols[1], cols[2])
+
+    rows = []
+    for f in files:
+        if SKIP_EXT.search(f):
+            continue
+        path = os.path.join(root, f)
+        if os.path.islink(path) or not os.path.isfile(path):
+            continue
+        try:
+            b = open(path, "rb").read()
+        except OSError as e:
+            problems.append("cannot read %s: %s" % (f, e))
+            continue
+        if b"\0" in b:
+            continue
+        text = b.decode("utf-8", "replace")
+        lang = lang_of(f, text[:200])
+        if lang is None:
+            continue
+        member, status, line, detail = classify(lang, text, canon)
+        if not member:
+            continue
+        if f in exempt:
+            status, detail = "EXEMPT", exempt[f][0] + ": " + exempt[f][1]
+        rows.append((status, lang, f, line, detail))
+    members = {r[2] for r in rows}
+    for f in sorted(set(exempt) - members):
+        problems.append("exemption for %s, which is not a member of the class (stale row)" % f)
+    if not rows:
+        return blind("zero members found under scripts/ (the detector is blind or the tree is wrong)")
+
+    if tsv:
+        for r in sorted(rows, key=lambda r: r[2]):
+            print("%s\t%s\t%s\t%d\t%s" % r)
+    counts = {}
+    for r in rows:
+        counts[r[0]] = counts.get(r[0], 0) + 1
+    for r in sorted(rows, key=lambda r: r[2]):
+        if r[0] == "UNSCRUBBED":
+            problems.append("UNSCRUBBED %s (line %d): %s" % (r[2], r[3], r[4]))
+    summary = "members=%d hermetic=%d exempt=%d unscrubbed=%d" % (
+        len(rows), counts.get("HERMETIC", 0), counts.get("EXEMPT", 0), counts.get("UNSCRUBBED", 0))
+    if problems:
+        for pr in problems:
+            print("%s: FAIL - %s" % (TOOL, pr))
+        print("%s: FAIL - %s" % (TOOL, summary))
+        return 1
+    print("%s: control needles seen (%d samples)" % (TOOL, ncases))
+    print("%s: PASS - %s" % (TOOL, summary))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

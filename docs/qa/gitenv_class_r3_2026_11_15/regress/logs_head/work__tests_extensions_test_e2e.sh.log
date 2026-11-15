@@ -1,0 +1,44 @@
+  ok   add
+  ok   consent shows capabilities
+  ok   consent shows mcp
+  ok   wire of disabled ext refused (3)
+  ok   enable without consent refused (3)
+  ok   enable
+  ok   enable bundled
+  ok   enabled
+  ok   hooks component enabled
+  ok   wire refuses to overwrite an unmanaged file (3)
+  ok   unmanaged file untouched
+  ok   wire all agents
+  ok   claude symlink
+  ok   claude symlink resolves to SKILL.md
+  ok   claude bundled symlink
+  ok   opencode md
+  ok   gemini toml
+  ok   qwen toml
+  ok   pi prompt
+  ok   toml description
+  ok   toml args placeholder
+  ok   toml managed marker
+  ok   opencode frontmatter
+  ok   opencode body
+  ok   toml parses
+  ok   verify all
+  ok   disable
+  ok   disable unwired claude link
+  ok   disable unwired opencode
+  ok   other ext still wired
+  ok   hooks back to disabled
+  ok   unwire all
+  ok   user-modified shim left in place
+  ok   claude link gone
+  ok   gemini toml gone
+  ok   remove
+  ok   tree gone
+  ok   lock no longer lists it
+  ok   removing a bundled extension refused (3)
+  ok   bundled tree untouched
+  ok   disable bundled
+  ok   extension code never executed
+  ok   doctor healthy at end
+e2e: PASS 43 FAIL 0

@@ -1,0 +1,85 @@
+ok 1 - B1 http host, unrelated variable: probe refuses (rc != 0)
+ok 2 - B1 http host, unrelated variable: no key on any curl stdin
+ok 3 - B1 http host, unrelated variable: curl never invoked
+ok 4 - B1 http host, unrelated variable: the refusal is stated honestly (stderr)
+ok 5 - B1 https unpinned host, pinned var: probe refuses (rc != 0)
+ok 6 - B1 https unpinned host, pinned var: no key on any curl stdin
+ok 7 - B1 https unpinned host, pinned var: curl never invoked
+ok 8 - B1 https unpinned host, pinned var: the refusal is stated honestly (stderr)
+ok 9 - B1 pinned host over plain http: probe refuses (rc != 0)
+ok 10 - B1 pinned host over plain http: no key on any curl stdin
+ok 11 - B1 pinned host over plain http: curl never invoked
+ok 12 - B1 pinned host over plain http: the refusal is stated honestly (stderr)
+ok 13 - B1 pinned host, other pin's variable: probe refuses (rc != 0)
+ok 14 - B1 pinned host, other pin's variable: no key on any curl stdin
+ok 15 - B1 pinned host, other pin's variable: curl never invoked
+ok 16 - B1 pinned host, other pin's variable: the refusal is stated honestly (stderr)
+ok 17 - B1 userinfo trick: probe refuses (rc != 0)
+ok 18 - B1 userinfo trick: no key on any curl stdin
+ok 19 - B1 userinfo trick: curl never invoked
+ok 20 - B1 userinfo trick: the refusal is stated honestly (stderr)
+ok 21 - B1 suffix host trick: probe refuses (rc != 0)
+ok 22 - B1 suffix host trick: no key on any curl stdin
+ok 23 - B1 suffix host trick: curl never invoked
+ok 24 - B1 suffix host trick: the refusal is stated honestly (stderr)
+ok 25 - B1 pinned host, path outside the pin: probe refuses (rc != 0)
+ok 26 - B1 pinned host, path outside the pin: no key on any curl stdin
+ok 27 - B1 pinned host, path outside the pin: curl never invoked
+ok 28 - B1 pinned host, path outside the pin: the refusal is stated honestly (stderr)
+ok 29 - B1 POSITIVE: pinned https origin + its own variable is probed (rc 0)
+ok 30 - B1 POSITIVE: the key reached curl on stdin config
+ok 31 - B1 curl is pinned to https (--proto =https)
+ok 32 - B1 redirects are pinned to https too
+ok 33 - B1 the key is never on a command line
+ok 34 - B1 POSITIVE: a pin with a path prefix is honoured
+ok 35 - B1b no curl call to the tampered cache host
+ok 36 - B1b key only ever went to the pinned origin
+ok 37 - B1b the tampered entry is recorded auth_status_class=refused
+ok 38 - B1b and is NOT reachable=true (refused is not an answer)
+ok 39 - M quoting: probe with a quote/backslash key rc 0
+ok 40 - M quoting: " and \ are escaped in the curl config (the key survives intact)
+ok 41 - M ca_file: the authenticated probe ignores the record's CA file (untrusted)
+ok 42 - M ca_file: the OPERATOR's JEV_CA_FILE env is used on the authenticated probe
+ok 43 - M key_state: 'changeme' is reported as a known dummy, not as 'shorter than 16'
+ok 44 - M key_state: a value of 20 backslashes is a placeholder
+ok 45 - M key_state: reason is 'one repeated character'
+ok 46 - M key_state: no tr/shell warning on a backslash-leading value
+ok 47 - M key_state: a value with a newline is never 'real'
+ok 48 - M key_state: control — a normal dummy key is real
+ok 49 - M keys-file timeout: key_state bounded (2s)
+ok 50 - M keys-file timeout: reported absent (never real)
+ok 51 - M keys-file timeout: the reason says so
+ok 52 - I1 golden-FALSE: gateway running, no profile running => empty record is lawful
+ok 53 - I1 golden-FALSE: only a jev-verdict (no driver) profile running => empty record is lawful
+ok 54 - I1 golden-TRUE: a running usable decision profile with an empty record => contradiction (RED)
+ok 55 - I1 the contradiction names the profile
+ok 56 - M the gate prints no 'ok' for a clause that FAILed
+ok 57 - I1 the llmctl call is bounded (2s with a hanging llmctl)
+ok 58 - I1 a hanging llmctl cannot cross-check: NOTE, not a FAIL
+ok 59 - I1 the timeout is stated
+ok 60 - M clause 8: record says placeholder at detection time => same verdict on a host that has a real key
+ok 61 - M clause 8: record says a real key was present and the endpoint is unproven => RED on a host without the key
+ok 62 - M clause 8: a record without key_discovery falls back to the host and says the verdict is environment-dependent
+ok 63 - M wiring clause 5: a decision model wired as a chat model in a provider .env is caught
+ok 64 - M wiring clause 5 NEG: with no offending provider file nothing is flagged
+ok 65 - M wiring clause 5: one finding per config file (no duplicate find results)
+ok 66 - M register: JEV_MODE=enforce without calibrated thresholds is written as shadow
+ok 67 - M register: the MCP entry carries shadow too
+ok 68 - M register: the downgrade is stated (stderr)
+ok 69 - M register NEG: with calibrated thresholds enforce is honoured
+ok 70 - I2 an unknown host fails in the stub
+ok 71 - I2 and is logged as refused (no passthrough to the real curl)
+ok 72 - I2 no passthrough exec remains in the stub
+ok 73 - I2 the openrouter pin host matches the stub glob
+ok 74 - M leaks_count sees a planted needle
+ok 75 - M leaks_count negative control
+ok 76 - M leak_scan_selftest passes on a readable root
+ok 77 - M leak_scan_selftest FAILS on a blind (missing) root — a blind grep cannot report 0 leaks
+ok 78 - I3 the unevidenced 2xx live claim is withdrawn from the anchor
+ok 79 - I3 no 'served immediately' claim in bootstrap-reference.md
+ok 80 - I3 no unqualified 'every external call is bounded' in bootstrap-reference.md
+ok 81 - I3 no 'served immediately' claim in governance-guide.md
+ok 82 - I3 no unqualified 'every external call is bounded' in governance-guide.md
+ok 83 - I3 no 'served immediately' claim in Constitution.md
+ok 84 - I3 no unqualified 'every external call is bounded' in Constitution.md
+# test_review_fixes.sh: pass=84 fail=0 skip=0

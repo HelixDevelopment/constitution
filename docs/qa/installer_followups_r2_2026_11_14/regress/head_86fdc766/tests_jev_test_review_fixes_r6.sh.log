@@ -1,0 +1,51 @@
+ok 1 - I6-2 bootstrap (cwd A, no path env) wrote the detection record under $HOME/.local/state/jev/evidence
+ok 2 - I6-2 bootstrap left nothing under <cwd>/.jev
+ok 3 - I6-2 register (cwd B) created nothing under <cwd>/.jev
+ok 4 - I6-2 jev-status (cwd C) finds the detection record bootstrap wrote (inline in its JSON)
+ok 5 - I6-2 ... and it is byte-for-byte the record at the resolver path
+ok 6 - I6-2 jev-status left nothing under <cwd>/.jev
+ok 7 - I6-2 jev_state_dir default
+ok 8 - I6-2 jev_evidence_dir default is absolute, state-relative (no cwd .jev)
+ok 9 - I6-2 jev_detection_file default
+ok 10 - I6-2 JEV_EVIDENCE_DIR selects the detection record
+ok 11 - I6-2 JEV_DETECTION_FILE wins
+ok 12 - I6-2 a relative JEV_EVIDENCE_DIR is made absolute against the cwd of the CALL (one rule for all callers)
+ok 13 - I6-2 JEV_HOME moves state with it
+ok 14 - I6-2 default cache candidate is under the real HOME, not JEV_HOME
+ok 15 - I6-2 scan: no component outside lib_decide.sh derives a state/config/evidence/detection path itself
+ok 16 - I6-2 scan control needle: a planted offender IS detected
+ok 17 - I6-2 scan control needle: a clean file / marked line is NOT flagged
+ok 18 - I6-1 register makes NO backup of a key-bearing .mcp.json
+ok 19 - I6-1 ... and the key is still intact after the edit
+ok 20 - I6-1 repeated runs keep at most ONE backup of a key-free file (no accumulation)
+ok 21 - I6-1 the backup is mode 0600
+ok 22 - I6-1 the one backup holds the ORIGINAL content
+ok 23 - I6-1 governance guide no longer carries the false 'no key value is copied' claim
+ok 24 - I6-1 governance guide names the toolkit script that writes key values into agent configs
+ok 25 - I6-1 governance guide names the variable the toolkit writes
+ok 26 - m6-2 'declare -x JEV_BASE_URL=evil' after a loopback line => shadow
+ok 27 - m6-2 'A=1; JEV_BASE_URL=evil' => shadow
+ok 28 - m6-2 a commented-out hosted assignment still counts as a candidate => shadow
+ok 29 - m6-2 control: a single loopback assignment => enforce
+ok 30 - m6-2 an unparseable provider cache fails closed (not enforce)
+ok 31 - m6-2 TYPESAFE_BASE_URL (hosted) is read => shadow
+ok 32 - m6-2 hosted base in $HOME/.claude-*/.claude.json => shadow
+ok 33 - m6-2 hosted base in <home>/.kimi-code/mcp.json => shadow
+ok 34 - m6-2 hosted base in <home>/mcp.json (Kimi) => shadow
+ok 35 - m6-1 env file absent + MCP enforce while the mode in force is shadow => mismatch
+ok 36 - m6-1 stored enforce, effective shadow (no validated profile), MCP enforce => mismatch
+ok 37 - m6-3 stage 5 downgraded <home>/.mcp.json
+ok 38 - m6-3 stage 5 downgraded a nested entry in $HOME/.claude-*/.claude.json
+ok 39 - m6-3 stage 5 downgraded <home>/.kimi-code/mcp.json
+ok 40 - m6-4 a symlinked .mcp.json is still a symlink after the stage-5 write
+ok 41 - m6-4 ... and the write landed in the link target
+ok 42 - m6-4 a symlinked env file is still a symlink after the write
+ok 43 - m6-4 register keeps a symlinked env file a symlink
+ok 44 - m6-5 JEV_MODEL='a;cmd' is refused
+ok 45 - m6-5 ... and never reaches the env file
+ok 46 - m6-5 JEV_BASE_URL with a command substitution is refused
+ok 47 - m6-5 control: a plain loopback URL with a path is accepted
+ok 48 - n6-1 JEV_NOW_EPOCH without JEV_TEST=1 is ignored by bootstrap (record is dated with the real clock)
+ok 49 - n6-3 stub-server start-up wait raised to 30 s
+ok 50 - n6-3 a slow start is reported as a harness failure, not a product assertion
+# test_review_fixes_r6.sh: pass=50 fail=0 skip=0

@@ -1,0 +1,52 @@
+ok 1 - m7-1/m7-3 args.json counts as key material
+ok 2 - m7-1/m7-3 argseq.json counts as key material
+ok 3 - m7-1/m7-3 query.json counts as key material
+ok 4 - m7-1/m7-3 query2.json counts as key material
+ok 5 - m7-1/m7-3 auth.json counts as key material
+ok 6 - m7-1/m7-3 token.json counts as key material
+ok 7 - m7-1/m7-3 secret.json counts as key material
+ok 8 - m7-1/m7-3 password.json counts as key material
+ok 9 - m7-1/m7-3 apikey.json counts as key material
+ok 10 - m7-1 unparseable file with a key flag / query key counts as key material
+ok 11 - m7-1 control: a file with args/query but no key-shaped name is NOT key material
+ok 12 - m7-1 control: an unreadable file is judged key-bearing (conservative)
+ok 13 - m7-1 no .prejev backup of the args.json shape
+ok 14 - m7-1 no .prejev backup of the query.json shape
+ok 15 - m7-1 no .prejev backup of the auth.json shape
+ok 16 - m7-1 no .prejev backup of the token.json shape
+ok 17 - m7-1 control: a key-free file still gets its ONE backup
+ok 18 - n7-4 the garbled list item is gone
+ok 19 - n7-4 ... and spelled out
+ok 20 - m7-1 the guide states how detection works (no overclaim)
+ok 21 - m7-2 $(...) in the path of the env-file base URL is not 'ok'
+ok 22 - m7-2 ... it is rejected as the env-file base (the marker, not the host classifier)
+ok 23 - m7-2 control: a plain loopback path is ok
+ok 24 - m7-4 sourcing the resolver with a relative JEV_HOME is refused
+ok 25 - m7-4 ... with a stated reason
+ok 26 - m7-4 jev-status with a relative JEV_HOME is refused from another cwd too
+ok 27 - m7-4 control: an absolute JEV_HOME is accepted
+ok 28 - m7-4 ... and is returned unchanged
+ok 29 - m7-4 the resolver comment no longer overclaims
+ok 30 - m7-5 missing bootstrap: hook rc 0
+ok 31 - m7-5 the pending marker is written under the resolved state dir
+ok 32 - m7-5 ... and NOT under the project .jev (nothing reads it there)
+ok 33 - m7-5 jev-status shows the hook's pending state
+ok 34 - m7-6 a writer that interfered once: the rewrite retried and succeeded
+ok 35 - m7-6 ... the mode is rewritten
+ok 36 - m7-6 ... and the concurrent writer's change is NOT lost
+ok 37 - m7-6 a writer that always interferes: the rewrite is SKIPPED (nonzero), not forced
+ok 38 - m7-6 ... with a warning
+ok 39 - m7-6 ... and the concurrent writer's changes are intact
+ok 40 - m7-6 ... the file is left as the other writer wrote it
+ok 41 - m7-6 control: no concurrent writer -> plain success
+ok 42 - m7-6 ... mode rewritten
+ok 43 - m7-6 bootstrap stage 5 uses the guarded rewrite
+ok 44 - n7-3 register also rewrote JEV_MODE in $HOME/.claude-*/.mcp.json (status would not mismatch)
+ok 45 - n7-3 ... and in the target home's .mcp.json
+ok 46 - n7-2 calibrate header no longer claims the .jev default
+ok 47 - n7-2 write_thresholds uses jev_write_atomic
+ok 48 - n7-2 a symlinked thresholds file is written THROUGH (still a symlink)
+ok 49 - n7-2 ... the symlink survives
+ok 50 - n7-2 timestamped threshold copies are capped at 5
+ok 51 - n7-2 the newest copy (the previous content) is kept
+# test_review_fixes_r7.sh: pass=51 fail=0 skip=0

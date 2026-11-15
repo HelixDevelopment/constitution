@@ -1,0 +1,8 @@
+ok control needle: a brand-new empty repo reports clean via this test's own git status call
+ok control needle: a known-present untracked file IS detected by this test's own git status call
+ok control needle: a fabricated file is correctly NOT reported present
+ok verify/repo_verify.py is absent (pre-T158 RED baseline)
+ok absent-tool invocation exits rc=2 (python3's own can't-open-file signature) -- RED baseline confirmed
+info RED baseline established: repo_verify.py is absent, python3 exits 2 as expected.
+info T158 will implement --recursive per contracts/recursive-verification.md;
+info once it lands this file's fixture assertions below exercise it for real.

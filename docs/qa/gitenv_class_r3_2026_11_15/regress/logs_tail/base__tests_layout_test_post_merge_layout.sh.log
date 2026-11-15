@@ -1,0 +1,40 @@
+PASS: [submodules/constitution] unrelated merge: exit 0 (rc=0)
+PASS: [submodules/constitution] unrelated merge: post-update hook NOT called
+PASS: [submodules/constitution] gitlink-bump merge: exit 0 (rc=0)
+PASS: [submodules/constitution] gitlink-bump merge: post-update hook FIRED with PROJECT_ROOT=<project> CONST_DIR=<project>/submodules/constitution
+PASS: [submodules/constitution] gitlink-bump merge: hook ran from the project root
+PASS: [submodules/constitution] gitlink-bump merge: announced (git routes hook stdout to stderr)
+PASS: [submodules/constitution] gitlink-bump merge: submodule HEAD read from the SUBMODULE (no stale-checkout warning)
+PASS: [submodules/constitution] gitlink-bump merge: OLD..NEW gitlink range handed to the hook (I6)
+PASS: [submodules/constitution] re-run (already merged): no second call (idempotent)
+PASS: [submodules/constitution] ff of 2 commits, bump in the FIRST: exit 0 (rc=0)
+PASS: [submodules/constitution] ff of 2 commits, bump in the FIRST: hook FIRED with OLD=2338a192a4b3be62bf08c6728ea531a4578808b5 NEW=3ec6cdffc99318e30bb7bf1c7d0dce6136b94900
+PASS: [submodules/constitution] stale checkout: merge exits 0 (rc=0)
+PASS: [submodules/constitution] stale checkout: post-update hook NOT run on the old checkout
+PASS: [submodules/constitution] stale checkout: a WARNING names the stale checkout and the update command
+PASS: [constitution] unrelated merge: exit 0 (rc=0)
+PASS: [constitution] unrelated merge: post-update hook NOT called
+PASS: [constitution] gitlink-bump merge: exit 0 (rc=0)
+PASS: [constitution] gitlink-bump merge: post-update hook FIRED with PROJECT_ROOT=<project> CONST_DIR=<project>/constitution
+PASS: [constitution] gitlink-bump merge: hook ran from the project root
+PASS: [constitution] gitlink-bump merge: announced (git routes hook stdout to stderr)
+PASS: [constitution] gitlink-bump merge: submodule HEAD read from the SUBMODULE (no stale-checkout warning)
+PASS: [constitution] gitlink-bump merge: OLD..NEW gitlink range handed to the hook (I6)
+PASS: [constitution] re-run (already merged): no second call (idempotent)
+PASS: [constitution] ff of 2 commits, bump in the FIRST: exit 0 (rc=0)
+PASS: [constitution] ff of 2 commits, bump in the FIRST: hook FIRED with OLD=5858a1071f8c6d3b7af9a53f7857aefa785c28cf NEW=d460502ecb67c354bd77d3da188623999a5942f6
+PASS: [constitution] stale checkout: merge exits 0 (rc=0)
+PASS: [constitution] stale checkout: post-update hook NOT run on the old checkout
+PASS: [constitution] stale checkout: a WARNING names the stale checkout and the update command
+PASS: missing constitution: merge still exits 0 (non-fatal) (rc=0)
+PASS: missing constitution + merge moving no gitlink: no hook output (no per-merge noise)
+PASS: missing constitution + gitlink bump: exit 0 + exactly ONE warning line with the init command (rc=0)
+PASS: custom .gitmodules path: hook fires with CONST_DIR=<project>/vendor/helix
+PASS: CONSTITUTION_DIR elsewhere: the project's gitlink bump still FIRES with CONST_DIR=<project>/submodules/constitution
+PASS: CONSTITUTION_DIR set, no gitlink moved: exit 0, no call, no noise (rc=0)
+PASS: CONSTITUTION_DIR set, project gitlink moved but no checkout: exit 0 + WARNING, no call (rc=0)
+PASS: submodule name with spaces: hook FIRES with CONST_DIR=<project>/vendor/my const
+PASS: squash merge moving the gitlink: not run yet + a WARNING mentions squash
+PASS: post-merge parses under bash -n
+----
+post_merge_layout: PASS=38 FAIL=0

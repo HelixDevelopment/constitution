@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+W="${1:?}"; S="$W/tools/sentinel_run.sh"
+for m in git_dir git_index_file both none; do bash "$S" "$W/red" "$W/ev/red2" "arc_$m" "$m" scripts/gates/cm_anchor_record_complete.sh; done
+echo DONE

@@ -1,0 +1,49 @@
+scripts/install_constitution.sh:56: HEREDOC here-document <<EOF | cat <<'EOF'
+scripts/install_constitution.sh:67: HEREDOC here-document <<EOF | cat <<'EOF'
+scripts/install_constitution.sh:91: HEREDOC here-document <<HELIX_HELP | cat <<'HELIX_HELP'
+scripts/install_constitution.sh:254: HERESTR here-string <<< | local -a kvs=(); IFS='&' read -r -a kvs <<<"$q"
+scripts/install_constitution.sh:476: HEREDOC here-document <<PY | python3 -I - "$1" <<'PY'
+scripts/install_constitution.sh:522: EARLY-READER head after | | v="$(cd / && timeout 5 "$1" --version </dev/null 2>&1 | head -n 1)"
+scripts/install_constitution.sh:542: EARLY-READER awk after | | timeout 20 claude-providers list 2>/dev/null </dev/null | awk '
+scripts/install_constitution.sh:569: EARLY-READER grep after | | if hi_gx -C "$r" ls-files -s -- "$HI_SUB" 2>/dev/null | grep -q '^160000 '; then
+scripts/install_constitution.sh:571: EARLY-READER grep after | | elif hi_gx -C "$r" ls-tree HEAD -- "$HI_SUB" 2>/dev/null | grep -q '^160000 '; then echo inconsistent; return
+scripts/install_constitution.sh:574: EARLY-READER grep after | | hi_gx -C "$r" ls-files -s -- "$HI_LEGACY" 2>/dev/null | grep -q '^160000 ' && l=1
+scripts/install_constitution.sh:624: HERESTR here-string <<< | if grep -qxF -- "$(hi_norm_url "$u")" <<<"$known"; then
+scripts/install_constitution.sh:678: EARLY-READER grep after | | --upstream) hi_upstream_table | cut -d'|' -f1 | grep -qxF -- "$v" || { hi_err "unknown --upstream (see --help)"; return 2; }; O_UPSTREAM="$v" ;;
+scripts/install_constitution.sh:754: EARLY-READER grep after | | hi_upstream_ok() { hi_upstream_table | cut -d'|' -f1 | grep -qxF -- "$1"; }
+scripts/install_constitution.sh:842: EARLY-READER grep after | | GIT_TERMINAL_PROMPT=0 HI_GX_TIMEOUT=60 hi_gx -c protocol.file.allow=always ls-remote -- "$S_URL" "$O_REF" 2>/dev/null | grep -q . && return 0
+scripts/install_constitution.sh:957: HERESTR here-string <<< | st="${st##*) }"; read -r -a st <<<"$st"; start="${st[19]:-}"
+scripts/install_constitution.sh:1063: HERESTR here-string <<< | if st="$(cat "/proc/$p/stat" 2>/dev/null)"; then st="${st##*) }"; read -r _ _ pg _ <<<"$st"; fi
+scripts/install_constitution.sh:1110: EARLY-READER grep after | | hi_git ls-files -s -- "$HI_SUB" 2>/dev/null | grep -q '^160000 ' \
+scripts/install_constitution.sh:1111: EARLY-READER grep after | | && ! hi_gx -C "$O_ROOT" ls-tree HEAD -- "$HI_SUB" 2>/dev/null | grep -q '^160000 '
+scripts/install_constitution.sh:1182: EARLY-READER head after | | local l; l="$(hi_gx -C "$1" ls-files -s -- "$2" 2>/dev/null | head -n 1)"
+scripts/install_constitution.sh:1247: EARLY-READER awk after | | o="$(printf '%s\n' "$3" | awk -v n="$ref" '$1 == n { print $2; exit }')"
+scripts/install_constitution.sh:1287: HERESTR here-string <<< | done <<<"$3"
+scripts/install_constitution.sh:1306: EARLY-READER head after | | local l; l="$(hi_gx -C "$1" ls-tree HEAD -- "$2" 2>/dev/null | head -n 1)"
+scripts/install_constitution.sh:1682: HERESTR here-string <<< | done <<<"$b"
+scripts/install_constitution.sh:1683: EARLY-READER grep after | | if printf '%s\n%s\n' "$b" "$a" | grep -q '^Z '; then   # a remote answered but no fingerprint tool exists: fail closed
+scripts/install_constitution.sh:1692: EARLY-READER grep after | | printf '%s\n' "$b" | grep -qxF -- "R $i $r $s ${f:-0}" && continue
+scripts/install_constitution.sh:1694: HERESTR here-string <<< | done <<<"$a"
+scripts/install_constitution.sh:1697: EARLY-READER grep after | | printf '%s\n' "$a" | grep -qxF -- "L $i $r $h" && continue
+scripts/install_constitution.sh:1699: HERESTR here-string <<< | done <<<"$b"
+scripts/install_constitution.sh:1702: EARLY-READER grep after | | printf '%s\n' "$a" | grep -qxF -- "N $i $r" || return 0
+scripts/install_constitution.sh:1703: HERESTR here-string <<< | done <<<"$b"
+scripts/install_constitution.sh:1707: EARLY-READER awk after | | h1="$(printf '%s\n' "$a" | HI_U="$u" HI_I="$i" awk '$1 == "V" && $2 == ENVIRON["HI_I"] { x = $0; sub(/^V [^ ]+ [^ ]+ /, "", x); if (x == ENVIRON["HI_U"]) { print $3; exit } }')"
+scripts/install_constitution.sh:1709: EARLY-READER awk after | | dir="$(printf '%s\n' "$b" | HI_I="$i" awk '$1 == "D" && $2 == ENVIRON["HI_I"] { sub(/^D [^ ]+ /, ""); print; exit }')"
+scripts/install_constitution.sh:1715: HERESTR here-string <<< | done <<<"$b"
+scripts/install_constitution.sh:1792: EARLY-READER grep after | | if printf '%s' "$blk" | grep -E '(^|[^/A-Za-z_])constitution/' | grep -vq 'submodules/constitution/'; then hi_check no_legacy_path_in_written fail
+scripts/install_constitution.sh:1861: HERESTR here-string <<< | IFS='/' read -r -a parts <<<"${rel%/*}"
+scripts/install_constitution.sh:1873: HERESTR here-string <<< | IFS=/ read -r -a segs <<<"$e"
+scripts/update_constitution.sh:237: HERESTR here-string <<< | done <<<"$3"
+scripts/update_constitution.sh:256: EARLY-READER head after | | local l; l="$(hi_gx -C "$1" ls-tree HEAD -- "$2" 2>/dev/null | head -n 1)"
+scripts/update_constitution.sh:282: HERESTR here-string <<< | st="${st##*) }"; read -r -a st <<<"$st"; start="${st[19]:-}"
+scripts/update_constitution.sh:400: EARLY-READER grep after | | hi_gx -C "$ROOT" ls-files -s -- "$REL" | grep -q '^160000 ' || die 3 "$REL is not a registered submodule of $ROOT"
+scripts/update_constitution.sh:409: EARLY-READER head after | | die 3 "$REL has uncommitted changes and an earlier update to $(head -n 1 -- "$PEND0" 2>/dev/null | cut -d' ' -f1 | head -c 64 | tr -cd '0-9a-f') was interrupted (marker $PEND0): the changes are most likely that half-written checkout, not yours. Review them with: git -C $REL status; if none are yours: git -C $REL stash (keeps a copy) then re-run this script (nothing changed)"
+scripts/update_constitution.sh:432: EARLY-READER awk after | | o="$(printf '%s\n' "$3" | awk -v n="$ref" '$1 == n { print $2; exit }')"
+scripts/update_constitution.sh:467: EARLY-READER head after | | local l; l="$(hi_gx -C "$1" ls-files -s -- "$2" 2>/dev/null | head -n 1)"
+scripts/update_constitution.sh:539: EARLY-READER head after | | hi_gx -C "$SUB" log --oneline --no-decorate "$CUR..$TSHA" | head -n 20 | hi_text_filter | sed 's/^/  /' >&2
+scripts/update_constitution.sh:540: EARLY-READER head after | | hi_gx -C "$SUB" diff "$CUR" "$TSHA" -- CHANGELOG.md 2>/dev/null | hi_text_filter | sed -n 's/^+## /  changelog: /p' | head -n 10 >&2
+scripts/update_constitution.sh:560: EARLY-READER grep after | | | grep -qE '^#[[:space:]]*HELIX_HOOK_CAPABILITIES:([^[:cntrl:]]*[[:space:]])?project-root([[:space:]]|$)' \
+scripts/install_cli_agent_plugins.sh:359: EARLY-READER grep after | | if claude plugin list 2>/dev/null | grep -q "$PLUGIN_NAME"; then
+scripts/install_cli_agent_plugins.sh:398: EARLY-READER grep after | | if claude plugin list 2>/dev/null | grep -q "$PLUGIN_NAME"; then
+scripts/install_action_prefix.sh:183: HEREDOC here-document <<PYEOF | HELIX_HOOK_CMD="$hook_cmd" python3 - "$settings" "$NEW_TMP" <<'PYEOF'

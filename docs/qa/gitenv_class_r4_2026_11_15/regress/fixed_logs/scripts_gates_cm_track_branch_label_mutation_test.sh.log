@@ -1,0 +1,12 @@
+======================================================================
+§1.1 paired-mutation meta-test for CM-TRACK-BRANCH-LABEL
+fixtures under: /mnt/DATA1TB/claude-work/tmp/cm_tbl_mut.tYXJ8Z
+======================================================================
+✅ META OK:   clean fixture (real hook validates the alias field) — gate correctly PASSed
+✅ META OK:   MUTATION: format-only hook (alias check stripped) — gate correctly FAILed on the mutation
+✅ META OK:   RESTORED fixture (real hook re-audited) — gate correctly PASSed
+✅ META OK:   doc-missing fixture (§11.4.18 convention doc absent) — gate correctly FAILed on the mutation
+✅ META OK:   parse-broken fixture (unbalanced quote in hook) — gate correctly FAILed on the mutation
+======================================================================
+✅ META PASS: CM-TRACK-BRANCH-LABEL is a genuine (non-bluff) gate
+======================================================================

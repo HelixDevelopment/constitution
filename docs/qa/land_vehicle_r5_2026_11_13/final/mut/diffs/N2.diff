@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (N2)
+@@ -659,7 +659,7 @@
+     || die 1 "the mint command printed $id but changed no file in the clone (no tracker record): refusing; nothing was landed"
+   g add -A || die 1 "git add of the mint changes failed"
+   # the ONE record of what the mint changed; every check and the commit use it
+-  g diff-index --cached --raw -z --no-abbrev --no-renames --ignore-submodules=none "$head0" > "$rec" || die 1 "cannot list the mint changes"
++  g diff-index --cached --raw -z --no-abbrev --no-renames "$head0" > "$rec" || die 1 "cannot list the mint changes"
+   local -a R=()
+   mapfile -d '' -t R < "$rec"
+   local k meta f shown

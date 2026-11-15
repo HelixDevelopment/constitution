@@ -1,0 +1,10 @@
+2026-11-14T12:06:19Z lane T start (commit a5ee2ab44483472a3989d354499b62a8b9acc54c)
+2026-11-14T12:10:42Z round8 host r1 rc=0 secs=263 bash=5.3.9(1)-release round8: PASS 91 FAIL 0
+2026-11-14T12:15:03Z round8 host r2 rc=0 secs=261 bash=5.3.9(1)-release round8: PASS 91 FAIL 0
+2026-11-14T12:19:17Z round8 host r3 rc=0 secs=254 bash=5.3.9(1)-release round8: PASS 91 FAIL 0
+2026-11-14T12:23:15Z round8 5.2.37 r1 rc=0 secs=238 bash=5.2.37(1)-release round8: PASS 91 FAIL 0
+2026-11-14T12:27:20Z round8 5.2.37 r2 rc=0 secs=245 bash=5.2.37(1)-release round8: PASS 91 FAIL 0
+2026-11-14T12:31:20Z round8 5.2.37 r3 rc=0 secs=239 bash=5.2.37(1)-release round8: PASS 91 FAIL 0
+2026-11-14T13:14:19Z runall host r1 rc=0 secs=2579 bash=5.3.9(1)-release RUN_ALL: PASS
+2026-11-14T13:52:44Z runall host r2 rc=0 secs=2305 bash=5.3.9(1)-release RUN_ALL: PASS
+2026-11-14T13:52:44Z lane T done

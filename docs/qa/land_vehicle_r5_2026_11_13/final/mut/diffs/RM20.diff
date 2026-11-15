@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM20)
+@@ -309,7 +309,7 @@
+   case "$rc" in
+     0|1|2|3) ;;
+     *) printf 'land_vehicle: ERROR: a command failed with status %s (not one of the documented exit codes); exiting 1\n' "$rc" >&2
+-       exit 1 ;;
++       exit 0 ;;
+   esac
+ }
+ trap lander_exit EXIT

@@ -1,0 +1,71 @@
+ok 1 - I4-1 loopback env-file base: jev-status says enforce
+ok 2 - I4-1 loopback env-file base: register.sh writes enforce
+ok 3 - I4-1 loopback env-file base: reason names promoted+validated
+ok 4 - I4-1 empty base: jev-status says shadow
+ok 5 - I4-1 empty base: register.sh writes shadow
+ok 6 - I4-1 empty base: reason names base-url-unresolved
+ok 7 - I4-1 hosted cache endpoints[0]: jev-status says shadow
+ok 8 - I4-1 hosted cache endpoints[0]: register.sh writes shadow
+ok 9 - I4-1 hosted cache endpoints[0]: reason names hosted-or-non-loopback-base-url(cache)
+ok 10 - I4-1 hosted env-file base: jev-status says shadow
+ok 11 - I4-1 hosted env-file base: register.sh writes shadow
+ok 12 - I4-1 hosted env-file base: reason names hosted-or-non-loopback-base-url(env-file)
+ok 13 - I4-1 hosted MCP-entry base: jev-status says shadow
+ok 14 - I4-1 hosted MCP-entry base: register.sh writes shadow
+ok 15 - I4-1 hosted MCP-entry base: reason names hosted-or-non-loopback-base-url(mcp-entry)
+ok 16 - I4-1 bootstrap stage 5 with a hosted env-file base stays shadow
+ok 17 - I4-1 detection url https://evil.example => shadow
+ok 18 - m4-3 a local endpoint whose id lacks the llmctl- prefix is not local => shadow
+ok 19 - m4-2 profile name starting with '-' (llmctl--force) refused => shadow
+ok 20 - m4-2 the validator was never called for a dash-leading name
+ok 21 - I4-2 JEV_TEST unset + passing override + failing real llmctl => shadow
+ok 22 - I4-2 the reason says override-ignored
+ok 23 - m4-1 honoured override recorded in the reason
+ok 24 - m4-1 jev-status --json test_override true
+ok 25 - m4-1 human status carries a WARNING for test overrides
+ok 26 - I4-3 hosted base stored in the env file + loopback register call => shadow
+ok 27 - I4-3 hosted base stored in the MCP entry + loopback register call => MCP JEV_MODE shadow
+ok 28 - m4-2 the validator receives exactly the profile (r5 I5-1: the pinned CLI rejects a leading --)
+ok 29 - m4-4 threshold -5 out of (0,1] => shadow
+ok 30 - m4-4 threshold 0 out of (0,1] => shadow
+ok 31 - m4-4 threshold 1e9 out of (0,1] => shadow
+ok 32 - m4-4 threshold 2 out of (0,1] => shadow
+ok 33 - m4-4 threshold 1.0 accepted
+ok 34 - m4-4 threshold 0.5 accepted
+ok 35 - m4-5 stale record => shadow
+ok 36 - m4-5 undated record => shadow
+ok 37 - m4-5 record from the future => shadow
+ok 38 - m4-5 JEV_DETECTION_MAX_AGE=0 makes a 100 s old record stale
+ok 39 - m4-6 port out of range 'https://127.0.0.1:99999' => invalid
+ok 40 - m4-6 port out of range 'https://127.0.0.1:0' => invalid
+ok 41 - m4-6 port out of range 'https://127.0.0.1:65536' => invalid
+ok 42 - m4-6 [::1]:65535 still loopback
+ok 43 - m4-8 --no-validate => mode unknown
+ok 44 - m4-8 reason validation-skipped
+ok 45 - m4-8 the validator was not called
+ok 46 - m4-8 JEV_STATUS_NO_VALIDATE=1 behaves the same
+ok 47 - E2E bootstrap stage 5 wrote JEV_MODE=enforce
+ok 48 - E2E jev-status --json says enforce
+ok 49 - E2E no enforce-deferred file
+ok 50 - m1 anchor
+ok 51 - m1 MUTANT (no detection-url loopback check) enforces evil.example  [real code: shadow]
+ok 52 - m4 anchor
+ok 53 - m4 MUTANT enforces an unpromoted type  [real code: shadow]
+ok 54 - m5 anchor
+ok 55 - m5 MUTANT calls the validator without STRICT  [real code logs strict=1]
+ok 56 - m7 anchor
+ok 57 - m7 anchor 2
+ok 58 - m7 MUTANT lets a dash-leading profile name through  [real code: shadow]
+ok 59 - m8 anchor
+ok 60 - m8 MUTANT honours the validator override without JEV_TEST=1  [real code: shadow]
+ok 61 - o1 anchor
+ok 62 - o1 MUTANT (empty base allowed) enforces with no base  [real code: shadow]
+ok 63 - o2 anchor
+ok 64 - o2 MUTANT (freshness dropped) enforces a stale record  [real code: shadow]
+ok 65 - o3 anchor
+ok 66 - o3 MUTANT (threshold range dropped) enforces threshold 1e9  [real code: shadow]
+ok 67 - o4 anchor
+ok 68 - o4 MUTANT re-adds the -- separator  [real code logs args=decide]
+ok 69 - m6b anchor
+ok 70 - m6b the real lib_keys keeps --proto-redir (covered by the r3 argv assertions)
+# test_review_fixes_r4.sh: pass=70 fail=0 skip=0

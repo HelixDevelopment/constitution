@@ -1,0 +1,4 @@
+scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py
+scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py
+scripts/workable-items/cmd/workable-items/group.go
+scripts/helix_code/helix_code_home.sh

@@ -1,0 +1,17 @@
+CONTROL	unmutated	st_check.sh	PASS rc=0 50s	
+CONTROL	unmutated	test_python_isolation.sh	PASS rc=0 42s	
+CONTROL	unmutated	test_shell_state_patsub.sh	PASS rc=0 1s	
+CONTROL	unmutated	test_timeout_tty.sh	PASS rc=0 123s	
+TT-M1	hi_gx ignore removed (both files, block kept identical)	test_timeout_tty.sh	KILLED rc=1 163s	FAIL every timeout site of the six scripts is classified (new sites must be added here) (expected [install_constitution.sh|hi_gx|yes
+TT-M2	hi_version_of ignore removed	test_timeout_tty.sh	KILLED rc=1 139s	FAIL every timeout site of the six scripts is classified (new sites must be added here) (expected [install_constitution.sh|hi_gx|yes
+TT-M3	hi_detect_agents ignore removed (claude-list-accounts)	test_timeout_tty.sh	KILLED rc=1 145s	FAIL every timeout site of the six scripts is classified (new sites must be added here) (expected [install_constitution.sh|hi_gx|yes
+TT-M4	hi_detect_agents ignore removed (claude-providers list)	test_timeout_tty.sh	KILLED rc=1 145s	FAIL T5 hi_detect_agents: claude-providers list (20 s) [uutils]: rc=CAPPED secs=40.1 left=0 (want rc=0, 20s to 25s, nothing left)
+TT-M5	hi_run_agent ignore removed	test_timeout_tty.sh	KILLED rc=1 153s	FAIL hi_run_agent: the job that runs the timeout array ignores SIGTTIN/SIGTTOU (expected [1] got [0])
+PY-M1	install_action_prefix.sh python3 without -I	test_python_isolation.sh	KILLED rc=1 72s	FAIL every python3 invocation in the six install scripts runs with -I (5 found) (expected [] got [/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasi
+PS-M1	installer header comment back to 'to bash's defaults' with no exception (both files)	test_shell_state_patsub.sh	KILLED rc=1 1s	FAIL every comment that says the reset restores bash's defaults names the patsub_replacement exception (expected [] got [/home/milosvasic/.cache/claude-tmp/clau
+PS-M2	patsub_replacement dropped from the reset's shopt -u (all four copies)	test_shell_state_patsub.sh	KILLED rc=1 1s	FAIL install_constitution.sh: patsub_replacement is off after hi_reset_shell_state (bash 5.3.9) (expected [off] got [on])
+ST-M1	stale check of PROGS removed from the gate	st_check.sh	KILLED rc=1 56s	FAIL ST-1	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form
+ST-M2	stale check of EXT_EXACT removed from the gate	st_check.sh	KILLED rc=1 42s	FAIL ST-2	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form
+ST-M3	stale check of GX_EXACT removed from the gate	st_check.sh	KILLED rc=1 47s	FAIL ST-3	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form
+ST-M4	stale check of SANCTIONED_FILE_CMDS removed from the gate	st_check.sh	KILLED rc=1 40s	FAIL ST-4	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form
+rc=0

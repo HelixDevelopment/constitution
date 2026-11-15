@@ -1,0 +1,48 @@
+=== R6 regression guard: control needle -- fixtures + the fixed tool + pinned copy all exist ===
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r6_fix.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/as_r6_overflow_live_agents.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/as_r6_live_agents_bool.json not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/as_r6_live_agents_negative.json not found
+
+=== R6-I2(a): live_agents so large that live_agents/m raises OverflowError ===
+NOT ok R6-I2(a) real (fixed) tool: rc=2 (wanted 2), out_exists=no, stderr=python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+NOT ok R6-I2(a) guard-viability BLIND: python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r6_fix.py': [Errno 2] No such file or directory
+
+=== R6-I2(c): live_agents: true (JSON bool) must be REJECTED, never treated as 1 ===
+NOT ok R6-I2(c) real (fixed) tool: rc=2 (wanted 2), out_exists=no, stderr=python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+NOT ok R6-I2(c) guard-viability BLIND: pinned copy did not cleanly accept
+     rc=2, out_exists=no -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r6_fix.py': [Errno 2] No such file or directory
+
+=== R6-I2(d): live_agents: -5 (negative) must be REJECTED, never silently zero-placed ===
+NOT ok R6-I2(d) real (fixed) tool: rc=2 (wanted 2), out_exists=no, stderr=python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+NOT ok R6-I2(d) guard-viability BLIND: pinned copy did not cleanly accept
+     rc=2, out_exists=no -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r6_fix.py': [Errno 2] No such file or directory
+
+=== R6-I2(b): unwritable --out (parent path component is a regular FILE) -- classify ===
+NOT ok R6-I2(b)/classify real (fixed) tool: rc=2 (wanted 2) -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+NOT ok R6-I2(b)/classify guard-viability BLIND: python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r6_fix.py': [Errno 2] No such file or directory
+
+=== R6-I2(b): unwritable --out -- place ===
+NOT ok R6-I2(b)/place real (fixed) tool: rc=2 (wanted 2) -- python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py': [Errno 2] No such file or directory
+NOT ok R6-I2(b)/place guard-viability BLIND: python3: can't open file '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r6_fix.py': [Errno 2] No such file or directory
+
+=== N2: write_class_doc_atomic must reject a non-finite float (allow_nan=False), direct module probe ===
+    (section 11.4.115(G): defensive hardening, no live CLI path reaches this today -- see file header)
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/orchestration/limit_class.py'
+NOT ok N2 real (fixed) module probe: 
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/alias_spread/_pinned/limit_class_pre_r6_fix.py'
+NOT ok N2 guard-viability BLIND: 
+
+=== R6 REGRESSION GUARD (limit_class.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

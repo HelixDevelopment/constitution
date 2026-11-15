@@ -408,7 +408,7 @@ mt_provider_operability_probe() {
         [ -n "$_route" ] || continue
         _body='{"model":"'"$_route"'","max_tokens":16,"messages":[{"role":"user","content":"PING"}]}'
         # shellcheck disable=SC2086
-        _code=$($_to curl -s -o /dev/null -w '%{http_code}' \
+        _code=$(trap '' TTIN TTOU; $_to curl -s -o /dev/null -w '%{http_code}' \
                  -H 'content-type: application/json' -H 'x-api-key: dummy' \
                  -X POST "$MT_BAL_CCR_BASE/v1/messages" -d "$_body" 2>/dev/null)
         if [ "$_code" = "200" ]; then

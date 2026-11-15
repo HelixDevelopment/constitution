@@ -29,6 +29,7 @@
 # §11.4.187 (stream-json result, never exit code), §11.4.287 (no recursive delete), §11.4.10 (secrets).
 #
 # This block must stay POSIX sh: when a non-bash shell runs the file it re-executes it under bash.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 if [ -z "${BASH_VERSION:-}" ]; then
   # only a file named like the installer (…sh path) is re-executed: under `… | sh` $0 is the shell's own name,
   # and a file of that name in the current directory must never be run
@@ -43,6 +44,86 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 HI_SOURCED=0; (return 0 2>/dev/null) && HI_SOURCED=1   # 1 only when this file is sourced (tests), never when run
+# >>> hi_shell_state (identical in install_constitution.sh and update_constitution.sh)
+# What the caller's shell hands down never changes what this script decides (docs/qa/installer_sigpipe_2026_11_13/
+# round2). hi_reset_shell_state returns every option a caller can pass on (BASH_COMPAT, POSIXLY_CORRECT, SHELLOPTS,
+# BASHOPTS, `bash -e`, `bash -o posix`, CDPATH, TMOUT, GLOBIGNORE) to bash's defaults, with one exception:
+# `patsub_replacement` is turned OFF (bash 5.2 and later turn it on), so `&` in the replacement of
+# ${var//pat/rep} stays a literal `&`, as in bash 5.1 and older. It runs only when the file is
+# RUN (a test that sources the file keeps its own shell), and before the first function that needs it is parsed:
+# bash 5.0 and older in posix mode reject `<(...)` while parsing. Not covered: BASH_ENV and exported functions, which
+# run before the first line of this file. The text helpers below work inside the shell: no here-string and no
+# here-document (bash keeps those in a temporary file, always before bash 5.1 and above 8 KiB after it; when the file
+# cannot be written the command is skipped and a check reads as passed), and no pipe into a reader that can exit
+# early (under pipefail the writer then dies of SIGPIPE, 141, and a match reads as no match).
+hi_reset_shell_state() {
+  local o
+  for o in BASH_COMPAT POSIXLY_CORRECT CDPATH TMOUT GLOBIGNORE; do unset "$o" 2>/dev/null; done
+  IFS=$' \t\n'
+  for o in posix allexport noclobber noglob errexit nounset keyword physical monitor errtrace functrace; do
+    set +o "$o" 2>/dev/null
+  done
+  for o in braceexpand hashall; do set -o "$o" 2>/dev/null; done
+  # one shopt call per direction: a name this bash does not know is skipped and the others still apply (bash 3.2
+  # to 5.3); the no-push gate pins these two lines, option lists included
+  shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar \
+    failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit localvar_unset cdable_vars \
+    extdebug execfail inherit_errexit assoc_expand_once array_expand_once patsub_replacement 2>/dev/null
+  shopt -s extquote globasciiranges 2>/dev/null
+  unset BASH_COMPAT 2>/dev/null   # bash 5.0 and later set it to their own version when a compatNN option is unset
+  return 0
+}
+[ "${HI_SOURCED:-0}" = 1 ] || hi_reset_shell_state   # run, not sourced: the caller's shell state is not inherited
+hi_plumbing_ok() { # 0 when process substitution works here (bash needs /dev/fd, or a writable TMPDIR for a fifo)
+  local x=""
+  { IFS= read -r x < <(printf 'ok\n'); } 2>/dev/null
+  [ "$x" = ok ]
+}
+# shellcheck disable=SC2206  # a deliberate split on newlines, with globbing off
+hi_split_lines() { # text → HI_LINES: its lines, bytes kept; empty lines are dropped
+  local IFS=$'\n' f=0
+  case $- in *f*) f=1 ;; esac
+  set -f
+  HI_LINES=($1)
+  [ "$f" = 1 ] || set +f
+}
+# shellcheck disable=SC2206  # a deliberate split on the separator, with globbing off
+hi_split() { # separator text → HI_SPLIT: the fields of the first line of text, as `IFS=<separator> read -r -a` gives them
+  local IFS="$1" f=0 nl=$'\n'
+  case $- in *f*) f=1 ;; esac
+  set -f
+  HI_SPLIT=(${2%%"$nl"*})
+  [ "$f" = 1 ] || set +f
+}
+# shellcheck disable=SC2295  # $ws holds blanks only: no pattern character, quoting it changes nothing
+hi_read_fields() { # line n → HI_F: the n values `read -r v1 ... vn` (default IFS) assigns for that line
+  local s="$1" n="$2" w ws=$' \t\n'
+  HI_F=()
+  s="${s#"${s%%[!$ws]*}"}"
+  while [ "$n" -gt 1 ]; do
+    w="${s%%[$ws]*}"
+    HI_F+=("$w")
+    s="${s#"$w"}"
+    s="${s#"${s%%[!$ws]*}"}"
+    n=$((n - 1))
+  done
+  s="${s%"${s##*[!$ws]}"}"
+  HI_F+=("$s")
+}
+hi_has_line_prefix() { # text prefix → 0 when a line of text starts with prefix (`grep -q "^prefix"` for a literal)
+  local nl=$'\n'
+  [[ "$nl$1" == *"$nl$2"* ]]
+}
+hi_line_in() { # needle text → 0 when a line of needle equals a line of text (`grep -qxF -- needle <<<"$text"`)
+  local nl=$'\n' rest="$1" p
+  while :; do
+    p="${rest%%"$nl"*}"
+    [[ "$nl$2$nl" == *"$nl$p$nl"* ]] && return 0
+    [ "$p" = "$rest" ] && return 1
+    rest="${rest#*"$nl"}"
+  done
+}
+# <<< hi_shell_state
 HI_VERSION="1.0.0"
 HI_SUB="submodules/constitution"
 HI_LEGACY="constitution"
@@ -53,30 +134,28 @@ HI_MARK_END="<!-- END helix-constitution-inheritance -->"
 # ───────────────────────────── data ─────────────────────────────
 # key|raw installer URL ("-" = none)|https clone URL|ssh clone URL
 hi_upstream_table() {
-  cat <<'EOF'
-github|https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh|https://github.com/HelixDevelopment/HelixConstitution.git|git@github.com:HelixDevelopment/HelixConstitution.git
-gitlab|https://gitlab.com/helixdevelopment1/helixconstitution/-/raw/main/scripts/install_constitution.sh|https://gitlab.com/helixdevelopment1/helixconstitution.git|git@gitlab.com:helixdevelopment1/helixconstitution.git
-gitlab-vasic|https://gitlab.com/vasic-digital/HelixConstitution/-/raw/main/scripts/install_constitution.sh|https://gitlab.com/vasic-digital/HelixConstitution.git|git@gitlab.com:vasic-digital/HelixConstitution.git
-gitflic|https://gitflic.ru/project/helixdevelopment/helixconstitution/blob/raw?file=scripts/install_constitution.sh&branch=main|https://gitflic.ru/project/helixdevelopment/helixconstitution.git|git@gitflic.ru:helixdevelopment/helixconstitution.git
-gitverse|https://gitverse.ru/api/repos/helixdevelopment/HelixConstitution/raw/branch/main/scripts/install_constitution.sh|https://gitverse.ru/helixdevelopment/HelixConstitution.git|git@gitverse.ru:helixdevelopment/HelixConstitution.git
-github-vasic|-|https://github.com/vasic-digital/HelixConstitution.git|git@github.com:vasic-digital/HelixConstitution.git
-EOF
+  printf '%s\n' \
+    'github|https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh|https://github.com/HelixDevelopment/HelixConstitution.git|git@github.com:HelixDevelopment/HelixConstitution.git' \
+    'gitlab|https://gitlab.com/helixdevelopment1/helixconstitution/-/raw/main/scripts/install_constitution.sh|https://gitlab.com/helixdevelopment1/helixconstitution.git|git@gitlab.com:helixdevelopment1/helixconstitution.git' \
+    'gitlab-vasic|https://gitlab.com/vasic-digital/HelixConstitution/-/raw/main/scripts/install_constitution.sh|https://gitlab.com/vasic-digital/HelixConstitution.git|git@gitlab.com:vasic-digital/HelixConstitution.git' \
+    'gitflic|https://gitflic.ru/project/helixdevelopment/helixconstitution/blob/raw?file=scripts/install_constitution.sh&branch=main|https://gitflic.ru/project/helixdevelopment/helixconstitution.git|git@gitflic.ru:helixdevelopment/helixconstitution.git' \
+    'gitverse|https://gitverse.ru/api/repos/helixdevelopment/HelixConstitution/raw/branch/main/scripts/install_constitution.sh|https://gitverse.ru/helixdevelopment/HelixConstitution.git|git@gitverse.ru:helixdevelopment/HelixConstitution.git' \
+    'github-vasic|-|https://github.com/vasic-digital/HelixConstitution.git|git@github.com:vasic-digital/HelixConstitution.git'
 }
 # id|tier — agents the installer looks for; drivable = can run the setup prompt headlessly.
 hi_agent_table() {
-  cat <<'EOF'
-claude|drivable
-kimi|drivable
-opencode|drivable
-pi|drivable
-aider|detect-only
-codex|detect-only
-gemini|detect-only
-qwen|detect-only
-cursor-agent|detect-only
-amp|detect-only
-goose|detect-only
-EOF
+  printf '%s\n' \
+    'claude|drivable' \
+    'kimi|drivable' \
+    'opencode|drivable' \
+    'pi|drivable' \
+    'aider|detect-only' \
+    'codex|detect-only' \
+    'gemini|detect-only' \
+    'qwen|detect-only' \
+    'cursor-agent|detect-only' \
+    'amp|detect-only' \
+    'goose|detect-only'
 }
 
 hi_print_snippets() {
@@ -87,9 +166,9 @@ hi_print_snippets() {
   done < <(hi_upstream_table)
 }
 
-hi_help() {
-  cat <<'HELIX_HELP'
-install_constitution.sh — add or update the Helix Constitution (git submodule at submodules/constitution).
+# shellcheck disable=SC2016  # literal help text: the backticks and $ are meant to be printed
+hi_help() { # one single-quoted literal (no here-document: see hi_shell_state)
+  printf '%s\n' 'install_constitution.sh — add or update the Helix Constitution (git submodule at submodules/constitution).
 
 Usage:  curl -fsSL <RAW_URL> | bash -s -- [flags]      or      bash install_constitution.sh [flags]
 Flags take `--flag value` or `--flag=value`; a lone `--` ends the flags. Needs bash >= 4.4 and git.
@@ -131,7 +210,7 @@ Flags:
                             removed remote); only one that could not be asked before the run either is
                             skipped, and it is named. The remote comparison fingerprints what each remote
                             advertises with sha256sum (cksum as the fallback); when NEITHER sha256sum nor cksum
-                            is on PATH the check fails closed and the run is refused. Somebody else's push
+                            is on PATH the check fails closed and the run is refused. Somebody else'\''s push
                             during the run is a false positive
                             (refused). The deny list also covers gh, glab, curl and wget, but forge
                             APIs reachable through other tools (python, node, ssh ...) are NOT blocked
@@ -160,7 +239,7 @@ Flags:
   --git-init                consent to `git init` when the directory is not a git repository
   --not-constitution-repo   the project has its own Constitution.md and is NOT the constitution repository:
                             skips only the heuristic self-checks (the constitution marker files; a shallow clone
-                            with Constitution.md). A repository whose history starts with the constitution's first
+                            with Constitution.md). A repository whose history starts with the constitution'\''s first
                             commit, or whose remote is a known constitution upstream, is refused regardless.
   --dry-run                 print the full plan; write nothing
   --non-interactive         never ask; use flags and defaults
@@ -185,8 +264,7 @@ history and tags, file contents fetched on demand); a server without partial-clo
 git runs with a sanitised environment: inherited GIT_* variables are dropped (except the config-file selection,
 author/committer identity, CA bundle and protocol limits) and ssh is always "ssh -o BatchMode=yes -o
 ConnectTimeout=10" (put ssh keys/ports in ~/.ssh/config). URLs are shown with credentials removed and every
-query value replaced by REDACTED; a URL carrying a password or a token query is never used for probing.
-HELIX_HELP
+query value replaced by REDACTED; a URL carrying a password or a token query is never used for probing.'
 }
 
 # ───────────────────────────── output ─────────────────────────────
@@ -251,7 +329,7 @@ hi_sanitize_url() {
   if [[ "$u" == *\?* ]]; then # every query value is redacted (tokens travel there: ?private_token=…, ?access_token=…)
     q="${u#*\?}"; u="${u%%\?*}"
     local frag=""; [[ "$q" == *#* ]] && { frag="#${q#*#}"; q="${q%%#*}"; }
-    local -a kvs=(); IFS='&' read -r -a kvs <<<"$q"
+    local -a kvs=(); hi_split '&' "$q"; kvs=(${HI_SPLIT[@]+"${HI_SPLIT[@]}"})
     for kv in ${kvs[@]+"${kvs[@]}"}; do
       [[ "$kv" == *=* ]] && kv="${kv%%=*}=REDACTED"
       out="${out:+$out&}$kv"
@@ -391,7 +469,11 @@ hi_gx() {
       esac
     done
     export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10"
-    if [ -n "${HI_GX_TIMEOUT:-}" ]; then exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
+    # timeout moves itself and git into a background process group of the terminal: when git touches the terminal
+    # the kernel sends SIGTTOU/SIGTTIN to the whole group, and uutils timeout (unlike GNU) does not ignore them, so it
+    # stopped with git and its limit never fired. Ignored for timeout only: GNU and uutils timeout reset them for git
+    # (measured); busybox timeout passes the ignore on to git, but it makes no new process group, so none is sent.
+    if [ -n "${HI_GX_TIMEOUT:-}" ]; then trap '' TTIN TTOU; exec timeout "$HI_GX_TIMEOUT" "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"
     else exec "$HI_GX_BIN" ${pre[@]+"${pre[@]}"} "$@"; fi
   )
 }
@@ -473,10 +555,10 @@ hi_newest_tag() {
 # that invocation or a running total; summing it per run can only over-count, so the budget stays safe).
 hi_parse_stream() {
   if command -v python3 >/dev/null 2>&1; then
-    python3 -I - "$1" <<'PY'
-import json, re, sys
+    # the program is a -c literal, never a here-document (see hi_shell_state); stdin is not read
+    python3 -I -c 'import json, re, sys
 res, sid, rl, cost = "none", "", 0, "unknown"
-pat = re.compile(r'"api_?[eE]rror_?[sS]tatus"\s*:\s*429')
+pat = re.compile(r"\"api_?[eE]rror_?[sS]tatus\"\s*:\s*429")
 with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
     for line in fh:
         if pat.search(line): rl = 1
@@ -492,7 +574,7 @@ with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
             c = e.get("total_cost_usd")
             cost = (("%.6f" % c).rstrip("0").rstrip(".") or "0") if isinstance(c, (int, float)) and not isinstance(c, bool) and c >= 0 else "unknown"
 print("result=%s session=%s rate_limited=%d cost=%s" % (res, sid, rl, cost))
-PY
+' "$1" </dev/null
   elif command -v jq >/dev/null 2>&1; then
     local rl=0
     grep -Eq '"api_?[eE]rror_?[sS]tatus"[[:space:]]*:[[:space:]]*429' "$1" && rl=1
@@ -519,7 +601,11 @@ hi_uuid() {
 # ───────────────────────────── detection ─────────────────────────────
 hi_version_of() { # path → first line of `--version`, run from / with a 5 s limit
   local v
-  v="$(cd / && timeout 5 "$1" --version </dev/null 2>&1 | head -n 1)"
+  # SIGTTIN/SIGTTOU ignored for timeout (it resets them for the program): a program that touches the terminal from
+  # timeout's background group would stop uutils timeout with it, and the 5 s limit would never fire (the same in
+  # hi_detect_agents, hi_gx and hi_run_agent)
+  # (the group scopes the ignore to timeout; awk does not inherit it)
+  v="$(cd / && { trap '' TTIN TTOU; timeout 5 "$1" --version </dev/null 2>&1; } | awk 'NR == 1')"   # awk reads to EOF: no SIGPIPE
   v="${v//[[:cntrl:]]/}"; v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
   printf '%s' "${v:0:120}"
 }
@@ -533,14 +619,14 @@ hi_detect_agents() {
   done < <(hi_agent_table)
   cl="$(command -v claude 2>/dev/null)"; cv=""; [ -n "$cl" ] && cv="$(hi_version_of "$cl")"
   if command -v claude-list-accounts >/dev/null 2>&1; then
-    timeout 20 claude-list-accounts 2>/dev/null </dev/null | awk '$1 ~ /^claude[0-9]+$/ { print $1 "|" $3 }' | sort -u \
+    { trap '' TTIN TTOU; timeout 20 claude-list-accounts 2>/dev/null </dev/null; } | awk '$1 ~ /^claude[0-9]+$/ { print $1 "|" $3 }' | sort -u \
       | while IFS='|' read -r a st; do
           printf '%s|native-alias|drivable|%s|%s|%s|creds:%s\n' "$a" "$([ -n "$cl" ] && echo true || echo false)" "$cl" "$cv" "${st:-?}"
         done
   fi
   if [ "${HI_DETECT_PROVIDERS:-1}" = 1 ] && command -v claude-providers >/dev/null 2>&1; then
-    timeout 20 claude-providers list 2>/dev/null </dev/null | awk '
-      /^##/ { exit } NR == 1 { next } NF >= 3 && $1 ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ { print $1 "|" $3 }' \
+    { trap '' TTIN TTOU; timeout 20 claude-providers list 2>/dev/null </dev/null; } | awk '
+      /^##/ { done = 1 } done { next } NR == 1 { next } NF >= 3 && $1 ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ { print $1 "|" $3 }' \
       | while IFS='|' read -r a st; do
           hi_validate_agent_id "$a" || continue
           printf '%s|provider-alias|drivable|%s|%s|%s|%s\n' "$a" "$([ -n "$cl" ] && echo true || echo false)" "$cl" "$cv" "$st"
@@ -565,13 +651,14 @@ hi_detect_agents_json() {
 # no entry (partial, recoverable). The same gap in a COMMITTED gitlink is the user's own state
 # (inconsistent): the installer refuses rather than guess.
 hi_layout() {
-  local r="$1" s=0 l=0
-  if hi_gx -C "$r" ls-files -s -- "$HI_SUB" 2>/dev/null | grep -q '^160000 '; then
+  local r="$1" s=0 l=0 o
+  # captured, then tested in the shell (hi_shell_state: never `cmd | grep -q`, never a here-string)
+  if o="$(hi_gx -C "$r" ls-files -s -- "$HI_SUB" 2>/dev/null)" && hi_has_line_prefix "$o" '160000 '; then
     if hi_gx -C "$r" config -f "$r/.gitmodules" --get "submodule.$HI_SUB.path" >/dev/null 2>&1; then s=1
-    elif hi_gx -C "$r" ls-tree HEAD -- "$HI_SUB" 2>/dev/null | grep -q '^160000 '; then echo inconsistent; return
+    elif o="$(hi_gx -C "$r" ls-tree HEAD -- "$HI_SUB" 2>/dev/null)" && hi_has_line_prefix "$o" '160000 '; then echo inconsistent; return
     else echo partial; return; fi
   fi
-  hi_gx -C "$r" ls-files -s -- "$HI_LEGACY" 2>/dev/null | grep -q '^160000 ' && l=1
+  o="$(hi_gx -C "$r" ls-files -s -- "$HI_LEGACY" 2>/dev/null)" && hi_has_line_prefix "$o" '160000 ' && l=1
   if [ "$s" = 1 ] && [ "$l" = 1 ]; then echo both; return; fi
   [ "$s" = 1 ] && { echo standard; return; }
   [ "$l" = 1 ] && { echo legacy; return; }
@@ -621,7 +708,7 @@ hi_is_constitution_repo() {
   while IFS= read -r r; do
     [ -n "$r" ] || continue
     u="$(hi_gx -C "$d" remote get-url "$r" 2>/dev/null)" || continue
-    if grep -qxF -- "$(hi_norm_url "$u")" <<<"$known"; then
+    if hi_line_in "$(hi_norm_url "$u")" "$known"; then
       printf "its remote '%s' is a known constitution upstream (%s)" "$r" "$(hi_sanitize_url "$u")"; return 0
     fi
   done < <(hi_gx -C "$d" remote 2>/dev/null)
@@ -675,7 +762,7 @@ hi_parse_args() { # accepts `--flag value` and `--flag=value`; a lone `--` ends 
     fi
     case "$a" in
       --project-root) hi_validate_path "$v" || { hi_err "invalid --project-root"; return 2; }; O_ROOT="$v" ;;
-      --upstream) hi_upstream_table | cut -d'|' -f1 | grep -qxF -- "$v" || { hi_err "unknown --upstream (see --help)"; return 2; }; O_UPSTREAM="$v" ;;
+      --upstream) hi_upstream_ok "$v" || { hi_err "unknown --upstream (see --help)"; return 2; }; O_UPSTREAM="$v" ;;
       --upstream-url) hi_validate_url "$v" || { hi_err "invalid --upstream-url (allowed: https/http/ssh/git/file URLs, user@host:path, absolute paths)"; return 2; }; O_URLS+=("$v") ;;
       --ssh) O_SSH=1 ;;
       --ref) hi_validate_ref "$v" || { hi_err "invalid --ref"; return 2; }; O_REF="$v" ;;
@@ -751,7 +838,7 @@ hi_yn() { case "$1" in y|Y|yes|n|N|no) return 0 ;; esac; return 1; }
 hi_is_yes() { case "$1" in y|Y|yes) return 0 ;; esac; return 1; }
 hi_agent_answer_ok() { [ "$1" = none ] || [[ "$1" =~ ^[0-9]{1,4}$ ]] || hi_validate_agent_id "$1"; }
 hi_decision_ok() { case "$1" in off|shadow|enforce) return 0 ;; esac; return 1; }
-hi_upstream_ok() { hi_upstream_table | cut -d'|' -f1 | grep -qxF -- "$1"; }
+hi_upstream_ok() { local k; k="$(hi_upstream_table | cut -d'|' -f1)"; hi_line_in "$1" "$k"; }
 hi_onoff_from_yn() { if hi_is_yes "$1"; then printf on; else printf off; fi; }
 
 hi_interactive_questions() {
@@ -839,7 +926,9 @@ hi_resolve_ref() { # → S_REF; 0 ok, 3 not found upstream
   if [ -n "$O_REF" ]; then
     S_REF="$O_REF"
     [[ "$O_REF" =~ ^[0-9a-f]{7,40}$ ]] && return 0
-    GIT_TERMINAL_PROMPT=0 HI_GX_TIMEOUT=60 hi_gx -c protocol.file.allow=always ls-remote -- "$S_URL" "$O_REF" 2>/dev/null | grep -q . && return 0
+    local o   # captured, then tested in the shell (hi_shell_state)
+    o="$(GIT_TERMINAL_PROMPT=0 HI_GX_TIMEOUT=60 hi_gx -c protocol.file.allow=always ls-remote -- "$S_URL" "$O_REF" 2>/dev/null)" \
+      && [ -n "$o" ] && return 0
     hi_err "ref $O_REF not found on $(hi_sanitize_url "$S_URL")"; return 3
   fi
   S_REF="$(printf '%s\n' "$S_TAGS" | hi_newest_tag)"
@@ -954,7 +1043,7 @@ hi_holder_alive() {
     case "$msg" in *"No such process"*) return 1 ;; esac
   fi
   st="$(cat "/proc/$p/stat" 2>/dev/null)" || return 0
-  st="${st##*) }"; read -r -a st <<<"$st"; start="${st[19]:-}"
+  st="${st##*) }"; hi_split $' \t\n' "$st"; st=(${HI_SPLIT[@]+"${HI_SPLIT[@]}"}); start="${st[19]:-}"
   hz="$(getconf CLK_TCK 2>/dev/null)"; bt="$(awk '$1 == "btime" { print $2; exit }' /proc/stat 2>/dev/null)"
   mt="$(stat -c %Y -- "$f" 2>/dev/null || stat -f %m -- "$f" 2>/dev/null)"
   [[ "$start" =~ ^[0-9]+$ && "$hz" =~ ^[1-9][0-9]*$ && "$bt" =~ ^[0-9]+$ && "$mt" =~ ^[0-9]+$ ]] || return 0
@@ -1060,7 +1149,7 @@ hi_stop_agent() {
   [[ "$p" =~ ^[1-9][0-9]*$ ]] && [ "$p" -gt 1 ] && [ "$p" != "$$" ] || return 0
   for j in $(jobs -p); do [ "$j" = "$p" ] && ours=1; done
   [ "$ours" = 1 ] || return 0
-  if st="$(cat "/proc/$p/stat" 2>/dev/null)"; then st="${st##*) }"; read -r _ _ pg _ <<<"$st"; fi
+  if st="$(cat "/proc/$p/stat" 2>/dev/null)"; then st="${st##*) }"; hi_read_fields "$st" 4; pg="${HI_F[2]}"; fi
   hi_err "stopping the agent (pid $p) ..."
   kill -s TERM -- "$p" 2>/dev/null
   wait "$p" 2>/dev/null
@@ -1107,8 +1196,9 @@ hi_complete_interrupted_add() {
   return 0
 }
 hi_staged_only_gitlink() { # a gitlink at $HI_SUB in the index but not in HEAD
-  hi_git ls-files -s -- "$HI_SUB" 2>/dev/null | grep -q '^160000 ' \
-    && ! hi_gx -C "$O_ROOT" ls-tree HEAD -- "$HI_SUB" 2>/dev/null | grep -q '^160000 '
+  local o t   # captured, then tested in the shell (hi_shell_state)
+  o="$(hi_git ls-files -s -- "$HI_SUB" 2>/dev/null)" && hi_has_line_prefix "$o" '160000 ' \
+    && ! { t="$(hi_gx -C "$O_ROOT" ls-tree HEAD -- "$HI_SUB" 2>/dev/null)" && hi_has_line_prefix "$t" '160000 '; }
 }
 hi_gitmodules_user_dirty() { # 0 when .gitmodules (worktree or index) differs from HEAD beyond the installer's own section
   local tw ti th a b c
@@ -1179,7 +1269,7 @@ hi_recover_partial() { # leftovers of an interrupted ADD by this installer → m
 # backup dir, marked, checked out at the resolved commit, moved into place, then registered with
 # `git submodule add` (existing repository) and its gitdir absorbed into the project's .git/modules.
 hi_gitlink_of() { # dir relpath → the commit the INDEX of dir records for that submodule (empty when none)
-  local l; l="$(hi_gx -C "$1" ls-files -s -- "$2" 2>/dev/null | head -n 1)"
+  local l nl=$'\n'; l="$(hi_gx -C "$1" ls-files -s -- "$2" 2>/dev/null)"; l="${l%%"$nl"*}"
   case "$l" in "160000 "*) l="${l#160000 }"; printf '%s' "${l%% *}" ;; esac
 }
 hi_do_add() {
@@ -1243,8 +1333,13 @@ hi_do_add() {
 # remotes), a hex string to that commit; a local tag/branch is used only when no remote has the name (KIND
 # local-ref, which the caller announces). The caller still requires the commit to be on a remote.
 hi_resolve_ref_in() {
-  local d="$1" ref="$2" o r sha
-  o="$(printf '%s\n' "$3" | awk -v n="$ref" '$1 == n { print $2; exit }')"
+  local d="$1" ref="$2" o="" r sha line
+  local -a tl=()
+  hi_split_lines "$3"; tl=(${HI_LINES[@]+"${HI_LINES[@]}"})
+  for line in ${tl[@]+"${tl[@]}"}; do   # the first line naming ref, compared as a string (in the shell: hi_shell_state)
+    hi_read_fields "$line" 3
+    if [ "${HI_F[0]}" = "$ref" ]; then o="${HI_F[1]}"; break; fi
+  done
   if [ -n "$o" ] && sha="$(hi_gx -C "$d" rev-parse --verify --quiet "$o^{commit}" 2>/dev/null)"; then printf 'remote-tag %s\n' "$sha"; return 0; fi
   if sha="$(hi_gx -C "$d" rev-parse --verify --quiet "refs/remotes/$ref^{commit}" 2>/dev/null)"; then printf 'remote-branch %s\n' "$sha"; return 0; fi
   while read -r r; do
@@ -1279,12 +1374,13 @@ hi_remote_tags_of() {
 # dir sha live → 0 when sha is one of the live commits or an ancestor of one (so a fresh clone can fetch it)
 hi_on_remote() {
   local l
+  local -a ll=()
   [[ "$2" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || return 1
-  while IFS= read -r l; do
-    [ -n "$l" ] || continue
+  hi_split_lines "$3"; ll=(${HI_LINES[@]+"${HI_LINES[@]}"})   # in the shell, never a here-string (hi_shell_state)
+  for l in ${ll[@]+"${ll[@]}"}; do
     [ "$l" = "$2" ] && return 0
     hi_gx -C "$1" merge-base --is-ancestor "$2" "$l" 2>/dev/null && return 0
-  done <<<"$3"
+  done
   return 1
 }
 # <<< hi_remote_live
@@ -1303,7 +1399,7 @@ hi_gitlink_rel() {
 }
 # dir relpath → the gitlink the HEAD COMMIT of dir records for that submodule (empty when none / no commit yet)
 hi_gitlink_committed() {
-  local l; l="$(hi_gx -C "$1" ls-tree HEAD -- "$2" 2>/dev/null | head -n 1)"
+  local l nl=$'\n'; l="$(hi_gx -C "$1" ls-tree HEAD -- "$2" 2>/dev/null)"; l="${l%%"$nl"*}"
   case "$l" in "160000 commit "*) l="${l#160000 commit }"; printf '%s' "${l%%[[:space:]]*}" ;; esac
 }
 # <<< hi_gitlink_rel
@@ -1575,7 +1671,10 @@ hi_run_agent() {
   : >"$log" && : >"$log.stderr" && chmod 600 "$log" "$log.stderr" || return 1   # transcripts are private
   # a background job + wait: a signal reaches the installer's trap at once (bash defers traps while a
   # foreground child runs, and timeout puts the agent in its own process group, out of reach of Ctrl-C)
-  (cd "$O_ROOT" && umask "${HI_UMASK0:-$(umask)}" && hi_scrub_git_env && exec "${cmd[@]}") </dev/null >>"$log" 2>>"$log.stderr" &
+  # SIGTTIN/SIGTTOU ignored in the job, so in timeout (which resets them for the agent: the agent still stops when
+  # it touches the terminal, and is killed at the limit): otherwise uutils timeout stopped with the agent and the
+  # time limit never fired
+  (trap '' TTIN TTOU; cd "$O_ROOT" && umask "${HI_UMASK0:-$(umask)}" && hi_scrub_git_env && exec "${cmd[@]}") </dev/null >>"$log" 2>>"$log.stderr" &
   HI_AGENT_PID=$!
   wait "$HI_AGENT_PID"; rc=$?
   HI_AGENT_PID=""
@@ -1672,48 +1771,92 @@ hi_push_marks() {
 # before and cannot be asked after it fails closed, like a removed remote); (d) a push to another repository (not the project and
 # not the constitution), and any push the remote reverses before the second look, are not seen.
 hi_push_changed() {
-  local b="$1" a="$2" k i r s f h
-  local w
-  while read -r k i r; do       # only what could not be asked BEFORE the run is skipped, and it is named (limit c)
-    [ "$k" = U ] || [ "$k" = X ] || continue
-    if [ "$i" = 0 ]; then w=project; else w=constitution; fi
-    if [ "$k" = U ]; then w="remote '$r' of the $w"; else w="url $(printf '%s' "$r" | hi_scrub) of the $w"; fi
-    hi_warn "no-push check: $w could not be asked before the agent run; a push to it cannot be seen (skipped, not trusted)"
-  done <<<"$b"
-  if printf '%s\n%s\n' "$b" "$a" | grep -q '^Z '; then   # a remote answered but no fingerprint tool exists: fail closed
+  local b="$1" a="$2" k i r s f h w line x u h1 dir o mb="" ma="" nl=$'\n'
+  local -a bl=() al=()
+  local -A rb=() ra=() va=() da=()
+  # hi_shell_state: the marks are split and compared in the shell (no here-string: a large mark, or any mark before
+  # bash 5.1, needs a temporary file and a failed one would skip a check; no pipe into a reader that exits early)
+  hi_split_lines "$b"; bl=(${HI_LINES[@]+"${HI_LINES[@]}"})
+  hi_split_lines "$a"; al=(${HI_LINES[@]+"${HI_LINES[@]}"})
+  # each loop first skips, with a pattern, the lines whose kind cannot be the one it reads (the kind is the first
+  # field after leading blanks): hi_read_fields then runs about once per line, not once per line and loop
+  for line in ${bl[@]+"${bl[@]}"}; do
+    rb["$line"]=1
+    case "$line" in [UXMD]|[UXMD][[:blank:]]*|[[:blank:]]*) ;; *) continue ;; esac
+    hi_read_fields "$line" 3; k="${HI_F[0]}"; i="${HI_F[1]}"; r="${HI_F[2]}"
+    case "$k" in
+      U|X)   # only what could not be asked BEFORE the run is skipped, and it is named (limit c)
+        if [ "$i" = 0 ]; then w=project; else w=constitution; fi
+        if [ "$k" = U ]; then w="remote '$r' of the $w"; else w="url $(printf '%s' "$r" | hi_scrub) of the $w"; fi
+        hi_warn "no-push check: $w could not be asked before the agent run; a push to it cannot be seen (skipped, not trusted)" ;;
+      M) [ "${line:0:2}" = "M " ] && mb+="$line$nl" ;;
+      D) hi_strip_lead "$line" D 1; [ -n "${da["D$i"]+x}" ] || da["D$i"]="$HI_REST" ;;
+    esac
+  done
+  for line in ${al[@]+"${al[@]}"}; do
+    ra["$line"]=1
+    [ "${line:0:2}" = "M " ] && ma+="$line$nl"
+    case "$line" in V|V[[:blank:]]*|[[:blank:]]*) ;; *) continue ;; esac
+    hi_read_fields "$line" 4
+    if [ "${HI_F[0]}" = V ]; then
+      hi_strip_lead "$line" V 2; x="V${HI_F[1]}$nl$HI_REST"
+      [ -n "${va["$x"]+x}" ] || va["$x"]="${HI_F[2]}"
+    fi
+  done
+  if hi_has_line_prefix "$b$nl$a" 'Z '; then   # a remote answered but no fingerprint tool exists: fail closed
     hi_err "no-push check: no cksum or sha256sum on PATH: what the remotes advertise cannot be compared; the run is refused (fail closed)"
     return 0
   fi
-  [ "$(printf '%s\n' "$b" | grep '^M ')" = "$(printf '%s\n' "$a" | grep '^M ')" ] || return 0
-  while read -r k i r s f; do   # R lines: a ref that is new or moved with no fetch in its reflog
+  [ "$mb" = "$ma" ] || return 0
+  for line in ${al[@]+"${al[@]}"}; do   # R lines: a ref that is new or moved with no fetch in its reflog
+    case "$line" in R|R[[:blank:]]*|[[:blank:]]*) ;; *) continue ;; esac
+    hi_read_fields "$line" 5; k="${HI_F[0]}"; i="${HI_F[1]}"; r="${HI_F[2]}"; s="${HI_F[3]}"; f="${HI_F[4]}"
     [ "$k" = R ] || continue
     [[ "$s" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || continue
     [ "${f:-0}" -gt 0 ] && continue
-    printf '%s\n' "$b" | grep -qxF -- "R $i $r $s ${f:-0}" && continue
+    [ -n "${rb["R $i $r $s ${f:-0}"]+x}" ] && continue
     return 0
-  done <<<"$a"
-  while read -r k i r h; do     # L lines: a remote that answered before must answer the SAME after, or it fails closed
-    [ "$k" = L ] || continue    # (changed refs, or unaskable after: re-pointed by insteadOf, protocol denied, moved, unreadable)
-    printf '%s\n' "$a" | grep -qxF -- "L $i $r $h" && continue
+  done
+  for line in ${bl[@]+"${bl[@]}"}; do   # L lines: a remote that answered before must answer the SAME after, or it fails
+    case "$line" in L|L[[:blank:]]*|[[:blank:]]*) ;; *) continue ;; esac
+    hi_read_fields "$line" 4; k="${HI_F[0]}"; i="${HI_F[1]}"; r="${HI_F[2]}"; h="${HI_F[3]}"   # closed (changed refs, or unaskable after:
+    [ "$k" = L ] || continue                                                                    # re-pointed, denied, moved, unreadable)
+    [ -n "${ra["L $i $r $h"]+x}" ] && continue
     return 0
-  done <<<"$b"
-  while read -r k i r; do       # N lines: a remote configured before the run and gone after it (removed, renamed): fail closed
+  done
+  for line in ${bl[@]+"${bl[@]}"}; do   # N lines: a remote configured before the run and gone after it (removed, renamed): fail closed
+    case "$line" in N|N[[:blank:]]*|[[:blank:]]*) ;; *) continue ;; esac
+    hi_read_fields "$line" 3; k="${HI_F[0]}"; i="${HI_F[1]}"; r="${HI_F[2]}"
     [ "$k" = N ] || continue
-    printf '%s\n' "$a" | grep -qxF -- "N $i $r" || return 0
-  done <<<"$b"
-  local u h1 dir o
-  while read -r k i h u; do     # V lines: every url/pushurl the remotes had BEFORE the run, asked again BY URL
+    [ -n "${ra["N $i $r"]+x}" ] || return 0
+  done
+  for line in ${bl[@]+"${bl[@]}"}; do   # V lines: every url/pushurl the remotes had BEFORE the run, asked again BY URL
+    case "$line" in V|V[[:blank:]]*|[[:blank:]]*) ;; *) continue ;; esac
+    hi_read_fields "$line" 4; k="${HI_F[0]}"; i="${HI_F[1]}"; h="${HI_F[2]}"; u="${HI_F[3]}"
     [ "$k" = V ] || continue
-    h1="$(printf '%s\n' "$a" | HI_U="$u" HI_I="$i" awk '$1 == "V" && $2 == ENVIRON["HI_I"] { x = $0; sub(/^V [^ ]+ [^ ]+ /, "", x); if (x == ENVIRON["HI_U"]) { print $3; exit } }')"
+    h1="${va["V$i$nl$u"]-}"
     if [ -z "$h1" ]; then       # the url is no longer configured: ask it directly from the same repository
-      dir="$(printf '%s\n' "$b" | HI_I="$i" awk '$1 == "D" && $2 == ENVIRON["HI_I"] { sub(/^D [^ ]+ /, ""); print; exit }')"
+      dir="${da["D$i"]-}"
       [ -n "$dir" ] || return 0
       o="$(HI_GX_TIMEOUT=60 hi_gx -C "$dir" ls-remote -- "$u" 2>/dev/null)" || return 0   # answered before, not now: fail closed
       h1="$(printf '%s\n' "$o" | hi_mark_hash)" || return 0
     fi
     [ "$h1" = "$h" ] || return 0
-  done <<<"$b"
+  done
   return 1
+}
+# line word n → HI_REST: line without a leading "word " and the n space-ended words after it (what awk's
+# sub(/^word( [^ ]+){n} /, "") leaves); the whole line when it does not start that way
+hi_strip_lead() {
+  local t="$1" p k="$3"
+  HI_REST="$1"
+  case "$t" in "$2 "*) t="${t#"$2 "}" ;; *) return 0 ;; esac
+  while [ "$k" -gt 0 ]; do
+    p="${t%% *}"
+    if [ -z "$p" ] || [ "$p" = "$t" ]; then return 0; fi
+    t="${t#"$p "}"; k=$((k - 1))
+  done
+  HI_REST="$t"
 }
 hi_agent_step() { # 0 ok, 4 failed, 3 blocked, 6 ran but unverified (exit-code-only agents)
   local pf="$O_ROOT/$S_SUBREL/docs/prompts/setup/latest.md" prompt sid line n=0 f body req prevok=1 fdir budget left
@@ -1789,7 +1932,7 @@ hi_verify() { # strict: 1 when only installer-controlled changes are expected
     grep -qxF '@submodules/constitution/CLAUDE.md' "$O_ROOT/CLAUDE.md" 2>/dev/null && hi_check claude_import pass || hi_check claude_import fail
     blk=""; for f in ${S_WRITTEN[@]+"${S_WRITTEN[@]}"}; do
       blk+="$(awk -v b="$HI_MARK_BEGIN" -v e="$HI_MARK_END" '$0 == b { on = 1 } on { print } $0 == e { on = 0 }' "$O_ROOT/$f" 2>/dev/null)"$'\n'; done
-    if printf '%s' "$blk" | grep -E '(^|[^/A-Za-z_])constitution/' | grep -vq 'submodules/constitution/'; then hi_check no_legacy_path_in_written fail
+    if hi_legacy_path_in "$blk"; then hi_check no_legacy_path_in_written fail
     else hi_check no_legacy_path_in_written pass; fi
   else
     hi_check inheritance skip
@@ -1853,12 +1996,25 @@ hi_finish() { # status rc
   return "$2"
 }
 
+# text → 0 when a line names the legacy path: "constitution/" not preceded by "/", a letter or "_", on a line that
+# does not also name "submodules/constitution/" (the former `grep -E ... | grep -v ...` pair; C locale, in the shell)
+hi_legacy_path_in() {
+  local LC_ALL=C l re='(^|[^/A-Za-z_])constitution/'
+  local -a ll=()
+  hi_split_lines "$1"; ll=(${HI_LINES[@]+"${HI_LINES[@]}"})
+  for l in ${ll[@]+"${ll[@]}"}; do
+    [[ $l =~ $re ]] || continue
+    [[ $l == *submodules/constitution/* ]] || return 0
+  done
+  return 1
+}
+
 # ───────────────────────────── restore ─────────────────────────────
 hi_symlinked_parent() { # root rel → 0 when any parent directory of rel inside root is a symlink
   local root="$1" rel="$2" pfx="" part
   local -a parts=()
   [[ "$rel" == */* ]] || return 1
-  IFS='/' read -r -a parts <<<"${rel%/*}"
+  hi_split / "${rel%/*}"; parts=(${HI_SPLIT[@]+"${HI_SPLIT[@]}"})
   for part in ${parts[@]+"${parts[@]}"}; do
     pfx="${pfx:+$pfx/}$part"
     [ -L "$root/$pfx" ] && return 0
@@ -1870,7 +2026,7 @@ hi_restore_rel() { # manifest entry → normalised relative path on stdout; 1 wh
   case "$e" in ""|/*) return 1 ;; esac
   [[ "$e" =~ [^\ -~] ]] && return 1          # printable ASCII only (no control bytes, no look-alike Unicode)
   [[ "$e" == *\\* ]] && return 1
-  IFS=/ read -r -a segs <<<"$e"
+  hi_split / "$e"; segs=(${HI_SPLIT[@]+"${HI_SPLIT[@]}"})
   for seg in "${segs[@]}"; do
     case "$seg" in ""|.) continue ;; ..) return 1 ;; esac
     low="$(printf '%s' "$seg" | tr 'A-Z' 'a-z')"; while [[ "$low" == *[.\ ] ]]; do low="${low%?}"; done
@@ -1953,6 +2109,9 @@ main() {
   hi_init_state
   hi_parse_args "$@" || exit 2
   hi_check_insecure || exit 2
+  case "$O_ACTION" in help|version) ;; *)
+    hi_plumbing_ok || { hi_err "process substitution does not work here (no /dev/fd, and no writable TMPDIR for a fifo); refusing (nothing changed)"; exit 3; } ;;
+  esac
   case "$O_ACTION" in
     help) hi_help; exit 0 ;;
     version) printf 'install_constitution.sh %s\n' "$HI_VERSION"; exit 0 ;;

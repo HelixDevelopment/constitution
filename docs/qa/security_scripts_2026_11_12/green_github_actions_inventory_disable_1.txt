@@ -1,0 +1,34 @@
+ok   1 workflow repo selected
+ok   2 archived repo not selected
+ok   3 fork with a workflow selected
+ok   4 dynamic Pages repo excluded
+ok   5 Pages deployed by a custom workflow (GET /pages build_type workflow) excluded
+ok   6 repo without workflows not selected
+ok   7 repo with Actions already disabled not selected
+ok   8 permissions GET failure -> ERR row (scope never silently shrinks)
+ok   9 workflows GET failure -> ERR row
+ok   10 Pages GET failure (not 404) -> ERR row
+ok   11 every row has 11 columns
+ok   12 ERR rows -> exit 1
+ok   13 clean org -> exit 0
+ok   14 org listing failure -> ERR row, exit 1, other org still listed
+ok   15 --select enabled selects every enabled non-archived repo
+ok   16 --org with --repos-file -> 2
+ok   17 unknown argument -> 2
+ok   18 bad repos-file line -> 2
+ok   19 apply without GH_ACTIONS_APPLY -> 3, no PUT
+ok   20 apply without --repos-file -> 3, no PUT, refused for the missing pin
+ok   21 apply with a wrong confirm token -> 3, no PUT
+ok   22 plan prints the confirm token and SCOPE MATCH, exit 0
+ok   23 apply pinned 3 repos across 2 orgs -> exit 0
+ok   24 exactly the pinned repos were PUT, each with enabled=false
+ok   25 every read-back reported DISABLED
+ok   26 re-run after apply: already-disabled, no PUT, exit 0
+ok   27 a live-selected repo outside the pin -> refused 3, diff printed, no PUT
+ok   28 a pinned repo not selected live (archived) -> refused 3, no PUT
+ok   29 a pinned repo that serves Pages -> refused 3, no PUT
+ok   30 an ERR row in a pinned org -> apply refused, exit 1, no PUT
+ok   31 a failed PUT -> exit 1 (other repos still done)
+ok   32 read-back still enabled=true -> exit 1
+ok   33 shipped allowlist lists exactly 9 repos
+RESULT: 33/33 passed

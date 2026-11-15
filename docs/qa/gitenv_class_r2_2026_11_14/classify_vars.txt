@@ -1,0 +1,17 @@
+GIT_DIR                            | REDIRECT  | without: target2  | with: decoy1 
+GIT_WORK_TREE                      | REDIRECT  | without: <tmp>/classify.yXFl/target  | with: <tmp>/classify.yXFl/wt 
+GIT_INDEX_FILE                     | REDIRECT  | without: decoy index 6f3efb51b322 | with: after 'git -C target add new': decoy index 091771bb2344 (written)
+GIT_PREFIX                         | FOREIGN   | without:  /f  | with:  /f 
+GIT_COMMON_DIR                     | REDIRECT  | without: target2  | with: fatal: bad object main 
+GIT_OBJECT_DIRECTORY               | REDIRECT  | without: decoy objects 3 | with: after 'git -C target hash-object -w': decoy objects 4 (written)
+GIT_ALTERNATE_OBJECT_DIRECTORIES   | REDIRECT  | without: fatal: git cat-file: could not get object info  | with: blob 
+GIT_NAMESPACE                      | TRANSFER  | without: refs written: refs/heads/main refs/heads/nsref  | with: (update-ref ran with GIT_NAMESPACE=ns)
+GIT_CEILING_DIRECTORIES            | LIMIT     | without: <tmp>/classify.yXFl/encl  | with: fatal: not a git repository (or any of the parent directories): .git 
+GIT_DISCOVERY_ACROSS_FILESYSTEM    | WIDEN     | without: (not in the list; only widens discovery across a mount boundary, which the caller asks for; never scrubbed) | with: -
+GIT_SHALLOW_FILE                   | REDIRECT  | without: 2  | with: 1 
+GIT_GRAFT_FILE                     | REDIRECT  | without: 2  | with: 1
+GIT_REPLACE_REF_BASE               | REDIRECT  | without: target2  | with: target1 
+GIT_NO_REPLACE_OBJECTS             | VIEW      | without: target1  | with: target2 
+GIT_QUARANTINE_PATH                | REDIRECT  | without: rc=0 | with: fatal: update_ref failed for ref 'refs/heads/q2': ref updates forbidden inside quarantine 
+rc=0
+GIT_INTERNAL_SUPER_PREFIX          | FOREIGN   | without: f  | with: f 

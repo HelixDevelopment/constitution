@@ -1,0 +1,22 @@
+PASS: [submodules/constitution] hub-nested leaf without manifest -> FAIL names submodules/constitution/submodules/x (rc=1)
+PASS: [submodules/constitution] the hub itself is role hub, not a nesting leaf (rc=1)
+PASS: [submodules/constitution] the root is not asked to list the hub (rc=1)
+PASS: [submodules/constitution] all manifests good -> PASS incl. submodules/constitution/submodules/x (rc=0)
+PASS: [submodules/constitution] a plain leaf nesting own-org is still FAIL (rc=1)
+PASS: [constitution] hub-nested leaf without manifest -> FAIL names constitution/submodules/x (rc=1)
+PASS: [constitution] the hub itself is role hub, not a nesting leaf (rc=1)
+PASS: [constitution] the root is not asked to list the hub (rc=1)
+PASS: [constitution] all manifests good -> PASS incl. constitution/submodules/x (rc=0)
+PASS: [constitution] a plain leaf nesting own-org is still FAIL (rc=1)
+PASS: undeclared submodules/constitution checkout: its nested leaf is scanned (rc=1)
+PASS: undeclared checkout submodules/constitution/submodules/y (not in any .gitmodules) is scanned (rc=1)
+ok 	needles
+ok 	url-forms
+ok 	relative-urls
+ok 	golden-good
+ok 	golden-bad-missing-leaf
+ok 	negative-control-uninit
+SELFTEST PASS (6/6)
+PASS: verifier --selftest green
+----
+deps_manifest_layout: PASS=13 FAIL=0

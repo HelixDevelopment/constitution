@@ -1,0 +1,4 @@
+# run: rc=0 wall=17s load_start=94.97 load_end=95.41 cmd=bash scripts/gates/cm_full_suite_manifest_complete.sh --root <scratch>/repo
+CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (missing row, stale row, unaccepted excluded set, stale guide block, duplicated row)
+CM-FULL-SUITE-MANIFEST-COMPLETE: NOTE: the work tree differs from HEAD 752e822b2c4a (staged: no, unstaged: yes, untracked: no); those changes were NOT judged — commit them to have them judged
+CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <scratch>/repo (HEAD 752e822b2c4a): manifest matches the census (906 census file(s))

@@ -1,0 +1,1494 @@
+# tests/release/netgate_pin.tsv — the pin of the network-spawn gate (round 13; written by
+# tests/release/channel_census.py pin-regen, never by hand). Rows, tab separated:
+#   F script sha256 lines            the bytes of every release script and of the library it sources
+#   L script line key8 sha16         every line: key8 = census key of the normalised line, sha16 = its exact bytes
+#   S script line program via class key8   every invocation site the analyser finds, with its class
+#   P awk|sed sha256 script:line     the whitelisted awk and sed program texts (each passed awk_runs or sed_runs)
+#   N name script:line               every variable name the scripts write (none of DANGER_NAMES but IFS)
+# A change to a release script fails "netgate --pin" until this table is regenerated. Regenerate only after
+# reviewing "channel_census.py pin-diff TABLE SCRIPT..." (line keys and sites, never script text).
+F	derive_release_facts.sh	2bd26e8553b935bb77f5650ed2b0ac6c03527df6fa406bd1eda832460085dbe7	168
+L	derive_release_facts.sh	1	e2b37d0f	e2b37d0fbeebd535
+L	derive_release_facts.sh	2	217ceb64	217ceb6480e318f3
+L	derive_release_facts.sh	3	e5f34d96	e5f34d969323d67c
+L	derive_release_facts.sh	4	142c92c9	142c92c9f5d23b56
+L	derive_release_facts.sh	5	334359b9	334359b90efed75d
+L	derive_release_facts.sh	6	71c969f8	71c969f874afd4e5
+L	derive_release_facts.sh	7	52838898	2d25eca9a29dbadd
+L	derive_release_facts.sh	8	334359b9	334359b90efed75d
+L	derive_release_facts.sh	9	f57ce137	f57ce137fa8fb41e
+L	derive_release_facts.sh	10	36c3355a	36c3355aa3c51511
+L	derive_release_facts.sh	11	7e949e77	7e949e771966f439
+L	derive_release_facts.sh	12	dbdcbb05	dbdcbb0563d89098
+L	derive_release_facts.sh	13	d8ae8b21	d8ae8b21591a684c
+L	derive_release_facts.sh	14	334359b9	334359b90efed75d
+L	derive_release_facts.sh	15	6fe8c841	6fe8c841fe2803a8
+L	derive_release_facts.sh	16	194e8171	5a84c0d9bb3802b1
+L	derive_release_facts.sh	17	3af1c8b3	fbbabb8f11f3a003
+L	derive_release_facts.sh	18	02762a8b	f7f7f86d2c17a9b6
+L	derive_release_facts.sh	19	b02b66fd	f8d21f40de9d063c
+L	derive_release_facts.sh	20	334359b9	334359b90efed75d
+L	derive_release_facts.sh	21	e83a277d	e83a277dd0910bb1
+L	derive_release_facts.sh	22	7c2fd9e5	7c2fd9e58720e1a6
+L	derive_release_facts.sh	23	71088383	7108838393513987
+L	derive_release_facts.sh	24	e5c6922f	e5c6922f9b46eb74
+L	derive_release_facts.sh	25	035e480c	035e480c63b44ad7
+L	derive_release_facts.sh	26	9751cc5f	1ee6e4f30af6ed2d
+L	derive_release_facts.sh	27	2d510a6e	2d510a6eb4e36076
+L	derive_release_facts.sh	28	08e1d5d4	985fc46b234766fc
+L	derive_release_facts.sh	29	08570e99	08570e99941c2dbd
+L	derive_release_facts.sh	30	e9029994	e902999419fb4a6d
+L	derive_release_facts.sh	31	f5725d72	f5725d72914f37f4
+L	derive_release_facts.sh	32	e5fbc9f4	e5fbc9f41b4332e5
+L	derive_release_facts.sh	33	1a7e6d37	1a7e6d3710e319b7
+L	derive_release_facts.sh	34	32f8265a	32f8265ac981063d
+L	derive_release_facts.sh	35	5d1dddc3	d5e39f47b493d261
+L	derive_release_facts.sh	36	043c3f72	043c3f72908a2b0c
+L	derive_release_facts.sh	37	5d8b1f38	a6ad311bef65498a
+L	derive_release_facts.sh	38	78b3e41b	78b3e41b17ed005c
+L	derive_release_facts.sh	39	2a935554	207734b31bfed0cd
+L	derive_release_facts.sh	40	da2e5f65	da2e5f65a6727489
+L	derive_release_facts.sh	41	6879dc3c	cea2bbda44f0212a
+L	derive_release_facts.sh	42	5dd902c6	f9c3d20c62b31b01
+L	derive_release_facts.sh	43	b1c67eaa	cc42bdeb8c1df42b
+L	derive_release_facts.sh	44	755b387d	41e11b71454ce4db
+L	derive_release_facts.sh	45	55e38241	a213dff008c98b5f
+L	derive_release_facts.sh	46	30f58115	dca1cbb607680cf9
+L	derive_release_facts.sh	47	e4155ab6	2c5819c833368294
+L	derive_release_facts.sh	48	a544d1af	d68ab5eb532fac0b
+L	derive_release_facts.sh	49	327b7264	bc6a7ce687d0fab2
+L	derive_release_facts.sh	50	a4c3ed04	a4c3ed04a95a3da1
+L	derive_release_facts.sh	51	00c8dde0	00c8dde04ab8edd7
+L	derive_release_facts.sh	52	82d34b4d	82d34b4d3cf0361b
+L	derive_release_facts.sh	53	6e189c26	6e189c2655d88d81
+L	derive_release_facts.sh	54	28c132fd	28c132fda0deca3b
+L	derive_release_facts.sh	55	4a8bf290	4a8bf290fc5c2eb8
+L	derive_release_facts.sh	56	0a1c40be	0a1c40bedddb6481
+L	derive_release_facts.sh	57	08e93e5d	08e93e5d59101f02
+L	derive_release_facts.sh	58	926fd110	fbe7573d70878341
+L	derive_release_facts.sh	59	a4c3ed04	a4c3ed04a95a3da1
+L	derive_release_facts.sh	60	649cfe2c	b7801b9d90fd551a
+L	derive_release_facts.sh	61	0d3cc75c	0d3cc75ce7dd4b4f
+L	derive_release_facts.sh	62	d9bfaa22	d9bfaa223f4d054f
+L	derive_release_facts.sh	63	feb7dd5a	feb7dd5afb18f3df
+L	derive_release_facts.sh	64	3e591f2d	3e591f2db6a89cf8
+L	derive_release_facts.sh	65	c8d72438	c8d724389a8ae0e2
+L	derive_release_facts.sh	66	ef2b8a65	ef2b8a656df8528d
+L	derive_release_facts.sh	67	912d671e	912d671ec4ff3b90
+L	derive_release_facts.sh	68	a5bab39f	a5bab39f0c6adbda
+L	derive_release_facts.sh	69	6de13623	6de1362371c3d853
+L	derive_release_facts.sh	70	e7a01635	e7a01635686c71a1
+L	derive_release_facts.sh	71	3c484663	3c484663db17402f
+L	derive_release_facts.sh	72	d5965541	d5965541dc2c9d95
+L	derive_release_facts.sh	73	9db3ccf9	66a3aa48d21b6d28
+L	derive_release_facts.sh	74	95c7f3eb	95c7f3eb3936a1c8
+L	derive_release_facts.sh	75	1d47288c	1d47288c79b54c5f
+L	derive_release_facts.sh	76	cd1f390b	cd1f390bdaaa14aa
+L	derive_release_facts.sh	77	cf1950b6	cf1950b635c83702
+L	derive_release_facts.sh	78	000c3ca5	000c3ca5bc7b1d36
+L	derive_release_facts.sh	79	3d0f48d6	3d0f48d6ad277f35
+L	derive_release_facts.sh	80	fdaef393	fdaef39354851447
+L	derive_release_facts.sh	81	df128b1a	df128b1a6c9ff98b
+L	derive_release_facts.sh	82	93d24f65	93d24f6528733864
+L	derive_release_facts.sh	83	9d146727	9d146727881d5277
+L	derive_release_facts.sh	84	068140ce	068140ce17046f86
+L	derive_release_facts.sh	85	abdc89a4	abdc89a420982da4
+L	derive_release_facts.sh	86	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	87	baaaeb5b	baaaeb5b016ff7f6
+L	derive_release_facts.sh	88	43a9f820	43a9f820e4e1998c
+L	derive_release_facts.sh	89	ce0f3294	ce0f329434faf2b5
+L	derive_release_facts.sh	90	47770773	47770773b82d4d95
+L	derive_release_facts.sh	91	33843491	3384349117752699
+L	derive_release_facts.sh	92	5f15fd96	5f15fd964a63cbbb
+L	derive_release_facts.sh	93	ac18bad8	ac18bad8395af914
+L	derive_release_facts.sh	94	df53159c	df53159ce5a29c23
+L	derive_release_facts.sh	95	1f8cc176	1f8cc1768c646655
+L	derive_release_facts.sh	96	513af769	513af769874b7fb2
+L	derive_release_facts.sh	97	098d0155	098d015511743736
+L	derive_release_facts.sh	98	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	99	21d9fe9c	21d9fe9c59840618
+L	derive_release_facts.sh	100	deeeff2d	deeeff2d99efbb1d
+L	derive_release_facts.sh	101	ec4d1065	ec4d1065a29df060
+L	derive_release_facts.sh	102	8efaad25	8efaad256c5c565e
+L	derive_release_facts.sh	103	dcc3ad40	dcc3ad400b5eaa44
+L	derive_release_facts.sh	104	d4bab783	d4bab783c4f5535b
+L	derive_release_facts.sh	105	0b72d3da	0b72d3daa6ff84ae
+L	derive_release_facts.sh	106	7b0e4a24	8b3413c2b80cf2f0
+L	derive_release_facts.sh	107	d079755d	98d45989d0b3b92a
+L	derive_release_facts.sh	108	2e28cecb	70814c689062a7ee
+L	derive_release_facts.sh	109	7b0468dd	d19df1dec2572e9c
+L	derive_release_facts.sh	110	307ea672	2597fcb696f67b94
+L	derive_release_facts.sh	111	be7388a5	94d20d6b9407642b
+L	derive_release_facts.sh	112	e135f40c	0445615cead3d54c
+L	derive_release_facts.sh	113	9f30c819	768b4614b8eb3468
+L	derive_release_facts.sh	114	919c60fd	ea1fbc7b1672bce2
+L	derive_release_facts.sh	115	e639c7f0	4db28055ac881679
+L	derive_release_facts.sh	116	d10b36aa	d10b36aa74a59bcf
+L	derive_release_facts.sh	117	3fe815d3	58a3466a9fa874e5
+L	derive_release_facts.sh	118	bfc9795e	bfc9795e696a0d95
+L	derive_release_facts.sh	119	3062847e	3062847e8fb7962a
+L	derive_release_facts.sh	120	c3071c17	c3071c17394b7b74
+L	derive_release_facts.sh	121	a66336d6	a66336d6436be2a4
+L	derive_release_facts.sh	122	63d6997d	63d6997de95c764c
+L	derive_release_facts.sh	123	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	124	41577f25	41577f250883a47f
+L	derive_release_facts.sh	125	7f7ebae8	7f7ebae8cfcd1034
+L	derive_release_facts.sh	126	efd32ddf	efd32ddf544d9ffc
+L	derive_release_facts.sh	127	97c6c527	97c6c527e48f81db
+L	derive_release_facts.sh	128	ac53df7a	ac53df7a822560fd
+L	derive_release_facts.sh	129	e1f22b9b	e1f22b9bcd9c9fa7
+L	derive_release_facts.sh	130	94c7933e	94c7933edf94967e
+L	derive_release_facts.sh	131	34c9bdf3	9f4a00763bacc140
+L	derive_release_facts.sh	132	dde6144b	6dfa9b5ea642d384
+L	derive_release_facts.sh	133	ba69dffe	a6cb618237d7c606
+L	derive_release_facts.sh	134	86a6c935	00acb6ff5446852a
+L	derive_release_facts.sh	135	7dd530c4	421185ca32f0cea5
+L	derive_release_facts.sh	136	d0811ee6	11722b5080c5743a
+L	derive_release_facts.sh	137	b4bdc848	78c0770dcd09bc54
+L	derive_release_facts.sh	138	a7b5c9a8	a7b5c9a8b686430b
+L	derive_release_facts.sh	139	91525da3	91525da340d52fe9
+L	derive_release_facts.sh	140	5c187d44	5c187d443d4f219c
+L	derive_release_facts.sh	141	4f0f0d0c	4f0f0d0ca7a8585c
+L	derive_release_facts.sh	142	37af4572	37af457289bdc572
+L	derive_release_facts.sh	143	67264daf	67264daf4c381dbc
+L	derive_release_facts.sh	144	df0e40f8	df0e40f8bbb8ecac
+L	derive_release_facts.sh	145	aa231eea	aa231eea0bc0a0e6
+L	derive_release_facts.sh	146	1b5de5e4	1b5de5e4ac7e5346
+L	derive_release_facts.sh	147	a7aaee6c	a7aaee6c98bf2d02
+L	derive_release_facts.sh	148	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	149	5e6d3a80	5e6d3a805a3780d3
+L	derive_release_facts.sh	150	de5aba2c	de5aba2c68cdf59b
+L	derive_release_facts.sh	151	917c4ace	08992da287120397
+L	derive_release_facts.sh	152	bf8bc6fc	59be3a85f3f2d247
+L	derive_release_facts.sh	153	16b44570	76545d47d680c15a
+L	derive_release_facts.sh	154	1903e161	d57e9f193768cef4
+L	derive_release_facts.sh	155	83c7bf45	5e87d6f424eaf1d1
+L	derive_release_facts.sh	156	ad06025f	ef7cde460da0fd16
+L	derive_release_facts.sh	157	c293a461	bc903e18145588bf
+L	derive_release_facts.sh	158	1c2cca68	f8da83cc377d9dd0
+L	derive_release_facts.sh	159	a4c3ed04	a4c3ed04a95a3da1
+L	derive_release_facts.sh	160	1b9d9950	1b9d9950ab28ca1d
+L	derive_release_facts.sh	161	1a64b300	1a64b3001cbc0c37
+L	derive_release_facts.sh	162	beb7f7d9	3995ec9984744b11
+L	derive_release_facts.sh	163	f6b7fd9d	403d110d496206a5
+L	derive_release_facts.sh	164	f83f8905	2f475a16b7866ba7
+L	derive_release_facts.sh	165	b4bdc848	b4bdc848109722a3
+L	derive_release_facts.sh	166	6d6ad1d6	6d6ad1d65e2f7b1a
+L	derive_release_facts.sh	167	c22995ad	c22995adc29757a9
+L	derive_release_facts.sh	168	e3b0c442	e3b0c44298fc1c14
+F	redact_cut.sh	90e6bd85f862284c0b2f1e809d6327b13a9da49b391689ec3915f0ae1b264387	451
+L	redact_cut.sh	1	e2b37d0f	e2b37d0fbeebd535
+L	redact_cut.sh	2	97c329f0	97c329f0de79f162
+L	redact_cut.sh	3	2a77b79d	2a77b79d149179b6
+L	redact_cut.sh	4	8cd99607	8cd9960767b0a572
+L	redact_cut.sh	5	334359b9	334359b90efed75d
+L	redact_cut.sh	6	4a9cc500	4a9cc50056891498
+L	redact_cut.sh	7	5921f658	5921f658abd734a6
+L	redact_cut.sh	8	c445c132	c445c1329d0fc6e9
+L	redact_cut.sh	9	f4334cbc	f4334cbc4c8a2a3f
+L	redact_cut.sh	10	0a207e01	0a207e017f06f41d
+L	redact_cut.sh	11	a29edf4f	a29edf4f3a40db81
+L	redact_cut.sh	12	334359b9	334359b90efed75d
+L	redact_cut.sh	13	798573cb	9de9e8f7b8ad147f
+L	redact_cut.sh	14	7cb83ebe	d2480955cd849352
+L	redact_cut.sh	15	3958d57d	2136805b4a12e10d
+L	redact_cut.sh	16	c0373288	ff417bb4dca1a83e
+L	redact_cut.sh	17	e5ff95b5	bd3d80829d4c0068
+L	redact_cut.sh	18	5aecc64a	8bc2ddfa7ae9f73e
+L	redact_cut.sh	19	ecdc5497	483998bf09f01436
+L	redact_cut.sh	20	8f1b65f6	86260e01cbc9adce
+L	redact_cut.sh	21	a94fcc1a	186e43b79f02e97e
+L	redact_cut.sh	22	b662ffbd	f1425d9bfebcd2d3
+L	redact_cut.sh	23	e9c717c0	49f557e019c3178f
+L	redact_cut.sh	24	5e9eecbb	2d540a7ce743f7be
+L	redact_cut.sh	25	f9d080a4	8940ed501bd9fbc6
+L	redact_cut.sh	26	4be1d520	43f7fb5e1617aa24
+L	redact_cut.sh	27	bf926abb	475a72904aa2f895
+L	redact_cut.sh	28	d980c374	60ee3b3d4ffc8f2b
+L	redact_cut.sh	29	a3b5fb57	a8891253bec89b92
+L	redact_cut.sh	30	87778e60	cc0a08f7f1397c9a
+L	redact_cut.sh	31	89a5fc8c	5ec71eb22a91db0c
+L	redact_cut.sh	32	edd0074a	7a3cb20ab6111a41
+L	redact_cut.sh	33	77cce6ec	5027e10198806822
+L	redact_cut.sh	34	334359b9	334359b90efed75d
+L	redact_cut.sh	35	7bd28747	7bd28747f425eca7
+L	redact_cut.sh	36	0cb91a27	0cb91a274fd3d882
+L	redact_cut.sh	37	27270e52	27270e52a48f3dff
+L	redact_cut.sh	38	38a4a15d	38a4a15d92df9229
+L	redact_cut.sh	39	a50de88f	a50de88fa8e31b7e
+L	redact_cut.sh	40	9fa08509	cb146ca369d18d97
+L	redact_cut.sh	41	43f801fd	eaeb4bf8873258ae
+L	redact_cut.sh	42	a0aa811d	6838cf7a059fa40b
+L	redact_cut.sh	43	e658825b	6ec827abdbd89051
+L	redact_cut.sh	44	1ed5b8a5	b7838ac16cc5f691
+L	redact_cut.sh	45	b34b8980	d68efc1b05fb01a1
+L	redact_cut.sh	46	758c43c8	b18afadda20efb26
+L	redact_cut.sh	47	8871e4ba	ce84979ed52e1382
+L	redact_cut.sh	48	7019ccc2	2a87171854febab0
+L	redact_cut.sh	49	ef1c63f7	ca92bb038ad11637
+L	redact_cut.sh	50	cd647d30	a6844ee3080cf2bb
+L	redact_cut.sh	51	cf2c5f13	904581733fa49230
+L	redact_cut.sh	52	854dff23	4a916f015322cd6d
+L	redact_cut.sh	53	39c57d61	73bd0ac12f451abb
+L	redact_cut.sh	54	17ef6ac8	17ef6ac89cea6d78
+L	redact_cut.sh	55	35a18b03	35a18b0392dac151
+L	redact_cut.sh	56	34b6e2d4	34b6e2d4213ffc51
+L	redact_cut.sh	57	25977037	25977037fa49ca19
+L	redact_cut.sh	58	4b117318	4b1173188b64f66c
+L	redact_cut.sh	59	ce170051	ce170051f8158fc3
+L	redact_cut.sh	60	84bb8322	504527326dc723fb
+L	redact_cut.sh	61	57853436	78b3a90012ae2e88
+L	redact_cut.sh	62	8801106d	073e1e5434f49a3e
+L	redact_cut.sh	63	81a38efd	06563059345f564f
+L	redact_cut.sh	64	256bb6ba	215e45fa996aa78e
+L	redact_cut.sh	65	3fb230cc	29109c179931b3f9
+L	redact_cut.sh	66	51cb60d5	1283578c21788b11
+L	redact_cut.sh	67	5855a793	d33bb0cabb4ec3b9
+L	redact_cut.sh	68	5afd7731	c3fa722a5a56df30
+L	redact_cut.sh	69	f7e0b8fa	555e322beb458c32
+L	redact_cut.sh	70	99e5f810	02e4b6f3bac93d80
+L	redact_cut.sh	71	ffc2ecdb	4777434ebde84077
+L	redact_cut.sh	72	7fa9d329	12d2e8c0615b83a9
+L	redact_cut.sh	73	71b2c9bc	70488661b3ad1782
+L	redact_cut.sh	74	fc075a9d	0cd613ed7df9ce14
+L	redact_cut.sh	75	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	76	e3b0c442	e3b0c44298fc1c14
+L	redact_cut.sh	77	6bdcb681	6bdcb6817cbc241c
+L	redact_cut.sh	78	9d817f7c	3efc3d8b5bc173e2
+L	redact_cut.sh	79	c70fd17f	dbc17437b7e3ddc9
+L	redact_cut.sh	80	a3acdc59	22f8389d88f88779
+L	redact_cut.sh	81	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	82	e3b0c442	e3b0c44298fc1c14
+L	redact_cut.sh	83	9824ca56	9824ca56cef7cea5
+L	redact_cut.sh	84	e423d85f	a0ac23962a13faad
+L	redact_cut.sh	85	0c9e1072	0ba6631245de80a7
+L	redact_cut.sh	86	dd772848	6b33f82d18bb27d2
+L	redact_cut.sh	87	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	88	e3b0c442	e3b0c44298fc1c14
+L	redact_cut.sh	89	94253800	94253800a3d49838
+L	redact_cut.sh	90	dc4be8dd	dc4be8ddafe2c03e
+L	redact_cut.sh	91	43abc55b	43abc55b481e81c4
+L	redact_cut.sh	92	f2ac3cb6	f2ac3cb6a3a3b8e7
+L	redact_cut.sh	93	4a4c3d1e	4a4c3d1eb591ffcf
+L	redact_cut.sh	94	c4d0fe61	c4d0fe6124bac66d
+L	redact_cut.sh	95	7e94ffe0	7e94ffe0753a4227
+L	redact_cut.sh	96	cf367573	cf3675739a48ef94
+L	redact_cut.sh	97	9ca30206	9ca30206f41f9d83
+L	redact_cut.sh	98	8ad1cdb4	8ad1cdb4b1a8ce65
+L	redact_cut.sh	99	82d3679c	82d3679c8b403f72
+L	redact_cut.sh	100	3da1b0ce	3da1b0ce1585af92
+L	redact_cut.sh	101	820d2271	820d22712c936883
+L	redact_cut.sh	102	911ba7c9	911ba7c9be7c6c47
+L	redact_cut.sh	103	bf8e999d	bf8e999d061e3194
+L	redact_cut.sh	104	c0cf9079	c0cf90790e6536cb
+L	redact_cut.sh	105	c0c26b76	c0c26b765f450924
+L	redact_cut.sh	106	5cff9c99	5cff9c9911fdaf3f
+L	redact_cut.sh	107	ba128443	ba12844354f90ce7
+L	redact_cut.sh	108	1c755849	1c755849964567d8
+L	redact_cut.sh	109	53c1f517	53c1f51759e13aef
+L	redact_cut.sh	110	6230022f	6230022ff29b7728
+L	redact_cut.sh	111	816f440d	816f440d6203e865
+L	redact_cut.sh	112	7caed978	7caed978813a6d5d
+L	redact_cut.sh	113	ca1e9f79	ca1e9f7914fb5494
+L	redact_cut.sh	114	bf1a42be	bf1a42becbe9f761
+L	redact_cut.sh	115	d79cf0ad	d79cf0ad94535519
+L	redact_cut.sh	116	a13b2f50	a13b2f5066b5af18
+L	redact_cut.sh	117	47a2dcfb	47a2dcfbe6357f8c
+L	redact_cut.sh	118	85e697f6	85e697f609ebedc3
+L	redact_cut.sh	119	f9dd4612	f9dd46128920991a
+L	redact_cut.sh	120	73071ef6	73071ef6027d5731
+L	redact_cut.sh	121	cfb0616a	cfb0616a1fb19cd4
+L	redact_cut.sh	122	8d6b6ddc	8d6b6ddcc3e458d4
+L	redact_cut.sh	123	158b3cc7	158b3cc714a80a0d
+L	redact_cut.sh	124	436f12a2	436f12a2fea31065
+L	redact_cut.sh	125	799b2b7a	799b2b7a74421bb0
+L	redact_cut.sh	126	9d0b73f6	9d0b73f696c45ffe
+L	redact_cut.sh	127	52fd5a6a	52fd5a6a63f1f33d
+L	redact_cut.sh	128	e953a859	e953a8599439762d
+L	redact_cut.sh	129	de362e83	de362e83de241cdc
+L	redact_cut.sh	130	5ff033f0	5ff033f08f8d974a
+L	redact_cut.sh	131	aa60b859	8a138ce5e2860da3
+L	redact_cut.sh	132	c63cfd43	eedafad777c00876
+L	redact_cut.sh	133	e49d0e24	9d3c515daa0ddc6c
+L	redact_cut.sh	134	b93e7c3f	8b4d7ac4929009c1
+L	redact_cut.sh	135	30945f34	f66c7546a945b51f
+L	redact_cut.sh	136	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	137	28a898a6	28a898a6d264d6b3
+L	redact_cut.sh	138	57252b03	57252b0305cebc4d
+L	redact_cut.sh	139	3d99158f	3d99158f5d0ada9b
+L	redact_cut.sh	140	20577808	20577808f75178ad
+L	redact_cut.sh	141	4b8492fe	4b8492fe853d0898
+L	redact_cut.sh	142	e175f1a3	e175f1a302452678
+L	redact_cut.sh	143	38ef3ade	38ef3ade7a7c0e77
+L	redact_cut.sh	144	e40b2547	e40b2547ecf01fc8
+L	redact_cut.sh	145	922847af	922847afef84723c
+L	redact_cut.sh	146	e8f86301	e8f86301fc6ddd41
+L	redact_cut.sh	147	3f425772	3f4257723353d34a
+L	redact_cut.sh	148	3b112c76	3b112c76e5ab5e19
+L	redact_cut.sh	149	7add8f1f	7add8f1f14ca3913
+L	redact_cut.sh	150	54607023	5de7a284525048ab
+L	redact_cut.sh	151	c38bb7fe	ffc25b0ab64e2fac
+L	redact_cut.sh	152	8af32c9e	6924d1e049f4ed82
+L	redact_cut.sh	153	79bfd0a6	adb4589995d1d4c9
+L	redact_cut.sh	154	d69df1db	ad149eb8972b697d
+L	redact_cut.sh	155	61e91e89	46b6dce203453063
+L	redact_cut.sh	156	8632ce23	ac6e554f6486bf50
+L	redact_cut.sh	157	30945f34	f66c7546a945b51f
+L	redact_cut.sh	158	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	159	cb064822	cb064822c139fe8c
+L	redact_cut.sh	160	14ef8d3d	81021c9bfb51e784
+L	redact_cut.sh	161	9863ae1c	f86d53e896201f86
+L	redact_cut.sh	162	546383db	d1bfb9de7e4ef621
+L	redact_cut.sh	163	96f6a6cd	cb4383209d18fec8
+L	redact_cut.sh	164	ec5f90c3	39413af4ced775db
+L	redact_cut.sh	165	2f5d887e	522867932db72a0e
+L	redact_cut.sh	166	eb706235	4848ef8117c699fc
+L	redact_cut.sh	167	0387fdad	0f8a2331c5226fda
+L	redact_cut.sh	168	9aa5dcc0	0810868ad54af6c6
+L	redact_cut.sh	169	cb97a370	c3d043e1accbaca4
+L	redact_cut.sh	170	d426f17a	37d8829cf8a89c0e
+L	redact_cut.sh	171	a30793be	c9a6f4b6ac83f5f8
+L	redact_cut.sh	172	577f69c1	928bff5e75a36099
+L	redact_cut.sh	173	7247c473	1c9def21c086a376
+L	redact_cut.sh	174	45633283	1ca5e50d7381ea0f
+L	redact_cut.sh	175	951c91fd	0f597e19d70d8337
+L	redact_cut.sh	176	6867cb67	c9ee197ebee75262
+L	redact_cut.sh	177	fd77a4d8	72b7462388e2b957
+L	redact_cut.sh	178	6eba5b6c	e725a5d8d80c1b9d
+L	redact_cut.sh	179	873e6a76	d98f0414733435c3
+L	redact_cut.sh	180	e4a27208	84e096d3703e9d72
+L	redact_cut.sh	181	a86003b3	100036bedf501f4a
+L	redact_cut.sh	182	327b7264	bc6a7ce687d0fab2
+L	redact_cut.sh	183	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	184	0e04a869	0e04a8698453055f
+L	redact_cut.sh	185	32662362	326623622c554e86
+L	redact_cut.sh	186	f8cf722e	f8cf722e10f0e32a
+L	redact_cut.sh	187	a22b50ad	a22b50ad20373272
+L	redact_cut.sh	188	2fef9881	782a24fb23ffd9ce
+L	redact_cut.sh	189	d1a4b846	0573ce023e4e17bb
+L	redact_cut.sh	190	abc3558c	9b4bac20279f2add
+L	redact_cut.sh	191	d8ff8eb2	991ef3096172665b
+L	redact_cut.sh	192	94ea4972	94ea497231445146
+L	redact_cut.sh	193	86a133b3	86a133b346fb6068
+L	redact_cut.sh	194	ce5f1fbf	ce5f1fbf01865940
+L	redact_cut.sh	195	6777d81f	6777d81f35e7bda6
+L	redact_cut.sh	196	d893ed6a	d893ed6a3942181a
+L	redact_cut.sh	197	883d4f3a	883d4f3abf50bf5d
+L	redact_cut.sh	198	d8df725b	d8df725bbad9809b
+L	redact_cut.sh	199	24060c6f	24060c6ff808edc8
+L	redact_cut.sh	200	2cb8ac23	2cb8ac238cdc0af4
+L	redact_cut.sh	201	09f2a408	09f2a408ec95348b
+L	redact_cut.sh	202	c16327ef	c16327efc8c206a9
+L	redact_cut.sh	203	d8a2ef20	d8a2ef20d246baaf
+L	redact_cut.sh	204	c349946d	c349946d7a22ff24
+L	redact_cut.sh	205	96b0b607	96b0b607efef0e04
+L	redact_cut.sh	206	e1503cd4	e1503cd419bfc58d
+L	redact_cut.sh	207	e74610e8	e74610e828a9b5b2
+L	redact_cut.sh	208	39dee73c	39dee73cb36a71c6
+L	redact_cut.sh	209	a3579dda	8a749ed77a269e27
+L	redact_cut.sh	210	069ef8e3	1fb931b2693610b8
+L	redact_cut.sh	211	a07b9e1b	5c564c5207f5a8e4
+L	redact_cut.sh	212	32ebb1ab	e1d2f8b4eb0ac898
+L	redact_cut.sh	213	e3ce033f	066f4daecab102ce
+L	redact_cut.sh	214	9d7c2762	6f5a786abd071b6b
+L	redact_cut.sh	215	b1ed379b	0b934c0e63e00d6d
+L	redact_cut.sh	216	755cfb84	f02244a9a8bba707
+L	redact_cut.sh	217	abc1e599	2617087f2f445abb
+L	redact_cut.sh	218	d9d753e7	1c03ec15921b4786
+L	redact_cut.sh	219	6bb31b0b	43e6865465f700b8
+L	redact_cut.sh	220	0322d346	7b2db351474a383b
+L	redact_cut.sh	221	a4c3ed04	0d2c2aede925d156
+L	redact_cut.sh	222	ccc2fd81	eea2e1e79cbf7ef3
+L	redact_cut.sh	223	31b23131	6dc5a6b17792e3ba
+L	redact_cut.sh	224	2946bc4d	17949ef21d6f975a
+L	redact_cut.sh	225	abc1e599	2617087f2f445abb
+L	redact_cut.sh	226	83e0a152	4b55d8c3d2e6b772
+L	redact_cut.sh	227	a4c3ed04	0d2c2aede925d156
+L	redact_cut.sh	228	3503699b	f9f63463f5f1daf1
+L	redact_cut.sh	229	d42f5cca	a83edb9565ac11ee
+L	redact_cut.sh	230	37522850	2257851997c26f96
+L	redact_cut.sh	231	ba5ec51d	56769e5bc1271b06
+L	redact_cut.sh	232	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	233	14bddbda	14bddbda57a8fe66
+L	redact_cut.sh	234	8f93f110	656e5fd7a1c71eab
+L	redact_cut.sh	235	3d20847c	21a140ddc7933b90
+L	redact_cut.sh	236	1aee3aae	459679e209f3ed57
+L	redact_cut.sh	237	928ee1c2	d6b85a8ee005edb4
+L	redact_cut.sh	238	c22f55af	8a93fbc0c62ec3e2
+L	redact_cut.sh	239	6f3de147	31772daf7bb91721
+L	redact_cut.sh	240	e1758fec	801332b876887b77
+L	redact_cut.sh	241	257c3615	843af1453ec684ef
+L	redact_cut.sh	242	79d9d68f	d979b6c1af1d153c
+L	redact_cut.sh	243	cf97ad60	45f0ed0ac7625d7b
+L	redact_cut.sh	244	a4c3ed04	28d8a3f04a2a07c0
+L	redact_cut.sh	245	c03f379a	47afa6a6e61a5029
+L	redact_cut.sh	246	256c76ed	e31649d7eb5fdcb4
+L	redact_cut.sh	247	464f161f	cfb2791db44f5bd8
+L	redact_cut.sh	248	504ffd62	478c2d52c45e2348
+L	redact_cut.sh	249	d36bd669	1120a8c31930b066
+L	redact_cut.sh	250	196381ef	29b7c97211aa2f0b
+L	redact_cut.sh	251	35baf48c	c5b0083c614c565f
+L	redact_cut.sh	252	327b7264	65219f2364d658fc
+L	redact_cut.sh	253	a4c3ed04	28d8a3f04a2a07c0
+L	redact_cut.sh	254	a742a4a1	ce60775647b95758
+L	redact_cut.sh	255	aa327a54	b07f40a6c1d3a60b
+L	redact_cut.sh	256	30945f34	f66c7546a945b51f
+L	redact_cut.sh	257	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	258	e3b0c442	e3b0c44298fc1c14
+L	redact_cut.sh	259	52213d69	52213d69356d488b
+L	redact_cut.sh	260	1e071258	1e07125879df0147
+L	redact_cut.sh	261	672bb477	672bb4772dac8f39
+L	redact_cut.sh	262	7a253228	7a253228d66806fd
+L	redact_cut.sh	263	1aa3c237	1aa3c237f6f2f6ae
+L	redact_cut.sh	264	c5857187	c585718765e5b612
+L	redact_cut.sh	265	4470c0bb	4470c0bb6fb611f5
+L	redact_cut.sh	266	0ba5b6b1	0ba5b6b14cb955b5
+L	redact_cut.sh	267	df3d4944	df3d49445d247869
+L	redact_cut.sh	268	01627c11	01627c1121359150
+L	redact_cut.sh	269	f987364f	f987364f3334f144
+L	redact_cut.sh	270	147eb019	147eb01925cb19e4
+L	redact_cut.sh	271	835dd8af	835dd8af1c6c1cc0
+L	redact_cut.sh	272	6dab6069	6dab6069cb0c4889
+L	redact_cut.sh	273	fa4c0a63	fa4c0a63cb2934fb
+L	redact_cut.sh	274	dca9ec1b	dca9ec1b489b6359
+L	redact_cut.sh	275	4c3f6fbf	4c3f6fbf63876121
+L	redact_cut.sh	276	4623f613	4623f613f6630feb
+L	redact_cut.sh	277	2ce49faa	2ce49faa2cedbeda
+L	redact_cut.sh	278	7af24ef8	7af24ef85b3235e3
+L	redact_cut.sh	279	99aaa8b1	99aaa8b1266d18a4
+L	redact_cut.sh	280	fd9edda0	fd9edda01e26cb2e
+L	redact_cut.sh	281	7ce5b9ae	7ce5b9ae35d13d91
+L	redact_cut.sh	282	db7c75b6	db7c75b675b1a477
+L	redact_cut.sh	283	e59d38dc	e59d38dc786ef47d
+L	redact_cut.sh	284	72844260	7284426022908065
+L	redact_cut.sh	285	c1fe5a3e	c1fe5a3e14b70433
+L	redact_cut.sh	286	49649808	496498086ff275e9
+L	redact_cut.sh	287	c8758210	c8758210bc18837f
+L	redact_cut.sh	288	0fff147d	585c807c195c3d64
+L	redact_cut.sh	289	486d9aff	46f22e4b9ebe5d58
+L	redact_cut.sh	290	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	291	c2a0780b	c2a0780b33926f8a
+L	redact_cut.sh	292	353c754f	353c754fb952dcbf
+L	redact_cut.sh	293	68fd555c	68fd555cc9856382
+L	redact_cut.sh	294	3f563452	1dd6e2349043c305
+L	redact_cut.sh	295	1e57f904	97dca90462f8c8d8
+L	redact_cut.sh	296	45e956a7	2f49bdc7eafb2f18
+L	redact_cut.sh	297	d4882644	934ccfab5e80e56c
+L	redact_cut.sh	298	090feb30	3ad328f559a8e2b1
+L	redact_cut.sh	299	8d3d57b5	190ab8c798c728d9
+L	redact_cut.sh	300	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	301	eb9bece3	eb9bece370ed6d0f
+L	redact_cut.sh	302	fae8d07c	fae8d07c94953e29
+L	redact_cut.sh	303	e423d85f	a0ac23962a13faad
+L	redact_cut.sh	304	854c9150	0fc660078628f15c
+L	redact_cut.sh	305	747f1bda	2bb5aaaf6ff02c2a
+L	redact_cut.sh	306	55cb3e3b	2c17bca2e2f50579
+L	redact_cut.sh	307	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	308	5693d4d8	5693d4d8df9c0019
+L	redact_cut.sh	309	0a75db13	0a75db137fca1883
+L	redact_cut.sh	310	ea83d2b9	ea83d2b9624051f6
+L	redact_cut.sh	311	d8cfb710	d8cfb71091ebdcfd
+L	redact_cut.sh	312	69b90dad	69b90dad8e0cbf5f
+L	redact_cut.sh	313	9e14862f	9e14862ff0a8d339
+L	redact_cut.sh	314	105b1349	105b134920d565b2
+L	redact_cut.sh	315	049ab488	855bc6288dbc0b5f
+L	redact_cut.sh	316	43524077	993d7d4adc90381b
+L	redact_cut.sh	317	a88ea1f7	66300630e109deab
+L	redact_cut.sh	318	1f2fe9c0	8bf62490cb69a715
+L	redact_cut.sh	319	2d425000	e674089712f10e56
+L	redact_cut.sh	320	176b65be	0bb9cd3602d2e557
+L	redact_cut.sh	321	3660247f	922bd6d227f9e590
+L	redact_cut.sh	322	80273411	c9bcd91c7f31cd9a
+L	redact_cut.sh	323	aa9af42c	1c4f2c289b0c9d1a
+L	redact_cut.sh	324	dbc97771	2c85696ce38645af
+L	redact_cut.sh	325	a4c3ed04	28d8a3f04a2a07c0
+L	redact_cut.sh	326	c1d3c43e	1b64c5bdbed2239a
+L	redact_cut.sh	327	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	328	88298d5d	88298d5d3f78c260
+L	redact_cut.sh	329	b0527c1c	b0527c1c8f7c64f6
+L	redact_cut.sh	330	6ff14a83	6ff14a83dd01cbee
+L	redact_cut.sh	331	c6ce6e60	a4a639f59bd7a967
+L	redact_cut.sh	332	600e2663	6d73caec575cc04d
+L	redact_cut.sh	333	3dfb45bb	ec587bdfe0ee32ea
+L	redact_cut.sh	334	ac123f54	bab028b2c8a2135d
+L	redact_cut.sh	335	72860719	263397765d99ebdf
+L	redact_cut.sh	336	3186a41f	32ca05f95dbef7ab
+L	redact_cut.sh	337	73ce318a	7e2efec84c05d15c
+L	redact_cut.sh	338	adca1415	c10de1a11e748b88
+L	redact_cut.sh	339	327b7264	707e30ae920dbfef
+L	redact_cut.sh	340	a4c3ed04	0d2c2aede925d156
+L	redact_cut.sh	341	62695f49	4d9f61180070400e
+L	redact_cut.sh	342	b4bdc848	78c0770dcd09bc54
+L	redact_cut.sh	343	ec8b0494	f8fa0b7130e3903e
+L	redact_cut.sh	344	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	345	5eb6a361	5eb6a36152bafc7e
+L	redact_cut.sh	346	5be4f59e	604a2de95e80eaaf
+L	redact_cut.sh	347	27b89adb	b73f9fd256f64738
+L	redact_cut.sh	348	c695a40f	ae4194c5f8700d0c
+L	redact_cut.sh	349	49667d5f	5180c8c32aabf7d9
+L	redact_cut.sh	350	a4c3ed04	28d8a3f04a2a07c0
+L	redact_cut.sh	351	069ef8e3	1fb931b2693610b8
+L	redact_cut.sh	352	ce6c5784	f6713429791607cc
+L	redact_cut.sh	353	8fd149eb	b9f7191f9b64ff98
+L	redact_cut.sh	354	7dc823e4	fbd7ee9bbd2ed9d7
+L	redact_cut.sh	355	327b7264	bc6a7ce687d0fab2
+L	redact_cut.sh	356	aded9682	52da4bc9ff643999
+L	redact_cut.sh	357	ca01e951	e51e3845a9b224b2
+L	redact_cut.sh	358	2980f7cd	4619aec2c4c81977
+L	redact_cut.sh	359	1e74e9be	1d997c2137514ed6
+L	redact_cut.sh	360	df5d32df	f239adf2fb169c50
+L	redact_cut.sh	361	4a6df889	8a4aa04a6baab934
+L	redact_cut.sh	362	07d9b84b	e50b8ad3b316a9d6
+L	redact_cut.sh	363	ec8b0494	f8fa0b7130e3903e
+L	redact_cut.sh	364	79987cef	a06b26fe3764d337
+L	redact_cut.sh	365	a614cc7f	67b853b5d3084460
+L	redact_cut.sh	366	ab6aeb00	588b7298903072ab
+L	redact_cut.sh	367	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	368	e3b0c442	e3b0c44298fc1c14
+L	redact_cut.sh	369	fd423f53	fd423f535e04333c
+L	redact_cut.sh	370	f1eaa115	f1eaa1152da0566a
+L	redact_cut.sh	371	70766c9a	70766c9a3026ef26
+L	redact_cut.sh	372	41bbee70	41bbee7008d97a10
+L	redact_cut.sh	373	df0796df	df0796dfde24ddcb
+L	redact_cut.sh	374	30dfe1b7	30dfe1b78ab63c80
+L	redact_cut.sh	375	8d1bdaf7	8d1bdaf759a00de8
+L	redact_cut.sh	376	55b55cf7	d751f83ef85cbd87
+L	redact_cut.sh	377	92e62449	effd351a06e602ab
+L	redact_cut.sh	378	be61813b	1f4945a6e8cb44d0
+L	redact_cut.sh	379	6d79b8fe	e304239d02a5c41d
+L	redact_cut.sh	380	b58a8c00	48851999e0244aeb
+L	redact_cut.sh	381	dbab26d8	d51e157a839ae884
+L	redact_cut.sh	382	eefa36b3	14a2571b2f6882c9
+L	redact_cut.sh	383	486d9aff	53c12eb946042ae3
+L	redact_cut.sh	384	b4bdc848	78c0770dcd09bc54
+L	redact_cut.sh	385	7ca971c7	fc0bfb271fd385da
+L	redact_cut.sh	386	65182b0c	78b2f50157376539
+L	redact_cut.sh	387	bd51ad3b	65b8f1e55024487b
+L	redact_cut.sh	388	53690c1e	d1f784eb6f0bb066
+L	redact_cut.sh	389	486d9aff	46f22e4b9ebe5d58
+L	redact_cut.sh	390	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	391	e3b0c442	e3b0c44298fc1c14
+L	redact_cut.sh	392	9609723a	9609723ab40389b3
+L	redact_cut.sh	393	014303fa	ab131639f9c80718
+L	redact_cut.sh	394	a8bbfd7f	23991ffadc281516
+L	redact_cut.sh	395	74bb9bca	2243f7d43a5368f0
+L	redact_cut.sh	396	3d869708	c6a48a6b3afc3e07
+L	redact_cut.sh	397	54bd26cc	cf35153d660c8182
+L	redact_cut.sh	398	2e84c348	d17d322ff806a2b5
+L	redact_cut.sh	399	d10b36aa	28d86778615f6af4
+L	redact_cut.sh	400	9f611273	bd23dccdab5f8d01
+L	redact_cut.sh	401	d4ca657e	92405902883840bb
+L	redact_cut.sh	402	13f8590c	fc3aae3f29b092fd
+L	redact_cut.sh	403	0ccb13f3	232a1b76dd6b252d
+L	redact_cut.sh	404	18f950d4	a756b82232b6e5c1
+L	redact_cut.sh	405	6aa6f891	a0fa9156c6692e13
+L	redact_cut.sh	406	07b6908f	3392227cd4c22f50
+L	redact_cut.sh	407	7a34ca25	e6d087c7d26580ba
+L	redact_cut.sh	408	becb4abf	cd6827fd3b4cdd4d
+L	redact_cut.sh	409	fcd66ad2	5507ced843911c00
+L	redact_cut.sh	410	db5f1e3e	e7337daef298a48e
+L	redact_cut.sh	411	df8857f2	f669d71be07aaa34
+L	redact_cut.sh	412	cdb8a621	d0b61dad78df0ea6
+L	redact_cut.sh	413	aff24a97	fc5e9a28802724df
+L	redact_cut.sh	414	0f1a006b	8e5cc26a1e94acc2
+L	redact_cut.sh	415	5291144a	72dd243c69fa08a0
+L	redact_cut.sh	416	d10b36aa	9726a7494bd555db
+L	redact_cut.sh	417	5f283eb8	ccaecb7ade8931da
+L	redact_cut.sh	418	d10b36aa	2a44168318e224e1
+L	redact_cut.sh	419	d10b36aa	f61f5bbc379fd349
+L	redact_cut.sh	420	d10b36aa	28d86778615f6af4
+L	redact_cut.sh	421	021fb596	0d3d2f5a8b2fc178
+L	redact_cut.sh	422	516e913a	e265e0ab5fb13f57
+L	redact_cut.sh	423	4ccb4ce4	8f61a5b8848fdc29
+L	redact_cut.sh	424	254d634e	cbb140df2e5f06cf
+L	redact_cut.sh	425	985045f1	a3ee46381d94f438
+L	redact_cut.sh	426	3acb0f88	c80c787cc30b7016
+L	redact_cut.sh	427	d241a0fe	b22c52dc4a59687a
+L	redact_cut.sh	428	032c0128	45884d185136d2a8
+L	redact_cut.sh	429	6b4e6197	b7d2a39c9412ff1d
+L	redact_cut.sh	430	d10b36aa	2a44168318e224e1
+L	redact_cut.sh	431	c991a01d	620db9cc569262ef
+L	redact_cut.sh	432	42099d93	b029e152c4b4743d
+L	redact_cut.sh	433	7d6e2593	94b615ca7adf58f8
+L	redact_cut.sh	434	bc51c43d	76b0b730de5fb185
+L	redact_cut.sh	435	89a05069	3e76ca2c01ef4706
+L	redact_cut.sh	436	d10b36aa	2a44168318e224e1
+L	redact_cut.sh	437	21303033	f98f7ef1e80a411a
+L	redact_cut.sh	438	ffda3463	b779a5e82b1c95b1
+L	redact_cut.sh	439	378aec7d	0057c97eb4dfe25b
+L	redact_cut.sh	440	e4bdc639	6382fb776cf0afa5
+L	redact_cut.sh	441	70133602	a0e4f97c8169e05c
+L	redact_cut.sh	442	108f06f1	e3b42f50d7bbaf41
+L	redact_cut.sh	443	713d5d1f	1d8e189e6fb463d3
+L	redact_cut.sh	444	d10b36aa	f61f5bbc379fd349
+L	redact_cut.sh	445	0aa4ed37	a59d830c9ed72376
+L	redact_cut.sh	446	c50a0c2d	40d43dc03e0af6c2
+L	redact_cut.sh	447	006b7f6f	9c8df3bf882fabff
+L	redact_cut.sh	448	d10b36aa	28d86778615f6af4
+L	redact_cut.sh	449	398398db	f966df389bc92cbd
+L	redact_cut.sh	450	d10b36aa	d10b36aa74a59bcf
+L	redact_cut.sh	451	e3b0c442	e3b0c44298fc1c14
+F	release_publish_gitea.sh	7ee608a741db8445d82abcc6b3890885451c09c947ef3628a6dbe2d95726b4df	214
+L	release_publish_gitea.sh	1	e2b37d0f	e2b37d0fbeebd535
+L	release_publish_gitea.sh	2	b3937f25	b3937f251a9f6d3d
+L	release_publish_gitea.sh	3	1cccec0e	1cccec0e0102f91d
+L	release_publish_gitea.sh	4	ce54aa1b	ce54aa1b0bb4eef3
+L	release_publish_gitea.sh	5	334359b9	334359b90efed75d
+L	release_publish_gitea.sh	6	67fc6f2a	67fc6f2afac7c597
+L	release_publish_gitea.sh	7	419fc46d	419fc46d1b36d9e3
+L	release_publish_gitea.sh	8	334359b9	334359b90efed75d
+L	release_publish_gitea.sh	9	71c969f8	71c969f874afd4e5
+L	release_publish_gitea.sh	10	c1d5cdda	9d9b264ea556088f
+L	release_publish_gitea.sh	11	08a9286f	82be58c17ac10a21
+L	release_publish_gitea.sh	12	be755685	6666956f77f6a88c
+L	release_publish_gitea.sh	13	76ebb908	df16e9ef4981d034
+L	release_publish_gitea.sh	14	334359b9	334359b90efed75d
+L	release_publish_gitea.sh	15	92ecc1f8	92ecc1f83824c14c
+L	release_publish_gitea.sh	16	3f7d30d2	3f7d30d2d11bf6ad
+L	release_publish_gitea.sh	17	73d9ccd2	73d9ccd242e5afbe
+L	release_publish_gitea.sh	18	a49d5840	a49d5840fc604102
+L	release_publish_gitea.sh	19	0edc31ff	0edc31ff65541017
+L	release_publish_gitea.sh	20	eed0e6f5	eed0e6f5a7545ce8
+L	release_publish_gitea.sh	21	68531112	6853111248233107
+L	release_publish_gitea.sh	22	4676d98c	4676d98c29f982e1
+L	release_publish_gitea.sh	23	21962e9b	21962e9b7f800f7f
+L	release_publish_gitea.sh	24	80a8b28c	80a8b28c372b8915
+L	release_publish_gitea.sh	25	97b99823	97b9982344cd3a57
+L	release_publish_gitea.sh	26	a668d29a	a668d29aee505f67
+L	release_publish_gitea.sh	27	334359b9	334359b90efed75d
+L	release_publish_gitea.sh	28	fc507689	fc50768995c67e0e
+L	release_publish_gitea.sh	29	243cb070	243cb070db6e21a6
+L	release_publish_gitea.sh	30	3cf1adf1	3cf1adf108b70b02
+L	release_publish_gitea.sh	31	e9720b29	e9720b29e08f0957
+L	release_publish_gitea.sh	32	9751cc5f	1ee6e4f30af6ed2d
+L	release_publish_gitea.sh	33	2d510a6e	2d510a6eb4e36076
+L	release_publish_gitea.sh	34	08e1d5d4	985fc46b234766fc
+L	release_publish_gitea.sh	35	08570e99	08570e99941c2dbd
+L	release_publish_gitea.sh	36	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	37	2df6a758	2df6a758b9998c22
+L	release_publish_gitea.sh	38	7b40a860	7b40a8605dc491f9
+L	release_publish_gitea.sh	39	222d5570	e9b4ac1a9395a519
+L	release_publish_gitea.sh	40	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	41	f5725d72	f5725d72914f37f4
+L	release_publish_gitea.sh	42	c33a72b3	c33a72b3e479a7f0
+L	release_publish_gitea.sh	43	1a7e6d37	1a7e6d3710e319b7
+L	release_publish_gitea.sh	44	32f8265a	32f8265ac981063d
+L	release_publish_gitea.sh	45	5d1dddc3	d5e39f47b493d261
+L	release_publish_gitea.sh	46	aafaf9be	aafaf9be3dc0078d
+L	release_publish_gitea.sh	47	a9a39848	a9a398483e3b6801
+L	release_publish_gitea.sh	48	722d5615	722d56152baa30a8
+L	release_publish_gitea.sh	49	28312568	2831256870f54299
+L	release_publish_gitea.sh	50	a3da2cb7	a3da2cb7540a76ae
+L	release_publish_gitea.sh	51	4ac65aa8	4ac65aa840f6e679
+L	release_publish_gitea.sh	52	a8b57dcb	1a108a9fc1b93147
+L	release_publish_gitea.sh	53	4227ac5d	a524a98e184d068d
+L	release_publish_gitea.sh	54	9ca14148	8f4bdb388d380197
+L	release_publish_gitea.sh	55	3fd55da5	6eb97c055d2ac29f
+L	release_publish_gitea.sh	56	327b7264	bc6a7ce687d0fab2
+L	release_publish_gitea.sh	57	a4c3ed04	a4c3ed04a95a3da1
+L	release_publish_gitea.sh	58	3e39c712	3e39c712c1980543
+L	release_publish_gitea.sh	59	bdb9e240	911efbff44630ac1
+L	release_publish_gitea.sh	60	51b5159c	51b5159ce475eba3
+L	release_publish_gitea.sh	61	78b3e41b	78b3e41b17ed005c
+L	release_publish_gitea.sh	62	a6468d6d	a6468d6db9d3961a
+L	release_publish_gitea.sh	63	2a935554	207734b31bfed0cd
+L	release_publish_gitea.sh	64	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	65	67b23aae	67b23aaefe2a9719
+L	release_publish_gitea.sh	66	da2e5f65	da2e5f65a6727489
+L	release_publish_gitea.sh	67	6879dc3c	cea2bbda44f0212a
+L	release_publish_gitea.sh	68	f8c19263	688775025de10863
+L	release_publish_gitea.sh	69	8f921566	0b3348ad8d70853c
+L	release_publish_gitea.sh	70	25cecb5c	1289773abb46c9f6
+L	release_publish_gitea.sh	71	339ea3ec	578b850634fa1883
+L	release_publish_gitea.sh	72	a768010f	4c95fc8eb4ffb762
+L	release_publish_gitea.sh	73	4966cd72	a0fbf1bb68d8f5d7
+L	release_publish_gitea.sh	74	399f34d0	42c421781f78db3a
+L	release_publish_gitea.sh	75	3d2b31d2	1af72c3f0856ad22
+L	release_publish_gitea.sh	76	47cdf745	2c2dd56a009fd844
+L	release_publish_gitea.sh	77	7f4630ac	3d70fd5eaf30b76a
+L	release_publish_gitea.sh	78	afc8dc18	39dba045e9086e6f
+L	release_publish_gitea.sh	79	e4155ab6	2c5819c833368294
+L	release_publish_gitea.sh	80	a544d1af	d68ab5eb532fac0b
+L	release_publish_gitea.sh	81	327b7264	bc6a7ce687d0fab2
+L	release_publish_gitea.sh	82	a4c3ed04	a4c3ed04a95a3da1
+L	release_publish_gitea.sh	83	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	84	1037ab69	1037ab6900dd7ff9
+L	release_publish_gitea.sh	85	849ba01b	849ba01b60ccef6f
+L	release_publish_gitea.sh	86	6d98331a	6d98331af9b4ef72
+L	release_publish_gitea.sh	87	a0975e80	a0975e80e356f576
+L	release_publish_gitea.sh	88	7a2bf03e	7a2bf03ee62e69c6
+L	release_publish_gitea.sh	89	98fd52e3	98fd52e3f2159573
+L	release_publish_gitea.sh	90	9bf5b5f7	9bf5b5f744a230e0
+L	release_publish_gitea.sh	91	5af5a79d	5af5a79d30513964
+L	release_publish_gitea.sh	92	5b7f0373	5b7f03731580f5da
+L	release_publish_gitea.sh	93	5d507d9e	5d507d9e78af9bd5
+L	release_publish_gitea.sh	94	9b854741	9b85474152122202
+L	release_publish_gitea.sh	95	248ca227	248ca227bf89cd17
+L	release_publish_gitea.sh	96	18e7f307	18e7f30741dfd90d
+L	release_publish_gitea.sh	97	34847194	348471941e426fca
+L	release_publish_gitea.sh	98	52e4b945	52e4b94568936fd6
+L	release_publish_gitea.sh	99	a9a2e0f3	a9a2e0f33ea1b75a
+L	release_publish_gitea.sh	100	6b9e2206	6b9e22064274efef
+L	release_publish_gitea.sh	101	8b5e19d5	8b5e19d563a44aab
+L	release_publish_gitea.sh	102	ecc89bdd	ddaa0ef35f5ce889
+L	release_publish_gitea.sh	103	89b87c81	f3f2c794cc498f71
+L	release_publish_gitea.sh	104	a157292b	099181d31aa8d433
+L	release_publish_gitea.sh	105	327b7264	bc6a7ce687d0fab2
+L	release_publish_gitea.sh	106	b4bdc848	b4bdc848109722a3
+L	release_publish_gitea.sh	107	464cb215	464cb21539ed356c
+L	release_publish_gitea.sh	108	2a057d21	2a057d2142030c63
+L	release_publish_gitea.sh	109	5d1d5e52	5d1d5e52dd2aefb6
+L	release_publish_gitea.sh	110	d6ae5a4c	d6ae5a4cd9b9439d
+L	release_publish_gitea.sh	111	e392a527	e392a527b3c2f99f
+L	release_publish_gitea.sh	112	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	113	30e035ac	30e035ac4a0ae7a6
+L	release_publish_gitea.sh	114	4c38ab71	a78649e35a4a2435
+L	release_publish_gitea.sh	115	f83f8905	2f475a16b7866ba7
+L	release_publish_gitea.sh	116	b4bdc848	b4bdc848109722a3
+L	release_publish_gitea.sh	117	299e46fd	299e46fdafe48c4d
+L	release_publish_gitea.sh	118	1a5db515	a62f8da201143c3d
+L	release_publish_gitea.sh	119	b4bdc848	b4bdc848109722a3
+L	release_publish_gitea.sh	120	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	121	5f15a7d2	5f15a7d294fd353c
+L	release_publish_gitea.sh	122	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	123	4ca29cc3	4ca29cc39faf7970
+L	release_publish_gitea.sh	124	da57925c	da57925c60cc1ddf
+L	release_publish_gitea.sh	125	66ca0270	66ca027072ef8f74
+L	release_publish_gitea.sh	126	655049bd	655049bd48c0bed4
+L	release_publish_gitea.sh	127	dcba8363	dcba8363fb42b64d
+L	release_publish_gitea.sh	128	d5965541	d5965541dc2c9d95
+L	release_publish_gitea.sh	129	0f9fc8a5	0f9fc8a5697dbd8b
+L	release_publish_gitea.sh	130	a8ae192b	a8ae192b26693b08
+L	release_publish_gitea.sh	131	319b9852	319b98529338edc8
+L	release_publish_gitea.sh	132	3379cc41	3379cc417a0f049e
+L	release_publish_gitea.sh	133	fb729727	fb72972764d2d364
+L	release_publish_gitea.sh	134	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	135	adb71fbc	adb71fbc27da884d
+L	release_publish_gitea.sh	136	5519bf39	5519bf394136ab5a
+L	release_publish_gitea.sh	137	e0c7ef09	00619eacbbab921a
+L	release_publish_gitea.sh	138	d29e00a9	e4171d595e0a55e1
+L	release_publish_gitea.sh	139	7a9eba69	7a9eba691d10e8f5
+L	release_publish_gitea.sh	140	3548e0e2	b33cf6e5db19b849
+L	release_publish_gitea.sh	141	7dd530c4	7dd530c4d36da47c
+L	release_publish_gitea.sh	142	3eb42fe6	9f0ac53c96f5a78d
+L	release_publish_gitea.sh	143	d50b55f3	90f6bfeb9b1c6f0f
+L	release_publish_gitea.sh	144	557c16ff	c2d68782933f529b
+L	release_publish_gitea.sh	145	04157718	d3a4a94e036b089b
+L	release_publish_gitea.sh	146	28ae3a45	2f7f36a9b8e027e8
+L	release_publish_gitea.sh	147	e3cf64be	a1289a34083eb571
+L	release_publish_gitea.sh	148	c95f3e13	75dbbcceff9836c4
+L	release_publish_gitea.sh	149	d10b36aa	28d86778615f6af4
+L	release_publish_gitea.sh	150	666e5459	02222036c1f4d481
+L	release_publish_gitea.sh	151	9bee14de	66d622c7331de032
+L	release_publish_gitea.sh	152	fb77dc5f	a7a6902e3f9c0f4c
+L	release_publish_gitea.sh	153	b4bdc848	b4bdc848109722a3
+L	release_publish_gitea.sh	154	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	155	4fe0bea8	4fe0bea8eb09c08a
+L	release_publish_gitea.sh	156	fefb2b66	fefb2b66ac004035
+L	release_publish_gitea.sh	157	0e047001	e9189be124417b05
+L	release_publish_gitea.sh	158	cd655c7b	fbddf4a5417fe708
+L	release_publish_gitea.sh	159	3a114ec5	aca3c87c92ad9112
+L	release_publish_gitea.sh	160	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	161	5024375a	5024375a72a97314
+L	release_publish_gitea.sh	162	e93f7742	26e229df24bca025
+L	release_publish_gitea.sh	163	c22995ad	137fcc6d491efadf
+L	release_publish_gitea.sh	164	b4bdc848	b4bdc848109722a3
+L	release_publish_gitea.sh	165	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	166	ec56165a	ec56165a257db1da
+L	release_publish_gitea.sh	167	dac924ec	dac924ec8eb9c4ca
+L	release_publish_gitea.sh	168	832673ec	832673ec527f89b1
+L	release_publish_gitea.sh	169	1f8e7500	1f8e7500ceb4855b
+L	release_publish_gitea.sh	170	b8bcb62e	b8bcb62e88ad9390
+L	release_publish_gitea.sh	171	aed4f224	f8a4bc4caf067fc1
+L	release_publish_gitea.sh	172	56bac226	6ff47b84feb03c09
+L	release_publish_gitea.sh	173	383441d0	f7f2a8c9a3abd0bf
+L	release_publish_gitea.sh	174	669cf823	d890c2cb87c9d4c0
+L	release_publish_gitea.sh	175	7312d4f2	6947af4f1a817be3
+L	release_publish_gitea.sh	176	76abfd9f	762cdfae2860d8d7
+L	release_publish_gitea.sh	177	d68237a4	dd8e8d574a84db6d
+L	release_publish_gitea.sh	178	f7e567d6	eccb3500b52e5060
+L	release_publish_gitea.sh	179	486d9aff	53c12eb946042ae3
+L	release_publish_gitea.sh	180	b4bdc848	78c0770dcd09bc54
+L	release_publish_gitea.sh	181	1e3fe218	68797ff70da9aad9
+L	release_publish_gitea.sh	182	e97c1b97	edc354fba4e3103c
+L	release_publish_gitea.sh	183	4717c9bb	0512e8ed039e30de
+L	release_publish_gitea.sh	184	7c81e0df	f4ca5dd1296a99a2
+L	release_publish_gitea.sh	185	d10b36aa	d10b36aa74a59bcf
+L	release_publish_gitea.sh	186	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	187	449ce6e5	449ce6e543c26c63
+L	release_publish_gitea.sh	188	860afd7c	293993be15b4ec30
+L	release_publish_gitea.sh	189	16fb0955	f5c25aea17967eab
+L	release_publish_gitea.sh	190	37a786c1	092dab73af3c6883
+L	release_publish_gitea.sh	191	834c31a7	c5210638acc1db30
+L	release_publish_gitea.sh	192	6bf83ce5	e85ef1186df2b0aa
+L	release_publish_gitea.sh	193	d10b36aa	d10b36aa74a59bcf
+L	release_publish_gitea.sh	194	e3b0c442	e3b0c44298fc1c14
+L	release_publish_gitea.sh	195	637d64b9	637d64b9b55f4ea3
+L	release_publish_gitea.sh	196	baa117a6	baa117a6db501ae4
+L	release_publish_gitea.sh	197	f81f2212	e6daa35998c56474
+L	release_publish_gitea.sh	198	b2d3f58d	942a9b54977fa82c
+L	release_publish_gitea.sh	199	c2749f2e	9803f1e1ce5d7c75
+L	release_publish_gitea.sh	200	baa117a6	b5653dbd83677bcb
+L	release_publish_gitea.sh	201	c6bfdb13	7f46f44acd0bd686
+L	release_publish_gitea.sh	202	22409157	b6fb2770311ce589
+L	release_publish_gitea.sh	203	da65657f	1cefd951c2ded862
+L	release_publish_gitea.sh	204	748a02c2	95a58ab53c2aa749
+L	release_publish_gitea.sh	205	111c983c	a23efa0dd3e5ea3a
+L	release_publish_gitea.sh	206	637d64b9	37341c3943a70733
+L	release_publish_gitea.sh	207	98bafde6	f0e97e107220fa05
+L	release_publish_gitea.sh	208	20495e77	81864904bab5f0dc
+L	release_publish_gitea.sh	209	9f7bce7b	5b65d336595cb050
+L	release_publish_gitea.sh	210	6b228380	02021133e36e5ae5
+L	release_publish_gitea.sh	211	d4409171	92817e194b6f66d4
+L	release_publish_gitea.sh	212	1d99a093	a7c1a911f5b595bd
+L	release_publish_gitea.sh	213	327b7264	327b72644d48cdd9
+L	release_publish_gitea.sh	214	e3b0c442	e3b0c44298fc1c14
+F	tag_and_release.sh	bfb236b323644242c95a15126952f50860e8aa4c2196d18427918712359d2f9a	347
+L	tag_and_release.sh	1	e2b37d0f	e2b37d0fbeebd535
+L	tag_and_release.sh	2	29c8f729	29c8f729638b458f
+L	tag_and_release.sh	3	6a3f4b6e	6a3f4b6e6a78346d
+L	tag_and_release.sh	4	334359b9	334359b90efed75d
+L	tag_and_release.sh	5	71c969f8	71c969f874afd4e5
+L	tag_and_release.sh	6	b137080c	478284b8ce959b9d
+L	tag_and_release.sh	7	28c280ee	c4063339cb6b273b
+L	tag_and_release.sh	8	b47bca9d	fa0f88331e0431db
+L	tag_and_release.sh	9	67d7ae7d	07f836548c7a1268
+L	tag_and_release.sh	10	394350fa	a39da5bc9d900d5b
+L	tag_and_release.sh	11	2d715500	7dec5414b8707ca7
+L	tag_and_release.sh	12	334359b9	334359b90efed75d
+L	tag_and_release.sh	13	877171b4	877171b4fd4b5ee5
+L	tag_and_release.sh	14	baa26a1f	44896c526edfacb9
+L	tag_and_release.sh	15	f0f4590c	267e8f657cba4896
+L	tag_and_release.sh	16	b2a1da9b	0ccbd6c839a8de33
+L	tag_and_release.sh	17	dd7d762b	29da878228b92b6a
+L	tag_and_release.sh	18	04e3d2e8	8144164f100c1473
+L	tag_and_release.sh	19	5fdb685a	83923e96abf9aef8
+L	tag_and_release.sh	20	03467eb8	579fb0568101881e
+L	tag_and_release.sh	21	3e39bba1	06d290dc9c86ea69
+L	tag_and_release.sh	22	3313de0e	8bffae44b1aee725
+L	tag_and_release.sh	23	5e5968e4	3a08f1ead9ccd57e
+L	tag_and_release.sh	24	3ecb0894	c5ab6f5e4f671c55
+L	tag_and_release.sh	25	ab5e80b9	4d0f8e3f7279b8d0
+L	tag_and_release.sh	26	ac70e46d	0370d0a9394d10c3
+L	tag_and_release.sh	27	64ee8755	0c2f4e24968c40ae
+L	tag_and_release.sh	28	f40d9618	6454f868e00eaec6
+L	tag_and_release.sh	29	ccdcec4a	b60dc51d5ab4214b
+L	tag_and_release.sh	30	11779a93	c1827f8a1fe93d33
+L	tag_and_release.sh	31	eaf2d440	ecd4e19333ef4e48
+L	tag_and_release.sh	32	6b096cef	455cf64d82342cc4
+L	tag_and_release.sh	33	0294bac8	29f3054269a9ebf3
+L	tag_and_release.sh	34	3b0c0923	1242623fc11a88d0
+L	tag_and_release.sh	35	6efa41c6	786e8478882b8b24
+L	tag_and_release.sh	36	f30f3a1c	1026bf5a5e8e0c09
+L	tag_and_release.sh	37	bfaa2c8e	da943bbefca133d7
+L	tag_and_release.sh	38	334359b9	334359b90efed75d
+L	tag_and_release.sh	39	5b269dcc	5b269dccfca59742
+L	tag_and_release.sh	40	a8f0f085	4666087c7729cac5
+L	tag_and_release.sh	41	46cd170a	c09d9845262c56ab
+L	tag_and_release.sh	42	b2c6d6f3	21fc10b397d6a634
+L	tag_and_release.sh	43	6f7a898f	73bc089ccd3bf8ec
+L	tag_and_release.sh	44	1346fb8c	245291ae52c5bb37
+L	tag_and_release.sh	45	89646069	957f6ca3eb83a3d6
+L	tag_and_release.sh	46	c612cbb8	c82326b771750383
+L	tag_and_release.sh	47	fe856046	fe8560467c5c2e38
+L	tag_and_release.sh	48	334359b9	334359b90efed75d
+L	tag_and_release.sh	49	53a59eb7	53a59eb7fd38e3fa
+L	tag_and_release.sh	50	e15ad94b	e15ad94bae9c8109
+L	tag_and_release.sh	51	8792d213	8792d2136513e286
+L	tag_and_release.sh	52	15aecfc1	15aecfc185b50d1d
+L	tag_and_release.sh	53	3775595c	3775595c4981220f
+L	tag_and_release.sh	54	4000a40a	4000a40a626d9e4a
+L	tag_and_release.sh	55	24ff8372	24ff83720982a294
+L	tag_and_release.sh	56	b203d5cf	b203d5cf58ea1864
+L	tag_and_release.sh	57	d4bbec4d	d4bbec4d8eaa44f7
+L	tag_and_release.sh	58	dcf56552	dcf565520c55a455
+L	tag_and_release.sh	59	7c6cbbec	7c6cbbec455ee478
+L	tag_and_release.sh	60	31b896cb	31b896cb954dbf2a
+L	tag_and_release.sh	61	6e7b2a1a	6e7b2a1a1e6dd306
+L	tag_and_release.sh	62	34288d8c	34288d8cd12daf89
+L	tag_and_release.sh	63	8ee40e7a	8ee40e7ae5b7eea4
+L	tag_and_release.sh	64	ac6cf4c7	ac6cf4c7c60012cb
+L	tag_and_release.sh	65	a06ff6e0	a06ff6e0b4e2a1ff
+L	tag_and_release.sh	66	5c7cfc47	5c7cfc47dd2bac18
+L	tag_and_release.sh	67	78cabf25	78cabf25f7fab15a
+L	tag_and_release.sh	68	126e18a3	126e18a39e116be7
+L	tag_and_release.sh	69	4d5f78f9	4d5f78f901641300
+L	tag_and_release.sh	70	9751cc5f	1ee6e4f30af6ed2d
+L	tag_and_release.sh	71	2d510a6e	2d510a6eb4e36076
+L	tag_and_release.sh	72	08e1d5d4	985fc46b234766fc
+L	tag_and_release.sh	73	08570e99	08570e99941c2dbd
+L	tag_and_release.sh	74	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	75	9de06c02	9de06c022edbf8b6
+L	tag_and_release.sh	76	6e699362	6e6993627f6adfc0
+L	tag_and_release.sh	77	a8492ff6	a8492ff637155ebd
+L	tag_and_release.sh	78	32f8265a	32f8265ac981063d
+L	tag_and_release.sh	79	5d1dddc3	d5e39f47b493d261
+L	tag_and_release.sh	80	68762d03	68762d030fbbc2d9
+L	tag_and_release.sh	81	84b4c1a0	e49fc768052a94aa
+L	tag_and_release.sh	82	8a9d49e3	8a9d49e379f0de1a
+L	tag_and_release.sh	83	2a935554	207734b31bfed0cd
+L	tag_and_release.sh	84	27f0468a	27f0468a3723e222
+L	tag_and_release.sh	85	b0bacc8d	b0bacc8d57c0afb7
+L	tag_and_release.sh	86	5ff4732b	5ff4732b949fcce1
+L	tag_and_release.sh	87	da2e5f65	da2e5f65a6727489
+L	tag_and_release.sh	88	6879dc3c	cea2bbda44f0212a
+L	tag_and_release.sh	89	b7391baf	905e1ce98910284e
+L	tag_and_release.sh	90	456045b8	eb74ba3a3aca5899
+L	tag_and_release.sh	91	8a893d51	e738daecc760971a
+L	tag_and_release.sh	92	a9cf61ce	b572856511463459
+L	tag_and_release.sh	93	1f30ac36	1fc25ff1d728ac67
+L	tag_and_release.sh	94	4b542a5d	a877086646f98875
+L	tag_and_release.sh	95	b0866dac	3a4703df8a337497
+L	tag_and_release.sh	96	a21aba0d	710c8455b8a67a4e
+L	tag_and_release.sh	97	7f4630ac	3d70fd5eaf30b76a
+L	tag_and_release.sh	98	536631c5	44943a3f3ba45780
+L	tag_and_release.sh	99	52906ce5	865bed01240050a3
+L	tag_and_release.sh	100	71fd7714	402fe6982e1bb529
+L	tag_and_release.sh	101	327b7264	bc6a7ce687d0fab2
+L	tag_and_release.sh	102	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	103	d83575b4	d83575b485b476cd
+L	tag_and_release.sh	104	d1c632c7	d1c632c7429f81e8
+L	tag_and_release.sh	105	5ed7db39	5ed7db39994937a6
+L	tag_and_release.sh	106	b1eef975	b1eef9759b2a14b1
+L	tag_and_release.sh	107	5106f121	5106f12158bc5152
+L	tag_and_release.sh	108	9a7fb36c	9a7fb36c8438ab30
+L	tag_and_release.sh	109	03a9b09b	03a9b09b35d993ff
+L	tag_and_release.sh	110	de5aba2c	de5aba2c68cdf59b
+L	tag_and_release.sh	111	da5a1133	4c9c64e1d091668c
+L	tag_and_release.sh	112	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	113	afd10084	afd10084f90b9691
+L	tag_and_release.sh	114	0fb0d645	0fb0d645c098afd0
+L	tag_and_release.sh	115	03a9b09b	03a9b09b35d993ff
+L	tag_and_release.sh	116	08d9d834	08d9d834afce8ec9
+L	tag_and_release.sh	117	d0a133fd	792e083495968482
+L	tag_and_release.sh	118	ef04ad9b	cd72d2fa2c760157
+L	tag_and_release.sh	119	3a592180	9b480eaed38a7bcc
+L	tag_and_release.sh	120	95bca0ef	87349389cb1b3089
+L	tag_and_release.sh	121	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	122	a563a653	a563a6533d9b7234
+L	tag_and_release.sh	123	1cd857f9	1cd857f93f9ab5de
+L	tag_and_release.sh	124	5f15a7d2	5f15a7d294fd353c
+L	tag_and_release.sh	125	ba1f84f5	ba1f84f59eb8e486
+L	tag_and_release.sh	126	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	127	c784934f	c784934f119363c3
+L	tag_and_release.sh	128	c4b2a802	c4b2a802e785c6b4
+L	tag_and_release.sh	129	c25d3e15	59087fd2f438eeb7
+L	tag_and_release.sh	130	faefa3a7	faefa3a7a5a8f59a
+L	tag_and_release.sh	131	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	132	4dcd7797	4dcd77971a999d71
+L	tag_and_release.sh	133	9e972404	9e9724044fe17160
+L	tag_and_release.sh	134	1cf8ecdc	1cf8ecdc2e51908b
+L	tag_and_release.sh	135	26fbe548	26fbe548eab412a0
+L	tag_and_release.sh	136	8e7b3ee0	8e7b3ee0a5c88769
+L	tag_and_release.sh	137	b0c53485	b0c53485d89e5472
+L	tag_and_release.sh	138	74b0163a	74b0163ae327a62e
+L	tag_and_release.sh	139	3b8a2af1	3b8a2af1a034e336
+L	tag_and_release.sh	140	0b6071f4	0b6071f41437f4ec
+L	tag_and_release.sh	141	b633c0de	b633c0defc27fdad
+L	tag_and_release.sh	142	48beac37	48beac37a57404a4
+L	tag_and_release.sh	143	b730876f	b730876fc7f39832
+L	tag_and_release.sh	144	58c423af	447c32b4f0d413eb
+L	tag_and_release.sh	145	2b793092	21f1feac96edcfaf
+L	tag_and_release.sh	146	d104966e	2fb57c19ffffbf7e
+L	tag_and_release.sh	147	30945f34	f66c7546a945b51f
+L	tag_and_release.sh	148	d10b36aa	d10b36aa74a59bcf
+L	tag_and_release.sh	149	2e3091d6	2e3091d6b5b81330
+L	tag_and_release.sh	150	0f9fc8a5	0f9fc8a5697dbd8b
+L	tag_and_release.sh	151	289df0c5	289df0c5dc5ffeb3
+L	tag_and_release.sh	152	5913eaac	5913eaac8556b1b4
+L	tag_and_release.sh	153	1c809e13	1c809e13ef70f4bc
+L	tag_and_release.sh	154	e6158944	e6158944d7333245
+L	tag_and_release.sh	155	7f17d399	7f17d399874b1ac5
+L	tag_and_release.sh	156	949c94a9	949c94a9c1575346
+L	tag_and_release.sh	157	d65bb373	d65bb3731468732a
+L	tag_and_release.sh	158	205d811a	205d811afd8d4b44
+L	tag_and_release.sh	159	690a970a	690a970a02d407cc
+L	tag_and_release.sh	160	761f8147	8648ac5029efde69
+L	tag_and_release.sh	161	132a83e7	132a83e758e0cedb
+L	tag_and_release.sh	162	16ab0fc9	16ab0fc95b47a1e7
+L	tag_and_release.sh	163	085d676b	085d676ba0bc96b9
+L	tag_and_release.sh	164	bc62958a	bc62958a9bc00a90
+L	tag_and_release.sh	165	505aa9ec	d255e59dba511f35
+L	tag_and_release.sh	166	051c5a24	5c9d2c5fa52c6444
+L	tag_and_release.sh	167	d10b36aa	d10b36aa74a59bcf
+L	tag_and_release.sh	168	aac4f798	aac4f798c4ffa8a3
+L	tag_and_release.sh	169	06d898d2	06d898d2c5b22c49
+L	tag_and_release.sh	170	861e98cf	861e98cf9d044739
+L	tag_and_release.sh	171	914694d1	914694d18cb56f4a
+L	tag_and_release.sh	172	bbbb72e5	bbbb72e5bf4459d8
+L	tag_and_release.sh	173	933d4938	933d4938635cfda0
+L	tag_and_release.sh	174	2e0dc767	2e0dc76707aa5046
+L	tag_and_release.sh	175	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	176	cfb3d88a	cfb3d88a027b38b4
+L	tag_and_release.sh	177	7764bd3e	7764bd3e352992eb
+L	tag_and_release.sh	178	ac8e82c2	ac8e82c2b788ad80
+L	tag_and_release.sh	179	68eee896	68eee89660209561
+L	tag_and_release.sh	180	9ab956f2	9ab956f2f6bb8129
+L	tag_and_release.sh	181	bbb5058d	bbb5058dc1f739fc
+L	tag_and_release.sh	182	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	183	c76026a4	c76026a4d8489611
+L	tag_and_release.sh	184	de5aba2c	de5aba2c68cdf59b
+L	tag_and_release.sh	185	01f29a26	b8f5599a1a1504ac
+L	tag_and_release.sh	186	12ef6110	bc2fd8b3905d11d7
+L	tag_and_release.sh	187	46a39b34	9c568e1b8101e400
+L	tag_and_release.sh	188	7b5fb501	29feaeb47d2e5399
+L	tag_and_release.sh	189	1ed29f02	a84fe5dd2727fe22
+L	tag_and_release.sh	190	edf0aa58	2004ce067bf130d0
+L	tag_and_release.sh	191	9434a178	86cd1e3e4348c4aa
+L	tag_and_release.sh	192	00aafce0	cc5ff12a55e1ee09
+L	tag_and_release.sh	193	735ba31d	563acb3a74337ffd
+L	tag_and_release.sh	194	79b6874f	b1a62b1313736b52
+L	tag_and_release.sh	195	1915e3a3	a7b4b1f1412967ad
+L	tag_and_release.sh	196	61d74c38	fe7fc487423e2bd2
+L	tag_and_release.sh	197	681c537b	6ed568697bd3815d
+L	tag_and_release.sh	198	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	199	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	200	7217d318	7217d3185441b8e0
+L	tag_and_release.sh	201	ef440f9a	ef440f9adf0e030d
+L	tag_and_release.sh	202	dfd7896f	702884b555c4d825
+L	tag_and_release.sh	203	d48ec17b	df426e65f64d2759
+L	tag_and_release.sh	204	327b7264	327b72644d48cdd9
+L	tag_and_release.sh	205	76a0dfb5	76a0dfb52eb2a17b
+L	tag_and_release.sh	206	eed05358	eed0535849f24f6e
+L	tag_and_release.sh	207	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	208	8e817d22	8e817d2206731ed9
+L	tag_and_release.sh	209	cdf35d06	378e0f6ff7b001a5
+L	tag_and_release.sh	210	01d2a3c2	5bfdd1ec639542b1
+L	tag_and_release.sh	211	b4bdc848	b4bdc848109722a3
+L	tag_and_release.sh	212	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	213	b2a90a32	b2a90a32e34e039e
+L	tag_and_release.sh	214	c505a2c2	c505a2c26a848fed
+L	tag_and_release.sh	215	1ded4509	1ded45090a9ae0af
+L	tag_and_release.sh	216	3f0691b3	3f8f35caaad62e07
+L	tag_and_release.sh	217	29c24c71	4c149db1c8438163
+L	tag_and_release.sh	218	65de0801	a362fbfebb68203d
+L	tag_and_release.sh	219	b4bdc848	b4bdc848109722a3
+L	tag_and_release.sh	220	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	221	bf34d713	bf34d7136b42d8d6
+L	tag_and_release.sh	222	a31f29ae	a31f29aee5b63334
+L	tag_and_release.sh	223	de5aba2c	de5aba2c68cdf59b
+L	tag_and_release.sh	224	d96915bc	5b97b29c5ee6113d
+L	tag_and_release.sh	225	040829c3	e9a4f51896ad6120
+L	tag_and_release.sh	226	60cbe450	df79347e7f8a44e2
+L	tag_and_release.sh	227	3c1aa5b0	26963d1d223c8151
+L	tag_and_release.sh	228	aacbcda7	f52fd051f101ccb4
+L	tag_and_release.sh	229	47dfddf2	cf2ae0a859dbe53d
+L	tag_and_release.sh	230	b4bdc848	78c0770dcd09bc54
+L	tag_and_release.sh	231	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	232	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	233	5024375a	5024375a72a97314
+L	tag_and_release.sh	234	5abbe9f0	5ebb5fae28fe296d
+L	tag_and_release.sh	235	4fade5b0	45adbb11177f2bcc
+L	tag_and_release.sh	236	2d592748	53e9da0714a2fd53
+L	tag_and_release.sh	237	c22995ad	137fcc6d491efadf
+L	tag_and_release.sh	238	b4bdc848	b4bdc848109722a3
+L	tag_and_release.sh	239	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	240	b8b3457b	b8b3457b698a56f3
+L	tag_and_release.sh	241	b581333a	442ba429c64ff058
+L	tag_and_release.sh	242	2f281c19	2bcf4e3a84d534d8
+L	tag_and_release.sh	243	7dd530c4	7dd530c4d36da47c
+L	tag_and_release.sh	244	fc7699e6	9845033928c09e79
+L	tag_and_release.sh	245	b4bdc848	b4bdc848109722a3
+L	tag_and_release.sh	246	606d3b9b	606d3b9b30cce7c9
+L	tag_and_release.sh	247	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	248	49209fa0	49209fa03c089408
+L	tag_and_release.sh	249	8e7dc5c3	8e7dc5c3354a2bc0
+L	tag_and_release.sh	250	43940d75	7ea6deced6145a43
+L	tag_and_release.sh	251	d03c8174	35b8868e5ba51234
+L	tag_and_release.sh	252	ede0e7d9	bc6fcf5987f33afc
+L	tag_and_release.sh	253	2814bf40	0c0f21c7a15ea535
+L	tag_and_release.sh	254	af7e355f	052e3e8412121a2b
+L	tag_and_release.sh	255	d59e7e41	4c5d75d8ff888a86
+L	tag_and_release.sh	256	d10b36aa	d10b36aa74a59bcf
+L	tag_and_release.sh	257	bc757a2d	bc757a2d48dcc1c6
+L	tag_and_release.sh	258	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	259	e99cf026	e99cf026171e029e
+L	tag_and_release.sh	260	de5aba2c	de5aba2c68cdf59b
+L	tag_and_release.sh	261	a2657a99	40bc2816e9c5f116
+L	tag_and_release.sh	262	9f9daf7a	fbfc1c21cfc16d26
+L	tag_and_release.sh	263	5c2bac65	205289971100e603
+L	tag_and_release.sh	264	1ff20a70	553297864146a9a1
+L	tag_and_release.sh	265	8d93d817	10edbbca7e4a8228
+L	tag_and_release.sh	266	553ec83e	3a5075a1b8189bf6
+L	tag_and_release.sh	267	9ab74713	f7130c12c18e2777
+L	tag_and_release.sh	268	accbcc51	a99e5bc9cf7fb6f8
+L	tag_and_release.sh	269	5cde3a0c	e63df43203ad8ff4
+L	tag_and_release.sh	270	b91f9fa4	6bee53b77d3bada2
+L	tag_and_release.sh	271	ed2e99da	906af0db47fecee8
+L	tag_and_release.sh	272	dfaa8e4d	73aeb05eb235bb9b
+L	tag_and_release.sh	273	309599db	c4462e0b70d12fa5
+L	tag_and_release.sh	274	c6544321	49eac15dd2bb0942
+L	tag_and_release.sh	275	7dd530c4	88f33c8effc8a0a0
+L	tag_and_release.sh	276	814a6f3f	de98439f27758fbd
+L	tag_and_release.sh	277	b4bdc848	b80df2ba032901f2
+L	tag_and_release.sh	278	7dd530c4	421185ca32f0cea5
+L	tag_and_release.sh	279	e7b72fcc	ff513d5fbdccd55b
+L	tag_and_release.sh	280	b4bdc848	78c0770dcd09bc54
+L	tag_and_release.sh	281	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	282	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	283	af73ee56	af73ee561f088700
+L	tag_and_release.sh	284	de5aba2c	de5aba2c68cdf59b
+L	tag_and_release.sh	285	1e562c70	95e5211b60ed8005
+L	tag_and_release.sh	286	761f84e8	c6decdb0fa8e3542
+L	tag_and_release.sh	287	e241b05b	e1c2cbbbc612d70b
+L	tag_and_release.sh	288	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	289	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	290	ff5cb4a4	ff5cb4a48a6cc313
+L	tag_and_release.sh	291	3b96406c	3b96406c546ffa40
+L	tag_and_release.sh	292	2536056a	2536056a409dd098
+L	tag_and_release.sh	293	3bf3b670	3bf3b670a1048632
+L	tag_and_release.sh	294	08d9d834	08d9d834afce8ec9
+L	tag_and_release.sh	295	45a64296	33746341610aa5f8
+L	tag_and_release.sh	296	7cb21b0b	2397eabf280e8949
+L	tag_and_release.sh	297	d8c849f2	83130f09f7ae4c42
+L	tag_and_release.sh	298	963e9671	b6bc0dec8c9d1c59
+L	tag_and_release.sh	299	aee52524	c3cbb6ed7359a4b1
+L	tag_and_release.sh	300	d1c5c119	0a99a36c7f7c956d
+L	tag_and_release.sh	301	d8d18b1b	41b2ec5009dc5f14
+L	tag_and_release.sh	302	554263f0	bdbe7fe825be77d5
+L	tag_and_release.sh	303	9de6167c	d172a19bd3dc20b4
+L	tag_and_release.sh	304	eb8fe0c8	93bc56f281e7ed7d
+L	tag_and_release.sh	305	a84e0b2e	43820514babb1199
+L	tag_and_release.sh	306	72b9ec20	6672cbb57a9890ae
+L	tag_and_release.sh	307	91929723	9a13833499688588
+L	tag_and_release.sh	308	f9cc0b2d	7d682b33028ebd53
+L	tag_and_release.sh	309	42419f62	2c8b0d08649af098
+L	tag_and_release.sh	310	8d2b1a5e	98efb9b0e1ae026d
+L	tag_and_release.sh	311	b434a044	a84f25075585522b
+L	tag_and_release.sh	312	f09308e3	3791cd6a0485a3f8
+L	tag_and_release.sh	313	cf4e4c59	59fbf94ff38f9f09
+L	tag_and_release.sh	314	76c05f6a	861dd49b53667c82
+L	tag_and_release.sh	315	f9cc0b2d	7d682b33028ebd53
+L	tag_and_release.sh	316	6a00cd28	2e60ee00cdb498ef
+L	tag_and_release.sh	317	57b40fe2	2aced7ac42bde676
+L	tag_and_release.sh	318	cdb00bd0	2eaa5249040ca9e0
+L	tag_and_release.sh	319	71daca58	4c8d32bb80fd3f4e
+L	tag_and_release.sh	320	ff17f6bd	2a2515dd285bc8dd
+L	tag_and_release.sh	321	53ce4f3c	4effd4a71db3805c
+L	tag_and_release.sh	322	ff05f512	7464b909330aed6f
+L	tag_and_release.sh	323	52c1de28	6e7add654faa1d05
+L	tag_and_release.sh	324	ca0b20f7	66b66f301a5bfc01
+L	tag_and_release.sh	325	a03ddae8	3aafefa53a33b5c5
+L	tag_and_release.sh	326	aad2bb99	a528a913d0c0784c
+L	tag_and_release.sh	327	bbbc4c9f	84251f30745ba2f3
+L	tag_and_release.sh	328	15c512f6	66bc18e2853897ac
+L	tag_and_release.sh	329	eb6e441b	7ab70c98ea76bd87
+L	tag_and_release.sh	330	fd32fcc7	84f7fb7ebfe409ca
+L	tag_and_release.sh	331	6b228380	31e2d6ff11598b9a
+L	tag_and_release.sh	332	327b7264	bc6a7ce687d0fab2
+L	tag_and_release.sh	333	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	334	de5aba2c	de5aba2c68cdf59b
+L	tag_and_release.sh	335	1fce0160	05500984dc6a8f0c
+L	tag_and_release.sh	336	89072184	12b5dbdb73429e77
+L	tag_and_release.sh	337	14b49996	a89643fce0e70214
+L	tag_and_release.sh	338	09b5ba3d	453897a318f2d550
+L	tag_and_release.sh	339	295b8cc4	95744a715bddd007
+L	tag_and_release.sh	340	b4bdc848	78c0770dcd09bc54
+L	tag_and_release.sh	341	a4c3ed04	a4c3ed04a95a3da1
+L	tag_and_release.sh	342	e3b0c442	e3b0c44298fc1c14
+L	tag_and_release.sh	343	2778ea72	2778ea729242afd7
+L	tag_and_release.sh	344	fbf2e150	fbf2e150f1557ae9
+L	tag_and_release.sh	345	d4c2168c	d4c2168c94f2669f
+L	tag_and_release.sh	346	696d2f09	696d2f090b36efe5
+L	tag_and_release.sh	347	e3b0c442	e3b0c44298fc1c14
+S	derive_release_facts.sh	46	awk	-	local-checked-awk	30f58115
+S	derive_release_facts.sh	60	date	-	local	649cfe2c
+S	derive_release_facts.sh	61	grep	-	local	0d3cc75c
+S	derive_release_facts.sh	63	git	rc_net	network-through-rc_net	feb7dd5a
+S	derive_release_facts.sh	64	git	rc_net	network-through-rc_net	3e591f2d
+S	derive_release_facts.sh	65	mktemp	-	local	c8d72438
+S	derive_release_facts.sh	66	chmod	-	local	ef2b8a65
+S	derive_release_facts.sh	71	rmdir	-	local	3c484663
+S	derive_release_facts.sh	71	unlink	-	local	3c484663
+S	derive_release_facts.sh	74	git	rc_net	network-through-rc_net	95c7f3eb
+S	derive_release_facts.sh	80	sqlite3	-	local-checked-sqlite3	fdaef393
+S	derive_release_facts.sh	83	sqlite3	-	local-checked-sqlite3	9d146727
+S	derive_release_facts.sh	84	sed	-	local-checked-sed	068140ce
+S	derive_release_facts.sh	84	sort	-	local-checked-sort	068140ce
+S	derive_release_facts.sh	84	tr	-	local	068140ce
+S	derive_release_facts.sh	90	git	rc_net	network-through-rc_net	47770773
+S	derive_release_facts.sh	91	git	rc_net	network-through-rc_net	33843491
+S	derive_release_facts.sh	92	git	rc_net	network-through-rc_net	5f15fd96
+S	derive_release_facts.sh	93	git	rc_net	network-through-rc_net	ac18bad8
+S	derive_release_facts.sh	93	sed	-	local-checked-sed	ac18bad8
+S	derive_release_facts.sh	94	git	rc_net	network-through-rc_net	df53159c
+S	derive_release_facts.sh	95	git	rc_net	network-through-rc_net	1f8cc176
+S	derive_release_facts.sh	96	awk	-	local-checked-awk	513af769
+S	derive_release_facts.sh	96	cut	-	local	513af769
+S	derive_release_facts.sh	96	git	rc_net	network-through-rc_net	513af769
+S	derive_release_facts.sh	97	cut	-	local	098d0155
+S	derive_release_facts.sh	97	sha256sum	-	local	098d0155
+S	derive_release_facts.sh	107	awk	-	local-checked-awk	d079755d
+S	derive_release_facts.sh	114	sed	-	local-checked-sed	919c60fd
+S	derive_release_facts.sh	114	sort	-	local-checked-sort	919c60fd
+S	derive_release_facts.sh	114	tr	-	local	919c60fd
+S	derive_release_facts.sh	115	sort	-	local-checked-sort	e639c7f0
+S	derive_release_facts.sh	117	grep	-	local	3fe815d3
+S	derive_release_facts.sh	119	sed	-	local-checked-sed	3062847e
+S	derive_release_facts.sh	119	tr	-	local	3062847e
+S	derive_release_facts.sh	132	grep	-	local	dde6144b
+S	derive_release_facts.sh	132	sed	-	local-checked-sed	dde6144b
+S	derive_release_facts.sh	133	grep	-	local	ba69dffe
+S	derive_release_facts.sh	139	sed	-	local-checked-sed	91525da3
+S	derive_release_facts.sh	139	sed	-	local-checked-sed	91525da3
+S	derive_release_facts.sh	139	sort	-	local-checked-sort	91525da3
+S	derive_release_facts.sh	139	tr	-	local	91525da3
+S	derive_release_facts.sh	143	grep	-	local	67264daf
+S	derive_release_facts.sh	146	tr	-	local	1b5de5e4
+S	derive_release_facts.sh	146	wc	-	local	1b5de5e4
+S	derive_release_facts.sh	152	git	rc_net	network-through-rc_net	bf8bc6fc
+S	derive_release_facts.sh	155	git	rc_net	network-through-rc_net	83c7bf45
+S	derive_release_facts.sh	162	grep	-	local	beb7f7d9
+S	derive_release_facts.sh	163	grep	-	local	f6b7fd9d
+S	derive_release_facts.sh	166	cat	-	local	6d6ad1d6
+S	redact_cut.sh	60	awk	-	local-checked-awk	84bb8322
+S	redact_cut.sh	60	tr	-	local	84bb8322
+S	redact_cut.sh	365	bash	exec	interpreter-allow-listed	a614cc7f
+S	redact_cut.sh	395	awk	-	local-checked-awk	74bb9bca
+S	redact_cut.sh	395	tr	-	local	74bb9bca
+S	release_publish_gitea.sh	93	sed	-	local-checked-sed	5d507d9e
+S	release_publish_gitea.sh	95	grep	-	local	248ca227
+S	release_publish_gitea.sh	96	grep	-	local	18e7f307
+S	release_publish_gitea.sh	111	git	rc_net	network-through-rc_net	e392a527
+S	release_publish_gitea.sh	123	mktemp	-	local	4ca29cc3
+S	release_publish_gitea.sh	125	rm	-	local	66ca0270
+S	release_publish_gitea.sh	125	rmdir	-	local	66ca0270
+S	release_publish_gitea.sh	130	chmod	-	local	a8ae192b
+S	release_publish_gitea.sh	138	cp	-	local	d29e00a9
+S	release_publish_gitea.sh	143	awk	-	local-checked-awk	d50b55f3
+S	release_publish_gitea.sh	155	git	rc_net	network-through-rc_net	4fe0bea8
+S	release_publish_gitea.sh	156	jq	-	local	fefb2b66
+S	release_publish_gitea.sh	162	wc	-	local	e93f7742
+S	release_publish_gitea.sh	175	curl	rc_net	network-through-rc_net	7312d4f2
+S	release_publish_gitea.sh	181	cat	-	local	1e3fe218
+S	release_publish_gitea.sh	184	cat	-	local	7c81e0df
+S	release_publish_gitea.sh	197	jq	-	local	f81f2212
+S	release_publish_gitea.sh	201	jq	-	local	c6bfdb13
+S	release_publish_gitea.sh	208	jq	-	local	20495e77
+S	tag_and_release.sh	84	awk	-	local-checked-awk	27f0468a
+S	tag_and_release.sh	139	mktemp	-	local	3b8a2af1
+S	tag_and_release.sh	140	chmod	-	local	0b6071f4
+S	tag_and_release.sh	145	rm	-	local	2b793092
+S	tag_and_release.sh	146	rmdir	-	local	d104966e
+S	tag_and_release.sh	160	timeout	rc_net	network-through-rc_net	761f8147
+S	tag_and_release.sh	161	git	nt	network-through-nt	132a83e7
+S	tag_and_release.sh	162	bash	-	interpreter-allow-listed	16ab0fc9
+S	tag_and_release.sh	171	grep	-	local	914694d1
+S	tag_and_release.sh	174	date	-	local	2e0dc767
+S	tag_and_release.sh	177	git	rc_net	network-through-rc_net	7764bd3e
+S	tag_and_release.sh	178	git	rc_net	network-through-rc_net	ac8e82c2
+S	tag_and_release.sh	180	git	rc_net	network-through-rc_net	9ab956f2
+S	tag_and_release.sh	180	git	rc_net	network-through-rc_net	9ab956f2
+S	tag_and_release.sh	181	git	rc_net	network-through-rc_net	bbb5058d
+S	tag_and_release.sh	185	git	rc_net	network-through-rc_net	01f29a26
+S	tag_and_release.sh	187	git	rc_net	network-through-rc_net	46a39b34
+S	tag_and_release.sh	187	git	rc_net	network-through-rc_net	46a39b34
+S	tag_and_release.sh	193	git	net	network-through-net	735ba31d
+S	tag_and_release.sh	195	git	rc_net	network-through-rc_net	1915e3a3
+S	tag_and_release.sh	197	git	rc_net	network-through-rc_net	681c537b
+S	tag_and_release.sh	200	awk	-	local-checked-awk	7217d318
+S	tag_and_release.sh	200	git	rc_net	network-through-rc_net	7217d318
+S	tag_and_release.sh	205	awk	-	local-checked-awk	76a0dfb5
+S	tag_and_release.sh	205	git	rc_net	network-through-rc_net	76a0dfb5
+S	tag_and_release.sh	210	bash	rc_net	interpreter-allow-listed	01d2a3c2
+S	tag_and_release.sh	215	git	rc_net	network-through-rc_net	1ded4509
+S	tag_and_release.sh	216	git	rc_net	network-through-rc_net	3f0691b3
+S	tag_and_release.sh	217	git	rc_net	network-through-rc_net	29c24c71
+S	tag_and_release.sh	217	git	rc_net	network-through-rc_net	29c24c71
+S	tag_and_release.sh	224	awk	-	local-checked-awk	d96915bc
+S	tag_and_release.sh	224	git	net	network-through-net	d96915bc
+S	tag_and_release.sh	229	git	rc_net	network-through-rc_net	47dfddf2
+S	tag_and_release.sh	241	git	rc_net	network-through-rc_net	b581333a
+S	tag_and_release.sh	246	git	rc_net	network-through-rc_net	606d3b9b
+S	tag_and_release.sh	251	git	net	network-through-net	d03c8174
+S	tag_and_release.sh	252	awk	-	local-checked-awk	ede0e7d9
+S	tag_and_release.sh	253	awk	-	local-checked-awk	2814bf40
+S	tag_and_release.sh	254	awk	-	local-checked-awk	af7e355f
+S	tag_and_release.sh	262	git	net	network-through-net	9f9daf7a
+S	tag_and_release.sh	269	git	net	network-through-net	5cde3a0c
+S	tag_and_release.sh	270	cut	-	local	b91f9fa4
+S	tag_and_release.sh	271	git	net	network-through-net	ed2e99da
+S	tag_and_release.sh	299	gh	nt	network-through-nt	aee52524
+S	tag_and_release.sh	300	gh	nt	network-through-nt	d1c5c119
+S	tag_and_release.sh	305	gh	nt	network-through-nt	a84e0b2e
+S	tag_and_release.sh	306	gh	nt	network-through-nt	72b9ec20
+S	tag_and_release.sh	307	gh	nt	network-through-nt	91929723
+S	tag_and_release.sh	310	glab	nt	network-through-nt	8d2b1a5e
+S	tag_and_release.sh	311	glab	nt	network-through-nt	b434a044
+S	tag_and_release.sh	313	glab	nt	network-through-nt	cf4e4c59
+S	tag_and_release.sh	314	glab	nt	network-through-nt	76c05f6a
+S	tag_and_release.sh	328	grep	-	local	15c512f6
+S	tag_and_release.sh	343	date	-	local	2778ea72
+P	awk	2d022d3b4851f7b01032c312af162c5eff91412a643ab055e58f7428108a77d1	tag_and_release.sh:205
+P	awk	51de011e7c8a209cc550f7942c5b657bb83b3acb3e4776fdb99b3ada2da341a1	tag_and_release.sh:224
+P	awk	7819a5914eeecf76d481c161d365ac3f27d3d36de32398b9cfc23855f50e595c	derive_release_facts.sh:96
+P	awk	7e4ba9d97e11d8a4872d7b4f694d712e89c6c43a878b0b9eea9eea89b8641a52	redact_cut.sh:395
+P	awk	8633262a02bb032c29d5840655c659ff209de17548a3d9b5e45d65a9e5a42d94	derive_release_facts.sh:46
+P	awk	a27f3e6fd43c19b08ae4e019180c922b8464a2d483a5255167d0a399a9b943fe	release_publish_gitea.sh:143
+P	awk	b8de75827dc64682b8f7527b592ed488387ca212c4f203eb5560411079667e95	tag_and_release.sh:252
+P	awk	d6c6e7caba04a7a4d4e644fd71a67011f195cdcd57e02db341436f41af93af43	redact_cut.sh:60
+P	awk	ee297f0952f7d4783c20261e0d26a8d33e067da1be8e7a558a430629539bd7cb	derive_release_facts.sh:107
+P	sed	002ba02569d70bc0c52903edf664ab9cfe28934cba3a8a7d160b44ccf9579f95	derive_release_facts.sh:132
+P	sed	2d28ea9fd1ae3ad30c004390a9bf3864f857a1598127f9274644694be9fb8d59	derive_release_facts.sh:84
+P	sed	4549ae6fc3fb108fd7cf5504cc56633f1495b2fd6dc9bac856f6eb4d7ed15d63	derive_release_facts.sh:93
+P	sed	c1fd0812a18452a07a573174aad7a4a990be9ac2fa704a05a367ead56ac35f39	derive_release_facts.sh:139
+P	sed	c25cdbef7a63133dd1acf5f785519921a7086bcace698be821386b7ea0a1c2b7	release_publish_gitea.sh:93
+N	API_BODY	release_publish_gitea.sh:169
+N	API_CODE	release_publish_gitea.sh:169
+N	B	derive_release_facts.sh:63
+N	BADGE_CHECK	tag_and_release.sh:75
+N	BASE	derive_release_facts.sh:30
+N	BASE_URL	release_publish_gitea.sh:37
+N	DB	derive_release_facts.sh:66
+N	DBDIR	derive_release_facts.sh:65
+N	DIE_FD	derive_release_facts.sh:31
+N	DRAFT	release_publish_gitea.sh:38
+N	DRY	release_publish_gitea.sh:38
+N	EXTERR	derive_release_facts.sh:70
+N	FAILS	tag_and_release.sh:127
+N	FIRST	tag_and_release.sh:200
+N	FULL	tag_and_release.sh:178
+N	GAPS	tag_and_release.sh:127
+N	GENERIC	release_publish_gitea.sh:38
+N	GH_SEEN	tag_and_release.sh:293
+N	GIT_ALTERNATE_OBJECT_DIRECTORIES	derive_release_facts.sh:28
+N	GIT_COMMON_DIR	derive_release_facts.sh:28
+N	GIT_DIR	derive_release_facts.sh:28
+N	GIT_GRAFT_FILE	derive_release_facts.sh:28
+N	GIT_INDEX_FILE	derive_release_facts.sh:28
+N	GIT_INTERNAL_SUPER_PREFIX	derive_release_facts.sh:28
+N	GIT_NAMESPACE	derive_release_facts.sh:28
+N	GIT_NO_REPLACE_OBJECTS	derive_release_facts.sh:28
+N	GIT_OBJECT_DIRECTORY	derive_release_facts.sh:28
+N	GIT_PREFIX	derive_release_facts.sh:28
+N	GIT_QUARANTINE_PATH	derive_release_facts.sh:28
+N	GIT_REPLACE_REF_BASE	derive_release_facts.sh:28
+N	GIT_SHALLOW_FILE	derive_release_facts.sh:28
+N	GIT_TERMINAL_PROMPT	redact_cut.sh:86
+N	GIT_TRACE2	redact_cut.sh:86
+N	GIT_TRACE2_EVENT	redact_cut.sh:86
+N	GIT_TRACE2_PERF	redact_cut.sh:86
+N	GIT_TRACE_REDACT	redact_cut.sh:86
+N	GIT_WORK_TREE	derive_release_facts.sh:28
+N	HAVE_TIMEOUT	tag_and_release.sh:158
+N	HELP	release_publish_gitea.sh:39
+N	IFS	derive_release_facts.sh:111
+N	LC_ALL	derive_release_facts.sh:29
+N	LOCAL_TAG_EXISTS	tag_and_release.sh:214
+N	M3W_GITEA_TOKEN	tag_and_release.sh:162
+N	MESSAGE	tag_and_release.sh:75
+N	NET_TIMEOUT	tag_and_release.sh:122
+N	NEWID	release_publish_gitea.sh:201
+N	NOTES	tag_and_release.sh:141
+N	NOTES_FILE	release_publish_gitea.sh:37
+N	O	derive_release_facts.sh:99
+N	OK	tag_and_release.sh:259
+N	OVER	derive_release_facts.sh:126
+N	P	derive_release_facts.sh:64
+N	PRERELEASE	release_publish_gitea.sh:38
+N	PREV	derive_release_facts.sh:30
+N	PREV_DATE	derive_release_facts.sh:91
+N	PRE_GH	tag_and_release.sh:291
+N	PRE_TITLE	tag_and_release.sh:291
+N	PROTO	release_publish_gitea.sh:103
+N	PROV	derive_release_facts.sh:126
+N	QFAIL	derive_release_facts.sh:77
+N	RELEASES	tag_and_release.sh:76
+N	REMOTES	derive_release_facts.sh:30
+N	REPO	release_publish_gitea.sh:37
+N	RE_GH	tag_and_release.sh:113
+N	RE_GL	tag_and_release.sh:113
+N	RE_GT	tag_and_release.sh:114
+N	RMAIN	tag_and_release.sh:183
+N	RTAG	tag_and_release.sh:222
+N	RUNDIR	tag_and_release.sh:139
+N	SCHEME_OK	release_publish_gitea.sh:100
+N	SEG	tag_and_release.sh:106
+N	SHA	tag_and_release.sh:75
+N	TAG	release_publish_gitea.sh:37
+N	TAGOBJ	tag_and_release.sh:246
+N	TARGET	release_publish_gitea.sh:155
+N	TITLE	release_publish_gitea.sh:37
+N	TODAY	derive_release_facts.sh:30
+N	TOKEN_VAR	release_publish_gitea.sh:38
+N	VER	derive_release_facts.sh:144
+N	W	release_publish_gitea.sh:123
+N	_RC_ENV_MARK	redact_cut.sh:286
+N	_RC_ENV_STATE	redact_cut.sh:295
+N	_RC_LOCALE_CODESET	redact_cut.sh:147
+N	_RC_LOCALE_MOD	redact_cut.sh:148
+N	_RC_NET_CONST	redact_cut.sh:207
+N	_RC_NET_KEEP	redact_cut.sh:206
+N	_f	derive_release_facts.sh:71
+N	_n	derive_release_facts.sh:56
+N	_r	derive_release_facts.sh:57
+N	_rc	derive_release_facts.sh:37
+N	_rc_d	derive_release_facts.sh:35
+N	_rc_v	redact_cut.sh:217
+N	_rpg_a	release_publish_gitea.sh:50
+N	_rpg_i	release_publish_gitea.sh:50
+N	_rpg_tok	release_publish_gitea.sh:90
+N	_rpg_tv	release_publish_gitea.sh:50
+N	a0	redact_cut.sh:294
+N	args	release_publish_gitea.sh:172
+N	atomic_unsupported	tag_and_release.sh:263
+N	auth	redact_cut.sh:376
+N	base	tag_and_release.sh:317
+N	body	derive_release_facts.sh:130
+N	c	derive_release_facts.sh:155
+N	cls	release_publish_gitea.sh:171
+N	covered	tag_and_release.sh:335
+N	crc	release_publish_gitea.sh:171
+N	cs	redact_cut.sh:150
+N	due	derive_release_facts.sh:132
+N	e	redact_cut.sh:166
+N	extra	redact_cut.sh:235
+N	f	redact_cut.sh:315
+N	fl	redact_cut.sh:315
+N	frc	tag_and_release.sh:193
+N	gmsg	tag_and_release.sh:323
+N	id	derive_release_facts.sh:130
+N	idl	derive_release_facts.sh:111
+N	k	derive_release_facts.sh:111
+N	keep	redact_cut.sh:235
+N	kind	tag_and_release.sh:295
+N	list	derive_release_facts.sh:151
+N	m	release_publish_gitea.sh:171
+N	mark	redact_cut.sh:393
+N	md	redact_cut.sh:150
+N	mrc	tag_and_release.sh:269
+N	n	derive_release_facts.sh:111
+N	o	tag_and_release.sh:250
+N	out	tag_and_release.sh:250
+N	p	release_publish_gitea.sh:171
+N	prc	tag_and_release.sh:262
+N	r	derive_release_facts.sh:150
+N	rc	release_publish_gitea.sh:42
+N	re	redact_cut.sh:78
+N	reads	redact_cut.sh:346
+N	ref	derive_release_facts.sh:153
+N	refs	derive_release_facts.sh:152
+N	repo	tag_and_release.sh:317
+N	rest	redact_cut.sh:166
+N	ro	tag_and_release.sh:224
+N	rows	derive_release_facts.sh:129
+N	rr	tag_and_release.sh:119
+N	s	tag_and_release.sh:257
+N	scheme	redact_cut.sh:376
+N	seen	redact_cut.sh:315
+N	spec	tag_and_release.sh:116
+N	t	tag_and_release.sh:195
+N	target	tag_and_release.sh:295
+N	trc	tag_and_release.sh:271
+N	u	redact_cut.sh:376
+N	ui	redact_cut.sh:376
+N	urls	tag_and_release.sh:187
+N	v	redact_cut.sh:84
+N	val	redact_cut.sh:331
+N	x	redact_cut.sh:131
+N	x_curl	release_publish_gitea.sh:171
+N	x_fetch	tag_and_release.sh:193
+N	x_gitea	tag_and_release.sh:322
+N	x_main	tag_and_release.sh:269
+N	x_push	tag_and_release.sh:262
+N	x_tagpush	tag_and_release.sh:271

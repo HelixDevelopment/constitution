@@ -1,0 +1,2 @@
+tests/decisions/test_own_mutants.sh	124	2401	  killed  R6S10_gitmodules_strict_utf8 (test_round6: pass=90 fail=4; first: FAIL non-UTF-8 .gitmodules: --check reports instead of refusing (want rc=0 got rc=1)	124	2400	  killed  R6S10_gitmodules_strict_utf8 (test_round6: pass=90 fail=4; first: FAIL non-UTF-8 .gitmodules: --check reports instead of refusing (want rc=0 got rc=1)
+DONE

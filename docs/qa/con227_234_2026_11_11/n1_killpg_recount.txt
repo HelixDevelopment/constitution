@@ -1,0 +1,47 @@
+# n-1 recount: bash scripts/gates/cm_killpg_pgid_guard.sh on 24bdca78 (clean clone; absolute clone prefix stripped), rc=0
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/extensions/install_speckit_superpowers_bridge_test.sh:769: case "$INSTALLER_PID" in ''|*[!0-9]*) ;; *) [ "$INSTALLER_PID" -gt 1 ] && kill -9 -- -"$INSTALLER_PID" 2>/dev/null ;; esac                               
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/orchestration/custody_sweep.py:407:        os.killpg(pgid, 0)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/orchestration/custody_sweep.py:450:                os.killpg(pgid, _signal.SIGKILL)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/lib/fc_common.py:127:            os.killpg(pgid, sig)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/lib/fc_common.py:1453:        os.killpg(pgid, 0)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/lib/fc_common.py:1544:        os.killpg(pgid, signal.SIGTERM)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/lib/triple_harness.sh:127:    *) if [ "$tpid" -gt 1 ]; then kill -s KILL -- "-$tpid" 2>/dev/null; fi ;;
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/lib/triple_harness.sh:145:    if [ "$j" -gt 1 ]; then kill -s KILL "$j" 2>/dev/null; kill -s KILL -- "-$j" 2>/dev/null; fi
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_io_trace_build_map_r3_regression.sh:134 fixture text fed to the detector under test, never executed
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_fc_common_red.sh:580 test saves the real function to restore after patching
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/test_baseline_replay_r2_findings.sh:452:        os.killpg(ident, signo)
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh:413 mutation anchor text, never executed
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/test_run_all.sh:341:    [ "$rp" -gt 1 ] && kill -s "$sg" -- "-$rp" 2>/dev/null
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh:1706 g is compared -gt 1 on the shell line above (inside the template string, where the gate's guard window cannot read it)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh:1894:                    os.killpg(worker, signal.SIGTERM)                                                               
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh:2722:        os.killpg(wg, signal.SIGTERM)                                                                              
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/run_all.sh:75:    if [ "$j" -gt 1 ]; then kill -s KILL -- "-$j" 2>/dev/null; kill -s KILL "$j" 2>/dev/null; fi
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/fixtures/triple_harness/sigwin_rig.sh:35: gone() { case $1 in ''|*[!0-9]*) return 0 ;; esac; [ "$1" -gt 1 ] || return 0; kill -s KILL -- "-$1" 2>/dev/null; kill -s KILL "$1" 2>/dev/null; }
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/check_deps.sh:28:    *) if [ "$tpid" -gt 1 ]; then kill -s KILL -- "-$tpid" 2>/dev/null; fi ;;
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/check_deps.sh:48:    if [ "$j" -gt 1 ]; then kill -s KILL "$j" 2>/dev/null; kill -s KILL -- "-$j" 2>/dev/null; fi
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/fastcycle/tests/test_check_deps.sh:337:    case $sp in *[!0-9]*) ;; *) [ "$sp" -gt 1 ] && kill -s KILL -- "-$sp" 2>/dev/null ;; esac                               
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh:334 section banner text
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh:351 test saves the real function to restore after patching
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh:356 test feeds the guard bad pgids to prove refusal
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh:359 message text
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh:364 message text
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh:367 test proves a valid pgid passes through to the (faked) killpg
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh:369 message text
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh:321 mutation-helper DATA arguments (source text to rewrite), never executed here
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/validation/test_meta_test_verification_r1_regression.sh:371:                os.killpg(p.pid, sig)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/validation/test_meta_test_verification_r1_regression.sh:386:            os.killpg(p.pid, signal.SIGKILL)
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED scripts/validation/test_enumerate_decision_mutants_r2_regression.sh:94 mutant replacement text passed as a string argument, not a call
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/full_suite/run_full_suite.py:2687:        os.killpg(pgid, sig)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/install_constitution.sh:1068:    kill -s KILL -- "-$pg" 2>/dev/null
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/codegraph/codegraph_mcp_health.py:502:                os.killpg(pgid, signal.SIGTERM)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at scripts/codegraph/codegraph_mcp_health.py:506:                    os.killpg(pgid, signal.SIGKILL)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at tests/gates/test_gate_env_overrides_guarded.sh:191: printf 'import os\ndef f(p):\n    pgid = os.getpgid(p.pid)\n    if not isinstance(pgid, int) or pgid <= 1:\n        return\n    a=1\n    a=2\n    a=3\n    a=4\n    a=5\n    a=6\n    a=7\n    a=8\n    os.killpg(pgid, 9)\n' > "$MX/kfx2/bad.py"
+ℹ️  CM-KILLPG-PGID-GUARD: ALLOWED tests/test_run_full_suite.sh:241 test saves the real function to restore after patching
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at tests/layout/test_layout_mutations.sh:57:    if [ -n "$pg" ] && [ "$pg" -gt 1 ] 2>/dev/null && [ "$pg" = "$pid" ]; then kill -TERM -- "-$pg" 2>/dev/null; fi
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at tests/layout/test_generator_atomic.sh:251: assert p.pid>1; os.killpg(p.pid,signal.SIGINT); p.wait(timeout=10)                                              
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at tests/install/test_round8.sh:112:    if [[ "$pgid" =~ ^[0-9]+$ ]] && [ "$pgid" -gt 1 ]; then kill -s "$sig" -- "-$pgid" 2>/dev/null; fi
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at tests/install/test_chaos.sh:26:    if [[ "$pgid" =~ ^[0-9]+$ ]] && [ "$pgid" -gt 1 ]; then kill -s "$sig" -- "-$pgid" 2>/dev/null; fi
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at tests/install/test_agent.sh:284:        os.killpg(pg, s)
+✅ CM-KILLPG-PGID-GUARD: PASS — guarded process-group signal call at tests/constitution_cmd/test_constitution_cmd_pty.sh:98:        os.killpg(pid, signal.SIGKILL)
+ℹ️  CM-KILLPG-PGID-GUARD: 14 call site(s) suppressed by the audited allow marker (listed above as ALLOWED)
+✅ CM-KILLPG-PGID-GUARD: PASS — 30 process-group signal call site(s), all guarded (§11.4.263)

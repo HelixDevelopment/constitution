@@ -88,7 +88,7 @@ if [ "${LABEL_SYNC_STATUSLINE_DERIVE:-1}" != "0" ]; then
     [ "$age" -lt "$ttl" ] && IFS= read -r derived <"$cfile"
   fi
   if [ -z "$derived" ] && [ -r "$labeler" ] && command -v timeout >/dev/null 2>&1; then
-    derived="$( { [ -n "$cwd" ] && cd "$cwd" 2>/dev/null; CLAUDE_CODE_SESSION_ID="$sid" timeout 1 bash "$labeler" 2>/dev/null | head -n 1; } )"
+    derived="$( { [ -n "$cwd" ] && cd "$cwd" 2>/dev/null; trap '' TTIN TTOU; CLAUDE_CODE_SESSION_ID="$sid" timeout 1 bash "$labeler" 2>/dev/null | head -n 1; } )"
     ls_sanitize_into derived "$derived"   # before the shape check: locale-independent
     if [[ "$derived" =~ ^\(T([0-9]+|\?)/.+\)$ ]]; then
       if [ "$ttl" != "0" ]; then mkdir -p "$cdir" 2>/dev/null && printf '%s\n' "$derived" >"$cfile" 2>/dev/null; fi

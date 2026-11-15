@@ -1,0 +1,39 @@
+landed_all() { # landed_all <F>: all 9 remote mains equal the clone main
+  local lm r; lm=$(g "$1/work/constitution" rev-parse main 2>/dev/null || echo none)
+  for r in $REMOTES; do [ "$(rmain "$1" "$r")" = "$lm" ] || return 1; done
+}
+lvenv() { # lvenv <VAR=value>... -- <lander args>: run the lander with extra env through the shim
+  local -a e=()
+  while [ "$1" != -- ]; do e+=("$1"); shift; done; shift
+  env "${e[@]}" PATH="$T/shim:$PATH" "$LANDER" "$@"
+}
+PREP_ARGS() { printf '%s\n' --bundle "$1/vehicle.bundle" --sha256 "$(cat "$1/sha")" --head "$(cat "$1/head")" \
+  --workdir "$1/work" --remotes-file "$1/remotes.txt" --evidence-dir "$1/ev"; }
+seed_main_file() { # seed_main_file <F> <path> <content as printf %b>: commit on main, push to all 9, vehicle restarts at main
+  local F=$1 r
+  g "$F/seed" checkout -q main
+  mkdir -p "$F/seed/$(dirname "$2")"; printf '%b' "$3" > "$F/seed/$2"
+  g "$F/seed" add "$2"; g "$F/seed" commit -q -m "tracker seed" -m "Roadmap-Item: CON-002"
+  for r in $REMOTES; do g "$F/seed" push -q "$F/remotes/$r.git" main:refs/heads/main; done
+  g "$F/seed" checkout -q -B vehicle main
+}
+mkmint() { # mkmint <file> <line to append to docs/tracker.fake> <printed id>
+  printf '#!/usr/bin/env bash\nmkdir -p docs; printf %q >> docs/tracker.fake\necho %q\n' "$2"$'\n' "$3" > "$1"; chmod +x "$1"
+}
+# nlines <file>: the number of lines of the file, 0 when it does not exist
+nlines() { if [ -f "$1" ]; then wc -l < "$1"; else echo 0; fi; }
+# atcount <F> <sha>: how many of the 9 remote mains equal sha
+atcount() { local F=$1 want=$2 r n=0; for r in $REMOTES; do [ "$(rmain "$F" "$r" 2>/dev/null)" = "$want" ] && n=$((n + 1)); done; echo "$n"; }
+# rawmsg <repo> <commit>: the commit message byte for byte (from the object, no git log)
+rawmsg() { local raw; raw=$(g "$1" cat-file commit "$2" 2>/dev/null; printf x); raw=${raw%x}; printf '%s' "${raw#*$'\n\n'}"; }
+# hook-safe git for server hooks (a hook runs with GIT_DIR and quarantine variables set)
+hg() { env -u GIT_DIR -u GIT_QUARANTINE_PATH -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \
+       -u GIT_PUSH_OPTION_COUNT -u GIT_PROTOCOL -u GIT_PREFIX "$REALGIT" "$@"; }
+# gccopy <F>: a private copy of the test's global config in $F/gc (a case edits only its copy)
+gccopy() { cp "$GIT_CONFIG_GLOBAL" "$1/gc"; }
+gcset() { git config --file "$1/gc" "${@:2}"; }
+# prep_gc / pub_gc <F> [args]: prepare / publish with GIT_CONFIG_GLOBAL=$F/gc, through the shim
+prep_gc() { local F=$1; shift; local -a gpa=(); mapfile -t gpa < <(PREP_ARGS "$F")
+  env GIT_CONFIG_GLOBAL="$F/gc" PATH="$T/shim:$PATH" "$LANDER" prepare "${gpa[@]}" "$@"; }
+pub_gc() { local F=$1; shift
+  env GIT_CONFIG_GLOBAL="$F/gc" PATH="$T/shim:$PATH" "$LANDER" publish --workdir "$F/work" --remotes-file "$F/remotes.txt" --evidence-dir "$F/ev" "$@"; }

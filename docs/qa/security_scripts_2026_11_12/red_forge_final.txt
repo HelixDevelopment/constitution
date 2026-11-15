@@ -1,0 +1,393 @@
+ok   1 apply without FORGE_PROTECT_APPLY -> 3, nothing sent
+ok   2 confirm names another target -> 3
+ok   3 two targets -> 3
+ok   4 FORGE_PROTECT_APPLY=YES (not exact) -> 3
+FAIL 5 unknown --target (probe) -> 2
+FAIL 6 unknown --target with a confirmed apply -> 2, nothing sent
+FAIL 7 apply to a target outside the allowlist (gitlab_vd) -> 3
+     | == gitlab_vd (gitlab) vasic-digital/HelixConstitution branch=main
+     |   probe GET /projects/vasic-digital%2FHelixConstitution -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /projects/vasic-digital%2FHelixConstitution/protected_branches -> HTTP 404 | {'message': 'Not Found'}
+     |   plan: POST /projects/vasic-digital%2FHelixConstitution/protected_branches?name=main&push_access_level=40&merge_access_level=40&allow_force_push=false
+     |   readback: GET /projects/vasic-digital%2FHelixConstitution/protected_branches/main
+     |   note: if main is already protected (GitLab protects the default branch by default) use PATCH http://127.0.0.1:35833/gl/api/v4/projects/vasic-digital%2FHelixConstitution/protected_branches/main?allow_force_push=false instead of POST; protected branches cannot be deleted by push
+     |   apply -> HTTP 404
+     |   readback -> HTTP 404 | {'message': 'Not Found'}
+FAIL 8 apply to github_vd (private, Free plan) -> 3
+     | == github_vd (github) vasic-digital/HelixConstitution branch=main
+     |   probe GET /repos/vasic-digital/HelixConstitution -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/vasic-digital/HelixConstitution/rulesets -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/vasic-digital/HelixConstitution/branches/main/protection -> HTTP 404 | {'message': 'Not Found'}
+     |   plan: POST /repos/vasic-digital/HelixConstitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/vasic-digital/HelixConstitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 404
+     |   readback -> HTTP 404 | {'message': 'Not Found'}
+FAIL 9 targets-file override without FORGE_PROTECT_ALLOW_TARGETS_OVERRIDE -> 3
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | items=2 [None, None]
+FAIL 10 github apply happy path -> 0, RESULT: APPLIED
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | items=2 [None, None]
+ok   11 exactly one POST
+ok   12 POST body is exactly the reviewed ruleset
+ok   13 token never in curl argv, stdout or stderr
+ok   14 github token on the wire only as Bearer header
+FAIL 15 token not printed under bash -x
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | items=2 [None, None]
+     | + set -euo pipefail
+     | + KEYS_FILE=<scratchpad>/secfix.OWV1/constitution/../../tmp.tWFMO6gRZP/keys.sh
+     | + BRANCH=main
+     | + MODE=plan
+     | + CONFIRM=
+     | + SEL=()
+     | + declare -a SEL
+     | + mapfile -t TARGETS
+     | + '[' 5 -gt 0 ']'
+     | + case "$1" in
+     | + MODE=apply
+     | + shift
+     | + '[' 4 -gt 0 ']'
+     | + case "$1" in
+     | + SEL+=("${2:?--target needs a name}")
+     | + shift
+     | + shift
+     | + '[' 2 -gt 0 ']'
+     | + case "$1" in
+     | + CONFIRM=github_hd
+     | + shift
+     | + shift
+     | + '[' 0 -gt 0 ']'
+     | + [[ main =~ ^[A-Za-z0-9._/-]+$ ]]
+     | + '[' apply = apply ']'
+     | + '[' yes = yes ']'
+     | + '[' 1 -eq 1 ']'
+     | + '[' github_hd = github_hd ']'
+     | + rc=0
+     | + for t in "${TARGETS[@]}"
+FAIL 16 compliant ruleset under another name -> 0 POST, rc 0
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=1 ['legacy-protection']
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 404 | {'message': 'Not Found'}
+FAIL 17 same-name ruleset with enforcement disabled -> NON-COMPLIANT, 0 POST, rc 1
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=1 ['protect-main-no-force-no-delete']
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   state: ALREADY PRESENT (ruleset protect-main-no-force-no-delete exists; not added twice)
+FAIL 18 same-name ruleset with a bypass actor -> NON-COMPLIANT, rc 1
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=1 ['protect-main-no-force-no-delete']
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   state: ALREADY PRESENT (ruleset protect-main-no-force-no-delete exists; not added twice)
+FAIL 19 ruleset list GET 500 -> 0 POST, rc 1
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 500 | {'message': 'Server Error'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | items=2 [None, None]
+FAIL 20 unreadable existing ruleset detail -> 0 POST, rc 1
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=1 ['x']
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | items=2 [None, None]
+FAIL 21 read-back rules 200 [] -> rc 1
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | items=0 []
+FAIL 22 read-back rule from another ruleset -> rc 1
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | items=2 [None, None]
+FAIL 23 readback rules/branches rate limited -> rc 4, not APPLIED
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 429 | {'message': 'slow down'}
+ok   24 readback rules/branches HTTP 500 with a rules-shaped body -> rc 1, not APPLIED
+FAIL 25 read-back ruleset with enforcement disabled -> rc 1
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | items=2 [None, None]
+ok   26 read-back rules 404 -> rc 1
+FAIL 27 POST 422 -> rc 1 even when a read-back would pass
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+     |   apply -> HTTP 422
+     |   readback -> HTTP 200 | items=2 [None, None]
+FAIL 28 403 rate limit -> RATE-LIMITED, rc 4, not BLOCKED-PLAN
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 403 | {'message': 'API rate limit exceeded for user ID 1.'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   state: BLOCKED-PLAN (private repo on GitHub Free: rulesets/protection need GitHub Pro/Team, or a public repo)
+FAIL 29 429 -> rc 4
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 429 | {'message': 'Too Many Requests'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   plan: POST /repos/HelixDevelopment/constitution/rulesets
+     |   body: {"name":"protect-main-no-force-no-delete","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"}]}
+     |   readback: GET /repos/HelixDevelopment/constitution/rules/branches/main
+     |   note: ruleset; on the Free plan only for PUBLIC repos (private -> 403 upgrade); refuse to add a duplicate if a ruleset with the same name exists
+FAIL 30 403 with x-ratelimit-remaining 0 -> rc 4
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 403 | {'message': 'Forbidden'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   state: BLOCKED-PLAN (private repo on GitHub Free: rulesets/protection need GitHub Pro/Team, or a public repo)
+FAIL 31 plain 403 -> rc 1, not BLOCKED-PLAN
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 403 | {'message': 'Resource not accessible by integration'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+     |   state: BLOCKED-PLAN (private repo on GitHub Free: rulesets/protection need GitHub Pro/Team, or a public repo)
+ok   32 github_vd upgrade 403 -> BLOCKED-PLAN, rc 0, nothing written
+FAIL 33 m3w apply happy path -> 0, RESULT: APPLIED
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 200 | {'full_name': 'Helix/constitution'}
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 200 | items=0 []
+     |   probe GET /version -> HTTP 200 | {'version': '1.27.3'}
+     |   plan: POST /repos/Helix/constitution/branch_protections
+     |   body: {"rule_name":"main","enable_push":true,"enable_push_whitelist":false,"enable_force_push":false,"required_approvals":0,"enable_status_check":false,"block_on_rejected_reviews":false,"block_on_outdated_branch":false}
+     |   readback: GET /repos/Helix/constitution/branch_protections/main
+     |   note: a protected branch cannot be deleted; enable_force_push=false is sent only when the instance swagger has the field (Gitea >= 1.22 force-push allowlist); without it (Forgejo on Codeberg) a protected branch rejects force pushes by itself (UNCONFIRMED until the post-apply refused-force-push test)
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | {'enable_force_push': False}
+ok   34 m3w POST body is exactly the reviewed body (enable_force_push false, enable_push true)
+ok   35 gitea token only as 'token' header, never in argv/output
+FAIL 36 existing rule with enable_force_push true -> NON-COMPLIANT, 0 POST, rc 1
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 200 | {'full_name': 'Helix/constitution'}
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 200 | items=1 ['main']
+     |   probe GET /version -> HTTP 200 | {'version': '1.27.3'}
+     |   plan: POST /repos/Helix/constitution/branch_protections
+     |   body: {"rule_name":"main","enable_push":true,"enable_push_whitelist":false,"enable_force_push":false,"required_approvals":0,"enable_status_check":false,"block_on_rejected_reviews":false,"block_on_outdated_branch":false}
+     |   readback: GET /repos/Helix/constitution/branch_protections/main
+     |   note: a protected branch cannot be deleted; enable_force_push=false is sent only when the instance swagger has the field (Gitea >= 1.22 force-push allowlist); without it (Forgejo on Codeberg) a protected branch rejects force pushes by itself (UNCONFIRMED until the post-apply refused-force-push test)
+     |   apply -> HTTP 403
+     |   readback -> HTTP 200 | {'enable_force_push': True}
+FAIL 37 gitea POST 403 -> rc 1
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 200 | {'full_name': 'Helix/constitution'}
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 200 | items=0 []
+     |   probe GET /version -> HTTP 200 | {'version': '1.27.3'}
+     |   plan: POST /repos/Helix/constitution/branch_protections
+     |   body: {"rule_name":"main","enable_push":true,"enable_push_whitelist":false,"enable_force_push":false,"required_approvals":0,"enable_status_check":false,"block_on_rejected_reviews":false,"block_on_outdated_branch":false}
+     |   readback: GET /repos/Helix/constitution/branch_protections/main
+     |   note: a protected branch cannot be deleted; enable_force_push=false is sent only when the instance swagger has the field (Gitea >= 1.22 force-push allowlist); without it (Forgejo on Codeberg) a protected branch rejects force pushes by itself (UNCONFIRMED until the post-apply refused-force-push test)
+     |   apply -> HTTP 403
+     |   readback -> HTTP 200 | {'enable_force_push': False}
+FAIL 38 gitea read-back enable_push false -> rc 1
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 200 | {'full_name': 'Helix/constitution'}
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 200 | items=0 []
+     |   probe GET /version -> HTTP 200 | {'version': '1.27.3'}
+     |   plan: POST /repos/Helix/constitution/branch_protections
+     |   body: {"rule_name":"main","enable_push":true,"enable_push_whitelist":false,"enable_force_push":false,"required_approvals":0,"enable_status_check":false,"block_on_rejected_reviews":false,"block_on_outdated_branch":false}
+     |   readback: GET /repos/Helix/constitution/branch_protections/main
+     |   note: a protected branch cannot be deleted; enable_force_push=false is sent only when the instance swagger has the field (Gitea >= 1.22 force-push allowlist); without it (Forgejo on Codeberg) a protected branch rejects force pushes by itself (UNCONFIRMED until the post-apply refused-force-push test)
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | {'enable_force_push': False}
+FAIL 39 gitea read-back enable_force_push true -> rc 1
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 200 | {'full_name': 'Helix/constitution'}
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 200 | items=0 []
+     |   probe GET /version -> HTTP 200 | {'version': '1.27.3'}
+     |   plan: POST /repos/Helix/constitution/branch_protections
+     |   body: {"rule_name":"main","enable_push":true,"enable_push_whitelist":false,"enable_force_push":false,"required_approvals":0,"enable_status_check":false,"block_on_rejected_reviews":false,"block_on_outdated_branch":false}
+     |   readback: GET /repos/Helix/constitution/branch_protections/main
+     |   note: a protected branch cannot be deleted; enable_force_push=false is sent only when the instance swagger has the field (Gitea >= 1.22 force-push allowlist); without it (Forgejo on Codeberg) a protected branch rejects force pushes by itself (UNCONFIRMED until the post-apply refused-force-push test)
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | {'enable_force_push': True}
+FAIL 40 gitea read-back with a push allowlist -> rc 1
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 200 | {'full_name': 'Helix/constitution'}
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 200 | items=0 []
+     |   probe GET /version -> HTTP 200 | {'version': '1.27.3'}
+     |   plan: POST /repos/Helix/constitution/branch_protections
+     |   body: {"rule_name":"main","enable_push":true,"enable_push_whitelist":false,"enable_force_push":false,"required_approvals":0,"enable_status_check":false,"block_on_rejected_reviews":false,"block_on_outdated_branch":false}
+     |   readback: GET /repos/Helix/constitution/branch_protections/main
+     |   note: a protected branch cannot be deleted; enable_force_push=false is sent only when the instance swagger has the field (Gitea >= 1.22 force-push allowlist); without it (Forgejo on Codeberg) a protected branch rejects force pushes by itself (UNCONFIRMED until the post-apply refused-force-push test)
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | {'enable_force_push': False}
+FAIL 41 gitea compliant rule present -> ALREADY PRESENT, rc 0
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 200 | {'full_name': 'Helix/constitution'}
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 200 | items=1 ['main']
+     |   probe GET /version -> HTTP 200 | {'version': '1.27.3'}
+FAIL 42 codeberg (no field) -> force-push UNCONFIRMED printed, rc 6
+     | == codeberg (gitea) HelixDevelopment/constitution branch=main
+     |   probe swagger enable_force_push=no
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | []
+     |   probe GET /repos/HelixDevelopment/constitution/branch_protections -> HTTP 200 | items=0 []
+     |   probe GET /version -> HTTP 200 | {'version': '17.0.0+gitea-1.22.0'}
+     |   plan: POST /repos/HelixDevelopment/constitution/branch_protections
+     |   body: {"rule_name":"main","enable_push":true,"enable_push_whitelist":false,"required_approvals":0,"enable_status_check":false,"block_on_rejected_reviews":false,"block_on_outdated_branch":false}
+     |   readback: GET /repos/HelixDevelopment/constitution/branch_protections/main
+     |   note: a protected branch cannot be deleted; enable_force_push=false is sent only when the instance swagger has the field (Gitea >= 1.22 force-push allowlist); without it (Forgejo on Codeberg) a protected branch rejects force pushes by itself (UNCONFIRMED until the post-apply refused-force-push test)
+     |   apply -> HTTP 201
+     |   readback -> HTTP 200 | ['enable_push', 'enable_push_whitelist', 'rule_name']
+ok   43 codeberg POST body has no enable_force_push
+FAIL 44 swagger unreadable -> WARNING printed
+     | == codeberg (gitea) HelixDevelopment/constitution branch=main
+     |   probe swagger unreadable
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | []
+     |   probe GET /repos/HelixDevelopment/constitution/branch_protections -> HTTP 200 | items=0 []
+     |   probe GET /version -> HTTP 200 | []
+     |   plan: POST /repos/HelixDevelopment/constitution/branch_protections
+     |   body: {"rule_name":"main","enable_push":true,"enable_push_whitelist":false,"required_approvals":0,"enable_status_check":false,"block_on_rejected_reviews":false,"block_on_outdated_branch":false}
+     |   readback: GET /repos/HelixDevelopment/constitution/branch_protections/main
+     |   note: a protected branch cannot be deleted; enable_force_push=false is sent only when the instance swagger has the field (Gitea >= 1.22 force-push allowlist); without it (Forgejo on Codeberg) a protected branch rejects force pushes by itself (UNCONFIRMED until the post-apply refused-force-push test)
+FAIL 45 forge unreachable in probe -> rc 1
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 000 | non-json 0
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 000 | non-json 0
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 000 | non-json 0
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger unreadable
+     |   probe GET /repos/Helix/constitution -> HTTP 000 | non-json 0
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 000 | non-json 0
+     |   probe GET /version -> HTTP 000 | non-json 0
+FAIL 46 github probe, nothing protected -> rc 0, state ABSENT, no write
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+FAIL 47 branch ../x -> 2
+     | == github_hd (github) HelixDevelopment/constitution branch=../x
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches/../x/protection -> HTTP 404 | {'message': 'Not Found'}
+FAIL 48 branch a/../b -> 2
+     | == github_hd (github) HelixDevelopment/constitution branch=a/../b
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches/a/../b/protection -> HTTP 404 | {'message': 'Not Found'}
+FAIL 49 branch /main -> 2
+     | == github_hd (github) HelixDevelopment/constitution branch=/main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches//main/protection -> HTTP 404 | {'message': 'Not Found'}
+ok   50 first of 3001 targets is known (no SIGPIPE false refusal), rc != 2
+FAIL 51 branch main..x (a .. inside a segment) -> 2, nothing sent
+     | == github_hd (github) HelixDevelopment/constitution branch=main..x
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 404 | {'message': 'Not Found'}
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main..x/protection -> HTTP 404 | {'message': 'Not Found'}
+FAIL 52 jq missing -> 5
+     | == github_hd (github) HelixDevelopment/constitution branch=main
+     |   probe GET /repos/HelixDevelopment/constitution -> HTTP 200 | {'full_name': 'HelixDevelopment/constitution', 'private': False}
+     |   probe GET /repos/HelixDevelopment/constitution/rulesets -> HTTP 200 | items=0 []
+     |   probe GET /repos/HelixDevelopment/constitution/branches/main/protection -> HTTP 404 | {'message': 'Branch not protected'}
+FAIL 53 token holding a quote -> credential_malformed, rc 1, no authenticated request
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 200 | {'full_name': 'Helix/constitution'}
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 200 | items=0 []
+     |   probe GET /version -> HTTP 200 | {'version': '1.27.3'}
+FAIL 54 keys file 0644 -> refused, credential_absent, rc 1
+     | == m3w (gitea) Helix/constitution branch=main
+     |   probe swagger enable_force_push=yes
+     |   probe GET /repos/Helix/constitution -> HTTP 000 | credential_absent
+     |   probe GET /repos/Helix/constitution/branch_protections -> HTTP 000 | credential_absent
+     |   probe GET /version -> HTTP 000 | credential_absent
+     | ERROR: <scratchpad>/secfix.OWV1/constitution/../../tmp.tWFMO6gRZP/keys_world.sh is readable by group/others (644)
+     | ERROR: <scratchpad>/secfix.OWV1/constitution/../../tmp.tWFMO6gRZP/keys_world.sh is readable by group/others (644)
+     | ERROR: <scratchpad>/secfix.OWV1/constitution/../../tmp.tWFMO6gRZP/keys_world.sh is readable by group/others (644)
+FAIL 55 gitflic plan -> manual UI step, rc 0
+     | == gitflic (gitflic) helixdevelopment/helixconstitution branch=main
+     |   probe GET /project/helixdevelopment/helixconstitution -> HTTP 200 | []
+     |   plan: NO API PATH - no documented branch-protection REST endpoint found (UNCONFIRMED); manual UI step: project Settings -> Branches/Protected branches -> protect main, forbid force push and deletion
+FAIL 56 gitlab plan -> probe only, out of apply scope, rc 0
+     | == gitlab_vd (gitlab) vasic-digital/HelixConstitution branch=main
+     |   probe GET /projects/vasic-digital%2FHelixConstitution -> HTTP 200 | []
+     |   probe GET /projects/vasic-digital%2FHelixConstitution/protected_branches -> HTTP 404 | {'message': 'Not Found'}
+     |   state: ALREADY COMPLIANT (main protected, allow_force_push=false, protected branches cannot be deleted by push)
+ok   57 --list prints the targets
+RESULT: 16/57 passed

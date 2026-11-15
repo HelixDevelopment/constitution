@@ -1,0 +1,20 @@
+── M1  FR-011: rule row with an EMPTY seam field ──────────────────────
+PASS  M1 clean  -> ALLOW (rc=0)
+PASS  M1 mutant -> REFUSE (rc=2) naming the EMPTY seam — FR-011 assertion flipped
+── M2  FR-018: duplicate (seam-id, gate-token) on a new anchor ────────
+PASS  M2 clean  -> ALLOW (rc=0, distinct pairs)
+PASS  M2 mutant -> REFUSE (rc=2) rule_IS_RESTATEMENT NAMING coverer 8.1 — FR-018 assertion flipped
+── M3  FR-010: the ratchet comparison, both directions ────────────────
+PASS  M3 clean  -> ALLOW (rc=0, no-seam count 0 <= ceiling 0)
+PASS  M3a mutant(count up) -> FAIL (rc=1) 'FR-010 ratchet violated' — FR-010 assertion flipped
+PASS  M3b mutant(ceiling down) -> FAIL (rc=1) — the ceiling operand is read, not hardcoded
+── M4  SOURCE: delete the FR-018 pair check from an OUT-OF-REPO copy ──
+PASS  M4 mutation applied to the COPY (pair lookup neutralised; repo untouched)
+PASS  M4 mutated copy still parses (the flip is behavioural, not a syntax error)
+PASS  M4 mutant -> the FR-018 refusal DISAPPEARS (rc=0) — M2's flip is caused by the gate's own pair check, not a neighbour
+── NEG  negative control: a correctly bound new rule MUST pass ────────
+PASS  NEG -> ALLOW (rc=0): the gate is not a refuse-everything engine
+── §11.4.84 residue check ─────────────────────────────────────────────
+PASS  the real gate is byte-identical before/after (cksum 3384334927 27152) — no mutation residue
+
+cm_rule_binds_to_seam_mutation_test.sh: pass=12 fail=0

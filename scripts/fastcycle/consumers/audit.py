@@ -75,6 +75,8 @@ or any write); a remote-only project is read via the GitHub Contents API
 inspection for) and is currently unused when the GitHub API alone
 suffices, which it does for every measurement CA-011 currently defines.
 """
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 import argparse
 import glob
 import hashlib
@@ -98,7 +100,7 @@ except ImportError:
     # CL_GIT_SCRUB_VARS (tests/layout/test_round8_git_env.sh checks it).
     GIT_SCRUB_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX", "GIT_COMMON_DIR",
                       "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE",
-                      "GIT_CEILING_DIRECTORIES", "GIT_SHALLOW_FILE", "GIT_GRAFT_FILE",
+                      "GIT_SHALLOW_FILE", "GIT_GRAFT_FILE",
                       "GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_QUARANTINE_PATH",
                       "GIT_INTERNAL_SUPER_PREFIX")
 

@@ -1,0 +1,25 @@
+PASS: python: layout list read from the shell lib (standard first)
+PASS: INHERIT_RE: standard heading matches
+PASS: INHERIT_RE: standard @import matches
+PASS: INHERIT_RE: legacy heading still matches
+PASS: INHERIT_RE: negative control (other path) does not match
+PASS: enumerate: submodules/constitution gitlink -> submodule
+PASS: enumerate: standard text pointer -> text-only-inheritance
+PASS: audit/_layout: local gitlink found at submodules/constitution
+PASS: audit.py imports cleanly
+PASS: audit.py lone-copy fallback: same layout list as _layout.py
+PASS: audit.py lone-copy fallback: same gitlink answer as _layout.py
+PASS: migrate.sh lone-copy fallback list equals the lib list ('submodules/constitution constitution' vs 'submodules/constitution constitution')
+PASS: gitlab: standard gitlink on tree page 2 -> found
+PASS: gitlab: legacy gitlink on root page 2 -> found
+PASS: gitlab: another gitlink under submodules/ is NOT a hit
+PASS: gitlab: genuinely absent -> no hit, no degraded
+PASS: gitlab: probe error -> degraded, never a silent absent
+PASS: [submodules/constitution] migrate.sh --apply -> MIGRATED (rc=0)
+PASS: [submodules/constitution] consumer gitlink at submodules/constitution bumped to the target
+PASS: [submodules/constitution] no stray gitlink created at the other layout path
+PASS: [constitution] migrate.sh --apply -> MIGRATED (rc=0)
+PASS: [constitution] consumer gitlink at constitution bumped to the target
+PASS: [constitution] no stray gitlink created at the other layout path
+----
+fastcycle_layout: PASS=23 FAIL=0

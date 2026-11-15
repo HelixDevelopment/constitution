@@ -1,0 +1,469 @@
+=== n01_no_scrub.sh
+--- gate
++++ n01_no_scrub.sh
+@@ -103,7 +103,7 @@
+     GIT_CONFIG GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM GIT_CONFIG_NOSYSTEM GIT_CONFIG_PARAMETERS
+     GIT_CONFIG_COUNT GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS
+     GIT_ICASE_PATHSPECS)
+-for _v in "${_git_scrub[@]}"; do unset "$_v"; done
++: no-scrub
+ unset _v
+ 
+ GATE="CM-FULL-SUITE-MANIFEST-COMPLETE"
+=== n02_scrub_without_index_file.sh
+--- gate
++++ n02_scrub_without_index_file.sh
+@@ -95,7 +95,7 @@
+ # GIT_CONFIG_VALUE_<n> pairs are ignored, `git help config`) and the global pathspec magic
+ # (GIT_*_PATHSPECS; every git call below passes --literal-pathspecs, which git refuses next to
+ # any of them).
+-_git_scrub=(GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_INDEX_VERSION GIT_OBJECT_DIRECTORY
++_git_scrub=(GIT_DIR GIT_WORK_TREE GIT_INDEX_VERSION GIT_OBJECT_DIRECTORY
+     GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE GIT_CEILING_DIRECTORIES
+     GIT_DISCOVERY_ACROSS_FILESYSTEM GIT_DEFAULT_HASH GIT_DEFAULT_REF_FORMAT GIT_PREFIX
+     GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX
+=== n03_judge_work_tree.sh
+--- gate
++++ n03_judge_work_tree.sh
+@@ -283,7 +283,7 @@
+ 
+ # ---- HEAD --------------------------------------------------------------------------------------
+ LOG="$TMP/verify.log"
+-runrun "$S" "$LOG"
++runrun "$ROOT" "$LOG"
+ note_uncommitted
+ total="$(sed -n 's/^census: .* total=\([0-9][0-9]*\)$/\1/p' "$LOG" | tail -n 1)"
+ case "$RC" in
+=== n04_work_tree_runner.sh
+--- gate
++++ n04_work_tree_runner.sh
+@@ -211,7 +211,7 @@
+ printf '%s\n' "$OBJ" >"$S/.git/objects/info/alternates" || blind "export: cannot write the alternates file"
+ { pgit "$S" read-tree "$COMMIT^{tree}" && pgit "$S" checkout-index -a -f && pgit "$S" update-ref HEAD "$COMMIT"; } >>"$TMP/export.log" 2>&1 \
+     || blind "export of HEAD $SHORT failed: $(oneline "$TMP/export.log")"
+-RUNNER="$S/$RUNNER_REL"
++RUNNER="$ROOT/$RUNNER_REL"
+ [ -f "$RUNNER" ] || blind "export of HEAD $SHORT has no runner file $RUNNER_REL"
+ 
+ # runrun <root> <log> [args]: run HEAD's runner against <root>; sets RC.
+=== n05_needle_unlisted_unchecked.sh
+--- gate
++++ n05_needle_unlisted_unchecked.sh
+@@ -265,7 +265,6 @@
+ runrun "$N" "$TMP/needle_verify.log"
+ [ "$RC" = 3 ] || blind "control needle: the runner exited $RC on the needle fixture (want 3): $(oneline "$TMP/needle_verify.log")"
+ for _want in \
+-    "MANIFEST: census file without manifest row: tests/a/test_needle_unlisted.sh" \
+     "MANIFEST: stale manifest row (no such test file / module): tests/a/test_needle_stale.sh" \
+     "MANIFEST: excluded set (1 row(s)) is not accepted: $N/config/full_suite_excluded.lock is absent; review the rows and run --verify-manifest --accept-excluded-change <reviewer>" \
+     "MANIFEST: docs/guides/full_suite_runner_guide.md: census block is stale (run --sync-guide)"; do
+=== n06_needle_stale_unchecked.sh
+--- gate
++++ n06_needle_stale_unchecked.sh
+@@ -266,7 +266,6 @@
+ [ "$RC" = 3 ] || blind "control needle: the runner exited $RC on the needle fixture (want 3): $(oneline "$TMP/needle_verify.log")"
+ for _want in \
+     "MANIFEST: census file without manifest row: tests/a/test_needle_unlisted.sh" \
+-    "MANIFEST: stale manifest row (no such test file / module): tests/a/test_needle_stale.sh" \
+     "MANIFEST: excluded set (1 row(s)) is not accepted: $N/config/full_suite_excluded.lock is absent; review the rows and run --verify-manifest --accept-excluded-change <reviewer>" \
+     "MANIFEST: docs/guides/full_suite_runner_guide.md: census block is stale (run --sync-guide)"; do
+     grep -qxF -- "$_want" "$TMP/needle_verify.log" || blind "control needle: the runner did not report '${_want#MANIFEST: }'; it cannot be trusted to see that problem: $(oneline "$TMP/needle_verify.log")"
+=== n07_needle_excluded_unchecked.sh
+--- gate
++++ n07_needle_excluded_unchecked.sh
+@@ -267,7 +267,6 @@
+ for _want in \
+     "MANIFEST: census file without manifest row: tests/a/test_needle_unlisted.sh" \
+     "MANIFEST: stale manifest row (no such test file / module): tests/a/test_needle_stale.sh" \
+-    "MANIFEST: excluded set (1 row(s)) is not accepted: $N/config/full_suite_excluded.lock is absent; review the rows and run --verify-manifest --accept-excluded-change <reviewer>" \
+     "MANIFEST: docs/guides/full_suite_runner_guide.md: census block is stale (run --sync-guide)"; do
+     grep -qxF -- "$_want" "$TMP/needle_verify.log" || blind "control needle: the runner did not report '${_want#MANIFEST: }'; it cannot be trusted to see that problem: $(oneline "$TMP/needle_verify.log")"
+ done
+=== n08_needle_guide_unchecked.sh
+--- gate
++++ n08_needle_guide_unchecked.sh
+@@ -267,8 +267,7 @@
+ for _want in \
+     "MANIFEST: census file without manifest row: tests/a/test_needle_unlisted.sh" \
+     "MANIFEST: stale manifest row (no such test file / module): tests/a/test_needle_stale.sh" \
+-    "MANIFEST: excluded set (1 row(s)) is not accepted: $N/config/full_suite_excluded.lock is absent; review the rows and run --verify-manifest --accept-excluded-change <reviewer>" \
+-    "MANIFEST: docs/guides/full_suite_runner_guide.md: census block is stale (run --sync-guide)"; do
++    "MANIFEST: excluded set (1 row(s)) is not accepted: $N/config/full_suite_excluded.lock is absent; review the rows and run --verify-manifest --accept-excluded-change <reviewer>"; do
+     grep -qxF -- "$_want" "$TMP/needle_verify.log" || blind "control needle: the runner did not report '${_want#MANIFEST: }'; it cannot be trusted to see that problem: $(oneline "$TMP/needle_verify.log")"
+ done
+ grep -q '^RESULT: MANIFEST-MISMATCH ' "$TMP/needle_verify.log" || blind "control needle: no MANIFEST-MISMATCH result line on the needle fixture"
+=== n09_known_refusal_blind.sh
+--- gate
++++ n09_known_refusal_blind.sh
+@@ -227,7 +227,7 @@
+ # "blind" for every other refusal (an instrument failure, or one this gate does not know).
+ classify_fatal() {
+     case "$1" in
+-        "manifest missing: "*|"manifest: "*|"excluded lock: "*) echo fail ;;
++        "manifest missing: "*|"manifest: "*|"excluded lock: "*) echo blind ;;
+         "manifest line "*)
+             local n="${1#manifest line }"; n="${n%%:*}"
+             case "$n" in ''|*[!0-9]*) echo blind ;; *) echo fail ;; esac ;;
+=== n10_unknown_refusal_fail.sh
+--- gate
++++ n10_unknown_refusal_fail.sh
+@@ -231,7 +231,7 @@
+         "manifest line "*)
+             local n="${1#manifest line }"; n="${n%%:*}"
+             case "$n" in ''|*[!0-9]*) echo blind ;; *) echo fail ;; esac ;;
+-        *) echo blind ;;
++        *) echo fail ;;
+     esac
+ }
+ 
+=== n11_line_number_unchecked.sh
+--- gate
++++ n11_line_number_unchecked.sh
+@@ -230,7 +230,7 @@
+         "manifest missing: "*|"manifest: "*|"excluded lock: "*) echo fail ;;
+         "manifest line "*)
+             local n="${1#manifest line }"; n="${n%%:*}"
+-            case "$n" in ''|*[!0-9]*) echo blind ;; *) echo fail ;; esac ;;
++            echo fail ;;
+         *) echo blind ;;
+     esac
+ }
+=== n12_rgit_no_literal_pathspecs.sh
+--- gate
++++ n12_rgit_no_literal_pathspecs.sh
+@@ -131,7 +131,7 @@
+ 
+ # rgit: read-only git on the inspected repository. pgit <dir>: git on a private repository of this
+ # gate, with no global or system configuration (no user hooks, filters, templates or autocrlf).
+-rgit() { git --literal-pathspecs --no-optional-locks -c core.fsmonitor=false -C "$ROOT" "$@"; }
++rgit() { git --no-optional-locks -c core.fsmonitor=false -C "$ROOT" "$@"; }
+ pgit() { GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git --literal-pathspecs -c core.hooksPath=/dev/null -C "$1" "${@:2}"; }
+ 
+ # disk_skip <reason>: with no commit to read, SKIP when the directory has neither file, else BLIND.
+=== n13_note_removed.sh
+--- gate
++++ n13_note_removed.sh
+@@ -284,7 +284,6 @@
+ # ---- HEAD --------------------------------------------------------------------------------------
+ LOG="$TMP/verify.log"
+ runrun "$S" "$LOG"
+-note_uncommitted
+ total="$(sed -n 's/^census: .* total=\([0-9][0-9]*\)$/\1/p' "$LOG" | tail -n 1)"
+ case "$RC" in
+     0)
+=== n14_staged_flag_lost.sh
+--- gate
++++ n14_staged_flag_lost.sh
+@@ -187,7 +187,7 @@
+                 '??') untracked=yes; continue ;;
+                 '!!') continue ;;
+             esac
+-            [ "$x" = ' ' ] || staged=yes
++            [ "$x" = ' ' ] || staged=no
+             [ "$y" = ' ' ] || unstaged=yes
+             case "$x" in R|C) skip=1 ;; esac
+         done <"$TMP/status.z"
+=== n15_optional_locks_on.sh
+--- gate
++++ n15_optional_locks_on.sh
+@@ -131,7 +131,7 @@
+ 
+ # rgit: read-only git on the inspected repository. pgit <dir>: git on a private repository of this
+ # gate, with no global or system configuration (no user hooks, filters, templates or autocrlf).
+-rgit() { git --literal-pathspecs --no-optional-locks -c core.fsmonitor=false -C "$ROOT" "$@"; }
++rgit() { git --literal-pathspecs -c core.fsmonitor=false -C "$ROOT" "$@"; }
+ pgit() { GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git --literal-pathspecs -c core.hooksPath=/dev/null -C "$1" "${@:2}"; }
+ 
+ # disk_skip <reason>: with no commit to read, SKIP when the directory has neither file, else BLIND.
+=== n16_dup_needle_removed.sh
+--- gate
++++ n16_dup_needle_removed.sh
+@@ -272,13 +272,7 @@
+     grep -qxF -- "$_want" "$TMP/needle_verify.log" || blind "control needle: the runner did not report '${_want#MANIFEST: }'; it cannot be trusted to see that problem: $(oneline "$TMP/needle_verify.log")"
+ done
+ grep -q '^RESULT: MANIFEST-MISMATCH ' "$TMP/needle_verify.log" || blind "control needle: no MANIFEST-MISMATCH result line on the needle fixture"
+-runrun "$TMP/needle_dup" "$TMP/needle_dup.log"
+-_fm="$(fatal_of "$TMP/needle_dup.log")"
+-case "$RC:$_fm" in
+-    "3:manifest line "*": duplicate path tests/a/test_needle_listed.sh") : ;;
+-    *) blind "control needle: the runner did not refuse a duplicated manifest row (rc $RC, want 3 and 'manifest line N: duplicate path ...'): $(oneline "$TMP/needle_dup.log")" ;;
+-esac
+-[ "$(classify_fatal "$_fm")" = fail ] || blind "control needle: this gate's classifier did not read a duplicated row as a committed-manifest defect"
++: dup-needle-removed
+ say "$GATE: control needle seen (missing row, stale row, unaccepted excluded set, stale guide block, duplicated row)"
+ 
+ # ---- HEAD --------------------------------------------------------------------------------------
+=== n17_fatal_relay_blind.sh
+--- gate
++++ n17_fatal_relay_blind.sh
+@@ -318,7 +318,7 @@
+ fatal="$(fatal_of "$LOG")"
+ fatal="${fatal//"$S/"/}"
+ [ -n "$fatal" ] || blind "runner reported MANIFEST-MISMATCH on HEAD $SHORT without a MANIFEST: line or a readable reason: $(oneline "$LOG" 5)"
+-if [ "$(classify_fatal "$fatal")" = fail ]; then
++if false; then
+     echo "$GATE: FAIL — $ROOT (HEAD $SHORT): the runner refused the committed manifest: RESULT: MANIFEST-MISMATCH ($fatal)"
+     fix_text
+     exit 1
+=== n18_needle_stale_row_not_written.sh
+--- gate
++++ n18_needle_stale_row_not_written.sh
+@@ -255,7 +255,7 @@
+     sys.exit(1)
+ d = s + listed
+ s = s.replace(excl, "tests/a/test_needle_excluded.sh\tsh\texcluded\t-\t-\t-\toverride: reason: tool: control needle\n")
+-s += "tests/a/test_needle_stale.sh\tsh\tentry\tdefault\tbash\t-\tauto\n"
++s += ""
+ open(sys.argv[1], "w", encoding="utf-8").write(s)
+ open(sys.argv[2], "w", encoding="utf-8").write(d)
+ PY
+=== n19_temp_prefix_kept.sh
+--- gate
++++ n19_temp_prefix_kept.sh
+@@ -308,7 +308,7 @@
+ while IFS= read -r line; do
+     problems=$((problems + 1))
+     p="${line#MANIFEST: }"
+-    echo "$GATE: FAIL — ${p//"$S/"/}"
++    echo "$GATE: FAIL — $p"
+ done < <(grep '^MANIFEST: ' "$LOG")
+ if [ "$problems" -gt 0 ]; then
+     echo "$GATE: FAIL — $ROOT (HEAD $SHORT): $problems manifest problem(s) in the committed tree."
+=== n20_rename_origin_not_skipped.sh
+--- gate
++++ n20_rename_origin_not_skipped.sh
+@@ -189,7 +189,7 @@
+             esac
+             [ "$x" = ' ' ] || staged=yes
+             [ "$y" = ' ' ] || unstaged=yes
+-            case "$x" in R|C) skip=1 ;; esac
++            : no-rename-skip
+         done <"$TMP/status.z"
+     fi
+     if [ "$staged$unstaged$untracked" != nonono ]; then
+=== n21_status_failure_reads_clean.sh
+--- gate
++++ n21_status_failure_reads_clean.sh
+@@ -178,7 +178,7 @@
+ note_uncommitted() {
+     local staged=no unstaged=no untracked=no rec skip=0 x y
+     if ! rgit status --porcelain=v1 -z --untracked-files=normal --ignore-submodules=dirty >"$TMP/status.z" 2>/dev/null; then
+-        staged=unknown; unstaged=unknown; untracked=unknown
++        :
+     else
+         while IFS= read -r -d '' rec; do
+             if [ "$skip" = 1 ]; then skip=0; continue; fi
+=== n22_status_diff_refresh.sh
+--- gate
++++ n22_status_diff_refresh.sh
+@@ -177,6 +177,7 @@
+ # a rename or copy; X is index vs HEAD, Y is work tree vs index, `??` is untracked.
+ note_uncommitted() {
+     local staged=no unstaged=no untracked=no rec skip=0 x y
++    rgit diff --quiet -- >/dev/null 2>&1
+     if ! rgit status --porcelain=v1 -z --untracked-files=normal --ignore-submodules=dirty >"$TMP/status.z" 2>/dev/null; then
+         staged=unknown; unstaged=unknown; untracked=unknown
+     else
+=== rm01_needle_rc_unchecked.sh
+--- gate
++++ rm01_needle_rc_unchecked.sh
+@@ -263,7 +263,7 @@
+ printf '# guide\n\n<!-- census:begin -->\nneedle: not the census line\n<!-- census:end -->\n' >"$N/docs/guides/full_suite_runner_guide.md"
+ pgit "$N" add -A >/dev/null 2>&1 || blind "git add failed in the needle fixture"
+ runrun "$N" "$TMP/needle_verify.log"
+-[ "$RC" = 3 ] || blind "control needle: the runner exited $RC on the needle fixture (want 3): $(oneline "$TMP/needle_verify.log")"
++true || blind "control needle: the runner exited $RC on the needle fixture (want 3): $(oneline "$TMP/needle_verify.log")"
+ for _want in \
+     "MANIFEST: census file without manifest row: tests/a/test_needle_unlisted.sh" \
+     "MANIFEST: stale manifest row (no such test file / module): tests/a/test_needle_stale.sh" \
+=== rm02_needle_line_unchecked.sh
+--- gate
++++ rm02_needle_line_unchecked.sh
+@@ -269,7 +269,7 @@
+     "MANIFEST: stale manifest row (no such test file / module): tests/a/test_needle_stale.sh" \
+     "MANIFEST: excluded set (1 row(s)) is not accepted: $N/config/full_suite_excluded.lock is absent; review the rows and run --verify-manifest --accept-excluded-change <reviewer>" \
+     "MANIFEST: docs/guides/full_suite_runner_guide.md: census block is stale (run --sync-guide)"; do
+-    grep -qxF -- "$_want" "$TMP/needle_verify.log" || blind "control needle: the runner did not report '${_want#MANIFEST: }'; it cannot be trusted to see that problem: $(oneline "$TMP/needle_verify.log")"
++    true || blind "control needle: the runner did not report '${_want#MANIFEST: }'; it cannot be trusted to see that problem: $(oneline "$TMP/needle_verify.log")"
+ done
+ grep -q '^RESULT: MANIFEST-MISMATCH ' "$TMP/needle_verify.log" || blind "control needle: no MANIFEST-MISMATCH result line on the needle fixture"
+ runrun "$TMP/needle_dup" "$TMP/needle_dup.log"
+=== rm03_needle_unlisted_untracked.sh
+--- gate
++++ rm03_needle_unlisted_untracked.sh
+@@ -261,7 +261,7 @@
+ PY
+ printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' >"$N/tests/a/test_needle_unlisted.sh"
+ printf '# guide\n\n<!-- census:begin -->\nneedle: not the census line\n<!-- census:end -->\n' >"$N/docs/guides/full_suite_runner_guide.md"
+-pgit "$N" add -A >/dev/null 2>&1 || blind "git add failed in the needle fixture"
++: needle-left-untracked
+ runrun "$N" "$TMP/needle_verify.log"
+ [ "$RC" = 3 ] || blind "control needle: the runner exited $RC on the needle fixture (want 3): $(oneline "$TMP/needle_verify.log")"
+ for _want in \
+=== rm04_ok_line_unchecked.sh
+--- gate
++++ rm04_ok_line_unchecked.sh
+@@ -288,7 +288,7 @@
+ total="$(sed -n 's/^census: .* total=\([0-9][0-9]*\)$/\1/p' "$LOG" | tail -n 1)"
+ case "$RC" in
+     0)
+-        grep -qxF 'RESULT: MANIFEST-OK' "$LOG" || blind "runner exit 0 without 'RESULT: MANIFEST-OK': $(oneline "$LOG")"
++        true || blind "runner exit 0 without 'RESULT: MANIFEST-OK': $(oneline "$LOG")"
+         [ -n "$total" ] && [ "$total" -gt 0 ] || blind "runner reported MANIFEST-OK on a census total of '${total:-none}' (a blind census is not a complete manifest)"
+         grep '^NOTE: ' "$LOG" | while IFS= read -r l; do say "$GATE: ${l//"$S/"/}"; done
+         echo "$GATE: PASS — $ROOT (HEAD $SHORT): manifest matches the census ($total census file(s))"
+=== rm05b_unreadable_mismatch_pass.sh
+--- gate
++++ rm05b_unreadable_mismatch_pass.sh
+@@ -317,7 +317,7 @@
+ fi
+ fatal="$(fatal_of "$LOG")"
+ fatal="${fatal//"$S/"/}"
+-[ -n "$fatal" ] || blind "runner reported MANIFEST-MISMATCH on HEAD $SHORT without a MANIFEST: line or a readable reason: $(oneline "$LOG" 5)"
++[ -n "$fatal" ] || exit 0 "runner reported MANIFEST-MISMATCH on HEAD $SHORT without a MANIFEST: line or a readable reason: $(oneline "$LOG" 5)"
+ if [ "$(classify_fatal "$fatal")" = fail ]; then
+     echo "$GATE: FAIL — $ROOT (HEAD $SHORT): the runner refused the committed manifest: RESULT: MANIFEST-MISMATCH ($fatal)"
+     fix_text
+=== rm05_fatal_relay_pass.sh
+--- gate
++++ rm05_fatal_relay_pass.sh
+@@ -321,6 +321,6 @@
+ if [ "$(classify_fatal "$fatal")" = fail ]; then
+     echo "$GATE: FAIL — $ROOT (HEAD $SHORT): the runner refused the committed manifest: RESULT: MANIFEST-MISMATCH ($fatal)"
+     fix_text
+-    exit 1
++    exit 0
+ fi
+ blind "the runner refused HEAD $SHORT for a reason that is not a manifest defect: RESULT: MANIFEST-MISMATCH ($fatal)"
+=== rm06_no_mismatch_line_ok.sh
+--- gate
++++ rm06_no_mismatch_line_ok.sh
+@@ -296,7 +296,7 @@
+     3) : ;;
+     *) blind "runner exit $RC on HEAD $SHORT (want 0 or 3): $(oneline "$LOG" 5)" ;;
+ esac
+-grep -q '^RESULT: MANIFEST-MISMATCH ' "$LOG" || blind "runner exit 3 without a MANIFEST-MISMATCH result: $(oneline "$LOG" 5)"
++true || blind "runner exit 3 without a MANIFEST-MISMATCH result: $(oneline "$LOG" 5)"
+ 
+ fix_text() {
+     echo "  fix: bash scripts/run_full_suite.sh --generate-manifest --write && bash scripts/run_full_suite.sh --sync-guide,"
+=== rm07_skip_on_either.sh
+--- gate
++++ rm07_skip_on_either.sh
+@@ -157,7 +157,7 @@
+     [ "$t" = blob ] && echo blob || echo other
+ }
+ r_in="$(in_head "$RUNNER_REL")"; m_in="$(in_head "$MANIFEST_REL")"
+-if [ "$r_in" = absent ] && [ "$m_in" = absent ]; then
++if [ "$r_in" = absent ] || [ "$m_in" = absent ]; then
+     echo "$GATE: SKIP — HEAD $SHORT of $ROOT has neither $RUNNER_REL nor $MANIFEST_REL (nothing inspected)"
+     exit 3
+ fi
+=== rm08_manifest_missing_unchecked.sh
+--- gate
++++ rm08_manifest_missing_unchecked.sh
+@@ -162,7 +162,7 @@
+     exit 3
+ fi
+ [ "$r_in" = blob ] || blind "HEAD $SHORT has $MANIFEST_REL but no runner file $RUNNER_REL ($r_in): the census cannot be checked"
+-if [ "$m_in" != blob ]; then
++if false; then
+     echo "$GATE: FAIL — HEAD $SHORT of $ROOT carries $RUNNER_REL but no $MANIFEST_REL ($m_in): the runner refuses every full run."
+     echo "  fix: bash scripts/run_full_suite.sh --generate-manifest --write && bash scripts/run_full_suite.sh --sync-guide,"
+     echo "       review the rows and commit them"
+=== rm10_problems_gt1.sh
+--- gate
++++ rm10_problems_gt1.sh
+@@ -310,7 +310,7 @@
+     p="${line#MANIFEST: }"
+     echo "$GATE: FAIL — ${p//"$S/"/}"
+ done < <(grep '^MANIFEST: ' "$LOG")
+-if [ "$problems" -gt 0 ]; then
++if [ "$problems" -gt 1 ]; then
+     echo "$GATE: FAIL — $ROOT (HEAD $SHORT): $problems manifest problem(s) in the committed tree."
+     fix_text
+     exit 1
+=== rm12_fail_exit_2.sh
+--- gate
++++ rm12_fail_exit_2.sh
+@@ -313,7 +313,7 @@
+ if [ "$problems" -gt 0 ]; then
+     echo "$GATE: FAIL — $ROOT (HEAD $SHORT): $problems manifest problem(s) in the committed tree."
+     fix_text
+-    exit 1
++    exit 2
+ fi
+ fatal="$(fatal_of "$LOG")"
+ fatal="${fatal//"$S/"/}"
+=== rm13_no_cleanup_trap.sh
+--- gate
++++ rm13_no_cleanup_trap.sh
+@@ -200,7 +200,7 @@
+ TMP="$(mktemp -d)" || blind "mktemp failed"
+ # shellcheck disable=SC2329  # invoked by the EXIT trap below
+ cleanup() { [ -n "${TMP:-}" ] && [ -d "${TMP:?}" ] && rm -rf -- "${TMP:?}"; }
+-trap cleanup EXIT
++: no-trap
+ 
+ # ---- export HEAD -------------------------------------------------------------------------------
+ S="$TMP/head"
+=== rm14_needle_gen_rc_ignored.sh
+--- gate
++++ rm14_needle_gen_rc_ignored.sh
+@@ -242,7 +242,7 @@
+ for _n in listed excluded; do printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' >"$N/tests/a/test_needle_$_n.sh"; done
+ pgit "$N" add -A >/dev/null 2>&1 || blind "git add failed in the needle fixture"
+ runrun "$N" "$TMP/needle_gen.log" --generate-manifest --write
+-[ "$RC" = 0 ] || blind "control needle: the runner could not generate a manifest for a two-file fixture (rc $RC): $(oneline "$TMP/needle_gen.log")"
++true || blind "control needle: the runner could not generate a manifest for a two-file fixture (rc $RC): $(oneline "$TMP/needle_gen.log")"
+ cp -a "$N" "$TMP/needle_dup" || blind "cannot copy the needle fixture"
+ # needle: one row turned excluded (no lock is accepted) and one row added for a file that does not
+ # exist; needle_dup: the listed file's row written twice.
+=== rm15_total_head.sh
+--- gate
++++ rm15_total_head.sh
+@@ -285,7 +285,7 @@
+ LOG="$TMP/verify.log"
+ runrun "$S" "$LOG"
+ note_uncommitted
+-total="$(sed -n 's/^census: .* total=\([0-9][0-9]*\)$/\1/p' "$LOG" | tail -n 1)"
++total="$(sed -n 's/^census: .* total=\([0-9][0-9]*\)$/\1/p' "$LOG" | head -n 1)"
+ case "$RC" in
+     0)
+         grep -qxF 'RESULT: MANIFEST-OK' "$LOG" || blind "runner exit 0 without 'RESULT: MANIFEST-OK': $(oneline "$LOG")"
+=== rm16_other_rc_to_mismatch.sh
+--- gate
++++ rm16_other_rc_to_mismatch.sh
+@@ -294,7 +294,7 @@
+         echo "$GATE: PASS — $ROOT (HEAD $SHORT): manifest matches the census ($total census file(s))"
+         exit 0 ;;
+     3) : ;;
+-    *) blind "runner exit $RC on HEAD $SHORT (want 0 or 3): $(oneline "$LOG" 5)" ;;
++    *) : ;;
+ esac
+ grep -q '^RESULT: MANIFEST-MISMATCH ' "$LOG" || blind "runner exit 3 without a MANIFEST-MISMATCH result: $(oneline "$LOG" 5)"
+ 
+=== rm17_no_git_check.sh
+--- gate
++++ rm17_no_git_check.sh
+@@ -143,7 +143,7 @@
+     blind "$1"
+ }
+ 
+-command -v git >/dev/null 2>&1 || disk_skip "git not found"
++: no-git-check
+ TOP="$(rgit rev-parse --show-toplevel 2>&1)" || disk_skip "$ROOT is not a git work tree: $(printf '%s' "$TOP" | tail -n 1)"
+ TOP="$(cd "$TOP" 2>/dev/null && pwd -P)" || disk_skip "cannot resolve the top of the work tree of $ROOT"
+ [ "$TOP" = "$ROOT" ] || disk_skip "$ROOT is not the top of its git work tree ($TOP is); point --root at the repository's top"
+=== rm18_no_toplevel_check.sh
+--- gate
++++ rm18_no_toplevel_check.sh
+@@ -146,7 +146,7 @@
+ command -v git >/dev/null 2>&1 || disk_skip "git not found"
+ TOP="$(rgit rev-parse --show-toplevel 2>&1)" || disk_skip "$ROOT is not a git work tree: $(printf '%s' "$TOP" | tail -n 1)"
+ TOP="$(cd "$TOP" 2>/dev/null && pwd -P)" || disk_skip "cannot resolve the top of the work tree of $ROOT"
+-[ "$TOP" = "$ROOT" ] || disk_skip "$ROOT is not the top of its git work tree ($TOP is); point --root at the repository's top"
++true || disk_skip "$ROOT is not the top of its git work tree ($TOP is); point --root at the repository's top"
+ COMMIT="$(rgit rev-parse --verify -q 'HEAD^{commit}')" || disk_skip "$ROOT has no commit (HEAD is unborn): there is no committed tree to judge"
+ SHORT="${COMMIT:0:12}"
+ 

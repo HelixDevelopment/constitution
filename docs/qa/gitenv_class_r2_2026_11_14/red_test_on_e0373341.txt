@@ -1,0 +1,46 @@
+ok   C1: census of this tree PASS, 114 members
+ok   C2a: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2b: census exit 0, 'PASS'
+ok   C2c: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2d: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2e: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2f: census exit 0, 'PASS'
+ok   C2g: census exit 0, 'exempt=1'
+ok   C2h: census exit 1, 'stale row'
+ok   C2i: census exit 1, 'malformed'
+ok   C2j: census exit 1, 'UNSCRUBBED scripts/x.sh'
+FAIL C2j2: census exit 0 (want 1 and 'discovery limit'): git-env-class-census: control needles seen (17 samples) git-env-class-census: PASS - members=1 hermetic=1 exempt=0 unscrubbed=0 
+FAIL C2k: census exit 0 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: control needles seen (17 samples) git-env-class-census: PASS - members=1 hermetic=1 exempt=0 unscrubbed=0 
+FAIL C2l: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (17 samples) git-env-class-census: PASS - members=1 hermetic=1 exempt=0 unscrubbed=0 
+FAIL C2m: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (17 samples) git-env-class-census: PASS - members=1 hermetic=1 exempt=0 unscrubbed=0 
+FAIL C2m2: census exit 0 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: control needles seen (17 samples) git-env-class-census: PASS - members=1 hermetic=1 exempt=0 unscrubbed=0 
+FAIL C2n: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - zero members found under scripts/ (the detector is blind or the tree is wrong) 
+FAIL C2o: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - zero members found under scripts/ (the detector is blind or the tree is wrong) 
+FAIL C2o2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - zero members found under scripts/ (the detector is blind or the tree is wrong) 
+FAIL C2p: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (17 samples) git-env-class-census: PASS - members=1 hermetic=1 exempt=0 unscrubbed=0 
+FAIL C2p2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - zero members found under scripts/ (the detector is blind or the tree is wrong) 
+FAIL C2q: census exit 0 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: control needles seen (17 samples) git-env-class-census: PASS - members=1 hermetic=1 exempt=0 unscrubbed=0 
+ok   C2r: census exit 0, 'PASS'
+ok   C3: census exit 2, 'BLIND'
+ok   B needle: a bare git commit under GIT_DIR changes the sentinel
+ok   B1_anchor [none]: exit 0
+ok   B1_anchor [none]: sentinel unchanged
+ok   B1_anchor [git_dir]: exit 0
+ok   B1_anchor [git_dir]: sentinel unchanged
+ok   B1_anchor [git_index_file]: exit 0
+ok   B1_anchor [git_index_file]: sentinel unchanged
+ok   B1_anchor [both]: exit 0
+ok   B1_anchor [both]: sentinel unchanged
+SKIP B1 cm_agent_type_label.sh: --fast given (about 4 minutes)
+ok   B2: sourcing helix_code_home.sh keeps the caller's GIT_DIR
+ok   B2: hc__git answers its own cwd repository, not the caller's GIT_DIR
+ok   B2: sentinel unchanged
+ok   B2b: a direct hc__git call keeps the caller's GIT_DIR
+FAIL K0: CL_GIT_SCRUB_VARS differs from the literal 14-name list: 'GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX'
+FAIL K1: installer ignored the caller's ceiling (exit 3): [constitution] ERROR: no upstream reachable (network down?); nothing was changed 
+ok   K1: enclosing repository unchanged
+FAIL K2: lib-mode sourcing: want 'C=/x/ceil D=UNSET', got 'C=UNSET D=UNSET'
+FAIL K3: cl_scrub_git_env: want 'GIT_CEILING_DIRECTORIES=/x/ceil GIT_DIR=UNSET GIT_WORK_TREE=UNSET GIT_INDEX_FILE=UNSET GIT_PREFIX=UNSET GIT_COMMON_DIR=UNSET GIT_OBJECT_DIRECTORY=UNSET GIT_ALTERNATE_OBJECT_DIRECTORIES=UNSET GIT_NAMESPACE=UNSET GIT_SHALLOW_FILE=UNSET GIT_GRAFT_FILE=UNSET GIT_REPLACE_REF_BASE=UNSET GIT_NO_REPLACE_OBJECTS=UNSET GIT_QUARANTINE_PATH=UNSET GIT_INTERNAL_SUPER_PREFIX=UNSET ', got 'GIT_CEILING_DIRECTORIES=UNSET GIT_DIR=UNSET GIT_WORK_TREE=UNSET GIT_INDEX_FILE=UNSET GIT_PREFIX=UNSET GIT_COMMON_DIR=UNSET GIT_OBJECT_DIRECTORY=UNSET GIT_ALTERNATE_OBJECT_DIRECTORIES=UNSET GIT_NAMESPACE=UNSET GIT_SHALLOW_FILE=UNSET GIT_GRAFT_FILE=UNSET GIT_REPLACE_REF_BASE=UNSET GIT_NO_REPLACE_OBJECTS=UNSET GIT_QUARANTINE_PATH=UNSET GIT_INTERNAL_SUPER_PREFIX=UNSET '
+FAIL K4: K4 sh=92 py=11 distinct=4 bad=103 BAD py scripts/anchors/tests/test_generate_us3.py GIT_CEILING_DIRECTORIES=UNSET GIT_DIR=UNSET GIT_WORK_TREE=UNSET GIT_INDEX_FILE=UNSET GIT_PREFIX=UNSET GIT_COMMON_DIR=UNSET GIT_OBJECT_DIRECTORY=UNSET GIT_ALTERNATE_OBJECT_DIRECTORIES=UNSET GIT_NAMESPA BAD sh scripts/badges/compute_badges.sh GIT_CEILING_DIRECTORIES=UNSET GIT_DIR=UNSET GIT_WORK_TREE=UNSET GIT_INDEX_FILE=UNSET GIT_PREFIX=UNSET GIT_COMMON_DIR=UNSET GIT_OBJECT_DIRECTORY=UNSET GIT_ALTERNATE_OBJECT_DIRECTORIES=UNSET GIT_NAMESPA BAD sh scripts/badges/test_static_badges.sh GIT_CEILING_DIRECTORIES=UNSET GIT_DIR=UNSET GIT_WORK_TREE=UNSET GIT_INDEX_FILE=UNSET GIT_PREFIX=UNSET GIT_COMMON_DIR=UNSET GIT_OBJECT_DIRECTORY=UNSET GIT_ALTERNATE_OBJECT_DIRECTORIES=UNSET GIT_NAMESPA 
+FAIL K5: tests/install/lib.sh sandbox ceiling: LOST c1=[<tmp>] now=[UNSET]
+[git-env-class] passed=27 failed=17 skipped=1

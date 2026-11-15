@@ -1,0 +1,244 @@
+  ok   untracked link is consumer-owned
+  ok   record rc 0
+  ok   recorded link is ours
+  ok   tracked ledger exists
+  ok   local signed file exists
+  ok   state key is 0600
+  ok   row names the constitution root
+  ok   tracked ledger carries no mac/key
+  ok   local file carries a mac
+  ok   second identical record rc 0
+  ok   no-op run leaves ledger byte-identical (idempotent)
+  ok   second id for an already-recorded path refused
+  ok   record of an absent path refused
+  ok   retargeted recorded link is diverged
+  ok   diverged is not replaceable
+  ok   restored link is ours again
+  ok   ours is replaceable
+  ok   no local signature -> other-checkout
+  ok   other-checkout not replaceable
+  ok   forged local mac -> other-checkout
+  ok   restored local file -> ours
+  ok   tracked row for another constitution root -> other-checkout
+  ok   row edited in the tracked file and not re-signed -> other-checkout
+  ok   ledger rebuilt
+  ok   record under a second root rc 0
+  ok   validly signed row of another root -> other-checkout
+  ok   unrelated record refused while the ledger holds a hostile row
+  ok   record after a lost local file rc 0
+  ok   the new row is ours
+  ok   the old unsigned row stays other-checkout (not laundered)
+  ok   original signature restored -> ours
+  ok   file record rc 0
+  ok   file is ours
+  ok   edited file is diverged
+  ok   json-entry record rc 0
+  ok   json-entry is ours
+  ok   changing a sibling key leaves our entry ours
+  ok   changing our entry makes it diverged
+  ok   rebind with the wrong old fingerprint refused
+  ok   rebind with the right old fingerprint ok
+  ok   after rebind the rewritten entry is ours
+  ok   no secret-shaped value in tracked or local ledger
+  ok   control needle: the scan finds a seeded token
+  ok   hostile path [../outside] refused
+  ok   hostile path [/etc/passwd] refused
+  ok   hostile path [.claude/../../x] refused
+  ok   hostile path [a//b] refused
+  ok   hostile path [] refused
+  ok   hostile path [.] refused
+  ok   symlinked parent resolving outside the project refused
+  ok   id with a slash refused
+  ok   unknown producer refused
+  ok   unknown kind refused
+  ok   malformed ledger refuses status
+  ok   malformed ledger refuses record
+  ok   malformed ledger left untouched
+  ok   ledger row with .. path refuses everything
+  ok   restored ledger readable
+  ok   forget rc 0
+  ok   forgotten path is consumer-owned
+  ok   forget never deletes the file
+  ok   inventory rc 0
+  ok   inventory is read-only (tree checksum unchanged)
+  ok   inventory wrote no ledger
+  ok   inventory finds the claude link
+  ok   inventory finds the legacy skills/ link
+  ok   inventory finds the .agents link
+  ok   inventory finds the marker file
+  ok   inventory finds the hook entry
+  ok   inventory does not list the user's own link
+  ok   inventory does not list the user's own file
+  ok   non-interactive adopt without a flag rc 0
+  ok   D6: adopts nothing by default
+  ok   adopt reports zero adopted
+  ok   adopt --only rc 0
+  ok   adopted item is ours
+  ok   other candidates stay consumer-owned
+  ok   adopting a non-candidate is refused
+  ok   adopt all-matching rc 0
+  ok   all-matching adopted the 5 candidates (incl. the earlier one)
+  ok   user link never adopted
+  ok   hook entry adopted as json-entry (ours)
+  ok   unknown adopt mode refused
+  ok   backup rc 0
+  ok   backup dir is under .constitution-install-backup
+  ok   backup manifest exists
+  ok   rollback rc 0
+  ok   file restored byte-for-byte
+  ok   json restored byte-for-byte
+  ok   symlink restored (same target text)
+  ok   ledger restored byte-for-byte
+  ok   link created by the run (still matching its row) was unlinked
+  ok   diverged file created by the run is left alone
+  ok   report names the left-alone diverged path
+  ok   status after rollback rc 0
+  ok   rows created after the backup are gone
+  ok   rollback with a tampered backup file refused
+  ok   rollback with an edited (unsigned) manifest refused
+  ok   refused rollback changed nothing
+  ok   rollback of a missing backup refused
+  ok   rollback of a dir without manifest refused
+  ok   backup of a hostile path refused
+  ok   F1 rollback of an unsigned row rc 0
+  ok   F1 consumer file with a matching tracked row is NOT deleted
+  ok   F1 report names it left alone
+  ok   F1 report does not list it as unlinked
+On branch main
+nothing to commit, working tree clean
+  ok   F1b rollback from another root rc 0
+  ok   F1b consumer file bound to another root is NOT deleted
+  ok   F1c control: an ours row created after the backup is unlinked
+  ok   F2a oversize created-later file: rollback rc 0 (left alone, not an abort)
+  ok   F2a oversize file left in place
+  ok   F2a base restored
+  ok   F2a the ours row a.txt unlinked
+  ok   F2a oversize file reported left alone
+  ok   F2b symlink leaf at a restore target: refused rc 3
+  ok   F2b nothing changed: a.txt still there
+  ok   F2b nothing changed: ledger byte-identical
+  ok   F2b the symlink target was not written through
+  ok   F2b the link is still a link
+  ok   F2c hostile .git row rc 0
+  ok   F2c .git/x untouched
+  ok   F2c base restored (rollback ran to completion)
+  ok   F3 backup rc 0
+  ok   F3 backup base has a .gitignore
+  ok   F3 git sees no backup path (even with --untracked-files=all)
+  ok   F3 control needle: git does see the real untracked settings file
+  ok   F4 record without --path is a usage error (rc 2)
+  ok   F4 no traceback
+  ok   F4 classify without --path is a usage error (rc 2)
+  ok   F4 non-UTF8 project path: no traceback
+  ok   F4 non-UTF8 project path: refs add works (rc 0)
+  ok   F4 non-UTF8 path recorded once
+  ok   F4 non-UTF8 path removed
+  ok   F5 key with mode 0644 is refused (key-mode check)
+  ok   F5 control: key 0600 accepted
+  ok   F5 record of a .git path refused (reserved-path check)
+  ok   F5 backup of a .git path refused
+  ok   F5 refs file that is a symlink is not READ through (O_NOFOLLOW)
+  ok   F5 forged manifest built from the local MAC refused
+  ok   F5 refused by the signature check (domain strings differ)
+  ok   M1a unwritable ledger dir: rollback refused rc 3
+  ok   M1a nothing changed: the created-later file is still there (no partial apply)
+  ok   M1a nothing changed: base.txt not restored
+  ok   M1a refusal names the unwritable directory
+  ok   M1a control: after the permission is fixed the rerun converges
+  ok   M1a control: created-later file unlinked
+  ok   M1a control: ledger removed (backup had none)
+  ok   M1b unwritable ledger dir with a backed-up ledger: refused rc 3
+  ok   M1b nothing changed: made.txt still there
+  ok   N3b restore target in an unwritable dir: refused rc 3
+  ok   N3b nothing changed: made.txt still there
+  ok   N4 rollback rc 0
+  ok   N4 file in an unwritable dir is still there
+  ok   N4 reported as left alone with the reason
+  ok   N3a restore target whose ancestor is a file: refused rc 3
+  ok   N3a the blocking file is untouched
+  ok   N9 record rc 0
+  ok   N9 rollback rc 0
+  ok   N9 the consumer's settings.json survives
+  ok   N9 reported left alone: json entry never removed
+  ok   N8 rollback rc 0
+  ok   N8 x.txt is not reported unlinked
+  ok   N8 x.txt is reported restored
+  ok   N8 x.txt content is the backed-up one
+  ok   N11 wiring.local.json is now a directory: refused rc 3
+  ok   N11 nothing changed: made.txt still there
+  ok   N11 nothing changed: base.txt was not restored
+  ok   N11 refusal says directory
+  ok   N2 symlinked wiring.local.json: refused rc 3
+  ok   N2 the symlink target was not written through
+  ok   N2 nothing changed: made.txt still there
+  ok   N2 nothing changed: base.txt was not restored
+  ok   refs add rc 0
+  ok   refs file lives at _installed/<id>.refs
+  ok   count 1
+  ok   same project twice counts once
+  ok   second project -> 2
+  ok   list shows the project realpath
+  ok   remove one -> 1
+  ok   removing an absent entry is a no-op
+  ok   last remove -> 0
+  ok   refs file removed at count 0
+  ok   refs id with .. refused
+  ok   refs add without digest refused
+  ok   refs file that is a symlink refused
+  ok   symlink target untouched
+  ok   24 concurrent adds all land (flock)
+  ok   refs file has exactly 24 intact lines
+  ok   24 concurrent removes leave 0
+  ok   corrupt refs file refused
+  ok   F3 never wired: check rc 0 (golden-FALSE, nothing to own)
+  ok   F3 never wired: no orphan signatures
+  ok   F3 control: wired and intact, rc 0
+  ok   F3 tracked ledger deleted while this checkout still signs a row: check rc 1
+  ok   F3 the lost row is named
+  ok   F3 the state says the tracked row is missing
+  ok   F3 ok is false
+  ok   F3 forget of a row the ledger no longer has is refused
+  ok   F3 after a real forget: check rc 0 (golden-FALSE)
+  ok   F4 backup with SOURCE_DATE_EPOCH=abc: refused rc 3
+  ok   F4 abc: no Python traceback
+  ok   F4 abc: the refusal names the variable
+  ok   F4 abc: no backup directory was made
+  ok   F4 backup with an out-of-range SOURCE_DATE_EPOCH: refused rc 3
+  ok   F4 out of range: no Python traceback
+  ok   F4 out of range: no backup directory was made
+  ok   F4 record refuses the same bad value the same way (rc 3, not silently ignored)
+  ok   F4 record wrote no ledger
+  ok   F4 control: an empty SOURCE_DATE_EPOCH means the clock (rc 0)
+  ok   F4 control: a valid value is accepted
+  ok   I-1 rollback rc 0
+  ok   I-1 the link the run created (path absent at backup) is removed
+  ok   I-1 reported as unlinked
+  ok   I-1 control: an item with no ours-row is left alone
+  ok   I-2 rollback of copy-to-link migration: rc 0
+  ok   I-2 the path is a regular file again
+  ok   I-2 the legacy content is back
+  ok   O2 restored file mode is the backed-up mode (664 survives a 077 umask only through an explicit mode set)
+  ok   I-2 control: a foreign (unrecorded) symlink at a restore target is refused rc 3
+  ok   I-2 control: the foreign symlink is untouched
+  ok   I-2 swapped link: rollback refused rc 3
+  ok   I-2 swapped link: project byte-identical
+  ok   I-2 swapped link: still points to the other target
+  ok   I-2 failed write: rollback does not report success
+  ok   I-2 failed write: our link is still in place (not an absent path)
+  ok   I-2 failed write: no temp file left in the directory
+  ok   I-2 failed write: a rerun without the limit succeeds
+  ok   I-2 failed write: the rerun restored the backed-up bytes
+  ok   three runs give identical tracked-ledger hashes (1=2)
+  ok   three runs give identical tracked-ledger hashes (2=3)
+  ok   N4 setup under umask 077: record rc 0
+  ok   N4 setup under umask 077: refs add rc 0
+  ok   N4 umask 077: the tracked ledger wiring.json is 600 (umask honoured)
+  ok   N4 umask 077: .constitution/.gitignore is 600
+  ok   N4 umask 077: the refs file is 600
+  ok   N4 umask 077: the signed local record keeps its explicit 600
+  ok   N4 umask 022: record rc 0
+  ok   N4 umask 022: wiring.json is 644
+  ok   N4 umask 022: the signed local record is still 600 (explicit mode)
+  ok   the constitution tree is unchanged by the whole suite
+  ok   gitignore covers the local state
+wiring-ledger: PASS 241 FAIL 0

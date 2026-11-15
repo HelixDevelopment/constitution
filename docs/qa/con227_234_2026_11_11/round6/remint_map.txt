@@ -1,0 +1,13 @@
+Re-mint map at the merge of main 66ad6efe into vehicle/fix227 (round 6), 2026-11-12
+Main uses CON-269..CON-272 (README-link review) and CON-290..CON-298; CON-280+ belongs to the CON-046 vehicle;
+the vehicle's items are re-minted from CON-300 and the round-6 items take CON-308 and CON-309.
+CON-269 -> CON-300	CON-234 follow-up: derive_release_facts.sh in a shallow clone prints a silently truncated commit count (G6 of review fix227 round 2)
+CON-270 -> CON-301	CON-234 follow-up: tag_and_release.sh prints the GitHub repository id returned by gh api without checking that it is a number
+CON-271 -> CON-302	CON-234 follow-up: known limits of the redact-then-cut helper (parameter value with a raw blank or & # ; quote < >, a credential split over two lines, a bare-word secret)
+CON-272 -> CON-303	CON-234 follow-up: the SIGINT trap of the release scripts is not exercised by a test
+CON-273 -> CON-304	CON-234 follow-up (J7): a guard that refuses pkill / killall / pgrep -f driven signals in agent sessions
+CON-274 -> CON-305	Incident (J7): unscoped pkill -f "sleep 30" -P 1 run by the round-4 release-tooling fixer; effect UNKNOWN
+CON-275 -> CON-306	CON-234 follow-up: release scripts run network commands unbounded when timeout(1) is absent
+CON-276 -> CON-307	CON-234 follow-up: after SIGKILL the release scripts leave their 0700 run directory (release notes, local stderr)
+new CON-308	CON-234 follow-up: limits of the round-6 channel census (static instrument; runtime recorders only for the publisher)
+new CON-309	CON-234 follow-up: rc_env_lockdown drops proxy variables, so the release scripts cannot reach a remote through a proxy

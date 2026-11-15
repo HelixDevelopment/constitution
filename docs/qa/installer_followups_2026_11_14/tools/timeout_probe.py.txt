@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Probe timeout implementations under a real controlling pty.
+argv: TIMEOUT_BIN... ; prints one TSV line per case: impl case rc elapsed_s outcome."""
+import re, os, pty, sys, time, signal, select
+
+CAP = 20.0
+CASES = {
+  # child changes tty modes from the background group -> SIGTTOU
+  "tty_tcsetattr": "stty -echo </dev/tty; sleep 100",
+  # child reads the tty -> SIGTTIN
+  "tty_read": "read x </dev/tty; sleep 100",
+  # control: child never touches the tty
+  "no_tty": "sleep 100",
+  # control: child finishes quickly
+  "fast": "true",
+}
+
+def run(tbin, extra, shcmd):
+    pid, fd = pty.fork()
+    if pid == 0:
+        try:
+            # a non-session-leader caller, as in a script run from a shell: timeout is a CHILD of the
+            # session leader, so its own setpgid() succeeds and the command lands in a background group
+            os.execvp("bash", ["bash", "-c", '"$@"; echo "PROBE_RC=$?"', "probe", tbin] + extra + ["3", "sh", "-c", shcmd])
+        finally:
+            os._exit(127)
+    t0 = time.monotonic(); rc = None; out = b""
+    while True:
+        r, _, _ = select.select([fd], [], [], 0.2)
+        if r:
+            try: out += os.read(fd, 4096)
+            except OSError: pass
+        w, st = os.waitpid(pid, os.WNOHANG)
+        if w == pid:
+            try:
+                while True:
+                    b = os.read(fd, 4096)
+                    if not b: break
+                    out += b
+            except OSError: pass
+            m = re.search(rb"PROBE_RC=(\d+)", out); rc = int(m.group(1)) if m else "norc"; break
+        if time.monotonic() - t0 > CAP:
+            try: os.killpg(os.getpgid(pid), signal.SIGKILL) if os.getpgid(pid) > 1 else None
+            except Exception: pass
+            try: os.kill(pid, signal.SIGKILL)
+            except Exception: pass
+            os.waitpid(pid, 0); rc = "CAPPED"; break
+    el = time.monotonic() - t0
+    os.close(fd)
+    return rc, el
+
+for spec in sys.argv[1:]:
+    parts = spec.split()
+    tbin, extra = parts[0], parts[1:]
+    for name, cmd in CASES.items():
+        rc, el = run(tbin, extra, cmd)
+        bounded = "BOUNDED" if rc != "CAPPED" and el < 3 + 5 else "UNBOUNDED"
+        print(f"{spec}\t{name}\t{rc}\t{el:.1f}\t{bounded}", flush=True)

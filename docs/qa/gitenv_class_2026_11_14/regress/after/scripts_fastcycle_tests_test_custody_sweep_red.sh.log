@@ -1,0 +1,83 @@
+NOT ok control needle #1 failed: a KNOWN-PRESENT sibling file
+     (<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/lib/fc_common.py) does not resolve -- this test's relative-path
+     computation is broken, so the absence check below proves
+     nothing (section 11.4.273)
+-- <scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/orchestration does not exist at all yet
+NOT ok orchestration/custody_sweep.py is absent -- T137 (plan.md
+     T-B08's implementation task, a SEPARATE later task from this
+     RED test) has not landed yet. THIS IS THE CORRECT, EXPECTED
+     T129 RED BASELINE -- the fixtures + independent derivation
+     below stand as the interim contract T137 must satisfy to turn
+     this GREEN.
+
+=== REAL-STATE: live git stash list (re-verified, never assumed) ===
+   fatal: not a git repository (or any of the parent directories): .git
+-- live stash count: 0
+
+=== REAL-STATE: live git worktree list (re-verified, never assumed) ===
+   fatal: not a git repository (or any of the parent directories): .git
+-- live worktree count: 0 (main checkout counts as one of these)
+
+=== REAL-STATE: correction (1) -- is stash@{3} genuinely 'already landed'? ===
+-- stash@{3} is no longer present in the live list -- the task
+   text's claim about it is moot today (state has moved on); this
+   is honestly reported, not silently assumed either way
+
+=== REAL-STATE: correction (2) -- THREE worktrees, not two ===
+-- live count of agent worktrees (path contains .claude/worktrees/agent-): 0
+-- no agent worktrees are live today
+
+=== REAL-STATE: correction (3) -- is there really a backup for stash@{5}? ===
+-- text-file hits mentioning literal 'stash@{5}' under qa-results/+docs/: 0
+-- real worktree backup subdirectories under <scratch>/gitenv_class.MjjE/qa-results/agent_custody_20260926/backup_worktrees: 0
+-- backup-directory layout differs from what this test expected at
+   authoring time; printing what actually exists rather than
+   asserting a stale conclusion:
+
+=== control needle #2: isolated scratch-repo stash content-scan ===
+ok scratch stash created + listed (message contains the real planted
+   needle token)
+ok CONTROL NEEDLE PROVEN: the independent inventory-scanning function
+   genuinely finds the real, uniquely-identifiable planted file
+   (planted_marker.txt, needle T129_CONTROL_NEEDLE_1794681501_1705344_2c0c7df77e60d6ad) inside a real git
+   stash -- this proves the scanning mechanism can see real stash
+   content, not merely a mocked/assumed result (section 11.4.273).
+ok control needle #2 negative check: the scanner correctly reports
+   NOT-found for a file that was never planted in the same real
+   stash (proves it discriminates, section 11.4.201(1))
+
+=== T129 land/keep/retire proposal-refusal fixtures, independent DERIVED oracle ===
+NOT ok fixture proposal_golden_bad_no_hash.json is MISSING
+NOT ok fixture proposal_golden_bad_wrong_hash.json is MISSING
+NOT ok fixture proposal_golden_bad_stash5_no_backup.json is MISSING
+NOT ok fixture proposal_golden_good_verified_hash.json is MISSING
+NOT ok fixture proposal_negctrl_keep_no_hash.json is MISSING
+
+=== Self-validation discrimination needle ===
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/proposal_golden_bad_no_hash.json'
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/proposal_golden_bad_wrong_hash.json'
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/proposal_golden_bad_stash5_no_backup.json'
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/proposal_golden_good_verified_hash.json'
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/gitenv_class.MjjE/constitution/scripts/fastcycle/tests/fixtures/custody_sweep/proposal_negctrl_keep_no_hash.json'
+ok discrimination: every REFUSED-expected fixture genuinely resolved
+   to REFUSED and every ALLOWED-expected fixture genuinely resolved
+   to ALLOWED -- the oracle discriminates rather than rubber-stamping
+   every input identically
+
+=== T129 RED BASELINE CONFIRMED: orchestration/custody_sweep.py does
+    not exist yet (T137 is a separate, later task). The REAL-STATE
+    re-verification (including the three corrections to the stale
+    task-text claim), the isolated-scratch control needle, and the
+    five-row proposal-refusal fixture table via the independently
+    derived oracle, all above, are the interim contract T137 must
+    satisfy to turn this GREEN. ===

@@ -1,0 +1,45 @@
+script=scripts/gates/cm_rule_binds_to_seam.sh args=--selftest mode=none rc=0 sentinel=UNCHANGED objects=3 head=6f84059 sentinel
+  out: 
+  out: cm_rule_binds_to_seam.sh --selftest: pass=11 fail=0
+script=scripts/gates/cm_rule_binds_to_seam_mutation_test.sh args= mode=none rc=0 sentinel=UNCHANGED objects=3 head=821f7d5 sentinel
+  out: 
+  out: cm_rule_binds_to_seam_mutation_test.sh: pass=12 fail=0
+script=scripts/gates/cm_gitlink_on_remote_mutation_test.sh args= mode=none rc=1 sentinel=UNCHANGED objects=3 head=857143f sentinel
+  out: == RESULT: 18 passed, 1 failed ==
+  out: ❌ META FAIL
+script=scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh args= mode=none rc=0 sentinel=UNCHANGED objects=3 head=c859d0f sentinel
+  out: ✅ META OK:   order-independent parse still BLINDs on an unresolvable tag — gate exit 2 as required
+  out: ✅ META: all expectations held
+script=scripts/gates/cm_gitlink_on_remote.sh args=--help mode=none rc=0 sentinel=UNCHANGED objects=3 head=19f6c01 sentinel
+  out:   §11.4.28, §11.4.113, §11.4.288(D), §11.4.6, §1.1 (paired mutation: cm_gitlink_on_remote_mutation_test.sh).
+  out: Classification: universal (§11.4.17).
+script=scripts/gates/cm_rule_binds_to_seam.sh args=--selftest mode=git_dir rc=0 sentinel=UNCHANGED objects=3 head=19f6c01 sentinel
+  out: 
+  out: cm_rule_binds_to_seam.sh --selftest: pass=11 fail=0
+script=scripts/gates/cm_rule_binds_to_seam_mutation_test.sh args= mode=git_dir rc=0 sentinel=UNCHANGED objects=3 head=4bd15ae sentinel
+  out: 
+  out: cm_rule_binds_to_seam_mutation_test.sh: pass=12 fail=0
+script=scripts/gates/cm_gitlink_on_remote_mutation_test.sh args= mode=git_dir rc=1 sentinel=UNCHANGED objects=3 head=65c13f7 sentinel
+  out: == RESULT: 18 passed, 1 failed ==
+  out: ❌ META FAIL
+script=scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh args= mode=git_dir rc=0 sentinel=UNCHANGED objects=3 head=147926b sentinel
+  out: ✅ META OK:   order-independent parse still BLINDs on an unresolvable tag — gate exit 2 as required
+  out: ✅ META: all expectations held
+script=scripts/gates/cm_gitlink_on_remote.sh args=--help mode=git_dir rc=0 sentinel=UNCHANGED objects=3 head=786a107 sentinel
+  out:   §11.4.28, §11.4.113, §11.4.288(D), §11.4.6, §1.1 (paired mutation: cm_gitlink_on_remote_mutation_test.sh).
+  out: Classification: universal (§11.4.17).
+script=scripts/gates/cm_rule_binds_to_seam.sh args=--selftest mode=both rc=0 sentinel=UNCHANGED objects=3 head=786a107 sentinel
+  out: 
+  out: cm_rule_binds_to_seam.sh --selftest: pass=11 fail=0
+script=scripts/gates/cm_rule_binds_to_seam_mutation_test.sh args= mode=both rc=0 sentinel=UNCHANGED objects=3 head=8a9914b sentinel
+  out: 
+  out: cm_rule_binds_to_seam_mutation_test.sh: pass=12 fail=0
+script=scripts/gates/cm_gitlink_on_remote_mutation_test.sh args= mode=both rc=1 sentinel=UNCHANGED objects=3 head=d5cc592 sentinel
+  out: == RESULT: 18 passed, 1 failed ==
+  out: ❌ META FAIL
+script=scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh args= mode=both rc=0 sentinel=UNCHANGED objects=3 head=45e40d1 sentinel
+  out: ✅ META OK:   order-independent parse still BLINDs on an unresolvable tag — gate exit 2 as required
+  out: ✅ META: all expectations held
+script=scripts/gates/cm_gitlink_on_remote.sh args=--help mode=both rc=0 sentinel=UNCHANGED objects=3 head=bf36635 sentinel
+  out:   §11.4.28, §11.4.113, §11.4.288(D), §11.4.6, §1.1 (paired mutation: cm_gitlink_on_remote_mutation_test.sh).
+  out: Classification: universal (§11.4.17).

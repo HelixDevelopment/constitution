@@ -1,0 +1,17 @@
+bash=5.3.9(1)-release installer_sha256=51a1373724174757
+control_needle_yes_grep_q_141=3/3
+positive_needle_single_line_match=3/3
+large_BR_b_eq_a_read_as_push=0/3
+large_BL_b_eq_a_read_as_push=0/3
+large_BN_b_eq_a_read_as_push=0/3
+large_BRlast_b_eq_a_read_as_push=0/3
+large_Z_fails_closed=3/3
+large_Z_in_after_only_fails_closed=3/3
+small11_b_eq_a_read_as_push=0/300
+positive_moved_ref_read_as_push=3/3
+positive_changed_L_read_as_push=3/3
+positive_removed_remote_read_as_push=3/3
+
+real	1m58.180s
+user	1m54.076s
+sys	0m2.708s

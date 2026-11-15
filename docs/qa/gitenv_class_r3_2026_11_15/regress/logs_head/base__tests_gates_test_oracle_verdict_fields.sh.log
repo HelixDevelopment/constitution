@@ -1,0 +1,5 @@
+PASS F4 non-git: PASS verdict says rule3=skipped via=none (ORACLE-VERDICT	PASS	mode=ratchet	unannotated=1	excluded=0	voided=0	exclusion_entries=0	rule3=skipped	via=none	baseline=<tmp>/tmp.rwaofRqYjV/nogit/config/oracle_ratchet_baseline.txt	overrides=none	base=)
+PASS F5 git: verdict names the selecting remote ref (ORACLE-VERDICT	PASS	mode=ratchet	unannotated=1	excluded=0	voided=0	exclusion_entries=0	rule3=evaluated	via=refs/remotes/github_x/main	baseline=<tmp>/tmp.rwaofRqYjV/g/config/oracle_ratchet_baseline.txt	overrides=none	base=3630dea9bac0)
+PASS fence: heading inside a code fence is ignored
+PASS fence: real heading still recognised
+== 4 passed, 0 failed ==

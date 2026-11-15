@@ -1,0 +1,74 @@
+== unit: version regex (dotted patch tags)
+  ok   tag 'helixconstitution-v73' -> Version green v73
+  ok   tag 'helixconstitution-v73.1' -> Version green v73.1
+  ok   tag 'helixconstitution-v72.2' -> Version green v72.2
+  ok   tag 'helixconstitution-v1.2.3' -> Version green v1.2.3
+  ok   tag 'helixconstitution-v73.' -> Version amber
+  ok   tag 'helixconstitution-v73..1' -> Version amber
+  ok   tag 'helixconstitution-v' -> Version amber
+  ok   tag 'helixconstitution-v73.x' -> Version amber
+  ok   tag 'Unreleased' -> Version amber
+== unit/integration: static passthrough
+  ok   control needle absent from base row
+  ok   no list file -> row has no static badge
+  ok   list -> static badge appended verbatim after Readiness
+  ok   static is last, after the Readiness gauge
+  ok   --check accepts README with static badge
+  ok   --check rejects README missing the declared static badge
+  ok   --check rejects an undeclared extra badge
+  ok   two static lines (plain + linked) keep file order
+== derived-colour guarantee untouched by static badges
+  ok   drifted index still renders Anchors red with a static list
+  ok   Readiness gauge still red; static does not mask it
+  ok   static line reusing a derived alt (Anchors) is refused rc 2
+  ok   duplicate static alts refused rc 2
+== security: badge-text injection (each line must be refused rc 2, with no row printed)
+  ok   inject#1 refused
+  ok   inject#2 refused
+  ok   inject#3 refused
+  ok   inject#4 refused
+  ok   inject#5 refused
+  ok   inject#6 refused
+  ok   inject#7 refused
+  ok   inject#8 refused
+  ok   inject#9 refused
+  ok   inject#10 refused
+  ok   inject#11 refused
+  ok   inject#12 refused
+  ok   inject#13 refused
+  ok   inject#14 refused
+  ok   inject#15 refused
+  ok   inject#16 refused
+  ok   inject#17 refused
+  ok   inject#18 refused
+  ok   valid list without trailing newline accepted
+== chaos: odd or missing config
+  ok   empty list == no list
+  ok   comments/blank only == no list
+  ok   CRLF list line accepted and normalised
+  ok   surrounding whitespace trimmed
+  ok   list path is a directory -> rc 2
+  ok   unreadable list -> rc 2
+  ok   binary garbage list -> rc 2
+  ok   --facts ignores the static list (independent of it)
+== determinism x3 + idempotency + performance
+  ok   three --print runs are identical
+  ok   --check twice is stable (idempotent, no state written)
+  ok   one --print under 15 s (1083 ms)
+== integration: README gates accept a declared static badge
+  ok   row-at-top gate PASS with a linked static badge
+  ok   colour-vocabulary gate PASS (static exempt)
+  ok   provenance gate PASS (static exempt)
+  ok   same README with the badge UNdeclared -> colour gate FAIL (no free pass)
+  ok   same README UNdeclared -> provenance gate FAIL
+== e2e: the repository's own README
+  FAIL real README --check exits 0
+  ok   real README row carries the declared static badge
+== paired mutations (each applied to a COPY of the tool tree; the inner case set MUST fail)
+  ok   mutation M1_drop_passthrough detected
+  ok   mutation M2_revert_regex detected
+  ok   mutation M3_drop_grammar detected
+  ok   mutation M4_allow_derived_alt detected
+  ok   mutation M5_lib_linked detected
+  ok   mutation M6_gate_exempt detected
+RESULT: pass=63 fail=1

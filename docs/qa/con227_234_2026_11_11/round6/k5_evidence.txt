@@ -1,0 +1,21 @@
+K5 evidence (round 6), 2026-11-11T23:47:37+01:00. The round-6 publisher with ONE change: its library-load line takes the
+directory with $(dirname ...) again (the pre-K5 form), so dirname runs before rc_env_lockdown.
+The tree copy is a scratch copy; the commands are the committed tests run against it.
+
+1. tests/release/test_channel_census.sh (runtime recorders from the table and the instrument), on the copy:
+   FAIL lint rc=1: FINDING no row: release_publish_gitea.sh:44 dirname key=3c887b72 | . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/release/redact_cut.sh" || die "cannot load release/
+   FAIL runtime: commands not in the table: dirname
+   == dirname: E M3W_GITEA_TOKEN=CENSUSTOKEN123456
+   FAIL runtime: the token is in the argv or environment of a child
+   FAIL runtime: a caller *TOKEN* variable reaches a child
+   RESULT: pass=17 fail=4
+
+2. tests/release/test_publish_gitea.sh with PUBLISH_SCRIPT=<copy> (case L1, census lint on the copy):
+   PASS L1 the lint sees release_publish_gitea.sh (control)
+   FAIL L1 external command before rc_env_lockdown: FINDING external command before rc_env_lockdown: release_publish_gitea.sh:44 dirname (it gets the caller's whole environment)
+   PASS L1 needle: a date inserted at line 2 is found
+   RESULT pass=121 fail=1
+
+3. The same two commands on the round-6 publisher: see green_channel_census.txt and green_publish_gitea.txt.
+   Before this round's fix of part 3, its recorders covered table commands only, so a command with no row (dirname
+   here) ran unrecorded and only the lint saw it; part 3 now also records every command the instrument finds.

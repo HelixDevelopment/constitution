@@ -1,0 +1,10 @@
+======================================================================
+§1.1 paired-mutation meta-test for §11.4.162 gates
+fixtures under: /mnt/DATA1TB/claude-work/tmp/od_mut.a5V8qE
+======================================================================
+✅ META OK:   propagation gate / missing-anchor carrier — gate correctly FAILed on the mutation
+✅ META OK:   propagation gate / clean fleet — gate correctly PASSed on clean fixture
+✅ META OK:   ui-system gate / hex-without-token + light-only + no visreg + undeclared — gate correctly FAILed on the mutation
+✅ META OK:   ui-system gate / clean project (tokens consumed, light+dark, visreg, declared) — gate correctly PASSed on clean fixture
+======================================================================
+✅ META PASS — both §11.4.162 gates FAIL-on-mutation AND PASS-on-clean (§1.1 proof holds)

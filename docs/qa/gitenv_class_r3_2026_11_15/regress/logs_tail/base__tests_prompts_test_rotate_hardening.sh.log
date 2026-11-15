@@ -1,0 +1,59 @@
+PASS I1 name 'é' refused rc=2 under LC_ALL=en_US.utf8
+PASS I1 name 'é' under en_US.utf8 wrote nothing
+PASS I1 name 'é' refused rc=2 under LC_ALL=C
+PASS I1 name 'é' under C wrote nothing
+PASS I1 name 'ß' refused rc=2 under LC_ALL=en_US.utf8
+PASS I1 name 'ß' under en_US.utf8 wrote nothing
+PASS I1 name 'ß' refused rc=2 under LC_ALL=C
+PASS I1 name 'ß' under C wrote nothing
+PASS I1 name 'ｍｙ_ｎａｍｅ' refused rc=2 under LC_ALL=en_US.utf8
+PASS I1 name 'ｍｙ_ｎａｍｅ' under en_US.utf8 wrote nothing
+PASS I1 name 'ｍｙ_ｎａｍｅ' refused rc=2 under LC_ALL=C
+PASS I1 name 'ｍｙ_ｎａｍｅ' under C wrote nothing
+PASS I1 name 'a_é' refused rc=2 under LC_ALL=en_US.utf8
+PASS I1 name 'a_é' under en_US.utf8 wrote nothing
+PASS I1 name 'a_é' refused rc=2 under LC_ALL=C
+PASS I1 name 'a_é' under C wrote nothing
+PASS I1 name 'naïve' refused rc=2 under LC_ALL=en_US.utf8
+PASS I1 name 'naïve' under en_US.utf8 wrote nothing
+PASS I1 name 'naïve' refused rc=2 under LC_ALL=C
+PASS I1 name 'naïve' under C wrote nothing
+PASS I1 gate verdict locale-independent (VERDICT: FAIL (1))
+PASS I1 gate FAILs on non-ASCII history name
+tests/prompts/test_rotate_hardening.sh: line 45: 3134339 Killed                     ROTATE_SETUP_PROMPT_TEST_MODE=1 ROTATE_SETUP_PROMPT_TEST_KILL_AT=after_link bash "$ROTATE" foo --source "$S/a.md" --dir "$D" > /dev/null 2>&1
+PASS I2 re-run with a different --source refused rc=3
+PASS I2 latest.md holds the interrupted run's content (recovery finished)
+PASS I2 message says the content differs
+PASS I2 lock cleared
+tests/prompts/test_rotate_hardening.sh: line 53: 3135138 Killed                     ROTATE_SETUP_PROMPT_TEST_MODE=1 ROTATE_SETUP_PROMPT_TEST_KILL_AT=after_stage bash "$ROTATE" foo --source "$S/a.md" --dir "$D" > /dev/null 2>&1
+PASS I2 same --source after crash completes (rc=0)
+tests/prompts/test_rotate_hardening.sh: line 57: 3135555 Killed                     ROTATE_SETUP_PROMPT_TEST_MODE=1 ROTATE_SETUP_PROMPT_TEST_KILL_AT=after_link bash "$ROTATE" foo --source "$S/a.md" --dir "$D" > /dev/null 2>&1
+PASS I2 re-run without --source after a --source crash refused (rc=3)
+PASS I3 symlinked .rotate.lock refused (rc=3)
+PASS I3 outside directory untouched (pid, staged, journal, canary)
+PASS I3 latest.md untouched
+PASS I3 .rotate.lock that is a plain file refused (rc=3)
+PASS I3 plain-file lock left untouched
+tests/prompts/test_rotate_hardening.sh: line 74: 3135870 Killed                     ROTATE_SETUP_PROMPT_TEST_MODE=1 ROTATE_SETUP_PROMPT_TEST_KILL_AT=after_link bash "$ROTATE" r1 --source "$S/n.md" --dir "$D" > /dev/null 2>&1
+PASS I7 recovery refuses when latest.md changed after the crash (rc=3)
+PASS I7 nothing changed (human edit preserved)
+PASS I7 latest.md still holds the human edit
+tests/prompts/test_rotate_hardening.sh: line 83: 3136159 Killed                     ROTATE_SETUP_PROMPT_TEST_MODE=1 ROTATE_SETUP_PROMPT_TEST_KILL_AT=after_link bash "$ROTATE" st --source "$S/n.md" --dir "$D" > /dev/null 2>&1
+PASS staged file not matching the journal checksum refused (rc=3)
+PASS tampered staged file never installed
+tests/prompts/test_rotate_hardening.sh: line 88: 3136347 Killed                     ROTATE_SETUP_PROMPT_TEST_MODE=1 ROTATE_SETUP_PROMPT_TEST_KILL_AT=after_link bash "$ROTATE" sl --source "$S/n.md" --dir "$D" > /dev/null 2>&1
+PASS staged symlink refused (rc=3)
+PASS latest.md never became a symlink
+PASS I8 fallback archive refuses an existing target (rc=1)
+PASS I8 existing 03_r3.md never clobbered
+PASS I8 latest.md not replaced after a failed archive
+PASS I8 copy fallback archives and installs (rc=0)
+PASS I8 stale lock with a reused (non-rotation) pid recovered
+PASS I8 rotation done after recovery
+PASS M1 release refuses a lock with another identity
+PASS M3 clean git tree accepted (rc=0)
+PASS M3 dirty setup directory refused (rc=3)
+PASS M3 refusal wrote nothing
+PASS M3 non-git directory refused with --require-clean-git (rc=3)
+PASS M3 non-git directory accepted without the flag (rc=0)
+RESULT: hardening pass=52 fail=0 skip=0

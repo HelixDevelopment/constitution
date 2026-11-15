@@ -24,13 +24,16 @@
 #      the SAFE list, a git wrapper or a handled form must be on the external allow-list, with its permitted
 #      argument shape: read-only utilities (cat, grep, tr, ... with no output-file option), and the file-changing
 #      ones (remove, mkdir, rmdir, mktemp, chmod, kill, touch, cp, ln, mv) only as an exact (function, command text)
-#      pair; sed and awk only with a program text that is listed (no -i, -f, w/e/r commands, system(), getline);
+#      pair; shopt (it changes how bash parses and expands: alias expansion, extdebug, ...) only as an exact pair,
+#      option list included; sed and awk only with a program text that is listed (no -i, -f, w/e/r commands, system(), getline);
 #      python only with a literal program (-c LITERAL, or - with a quoted heredoc) that passes an AST check
 #      (imports from a short list; no open() for writing, exec/eval/compile/__import__, no os/subprocess/...); a
 #      git call that changes anything (add, rm, checkout, commit, init, clone, fetch, submodule, config writes,
 #      remote set-url) only as an exact (function, command text) pair. Anything else (tar, patch, unlink, ex,
 #      ed, perl, ...) FAILs as "not on the allow-list". (This replaces a deny-list that every new command word
-#      could walk around.)
+#      could walk around.) Every listed pair, program text and exemption must still be used by a scanned line:
+#      an entry nothing uses any more is a finding ("no longer used"), so the lists cannot keep permissions the
+#      scripts no longer need.
 #      WRITE POLICY: a write to a name that changes what git or the shell runs (PATH, BASH_ENV, LD_*, GIT_* other
 #      than GIT_TERMINAL_PROMPT, HI_GX_COMMIT_OK/INIT_OK/BIN, …) in any form (assignment, prefix, export/declare/
 #      local/readonly, env NAME=, printf -v, read/mapfile, for NAME, (( … )), nameref -n) is allowed only at the
@@ -44,7 +47,11 @@
 #      none may be push/send-pack/reset/rebase/filter-branch/update-ref/clean/tag/branch/switch/…, the default
 #      `*)` must refuse, HI_GX_COMMIT_OK=1 must be set exactly once per file, and the `# >>> hi_gx … # <<< hi_gx`
 #      block must be byte-identical in every scanned file that carries it.
-#  (c) RAW denylist (defence in depth, outside hi_gx_check, comments and message carriers removed): push,
+#  (c) RAW denylist (defence in depth, outside hi_gx_check, comments and message carriers removed; a carrier is a
+#      hi_say/hi_warn/... or printf/echo call with quoted arguments on one line, the body of a quoted heredoc, or a
+#      printf/echo argument made only of single-quoted parts that spans lines, when the lexer sees it as an
+#      argument of a printf/echo command AND only printf/echo, options and one-line quoted words precede it on its
+#      first line; what such output feeds is still checked by (a)): push,
 #      send-pack, --force, reset, rebase, filter-branch, update-ref, clean -f, checkout -f/-B, branch -D, tag -f,
 #      switch, --amend, recursive rm (also `-f -r`), -delete, -exec, eval, awk system()/getline, python
 #      subprocess/os.system, ANSI-C escapes $'\…'.
@@ -58,7 +65,11 @@
 #      --recursive, "::" or "+"; commit in its exact shape without HI_GX_COMMIT_OK), so weakening one layer is
 #      seen even where a stricter per-subcommand shape would still refuse the dangerous form.
 # Control needles (§11.4.273): the lexer must flag a set of planted hiding shapes and must not flag comments,
-# message carriers, data heredocs and [[ =~ ]] regexes; otherwise the instrument is blind and the gate says BLIND.
+# message carriers, data heredocs and [[ =~ ]] regexes; the raw scan (c) alone must still see a push in a multi-line
+# literal that is not printed, after a printed literal on its last line, in a printf line inside a double-quoted
+# string or an unquoted heredoc, in a double-quoted multi-line printf argument, in a printf that does not start its
+# line, and in a literal after echo when echo is not the command (ssh h \ echo '...'), and must not see one in a
+# multi-line printed literal; otherwise the instrument is blind and the gate says BLIND.
 #
 # ── Residual boundary (stated, not hidden) ────────────────────────────────
 # BEST-EFFORT TRIPWIRE, NOT A PROOF (operator decision 2026-10-31, like the destructive-path guard). KNOWN LIMITS:
@@ -81,6 +92,7 @@
 #   0 PASS · 1 FAIL (findings printed file:line) · 2 BLIND · 64 usage
 # Read-only (runtime checks run in a mktemp -d sandbox with a fake git). Paired mutation test:
 # cm_installer_no_push_no_force_mutation_test.sh. Classification: universal (§11.4.17).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 GATE="CM-INSTALLER-NO-PUSH-NO-FORCE"
 const="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
@@ -389,8 +401,9 @@ SAFE_BUILTIN = {":", "true", "false", "echo", "printf", "test", "[", "[[", "cd",
 READ_OK = {"cat", "head", "tail", "tr", "grep", "sort", "uniq", "wc", "cut", "date", "id", "stat", "getconf", "uname",
            "ls", "dirname", "basename", "readlink", "realpath", "sha256sum", "cksum", "od", "sleep", "tty", "cmp",
            "diff", "comm", "df", "du", "paste", "uuidgen", "jq"}
-# Commands that change files or processes: allowed only as an exact (function, whole command text) pair.
-EXACT_CMDS = {"rm", "mkdir", "rmdir", "mktemp", "chmod", "kill", "claude-list-accounts", "claude-providers"}
+# Commands that change files or processes, and shopt (it changes how bash parses and expands): allowed only as an
+# exact (function, whole command text) pair.
+EXACT_CMDS = {"rm", "mkdir", "rmdir", "mktemp", "chmod", "kill", "claude-list-accounts", "claude-providers", "shopt"}
 COLLECT = []   # CM_NOPUSH_COLLECT=1: the candidate sanction entries a reviewer reads before pasting them below
 # python modules a literal program may import
 PY_MODS = {"sys", "unicodedata", "re", "json", "uuid", "hashlib"}
@@ -403,8 +416,16 @@ MUTATING_GIT = {"add", "rm", "checkout", "commit", "init", "clone", "fetch", "su
 # Exact (function, command text) pairs for the file-changing commands and for mutating hi_gx/hi_git calls, and the
 # literal sed/awk program words. Filled from the files' real, reviewed calls; editing a call makes it a finding
 # until this list is updated by a reviewer.
+# the shell-state reset (block hi_shell_state, identical in both files): every bash option back to its default,
+# except patsub_replacement, which is turned off (bash 5.2 and later turn it on); the exact option lists are
+# pinned (no other shopt call is allowed)
+RESET_SHOPT = [
+    ('hi_reset_shell_state', 'shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit localvar_unset cdable_vars extdebug execfail inherit_errexit assoc_expand_once array_expand_once patsub_replacement'),
+    ('hi_reset_shell_state', 'shopt -s extquote globasciiranges'),
+]
 EXT_EXACT = {
     'install_constitution.sh': [
+        *RESET_SHOPT,
         ('hi_agent_step', 'mkdir -p "$S_BK/agent"'),
         ('hi_backup_dir', 'chmod 700 "$S_BK" "$S_BK/files"'),
         ('hi_backup_dir', 'mkdir -p "$(dirname "$ex")"'),
@@ -439,6 +460,7 @@ EXT_EXACT = {
         ('hi_write_report', 'rm -f -- "$f"'),
     ],
     'update_constitution.sh': [
+        *RESET_SHOPT,
         ('hi_holder_alive', 'kill -0 "$p"'),
         ('up_lock', 'mktemp "$lockp.XXXXXX"'),
         ('up_lock', 'rm -f -- "$lockp"'),
@@ -488,14 +510,12 @@ GX_EXACT = {
 PROGS = {
     'install_constitution.sh': {
         "'$0 == b { on = 1 } on { print } $0 == e { on = 0 }'",
-        '\'$1 == "V" && $2 == ENVIRON["HI_I"] { x = $0; sub(/^V [^ ]+ [^ ]+ /, "", x); if (x == ENVIRON["HI_U"]) { print $3; exit } }\'',
-        '\'$1 == "D" && $2 == ENVIRON["HI_I"] { sub(/^D [^ ]+ /, ""); print; exit }\'',
         "'$1 == i { print $2 }'",
-        "'$1 == n { print $2; exit }'",
         "'$1 ~ /^[0-9a-f]+$/ && (length($1) == 40 || length($1) == 64) { print $1 }'",
         "'BEGIN { exit !(l + 0 >= 0.01) }'",
         "'BEGIN { exit !(v + 0 > 0 && v + 0 <= m) }'",
         "'NF && !s[$0]++'",
+        "'NR == 1'",   # hi_version_of: the first line, read to EOF (no early exit: no SIGPIPE)
         "'NR == 1 && /^---[[:space:]]*$/ { fm = 1; next } fm == 1 { if (/^---[[:space:]]*$/) fm = 2; next } { print }'",
         "'NR == 2 { print $4 }'",
         "'s#([Hh][Tt][Tt][Pp][Ss]?://)[^/?#[:space:]]*@#\\1#g; s#([A-Za-z][A-Za-z0-9+.-]*://)[^/?#[:space:]@:]*:[^/?#[:space:]]*@#\\1#g; s/([?&][^=&#[:space:]]*=)[^&#[:space:]]*/\\1REDACTED/g'",
@@ -515,17 +535,18 @@ PROGS = {
         '\'BEGIN { printf "%.4f", a + c }\'',
         '\'BEGIN { r = b - s; if (r < 0) r = 0; printf "%.4f", r }\'',
         '\'NR == 1 && !/^---[[:space:]]*$/ { exit } NR > 1 && /^---[[:space:]]*$/ { exit }\n           NR > 1 && /^requires_previous_success:/ { sub(/^requires_previous_success:[[:space:]]*/, ""); print; exit }\'',
-        '\'\n      /^##/ { exit } NR == 1 { next } NF >= 3 && $1 ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ { print $1 "|" $3 }\'',
+        '\'\n      /^##/ { done = 1 } done { next } NR == 1 { next } NF >= 3 && $1 ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ { print $1 "|" $3 }\'',
         '\'\n    BEGIN { st = 0; got = 0 }\n    st == 0 && /^## PROMPT[[:space:]]*$/ { st = 1; next }\n    st == 1 && /^## / { exit }\n    st == 1 && match($0, /^(```+|~~~+)/) { fch = substr($0, 1, 1); flen = RLENGTH; st = 2; next }\n    st == 2 {\n      line = $0; sub(/[[:space:]]+$/, "", line)\n      if (length(line) >= flen && substr(line, 1, 1) == fch) {\n        rest = line; if (fch == "`") gsub(/`/, "", rest); else gsub(/~/, "", rest)\n        if (rest == "") { got = 1; exit }\n      }\n      print; n++\n    }\n    END { exit (got && n > 0) ? 0 : 1 }\n  \'',
         '\'{ for (i = 1; i <= NF; i++) if ($i ~ /^cost=[0-9.]+([eE][-+]?[0-9]+)?$/) {   # jq prints 1e-05: normalise\n                 v = sprintf("%.6f", substr($i, 6) + 0); sub(/0+$/, "", v); sub(/\\.$/, "", v); $i = "cost=" v }\n             print }\'',
         '\'{ printf "%-36s %-15s %-12s %-6s %s\\n", $1, $2, $3, $4, $6 }\'',
         '\'{ r = $2; sub(/^refs\\/tags\\//, "", r); sub(/\\^\\{\\}$/, "", r); print r }\'',
     },
     'update_constitution.sh': {
-        "'$1 == n { print $2; exit }'",
         "'$1 ~ /^[0-9a-f]+$/ && (length($1) == 40 || length($1) == 64) { print $1 }'",
         "'2,/^# Classification/p'",
         "'NF && !s[$0]++'",
+        "'NR <= 10'",   # the first lines, read to EOF (no early exit: no SIGPIPE)
+        "'NR <= 20'",
         "'s/^# \\{0,1\\}//'",
         "'s/^+## /  changelog: /p'",
         "'s/^/  /'",
@@ -544,9 +565,9 @@ SEP = {";", ";;", ";&", ";;&", "&", "&&", "||", "|", "|&", "(", ")", "\n"}
 
 
 class Word:
-    __slots__ = ("raw", "line", "subs")
-    def __init__(self, raw, line, subs):
-        self.raw, self.line, self.subs = raw, line, subs
+    __slots__ = ("raw", "line", "subs", "pos")
+    def __init__(self, raw, line, subs, pos=None):
+        self.raw, self.line, self.subs, self.pos = raw, line, subs, pos   # pos: offset in the tokenized text
 
 
 def skip_squote(t, i):  # i at opening '
@@ -679,7 +700,7 @@ def tokenize(t, line0=1):
             if t.startswith("$(", j): j = skip_paren(t, j + 1, subs, line); continue
             if t.startswith("${", j): j = skip_brace(t, j + 1, subs, line); continue
             j += 1
-        toks.append(("WORD", Word(t[start:j], line, subs), line)); line += t.count("\n", start, j); i = j
+        toks.append(("WORD", Word(t[start:j], line, subs, start), line)); line += t.count("\n", start, j); i = j
     return toks, heredocs
 
 
@@ -1155,10 +1176,38 @@ def prepare(l):
     return l
 
 
+LIT_WORD = re.compile(r"(?:'[^']*'|\\[^\n])+")   # single-quoted parts and backslash-escaped characters only
+PRINT_HEAD = re.compile(r"^[ \t]*(?:printf|echo)(?:[ \t]+(?:'[^'\n]*'|-[A-Za-z]+))*[ \t]+$")
+
+
+def print_literal_mask(text):
+    """text with every MULTI-LINE literal argument of a printf/echo command blanked (newlines kept, so the line
+    numbers stay): text bash prints and never runs, the multi-line counterpart of CARRIER_PR and of a quoted data
+    heredoc. A span is blanked only when two independent views agree: the lexer sees a simple command whose first word
+    is printf or echo and an argument word made only of single-quoted parts and backslash-escaped characters that
+    spans lines; and on that word's first line only printf/echo, options and one-line single-quoted words precede it.
+    What the output feeds (a pipe into a shell, a file) is still checked by (a)."""
+    toks, _ = tokenize(text)
+    spans = []
+    for words, line, pipe_in, redirs in commands(toks):
+        if not words or words[0].raw not in ("printf", "echo"): continue
+        for w in words[1:]:
+            if w.pos is None or "\n" not in w.raw or not LIT_WORD.fullmatch(w.raw): continue
+            if text[w.pos:w.pos + len(w.raw)] != w.raw: continue
+            if not PRINT_HEAD.match(text[text.rfind("\n", 0, w.pos) + 1:w.pos]): continue
+            spans.append((w.pos, w.pos + len(w.raw)))
+    if not spans: return text
+    out = list(text)
+    for a, b in spans:
+        for k in range(a, b):
+            if out[k] != "\n": out[k] = " "
+    return "".join(out)
+
+
 def raw_scan(path, text, findings):
     fmap, _ = func_map(text)
     hd = None  # delimiter of a QUOTED (non-expanding) heredoc whose body is data, not code
-    for n, line in enumerate(text.split("\n"), 1):
+    for n, line in enumerate(print_literal_mask(text).split("\n"), 1):
         s = line.strip()
         if hd is not None:
             if s == hd: hd = None
@@ -1537,7 +1586,7 @@ MUST_FIND = ["x=1\n  git push origin main\n", 'bash -c "hi_gx status"\n', 'cmd=(
              'sed -n "w out" in\n', "awk 'BEGIN { printf \"\" > \"f\" }'\n", "python3 -I -c 'open(\"f\", \"w\")'\n",
              'hi_gx -C "$s" fetch --quiet --tags "$r"\n', 'mkdir -p "$d"\n', 'kill -9 "$p"\n', 'cp /dev/null "$f"\n',
              'dd if=/dev/zero of=f\n', 'install -m 755 a b\n', 'ed -s f\n', 'cat /dev/null >"$f"\n',
-             'python3 -I - <<\'PY\'\nimport os\nos.remove("f")\nPY\n']
+             'python3 -I - <<\'PY\'\nimport os\nos.remove("f")\nPY\n', 'shopt -s expand_aliases\n']
 MUST_PASS = ["# git push origin main\n", 'hi_say "the installer never pushes; git push yourself"\n',
              'die 3 "commit/push or stash first"\n', "printf 'step: git commit (local only)\\n'\n",
              'hi_err "never reset --hard" || return 1\n', "printf 'push: never\\nbackups: %s\\n' \"$x\"\n",
@@ -1549,11 +1598,28 @@ MUST_PASS = ["# git push origin main\n", 'hi_say "the installer never pushes; gi
              'export GIT_TERMINAL_PROMPT=0\n', "trap 'hi_on_signal INT' INT\n", "trap '' INT TERM\n",
              'n=$((n+1))\n', 'for ((i=0; i<3; i++)); do :; done\n', '[ $(( a == b )) = 1 ]\n', 'chmod 700 "$d"\n',
              'hi_gx -C "$s" fetch --quiet --tags "$r"\n', 'hi_gx submodule update --init --quiet -- "$p"\n',
-             'HI_GX_TIMEOUT=9 hi_gx clone --quiet --filter=blob:none --no-checkout -- "$u" "$d"\n']
+             'HI_GX_TIMEOUT=9 hi_gx clone --quiet --filter=blob:none --no-checkout -- "$u" "$d"\n',
+             "printf '%s\\n' 'usage:\ngit push is never run\nend' >&2\n", 'shopt -u extglob\n']
+# the raw scan (c) on its own: a multi-line literal is printed text only as a printf/echo argument
+RAW_MUST_FIND = ["x='a\ngit push origin main\nb'\n", "printf '%s\\n' 'a\nb'; git push origin main\n",
+                 'y="\nprintf \'%s\\n\' \'a\n"; git push; z=\'\n\'\n',
+                 "cat <<EOF\nprintf '%s\\n' 'a\nEOF\ngit push\nz='\n'\n",
+                 # a double-quoted multi-line argument can run code; a printf that does not start its line is not
+                 # trusted as printed text; a literal after echo is printed only when echo is the command (ssh joins
+                 # its arguments into a remote shell command line)
+                 'printf "%s\\n" "a\n$(hi_gx push)\nb"\n', "printf '%s\\n' \"a\n$(hi_gx push)\nb\"\n",
+                 "true; printf '%s\\n' 'a\ngit push\nb'\n", "ssh h \\\necho 'a\ngit push\nb'\n"]
+RAW_MUST_PASS = ["printf '%s\\n' 'usage:\ngit push is never run\nend'\n", "echo 'a\nnever --force\nb' >&2\n",
+                 "  printf '%s\\n' 'one'\\''s line\nnever reset --hard\nlast'\n"]
+
+
+def raw_only(text):
+    f = []; raw_scan("needle.sh", text, f); return f
 
 
 def main(files):
     blind = [x for x in MUST_FIND if not scan_text(x)] + [x for x in MUST_PASS if scan_text(x, sanction=True)]
+    blind += [x for x in RAW_MUST_FIND if not raw_only(x)] + [x for x in RAW_MUST_PASS if raw_only(x)]
     if blind:
         print("⚠ %s: BLIND (exit 2) — lexer failed its control needles: %r" % (GATE, blind)); return 2
     findings, used, blocks, allowed = [], set(), {}, 0
@@ -1590,6 +1656,17 @@ def main(files):
         for fn, t, why in lst:
             if (base, fn, t) not in used:
                 findings.append((base, 0, "(a) exemption no longer used (remove it from the gate): %s %s" % (fn, t)))
+    # the other membership allow lists, with the same rule: an entry that no scanned line uses is stale (keys as in
+    # analyse()); SANCTIONED_WRITES, SANCTIONED_REDIRS, SWITCH_TOKENS and VAR_PINS are compared as exact counts
+    # in runtime()/var_bindings, so a missing use already fails there
+    stale = [(b, "prog", pw, "PROGS", None) for b, s in PROGS.items() for pw in s]
+    stale += [(b, "ext:" + str(fn), t, "EXT_EXACT", fn) for b, l in EXT_EXACT.items() for fn, t in l]
+    stale += [(b, "gx:" + str(fn), t, "GX_EXACT", fn) for b, l in GX_EXACT.items() for fn, t in l]
+    stale += [(b, "file:" + str(fn), t, "SANCTIONED_FILE_CMDS", fn) for b, l in SANCTIONED_FILE_CMDS.items() for fn, t in l]
+    for base, kind, t, lname, fn in stale:
+        if not any(os.path.basename(p) == base for p in files): continue
+        if (base, kind, t) not in used:
+            findings.append((base, 0, "(a) %s entry no longer used (remove it from the gate): %s %s" % (lname, fn, t[:120])))
     for p, n, msg in findings:
         print("  FAIL %s:%d %s" % (p, n, msg))
     if findings:

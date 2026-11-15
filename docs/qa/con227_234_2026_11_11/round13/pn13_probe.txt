@@ -1,0 +1,21 @@
+PATH	gate	rc=1	REFUSED a write to PATH (assign; it changes how a command is found, run or loaded): w_PATH.sh:3 | key=7a63536c
+PATH	PN13	rc=1	REFUSED a write to PATH (assign; it changes how a command is found, run or loaded): w_PATH.sh:3 | key=7a63536c
+BASH_ENV	gate	rc=1	REFUSED a write to BASH_ENV (assign; it changes how a command is found, run or loaded): w_BASH_ENV.sh:3 | key=b9665d29
+BASH_ENV	PN13	rc=1	REFUSED a write to BASH_ENV (assign; it changes how a command is found, run or loaded): w_BASH_ENV.sh:3 | key=b9665d29
+ENV	gate	rc=1	REFUSED a write to ENV (assign; it changes how a command is found, run or loaded): w_ENV.sh:3 | key=1fb54fd1
+ENV	PN13	rc=1	REFUSED a write to ENV (assign; it changes how a command is found, run or loaded): w_ENV.sh:3 | key=1fb54fd1
+LD_PRELOAD	gate	rc=1	REFUSED a write to LD_PRELOAD (assign; it changes how a command is found, run or loaded): w_LD_PRELOAD.sh:3 | key=b8600c83
+LD_PRELOAD	PN13	rc=1	REFUSED a write to LD_PRELOAD (assign; it changes how a command is found, run or loaded): w_LD_PRELOAD.sh:3 | key=b8600c83
+LD_LIBRARY_PATH	gate	rc=1	REFUSED a write to LD_LIBRARY_PATH (assign; it changes how a command is found, run or loaded): w_LD_LIBRARY_PATH.sh:3 | key=ef9132df
+LD_LIBRARY_PATH	PN13	rc=1	REFUSED a write to LD_LIBRARY_PATH (assign; it changes how a command is found, run or loaded): w_LD_LIBRARY_PATH.sh:3 | key=ef9132df
+GCONV_PATH	gate	rc=1	REFUSED a write to GCONV_PATH (assign; it changes how a command is found, run or loaded): w_GCONV_PATH.sh:3 | key=ea8a4346
+GCONV_PATH	PN13	rc=1	REFUSED a write to GCONV_PATH (assign; it changes how a command is found, run or loaded): w_GCONV_PATH.sh:3 | key=ea8a4346
+CDPATH	gate	rc=1	REFUSED a write to CDPATH (assign; it changes how a command is found, run or loaded): w_CDPATH.sh:3 | key=a79cb73c
+CDPATH	PN13	rc=1	REFUSED a write to CDPATH (assign; it changes how a command is found, run or loaded): w_CDPATH.sh:3 | key=a79cb73c
+EXECIGNORE	gate	rc=1	REFUSED a write to EXECIGNORE (assign; it changes how a command is found, run or loaded): w_EXECIGNORE.sh:3 | key=1dd9af93
+EXECIGNORE	PN13	rc=1	REFUSED a write to EXECIGNORE (assign; it changes how a command is found, run or loaded): w_EXECIGNORE.sh:3 | key=1dd9af93
+BASHOPTS	gate	rc=1	REFUSED a write to BASHOPTS (assign; it changes how a command is found, run or loaded): w_BASHOPTS.sh:3 | key=8ae58c36
+BASHOPTS	PN13	rc=1	REFUSED a write to BASHOPTS (assign; it changes how a command is found, run or loaded): w_BASHOPTS.sh:3 | key=8ae58c36
+IFS	gate	rc=1	REFUSED a write to IFS (assign; it changes how a command is found, run or loaded): w_IFS.sh:3 | key=99ec814a
+IFS	PN13	rc=1	REFUSED a write to IFS (assign; it changes how a command is found, run or loaded): w_IFS.sh:3 | key=99ec814a
+pairs=10 same_refusal=10 tables_written=0

@@ -1,0 +1,3 @@
+n14_staged_flag_lost mut_rc=1 KILLED wall=161s failing_cases=1 first=FAIL W5: a staged, uncommitted rename is not judged (P14): output lacks 'staged: yes, unstaged: no, untracked: no'
+n22_status_diff_refresh mut_rc=1 KILLED wall=153s failing_cases=1 first=FAIL RO2: the gate rewrote the inspected repository's index (an index refresh by git diff)
+rm13_no_cleanup_trap mut_rc=1 KILLED wall=155s failing_cases=1 first=FAIL leak: the gate left files in its TMPDIR (first seen after <scratch-root>(cut)

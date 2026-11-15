@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F2z2)
+@@ -698,7 +698,7 @@
+     fi
+   done
+   g rev-list "$head0" "$HEAD_SHA" | g cat-file --batch > "$objs" || die 1 "cannot read the commit history for the newness check"
+-  if grep -aiEq -- "^[[:space:]]*roadmap-item[[:space:]]*:.*$key-0*$num([^0-9]|\$)" "$objs"; then
++  if grep -aiEq -- "^[[:space:]]*roadmap-item[[:space:]]*:.*$key-$num([^0-9]|\$)" "$objs"; then
+     die 1 "the mint command printed $id but $id already appears in a Roadmap-Item line of a commit reachable from main or the vehicle: the id is not new; refusing; nothing was landed"
+   fi
+   [ "$found" = 1 ] || die 1 "the mint command printed $id but no changed file in the clone contains it: refusing; nothing was landed"

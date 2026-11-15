@@ -1,0 +1,26 @@
+  | ok n1 run_bounded reports the timeout (rc None) rc=None
+  | ok n1 no process of the run's session survives the timeout kill left=[]
+  | ok n1 control needle: a fabricated session id has no members
+  | ok n2 KILLED mutant with a ledger entry is stale
+  | ok n2 EQUIVALENT mutant with a ledger entry is not stale
+  | ok n2 KILLED mutant without a ledger entry is not stale
+  | ok n2 SURVIVED mutant with a ledger entry is not stale (reported as survived/equivalent)
+  | ok n2 KILLED-TIMEOUT mutant with a ledger entry is stale (CON-220)
+  | ok n2 KILLED-TIMEOUT mutant without a ledger entry is not stale (CON-220)
+  | ok n1 kill_session(1) refused with ValueError (CON-217)
+  | ok n1 kill_session(0) refused with ValueError (CON-217)
+  | ok n1 kill_session(-5) refused with ValueError (CON-217)
+  | ok n1 kill_session('7') refused with ValueError (CON-217)
+  | ok n1 kill_session refusals sent zero signals (CON-217) kills=[]
+  | ok m3 synthetic target yields exactly one nz_flip mutant n=1
+  | ok m3 main(): KILLED mutant with a ledger entry prints its STALE line (CON-218) out='CONTROL\tsyn\tunmutated copy passes (0 s)\nKILLED\tfc36302f887d\tsyn:2\tnz_flip\t[ -n "$1" ] || exit 3\t->\t[ -z "$1" ] || exit 3\nSTALE\tfc36302f887d\tsyn\tledger entry\'s mutant is KILLED, so its equivalence proof is false: [ -n "$1" ] || exit 3\n=== decision mutants: killed=1 killed-timeout=0 survived=0 equivalent=0 invalid=0 blind=0 stale=1 ===\n'
+  | ok m3 main(): ... and returns 1 (CON-218) rc=1
+  | ok m3 control: no ledger entry -> main() returns 0, no STALE line rc=0 out='CONTROL\tsyn\tunmutated copy passes (0 s)\nKILLED\tfc36302f887d\tsyn:2\tnz_flip\t[ -n "$1" ] || exit 3\t->\t[ -z "$1" ] || exit 3\n=== decision mutants: killed=1 killed-timeout=0 survived=0 equivalent=0 invalid=0 blind=0 stale=0 ===\n'
+ok unmutated tool: all 18 checks pass
+ok mutant M1_kill_group_only killed
+ok mutant M2_stale_ignores_verdict killed
+ok mutant M3_stale_any_verdict killed
+ok mutant RG_drop_sid_le_1_refusal killed
+ok mutant RI_stale_call_site_off killed
+ok mutant M4_stale_ignores_timeout killed
+=== enumerate_decision_mutants r2 (CON-162 n1 n2): pass=7 fail=0 ===

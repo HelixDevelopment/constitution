@@ -1,0 +1,66 @@
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+def rep(old, new, n=1):
+    global s
+    assert s.count(old) == n, (old[:80], s.count(old))
+    s = s.replace(old, new)
+
+# ── header: the claim now matches what is checked ──
+rep("""# test_timeout_tty.sh — every `timeout` the installer and the updater run is bounded at a real terminal, with GNU
+# timeout and with uutils timeout (CON-PENDING-installer-followups; the CON-112 mechanism class).""",
+"""# test_timeout_tty.sh — every `timeout` reachable from the installer, the updater, the post-update hook and the
+# Jev bootstrap (the file set is derived, see the census below) ignores SIGTTIN/SIGTTOU before timeout starts or
+# is classified as unable to meet the terminal; the sites below are also run at a real terminal with GNU timeout
+# and with uutils timeout (CON-PENDING-installer-followups; the CON-112 mechanism class).""")
+rep("""#   T6 hi_run_agent (O_TIMEOUT 2, --kill-after 10) · T7 a stub that reads /dev/tty (installer hi_gx)""",
+"""#   T6 hi_run_agent (O_TIMEOUT 2, --kill-after 10) · T7 a stub that reads /dev/tty (installer hi_gx) ·
+#   T8 post_update_hook.sh install_jev_bootstrap (JEV_HOOK_TIMEOUT 2: the run, then the --defer retry)""")
+rep("""# Before the cases, a static census lists every `timeout` the six install scripts run (function and whether
+# SIGTTIN/SIGTTOU are ignored there) and compares it with the reviewed list in this file: a new site fails until
+# it is classified (control needles: an ignored and a bare site are told apart, else BLIND).""",
+"""# Before the cases, a static census lists every `timeout` site (function, and whether SIGTTIN/SIGTTOU are ignored
+# BEFORE it: an ignore after the timeout on the same line never counts) in every file reachable from the four entry
+# scripts (a file name or a scripts/... path on a non-comment line, also scripts/x/$v.sh with $v from a `for v in`
+# list; tests/, .git and submodules/ are not followed), and compares it with the reviewed list in this file: a new
+# site fails until it is classified (control needles on a small tree: reachability, an ignored, a bare, a
+# --foreground and an ignore-after-timeout site are told apart, else BLIND). Sites the census cannot see (a timeout
+# reached only through a binary, or a file named only at run time) are outside this test.""")
+
+# ── F-2: the child of pty.fork is a session leader, its session id is its pid; no polling race ──
+rep("""t0 = time.monotonic(); out = b""; rc = "CAPPED"; sid = 0
+while True:
+    if not sid:
+        try:
+            g = os.getsid(pid)
+            if g == pid: sid = g
+        except ProcessLookupError: pass
+    r, _, _ = select.select([fd], [], [], 0.2)""",
+"""# pty.fork makes the child a session leader (setsid) before it execs bash: its session id is its pid. Reading the
+# id by polling getsid() raced with that setsid, and a run that ended before a poll saw it counted nothing (F-2)
+t0 = time.monotonic(); out = b""; rc = "CAPPED"; sid = pid
+while True:
+    r, _, _ = select.select([fd], [], [], 0.2)""")
+rep("""    if time.monotonic() - t0 > cap:
+        if sid: kill_all(sid)
+        os.waitpid(pid, 0); break""",
+"""    if time.monotonic() - t0 > cap:
+        kill_all(sid)
+        os.waitpid(pid, 0); break""")
+rep("""left = members(sid) if sid else []
+t1 = time.monotonic()""", """left = members(sid)
+t1 = time.monotonic()""")
+
+# ── census ──
+i = s.index("# ── static census: every `timeout` the six install scripts run")
+j = s.index("# the ignore is for timeout only:")
+s = s[:i] + open(sys.argv[2], encoding="utf-8").read() + "\n" + s[j:]
+
+# ── T8 ──
+rep("""  cp "$STUB/git" "$bin/git"
+done""", """  cp "$STUB/git" "$bin/git"
+  hc="$SB/hc-$impl"; mkdir -p "$hc/scripts/jev" "$SB/hp-$impl"; cp "$STUB/git" "$hc/scripts/jev/bootstrap.sh"
+  leg "T8 post_update_hook install_jev_bootstrap, JEV_HOOK_TIMEOUT=2 (run + --defer)" "$impl" 0 4 5 30 \\
+    "export PATH=$(printf %q "$bin"):/usr/bin:/bin; rc=src; header() { :; }; info() { :; }; warn() { :; }; arr_len() { echo 1; }; WARNINGS=(); CONST_DIR=$(printf %q "$hc") PROJECT_ROOT=$(printf %q "$SB/hp-$impl") JEV_HOOK_TIMEOUT=2; . $(printf %q "$HOOKFN") && { install_jev_bootstrap; rc=\\$?; }; "
+done""")
+open(p, "w", encoding="utf-8").write(s)

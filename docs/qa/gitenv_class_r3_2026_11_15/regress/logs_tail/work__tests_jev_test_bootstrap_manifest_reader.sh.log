@@ -1,0 +1,18 @@
+ok 1 - ctl: ordinary manifest rc 0
+ok 2 - ctl: llmctl provisioned
+ok 3 - ctl: pinned ref read
+ok 4 - bare-dash: rc 0
+ok 5 - bare-dash: the real pin is read (old awk saw an empty ref -> unpinned)
+ok 6 - quoted-key: the real pin is read
+ok 7 - name-space-colon: the real pin is read
+ok 8 - quoted-value: the real pin is read
+ok 9 - dup-key: bootstrap STOPS (rc 2)
+ok 10 - dup-key: refusal message
+ok 11 - dup-key: nothing provisioned
+ok 12 - ambiguous name: STOP (rc 2)
+ok 13 - unparseable manifest: STOP (rc 2)
+ok 14 - no PyYAML: STOP (rc 2), never an empty ref
+ok 15 - no PyYAML: nothing provisioned
+ok 16 - tool not listed: default behaviour preserved (rc 0)
+ok 17 - tool not listed: unpinned
+# test_bootstrap_manifest_reader.sh: pass=17 fail=0 skip=0

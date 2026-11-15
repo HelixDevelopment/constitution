@@ -1,0 +1,13 @@
+# scripts/security/actions_disable_allowlist.txt -- the repositories whose GitHub Actions
+# github_actions_inventory_disable.sh apply may disable (operator decision 2026-11-12: these 9, no others).
+# One owner/repo per line; the apply-confirm token is the first 12 hex of sha256 of the list sorted in C collation
+# (one repo per line). The same 9 repos are built into the script (ALLOWLIST); a change needs both edits.
+vasic-digital/ShareConnect
+vasic-digital/TransmissionConnect
+vasic-digital/Courses-Creator
+vasic-digital/caf-git-mcp
+HelixDevelopment/agent
+HelixDevelopment/HelixGitpx
+HelixDevelopment/HelixPlay
+HelixDevelopment/vpn
+HelixDevelopment/terminator

@@ -1,0 +1,4 @@
+scripts/release/derive_release_facts.sh
+scripts/release/tag_and_release.sh
+scripts/release_publish_gitea.sh
+scripts/update_constitution.sh

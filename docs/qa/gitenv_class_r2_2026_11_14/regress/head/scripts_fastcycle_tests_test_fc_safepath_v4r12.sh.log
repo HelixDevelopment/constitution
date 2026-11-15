@@ -1,0 +1,25 @@
+NOT ok [R12LINT] VIOLATION baseline_replay.sh:298 <top> unset $NAME -- a non-literal variable NAME ($) in a name position of unset NAME...: the census cannot know which variable it changes (fail-closed, round 15)  (SUMMARY operations=159 EXEMPT=11 PRIVATE=54 ROOT=1 ROUTED=61 TAGGED=31 VIOLATION=1 violations=1 proved_shell_vars=_FC_LE)
+ok [R12LINT-ctl-py] a raw os.listdir added to the module FAILS the lint (VIOLATION sup_raw.py:1818 _gc_at os.listdir -- a path operation outside the trusted-parent)
+ok [R12LINT-ctl-sh] a plain redirect into a path under an unproved variable FAILS the lint (VIOLATION br_raw.sh:1150 do_one_replay redirect> -- redirect> on an operand that is not pr)
+ok [R12LINT-ctl-tag] an exemption tag outside the closed set FAILS the lint
+ok [R12LINT-ctl-param] a param tag on a variable PARAMS does not list FAILS the lint
+SKIP [R12PARITY-f755/-f1777/-fmid/-flink] no foreign uid (namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1) -- not counted [reason=topology_unsupported]
+ok [R12PARITY-own755] shell _fc_safe check and the module's _walk agree with the rule: trusted
+ok [R12PARITY-own1777] shell _fc_safe check and the module's _walk agree with the rule: trusted
+ok [R12PARITY-mylink] shell _fc_safe check and the module's _walk agree with the rule: trusted
+ok [R12PARITY-rootsticky] shell _fc_safe check and the module's _walk agree with the rule: trusted
+ok [R12PARITY-own777] shell _fc_safe check and the module's _walk agree with the rule: refused
+ok [R12PARITY-missing] shell _fc_safe check and the module's _walk agree with the rule: refused
+ok [R12CLI-write-needle] control: _fc_safe write into a 0700 directory of ours writes the text
+ok [R12CLI-write-link] a symlink planted at the name -> refused (4), nothing created through it
+ok [R12CLI-write-dirmode] a directory of ours writable by others (0777) -> refused (4), nothing written
+SKIP [R12CLI-write-parent] no foreign uid (namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1) -- not counted [reason=topology_unsupported]
+ok [R12CLI-rmtree] _fc_safe rmtree removes a tree holding a symlink to elsewhere; the target is untouched
+ok [R12SH-needle] control: a replay under trusted directories runs and writes its report (exit 0)
+SKIP [R12SH-plant] no foreign uid (namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1) -- not counted [reason=topology_unsupported]
+SKIP [R12SH-wtroot-foreign] no foreign uid (namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1) -- not counted [reason=topology_unsupported]
+ok [R12SH-wtroot-sticky] a --worktree-root of ours that is 1777 (others may create names in it) -> BLIND 4: a namespace must be this user's ALONE
+SKIP [R12SH-tmpdir-foreign] no foreign uid (namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1) -- not counted [reason=topology_unsupported]
+ok [R12SH-workerinit] a worker handed a temp directory of ours writable by others (0777) refuses (BLIND 4) before any work
+----
+SUMMARY pass=17 fail=1 skip=5

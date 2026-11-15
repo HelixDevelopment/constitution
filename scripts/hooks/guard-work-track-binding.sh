@@ -342,7 +342,7 @@ FILESET=""
 if [ -n "$STAGED_SET" ]; then
   FILESET="$STAGED_SET"
 elif [ "$BROAD_STAGE" -eq 1 ]; then
-  FILESET="$(git status --porcelain --untracked-files=all 2>/dev/null | sed 's/^...//; s/^.* -> //' || true)"
+  FILESET="$(git --no-optional-locks status --porcelain --untracked-files=all 2>/dev/null | sed 's/^...//; s/^.* -> //' || true)"
 fi
 [ -n "$FILESET" ] || exit 0   # nothing to commit -> nothing to check
 

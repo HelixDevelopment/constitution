@@ -1,0 +1,4 @@
+# RED for L5: the round-7 census part-4 driver (tests/release/test_channel_census.sh) run against the ROUND-6 mutation harness (2026-11-12)
+# fields: exit-status-or-timeout seconds-after-TERM processes-left work-dirs-left; want: 143 <30 0 0
+timeout 30 8 1
+# the driver then sent SIGKILL to its own session leader (pgid > 1); no process was left after that

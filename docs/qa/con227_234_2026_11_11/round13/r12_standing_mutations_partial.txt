@@ -1,0 +1,34 @@
+PASS control tag_and_release.sh passes its suite
+PASS control derive_release_facts.sh passes its suite
+PASS control render_release_entry.py passes its suite
+PASS control release_publish_gitea.sh passes its suite
+PASS control redact_cut.sh passes its suite
+PASS control env_allow.sh passes its suite
+PASS control channel_census.py passes its suite
+PASS control env_census.py passes its suite
+PASS T2 killed (FAIL C16 exit 0 (got '1', want '0'))
+PASS T3 killed (FAIL C15 different-object abort)
+PASS T4 killed (FAIL C13 dirty tree exit 1 (got '0', want '1'))
+PASS T6 killed (FAIL C14 HEAD!=SHA exit 1 (got '0', want '1'))
+PASS T5 killed (FAIL C18 SKIPPED-NO-TOKEN gap)
+PASS D1 killed (FAIL D1: closed on the tag date is not verified since it (missing line: verified_since_prev_ids=T-006))
+PASS D5 killed (FAIL D5: UNSET reproduction with a set investigation state counts (missing line: open_items_with_any_state=5))
+PASS O1 killed (FAIL C21 userinfo not printed)
+PASS O2 killed (FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1'))
+PASS O3 killed (FAIL CON-228 [reproduction_state]: missing column exits 3 (got 0))
+PASS O4 killed (FAIL CON-228 [closure_date]: missing column exits 3 (got 0))
+PASS O7 killed (FAIL CON-228 [body_md]: missing column exits 3 (got 0))
+PASS O5 killed (FAIL CON-228 [reproduction_state]: no partial facts on stdout (got 23 lines))
+PASS O6 killed (FAIL CON-231 a status/severity value the template does not render is refused (0: ))
+PASS F1 killed (FAIL C21 the reason class is printed (positive needle))
+PASS R2 killed (FAIL C20b gitea rc 3 with the token mid-line is a FAIL (exit 1) (got '5', want '1'))
+PASS R5 killed (FAIL X10 TERM: rf_db.* left under TMPDIR)
+PASS R6 killed (FAIL C26 gitea legs (all rcs): nothing left in TMPDIR (got '8', want '0'))
+PASS F6 killed (FAIL F6: no CHANGELOG.md at the base exits 3 (got 0))
+PASS N1 killed (FAIL Q-two credential parameters on one line (leaked: ZZQT2; output: https://h/r?token=<redacted>&x=1&secret=ZZQT2))
+PASS N2 killed (FAIL C1 redact first, then cut (got 'https://<redacted>@h/r', want 'https://<red'))
+PASS N4 killed (FAIL F6: the refusal is the script's own line naming CHANGELOG.md)
+PASS P1 killed (FAIL C24 no head -c in the three scripts (only rc_redact_cut cuts) (got '1', want '0'))
+PASS P2 killed (FAIL C1 redact first, then cut (got 'https://SECR', want 'https://<red'))
+PASS P3 killed (FAIL U3 raw '@' in the password (leaked: ZZU3; output: https://<redacted>@ZZU3@h/r))
+PASS P4 killed (FAIL curl stderr: no secret printed)

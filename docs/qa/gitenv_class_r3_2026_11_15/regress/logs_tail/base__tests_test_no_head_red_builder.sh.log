@@ -1,0 +1,8 @@
+PASS: detector golden-TRUE: all 19 builder lines flagged, setup lines not
+PASS: detector golden-FALSE: none of 21 compare/restore/pinned/stderr/marked lines flagged
+PASS: detector python: HEAD blob reads (plain, f-string, via a variable) flagged, pinned reads not flagged
+PASS: positive control: all 5 known instances at 8e496db76bf4b8570b0b14db55fd94468260884b are flagged
+PASS: negative control: a fabricated revision token is not flagged
+PASS: census: 740 test files scanned, no HEAD-built RED artifact outside PENDING
+
+PASS=6 FAIL=0 SKIP=0

@@ -26,6 +26,8 @@ The ledger holds paths and digests only (section 8, §11.4.10). Deletes: unlink 
 recursive delete anywhere (§11.4.287). Time: SOURCE_DATE_EPOCH is honoured for the created and backup stamps
 (determinism); a set value that is not a plain integer of seconds, or is out of range, is refused (rc 3).
 """
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 import fcntl
 import hashlib
 import hmac

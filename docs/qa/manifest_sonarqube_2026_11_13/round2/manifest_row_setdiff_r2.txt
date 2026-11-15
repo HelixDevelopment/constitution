@@ -1,0 +1,7 @@
+# manifest row set difference, round-1 head 6d47ab66 -> 752e822b
+rows at 6d47ab66: 905
+rows at HEAD: 906
+added:
+tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto
+removed:
+control needle: a row known present in both (tests/test_cli_agent_plugins.sh) is found in both: 1 / 1

@@ -1,0 +1,2 @@
+wrote <scratch>/constitution/config/full_suite_manifest.tsv (905 rows)
+gen2 rc=0

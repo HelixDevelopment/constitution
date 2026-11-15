@@ -1,0 +1,39 @@
+PASS ALLOW every bypass form refused in 3 positions, golden-FALSE OK (CAUGHT 414 OF 414)
+PASS ALLOW latest.md passes (OK 734 checked commands (every command word allow-listed) in)
+PASS ALLOW 01_verify_incorporation.md passes (OK 42 checked commands (every command word allow-listed) in )
+PASS ALLOW 02_wire_decision_layer_optional.md passes (OK 3 checked commands (every command word allow-listed) in 3)
+PASS ALLOW 03_final_report.md (no code) is BLIND rc 2, never OK
+PASS ALLOW golden-FALSE: rm -rf -- "${tmpdir:?}" is allowed
+PASS ALLOW rm -rf -- "${tmpdir:?}". refused (rc 1)
+PASS ALLOW rm -rf -- "${tmpdir:?}/." refused (rc 1)
+PASS ALLOW rm -rf -- "${tmpdir:?}"/.. refused (rc 1)
+PASS ALLOW rm -rf -- "${tmp:?}" refused (rc 1)
+PASS VOCAB no prose-start word is a command on this host (VOCAB-WORDS 168 commands: -)
+PASS VOCAB the command-word list covers the named dangerous words and keywords
+PASS VOCAB no prose line of the four files starts with a command word
+PASS NEEDLE S7 correct filter prints 3
+PASS NEEDLE S7 inverted filter prints 4 (not 3)
+PASS NEEDLE S7 nofilter filter prints 7 (not 3)
+PASS NEEDLE S7 substring filter prints 1 (not 3)
+PASS NEEDLE V6 correct filter prints 3
+PASS NEEDLE V6 inverted filter prints 4 (not 3)
+PASS NEEDLE V6 nofilter filter prints 7 (not 3)
+PASS NEEDLE V6 substring filter prints 1 (not 3)
+PASS NEEDLE P10 (S7 filter inverted) is caught by the round-3 needle oracle
+PASS SYMLINK STEP1 refuses a symlinked backup root: rc 3, target mode 755, target empty
+PASS SYMLINK golden-FALSE: a normal run still backs up (rc 0, mode 700)
+PASS LSREMOTE control: the option form fires without "--" (marker created)
+PASS LSREMOTE STEP3: an option-shaped URL word runs nothing (no marker)
+PASS LSREMOTE STEP3: the next, plain mirror is used (rc 0)
+PASS STAGED a source swapped during the lock window is refused (rc 3), nothing changed, no lock left
+PASS STAGED golden-FALSE: an unchanged source rotates (rc 0)
+PASS DIRTY clean git tree rotates by default (rc=0)
+PASS DIRTY dirty setup directory refused by default (rc=3)
+PASS DIRTY refusal wrote nothing
+PASS DIRTY --allow-dirty proceeds (rc=0)
+PASS DIRTY a directory outside any git work tree proceeds (rc=0)
+PASS TAKEOVER 3 rounds: a paused stale-lock recoverer never released a new live owner's lock
+PASS NOTE round-5 note corrected: only .gitmodules is read
+PASS SIZE S13 runs S1..S9 only and forbids re-running the prompt
+PASS SIZE PROMPT block is 67879 bytes (ceiling 68000)
+RESULT: round7 pass=38 fail=0 skip=0

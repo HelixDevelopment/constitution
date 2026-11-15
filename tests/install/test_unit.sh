@@ -9,6 +9,7 @@
 # Usage: bash tests/install/test_unit.sh   Exit 0 all pass · 1 a case failed.
 T_NAME=unit
 # shellcheck source=lib.sh
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 new_sandbox
 
@@ -207,7 +208,7 @@ case "$out" in *"curl -fsSL"*) nok "sentinel-less main printed snippets" ;; *) o
 eq "main without the sentinel refuses (exit 2)" 2 "$rc"
 echo "# shared blocks are byte-identical in the installer and the updater (one implementation, no drift)"
 blk_of() { awk -v b="# >>> $2" -v e="# <<< $2" 'index($0, b) == 1 { on = 1 } on { print } $0 == e { on = 0 }' "$1"; }
-for b in hi_resolve_ref_in hi_lock_helpers hi_text_safe hi_remote_live hi_gitlink_rel; do
+for b in hi_resolve_ref_in hi_lock_helpers hi_text_safe hi_remote_live hi_gitlink_rel hi_shell_state; do
   x="$(blk_of "$INSTALLER" "$b")"; y="$(blk_of "$UPDATER" "$b")"
   check "control: block $b present in the installer" eval '[ "$(wc -l <<<"$x")" -gt 5 ]'
   eq "block $b identical in installer and updater" "$(sha256sum <<<"$x")" "$(sha256sum <<<"$y")"

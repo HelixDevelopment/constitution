@@ -1,0 +1,11 @@
+block rc=0
+SENTINEL: CHANGED
+1c1
+< refs/heads/sentinelbranch 4b7037b
+---
+> refs/heads/main 941d220
+5a6,8
+> user.email=gate@local
+> user.name=gate
+> 100644 a6b681bf44990ef08933f24aa3102b9ac8f2c194 0	f
+--- block log:

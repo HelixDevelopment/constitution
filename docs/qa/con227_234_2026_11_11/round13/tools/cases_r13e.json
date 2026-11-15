@@ -1,0 +1,10 @@
+[
+ {
+  "name": "O72_GCONV_prefix_other",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nGCONV_ZZ=/x cat /dev/null\n"
+ },
+ {
+  "name": "O73_heredoc_body_read",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncat <<E >/dev/null\nlist: $(git ls-remote origin)\nE\n"
+ }
+]

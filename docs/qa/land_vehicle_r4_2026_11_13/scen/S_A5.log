@@ -1,0 +1,9 @@
+== S_A5 dangling symlink at <workdir>/constitution (LIVE git)
+prepare rc=2 :: land_vehicle: ERROR: clone path already exists: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.haLrFW/a5/work/constitution (prepare pushes nothing; to retry, remove that scratch clone with a guarded delete and run prepare again)
+clone created outside the workdir (symlink target): no; target parent created: no
+    total 12
+    drwxrwxr-x 2 milosvasic milosvasic 4096 Nov 13 20:28 .
+    drwxrwxr-x 5 milosvasic milosvasic 4096 Nov 13 20:28 ..
+    -rw-rw-r-- 1 milosvasic milosvasic    0 Nov 13 20:28 .land_vehicle.lock
+    lrwxrwxrwx 1 milosvasic milosvasic  195 Nov 13 20:28 constitution -> /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.haLrFW/a5_elsewhere/constitution
+== scenarios done

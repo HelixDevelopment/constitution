@@ -1,0 +1,128 @@
+# layer 1: file presence
+  ok   real run from root: exit 3
+  ok   real run from root: says why
+  ok   real run from root: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   dry run from root: exit 3
+  ok   dry run from root: says why
+  ok   dry run from root: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   real run from scripts/: exit 3
+  ok   real run from scripts/: says why
+  ok   real run from scripts/: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   dry run from scripts/: exit 3
+  ok   dry run from scripts/: says why
+  ok   dry run from scripts/: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   --project-root clone (real): exit 3
+  ok   --project-root clone (real): says why
+  ok   --project-root clone (real): clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   --project-root clone/scripts (dry): exit 3
+  ok   --project-root clone/scripts (dry): says why
+  ok   --project-root clone/scripts (dry): clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   --restore: exit 3
+  ok   --restore: says why
+  ok   --restore: clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   interactive mode refuses before asking (no tty needed): exit 3
+  ok   interactive mode refuses before asking (no tty needed): says why
+  ok   interactive mode refuses before asking (no tty needed): clone unchanged (.gitmodules, agent docs, .git/config, exclude, index, .git/modules)
+  ok   --detect-layout exit 0
+  ok   --detect-layout reports constitution-repo
+  ok   --detect-layout changed nothing
+  ok   no submodules/constitution entry in the clone's .gitmodules
+  ok   no submodules/constitution gitdir was created
+# layer 2: the constitution's first commit in HEAD history (a layer-1 marker file removed)
+  ok   first-commit layer: exit 3
+  ok   first-commit layer: unchanged
+  ok   first-commit layer named
+# layer 3: a remote URL of a known constitution upstream (unrelated history)
+  ok   upstream-URL layer: exit 3
+  ok   upstream-URL layer: unchanged
+  ok   upstream-URL layer (ssh, no .git suffix, second remote): exit 3
+# golden-FALSE: a consumer project with its own Constitution.md is not refused
+  ok   consumer with Constitution.md installs (exit 0)
+# round-4 IMPORTANT-1: layer 1 is a marker set present in EVERY constitution commit that has Constitution.md
+  ok   helixconstitution-v69 shallow clone really is shallow (precondition)
+  ok   shallow helixconstitution-v69, off-table https remote: exit 3
+  ok   shallow helixconstitution-v69, off-table https remote: says why
+  ok   shallow helixconstitution-v69, off-table https remote: unchanged
+  ok   shallow helixconstitution-v69, off-table remote, --dry-run: exit 3
+  ok   shallow helixconstitution-v69, off-table remote, --dry-run: says why
+  ok   shallow helixconstitution-v69, off-table remote, --dry-run: unchanged
+  ok   shallow helixconstitution-v69: --detect-layout says constitution-repo
+  ok   shallow helixconstitution-v69, local-path remote: exit 3
+  ok   shallow helixconstitution-v69, local-path remote: says why
+  ok   shallow helixconstitution-v69, local-path remote: unchanged
+  ok   helixconstitution-v69: no scripts/install_constitution.sh in the tag (precondition: old tags lack it)
+  ok   full clone at helixconstitution-v69, no remote: exit 3
+  ok   full clone at helixconstitution-v69, no remote: says why
+  ok   full clone at helixconstitution-v69, no remote: unchanged
+  ok   helixconstitution-v71 shallow clone really is shallow (precondition)
+  ok   shallow helixconstitution-v71, off-table https remote: exit 3
+  ok   shallow helixconstitution-v71, off-table https remote: says why
+  ok   shallow helixconstitution-v71, off-table https remote: unchanged
+  ok   shallow helixconstitution-v71, off-table remote, --dry-run: exit 3
+  ok   shallow helixconstitution-v71, off-table remote, --dry-run: says why
+  ok   shallow helixconstitution-v71, off-table remote, --dry-run: unchanged
+  ok   shallow helixconstitution-v71: --detect-layout says constitution-repo
+  ok   shallow helixconstitution-v71, local-path remote: exit 3
+  ok   shallow helixconstitution-v71, local-path remote: says why
+  ok   shallow helixconstitution-v71, local-path remote: unchanged
+  ok   helixconstitution-v71: no scripts/install_constitution.sh in the tag (precondition: old tags lack it)
+  ok   full clone at helixconstitution-v71, no remote: exit 3
+  ok   full clone at helixconstitution-v71, no remote: says why
+  ok   full clone at helixconstitution-v71, no remote: unchanged
+  ok   helixconstitution-v72.1 shallow clone really is shallow (precondition)
+  ok   shallow helixconstitution-v72.1, off-table https remote: exit 3
+  ok   shallow helixconstitution-v72.1, off-table https remote: says why
+  ok   shallow helixconstitution-v72.1, off-table https remote: unchanged
+  ok   shallow helixconstitution-v72.1, off-table remote, --dry-run: exit 3
+  ok   shallow helixconstitution-v72.1, off-table remote, --dry-run: says why
+  ok   shallow helixconstitution-v72.1, off-table remote, --dry-run: unchanged
+  ok   shallow helixconstitution-v72.1: --detect-layout says constitution-repo
+  ok   shallow helixconstitution-v72.1, local-path remote: exit 3
+  ok   shallow helixconstitution-v72.1, local-path remote: says why
+  ok   shallow helixconstitution-v72.1, local-path remote: unchanged
+  ok   helixconstitution-v72.1: no scripts/install_constitution.sh in the tag (precondition: old tags lack it)
+  ok   full clone at helixconstitution-v72.1, no remote: exit 3
+  ok   full clone at helixconstitution-v72.1, no remote: says why
+  ok   full clone at helixconstitution-v72.1, no remote: unchanged
+# shallow + Constitution.md is refused even without the template markers (heuristic layer, overridable)
+  ok   shallow consumer with its own Constitution.md: exit 3
+  ok   shallow consumer with its own Constitution.md: says why
+  ok   shallow consumer with its own Constitution.md: unchanged
+  ok   the refusal names the override flag
+  ok   golden-FALSE: shallow consumer with --not-constitution-repo installs (exit 0)
+# --not-constitution-repo never overrides the strong layers (first commit, known upstream URL)
+  ok   full clone + --not-constitution-repo (first-commit layer still refuses): exit 3
+  ok   full clone + --not-constitution-repo (first-commit layer still refuses): says why
+  ok   full clone + --not-constitution-repo (first-commit layer still refuses): unchanged
+  ok   known upstream remote + --not-constitution-repo: exit 3
+  ok   known upstream remote + --not-constitution-repo: says why
+  ok   known upstream remote + --not-constitution-repo: unchanged
+# layer 3 URL normalisation: ports, userinfo with '@', case, trailing slash, scp form
+  ok   remote https://github.com:443/HelixDevelopment/HelixConstitution.git: exit 3
+  ok   remote https://github.com:443/HelixDevelopment/HelixConstitution.git: says why
+  ok   remote https://github.com:443/HelixDevelopment/HelixConstitution.git: unchanged
+  ok   remote ssh://***@github.com:22/HelixDevelopment/HelixConstitution.git: exit 3
+  ok   remote ssh://***@github.com:22/HelixDevelopment/HelixConstitution.git: says why
+  ok   remote ssh://***@github.com:22/HelixDevelopment/HelixConstitution.git: unchanged
+  ok   remote https://***@GitHub.COM/HelixDevelopment/HelixConstitution/: exit 3
+  ok   remote https://***@GitHub.COM/HelixDevelopment/HelixConstitution/: says why
+  ok   remote https://***@GitHub.COM/HelixDevelopment/HelixConstitution/: unchanged
+  ok   remote git@gitlab.com:helixdevelopment1/helixconstitution: exit 3
+  ok   remote git@gitlab.com:helixdevelopment1/helixconstitution: says why
+  ok   remote git@gitlab.com:helixdevelopment1/helixconstitution: unchanged
+  ok   remote ssh://***@gitflic.ru:2222/helixdevelopment/helixconstitution.git/: exit 3
+  ok   remote ssh://***@gitflic.ru:2222/helixdevelopment/helixconstitution.git/: says why
+  ok   remote ssh://***@gitflic.ru:2222/helixdevelopment/helixconstitution.git/: unchanged
+  ok   remote https://gitverse.ru//helixdevelopment/HelixConstitution.git: exit 3
+  ok   remote https://gitverse.ru//helixdevelopment/HelixConstitution.git: says why
+  ok   remote https://gitverse.ru//helixdevelopment/HelixConstitution.git: unchanged
+  ok   hi_norm_url drops the port and userinfo up to the last @
+  ok   hi_norm_url: scp form
+# golden-FALSE (M1): a consumer with its own Constitution.md AND a vendored installer is not refused
+  ok   consumer with Constitution.md + vendored installer installs (exit 0)
+# updater: project root == the constitution
+  ok   updater --project-root = constitution: exit 3
+  ok   updater says why
+  ok   updater --project-root = constitution/scripts: exit 3
+  ok   updater changed nothing
+self-guard: PASS 117 FAIL 0

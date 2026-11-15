@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM10)
+@@ -632,7 +632,7 @@
+ verify_id() {
+   [ -n "$VERIFY_CMD" ] || return 0
+   local out
+-  out=$(cd "$CLONE" && export LAND_ITEM_ID="$1" && run_caller_locale bash -c "$VERIFY_CMD" land_vehicle "$1" 9>&-) \
++  out=$(cd "$CLONE" && export LAND_ITEM_ID="$1" && run_caller_locale bash -c "$VERIFY_CMD" land_vehicle "$1") \
+     || die 1 "id verify command failed for $1 (the engine does not confirm the id)"
+   grep -Eq -- "(^|[^A-Za-z0-9-])$1([^0-9]|\$)" <<<"$out" \
+     || die 1 "id verify command did not print $1 (the engine does not confirm the id)"

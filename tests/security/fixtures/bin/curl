@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# curl shim for tests/security: logs argv (never stdin) to $SEC_TEST_LOG/curl_argv.log, then runs the real curl.
+printf '%s\n' "$*" >> "${SEC_TEST_LOG:?}/curl_argv.log"
+exec "${REAL_CURL:?}" "$@"

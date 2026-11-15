@@ -1,0 +1,36 @@
+PASS control tag_and_release.sh passes its suite
+PASS control derive_release_facts.sh passes its suite
+PASS control render_release_entry.py passes its suite
+PASS control release_publish_gitea.sh passes its suite
+PASS control redact_cut.sh passes its suite
+PASS control env_allow.sh passes its suite
+PASS RE1 killed (FAIL N6 suite_exit with RELEASE_TESTS_ALLOW_SKIP='0': a skip exits 77 (got '0', want '77'))
+PASS RD1 killed (FAIL F6: a remote with no refs has no unmerged ref (missing line: unmerged_refs_count[rnone9]=0))
+PASS H1 killed (FAIL K9 F7 RELEASE_ENV_KEEP passes on: GIT_CONFIG_PARAMETERS)
+PASS H2 killed (FAIL K9 F7 RELEASE_ENV_KEEP passes on: ZZTOK9)
+PASS H3 killed (FAIL K9 F7 RELEASE_ENV_KEEP passes on: ZZPS49)
+FAIL H4 SURVIVED (RESULT: pass=300 fail=0)
+PASS G6 killed (FAIL K9 F1 descriptors that cannot be listed: rc=0)
+PASS G7 killed (FAIL K9 F1 _rc_env_closefds on a directory that cannot be listed: status 1 (got '0', want '1'))
+PASS G10 killed (FAIL K9 F1 _rc_env_closefds decisions: fd 9 kept, flags unreadable closed, close-on-exec kept, inheritable closed (got ')
+PASS G8 killed (FAIL K9 F1 _rc_env_closefds decisions: fd 9 kept, flags unreadable closed, close-on-exec kept, inheritable closed (got ')
+PASS RR1 killed (FAIL K9 F1 inherited descriptors reach a child: childfds=300 12345 100000)
+PASS G1 killed (FAIL K9 F1 inherited descriptors reach a child: childfds=12345 100000)
+PASS G2 killed (FAIL K9 F1 inherited descriptors reach a child: childfds=100000)
+PASS G3 killed (FAIL K9 F1 inherited descriptors reach a child: childfds=12345 100000)
+PASS G4 killed (FAIL K9 F1 inherited descriptors reach a child: childfds=300)
+PASS G5 killed (FAIL K8 N3 inherited descriptors reach a child: childfds=63)
+PASS G9 killed (FAIL K9 F1 inherited descriptors reach a child: childfds=12345 100000)
+PASS B12 killed (FAIL K6 HOME does not reach a child: rc=0)
+PASS B11 killed (FAIL K8 N3 inherited descriptors reach a child: childfds=7 63)
+PASS B1 killed by its property (FAIL K8 N3 inherited descriptors reach a child: childfds=7 63)
+PASS A4 killed (FAIL K6 HOME does not reach a child: rc=0)
+PASS RR4 killed (FAIL K8 N1 class table: rc 1 CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR CLASS PATH                      class=)
+PASS RR5 killed (FAIL K8 N1 class table: rc 1 CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR CLASS PATH                      class=)
+PASS RR6 killed (FAIL K8 N1 class table: rc 1 CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR CLASS PATH                      class=)
+PASS RR8 killed (FAIL K8 N1 class table: rc 1 CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR CLASS SSH_AUTH_SOCK             class=)
+PASS RR9 killed (FAIL K8 N1 class table: rc 1 CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR CLASS PATH                      class=)
+PASS RR10 killed (FAIL K8 N1 class table: rc 1 CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR CLASS LANG                      class=)
+PASS B4 killed by its property (FAIL K8 N1 not dropped: ZZLCV8)
+PASS B6 killed by its property (FAIL K8 N1 class table: rc 1 CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR CLASS PATH                      class=)
+PASS B7 killed by its property (FAIL K8 N1 class table: rc 1 CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR CLASS PATH                      class=)

@@ -1,0 +1,27 @@
+PASS e2e oracle gate, standalone canon, no --root: scans canon only (rc=1, canon marker found, sibling NOT scanned)
+PASS e2e dangerous-combination gate, standalone canon, no --root: scans canon only
+PASS security/cwd-independence: cwd='<tmp>/tmp.HsRo5sAog3/parent' still scans canon only
+PASS security/cwd-independence: cwd='<tmp>/tmp.HsRo5sAog3/a b;touch pwned' still scans canon only
+PASS security/cwd-independence: cwd='/' still scans canon only
+PASS security: hostile cwd name executed nothing
+PASS precedence: explicit --root wins over the default
+PASS precedence: env override wins over the default
+PASS chaos: nonexistent --root -> rc=2 (no silent fallback)
+PASS determinism: 3 identical outputs ( 6b9b4d41cee02826 6b9b4d41cee02826 6b9b4d41cee02826 )
+PASS performance: 3 runs in 0s (< 60s budget)
+PASS idempotency: gate runs leave the scanned repo untouched
+PASS e2e consumer-shaped (submodule): default root = consumer superproject
+PASS e2e consumer-shaped, cwd=consumer root: same default root
+PASS unit: standalone canon resolves to itself
+PASS unit: submodule canon resolves to superproject
+PASS unit: empty gate dir -> rc=1, no guess
+PASS security: ambient GIT_DIR cannot redirect the resolver
+PASS static (source-level only): cm_oracle_strategy_named_and_independent has no ':-..' root default and sources the resolver
+PASS static (source-level only): cm_dangerous_combination_fail_closed has no ':-..' root default and sources the resolver
+PASS static (source-level only): cm_killpg_pgid_guard has no ':-..' root default and sources the resolver
+PASS static (source-level only): cm_test_mock_pid_explicit_int has no ':-..' root default and sources the resolver
+PASS static (source-level only): cm_opendesign_ui_system has no ':-..' root default and sources the resolver
+PASS static (source-level only): cm_covenant_114_167_propagation has no ':-..' root default and sources the resolver
+PASS mutation: restoring ':-..' makes the gate scan the sibling (test would catch the regression)
+-----
+passed=25 failed=0

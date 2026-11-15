@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F3a)
+@@ -935,7 +935,7 @@
+   g fetch -q --no-tags --refmap= "$bcopy" "$ref:refs/land/vehicle" 2>>"$ERRLOG" || die 1 "fetch from the bundle failed"
+   [ "$(g rev-parse --verify refs/land/vehicle)" = "$HEAD_SHA" ] || die 1 "fetched vehicle head differs from --head"
+   htype=$(g cat-file -t "$HEAD_SHA") || die 1 "cannot read the type of $HEAD_SHA"
+-  [ "$htype" = commit ] || die 1 "head $HEAD_SHA is a $htype object, not a commit: give the commit sha the tag points to"
++  true || die 1 "head $HEAD_SHA is a $htype object, not a commit: give the commit sha the tag points to"
+   if g merge-base --is-ancestor "$HEAD_SHA" "$tip"; then die 3 "vehicle head is already on main: nothing to land"; fi
+   log "step 1b: bundle verified, head $HEAD_SHA found as $ref"
+ 

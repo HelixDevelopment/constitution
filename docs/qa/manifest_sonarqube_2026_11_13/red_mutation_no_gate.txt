@@ -1,0 +1,1 @@
+[mutation:manifest-complete] setup: missing <scratch>/constitution/scripts/gates/cm_full_suite_manifest_complete.sh

@@ -1,0 +1,6 @@
+scope=/user.slice/user-1000.slice/user@1000.service/app.slice/run-p1380825-i139715896.scope pids.max=3000
+green_run1 rc=0 secs=312 pids_max_events 0->0 canon_sha256=6c244136579841f041756cc94776492dfc28d07ed625ea2cd095356d54e5cd5a RESULT pass=197 fail=0
+green_run2 rc=0 secs=310 pids_max_events 0->0 canon_sha256=6c244136579841f041756cc94776492dfc28d07ed625ea2cd095356d54e5cd5a RESULT pass=197 fail=0
+green_run3 rc=0 secs=305 pids_max_events 0->0 canon_sha256=6c244136579841f041756cc94776492dfc28d07ed625ea2cd095356d54e5cd5a RESULT pass=197 fail=0
+red_on_round3_lander rc=1 pids_max_events 0->0 RESULT pass=159 fail=38 fails=38
+DRIVER_DONE

@@ -1,0 +1,19 @@
+# hi_push_changed wall time, b == a, n R lines per mark (one run each, host load about 80: informative only, never a verdict)
+# first block: tools timing.sh, R lines with reflog fetch count 1, so every R line is skipped before the membership test
+# (it measures the loop over the lines only); second block: timing_cost.sh with fetch count 0 (the membership path)
+bash: 5.3.9(1)-release; date: 2026-11-14T00:19:39Z; load: 79.44 82.12 85.52
+new  n=200    rc=1 ms=140
+base n=200    rc=1 ms=324
+new  n=2000   rc=1 ms=1663
+base n=2000   rc=1 ms=835
+new  n=20000  rc=1 ms=14526
+base n=20000  rc=1 ms=11451
+
+# timing_cost.sh, F=0 (every R line takes the membership test; the costly path). One run each, informative only.
+load: 82.25 82.56 85.46
+new  n=200    rc=1 ms=129 bytes_per_mark=14362
+base n=200    rc=1 ms=7156 bytes_per_mark=14362
+new  n=2000   rc=1 ms=1879 bytes_per_mark=144962
+base n=2000   rc=1 ms=56672 bytes_per_mark=144962
+new  n=20000  rc=1 ms=15662 bytes_per_mark=1468962
+base n=20000  not measured: stopped by hand after about 3 minutes (one grep over the whole mark per R line, quadratic: about 100 times the n=2000 time, i.e. more than an hour); not a result

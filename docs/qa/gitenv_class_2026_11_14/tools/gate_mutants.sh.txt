@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# gate_mutants.sh <W>: for each gate mutant (<W>/mut/class/gates/*.edit: line 1 = relpath, line 2 = scrub line
+# to remove) make a copy of the fixed repository, remove exactly that line there, and run the gate with an
+# ambient GIT_DIR aimed at a fresh sentinel (sentinel_run.sh). The mutant is KILLED when the sentinel is CHANGED
+# or the gate does not PASS (a false FAIL/REFUSE is the defect the scrub removes).
+set -u
+W="${1:?}"
+OUT="$W/ev/class_mutants"; mkdir -p "$OUT"
+for e in "$W"/mut/class/gates/*.edit; do
+  name="$(basename "$e" .edit)"
+  rel="$(sed -n 1p "$e")"; line="$(sed -n 2p "$e")"
+  C="$W/mut/class/copy_$name"
+  [ -e "$C" ] || cp -a "$W/repo" "$C" || { echo "$name: copy failed"; continue; }
+  python3 -I - "$C/$rel" "$line" <<'PY' || { echo "$name: edit did not apply"; continue; }
+import sys
+p, line = sys.argv[1:3]
+t = open(p, encoding="utf-8").read().split("\n")
+n = t.count(line)
+if n != 1: sys.exit("count %d" % n)
+t.remove(line)
+open(p, "w", encoding="utf-8").write("\n".join(t))
+PY
+  args=()
+  case "$rel" in *cm_agent_type_label.sh) ;; esac
+  bash "$W/tools/sentinel_run.sh" "$C" "$OUT" "${name}_git_dir" git_dir "$rel" "${args[@]}" >/dev/null
+  r="$OUT/${name}_git_dir.result.txt"
+  rc="$(sed -n 's/.* rc=\([0-9]*\) .*/\1/p' "$r" | head -1)"; st="$(sed -n 's/^SENTINEL=//p' "$r")"
+  if [ "$st" = CHANGED ] || [ "$rc" != 0 ]; then echo "$name: KILLED (rc=$rc sentinel=$st)"; else echo "$name: SURVIVED (rc=$rc sentinel=$st)"; fi
+done
+echo DONE

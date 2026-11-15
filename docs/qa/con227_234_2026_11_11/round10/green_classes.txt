@@ -1,0 +1,47 @@
+CLASSES ssh=ssh sendenv=LANG LC_* COLORTERM NO_COLOR
+CLASS PATH                      class=path-list   ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=n/a ok
+CLASS HOME                      class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS USER                      class=account     ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS LOGNAME                   class=account     ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS SHELL                     class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS PWD                       class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS LANG                      class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LANGUAGE                  class=locale-list ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D ok
+CLASS LC_ALL                    class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_CTYPE                  class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_COLLATE                class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_MESSAGES               class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_MONETARY               class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_NUMERIC                class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_TIME                   class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_PAPER                  class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_NAME                   class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_ADDRESS                class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_TELEPHONE              class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_MEASUREMENT            class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS LC_IDENTIFICATION         class=locale      ssh_sendenv=yes good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D,D,D,D ok
+CLASS TZ                        class=tz          ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS TMPDIR                    class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS TERM                      class=term        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS XDG_CONFIG_HOME           class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS XDG_CACHE_HOME            class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS XDG_DATA_HOME             class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS XDG_STATE_HOME            class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS XDG_RUNTIME_DIR           class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS DBUS_SESSION_BUS_ADDRESS  class=dbus        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS SSH_AUTH_SOCK             class=socket      ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D,D,D ok
+CLASS GIT_SSH                   class=program     ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GIT_SSH_COMMAND           class=command     ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=n/a ok
+CLASS GIT_SSH_VARIANT           class=enum        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GIT_ASKPASS               class=program     ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS SSH_ASKPASS               class=program     ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GIT_CONFIG_GLOBAL         class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GIT_CONFIG_SYSTEM         class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GIT_CONFIG_NOSYSTEM       class=flag        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GNUPGHOME                 class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GH_CONFIG_DIR             class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GH_HOST                   class=host        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GLAB_CONFIG_DIR           class=path        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASS GITLAB_HOST               class=host        ssh_sendenv=no  good=K url-userinfo=D ghp=D gho=D ghu=D ghs=D ghr=D github_pat=D glpat=D newline=D tab=D esc=D del=D cr=D over-4096=D shape=D ok
+CLASSES names=44 findings=0
+green rc=0

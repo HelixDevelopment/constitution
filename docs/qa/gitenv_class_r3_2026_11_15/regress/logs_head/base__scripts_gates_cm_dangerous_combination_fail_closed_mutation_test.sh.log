@@ -1,0 +1,214 @@
+✅ META OK:   mkfixture self-probe P1 — collision guard fires on a pre-existing DIRECTORY
+✅ META OK:   mkfixture self-probe P2 — collision guard fires on a pre-existing FILE
+✅ META OK:   mkfixture self-probe P3 (negative control) — a FRESH path is created, not refused
+✅ META OK:   expect_fail self-probe P4 — a genuine rc=1 FAIL verdict is accepted
+✅ META OK:   expect_fail self-probe P5 — a PASSing gate on a planted violation is rejected
+✅ META OK:   expect_fail self-probe P6 — rc=2 (environment/argument error) is rejected as a WRONG-ROUTE kill
+✅ META OK:   expect_pass self-probe P7 (negative control) — a clean rc=0 run is accepted
+✅ META OK:   expect_pass self-probe P8 — a gate FAILing a clean fixture is reported, not swallowed
+✅ META OK:   P9  expect_fail verdict-propagation probe — a ❌ verdict RAISES rc, a ✅ verdict does not
+✅ META OK:   P10 expect_pass verdict-propagation probe — a ❌ verdict RAISES rc, a ✅ verdict does not
+✅ META OK:   P11 expect_output_contains verdict-propagation probe — a ❌ verdict RAISES rc, a ✅ verdict does not
+✅ META OK:   P12 --help writes NOTHING to stderr — no shell evaluation leaked out of the header containers
+✅ META OK:   P13 --help ends exactly on the Classification line (596)
+✅ META OK:   P13 HEADER_LINES=596 is ACCURATE — it names a comment line and the line after it is EMPTY (the exact condition the case pattern tests)
+======================================================================
+§1.1 paired-mutation meta-test for CM-DANGEROUS-COMBINATION-FAIL-CLOSED
+fixtures under: <tmp>/dcfc_mut.o5Touk
+======================================================================
+✅ META OK:   Python bare 'except: pass' swallowed exception — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   Python except with logging + re-raise (legitimate) — gate correctly PASSed on clean fixture
+✅ META OK:   JS empty catch block (swallowed exception) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   JS catch with real handling (legitimate) — gate correctly PASSed on clean fixture
+✅ META OK:   credential (api_key) silently defaulted to a literal string — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   credential fallback to env var (legitimate secondary source) — gate correctly PASSed on clean fixture
+✅ META OK:   no candidate source files present — honest SKIP (exit 0), never a fake FAIL — gate correctly PASSed on clean fixture
+✅ META OK:   L1 swallowed exception with a TRAILING COMMENT on the handler line — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L1 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L2 swallowed exception with a TUPLE exception clause — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L2 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L3 swallowed exception with a COMMENT between except and pass — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L3 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L4 silent default return (except -> return <trivial literal>) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L4 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L5 CARRIER negative control — docstring/string merely MENTIONING the pattern must NOT fire — gate correctly PASSed on clean fixture
+✅ META OK:   handlers doing REAL fallback work (log+delegate / computed default / retry) must NOT fire — gate correctly PASSed on clean fixture
+✅ META OK:   L6 contextlib.suppress(Exception) — swallow-everything via a With node — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L6 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L7 bare suppress(Exception) via 'from contextlib import suppress' — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L7 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L8 aliased module + BaseException + async with (AsyncWith node) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L8 (degraded text-fallback mode — pins the async-with alternation in the text regex) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L9 aliased import 'from contextlib import suppress as quiet' — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L10 suppress(Exception) as a NON-FIRST item of a multi-item with — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L11 NEGATIVE CONTROL — NARROW suppress(SpecificError) around a non-dangerous call must NOT fire — gate correctly PASSed on clean fixture
+✅ META OK:   L11 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L12 NEGATIVE CONTROL — a project-LOCAL suppress() (not contextlib's) must NOT fire — gate correctly PASSed on clean fixture
+✅ META OK:   L12 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L13 CARRIER negative control — docstring/string MENTIONING contextlib.suppress(Exception) must NOT fire — gate correctly PASSed on clean fixture
+✅ META OK:   L14 NEGATIVE CONTROL — project-local suppress() beside an UNRELATED 'import contextlib' must NOT fire (binding, not name) — gate correctly PASSed on clean fixture
+✅ META OK:   L14 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L15 NEGATIVE CONTROL — suppress(MyException) / suppress(TransportBaseException) are NARROW; word-boundary breadth match — gate correctly PASSed on clean fixture
+✅ META OK:   L15 (degraded text-fallback mode — where the boundary is a regex) — gate correctly PASSed on clean fixture
+✅ META OK:   L16 UNRESOLVABLE suppress(*EXCS) — conservative-safe refusal (§11.4.201(4)) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L16 refusal names the UNRESOLVED signal rather than guessing breadth — expected marker present in gate output
+✅ META OK:   L17 COMPUTED suppress(IfExp) — unresolvable, conservative-safe refusal — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L17 (degraded text-fallback mode — fires on the breadth token, NOT on unresolvability) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L18 NEGATIVE CONTROL — dotted othermod.suppress() beside an unrelated contextlib import must NOT fire (dotted binding, not name) — gate correctly PASSed on clean fixture
+✅ META OK:   L18 (degraded text-fallback mode — where the prefix binding is a name-set lookup) — gate correctly PASSed on clean fixture
+✅ META OK:   L19 NEGATIVE CONTROL — project-local suppress() beside 'from contextlib import ExitStack' must NOT fire (bare-name binding, not from-import presence) — gate correctly PASSed on clean fixture
+✅ META OK:   L19 (degraded text-fallback mode — where the from-import binding is a name-set lookup) — gate correctly PASSed on clean fixture
+✅ META OK:   L20 NEGATIVE CONTROL — 'from contextlib import suppress as quiet' binds the ALIAS; a bare local suppress() must NOT fire — gate correctly PASSed on clean fixture
+✅ META OK:   L20 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L21 NEGATIVE CONTROL — 'suppress' imported from a NON-contextlib module must NOT fire (module binding, not any-from-import) — gate correctly PASSed on clean fixture
+✅ META OK:   L21 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L22 NEGATIVE CONTROL — RELATIVE 'from .contextlib import suppress' is a sibling module, not the stdlib (absolute-import binding) — gate correctly PASSed on clean fixture
+✅ META OK:   L22 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L23 'from contextlib import *' binds suppress — broad suppress MUST fire — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L23 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   degraded text-fallback mode is announced, never silent — expected marker present in gate output
+✅ META OK:   the degraded-mode announcement DISCLOSES its over-reporting class, not only its under-reporting — expected marker present in gate output
+✅ META OK:   the degraded-mode announcement frames its gap counts as MEASURED SAMPLES, never as a complete census — expected marker present in gate output
+✅ META OK:   L24 NEGATIVE CONTROL — try_suppress() must NOT be read as suppress() (whole identifier, not substring) — gate correctly PASSed on clean fixture
+✅ META OK:   L24 (degraded text-fallback mode — where the substring match lived) — gate correctly PASSed on clean fixture
+✅ META OK:   L25 NEGATIVE CONTROL — pkg.contextlib.suppress() is NOT contextlib.suppress (prefix must be a simple name) — gate correctly PASSed on clean fixture
+✅ META OK:   L25 (degraded text-fallback mode — where the last-component extractor lived) — gate correctly PASSed on clean fixture
+✅ META OK:   L26 NEGATIVE CONTROL — a SIBLING call's Exception argument must not be credited to a narrow suppress() — gate correctly PASSed on clean fixture
+✅ META OK:   L26 (degraded text-fallback mode — where the unbounded breadth scan lived) — gate correctly PASSed on clean fixture
+✅ META OK:   L27 NEGATIVE CONTROL — a same-line body mentioning Exception must not widen a narrow suppress() — gate correctly PASSed on clean fixture
+✅ META OK:   L27 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L28 UNRESOLVABLE suppress(**KW) — keyword half of the conservative-safe refusal (§11.4.201(4)) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L28 refusal names the UNRESOLVED signal rather than guessing breadth — expected marker present in gate output
+✅ META OK:   L29 NEGATIVE CONTROL — a POPULATED container return is fallback handling, not a silent default — gate correctly PASSed on clean fixture
+✅ META OK:   L29 (degraded text-fallback mode — the text scanner's own trivial-value list) — gate correctly PASSed on clean fixture
+✅ META OK:   L30 NEGATIVE CONTROL — a '#' COMMENT mentioning the broad form must NOT widen a narrow suppress() — gate correctly PASSed on clean fixture
+✅ META OK:   L30 (degraded text-fallback mode — where the comment carrier fired) — gate correctly PASSed on clean fixture
+✅ META OK:   L31 a REJECTED token BEFORE a real violation on ONE line — the scan must CONTINUE, not stop — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L31 (degraded text-fallback mode — where the multi-token loop lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L32 NEGATIVE CONTROL — suppress(ExceptionGroup) is NARROW; the breadth match needs its TRAILING boundary too — gate correctly PASSed on clean fixture
+✅ META OK:   L32 (degraded text-fallback mode — where the boundary is a regex) — gate correctly PASSed on clean fixture
+✅ META OK:   L33 a '#' INSIDE a string must not truncate the line — the real suppress(Exception) after it must still FAIL — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L33 (degraded text-fallback mode — where the comment strip lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L34 an ESCAPED quote before a '#' inside a string must not truncate the line — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L34 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L35 a TRIPLE-QUOTED string containing a quote then a '#' must not truncate the line — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L35 (degraded text-fallback mode — where the comment strip lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L36 the SINGLE-quoted triple delimiter must be tracked as one delimiter too — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L36 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L37 a '#' inside a SINGLE-quoted string must not truncate the line either — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L37 (degraded text-fallback mode — the apostrophe half of the tracker) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L38 a DOCSTRING before 'pass' must not hide the swallow (structural mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L39 an UNPARSEABLE file must still reach the text scanner and FAIL on its violation — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L39 the UNPARSED handoff is ANNOUNCED, never a silent skip (§11.4.201(6)) — expected marker present in gate output
+✅ META OK:   L40 NEGATIVE CONTROL — a triple-quoted arg then a short-quoted arg then a real comment must NOT be refused — gate correctly PASSed on clean fixture
+✅ META OK:   L40 (degraded text-fallback mode — where the position advance lives) — gate correctly PASSed on clean fixture
+✅ META OK:   L41 NEGATIVE CONTROL — ABUTTING triple and short delimiters (implicit concatenation) must NOT be refused — gate correctly PASSed on clean fixture
+✅ META OK:   L41 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L42 an EMPTY short-quoted string before a triple-quoted '#' must not be read as a triple-open — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L42 (degraded text-fallback mode — where the open-width test lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L43 an APOSTROPHE inside a DOUBLE-quoted string must not close it — the '#' after it is still inside — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L43 (degraded text-fallback mode — the cross-quote close half of the tracker) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L44 two ADJACENT quotes inside a triple-quoted string must not close it — the '#' after them is still inside — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L44 (degraded text-fallback mode — where the close-width test lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L45 NEGATIVE CONTROL — an EMPTY triple-quoted string must still close, so the real comment after it is stripped — gate correctly PASSed on clean fixture
+✅ META OK:   L45 (degraded text-fallback mode — where the open-side advance lives) — gate correctly PASSed on clean fixture
+✅ META OK:   L46 NEGATIVE CONTROL — an escaped backslash before the closing quote must not swallow it (an everyday Windows path literal) — gate correctly PASSed on clean fixture
+✅ META OK:   L46 (degraded text-fallback mode — where the escape-skip width lives) — gate correctly PASSed on clean fixture
+✅ META OK:   L47 closing a short string must not swallow the next literal's opening quote — the '#' inside it is still in a string — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L47 (degraded text-fallback mode — where the short-close advance lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L48 NEGATIVE CONTROL — an EMPTY short-quoted string must still close, so the real comment after it is stripped — gate correctly PASSed on clean fixture
+✅ META OK:   L48 (degraded text-fallback mode — where the short-open advance lives) — gate correctly PASSed on clean fixture
+✅ META OK:   L49 NEGATIVE CONTROL — a triple-APOSTROPHE string must be tracked with the apostrophe, so it closes and its comment is stripped — gate correctly PASSed on clean fixture
+✅ META OK:   L49 (degraded text-fallback mode — where the triple-open delimiter identity lives) — gate correctly PASSed on clean fixture
+✅ META OK:   L50 a NESTED call in an earlier suppress() argument must not truncate the list before the broad Exception — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L50 (degraded text-fallback mode — where the nesting counter lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L51 a FUNCTION-LOCAL 'import contextlib' still binds the module — the indented import must be harvested — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L51 (degraded text-fallback mode — where the import harvest is anchored) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L52 a PARENTHESISED 'from contextlib import (suppress)' binds suppress — the spec must be scrubbed of parens — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L52 (degraded text-fallback mode — where the spec scrub lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L53 WHITESPACE around the dotted separator ('contextlib . suppress') is the same call — the prefix must still bind — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L53 (degraded text-fallback mode — where the prefix pattern lives) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L54 a STRING silent default ('return "unknown"') is as information-free as 'return 0' — AST arm — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L54 (degraded text-fallback mode — the text scanner's quoted-constant branch) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L55 an EMPTY container return ('return []') is a silent default — the caller cannot tell the query failed — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L55 (degraded text-fallback mode — the text scanner's empty-container values) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L56 an EMPTY dict return ('return {}') is a silent default — a separate arm from the empty-sequence one — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L56 (degraded text-fallback mode — where '{}' is its own listed value) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L57 a BARE 'return' in a handler is a silent default — it hands back None while looking deliberate — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L57 (degraded text-fallback mode — the scanner's bare-return branch) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L58 an ELLIPSIS handler body ('except Exception: ...') swallows exactly as 'pass' does — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L58 (degraded text-fallback mode — the scanner's '...' half) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L59 an EXCEPT-GROUP handler ('except* E:') swallows too — the TryStar node type must be in scope — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L60 NEGATIVE CONTROL — only a STRING constant is a docstring; a bytes expression is a real statement — gate correctly PASSed on clean fixture
+✅ META OK:   L60 (degraded text-fallback mode — where the body's first REAL statement is chosen) — gate correctly PASSed on clean fixture
+✅ META OK:   L61 NEGATIVE CONTROL — a TWO-statement handler is doing work; only body[0] is classified, so the count must gate it — gate correctly PASSed on clean fixture
+✅ META OK:   L61 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L62 NEGATIVE CONTROL — a dotted attribute ENDING in 'suppress' is not the attribute 'suppress' (AST twin of L24) — gate correctly PASSed on clean fixture
+✅ META OK:   L62 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L63 a DOTTED broad exception ('suppress(builtins.Exception)') is the same violation as the bare name — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L63 (degraded text-fallback mode — where the breadth scan reads the qualified tail) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L64 NEGATIVE CONTROL — a COMMENT quoting the credential-default anti-pattern is not a live default (BOB-216) — gate correctly PASSed on clean fixture
+✅ META OK:   L64 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L65 NEGATIVE CONTROL — a COMMENT quoting the empty-catch anti-pattern is not a live swallow (BOB-216) — gate correctly PASSed on clean fixture
+✅ META OK:   L65 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L66 NEGATIVE CONTROL — a STRING LITERAL holding the empty-catch anti-pattern text is not live code (BOB-216) — gate correctly PASSed on clean fixture
+✅ META OK:   L66 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L67 shell credential silently defaulted to a literal via parameter expansion (BOB-213) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L67 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L68 NEGATIVE CONTROL — shell credential fallback to ANOTHER VARIABLE is legitimate (BOB-213) — gate correctly PASSed on clean fixture
+✅ META OK:   L68 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L69 NEGATIVE CONTROL — shell credential fallback to COMMAND SUBSTITUTION is legitimate (BOB-213) — gate correctly PASSed on clean fixture
+✅ META OK:   L69 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L70 pre-existing credential-default-to-literal shape, now DISCOVERABLE in a .sh file (BOB-213 extension-list fix) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L70 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L71 NEGATIVE CONTROL — a violation inside .git/ stays excluded by the default exclude list (BOB-214) — gate correctly PASSed on clean fixture
+✅ META OK:   L71 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L72 NEGATIVE CONTROL — a nested-only violation is invisible at --max-depth 1 (BOB-214, intended narrowing) — gate correctly PASSed on clean fixture
+✅ META OK:   L72 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L73 a ROOT-LEVEL violation is still caught at --max-depth 1 (BOB-214) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L73 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L74 --max-depth with a non-numeric value exits 2 (argument error) (BOB-214)
+✅ META OK:   L75 narrow suppress(PermissionError) around os.remove — BOB-199 irreversible-capability shape — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L75 (degraded text-fallback mode — KNOWN, DISCLOSED gap: narrow+irreversible detection is AST-mode only, per BOB-199 scope) — gate correctly PASSed on clean fixture
+✅ META OK:   L76 NEGATIVE CONTROL — the canonical stdlib delete-if-absent idiom (suppress(FileNotFoundError): os.remove) stays quiet — gate correctly PASSed on clean fixture
+✅ META OK:   L76 (degraded text-fallback mode) — gate correctly PASSed on clean fixture
+✅ META OK:   L77 narrow suppress(FileNotFoundError) around os.kill — kill is ALWAYS flagged, no delete-if-absent idiom applies — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L77 (degraded text-fallback mode — KNOWN, DISCLOSED gap, same as L75) — gate correctly PASSed on clean fixture
+✅ META OK:   L78 NEGATIVE CONTROL — a VALID guardrails:allow waiver silences the narrow+irreversible FAIL — gate correctly PASSed on clean fixture
+✅ META OK:   L78 the WAIVED note names the waiver reason, never silent (§11.4.201(5)) — expected marker present in gate output
+✅ META OK:   L79 a MALFORMED guardrails:allow waiver (marker present, no reason) does NOT silence the FAIL — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L79 (degraded text-fallback mode — KNOWN, DISCLOSED gap, same as L75/L77) — gate correctly PASSed on clean fixture
+✅ META OK:   L80 a find(1) enumeration failure (permission-denied subtree) is refused as an unresolved precondition (rc=1), never a silent empty-scan SKIP (BOB-200/§11.4.201(6))
+✅ META OK:   L80 the refusal names the unresolved precondition ("scan enumeration failed"), never silent
+✅ META OK:   L81 a normal violation is still caught after the BOB-200 find-failure fix (no permission-denied subtree present) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L81 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L82 fail-CLOSED guard call-site-gated by `if not F(): <log>; continue` is NOT flagged (BOB-189/§11.4.201(1)) — gate correctly PASSed on clean fixture
+✅ META OK:   L82 (degraded text-fallback mode -- KNOWN, DISCLOSED gap: call-site-aware discrimination is AST-mode only, per BOB-189 scope) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L83 genuine fail-open (proceed-shaped, caller does not gate on the return value) is STILL caught — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L83 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L84 call site tests the falsy return but its if-body does not escape (bare pass) -- still caught — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L84 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L85 one refuse-shaped caller plus one ungated caller of the SAME function -- still caught (not every call site is refuse-shaped) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L85 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L86 silent-default-return with ZERO call sites in this file -- conservative-safe, still caught (§11.4.201(4)) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L86 (degraded text-fallback mode) — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L87 Go: empty err-check + discarded error -- ADVISORY, still exits 0 (never blocks the build) — gate correctly PASSed on clean fixture
+✅ META OK:   L87 Go: honest UNANALYSED NOTE names the extension — expected marker present in gate output
+✅ META OK:   L87 Go: bare unqualified clean-PASS sentence is NEVER printed for an unanalysed root — unwanted marker correctly absent from gate output
+✅ META OK:   L88 Rust: discarded Result + empty Err arm -- ADVISORY, still exits 0 — gate correctly PASSed on clean fixture
+✅ META OK:   L88 Rust: honest UNANALYSED NOTE names the extension — expected marker present in gate output
+✅ META OK:   L88 Rust: bare unqualified clean-PASS sentence is NEVER printed — unwanted marker correctly absent from gate output
+✅ META OK:   L89 Ruby: rescue-swallowed StandardError -- ADVISORY, still exits 0 — gate correctly PASSed on clean fixture
+✅ META OK:   L89 Ruby: honest UNANALYSED NOTE names the extension — expected marker present in gate output
+✅ META OK:   L89 Ruby: bare unqualified clean-PASS sentence is NEVER printed — unwanted marker correctly absent from gate output
+✅ META OK:   L90 C: ignored return code + empty if-block -- ADVISORY, still exits 0 — gate correctly PASSed on clean fixture
+✅ META OK:   L90 C: honest UNANALYSED NOTE names the extension — expected marker present in gate output
+✅ META OK:   L90 C: bare unqualified clean-PASS sentence is NEVER printed — unwanted marker correctly absent from gate output
+✅ META OK:   L91 NEGATIVE CONTROL — C++ empty catch block is STILL caught (rc=1); the UNANALYSED registry must not swallow a working extension — gate correctly FAILed on the mutation (rc=1)
+✅ META OK:   L91 NEGATIVE CONTROL — C++ is never reported UNANALYSED — unwanted marker correctly absent from gate output
+✅ META OK:   L92 NEGATIVE CONTROL — a fully-analysed clean root never prints the UNANALYSED NOTE — unwanted marker correctly absent from gate output
+✅ META OK:   L92 NEGATIVE CONTROL — the plain unqualified clean-PASS sentence IS printed when nothing is unanalysed — expected marker present in gate output
+✅ META OK:   L93 a REAL hit beside an unanalysed Go file in the same root still FAILs (rc=1) -- the UNANALYSED branch never masks a genuine finding — gate correctly FAILed on the mutation (rc=1)
+======================================================================
+✅ META PASS — CM-DANGEROUS-COMBINATION-FAIL-CLOSED FAILs-on-mutation AND PASSes-on-clean for every fixture (§1.1 proof holds)
+META_EXIT=0

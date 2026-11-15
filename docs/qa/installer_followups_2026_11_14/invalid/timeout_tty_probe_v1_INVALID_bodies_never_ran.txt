@@ -1,0 +1,18 @@
+  GNU timeout: /usr/bin/gnutimeout   uutils timeout: /usr/bin/timeout
+  ok   T1 installer hi_gx, HI_GX_TIMEOUT=2 [gnu]: returned rc=none after 0.0s (budget 2s), nothing left
+  ok   T2 updater hi_gx, HI_GX_TIMEOUT=2 [gnu]: returned rc=none after 0.0s (budget 2s), nothing left
+  ok   T3 hi_version_of (5 s) [gnu]: returned rc=none after 0.0s (budget 5s), nothing left
+  ok   T4 hi_detect_agents: claude-list-accounts (20 s) [gnu]: returned rc=none after 0.0s (budget 20s), nothing left
+  ok   T5 hi_detect_agents: claude-providers list (20 s) [gnu]: returned rc=none after 0.0s (budget 20s), nothing left
+  ok   T6 hi_run_agent (O_TIMEOUT=2, --kill-after=10) [gnu]: returned rc=none after 0.0s (budget 2s), nothing left
+  ok   T7 installer hi_gx, a stub that reads /dev/tty [gnu]: returned rc=none after 0.0s (budget 2s), nothing left
+  ok   control needle [uutils]: a direct timeout of the tty stub hangs (rc=CAPPED secs=12.2 left=0)
+  ok   T1 installer hi_gx, HI_GX_TIMEOUT=2 [uutils]: returned rc=none after 0.0s (budget 2s), nothing left
+  ok   T2 updater hi_gx, HI_GX_TIMEOUT=2 [uutils]: returned rc=none after 0.0s (budget 2s), nothing left
+  ok   T3 hi_version_of (5 s) [uutils]: returned rc=none after 0.0s (budget 5s), nothing left
+  ok   T4 hi_detect_agents: claude-list-accounts (20 s) [uutils]: returned rc=none after 0.0s (budget 20s), nothing left
+  ok   T5 hi_detect_agents: claude-providers list (20 s) [uutils]: returned rc=none after 0.0s (budget 20s), nothing left
+  ok   T6 hi_run_agent (O_TIMEOUT=2, --kill-after=10) [uutils]: returned rc=none after 0.0s (budget 2s), nothing left
+  ok   T7 installer hi_gx, a stub that reads /dev/tty [uutils]: returned rc=none after 0.0s (budget 2s), nothing left
+timeout_tty: PASS 15 FAIL 0
+rc=0

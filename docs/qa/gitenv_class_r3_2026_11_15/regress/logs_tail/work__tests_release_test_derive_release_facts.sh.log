@@ -1,0 +1,30 @@
+PASS exit 0
+PASS commit count
+PASS items total
+PASS open count
+PASS status Ready ids
+PASS severity case-folded
+PASS severity ids
+PASS raw spellings kept
+PASS states count
+PASS states ids
+PASS UNSET counted, not listed
+PASS any-state count
+PASS UNSET/UNSET ids not listed
+PASS provisional ids
+PASS overdue: undated and past-dated, not future
+PASS verified after prev tag date only
+PASS count line
+PASS positive control T-004 present
+PASS negative control T-999 absent
+PASS unknown tag exits 3
+PASS quote value: exit 0
+PASS quote severity counted
+PASS quote severity ids exact
+PASS quote state ids exact
+PASS other severity unchanged
+PASS quote: open count
+PASS no sqlite error printed
+PASS no tracker exits 3
+PASS temp files removed
+RESULT: pass=29 fail=0

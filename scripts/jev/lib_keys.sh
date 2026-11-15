@@ -23,7 +23,9 @@ _jev_key_value() {
   [ -f "$kf" ] && [ -r "$kf" ] || return 1
   local out rc
   if command -v timeout >/dev/null 2>&1; then
-    out="$(timeout --kill-after=1 "$tmo" bash -c 'set +e +u +o pipefail; . "$1" >/dev/null 2>&1 </dev/null; v="$2"; printf "%s" "${!v:-}"' _ "$kf" "$v" 2>/dev/null)"; rc=$?
+    # SIGTTIN/SIGTTOU ignored inside the substitution only: uutils timeout would otherwise stop with a keys file that
+    # touches the terminal and never fire
+    out="$(trap '' TTIN TTOU; timeout --kill-after=1 "$tmo" bash -c 'set +e +u +o pipefail; . "$1" >/dev/null 2>&1 </dev/null; v="$2"; printf "%s" "${!v:-}"' _ "$kf" "$v" 2>/dev/null)"; rc=$?
     [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ] && return 3
   else
     out="$(bash -c 'set +e +u +o pipefail; . "$1" >/dev/null 2>&1 </dev/null; v="$2"; printf "%s" "${!v:-}"' _ "$kf" "$v" 2>/dev/null)"

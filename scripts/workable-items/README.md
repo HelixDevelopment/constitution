@@ -1,7 +1,7 @@
 # workable-items — §11.4.93 SQLite-SSoT Go binary
 
-**Revision:** 5
-**Last modified:** 2026-11-04T00:00:00Z
+**Revision:** 6
+**Last modified:** 2026-11-13T00:00:00Z
 **Description:** Authoritative source-of-truth registry for every workable item in every consuming project. Bidirectional regen between SQLite DB and Markdown trackers per Constitution §11.4.93.
 
 ## Overview
@@ -104,6 +104,13 @@ workable-items states import --db <p> --tsv <file> --by <who> [--at <RFC3339Z>] 
                                     # all-or-nothing, idempotent.
 workable-items states freeze --db <p> --by <who> [--at <RFC3339Z>] [--dry-run]
                                     # arm the closure gate ONCE; a second freeze is refused.
+workable-items restore-created-at --db <p> --id <ID> --value "YYYY-MM-DD HH:MM:SS"
+            --evidence <file> --evidence-sha256 <hex> --reason <text>
+            [--evidence-id <ID>] [--location Issues|Fixed] [--representation section|table]
+            [--by AI|User] [--dry-run]
+                                    # move ONE row's created_at back to a value a
+                                    # committed tracker database records (CON-339);
+                                    # see "created_at" below.
 ```
 
 Positional and flag arguments may be given in either order (e.g. both
@@ -116,6 +123,72 @@ so a subsequent `sync db-to-md` regenerates a well-formed, re-parseable tracker
 (add is a stable fixed point; close round-trips and re-validates; update/reopen/
 block regenerate `body_md` with the new status + any §11.4.34/§11.4.21 detail
 line embedded in the heading-adjacent meta block).
+
+## created_at (CON-339)
+
+`items.created_at` is the time an item was created. It is written once, when the
+row of a new item is inserted (`add`, or `sync md-to-db` for an id the database
+does not hold), and no other command changes it except `restore-created-at`.
+
+Before the CON-339 fix two commands lost it: `close` deleted the Issues row and
+inserted the Fixed row without the column, and `sync md-to-db` deleted every row of
+a document and inserted them again the same way; in both cases the column default
+`datetime('now')` stamped the close or sync time over the real one. Now `close`
+reads the value before the delete and inserts it again, and `sync md-to-db` takes
+one snapshot of every row's value before its two transactions and inserts each row
+with its own value (an item that moved between Issues.md and Fixed.md gets the
+earliest value recorded for that id). An item new to the database still gets the
+column default. `TestCON339_CreatedAtPreservedByEveryMutatingCommand` runs
+every command that writes `items` on a real database and checks that created_at
+did not change and that the expected history rows were written (or, for a command
+that writes none, that none were); `TestCON339_CommandEnumerationGuard` fails when
+the dispatch in `main()` names a subcommand the test does not classify, and
+`TestCON339_ItemsWriteSitesCarryCreatedAt` fails on a new `REPLACE INTO items`, an
+`INSERT INTO items` without created_at outside the new-item paths, or a
+`DELETE FROM items` outside the two functions that re-insert the value.
+
+`restore-created-at` repairs a row the defect already rewrote. It changes one row
+and only to an earlier value that evidence records:
+
+- the evidence is a separate SQLite file (normally `git show <commit>:<db path>`
+  extracted to a file), named with its sha256; it is opened read-only and
+  immutable, so it is never modified; a file with a non-empty `-wal` or `-journal`
+  sidecar, the live database itself, or a file whose sha256 differs is refused;
+- the evidence must hold the item (`--evidence-id` when a landing re-minted the
+  id) with the same type and title, and record the value either as its
+  `items.created_at` or as the time of its `Opened` history row;
+- the value must not be later than the item's first history row in the live
+  database, and not later than the value it replaces;
+- the value must not be earlier than the tracker's first well-formed history row
+  by more than 60 seconds (`VALUE-BEFORE-TRACKER`; the slack covers `add`
+  writing the items row and the Opened row with two clock reads);
+- the row is selected by id, narrowed by `--location` / `--representation` when
+  the item has more than one row; an item with two matching rows is refused.
+
+A restore updates the row (compare-and-set on the old value) and writes one
+`Updated` history row whose reason records the old value, the new value, the
+evidence sha256, which row attested the value and the operator's reason, in one
+transaction. A second run with the same value prints `already` and writes
+nothing; `--dry-run` runs every check and writes nothing. Every refusal prints
+`restore-created-at: refused [CODE]: ...` and exits 1 (codes: USAGE, VALUE-FORMAT,
+EVIDENCE-SHA256, DB-MISSING, EVIDENCE-UNRESOLVED, EVIDENCE-NOT-FILE,
+EVIDENCE-IS-LIVE-DB, EVIDENCE-WAL, DB-UNREADABLE, ITEM-NOT-FOUND, ITEM-AMBIGUOUS,
+EVIDENCE-NOT-DB, EVIDENCE-ITEM-MISSING, EVIDENCE-ITEM-MISMATCH,
+EVIDENCE-DOES-NOT-ATTEST, HISTORY-UNREADABLE, NO-HISTORY, VALUE-AFTER-FIRST-EVENT,
+VALUE-BEFORE-TRACKER, CURRENT-UNREADABLE, VALUE-LATER-THAN-CURRENT,
+CONCURRENT-CHANGE, WRITE; 23 codes). `--dry-run` opens the live database like a
+real run and needs write access to it; a read-only database is refused as
+DB-UNREADABLE.
+
+Limits: the engine cannot prove that the evidence file is the committed database
+it claims to be; the audit row records its sha256 so a reviewer can compare it with
+`git show <commit>:<path> | sha256sum`. A hand-built evidence file that records an
+earlier value inside the tracker's lifetime passes; reading the evidence from a
+git blob is a tracked follow-up. The package's static guard checks that every
+`INSERT INTO items` names created_at as a column, not the value it inserts; the
+value is covered by the close and md-to-db behaviour tests. The restore of CON-243 and CON-308 is a
+data plan, `docs/qa/engine_created_at_2026_11_13/restore_plan.tsv`, applied with
+`apply_restore_plan.sh` from the same directory.
 
 ## Reproduction and investigation states (schema v8, §11.4.294)
 

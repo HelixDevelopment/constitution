@@ -1,0 +1,1 @@
+INVALID RUN (instrument error, kept as a record, section 11.4.273): this leg ran with 'ulimit -f 0' and its stdout redirected to a REGULAR file, so every result line was refused with EFBIG and only the shell's timing (written by the caller) survived. The leg was re-run with stdout on a pipe: see notemp_r1_head_alt.txt.

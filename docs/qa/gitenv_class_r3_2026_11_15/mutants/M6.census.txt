@@ -1,0 +1,1 @@
+git-env-class-census: BLIND - control needle: sh scrub inside a multi-line string: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3)

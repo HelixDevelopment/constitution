@@ -1,0 +1,58 @@
+ok   1 apply without FORGE_PROTECT_APPLY -> 3, nothing sent
+ok   2 confirm names another target -> 3
+ok   3 two targets -> 3
+ok   4 FORGE_PROTECT_APPLY=YES (not exact) -> 3
+ok   5 unknown --target (probe) -> 2
+ok   6 unknown --target with a confirmed apply -> 2, nothing sent
+ok   7 apply to a target outside the allowlist (gitlab_vd) -> 3
+ok   8 apply to github_vd (private, Free plan) -> 3
+ok   9 targets-file override without FORGE_PROTECT_ALLOW_TARGETS_OVERRIDE -> 3
+ok   10 github apply happy path -> 0, RESULT: APPLIED
+ok   11 exactly one POST
+ok   12 POST body is exactly the reviewed ruleset
+ok   13 token never in curl argv, stdout or stderr
+ok   14 github token on the wire only as Bearer header
+ok   15 token not printed under bash -x
+ok   16 compliant ruleset under another name -> 0 POST, rc 0
+ok   17 same-name ruleset with enforcement disabled -> NON-COMPLIANT, 0 POST, rc 1
+ok   18 same-name ruleset with a bypass actor -> NON-COMPLIANT, rc 1
+ok   19 ruleset list GET 500 -> 0 POST, rc 1
+ok   20 unreadable existing ruleset detail -> 0 POST, rc 1
+ok   21 read-back rules 200 [] -> rc 1
+ok   22 read-back rule from another ruleset -> rc 1
+ok   23 readback rules/branches rate limited -> rc 4, not APPLIED
+ok   24 readback rules/branches HTTP 500 with a rules-shaped body -> rc 1, not APPLIED
+ok   25 read-back ruleset with enforcement disabled -> rc 1
+ok   26 read-back rules 404 -> rc 1
+ok   27 POST 422 -> rc 1 even when a read-back would pass
+ok   28 403 rate limit -> RATE-LIMITED, rc 4, not BLOCKED-PLAN
+ok   29 429 -> rc 4
+ok   30 403 with x-ratelimit-remaining 0 -> rc 4
+ok   31 plain 403 -> rc 1, not BLOCKED-PLAN
+ok   32 github_vd upgrade 403 -> BLOCKED-PLAN, rc 0, nothing written
+ok   33 m3w apply happy path -> 0, RESULT: APPLIED
+ok   34 m3w POST body is exactly the reviewed body (enable_force_push false, enable_push true)
+ok   35 gitea token only as 'token' header, never in argv/output
+ok   36 existing rule with enable_force_push true -> NON-COMPLIANT, 0 POST, rc 1
+ok   37 gitea POST 403 -> rc 1
+ok   38 gitea read-back enable_push false -> rc 1
+ok   39 gitea read-back enable_force_push true -> rc 1
+ok   40 gitea read-back with a push allowlist -> rc 1
+ok   41 gitea compliant rule present -> ALREADY PRESENT, rc 0
+ok   42 codeberg (no field) -> force-push UNCONFIRMED printed, rc 6
+ok   43 codeberg POST body has no enable_force_push
+ok   44 swagger unreadable -> WARNING printed
+ok   45 forge unreachable in probe -> rc 1
+ok   46 github probe, nothing protected -> rc 0, state ABSENT, no write
+ok   47 branch ../x -> 2
+ok   48 branch a/../b -> 2
+ok   49 branch /main -> 2
+ok   50 first of 3001 targets is known (no SIGPIPE false refusal), rc != 2
+ok   51 branch main..x (a .. inside a segment) -> 2, nothing sent
+ok   52 jq missing -> 5
+ok   53 token holding a quote -> credential_malformed, rc 1, no authenticated request
+ok   54 keys file 0644 -> refused, credential_absent, rc 1
+ok   55 gitflic plan -> manual UI step, rc 0
+ok   56 gitlab plan -> probe only, out of apply scope, rc 0
+ok   57 --list prints the targets
+RESULT: 57/57 passed

@@ -1,0 +1,24 @@
+=== channel_census_lint (RED: the round-6 table and lint on the round-5 scripts), 2026-11-12T00:01:21+01:00, private TMPDIR, one suite at a time
+FINDING no row: derive_release_facts.sh:29 date key=4d9c03ab | BASE="" PREV="" REMOTES="" TODAY="$(date +%F)"
+FINDING no row: derive_release_facts.sh:34 dirname key=19090574 | . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/redact_cut.sh" || die "cannot load redact_cut.sh" 3
+FINDING no row: tag_and_release.sh:67 dirname key=e9bb03b6 | . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/redact_cut.sh" || { printf 'tag_and_release: cannot
+FINDING no row: tag_and_release.sh:141 timeout key=5ffd14c0 | nt() { if [ "$HAVE_TIMEOUT" -eq 1 ]; then timeout --foreground -k 10 "$NET_TIMEOUT" "$@"; else "$@";
+FINDING no row: tag_and_release.sh:296 bash key=25500672 | x_gitea="$(nt bash scripts/release_publish_gitea.sh "${args[@]}" 2>&1 >/dev/null)"; rc=$?
+FINDING no row: release_publish_gitea.sh:43 dirname key=3c887b72 | . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/release/redact_cut.sh" || die "cannot load release/
+FINDING no row: release_publish_gitea.sh:59 sed key=d1a3c99a | -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+FINDING no row: release_publish_gitea.sh:69 grep key=165214c2 | printf '%s' "$TOKEN_VAR" | grep -Eq '^[A-Z_][A-Z0-9_]*$' || die "--token-var must be an env var NAME
+FINDING no row: release_publish_gitea.sh:72 grep key=5280e9c5 | if printf '%s' "$BASE_URL" | grep -Eq '^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/?$'; then SCHEME_OK=1; 
+FINDING no row: release_publish_gitea.sh:73 grep key=39466ac9 | elif printf '%s' "$BASE_URL" | grep -Eq '^http://(127\.0\.0\.1|localhost|\[::1\]):[0-9]{1,5}/?$'; th
+FINDING no row: release_publish_gitea.sh:162 grep key=afd0847c | printf '%s' "$id" | grep -Eq '^[0-9]+$' || die "unexpected release id in API response" 4
+FINDING no row: release_publish_gitea.sh:176 grep key=708be5b9 | printf '%s' "$NEWID" | grep -Eq '^[0-9]+$' || die "release created but the API returned no numeric i
+FINDING stale row (table line 10): derive_release_facts.sh date key=649cfe2c
+FINDING stale row (table line 67): tag_and_release.sh timeout key=c9e9c095
+FINDING stale row (table line 69): tag_and_release.sh bash key=16ab0fc9
+FINDING stale row (table line 77): tag_and_release.sh git key=4828d28a
+FINDING stale row (table line 113): release_publish_gitea.sh sed key=5d507d9e
+FINDING derive_release_facts.sh loads redact_cut.sh but never calls rc_env_lockdown
+FINDING tag_and_release.sh loads redact_cut.sh but never calls rc_env_lockdown
+FINDING release_publish_gitea.sh loads redact_cut.sh but never calls rc_env_lockdown
+FINDING secret reference with no secret-ref or allowed row: release_publish_gitea.sh:69 key=165214c2 | printf '%s' "$TOKEN_VAR" | grep -Eq '^[A-Z_][A-Z0-9_]*$' || die "--token-var must be an env var NAME
+CENSUS invocations=133 rows=123 secret_lines=10 findings=21
+exit=1

@@ -1,0 +1,54 @@
+OK   and_list                       rc=1 FINDING network command outside rc_net: and_list.sh:3 git (via -) | true && git fetch
+OK   ansi_c_quote_cmd               rc=1 FINDING command word the gate cannot classify (quoted or escaped): ansi_c_quote_cmd.sh:3 $'git' in - | $'git' fetch
+OK   arith_cmd                      rc=1 FINDING network command outside rc_net: arith_cmd.sh:3 git (via -) | (( a[$(git fetch)] ))
+OK   array_assign_subst             rc=1 FINDING network command outside rc_net: array_assign_subst.sh:3 git (via -) | a=( $(git fetch) )
+OK   assign_only_subst              rc=1 FINDING network command outside rc_net: assign_only_subst.sh:3 git (via -) | x=$(git fetch)
+OK   awk_dash_f                     rc=1 FINDING awk program that can run a command: awk_dash_f.sh:3 (the option -f (-f, -e, -E, -i, -l and the long options read or load program text)) | awk 
+OK   bash_env_assign                rc=1 FINDING assignment to BASH_ENV (it changes how a command is found or run): bash_env_assign.sh:3 | BASH_ENV=/tmp/x bash -c :
+MISS bash_xtracefd                  rc=0 NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK   brace_expansion_cmd            rc=1 FINDING command word the gate cannot classify (a glob, brace, tilde or other character bash expands): brace_expansion_cmd.sh:3 {git,x} in - | {git,x} 
+OK   builtin_source                 rc=1 FINDING source of a file the gate does not read: builtin_source.sh:3 /tmp/x.sh | builtin source /tmp/x.sh
+OK   case_body                      rc=1 FINDING network command outside rc_net: case_body.sh:3 git (via -) | case $x in *) git fetch ;; esac
+OK   command_eval                   rc=1 FINDING eval: command_eval.sh:3 in - | command eval 'git fetch'
+OK   comment_then_cmd               rc=1 FINDING network command outside rc_net: comment_then_cmd.sh:4 git (via -) | git fetch # y
+OK   declare_x_PATH                 rc=1 FINDING assignment to PATH (it changes how a command is found or run): declare_x_PATH.sh:3 | declare -x PATH=/tmp
+OK   dot_stdin_herestring           rc=1 FINDING source of a file the gate does not read: dot_stdin_herestring.sh:3 /dev/stdin | . /dev/stdin <<< 'git fetch'
+OK   empty_quotes_in_word           rc=1 FINDING command word the gate cannot classify (quoted or escaped): empty_quotes_in_word.sh:3 g''it in - | g''it fetch
+OK   exec_fd_tcp                    rc=1 FINDING a /dev/tcp or /dev/udp redirection (bash opens a network connection itself): exec_fd_tcp.sh:3 in - | exec {fd}<>/dev/tcp/h.invalid/80
+MISS export_f                       rc=0 NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK   fn_named_git                   rc=1 FINDING network command outside rc_net: fn_named_git.sh:3 curl (via -) | git() { curl -s https://h.invalid; }
+OK   for_in_subst                   rc=1 FINDING network command outside rc_net: for_in_subst.sh:3 git (via -) | for i in $(git fetch); do :; done
+OK   function_kw_call               rc=1 FINDING network command outside rc_net: function_kw_call.sh:3 git (via -) | function f { git fetch; }
+OK   heredoc_quoted_to_bash         rc=1 FINDING interpreter or exec wrapper not on the allow-list: heredoc_quoted_to_bash.sh:3 bash (via -) | bash <<'E'
+OK   if_brace                       rc=1 FINDING network command outside rc_net: if_brace.sh:3 git (via -) | if true; then { git fetch; }; fi
+MISS ifs_assign                     rc=0 NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK   indirect_expansion             rc=1 FINDING command word the gate cannot classify (expansion in command position): indirect_expansion.sh:3 ${!n} in - | n=git; ${!n} fetch
+MISS jq_env                         rc=0 NETGATE invocations=2 network_through_rc_net=1 findings=0
+OK   keyword_as_arg_then_cmd        rc=1 FINDING network command outside rc_net: keyword_as_arg_then_cmd.sh:3 git (via -) | echo if; git fetch
+OK   line_continuation_in_word      rc=1 FINDING network command outside rc_net: line_continuation_in_word.sh:3 git (via -) | gi\
+OK   local_PATH                     rc=1 FINDING assignment to PATH (it changes how a command is found or run): local_PATH.sh:3 | f() { local PATH=/tmp; git fetch; }
+OK   locale_quote_cmd               rc=1 FINDING command word the gate cannot classify (quoted or escaped): locale_quote_cmd.sh:3 $"git" in - | $"git" fetch
+OK   nohup                          rc=1 FINDING interpreter or exec wrapper not on the allow-list: nohup.sh:3 nohup (via -) | nohup git fetch
+OK   or_list                        rc=1 FINDING network command outside rc_net: or_list.sh:3 git (via -) | false || git fetch
+OK   param_default_assign           rc=1 FINDING network command outside rc_net: param_default_assign.sh:3 git (via -) | : ${x:=$(git fetch)}
+OK   pipeline_tail                  rc=1 FINDING network command outside rc_net: pipeline_tail.sh:3 git (via -) | echo x | git fetch
+OK   printf_v_PATH                  rc=1 FINDING assignment to PATH (it changes how a command is found or run): printf_v_PATH.sh:3 | printf -v PATH %s /tmp
+OK   prompt_command                 rc=1 FINDING assignment to PROMPT_COMMAND (it changes how a command is found or run): prompt_command.sh:3 | PROMPT_COMMAND='git fetch'
+OK   ps4                            rc=1 FINDING assignment to PS4 (it changes how a command is found or run): ps4.sh:3 | PS4='$(git fetch)'
+OK   redirect_dup_tcp               rc=1 FINDING a /dev/tcp or /dev/udp redirection (bash opens a network connection itself): redirect_dup_tcp.sh:3 in - | cat 3</dev/tcp/h.invalid/80
+OK   redirect_target_subst          rc=1 FINDING network command outside rc_net: redirect_target_subst.sh:3 git (via -) | echo x > "$(git fetch)"
+OK   sed_e_in_script_file           rc=1 FINDING sed that can run a command: sed_e_in_script_file.sh:3 (the option -f (-f reads a script, -i and the others are not on the list)) | sed -f /tmp
+OK   semicolon_after_comment_word   rc=1 FINDING network command outside rc_net: semicolon_after_comment_word.sh:3 git (via -) | echo a#b; git fetch
+OK   shellopts                      rc=1 FINDING assignment to SHELLOPTS (it changes how a command is found or run): shellopts.sh:3 | SHELLOPTS=xtrace
+OK   sort_compress_eq               rc=1 FINDING sort that can run a command: sort_compress_eq.sh:3 (the long option --compress-program=gzip (--compress-program and its prefixes run a program
+OK   source_procsubst               rc=1 FINDING source of a file the gate does not read: source_procsubst.sh:3 <(echo git fetch) | source <(echo git fetch)
+OK   sqlite_no_safe                 rc=1 FINDING sqlite3 that can run a command: sqlite_no_safe.sh:3 (no -safe (the dot-commands .system, .shell and the |command forms of .output, .once, .imp
+MISS sqlite_safe_dot_shell          rc=0 NETGATE invocations=2 network_through_rc_net=1 findings=0
+OK   stdbuf                         rc=1 FINDING interpreter or exec wrapper not on the allow-list: stdbuf.sh:3 stdbuf (via -) | stdbuf -o0 git fetch
+OK   subshell                       rc=1 FINDING network command outside rc_net: subshell.sh:3 git (via -) | ( git fetch )
+OK   time_keyword                   rc=1 FINDING network command outside rc_net: time_keyword.sh:3 git (via -) | time git fetch
+OK   trap_err                       rc=1 FINDING network command outside rc_net: trap_err.sh:3 git (via -) | trap 'git fetch' ERR
+OK   trap_return                    rc=1 FINDING network command outside rc_net: trap_return.sh:3 git (via -) | trap 'git fetch' RETURN
+OK   until_cond                     rc=1 FINDING network command outside rc_net: until_cond.sh:3 git (via -) | until git fetch; do :; done
+OK   while_cond                     rc=1 FINDING network command outside rc_net: while_cond.sh:3 git (via -) | while git fetch; do :; done
+SUMMARY probes=53 missed=5

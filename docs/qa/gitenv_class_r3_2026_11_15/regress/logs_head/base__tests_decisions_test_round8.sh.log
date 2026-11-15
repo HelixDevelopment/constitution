@@ -1,0 +1,79 @@
+== m1: a closed pipe or a full device on stdout never gives rc 120 or 'Exception ignored' ==
+  PASS closed pipe, --show: rc is 1 (not 120)
+  PASS …and stderr has no interpreter 'Exception ignored' text
+  PASS …and stderr has no traceback
+  PASS …and the one line is the engine's own
+  PASS /dev/full, --show: rc 3 (not 120)
+  PASS …no interpreter text, no traceback
+  PASS …the engine's own line names the cause
+  PASS /dev/full after a successful --set: rc is not 120, no interpreter text
+  PASS control: a normal --show still exits 0 with output and quiet stderr
+== m2: a NUL byte in a .gitmodules value is cut at the NUL like git (no crash, no empty .constitution/) ==
+  PASS UNIT-CLASS: gitmodules_paths equals REAL git on NUL-byte values (differential, control case included)
+      | DIFF-OK []
+  PASS CLI: a NUL in .gitmodules does not crash the run (rc 0)
+  PASS …no 'internal error' line
+  PASS …the override was written (.constitution/ is not empty)
+  PASS a NUL-cut path naming a real directory: rc 0, or a clean refusal (rc 3/4) - never rc 1
+  PASS …and no empty .constitution/ is left behind
+== m3: escapes above U+FFFF are fixed-width (no hex read as part of an escape) (\uXXXX = 4 hex digits, \UXXXXXXXX = 8) ==
+  PASS UNIT-CLASS: safe_text and the emitter line cleaner round-trip every unsafe char (incl. > U+FFFF) followed by hex digits
+      | ESC-OK []
+== m4 (R09): two user files whose names sanitise to the same tag get different tags and separate backups ==
+  PASS UNIT-CLASS: 'a.yml' and 'a_yml' (same sanitised stem) have different tags
+  PASS CLI: with keep=1 each of the two user files keeps its own newest backup (2 distinct tags)
+  PASS …and the count of backups in the directory is 2 (one per file, not pruned across files)
+== m4 (R12): a backup base replaced by ANOTHER real directory after it was opened is refused ==
+  PASS swapped for another real directory: refused (rc 3)
+  PASS …nothing was written into the replacement directory
+== B2 (round-8 review): EVERY return path of run_cli flushes stdout (error paths too), with real /dev/full and a real closed pipe ==
+  PASS report_exception path, stdout=full: rc 3 (the original outcome; not 120)
+  PASS …no 'Exception ignored' / traceback on stderr
+  PASS …the engine's own blocked line is there
+  PASS MINOR-2, stdout=full: the message does not claim decisions.intent records the change
+  PASS …it says this run changed no project file and recorded no decisions.intent
+  PASS …it says the backup this run took is kept
+  PASS …and indeed no decisions.intent exists
+  PASS report_exception path, stdout=pipe: rc 3 (the original outcome; not 120)
+  PASS …no 'Exception ignored' / traceback on stderr
+  PASS …the engine's own blocked line is there
+  PASS MINOR-2, stdout=pipe: the message does not claim decisions.intent records the change
+  PASS …it says this run changed no project file and recorded no decisions.intent
+  PASS …it says the backup this run took is kept
+  PASS …and indeed no decisions.intent exists
+  PASS report_exception path, stdout=file: rc 3 (the original outcome; not 120)
+  PASS …no 'Exception ignored' / traceback on stderr
+  PASS …the engine's own blocked line is there
+  PASS …control (stdout=file): the buffered 'backup:' line reached stdout (output WAS buffered)
+  PASS MINOR-2, stdout=file: the message does not claim decisions.intent records the change
+  PASS …it says this run changed no project file and recorded no decisions.intent
+  PASS …it says the backup this run took is kept
+  PASS …and indeed no decisions.intent exists
+  PASS MINOR-2 control (project root read-only: a doc write fails after the intent): rc 3
+  PASS …the message says decisions.intent records the unfinished change
+  PASS …and the intent file really exists
+  PASS report_internal path (late ValueError after output), stdout=full: rc 1 (not 120)
+  PASS …no 'Exception ignored' / traceback
+  PASS …the engine's own internal-error line
+  PASS report_internal path (late ValueError after output), stdout=pipe: rc 1 (not 120)
+  PASS …no 'Exception ignored' / traceback
+  PASS …the engine's own internal-error line
+  PASS report_internal path (late ValueError after output), stdout=file: rc 1 (not 120)
+  PASS …no 'Exception ignored' / traceback
+  PASS …the engine's own internal-error line
+  PASS …control (stdout=file): 'written:' lines reached stdout (output WAS buffered)
+  PASS KeyboardInterrupt path (REAL SIGINT after 'backup:' was buffered), stdout=full: rc 130 (not 120)
+  PASS …no 'Exception ignored' / traceback
+  PASS KeyboardInterrupt path (REAL SIGINT after 'backup:' was buffered), stdout=pipe: rc 130 (not 120)
+  PASS …no 'Exception ignored' / traceback
+  PASS KeyboardInterrupt path (REAL SIGINT after 'backup:' was buffered), stdout=file: rc 130 (not 120)
+  PASS …no 'Exception ignored' / traceback
+  PASS …control (stdout=file): the buffered 'backup:' line reached stdout
+  PASS SystemExit path (engine argparse --help to /dev/full): rc 3, not 120
+  PASS …no interpreter text, the engine's own blocked line
+  PASS SystemExit path, closed pipe: rc 1 with the engine's own line, no interpreter text
+  PASS control: engine --help to a file exits 0 with the usage text
+== MINOR-1: the escape form's honest scope (a literal backslash is NOT escaped; documents must not be altered) ==
+  PASS UNIT-CLASS: JSON documents keep their backslashes, and the docs state that a literal backslash is not escaped
+      | BS-OK []
+test_round8: pass=68 fail=0

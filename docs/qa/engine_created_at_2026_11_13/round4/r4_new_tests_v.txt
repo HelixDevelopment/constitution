@@ -1,0 +1,185 @@
+=== RUN   TestRestoreCreatedAtR4_ComparisonCensus
+    created_at_r4_test.go:253: CENSUS  3 x restoreCreatedAtCmd: attest == "" | attestation: first attesting row wins / none attests | TestRestoreCreatedAtR2_ItemsRowAttestationPreferred,TestRestoreCreatedAtR4_AttestationBoundaries
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: err == nil | sidecar: the sidecar exists | TestRestoreCreatedAtR4_SidecarSizeBoundary
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: ht.Before(first) | bound: the earliest history row is the first | TestRestoreCreatedAtR4_ValidationBoundaries,TestRestoreCreatedAtR2_LateHistoryRowDoesNotBound
+    created_at_r4_test.go:253: CENSUS  2 x restoreCreatedAtCmd: n == 0 | bound: first row seen / no history | TestRestoreCreatedAtR4_ValidationBoundaries,TestRestoreCreatedAtR3_EveryRefusalSameInDryRun
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: newT.After(curT) | bound: not later than the current value | TestRestoreCreatedAtR4_ValidationBoundaries,TestRestoreCreatedAtR2_CurrentValueBoundary
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: newT.After(first) | bound: not after the first history row | TestRestoreCreatedAtR4_ValidationBoundaries,TestRestoreCreatedAtR2_FirstEventBoundary
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: newT.Before(trackerT.Add(-rcaTrackerSlack)) | bound: not before the tracker's first row minus the slack | TestRestoreCreatedAtR4_ValidationBoundaries,TestRestoreCreatedAtR3_TrackerBoundBothAttestations
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: r.created == *value | attestation: items row equals the value | TestRestoreCreatedAtR4_AttestationBoundaries
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: s == *value | attestation: Opened row equals the value | TestRestoreCreatedAtR4_AttestationBoundaries
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: si.Size() > 0 | sidecar: a non-empty -wal / -journal is refused | TestRestoreCreatedAtR4_SidecarSizeBoundary,TestRestoreCreatedAtR2_JournalSidecarRefused
+    created_at_r4_test.go:253: CENSUS  1 x restoreCreatedAtCmd: target.created == *value | already: the value equals the current one | TestRestoreCreatedAtR4_ValidationBoundaries,TestRestoreCreatedAt_IdempotentAndDryRun
+--- PASS: TestRestoreCreatedAtR4_ComparisonCensus (0.10s)
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/equal
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/equal/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/equal/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-before
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-before/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-before/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-after
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-after/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-after/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-below
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-below/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-below/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-above
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-above/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-above/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/equal
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/equal/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/equal/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-before
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-before/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-before/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-after
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-after/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-after/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-below
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-below/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-below/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-above
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-above/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-above/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/items-below-opened-above
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/items-below-opened-above/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/items-below-opened-above/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/opened-below-items-above
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/opened-below-items-above/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/opened-below-items-above/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/reviewer-probe-R3G03
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/reviewer-probe-R3G03/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/between/reviewer-probe-R3G03/dry-run
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/both-equal
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/both-equal/real
+=== RUN   TestRestoreCreatedAtR4_AttestationBoundaries/both-equal/dry-run
+--- PASS: TestRestoreCreatedAtR4_AttestationBoundaries (2.96s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/equal (0.22s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/equal/real (0.11s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/equal/dry-run (0.11s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-before (0.23s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-before/real (0.12s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-before/dry-run (0.11s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-after (0.20s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-after/real (0.09s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/one-second-after/dry-run (0.11s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-below (0.21s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-below/real (0.11s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-below/dry-run (0.10s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-above (0.19s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-above/real (0.09s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/items-row/outside-above/dry-run (0.10s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/equal (0.22s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/equal/real (0.11s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/equal/dry-run (0.11s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-before (0.20s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-before/real (0.11s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-before/dry-run (0.09s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-after (0.22s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-after/real (0.11s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/one-second-after/dry-run (0.12s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-below (0.19s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-below/real (0.10s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-below/dry-run (0.09s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-above (0.20s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-above/real (0.10s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/opened-event/outside-above/dry-run (0.10s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/items-below-opened-above (0.22s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/items-below-opened-above/real (0.10s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/items-below-opened-above/dry-run (0.12s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/opened-below-items-above (0.22s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/opened-below-items-above/real (0.12s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/opened-below-items-above/dry-run (0.10s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/reviewer-probe-R3G03 (0.20s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/reviewer-probe-R3G03/real (0.09s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/between/reviewer-probe-R3G03/dry-run (0.11s)
+    --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/both-equal (0.23s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/both-equal/real (0.10s)
+        --- PASS: TestRestoreCreatedAtR4_AttestationBoundaries/both-equal/dry-run (0.13s)
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-before
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-before/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-before/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/equal
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/equal/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/equal/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-after
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-after/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-after/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/equal-to-earlier-later-id-row
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/equal-to-earlier-later-id-row/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/equal-to-earlier-later-id-row/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/one-second-after-it
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/one-second-after-it/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/one-second-after-it/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/later-row-does-not-bound
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/later-row-does-not-bound/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/later-row-does-not-bound/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/tie
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/tie/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/tie/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-before
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-before/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-before/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/equal
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/equal/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/equal/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-after
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-after/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-after/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-before
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-before/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-before/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/equal
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/equal/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/equal/dry-run
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-after
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-after/real
+=== RUN   TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-after/dry-run
+--- PASS: TestRestoreCreatedAtR4_ValidationBoundaries (2.65s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-before (0.21s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-before/real (0.12s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-before/dry-run (0.09s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/equal (0.22s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/equal/real (0.13s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/equal/dry-run (0.10s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-after (0.22s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-after/real (0.12s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/first-event/one-second-after/dry-run (0.10s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/equal-to-earlier-later-id-row (0.25s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/equal-to-earlier-later-id-row/real (0.14s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/equal-to-earlier-later-id-row/dry-run (0.12s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/one-second-after-it (0.24s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/one-second-after-it/real (0.13s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/one-second-after-it/dry-run (0.11s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/later-row-does-not-bound (0.22s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/later-row-does-not-bound/real (0.11s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/later-row-does-not-bound/dry-run (0.11s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/tie (0.24s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/tie/real (0.12s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/earliest-row/tie/dry-run (0.11s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-before (0.21s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-before/real (0.11s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-before/dry-run (0.10s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/equal (0.18s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/equal/real (0.09s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/equal/dry-run (0.09s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-after (0.15s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-after/real (0.08s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/tracker/one-second-after/dry-run (0.07s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-before (0.17s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-before/real (0.09s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-before/dry-run (0.08s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/equal (0.17s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/equal/real (0.09s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/equal/dry-run (0.08s)
+    --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-after (0.16s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-after/real (0.08s)
+        --- PASS: TestRestoreCreatedAtR4_ValidationBoundaries/current/one-second-after/dry-run (0.08s)
+=== RUN   TestRestoreCreatedAtR4_ReasonCarriageReturn
+--- PASS: TestRestoreCreatedAtR4_ReasonCarriageReturn (0.60s)
+=== RUN   TestRestoreCreatedAtR4_SidecarSizeBoundary
+--- PASS: TestRestoreCreatedAtR4_SidecarSizeBoundary (1.39s)
+=== RUN   TestRestoreCreatedAtR4_NullRepresentationLegacyRow
+--- PASS: TestRestoreCreatedAtR4_NullRepresentationLegacyRow (0.50s)

@@ -1,0 +1,11 @@
+=== META-TEST: paired §1.1 mutations for the §11.4.140 grammar suite ===
+PASS: M1-python-slash-regex (before=PASS mutated=FAIL after=PASS) [evidence: <scratch>/ev.sbBs/coA/qa-results/action_prefix/20261114T031122Z_3206789/meta/M1-python-slash-regex.txt]
+PASS: M2-awk-slash-match (before=PASS mutated=FAIL after=PASS) [evidence: <scratch>/ev.sbBs/coA/qa-results/action_prefix/20261114T031122Z_3206789/meta/M2-awk-slash-match.txt]
+PASS: M3-python-ns-default (before=PASS mutated=FAIL after=PASS) [evidence: <scratch>/ev.sbBs/coA/qa-results/action_prefix/20261114T031122Z_3206789/meta/M3-python-ns-default.txt]
+PASS: M4-python-arrow-regex (before=PASS mutated=FAIL after=PASS) [evidence: <scratch>/ev.sbBs/coA/qa-results/action_prefix/20261114T031122Z_3206789/meta/M4-python-arrow-regex.txt]
+PASS: M5-awk-arrow-match (before=PASS mutated=FAIL after=PASS) [evidence: <scratch>/ev.sbBs/coA/qa-results/action_prefix/20261114T031122Z_3206789/meta/M5-awk-arrow-match.txt]
+PASS: M6-strip-reminder (before=PASS mutated=FAIL after=PASS) [evidence: <scratch>/ev.sbBs/coA/qa-results/action_prefix/20261114T031122Z_3206789/meta/M6-strip-reminder.txt]
+====================================================================
+META RESULT: PASS=6 FAIL=0  (evidence: <scratch>/ev.sbBs/coA/qa-results/action_prefix/20261114T031122Z_3206789/meta)
+ALL MUTATIONS CAUGHT
+rc=0 secs=1012 bash=5.2.37(1)-release

@@ -1,0 +1,18 @@
+"""reorder.py <in> <out>: move the note_uncommitted block (comment + function) from before the
+TMP assignment to just before the '# ---- export HEAD' line. Pure move; exits 2 if a marker is
+not found exactly once."""
+import sys
+src = open(sys.argv[1], encoding="utf-8").read()
+START = "# note_uncommitted: say (never judge)"
+TMPLINE = '\nTMP="$(mktemp -d)" || blind "mktemp failed"\n'
+ANCHOR = "# ---- export HEAD "
+for m in (START, TMPLINE, ANCHOR):
+    if src.count(m) != 1:
+        print("marker count", repr(m), src.count(m)); sys.exit(2)
+s = src.index(START); e = src.index(TMPLINE) + 1  # block ends with its blank line
+block = src[s:e]
+rest = src[:s] + src[e:]
+a = rest.index(ANCHOR)
+out = rest[:a] + block + rest[a:]
+assert sorted(out.splitlines()) == sorted(src.splitlines())
+open(sys.argv[2], "w", encoding="utf-8").write(out)

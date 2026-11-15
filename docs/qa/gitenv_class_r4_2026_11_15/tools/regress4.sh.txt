@@ -1,0 +1,15 @@
+#!/bin/bash
+# regress4.sh <tree> <list> <out.tsv> <logdir>: run each listed test from <tree> root, timeout 900 s, print rc and summary.
+set -u
+for v in $(env | sed -n 's/^\(GIT_[A-Z_]*\)=.*/\1/p'); do unset "$v"; done
+: "${TMPDIR:?}"
+T=${1:?}; L=${2:?}; O=${3:?}; D=${4:?}; mkdir -p "$D"
+while read -r f; do
+  [ -n "$f" ] || continue
+  while [ "$(cut -d' ' -f1 /proc/loadavg | cut -d. -f1)" -ge 60 ]; do sleep 20; done
+  lg="$D/$(printf '%s' "$f" | tr '/' '_').log"
+  rc=0; ( cd "$T" && timeout 900 bash "$f" ) </dev/null >"$lg" 2>&1 || rc=$?
+  s=$(grep -iE 'pass(ed)?[=:]|fail(ed)?[=:]|[0-9]+ passed|[0-9]+/[0-9]+' "$lg" | tail -n 1 | cut -c1-160)
+  printf '%s\t%s\t%s\n' "$f" "$rc" "$s" >>"$O"
+done <"$L"
+echo DONE >>"$O"

@@ -1,0 +1,9 @@
+PASS: validate_attribution_doc() rejects a hand-entered (evidence-less) numeric figure
+PASS: validate_attribution_doc() accepts a genuinely measured value with a real evidence object (negative control)
+PASS: validate_attribution_doc() rejects UNMEASURED with no missing_instrument reason
+SUMMARY pass=1 fail=0
+PASS: validate_attribution_doc golden-bad/negative-control/UNMEASURED-reason checks
+FAIL: attribute (empty-consumer case) expected exit 0 + output file, got rc=3 stderr=host_report: attribute needle FAILED: btrfs_binary_unavailable -- exclusive-bytes instrument not trustworthy this run
+FAIL: T153 B4: attribute (absent-root case) expected exit 0 + output file, got rc=3 stderr=host_report: attribute needle FAILED: btrfs_binary_unavailable -- exclusive-bytes instrument not trustworthy this run
+FAIL: T153 B4: attribute (permission-denied case) expected exit 4 (BLIND) + output file, got rc=3 stderr=host_report: attribute needle FAILED: btrfs_binary_unavailable -- exclusive-bytes instrument not trustworthy this run
+SUMMARY pass=1 fail=3

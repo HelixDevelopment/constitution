@@ -1,0 +1,18 @@
+PASS killed M01-STEP1-NO-SYMLINK-GUARD by R7:SYMLINK: FAIL SYMLINK rc=0 mode=700 entries=18: The bundle uses this hash algorithm: sha1 backup: .constitution-install
+PASS killed M02-CREDRX-NO-QUERY by R5:CRED: FAIL CRED STEP3: 6 skipped lines, want 8
+PASS killed M03-REDACT-NO-QUERY by R5:REDACT: FAIL REDACT 'https://h.invalid/x?private_token=R5_DECOY_TOKEN_77' -> 'https://h.invalid/x?private_token=R5_DEC
+PASS killed M04-NEEDLE-TWO-LINES by R7:NEEDLE: FAIL NEEDLE S7: S7 hits: 0
+PASS killed M05-V6-NEEDLE-TWO-LINES by R7:NEEDLE: FAIL NEEDLE V6: V6 hits: 0
+PASS killed M06-LSREMOTE-NO-DDASH by R7:LSREMOTE: FAIL LSREMOTE STEP3 ran the upload-pack program
+PASS killed M07-AL-PLAIN-WORD-ALWAYS by R7:ALLOW: FAIL ALLOW bypass driver rc=1: MISS cont rc=0: git push -f origin HEAD:main MISS cont rc=0: git push origin +H
+PASS killed M08-AL-SEGMENTS-UNCHECKED by R7:ALLOW: FAIL ALLOW bypass driver rc=1: MISS inline rc=0: the files; rm -rf / MISS cont rc=0: the files; rm -rf / MISS 
+PASS killed M09-AL-RM-TRAILING-OK by R7:ALLOW: FAIL ALLOW bypass driver rc=1: MISS block rc=0: rm -rf -- ${tmpdir:?}/. MISS inline rc=0: rm -rf -- ${tmpdir:?
+PASS killed M10-AL-NO-DATA-TOKEN-CHECK by R7:ALLOW: FAIL ALLOW bypass driver rc=1: MISS cont rc=0: : > CLAUDE.md MISS cont rc=0: . ./x.sh  CAUGHT 412 OF 414
+PASS killed M11-RS-NO-STAGED-CHECK by R7:STAGED: FAIL STAGED rc=0 lock=no: rotate_setup_prompt: archived previous latest.md as 03_swapped.md; latest.md updated
+PASS killed M12-RS-NO-TAKEOVER by R7:TAKEOVER: FAIL TAKEOVER 3 of 3 rounds broke the new owner
+PASS killed M13-RS-NO-DIRTY-DEFAULT by R7:DIRTY: FAIL DIRTY dirty setup directory refused by default (rc=0 want=3)
+PASS killed M14-RS-ALLOW-DIRTY-IGNORED by R7:DIRTY: FAIL DIRTY --allow-dirty proceeds (rc=3 want=0)
+PASS killed M15-NOTE-GITCONFIG-BACK by R7:NOTE: FAIL NOTE the round-5 note still claims .git/config is checked
+PASS killed M16-S13-RERUN-PROMPT by R7:SIZE: FAIL SIZE S13:   S13 IDEMPOTENCY: re-running this prompt changes nothing.
+MUTANTS killed=16 survived=0
+RESULT: round7_mutants pass=16 fail=0 skip=0

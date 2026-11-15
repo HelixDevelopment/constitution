@@ -1,0 +1,28 @@
+── Part 1: fixture classification with the real gate
+ok   CLEAN:0
+ok   NONE:0
+ok   VASIC:1
+ok   HELIXDEV:1
+ok   HUB:1
+ok   HELIXQA:1
+ok   FOREIGN-HUB-NAME:1
+ok   FOREIGN-HELIXCONSTITUTION:1
+ok   NAME-PREFIX-NOT-HUB:0
+ok   RELATIVE-OWNORG:1
+ok   RELATIVE-THIRDPARTY:0
+ok   RELATIVE-UNRESOLVABLE:2
+ok   UNINIT:3
+ok   UNINIT-EMPTY-DIR:3
+ok   RECORDED-CLEAN-HEAD-DIRTY:0
+ok   RECORDED-DIRTY-HEAD-CLEAN:1
+ok   STAGED-CLEAN-HEADREC-DIRTY:0
+ok   STAGED-DIRTY-HEADREC-CLEAN:1
+── Part 2: gate mutants (each MUST be killed)
+ok   mutant G1-no-show-toplevel-check killed
+ok   mutant G2-no-helixconstitution-name killed
+ok   mutant G3-hub-name-not-end-anchored killed
+ok   mutant G4-no-helixdevelopment-org killed
+ok   mutant G5-relative-urls-unresolved killed
+ok   mutant G6-recorded-commit-ignored killed
+ok   mutant G7-skip-reads-as-pass killed
+META PASS — CM-HUB-ENGINE-NO-OWNORG-NESTING classifies every fixture and kills every mutant

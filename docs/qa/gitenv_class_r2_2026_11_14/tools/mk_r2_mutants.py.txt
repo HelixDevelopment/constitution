@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""mk_r2_mutants.py <repo> <outdir>
+Round-2 census mutants: copies of scripts/validation/git_env_class_census.py with one change each, written
+to <outdir>/<name>.py. Each name also gets a "_nn" twin with the internal control needles disabled, so the
+fixture cases of tests/test_git_env_class.sh must kill it on their own. Every edit must apply exactly once
+(else exit 2: a no-op mutant)."""
+import os, sys
+repo, out = sys.argv[1:3]
+src = open(os.path.join(repo, "scripts/validation/git_env_class_census.py"), encoding="utf-8").read()
+NN = ("    bad, ncases = needles(canon)\n    if bad:\n", "    bad, ncases = needles(canon)\n    if False:\n")
+M = {
+    # F1: the discovery-limit rules
+    "r2_limit_check_off": [("    lh = limit_hits(lang, text, code)\n", "    lh = []\n")],
+    "r2_limit_canon_blind_off": [("    lim = [v for v in canon if v in LIMIT_VARS]\n", "    lim = []\n")],
+    # F2: python heredocs in shell files, wrapper functions
+    "r2_py_in_sh_off": [("            if SH_RE.search(line) or PY_RE.search(line) or PYW_RE.search(line):\n",
+                         "            if SH_RE.search(line):\n")],
+    "r2_wrappers_off": [('    wraps, funcs = (wrappers(code, canon) if lang == "sh" else ({}, {}))\n',
+                        '    wraps, funcs = ({}, {})\n')],
+    "r2_wrapper_any_scrubbed": [("            out[name] = block_scrubs(body, canon)\n", "            out[name] = True\n")],
+    "r2_env_i_loose": [(r'''re.search(r"(?<![\w./$-])env\s+-i\b(?:[^;&|\n]|\\\n)*?(?<![\w./$-])git\b", body)''',
+                        r'''re.search(r"\benv\s+-i\b", body)''')],
+    # F3: effective scrub only
+    "r2_comments_kept": [('        return [strip_sh_comment(l) if not l.lstrip().startswith("#") else "" for l in lines]\n',
+                          '        return list(lines)\n')],
+    "r2_legacy_clear_off": [("            if not clears:\n", "            if False:\n")],
+    "r2_preamble_off": [("        if not PREAMBLE.match(c):\n            return None\n", "        if not PREAMBLE.match(c):\n            continue\n")],
+    "r2_py_get_ok": [('and c.func.attr == "pop"\n', 'and c.func.attr in ("pop", "get")\n')],
+    "r2_py_docstring_kept": [("                for r in range(node.lineno, node.end_lineno + 1):\n                    out[r - 1] = \"\"\n",
+                              "                pass\n")],
+    # round-1 rules re-expressed on the new code
+    "r2_order_off": [("            if top[0] < line:\n                continue\n            return True, \"UNSCRUBBED\", line, \"canonical scrub at line",
+                      "            if True:\n                continue\n            return True, \"UNSCRUBBED\", line, \"canonical scrub at line")],
+    "r2_list_off": [("        if top[1] != canon:\n", "        if False:\n")],
+    "r2_stale_off": [("    for f in sorted(set(exempt) - members):\n", "    for f in []:\n")],
+    "r2_reason_any": [("cols[1] not in REASONS or ", "")],
+}
+os.makedirs(out, exist_ok=True)
+for name, edits in M.items():
+    for variant, extra in (("", []), ("_nn", [NN])):
+        t = src
+        for old, new in edits + extra:
+            if t.count(old) != 1:
+                print("NO-OP mutant %s%s: %r x%d" % (name, variant, old[:50], t.count(old)))
+                sys.exit(2)
+            t = t.replace(old, new)
+        open(os.path.join(out, name + variant + ".py"), "w", encoding="utf-8").write(t)
+print("mutants", 2 * len(M))

@@ -1,0 +1,10 @@
+# run: rc=0 wall=288s load_start=44.52 load_end=45.54 cmd=bash <scratch>/probes/class_probe.sh <scratch>/redclone scripts/gates/cm_agent_type_label.sh index
+gate=scripts/gates/cm_agent_type_label.sh mode=index env=GIT_INDEX_FILE=<scratch>/probes/sen.3x9QZD/.git/index gate_rc=1 wall=287s
+SENTINEL: unchanged (fingerprint e9df5e2cf787485c584af9b071591d1599600469f26f038ec2070669b072dbbe)
+--- gate output tail:
+✅ HOOK: a model/effort parameter that overrides the type blocks under ENFORCE; matching parameters pass
+✅ HOOK: WARN payload is valid JSON for a subagent_type with a quote and a backslash
+✅ HOOK: empty bypass reason does not bypass
+✅ HOOK: hand-made T<N> types do not count as generated (golden-FALSE)
+----------------------------------------------------------------------
+❌ CM-AGENT-TYPE-LABEL: FAIL

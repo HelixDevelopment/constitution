@@ -1,0 +1,8 @@
+──────────────────────────────────────────────────────────────────────
+CM-ANCHOR-RECORD-COMPLETE — engine: <scratch>/gitenv_class.MjjE/red/submodules/continuum
+──────────────────────────────────────────────────────────────────────
+error obtaining VCS status: exit status 128
+	Use -buildvcs=false to disable VCS stamping.
+RESULT gate REFUSE
+🛑 REFUSE   CM-ANCHOR-RECORD-COMPLETE: the shell seam could not be built (go build exit 1)
+   The gate decided NOTHING. This is not a pass (§11.4.201(6)).

@@ -12,6 +12,7 @@ set -euo pipefail
 # Operator order 2026-10-26 ("stop exporting Markdown docs into other formats"): Markdown -> HTML rendering is gated by the
 # constitution's ONE formats-export switch (config/formats_export.conf, default false). OFF => announced skip, rc 0.
 # shellcheck source=../formats_export_lib.sh
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/formats_export_lib.sh"
 formats_export_gate render-articles "${FORMATS_EXPORT_ROOT:-$PWD}" || exit 0
 command -v pandoc >/dev/null || { echo "pandoc required"; exit 1; }

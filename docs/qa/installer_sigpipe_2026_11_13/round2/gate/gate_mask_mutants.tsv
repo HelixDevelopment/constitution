@@ -1,0 +1,9 @@
+id	mutation	result	last line
+control	unmutated copy	PASS	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached 
+GM1	mask any command's multi-line literal (no printf/echo condition)	KILLED (BLIND)	⚠ CM-INSTALLER-NO-PUSH-NO-FORCE: BLIND (exit 2) — lexer failed its control needles: ["ssh h \\\necho 'a\ngit push\nb'\n"]
+GM2	mask to the end of the literal's last line	KILLED (BLIND)	⚠ CM-INSTALLER-NO-PUSH-NO-FORCE: BLIND (exit 2) — lexer failed its control needles: ["printf '%s\\n' 'a\nb'; git push origin main\n"]
+GM3	mask any multi-line word (no all-literal check)	KILLED (BLIND)	⚠ CM-INSTALLER-NO-PUSH-NO-FORCE: BLIND (exit 2) — lexer failed its control needles: ['printf \'%s\\n\' "a\n$(hi_gx push)\nb"\n']
+GM4	no line check (PRINT_HEAD) on the literal's first line	KILLED (BLIND)	⚠ CM-INSTALLER-NO-PUSH-NO-FORCE: BLIND (exit 2) — lexer failed its control needles: ["true; printf '%s\\n' 'a\ngit push\nb'\n"]
+GM5	double-quoted parts count as literal	KILLED (BLIND)	⚠ CM-INSTALLER-NO-PUSH-NO-FORCE: BLIND (exit 2) — lexer failed its control needles: ['printf \'%s\\n\' "a\n$(hi_gx push)\nb"\n']
+GM6	the mask is not applied (raw scan reads the original text)	KILLED (BLIND)	⚠ CM-INSTALLER-NO-PUSH-NO-FORCE: BLIND (exit 2) — lexer failed its control needles: ["printf '%s\\n' 'usage:\ngit push is never run\nend' >&2\n", "printf '%s\\n
+GM7	shopt dropped from the exact-pair commands (any shopt allowed as a safe builtin)	KILLED (BLIND)	⚠ CM-INSTALLER-NO-PUSH-NO-FORCE: BLIND (exit 2) — lexer failed its control needles: ['shopt -s expand_aliases\n']

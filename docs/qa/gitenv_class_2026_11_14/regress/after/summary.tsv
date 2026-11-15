@@ -1,0 +1,10 @@
+124	900	tests/layout/test_round8_git_env.sh
+1	174	scripts/badges/test_static_badges.sh
+0	105	scripts/codegraph/tests/test_mcp_readonly.sh
+0	44	scripts/extensions/install_speckit_superpowers_bridge_test.sh
+1	2	scripts/fastcycle/tests/test_custody_sweep_red.sh
+1	6	scripts/fastcycle/tests/test_custody_sweep_r7_regression.sh
+77	0	scripts/fastcycle/tests/test_churn_rank_red.sh
+0	0	scripts/fastcycle/tests/test_repo_verify_red.sh
+77	0	scripts/fastcycle/tests/test_baseline_replay_red.sh
+0	15	scripts/fastcycle/tokens/test_dispatch_stamp_r5_regression.sh

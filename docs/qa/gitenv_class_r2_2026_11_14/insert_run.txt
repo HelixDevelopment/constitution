@@ -1,0 +1,15 @@
+INSERT scripts/fastcycle/tests/test_anchor_citations_red.sh:77 before: HERE=$(cd "$(dirname "$0")" && pwd)
+INSERT scripts/fastcycle/tests/test_collect_baseline_red.sh:47 before: HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSERT scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh:34 before: repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
+INSERT scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh:35 before: repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
+INSERT scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh:78 before: repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
+INSERT scripts/fastcycle/tests/test_custody_sweep_r19_regression.sh:98 before: repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
+INSERT scripts/fastcycle/tests/test_custody_sweep_r21_regression.sh:45 before: repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
+INSERT scripts/fastcycle/tests/test_fc_safepath_v4r12.sh:35 before: HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSERT scripts/fastcycle/tests/test_fc_safepath_v4r13.sh:40 before: HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSERT scripts/fastcycle/tests/test_fc_safepath_v4r14.sh:63 before: HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSERT scripts/fastcycle/tests/test_fc_safepath_v4r15.sh:52 before: HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSERT scripts/fastcycle/tests/test_fc_supervisor_unit.sh:47 before: HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSERT scripts/gates/cm_pr_delivery_account_name_free_mutation_test.sh:65 before: HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSERT scripts/validation/test_enumerate_decision_mutants_r2_regression.sh:31 before: HERE=$(cd "$(dirname "$0")" && pwd)
+INSERT scripts/validation/test_meta_test_verification_r1_regression.sh:52 before: HERE=$(cd "$(dirname "$0")" && pwd)

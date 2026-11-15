@@ -1,0 +1,10 @@
+commit 1914a91b1febe60237e10d9ca3423cf8e45e429f
+controls: positive needle found, negative needle not found
+scripts/install_constitution.sh            9 pattern substitutions, 0 with '&'
+scripts/update_constitution.sh             0 pattern substitutions, 0 with '&'
+scripts/install_cli_agent_plugins.sh       0 pattern substitutions, 0 with '&'
+scripts/install_action_prefix.sh           0 pattern substitutions, 0 with '&'
+scripts/portable_symlink_lib.sh            0 pattern substitutions, 0 with '&'
+scripts/lib/constitution_layout.sh         0 pattern substitutions, 0 with '&'
+RESULT: no '&' in any pattern substitution
+exit 0

@@ -380,6 +380,16 @@ func closeCmd(args []string) int {
 	// silently losing the sibling representation. No Issues-side dual-rep item
 	// exists in the live tree today (verified), so this is a latent-but-dormant
 	// defect class closed defensively, mirroring the loadItem fix above.
+	//
+	// CON-339 (2026-11-13): read the row's created_at inside the transaction,
+	// before the delete, and carry it into the Fixed row below. Omitting the
+	// column from the INSERT let the schema DEFAULT (datetime('now')) stamp the
+	// closure time over the item's real creation time.
+	var createdAt string
+	if err := tx.QueryRow(`SELECT created_at FROM items WHERE atm_id=? AND current_location='Issues' AND representation=?`, id, src.repOrDefault()).Scan(&createdAt); err != nil {
+		fmt.Fprintf(os.Stderr, "close: read created_at of %s: %v\n", id, err)
+		return exitUsage
+	}
 	if _, err := tx.Exec(`DELETE FROM items WHERE atm_id=? AND current_location='Issues' AND representation=?`, id, src.repOrDefault()); err != nil {
 		fmt.Fprintf(os.Stderr, "close: remove from Issues: %v\n", err)
 		return exitUsage
@@ -408,9 +418,9 @@ func closeCmd(args []string) int {
 	// closing a 'table'-representation item (none exist in Issues today, but
 	// the schema permits it) would otherwise silently retag it 'section'.
 	if _, err := tx.Exec(`INSERT INTO items
-		(atm_id, type, status, severity, title, description, created_by, assigned_to, current_location, body_md, representation, destination, logic_group, `+statesInsertCols+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,`+statesInsertMarks+`)`,
-		append([]any{id, src.Type, mapping.status, nullable(src.Severity), src.Title, src.Description, src.CreatedBy, src.AssignedTo, "Fixed", closedBody, src.repOrDefault(), nullable(src.Destination), nullable(src.LogicGroup)},
+		(atm_id, type, status, severity, title, description, created_by, assigned_to, current_location, body_md, representation, destination, logic_group, created_at, `+statesInsertCols+`)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,`+statesInsertMarks+`)`,
+		append([]any{id, src.Type, mapping.status, nullable(src.Severity), src.Title, src.Description, src.CreatedBy, src.AssignedTo, "Fixed", closedBody, src.repOrDefault(), nullable(src.Destination), nullable(src.LogicGroup), createdAt},
 			statesInsertArgs(src.States)...)...); err != nil {
 		fmt.Fprintf(os.Stderr, "close: insert into Fixed: %v\n", err)
 		return exitUsage

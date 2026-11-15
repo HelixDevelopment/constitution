@@ -1,0 +1,16 @@
+script=scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh args= mode=git_dir rc=0 sentinel=UNCHANGED objects=3 head=44c157a sentinel
+  out: ok [R8SKIP] env wrapper re-opens closed fds on this host: True (closed-* cells SKIPPED honestly)
+  out: SUMMARY pass=235 fail=0 skip=95
+ secs=663
+script=scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh args= mode=none rc=0 sentinel=UNCHANGED objects=3 head=fb9e892 sentinel
+  out: ok [R8SKIP] env wrapper re-opens closed fds on this host: True (closed-* cells SKIPPED honestly)
+  out: SUMMARY pass=235 fail=0 skip=95
+ secs=674
+script=scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh args= mode=git_dir rc=0 sentinel=UNCHANGED objects=3 head=09cc69a sentinel
+  out: ----
+  out: SUMMARY pass=320 fail=0
+ secs=2168
+script=scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh args= mode=none rc=0 sentinel=UNCHANGED objects=3 head=53dfccd sentinel
+  out: ----
+  out: SUMMARY pass=320 fail=0
+ secs=2199

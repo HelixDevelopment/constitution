@@ -1,0 +1,8 @@
+MR5_LD_prefix_narrowed	r12	LD_LIBRARY_PATH=/x cat /dev/null	rc=1	FINDING assignment to LD_LIBRARY_PATH (it changes how a command is found or run): MR5_LD_prefix_narrowed_g0.sh
+MR5_LD_prefix_narrowed	r12-mutant	LD_LIBRARY_PATH=/x cat /dev/null	rc=0	NETGATE invocations=2 network_through_rc_net=1 findings=0
+MR5_LD_prefix_narrowed	r12	export LD_AUDIT=/x/a.so	rc=1	FINDING assignment to LD_AUDIT (it changes how a command is found or run): MR5_LD_prefix_narrowed_g1.sh:3 | ex
+MR5_LD_prefix_narrowed	r12-mutant	export LD_AUDIT=/x/a.so	rc=0	NETGATE invocations=1 network_through_rc_net=1 findings=0
+MR10_extdebug_dropped	r12	shopt -s extdebug	rc=1	FINDING shopt that turns on xtrace, verbose, posix or extdebug, or with an argument the gate cannot read (PS4 
+MR10_extdebug_dropped	r12-mutant	shopt -s extdebug	rc=0	NETGATE invocations=1 network_through_rc_net=1 findings=0
+MR10_extdebug_dropped	r12	set -o extdebug	rc=1	FINDING set that turns on xtrace, verbose, posix or extdebug, or with an argument the gate cannot read (PS4 an
+MR10_extdebug_dropped	r12-mutant	set -o extdebug	rc=0	NETGATE invocations=1 network_through_rc_net=1 findings=0

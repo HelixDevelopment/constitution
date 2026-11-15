@@ -1,0 +1,97 @@
+Round 3 evidence, vehicle/fix227 (CON-227..CON-234), fixer of review docs/qa/review_fix227_r2.md findings G1-G8.
+Class (§11.4.276(C)): any external-command output printed to the operator or logs by the release scripts is credential-redacted, THEN truncated; all of it through ONE helper, scripts/release/redact_cut.sh (rc_redact_cut N).
+
+== RED: the round-2 scripts (858a47e2) against the round-3 tests (same commands as the GREEN below, scripts pinned with the *_SCRIPT variables)
+TAR_SCRIPT=<858a47e2 tag_and_release.sh> bash tests/release/test_tag_and_release.sh
+FAIL C21c push stderr: no secret printed (raw @ and second URL included)
+FAIL C21c both URLs redacted (positive needle x2)
+FAIL C21c (G8) no 'tag pushed only' after a failed push
+FAIL C21c (G8) the INFO line says the push is NOT OK
+FAIL C21d exit-time stderr flush: no secret
+FAIL C21d exit-time flush prints the redacted line (positive needle)
+FAIL C24 no head -c in the three scripts (only rc_redact_cut cuts) (got '3', want '0')
+RESULT: pass=94 fail=7
+DRF_SCRIPT=<858a47e2 derive_release_facts.sh> bash tests/release/test_derive_release_facts.sh
+FAIL F6: the refusal does not blame a tracker query
+FAIL G1-class: the warning is printed, redacted (positive needle)
+FAIL G1-class: no secret on stderr
+RESULT: pass=48 fail=3
+PUBLISH_SCRIPT=<858a47e2 release_publish_gitea.sh> bash tests/release/test_publish_gitea.sh
+FAIL curl stderr: no secret printed
+FAIL curl stderr: both URLs redacted
+FAIL git stderr flushed redacted
+FAIL git stderr: no secret printed
+RESULT pass=34 fail=4
+
+== GREEN: the round-3 scripts, merged with origin main b20736f8 (suites one at a time)
+=== test_derive_release_facts
+RESULT: pass=51 fail=0
+rc=0
+=== test_render_release_entry
+SKIP shipped template renders from real facts: RRE_FACTS is not set to a facts file (run derive_release_facts.sh and set RRE_FACTS=<file> to run it)
+RESULT: pass=19 fail=0
+rc=0
+=== test_tag_and_release
+PASS C1 RESULT OK
+PASS C2 RESULT FAIL
+RESULT: pass=101 fail=0
+rc=0
+=== test_publish_gitea
+RESULT pass=38 fail=0
+rc=0
+
+== Mutation test (full run, after the merge): tests/release/test_release_tooling_mutations.sh
+PASS control tag_and_release.sh passes its suite
+PASS control derive_release_facts.sh passes its suite
+PASS control render_release_entry.py passes its suite
+PASS control release_publish_gitea.sh passes its suite
+PASS control redact_cut.sh passes its suite
+PASS T2 killed (FAIL C16 exit 0 (got '1', want '0'))
+PASS T3 killed (FAIL C15 different-object abort)
+PASS T4 killed (FAIL C13 dirty tree exit 1 (got '0', want '1'))
+PASS T6 killed (FAIL C14 HEAD!=SHA exit 1 (got '0', want '1'))
+PASS T5 killed (FAIL C18 gitea missing token is a GAP (exit 5) (got '0', want '5'))
+PASS D1 killed (FAIL D1: closed on the tag date is not verified since it (missing line: verified_since_prev_ids=T-006))
+PASS D5 killed (FAIL D5: UNSET reproduction with a set investigation state counts (missing line: open_items_with_any_state=5))
+PASS O1 killed (FAIL C21 userinfo not printed)
+PASS O2 killed (FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1'))
+PASS O3 killed (FAIL CON-228 [reproduction_state]: missing column exits 3 (got 0))
+PASS O4 killed (FAIL CON-228 [closure_date]: missing column exits 3 (got 0))
+PASS O7 killed (FAIL CON-228 [body_md]: missing column exits 3 (got 0))
+PASS O5 killed (FAIL CON-228 [reproduction_state]: no partial facts on stdout (got 23 lines))
+PASS O6 killed (FAIL CON-231 a status/severity value the template does not render is refused (0: ))
+PASS F1 killed (FAIL C21b long message: secret prefix not printed)
+PASS R2 killed (FAIL C20b gitea rc 3 with the token mid-line is a FAIL (exit 1) (got '5', want '1'))
+PASS R5 killed (FAIL temp files removed (8 left))
+PASS R6 killed (FAIL C20c gitea stderr temp file removed (4 left))
+PASS F6 killed (FAIL F6: no CHANGELOG.md at the base exits 3 (got 0))
+PASS N1 killed (FAIL C21c push stderr: no secret printed (raw @ and second URL included))
+PASS N2 killed (FAIL C21e the longest printed line is exactly the 400-byte cap (got '5000', want '400'))
+PASS N4 killed (FAIL F6: the refusal is the script's own line naming CHANGELOG.md)
+PASS P1 killed (FAIL C21c push stderr: no secret printed (raw @ and second URL included))
+PASS P2 killed (FAIL C21b long message: secret prefix not printed)
+PASS P3 killed (FAIL C21c push stderr: no secret printed (raw @ and second URL included))
+PASS P4 killed (FAIL curl stderr: no secret printed)
+PASS P5 killed (FAIL C21d exit-time stderr flush: no secret)
+PASS P6 killed (FAIL C24 no head -c in the three scripts (only rc_redact_cut cuts) (got '1', want '0'))
+PASS P7 killed (FAIL C21 userinfo not printed)
+PASS P8 killed (FAIL C21c (G8) no 'tag pushed only' after a failed push)
+PASS P9 killed (FAIL G1-class: the warning is printed, redacted (positive needle))
+PASS P10 killed (FAIL git stderr flushed redacted)
+RESULT: killed=32 survived=0 stale=0 control_failures=0
+
+== Census of print sites (§11.4.276(C)), scripts/release/{tag_and_release.sh,derive_release_facts.sh,render_release_entry.py,redact_cut.sh} and scripts/release_publish_gitea.sh
+Instrument: grep over the five files. Control needles: positive "PUSH %s failed" (a known print site) -> 1 hit in tag_and_release.sh, 0 elsewhere; negative fabricated token ZZNOSUCHTOKEN9 -> 0 hits in all five files.
+Sites that print EXTERNAL-command output (all through rc_redact_cut, redact first, then cut):
+  1  tag_and_release.sh  fetch failure message (git stderr), cut 400
+  2  tag_and_release.sh  push failure message (git stderr), cut 300          [G1]
+  3  tag_and_release.sh  gitea publisher refusal line (publisher stderr), cut 200
+  4  tag_and_release.sh  exit-time flush of every other external command's stderr (git tag, merge-base, show, rev-parse, ...), cut 2000
+  5  derive_release_facts.sh  exit-time flush of sqlite3 and git stderr, cut 2000
+  6  release_publish_gitea.sh  curl failure message (curl stderr), cut 300
+  7  release_publish_gitea.sh  exit-time flush of git/jq/awk stderr, cut 2000
+Sites that print only the scripts' OWN text (no external output): die/die_usage/abort/fail/gap/printf lines, the CHANGELOG-missing and tracker-query-failed lines (fd 3), render_release_entry.py die() (a Python string of its own).
+Not routed, stated: values read from data and printed on stdout as facts (derive: commit ids, tracker ids, shortstat, changelog heading cut -c1-120) are repository content, not command diagnostics; gh and glab output is discarded (>/dev/null 2>&1) in tag_and_release.sh, so nothing of it is printed.
+Static guard C24: no `head -c` in the three scripts; the helper holds the only one.
+
+== G2: pattern (://)[^/[:space:]]*@ is greedy up to the LAST @ before "/" or whitespace; H1 'user@host' without :// untouched, H2 raw @ in the password redacted in full, H3 two URLs, H4 URL without userinfo untouched. Honest limit: a password holding a raw "/" or whitespace ends the match early (git and curl percent-encode URLs; not seen in any message).

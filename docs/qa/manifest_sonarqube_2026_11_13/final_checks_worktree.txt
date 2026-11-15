@@ -1,0 +1,22 @@
+== verify-manifest 1
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=27 py/fixture=14 py/member=24 runall/entry=9 sh/entry=361 sh/excluded=26 sh/fixture=111 sh/member=313 total=905
+RESULT: MANIFEST-OK
+rc=0
+== verify-manifest 2
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=27 py/fixture=14 py/member=24 runall/entry=9 sh/entry=361 sh/excluded=26 sh/fixture=111 sh/member=313 total=905
+RESULT: MANIFEST-OK
+rc=0
+== gate
+CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row)
+CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <scratch>/constitution: manifest matches the census (905 census file(s))
+rc=0
+== generate_split --check
+check: reproducible (311 artifact(s), byte-identical)
+rc=0
+== gate ledger ratchet
+LEDGER: unimplemented=394 baseline=394 fails=0
+✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanished name
+rc=0
+== env-reads allowlist
+VERDICT: PASS CM-GATE-ENV-READS-ALLOWLISTED: gates=195 reads=171 guarded=54 allowlisted=117 uncovered=0 stale=0 needle=ok
+rc=0

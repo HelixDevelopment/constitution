@@ -1,0 +1,3 @@
+FAIL B5: MANIFEST-OK on a census total of 0 is BLIND: exit 0, want 2 — CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row) CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <tmp>/b5: manifest matches the census (0 census file(s)) 
+[mutation:manifest-complete] passed=12 failed=1
+gm5 rc=1

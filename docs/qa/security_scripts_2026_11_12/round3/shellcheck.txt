@@ -1,0 +1,12 @@
+# shellcheck 0.11.0 -S warning -x, 2026-11-12T20:40:16Z, tree 3d6339b3+working-changes
+file: scripts/security/forge_branch_protect.sh
+file: scripts/security/github_actions_inventory_disable.sh
+file: scripts/security/history_secret_scan.sh
+file: tests/security/test_forge_branch_protect.sh
+file: tests/security/test_github_actions_inventory_disable.sh
+file: tests/security/test_history_secret_scan.sh
+file: tests/security/test_security_scripts_mutations.sh
+file: tests/security/fixtures/bin/gh
+file: tests/security/fixtures/bin/curl
+file: tests/security/fixtures/bin/gitleaks
+rc=0

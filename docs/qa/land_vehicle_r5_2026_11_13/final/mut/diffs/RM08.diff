@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM08)
+@@ -757,7 +757,7 @@
+     printf 'land_vehicle: ERROR: git interpret-trailers failed (parse)\n' >&2; return 1; }
+   [ -n "$parsed" ] || return 0
+   for ((i = n - 1; i >= 1; i--)); do
+-    if [[ "${_l[i-1]}" =~ ^[[:space:]]*$ ]]; then MSG_BLOCK=$i; break; fi
++    if [[ "${_l[i-1]}" =~ ^$ ]]; then MSG_BLOCK=$i; break; fi
+   done
+ }
+ # strip_block_ri <message>: the message lines without the Roadmap-Item lines of its

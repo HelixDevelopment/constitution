@@ -10,6 +10,7 @@
 # Usage: bash tests/install/test_round8.sh   Exit 0 all pass · 1 a case failed · 2 env error.
 T_NAME=round8
 # shellcheck source=lib.sh
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 new_sandbox
 mkdir -p "$SB/up"; make_upstream "$SB/up" || exit 2
@@ -99,6 +100,46 @@ check "the commit was made by the resumed run" eval '[ "$(git -C "$P" rev-parse 
 upd "$P" --no-hook --commit; check "then nothing more to do" grep -q 'already up to date' <<<"$OUT"
 
 if [ "${R8_SKIP_CHAOS:-0}" != 1 ]; then
+drain_session() { # SID SECONDS -> 0 when no process of the session is left within SECONDS (polled every 0.1 s)
+  # The SESSION, not the process group: a member can sit in a group of its own inside the killed session (uutils
+  # `timeout` makes one, measured), and `kill -0 -- -PGID` does not see it. Only ps's OUTPUT decides (ps exits 1
+  # when nothing matches); a ps that cannot list sessions prints nothing, which the first needle below catches.
+  local s="$1" n=$(( $2 * 10 )) left
+  [[ "$s" =~ ^[0-9]+$ ]] && [ "$s" -gt 1 ] || return 0
+  while left="$(ps -s "$s" -o pid= 2>/dev/null)"; [ -n "$left" ]; do n=$((n-1)); [ "$n" -gt 0 ] || return 1; sleep 0.1; done
+}
+stale_index_locks() { # P -> index.lock files under P/.git that NO live process holds open (relative to P)
+  local P="$1" lf out="" holder
+  while IFS= read -r lf; do
+    [ -n "$lf" ] || continue
+    # one find over every fd link (a readlink per fd forks thousands of processes on a busy host); the sandbox path
+    # has no glob characters, so -lname matches it literally. Only find's OUTPUT decides: its status is non-zero
+    # whenever one /proc/<pid>/fd cannot be read (another user's process), and under this file's pipefail that
+    # status made `find ... | grep -q .` report every lock as stale, a held one included (needles below).
+    holder="$(find /proc/[0-9]*/fd -maxdepth 1 -lname "$lf" -print -quit 2>/dev/null)"
+    [ -n "$holder" ] || out="$out ${lf#"$P"/}"
+  done < <(find "$P/.git" -name index.lock 2>/dev/null)
+  printf '%s' "${out# }"
+}
+echo "# stale-lock probe control needles: a lock a live process holds is not stale, the same lock closed is"
+# the holder is a separate process (not this shell, whose descriptors the probe's own find would inherit)
+NL="$SB/needle_lock"; mkdir -p "$NL/.git"; : >"$NL/.git/index.lock"
+exec 8>"$NL/.git/index.lock"; sleep 60 & hp=$!; exec 8>&-
+eq "stale-lock probe: a lock held open by a live process is not reported" "" "$(stale_index_locks "$NL")"
+if [[ "$hp" =~ ^[0-9]+$ ]] && [ "$hp" -gt 1 ]; then kill "$hp" 2>/dev/null; wait "$hp" 2>/dev/null; fi
+eq "stale-lock probe: the same lock, closed, is reported" ".git/index.lock" "$(stale_index_locks "$NL")"
+echo "# drain_session control needles: a session whose leader is gone but a member lives is not drained, also when the member has a group of its own; once the members are gone it is"
+# the shape of the chaos loop: `wait` returns when the installer (the session leader) is gone, members can still run.
+# Not a group leader here, so setsid makes the bash its own session without a fork; the bash starts two members, one
+# in its group and one (set -m) in a group of its own, and exits.
+setsid bash -c 'sleep 60 & echo "$!" >"$1"; set -m; sleep 60 & echo "$!" >"$2"' _ "$NL/member.pid" "$NL/own_group.pid" & dp=$!
+wait "$dp" 2>/dev/null
+dm="$(cat "$NL/member.pid" 2>/dev/null)"; dg="$(cat "$NL/own_group.pid" 2>/dev/null)"
+check "drain_session: leader gone, two members alive -> not drained after 1 s" eval '! drain_session "$dp" 1'
+if [[ "$dm" =~ ^[0-9]+$ ]] && [ "$dm" -gt 1 ]; then kill "$dm" 2>/dev/null; fi
+check "drain_session: only the member in a group of its own alive -> not drained after 1 s" eval '! drain_session "$dp" 1'
+if [[ "$dg" =~ ^[0-9]+$ ]] && [ "$dg" -gt 1 ]; then kill "$dg" 2>/dev/null; fi
+check "drain_session: every member gone -> drained" drain_session "$dp" 5
 echo "# I-1 chaos on the UPDATE path: INT/TERM to the process group at many points of a real update, then a clean re-run converges"
 j=0; cut=0
 for sig in INT TERM; do
@@ -109,11 +150,30 @@ for sig in INT TERM; do
        setsid bash "$INSTALLER" "${BASE[@]}" >"$SB/u$j.log" 2>&1) &
     pid=$!; sleep "$delay"
     pgid="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')"
-    if [[ "$pgid" =~ ^[0-9]+$ ]] && [ "$pgid" -gt 1 ]; then kill -s "$sig" -- "-$pgid" 2>/dev/null; fi
+    # only the installer's OWN group (setsid made pid == pgid): read before setsid ran, pgid would be this test's
+    # group, and signalling it would hit the test itself (never seen: 0 of 200 probes at 0.05 s, but never assumed)
+    if [[ "$pgid" =~ ^[0-9]+$ ]] && [ "$pgid" -gt 1 ] && [ "$pgid" = "$pid" ]; then kill -s "$sig" -- "-$pgid" 2>/dev/null
+    elif [ -n "$pgid" ]; then echo "# update SIG$sig after ${delay}s: pgid $pgid is not the installer's own group (pid $pid): no signal sent"; fi
     wait "$pid" 2>/dev/null; rc1=$?; [ "$rc1" != 0 ] && cut=$((cut+1))
+    # `wait` returns when the installer itself is gone; members of its session (the delegated updater, a git child,
+    # a `timeout` with a group of its own) can still be exiting. A re-run started before they are gone meets their run
+    # lock (rc 3): drain the session first (bounded). setsid made the installer leader of its session, so sid == pid
+    # (also when pgid could not be read because the installer had already finished).
+    drain_session "$pid" 30 || nok "update SIG$sig after ${delay}s: killed session $pid still has processes after 30 s"
+    # git creates index.lock BEFORE it installs its signal cleanup handler (measured: openat(index.lock) precedes
+    # rt_sigaction(SIGTERM)); a signal in that window leaves a stale lock that no process holds. That is git's
+    # limitation, not the installer's: the re-run must then fail LOUDLY on the lock with nothing changed, and converge
+    # once the stale lock is removed as git's message instructs.
+    stale="$(stale_index_locks "$P")"
+    if [ -n "$stale" ]; then
+      g_before="$(gitlink "$P")"; run_installer "$P" "${BASE[@]}"
+      check "update SIG$sig after ${delay}s: stale git lock ($stale) -> re-run refuses loudly" eval '[ "$RC" != 0 ] && grep -q "index.lock" <<<"$OUT"'
+      eq "update SIG$sig after ${delay}s: stale git lock -> gitlink unchanged by the refused re-run" "$g_before" "$(gitlink "$P")"
+      for lf in $stale; do rm -f -- "${P:?}/${lf:?}"; done
+    fi
     run_installer "$P" "${BASE[@]}"
     if [ "$RC" = 0 ] && [ "$(gitlink "$P")" = "$VT" ] && [ "$(git -C "$P/submodules/constitution" rev-parse HEAD)" = "$VT" ]; then
-      ok "update SIG$sig after ${delay}s (first rc=$rc1): re-run converged to the new gitlink"
+      ok "update SIG$sig after ${delay}s (first rc=$rc1${stale:+, stale git lock removed first}): re-run converged to the new gitlink"
     else nok "update SIG$sig after ${delay}s (first rc=$rc1): re-run rc=$RC gitlink=$(gitlink "$P")"; printf '%s\n' "$OUT" | tail -6; fi
   done
 done

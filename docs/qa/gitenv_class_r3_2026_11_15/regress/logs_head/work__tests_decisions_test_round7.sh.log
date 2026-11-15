@@ -1,0 +1,70 @@
+== I-1: invalid UTF-8 typed at the TTY prompt never produces a traceback ==
+  PASS three invalid-UTF-8 answers end in a refusal (rc 4), not a crash
+  PASS …no traceback, no Python frame, no absolute repo path
+  PASS …the refusal is reported in the wizard's own words
+  PASS …each bad answer is refused as not valid UTF-8 text
+  PASS …the raw ESC byte of the answer is not echoed raw
+  PASS a bad answer then a valid one: the run completes (rc 0)
+  PASS …and no traceback
+  PASS an undecodable confirmation is a 'no' (rc 0, nothing written)
+  PASS …no traceback
+== I-1: every exception type reachable ends in ONE clean line, rc 1 (catch-all) ==
+  PASS UNIT-CLASS: 17 injected exception types + KeyboardInterrupt/Refused/Usage/hostile message/--help
+  PASS CLI fault ValueError: rc 1
+  PASS …stderr is exactly the internal-error line
+  PASS CLI fault KeyError: rc 1
+  PASS …stderr is exactly the internal-error line
+  PASS CLI fault UnicodeDecodeError: rc 1
+  PASS …stderr is exactly the internal-error line
+  PASS CLI fault RecursionError: rc 1
+  PASS …stderr is exactly the internal-error line
+  PASS CLI fault MemoryError: rc 1
+  PASS …stderr is exactly the internal-error line
+  PASS CLI fault OverflowError: rc 1
+  PASS …stderr is exactly the internal-error line
+  PASS CLI fault BrokenPipeError: rc 1
+  PASS …stderr is exactly the internal-error line
+  PASS UNIT-CLASS: sys.excepthook prints one clean line, never the message or a path
+  PASS static: the entry point installs the excepthook and calls run_cli (AST)
+== I-1: the TTY is opened tolerant of bad bytes (surrogateescape), statically ==
+  PASS static: /dev/tty is opened with errors=surrogateescape
+== M-1: gitmodules_paths vs REAL git: a permanent differential over a corpus, with control needles ==
+  PASS engine == real git on the whole corpus (control needles included)
+      | cases=47 git_errors=4 diffs=0
+  PASS a doc under a BOM-headed .gitmodules path is refused (rc 3) (rc=3)
+  PASS …and under a legacy [submodule.v] section (rc 3) (rc=3)
+== M-2: unsafe characters are escaped by Unicode category ==
+  PASS UNIT-CLASS: Cc/Cf/Cs/Co/Cn/Zl/Zp escaped, ordinary text and emoji kept
+  PASS a foreign refusal naming a path with U+200B and U+E0041 (rc=3)
+  PASS …the zero-width characters are not in stderr (escaped instead)
+== M-3: user backups are namespaced by their source file ==
+  PASS two user files in one directory keep their own bounded backups (2 + 2)
+  PASS …the file names carry a per-source tag
+  PASS …each tag holds only its own source's earlier content (a.yml keeps 0.92/0.93, b.yml keeps 0.96/0.97; the oldest 0.91/0.95 are pruned)
+  PASS a file name with odd characters gets a safe tag
+== M-4: R13 write-time foreign re-check (target moved into another repository after validation) ==
+  PASS the doc write is refused at the last moment (rc 3)
+  PASS …x.md was not written into the new repository
+  PASS …the message names the foreign target
+== M-4: R21 a key-shaped resolved path is never shown by a refusal ==
+  PASS a doc symlink into a key-named foreign directory (rc=3)
+  PASS …the token-shaped directory name is not echoed
+  PASS …and the refusal says so without showing it (target path looks like key material)
+  PASS UNIT-CLASS: Project.rel hides a key-shaped path, keeps ordinary paths, rel_own stays plain
+== M-5: the AST bypass scan covers every output route; argparse goes through the emitter ==
+  PASS static: no print/getattr(sys)/os.write(1|2)/traceback/logging/warnings/pprint bypass (needles included)
+  PASS UNIT-CLASS: --help (also mid-args), usage and argparse errors reach no raw stream, only the emitter
+  PASS CLI: --help mid-args exits 0 with clean usage text
+== M-6: backup directories are opened without following links and used by descriptor ==
+  PASS user backup: a base swapped for a symlink before it is opened is refused (rc 3)
+  PASS …the victim directory mode is unchanged (no chmod through the link)
+  PASS …nothing was written into the victim
+  PASS user backup: a base swapped after tightening is refused (rc 3)
+  PASS …nothing was written into the victim
+  PASS …and the real backup directory holds no half-made copy
+  PASS project backup: a base swapped for a symlink before it is opened is refused (rc 3)
+  PASS …the victim is untouched (mode and content)
+  PASS project backup: a base swapped after tightening is refused (rc 3)
+  PASS …the victim is untouched
+  PASS static: tighten/listing/creation use a descriptor opened with O_NOFOLLOW (AST)
+test_round7: pass=58 fail=0

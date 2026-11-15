@@ -1,0 +1,36 @@
+commit: bd0036bdcd800a10157cdcc77af91f964708076c
+## positive control: 'CON-110' must be found in docs/Issues.md
+bd0036bd:docs/Issues.md:7
+## tracked text (git grep -i -F, COMMIT, docs CHANGELOG.md README.md, not docs/qa/installer_sigpipe_2026_11_13)
+tests/install/test_round8  
+test_round8                CHANGELOG.md docs/Issues.md docs/Issues_Summary.md docs/workable_items.db 
+round8                     CHANGELOG.md docs/Issues.md docs/Issues_Summary.md docs/qa/fixu_default_tier/u10_round8/GREEN.out docs/qa/fixu_default_tier/u10_round8/RED_no_gitignore.out docs/qa/fixu_default_tier/u10_round8/debug_porcelain.out docs/qa/fixu_review/review_fixu_r1.md docs/workable_items.db 
+re-run race                
+rerun race                 
+timeout --foreground       docs/Issues.md docs/Issues_Summary.md docs/design/extension_engine_ownership_redesign.md docs/faq/extensions_faq.md docs/manuals/extensions_manual.md docs/workable_items.db 
+SIGTERM chaos              
+installer flake            
+installer-flake            
+git lock                   docs/amendment-log/status-summary-agents.md docs/amendment-log/status-summary-claude.md docs/amendment-log/status-summary-constitution.md docs/amendment-log/status-summary-gemini.md docs/amendment-log/status-summary-qwen.md 
+index.lock                 docs/amendment-log/status-summary-constitution.md docs/guides/installer_user_guide.md docs/research/reactive_submodule_sync/DESIGN.md 
+## docs/workable_items.db items (title or description LIKE %phrase%)
+control: 1 row for CON-110 (must be 1)
+install/test_round8    
+test_round8.sh         
+test_round8            CON-127 
+SIGTERM                CON-082 CON-128 CON-138 CON-142 
+process group          CON-162 
+flake                  CON-293 
+INSTALLER-SIGPIPE      
+re-run                 CON-045 CON-292 CON-293 
+## titles of every item hit above
+CON-045 | Queued | re-run Sonnet-reviewed independent reviews on Opus-xhigh (§11.4.209)
+CON-082 | Queued | tests/layout/test_generator_atomic.sh SIGTERM legs (4) and (10e) give different verdicts on the same committed file (nondeterministic, cause
+CON-110 | Queued | ownership wave 2 FU (round 4 N1): on budget expiry timeout --foreground signals only the engine, not its git children
+CON-127 | In progress | test_round8_git_env CM-2/CM-3 fail: fixture copy lacks .gitignore, hook leaves scripts/deps_manifest/__pycache__ untracked
+CON-128 | In progress | multitrack supervisor watch left its sleep child running after SIGTERM, and its wiring test checked orphans by the parent pid only
+CON-138 | Queued | Supervisor wiring test sends only SIGTERM, not SIGINT or SIGHUP (F120-1, N120-1..3)
+CON-142 | Queued | C2a mutants harness leaks its temp tree on SIGTERM under dash because it traps EXIT only (F099-8, N099-2, N099-4)
+CON-162 | Ready for testing | fsfix6 review nits: census timeout kill misses timeout's process groups, ledger KILLED-key staleness, porcelain git diff in stash_index_unpa
+CON-292 | Queued | full-suite runner: the resume context omits --timeout and the --env-extra variables, so a changed timeout or variable value reuses an earlie
+CON-293 | Queued | full-suite runner self-test: one run lost files from its own mktemp tree mid-run (8 FAIL, cause unknown, re-run passed)

@@ -1,0 +1,2 @@
+CAUGHT	O68_funsub_unquoted	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING ${ command; } substitution (bash 5.3): a command list inside a parameter expansion: fx.sh:3 in - | x=$
+CAUGHT	O69_valuesub_unquoted	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING ${ command; } substitution (bash 5.3): a command list inside a parameter expansion: fx.sh:3 in - | x=$

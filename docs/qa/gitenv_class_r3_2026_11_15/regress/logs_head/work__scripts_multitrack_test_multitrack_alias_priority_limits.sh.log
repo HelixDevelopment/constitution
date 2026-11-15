@@ -1,0 +1,7 @@
+PASS: RED[it1]: mutated-rank promote LEFT track-1 on provider 'deepseek' (native NOT preferred) — defect reproduced
+PASS: RED[it2]: mutated-rank promote LEFT track-1 on provider 'deepseek' (native NOT preferred) — defect reproduced
+PASS: RED[it3]: mutated-rank promote LEFT track-1 on provider 'deepseek' (native NOT preferred) — defect reproduced
+PASS: determinism: 3/3 iterations byte-identical (RED_MODE=1)
+
+== alias-priority+limits test (RED_MODE=1): PASS == PASS=4 FAIL=0
+Evidence: <scratch>/qa-results/multitrack_alias_priority_limits/20261115T011829Z

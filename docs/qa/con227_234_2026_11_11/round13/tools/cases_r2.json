@@ -1,0 +1,118 @@
+[
+ {
+  "name": "R06_allow_exec_comment",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nbash -c 'git fetch origin' # bash scripts/release_publish_gitea.sh\n",
+  "script": "tag_and_release.sh"
+ },
+ {
+  "name": "R07_allow_exec_same_line",
+  "body": "#!/usr/bin/env bash\nrc_net git status\necho bash scripts/release_publish_gitea.sh; bash -c 'git fetch origin'\n",
+  "script": "tag_and_release.sh"
+ },
+ {
+  "name": "R14_set_a_bash_env",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nset -a\n: \"${BASH_ENV:=$PWD/evil.sh}\"\nbash scripts/release_publish_gitea.sh\n",
+  "script": "tag_and_release.sh",
+  "files": {
+   "scripts/release_publish_gitea.sh": "#!/bin/bash\n:\n",
+   "evil.sh": "git fetch origin\n"
+  }
+ },
+ {
+  "name": "R24_getopts_dashdash_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ngetopts -- ab PATH -a\ncat /dev/null\n",
+  "files": {
+   "a/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R25_let_comma_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nlet 'x=1,PATH=0'\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R26_declare_i_value_assigns_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ndeclare -i x=PATH=0\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R30_subscript_assigns_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\na[PATH=0]=1\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R32_arith_expansion_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n: $((PATH=0))\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R33_cond_eq_assigns_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n[[ 1 -eq PATH=0 ]]\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R42_set_k_PATH_in_args",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nset -k\ncat PATH=\"$PWD/evil\" /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R27_cond_eq_literal_subscript",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n[[ 'a[$(git fetch origin)]' -eq 0 ]]\n"
+ },
+ {
+  "name": "R28_int_var_literal_assignment",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ndeclare -i n\nn='a[$(git fetch origin)]'\n"
+ },
+ {
+  "name": "R29_cond_v_literal_subscript",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n[[ -v 'a[$(git fetch origin)]' ]]\n"
+ },
+ {
+  "name": "R31_gawk_inet_via_v",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk -v f=/inet/tcp/0/127.0.0.1/@PORT@ 'BEGIN { print \"x\" > f; close(f) }'\n",
+  "listen": true
+ },
+ {
+  "name": "R43_heredoc_delim_paren_in_comsub",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nx=$(cat <<EOF\nhi\nEOF)\ngit fetch origin\n"
+ },
+ {
+  "name": "R93_ctrl_ansi_c_command_word",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n$'\\x67it' fetch origin\n"
+ },
+ {
+  "name": "R94_ctrl_dev_tcp",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexec 3<>/dev/tcp/127.0.0.1/@PORT@\n",
+  "listen": true
+ },
+ {
+  "name": "R95_ctrl_printf_v_separate_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nprintf -v PATH %s \"$PWD/evil\"\ncat /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R96_ctrl_sed_e_command",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nsed '1e git fetch origin' /dev/null\nprintf 'a\\n' | sed '1e git fetch origin'\n"
+ },
+ {
+  "name": "R97_ctrl_prefix_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nPATH=\"$PWD/evil\" cat /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ }
+]

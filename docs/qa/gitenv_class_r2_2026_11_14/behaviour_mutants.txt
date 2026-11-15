@@ -1,0 +1,14 @@
+KILLED	M1	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	M2	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	M3	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	M4	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	M5	census_rc=2	census_rc=-	git-env-class-census: BLIND - no CL_GIT_SCRUB_VARS list holding GIT_DIR and GIT_INDEX_FILE in /mnt/DATA1TB/claude-work/s
+KILLED	M7	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	M8	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	M9	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	N2	census_rc=2	census_rc=-	git-env-class-census: BLIND - the canonical list CL_GIT_SCRUB_VARS holds the discovery limit GIT_CEILING_DIRECTORIES (it
+KILLED	N3	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	N4	census_rc=1	census_rc=-	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	M6	census_rc=0	fast_rc=1	git-env-class-census: PASS - members=133 hermetic=130 exempt=3 unscrubbed=0
+KILLED	N1	census_rc=1	fast_rc=1	git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1
+KILLED	N5	census_rc=0	manifest_rc=1	git-env-class-census: PASS - members=133 hermetic=130 exempt=3 unscrubbed=0

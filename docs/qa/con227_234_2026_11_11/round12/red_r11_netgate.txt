@@ -1,0 +1,58 @@
+OK    CTRL_NEG_clean                     want_rc=0 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK    CTRL_POS_plain_curl                want_rc=1 rc=1 :: FINDING network command outside rc_net: CTRL_POS_plain_curl.sh:3 curl (via -) | curl -s https://h.invalid/x | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    CTRL_POS_plain_git                 want_rc=1 rc=1 :: FINDING network command outside rc_net: CTRL_POS_plain_git.sh:3 git (via -) | git fetch origin | NETGATE invocations=2 network_through_rc_net=1 findings=1
+MISS  G01_coproc                         want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G02_dq_cmdword                     want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G03_sq_cmdword                     want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G04_backslash_cmdword              want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK    G05_awk_multiline_system           want_rc=1 rc=1 :: FINDING unclassified command (default deny): G05_awk_multiline_system.sh:6 file | ' file | NETGATE invocations=3 network_through_rc_net=1 findings=1
+MISS  G05b_awk_multiline_system_stdin    want_rc=1 rc=0 :: NETGATE invocations=2 network_through_rc_net=1 findings=0
+OK    G05c_awk_oneline_system            want_rc=1 rc=1 :: FINDING awk program that can run a command: G05c_awk_oneline_system.sh:3 | printf 'x\n' | awk '{ system("curl -s https://h.invalid/" $0) }' | NETGATE invocations=2 network_through_rc_net=1 findings=1
+MISS  G06_sed_e_cmd                      want_rc=1 rc=0 :: NETGATE invocations=2 network_through_rc_net=1 findings=0
+MISS  G07_sed_s_e_flag                   want_rc=1 rc=0 :: NETGATE invocations=2 network_through_rc_net=1 findings=0
+MISS  G08_sort_compress_prog             want_rc=1 rc=0 :: NETGATE invocations=2 network_through_rc_net=1 findings=0
+MISS  G09_sqlite_system                  want_rc=1 rc=0 :: NETGATE invocations=2 network_through_rc_net=1 findings=0
+MISS  G10_absent_netcmd_aria2c           want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G11_command_p                      want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G12_time_p                         want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G13_trap_sq                        want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G14_trap_dq                        want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G15_alias                          want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G16_relative_path                  want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK    G17_abs_path_git                   want_rc=1 rc=1 :: FINDING unclassified command (default deny): G17_abs_path_git.sh:3 /usr/bin/git | /usr/bin/git fetch origin | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G18_wget                           want_rc=1 rc=1 :: FINDING network command outside rc_net: G18_wget.sh:3 wget (via -) | wget -q https://h.invalid/x | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G19_jq_free                        want_rc=0 rc=0 :: NETGATE invocations=2 network_through_rc_net=1 findings=0
+MISS  G20_heredoc_to_awk_system          want_rc=1 rc=0 :: NETGATE invocations=2 network_through_rc_net=1 findings=0
+OK    G21_git_via_gitdashcmd             want_rc=1 rc=1 :: FINDING unclassified command (default deny): G21_git_via_gitdashcmd.sh:3 git-upload-pack | git-upload-pack /x | NETGATE invocations=2 network_through_rc_net=1 findings=1
+MISS  G22_python_via_absent_name         want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G23_cmd_after_redirection          want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G24_fd_redirect_prefix             want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G25_env_assign_then_quoted         want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK    G26_brace_group_newline            want_rc=1 rc=1 :: FINDING network command outside rc_net: G26_brace_group_newline.sh:4 git (via -) | git fetch origin | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G27_case_inline                    want_rc=1 rc=1 :: FINDING network command outside rc_net: G27_case_inline.sh:3 git (via -) | case x in x) git fetch origin;; esac | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G28_rcnet_tempenv_secret           want_rc=0 rc=0 :: NETGATE invocations=2 network_through_rc_net=2 findings=0
+OK    G29_xargs_git                      want_rc=1 rc=1 :: FINDING interpreter or exec wrapper not on the allow-list: G29_xargs_git.sh:3 xargs (via -) | printf 'origin\n' | xargs git fetch | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G30_env_git                        want_rc=1 rc=1 :: FINDING interpreter or exec wrapper not on the allow-list: G30_env_git.sh:3 env (via -) | env git fetch origin | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G31_nice_git                       want_rc=1 rc=1 :: FINDING interpreter or exec wrapper not on the allow-list: G31_nice_git.sh:3 nice (via -) | nice git fetch origin | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G32_timeout_git                    want_rc=1 rc=1 :: FINDING network command outside rc_net: G32_timeout_git.sh:3 timeout (via -) | timeout 10 git fetch origin | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G33_exec_git                       want_rc=1 rc=1 :: FINDING network command outside rc_net: G33_exec_git.sh:3 git (via exec) | exec git fetch origin | FINDING network command outside rc_net: G33_exec_git.sh:3 git (via -) | exec git fetch origin | NETGATE invocations=3 net
+OK    G34_builtin_command_git            want_rc=1 rc=1 :: FINDING network command outside rc_net: G34_builtin_command_git.sh:3 git (via -) | builtin command git fetch origin | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G35_eval_git                       want_rc=1 rc=1 :: FINDING eval: G35_eval_git.sh:3 in - | eval 'git fetch origin' | NETGATE invocations=1 network_through_rc_net=1 findings=1
+MISS  G36_var_cmd                        want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK    G37_bash_c                         want_rc=1 rc=1 :: FINDING interpreter or exec wrapper not on the allow-list: G37_bash_c.sh:3 bash (via -) | bash -c 'git fetch origin' | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G38_ssh                            want_rc=1 rc=1 :: FINDING network command outside rc_net: G38_ssh.sh:3 ssh (via -) | ssh h.invalid true | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G39_subst_in_dq                    want_rc=1 rc=1 :: FINDING network command outside rc_net: G39_subst_in_dq.sh:3 git (via -) | x="$(git fetch origin)" | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G40_bare_glab                      want_rc=1 rc=1 :: FINDING network command outside rc_net: G40_bare_glab.sh:3 glab (via -) | glab release view x | NETGATE invocations=2 network_through_rc_net=1 findings=1
+OK    G41_bare_gh                        want_rc=1 rc=1 :: FINDING network command outside rc_net: G41_bare_gh.sh:3 gh (via -) | gh api repos/x | NETGATE invocations=2 network_through_rc_net=1 findings=1
+MISS  G42_bare_socat                     want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G43_bare_lftp                      want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G44_dq_var_cmd                     want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+MISS  G45_curl_after_redir               want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=1 findings=0
+OK    REAL_SCRIPTS                       want_rc=0 rc=0 :: NETGATE invocations=128 network_through_rc_net=51 findings=0
+MISS  RM30                               want_rc=1 rc=0 :: NETGATE invocations=128 network_through_rc_net=51 findings=0
+MISS  RM30b                              want_rc=1 rc=0 :: NETGATE invocations=128 network_through_rc_net=51 findings=0
+MISS  RM31                               want_rc=1 rc=0 :: NETGATE invocations=128 network_through_rc_net=51 findings=0
+MISS  RM32                               want_rc=1 rc=0 :: NETGATE invocations=128 network_through_rc_net=51 findings=0
+OK    RM33                               want_rc=1 rc=1 :: FINDING network command outside rc_net: tag_and_release.sh:196 git (via -) | git fetch -q --no-tags "$r" refs/heads/main >/dev/null 2>&1 || : | NETGATE invocations=129 network_through_rc_net=51 findings=1
+OK    RM34                               want_rc=1 rc=1 :: FINDING unclassified command (default deny): tag_and_release.sh:196 /usr/bin/git | /usr/bin/git fetch -q --no-tags "$r" refs/heads/main >/dev/null 2>&1 || : | NETGATE invocations=129 network_through_rc_net=51 findings=1
+SUMMARY cases=57 expected=27 unexpected=30

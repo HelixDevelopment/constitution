@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""apply_scrub.py <repo> <census.tsv> <exempt-paths-file>
+Inserts the canonical git-env-hermetic line into every UNSCRUBBED sh/py member of the census that is
+not listed in the exempt-paths file. Shell: right before the first line that is neither the shebang,
+a comment nor blank. Python: after the module docstring and any `from __future__` import (else after
+the leading comment block). Prints one line per edit. Refuses (exit 2) when a file already carries
+a `_ge_v` loop."""
+import ast, re, sys, os
+repo, census, exf = sys.argv[1:4]
+lib = open(os.path.join(repo, "scripts/lib/constitution_layout.sh"), encoding="utf-8").read()
+canon = re.search(r'^CL_GIT_SCRUB_VARS="([^"]+)"', lib, re.M).group(1)
+NOTE = "git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)"
+SH_LINE = 'for _ge_v in %s; do unset "$_ge_v"; done; unset _ge_v  # %s\n' % (canon, NOTE)
+PY_LINES = 'import os as _ge_os  # %s\nfor _ge_v in "%s".split(): _ge_os.environ.pop(_ge_v, None)\n' % (NOTE, canon)
+exempt = {l.strip() for l in open(exf) if l.strip() and not l.startswith("#")}
+edits = 0
+for row in open(census):
+    c = row.rstrip("\n").split("\t")
+    if len(c) < 3 or c[0] != "UNSCRUBBED" or c[2] in exempt or c[1] not in ("sh", "py"):
+        continue
+    path = os.path.join(repo, c[2])
+    src = open(path, encoding="utf-8").read()
+    if "_ge_v" in src:
+        print("REFUSE already has _ge_v:", c[2]); sys.exit(2)
+    lines = src.split("\n")
+    if c[1] == "sh":
+        i = 0
+        while i < len(lines) and (lines[i].strip() == "" or lines[i].lstrip().startswith("#")):
+            i += 1
+        lines.insert(i, SH_LINE.rstrip("\n"))
+    else:
+        tree = ast.parse(src)
+        after = 0
+        body = tree.body
+        k = 0
+        if body and isinstance(body[0], ast.Expr) and isinstance(getattr(body[0], "value", None), ast.Constant) and isinstance(body[0].value.value, str):
+            after = body[0].end_lineno; k = 1
+        while k < len(body) and isinstance(body[k], ast.ImportFrom) and body[k].module == "__future__":
+            after = body[k].end_lineno; k += 1
+        i = after
+        if after == 0:
+            while i < len(lines) and (lines[i].strip() == "" or lines[i].lstrip().startswith("#")):
+                i += 1
+        for j, l in enumerate(PY_LINES.rstrip("\n").split("\n")):
+            lines.insert(i + j, l)
+        ast.parse("\n".join(lines))  # must still parse
+    open(path, "w", encoding="utf-8").write("\n".join(lines))
+    edits += 1
+    print("EDIT %s line %d" % (c[2], i + 1))
+print("edits=%d" % edits)

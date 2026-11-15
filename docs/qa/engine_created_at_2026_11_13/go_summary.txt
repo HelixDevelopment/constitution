@@ -1,0 +1,12 @@
+go: go version go1.26.4 linux/amd64
+date -u: 2026-11-13T21:15:53Z
+go vet exit=0
+run1 exit=0
+run1 FAIL=0 SKIP=6 PASS=636 total=642
+ok  	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	100.980s
+run2 exit=0
+run2 FAIL=0 SKIP=6 PASS=636 total=642
+ok  	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	91.125s
+VERDICTS_IDENTICAL
+152cd673a275737e808e5c66171ac250e1ceef06ff8922e74b7dba11bcec0fce  <scratch>/green_final/verdicts1.txt
+152cd673a275737e808e5c66171ac250e1ceef06ff8922e74b7dba11bcec0fce  <scratch>/green_final/verdicts2.txt

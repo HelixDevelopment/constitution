@@ -1,0 +1,16 @@
+PASS L4 the SIGHUP detector sees an ignored and a not ignored SIGHUP (control needles)
+PASS C43 the listener got the Basic header of the credential helper (control needle)
+PASS C43 a transport helper was sampled (control needle)
+PASS C43 the environments of the descendants were read (control needle)
+PASS C43 no descendant argv holds the password
+FAIL C43 no child the script started holds a caller token or header value in its environment (got '18', want '0')
+PASS C43 children of the script were checked (control needle)
+PASS C43 the instrument sees a token in an environment (positive needle: the sleep 1.43 child of the wrapper)
+PASS C43 the re-executed tag script was sampled (control needle)
+PASS C43 the re-executed tag script has an empty environment
+PASS C43 the hung authenticated fetch ends at the deadline: exit 1
+PASS C43 no git process of the run is left
+OFFENDER ppid=368035 argv=['/bin/sh', '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/fix227_r14.zTVh/repro/shim/git', '-C', '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/fix227_r14.zTVh/tmp/tar_test.mXeofV/c43/w', 'remote', 'set-url'] names=['GH_TOKEN', 'M3W_GITEA_TOKEN', 'XYZ_TOKEN', 'GIT_CONFIG_VALUE_0', 'GITLAB_TOKEN', '_rpg_tok']
+OFFENDER ppid=368974 argv=['sleep', '0.6'] names=['GH_TOKEN', 'M3W_GITEA_TOKEN', 'XYZ_TOKEN', 'GIT_CONFIG_VALUE_0', 'GITLAB_TOKEN', '_rpg_tok']
+OFFENDER ppid=368035 argv=['/usr/bin/git', '-C', '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/fix227_r14.zTVh/tmp/tar_test.mXeofV/c43/w', 'remote', 'set-url', 'r1'] names=['GH_TOKEN', 'M3W_GITEA_TOKEN', 'XYZ_TOKEN', 'GIT_CONFIG_VALUE_0', 'GITLAB_TOKEN', '_rpg_tok']
+RESULT: pass=11 fail=1

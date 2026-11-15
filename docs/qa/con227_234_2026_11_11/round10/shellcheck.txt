@@ -1,0 +1,2 @@
+# shellcheck version: 0.11.0 -S warning
+shellcheck rc=0

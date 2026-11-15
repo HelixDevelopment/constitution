@@ -1,0 +1,6 @@
+RED_MODE=1  REPO_ROOT=<scratch>  EV=<scratch>/qa-results/multitrack/rb08_test_2026-11-15T01-18-30Z-1153880
+PASS: RED(A): register.sh absent on disk -> simulated constitution-pull dispatch did NOT invoke bootstrap (cwd-hook symlink never created) [evidence: <scratch>/qa-results/multitrack/rb08_test_2026-11-15T01-18-30Z-1153880]
+PASS: RED(B): strawman bootstrap's per-run timestamp marker DIFFERED across two runs (non-idempotent defect genuinely reproduced: 1794705510684289933 != 1794705510748499051) [evidence: <scratch>/qa-results/multitrack/rb08_test_2026-11-15T01-18-30Z-1153880]
+
+RED_MODE=1  PASS=2 FAIL=0 SKIP=0
+Evidence: <scratch>/qa-results/multitrack/rb08_test_2026-11-15T01-18-30Z-1153880

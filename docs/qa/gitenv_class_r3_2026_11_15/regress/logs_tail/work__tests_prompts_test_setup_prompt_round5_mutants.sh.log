@@ -1,0 +1,35 @@
+PASS killed S1-EXCL-CLOBBER by R5:STEP1: FAIL STEP1 exclude rc=0: .constitution-install-backup/|
+PASS killed S1-NOCHMOD by R5:STEP1: FAIL STEP1 backup root mode 755
+PASS killed S4-NODIRTY by STOPS:S4-NODIRTY: FAIL S4-NODIRTY (STEP4): rc=0 want=3; last line: legacy path migrated
+PASS killed S4-NOUNPUSHED by STOPS:S4-NOUNPUSHED: FAIL S4-NOUNPUSHED (STEP4): rc=0 want=3; last line: legacy path migrated
+PASS killed S3-NOEXIST by STOPS:S3-EXISTS: FAIL S3-EXISTS (STEP3): rc=3 want=3; last line: STOP: no constitution mirror is reachable (or every one carrie
+PASS killed S3-RRUN-RC0 by R5:RRUN: FAIL RRUN STEP3: see https://***@h.invalid/x|rc=0|
+PASS killed S5-FETCHOK by STOPS:S5-FETCHOK: FAIL S5-FETCHOK (STEP5): rc=0 want=3; last line: f575fb1 c2
+PASS killed S6B-RC by STOPS:S6B-RC: FAIL S6B-RC (STEP6B): rc=0 want=3; last line: check-only: OK
+PASS killed R-NOG by R5:REDACT: FAIL REDACT identity: 14 lines redact, 1 canonical:     git -C submodules/constitution ls-remote --tags --refs
+PASS killed O01-CREDRX-HTTP by R5:CRED: FAIL CRED STEP3: 7 skipped lines, want 8
+PASS killed O02-CREDRX-SCP by R5:CRED: FAIL CRED STEP3: 7 skipped lines, want 8
+PASS killed O03-STEP3-NOSKIP by R5:CRED: FAIL CRED STEP3: 10 mirrors tried, want 2 (a credential URL was contacted): unreachable: https://***@example.i
+PASS killed O04-GMCRED-NEVER by R5:CRED: FAIL CRED STEP2 form 0 not refused rc=0: checkout OK: submodules/constitution
+PASS killed O05-STEP7A-NOSCP by R5:CRED: FAIL CRED STEP7A form 3 rc=0 (staged or not refused)
+PASS killed O06-REDACT-NOSCP by R5:REDACT: FAIL REDACT 'user:R5_DECOY_TOKEN_77@h.invalid:o/x.git' -> 'user:R5_DECOY_TOKEN_77@h.invalid:o/x.git' (want '**
+PASS killed O07-REDACT-SCP-NOG by R5:REDACT: FAIL REDACT 'a:R5_DECOY_TOKEN_77@h.invalid:o b:R5_DECOY_TOKEN_77@k.invalid:p' -> '***@h.invalid:o b:R5_DECOY_T
+PASS killed O08-HDR-LSREMOTE-RAW by R5:REDACT: FAIL REDACT class (18 units): unredacted remote unit(s):
+PASS killed O09-STEP4G-GREP-RAW by R5:REDACT: FAIL REDACT class (18 units): unredacted remote unit(s):
+PASS killed O10-BOOT-NOSHADOW by R5:BOOT: FAIL BOOT latest.md: JEV_BOOTSTRAP_MODE=UNSET JEV_BOOTSTRAP_AGENTS=UNSET JEV_BOOTSTRAP_CONSENT=UNSET JEV_BOOTS
+PASS killed O11-FU02-AGENTS-KEPT by R5:BOOT: FAIL BOOT 02_wire_decision_layer_optional.md: JEV_BOOTSTRAP_MODE=shadow JEV_BOOTSTRAP_AGENTS=claude JEV_BOOTST
+PASS killed O12-STEP1-TOKEN-COPIED by R5:SECRETS: FAIL SECRETS STEP1 rc=0 copied: .claude/settings.json .claude/sub/API_TOKEN .claude/sub/my_token.txt skills/x/
+PASS killed O13-STEP4G-SECRET-CASE by R5:SECRETS: FAIL SECRETS STEP4G counted: .claude/sub/gh-Secret.yml plain.md skills/x/gh-Secret.yml 
+PASS killed O14-UNPUSHED-LOCALTAGS by R5:UNPUSHED: FAIL UNPUSHED local-tag commit counted as pushed
+PASS killed O15-UNPUSHED-DEAD-OK by R5:UNPUSHED: FAIL UNPUSHED dead remote rc=0
+PASS killed O16-REGEX-LEADZERO by R5:REGEX: FAIL REGEX copies: latest=4 fu01=1 distinct='^helixconstitution-v(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$' '^helix
+PASS killed O17-FU01-REGEX-OLD by R5:REGEX: FAIL REGEX copies: latest=5 fu01=0 distinct='^helixconstitution-v(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$' '^helix
+PASS killed O18-WORDING-FIVE by R5:WORDING: FAIL WORDING 'five hosts' still present
+PASS killed O19-STEP1-CHMOD-TOO-LATE by R5:STEP1: FAIL STEP1 backup root mode 755
+PASS killed O20-AL-UNKNOWN-WORD-OK by R5:ALLOW: FAIL ALLOW bypass forms rc=1: MISS block rc=0: command git push --force origin main
+PASS killed O21-AL-C-ANYWHERE by R5:ALLOW: FAIL ALLOW bypass forms rc=1: MISS block rc=0: git -C /other/dir push --recurse-submodules=no $r HEAD:refs/hea
+PASS killed O22-AL-NEG-WINDOW by R5:ALLOW: FAIL ALLOW PROSE-NEG missed (rc=0): Then git push --force the result to every remote.
+PASS equivalent O23-AL-PUSH-PLUS (precondition holds: the single push pattern is literal: r"push --recurse-submodules=no \$r HEAD:refs/heads/main",)
+PASS killed O24-FU01-V3-STDERR-RAW by R5:REDACT: FAIL REDACT class (18 units): unredacted remote unit(s):
+MUTANTS killed=32 survived=0 equivalent=1
+RESULT: round5_mutants pass=33 fail=0 skip=0

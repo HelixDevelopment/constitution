@@ -1,0 +1,128 @@
+=== test_publish_gitea (RED: round-6 tests, round-5 scripts of 9cd1539a), 2026-11-11T23:50:14+01:00, private TMPDIR, one suite at a time
+PASS missing token -> SKIPPED-NO-TOKEN rc=3
+PASS create
+PASS notes = exactly the tag's section (no vNEXT, no other tag)
+PASS flags and tag sent
+PASS re-run updates
+PASS PATCH goes to /releases/<id>
+PASS flags last-write-wins
+PASS bad token -> rc=4
+PASS token not echoed (control: server rejected with 401 above)
+PASS unsafe tag refused
+PASS missing tag refused
+PASS base URL refused: http://evil.example
+PASS base URL refused: http://localhost:@example.invalid
+PASS base URL refused: http://127.0.0.1:1@example.invalid
+PASS base URL refused: http://127.0.0.1:80/x
+PASS base URL refused: https://user@host.example
+PASS trailing --tag does not hang (rc 2)
+PASS trailing --repo does not hang (rc 2)
+PASS repo dot segments refused
+PASS hostile/short token refused
+PASS hostile/short token refused
+PASS hostile/short token refused
+PASS no changelog -> refused
+PASS no matching section -> refused (never publishes Unreleased)
+PASS --generic-notes
+PASS 200 KB notes publish (no argv limit)
+PASS big body delivered intact
+PASS dry-run names the target
+PASS argv instrument sees the request (control needle found)
+PASS token absent from curl argv
+PASS curl runs with -q (no curlrc)
+PASS no redirects, protocol allow-list
+PASS curl failure reported (control, rc 4)
+PASS curl stderr: no secret printed
+PASS curl failure: exit status and reason class printed (positive needle)
+PASS curl stderr: no byte of curl's message printed
+PASS git warning does not fail the run (control)
+PASS git stderr flushed redacted (positive needle)
+PASS git stderr: no secret printed
+PASS run dir census: success run (control rc 0)
+PASS run dir is created under TMPDIR (control needle)
+PASS nothing left in TMPDIR after a success
+PASS nothing left in TMPDIR after a curl failure (err.out removed)
+PASS nothing left in TMPDIR after a refusal
+PASS TERM: the publisher ends through its trap (rc 143)
+PASS TERM: nothing left in TMPDIR
+PASS TERM: no secret printed
+PASS HUP: the publisher ends through its trap (rc 129)
+PASS HUP: nothing left in TMPDIR
+PASS HUP: no secret printed
+PASS non-numeric created id refused (rc 4)
+PASS server-controlled id not printed
+PASS Authorization header value not printed
+PASS the failure is reported by exit status and class (positive needle)
+PASS no byte of the header line is printed
+PASS curl reads its config from stdin (-K -)
+PASS the token reaches curl on stdin (control needle)
+PASS the TMPDIR census read files during the run (control needle)
+PASS no file under TMPDIR holds the token while curl runs
+PASS the environment census of curl works (control needle)
+PASS the token is not in curl's environment, even with a caller TOKEN exported
+PASS the run directory mode is read during the run (control needle)
+PASS the run directory is mode 700 (V13)
+PASS curl runs with a connect timeout and a total timeout (J5)
+PASS SIGKILL leaves the run directory behind (control needle)
+PASS SIGKILL: no file under TMPDIR holds the token
+PASS the environment census of git works (control needle)
+PASS the token is not in git's environment, even with a caller TOKEN exported
+PASS the git environment census saw rev-list (control needle)
+PASS git runs with GIT_TRACE_REDACT=1, GIT_TERMINAL_PROMPT=0 and no GIT_TRACE
+PASS credential-shaped unknown argument: usage (rc 2)
+PASS the unknown argument is not echoed
+PASS an option-shaped unknown argument is named (control)
+PASS unreadable notes file refused (control, rc 3)
+PASS the notes path is not echoed
+PASS a base URL with userinfo is refused (rc 2)
+PASS the bad base URL is not echoed
+PASS curl timeout reported with the class timeout (rc 4)
+PASS curl timeout: message not printed
+PASS a non-numeric HTTP status is a failure (rc 4)
+PASS the non-numeric status is not printed
+PASS X6 {"id":"7\nZZEVILID23"}: the GET is recorded (control needle)
+FAIL X6 {"id":"7\nZZEVILID23"}: rc=0 UPDATED release rel-1 (id 7
+ZZEVILID23) on http://127.0.0.1:52613/Helix/constitution
+FAIL X6 {"id":"7\nZZEVILID23"}: a PATCH was sent with a bad id
+FAIL X6 {"id":"7\nZZEVILID23"}: the id is printed
+PASS X6 {"id":"ZZEVILID23"}: the GET is recorded (control needle)
+PASS X6 {"id":"ZZEVILID23"}: a bad release id is refused (rc 4)
+PASS X6 {"id":"ZZEVILID23"}: no PATCH is sent
+PASS X6 {"id":"ZZEVILID23"}: the id is not printed
+PASS X6 {"id":7.5}: the GET is recorded (control needle)
+PASS X6 {"id":7.5}: a bad release id is refused (rc 4)
+PASS X6 {"id":7.5}: no PATCH is sent
+PASS X6 {"id":7.5}: the id is not printed
+PASS xtrace bashx: the run completes (control)
+FAIL xtrace bashx: 2 trace lines
+PASS xtrace bashx: the token is not printed
+tests/release/test_publish_gitea.sh: line 292: SHELLOPTS: readonly variable
+PASS xtrace shellopts: the run completes (control)
+PASS xtrace shellopts: at most one trace line (0)
+PASS xtrace shellopts: the token is not printed
+PASS K3: curl environment recorded (control needle)
+PASS K3: git environment recorded (control needle)
+PASS K3: jq environment recorded (control needle)
+PASS K3: the environment census reads PATH (control needle)
+FAIL K3: a child holds SECRET1234567 in its environment
+FAIL K3: a child holds ZZCALLERRPG25 in its environment
+FAIL K3: a child holds ZZXYZ25 in its environment
+FAIL K3: a child holds ZZGH25 in its environment
+FAIL K3: a child holds ^BASH_ENV= in its environment
+FAIL K3: a child holds ^_rpg_tok= in its environment
+FAIL K3: a child holds ^M3W_GITEA_TOKEN= in its environment
+PASS X13: run directory names recorded (control needle, 2)
+PASS X13: two runs use two different run directory names
+PASS X13: every run directory name is rpg.XXXXXX
+FAIL 27: multi-line created id rc=0 CREATED release rel-1 (id 7
+ZZEVILNEW27) on http://127.0.0.1:52613/Helix/constitution
+FAIL 27: the created id is printed
+PASS 28: the curl environment is recorded (control needle)
+PASS 28: the grep environment is recorded (control needle)
+PASS 28: the sed environment is recorded (control needle)
+FAIL 28 X11: a child holds the token of an allow-listed --token-var (== grep)
+PASS L1 the lint sees release_publish_gitea.sh (control)
+FAIL L1 external command before rc_env_lockdown: FINDING release_publish_gitea.sh loads redact_cut.sh but never calls rc_env_lockdown
+FAIL L1 needle: a date inserted at line 2 is not found
+RESULT pass=106 fail=16
+exit=1

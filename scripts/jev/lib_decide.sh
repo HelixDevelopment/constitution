@@ -327,8 +327,9 @@ jev_effective_mode() {
   [ "${JEV_TEST:-}" = "1" ] && [ -n "${JEV_REQUIRE_VALIDATED_CMD:-}" ] && rv="$JEV_REQUIRE_VALIDATED_CMD"
   for p in $profs; do
     jev_profile_name_ok "$p" || { printf 'shadow\tinvalid-profile-name%s\n' "$note"; return 0; }
+    # (SIGTTIN/SIGTTOU ignored in the subshell only, so uutils timeout is not stopped with a terminal-touching child)
     # shellcheck disable=SC2086  # the command is a word list on purpose
-    LLMCTL_VALIDATE_STRICT=1 timeout 60 $rv "$p" >/dev/null 2>&1 \
+    (trap '' TTIN TTOU; LLMCTL_VALIDATE_STRICT=1 timeout 60 $rv "$p" >/dev/null 2>&1) \
       || { printf 'shadow\trequire-validated-not-passed:%s%s\n' "$p" "$note"; return 0; }
   done
   printf 'enforce\tpromoted+validated%s\n' "$note"

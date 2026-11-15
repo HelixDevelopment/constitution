@@ -1,0 +1,376 @@
+=== Part 1: the helper under bash dash
+ok   [bash, plain] data absent -> SKIP 77 naming the path, reason=topology_unsupported
+ok   [bash, plain] SKIP names the consumer root <tmp>/consumer_required_test.IdUd9q/plain/consumer
+ok   [bash, plain] data present -> body runs, no SKIP
+ok   [bash, plain] absolute effective path present -> body runs
+ok   [bash, plain] absolute effective path absent -> SKIP 77
+ok   [bash, plain] several paths -> SKIP naming only the missing ones
+ok   [bash, plain] the present path is not named
+ok   [bash, plain] S1 present directory -> body runs
+ok   [bash, plain] S2 SKIP on stdout alone
+ok   [bash, plain] S2 SKIP writes nothing on stderr
+ok   [bash, plain] S3 nothing missing -> fc_require_consumer returns 0, prints nothing
+ok   [bash, plain] S4 consumer root not resolvable ($0 under an absent dir) -> SKIP 77
+ok   [bash, plain] S4 unresolvable root writes nothing on stderr
+ok   [bash, plain] relative $0 from another cwd -> root still resolved, body runs
+ok   [dash, plain] data absent -> SKIP 77 naming the path, reason=topology_unsupported
+ok   [dash, plain] SKIP names the consumer root <tmp>/consumer_required_test.IdUd9q/plain/consumer
+ok   [dash, plain] data present -> body runs, no SKIP
+ok   [dash, plain] absolute effective path present -> body runs
+ok   [dash, plain] absolute effective path absent -> SKIP 77
+ok   [dash, plain] several paths -> SKIP naming only the missing ones
+ok   [dash, plain] the present path is not named
+ok   [dash, plain] S1 present directory -> body runs
+ok   [dash, plain] S2 SKIP on stdout alone
+ok   [dash, plain] S2 SKIP writes nothing on stderr
+ok   [dash, plain] S3 nothing missing -> fc_require_consumer returns 0, prints nothing
+ok   [dash, plain] S4 consumer root not resolvable ($0 under an absent dir) -> SKIP 77
+ok   [dash, plain] S4 unresolvable root writes nothing on stderr
+ok   [dash, plain] relative $0 from another cwd -> root still resolved, body runs
+ok   [bash, with space] data absent -> SKIP 77 naming the path, reason=topology_unsupported
+ok   [bash, with space] SKIP names the consumer root <tmp>/consumer_required_test.IdUd9q/with space/consumer
+ok   [bash, with space] data present -> body runs, no SKIP
+ok   [bash, with space] absolute effective path present -> body runs
+ok   [bash, with space] absolute effective path absent -> SKIP 77
+ok   [bash, with space] several paths -> SKIP naming only the missing ones
+ok   [bash, with space] the present path is not named
+ok   [bash, with space] S1 present directory -> body runs
+ok   [bash, with space] S2 SKIP on stdout alone
+ok   [bash, with space] S2 SKIP writes nothing on stderr
+ok   [bash, with space] S3 nothing missing -> fc_require_consumer returns 0, prints nothing
+ok   [bash, with space] S4 consumer root not resolvable ($0 under an absent dir) -> SKIP 77
+ok   [bash, with space] S4 unresolvable root writes nothing on stderr
+ok   [bash, with space] relative $0 from another cwd -> root still resolved, body runs
+ok   [dash, with space] data absent -> SKIP 77 naming the path, reason=topology_unsupported
+ok   [dash, with space] SKIP names the consumer root <tmp>/consumer_required_test.IdUd9q/with space/consumer
+ok   [dash, with space] data present -> body runs, no SKIP
+ok   [dash, with space] absolute effective path present -> body runs
+ok   [dash, with space] absolute effective path absent -> SKIP 77
+ok   [dash, with space] several paths -> SKIP naming only the missing ones
+ok   [dash, with space] the present path is not named
+ok   [dash, with space] S1 present directory -> body runs
+ok   [dash, with space] S2 SKIP on stdout alone
+ok   [dash, with space] S2 SKIP writes nothing on stderr
+ok   [dash, with space] S3 nothing missing -> fc_require_consumer returns 0, prints nothing
+ok   [dash, with space] S4 consumer root not resolvable ($0 under an absent dir) -> SKIP 77
+ok   [dash, with space] S4 unresolvable root writes nothing on stderr
+ok   [dash, with space] relative $0 from another cwd -> root still resolved, body runs
+=== Part 2: real callers in this checkout (effective-path guard, F2)
+ok   timer_prebuild, no override, default input absent -> SKIP 77
+ok   timer_prebuild, FC_TIMER_RED_PREBUILD -> present stub: the guard honours the override (rc 1, the run went on)
+ok   monday_dryrun RED_MODE=1 without the mock runs (rc 0): the RED battery never reads the mock
+ok   monday_dryrun RED_MODE=0 without the mock -> SKIP 77
+ok   monday_dryrun RED_MODE=0 SKIP is decided before any evidence dir is created
+=== Part 3: fc_require_items against fixture tracker DBs (CR-1, CR-3) under bash dash
+ok   L11b count fixtures built (needle: 10001 rows, ATM-5 last; foreign-only holds no ATM row)
+ok   L19/L21 fixtures built (needle: items is a view; the ids are stored as blob)
+ok   L18 quoted-path fixtures built (needle: <tmp>/consumer_required_test.IdUd9q/fix/sp a'b "q"/other.db exists)
+ok   L14 side-file fixtures built (needle: rbk_t is a rollback-journal db; wal_t has no -wal left after its writer closed)
+ok   L11 row fixtures built (needle: l11_lostlater_atm rows in order CON-9,ATM-5)
+ok   decision-leg matrix built: 26 two-column cases (needle: m2_ta_* declares ticket_id,atm_id)
+ok   L26 WAL fixture built (needle: -wal non-empty; full read CON-1,ATM-5; main file alone CON-1)
+ok   L28 newline-path fixtures built (needle: 'x.db<LF>' is the lost register, 'x.db' a foreign one)
+ok   L29 branch: no usable locale -> SKIP-with-reason, not a FAIL (needle: zz_ZZ.nosuchlocale yields an empty list)
+ok   L29 dispatch: a SKIP line is printed and counted as a skip, not a pass (CON-222)
+ok   L29 dispatch: an ok line is a pass and no skip (control)
+ok   L29 locales where bash classes A-umlaut as upper: C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8
+ok   [bash] m2_at_atm_id_named_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_at_atm_id_named_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_at_atm_id_lost_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_at_atm_id_lost_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_at_atm_id_foreign_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] m2_at_atm_id_foreign_null.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] m2_at_ticket_id_named_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_at_ticket_id_named_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_at_ticket_id_lost_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_at_ticket_id_lost_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_at_ticket_id_foreign_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] m2_at_ticket_id_foreign_null.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] m2_ta_atm_id_named_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_ta_atm_id_named_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_ta_atm_id_lost_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_ta_atm_id_lost_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_ta_atm_id_foreign_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] m2_ta_atm_id_foreign_null.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] m2_ta_ticket_id_named_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_ta_ticket_id_named_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_ta_ticket_id_lost_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_ta_ticket_id_lost_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] m2_ta_ticket_id_foreign_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] m2_ta_ticket_id_foreign_null.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] m2_split.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [bash] m2_half.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [bash] both_lost.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] ticket_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] other_atm.db, ATM-953 CON-001 -> no SKIP, the suite's checks run
+ok   [bash] other_atm.db, CON-001 ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] real_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] real_atm.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [bash] real_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] real_ticket.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [bash] other_atm.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] other_atm.db, ATM-1025 ATM-343 -> SKIP 77 (another consumer's register)
+ok   [bash] other_ticket.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] other_ticket.db, ATM-1025 ATM-343 -> SKIP 77 (another consumer's register)
+ok   [bash] lost_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] lost_atm.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [bash] lost_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] lost_ticket.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [bash] nocol.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] empty.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] garbage.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] absent.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] viewfail.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] both_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] both_other.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l11_lostlater_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l11_lostlater_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l11_namedlater_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l11_namedlater_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l11_lost3_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l11_lostlater_both.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l11_foreign3_atm.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l12_atmx.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l13_parentcol.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l13_colcase.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l15_lower.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l16_nullonly.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l16_nullthen.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l17_lead.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l17_trail.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l17_tables.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l17_tables2.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l11b_count.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l11b_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l17b_lead953.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l19_view.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l19_viewlost.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l20_emptystr.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [bash] l21_blob.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l21_blob953.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l24_at.db, ATM-953 AT-1 -> no SKIP, the suite's checks run
+ok   [bash] l25_dashonly.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] l27_kcol.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [bash] S6 garbage.db: fc_require_items returns 0, prints nothing
+ok   [bash] S6 nocol.db: fc_require_items returns 0, prints nothing
+ok   [bash] S6 viewfail.db: fc_require_items returns 0, prints nothing
+ok   [bash] S6 real_atm.db: fc_require_items returns 0, prints nothing
+ok   [bash] S6 absent.db: fc_require_items returns 0, prints nothing
+ok   [bash] S6 no sqlite3: returns 0, prints nothing
+ok   [bash] S5 malformed counts [1 2] -> run, returns 0, silent
+ok   [bash] S5 malformed counts [1 0 0 9] -> run, returns 0, silent
+ok   [bash] S5 malformed counts [a 0 0] -> run, returns 0, silent
+ok   [bash] S5 malformed counts [1 0 x] -> run, returns 0, silent
+ok   [bash] S5 malformed counts [] -> run, returns 0, silent
+ok   [bash] S5 malformed counts [1 0] -> run, returns 0, silent
+ok   [bash] S5 needle: the fake answering [1 0 0] SKIPs (the fake is the sqlite3 the helper runs)
+ok   [bash] S7 usage error []: exit 2, message on stderr only
+ok   [bash] S7 usage error [9X-1]: exit 2, message on stderr only
+ok   [bash] S7 usage error [ATM953]: exit 2, message on stderr only
+ok   [bash] S7 usage error [ATM-1'; DROP TABLE items; --]: exit 2, message on stderr only
+ok   [bash] S7b usage message for [ATM953] is exact
+ok   [bash] S7b usage message for [9X-1] is exact
+ok   [bash] S7b usage message for [ATM-9x] is exact
+ok   [bash] S7b usage message for [AtM-5] is exact
+ok   [bash] S7b usage message for [A_B-1] is exact
+ok   [bash] S7 a digit inside the prefix (A1B-7) is a valid id (SKIP on a foreign register, not exit 2)
+ok   [bash] S8 the SKIP line names the id columns in candidate order (atm_id,ticket_id)
+ok   [bash] quoted path, foreign register -> SKIP 77
+ok   [bash] quoted path, lost item -> no SKIP
+ok   [bash] SKIP on stdout alone: last stdout line ends reason=topology_unsupported
+ok   [bash] SKIP writes nothing on stderr
+ok   [bash] viewfail.db: run, stdout is only the body, stderr empty
+ok   [bash] garbage.db: run, stdout is only the body, stderr empty
+ok   [bash] nocol.db: run, stdout is only the body, stderr empty
+ok   [bash] absent.db: run, stdout is only the body, stderr empty
+ok   [bash] real_atm.db: run, stdout is only the body, stderr empty
+ok   [bash] L26 WAL register, ATM-5 committed only in the -wal -> no SKIP (the lost item is seen)
+ok   [bash] L26 db and -wal bytes unchanged by the read
+ok   [bash] L28 path ending in a newline (lost register) -> no SKIP
+ok   [bash] L28 control: the same name without the newline (foreign) -> SKIP 77
+ok   [bash] L29 LC_ALL=C.UTF-8: A-umlaut prefix is a usage error (exit 2)
+ok   [bash] L29 LC_ALL=C.utf8: A-umlaut prefix is a usage error (exit 2)
+ok   [bash] L29 LC_ALL=en_US.UTF-8: A-umlaut prefix is a usage error (exit 2)
+ok   [bash] L29 LC_ALL=en_US.utf8: A-umlaut prefix is a usage error (exit 2)
+ok   [bash] L22b the SKIP line is exactly the documented text
+ok   [bash] other_atm.db: all 2 sqlite3 calls are -readonly (shim log; needle: >= 2 calls logged)
+ok   [bash] real_atm.db: all 2 sqlite3 calls are -readonly (shim log; needle: >= 2 calls logged)
+ok   [bash] viewfail.db: all 2 sqlite3 calls are -readonly (shim log; needle: >= 2 calls logged)
+ok   [bash] wal db: SKIP, bytes unchanged, side files [t.db-shm t.db-wal ] allowed
+ok   [bash] rbk db: SKIP, bytes unchanged, side files [none] allowed
+ok   [bash] absent tracker path -> checks run and the path is still absent (no file created)
+ok   [bash] no sqlite3 on PATH (needle: shell found, sqlite3 not) -> no SKIP, the suite's checks run
+ok   [bash] id [ATM-1'; DROP TABLE items; --] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [bash] id [A'X-1] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [bash] id [atm-953] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [bash] id [ATM953] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [bash] id [ATM-] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [bash] id [-953] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [bash] id [ATM--1] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [bash] id [ATM-9x] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [bash] the fixture DB is unchanged after the usage error
+ok   [bash] the SKIP line states the measured count (found 0 of 1)
+ok   [dash] m2_at_atm_id_named_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_at_atm_id_named_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_at_atm_id_lost_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_at_atm_id_lost_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_at_atm_id_foreign_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] m2_at_atm_id_foreign_null.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] m2_at_ticket_id_named_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_at_ticket_id_named_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_at_ticket_id_lost_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_at_ticket_id_lost_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_at_ticket_id_foreign_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] m2_at_ticket_id_foreign_null.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] m2_ta_atm_id_named_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_ta_atm_id_named_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_ta_atm_id_lost_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_ta_atm_id_lost_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_ta_atm_id_foreign_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] m2_ta_atm_id_foreign_null.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] m2_ta_ticket_id_named_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_ta_ticket_id_named_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_ta_ticket_id_lost_foreign.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_ta_ticket_id_lost_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] m2_ta_ticket_id_foreign_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] m2_ta_ticket_id_foreign_null.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] m2_split.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [dash] m2_half.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [dash] both_lost.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] ticket_null.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] other_atm.db, ATM-953 CON-001 -> no SKIP, the suite's checks run
+ok   [dash] other_atm.db, CON-001 ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] real_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] real_atm.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [dash] real_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] real_ticket.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [dash] other_atm.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] other_atm.db, ATM-1025 ATM-343 -> SKIP 77 (another consumer's register)
+ok   [dash] other_ticket.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] other_ticket.db, ATM-1025 ATM-343 -> SKIP 77 (another consumer's register)
+ok   [dash] lost_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] lost_atm.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [dash] lost_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] lost_ticket.db, ATM-1025 ATM-343 -> no SKIP, the suite's checks run
+ok   [dash] nocol.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] empty.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] garbage.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] absent.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] viewfail.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] both_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] both_other.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l11_lostlater_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l11_lostlater_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l11_namedlater_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l11_namedlater_ticket.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l11_lost3_atm.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l11_lostlater_both.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l11_foreign3_atm.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l12_atmx.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l13_parentcol.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l13_colcase.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l15_lower.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l16_nullonly.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l16_nullthen.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l17_lead.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l17_trail.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l17_tables.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l17_tables2.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l11b_count.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l11b_foreign.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l17b_lead953.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l19_view.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l19_viewlost.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l20_emptystr.db, ATM-953 -> SKIP 77 (another consumer's register)
+ok   [dash] l21_blob.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l21_blob953.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l24_at.db, ATM-953 AT-1 -> no SKIP, the suite's checks run
+ok   [dash] l25_dashonly.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] l27_kcol.db, ATM-953 -> no SKIP, the suite's checks run
+ok   [dash] S6 garbage.db: fc_require_items returns 0, prints nothing
+ok   [dash] S6 nocol.db: fc_require_items returns 0, prints nothing
+ok   [dash] S6 viewfail.db: fc_require_items returns 0, prints nothing
+ok   [dash] S6 real_atm.db: fc_require_items returns 0, prints nothing
+ok   [dash] S6 absent.db: fc_require_items returns 0, prints nothing
+ok   [dash] S6 no sqlite3: returns 0, prints nothing
+ok   [dash] S5 malformed counts [1 2] -> run, returns 0, silent
+ok   [dash] S5 malformed counts [1 0 0 9] -> run, returns 0, silent
+ok   [dash] S5 malformed counts [a 0 0] -> run, returns 0, silent
+ok   [dash] S5 malformed counts [1 0 x] -> run, returns 0, silent
+ok   [dash] S5 malformed counts [] -> run, returns 0, silent
+ok   [dash] S5 malformed counts [1 0] -> run, returns 0, silent
+ok   [dash] S5 needle: the fake answering [1 0 0] SKIPs (the fake is the sqlite3 the helper runs)
+ok   [dash] S7 usage error []: exit 2, message on stderr only
+ok   [dash] S7 usage error [9X-1]: exit 2, message on stderr only
+ok   [dash] S7 usage error [ATM953]: exit 2, message on stderr only
+ok   [dash] S7 usage error [ATM-1'; DROP TABLE items; --]: exit 2, message on stderr only
+ok   [dash] S7b usage message for [ATM953] is exact
+ok   [dash] S7b usage message for [9X-1] is exact
+ok   [dash] S7b usage message for [ATM-9x] is exact
+ok   [dash] S7b usage message for [AtM-5] is exact
+ok   [dash] S7b usage message for [A_B-1] is exact
+ok   [dash] S7 a digit inside the prefix (A1B-7) is a valid id (SKIP on a foreign register, not exit 2)
+ok   [dash] S8 the SKIP line names the id columns in candidate order (atm_id,ticket_id)
+ok   [dash] quoted path, foreign register -> SKIP 77
+ok   [dash] quoted path, lost item -> no SKIP
+ok   [dash] SKIP on stdout alone: last stdout line ends reason=topology_unsupported
+ok   [dash] SKIP writes nothing on stderr
+ok   [dash] viewfail.db: run, stdout is only the body, stderr empty
+ok   [dash] garbage.db: run, stdout is only the body, stderr empty
+ok   [dash] nocol.db: run, stdout is only the body, stderr empty
+ok   [dash] absent.db: run, stdout is only the body, stderr empty
+ok   [dash] real_atm.db: run, stdout is only the body, stderr empty
+ok   [dash] L26 WAL register, ATM-5 committed only in the -wal -> no SKIP (the lost item is seen)
+ok   [dash] L26 db and -wal bytes unchanged by the read
+ok   [dash] L28 path ending in a newline (lost register) -> no SKIP
+ok   [dash] L28 control: the same name without the newline (foreign) -> SKIP 77
+ok   [dash] L29 LC_ALL=C.UTF-8: A-umlaut prefix is a usage error (exit 2)
+ok   [dash] L29 LC_ALL=C.utf8: A-umlaut prefix is a usage error (exit 2)
+ok   [dash] L29 LC_ALL=en_US.UTF-8: A-umlaut prefix is a usage error (exit 2)
+ok   [dash] L29 LC_ALL=en_US.utf8: A-umlaut prefix is a usage error (exit 2)
+ok   [dash] L22b the SKIP line is exactly the documented text
+ok   [dash] other_atm.db: all 2 sqlite3 calls are -readonly (shim log; needle: >= 2 calls logged)
+ok   [dash] real_atm.db: all 2 sqlite3 calls are -readonly (shim log; needle: >= 2 calls logged)
+ok   [dash] viewfail.db: all 2 sqlite3 calls are -readonly (shim log; needle: >= 2 calls logged)
+ok   [dash] wal db: SKIP, bytes unchanged, side files [t.db-shm t.db-wal ] allowed
+ok   [dash] rbk db: SKIP, bytes unchanged, side files [none] allowed
+ok   [dash] absent tracker path -> checks run and the path is still absent (no file created)
+ok   [dash] no sqlite3 on PATH (needle: shell found, sqlite3 not) -> no SKIP, the suite's checks run
+ok   [dash] id [ATM-1'; DROP TABLE items; --] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [dash] id [A'X-1] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [dash] id [atm-953] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [dash] id [ATM953] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [dash] id [ATM-] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [dash] id [-953] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [dash] id [ATM--1] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [dash] id [ATM-9x] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL
+ok   [dash] the fixture DB is unchanged after the usage error
+ok   [dash] the SKIP line states the measured count (found 0 of 1)
+=== Part 3b: the helper under test in a SYMLINKED canon layout (CON-183; runs for a mutated copy too)
+ok   symlinked canon layout built (needle: the consumer data docs/present.txt sits only under the logical root)
+ok   symlinked-parent consumer root built (needle: logical and physical root differ)
+ok   [bash] symlinked parent: the SKIP names the logical consumer root (CON-224)
+ok   [dash] symlinked parent: the SKIP names the logical consumer root (CON-224)
+ok   [bash] symlinked canon: the consumer data under the logical root is found (no false SKIP)
+ok   [bash] a path argument with a space is passed whole (docs/my data.txt present -> no false SKIP)
+ok   [bash] a spaced path beside an absent one: only the absent one is named
+ok   [bash] symlinked canon: an absent consumer path still SKIPs
+ok   [dash] symlinked canon: the consumer data under the logical root is found (no false SKIP)
+ok   [dash] a path argument with a space is passed whole (docs/my data.txt present -> no false SKIP)
+ok   [dash] a spaced path beside an absent one: only the absent one is named
+ok   [dash] symlinked canon: an absent consumer path still SKIPs
+=== Part 4: the REAL cycle_report suites decide SKIP through fc_require_items (CR-2)
+ok   test_cycle_report_red.sh on real_ticket -> not SKIPped; the suite's own checks ran (rc 1)
+ok   test_cycle_report_red.sh on lost_atm -> not SKIPped; the suite's own checks ran (rc 1)
+ok   test_cycle_report_red.sh on nocol -> not SKIPped; the suite's own checks ran (rc 1)
+ok   test_cycle_report_red.sh on other_atm -> SKIP 77
+ok   test_cycle_report_red.sh on other_ticket -> SKIP 77
+ok   test_cycle_report_s12_fix_red.sh on real_ticket -> not SKIPped; the suite's own checks ran (rc 1)
+ok   s12 on real_ticket ends in the counted summary line [SUMMARY pass=4 fail=31 skip=1 (skipped: check8)]
+ok   test_cycle_report_s12_fix_red.sh on lost_atm -> not SKIPped; the suite's own checks ran (rc 1)
+ok   s12 on lost_atm ends in the counted summary line [SUMMARY pass=4 fail=31 skip=1 (skipped: check8)]
+ok   test_cycle_report_s12_fix_red.sh on nocol -> not SKIPped; the suite's own checks ran (rc 1)
+ok   s12 on nocol ends in the counted summary line [SUMMARY pass=4 fail=31 skip=1 (skipped: check8)]
+ok   test_cycle_report_s12_fix_red.sh on other_atm -> SKIP 77
+ok   test_cycle_report_s12_fix_red.sh on other_ticket -> SKIP 77
+SUMMARY: 370 pass / 0 fail / 0 skip

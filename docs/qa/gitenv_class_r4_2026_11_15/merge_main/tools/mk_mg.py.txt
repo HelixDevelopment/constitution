@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""mk_mg.py <worktree> <id>: own mutants of the merge fixer (origin/main into gitenv-r4). Each must be KILLED.
+  MG1  `canon` removed from DATA_EXT (the nine .canon transcripts are UNCLASSIFIED again)
+  MG2  LEGACY no longer matches `unset -v GIT_DIR` (the three release scripts lose their own scrub)
+  MG3  own-scrub branch drops names_all (an `unset -v` naming only part of the list passes; C2mrg3)
+  MG4  one pinned-fixture row removed (landing_gate14.sh)
+  MG5  redact_cut.sh row changed to sourced-library (its reader prescreen13.sh becomes UNSCRUBBED)
+  MG6  the scrub line of scripts/release/land_vehicle.sh removed
+  MG7  the scrub line of tests/release/net_probe.py removed
+  MG8  the scrub of docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh removed
+  MG9  the `unset -v` line of tag_and_release.sh drops GIT_INDEX_FILE
+"""
+import re
+import sys
+
+wt, mid = sys.argv[1], sys.argv[2]
+CEN = "scripts/validation/git_env_class_census.py"
+EX = "config/git_env_class_exemptions.tsv"
+
+
+def rd(rel):
+    return open(wt + "/" + rel, encoding="utf-8").read()
+
+
+def wr(rel, t):
+    open(wt + "/" + rel, "w", encoding="utf-8").write(t)
+
+
+def sub1(rel, old, new):
+    t = rd(rel)
+    if t.count(old) != 1:
+        sys.exit("%s: anchor found %d times in %s" % (mid, t.count(old), rel))
+    wr(rel, t.replace(old, new))
+
+
+def drop_line(rel, pat):
+    t = rd(rel).split("\n")
+    k = [i for i, l in enumerate(t) if re.match(pat, l)]
+    if len(k) != 1:
+        sys.exit("%s: %d lines match in %s" % (mid, len(k), rel))
+    del t[k[0]]
+    wr(rel, "\n".join(t))
+
+
+if mid == "MG1":
+    sub1(CEN, '"precheck-evidence", "canon", "xml",', '"precheck-evidence", "xml",')
+elif mid == "MG2":
+    sub1(CEN, r'^\s*unset (?:-v )?GIT_DIR|', r'^\s*unset GIT_DIR|')
+elif mid == "MG3":
+    sub1(CEN, 'elif LEGACY.search("\\n".join(code)) and names_all(tl, canon) and list_clear(tl, canon):',
+         'elif LEGACY.search("\\n".join(code)):')
+elif mid == "MG4":
+    drop_line(EX, r"docs/qa/con227_234_2026_11_11/round14/tools/landing_gate14\.sh\t")
+elif mid == "MG5":
+    sub1(EX, "scripts/release/redact_cut.sh\tno-git-execution\t", "scripts/release/redact_cut.sh\tsourced-library\t")
+elif mid == "MG6":
+    drop_line("scripts/release/land_vehicle.sh", r"for _ge_v in GIT_DIR ")
+elif mid == "MG7":
+    t = rd("tests/release/net_probe.py")
+    t2 = re.sub(r'^import os as _ge_os.*\nfor _ge_v in ".*\n', "", t, count=1, flags=re.M)
+    if t2 == t:
+        sys.exit("MG7: no scrub found")
+    wr("tests/release/net_probe.py", t2)
+elif mid == "MG8":
+    drop_line("docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh", r"for _ge_v in GIT_DIR ")
+elif mid == "MG9":
+    t = rd("scripts/release/tag_and_release.sh").split("\n")
+    k = [i for i, l in enumerate(t) if l.startswith("unset -v GIT_DIR ")]
+    if len(k) != 1:
+        sys.exit("MG9: anchor")
+    t[k[0]] = t[k[0]].replace(" GIT_INDEX_FILE ", " ", 1)
+    wr("scripts/release/tag_and_release.sh", "\n".join(t))
+else:
+    sys.exit("unknown id " + mid)
+print("applied", mid)

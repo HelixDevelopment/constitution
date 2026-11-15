@@ -1,0 +1,12 @@
+OK   control (unmutated copy passes)
+OK   mutant M1 hand-parse killed (18 failing checks)
+OK   mutant M2 dup-key accepted killed (1 failing checks)
+OK   mutant M3 no cross-check killed (2 failing checks)
+OK   mutant M4 ignores parser unavailability killed (3 failing checks)
+OK   mutant M5 PASS on parser failure killed (7 failing checks)
+OK   mutant M6 US/LF/CR rejection removed killed (3 failing checks)
+OK   mutant M7 only US/LF/CR rejected (NUL slips) killed (2 failing checks)
+OK   mutant M8 override honoured without test mode killed (2 failing checks)
+OK   mutant M9 FORCE_NO_YAML honoured without test mode killed (1 failing checks)
+OK   mutant M10 nested list item promoted to a dep killed (21 failing checks)
+== all mutants killed ==

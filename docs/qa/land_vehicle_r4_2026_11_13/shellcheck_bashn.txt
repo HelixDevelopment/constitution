@@ -1,0 +1,5 @@
+bash -n scripts/release/land_vehicle.sh rc=0
+shellcheck -x scripts/release/land_vehicle.sh rc=0
+bash -n tests/release/test_land_vehicle.sh rc=0
+shellcheck -x tests/release/test_land_vehicle.sh rc=0
+version: 0.11.0

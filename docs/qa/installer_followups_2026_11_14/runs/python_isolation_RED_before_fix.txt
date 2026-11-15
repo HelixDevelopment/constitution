@@ -1,0 +1,19 @@
+  ok   census control needles: a -I line reads as isolated, a line without -I as not isolated
+  FAIL every python3 invocation in the six install scripts runs with -I (5 found) (expected [] got [/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/followups.SEZe/repo/scripts/install_action_prefix.sh:276	NO-I	HELIX_HOOK_CMD="$hook_cmd" python3 -c "$prog" "$settings" "$NEW_TMP" </dev/null])
+    /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/followups.SEZe/repo/scripts/install_action_prefix.sh:276	NO-I	HELIX_HOOK_CMD="$hook_cmd" python3 -c "$prog" "$settings" "$NEW_TMP" </dev/null
+  ok   control: jq is absent on the test PATH
+  ok   control: python3 -c in that directory imports the planted json.py
+  ok   control: python3 -c with that PYTHONPATH imports the planted json.py
+  FAIL install_action_prefix.sh (python path) exits 0 (expected [0] got [1])
+install_action_prefix: settings.json is not exactly one valid JSON document (module 'json' has no attribute 'loads' (consider renaming '/home/milosvasic/.cache/claude-tmp/helix-install-test.RKvvqG/wd/json.py' since it has the same name as the standard library module named 'json' and prevents importing that standard library module)) - REFUSED, left unchanged
+install_action_prefix: python merge FAILED - REFUSED, settings.json left UNCHANGED
+  FAIL the merge ran: the hook entry is in settings.json (expected [1] got [0])
+  FAIL a json.py in the current directory was not imported (expected [absent] got [present])
+  ok   a json.py on PYTHONPATH was not imported
+  FAIL install_action_prefix.sh (python path, PYTHONPATH planted) exits 0 (expected [0] got [1])
+install_action_prefix: settings.json is not exactly one valid JSON document (module 'json' has no attribute 'loads') - REFUSED, left unchanged
+install_action_prefix: python merge FAILED - REFUSED, settings.json left UNCHANGED
+  FAIL the merge ran (PYTHONPATH case) (expected [1] got [0])
+  FAIL a json.py on PYTHONPATH alone was not imported (expected [absent] got [present])
+python_isolation: PASS 5 FAIL 7
+rc=1

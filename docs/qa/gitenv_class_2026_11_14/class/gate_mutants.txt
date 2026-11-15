@@ -1,0 +1,3 @@
+gx1_anchor_no_scrub: KILLED (rc=0 sentinel=CHANGED)
+gx2_agent_label_no_scrub: KILLED (rc=1 sentinel=CHANGED)
+DONE

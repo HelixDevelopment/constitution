@@ -1,0 +1,13 @@
+id	verdict	first failing needle	mutation
+TM1	KILLED	stale-lock probe: a lock held open by a live process is not reported (expected [] got [.git/index.lock])	probe back to the proposed pipe form (status of find | grep -q . under pipefail)
+TM2	KILLED	stale-lock probe: the same lock, closed, is reported (expected [.git/index.lock] got [])	probe never reports a lock
+TM3	KILLED	stale-lock probe: a lock held open by a live process is not reported (expected [] got [.git/index.lock])	-lname replaced by -name (fd links never match)
+TM4	KILLED	stale-lock probe: a lock held open by a live process is not reported (expected [] got [.git/index.lock])	held/stale test inverted
+TM5	KILLED	stale-lock probe: a lock held open by a live process is not reported (expected [] got [.git/index.lock])	probe reads only its own descriptors
+TM6	KILLED	stale-lock probe: the same lock, closed, is reported (expected [.git/index.lock] got [])	lock search uses a wrong file name
+TM7	KILLED	stale-lock probe: the same lock, closed, is reported (expected [.git/index.lock] got [<scratch>/tr8/session/m.5.2.37.WtbS/tm.uu1bfx7z/needle_lock/.git/index.lock])	reported path not made relative to P
+TM8	KILLED	drain_session: leader gone, two members alive -> not drained after 1 s	drain_session never waits (returns 0 at once)
+TM9	KILLED	drain_session: every member gone -> drained	drain_session never reports a drained session
+TM10	KILLED	drain_session: only the member in a group of its own alive -> not drained after 1 s	drain_session back to the process-group probe of the proposal
+TM11	KILLED	drain_session: leader gone, two members alive -> not drained after 1 s	drain_session lists the leader pid instead of the session
+TM12	KILLED	drain_session: leader gone, two members alive -> not drained after 1 s	drain_session uses a ps selector this ps does not have (blind ps)

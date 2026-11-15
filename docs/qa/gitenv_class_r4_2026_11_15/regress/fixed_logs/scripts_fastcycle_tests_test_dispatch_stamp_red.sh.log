@@ -1,0 +1,26 @@
+ok tokens/dispatch_stamp.sh exists
+
+=== contract 1/5 + 5/5: GUARD verdicts on the three static fixtures ===
+ok fixture golden-good: GUARD exit 0
+ok fixture golden-good: --extract-item-id 'ATM-1041', exit 0
+ok fixture golden-bad: GUARD exit 2
+ok fixture golden-bad: --extract-item-id '', exit 0
+ok fixture negative-control: GUARD exit 0
+ok fixture negative-control: --extract-item-id '', exit 0
+ok a BLOCK explains the fix on stderr (names item=)
+
+=== contract 1/5: only Agent / Task / TaskCreate are gated ===
+ok Agent without a tag is blocked (exit 2)
+ok Task without a tag is blocked (exit 2)
+ok TaskCreate without a tag is blocked (exit 2)
+ok Bash (not an agent dispatch) passes untouched
+
+=== contract 2/5: the tag may sit anywhere at a token boundary; honest item=? accepted ===
+ok a tag later in the description is accepted
+ok item=? is extracted as '?'
+
+=== contract 3/5 + 4/5: extraction mode prints only the id and always exits 0 ===
+ok malformed stdin '' -> empty stdout, empty stderr, exit 0
+ok malformed stdin 'null' -> empty stdout, empty stderr, exit 0
+ok malformed stdin '{"tool_name":' -> empty stdout, empty stderr, exit 0
+ok malformed stdin '42' -> empty stdout, empty stderr, exit 0

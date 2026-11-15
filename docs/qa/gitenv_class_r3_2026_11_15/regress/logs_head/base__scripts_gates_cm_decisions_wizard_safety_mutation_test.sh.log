@@ -1,0 +1,18 @@
+  ok   baseline PASS
+  killed  MS1_touch_settings_json (rc=1: gate_env_override: honouring DECISIONS_CLI (HELIX_TEST_MODE=1)
+✗ CM-DECISIONS-WIZARD-SAFETY: FAIL — settings.json was modified)
+  killed  MS2_clobber_outside_markers (rc=1: gate_env_override: honouring DECISIONS_CLI (HELIX_TEST_MODE=1)
+✗ CM-DECISIONS-WIZARD-SAFETY: FAIL — text outside the markers changed)
+  killed  MS3_no_project_confinement (rc=1: gate_env_override: honouring DECISIONS_CLI (HELIX_TEST_MODE=1)
+✗ CM-DECISIONS-WIZARD-SAFETY: FAIL — decisions file no longer passes --ch)
+  killed  MS4_secret_accepted (rc=1: gate_env_override: honouring DECISIONS_CLI (HELIX_TEST_MODE=1)
+✗ CM-DECISIONS-WIZARD-SAFETY: FAIL — secret-like value not refused (rc=0))
+  killed  MS5_writes_nothing (rc=2: gate_env_override: honouring DECISIONS_CLI (HELIX_TEST_MODE=1)
+⚠ CM-DECISIONS-WIZARD-SAFETY: BLIND (exit 2) — positive control failed (r)
+  killed  MS6_stray_file (rc=1: gate_env_override: honouring DECISIONS_CLI (HELIX_TEST_MODE=1)
+✗ CM-DECISIONS-WIZARD-SAFETY: FAIL — unexpected files written: ./stray.tx)
+  killed  MS7_export_overwrites (rc=1: gate_env_override: honouring DECISIONS_CLI (HELIX_TEST_MODE=1)
+✗ CM-DECISIONS-WIZARD-SAFETY: FAIL — --export onto an existing CLAUDE.md )
+  killed  MS8_git_allowed (rc=1: gate_env_override: honouring DECISIONS_CLI (HELIX_TEST_MODE=1)
+✗ CM-DECISIONS-WIZARD-SAFETY: FAIL — --export into .git not refused (rc=0)
+cm_decisions_wizard_safety mutation test: pass=9 fail=0

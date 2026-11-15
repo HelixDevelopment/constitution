@@ -1,0 +1,40 @@
+PASS: find: standard layout
+PASS: find: legacy layout
+PASS: find: both -> standard wins
+PASS: find: none -> rc 1 + empty output (never a guess)
+PASS: find: missing project dir -> rc 1
+PASS: root_of: standard -> project (not <project>/submodules)
+PASS: root_of: legacy -> project
+PASS: root_of: missing dir -> rc 1
+PASS: find: CONSTITUTION_DIR override honoured
+PASS: find: bogus CONSTITUTION_DIR ignored (falls back to layouts)
+PASS: find: path with spaces + shell metachars
+PASS: root_of: path with spaces + shell metachars
+PASS: security: metachar path never executed (no PWNED file)
+PASS: find: path with an embedded newline
+PASS: root_of: path with an embedded newline
+PASS: find: symlinked submodules/constitution
+PASS: root_of: symlinked checkout -> logical project root
+PASS: find: .gitmodules-declared custom path
+PASS: root_of: custom path via git superproject
+PASS: security: .gitmodules traversal path (../) is ignored
+PASS: security: .gitmodules absolute path is ignored
+PASS: root_of: real submodule at submodules/constitution
+PASS: hooks dir: superproject -> <project>/.git/hooks
+PASS: hooks dir: never the submodule's hooks
+PASS: hooks dir: linked worktree (.git file) -> shared hooks
+PASS: hooks dir: core.hooksPath honoured
+PASS: hooks dir: not a git repo -> rc 1
+PASS: hook name: post-merge is a git hook
+PASS: hook name: guard-x.sh is NOT a git hook
+PASS: hook name: __pycache__ is NOT a git hook
+PASS: rel_path: under project
+PASS: rel_path: outside project -> absolute
+PASS: find_no_override: ambient CONSTITUTION_DIR ignored -> the project's own checkout (rc=0)
+PASS: find_no_override: project without a constitution -> rc 1 even with an override set
+PASS: find: .gitmodules submodule name AND path with spaces
+PASS: dash: lib works under POSIX sh
+PASS: sh -n parses the lib
+PASS: determinism: 3 identical runs
+----
+constitution_layout_lib: PASS=38 FAIL=0

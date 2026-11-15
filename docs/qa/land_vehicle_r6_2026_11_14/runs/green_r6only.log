@@ -1,0 +1,42 @@
+PASS R6-C0 control needle: the remotes file holds the token 9 times and a traced shell that reads it prints it (2 lines)
+PASS R6-C-shellopts tracing from the caller: prepare and publish exit 0, all 9 landed, 0 output lines and 0 evidence files hold the credential
+PASS R6-C-bashenv tracing from the caller: prepare and publish exit 0, all 9 landed, 0 output lines and 0 evidence files hold the credential
+PASS R6-C-bashx tracing from the caller: prepare and publish exit 0, all 9 landed, 0 output lines and 0 evidence files hold the credential
+PASS R6-C4 an exported function git from the environment never runs (prepare exits 0)
+PASS R6-C4b a function git defined by a BASH_ENV file never runs (prepare exits 0)
+PASS R6-C4 control: the exported function runs in a plain bash
+PASS R6-C5-dashO nocasematch from the caller: a mint writing docs/TRACKER.FAKE is still refused (tracker path docs/tracker.fake) (rc=1)
+PASS R6-C5-bashopts nocasematch from the caller: a mint writing docs/TRACKER.FAKE is still refused (tracker path docs/tracker.fake) (rc=1)
+PASS R6-A1-emptykey a vehicle commit with a folded Roadmap-Item value is refused at prepare (rc=1)
+PASS R6-A1-continued a vehicle commit with a folded Roadmap-Item value is refused at prepare (rc=1)
+PASS R6-A1 control: git parses the folded form as the single trailer CON-931
+PASS R6-A1p prepare exits 0
+PASS R6-A1p a folded trailer committed after prepare is refused at publish (rc=1)
+PASS R6-A1p nothing was pushed
+PASS R6-A2 folded: CON-777 on a continuation line of a vehicle trailer makes CON-777 not new (rc=1)
+PASS R6-A2 case: a lower-case 'roadmap-item: con-777' makes CON-777 not new (rc=1)
+PASS R6-A2 spacing: 'Roadmap-Item  :   CON-0777' makes CON-777 not new (rc=1)
+PASS R6-A2 mention: 'see CON-777' in a subject makes CON-777 not new (rc=1)
+PASS R6-A2 control: with the same vehicle, CON-778 is new and accepted
+PASS R6-B tip: the vehicle tip's tracker file holds CON-777: not new (rc=1)
+PASS R6-B removed: a vehicle commit added CON-777 and a later one removed it: not new (rc=1)
+PASS R6-B case: the vehicle tracker holds con-0777: not new (rc=1)
+PASS R6-B control: the vehicle tracker holds CON-776 only, CON-777 is new and accepted, the vehicle file landed
+PASS R6-B case at main: the tracker at main holds con-777: not new (rc=1)
+PASS R6-D1 prepare exits 0
+PASS R6-D1 local main reset to the prepared base, never published: verify exits 1 (rc=1)
+PASS R6-D2 prepare exits 0
+PASS R6-D2 prepared but not published: verify exits 1, verify.md names the landed head and 9 rows 'FAIL | no'
+PASS R6-D2 publish exits 0
+PASS R6-D2 control: after publish, verify exits 0 with 9 rows 'PASS | yes'
+PASS R6-D3 verify refuses a prepare state that no longer matches the refs (rc=2)
+PASS R6-F the clone path swapped for a symlink during git init: prepare exits 1 (rc=1)
+PASS R6-F nothing was written outside the workdir and no remote moved (control: the shim did swap the path)
+PASS R6-G1 prepare exits 0
+PASS R6-G1 control: with that config git rewrites the push URL of origin to the decoy
+PASS R6-G1 pushInsteadOf rewrites origin's push URL: publish refuses before any push (rc=2)
+PASS R6-G1 no remote and not the decoy received anything
+PASS R6-G3 encoding ISO-8859-1 kept, message bytes equal except the id, header lines equal except parent
+PASS SH2-R6 every push of the round-6 cases is plain
+
+RESULT pass=40 fail=0 (round-6 cases only)

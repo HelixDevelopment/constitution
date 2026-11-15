@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM31)
+@@ -508,7 +508,7 @@
+   got=$(g remote get-url --push --all "$name" 2>/dev/null) || die 2 "cannot read the push URL of remote '$name'$(ar_note)"
+   [ "$got" = "$want" ] || die 2 "remote '$name' push URL(s) in the clone differ from --remotes-file$(ar_note)"
+   ere="^remote\\.${name//./\\.}\\."
+-  got=$(g config --name-only --get-regexp "$ere" 2>/dev/null) || true
++  got=$(g config --local --name-only --get-regexp "$ere" 2>/dev/null) || true
+   while IFS= read -r key; do
+     [ -n "$key" ] || continue
+     k=${key##*.}; k=${k,,}

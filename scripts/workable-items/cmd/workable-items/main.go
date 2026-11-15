@@ -119,6 +119,16 @@ Subcommands:
                                                         resolvable file/dir (§11.4.226) — refuses non-terminal items,
                                                         non-closure history rows, and unresolvable paths; appends an
                                                         'Updated' audit row citing old→new.
+  restore-created-at --db <p> --id <ID> --value <YYYY-MM-DD HH:MM:SS>
+                     --evidence <db file> --evidence-sha256 <hex> --reason <text>
+                     [--evidence-id <ID>] [--location Issues|Fixed]
+                     [--representation section|table] [--by AI|User] [--dry-run]
+                                                        CON-339: restore one row's created_at to a value a separate
+                                                        tracker database records (its items row or Opened history
+                                                        row); refuses a value later than the item's first history
+                                                        row or than the current value, or earlier than the tracker's
+                                                        first history row by more than 60 s; writes an 'Updated'
+                                                        audit row. --dry-run needs a writable --db.
 
 Canonical authority: Constitution.md §11.4.93; docs/tracks/ASSIGNMENT_MECHANISM_DESIGN.md §3 (group subcommands),
 §5 (assigner), §9 (classifier).
@@ -177,6 +187,8 @@ func main() {
 		runClassify(args[1:])
 	case "correct-history-evidence":
 		runCorrectHistoryEvidence(args[1:])
+	case "restore-created-at":
+		runRestoreCreatedAt(args[1:])
 	case "states":
 		runStates(args[1:])
 	case "-h", "--help", "help":

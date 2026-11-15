@@ -1,0 +1,11 @@
+label=arc_git_index_file mode=git_index_file script=scripts/gates/cm_anchor_record_complete.sh rc=4 seconds=0
+repo_head=42fd128819608ef1d110e32cd1b9d4a6de6c335c
+sentinel_fingerprint_before=7d007bb67303a67f6ce6bc90ed00aa7ed3a61cfcd4f3d08a9914a682c7f94bb8
+sentinel_fingerprint_after=7d007bb67303a67f6ce6bc90ed00aa7ed3a61cfcd4f3d08a9914a682c7f94bb8
+sentinel_head_before=56f10a66ee073726cfc8f6947bad48eaf823eddd after=56f10a66ee073726cfc8f6947bad48eaf823eddd branch_before=refs/heads/sentinel after=refs/heads/sentinel
+sentinel_index_entries_after=1
+SENTINEL=UNCHANGED
+--- log tail ---
+RESULT gate REFUSE
+🛑 REFUSE   CM-ANCHOR-RECORD-COMPLETE: engine root '<scratch>/gitenv_class.MjjE/red/scripts/gates/../../submodules/continuum' carries no go.mod
+   The gate decided NOTHING. This is not a pass (§11.4.201(6)).

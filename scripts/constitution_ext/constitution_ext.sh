@@ -87,6 +87,7 @@
 # Requires: bash, python3 >= 3.8 (stdlib only), git (for git sources and exclude handling).
 set -uo pipefail
 
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 _ce_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)" || { echo "constitution_ext: cannot resolve own directory" >&2; exit 1; }
 _ce_py="$(command -v python3 2>/dev/null || true)"
 if [ -z "$_ce_py" ]; then

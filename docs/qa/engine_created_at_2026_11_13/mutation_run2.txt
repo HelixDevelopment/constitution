@@ -1,0 +1,31 @@
+$ python3 -I scripts/workable-items/mutation/created_at_mutation_runner.py
+CONTROL PASS unmutated ^(TestCON339_|TestRestoreCreatedAt)
+KILLED close-insert-omits-created-at (close re-inserts without created_at (the column default stamps the close time)) by TestCON339_CreatedAtPreservedByEveryMutatingCommand,TestCON339_ItemsWriteSitesCarryCreatedAt
+KILLED close-reads-now (close carries the current time instead of the row's created_at) by TestCON339_CreatedAtPreservedByEveryMutatingCommand
+KILLED md-to-db-insert-omits-created-at (md-to-db re-inserts without created_at) by TestCON339_CreatedAtPreservedByEveryMutatingCommand,TestCON339_ItemsWriteSitesCarryCreatedAt,TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt
+KILLED md-to-db-coalesce-inverted (md-to-db always stamps the sync time) by TestCON339_CreatedAtPreservedByEveryMutatingCommand,TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt
+KILLED md-to-db-no-arg (the snapshot value never reaches the INSERT) by TestCON339_CreatedAtPreservedByEveryMutatingCommand,TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt
+KILLED md-to-db-ignores-prior (the caller's snapshot is dropped (a Markdown move Issues->Fixed loses created_at)) by TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt
+KILLED md-to-db-sync-passes-nil (sync md-to-db takes no snapshot across its two transactions) by TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt
+KILLED lookup-no-exact (an existing row takes the item's earliest value instead of its own) by TestCON339_CreatedAtFallbackIsEarliestOfTheItem
+KILLED lookup-latest (a moved row takes the item's latest value) by TestCON339_CreatedAtFallbackIsEarliestOfTheItem
+KILLED lookup-no-fallback (a row that changed document gets the column default) by TestCON339_CreatedAtFallbackIsEarliestOfTheItem,TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt
+KILLED restore-no-dispatch (the subcommand is not reachable from the command line) by TestCON339_CommandEnumerationGuard
+KILLED restore-skip-sha-compare (the evidence sha256 is not compared) by TestRestoreCreatedAt_Refusals
+KILLED restore-skip-live-db-check (the live database attests its own value) by TestRestoreCreatedAt_Refusals
+KILLED restore-skip-wal-check (an evidence file with un-checkpointed WAL content is read as if complete) by TestRestoreCreatedAt_Refusals
+KILLED restore-evidence-not-immutable (the evidence file is opened read-write and grows sidecars) by TestRestoreCreatedAt_ReadOnlyEvidence
+KILLED restore-skip-identity-match (another item's evidence attests this item's value) by TestRestoreCreatedAt_Refusals
+KILLED restore-skip-attestation (a value the evidence does not record is accepted) by TestRestoreCreatedAt_Refusals
+KILLED restore-skip-first-event-bound (a value later than the item's first history row is accepted) by TestRestoreCreatedAt_Refusals
+KILLED restore-skip-current-bound (a restore may move created_at later) by TestRestoreCreatedAt_Refusals
+KILLED restore-no-history-ok (an item with no history row is not reported as NO-HISTORY (its zero-time bound refuses with a misleading code)) by TestRestoreCreatedAt_Refusals
+KILLED restore-no-audit-row (the restore writes no item_history row) by TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem,TestRestoreCreatedAt_RestoresFromItemsRow,TestRestoreCreatedAt_RestoresFromOpenedEvent
+KILLED restore-by-ignored (--by is not recorded) by TestRestoreCreatedAt_RestoresFromItemsRow
+KILLED restore-dry-run-writes (--dry-run writes) by TestRestoreCreatedAt_IdempotentAndDryRun
+KILLED restore-already-rewrites (a repeated restore writes another audit row) by TestRestoreCreatedAt_IdempotentAndDryRun
+KILLED restore-evidence-id-ignored (--evidence-id is ignored) by TestRestoreCreatedAt_EvidenceIDMapsAReMintedItem,TestRestoreCreatedAt_Refusals
+KILLED restore-ambiguous-picks-first (an item with two rows is restored on the first one found) by TestRestoreCreatedAt_AmbiguousRowNeedsNarrowing
+KILLED restore-db-missing-creates (a missing live database is created by the open) by TestRestoreCreatedAt_Refusals
+SUMMARY killed=27 survived=0 verdict=PASS
+exit=0

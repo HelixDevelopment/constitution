@@ -1,0 +1,2 @@
+# run: rc=0 wall=10s load_start=96.50 load_end=95.60 cmd=bash scripts/gates/cm_gate_env_reads_allowlisted.sh
+VERDICT: PASS CM-GATE-ENV-READS-ALLOWLISTED: gates=195 reads=171 guarded=54 allowlisted=117 uncovered=0 stale=0 needle=ok
