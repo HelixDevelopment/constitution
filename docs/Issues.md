@@ -3204,7 +3204,7 @@ Done here: tag_and_release.sh reads the publisher's stderr; exit 3 is a GAP only
 Follow-up of CON-226 (review docs/qa/review_rel734c_2026_11_11.md, verdict GO-with-follow-ups, section 11.4.276(G.2), minor class). Nits grouped in one item. n-1: the CHANGELOG says '13 allowed by marker'; the vehicle gate run prints 14 ALLOWED lines (12 on the base), recount (main added one more marked site at landing). n-2: 'shellcheck clean' holds at warning level only; info-level notes remain (SC2015 in the tests, SC2086 in sv()), state the level. n-3: a --release spec is not checked against the remote's URL (github:r1:other/repo is accepted); consider a URL/owner cross-check. n-4: on a failed fetch up to 400 bytes of git stderr are printed; with an HTTPS URL carrying a token this depends on git's URL redaction. n-5: the run_full_suite.py change rewords an error message only so the killpg gate stops reading it as a call, a false positive of the gate's text matching; consider a gate fix.
 Done here: n-1 recount on 24bdca78: PASS, 30 sites guarded, 14 allowed by marker (docs/qa/con227_234_2026_11_11/n1_killpg_recount.txt; noted in the new CHANGELOG entry, the older entry is not rewritten); n-2 the new entry states shellcheck clean at warning level only; n-3 not implemented by decision (GitHub legs are de-duplicated by repository id, a name match would refuse aliases), stated in docs/release/README.md; n-4 fetch stderr redacted by the script, tested with a git double (C21, own mutant O1 killed); n-5 not done (a gate change, separate work). Fix on vehicle/fix227 (based on 24bdca78), not yet independently reviewed: the item is In progress, neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290). Evidence: docs/qa/con227_234_2026_11_11/red_all.txt (RED on the unfixed scripts of 24bdca78 and on the reviewer mutants), docs/qa/con227_234_2026_11_11/green_all.txt (GREEN and tests/release/test_release_tooling_mutations.sh killed=14 survived=0).
  Round 2 (review docs/qa/review_fix227.md, NO-GO on F1 only): F1 (blocking, fixed): the fetch message is now redacted before the 400-byte cut, so a secret whose @ falls past byte 400 is no longer printed; cases C21 (positive needle for the redaction marker) and C21b (long message, RED on 5b630578, GREEN after), mutant F1 killed. Evidence: docs/qa/con227_234_2026_11_11/round2.txt.
- Round 3 (review docs/qa/review_fix227_r2.md, NO-GO on G1, G2, G3; class closed per section 11.4.276(C)): every external-command output the release scripts print now goes through ONE helper, scripts/release/redact_cut.sh (redact userinfo, then cut). G1: the git push failure message was printed unredacted (reproduced); now redacted, case C21c. G2: the pattern stopped at the first @, so a raw @ in the password leaked its tail; now (://)[^/[:space:]]*@ (greedy to the last @ before the path), cases C21c and H1-H4. G3: two URLs in one message (C21c), kills the g-flag mutant N1. G4: the 400-byte cap is asserted (C21e), kills N2. G5: the derive refusal is one script-owned line naming CHANGELOG.md and no longer blames a tracker query; the test asserts the script's own line, not git's. G8: the INFO line no longer says the tag was pushed when the push failed. Also routed through the helper: the fetch message, the gitea publisher refusal line, the exit-time flush of every other external command's stderr in tag_and_release.sh, derive_release_facts.sh and release_publish_gitea.sh (whose curl message was a print site; the publisher is therefore no longer unchanged). Census of the print sites with control needles: docs/qa/con227_234_2026_11_11/round3.txt. Mutants N1, N2, N4 adopted, own P1-P10 added; the full mutation run killed=32 survived=0 stale=0. G6 (other git commands in the buffered section of derive, a shallow clone gives a silently truncated count) stays minor-class, decided: no corrupt-repository fix; the shallow-clone risk is tracked as a follow-up item. G7: the guide census was regenerated with --sync-guide and --verify-manifest passes at the merge of main b20736f8. Not independently re-reviewed after round 3; still In progress. Round 4 (review docs/qa/review_fix227_r3.md, NO-GO on H1, H2, H3; the same class recurred in rounds 1-3 as F1, G2, H1, so this is the section 11.4.276(E)(3) structural round by a fresh fixer instance). The design was re-derived from a written threat model (docs/qa/con227_234_2026_11_11/round4/threat_model.md) instead of patching the pattern again: scripts/release/redact_cut.sh is now an awk filter applied per whole line (header lines, Bearer, URL userinfo from the first :// to the last @ of the line for every scheme, scheme-less user:password@host, credential-named query/fragment/form parameters in any case, known token shapes), redaction before the byte cut, LC_ALL=C inside, NUL dropped, an optional truncation marker (I-3). H1 (raw / in the password, printed verbatim by git 2.53): cases U2 and C25 with the real git binary. H2 (credential query parameters): Q-* cases and C25b. H3 (temp files left after a signal or an error path): one 0700 mktemp -d run directory per script, removed in the EXIT trap, HUP/INT/TERM traps end through it; fetch, push, fallback-push and publisher stderr are captured into variables, not files (C26 leftover census with a control, C27 TERM/HUP, publisher 13/14). I-1 fallback push reason printed redacted (C28); I-2 header lines (A1-A9, publisher 16); I-4 the publisher refuses a non-numeric server release id (publisher 15); I-5 SC2221/SC2222 fixed; GIT_TRACE_REDACT=1 exported and set +x in all three scripts (C26, C30). RED on 34bbeb4e and GREEN with the same commands: docs/qa/con227_234_2026_11_11/round4/red_*.txt and docs/qa/con227_234_2026_11_11/round4/green_*.txt. Reviewer mutants Q1-Q12 adopted plus own S1-S16; mutation run result in docs/qa/con227_234_2026_11_11/round4/mutations.txt. The round-3 claim that a raw / never reaches a message is corrected in threat_model.md (round3.txt kept as the record). Honest limits are listed in the helper header and in the threat model. Not independently re-reviewed after round 4; still In progress. Round 5 (review docs/qa/review_fix227_r4.md, NO-GO on J1..J7 and surviving mutants V3, V4, V5, V8, V11, V12, V13; structural round under section 11.4.276(E)(3), fresh fixer instance). Rules on printed text kept missing (J1: the header rule removed the @ the URL rule needs; J2: a shrinking replacement moved unscanned bytes into the printed window), which is the heuristic tower of section 11.4.250; the primitive defect is that the scripts printed a message whose content they do not control. Fix: the stderr of every network command (git fetch, push, ls-remote, curl) is never printed on any path; a failure prints its exit status and one word of a closed set (rc_err_class, an awk program that prints string literals only) or timeout. rc_redact_cut stays as defence in depth for local stderr and the publisher's own lines, with J1 (rule order R3, R4, R1, R2, R5, R6) and J2 (no scan window, whole-line rules, lines over 16384 bytes not shown) fixed. Every caller and server value that is printed is validated first and never echoed when invalid (tag, SHA, remote names, --release specs, unknown arguments, --base, --prev-tag, notes path, base URL; ls-remote ids through oid(), the GitHub id, the HTTP status). J4: the publisher token goes to curl -K - on stdin, never a file, never argv, never exported (the round-4 TOKEN= kept the export attribute of a caller's TOKEN, so a child process received it: publisher case 19 was RED on the round-4 code). J5: every network command runs under timeout --foreground -k 10 RELEASE_NET_TIMEOUT (default 600 s) plus git http.lowSpeedLimit, curl -m 60 --connect-timeout 20. J6: the trap probe is a committed script (probe_trap_exit_status.py); round 4's no-observable-difference claim for mutants Q12 and S11 was wrong (exit 143/129 with the trap, killed by the signal without it), they are ordinary mutants now. J7: incident_j7.md (unscoped pkill of the round-4 session, severity UNKNOWN). Class census with control needles: census_print_sites.py, census_red_head.txt (178 sites), census_green.txt (195 sites); static case C40 fails if any captured network output variable is printed. RED/GREEN and the threat model: docs/qa/con227_234_2026_11_11/round5/. Mutation run: docs/qa/con227_234_2026_11_11/round5/mutations.txt. Not independently re-reviewed after round 5; still In progress. Round 6 (review scratchpad/review_fix227_r5.md on head 9cd1539a, NO-GO on K1..K4, N1 and the surviving mutants X6, X7, X9, X10, X12, X13, X14, X15, X17; structural round under section 11.4.276(E)(3) by a fresh fixer instance, operator decision 2026-11-11: rounds until GO). The round-5 census looked at printed text only; the review found three defects on other channels. K2: timeout --foreground signalled only its direct child, git's transport helpers ran on for 60-300 s against a hanging server (the test double, exec sleep 30, had no grandchild); --foreground is dropped, timeout signals the whole process group, C41 drives real git and git-remote-http(s) against a hanging local listener (exit 1, class word timeout, no git process left). K1: a remote URL with a password (or any userinfo on http/https), also after an insteadOf rewrite, is in the argv of git-remote-https and readable in /proc by every local user; the tag script now reads every fetch and push URL and aborts before any network command without showing the URL (rc_url_has_userinfo, C42). K3: the token and every exported caller variable reached git, timeout, gh and glab; rc_env_lockdown un-exports everything not on an allow-list and every exported function, the token is exported only to the publisher's bash (C43, C44, publisher 25, derive K3). K4: rc_safe_url is the base-URL check of the publisher. N1: three more awk backup shapes, noted as unreachable for network output. Structural: a channel census over every external command invocation (argv, environment, stdin, cwd, files, signals and time bound): tests/release/channels.tsv (one row per invocation, closed vocabulary), the control-needled static instrument tests/release/channel_census.py with a lint (missing or stale row, value outside the vocabulary, secret channel on the wrong row, unlisted secret reference, external command before rc_env_lockdown), and tests/release/test_channel_census.sh (instrument needles, lint on mutated copies, runtime recorders generated from the table). The runtime census found K5: dirname (library load) and date (derive script) ran before rc_env_lockdown and received the caller's token; fixed (parameter expansion, date after the lockdown) and refused by the lint. K6 (found adopting mutant X11): --token-var may name a variable on the allow-list (GH_HOST), which the lockdown leaves exported; the publisher dropped it only after its first grep; it now reads and unsets it before any external command (publisher case 28, every table command recorded). The tag, publisher and derive suites run the census lint on the script under test (case L1), so an external command before the lockdown is killable in the harness (Y22..Y25); census part 3 records every command the table names or the instrument finds. RELEASE_ENV_KEEP refuses any name with TOK (the publisher's _rpg_tok). A sixth instrument blind spot (a command after a case-arm pattern) was fixed and needled. Reviewer mutants X1..X20 adopted (X12 recorded equivalent under the lockdown, X12b killed), fixer mutants Y1..Y25 added; mp lines count a kill only by a FAIL line that names the property. Threat model, RED/GREEN, census and mutation run: docs/qa/con227_234_2026_11_11/round6/. Not independently re-reviewed after round 6. Round 7 (structural, review scratchpad/review_fix227_r6.md NO-GO on L1..L7, Z8, Z9): the allow-list of round 6 was subtractive and worked by name, so an inherited allexport re-exported the publisher's token (L1) and environment entries whose names are not shell identifiers reached every child (L2). rc_env_clean (scripts/release/redact_cut.sh), the first action of the three scripts, re-executes the script with exec -c (empty environment, no caller shell option) and rebuilds the allow-listed and the read variables from NUL-separated records on a pipe; clean state = marker argv0 + empty /proc/$$/environ, unreadable /proc exits 3, reserved or invalid name exits 2. Runtime census tests/release/env_census.py (recorders read their own /proc/$$/environ; names only) checks every child under a dirty environment, SHELLOPTS=allexport and bash -a (tag C48, publisher 29, derive L2). C49 kills Z8, Z9; suites skip HUP cases under an ignored SIGHUP with a control, the harness reports INCONCLUSIVE (exit 3); suite and harness signal handlers exit; L6 CHANGELOG ids corrected; L7 is CON-310, the trap shape outside tests/release is CON-311. Z1..Z14 adopted (no Z10, Z6 equivalent), W1..W13 added. Record: docs/qa/con227_234_2026_11_11/round7/. Not independently re-reviewed after round 7; still In progress.
+ Round 3 (review docs/qa/review_fix227_r2.md, NO-GO on G1, G2, G3; class closed per section 11.4.276(C)): every external-command output the release scripts print now goes through ONE helper, scripts/release/redact_cut.sh (redact userinfo, then cut). G1: the git push failure message was printed unredacted (reproduced); now redacted, case C21c. G2: the pattern stopped at the first @, so a raw @ in the password leaked its tail; now (://)[^/[:space:]]*@ (greedy to the last @ before the path), cases C21c and H1-H4. G3: two URLs in one message (C21c), kills the g-flag mutant N1. G4: the 400-byte cap is asserted (C21e), kills N2. G5: the derive refusal is one script-owned line naming CHANGELOG.md and no longer blames a tracker query; the test asserts the script's own line, not git's. G8: the INFO line no longer says the tag was pushed when the push failed. Also routed through the helper: the fetch message, the gitea publisher refusal line, the exit-time flush of every other external command's stderr in tag_and_release.sh, derive_release_facts.sh and release_publish_gitea.sh (whose curl message was a print site; the publisher is therefore no longer unchanged). Census of the print sites with control needles: docs/qa/con227_234_2026_11_11/round3.txt. Mutants N1, N2, N4 adopted, own P1-P10 added; the full mutation run killed=32 survived=0 stale=0. G6 (other git commands in the buffered section of derive, a shallow clone gives a silently truncated count) stays minor-class, decided: no corrupt-repository fix; the shallow-clone risk is tracked as a follow-up item. G7: the guide census was regenerated with --sync-guide and --verify-manifest passes at the merge of main b20736f8. Not independently re-reviewed after round 3; still In progress. Round 4 (review docs/qa/review_fix227_r3.md, NO-GO on H1, H2, H3; the same class recurred in rounds 1-3 as F1, G2, H1, so this is the section 11.4.276(E)(3) structural round by a fresh fixer instance). The design was re-derived from a written threat model (docs/qa/con227_234_2026_11_11/round4/threat_model.md) instead of patching the pattern again: scripts/release/redact_cut.sh is now an awk filter applied per whole line (header lines, Bearer, URL userinfo from the first :// to the last @ of the line for every scheme, scheme-less user:password@host, credential-named query/fragment/form parameters in any case, known token shapes), redaction before the byte cut, LC_ALL=C inside, NUL dropped, an optional truncation marker (I-3). H1 (raw / in the password, printed verbatim by git 2.53): cases U2 and C25 with the real git binary. H2 (credential query parameters): Q-* cases and C25b. H3 (temp files left after a signal or an error path): one 0700 mktemp -d run directory per script, removed in the EXIT trap, HUP/INT/TERM traps end through it; fetch, push, fallback-push and publisher stderr are captured into variables, not files (C26 leftover census with a control, C27 TERM/HUP, publisher 13/14). I-1 fallback push reason printed redacted (C28); I-2 header lines (A1-A9, publisher 16); I-4 the publisher refuses a non-numeric server release id (publisher 15); I-5 SC2221/SC2222 fixed; GIT_TRACE_REDACT=1 exported and set +x in all three scripts (C26, C30). RED on 34bbeb4e and GREEN with the same commands: docs/qa/con227_234_2026_11_11/round4/red_*.txt and docs/qa/con227_234_2026_11_11/round4/green_*.txt. Reviewer mutants Q1-Q12 adopted plus own S1-S16; mutation run result in docs/qa/con227_234_2026_11_11/round4/mutations.txt. The round-3 claim that a raw / never reaches a message is corrected in threat_model.md (round3.txt kept as the record). Honest limits are listed in the helper header and in the threat model. Not independently re-reviewed after round 4; still In progress. Round 5 (review docs/qa/review_fix227_r4.md, NO-GO on J1..J7 and surviving mutants V3, V4, V5, V8, V11, V12, V13; structural round under section 11.4.276(E)(3), fresh fixer instance). Rules on printed text kept missing (J1: the header rule removed the @ the URL rule needs; J2: a shrinking replacement moved unscanned bytes into the printed window), which is the heuristic tower of section 11.4.250; the primitive defect is that the scripts printed a message whose content they do not control. Fix: the stderr of every network command (git fetch, push, ls-remote, curl) is never printed on any path; a failure prints its exit status and one word of a closed set (rc_err_class, an awk program that prints string literals only) or timeout. rc_redact_cut stays as defence in depth for local stderr and the publisher's own lines, with J1 (rule order R3, R4, R1, R2, R5, R6) and J2 (no scan window, whole-line rules, lines over 16384 bytes not shown) fixed. Every caller and server value that is printed is validated first and never echoed when invalid (tag, SHA, remote names, --release specs, unknown arguments, --base, --prev-tag, notes path, base URL; ls-remote ids through oid(), the GitHub id, the HTTP status). J4: the publisher token goes to curl -K - on stdin, never a file, never argv, never exported (the round-4 TOKEN= kept the export attribute of a caller's TOKEN, so a child process received it: publisher case 19 was RED on the round-4 code). J5: every network command runs under timeout --foreground -k 10 RELEASE_NET_TIMEOUT (default 600 s) plus git http.lowSpeedLimit, curl -m 60 --connect-timeout 20. J6: the trap probe is a committed script (probe_trap_exit_status.py); round 4's no-observable-difference claim for mutants Q12 and S11 was wrong (exit 143/129 with the trap, killed by the signal without it), they are ordinary mutants now. J7: incident_j7.md (unscoped pkill of the round-4 session, severity UNKNOWN). Class census with control needles: census_print_sites.py, census_red_head.txt (178 sites), census_green.txt (195 sites); static case C40 fails if any captured network output variable is printed. RED/GREEN and the threat model: docs/qa/con227_234_2026_11_11/round5/. Mutation run: docs/qa/con227_234_2026_11_11/round5/mutations.txt. Not independently re-reviewed after round 5; still In progress. Round 6 (review scratchpad/review_fix227_r5.md on head 9cd1539a, NO-GO on K1..K4, N1 and the surviving mutants X6, X7, X9, X10, X12, X13, X14, X15, X17; structural round under section 11.4.276(E)(3) by a fresh fixer instance, operator decision 2026-11-11: rounds until GO). The round-5 census looked at printed text only; the review found three defects on other channels. K2: timeout --foreground signalled only its direct child, git's transport helpers ran on for 60-300 s against a hanging server (the test double, exec sleep 30, had no grandchild); --foreground is dropped, timeout signals the whole process group, C41 drives real git and git-remote-http(s) against a hanging local listener (exit 1, class word timeout, no git process left). K1: a remote URL with a password (or any userinfo on http/https), also after an insteadOf rewrite, is in the argv of git-remote-https and readable in /proc by every local user; the tag script now reads every fetch and push URL and aborts before any network command without showing the URL (rc_url_has_userinfo, C42). K3: the token and every exported caller variable reached git, timeout, gh and glab; rc_env_lockdown un-exports everything not on an allow-list and every exported function, the token is exported only to the publisher's bash (C43, C44, publisher 25, derive K3). K4: rc_safe_url is the base-URL check of the publisher. N1: three more awk backup shapes, noted as unreachable for network output. Structural: a channel census over every external command invocation (argv, environment, stdin, cwd, files, signals and time bound): tests/release/channels.tsv (one row per invocation, closed vocabulary), the control-needled static instrument tests/release/channel_census.py with a lint (missing or stale row, value outside the vocabulary, secret channel on the wrong row, unlisted secret reference, external command before rc_env_lockdown), and tests/release/test_channel_census.sh (instrument needles, lint on mutated copies, runtime recorders generated from the table). The runtime census found K5: dirname (library load) and date (derive script) ran before rc_env_lockdown and received the caller's token; fixed (parameter expansion, date after the lockdown) and refused by the lint. K6 (found adopting mutant X11): --token-var may name a variable on the allow-list (GH_HOST), which the lockdown leaves exported; the publisher dropped it only after its first grep; it now reads and unsets it before any external command (publisher case 28, every table command recorded). The tag, publisher and derive suites run the census lint on the script under test (case L1), so an external command before the lockdown is killable in the harness (Y22..Y25); census part 3 records every command the table names or the instrument finds. RELEASE_ENV_KEEP refuses any name with TOK (the publisher's _rpg_tok). A sixth instrument blind spot (a command after a case-arm pattern) was fixed and needled. Reviewer mutants X1..X20 adopted (X12 recorded equivalent under the lockdown, X12b killed), fixer mutants Y1..Y25 added; mp lines count a kill only by a FAIL line that names the property. Threat model, RED/GREEN, census and mutation run: docs/qa/con227_234_2026_11_11/round6/. Not independently re-reviewed after round 6. Round 7 (structural, review scratchpad/review_fix227_r6.md NO-GO on L1..L7, Z8, Z9): the allow-list of round 6 was subtractive and worked by name, so an inherited allexport re-exported the publisher's token (L1) and environment entries whose names are not shell identifiers reached every child (L2). rc_env_clean (scripts/release/redact_cut.sh), the first action of the three scripts, re-executes the script with exec -c (empty environment, no caller shell option) and rebuilds the allow-listed and the read variables from NUL-separated records on a pipe; clean state = marker argv0 + empty /proc/$$/environ, unreadable /proc exits 3, reserved or invalid name exits 2. Runtime census tests/release/env_census.py (recorders read their own /proc/$$/environ; names only) checks every child under a dirty environment, SHELLOPTS=allexport and bash -a (tag C48, publisher 29, derive L2). C49 kills Z8, Z9; suites skip HUP cases under an ignored SIGHUP with a control, the harness reports INCONCLUSIVE (exit 3); suite and harness signal handlers exit; L6 CHANGELOG ids corrected; L7 is CON-310, the trap shape outside tests/release is CON-311. Z1..Z14 adopted (no Z10, Z6 equivalent), W1..W13 added. Record: docs/qa/con227_234_2026_11_11/round7/. Not independently re-reviewed after round 7; still In progress. Recurrence link (section 11.4.214, review r14 G1, /mnt/DATA1TB/claude-work/scratch/rev227_r14.sBmI/review_fix227_r14.md sha256 2cfd0529c8068754262e5edab6ff7302cdc8c824563d93f23806668727a4c826): the C43 positive needle failed 2 of 12 runs under 3 concurrent heavy jobs while the round-14 README calls it deterministic; same class as round-13 F2. Fix: reproduce with the sample kept, slow the needle or use an exec record, and correct the wording. Follow-ups G2, G3, G4 and K8 N2 are filed as CON-359, CON-360, CON-361 and CON-362.
 
 ## CON-235 — Full-suite runner: --accept-excluded-change replaces a symlinked excluded-set lock instead of refusing it
 
@@ -3864,7 +3864,7 @@ scripts/install_constitution.sh runs under set -u -o pipefail; hi_push_changed t
 **Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/engine_created_at_2026_11_13/red_go_tests_base.txt` — red-command `go test ./... in scripts/workable-items on the base engine source (created_at_preservation_test.go)` — green-command `go test -count=1 ./... in scripts/workable-items on this change` — signature `close-*: section created_at rewritten to the command time, want the original value` — updated 2026-11-15T10:51:33Z — by `Claude Opus 5.5 (lander subagent)`
 **Investigation:** root-cause-found-with-evidence — root-cause `close and sync md-to-db wrote items.created_at from the current time instead of keeping the stored value` — evidence `docs/qa/engine_created_at_2026_11_13/README.md` — updated 2026-11-15T10:51:33Z — by `Claude Opus 5.5 (lander subagent)`
 
-The engine's close (and sync md-to-db) rewrote items.created_at to the time of the command, so a closed item lost its creation time. Fixed on the engine vehicle (head fa1c9302, rounds 1-4): close and sync md-to-db keep created_at; a new restore-created-at command restores a rewritten value from a committed evidence database (sha256-checked, audit history row, refuses a value later than the item's first history event); docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh applies restore_plan.tsv (CON-243, CON-308) through it. The vehicle's text calls this item CON-339, a provisional id of the unlanded tracker-intake vehicle b48091ea; re-minted at landing on main (section 11.4.214). Review round 4 GO-with-follow-ups (review_engine_r4.md sha256 c21872afec82e1bb1471f4f9314efc0990299bfa99c6c312e92cabadac243b6d). go test 877 PASS / 0 FAIL / 6 SKIP twice; applier suite 100/0. Evidence: docs/qa/engine_created_at_2026_11_13/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289). The restore plan was NOT applied at landing: its rows assume the tracker-intake vehicle's ids (main's CON-308 is a different item) and its CON-308 evidence commit 1a307322 is not in this repository.
+The engine's close (and sync md-to-db) rewrote items.created_at to the time of the command, so a closed item lost its creation time. Fixed on the engine vehicle (head fa1c9302, rounds 1-4): close and sync md-to-db keep created_at; a new restore-created-at command restores a rewritten value from a committed evidence database (sha256-checked, audit history row, refuses a value later than the item's first history event); docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh applies restore_plan.tsv (CON-243, CON-308) through it. The vehicle's text calls this item CON-339, a provisional id of the unlanded tracker-intake vehicle b48091ea; re-minted at landing on main (section 11.4.214). Review round 4 GO-with-follow-ups (review_engine_r4.md sha256 c21872afec82e1bb1471f4f9314efc0990299bfa99c6c312e92cabadac243b6d). go test 877 PASS / 0 FAIL / 6 SKIP twice; applier suite 100/0. Evidence: docs/qa/engine_created_at_2026_11_13/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289). The restore plan was applied in part after landing: commit 464cd498 restored CON-243 (created_at 2026-11-11 15:38:57 to 15:34:35, history row 543, evidence bd0036bd:docs/workable_items.db sha256 117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4). The CON-308 row was deliberately not applied: it assumes the tracker-intake vehicle's ids (main's CON-308 is a different item) and its evidence commit 1a307322 is not in this repository; it is tracked as CON-387.
 
 ## CON-314 — Installer timeouts hang under uutils timeout when the command touches the terminal (SIGTTIN/SIGTTOU not ignored at every timeout reachable from install, update, post-update hook and bootstrap)
 
@@ -3875,5 +3875,704 @@ The engine's close (and sync md-to-db) rewrote items.created_at to the time of t
 **Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/installer_followups_r2_2026_11_14/runs/timeout_tty_RED_before_fix_r2.txt` — red-command `bash tests/install/test_timeout_tty.sh (on the round-1 sources e1bf1bad)` — green-command `bash tests/install/test_timeout_tty.sh (this change)` — signature `T8 post_update_hook install_jev_bootstrap [uutils]: rc=CAPPED (limit never fires; timeout stopped by SIGTTOU/SIGTTIN)` — updated 2026-11-15T11:17:51Z — by `Claude Opus 5.5 (lander subagent)`
 **Investigation:** root-cause-found-with-evidence — root-cause `uutils timeout does not ignore SIGTTIN/SIGTTOU; a terminal-touching command in its background process group stops timeout with it, so the limit never fires` — evidence `docs/qa/installer_followups_2026_11_14/README.md` — updated 2026-11-15T11:17:51Z — by `Claude Opus 5.5 (lander subagent)`
 
-uutils timeout (0.10.0) does not ignore SIGTTIN/SIGTTOU: without --foreground it runs the command in a background process group of the terminal, a command that touches the terminal stops timeout together with itself, and the limit never fires (GNU timeout ignores both and still fires). Every timeout reachable from install_constitution.sh, update_constitution.sh, post_update_hook.sh and jev/bootstrap.sh could hang the installer or the post-update hook (RED: T8 post_update_hook install_jev_bootstrap [uutils] rc=CAPPED). Same mechanism as CON-112, distinct scope (CON-112 is the gates runner route; section 11.4.214 distinct-but-similar, linked not merged). Fixed on the installer follow-ups vehicle (rounds 1-2, head d659fddd): trap '' TTIN TTOU before every reachable timeout (19 sites by a derived census, 15 yes / 4 no with exact assertions), pty driver session race, python3 -I for inline Python, stale no-push gate allow-list entries, patsub_replacement comment; tests/install/test_timeout_tty.sh (PASS 25 / FAIL 0, 3 of 3 runs, GNU and uutils), test_python_isolation.sh, test_shell_state_patsub.sh. Review round 2 GO-with-follow-ups (review_installer_followups_r2.md sha256 e07f9c9ed374c0adf932ba73c8f925ebbbdda205ffff44b7c597974c44ae96f0); follow-ups R2-1..R2-5 filed separately. Evidence: docs/qa/installer_followups_2026_11_14/ and docs/qa/installer_followups_r2_2026_11_14/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289).
+uutils timeout (0.10.0) does not ignore SIGTTIN/SIGTTOU: without --foreground it runs the command in a background process group of the terminal, a command that touches the terminal stops timeout together with itself, and the limit never fires (GNU timeout ignores both and still fires). Every timeout reachable from install_constitution.sh, update_constitution.sh, post_update_hook.sh and jev/bootstrap.sh could hang the installer or the post-update hook (RED: T8 post_update_hook install_jev_bootstrap [uutils] rc=CAPPED). Same mechanism as CON-112, distinct scope (CON-112 is the gates runner route; section 11.4.214 distinct-but-similar, linked not merged). Fixed on the installer follow-ups vehicle (rounds 1-2, head d659fddd): trap '' TTIN TTOU before every reachable timeout (19 sites by a derived census, 15 yes / 4 no with exact assertions), pty driver session race, python3 -I for inline Python, stale no-push gate allow-list entries, patsub_replacement comment; tests/install/test_timeout_tty.sh (PASS 25 / FAIL 0, 3 of 3 runs, GNU and uutils), test_python_isolation.sh, test_shell_state_patsub.sh. Review round 2 GO-with-follow-ups (review_installer_followups_r2.md sha256 e07f9c9ed374c0adf932ba73c8f925ebbbdda205ffff44b7c597974c44ae96f0); follow-ups R2-1..R2-5 filed separately. Evidence: docs/qa/installer_followups_2026_11_14/ and docs/qa/installer_followups_r2_2026_11_14/. Status PROVISIONAL (section 11.4.290); evidence class gate-logic and unit (section 11.4.289). Recurrence link (section 11.4.214, installer follow-ups r2 review R2-1, /mnt/DATA1TB/claude-work/scratch/rev_fu_r2.W98s/review_installer_followups_r2.md sha256 e07f9c9ed374c0adf932ba73c8f925ebbbdda205ffff44b7c597974c44ae96f0 (verdict GO-with-follow-ups)): the census scan of tests/install/test_timeout_tty.sh credits a trap '' TTIN TTOU that does not reach the timeout (closed subshell RM-1, string carrier RM-2, trap - TTOU RM-3, background job RM-5); each surviving mutant hangs live. Same class as round-1 F-3. Fix: credit only adjacent forms, or add needles or live pty cases. Related follow-ups filed as CON-352, CON-353, CON-354, CON-355, CON-358.
+
+## CON-315 — Follow-up filing wave 2026-11-15: register the approved review follow-ups through the engine (deduplicated per section 11.4.214)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: register, in one pass, the review follow-ups the operator approved (approve all, dedupe first, file through the engine, never hand-edit the DB): the 67-item list with its later severity and split changes, plus the new follow-ups of the installer r2, lander r7, fix227 r14, installer SIGPIPE r2, engine r4, idguard r9, case-alt r4 and Jev toolkit r3 reviews. Scope: docs/workable_items.db and the files exported from it (docs/Issues.md, docs/Issues_Summary.md). Items of vehicles still under review (sync r9, gitenv r4, tracker intake r9, Jev constitution r9, CON-046 r12) are held back and listed in the hand-back report, not filed. Reproduction: not applicable (process item). Acceptance: every filed item carries what, scope, reproduction, acceptance and source; duplicates are linked or skipped, never re-minted; engine validate OK and diff in sync; full-suite manifest verify MANIFEST-OK; pushed fast-forward to every reachable upstream. Source: session-74ce2b36 scratchpad (outside the repository)/followup_items_ready.md sha256 6c69ae0577e4e8ef0300723a4c91267a0f0b6e63a5e5c5e97ba251d14ec46938.
+
+## CON-316 — Security scripts R4-1: forge branch-protect keys-file mode check is untested for mode 0604 (reviewer mutant V9 survives)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the keys-file permission check of the forge branch-protect script refuses group/other-readable files, but no test feeds a 0604 file, so reviewer mutant V9 (narrowed mode test) survives. Scope: tests/security/test_forge_branch_protect.sh of the security-scripts vehicle (not yet on main). Reproduction: UNKNOWN: not run in this filing; the reviewer recorded V9 surviving. Acceptance: a 0604 keys file is refused by a test and V9 is killed; adopt V9 in the mutant manifest. Source: session-74ce2b36 scratchpad (outside the repository)/review_security_scripts_r4.md sha256 cc5bbe1a2e5012651ab71f22fafc0ba8b4f1b6a859716be34b94958d14338c4a; vehicle bundle security_scripts_r3.bundle sha256 10210425e886491453bd8cc0059670648f6095e15cac8149f9eef8ba6c249faa (head e940110e, not on main). Approved list FU-01.
+
+## CON-317 — Security scripts R4-2: the '.netrc is not used' claim of the forge branch-protect script has no test (mutant V7 survives)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the script documents that ~/.netrc is never read, but no test plants a .netrc and checks it is not used; mutant V7 survives. Scope: tests/security/test_forge_branch_protect.sh (security-scripts vehicle, not on main). Reproduction: UNKNOWN: not run in this filing. Acceptance: a test with a planted .netrc under a sandbox HOME proves the credential is not sent; V7 killed. Source: session-74ce2b36 scratchpad (outside the repository)/review_security_scripts_r4.md sha256 cc5bbe1a2e5012651ab71f22fafc0ba8b4f1b6a859716be34b94958d14338c4a; vehicle bundle security_scripts_r3.bundle sha256 10210425e886491453bd8cc0059670648f6095e15cac8149f9eef8ba6c249faa (head e940110e, not on main). Approved list FU-02.
+
+## CON-318 — Security scripts R4-3: the test-only loopback exception is wider than documented (mutants V3, V13)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the test-only exception that allows a loopback endpoint accepts more than the documented shape; reviewer mutants V3 and V13 show the gap. Scope: forge branch-protect script and its test (security-scripts vehicle, not on main). Reproduction: UNKNOWN: not run in this filing. Acceptance: the exception accepts only the documented loopback form (or the documentation states the real shape), with tests that kill V3 and V13. Source: session-74ce2b36 scratchpad (outside the repository)/review_security_scripts_r4.md sha256 cc5bbe1a2e5012651ab71f22fafc0ba8b4f1b6a859716be34b94958d14338c4a; vehicle bundle security_scripts_r3.bundle sha256 10210425e886491453bd8cc0059670648f6095e15cac8149f9eef8ba6c249faa (head e940110e, not on main). Approved list FU-03.
+
+## CON-319 — Security scripts R4-4: mutant V15 is probably equivalent; record the equivalence proof or add a killing test
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: reviewer mutant V15 survives; the review judges it likely equivalent given the curl URL parser, which is UNCONFIRMED. Scope: security-scripts vehicle mutant table (not on main). Reproduction: UNKNOWN: not run in this filing. Acceptance: either a recorded equivalence argument checked against curl's parser, or a test that kills V15. Source: session-74ce2b36 scratchpad (outside the repository)/review_security_scripts_r4.md sha256 cc5bbe1a2e5012651ab71f22fafc0ba8b4f1b6a859716be34b94958d14338c4a; vehicle bundle security_scripts_r3.bundle sha256 10210425e886491453bd8cc0059670648f6095e15cac8149f9eef8ba6c249faa (head e940110e, not on main). Approved list FU-04.
+
+## CON-320 — Security scripts R4-5: re-run part 1 of the round-3 mutant set on the final tree
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the round-3 mutant part 1 was run on an earlier tree; the review asks for a re-run on the final head so the kill table matches the shipped code. Scope: security-scripts vehicle (head e940110e, not on main). Reproduction: not applicable (evidence refresh). Acceptance: the part-1 mutant table re-run on the final head, committed with its run count and sha256. Source: session-74ce2b36 scratchpad (outside the repository)/review_security_scripts_r4.md sha256 cc5bbe1a2e5012651ab71f22fafc0ba8b4f1b6a859716be34b94958d14338c4a; vehicle bundle security_scripts_r3.bundle sha256 10210425e886491453bd8cc0059670648f6095e15cac8149f9eef8ba6c249faa (head e940110e, not on main). Approved list FU-05.
+
+## CON-321 — Security apply: record the second evidence leg on the next ordinary push
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the applied forge settings were read back once; the apply report leaves open a second evidence leg that is only observable on the next ordinary push (the push is accepted or refused as the settings say). Scope: own-org forge settings applied by the security apply; evidence dir of that apply. Reproduction: not applicable (evidence leg). Acceptance: after the next ordinary push, the observed outcome per forge is recorded next to the first read-back, with sha256. Source: session-74ce2b36 scratchpad (outside the repository)/security_apply_report.md sha256 e819623b215642534db606cec057fdf066665597d9917341f286819727cf8571. Approved list FU-06; same family as FU-07..09.
+
+## CON-322 — Codeberg: force-push blocking cannot be read back (Forgejo 17.0.0 has no enable_force_push field)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the security apply could not read back whether force pushes are blocked on Codeberg: the Forgejo 17.0.0 branch-protection API returns no enable_force_push field, so the setting is UNCONFIRMED. Scope: the Codeberg mirror of the constitution (and any own-org Codeberg repository the apply covers). Reproduction: UNKNOWN: a read-back path other than the API field has not been tried. Acceptance: either a second read-back that shows force pushes are refused (for example a refused force push to a throw-away protected branch, without touching main), or the gap recorded as an accepted honest limit per section 11.4.6. Source: session-74ce2b36 scratchpad (outside the repository)/security_apply_report.md sha256 e819623b215642534db606cec057fdf066665597d9917341f286819727cf8571. Approved list FU-07; severity raised to important by the operator.
+
+## CON-323 — Terminator: verify the GitHub Actions disable leg and that Dependabot runs stop
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: after disabling GitHub Actions and Dependabot on HelixDevelopment/terminator, check that no further workflow or Dependabot runs appear; the independent read-back was identical in 3 runs but the time-triggered part needs a later check. Scope: HelixDevelopment/terminator repository settings. Reproduction: time-triggered: re-check after about 2026-11-15. Acceptance: a dated read-back showing no runs since the disable, with sha256 of the evidence. Source: session-74ce2b36 scratchpad (outside the repository)/terminator_report.md sha256 c41e8e142a8cb91eed8505d87454c3fb779eee42deea8717f8355778bc87514a; session-74ce2b36 scratchpad (outside the repository)/terminator_followup_report.md sha256 6dc254d333d39bda1019c3af48a52dde9d8668bd05dd636c5d5779302c81bd5b. Approved list FU-08; Type Task (a check, not a defect).
+
+## CON-324 — Terminator Dependabot change: mint a real id for the placeholder trailer CON-PENDING-TERMINATOR-DEPENDABOT (commits 347db45, 19fe5a7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the terminator commits 347db45 and 19fe5a7 on HelixDevelopment/terminator main carry the placeholder Roadmap-Item CON-PENDING-TERMINATOR-DEPENDABOT; this item is the real id for that work. Scope: HelixDevelopment/terminator main; this tracker. Reproduction: not applicable (process item). Acceptance: the placeholder is mapped to this id in the terminator repository's records (a follow-up commit or note, never a history rewrite). Source: session-74ce2b36 scratchpad (outside the repository)/terminator_report.md sha256 c41e8e142a8cb91eed8505d87454c3fb779eee42deea8717f8355778bc87514a; session-74ce2b36 scratchpad (outside the repository)/terminator_followup_report.md sha256 6dc254d333d39bda1019c3af48a52dde9d8668bd05dd636c5d5779302c81bd5b. Approved list FU-09; relates to FU-08. FU-10 (close or keep Dependabot PRs 1, 3, 4) is an operator decision and is not filed here.
+
+## CON-325 — Host tmux scope hits pids.max=6000 repeatedly (pids.events max 285 to 380); uutils sort/comm fail with EAGAIN
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the tmux user scope hit its pids.max of 6000 (pids.events max counted 285 to 380); uutils sort and comm failed with EAGAIN and the first Actions apply was refused fail-closed. Scope: host session scope (section 12.12); the tools affected were run from it. Reproduction: UNREPRODUCED: observed during the terminator work; whether the cause is the scope limit or tool behaviour is UNCONFIRMED. Investigate first per section 11.4.292. Acceptance: a root cause backed by evidence (which processes fill the scope), and either a fixed limit or fixed process fan-out, with a check that records pids.current and pids.events before heavy runs. Source: session-74ce2b36 scratchpad (outside the repository)/terminator_report.md sha256 c41e8e142a8cb91eed8505d87454c3fb779eee42deea8717f8355778bc87514a; session-74ce2b36 scratchpad (outside the repository)/terminator_followup_report.md sha256 6dc254d333d39bda1019c3af48a52dde9d8668bd05dd636c5d5779302c81bd5b. Approved list FU-11; host safety, severity raised to important by the operator.
+
+## CON-326 — llmctl svc_hook gate depends on /dev/shm ownership and leaves a failed unit that does not heal itself
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: llmctl-llama decide-nli ExecStartPre exited 75 four times (StartLimitBurst 3 per 900 s), leaving the unit failed; the svc_hook gate depended on /dev/shm ownership, which showed uid 65534 at the time. Today /dev/shm is root:root and the verdict is fits. Scope: llmctl (submodule) svc_hook gate and its unit template; the constitution pin of llmctl. Reproduction: UNREPRODUCED: why /dev/shm showed uid 65534 is UNCONFIRMED. Acceptance: the gate does not depend on /dev/shm ownership (or refuses with a clear reason that does not exhaust the start limit), and a failed unit recovers or is reported; fix lands in llmctl and the pin is bumped. Source: session-74ce2b36 scratchpad (outside the repository)/llmctl_failed_units_diagnosis.md sha256 6151f6c752e1fcd64923e9fbc3a4df0a3bb99a6008c71a22a50085b611b6a623. Approved list FU-12; severity raised to important by the operator.
+
+## CON-327 — llmctl-llama@decide-kev-08b: identify the sender of SIGTERM behind the about 82 s start/stop cycles
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the unit llmctl-llama@decide-kev-08b started and was stopped by SIGTERM about every 82 s; the sender is UNCONFIRMED. The svc_hook.sh:272 cmdline race is harmless. A failed but fitting unit must not read as does_not_fit (section 11.4.291). Scope: llmctl decide units on this host. Reproduction: UNKNOWN: not re-run in this filing. Acceptance: the SIGTERM sender identified from evidence (journal, audit), and the cycle stopped or explained. Source: session-74ce2b36 scratchpad (outside the repository)/llmctl_failed_units_diagnosis.md sha256 6151f6c752e1fcd64923e9fbc3a4df0a3bb99a6008c71a22a50085b611b6a623. Approved list FU-13; related to FU-12.
+
+## CON-328 — Jev gate: an uppercase HTTPS:// JEV_BASE_URL sends the decision body without the key pin to an unpinned origin (jev-gate.sh:353,454,466)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the scheme check of the Jev gate compares case-sensitively, so JEV_BASE_URL=HTTPS://... is not treated as the pinned https origin; the decision body is sent keyless to an origin the pin does not cover. Scope: claude_toolkit Jev gate (scripts/jev-gate.sh), failover vehicle r2/r3 (not landed). Reproduction: UNREPRODUCED in this filing; reported by the r2 review (N1) and still open in r3. Acceptance: the base URL scheme and host are lower-cased before every comparison, with a test for HTTPS:// and mixed case. Source: claude_toolkit_jev_failover_r2.bundle sha256 5f9dd042f610980cf560b104fc6910ba168d9036abc1be8ce13b746ecea85b3b; session-74ce2b36 scratchpad (outside the repository)/rev_jevtk_r3.4iGB/review_jev_toolkit_r3.md sha256 74a00d771f2fa5cf150e25a341e1bf9956575e409def7b04370ab6669a46950c; vehicle bundle claude_toolkit_jev_failover_r3.bundle (head 5c6092f4, not landed). Approved list FU-39 (r2 N1); stays open in r3. Same class as FU-18 (scheme handling), which a fix vehicle covers: linked, not merged. Security-adjacent, severity important.
+
+## CON-329 — Jev MCP: JEV_MCP_MAX_ATTEMPTS of 0 or less means 1 attempt while the gate maps the same values to 3 (jev_mcp.py:452 vs jev-gate.sh:444)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: jev_mcp.py uses max(1, int(...)), so 0 and -1 give one attempt and fail open after one 402; the gate maps unset, non-integer, 0 and negative values to 3. The guide and the M8 header claim the two behave the same. Scope: claude_toolkit scripts/jev_mcp.py, tests test_jev_failover.sh M8 and G9. Reproduction: reported by the r3 review with a hermetic probe (fixtures 402, 402, 200): gate 0 -> 3 attempts, MCP 0 -> 1 attempt. Acceptance: the MCP maps values below 1 to the default 3; M8 and G9 add 0 and -1; mutant X05 killed. Source: session-74ce2b36 scratchpad (outside the repository)/rev_jevtk_r3.4iGB/review_jev_toolkit_r3.md sha256 74a00d771f2fa5cf150e25a341e1bf9956575e409def7b04370ab6669a46950c; vehicle bundle claude_toolkit_jev_failover_r3.bundle (head 5c6092f4, not landed). r3 review F1.
+
+## CON-330 — Jev toolkit tests: the default-value tests are one-sided, a larger default passes (mutants X03, X07, X09 survive)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: G9/M8 offer only 3 candidates, P6b never checks a re-probe after the interval, G10 never checks the budget stops; so raising the attempts, probe interval or budget defaults passes. Scope: claude_toolkit Jev failover tests (G9, G10, P6b and MCP twins M8, M9). Reproduction: not applicable (test coverage). Acceptance: tests with a fourth healthy candidate that must not be called, a stored probe older than 3600 s that must be re-probed, and a budget that must stop the fourth attempt; X03, X07, X09 killed. Source: session-74ce2b36 scratchpad (outside the repository)/rev_jevtk_r3.4iGB/review_jev_toolkit_r3.md sha256 74a00d771f2fa5cf150e25a341e1bf9956575e409def7b04370ab6669a46950c; vehicle bundle claude_toolkit_jev_failover_r3.bundle (head 5c6092f4, not landed). r3 review F2.
+
+## CON-331 — Jev toolkit CHANGELOG over-claims the round-3 test coverage (request timeouts have no non-integer case)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the CHANGELOG says every default is checked at its default and with a non-integer value; JEV_MCP_TIMEOUT=abc makes every jev_ask fail with a float conversion error and JEV_GATE_TIMEOUT=abc is read as 0 by awk, and neither has a test. Scope: claude_toolkit CHANGELOG.md and the timeout validation of jev_mcp.py and jev-gate.sh. Reproduction: measured by the r3 review with probe_maxatt.sh. Acceptance: the sentence narrowed to what is tested; optionally both timeouts validated and abc cases added. Source: session-74ce2b36 scratchpad (outside the repository)/rev_jevtk_r3.4iGB/review_jev_toolkit_r3.md sha256 74a00d771f2fa5cf150e25a341e1bf9956575e409def7b04370ab6669a46950c; vehicle bundle claude_toolkit_jev_failover_r3.bundle (head 5c6092f4, not landed). r3 review F3.
+
+## CON-332 — Jev toolkit: the CMA_JEV_LIVE=1 default cites an operator decision of 2026-11-12 that cannot be resolved
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the CHANGELOG says CMA_JEV_LIVE defaults to 1 by operator decision of 2026-11-12, but no request-history id or decision record is cited and the readable decision notes of that date do not mention it. Scope: claude_toolkit CHANGELOG.md and the CMA_JEV_LIVE default. Reproduction: not applicable (decision record). Acceptance: the CHANGELOG cites the recorded decision (request-history id); if none exists, the default is put to the operator as a decision owed (section 11.4.66) before landing. Source: session-74ce2b36 scratchpad (outside the repository)/rev_jevtk_r3.4iGB/review_jev_toolkit_r3.md sha256 74a00d771f2fa5cf150e25a341e1bf9956575e409def7b04370ab6669a46950c; vehicle bundle claude_toolkit_jev_failover_r3.bundle (head 5c6092f4, not landed); claude_toolkit_jev_failover_r2.bundle sha256 5f9dd042f610980cf560b104fc6910ba168d9036abc1be8ce13b746ecea85b3b. r3 review F4; also approved list FU-36 (r2 M2 residual: stale 'Changed (operator decision owed)' heading), merged here as the same finding.
+
+## CON-333 — fix227 honest limit N-2: under a client 'SendEnv *' the base-list values of the release scripts reach the network child undeclared
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: round 11 lists N-2 as an honest limit in threat_model.md section 5: with a client ssh_config 'SendEnv *', the values of the base keep-list (locale and similar) are sent to the remote; they are not declared per call. Scope: scripts/release/redact_cut.sh rc_env_clean and docs/qa/con227_234_2026_11_11/round11/threat_model.md. Reproduction: UNKNOWN: not re-run in this filing; the round-11 sshd probe covers 18 configurations. Acceptance: either the base list is reduced for network children so nothing undeclared is sent under SendEnv *, or the limit stays documented with a test that shows exactly which names are sent. Source: docs/qa/con227_234_2026_11_11/round11/README.md and threat_model.md; approved list FU-45. Split of approved FU-45: N-1 (locale codeset), N-3 (tag suite git identity) and N-4 (evidence-class wording) were closed in fix227 round 11; FU-46 (LANGUAGE 'user:pw@host', r9 F8) was closed in round 10 (redact_cut.sh _rc_env_locale_ok). Parent CON-234.
+
+## CON-334 — Git identity guard F4: git autostash and rebase --root write commits with the config identity
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the identity guard does not cover commits written by git's autostash and by rebase --root; they take the configured identity without the guard's check. Scope: scripts/hooks/guard-git-identity.sh (idguard vehicle, not on main). Reproduction: UNREPRODUCED in this filing; reported by the r5 review. Whether rounds 6 to 9 covered it is UNCONFIRMED; the conflict path could raise the severity. Acceptance: the guard checks or refuses these commit-writing paths, with tests; recorded at the current idguard head. Source: idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-51; class recurrence of FU-48..50 (commit-writing subcommands).
+
+## CON-335 — Git identity guard F5: a carried placeholder author passes the PreToolUse mode (git am); only the git hooks catch it
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: in PreToolUse mode the guard accepts git am of a patch whose author is a placeholder; only the git hook layer refuses it. Scope: guard-git-identity.sh and its guide (idguard vehicle). Reproduction: not applicable (documentation of a layer boundary). Acceptance: the guide states which layer catches a carried placeholder author, or the PreToolUse mode checks it too. Source: idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-52.
+
+## CON-336 — Git identity guard F6: raw object writers (hash-object -t commit, mktag) are not in guide section 8, and the tag tagger is unchecked
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the guide's list of commit-writing commands omits raw object writers, and the tagger of a tag object is not checked. Scope: guard-git-identity.sh guide section 8 (idguard vehicle). Reproduction: not applicable. Acceptance: the guide lists raw writers and states how they are handled; the tagger is checked or the gap documented. Source: idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-53.
+
+## CON-337 — Git identity guard F7: the guide's 'pull' class row disagrees with the code (--squash, --no-commit, pull.rebase)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the guide classifies git pull one way, the code another for --squash, --no-commit and pull.rebase. Scope: guard-git-identity.sh and its guide (idguard vehicle). Reproduction: not applicable. Acceptance: code and guide agree, with tests for each pull variant. Source: idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-54.
+
+## CON-338 — Git identity guard F8: the class-table ground-truth script cited at guide line 113 is not in the repository
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the guide cites a ground-truth script for its command-class table that is not shipped. Scope: idguard guide line 113 (idguard vehicle). Reproduction: not applicable. Acceptance: the script is shipped, or its path and sha256 cited (section 11.4.215). Source: idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-55.
+
+## CON-339 — Git identity guard F9/F10: conservative-refusal wording; option table version GIT_OPT_VERSION is never compared with the running git
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the refusal wording overstates certainty, and the option table records a git version that is never compared with the git that runs. Scope: guard-git-identity.sh (idguard vehicle). Reproduction: not applicable. Acceptance: wording corrected; the guard warns or refuses when the running git differs from GIT_OPT_VERSION. Source: idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-56 (nit).
+
+## CON-340 — Git identity guard F11-F13 test gaps: rebase --continue (RV5), am --continue/--skip, tag -s/--sign (RV8), fallback word list (RV16)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: reviewer mutants RV5, RV8 and RV16 survive because these commands and the fallback word list have no tests. Scope: idguard test suite (idguard vehicle). Reproduction: not applicable. Acceptance: tests for each command; RV5, RV8, RV16 adopted into the mutant manifest and killed. Source: idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-57.
+
+## CON-341 — Git identity guard: the identity source is the hook environment, not the Bash tool shell
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the guard reads the identity from the hook process environment, which may differ from the shell in which the Bash tool runs git; whether the harness hook env differs is UNCONFIRMED. Scope: guard-git-identity.sh (idguard vehicle). Reproduction: UNKNOWN. Acceptance: a measured comparison of the hook env and the tool shell env, and the guard or its guide adjusted to the result. Source: review_idguard_r4.md F5; review_idguard_r5.md section 5c; idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-58.
+
+## CON-342 — Git identity guard survey: the 100-command sample rerun of r5 (64/100) is not reproduced; only 63 refusals were kept
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the r5 false-positive survey reported 64 of 100 refusals, but the kept sample file holds 63, so the figure cannot be reproduced from evidence. Scope: idguard survey evidence (rv4.ao9D/sample_refusals.txt). Reproduction: not applicable (evidence). Acceptance: the survey re-run on the current idguard head with the full sample and refusal list kept and hashed. Source: idguard_r5.bundle sha256 83a840837637da30d05c6f924df8a65310aae18374104af49dce2d239394167d (head e7bf4d41); idguard is parked at round 9 (bundle fin9.03XH/ev/idguard_r9.bundle, head b9544a8f), scripts/hooks/guard-git-identity.sh is NOT on main. Approved list FU-59 (nit).
+
+## CON-343 — Git identity guard: a git command assembled from split variables (a=g; b=it; nice $a$b $c$d) is not recognised
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the guard looks for git at command position in the literal text; a command word assembled from several literal variable assignments is not seen. Scope: guard-git-identity.sh (idguard vehicle, parked at round 9, not on main). Reproduction: UNREPRODUCED in this filing; shown by the r7 review (F1) and the r8 fixer notes. Acceptance: literal assignments are substituted before the relevance check, or step D generalised to expansions in execution position, measured against the false-positive survey; tests with the split forms. Source: /mnt/DATA1TB/claude-work/scratch/fin9.03XH/ev/round9_in_repo/README.md sha256 08e40b28063de440d188df941d23254b39541e8f4811adc61c8e64b42bf18067 (idguard round 9, parked, not on main). idguard r9 follow-up.
+
+## CON-344 — Git identity guard: bash 3.2 decodes \c?, \c\\ and a trailing \c differently from the bash-5 value the guard uses
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: for ANSI-C quoting the guard uses bash-5 values; bash 3.2 gives 0x1f instead of 0x7f for \c? and differs for \c\\ and a trailing \c. That this cannot change a verdict is UNCONFIRMED. Scope: guard-git-identity.sh ANSI-C decoder (idguard vehicle). Reproduction: not applicable (analysis). Acceptance: an argument, checked by test, that no verdict changes, or the decoder made version-aware. Source: /mnt/DATA1TB/claude-work/scratch/fin9.03XH/ev/round9_in_repo/README.md sha256 08e40b28063de440d188df941d23254b39541e8f4811adc61c8e64b42bf18067 (idguard round 9, parked, not on main). idguard r9 README section 6.
+
+## CON-345 — Lander round-2 nits: re-verify which of R2-F3, R2-F7 and R2-F10 are still open in scripts/release/land_vehicle.sh
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the lander round-2 review listed R2-F3 (publish trailer range from an unauthenticated state file), R2-F7 (two odd trailer shapes refused although fixable) and R2-F10 (verify needs no prepare state). Rounds 3 to 7 changed the script; whether these three are closed is UNCONFIRMED. R2-F4 (flock), R2-F5 (--clone-name), R2-F6 (hooksPath), R2-F8 (--help), R2-F9 (placeholder documented at line 294) and R2-F11 (test under tests/release) show closure signs in the current script, also UNCONFIRMED by behaviour. Scope: scripts/release/land_vehicle.sh on main 584c287e sha256 73c902b8a914abc405d7f0de0d56868931fcbc62e2f1459ba5171129665f04d8, tests/release/test_land_vehicle.sh. Reproduction: UNKNOWN: not re-run in this filing. Acceptance: each of R2-F3..R2-F11 marked closed (with the test or scenario that shows it) or fixed test-first. Source: session-74ce2b36 scratchpad (outside the repository)/review_lander_r2.md sha256 97ff37e6671ff1e0affa03efe3463b3963820a4734d3a8b191d752d11adbb2b0. Split of approved FU-71 (part 1). Parent CON-299.
+
+## CON-346 — Lander R2-F12: confirm the lander test's recursive deletes all go through safe_rm_rf (section 11.4.287(B))
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: round 2 found the lander test deleting with guarded rm -rf instead of safe_rm_rf; the current test uses safe_rm_rf (3 calls) and no rm -rf, so this is probably closed, UNCONFIRMED. Scope: tests/release/test_land_vehicle.sh. Reproduction: not applicable. Acceptance: confirmed by reading the test and one sandboxed empty-argument run (section 11.4.287(D)), then closed. Source: session-74ce2b36 scratchpad (outside the repository)/review_lander_r2.md sha256 97ff37e6671ff1e0affa03efe3463b3963820a4734d3a8b191d752d11adbb2b0. Split of approved FU-71 (safety-adjacent part). Parent CON-299.
+
+## CON-347 — Lander R7-C: LAND_VEHICLE_EXEC=$$ with exec bash -O nocasematch skips the clean re-run; an exported function 'env' blinds lv_dirty_env
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: (1) setting LAND_VEHICLE_EXEC to the caller pid and exec'ing bash -O nocasematch skips the clean re-run, so --item-id con-777 lands as 'Roadmap-Item: con-777'; (2) an exported function named env hides the environment from lv_dirty_env. Scope: scripts/release/land_vehicle.sh on main 584c287e sha256 73c902b8a914abc405d7f0de0d56868931fcbc62e2f1459ba5171129665f04d8. Reproduction: UNREPRODUCED in this filing; shown by the r7 review scenarios. Acceptance: the dirty-shell check reads the real shell state ($-, shopt -p, declare -F, compgen -e) and refuses both cases, with tests. Source: /mnt/DATA1TB/claude-work/scratch/rv_lander_r7.bArH/review_lander_r7.md sha256 38f9ace693a011984c6ecb0eb9e47a6ae858e0896fb79da893cb5bc275048405. Class C, same class as R5-C. Parent CON-299.
+
+## CON-348 — Lander R7-M: add probe Q02 (case-insensitive newness check)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the newness census has no probe for a case-insensitive match. Scope: tests/release/test_land_vehicle.sh newness probes. Reproduction: not applicable. Acceptance: probe Q02 added and run, with its paired mutant. Source: /mnt/DATA1TB/claude-work/scratch/rv_lander_r7.bArH/review_lander_r7.md sha256 38f9ace693a011984c6ecb0eb9e47a6ae858e0896fb79da893cb5bc275048405. Parent CON-299.
+
+## CON-349 — Lander R7-S: the static T5 force-push grep misses "+$local_main:..."; add a behavioural push-argv guard (also round-2 R2-F13, mutant N01)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the static grep for a force refspec misses a + prefix carried in a variable ("+$local_main:...", round-2 mutant N01). The shipped script cannot force-push (its only push is a plain main:refs/heads/main), so this is a test gap. Scope: scripts/release/land_vehicle.sh on main 584c287e sha256 73c902b8a914abc405d7f0de0d56868931fcbc62e2f1459ba5171129665f04d8, tests/release/test_land_vehicle.sh T5. Reproduction: shown by the r2 (N01) and r7 reviews. Acceptance: a git PATH shim records every push argv and the test fails on any refspec starting with + or a --force option; N01 and the r7 variant killed. Source: /mnt/DATA1TB/claude-work/scratch/rv_lander_r7.bArH/review_lander_r7.md sha256 38f9ace693a011984c6ecb0eb9e47a6ae858e0896fb79da893cb5bc275048405; session-74ce2b36 scratchpad (outside the repository)/review_lander_r2.md sha256 97ff37e6671ff1e0affa03efe3463b3963820a4734d3a8b191d752d11adbb2b0. Recurrence of round-2 R2-F13 (approved FU-71 split), linked here instead of a second item (section 11.4.214). Parent CON-299.
+
+## CON-350 — Lander R7-N: newness greps at land_vehicle.sh lines 721, 723 and 813 fail open on grep exit status 2
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:21Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: three newness checks treat any non-zero grep status as 'no match', so a grep error (status 2) reads as new. Scope: scripts/release/land_vehicle.sh on main 584c287e sha256 73c902b8a914abc405d7f0de0d56868931fcbc62e2f1459ba5171129665f04d8. Reproduction: UNREPRODUCED in this filing; shown by the r7 review. Acceptance: status 2 refuses (or is BLIND), with a test that forces a grep error. Source: /mnt/DATA1TB/claude-work/scratch/rv_lander_r7.bArH/review_lander_r7.md sha256 38f9ace693a011984c6ecb0eb9e47a6ae858e0896fb79da893cb5bc275048405. Parent CON-299.
+
+## CON-351 — Lander: a gitlink to a commit that exists on no remote lands (scenario A8); state the limit in the header
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: scenario A8 of the r7 review: a vehicle that records a submodule gitlink to a commit no upstream has is landed without a refusal. Scope: scripts/release/land_vehicle.sh on main 584c287e sha256 73c902b8a914abc405d7f0de0d56868931fcbc62e2f1459ba5171129665f04d8 header limits. Reproduction: shown by the r7 review scenario A8. Acceptance: the header limits state it (sections 11.4.233(G), 11.4.288(D)), or the lander checks gitlink reachability; tracked either way. Source: /mnt/DATA1TB/claude-work/scratch/rv_lander_r7.bArH/review_lander_r7.md sha256 38f9ace693a011984c6ecb0eb9e47a6ae858e0896fb79da893cb5bc275048405. Parent CON-299.
+
+## CON-352 — Installer timeout census refuses equivalent trap spellings (SIGTTIN SIGTTOU, "", reversed order; mutant RM-6)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the census refuses trap forms that are equivalent to trap '' TTIN TTOU. Scope: tests/install/test_timeout_tty.sh. Reproduction: shown by the r2 review (RM-6). Acceptance: equivalent spellings accepted, with cases. Source: /mnt/DATA1TB/claude-work/scratch/rev_fu_r2.W98s/review_installer_followups_r2.md sha256 e07f9c9ed374c0adf932ba73c8f925ebbbdda205ffff44b7c597974c44ae96f0 (verdict GO-with-follow-ups). Nit. Parent CON-314.
+
+## CON-353 — Installer timeout census: the evidence tool census_new.py.txt differs from the census in the test; README sections 1 and 6 disagree (9 census-only sites)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the census tool kept as evidence is not the one the test runs, and the README gives two different site lists. Scope: docs/qa/installer_followups_r2_2026_11_14 and tests/install/test_timeout_tty.sh. Reproduction: not applicable. Acceptance: one census implementation, one site list. Source: /mnt/DATA1TB/claude-work/scratch/rev_fu_r2.W98s/review_installer_followups_r2.md sha256 e07f9c9ed374c0adf932ba73c8f925ebbbdda205ffff44b7c597974c44ae96f0 (verdict GO-with-follow-ups). Nit. Parent CON-314.
+
+## CON-354 — scripts/label-sync/render/statusline.sh:91 sets the TTIN/TTOU ignore for head -n 1 too
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the trap set for the timeout also applies to an unrelated head -n 1. Scope: scripts/label-sync/render/statusline.sh line 91. Reproduction: not applicable. Acceptance: the trap scoped to the timeout call only. Source: /mnt/DATA1TB/claude-work/scratch/rev_fu_r2.W98s/review_installer_followups_r2.md sha256 e07f9c9ed374c0adf932ba73c8f925ebbbdda205ffff44b7c597974c44ae96f0 (verdict GO-with-follow-ups). Nit. Parent CON-314.
+
+## CON-355 — Installer lock pid read: check-then-open race in hi_lock_pid and up_lock_pid ([ -f ] && [ ! -L ] then timeout 5 head -c 20)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the lock pid file is tested and then opened in two steps, so it can be replaced by a symlink in between. Scope: scripts/install_constitution.sh, scripts/update_constitution.sh. Reproduction: UNREPRODUCED. Acceptance: the file opened once with no-follow semantics and checked on the open descriptor, with a race test. Source: docs/qa/installer_followups_r2_2026_11_14/followup_drafts.md sha256 61feda7f872a2d94fb92aea362cc9e093fcbfe5311ee785767a5da38c6b2d072. Installer follow-up FU-1. Parent CON-314.
+
+## CON-356 — 1972 python3 invocations without -I repo-wide: classify each site and add a census gate
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the census docs/qa/installer_followups_2026_11_14/census/py_isolation_census_repo.tsv lists 1972 python3 calls without -I (isolated mode). Scope: the whole repository. Reproduction: not applicable (census). Acceptance: each site classified (needs -I or justified), and a census gate like tests/install/test_python_isolation.sh covering the repository. Source: docs/qa/installer_followups_r2_2026_11_14/followup_drafts.md sha256 61feda7f872a2d94fb92aea362cc9e093fcbfe5311ee785767a5da38c6b2d072. Installer follow-up FU-2.
+
+## CON-357 — cm_installer_no_push_no_force.sh reports SOURCE-FAILED on a relative --file
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the gate fails to source the file when --file is relative. Scope: scripts/gates/cm_installer_no_push_no_force.sh. Reproduction: UNREPRODUCED in this filing; recorded in the follow-up drafts. Acceptance: a relative path is resolved or refused with exit 64, with tests of both forms. Source: docs/qa/installer_followups_r2_2026_11_14/followup_drafts.md sha256 61feda7f872a2d94fb92aea362cc9e093fcbfe5311ee785767a5da38c6b2d072. Installer follow-up FU-3.
+
+## CON-358 — Timeout sites the installer census cannot see: binaries, submodule installers, run-time names and extensionless scripts
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the census does not follow timeouts inside binaries (llmctl, claude_toolkit, labelctl), submodule installers or run-time names; it follows only .sh/.bash/.py and prunes tests at any depth, so extensionless scripts (scripts/hooks/post-merge, constitution-submodule-post-checkout, label-sync render/labelrun, multitrack-up/-down) are not scanned. Scope: tests/install/test_timeout_tty.sh census and its README boundary. Reproduction: not applicable. Acceptance: the boundary stated in the README and the reachable extensionless scripts added to the scan. Source: docs/qa/installer_followups_r2_2026_11_14/followup_drafts.md sha256 61feda7f872a2d94fb92aea362cc9e093fcbfe5311ee785767a5da38c6b2d072; /mnt/DATA1TB/claude-work/scratch/rev_fu_r2.W98s/review_installer_followups_r2.md sha256 e07f9c9ed374c0adf932ba73c8f925ebbbdda205ffff44b7c597974c44ae96f0 (verdict GO-with-follow-ups). Installer follow-up FU-4, with review R2-3 merged in. Parent CON-314.
+
+## CON-359 — fix227 G2: C43b's label 'every caller-started git visible' is stronger than its needle (mutant RM9 survives C43b)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: C43b names a property its needle does not prove; a short-lived awk leak (RM9) survives C43b and is caught only by C48/C50. Scope: tests/release/ C43b (fix227). Reproduction: shown by the r14 review. Acceptance: the label narrowed or the needle extended so RM9 is killed by C43b. Source: /mnt/DATA1TB/claude-work/scratch/rev227_r14.sBmI/review_fix227_r14.md sha256 2cfd0529c8068754262e5edab6ff7302cdc8c824563d93f23806668727a4c826. Parent CON-234.
+
+## CON-360 — fix227 G3: N5b proves final_exit exists, not that the real end path calls it (mutant RM6 survives); RTM_EXIT_SELFTEST should print a marker
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: N5b checks the function is defined, not that the end path reaches it. Scope: tests/release/ N5b (fix227). Reproduction: shown by the r14 review (RM6). Acceptance: a test that observes the real end path calling final_exit (marker printed under RTM_EXIT_SELFTEST); RM6 killed. Source: /mnt/DATA1TB/claude-work/scratch/rev227_r14.sBmI/review_fix227_r14.md sha256 2cfd0529c8068754262e5edab6ff7302cdc8c824563d93f23806668727a4c826. Parent CON-234.
+
+## CON-361 — fix227 G4: c43 tools hard-code the scratch path; landing_gate14.sh has no standing test (LG2 survives); landing output outside the tree
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: c43/tools/c43_{new,only,red}.sh hard-code a scratch path, landing_gate14.sh has no standing test so LG2 survives, and the landing output is kept outside the repository. Scope: docs/qa/con227_234_2026_11_11/round14 tools. Reproduction: not applicable. Acceptance: paths parameterised, a standing test that kills LG2, landing output committed or cited with sha256. Source: /mnt/DATA1TB/claude-work/scratch/rev227_r14.sBmI/review_fix227_r14.md sha256 2cfd0529c8068754262e5edab6ff7302cdc8c824563d93f23806668727a4c826. Nit. Parent CON-234.
+
+## CON-362 — fix227 K8 N2 accepts the loop-guard mutant B2 under a soft descriptor limit of 1024; count the passes
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con227_234_2026_11_11/round13/b2_investigation/probe_nofile_toggle.txt` — red-command `tests/release/test_redact_cut.sh --only B2 under ulimit -Sn 1024` — env `this host, fix227 round-13 tree, soft RLIMIT_NOFILE 1024 and 524288 (round-13 review b2_investigation)` — signature `K8 N2 passes while B2 removes the loop guard` — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the soft RLIMIT_NOFILE flips the K8 N2 verdict (two-way, 2/2 each): at 1024 the re-exec loop ends in EMFILE and rc_env_clean returns 4, which K8 N2 reads as the property; the exact mechanism line is UNCONFIRMED by the reviewer` — evidence `docs/qa/con227_234_2026_11_11/round13/b2_investigation/probe_nofile_toggle.txt` — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: without the rc_env_clean loop guard (mutant B2) the probe re-executes and leaks one descriptor per pass; at soft NOFILE 1024 exec fails after about 8 s, execfail keeps the shell and rc_env_clean returns 4, which is exactly what K8 N2 accepts. B2 is still killed by K6, so no defect ships. Scope: tests/release/test_redact_cut.sh case K8 N2; scripts/release/redact_cut.sh is correct. Reproduction: reproduced live by the round-13 review: --only B2, soft NOFILE 1024 2/2 'killed, but not by its property', 524288 2/2 'killed by its property'. Acceptance: K8 N2 requires exactly 2 entries into rc_env_clean besides rc=4 and a0=rc-clean-env; B2 killed by its property at both limits (N >= 3); the run records soft and hard NOFILE. Related nit: the netgate_pin.tsv line count is newline count plus one; fix in channel_census.py pin-regen. Source: docs/qa/con227_234_2026_11_11/round14/followup_k8_n2_nofile.md sha256 3e6cf51eae4455a5b005947120b29e349a910196f4dfae4758c14baa2e6b460f. Draft minted here as the draft asks; linked to CON-234, not a second id for the same weakness. Parent CON-234.
+
+## CON-363 — Installer SIGPIPE scanner false negatives: until read, while read ... && cond, od -N, xxd -l, jq input, tee >(early-exit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the deny-by-default scanner does not flag these early-exit readers. Scope: scripts/gates/cm_installer_no_push_no_force.sh SIGPIPE scanner and tests/install/test_sigpipe.sh. Reproduction: shown by the r2 review. Acceptance: each form flagged, with cases. Source: session-74ce2b36 scratchpad (outside the repository)/rev_sigpipe_r2.7Vlo/review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997. Parent CON-312.
+
+## CON-364 — Installer test_round8: the stale index.lock branch (a5ee2ab4) is never exercised (M9 survives); the pgid==pid guard has no needle
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: one branch of the round-8 chaos test is dead in practice and one guard has no control needle. Scope: tests/install/test_round8.sh. Reproduction: shown by the r2 review (M9). Acceptance: the branch exercised and M9 killed; a needle for the pgid==pid guard. Source: session-74ce2b36 scratchpad (outside the repository)/rev_sigpipe_r2.7Vlo/review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997. Parent CON-312.
+
+## CON-365 — Installer hi_reset_shell_state does not reset globskipdots or varredir_close
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the shell-state reset misses two shopt options, so a caller setting them changes installer behaviour (latent). Scope: scripts/install_constitution.sh hi_reset_shell_state. Reproduction: UNREPRODUCED; latent per the r2 review. Acceptance: both options reset, with a test. Source: session-74ce2b36 scratchpad (outside the repository)/rev_sigpipe_r2.7Vlo/review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997. Nit, latent source defect. Parent CON-312.
+
+## CON-366 — Installer SIGPIPE round-2 evidence directory is not linked from README or CHANGELOG (section 11.4.212)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the round-2 evidence is unreachable from README. Scope: docs/qa/installer_sigpipe_2026_11_13 round 2. Reproduction: not applicable. Acceptance: linked from the CHANGELOG entry or README docs table. Source: session-74ce2b36 scratchpad (outside the repository)/rev_sigpipe_r2.7Vlo/review_installer_sigpipe_r2.md sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997. Parent CON-312.
+
+## CON-367 — restore-created-at applier: a backslash in evidence_file gives a false BLIND (sha256sum escaping plus cut -c1-64)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: sha256sum prefixes the hash with a backslash for names with special characters, and cut -c1-64 takes the wrong 64 characters. Scope: the created_at restore applier of the workable-items engine. Reproduction: UNREPRODUCED in this filing; shown by the r4 review. Acceptance: hash read from stdin (sha256sum < file), with a test for a backslash in the name. Source: /mnt/DATA1TB/claude-work/scratch/rev_eng_r4.8oJ0/review_engine_r4.md sha256 c21872afec82e1bb1471f4f9314efc0990299bfa99c6c312e92cabadac243b6d. Parent CON-313.
+
+## CON-368 — restore-created-at: whitespace normalisation differs between the applier and the engine (TrimSpace), giving exit 1 instead of BLIND
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the applier and the engine normalise whitespace differently, so a value the engine accepts makes the applier exit 1. Scope: created_at restore applier and engine. Reproduction: UNREPRODUCED in this filing; shown by the r4 review. Acceptance: one normalisation, with a test. Source: /mnt/DATA1TB/claude-work/scratch/rev_eng_r4.8oJ0/review_engine_r4.md sha256 c21872afec82e1bb1471f4f9314efc0990299bfa99c6c312e92cabadac243b6d. Parent CON-313.
+
+## CON-369 — Engine created_at round 4 nits: MV12 text wrong, fileSHA256 unnamed, a refusal-table test missing from CENSUS_TESTS, tail -1, missing BLIND line on mkdir failure
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: F3: the MV12 text in round4/README.md is wrong; F4: fileSHA256 is not named and TestRestoreCreatedAtR3_RefusalTableNamesEveryCode is not in CENSUS_TESTS; F5: tail -1 is rejected by the host tail, and a mkdir failure prints no BLIND line. Scope: docs/qa/engine_created_at_2026_11_13/round4 and the applier. Reproduction: not applicable. Acceptance: each corrected. Source: /mnt/DATA1TB/claude-work/scratch/rev_eng_r4.8oJ0/review_engine_r4.md sha256 c21872afec82e1bb1471f4f9314efc0990299bfa99c6c312e92cabadac243b6d. Parent CON-313.
+
+## CON-370 — restore-created-at: --root / gives the glob //* and every row reads BLIND
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: a root of / produces a doubled slash and no row resolves. Scope: created_at restore applier. Reproduction: UNREPRODUCED in this filing. Acceptance: --root / refused or tested. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-08. Parent CON-313.
+
+## CON-371 — restore-created-at: the plan is read with IFS=$'\t', which collapses empty columns
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: tab is IFS whitespace in bash read, so consecutive tabs merge and an empty column shifts the others. Scope: created_at restore applier. Reproduction: UNREPRODUCED in this filing. Acceptance: the plan parsed so empty columns survive, with a test. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-09. Parent CON-313.
+
+## CON-372 — fastcycle_sibling_search_test.go leaves a wi-fastcycle-siblingsearch-bin-* temp dir behind
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the Go test leaks a temporary directory per run. Scope: scripts/workable-items fastcycle_sibling_search_test.go. Reproduction: UNREPRODUCED in this filing. Acceptance: the directory removed by t.TempDir or cleanup, with a leak check. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-10.
+
+## CON-373 — Destructive-path guard allows 'sh -s foo' (code from stdin, P07)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: guard-destructive-paths.py does not treat sh -s with arguments as code the guard cannot read. Scope: scripts/hooks/guard-destructive-paths.py (section 11.4.287). Reproduction: UNREPRODUCED in this filing; shown by the case-alt r4 review, allowed by every revision. Acceptance: the form treated as class U (or analysed), with a bypass-suite case. Source: session-74ce2b36 scratchpad (outside the repository)/review_casealt_r4.tXcqLv/REVIEW_r4.md sha256 5535bdb11d983c834c45b88dd32d6ee2a3bb21f537df613bc231d510c39441cb (case-alt vehicle parked for v73.5). case-alt r4 F6, pre-existing. Changing the guard needs operator consent (section 11.4.287).
+
+## CON-374 — Destructive-path guard allows a shell fed from a function body (f() ( sh ); echo P | f 2>x, S08b)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: a pipe into a function whose body runs sh is not seen as code fed to a shell. Scope: guard-destructive-paths.py. Reproduction: UNREPRODUCED in this filing; shown by the case-alt r4 review. Acceptance: the form blocked or classed U, with a bypass-suite case. Source: session-74ce2b36 scratchpad (outside the repository)/review_casealt_r4.tXcqLv/REVIEW_r4.md sha256 5535bdb11d983c834c45b88dd32d6ee2a3bb21f537df613bc231d510c39441cb (case-alt vehicle parked for v73.5). case-alt r4 F6, pre-existing.
+
+## CON-375 — Destructive-path guard: "${x:-'}" is parsed differently than by an outer dash (A01)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:22Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: the guard's quote handling inside ${...} differs from dash, so the guard and the shell can see different words. Scope: guard-destructive-paths.py tokenizer. Reproduction: UNREPRODUCED in this filing; shown by the case-alt r4 review. Acceptance: the dash reading modelled or the form refused as unparsable, with a case. Source: session-74ce2b36 scratchpad (outside the repository)/review_casealt_r4.tXcqLv/REVIEW_r4.md sha256 5535bdb11d983c834c45b88dd32d6ee2a3bb21f537df613bc231d510c39441cb (case-alt vehicle parked for v73.5). case-alt r4 F6, pre-existing.
+
+## CON-376 — Retest C-5/C-7: traceability and temp-dir leaks of test_check_deps (leaked=6) and repo_verify (leaked=2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the retest found missing traceability (C-5, links CON-092/093) and temp-dir leaks: test_check_deps leaked 6 dirs and repo_verify 2. Scope: the named tests. Reproduction: UNKNOWN: not re-run in this filing. Acceptance: the leaks fixed with a leak check, and C-5/C-7 traceability recorded. Source: session-74ce2b36 scratchpad (outside the repository)/rtfix_lander_items.md sha256 4ce379c33afa6197ab93f434f016e056e06c45d5c2f3230d40550d0435085f3c; session-74ce2b36 scratchpad (outside the repository)/review_retest_items.md sha256 4df4946cf486891441873ac8d666d6851da774379e11be9bb30cfeffbcd0d10e. Approved list FU-81. The test_triple_harness_red leak (leaked=4) is the tracker-intake vehicle's item for lander C-6 and is not repeated here.
+
+## CON-377 — CON-030 merge 66ad6efe follow-ups: M1 run the mutation table on the merged engine, M2 CHANGELOG entry and re-mint map, N1-N3
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: M1: the merge's evidence is the vehicle's table on an older engine, not the merged one; M2: no CHANGELOG entry records the CON-030 landing or the re-mint map; N1: the merge adds 7 files on neither parent; N2: 'CON-273 to CON-289 claimed by other vehicles' has no record; N3: commit message wording about which description was kept. Scope: merge commit 66ad6efe, CHANGELOG.md, full-suite runner mutation table. Reproduction: not applicable. Acceptance: M1 re-run on the merged engine and committed; M2 entry added; N1-N3 recorded or corrected. Source: session-74ce2b36 scratchpad (outside the repository)/review_con030_merge.md. Approved list FU-84.
+
+## CON-378 — fix216 follow-ups F2 (CON-185 Verification line expects rc 0 where rc 77 is now by design) and F7 (CON-216 is Type Task although a source defect was fixed)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: F2: CON-185's Verification line still expects rc 0 both for FC_L29_CANDIDATES=zz_ZZ.UTF-8, which now ends rc 77; F7: CON-216's type should be Bug per sections 11.4.16 and 11.4.294(E). Scope: tracker items CON-185 and CON-216. Reproduction: not applicable. Acceptance: the Verification line corrected and CON-216 re-typed through the engine. Source: session-74ce2b36 scratchpad (outside the repository)/review_fix216.md. Approved list FU-86 remainder: F1, F3, F4, F5 and F6 are already CON-241, CON-242, CON-243, CON-244 and CON-245.
+
+## CON-379 — v73.4 wrap-up: README.md and docs/CONTINUATION.md are stale (badge row, latest tag, remotes, pin table, release table, rev 3 of 2026-11-05)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the wrap-up audit lists stale README facts (latest tag says v72.2, remote count, script count 924 vs 1012, submodule pin table, release table rows) and a CONTINUATION at revision 3 that predates the 2026-11-11 decisions. Scope: README.md, docs/CONTINUATION.md. Reproduction: not applicable (documentation). Acceptance: both re-derived from measured facts at the v73.4 cut, README linking CONTINUATION (section 11.4.212). Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89 (umbrella, important).
+
+## CON-380 — v73.4 wrap-up: CHANGELOG first heading and release record for the cut (tag_and_release preflight requires the heading)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the first CHANGELOG heading must become the v73.4 heading at the cut, keeping older Unreleased entries; the release record and regenerated tracker docs follow. Scope: CHANGELOG.md, docs/release. Reproduction: not applicable. Acceptance: heading and release record match the cut facts. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89.
+
+## CON-381 — v73.4: the section 11.4.40 full-suite retest is not registered in the tracker
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the release survey notes that the retest owed before promotion (sections 11.4.40, 11.4.185) has no item. Scope: release process for v73.4. Reproduction: not applicable. Acceptance: this item is the retest item; it closes when the retest runs on the cut fingerprint with evidence. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89.
+
+## CON-382 — v73.4 waiver: record the section 11.4.271 waiver (authoriser, expiry, source) and fix the draft wording 'relaxes (L7)'
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the waiver for the v73.4 cut is not recorded, and waiver_v734.draft.md still says it relaxes (L7), which a waiver cannot do. Scope: the v73.4 waiver record. Reproduction: not applicable. Acceptance: a recorded waiver with rostered authoriser, unelapsed expiry and tracked item; the wording corrected. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89; related to CON-229 and CON-230.
+
+## CON-383 — v73.4: the release template amendment conflicts with fix227 and is neither landed nor reviewed
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: a release template amendment exists as a draft (release_amend_template/) and conflicts with fix227's release tooling. Scope: release template and tag_and_release.sh. Reproduction: not applicable. Acceptance: the amendment reconciled with fix227, reviewed, landed or dropped by decision. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89; related to CON-229 and CON-230.
+
+## CON-384 — v73.4: the vasic-digital GitHub mirror release API returns 404 (record as a GAP and re-check at tag time)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the dry run reports the release API of the vasic-digital GitHub mirror as 404, so a release there would be a GAP (exit 5). Scope: release channels. Reproduction: not applicable. Acceptance: re-checked at tag time; the gap recorded honestly in the release notes or fixed. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89.
+
+## CON-385 — v73.4: register the audit-3 follow-ups M1-M7 and N1-N4 as tracked items
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the release survey says the audit-3 findings M1-M7 and N1-N4 are not tracked; their text is not in the sources read for this filing (UNKNOWN). Scope: tracker. Reproduction: not applicable. Acceptance: each finding located in its audit report and filed (deduplicated) or closed with a reason. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89. The glab --prerelease child is held back (it belongs to the tracker-intake vehicle's GitLab pre-release items); the 'no scripts/redact_cut.sh on main' child is resolved, scripts/release/redact_cut.sh is on main.
+
+## CON-386 — A tests/jev/fixtures/jev_server.py process outlives its test (observed alive for about 4 h under systemd --user)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T15:52:23Z — by `Claude Opus 5.5 (filing subagent)`
+**Investigation:** not-started — updated 2026-11-15T15:52:23Z — by `Claude Opus 5.5 (filing subagent)`
+
+What: a jev_server.py fixture process was alive with parent systemd --user (re-parented) about 15280 s after start, from a scratch clone (gitenv_r4.R1kR); some Jev test does not stop its fixture server on every exit path. Which test leaks it is UNCONFIRMED; candidates are test_detection_matrix.sh, test_review_fixes_r2.sh, test_decision_layer_gaps.sh, test_bootstrap_e2e_stub_server.sh. Scope: tests/jev/ suites that start tests/jev/fixtures/jev_server.py. Reproduction: UNREPRODUCED: observed once on 2026-11-15 (ps: ppid 2551 systemd --user, etimes 15280, argv python3 .../tests/jev/fixtures/jev_server.py 0); not signalled, it is not this agent's process. Acceptance: the leaking test found and fixed so the server is stopped on success, failure and signal, with a leak check after each suite. Source: this filing's observation. Observation only; process left untouched.
+
+## CON-387 — Restore CON-308's created_at when the tracker-intake vehicle lands (deliberately not applied with CON-243 in 464cd498)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (filing subagent)
+
+What: the created_at restore plan of CON-313 had rows for CON-243 and CON-308; commit 464cd498 applied the CON-243 row only. The CON-308 row assumes the tracker-intake vehicle's ids and evidence commit 1a307322, which is not in this repository, so it was left for that landing and an operator decision. Scope: docs/workable_items.db row CON-308 (the intake vehicle's id map). Reproduction: not applicable. Acceptance: when tracker intake lands, the row re-derived against the landed ids and applied through the engine's restore-created-at with evidence, or dropped by operator decision. Source: commit 464cd498; CON-313. Parent CON-313.
 
