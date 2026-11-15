@@ -731,6 +731,29 @@ mp RM34 'C53 netgate' "$TAR" $'  RMAIN[$r]="$t"\n' $'  RMAIN[$r]="$t"\n  /usr/bi
 # the R11 RACE check of the redact suite (200 concurrent pairs, 0 misattributed records)
 mp EC1 'R11 RACE' "$ECPY" $'  done; } >"$t"\n[ -s "$t" ] || { printf \'env_census recorder: cannot write %%s\\\\n\' "$t" >&2; exit 125; }\n\'%(flock)s\' \'%(log)s\' \'%(cat)s\' "$t" >>\'%(log)s\' || { printf \'env_census recorder: append to the log failed\\\\n\' >&2; exit 125; }\n\'%(rm)s\' -f "$t"\n' $'  done; } >>\'%(log)s\'\n'
 mp EC2 'R11 RACE' "$ECPY" $'t=\'%(log)s.rec.\'$$\n{ printf \'== %%s\\\\n\' \'%(cmd)s\';' $'t=\'%(log)s.rec.\'$$\nprintf \'== %%s\\\\n\' \'%(cmd)s\' >>\'%(log)s\'\n{ :;'
+# CON-416 (2026-11-15): the GitLab pre-release marking and read-back of tag_and_release.sh; each mutant
+# must be killed by the GL case that targets it (mp, pattern = the GL case names)
+mp GP1 $'GL4 |GL5 ' "$TAR" $'  [ -n "$GL_RELEASED_AT" ] && GL_ARGS+=(--released-at "$GL_RELEASED_AT")' $'  :'   # the upcoming date is not passed to glab
+mp GP2 $'GL6 ' "$TAR" $'  [ "$GL_AT" -gt "$(date -u +%s)" ] || die_usage' $'  true || die_usage'   # the future-date check removed
+mp GP3 $'GL5 ' "$TAR" $'[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})$ ]] \\\n' $'[0-9]{2}Z$ ]] \\\n'   # the offset form of the ISO time refused
+mp GP4 $'GL6 ' "$TAR" $'  [ "$PRERELEASE" -eq 1 ] || die_usage "--gitlab-released-at is only' $'  true || die_usage "--gitlab-released-at is only'   # an upcoming date allowed on a final release
+mp GP5 $'GL3 ' "$TAR" $'if [ "$PRERELEASE" -eq 1 ] && [ "$GL_ANY" -eq 1 ]; then' $'if [ "$GL_ANY" -eq 1 ]; then'   # a final release is marked PROVISIONAL
+mp GP6 $'GL2 ' "$TAR" $'*PROVISIONAL*) ;; *) GL_TITLE=' $'*NOT-A-TITLE-WORD*) ;; *) GL_TITLE='   # a title that says PROVISIONAL is prefixed twice
+mp GP7 $'GL1 ' "$TAR" $'{ printf \'%s\\n\\n\' "$GL_MARK"; cat -- "$NOTES"; }' $'{ cat -- "$NOTES"; }'   # the description mark line removed
+mp GP8 $'GL9b? ' "$TAR" $'    marked) ;;\n    unmarked) fail' $'    marked|unmarked) ;;\n    unmarked) fail'   # an unmarked read-back accepted
+mp GP9 $'GL9b? ' "$TAR" $'        and ((((.description' $'        or ((((.description'   # the name OR the description is enough
+mp GP10 $'GL10b? ' "$TAR" $'  elif [ "$up" != true ]; then' $'  elif false; then'   # upcoming_release=false accepted
+mp GP11 $'GL1 ' "$TAR" $'GL_ARGS=(--no-update)' $'GL_ARGS=()'   # --no-update dropped
+mp GP12 $'GL12 ' "$TAR" $'        [ "$PRERELEASE" -eq 1 ] && gl_readback "$spec" "$target"; continue; fi' $'        continue; fi'   # a kept release not read back
+mp GP13 $'GL7 ' "$TAR" $'  [ "$arc" -eq 0 ] || { gap "RELEASE $1 PRERELEASE-READBACK UNCONFIRMED (glab api read failed' $'  [ "$arc" -eq 0 ] || true || { gap "RELEASE $1 PRERELEASE-READBACK UNCONFIRMED (glab api read failed'   # a failed read-back not reported as a GAP
+mp GP14 $'GL8 ' "$TAR" $'    marked) ;;\n    unmarked) fail' $'    marked|unparsable) ;;\n    unmarked) fail'   # an unparsable read-back accepted as marked
+mp GP15 $'GL13 ' "$TAR" $'      gitlab:*:1) printf \'PLAN release' $'      gitlab:*:1) nt glab auth status >/dev/null 2>&1; printf \'PLAN release'   # the dry run calls glab
+mp GP16 $'GL13 ' "$TAR" $'      gitlab:*:1) printf \'PLAN release' $'      *:*:1) printf \'PLAN release'   # the marking plan line on every forge
+mp GP17 $'GL14 ' "$TAR" $'gap "RELEASE $spec SKIPPED-NO-TOKEN (glab not authenticated)"; continue; fi' $'printf \'RELEASE %s CREATED\\n\' "$spec"; continue; fi'   # glab not authenticated reported as CREATED
+mp GP18 $'GL15 |GL16 ' "$TAR" $'  j="$(nt glab api --hostname' $'  j="$(glab api --hostname'   # the read-back without the timeout wrapper nt
+mp GP19 $'GL10b? ' "$TAR" $'  elif [ "$rat" = NOT-AN-ISO-TIME ] || [ "$(date -u -d "$rat" +%s 2>/dev/null)" != "$GL_AT" ]; then' $'  elif false; then'   # a different upcoming date accepted
+mp GP20 $'GL11 ' "$TAR" $'|| rat=NOT-AN-ISO-TIME\n' $'|| :\n'   # a server released_at that is not an ISO time printed raw
+mp GP21 $'GL1 ' "$TAR" $'nt glab api --hostname "$GL_HOST" "projects/' $'nt glab api "projects/'   # the read-back host not pinned with --hostname
 # round 8 (N5): --only NAME that names no mutant ran nothing; that is a usage error (exit 2), never a vacuous pass
 if [ -n "$ONLY" ] && [ "$ONLY" != control ] && [ "$matched" -eq 0 ]; then
   echo "FAIL --only $ONLY: no mutant has that name, nothing was run"

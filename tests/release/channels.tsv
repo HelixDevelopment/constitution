@@ -67,7 +67,7 @@ redact_cut.sh	bash	a614cc7f	own-argv	empty	state-pipe	none	local	rc_env_clean re
 tag_and_release.sh	awk	27f0468a	validated-data	allowlist	none	none	local	
 tag_and_release.sh	mktemp	3b8a2af1	validated-data	allowlist	none	temp-create	local	
 tag_and_release.sh	chmod	0b6071f4	validated-data	allowlist	none	rundir	local	
-tag_and_release.sh	rm	2b793092	validated-data	allowlist	none	temp-remove	local	
+tag_and_release.sh	rm	6a9a603a	validated-data	allowlist	none	temp-remove	local	
 tag_and_release.sh	rmdir	d104966e	validated-data	allowlist	none	temp-remove	local	
 tag_and_release.sh	timeout	761f8147	validated-data	net-allowlist	none	none	nt-timeout	GNU timeout without --foreground: signals the whole process group (K2)
 tag_and_release.sh	git	132a83e7	validated-data	net-allowlist	none	none	nt-timeout	
@@ -110,9 +110,16 @@ tag_and_release.sh	gh	a84e0b2e	validated-data	net-allowlist	none	none	nt-timeout
 tag_and_release.sh	gh	72b9ec20	validated-data	net-allowlist	none	none	nt-timeout	
 tag_and_release.sh	gh	91929723	validated-data	net-allowlist	none	none	nt-timeout	
 tag_and_release.sh	glab	8d2b1a5e	validated-data	net-allowlist	none	none	nt-timeout	
-tag_and_release.sh	glab	b434a044	validated-data	net-allowlist	none	none	nt-timeout	
-tag_and_release.sh	glab	cf4e4c59	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	glab	05f5c9cf	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	glab	6e402e2e	validated-data	net-allowlist	none	none	nt-timeout	
 tag_and_release.sh	glab	76c05f6a	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	glab	ac30cc5d	validated-data	net-allowlist	none	none	nt-timeout	glpre: the GitLab release read-back (glab api --hostname H, H value-checked)
+tag_and_release.sh	jq	611b094e	validated-data	allowlist	pipe-local	none	local	glpre: @uri of the GROUP/REPO target (matched RE_GL before)
+tag_and_release.sh	jq	227b3dc4	fixed	allowlist	pipe-network-text	none	local	glpre: parses the read-back; prints fixed words and a released_at reduced to [0-9A-Za-z:.+-]
+tag_and_release.sh	date	c78696d5	validated-data	allowlist	none	none	local	glpre: the read-back released_at, ISO-shape checked first
+tag_and_release.sh	cat	82c33b23	validated-data	allowlist	none	rundir	local	glpre: the marked GitLab notes copy in the run directory
+tag_and_release.sh	date	a0f83e9d	validated-data	allowlist	none	none	local	glpre: --gitlab-released-at, ISO-shape checked first
+tag_and_release.sh	date	10dc5311	fixed	allowlist	none	none	local	glpre: now, for the future check
 tag_and_release.sh	grep	15c512f6	validated-data	allowlist	pipe-network-text	none	local	
 tag_and_release.sh	date	2778ea72	fixed	allowlist	none	none	local	
 release_publish_gitea.sh	sed	5d507d9e	validated-data	allowlist	none	none	local	

@@ -54,15 +54,32 @@ case "$1 $2" in
 esac
 exit 0
 SH
+# The glab double (CON-416): "release create" also records the name, the first line of the notes file and
+# the --released-at value; "api" answers a release read-back built from that record (jq -n). GLAPI_MODE in .stubenv
+# chooses an answer: normal (default), fail (exit 1), hang (sleeps past RELEASE_NET_TIMEOUT), junk (not JSON),
+# strip-name, strip-desc, upcoming-false, wrong-date, inject-date; GLAB_AUTH=fail makes "auth status" fail.
 cat >"$W/bin/glab" <<'SH'
 #!/bin/sh
 [ -r "${0%/*}/../.stubenv" ] && . "${0%/*}/../.stubenv"
 echo "glab $*" >>"$STUB_LOG"
 case "$1 $2" in
-  "auth status") exit 0 ;;
+  "auth status") [ "${GLAB_AUTH:-ok}" = fail ] && exit 1; exit 0 ;;
   "release view") grep -qx "glrel $5" "$STUB_STATE" 2>/dev/null && exit 0; exit 1 ;;
-  "release create") p=""; for a in "$@"; do [ "$p" = "-R" ] && r=$a; p=$a; done
-                    echo "glrel $r" >>"$STUB_STATE"; exit 0 ;;
+  "release create") p=""; nm=""; nf=""; at="-"
+                    for a in "$@"; do [ "$p" = "-R" ] && r=$a; [ "$p" = "--name" ] && nm=$a; [ "$p" = "--notes-file" ] && nf=$a
+                      [ "$p" = "--released-at" ] && at=$a; p=$a; done
+                    echo "glrel $r" >>"$STUB_STATE"
+                    printf '%s\n' "$nm" >"$STUB_STATE.glname"; head -n 1 "$nf" >"$STUB_STATE.glfirst"; printf '%s\n' "$at" >"$STUB_STATE.glat"
+                    exit 0 ;;
+  "api "*) case "${GLAPI_MODE:-normal}" in fail) exit 1 ;; hang) exec sleep 30 ;; junk) echo 'not json {'; exit 0 ;; esac
+           nm="$(cat "$STUB_STATE.glname" 2>/dev/null)"; fl="$(cat "$STUB_STATE.glfirst" 2>/dev/null)"; at="$(cat "$STUB_STATE.glat" 2>/dev/null)"
+           up=true; if [ -z "$at" ] || [ "$at" = - ]; then up=false; at=2026-01-01T00:00:00.000Z; else at="$(date -u -d "$at" +%Y-%m-%dT%H:%M:%S.000Z)"; fi
+           case "${GLAPI_MODE:-normal}" in strip-name) nm="$(printf '%s' "$nm" | sed 's/PROVISIONAL/provisional/g')" ;;
+             strip-desc) fl="An ordinary first line" ;; upcoming-false) up=false ;; wrong-date) at=2099-01-01T00:00:00.000Z ;;
+             inject-date) at="$(printf 'x\nZZINJECTED-LINE 2099-01-01T00:00:00Z')" ;; esac
+           jq -n --arg n "$nm" --arg d "$(printf '%s\n\nNOTES-BODY' "$fl")" --arg a "$at" --argjson u "$up" \
+             '{tag_name:"t", name:$n, description:$d, released_at:$a, upcoming_release:$u}'
+           exit 0 ;;
 esac
 exit 0
 SH
@@ -691,6 +708,103 @@ chk "C49 a TERM-ignoring network git: exit 1" "$RC" 1
 printf '%s\n' "$OUT" | grep -q '^ABORT .*(git exit 137, reason class: timeout' && ok "C49 the abort says git exit 137, reason class timeout" || bad "C49 the abort says git exit 137, reason class timeout: $(printf '%s\n' "$OUT" | grep '^ABORT' | head -c 200)"
 chk "C49 no process of the double is left" "${l49:-none}" none
 for q in $l49; do [ "$q" -gt 1 ] && kill -KILL "$q" 2>/dev/null; done   # own leftovers only (pids whose argv holds this case's double)
+
+# ---- CON-416: the GitLab leg of --prerelease (GitLab and glab 1.129.0 have no pre-release flag; review of
+# bundle ed50c71e, findings F1-F9 and survivors M03 M06 M11 M13 M15 M18 M20; re-applied on the fix227 tooling) ----
+GLMARK='**PROVISIONAL pre-release.** GitLab has no pre-release flag: this line, the release title and, with an upcoming date, the Upcoming Release badge are its only marking. It is not a final release.'
+FUT="$(date -u -d '+30 days' +%Y-%m-%dT%H:%M:%SZ)"; FUTOFF="$(date -u -d '+31 days' +%Y-%m-%dT%H:%M:%S)+02:00"
+glst() { cat "$D/stub.state.$1" 2>/dev/null; }
+outhas() { if printf '%s\n' "$OUT" | grep -qE -- "$2"; then ok "$1"; else bad "$1 (no line matching /$2/: $(printf '%s\n' "$OUT" | grep -E '^(FAIL|GAP|PRERELEASE|RESULT)' | head -n 4 | tr '\n' '|' | head -c 300))"; fi; }
+# GL1 --prerelease on GitLab: name prefixed, description starts with the fixed mark, --no-update, read back MARKED, exit 0
+mk gl1; run --prerelease --release gitlab:r1:grp/one
+chk "GL1 exit 0" "$RC" 0
+chk "GL1 name prefixed PROVISIONAL" "$(glst glname)" "PROVISIONAL pre-release: $TAG"
+chk "GL1 notes start with the mark" "$(glst glfirst)" "$GLMARK"
+grep -q "glab release create $TAG -R grp/one --ref $REL .*--no-update" "$D/stub.log" && ok "GL1 glab create gets --no-update" || bad "GL1 glab create gets --no-update"
+grep -q -- '--released-at' "$D/stub.log" && bad "GL1 no --released-at without --gitlab-released-at" || ok "GL1 no --released-at without --gitlab-released-at"
+grep -q "glab api --hostname gitlab.com projects/grp%2Fone/releases/$TAG" "$D/stub.log" && ok "GL1 read back through glab api on the pinned host" || bad "GL1 read back through glab api on the pinned host"
+outhas "GL1 PRERELEASE MARKED line" '^PRERELEASE gitlab:r1:grp/one MARKED title\+description'
+printf '%s\n' "$OUT" | grep -q 'is not empty and was kept' && bad "GL1 the run directory (with the marked notes copy) is removed at exit" || ok "GL1 the run directory (with the marked notes copy) is removed at exit"
+# GL2 a title that already says PROVISIONAL is not prefixed twice (survivor M06)
+mk gl2; run --prerelease --title "$TAG PROVISIONAL pre-release" --release gitlab:r1:grp/one
+chk "GL2 exit 0" "$RC" 0; chk "GL2 title kept, no double prefix" "$(glst glname)" "$TAG PROVISIONAL pre-release"
+# GL3 a final release: no mark, no date, no read-back, --no-update still given
+mk gl3; run --release gitlab:r1:grp/one
+chk "GL3 exit 0" "$RC" 0; chk "GL3 name is the title" "$(glst glname)" "$TAG"
+chk "GL3 notes are the changelog section" "$(glst glfirst)" "## $TAG — 2026-01-01 — PROVISIONAL pre-release"
+grep -q 'glab api' "$D/stub.log" && bad "GL3 no read-back for a final release" || ok "GL3 no read-back for a final release"
+grep -q 'glab release create.*--no-update' "$D/stub.log" && ok "GL3 --no-update on a final release" || bad "GL3 --no-update on a final release"
+# GL4 an upcoming date (Z form): passed as --released-at, read back upcoming_release=true and the same time
+mk gl4; run --prerelease --gitlab-released-at "$FUT" --release gitlab:r1:grp/one
+chk "GL4 exit 0" "$RC" 0; chk "GL4 --released-at passed" "$(glst glat)" "$FUT"
+outhas "GL4 upcoming read back" "^PRERELEASE gitlab:r1:grp/one upcoming_release=true released_at=${FUT%Z}\\.000Z "
+# GL5 the offset form is accepted and compared as the same instant (survivor M03)
+mk gl5; run --prerelease --gitlab-released-at "$FUTOFF" --release gitlab:r1:grp/one
+chk "GL5 offset form exit 0" "$RC" 0; chk "GL5 offset form passed verbatim" "$(glst glat)" "$FUTOFF"
+outhas "GL5 offset form read back as the same instant" '^PRERELEASE gitlab:r1:grp/one upcoming_release=true '
+# GL6 usage errors: exit 2 before any write (no local tag, no glab call)
+for a in "--gitlab-released-at $FUT --release gitlab:r1:grp/one" \
+         "--prerelease --gitlab-released-at 2026-12-31 --release gitlab:r1:grp/one" \
+         "--prerelease --gitlab-released-at 2026-02-30T00:00:00Z --release gitlab:r1:grp/one" \
+         "--prerelease --gitlab-released-at 2020-01-01T00:00:00Z --release gitlab:r1:grp/one" \
+         "--prerelease --gitlab-released-at $FUT --release github:r1:acc/one" \
+         "--prerelease --gitlab-released-at $FUT"; do
+  mk gl6; read -r -a av <<<"$a"; run "${av[@]}"
+  chk "GL6 usage exit 2: $a" "$RC" 2; chk "GL6 no tag: $a" "$(ltag)" no
+  [ -s "$D/stub.log" ] && bad "GL6 no glab or gh call: $a" || ok "GL6 no glab or gh call: $a"
+done
+mk gl6b; run --prerelease --gitlab-released-at "2026-12-31Tzz https://u:ZZGLPW@h/" --release gitlab:r1:grp/one
+chk "GL6b bad value exit 2" "$RC" 2; printf '%s\n' "$OUT" | grep -q ZZGLPW && bad "GL6b a bad value is not echoed" || ok "GL6b a bad value is not echoed"
+# GL7 the read-back fails: a GAP (exit 5), never MARKED (survivor M11)
+mk gl7; echo 'GLAPI_MODE=fail' >>"$W/.stubenv"; run --prerelease --release gitlab:r1:grp/one
+chk "GL7 api failure exit 5" "$RC" 5; outhas "GL7 GAP readback unconfirmed" '^GAP RELEASE gitlab:r1:grp/one PRERELEASE-READBACK UNCONFIRMED'
+printf '%s\n' "$OUT" | grep -q '^PRERELEASE .*MARKED' && bad "GL7 not reported MARKED" || ok "GL7 not reported MARKED"
+# GL8 the read-back is not JSON: a FAIL (survivor M18)
+mk gl8; echo 'GLAPI_MODE=junk' >>"$W/.stubenv"; run --prerelease --release gitlab:r1:grp/one
+chk "GL8 unparsable exit 1" "$RC" 1; outhas "GL8 FAIL unparsable" '^FAIL RELEASE gitlab:r1:grp/one PRERELEASE-READBACK UNPARSABLE'
+# GL9 the name or the first description line lost the mark: a FAIL
+mk gl9; echo 'GLAPI_MODE=strip-name' >>"$W/.stubenv"; run --prerelease --release gitlab:r1:grp/one
+chk "GL9 name without PROVISIONAL exit 1" "$RC" 1; outhas "GL9 FAIL mark missing" '^FAIL RELEASE gitlab:r1:grp/one PRERELEASE-MARK MISSING'
+mk gl9b; echo 'GLAPI_MODE=strip-desc' >>"$W/.stubenv"; run --prerelease --release gitlab:r1:grp/one
+chk "GL9b first line without the mark exit 1" "$RC" 1; outhas "GL9b FAIL mark missing" '^FAIL RELEASE gitlab:r1:grp/one PRERELEASE-MARK MISSING'
+# GL10 an upcoming date not read back as upcoming, or read back as another time: a GAP
+mk gl10; echo 'GLAPI_MODE=upcoming-false' >>"$W/.stubenv"; run --prerelease --gitlab-released-at "$FUT" --release gitlab:r1:grp/one
+chk "GL10 upcoming false exit 5" "$RC" 5; outhas "GL10 GAP upcoming unconfirmed" '^GAP RELEASE gitlab:r1:grp/one UPCOMING UNCONFIRMED'
+mk gl10b; echo 'GLAPI_MODE=wrong-date' >>"$W/.stubenv"; run --prerelease --gitlab-released-at "$FUT" --release gitlab:r1:grp/one
+chk "GL10b other time exit 5" "$RC" 5; outhas "GL10b GAP date differs" '^GAP RELEASE gitlab:r1:grp/one UPCOMING DATE DIFFERS .*released_at=2099-01-01T00:00:00.000Z'
+# GL11 a server value that is not an ISO time is never printed raw (S4 of the review)
+mk gl11; echo 'GLAPI_MODE=inject-date' >>"$W/.stubenv"; run --prerelease --gitlab-released-at "$FUT" --release gitlab:r1:grp/one
+chk "GL11 injected released_at exit 5" "$RC" 5; printf '%s\n' "$OUT" | grep -q 'ZZINJECTED' && bad "GL11 server text not printed" || ok "GL11 server text not printed"
+outhas "GL11 NOT-AN-ISO-TIME printed instead" 'released_at=NOT-AN-ISO-TIME'
+# GL12 a kept release is read back on a --prerelease re-run (an unmarked kept release is a FAIL)
+mk gl12; run --release gitlab:r1:grp/one; : >"$D/stub.log"; run --prerelease --release gitlab:r1:grp/one
+chk "GL12 kept unmarked release exit 1" "$RC" 1; outhas "GL12 kept" '^RELEASE gitlab:r1:grp/one already exists \(kept\)'
+outhas "GL12 FAIL mark missing on the kept release" '^FAIL RELEASE gitlab:r1:grp/one PRERELEASE-MARK MISSING'
+grep -q 'glab release create' "$D/stub.log" && bad "GL12 the kept release is not re-created" || ok "GL12 the kept release is not re-created"
+# GL13 dry run: no glab call at all; the marking plan line only on the GitLab spec (survivors M13, M15)
+mk gl13; run --prerelease --gitlab-released-at "$FUT" --release gitlab:r1:grp/one --release github:r1:acc/one --dry-run
+chk "GL13 dry run exit 0" "$RC" 0; [ -s "$D/stub.log" ] && bad "GL13 dry run calls no glab or gh" || ok "GL13 dry run calls no glab or gh"
+outhas "GL13 gitlab plan line names the marking" "^PLAN release gitlab:r1:grp/one prerelease=marked-by-title-and-description upcoming=$FUT\$"
+outhas "GL13 github plan line is plain" '^PLAN release github:r1:acc/one$'
+# GL14 glab not authenticated: SKIPPED-NO-TOKEN gap, no create (survivor M20)
+mk gl14; echo 'GLAB_AUTH=fail' >>"$W/.stubenv"; run --prerelease --release gitlab:r1:grp/one
+chk "GL14 no auth exit 5" "$RC" 5; outhas "GL14 GAP skipped no token" '^GAP RELEASE gitlab:r1:grp/one SKIPPED-NO-TOKEN'
+grep -q 'glab release create' "$D/stub.log" && bad "GL14 no create without auth" || ok "GL14 no create without auth"
+# GL15 the read-back is bounded by RELEASE_NET_TIMEOUT through nt (S2 of the review): a hang is a GAP, class timeout
+mk gl15; echo 'GLAPI_MODE=hang' >>"$W/.stubenv"; t0=$SECONDS; RELEASE_NET_TIMEOUT=3 run --prerelease --release gitlab:r1:grp/one
+chk "GL15 hang exit 5" "$RC" 5; outhas "GL15 GAP with reason class timeout" '^GAP RELEASE gitlab:r1:grp/one PRERELEASE-READBACK UNCONFIRMED .*reason class: timeout'
+[ $((SECONDS - t0)) -lt 25 ] && ok "GL15 bounded (well under the 30 s hang)" || bad "GL15 bounded ($((SECONDS - t0)) s)"
+# GL16 every glab call site of the script goes through nt (the timeout wrapper): the sites of the network-spawn gate
+# (channel_census.py netgate --sites, the parser of C53, so a glab inside a message string is no site); control needle:
+# the number of glab sites
+g16py="$(command -v python3)"
+o16="$(env -i PATH=/nonexistent LANG=C.UTF-8 "$g16py" -I "$HERE/channel_census.py" netgate --pin "$HERE/netgate_pin.tsv" --analyser-only --sites "$S" "$(dirname "$S")/redact_cut.sh" 2>&1)"
+gl16n="$(printf '%s\n' "$o16" | awk -F '\t' '$1=="SITE" && $4=="glab"' | wc -l | tr -d ' ')"
+gl16="$(printf '%s\n' "$o16" | awk -F '\t' '$1=="SITE" && $4=="glab" && $5!="nt"' | wc -l | tr -d ' ')"
+chk "GL16 no glab call site outside nt" "$gl16" 0; [ "$gl16n" -ge 5 ] && ok "GL16 $gl16n glab call sites, all through nt (control: at least 5)" || bad "GL16 glab call sites ($gl16n)"
+# GL17 the notes copy lives in the run directory (no second temp file, no second EXIT trap; S1 of the review)
+grep -vE '^[[:space:]]*#' "$S" | grep -c 'trap .* EXIT' | grep -qx 1 && ok "GL17 one EXIT trap" || bad "GL17 one EXIT trap"
+grep -q 'GL_NOTES="$RUNDIR/glnotes"' "$S" && ok "GL17 marked notes in the run directory" || bad "GL17 marked notes in the run directory"
 
 # C12 the script never forces (static check of the source)
 if grep -vE '^[[:space:]]*#' "$S" | grep -nE -- '--force|\+refs/|git push[^#]*[[:space:]]\+[A-Za-z0-9]|tag -d|push --delete|push[^#]* :refs' >/dev/null; then bad "C12 no force/delete in script"; else ok "C12 no force/delete in script"; fi

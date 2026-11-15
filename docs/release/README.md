@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-11 |
 | Status | active, PROVISIONAL (scripts tested on host fixtures only; no release has been cut with them yet) |
 
@@ -16,7 +16,7 @@ script reading committed data; a person supplies only the decisions listed under
 |---|---|---|---|
 | `scripts/release/derive_release_facts.sh --base C --prev-tag T [--remotes "R..."] [--today D]` | Prints KEY=VALUE facts: commit and diff counts since the previous tag, tracker counts by status, severity and reproduction/investigation state (§11.4.294(H)), the §11.4.290(4) count line, §11.4.288 refs not on `main` per remote. Reads `git show C:docs/workable_items.db` from a temp copy opened read-only; never fetches. Output is buffered: when any tracker query fails (for example a missing column) nothing is printed. An item closed on the previous tag's date is not counted as verified since it (the tag date has day granularity). | 0 facts, 2 usage, 3 data missing or a query failed (stdout empty) | `tests/release/test_derive_release_facts.sh` |
 | `scripts/release/render_release_entry.py TEMPLATE FACTS MANUAL` | Fills `{{key}}` from FACTS and `{{MANUAL:name}}` from MANUAL (`@@name` blocks), builds `states_block` and `unmerged_refs_block`, drops the template's leading comment. Refuses a left-over placeholder, an empty or TODO/TBD manual value, an unused manual block, and an `open_status[...]` / `open_severity[...]` fact the template does not render (a status or severity value new at cut time; extend the template). | 0 rendered, 2 usage, 3 refused (nothing on stdout) | `tests/release/test_render_release_entry.sh` |
-| `scripts/release/tag_and_release.sh --tag T --sha S --remotes "R..." [--release SPEC]... [--prerelease] [--dry-run]` | Preflight on every remote before any write (fetch main, ancestor of S, clean tree at S, CHANGELOG first heading = T, badge check, tag identity), then `git push --atomic` of `main` and the tag per remote, ls-remote read-back, platform releases only for remotes read back OK. Never forces; a re-run resumes and skips remotes already OK. | 0 OK, 1 FAIL, 2 usage, 5 OK with release GAPs (a gitea publisher exit 3 is a GAP only with its `SKIPPED-NO-TOKEN` line; any other exit 3 is a FAIL) | `tests/release/test_tag_and_release.sh` |
+| `scripts/release/tag_and_release.sh --tag T --sha S --remotes "R..." [--release SPEC]... [--prerelease] [--gitlab-released-at ISO8601] [--dry-run]` | Preflight on every remote before any write (fetch main, ancestor of S, clean tree at S, CHANGELOG first heading = T, badge check, tag identity), then `git push --atomic` of `main` and the tag per remote, ls-remote read-back, platform releases only for remotes read back OK. Never forces; a re-run resumes and skips remotes already OK. | 0 OK, 1 FAIL, 2 usage, 5 OK with release GAPs (a gitea publisher exit 3 is a GAP only with its `SKIPPED-NO-TOKEN` line; any other exit 3 is a FAIL) | `tests/release/test_tag_and_release.sh` |
 
 `--release` specs: `github:REMOTE:OWNER/REPO`, `gitlab:REMOTE:OWNER/REPO`, `gitea:REMOTE:BASE_URL:OWNER/REPO`.
 The last line of `tag_and_release.sh` is `RESULT: ...`; a caller reads it and the exit code, never the
@@ -40,6 +40,24 @@ tail after that character; a credential split over two lines; a secret printed i
 The scripts write their temp files only inside one private (0700) run directory, removed at exit and on
 SIGHUP, SIGINT and SIGTERM; only SIGKILL leaves it behind. Threat model and census:
 `docs/qa/con227_234_2026_11_11/round4/threat_model.md`.
+
+GitLab pre-release (revision 3, CON-416): GitLab's Releases API has no pre-release attribute
+(<https://docs.gitlab.com/api/releases/>, read 2026-11-12) and `glab release create` (1.129.0, its
+`--help`) has no `--prerelease` option, so with `--prerelease` the GitLab leg marks the release itself:
+the name gets the prefix `PROVISIONAL pre-release: ` (unless the title already says PROVISIONAL), the
+description starts with one fixed PROVISIONAL line, and `glab` gets `--no-update` (for a final release
+too: an existing release is never edited). The release, new or kept on a re-run, is read back with
+`glab api --hostname H projects/GROUP%2FREPO/releases/TAG` (H is `GITLAB_HOST` without its scheme, else
+`gitlab.com`; the call goes through the same `RELEASE_NET_TIMEOUT` bound as every other network call): a
+missing mark or an answer that is not a release object is a FAIL, a failed or timed-out read-back a GAP.
+`--gitlab-released-at` (a future ISO 8601 time, `Z` or `+HH:MM`, only with `--prerelease` and a gitlab
+spec; GNU `date` parses it, so on a BSD or macOS `date` every value is refused) is passed as
+`--released-at`, so GitLab shows its "Upcoming Release" badge until that time; the read-back must show
+`upcoming_release=true` and the same instant, otherwise the leg is a GAP marked UNCONFIRMED. The badge
+ends by itself at that time and only the marks stay. A final release gets no mark and no date. A final
+run over a release kept from an earlier `--prerelease` run keeps it as it is, marks included: there is
+no promotion path (edit the release by hand). The future check runs when the arguments are read, so a
+time only minutes away can be in the past when the release is created; the read-back then reports it.
 
 ## Manual keys of the v73.4 template
 
@@ -81,4 +99,9 @@ relayed decision and does not meet precondition 2.
 The scripts are tested with real git, real sqlite3 and local bare remotes; `gh` and `glab` are stubs
 in the tests (unit class, §11.4.289(C)), so no real platform release has been proven by them. A
 server that refuses `--atomic` makes the push two steps (main, then the tag only after main reads
-back), which narrows but does not remove the window between them.
+back), which narrows but does not remove the window between them. GitLab's own handling of a future
+`released_at` (the Upcoming Release badge, the `upcoming_release` field, and whether such a release is
+listed first or chosen as "latest") has not been observed on gitlab.com by these tests; it is taken from
+the GitLab documentation and is UNCONFIRMED until a real release is read back. `glab release create`
+resolves its host itself (`-R GROUP/REPO`), while the read-back names its host; when they differ (a
+self-hosted GitLab without `GITLAB_HOST`) the read-back fails and the leg is a GAP, never a false MARKED.
