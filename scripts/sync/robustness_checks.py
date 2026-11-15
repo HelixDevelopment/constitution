@@ -292,6 +292,8 @@ def c_autostash_race(box):
     ok("autostash.no_stash_created", box.git(work, "stash", "list") == "")
     ok("autostash.user_edit_kept", "user edit made" in open(os.path.join(work, "README")).read())
     ok("autostash.failed_verdict", rc == 1, "rc=%s" % rc)
+    # RV7-2 / mutant RV7E: git ended the write itself with a declared non-zero status: its marker is removed
+    ok("autostash.no_marker_after_answered_failure", not os.path.exists(os.path.join(work, ".git", MARKER)))
 
 
 def c_sigterm_during_write(box):
@@ -1446,7 +1448,7 @@ def c_flock_error_not_another_run(box):
     Control: EWOULDBLOCK on the per-repository lock is another run (exit 7)."""
     work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
     for fault, want_rc, want_msg in (("flock-error-root", 1, "cannot take the run lock"),
-                                     ("flock-error-repo", 1, "cannot open the run lock"),
+                                     ("flock-error-repo", 1, "cannot take the run lock"),
                                      ("flock-held-repo", 7, "another sync run holds")):
         rc, so, se, drv, rep = inproc(box, fault, "--check", "--no-fetch", "--root", work, "--quiet")
         ok("flock_error.%s.exit_%d" % (fault, want_rc), rc == want_rc, "rc=%s %s" % (rc, se[-300:]))
@@ -1454,6 +1456,202 @@ def c_flock_error_not_another_run(box):
         if want_rc != 7:
             ok("flock_error.%s.not_another_run" % fault, "another sync run" not in se, se[-300:])
             ok("flock_error.%s.result_failed" % fault, "RESULT: FAILED exit=1" in so, so[-300:])
+
+
+# ───────────────────────── review round 8 (RV7-1 .. RV7-3: the marker state machine) ─────────────────────────
+def two_pin_tree(box):
+    """root with TWO own-org submodules libs/a, libs/b whose pins are behind main (both upstreams moved, the root
+    did not record it): --advance-pins advances both, so the root's git dir takes two stage-pin writes in ONE run.
+    Returns (work, a0, b0, a2, b2)."""
+    a_url, a_seed = box.bare("HelixDevelopment", "a")
+    b_url, b_seed = box.bare("HelixDevelopment", "b")
+    r_url, r_seed = box.bare("HelixDevelopment", "root")
+    box.git(r_seed, "-c", "protocol.file.allow=always", "submodule", "add", "-q", a_url, "libs/a")
+    box.git(r_seed, "-c", "protocol.file.allow=always", "submodule", "add", "-q", b_url, "libs/b")
+    box.git(r_seed, "commit", "-q", "-m", "add subs")
+    box.git(r_seed, "push", "-q", "origin", "HEAD:main")
+    work = box.clone(r_url, "p")
+    a2 = box.commit(a_seed, "a moves")
+    b2 = box.commit(b_seed, "b moves")
+    a0 = box.git(os.path.join(work, "libs/a"), "rev-parse", "HEAD")
+    b0 = box.git(os.path.join(work, "libs/b"), "rev-parse", "HEAD")
+    return work, a0, b0, a2, b2
+
+
+def spawns_ok(name, drv):
+    """Every write git the driver saw start held, at that moment, the marker its own write created (never a
+    foreign one, never none): the path-wise invariant of round 8."""
+    sp = drv.get("spawns") or []
+    bad = [x for x in sp if not (x.get("marker") and x.get("own") and not x.get("planted"))]
+    ok(name + ".every_write_held_its_own_marker", not bad, bad or sp)
+    return sp
+
+
+def c_sibling_kill(box):
+    """RV7-1 (reviewer probe probes/sibling_kill_probe.py, as a check). Two siblings advance; the FIRST stage-pin
+    'add' into the root is ended by its own limit and SIGKILLed (fixture: the kernel; index.lock left). The second
+    sibling must NOT write into the root's git dir (it holds a killed write): it is blocked BEFORE its own child is
+    moved; the killed write's marker is kept unchanged; a later run attributes the root's index.lock to it."""
+    work, a0, b0, a2, b2 = two_pin_tree(box)
+    gd = os.path.join(work, ".git")
+    rc, so, se, drv, rep = inproc(box, "kill-first-add", "--apply", "--advance-pins", "--root", work, "--quiet")
+    sp = spawns_ok("sibling_kill", drv)
+    b = rec(rep, "libs/b")
+    ok("sibling_kill.exit_1", rc == 1, "rc=%s %s" % (rc, se[-300:]))
+    ok("sibling_kill.one_add_only", [x["sub"] for x in sp].count("add") == 1, sp)
+    ok("sibling_kill.a_moved", box.git(os.path.join(work, "libs/a"), "rev-parse", "HEAD") == a2)
+    ok("sibling_kill.b_not_moved", box.git(os.path.join(work, "libs/b"), "rev-parse", "HEAD") == b0)
+    ok("sibling_kill.b_blocked_before_move", {"op": "none", "why": "blocked:parent-earlier-write-unresolved:"
+                                              "write-killed", "for": "advance-pin"} in (b.get("actions") or []),
+       b.get("actions"))
+    ok("sibling_kill.marker_kept", os.path.exists(os.path.join(gd, MARKER)))
+    try:
+        with open(os.path.join(gd, MARKER), encoding="utf-8") as f:
+            op = json.load(f).get("op")
+    except (OSError, ValueError):
+        op = None
+    ok("sibling_kill.marker_is_the_killed_writes", op == "stage-pin", op)
+    ok("sibling_kill.lock_left", os.path.exists(os.path.join(gd, "index.lock")))
+    rc2, so2, se2, rep2, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    reasons = rec(rep2, ".").get("reasons", [])
+    ok("sibling_kill.later_run_attributes", "write-interrupted-earlier:stage-pin" in reasons and
+       "in-progress-since-write-interrupted:index.lock" in reasons, reasons)
+    ok("sibling_kill.not_blamed_on_user", "in-progress:index.lock" not in reasons, reasons)
+    box2 = Box("sibling_control")  # control: the same tree, no fault: both pins staged, nothing left
+    try:
+        w2, a0c, b0c, a2c, b2c = two_pin_tree(box2)
+        rc3, so3, se3, drv3, rep3 = inproc(box2, "none", "--apply", "--advance-pins", "--root", w2, "--quiet")
+        spawns_ok("sibling_kill.control", drv3)
+        ok("sibling_kill.control_exit_0", rc3 == 0, "rc=%s %s" % (rc3, se3[-300:]))
+        ok("sibling_kill.control_both_staged", box2.git(w2, "ls-files", "-s", "libs/a").split()[1] == a2c and
+           box2.git(w2, "ls-files", "-s", "libs/b").split()[1] == b2c)
+        ok("sibling_kill.control_nothing_left", not os.path.exists(os.path.join(w2, ".git", MARKER)) and
+           not os.path.exists(os.path.join(w2, ".git", "index.lock")))
+    finally:
+        box2.cleanup()
+
+
+def c_sibling_wipe(box):
+    """RV7-1, the run's own memory: as sibling_kill, then the root's marker AND index.lock are removed before the
+    second sibling starts (fixture: someone cleans up mid-run). Nothing on disk says a write was killed; the run's
+    marker state (write-killed) still blocks the second sibling before its child moves."""
+    work, a0, b0, a2, b2 = two_pin_tree(box)
+    rc, so, se, drv, rep = inproc(box, "kill-first-add-then-wipe", "--apply", "--advance-pins", "--root", work,
+                                  "--quiet")
+    sp = spawns_ok("sibling_wipe", drv)
+    b = rec(rep, "libs/b")
+    ok("sibling_wipe.one_add_only", [x["sub"] for x in sp].count("add") == 1, sp)
+    ok("sibling_wipe.b_not_moved", box.git(os.path.join(work, "libs/b"), "rev-parse", "HEAD") == b0)
+    ok("sibling_wipe.b_blocked_by_state", {"op": "none", "why": "blocked:parent-earlier-write-unresolved:"
+                                           "write-killed", "for": "advance-pin"} in (b.get("actions") or []),
+       b.get("actions"))
+
+
+def c_parent_lock(box):
+    """RV7-1, step 3a: a user's index.lock appears in the ROOT's git dir after inspection, before an advance-pin
+    starts (fixture: the driver creates it). The child must not be moved (its pin could not be staged); the lock
+    is never removed by the engine; the block is reported."""
+    work, s1, s2, r1 = pin_behind_tree(box)
+    sub = os.path.join(work, "libs/a")
+    before = box.git(sub, "rev-parse", "HEAD")
+    rc, so, se, drv, rep = inproc(box, "lock-pinparent", "--apply", "--advance-pins", "--root", work, "--quiet")
+    sp = drv.get("spawns") or []
+    a = rec(rep, "libs/a")
+    ok("parent_lock.not_exit_0", rc not in (0, None), "rc=%s %s" % (rc, se[-200:]))
+    ok("parent_lock.child_not_moved", box.git(sub, "rev-parse", "HEAD") == before)
+    ok("parent_lock.no_write_started", not sp, sp)
+    ok("parent_lock.blocked_before_move", {"op": "none", "why": "blocked:parent-in-progress:index.lock",
+                                           "for": "advance-pin"} in (a.get("actions") or []), a.get("actions"))
+    ok("parent_lock.lock_kept", os.path.exists(os.path.join(work, ".git", "index.lock")))
+    b = Box("parent_lock_late")  # the lock appears AFTER step 3a, while the child's checkout runs
+    try:
+        w2, s1b, s2b, r1b = pin_behind_tree(b)
+        rc2, so2, se2, drv2, rep2 = inproc(b, "lock-parent-at-pin-checkout", "--apply", "--advance-pins", "--root",
+                                           w2, "--quiet")
+        sp2 = drv2.get("spawns") or []
+        a2 = rec(rep2, "libs/a")
+        acts = a2.get("actions") or []
+        ok("parent_lock.late.exit_1", rc2 == 1, "rc=%s %s" % (rc2, se2[-200:]))
+        ok("parent_lock.late.no_add_started", [x["sub"] for x in sp2] == ["checkout"], sp2)
+        ok("parent_lock.late.stage_blocked_reported", any(x.get("op") == "advance-pin" and
+                                                          x.get("why") == "blocked:in-progress:index.lock"
+                                                          for x in acts), acts)
+        ok("parent_lock.late.child_failed", a2.get("failed") is True, a2)
+        ok("parent_lock.late.lock_kept_no_marker", os.path.exists(os.path.join(w2, ".git", "index.lock")) and
+           not os.path.exists(os.path.join(w2, ".git", MARKER)))
+    finally:
+        b.cleanup()
+
+
+def site_tree(box, site):
+    """(work, repo dir of the write at ``site``, git dir that write targets, engine args) for ff / pin / follow /
+    stage / pinparent."""
+    if site == "ff":
+        r_url, r_seed = box.bare("HelixDevelopment", "solo")
+        work = box.clone(r_url, "w")
+        box.commit(r_seed, "upstream moves")
+        return work, work, os.path.join(work, ".git"), ["--apply"]
+    if site == "follow":
+        work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+        sub = os.path.join(work, "libs/a")
+        return work, sub, box.git(sub, "rev-parse", "--absolute-git-dir"), ["--apply"]
+    work, s1, s2, r1 = pin_behind_tree(box)
+    sub = os.path.join(work, "libs/a")
+    if site == "pin":
+        return work, sub, box.git(sub, "rev-parse", "--absolute-git-dir"), ["--apply", "--advance-pins"]
+    return work, sub, os.path.join(work, ".git"), ["--apply", "--advance-pins"]  # stage, pinparent
+
+
+def c_marker_preexisting(box):
+    """RV7-1 / RV7-3, every write site x 'a marker that this write did not create is already there when the write
+    starts' (fixture: a foreign marker planted by the driver). plant-<site>: before the write asks for its marker;
+    race-<site>: in the window after begin_write's checks, before the marker is created (only O_EXCL sees it);
+    swap-<site>: right after the marker was created, before git starts (Runner.run's token check sees it). For
+    every case: the foreign marker's bytes are unchanged, no write git starts into that git dir, the write is
+    reported (never silent). pinparent: the marker is in the ROOT's git dir before an advance-pin starts: the
+    child is not moved at all."""
+    cases = [(k, s_) for k in ("plant", "race", "swap") for s_ in ("ff", "pin", "follow", "stage")]
+    cases.append(("plant", "pinparent"))
+    for i, (kind, site) in enumerate(cases):
+        tag = "%s-%s" % (kind, site)
+        b = Box("pre_%d" % i)
+        try:
+            work, repo_dir, gd, args = site_tree(b, site)
+            before = b.git(repo_dir, "rev-parse", "HEAD")
+            rc, so, se, drv, rep = inproc(b, tag, *(args + ["--root", work, "--quiet"]))
+            sp = drv.get("spawns") or []
+            intact = drv.get("planted_intact") or {}
+            ok("marker_pre.%s.planted" % tag, len(intact) == 1, drv)
+            ok("marker_pre.%s.foreign_marker_intact" % tag, bool(intact) and all(intact.values()), intact)
+            into = [x for x in sp if os.path.realpath(x["gitdir"]) == os.path.realpath(gd) and
+                    (x["sub"] == "add") == (site in ("stage", "pinparent"))]
+            ok("marker_pre.%s.no_write_into_that_git_dir" % tag, not into, into)
+            spawns_ok("marker_pre.%s" % tag, drv)
+            ok("marker_pre.%s.not_exit_0" % tag, rc not in (0, None), "rc=%s %s" % (rc, se[-200:]))
+            if site in ("ff", "pin", "follow", "pinparent"):
+                ok("marker_pre.%s.not_moved" % tag, b.git(repo_dir, "rev-parse", "HEAD") == before)
+            whys = [str(a.get("why")) for x in (rep or {}).get("repos", []) for a in (x.get("actions") or [])]
+            ok("marker_pre.%s.reported" % tag, any("write-marker" in w or "write-marker-not-ours" in w for w in whys),
+               whys)
+        except Exception as e:  # a fixture that could not be built is a failure, never a pass
+            ok("marker_pre.%s.fixture" % tag, False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
+def c_stop_pin_marker(box):
+    """RV7-2 / mutant RV7C. One stop signal while the advance-pin checkout runs (fixture: the signal, in-process):
+    the second half of the write (the stage-pin add) still runs, HOLDING its marker in the root's git dir while it
+    runs (spawn audit), the pin is staged, nothing is left afterwards, exit 8."""
+    work, s1, s2, r1 = pin_behind_tree(box)
+    rc, so, se, drv, rep = inproc(box, "stop-at-pin-checkout", "--apply", "--advance-pins", "--root", work, "--quiet")
+    sp = spawns_ok("stop_pin", drv)
+    ok("stop_pin.exit_8", rc == 8, "rc=%s %s" % (rc, se[-300:]))
+    ok("stop_pin.add_ran", [x["sub"] for x in sp] == ["checkout", "add"], sp)
+    ok("stop_pin.staged_s2", box.git(work, "ls-files", "-s", "libs/a").split()[1] == s2)
+    ok("stop_pin.nothing_left", not os.path.exists(os.path.join(work, ".git", MARKER)) and
+       not os.path.exists(os.path.join(box.git(os.path.join(work, "libs/a"), "rev-parse", "--absolute-git-dir"),
+                                       MARKER)))
 
 
 CHECKS = [
@@ -1486,6 +1684,9 @@ CHECKS = [
     # review round 7
     ("refused_marker", c_refused_write_leaves_no_marker), ("refused_stage", c_refused_stage_pin_leaves_no_marker),
     ("marker_lock", c_marker_and_lock_on_clean_tree), ("flock_error", c_flock_error_not_another_run),
+    # review round 8
+    ("sibling_kill", c_sibling_kill), ("sibling_wipe", c_sibling_wipe), ("marker_pre", c_marker_preexisting),
+    ("stop_pin", c_stop_pin_marker), ("parent_lock", c_parent_lock),
 ]
 
 

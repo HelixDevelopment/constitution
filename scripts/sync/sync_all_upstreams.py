@@ -89,6 +89,22 @@ WRITE_KILL_GRACE = 30
 # git has ended the write with a declared status. A marker found later means a write of an earlier run did not end
 # normally (its limit, SIGKILL, OOM, power loss): what that repository shows is attributed to that write.
 WRITE_MARKER = "helix-sync-upstreams.write-in-progress"
+# The marker's life is a STATE MACHINE per git dir, for the run (review round 8, RV7-1): keyed by the git dir's
+# real path, moved only by gd_move() along GD_MOVES. A git dir in an UNRESOLVED state never receives another write
+# in this run, and a marker that is already there is never overwritten (O_EXCL) nor removed by a write that did not
+# create it. A write git can only start holding a WriteToken whose marker is on disk NOW (Runner.run checks it).
+GD_NONE = "none"                    # nothing known: no marker found, none written yet
+GD_EARLIER = "earlier-run-marker"   # inspection found a marker of an earlier run and kept it (its leftovers)
+GD_WRITING = "write-in-progress"    # this run created the marker; its write has not ended
+GD_KILLED = "write-killed"          # the write's own limit ended it: the marker stays
+GD_INTERRUPTED = "write-interrupted"  # a started git did not end with a declared status: the marker stays
+GD_CLEARED = "cleared"              # the write ended (git answered, or no git started), or an earlier marker that
+#                                     left nothing was removed in --apply: no marker
+GD_UNRESOLVED = (GD_EARLIER, GD_WRITING, GD_KILLED, GD_INTERRUPTED)
+GD_MOVES = {GD_NONE: (GD_WRITING, GD_EARLIER, GD_CLEARED), GD_CLEARED: (GD_WRITING,),
+            GD_WRITING: (GD_CLEARED, GD_KILLED, GD_INTERRUPTED), GD_EARLIER: (), GD_KILLED: (), GD_INTERRUPTED: ()}
+MARKER_WRITTEN, MARKER_EXISTS, MARKER_UNWRITABLE = "written", "exists", "unwritable"
+TOKEN_REFUSALS = ("no-write-token", "write-token-stale", "write-marker-not-ours")
 # Lock files a killed write may leave (checked and listed in the report, never removed by the engine)
 WRITE_LOCKS = ("index.lock", "HEAD.lock", "ORIG_HEAD.lock", "packed-refs.lock")
 
@@ -529,6 +545,32 @@ class Runner:
         self.calls = 0
         self.lock = threading.Lock()
         self.unresolved = {}  # realpath(repo) -> set of "<subcommand>:<why>" (a call that did not answer)
+        self.gitdirs = {}  # realpath(git dir) -> GD_* state of its write marker in this run (review round 8)
+        self.writes = 0  # write ids handed out in this run
+
+    def gd_state(self, gitdir):
+        with self.lock:
+            return self.gitdirs.get(os.path.realpath(gitdir), GD_NONE)
+
+    def gd_move(self, gitdir, new):
+        """Move ``gitdir``'s marker state to ``new``; False (and no move) when GD_MOVES does not allow it."""
+        key = os.path.realpath(gitdir)
+        with self.lock:
+            if new not in GD_MOVES[self.gitdirs.get(key, GD_NONE)]:
+                return False
+            self.gitdirs[key] = new
+            return True
+
+    def token_refusal(self, token):
+        """Why a write holding ``token`` may NOT start now, or None: the token must be the live one of its git dir
+        (state GD_WRITING) and the marker on disk, read now, must be the one this write created."""
+        if token is None:
+            return "no-write-token"
+        if self.gd_state(token.gitdir) != GD_WRITING:
+            return "write-token-stale"
+        if marker_write_id(token.gitdir) != token.write_id:
+            return "write-marker-not-ours"
+        return None
 
     def remaining(self):
         return self.deadline - time.monotonic()
@@ -537,7 +579,7 @@ class Runner:
         with self.lock:
             self.unresolved.setdefault(os.path.realpath(repo), set()).add("%s:%s" % (sub, why))
 
-    def run(self, repo, args, ok, network=False, repo_ssh=False, want=None, write=False, final=False):
+    def run(self, repo, args, ok, network=False, repo_ssh=False, want=None, write=False, final=False, token=None):
         """Run one git call and return a GitResult. ``ok`` = the exit statuses that are an ANSWER for this call
         (declared at every call site); ``want`` = a compiled pattern the stripped output of an exit-0 answer must
         match. Every call that gives no answer is recorded for ``repo`` (it makes the repository unresolved or
@@ -548,7 +590,11 @@ class Runner:
         ``final`` call), and then runs under its OWN limit, --write-timeout: neither the per-call timeout nor the
         run deadline nor a stop signal ends it half-way. A write that its own limit ends is "write-killed" (SIGTERM
         first). A ``final`` read runs after the deadline too, with at most 10 seconds once the deadline is near or
-        a stop was asked for."""
+        a stop was asked for.
+        Review round 8 (RV7-1): a ``write`` starts only holding ``token`` (begin_write), the live write of its git
+        dir whose marker is on disk NOW; any other write is refused before git starts ("no-write-token",
+        "write-token-stale", "write-marker-not-ours"), so no write git ever runs into a git dir holding a marker
+        it did not create."""
         sub = args[0] if args else "?"
         if STOP_REQUESTED.is_set() and (not final or HARD_STOP.is_set()):
             self.no_answer(repo, sub, "interrupted")
@@ -557,6 +603,11 @@ class Runner:
         if left <= 0 and not final:
             self.no_answer(repo, sub, "deadline")
             return GitResult(False, None, "", "run deadline passed", "deadline", started=False)
+        if write:
+            refusal = self.token_refusal(token)
+            if refusal:
+                self.no_answer(repo, sub, refusal)
+                return GitResult(False, None, "", "write refused: %s" % refusal, refusal, started=False)
         if write:
             limit = self.write_timeout
         elif final:
@@ -823,27 +874,48 @@ def read_marker(gitdir):
     return op if op in ("fast-forward", "advance-pin", "follow-pin", "stage-pin") else "unknown"
 
 
-def write_marker(gitdir, op, target, run_id):
-    """Write the write-in-progress marker; False when it cannot be written (the write is then not started)."""
+def marker_write_id(gitdir):
+    """The write id recorded in ``gitdir``'s marker, read now; None when there is no marker or it is unreadable."""
+    path = marker_path(gitdir)
+    if not path or path_kind(path) != "other":  # O_NOFOLLOW below refuses a symbolic link
+        return None
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            data = os.read(fd, 4096)
+        finally:
+            os.close(fd)
+        wid = json.loads(data.decode("utf-8", "replace")).get("write_id")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return wid if isinstance(wid, str) and wid else None
+
+
+def write_marker(gitdir, op, target, run_id, write_id=""):
+    """CREATE the write-in-progress marker, exclusively (review round 8, RV7-1): MARKER_WRITTEN; MARKER_EXISTS when
+    a marker (or anything else) is already at its path, which is never opened, overwritten or removed; or
+    MARKER_UNWRITABLE. Only a file this call created is removed again when it cannot be written (a half marker
+    would read as 'unknown' later). The write is started only after MARKER_WRITTEN."""
     path = marker_path(gitdir)
     if not path:
-        return False
-    existed = path_kind(path) != "absent"
+        return MARKER_UNWRITABLE
     try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    except FileExistsError:
+        return MARKER_EXISTS
     except OSError:
-        return False
+        return MARKER_UNWRITABLE
     try:
         try:
-            os.write(fd, json.dumps({"op": op, "target": target, "run_id": run_id, "started": now_utc()}).encode())
+            os.write(fd, json.dumps({"op": op, "target": target, "run_id": run_id, "write_id": write_id,
+                                     "started": now_utc()}).encode())
             os.fsync(fd)
         finally:
             os.close(fd)
-    except OSError:  # created but not written: a half marker would read as 'unknown' later (review round 7)
-        if not existed:
-            clear_marker(gitdir)
-        return False
-    return True
+    except OSError:  # this call created the file (O_EXCL): removing it removes nothing of anyone else
+        clear_marker(gitdir)
+        return MARKER_UNWRITABLE
+    return MARKER_WRITTEN
 
 
 def clear_marker(gitdir):
@@ -853,6 +925,73 @@ def clear_marker(gitdir):
             os.unlink(path)
         except FileNotFoundError:
             pass
+
+
+class WriteToken:
+    """The live write of one git dir (begin_write): its marker on disk carries ``write_id``."""
+    def __init__(self, gitdir, op, write_id):
+        self.gitdir = gitdir
+        self.op = op
+        self.write_id = write_id
+
+
+def gitdir_write_block(r, gitdir):
+    """Why NO write may go into ``gitdir`` now, or None (review round 8, RV7-1), read NOW: an unknown git dir; its
+    marker state in this run is unresolved (an earlier write of this run was killed or interrupted, is still in
+    progress, or a marker of an earlier run was kept); a marker (or anything else) is at the marker path; an
+    operation or lock is in progress there (index.lock included: a killed write's lock is never written over)."""
+    if not marker_path(gitdir):
+        return "unknown-git-dir"
+    state = r.gd_state(gitdir)
+    if state in GD_UNRESOLVED:
+        return "earlier-write-unresolved:" + state
+    if path_kind(marker_path(gitdir)) != "absent":
+        return "write-marker-present"
+    busy = in_progress(gitdir)
+    if busy:
+        return "in-progress:" + ",".join(busy)
+    return None
+
+
+def begin_write(r, gitdir, op, target, final=False):
+    """The ONE way a write gets its marker (review round 8, RV7-1). Returns (token, None) when the marker was
+    created for this write, else (None, why): why None means run() refuses the write right now (a stop signal, the
+    deadline; it then reports the refusal itself); 'blocked:...' means the git dir must not receive this write."""
+    if r.write_refused_now(final=final):
+        return None, None
+    why = gitdir_write_block(r, gitdir)
+    if why:
+        return None, "blocked:" + why
+    with r.lock:
+        r.writes += 1
+        write_id = "%s:%d:%d" % (r.run_id, os.getpid(), r.writes)
+    got = write_marker(gitdir, op, target, r.run_id, write_id)
+    if got == MARKER_EXISTS:
+        return None, "blocked:write-marker-present"
+    if got != MARKER_WRITTEN:
+        return None, "blocked:write-marker-unwritable"
+    if not r.gd_move(gitdir, GD_WRITING):  # unreachable while gitdir_write_block holds; never a silent write
+        clear_marker(gitdir)
+        return None, "blocked:earlier-write-unresolved:" + r.gd_state(gitdir)
+    return WriteToken(gitdir, op, write_id), None
+
+
+def end_write(r, token, res):
+    """The end of a write that held ``token``: git answered (any declared status, 0 or not) or no git process was
+    started -> the marker is removed (GD_CLEARED); the write's own limit ended it -> GD_KILLED; any other end (a
+    signal, an undeclared status, malformed output) -> GD_INTERRUPTED. The last two keep the marker, so a later
+    run attributes what the git dir shows to that write."""
+    if token is None:
+        return
+    if res.why in TOKEN_REFUSALS:  # the marker on disk is not (or no longer) this write's: never touched
+        r.gd_move(token.gitdir, GD_INTERRUPTED)
+    elif res.answered or not res.started:
+        clear_marker(token.gitdir)
+        r.gd_move(token.gitdir, GD_CLEARED)
+    elif res.why == "write-killed":
+        r.gd_move(token.gitdir, GD_KILLED)
+    else:
+        r.gd_move(token.gitdir, GD_INTERRUPTED)
 
 
 def locks_left(gitdir, branch):
@@ -1337,6 +1476,12 @@ def write_git(r, repo, op, target):
         if links.get(path) != rec.get("recorded_gitlink") or tree.get(path) != rec.get("recorded_gitlink"):
             rec["actions"].append({"op": "none", "why": "blocked:parent-index-changed", "for": op})
             return "blocked"
+        # 3a. the parent's git dir must be able to take the stage-pin NOW, before the child is moved (review round 8,
+        #    RV7-1): a sibling's killed or interrupted write, a marker, or a lock there blocks this advance whole
+        pblock = gitdir_write_block(r, repo.parent.rec.get("_gitdir") or "")
+        if pblock:
+            rec["actions"].append({"op": "none", "why": "blocked:parent-" + pblock, "for": op})
+            return "blocked"
     # 3b. a gitlink the user has STAGED in this repository (index differs from HEAD's tree), read NOW, that the
     #    move would change is never overwritten: blocked before git (review round 6, RV5-3; git itself would refuse
     #    the merge only half-way, as a failure)
@@ -1376,27 +1521,22 @@ def write_git(r, repo, op, target):
         return "blocked"
     # 5. the write: the marker first (a write that does not end normally is attributed later), then git under the
     #    write's own limit (a stop signal, the per-call timeout and the run deadline never end it; RV5-1)
-    #    Review round 7 (RV6-1): the marker's whole life is bounded here. A write r.run would refuse NOW (a stop
-    #    signal, the deadline) gets no marker; a marker is removed when git ended the write itself (answered) AND
-    #    when no git process was started at all (refused a moment later, or not startable): neither can have left
-    #    anything. It stays only when a started git did not end normally (killed, a signal, an undeclared status).
+    #    Review round 8 (RV7-1): the marker's life is the git dir's state machine (begin_write / end_write). A
+    #    write refused now (a stop signal, the deadline) gets no marker and run() reports the refusal; a git dir
+    #    with an unresolved earlier write, a marker or a lock gets no write; the marker is created exclusively and
+    #    only end_write of the write that created it removes it.
     gitdir = rec.get("_gitdir") or ""
-    marked = False
-    if not r.write_refused_now():
-        if not write_marker(gitdir, op, target, r.run_id):
-            rec["actions"].append({"op": "none", "why": "blocked:write-marker-unwritable", "for": op})
-            return "blocked"
-        marked = True
+    tok, why = begin_write(r, gitdir, op, target)
+    if why:
+        rec["actions"].append({"op": "none", "why": why, "for": op})
+        return "blocked"
     if op == "fast-forward":
-        res = r.run(p, ["merge", "--ff-only", target], ok=(0, 1, 128), write=True)
+        res = r.run(p, ["merge", "--ff-only", target], ok=(0, 1, 128), write=True, token=tok)
     else:
-        res = r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128), write=True)
+        res = r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128), write=True, token=tok)
     act["rc"] = res.rc
     act["error"] = redact(res.err).strip()[-300:] if (res.rc or not res.answered) else ""
-    if marked and not res.started:  # no git process: nothing was written, so nothing is attributed to it later
-        clear_marker(gitdir)
-    if res.answered:  # git ended the write itself, with a declared status: nothing is left half-done by a kill
-        clear_marker(gitdir)
+    end_write(r, tok, res)
     if res.why == "write-killed":
         act["why"] = "write-killed:" + op
         act["locks_left"] = locks_left(gitdir, rec.get("branch"))
@@ -1431,19 +1571,15 @@ def write_git(r, repo, op, target):
         # the second half of the same consented write: runs even after a stop signal (final); a stop signal never
         # ends it, only its own --write-timeout does (SIGTERM first, then SIGKILL; write-killed:stage-pin)
         pgitdir = repo.parent.rec.get("_gitdir") or ""
-        marked2 = False
-        if not r.write_refused_now(final=True):
-            if not write_marker(pgitdir, "stage-pin", target, r.run_id):
-                act["why"] = "blocked:write-marker-unwritable"
-                rec["actions"].append(act)
-                rec["failed"] = True  # the child moved and its pin was not staged: never silent
-                return "failed"
-            marked2 = True
-        res2 = r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]], ok=(0, 128), write=True, final=True)
-        if marked2 and not res2.started:  # the add never started: the parent holds nothing of it (RV6-1)
-            clear_marker(pgitdir)
-        if res2.answered:
-            clear_marker(pgitdir)
+        tok2, why2 = begin_write(r, pgitdir, "stage-pin", target, final=True)
+        if why2:
+            act["why"] = why2
+            rec["actions"].append(act)
+            rec["failed"] = True  # the child moved and its pin was not staged: never silent
+            return "failed"
+        res2 = r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]], ok=(0, 128), write=True, final=True,
+                     token=tok2)
+        end_write(r, tok2, res2)
         act["staged_rc"] = res2.rc
         if res2.why == "write-killed":
             act["why"] = "write-killed:stage-pin"
@@ -1864,8 +2000,9 @@ def say(a, msg, always=False):
 def lock_repositories(live, root_common, held):
     """Take the run lock of EVERY repository of the tree (in its git common dir, deduplicated; the root's is held
     already): a second run rooted inside this tree, or overlapping it, finds a lock taken and exits 7 (RV4-11).
-    Returns None, or (path, held) for the lock that could not be taken: held True when another run holds it, False
-    when it cannot be opened or taken at all (review round 6, RV5-2). The caller ends the run before any fetch or
+    Returns None, or (path, held, error) for the lock that could not be taken: held True when another run holds it,
+    False when its flock is refused for another reason (ENOLCK, ...), None when the lock file cannot be opened
+    (review round 6, RV5-2; round 8, RV7-6). The caller ends the run before any fetch or
     write."""
     seen = {os.path.realpath(root_common)}
     for x in live:
@@ -1880,7 +2017,7 @@ def lock_repositories(live, root_common, held):
         try:
             fd_ = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         except OSError as e:
-            return path, False, e.strerror or str(e)
+            return path, None, e.strerror or str(e)  # None: the lock file could not be OPENED (review round 8)
         held.append(fd_)
         try:
             fcntl.flock(fd_, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -1906,8 +2043,9 @@ def run(a, r, mode, root, run_id, out_dir, tty, held, root_common):
             print("sync-upstreams: ERROR: another sync run holds %s (exit 7, nothing fetched or changed)"
                   % redact(busy[0]), file=sys.stderr)
             return EXIT_LOCKED
-        print("sync-upstreams: ERROR: cannot open the run lock %s (%s); nothing fetched or changed"
-              % (redact(busy[0]), redact(busy[2])), file=sys.stderr)
+        # RV7-6: an flock that is refused (ENOLCK, ...) is "cannot take", an open that fails is "cannot open"
+        print("sync-upstreams: ERROR: cannot %s the run lock %s (%s); nothing fetched or changed"
+              % ("open" if busy[1] is None else "take", redact(busy[0]), redact(busy[2])), file=sys.stderr)
         print("RESULT: FAILED exit=%d" % EXIT_FAIL)
         return EXIT_FAIL
     # the write-in-progress marker of an earlier run (RV5-1): a clean repository shows nothing of that write, so in
@@ -1916,14 +2054,21 @@ def run(a, r, mode, root, run_id, out_dir, tty, held, root_common):
         earlier = x.rec.get("write_interrupted_earlier")
         if not earlier:
             continue
+        gd = x.rec.get("_gitdir") or ""
         if x.rec.get("dirty") or x.rec.get("in_progress"):
             x.rec.setdefault("notes", []).append("write-marker-kept:leftovers-of-%s" % earlier)
+            if gd:
+                r.gd_move(gd, GD_EARLIER)
         elif mode == "apply":
-            clear_marker(x.rec.get("_gitdir") or "")
+            clear_marker(gd)
             x.rec.setdefault("notes", []).append("write-marker-cleared:%s-left-nothing" % earlier)
             x.rec.pop("write_interrupted_earlier", None)
+            if gd:
+                r.gd_move(gd, GD_CLEARED)
         else:
             x.rec.setdefault("notes", []).append("write-marker-present:%s-left-nothing" % earlier)
+            if gd:
+                r.gd_move(gd, GD_EARLIER)
     n_remotes = sum(len(x.rec.get("remotes", [])) for x in live)
     consent = {"fetch": mode in ("check", "apply") and not a.no_fetch,
                "integrate": mode == "apply", "pins": mode == "apply" and a.advance_pins}

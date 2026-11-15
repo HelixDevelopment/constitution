@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T01:00:00Z |
+| Last modified | 2026-11-15T12:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Reference for every option, state, reason, exit code, report field, integration point and safety property of the sync-all-upstreams engine. |
 | Authority | Constitution §2.1, §11.4.10, §11.4.37, §11.4.50, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.263, §11.4.273, §11.4.288(D), §12. The canonical text wins where this manual and the constitution disagree. |
 | Scope | Universal (§11.4.17); consumed by reference. |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 7: review round 6 (NO-GO) RV6-1 (a write refused before git starts leaves no marker; a half-written marker is removed), RV6-2 (a lock-only leftover attributed to the interrupted write, guarded), RV6-3 (a run-lock flock error other than 'held' guarded in both lock paths); revision 6: review round 5; revision 5: review round 4 (NO-GO) RV4-1–RV4-15 (write-time re-read of HEAD, branch and the parent's HEAD-tree gitlink; staged gitlinks reported; linear redaction; capped output; stop signals end in a report, exit 8; askpass and protocol variables pinned or dropped; evidence directory probed before any write; one lock per repository of the tree; unsafe and outside-parent gitlink paths reported) and the false claims of revision 4 corrected; revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 2: review round 2 (NO-GO) fixes F1–F13, N3; revision 3: review round 2 of the fixes (NO-GO) I-1–I-4, S-1, m-1–m-5, n-1–n-6 |
+| Fixed | revision 8: review round 7 (NO-GO) RV7-1 (a per-git-directory marker state machine: no marker is overwritten or removed by a write that did not create it; a git directory with an unresolved write, a marker or a lock takes no further write; the parent is checked before a pin is advanced), RV7-6 (`cannot take the run lock` for a refused flock); revision 7: review round 6 (NO-GO) RV6-1 (a write refused before git starts leaves no marker; a half-written marker is removed), RV6-2 (a lock-only leftover attributed to the interrupted write, guarded), RV6-3 (a run-lock flock error other than 'held' guarded in both lock paths); revision 6: review round 5; revision 5: review round 4 (NO-GO) RV4-1–RV4-15 (write-time re-read of HEAD, branch and the parent's HEAD-tree gitlink; staged gitlinks reported; linear redaction; capped output; stop signals end in a report, exit 8; askpass and protocol variables pinned or dropped; evidence directory probed before any write; one lock per repository of the tree; unsafe and outside-parent gitlink paths reported) and the false claims of revision 4 corrected; revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 2: review round 2 (NO-GO) fixes F1–F13, N3; revision 3: review round 2 of the fixes (NO-GO) I-1–I-4, S-1, m-1–m-5, n-1–n-6 |
 | Fixed summary | Fetch never deletes or rewrites a ref; no repository hook or fsmonitor runs; every git call declares which exit statuses are an answer, and a call with no answer makes the run BLIND (exit 6; INCONCLUSIVE, exit 5, when it only ran out of time), never "absent" or "clean"; one guarded writer re-checks the tree and ignored files before every move; distinct exit codes 5/6/7. |
 | Continuation | — |
 
@@ -198,7 +198,7 @@ hold back the rest of the repository), `head-changed-during-run`, `write-blocked
 | Exit | Verdict | When |
 |---|---|---|
 | 0 | `CURRENT` / `APPLIED` | Nothing behind, nothing needs attention. |
-| 1 | `FAILED` | An integration step failed, a write was ended by its `--write-timeout` (`write-killed:<op>`), or a run lock could not be opened or taken for a reason that is NOT another run (a read-only git directory, for example: `cannot open the run lock`); nothing is fetched or changed in that last case. |
+| 1 | `FAILED` | An integration step failed, a write was ended by its `--write-timeout` (`write-killed:<op>`), or a run lock could not be opened or taken for a reason that is NOT another run (a read-only git directory: `cannot open the run lock`; a refused flock, for example ENOLCK: `cannot take the run lock`); nothing is fetched or changed in that last case. |
 | 2 | usage | Bad arguments; `--out` (or the default evidence directory) inside the work tree, not writable when the run starts, or holding a report file this engine did not write; a relative cache directory; no terminal for `--interactive`. Nothing was done. Evidence that cannot be written at the END of a run (after a write) is exit 1, never 2; every move is then printed. |
 | 3 | `UPDATES-AVAILABLE` | Something is behind (check, dry-run, or still behind after apply: a declined prompt, or a pin without `--advance-pins`). |
 | 4 | `ATTENTION` | At least one reason above. |
@@ -304,7 +304,16 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   the run deadline already refuses the write, and the marker is removed again when no git process was started
   (the refusal came a moment later, or git could not be started); a marker that was created but could not be
   written (for example a full disk) is removed again, an earlier run's marker never. Such a write left nothing,
-  so your later edits are never reported as its leftovers. Recovery
+  so your later edits are never reported as its leftovers. Review round 8: the marker of each git directory is a
+  state machine for the run (`none`, `write-in-progress`, `cleared`, `write-killed`, `write-interrupted`,
+  `earlier-run-marker`). A marker that is already there is never overwritten (it is created exclusively) and
+  never removed by a write that did not create it; a write git starts only while the marker on disk carries
+  that write's own id. A git directory whose earlier write in the same run was killed or interrupted, or that
+  holds a marker of an earlier run, a marker of unknown origin, or a lock (`index.lock` included), takes no
+  further write in that run: the write is reported `blocked:earlier-write-unresolved:<state>`,
+  `blocked:write-marker-present`, `blocked:in-progress:<name>` or `blocked:write-marker-unwritable`. For
+  `--advance-pins` the parent's git directory is checked BEFORE the submodule is moved
+  (`blocked:parent-<reason>`), so a sibling whose pin cannot be staged is never moved. Recovery
   of a write-killed repository, printed in the next steps: make sure no git process runs in it; look at
   `git status`; remove a stale `index.lock` only when no git process runs; save what is there with
   `git stash push --include-untracked -m helix-sync-write-killed`; re-run with a larger `--write-timeout`.

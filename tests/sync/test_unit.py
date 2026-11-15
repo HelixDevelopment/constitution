@@ -442,6 +442,28 @@ def fresh_engine(name) -> Any:
     return m
 
 
+def read_bytes(path):
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def live_token(test, F, r, op="fast-forward"):
+    """A live WriteToken of ``r`` (review round 8): its marker created in a fresh temporary git dir and the dir's
+    state moved to GD_WRITING, exactly as begin_write leaves it, without begin_write's refusal checks (so a test can
+    hold a token while a stop or the deadline is in force). The directory is removed by the test's cleanup."""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="sync_unit_tok.")
+
+    def gone():
+        for n in os.listdir(d):
+            os.unlink(os.path.join(d, n))
+        os.rmdir(d)
+    test.addCleanup(gone)
+    test.assertEqual(F.write_marker(d, op, SHA, "t", "t:1:1"), F.MARKER_WRITTEN)
+    test.assertTrue(r.gd_move(d, F.GD_WRITING))
+    return F.WriteToken(d, op, "t:1:1")
+
+
 class TempDir(unittest.TestCase):
     def setUp(self):
         import tempfile
@@ -1090,7 +1112,7 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
 
     def test_write_has_its_own_limit_not_the_deadline(self):  # RV5-1: a write never gets min(timeout, deadline)
         F, r, seen = self.limits_runner(2)
-        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True)
+        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True, token=live_token(self, F, r))
         self.assertTrue(res.answered)
         self.assertEqual(seen[-1], (("merge", "--ff-only", SHA), 1234, 0))
 
@@ -1106,12 +1128,13 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
 
     def test_write_never_starts_after_the_deadline(self):
         F, r, seen = self.limits_runner(-1)
-        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True)
+        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True, token=live_token(self, F, r))
         self.assertEqual((res.answered, res.why, seen), (False, "deadline", []))
 
     def test_second_half_of_a_write_and_final_reads_run_after_the_deadline(self):
         F, r, seen = self.limits_runner(-1)
-        self.assertTrue(r.run("/p", ["add", "--", "libs/a"], ok=(0,), write=True, final=True).answered)
+        self.assertTrue(r.run("/p", ["add", "--", "libs/a"], ok=(0,), write=True, final=True,
+                              token=live_token(self, F, r, "stage-pin")).answered)
         self.assertEqual(seen[-1][1:], (1234, 0))
         self.assertTrue(r.run("/p", ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), final=True).answered)
         self.assertEqual(seen[-1][1:], (10, 2))  # at most 10 seconds once the deadline has passed
@@ -1127,7 +1150,7 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
         F = fresh_engine("sync_engine_r6_wk")
         F.proc_run_git = lambda *a, **k: ("timeout", None, "", "timeout after 3s; ended by SIGTERM")
         r = F.Runner("/nonexistent/git", 7, F.time.monotonic() + 600, 3)
-        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0, 1, 128), write=True)
+        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0, 1, 128), write=True, token=live_token(self, F, r))
         self.assertEqual((res.answered, res.why), (False, "write-killed"))
         self.assertEqual(r.unresolved_for("/r"), [])  # never an unknown state: the write's end is known
         res = r.run("/r", ["remote"], ok=(0,))  # a READ timeout stays a no-answer (control)
@@ -1209,8 +1232,12 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
         d = tempfile.mkdtemp(prefix="sync_unit_marker.")
         try:
             self.assertIsNone(E.read_marker(d))
-            self.assertTrue(E.write_marker(d, "fast-forward", SHA, "r1"))
+            self.assertEqual(E.write_marker(d, "fast-forward", SHA, "r1", "r1:1:1"), E.MARKER_WRITTEN)
             self.assertEqual(E.read_marker(d), "fast-forward")
+            self.assertEqual(E.marker_write_id(d), "r1:1:1")
+            before = read_bytes(os.path.join(d, E.WRITE_MARKER))  # round 8 (RV7-1): never overwritten
+            self.assertEqual(E.write_marker(d, "advance-pin", SHA, "r2", "r2:1:1"), E.MARKER_EXISTS)
+            self.assertEqual(read_bytes(os.path.join(d, E.WRITE_MARKER)), before)
             E.clear_marker(d)
             self.assertIsNone(E.read_marker(d))
             E.clear_marker(d)  # absent: no error
@@ -1219,10 +1246,12 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
             self.assertEqual(E.read_marker(d), "unknown")  # unreadable is never "no marker"
             os.unlink(os.path.join(d, E.WRITE_MARKER))
             os.symlink("/nonexistent/x", os.path.join(d, E.WRITE_MARKER))
-            self.assertFalse(E.write_marker(d, "fast-forward", SHA, "r1"))  # never written through a link
+            # never written through a link (O_EXCL: the link itself is "already there")
+            self.assertEqual(E.write_marker(d, "fast-forward", SHA, "r1"), E.MARKER_EXISTS)
             self.assertEqual(E.read_marker(d), "unknown")
+            self.assertIsNone(E.marker_write_id(d))
             os.unlink(os.path.join(d, E.WRITE_MARKER))
-            self.assertFalse(E.write_marker("", "fast-forward", SHA, "r1"))  # no git dir: no write
+            self.assertEqual(E.write_marker("", "fast-forward", SHA, "r1"), E.MARKER_UNWRITABLE)  # no git dir
             open(os.path.join(d, "index.lock"), "w").close()
             self.assertEqual(E.locks_left(d, "main"), ["index.lock"])
             os.unlink(os.path.join(d, "index.lock"))
@@ -1291,19 +1320,22 @@ class RoundSeven(unittest.TestCase):  # review round 7 (RV6-1 .. RV6-3)
                             F.STOP_REQUESTED.set()
                         if stop and hard:
                             F.HARD_STOP.set()
+                        tok = live_token(self, F, r)
                         pred = r.write_refused_now(final=final)
-                        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True, final=final)
+                        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True, final=final, token=tok)
                         self.assertEqual(pred, not res.started, (stop, hard, left, final))
                         self.assertEqual(pred, seen == [], (stop, hard, left, final))
 
     def test_started_is_false_only_without_a_process(self):
         F = fresh_engine("sync_engine_r7_started")
         r, seen = self.runner(F, 30)
-        self.assertFalse(r.run("/r", ["push", "origin"], ok=(0,), write=True).started)  # refused by the allow-list
+        # refused by the allow-list (round 8: with a live token, else the token check would refuse it first)
+        pushed = r.run("/r", ["push", "origin"], ok=(0,), write=True, token=live_token(self, F, r))
+        self.assertEqual((pushed.why, pushed.started), ("refused", False))
         for kind, code, started in (("not-runnable", None, False), ("exit", 0, True), ("exit", 5, True),
                                     ("signal", 9, True), ("timeout", None, True), ("output-too-large", None, True)):
             F.proc_run_git = lambda *a, _k=kind, _c=code, **kw: (_k, _c, "", "")
-            res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0, 1, 128), write=True)
+            res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0, 1, 128), write=True, token=live_token(self, F, r))
             self.assertEqual(res.started, started, kind)
         F.STOP_REQUESTED.set()
         self.assertFalse(r.run("/r", ["remote"], ok=(0,)).started)  # interrupted before spawn
@@ -1326,16 +1358,17 @@ class RoundSeven(unittest.TestCase):  # review round 7 (RV6-1 .. RV6-3)
                 return getattr(real_os, name)
         try:
             F.os = FailingWrite()
-            self.assertFalse(F.write_marker(d, "fast-forward", SHA, "r1"))
+            self.assertEqual(F.write_marker(d, "fast-forward", SHA, "r1"), F.MARKER_UNWRITABLE)
             F.os = real_os
             self.assertFalse(os.path.exists(os.path.join(d, F.WRITE_MARKER)))
             self.assertIsNone(F.read_marker(d))
             with open(os.path.join(d, F.WRITE_MARKER), "w") as fh:  # an EARLIER marker is never removed by a failure
                 fh.write(json.dumps({"op": "advance-pin"}))
             F.os = FailingWrite()
-            self.assertFalse(F.write_marker(d, "fast-forward", SHA, "r1"))
+            self.assertEqual(F.write_marker(d, "fast-forward", SHA, "r1"), F.MARKER_EXISTS)
             F.os = real_os
             self.assertTrue(os.path.exists(os.path.join(d, F.WRITE_MARKER)))
+            self.assertEqual(F.read_marker(d), "advance-pin")  # its content too
         finally:
             F.os = real_os
             for n in os.listdir(d):
@@ -1384,6 +1417,91 @@ class RoundSeven(unittest.TestCase):  # review round 7 (RV6-1 .. RV6-3)
             for n in os.listdir(d):
                 os.unlink(os.path.join(d, n))
             os.rmdir(d)
+
+
+class RoundEight(unittest.TestCase):  # review round 8 (RV7-1): the per-git-dir marker state machine
+    def setUp(self):
+        import tempfile
+        self.d = tempfile.mkdtemp(prefix="sync_unit_r8.")
+        self.r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600, 4321)
+        self.r.run_id = "r8"
+
+    def tearDown(self):
+        for n in os.listdir(self.d):
+            os.unlink(os.path.join(self.d, n))
+        os.rmdir(self.d)
+
+    def test_transition_table_is_exactly_the_declared_one(self):
+        states = (E.GD_NONE, E.GD_EARLIER, E.GD_WRITING, E.GD_KILLED, E.GD_INTERRUPTED, E.GD_CLEARED)
+        allowed = {(E.GD_NONE, E.GD_WRITING), (E.GD_NONE, E.GD_EARLIER), (E.GD_NONE, E.GD_CLEARED),
+                   (E.GD_CLEARED, E.GD_WRITING), (E.GD_WRITING, E.GD_CLEARED), (E.GD_WRITING, E.GD_KILLED),
+                   (E.GD_WRITING, E.GD_INTERRUPTED)}
+        for a in states:
+            for b in states:
+                r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
+                if a != E.GD_NONE:
+                    r.gitdirs[os.path.realpath(self.d)] = a
+                self.assertEqual(r.gd_move(self.d, b), (a, b) in allowed, (a, b))
+                self.assertEqual(r.gd_state(self.d), b if (a, b) in allowed else a, (a, b))
+        self.assertEqual(set(E.GD_UNRESOLVED), {E.GD_EARLIER, E.GD_WRITING, E.GD_KILLED, E.GD_INTERRUPTED})
+
+    def test_every_unresolved_state_blocks_a_write(self):
+        self.assertIsNone(E.gitdir_write_block(self.r, self.d))
+        self.assertEqual(E.gitdir_write_block(self.r, ""), "unknown-git-dir")
+        for st in E.GD_UNRESOLVED:
+            self.r.gitdirs[os.path.realpath(self.d)] = st
+            self.assertEqual(E.gitdir_write_block(self.r, self.d), "earlier-write-unresolved:" + st)
+        self.r.gitdirs[os.path.realpath(self.d)] = E.GD_CLEARED
+        self.assertIsNone(E.gitdir_write_block(self.r, self.d))
+        open(os.path.join(self.d, "index.lock"), "w").close()
+        self.assertEqual(E.gitdir_write_block(self.r, self.d), "in-progress:index.lock")
+        os.unlink(os.path.join(self.d, "index.lock"))
+        open(os.path.join(self.d, E.WRITE_MARKER), "w").close()
+        self.assertEqual(E.gitdir_write_block(self.r, self.d), "write-marker-present")
+
+    def test_token_refusals(self):
+        self.assertEqual(self.r.token_refusal(None), "no-write-token")
+        tok, why = E.begin_write(self.r, self.d, "fast-forward", SHA)
+        self.assertIsNone(why)
+        self.assertIsNone(self.r.token_refusal(tok))
+        self.assertTrue(tok.write_id.startswith("r8:"))
+        self.assertEqual(E.marker_write_id(self.d), tok.write_id)
+        os.unlink(os.path.join(self.d, E.WRITE_MARKER))
+        E.write_marker(self.d, "fast-forward", SHA, "other", "other:1:1")
+        self.assertEqual(self.r.token_refusal(tok), "write-marker-not-ours")
+        E.end_write(self.r, tok, E.GitResult(False, None, "", "", "write-marker-not-ours", started=False))
+        self.assertEqual(E.marker_write_id(self.d), "other:1:1")  # a foreign marker is never removed
+        self.assertEqual(self.r.gd_state(self.d), E.GD_INTERRUPTED)
+        self.assertEqual(self.r.token_refusal(tok), "write-token-stale")
+
+    def test_end_write_transitions(self):
+        cases = ((E.GitResult(True, 0, "", "", None), E.GD_CLEARED, False),
+                 (E.GitResult(True, 1, "", "", None), E.GD_CLEARED, False),  # RV7E: answered rc != 0 clears
+                 (E.GitResult(False, None, "", "", "refused", started=False), E.GD_CLEARED, False),
+                 (E.GitResult(False, None, "", "", "write-killed"), E.GD_KILLED, True),
+                 (E.GitResult(False, 9, "", "", "signal"), E.GD_INTERRUPTED, True))
+        for res, state, kept in cases:
+            r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
+            r.run_id = "r8"
+            tok, why = E.begin_write(r, self.d, "advance-pin", SHA)
+            self.assertIsNone(why)
+            E.end_write(r, tok, res)
+            self.assertEqual(r.gd_state(self.d), state, res.why)
+            self.assertEqual(os.path.exists(os.path.join(self.d, E.WRITE_MARKER)), kept, res.why)
+            if kept:
+                os.unlink(os.path.join(self.d, E.WRITE_MARKER))
+        E.end_write(self.r, None, E.GitResult(True, 0, "", "", None))  # no token: nothing to end, no error
+
+    def test_begin_write_never_overwrites_and_reports_unwritable(self):
+        E.write_marker(self.d, "fast-forward", SHA, "earlier", "earlier:1:1")
+        tok, why = E.begin_write(self.r, self.d, "fast-forward", SHA)
+        self.assertEqual((tok, why), (None, "blocked:write-marker-present"))
+        self.assertEqual(E.marker_write_id(self.d), "earlier:1:1")
+        os.unlink(os.path.join(self.d, E.WRITE_MARKER))
+        gone = os.path.join(self.d, "no-such-dir")
+        tok, why = E.begin_write(self.r, gone, "fast-forward", SHA)
+        self.assertEqual((tok, why), (None, "blocked:write-marker-unwritable"))
+        self.assertEqual(self.r.gd_state(gone), E.GD_NONE)
 
 
 if __name__ == "__main__":

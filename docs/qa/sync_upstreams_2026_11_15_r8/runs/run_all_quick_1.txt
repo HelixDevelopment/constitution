@@ -1,0 +1,513 @@
+=== test_unit
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+......................................................................................
+----------------------------------------------------------------------
+Ran 111 tests in 9.866s
+
+OK
+sync-unit: PASS 111 FAIL 0 SKIP 0
+=== test_unit OK
+=== test_integration
+== sync-integration (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.hqnlV9)
+  ok   fresh clone: exit 0
+  ok   fresh clone: verdict CURRENT
+  ok   discovery: 4 repositories
+  ok   discovery: nested inner found
+  ok   control needle ok
+  ok   own-org detected for libs/a
+  ok   third-party detected for vendor/t
+  ok   pin at-main for libs/a
+  ok   fetch ran once per remote (4)
+  ok   behind: exit 3
+  ok   behind: verdict
+  ok   root behind by 1
+  ok   libs/a pin behind-main
+  ok   check changed nothing (root)
+  ok   check changed nothing (libs/a)
+  ok   tsv has 5 lines (header + 4)
+  ok   dry-run: exit 3 (refs already fetched)
+  ok   dry-run: no fetch in the shim log
+  ok   dry-run: no change
+  ok   no-fetch: no fetch in the shim log
+  ok   no-fetch: sees only already-fetched refs (behind 1)
+  ok   apply: exit 3 (libs/a pin still behind: not fully current)
+  ok   apply: verdict UPDATES-AVAILABLE
+  ok   apply: root at upstream main
+  ok   apply: root result updated
+  ok   apply: libs/a unchanged without --advance-pins
+  ok   apply: libs/a still reported behind
+  ok   apply: root on branch main still
+  ok   apply: exactly one merge, and it is --ff-only
+  ok   advance-pins: exit 0
+  ok   advance-pins: libs/a at upstream main
+  ok   advance-pins: gitlink staged in root
+  ok   advance-pins: no commit created
+  ok   advance-pins: third-party untouched
+  ok   advance-pins: third-party behind is informational (current)
+  ok   advance-third-party: vendor/t advanced
+  ok   idempotent: exit 4 (staged pins await the user's commit)
+  ok   idempotent: staged pins reported
+  ok   idempotent: no write attempted
+  ok   idempotent: root unchanged
+  ok   idempotent: index unchanged
+  ok   idempotent: no repo updated
+  ok   follow: exit 0
+  ok   follow: libs/a followed root's new gitlink
+  ok   follow: inner followed libs/a's new gitlink
+  ok   follow: tree clean after follow
+  ok   dirty child: not followed
+  ok   dirty child: reason recorded
+  ok   dirty child: edit kept
+  ok   dirty: exit 4
+  ok   dirty: reason dirty-tree
+  ok   dirty: blocked by the precondition
+  ok   dirty: no write was attempted
+  ok   dirty: root not moved
+  ok   dirty: local edit kept
+  ok   merge in progress: exit 4
+  ok   merge in progress: reason
+  ok   index.lock: exit 4
+  ok   index.lock: root not moved
+  ok   local ahead: exit 4
+  ok   local ahead: reason
+  ok   diverged: exit 4
+  ok   diverged: reason local-diverged
+  ok   diverged: local commit kept
+  ok   root on topic: exit 4
+  ok   root on topic: reason
+  ok   two remotes linear: exit 0
+  ok   two remotes linear: newest main wins
+  ok   two remotes linear: mirror state is measured against the head before the run (equal)
+  ok   two remotes diverged: exit 4
+  ok   two remotes diverged: upstreams-diverged
+  ok   two remotes diverged: nothing moved
+  ok   pin not on main: exit 4
+  ok   pin not on main: state
+  ok   pin unfetchable: state
+  ok   pin unfetchable: exit 4
+  ok   uninitialised: state
+  ok   uninitialised: not attention by default
+  ok   uninitialised + --strict-pins: exit 4
+  ok   no mode: exit 2
+  ok   --out inside the work tree: exit 2
+  ok   --out inside: nothing written
+  ok   --root not a top level: exit 2
+  ok   --root outside any work tree: exit 2
+  ok   untracked: exit 4
+  ok   untracked: reason dirty-tree
+  ok   untracked: root not moved
+  ok   untracked: file kept
+  ok   submodule on branch: root moved
+  ok   submodule on branch: not moved
+  ok   submodule on branch: still on topic
+  ok   submodule on branch: reason recorded
+  ok   submodule on branch: reason kept-on-branch:follow-pin
+  ok   submodule on main: ff to upstream main
+  ok   submodule on main: exit 4 (parent gitlink modified)
+  ok   submodule on main: reason gitlink-modified:libs/a
+  ok   submodule on main: nothing staged in the parent
+  ok   topic root + advance-pins: exit 4
+  ok   topic root: index untouched
+  ok   topic root: still on topic
+  ok   topic root: libs/a reported parent-not-integrated
+  ok   feature/main pin: not-on-main
+  ok   main gone upstream: remote state no-main
+  ok   main gone upstream: exit 4
+  ok   main gone upstream: reason upstream-branch-gone:origin
+  ok   main gone upstream: refs/remotes/origin/main kept
+  ok   broken gitfile: exit 6
+  ok   broken gitfile: verdict BLIND
+  ok   broken gitfile: libs/a blind
+  ok   broken gitfile: pin state unreadable
+  ok   broken gitfile: the no-answer is git's exit 128
+  ok   broken gitfile: reason pin-unreadable
+  ok   broken gitfile: the blind row is printed under --quiet
+  ok   broken gitfile: the root is current (the control below is about a real current row)
+  ok   broken gitfile: a current row is not printed under --quiet (control)
+  ok   unknown extension: exit 6
+  ok   unknown extension: libs/a blind
+  ok   unknown extension: pin state unreadable
+  ok   unknown extension: a no-answer is recorded
+  ok   unknown extension: the blind row is printed under --quiet
+  ok   symlinked submodule: pin state not-a-directory
+  ok   symlinked submodule: reason pin-not-a-directory
+  ok   symlinked submodule: attention
+  ok   symlinked submodule: exit 4
+  ok   follow then blocked: libs/a at the new pin
+  ok   follow then blocked: it was not there before
+  ok   follow then blocked: followed
+  ok   follow then blocked: head_after is the real head
+  ok   follow then blocked: moved
+  ok   follow then blocked: attention, never updated
+  ok   follow then blocked: reason unreachable:origin
+  ok   follow then blocked: exit 4
+  ok   advance-pins, submodule on branch: not moved
+  ok   advance-pins, submodule on branch: still on topic
+  ok   advance-pins, submodule on branch: action recorded
+  ok   advance-pins, submodule on branch: reason kept-on-branch:advance-pin
+  ok   advance-pins, submodule on branch: nothing staged
+  ok   advance-pins, submodule on branch: exit 4
+  ok   advance-pins control (detached): starts at the recorded pin
+  ok   advance-pins control (detached): starts detached
+  ok   advance-pins control (detached): advanced
+  ok   advance-pins control (detached): staged
+  ok   follow blocked: the new pin is not present in the child (precondition)
+  ok   follow blocked: the parent moved to the new pin
+  ok   follow blocked: libs/a stays where it was
+  ok   follow blocked: libs/a failed
+  ok   follow blocked: one follow-blocked action
+  ok   follow blocked: exit 1
+  ok   follow blocked: verdict FAILED
+sync-integration: PASS 149 FAIL 0
+=== test_integration OK (71s)
+=== test_e2e
+== sync-e2e (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.GAjss9)
+  ok   --help: exit 0
+  ok   --help lists --apply
+  ok   user run from a subdirectory: exit 0
+  ok   default evidence under XDG_CACHE_HOME
+  ok   schema id
+  ok   run id
+  ok   mode
+  ok   exit code recorded
+  ok   verdict recorded
+  ok   control needle recorded and ok
+  ok   timestamps are UTC ISO-8601
+  ok   root head_before = pre-run HEAD
+  ok   root head_after = HEAD now
+  ok   root action recorded (fast-forward rc 0)
+  ok   every repository has a result
+  ok   canonical hash recorded
+  ok   TSV header
+  ok   TSV row per repository
+  ok   TSV root row result
+  ok   stderr summary lists the root
+  ok   contract: behind -> 3
+  ok   contract: dirty -> 4
+  ok   contract: two modes -> 2
+  ok   contract: bad run id -> 2
+sync-e2e: PASS 24 FAIL 0
+=== test_e2e OK (6s)
+=== test_full_automation
+== sync-full-automation (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.NagsOa)
+  ok   off: verdict OFF
+  ok   off: prints the command
+  ok   offline: CURRENT (nothing fetched yet)
+  ok   offline: no fetch
+  ok   check: UPDATES-AVAILABLE
+  ok   check: rc 3
+  ok   offline after a fetch: UPDATES-AVAILABLE
+  ok   apply: CURRENT verdict (exit 0)
+  ok   apply: step returns 0
+  ok   apply: root fast-forwarded
+  ok   ask without a terminal: SKIP, never run unasked
+  ok   unknown mode: SKIP
+  ok   missing engine: SKIP
+  ok   not a work tree: SKIP
+  ok   apply on a dirty tree: ATTENTION, step still returns 0
+  ok   hook: STEP 5c reached
+  ok   hook: default offline check ran the engine
+  ok   hook: verdict reported, informational
+  ok   hook: offline check changed nothing
+  ok   hook: off
+  ok   hook: unknown mode is a warning
+  ok   hook: fetch mode runs --check
+  ok   hook: fetch mode never integrates
+  ok   hook: constitution without scripts/sync is a SKIP
+  ok   setup default: exit 0
+  ok   setup default: sync off, hint printed
+  ok   setup env check: UPDATES-AVAILABLE reported
+  ok   setup env check: setup still exits 0
+  ok   setup --sync-upstreams=apply: exit 0
+  ok   setup apply: engine ran
+  ok   setup apply: consumer fast-forwarded to its upstream main
+  ok   setup --sync-upstreams=bogus: exit 2
+  ok   setup bad env value: exit 2
+  ok   setup --check-only never runs the sync
+sync-full-automation: PASS 34 FAIL 0
+=== test_full_automation OK (13s)
+=== test_security
+== sync-security (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.nYcech)
+  ok   full apply: exit 0
+  ok   control needle: the shim recorded 111 calls
+  ok   no ' push ' in any git call
+  ok   no ' reset ' in any git call
+  ok   no ' rebase ' in any git call
+  ok   no ' commit ' in any git call
+  ok   no '--force' in any git call
+  ok   no ' -f ' in any git call
+  ok   no '--hard' in any git call
+  ok   no '--upload-pack' in any git call
+  ok   no 'ext::' in any git call
+  ok   no ' -s ours' in any git call
+  ok   no '--amend' in any git call
+  ok   no ' clean ' in any git call
+  ok   no ' update-ref ' in any git call
+  ok   no ' gc ' in any git call
+  ok   no ' stash ' in any git call
+  ok   no ' --prune ' in any git call
+  ok   no ' --tags ' in any git call
+  ok   every + refspec writes only refs/remotes/<remote>/*
+  ok   control needle: 4 engine-owned refspecs seen
+  ok   every git call carries core.hooksPath=/dev/null
+  ok   subcommand 'add' is on the allow-list
+  ok   subcommand 'checkout' is on the allow-list
+  ok   subcommand 'config' is on the allow-list
+  ok   subcommand 'fetch' is on the allow-list
+  ok   subcommand 'for-each-ref' is on the allow-list
+  ok   subcommand 'ls-files' is on the allow-list
+  ok   subcommand 'ls-tree' is on the allow-list
+  ok   subcommand 'merge' is on the allow-list
+  ok   subcommand 'merge-base' is on the allow-list
+  ok   subcommand 'remote' is on the allow-list
+  ok   subcommand 'rev-list' is on the allow-list
+  ok   subcommand 'rev-parse' is on the allow-list
+  ok   subcommand 'status' is on the allow-list
+  ok   subcommand 'symbolic-ref' is on the allow-list
+  ok   control needle: merge was among the recorded subcommands
+  ok   leaky remote: attention (unreachable)
+  ok   leaky remote: reported unreachable
+  ok   secret absent everywhere
+  ok   userinfo absent everywhere
+  ok   control needle: the redacted URL itself is reported
+  ok   ambient GIT_DIR: exit 4 (the pins section 1 staged)
+  ok   ambient GIT_DIR: every reason is a staged gitlink
+  ok   ambient GIT_DIR: control needle, a staged pin is reported
+  ok   ambient GIT_DIR: the decoy repository was not touched
+  ok   ambient GIT_DIR: the real tree was inspected (4 repos)
+  ok   metachar remote name: nothing executed
+  ok   metachar remote name: flagged invalid
+  ok   evidence dir mode 0700
+  ok   no interactive prompt (finished in 1s)
+  ok   mirror refspec + prune config, --check: every ref of ours identical
+  ok   --check: no tag auto-followed
+  ok   --apply: exit 0
+  ok   --apply: refs/heads/wip kept
+  ok   --apply: refs/heads/wip still present
+  ok   --apply: refs/tags/localonly kept
+  ok   --apply: refs/tags/localonly still present
+  ok   --apply: refs/remotes/origin/oldbranch kept
+  ok   --apply: refs/remotes/origin/oldbranch still present
+  ok   --apply: main fast-forwarded
+  ok   variant B --apply: exit 0
+  ok   variant B: local-only tag kept
+  ok   variant B: stale remote-tracking ref kept
+  ok   variant B: local branch kept
+  ok   --tags: the new upstream tag is fetched (control needle)
+  ok   --tags: local-only tag still present
+  ok   hooks: root fast-forwarded
+  ok   hooks: no repository hook ran
+  ok   hooks: fsmonitor never ran
+  ok   hooks: control needle: a plain git checkout DOES run the hook
+  ok   hooks: control needle: a plain git status DOES run fsmonitor
+  ok   ignored dir whose files the target does not touch: no false refusal (exit 0)
+  ok   ignored dir: moved
+  ok   ignored dir: ignored file kept
+  ok   ignored secret.env: exit 4
+  ok   ignored secret.env: reason
+  ok   ignored secret.env: content kept
+  ok   ignored secret.env: not moved
+  ok   ignored secret.env: content never in the report
+  ok   core.sshCommand: the repository's command was used
+  ok   core.sshCommand: report names it
+  ok   core.sshCommand: remote reported unreachable
+sync-security: PASS 83 FAIL 0
+=== test_security OK (16s)
+=== test_determinism
+== sync-determinism (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.A1jWBi)
+  ok   --check: 3 identical canonical hashes
+  ok   --check: 3 identical TSV files
+  ok   --check: the JSON hash field equals the printed one
+  ok   --dry-run: 3 identical canonical hashes
+  ok   --dry-run: 3 identical TSV files
+  ok   --dry-run: the JSON hash field equals the printed one
+  ok   --check --no-fetch: 3 identical canonical hashes
+  ok   --check --no-fetch: 3 identical TSV files
+  ok   --check --no-fetch: the JSON hash field equals the printed one
+  ok   an unfetched upstream change does not change the offline hash
+  ok   control needle: a real state change changes the hash
+  ok   apply 1: exit 0
+  ok   apply 1: something moved
+  ok   apply 2 and 3: identical hash
+  ok   apply 3: nothing moved
+sync-determinism: PASS 15 FAIL 0
+=== test_determinism OK (23s)
+=== test_ui
+== sync-ui (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.tlsNRT)
+  ok   prompt 1 shows the scope
+  ok   prompt 1 asks before fetching
+  ok   no: zero fetch calls
+  ok   no: nothing changed
+  ok   no: consent recorded as interactive
+  ok   enter: zero fetch calls
+  ok   prompt 2 asks before fast-forwarding
+  ok   yes-no: exit 3
+  ok   yes-no: nothing changed
+  ok   yes-no: verdict shown on the terminal
+  ok   prompt 3 asks before staging pins
+  ok   yes: exit 0
+  ok   yes: root fast-forwarded
+  ok   yes: libs/a advanced
+  ok   transcripts never show the token
+  ok   transcripts never show userinfo
+  ok   check: exactly one prompt
+  ok   check: exit 4 (the staged pin is attention)
+  ok   check: the only reason is the staged pin
+  ok   check after commit: exit 0 (current)
+  ok   pins-only: fixture premise X != Y
+  ok   pins-only: no fast-forward prompt (nothing behind on main)
+  ok   pins-only: libs/a advanced
+  ok   pins-only: libs/a/inner followed liba's new pin (X), not upstream main (Y)
+  ok   no terminal: exit 2
+  ok   no terminal: says why
+sync-ui: PASS 26 FAIL 0
+=== test_ui OK (15s)
+=== test_hardening
+== sync-hardening (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.ofxvcC)
+  ok   hooks: control needle: a plain git checkout DOES run a hook here
+  ok   hooks: --apply over ff + follow + advance-pin: exit 0
+  ok   hooks: root fast-forwarded
+  ok   hooks: libs/a followed
+  ok   hooks: vendor/t advanced
+  ok   hooks: no hook ran on any write path
+  ok   ignored, follow path: libs/a not moved
+  ok   ignored, follow path: local file kept
+  ok   ignored, follow path: reason recorded
+  ok   ignored, follow path: ATTENTION exit 4
+  ok   ignored, advance-pin path: libs/a not moved
+  ok   ignored, advance-pin path: local file kept
+  ok   ignored, advance-pin path: nothing staged in the root
+  ok   ignored, advance-pin path: reason recorded
+  ok   ignored, fast-forward path: root not moved
+  ok   ignored, fast-forward path: local file kept
+  ok   ignored, fast-forward path: reason recorded
+  ok   status re-read killed: root not moved
+  ok   status re-read killed: BLIND exit 6
+  ok   status re-read killed: action names it
+  ok   status re-read exit 128: root not moved
+  ok   status re-read exit 128: BLIND exit 6
+  ok   status re-read exit 128: action names it
+  ok   status re-read exit 128: the repository is blind
+  ok   tree changed before the write: root not moved
+  ok   tree changed before the write: blocked
+  ok   tree changed before the write: the user's edit is kept
+  ok   status control needle: without the fault the root fast-forwards
+  ok   inspect status killed: root not moved
+  ok   inspect status killed: dirty-tree (an unread status is never clean)
+  ok   token in URL path: absent from every output
+  ok   token in URL path: the field itself was redacted (backstop found nothing)
+  ok   token in URL path: remote reported unreachable
+  ok   GIT_CONFIG_PARAMETERS: dropped (no core.sshCommand seen)
+  ok   GIT_CONFIG_COUNT/KEY/VALUE: dropped
+  ok   control needle: a real repository core.sshCommand IS seen
+  ok   credential shapes: 'Xq9pwd' absent
+  ok   credential shapes: 'Zz7mark' absent
+  ok   credential shapes: 'cepw0rdmark' absent
+  ok   credential shapes: 'spa cepw' absent
+  ok   credential shapes: 'a@b@c' absent
+  ok   credential shapes: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWX' absent
+  ok   credential shapes: backstop found nothing
+  ok   credential shapes: the token-named remote is still fetched (by its real name)
+  ok   --out with a user's file: usage exit 2
+  ok   --out with a user's file: file untouched
+  ok   --out with a symlinked tsv: usage exit 2
+  ok   --out with a symlinked tsv: target untouched
+  ok   --out with a symlinked tsv: still a symlink
+  ok   --out control: a second run over our own report is allowed
+  ok   no remote: ATTENTION exit 4, never CURRENT
+  ok   no remote: reason no-upstream-main
+  ok   remote without main: ATTENTION exit 4
+  ok   remote without main: reason no-upstream-main
+  ok   moved tag: remote fetch state tag-rejected (the remote answered)
+  ok   moved tag: reason tag-rejected:origin
+  ok   moved tag: never labelled unreachable
+  ok   moved tag: the branch was still fetched and evaluated (behind 1)
+  ok   moved tag: local tag kept (never forced)
+  ok   moved tag: ATTENTION exit 4
+  ok   moved tag, --apply: integration blocked (exit 4), nothing moved
+  ok   M37: the concurrent staging happened (control needle)
+  ok   M37: libs/a never checked out at the staged gitlink
+  ok   M37b: a root that did not move makes no child follow (no follow action at all)
+  ok   M37b: pre-staged gitlink, root not moved: no follow action for libs/a
+  ok   M37b: libs/a not moved
+  ok   extra args: anything but --out is ignored, with a note
+  ok   extra args: --apply smuggled into a check never moved the root
+  ok   extra args: --out /dir is honoured
+  ok   partial guard: no config line
+  ok   partial guard: promisor false
+  ok   partial guard: promisor with an empty value (git reads it as false), a remote name with a space
+  ok   partial guard: no / OFF / 0
+  ok   partial guard: value-less promisor (a boolean true)
+  ok   partial guard: promisor true
+  ok   partial guard: promisor Yes (the round-3 pattern missed it)
+  ok   partial guard: promisor 1
+  ok   partial guard: promisor on
+  ok   partial guard: partialclonefilter
+  ok   partial guard: value-less partialclonefilter
+  ok   partial guard: extensions.partialclone
+  ok   partial guard: mixed-case extensions.partialClone
+  ok   partial guard: a later promisor true after a false
+  ok   partial guard: a line it cannot read
+  ok   partial guard: large input, the match on line 1 (the fail-open shape)
+  ok   partial guard: large input, the match on the last line
+  ok   partial guard: large input, nothing partial (golden false)
+  ok   partial guard: control needle: the round-3 pipeline returns 141 on the large input
+  ok   partial guard, _refuse_shallow: large partial config
+  ok   partial guard, _refuse_shallow: large config, nothing partial (golden false)
+  ok   partial guard, _refuse_shallow: config read exits 3 (cannot read it)
+  ok   partial guard, _refuse_shallow: shallow source
+  ok   partial guard, _refuse_shallow: rev-parse fails
+  ok   partial guard: six parallel guards on a large partial config: none accepted
+  ok   partial guard: six parallel guards ran
+  ok   partial guard, real repository: a full clone is accepted
+  ok   partial guard, real repository: a partial-clone configuration is refused
+  ok   pipe lint: positive control: every early-exit reader is found
+  ok   pipe lint: negative control: nothing else is flagged
+  ok   pipe lint: 21 shell files listed
+  ok   pipe lint: no early-exit pipe in the 21 shell files of this vehicle
+  ok   pipe lint: the only allowed pipeline is the section-12 control needle
+  ok   M67: the concurrent staging happened after discovery (control needle)
+  ok   M67: libs/a not checked out at the new pin
+  ok   M67: the gitlink the other writer staged is kept
+  ok   M67: the writer names the changed index
+  ok   M67: a blocked write is attention, exit 4
+  ok   M67: the blocked write is a reason
+  ok   M67 control: without the other writer libs/a is advanced
+  ok   M67 control: and its new gitlink is staged
+  ok   M67 control: exit 0
+  ok   M70: a real report to link to (exit 0)
+  ok   M70: a symlink to a report of ours: usage exit 2
+  ok   M70: a symlink to a report of ours: named as not ours
+  ok   M70: the symlink is still a symlink
+  ok   M70: the report it points at is unchanged
+  ok   M70: a FIFO at the report path: usage exit 2 (124 = the engine blocked on it)
+  ok   M70: the FIFO is still a FIFO
+  ok   M70 control: a regular report of ours is reused (exit 0)
+sync-hardening: PASS 119 FAIL 0
+=== test_hardening OK (62s)
+=== cm_sync_upstreams_ff_only
+CM-SYNC-UPSTREAMS-FF-ONLY: PASS — imports and module attributes on the allow-list, no dynamic access; one spawn point (proc_run_git: argv from git_argv(check_git_args(args))) and one guarded signal point (proc_kill_group); 29 git call sites (plus the g_out forwarder) with literal allow-listed argv and bounded answer statuses, equal to the 29-row call-site oracle; 25 accepted shapes carry the exact safe argv (each safe key once); git_env scrubs 27 injectors; 15 redaction shapes + 4 secret paths; 56/56 forbidden shapes refused; control needle 25/25 accepted
+RUN_ALL: PASS
+rc=0

@@ -239,7 +239,7 @@ MODULES = {"argparse", "concurrent.futures", "datetime", "fcntl", "hashlib", "js
            "signal", "subprocess", "sys", "tempfile", "threading", "time"}
 ALLOW = {"argparse.ArgumentParser", "concurrent.futures.ThreadPoolExecutor", "datetime.datetime.now",
          "datetime.timezone.utc", "fcntl.LOCK_EX", "fcntl.LOCK_NB", "fcntl.flock", "hashlib.sha256", "json.dumps",
-         "json.load", "json.loads", "os.O_CREAT", "os.O_NOCTTY", "os.O_NOFOLLOW", "os.O_RDWR", "os.close", "os.cpu_count",
+         "json.load", "json.loads", "os.O_CREAT", "os.O_EXCL", "os.O_NOCTTY", "os.O_NOFOLLOW", "os.O_RDWR", "os.close", "os.cpu_count",
          "os.environ", "os.environ.get", "os.fdopen", "os.fsync", "os.getcwd", "os.getpgid", "os.getpid", "os.killpg",
          "os.O_RDONLY", "os.O_WRONLY", "os.O_TRUNC", "os.waitid", "os.P_PID", "os.WEXITED", "os.WNOHANG", "os.WNOWAIT",
          "time.sleep",
