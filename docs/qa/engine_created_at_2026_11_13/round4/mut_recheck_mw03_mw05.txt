@@ -1,0 +1,6 @@
+CONTROL sh PASS
+KILLED MW03-shape-check-no-slash-dot (an evidence_file ending in /. is not refused) by B5-dir-dot:,B5-newdir-dot:
+KILLED MW04-shape-check-no-dot (an evidence_file . is not refused) by B5-dot:
+KILLED MW05-shape-check-no-empty (an empty evidence_file is not refused by the shape check) by B5-empty-evidence-file:
+WORKTREE CLEAN AFTER RUN: True
+TALLY {'KILLED': 3} unexplained survivors: []

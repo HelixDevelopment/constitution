@@ -1,0 +1,62 @@
+// rr09: factored (not exhaustive; corrected in round 3) check that, for every string it generates (11 sampled years
+// with every month and day pair, every time triple at one date) matching the
+// stored-format regexp, a successful time.Parse with layout "2006-01-02 15:04:05" implies
+// t.Format(layout) == s. If so, the round-trip check in parseStoredTime is
+// redundant after the regexp and reviewer mutant RR09 is equivalent.
+package main
+
+import (
+	"fmt"
+	"regexp"
+	"time"
+)
+
+const layout = "2006-01-02 15:04:05"
+
+var re = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$`)
+
+func check(s string, acc, cex *int) {
+	if !re.MatchString(s) {
+		panic("generator produced a non-matching string: " + s)
+	}
+	t, err := time.Parse(layout, s)
+	if err != nil {
+		return
+	}
+	*acc++
+	if t.Format(layout) != s {
+		*cex++
+		if *cex <= 10 {
+			fmt.Println("COUNTEREXAMPLE", s, "->", t.Format(layout))
+		}
+	}
+}
+
+func main() {
+	acc, cex, n := 0, 0, 0
+	for _, y := range []string{"0000", "0001", "0004", "1900", "1999", "2000", "2024", "2025", "2026", "2100", "9999"} {
+		for m := 0; m < 100; m++ {
+			for d := 0; d < 100; d++ {
+				n++
+				check(fmt.Sprintf("%s-%02d-%02d 10:00:00", y, m, d), &acc, &cex)
+			}
+		}
+	}
+	for h := 0; h < 100; h++ {
+		for mi := 0; mi < 100; mi++ {
+			for se := 0; se < 100; se++ {
+				n++
+				check(fmt.Sprintf("2026-01-01 %02d:%02d:%02d", h, mi, se), &acc, &cex)
+			}
+		}
+	}
+	// Control needle: inputs the regexp refuses but time.Parse accepts and the
+	// round trip refuses (proves the instrument sees a round-trip difference).
+	needle := 0
+	for _, s := range []string{"2026-01-01 5:34:35", "2026-01-01 15:34:35.0"} {
+		if t, err := time.Parse(layout, s); err == nil && t.Format(layout) != s && !re.MatchString(s) {
+			needle++
+		}
+	}
+	fmt.Printf("checked=%d parse_accepted=%d counterexamples=%d control_needles_seen=%d/2\n", n, acc, cex, needle)
+}

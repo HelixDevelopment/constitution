@@ -1,0 +1,7 @@
+CONTROL go (targeted) PASS
+KILLED R3G06-wal-threshold-8 (a -wal or -journal sidecar of 1 to 8 bytes is ignored) by TestRestoreCreatedAtR4_ComparisonCensus,TestRestoreCreatedAtR4_SidecarSizeBoundary
+CENSUS-ONLY MV12-earliest-row-not-after (a history row equal to the current first replaces it) by TestRestoreCreatedAtR4_ComparisonCensus [EQUIVALENT: only a tie differs (a row whose time equals the current first replaces it); parseStoredTime accepts only the canonical form, so equal times have equal text and first and firstRaw end up identical]
+CENSUS-ONLY MV17-current-not-before (a value equal to the current one is refused as later) by TestRestoreCreatedAtR4_ComparisonCensus [EQUIVALENT: !Before(curT) differs from After(curT) only when the value equals the current one, and that case returns 'already' two statements earlier (target.created == *value, both canonical text), so the line is never reached with equal times]
+CENSUS-ONLY MV19-sidecar-ge-1 (the sidecar check written as >= 1) by TestRestoreCreatedAtR4_ComparisonCensus [EQUIVALENT: os.FileInfo.Size() is an int64: > 0 and >= 1 are the same predicate]
+WORKTREE CLEAN AFTER RUN: True
+TALLY {'CENSUS-ONLY': 3, 'KILLED': 1} unexplained survivors: []

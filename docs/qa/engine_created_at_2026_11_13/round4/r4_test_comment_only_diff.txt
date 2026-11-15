@@ -1,0 +1,13 @@
+22c22,31
+< //	    and a 1 to 8 byte -wal / -journal sidecar (R3G06).
+---
+> //	    and a 1 to 8 byte -wal / -journal sidecar (R3G06);
+> //	(e) a legacy row whose representation is NULL (R3G09, which the review
+> //	    called equivalent; it is not: openDB keeps a NOT NULL-less column).
+> //
+> // The census reads the source text, so it fails on any change to a listed
+> // comparison whether or not behaviour changes. The mutation runner therefore
+> // names it in CENSUS_TESTS and reports a mutant failed by it alone as
+> // CENSUS-ONLY, never as KILLED. Out of the census: checkEvidencePath
+> // (evidence.go, shared with other commands) and the SQL predicates; their
+> // comparisons are covered by the round-2 and round-3 tests, not by this table.

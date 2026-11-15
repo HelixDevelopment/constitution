@@ -811,7 +811,76 @@ func fcTimerAppendRow(id string, startNS, endNS int64, verdict string, checks, f
 // bracketing convention, which likewise times a section regardless of its
 // verdict) but this asymmetry is stated here explicitly rather than left to
 // be inferred (S11.4.6).
-func replaceDocument(db *sql.DB, document string, items []item, segs []segment) (err error) {
+//
+// CON-339 (2026-11-13): replaceDocument is a thin wrapper; the write itself is
+// replaceDocumentWithSnapshot, which carries every row's created_at across the
+// delete and re-insert.
+func replaceDocument(db *sql.DB, document string, items []item, segs []segment) error {
+	return replaceDocumentWithSnapshot(db, document, items, segs, nil)
+}
+
+// createdAtSnapshot maps "atm_id|current_location|representation" to the
+// created_at a row held before an md-to-db rebuild (CON-339). The rebuild
+// deletes a whole document and re-inserts it from Markdown, and the Markdown
+// carries no creation time, so without this the column DEFAULT
+// (datetime('now')) stamped every row with the sync time.
+type createdAtSnapshot map[string]string
+
+func createdAtKey(id, loc, rep string) string { return id + "|" + loc + "|" + rep }
+
+// lookup returns the created_at to carry for a re-inserted row: the exact
+// row's value when the row existed, else the earliest value held by any row of
+// the same item (a row that moved between documents, or a new representation
+// of an existing item), else nil so the column default applies to a genuinely
+// new item. Stored values share one format (YYYY-MM-DD HH:MM:SS), so the
+// string order is the time order.
+func (s createdAtSnapshot) lookup(id, loc, rep string) *string {
+	if v, ok := s[createdAtKey(id, loc, rep)]; ok {
+		return &v
+	}
+	var best *string
+	prefix := id + "|"
+	for k, v := range s {
+		if strings.HasPrefix(k, prefix) {
+			v := v
+			if best == nil || v < *best {
+				best = &v
+			}
+		}
+	}
+	return best
+}
+
+// sqlQueryer is the subset of *sql.DB / *sql.Tx takeCreatedAtSnapshot needs.
+type sqlQueryer interface {
+	Query(query string, args ...any) (*sql.Rows, error)
+}
+
+// takeCreatedAtSnapshot reads created_at of every items row.
+func takeCreatedAtSnapshot(q sqlQueryer) (createdAtSnapshot, error) {
+	rows, err := q.Query(`SELECT atm_id, current_location, COALESCE(representation,'section'), created_at FROM items`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	snap := createdAtSnapshot{}
+	for rows.Next() {
+		var id, loc, rep, ca string
+		if err := rows.Scan(&id, &loc, &rep, &ca); err != nil {
+			return nil, err
+		}
+		snap[createdAtKey(id, loc, rep)] = ca
+	}
+	return snap, rows.Err()
+}
+
+// replaceDocumentWithSnapshot is replaceDocument with an optional snapshot
+// taken by the caller before an earlier transaction. md-to-db replaces Issues
+// and Fixed in two transactions, so an item the Markdown moved from Issues to
+// Fixed has no row left when the Fixed transaction starts; the caller's
+// snapshot, taken before both, still holds its created_at. The rows present at
+// the start of this transaction always win over the caller's values.
+func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs []segment, prior createdAtSnapshot) (err error) {
 	requestedNS := time.Now().UnixNano()
 	defer func() {
 		verdict, checks, fails, warns := "PASS", 1, 0, 0
@@ -844,6 +913,16 @@ func replaceDocument(db *sql.DB, document string, items []item, segs []segment) 
 	if _, err := tx.Exec(`DELETE FROM doc_segments WHERE document = ?`, document); err != nil {
 		return fmt.Errorf("clear segments: %w", err)
 	}
+	// CON-339: read every row's created_at before the delete below.
+	snap, err := takeCreatedAtSnapshot(tx)
+	if err != nil {
+		return fmt.Errorf("snapshot created_at: %w", err)
+	}
+	for k, v := range prior {
+		if _, ok := snap[k]; !ok {
+			snap[k] = v
+		}
+	}
 	if _, err := tx.Exec(`DELETE FROM items WHERE current_location = ?`, document); err != nil {
 		return fmt.Errorf("clear items: %w", err)
 	}
@@ -855,8 +934,8 @@ func replaceDocument(db *sql.DB, document string, items []item, segs []segment) 
 		(atm_id, type, status, severity, title, description,
 		 forensic_anchor, closure_criteria, composes_with,
 		 created_by, assigned_to, current_location, body_md,
-		 representation, closure_date, round, commit_ref, ` + statesInsertCols + `)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,` + statesInsertMarks + `)`)
+		 representation, closure_date, round, commit_ref, created_at, ` + statesInsertCols + `)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,COALESCE(?, datetime('now')),` + statesInsertMarks + `)`)
 	if err != nil {
 		return err
 	}
@@ -882,6 +961,13 @@ func replaceDocument(db *sql.DB, document string, items []item, segs []segment) 
 			nullable(it.ComposesWith), it.CreatedBy, it.AssignedTo,
 			it.CurrentLocation, it.BodyMD, it.repOrDefault(),
 			nullable(it.ClosureDate), nullable(it.Round), nullable(it.CommitRef)}
+		// CON-339: a nil interface value (a genuinely new item) binds as SQL
+		// NULL, so COALESCE applies the column's own default.
+		var createdAt any
+		if v := snap.lookup(it.AtmID, it.CurrentLocation, it.repOrDefault()); v != nil {
+			createdAt = *v
+		}
+		args = append(args, createdAt)
 		if _, err := insItem.Exec(append(args, statesInsertArgs(it.States)...)...); err != nil {
 			return fmt.Errorf("insert item %s [%s]: %w", it.AtmID, it.repOrDefault(), err)
 		}

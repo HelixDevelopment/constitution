@@ -1,0 +1,23 @@
+$ python3 -I scripts/workable-items/mutation/states_mutation_runner.py
+CONTROL PASS unmutated ^TestStates
+KILLED drop-validate-states (validate runs no state invariant) by TestStatesCLI_FreezeArmsTheGate,TestStatesCLI_ValidateAndDiffDetectDesync
+KILLED drop-record-problems (no record invariant (evidence, blocker, details-need-state)) by TestStatesCLI_FlagRefusals,TestStatesCLI_ImportAllOrNothingIdempotent,TestStates_RecordProblems
+KILLED drop-desync-detector (column<->body desync never reported) by TestStatesCLI_ValidateAndDiffDetectDesync,TestStates_DesyncDetector
+KILLED export-ignores-green-command (the rendered record drops one field) by TestStatesCLI_AddUpdateFlags,TestStatesCLI_ClosureRefusals,TestStatesCLI_ExportSummaryColumns,TestStates_RenderGolden,TestStates_RoundTripProperty
+KILLED export-summary-drops-investigation (the summary loses the Investigation column value) by TestStatesCLI_GoldenFixtureRoundTrip,TestStatesCLI_ExportSummaryColumns
+KILLED export-no-records (db->md / add / update never write the record lines) by TestStatesCLI_AddUpdateFlags,TestStatesCLI_ClosureRefusals,TestStatesCLI_ImportAllOrNothingIdempotent,TestStatesCLI_ValidateAndDiffDetectDesync,TestStatesCLI_ExportSummaryColumns,TestStates_RoundTripProperty,TestStates_LegacyProseIsNeverInterpreted,TestStates_SubItemRecordsAreNotTheItemsOwn,TestStates_DesyncDetector
+KILLED lossy-parse-env (md->db drops reproduction env) by TestStatesCLI_GoldenFixtureRoundTrip,TestStatesCLI_AddUpdateFlags,TestStatesCLI_ClosureRefusals,TestStatesCLI_ImportAllOrNothingIdempotent,TestStatesCLI_ExportSummaryColumns,TestStates_RenderGolden,TestStates_RoundTripProperty
+KILLED lossy-parse-codespan-padding (a padded code span parses back with a trailing space) by TestStates_RenderGolden,TestStates_CodeSpanRoundTrip,TestStates_RoundTripProperty
+KILLED lossy-md-to-db (md->db never fills the state columns) by TestStatesCLI_GoldenFixtureRoundTrip,TestStatesCLI_AddUpdateFlags,TestStatesCLI_ClosureRefusals,TestStatesCLI_ImportAllOrNothingIdempotent,TestStatesCLI_ValidateAndDiffDetectDesync,TestStatesCLI_ExportSummaryColumns
+KILLED wrong-closed-set-go-drops-blocked (Go reproduction set loses a value the schema keeps) by TestStatesCLI_GoldenFixtureRoundTrip,TestStatesCLI_FlagRefusals,TestStatesCLI_ClosureRefusals,TestStatesCLI_ImportAllOrNothingIdempotent,TestStates_ClosedSetsPinned,TestStates_SchemaCheckMatchesGoClosedSets,TestStates_RenderGolden,TestStates_RecordProblems
+KILLED wrong-closed-set-go-adds-verified (Go investigation set gains a value the schema rejects) by TestStates_ClosedSetsPinned,TestStates_SchemaCheckMatchesGoClosedSets
+KILLED wrong-closed-set-schema (schema CHECK accepts a value outside the Go set) by TestStates_SchemaCheckMatchesGoClosedSets
+KILLED allow-verified-with-unreproduced (C1 removed: a VERIFIED closure with an UNREPRODUCED record passes) by TestStatesCLI_ClosureRefusals,TestStates_ClosureRules
+KILLED label-ignores-env (REPRODUCED without a recorded environment) by TestStatesCLI_GoldenFixtureRoundTrip,TestStatesCLI_ExportSummaryColumns,TestStates_RenderGolden,TestStates_LabelRules
+KILLED drop-preventive-closure-check (close / move never refuse an UNREPRODUCED VERIFIED closure) by TestStatesCLI_ClosureRefusals,TestStatesCLI_FreezeArmsTheGate
+KILLED drop-armed-c2 (an armed gate accepts a record-less closed Bug) by TestStatesCLI_FreezeArmsTheGate,TestStates_ClosureRules
+KILLED import-partial-write (import writes the good rows of a bad file) by TestStatesCLI_ImportAllOrNothingIdempotent
+KILLED import-restamps-unchanged (an unchanged block is re-stamped when the other block changes) by TestStatesCLI_AddUpdateFlags,TestStatesCLI_ImportAllOrNothingIdempotent
+KILLED skip-states-migration (a pre-v8 DB is never migrated) by TestStatesCLI_PreV8MigrationIsLossless,TestStates_SchemaCheckMatchesGoClosedSets
+SUMMARY killed=19 survived=0 verdict=PASS
+exit=0
