@@ -4901,3 +4901,20 @@ What: review F5 (source-defect, minor; stated in docs/release/README.md and the 
 
 What: review nits grouped. F6 (process-doc, nit): the GL_HOST post-strip regex in tag_and_release.sh duplicates the GITLAB_HOST lockdown (X3 is equivalent); keep it with a comment saying so, or remove it after the section 11.4.124 check. F7 (source-defect, nit): the GitLab create resolves its host itself (glab config host, git remote) while the read-back pins GITLAB_HOST or gitlab.com; divergence yields a GAP (fail-safe, stated in docs/release/README.md); glab host resolution with -R GROUP/REPO is UNCONFIRMED; acceptance: pin the create host too, or record the measured glab behaviour. F9 (test-instrumentation, nit): a leading-whitespace retest_statement accepted via .strip() is untested (X11 survives, stricter direction); acceptance: a case for it. Reproduction: not applicable. Source: independent review round 1 of the glpre+reltpl vehicle, verdict GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository; reviewer mutant logs under /mnt/DATA1TB/claude-work/scratch/rv_glpre.ONFv/mw/, outside the repository). Landed as 5296e74d (CON-416) and 3f37d8d6 (CON-417).
 
+## CON-423 — v73.4 cut rehearsal: release-tooling and tracker defects D2-D5, D9, D10 (dry-run probes, pre-release plan line, DRAFT refusal, cut_date and refs-block template, one remote per repository, verification lines)
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (rehearsal fixer subagent)
+**Assigned-To:** Claude Opus 5.5 (rehearsal fixer subagent)
+
+Source: the v73.4 PROVISIONAL cut rehearsal of 2026-11-16 (REHEARSAL_REPORT.md sha256 74ecd83f35174902d7732b966d0393dfad21c46beb72eabd486d1b54f4a0b3d5, scratch clone of main 09d3ad2f, nothing pushed). Defects of the release tooling and tracker data, fixed class-wide in one vehicle:
+- D2 (section 11.4.290): CON-211, CON-235, CON-236 and CON-265 are Ready for testing with no **Verification:** provisional line, so the count line said 25 provisional while 29 items were Ready for testing; CON-190 and CON-191 have a line with no checks field. No check refused either shape.
+- D3: tag_and_release.sh --dry-run returned before any platform check, so a would-be SKIPPED-NO-TOKEN, an inaccessible repository or a GitHub repository-id dedup appeared only in the real run, after the tags were pushed.
+- D4: the dry-run plan lines of GitHub (and gitea) release legs did not say whether the pre-release flag is passed; only GitLab lines did.
+- D5: render_release_entry.py refused TODO/TBD but accepted DRAFT, so an entry full of DRAFT values rendered with exit 0.
+- D9: the template appended "." after the last ref of the unmerged-refs block, and the heading takes MANUAL:cut_date whole with no check that it is a bare date.
+- D10: --remotes accepted two remotes that push to one repository (the live checkout's origin pushes to gitflic; the scratch clone's origin is the same GitHub repository as github), and a repeated remote name.
+Acceptance (test-first, section 11.4.224): RED tests on the unfixed tools, then GREEN; paired mutants killed; a checker refuses every Ready-for-testing or In-testing item without a complete verification line, run on the real database; the six items carry complete lines written through the engine. Follow-ups of the same rehearsal: D1 (CON-379), D6 (CON-381, CON-382), D7, D8 and D11 (filed separately).
+
