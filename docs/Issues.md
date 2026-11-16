@@ -2320,8 +2320,9 @@ Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed 
 **Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con144_reproduction_2026_11_11.txt` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — green-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh (same command on the fixed tree; guard: bash tests/gates/test_con144_blk_read_order.sh)` — env `clean checkouts of main 27dcf518, 9cd7cacd and 64ac151d; Linux 7.0.0, git 2.53.0, Python 3.14.4, bash 5.3.9` — signature `UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign)` — updated 2026-11-11T10:51:47Z — by `AI (Claude Opus 5.5, CON-144 fix subagent)`
 **Investigation:** root-cause-found-with-evidence — root-cause `the static env census judges text order: names_cm_gate_in_block() reads $BLK in a body defined above the top-level BLK= assignment; the only call runs after it (ambient BLK changes nothing; moving the definition removes the row)` — evidence `docs/qa/con144_reproduction_2026_11_11.txt` — updated 2026-11-11T10:51:47Z — by `AI (Claude Opus 5.5, CON-144 fix subagent)`
 
-Found at the fixu landing (2026-11-10). On a clean worktree of main 90efceb8, bash scripts/gates/cm_gate_env_reads_allowlisted.sh exits 1 with uncovered=3: scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (fixed by the fixu vehicle, CON-121), scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign) and scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign); on the merged tree the first one is gone and the other two remain (uncovered=2). Both lines are the names_cm_gate_in_block() helper, added by c87745de (section 11.4.297) and 2d783401 (section 11.4.298), which reads $BLK inside a function defined before BLK is assigned. Whether the read can happen before the assignment, or the census reports a safe read, is UNCONFIRMED (not investigated at the landing; out of the landing scope, section 11.4.293). Fix: route BLK through cm_gate_env_set, or add allowlist rows with a reason, after reading when the helper runs. Evidence: docs/qa/fixu_review/landing/envgate_main_90efceb8.out (main) and docs/qa/fixu_review/landing/envgate_merged.out (merged tree). Fix (2026-11-11, CON-144 fix vehicle, commit 77553d02 on main 27dcf518, merged with main 64ac151d in c41cf08f): reproduced first on clean 27dcf518, 9cd7cacd and 64ac151d (rc 1, uncovered=2, byte-identical output). Root cause established: the census judges text order; names_cm_gate_in_block() is defined above the top-level BLK= assignment, so its body read of $BLK is reported read-before-assign although its only call runs after the assignment. Decisive experiments: an ambient BLK=/nonexistent leaves both gates' output byte-identical (rc 0); moving only the definition below BLK= removes the census row. The UNCONFIRMED question above is answered: the read cannot happen before the assignment; the census row is a text-order report, not an ambient read. Fix: the helper takes the block file as its second argument and the call site passes "$BLK". Guard tests/gates/test_con144_blk_read_order.sh (needles N0/N1, C1..C5, paired mutants M1..M3): RED 7 FAIL with the fix stashed, GREEN 15/0; env gate PASS uncovered=0 stale=0 on the merged tree; the two anchor gates' mutation tests and the env gate's mutation test PASS. Evidence: docs/qa/con144_reproduction_2026_11_11.txt. Not done: full suite; independent review pending. **Affected scope / file-scope manifest:** scripts/gates/cm_pr_delivery_anchor_wired.sh; scripts/gates/cm_release_gate_anchor_wired.sh; tests/gates/test_con144_blk_read_order.sh; config/full_suite_manifest.tsv; docs/guides/full_suite_runner_guide.md
-**Verification:** provisional (section 11.4.290) -- job: re-run scripts/gates/cm_gate_env_reads_allowlisted.sh (expect PASS uncovered=0) and the guard tests/gates/test_con144_blk_read_order.sh (expect 15 passed, 0 failed) on the final main -- checks: census no longer reports BLK read-before-assign for the two anchor-wired gates; guard mutants M1..M3 fail -- layer: host-only (class floor: runtime for a gate item) -- target: host, repo checkout -- artifact: the commit that lands the CON-144 vehicle (9a4ea101 plus the tracker commit) -- due: next full-suite run. Independent Opus review GO-with-follow-ups (0 critical, 0 important, 1 minor, 1 nit); follow-ups CON-192 (F1) and CON-193 (F3). Not VERIFIED-DONE.
+Env-read gate CM-GATE-ENV-READS-ALLOWLISTED fails on main: BLK read-before-assign in the PR-delivery and release-gate anchor-wired gates
+
+Recurrence link (section 11.4.214, open original, link only; 2026-11-16): audit F5 found the gate red on main again: stale allowlist rows (cm_installer_no_push_no_force.sh HI_I, HI_U) since d0a6832f and uncovered cm_full_suite_manifest_complete.sh:146 XDG0 since 3281d92e. Symptoms repaired by 1c248515 (PR-0 v3); the landing seam (land_vehicle.sh publish step 6b runs the gate) landed with merge 6c743898; the pull-request path is CON-443. Related: CON-188. Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d).
 
 ## CON-145 — Full-suite manifest auto note of scripts/fastcycle/tests/run_all.sh says 12 heavy members while 14 are listed (N099-7)
 
@@ -3419,6 +3420,8 @@ A stale ledger is caught only when guard_table runs (M4).
 **Acceptance criteria:**
 The hashed files name sweep_review_record_subclauses.sh; the ledger is regenerated and test_review_record_guard_table.sh passes; the sweep runs on a declared cadence (a timer or a heavy-tier entry) so the ledger cannot go stale silently.
 
+Recurrence link (section 11.4.214, open original, link only; 2026-11-16): audit F4 found the kill ledger stale again after CON-402 (3281d92e) changed the hashed tool files: test_review_record_guard_table.sh M4 'kill ledger is STALE: tool sha256 f2c1ffbc... != current 489cbe12...', 3/3 at main 09d3ad2f, PASS at e90d4aea. Same remedy (regenerate with sweep_review_record_subclauses.sh --out, about 70 min, on main) and the same missing schedule. Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d).
+
 ## CON-252 — SPECKIT004 diagrams: mmd-08 and mmd-09 images missing on main
 
 **Status:** Queued
@@ -4502,6 +4505,8 @@ What: F2: CON-185's Verification line still expects rc 0 both for FC_L29_CANDIDA
 
 What: the wrap-up audit lists stale README facts (latest tag says v72.2, remote count, script count 924 vs 1012, submodule pin table, release table rows) and a CONTINUATION at revision 3 that predates the 2026-11-11 decisions. Scope: README.md, docs/CONTINUATION.md. Reproduction: not applicable (documentation). Acceptance: both re-derived from measured facts at the v73.4 cut, README linking CONTINUATION (section 11.4.212). Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89 (umbrella, important).
 
+Link (section 11.4.214, open original, link only; 2026-11-16): audit F6 found the README badge row stale (anchors 309/308, gates 195/194, mutation 199/198; 22 of 76 first-parent commits since v73.3). Symptom repaired by 1c248515; the landing seam (land_vehicle.sh publish step 6b runs compute_badges.sh --check) landed with merge 6c743898; the pull-request path is CON-443. Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d).
+
 ## CON-380 — v73.4 wrap-up: CHANGELOG first heading and release record for the cut (tag_and_release preflight requires the heading)
 
 **Status:** Queued
@@ -5082,4 +5087,94 @@ What: review F7 (test-instrumentation): RVA4 drops the ^ anchor from $1 ~ /^refs
 **Created-By:** AI
 
 What: review F8 (design): since CON-425 the script lists every replace ref and scans the stored objects; a repository that uses replace refs on purpose gets the report every run. Question for the operator (section 11.4.66): keep reporting all replace refs, or add a consumer-declared accept-list (DATA, section 11.4.35) of known harmless replace refs, which must never change what is scanned. Related: CON-425. Acceptance: the operator decision recorded and cited by docs/guides/security_hardening_scripts.md; if an accept-list is chosen, it is tested with a fixture showing an accepted ref is still scanned through the stored object. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
+
+## CON-443 — Drift-seam checks do not run on the pull-request landing path (GitHub PR merges bypass land_vehicle.sh publish step 6b)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** High
+**Created-By:** AI
+
+What: review minor m1 (priority) and author follow-up CON-PENDING-pr-path-drift-seam (same defect, one item per section 11.4.214). land_vehicle.sh publish step 6b now runs compute_badges.sh --check and cm_gate_env_reads_allowlisted.sh before any push, but a section 11.4.297 pull-request merge on the forge (PR #7 to #13) never passes through land_vehicle.sh, so a PR can land a stale README badge row or stale env-read allowlist rows on main, the CON-144/CON-379 symptom class. Commit 1c248515 says the consumer kit's pr_ci_green.sh runs both checks; that tool is not in this repository (UNCONFIRMED here). Related: CON-379 (badge part), CON-188, CON-144 (env-read gate recurrence). Scope: the PR-side landing entry point (new or existing). Reproduction: UNREPRODUCED. Acceptance: a PR landing path that refuses a merge when either drift check fails, RED with a stale badge row on a PR head, GREEN after regeneration, paired mutant that skips the check is killed. Source: independent review of the drift-seam vehicle (bundle fixF5 head 0b336ac0, landed on main as merge 6c743898), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/revF5.ILonzX/ev/ outside the repository (SHA256SUMS sha256 b402c26fd0ceb49a22a8bc7aa897782354792908f44fffc1691d7870da7eb31e), gate-logic class (section 11.4.289). Source: author follow-ups of the drift-seam fix, docs/qa/drift_seam_2026_11_16/followups.md (landed with merge 6c743898).
+
+## CON-444 — land_vehicle drift step 6b: untested failure branches (D9 timeout, D10 BLIND exit 2, D11 moved main, D12 log present) and surviving reviewer mutants R01, R02, R03, R07
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: review minor m2. tests/release/test_land_vehicle.sh drift cases D1-D8 cover the main paths of publish step 6b, but four branches have no case: D9 a check that exceeds the 900 s timeout, D10 a check that exits 2 (BLIND) must refuse publish, D11 main moved while the checks ran, D12 drift_checks.tsv present and complete in the evidence dir. Reviewer mutants R01, R02, R03 and R07 survive the suite (mutant record in the review evidence rmut.out). Scope: tests/release/test_land_vehicle.sh (and land_vehicle.sh only if a case exposes a defect). Reproduction: not applicable (test instrumentation). Acceptance: D9-D12 added, each RED on a mutant that removes the branch, R01/R02/R03/R07 killed. Source: independent review of the drift-seam vehicle (bundle fixF5 head 0b336ac0, landed on main as merge 6c743898), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/revF5.ILonzX/ev/ outside the repository (SHA256SUMS sha256 b402c26fd0ceb49a22a8bc7aa897782354792908f44fffc1691d7870da7eb31e), gate-logic class (section 11.4.289).
+
+## CON-445 — codegraph test suite: a T4 SKIP is invisible in the SUMMARY line and an unexpected SKIP exits 0 (lib_test t_finish has no skip count)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review minor m3 and author follow-up CON-PENDING-t4-skip-mutant (same symptom, one item). test_tripwire.sh T4 now SKIPs when no df target with 5..498 GiB free exists, but SUMMARY prints only cases= and failed=, because lib_test t_finish does not count skips; the author's mutant TW-skip (candidate selection never matches) turns T4 into a SKIP and the suite still exits 0. A consumer that needs T4 to run must read the RESULT T4 SKIP line. Candidate duplicate (section 11.4.214(3), UNDECIDED, minted with link): CON-262 (wider SKIP class: suites that print SKIP but exit 0). Scope: scripts/codegraph/tests/lib_test.sh (t_finish), test_tripwire.sh. Reproduction: not applicable (test instrumentation). Acceptance: SUMMARY carries skipped=N; a decision recorded (section 11.4.66) whether an unexpected SKIP fails the suite; TW-skip killed or recorded as accepted. Source: independent review of the drift-seam vehicle (bundle fixF5 head 0b336ac0, landed on main as merge 6c743898), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/revF5.ILonzX/ev/ outside the repository (SHA256SUMS sha256 b402c26fd0ceb49a22a8bc7aa897782354792908f44fffc1691d7870da7eb31e), gate-logic class (section 11.4.289). Source: author follow-ups of the drift-seam fix, docs/qa/drift_seam_2026_11_16/followups.md (landed with merge 6c743898).
+
+## CON-446 — land_vehicle publish step 6b runs the drift-check scripts from the vehicle head, so a vehicle can weaken the check it is judged by
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** AI
+
+What: review minor m4 (trust boundary). Step 6b executes compute_badges.sh and cm_gate_env_reads_allowlisted.sh from the tree being landed; a vehicle that edits either script (or config/gate_env_allowlist.tsv) can make its own drift check pass. Producer and verifier are not separated (section 11.4.240). Options: run the scripts from main_before and the data from the landed tree, or refuse when the vehicle changes a check script without an explicit reviewed flag. Related: CON-299 (lander). Scope: scripts/release/land_vehicle.sh step 6b and its tests. Reproduction: UNREPRODUCED (review finding from code reading). Acceptance: RED with a vehicle whose compute_badges.sh always exits 0 over a stale badge row, GREEN when publish refuses; paired mutant killed. Source: independent review of the drift-seam vehicle (bundle fixF5 head 0b336ac0, landed on main as merge 6c743898), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/revF5.ILonzX/ev/ outside the repository (SHA256SUMS sha256 b402c26fd0ceb49a22a8bc7aa897782354792908f44fffc1691d7870da7eb31e), gate-logic class (section 11.4.289).
+
+## CON-447 — drift-seam review nits n1-n3: T4 margin flake, topology_unsupported vs artifact_not_yet_built wording, undocumented FAIL-script-missing branch
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review nits. n1: test_tripwire.sh T4 asserts avail_bytes within 2 GiB of an independent df, which can flake when the volume fills or frees fast between the two reads. n2: scanner_gate_false_positive_repairs_test.sh labels the unpopulated third-party legs topology_unsupported; the reviewer asks whether artifact_not_yet_built (or the section 11.4.69 closed set) is the right code. n3: land_vehicle.sh step 6b has a FAIL branch for a required check script missing from the tree that the header and guide do not document. Scope: those three files and docs/guides for the lander. Reproduction: not applicable. Acceptance: each nit fixed or answered with a recorded reason. Source: independent review of the drift-seam vehicle (bundle fixF5 head 0b336ac0, landed on main as merge 6c743898), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/revF5.ILonzX/ev/ outside the repository (SHA256SUMS sha256 b402c26fd0ceb49a22a8bc7aa897782354792908f44fffc1691d7870da7eb31e), gate-logic class (section 11.4.289).
+
+## CON-448 — test_tripwire.sh T4 hard-coded --min-gib 400 and could not trip on a volume with more than 400 GiB free (audit F7)
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: audit F7 and author follow-up CON-PENDING-tripwire-t4. T4 expected a trip with --min-gib 400; on /mnt/DATA1TB (695-719 GiB free) the tripwire never tripped, RED 3/3 (docs/qa/drift_seam_2026_11_16/red/f7_*.txt). Fix landed with merge 6c743898 (vehicle 0b336ac0): threshold derived from the measured free space of the first df target with 5..498 GiB free, logged avail_bytes and min_bytes asserted, honest SKIP when no target fits; GREEN 3/3 (green/t4_final_*.txt). PROVISIONAL (section 11.4.290): no verification job scheduled yet. Candidate duplicate (section 11.4.214(3), UNDECIDED, minted with link): CON-166 (same class, host-reading test, test_unit_safe.sh). Follow-ups: the margin nit and the invisible SKIP are filed separately. Reproduction: reproduced on the host (RED 3/3 above). Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d), gate-logic/host class (section 11.4.289). Source: author follow-ups of the drift-seam fix, docs/qa/drift_seam_2026_11_16/followups.md (landed with merge 6c743898).
+
+## CON-449 — scanner_gate_false_positive_repairs_test.sh e2e canon legs FAILed when superspec/open_design are not checked out (audit F10)
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: audit F10 and author follow-up CON-PENDING-scanner-e2e-topology. The e2e canon opt-in leg FAILed (pattern absent) in a clone without the third_party:true submodules, RED 3/3 (docs/qa/drift_seam_2026_11_16/red/f10_*.txt). Fix landed with merge 6c743898 (vehicle 0b336ac0): without a populated third-party submodule the three canon legs SKIP (topology_unsupported); toggle with a populated superspec runs them and they pass (toggle/f10_pop_toggle.txt). PROVISIONAL (section 11.4.290). Related: CON-103 (superspec exclusion topology guard). Reproduction: reproduced on the host (RED 3/3 above). Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d), gate-logic/host class (section 11.4.289). Source: author follow-ups of the drift-seam fix, docs/qa/drift_seam_2026_11_16/followups.md (landed with merge 6c743898).
+
+## CON-450 — CON-402 git-env scrub preamble in fc_supervisor.py:239-240 breaks the fastcycle path-operation census; test_fc_safepath_v4r12..v4r15 FAIL on main (audit F1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** AI
+
+What: audit F1 (regression). Commit 3281d92e (CON-402) inserted 'import os as _ge_os' plus the scrub loop at scripts/fastcycle/cycle/fc_supervisor.py:239-240; check_safepath_census.py fails closed on an import outside its modelled set (VIOLATION fc_supervisor.py:239 ... PY_IMPORTS), so test_fc_safepath_v4r12, v4r13, v4r14 and v4r15 FAIL. The preamble also sits before 'import _signal as _early_sig' (N6 early-signal design). Deterministic 3/3 FAIL at main 09d3ad2f, PASS at e90d4aea, FAIL at 3281d92e. Related: CON-402 (parent cause), CON-403..CON-410 (other CON-402 fallout, not this defect). Release-blocking for a --include-heavy section 11.4.40 retest. Scope: fc_supervisor.py scrub placement and/or check_safepath_census.py modelled forms; N6 signal-window tests re-run. Reproduction: reproduced on the host by the auditor (bash scripts/fastcycle/tests/test_fc_safepath_v4r12.sh in a clone named constitution). Acceptance: the four safepath tests GREEN on main, N6 tests GREEN, paired mutant that restores the unmodelled import is killed. Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d), gate-logic/host class (section 11.4.289).
+
+## CON-451 — CON-402 made two guard-viability mutants blind: test_repo_verify_red.sh round-5 env strip and test_custody_sweep_r8_regression.sh R8-I2 (audit F2/F3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: audit F2 and F3 (regression, test instrumentation). After CON-402 the tools scrub GIT_DIR at the top of the file, so the paired mutants that strip the defended env strip can no longer reach the ambient-GIT_DIR vector: test_repo_verify_red.sh FAILs 'the mutant did not modify the inherited GIT_DIR repo -- fixture does not exercise the vector', test_custody_sweep_r8_regression.sh FAILs 'R8-I2 guard-viability BLIND'. 3/3 at main, PASS at e90d4aea, FAIL at 3281d92e. Related: CON-402, CON-148 (other guard-viability wording issue). Scope: the two tests' mutants. Reproduction: reproduced on the host by the auditor. Acceptance: mutants rebuilt to also remove the new top-of-file scrub (or point at it as the defended line); both tests GREEN and each mutant observed to fail the guard. Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d), gate-logic/host class (section 11.4.289).
+
+## CON-452 — test_guard_destructive_paths.sh: 4 cases (R4/R6 I1, R6 M2) FAIL under the full-suite runner's fresh HOME, PASS with the real HOME (audit F9)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: audit F9. The full-suite runner gives each unit a fresh HOME under TMPDIR (fsr_home.*); the home-ancestor cases of scripts/hooks/test_guard_destructive_paths.sh expect the real home shape, so four cases FAIL in the runner and PASS standalone. Mechanism UNCONFIRMED in detail. Scope: the test (derive expectations from the HOME it gets) or the manifest row (--env-extra). Reproduction: reproduced in the runner by the auditor; standalone PASS. Acceptance: the test PASSes both in the runner and standalone, with a control case proving the home-ancestor rule is still exercised. Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d), gate-logic/host class (section 11.4.289).
 
