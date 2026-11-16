@@ -1,0 +1,17 @@
+control: unmutated copy passes (RESULT: 17/17 passed)
+killed   RM1 (FAIL 1 blob replaced by a clean blob, --exact-only: exit 1 and MYKEY counted 1 (the stored secret blob is read))
+killed   RM2 (FAIL 1 blob replaced by a clean blob, --exact-only: exit 1 and MYKEY counted 1 (the stored secret blob is read))
+killed   RM3 (FAIL 7 blob replaced by a clean blob, scanner pass: exit 1, the fake token in s.env is reported)
+killed   RM4 (FAIL 1 blob replaced by a clean blob, --exact-only: exit 1 and MYKEY counted 1 (the stored secret blob is read))
+killed   RM5 (FAIL 16 second remote carries the replace ref: listed as refs/fetched/r1/replace/<id>, MYKEY=1, exit 1)
+killed   RM6 (FAIL 16 second remote carries the replace ref: listed as refs/fetched/r1/replace/<id>, MYKEY=1, exit 1)
+killed   RM7 (FAIL 16 second remote carries the replace ref: listed as refs/fetched/r1/replace/<id>, MYKEY=1, exit 1)
+killed   RM8 (FAIL 3 the replace ref count is printed)
+killed   RM9 (FAIL 14 a harmless replace ref with no secret anywhere: exit 1 (replace ref to classify), MYKEY=0)
+killed   RM10 (FAIL 17 git that honours replace refs + blob->tree replace: exit 7 (type check), no counts written)
+killed   RM11 (FAIL 2 the replace ref is listed: one row, ref refs/replace/<secret blob id>, object id, type blob)
+killed   RM12 (FAIL 3 the replace ref count is printed)
+killed   RM13 (FAIL 14 a harmless replace ref with no secret anywhere: exit 1 (replace ref to classify), MYKEY=0)
+killed   RM14 (FAIL 2 the replace ref is listed: one row, ref refs/replace/<secret blob id>, object id, type blob)
+RESULT: killed=14 survived=0 broken=0
+rc=0

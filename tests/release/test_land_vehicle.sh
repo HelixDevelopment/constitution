@@ -26,7 +26,8 @@
 #        (LANDER_SCRIPT=<path> also selects another copy; LANDER_TEST_FAILFAST=1
 #        stops at the first FAIL, used by the mutant runner; LANDER_TEST_R5_ONLY=1 runs
 #        the setup and the round-5 cases only, then prints RESULT and exits;
-#        LANDER_TEST_R6_ONLY=1 the setup and the round-6 cases only)
+#        LANDER_TEST_R6_ONLY=1 the setup and the round-6 cases only;
+#        LANDER_TEST_DRIFT_ONLY=1 the setup and the step-6b drift cases D1-D8 only)
 # Exit:  0 all cases pass, 1 any case fails. Last line: "RESULT pass=N fail=M".
 set -euo pipefail
 
@@ -255,6 +256,101 @@ prep_gc() { local F=$1; shift; local -a gpa=(); mapfile -t gpa < <(PREP_ARGS "$F
   env GIT_CONFIG_GLOBAL="$F/gc" PATH="$T/shim:$PATH" "$LANDER" prepare "${gpa[@]}" "$@"; }
 pub_gc() { local F=$1; shift
   env GIT_CONFIG_GLOBAL="$F/gc" PATH="$T/shim:$PATH" "$LANDER" publish --workdir "$F/work" --remotes-file "$F/remotes.txt" --evidence-dir "$F/ev" "$@"; }
+
+# ##################################################################### drift checks (step 6b)
+# CON-144 recurrence (audit 2026-11-16 F5/F6): publish runs the derived-file drift checks
+# (README badge row, env-read allowlist) and refuses before any remote is touched.
+# The check scripts here are UNIT-CLASS stand-ins committed into the fixture's main;
+# each one records its argv into a file OUTSIDE the clone. LANDER_TEST_DRIFT_ONLY=1 runs
+# the setup and these cases only.
+BADGE_P=scripts/badges/compute_badges.sh
+ENVG_P=scripts/gates/cm_gate_env_reads_allowlisted.sh
+# drift_stub <argv log> <exit code> [extra shell line]: a stand-in check script
+# shellcheck disable=SC2016 # the stub text is written literally; \$* expands in the stub, not here
+drift_stub() { printf '#!/usr/bin/env bash\nprintf "%%s\\\\n" "$*" >> %s\n%s\nexit %s\n' "$1" "${3:-:}" "$2"; }
+# drift_fixture <name> <badges exit|-> <envgate exit|-> [badges extra line]: '-' = no such script on main
+drift_fixture() {
+  base_fixture "$1"
+  local F=$T/$1
+  if [ "$2" != - ]; then seed_main_file "$F" "$BADGE_P" "$(drift_stub "$F/badges.argv" "$2" "${4:-}")"; fi
+  if [ "$3" != - ]; then seed_main_file "$F" "$ENVG_P" "$(drift_stub "$F/envg.argv" "$3")"; fi
+  vc "$F" d1.txt 'feat: drift case\n\nRoadmap-Item: CON-PENDING-drift\n'
+  mkbundle "$F"
+}
+# drift_row <F> <check>: the result column of drift_checks.tsv for that check
+drift_row() { awk -F '\t' -v c="$2" '$1==c {print $5}' "$1/ev/drift_checks.tsv" 2>/dev/null || true; }
+
+# D1 a failing badge check refuses publish; no remote moves
+drift_fixture d1 1 0; F=$T/d1; B=$(BASE_OF "$F")
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+refused "D1 badge drift check FAIL refuses publish" 1 'derived-file drift checks failed; nothing was pushed' "$F/out"
+if no_remote_moved "$F" "$B" && [ "$(drift_row "$F" badges)" = FAIL ] && [ "$(drift_row "$F" gate-env-allowlist)" = PASS ]; then
+  ok "D1 no remote moved; tsv badges=FAIL gate-env-allowlist=PASS"; else bad "D1 remotes or tsv ($(drift_row "$F" badges)/$(drift_row "$F" gate-env-allowlist))"; fi
+
+# D2 both checks pass -> publish lands; each check got --root <clone> (and --check for badges)
+drift_fixture d2 0 0; F=$T/d2
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+succeeded "D2 passing drift checks publish" "$F/out"
+CL=$F/work/constitution
+if landed_all "$F" && [ "$(cat "$F/badges.argv" 2>/dev/null)" = "--root $CL --check" ] && [ "$(cat "$F/envg.argv" 2>/dev/null)" = "--root $CL" ] \
+   && [ "$(drift_row "$F" badges)" = PASS ] && [ "$(drift_row "$F" gate-env-allowlist)" = PASS ]; then
+  ok "D2 landed on all remotes; argv recorded; tsv PASS/PASS"; else bad "D2 landed=$(landed_all "$F" && echo y || echo n) b=[$(cat "$F/badges.argv" 2>/dev/null)] e=[$(cat "$F/envg.argv" 2>/dev/null)]"; fi
+
+# D3 a failing env-read allowlist check alone refuses publish
+drift_fixture d3 0 1; F=$T/d3; B=$(BASE_OF "$F")
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+refused "D3 env-allowlist drift check FAIL refuses publish" 1 'derived-file drift checks failed; nothing was pushed' "$F/out"
+if no_remote_moved "$F" "$B" && [ "$(drift_row "$F" gate-env-allowlist)" = FAIL ]; then ok "D3 no remote moved; tsv gate-env-allowlist=FAIL"; else bad "D3 remotes or tsv"; fi
+
+# D4 golden-FALSE: no check script on main or in the vehicle -> both not-applicable, publish lands
+drift_fixture d4 - -; F=$T/d4
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+succeeded "D4 repository without drift-check scripts publishes" "$F/out"
+if landed_all "$F" && [ "$(drift_row "$F" badges)" = not-applicable ] && [ "$(drift_row "$F" gate-env-allowlist)" = not-applicable ]; then
+  ok "D4 tsv rows not-applicable, landed"; else bad "D4 tsv rows or landing"; fi
+
+# D5 a vehicle that deletes a check script present on main_before is refused (script-missing)
+base_fixture d5; F=$T/d5
+seed_main_file "$F" "$BADGE_P" "$(drift_stub "$F/badges.argv" 0)"
+g "$F/seed" rm -q "$BADGE_P"; g "$F/seed" commit -q -m 'chore: drop badges' -m 'Roadmap-Item: CON-PENDING-drift'
+mkbundle "$F"; B=$(BASE_OF "$F")
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+refused "D5 deleting a required check script refuses publish" 1 'derived-file drift checks failed' "$F/out"
+if no_remote_moved "$F" "$B" && [ "$(drift_row "$F" badges)" = FAIL-script-missing ] && [ ! -s "$F/badges.argv" ]; then
+  ok "D5 no remote moved; tsv FAIL-script-missing; the deleted script never ran"; else bad "D5 remotes or tsv ($(drift_row "$F" badges))"; fi
+
+# D6 a check that exits 0 but writes into the clone is refused (working tree changed)
+# shellcheck disable=SC2016 # literal stub line; \$2 expands inside the stub
+drift_fixture d6 0 - 'printf x > "$2/drift_leak.txt"'; F=$T/d6; B=$(BASE_OF "$F")
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+refused "D6 a check that dirties the clone refuses publish" 1 'derived-file drift checks failed' "$F/out"
+if no_remote_moved "$F" "$B" && grep -q 'drift checks changed the clone working tree' "$F/out"; then ok "D6 no remote moved; dirty tree named"; else bad "D6"; fi
+
+# D7 a check script that only the vehicle adds is required too (runs, FAIL refuses)
+base_fixture d7; F=$T/d7
+mkdir -p "$F/seed/scripts/badges"; drift_stub "$F/badges.argv" 1 > "$F/seed/$BADGE_P"
+g "$F/seed" add "$BADGE_P"; g "$F/seed" commit -q -m 'feat: add badges' -m 'Roadmap-Item: CON-PENDING-drift'
+mkbundle "$F"; B=$(BASE_OF "$F")
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+refused "D7 a check added by the vehicle is required and its FAIL refuses" 1 'derived-file drift checks failed' "$F/out"
+if no_remote_moved "$F" "$B" && [ "$(drift_row "$F" badges)" = FAIL ] && [ -s "$F/badges.argv" ]; then ok "D7 the vehicle-added check ran and failed"; else bad "D7"; fi
+
+# D8 prepare names both checks in the derived-file steps it prints
+if grep -q 'compute_badges.sh --check' "$T/d2/p.out" && grep -q 'cm_gate_env_reads_allowlisted.sh' "$T/d2/p.out"; then
+  ok "D8 prepare printout names the badge check and the env-allowlist gate"; else bad "D8 prepare printout"; sed 's/^/    | /' "$T/d2/p.out"; fi
+
+if [ "${LANDER_TEST_DRIFT_ONLY:-0}" = 1 ]; then
+  if push_log_clean || [ ! -s "$PUSHLOG" ]; then ok "SH2-D every push of the drift cases is plain"; else bad "SH2-D pushes of the drift cases"; fi
+  printf '\nRESULT pass=%d fail=%d (drift cases only)\n' "$PASS" "$FAIL"
+  if [ "$FAIL" -eq 0 ]; then exit 0; else exit 1; fi
+fi
 
 # ##################################################################### round 6
 # The R6-* cases cover the round-5 review findings R5-A1, R5-A2, R5-B, R5-C, R5-D, R5-F

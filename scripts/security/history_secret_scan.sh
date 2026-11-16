@@ -50,6 +50,16 @@
 #      the "not searched" note on every run (0 included), so a skip is never
 #      silent; check them by another means.
 #   6. cleanup: safe_rm_rf "$WORK" (scripts/lib/safe_rm.sh).
+# Replace refs (CON-425): a refs/replace/<id> entry makes git tools show
+#   another object in place of <id>, so a secret blob or commit can be hidden
+#   behind a clean one; `git clone --mirror` copies refs/replace/*. The script
+#   exports GIT_NO_REPLACE_OBJECTS=1 right after the git-env scrub, so EVERY git
+#   call it makes (clone, fetch, the needle plumbing, the matcher's cat-file,
+#   and the scanner's own git, which inherits the environment) reads the stored
+#   objects. Every replace ref of the mirror and of each fetched remote
+#   (fetched into refs/fetched/r<n>/replace/*) is listed in $OUT.replace.tsv
+#   (ref, object id, type; ids only) and counted as a finding (exit 1): a
+#   replace ref in a scanned history is something to classify by hand.
 # Scanner: gitleaks from $GITLEAKS or PATH (a pinned, pre-installed v8
 # binary). Nothing is downloaded at run time; without it the exit is 4.
 # URLs carrying credentials (http(s) with user info, or user:password@) are
@@ -57,12 +67,18 @@
 #
 # Usage: SCRATCH=/abs/dir history_secret_scan.sh [--keys-file F [--exact-only]] URL [URL...]
 #        OUT=/path/report.tsv may be set (default $SCRATCH/history_secret_scan_<date>.tsv)
-# Exit: 0 no finding; 1 findings to classify; 2 usage; 3 BLIND (a control
+# Exit: 0 no finding; 1 findings to classify (scanner findings, exact-match
+#       hits, or replace refs); 2 usage; 3 BLIND (a control
 #       needle failed); 4 no scanner; 5 missing prerequisite (git, jq,
 #       python3, safe_rm.sh); 6 SCANNER-ERROR (exit not 0/1, report missing,
 #       unparseable or inconsistent); 7 git or internal error.
 set -euo pipefail
 for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+# CON-425: read the stored objects, never a refs/replace/* replacement, in every git call of this
+# script and of the processes it starts (python3 matcher, scanner). Set AFTER the scrub above, which
+# clears a caller's value. git honours any value; measured on git 2.53.0 it also wins over
+# core.useReplaceRefs=true (in -c, in GIT_CONFIG_PARAMETERS and in the repository config).
+export GIT_NO_REPLACE_OBJECTS=1
 trap 'echo "ERROR: unexpected failure at line $LINENO" >&2; exit 7' ERR
 fail(){ local c=$1; shift; echo "$*" >&2; exit "$c"; }
 
@@ -112,9 +128,17 @@ git clone -q --mirror "${URLS[0]}" "$M" 2>"$WORK/git.err" || fail 7 "git error: 
 i=0
 for u in "${URLS[@]:1}"; do
   i=$((i+1))
-  git -C "$M" fetch -q --no-tags "$u" "+refs/heads/*:refs/fetched/r$i/heads/*" "+refs/tags/*:refs/fetched/r$i/tags/*" 2>"$WORK/git.err" \
+  git -C "$M" fetch -q --no-tags "$u" "+refs/heads/*:refs/fetched/r$i/heads/*" "+refs/tags/*:refs/fetched/r$i/tags/*" "+refs/replace/*:refs/fetched/r$i/replace/*" 2>"$WORK/git.err" \
     || fail 7 "git error: fetch of remote #$((i+1)) failed"
 done
+
+# ---- replace refs (CON-425): listed and counted, never followed -------------------------------
+RPL="$OUT.replace.tsv"
+git -C "$M" for-each-ref --format='%(refname)%09%(objectname)%09%(objecttype)' refs/replace/ refs/fetched/ >"$WORK/refs.tsv" 2>"$WORK/git.err" \
+  || fail 7 "git error: listing refs of the mirror failed"
+awk -F'\t' '$1 ~ /^refs\/replace\// || $1 ~ /^refs\/fetched\/r[0-9]+\/replace\//' "$WORK/refs.tsv" > "$RPL"
+rh=$(wc -l < "$RPL")
+echo "replace refs: $rh -> $RPL (each would show another object in place of the one named; this scan read the stored objects; classify each)"
 
 # ---- control needles inside the mirror ---------------------------------------------------------
 export GIT_AUTHOR_NAME=hss-needle GIT_AUTHOR_EMAIL=needle@invalid GIT_COMMITTER_NAME=hss-needle GIT_COMMITTER_EMAIL=needle@invalid
@@ -233,5 +257,5 @@ print("__HSS_SKIP_PLACE__\t%d\t%s" % (len(place), ",".join(place)))' "$M" "$WORK
   sp=$(awk -F'\t' '$1=="__HSS_SKIP_PLACE__"{print $2" placeholder ("$3")"}' "$WORK/keys.tsv")
   echo "exact-match note: not searched: $ss, $sp"
 fi
-if [ "$nf" -gt 0 ] || [ "$kh" -gt 0 ]; then exit 1; fi
+if [ "$nf" -gt 0 ] || [ "$kh" -gt 0 ] || [ "$rh" -gt 0 ]; then exit 1; fi
 exit 0

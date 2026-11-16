@@ -1,0 +1,170 @@
+ok   1 apply without FORGE_PROTECT_APPLY -> 3, nothing sent
+ok   2 confirm names another target -> 3
+ok   3 two targets -> 3
+ok   4 FORGE_PROTECT_APPLY=YES (not exact) -> 3
+ok   5 unknown --target (probe) -> 2
+ok   6 unknown --target with a confirmed apply -> 2, nothing sent
+ok   7 apply to a target outside the allowlist (gitlab_vd) -> 3
+ok   8 apply to github_vd (private, Free plan) -> 3
+ok   9 targets-file override without FORGE_PROTECT_ALLOW_TARGETS_OVERRIDE -> 3
+ok   10 github apply happy path -> 0, RESULT: APPLIED
+ok   11 exactly one POST
+ok   12 POST body is exactly the reviewed ruleset
+ok   13 token never in curl argv, stdout or stderr
+ok   14 github token on the wire only as Bearer header
+ok   15 token not printed under bash -x
+ok   16 compliant ruleset under another name -> 0 POST, rc 0
+ok   17 same-name ruleset with enforcement disabled -> NON-COMPLIANT, 0 POST, rc 1
+ok   18 same-name ruleset with a bypass actor -> NON-COMPLIANT, rc 1
+ok   19 ruleset list GET 500 -> 0 POST, rc 1
+ok   20 unreadable existing ruleset detail -> 0 POST, rc 1
+ok   21 read-back rules 200 [] -> rc 1
+ok   22 read-back rule from another ruleset -> rc 1
+ok   23 readback rules/branches rate limited -> rc 4, not APPLIED
+ok   24 readback rules/branches HTTP 500 with a rules-shaped body -> rc 1, not APPLIED
+ok   25 read-back ruleset with enforcement disabled -> rc 1
+ok   26 read-back rules 404 -> rc 1
+ok   27 POST 422 -> rc 1 even when a read-back would pass
+ok   28 403 rate limit -> RATE-LIMITED, rc 4, not BLOCKED-PLAN
+ok   29 429 -> rc 4
+ok   30 403 with x-ratelimit-remaining 0 -> rc 4
+ok   31 plain 403 -> rc 1, not BLOCKED-PLAN
+ok   32 github_vd upgrade 403 -> BLOCKED-PLAN, rc 7 (not protectable, never read as done), nothing written
+ok   33 m3w apply happy path -> 0, RESULT: APPLIED
+ok   34 m3w POST body is exactly the reviewed body (enable_force_push false, enable_push true)
+ok   35 gitea token only as 'token' header, never in argv/output
+ok   36 existing rule with enable_force_push true -> NON-COMPLIANT, 0 POST, rc 1
+ok   37 gitea POST 403 -> rc 1
+ok   38 gitea read-back enable_push false -> rc 1
+ok   39 gitea read-back enable_force_push true -> rc 1
+ok   40 gitea read-back with a push allowlist -> rc 1
+ok   41 gitea compliant rule present -> ALREADY PRESENT, rc 0
+ok   42 codeberg (no field) -> force-push UNCONFIRMED printed, rc 6
+ok   43 codeberg POST body has no enable_force_push
+ok   44 swagger unreadable -> WARNING printed
+ok   45 forge unreachable in probe -> rc 1
+ok   46 github probe, nothing protected -> rc 0, state ABSENT, no write
+ok   47 branch ../x -> 2
+ok   48 branch a/../b -> 2
+ok   49 branch /main -> 2
+ok   50 first of 3001 targets is known (no SIGPIPE false refusal), rc != 2
+ok   51 branch main..x (a .. inside a segment) -> 2, nothing sent
+ok   52 jq missing -> 5
+ok   53 token holding a quote -> credential_malformed, rc 1, no authenticated request
+ok   54 keys file 0644 -> refused, credential_absent, rc 1
+ok   55 gitflic plan -> manual UI step, rc 0
+ok   56 gitlab plan -> probe only, out of apply scope, rc 0
+ok   57 --list prints the targets
+ok   58 compliant-looking ruleset whose rules/branches read-back answers 404 -> UNKNOWN, not ALREADY COMPLIANT, rc 1, 0 POST
+ok   59 the compliant path asked GET /rules/branches/main
+ok   60 compliant-looking ruleset, rules/branches lists only one type for it -> NOT CONFIRMED, rc 1, not ALREADY COMPLIANT
+ok   61 ruleset that includes AND excludes refs/heads/main -> not compliant, state ABSENT
+ok   62 ruleset excluding refs/heads/* -> not compliant, state ABSENT
+ok   63 ruleset without a bypass_actors field -> UNCONFIRMED, rc 1, no plan to POST
+ok   64 ruleset for another branch (refs/heads/dev) -> not compliant for main, state ABSENT
+ok   65 tag ruleset with the same rules -> not compliant, state ABSENT
+ok   66 read-back ruleset that excludes main -> rc 1, not APPLIED
+ok   67 100 rulesets (one full page) -> UNKNOWN, rc 1, nothing planned
+ok   68 a target naming an unbound keys-file variable -> 2, nothing sent, decoy never on the wire
+ok   69 M3W token bound to git.m3w.org: a target on another host -> 2
+ok   70 gh keyring token bound to api.github.com: a target on gitlab.com -> 2
+ok   71 plain http:// to the bound (non-loopback) host -> 2
+ok   72 a base URL with user info -> 2
+ok   73 loopback base without FORGE_PROTECT_TEST_LOOPBACK=yes -> 2, nothing sent
+ok   74 apply: target named github_hd but another owner/repo than the built-in -> 3, nothing sent
+ok   75 unknown --apply-confirm target -> 2 (usage), not 3
+ok   76 keys file 0640 (group-readable) -> refused, credential_absent, rc 1
+ok   77 token holding a newline -> credential_malformed, no authenticated request
+ok   78 token holding a CR -> credential_malformed
+ok   79 a failure (1) then an UNCONFIRMED (6) in one run -> exit 1 (order 4 > 1 > 6)
+ok   80 gitea read-back of a rule for another branch -> rc 1, not APPLIED
+ok   81 no mode given -> plan (dry run): rc 0, plan printed, 0 POST even with the apply env set
+ok   82 branch-protection GET 500 -> reported FAILED, rc 1
+ok   83 an extra glob rule next to the exact rule -> UNCONFIRMED note, rc 6
+ok   84 token gh-keyring bound to api.github.com: base https://api.github.com.evil.example refused at start-up -> 2
+ok   85 token gh-keyring bound to api.github.com: base https://evilapi.github.com refused at start-up -> 2
+ok   86 token gh-keyring bound to api.github.com: base https://x.api.github.com refused at start-up -> 2
+ok   87 token gh-keyring bound to api.github.com: base https://u@api.github.com refused at start-up -> 2
+ok   88 token gh-keyring bound to api.github.com: base https://u:p@api.github.com refused at start-up -> 2
+ok   89 token gh-keyring bound to api.github.com: base https://api.github.com:8443 refused at start-up -> 2
+ok   90 token gh-keyring bound to api.github.com: base https://api.github.com:0443 refused at start-up -> 2
+ok   91 token gh-keyring bound to api.github.com: base https://api.github.com:80 refused at start-up -> 2
+ok   92 token gh-keyring bound to api.github.com: base http://api.github.com refused at start-up -> 2
+ok   93 token gh-keyring: the bound base https://api.github.com is accepted (golden-FALSE) -> 0
+ok   94 token gh-keyring: the bound base https://api.github.com:443 is accepted (golden-FALSE) -> 0
+ok   95 token gh-keyring: the bound base https://API.GITHUB.COM is accepted (golden-FALSE) -> 0
+ok   96 token M3W_GITEA_TOKEN bound to git.m3w.org: base https://git.m3w.org.evil.example/api/v1 refused at start-up -> 2
+ok   97 token M3W_GITEA_TOKEN bound to git.m3w.org: base https://evilgit.m3w.org/api/v1 refused at start-up -> 2
+ok   98 token M3W_GITEA_TOKEN bound to git.m3w.org: base https://x.git.m3w.org/api/v1 refused at start-up -> 2
+ok   99 token M3W_GITEA_TOKEN bound to git.m3w.org: base https://u@git.m3w.org/api/v1 refused at start-up -> 2
+ok   100 token M3W_GITEA_TOKEN bound to git.m3w.org: base https://u:p@git.m3w.org/api/v1 refused at start-up -> 2
+ok   101 token M3W_GITEA_TOKEN bound to git.m3w.org: base https://git.m3w.org:8443/api/v1 refused at start-up -> 2
+ok   102 token M3W_GITEA_TOKEN bound to git.m3w.org: base https://git.m3w.org:0443/api/v1 refused at start-up -> 2
+ok   103 token M3W_GITEA_TOKEN bound to git.m3w.org: base https://git.m3w.org:80/api/v1 refused at start-up -> 2
+ok   104 token M3W_GITEA_TOKEN bound to git.m3w.org: base http://git.m3w.org/api/v1 refused at start-up -> 2
+ok   105 token M3W_GITEA_TOKEN: the bound base https://git.m3w.org/api/v1 is accepted (golden-FALSE) -> 0
+ok   106 token M3W_GITEA_TOKEN: the bound base https://git.m3w.org:443/api/v1 is accepted (golden-FALSE) -> 0
+ok   107 token M3W_GITEA_TOKEN: the bound base https://GIT.M3W.ORG/api/v1 is accepted (golden-FALSE) -> 0
+ok   108 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base https://codeberg.org.evil.example/api/v1 refused at start-up -> 2
+ok   109 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base https://evilcodeberg.org/api/v1 refused at start-up -> 2
+ok   110 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base https://x.codeberg.org/api/v1 refused at start-up -> 2
+ok   111 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base https://u@codeberg.org/api/v1 refused at start-up -> 2
+ok   112 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base https://u:p@codeberg.org/api/v1 refused at start-up -> 2
+ok   113 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base https://codeberg.org:8443/api/v1 refused at start-up -> 2
+ok   114 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base https://codeberg.org:0443/api/v1 refused at start-up -> 2
+ok   115 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base https://codeberg.org:80/api/v1 refused at start-up -> 2
+ok   116 token CODEBERG_GITEA_TOKEN bound to codeberg.org: base http://codeberg.org/api/v1 refused at start-up -> 2
+ok   117 token CODEBERG_GITEA_TOKEN: the bound base https://codeberg.org/api/v1 is accepted (golden-FALSE) -> 0
+ok   118 token CODEBERG_GITEA_TOKEN: the bound base https://codeberg.org:443/api/v1 is accepted (golden-FALSE) -> 0
+ok   119 token CODEBERG_GITEA_TOKEN: the bound base https://CODEBERG.ORG/api/v1 is accepted (golden-FALSE) -> 0
+ok   120 token GITLAB_TOKEN bound to gitlab.com: base https://gitlab.com.evil.example/api/v4 refused at start-up -> 2
+ok   121 token GITLAB_TOKEN bound to gitlab.com: base https://evilgitlab.com/api/v4 refused at start-up -> 2
+ok   122 token GITLAB_TOKEN bound to gitlab.com: base https://x.gitlab.com/api/v4 refused at start-up -> 2
+ok   123 token GITLAB_TOKEN bound to gitlab.com: base https://u@gitlab.com/api/v4 refused at start-up -> 2
+ok   124 token GITLAB_TOKEN bound to gitlab.com: base https://u:p@gitlab.com/api/v4 refused at start-up -> 2
+ok   125 token GITLAB_TOKEN bound to gitlab.com: base https://gitlab.com:8443/api/v4 refused at start-up -> 2
+ok   126 token GITLAB_TOKEN bound to gitlab.com: base https://gitlab.com:0443/api/v4 refused at start-up -> 2
+ok   127 token GITLAB_TOKEN bound to gitlab.com: base https://gitlab.com:80/api/v4 refused at start-up -> 2
+ok   128 token GITLAB_TOKEN bound to gitlab.com: base http://gitlab.com/api/v4 refused at start-up -> 2
+ok   129 token GITLAB_TOKEN: the bound base https://gitlab.com/api/v4 is accepted (golden-FALSE) -> 0
+ok   130 token GITLAB_TOKEN: the bound base https://gitlab.com:443/api/v4 is accepted (golden-FALSE) -> 0
+ok   131 token GITLAB_TOKEN: the bound base https://GITLAB.COM/api/v4 is accepted (golden-FALSE) -> 0
+ok   132 apply: only one tuple field differs from built-in github_hd (github|http://127.0.0.1:45677/gh|vasic-digital|constitution|-) -> 3, nothing sent
+ok   133 apply: only one tuple field differs from built-in github_hd (github|http://127.0.0.1:45677/gh|HelixDevelopment|HelixConstitution|-) -> 3, nothing sent
+ok   134 apply: only one tuple field differs from built-in github_hd (github|http://127.0.0.1:45677/gh|HelixDevelopment|constitution|M3W_GITEA_TOKEN) -> 3, nothing sent
+ok   135 apply: only one tuple field differs from built-in github_hd (gitea|http://127.0.0.1:45677/gh|HelixDevelopment|constitution|-) -> 3, nothing sent
+ok   136 apply: only one tuple field differs from built-in m3w (gitea|http://127.0.0.1:45677/gt/api/v1|OtherOwner|constitution|M3W_GITEA_TOKEN) -> 3, nothing sent
+ok   137 apply: only one tuple field differs from built-in m3w (gitea|http://127.0.0.1:45677/gt/api/v1|Helix|other|M3W_GITEA_TOKEN) -> 3, nothing sent
+ok   138 apply: only one tuple field differs from built-in m3w (gitea|http://127.0.0.1:45677/gt/api/v1|Helix|constitution|CODEBERG_GITEA_TOKEN) -> 3, nothing sent
+ok   139 apply: only one tuple field differs from built-in m3w (github|http://127.0.0.1:45677/gt/api/v1|Helix|constitution|M3W_GITEA_TOKEN) -> 3, nothing sent
+ok   140 order: 4 then 7 -> 4
+ok   141 order: 7 then 4 -> 4
+ok   142 order: 1 then 7 -> 1
+ok   143 order: 7 then 1 -> 1
+ok   144 order: 7 then 6 -> 7
+ok   145 order: 6 then 7 -> 7
+ok   146 order: 4 then 1 -> 4
+ok   147 order: 1 then 4 -> 4
+ok   148 order: 6 then 1 -> 1
+ok   149 order: 7 alone -> 7
+ok   150 order: 6 alone -> 6
+ok   151 control needle: curl without -q reads CURL_HOME/.curlrc on this host
+ok   152 hostile .curlrc ignored: no request carries its header, apply still happy
+ok   153 hostile .curlrc ignored on the gitea path (swagger + token requests)
+ok   154 302 to another port is not followed: second listener got 0 requests, rc 1
+ok   155 gitea: 302 to another port is not followed, rc 1
+ok   156 loopback test mode with http_proxy set -> 2, nothing sent, the proxy listener got nothing
+ok   157 loopback test mode with HTTP_PROXY set -> 2, nothing sent, the proxy listener got nothing
+ok   158 loopback test mode with https_proxy set -> 2, nothing sent, the proxy listener got nothing
+ok   159 loopback test mode with HTTPS_PROXY set -> 2, nothing sent, the proxy listener got nothing
+ok   160 loopback test mode with all_proxy set -> 2, nothing sent, the proxy listener got nothing
+ok   161 loopback test mode with ALL_PROXY set -> 2, nothing sent, the proxy listener got nothing
+ok   162 a proxy variable outside the loopback test mode is not refused (golden-FALSE): --list -> 0
+ok   163 gh keyring token read with --hostname github.com
+ok   164 GH_HOST and enterprise tokens never reach gh
+ok   165 glob rule 'ma?n' next to the exact rule -> UNCONFIRMED note, rc 6
+ok   166 glob rule '[m]ain' next to the exact rule -> UNCONFIRMED note, rc 6
+ok   167 glob rule 'm*' next to the exact rule -> UNCONFIRMED note, rc 6
+ok   168 a plain rule for another branch is not a glob (golden-FALSE): rc 0, no note
+RESULT: 168/168 passed
+rc=0
