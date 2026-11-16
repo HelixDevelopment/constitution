@@ -1,0 +1,20 @@
+corpus: 860 markdown files + 392 tracker bodies
+TBD                                      14
+TBA                                      0
+TODO                                     89
+FIXME                                    34
+XXX                                      14
+UNCONFIRMED:                             284
+UNKNOWN                                  370
+PENDING                                  292
+N/A                                      107
+angle <word>                             4862
+mustache {{x}}                           93
+shell ${X}                               507
+to be decided/determined/confirmed       0
+placeholder                              277
+???                                      0
+ellipsis value ': ...'                   0
+dash value ': -'                         4
+CONTROL positive needle found: True
+CONTROL negative (fabricated token QQZZ) count: 0

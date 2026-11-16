@@ -1,0 +1,2 @@
+R17 render fold loses confusable map | KILLED | test_render_release_entry.sh rc=1 ['FAIL M4 r3 refused: DRАFT list (0: )', 'FAIL M4 r3 refused: ТBD later (0: )', 'FAIL M4 r3 refused: ТОDО list (0: )']
+R18 render fold loses NFKD Mn strip | KILLED | test_render_release_entry.sh rc=1 ['FAIL M4 r3 refused: D̈RAFT list (0: )', 'FAIL mutant R2-no-mark-strip applies (rc 5)']

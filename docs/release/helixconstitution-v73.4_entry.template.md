@@ -57,9 +57,9 @@ Review follow-ups of the ATM-1809 audits (audit 3 M1 to M7 and N1 to N4) are {{M
 
 {{MANUAL:known_defects_block}}
 
-§11.4.288 debt: refs with commits not on `main`, counted per remote after `git fetch --prune` (only remotes listed were counted): 
+§11.4.288 debt: refs with commits not on `main`, counted per remote after `git fetch --prune` (only remotes listed were counted).
 
-{{unmerged_refs_block}}.
+{{unmerged_refs_block}}
 
 #### §11.4.297 and §11.4.298 for this release
 

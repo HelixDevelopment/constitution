@@ -931,9 +931,13 @@ tests/release/channel_census.py	py	excluded	-	-	-	reason: oracle: channel census
 tests/release/env_allow.sh	sh	excluded	-	-	-	reason: library: shell library sourced (through $HERE) by the tag, publisher and derive suites and the mutation harness: allow-list, dirty entries, hup_ignored and its control; not a test entry point
 tests/release/env_census.py	py	excluded	-	-	-	reason: tool: runtime environment census (recorders and check) run by the tag, publisher and derive suites (C48, case 29, L2); not a test entry point
 tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network probe run by tests/release/test_tag_and_release.sh (cases C41, C43, C44); not a test entry point
+tests/release/pvl_grid.py	py	excluded	-	-	-	reason: oracle: case grid of the provisional-verification checker (placeholder shapes x six fields, per-field shapes, job and target positive shapes, look-alike and split-acronym folds, due dates, fences, HTML comments, the r2 reviewer probe cases, the r4 cases with a --root run, a sample of the character-class inventory of tests/release/pvl_inventory.py, golden-FALSE accepts) run by tests/release/test_provisional_verification_lines.sh (P7, P8 mutants); not a test entry point
+tests/release/pvl_inventory.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_timing.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
 tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
+tests/release/test_provisional_verification_lines.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
 tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto

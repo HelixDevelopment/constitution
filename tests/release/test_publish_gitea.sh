@@ -91,6 +91,12 @@ done
 timeout 5 bash "$S" --tag </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "trailing --tag does not hang (rc 2)" || bad "trailing --tag hang/rc"
 timeout 5 bash "$S" --repo </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "trailing --repo does not hang (rc 2)" || bad "trailing --repo hang/rc"
 M3W_GITEA_TOKEN=$T bash "$S" --tag rel-1 --repo '../..' --base-url "$URL" --dry-run </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "repo dot segments refused" || bad "repo dot segments"
+# CON-423 review r1 (M8): a token outside the shared shape (rc_gitea_token_shape_ok) is refused before any request
+for tk in 'ZZM8 bad!' 'short1' "$(printf 'a%.0s' $(seq 201))"; do
+  o8="$(TOK="$tk" run --tag rel-1 --base-url "$URL" --dry-run)"; r8=$?
+  [ "$r8" -eq 3 ] && printf '%s\n' "$o8" | grep -q 'token has characters outside' && ! printf '%s\n' "$o8" | grep -q ZZM8 \
+    && ok "M8 a token outside the shared shape is refused (${#tk} characters), its value not shown" || bad "M8 a token outside the shared shape is refused (${#tk} characters; rc $r8)"
+done
 # 6 hostile token (curl-config injection)
 for t in $'abc"\nurl = "http://127.0.0.1:1/INJECTED' 'ab\cd"ef12345' 'short'; do
   (TOK="$t"; run --tag rel-1 --base-url "$URL" >/dev/null; exit $?); [ $? -eq 3 ] && ok "hostile/short token refused" || bad "hostile token accepted"

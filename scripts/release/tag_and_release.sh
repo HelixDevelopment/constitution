@@ -49,6 +49,23 @@
 #     show upcoming_release=true and the same instant, otherwise the leg is a GAP
 #     (UNCONFIRMED). A final release gets no mark and no date; a final re-run over a
 #     kept PROVISIONAL-marked release keeps it as it is (no promotion path).
+#   * one remote per distinct repository (CON-423, D10): a remote name listed
+#     twice in --remotes is a usage error; two remotes whose push URLs name the
+#     same repository (compared by host and path, case-folded, user, port and a
+#     trailing ".git" removed) abort the preflight without printing the URLs;
+#     for github.com remotes the repository id is compared too when gh is
+#     logged in (a renamed or moved repository keeps its id), else an INFO line
+#     says the id check is UNCONFIRMED.
+#
+# Dry run (CON-423, D3 and D4): --dry-run writes nothing, and after preflight it
+# prints one plan line per release leg ("prerelease=flag", "prerelease=none" or,
+# for GitLab, "prerelease=marked-by-title-and-description") and probes what it
+# can read without writing: GitHub login, repository id, de-duplication and an
+# existing release; GitLab login, project access and an existing release; for
+# gitea only the token SHAPE (never its value; an empty or unset token is
+# SKIPPED-NO-TOKEN, access is not probed and stays a WOULD-GAP). A probe that
+# shows the real run would fail prints "PROBE ... WOULD-FAIL"; one that cannot
+# decide prints "PROBE ... WOULD-GAP".
 #
 # Exit status (machine-readable; the last line is "RESULT: <word> ..."):
 #   0 OK       every remote OK and every requested release present
@@ -58,7 +75,9 @@
 #              access); a gap is never reported as released. A gitea publisher
 #              exit 3 is a gap only with its SKIPPED-NO-TOKEN line; any other
 #              exit 3 (configuration or precondition) is a FAIL
-# A --dry-run that passes preflight prints the plan and exits 0 without writing.
+# A --dry-run that passes preflight prints the plan and its probes and exits 0 when
+# no probe found a problem, 1 ("RESULT: FAIL dry-run ...") when a probe says the
+# real run would fail, and 5 ("RESULT: GAPS dry-run ...") when it would leave a gap.
 #
 # Output of external commands (round 5, CON-234 class, threat model
 # docs/qa/con227_234_2026_11_11/round5/threat_model.md): the stderr of every NETWORK command (git fetch,
@@ -121,10 +140,13 @@ done
 SEG='[A-Za-z0-9][A-Za-z0-9._-]*'
 [[ $TAG =~ ^$SEG$ ]] || die_usage "tag has unsafe characters (not shown)"
 [[ $SHA =~ ^[0-9A-Fa-f]{7,64}$ ]] || die_usage "--sha must be a hexadecimal commit id of 7 to 64 digits (the value is not shown)"
-n=0
+n=0 _seen=" "
 for r in $REMOTES; do
   n=$((n + 1)); [[ $r =~ ^$SEG$ ]] || die_usage "remote name number $n in --remotes has unsafe characters (not shown)"
+  case "$_seen" in *" $r "*) die_usage "remote name number $n in --remotes repeats an earlier name (list each remote once; one remote per distinct repository)" ;; esac
+  _seen="$_seen$r "
 done
+unset -v _seen
 RE_GH="^github:$SEG:$SEG/$SEG\$" RE_GL="^gitlab:$SEG:$SEG(/$SEG)+\$"
 RE_GT="^gitea:$SEG:(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]{1,5}):$SEG/$SEG\$"
 n=0
@@ -198,6 +220,27 @@ withheld() { printf '(%s exit %s, reason class: %s; %s'"'"'s own message is with
 own1() { printf '%s\n' "$1" | grep -m 1 '^release_publish_gitea: ' | rc_redact_cut "$2"; }
 # oid TEXT: TEXT when it is an object id (40 or 64 hexadecimal digits), else NOT-AN-OBJECT-ID
 oid() { if [[ ${1:-} =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then printf '%s' "$1"; elif [ -z "${1:-}" ]; then printf -- '-'; else printf 'NOT-AN-OBJECT-ID'; fi; }
+# repo_key URL: the identity of the repository a push URL names (CON-423, D10): the scheme, a user name and a port
+# are dropped, doubled "/" fold to one and trailing "/" go. A hosted URL's host and path are case-folded (the forges
+# this script serves treat both case-insensitively) and one ".git" suffix goes, in any case (".GIT" too; review r1,
+# M3). A local path keeps its case and its ".git": /srv/repo.git and /srv/repo are two directories, so folding them
+# would refuse a run that pushes to two repositories (review r1, M3). Pure bash: no command runs.
+repo_key() {
+  local u="${1:-}" h p
+  case "$u" in
+    [Ff][Ii][Ll][Ee]://*) h=""; p="${u#*://}" ;;
+    *://*) u="${u#*://}"; h="${u%%/*}"; p="${u#"$h"}" ;;
+    /*|./*|../*) h=""; p="$u" ;;
+    *:*) h="${u%%:*}"; p="${u#*:}"; case "$h" in */*) h=""; p="$u" ;; esac ;;
+    *) h=""; p="$u" ;;
+  esac
+  h="${h##*@}"; [[ $h =~ ^(.*):[0-9]*$ ]] && h="${BASH_REMATCH[1]}"
+  while [[ $p == *//* ]]; do p="${p%%//*}/${p#*//}"; done
+  while [[ $p == */ ]]; do p="${p%/}"; done
+  if [ -n "$h" ]; then
+    p="${p#/}"; p="${p,,}"; p="${p%.git}"; printf 'host:%s/%s' "${h,,}" "$p"
+  else printf 'local:%s' "$p"; fi
+}
 printf '== %s start tag=%s sha=%s dry_run=%s\n' "$(date -Is)" "$TAG" "$SHA" "$DRY"
 
 # ---------- preflight (no writes) ----------
@@ -208,6 +251,9 @@ SHA="$FULL"
 [ -z "$(rc_net git status --porcelain --untracked-files=normal 2>/dev/null)" ] || abort "working tree is not clean"
 
 declare -A RMAIN
+declare -A PUSHID   # CON-423 (D10): repository identity of a push URL -> the remote that pushes to it
+declare -A GHREMOTE # CON-423 (D10): remote -> its github.com OWNER/REPO push paths
+GH_N=0
 for r in $REMOTES; do
   rc_net git remote get-url "$r" >/dev/null 2>&1 || abort "remote $r is not configured"
   # K1: every fetch and push URL of the remote (after insteadOf) must be free of a user name or password
@@ -216,6 +262,19 @@ for r in $REMOTES; do
     [ -n "$u" ] || continue
     if rc_url_has_userinfo "$u"; then abort "remote $r has a URL with a user name or password in it; git would put it in the argv of its transport helper, which every local user can read (the URL is not shown); use a credential helper, an ssh key or GIT_ASKPASS instead"; fi
   done <<<"$urls"
+  # CON-423 (D10): one remote per distinct repository. Two remotes whose push URLs name one repository would push it
+  # twice and count it as two upstreams; refused before any write (the URLs are never shown).
+  purls="$(rc_net git remote get-url --push --all "$r" 2>/dev/null)"
+  while IFS= read -r u; do
+    [ -n "$u" ] || continue
+    k="$(repo_key "$u")"
+    if [ -n "${PUSHID[$k]:-}" ] && [ "${PUSHID[$k]}" != "$r" ]; then
+      abort "remotes ${PUSHID[$k]} and $r push to the same repository (push URLs compared without scheme, user name, port, trailing / and .git, host and path case-folded; the URLs are not shown); list one remote per distinct repository in --remotes"
+    fi
+    PUSHID[$k]="$r"
+    case "$k" in host:github.com/*) gp="${k#host:github.com/}"
+      if [[ $gp =~ ^$SEG/$SEG$ ]]; then GHREMOTE[$r]="${GHREMOTE[$r]:-} $gp"; GH_N=$((GH_N + 1)); fi ;; esac
+  done <<<"$purls"
   # No destination refspec and no "+": the fetched tip lands in FETCH_HEAD only.
   x_fetch="$(net fetch -q --no-tags "$r" refs/heads/main 2>&1 >/dev/null)"; frc=$?
   [ "$frc" -eq 0 ] || abort "fetch of $r main failed $(withheld git "$frc" "$(xcls "$x_fetch" "$frc")")"
@@ -223,6 +282,28 @@ for r in $REMOTES; do
   RMAIN[$r]="$t"
   rc_net git merge-base --is-ancestor "$t" "$SHA" || abort "$r main $t is not an ancestor of $SHA (main moved; merge the new main into the release commit and re-review)"
 done
+# CON-423 (D10): a renamed GitHub repository keeps answering under its old name, so two different github.com URLs
+# can name one repository. Their repository ids are compared (read-only gh api); an id that cannot be read leaves
+# the check UNCONFIRMED for that remote (said so), never passed.
+if [ "$GH_N" -gt 0 ]; then
+  if command -v gh >/dev/null 2>&1 && nt gh auth status >/dev/null 2>&1; then
+    declare -A GHID_OF
+    for r in $REMOTES; do
+      [ -n "${GHREMOTE[$r]:-}" ] || continue
+      for gp in ${GHREMOTE[$r]}; do
+        gid="$(nt gh api "repos/$gp" --jq .id 2>/dev/null)" || gid=""
+        [[ $gid =~ ^[0-9]{1,20}$ ]] || gid=""
+        if [ -z "$gid" ]; then printf 'INFO remote %s: GitHub repository id UNCONFIRMED (gh api could not read it; the URL identity check still applied)\n' "$r"; continue; fi
+        if [ -n "${GHID_OF[$gid]:-}" ] && [ "${GHID_OF[$gid]}" != "$r" ]; then
+          abort "remotes ${GHID_OF[$gid]} and $r push to the same GitHub repository (id $gid; one of the names is an old name GitHub still answers to; the URLs are not shown); list one remote per distinct repository in --remotes"
+        fi
+        GHID_OF[$gid]="$r"
+      done
+    done
+  else
+    printf 'INFO GitHub remote identity by repository id UNCONFIRMED (gh absent or not authenticated); the URL identity check still applied\n'
+  fi
+fi
 
 FIRST="$(rc_net git show "$SHA:CHANGELOG.md" 2>/dev/null | awk '/^## /{print substr($0,4); exit}')"
 case "$FIRST" in
@@ -257,14 +338,63 @@ for r in $REMOTES; do
   fi
 done
 
+# wfail / wgap SPEC TEXT: a would-be failure or gap of one release leg in the dry run (CON-423, D3)
+WF=0 WG=0
+wfail() { WF=$((WF + 1)); printf 'PROBE release %s WOULD-FAIL %s\n' "$1" "$2"; }
+wgap()  { WG=$((WG + 1)); printf 'PROBE release %s WOULD-GAP %s\n' "$1" "$2"; }
+# the host of the GitLab API reads: GITLAB_HOST (value-checked by the lockdown) without its scheme and slash, else gitlab.com
+GL_HOST="${GITLAB_HOST:-gitlab.com}"; GL_HOST="${GL_HOST#http://}"; GL_HOST="${GL_HOST#https://}"; GL_HOST="${GL_HOST%/}"
+[[ $GL_HOST =~ ^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$ ]] || GL_HOST=""
+
 if [ "$DRY" -eq 1 ]; then
   for r in $REMOTES; do printf 'PLAN push --atomic %s %s:refs/heads/main refs/tags/%s (remote main %s, remote tag %s)\n' "$r" "$SHA" "$TAG" "${RMAIN[$r]}" "${RTAG[$r]:-absent}"; done
   for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
     case "$spec:$PRERELEASE" in
       gitlab:*:1) printf 'PLAN release %s prerelease=marked-by-title-and-description upcoming=%s\n' "$spec" "${GL_RELEASED_AT:-none}" ;;
-      *) printf 'PLAN release %s\n' "$spec" ;;
+      *:1) printf 'PLAN release %s prerelease=flag\n' "$spec" ;;
+      *) printf 'PLAN release %s prerelease=none\n' "$spec" ;;
     esac
   done
+  # CON-423 (D3): read-only probes of every release leg, so the plan shows what the real run would report. Only exit
+  # codes, fixed words and value-checked ids are printed: no command's own output (a login status can carry a token),
+  # never a token value. A probe never writes: auth status, gh api repos/X, glab api projects/X, release view.
+  WF=0 WG=0
+  declare -A DGH_SEEN
+  GH_AUTH_RC="" GL_AUTH_RC=""
+  for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
+    kind="${spec%%:*}"; rest="${spec#*:}"; target="${rest#*:}"
+    case "$kind" in
+      github)
+        if ! command -v gh >/dev/null 2>&1; then wgap "$spec" "SKIPPED-NO-TOKEN (gh absent)"; continue; fi
+        if [ -z "$GH_AUTH_RC" ]; then nt gh auth status >/dev/null 2>&1; GH_AUTH_RC=$?; fi
+        if [ "$GH_AUTH_RC" -ne 0 ]; then wgap "$spec" "SKIPPED-NO-TOKEN (gh auth status exit $GH_AUTH_RC)"; continue; fi
+        id="$(nt gh api "repos/$target" --jq .id 2>/dev/null)"; irc=$?
+        [[ $id =~ ^[0-9]{1,20}$ ]] || id=""
+        if [ -z "$id" ]; then wgap "$spec" "NOT-ACCESSIBLE (gh api repos/$target exit $irc or no repository id; not released there)"; continue; fi
+        if [ -n "${DGH_SEEN[$id]:-}" ]; then printf 'PROBE release %s OK would-deduplicate (same repository id %s as %s)\n' "$spec" "$id" "${DGH_SEEN[$id]}"; continue; fi
+        DGH_SEEN[$id]="$target"
+        if nt gh release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'PROBE release %s OK would-keep (release exists; repository id %s)\n' "$spec" "$id"
+        else printf 'PROBE release %s OK would-create (gh auth status exit 0; repository id %s)\n' "$spec" "$id"; fi ;;
+      gitlab)
+        if ! command -v glab >/dev/null 2>&1; then wgap "$spec" "SKIPPED-NO-TOKEN (glab absent)"; continue; fi
+        if [ -z "$GL_AUTH_RC" ]; then nt glab auth status >/dev/null 2>&1; GL_AUTH_RC=$?; fi
+        if [ "$GL_AUTH_RC" -ne 0 ]; then wgap "$spec" "SKIPPED-NO-TOKEN (glab auth status exit $GL_AUTH_RC)"; continue; fi
+        if [ -z "$GL_HOST" ] || ! command -v jq >/dev/null 2>&1; then wgap "$spec" "ACCESS-UNCONFIRMED (GITLAB_HOST is not a host name, or jq is absent; the project was not read)"; continue; fi
+        enc="$(printf '%s' "$target" | jq -sRr @uri 2>/dev/null)" || enc=""
+        if ! [[ $enc =~ ^[A-Za-z0-9._%-]+$ ]]; then wfail "$spec" "NOT-ACCESSIBLE (the project path could not be encoded)"; continue; fi
+        pj="$(nt glab api --hostname "$GL_HOST" "projects/$enc" 2>/dev/null)"; prc=$?
+        pt="$(printf '%s' "$pj" | jq -r 'type' 2>/dev/null)" || pt=""
+        if [ "$prc" -ne 0 ] || [ "$pt" != object ]; then wfail "$spec" "NOT-ACCESSIBLE (glab api projects/$enc exit $prc, answer type ${pt:-unparsable}; the real run's release create would fail)"; continue; fi
+        if nt glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'PROBE release %s OK would-keep (release exists; project readable)\n' "$spec"
+        else printf 'PROBE release %s OK would-create (glab auth status exit 0; project readable)\n' "$spec"; fi ;;
+      gitea)
+        if [ -z "${M3W_GITEA_TOKEN:-}" ]; then wgap "$spec" "SKIPPED-NO-TOKEN (gitea token variable not set)"
+        elif ! rc_gitea_token_shape_ok "$M3W_GITEA_TOKEN"; then wfail "$spec" "TOKEN-SHAPE (token variable set, but outside the publisher's charset or length; the value is not shown)"
+        else wgap "$spec" "ACCESS-UNCONFIRMED (token variable set, value not shown; the gitea publisher has no read-only probe and needs the tag, which a dry run does not create)"; fi ;;
+    esac
+  done
+  if [ "$WF" -gt 0 ]; then printf 'RESULT: FAIL dry-run (no tag created, nothing pushed; would-fail=%d would-gap=%d)\n' "$WF" "$WG"; exit 1; fi
+  if [ "$WG" -gt 0 ]; then printf 'RESULT: GAPS dry-run (no tag created, nothing pushed; would-fail=0 would-gap=%d)\n' "$WG"; exit 5; fi
   printf 'RESULT: OK dry-run (no tag created, nothing pushed)\n'
   exit 0
 fi
@@ -331,9 +461,6 @@ if [ "$PRERELEASE" -eq 1 ] && [ "$GL_ANY" -eq 1 ]; then
   { printf '%s\n\n' "$GL_MARK"; cat -- "$NOTES"; } >"$GL_NOTES" || GL_NOTES_OK=0
   [ -n "$GL_RELEASED_AT" ] && GL_ARGS+=(--released-at "$GL_RELEASED_AT")
 fi
-# the host of the read-back: GITLAB_HOST (value-checked by the lockdown) without its scheme and slash, else gitlab.com
-GL_HOST="${GITLAB_HOST:-gitlab.com}"; GL_HOST="${GL_HOST#http://}"; GL_HOST="${GL_HOST#https://}"; GL_HOST="${GL_HOST%/}"
-[[ $GL_HOST =~ ^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$ ]] || GL_HOST=""
 # gl_readback SPEC TARGET: read the release back through the API and check the PROVISIONAL marks. Only fixed words
 # and a value-checked time are printed; the server's own text never is (the tag needs no encoding: it matches SEG).
 gl_readback() {

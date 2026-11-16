@@ -1,0 +1,2 @@
+PASS RK1 killed by its property (FAIL RH16 doubled slash in the path (host:github.com//acc//one vs host:github.com/acc/one))
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0

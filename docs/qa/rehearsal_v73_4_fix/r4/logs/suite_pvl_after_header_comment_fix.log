@@ -1,0 +1,149 @@
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 4 items, 2 provisional, 2 ok
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 empty field value
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an option: usage exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P4 the database is unchanged
+PASS P5 real database: every Ready-for-testing and In-testing item has a complete line
+PASS P5 the checker counted the same 30 rows (needle: an independent count)
+PASS P5 without --root the paths are checked for their shape only (said on the PATHS line)
+PASS P5 the real database holds provisional items (control: 30 > 0)
+PASS P5 real database with --root: every job path that counts exists in this checkout
+PASS P5 --root is reported
+PASS P6 control: the correct checker refuses the single missing-checks item
+PASS P6 control: the correct checker refuses the single In-testing item
+PASS P6 mutant checks-not-required is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant status-in-testing-dropped is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant blind-check-dropped is caught (rc 0)
+PASS P7 grid: no mismatch
+PASS P7 grid size (needle: the grid really ran its cases)
+PASS P7 B2: the reviewer case r3:cyr_TBD_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:pending_sched_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:none_assigned_target is in the grid and as expected
+PASS P7 B2: the reviewer case r3:not_applicable_checks is in the grid and as expected
+PASS P7 B2: the reviewer case r3:T.B.D_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:TBD_underscore_target is in the grid and as expected
+PASS P7 B2: the reviewer case r3:qqq_checks is in the grid and as expected
+PASS P7 B2: the reviewer case r3:body:html_comment_only is in the grid and as expected
+PASS P7 B2: the reviewer case r3:body:prefix_glued is in the grid and as expected
+PASS P7 B2: at least 150 r3 cases pass (161; 74 the reviewer's, the rest the fixer's)
+PASS P7 r4: at least 55 r4 cases pass (57)
+PASS P7 r4: at least 200 inventory sample cases pass (243)
+PASS P7 r4: the case r4:B1_slash is in the grid and as expected
+PASS P7 r4: the case r4:B1_middot is in the grid and as expected
+PASS P7 r4: the case r4:B2_none_yet is in the grid and as expected
+PASS P7 r4: the case r4:B2_pending_sh is in the grid and as expected
+PASS P7 r4: the case r4:B3_hangul_filler is in the grid and as expected
+PASS P7 r4: the case r4:F4_foo is in the grid and as expected
+PASS P7 r4: the case r4:root:F2_etc_passwd is in the grid and as expected
+PASS P7 r4: the case r4:R10_one_letter_key is in the grid and as expected
+PASS P7 r4: the case r4:R12_hex6 is in the grid and as expected
+PASS P7 r4: the case r4:body:line_too_long is in the grid and as expected
+PASS P7 M1: the case 'due: .' is in the grid and refused
+PASS P8 mutant O01-default-ignorable is caught (53 grid cases)
+PASS P8 mutant O02-tab-not-invisible is caught (1 grid cases)
+PASS P8 mutant O03-compat-fold is caught (1 grid cases)
+PASS P8 mutant O05-skeleton-decimal is caught (1 grid cases)
+PASS P8 mutant O06-skeleton-confusables is caught (10 grid cases)
+PASS P8 mutant O07-skeleton-latin-name is caught (1 grid cases)
+PASS P8 mutant O08-single-runs is caught (8 grid cases)
+PASS P8 mutant O09-lead-letters is caught (1 grid cases)
+PASS P8 mutant O10-weak-path is caught (1 grid cases)
+PASS P8 mutant O11-path-dotdot is caught (1 grid cases)
+PASS P8 mutant O12-path-commonpath is caught (2 grid cases)
+PASS P8 mutant O13-path-root-itself is caught (1 grid cases)
+PASS P8 mutant O14-trailing is caught (3 grid cases)
+PASS P8 mutant O15-note is caught (2 grid cases)
+PASS P8 mutant O16-mixed-script is caught (7 grid cases)
+PASS P8 mutant O17-declared-script is caught (22 grid cases)
+PASS P8 mutant O18-outcome-shape is caught (2 grid cases)
+PASS P8 mutant O19-max-line is caught (1 grid cases)
+PASS P8 mutant O20-lead-only is caught (1 grid cases)
+PASS P8 mutant O21-checks-trail-none is caught (1 grid cases)
+PASS P8 mutant O22-invisible-refused is caught (79 grid cases)
+PASS P8 mutant O23-strong-lead is caught (125 grid cases)
+PASS P8 mutant O24-weak-lead is caught (82 grid cases)
+PASS P8 mutant O25-inside is caught (18 grid cases)
+PASS P8 mutant O26-inside-run is caught (7 grid cases)
+PASS P8 mutant O27-template is caught (18 grid cases)
+PASS P8 mutant O28-punct-led is caught (6 grid cases)
+PASS P8 mutant O29-run-prefixes is caught (16 grid cases)
+PASS P8 mutant O30-not-no-lead is caught (11 grid cases)
+PASS P8 mutant O31-checks-not is caught (3 grid cases)
+PASS P8 mutant O32-target-words is caught (4 grid cases)
+PASS P8 mutant O33-compat-char-single is caught (1 grid cases)
+PASS P8 mutant O34-fence-ignored is caught (14 grid cases)
+PASS P8 mutant O35-colonless-form is caught (5 grid cases)
+PASS P8 mutant O36-due-calendar is caught (4 grid cases)
+PASS P8 mutant O37-due-time is caught (2 grid cases)
+PASS P8 mutant O38-layer-shape is caught (3 grid cases)
+PASS P8 mutant O39-artifact-shape is caught (4 grid cases)
+PASS P8 mutant O40-job-shape is caught (17 grid cases)
+PASS P8 mutant O41-job-command is caught (2 grid cases)
+PASS P8 mutant O42-comment-skipped is caught (5 grid cases)
+PASS P9 job: UNCONFIRMED: refused
+PASS P9 due: TODO refused
+PASS P9 every field TBD refused (the first field is named)
+PASS P9 job: - refused
+PASS P9 due: . refused (reviewer mutant PV2 shape)
+PASS P9 a line inside a code fence does not count
+PASS P10 --root: exit 1 (one job path is absent)
+PASS P10 --root: the absent path is refused
+PASS P10 --root: an existing path is accepted
+PASS P10 --root: a command with ./... needs no path
+PASS P10 --root is reported
+PASS P10 without --root the shape is enough (control)
+PASS P10 --root that is not a directory: usage exit 64
+PASS P10 --root without a value: usage exit 64
+PASS P10 mutant root-ignored is caught (rc 0, the correct checker gives 1)
+PASS P8 mutant R1-port is caught (1 grid cases)
+PASS P8 mutant R2-port is caught (1 grid cases)
+PASS P8 mutant R3-port is caught (1 grid cases)
+PASS P8 mutant R4-port is caught (66 grid cases)
+PASS P8 mutant R5-port is caught (1 grid cases)
+PASS P8 mutant R6-port is caught (5 grid cases)
+PASS P8 mutant R7-port is caught (3 grid cases)
+PASS P8 mutant R8-port is caught (2 grid cases)
+PASS P8 mutant R9-verbatim is caught (1 grid cases)
+PASS P8 mutant R10-verbatim is caught (1 grid cases)
+PASS P8 mutant R11-port is caught (1 grid cases)
+PASS P8 mutant R12-verbatim is caught (1 grid cases)
+PASS P8 mutant R13-verbatim is caught (2 grid cases)
+PASS P8 mutant R14-verbatim is caught (1 grid cases)
+PASS P8 mutant R15-verbatim is caught (2 grid cases)
+PASS P8 mutant R16-verbatim is caught (4 grid cases)
+PASS P8 mutant R19-verbatim is caught (1 grid cases)
+PASS P8 mutant R20-verbatim is caught (2 grid cases)
+PASS P8 mutant R21-verbatim is caught (1 grid cases)
+PASS P8 mutant R22-verbatim is caught (1 grid cases)
+PASS P8 mutant X1-verbatim is caught (1 grid cases)
+PASS P8 mutant X2-verbatim is caught (1 grid cases)
+PASS P8 mutant X3-verbatim is caught (2 grid cases)
+PASS P8 mutant X4-port is caught (2 grid cases)
+PASS P8 mutant X5-port is caught (1 grid cases)
+PASS P8 mutant X6-port is caught (9 grid cases)
+PASS P8 mutant X7-verbatim is caught (6 grid cases)
+PASS P12 inventory: no mismatch, every class at its floor
+PASS P12 inventory size (needle: the sweep really ran)
+PASS P12 fold closure: no character's fold holds an invisible character
+PASS P12 the document lists the generator's classes, in order (U01 U02 U03 U04 U05 U06 U07 U08 U09 U10 U11 U12 U13 U14 U15 U16 U17 U18 U19 U20 U21 U22 U23 )
+PASS P12 mutant: a renamed class makes the lists differ (the comparison can fail)
+PASS P12 mutant: a floor above the members is reported BELOW-FLOOR (rc 1)
+PASS P13 timing within the limit (TIMING cases=98 worst=0.178s limit=1.00s OK)
+PASS P13 timing size (needle)
+PASS P13 mutant quadratic-split is caught (split40k 12.7881s parts=7)
+RESULT: pass=148 fail=0
