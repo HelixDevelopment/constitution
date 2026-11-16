@@ -11,11 +11,11 @@
 #          cleanup (release C, B and A, an acquire that runs every owed stop, its release) no unit runs and no set is
 #          left. CONTROL: in some orders C joins a running set, in others C starts the unit itself.
 #          Honest limit: these 60 orders, one profile, start rc 0; not every interleaving of three processes.
-#          FINDING R12-F1 (open, not fixed): in orders starCA and straCA, C adopts the running unit as operator-started:
-#          B's record deletes the set after A's start returned but before A recorded it (A's mark was judged expired), so
-#          C sees a running unit with no set. A's later record makes the set constitution-started again and the cleanup
-#          leaves nothing running, but in that window C treats a constitution-started unit as operator-owned. The
-#          adoption list is pinned as a characterisation row, not as a pass of the property.
+#          FINDING R12-F1 (round 12: in orders starCA and straCA, C adopted the running unit as operator-started, because
+#          B's record deleted the set after A's start returned but before A recorded it). Round 13 (R12-B1) fixed it with
+#          a start intent written in the same registry write as the starting mark and removed only by its own record:
+#          adoption refuses a profile with an unanswered intent. The row now asserts the PROPERTY (no order adopts) and the
+#          I1 invariant accepts a running unit named by an unanswered start intent (test_s4_round13.sh, R13-1/R13-2).
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
 . "$HERE/lib_assert.sh"
@@ -195,25 +195,24 @@ for o in $MC_ORDERS; do
     grep -q 'lease joined: holder=sC' "$T/c.err" && ncjoin=$((ncjoin+1))
     grep -q '^started decide-a\|started decide-a (' "$T/c.err" && ncstart=$((ncstart+1))
     # I1: a running unit is held (a lease) or owed a stop; I2: nothing adopted as operator-started
-    i1="$(jq -r 'if (.sets["decide-a"] // null) == null then "noset" elif ((.sets["decide-a"].leases // []) | length) > 0 then "held" elif (.sets["decide-a"].stop_owed // null) != null then "owed" else "bare" end' "$JEV_STATE_DIR/leases.json" 2>/dev/null)"
+    i1="$(jq -r 'if (.sets["decide-a"] // null) == null then (if ((.start_intents // {})["decide-a"] // null) != null then "intent" else "noset" end) elif ((.sets["decide-a"].leases // []) | length) > 0 then "held" elif (.sets["decide-a"].stop_owed // null) != null then "owed" else "bare" end' "$JEV_STATE_DIR/leases.json" 2>/dev/null)"
     adopt="$(cat "$T/a.err" "$T/b.err" "$T/c.err" 2>/dev/null | grep -c 'joined the already-running unit' || true)"
     good=1
-    if [ -n "$(running)" ]; then case "$i1" in held|owed) ;; *) good=0 ;; esac; fi
-    # I2 is characterised, not asserted per order: round 12 found orders where C adopts as operator-started a unit whose
-    # set B deleted before A recorded its start (finding R12-F1, round12/README.md); the list is pinned below
+    if [ -n "$(running)" ]; then case "$i1" in held|owed|intent) ;; *) good=0 ;; esac; fi
+    # I2 (round 13, R12-B1 fixed): no order adopts; the list of adopting orders must be empty (asserted below)
     [ "${adopt:-0}" = 0 ] || adopted="$adopted $oo"
     # cleanup: the releases of C, B and A (B and A are acquires too: either may hold a lease), an acquire that runs every
     # owed stop, its release
     for h in sC sB sA; do "$PLACE" release "$h" > /dev/null 2>> "$T/c.err"; done
     ( export JEV_PLACE_PROFILES=decide-a PLACE_START_RC=75; exec "$PLACE" acquire sD > /dev/null 2>> "$T/c.err" ); "$PLACE" release sD > /dev/null 2>> "$T/c.err"
-    fin="$(running)|$(jq -c .sets "$JEV_STATE_DIR/leases.json" 2>/dev/null)"
-    [ "$fin" = "|{}" ] || good=0
+    fin="$(running)|$(jq -c .sets "$JEV_STATE_DIR/leases.json" 2>/dev/null)|$(jq -c '.start_intents // null' "$JEV_STATE_DIR/leases.json" 2>/dev/null)"
+    [ "$fin" = "|{}|null" ] || good=0
     nmc=$((nmc+1))
     if [ "$good" = 0 ]; then nbad=$((nbad+1)); fail "R12-10 order $oo: running=[$(running)] i1=$i1 adopt=$adopt final=[$fin]"; sed 's/^/#   c: /' "$T/c.err" | head -20; fi
   done
 done
 assert_eqx "60 0" "$nmc $nbad" "R12-10 all 60 three-process interleavings: a running unit is always held or owed a stop, and after the cleanup no unit and no set is left"
-assert_eqx " starCA straCA" "$adopted" "R12-10 KNOWN FINDING R12-F1 (characterised, open): C adopts the unit as operator-started in exactly these orders (B deleted the set after A's start returned and before A recorded it); any change to this list is a change of behaviour"
+assert_eqx "" "$adopted" "R12-10 I2 (round 13, R12-B1): in no order does any process adopt the constitution-started unit as operator-started"
 assert_eqx yes "$( [ "$ncjoin" -ge 1 ] && [ "$ncstart" -ge 1 ] && echo yes || echo no )" "R12-10 CONTROL: C both joined a running set (count $ncjoin) and started the unit itself (count $ncstart) in some orders"
 
 

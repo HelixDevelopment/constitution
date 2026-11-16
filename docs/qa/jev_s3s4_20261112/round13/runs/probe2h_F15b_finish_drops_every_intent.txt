@@ -1,0 +1,3 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+FAIL - R13-2h the start's record never removes another live process's intent (only its own) (expected [sZ 1490] got [null null])

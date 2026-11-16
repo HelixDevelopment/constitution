@@ -22,7 +22,7 @@ Round 3 (2026-11-12): the fixes for the review of `c2489197` and their RED/GREEN
 fails, shellcheck SC2164); the runs were made with the earlier text. `SHA256SUMS` was regenerated for the whole pack.
 None of the live runs here was re-captured in round 2 or round 3.
 
-Rounds 4 to 12 (gate-logic evidence, PROVISIONAL): [round 4](round4/README.md), [round 5](round5/README.md), [round 6](round6/README.md), [round 7](round7/README.md), [round 8](round8/README.md), [round 9](round9/README.md), [round 10](round10/README.md), [round 11](round11/README.md), [round 12](round12/README.md). Round 12 (review of `a1eeb0d7`) found the open three-process finding R12-F1, filed as CON-428.
+Rounds 4 to 13 (gate-logic evidence, PROVISIONAL): [round 4](round4/README.md), [round 5](round5/README.md), [round 6](round6/README.md), [round 7](round7/README.md), [round 8](round8/README.md), [round 9](round9/README.md), [round 10](round10/README.md), [round 11](round11/README.md), [round 12](round12/README.md), [round 13](round13/README.md). Round 12 (review of `a1eeb0d7`) found the three-process finding R12-F1, filed as CON-428; round 13 (review of `c0455825`) reproduced it, found it worse than round 12 stated (a killed starter leaves a running unit with no set), and fixed it with a start intent (gate-logic evidence; independent review owed).
 
 ## T3 detection (bootstrap, no consent, no default-on)
 

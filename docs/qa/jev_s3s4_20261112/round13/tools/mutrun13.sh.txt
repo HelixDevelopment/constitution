@@ -1,0 +1,10 @@
+#!/bin/bash
+# mutrun13.sh <mutant>: run suites in order until one has failures; records "MUT name KILLED-by suite fails=N" or SURVIVED
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r13.7MaT; m="${1:?}"
+for k in ${SUITES:-r13 r12 r11 r10 pl r6 r9 r8 r7}; do
+  bash "$W/tools/runsuite.sh" "$W/repo" "$k" "$W/runs/mut_${m}_$k" "$W/mut/$m/scripts/jev/jev-place.sh"
+  nf=$(grep -c '^FAIL\|^not ok' "$W/runs/mut_${m}_$k.txt")
+  if [ "$nf" -gt 0 ]; then echo "MUT $m KILLED-by $k fails=$nf" >> "$W/runs/mut_summary.txt"; exit 0; fi
+done
+echo "MUT $m SURVIVED ${SUITES:-r13 r12 r11 r10 pl r6 r9 r8 r7}" >> "$W/runs/mut_summary.txt"

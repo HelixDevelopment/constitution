@@ -672,8 +672,56 @@ observe_read() {
 # set when this ticket is newer than the recorded one; a held set whose unit is gone has every lease released
 # (endpoint_gone, §11.4.291(J)(6)); a lease-less set this producer did not start is forgotten (never stopped).
 GONE_WRITTEN=0
+# intents_locked (caller holds the lock; round 13, review R12-B1): the START INTENT record. mark_start_locked writes
+# .start_intents[<profile>] (a mark naming the starter: pid, pid start time, holder, at, mono) in the SAME registry write
+# as the starting mark, before the bounded llmctl start; finish_start_locked removes it (only when it names that same
+# process) in the same write as the start result. Unlike the starting mark it lives OUTSIDE the lease set, so another
+# process's stop that deletes the set, or a reap that clears the mark by age, never removes it. While an intent exists,
+# a running unit of that profile is never adopted as operator-started (plan step D) and no second start is marked
+# (mark_start_locked). An intent whose starter is provably dead (pid + start time; without /proc, kill -0) was never
+# answered: the start it covers may have brought the unit up. Here, with the observation of this ticket:
+#   a set of the profile exists      -> the set is made constitution-started (its unit may be ours), the intent removed
+#   no set, the unit runs (ok or degraded) -> a lease-less constitution-started set with stop_owed is created (the owed
+#                                       stop of plan step A, or the next release, stops it), the intent removed
+#   no set, the unit is absent       -> nothing was started (or it is gone): the intent is removed
+#   no set, the state is unknown     -> the intent is kept (judged by a later observation)
+# A LIVE starter's intent is never judged by age (the starting mark is; that is what R12-F1 showed is not enough).
+intents_locked() {
+  local cur out p ipid ipst iat st v th r f
+  cur="$(leases_load)"; out="$cur"
+  while IFS="$US" read -r p ipid ipst iat; do
+    [ -n "$p" ] || continue
+    pid_dead "$ipid" "$ipst" || continue
+    if jq -e --arg p "$p" '.sets[$p] != null' <<<"$out" >/dev/null; then
+      log "start intent of $p (pid $ipid) was never answered and its starter is gone; the existing set is kept constitution-started (the unit may be one this producer started)"
+      out="$(jq -c --arg p "$p" '.sets[$p].constitution_started = true | del(.start_intents[$p])' <<<"$out")"
+      continue
+    fi
+    if [ "$CAP_ST" = ok ]; then IFS="$US" read -r st v th r <<<"$(inst_state "$p")"; else st=unknown; fi
+    case "$st" in
+      ok|degraded)
+        f="$(obs_counter)"
+        log "start intent of $p (pid $ipid) was never answered and its starter is gone; the unit runs ($st) with no lease set: it is recorded constitution-started with an owed stop (never adopted as operator-started, §11.4.291(G))"
+        out="$(jq -c --arg p "$p" --argjson now "$NOW" --argjson f "$f" --argjson at "${iat:-0}" --arg ipid "$ipid" --arg st "$st" \
+          '.sets[$p] = {constitution_started:true, started_at:$at, stopping:null, starting:null, leases:[],
+             stop_owed:{at:$now, reason:"the start by pid \($ipid) was never recorded (its starter is gone) and the unit runs (\($st)); a unit this producer may have started is owed a stop"},
+             health:{state:"pending", reason:"recovered from an unanswered start intent; not observed since", seq:$f, at:$now}}
+           | del(.start_intents[$p])' <<<"$out")" ;;
+      absent)
+        log "start intent of $p (pid $ipid) was never answered and its starter is gone; no unit runs: the intent is removed"
+        out="$(jq -c --arg p "$p" 'del(.start_intents[$p])' <<<"$out")" ;;
+      *) log "start intent of $p (pid $ipid): its starter is gone, the unit state is not known now; the intent is kept" ;;
+    esac
+  done < <(jq -r '(.start_intents // {}) | to_entries[] | [.key, (.value.pid // "null"), (.value.pid_start // "null"), (.value.at // 0)] | map(tostring) | join("\u001f")' <<<"$cur")
+  [ "$out" = "$cur" ] && return 0
+  out="$(jq -c 'if (.start_intents // null) == {} then del(.start_intents) else . end' <<<"$out")"
+  printf '%s\n' "$out" | leases_save
+}
+# intent_of <profile> -> the pid of a start intent of <profile> ("" when none)
+intent_of() { jq -r --arg p "$1" '(.start_intents // {})[$p].pid // "" | tostring' <<<"$(leases_load)"; }
 obs_locked() {
   [ -n "$OBS_TICKET" ] || return 0
+  intents_locked
   local cur out p st v th r det gone="" newer holders
   declare -A gdet=()
   cur="$(leases_load)"; out="$cur"
@@ -1045,6 +1093,12 @@ plan_locked() {
     # round 11 (R10-1): nor a profile this acquire stopped or disposed: a unit running after this acquire's own stop was
     # started by a start this producer made (the owed stop of its kept set covers it), not by the operator
     case " $STOP_TRIED ${DISPOSED:-} " in *" $p "*) log "candidate $p: this acquire stopped it; a unit running now is not adopted as operator-started"; continue ;; esac
+    # round 13 (R12-B1): nor a profile with an unanswered start intent of ANY process: that start may have brought the
+    # unit up (a dead starter's intent is turned into an owed stop by intents_locked, never into an adoption)
+    if jq -e --arg p "$p" '(.start_intents // {})[$p] != null' <<<"$cur" >/dev/null; then
+      log "candidate $p: a start of it by pid $(jq -r --arg p "$p" '.start_intents[$p].pid' <<<"$cur") is in flight (start intent, unanswered); a unit running now is not adopted as operator-started"
+      continue
+    fi
     IFS="$US" read -r st v th r <<<"$(inst_state "$p")"
     [ "$st" = ok ] || continue
     cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$holder" "$pid" "$pst" "$ttl" false)" \
@@ -1098,8 +1152,11 @@ mark_start_locked() {
   cur="$(leases_load)"
   if jq -e --arg p "$p" '.sets[$p] != null' <<<"$cur" >/dev/null; then return 1; fi
   if jq -e 'any(.sets[]?; (.starting // null) != null or (.stopping // null) != null)' <<<"$cur" >/dev/null; then return 1; fi
+  # round 13 (R12-B1): an unanswered start intent of this profile (another starter, live or not yet judged) refuses a second start
+  if jq -e --arg p "$p" '(.start_intents // {})[$p] != null' <<<"$cur" >/dev/null; then log "candidate $p: a start intent of pid $(intent_of "$p") is unanswered; not started"; return 1; fi
+  # round 13 (R12-B1): the start intent is written in the SAME registry write as the starting mark (see intents_locked)
   cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$2" "$3" "$4" "$5" true)" --argjson m "$(me_mark)" \
-    '.sets[$p] = {constitution_started:true, started_at:null, stopping:null, starting:$m, leases:[$l]}' <<<"$cur")"
+    '.sets[$p] = {constitution_started:true, started_at:null, stopping:null, starting:$m, leases:[$l]} | .start_intents[$p] = $m' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
 }
 # finish_start_locked <profile> <start-rc> -> sets START_RES (caller holds the lock). Round 10 (R9-1): every branch goes
@@ -1174,6 +1231,10 @@ finish_start_locked() {
     case "$src" in 0) START_RES=handed ;; 75) START_RES=refused ;; *) START_RES=failed_kept ;; esac
   fi
   case "$START_RES" in released|failed) ARMED_MARK[$p]="$m" ;; esac
+  # round 13 (R12-B1): the start is answered in this write: its intent is removed, only when it names THIS process
+  cur="$(jq -c --arg p "$p" --arg pid "$$" --arg pst "$ME_START" '((.start_intents // {})[$p] // null) as $i
+    | if $i != null and (($i.pid // null) | tostring) == $pid and ((($i.pid_start // null) | tostring) == (if $pst == "" then "null" else $pst end))
+      then del(.start_intents[$p]) | (if (.start_intents | length) == 0 then del(.start_intents) else . end) else . end' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
 }
 

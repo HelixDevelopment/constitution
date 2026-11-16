@@ -206,23 +206,27 @@ DATA_EXT = ("md", "txt", "json", "jsonl", "tsv", "yaml", "yml", "lock", "html", 
 # one of these extensions is data only when it is not executable, lies under docs/qa/, and its WHOLE content has the
 # captured shape: `.rc` one exit status (an integer 0 to 255, optional newline); `.ls` an `ls -l` listing (a `total N`
 # line, then only listing lines). Any other `.rc` / `.ls` file stays UNCLASSIFIED and fails the run (closed world).
-LS_LINE = re.compile(r"^[-dlcbpsD][rwxsStT-]{9}[.+@]?\s+\d+\s+\S+\s+\S+\s+\d+\s+[A-Z][a-z]{2}\s+\d{1,2}\s+(?:\d{1,2}:\d{2}|\d{4})\s+\S.*$")
+# Jev round 13 (R12-B2): re.ASCII, so a digit is 0-9 and a space is an ASCII space (a Unicode digit such as U+0661 or a
+# Unicode space such as U+2003 never makes a line listing-shaped).
+LS_LINE = re.compile(r"^[-dlcbpsD][rwxsStT-]{9}[.+@]?\s+\d+\s+\S+\s+\S+\s+\d+\s+[A-Z][a-z]{2}\s+\d{1,2}\s+(?:\d{1,2}:\d{2}|\d{4})\s+\S.*$", re.ASCII)
 
 
 def shaped_data(path, ext, text, executable):
     """True when an `.rc` / `.ls` file is a captured evidence record of the declared shape (see the note above)."""
     if executable or ext not in ("rc", "ls") or not path.startswith("docs/qa/"):
         return False
-    # round 12: a listing line may carry any file name (`\S.*$`), so a record that names git is never data by shape
-    if re.search(r"\bgit\b|GIT_", text):
+    # round 12: a listing line may carry any file name (`\S.*$`), so a record that names git is never data by shape.
+    # Round 13 (R12-B2): the SAME definition the member detector uses (MENTION, case-insensitive, letter boundary only),
+    # so no text the detector counts as a git mention (GIT, Git, _git, 1git, gitx, ${G,,} after G=GIT) is data by shape.
+    if MENTION.search(text):
         return False
     if ext == "rc":
-        m = re.fullmatch(r"(\d{1,3})\n?", text)
+        m = re.fullmatch(r"(\d{1,3})\n?", text, re.ASCII)
         return bool(m) and int(m.group(1)) <= 255
     lines = text.split("\n")
     if lines and lines[-1] == "":
         lines.pop()
-    if len(lines) < 1 or not re.fullmatch(r"total \d+", lines[0]):
+    if len(lines) < 1 or not re.fullmatch(r"total \d+", lines[0], re.ASCII):
         return False
     return all(LS_LINE.match(ln) for ln in lines[1:])
 
@@ -1051,7 +1055,17 @@ def needles(canon):
               ("docs/qa/a/x.ls", "ls", "", False, False),
               # round 12: a listing-shaped line that names git, and a header followed by a non-listing line
               ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x; git commit -q -m y\n", False, False),
-              ("docs/qa/a/x.ls", "ls", "total 0\nrm -rf x\n", False, False))
+              ("docs/qa/a/x.ls", "ls", "total 0\nrm -rf x\n", False, False),
+              # round 13 (R12-B2): the shape rule and the detector share one definition; digits and spaces are ASCII
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x; G=GIT; ${G,,} commit -q -m y\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 Git=1\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x_git\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 gitx\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 digit\n", False, True),
+              ("docs/qa/a/x.rc", "rc", "\u0661\u0662\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total \u0668\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r--\u20031 u u 1 Nov 13 18:38 x\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- \u0661 u u 1 Nov 13 18:38 x\n", False, False))
     for sp, se, st_, sx, want in shapes:
         if shaped_data(sp, se, st_, sx) != want:
             bad.append("shape rule on %s %r exec=%s: got %s" % (sp, st_[:40], sx, not want))

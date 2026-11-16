@@ -21,7 +21,7 @@
 | R11-E | `Constitution.md` Revision is 97: `main` has 96, and the vehicle's 98 never landed | `Constitution.md` header |
 | R11-F | A three-process model check runs 60 interleavings (R12-10, `tests/jev/test_s4_round12_mc.sh`). It found **R12-F1** (below) | `runs/r12mc_head_discovery_R12-F1.txt` |
 
-## Finding R12-F1 (open, not fixed)
+## Finding R12-F1 (open in round 12; fixed in round 13, see the correction below)
 
 Found by R12-10 on its first run at the round-12 head, in 2 of the 60 orders: `starCA` and `straCA`.
 
@@ -37,6 +37,14 @@ The sequence:
 
 So the finding is a window in which a constitution-started unit is treated as operator-owned. In that window C would
 never stop it.
+
+**Correction added in round 13 (review R12-B1 and R12-N2).** The account above understates the consequence. When A
+dies in the window (SIGKILL at its record lock call, the fixture's "OOM kill of the starter" seam), A never records its
+start, so nothing makes the set constitution-started again. The review measured, in orders `starCA` and `starAC`: after
+the releases of C, B and A, an owed-stop acquire, its release and a `reap`, the final state is `running=[decide-a]`
+with no set; one start and one stop ran. That is a model the constitution started that this producer never stops
+(§11.4.291(G)), a host-safety leak, not only a mis-treatment by C. The sentence "the cleanup leaves no unit and no set"
+holds only when A survives the window. Round 13 fixes it (a start intent; `../round13/README.md`).
 
 What R12-10 does about it:
 
@@ -85,6 +93,10 @@ Earlier runs are kept as found:
   cannot write without the lock. The assertion was corrected to the logged unwritten record and an unchanged
   `placement.json`.
 - `runs/r12mc_head_discovery_R12-F1.txt`: the run that found R12-F1.
+- `runs/final_r12.txt` (correction added in round 13, review R12-N1): the FIRST final r12 run was 61 passes and 1
+  failure, not 62/0. Row R12-12 compared `running` output that carries a trailing space (`decide-b `) with
+  `decide-b`. The assertion was corrected and the suite re-run: `runs/final2_r12.txt`, 62/0, is the run the table above
+  reports. This line was missing from the round-12 README.
 
 ## Follow-ups
 
