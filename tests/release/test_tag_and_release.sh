@@ -43,7 +43,8 @@ cat >"$W/bin/gh" <<'SH'
 [ -r "${0%/*}/../.stubenv" ] && . "${0%/*}/../.stubenv"
 echo "gh $*" >>"$STUB_LOG"
 case "$1 $2" in
-  "auth status") exit 0 ;;
+  "auth status") echo "Logged in to github.com, Token: gho_ZZSTUBGHTOKEN"; echo "Token: gho_ZZSTUBGHTOKEN" >&2   # RH10: never shown
+                 [ "${GH_AUTH:-ok}" = fail ] && exit 1; exit 0 ;;
   "api repos/acc/one"|"api repos/acc/alias") echo 42; exit 0 ;;
   "api repos/acc/two") echo 43; exit 0 ;;
   "api repos/acc/evil") echo "ZZGHID https://u:ZZGHPW@h/x"; exit 0 ;;
@@ -63,7 +64,8 @@ cat >"$W/bin/glab" <<'SH'
 [ -r "${0%/*}/../.stubenv" ] && . "${0%/*}/../.stubenv"
 echo "glab $*" >>"$STUB_LOG"
 case "$1 $2" in
-  "auth status") [ "${GLAB_AUTH:-ok}" = fail ] && exit 1; exit 0 ;;
+  "auth status") echo "Token: glpat-ZZSTUBGLTOKEN"; echo "Token: glpat-ZZSTUBGLTOKEN" >&2   # RH10: never shown
+                 [ "${GLAB_AUTH:-ok}" = fail ] && exit 1; exit 0 ;;
   "release view") grep -qx "glrel $5" "$STUB_STATE" 2>/dev/null && exit 0; exit 1 ;;
   "release create") p=""; nm=""; nf=""; at="-"
                     for a in "$@"; do [ "$p" = "-R" ] && r=$a; [ "$p" = "--name" ] && nm=$a; [ "$p" = "--notes-file" ] && nf=$a
@@ -461,7 +463,7 @@ for bad_spec in 'gitea:r1:https://u:ZZSPEC1@h:o/r' 'github:r1:https://ZZSPEC2@h/
 done
 printf '%s\n' "$OUT" | grep -q 'bad --release spec number 1' && ok "C36 the refusal names the spec by number (positive needle)" || bad "C36 the refusal names the spec by number (positive needle)"
 run --release gitlab:r1:grp/sub/repo --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
-chk "C36 control: a nested GitLab path and a loopback gitea URL are accepted" "$RC" 0
+chk "C36 control: a nested GitLab path and a loopback gitea URL are accepted (no usage error; the dry-run probe of the gitea leg without a token is a would-gap, exit 5)" "$RC" 5
 run --frobnicate; printf '%s\n' "$OUT" | grep -q 'unknown argument: --frobnicate' && ok "C36 an option-shaped unknown argument is named (control)" || bad "C36 an option-shaped unknown argument is named (control)"
 run '--https://u:ZZARG@h/x'; chk "C36 credential-shaped unknown argument: usage" "$RC" 2
 printf '%s\n' "$OUT" | grep -q 'ZZARG' && bad "C36 a credential-shaped unknown argument is not echoed" || ok "C36 a credential-shaped unknown argument is not echoed"
@@ -781,11 +783,16 @@ mk gl12; run --release gitlab:r1:grp/one; : >"$D/stub.log"; run --prerelease --r
 chk "GL12 kept unmarked release exit 1" "$RC" 1; outhas "GL12 kept" '^RELEASE gitlab:r1:grp/one already exists \(kept\)'
 outhas "GL12 FAIL mark missing on the kept release" '^FAIL RELEASE gitlab:r1:grp/one PRERELEASE-MARK MISSING'
 grep -q 'glab release create' "$D/stub.log" && bad "GL12 the kept release is not re-created" || ok "GL12 the kept release is not re-created"
-# GL13 dry run: no glab call at all; the marking plan line only on the GitLab spec (survivors M13, M15)
+# GL13 dry run: only READ-ONLY glab and gh calls (the rehearsal D3 probes: auth status, api, release view; no create,
+# no edit, no delete); the marking plan line only on the GitLab spec (survivors M13, M15); the GitHub plan line states
+# the pre-release flag (rehearsal D4)
 mk gl13; run --prerelease --gitlab-released-at "$FUT" --release gitlab:r1:grp/one --release github:r1:acc/one --dry-run
-chk "GL13 dry run exit 0" "$RC" 0; [ -s "$D/stub.log" ] && bad "GL13 dry run calls no glab or gh" || ok "GL13 dry run calls no glab or gh"
+chk "GL13 dry run exit 0" "$RC" 0
+[ -s "$D/stub.log" ] && ok "GL13 the dry run probes the platforms (positive needle: the doubles were called)" || bad "GL13 the dry run probes the platforms (no call recorded)"
+gl13w="$(grep -vE '^(gh|glab) (auth status|api (--hostname [^ ]+ )?[^ ]+( --jq \.id)?|release view [^ ]+ -R [^ ]+)$' "$D/stub.log")"
+[ -z "$gl13w" ] && ok "GL13 dry run calls only read-only glab and gh subcommands" || bad "GL13 dry run calls only read-only glab and gh subcommands (got: ${gl13w:0:200})"
 outhas "GL13 gitlab plan line names the marking" "^PLAN release gitlab:r1:grp/one prerelease=marked-by-title-and-description upcoming=$FUT\$"
-outhas "GL13 github plan line is plain" '^PLAN release github:r1:acc/one$'
+outhas "GL13 github plan line states the pre-release flag" '^PLAN release github:r1:acc/one prerelease=flag$'
 # GL14 glab not authenticated: SKIPPED-NO-TOKEN gap, no create (survivor M20)
 mk gl14; echo 'GLAB_AUTH=fail' >>"$W/.stubenv"; run --prerelease --release gitlab:r1:grp/one
 chk "GL14 no auth exit 5" "$RC" 5; outhas "GL14 GAP skipped no token" '^GAP RELEASE gitlab:r1:grp/one SKIPPED-NO-TOKEN'
@@ -805,6 +812,83 @@ chk "GL16 no glab call site outside nt" "$gl16" 0; [ "$gl16n" -ge 5 ] && ok "GL1
 # GL17 the notes copy lives in the run directory (no second temp file, no second EXIT trap; S1 of the review)
 grep -vE '^[[:space:]]*#' "$S" | grep -c 'trap .* EXIT' | grep -qx 1 && ok "GL17 one EXIT trap" || bad "GL17 one EXIT trap"
 grep -q 'GL_NOTES="$RUNDIR/glnotes"' "$S" && ok "GL17 marked notes in the run directory" || bad "GL17 marked notes in the run directory"
+
+# ---- CON-423 (rehearsal of the v73.4 cut, 2026-11-16, REHEARSAL_REPORT.md D3 D4 D10): the dry run probes every release
+# leg read-only and prints its would-be status; the GitHub plan line states the pre-release flag; --remotes names one
+# remote per distinct repository (URL identity of the push URLs, and the GitHub repository id for github.com URLs) ----
+nolog() { [ -z "$(grep -E 'release (create|edit|delete|upload)|repo (create|edit|delete)' "$D/stub.log")" ]; }
+# RH1 (D4) the plan line of every forge states the pre-release handling, with and without --prerelease
+mk rh1; run --release github:r1:acc/one --release gitlab:r1:grp/one --dry-run
+chk "RH1 no --prerelease: exit 0" "$RC" 0
+outhas "RH1 github plan line: prerelease=none" '^PLAN release github:r1:acc/one prerelease=none$'
+outhas "RH1 gitlab plan line: prerelease=none" '^PLAN release gitlab:r1:grp/one prerelease=none$'
+mk rh1b; M3W_GITEA_TOKEN=ZZRH1TOK run --prerelease --release gitea:r1:http://127.0.0.1:3000:o/r --release github:r1:acc/one --dry-run
+outhas "RH1 gitea plan line: prerelease=flag" '^PLAN release gitea:r1:http://127.0.0.1:3000:o/r prerelease=flag$'
+outhas "RH1 github plan line: prerelease=flag" '^PLAN release github:r1:acc/one prerelease=flag$'
+# RH2 (D3) all legs reachable: a would-create line per leg, exit 0, the unchanged OK result line, nothing written
+mk rh2; run --prerelease --release github:r1:acc/one --release gitlab:r1:grp/one --dry-run
+chk "RH2 exit 0" "$RC" 0; chk "RH2 RESULT OK" "$(last)" "RESULT: OK"
+outhas "RH2 github probe: would create, repository id read" '^PROBE release github:r1:acc/one OK would-create \(gh auth status exit 0; repository id 42\)$'
+outhas "RH2 gitlab probe: would create" '^PROBE release gitlab:r1:grp/one OK would-create \(glab auth status exit 0; project readable\)$'
+grep -qx 'glab api --hostname gitlab.com projects/grp%2Fone' "$D/stub.log" && ok "RH2 the gitlab project is read on the pinned host" || bad "RH2 the gitlab project is read on the pinned host"
+nolog && ok "RH2 no write call to any platform" || bad "RH2 no write call to any platform"
+chk "RH2 no local tag" "$(git -C "$D/w" rev-parse -q --verify "refs/tags/$TAG" || echo -)" -; chk "RH2 r1 untouched" "$(rmain r1)" "$BASE"
+# RH3 (D3) gh not authenticated: a would-gap SKIPPED-NO-TOKEN with the exit code only; exit 5, RESULT GAPS dry-run
+mk rh3; echo 'GH_AUTH=fail' >>"$W/.stubenv"; run --release github:r1:acc/one --dry-run
+chk "RH3 exit 5" "$RC" 5; outhas "RH3 RESULT GAPS dry-run" '^RESULT: GAPS dry-run \(no tag created, nothing pushed; would-fail=0 would-gap=1\)$'
+outhas "RH3 would-gap SKIPPED-NO-TOKEN with the exit code" '^PROBE release github:r1:acc/one WOULD-GAP SKIPPED-NO-TOKEN \(gh auth status exit 1\)$'
+grep -q 'gh api' "$D/stub.log" && bad "RH3 no api call without authentication" || ok "RH3 no api call without authentication"
+# RH4 (D3) a repository gh cannot read: a would-gap NOT-ACCESSIBLE
+mk rh4; run --release github:r1:acc/none --dry-run
+chk "RH4 exit 5" "$RC" 5; outhas "RH4 would-gap NOT-ACCESSIBLE" '^PROBE release github:r1:acc/none WOULD-GAP NOT-ACCESSIBLE '
+# RH5 (D3) two GitHub specs of one repository id: the second would be deduplicated (no gap); an existing release is kept
+mk rh5; echo "ghrel acc/one" >>"$D/stub.state"; run --release github:r1:acc/one --release github:r2:acc/alias --dry-run
+chk "RH5 exit 0" "$RC" 0
+outhas "RH5 existing release would be kept" '^PROBE release github:r1:acc/one OK would-keep \(release exists; repository id 42\)$'
+outhas "RH5 same repository id: would be deduplicated" '^PROBE release github:r2:acc/alias OK would-deduplicate \(same repository id 42 as acc/one\)$'
+# RH6 (D3) glab not authenticated: would-gap; a project glab cannot read: would-fail, exit 1, RESULT FAIL dry-run
+mk rh6; echo 'GLAB_AUTH=fail' >>"$W/.stubenv"; run --release gitlab:r1:grp/one --dry-run
+chk "RH6 glab no auth exit 5" "$RC" 5; outhas "RH6 would-gap SKIPPED-NO-TOKEN" '^PROBE release gitlab:r1:grp/one WOULD-GAP SKIPPED-NO-TOKEN \(glab auth status exit 1\)$'
+mk rh6b; echo 'GLAPI_MODE=fail' >>"$W/.stubenv"; run --release gitlab:r1:grp/one --dry-run
+chk "RH6 unreadable project exit 1" "$RC" 1; outhas "RH6 RESULT FAIL dry-run" '^RESULT: FAIL dry-run \(no tag created, nothing pushed; would-fail=1 would-gap=0\)$'
+outhas "RH6 would-fail NOT-ACCESSIBLE" '^PROBE release gitlab:r1:grp/one WOULD-FAIL NOT-ACCESSIBLE '
+mk rh6c; echo 'GLAPI_MODE=junk' >>"$W/.stubenv"; run --release gitlab:r1:grp/one --dry-run
+chk "RH6 a project answer that is not a JSON object: exit 1" "$RC" 1; outhas "RH6 junk answer: would-fail" '^PROBE release gitlab:r1:grp/one WOULD-FAIL NOT-ACCESSIBLE '
+# RH7 (D3) gitea: token presence only (never the value); its repository access cannot be probed (UNCONFIRMED, a would-gap)
+mk rh7; M3W_GITEA_TOKEN= run --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run   # an empty value counts as not set (as in the publisher)
+chk "RH7 no token exit 5" "$RC" 5; outhas "RH7 would-gap SKIPPED-NO-TOKEN" '^PROBE release gitea:r1:http://127.0.0.1:3000:o/r WOULD-GAP SKIPPED-NO-TOKEN \(gitea token variable not set\)$'
+mk rh7b; M3W_GITEA_TOKEN=ZZRH7GITEATOKEN run --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
+chk "RH7 token set exit 5 (access unconfirmed)" "$RC" 5; outhas "RH7 token set: ACCESS UNCONFIRMED" '^PROBE release gitea:r1:http://127.0.0.1:3000:o/r WOULD-GAP ACCESS-UNCONFIRMED \(token variable set'
+# RH10 (D3) no token text reaches the output: the doubles print token-shaped text on auth status (control: it is in their stdout)
+mk rh10; GH_TOKEN=ZZRH10GH GITLAB_TOKEN=ZZRH10GL M3W_GITEA_TOKEN=ZZRH10GT run --release github:r1:acc/one --release gitlab:r1:grp/one --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
+printf '%s\n' "$OUT" | grep -qE 'ZZSTUB|ZZRH10' && bad "RH10 no token text in the output" || ok "RH10 no token text in the output (gh, glab, gitea legs probed)"
+"$W/bin/gh" auth status 2>/dev/null | grep -q ZZSTUBGHTOKEN && ok "RH10 control: the gh double does print token text" || bad "RH10 control: the gh double does print token text"
+# RH11 (D10) two remotes that push to one repository: refused before any write, the URL not shown (trailing slash and
+# .git suffix do not make a second repository)
+mk rh11; git -C "$D/w" config remote.r2.pushurl "${D}/r1.git/"; run --dry-run
+chk "RH11 same repository by URL: exit 1" "$RC" 1
+outhas "RH11 ABORT names both remotes" '^ABORT remotes r1 and r2 push to the same repository '
+chk "RH11 no local tag" "$(git -C "$D/w" rev-parse -q --verify "refs/tags/$TAG" || echo -)" -
+mk rh11b; git -C "$D/w" config remote.r1.pushurl 'git@github.com:Acc/ZZURLMARK.git'; git -C "$D/w" config remote.r2.pushurl 'ssh://git@github.com:22/acc/zzurlmark'; run
+chk "RH11 scp-style and ssh:// forms of one GitHub repository (case-folded): exit 1" "$RC" 1
+outhas "RH11 real run aborts too" '^ABORT remotes r1 and r2 push to the same repository '
+printf '%s\n' "$OUT" | grep -qi 'zzurlmark' && bad "RH11 the push URL is not shown" || ok "RH11 the push URL is not shown"
+chk "RH11 r1 untouched by the aborted real run" "$(rmain r1)" "$BASE"
+# RH12 (D10) a remote name listed twice is a usage error
+mk rh12; OUT="$(cd "$D/w" && PATH="$W/bin:$PATH" bash "$S" --tag "$TAG" --sha "$REL" --remotes "r1 r2 r1" --no-badge-check --dry-run 2>&1)"; RC=$?
+chk "RH12 repeated remote name: usage" "$RC" 2; outhas "RH12 names the repeated position" 'remote name number 3 in --remotes repeats an earlier name'
+# RH13 (D10) a renamed GitHub repository: two URLs, one repository id: refused; control: two ids pass
+mk rh13; git -C "$D/w" config remote.r1.pushurl 'git@github.com:acc/one.git'; git -C "$D/w" config remote.r2.pushurl 'git@github.com:acc/alias.git'; run --dry-run
+chk "RH13 one GitHub repository id behind two URLs: exit 1" "$RC" 1
+outhas "RH13 ABORT names both remotes and the id" '^ABORT remotes r1 and r2 push to the same GitHub repository \(id 42;'
+mk rh13b; git -C "$D/w" config remote.r1.pushurl 'git@github.com:acc/one.git'; git -C "$D/w" config remote.r2.pushurl 'git@github.com:acc/two.git'; run --dry-run
+chk "RH13 control: two GitHub repository ids: exit 0" "$RC" 0
+# RH14 (D10) gh not authenticated: the id check is UNCONFIRMED (said so), the URL check still applies, the run goes on
+mk rh14; echo 'GH_AUTH=fail' >>"$W/.stubenv"; git -C "$D/w" config remote.r1.pushurl 'git@github.com:acc/one.git'; git -C "$D/w" config remote.r2.pushurl 'git@github.com:acc/alias.git'; run --dry-run
+chk "RH14 exit 0" "$RC" 0; outhas "RH14 id check UNCONFIRMED" '^INFO GitHub remote identity by repository id UNCONFIRMED '
+# RH15 (D10) a GitHub id that cannot be read for one remote is UNCONFIRMED for that remote, never a pass of the check
+mk rh15; git -C "$D/w" config remote.r1.pushurl 'git@github.com:acc/none.git'; run --dry-run
+chk "RH15 exit 0" "$RC" 0; outhas "RH15 per-remote UNCONFIRMED" '^INFO remote r1: GitHub repository id UNCONFIRMED '
 
 # C12 the script never forces (static check of the source)
 if grep -vE '^[[:space:]]*#' "$S" | grep -nE -- '--force|\+refs/|git push[^#]*[[:space:]]\+[A-Za-z0-9]|tag -d|push --delete|push[^#]* :refs' >/dev/null; then bad "C12 no force/delete in script"; else ok "C12 no force/delete in script"; fi

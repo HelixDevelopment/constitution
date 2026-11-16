@@ -122,6 +122,17 @@ tag_and_release.sh	date	a0f83e9d	validated-data	allowlist	none	none	local	glpre:
 tag_and_release.sh	date	10dc5311	fixed	allowlist	none	none	local	glpre: now, for the future check
 tag_and_release.sh	grep	15c512f6	validated-data	allowlist	pipe-network-text	none	local	
 tag_and_release.sh	date	2778ea72	fixed	allowlist	none	none	local	
+tag_and_release.sh	git	9be7b4e8	validated-data	net-allowlist	none	none	local	d10: the push URLs of a remote (local config read; the URLs are compared, never printed)
+tag_and_release.sh	gh	fa19d53e	fixed	net-allowlist	none	none	nt-timeout	d10: gh login check before the GitHub repository-id comparison
+tag_and_release.sh	gh	daeb179a	validated-data	net-allowlist	none	none	nt-timeout	d10: the repository id of a github.com remote (path from the push URL, checked)
+tag_and_release.sh	gh	7be8ff19	fixed	net-allowlist	none	none	nt-timeout	d3: dry-run probe, gh login status (exit code only)
+tag_and_release.sh	gh	917ddc4a	validated-data	net-allowlist	none	none	nt-timeout	d3: dry-run probe, repository id of the OWNER/REPO target
+tag_and_release.sh	gh	30087519	validated-data	net-allowlist	none	none	nt-timeout	d3: dry-run probe, an existing release (read only)
+tag_and_release.sh	glab	e6727e04	fixed	net-allowlist	none	none	nt-timeout	d3: dry-run probe, glab login status (exit code only)
+tag_and_release.sh	jq	e1e3f80f	validated-data	allowlist	pipe-local	none	local	d3: @uri of the GROUP/REPO target (matched RE_GL before)
+tag_and_release.sh	glab	579eebd4	validated-data	net-allowlist	none	none	nt-timeout	d3: dry-run probe, project access (glab api --hostname H, H value-checked)
+tag_and_release.sh	jq	68c47daa	fixed	allowlist	pipe-network-text	none	local	d3: the JSON type of the project answer (a fixed word)
+tag_and_release.sh	glab	d4df41ad	validated-data	net-allowlist	none	none	nt-timeout	d3: dry-run probe, an existing release (read only)
 release_publish_gitea.sh	sed	5d507d9e	validated-data	allowlist	none	none	local	
 release_publish_gitea.sh	grep	248ca227	validated-data	allowlist	pipe-local	none	local	
 release_publish_gitea.sh	grep	18e7f307	validated-data	allowlist	pipe-local	none	local	
@@ -151,4 +162,6 @@ release_publish_gitea.sh	-	30e035ac	fixed	allowlist	none	none	local	secret-ref: 
 release_publish_gitea.sh	-	4c38ab71	fixed	allowlist	none	none	local	secret-ref: printf 'SKIPPED-NO-TOKEN: env var %s is not set; nothing was published
 release_publish_gitea.sh	-	299e46fd	fixed	allowlist	none	none	local	secret-ref: if [ -n "$_rpg_tok" ] && ! [[ $_rpg_tok =~ ^[A-Za-z0-9._~+/=-]{8,200}$
 tag_and_release.sh	-	84b4c1a0	fixed	allowlist	none	none	local	secret-ref: rc_env_clean READS names M3W_GITEA_TOKEN: its value is kept in this shell, never exported
+tag_and_release.sh	-	5ba0bc45	fixed	allowlist	none	none	local	secret-ref: d3 dry-run probe, tests only whether M3W_GITEA_TOKEN is empty; the value is never printed
+tag_and_release.sh	-	b1e5bb60	fixed	allowlist	none	none	local	secret-ref: d3 dry-run probe, matches M3W_GITEA_TOKEN against the publisher's charset; the value is never printed
 release_publish_gitea.sh	-	a3da2cb7	fixed	allowlist	none	none	local	secret-ref: _rpg_tv=M3W_GITEA_TOKEN (prescan of --token-var for rc_env_clean READS)
