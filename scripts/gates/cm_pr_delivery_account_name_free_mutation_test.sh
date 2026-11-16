@@ -34,8 +34,15 @@
 #                        assignee value, a missing configuration file, a corpus file with a NUL byte (also
 #                        one that hides a fixture account after the NUL) and an unresolvable --changed-since
 #                        MUST exit 2; equal reviewer and assignee keys exit 64;
-#     * REAL consumer    when a consumer configuration exists next to this constitution
-#                        (<root>/../config/delivery.conf, or PR_DELIVERY_REAL_CONSUMER_CONFIG), the gate
+#     * CON-424          a constitution that is its own consumer: a root-level <root>/config/delivery.conf
+#                        (with the extra keys decision_id, decision_date, pr_repository, own_repositories) is
+#                        read by default and its accounts are scanned; under --changed-since that file is left
+#                        out by its resolved path (another file next to it, and a root-level file that was not
+#                        read, are still scanned); a changed SQLite database is left out and named in the PASS,
+#                        while another changed binary file and a changed fixed-corpus file stay BLIND;
+#     * REAL consumer    when a consumer configuration exists for this constitution
+#                        (<root>/../config/delivery.conf, else <root>/config/delivery.conf, or
+#                        PR_DELIVERY_REAL_CONSUMER_CONFIG), the gate
 #                        MUST pass on the real tree with it, and each account read from it AT RUN TIME,
 #                        written into a copy of the canon block, MUST exit 1; without such a file this leg is
 #                        reported SKIP;
@@ -47,7 +54,11 @@
 #                        reported as PASS, present-means-mandatory removed, an empty reviewer list accepted
 #                        or not detected, an empty assignee list refused, the assignee list ignored or its
 #                        malformed value accepted, --changed-since ignored, a corpus file, file pattern or
-#                        guide directory dropped, the scan skipped) MUST each be killed by a scenario above.
+#                        guide directory dropped, the scan skipped, and for CON-424: either default location
+#                        dropped, extra keys read as accounts, the configuration exclusion removed or widened to
+#                        a directory or a file name, the SQLite skip removed or widened to every changed file,
+#                        the skipped database not named in the PASS) MUST each
+#                        be killed by a scenario above.
 #   Each mutation operator asserts it really changed the file; a no-op mutation is a test bug (exit 2).
 #
 # Usage
@@ -241,6 +252,37 @@ gitfresh; op append "$C/docs/research/note.md" "This note names $F2."; fgit comm
 expect "RED: a file committed after the base named by --changed-since" 1 "appears in docs/research/note.md:" --changed-since HEAD~1
 gitfresh; expect "BLIND: an unresolvable --changed-since" 2 "BLIND — --changed-since: 'no-such-rev' is not a commit" --changed-since no-such-rev
 
+# ── CON-424: a constitution that is its own consumer (root-level config/delivery.conf) ──
+# self_consumer: the consumer-level configuration is removed and the fixture reviewers are declared at
+# <root>/config/delivery.conf instead, with the extra keys a real declaration carries (CON-423 decision (4))
+self_consumer() {
+    rm -f "$L/consumer/config/delivery.conf"
+    printf '%s\n' '# fixture root-level declaration' 'decision_id=FIXTURE-1' 'decision_date=2026-11-16' 'mode=pr' \
+        'pr_repository=FixtureOrg/fixture-repo' "pr_reviewers=$F1,$F2" 'pr_assignees=fixture-asg' \
+        'own_repositories=.:FixtureOrg/fixture-repo:pr,submodules/x:FixtureOrg/x:pr' >"$C/config/delivery.conf"
+}
+mkdb() { python3 -I -c 'import sqlite3, sys
+c = sqlite3.connect(sys.argv[1]); c.execute("create table t(x text)"); c.execute("insert into t values (?)", (sys.argv[2],)); c.commit()' "$1" "$2" \
+    || { say "SETUP FAILURE: fixture SQLite database"; exit 2; }; }
+fresh; self_consumer
+expect "PASS: a root-level config/delivery.conf is read by default, the extra keys parse" 0 'PASS — .*3 declared account.*2 reviewer and 1 assignee entries'
+fresh; self_consumer; canon_with "$F2"
+expect "RED: an account of the root-level configuration in the canon block" 1 "appears in Constitution.md:"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf || { say "SETUP FAILURE: commit conf"; exit 2; }
+op append "$C/config/delivery.conf" "# edited after the base: reviewer $F1 kept"
+expect "golden-FALSE: the declared configuration is excluded from --changed-since by path" 0 'excluded from --changed-since: config/delivery.conf' --changed-since HEAD
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf || { say "SETUP FAILURE: commit conf"; exit 2; }
+printf '%s\n' "other=$F1" >"$C/config/other.conf"
+expect "RED: another file next to the declared configuration is still scanned under --changed-since" 1 "appears in config/other.conf:" --changed-since HEAD
+gitfresh; cp "$L/consumer/config/delivery.conf" "$C/config/delivery.conf"
+expect "RED: a root-level configuration that was not read (an explicit --consumer-config) is scanned like any file" 1 "appears in config/delivery.conf:" --changed-since HEAD --consumer-config "$L/consumer/config/delivery.conf"
+gitfresh; mkdb "$C/docs/workable_items.db" "$F1"
+expect "golden-FALSE: a changed SQLite tracker database is not scanned, and the PASS says so" 0 'PASS — .*1 SQLite database file\(s\) not scanned.*docs/workable_items.db' --changed-since HEAD
+gitfresh; printf 'bin\000ary\n' >"$C/docs/research/blob.bin"
+expect "BLIND: a changed binary file that is not an SQLite database stays BLIND" 2 'BLIND — 1 corpus file\(s\) hold a NUL byte.*docs/research/blob.bin' --changed-since HEAD
+gitfresh; printf 'SQLite format 3\000 reviewer %s\n' "$F1" >"$C/CHANGELOG.md"
+expect "BLIND: a changed file of the fixed corpus is never skipped as an SQLite database" 2 'BLIND — 1 corpus file\(s\) hold a NUL byte.*CHANGELOG.md' --changed-since HEAD
+
 # ── SKIP and BLIND ───────────────────────────────────────────────────────────
 fresh; rm -f "$L/consumer/config/delivery.conf"
 expect "SKIP: no consumer data is exit 3, never PASS" 3 'SKIP — no consumer reviewer list'
@@ -265,6 +307,7 @@ expect "RED: a consumer key name declared with --reviewers-key" 1 "appears in Co
 
 # ── REAL consumer leg (accounts read at run time, never stored here) ─────────
 REAL="${PR_DELIVERY_REAL_CONSUMER_CONFIG:-$(dirname "$ROOT")/config/delivery.conf}"
+[ -n "${PR_DELIVERY_REAL_CONSUMER_CONFIG:-}" ] || [ -f "$REAL" ] || REAL="$ROOT/config/delivery.conf"
 if [ -f "$REAL" ] && grep -E -q '^[[:space:]]*pr_reviewers[[:space:]]*=' "$REAL"; then
     out="$(bash "$GATE" --root "$ROOT" --consumer-config "$REAL" 2>&1)"; rc=$?
     if [ "$rc" -eq 0 ]; then NOK=$((NOK + 1)); qsay "ok: REAL: the real tree passes with the real consumer list ($(grep -E -o '[0-9]+ declared account' <<<"$out"))"
@@ -377,6 +420,31 @@ G="$(mutant corpus_drops_guides 'CORPUS_MD_DIRS="groups progressive/rules docs/g
 fresh; op append "$C/docs/guides/full_suite_runner_guide.md" "reviewer @$F2"; killed corpus_drops_guides 1 "$(outcome)"
 G="$(mutant changed_since_ignored 'if [ -n "$SINCE" ]; then' 'if false; then')"
 gitfresh; op append "$C/docs/research/note.md" "This note names $F1."; killed changed_since_ignored 1 "$(outcome --changed-since HEAD)"
+# CON-424: the root-level default, the configuration exclusion and the SQLite skip
+G="$(mutant root_default_off 'for _d in "$ROOT/config/delivery.conf" "$(dirname "$ROOT")/config/delivery.conf"; do' 'for _d in "$(dirname "$ROOT")/config/delivery.conf"; do')"
+fresh; self_consumer; killed root_default_off 0 "$(outcome)"
+G="$(mutant parent_default_off 'for _d in "$ROOT/config/delivery.conf" "$(dirname "$ROOT")/config/delivery.conf"; do' 'for _d in "$ROOT/config/delivery.conf"; do')"
+fresh; killed parent_default_off 0 "$(outcome)"
+G="$(mutant extra_keys_read_as_accounts 'line ~ "^[ \t]*" key "[ \t]*=" {' 'line ~ "^[ \t]*pr_[a-z_]*[ \t]*=" {')"
+fresh; self_consumer; killed extra_keys_read_as_accounts 0 "$(outcome)"
+G="$(mutant config_exclusion_off 'if grep -F -x -q -- "$(readlink -f -- "$ROOT/$rel")" "$CONF_REAL"; then' 'if false; then')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited: reviewer $F1"
+killed config_exclusion_off 0 "$(outcome --changed-since HEAD)"
+G="$(mutant config_exclusion_by_directory 'if grep -F -x -q -- "$(readlink -f -- "$ROOT/$rel")" "$CONF_REAL"; then' 'if [ "${rel%/*}" = config ]; then')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; printf '%s\n' "other=$F1" >"$C/config/other.conf"
+killed config_exclusion_by_directory 1 "$(outcome --changed-since HEAD)"
+G="$(mutant config_exclusion_by_name 'if grep -F -x -q -- "$(readlink -f -- "$ROOT/$rel")" "$CONF_REAL"; then' 'if [ "${rel##*/}" = delivery.conf ]; then')"
+gitfresh; cp "$L/consumer/config/delivery.conf" "$C/config/delivery.conf"
+killed config_exclusion_by_name 1 "$(outcome --changed-since HEAD --consumer-config "$L/consumer/config/delivery.conf")"
+G="$(mutant sqlite_skip_off 'if head -c 16 -- "$ROOT/$rel" | cmp -s - "$SQLITE_MAGIC"; then' 'if false; then')"
+gitfresh; mkdb "$C/docs/workable_items.db" "$F1"; killed sqlite_skip_off 0 "$(outcome --changed-since HEAD)"
+G="$(mutant skip_every_changed_file 'if head -c 16 -- "$ROOT/$rel" | cmp -s - "$SQLITE_MAGIC"; then' 'if true; then')"
+gitfresh; printf 'bin\000ary\n' >"$C/docs/research/blob.bin"; killed skip_every_changed_file 2 "$(outcome --changed-since HEAD)"
+G="$(mutant sqlite_skip_not_reported '[ "$NSQL" -gt 0 ] && LEFT_OUT=' '[ "$NSQL" -lt 0 ] && LEFT_OUT=')"
+gitfresh; mkdb "$C/docs/workable_items.db" "$F1"
+NMUT=$((NMUT + 1))
+if run --changed-since HEAD --quiet | grep -E -q 'PASS — .*SQLite database file\(s\) not scanned'; then say "MUTANT SURVIVED: sqlite_skip_not_reported (the PASS still names the skipped database)"; RESULT=1
+else NKILL=$((NKILL + 1)); qsay "killed: sqlite_skip_not_reported (the PASS no longer names the skipped database)"; fi
 G="$(mutant scan_skipped 'if [ "$NLOGIN" -gt 0 ]; then
     idx=0' 'if false; then
     idx=0')"

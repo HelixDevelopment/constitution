@@ -47,8 +47,11 @@
 #
 # Consumer data (§11.4.35; all sources are read, none is required)
 #   --consumer-config FILE   a delivery configuration of the consumer (key=value lines, '#' starts a
-#                            comment); repeatable. Default when none is given: <root>/../config/delivery.conf
-#                            if that file exists (the layout of a constitution checked out as a submodule).
+#                            comment); repeatable. Default when none is given: every one of
+#                            <root>/config/delivery.conf (a constitution that is its own consumer, CON-424) and
+#                            <root>/../config/delivery.conf (a constitution checked out as a submodule) that
+#                            exists; both are read when both exist. Keys other than the reviewer and assignee
+#                            keys (decision_id, pr_repository, own_repositories and the rest) are not read.
 #   --reviewers-key KEY      the key that holds the reviewer list (default pr_reviewers; a consumer may
 #                            declare another name, §11.4.297(D)(1)). Present means mandatory: a consumer
 #                            configuration without it, or with it present and empty, is BLIND.
@@ -57,13 +60,21 @@
 #                            of account names is BLIND.
 #   --forbid-login LOGIN     an account to scan for, in addition; repeatable.
 #   --changed-since REV      add every file changed since REV to the corpus (needs git; an unreadable REV is BLIND).
+#                            Two kinds of changed file are left out, each named in the output and counted in the
+#                            verdict (CON-424): a consumer configuration the gate READ in this run (matched by its
+#                            resolved path, never by content or by directory: it is the one file that must hold the
+#                            names), and a file that starts with the SQLite header "SQLite format 3\0" (a tracker
+#                            database such as docs/workable_items.db: binary, grep cannot read it; it is NOT
+#                            scanned, and a PASS names it). Any other changed file with a NUL byte stays BLIND, and a
+#                            file of the fixed corpus is never left out.
 #
 # Usage
 #   cm_pr_delivery_account_name_free.sh [--root <constitution-dir>] [--consumer-config FILE]...
 #       [--reviewers-key KEY] [--assignees-key KEY] [--forbid-login LOGIN]... [--changed-since REV] [--quiet]
 #
 # Exit codes
-#   0  PASS    at least one account was read and none appears in the corpus; the structure checks hold
+#   0  PASS    at least one account was read and none appears in the scanned corpus; the structure checks
+#              hold (the verdict names the files --changed-since left out and why)
 #   1  FAIL    an account appears (file and line named) or a structure check failed
 #   2  BLIND   a control needle failed, Constitution.md is absent, consumer data exists and cannot be read,
 #              the reviewer list is present and empty, a corpus file holds a NUL byte (grep would read it as
@@ -89,7 +100,7 @@
 # symbols (such as APL), a bidirectional reordering, a character reference or percent-encoding and markup that
 # splits a name are NOT undone.
 #
-# Dependencies: bash, python3, awk, grep, sort, mktemp; git only for --changed-since. Classification: universal (§11.4.17).
+# Dependencies: bash, python3, awk, grep, sort, mktemp, readlink, head, cmp; git only for --changed-since. Classification: universal (§11.4.17).
 set -u -o pipefail
 export LC_ALL=C
 
@@ -126,7 +137,7 @@ for k in "$KEY" "$AKEY"; do
     case "$k" in ''|*[!A-Za-z0-9_.-]*) echo "$GATE: usage — --reviewers-key and --assignees-key must be plain key names" >&2; exit 64 ;; esac
 done
 [ "$KEY" != "$AKEY" ] || { echo "$GATE: usage — the reviewer key and the assignee key must differ" >&2; exit 64; }
-for _t in python3 awk grep sort mktemp; do
+for _t in python3 awk grep sort mktemp readlink head cmp; do
     command -v "$_t" >/dev/null 2>&1 || { echo "$GATE: BLIND — required tool '$_t' missing" >&2; exit 2; }
 done
 
@@ -278,10 +289,18 @@ CANON="$ROOT/Constitution.md"
 # ── consumer accounts ────────────────────────────────────────────────────────
 # The parent is taken from the path string (dirname), not by resolving "..", so a constitution reached through a
 # symlinked layout still finds the configuration of the project that holds it.
-CONSUMER_DEFAULT="$(dirname "$ROOT")/config/delivery.conf"
-if [ "$CONFIG_GIVEN" = 0 ] && [ -f "$CONSUMER_DEFAULT" ]; then
-    CONFIGS+=("$CONSUMER_DEFAULT")
+# CON-424: a constitution that is its own consumer declares at <root>/config/delivery.conf; both defaults are read.
+if [ "$CONFIG_GIVEN" = 0 ]; then
+    for _d in "$ROOT/config/delivery.conf" "$(dirname "$ROOT")/config/delivery.conf"; do
+        [ -f "$_d" ] && CONFIGS+=("$_d")
+    done
+    unset _d
 fi
+# the resolved paths of the configurations read, so --changed-since can leave exactly these files out
+CONF_REAL="$TMP/conf_real.txt"; : >"$CONF_REAL"
+for c in ${CONFIGS[@]+"${CONFIGS[@]}"}; do
+    [ -f "$c" ] && readlink -f -- "$c" >>"$CONF_REAL"
+done
 LOGINS="$TMP/logins.txt"; : >"$LOGINS"
 NREV=0; NASG=0
 for c in ${CONFIGS[@]+"${CONFIGS[@]}"}; do
@@ -326,14 +345,27 @@ done
 for d in $CORPUS_MD_DIRS; do
     [ -d "$ROOT/$d" ] && (cd "$ROOT" && find "$d" -type f -name '*.md') >>"$CORPUS"
 done
-NCHANGED=0
+NCHANGED=0; NEXCL=0; NSQL=0; EXCL_LIST=""; SQL_LIST=""
+SQLITE_MAGIC="$TMP/sqlite_magic"; printf 'SQLite format 3\000' >"$SQLITE_MAGIC"
 if [ -n "$SINCE" ]; then
     command -v git >/dev/null 2>&1 || blind "--changed-since needs git"
     git -C "$ROOT" rev-parse -q --verify "$SINCE^{commit}" >/dev/null 2>&1 || blind "--changed-since: '$SINCE' is not a commit of the repository at $ROOT"
     { git -C "$ROOT" diff --relative --name-only "$SINCE" -- && git -C "$ROOT" ls-files --others --exclude-standard; } >"$TMP/changed.txt" \
         || blind "--changed-since: git could not list the files changed since '$SINCE'"
+    # a file of the fixed corpus is already in CORPUS above, so leaving it out here never removes it from the scan
     while IFS= read -r rel; do
-        [ -n "$rel" ] && [ -f "$ROOT/$rel" ] && { printf '%s\n' "$rel" >>"$CORPUS"; NCHANGED=$((NCHANGED + 1)); }
+        [ -n "$rel" ] && [ -f "$ROOT/$rel" ] || continue
+        if grep -F -x -q -- "$(readlink -f -- "$ROOT/$rel")" "$CONF_REAL"; then
+            NEXCL=$((NEXCL + 1)); EXCL_LIST="$EXCL_LIST $rel"
+            [ "$QUIET" = 1 ] || echo "NOTE  excluded from --changed-since: $rel (a consumer configuration read in this run: it holds the account names)"
+            continue
+        fi
+        if head -c 16 -- "$ROOT/$rel" | cmp -s - "$SQLITE_MAGIC"; then
+            NSQL=$((NSQL + 1)); SQL_LIST="$SQL_LIST $rel"
+            [ "$QUIET" = 1 ] || echo "NOTE  not scanned under --changed-since: $rel (an SQLite database: binary, grep cannot read it)"
+            continue
+        fi
+        printf '%s\n' "$rel" >>"$CORPUS"; NCHANGED=$((NCHANGED + 1))
     done <"$TMP/changed.txt"
 fi
 sort -u "$CORPUS" -o "$CORPUS"
@@ -385,13 +417,16 @@ fi
 # ── verdict ──────────────────────────────────────────────────────────────────
 TOTAL=$((NPASS + NFAIL))
 SCOPE="$NFILES corpus files ($NCHANGED named by --changed-since${SINCE:+ $SINCE})"
+LEFT_OUT=""
+[ "$NEXCL" -gt 0 ] && LEFT_OUT="$LEFT_OUT; excluded from --changed-since: $NEXCL consumer configuration file(s) read in this run:$EXCL_LIST"
+[ "$NSQL" -gt 0 ] && LEFT_OUT="$LEFT_OUT; $NSQL SQLite database file(s) not scanned (binary):$SQL_LIST"
 if [ "$NFAIL" -gt 0 ]; then
-    echo "$GATE: FAIL — $NFAIL of $TOTAL checks failed over $SCOPE (root: $ROOT)"
+    echo "$GATE: FAIL — $NFAIL of $TOTAL checks failed over $SCOPE$LEFT_OUT (root: $ROOT)"
     exit 1
 fi
 if [ "$NLOGIN" -eq 0 ]; then
     echo "$GATE: SKIP — no consumer reviewer list was found or given: the structure checks passed ($NPASS), the account scan did not run (not a PASS)"
     exit 3
 fi
-echo "$GATE: PASS — $NPASS/$TOTAL checks: $NLOGIN declared account(s) ($NREV reviewer and $NASG assignee entries read) appear in none of the $SCOPE; files outside the corpus are not scanned (root: $ROOT)"
+echo "$GATE: PASS — $NPASS/$TOTAL checks: $NLOGIN declared account(s) ($NREV reviewer and $NASG assignee entries read) appear in none of the $SCOPE$LEFT_OUT; files outside the corpus are not scanned (root: $ROOT)"
 exit 0
