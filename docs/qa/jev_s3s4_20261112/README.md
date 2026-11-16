@@ -5,10 +5,10 @@
 | Revision | 4 |
 | Created | 2026-11-12 |
 | Last modified | 2026-11-15T17:22:22Z |
-| Status | evidence (CON-412, In progress; carried as CON-299 on the vehicle) |
+| Status | evidence (CON-423, In progress; carried as CON-299 on the vehicle) |
 | Host | the reference host (16 CPUs, load average about 30 during the runs) |
 
-Live runs for CON-412 (carried as CON-299 on the vehicle before landing; on `main` CON-299 is another item) (Jev streams S3 and S4, operator decision of 2026-11-12). Every run used the real host, the
+Live runs for CON-423 (carried as CON-299 on the vehicle before landing; on `main` CON-299 is another item) (Jev streams S3 and S4, operator decision of 2026-11-12). Every run used the real host, the
 real `llmctl` on PATH, the operator's keys file read BY PATH (values never printed; the pack was scanned for every
 key value after it was assembled and none is present), and sandbox directories for every Jev state, config,
 evidence and provider-cache path. No operator agent home was written: T4 ran with a sandbox `HOME`; the mtimes of
@@ -21,6 +21,8 @@ Round 3 (2026-11-12): the fixes for the review of `c2489197` and their RED/GREEN
 [`round3/README.md`](round3/README.md). `t4_gate.sh` was edited after the T4 runs were captured (it now exits when `cd`
 fails, shellcheck SC2164); the runs were made with the earlier text. `SHA256SUMS` was regenerated for the whole pack.
 None of the live runs here was re-captured in round 2 or round 3.
+
+Rounds 4 to 12 (gate-logic evidence, PROVISIONAL): [round 4](round4/README.md), [round 5](round5/README.md), [round 6](round6/README.md), [round 7](round7/README.md), [round 8](round8/README.md), [round 9](round9/README.md), [round 10](round10/README.md), [round 11](round11/README.md), [round 12](round12/README.md). Round 12 (review of `a1eeb0d7`) found the open three-process finding R12-F1, filed as CON-428.
 
 ## T3 detection (bootstrap, no consent, no default-on)
 

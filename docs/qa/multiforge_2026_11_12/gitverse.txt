@@ -1,0 +1,14 @@
+# live read-only probe of upstream gitverse at 2026-11-12T14:57:14Z
+# command: scripts/forge/forge.sh probe --url <the URL of upstreams/gitverse.sh> (FORGE_TRACE_PEER=1)
+AUTH: env:GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: helixdevelopment/HelixConstitution
+PEER: GET /repos/helixdevelopment/HelixConstitution status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PROBE: repo status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none object keys=allow_forking,allow_merge_commit,allow_rebase_merge,allow_squash_merge,archived,clone_url,contents_url,created_at,default_branch,delete_branch_on_merge,description,disabled,fork,forks,forks_count,forks_url,full_name,has_downloads,has_issues,has_pages,has_projects,has_wiki,homepage,hooks_url,html_url,id,is_template,issue_comment_url,issues_url,language,languages_url,license,mirror_url,name,open_issues,open_issues_count,owner,parent,permissions,private,pulls_url,pushed_at,role_name,size,ssh_url,stargazers_count,template_repository,topics,updated_at,url,visibility,watchers,watchers_count
+PEER: GET /repos/helixdevelopment/HelixConstitution/releases status=404 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PROBE: releases status=404 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none object keys=error
+PEER: GET /repos/helixdevelopment/HelixConstitution/git/matching-refs/tags/ status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PROBE: tags status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none array items=16 item_keys=object,ref,url
+RESULT: OK
+# rc=0

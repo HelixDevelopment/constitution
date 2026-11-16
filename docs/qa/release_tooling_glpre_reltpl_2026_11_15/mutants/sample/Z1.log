@@ -1,0 +1,3 @@
+PASS Z1 killed (FAIL K8 N1 class table: rc 2 BLIND: names without a class in the instrument: M3W_GITEA_TOKEN )
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0
+rc=0

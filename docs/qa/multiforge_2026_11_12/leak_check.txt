@@ -1,0 +1,16 @@
+leak check: positive controls (RESULT:, PEER) found, negative control absent
+token values checked (by name; values never printed): 11
+files scanned: 12
+  codeberg.txt
+  gitflic.txt
+  github.txt
+  gitlab.txt
+  gitverse.txt
+  leak_check.txt
+  m3w.txt
+  readpaths.txt
+  SHA256SUMS
+  summary.tsv
+  vasic_digital_github.txt
+  vasic_digital_gitlab.txt
+result: no checked value appears in any scanned file

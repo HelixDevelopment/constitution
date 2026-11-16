@@ -1,0 +1,6 @@
+# summary only: the full log contains fake token-shaped fixture strings (e.g. ZZK1TOKEN); kept out of the repository. Full log at /mnt/DATA1TB/claude-work/scratch/glrel.cJed/ev/
+PASS V4 a token shape straddling the cut prints no prefix of it
+RESULT: pass=435 fail=0
+rc=0
+PASS lines: 435
+FAIL lines: 0

@@ -1,0 +1,15 @@
+# live read-only probe of upstream vasic_digital_github at 2026-11-12T14:57:34Z
+# command: scripts/forge/forge.sh probe --url <the URL of upstreams/vasic_digital_github.sh> (FORGE_TRACE_PEER=1)
+AUTH: env:GITHUB_TOKEN
+PROVIDER: github
+REPO: vasic-digital/HelixConstitution
+PEER: GET /repos/vasic-digital/HelixConstitution status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=C392:1B5170:F555934:16E5EA4E:6AF5D3DE
+NOTE: repository answered status=404
+PEER: GET /repos/vasic-digital/HelixConstitution status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=C39A:131EE2:EFE76A5:165C88FC:6AF5D3E2
+PROBE: repo status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=C39A:131EE2:EFE76A5:165C88FC:6AF5D3E2 object keys=documentation_url,message,status
+PEER: GET /repos/vasic-digital/HelixConstitution/releases status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=C39E:33CD3A:EADD2BD:15E410E8:6AF5D3E2
+PROBE: releases status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=C39E:33CD3A:EADD2BD:15E410E8:6AF5D3E2 object keys=documentation_url,message,status
+PEER: GET /repos/vasic-digital/HelixConstitution/tags status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=BE1A:1A9177:EE15058:163BCA65:6AF5D3E3
+PROBE: tags status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=BE1A:1A9177:EE15058:163BCA65:6AF5D3E3 object keys=documentation_url,message,status
+RESULT: OK
+# rc=0

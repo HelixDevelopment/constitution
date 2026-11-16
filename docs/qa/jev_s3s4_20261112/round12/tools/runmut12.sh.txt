@@ -1,0 +1,5 @@
+#!/bin/bash
+# runmut12.sh <suite-key> <mutant>... : run one suite against each mutant, at most 2 at a time (xargs -P2)
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r12.9XGE; K="${1:?}"; shift
+printf '%s\n' "$@" | xargs -P2 -I{} bash "$W/tools/runsuite.sh" "$W/repo" "$K" "$W/runs/mut_{}_$K" "$W/mut/{}/scripts/jev/jev-place.sh"

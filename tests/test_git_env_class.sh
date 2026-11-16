@@ -335,6 +335,30 @@ D="$(fx r4h2 scripts/hooks/g.sh "$(printf '#!/usr/bin/env bash\ngit add -A')")"
 printf 'scripts/hooks/g.sh\tsubject-follows-caller\tclaimed read-only\n' >"$D/config/git_env_class_exemptions.tsv"
 census_case C2r4h2 1 "$D" "row subject-follows-caller, but a git write is detected"
 
+# Jev round 12 (review of a1eeb0d7, R11-C): `.rc` / `.ls` are data only under docs/qa/, not executable, and in the
+# captured shape (one exit status; an `ls -l` listing). The reviewer's census mutants CM1 to CM3, then own rows.
+census_case C2rc1 1 "$(fx rc1 scripts/evil_env.rc "$(printf 'git -C "$1" commit -qm x')")" "unclassified"          # CM1
+D="$(fx rc2 scripts/evil_env.rc "$(printf 'git -C "$1" commit -qm x')")"
+chmod +x "$D/scripts/evil_env.rc" && gitc "$D" update-index --chmod=+x scripts/evil_env.rc || setup_bug "chmod rc2"
+census_case C2rc2 1 "$D" "UNSCRUBBED scripts/evil_env.rc"                                                             # CM2
+census_case C2rc3 1 "$(fx rc3 scripts/evil_list.ls "$(printf '#!/bin/sh\ngit init -q x')")" "UNSCRUBBED scripts/evil_list.ls" # CM3
+census_case C2rc4 1 "$(fx rc4 docs/qa/r/gate.rc "$(printf 'GIT_DIR=/tmp/x git commit -q -m m')")" "unclassified"
+census_case C2rc5 1 "$(fx rc5 docs/qa/r/d.ls "$(printf 'total 8\ndrwxrwxr-x 2 u u 4096 Nov 13 18:38 .\ngit -C d commit -q -m x')")" "unclassified"
+census_case C2rc6 1 "$(fx rc6 docs/qa/r/d.ls "$(printf 'GIT_DIR=/tmp/x git commit -q -m m')")" "unclassified"
+census_case C2rc7 1 "$(fx rc7 tests/r/gate.rc "$(printf '0')")" "unclassified"
+census_case C2rc8 1 "$(fx rc8 docs/qa/r/gate.rc "$(printf '256')")" "unclassified"
+D="$(fx rc9 docs/qa/r/gate.rc "$(printf 'git -C d commit -q -m x')")"
+chmod +x "$D/docs/qa/r/gate.rc" && gitc "$D" update-index --chmod=+x docs/qa/r/gate.rc || setup_bug "chmod rc9"
+census_case C2rc9 1 "$D" "UNSCRUBBED docs/qa/r/gate.rc"
+census_case C2rc10 1 "$(fx rc10 docs/qa/r/gate.rc "$(printf '0\ngit init -q x')")" "unclassified"
+census_case C2rc11 0 "$(fx rc11 docs/qa/r/gate.rc "$(printf '0')")" "PASS"                                    # golden-FALSE
+census_case C2rc12 0 "$(fx rc12 docs/qa/r/d.ls "$(printf 'total 8\ndrwxrwxr-x 2 <USER> <USER> 4096 Nov 13 18:38 .\ndrwx------ 8 <USER> <USER> 4096 Nov 13 18:38 ..')")" "PASS" # golden-FALSE
+census_case C2rc13 1 "$(fx rc13 docs/qa/r/d.ls "$(printf 'total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x; git commit -q -m y')")" "unclassified"  # an ls-shaped line naming git
+census_case C2rc14 1 "$(fx rc14 docs/qa/r/d.ls "$(printf 'total 0\nrm -rf x')")" "unclassified"                    # header, then a non-listing line
+D="$(fx rc15 docs/qa/r/gate.rc "$(printf '0')")"
+chmod +x "$D/docs/qa/r/gate.rc" && gitc "$D" update-index --chmod=+x docs/qa/r/gate.rc || setup_bug "chmod rc15"
+census_case C2rc15 0 "$D" "PASS"     # golden-FALSE: an executable record is code (no git mention, not a member); never data by shape
+
 # ---- C3 BLIND ---------------------------------------------------------------------------------
 D="$(fx nolib scripts/x.sh "$(printf '#!/usr/bin/env bash\ngit init -q')")"
 gitc "$D" rm -q --cached scripts/lib/constitution_layout.sh || setup_bug "rm lib"

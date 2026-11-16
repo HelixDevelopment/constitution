@@ -4764,7 +4764,7 @@ What: the git-env vehicle added a scrub line to docs/qa/engine_created_at_2026_1
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (lander subagent)
 
-What: a no-git-execution row is only checked against the write detector, so a file that reads with git passes (R508). The redact_cut.sh row says it runs no git, but rc_net is the exec site of its callers' git (safe by its allow-list). Scope: scripts/validation/git_env_class_census.py, config/git_env_class_exemptions.tsv. Acceptance: no-git-execution also fails on git reads; R508 killed; the redact_cut row reworded. Class: test-instrumentation + process-doc, minor. Review F-R5-5. Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+What: a no-git-execution row is only checked against the write detector, so a file that reads with git passes (R508). The redact_cut.sh row says it runs no git, but rc_net is the exec site of its callers' git (safe by its allow-list). Scope: scripts/validation/git_env_class_census.py, config/git_env_class_exemptions.tsv. Acceptance: no-git-execution also fails on git reads; R508 killed; the redact_cut row reworded. Class: test-instrumentation + process-doc, minor. Review F-R5-5. Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402. Also observed (linked, not a new item, section 11.4.214): multiforge landing review review_multiforge_r4_landing.md sha256 db00bd35ef624fc02abe98cbeb2ea118a85ecb79485cc2d0c32dd25e636bbee5 observation N1, reviewer mutant K13 (an exempted provider gains a git -C rev-parse read) survived the census.
 
 ## CON-408 — workable-items Go reads under an ambient GIT_DIR read the wrong repository (closure_seam.go fingerprint, db.go timer fingerprint, version_tags.go)
 
@@ -4802,7 +4802,106 @@ What: the scrub list does not include GIT_CONFIG_* or GIT_CONFIG_PARAMETERS (doc
 
 On main bd0036bd, bash scripts/run_full_suite.sh --verify-manifest ended RESULT: MANIFEST-MISMATCH (3 problems; nothing was run) because scripts/sonarqube/tests/test_registry_login.sh, test_registry_login_mutation_test.sh and test_registry_login_wiring.sh were committed (ff539dc8) without manifest rows. Same class as CON-086 (still open, linked per section 11.4.214; minted as a separate item because the files and the commit differ, the section 11.4.214(3) mint-with-link default). The vehicle adds scripts/gates/cm_full_suite_manifest_complete.sh (control-needled --verify-manifest of HEAD through a clean export, ambient git variables cleared), its paired mutation test, a git-environment sentinel test and post_update_hook.sh step 5b wiring. Placeholder id in the vehicle text: CON-PENDING-MANIFEST-SONARQUBE. Evidence: docs/qa/manifest_sonarqube_2026_11_13/. Independent review round 2: GO-with-follow-ups (N1 to N6, minor-class). Status PROVISIONAL (section 11.4.290). Review: review_manifest_r2.md sha256 86daee5ebb2bbcc08251f97c746da88bac2b886b4d5df2c504310eb73b950287 (session scratchpad, not in the tree). Landed inside the CON-402 squash (the gitenv vehicle descends from this vehicle head 42fd1288 and carries newer versions of its files, which also fix N1 to N6); no separate squash.
 
-## CON-412 — Jev S3/S4: honest bootstrap exit codes, default-on wiring, capacity-gated local placement, per-endpoint calibration, status control view
+## CON-412 — Multi-forge release tool: one REST-over-curl entry point (scripts/forge/forge.sh) for GitHub, GitLab, Codeberg, git.m3w.org, GitFlic and GitVerse releases, with live read-only evidence (landed from the multiforge vehicle, rounds 1-4, review r4 GO-with-follow-ups)
+
+**Status:** In progress
+**Type:** Feature
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (landing-preparer subagent)
+
+What: scripts/forge/forge.sh with lib/ (common, credentials, http) and providers/ (github, gitlab, gitea for m3w and Codeberg, gitflic, gitverse), live_probe.sh, the hosts map config/forge/hosts.tsv, hermetic tests under tests/forge/ (credentials, detect, gitea, gitflic, github_gitlab, gitverse, mutations), the guide docs/guides/multiforge_release_guide.md, manual docs/manuals/forge_tool_manual.md, FAQ docs/faq/forge_tool_faq.md, live read-only evidence docs/qa/multiforge_2026_11_12/ and the P4 patch proposal docs/release/multiforge_p4_patch_proposal.md. Subcommands detect, probe, repo-exists, release-get, tag-get, release-ensure; API keys only, tokens never printed (whole value for 8-11 characters, contiguous pieces of 12 or more otherwise). Affected scope: release publishing of the constitution to its forges. Reproduction: not applicable (new tool, Type Feature). Acceptance: the six forge suites and the mutation harness pass (87 mutants killed in round 4), git-env census PASS, MANIFEST-OK, and a live release-ensure run on each forge is recorded (owed; the vehicle's live evidence is read-only). Landing delta: the canonical git-env scrub line was added to forge.sh, live_probe.sh, test_forge_credentials.sh and test_forge_detect.sh, and 11 no-git-execution rows to config/git_env_class_exemptions.tsv, because the CON-402 closed-world census on main covers every shell script; this delta was not in the reviewed head 380ad64a. Status PROVISIONAL (section 11.4.290); evidence class of the suites is gate logic and host fixtures (section 11.4.289). Landed on main as e5879550 (landing delta reviewed: review_multiforge_r4_landing.md sha256 db00bd35ef624fc02abe98cbeb2ea118a85ecb79485cc2d0c32dd25e636bbee5, GO-with-follow-ups). Follow-ups: CON-413 (U3 substring test), CON-414 (fingerprinted live evidence), CON-415 (doc nits); census limit N1 linked to CON-407. The live release-ensure run on each forge stays in this item's acceptance.
+
+## CON-413 — forge tests: U3 (fg_scrub multi-line) compares substrings only; reviewer mutants V2 and V3 survive
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: test U3 of the forge credential suite checks fg_scrub multi-line output by substring only, so reviewer mutant V2 (lines joined by a space) and V3 (blank lines dropped) survive. Scope: tests/forge/test_forge_credentials.sh, tests/forge/test_forge_mutations.sh. Acceptance: U3 compares the exact expected text, the input carries a blank line and a trailing newline, V2 and V3 are adopted into the mutation harness and killed. Class: test-instrumentation, minor. Source: review_multiforge_r4.md sha256 ca65b3400f8fd970cde813a949d22ea45c33ac8ccf23ed05ffc232e0bc77ad2a, finding 1. Parent CON-412.
+
+## CON-414 — forge live evidence docs/qa/multiforge_2026_11_12 predates the tool fingerprint: re-run live_probe.sh on the landed main
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: the committed read-only live evidence under docs/qa/multiforge_2026_11_12/ was captured before the round-3 tool_fingerprint.txt existed, so which code produced it is UNCONFIRMED. Scope: scripts/forge/live_probe.sh, docs/qa/multiforge_2026_11_12/. Acceptance: live_probe.sh re-run on main e5879550 or later, the new evidence carries tool_fingerprint.txt matching the landed scripts/forge tree, committed with SHA256SUMS; credentials referenced by variable name only. Class: evidence, minor. Source: review r3 R2-m4 residue, carried in review_multiforge_r4.md sha256 ca65b3400f8fd970cde813a949d22ea45c33ac8ccf23ed05ffc232e0bc77ad2a. Parent CON-412. The live release-ensure (write path) run is NOT this item: it is part of CON-412's own acceptance.
+
+## CON-415 — multiforge landing doc nits: REPLAY GIT_DIR wording, review citation, replay.sh dedupe by title only, guide/manual/FAQ Last modified order, lib.sh lock note
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: five process-doc nits. (1) landing review F1: the handback REPLAY.md claimed forge.sh newly ignores an ambient GIT_DIR; measured false as a behaviour change (fg_env_clean already re-execs with exec -c); the scrub line is a second layer. Corrected in the landed commit message e5879550 and in the handback REPLAY.md; reuse the corrected wording anywhere it is copied. (2) landing review F2: the commit message said the landing delta needed its own review; done in e5879550, which cites the landing review. (3) landing review F3: replay.sh dedupes only on the title prefix Multi-forge release tool; a later replay helper should search titles and descriptions. (4) review r4 finding 2: guide, manual and FAQ revision 4 move Last modified backwards (rev 3 23:30:00Z, rev 4 17:49:00Z); fix so it increases per revision. (5) review r3 m7: the manifest and lock row note for tests/forge/lib.sh says sourced by test_forge_credentials.sh, all six suites source it; reword or change the schema. Scope: docs/guides/multiforge_release_guide.md, docs/manuals/forge_tool_manual.md, docs/faq/forge_tool_faq.md, config/full_suite_manifest.tsv, config/full_suite_excluded.lock, future replay helpers. Acceptance: (3) to (5) fixed or decided; (1) and (2) recorded done. Class: process-doc, nit. Sources: review_multiforge_r4_landing.md sha256 db00bd35ef624fc02abe98cbeb2ea118a85ecb79485cc2d0c32dd25e636bbee5 findings F1-F3; review_multiforge_r4.md sha256 ca65b3400f8fd970cde813a949d22ea45c33ac8ccf23ed05ffc232e0bc77ad2a finding 2; review r3 m7. Parent CON-412.
+
+## CON-416 — GitLab release of a --prerelease cut looked final: mark it by title and description, --no-update, optional released_at, read back through nt (glpre)
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: on a --prerelease run, scripts/release/tag_and_release.sh published the GitLab release with no pre-release marking (GitLab's Releases API and glab 1.129.0 have no pre-release flag), so it looked like a final release. Fix (vehicle glpre, re-applied on bcac0882, landed on main): the GitLab leg prefixes the name with 'PROVISIONAL pre-release: ' once, starts the description with a fixed PROVISIONAL line, always passes --no-update, takes an optional --gitlab-released-at ISO8601 (future, --prerelease and a gitlab spec only) as --released-at, and reads the release back with glab api --hostname through nt: unmarked or unparsable is a FAIL, a failed read or a different upcoming state is a GAP, server text is never printed raw. Census rows and the netgate pin updated (pin regenerated on the merged tree at landing: rows=1590 sites=135 names=176, netgate findings=0). Tests GL1-GL17 (stub glab, gate-logic class, section 11.4.289(C)); mutants GP1-GP21 killed. Review: independent round 1 GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository). Evidence: docs/qa/release_tooling_glpre_reltpl_2026_11_15/. Limits: no live GitLab run; GitLab released_at/upcoming_release behaviour UNCONFIRMED; the create call is not pinned to a host (divergence gives a GAP). Status: In progress, PROVISIONAL (section 11.4.290), not VERIFIED-DONE: acceptance needs one live --prerelease cut read back MARKED on GitLab. Related: CON-385 (held-back glab --prerelease child), CON-226. Landed on main as 5296e74d. Follow-ups filed: CON-418 (notes-write failure path), CON-419 (read-back parsing guards), CON-422 (nits F6/F7).
+
+## CON-417 — v73.4 entry template asserted the retest never ran and let (L7) ride open: retest_statement key verdict-checked by the renderer, (L7) wording corrected (reltpl)
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: docs/release/helixconstitution-v73.4_entry.template.md asserted a fixed sentence that the section 11.4.40 retest 'has never run on this candidate', whatever the facts were, and said that (L1), (L6) or (L7) entries 'ride open' and that the operator decision 'relaxes (L7)', which section 11.4.230(E.3) and (F.3)(2) forbid (an open (L7) blocks a release of every class and cannot be waived). Fix (vehicle reltpl, re-applied on bcac0882, landed on main): new manual key retest_statement replaces the fixed sentence; scripts/release/render_release_entry.py refuses (exit 3) a value that does not start with a verdict token PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN (PASS-FULLY/FAILED refused); the template says an open (L7) blocks every class, the release does not conform to (F.3)(2) for those entries, and the decision is an override of the rule, not a conforming waiver; docs/release/README.md revision 4 lists the key. Tests: test_render_release_entry.sh 37/0 (RED 25/12 before); mutants RV1-RV4 killed. Review: independent round 1 GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository). Evidence: docs/qa/release_tooling_glpre_reltpl_2026_11_15/ (includes a corrected waiver draft COPY only; no waiver is recorded, that stays CON-382). Limits: the renderer checks the verdict token only, not a machine section 11.4.40 verdict (follow-up filed). Status: In progress, PROVISIONAL (section 11.4.290). Related: CON-229, CON-382, CON-381, CON-226. Landed on main as 3f37d8d6. Follow-ups filed: CON-420 (template wording guards), CON-421 (bind PASS-FULL to a machine section 11.4.40 verdict), CON-422 (nit F9).
+
+## CON-418 — CON-416 follow-up: the GitLab notes-write failure path (GL_NOTES_OK=0, FAIL 'not attempted') has no test; reviewer mutant X1b survives
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: review F2 (test-instrumentation, minor). Mutating the notes-write guard of scripts/release/tag_and_release.sh to never fire (X1b, '-eq 99') leaves tests/release/test_tag_and_release.sh at 388/0; X1 ('if false') is killed only by the C53 netgate name list, not by behaviour. Without the guard a partial marked notes file (mark written, notes truncated) would be published and read back MARKED. Acceptance: a case that makes the notes write fail and asserts the FAIL 'not attempted' result and that no glab create runs; X1b and X1 killed by that behaviour case. Reproduction: not applicable (instrumentation gap). Source: independent review round 1 of the glpre+reltpl vehicle, verdict GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository; reviewer mutant logs under /mnt/DATA1TB/claude-work/scratch/rv_glpre.ONFv/mw/, outside the repository). Landed as 5296e74d (CON-416) and 3f37d8d6 (CON-417).
+
+## CON-419 — CON-416 follow-up: read-back parsing guards untested (first-line trim, multi-value JSON, trailing junk after an ISO released_at); reviewer mutants X6, X7, X10 survive
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: review F3 (test-instrumentation, minor). The unmutated read-back in scripts/release/tag_and_release.sh handles each case, but no fixture proves it: removing the first description line trim (X6, no CRLF or padded-mark fixture), removing the multi-line jq result guard (X7, no multi-value JSON fixture) and letting the released_at ISO check accept trailing junk (X10) all pass the suite. Acceptance: stub-glab fixtures for a CRLF/padded first line, a multi-value JSON answer and a released_at with trailing junk, each asserting the expected FAIL/GAP; X6, X7, X10 killed. Reproduction: not applicable. Source: independent review round 1 of the glpre+reltpl vehicle, verdict GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository; reviewer mutant logs under /mnt/DATA1TB/claude-work/scratch/rv_glpre.ONFv/mw/, outside the repository). Landed as 5296e74d (CON-416) and 3f37d8d6 (CON-417).
+
+## CON-420 — CON-417 follow-up: template wording guards are fixed-phrase greps; '(L7) is waived' (X12) and a false 'manual-QA confirmation is recorded' (X13) pass the suite
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: review F4 (test-instrumentation, minor). tests/release/test_render_release_entry.sh guards the v73.4 entry template wording with three fixed phrases only. Acceptance: a negative guard on any 'waive' wording applied to (L7) and a positive guard on the manual-QA sentence ('No section 11.4.185 manual-QA confirmation is recorded.' unless a confirmation is cited); reviewer mutants X12 and X13 killed. Reproduction: not applicable. Source: independent review round 1 of the glpre+reltpl vehicle, verdict GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository; reviewer mutant logs under /mnt/DATA1TB/claude-work/scratch/rv_glpre.ONFv/mw/, outside the repository). Landed as 5296e74d (CON-416) and 3f37d8d6 (CON-417).
+
+## CON-421 — CON-417 follow-up: retest_statement is checked by verdict token only; a hand-written PASS-FULL with no log makes the entry read (L6) closed
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: review F5 (source-defect, minor; stated in docs/release/README.md and the renderer docstring). scripts/release/render_release_entry.py accepts any retest_statement starting with PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN; nothing binds PASS-FULL to a machine-written section 11.4.40 full-suite verdict (section 11.4.262), so an unbacked claim reads as a closed (L6) entry. Acceptance: PASS-FULL (and PARTIAL-TOPOLOGY) accepted only with a cited machine verdict file whose fingerprint matches the candidate, else exit 3; a RED case first. Related: CON-381 (the section 11.4.40 retest is not registered in the tracker). Reproduction: UNREPRODUCED live; the reviewer described the input shape only. Source: independent review round 1 of the glpre+reltpl vehicle, verdict GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository; reviewer mutant logs under /mnt/DATA1TB/claude-work/scratch/rv_glpre.ONFv/mw/, outside the repository). Landed as 5296e74d (CON-416) and 3f37d8d6 (CON-417).
+
+## CON-422 — CON-416/CON-417 follow-up nits: GL_HOST post-strip check is dead defence (X3), create vs read-back host resolution, leading-whitespace retest_statement untested (X11)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+What: review nits grouped. F6 (process-doc, nit): the GL_HOST post-strip regex in tag_and_release.sh duplicates the GITLAB_HOST lockdown (X3 is equivalent); keep it with a comment saying so, or remove it after the section 11.4.124 check. F7 (source-defect, nit): the GitLab create resolves its host itself (glab config host, git remote) while the read-back pins GITLAB_HOST or gitlab.com; divergence yields a GAP (fail-safe, stated in docs/release/README.md); glab host resolution with -R GROUP/REPO is UNCONFIRMED; acceptance: pin the create host too, or record the measured glab behaviour. F9 (test-instrumentation, nit): a leading-whitespace retest_statement accepted via .strip() is untested (X11 survives, stricter direction); acceptance: a case for it. Reproduction: not applicable. Source: independent review round 1 of the glpre+reltpl vehicle, verdict GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository; reviewer mutant logs under /mnt/DATA1TB/claude-work/scratch/rv_glpre.ONFv/mw/, outside the repository). Landed as 5296e74d (CON-416) and 3f37d8d6 (CON-417).
+
+## CON-423 — Jev S3/S4: honest bootstrap exit codes, default-on wiring, capacity-gated local placement, per-endpoint calibration, status control view
 
 **Status:** In progress
 **Type:** Task
@@ -4813,30 +4912,30 @@ Scope: scripts/jev/{bootstrap,jev-place,jev-calibrate,jev-status,jev-probe,lib_k
 Reproduction: before the change a 402 hosted endpoint was recorded reachable=true and bootstrap printed "detect-models: ok" with rc 0 (RED baselines in the test suite: test_s3_bootstrap_honesty.sh, test_hosted_key_discovery.sh K2).
 Acceptance: jev test suite green; 20 reviewer-style mutants killed; live T3 (detection) and T4 (default-on fresh project, one real gate call, one TypeSafe row) 3/3; live T5 local placement success still owed (0/3 on 2026-11-12, host load); independent review.
 UNKNOWN: whether the toolkit (claude_toolkit, owned elsewhere) will fail over from a no-credit endpoint; it does not today (T4 variant A).
-Ids: this item was carried on the vehicle as CON-299 (rounds 1 to 7), CON-PENDING-JEV (rounds 8 to 10) and, in the trailer of dc654757, CON-PENDING-JEV-CONSTITUTION. main minted CON-299 for another item (land_vehicle lander), so this item is minted anew at landing (§11.4.54, §11.4.214). The round-10 landing pack (never landed) minted it as CON-388 on the vehicle database; main then minted CON-388 to CON-400 for other items, so it was minted again at the round-11 landing. Commit trailers are not rewritten; the mapping note is in CHANGELOG.md and docs/qa/jev_s3s4_20261112/round10/README.md.
-Status: rounds 1 to 11 of independent review; the round-11 head is gate-logic evidence only (§11.4.289(C)(2)), PROVISIONAL (§11.4.290); live acceptance (T5 local placement) is open.
+Ids: this item was carried on the vehicle as CON-299 (rounds 1 to 7), CON-PENDING-JEV (rounds 8 to 10) and, in the trailer of dc654757, CON-PENDING-JEV-CONSTITUTION. main minted CON-299 for another item (land_vehicle lander), so this item is minted anew at landing (§11.4.54, §11.4.214). The round-10 landing pack (never landed) minted it as CON-388 on the vehicle database; main then minted CON-388 to CON-400 for other items, so it was minted again at the round-11 landing. The round-11 landing pack (never landed) minted it as CON-412 on f67d926c; main then minted CON-412 to CON-422 for other items, so it was minted again at the round-12 landing on 09d3ad2f. Commit trailers are not rewritten; the mapping note is in CHANGELOG.md and docs/qa/jev_s3s4_20261112/round10/README.md.
+Status: rounds 1 to 12 of independent review; the round-12 head is gate-logic evidence only (§11.4.289(C)(2)), PROVISIONAL (§11.4.290); live acceptance (T5 local placement) is open.
 
-## CON-413 — Intermittent failure of tests/jev/test_review_fixes_r2.sh P2 (bootstrap row), root cause UNKNOWN
+## CON-424 — Intermittent failure of tests/jev/test_review_fixes_r2.sh P2 (bootstrap row), root cause UNKNOWN
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
-**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T21:29:30Z — by `jev-r11-fixer`
-**Investigation:** not-started — updated 2026-11-15T21:29:30Z — by `jev-r11-fixer`
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-16T08:57:10Z — by `jev-r12-fixer`
+**Investigation:** not-started — updated 2026-11-16T08:57:10Z — by `jev-r12-fixer`
 
 What: P2 of tests/jev/test_review_fixes_r2.sh failed once in a full run during Jev round 6 and has not been seen again; round 7 added an instrument (keep_bs_evidence keeps bs.out/err, gate.out, status.json, cap.json and the rc). Reproduction: 12 of 12 standalone repetitions and every run_all run passed (round 7); not reproduced in rounds 8 to 10. Next: run P2 in a loop under normal host load (at least 50 runs) and keep every instrument dump of a failure. Acceptance: a captured failing run with the instrument output, a root cause shown by a decisive experiment (§11.4.292(G)) and a RED-to-GREEN row, or closure as not-reproducible with the attempts and a control needle. Draft: docs/qa/jev_s3s4_20261112/round8/item_draft_O6-1.md (was CON-PENDING-O6-1).
 
-## CON-414 — Jev bootstrap.sh and jev-calibrate.sh stamp record times with the process-start clock after long work
+## CON-425 — Jev bootstrap.sh and jev-calibrate.sh stamp record times with the process-start clock after long work
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Low
-**Reproduction:** none — UNREPRODUCED — updated 2026-11-15T21:29:30Z — by `jev-r11-fixer`
-**Investigation:** root-cause-unconfirmed — updated 2026-11-15T21:29:30Z — by `jev-r11-fixer`
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-16T08:57:10Z — by `jev-r12-fixer`
+**Investigation:** root-cause-unconfirmed — updated 2026-11-16T08:57:10Z — by `jev-r12-fixer`
 
 What: scripts/jev/bootstrap.sh and scripts/jev/jev-calibrate.sh read the clock once at process start and stamp generated_at, probed_at, pending_at, first_created and calibrated_at with it after long work (probes). The error makes records look older (fail-closed for freshness checks); no unsafe effect is known. Fix: stamp each field at write time. Found by the Jev round-8 census (census_stale_clock.md). Draft: docs/qa/jev_s3s4_20261112/round8/item_draft_clock_bootstrap.md (was CON-PENDING-CLOCK-BOOTSTRAP).
 
-## CON-415 — Jev placement: ages on wall time where no monotonic source exists (decide fail-closed or a visible warning)
+## CON-426 — Jev placement: ages on wall time where no monotonic source exists (decide fail-closed or a visible warning)
 
 **Status:** Queued
 **Type:** Task
@@ -4844,11 +4943,21 @@ What: scripts/jev/bootstrap.sh and scripts/jev/jev-calibrate.sh read the clock o
 
 What: scripts/jev/jev-place.sh judges mark and lease ages on a monotonic clock (boot id and uptime) where /proc provides one; a host without readable /proc, and records written by an older producer without mono, are judged on wall time, so a wall-clock step can expire a live mark or lease early or keep a dead one late. Acceptance: an operator decision (§11.4.66) between refusing local placement on such a host (fail closed to the fallback route) and keeping the wall-time rule with a visible warning in status; either way status --json names the clock source in use (monotonic or wall) and a test pins it. Draft: docs/qa/jev_s3s4_20261112/round9/item_draft_mono_fallback.md (was CON-PENDING-MONO-FALLBACK).
 
-## CON-416 — helix-deps.yaml llmctl ref is stale: records 3877467 while the recorded gitlink is 391d8177
+## CON-427 — helix-deps.yaml llmctl ref is stale: records 3877467 while the recorded gitlink is 391d8177
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
 
 What: helix-deps.yaml records llmctl ref 3877467 with the comment 'pinned sha = the recorded gitlink', but the recorded gitlink is 391d8177. The Jev round-7 reviewer measured (read-only) that 3877467 is an ancestor of 391d8177, 10 commits apart, with lib/ and bin/ identical, so the comment is false and the ref is stale. Fix: one manifest line plus the README sentence (not the same commit; same lib/bin), re-measured before the change. Note: docs/qa/jev_s3s4_20261112/round8/note_R7-G.md (was CON-PENDING-DEPS-LLMCTL-REF).
+
+## CON-428 — Jev placement: a third acquire adopts a constitution-started unit as operator-started after a dispose deleted its set before a slow start was recorded (R12-F1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-16T11:59:58Z — by `jev-r12-fixer`
+**Investigation:** root-cause-unconfirmed — updated 2026-11-16T11:59:58Z — by `jev-r12-fixer`
+
+What: in a three-process interleaving, a third acquire treats a constitution-started local decision model as operator-started. Sequence: acquire A's slow start returns (its starting mark already judged expired); acquire B's dispose-stop records its result and deletes the set before A records the start; acquire C sees a running unit with no set and joins it as operator-started ('joined the already-running unit'); A's later record makes the set constitution-started again. In that window C would never stop the unit. Found by R12-10 in orders starCA and straCA of 60 (docs/qa/jev_s3s4_20261112/round12/README.md, runs/r12mc_head_discovery_R12-F1.txt). Reproduction: gate-logic only (stub llmctl, hermetic runner), not on a live host, so the state is UNREPRODUCED under section 11.4.292. In every order a running unit stays held or owed a stop and the cleanup leaves nothing running. Fix (producer change, open): keep a record of an in-flight start that survives the set deletion, or refuse adoption while a recent dispose of the profile is unanswered. Acceptance: R12-10's pinned adoption list becomes empty and is asserted empty, RED on the current producer.
 

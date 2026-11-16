@@ -1,0 +1,9 @@
+#!/bin/bash
+# runmut.sh LISTFILE OUTDIR: run each named mutant with --only, two at a time
+set -u
+L="${1:?}"; O="${2:?}"; R=/mnt/DATA1TB/claude-work/scratch/glrel.cJed/repo
+export TMPDIR=/mnt/DATA1TB/claude-work/tmp
+one() { n="$1"; while :; do l=$(cut -d' ' -f1 /proc/loadavg); [ "${l%.*}" -lt 60 ] && break; sleep 30; done
+  bash "$R/tests/release/test_release_tooling_mutations.sh" --only "$n" >"$O/$n.log" 2>&1; echo "rc=$?" >>"$O/$n.log"; }
+export -f one; export O R
+xargs -P 2 -n 1 bash -c 'one "$0"' < "$L"

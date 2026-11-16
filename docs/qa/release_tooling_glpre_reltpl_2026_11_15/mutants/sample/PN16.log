@@ -1,0 +1,3 @@
+PASS PN16 killed by its property (FAIL netgate pin: the committed pin differs from pin-regen (rc 0/0): run pin-diff and review (PIN-REGEN rows=1573 files=)
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0
+rc=0
