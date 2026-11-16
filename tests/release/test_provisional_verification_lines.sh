@@ -14,6 +14,11 @@
 # own cases per axis of docs/qa/rehearsal_v73_4_fix/r3/class_inventory.md; P5 also runs with --root (a job path must
 # exist); P8 holds one paired mutant per rule of the rebuilt checker; P10 tests --root; P11 runs the reviewer's
 # mutants X1 to X7 (X1, X2, X3, X7 verbatim; X4, X5, X6 ported to the rebuilt code, see the comment there).
+# Review r3 of CON-423 (B1 to B3, F1 to F4, r4 fixer, structural round: one scan feeds every word rule): the grid adds
+# the r4 cases and a sample of the character-class inventory; P8 holds the paired mutants of the rebuilt checker (own,
+# O01 to O42 without O04, see there); P11 the reviewer's mutants R1 to R22 of review r3 (checker ones; R17, R18 are
+# the render's) and X1 to X7 of review r2, printed with the P8 label by the same helper; P12 runs the full inventory tests/release/pvl_inventory.py and compares its
+# class list with docs/qa/rehearsal_v73_4_fix/r4/class_inventory.md; P13 the work bound (tests/release/pvl_timing.py).
 #
 # Usage: bash tests/release/test_provisional_verification_lines.sh   (PVL_SCRIPT=<path> tests another copy)
 # Exit 0 when every case passes, 1 otherwise. Last line "RESULT: pass=N fail=M".
@@ -121,12 +126,19 @@ GRID="$HERE/pvl_grid.py"
 OUT="$(python3 -I "$GRID" "$C" "$W" 2>&1)"; RC=$?
 printf '%s\n' "$OUT" | grep '^GRID-FAIL' | head -20
 [ "$RC" = 0 ] && ok "P7 grid: no mismatch" || bad "P7 grid: mismatches (rc $RC): $(printf '%s\n' "$OUT" | tail -1)"
-has "P7 grid size (needle: the grid really ran its cases)" '^GRID cases=4[0-9][0-9] refused=3[0-9][0-9] accepted=[5-9][0-9] mismatches=0 checker_rc=1$'
+has "P7 grid size (needle: the grid really ran its cases)" '^GRID cases=7[0-9][0-9] refused=6[0-9][0-9] accepted=1[0-9][0-9] mismatches=0 checker_rc=1$'
 for c in r3:cyr_TBD_job r3:pending_sched_job r3:none_assigned_target r3:not_applicable_checks r3:T.B.D_job r3:TBD_underscore_target r3:qqq_checks r3:body:html_comment_only r3:body:prefix_glued; do
   printf '%s\n' "$OUT" | grep -q "^GRID-PASS CON-[0-9]* $c\$" && ok "P7 B2: the reviewer case $c is in the grid and as expected" || bad "P7 B2: the reviewer case $c"
 done
 n_r3="$(printf '%s\n' "$OUT" | grep -c '^GRID-PASS CON-[0-9]* r3:')"
 [ "$n_r3" -ge 150 ] && ok "P7 B2: at least 150 r3 cases pass ($n_r3; 74 the reviewer's, the rest the fixer's)" || bad "P7 B2: r3 cases ($n_r3)"
+n_r4="$(printf '%s\n' "$OUT" | grep -c '^GRID-PASS CON-[0-9]* r4:')"
+[ "$n_r4" -ge 55 ] && ok "P7 r4: at least 55 r4 cases pass ($n_r4)" || bad "P7 r4: r4 cases ($n_r4)"
+n_inv="$(printf '%s\n' "$OUT" | grep -c '^GRID-PASS CON-[0-9]* inv:U[0-9][0-9]:')"
+[ "$n_inv" -ge 200 ] && ok "P7 r4: at least 200 inventory sample cases pass ($n_inv)" || bad "P7 r4: inventory sample cases ($n_inv)"
+for c in r4:B1_slash r4:B1_middot r4:B2_none_yet r4:B2_pending_sh r4:B3_hangul_filler r4:F4_foo r4:root:F2_etc_passwd r4:R10_one_letter_key r4:R12_hex6 r4:body:line_too_long; do
+  printf '%s\n' "$OUT" | grep -q "^GRID-PASS CON-[0-9]* $c\$" && ok "P7 r4: the case $c is in the grid and as expected" || bad "P7 r4: the case $c"
+done
 printf '%s\n' "$OUT" | grep -q '^GRID-PASS CON-[0-9]* due:dot$' && ok "P7 M1: the case 'due: .' is in the grid and refused" || bad "P7 M1: the case 'due: .'"
 
 # P8 paired mutants of the B1 checks: each must make the grid report a mismatch (rc 1; rc 2 is a blind grid)
@@ -138,54 +150,50 @@ open(sys.argv[2],"w",encoding="utf-8").write(s.replace(o,n))' "$C" "$m" "$2" "$3
   OUT="$(python3 -I "$GRID" "$m" "$W" 2>&1)"; RC=$?
   [ "$RC" = 1 ] && ok "P8 mutant $1 is caught ($(printf '%s\n' "$OUT" | grep -c '^GRID-FAIL') grid cases)" || bad "P8 mutant $1 survived (rc $RC)"
 }
-gmut empty-check 'if not core:' 'if False:'
-gmut pv2-strip 'core = v.strip(" \t.,;:")' 'core = v.strip(" \t")'   # the reviewer's PV2 of review r1, on the new code
-gmut punctuation-check 'if not any(ch.isalnum() for ch in core):' 'if False:'
-gmut strong-lead 'strong = is_word(lead_pairs, STRONG_WORDS)' 'strong = None'
-gmut unconfirmed-word '"xxx", "unconfirmed", "lorem"' '"xxx", "lorem"'
-gmut lorem-word '"xxx", "unconfirmed", "lorem"' '"xxx", "unconfirmed"'
-gmut weak-lead 'if low in WEAK_WORDS or head in WEAK_WORDS:' 'if False:'
-gmut weak-lead-checks 'if (low in WEAK_WORDS or head in WEAK_WORDS) and not' 'if False and not'
-gmut none-of-exception 'not (low == "none" and nxt == "of")' 'True'
-gmut not-no-lead '(low in ("not", "no") and rest.strip()) or (compound and head in ("not", "no"))' 'False'
-gmut checks-not-list 'if (low == "not" and nxt in CHECKS_NOT_WORDS)' 'if False'
-gmut be-phrase 'm = BE_PHRASE.match(s)' 'm = None'
-gmut compound-alone 'if compound and rest.strip() and not rest.lstrip().startswith(("(", "[")):' 'if compound:'
-gmut compound-anywhere 'if compound and rest.strip() and not rest.lstrip().startswith(("(", "[")):' 'if False:'
-gmut punct-led 'if not any(ch.isalnum() for ch in first):' 'if False:'
-gmut inside 'if tok.lower() in INSIDE_ANY_CASE or read in INSIDE_ANY_CASE or tok in INSIDE_CAPITALS:' 'if False:'
-gmut split-letter-digit 'out.extend((p, p.lower()) for p in re.findall(r"[A-Za-z]+|[0-9]+", t))' 'pass'
-gmut digit-read 'out.append((t, t.lower().replace("0", "o").replace("1", "i")))' 'out.append((t, t.lower()))'
-gmut single-run-inside 'for run in SINGLE_RUN.findall(v):' 'for run in []:'
-gmut single-run-lead 'run = SINGLE_RUN.match(s)' 'run = None'
-gmut confusables 'return "".join(CONFUSABLES.get(ch, ch) for ch in normalise(v))' 'return normalise(v)'
-gmut combining-marks 'if unicodedata.category(ch) != "Mn")' 'if True)'
-gmut template 'm = TEMPLATE.search(v)' 'm = None'
-gmut nfkc 'v = unicodedata.normalize("NFKC", v)' 'pass'
-gmut format-chars 'if unicodedata.category(ch) != "Cf"' 'if True'
-gmut job-shape 'if not job_anchor(v, root):' 'if False:'
-gmut job-shape-reads-folded 'if not job_anchor(v, root):' 'if not job_anchor(fold(v), root):'
-gmut job-id 'if JOB_ID.match(t):' 'if False:'
-gmut job-path 'if PATH_TOKEN.match(t) or FILE_TOKEN.match(t):' 'if False:'
-gmut job-command 'if t in COMMANDS:' 'if False:'
-gmut checks-shape 'elif key in ("checks", "target"):' 'elif key in ("target",):'
-gmut target-shape 'elif key in ("checks", "target"):' 'elif key in ("checks",):'
-gmut target-words 'if key == "target" and not TARGET_WORDS.intersection(' 'if False and not TARGET_WORDS.intersection('
-gmut target-reads-folded 'w.lower() for w in re.findall(r"[A-Za-z0-9]+", core) if w.isascii()):' 'w.lower() for w in re.findall(r"[A-Za-z0-9]+", fold(core))):'
-gmut layer-shape 'if lw not in LAYER_VOCAB:' 'if False:'
-gmut artifact-shape 'if not (HEX.search(core.lower()) or ARTIFACT_WORDS.search(core)):' 'if False:'
-gmut artifact-reads-folded 'if not (HEX.search(core.lower()) or ARTIFACT_WORDS.search(core)):' 'if not (HEX.search(core.lower()) or ARTIFACT_WORDS.search(fold(core))):'
-gmut due-not-date 'd = DUE.match(raw.strip())' 'd = DUE.match(raw.strip()) or DUE.match("2026-01-01")'
-gmut due-calendar 'datetime.date(y, mo, da)' 'datetime.date(2026, 1, 1)'
-gmut due-year-range 'if not 2000 <= y <= 2099:' 'if False:'
-gmut due-time 'datetime.datetime.fromisoformat(d.group(0).replace("Z", "+00:00"))' 'pass'
-gmut fence-ignored 'lines = [ln for ln in unfenced_lines(body) if PREFIX_RE.match(ln)]' 'lines = [ln for ln in (body or "").splitlines() if PREFIX_RE.match(ln)]'
-gmut fence-close-length 'and len(m.group(1)) >= len(fence)' ''
-gmut colonless-form 'FIELD_PART = re.compile(r"(job|checks|layer|target|artifact|due)(?=[\s:]|\Z):?(.*)\Z", re.S)' 'FIELD_PART = re.compile(r"(job|checks|layer|target|artifact|due):(.*)\Z", re.S)'
-gmut prefix-boundary 'PREFIX_RE = re.compile(r"\*\*Verification:\*\* provisional(?=[\s(]|\Z)")' 'PREFIX_RE = re.compile(r"\*\*Verification:\*\* provisional")'
-gmut comment-skipped 'elif COMMENT_OPEN.match(ln):' 'elif False:'
-gmut comment-close 'if "-->" in ln:' 'if True:'
-gmut comment-one-line 'comment = "-->" not in ln[ln.index("<!--") + 4:]' 'comment = True'
+# The r3 mutants targeted code the structural round of r4 replaced (normalise, fold, tokens); the own mutants below
+# remove one rule each of the rebuilt checker. O04 (the removal repeated after NFKC) was removed with the code: no
+# character's fold holds an invisible character (pvl_inventory.py FOLD-CLOSURE, every code point), so it was dead.
+gmut O01-default-ignorable $'        return True\n    return ch != "\\t"' $'        return False\n    return ch != "\\t"'
+gmut O02-tab-not-invisible 'return ch != "\t" and unicodedata.category' 'return unicodedata.category'
+gmut O03-compat-fold 'v = "".join(compat_char(ch) for ch in raw if not is_invisible(ch))' 'v = "".join(ch for ch in raw if not is_invisible(ch))'
+gmut O05-skeleton-decimal 'if unicodedata.decimal(ch, None) is not None:' 'if False:'
+gmut O06-skeleton-confusables 'if ch in CONFUSABLES:' 'if False:'
+gmut O07-skeleton-latin-name 'if words[:1] == ["LATIN"] and key:' 'if False and key:'
+gmut O08-single-runs 'if len(cur) >= 2:' 'if len(cur) >= 99:'
+gmut O09-lead-letters 'return n, "".join(t[3] for t in toks[:n])' 'return 0, ""'
+gmut O10-weak-path 'return path_ok(t, root) if root is not None else not weak_path(t)' 'return path_ok(t, root) if root is not None else True'
+gmut O11-path-dotdot 'if ".." in t.split("/"):' 'if False:'
+gmut O12-path-commonpath ' and os.path.commonpath([real_root, p]) == real_root' ''
+gmut O13-path-root-itself 'return os.path.exists(p) and p != real_root and' 'return os.path.exists(p) and'
+gmut O14-trailing $'    if last:\n' $'    if False:\n'
+gmut O15-note $'            if hit:\n                return "holds a placeholder note' $'            if False:\n                return "holds a placeholder note'
+gmut O16-mixed-script 'if len(scripts) > 1:' 'if False:'
+gmut O17-declared-script 'if sc != "COMMON" and sc not in DECLARED_SCRIPTS:' 'if False:'
+gmut O18-outcome-shape 'if key == "checks" and not (re.search' 'if False and not (re.search'
+gmut O19-max-line 'if len(lines[0]) > MAX_LINE:' 'if False:'
+gmut O20-lead-only 'lead_only = sorted(heads & LEAD_ONLY_WORDS)' 'lead_only = []'
+gmut O21-checks-trail-none 'trail = TRAIL_WORDS if key == "checks" else' 'trail = TRAIL_WORDS | TRAIL_WORDS_NOT_CHECKS if key == "checks" else'
+gmut O22-invisible-refused $'    if gone:\n' $'    if False:\n'
+gmut O23-strong-lead '    strong = sorted(cands & STRONG_WORDS)' '    strong = []'
+gmut O24-weak-lead '    weak = sorted(heads & WEAK_WORDS)' '    weak = []'
+gmut O25-inside '        if readings(s) & INSIDE_ANY_CASE or s in INSIDE_CAPITALS' '        if False and readings(s) & INSIDE_ANY_CASE or s in INSIDE_CAPITALS'
+gmut O26-inside-run '        if any(w in run.lower() for w in INSIDE_ANY_CASE)' '        if False and any(w in run.lower() for w in INSIDE_ANY_CASE)'
+gmut O27-template '    m = TEMPLATE.search(core)' '    m = None'
+gmut O28-punct-led '        return "starts with no word' '        pass  # "starts with no word'
+gmut O29-run-prefixes '        cands |= prefixes(run)' '        pass'
+gmut O30-not-no-lead '        if head in ("not", "no") and len(toks) > 1:' '        if False:'
+gmut O31-checks-not '        if head == "not" and (nxt in CHECKS_NOT_WORDS' '        if False and (nxt in CHECKS_NOT_WORDS'
+gmut O32-target-words 'if key == "target" and not TARGET_WORDS.intersection(ascii_words):' 'if False:'
+gmut O33-compat-char-single 'return al[0] if n != ch and len(al) == 1 else ch' 'return ch'
+gmut O34-fence-ignored 'lines = [ln for ln in unfenced_lines(body) if PREFIX_RE.match(ln)]' 'lines = [ln for ln in (body or "").splitlines() if PREFIX_RE.match(ln)]'
+gmut O35-colonless-form 'FIELD_PART = re.compile(r"(job|checks|layer|target|artifact|due)(?=[\s:]|\Z):?(.*)\Z", re.S)' 'FIELD_PART = re.compile(r"(job|checks|layer|target|artifact|due):(.*)\Z", re.S)'
+gmut O36-due-calendar 'datetime.date(y, mo, da)' 'datetime.date(2026, 1, 1)'
+gmut O37-due-time 'datetime.datetime.fromisoformat(d.group(0).replace("Z", "+00:00"))' 'pass'
+gmut O38-layer-shape 'if lw not in LAYER_VOCAB:' 'if False:'
+gmut O39-artifact-shape 'if not (HEX.search(core.lower()) or ARTIFACT_WORDS.search(core)):' 'if False:'
+gmut O40-job-shape 'if not job_anchor(v, root):' 'if False:'
+gmut O41-job-command 'if t in COMMANDS:' 'if False:'
+gmut O42-comment-skipped 'elif COMMENT_OPEN.match(ln):' 'elif False:'
 
 # P9 the reviewer's probe shapes of review r1 (B1): each refused, by the field named
 mkdb "$W/probe.db" \
@@ -218,21 +226,73 @@ has "P10 --root is reported" "^PATHS: exist-under $W/root\$"
 run "$W/root.db"; [ "$RC" = 0 ] && has "P10 without --root the shape is enough (control)" '^PATHS: shape-only$' || bad "P10 without --root ($RC: $OUT)"
 run --root "$W/no_such_dir" "$W/root.db"; [ "$RC" = 64 ] && ok "P10 --root that is not a directory: usage exit 64" || bad "P10 --root not a directory ($RC)"
 run --root; [ "$RC" = 64 ] && ok "P10 --root without a value: usage exit 64" || bad "P10 --root without a value ($RC)"
-sed 's|if root is None or os.path.exists(|if True or os.path.exists(|' "$C" >"$W/m.py"; cmp -s "$C" "$W/m.py" && bad "P10 mutant root-ignored did not apply" || {
+sed 's|return path_ok(t, root) if root is not None|return True if root is not None|' "$C" >"$W/m.py"; cmp -s "$C" "$W/m.py" && bad "P10 mutant root-ignored did not apply" || {
   OUT="$(python3 -I "$W/m.py" --root "$W/root" "$W/root.db" 2>&1)"; RC=$?
   [ "$RC" = 0 ] && ok "P10 mutant root-ignored is caught (rc 0, the correct checker gives 1)" || bad "P10 mutant root-ignored survived ($RC)"; }
 
-# P11 the reviewer's mutants of review r2 (bin/mutants.py, X1 to X7; X8 and X9 are the render's, in its own suite).
-# X1, X2, X3 and X7 apply VERBATIM. X4, X5 and X6 targeted code that the structural round replaced (the INSIDE regex
-# and ID_TOKEN); their PORT removes the same behaviour from the rebuilt code: X4 XXX inside a value is accepted, X5
-# TBA inside a value is accepted, X6 a single word names a job.
+# P11 the reviewer's mutants. Review r3 (bin/mutants_r3.py of the reviewer, R1 to R22; R17, R18 mutate the render and
+# run in its own suite): R9, R10, R12 to R16, R19 to R22 apply VERBATIM; R1 to R8 and R11 targeted code the structural
+# round of r4 replaced, and their PORT removes the same behaviour from the rebuilt code (R1 format characters are text,
+# R2 combining marks stay, R3 no 1->i reading, R4 white space no separator, R5 underscore no separator, R6 any
+# "none ..." in checks a statement, R7 "will be" not a lead phrase, R8 a --root path need not exist, R11 the target
+# words read the look-alike map). Review r2 (X1 to X7): X1, X2, X3, X7 verbatim; X4, X5, X6 ported in r3, kept.
+gmut R1-port 'NONTEXT_CATEGORIES = frozenset(("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"))' 'NONTEXT_CATEGORIES = frozenset(("Cc", "Cs", "Co", "Cn", "Zl", "Zp"))'
+gmut R2-port 'if unicodedata.category(ch) not in MARK_CATEGORIES)' 'if True)'
+gmut R3-port 'low.replace("0", "o").replace("1", "i")}' 'low.replace("0", "o")}'
+gmut R4-port 'if ch.isalnum() and i < len(v):' 'if (ch.isalnum() or ch.isspace()) and i < len(v):'
+gmut R5-port 'if ch.isalnum() and i < len(v):' 'if (ch.isalnum() or ch == "_") and i < len(v):'
+gmut R6-port 'not (head == "none" and nxt == "of")' 'not (head == "none")'
+gmut R7-port 'BE_LEADS = frozenset(("to", "will", "shall", "should", "would"))' 'BE_LEADS = frozenset(("to", "shall", "should", "would"))'
+gmut R8-port 'return os.path.exists(p) and p != real_root' 'return p != real_root'
+gmut R9-verbatim '[i + 1:i + 3]' '[i + 1:i + 2]'
+gmut R10-verbatim 'JOB_ID = re.compile(r"[A-Z][A-Z0-9]{1,15}' 'JOB_ID = re.compile(r"[A-Z][A-Z0-9]{0,15}'
+gmut R11-port 're.findall(r"[A-Za-z0-9]+", core) if w.isascii()]' 're.findall(r"[A-Za-z0-9]+", "".join(skeleton_char(c) for c in core))]'
+gmut R12-verbatim '[0-9a-f]{7,64}' '[0-9a-f]{6,64}'
+gmut R13-verbatim 'if not 2000 <= y <= 2099:' 'if not 2000 <= y <= 2199:'
+gmut R14-verbatim 'comment = "-->" not in ln[ln.index("<!--") + 4:]' 'comment = True'
+gmut R15-verbatim '"live-target", "gate-logic")' '"live-target")'
+gmut R16-verbatim '"unconfirmed", "lorem"))' '"unconfirmed"))'
+gmut R19-verbatim '"ρ": "p", "υ": "u"' '"υ": "u"'
+gmut R20-verbatim 'provisional(?=[\s(]|\Z)' 'provisional'
+gmut R21-verbatim 'if len(lines) > 1:' 'if len(lines) > 99:'
+gmut R22-verbatim 'if tuple(found) != FIELDS:' 'if False:'
 gmut X1-verbatim 'elif m and m.group(1)[0] == fence[0] and len' 'elif m and len'
 gmut X2-verbatim 'len(m.group(1)) >= len(fence) and not ln[m.end():].strip():' 'len(m.group(1)) >= len(fence):'
 gmut X3-verbatim 'FENCE = re.compile(r" {0,3}(' 'FENCE = re.compile(r" *('
 gmut X4-port 'INSIDE_CAPITALS = frozenset(("XXX",))' 'INSIDE_CAPITALS = frozenset()'
 gmut X5-port 'INSIDE_ANY_CASE = frozenset(("tbd", "tba", "tbc", "todo", "fixme"))' 'INSIDE_ANY_CASE = frozenset(("tbd", "tbc", "todo", "fixme"))'
-gmut X6-port 'if PATH_TOKEN.match(t) or FILE_TOKEN.match(t):' 'if PATH_TOKEN.match(t) or FILE_TOKEN.match(t) or len(toks) == 1:'
+gmut X6-port 'if path_anchor(t, root):' 'if path_anchor(t, root) or len(toks) == 1:'
 gmut X7-verbatim '|\{\{.*?\}\}|\$\{[^}]*\}")' '|\{\{.*?\}\}")'
+
+# P12 (r4) the full character-class inventory: every member of every class of the generator, from the Unicode database
+# of this Python, against the checker; and the generator's class list equals the table of the class inventory document
+INV="$HERE/pvl_inventory.py"
+OUT="$(python3 -I "$INV" "$C" 2>&1)"; RC=$?
+printf '%s\n' "$OUT" | grep '^INV-FAIL' | head -10
+[ "$RC" = 0 ] && ok "P12 inventory: no mismatch, every class at its floor" || bad "P12 inventory (rc $RC): $(printf '%s\n' "$OUT" | grep -E 'BELOW|^INVENTORY' | tr '\n' '|')"
+has "P12 inventory size (needle: the sweep really ran)" '^INVENTORY classes=23 members=1[0-9]{6} cases=[0-9]{5,} mismatches=0 below_floor=0 unicode=[0-9.]+$'
+has "P12 fold closure: no character's fold holds an invisible character" '^FOLD-CLOSURE code_points=1114112 folds_to_invisible=0$'
+DOC="$ROOT/docs/qa/rehearsal_v73_4_fix/r4/class_inventory.md"
+gen="$(python3 -I "$INV" "$C" --classes | tr '\n' ' ')"
+doc="$(grep -oE '^\| U[0-9]{2} \|' "$DOC" | tr -d '| ' | tr '\n' ' ')"
+[ -n "$gen" ] && [ "$gen" = "$doc" ] && ok "P12 the document lists the generator's classes, in order ($gen)" || bad "P12 class lists differ: generator [$gen] document [$doc]"
+sed 's|("U23", |("U99", |' "$INV" >"$W/inv_m.py"
+gen_m="$(python3 -I "$W/inv_m.py" "$C" --classes | tr '\n' ' ')"
+[ "$gen_m" != "$doc" ] && ok "P12 mutant: a renamed class makes the lists differ (the comparison can fail)" || bad "P12 the list comparison cannot fail"
+sed 's|1123),$|99999),|' "$INV" >"$W/inv_f.py"
+OUT="$(python3 -I "$W/inv_f.py" "$C" 2>&1)"; RC=$?
+[ "$RC" = 1 ] && printf '%s\n' "$OUT" | grep -q '^CLASS U14 .*BELOW-FLOOR$' && ok "P12 mutant: a floor above the members is reported BELOW-FLOOR (rc 1)" || bad "P12 the floor check cannot fail (rc $RC)"
+
+# P13 (r4, F1) the work bound: no pathological value takes longer than the limit, and a quadratic split is caught
+TIM="$HERE/pvl_timing.py"
+OUT="$(python3 -I "$TIM" "$C" 2>&1)"; RC=$?
+[ "$RC" = 0 ] && ok "P13 timing within the limit ($(printf '%s\n' "$OUT" | tail -1))" || bad "P13 timing (rc $RC): $(printf '%s\n' "$OUT" | grep -E '^(SLOW|TIMING)' | tr '\n' '|')"
+has "P13 timing size (needle)" '^TIMING cases=98 worst=[0-9.]+s limit=1.00s OK$'
+python3 -I -c 'import sys; s=open(sys.argv[1],encoding="utf-8").read(); o,n=sys.argv[3],sys.argv[4]
+if s.count(o)!=1: sys.exit(9)
+open(sys.argv[2],"w",encoding="utf-8").write(s.replace(o,n))' "$C" "$W/sep_m.py" 'SEP = re.compile(r"(?<!\s)\s+' 'SEP = re.compile(r"\s+' || bad "P13 mutant quadratic-split did not apply"
+OUT="$(python3 -I "$TIM" "$W/sep_m.py" 2>&1)"; RC=$?
+[ "$RC" = 1 ] && ok "P13 mutant quadratic-split is caught ($(printf '%s\n' "$OUT" | grep '^split40k'))" || bad "P13 mutant quadratic-split survived (rc $RC)"
 
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" -eq 0 ]

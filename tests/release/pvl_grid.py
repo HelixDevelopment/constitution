@@ -12,9 +12,12 @@ on it once, and compares each item with its expectation:
   - accepted cases (golden FALSE, section 11.4.201(1)): honest UNCONFIRMED qualifiers after a complete value, the
     canon's colon-less form, words that only contain a placeholder string, and a fenced copy beside the real line.
 Prints one `GRID-PASS <id> <case>` or `GRID-FAIL <id> <case>: <why>` line per case, then
-`GRID cases=N refused=R accepted=A mismatches=M checker_rc=RC`. Exit 0 when M is 0, 1 otherwise, 2 when the
+`GRID cases=N refused=R accepted=A mismatches=M checker_rc=RC`. Since CON-423 r4 the grid also holds the r4 cases
+(R4, R4_ACCEPT; R4_ROOT runs the checker a second time with --root set to the repository root) and a fixed sample of
+the character-class inventory of tests/release/pvl_inventory.py (cases named inv:<class>:<n>). Exit 0 when M is 0, 1 otherwise, 2 when the
 checker printed no CHECKED line (its output is not usable: a mismatch count of 0 there would prove nothing).
 """
+import json
 import os
 import sqlite3
 import subprocess
@@ -190,7 +193,6 @@ OWN_ACCEPT = [
     ("job_xtbd_path", "job", "XTBD-9 run"),
     ("checks_NOT_ok", "checks", "NOT ok tool docstring still says EVERY"), ("checks_none_of2", "checks", "none of 5 mutants survive"),
     ("checks_prose", "checks", "real-tree census byte-identical across census variants"),
-    ("checks_foo_limit", "checks", "foo bar baz"),
     ("checks_unknown_compound_statement", "checks", "unknown-id-only table gives rc 1 and RESULT: KNOWN-STALE"),
     ("checks_pending_compound_statement", "checks", "pending-lock check passes 4/4"),
     ("target_board", "target", "board 6c2f serial"), ("target_container", "target", "container rootless podman"),
@@ -209,7 +211,54 @@ OWN_BODY = [
     ("N1_closed_comment_then_real", "x\n<!--\nhidden\n-->\n" + _V, None),
     ("N1_comment_in_fence_is_code", "x\n```\n<!--\n```\n" + _V, None),
     ("N3_prefix_hyphen", "x\n" + _V.replace("provisional --", "provisional-ish --"), NOLINE),
+    ("R22_field_order", "x\n" + _V.replace("-- checks: 3 passed -- layer: host-only", "-- layer: host-only -- checks: 3 passed"),
+     "fields out of order"),
     ("N3_prefix_paren_ok", "x\n" + _V.replace("provisional --", "provisional (section 11.4.290) --"), None),
+]
+
+# CON-423 r4 (review r3: B1, B2, B3, F1 to F4, R10, R12); one case or more per new axis A20 to A25 of
+# docs/qa/rehearsal_v73_4_fix/r4/class_inventory.md, golden FALSE beside each refusal
+R4 = [
+    ("B1_slash", "checks", "T/B/D later", "is a placeholder"), ("B1_comma", "job", "T,B,D x.sh", "is a placeholder"),
+    ("B1_pipe", "target", "T|B|D host", "is a placeholder"), ("B1_middot", "checks", "T\u00b7B\u00b7D later", "is a placeholder"),
+    ("B1_bullet", "artifact", "T\u2022B\u2022D main", "is a placeholder"), ("B1_uhyphen", "job", "T\u2010B\u2010D x.sh", "is a placeholder"),
+    ("B1_inside_slash", "checks", "every suite T/B/D", "holds the placeholder word"),
+    ("B1_todo_plus", "checks", "T+O+D+O later", "is a placeholder"),
+    ("B2_none_yet", "job", "none/yet", "is a placeholder"), ("B2_pending_sched", "job", "pending/scheduling", "is a placeholder"),
+    ("B2_to_be", "job", "to/be/scheduled", "is a placeholder"), ("B2_na_na", "job", "n.a/n.a", "is a placeholder"),
+    ("B2_pending_sh", "job", "pending.sh", "is a placeholder"), ("B2_none_sh", "job", "none.sh", "is a placeholder"),
+    ("B2_sometime_maybe", "job", "sometime/maybe", "does not name a job"),
+    ("B3_hangul_filler", "checks", "\u3164", "is empty"), ("B3_hangul_choseong", "target", "\u115f host", "holds an invisible"),
+    ("B3_filler_inside", "checks", "3 pas\u3164sed", "holds an invisible"), ("B3_halfwidth_filler", "job", "T\uffa0BD x.sh", "is a placeholder"),
+    ("F2_abs_outside_shape", "job", "bash ../x.sh", "does not name a job"),
+    ("F3_host_later", "target", "host later", "ends with a placeholder"), ("F3_host_paren", "target", "host (pending)", "ends with a placeholder"),
+    ("F3_host_none", "target", "host? none", "ends with a placeholder"),
+    ("F3_note", "target", "host (pending scheduler)", "holds a placeholder note"),
+    ("F4_foo", "checks", "foo bar baz", "names no outcome"), ("F4_limit", "checks", "limit", "names no outcome"),
+    ("R10_one_letter_key", "job", "A-1", "does not name a job"), ("R12_hex6", "artifact", "abc123", "names no fingerprint"),
+    ("R5_underscore_compound", "checks", "a_b_c_tbd 3 passed", "holds the placeholder word"),
+    ("R19_greek_rho", "job", "\u03c1ending x.sh", "is a placeholder"),
+    ("O03_compat_inside_word", "target", "TO\u249fO host", "is a placeholder"),
+    ("O05_arabic_zero_reading", "checks", "T\u0660D\u0660 later", "is a placeholder"),
+    ("O07_small_capitals", "target", "\u1d1b\u0299\u1d05 host", "is a placeholder"),
+    ("O09_note_single_letters", "target", "host (p.e.n.d.i.n.g) x", "holds a placeholder note"),
+    ("O20_lead_only_note", "target", "nobody (host)", "is a placeholder"),
+    ("mixed_script", "checks", "3 \u0440assed", "mixes scripts"), ("other_script", "checks", "3 passed \u05d0", "uses"),
+]
+R4_ACCEPT = [
+    ("R10_two_letter_key", "job", "AB-1"), ("R12_hex7", "artifact", "abc1234"),
+    ("no_review_yet", "checks", "no review yet, 3 passed"), ("middot_between", "checks", "3 passed \u00b7 4 failed"),
+    ("oe_ligature", "checks", "3 passed \u0153"), ("cyrillic_word", "checks", "3 passed \u0442\u0435\u0441\u0442"),
+    ("na_west", "target", "na-west-2 runner"), ("checks_ends_none", "checks", "3 mutants killed, survivors none"),
+    ("tab_separates", "checks", "3\tpassed"), ("strong_inside_word_ok", "checks", "todolist 3 passed"), ("combining_ok", "checks", "3 pas\u0301sed"),
+]
+# with --root (the repository root of this file): an absolute or escaping path never counts, an existing one does
+R4_ROOT = [
+    ("F2_etc_passwd", "job", "/etc/passwd", "does not name a job"), ("F2_bash_etc", "job", "bash /etc/passwd", "does not name a job"),
+    ("F2_dotdot", "job", "docs/..", "does not name a job"), ("F2_missing", "job", "scripts/nonexistent.sh", "does not name a job"),
+    ("F2_ask_operator", "job", "ask/operator", "does not name a job"),
+    ("F2_dotdot_inside", "job", "docs/../scripts/validation/check_provisional_verification_lines.py", "does not name a job"),
+    ("F2_real_path", "job", "python3 -I scripts/validation/check_provisional_verification_lines.py --root .", None),
 ]
 
 
@@ -223,12 +272,13 @@ def main(argv):
         sys.stderr.write("usage: pvl_grid.py CHECKER WORKDIR\n")
         return 64
     checker, work = argv[1], argv[2]
-    cases = []  # (id, name, body, expected_reason or None)
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    cases = []  # (id, name, body, expected_reason or None, run with --root)
     n = [0]
 
-    def add(name, body, want):
+    def add(name, body, want, root=False):
         n[0] += 1
-        cases.append(("CON-%04d" % (5000 + n[0]), name, body, want))
+        cases.append(("CON-%04d" % (5000 + n[0]), name, body, want, root))
 
     for f in FIELDS:
         for name, val, want in ALL_FIELD_BAD:
@@ -267,26 +317,65 @@ def main(argv):
         add("r3:accept:%s" % name, "x\n" + line(v), None)
     for name, body, want in REVIEWER_BODY + OWN_BODY:
         add("r3:body:%s" % name, body, want)
+    for name, f, val, want in R4:
+        v = dict(GOOD)
+        v[f] = val
+        add("r4:%s" % name, "x\n" + line(v), None if want is None else "field '%s' %s" % (f, want))
+    for name, f, val in R4_ACCEPT:
+        v = dict(GOOD)
+        v[f] = val
+        add("r4:accept:%s" % name, "x\n" + line(v), None)
+    for name, f, val, want in R4_ROOT:
+        v = dict(GOOD)
+        v[f] = val
+        add("r4:root:%s" % name, "x\n" + line(v), None if want is None else "field '%s' %s" % (f, want), root=True)
+    rr = dict(GOOD)
+    rr["job"] = "bash " + repo_root
+    add("r4:root:F2_root_itself", "x\n" + line(rr), "field 'job' does not name a job", root=True)
+    long = dict(GOOD)
+    long["checks"] = "3 passed " + "x" * 4100
+    add("r4:body:line_too_long", "x\n" + line(long), "the verification line is longer than 4096")
+    # the inventory sample does not depend on the checker: computed once per WORKDIR (about 15 s), then read back, so
+    # the paired mutants of the test do not rebuild it; the file is written by this script only
+    cache = os.path.join(work, "pvl_inventory_sample.json")
+    if os.path.exists(cache):
+        with open(cache, encoding="utf-8") as fh:
+            sample = json.load(fh)
+    else:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import pvl_inventory
+        sample = pvl_inventory.sample_cases()
+        with open(cache + ".tmp", "w", encoding="utf-8") as fh:
+            json.dump(sample, fh)
+        os.replace(cache + ".tmp", cache)
+    for name, f, val, want in sample:
+        v = dict(GOOD)
+        v[f] = val
+        add(name, "x\n" + line(v), want)
 
-    db = os.path.join(work, "grid.db")
-    if os.path.exists(db):
-        os.remove(db)
-    con = sqlite3.connect(db)
-    con.execute("create table items (atm_id text primary key, status text, body_md text)")
-    con.executemany("insert into items values (?, 'Ready for testing', ?)", [(i, b) for i, _, b, _ in cases])
-    con.commit()
-    con.close()
-    p = subprocess.run([sys.executable, "-I", checker, db], capture_output=True, text=True)
-    if not any(ln.startswith("CHECKED ") for ln in p.stdout.splitlines()):
-        print("GRID-BLIND the checker printed no CHECKED line (rc %d): %s" % (p.returncode, p.stderr[-300:]))
-        return 2
-    fails = {}
-    for ln in p.stdout.splitlines():
-        if ln.startswith("FAIL CON-"):
-            head, _, reason = ln.partition(": ")
-            fails[head.split()[1]] = reason
+    fails, rcs = {}, []
+    for with_root in (False, True):
+        db = os.path.join(work, "grid_root.db" if with_root else "grid.db")
+        if os.path.exists(db):
+            os.remove(db)
+        con = sqlite3.connect(db)
+        con.execute("create table items (atm_id text primary key, status text, body_md text)")
+        con.executemany("insert into items values (?, 'Ready for testing', ?)",
+                        [(c[0], c[2]) for c in cases if c[4] == with_root])
+        con.commit()
+        con.close()
+        cmd = [sys.executable, "-I", checker] + (["--root", repo_root] if with_root else []) + [db]
+        p = subprocess.run(cmd, capture_output=True, text=True)
+        if not any(ln.startswith("CHECKED ") for ln in p.stdout.splitlines()):
+            print("GRID-BLIND the checker printed no CHECKED line (rc %d): %s" % (p.returncode, p.stderr[-300:]))
+            return 2
+        rcs.append(p.returncode)
+        for ln in p.stdout.splitlines():
+            if ln.startswith("FAIL CON-"):
+                head, _, reason = ln.partition(": ")
+                fails[head.split()[1]] = reason
     mism = refused = 0
-    for i, name, _, want in cases:
+    for i, name, _, want, _root in cases:
         got = fails.get(i)
         if want is None:
             ok = got is None
@@ -301,7 +390,7 @@ def main(argv):
             mism += 1
             print("GRID-FAIL %s %s: %s" % (i, name, why))
     print("GRID cases=%d refused=%d accepted=%d mismatches=%d checker_rc=%d"
-          % (len(cases), refused, len(cases) - refused, mism, p.returncode))
+          % (len(cases), refused, len(cases) - refused, mism, max(rcs)))
     return 0 if mism == 0 else 1
 
 

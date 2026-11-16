@@ -1,0 +1,12 @@
+'T/B/D later'  ph=False draft=False
+'T.B.D later'  ph=False draft=False
+'T·B·D'        ph=False draft=False
+'TㅤBD'         ph=False draft=False
+'TBᅟD'         ph=False draft=False
+'DㅤRAFT'       ph=False draft=False
+'DR⠀AFT'       ph=False draft=False
+'ⓉⒷⒹ'          ph=True  draft=False
+'ᴛʙᴅ'          ph=False draft=False
+'T0D0'         ph=False draft=False
+'TBD'          ph=True  draft=False
+'TODO'         ph=True  draft=False
