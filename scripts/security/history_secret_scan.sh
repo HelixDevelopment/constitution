@@ -37,13 +37,25 @@
 #      MUST NOT; else BLIND. Values that are not searched (shorter than 12
 #      characters, or a placeholder) are never silent: a note names the
 #      variables and counts them (names only, never values).
+#      The blob ids reach `git cat-file --batch` from a file in $WORK, not a
+#      pipe written before the answers are read (CON-PENDING-secscan: with a
+#      few thousand blobs both pipes filled and both processes waited for
+#      ever). Every reply is checked against the requested id; a missing or
+#      malformed reply is exit 7, never a count.
+#      --exact-only (needs --keys-file) skips step 3 and the scanner
+#      needle checks: no gitleaks binary is needed, nf is 0, and only the
+#      exact-match controls guard the result.
+#   Known limit: a value shorter than 12 characters is NOT searched (too many
+#      chance matches). Such variables are listed by NAME with their count in
+#      the "not searched" note on every run (0 included), so a skip is never
+#      silent; check them by another means.
 #   6. cleanup: safe_rm_rf "$WORK" (scripts/lib/safe_rm.sh).
 # Scanner: gitleaks from $GITLEAKS or PATH (a pinned, pre-installed v8
 # binary). Nothing is downloaded at run time; without it the exit is 4.
 # URLs carrying credentials (http(s) with user info, or user:password@) are
 # refused.
 #
-# Usage: SCRATCH=/abs/dir history_secret_scan.sh [--keys-file F] URL [URL...]
+# Usage: SCRATCH=/abs/dir history_secret_scan.sh [--keys-file F [--exact-only]] URL [URL...]
 #        OUT=/path/report.tsv may be set (default $SCRATCH/history_secret_scan_<date>.tsv)
 # Exit: 0 no finding; 1 findings to classify; 2 usage; 3 BLIND (a control
 #       needle failed); 4 no scanner; 5 missing prerequisite (git, jq,
@@ -54,16 +66,18 @@ for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_
 trap 'echo "ERROR: unexpected failure at line $LINENO" >&2; exit 7' ERR
 fail(){ local c=$1; shift; echo "$*" >&2; exit "$c"; }
 
-KEYS=""; declare -a URLS=()
+KEYS=""; EXACT_ONLY=0; declare -a URLS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --keys-file) [ $# -ge 2 ] || fail 2 "usage: --keys-file needs a file"; KEYS=$2; shift ;;
+    --exact-only) EXACT_ONLY=1 ;;
     -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d'; exit 0 ;;
     -*) fail 2 "usage: unknown option $1" ;;
     *) URLS+=("$1") ;;
   esac; shift
 done
 [ ${#URLS[@]} -ge 1 ] || fail 2 "usage: need at least one remote URL"
+[ "$EXACT_ONLY" = 0 ] || [ -n "$KEYS" ] || fail 2 "usage: --exact-only needs --keys-file"
 [ -n "${SCRATCH:-}" ] || fail 2 "usage: set SCRATCH to an absolute scratch directory"
 case "$SCRATCH" in /*) ;; *) fail 2 "usage: SCRATCH must be absolute" ;; esac
 [ -d "$SCRATCH" ] || fail 2 "usage: SCRATCH is not a directory: $SCRATCH"
@@ -86,7 +100,7 @@ SAFE_RM="${SAFE_RM:-$SELF_DIR/../lib/safe_rm.sh}"
 declare -F safe_rm_rf >/dev/null || fail 5 "missing prerequisite: safe_rm_rf not defined by $SAFE_RM"
 
 GL="${GITLEAKS:-$(command -v gitleaks || true)}"
-[ -n "$GL" ] && [ -x "$GL" ] || fail 4 "no scanner: install a pinned gitleaks v8 binary on PATH or set GITLEAKS (nothing is downloaded at run time)"
+[ "$EXACT_ONLY" = 1 ] || { [ -n "$GL" ] && [ -x "$GL" ]; } || fail 4 "no scanner: install a pinned gitleaks v8 binary on PATH or set GITLEAKS (nothing is downloaded at run time)"
 
 WORK=$(mktemp -d "$SCRATCH/hss.XXXXXX") || fail 7 "mktemp failed"
 # shellcheck disable=SC2154  # _rc is assigned inside the trap string
@@ -127,6 +141,10 @@ mm=$(commit "$(ntree base.txt="$B_BASE" a.txt="$B_A" b.txt="$B_B" merge.env="$B_
 git -C "$M" update-ref refs/fetched/needle/merge "$(commit "$(ntree base.txt="$B_BASE" a.txt="$B_A" b.txt="$B_B")" -p "$mm")"
 
 # ---- the one scan -----------------------------------------------------------------------------
+nf=0
+if [ "$EXACT_ONLY" = 1 ]; then
+  echo "scanner not run (--exact-only): only the exact-match controls guard this run"
+else
 REP="$WORK/scan.json"
 grc=0; "$GL" git --redact --no-banner --log-opts="--all -m" -f json -r "$REP" "$M" >"$WORK/gl.out" 2>&1 || grc=$?
 case "$grc" in 0|1) ;; *) fail 6 "SCANNER-ERROR: gitleaks exited $grc" ;; esac
@@ -145,6 +163,7 @@ jq -r '.[]|select(.File|startswith("__hss_needle__/")|not)|[.RuleID,"\(.File):\(
 nf=$(wc -l < "$OUT")
 echo "needles: history=$npos merge=$nmrg negative=$nneg (control OK)"
 echo "findings=$nf -> $OUT (classify each: fixture vs real)"
+fi
 
 # ---- optional exact-match pass ----------------------------------------------------------------
 kh=0
@@ -177,19 +196,32 @@ cnt = {n: 0 for n, _ in vals}
 ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
                      capture_output=True, check=True).stdout.split(b"\n")
 blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
-p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-p.stdin.write(b"".join(b + b"\n" for b in blobs)); p.stdin.close()
-for _ in blobs:
-    size = int(p.stdout.readline().split()[2]); data = p.stdout.read(size); p.stdout.read(1)
+# The requests come from a regular file, never from a pipe this process
+# writes before it reads the answers: git reads requests while we read
+# answers, so neither side can block the other (CON-PENDING-secscan).
+with open(sys.argv[2], "wb") as f:
+    f.write(b"".join(b + b"\n" for b in blobs))
+def bad_reply(p):
+    sys.stderr.write("exact-match: unexpected reply from git cat-file --batch\n")
+    p.kill(); p.wait(); sys.exit(7)
+with open(sys.argv[2], "rb") as req:
+    p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=req, stdout=subprocess.PIPE)
+for b in blobs:
+    hdr = p.stdout.readline().split()
+    if len(hdr) != 3 or hdr[0] != b or hdr[1] != b"blob" or not hdr[2].isdigit():
+        bad_reply(p)
+    size = int(hdr[2]); data = p.stdout.read(size)
+    if len(data) != size or p.stdout.read(1) != b"\n":
+        bad_reply(p)
     for n, v in vals:
         if v in data:
             cnt[n] += 1
-if p.wait() != 0:
+if p.stdout.read(1) != b"" or p.wait() != 0:
     sys.exit(7)
 for n in cnt:
     print("%s\t%d" % (n, cnt[n]))
 print("__HSS_SKIP_SHORT__\t%d\t%s" % (len(short), ",".join(short)))
-print("__HSS_SKIP_PLACE__\t%d\t%s" % (len(place), ",".join(place)))' "$M" > "$WORK/keys.tsv"; then
+print("__HSS_SKIP_PLACE__\t%d\t%s" % (len(place), ",".join(place)))' "$M" "$WORK/blob_ids" > "$WORK/keys.tsv"; then
     fail 7 "git error: exact-match pass failed"
   fi
   [ "$(awk -F'\t' '$1=="__HSS_CONTROL_PRESENT__"{print $2}' "$WORK/keys.tsv")" -ge 1 ] || fail 3 "BLIND: exact-match control value was not found"
