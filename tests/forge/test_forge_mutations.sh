@@ -32,6 +32,9 @@ trap cleanup EXIT
 # W06 is implied by _fg_dotenv_names, W10 is unreachable because key names cannot hold "=", W16 re-adds the token in use
 # through its source loop, W17 changes only speed); W18 (an 11-character token prefix in the AUTH line) is the stated
 # 12-character window boundary, not a defect (docs/guides: "contiguous pieces of 12 or more characters").
+# G01-G09 (CON-PENDINGgv, 2026-11-16): the GitVerse commits/{tag-object-sha} peel of an annotated tag; M17 adapted to
+# the new line. Not run, EQUIVALENT by construction: weakening the fg_ok_sha test of that branch (a non-40-hex or empty
+# sha then reaches FG_TAG_SHA, and forge.sh itself shows and uses only an fg_ok_sha value, so the output is identical).
 # id ~ file (under scripts/forge) ~ test file
 MUTANTS=(
 "M01~forge.sh~test_forge_gitea.sh~'fg_line \"ACTION: created\"; fg_readback; fg_end_ensure'~'fg_line \"ACTION: created\"; fg_end_ensure'"
@@ -50,7 +53,7 @@ MUTANTS=(
 "M14~forge.sh~test_forge_github_gitlab.sh~'    true) ok=1 ;;\\n    false) ;;'~'    true) ;;\\n    false) ;;'"
 "M15~lib/credentials.sh~test_forge_credentials.sh~'    return 2        # stop'~'    return 1        # stop'"
 "M16~forge.sh~test_forge_github_gitlab.sh~'fg_ok_rel_id() { fg_ok_id \"\$1\" || { [ \"\$FG_PROVIDER\" = gitlab ] && fg_ok_tag \"\$1\"; }; }'~'fg_ok_rel_id() { fg_ok_id \"\$1\"; }'"
-"M17~providers/gitverse.sh~test_forge_gitverse.sh~'{ FG_TAG_STATE=present; FG_TAG_SHA=\"\"; return 0; }'~'{ FG_TAG_STATE=present; FG_TAG_SHA=\"\$s\"; return 0; }'"
+"M17~providers/gitverse.sh~test_forge_gitverse.sh~'else FG_TAG_STATE=present; FG_TAG_SHA=\"\"; return 0; fi'~'else FG_TAG_STATE=present; FG_TAG_SHA=\"\$s\"; return 0; fi'"
 "M18~lib/http.sh~test_forge_credentials.sh~'printf -v cfg \"header = \\\\\"\$FG_AUTH_FMT\\\\\"\\\\n\" \"\$FG_TOKEN\"'~'printf -v cfg \"header = \\\\\"\$FG_AUTH_FMT\\\\\"\\\\n\" \"\$FG_TOKEN\"; printf \"%s\\\\n\" \"\$FG_TOKEN\" >&2'"
 "N01~lib/http.sh~test_forge_credentials.sh~'  [ \"\$o\" = \"\$FG_API_ORIGIN\" ] || { FG_NET=pin; return 1; }\\n'~''"
 "N04~lib/credentials.sh~test_forge_credentials.sh~'  [ \"\$owner\" = \"\$(id -u)\" ] || return 1\\n'~''"
@@ -121,6 +124,15 @@ MUTANTS=(
 "W14~forge.sh~test_forge_github_gitlab.sh~'      if fg_matches; then fg_line \"ACTION: kept\"; fg_end_ensure; fi'~'      if fg_matches; then fg_line \"ACTION: kept\"; [ \"\$FG_TARGET_OK\" = 1 ] && FG_COMMIT_OK=1; fg_end_ensure; fi'"
 "W15~lib/common.sh~test_forge_credentials.sh~'      [[ \$t == *\"\$v\"* ]] && { FG_SECRET_NAME=\"\${FG_SEC_NAMES[\$i]}\"; return 0; }\\n      continue'~'      continue'"
 "W19~lib/common.sh~test_forge_credentials.sh~'  if [[ \$t == *\$\\'\\\\n\\'* ]]; then\\n'~'  if false; then\\n'"
+"G01~providers/gitverse.sh~test_forge_gitverse.sh~'      fg_http GET \"\$FG_RPATH/commits/\$o\" || return 1\n'~'      :\n'"
+"G02~providers/gitverse.sh~test_forge_gitverse.sh~'fg_http GET \"\$FG_RPATH/commits/\$o\"'~'fg_http GET \"\$FG_RPATH/commits/\$1\"'"
+"G03~providers/gitverse.sh~test_forge_gitverse.sh~' && [ \"\$s\" != \"\$o\" ]; then t=commit'~' ; then t=commit'"
+"G04~providers/gitverse.sh~test_forge_gitverse.sh~'s=\"\"; [ \"\$FG_CODE\" = 200 ] && s='~'s=\"\"; s='"
+"G05~providers/gitverse.sh~test_forge_gitverse.sh~'    if [ \"\$FG_CODE\" = 200 ]; then\n      t='~'    if false; then\n      t='"
+"G06~providers/gitverse.sh~test_forge_gitverse.sh~'    if [ \"\$FG_CODE\" = 200 ]; then\n      t='~'    if true; then\n      t='"
+"G07~providers/gitverse.sh~test_forge_gitverse.sh~'then t=commit; else'~'then :; else'"
+"G08~providers/gitverse.sh~test_forge_gitverse.sh~'s=\"\$(fg_json \'.sha // empty\')\"'~'s=\"\$(fg_json \'.object.sha // empty\')\"'"
+"G09~providers/gitverse.sh~test_forge_gitverse.sh~'    o=\"\$s\"\n'~'    o=\"\$1\"\n'"
 )
 
 copy_tree() { # DEST: a fresh copy of scripts/forge

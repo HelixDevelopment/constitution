@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-12T17:49:00Z |
+| Last modified | 2026-11-16T19:30:00Z |
 | Status | active, PROVISIONAL: the read paths are LIVE-proven on all six forges (evidence below); every WRITE path (create, update, `--enable-releases`) is proven on the loopback fixture only and is LIVE-UNPROVEN until the first real cut |
 | Status summary | How to check and create the platform release of a tag on GitHub, GitLab, Codeberg (Forgejo), git.m3w.org (Gitea), GitFlic and GitVerse with one tool, API keys only. |
 | Authority | Tool documentation; no new anchor and no new CM-* token. §11.4.10 (credentials), §11.4.113 (never force), §11.4.201 / §11.4.273 (instrument honesty), §11.4.289 (test classes), §11.4.18 / §11.4.257 govern. |
@@ -200,7 +200,7 @@ complete. A 422 on create counts as "exists" only when the answer says `already_
 | Codeberg | The repository's Releases unit is OFF (`has_releases: false`), so every release URL answers 404: `GAP releases_disabled`. `--enable-releases` makes the one reversible settings change `PATCH /repos/{o}/{r} {"has_releases":true}`, logs `NOTICE: enabling the Releases unit`, reads it back (`FAIL enable_releases_not_confirmed` if it did not take), then continues. Undo: repository Settings, Units, Releases. |
 | git.m3w.org | Gitea; full read path proven (release, tag, target commit). |
 | GitFlic | No get-by-tag: release and tag lookups page through the lists (50 per page, at most `FORGE_GITFLIC_MAX_PAGES`, default 20; reaching the cap is `GAP readback_page_cap`, never "absent"). gitflic.ru allows about 500 requests per hour. |
-| GitVerse | `GET .../releases` answers 404 `REPO_NOT_FOUND` for a repository that answers 200: indistinguishable from "no release" or "unsupported", so it is `GAP releases_unsupported_or_empty`, never "absent" and never success. `--try-create-on-ambiguous` attempts the create, and only the read-back decides. `git/tags/{sha}` and `/tags` answer 400, so an annotated tag's commit cannot be read: `TAG: present sha=unknown`. |
+| GitVerse | `GET .../releases` answers 404 `REPO_NOT_FOUND` for a repository that answers 200: indistinguishable from "no release" or "unsupported", so it is `GAP releases_unsupported_or_empty`, never "absent" and never success. `--try-create-on-ambiguous` attempts the create, and only the read-back decides. `git/tags/{sha}` and `/tags` answer 400; the commit of an annotated tag is read from `GET .../commits/{tag-object-sha}` (the `object.url` of the matching-refs answer; live 2026-11-16, CON-PENDINGgv), which the forge peels server-side. Only a 200 whose `sha` is a full commit id other than the tag-object id counts; otherwise `TAG: present sha=unknown`. |
 
 ## Evidence
 
