@@ -11,8 +11,10 @@
 # seconds instead of hanging), and checks: the run ends, the planted value is
 # counted in exactly the blobs that hold it, the controls hold, the
 # --exact-only option (no scanner run), the short-value limit (names and count
-# reported, 11/12 character boundary) and a matcher that gets unexpected
-# replies from git (exit 7, never a silent count).
+# reported, 11/12 character boundary), a matcher that gets unexpected
+# replies from git or a non-zero git exit after correct replies (exit 7, never
+# a silent count), and a value at the very end of a blob with no trailing
+# newline (CON-430 reviewer mutants RV5, RV16).
 # Gate-logic tests only (§11.4.289): fake gitleaks, local repositories.
 # Fabricated values are random per run and built with python3 (no
 # secret-shaped literal in this file).
@@ -137,6 +139,28 @@ EOF
 chmod +x "$WG/git"
 RUN_ENV=(PATH="$WG:$FIX/bin:$PATH"); run --exact-only --keys-file "$KF0" "$BIG"
 check "cat-file --batch answers for another id -> exit 7, no counts written" '[ $RC -eq 7 ] && [ ! -s "$SCR/out.tsv.keys.tsv" ] && grep -q "unexpected reply from git cat-file" "$tmp/err"'
+# A git shim whose `cat-file --batch` gives every correct reply and then exits
+# non-zero: the matcher checks git's exit status after the last reply, so the
+# run must stop with 7 (kills reviewer mutant RV5, CON-430).
+EG="$tmp/exitgit"; mkdir -p "$EG"
+cat > "$EG/git" <<EOF
+#!/usr/bin/env bash
+for a in "\$@"; do
+  if [ "\$a" = --batch ]; then "$REALGIT" "\$@"; exit 3; fi
+done
+exec "$REALGIT" "\$@"
+EOF
+chmod +x "$EG/git"
+RUN_ENV=(PATH="$EG:$FIX/bin:$PATH"); run --exact-only --keys-file "$KF0" "$SMALL"
+check "cat-file --batch answers correctly, then exits 3 -> exit 7, no counts written" '[ $RC -eq 7 ] && [ ! -s "$SCR/out.tsv.keys.tsv" ]'
+
+# ---- value at the very end of a blob -----------------------------------------------------------------
+# The value is the last bytes of the blob, with no trailing newline (kills
+# reviewer mutant RV16, CON-430: a matcher that searches data[:-1] misses it).
+ENDR="$tmp/endrepo"; git init -q "$ENDR"; printf 'cfg=%s' "$KV" > "$ENDR/end.txt"; git -C "$ENDR" add end.txt; git -C "$ENDR" commit -qm end
+[ "$(git -C "$ENDR" cat-file blob HEAD:end.txt | tail -c "${#KV}")" = "$KV" ] || { echo "env: end-of-blob fixture is wrong" >&2; exit 2; }
+RUN_ENV=(); run --exact-only --keys-file "$KF0" "$ENDR"
+check "value as the last bytes of a blob without a trailing newline: exit 1, KEY_A counted 1" '[ $RC -eq 1 ] && [ "$(kcount KEY_A)" = 1 ]'
 
 echo "RESULT: $((n-bad))/$n passed"
 [ "$bad" -eq 0 ]

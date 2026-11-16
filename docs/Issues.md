@@ -4921,10 +4921,12 @@ What: the --keys-file exact-match pass of scripts/security/history_secret_scan.s
 
 ## CON-425 — history_secret_scan.sh: a refs/replace entry hides a secret blob from the exact-match pass and from gitleaks (CON-423 review NEW-1)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Bug
 **Severity:** High
 **Created-By:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/secscan_replace_2026_11_16/red_current_main.txt` — red-command `bash docs/qa/secscan_replace_2026_11_16/red_toggle.sh.txt <checkout> <label> (script sha256 d6bd918ef33e0dbf, origin main cc51c320); HSS_SCRIPT=<main copy> bash tests/security/test_history_secret_scan_replace.sh (3/17)` — green-command `same probe and bash tests/security/test_history_secret_scan_replace.sh on the fixed script (17/17)` — env `host, clone of origin main cc51c320, git 2.53.0, hermetic local repositories with refs/replace entries, fake gitleaks` — signature `blob replaced by a clean blob: --exact-only rc=0 MYKEY=0, scanner pass rc=0 findings=0; forced blob->tree replace: --exact-only rc=7, scanner rc=0 findings=0; a caller's GIT_NO_REPLACE_OBJECTS=1 has no effect (cleared by the git-env scrub)` — updated 2026-11-16T15:54:50Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `git honours refs/replace/* by default and clone --mirror copies them; the script scrubbed GIT_NO_REPLACE_OBJECTS and never set it, so cat-file --batch and the scanner's git log read the replacement. Toggling only the export of GIT_NO_REPLACE_OBJECTS=1 (fixed script minus that line, toggle_minus_export.txt) brings back MYKEY=0, findings=0 and rc=7; with it every fixture is found (green_fixed.txt)` — evidence `docs/qa/secscan_replace_2026_11_16/toggle_minus_export.txt` — updated 2026-11-16T15:54:50Z — by `AI`
 
 What: scripts/security/history_secret_scan.sh honours replace refs, so a repository that carries refs/replace/<secret-blob> -> <clean-blob> is scanned through the replacement. Measured by the CON-423 review round 2 (rev2_secscan_dl_ev, SHA256SUMS verified): replace_probe.txt, --exact-only, mode=plain rc=1 MYKEY=1, mode=replaced rc=0 MYKEY=0 (secret not found, clean verdict); replace_log_probe.txt: the mirror keeps 1 replace ref, git log -p --all -m sees the fake 0 times, with --no-replace-objects 1 time; rv16_probe.txt: a forced blob->tree replace makes cat-file --batch answer type tree for a blob id that --batch-check reports as blob. Pre-existing (not introduced by CON-423), source-defect, important; not fixed in the CON-423 landing. Fix idea: export GIT_NO_REPLACE_OBJECTS=1 right after the git-env scrub so every git call (mirror, cat-file, the scanner's git log) reads the stored objects, and refuse or report replace refs. Scope: scripts/security/history_secret_scan.sh, tests/security/test_history_secret_scan.sh, tests/security/test_history_secret_scan_deadlock.sh, docs/guides/security_hardening_scripts.md. Reproduction: reproduced-host-fixture by the reviewer probes above (host-only). Acceptance: RED first with the review fixtures (replaced blob; blob->tree replace) on the current script, then GREEN with the secret found (exit 1) in both the exact-match pass and the scanner pass; paired mutant that drops the setting is killed.
 
@@ -4966,12 +4968,12 @@ What: review finding F5 (relayed): the script header, the guide and CON-423 say 
 
 ## CON-430 — CON-423 tests: reviewer mutants RV4, RV5, RV6 and RV16 survive the deadlock and history-scan suites (review F6/F7)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Low
 **Created-By:** AI
 
-What: rev2_secscan_dl_ev/rmut_out.txt: SURVIVED RV4 (trailing-data check reduced to read(1)), RV5 (cat-file exit status not checked), RV6 (no kill/wait before exit 7), RV16 (v in data[:-1], a value at the very end of a blob without a newline is missed; rv16_probe.txt shows rc=0 MYKEY=0). The mapping of these survivors to the reviewer labels F6 and F7 is inferred from the evidence, UNCONFIRMED. Test-instrumentation (section 11.4.235(D)). Scope: tests/security/test_history_secret_scan_deadlock.sh, tests/security/test_history_secret_scan_deadlock_mutations.sh. Acceptance: fixtures that kill RV4, RV5, RV6 and RV16 (RED with each mutant, GREEN without), added to the paired mutation suite.
+What: rev2_secscan_dl_ev/rmut_out.txt: SURVIVED RV4 (trailing-data check reduced to read(1)), RV5 (cat-file exit status not checked), RV6 (no kill/wait before exit 7), RV16 (v in data[:-1], a value at the very end of a blob without a newline is missed; rv16_probe.txt shows rc=0 MYKEY=0). The mapping of these survivors to the reviewer labels F6 and F7 is inferred from the evidence, UNCONFIRMED. Test-instrumentation (section 11.4.235(D)). Scope: tests/security/test_history_secret_scan_deadlock.sh, tests/security/test_history_secret_scan_deadlock_mutations.sh. Acceptance: fixtures that kill RV4, RV5, RV6 and RV16 (RED with each mutant, GREEN without), added to the paired mutation suite. Progress 2026-11-16 (CON-425 fix vehicle, PROVISIONAL, not yet independently reviewed): RV5 and RV16 are now paired mutants DM15 and DM16 of tests/security/test_history_secret_scan_deadlock_mutations.sh, killed by two new cases of tests/security/test_history_secret_scan_deadlock.sh (a git shim whose cat-file --batch gives every correct reply and then exits 3 -> exit 7; a value as the last bytes of a blob with no trailing newline -> counted 1); RV1 (blob type check removed) is RM10 of tests/security/test_history_secret_scan_replace_mutations.sh, killed by a git shim that drops GIT_NO_REPLACE_OBJECTS on a forced blob->tree replace (exit 7). RV4 and RV6 are recorded as equivalent in the header of the deadlock mutation suite (RV4: a short read means git closed the pipe, the next read(1) is not a newline, still exit 7; RV6: exit 7 either way, git ends on EPIPE after python exits). Open until the independent review accepts the equivalence notes.
 
 ## CON-431 — codegraph_mcp_health.py: stderr=PIPE is never read while the session runs (bounded deadlock risk)
 
@@ -5008,4 +5010,76 @@ What: review item I1 (relayed): credentials.sh matches variable names with [A-Z]
 **Created-By:** AI
 
 What: review item (relayed by the conductor, mechanism UNCONFIRMED): in case C49 of tests/release/test_tag_and_release.sh (lines 688-708 at 38c80398) the TERM-ignoring git double exits while /proc is still being read, and the resulting stderr line can appear or not between runs. Scope: that test case. Reproduction: UNREPRODUCED; repeated runs with a hash compare of the output are the RED. Acceptance: the case output is identical over N=3 runs, the race closed or the line filtered with a named reason.
+
+## CON-435 — scripts/gitleaks/gitleaks_run_scan.sh: gitleaks detect over the full history never exports GIT_NO_REPLACE_OBJECTS, so a replace ref can hide a secret (CON-425 review F1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+
+What: review F1 (pre-existing, important): scripts/gitleaks/gitleaks_run_scan.sh runs gitleaks detect over the full history and scrubs the git environment but never exports GIT_NO_REPLACE_OBJECTS=1, the same class CON-425 fixed in scripts/security/history_secret_scan.sh. UNCONFIRMED whether gitleaks' own git log invocation honours replace refs (real gitleaks is not installed on this host). Related: CON-425 (same class, other script), CON-401. Scope: scripts/gitleaks/gitleaks_run_scan.sh and its tests. Reproduction: UNREPRODUCED. Acceptance: a RED with a repository carrying refs/replace/<secret-blob> -> <clean-blob> scanned by the real gitleaks binary, then GREEN with the secret found; paired mutant that drops the export is killed. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
+
+## CON-436 — history_secret_scan.sh: a ref that two remotes both name under refs/fetched/r1/ is overwritten by the second forced fetch and hides a commit (CON-425 review F2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+
+What: review F2 (pre-existing, important): the multi-remote fetch into refs/fetched/r<N>/... can collide; a forced fetch from remote #2 overwrites a ref written by remote #1, so a commit only reachable from the first copy is no longer scanned and the verdict can be clean. Related: CON-425. Scope: scripts/security/history_secret_scan.sh fetch layout, tests/security/test_history_secret_scan_replace.sh. Reproduction: UNREPRODUCED (reviewer description). Acceptance: RED with two remotes whose refs collide and a secret reachable only from the overwritten one, then GREEN (unique namespace per remote, or a refusal), paired mutant killed. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
+
+## CON-437 — history_secret_scan.sh: a shallow source repository yields a silent clean verdict; add a history-incomplete signal (CON-425 review F3)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+
+What: review F3 (pre-existing, important): when the scanned source is a shallow clone the mirror lacks history beyond the graft and the scan reports clean without saying the history is incomplete. Related: CON-425; CON-300 is the same shape in another script. Scope: scripts/security/history_secret_scan.sh, its tests and docs/guides/security_hardening_scripts.md. Reproduction: UNREPRODUCED. Acceptance: RED with a shallow source whose secret sits behind the graft, then GREEN where the run refuses or exits with a distinct history-incomplete code and names it; paired mutant killed. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
+
+## CON-438 — history_secret_scan.sh: caller global/system git config (for example core.attributesFile with -diff) is not neutralised (CON-425 review F4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI
+
+What: review F4 (minor): the script scrubs git environment variables but does not set GIT_CONFIG_GLOBAL=/dev/null and GIT_CONFIG_NOSYSTEM=1, so the caller's global or system config applies; a core.attributesFile marking files -diff could hide content from git log -p. Related: CON-410 (GIT_CONFIG_COUNT/KEY/VALUE and GIT_CONFIG_PARAMETERS outside the scrub class), CON-425. Scope: scripts/security/history_secret_scan.sh and tests. Reproduction: UNREPRODUCED. Acceptance: RED with a global attributes file setting -diff on the secret path, then GREEN with the config neutralised; paired mutant killed. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
+
+## CON-439 — CON-425 tests: reviewer mutant RVA6 (replace-ref count by grep instead of wc -l) survives the replace suites (review F5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI
+
+What: review F5 (test-instrumentation): reviewer mutant RVA6 replaces rh=$(wc -l < "$RPL") with rh=$(grep -c refs/replace "$RPL" || true) in scripts/security/history_secret_scan.sh and survives test_history_secret_scan_replace.sh, test_history_secret_scan.sh and test_history_secret_scan_deadlock.sh (reviewer_mutants_run1.txt and run2_subset.txt). Related: CON-430 (CON-423 survivors, same class of follow-up), CON-425. Scope: tests/security/test_history_secret_scan_replace.sh and its mutation suite. Acceptance: a fixture that kills RVA6 (RED with the mutant, GREEN without), added to tests/security/test_history_secret_scan_replace_mutations.sh. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
+
+## CON-440 — CON-425 tests: reviewer mutant RVA5 (remote index regex r[0-9]+ narrowed to r[0-9]) survives (review F6)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI
+
+What: review F6 (test-instrumentation): reviewer mutant RVA5 narrows the pattern r[0-9]+/replace to r[0-9]/replace in scripts/security/history_secret_scan.sh and survives the three history-scan suites; no fixture uses ten or more remotes. Related: CON-430, CON-425. Scope: tests/security/test_history_secret_scan_replace.sh and its mutation suite. Acceptance: a fixture with a replace ref under a two-digit remote index that kills RVA5, added to the paired mutation suite. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
+
+## CON-441 — CON-425 tests: reviewer mutants RVA4 (unanchored refs/replace match) and RVA18 (refs/fetched/ narrowed to refs/fetched/r1/) survive (review F7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI
+
+What: review F7 (test-instrumentation): RVA4 drops the ^ anchor from $1 ~ /^refs\/replace\// and RVA18 narrows the listed namespaces from refs/fetched/ to refs/fetched/r1/ in scripts/security/history_secret_scan.sh; both survive the three history-scan suites (no fixture with a non-replace ref containing refs/replace/, none with a replace ref fetched from a second remote). Related: CON-430, CON-425; reviewer survivors RVA14, RVA15 and RVA17 are not filed here (not in the conductor's follow-up list; whether they are equivalent is UNCONFIRMED). Scope: tests/security/test_history_secret_scan_replace.sh and its mutation suite. Acceptance: fixtures that kill RVA4 and RVA18, added to the paired mutation suite. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
+
+## CON-442 — history_secret_scan.sh: decide whether harmless replace refs need an accept-list (CON-425 review F8, operator decision)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI
+
+What: review F8 (design): since CON-425 the script lists every replace ref and scans the stored objects; a repository that uses replace refs on purpose gets the report every run. Question for the operator (section 11.4.66): keep reporting all replace refs, or add a consumer-declared accept-list (DATA, section 11.4.35) of known harmless replace refs, which must never change what is scanned. Related: CON-425. Acceptance: the operator decision recorded and cited by docs/guides/security_hardening_scripts.md; if an accept-list is chosen, it is tested with a fixture showing an accepted ref is still scanned through the stored object. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289).
 
