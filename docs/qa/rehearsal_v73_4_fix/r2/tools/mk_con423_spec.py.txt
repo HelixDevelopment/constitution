@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""mk_con423_spec.py COMMIT_A OUT: write the engine_edit spec for CON-423 and CON-427 (review r1 remediation)."""
+import json, sys
+a, out = sys.argv[1:3]
+r2 = ("Review r1 (NO-GO, REVIEW_CON-423.md sha256 fe550511c6a6eb86b262c9ebef3b372f1d8aea85bd3e61a3e768df20d4e9fb12, "
+      "one blocking finding B1: the checker accepted placeholder values such as `due: .`) remediated by a fresh fixer in %s: "
+      "the checker now refuses placeholder, empty, punctuation-only and template values class-wide in all six fields, checks "
+      "per-field shapes, requires a real calendar date in due, ignores fenced lines and accepts the colon-less form (B1, M1, M2, M7); "
+      "repo_key strips .git in any case and folds doubled slashes for hosted URLs while a local path keeps its .git and case (M3); "
+      "the DRAFT, TODO and TBD markers need a non-letter on both sides on NFKC-folded text (M4); the gitea token shape has one "
+      "definition, rc_gitea_token_shape_ok in redact_cut.sh (M8). Because the due check now requires a date, 24 Ready-for-testing "
+      "items whose line said \"due: next full-suite run\" (or \"next tracker review\") were changed through the engine to "
+      "\"due: 2026-11-23 (UNCONFIRMED: ...)\"; for 22 of them the description column now holds the whole free text (the CON-427 "
+      "class). Evidence and sha256s: docs/qa/rehearsal_v73_4_fix/r2/README.md." % a)
+ver_old = "-- artifact: main containing 3b958793 and ce615e62 -- due: 2026-11-23"
+ver_new = "-- artifact: main containing 3b958793, ce615e62 and %s -- due: 2026-11-23" % a
+items = [
+  {"id": "CON-423", "edits": [
+    ["update --description writes the whole free text into the description of the six D2 items, so their Issues_Summary rows became longer.",
+     "update --description writes the whole free text into the description of five of the six D2 items (CON-190, CON-191, CON-211, CON-235 and CON-236; CON-265's description already equalled its free text), so their Issues_Summary rows became longer.\n" + r2],
+    ["bash tests/release/test_channel_census.sh, bash tests/release/test_release_tooling_mutations.sh,",
+     "bash tests/release/test_channel_census.sh, bash tests/release/test_redact_cut.sh, bash tests/release/test_publish_gitea.sh, bash tests/release/test_release_tooling_mutations.sh,"],
+    [ver_old, ver_new]]},
+  {"id": "CON-427", "edits": [
+    ["the five rows named above are then made consistent through the engine.",
+     "the five rows named above are then made consistent through the engine, together with the 22 rows changed the same way by the CON-423 review-r1 due migration (CON-015, CON-016, CON-023, CON-043, CON-144, CON-159 to CON-162, CON-183 to CON-186, CON-189, CON-216 to CON-220 and CON-222 to CON-224; see %s) and this item's own row, changed the same way when this sentence was added." % a]]},
+]
+json.dump(items, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
