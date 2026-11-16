@@ -1,0 +1,5 @@
+# repo: HelixDevelopment/helix_perf_cache
+{"default_branch":"main","full_name":"HelixDevelopment/helix_perf_cache","permissions":{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}}
+# exit: 0
+[]
+# exit: 0
