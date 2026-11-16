@@ -1,0 +1,3 @@
+PASS EC2 killed by its property (FAIL R11 RACE: 200 records misattributed (interleaved log))
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0
+rc=0

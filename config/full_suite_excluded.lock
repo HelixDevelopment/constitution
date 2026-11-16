@@ -8,6 +8,7 @@
 # accepted 2026-11-11T18:17:06Z accepted_by=i@mvasic.ru set=05ea64783939c219 rows=58 chain=d4189f35bbacd529
 # accepted 2026-11-14T21:40:42Z accepted_by=i@mvasic.ru set=53f23d1b54c5b753 rows=62 chain=73de39326ae2047e
 # accepted 2026-11-14T22:54:44Z accepted_by=i@mvasic.ru set=fcf07cdb2524f605 rows=66 chain=e344e2533b72bd13
+# accepted 2026-11-15T21:33:43Z accepted_by=i@mvasic.ru set=c2f084132fe835c7 rows=67 chain=60e57ebc33d3ee8b
 docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	63c38a93d87363bb
 docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	0837ba36a0a34a88
 docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	b2f4fc376f1c395c
@@ -61,6 +62,7 @@ scripts/mechanical/tests/lib/assert.sh	0fc801d5228300fa
 tests/decisions/lib.sh	d2fdd247ee504c8f
 tests/decisions/repo_guard.sh	bac042c3d51722f1
 tests/extensions/lib.sh	b0f3a123d377cd0b
+tests/forge/lib.sh	20eafa19d4a9f148
 tests/install/lib.sh	52721668ffed0bb0
 tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	a17e73c1f7b0ce47
 tests/jev/lib_assert.sh	4939c80b5808b65a

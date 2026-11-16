@@ -1,0 +1,14 @@
+# live read-only probe of upstream gitflic at 2026-11-12T14:56:57Z
+# command: scripts/forge/forge.sh probe --url <the URL of upstreams/gitflic.sh> (FORGE_TRACE_PEER=1)
+AUTH: env:GITFLIC_TOKEN
+PROVIDER: gitflic
+REPO: helixdevelopment/helixconstitution
+PEER: GET /project/helixdevelopment/helixconstitution status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none
+PEER: GET /project/helixdevelopment/helixconstitution status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none
+PROBE: repo status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none object keys=alias,allowedMemory,archived,defaultBranch,defaultIssueStatus,description,forEducation,forkUrl,forkedFromId,httpTransportUrl,id,language,mirror,mirrorType,mirrorUrl,owner,private,selfArchived,siteUrl,sshTransportUrl,title,topics,workBranch
+PEER: GET /project/helixdevelopment/helixconstitution/release status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none
+PROBE: releases status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none object keys=page
+PEER: GET /project/helixdevelopment/helixconstitution/tag status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none
+PROBE: tags status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none object keys=_embedded,page embedded.tagList items=1 item_keys=commitId,fullMessage,fullName,lightWeight,name,objectId,personIdent,shortMessage
+RESULT: OK
+# rc=0

@@ -1,0 +1,44 @@
+1c1,12
+< # DRAFT — §11.4.271 waiver for helixconstitution-v73.4 (NOT RECORDED; record only after the owed work lands)
+---
+> # DRAFT COPY (evidence only, CON-417, 2026-11-15) — operator override in the §11.4.271 waiver shape for helixconstitution-v73.4
+> 
+> NOT RECORDED. This is a corrected COPY of the scratch draft `waiver_v734.draft.md`, kept in this evidence pack
+> only. It is not a waiver, records nothing and authorises nothing. Changed against the draft: section "What it
+> relaxes" is now "What it overrides", and it no longer says that (L1), (L6) or (L7) "ride open" under a waiver.
+> §11.4.230(E.3) and (F.3)(2): an (L1) entry is never waived, (L6) is never skipped or waived, an open (L7) entry
+> blocks a release of every class and is never waived, so no conforming §11.4.271 waiver can cover them. What
+> carries the release over them is the operator decision itself, an override of the rule, stated as such.
+> 
+> ---
+> 
+> (original draft text, corrected below)
+33c44
+< ### What it relaxes, for this candidate only
+---
+> ### What it overrides, for this candidate only (an override of the rule, not a conforming waiver)
+35,41c46,56
+< 1. §11.4.230(F.3)(1): the §11.4.40 full-suite retest PASS-FULL (`scripts/run_full_suite.sh --include-heavy`, exit 0)
+<    and the §11.4.185 manual-QA confirmation.
+< 2. §11.4.230(F.3)(2): entries of class (L1) (no live verdict per PROVISIONAL item on this fingerprint), (L6) (the
+<    §11.4.40 retest) and (L7) (no `docs/PRODUCTION_READINESS.md`; every §11.4.260 invariant UNKNOWN) ride open.
+<    Note: §11.4.230(F.3)(2) states an open (L7) entry blocks a release of every class and is never waived; this
+<    waiver discloses that the (L7) state is UNKNOWN (no tracker exists), it does not certify (L7) green. The operator
+<    decision is what carries the release over this point; it is stated, not hidden.
+---
+> 1. §11.4.230(F.3)(1): the §11.4.185 manual-QA confirmation, and any §11.4.40 retest verdict other than PASS-FULL
+>    (`scripts/run_full_suite.sh --include-heavy`, exit 0). The entry states the actual verdict through the
+>    `retest_statement` manual key (PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN), never an implied pass.
+> 2. §11.4.230(F.3)(2): the entries of class (L1) (no live verdict per PROVISIONAL item on this fingerprint), (L6)
+>    (the §11.4.40 retest; closed only on a PASS-FULL verdict) and (L7) (no `docs/PRODUCTION_READINESS.md`; every
+>    §11.4.260 invariant UNKNOWN) that are open on this candidate. (F.3)(2) says these classes never ride open and
+>    that an open (L7) entry blocks a release of every class and is never waived. This text does NOT relax (L7) or
+>    waive any of the three: a §11.4.271 waiver cannot, because the (E.3) permitted-disposition table gives (L1),
+>    (L6) and (L7) no `waived` disposition. The release does not conform to (F.3)(2) for these entries; it ships only
+>    because the operator decided to override the rule, and the entry says so in those words. Whether that override
+>    is acceptable is the operator's decision (§11.4.66), not this draft's.
+49c64,65
+<   verdict-absence seam other than the ones named above.
+---
+>   verdict-absence seam other than the ones named above, and it does not certify (L7) green or turn the
+>   open (L1), (L6), (L7) entries into conforming dispositions.

@@ -1,0 +1,40 @@
+PASS exit 0
+PASS manual value
+PASS fact value
+PASS empty fact rendered as none
+PASS states block, ids listed
+PASS UNSET/UNSET not in states block
+PASS refs block
+PASS multi-line manual
+PASS leading comment dropped
+PASS no placeholder left
+PASS missing manual refused
+PASS TODO value refused
+PASS unused manual block refused
+PASS missing fact refused
+PASS retest verdict accepted: PASS-FULL
+PASS retest verdict accepted: PARTIAL-TOPOLOGY
+PASS retest verdict accepted: FAIL
+PASS retest verdict accepted: NOT
+PASS retest value without a leading verdict token refused: passed
+PASS retest value without a leading verdict token refused: all green
+PASS retest value without a leading verdict token refused: PASS-FULLY done
+PASS retest value without a leading verdict token refused: pass-full
+PASS retest value without a leading verdict token refused: has never run
+PASS retest value without a leading verdict token refused: FAILED
+PASS retest value without a leading verdict token refused: the retest: PASS-FULL
+PASS retest_statement missing from the manual file: refused
+PASS a template without retest_statement renders
+PASS usage exit 2
+PASS CON-231 every status/severity key rendered: exit 0
+PASS CON-231 a status/severity value the template does not render is refused
+PASS template has no unconditional never-run sentence
+PASS template takes the retest sentence from MANUAL:retest_statement
+PASS template does not say (L7) rides open or is relaxed
+PASS template states an open (L7) blocks every class
+PASS template calls the decision an override, not a conforming waiver
+PASS shipped template: 31 fact keys named (control: more than 10)
+PASS shipped template renders from synthetic facts
+PASS shipped template renders from real facts
+RESULT: pass=38 fail=0
+rc=0

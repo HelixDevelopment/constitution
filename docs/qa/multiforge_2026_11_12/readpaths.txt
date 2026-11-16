@@ -1,0 +1,153 @@
+# live read-only tag-get + release-get for tag helixconstitution-v73.3 at 2026-11-12T14:56:53Z
+# command: scripts/forge/live_probe.sh OUT_DIR --tag helixconstitution-v73.3 (forge.sh tag-get/release-get --url <the URL of upstreams/NAME.sh> --tag helixconstitution-v73.3)
+## codeberg tag-get
+AUTH: keys_file:CODEBERG_GITEA_TOKEN
+PROVIDER: gitea
+REPO: HelixDevelopment/constitution
+PEER: GET /api/v1/repos/HelixDevelopment/constitution status=200 peer=217.197.84.140:443 http=2 tls_verify=0 cert_sha256=08e376eeb0aaf8699e05ec30cce83f8313426af94403daae7602fb3fd1bf3aa3 subject=CN_=_*.codeberg.org request_id=none
+PEER: GET /api/v1/repos/HelixDevelopment/constitution/tags/helixconstitution-v73.3 status=200 peer=217.197.84.140:443 http=2 tls_verify=0 cert_sha256=08e376eeb0aaf8699e05ec30cce83f8313426af94403daae7602fb3fd1bf3aa3 subject=CN_=_*.codeberg.org request_id=none
+TAG: present sha=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0
+## codeberg release-get
+AUTH: keys_file:CODEBERG_GITEA_TOKEN
+PROVIDER: gitea
+REPO: HelixDevelopment/constitution
+PEER: GET /api/v1/repos/HelixDevelopment/constitution status=200 peer=217.197.84.140:443 http=2 tls_verify=0 cert_sha256=08e376eeb0aaf8699e05ec30cce83f8313426af94403daae7602fb3fd1bf3aa3 subject=CN_=_*.codeberg.org request_id=none
+PEER: GET /api/v1/repos/HelixDevelopment/constitution/releases/tags/helixconstitution-v73.3 status=404 peer=217.197.84.140:443 http=2 tls_verify=0 cert_sha256=08e376eeb0aaf8699e05ec30cce83f8313426af94403daae7602fb3fd1bf3aa3 subject=CN_=_*.codeberg.org request_id=none
+REASON: releases_disabled
+RESULT: GAP
+# rc=3
+## gitflic tag-get
+AUTH: env:GITFLIC_TOKEN
+PROVIDER: gitflic
+REPO: helixdevelopment/helixconstitution
+PEER: GET /project/helixdevelopment/helixconstitution status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none
+PEER: GET /project/helixdevelopment/helixconstitution/tag status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none
+TAG: present sha=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0
+## gitflic release-get
+AUTH: env:GITFLIC_TOKEN
+PROVIDER: gitflic
+REPO: helixdevelopment/helixconstitution
+PEER: GET /project/helixdevelopment/helixconstitution status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none
+PEER: GET /project/helixdevelopment/helixconstitution/release status=200 peer=95.129.234.8:443 http=2 tls_verify=0 cert_sha256=87ab7ddb1085387b2dd0e13257525fee6f6bbaa62a98b94a5d393c287a47d2b3 subject=C_=_RU,_ST_=_Moscow,_L_=_Moscow,_O_=_RESOLUT_LLC,_CN_=_*.gitflic.ru request_id=none
+RELEASE: absent
+RESULT: OK
+# rc=0
+## github tag-get
+AUTH: env:GITHUB_TOKEN
+PROVIDER: github
+REPO: HelixDevelopment/HelixConstitution
+PEER: GET /repos/HelixDevelopment/HelixConstitution status=301 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=E93C:32A51F:E6E495E:158A4B2B:6AF5D3C1
+PEER: GET /repositories/1238419173 status=200 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=E948:17BB0C:EDB9029:162A0A7B:6AF5D3C2
+NOTE: repo_moved canonical=HelixDevelopment/constitution
+PEER: GET /repos/HelixDevelopment/constitution/git/ref/tags/helixconstitution-v73.3 status=200 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=E94E:131EE2:EFCEC66:165A443E:6AF5D3C2
+PEER: GET /repos/HelixDevelopment/constitution/git/tags/e915eef70f7ed70a811b348113a3686d05e07a72 status=200 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=E956:11DB65:EB6E8AF:15F58E92:6AF5D3C3
+TAG: present sha=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0
+## github release-get
+AUTH: env:GITHUB_TOKEN
+PROVIDER: github
+REPO: HelixDevelopment/HelixConstitution
+PEER: GET /repos/HelixDevelopment/HelixConstitution status=301 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=E95E:1A9177:EDFBC65:16397C81:6AF5D3C4
+PEER: GET /repositories/1238419173 status=200 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=E96A:1702:BCF9FE6:11A20513:6AF5D3C4
+NOTE: repo_moved canonical=HelixDevelopment/constitution
+PEER: GET /repos/HelixDevelopment/constitution/releases/tags/helixconstitution-v73.3 status=200 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=E4FC:131EE2:EFD0B21:165A718A:6AF5D3C5
+RELEASE: present id=433260524 prerelease=true draft=false tag_ok=yes target=unknown
+RESULT: OK
+# rc=0
+## gitlab tag-get
+AUTH: env:GITLAB_TOKEN
+PROVIDER: gitlab
+REPO: helixdevelopment1/helixconstitution
+PEER: GET /api/v4/projects/helixdevelopment1%2Fhelixconstitution status=200 peer=172.65.251.78:443 http=2 tls_verify=0 cert_sha256=8412f4407213bc945455305bcc387579f82b9936c7a02dbaa697a5e48d2e7fff subject=CN_=_gitlab.com request_id=x-gitlab-meta=a5966346fe3071a3-BEG
+PEER: GET /api/v4/projects/helixdevelopment1%2Fhelixconstitution/repository/tags/helixconstitution-v73.3 status=200 peer=172.65.251.78:443 http=2 tls_verify=0 cert_sha256=8412f4407213bc945455305bcc387579f82b9936c7a02dbaa697a5e48d2e7fff subject=CN_=_gitlab.com request_id=x-gitlab-meta=a596634a3c9ee290-BEG
+TAG: present sha=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0
+## gitlab release-get
+AUTH: env:GITLAB_TOKEN
+PROVIDER: gitlab
+REPO: helixdevelopment1/helixconstitution
+PEER: GET /api/v4/projects/helixdevelopment1%2Fhelixconstitution status=200 peer=172.65.251.78:443 http=2 tls_verify=0 cert_sha256=8412f4407213bc945455305bcc387579f82b9936c7a02dbaa697a5e48d2e7fff subject=CN_=_gitlab.com request_id=x-gitlab-meta=a596634dffc5bbed-BEG
+PEER: GET /api/v4/projects/helixdevelopment1%2Fhelixconstitution/releases/helixconstitution-v73.3 status=200 peer=172.65.251.78:443 http=2 tls_verify=0 cert_sha256=8412f4407213bc945455305bcc387579f82b9936c7a02dbaa697a5e48d2e7fff subject=CN_=_gitlab.com request_id=x-gitlab-meta=a596635129821778-BEG
+RELEASE: present id=helixconstitution-v73.3 prerelease=unknown draft=false tag_ok=yes target=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0
+## gitverse tag-get
+AUTH: env:GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: helixdevelopment/HelixConstitution
+PEER: GET /repos/helixdevelopment/HelixConstitution status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/git/matching-refs/tags/helixconstitution-v73.3 status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/git/tags/e915eef70f7ed70a811b348113a3686d05e07a72 status=400 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+TAG: present sha=unknown
+RESULT: OK
+# rc=0
+## gitverse release-get
+AUTH: env:GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: helixdevelopment/HelixConstitution
+PEER: GET /repos/helixdevelopment/HelixConstitution status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/releases/tags/helixconstitution-v73.3 status=404 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/releases status=404 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+REASON: releases_unsupported_or_empty
+RESULT: GAP
+# rc=3
+## m3w tag-get
+AUTH: env:M3W_GITEA_TOKEN
+PROVIDER: gitea
+REPO: Helix/constitution
+PEER: GET /api/v1/repos/Helix/constitution status=200 peer=95.216.186.212:443 http=1.1 tls_verify=0 cert_sha256=73b17d5042a6c35f549c9e5d58821e252d9a41cfde65fa5cabfba6ba2dddfba3 subject=CN_=_git.m3w.org request_id=none
+PEER: GET /api/v1/repos/Helix/constitution/tags/helixconstitution-v73.3 status=200 peer=95.216.186.212:443 http=1.1 tls_verify=0 cert_sha256=73b17d5042a6c35f549c9e5d58821e252d9a41cfde65fa5cabfba6ba2dddfba3 subject=CN_=_git.m3w.org request_id=none
+TAG: present sha=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0
+## m3w release-get
+AUTH: env:M3W_GITEA_TOKEN
+PROVIDER: gitea
+REPO: Helix/constitution
+PEER: GET /api/v1/repos/Helix/constitution status=200 peer=95.216.186.212:443 http=1.1 tls_verify=0 cert_sha256=73b17d5042a6c35f549c9e5d58821e252d9a41cfde65fa5cabfba6ba2dddfba3 subject=CN_=_git.m3w.org request_id=none
+PEER: GET /api/v1/repos/Helix/constitution/releases/tags/helixconstitution-v73.3 status=200 peer=95.216.186.212:443 http=1.1 tls_verify=0 cert_sha256=73b17d5042a6c35f549c9e5d58821e252d9a41cfde65fa5cabfba6ba2dddfba3 subject=CN_=_git.m3w.org request_id=none
+RELEASE: present id=2034 prerelease=true draft=false tag_ok=yes target=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0
+## vasic_digital_github tag-get
+AUTH: env:GITHUB_TOKEN
+PROVIDER: github
+REPO: vasic-digital/HelixConstitution
+PEER: GET /repos/vasic-digital/HelixConstitution status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=BE24:349EA3:F05C783:166EDE6A:6AF5D3E4
+forge: repository not found or not visible with this token (HTTP 404)
+REASON: not_accessible
+RESULT: GAP
+# rc=3
+## vasic_digital_github release-get
+AUTH: env:GITHUB_TOKEN
+PROVIDER: github
+REPO: vasic-digital/HelixConstitution
+PEER: GET /repos/vasic-digital/HelixConstitution status=404 peer=140.82.121.6:443 http=2 tls_verify=0 cert_sha256=30988ded7e78994b5c3fc151977c0205cb15ee1eb247639751c5334f2b630e32 subject=CN_=_*.github.com request_id=x-github-request-id=BE2C:256DDA:E9A1C82:15C741D3:6AF5D3E4
+forge: repository not found or not visible with this token (HTTP 404)
+REASON: not_accessible
+RESULT: GAP
+# rc=3
+## vasic_digital_gitlab tag-get
+AUTH: env:GITLAB_TOKEN
+PROVIDER: gitlab
+REPO: vasic-digital/HelixConstitution
+PEER: GET /api/v4/projects/vasic-digital%2FHelixConstitution status=200 peer=172.65.251.78:443 http=2 tls_verify=0 cert_sha256=8412f4407213bc945455305bcc387579f82b9936c7a02dbaa697a5e48d2e7fff subject=CN_=_gitlab.com request_id=x-gitlab-meta=a59664092f1ff969-BEG
+PEER: GET /api/v4/projects/vasic-digital%2FHelixConstitution/repository/tags/helixconstitution-v73.3 status=200 peer=172.65.251.78:443 http=2 tls_verify=0 cert_sha256=8412f4407213bc945455305bcc387579f82b9936c7a02dbaa697a5e48d2e7fff subject=CN_=_gitlab.com request_id=x-gitlab-meta=a596640d0e4dc687-BEG
+TAG: present sha=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0
+## vasic_digital_gitlab release-get
+AUTH: env:GITLAB_TOKEN
+PROVIDER: gitlab
+REPO: vasic-digital/HelixConstitution
+PEER: GET /api/v4/projects/vasic-digital%2FHelixConstitution status=200 peer=172.65.251.78:443 http=2 tls_verify=0 cert_sha256=8412f4407213bc945455305bcc387579f82b9936c7a02dbaa697a5e48d2e7fff subject=CN_=_gitlab.com request_id=x-gitlab-meta=a5966410f858f339-BEG
+PEER: GET /api/v4/projects/vasic-digital%2FHelixConstitution/releases/helixconstitution-v73.3 status=200 peer=172.65.251.78:443 http=2 tls_verify=0 cert_sha256=8412f4407213bc945455305bcc387579f82b9936c7a02dbaa697a5e48d2e7fff subject=CN_=_gitlab.com request_id=x-gitlab-meta=a59664136f3c1778-BEG
+RELEASE: present id=helixconstitution-v73.3 prerelease=unknown draft=false tag_ok=yes target=aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2
+RESULT: OK
+# rc=0

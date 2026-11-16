@@ -1,0 +1,9 @@
+upstream	provider	rc	result	reason
+codeberg	gitea	0	OK	-
+gitflic	gitflic	0	OK	-
+github	github	0	OK	-
+gitlab	gitlab	0	OK	-
+gitverse	gitverse	0	OK	-
+m3w	gitea	0	OK	-
+vasic_digital_github	github	0	OK	-
+vasic_digital_gitlab	gitlab	0	OK	-
