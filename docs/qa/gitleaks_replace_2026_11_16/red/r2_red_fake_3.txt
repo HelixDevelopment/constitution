@@ -1,0 +1,40 @@
+scanner: fake
+ok   1 R0 precondition: replace refs hide both secrets from git log -p; GIT_NO_REPLACE_OBJECTS=1 shows them
+FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1)
+     | ----------------------------------------------------------------------
+     | FAIL: gitleaks scan completed — 1 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_replaced/qa-results/gitleaks/20261116T181609Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_replaced
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_replaced/qa-results/gitleaks/20261116T181609Z
+     | [gitleaks] running gitleaks detect (full history) ...
+ok   3 R2 commit-replace repo: positive control found
+FAIL 4 R3 blob-replace repo: hidden secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_blob/qa-results/gitleaks/20261116T181610Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_blob
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_blob/qa-results/gitleaks/20261116T181610Z
+     | [gitleaks] running gitleaks detect (full history) ...
+ok   5 R4 plain repo: both secrets found
+ok   6 R5 negative control: exit 0, zero findings
+FAIL 7 R6 repo config core.useReplaceRefs=true hides the secret (rc=1)
+     | ----------------------------------------------------------------------
+     | FAIL: gitleaks scan completed — 1 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_cfg/qa-results/gitleaks/20261116T181610Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_cfg
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_cfg/qa-results/gitleaks/20261116T181610Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 8 R7 GIT_CONFIG_PARAMETERS core.useReplaceRefs=true hides the secret (rc=1)
+     | ----------------------------------------------------------------------
+     | FAIL: gitleaks scan completed — 1 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_par/qa-results/gitleaks/20261116T181611Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_par
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.3HqXYFqPtI/r_par/qa-results/gitleaks/20261116T181611Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 9 R8 scanner process saw: UNSET 
+RESULT: 4/9 passed (scanner: fake)
+rc=1
