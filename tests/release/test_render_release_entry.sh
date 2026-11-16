@@ -35,6 +35,23 @@ printf '@@date\nd\n@@block\nx\n@@typo\ny\n' >"$W/m4.txt"; run "$W/t.md" "$W/f.tx
 [ "$RC" = 3 ] && grep -q typo "$W/err" && ok "unused manual block refused" || bad "unused manual block refused ($RC)"
 grep -v '^base=' "$W/f.txt" >"$W/f2.txt"; run "$W/t.md" "$W/f2.txt" "$W/m.txt"
 [ "$RC" = 3 ] && grep -q '\bbase\b' "$W/err" && ok "missing fact refused" || bad "missing fact refused ($RC)"
+# CON-417: the retest sentence is conditional on a recorded verdict (operator decision 2026-11-12, relayed):
+# a retest_statement value must START with PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN, so no entry implies a pass
+printf '## r\nretest: {{MANUAL:retest_statement}}\n' >"$W/rt.md"; printf 'x=1\n' >"$W/rf.txt"
+for v in 'PASS-FULL on base abc, tier default+heavy, log L' 'PARTIAL-TOPOLOGY on base abc, log L' 'FAIL on base abc, log L' 'NOT RUN on this candidate'; do
+  printf '@@retest_statement\n%s\n' "$v" >"$W/rm.txt"; run "$W/rt.md" "$W/rf.txt" "$W/rm.txt"
+  [ "$RC" = 0 ] && has "retest verdict accepted: ${v%% *}" "retest: $v" || bad "retest verdict accepted: ${v%% *} ($RC: $(cat "$W/err"))"
+done
+for v in 'passed' 'all green' 'PASS-FULLY done' 'pass-full' 'has never run' 'FAILED' 'the retest: PASS-FULL'; do
+  printf '@@retest_statement\n%s\n' "$v" >"$W/rm.txt"; run "$W/rt.md" "$W/rf.txt" "$W/rm.txt"
+  [ "$RC" = 3 ] && [ -z "$OUT" ] && grep -q 'retest_statement (must start with' "$W/err" && ok "retest value without a leading verdict token refused: $v" || bad "retest value without a leading verdict token refused: $v ($RC)"
+done
+# fail closed: a template naming the key with a manual file that lacks it is refused, and names the key
+printf '@@other\nx\n' >"$W/rm2.txt"; printf '## r\nretest: {{MANUAL:retest_statement}}\n{{MANUAL:other}}\n' >"$W/rt2.md"; run "$W/rt2.md" "$W/rf.txt" "$W/rm2.txt"
+[ "$RC" = 3 ] && [ -z "$OUT" ] && grep -q 'MANUAL:retest_statement' "$W/err" && ok "retest_statement missing from the manual file: refused" || bad "retest_statement missing from the manual file: refused ($RC)"
+# a template without the key renders without it (the verdict check binds only where the key is used)
+printf '## r\nother: {{MANUAL:other}}\n' >"$W/rt3.md"; run "$W/rt3.md" "$W/rf.txt" "$W/rm2.txt"
+[ "$RC" = 0 ] && has "a template without retest_statement renders" "other: x" || bad "a template without retest_statement renders ($RC: $(cat "$W/err"))"
 run "$W/t.md" "$W/f.txt"; [ "$RC" = 2 ] && ok "usage exit 2" || bad "usage exit 2 ($RC)"
 # CON-231 (review m-5): a status or severity value new at cut time must not drop silently; a FACTS
 # count key open_status[...] / open_severity[...] the template does not render is refused
@@ -49,8 +66,16 @@ printf 'open_status[In testing]=2\nopen_severity[critical]=1\n' >>"$W/f5.txt"; r
 # m-6): the synthetic case always runs (one value per key named by the template itself); the real-facts
 # case runs when RRE_FACTS names a facts file and otherwise prints an explicit SKIP line (§11.4.3).
 T="$ROOT/docs/release/helixconstitution-v73.4_entry.template.md"
+# CON-417: no unconditional never-run sentence, the retest sentence comes from retest_statement, and no
+# wording that lets (L7) ride open or calls the operator decision a conforming waiver of (L7) (§11.4.230(E.3)/(F.3)(2))
+grep -q 'has never run on this candidate' "$T" && bad "template has no unconditional never-run sentence" || ok "template has no unconditional never-run sentence"
+grep -q '{{MANUAL:retest_statement}}' "$T" && ok "template takes the retest sentence from MANUAL:retest_statement" || bad "template takes the retest sentence from MANUAL:retest_statement"
+grep -qE 'and \(L7\) \(no .*ride open|for \(L1\), \(L6\), \(L7\)|relaxes \(F\.3\)' "$T" && bad "template does not say (L7) rides open or is relaxed" || ok "template does not say (L7) rides open or is relaxed"
+grep -q 'blocks a release of every class' "$T" && ok "template states an open (L7) blocks every class" || bad "template states an open (L7) blocks every class"
+grep -q 'not a conforming waiver' "$T" && ok "template calls the decision an override, not a conforming waiver" || bad "template calls the decision an override, not a conforming waiver"
 : >"$W/mall.txt"
-for k in $(sed '1,/-->/d' "$T" | grep -o '{{MANUAL:[^}]*}}' | sed 's/{{MANUAL:\(.*\)}}/\1/' | sort -u); do printf '@@%s\nvalue-%s\n' "$k" "$k" >>"$W/mall.txt"; done
+for k in $(sed '1,/-->/d' "$T" | grep -o '{{MANUAL:[^}]*}}' | sed 's/{{MANUAL:\(.*\)}}/\1/' | sort -u); do
+  if [ "$k" = retest_statement ]; then printf '@@%s\nNOT RUN on this candidate\n' "$k" >>"$W/mall.txt"; else printf '@@%s\nvalue-%s\n' "$k" "$k" >>"$W/mall.txt"; fi; done
 sed '1,/-->/d' "$T" | grep -o '{{[^}]*}}' | sed 's/^{{\(.*\)}}$/\1/' | grep -v '^MANUAL:' | grep -vx 'states_block\|unmerged_refs_block' | sort -u \
   | while IFS= read -r k; do printf '%s=value-%s\n' "$k" "$k"; done >"$W/fall.txt"
 nk="$(wc -l <"$W/fall.txt" | tr -d ' ')"

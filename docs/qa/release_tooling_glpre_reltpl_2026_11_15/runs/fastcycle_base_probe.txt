@@ -1,0 +1,4 @@
+base bcac0882 test_affected_set_red.sh rc=1
+base bcac0882 test_anchor_citations_red.sh rc=4
+base bcac0882 test_alias_spread_red.sh rc=77
+base bcac0882 test_verdict_cache_red.sh rc=1

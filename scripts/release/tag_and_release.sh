@@ -4,7 +4,7 @@
 #
 # Usage:
 #   scripts/release/tag_and_release.sh --tag TAG --sha SHA --remotes "R1 R2 ..." \
-#       [--title TITLE] [--prerelease] [--message MSG] \
+#       [--title TITLE] [--prerelease] [--gitlab-released-at ISO8601] [--message MSG] \
 #       [--release github:REMOTE:OWNER/REPO]... \
 #       [--release gitlab:REMOTE:OWNER/REPO]... \
 #       [--release gitea:REMOTE:BASE_URL:OWNER/REPO]... \
@@ -35,6 +35,20 @@
 #     no tag deletion, no history rewrite (§11.4.113).
 #   * release notes are cut from `git show SHA:CHANGELOG.md`, never from the
 #     working tree.
+#   * GitLab has NO pre-release flag (its Releases API has no such attribute, and
+#     glab 1.129.0 "release create" has no --prerelease option). With --prerelease
+#     the GitLab leg marks the release itself: the name is prefixed "PROVISIONAL
+#     pre-release: " (unless the title already says PROVISIONAL), the description
+#     starts with one fixed PROVISIONAL line, glab gets --no-update (also for a final
+#     release: an existing release is never edited), and the release, new or kept,
+#     is read back with `glab api --hostname H` (H = GITLAB_HOST without scheme, else
+#     gitlab.com); a missing mark or an answer that is not JSON is a FAIL, a failed
+#     read-back a GAP. --gitlab-released-at ISO8601 (a FUTURE time, only with
+#     --prerelease and a gitlab spec; GNU date parses it) is passed as --released-at,
+#     so GitLab shows its "Upcoming Release" badge until then; the read-back must
+#     show upcoming_release=true and the same instant, otherwise the leg is a GAP
+#     (UNCONFIRMED). A final release gets no mark and no date; a final re-run over a
+#     kept PROVISIONAL-marked release keeps it as it is (no promotion path).
 #
 # Exit status (machine-readable; the last line is "RESULT: <word> ..."):
 #   0 OK       every remote OK and every requested release present
@@ -72,7 +86,7 @@ set -u
 unset -v GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py; written as unset -v because the network-spawn gate of tests/release/channel_census.py admits only that form)
 LC_ALL=C; export LC_ALL
 
-TAG="" SHA="" REMOTES="" TITLE="" MESSAGE="" PRERELEASE=0 DRY=0 BADGE_CHECK=1
+TAG="" SHA="" REMOTES="" TITLE="" MESSAGE="" PRERELEASE=0 DRY=0 BADGE_CHECK=1 GL_RELEASED_AT=""
 RELEASES=()
 # The one redact-then-cut helper (round 3); every external-command output printed below goes through it.
 # shellcheck source=scripts/release/redact_cut.sh
@@ -93,6 +107,7 @@ while [ $# -gt 0 ]; do
     --message) need $# "$1"; MESSAGE="$2"; shift 2 ;;
     --release) need $# "$1"; RELEASES+=("$2"); shift 2 ;;
     --prerelease) PRERELEASE=1; shift ;;
+    --gitlab-released-at) need $# "$1"; GL_RELEASED_AT="$2"; shift 2 ;;
     --no-badge-check) BADGE_CHECK=0; shift ;;
     --dry-run) DRY=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -123,6 +138,18 @@ NET_TIMEOUT="${RELEASE_NET_TIMEOUT:-600}"
 [[ $NET_TIMEOUT =~ ^[1-9][0-9]{0,5}$ ]] || die_usage "RELEASE_NET_TIMEOUT must be a positive whole number of seconds (the value is not shown)"
 [ -n "$TITLE" ] || TITLE="$TAG"
 [ -n "$MESSAGE" ] || MESSAGE="$TAG"
+GL_ANY=0
+for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do case "$spec" in gitlab:*) GL_ANY=1 ;; esac; done
+GL_AT=""
+if [ -n "$GL_RELEASED_AT" ]; then
+  [ "$PRERELEASE" -eq 1 ] || die_usage "--gitlab-released-at is only for a --prerelease (a final release gets no upcoming date)"
+  [ "$GL_ANY" -eq 1 ] || die_usage "--gitlab-released-at needs a --release gitlab:REMOTE:GROUP/REPO spec"
+  [[ $GL_RELEASED_AT =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})$ ]] \
+    || die_usage "--gitlab-released-at must be ISO 8601 like 2026-12-31T00:00:00Z or 2026-12-31T00:00:00+02:00 (the value is not shown)"
+  GL_AT="$(date -u -d "$GL_RELEASED_AT" +%s 2>/dev/null)" || GL_AT=""
+  [[ $GL_AT =~ ^[0-9]{1,12}$ ]] || die_usage "--gitlab-released-at is not a valid time (GNU date could not read it)"
+  [ "$GL_AT" -gt "$(date -u +%s)" ] || die_usage "--gitlab-released-at must be in the future (GitLab marks only a future date as upcoming)"
+fi
 
 FAILS=0 GAPS=0
 fail() { FAILS=$((FAILS + 1)); printf 'FAIL %s\n' "$*"; }
@@ -138,11 +165,11 @@ abort() { printf 'ABORT %s\n' "$*"; printf 'RESULT: FAIL fails=1 gaps=0 (aborted
 # SIGKILL leaves the directory behind.
 RUNDIR="$(mktemp -d "${TMPDIR:-/tmp}/tar_run.XXXXXX")" || { printf 'tag_and_release: cannot create a temp directory\n' >&2; exit 2; }
 : "${RUNDIR:?}"; chmod 700 "$RUNDIR"
-EXTERR="$RUNDIR/exterr" NOTES="$RUNDIR/notes"
+EXTERR="$RUNDIR/exterr" NOTES="$RUNDIR/notes" GL_NOTES="$RUNDIR/glnotes"
 exec 3>&2 2>"$EXTERR"
 finish() {
   [ -f "$EXTERR" ] && rc_redact_cut 2000 mark <"$EXTERR" >&3
-  rm -f -- "$EXTERR" "$NOTES"
+  rm -f -- "$EXTERR" "$NOTES" "$GL_NOTES"
   rmdir -- "$RUNDIR" 2>/dev/null || printf 'tag_and_release: WARNING the temp directory %s is not empty and was kept\n' "$RUNDIR" >&3
   return 0
 }
@@ -232,7 +259,12 @@ done
 
 if [ "$DRY" -eq 1 ]; then
   for r in $REMOTES; do printf 'PLAN push --atomic %s %s:refs/heads/main refs/tags/%s (remote main %s, remote tag %s)\n' "$r" "$SHA" "$TAG" "${RMAIN[$r]}" "${RTAG[$r]:-absent}"; done
-  for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do printf 'PLAN release %s\n' "$spec"; done
+  for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
+    case "$spec:$PRERELEASE" in
+      gitlab:*:1) printf 'PLAN release %s prerelease=marked-by-title-and-description upcoming=%s\n' "$spec" "${GL_RELEASED_AT:-none}" ;;
+      *) printf 'PLAN release %s\n' "$spec" ;;
+    esac
+  done
   printf 'RESULT: OK dry-run (no tag created, nothing pushed)\n'
   exit 0
 fi
@@ -290,6 +322,52 @@ done
 # ---------- platform releases (only for OK remotes) ----------
 PRE_GH=() PRE_TITLE="$TITLE"
 [ "$PRERELEASE" -eq 1 ] && PRE_GH=(--prerelease)
+# GitLab marking (no native pre-release flag on GitLab or in glab): see the header.
+GL_MARK='**PROVISIONAL pre-release.** GitLab has no pre-release flag: this line, the release title and, with an upcoming date, the Upcoming Release badge are its only marking. It is not a final release.'
+GL_TITLE="$TITLE" GL_NOTEFILE="$NOTES" GL_ARGS=(--no-update) GL_NOTES_OK=1
+if [ "$PRERELEASE" -eq 1 ] && [ "$GL_ANY" -eq 1 ]; then
+  case "$TITLE" in *PROVISIONAL*) ;; *) GL_TITLE="PROVISIONAL pre-release: $TITLE" ;; esac
+  GL_NOTEFILE="$GL_NOTES"
+  { printf '%s\n\n' "$GL_MARK"; cat -- "$NOTES"; } >"$GL_NOTES" || GL_NOTES_OK=0
+  [ -n "$GL_RELEASED_AT" ] && GL_ARGS+=(--released-at "$GL_RELEASED_AT")
+fi
+# the host of the read-back: GITLAB_HOST (value-checked by the lockdown) without its scheme and slash, else gitlab.com
+GL_HOST="${GITLAB_HOST:-gitlab.com}"; GL_HOST="${GL_HOST#http://}"; GL_HOST="${GL_HOST#https://}"; GL_HOST="${GL_HOST%/}"
+[[ $GL_HOST =~ ^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$ ]] || GL_HOST=""
+# gl_readback SPEC TARGET: read the release back through the API and check the PROVISIONAL marks. Only fixed words
+# and a value-checked time are printed; the server's own text never is (the tag needs no encoding: it matches SEG).
+gl_readback() {
+  local enc j arc res mk up rat extra
+  [ -n "$GL_HOST" ] || { gap "RELEASE $1 PRERELEASE-READBACK UNCONFIRMED (GITLAB_HOST is not a host name; not read back)"; return 0; }
+  command -v jq >/dev/null 2>&1 || { gap "RELEASE $1 PRERELEASE-READBACK UNCONFIRMED (jq absent; not read back)"; return 0; }
+  enc="$(printf '%s' "$2" | jq -sRr @uri 2>/dev/null)" || enc=""   # GROUP/REPO with / as %2F (the target matched RE_GL)
+  [[ $enc =~ ^[A-Za-z0-9._%-]+$ ]] || { fail "RELEASE $1 PRERELEASE-READBACK not attempted: the project path could not be encoded"; return 0; }
+  j="$(nt glab api --hostname "$GL_HOST" "projects/$enc/releases/$TAG" 2>/dev/null)"; arc=$?
+  [ "$arc" -eq 0 ] || { gap "RELEASE $1 PRERELEASE-READBACK UNCONFIRMED (glab api read failed $(withheld glab "$arc" "$(xcls "" "$arc")"))"; return 0; }
+  res="$(printf '%s' "$j" | jq -r --arg m "$GL_MARK" 'if type != "object" then "unparsable" else
+      (((.name // "") | tostring | contains("PROVISIONAL"))
+        and ((((.description // "") | tostring | split("\n"))[0] // "") | gsub("^[ \t\r]+|[ \t\r]+$"; "")) == $m) as $ok
+      | (if $ok then "marked" else "unmarked" end) + " " + (if .upcoming_release == true then "true" else "false" end)
+        + " " + ((.released_at // "-") | tostring | gsub("[^0-9A-Za-z:.+-]"; "_")) end' 2>/dev/null)" || res=unparsable
+  case "$res" in *$'\n'*|"") res=unparsable ;; esac
+  read -r mk up rat extra <<<"$res"
+  [ -z "${extra:-}" ] || mk=unparsable
+  case "$mk" in
+    marked) ;;
+    unmarked) fail "RELEASE $1 PRERELEASE-MARK MISSING (the name or the first description line read back has no PROVISIONAL mark); edit the GitLab release by hand"; return 0 ;;
+    *) fail "RELEASE $1 PRERELEASE-READBACK UNPARSABLE (the answer of glab api is not a release object; it is not shown)"; return 0 ;;
+  esac
+  [[ ${rat:-} =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:?[0-9]{2})$ ]] || rat=NOT-AN-ISO-TIME
+  if [ -z "$GL_RELEASED_AT" ]; then
+    printf 'PRERELEASE %s MARKED title+description (native pre-release flag: none on GitLab or in glab; no upcoming date requested)\n' "$1"
+  elif [ "$up" != true ]; then
+    gap "RELEASE $1 UPCOMING UNCONFIRMED (asked $GL_RELEASED_AT, read back upcoming_release=false, released_at=$rat); marked by title+description only"
+  elif [ "$rat" = NOT-AN-ISO-TIME ] || [ "$(date -u -d "$rat" +%s 2>/dev/null)" != "$GL_AT" ]; then
+    gap "RELEASE $1 UPCOMING DATE DIFFERS (asked $GL_RELEASED_AT, read back released_at=$rat); marked by title+description"
+  else
+    printf 'PRERELEASE %s upcoming_release=true released_at=%s (GitLab shows an Upcoming Release badge until then; the title and description marks stay)\n' "$1" "$rat"
+  fi
+}
 declare -A GH_SEEN
 for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
   kind="${spec%%:*}"; rest="${spec#*:}"; r="${rest%%:*}"; target="${rest#*:}"
@@ -308,10 +386,13 @@ for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
       else fail "RELEASE $spec create failed"; fi ;;
     gitlab)
       if ! command -v glab >/dev/null 2>&1 || ! nt glab auth status >/dev/null 2>&1; then gap "RELEASE $spec SKIPPED-NO-TOKEN (glab not authenticated)"; continue; fi
-      if nt glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s already exists (kept)\n' "$spec"; continue; fi
+      if nt glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s already exists (kept)\n' "$spec"
+        [ "$PRERELEASE" -eq 1 ] && gl_readback "$spec" "$target"; continue; fi
+      if [ "$GL_NOTES_OK" -ne 1 ]; then fail "RELEASE $spec not attempted: the marked release notes could not be written"; continue; fi
       # --ref SHA: if the tag were somehow absent, glab would otherwise tag the default branch.
-      if nt glab release create "$TAG" -R "$target" --ref "$SHA" --name "$PRE_TITLE" --notes-file "$NOTES" >/dev/null 2>&1 \
+      if nt glab release create "$TAG" -R "$target" --ref "$SHA" --name "$GL_TITLE" --notes-file "$GL_NOTEFILE" "${GL_ARGS[@]}" >/dev/null 2>&1 \
          && nt glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s CREATED\n' "$spec"
+        [ "$PRERELEASE" -eq 1 ] && gl_readback "$spec" "$target"
       else fail "RELEASE $spec create failed"; fi ;;
     gitea)
       base="${target%:*}"; repo="${target##*:}"

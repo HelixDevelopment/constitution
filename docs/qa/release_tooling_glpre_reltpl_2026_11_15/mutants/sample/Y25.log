@@ -1,0 +1,3 @@
+PASS Y25 killed by its property (FAIL L1 external command before rc_env_clean: FINDING external command before rc_env_clean: derive_release_facts.sh:36 d)
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0
+rc=0

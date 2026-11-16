@@ -2,6 +2,7 @@
 # census_mut.sh <repo> <outdir>: R13-6 RED/GREEN. Runs the git-env census unmodified and with each regex mutant
 # (sed on a copy placed next to the original, because the census finds the repository from its own path; the copy
 # is untracked and removed after each run), from the repo root; prints rc and the last two lines per run. Read-only on the repo.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -u; repo="${1:?}"; out="${2:?}"; cd "$repo" || exit 2
 src="${CENSUS_SRC:-scripts/validation/git_env_class_census.py}"; w=scripts/validation # CENSUS_SRC: another version (RED run)
 run() { python3 -I "$1" >"$out/$2.txt" 2>&1; echo "$2 rc=$? $(tail -2 "$out/$2.txt" | tr '\n' '|')"; }

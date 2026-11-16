@@ -159,14 +159,14 @@ while IFS=$'\t' read -r analyzer_id script_rel || [ -n "${analyzer_id:-}" ]; do
 
     # ---- --selftest genuinely runs and exits 0 (only if executable) ----
     if [ -x "$script" ]; then
-        if "$script" --selftest >/tmp/.cm_eas_selftest.$$ 2>&1; then
+        if "$script" --selftest >"${TMPDIR:-/tmp}"/.cm_eas_selftest.$$ 2>&1; then
             echo "${GATE}: OK analyzer='${analyzer_id}' '--selftest' exited 0"
         else
             echo "${GATE}: FAIL analyzer='${analyzer_id}' '--selftest' exited non-zero reason=SELFTEST_FAILED"
-            cat /tmp/.cm_eas_selftest.$$ | sed 's/^/    /'
+            cat "${TMPDIR:-/tmp}"/.cm_eas_selftest.$$ | sed 's/^/    /'
             fail=$((fail + 1))
         fi
-        rm -f /tmp/.cm_eas_selftest.$$
+        rm -f "${TMPDIR:-/tmp}"/.cm_eas_selftest.$$
     fi
 done < "$manifest"
 

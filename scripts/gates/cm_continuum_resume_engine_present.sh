@@ -158,13 +158,13 @@ if [ -d "$engine_dir" ]; then
     has_go_tests="$(find "$engine_dir" -name '*_test.go' -print -quit 2>/dev/null || true)"
 fi
 if [ -n "$has_go_tests" ] && command -v go >/dev/null 2>&1; then
-    if ( cd "$engine_dir" && go test -race ./... ) >/tmp/cm207_gotest.$$ 2>&1; then
+    if ( cd "$engine_dir" && go test -race ./... ) >"${TMPDIR:-/tmp}"/cm207_gotest.$$ 2>&1; then
         say "✅ PASS     go test -race ./... (race-clean)"
     else
-        warn "❌ FAIL     go test -race ./... — see /tmp/cm207_gotest.$$ for output"
+        warn "❌ FAIL     go test -race ./... — see ${TMPDIR:-/tmp}/cm207_gotest.$$ for output"
         fail=1
     fi
-    rm -f "/tmp/cm207_gotest.$$"
+    rm -f "${TMPDIR:-/tmp}/cm207_gotest.$$"
 else
     warn "⚠️  SKIP     go test -race ./... — go toolchain absent or no *_test.go files found (honest skip, §11.4.3)"
 fi

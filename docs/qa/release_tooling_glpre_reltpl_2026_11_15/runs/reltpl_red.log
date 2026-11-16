@@ -1,0 +1,40 @@
+PASS exit 0
+PASS manual value
+PASS fact value
+PASS empty fact rendered as none
+PASS states block, ids listed
+PASS UNSET/UNSET not in states block
+PASS refs block
+PASS multi-line manual
+PASS leading comment dropped
+PASS no placeholder left
+PASS missing manual refused
+PASS TODO value refused
+PASS unused manual block refused
+PASS missing fact refused
+PASS retest verdict accepted: PASS-FULL
+PASS retest verdict accepted: PARTIAL-TOPOLOGY
+PASS retest verdict accepted: FAIL
+PASS retest verdict accepted: NOT
+FAIL retest value without a leading verdict token refused: passed (0)
+FAIL retest value without a leading verdict token refused: all green (0)
+FAIL retest value without a leading verdict token refused: PASS-FULLY done (0)
+FAIL retest value without a leading verdict token refused: pass-full (0)
+FAIL retest value without a leading verdict token refused: has never run (0)
+FAIL retest value without a leading verdict token refused: FAILED (0)
+FAIL retest value without a leading verdict token refused: the retest: PASS-FULL (0)
+PASS retest_statement missing from the manual file: refused
+PASS a template without retest_statement renders
+PASS usage exit 2
+PASS CON-231 every status/severity key rendered: exit 0
+PASS CON-231 a status/severity value the template does not render is refused
+FAIL template has no unconditional never-run sentence
+FAIL template takes the retest sentence from MANUAL:retest_statement
+FAIL template does not say (L7) rides open or is relaxed
+FAIL template states an open (L7) blocks every class
+FAIL template calls the decision an override, not a conforming waiver
+PASS shipped template: 31 fact keys named (control: more than 10)
+PASS shipped template renders from synthetic facts
+SKIP shipped template renders from real facts: RRE_FACTS is not set to a facts file (run derive_release_facts.sh and set RRE_FACTS=<file> to run it)
+RESULT: pass=25 fail=12
+rc=1

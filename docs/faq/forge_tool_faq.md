@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-12T17:49:00Z |
+| Last modified | 2026-11-16T19:30:00Z |
 | Status | active |
 | Status summary | Questions from building and live-probing `scripts/forge/forge.sh` (2026-11-12). |
 | Authority | Tool documentation; no new anchor. |
@@ -22,7 +22,8 @@ yet" or "releases not supported", so the tool refuses to call it absent. `--try-
 tries the create; only the read-back decides.
 
 **Why does GitVerse show `TAG: present sha=unknown`?** The tag exists (matching-refs finds it), but it is an
-annotated tag and GitVerse answers 400 to the endpoints that would give its commit. The tool never
+annotated tag, GitVerse answers 400 to `git/tags/{sha}`, and the fallback `commits/{tag-object-sha}`
+(which normally gives the peeled commit, since 2026-11-16) did not answer with a commit id. The tool never
 shows the tag object's own id as if it were the commit.
 
 **Why `NOTE: repo_moved` on GitHub?** The remote URL names `HelixConstitution`; GitHub renamed the

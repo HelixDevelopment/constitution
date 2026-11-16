@@ -1,0 +1,3 @@
+PASS GP10 killed by its property (FAIL GL10 upcoming false exit 5 (got '0', want '5'))
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0
+rc=0

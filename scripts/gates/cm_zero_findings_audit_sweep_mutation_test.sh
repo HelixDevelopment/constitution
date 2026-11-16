@@ -184,4 +184,5 @@ if [ "$fail_count" -gt 0 ]; then
     exit 1
 fi
 echo "MUTATION-TEST: ALL SUB-CASES PASSED — CM-ZERO-FINDINGS-AUDIT-SWEEP is genuinely load-bearing"
+echo "MUTATION-TEST-SUMMARY: pass=11 fail=0"   # a summary the full-suite runner parses (its last 12 lines carry "correctly FAILED" fail words)
 exit 0

@@ -1,0 +1,3 @@
+RESULT T4 FAIL real-identity indexer + free < threshold -> SIGSTOP (state T, not killed), exit 10, marker
+  detail[T4]: rc=0 state=-
+SUMMARY cases=1 failed=1
