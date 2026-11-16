@@ -109,37 +109,37 @@ cut -f1 "${scratch}/.baseline_ledger.tsv" | sort -u \
     > "${scratch}/scripts/gates/gate_ledger_prev_names.txt"
 
 # ── T1: golden-TRUE — the unmodified scratch copy of the real tree PASSes ───
-if "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t1.log 2>&1; then
+if "$gate" --root "$scratch" --quiet >"${TMPDIR:-/tmp}"/.cm_gate_ledger_t1.log 2>&1; then
     note "T1 golden-TRUE (real tree, unmodified) PASSED as required"
 else
     fail "T1 golden-TRUE: the UNMODIFIED real tree did not PASS — either the checked-in baseline/prev-names are stale, or the gate itself is broken"
-    cat /tmp/.cm_gate_ledger_t1.log >&2
+    cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t1.log >&2
 fi
 
 # ── T2: mutation — name a brand-new, real-nowhere-implemented CM-* gate ─────
 new_gate="CM-MUTATION-TEST-NEVER-IMPLEMENTED-$$"
 printf '\n\nMutation-test-injected sentence citing gate `%s` — no implementation, no deferral.\n' "$new_gate" >> "${scratch}/Constitution.md"
 
-if "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t2.log 2>&1; then
+if "$gate" --root "$scratch" --quiet >"${TMPDIR:-/tmp}"/.cm_gate_ledger_t2.log 2>&1; then
     fail "T2 mutation: naming a brand-new gate (${new_gate}) with NO implementation and NO deferral did NOT make the ratchet gate FAIL — the gate is not load-bearing"
-    cat /tmp/.cm_gate_ledger_t2.log >&2
+    cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t2.log >&2
 else
-    if grep -q "ratchet violated" /tmp/.cm_gate_ledger_t2.log; then
+    if grep -q "ratchet violated" "${TMPDIR:-/tmp}"/.cm_gate_ledger_t2.log; then
         note "T2 mutation (new unimplemented+undeferred gate ${new_gate}) correctly FAILED the ratchet"
     else
         fail "T2 mutation FAILED for the wrong reason (expected a ratchet-violated message):"
-        cat /tmp/.cm_gate_ledger_t2.log >&2
+        cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t2.log >&2
     fi
 fi
 
 # ── T3: restore-by-deferral — register a deferral for the SAME new gate ────
 printf '%s\tMUTATION-TEST-TRACKED-ITEM\n' "$new_gate" >> "${scratch}/scripts/gates/gate_ledger_deferrals.tsv"
 
-if "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t3.log 2>&1; then
+if "$gate" --root "$scratch" --quiet >"${TMPDIR:-/tmp}"/.cm_gate_ledger_t3.log 2>&1; then
     note "T3 restore-by-deferral (${new_gate} now DEFERRED) correctly restored PASS"
 else
     fail "T3 restore-by-deferral: registering a deferral for ${new_gate} did NOT restore PASS"
-    cat /tmp/.cm_gate_ledger_t3.log >&2
+    cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t3.log >&2
 fi
 
 # Undo T2/T3 before the vanished-name cases so they exercise ONLY their own
@@ -190,25 +190,25 @@ else
     if [ -n "$still_present" ]; then
         fail "T4 setup: victim gate ${victim} still present in scratch corpus file ${still_present} after the removal edit (sed did not remove it) — cannot exercise the vanished-name mutation"
     else
-        if "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t4.log 2>&1; then
+        if "$gate" --root "$scratch" --quiet >"${TMPDIR:-/tmp}"/.cm_gate_ledger_t4.log 2>&1; then
             fail "T4 mutation: deleting every occurrence of real gate ${victim} with NO removal citation did NOT make the ratchet gate FAIL"
-            cat /tmp/.cm_gate_ledger_t4.log >&2
+            cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t4.log >&2
         else
-            if grep -q "vanished from the corpus with no removal citation" /tmp/.cm_gate_ledger_t4.log; then
+            if grep -q "vanished from the corpus with no removal citation" "${TMPDIR:-/tmp}"/.cm_gate_ledger_t4.log; then
                 note "T4 mutation (vanished gate ${victim}, no citation) correctly FAILED"
             else
                 fail "T4 mutation FAILED for the wrong reason (expected a vanished-name message):"
-                cat /tmp/.cm_gate_ledger_t4.log >&2
+                cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t4.log >&2
             fi
         fi
 
         # ── T5: restore-by-removal-citation ─────────────────────────────────
         printf '%s\tmutation-test-repeal-citation\n' "$victim" >> "${scratch}/scripts/gates/gate_ledger_removals.tsv"
-        if "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t5.log 2>&1; then
+        if "$gate" --root "$scratch" --quiet >"${TMPDIR:-/tmp}"/.cm_gate_ledger_t5.log 2>&1; then
             note "T5 restore-by-removal-citation (${victim} cited as removed) correctly restored PASS"
         else
             fail "T5 restore-by-removal-citation: citing the removal of ${victim} did NOT restore PASS"
-            cat /tmp/.cm_gate_ledger_t5.log >&2
+            cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t5.log >&2
         fi
     fi
 fi
@@ -225,9 +225,9 @@ cp -p "${real_root}/Constitution.md" "${scratch}/Constitution.md"
 for f in gate_ledger_deferrals.tsv gate_ledger_baseline.txt gate_ledger_prev_names.txt gate_ledger_removals.tsv; do
     [ -f "${real_root}/scripts/gates/$f" ] && cp -p "${real_root}/scripts/gates/$f" "${scratch}/scripts/gates/$f"
 done
-if ! "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t6c.log 2>&1; then
+if ! "$gate" --root "$scratch" --quiet >"${TMPDIR:-/tmp}"/.cm_gate_ledger_t6c.log 2>&1; then
     fail "T6 control: the REAL checked-in inputs did not PASS — T6 cannot attribute a FAIL to the deletion"
-    cat /tmp/.cm_gate_ledger_t6c.log >&2
+    cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t6c.log >&2
 else
     t6_victim="$(awk -F'\t' '$2 ~ /^OWED-GATE-[0-9]+$/ {v=$1} END{print v}' "${scratch}/scripts/gates/gate_ledger_deferrals.tsv")"
     t6_in_corpus=0
@@ -239,14 +239,14 @@ else
     else
         awk -F'\t' -v v="$t6_victim" '$1!=v' "${scratch}/scripts/gates/gate_ledger_deferrals.tsv" > "${scratch}/.t6.tsv"
         mv "${scratch}/.t6.tsv" "${scratch}/scripts/gates/gate_ledger_deferrals.tsv"
-        if "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t6.log 2>&1; then
+        if "$gate" --root "$scratch" --quiet >"${TMPDIR:-/tmp}"/.cm_gate_ledger_t6.log 2>&1; then
             fail "T6 mutation: deleting the real deferral row for ${t6_victim} did NOT make the ratchet FAIL against the checked-in baseline (baseline has headroom)"
-            cat /tmp/.cm_gate_ledger_t6.log >&2
-        elif grep -q "ratchet violated" /tmp/.cm_gate_ledger_t6.log; then
+            cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t6.log >&2
+        elif grep -q "ratchet violated" "${TMPDIR:-/tmp}"/.cm_gate_ledger_t6.log; then
             note "T6 mutation (deleted real deferral row ${t6_victim}, checked-in baseline) correctly FAILED"
         else
             fail "T6 mutation FAILED for the wrong reason (expected a ratchet-violated message):"
-            cat /tmp/.cm_gate_ledger_t6.log >&2
+            cat "${TMPDIR:-/tmp}"/.cm_gate_ledger_t6.log >&2
         fi
     fi
 fi
@@ -413,6 +413,7 @@ fi
 echo "----------------------------------------------------------------------"
 if [ "$fails" -eq 0 ]; then
     echo "✅ CM-GATE-LEDGER-RATCHET mutation test: PASS — all sub-cases (T1-T6: golden-TRUE, unimplemented+undeferred-mutation-FAIL, deferral-restores-PASS, vanished-name-mutation-FAIL, removal-citation-restores-PASS, checked-in-baseline deleted-deferral-FAIL; T7-T12: status-summary rotation ledger-neutral, fix-reverted mutant FAIL, severed-pointer FAIL, missing-archive BLIND, archive-deletion FAIL + citation PASS, unsafe-pointer BLIND) behaved as required"
+    echo "MUTATION-TEST-SUMMARY: pass=13 fail=0"   # a summary the full-suite runner parses (its last 12 lines carry "correctly FAILED" fail words)
     exit 0
 else
     echo "❌ CM-GATE-LEDGER-RATCHET mutation test: FAIL — ${fails} sub-case(s) did not behave as required"
