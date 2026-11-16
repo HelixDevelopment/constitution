@@ -414,6 +414,32 @@ out="$(drive 'not json at all' 2>&1)"; ok "opencode: a throwing driver does not 
 out="$(LABEL_SYNC_PLUGIN_SYNC=1 node --input-type=module -e "
 import m from 'file://$P'; const h = await m.server({}); await h.event({}); await h.event(null); await h['chat.message'](undefined); console.log('no-throw')" 2>&1)"
 eq "opencode: malformed hook inputs never throw" "no-throw" "$out"
+# opencode >= 2 (V2 plugin contract): a definition {id, setup(ctx)} fed by ctx.event.subscribe (synthetic stream here;
+# the REAL v2 server is exercised by test_real_agents.sh)
+drive2() { LABEL_SYNC_PLUGIN_SYNC=1 node --input-type=module -e "
+import m from 'file://$P';
+const evs = JSON.parse(process.argv[1]);
+let done; const drained = new Promise(r => done = r);
+const ctx = { location: { directory: '$LS' }, event: { subscribe: async function* () { for (const e of evs) yield e; done(); } } };
+const cleanup = await m.setup(ctx);
+await drained; await new Promise(r => setTimeout(r, 50)); if (typeof cleanup === 'function') cleanup();
+" "$1"; }
+ok "opencode(v2): the default export is a V2 definition (id + setup) that still carries the 1.x server hook" node --input-type=module -e "import m from 'file://$P'; if (m.id !== 'label-sync' || typeof m.setup !== 'function' || typeof m.server !== 'function') process.exit(1)"
+ok "opencode(v2): the directory entry (server.js) re-exports that same definition" node --input-type=module -e "import m from 'file://$P'; import d from 'file://$AD/opencode/server.js'; if (d !== m) process.exit(1)"
+drive2 '[{"type":"session.created","data":{"sessionID":"ses_V1","title":"SECRET-CANARY-4","location":{"directory":"'"$LS"'"}}}]'
+eq "opencode(v2): session.created registers" "running" "$(field opencode-ses_V1 state)"
+eq "opencode(v2): alias is opencode" "opencode" "$(field opencode-ses_V1 alias)"
+drive2 '[{"type":"session.created","data":{"sessionID":"ses_V2","parentID":"ses_V1","location":{"directory":"'"$LS"'"}}}]'
+eq "opencode(v2): child session is a subagent" "subagent" "$(field opencode-ses_V2 kind)"
+eq "opencode(v2): subagent parent is the parent entity" "opencode-ses_V1" "$(field opencode-ses_V2 parent_id)"
+drive2 '[{"type":"plugin.updated","data":{}},{"type":"session.renamed","data":{"sessionID":"ses_V1","title":"x"}},{"type":"session.deleted","data":{"sessionID":"ses_V1"}}]'
+eq "opencode(v2): session.deleted -> done (unrelated events ignored)" "done" "$(field opencode-ses_V1 state)"
+eq "opencode(v2): the child session was not touched by the delete" "running" "$(field opencode-ses_V2 state)"
+ok "opencode(v2): session titles never reach the bus" bash -c "! grep -rq SECRET-CANARY-4 '$LABEL_SYNC_DIR'"
+out="$(LABEL_SYNC_PLUGIN_SYNC=1 node --input-type=module -e "
+import m from 'file://$P'; let done; const dr = new Promise(r => done = r);
+await m.setup({ event: { subscribe: async function* () { yield null; yield {}; yield { type: 'session.created' }; yield { type: 'session.deleted', data: null }; done(); } } }); await dr; await m.setup({}); console.log('no-throw')" 2>&1)"
+eq "opencode(v2): malformed events and a bare ctx never throw" "no-throw" "$out"
 else echo "SKIP opencode section: node not installed"; fi
 fi
 
@@ -437,7 +463,7 @@ ok "install: kimi config is valid TOML with 6 hooks" python3 -c "import tomllib,
 ok "install: codex notify is a TOP-LEVEL key" python3 -c "import tomllib;d=tomllib.load(open('$H/.codex/config.toml','rb'));assert d['notify'][0]=='bash'"
 ok "install: aider yaml sets notifications + command" python3 -c "import yaml;d=yaml.safe_load(open('$H/.aider.conf.yml'));assert d['notifications'] is True and 'aider-notify.sh' in d['notifications-command']"
 ok "install: crush PreToolUse hook entry" jq -e '.hooks.PreToolUse[0].command|test("crush-hook.sh")' "$H/.config/crush/crush.json"
-ok "install: opencode plugin is a file:// URL to an existing file" bash -c "u=\$(jq -r '.plugin[0]' '$H/.config/opencode/opencode.json'); [ -r \"\${u#file://}\" ]"
+ok "install: opencode plugin is a file:// URL to the module file (1.x) or to the directory holding server.js (>= 2)" bash -c "u=\$(jq -r '.plugin[0]' '$H/.config/opencode/opencode.json'); case \"\$u\" in file://*) p=\"\${u#file://}\"; [ -f \"\$p\" ] || [ -f \"\$p/server.js\" ] ;; *) false ;; esac"
 ok "install: gemini hooks use command type" jq -e '.hooks.SessionStart[0].hooks[0].type=="command"' "$H/.gemini/settings.json"
 one="$(tree_sum "$H")"
 bash "$INST" --home "$H" --agents $ALLAG --apply >/dev/null
@@ -536,12 +562,41 @@ import tomllib,shlex,os;d=tomllib.load(open('$H9/.kimi-code/config.toml','rb'));
 ok "install(H): the crush hook command is a valid shell command for that path" python3 -c "
 import json,shlex,os;d=json.load(open('$H9/.config/crush/crush.json'));a=shlex.split(d['hooks']['PreToolUse'][0]['command']);assert os.path.isfile(a[1]),a"
 ok "install(H): the opencode plugin URL resolves (percent-encoded)" python3 -c "
-import json,urllib.parse,os;u=json.load(open('$H9/.config/opencode/opencode.json'))['plugin'][0];assert u.startswith('file://') and ' ' not in u and os.path.isfile(urllib.parse.unquote(u[7:])),u"
+import json,urllib.parse,os;u=json.load(open('$H9/.config/opencode/opencode.json'))['plugin'][0];p=urllib.parse.unquote(u[7:]);assert u.startswith('file://') and ' ' not in u and (os.path.isfile(p) or os.path.isfile(os.path.join(p,'server.js'))),u"
 DL="$ROOT/dol\$lar"; mkdir -p "$DL"; cp -a "$AD" "$DL/adapters"; H10="$ROOT/h10"; mkdir -p "$H10"
 bash "$DL/adapters/install_adapters.sh" --home "$H10" --agents kimi --apply >/dev/null 2>&1; eq "install(H): adapters dir with '\$' is refused (exit 2)" "2" "$?"
 ok "install(H): ...and nothing was written" test ! -e "$H10/.kimi-code/config.toml"
 timeout 10 bash "$INST" --home >/dev/null 2>&1; eq "install(I): trailing --home without a value exits 2 (no hang)" "2" "$?"
 timeout 10 bash "$INST" --agents >/dev/null 2>&1; eq "install(I): trailing --agents without a value exits 2 (no hang)" "2" "$?"
+# opencode plugin entry form (N-04): 1.x loads the module FILE, >= 2 loads only a DIRECTORY entry (server.js)
+FB="$ROOT/fakebin"; mkdir -p "$FB"
+HJ="$ROOT/hj"; mkdir -p "$HJ/.config/opencode"; printf '{"plugin":["other@1"]}\n' >"$HJ/.config/opencode/opencode.json"
+LABEL_SYNC_OPENCODE_ENTRY=file bash "$INST" --home "$HJ" --agents opencode --apply >/dev/null
+ok "install(J): LABEL_SYNC_OPENCODE_ENTRY=file writes the module file entry" jq -e '(.plugin|length)==2 and .plugin[0]=="other@1" and (.plugin[1]|endswith("/adapters/opencode/label-sync.mjs"))' "$HJ/.config/opencode/opencode.json"
+LABEL_SYNC_OPENCODE_ENTRY=dir bash "$INST" --home "$HJ" --agents opencode --apply >/dev/null
+ok "install(J): switching to dir REPLACES the managed entry (one managed entry, other plugin kept)" jq -e '(.plugin|length)==2 and .plugin[0]=="other@1" and (.plugin[1]|endswith("/adapters/opencode"))' "$HJ/.config/opencode/opencode.json"
+ok "install(J): the dir entry holds server.js and the module it re-exports" bash -c "d=\$(jq -r '.plugin[1]' '$HJ/.config/opencode/opencode.json'); d=\${d#file://}; [ -f \"\$d/server.js\" ] && [ -f \"\$d/label-sync.mjs\" ] && grep -q 'label-sync.mjs' \"\$d/server.js\""
+two="$(sha256sum <"$HJ/.config/opencode/opencode.json")"
+LABEL_SYNC_OPENCODE_ENTRY=dir bash "$INST" --home "$HJ" --agents opencode --apply >/dev/null
+eq "install(J): the dir form is idempotent" "$two" "$(sha256sum <"$HJ/.config/opencode/opencode.json")"
+LABEL_SYNC_OPENCODE_ENTRY=file bash "$INST" --home "$HJ" --agents opencode --apply --remove >/dev/null
+ok "install(J): --remove strips a dir-form entry whichever form is requested, other plugin kept" jq -e '.plugin==["other@1"]' "$HJ/.config/opencode/opencode.json"
+printf '#!/bin/sh\necho "opencode v2.0.32"\n' >"$FB/opencode"; chmod +x "$FB/opencode"
+HK="$ROOT/hk"; mkdir -p "$HK"; PATH="$FB:$PATH" bash "$INST" --home "$HK" --agents opencode --apply >/dev/null
+ok "install(J): opencode v2.x on PATH -> dir entry (auto)" jq -e '.plugin[0]|endswith("/adapters/opencode")' "$HK/.config/opencode/opencode.json"
+printf '#!/bin/sh\necho "1.18.30"\n' >"$FB/opencode"
+HL="$ROOT/hl"; mkdir -p "$HL"; PATH="$FB:$PATH" bash "$INST" --home "$HL" --agents opencode --apply >/dev/null
+ok "install(J): opencode 1.18.30 on PATH -> file entry (auto)" jq -e '.plugin[0]|endswith("/adapters/opencode/label-sync.mjs")' "$HL/.config/opencode/opencode.json"
+printf '#!/bin/sh\necho "garbage"\n' >"$FB/opencode"
+HM="$ROOT/hm"; mkdir -p "$HM"; PATH="$FB:$PATH" bash "$INST" --home "$HM" --agents opencode --apply >/dev/null
+ok "install(J): an unparsable opencode version -> file entry (the form that always was written)" jq -e '.plugin[0]|endswith("/adapters/opencode/label-sync.mjs")' "$HM/.config/opencode/opencode.json"
+# `opencode --version` WRITES a log under its data dir: the installer's version probe must not do that in the real home or the --home DIR
+printf '#!/bin/sh\nmkdir -p "$HOME/.local/share/opencode/log" "$XDG_DATA_HOME/opencode/log" 2>/dev/null; echo probe >"$HOME/.local/share/opencode/log/opencode.log" 2>/dev/null; echo probe >"$XDG_DATA_HOME/opencode/log/opencode.log" 2>/dev/null\necho "opencode v2.0.32"\n' >"$FB/opencode"
+HP="$ROOT/hp"; mkdir -p "$HP"; pb2="$(tree_sum "$POISON")"; hb="$(tree_sum "$HP")"
+PATH="$FB:$PATH" bash "$INST" --home "$HP" --agents opencode >/dev/null
+eq "install(J): the version probe (auto) writes nothing under the --home DIR (dry-run)" "$hb" "$(tree_sum "$HP")"
+eq "install(J): the version probe (auto) writes nothing under the real HOME" "$pb2" "$(tree_sum "$POISON")"
+HN="$ROOT/hn"; mkdir -p "$HN"; LABEL_SYNC_OPENCODE_ENTRY=bogus bash "$INST" --home "$HN" --agents opencode --apply >/dev/null 2>&1; eq "install(J): a bad LABEL_SYNC_OPENCODE_ENTRY exits 2" "2" "$?"
 # permissions: new files 0600
 ok "install: new config created 0600" test "$(stat -c %a "$H/.codex/config.toml")" = 600
 eq "install: poisoned real HOME still untouched at the end" "$pb" "$(tree_sum "$POISON")"

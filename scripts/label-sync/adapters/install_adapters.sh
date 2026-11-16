@@ -21,7 +21,7 @@
 #           --list       print the detection table and exit.
 #           Config files (relative to the home):
 #             kimi     .kimi-code/config.toml       ([[hooks]] x6 events)
-#             opencode .config/opencode/opencode.json  (plugin file:// URL)
+#             opencode .config/opencode/opencode.json  (plugin file:// URL: the module file for 1.x, the opencode/ DIRECTORY for >= 2)
 #             crush    .config/crush/crush.json     (hooks.PreToolUse)
 #             aider    .aider.conf.yml              (notifications-command)
 #             codex    .codex/config.toml           (notify)            UNCONFIRMED
@@ -120,7 +120,7 @@ if [ "$list" = 1 ]; then
 fi
 
 command -v python3 >/dev/null 2>&1 || { echo "install_adapters: python3 not found — cannot determine" >&2; exit 2; }
-for f in lib/label-adapter-event.sh lib/adapter_lib.sh kimi/kimi-hook.sh crush/crush-hook.sh aider/aider-notify.sh codex/codex-notify.sh gemini/gemini-hook.sh qwen/qwen-hook.sh opencode/label-sync.mjs _edit_config.py; do
+for f in lib/label-adapter-event.sh lib/adapter_lib.sh kimi/kimi-hook.sh crush/crush-hook.sh aider/aider-notify.sh codex/codex-notify.sh gemini/gemini-hook.sh qwen/qwen-hook.sh opencode/label-sync.mjs opencode/server.js _edit_config.py; do
   [ -r "$HERE/$f" ] || { echo "install_adapters: adapter file missing: $f — cannot determine" >&2; exit 2; }
 done
 
@@ -137,11 +137,29 @@ else
   done
 fi
 
+# opencode plugin entry form: 1.x loads the plugin FILE, >= 2 only loads a DIRECTORY entry (a single file is skipped).
+# LABEL_SYNC_OPENCODE_ENTRY=file|dir forces one; else the installed `opencode --version` major decides (no binary or
+# unparsable version -> file, the form that always was written).
+oc_entry="${LABEL_SYNC_OPENCODE_ENTRY:-}"
+case "$oc_entry" in file|dir) ;; "")
+  oc_entry=file
+  if command -v opencode >/dev/null 2>&1; then
+    # `opencode --version` WRITES a log file under its data dir: run it in a throwaway home, so neither the real home
+    # nor a --home DIR (test mode: "can never touch the real home", dry-run writes NOTHING) gets a stray file.
+    ocT="$(mktemp -d "${TMPDIR:-/tmp}/ocv.XXXXXX" 2>/dev/null)" || ocT=""
+    if [ -n "$ocT" ]; then
+      ocv="$(env HOME="$ocT" XDG_CONFIG_HOME="$ocT/c" XDG_DATA_HOME="$ocT/d" XDG_STATE_HOME="$ocT/s" XDG_CACHE_HOME="$ocT/k" OPENCODE_DISABLE_AUTOUPDATE=true timeout 20 opencode --version 2>/dev/null </dev/null | head -1 | sed -n 's/^[^0-9]*\([0-9][0-9]*\)\.[0-9].*$/\1/p')"
+      rm -rf "$ocT"
+      [ -n "$ocv" ] && [ "$ocv" -ge 2 ] 2>/dev/null && oc_entry=dir
+    fi
+  fi ;;
+*) echo "install_adapters: LABEL_SYNC_OPENCODE_ENTRY must be file|dir (got '$oc_entry')" >&2; exit 2 ;; esac
+
 emode="$mode"
 if [ "$remove" = 1 ]; then emode="remove-dry"; [ "$mode" = apply ] && emode="remove"; fi
 rc=0
 for a in "${want[@]}"; do
-  line="$(python3 "$HERE/_edit_config.py" --kind "$a" --file "$(cfg_file "$a")" --adapters-dir "$HERE" --mode "$emode")"
+  line="$(python3 "$HERE/_edit_config.py" --kind "$a" --file "$(cfg_file "$a")" --adapters-dir "$HERE" --mode "$emode" --opencode-entry "$oc_entry")"
   r=$?
   [ "$quiet" = 1 ] || echo "$line"
   case "$r" in

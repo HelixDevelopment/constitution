@@ -74,8 +74,8 @@ Capability vocabulary (closed, §11.4.228(A)(1) spirit):
 |---|---|---|
 | **kimi** — `SessionStart`, `UserPromptSubmit` hooks | **TESTED** | real `kimi -p` (2.1.1) in a sandbox HOME fired both hooks; entity `kimi-session_…` appeared with `alias=kimi`, `model` = what kimi reported; `kimi doctor config` accepts the installed `config.toml` (evidence: `test_real_agents.sh`) |
 | kimi — `Stop`, `SessionEnd`, `SubagentStart`, `SubagentStop` | **SCHEMA-ONLY** | event names + strict hook schema (`event/matcher/command/timeout`) validated by `kimi doctor config`; the four events did not fire in the sandbox run (no working model endpoint); handlers tested against hand-built payloads only |
-| **opencode** — plugin load, `session.created`, `session.deleted` | **TESTED** | real `opencode serve` in a sandbox: plugin loaded, `POST /session` fired `session.created` → entity `running`; `DELETE /session/:id` fired `session.deleted` → `done`; `opencode debug config` resolves the plugin entry (evidence: `test_real_agents.sh`) |
-| opencode — `session.idle`, `session.updated`, `chat.message` (real model id) | **SCHEMA-ONLY** | hook names/shapes taken from the installed `@opencode-ai/plugin` type declarations; not fired by a real turn (needs an LLM); exercised with synthetic events through the real module |
+| **opencode** — plugin load, `session.created`, `session.deleted` | **TESTED** | real `opencode serve` in a sandbox: plugin loaded, `POST /session` fired `session.created` → entity `running`; `DELETE /session/:id` fired `session.deleted` → `done`; `opencode debug config` resolves the plugin entry (evidence: `test_real_agents.sh`, version-gated). opencode >= 2 (verified on 2.0.32): the API lives under `/api` behind basic auth (`OPENCODE_SERVER_PASSWORD`), `GET /api/plugin` lists `label-sync` as `active`, `POST /api/session` / `DELETE /api/session/:id` fire the two events. The 1.x branch of the test is UNCONFIRMED on the current tree (no 1.x binary on the bench; only a fake-1.x substitute ran) |
+| opencode — `session.idle`, `session.updated`, `chat.message` (real model id) | **SCHEMA-ONLY** | hook names/shapes taken from the installed `@opencode-ai/plugin` type declarations; not fired by a real turn (needs an LLM); exercised with synthetic events through the real module. opencode >= 2 maps only `session.created` / `session.deleted` (its public event stream has no analogue named in the docs; UNCONFIRMED whether one exists) |
 | **crush** — `PreToolUse` hook (the only event Crush supports) | **TESTED** | real `crush run` against a local fake OpenAI endpoint issued an `ls` tool call; the hook fired and registered `crush-<session>` `running`; `crush.json` validates against the output of `crush schema` (evidence: `test_real_agents.sh`) |
 | **aider** — launch/exit via `aider-labelled.sh` | **TESTED** | real aider 0.86.2 ran under the wrapper: entity registered with `--model` shown, `done` after exit (evidence: `test_real_agents.sh`) |
 | aider — idle heartbeat via `--notifications-command` | **SCHEMA-ONLY** | aider's own `--verbose` config dump shows it parsed `notifications`/`notifications_command` from the installed `.aider.conf.yml`; the notification was never observed firing (it did not fire in `--message` mode) |
@@ -102,8 +102,12 @@ Gap: no effort concept; two concurrent same-name subagents share one entity.
 
 ### OpenCode — `adapters/opencode/label-sync.mjs`
 Mechanism: a plugin module listed in `opencode.json` `plugin` (`file://` URL; no
-copy, §11.4.228(B)(2)); default export `{id, server}`; hooks `event` and
-`chat.message`. The plugin runs inside the opencode process, so the entity pid is
+copy, §11.4.228(B)(2)); default export `{id, server, setup}`; hooks `event` and
+`chat.message` (1.x, `server`) or `setup(ctx)` + `ctx.event.subscribe` (opencode >= 2).
+opencode >= 2 loads a plugin only from a DIRECTORY entry (a single-file entry is
+skipped) whose `server.js` exports a definition with an `id` and `setup`, so the
+installer writes the `opencode/` directory for >= 2 and the module file for 1.x
+(`opencode --version` decides; `LABEL_SYNC_OPENCODE_ENTRY=file|dir` overrides). The plugin runs inside the opencode process, so the entity pid is
 opencode's own (never stale while it lives). Child sessions (`parentID`) become
 `subagent` entities. Gap: the plugin is loaded lazily on first server use.
 Note both `opencode.json` and `opencode.jsonc` exist on this host: the installer
@@ -190,7 +194,8 @@ timeout = 10
 ```
 ```json
 // ~/.config/opencode/opencode.json
-{ "plugin": ["file://<constitution>/scripts/label-sync/adapters/opencode/label-sync.mjs"] }
+{ "plugin": ["file://<constitution>/scripts/label-sync/adapters/opencode/label-sync.mjs"] }   // opencode 1.x
+// opencode >= 2: { "plugin": ["file://<constitution>/scripts/label-sync/adapters/opencode"] }  (the directory)
 // ~/.config/crush/crush.json
 { "hooks": { "PreToolUse": [ { "name": "label-sync", "command": "bash <…>/crush/crush-hook.sh", "timeout": 10 } ] } }
 ```
