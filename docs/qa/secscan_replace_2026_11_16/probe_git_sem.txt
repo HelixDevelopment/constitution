@@ -1,0 +1,11 @@
+mirror refs/replace: 1
+log default: 0 rc=0
+log GIT_NO_REPLACE_OBJECTS=1: 1
+log env=1 + -c core.useReplaceRefs=true: 1
+log env=1 + repo config useReplaceRefs=true: 1
+log env=1 + GIT_CONFIG_PARAMETERS: 1
+log --no-replace-objects + -c true: 1
+log env=1 stderr: 
+log env=1 rc: 0
+cat-file --batch env=1 header: 2ff37faa4fe0c89ac50698c8ae95128c638c5f34 blob 31
+commit-replace log default: 0  env=1: 2

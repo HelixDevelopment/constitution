@@ -1,0 +1,5 @@
+mode=plain rc=1 keys=MYKEY=1 
+  fake-value-in-output-count: 0
+  ref: 83126302079c10762b29692dc322e430472a5360 blob	refs/replace/f126f48cf73742b0a5bc892f1297774aa4e486db
+mode=replaced rc=0 keys=MYKEY=0 
+  fake-value-in-output-count: 0

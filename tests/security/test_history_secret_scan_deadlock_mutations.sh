@@ -11,6 +11,20 @@
 # the script still exits 7), and removing the trailing-output check
 # `p.stdout.read(1) != b"" or` (git never writes after the last requested
 # reply; no shim here produces extra output).
+# CON-430 (reviewer mutants of the CON-423 review round 2): RV5 (git's exit
+# status after the last reply not checked) is DM15 and RV16 (a value at the
+# very end of a blob missed, `v in data[:-1]`) is DM16; both are killed by
+# cases added to the deadlock suite. RV4 (`len(data) != size or` removed from
+# the payload check) is recorded as equivalent: a short read means git closed
+# the pipe, so the next `p.stdout.read(1)` returns b"" which is not b"\n" and
+# the matcher still exits 7. RV6 (`p.kill(); p.wait();` removed before
+# `sys.exit(7)` in bad_reply) is recorded as equivalent for the verdict: the
+# exit code is 7 either way and python closes the pipe on exit, so git gets
+# EPIPE and ends; the only difference is that git may still run for a moment
+# after python exits, which no verdict, count or output file depends on.
+# RV1 (the blob type check removed) is killed by
+# tests/security/test_history_secret_scan_replace.sh (mutant RM10 of
+# tests/security/test_history_secret_scan_replace_mutations.sh).
 #
 # Usage: bash tests/security/test_history_secret_scan_deadlock_mutations.sh [ID ...]
 #        HSS_DL_TIMEOUT=S per-run bound for the mutants (default 40)
@@ -42,6 +56,8 @@ DM11	'[ "$EXACT_ONLY" = 1 ] || { [ -n "$GL" ]'	'false || { [ -n "$GL" ]'
 DM12	'    --exact-only) EXACT_ONLY=1 ;;'	'    --exact-only) ;;'
 DM13	'"$M" "$WORK/blob_ids" > "$WORK/keys.tsv"'	'"$M" > "$WORK/keys.tsv"'
 DM14	'[ "$EXACT_ONLY" = 1 ] || { [ -n "$GL" ] && [ -x "$GL" ]; } || fail 4'	'true || fail 4'
+DM15	'if p.stdout.read(1) != b"" or p.wait() != 0:'	'if p.stdout.read(1) != b"":'
+DM16	'        if v in data:'	'        if v in data[:-1]:'
 EOF
 
 mutate(){ # ID OLD NEW -> writes $tmp/scripts/security/history_secret_scan.sh, 0 or BROKEN
