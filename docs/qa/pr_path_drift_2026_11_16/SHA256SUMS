@@ -1,4 +1,4 @@
-a2dca27af18ef2c0b9f7517f614f585d6ef665c3485c020e06c65b9d86bcd51a  ./README.md
+fe7c91b47a90bbf78cbcf2750ea148b00ab3a98fb842a2669d9ea299a42bdc3a  ./README.md
 8441bb67cf88775bc80db9859a823b9ebd9ef2d00de951df119ee1e0c15474e2  ./census.txt
 e11e1d940e5d787e615fdf55f8e460ba56abeae12fc6254b027fb95f16b1c824  ./class_inventory.md
 f919cb285c3c684afad01fcdae77f8cc13fdacd3d83f4e576b2be4b25e9609d2  ./followups.md
@@ -75,6 +75,6 @@ aa1bb929c0aab78a37e8e0fc87a2fd4434567debfe1c62c5a95a4fb6811c7d60  ./suites/lande
 2ae8bc1508de8d7aa678b68158680b6898d96986d8f2aa0c4cb2fecf60e8e3e2  ./suites/prlc_run1.txt
 2ae8bc1508de8d7aa678b68158680b6898d96986d8f2aa0c4cb2fecf60e8e3e2  ./suites/prlc_run2.txt
 1571a2f722ec57c53bc4da7efae7223881ea9f902c3153d15a245c089c993e9f  ./tools/base_mutants.py.txt
-d409ef7c2ad82eac7ce262d88d67d23dd09f70369cadc2cfa09f125c2c5ec5bc  ./tools/det_runs.sh.txt
+1fbc07ca54840abe08c13734d8d5f4df63b3eceb2516e7ce49d9dd6faf439260  ./tools/det_runs.sh.txt
 3b18d815b005f878ae41d3f1abb5e6648cf0abc64affd3baae5d1313dd3fc42f  ./tools/mutants_con443.py.txt
 cbc9fb3e0f7a4754784b0dd27639acbb74c3bda7164ff34f3c150f39f1898541  ./tools/repro_pr_path.sh.txt

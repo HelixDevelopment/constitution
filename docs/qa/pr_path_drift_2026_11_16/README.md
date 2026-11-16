@@ -129,6 +129,12 @@ Defect found in the first commit (695de4d9) and fixed in the second: it added th
 the base checkout (1dfbb4d1) reports MANIFEST-OK, so the mismatch came from this change. The
 regenerated block changes one count (`sh/entry` 388 to 389, total 957 to 958).
 
+Defect found after the second commit (f1b6c351) and fixed in the third: the evidence copy
+`tools/det_runs.sh.txt` kept the exec bit of the helper, so the git-env census counted it as a shell
+member and failed it (UNSCRUBBED, its scrub line lacked the canonical trailing `unset _ge_v`). The
+census rule is that a `.txt` file is data unless executable. The helper now carries the canonical line
+and the copy is mode 644; census PASS, unscrubbed=0.
+
 Tracker: engine `update` for CON-443 and CON-444 (status `In progress`, reproduction and investigation
 states recorded), `export --no-formats --out-dir docs`, `validate` OK (443 items), `diff` against
 `docs/Issues.md` and `docs/Fixed.md`: in sync.
