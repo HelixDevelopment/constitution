@@ -41,6 +41,7 @@ Classification: universal (§11.4.17).
 """
 import argparse
 import datetime
+import functools
 import json
 import os
 import pathlib
@@ -108,14 +109,17 @@ def shcmd(*argv):  # a shell command string; every word quoted (paths may hold s
     return " ".join(shlex.quote(a) for a in argv)
 
 
-def edit_opencode(d, adir, remove):
-    url = pathlib.Path(adir, "opencode", "label-sync.mjs").as_uri()  # percent-encodes spaces
+def edit_opencode(d, adir, remove, entry="file"):
+    # entry "file": opencode 1.x loads the plugin module file; "dir": opencode >= 2 only loads a DIRECTORY entry
+    # (its server.js), a single-file entry is skipped by the v2 loader.
+    p = pathlib.Path(adir, "opencode") if entry == "dir" else pathlib.Path(adir, "opencode", "label-sync.mjs")
+    url = p.as_uri()  # percent-encodes spaces
     plugins = d.get("plugin", [])
     if not isinstance(plugins, list):
         raise Refused("conflict", '"plugin" exists but is not an array; refusing')
     def managed(x):
         s = x[0] if isinstance(x, list) and x else x
-        return isinstance(s, str) and "/adapters/opencode/label-sync." in s
+        return isinstance(s, str) and ("/adapters/opencode/label-sync." in s or s.rstrip("/").endswith("/adapters/opencode"))
     kept = [x for x in plugins if not managed(x)]
     if remove:
         if kept:
@@ -371,6 +375,7 @@ def main():
     ap.add_argument("--file", required=True)
     ap.add_argument("--adapters-dir", required=True)
     ap.add_argument("--mode", default="dry-run", choices=["dry-run", "apply", "remove-dry", "remove"])
+    ap.add_argument("--opencode-entry", default="file", choices=["file", "dir"])
     a = ap.parse_args()
     kind, adir = a.kind, os.path.abspath(a.adapters_dir)
     if UNSAFE & set(adir):  # MUT:unsafe
@@ -390,7 +395,7 @@ def main():
     try:
         if kind in ("opencode", "crush", "gemini", "qwen"):
             d = load_json(path, text)
-            fn = {"opencode": edit_opencode, "crush": edit_crush}.get(kind) or edit_gemini_like(kind)
+            fn = {"opencode": functools.partial(edit_opencode, entry=a.opencode_entry), "crush": edit_crush}.get(kind) or edit_gemini_like(kind)
             d = fn(d, adir, remove)
             new = dump_json(d)
             json.loads(new)  # validate the result
