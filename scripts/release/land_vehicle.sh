@@ -83,6 +83,14 @@ set +x +v
 #                configuration differs from --remotes-file, and a prepare state that
 #                does not match the refs prepare recorded; read local main ONCE and
 #                refuse unless it contains both the prepared base and the landed head;
+#            (6b) derived-file drift checks (CON-144 recurrence, audit 2026-11-16 F5/F6):
+#                each check in DRIFT_CHECKS (README badge row `compute_badges.sh --check`,
+#                env-read allowlist `cm_gate_env_reads_allowlisted.sh`) is REQUIRED when
+#                its script is in the tree of main_before or of local main, and must exit 0
+#                when run with --root <clone> on local main. A required script that is
+#                missing, a non-zero exit or a timeout refuses publish before any remote
+#                is touched (nothing is pushed); results go to
+#                <evidence-dir>/drift_checks.tsv (check, script, required, rc, result);
 #            (7) preflight EVERY remote first (read the remote main, fetch it, check
 #                it is an ancestor of local main). If any remote is non-fast-forward,
 #                unreadable or has no main, NOTHING is pushed (`not-pushed-preflight`)
@@ -1143,6 +1151,8 @@ Run these derived-file steps NOW in the clone (not run by this script; heavy):
   scripts/run_full_suite.sh --sync-guide
   scripts/run_full_suite.sh --verify-manifest
   <workable-items engine> validate
+  bash scripts/badges/compute_badges.sh --check   # on a mismatch: put the --print row and the --facts values into README.md
+  bash scripts/gates/cm_gate_env_reads_allowlisted.sh   # uncovered or stale rows: fix config/gate_env_allowlist.tsv or the gate
   git status --short; git diff --stat
   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: $id"   # only if something changed
 Then publish (fast-forward only, all remotes, read-back):
@@ -1288,6 +1298,48 @@ state_keys() {
     || die 2 "prepare state has no valid item_id"
 }
 
+# DRIFT_CHECKS: name|repository-relative script|arguments. Derived files that a landing
+# must not leave stale (step 6b). Before 2026-11-16 the prepare printout did not name them
+# and publish did not run them, so main carried a stale README badge row and stale
+# env-read allowlist rows for 22 commits (audit 2026-11-16 F5/F6, CON-144 recurrence).
+DRIFT_CHECKS=(
+  "badges|scripts/badges/compute_badges.sh|--check"
+  "gate-env-allowlist|scripts/gates/cm_gate_env_reads_allowlisted.sh|"
+)
+DRIFT_TIMEOUT=900
+# drift_checks <main_before> <local_main>: runs every required check on the clean clone
+# (working tree = local main); returns 1 when one fails, after writing drift_checks.tsv
+drift_checks() {
+  local base=$1 head=$2 tsv="$EVIDENCE_DIR/drift_checks.tsv" spec name path args req rc res bad=0
+  printf 'check\tscript\trequired\trc\tresult\n' > "$tsv"
+  for spec in "${DRIFT_CHECKS[@]}"; do
+    IFS='|' read -r name path args <<< "$spec"
+    req=no
+    if g cat-file -e "$base:$path" 2>/dev/null || g cat-file -e "$head:$path" 2>/dev/null; then req=yes; fi
+    if [ "$req" = no ]; then
+      printf '%s\t%s\tno\t-\tnot-applicable\n' "$name" "$path" >> "$tsv"; continue
+    fi
+    if ! g cat-file -e "$head:$path" 2>/dev/null || [ ! -f "$CLONE/$path" ]; then
+      printf '%s\t%s\tyes\t-\tFAIL-script-missing\n' "$name" "$path" >> "$tsv"
+      log "drift check $name: FAIL (script $path is in main_before but not in local main)"; bad=1; continue
+    fi
+    local -a argv=()
+    [ -z "$args" ] || read -r -a argv <<< "$args"
+    rc=0
+    (cd "$CLONE" && timeout "$DRIFT_TIMEOUT" bash "$CLONE/$path" --root "$CLONE" "${argv[@]}") \
+      < /dev/null > "$EVIDENCE_DIR/drift_$name.log" 2>&1 9>&- || rc=$?
+    if [ "$rc" -eq 0 ]; then res=PASS; else res=FAIL; bad=1; fi
+    if [ "$rc" -eq 124 ]; then res=FAIL-timeout; fi
+    printf '%s\t%s\tyes\t%s\t%s\n' "$name" "$path" "$rc" "$res" >> "$tsv"
+    log "drift check $name: $res (rc=$rc, log $EVIDENCE_DIR/drift_$name.log)"
+  done
+  [ -z "$(g status --porcelain --untracked-files=all --ignore-submodules=none)" ] \
+    || { log "drift checks changed the clone working tree"; bad=1; }
+  [ "$(g rev-parse -q --verify refs/heads/main || true)" = "$head" ] \
+    || { log "local main moved while the drift checks ran"; bad=1; }
+  [ "$bad" -eq 0 ]
+}
+
 do_publish() {
   need_state
   assert_remote_urls
@@ -1300,6 +1352,8 @@ do_publish() {
   g merge-base --is-ancestor "$main_before" "$local_main" || die 1 "local main no longer contains the prepared base"
   g merge-base --is-ancestor "$landed" "$local_main" || die 1 "local main does not contain the landed vehicle head $landed"
   mkdir -p "$EVIDENCE_DIR"
+  drift_checks "$main_before" "$local_main" \
+    || die 1 "derived-file drift checks failed; nothing was pushed (see $EVIDENCE_DIR/drift_checks.tsv)"
   local ok=0
   do_readback push "$local_main" "$main_before" "$landed" || ok=1
   now=$(g rev-parse -q --verify refs/heads/main || true)
