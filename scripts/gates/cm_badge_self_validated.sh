@@ -137,14 +137,14 @@ done
 
 # ---- --selftest genuinely runs and exits 0 (only if executable) ----
 if [ -x "$computer" ]; then
-    if "$computer" --selftest >/tmp/.cm_badge_selftest_out.$$ 2>&1; then
+    if "$computer" --selftest >"${TMPDIR:-/tmp}"/.cm_badge_selftest_out.$$ 2>&1; then
         echo "${GATE}: OK badge-computer '--selftest' exited 0"
     else
         echo "${GATE}: FAIL badge-computer '--selftest' exited non-zero reason=SELFTEST_FAILED"
-        cat /tmp/.cm_badge_selftest_out.$$ | sed 's/^/    /'
+        cat "${TMPDIR:-/tmp}"/.cm_badge_selftest_out.$$ | sed 's/^/    /'
         fail=$((fail + 1))
     fi
-    rm -f /tmp/.cm_badge_selftest_out.$$
+    rm -f "${TMPDIR:-/tmp}"/.cm_badge_selftest_out.$$
 fi
 
 echo "${GATE}: SUMMARY badge-computer=${computer} fail=${fail}"

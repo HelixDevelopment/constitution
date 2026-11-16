@@ -53,59 +53,60 @@ echo "Real, non-trivial guide content for workflow A." > "${scratch}/docs/guides
 echo "Real, non-trivial guide content for workflow B." > "${scratch}/docs/guides/wfB.md"
 
 # ── T1: golden-GOOD ──────────────────────────────────────────────────────────
-if "$gate" --root "$scratch" >/tmp/.cm_gpuw_t1.log 2>&1; then
+if "$gate" --root "$scratch" >"${TMPDIR:-/tmp}"/.cm_gpuw_t1.log 2>&1; then
     note "T1 golden-GOOD (both guides present) PASSED as required"
 else
-    fail "T1 golden-GOOD did not PASS"; cat /tmp/.cm_gpuw_t1.log >&2
+    fail "T1 golden-GOOD did not PASS"; cat "${TMPDIR:-/tmp}"/.cm_gpuw_t1.log >&2
 fi
 
 # ── T2: mutation — delete wfB's guide ────────────────────────────────────
 rm -f "${scratch}/docs/guides/wfB.md"
-if "$gate" --root "$scratch" >/tmp/.cm_gpuw_t2.log 2>&1; then
+if "$gate" --root "$scratch" >"${TMPDIR:-/tmp}"/.cm_gpuw_t2.log 2>&1; then
     fail "T2 mutation (MISSING guide) did NOT FAIL — gate is a tautology"
 else
     note "T2 mutation (MISSING guide) correctly FAILED"
 fi
-grep -q "wfB" /tmp/.cm_gpuw_t2.log || fail "T2 FAIL output did not name the offending workflow 'wfB'"
+grep -q "wfB" "${TMPDIR:-/tmp}"/.cm_gpuw_t2.log || fail "T2 FAIL output did not name the offending workflow 'wfB'"
 
 # ── T3: restore ──────────────────────────────────────────────────────────────
 echo "Real, non-trivial guide content for workflow B." > "${scratch}/docs/guides/wfB.md"
-if "$gate" --root "$scratch" >/tmp/.cm_gpuw_t3.log 2>&1; then
+if "$gate" --root "$scratch" >"${TMPDIR:-/tmp}"/.cm_gpuw_t3.log 2>&1; then
     note "T3 restore PASSED as required (gate re-evaluates live, not stuck FAIL)"
 else
-    fail "T3 restore did not PASS after fixing the mutation"; cat /tmp/.cm_gpuw_t3.log >&2
+    fail "T3 restore did not PASS after fixing the mutation"; cat "${TMPDIR:-/tmp}"/.cm_gpuw_t3.log >&2
 fi
 
 # ── T4: mutation — EMPTY guide ──────────────────────────────────────────────
 : > "${scratch}/docs/guides/wfA.md"
-if "$gate" --root "$scratch" >/tmp/.cm_gpuw_t4.log 2>&1; then
+if "$gate" --root "$scratch" >"${TMPDIR:-/tmp}"/.cm_gpuw_t4.log 2>&1; then
     fail "T4 mutation (EMPTY guide) did NOT FAIL"
 else
     note "T4 mutation (EMPTY guide) correctly FAILED"
 fi
-grep -q "EMPTY" /tmp/.cm_gpuw_t4.log || fail "T4 FAIL output did not cite reason=EMPTY"
+grep -q "EMPTY" "${TMPDIR:-/tmp}"/.cm_gpuw_t4.log || fail "T4 FAIL output did not cite reason=EMPTY"
 echo "Real, non-trivial guide content for workflow A." > "${scratch}/docs/guides/wfA.md"
 
 # ── T5: mutation — INCOMPLETE marker ────────────────────────────────────────
 printf '%s\n' '<!-- STATUS: INCOMPLETE -->' > "${scratch}/docs/guides/wfA.md"
-if "$gate" --root "$scratch" >/tmp/.cm_gpuw_t5.log 2>&1; then
+if "$gate" --root "$scratch" >"${TMPDIR:-/tmp}"/.cm_gpuw_t5.log 2>&1; then
     fail "T5 mutation (INCOMPLETE marker) did NOT FAIL — a tracked-but-not-done guide must still fail this gate"
 else
     note "T5 mutation (INCOMPLETE marker) correctly FAILED"
 fi
-grep -q "INCOMPLETE" /tmp/.cm_gpuw_t5.log || fail "T5 FAIL output did not cite reason=INCOMPLETE"
+grep -q "INCOMPLETE" "${TMPDIR:-/tmp}"/.cm_gpuw_t5.log || fail "T5 FAIL output did not cite reason=INCOMPLETE"
 echo "Real, non-trivial guide content for workflow A." > "${scratch}/docs/guides/wfA.md"
 
 # ── T6: golden-BAD false-positive guard — empty manifest MUST PASS ─────────
 printf '# nothing declared yet\n' > "${scratch}/docs/guides/MANIFEST.tsv"
-if "$gate" --root "$scratch" >/tmp/.cm_gpuw_t6.log 2>&1; then
+if "$gate" --root "$scratch" >"${TMPDIR:-/tmp}"/.cm_gpuw_t6.log 2>&1; then
     note "T6 false-positive guard (empty manifest) PASSED as required — gate does not fire on nothing declared"
 else
-    fail "T6 false-positive guard: empty manifest incorrectly FAILED"; cat /tmp/.cm_gpuw_t6.log >&2
+    fail "T6 false-positive guard: empty manifest incorrectly FAILED"; cat "${TMPDIR:-/tmp}"/.cm_gpuw_t6.log >&2
 fi
 
 if [ "$fails" -eq 0 ]; then
     echo "MUTATION-TEST: ALL SUB-CASES PASSED — CM-GUIDE-PER-USER-WORKFLOW is genuinely load-bearing"
+    echo "MUTATION-TEST-SUMMARY: pass=6 fail=0"   # a summary the full-suite runner parses (its last 12 lines carry "correctly FAILED" fail words)
     exit 0
 else
     echo "MUTATION-TEST: ${fails} sub-case(s) FAILED" >&2

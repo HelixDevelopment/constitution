@@ -200,12 +200,12 @@ for f in "$lib" "$0"; do
         *bash*) declared_sh="bash" ;;
         *)      declared_sh="sh"   ;;
     esac
-    if "$declared_sh" -n "$f" 2>/tmp/cm_subsys_pn.$$; then
+    if "$declared_sh" -n "$f" 2>"${TMPDIR:-/tmp}"/cm_subsys_pn.$$; then
         ok "PARSEABILITY: ${rel} clean under its declared interpreter (${declared_sh} -n)"
     else
-        bad "PARSEABILITY: ${rel} fails ${declared_sh} -n (its DECLARED interpreter): $(tr '\n' ' ' < /tmp/cm_subsys_pn.$$)"
+        bad "PARSEABILITY: ${rel} fails ${declared_sh} -n (its DECLARED interpreter): $(tr '\n' ' ' < "${TMPDIR:-/tmp}"/cm_subsys_pn.$$)"
     fi
-    rm -f /tmp/cm_subsys_pn.$$
+    rm -f "${TMPDIR:-/tmp}"/cm_subsys_pn.$$
 done
 
 echo "----------------------------------------------------------------------"
