@@ -18,10 +18,19 @@ Refuses (exit 3, nothing on stdout) when a placeholder has no value, a MANUAL va
 says TODO/TBD, a MANUAL block is unused (a typo would otherwise drop text silently), or a FACTS count
 key open_status[...] / open_severity[...] is not rendered by the template (a status or severity value
 new at cut time would otherwise drop silently; extend the template), or the MANUAL value retest_statement
-does not START with one of the verdict tokens PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN (the §11.4.40 retest
-sentence of an entry is conditional on a recorded verdict, so an entry never implies a pass; the token is
-checked, the base, tier and log that follow it are not). Exit 2 = usage.
+does not START with a verdict word (the §11.4.40 retest sentence of an entry is conditional on a recorded verdict,
+so an entry never implies a pass; the word is checked, the base, tier and log that follow it are not). Exit 2 = usage.
+
+Verdict words (B-M1 of the v73.4 dry run): the words of RETEST_RESULTS in scripts/full_suite/run_full_suite.py (the
+runner's own table, read with ast.literal_eval and never imported; a missing or malformed table is refused with exit 3)
+plus NOT RUN (no run at all). A word of class "retest" (PASS-FULL) or "fail" (FAIL) and NOT RUN render as written. A
+word of class "gap" (PASS-FULL-WITH-KNOWN and every PARTIAL-*) renders with the fixed note
+"[gap: not a section 11.4.40 full retest; (L6) stays open]" right after it, and a word of class "gap-not-run"
+(MANIFEST-MISMATCH, REFUSED-TOPOLOGY) with "[gap: nothing was run; not a section 11.4.40 retest; (L6) stays open]",
+so a gap can never read as a pass. The longest word is matched first, so PASS-FULL-WITH-KNOWN is never PASS-FULL.
 """
+import ast
+import os
 import re
 import sys
 
@@ -34,8 +43,40 @@ def die(msg, rc):
 
 
 # The retest sentence of a release entry is conditional on a recorded verdict (§11.4.40, §11.4.230(F.3)(1)):
-# the manual value must START with one of these tokens, so a claim of a pass cannot be written without it.
-RETEST_VERDICT = re.compile(r"(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)(?![\w-])")
+# the manual value must START with a verdict word, so a claim of a pass cannot be written without it.
+RUNNER = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "full_suite", "run_full_suite.py")
+NOTES = {"retest": "", "fail": "", "not-run": "",
+         "gap": "[gap: not a section 11.4.40 full retest; (L6) stays open]",
+         "gap-not-run": "[gap: nothing was run; not a section 11.4.40 retest; (L6) stays open]"}
+
+
+def verdict_words():
+    """(word, class) pairs: RETEST_RESULTS of the runner (one source, B-M1) plus NOT RUN; refuses (exit 3) otherwise."""
+    try:
+        tree = ast.parse(open(RUNNER, encoding="utf-8").read())
+        node = [n for n in tree.body if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", "") == "RETEST_RESULTS" for t in n.targets)]
+        table = ast.literal_eval(node[0].value) if len(node) == 1 else None
+        words = [(w, c) for (w, rc, c) in table
+                 if isinstance(w, str) and re.fullmatch(r"[A-Z][A-Z-]*[A-Z]", w) and isinstance(rc, int) and c in NOTES]
+        if len(words) != len(table) or not words or len({w for w, _ in words}) != len(words):
+            raise ValueError("bad row")
+    except (OSError, SyntaxError, ValueError, TypeError, IndexError):
+        die("cannot read the verdict words: RETEST_RESULTS of %s is missing or malformed (B-M1: the runner's table is the one "
+            "source; nothing is guessed)" % os.path.normpath(RUNNER), 3)
+    return sorted(words + [("NOT RUN", "not-run")], key=lambda x: -len(x[0]))
+
+
+def retest_value(val, words):
+    """The rendered retest_statement, or None when it does not start with a verdict word."""
+    v = val.strip()
+    for w, c in words:   # longest first
+        if v.startswith(w) and not re.match(r"[\w-]", v[len(w):len(w) + 1]):
+            if not NOTES[c]:
+                return val
+            lead = val[:len(val) - len(val.lstrip())]
+            return lead + w + " " + NOTES[c] + v[len(w):]
+    return None
 
 
 def main(argv):
@@ -77,9 +118,14 @@ def main(argv):
             if val is None or not val.strip() or re.search(r"\b(TODO|TBD)\b", val):
                 missing.append(key)
                 return m.group(0)
-            if name == "retest_statement" and not RETEST_VERDICT.match(val.strip()):
-                missing.append("MANUAL:retest_statement (must start with PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN)")
-                return m.group(0)
+            if name == "retest_statement":
+                words = verdict_words()
+                rv = retest_value(val, words)
+                if rv is None:
+                    missing.append("MANUAL:retest_statement (must start with one of: %s)"
+                                   % ", ".join(sorted(w for w, _ in words)))
+                    return m.group(0)
+                val = rv
             used.add(name)
             return val
         if key not in facts:

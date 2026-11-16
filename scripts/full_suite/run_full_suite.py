@@ -1435,6 +1435,16 @@ import unicodedata
 
 SCHEMA = "fsr/4"
 VERDICTS = ("PASS", "FAIL", "SKIP", "TIMEOUT", "ERROR", "SKIPPED-heavy", "NOT-RUN")
+# RETEST_RESULTS: the closed set of words a run of this runner ends with ("RESULT: <word> ..."), with the exit code
+# main() returns after printing it and its class for a release entry: retest = a section 11.4.40 retest only when
+# the run had --include-heavy; fail; gap = a run that is not a full retest; gap-not-run = nothing was run. It is the
+# ONE source of the verdict words scripts/release/render_release_entry.py accepts (B-M1 of the v73.4 dry run, read
+# there with ast.literal_eval, never imported); tests/release/test_render_release_entry.sh checks it against the
+# RESULT lines and return codes of main(). Exit 2 (usage, configuration, results integrity, lock) has no word.
+RETEST_RESULTS = (("PASS-FULL", 0, "retest"), ("FAIL", 1, "fail"), ("MANIFEST-MISMATCH", 3, "gap-not-run"),
+                  ("PARTIAL-NOT-RUN", 4, "gap"), ("PARTIAL-DEFAULT-SET", 5, "gap"), ("PARTIAL-SKIPS", 6, "gap"),
+                  ("PASS-FULL-WITH-KNOWN", 7, "gap"), ("PARTIAL-TOPOLOGY", 8, "gap"), ("REFUSED-TOPOLOGY", 9, "gap-not-run"),
+                  ("PARTIAL-DIRTY-TREE", 10, "gap"), ("PARTIAL-EXCLUSIONS-UNACCEPTED", 11, "gap"))
 EXECUTED = ("PASS", "FAIL", "SKIP", "TIMEOUT", "ERROR")
 BAD = ("FAIL", "TIMEOUT", "ERROR")
 RANK = {"PASS": 0, "SKIP": 1, "FAIL": 2, "TIMEOUT": 2, "ERROR": 2}

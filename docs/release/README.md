@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-11-11 |
 | Status | active, PROVISIONAL (scripts tested on host fixtures only; no release has been cut with them yet) |
 
@@ -62,10 +62,17 @@ time only minutes away can be in the past when the release is created; the read-
 ## Manual keys of the v73.4 template
 
 `cut_date`, `waiver_authoriser`, `waiver_decision_and_source`, `waiver_expiry`, `retest_item_id`,
-`retest_statement` (revision 4, CON-417: the §11.4.40 retest sentence of the entry; it must start
-with `PASS-FULL`, `PARTIAL-TOPOLOGY`, `FAIL` or `NOT RUN`, followed by the base, tier and log, and the
-renderer refuses any other start with exit 3, so the entry never implies a pass; the renderer checks the
-token only, not the base, tier or log that follow it), `verified_date`, `verified_block`, `killpg_summary_line`, `provisional_changes_block`,
+`retest_statement` (revision 4, CON-417; revision 5, B-M1 of the v73.4 dry run: the §11.4.40 retest
+sentence of the entry; it must start with a verdict word, followed by the base, tier and log, and the
+renderer refuses any other start with exit 3, so the entry never implies a pass. The verdict words are the
+runner's own: `RETEST_RESULTS` in `scripts/full_suite/run_full_suite.py` (one source, read with
+`ast.literal_eval`; missing or malformed = exit 3), the eleven words `scripts/run_full_suite.sh` ends a run
+with, plus `NOT RUN`. `PASS-FULL`, `FAIL` and `NOT RUN` render as written; `PASS-FULL-WITH-KNOWN` and every
+`PARTIAL-*` word render with the note `[gap: not a section 11.4.40 full retest; (L6) stays open]` after the
+word, `MANIFEST-MISMATCH` and `REFUSED-TOPOLOGY` with `[gap: nothing was run; not a section 11.4.40 retest;
+(L6) stays open]`, so a gap is never written as a pass. `MANIFEST-OK` (a `--verify-manifest` result) is not a
+run verdict and is refused. The renderer checks the word only, not the base, tier or log that follow it, and
+not that `PASS-FULL` came from an `--include-heavy` run (CON-421 stays open for a machine verdict)), `verified_date`, `verified_block`, `killpg_summary_line`, `provisional_changes_block`,
 `followups_tracking`, `known_defects_block`, `next_candidate_statement`. Every other key is mechanical.
 
 ## Cut steps

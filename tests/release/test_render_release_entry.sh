@@ -36,9 +36,9 @@ printf '@@date\nd\n@@block\nx\n@@typo\ny\n' >"$W/m4.txt"; run "$W/t.md" "$W/f.tx
 grep -v '^base=' "$W/f.txt" >"$W/f2.txt"; run "$W/t.md" "$W/f2.txt" "$W/m.txt"
 [ "$RC" = 3 ] && grep -q '\bbase\b' "$W/err" && ok "missing fact refused" || bad "missing fact refused ($RC)"
 # CON-417: the retest sentence is conditional on a recorded verdict (operator decision 2026-11-12, relayed):
-# a retest_statement value must START with PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN, so no entry implies a pass
+# a retest_statement value must START with a run verdict word of the runner (B-M1) or NOT RUN, so no entry implies a pass
 printf '## r\nretest: {{MANUAL:retest_statement}}\n' >"$W/rt.md"; printf 'x=1\n' >"$W/rf.txt"
-for v in 'PASS-FULL on base abc, tier default+heavy, log L' 'PARTIAL-TOPOLOGY on base abc, log L' 'FAIL on base abc, log L' 'NOT RUN on this candidate'; do
+for v in 'PASS-FULL on base abc, tier default+heavy, log L' 'FAIL on base abc, log L' 'NOT RUN on this candidate'; do   # B-M1: PARTIAL-TOPOLOGY now renders with a gap note (checked below)
   printf '@@retest_statement\n%s\n' "$v" >"$W/rm.txt"; run "$W/rt.md" "$W/rf.txt" "$W/rm.txt"
   [ "$RC" = 0 ] && has "retest verdict accepted: ${v%% *}" "retest: $v" || bad "retest verdict accepted: ${v%% *} ($RC: $(cat "$W/err"))"
 done
@@ -46,6 +46,98 @@ for v in 'passed' 'all green' 'PASS-FULLY done' 'pass-full' 'has never run' 'FAI
   printf '@@retest_statement\n%s\n' "$v" >"$W/rm.txt"; run "$W/rt.md" "$W/rf.txt" "$W/rm.txt"
   [ "$RC" = 3 ] && [ -z "$OUT" ] && grep -q 'retest_statement (must start with' "$W/err" && ok "retest value without a leading verdict token refused: $v" || bad "retest value without a leading verdict token refused: $v ($RC)"
 done
+# B-M1 (v73.4 dry run, 2026-11-16): the renderer's verdict set is the runner's. Oracle: the hand-written table below
+# (word, exit code, class) taken from the EXIT table of scripts/run_full_suite.sh, never from the renderer.
+# Class "retest" and "fail" render as given; every "gap" word renders with a fixed gap note after the word, so a
+# PARTIAL, MISMATCH, REFUSED or WITH-KNOWN verdict can never read as a pass.
+RUNNER="$ROOT/scripts/full_suite/run_full_suite.py"
+ORACLE='PASS-FULL 0 retest
+FAIL 1 fail
+MANIFEST-MISMATCH 3 gap-not-run
+PARTIAL-NOT-RUN 4 gap
+PARTIAL-DEFAULT-SET 5 gap
+PARTIAL-SKIPS 6 gap
+PASS-FULL-WITH-KNOWN 7 gap
+PARTIAL-TOPOLOGY 8 gap
+REFUSED-TOPOLOGY 9 gap-not-run
+PARTIAL-DIRTY-TREE 10 gap
+PARTIAL-EXCLUSIONS-UNACCEPTED 11 gap'
+GAPNOTE='[gap: not a section 11.4.40 full retest; (L6) stays open]'
+NRNOTE='[gap: nothing was run; not a section 11.4.40 retest; (L6) stays open]'
+# (a) the runner's main() prints exactly these RESULT words followed by exactly these return codes (read with ast; the
+# three non-run modes --verify-manifest, --generate-manifest and --sync-guide are named in the oracle too), and the
+# runner's RETEST_RESULTS table is the oracle table
+pairs="$(python3 -I - "$RUNNER" <<'PY'
+import ast, sys
+t = ast.parse(open(sys.argv[1], encoding="utf-8").read())
+main = [f for f in t.body if isinstance(f, ast.FunctionDef) and f.name == "main"][0]
+def word(e):
+    s = e.value if isinstance(e, ast.Constant) else (e.left.value if isinstance(e, ast.BinOp) and isinstance(e.left, ast.Constant) else None)
+    if isinstance(s, str) and s.startswith("RESULT: "):
+        return s[8:].split(" ")[0]
+    return None
+out = set()
+for node in ast.walk(main):
+    for field in ("body", "orelse"):
+        b = getattr(node, field, None)
+        if not isinstance(b, list):
+            continue
+        for a, r in zip(b, b[1:]):
+            if (isinstance(a, ast.Expr) and isinstance(a.value, ast.Call) and getattr(a.value.func, "id", "") == "out"
+                    and a.value.args and word(a.value.args[0]) and isinstance(r, ast.Return) and isinstance(r.value, ast.Constant)):
+                out.add("%s %d" % (word(a.value.args[0]), r.value.value))
+tab = [n for n in t.body if isinstance(n, ast.Assign) and any(getattr(x, "id", "") == "RETEST_RESULTS" for x in n.targets)]
+print("\n".join(sorted(out)))
+print("TABLE " + (" ".join("%s:%d:%s" % tuple(x) for x in ast.literal_eval(tab[0].value)) if tab else "absent"))
+PY
+)"
+want_pairs="$( { printf '%s\n' "$ORACLE" | awk '{print $1" "$2}'; printf 'MANIFEST-OK 0\nMANIFEST-NOT-GENERATED 3\nGUIDE-NOT-SYNCED 3\n'; } | sort -u)"
+got_run="$(printf '%s\n' "$pairs" | grep -v '^TABLE ' | sort -u)"
+[ "$got_run" = "$want_pairs" ] && ok "B-M1 the runner's main() prints these RESULT words with these exit codes (ast; control: $(printf '%s\n' "$got_run" | wc -l) pairs)" \
+  || bad "B-M1 runner RESULT/exit pairs differ from the oracle: got [$got_run]"
+want_tab="TABLE $(printf '%s\n' "$ORACLE" | awk '{printf "%s%s:%s:%s", (NR>1?" ":""), $1, $2, $3}')"
+[ "$(printf '%s\n' "$pairs" | grep '^TABLE ')" = "$want_tab" ] && ok "B-M1 the runner's RETEST_RESULTS table is the oracle table" \
+  || bad "B-M1 RETEST_RESULTS table: got [$(printf '%s\n' "$pairs" | grep '^TABLE ')]"
+# (b) every runner word is accepted and rendered with its class note
+printf '%s\n' "$ORACLE" >"$W/oracle.txt"
+while read -r wd rc cls; do
+  printf '@@retest_statement\n%s (run_full_suite exit %s) on base abc, log L\n' "$wd" "$rc" >"$W/rm.txt"; run "$W/rt.md" "$W/rf.txt" "$W/rm.txt"
+  case "$cls" in
+    retest|fail) want="retest: $wd (run_full_suite exit $rc) on base abc, log L" ;;
+    gap) want="retest: $wd $GAPNOTE (run_full_suite exit $rc) on base abc, log L" ;;
+    *) want="retest: $wd $NRNOTE (run_full_suite exit $rc) on base abc, log L" ;;
+  esac
+  if [ "$RC" = 0 ]; then has "B-M1 runner verdict $wd rendered as $cls" "$want"; else bad "B-M1 runner verdict $wd rendered as $cls ($RC: $(cat "$W/err"))"; fi
+done <"$W/oracle.txt"
+# (c) no gap word ever renders bare (negative needle over every gap row), and PASS-FULL and FAIL never get a note
+while read -r wd rc cls; do
+  printf '@@retest_statement\n%s\n' "$wd" >"$W/rm.txt"; run "$W/rt.md" "$W/rf.txt" "$W/rm.txt"
+  case "$cls" in
+    gap*) if [ "$RC" = 0 ] && ! printf '%s\n' "$OUT" | grep -qxF "retest: $wd"; then ok "B-M1 $wd never rendered bare"; else bad "B-M1 $wd rendered bare or refused ($RC)"; fi ;;
+    *) if [ "$RC" = 0 ] && ! printf '%s\n' "$OUT" | grep -qF 'gap:'; then ok "B-M1 $wd carries no gap note"; else bad "B-M1 $wd got a gap note or was refused ($RC)"; fi ;;
+  esac
+done <"$W/oracle.txt"
+# (d) words that are not run verdicts stay refused: MANIFEST-OK (a --verify-manifest result), a lower-case word, a
+# prefix of a real word and a real word with a suffix (PASS-FULL-WITH must not match PASS-FULL)
+for v in 'MANIFEST-OK' 'partial-skips' 'PARTIAL' 'PASS-FULL-WITH' 'PARTIAL-TOPOLOGYX' 'REFUSED' 'PASS-FULL-WITH-KNOWNS'; do
+  printf '@@retest_statement\n%s\n' "$v" >"$W/rm.txt"; run "$W/rt.md" "$W/rf.txt" "$W/rm.txt"
+  if [ "$RC" = 3 ] && [ -z "$OUT" ]; then ok "B-M1 not a run verdict refused: $v"; else bad "B-M1 not a run verdict refused: $v ($RC)"; fi
+done
+# (e) the refusal message names the words from the runner's table (positive needle on two of them and NOT RUN)
+printf '@@retest_statement\npassed\n' >"$W/rm.txt"; run "$W/rt.md" "$W/rf.txt" "$W/rm.txt"
+grep -qF 'PARTIAL-DEFAULT-SET' "$W/err" && grep -qF 'NOT RUN' "$W/err" && ok "B-M1 the refusal lists the runner's words and NOT RUN" || bad "B-M1 refusal message: $(cat "$W/err")"
+# (f) fail closed: the renderer cannot read the runner's table -> exit 3 naming RETEST_RESULTS, never a fixed list
+mkdir -p "$W/iso/scripts/release" "$W/iso/scripts/full_suite"; cp "$S" "$W/iso/scripts/release/render_release_entry.py"
+printf 'RETEST_RESULTS = 7\n' >"$W/iso/scripts/full_suite/run_full_suite.py"
+printf '@@retest_statement\nPASS-FULL on base abc\n' >"$W/rm.txt"
+OUT="$(python3 -I "$W/iso/scripts/release/render_release_entry.py" "$W/rt.md" "$W/rf.txt" "$W/rm.txt" 2>"$W/err")"; RC=$?
+[ "$RC" = 3 ] && [ -z "$OUT" ] && grep -q 'RETEST_RESULTS' "$W/err" && ok "B-M1 a malformed runner table is refused (exit 3)" || bad "B-M1 malformed runner table ($RC: $(cat "$W/err"))"
+rm -f -- "$W/iso/scripts/full_suite/run_full_suite.py"
+OUT="$(python3 -I "$W/iso/scripts/release/render_release_entry.py" "$W/rt.md" "$W/rf.txt" "$W/rm.txt" 2>"$W/err")"; RC=$?
+[ "$RC" = 3 ] && [ -z "$OUT" ] && grep -q 'RETEST_RESULTS' "$W/err" && ok "B-M1 an absent runner is refused (exit 3)" || bad "B-M1 absent runner ($RC: $(cat "$W/err"))"
+cp "$RUNNER" "$W/iso/scripts/full_suite/run_full_suite.py"
+OUT="$(python3 -I "$W/iso/scripts/release/render_release_entry.py" "$W/rt.md" "$W/rf.txt" "$W/rm.txt" 2>"$W/err")"; RC=$?
+[ "$RC" = 0 ] && ok "B-M1 control: the same isolated copy renders with the real runner beside it" || bad "B-M1 isolated control ($RC: $(cat "$W/err"))"
 # fail closed: a template naming the key with a manual file that lacks it is refused, and names the key
 printf '@@other\nx\n' >"$W/rm2.txt"; printf '## r\nretest: {{MANUAL:retest_statement}}\n{{MANUAL:other}}\n' >"$W/rt2.md"; run "$W/rt2.md" "$W/rf.txt" "$W/rm2.txt"
 [ "$RC" = 3 ] && [ -z "$OUT" ] && grep -q 'MANUAL:retest_statement' "$W/err" && ok "retest_statement missing from the manual file: refused" || bad "retest_statement missing from the manual file: refused ($RC)"

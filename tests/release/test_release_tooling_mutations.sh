@@ -155,6 +155,7 @@ fi
 
 TAR="$ROOT/scripts/release/tag_and_release.sh"; DRF="$ROOT/scripts/release/derive_release_facts.sh"
 RRE="$ROOT/scripts/release/render_release_entry.py"
+RFS="$ROOT/scripts/full_suite/run_full_suite.py"   # B-M1: the one source of the verdict words, copied beside every renderer copy
 LIB="$ROOT/scripts/release/redact_cut.sh"; PUB="$ROOT/scripts/release_publish_gitea.sh"
 CENPY="$HERE/channel_census.py"   # round 11: the network-spawn gate, mutated in a copy and passed as CEN_PY
 ECPY="$HERE/env_census.py"   # round 11: the runtime recorder, mutated in a copy and passed as ENV_CENSUS_PY (race check)
@@ -166,7 +167,10 @@ setup_dir() { # setup_dir D SRC -> prints the path of SRC's copy
   local d="$1" src="$2"; mkdir -p "$d/release"
   case "$src" in *redact_cut.sh) cp -- "$src" "$d/redact_cut.sh"; cp -- "$src" "$d/release/redact_cut.sh"
                   cp -- "$TAR" "$d/tag_and_release.sh"; cp -- "$PUB" "$d/release_publish_gitea.sh"; printf '%s' "$d/redact_cut.sh" ;;
-    *) cp -- "$LIB" "$d/redact_cut.sh"; cp -- "$LIB" "$d/release/redact_cut.sh"; cp -- "$src" "$d/$(basename "$src")"; printf '%s' "$d/$(basename "$src")" ;;
+    *) cp -- "$LIB" "$d/redact_cut.sh"; cp -- "$LIB" "$d/release/redact_cut.sh"; cp -- "$src" "$d/$(basename "$src")"
+       # B-M1: the renderer reads its verdict words from the runner's RETEST_RESULTS at ../full_suite/ beside itself
+       case "$src" in *render_release_entry.py) mkdir -p "$W/full_suite"; cp -- "$RFS" "$W/full_suite/run_full_suite.py" ;; esac
+       printf '%s' "$d/$(basename "$src")" ;;
   esac
 }
 
@@ -754,11 +758,17 @@ mp GP18 $'GL15 |GL16 ' "$TAR" $'  j="$(nt glab api --hostname' $'  j="$(glab api
 mp GP19 $'GL10b? ' "$TAR" $'  elif [ "$rat" = NOT-AN-ISO-TIME ] || [ "$(date -u -d "$rat" +%s 2>/dev/null)" != "$GL_AT" ]; then' $'  elif false; then'   # a different upcoming date accepted
 mp GP20 $'GL11 ' "$TAR" $'|| rat=NOT-AN-ISO-TIME\n' $'|| :\n'   # a server released_at that is not an ISO time printed raw
 mp GP21 $'GL1 ' "$TAR" $'nt glab api --hostname "$GL_HOST" "projects/' $'nt glab api "projects/'   # the read-back host not pinned with --hostname
-# CON-417 (2026-11-15): the retest_statement verdict check of render_release_entry.py
-mp RV1 $'retest value without a leading verdict token refused' "$RRE" $'            if name == "retest_statement" and not RETEST_VERDICT.match(val.strip()):' $'            if False:'   # the verdict check removed
-mp RV2 $'retest value without a leading verdict token refused: the retest: PASS-FULL' "$RRE" $'not RETEST_VERDICT.match(val.strip())' $'not RETEST_VERDICT.search(val.strip())'   # the verdict token anywhere, not at the start
-mp RV3 $'refused: (PASS-FULLY done|FAILED)' "$RRE" $'(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)(?![\\w-])"' $'(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)"'   # a longer word starting with a token accepted
-mp RV4 $'retest verdict accepted: NOT' "$RRE" $'|FAIL|NOT RUN)(?![\\w-])"' $'|FAIL)(?![\\w-])"'   # NOT RUN refused (an honest not-run entry cannot be written)
+# CON-417 (2026-11-15): the retest_statement verdict check of render_release_entry.py; B-M1 (2026-11-16) rewrote the
+# check (verdict words from the runner's RETEST_RESULTS), so RV1-RV4 are re-applied to the lines that now do the same job
+mp RV1 $'retest value without a leading verdict token refused' "$RRE" $'                rv = retest_value(val, words)\n                if rv is None:' $'                rv = val\n                if False:'   # the verdict check removed
+mp RV2 $'retest value without a leading verdict token refused: the retest: PASS-FULL' "$RRE" $'        if v.startswith(w) and not re.match(r"[\\w-]", v[len(w):len(w) + 1]):' $'        if re.search(re.escape(w) + r"(?![\\w-])", v):'   # the verdict word anywhere, not at the start
+mp RV3 $'refused: (PASS-FULLY done|FAILED)|not a run verdict refused: (PASS-FULL-WITH|PARTIAL-TOPOLOGYX)' "$RRE" $' and not re.match(r"[\\w-]", v[len(w):len(w) + 1]):' $':'   # a longer word starting with a verdict word accepted
+mp RV4 $'retest verdict accepted: NOT' "$RRE" $'    return sorted(words + [("NOT RUN", "not-run")], key=lambda x: -len(x[0]))' $'    return sorted(words, key=lambda x: -len(x[0]))'   # NOT RUN refused (an honest not-run entry cannot be written)
+# B-M1 (2026-11-16, fixer's own): the gap notes and the fail-closed read of the runner's table
+mp BM1A $'B-M1 runner verdict PARTIAL-DEFAULT-SET rendered as gap|B-M1 PARTIAL-SKIPS never rendered bare' "$RRE" $'         "gap": "[gap: not a section 11.4.40 full retest; (L6) stays open]",' $'         "gap": "",'   # a PARTIAL verdict rendered as if it were a pass
+mp BM1B $'B-M1 runner verdict (MANIFEST-MISMATCH|REFUSED-TOPOLOGY) rendered as gap-not-run' "$RRE" $'         "gap-not-run": "[gap: nothing was run; not a section 11.4.40 retest; (L6) stays open]"}' $'         "gap-not-run": "[gap: not a section 11.4.40 full retest; (L6) stays open]"}'   # a run that ran nothing reads as a partial run
+mp BM1C $'B-M1 (malformed runner table|absent runner)' "$RRE" $'    except (OSError, SyntaxError, ValueError, TypeError, IndexError):\n' $'    except (OSError, SyntaxError, ValueError, TypeError, IndexError):\n        return [("PASS-FULL", "retest"), ("PARTIAL-TOPOLOGY", "retest"), ("FAIL", "fail"), ("NOT RUN", "not-run")]\n'   # the old fixed list as a silent fallback
+mp BM1D $'B-M1 not a run verdict refused: MANIFEST-OK' "$RRE" $'    return sorted(words + [("NOT RUN", "not-run")]' $'    return sorted(words + [("NOT RUN", "not-run"), ("MANIFEST-OK", "retest")]'   # a --verify-manifest result accepted as a retest verdict
 # round 8 (N5): --only NAME that names no mutant ran nothing; that is a usage error (exit 2), never a vacuous pass
 if [ -n "$ONLY" ] && [ "$ONLY" != control ] && [ "$matched" -eq 0 ]; then
   echo "FAIL --only $ONLY: no mutant has that name, nothing was run"
