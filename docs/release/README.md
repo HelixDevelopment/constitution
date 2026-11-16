@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 6 |
+| Revision | 7 |
 | Created | 2026-11-11 |
 | Status | active, PROVISIONAL (scripts tested on host fixtures only; no release has been cut with them yet) |
 
@@ -18,7 +18,22 @@ script reading committed data; a person supplies only the decisions listed under
 | `scripts/release/render_release_entry.py [--draft] TEMPLATE FACTS MANUAL` | Fills `{{key}}` from FACTS and `{{MANUAL:name}}` from MANUAL (`@@name` blocks), builds `states_block` and `unmerged_refs_block`, drops the template's leading comment. Refuses a left-over placeholder, an empty or TODO/TBD manual value, an unused manual block, and an `open_status[...]` / `open_severity[...]` fact the template does not render (a status or severity value new at cut time; extend the template). Revision 6 (B-M4 of the v73.4 dry run): also refuses a manual value that is still a placeholder (see "Placeholders and --draft" below) unless `--draft` is given; a `--draft` render carries a fixed marker line that `tag_and_release.sh` refuses. | 0 rendered, 2 usage, 3 refused (nothing on stdout) | `tests/release/test_render_release_entry.sh` |
 | `scripts/release/tag_and_release.sh --tag T --sha S --remotes "R..." [--release SPEC]... [--prerelease] [--gitlab-released-at ISO8601] [--dry-run]` | Preflight on every remote before any write (fetch main, ancestor of S, clean tree at S, CHANGELOG first heading = T, badge check, tag identity), then `git push --atomic` of `main` and the tag per remote, ls-remote read-back, platform releases only for remotes read back OK. Never forces; a re-run resumes and skips remotes already OK. | 0 OK, 1 FAIL, 2 usage, 5 OK with release GAPs (a gitea publisher exit 3 is a GAP only with its `SKIPPED-NO-TOKEN` line; any other exit 3 is a FAIL) | `tests/release/test_tag_and_release.sh` |
 
-`--release` specs: `github:REMOTE:OWNER/REPO`, `gitlab:REMOTE:OWNER/REPO`, `gitea:REMOTE:BASE_URL:OWNER/REPO`.
+`--release` specs: `github:REMOTE:OWNER/REPO`, `gitlab:REMOTE:OWNER/REPO`, `gitea:REMOTE:BASE_URL:OWNER/REPO:TOKEN_VAR`.
+Revision 7 (B-M2 of the v73.4 dry run): a gitea spec names the variable that holds its token (fifth field), and
+the pair (BASE_URL, TOKEN_VAR) must be bound in `config/forge/hosts.tsv`: a row with provider `gitea` whose
+`api_base` is `BASE_URL/api/v1` lists TOKEN_VAR (today `https://git.m3w.org` with `M3W_GITEA_TOKEN`,
+`https://codeberg.org` with `CODEBERG_GITEA_TOKEN` or `CODEBERG_TOKEN`; a loopback test URL takes
+`GITEA_LOOPBACK_TEST_TOKEN` only). An unbound pair, an unknown host, a port the table does not name, an
+unreadable table or the old four-field spec is a usage error (exit 2) before anything is fetched or written,
+also on `--dry-run`. The publisher is called with `--token-var TOKEN_VAR` and gets that variable only;
+`scripts/release_publish_gitea.sh` no longer has a default token variable and refuses (exit 2) without
+`--token-var` or with an unbound pair, before any network call. Before B-M2 the gitea leg passed no
+`--token-var` and the publisher fell back to `M3W_GITEA_TOKEN`, so a codeberg spec would have sent the m3w
+token to codeberg. The check is `scripts/release/redact_cut.sh` `rc_gitea_binding` (pure bash; the table is
+read relative to the helper, two directories up). Honest limit: the binding is only as good as the table;
+an operator who adds a wrong row binds a wrong pair, and the table is edited by recorded operator decision
+only (its own header says so). Tests: `tests/release/test_tag_and_release.sh` C56, `test_publish_gitea.sh`
+B-M2 block (a stub server records every Authorization header; a curl shim counts calls), mutants BM2A-BM2K.
 The last line of `tag_and_release.sh` is `RESULT: ...`; a caller reads it and the exit code, never the
 platform tool's own success message (§11.4.200(2)). A `--release` spec is not cross-checked against the
 remote's URL (`github:r1:other/repo` is accepted; review n-3): GitHub legs are de-duplicated by

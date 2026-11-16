@@ -284,7 +284,7 @@ PORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print
 python3 "$W/stub.py" "$PORT" & SRV=$!
 for _ in 1 2 3 4 5 6 7 8 9 10; do (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null && break; sleep 0.3; done
 BASH_BIN="$(command -v bash)"; TO_BIN="$(command -v timeout)"
-out="$(cd "$P" && PATH="$REC:$PATH" M3W_GITEA_TOKEN=$T XYZ_TOKEN=ZZCENXYZ "$TO_BIN" 60 "$BASH_BIN" "${SCRIPTS[3]}" --tag rel-1 --base-url "http://127.0.0.1:$PORT" </dev/null 2>&1)"; rc=$?
+out="$(cd "$P" && PATH="$REC:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T M3W_GITEA_TOKEN=ZZCENM3W XYZ_TOKEN=ZZCENXYZ "$TO_BIN" 60 "$BASH_BIN" "${SCRIPTS[3]}" --tag rel-1 --base-url "http://127.0.0.1:$PORT" --token-var GITEA_LOOPBACK_TEST_TOKEN </dev/null 2>&1)"; rc=$?
 [ $rc -eq 0 ] && printf '%s\n' "$out" | grep -q '^CREATED' && ok "runtime: the publisher run completes (control, rc 0)" || bad "runtime: publisher rc=$rc $out"
 grep -qx '== curl' "$CEN_LOG" && ok "runtime: the curl call is recorded (control needle)" || bad "runtime: curl not recorded (recorders blind)"
 grep -q '^A .*/api/v1/repos/' "$CEN_LOG" && ok "runtime: the request URL is in the recorded argv (positive needle)" || bad "runtime: argv census blind"
@@ -292,6 +292,7 @@ unk=""; while IFS= read -r c; do printf '%s\n' "${TCMDS[@]}" | grep -qx -- "$c" 
 [ -z "$unk" ] && ok "runtime: every command the publisher ran is in the table" || bad "runtime: commands not in the table:$unk"
 grep -q -- "$T" "$CEN_LOG" && { awk -v t="$T" '/^== /{c=$0} index($0,t){print c": "$0}' "$CEN_LOG" | head -5; bad "runtime: the token is in the argv or environment of a child"; } || ok "runtime: no argv and no environment of any child holds the token"
 grep -q 'ZZCENXYZ' "$CEN_LOG" && bad "runtime: a caller *TOKEN* variable reaches a child" || ok "runtime: no caller *TOKEN* variable reaches a child"
+grep -q 'ZZCENM3W' "$CEN_LOG" && bad "runtime: the unnamed M3W_GITEA_TOKEN reaches a child (B-M2)" || ok "runtime: the token variable not named by --token-var reaches no child (B-M2)"
 grep -q '^E PATH=' "$CEN_LOG" && ok "runtime: the environment census reads PATH (control needle)" || bad "runtime: env census blind"
 # round 11 (rc_net at run time): the curl child's environment is the network allow-list: it has LC_ALL=C (positive
 # needle) and no CEN_LOG, which a local child of the same run has (control needle: a RELEASE_ENV_KEEP name)

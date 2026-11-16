@@ -71,7 +71,7 @@ tag_and_release.sh	rm	6a9a603a	validated-data	allowlist	none	temp-remove	local
 tag_and_release.sh	rmdir	d104966e	validated-data	allowlist	none	temp-remove	local	
 tag_and_release.sh	timeout	761f8147	validated-data	net-allowlist	none	none	nt-timeout	GNU timeout without --foreground: signals the whole process group (K2)
 tag_and_release.sh	git	132a83e7	validated-data	net-allowlist	none	none	nt-timeout	
-tag_and_release.sh	bash	16ab0fc9	validated-data	allowlist+token	none	none	publisher	publisher: the only child that gets M3W_GITEA_TOKEN (K3)
+tag_and_release.sh	bash	809ccc86	validated-data	allowlist+token	none	none	publisher	publisher: the only child that gets the token variable its gitea spec names (K3; B-M2: --token-var, bound in config/forge/hosts.tsv)
 tag_and_release.sh	grep	914694d1	validated-data	allowlist	pipe-local	none	local	
 tag_and_release.sh	date	2e0dc767	validated-data	allowlist	none	none	local	
 tag_and_release.sh	git	7764bd3e	fixed	net-allowlist	none	none	local	
@@ -120,10 +120,10 @@ tag_and_release.sh	date	c78696d5	validated-data	allowlist	none	none	local	glpre:
 tag_and_release.sh	cat	82c33b23	validated-data	allowlist	none	rundir	local	glpre: the marked GitLab notes copy in the run directory
 tag_and_release.sh	date	a0f83e9d	validated-data	allowlist	none	none	local	glpre: --gitlab-released-at, ISO-shape checked first
 tag_and_release.sh	date	10dc5311	fixed	allowlist	none	none	local	glpre: now, for the future check
-tag_and_release.sh	grep	15c512f6	validated-data	allowlist	pipe-network-text	none	local	
+tag_and_release.sh	grep	fe11a18a	validated-data	allowlist	pipe-network-text	none	local	
 tag_and_release.sh	grep	1402abf9	validated-data	allowlist	none	none	local	B-M4: fixed -F pattern over the notes file of the run directory (DRAFT RENDER marker)
 tag_and_release.sh	date	2778ea72	fixed	allowlist	none	none	local	
-release_publish_gitea.sh	sed	5d507d9e	validated-data	allowlist	none	none	local	
+release_publish_gitea.sh	sed	6418dd6a	validated-data	allowlist	none	none	local	
 release_publish_gitea.sh	grep	248ca227	validated-data	allowlist	pipe-local	none	local	
 release_publish_gitea.sh	grep	18e7f307	validated-data	allowlist	pipe-local	none	local	
 release_publish_gitea.sh	git	e392a527	validated-data	net-allowlist	none	none	local	
@@ -142,14 +142,27 @@ release_publish_gitea.sh	cat	7c81e0df	validated-data	allowlist	none	none	local
 release_publish_gitea.sh	jq	f81f2212	fixed	allowlist	pipe-network-text	none	local	
 release_publish_gitea.sh	jq	c6bfdb13	fixed	allowlist	pipe-network-text	none	local	
 release_publish_gitea.sh	jq	20495e77	fixed	allowlist	pipe-network-text	none	local	
-release_publish_gitea.sh	-	7b40a860	fixed	allowlist	none	none	local	secret-ref: PRERELEASE=false DRAFT=false DRY=0 TOKEN_VAR="M3W_GITEA_TOKEN" GENERIC
 release_publish_gitea.sh	-	4966cd72	fixed	allowlist	none	none	local	secret-ref: --token-var) need_val $# "$1"; TOKEN_VAR="$2"; shift 2 ;;
-release_publish_gitea.sh	-	1037ab69	fixed	allowlist	none	none	local	secret-ref: [[ $TOKEN_VAR =~ ^[A-Z_][A-Z0-9_]*$ ]] || die "--token-var must be an 
 release_publish_gitea.sh	-	9bf5b5f7	fixed	allowlist	none	none	local	secret-ref: unset -v _rpg_tok
-release_publish_gitea.sh	-	5af5a79d	fixed	allowlist	none	none	local	secret-ref: _rpg_tok="${!TOKEN_VAR:-}"
-release_publish_gitea.sh	-	5b7f0373	fixed	allowlist	none	none	local	secret-ref: unset "$TOKEN_VAR" 2>/dev/null || true
 release_publish_gitea.sh	-	30e035ac	fixed	allowlist	none	none	local	secret-ref: if [ -z "$_rpg_tok" ] && [ "$DRY" -eq 0 ]; then
 release_publish_gitea.sh	-	4c38ab71	fixed	allowlist	none	none	local	secret-ref: printf 'SKIPPED-NO-TOKEN: env var %s is not set; nothing was published
 release_publish_gitea.sh	-	299e46fd	fixed	allowlist	none	none	local	secret-ref: if [ -n "$_rpg_tok" ] && ! [[ $_rpg_tok =~ ^[A-Za-z0-9._~+/=-]{8,200}$
-tag_and_release.sh	-	84b4c1a0	fixed	allowlist	none	none	local	secret-ref: rc_env_clean READS names M3W_GITEA_TOKEN: its value is kept in this shell, never exported
-release_publish_gitea.sh	-	a3da2cb7	fixed	allowlist	none	none	local	secret-ref: _rpg_tv=M3W_GITEA_TOKEN (prescan of --token-var for rc_env_clean READS)
+release_publish_gitea.sh	-	4d85bedf	fixed	allowlist	none	none	local	secret-ref: PRERELEASE=false DRAFT=false DRY=0 TOKEN_VAR="" GENERIC=0 # B-M2: no default tok
+release_publish_gitea.sh	-	662d4138	fixed	allowlist	none	none	local	secret-ref: [ -z "$TOKEN_VAR" ] || [[ $TOKEN_VAR =~ ^[A-Z_][A-Z0-9_]*$ ]] || die "--token-va
+release_publish_gitea.sh	-	4c5f1f78	fixed	allowlist	none	none	local	secret-ref: _rpg_tok=""
+release_publish_gitea.sh	-	855a13e5	fixed	allowlist	none	none	local	secret-ref: if [ -n "$TOKEN_VAR" ]; then _rpg_tok="${!TOKEN_VAR:-}"; unset -v "$TOKEN_VAR" 2
+release_publish_gitea.sh	-	5e460fed	fixed	allowlist	none	none	local	secret-ref: [ -n "$TOKEN_VAR" ] || die "--token-var NAME is required (the variable that hold
+release_publish_gitea.sh	-	6fe7f787	fixed	allowlist	none	none	local	secret-ref: rc_gitea_binding "$BASE_URL" "$TOKEN_VAR"; _rpg_b=$?
+release_publish_gitea.sh	-	3f635410	fixed	allowlist	none	none	local	secret-ref: *) die "--token-var $TOKEN_VAR is not bound to $BASE_URL in config/forge/hosts.t
+tag_and_release.sh	-	3abae289	fixed	allowlist	none	none	local	secret-ref: _tar_reads="RELEASE_NET_TIMEOUT"; _tar_a=("$@"); _tar_i=0
+tag_and_release.sh	-	1f0af7c5	fixed	allowlist	none	none	local	secret-ref: case " $_tar_reads " in *" $_tar_v "*) ;; *) _tar_reads="$_tar_reads $_tar_v" ;;
+tag_and_release.sh	-	7bde44e5	fixed	allowlist	none	none	local	secret-ref: rc_env_clean "$_tar_reads" "$@"; _rc=$? # children get an environment built from
+tag_and_release.sh	-	79f5bb75	fixed	allowlist	none	none	local	secret-ref: unset -v _tar_reads _tar_a _tar_i _tar_v
+tag_and_release.sh	-	74f7920f	fixed	allowlist	none	none	local	secret-ref: [[ $spec =~ $RE_GH || $spec =~ $RE_GL || $spec =~ $RE_GT ]] || die_usage "bad --
+tag_and_release.sh	-	9a303a7f	fixed	allowlist	none	none	local	secret-ref: gtv="${spec##*:}"; gt="${spec#*:*:}"; gt="${gt%:*}"; gbase="${gt%:*}"
+tag_and_release.sh	-	f8610174	fixed	allowlist	none	none	local	secret-ref: rc_gitea_binding "$gbase" "$gtv"; gb=$?
+tag_and_release.sh	-	5f03b863	fixed	allowlist	none	none	local	secret-ref: 2) die_usage "--release spec number $n: the token variable $gtv is a name bash g
+tag_and_release.sh	-	0b980a1a	fixed	allowlist	none	none	local	secret-ref: *) die_usage "--release spec number $n: the token variable $gtv is not bound to 
+tag_and_release.sh	-	50bbb072	fixed	allowlist	none	none	local	secret-ref: gtv="${target##*:}"; gt="${target%:*}"; base="${gt%:*}"; repo="${gt##*:}" # B-M2
+tag_and_release.sh	-	a350bbdd	fixed	allowlist	none	none	local	secret-ref: x_gitea="$(pub "$gtv" "${args[@]}" 2>&1 >/dev/null)"; rc=$?
+tag_and_release.sh	-	fe11a18a	fixed	allowlist	none	none	local	secret-ref: the SKIPPED-NO-TOKEN gap line names the spec's token variable ($gtv), a NAME, never a value
