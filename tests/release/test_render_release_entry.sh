@@ -96,6 +96,46 @@ for v in 'TODO_1 the list' 'TBD2'; do
   printf '@@date\n2026-11-11\n@@block\n%s\n' "$v" >"$W/md4.txt"; run "$W/t.md" "$W/f.txt" "$W/md4.txt"
   [ "$RC" = 3 ] && grep -q 'MANUAL:block' "$W/err" && ok "M4 a TODO/TBD marker glued to a digit or underscore is refused: $v" || bad "M4 TODO/TBD glued: $v ($RC: $(cat "$W/err"))"
 done
+# CON-423 r3 (review r2 X8, X9): an underscore or a digit before the word is still no letter (MY_TODO, 2DRAFT); and a
+# Cyrillic or Greek look-alike letter is folded to the Latin one (the same map as check_provisional_verification_lines.py)
+for v in 'MY_TODO the list' 'see 2DRAFT list' $'DRАFT list' $'ТBD later' $'ТОDО list' $'DRΑFT list' $'D̈RAFT list'; do
+  printf '@@date\n2026-11-11\n@@block\n%s\n' "$v" >"$W/md4.txt"; run "$W/t.md" "$W/f.txt" "$W/md4.txt"
+  [ "$RC" = 3 ] && grep -q 'MANUAL:block' "$W/err" && ok "M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: $v" || bad "M4 r3 refused: $v ($RC: $(cat "$W/err"))"
+done
+# golden FALSE: a look-alike word that is not a marker word stays accepted (Cyrillic "Пlan", a Greek word)
+for v in $'Пlan notes' $'λόγος list' $'ДRAFT is not D'; do
+  printf '@@date\n2026-11-11\n@@block\n%s\n' "$v" >"$W/md4.txt"; run "$W/t.md" "$W/f.txt" "$W/md4.txt"
+  [ "$RC" = 0 ] && ok "M4 r3 golden FALSE, accepted: $v" || bad "M4 r3 golden FALSE, accepted: $v ($RC: $(cat "$W/err"))"
+done
+# the look-alike map of the renderer equals the map of the verification-line checker (one map, two copies)
+CHK="${PVL_SCRIPT:-$ROOT/scripts/validation/check_provisional_verification_lines.py}"
+python3 -I - "$S" "$CHK" <<'PYEOF' && ok "M4 r3 the two look-alike maps are equal" || bad "M4 r3 the two look-alike maps are equal"
+import ast, sys
+def m(p):
+    for n in ast.parse(open(p, encoding="utf-8").read()).body:
+        if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "CONFUSABLES" for t in n.targets):
+            return ast.literal_eval(n.value)
+a, b = m(sys.argv[1]), m(sys.argv[2])
+sys.exit(0 if a and a == b else 1)
+PYEOF
+# CON-423 r3: in-suite mutants. X8 and X9 are the reviewer's verbatim; R1-R4 are this fixer's. Each mutant copy must
+# make at least one of its cases give a result other than the real script's.
+mut(){ # name, python replace-from, replace-to, value that the real script refuses
+  python3 -I -c 'import sys;s=open(sys.argv[1],encoding="utf-8").read();a,b=sys.argv[3],sys.argv[4]
+if a not in s: sys.exit(5)
+open(sys.argv[2],"w",encoding="utf-8").write(s.replace(a,b,1))' "$S" "$W/mut.py" "$2" "$3"; mrc=$?
+  [ "$mrc" = 0 ] || { bad "mutant $1 applies (rc $mrc)"; return; }
+  printf '@@date\n2026-11-11\n@@block\n%s\n' "$4" >"$W/mdm.txt"
+  run "$W/t.md" "$W/f.txt" "$W/mdm.txt"; rr=$RC
+  OUT="$(python3 -I "$W/mut.py" "$W/t.md" "$W/f.txt" "$W/mdm.txt" 2>"$W/err")"; mr=$?
+  [ "$rr" = 3 ] && [ "$mr" = 0 ] && ok "mutant $1 killed (real refuses rc 3, mutant accepts: $4)" || bad "mutant $1 SURVIVED (real $rr, mutant $mr)"
+}
+mut X8 'PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z])(TODO|TBD)' 'PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z_])(TODO|TBD)' 'MY_TODO the list'
+mut X9 'DRAFT_WORD = re.compile(r"(?<![A-Za-z])DRAFT' 'DRAFT_WORD = re.compile(r"(?<![A-Za-z0-9])DRAFT' 'see 2DRAFT list'
+mut R1-no-confusables 'CONFUSABLES.get(ch, ch)' 'ch' $'DRАFT list'
+mut R2-no-mark-strip 'if unicodedata.category(ch) != "Mn"' 'if True' $'D̈RAFT list'
+mut R3-cyrillic-T-dropped '"Т": "T", ' '' $'ТBD later'
+mut R4-greek-A-dropped '"Α": "A", ' '' $'DRΑFT list'
 for v in 'DRAFTS of the plan' 'REDRAFT done' 'Draft notes' 'draft_1 lower case' 'TODOS done' 'XTBD'; do
   printf '@@date\n2026-11-11\n@@block\n%s\n' "$v" >"$W/md4.txt"; run "$W/t.md" "$W/f.txt" "$W/md4.txt"
   [ "$RC" = 0 ] && ok "M4 golden FALSE, accepted: $v" || bad "M4 golden FALSE, accepted: $v ($RC: $(cat "$W/err"))"

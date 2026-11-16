@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Reviewer probe (round 2): hostile values per field against the checker. Usage: probe_pvl2.py CHECKER WORKDIR"""
+import os, sqlite3, subprocess, sys
+
+checker, work = sys.argv[1], sys.argv[2]
+FIELDS = ("job", "checks", "layer", "target", "artifact", "due")
+GOOD = {"job": "re-run tests/release/x.sh on main", "checks": "3 passed, 0 failed", "layer": "host-only (tests)",
+        "target": "host, repo checkout", "artifact": "commit 3b958793", "due": "2026-11-23"}
+CYR_T = "Т"  # Cyrillic capital TE, looks like T
+CYR_O = "о"
+# (name, field, value, expect) expect in R (refuse) / A (accept)
+cases = []
+def add(n, f, v, e): cases.append((n, f, v, e))
+for f in FIELDS:
+    add("cyr_TBD_" + f, f, CYR_T + "BD-1" if f == "job" else CYR_T + "BD commit 3b958793" if f == "artifact" else CYR_T + "BD x y", "R")
+for f in ("job", "checks", "target"):
+    add("pending_sched_" + f, f, "pending scheduling", "R")
+    add("none_assigned_" + f, f, "none assigned", "R")
+    add("not_applicable_" + f, f, "not applicable", "R")
+    add("lorem_" + f, f, "lorem ipsum dolor", "R")
+    add("TBD_underscore_" + f, f, "TBD_1 later", "R")
+    add("T.B.D_" + f, f, "T.B.D.", "R")
+    add("unknown_word_" + f, f, "unknown host thing", "R")
+    add("qqq_" + f, f, "??? later", "R")
+    add("to_be_done_" + f, f, "to be done", "R")
+    add("will_be_" + f, f, "will be scheduled later", "R")
+    add("XXX_lower_" + f, f, "xxx yyy", "R")
+add("artifact_TBD_main", "artifact", "TBD main", "R")
+add("artifact_lorem_main", "artifact", "lorem main", "A?")
+add("layer_runtime_cyr", "layer", "runtime".replace("o", CYR_O) if "o" in "runtime" else "runtimе", "R")
+add("due_leap2000", "due", "2000-02-29", "A")
+add("due_2100", "due", "2100-01-01", "R")
+add("due_13", "due", "2026-13-01", "R")
+add("due_time_ok", "due", "2026-11-23T10:00Z", "A")
+add("due_time_25", "due", "2026-11-23T25:00", "R")
+add("due_time_space", "due", "2026-11-23 10:00", "A")
+add("due_time_offset", "due", "2026-11-23T10:00:00+02:00", "A")
+add("due_fullwidth", "due", "２０２６-11-23", "R")
+add("due_zwsp_lead", "due", "​2026-11-23", "R")
+add("due_unconfirmed_trailing", "due", "2026-11-23 (UNCONFIRMED: no scheduler)", "A")
+add("due_tbd_after", "due", "2026-11-23 TBD", "R")
+add("due_date_slash", "due", "2026/11/23", "R")
+add("job_unconfirmed_trailing", "job", "re-run x.sh (UNCONFIRMED: not scheduled)", "A")
+add("job_UNCONFIRMED_lower", "job", "unconfirmed: none", "R")
+add("job_bracket_tbd", "job", "[TBD]", "R")
+add("job_quoted_todo", "job", "\"TODO\"", "R")
+add("job_none_paren", "job", "none (scheduler down)", "R")
+add("job_DRAFTS_golden", "job", "re-run DRAFTS check", "A")
+add("job_XTBD_golden", "job", "XTBD-9 run", "A")
+add("checks_fw_todo", "checks", "ＴＯＤＯ later", "R")
+add("target_zwj_tbd", "target", "T‍BD host", "R")
+add("artifact_hex_only_ok", "artifact", "3b958793", "A")
+add("layer_gate_logic", "layer", "gate-logic", "A")
+
+dbp = os.path.join(work, "probe2.db")
+if os.path.exists(dbp):
+    os.unlink(dbp)
+con = sqlite3.connect(dbp)
+con.execute("create table items (atm_id text primary key, status text, body_md text)")
+ids = {}
+for i, (n, f, v, e) in enumerate(cases):
+    vals = dict(GOOD); vals[f] = v
+    line = "**Verification:** provisional -- " + " -- ".join("%s: %s" % (k, vals[k]) for k in FIELDS)
+    iid = "CON-%04d" % (i + 1)
+    ids[iid] = (n, e)
+    con.execute("insert into items values (?,?,?)", (iid, "Ready for testing", "x\n" + line))
+# fence / structure cases
+extra = [
+    ("html_comment_only", "x\n<!--\n**Verification:** provisional -- job: re-run x.sh -- checks: 3 passed -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-23\n-->", "R"),
+    ("tilde_fence_only", "x\n~~~\n**Verification:** provisional -- job: re-run x.sh -- checks: 3 passed -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-23\n~~~", "R"),
+    ("nested_fence", "x\n````\n```\n````\n**Verification:** provisional -- job: re-run x.sh -- checks: 3 passed -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-23", "A"),
+    ("indented3_fence", "x\n   ```\n**Verification:** provisional -- job: re-run x.sh -- checks: 3 passed -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-23\n   ```", "R"),
+    ("indented4_notfence", "x\n    ```\n**Verification:** provisional -- job: re-run x.sh -- checks: 3 passed -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-23", "A"),
+    ("colonless", "x\n**Verification:** provisional — job re-run x.sh — checks 3 passed — layer host-only — target host — artifact main — due 2026-11-23", "A"),
+    ("colonless_tbd", "x\n**Verification:** provisional — job TBD — checks 3 passed — layer host-only — target host — artifact main — due 2026-11-23", "R"),
+    ("prefix_glued", "x\n**Verification:** provisionalXYZ -- job: re-run x.sh -- checks: 3 passed -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-23", "R?"),
+    ("extra_unknown_field", "x\n**Verification:** provisional -- job: re-run x.sh -- checks: 3 passed -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-23 -- note: TBD", "A?"),
+]
+for j, (n, b, e) in enumerate(extra):
+    iid = "CON-9%03d" % j
+    ids[iid] = (n, e)
+    con.execute("insert into items values (?,?,?)", (iid, "In testing", b))
+con.commit(); con.close()
+p = subprocess.run([sys.executable, "-I", checker, dbp], capture_output=True, text=True)
+fails = {}
+for ln in p.stdout.splitlines():
+    if ln.startswith("FAIL "):
+        parts = ln.split(" ", 2)
+        fails[parts[1]] = ln
+mism = 0
+for iid in sorted(ids):
+    n, e = ids[iid]
+    got = "R" if iid in fails else "A"
+    flag = "OK" if e.rstrip("?") == got else ("INFO" if e.endswith("?") else "MISMATCH")
+    if flag == "MISMATCH":
+        mism += 1
+    print("%s %s %s expect=%s got=%s %s" % (flag, iid, n, e, got, fails.get(iid, "")))
+print("PROBE cases=%d mismatches=%d checker_rc=%d last=%s" % (len(ids), mism, p.returncode, p.stdout.splitlines()[-1]))

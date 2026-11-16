@@ -29,10 +29,13 @@ says so on stderr, so it never passes for a release entry; TODO/TBD and every ot
 value cut_date (the entry heading takes it whole) must be a bare calendar date YYYY-MM-DD that exists, also with
 --draft (rehearsal D9).
 
-The marker words TODO, TBD and DRAFT are matched with no LETTER on either side (CON-423 review r1, M4): DRAFT_1, DRAFT2,
-v-DRAFT-3 and TODO_1 are markers, DRAFTED, DRAFTS, REDRAFT and TODOS are other words. The value is folded first
-(NFKC, so a full-width DRAFT is DRAFT, and format characters such as U+200B are removed). Lower and mixed case
-(draft, Draft) are accepted by design. Look-alike letters of other scripts are not folded (a known limit).
+The marker words TODO, TBD and DRAFT are matched with no ASCII letter (A-Z, a-z) on either side (CON-423 review r1,
+M4; wording fixed in r3, N2): DRAFT_1, DRAFT2, 2DRAFT, v-DRAFT-3, TODO_1 and MY_TODO are markers, DRAFTED, DRAFTS,
+REDRAFT and TODOS are other words. The value is folded first (CON-423 r3): NFKD with combining marks removed, NFKC (a
+full-width DRAFT is DRAFT), format characters such as U+200B removed, then the Cyrillic and Greek look-alike map
+CONFUSABLES (the same table as scripts/validation/check_provisional_verification_lines.py; the render suite checks the
+two copies are equal). Lower and mixed case (draft, Draft) are accepted by design. Look-alikes outside that small map
+(other scripts, mathematical letters NFKC does not fold) are a known limit.
 """
 import datetime
 import re
@@ -42,9 +45,27 @@ import unicodedata
 EMPTY = "(none recorded in the tracker)"
 
 
+# Cyrillic and Greek letters that look like Latin ones (CON-423 r3). Keep equal to the copy in
+# scripts/validation/check_provisional_verification_lines.py (tests/release/test_render_release_entry.sh compares them).
+CONFUSABLES = {
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H", "О": "O",
+    "Р": "P", "С": "C", "Т": "T", "Х": "X", "У": "Y", "І": "I", "Ј": "J",
+    "Ѕ": "S", "Ԁ": "D", "Ү": "Y", "а": "a", "е": "e", "о": "o", "р": "p",
+    "с": "c", "у": "y", "х": "x", "і": "i", "ј": "j", "ѕ": "s", "ԁ": "d",
+    "ԛ": "q", "ԝ": "w", "һ": "h", "ӏ": "l", "ү": "y",
+    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I", "Κ": "K",
+    "Μ": "M", "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+    "α": "a", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p", "υ": "u",
+    "χ": "x",
+}
+
+
 def fold(val):
-    """NFKC-normalised VAL with format characters (category Cf, such as U+200B) removed: what the marker words see."""
-    return "".join(ch for ch in unicodedata.normalize("NFKC", val) if unicodedata.category(ch) != "Cf")
+    """What the marker words see: NFKD with combining marks (Mn) removed, NFKC, format characters (Cf, such as U+200B)
+    removed, then the look-alike letters of CONFUSABLES mapped to Latin."""
+    val = "".join(ch for ch in unicodedata.normalize("NFKD", val) if unicodedata.category(ch) != "Mn")
+    val = "".join(ch for ch in unicodedata.normalize("NFKC", val) if unicodedata.category(ch) != "Cf")
+    return "".join(CONFUSABLES.get(ch, ch) for ch in val)
 
 
 def die(msg, rc):

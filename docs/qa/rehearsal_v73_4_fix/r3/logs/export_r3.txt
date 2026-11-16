@@ -1,0 +1,6 @@
+export: wrote /mnt/DATA1TB/claude-work/scratch/fix3_rehearsal_v73_4_20261116T144527/repo/docs/Issues.md
+export: wrote /mnt/DATA1TB/claude-work/scratch/fix3_rehearsal_v73_4_20261116T144527/repo/docs/Fixed.md
+export: wrote /mnt/DATA1TB/claude-work/scratch/fix3_rehearsal_v73_4_20261116T144527/repo/docs/Issues_Summary.md
+export: wrote /mnt/DATA1TB/claude-work/scratch/fix3_rehearsal_v73_4_20261116T144527/repo/docs/Fixed_Summary.md
+export: --no-formats set; skipped HTML/PDF/DOCX sibling generation
+rc=0
