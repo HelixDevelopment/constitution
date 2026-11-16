@@ -740,9 +740,8 @@ def read_branch(r, repo, final=False):
     name = res.out.rstrip("\n")
     if res.rc == 1:
         return "detached", None
-    if not name:  # exit 0 with no name: not an answer this code can use
-        r.no_answer(repo, "symbolic-ref", "malformed-output")
-        return "unknown", None
+    # exit 0 with no name (RV4-1), several lines, or no refs/ prefix: not an answer this code can use. An empty
+    # name fails startswith("refs/"), so this one test carries the RV4-1 guard (mutant P32 targets it).
     if "\n" in name or not name.startswith("refs/"):  # one full ref, one line
         r.no_answer(repo, "symbolic-ref", "malformed-output")
         return "unknown", None

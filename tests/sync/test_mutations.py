@@ -562,7 +562,9 @@ MUTANTS = [
      '            elif not (os.path.realpath(os.path.dirname(child_abs)) + os.sep).startswith(real_parent + os.sep):',
      '            elif False:', ['unit', 'robustness:outside_parent']),
     ('P32', 'RV4-1: a malformed symbolic-ref answer (exit 0, empty) reads as a branch',
-     '    if not name:  # exit 0 with no name', '    if False:  # exit 0 with no name', ['unit']),
+     # round 11: the separate empty-name test became redundant once the full ref is read (an empty name fails
+     # startswith("refs/")), so P32 was equivalent on the r11 tree; it now removes the refs/ test that carries RV4-1.
+     '    if "\\n" in name or not name.startswith("refs/"):', '    if "\\n" in name:', ['unit']),
     ('P33', 'RV4-5: final reads after a stop get no time cap',
      '            limit = min(limit, 10)', '            limit = limit', ['unit', 'robustness:final_cap', 'robustness:sigterm_write']),
     ('P34', 'RV4-6: core.askPass not pinned empty by -c',
