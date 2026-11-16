@@ -1,0 +1,8 @@
+FAIL CON-190 Ready for testing: missing field(s): checks
+FAIL CON-191 Ready for testing: missing field(s): checks
+FAIL CON-211 Ready for testing: no '**Verification:** provisional' line
+FAIL CON-235 Ready for testing: no '**Verification:** provisional' line
+FAIL CON-236 Ready for testing: no '**Verification:** provisional' line
+FAIL CON-265 Ready for testing: no '**Verification:** provisional' line
+CHECKED items=387 provisional_status=29 ok=23 fail=6
+VERDICT: FAIL
