@@ -1,0 +1,4 @@
+# command: gh api repos/HelixDevelopment/HelixConstitution/collaborators/<reviewer-account>/permission --jq {permission,role_name}
+# time: 2026-11-16T13:10:33Z
+{"message":"Resource not accessible by personal access token","documentation_url":"https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user","status":"403"}gh: Resource not accessible by personal access token (HTTP 403)
+# exit: 1
