@@ -160,8 +160,8 @@ release_publish_gitea.sh	-	5af5a79d	fixed	allowlist	none	none	local	secret-ref: 
 release_publish_gitea.sh	-	5b7f0373	fixed	allowlist	none	none	local	secret-ref: unset "$TOKEN_VAR" 2>/dev/null || true
 release_publish_gitea.sh	-	30e035ac	fixed	allowlist	none	none	local	secret-ref: if [ -z "$_rpg_tok" ] && [ "$DRY" -eq 0 ]; then
 release_publish_gitea.sh	-	4c38ab71	fixed	allowlist	none	none	local	secret-ref: printf 'SKIPPED-NO-TOKEN: env var %s is not set; nothing was published
-release_publish_gitea.sh	-	299e46fd	fixed	allowlist	none	none	local	secret-ref: if [ -n "$_rpg_tok" ] && ! [[ $_rpg_tok =~ ^[A-Za-z0-9._~+/=-]{8,200}$
+release_publish_gitea.sh	-	090f6b4c	fixed	allowlist	none	none	local	secret-ref: if [ -n "$_rpg_tok" ] && ! rc_gitea_token_shape_ok "$_rpg_tok"; then (the shared token shape of redact_cut.sh; the value is never printed)
 tag_and_release.sh	-	84b4c1a0	fixed	allowlist	none	none	local	secret-ref: rc_env_clean READS names M3W_GITEA_TOKEN: its value is kept in this shell, never exported
 tag_and_release.sh	-	5ba0bc45	fixed	allowlist	none	none	local	secret-ref: d3 dry-run probe, tests only whether M3W_GITEA_TOKEN is empty; the value is never printed
-tag_and_release.sh	-	b1e5bb60	fixed	allowlist	none	none	local	secret-ref: d3 dry-run probe, matches M3W_GITEA_TOKEN against the publisher's charset; the value is never printed
+tag_and_release.sh	-	dfb89c0b	fixed	allowlist	none	none	local	secret-ref: d3 dry-run probe, matches M3W_GITEA_TOKEN with rc_gitea_token_shape_ok (the publisher's shared shape); the value is never printed
 release_publish_gitea.sh	-	a3da2cb7	fixed	allowlist	none	none	local	secret-ref: _rpg_tv=M3W_GITEA_TOKEN (prescan of --token-var for rc_env_clean READS)

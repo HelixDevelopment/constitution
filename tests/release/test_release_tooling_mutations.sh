@@ -772,13 +772,28 @@ mp DP6 $'RH6 ' "$TAR" $'would-fail=%d would-gap=%d)\\n\' "$WF" "$WG"; exit 1; fi
 mp DP7 $'RH5 ' "$TAR" $'        if [ -n "${DGH_SEEN[$id]:-}" ]; then printf' $'        if false; then printf'   # GitHub legs of one repository id not de-duplicated in the dry run
 mp RN1 $'RH12 ' "$TAR" $'case "$_seen" in *" $r "*) die_usage' $'case "$_seen" in *" NOT-A-REMOTE "*) die_usage'   # a repeated remote name accepted
 mp RN2 $'RH11 ' "$TAR" $'    if [ -n "${PUSHID[$k]:-}" ] && [ "${PUSHID[$k]}" != "$r" ]; then' $'    if false; then'   # two remotes of one repository (by URL) accepted
-mp RN3 $'RH11 ' "$TAR" $'printf \'host:%s/%s\' "${h,,}" "${p,,}"' $'printf \'host:%s/%s\' "$h" "$p"'   # host and path not case-folded
+mp RN3 $'RH11 ' "$TAR" $'p="${p#/}"; p="${p,,}"; p="${p%.git}"; printf \'host:%s/%s\' "${h,,}" "$p"' $'p="${p#/}"; p="${p%.git}"; printf \'host:%s/%s\' "$h" "$p"'   # host and path not case-folded
 mp RN4 $'RH13 ' "$TAR" $'        if [ -n "${GHID_OF[$gid]:-}" ] && [ "${GHID_OF[$gid]}" != "$r" ]; then' $'        if false; then'   # two remotes of one GitHub repository id accepted
 mp RN5 $'RH11 the push URL' "$TAR" $'abort "remotes ${PUSHID[$k]} and $r push to the same repository (' $'abort "remotes ${PUSHID[$k]} and $r push to the same repository $u ('   # the push URL printed
 mp DP8 $'RH2 the gitlab project is read on the pinned host' "$TAR" $'pj="$(nt glab api --hostname "$GL_HOST" "projects/$enc" 2>/dev/null)"' $'pj="$(nt glab api "projects/$enc" 2>/dev/null)"'   # the dry-run project read not pinned to the host
-mp DR1 $'D5 a DRAFT' "$RRE" $'            if not draft and DRAFT_WORD.search(val):' $'            if False:'   # a DRAFT manual value accepted
+mp DR1 $'D5 a DRAFT' "$RRE" $'            if not draft and DRAFT_WORD.search(fold(val)):' $'            if False:'   # a DRAFT manual value accepted
 mp DR2 $'D5 a draft rendering starts' "$RRE" $'        out = DRAFT_MARK + "\\n" + out' $'        out = out'   # a draft rendering without the marker line
-mp DR3 $'D5 not the word DRAFT' "$RRE" $'DRAFT_WORD = re.compile(r"\\bDRAFT\\b")' $'DRAFT_WORD = re.compile(r"DRAFT")'   # DRAFT matched inside a word
+mp DR3 $'M4 golden FALSE, accepted: (DRAFTS|REDRAFT)' "$RRE" $'DRAFT_WORD = re.compile(r"(?<![A-Za-z])DRAFT(?![A-Za-z])")' $'DRAFT_WORD = re.compile(r"DRAFT")'   # DRAFT matched inside a word
+# CON-423 review r1 (r2 fixer): M3 repo_key and M4 marker-word boundaries, each killed by its own RH16 / M4 check
+mp RK1 $'RH16 doubled slash in the path' "$TAR" $'  while [[ $p == *//* ]]; do p="${p%%//*}/${p#*//}"; done' $'  :'   # doubled slashes not folded
+mp RK2 $'RH16 upper-case .GIT suffix' "$TAR" $'p="${p#/}"; p="${p,,}"; p="${p%.git}"; printf' $'p="${p#/}"; p="${p%.git}"; p="${p,,}"; printf'   # .git stripped before the case fold (.GIT kept)
+mp RK3 $'RH16 local /srv/repo.git and /srv/repo are two directories' "$TAR" $'  else printf \'local:%s\' "$p"; fi' $'  else printf \'local:%s\' "${p%.git}"; fi'   # a local .git suffix folded away
+mp RK4 $'RH16 local paths keep their case' "$TAR" $'  else printf \'local:%s\' "$p"; fi' $'  else printf \'local:%s\' "${p,,}"; fi'   # a local path case-folded
+mp RK5 $'RH16 local doubled and trailing slashes' "$TAR" $'  while [[ $p == */ ]]; do p="${p%/}"; done' $'  :'   # trailing slashes kept
+mp DR4 $'M4 a DRAFT marker is refused: (DRAFT_1|see DRAFT2|v-DRAFT-3)' "$RRE" $'DRAFT_WORD = re.compile(r"(?<![A-Za-z])DRAFT(?![A-Za-z])")' $'DRAFT_WORD = re.compile(r"\\bDRAFT\\b")'   # the old \b boundary: DRAFT_1 and DRAFT2 accepted
+mp DR5 $'M4 TODO/TBD glued: (TODO_1|TBD2)' "$RRE" $'PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z])(TODO|TBD)(?![A-Za-z])")' $'PLACEHOLDER_WORD = re.compile(r"\\b(TODO|TBD)\\b")'   # the old \b boundary for TODO/TBD
+mp DR6 $'M4 golden FALSE, accepted: (TODOS|XTBD)' "$RRE" $'PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z])(TODO|TBD)(?![A-Za-z])")' $'PLACEHOLDER_WORD = re.compile(r"(TODO|TBD)")'   # TODO/TBD matched inside a word
+mp DR7 $'M4 a DRAFT marker is refused: (ＤＲＡＦＴ|DR)' "$RRE" $'    return "".join(ch for ch in unicodedata.normalize("NFKC", val) if unicodedata.category(ch) != "Cf")' $'    return val'   # no NFKC fold, no format-character removal
+# CON-423 review r1 (r2 fixer): M8, the one gitea token shape (redact_cut.sh) and its two callers
+mp TS1 $'K12 7 characters' "$LIB" $'rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{8,200}$ ]]; }' $'rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{1,200}$ ]]; }'   # the length floor dropped
+mp TS2 $'K12 201 characters' "$LIB" $'rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{8,200}$ ]]; }' $'rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{8,200} ]]; }'   # the end anchor dropped: a longer token fits
+mp TS3 $'M8 a token outside the shared shape is refused' "$PUB" $'if [ -n "$_rpg_tok" ] && ! rc_gitea_token_shape_ok "$_rpg_tok"; then' $'if false; then'   # the publisher no longer checks the shape
+mp TS4 $'RH17 a token outside the shape' "$TAR" $'        elif ! rc_gitea_token_shape_ok "$M3W_GITEA_TOKEN"; then wfail' $'        elif false; then wfail'   # the dry run no longer reports TOKEN-SHAPE
 mp CD1 $'D9 cut_date not a bare date' "$RRE" $'            if name == "cut_date" and not is_bare_date(val):' $'            if False:'   # cut_date not checked
 mp CD2 $'D9 cut_date not a bare date refused \\(also with --draft\\): (20261116|2026-W46-1)' "$RRE" $'    if not BARE_DATE.fullmatch(val):\n        return False' $'    if False:\n        return False'   # the YYYY-MM-DD shape not required (fromisoformat alone)
 mp CD3 $'D9 cut_date not a bare date refused \\(also with --draft\\): (2026-13-01|2026-02-30|2027-02-29)' "$RRE" $'        datetime.date.fromisoformat(val)' $'        pass'   # a date that does not exist accepted

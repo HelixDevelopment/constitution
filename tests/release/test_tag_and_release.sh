@@ -889,6 +889,40 @@ chk "RH14 exit 0" "$RC" 0; outhas "RH14 id check UNCONFIRMED" '^INFO GitHub remo
 # RH15 (D10) a GitHub id that cannot be read for one remote is UNCONFIRMED for that remote, never a pass of the check
 mk rh15; git -C "$D/w" config remote.r1.pushurl 'git@github.com:acc/none.git'; run --dry-run
 chk "RH15 exit 0" "$RC" 0; outhas "RH15 per-remote UNCONFIRMED" '^INFO remote r1: GitHub repository id UNCONFIRMED '
+# RH16 (CON-423 review r1, M3) repo_key of the script under test, read out of it: an upper-case .GIT and a doubled
+# slash are the same hosted repository; a LOCAL path keeps its .git and its case (/srv/repo.git and /srv/repo are two
+# directories: folding them would be a false refusal), only its doubled and trailing slashes fold
+rk_lib="$W/repo_key_fn.sh"
+awk '/^repo_key\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$S" >"$rk_lib"
+if grep -q '^repo_key() {' "$rk_lib" && grep -q '^}' "$rk_lib"; then
+  rk() { ( . "$rk_lib"; repo_key "$1" ); }
+  same() { [ "$(rk "$2")" = "$(rk "$3")" ] && ok "RH16 $1" || bad "RH16 $1 ($(rk "$2") vs $(rk "$3"))"; }
+  differ() { [ "$(rk "$2")" != "$(rk "$3")" ] && ok "RH16 $1" || bad "RH16 $1 (both $(rk "$2"))"; }
+  same "control: scp-style and https forms of one repository" 'git@github.com:acc/one.git' 'https://github.com/acc/one'
+  same "upper-case .GIT suffix" 'ssh://git@GitHub.com:22/Acc/One.GIT' 'git@github.com:acc/one'
+  same "doubled slash in the path" 'https://github.com//acc//one' 'https://github.com/acc/one'
+  same "local doubled and trailing slashes" '/srv//repo.git/' '/srv/repo.git'
+  same "file:// URL and the local path" 'file:///srv/repo.git' '/srv/repo.git'
+  differ "local /srv/repo.git and /srv/repo are two directories" '/srv/repo.git' '/srv/repo'
+  differ "local paths keep their case" '/srv/Repo' '/srv/repo'
+  differ "control: two hosted repositories" 'git@github.com:acc/one.git' 'git@github.com:acc/two.git'
+else
+  bad "RH16 repo_key could not be read out of $S"
+fi
+# RH17 (CON-423 review r1, M8) the gitea token shape has ONE definition (rc_gitea_token_shape_ok in redact_cut.sh):
+# a token outside it is TOKEN-SHAPE in the dry run (exit 1, value not shown), one inside it is ACCESS-UNCONFIRMED,
+# and neither the script under test nor the publisher carries a copy of the charset
+mk rh17; M3W_GITEA_TOKEN='ZZRH17 bad!' run --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
+chk "RH17 a token outside the shape: exit 1" "$RC" 1
+outhas "RH17 a token outside the shape is TOKEN-SHAPE" 'TOKEN-SHAPE'
+printf '%s\n' "$OUT" | grep -q ZZRH17 && bad "RH17 the bad token value is not shown" || ok "RH17 the bad token value is not shown"
+mk rh17b; M3W_GITEA_TOKEN='ZZRH17goodtoken' run --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
+printf '%s\n' "$OUT" | grep -q 'ACCESS-UNCONFIRMED (token variable set' && ok "RH17 a token inside the shape is ACCESS-UNCONFIRMED" || bad "RH17 a token inside the shape is ACCESS-UNCONFIRMED ($RC: $(printf '%s' "$OUT" | tail -n 3))"
+for f in "$S" "$ROOT/scripts/release_publish_gitea.sh"; do
+  if grep -vE '^[[:space:]]*#' "$f" | grep -qF 'A-Za-z0-9._~+/=-]{8,200}'; then bad "RH17 no copy of the gitea token charset in $(basename "$f")"
+  else ok "RH17 no copy of the gitea token charset in $(basename "$f")"; fi
+done
+grep -q 'rc_gitea_token_shape_ok' "$ROOT/scripts/release_publish_gitea.sh" && ok "RH17 control: the publisher calls the shared definition" || bad "RH17 control: the publisher calls the shared definition"
 
 # C12 the script never forces (static check of the source)
 if grep -vE '^[[:space:]]*#' "$S" | grep -nE -- '--force|\+refs/|git push[^#]*[[:space:]]\+[A-Za-z0-9]|tag -d|push --delete|push[^#]* :refs' >/dev/null; then bad "C12 no force/delete in script"; else ok "C12 no force/delete in script"; fi

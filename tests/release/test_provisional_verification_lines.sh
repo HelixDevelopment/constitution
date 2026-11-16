@@ -6,6 +6,10 @@
 # Class (§11.4.289(C)): fixture databases built here (golden good, golden bad, negative control, blind cases) prove the
 # checker's own logic; the real-tree case runs the checker on docs/workable_items.db of this checkout and needles its
 # count against an independent count of the same rows. Two paired mutants of a copy of the checker must be caught.
+# Review r1 of CON-423 (B1, r2 fixer): P7 runs the case grid tests/release/pvl_grid.py (placeholder shapes x six
+# fields, per-field shapes, due dates, fenced lines, golden-FALSE accepts incl. the colon-less form) with a grid-size
+# needle; P8 runs one paired mutant per completeness check and per field (each must make the grid fail); P9 replays
+# the reviewer's probe shapes (a "due: ." value and the other placeholders), each refused.
 #
 # Usage: bash tests/release/test_provisional_verification_lines.sh   (PVL_SCRIPT=<path> tests another copy)
 # Exit 0 when every case passes, 1 otherwise. Last line "RESULT: pass=N fail=M".
@@ -101,6 +105,65 @@ mut "checks-not-required" '"job", "checks", "layer"' '"job", "layer"' "$W/m1.db"
 mut "status-in-testing-dropped" 'STATUSES = ("Ready for testing", "In testing")' 'STATUSES = ("Ready for testing", "Ready for testing")' "$W/m2.db" 1
 sed 's|if total == 0:|if False:|' "$C" >"$W/m.py"; OUT="$(python3 -I "$W/m.py" "$W/empty.db" 2>&1)"; RC=$?
 [ "$RC" != 2 ] && ok "P6 mutant blind-check-dropped is caught (rc $RC)" || bad "P6 mutant blind-check-dropped survived"
+
+# P7 (CON-423 review r1, B1, M1, M2, M7) the case grid of tests/release/pvl_grid.py: every placeholder shape in each of
+# the six fields, the per-field shape refusals, due dates that are not real dates, fenced lines, and the golden-FALSE
+# cases (UNCONFIRMED qualifiers after a complete value, the canon's colon-less form) that must stay accepted
+GRID="$HERE/pvl_grid.py"
+OUT="$(python3 -I "$GRID" "$C" "$W" 2>&1)"; RC=$?
+printf '%s\n' "$OUT" | grep '^GRID-FAIL' | head -20
+[ "$RC" = 0 ] && ok "P7 grid: no mismatch" || bad "P7 grid: mismatches (rc $RC): $(printf '%s\n' "$OUT" | tail -1)"
+has "P7 grid size (needle: the grid really ran its cases)" '^GRID cases=2[0-9][0-9] refused=2[0-9][0-9] accepted=2[0-9] mismatches=0 checker_rc=1$'
+printf '%s\n' "$OUT" | grep -q '^GRID-PASS CON-[0-9]* due:dot$' && ok "P7 M1: the case 'due: .' is in the grid and refused" || bad "P7 M1: the case 'due: .'"
+
+# P8 paired mutants of the B1 checks: each must make the grid report a mismatch (rc 1; rc 2 is a blind grid)
+gmut() { # NAME OLD NEW
+  local m="$W/gm_$1.py"
+  python3 -I -c 'import sys; s=open(sys.argv[1],encoding="utf-8").read(); o,n=sys.argv[3],sys.argv[4]
+if s.count(o)!=1: sys.exit(9)
+open(sys.argv[2],"w",encoding="utf-8").write(s.replace(o,n))' "$C" "$m" "$2" "$3" || { bad "P8 mutant $1 did not apply exactly once"; return; }
+  OUT="$(python3 -I "$GRID" "$m" "$W" 2>&1)"; RC=$?
+  [ "$RC" = 1 ] && ok "P8 mutant $1 is caught ($(printf '%s\n' "$OUT" | grep -c '^GRID-FAIL') grid cases)" || bad "P8 mutant $1 survived (rc $RC)"
+}
+gmut empty-check 'if not core:' 'if False:'
+gmut pv2-strip 'core = v.strip(" \t.,;:")' 'core = v.strip(" \t")'   # the reviewer's PV2 of review r1, on the new code
+gmut punctuation-check 'if not any(ch.isalnum() for ch in core):' 'if False:'
+gmut strong-placeholder 'if first in STRONG_PLACEHOLDERS' 'if False'
+gmut unconfirmed-word '"unconfirmed", ' ''
+gmut weak-placeholder 'if WEAK_PLACEHOLDER.fullmatch(s):' 'if False:'
+gmut placeholder-phrase 'or PLACEHOLDER_PHRASE.match(s):' 'or False:'
+gmut placeholder-inside 'm = PLACEHOLDER_INSIDE.search(v)' 'm = None'
+gmut template 'm = TEMPLATE.search(v)' 'm = None'
+gmut nfkc 'v = unicodedata.normalize("NFKC", v)' 'pass'
+gmut format-chars 'if unicodedata.category(ch) != "Cf"' 'if True'
+gmut job-shape 'if not (len(words) >= 2 or ID_TOKEN.match(core)):' 'if False:'
+gmut checks-shape 'elif key in ("checks", "target"):' 'elif key in ("target",):'
+gmut target-shape 'elif key in ("checks", "target"):' 'elif key in ("checks",):'
+gmut layer-shape 'if lw not in LAYER_VOCAB:' 'if False:'
+gmut artifact-shape 'if not (HEX.search(core.lower()) or ARTIFACT_WORDS.search(core)):' 'if False:'
+gmut due-not-date 'd = DUE.match(raw.strip())' 'd = DUE.match(raw.strip()) or DUE.match("2026-01-01")'
+gmut due-calendar 'datetime.date(y, mo, da)' 'datetime.date(2026, 1, 1)'
+gmut due-year-range 'if not 2000 <= y <= 2099:' 'if False:'
+gmut due-time 'datetime.datetime.fromisoformat(d.group(0).replace("Z", "+00:00"))' 'pass'
+gmut fence-ignored 'lines = [ln for ln in unfenced_lines(body) if ln.startswith(PREFIX)]' 'lines = [ln for ln in (body or "").splitlines() if ln.startswith(PREFIX)]'
+gmut fence-close-length 'and len(m.group(1)) >= len(fence)' ''
+gmut colonless-form 'FIELD_PART = re.compile(r"(job|checks|layer|target|artifact|due)(?=[\s:]|\Z):?(.*)\Z", re.S)' 'FIELD_PART = re.compile(r"(job|checks|layer|target|artifact|due):(.*)\Z", re.S)'
+
+# P9 the reviewer's probe shapes of review r1 (B1): each refused, by the field named
+mkdb "$W/probe.db" \
+  "CON-040|Ready for testing|x\\n**Verification:** provisional (x) -- job: UNCONFIRMED: -- checks: v1 passed -- layer: runtime -- target: host -- artifact: main -- due: 2026-11-23" \
+  "CON-041|Ready for testing|x\\n**Verification:** provisional (x) -- job: re-run t.sh -- checks: v1 passed -- layer: runtime -- target: host -- artifact: main -- due: TODO" \
+  "CON-042|Ready for testing|x\\n**Verification:** provisional (x) -- job: TBD -- checks: TBD -- layer: TBD -- target: TBD -- artifact: TBD -- due: TBD" \
+  "CON-043|Ready for testing|x\\n**Verification:** provisional (x) -- job: - -- checks: v1 passed -- layer: runtime -- target: host -- artifact: main -- due: 2026-11-23" \
+  "CON-044|Ready for testing|x\\n**Verification:** provisional (x) -- job: re-run t.sh -- checks: v1 passed -- layer: runtime -- target: host -- artifact: main -- due: ." \
+  "CON-045|Ready for testing|x\\n\`\`\`\\n$GOOD\\n\`\`\`"
+run "$W/probe.db"
+has "P9 job: UNCONFIRMED: refused" "^FAIL CON-040 Ready for testing: field 'job' is a placeholder"
+has "P9 due: TODO refused" "^FAIL CON-041 Ready for testing: field 'due' is a placeholder"
+has "P9 every field TBD refused (the first field is named)" "^FAIL CON-042 Ready for testing: field 'job' is a placeholder"
+has "P9 job: - refused" "^FAIL CON-043 Ready for testing: field 'job' is punctuation only"
+has "P9 due: . refused (reviewer mutant PV2 shape)" "^FAIL CON-044 Ready for testing: field 'due' is empty"
+has "P9 a line inside a code fence does not count" "^FAIL CON-045 Ready for testing: no '\*\*Verification:\*\* provisional' line$"
 
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" -eq 0 ]

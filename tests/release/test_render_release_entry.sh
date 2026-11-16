@@ -84,6 +84,22 @@ for v in 'DRAFTED by the conductor' 'a draft column' 'redraft'; do
   printf '@@date\n2026-11-11\n@@block\n%s\n' "$v" >"$W/md3.txt"; run "$W/t.md" "$W/f.txt" "$W/md3.txt"
   [ "$RC" = 0 ] && ok "D5 not the word DRAFT, accepted: $v" || bad "D5 not the word DRAFT, accepted: $v ($RC: $(cat "$W/err"))"
 done
+# CON-423 review r1 (M4): DRAFT glued to a digit, an underscore or a hyphen is still the marker (DRAFT_1, DRAFT2), and so
+# is a full-width or zero-width-split DRAFT (folded with NFKC, format characters removed); TODO and TBD get the same
+# boundary (TODO_1). Golden FALSE: a letter on either side is another word (DRAFTED, DRAFTS, REDRAFT), and lower or
+# mixed case stays accepted by design (case-sensitive marker words).
+for v in 'DRAFT_1 of the list' 'see DRAFT2' 'v-DRAFT-3' '(DRAFT)' $'ＤＲＡＦＴ list' $'DR​AFT list'; do
+  printf '@@date\n2026-11-11\n@@block\n%s\n' "$v" >"$W/md4.txt"; run "$W/t.md" "$W/f.txt" "$W/md4.txt"
+  [ "$RC" = 3 ] && grep -q 'MANUAL:block (still says DRAFT' "$W/err" && ok "M4 a DRAFT marker is refused: $v" || bad "M4 a DRAFT marker is refused: $v ($RC: $(cat "$W/err"))"
+done
+for v in 'TODO_1 the list' 'TBD2'; do
+  printf '@@date\n2026-11-11\n@@block\n%s\n' "$v" >"$W/md4.txt"; run "$W/t.md" "$W/f.txt" "$W/md4.txt"
+  [ "$RC" = 3 ] && grep -q 'MANUAL:block' "$W/err" && ok "M4 a TODO/TBD marker glued to a digit or underscore is refused: $v" || bad "M4 TODO/TBD glued: $v ($RC: $(cat "$W/err"))"
+done
+for v in 'DRAFTS of the plan' 'REDRAFT done' 'Draft notes' 'draft_1 lower case' 'TODOS done' 'XTBD'; do
+  printf '@@date\n2026-11-11\n@@block\n%s\n' "$v" >"$W/md4.txt"; run "$W/t.md" "$W/f.txt" "$W/md4.txt"
+  [ "$RC" = 0 ] && ok "M4 golden FALSE, accepted: $v" || bad "M4 golden FALSE, accepted: $v ($RC: $(cat "$W/err"))"
+done
 run --draft "$W/t.md" "$W/f.txt"; [ "$RC" = 2 ] && ok "D5 --draft with two files: usage exit 2" || bad "D5 --draft with two files: usage exit 2 ($RC)"
 run "$W/t.md" --draft "$W/f.txt" "$W/md.txt"; [ "$RC" = 2 ] && ok "D5 --draft only as the first argument: usage exit 2" || bad "D5 --draft only as the first argument: usage exit 2 ($RC)"
 run --drafty "$W/t.md" "$W/f.txt" "$W/md.txt"; [ "$RC" = 2 ] && ok "D5 an unknown option: usage exit 2" || bad "D5 an unknown option: usage exit 2 ($RC)"

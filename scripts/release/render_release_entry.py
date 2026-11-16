@@ -22,18 +22,29 @@ does not START with one of the verdict tokens PASS-FULL, PARTIAL-TOPOLOGY, FAIL 
 sentence of an entry is conditional on a recorded verdict, so an entry never implies a pass; the token is
 checked, the base, tier and log that follow it are not). Exit 2 = usage.
 
-A MANUAL value that contains the word DRAFT (whole word, case-sensitive, as TODO and TBD) is refused too, unless
+A MANUAL value that contains the word DRAFT (case-sensitive, as TODO and TBD) is refused too, unless
 --draft is the first argument (CON-423, rehearsal D5: a rehearsal entry full of DRAFT values rendered with exit 0
 and could have been committed as the release entry). A --draft rendering starts with the line DRAFT_MARK below and
 says so on stderr, so it never passes for a release entry; TODO/TBD and every other check still apply. The MANUAL
 value cut_date (the entry heading takes it whole) must be a bare calendar date YYYY-MM-DD that exists, also with
 --draft (rehearsal D9).
+
+The marker words TODO, TBD and DRAFT are matched with no LETTER on either side (CON-423 review r1, M4): DRAFT_1, DRAFT2,
+v-DRAFT-3 and TODO_1 are markers, DRAFTED, DRAFTS, REDRAFT and TODOS are other words. The value is folded first
+(NFKC, so a full-width DRAFT is DRAFT, and format characters such as U+200B are removed). Lower and mixed case
+(draft, Draft) are accepted by design. Look-alike letters of other scripts are not folded (a known limit).
 """
 import datetime
 import re
 import sys
+import unicodedata
 
 EMPTY = "(none recorded in the tracker)"
+
+
+def fold(val):
+    """NFKC-normalised VAL with format characters (category Cf, such as U+200B) removed: what the marker words see."""
+    return "".join(ch for ch in unicodedata.normalize("NFKC", val) if unicodedata.category(ch) != "Cf")
 
 
 def die(msg, rc):
@@ -44,7 +55,8 @@ def die(msg, rc):
 # The retest sentence of a release entry is conditional on a recorded verdict (§11.4.40, §11.4.230(F.3)(1)):
 # the manual value must START with one of these tokens, so a claim of a pass cannot be written without it.
 RETEST_VERDICT = re.compile(r"(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)(?![\w-])")
-DRAFT_WORD = re.compile(r"\bDRAFT\b")
+DRAFT_WORD = re.compile(r"(?<![A-Za-z])DRAFT(?![A-Za-z])")
+PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z])(TODO|TBD)(?![A-Za-z])")
 DRAFT_MARK = "<!-- DRAFT RENDERING (render_release_entry.py --draft): NOT A RELEASE ENTRY; do not commit it as one -->"
 BARE_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
@@ -98,10 +110,10 @@ def main(argv):
         if key.startswith("MANUAL:"):
             name = key[len("MANUAL:"):]
             val = manual.get(name)
-            if val is None or not val.strip() or re.search(r"\b(TODO|TBD)\b", val):
+            if val is None or not val.strip() or PLACEHOLDER_WORD.search(fold(val)):
                 missing.append(key)
                 return m.group(0)
-            if not draft and DRAFT_WORD.search(val):
+            if not draft and DRAFT_WORD.search(fold(val)):
                 missing.append("MANUAL:%s (still says DRAFT; use --draft for a draft rendering)" % name)
                 return m.group(0)
             if name == "cut_date" and not is_bare_date(val):

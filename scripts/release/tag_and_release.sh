@@ -221,8 +221,10 @@ own1() { printf '%s\n' "$1" | grep -m 1 '^release_publish_gitea: ' | rc_redact_c
 # oid TEXT: TEXT when it is an object id (40 or 64 hexadecimal digits), else NOT-AN-OBJECT-ID
 oid() { if [[ ${1:-} =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then printf '%s' "$1"; elif [ -z "${1:-}" ]; then printf -- '-'; else printf 'NOT-AN-OBJECT-ID'; fi; }
 # repo_key URL: the identity of the repository a push URL names (CON-423, D10): the scheme, a user name and a port
-# are dropped, then trailing "/" and one ".git" suffix; a hosted URL's host and path are case-folded (the forges
-# this script serves treat both case-insensitively); a local path keeps its case. Pure bash: no command runs.
+# are dropped, doubled "/" fold to one and trailing "/" go. A hosted URL's host and path are case-folded (the forges
+# this script serves treat both case-insensitively) and one ".git" suffix goes, in any case (".GIT" too; review r1,
+# M3). A local path keeps its case and its ".git": /srv/repo.git and /srv/repo are two directories, so folding them
+# would refuse a run that pushes to two repositories (review r1, M3). Pure bash: no command runs.
 repo_key() {
   local u="${1:-}" h p
   case "$u" in
@@ -233,9 +235,11 @@ repo_key() {
     *) h=""; p="$u" ;;
   esac
   h="${h##*@}"; [[ $h =~ ^(.*):[0-9]*$ ]] && h="${BASH_REMATCH[1]}"
+  while [[ $p == *//* ]]; do p="${p%%//*}/${p#*//}"; done
   while [[ $p == */ ]]; do p="${p%/}"; done
-  p="${p%.git}"
-  if [ -n "$h" ]; then p="${p#/}"; printf 'host:%s/%s' "${h,,}" "${p,,}"; else printf 'local:%s' "$p"; fi
+  if [ -n "$h" ]; then
+    p="${p#/}"; p="${p,,}"; p="${p%.git}"; printf 'host:%s/%s' "${h,,}" "$p"
+  else printf 'local:%s' "$p"; fi
 }
 printf '== %s start tag=%s sha=%s dry_run=%s\n' "$(date -Is)" "$TAG" "$SHA" "$DRY"
 
@@ -385,7 +389,7 @@ if [ "$DRY" -eq 1 ]; then
         else printf 'PROBE release %s OK would-create (glab auth status exit 0; project readable)\n' "$spec"; fi ;;
       gitea)
         if [ -z "${M3W_GITEA_TOKEN:-}" ]; then wgap "$spec" "SKIPPED-NO-TOKEN (gitea token variable not set)"
-        elif ! [[ $M3W_GITEA_TOKEN =~ ^[A-Za-z0-9._~+/=-]{8,200}$ ]]; then wfail "$spec" "TOKEN-SHAPE (token variable set, but outside the publisher's charset or length; the value is not shown)"
+        elif ! rc_gitea_token_shape_ok "$M3W_GITEA_TOKEN"; then wfail "$spec" "TOKEN-SHAPE (token variable set, but outside the publisher's charset or length; the value is not shown)"
         else wgap "$spec" "ACCESS-UNCONFIRMED (token variable set, value not shown; the gitea publisher has no read-only probe and needs the tag, which a dry run does not create)"; fi ;;
     esac
   done

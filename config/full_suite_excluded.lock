@@ -9,6 +9,7 @@
 # accepted 2026-11-14T21:40:42Z accepted_by=i@mvasic.ru set=53f23d1b54c5b753 rows=62 chain=73de39326ae2047e
 # accepted 2026-11-14T22:54:44Z accepted_by=i@mvasic.ru set=fcf07cdb2524f605 rows=66 chain=e344e2533b72bd13
 # accepted 2026-11-15T21:33:43Z accepted_by=i@mvasic.ru set=c2f084132fe835c7 rows=67 chain=60e57ebc33d3ee8b
+# accepted 2026-11-16T12:50:46Z accepted_by=i@mvasic.ru set=f3b154d377a4f787 rows=68 chain=4c7294cab9afab24
 docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	63c38a93d87363bb
 docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	0837ba36a0a34a88
 docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	b2f4fc376f1c395c
@@ -76,3 +77,4 @@ tests/release/channel_census.py	2858a5704c1b304d
 tests/release/env_allow.sh	ab229010c3e1ce41
 tests/release/env_census.py	968cf36c778c35b7
 tests/release/net_probe.py	8ec600d3bbcbca9a
+tests/release/pvl_grid.py	087628f325f8ec34
