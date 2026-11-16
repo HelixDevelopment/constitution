@@ -5614,3 +5614,66 @@ What: by the recorded operator decision OPD-2026-11-16-PR-DELIVERY-R2 (paraphras
 
 Round 3 (2026-11-16): answered. The operator chose to amend §11.4.297; the (D)(6) author-only reviewer clause and its relaxation of (C)(2)(c) only are in this same vehicle, PROVISIONAL until its independent §11.4.209 review.
 
+## CON-499 — Section 11.4.297(D)(6) calls the operator quote verbatim, but the conductor relayed it; mark it '(relayed)' (PR-delivery r3 review finding 1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review finding 1 (minor, process-doc). The (D)(6) amendment of section 11.4.297 presents the operator quote as verbatim, but it was relayed by the conductor; per section 11.4.6 it must say '(relayed)' (or carry the verbatim text if one is recorded). Scope: Constitution.md section 11.4.297(D)(6) and its lockstep mirrors (CLAUDE.md, AGENTS.md, GEMINI.md, QWEN.md, progressive/rules/11.4.297.md), index regenerated, propagation gate re-run. Not changed by the lander. Reproduction: not applicable (text). Acceptance: the wording corrected in every carrier, CM-COVENANT-114-297-PROPAGATION PASS. Related: CON-498. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
+
+## CON-500 — Section 11.4.297 amendment wording nits: report-and-stop vs condition (c), 'quotes the platform's own text' with no reviewer request, pr_assignees missing from the DATA list (PR-delivery r3 review findings 2-4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review findings 2, 3 and 4 (nits, process-doc). (2) 'report-and-stop (point (2) as written, no merge)' is imprecise: the merge is blocked by condition (c), not by (D)(2) itself. (3) 'quotes the platform's own text' is ambiguous when no reviewer request was made and the platform returned no text. (4) pr_assignees is missing from the (D) / Classification DATA list. Scope: Constitution.md section 11.4.297 and its lockstep mirrors. Reproduction: not applicable (text). Acceptance: the three passages corrected in every carrier, propagation gate PASS. Related: CON-498, and the separate finding-1 item. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
+
+## CON-501 — CM-PR-DELIVERY-ACCOUNT-NAME-FREE tests and coverage: adopt reviewer probes f2_glob_sibling and f1_newline_content_record (mutants V18, V19), fix the r2 header, scan conflict stages 2 and 3, document the compressed-BLOB limit (PR-delivery r3 review findings 5-8)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review findings 5 to 8 (test-instrumentation and gate coverage). (5, minor) The reviewer probes f2_glob_sibling and f1_newline_content_record are the only cases that kill mutants V18 (newline sort of the changed list) and V19 (index lookup without :(literal)); the fixer's suite has neither (evidence reviewer_mutants.txt, v18_v19_witness.txt; V20, V22 and V23 also survived the reviewer's run). Adopt them as legs. (6, nit) scripts/gates/cm_pr_delivery_account_name_free_mutation_test.sh header (line 41) still describes round 2 ('SQLite database left out and named'); round 3 scans the database. (7, minor) For a staged conflict only stage 1 is read (head -n 1); stages 2 and 3 are never scanned. (8, minor) A BLOB holding compressed binary passes silently while a binary file goes BLIND; document it as a limit (or treat it as BLIND). Scope: scripts/gates/cm_pr_delivery_account_name_free.sh and its mutation test. Reproduction: reviewer mutant runs (UNREPRODUCED by the lander). Acceptance: V18 and V19 killed by the suite, header corrected, stages 2/3 scanned with a RED case, the BLOB limit documented or closed. Related: CON-497. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
+
+## CON-502 — The hub's tracked config/delivery.conf is now read by default in every consumer's post-update run: a consumer with no declaration of its own gets a PASS against this repository's accounts instead of a SKIP (PR-delivery r3 review finding 9)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review finding 9 (minor, source-defect in the gate default). After round 3, CM-PR-DELIVERY-ACCOUNT-NAME-FREE reads <root>/config/delivery.conf by default; run from scripts/post_update_hook.sh in a consumer, the hub's own tracked config/delivery.conf is found, so a consumer that has not declared pull-request delivery is checked against this repository's accounts and reports PASS instead of SKIP (no declaration). Fix: apply the hub default only when the hub is the repository being checked (its own consumer), or document the behaviour. Scope: scripts/gates/cm_pr_delivery_account_name_free.sh lookup order and scripts/post_update_hook.sh. Reproduction: UNREPRODUCED by the lander (review finding). Acceptance: RED in a consumer fixture without its own declaration (PASS today), GREEN as SKIP after the fix, paired mutant. Related: CON-497. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
+
+## CON-503 — PR-delivery config, guide and records: pr_repository vs own_repositories names disagree, guide conf() truncates values with '=', step-8 is-ancestor only echoes, vehicle commit records misdescribe and use mixed placeholder forms (PR-delivery r3 review findings 10-12)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review findings 10 to 12 (process-doc). (10, minor) config/delivery.conf names pr_repository HelixDevelopment/constitution but own_repositories HelixDevelopment/HelixConstitution; reconcile (the old name redirects: a push to the HelixConstitution remote prints 'This repository moved', observed 2026-11-16). (11, nit) docs/guides/pr_delivery_landing_guide.md: the conf() awk helper truncates values containing '='; the step-8 is-ancestor check only echoes and does not fail. (12, nit) commit 8d86c8ef's message describes the pipefail test fix that is in 70860528; merge commit 9c79dbe5 uses CON-PENDING-prdeliv-* placeholders while later commits use the CON-PENDINGprgate form; correct in the landing record (history is not rewritten, section 11.4.113). Lander observation, same class: rounds 1-2 of the vehicle used CON-423 / CON-424 as its own ids, which are main's history_secret_scan items; citations remain in docs/qa/pr_delivery_decision_20261116/ (check_leak.sh, r2/*), CHANGELOG.md line 5 and the mutation test line 258 ('CON-423 decision'); the round-3 items are CON-496, CON-497, CON-498. Scope: config/delivery.conf, the guide, a landing-record note. Acceptance: names reconciled, guide helper and check fixed, a record note mapping the old ids and placeholders to CON-496..498. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
+
+## CON-504 — Replace the account-name test fixtures (@-fixtures in attribution_test.go and testdata) with a dedicated fixture account (PR-delivery r3 review F4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F4 (process-doc). The declared reviewer account name appears in 9 tracked files outside the account-name gate corpus: GitHub-owner URLs, an email-like string in docs/research/quality/CROSS_PROJECT_HELIX_CODE.md (separate item), and @-fixtures in attribution_test.go and its testdata. Do not widen the corpus; replace the test fixtures with a fixture account that is not a real declared account. Scope: attribution_test.go and its testdata. Acceptance: the tests pass with the fixture account, and a census of the declared account name over tracked files lists only the expected owner URLs. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
+
+## CON-505 — Review the personal email-like string in docs/research/quality/CROSS_PROJECT_HELIX_CODE.md (PR-delivery r3 review F4; file only, the document is not edited here)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F4 (process-doc). docs/research/quality/CROSS_PROJECT_HELIX_CODE.md contains an email-like string built on the declared account name. Review whether it is a personal address that should not be in a tracked research document (section 11.4.10 / privacy), and decide keep, redact or replace. The lander did not edit the document. Scope: that file. Acceptance: a recorded decision, and the change (if any) reviewed. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
+
