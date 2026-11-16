@@ -160,4 +160,5 @@ if [ "$fail_count" -gt 0 ]; then
     exit 1
 fi
 echo "MUTATION-TEST: ALL SUB-CASES PASSED — CM-ZERO-FINDINGS-MONOTONE-RATCHET is genuinely load-bearing"
+echo "MUTATION-TEST-SUMMARY: pass=9 fail=0"   # a summary the full-suite runner parses (the case lines above carry fail words such as "correctly FAILED"); 9 sub-cases
 exit 0
