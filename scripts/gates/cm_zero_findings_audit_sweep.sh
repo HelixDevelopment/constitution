@@ -116,14 +116,14 @@ else
 fi
 
 if head -n1 "$sweep" 2>/dev/null | grep -qE '^#!.*\b(bash|sh)\b'; then
-    if bash -n "$sweep" 2>/tmp/.cm_zfas_parse.$$; then
+    if bash -n "$sweep" 2>"${TMPDIR:-/tmp}"/.cm_zfas_parse.$$; then
         echo "${GATE}: OK sweep-script parses clean (bash -n)"
     else
         echo "${GATE}: FAIL sweep-script reason=PARSE_ERROR"
-        cat /tmp/.cm_zfas_parse.$$ | sed 's/^/    /'
+        cat "${TMPDIR:-/tmp}"/.cm_zfas_parse.$$ | sed 's/^/    /'
         fail=$((fail + 1))
     fi
-    rm -f /tmp/.cm_zfas_parse.$$
+    rm -f "${TMPDIR:-/tmp}"/.cm_zfas_parse.$$
 fi
 
 # ---- closed 10-class vocabulary presence check (§11.4.261(A)/(E)) ----
@@ -187,14 +187,14 @@ done
 
 # ---- --selftest genuinely runs and exits 0 (only if executable) ----
 if [ -x "$sweep" ]; then
-    if "$sweep" --selftest >/tmp/.cm_zfas_selftest.$$ 2>&1; then
+    if "$sweep" --selftest >"${TMPDIR:-/tmp}"/.cm_zfas_selftest.$$ 2>&1; then
         echo "${GATE}: OK sweep-script '--selftest' exited 0"
     else
         echo "${GATE}: FAIL sweep-script '--selftest' exited non-zero reason=SELFTEST_FAILED"
-        cat /tmp/.cm_zfas_selftest.$$ | sed 's/^/    /'
+        cat "${TMPDIR:-/tmp}"/.cm_zfas_selftest.$$ | sed 's/^/    /'
         fail=$((fail + 1))
     fi
-    rm -f /tmp/.cm_zfas_selftest.$$
+    rm -f "${TMPDIR:-/tmp}"/.cm_zfas_selftest.$$
 fi
 
 echo "${GATE}: SUMMARY sweep-script=${sweep} fail=${fail}"

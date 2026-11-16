@@ -33,31 +33,31 @@ note() { echo "MUTATION-TEST: $*"; }
 run_gate() { bash "$gate" --root "$D" --readme README.md --provenance docs/BADGES.md; }
 expect_pass() {
     local label="$1"
-    if run_gate >/tmp/.mtest_out.$$ 2>&1; then
+    if run_gate >"${TMPDIR:-/tmp}"/.mtest_out.$$ 2>&1; then
         note "$label PASSED as required"
     else
         note "$label FAILED unexpectedly (should have PASSed) — output:"
-        cat /tmp/.mtest_out.$$
+        cat "${TMPDIR:-/tmp}"/.mtest_out.$$
         fail_count=$((fail_count + 1))
     fi
-    rm -f /tmp/.mtest_out.$$
+    rm -f "${TMPDIR:-/tmp}"/.mtest_out.$$
 }
 expect_fail() {
     local label="$1" grep_for="$2"
-    if run_gate >/tmp/.mtest_out.$$ 2>&1; then
+    if run_gate >"${TMPDIR:-/tmp}"/.mtest_out.$$ 2>&1; then
         note "$label INCORRECTLY PASSED (should have FAILed) — output:"
-        cat /tmp/.mtest_out.$$
+        cat "${TMPDIR:-/tmp}"/.mtest_out.$$
         fail_count=$((fail_count + 1))
     else
-        if grep -qF "$grep_for" /tmp/.mtest_out.$$; then
+        if grep -qF "$grep_for" "${TMPDIR:-/tmp}"/.mtest_out.$$; then
             note "$label correctly FAILED citing '$grep_for'"
         else
             note "$label FAILED but did NOT cite expected reason '$grep_for' — output:"
-            cat /tmp/.mtest_out.$$
+            cat "${TMPDIR:-/tmp}"/.mtest_out.$$
             fail_count=$((fail_count + 1))
         fi
     fi
-    rm -f /tmp/.mtest_out.$$
+    rm -f "${TMPDIR:-/tmp}"/.mtest_out.$$
 }
 
 # ---- T1: golden-GOOD — 2 badges, both have provenance entries ----
@@ -153,4 +153,5 @@ if [ "$fail_count" -gt 0 ]; then
     exit 1
 fi
 echo "MUTATION-TEST: ALL SUB-CASES PASSED — CM-BADGE-MACHINE-DERIVED-SOURCE is genuinely load-bearing"
+echo "MUTATION-TEST-SUMMARY: pass=7 fail=0"   # a summary the full-suite runner parses (its last 12 lines carry "correctly FAILED" fail words)
 exit 0

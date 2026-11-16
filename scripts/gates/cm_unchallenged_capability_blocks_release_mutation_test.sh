@@ -218,4 +218,5 @@ if [ "$fail_count" -gt 0 ]; then
     exit 1
 fi
 echo "MUTATION-TEST: ALL SUB-CASES PASSED — CM-UNCHALLENGED-CAPABILITY-BLOCKS-RELEASE is genuinely load-bearing"
+echo "MUTATION-TEST-SUMMARY: pass=15 fail=0"   # a summary the full-suite runner parses (the case lines above carry fail words such as "correctly FAILED"); 15 sub-cases
 exit 0
