@@ -27,7 +27,7 @@
 #        stops at the first FAIL, used by the mutant runner; LANDER_TEST_R5_ONLY=1 runs
 #        the setup and the round-5 cases only, then prints RESULT and exits;
 #        LANDER_TEST_R6_ONLY=1 the setup and the round-6 cases only;
-#        LANDER_TEST_DRIFT_ONLY=1 the setup and the step-6b drift cases D1-D13 only)
+#        LANDER_TEST_DRIFT_ONLY=1 the setup and the step-6b drift cases D1-D14 only)
 # Exit:  0 all cases pass, 1 any case fails. Last line: "RESULT pass=N fail=M".
 set -euo pipefail
 
@@ -405,6 +405,24 @@ else bad "D12 tsv or logs"; sed 's/^/    | /' "$F/ev/drift_checks.tsv" "$F/ev/dr
 mkdir -p "$T/d13nolib"; cp "$LANDER" "$T/d13nolib/land_vehicle.sh"
 run "$T/d13.out" "$T/d13nolib/land_vehicle.sh" verify --workdir "$T/d13nolib/w" --remotes-file "$T/d13nolib/r"
 refused "D13 a missing drift-check library refuses at start-up" 2 'drift-check library not found' "$T/d13.out"
+
+# D14 the fast-forward landing path (--item-id, no mint commit) runs the same checks (CON-443 class
+# check: every D case above lands through the --mint-cmd merge path). The prepare log must name the
+# fast-forward, so the case cannot silently fall back to the merge path.
+drift_fixture d14 1 0; F=$T/d14; B=$(BASE_OF "$F")
+run "$F/p.out" prepare_raw "$F" --item-id CON-924
+run "$F/out" publish "$F"
+if grep -q 'step 5: main fast-forwarded to' "$F/p.out"; then ok "D14 prepare took the fast-forward path"; else bad "D14 prepare path"; sed 's/^/    | /' "$F/p.out"; fi
+refused "D14 a failing badge check refuses publish on the fast-forward path" 1 'derived-file drift checks failed; nothing was pushed' "$F/out"
+if no_remote_moved "$F" "$B" && [ "$(drift_row "$F" badges)" = FAIL ] && [ "$(drift_row "$F" gate-env-allowlist)" = PASS ]; then
+  ok "D14 no remote moved; tsv badges=FAIL gate-env-allowlist=PASS"; else bad "D14 remotes or tsv"; fi
+# D14b golden-FALSE: the same path with passing checks lands
+drift_fixture d14b 0 0; F=$T/d14b
+run "$F/p.out" prepare_raw "$F" --item-id CON-925
+run "$F/out" publish "$F"
+succeeded "D14b passing drift checks publish on the fast-forward path" "$F/out"
+if grep -q 'step 5: main fast-forwarded to' "$F/p.out" && landed_all "$F" && [ "$(drift_row "$F" badges)" = PASS ]; then
+  ok "D14b fast-forward path landed with tsv PASS"; else bad "D14b"; fi
 
 if [ "${LANDER_TEST_DRIFT_ONLY:-0}" = 1 ]; then
   if push_log_clean || [ ! -s "$PUSHLOG" ]; then ok "SH2-D every push of the drift cases is plain"; else bad "SH2-D pushes of the drift cases"; fi

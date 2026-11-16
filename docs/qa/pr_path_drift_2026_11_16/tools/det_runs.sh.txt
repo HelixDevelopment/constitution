@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# det_runs.sh <clone> <out>: full lander suite x2 then PR check suite x2, sequential, each bounded.
+set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done
+C=${1:?clone}; O=${2:?out}; mkdir -p "$O"; cd "$C" || exit 2
+for s in lander:tests/release/test_land_vehicle.sh prlc:tests/release/test_pr_landing_check.sh; do
+  n=${s%%:*}; f=${s#*:}
+  for k in 1 2; do
+    t0=$(date +%s); timeout 3600 bash "$f" > "$O/${n}_run$k.txt" 2>&1; rc=$?
+    printf '%s\trun%s\trc=%s\t%ss\tsha256(PASS/FAIL/SKIP/RESULT lines)=%s\n' "$n" "$k" "$rc" "$(( $(date +%s) - t0 ))" \
+      "$(grep -E '^(PASS|FAIL|SKIP|RESULT)' "$O/${n}_run$k.txt" | sha256sum | cut -c1-64)" | tee -a "$O/det_summary.tsv"
+  done
+done

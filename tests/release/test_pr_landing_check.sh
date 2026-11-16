@@ -161,6 +161,21 @@ if [ "$(cand p13 form)" = merge-commit ]; then ok "P13 form merge-commit"; else 
 repo p14 0 0; mkdir -p "$T/p14nolib"; cp "$PRLC" "$T/p14nolib/pr_landing_check.sh"
 run "$T/p14.out" "$T/p14nolib/pr_landing_check.sh" --repo "$T/p14" --base main~1 --head main --evidence-dir "$T/p14.ev"
 expect "P14 a missing drift-check library is BLIND" p14 2 BLIND
+# the refusal names the missing library path (the first guard), not only a load failure
+if grep -qF "drift-check library not found: $T/p14nolib/lib/landing_drift_checks.sh" "$T/p14.out"; then
+  ok "P14b the refusal names the missing library path"; else bad "P14b library-not-found message"; sed 's/^/    | /' "$T/p14.out"; fi
+
+# P15 the candidate (detached HEAD of the private clone) moved while the checks ran: refused. The
+# stand-in commits the same tree on top of HEAD and moves HEAD, so the working tree stays clean and
+# only the ref check can see it (pairs the PR binding LDC_REF=HEAD; the lander's D11 covers its own)
+repo p15 - -; R=$T/p15
+# shellcheck disable=SC2016 # literal stub line; $2 and $c expand in the stub
+put "$R" "$BADGE_P" "$(stub "$T/p15.badges.argv" 0 'cd "$2" && c=$(git commit-tree "HEAD^{tree}" -p HEAD -m moved) && git update-ref --no-deref HEAD "$c"')"
+prlc p15 --base main~1 --head main
+expect "P15 a candidate moved during the checks refuses" p15 1 FAIL
+if grep -q 'landing candidate moved while the drift checks ran' "$T/p15.out" && ! grep -q 'drift checks changed the clone working tree' "$T/p15.out" \
+   && [ "$(row p15 badges)" = PASS ]; then ok "P15 the move is named; the tree stayed clean; the check itself passed"
+else bad "P15"; sed 's/^/    | /' "$T/p15.out"; fi
 
 # L1 real checks on a clone of this repository's HEAD (host-only gate-logic evidence)
 if [ "${PRLC_TEST_SKIP_LIVE:-0}" = 1 ]; then skip "L1 real badge and env-allowlist checks (PRLC_TEST_SKIP_LIVE=1)"

@@ -1,0 +1,3 @@
+check	script	required	rc	result
+badges	scripts/badges/compute_badges.sh	yes	1	FAIL
+gate-env-allowlist	scripts/gates/cm_gate_env_reads_allowlisted.sh	yes	0	PASS
