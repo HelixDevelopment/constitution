@@ -5,10 +5,14 @@
 # CMD_SRC_ROOT and must FAIL (mutant killed). The unmutated engine must PASS first (baseline).
 # ONLY=name1,name2 runs just those mutants (baseline still runs).
 # --shard K/N runs the baseline and the mutants i (1-based, file order) with (i - 1) mod N == K - 1; the full-suite
-# units are the wrappers mutation_test_constitution_cmd_shard_K.sh (the whole list, about 25 min serially, is above the
-# suite runner's default 900 s per unit, which the pull-request CI uses); every shard checks that all N wrappers exist,
-# run their own shard and are heavy manifest entries, so the union of the units is the whole list.
-# Exit 0 only if the baseline passes and every mutant is killed.
+# units are the wrappers mutation_test_constitution_cmd_shard_K.sh (the whole list does not fit the suite runner's
+# default 900 s per unit, which the pull-request CI uses: run as one unit it reached the limit at 900.1 s with 46 of the
+# 48 mutants killed and none survived); every shard checks that all N wrappers exist, run their own shard and are heavy
+# manifest entries, and that it selected exactly (n - K) / N + 1 mutants (integer division, computed from the mutant
+# count n alone, not by the selection rule), so the union of the units is the whole list.
+# The last line is the suite summary `mutants: shard=K shards=N selected=S killed=X survived=Y total=n` (counter items only,
+# so the suite runner judges a unit by it: a survivor is FAIL even at exit 0).
+# Exit 0 only if the baseline passes and every selected mutant is killed.
 set -u
 SK=1; SN=1; SHARDED=0
 case "${1:-}" in
@@ -130,6 +134,13 @@ unset MUT_FILE
 
 bad=0
 [ "$sel" -ge 1 ] || { echo "EMPTY shard $SK/$SN: no mutant selected"; bad=1; }
+# the selection count, computed from the mutant count n alone (independently of the selection rule in mutant()): the
+# mutants i in 1..n with (i - 1) mod SN == SK - 1 are (n - SK) / SN + 1 when n >= SK, else none; ONLY= runs a hand-picked
+# subset, so the count is not checked then
+if [ -z "${ONLY:-}" ]; then
+    if [ "$n" -ge "$SK" ]; then want=$(( (n - SK) / SN + 1 )); else want=0; fi
+    [ "$sel" -eq "$want" ] || { echo "SHARD-SELECTION-MISMATCH shard $SK/$SN selected $sel of $n mutants, want $want"; bad=1; }
+fi
 if [ "$SHARDED" -eq 1 ]; then
     for j in $(seq 1 "$SN"); do
         w="$HERE/mutation_test_constitution_cmd_shard_$j.sh"
@@ -145,5 +156,5 @@ exec bash \"\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")\" && pwd)/mutation_test_c
     done
     [ ! -f "$HERE/mutation_test_constitution_cmd_shard_$((SN + 1)).sh" ] || { echo "SHARD-SET-INCONSISTENT a wrapper numbered $((SN + 1)) exists beyond N=$SN"; bad=1; }
 fi
-echo "mutants: shard=$SK/$SN selected=$sel killed=$killed survived=$survived total=$n"
+echo "mutants: shard=$SK shards=$SN selected=$sel killed=$killed survived=$survived total=$n"
 [ "$survived" -eq 0 ] && [ "$bad" -eq 0 ]
