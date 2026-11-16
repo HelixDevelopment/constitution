@@ -34,7 +34,8 @@
 #   * nothing is ever forced: no --force, no --force-with-lease, no "+" refspec,
 #     no tag deletion, no history rewrite (§11.4.113).
 #   * release notes are cut from `git show SHA:CHANGELOG.md`, never from the
-#     working tree.
+#     working tree; notes holding the DRAFT RENDER marker line of
+#     render_release_entry.py --draft abort a real run (a dry run prints PLAN refuse).
 #   * GitLab has NO pre-release flag (its Releases API has no such attribute, and
 #     glab 1.129.0 "release create" has no --prerelease option). With --prerelease
 #     the GitLab leg marks the release itself: the name is prefixed "PROVISIONAL
@@ -231,6 +232,13 @@ case "$FIRST" in
 esac
 rc_net git show "$SHA:CHANGELOG.md" | TAG="$TAG" awk 'BEGIN{t=ENVIRON["TAG"];on=0} /^## /{if(on)exit; h=substr($0,4); if(h==t||index(h,t" ")==1)on=1} on{print}' > "$NOTES"
 [ -s "$NOTES" ] || abort "no release notes for $TAG at $SHA"
+# B-M4 (v73.4 dry run): notes holding the fixed marker line of render_release_entry.py --draft are a rehearsal render
+# that may carry placeholders; a real run never cuts a release from them, a dry run says it would refuse.
+DRAFT_NOTES=0
+if grep -qF 'DRAFT RENDER — not a release entry' "$NOTES"; then
+  [ "$DRY" -eq 1 ] || abort "the release notes of $TAG at $SHA are a --draft render of render_release_entry.py (they hold its DRAFT RENDER marker line); render the entry without --draft and commit that"
+  DRAFT_NOTES=1
+fi
 
 if [ "$BADGE_CHECK" -eq 1 ]; then
   [ -f scripts/badges/compute_badges.sh ] || abort "scripts/badges/compute_badges.sh absent (use --no-badge-check only where the repository has no badge computer)"
@@ -265,7 +273,12 @@ if [ "$DRY" -eq 1 ]; then
       *) printf 'PLAN release %s\n' "$spec" ;;
     esac
   done
-  printf 'RESULT: OK dry-run (no tag created, nothing pushed)\n'
+  if [ "$DRAFT_NOTES" -eq 1 ]; then
+    printf 'PLAN refuse: the release notes of %s at %s are a --draft render; a real run aborts here before any write\n' "$TAG" "$SHA"
+    printf 'RESULT: OK dry-run (no tag created, nothing pushed; the notes are a DRAFT render, a real run refuses them)\n'
+  else
+    printf 'RESULT: OK dry-run (no tag created, nothing pushed)\n'
+  fi
   exit 0
 fi
 

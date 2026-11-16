@@ -121,6 +121,7 @@ tag_and_release.sh	cat	82c33b23	validated-data	allowlist	none	rundir	local	glpre
 tag_and_release.sh	date	a0f83e9d	validated-data	allowlist	none	none	local	glpre: --gitlab-released-at, ISO-shape checked first
 tag_and_release.sh	date	10dc5311	fixed	allowlist	none	none	local	glpre: now, for the future check
 tag_and_release.sh	grep	15c512f6	validated-data	allowlist	pipe-network-text	none	local	
+tag_and_release.sh	grep	1402abf9	validated-data	allowlist	none	none	local	B-M4: fixed -F pattern over the notes file of the run directory (DRAFT RENDER marker)
 tag_and_release.sh	date	2778ea72	fixed	allowlist	none	none	local	
 release_publish_gitea.sh	sed	5d507d9e	validated-data	allowlist	none	none	local	
 release_publish_gitea.sh	grep	248ca227	validated-data	allowlist	pipe-local	none	local	

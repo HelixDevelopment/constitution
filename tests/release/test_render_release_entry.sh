@@ -154,6 +154,51 @@ run "$W/t5.md" "$W/f5.txt" "$W/m.txt"
 printf 'open_status[In testing]=2\nopen_severity[critical]=1\n' >>"$W/f5.txt"; run "$W/t5.md" "$W/f5.txt" "$W/m.txt"
 [ "$RC" = 3 ] && [ -z "$OUT" ] && grep -qF 'open_status[In testing]' "$W/err" && grep -qF 'open_severity[critical]' "$W/err" \
   && ok "CON-231 a status/severity value the template does not render is refused" || bad "CON-231 a status/severity value the template does not render is refused ($RC: $(cat "$W/err"))"
+# B-M4 (v73.4 dry run, 2026-11-16): a lander placeholder or draft text in a MANUAL value is refused (exit 3) unless the
+# render is an explicit --draft, and a --draft render carries a fixed marker line that tag_and_release.sh refuses.
+# Oracle: the shapes below are the ones the dry run rendered with rc 0 (BLOCKERS.md B-M4), written by hand here.
+DMARK='> **DRAFT RENDER — not a release entry.** Made by render_release_entry.py --draft; it may carry placeholders, and scripts/release/tag_and_release.sh refuses to cut a release from notes that contain this line.'
+printf '<!--\nx\n-->\n## v1 -- {{MANUAL:cut_date}}\nbody {{MANUAL:block}}\n' >"$W/d.md"; printf 'x=1\n' >"$W/df.txt"
+mkm(){ printf '@@cut_date\n%s\n@@block\n%s\n' "$1" "$2" >"$W/dm.txt"; }
+while IFS='|' read -r key cd blk; do
+  mkm "$cd" "$blk"; run "$W/d.md" "$W/df.txt" "$W/dm.txt"
+  [ "$RC" = 3 ] && [ -z "$OUT" ] && grep -qF "MANUAL:$key" "$W/err" && grep -q 'placeholder' "$W/err" \
+    && ok "B-M4 placeholder refused without --draft: $key=${cd}${blk}" || bad "B-M4 placeholder refused without --draft: $key=${cd}${blk} ($RC: $(cat "$W/err"))"
+  run --draft "$W/d.md" "$W/df.txt" "$W/dm.txt"
+  [ "$RC" = 0 ] && [ "$(printf '%s\n' "$OUT" | sed -n 2p)" = "$DMARK" ] && printf '%s\n' "$OUT" | sed -n 1p | grep -q '^## v1 -- ' \
+    && ok "B-M4 the same value renders with --draft, marker right after the heading: $key" || bad "B-M4 --draft render: $key ($RC: $(cat "$W/err"))"
+done <<'CASES'
+cut_date|DRAFT|ok
+cut_date|UNCONFIRMED-CUT-DATE (not cut yet)|ok
+cut_date|2026-11-31|ok
+cut_date|16.11.2026|ok
+cut_date|2026-11-16 (draft)|ok
+block|2026-11-16|`<CON-NNN>`
+block|2026-11-16|expires `<recorded date + 30 days>`
+block|2026-11-16|`<paste the summary line>`
+block|2026-11-16|push to <all 10 remotes>
+block|2026-11-16|see <...>
+block|2026-11-16|this is DRAFT text
+CASES
+# negative controls: real values that look a little like the shapes above render without --draft and with no marker
+mkm 2026-11-16 'see <https://example.org/x>, <details>, <br/>; UNCONFIRMED: x; a draft note; CON-PENDING-relmach; ATM-NNN notation'
+run "$W/d.md" "$W/df.txt" "$W/dm.txt"
+[ "$RC" = 0 ] && ! printf '%s\n' "$OUT" | grep -qF 'DRAFT RENDER' && has "B-M4 control: real values render, no marker" "## v1 -- 2026-11-16" \
+  || bad "B-M4 control: real values render ($RC: $(cat "$W/err"))"
+# --draft relaxes only the placeholder check: TODO, a missing value and an unused block are still refused
+mkm DRAFT TODO; run --draft "$W/d.md" "$W/df.txt" "$W/dm.txt"
+[ "$RC" = 3 ] && [ -z "$OUT" ] && ok "B-M4 --draft still refuses TODO" || bad "B-M4 --draft still refuses TODO ($RC)"
+printf '@@cut_date\nDRAFT\n' >"$W/dm.txt"; run --draft "$W/d.md" "$W/df.txt" "$W/dm.txt"
+[ "$RC" = 3 ] && grep -qF 'MANUAL:block' "$W/err" && ok "B-M4 --draft still refuses a missing value" || bad "B-M4 --draft still refuses a missing value ($RC)"
+# --draft with no "## " heading: the marker is the first line
+printf 'no heading {{MANUAL:cut_date}} {{MANUAL:block}}\n' >"$W/d2.md"; mkm DRAFT x; run --draft "$W/d2.md" "$W/df.txt" "$W/dm.txt"
+[ "$RC" = 0 ] && [ "$(printf '%s\n' "$OUT" | sed -n 1p)" = "$DMARK" ] && ok "B-M4 --draft without a heading: marker first" || bad "B-M4 --draft without a heading ($RC)"
+# usage: an unknown option and --draft with too few arguments are usage errors (exit 2)
+run --drafty "$W/d.md" "$W/df.txt" "$W/dm.txt"; [ "$RC" = 2 ] && ok "B-M4 unknown option is a usage error" || bad "B-M4 unknown option is a usage error ($RC)"
+run --draft "$W/d.md" "$W/df.txt"; [ "$RC" = 2 ] && ok "B-M4 --draft with two files is a usage error" || bad "B-M4 --draft with two files ($RC)"
+# the marker the renderer writes is the line tag_and_release.sh refuses (same literal in both, checked here)
+TARS="$ROOT/scripts/release/tag_and_release.sh"
+grep -qF 'DRAFT RENDER — not a release entry' "$TARS" && ok "B-M4 tag_and_release.sh knows the draft marker" || bad "B-M4 tag_and_release.sh knows the draft marker"
 # the shipped template renders when every key is given (smoke over the shipped file). CON-232 (review
 # m-6): the synthetic case always runs (one value per key named by the template itself); the real-facts
 # case runs when RRE_FACTS names a facts file and otherwise prints an explicit SKIP line (§11.4.3).
@@ -165,9 +210,10 @@ grep -q '{{MANUAL:retest_statement}}' "$T" && ok "template takes the retest sent
 grep -qE 'and \(L7\) \(no .*ride open|for \(L1\), \(L6\), \(L7\)|relaxes \(F\.3\)' "$T" && bad "template does not say (L7) rides open or is relaxed" || ok "template does not say (L7) rides open or is relaxed"
 grep -q 'blocks a release of every class' "$T" && ok "template states an open (L7) blocks every class" || bad "template states an open (L7) blocks every class"
 grep -q 'not a conforming waiver' "$T" && ok "template calls the decision an override, not a conforming waiver" || bad "template calls the decision an override, not a conforming waiver"
-: >"$W/mall.txt"
+: >"$W/mall.txt"   # B-M4: cut_date gets a real date (the renderer checks it)
 for k in $(sed '1,/-->/d' "$T" | grep -o '{{MANUAL:[^}]*}}' | sed 's/{{MANUAL:\(.*\)}}/\1/' | sort -u); do
-  if [ "$k" = retest_statement ]; then printf '@@%s\nNOT RUN on this candidate\n' "$k" >>"$W/mall.txt"; else printf '@@%s\nvalue-%s\n' "$k" "$k" >>"$W/mall.txt"; fi; done
+  if [ "$k" = retest_statement ]; then printf '@@%s\nNOT RUN on this candidate\n' "$k" >>"$W/mall.txt"
+  elif [ "$k" = cut_date ]; then printf '@@%s\n2026-11-16\n' "$k" >>"$W/mall.txt"; else printf '@@%s\nvalue-%s\n' "$k" "$k" >>"$W/mall.txt"; fi; done
 sed '1,/-->/d' "$T" | grep -o '{{[^}]*}}' | sed 's/^{{\(.*\)}}$/\1/' | grep -v '^MANUAL:' | grep -vx 'states_block\|unmerged_refs_block' | sort -u \
   | while IFS= read -r k; do printf '%s=value-%s\n' "$k" "$k"; done >"$W/fall.txt"
 nk="$(wc -l <"$W/fall.txt" | tr -d ' ')"

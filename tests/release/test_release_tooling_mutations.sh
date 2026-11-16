@@ -769,6 +769,15 @@ mp BM1A $'B-M1 runner verdict PARTIAL-DEFAULT-SET rendered as gap|B-M1 PARTIAL-S
 mp BM1B $'B-M1 runner verdict (MANIFEST-MISMATCH|REFUSED-TOPOLOGY) rendered as gap-not-run' "$RRE" $'         "gap-not-run": "[gap: nothing was run; not a section 11.4.40 retest; (L6) stays open]"}' $'         "gap-not-run": "[gap: not a section 11.4.40 full retest; (L6) stays open]"}'   # a run that ran nothing reads as a partial run
 mp BM1C $'B-M1 (malformed runner table|absent runner)' "$RRE" $'    except (OSError, SyntaxError, ValueError, TypeError, IndexError):\n' $'    except (OSError, SyntaxError, ValueError, TypeError, IndexError):\n        return [("PASS-FULL", "retest"), ("PARTIAL-TOPOLOGY", "retest"), ("FAIL", "fail"), ("NOT RUN", "not-run")]\n'   # the old fixed list as a silent fallback
 mp BM1D $'B-M1 not a run verdict refused: MANIFEST-OK' "$RRE" $'    return sorted(words + [("NOT RUN", "not-run")]' $'    return sorted(words + [("NOT RUN", "not-run"), ("MANIFEST-OK", "retest")]'   # a --verify-manifest result accepted as a retest verdict
+# B-M4 (v73.4 dry run): placeholders refused unless --draft; a --draft render carries the marker; tag_and_release.sh refuses it
+mp BM4A $'B-M4 placeholder refused without --draft' "$RRE" $'            why = None if draft else placeholder_reason(name, val)' $'            why = None'   # the placeholder check never runs
+mp BM4B $'B-M4 placeholder refused without --draft: block' "$RRE" $'        if not (AUTOLINK.fullmatch(t) or HTML_TAG.fullmatch(t)):' $'        if not (AUTOLINK.fullmatch(t) or HTML_TAG.fullmatch(t) or " " in t):'   # an angle placeholder with a space passes
+mp BM4C $'B-M4 placeholder refused without --draft: cut_date=(2026-11-31|16.11.2026)' "$RRE" $'    if name == "cut_date":' $'    if False:'   # cut_date not checked as a date
+mp BM4D $'B-M4 (the same value renders with --draft|--draft render|--draft without a heading)' "$RRE" $'        lines.insert(at, DRAFT_MARK)' $'        pass'   # a draft render without its marker
+mp BM4E $'B-M4 --draft still refuses' "$RRE" $'    if missing:' $'    if missing and not draft:'   # --draft relaxes every refusal, not only the placeholder one
+mp BM4F $'C54 draft notes: (exit 1|RESULT FAIL|no local tag|r1)' "$TAR" $'  [ "$DRY" -eq 1 ] || abort "the release notes of $TAG' $'  [ "$DRY" -eq 1 ] || printf \'%s\\n\' "the release notes of $TAG'   # a real run cuts a release from draft notes
+mp BM4G $'C54 draft notes, dry run' "$TAR" $'  if [ "$DRAFT_NOTES" -eq 1 ]; then' $'  if false; then'   # the dry run does not say a real run refuses
+mp BM4H $'C54 control' "$TAR" $'if grep -qF \'DRAFT RENDER — not a release entry\' "$NOTES"; then' $'if rc_net git show "$SHA:CHANGELOG.md" | grep -qF \'DRAFT RENDER — not a release entry\'; then'   # the marker of an older section refuses the release
 # round 8 (N5): --only NAME that names no mutant ran nothing; that is a usage error (exit 2), never a vacuous pass
 if [ -n "$ONLY" ] && [ "$ONLY" != control ] && [ "$matched" -eq 0 ]; then
   echo "FAIL --only $ONLY: no mutant has that name, nothing was run"

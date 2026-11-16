@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 5 |
+| Revision | 6 |
 | Created | 2026-11-11 |
 | Status | active, PROVISIONAL (scripts tested on host fixtures only; no release has been cut with them yet) |
 
@@ -15,7 +15,7 @@ script reading committed data; a person supplies only the decisions listed under
 | Script | What it does | Exit codes | Test |
 |---|---|---|---|
 | `scripts/release/derive_release_facts.sh --base C --prev-tag T [--remotes "R..."] [--today D]` | Prints KEY=VALUE facts: commit and diff counts since the previous tag, tracker counts by status, severity and reproduction/investigation state (§11.4.294(H)), the §11.4.290(4) count line, §11.4.288 refs not on `main` per remote. Reads `git show C:docs/workable_items.db` from a temp copy opened read-only; never fetches. Output is buffered: when any tracker query fails (for example a missing column) nothing is printed. An item closed on the previous tag's date is not counted as verified since it (the tag date has day granularity). | 0 facts, 2 usage, 3 data missing or a query failed (stdout empty) | `tests/release/test_derive_release_facts.sh` |
-| `scripts/release/render_release_entry.py TEMPLATE FACTS MANUAL` | Fills `{{key}}` from FACTS and `{{MANUAL:name}}` from MANUAL (`@@name` blocks), builds `states_block` and `unmerged_refs_block`, drops the template's leading comment. Refuses a left-over placeholder, an empty or TODO/TBD manual value, an unused manual block, and an `open_status[...]` / `open_severity[...]` fact the template does not render (a status or severity value new at cut time; extend the template). | 0 rendered, 2 usage, 3 refused (nothing on stdout) | `tests/release/test_render_release_entry.sh` |
+| `scripts/release/render_release_entry.py [--draft] TEMPLATE FACTS MANUAL` | Fills `{{key}}` from FACTS and `{{MANUAL:name}}` from MANUAL (`@@name` blocks), builds `states_block` and `unmerged_refs_block`, drops the template's leading comment. Refuses a left-over placeholder, an empty or TODO/TBD manual value, an unused manual block, and an `open_status[...]` / `open_severity[...]` fact the template does not render (a status or severity value new at cut time; extend the template). Revision 6 (B-M4 of the v73.4 dry run): also refuses a manual value that is still a placeholder (see "Placeholders and --draft" below) unless `--draft` is given; a `--draft` render carries a fixed marker line that `tag_and_release.sh` refuses. | 0 rendered, 2 usage, 3 refused (nothing on stdout) | `tests/release/test_render_release_entry.sh` |
 | `scripts/release/tag_and_release.sh --tag T --sha S --remotes "R..." [--release SPEC]... [--prerelease] [--gitlab-released-at ISO8601] [--dry-run]` | Preflight on every remote before any write (fetch main, ancestor of S, clean tree at S, CHANGELOG first heading = T, badge check, tag identity), then `git push --atomic` of `main` and the tag per remote, ls-remote read-back, platform releases only for remotes read back OK. Never forces; a re-run resumes and skips remotes already OK. | 0 OK, 1 FAIL, 2 usage, 5 OK with release GAPs (a gitea publisher exit 3 is a GAP only with its `SKIPPED-NO-TOKEN` line; any other exit 3 is a FAIL) | `tests/release/test_tag_and_release.sh` |
 
 `--release` specs: `github:REMOTE:OWNER/REPO`, `gitlab:REMOTE:OWNER/REPO`, `gitea:REMOTE:BASE_URL:OWNER/REPO`.
@@ -75,6 +75,23 @@ run verdict and is refused. The renderer checks the word only, not the base, tie
 not that `PASS-FULL` came from an `--include-heavy` run (CON-421 stays open for a machine verdict)), `verified_date`, `verified_block`, `killpg_summary_line`, `provisional_changes_block`,
 `followups_tracking`, `known_defects_block`, `next_candidate_statement`. Every other key is mechanical.
 
+### Placeholders and --draft (revision 6, B-M4 of the v73.4 dry run)
+
+The dry run rendered an entry with `cut_date` = `DRAFT`, `retest_item_id` = `` `<CON-NNN>` ``,
+`waiver_expiry` = `` `<recorded date + 30 days>` `` and `killpg_summary_line` = `` `<paste ...>` ``, all
+with exit 0, so a rehearsal render and a cut render could not be told apart. Without `--draft` the
+renderer now refuses (exit 3) a manual value that holds an angle-bracket token other than an autolink
+`<https://...>` or a plain lower-case HTML tag (`<details>`, `<br/>`, `<a href="x">`; every attribute
+written `name="value"`), the upper-case word `DRAFT`, the token `UNCONFIRMED-CUT-DATE`, or a `cut_date`
+that is not a real calendar date `YYYY-MM-DD`. `--draft` renders such values (a rehearsal) and puts the
+line `> **DRAFT RENDER — not a release entry.** ...` right after the first `## ` heading; a real
+`tag_and_release.sh` run aborts before any write when the release notes hold that line, and `--dry-run`
+prints `PLAN refuse ...` and says so in its RESULT line. `--draft` relaxes only this check: a missing
+value, TODO/TBD, an unused block and an unrendered fact still refuse. Known limits: a lower-case one-word
+angle token such as `<sha>` reads as an HTML tag and passes; a bare `CON-NNN` (no brackets) is not
+refused, because a real entry may name the notation; deleting the marker line by hand defeats the
+tag-side check (the renderer-side refusal still applies to a re-render).
+
 ## Cut steps
 
 1. Fetch every remote; merge the final `main` into the vehicle (merge, never rebase) and land it on
@@ -86,7 +103,8 @@ not that `PASS-FULL` came from an `--include-heavy` run (CON-421 stays open for 
    (after `git fetch --prune` of every remote).
 4. Re-run `bash scripts/gates/cm_killpg_pgid_guard.sh` and every command quoted under VERIFIED; paste
    their real output lines into the manual file.
-5. `python3 -I scripts/release/render_release_entry.py docs/release/helixconstitution-v73.4_entry.template.md facts.txt manual.txt > entry.md`;
+5. `python3 -I scripts/release/render_release_entry.py docs/release/helixconstitution-v73.4_entry.template.md facts.txt manual.txt > entry.md`
+   (never `--draft` for the cut; a rehearsal uses `--draft` and is refused by step 8);
    put `entry.md` above every other entry of `CHANGELOG.md`.
 6. `bash scripts/badges/compute_badges.sh --print`, put the row into README, then `--check`.
 7. Commit (the release commit adds the entry and the badge row only), and obtain the independent

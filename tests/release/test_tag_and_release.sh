@@ -820,6 +820,25 @@ sed '2i date >/dev/null' "$S" >"$l1t/needle.sh"
 python3 -I "$HERE/channel_census.py" lint "$HERE/channels.tsv" "$l1t/needle.sh" 2>&1 | grep -q 'before rc_env_clean: needle.sh:2 date' \
   && ok "L1 needle: a date inserted at line 2 is found" || bad "L1 needle: a date inserted at line 2 is not found"
 rm -rf -- "${l1t:?}"
+# C54 (B-M4 of the v73.4 dry run): release notes that are a --draft render of scripts/release/render_release_entry.py
+# (they carry its fixed marker line) are refused by a real run before anything is written; a dry run says so; the
+# marker in an OLDER section is not the release notes and does not count; a lower-case "draft" is not the marker.
+DMARK54='> **DRAFT RENDER — not a release entry.** Made by render_release_entry.py --draft; it may carry placeholders, and scripts/release/tag_and_release.sh refuses to cut a release from notes that contain this line.'
+mk54(){ mk "$1"; ( cd "$D/w" && printf '# Changelog\n\n## %s — 2026-01-01 — PROVISIONAL pre-release\n%s\nNOTES-BODY\n\n## Unreleased — base\n%s\n' "$TAG" "$2" "$3" >CHANGELOG.md \
+  && "${G[@]}" commit -q --amend -am release ); REL="$(git -C "$D/w" rev-parse HEAD)"; }
+mk54 c54a "$DMARK54" ""; run
+chk "C54 draft notes: exit 1" "$RC" 1; chk "C54 draft notes: RESULT FAIL" "$(last)" "RESULT: FAIL"
+printf '%s\n' "$OUT" | grep -q 'a --draft render' && ok "C54 draft notes: the reason is named" || bad "C54 draft notes: the reason is named ($OUT)"
+chk "C54 draft notes: no local tag" "$(git -C "$D/w" rev-parse -q --verify "refs/tags/$TAG" || echo -)" -
+chk "C54 draft notes: r1 main untouched" "$(rmain r1)" "$BASE"; chk "C54 draft notes: r1 no tag" "$(rtag r1)" -
+run --dry-run
+chk "C54 draft notes, dry run: exit 0" "$RC" 0
+printf '%s\n' "$OUT" | grep -q '^PLAN refuse: .*--draft render' && printf '%s\n' "$OUT" | tail -n 1 | grep -q 'DRAFT render, a real run refuses' \
+  && ok "C54 draft notes, dry run: PLAN refuse line and RESULT say a real run refuses" || bad "C54 draft notes, dry run ($OUT)"
+mk54 c54b "a draft note in lower case" "$DMARK54"; run
+chk "C54 control: marker only in an older section, lower-case draft in the notes: exit 0" "$RC" 0
+chk "C54 control: r1 tag" "$(rtag r1)" "$REL"
+
 # C53 (round 12, F1 of the round-11 review): the network-spawn gate (tests/release/channel_census.py netgate) over
 # this copy of the script and the helper library it loads: every network child goes through rc_net and every command
 # is classified by its syntax alone (an unclassified command word is a finding; round 13: not a proof of default

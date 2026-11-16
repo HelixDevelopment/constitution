@@ -2,7 +2,7 @@
 """scripts/release/render_release_entry.py — fill a release-entry template mechanically (§11.4.274).
 
 Usage:
-  python3 -I scripts/release/render_release_entry.py TEMPLATE FACTS MANUAL > entry.md
+  python3 -I scripts/release/render_release_entry.py [--draft] TEMPLATE FACTS MANUAL > entry.md
 
 TEMPLATE  Markdown with {{key}} placeholders (keys of FACTS) and {{MANUAL:name}} placeholders; a
           leading HTML comment (the template's own instructions) is dropped.
@@ -28,13 +28,50 @@ word of class "gap" (PASS-FULL-WITH-KNOWN and every PARTIAL-*) renders with the 
 "[gap: not a section 11.4.40 full retest; (L6) stays open]" right after it, and a word of class "gap-not-run"
 (MANIFEST-MISMATCH, REFUSED-TOPOLOGY) with "[gap: nothing was run; not a section 11.4.40 retest; (L6) stays open]",
 so a gap can never read as a pass. The longest word is matched first, so PASS-FULL-WITH-KNOWN is never PASS-FULL.
+
+Placeholders (B-M4 of the v73.4 dry run): a MANUAL value is also refused (exit 3) when it still carries a lander placeholder
+or draft text: an angle-bracket token that is neither an autolink <http(s)://...> nor a plain lower-case HTML tag
+(<details>, <br/>, <a href="x">; every attribute written name="value") -- so <CON-NNN>, <...>, <paste ...>, <all 10 remotes> are refused --, the upper-case word
+DRAFT, the token UNCONFIRMED-CUT-DATE, or a cut_date that is not a real calendar date written YYYY-MM-DD.
+--draft renders such values anyway (a rehearsal) and puts the fixed line DRAFT_MARK right after the first "## " heading
+(first line when there is none); scripts/release/tag_and_release.sh refuses to cut a release from notes holding that line.
+--draft relaxes ONLY the placeholder check: missing values, TODO/TBD, unused blocks and unrendered facts still refuse.
+Known limit: a lower-case one-word angle token such as <sha> reads as an HTML tag and is not refused.
 """
 import ast
+import datetime
 import os
 import re
 import sys
 
 EMPTY = "(none recorded in the tracker)"
+# B-M4: the one marker of a --draft render; tag_and_release.sh refuses notes containing "DRAFT RENDER — not a release entry".
+DRAFT_MARK = ("> **DRAFT RENDER — not a release entry.** Made by render_release_entry.py --draft; it may carry placeholders, "
+              "and scripts/release/tag_and_release.sh refuses to cut a release from notes that contain this line.")
+ANGLE = re.compile(r"<[^<>\n]*>")
+AUTOLINK = re.compile(r"<https?://[^\s<>]+>")
+HTML_TAG = re.compile(r'</?[a-z][a-z0-9]*(\s+[a-z][a-z-]*="[^"<>]*")*\s*/?>')   # every attribute needs ="value"
+
+
+def placeholder_reason(name, val):
+    """Why a MANUAL value is still a placeholder (B-M4), or None."""
+    for m in ANGLE.finditer(val):
+        t = m.group(0)
+        if not (AUTOLINK.fullmatch(t) or HTML_TAG.fullmatch(t)):
+            return "angle-bracket placeholder %s" % t
+    if re.search(r"\bDRAFT\b", val):
+        return "the word DRAFT"
+    if "UNCONFIRMED-CUT-DATE" in val:
+        return "UNCONFIRMED-CUT-DATE"
+    if name == "cut_date":
+        v = val.strip()
+        try:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+                raise ValueError
+            datetime.date.fromisoformat(v)
+        except ValueError:
+            return "cut_date is not a calendar date YYYY-MM-DD"
+    return None
 
 
 def die(msg, rc):
@@ -80,8 +117,11 @@ def retest_value(val, words):
 
 
 def main(argv):
-    if len(argv) != 4:
-        die("usage: render_release_entry.py TEMPLATE FACTS MANUAL", 2)
+    draft = len(argv) > 1 and argv[1] == "--draft"
+    if draft:
+        argv = argv[:1] + argv[2:]
+    if len(argv) != 4 or any(a.startswith("--") for a in argv[1:]):
+        die("usage: render_release_entry.py [--draft] TEMPLATE FACTS MANUAL", 2)
     tpl = open(argv[1], encoding="utf-8").read()
     tpl = re.sub(r"\A\s*<!--.*?-->\s*", "", tpl, count=1, flags=re.S)
     facts = {}
@@ -118,6 +158,10 @@ def main(argv):
             if val is None or not val.strip() or re.search(r"\b(TODO|TBD)\b", val):
                 missing.append(key)
                 return m.group(0)
+            why = None if draft else placeholder_reason(name, val)
+            if why:
+                missing.append("%s (still a placeholder: %s; render with --draft for a rehearsal)" % (key, why))
+                return m.group(0)
             if name == "retest_statement":
                 words = verdict_words()
                 rv = retest_value(val, words)
@@ -145,6 +189,12 @@ def main(argv):
     if unrendered:
         die("facts the template does not render (a value new at cut time; extend the template): %s"
             % ", ".join(unrendered), 3)
+    if draft:
+        lines = out.split("\n")
+        at = next((i + 1 for i, l in enumerate(lines) if l.startswith("## ")), 0)
+        lines.insert(at, DRAFT_MARK)
+        out = "\n".join(lines)
+        sys.stderr.write("render_release_entry: DRAFT render (placeholders allowed; tag_and_release.sh refuses it)\n")
     sys.stdout.write(out)
     return 0
 
