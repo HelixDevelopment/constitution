@@ -251,11 +251,21 @@ rc=0" "$(clsrun '{"auths":{"h.t":{"auth":"YTpi"}}}')"
 chk "classifier: empty host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"":{"auth":"YTpi"}}}')"
 chk "classifier: CR in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\r":{"auth":"YTpi"}}}')"
 chk "classifier: TAB in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\tx":{"auth":"YTpi"}}}')"
+chk "classifier: TAB in auth value -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h":{"auth":"YT\tpi"}}}')"
+chk "classifier: LF in auth value -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h":{"auth":"YTpi\nZZ"}}}')"
+chk "classifier: CR in auth value -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h":{"auth":"YTpi\r"}}}')"
 chk "classifier: lone surrogate in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\ud800":{"auth":"YTpi"}}}')"
 chk "classifier: lone surrogate in auth -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h":{"auth":"\udc00"}}}')"
 # injection: a TAB/newline in an auth value must never become two login records
 reset; env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG='{"auths":{"h.t":{"auth":"YTpi\tx.t\tZZ"}}}' bash "${SUT}" login >/dev/null 2>&1
 [ "$(grep -c '^ARG:login$' "${W}/log" 2>/dev/null || true)" != 1 ] && [ ! -s "${W}/log.stdin" ] && ok "tab in auth value: no login record" || no "tab in auth value: no login record"
+# injection: a newline in an auth value must never smuggle in a second registry record or survive as a trailing
+# newline; both halves are valid base64, so only the classifier's control-character rule stops these (mutant F3a)
+for cfg in '{"auths":{"h.t":{"auth":"YTpi\nx.t\tYzpk"}}}' '{"auths":{"h.t":{"auth":"YTpi\n"}}}'; do
+  rc=$(reset; env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="$cfg" bash "${SUT}" login >/dev/null 2>&1; echo $?)
+  chk "newline in auth value ${cfg} -> 2" 2 "$rc"
+  [ ! -s "${W}/log" ] && [ ! -s "${W}/log.stdin" ] && ok "newline in auth value ${cfg}: no engine call" || no "newline in auth value ${cfg}: no engine call"
+done
 
 # 9g field-splitting class (round 5 extension): decoded/plain user and password are validated
 # separately; no secret ever reaches the engine argv; a user starting with '-' is never an option.
