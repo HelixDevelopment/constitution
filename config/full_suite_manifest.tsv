@@ -950,6 +950,8 @@ tests/security/test_github_actions_inventory_disable.sh	sh	entry	default	bash	-	
 tests/security/test_history_secret_scan.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_deadlock.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_deadlock_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/security/test_history_secret_scan_replace.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_secret_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
 tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto

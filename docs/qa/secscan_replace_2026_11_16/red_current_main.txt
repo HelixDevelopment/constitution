@@ -1,0 +1,27 @@
+== current_main_cc51c320 script sha256 d6bd918ef33e0dbf git 2.53.0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.plain.exact/o.tsv: No such file or directory
+mode=plain pass=exact caller_env=none rc=1 keys=[MYKEY=1 ] scanner_findings=- replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.plain.exact/o.tsv: No such file or directory
+mode=plain pass=exact caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=1 keys=[MYKEY=1 ] scanner_findings=- replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.plain.scanner/o.tsv.keys.tsv: No such file or directory
+mode=plain pass=scanner caller_env=none rc=1 keys=[] scanner_findings=1 replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.plain.scanner/o.tsv.keys.tsv: No such file or directory
+mode=plain pass=scanner caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=1 keys=[] scanner_findings=1 replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.replaced.exact/o.tsv: No such file or directory
+mode=replaced pass=exact caller_env=none rc=0 keys=[MYKEY=0 ] scanner_findings=- replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.replaced.exact/o.tsv: No such file or directory
+mode=replaced pass=exact caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=0 keys=[MYKEY=0 ] scanner_findings=- replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.replaced.scanner/o.tsv.keys.tsv: No such file or directory
+mode=replaced pass=scanner caller_env=none rc=0 keys=[] scanner_findings=0 replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.replaced.scanner/o.tsv.keys.tsv: No such file or directory
+mode=replaced pass=scanner caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=0 keys=[] scanner_findings=0 replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.tree.exact/o.tsv.keys.tsv: No such file or directory
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.tree.exact/o.tsv: No such file or directory
+mode=tree pass=exact caller_env=none rc=7 keys=[] scanner_findings=- replace_line=[] stderr=[exact-match: unexpected reply from git cat-file --batch git error: exact-match pass failed ] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.tree.exact/o.tsv.keys.tsv: No such file or directory
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.tree.exact/o.tsv: No such file or directory
+mode=tree pass=exact caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=7 keys=[] scanner_findings=- replace_line=[] stderr=[exact-match: unexpected reply from git cat-file --batch git error: exact-match pass failed ] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.tree.scanner/o.tsv.keys.tsv: No such file or directory
+mode=tree pass=scanner caller_env=none rc=0 keys=[] scanner_findings=0 replace_line=[] stderr=[] fake_value_files=0
+/mnt/DATA1TB/claude-work/scratch/cfix425_work/red_toggle.sh: line 31: /mnt/DATA1TB/claude-work/tmp/c425.Ob6kXv/s.tree.scanner/o.tsv.keys.tsv: No such file or directory
+mode=tree pass=scanner caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=0 keys=[] scanner_findings=0 replace_line=[] stderr=[] fake_value_files=0
