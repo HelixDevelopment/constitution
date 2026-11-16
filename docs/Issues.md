@@ -4903,7 +4903,7 @@ What: review nits grouped. F6 (process-doc, nit): the GL_HOST post-strip regex i
 
 ## CON-423 — history_secret_scan.sh exact-match pass deadlocks on a repository with a few thousand blobs
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Bug
 **Severity:** High
 **Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/secscan_deadlock_2026_11_16/red_wchan_prefix.txt` — red-command `HSS_DL_TIMEOUT=60 bash tests/security/test_history_secret_scan_deadlock.sh (script sha256 e03c80988748a0cd)` — green-command `bash tests/security/test_history_secret_scan_deadlock.sh (fixed script, same test)` — env `host, clone of origin main bbdf4ac1, hermetic 8000-blob repository, fake gitleaks` — signature `case 1 rc=124; python3 matcher and git cat-file --batch both in wchan anon_pipe_write after 25 s` — updated 2026-11-16T14:22:15Z — by `AI`
@@ -4918,4 +4918,94 @@ What: the --keys-file exact-match pass of scripts/security/history_secret_scan.s
 **Severity:** Medium
 
 What: the --keys-file exact-match pass of scripts/security/history_secret_scan.sh never searches a value shorter than 12 characters (too many chance matches in a full history). Since CON-423 this limit is documented in the script header and in docs/guides/security_hardening_scripts.md, and every run prints the note 'not searched: N shorter than 12 characters (NAMES)' with variable names and count only, also when N is 0; tests/security/test_history_secret_scan_deadlock.sh checks the 11/12 character boundary and the names and count, and paired mutants DM6, DM7 and DM8 are killed. Owed: a way to check short values (for example a context-bound pattern such as NAME=value, or an operator decision that short values are out of scope), and the decision recorded. Acceptance: either short values are covered by a tested check with its own controls, or the operator decision to leave them out is recorded and cited by the guide.
+
+## CON-425 — history_secret_scan.sh: a refs/replace entry hides a secret blob from the exact-match pass and from gitleaks (CON-423 review NEW-1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** AI
+
+What: scripts/security/history_secret_scan.sh honours replace refs, so a repository that carries refs/replace/<secret-blob> -> <clean-blob> is scanned through the replacement. Measured by the CON-423 review round 2 (rev2_secscan_dl_ev, SHA256SUMS verified): replace_probe.txt, --exact-only, mode=plain rc=1 MYKEY=1, mode=replaced rc=0 MYKEY=0 (secret not found, clean verdict); replace_log_probe.txt: the mirror keeps 1 replace ref, git log -p --all -m sees the fake 0 times, with --no-replace-objects 1 time; rv16_probe.txt: a forced blob->tree replace makes cat-file --batch answer type tree for a blob id that --batch-check reports as blob. Pre-existing (not introduced by CON-423), source-defect, important; not fixed in the CON-423 landing. Fix idea: export GIT_NO_REPLACE_OBJECTS=1 right after the git-env scrub so every git call (mirror, cat-file, the scanner's git log) reads the stored objects, and refuse or report replace refs. Scope: scripts/security/history_secret_scan.sh, tests/security/test_history_secret_scan.sh, tests/security/test_history_secret_scan_deadlock.sh, docs/guides/security_hardening_scripts.md. Reproduction: reproduced-host-fixture by the reviewer probes above (host-only). Acceptance: RED first with the review fixtures (replaced blob; blob->tree replace) on the current script, then GREEN with the secret found (exit 1) in both the exact-match pass and the scanner pass; paired mutant that drops the setting is killed.
+
+## CON-426 — CON-423/CON-424: schedule the background verification job and move to the PROVISIONAL-DONE form with a Verification line (review F2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: the CON-423 fix landed on main (38c80398) but no verification job is scheduled, so section 11.4.290 does not allow the PROVISIONAL-DONE form; CON-423 is set to In progress at landing, not Ready for testing. Scope: tracker rows CON-423, CON-424 and a scheduled run of tests/security/test_history_secret_scan_deadlock.sh, test_history_secret_scan.sh and the deadlock mutation suite on the landed tree. Acceptance: a job id exists, the item carries the line Verification: provisional - job ... - checks ... - layer gate-logic - target host - artifact 38c80398 - due ..., and the status moves only then.
+
+## CON-427 — CON-423 evidence: the reproduction tier and the evidence-class wording do not match (review F3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: independent review of the CON-423 vehicle, finding F3 (relayed by the conductor; the reviewer's full wording is not in the evidence directories, UNCONFIRMED in detail): the tier recorded for the reproduction/evidence (reproduced-host-fixture, host-only, gate-logic per section 11.4.289) and the tier stated elsewhere for the same evidence disagree. Scope: CON-423 Reproduction line, docs/qa/secscan_deadlock_2026_11_16/README.md. Acceptance: one tier, named the same way in the item, the README and the commit text, matching the section 11.4.292(B)/11.4.289 vocabulary.
+
+## CON-428 — CON-423 evidence README: the RED note (4/16 pass, 16 vs 17 cases) is unclear (review F4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review finding F4 (relayed): docs/qa/secscan_deadlock_2026_11_16/README.md says the RED run passed 4/16 while GREEN has 17 cases; the README should state which case set the RED ran, that case 17 was added after the RED, and that case 1 is the one that proves the deadlock. Scope: that README. Acceptance: the note names the case count of each run and the red/green pair per section 11.4.292(E).
+
+## CON-429 — CON-423 docs: the deadlock threshold wording (a few thousand blobs) is host-dependent (review F5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review finding F5 (relayed): the script header, the guide and CON-423 say the old pass hung with a few thousand blobs; the point where both pipe buffers fill depends on the host pipe size and blob id lengths, so the number is host-dependent. Scope: scripts/security/history_secret_scan.sh header, docs/guides/security_hardening_scripts.md, CON-423. Acceptance: the wording says the threshold depends on the pipe buffer size and names the measured host value or none.
+
+## CON-430 — CON-423 tests: reviewer mutants RV4, RV5, RV6 and RV16 survive the deadlock and history-scan suites (review F6/F7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: rev2_secscan_dl_ev/rmut_out.txt: SURVIVED RV4 (trailing-data check reduced to read(1)), RV5 (cat-file exit status not checked), RV6 (no kill/wait before exit 7), RV16 (v in data[:-1], a value at the very end of a blob without a newline is missed; rv16_probe.txt shows rc=0 MYKEY=0). The mapping of these survivors to the reviewer labels F6 and F7 is inferred from the evidence, UNCONFIRMED. Test-instrumentation (section 11.4.235(D)). Scope: tests/security/test_history_secret_scan_deadlock.sh, tests/security/test_history_secret_scan_deadlock_mutations.sh. Acceptance: fixtures that kill RV4, RV5, RV6 and RV16 (RED with each mutant, GREEN without), added to the paired mutation suite.
+
+## CON-431 — codegraph_mcp_health.py: stderr=PIPE is never read while the session runs (bounded deadlock risk)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: docs/qa/secscan_deadlock_2026_11_16/class_census.md: scripts/codegraph/codegraph_mcp_health.py:459-496 starts the server with stderr=PIPE and never drains it during the session; a server that writes more than one pipe buffer of stderr would block. UNCONFIRMED whether any server does. Not fixed in CON-423 (section 11.4.293 scope). Scope: that file and its tests. Reproduction: not yet (UNREPRODUCED); a fixture server that writes more than 64 KiB to stderr is the RED. Acceptance: stderr goes to a file or is drained concurrently; RED then GREEN with the fixture.
+
+## CON-432 — test_review_record_gate_authority_r3_regression.sh:423 writes ev.bytes into a fifo before the reader starts (bounded deadlock shape)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: class_census.md of CON-423: scripts/fastcycle/tests/test_review_record_gate_authority_r3_regression.sh:423 does exec 7<>fifo; cat ev.bytes >&7 before the reader starts; it blocks only if ev.bytes exceeds one pipe buffer (today a small generated file). Not fixed in CON-423 (section 11.4.293). Scope: that test. Reproduction: UNREPRODUCED (needs an ev.bytes larger than the pipe buffer). Acceptance: the writer starts after (or concurrently with) the reader, or the input comes from a regular file; a large-input RED then GREEN.
+
+## CON-433 — scripts/forge/lib/credentials.sh: bracket ranges and classes in bash regexes are locale-dependent (no LC_ALL=C) (review I1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review item I1 (relayed): credentials.sh matches variable names with [A-Z][A-Z0-9_] ranges and [[:space:]] classes in [[ =~ ]] without LC_ALL=C, so in some locales a range matches more characters than A-Z. Scope: scripts/forge/lib/credentials.sh (lines 71, 80, 135 at 38c80398), tests/forge/test_forge_credentials.sh. Reproduction: UNREPRODUCED; RED under a locale where [A-Z] matches lowercase. Acceptance: matching runs under LC_ALL=C (local to the functions), RED then GREEN, paired mutant.
+
+## CON-434 — tests/release/test_tag_and_release.sh C49: a /proc stderr race makes the case output nondeterministic (review)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review item (relayed by the conductor, mechanism UNCONFIRMED): in case C49 of tests/release/test_tag_and_release.sh (lines 688-708 at 38c80398) the TERM-ignoring git double exits while /proc is still being read, and the resulting stderr line can appear or not between runs. Scope: that test case. Reproduction: UNREPRODUCED; repeated runs with a hash compare of the output are the RED. Acceptance: the case output is identical over N=3 runs, the race closed or the line filtered with a named reason.
 
