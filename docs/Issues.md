@@ -1634,7 +1634,7 @@ Review finding X2 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md):
 
 ## CON-092 — Fastcycle consumer-data guard: skip per section, not the whole test (review F3)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
@@ -1643,7 +1643,7 @@ Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in ve
 
 ## CON-093 — Nine more fastcycle tests fail on canon alone for missing consumer data, not converted (review F13)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
@@ -1681,7 +1681,7 @@ Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in ve
 
 ## CON-097 — 62 fastcycle tests hard-code $ROOT/constitution/, so they run only when the canon directory is named constitution (inventory class A)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
@@ -3286,7 +3286,7 @@ Parent: CON-220 (Roadmap: CON-162 decision-mutant census). Review finding F3 (mi
 
 ## CON-243 — CON-222 follow-up: run_all.sh counts the new exit 77 of the helper test as FAIL and has no tier awareness for the heavy L29 test
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Low
 **Created-By:** AI
@@ -3487,7 +3487,7 @@ scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh (#
 
 ## CON-262 — Wider SKIP class: suites and runners that print SKIP but exit 0, and run_all.sh labels exit 77 FAIL
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude

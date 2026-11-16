@@ -22,6 +22,10 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 CA="$ROOT/scripts/commit_all.sh"
 TEST="$HERE/test_fc_commit_stage_timer_red.sh"
+# CON-093: the mutated input is a CONSUMER-root script; on canon alone the whole test is an honest SKIP naming
+# that effective path (exit 77), while a missing canon test file stays the FATAL below.
+. "$HERE/lib/consumer_required.sh"
+fc_require_consumer "$CA"
 [ -f "$CA" ] && [ -f "$TEST" ] || { echo "FATAL: commit_all.sh / test not found"; exit 2; }
 command -v python3 >/dev/null 2>&1 || { echo "FATAL: python3 required"; exit 2; }
 TMP="$(mktemp -d)" || exit 2
