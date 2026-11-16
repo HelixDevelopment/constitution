@@ -338,14 +338,22 @@ fi
 # threading in _selftest_golden_good_scratch_check back to unsanitized
 # `_run(...)` calls (no `env=` kwarg at all, the pre-R8 shape) -- the SAME
 # victim-GIT_DIR scenario must now mutate the victim's .git/config again.
-D3="$TMP/r8i2_reverted"
-mkdir -p "$D3/orchestration" "$D3/lib"
-cp "$IMPL" "$D3/orchestration/custody_sweep.py"
-cp "$LIB" "$D3/lib/fc_common.py"
-cp "$EXLIB" "$D3/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
-python3 - "$D3/orchestration/custody_sweep.py" <<'PYEOF'
+#
+# CON-402 (audit F3, 2026-11-16): CON-402 added a THIRD, file-level layer -- the canonical git-env scrub at the top of
+# custody_sweep.py and of lib/fc_common.py (which it imports) clears GIT_DIR / GIT_WORK_TREE before any code runs.
+# Measured on cc51c320 (3/3): with only the in-function layers reverted the victim stays untouched, so this guard
+# went BLIND. The faithful pre-R8 revert ($D3) therefore also removes that layer from every copied file; a second
+# copy ($D4) reverts ONLY the in-function layers and must keep the victim untouched -- the proof that the file-level
+# scrub alone is load-bearing for this scenario (it fails if the scrub is removed from either source file).
+r8i2_mutant() {   # r8i2_mutant DIR STRIP_FILE_SCRUB(0|1)
+  mkdir -p "$1/orchestration" "$1/lib"
+  cp "$IMPL" "$1/orchestration/custody_sweep.py"
+  cp "$LIB" "$1/lib/fc_common.py"
+  cp "$EXLIB" "$1/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
+python3 - "$1/orchestration/custody_sweep.py" "$2" "$1/lib/fc_common.py" <<'PYEOF'
 import re, sys
 p = sys.argv[1]
+strip_scrub = sys.argv[2] == "1"
 with open(p, encoding="utf-8") as fh:
     c = fh.read()
 # Strip every `, env=scratch_env` / `env=scratch_env` kwarg this fix added
@@ -374,7 +382,22 @@ if after.count(old_inherit) + before.count(old_inherit) != 1:
 before = before.replace(old_inherit, "    child_env = env")
 with open(p, "w", encoding="utf-8") as fh:
     fh.write(before + mutated_body + after)
+if strip_scrub:
+    # the CON-402 file-level scrub pair (scripts/validation/git_env_class_census.py, python form): exactly one per
+    # file, in the tool AND in the library it imports
+    pair = re.compile(r'^import os as _ge_os[^\n]*\nfor _ge_v in "[A-Z_ ]+"\.split\(\): _ge_os\.environ\.pop\(_ge_v, None\)\n', re.M)
+    for f in (p, sys.argv[3]):
+        with open(f, encoding="utf-8") as fh:
+            t = fh.read()
+        t2, n = pair.subn("", t)
+        if n != 1:
+            sys.exit(1)
+        with open(f, "w", encoding="utf-8") as fh:
+            fh.write(t2)
 PYEOF
+}
+D3="$TMP/r8i2_reverted"
+r8i2_mutant "$D3" 1
 if [ $? -ne 0 ]; then
   echo "NOT ok R8-I2 guard-viability: env-strip mutation anchor not found (content drifted)"
   failx
@@ -405,6 +428,30 @@ else
   else
     echo "NOT ok R8-I2 guard-viability BLIND: victim .git/config unchanged even with the"
     echo "     env-sanitization stripped ($(cat "$SELFTEST_OUT2" 2>/dev/null | tail -5))"
+    failx
+  fi
+fi
+
+# CON-402 layer alone: the in-function layers reverted, the file-level scrub KEPT -> the victim stays untouched
+D4="$TMP/r8i2_scrub_only"
+r8i2_mutant "$D4" 0
+if [ $? -ne 0 ]; then
+  echo "NOT ok R8-I2 file-level scrub alone: mutation anchor not found (content drifted)"
+  failx
+else
+  BEFORE_MD5_3=$(md5sum "$TMP/victim/.git/config" | awk '{print $1}')
+  (
+    export GIT_DIR="$TMP/victim/.git"
+    export GIT_WORK_TREE="$TMP/victim"
+    python3 "$D4/orchestration/custody_sweep.py" selftest --repo-root "$TMP/goodroot" --fixtures-dir "$CS_FIXDIR"
+  ) >"$TMP/gitdir_selftest_scrub_only.out" 2>&1
+  AFTER_MD5_3=$(md5sum "$TMP/victim/.git/config" | awk '{print $1}')
+  if [ "$BEFORE_MD5_2" != "$AFTER_MD5_2" ] && [ "$BEFORE_MD5_3" = "$AFTER_MD5_3" ]; then
+    echo "ok R8-I2 file-level scrub alone (CON-402 layer): with the in-function isolation reverted but the"
+    echo "   file-level scrub kept, the victim's .git/config stays byte-unchanged (md5 $BEFORE_MD5_3)"
+  else
+    echo "NOT ok R8-I2 file-level scrub alone: victim changed (md5 $BEFORE_MD5_3 -> $AFTER_MD5_3) or the"
+    echo "     full revert above did not reach the vector -- the CON-402 layer is not proven load-bearing"
     failx
   fi
 fi

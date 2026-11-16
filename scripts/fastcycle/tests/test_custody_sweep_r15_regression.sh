@@ -341,19 +341,39 @@ if c.count(old) != 1:
 open(p, "w", encoding="utf-8").write(c.replace(old, new))
 PYEOF
 }
-mk_mutant() {  # NAME OLD NEW -> prints mutant impl path, or "" on anchor failure
+# CON-402 (audit F2/F3 class, 2026-11-16): the CON-402 file-level git-env scrub at the top of custody_sweep.py and of
+# lib/fc_common.py clears GIT_INDEX_FILE / GIT_DIR before any code runs, so a mutant that removes only an in-function
+# isolation layer no longer reaches an ambient-variable vector (measured on cc51c320: ME1 SURVIVED, mutant REFUSED).
+# strip_ge_scrub removes that pair (exactly one per file) from a copy.
+strip_ge_scrub() {   # strip_ge_scrub FILE...
+  python3 - "$@" <<'PYEOF'
+import re, sys
+pair = re.compile(r'^import os as _ge_os[^\n]*\nfor _ge_v in "[A-Z_ ]+"\.split\(\): _ge_os\.environ\.pop\(_ge_v, None\)\n', re.M)
+for f in sys.argv[1:]:
+    t = open(f, encoding="utf-8").read()
+    t2, n = pair.subn("", t)
+    if n != 1:
+        print("scrub pair count=%d in %s" % (n, f))
+        sys.exit(1)
+    open(f, "w", encoding="utf-8").write(t2)
+PYEOF
+}
+mk_mutant() {  # NAME OLD NEW [strip-scrub] -> prints mutant impl path, or "" on anchor failure
   local d="$TMP/mut_$1"
   build_copy "$d"
   if mutate "$d/orchestration/custody_sweep.py" "$2" "$3" >"$d.log" 2>&1; then
+    if [ "${4:-}" = strip-scrub ]; then
+      strip_ge_scrub "$d/orchestration/custody_sweep.py" "$d/lib/fc_common.py" >>"$d.log" 2>&1 || return 0
+    fi
     echo "$d/orchestration/custody_sweep.py"
   fi
 }
 # mut_allows NAME OLD NEW ROOT KIND ID ACTION BACKUP [ENVASSIGN]
 #   the REAL tool refuses; the mutant must ALLOW (the check is load-bearing)
 mut_allows() {
-  local name="$1" old="$2" new="$3" root="$4" kind="$5" id="$6" action="$7" path="$8" envs="${9:-}"
+  local name="$1" old="$2" new="$3" root="$4" kind="$5" id="$6" action="$7" path="$8" envs="${9:-}" strip="${10:-}"
   local m real mutant
-  m=$(mk_mutant "$name" "$old" "$new")
+  m=$(mk_mutant "$name" "$old" "$new" "$strip")
   if [ -z "$m" ]; then notok "mutation $name: anchor not found ($(cat "$TMP/mut_$name.log"))"; return; fi
   real=$( [ -n "$envs" ] && export "${envs?}"; run_case "$IMPL" "$root" "$kind" "$id" "$action" "$path")
   mutant=$( [ -n "$envs" ] && export "${envs?}"; run_case "$m" "$root" "$kind" "$id" "$action" "$path")
@@ -387,7 +407,19 @@ mut_allows MI1_stash_history_check '    if lost:
 mut_allows MI2_stash_counts_as_anchor '        if ref == "refs/stash" or ref.startswith(_PER_WORKTREE_REF_PREFIXES):' \
   '        if ref.startswith(_PER_WORKTREE_REF_PREFIXES):' "$I1/main" stash 'stash@{0}' land "$I1/st.patch"
 mut_allows ME1_inherit_ambient_env '    child_env = _targeted_git_env() if env is None else env' \
-  '    child_env = env' "$E2/main" worktree wt retire "$E2/wt.patch" "GIT_INDEX_FILE=$E2/main/.git/index"
+  '    child_env = env' "$E2/main" worktree wt retire "$E2/wt.patch" "GIT_INDEX_FILE=$E2/main/.git/index" strip-scrub
+# the CON-402 layer alone: ME1's in-function revert, the file-level scrub KEPT -> the mutant still REFUSES
+me1s=$(mk_mutant ME1_scrub_only '    child_env = _targeted_git_env() if env is None else env' '    child_env = env')
+if [ -z "$me1s" ]; then
+  notok "layer check ME1_scrub_only: anchor not found ($(cat "$TMP/mut_ME1_scrub_only.log"))"
+else
+  me1r=$(export "GIT_INDEX_FILE=$E2/main/.git/index"; run_case "$me1s" "$E2/main" worktree wt retire "$E2/wt.patch")
+  if [ "${me1r%%$'\t'*}" = REFUSED ]; then
+    ok "layer check ME1_scrub_only (CON-402 file-level scrub alone): in-function isolation reverted, scrub kept -> still REFUSED"
+  else
+    notok "layer check ME1_scrub_only: expected REFUSED with the file-level scrub kept, got ${me1r:0:200}"
+  fi
+fi
 mut_allows MM1_stdin_paths_unquoting \
   '        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--"] + [p for p, _h in chunk], env=env)' \
   '        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--stdin-paths"], env=env, input_bytes="".join(p + "\n" for p, _h in chunk).encode("utf-8", "surrogateescape"))' \

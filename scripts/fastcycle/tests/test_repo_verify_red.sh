@@ -2348,15 +2348,55 @@ printf '%s' '    for _k in _GIT_LOCAL_ENV_VARS:
         env.pop(_k, None)
 ' >"$TMP/r5m4_old.txt"
 printf '%s' '' >"$TMP/r5m4_new.txt"
-if mk_mutant mutant_r5m4 "$TMP/r5m4_old.txt" "$TMP/r5m4_new.txt" 2>"$TMP/mutant_r5m4.err"; then
-  un_before=$(tree_hash "$EV/unrelated/.git")
-  env GIT_DIR="$EV/unrelated/.git" python3 "$TMP/mutant_r5m4/verify/repo_verify.py" --recursive --root "$EV/parent" \
-    --out "$TMP/env_mut.json" >"$TMP/env_mut.out" 2>"$TMP/env_mut.err"
-  un_after=$(tree_hash "$EV/unrelated/.git")
-  if [ "$un_before" != "$un_after" ]; then
-    ok "paired mutation CAUGHT (round-5 env strip): without the --local-env-vars strip an inherited GIT_DIR makes the tool WRITE into that (unrelated) repository's .git -- the strip is genuinely load-bearing"
+# CON-402 (audit F2, 2026-11-16): CON-402 added a SECOND, file-level layer -- the canonical git-env scrub at the top
+# of repo_verify.py and of lib/fc_common.py (which it imports) clears GIT_DIR before any code runs. Measured on
+# cc51c320 (3/3): removing only the _run() strip no longer reaches the vector, so this paired mutation went BLIND.
+# Now: (a) the strip AND the file-level scrub of every copied file removed -> the inherited GIT_DIR repo is written
+# (the fixture exercises the vector); (b) the strip alone removed, the scrub kept -> no write (the CON-402 layer alone
+# is load-bearing); (c) the scrub alone removed, the strip kept -> no write (the round-5 strip alone is load-bearing).
+strip_ge_scrub() {   # strip_ge_scrub FILE... -- remove the one canonical python scrub pair of each file (exactly one)
+  python3 - "$@" <<'PY2'
+import re, sys
+pair = re.compile(r'^import os as _ge_os[^\n]*\nfor _ge_v in "[A-Z_ ]+"\.split\(\): _ge_os\.environ\.pop\(_ge_v, None\)\n', re.M)
+for f in sys.argv[1:]:
+    t = open(f, encoding="utf-8").read()
+    t2, n = pair.subn("", t)
+    if n != 1:
+        print("SCRUB_ANCHOR_COUNT %s %d" % (f, n), file=sys.stderr)
+        sys.exit(1)
+    open(f, "w", encoding="utf-8").write(t2)
+PY2
+}
+r5m4_write() {   # r5m4_write MUTANT_DIR -> prints "wrote" or "clean"
+  local b a
+  b=$(tree_hash "$EV/unrelated/.git")
+  env GIT_DIR="$EV/unrelated/.git" python3 "$1/verify/repo_verify.py" --recursive --root "$EV/parent" \
+    --out "$1/env_mut.json" >"$1/env_mut.out" 2>"$1/env_mut.err"
+  a=$(tree_hash "$EV/unrelated/.git")
+  if [ "$b" != "$a" ]; then echo wrote; else echo clean; fi
+}
+if mk_mutant mutant_r5m4 "$TMP/r5m4_old.txt" "$TMP/r5m4_new.txt" 2>"$TMP/mutant_r5m4.err" \
+   && mk_mutant mutant_r5m4_full "$TMP/r5m4_old.txt" "$TMP/r5m4_new.txt" 2>>"$TMP/mutant_r5m4.err" \
+   && strip_ge_scrub "$TMP/mutant_r5m4_full/verify/repo_verify.py" "$TMP/mutant_r5m4_full/lib/fc_common.py" 2>>"$TMP/mutant_r5m4.err" \
+   && mk_mutant mutant_r5m4_scrubonly "$TMP/r5m4_old.txt" "$TMP/r5m4_old.txt" 2>>"$TMP/mutant_r5m4.err" \
+   && strip_ge_scrub "$TMP/mutant_r5m4_scrubonly/verify/repo_verify.py" "$TMP/mutant_r5m4_scrubonly/lib/fc_common.py" 2>>"$TMP/mutant_r5m4.err"; then
+  r_full=$(r5m4_write "$TMP/mutant_r5m4_full")
+  r_strip=$(r5m4_write "$TMP/mutant_r5m4")
+  r_scrub=$(r5m4_write "$TMP/mutant_r5m4_scrubonly")
+  if [ "$r_full" = wrote ]; then
+    ok "paired mutation CAUGHT (round-5 env strip + CON-402 file-level scrub): with BOTH layers removed an inherited GIT_DIR makes the tool WRITE into that (unrelated) repository's .git -- the fixture exercises the vector"
   else
-    not_ok "paired mutation (round-5 env strip): the mutant did not modify the inherited GIT_DIR repo -- fixture does not exercise the vector"
+    not_ok "paired mutation (round-5 env strip + CON-402 scrub): the mutant without both layers did not modify the inherited GIT_DIR repo -- fixture does not exercise the vector"
+  fi
+  if [ "$r_strip" = clean ]; then
+    ok "layer check (CON-402 file-level scrub alone): the _run() strip removed, the scrub kept -> no write into the inherited GIT_DIR repo"
+  else
+    not_ok "layer check (CON-402 file-level scrub alone): the scrub did not keep the inherited GIT_DIR repo untouched (r_strip=$r_strip)"
+  fi
+  if [ "$r_scrub" = clean ]; then
+    ok "layer check (round-5 _run() strip alone): the file-level scrub removed, the strip kept -> no write into the inherited GIT_DIR repo"
+  else
+    not_ok "layer check (round-5 _run() strip alone): the strip did not keep the inherited GIT_DIR repo untouched (r_scrub=$r_scrub)"
   fi
 else
   not_ok "paired mutation (round-5 env strip): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r5m4.err")"
