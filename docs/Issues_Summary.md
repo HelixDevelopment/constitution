@@ -6,7 +6,7 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 
 | Type | Status | Count |
 |---|---|---|
-| Bug | In progress | 28 |
+| Bug | In progress | 29 |
 | Bug | Queued | 98 |
 | Bug | Ready for testing | 3 |
 | Feature | In progress | 1 |
@@ -14,7 +14,7 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | Task | Operator-blocked | 2 |
 | Task | Queued | 263 |
 | Task | Ready for testing | 26 |
-| **TOTAL** | | **433** |
+| **TOTAL** | | **434** |
 
 ## Items
 
@@ -453,3 +453,4 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-476 | Task | Queued | Medium | What: operator decisions 2026-11-14 and 2026-11-16: the guard vehicle case-alt (destructive-path guard) is parked for v73.5 (listed as a gap in the v73.4 changelog) and gets one tracked item. State: round 4 reviewed NO-GO; parked after three safety-classifier stops in a row. Bundle and evidence outside the repository: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/guard_casealt_r4.QJoy/guard_casealt_r4.bundle (review REVIEW_r4.md sha 5535bdb1). Related findings already tracked: CON-373, CON-374, CON-375. Scope: resume with a fresh fixer and reviewer to GO and land on main, or retire with a recorded operator decision; never drop the bundle. Reproduction: not applicable. Acceptance: landed or retired, decision recorded. | UNSET | UNSET |
 | CON-477 | Task | Queued | Medium | What: operator decisions 2026-11-14 and 2026-11-16: the guard vehicle PE+G1 (destructive-path guard) is parked for v73.5 (listed as a gap in the v73.4 changelog) and gets one tracked item. State: round 3, not reviewed to GO. Bundle and evidence outside the repository: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/guard_pe_g1.4a3x/guard_pe_g1_r3.bundle. Related findings already tracked: none found by title search. Scope: resume with a fresh fixer and reviewer to GO and land on main, or retire with a recorded operator decision; never drop the bundle. Reproduction: not applicable. Acceptance: landed or retired, decision recorded. | UNSET | UNSET |
 | CON-478 | Task | Queued | Medium | What: operator decisions 2026-11-14 and 2026-11-16: the guard vehicle idguard (git identity guard) round 9 is parked for v73.5 (listed as a gap in the v73.4 changelog) and gets one tracked item. State: round 9, not landed on main. Bundle and evidence outside the repository: /mnt/DATA1TB/claude-work/scratch/fin9.03XH/ev/idguard_r9.bundle. Related findings already tracked: CON-334 to CON-341. Scope: resume with a fresh fixer and reviewer to GO and land on main, or retire with a recorded operator decision; never drop the bundle. Reproduction: not applicable. Acceptance: landed or retired, decision recorded. | UNSET | UNSET |
+| CON-479 | Bug | In progress | High | What: providers/gitverse.sh read an annotated tag's commit only through GET /git/tags/{sha}, which GitVerse answers 400 VALIDATION_ERROR, so tag-get printed sha=unknown and release-ensure ended RESULT: UNVERIFIED-COMMIT (exit 5) even for the existing tag helixconstitution-v73.3; the v73.4 cut was blocked on it (operator decision 2026-11-16). Root cause (FACT, verifier defect, not a mirror lag): git ls-remote gitverse gives the same tag object e915eef7 and peeled commit aa5ae0a3 as the local tag; GET /repos/{o}/{r}/commits/{tag-object-sha} (the object.url of the matching-refs answer) answers 200 with sha aa5ae0a3, unknown objects answer 422. Fix: prov_tag_get falls back to commits/{tag-object-sha} when git/tags/{sha} is not 200, by the tag-object sha (never the tag name), and accepts only a 200 whose sha is a full commit id other than the tag-object sha. Scope: scripts/forge/providers/gitverse.sh, tests/forge/test_forge_gitverse.sh (G1-G8, G5b), tests/forge/test_forge_mutations.sh (G01-G09, M17 adapted). Acceptance: suite cases G1-G3 RED on the unfixed provider and GREEN after; every G mutant killed; live read-only tag-get reports the commit and the release-ensure dry-run for v73.3 ends OK, a wrong --sha ends FAIL tag_sha_mismatch. Evidence: docs/qa/gitverse_tag_peel_20261116/ (LIVE reads, section 11.4.289; suite gate-logic). Not proven: the GitVerse release write path (POST /releases) stays LIVE-UNPROVEN. Re-minted at landing from the vehicle's placeholder id (vehicle commit 5fc0cef9) (section 11.4.214). | reproduced-live — REPRODUCED | root-cause-found-with-evidence |

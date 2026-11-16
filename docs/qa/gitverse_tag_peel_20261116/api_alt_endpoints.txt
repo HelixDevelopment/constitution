@@ -1,0 +1,20 @@
+== GET /git/tags/e915eef70f7ed70a811b348113a3686d05e07a72 -> 400
+"{\"error\":{\"code\":\"VALIDATION_ERROR\",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"message\":\"<elided>",\"status\":\"400\"}}"
+== GET /git/matching-refs/tags/helixconstitution-v73.3 -> 200
+{"len":1,"first":"{\"ref\":\"refs/tags/helixconstitution-v73.3\",\"url\":\"https://api.gitverse.ru/repos/helixdevelopment/HelixConstitution/git/refs/tags/helixconstitution-v73.3\",\"object\":{\"type\":\"tag\",\"sha\":\"e915eef70f7ed70a811b348113a3686d05e07a72\",\"url\":\"https://api.gitverse.ru/repos/helixdevelopment/HelixConstitution/commits/e915eef70f7ed70a811b348113a3686d05e07a72\"}}"}
+== GET /git/refs/tags/helixconstitution-v73.3 -> 400
+"{\"error\":{\"code\":\"VALIDATION_ERROR\",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"message\":\"<elided>",\"status\":\"400\"}}"
+== GET /tags -> 400
+"{\"error\":{\"code\":\"VALIDATION_ERROR\",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"message\":\"<elided>",\"status\":\"400\"}}"
+== GET /tags?per_page=5 -> 400
+"{\"error\":{\"code\":\"VALIDATION_ERROR\",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"message\":\"<elided>",\"status\":\"400\"}}"
+== GET /commits/helixconstitution-v73.3 -> 200
+"{\"url\":\"https://api.gitverse.ru/repos/helixdevelopment/HelixConstitution/commits/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"sha\":\"aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"html_url\":\"https://gitverse.ru/helixdevelopment/HelixConstitution/commit/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"commit\":{\"author\":{\"name\":\"x\",\"email\":\"x@x\",\"date\":\"2026-11-03T21:54:42Z\"},\"committer\":{\"name\":\"x\",\"email\":\"x@x\",\"date\":\"2026-11-03T21:54:42Z\"},\"message\":\"<elided>"
+== GET /commits/refs/tags/helixconstitution-v73.3 -> 400
+"{\"error\":{\"code\":\"VALIDATION_ERROR\",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"message\":\"<elided>",\"status\":\"400\"}}"
+== GET /git/commits/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2 -> 400
+"{\"error\":{\"code\":\"VALIDATION_ERROR\",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"message\":\"<elided>",\"status\":\"400\"}}"
+== GET /commits/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2 -> 200
+"{\"url\":\"https://api.gitverse.ru/repos/helixdevelopment/HelixConstitution/commits/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"sha\":\"aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"html_url\":\"https://gitverse.ru/helixdevelopment/HelixConstitution/commit/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"commit\":{\"author\":{\"name\":\"x\",\"email\":\"x@x\",\"date\":\"2026-11-03T21:54:42Z\"},\"committer\":{\"name\":\"x\",\"email\":\"x@x\",\"date\":\"2026-11-03T21:54:42Z\"},\"message\":\"<elided>"
+== GET /commits?sha=helixconstitution-v73.3&per_page=1 -> 200
+{"len":1,"first":"{\"url\":\"https://api.gitverse.ru/repos/helixdevelopment/HelixConstitution/commits/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"sha\":\"aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"html_url\":\"https://gitverse.ru/helixdevelopment/HelixConstitution/commit/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"commit\":{\"author\":{\"name\":\"x\",\"email\":\"x@x\",\"date\":\"2026-11-03T21:54:42Z\"},\"committer\":{\"name\":\"x\",\"email\":\"x@x"}
