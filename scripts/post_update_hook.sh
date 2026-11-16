@@ -1139,7 +1139,7 @@ validate_hub_structure() {
     # cm_github_issues_source_anchor_wired.sh (§11.4.296), which inspects the hub's canon, mirrors and generated rule files; and
     # cm_pr_delivery_anchor_wired.sh (§11.4.297), which inspects the hub's canon, mirrors and generated rule files, and
     # cm_pr_delivery_account_name_free.sh (§11.4.297(D)), which reads the consumer's reviewer accounts from
-    # <hub>/../config/delivery.conf at run time and scans the hub's rule corpus for them (exit 3 SKIP when none is declared); and
+    # <hub>/config/delivery.conf and <hub>/../config/delivery.conf at run time and scans the hub's rule corpus for them (exit 3 SKIP when none is declared); and
     # cm_release_gate_anchor_wired.sh (§11.4.298), which inspects the hub's canon, mirrors and generated rule files; and
     # cm_full_suite_manifest_complete.sh (§11.4.40 runner manifest), which runs the hub's own
     # `scripts/run_full_suite.sh --verify-manifest` against the hub: a pulled main whose test files have no manifest rows

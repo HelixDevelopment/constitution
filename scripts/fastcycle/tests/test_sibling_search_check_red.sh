@@ -71,6 +71,7 @@ for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
 REPO_ROOT=$(cd "$FC/../../.." && pwd)
+FC_CANON_ROOT=$(cd "$FC/../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
 TOOL="$FC/closure/sibling_search_check.sh"
 FIXDIR="$HERE/fixtures/sibling_search_check"
 HARNESS="$HERE/lib/triple_harness.sh"
@@ -138,7 +139,7 @@ fi
 # Section C's real tool invocations -- it only proves the mechanism T096's
 # implementer will validate artefacts OF is sound.
 # =============================================================================
-WI_DIR="$REPO_ROOT/constitution/scripts/workable-items/cmd/workable-items"
+WI_DIR="$FC_CANON_ROOT/scripts/workable-items/cmd/workable-items"
 if [ ! -d "$WI_DIR" ]; then
     bad "self-check FAILED: $WI_DIR does not exist -- the control needle"
     echo "   every fixture in $FIXDIR cites (crud.go:requireEvidencePath)"

@@ -39,11 +39,12 @@ set -u
 for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
 PREBUILD="${PREBUILD_SRC:-$ROOT/device/rockchip/rk3588/tests/pre_build_verification.sh}"
 REAL_TESTS_DIR="$ROOT/device/rockchip/rk3588/tests"
 # consumer-data guard on the EFFECTIVE inputs this run reads (after env overrides; review F2)
 . "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$PREBUILD" "$REAL_TESTS_DIR"
-FC_TIMER_LIB="$ROOT/constitution/scripts/fastcycle/timing/fc_timer.sh"
+FC_TIMER_LIB="$FC_CANON_ROOT/scripts/fastcycle/timing/fc_timer.sh"
 
 fail=0
 failx() { fail=1; }

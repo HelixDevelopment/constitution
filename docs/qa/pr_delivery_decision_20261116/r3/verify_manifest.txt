@@ -1,0 +1,4 @@
+# command: bash <root>/scripts/run_full_suite.sh --verify-manifest
+census: go/entry=5 js/excluded=5 py/entry=12 py/excluded=34 py/fixture=18 py/member=24 runall/entry=9 sh/entry=381 sh/excluded=28 sh/fixture=115 sh/member=317 total=948
+RESULT: MANIFEST-OK
+# exit: 0
