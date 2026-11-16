@@ -40,6 +40,7 @@
 # Usage: cm_sync_upstreams_ff_only_mutation_test.sh   Exit: 0 proof holds · 1 misclassified · 2 env error.
 # Side-effects: temp dir under $TMPDIR (trap-cleaned with safe_rm_rf). Dependencies: bash, python3.
 # Classification: universal (§11.4.17).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 repo="$(cd "$here/../.." && pwd)"
@@ -295,6 +296,20 @@ open(q,"w").write(s.replace(o,n))' "$gate" "$old" "$new" "$g"; then
 gcase_ ORACLE-ROW-DROPPED '    ("index_gitlinks", "['"'"'ls-files'"'"', '"'"'-s'"'"', '"'"'-z'"'"']", (0,), "-", "blind"),
 ' ''
 gcase_ ORACLE-CLASS-WRONG '    ("index_gitlinks", "['"'"'ls-files'"'"', '"'"'-s'"'"', '"'"'-z'"'"']", (0,), "-", "blind"),' '    ("index_gitlinks", "['"'"'ls-files'"'"', '"'"'-s'"'"', '"'"'-z'"'"']", (0,), "-", "failed"),'
+# review round 11 (RV10-3): the canonical git-env scrub is the only alias allowed, in its exact form only
+case_ R11-SCRUB-SYSTEM 1 py '_ge_os.environ.pop(_ge_v, None)' '_ge_os.system(_ge_v)'
+case_ R11-SCRUB-ALIAS-ELSEWHERE 1 py 'def now_utc():' 'def _y():
+    return _ge_os.getcwd()
+
+
+def now_utc():'
+# another module under the scrub alias does not even load (subprocess has no environ): BLIND, never PASS
+case_ R11-SCRUB-OTHER-MODULE 2 py 'import os as _ge_os' 'import subprocess as _ge_os'
+case_ R11-SCRUB-LOOPVAR-ELSEWHERE 1 py 'def now_utc():' 'def _z():
+    return _ge_v
+
+
+def now_utc():'
 case_ SYNTAX 2 py 'def classify(ahead, behind):' 'def classify(ahead, behind'
 case_ MISSING 2 none "" ""
 echo "cases: $n"

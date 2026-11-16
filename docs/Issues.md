@@ -4901,3 +4901,30 @@ What: review F5 (source-defect, minor; stated in docs/release/README.md and the 
 
 What: review nits grouped. F6 (process-doc, nit): the GL_HOST post-strip regex in tag_and_release.sh duplicates the GITLAB_HOST lockdown (X3 is equivalent); keep it with a comment saying so, or remove it after the section 11.4.124 check. F7 (source-defect, nit): the GitLab create resolves its host itself (glab config host, git remote) while the read-back pins GITLAB_HOST or gitlab.com; divergence yields a GAP (fail-safe, stated in docs/release/README.md); glab host resolution with -R GROUP/REPO is UNCONFIRMED; acceptance: pin the create host too, or record the measured glab behaviour. F9 (test-instrumentation, nit): a leading-whitespace retest_statement accepted via .strip() is untested (X11 survives, stricter direction); acceptance: a case for it. Reproduction: not applicable. Source: independent review round 1 of the glpre+reltpl vehicle, verdict GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository; reviewer mutant logs under /mnt/DATA1TB/claude-work/scratch/rv_glpre.ONFv/mw/, outside the repository). Landed as 5296e74d (CON-416) and 3f37d8d6 (CON-417).
 
+## CON-423 — sync-all-upstreams: tell a failed write that changed only the work tree apart from a user edit (content compare with the target tree)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (sync r11 fixer subagent)
+
+What: write_settled() in scripts/sync/sync_all_upstreams.py treats a FAILED write (exit != 0) as settled when HEAD and the index (git ls-files -s -z) are unchanged. A failed merge/checkout that changed only work-tree files is therefore read as settled. Round 10 tried a 'git status must stay empty' check and withdrew it: it false-positived on the autostash race fixture, where the change is a user edit made between step 1 and the write. Scope: write_settled, the robustness check wt_only, manual docs/manuals/sync_upstreams_manual.md (Known limit), FAQ. Reproduction: no case measured with git 2.53 (git removes nothing it half-wrote in the work tree without touching the index in any measured failure); the limit is a design gap, not an observed defect. Acceptance: for each work-tree path that differs after a failed write, compare its content with the write's target tree and with the pre-write content; content equal to the target means the write did it (write-left-changes), equal to neither means a user edit (not blamed); live checks with a RED on the current engine (a fixture whose failed write leaves only work-tree changes) and a golden-FALSE (the autostash race fixture stays settled); paired mutants. Source: review round 10 finding RV10-4 (follow-up of RV9-6), filed in round 11; the vehicle's own roadmap item is the re-minted CON-PENDING-sync-r8.
+
+## CON-424 — sync-all-upstreams: change the defaults to the 2026-11-14 decision (on, online, bounded fetch-only check; ff merges only on explicit consent; hook on every pull)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (sync r11 fixer subagent)
+
+What: the operator decision of 2026-11-14 (relayed, not verbatim) sets the sync-all-upstreams defaults to on, online and bounded: a fetch-only check by default, fast-forward merges only on explicit consent, the post-update hook step running on every pull. Measured on the round-11 tree: scripts/setup.sh --sync-upstreams defaults to off (hint only); scripts/post_update_hook.sh step 5c CONSTITUTION_SYNC_CHECK defaults to offline (--check --no-fetch, no network); apply/ask only by an explicit flag or environment value; the hook never applies. The hook already runs on every pull. Scope: setup.sh default, post_update_hook.sh step 5c default, a bounded fetch (timeout, no prompt, BatchMode ssh), the user guide, manual, FAQ question 18, tests (test_full_automation.sh, test_integration.sh), and a decision on the network-off case (offline host must give INCONCLUSIVE, never fail the hook). Reproduction: not a defect; the code does what the docs say. Acceptance: defaults changed in code; tests with RED on the old default and GREEN after; an offline run is INCONCLUSIVE and the hook still exits 0; no merge without explicit consent (golden-FALSE); docs updated. Source: review round 10 finding RV10-6; held out of round 11 by the conductor's brief (default change not implemented this round).
+
+## CON-425 — sync-all-upstreams vehicle: fast-forward-only sync of a project and every submodule (scripts/sync/sync_all_upstreams.sh, setup --sync-upstreams, post-update step 5c)
+
+**Status:** In progress
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (sync r11 fixer subagent)
+
+The vehicle's own roadmap item, re-minted in review round 11 from the placeholder CON-PENDING-sync-r8 used by rounds 8 to 11 (the commit trailers and the round-8 to round-10 evidence packs keep the placeholder spelling). What: scripts/sync/sync_all_upstreams.sh and .py (check / apply / interactive, fast-forward only, never force, per-repository locks and write markers, closed-set reasons and verdicts), its integration in scripts/setup.sh (--sync-upstreams=off|check|apply|ask) and scripts/post_update_hook.sh (step 5c, read-only check), the gate scripts/gates/cm_sync_upstreams_ff_only.sh with its paired mutation test, tests/sync/ (unit, integration, e2e, full automation, security, chaos, stress, perf, faults, robustness, mutation table), the user guide, manual and FAQ. Status: round 11 fix made, pending independent review; evidence gate-logic class (section 11.4.289), PROVISIONAL. Evidence: docs/qa/sync_upstreams_2026_11_16_r11/. Follow-ups: CON-423 (work-tree-only failed write), CON-424 (defaults per the 2026-11-14 decision).
+

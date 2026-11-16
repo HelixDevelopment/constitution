@@ -52,6 +52,8 @@ import sys
 import tempfile
 import threading
 import time
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 
 SCHEMA = "helix.sync_upstreams/1"
 EXIT_OK, EXIT_FAIL, EXIT_USAGE, EXIT_BEHIND, EXIT_ATTENTION = 0, 1, 2, 3, 4
@@ -65,6 +67,10 @@ THREE_ABS_PATHS_RE = re.compile(r"^/[^\n]*\n/[^\n]*\n/[^\n]*$")
 ABS_PATH_RE = re.compile(r"^/[^\n]*$")
 REMOTE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
+HEADS = "refs/heads/"
+# Characters git never allows in a ref name (git check-ref-format, rule 4 and 5): ASCII control characters, space,
+# ~ ^ : ? * [ and backslash. Used by valid_branch_name() for a name read from git and for --branch (review round 11).
+_REF_BAD_CHARS = re.compile(r"[\x00-\x20\x7f~^:?*\[\\]")
 # Why a call gave no answer. Only these two mean "time ran out" (verdict INCONCLUSIVE); every other reason
 # (signal:N, rc:N, refused, not-runnable, malformed-output) is a call that answered nothing (verdict BLIND).
 TIME_WHYS = ("timeout", "deadline")
@@ -208,8 +214,8 @@ def check_git_args(args):
         if len(rest) != 2 or rest[0] != "--" or not safe_relpath(rest[1]):
             raise GitRefused("add must be: add -- <relative gitlink path>")
     elif sub == "symbolic-ref":
-        if rest not in (["-q", "HEAD"], ["--short", "-q", "HEAD"]):
-            raise GitRefused("symbolic-ref is read-only here: symbolic-ref [--short] -q HEAD")
+        if rest != ["-q", "HEAD"]:  # the full ref only: --short disambiguates (heads/dev), review round 11 (RV10-1)
+            raise GitRefused("symbolic-ref is read-only here: symbolic-ref -q HEAD")
     elif sub == "config":
         # read-only shapes only: --get / --get-regexp, and the submodule update strategy reads (review round 6,
         # RV5-7): -z --get-regexp PATTERN, and --file .gitmodules -z --get-regexp PATTERN (that one file only)
@@ -227,6 +233,32 @@ def safe_remote(name):
     if not name or not REMOTE_RE.match(name) or name.endswith((".lock", "/", ".")):
         return False
     return all(x not in ("", ".", "..") for x in name.split("/"))
+
+
+def valid_branch_name(name):
+    """True when ``name`` is a usable short branch name (the part after refs/heads/) that is put into a lock path
+    (refs/heads/<name>.lock) and compared as is (review round 11, RV10-1): git's own ref-name rules (check-ref-format)
+    plus the path rules of safe_relpath. Refused: empty; a leading '-' or '/'; a trailing '/' or '.'; an empty, '.'
+    or '..' component; a component starting with '.' or ending with '.lock'; '..' or '@{' anywhere; the name '@'
+    or 'HEAD'; a control character, space, ~ ^ : ? * [ or backslash. Non-ASCII letters are allowed (git allows them);
+    --branch itself must also match BRANCH_RE (ASCII). Case is kept exactly: Dev and dev are different branches."""
+    if not isinstance(name, str) or not name or name in ("@", "HEAD") or name.startswith(("-", "/")):
+        return False
+    if name.endswith(("/", ".")) or ".." in name or "@{" in name or _REF_BAD_CHARS.search(name):
+        return False
+    return all(x and not x.startswith(".") and not x.endswith(".lock") for x in name.split("/"))
+
+
+def branch_of_ref(full):
+    """The short branch name of the FULL symbolic-ref ``full`` ('refs/heads/<name>' -> '<name>'), or None when the
+    ref is not under refs/heads/ or the name is not valid_branch_name(). The prefix is stripped by string, never by
+    asking git for a short name: 'git symbolic-ref --short' DISAMBIGUATES and answers 'heads/dev' when a tag (refs/tags/dev)
+    or a top-level ref refs/dev exists beside branch dev (a remote named 'dev' does not cause it, measured) (review round 11, RV10-1), which put the wrong branch into the
+    branch-lock path (refs/heads/heads/dev.lock instead of refs/heads/dev.lock)."""
+    if not isinstance(full, str) or not full.startswith(HEADS):
+        return None
+    name = full[len(HEADS):]
+    return name if valid_branch_name(name) else None
 
 
 def safe_relpath(p):
@@ -504,6 +536,9 @@ _SCRUB = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", 
           "SSH_ASKPASS", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_PROXY_COMMAND",
           "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES", "GIT_PREFIX",
           "GIT_QUARANTINE_PATH", "GIT_REPLACE_REF_BASE", "GIT_SHALLOW_FILE", "GIT_INTERNAL_SUPER_PREFIX",
+          # review round 11 (RV10-3): the rest of the repository-locating list CL_GIT_SCRUB_VARS of
+          # scripts/lib/constitution_layout.sh (a unit test asserts this tuple holds every name of that list)
+          "GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS",
           # review round 4: GIT_ALLOW_PROTOCOL beats -c protocol.ext.allow=never (ground truth row D2);
           # GIT_PROTOCOL_FROM_USER changes what protocol.*.allow=user means (D5); SSH_ASKPASS_REQUIRE can force
           # the ssh askpass (set below); GIT_SSL_NO_VERIFY turns TLS verification off
@@ -692,19 +727,32 @@ def read_head(r, repo, final=False):
 
 
 def read_branch(r, repo, final=False):
-    """('branch', name) when HEAD is a symbolic ref, ('detached', None) when it is not (symbolic-ref -q exits 1),
-    ('unknown', None) when git gave no answer (recorded): a detached HEAD and an unread one are told apart, which
-    the write-time re-check needs (RV4-1)."""
-    res = r.run(repo, ["symbolic-ref", "--short", "-q", "HEAD"], ok=(0, 1), final=final)
+    """('branch', name) when HEAD is a symbolic ref to refs/heads/<name>, ('detached', None) when it is not a
+    symbolic ref (symbolic-ref -q exits 1), ('other', None) when it is a symbolic ref outside refs/heads/ (never a
+    branch: no write needs it), ('unknown', None) when git gave no answer or an answer this code cannot use
+    (recorded): a detached HEAD and an unread one are told apart, which the write-time re-check needs (RV4-1).
+    The FULL ref is read and refs/heads/ is stripped here (review round 11, RV10-1): 'symbolic-ref --short' answers
+    a disambiguated 'heads/dev' when a tag refs/tags/dev or a ref refs/dev exists, and that string became the branch-lock
+    path. The name is kept with its case (Dev is not dev, RV10-2)."""
+    res = r.run(repo, ["symbolic-ref", "-q", "HEAD"], ok=(0, 1), final=final)
     if not res.answered:
         return "unknown", None
-    name = res.out.strip()
+    name = res.out.rstrip("\n")
     if res.rc == 1:
         return "detached", None
     if not name:  # exit 0 with no name: not an answer this code can use
         r.no_answer(repo, "symbolic-ref", "malformed-output")
         return "unknown", None
-    return "branch", name
+    if "\n" in name or not name.startswith("refs/"):  # one full ref, one line
+        r.no_answer(repo, "symbolic-ref", "malformed-output")
+        return "unknown", None
+    if not name.startswith(HEADS):
+        return "other", None
+    short = branch_of_ref(name)
+    if short is None:  # a refs/heads/ name git itself would refuse (hand-edited HEAD): never put into a path
+        r.no_answer(repo, "symbolic-ref", "malformed-output")
+        return "unknown", None
+    return "branch", short
 
 
 def is_ancestor(r, repo, a, b):
@@ -1219,7 +1267,7 @@ def write_settled(r, repo, op, target, res, pre_index):
     Limit (stated; review round 10 tried and withdrew a 'git status must stay empty' check): a failed write that
     changed the work tree but not the index cannot be told from a user's edit made between step 1 and the write
     (the autostash race fixture is such an edit: blaming it on the write would be a false positive). Telling them
-    apart needs the changed files' content compared with the target tree: tracked follow-up, not done here."""
+    apart needs the changed files' content compared with the target tree: tracked as CON-423, not done here."""
     rec = repo.rec
     if res.rc == 0:
         return True
@@ -2108,7 +2156,7 @@ def main(argv):
     if mode is None:
         print("sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply", file=sys.stderr)
         return EXIT_USAGE
-    if not BRANCH_RE.match(a.branch):
+    if not BRANCH_RE.match(a.branch) or not valid_branch_name(a.branch):  # RV10-1 class: never a lock-path name git refuses
         print("sync-upstreams: ERROR: invalid --branch", file=sys.stderr)
         return EXIT_USAGE
     for v, n in ((a.timeout, "--timeout"), (a.deadline, "--deadline"), (a.max_depth, "--max-depth"),

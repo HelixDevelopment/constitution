@@ -6,7 +6,7 @@
 | Created | 2026-11-15 |
 | Last modified | 2026-11-15 |
 | Status | PROVISIONAL (§11.4.290): fixes made, own runs below; independent review of round 10 still owed |
-| Roadmap item | CON-PENDING-sync-r8 (placeholder; the lander re-mints it with the engine; main ids run to CON-400) |
+| Roadmap item | CON-PENDING-sync-r8 (placeholder; the lander re-mints it with the engine; main ids ran to CON-400 when this round began and to CON-411 after the merge; corrected in round 11, RV10-8) |
 | Evidence class | gate-logic / unit class (§11.4.289(C)(2)): local `file://` bare repositories, real git 2.53, the race shim and the in-process fault driver. Forge behaviour is UNCONFIRMED |
 | Fixer | fresh structural fixer (round 10), model Opus 5.5, effort UNKNOWN (not settable or readable on this dispatch path) |
 
@@ -41,12 +41,12 @@ survived the whole suite. RV9-5 was the trailer placeholder, and RV9-6 asked us 
   unchanged one (settled).
 - RV9-4 (Z07): `write_race` asserts the reason label: `blocked:tree-changed-before-write` for a lock planted at fetch,
   `blocked:in-progress:<label>` for a lock planted at the last call before the write.
-- RV9-5: the placeholder `CON-PENDING-sync-r8` is kept. Main ids run to CON-400.
+- RV9-5: the placeholder `CON-PENDING-sync-r8` is kept. Main ids ran to CON-400 when this round began and to CON-411 after the merge (corrected in round 11, RV10-8).
 - RV9-6: tried and withdrawn. Adding a `git status must be empty` test to `write_settled` broke
   `autostash.no_marker_after_answered_failure`: a user's edit between step 1 and the write was then blamed on the write
   (a false positive). The limit stays as stated, now pinned live by `wt_only` (the work-tree-only case is read as
   settled, the run fails with exit 1, the file is kept, and the next run reports the tree dirty) and by a unit test.
-  Telling the two apart needs file content compared with the target tree, which is a tracked follow-up.
+  Telling the two apart needs file content compared with the target tree, which is a tracked follow-up (filed in round 11 as CON-423; corrected in round 11, RV10-4).
 - Permanent mutants: the reviewer's Z01, Z04, Z07, Z11 and Z12 (Z12 recorded as equivalent, with proof), plus the
   fixer's own Y01 to Y09, Y12 and Y13 in `tests/sync/test_mutations.py`.
 - Docs: manual revision 10, FAQ revision 7 (Q20: non-main branches and worktrees).

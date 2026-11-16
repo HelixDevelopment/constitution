@@ -35,6 +35,8 @@ import sys
 import tempfile
 import threading
 import time
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -2013,7 +2015,7 @@ def c_marker_unremovable(box):
 # worktree: <common>/worktrees/<id>, so the worktree id too), the COMMON DIR, and the fixed NAMES joined to each
 # (the git-dir locks, MERGE_HEAD and the other operation names, the write marker, the run lock). Each has a check
 # here that a wrong substitution fails: a lock at the right path blocks, the same name at a wrong path does not.
-BRANCHES = ("main", "dev", "feature/x")
+BRANCHES = ("main", "dev", "feature/x", "Dev", "Feature/X")  # round 11 (RV10-2 / AA01): mixed case too
 
 
 def branch_tree(box, layout, br, name="brt"):
@@ -2094,7 +2096,11 @@ def c_branch_lock_class(box):
                 b.cleanup()
             others = {"main": ("refs/heads/dev.lock",), "dev": ("refs/heads/main.lock",),
                       "feature/x": ("refs/heads/main.lock", "refs/heads/x.lock", "refs/heads/feature.lock",
-                                    "refs/heads/feature_x.lock")}[br]
+                                    "refs/heads/feature_x.lock"),
+                      # round 11 (RV10-2): the same name in another CASE is another branch's lock
+                      "Dev": ("refs/heads/dev.lock", "refs/heads/DEV.lock", "refs/heads/main.lock"),
+                      "Feature/X": ("refs/heads/feature/x.lock", "refs/heads/Feature/x.lock",
+                                    "refs/heads/feature/X.lock", "refs/heads/X.lock")}[br]
             for j, other in enumerate(others):
                 tagf = "%s.golden_false.%s" % (tag, other.replace("/", "_"))
                 b = Box("blf_%s_%d_%d" % (layout, i, j))
@@ -2355,6 +2361,189 @@ def c_work_tree_only_half_write(box):
             b.cleanup()
 
 
+# ───────────────────────── review round 11 (RV10-1 .. RV10-7) ─────────────────────────
+# RV10-1, the SOURCE of the branch parameter: 'git symbolic-ref --short HEAD' DISAMBIGUATES. With a tag or a
+# remote named like the checked-out branch it answers 'heads/dev', and round 10 put that string into the branch-lock
+# path (refs/heads/heads/dev.lock). The engine now reads the FULL ref and strips refs/heads/. Each fixture below
+# first PROVES its precondition (that --short really answers the disambiguated name), so a check that passes here
+# is a check that ran on the shape that broke round 10, never on an approximation (section 11.4.199).
+
+def branch_shape_tree(box, layout, shape, name):
+    """A root on branch 'dev' (or the shape's own branch) one commit behind its upstream, plus the shape:
+    'tag'    a tag 'dev' beside branch dev;
+    'remote' a second remote NAMED 'dev' (same upstream) with refs/remotes/dev/HEAD (measured, git 2.53: this does NOT
+             make --short ambiguous, it still answers 'dev'; kept as a same-named-remote case, the engine must work);
+    'toplevel_ref' a ref refs/dev beside branch dev (measured: --short answers 'heads/dev', like a tag);
+    'heads_dev_upstream' (the reviewer's probe) tag 'dev' beside branch dev, and the upstream has a branch named
+             'heads/dev' that is ahead; the run asks for --branch heads/dev;
+    'literal' the checked-out branch is LITERALLY 'heads/dev' (refs/heads/heads/dev), tracking origin/heads/dev;
+    'case'   branches 'dev' and 'Dev' both exist; the root is on 'Dev'.
+    Returns (work, gitdir, common, branch the root is on, --branch value, label of that branch's ref lock)."""
+    br = {"literal": "heads/dev", "case": "Dev"}.get(shape, "dev")
+    r_url, r_seed = box.bare("HelixDevelopment", name)
+    box.git(r_seed, "push", "-q", "origin", "HEAD:refs/heads/" + br)
+    if shape == "case":
+        box.git(r_seed, "push", "-q", "origin", "HEAD:refs/heads/dev")
+    clone = box.clone(r_url, "c_" + name)
+    if layout == "plain":
+        box.git(clone, "checkout", "-q", "-b", br, "--track", "origin/" + br)
+        work = clone
+    else:
+        box.git(clone, "checkout", "-q", "-b", "side")
+        work = box.p("work", "lw_" + name)
+        box.git(clone, "worktree", "add", "-q", "--track", "-b", br, work, "origin/" + br)
+    if shape == "case":
+        box.git(work, "branch", "-q", "dev", "origin/dev")
+    if shape in ("tag", "heads_dev_upstream"):
+        box.git(work, "tag", "dev")
+    if shape == "toplevel_ref":
+        box.git(work, "update-ref", "refs/dev", "HEAD")
+    if shape == "remote":
+        box.git(work, "remote", "add", "dev", r_url)
+        box.git(work, "fetch", "-q", "dev")
+        box.git(work, "remote", "set-head", "dev", "main")
+    box.commit(r_seed, "upstream moves")
+    box.git(r_seed, "push", "-q", "origin", "HEAD:refs/heads/" + br)
+    want = br
+    if shape == "heads_dev_upstream":
+        box.git(r_seed, "push", "-q", "origin", "HEAD:refs/heads/heads/dev")
+        want = "heads/dev"
+    gd = box.git(work, "rev-parse", "--absolute-git-dir")
+    common = box.git(work, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    full = box.git(work, "symbolic-ref", "-q", "HEAD")
+    short = box.git(work, "symbolic-ref", "--short", "-q", "HEAD")
+    if full != "refs/heads/" + br:
+        raise RuntimeError("fixture not on %s: %s" % (br, full))
+    # the precondition of round 10's defect, proved on the fixture itself: --short is ambiguous here
+    expect_short = {"tag": "heads/dev", "toplevel_ref": "heads/dev", "heads_dev_upstream": "heads/dev"}.get(shape, br)
+    if short != expect_short:
+        raise RuntimeError("fixture precondition: --short answered %r, expected %r" % (short, expect_short))
+    lock = "refs/heads/%s.lock" % br
+    return work, gd, common, br, want, label_of(layout, lock)
+
+
+def c_branch_name_shapes(box):
+    """RV10-1 / RV10-2: a branch with a same-named TAG, a same-named top-level ref (refs/dev), a same-named REMOTE, the reviewer's 'heads/dev'
+    upstream branch, a branch LITERALLY named heads/dev, and two branches that differ only in CASE; a plain clone
+    and a linked worktree. (a) A stale ref lock of the CHECKED-OUT branch blocks: exit 4, reason in-progress:<label>,
+    no write, a clean tree, the lock untouched. (b) Golden-FALSE: the same tree without that lock (or with the lock
+    of the OTHER name: refs/heads/dev.lock while on Dev or on heads/dev) fast-forwards, exit 0. The reviewer's shape
+    asks for --branch heads/dev while the root is on dev: never that branch, so exit 4 root-not-on-heads/dev, no
+    write, with and without the stale refs/heads/dev.lock (round 10 left 'M  f' there)."""
+    for layout in ("plain", "wt"):
+        for shape in ("tag", "toplevel_ref", "remote", "heads_dev_upstream", "literal", "case"):
+            for variant in ("own_lock", "no_lock", "other_lock"):
+                if variant == "other_lock" and shape not in ("literal", "case"):
+                    continue
+                tag = "branch_shape.%s.%s.%s" % (layout, shape, variant)
+                b = Box("bs_%s_%s_%s" % (layout, shape, variant))
+                try:
+                    work, gd, common, br, want, label = branch_shape_tree(b, layout, shape, "bs")
+                    before = b.git(work, "rev-parse", "HEAD")
+                    lk = None
+                    if variant == "own_lock":
+                        lk = os.path.join(common, "refs", "heads", *(br + ".lock").split("/"))
+                    elif variant == "other_lock":
+                        lk = os.path.join(common, "refs", "heads", "dev.lock")
+                    if lk:
+                        plant_file(lk)
+                    rc, so, se, rep, _ = b.run("--apply", "--branch", want, "--root", work, "--quiet", timeout=300)
+                    if shape == "heads_dev_upstream":
+                        assert_blocked(tag, b, work, before, rc, rep, lk, "root-not-on-heads/dev")
+                    elif variant == "own_lock":
+                        assert_blocked(tag, b, work, before, rc, rep, lk, "in-progress:" + label)
+                    else:
+                        assert_moved(tag, b, work, rc, se, br)
+                        ok(tag + ".still_on_branch", b.git(work, "symbolic-ref", "-q", "HEAD") == "refs/heads/" + br)
+                        if lk:
+                            ok(tag + ".golden_false_lock_untouched", os.path.isfile(lk))
+                    names = [x.get("branch") for x in (rep or {}).get("repos", []) if x.get("kind") == "root"]
+                    ok(tag + ".branch_recorded_exactly", names == [br], names)
+                except Exception as e:
+                    ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+                finally:
+                    b.cleanup()
+
+
+def c_branch_param_shapes(box):
+    """RV10-1 class, the other source of the branch: --branch. A value git would refuse as a branch name (a
+    trailing '/', '.lock', '..', a '.' component, 'HEAD', '//', a leading '-', '@{') and a non-ASCII value are a
+    usage error (exit 2) BEFORE any git call: no fetch, no write. Golden-FALSE: 'origin/dev', a valid branch name,
+    is accepted and gives the normal answer for a root on main (attention root-not-on-origin/dev, exit 4). A root
+    checked out on a NON-ASCII branch (cafe with an accent) is reported root-not-on-main with no write."""
+    b = Box("bp")
+    try:
+        r_url, r_seed = b.bare("HelixDevelopment", "bp")
+        work = b.clone(r_url, "bp")
+        b.commit(r_seed, "upstream moves")
+        for i, val in enumerate(("dev/", "dev.lock", "dev..x", "dev/.x", "HEAD", "dev//x", "-dev", "dev@{1}",
+                                 "café", "dev\nx")):
+            tag = "branch_param.bad_%d" % i
+            refs0 = b.git(work, "for-each-ref", "--format=%(objectname) %(refname)")
+            rc, so, se, rep, _ = b.run("--apply", "--branch=" + val, "--root", work, "--quiet", timeout=120)
+            ok(tag + ".exit_2", rc == 2, "%r rc=%s %s" % (val, rc, se[-200:]))
+            ok(tag + ".nothing_fetched", b.git(work, "for-each-ref", "--format=%(objectname) %(refname)") == refs0, val)
+            ok(tag + ".no_report", rep is None, val)
+        rc, so, se, rep, _ = b.run("--check", "--no-fetch", "--branch", "origin/dev", "--root", work, "--quiet",
+                                   timeout=120)
+        reasons = [y for x in (rep or {}).get("repos", []) for y in (x.get("reasons") or [])]
+        ok("branch_param.golden_false.exit_4", rc == 4, "rc=%s" % rc)
+        ok("branch_param.golden_false.reason", "root-not-on-origin/dev" in reasons, reasons)
+    except Exception as e:
+        ok("branch_param.fixture", False, "%s: %s" % (type(e).__name__, e))
+    finally:
+        b.cleanup()
+    b = Box("bpu")
+    try:
+        r_url, r_seed = b.bare("HelixDevelopment", "bpu")
+        work = b.clone(r_url, "bpu")
+        b.git(work, "checkout", "-q", "-b", "café")
+        b.commit(r_seed, "upstream moves")
+        before = b.git(work, "rev-parse", "HEAD")
+        rc, so, se, rep, _ = b.run("--apply", "--root", work, "--quiet", timeout=300)
+        reasons = [y for x in (rep or {}).get("repos", []) for y in (x.get("reasons") or [])]
+        ok("branch_param.unicode_root.exit_4", rc == 4, "rc=%s %s" % (rc, se[-200:]))
+        ok("branch_param.unicode_root.reason", "root-not-on-main" in reasons, reasons)
+        ok("branch_param.unicode_root.not_moved", b.git(work, "rev-parse", "HEAD") == before)
+        ok("branch_param.unicode_root.branch_recorded",
+           [x.get("branch") for x in rep["repos"] if x.get("kind") == "root"] == ["café"])
+    except Exception as e:
+        ok("branch_param.unicode_root.fixture", False, "%s: %s" % (type(e).__name__, e))
+    finally:
+        b.cleanup()
+
+
+def c_marker_foreign_op(box):
+    """RV10-7 (reviewer mutant AA10): a marker that is valid JSON but whose op is OUTSIDE the closed vocabulary (a
+    tab, a newline and a fake report line in it) is an earlier write of an UNKNOWN op: --check notes exactly
+    'write-marker-present:unknown-left-nothing', and no note, reason or terminal line carries the planted text.
+    Golden-FALSE: a marker with the known op fast-forward is attributed to fast-forward."""
+    planted = "fast-forward\tCURRENT\n[sync-upstreams] . current -"
+    for kind, op in (("foreign", planted), ("known", "fast-forward")):
+        tag = "marker_foreign.%s" % kind
+        b = Box("mf_" + kind)
+        try:
+            r_url, r_seed = b.bare("HelixDevelopment", "mf")
+            work = b.clone(r_url, "mf")
+            b.commit(r_seed, "upstream moves")
+            m = json.loads(EARLIER.decode())
+            m["op"] = op
+            plant_file(os.path.join(work, ".git", MARKER), json.dumps(m).encode())
+            rc, so, se, rep, _ = b.run("--check", "--root", work, timeout=300)
+            notes = all_notes(rep)
+            want = "unknown" if kind == "foreign" else "fast-forward"
+            ok(tag + ".exit_3", rc == 3, "rc=%s %s" % (rc, se[-200:]))
+            ok(tag + ".noted", "write-marker-present:%s-left-nothing" % want in notes, notes)
+            text = json.dumps(rep) + so + se
+            ok(tag + ".planted_text_absent", "CURRENT\\n[sync" not in text and "[sync-upstreams] . current -" not in so,
+               so[-300:])
+            ok(tag + ".notes_one_line", all("\t" not in n and "\n" not in n for n in notes), notes)
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
 CHECKS = [
     ("race_commit", c_race_commit_detached_sub), ("race_switch", c_race_switch_root_branch),
     ("race_sub_branch", c_race_branch_in_sub), ("race_control", c_race_control_commit_on_main),
@@ -2396,6 +2585,9 @@ CHECKS = [
     ("branch_lock", c_branch_lock_class), ("wt_param", c_worktree_param_class), ("run_lock", c_run_lock_common),
     ("write_race", c_write_time_lock_race), ("marker_read", c_marker_read_status_class),
     ("wt_only", c_work_tree_only_half_write),
+    # review round 11
+    ("branch_shape", c_branch_name_shapes), ("branch_param", c_branch_param_shapes),
+    ("marker_foreign", c_marker_foreign_op),
 ]
 
 

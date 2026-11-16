@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 10 |
+| Revision | 11 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T21:00:00Z |
+| Last modified | 2026-11-16T09:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Reference for every option, state, reason, exit code, report field, integration point and safety property of the sync-all-upstreams engine. |
 | Authority | Constitution §2.1, §11.4.10, §11.4.37, §11.4.50, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.263, §11.4.273, §11.4.288(D), §12. The canonical text wins where this manual and the constitution disagree. |
@@ -53,7 +53,7 @@ Related: [user guide](../guides/sync_upstreams_user_guide.md) · [FAQ](../faq/sy
 | `--apply` | Fetch, then fast-forward what is allowed (see [Run order](#run-order)). |
 | `--no-fetch` | With `--check` or `--apply`: do not fetch (offline). |
 | `--root DIR` | Project root; must be a work-tree top level. Default: the top level of the current directory. |
-| `--branch NAME` | The trunk name (default `main`). |
+| `--branch NAME` | The trunk name (default `main`). ASCII `[A-Za-z0-9._/-]`, 1 to 128 characters, and a valid git ref name (no trailing `/` or `.`, no `..`, `@{`, component starting with `.` or ending in `.lock`, no leading `-`, not `HEAD`); anything else is a usage error (exit 2) before any fetch (review round 11). |
 | `--tags` | Also fetch tags. |
 | `--advance-pins` | With `--apply`: stage own-organisation submodule pins at upstream main (`git add`, never committed). |
 | `--advance-third-party` | With `--advance-pins`: third-party pins too. |
@@ -232,7 +232,7 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
 | Where | How |
 |---|---|
 | `scripts/setup.sh` | `--sync-upstreams=off|check|apply|ask` or `CONSTITUTION_SYNC_UPSTREAMS`; default `off` (hint only). `ask` → `--interactive`; `check` / `apply` → `--non-interactive`. Only an `apply` failure (or an `apply` run that was interrupted) fails setup. `--check-only` exits before this step. |
-| `scripts/post_update_hook.sh` STEP 5c | `CONSTITUTION_SYNC_CHECK=offline` (default, `--check --no-fetch`), `fetch` (`--check`), `off`. Read-only; never fails the hook; `BLIND`, `INCONCLUSIVE` and `INTERRUPTED` are warnings. |
+| `scripts/post_update_hook.sh` STEP 5c | `CONSTITUTION_SYNC_CHECK=offline` (default, `--check --no-fetch`; the 2026-11-14 decision to default to online is owed, CON-424), `fetch` (`--check`), `off`. Read-only; never fails the hook; `BLIND`, `INCONCLUSIVE` and `INTERRUPTED` are warnings. |
 | Scheduling | `scripts/sync/examples/` (not installed). |
 
 ## Safety properties
@@ -340,7 +340,7 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   that changed only the work tree (not HEAD, not the index) is read as settled, because it cannot be told from
   a user's edit made in the same moment without comparing file content with the target; no such case was
   measured with git 2.53, nothing is lost (the next run reports the tree dirty), and the content comparison is
-  a tracked follow-up (review round 10). The next run then attributes
+  tracked as CON-423 (filed in review round 11; RV10-4). The next run then attributes
   the leftovers to the write, never to you. An earlier marker that cannot be removed (for example the git
   directory is not writable) is kept and reported `write-marker-kept:cannot-remove:<reason>`; it is never
   reported as cleared. A non-regular object at the marker path (FIFO, directory, socket, symbolic link,
@@ -419,4 +419,12 @@ was measured: no traceback, both report files written, but the exit status is Py
 engine's codes; a caller reads it as `BLIND`) with `BrokenPipeError` on stderr (open item `SYNC-R5-OPEN-3`,
 `docs/qa/sync_upstreams_2026_11_13_r5/green/sigpipe_probe.txt`). Behaviour against real forges (ssh keys, rate limits, large repositories) is
 UNCONFIRMED until the operator runs it. The engine reports; it does not decide whether a third-party
-pin should advance.
+pin should advance. Branch names (review round 11): the branch is read as the full ref and `refs/heads/` is
+stripped by string, with case kept, because `git symbolic-ref --short` answers `heads/dev` when a tag or a
+top-level ref of the same name exists (a same-named remote does not cause it, measured with git 2.53). On a
+case-insensitive file system `refs/heads/Dev.lock` and `refs/heads/dev.lock` are one file, so branches that
+differ only in case cannot be told apart there (git's own limit; the tests run on a case-sensitive Linux file
+system only). `--branch` accepts ASCII only; a root branch with other letters is compared exactly. A failed
+write that changed only the work tree is read as settled (see Safety properties;
+tracked as CON-423). The defaults are `off` (setup) and `offline` (hook step 5c); the operator decision of 2026-11-14 to
+make them on, online and bounded is owed work, tracked as CON-424.

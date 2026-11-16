@@ -30,6 +30,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -966,6 +968,84 @@ MUTANTS = [
     ('Y13', "RV9-1 class: an unknown branch is taken as main (a detached repository is blocked by main's ref lock)",
      'if not branch:\n                    continue',
      'if not branch:\n                    branch = "main"', ['unit', 'robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only']),
+    ('AA01', '(round-10 reviewer, verbatim) branch ref lock path case-folded (Dev -> refs/heads/dev.lock)',
+     'n = n.format(branch=branch)',
+     'n = n.format(branch=branch.lower())', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA02', '(round-10 reviewer, verbatim) write_settled compares only the LENGTH of the index listing (a half-merge changes shas, same length)',
+     'return now.answered and pre_index is not None and now.out == pre_index',
+     'return now.answered and pre_index is not None and len(now.out) == len(pre_index)', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA03', '(round-10 reviewer, verbatim) write_settled ignores a HEAD that moved during a failed write',
+     '    if head is None or head != rec.get("head_before"):',
+     '    if head is None:', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA04', '(round-10 reviewer, verbatim) merge lock set loses reftable/tables.list.lock',
+     'COMMON_LOCKS = {"merge": ("packed-refs.lock", "refs/heads/{branch}.lock", "reftable/tables.list.lock"),',
+     'COMMON_LOCKS = {"merge": ("packed-refs.lock", "refs/heads/{branch}.lock"),', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA05', '(round-10 reviewer, verbatim) in_progress no longer sees an interactive rebase (rebase-merge)',
+     '"rebase-merge", "rebase-apply")]',
+     '"rebase-apply")]', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA06', '(round-10 reviewer, verbatim) a symbolic link at the marker path is not reported by in_progress',
+     'if mk not in ("absent", "regular", "unreadable"):',
+     'if mk not in ("absent", "regular", "unreadable", "symlink"):', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA07', '(round-10 reviewer, verbatim) register_site keys the site by the unresolved git dir spelling',
+     'self.sites[os.path.realpath(gitdir)] = (common or gitdir, branch)',
+     'self.sites[gitdir] = (common or gitdir, branch)', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA08', '(round-10 reviewer, verbatim) end_write clears the marker for any answered write, settled or not',
+     '    elif (res.answered and settled) or not res.started:',
+     '    elif res.answered or not res.started:', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA09', '(round-10 reviewer, verbatim) write-time step 1 ignores in-progress operations (only the status output counts)',
+     '    if st.out.strip() or busy:',
+     '    if st.out.strip():', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA10', '(round-10 reviewer, verbatim) read_marker returns any op string from the marker (no closed vocabulary)',
+     'return op if op in ("fast-forward", "advance-pin", "follow-pin", "stage-pin") else "unknown"',
+     'return op if isinstance(op, str) and op else "unknown"', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA11', '(round-10 reviewer, verbatim) lock_paths decides worktree split by string, not realpath',
+     'split = os.path.realpath(common) != os.path.realpath(gitdir)',
+     'split = common != gitdir', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AA12', '(round-10 reviewer, verbatim) a failed stage-pin whose parent index cannot be read counts as settled',
+     'return links is not None and links.get(rec["path_in_parent"]) == rec.get("recorded_gitlink")',
+     'return links is None or links.get(rec["path_in_parent"]) == rec.get("recorded_gitlink")', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AB01', 'RV10-1: read_branch asks git for the short name again (--short disambiguates to heads/dev)',
+     'res = r.run(repo, ["symbolic-ref", "-q", "HEAD"], ok=(0, 1), final=final)',
+     'res = r.run(repo, ["symbolic-ref", "--short", "-q", "HEAD"], ok=(0, 1), final=final)', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB02', 'RV10-1: the allow-list accepts symbolic-ref --short again',
+     '        if rest != ["-q", "HEAD"]:',
+     '        if rest not in (["-q", "HEAD"], ["--short", "-q", "HEAD"]):', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB03', 'RV10-1: branch_of_ref keeps the last component only (feature/x -> x)',
+     '    name = full[len(HEADS):]',
+     '    name = full.split("/")[-1]', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB04', 'RV10-1: branch_of_ref strips refs/ instead of refs/heads/ (heads/dev)',
+     '    name = full[len(HEADS):]',
+     '    name = full[len("refs/"):]', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB05', 'RV10-1: branch_of_ref does not validate the name',
+     '    return name if valid_branch_name(name) else None',
+     '    return name', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB06', 'RV10-2: branch_of_ref case-folds the name',
+     '    return name if valid_branch_name(name) else None',
+     '    return name.lower() if valid_branch_name(name) else None', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB07', 'RV10-1: a symbolic ref outside refs/heads/ is taken as a branch',
+     '    if not name.startswith(HEADS):\n        return "other", None',
+     '    if not name.startswith(HEADS):\n        return "branch", name.split("/")[-1]', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB08', 'RV10-1: read_branch accepts a multi-line answer',
+     '    if "\\n" in name or not name.startswith("refs/"):',
+     '    if not name.startswith("refs/"):', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB09', 'RV10-1: --branch is checked against BRANCH_RE only (dev.lock, dev/ and dev..x pass)',
+     '    if not BRANCH_RE.match(a.branch) or not valid_branch_name(a.branch):',
+     '    if not BRANCH_RE.match(a.branch):', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB10', 'RV10-1: valid_branch_name allows a leading dash',
+     'name.startswith(("-", "/")):',
+     'name.startswith("/"):', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB11', 'RV10-1: valid_branch_name allows a trailing slash or dot',
+     '    if name.endswith(("/", ".")) or ".." in name',
+     '    if ".." in name', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB12', 'RV10-1: valid_branch_name allows a component ending in .lock',
+     'x and not x.startswith(".") and not x.endswith(".lock") for x in',
+     'x and not x.startswith(".") for x in', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB13', 'RV10-1: valid_branch_name allows @{ (reflog syntax)',
+     'or ".." in name or "@{" in name or',
+     'or ".." in name or', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+    ('AB14', "RV10-3: the engine's git-call scrub loses GIT_GRAFT_FILE and GIT_NO_REPLACE_OBJECTS",
+     '          "GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS",\n',
+     '', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
 ]
 # id -> proof. A mutant listed here may survive; it is reported EQUIVALENT, never KILLED.
 # M59 is no longer listed (round 4): its round-2 proof ended with "head_after = head_before (None)", which stopped
@@ -973,6 +1053,18 @@ MUTANTS = [
 # run and is read after it (a fault at inspect_local's read) makes the mutant report moved=True for a repository
 # that never moved; the record check of tests/sync/test_faults.sh catches it.
 EQUIVALENT = {
+    "AA07": "(round 11, the round-10 reviewer's proof, re-checked) register_site is called with the git dir that "
+            "inspect_local read from 'rev-parse --absolute-git-dir', and git returns that path resolved (no symbolic "
+            "link components; the reviewer's probe logs/p_symroot.txt gave a root reached through a symbolic link and "
+            "both engines fast-forwarded identically). With a resolved spelling, realpath(gitdir) == gitdir, so the "
+            "dict key is the same string with or without the realpath call and every later lookup finds the same "
+            "site. No run changes.",
+    "AA11": "(round 11, the round-10 reviewer's proof, re-checked) split only chooses the 'common:' label prefix; the "
+            "lock PATHS are built from `common` and `gitdir` themselves, not from `split`. Both strings come from "
+            "git's --path-format=absolute / --absolute-git-dir answers, which are resolved, so string inequality and "
+            "realpath inequality agree for every directory git reports. The blocking decision and the paths are "
+            "identical; at most a reason word differs (and, because `seen` dedups by label, the same path may appear twice "
+            "under two labels), and only for a hand-made symbolic spelling git never returns.",
     "Z12": "(round 10, the round-9 reviewer's proof, re-checked) fs_remove's lstat says 'unreadable' only when lstat "
            "itself fails with an error other than ENOENT/ENOTDIR (EACCES on a directory of the path, ELOOP, EIO). "
            "With EACCES on a path component, unlink() of the same path fails with EACCES too; with ELOOP or EIO "

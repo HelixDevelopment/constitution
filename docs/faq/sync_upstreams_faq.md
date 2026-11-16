@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T21:00:00Z |
+| Last modified | 2026-11-16T09:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Questions raised while designing, building and testing `scripts/sync/sync_all_upstreams.sh`, with the answers the engine gives. |
 | Authority | Constitution §11.4.84, §11.4.113, §11.4.233(G), §11.4.288(D). The canonical text wins where this FAQ and the constitution disagree. |
@@ -122,7 +122,7 @@ configure may prompt on its own terminal. Real forges are UNCONFIRMED until the 
 No. The defaults are `off` for `scripts/setup.sh` and `offline` (`--check --no-fetch`) for the post-update hook,
 so nothing is fetched or changed unless you opt in (`--sync-upstreams=check|apply|ask`,
 `CONSTITUTION_SYNC_CHECK=fetch`). This is what the code on this revision does. An operator decision of
-2026-11-14 (relayed, not verbatim) moves the defaults to on, online and bounded; that change is separate work
+2026-11-14 (relayed, not verbatim) moves the defaults to on, online and bounded; that change is tracked as CON-424
 and is not made in this revision, so until it lands the answer above stays true.
 
 **19. A run says `write-left-changes:fast-forward` or `blocked:in-progress:HEAD.lock`. What happened?**
@@ -141,3 +141,16 @@ Yes. With `--branch <name>` the branch lock checked is `refs/heads/<name>.lock` 
 the full name (`feature/x` gives `refs/heads/feature/x.lock`). In a linked worktree the per-worktree locks are
 looked for in that worktree's own git directory, not in another worktree's. Both are tested live since review
 round 10 (`tests/sync/test_robustness.sh --only branch_lock,wt_param,run_lock,write_race`).
+
+**21. My branch is called `Dev`, or a tag `dev` sits beside branch `dev`. Does the right branch lock get checked?**
+Yes, since review round 11. The engine reads the full ref (`git symbolic-ref -q HEAD`, for example
+`refs/heads/dev`) and strips `refs/heads/` itself. It never asks git for the short name:
+`git symbolic-ref --short` disambiguates and answers `heads/dev` when a tag `refs/tags/dev` or a top-level ref
+`refs/dev` exists (measured with git 2.53; a remote named `dev` does not cause it). Case is kept: on branch `Dev`
+the lock checked is `refs/heads/Dev.lock`, never `refs/heads/dev.lock`. A `--branch` value that git would refuse
+as a ref name (`dev/`, `dev.lock`, `dev..x`, `dev/.x`, `HEAD`, `-dev`, `dev@{1}`, a space or control character)
+is a usage error (exit 2) before anything is fetched. `--branch` is ASCII (`[A-Za-z0-9._/-]`); a root branch
+with other letters (for example `café`) is read and compared exactly and is never taken as `main`.
+On a case-insensitive file system (macOS, Windows defaults) `Dev.lock` and `dev.lock` are one file, so two
+branches that differ only in case cannot be told apart there; git itself has the same limit. The tests run on
+Linux (case-sensitive) only. Tested live: `tests/sync/test_robustness.sh --only branch_shape,branch_param`.

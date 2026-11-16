@@ -11,7 +11,10 @@
 #       a. IMPORT ALLOW-LIST: only `import <m>` of argparse, concurrent.futures, datetime, errno, fcntl, hashlib,
 #          json, os, re, select, shutil, signal, stat, subprocess, sys, tempfile, threading, time (review round 9:
 #          errno and stat, read-only modules for the path-access layer; select was already in MODULES); no `from` import, no alias,
-#          no import below module level;
+#          no import below module level; the one exception is the canonical git-env scrub of
+#          scripts/validation/git_env_class_census.py, accepted only in its exact two-statement form
+#          (`import os as _ge_os` directly followed by the `_ge_v` / `_ge_os.environ.pop` loop), with `_ge_os` and
+#          `_ge_v` refused anywhere else (review round 11, RV10-3);
 #       b. ATTRIBUTE ALLOW-LIST: every use of an imported module is one exact dotted name from a fixed list
 #          (os.path.join, subprocess.Popen, ...); a bare module name (an alias, a module passed on) is
 #          refused, so os.system, subprocess.call, sys.modules, ... cannot appear in any spelling;
@@ -106,6 +109,7 @@
 #   0 PASS · 1 FAIL · 2 BLIND (engine missing or unparseable, python3 missing).
 #
 # Classification: universal (§11.4.17).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 GATE="CM-SYNC-UPSTREAMS-FF-ONLY"
 root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
@@ -153,7 +157,7 @@ SITES = [
     ("update_strategies", "['config', '--file', '.gitmodules', '-z', '--get-regexp', "
      "'^submodule\\\\..*\\\\.(path|update)$']", (0, 1), "-", "blind"),
     ("update_strategies", "['config', '-z', '--get-regexp', '^submodule\\\\..*\\\\.update$']", (0, 1), "-", "blind"),
-    ("read_branch", "['symbolic-ref', '--short', '-q', 'HEAD']", (0, 1), "-", "blind"),
+    ("read_branch", "['symbolic-ref', '-q', 'HEAD']", (0, 1), "-", "blind"),
     ("inspect_local", "['rev-parse', '--absolute-git-dir', '--path-format=absolute', '--git-path', 'FETCH_HEAD', "
      "'--git-common-dir']", (0,), "THREE_ABS_PATHS_RE", "blind"),
     ("inspect_local", "STATUS_ARGS", (0,), "-", "blind"),
@@ -307,6 +311,39 @@ def is_called(node):
 
 
 roots = {m.split(".")[0] for m in MODULES}
+
+
+def git_env_scrub_nodes(body):
+    """The canonical git-env scrub of scripts/validation/git_env_class_census.py (review round 11, RV10-3), when it
+    is present EXACTLY: one module-level `import os as _ge_os` followed directly by
+    `for _ge_v in "<GIT_* names>".split(): _ge_os.environ.pop(_ge_v, None)`. Returns the set of AST nodes the
+    two statements cover (the only place `_ge_os` and `_ge_v` may appear), or an empty set."""
+    for i, st in enumerate(body[:-1]):
+        if not (isinstance(st, ast.Import) and len(st.names) == 1 and st.names[0].name == "os"
+                and st.names[0].asname == "_ge_os"):
+            continue
+        f = body[i + 1]
+        ok = (isinstance(f, ast.For) and not f.orelse and isinstance(f.target, ast.Name) and f.target.id == "_ge_v"
+              and isinstance(f.iter, ast.Call) and not f.iter.args and not f.iter.keywords
+              and isinstance(f.iter.func, ast.Attribute) and f.iter.func.attr == "split"
+              and isinstance(f.iter.func.value, ast.Constant) and isinstance(f.iter.func.value.value, str)
+              and re.fullmatch(r"GIT_[A-Z_]+( GIT_[A-Z_]+)*", f.iter.func.value.value) is not None
+              and len(f.body) == 1 and isinstance(f.body[0], ast.Expr) and isinstance(f.body[0].value, ast.Call))
+        if ok:
+            c = f.body[0].value
+            fn = c.func
+            ok = (not c.keywords and len(c.args) == 2 and isinstance(c.args[0], ast.Name) and c.args[0].id == "_ge_v"
+                  and isinstance(c.args[1], ast.Constant) and c.args[1].value is None
+                  and isinstance(fn, ast.Attribute) and fn.attr == "pop"
+                  and isinstance(fn.value, ast.Attribute) and fn.value.attr == "environ"
+                  and isinstance(fn.value.value, ast.Name) and fn.value.value.id == "_ge_os")
+        if ok:
+            return set(ast.walk(st)) | set(ast.walk(f))
+        return set()
+    return set()
+
+
+SCRUB = git_env_scrub_nodes(tree.body)
 for node in ast.walk(tree):
     if isinstance(node, ast.ImportFrom):
         fails.append("`from` import is not allowed (line %d)" % node.lineno)
@@ -314,13 +351,17 @@ for node in ast.walk(tree):
         if node not in tree.body:
             fails.append("import below module level (line %d)" % node.lineno)
         for a in node.names:
+            if node in SCRUB:  # the one canonical git-env scrub import (review round 11, RV10-3)
+                continue
             if a.name not in MODULES or a.asname:
                 fails.append("import %s%s is not on the allow-list (line %d)"
                              % (a.name, " as " + a.asname if a.asname else "", node.lineno))
     elif isinstance(node, (ast.Global, ast.Nonlocal)):
         fails.append("global/nonlocal statement (line %d)" % node.lineno)
     elif isinstance(node, ast.Name):
-        if node.id in BANNED_NAMES:
+        if node.id in ("_ge_os", "_ge_v") and node not in SCRUB:
+            fails.append("%s used outside the canonical git-env scrub (line %d)" % (node.id, node.lineno))
+        elif node.id in BANNED_NAMES:
             fails.append("dynamic-access name %s (line %d)" % (node.id, node.lineno))
         elif node.id.startswith("__") and node.id != "__name__":
             fails.append("dunder name %s (line %d)" % (node.id, node.lineno))
@@ -640,7 +681,7 @@ REFUSE = [["push", "origin", "main"], ["reset", "--hard", S], ["rebase", "origin
           ["checkout", "-f", S], ["checkout", "--quiet", "--detach", "--force", S], ["checkout", "main"],
           ["add", "-A"], ["add", "--", "../x"], ["add", "--", "."], ["config", "core.hooksPath", "/x"],
           ["config", "--unset", "x"], ["remote", "add", "x", "y"], ["remote", "set-url", "o", "u"],
-          ["symbolic-ref", "HEAD", "refs/heads/x"], ["update-ref", "refs/heads/main", S], ["branch", "-f", "main", S],
+          ["symbolic-ref", "HEAD", "refs/heads/x"], ["symbolic-ref", "--short", "-q", "HEAD"], ["update-ref", "refs/heads/main", S], ["branch", "-f", "main", S],
           ["submodule", "update", "--force"], ["clean", "-fdx"], ["stash"], ["status", "--force"],
           ["rev-parse", "--git-dir=/x"], ["rev-parse", "x\ny"], ["rev-parse", "+refs/heads/main"],
           ["merge-base", "--is-ancestor", "+x", S], ["cat-file", "-e", S + "^{commit}"],
@@ -653,7 +694,7 @@ ACCEPT = [FA, FT, STATUS,
           ["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD", "--git-common-dir"],
           ["rev-parse", "--path-format=absolute", "--git-common-dir"], ["ls-files", "-s", "-z"],
           ["ls-tree", "-r", "-z", "HEAD"], ["ls-tree", "-r", "-z", "--name-only", "--full-tree", S],
-          ["symbolic-ref", "--short", "-q", "HEAD"], ["config", "--get", "remote.origin.url"],
+          ["symbolic-ref", "-q", "HEAD"], ["config", "--get", "remote.origin.url"],
           ["config", "--get", "core.sshCommand"], ["remote"], ["merge-base", "--is-ancestor", S, S],
           ["rev-list", "--left-right", "--count", S + "..." + S], ["rev-list", "--count", "HEAD"],
           ["rev-list", "--left-right", "--count", "HEAD...HEAD"],

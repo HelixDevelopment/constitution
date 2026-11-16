@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 9 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T14:30:00Z |
+| Last modified | 2026-11-16T09:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Task-oriented guide for `scripts/sync/sync_all_upstreams.sh`: check, apply, interactive use, setup and post-update integration, scheduling. |
 | Authority | Constitution §11.4.37, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.288(D). The canonical text wins where this guide and the constitution disagree. |
@@ -93,6 +93,8 @@ The default is `off`, which only prints a hint. The same value can come from the
 `post_update_hook.sh` runs a read-only check (step 5c). By default it is offline
 (`CONSTITUTION_SYNC_CHECK=offline`). Set `CONSTITUTION_SYNC_CHECK=fetch` to fetch first, or `off` to
 skip it. It prints the verdict and never fails the hook; `BLIND` and `INCONCLUSIVE` are shown as warnings.
+The operator decision of 2026-11-14 moves these defaults to on, online and bounded; that change is owed
+(tracked as CON-424) and is not in this revision, so the defaults above are what the code does today.
 
 ## 6. Run it regularly
 

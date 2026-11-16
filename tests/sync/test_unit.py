@@ -11,6 +11,8 @@ import os
 import sys
 import unittest
 from typing import Any
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.environ.get("SYNC_ENGINE_PY") or os.path.join(HERE, "..", "..", "scripts", "sync", "sync_all_upstreams.py")
@@ -105,7 +107,8 @@ class AllowList(unittest.TestCase):
     def test_read_only_shapes(self):
         self.ok("rev-parse", "HEAD")
         self.ok("ls-files", "-s", "-z")
-        self.ok("symbolic-ref", "--short", "-q", "HEAD")
+        self.ok("symbolic-ref", "-q", "HEAD")
+        self.bad("symbolic-ref", "--short", "-q", "HEAD")  # round 11 (RV10-1): --short disambiguates (heads/dev)
         self.bad("symbolic-ref", "HEAD", "refs/heads/x")
         self.ok("config", "--get", "remote.origin.url")
         self.bad("config", "remote.origin.url", "x")
@@ -737,7 +740,7 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
                 return "exit", 0, "160000 commit %s\tlibs/a\0" % SHA, ""
             if a[:1] == ["symbolic-ref"]:
                 b = "main" if repo == "/nonexistent/root" else branch
-                return ("exit", 0, b + "\n", "") if b else ("exit", 1, "", "")
+                return ("exit", 0, "refs/heads/" + b + "\n", "") if b else ("exit", 1, "", "")
             if a[:3] == ["checkout", "--quiet", "--detach"]:
                 head[repo] = a[3]
             if a[0] == "rev-parse":
@@ -1029,7 +1032,7 @@ class RoundFive(unittest.TestCase):
             shutil.rmtree(d)  # made by mkdtemp in _fake_git
 
     def test_read_branch_three_states(self):  # RV4-1: detached and unread are told apart
-        r = fake_runner(("exit", 0, "main\n", ""))
+        r = fake_runner(("exit", 0, "refs/heads/main\n", ""))  # the FULL ref since round 11 (RV10-1)
         self.assertEqual(E.read_branch(r, "/r"), ("branch", "main"))
         r = fake_runner(("exit", 1, "", ""))
         self.assertEqual(E.read_branch(r, "/r"), ("detached", None))
@@ -1066,7 +1069,7 @@ class RoundFive(unittest.TestCase):
 
     def test_branch_at_write_time_blocks_a_pin_write(self):  # RV4-1: a user checked out a branch: never detached
         r, c, writes = self.integrate_with(
-            lambda repo, a: ("exit", 0, "user-branch\n", "") if a[:1] == ["symbolic-ref"] and repo.endswith("libs/a")
+            lambda repo, a: ("exit", 0, "refs/heads/user-branch\n", "") if a[:1] == ["symbolic-ref"] and repo.endswith("libs/a")
             else None)
         self.assertEqual(writes, [])
         self.assertIn("blocked:branch-changed-before-write", json.dumps(c.rec["actions"]))
@@ -1842,6 +1845,107 @@ class RoundTen(unittest.TestCase):  # review round 10 (RV9-1 .. RV9-6)
         repo.rec.update(head_before=SHA, branch="main", _gitdir=self.d)
         self.assertTrue(E.write_settled(r, repo, "fast-forward", "b" * 40, E.GitResult(True, 128, "", "", None), "I0"))
         self.assertEqual(sorted({a[0] for _, a in r.seen}), ["ls-files", "rev-parse"])  # no work-tree read (limit)
+
+
+class RoundEleven(unittest.TestCase):  # review round 11 (RV10-1 .. RV10-8)
+    def setUp(self):
+        import tempfile
+        self.d = tempfile.mkdtemp(prefix="sync_unit_r11.")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.d)  # a mkdtemp directory of this test, never anything else
+
+    def test_read_branch_reads_the_full_ref(self):  # RV10-1: --short answers heads/dev beside a tag dev
+        seen = []
+        def answer(out, rc=0):
+            def f(git_bin, repo, args, env, limit, level=1):
+                seen.append(list(args))
+                E.check_git_args(args)
+                return ("exit", rc, out, "")
+            return f
+        cases = (("refs/heads/dev\n", ("branch", "dev")), ("refs/heads/heads/dev\n", ("branch", "heads/dev")),
+                 ("refs/heads/Dev\n", ("branch", "Dev")), ("refs/heads/Feature/X\n", ("branch", "Feature/X")),
+                 ("refs/heads/feature/x\n", ("branch", "feature/x")), ("refs/heads/café\n", ("branch", "café")),
+                 ("refs/heads/origin/dev\n", ("branch", "origin/dev")),
+                 ("refs/remotes/origin/dev\n", ("other", None)), ("refs/tags/dev\n", ("other", None)),
+                 ("dev\n", ("unknown", None)), ("heads/dev\n", ("unknown", None)),  # a short name: never trusted
+                 ("refs/heads/dev\nrefs/heads/x\n", ("unknown", None)), ("refs/heads/../x\n", ("unknown", None)),
+                 ("refs/heads/a/../b\n", ("unknown", None)), ("refs/heads/x.lock\n", ("unknown", None)),
+                 ("refs/heads/\n", ("unknown", None)), ("refs/heads/-x\n", ("unknown", None)),
+                 ("refs/heads/a b\n", ("unknown", None)), ("refs/heads/.x\n", ("unknown", None)))
+        for out, want in cases:
+            E.proc_run_git = answer(out)
+            r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
+            self.assertEqual(E.read_branch(r, "/r"), want, out)
+            self.assertEqual(bool(r.unresolved_for("/r")), want[0] == "unknown", out)
+        self.assertTrue(seen and all(a == ["symbolic-ref", "-q", "HEAD"] for a in seen), seen)
+
+    def test_symbolic_ref_short_is_refused(self):  # RV10-1: the disambiguating form can never come back
+        with self.assertRaises(E.GitRefused):
+            E.check_git_args(["symbolic-ref", "--short", "-q", "HEAD"])
+        self.assertTrue(E.check_git_args(["symbolic-ref", "-q", "HEAD"]))
+
+    def test_branch_case_is_kept_in_every_lock_path(self):  # RV10-2 / AA01: Dev.lock is not dev.lock
+        g = self.d
+        for br in ("Dev", "DEV", "Feature/X", "mIxEd/CaSe/Br", "heads/dev", "café"):
+            names = [n for n, _ in E.lock_paths(g, g, br, "merge") if n.startswith("refs/heads/")]
+            self.assertEqual(names, ["refs/heads/%s.lock" % br], br)
+            self.assertEqual(dict(E.lock_paths(g, g, br, "merge"))[names[0]],
+                             os.path.join(g, "refs", "heads", *(br + ".lock").split("/")))
+            self.assertEqual([n for n in E.in_progress(g, g, br)], [])
+        os.makedirs(os.path.join(g, "refs", "heads"))
+        r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600, 4321)
+        r.register_site(g, g, "Dev")
+        open(os.path.join(g, "refs/heads/dev.lock"), "w").close()  # golden-FALSE: another branch's lock
+        self.assertIsNone(E.gitdir_write_block(r, g))
+        self.assertEqual(E.locks_left(g, "Dev", g, "merge"), [])
+        open(os.path.join(g, "refs/heads/Dev.lock"), "w").close()
+        self.assertEqual(E.gitdir_write_block(r, g), "in-progress:refs/heads/Dev.lock")
+        self.assertEqual(E.locks_left(g, "Dev", g, "merge"), ["refs/heads/Dev.lock"])
+        self.assertIn("refs/heads/Dev.lock", E.in_progress(g, g, "Dev"))
+        os.unlink(os.path.join(g, "refs/heads/dev.lock"))
+        self.assertNotIn("refs/heads/dev.lock", E.in_progress(g, g, "Dev"))
+
+    def test_valid_branch_name(self):  # RV10-1 class: one rule for a name read from git and for --branch
+        good = ("main", "dev", "Dev", "feature/x", "heads/dev", "origin/dev", "a.b-c/d_e", "café", "v1.2")
+        bad = ("", "-x", "/x", "x/", "x.", "x..y", "x//y", "x/.y", ".x", "x.lock", "x/y.lock/z", "HEAD", "@",
+               "x@{1}", "a b", "a\tb", "a\nb", "x~1", "x^", "x:y", "x?", "x*", "x[y", "x\\y", "x\x7f")
+        for n in good:
+            self.assertTrue(E.valid_branch_name(n), n)
+        for n in bad:
+            self.assertFalse(E.valid_branch_name(n), repr(n))
+        self.assertEqual(E.branch_of_ref("refs/heads/heads/dev"), "heads/dev")
+        self.assertIsNone(E.branch_of_ref("refs/tags/dev"))
+        self.assertIsNone(E.branch_of_ref("heads/dev"))
+
+    def test_invalid_branch_parameter_is_a_usage_error(self):  # RV10-1 class: refused before any git call
+        E.proc_run_git = lambda *a, **k: self.fail("git must not run for an invalid --branch")
+        for br in ("dev/", "dev.lock", "dev..x", "dev/.x", "HEAD", "dev//x", "-x", "café", "a@{1}"):
+            self.assertEqual(E.main(["--check", "--no-fetch", "--branch=" + br, "--root", self.d]), E.EXIT_USAGE, br)
+
+    def test_engine_scrub_covers_the_canonical_list(self):  # RV10-3: git_env drops every repository-locating name
+        lib = os.path.join(HERE, "..", "..", "scripts", "lib", "constitution_layout.sh")
+        line = [x for x in open(lib, encoding="utf-8") if x.startswith("CL_GIT_SCRUB_VARS=")]
+        self.assertEqual(len(line), 1)
+        names = line[0].split("=", 1)[1].strip().strip('"').split()
+        self.assertEqual(len(names), 14, names)  # control needle: the list was really read
+        self.assertEqual(sorted(set(names) - set(E._SCRUB)), [])
+        env = E.git_env({n: "/elsewhere" for n in names} | {"PATH": "/usr/bin"})
+        self.assertEqual(sorted(n for n in names if n in env), [])
+        self.assertEqual(env["PATH"], "/usr/bin")  # golden-FALSE: an unrelated variable is kept
+
+    def test_marker_op_outside_the_vocabulary_is_unknown(self):  # RV10-7 / AA10
+        g = self.d
+        path = E.marker_path(g)
+        for op, want in (("fast-forward", "fast-forward"), ("stage-pin", "stage-pin"),
+                         ("fast-forward\tCURRENT\n[sync-upstreams] . current -", "unknown"), ("reset", "unknown"),
+                         ("", "unknown"), (["fast-forward"], "unknown"), (7, "unknown"), (None, "unknown")):
+            with open(path, "w") as fh:
+                json.dump({"op": op, "write_id": "w"}, fh)
+            self.assertEqual(E.read_marker(g), want, repr(op))
+        os.unlink(path)
+        self.assertIsNone(E.read_marker(g))
 
 
 if __name__ == "__main__":
