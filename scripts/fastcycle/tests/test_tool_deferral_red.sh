@@ -101,7 +101,8 @@ set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 FC="$(cd "$HERE/.." && pwd)"
 ROOT="$(cd "$FC/../../.." && pwd)"
-SA_DIR="$ROOT/constitution/scripts/skill_activation"
+FC_CANON_ROOT=$(cd "$FC/../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+SA_DIR="$FC_CANON_ROOT/scripts/skill_activation"
 
 TMP="$(mktemp -d)" || { echo "cannot create temp dir (TMPDIR unusable)" >&2; exit 2; }
 reap_children() { pkill -KILL -f "$TMP" 2>/dev/null; return 0; }
@@ -184,7 +185,7 @@ fi
 # mechanism exists -- .mcp.json declares its one server unconditionally,
 # with no activation/manifest concept anywhere in this tree.
 MCP_FILE="$ROOT/.mcp.json"
-MCP_DEFERRAL_HITS="$(grep -rl 'mcp.*deferr\|deferr.*mcp' "$ROOT/constitution/scripts" 2>/dev/null | wc -l | tr -d ' ')"
+MCP_DEFERRAL_HITS="$(grep -rl 'mcp.*deferr\|deferr.*mcp' "$FC_CANON_ROOT/scripts" 2>/dev/null | wc -l | tr -d ' ')"
 info "scope note (1): $MCP_FILE exists=$([ -e "$MCP_FILE" ] && echo yes || echo no); MCP-deferral-mechanism hits under constitution/scripts=$MCP_DEFERRAL_HITS (0 confirms no existing MCP deferral mechanism -- out of this test's scope per note (1))"
 
 # =========================================================================
