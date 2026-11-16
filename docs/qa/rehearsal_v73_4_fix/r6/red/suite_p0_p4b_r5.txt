@@ -1,0 +1,53 @@
+PASS P0 fixture self-check
+PASS P0 oracle self-check
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 6 items, 3 provisional, 3 ok
+PASS P1 the root is reported
+PASS P1 --today and the window are reported
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count
+PASS P2 prose is not a sentence of the grammar (the r4 golden-good line)
+PASS P2 no created date: the window cannot be checked
+PASS P2 due before the item was created
+PASS P2 a line that continues a paragraph does not count
+PASS P2 a body the two readers read differently is refused
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an unknown option: usage exit 64
+PASS P3 a root that is not a directory: exit 64
+PASS P3 a --today that is not a date: exit 64
+PASS P3 a window above 3650: exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P3 a database path with a space opens (pathlib URI)
+PASS P4 the database is unchanged
+PASS P4 no -wal, -shm or -journal sidecar
+PASS P4b typed values: exit 1
+FAIL P4b typed values: no traceback (a traceback: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(s)
+FAIL P4b an integer created_at is refused, named (no line /^FAIL CON-901 Ready for testing: the created date is not text \(int\)/: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+FAIL P4b a blob body is refused, named (no line /^FAIL CON-902 Ready for testing: the body is not text \(bytes\)/: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+FAIL P4b a status with a trailing space is refused, not skipped (no line /^FAIL CON-903 Ready for testing : the Status 'Ready for testing ' is not written exactly as 'Ready for testing'/: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+FAIL P4b a status in another case is refused, not skipped (no line /^FAIL CON-904 in testing: the Status 'in testing' is not written exactly as 'In testing'/: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+FAIL P4b hour 24 is refused (no line /^FAIL CON-905 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00/: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+FAIL P4b a lone CR before a fence hides the line (review r5 I-1) (no line /^FAIL CON-906 Ready for testing: no '\*\*Verification:\*\* provisional' line/: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+FAIL P4b a lone CR before a comment hides the line (review r5 I-1) (no line /^FAIL CON-907 Ready for testing: no '\*\*Verification:\*\* provisional' line/: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+PASS P4b the clean item among them is accepted (control)
+FAIL P4b counts: the trailing-space and other-case statuses are checked (no line /^CHECKED items=9 provisional_status=8 ok=1 fail=7$/: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+FAIL P4b registry not UTF-8 (1: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(sys.argv))|             ~~~~^^^^^^^^^^|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo)
+FAIL P4b registry not UTF-8: no traceback (a traceback: Traceback (most recent call last):|  File "/mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo/scripts/validation/check_provisional_verification_lines.py", line 642, in <module>|    sys.exit(main(s)
+PASS P4b a closed WAL-mode database is read
+FAIL P4b closed WAL db changed: before 'w.db 8ae6f404caa1404bc52967303bbacce70c6eb9f9ebf00eb459b3ef85ce686e20  ./w.db ' after 'w.db w.db-shm w.db-wal 8ae6f404caa1404bc52967303bbacce70c6eb9f9ebf00eb459b3ef85ce686e20  ./w.db fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb  ./w.db-shm e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./w.db-wal '
+PASS P4b the live writer committed its row (control)
+PASS P4b a WAL database with a live writer: the row only in -wal is read (needle CON-909)
+PASS P4b a WAL database with a live writer: counts include the -wal row
+FAIL P4b live WAL db changed: before 'w.db w.db-shm w.db-wal 8ae6f404caa1404bc52967303bbacce70c6eb9f9ebf00eb459b3ef85ce686e20  ./w.db c8f77f4585b1b4e08ee53777fa6685a555dc405cee5ebbd36005b4fa1ef513d2  ./w.db-shm ad81ce7e27cf29baa701978d2c224504c622a4478e0c7b68ba181b401ef38fb2  ./w.db-wal ' after 'w.db w.db-shm w.db-wal 8ae6f404caa1404bc52967303bbacce70c6eb9f9ebf00eb459b3ef85ce686e20  ./w.db 54b03974dc3458b534f96ec605d442ea2f354ebdee66d8e0e45599dcb6ed80bd  ./w.db-shm ad81ce7e27cf29baa701978d2c224504c622a4478e0c7b68ba181b401ef38fb2  ./w.db-wal '
+RESULT: pass=39 fail=13

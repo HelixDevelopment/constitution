@@ -15,7 +15,9 @@
 #             honest, the per-item verdicts are the evidence
 #   P6        the case grid (tests/release/pvl_grid.py): API, command line and the independent oracle agree
 #   P7        the closed-world property test (tests/release/pvl_property.py)
-#   P8        the line model against CommonMark cases and pandoc (tests/release/pvl_linemodel.py)
+#   P8        the line model against CommonMark cases, pandoc and markdown-it (tests/release/pvl_linemodel.py)
+#   P8b       the reference readers' self-test (tests/release/pvl_refreader.py) and the class-exhaustive line-ending
+#             and start-of-line enumeration (tests/release/pvl_lineend.py, round 6)
 #   P9        the member inventory of the complement (tests/release/pvl_inventory.py), class list equal to the document
 #   P10       the work bound, 1 s per case (tests/release/pvl_timing.py)
 #   P11       the reviewers' probes r3, r3b, r4 run verbatim (tests/release/pvl_reviewer.py probes)
@@ -61,7 +63,7 @@ OPEN="CON-777|In progress|2026-11-01|x"
 
 # P0 the fixture and the oracle are checked before anything relies on them
 OUT="$(python3 -I "$HERE/pvl_fixture.py" --selftest "$W/st_fx" 2>&1)"; RC=$?
-[ "$RC" -eq 0 ] && has "P0 fixture self-check" '^FIXTURE-SELFTEST checks=12 wrong=0$' || bad "P0 fixture self-check (rc $RC: $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-300))"
+[ "$RC" -eq 0 ] && has "P0 fixture self-check" '^FIXTURE-SELFTEST checks=13 wrong=0$' || bad "P0 fixture self-check (rc $RC: $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-300))"
 OUT="$(python3 -I "$HERE/pvl_oracle.py" --selftest "$W/st_or" 2>&1)"; RC=$?
 [ "$RC" -eq 0 ] && has "P0 oracle self-check" '^ORACLE-SELFTEST good=1 bad=13 wrong=0$' || bad "P0 oracle self-check (rc $RC: $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-300))"
 
@@ -96,11 +98,11 @@ has "P2 no line" "^FAIL CON-010 Ready for testing: no '\*\*Verification:\*\* pro
 has "P2 missing checks (the CON-190/CON-191 shape)" '^FAIL CON-011 Ready for testing: the fields are not job, checks, layer, target, artifact, due in that order: job, layer'
 has "P2 fields out of order" '^FAIL CON-013 Ready for testing: the fields are not job, checks'
 has "P2 two lines" '^FAIL CON-014 Ready for testing: 2 verification lines'
-has "P2 a line without the bold marker does not count" "^FAIL CON-015 In testing: no '\*\*Verification:\*\* provisional' line$"
+has "P2 a line without the bold marker does not count (r6: and its label refuses the body)" "^FAIL CON-015 In testing: a line a reader shows carries the Verification label but is not the one counted line"
 has "P2 prose is not a sentence of the grammar (the r4 golden-good line)" "^FAIL CON-017 Ready for testing: field 'job' does not start an invocation with a runner"
 has "P2 no created date: the window cannot be checked" "^FAIL CON-018 Ready for testing: field 'due' cannot be checked: the item has no created date$"
 has "P2 due before the item was created" "^FAIL CON-019 In testing: field 'due' is 2026-11-20, before the item was created \(2026-11-25\)$"
-has "P2 a line that continues a paragraph does not count" "^FAIL CON-020 Ready for testing: no '\*\*Verification:\*\* provisional' line$"
+has "P2 a line that continues a paragraph does not count (r6: and its label refuses the body)" "^FAIL CON-020 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
 has "P2 a body the two readers read differently is refused" '^FAIL CON-021 Ready for testing: the body reads differently'
 printf '%s\n' "$OUT" | grep -q '^FAIL CON-016' && bad "P2 a complete item among bad ones is not flagged" || ok "P2 a complete item among bad ones is not flagged"
 has "P2 counts" '^CHECKED items=12 provisional_status=11 ok=1 fail=10$'
@@ -124,6 +126,80 @@ s0="$(sha256sum "$W/bad.db" | cut -d' ' -f1)"; CK "$W/bad.db"
 [ "$(sha256sum "$W/bad.db" | cut -d' ' -f1)" = "$s0" ] && ok "P4 the database is unchanged" || bad "P4 the database is unchanged"
 [ ! -e "$W/bad.db-wal" ] && [ ! -e "$W/bad.db-shm" ] && [ ! -e "$W/bad.db-journal" ] && ok "P4 no -wal, -shm or -journal sidecar" || bad "P4 a sidecar appeared"
 
+# P4b review r5 (round 6): typed values, a status with a trailing space, hour 24, a lone CR, a registry that is not
+# UTF-8, and a WAL-mode database (closed, and with a live writer): a VERDICT line every time, never a traceback, and
+# the database directory unchanged byte for byte (no -wal or -shm created)
+# rdb FILE WAL|ROLLBACK ROW...: ROW is a Python literal tuple (id, status, body, created): types kept as written
+rdb() {
+  python3 -I - "$@" <<'PY'
+import sqlite3, sys
+f, mode = sys.argv[1], sys.argv[2]
+con = sqlite3.connect(f)
+if mode == "WAL":
+    con.execute("pragma journal_mode=wal")
+con.execute("create table items (atm_id text primary key, status text, body_md, created_at)")
+for r in sys.argv[3:]:
+    con.execute("insert into items values (?, ?, ?, ?)", eval(r, {"__builtins__": {}}))  # test rows: suite-written literals
+con.commit()
+con.close()
+PY
+}
+GOODPY="$(python3 -I -c 'import sys; print(repr(sys.argv[1]))' "$GOOD")"
+OPENPY="('CON-777', 'In progress', 'x', '2026-11-01')"
+notrace() { printf '%s\n' "$OUT" | grep -q 'Traceback' && bad "$1 (a traceback: $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-200))" || ok "$1"; }
+rdb "$W/typed.db" ROLLBACK "$OPENPY" "('CON-901', 'Ready for testing', 'x\n\n' + $GOODPY, 20261101)" \
+  "('CON-902', 'Ready for testing', ('x\n\n' + $GOODPY).encode(), '2026-11-01')" \
+  "('CON-903', 'Ready for testing ', 'x', '2026-11-01')" "('CON-904', 'in testing', 'x', '2026-11-01')" \
+  "('CON-905', 'Ready for testing', 'x\n\n' + $GOODPY.replace('due: 2026-11-20', 'due: 2026-11-20T24:00'), '2026-11-01')" \
+  "('CON-906', 'Ready for testing', 'x\r\`\`\`\n\n' + $GOODPY + '\n\`\`\`\n', '2026-11-01')" \
+  "('CON-907', 'Ready for testing', 'x\r<!--\n\n' + $GOODPY + '\n-->\n', '2026-11-01')" \
+  "('CON-908', 'Ready for testing', 'x\n\n' + $GOODPY, '2026-11-01')"
+CK "$W/typed.db"
+[ "$RC" = 1 ] && ok "P4b typed values: exit 1" || bad "P4b typed values: exit 1 ($RC: $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-300))"
+notrace "P4b typed values: no traceback"
+has "P4b an integer created_at is refused, named" "^FAIL CON-901 Ready for testing: the created date is not text \(int\)"
+has "P4b a blob body is refused, named" "^FAIL CON-902 Ready for testing: the body is not text \(bytes\)"
+has "P4b a status with a trailing space is refused, not skipped" "^FAIL CON-903 Ready for testing : the Status 'Ready for testing ' is not written exactly as 'Ready for testing'"
+has "P4b a status in another case is refused, not skipped" "^FAIL CON-904 in testing: the Status 'in testing' is not written exactly as 'In testing'"
+has "P4b hour 24 is refused" "^FAIL CON-905 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00"
+has "P4b a lone CR before a fence hides the line (review r5 I-1)" "^FAIL CON-906 Ready for testing: no '\*\*Verification:\*\* provisional' line"
+has "P4b a lone CR before a comment hides the line (review r5 I-1)" "^FAIL CON-907 Ready for testing: no '\*\*Verification:\*\* provisional' line"
+printf '%s\n' "$OUT" | grep -q '^FAIL CON-908' && bad "P4b the clean item among them is accepted (control)" || ok "P4b the clean item among them is accepted (control)"
+has "P4b counts: the trailing-space and other-case statuses are checked" '^CHECKED items=9 provisional_status=8 ok=1 fail=7$'
+printf 'board\tT1\n\377\376\n' >"$W/bad_reg.tsv"
+rdb "$W/reg.db" ROLLBACK "$OPENPY" "('CON-901', 'Ready for testing', 'x\n\n' + $GOODPY, '2026-11-01')"
+CK --targets "$W/bad_reg.tsv" "$W/reg.db"
+[ "$RC" = 2 ] && has "P4b a target registry that is not UTF-8: BLIND" '^VERDICT: BLIND$' || bad "P4b registry not UTF-8 ($RC: $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-300))"
+notrace "P4b registry not UTF-8: no traceback"
+mkdir -p "$W/wal1" "$W/wal2"
+rdb "$W/wal1/w.db" WAL "$OPENPY" "('CON-901', 'Ready for testing', 'x\n\n' + $GOODPY, '2026-11-01')"
+before="$(cd "$W/wal1" && ls -A | tr '\n' ' '; sha256sum ./* | tr '\n' ' ')"
+CK "$W/wal1/w.db"
+after="$(cd "$W/wal1" && ls -A | tr '\n' ' '; sha256sum ./* | tr '\n' ' ')"
+[ "$RC" = 0 ] && has "P4b a closed WAL-mode database is read" '^CHECKED items=2 provisional_status=1 ok=1 fail=0$' || bad "P4b closed WAL db ($RC: $OUT)"
+[ "$before" = "$after" ] && ok "P4b a closed WAL-mode database: no -wal or -shm created, bytes unchanged" || bad "P4b closed WAL db changed: before '$before' after '$after'"
+chmod 0555 "$W/wal1"; CK "$W/wal1/w.db"; chmod 0755 "$W/wal1"
+[ "$RC" = 0 ] && has "P4b a closed WAL-mode database in a directory that cannot be written is read (the copy)" '^CHECKED items=2 provisional_status=1 ok=1 fail=0$' || bad "P4b read-only directory WAL db ($RC: $OUT)"
+rdb "$W/wal2/w.db" WAL "$OPENPY" "('CON-901', 'Ready for testing', 'x\n\n' + $GOODPY, '2026-11-01')"
+# a live writer: it commits one row and keeps its connection (the row is only in -wal), then waits for a stop file
+python3 -I -c 'import sqlite3, sys, time, os
+c = sqlite3.connect(sys.argv[1]); c.execute("pragma wal_autocheckpoint=0")
+c.execute("insert into items values (?, ?, ?, ?)", ("CON-909", "Ready for testing", "x", "2026-11-01")); c.commit()
+open(sys.argv[2], "w").close()
+t = time.time()
+while not os.path.exists(sys.argv[3]) and time.time() - t < 120: time.sleep(0.05)
+c.close()' "$W/wal2/w.db" "$W/wal2.ready" "$W/wal2.stop" &
+wpid=$!
+t=0; while [ ! -e "$W/wal2.ready" ] && [ "$t" -lt 600 ]; do sleep 0.1; t=$((t + 1)); done
+before="$(cd "$W/wal2" && ls -A | tr '\n' ' '; sha256sum ./* | tr '\n' ' ')"
+CK "$W/wal2/w.db"
+after="$(cd "$W/wal2" && ls -A | tr '\n' ' '; sha256sum ./* | tr '\n' ' ')"
+: >"$W/wal2.stop"; wait "$wpid"
+[ -e "$W/wal2.ready" ] && ok "P4b the live writer committed its row (control)" || bad "P4b the live writer did not start"
+has "P4b a WAL database with a live writer: the row only in -wal is read (needle CON-909)" "^FAIL CON-909 Ready for testing: no '\*\*Verification:\*\* provisional' line"
+has "P4b a WAL database with a live writer: counts include the -wal row" '^CHECKED items=3 provisional_status=2 ok=1 fail=1$'
+[ "$before" = "$after" ] && ok "P4b a WAL database with a live writer: its files unchanged byte for byte" || bad "P4b live WAL db changed: before '$before' after '$after'"
+
 # P5 the real tracker database of this checkout, --root this checkout
 DB="$ROOT/docs/workable_items.db"
 if [ -f "$DB" ]; then
@@ -146,7 +222,7 @@ fi
 # P6 the case grid
 OUT="$(python3 -I "$HERE/pvl_grid.py" "$C" "$W/grid" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P6 grid: API, command line and oracle agree" || bad "P6 grid ($RC): $(printf '%s\n' "$OUT" | grep 'GRID-FAIL' | head -5 | tr '\n' '|')"
-has "P6 grid size needle (220 cases, 159 refused, 61 accepted)" '^GRID cases=220 refused=159 accepted=61 mismatches=0 cli_mismatches=0 oracle_mismatches=0$'
+has "P6 grid size needle (227 cases, 166 refused, 61 accepted)" '^GRID cases=227 refused=166 accepted=61 mismatches=0 cli_mismatches=0 oracle_mismatches=0$'
 
 # P7 the closed-world property
 OUT="$(python3 -I "$HERE/pvl_property.py" "$C" "$W/prop" 2>&1)"; RC=$?
@@ -157,9 +233,21 @@ has "P7 property size needle (3000 sentences, 18000 perturbations, both verdicts
 OUT="$(python3 -I "$HERE/pvl_linemodel.py" "$C" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P8 line model: every case counted as CommonMark counts it" || bad "P8 line model ($RC): $(printf '%s\n' "$OUT" | grep FAIL | head -5 | tr '\n' '|')"
 if command -v pandoc >/dev/null 2>&1; then
-  has "P8 pandoc cross-check ran with no mismatch" '^LINEMODEL cases=47 mismatches=0 pandoc=checked pandoc_mismatches=0$'
+  has "P8 pandoc and markdown-it cross-checks ran with no mismatch" '^LINEMODEL cases=65 mismatches=0 pandoc=checked pandoc_mismatches=0 mdit=checked mdit_mismatches=0$'
 else
-  has "P8 pandoc absent: SKIP stated, the 47 cases still checked" '^LINEMODEL cases=47 mismatches=0 pandoc=SKIP '
+  has "P8 pandoc absent: SKIP stated, the 65 cases still checked against markdown-it" '^LINEMODEL cases=65 mismatches=0 pandoc=SKIP .*mdit=checked mdit_mismatches=0$'
+fi
+
+# P8b the line-ending and start-of-line class, enumerated against markdown-it (round 6)
+OUT="$(python3 -I "$HERE/pvl_refreader.py" --selftest 2>&1)"; RC=$?
+[ "$RC" = 0 ] && ok "P8b the reference readers pass their control needles" || bad "P8b reference readers ($RC): $OUT"
+has "P8b markdown-it is present and sees the needles" '^REFREADER-SELFTEST mdit=ok '
+OUT="$(python3 -I "$HERE/pvl_lineend.py" "$C" "$W/le" 2>&1)"; RC=$?
+[ "$RC" = 0 ] && ok "P8b no line-ending or start-of-line variant is accepted while markdown-it shows other lines" || bad "P8b line endings ($RC): $(printf '%s\n' "$OUT" | grep -E 'LE-DANGER|BLIND' | head -5 | tr '\n' '|')"
+if command -v pandoc >/dev/null 2>&1; then
+  has "P8b class needle (30 members, danger 0, pandoc blind to a lone CR, no reader disagreement accepted)" '^LINEEND variants=19350 agree=[0-9]+ refused=[0-9]+ danger=0 members=30 mdit=3\.0\.0 pandoc=checked pandoc_cr_blind=yes pandoc_danger=0$'
+else
+  has "P8b class needle (30 members, danger 0, pandoc absent)" '^LINEEND variants=19350 agree=[0-9]+ refused=[0-9]+ danger=0 members=30 mdit=3\.0\.0 pandoc=SKIP pandoc_cr_blind=SKIP pandoc_danger=SKIP$'
 fi
 
 # P9 the inventory of the complement; its class list equals the document's table
@@ -185,7 +273,7 @@ has "P11 separator classes: none accepted; shape-only jobs refused" '^REV-R3B PA
 # P12 the reviewers' mutants listed
 OUT="$(python3 -I "$HERE/pvl_reviewer.py" mutants "$ROOT" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P12 every reviewer mutant applies, is run by its suite, or is not applicable with covering cases" || bad "P12 reviewer mutants ($RC): $(printf '%s\n' "$OUT" | grep FAIL | head -5 | tr '\n' '|')"
-has "P12 mutant needle (56: R1-R22, X1-X12, N01-N22)" '^REVIEWER mutants total=56 applies=12 not_applicable=44 fail=0$'
+has "P12 mutant needle (68: R1-R22, X1-X12, N01-N22, RV01-RV12)" '^REVIEWER mutants total=68 applies=23 not_applicable=45 fail=0$'
 
 # P13 the paired mutants: each must be killed by a harness the unmutated copy passes
 OUT="$(python3 -I "$HERE/pvl_mutate.py" "$ROOT" "$W/mut" 2>&1)"; RC=$?
@@ -194,7 +282,7 @@ printf '%s\n' "$OUT" | grep '^MUT '
 has "P13 the unmutated copy passes every kill harness (control)" '^MUT-CONTROL unmutated copy passes'
 nown="$(grep -vc '^#' "$HERE/pvl_mutants.tsv")"
 [ "$nown" -ge 15 ] && ok "P13 own mutants: $nown (at least 15)" || bad "P13 own mutants: $nown (at least 15)"
-has "P13 mutant needle (own plus the 5 reviewer mutants of this suite that apply)" "^MUTATE total=$((nown + 5)) killed=$((nown + 5)) survived=0 not_applied=0\$"
+has "P13 mutant needle (own plus the 16 reviewer mutants of this suite that apply: 5 of r2-r4 and RV01-RV12 except RV04)" "^MUTATE total=$((nown + 16)) killed=$((nown + 16)) survived=0 not_applied=0\$"
 
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

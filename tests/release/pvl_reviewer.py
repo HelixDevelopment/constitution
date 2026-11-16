@@ -17,7 +17,8 @@ probes: runs probe_r3.py.txt (field values and a DoS timing), probe_r3b.py.txt (
   `REVIEWER probes cases=N kept=K narrowed=C unexplained=U stale=S reversed=R dos_worst=<s>`; exit 0 when U, S and R
   are 0, the r3b checks hold and the DoS is in bound, else 1; 2 when a reviewer file's sum differs.
   --write-changes prints the rows of the narrowed cases (to review by hand before they go into changes.tsv).
-mutants: reads the mutant tables of mutants_r2.py.txt, mutants_r3.py.txt and mutants_r4.py.txt, and for each prints
+mutants: reads the mutant tables of mutants_r2.py.txt, mutants_r3.py.txt, mutants_r4.py.txt and (round 6) the TSV
+  mutants_r5.tsv, and for each prints
   `REV-MUT <id> APPLIES <file>` (its OLD text occurs exactly once in REPO's file: the suite applies it verbatim) or
   `REV-MUT <id> NOT-APPLICABLE <file> covered-by <cases>` (the mechanism was removed; pvl_reviewer/mutants_map.tsv
   must name the cases covering the removed class). A mutant of a release-tooling file applies there and is run by
@@ -123,6 +124,13 @@ def mutant_tables():
                     for elt in node.value.elts:
                         vals = [env[e.id] if isinstance(e, ast.Name) else ast.literal_eval(e) for e in elt.elts]
                         out.append((vals[0].split()[0], vals[1], vals[2], vals[3]))
+    # round 6: the r5 table is a TSV (ID, FILE, OLD, NEW, WHY; OLD and NEW Python string literals), vendored verbatim
+    with open(os.path.join(RD, "mutants_r5.tsv"), encoding="utf-8") as fh:
+        for ln in fh:
+            if ln.startswith("#") or not ln.strip():
+                continue
+            mid, rel, old, new, _why = ln.rstrip("\n").split("\t", 4)
+            out.append((mid, rel, ast.literal_eval(old), ast.literal_eval(new)))
     return out
 
 

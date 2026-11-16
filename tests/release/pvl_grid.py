@@ -69,6 +69,9 @@ for v in ["", "TBD", "TO DO", "none yet", "pending scheduling", "re-run bash tes
           "bash tests/t.sh fast", "bash tests/t.sh --Fast", "mode=on bash tests/t.sh", "bash tests/t.sh $HOME",
           "bash tests/t.sh `id`", "bash tests/t.sh | tee x", "bash tests/t.sh && x", "bash tests/T.sh"]:
     f_rej("job", v)
+# r6: the refusal names its reason (RV05: the empty-word check), and a symlink to the root is refused as a path (RV09)
+rej("job:rej:empty-word-reason", F.line(job="bash tests/t.sh  --fast"), "holds an empty word")
+rej("job:rej:rootlink-path", F.line(job="bash tests/t.sh tests/rootlink"), "field 'job'")
 # ---- checks (the base job names tests/t.sh, case12 and tests/p.py)
 for v in ["tests/t.sh pass=3", "tests/t.sh pass=3 fail=0 verdict=PASS", "case12 pass=1",
           "tests/t.sh pass=3; tests/p.py killed=4 survived=0", "tests/p.py rc=0 skip=1",
@@ -111,7 +114,8 @@ for v in ["2026-11-20", "2026-11-01", "2027-01-15", "2026-11-20T10:00Z", "2026-1
 for v in ["2027-01-16", "2026-10-31", "2099-12-31", "2000-01-01", "2026-02-30", "2026-11-20T25:00",
           "2026-11-20T10:00:60", "2026-11-20T10:00+25:00", "2026-1-1", "TBD", "2026-11-20 (approx)",
           "２０２６-11-20", "2026-11-20x", "2026-11-20T10", "0000-00-00", "2026-11-20.",
-          "2026-11-20T10:00z"]:
+          "2026-11-20T10:00z", "2026-11-20T24:00", "2026-11-20T10:60", "2026-11-20T10:00+01:60",
+          "2026-11-20T10:00-24:00", "2026-11-20T23:59:60Z"]:
     f_rej("due", v)
 # ---- whole line
 G = F.line()

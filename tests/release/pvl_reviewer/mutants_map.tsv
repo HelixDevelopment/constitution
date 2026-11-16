@@ -30,7 +30,7 @@ N11	the word-boundary rule was removed: pvl_inventory G01 (placeholder before an
 R16	the stop-word list was removed: pvl_inventory G01 (lorem ipsum, UNCONFIRMED:)
 N14	TEMPLATE removed: pvl_inventory G01 (<job>) + pvl_grid
 R8	a path always resolves under the root now: pvl_inventory G04 G05 + pvl_grid job cases + own O04 O05
-N10	realpath kept in Context.__init__ and resolve(): own O04 (tests/esc.sh symlink leaves the root) + pvl_inventory G04
+N10	real_root no longer exists; main() keeps root = os.path.realpath(...): that mutation is the r5 reviewer's RV12, killed in round 6 by pvl_mutate api (--root through a symlink must print the real ROOT); Context.__init__ and resolve() keep their own realpath (own O04, tests/esc.sh leaves the root; pvl_inventory G04). r6 correction: the r5 row named only O04, which covers resolve(), not main()'s root
 R10	JOB_ID replaced by ID_RE plus a database lookup: pvl_inventory G04 (CON-999, CON-778, CON-779) + own O17 O18
 R12	HEX is a module string now (own O14) + pvl_inventory G09 + pvl_grid artifact cases
 N12	HEX holds no digit look-ahead (a hex id of letters is a hex id): own O14 + pvl_inventory G09
@@ -50,3 +50,4 @@ X11	OTHER-SUITE tests/release/test_publish_gitea.sh
 X12	OTHER-SUITE tests/release/test_redact_cut.sh
 R17	OTHER-SUITE tests/release/test_release_tooling_mutations.sh
 R18	OTHER-SUITE tests/release/test_release_tooling_mutations.sh
+RV04	r6: the fromisoformat call it removes no longer exists; it was redundant (DUE_RE fixes the shape, datetime.date the date, the explicit ranges hour 0..23, minute and second 0..59, offset at most 23:59 the time); grid due cases T25:00, T24:00, T10:60, T10:00:60, T23:59:60Z, +25:00, +01:60, -24:00 refused, T10:00Z, T10:00:00+01:00, T23:59:59-05:30 accepted; own O36 (the hour range)

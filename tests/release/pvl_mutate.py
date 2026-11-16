@@ -8,9 +8,13 @@ checker and tests/release/pvl_*.py; the release-tooling mutants run in their own
 WORKDIR gets a copy of the checker, the pvl_*.py harnesses and scripts/release/render_release_entry.py; OLD must occur
 exactly once (else NOT-APPLIED, a FAIL); then the kill harnesses run in order until one exits non-zero:
   api       the command line on a fixture database: golden good PASS, every golden-bad body refused with its id, the
-            two-reading body refused, every look-alike of the render's map named in the refusal reason
+            two-reading body refused, every look-alike of the render's map named in the refusal reason; round 6:
+            --root through a symlink prints the real ROOT, typed values and status spellings refused by name, hour 24
+            refused, a lone CR hides a fenced line, a non-UTF-8 registry is BLIND, a closed WAL database is unchanged and is
+            read in a directory that cannot be written
   grid      tests/release/pvl_grid.py
   linemodel tests/release/pvl_linemodel.py --no-pandoc (pandoc is compared in the main suite)
+  lineend   tests/release/pvl_lineend.py --no-pandoc (round 6: the line-ending and start-of-line class)
   property  tests/release/pvl_property.py with seed 290423 and 300 sentences
   timing    tests/release/pvl_timing.py with its default limit (the output must say limit=1.00s)
   inventory tests/release/pvl_inventory.py (only when nothing earlier killed the mutant)
@@ -29,7 +33,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CHECKER = "scripts/validation/check_provisional_verification_lines.py"
 RENDER = "scripts/release/render_release_entry.py"
 HARNESS = ["pvl_fixture.py", "pvl_oracle.py", "pvl_grid.py", "pvl_linemodel.py", "pvl_property.py", "pvl_timing.py",
-           "pvl_inventory.py"]
+           "pvl_inventory.py", "pvl_refreader.py", "pvl_lineend.py"]
+KILLERS = ("grid", "linemodel", "lineend", "property", "timing", "inventory")
 SUITE_FILES = {CHECKER} | {"tests/release/" + h for h in HARNESS}
 
 
@@ -84,6 +89,10 @@ def api(box, work):
         "CON-808": ("## x\n\n> q\n" + good, False),                                # lazy continuation
         "CON-809": ("## x\n\n```\n" + good + "\n```\n", False),                    # fenced
         "CON-810": ("## x\n\n" + F.line(job="CON-810"), False),                    # the item itself
+        # r6 near rule: a labelled line a reader shows as text (an HTML kind 6 start line shows its markdown raw; a
+        # soft hyphen inside the word is invisible) refuses the body
+        "CON-811": ("## x\n\n<div>**Verification:** provisional -- job: x\n\n" + good, False),
+        "CON-812": ("## x\n\ntext\n**Veri\u00adfication:** provisional -- job: x\n\n" + good, False),
     }
     db = os.path.join(work, "api.db")
     if os.path.exists(db):
@@ -124,6 +133,75 @@ def api(box, work):
         r = m.note_problem("x" + ch)
         if not r or ("a look-alike of %s" % asc) not in r:
             return 1
+    return api_r6(box, work, F, fx, db)
+
+
+def api_r6(box, work, F, fx, db):
+    """Round 6 command-line cases: --root through a symlink (ROOT is the real path), typed values, status spelling,
+    hour 24, the lone CR, a target registry that is not UTF-8, a closed WAL database left unchanged byte for byte."""
+    ck = [sys.executable, "-I", os.path.join(box, CHECKER), "--today", F.TODAY.isoformat()]
+    link = os.path.join(work, "rootsym")
+    if not os.path.lexists(link):
+        os.symlink(fx["root"], link)
+    p = subprocess.run(ck + ["--root", link, db], capture_output=True, text=True)
+    if "ROOT: %s" % fx["root"] not in p.stdout.splitlines():
+        return 1
+    good = "x\n\n" + F.line()
+    rows = [("CON-901", "Ready for testing", good, 20261101), ("CON-902", "Ready for testing", good.encode(), "2026-11-01"),
+            ("CON-903", "Ready for testing ", "x", "2026-11-01"), ("CON-904", "in testing", "x", "2026-11-01"),
+            ("CON-905", "Ready for testing", good.replace("due: 2026-11-20", "due: 2026-11-20T24:00"), "2026-11-01"),
+            ("CON-906", "Ready for testing", "x\r```\n\n" + F.line() + "\n```\n", "2026-11-01"),
+            ("CON-907", "Ready for testing", "x\r<!--\n\n" + F.line() + "\n-->\n", "2026-11-01"),
+            ("CON-908", "Ready for testing", good, "2026-11-01")]
+    want = ["FAIL CON-901 Ready for testing: the created date is not text (int)",
+            "FAIL CON-902 Ready for testing: the body is not text (bytes)",
+            "FAIL CON-903 Ready for testing : the Status 'Ready for testing ' is not written exactly as 'Ready for testing'",
+            "FAIL CON-904 in testing: the Status 'in testing' is not written exactly as 'In testing'",
+            "FAIL CON-905 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00",
+            "FAIL CON-906 Ready for testing: no '**Verification:** provisional' line",
+            "FAIL CON-907 Ready for testing: no '**Verification:** provisional' line",
+            "CHECKED items=8 provisional_status=8 ok=1 fail=7"]
+    tdir = os.path.join(work, "wal")
+    os.makedirs(tdir, exist_ok=True)
+    tdb = os.path.join(tdir, "t.db")
+    if os.path.exists(tdb):
+        os.remove(tdb)
+    con = sqlite3.connect(tdb)
+    con.execute("pragma journal_mode=wal")
+    con.execute("create table items (atm_id text primary key, status text, body_md, created_at)")
+    con.executemany("insert into items values (?,?,?,?)", rows)
+    con.commit()
+    con.close()
+
+    def state():
+        out = []
+        for n in sorted(os.listdir(tdir)):
+            with open(os.path.join(tdir, n), "rb") as fh:
+                out.append((n, fh.read()))
+        return out
+    before = state()
+    p = subprocess.run(ck + ["--root", fx["root"], tdb], capture_output=True, text=True)
+    if p.returncode != 1 or "Traceback" in p.stdout + p.stderr or state() != before:
+        return 1
+    lines = p.stdout.splitlines()
+    if any(not any(ln.startswith(w) for ln in lines) for w in want) or any(ln.startswith("FAIL CON-908") for ln in lines):
+        return 1
+    # the same closed WAL database in a directory that cannot be written (a read-only checkout): the copy is read; an
+    # in-place SQLite open would need to create -wal and -shm there and fail
+    os.chmod(tdir, 0o555)
+    try:
+        p = subprocess.run(ck + ["--root", fx["root"], tdb], capture_output=True, text=True)
+    finally:
+        os.chmod(tdir, 0o755)
+    if p.returncode != 1 or "CHECKED items=8 provisional_status=8 ok=1 fail=7" not in p.stdout.splitlines() \
+            or state() != before:
+        return 1
+    reg = os.path.join(work, "bad_reg.tsv")
+    with open(reg, "wb") as fh:
+        fh.write(b"board\tT1\n\xff\xfe\n")
+    p = subprocess.run(ck + ["--root", fx["root"], "--targets", reg, db], capture_output=True, text=True)
+    if p.returncode != 2 or "VERDICT: BLIND" not in p.stdout.splitlines() or "Traceback" in p.stdout + p.stderr:
+        return 1
     return 0
 
 
@@ -133,6 +211,7 @@ def run(box, work, name):
     py = [sys.executable, "-I"]
     cmd = {"grid": py + [os.path.join(rl, "pvl_grid.py"), ck, os.path.join(work, "grid")],
            "linemodel": py + [os.path.join(rl, "pvl_linemodel.py"), ck, "--no-pandoc"],
+           "lineend": py + [os.path.join(rl, "pvl_lineend.py"), ck, os.path.join(work, "le"), "--no-pandoc"],
            "property": py + [os.path.join(rl, "pvl_property.py"), ck, os.path.join(work, "prop"), "290423", "300"],
            "timing": py + [os.path.join(rl, "pvl_timing.py"), ck, os.path.join(work, "tim")],
            "inventory": py + [os.path.join(rl, "pvl_inventory.py"), ck, os.path.join(work, "inv")]}[name]
@@ -160,13 +239,13 @@ def main(argv):
     sandbox(repo, os.path.join(base, "box"))
     rcs = [("api", api(os.path.join(base, "box"), os.path.join(base, "work")))] + [
         (h, run(os.path.join(base, "box"), os.path.join(base, "work"), h))
-        for h in ("grid", "linemodel", "property", "timing", "inventory")]
+        for h in KILLERS]
     shutil.rmtree(base)
     bad = [h for h, rc in rcs if rc]
     if bad:
         print("MUTATE-BLIND the unmutated copy fails: %s" % ", ".join(bad))
         return 2
-    print("MUT-CONTROL unmutated copy passes api grid linemodel property timing inventory")
+    print("MUT-CONTROL unmutated copy passes api %s" % " ".join(KILLERS))
     killed = survived = napp = 0
     for mid, rel, old, new in muts:
         if only and mid not in only:
@@ -192,7 +271,7 @@ def main(argv):
             rc = 2
         if rc:
             by = ("api", rc)
-        for h in ("grid", "linemodel", "property", "timing", "inventory"):
+        for h in KILLERS:
             if by:
                 break
             rc = run(box, scratch, h)

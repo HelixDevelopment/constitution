@@ -9,9 +9,19 @@ Usage:
    config/verification_targets.tsv under the root; default --today: the UTC date; default window: 60 days)
 
 Section 11.4.290: an item counts as PROVISIONAL-DONE while its Status is `Ready for testing` or `In testing`, and that
-state needs a scheduled verification job recorded on one line. This checker reads the tracker database (opened
-read-only through a file: URI built by pathlib, never created, never written) and refuses an item of those statuses
-whose body has no such line, more than one, or a line that is not a sentence of the grammar below.
+state needs a scheduled verification job recorded on one line. This checker reads the tracker database and refuses an
+item of those statuses whose body has no such line, more than one, or a line that is not a sentence of the grammar
+below.
+
+THE READ (round 6, review r5 M-1). SQLite creates -wal and -shm files even for a read-only open of a WAL-mode
+database, so the database is never opened in place: its file and its -wal and -journal files (when present) are copied
+as bytes into a private temporary directory, the copy is opened, and the copy is taken again when a file changed
+during it (inode, size or modification time; five tries, then BLIND). The original is never opened by SQLite, so no
+sidecar appears next to it and its bytes are unchanged. A status is matched as a person reads it (NFKC folded,
+look-alike letters mapped, format characters removed, white space collapsed, case folded): a status that reads as
+`Ready for testing` or `In testing` but is not written exactly so is refused, never skipped (review r5 M-4). A body
+that is not text, a created_at that is not text, and a target registry that is not UTF-8 are refused or reported
+BLIND by name (review r5 M-2); an unexpected error is reported BLIND, never a traceback.
 
 THE PRIMITIVE (CON-423 r5, section 11.4.276(E)(3), section 11.4.250). Rounds 1 to 4 accepted a value unless a bad form
 was recognised (placeholder words, then their split, folded, glued, look-alike and invisible forms); every review found
@@ -50,25 +60,41 @@ independent implementation of the same grammar, and the suite compares the two):
   NOTE     = "note" then printable ASCII to the end of the line (at least one letter or digit); never evidence
   No term may appear twice in LAYER, TARGET or ARTIFACT; the line is at most 4096 characters.
 
-THE LINE MODEL (CommonMark 0.31; tests/release/pvl_linemodel.py compares it with pandoc where pandoc is installed). The
-body is split on LF only (one trailing CR removed: CRLF), so U+2028, U+0085 and U+001C are characters of a line. A line
-counts when it starts at column 0 with the prefix, is outside a fenced code block (up to 3 spaces, 3 or more backticks or
+THE LINE MODEL (CommonMark 0.31; tests/release/pvl_linemodel.py compares it with pandoc and markdown-it-py, and
+tests/release/pvl_lineend.py enumerates the line-ending and start-of-line class against markdown-it-py). The body is
+split on the CommonMark line endings: LF, CR LF and a lone CR (round 6, review r5 I-1; pandoc drops a lone CR and is
+blind there, markdown-it-py is the reference for it), so U+2028, U+2029, U+0085, VT, FF, NUL and U+001C..U+001F are
+characters of a line. Indentation is counted in columns, a tab advancing to the next multiple of 4. A line counts when
+it starts at column 0 with the prefix, is outside a fenced code block (up to 3 spaces, 3 or more backticks or
 tildes; a backtick fence whose info string holds a backtick is not a fence; it closes on up to 3 spaces, the same
 character at least as often, then only spaces or tabs; an unclosed fence runs to the end), outside an HTML block of the
 seven CommonMark kinds (a kind 1 to 5 block ends on the first line, its start line included, that holds its end text,
 so `<!-->` ends at once; kinds 6 and 7 end before a blank line; kind 7 cannot interrupt a paragraph), is not a lazy
 continuation line of a block quote or list item paragraph, and STARTS a top-level paragraph (it follows a blank line, a
-heading, a thematic break, a closed fence, a closed HTML block or the start of the body): a line that continues a
-paragraph is not counted, so no inline construct of an earlier line (a code span, an inline HTML comment) can reach it.
+heading, a thematic break, a setext `=` underline, a closed fence, a closed HTML block or the start of the body): a line
+that continues a paragraph is not counted, so no inline construct of an earlier line (a code span, an inline HTML
+comment) can reach it. A thematic break (`* * *`, `- - -`) takes precedence over a list item.
 A body is also read the older way (pandoc 3: the end text of an HTML block of kinds 2 to 5 is looked for only after its
 opener on the start line); when the two readings count different lines the body is refused (which lines a reader shows
 is then not certain).
+THE NEAR RULE (round 6). A body is refused when a line a reader shows (outside a fenced block and an HTML block of
+kinds 1 to 5) carries the Verification label (the word and a colon, read with character references decoded, NFKC
+folding, look-alike letters mapped and format characters removed, markup or spaces allowed before the colon) and is not the one counted line: a labelled
+line in a block quote, a list item, an HTML block of kind 6 or 7, a continuation line, or one that starts after a space,
+a tab, a format character or any other character. Such a line is refused rather than judged, because whether a reader
+shows it as a verification line depends on the reader.
 
 Known limits (stated): a sentence of the grammar can still be false (a real script that is not the right job, counts
 that will not be observed, a commit id that is not the fix: commit and tag ids are shape-checked, the checker runs no
 process); a selector, option or env value is accepted when the script merely mentions it; the line model covers block
 quotes and list items only as far as lazy continuation of a paragraph. It does NOT check whether a due date is past
-(derive_release_facts.sh reports that) or whether the job was run.
+(derive_release_facts.sh reports that) or whether the job was run. False refusals, the safe direction (stated, review r5
+M-6): a line after a link reference definition, and a fence after a blank line inside a list item, are refused although
+CommonMark shows the line. A label written through a character reference (`&#86;erification:`) or split by inline HTML
+markup other than tags is not counted (it does not start with the prefix); since round 6 the near rule decodes
+character references (html.unescape) before it looks for the label, so such a line next to a counted line refuses the
+body (tests/release/pvl_lineend.py shapes S19 to S21; before the fix the checker accepted it, a danger found while
+writing these notes). A label split by markup the near rule does not model is a stated gap.
 
 Output: one `FAIL <id> <status>: <reason>` line per refused item, then `ROOT: <real root>` and `TODAY: <date>
 window=<N>d`, then `CHECKED items=N provisional_status=P ok=K fail=F`, then `VERDICT: PASS|FAIL|BLIND`. Exit 0 PASS,
@@ -77,11 +103,14 @@ usage (also a root that is not a directory, a --today that is not a date, a wind
 """
 
 import datetime
+import html
 import os
 import pathlib
 import re
 import sqlite3
 import sys
+import tempfile
+import time
 import unicodedata
 
 STATUSES = ("Ready for testing", "In testing")
@@ -195,17 +224,52 @@ def fence_open(s):
     return m.group(1)
 
 
+# CommonMark 0.31 section 2.1: a line ending is LF, CR LF, or a CR not followed by LF; nothing else ends a line
+LINE_END = re.compile(r"\r\n|\r|\n")
+SETEXT_EQ = re.compile(r" {0,3}=+[ \t]*\Z")
+# the label a person reads as a verification statement, in any case, with markup or spaces before the colon
+LABEL = re.compile(r"verification[\s*_~`\\]*(?:</?[a-z][^>]*>[\s*_~`\\]*)*:", re.I)
+
+
+def indent_cols(s):
+    """The columns of S's leading spaces and tabs (a tab advances to the next multiple of 4, CommonMark 2.2)."""
+    col = 0
+    for ch in s:
+        if ch == " ":
+            col += 1
+        elif ch == "\t":
+            col += 4 - col % 4
+        else:
+            break
+    return col
+
+
+def has_label(s):
+    """True when S, read the way a person reads it (character references decoded, NFKC folded, look-alike letters
+    mapped, format characters such as ZWJ or a soft hyphen removed), holds the word Verification followed by a colon."""
+    t = unicodedata.normalize("NFKC", html.unescape(s))
+    t = "".join(CONFUSABLES.get(c, c) for c in t if unicodedata.category(c) != "Cf")
+    return LABEL.search(t) is not None
+
+
 def visible_lines(body, legacy=False):
     """The lines of BODY that count (see THE LINE MODEL); LEGACY: the end text of an HTML block of kinds 2 to 5 is looked
     for after the opener on the start line (the older reading)."""
+    return scan(body, legacy)[0]
+
+
+def scan(body, legacy=False):
+    """(counted, near): the counted lines of BODY (THE LINE MODEL) and the other lines a reader shows that carry the
+    Verification label (outside a fenced code block and an HTML block of kinds 1 to 5); see check_body."""
     out = []
+    near = []
     fence = None      # the opening fence string while inside a top-level fenced block
     html = 0          # the HTML block kind while inside one
     para = None       # None, "top", "quote" or "list": the container of a paragraph the next line may continue
     inner_fence = None  # a fence open inside a block quote or list item
-    for raw in (body or "").split("\n"):
-        ln = raw[:-1] if raw.endswith("\r") else raw
+    for ln in LINE_END.split(body or ""):
         blank = not ln.strip(" \t")
+        counted = False
         if fence is not None:
             m = FENCE_CLOSE.match(ln)
             if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):
@@ -219,11 +283,13 @@ def visible_lines(body, legacy=False):
             if blank:
                 html = 0
                 para = None
+            elif has_label(ln):
+                near.append(ln)
             continue
         if blank:
             para, inner_fence = None, None
             continue
-        indent = len(ln) - len(ln.lstrip(" "))
+        indent = indent_cols(ln)
         f = fence_open(ln)
         if f is not None:
             fence, para, inner_fence = f, None, None
@@ -234,6 +300,16 @@ def visible_lines(body, legacy=False):
             t = ln.lstrip(" ")
             if k in HTML_END and HTML_END[k](t[OPENER_LEN[k]:] if legacy and k in OPENER_LEN else t):
                 html = 0
+            if k in (6, 7) and has_label(ln):
+                near.append(ln)
+            continue
+        if indent <= 3 and THEMATIC.match(ln):
+            # a thematic break takes precedence over a list item (CommonMark 4.1: `* * *` is a break, not an item)
+            para, inner_fence = None, None
+            continue
+        if para == "top" and SETEXT_EQ.match(ln):
+            # a setext heading underline of = ends the top-level paragraph above it (CommonMark 4.3)
+            para = None
             continue
         if QUOTE.match(ln) or LIST_ITEM.match(ln):
             kind = "quote" if QUOTE.match(ln) else "list"
@@ -244,6 +320,8 @@ def visible_lines(body, legacy=False):
                     inner_fence = None
                 para = None
                 continue
+            if has_label(ln):
+                near.append(ln)
             fi = fence_open(inner)
             if fi is not None:
                 inner_fence, para = fi, None
@@ -252,6 +330,10 @@ def visible_lines(body, legacy=False):
             else:
                 para = kind
             continue
+        if has_label(ln) and not (para is None and ln.startswith(PREFIX)
+                                   and (len(ln) == len(PREFIX) or ln[len(PREFIX)] in " (")):
+            near.append(ln)
+            counted = True
         if indent >= 4:
             # an indented line continues a paragraph (any container) or is indented code / a list continuation
             if para is None:
@@ -263,12 +345,12 @@ def visible_lines(body, legacy=False):
             para = None
             continue
         # a line that does not start a paragraph continues one (at top level, or lazily the paragraph of a block quote
-        # or list item): it is not counted
-        starts = para is None
+        # or list item): it is not counted (a continuation line with the prefix carries the label, so the near rule
+        # above has already reported it and set `counted`)
         para = "top"
-        if starts and ln.startswith(PREFIX) and (len(ln) == len(PREFIX) or ln[len(PREFIX)] in " ("):
+        if not counted and ln.startswith(PREFIX) and (len(ln) == len(PREFIX) or ln[len(PREFIX)] in " ("):
             out.append(ln)
-    return out
+    return out, near
 
 
 def char_reason(v, where):
@@ -467,7 +549,13 @@ def due_problem(v, ctx):
     try:
         d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
         if m.group(4) is not None:
-            datetime.datetime.fromisoformat(v.replace("Z", "+00:00"))
+            # the closed ranges (round 6, review r5 M-3): hour 0..23, minute and second 0..59, an offset of at most
+            # 23:59. DUE_RE fixes the shape and datetime.date checks the date, so these ranges are the whole time
+            # check; the r5 datetime.fromisoformat call was removed as redundant (some Python versions accept hour 24)
+            off = m.group(7)
+            if int(m.group(4)) > 23 or int(m.group(5)) > 59 or int(m.group(6) or 0) > 59 or (
+                    off not in (None, "Z") and (int(off[1:3]) > 23 or int(off[4:6]) > 59)):
+                raise ValueError(v)
     except ValueError:
         return "is not a real date and time: %s" % v[:40]
     if ctx.created is None:
@@ -539,10 +627,17 @@ def check_body(body, root=None, ctx=None):
     """Return None when the body carries exactly one verification line that is a sentence of the grammar."""
     if ctx is None:
         ctx = Context(root)
-    lines = visible_lines(body)
-    if lines != visible_lines(body, legacy=True):
+    if not isinstance(body, str):
+        return "the body is not text (%s)" % type(body).__name__
+    lines, near = scan(body)
+    old, near_old = scan(body, legacy=True)
+    if lines != old:
         return ("the body reads differently in CommonMark 0.31 and in an older reader (an HTML block opener such as "
                 "<!--> closes itself in one and not in the other), so which lines are visible is not certain")
+    near = near or near_old
+    if near:
+        return ("a line a reader shows carries the Verification label but is not the one counted line (it does not "
+                "start a top-level paragraph with the prefix at column 0): %r" % near[0][:80])
     if not lines:
         return "no '**Verification:** provisional' line"
     if len(lines) > 1:
@@ -560,20 +655,81 @@ def parse_date(s):
         return None
 
 
+class RegistryError(Exception):
+    """The target registry exists but cannot be read as UTF-8 text."""
+
+
 def load_targets(path):
-    """The target registry: a set of (kind, id) from KIND<TAB>ID lines ('#' comments); None when absent."""
+    """The target registry: a set of (kind, id) from KIND<TAB>ID lines ('#' comments); None when absent. A registry that
+    cannot be read or decoded raises RegistryError (the caller reports BLIND: an unreadable registry proves nothing)."""
     if not os.path.isfile(path):
         return None
     out = set()
-    with open(path, encoding="utf-8") as fh:
-        for ln in fh:
-            ln = ln.rstrip("\n")
-            if not ln or ln.startswith("#"):
-                continue
-            k, _, i = ln.partition("\t")
-            if k in TARGET_KINDS and KIND_RE.fullmatch("%s %s" % (k, i)):
-                out.add((k, i))
+    try:
+        with open(path, "rb") as fh:
+            text = fh.read().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise RegistryError("%s (%s)" % (path, exc.__class__.__name__)) from None
+    for ln in LINE_END.split(text):  # the line endings text mode read before (universal newlines)
+        if not ln or ln.startswith("#"):
+            continue
+        k, _, i = ln.partition("\t")
+        if k in TARGET_KINDS and KIND_RE.fullmatch("%s %s" % (k, i)):
+            out.add((k, i))
     return out
+
+
+DB_SUFFIXES = ("", "-wal", "-journal")
+
+
+def _stats(db):
+    out = {}
+    for suf in DB_SUFFIXES:
+        try:
+            st = os.stat(db + suf)
+            out[suf] = (st.st_ino, st.st_size, st.st_mtime_ns)
+        except FileNotFoundError:
+            out[suf] = None
+    return out
+
+
+def snapshot_db(db, tmp):
+    """Copy the database file and its -wal and -journal files (when present) into the private directory TMP and return
+    the copy's path; the original is only read as bytes, never opened by SQLite, so no -wal or -shm is ever created next
+    to it (review r5 M-1: a read-only SQLite open of a WAL database creates them). A copy taken while a file changed is
+    retried; after five tries the database is reported as changing (BLIND)."""
+    dst = os.path.join(tmp, "items.db")
+    for _ in range(5):
+        before = _stats(db)
+        for suf in DB_SUFFIXES:
+            if os.path.exists(dst + suf):
+                os.remove(dst + suf)
+            if before[suf] is not None:
+                with open(db + suf, "rb") as src, open(dst + suf, "wb") as out:
+                    while True:
+                        chunk = src.read(1 << 20)
+                        if not chunk:
+                            break
+                        out.write(chunk)
+        if _stats(db) == before:
+            return dst
+        time.sleep(0.1)
+    return None
+
+
+def status_key(st):
+    """The status as a person reads it: bytes decoded, NFKC folded, look-alike letters mapped, format characters
+    removed, runs of white space made one space, outer white space removed, case folded."""
+    if isinstance(st, (bytes, bytearray)):
+        st = bytes(st).decode("utf-8", "replace")
+    if not isinstance(st, str):
+        return None
+    t = unicodedata.normalize("NFKC", st)
+    t = "".join(CONFUSABLES.get(c, c) for c in t if unicodedata.category(c) != "Cf")
+    return " ".join(t.split()).casefold()
+
+
+PROVISIONAL_KEYS = {status_key(s): s for s in STATUSES}
 
 
 def usage(msg):
@@ -608,25 +764,45 @@ def main(argv):
     if not INT_RE.fullmatch(w) or int(w) > 3650:
         return usage("--due-window-days %s is not 0..3650" % w)
     root = os.path.realpath(os.path.abspath(opts["--root"]))
-    targets = load_targets(opts["--targets"] or os.path.join(root, "config", "verification_targets.tsv"))
+    try:
+        targets = load_targets(opts["--targets"] or os.path.join(root, "config", "verification_targets.tsv"))
+    except RegistryError as exc:
+        return blind("the target registry cannot be read as UTF-8 text: %s" % exc)
     if not os.path.isfile(db):
         return blind("the database cannot be read (no such file)")
-    try:
-        con = sqlite3.connect(pathlib.Path(os.path.abspath(db)).as_uri() + "?mode=ro", uri=True)
-        total = con.execute("select count(*) from items").fetchone()[0]
-        cols = [r[1] for r in con.execute("pragma table_info(items)")]
-        created_col = "created_at" if "created_at" in cols else "NULL"
-        items = dict(con.execute("select atm_id, status from items").fetchall())
-        rows = con.execute("select atm_id, status, body_md, %s from items where status in (?, ?) order by atm_id"
-                           % created_col, STATUSES).fetchall()
-    except sqlite3.Error as exc:
-        return blind("the database cannot be read (%s)" % exc.__class__.__name__)
+    with tempfile.TemporaryDirectory(prefix="pvl_db.") as tmp:
+        try:
+            copy = snapshot_db(os.path.abspath(db), tmp)
+        except OSError as exc:
+            return blind("the database cannot be read (%s)" % exc.__class__.__name__)
+        if copy is None:
+            return blind("the database changed during five copies; it cannot be read consistently")
+        try:
+            con = sqlite3.connect(pathlib.Path(copy).as_uri(), uri=True)
+            try:
+                total = con.execute("select count(*) from items").fetchone()[0]
+                cols = [r[1] for r in con.execute("pragma table_info(items)")]
+                created_col = "created_at" if "created_at" in cols else "NULL"
+                items = dict(con.execute("select atm_id, status from items").fetchall())
+                allrows = con.execute("select atm_id, status, body_md, %s from items order by atm_id"
+                                      % created_col).fetchall()
+            finally:
+                con.close()
+        except sqlite3.Error as exc:
+            return blind("the database cannot be read (%s)" % exc.__class__.__name__)
     if total == 0:
         return blind("the items table holds no items")
+    rows = [r for r in allrows if status_key(r[1]) in PROVISIONAL_KEYS]
     fails = 0
     for atm_id, status, body, created in rows:
-        ctx = Context(root, items, atm_id, parse_date(created), today, int(w), targets)
-        reason = check_body(body, ctx=ctx)
+        exact = PROVISIONAL_KEYS[status_key(status)]
+        if status != exact:
+            reason = "the Status %r is not written exactly as %r (it reads as a provisional status)" % (status, exact)
+        elif created is not None and not isinstance(created, str):
+            reason = "the created date is not text (%s)" % type(created).__name__
+        else:
+            ctx = Context(root, items, atm_id, parse_date(created), today, int(w), targets)
+            reason = check_body(body, ctx=ctx)
         if reason:
             fails += 1
             print("FAIL %s %s: %s" % (atm_id, status, reason))
@@ -638,5 +814,14 @@ def main(argv):
     return 1 if fails else 0
 
 
+def run(argv):
+    """main with a last net: an unexpected error is reported as BLIND with its class, never as a traceback and never as
+    a pass (section 11.4.201(4)); every expected refusal is decided before this net (review r5 M-2)."""
+    try:
+        return main(argv)
+    except Exception as exc:  # noqa: BLE001
+        return blind("internal error %s: %s" % (exc.__class__.__name__, str(exc)[:200]))
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(run(sys.argv))

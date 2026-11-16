@@ -1,0 +1,4 @@
+run1 rc=0
+ 21:52:22 up 2 days,  9:20,  1 user,  load average: 46.06, 49.39, 44.37
+run2 rc=0
+ 21:56:52 up 2 days,  9:24,  1 user,  load average: 58.58, 49.96, 45.47

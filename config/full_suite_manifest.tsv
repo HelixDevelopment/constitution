@@ -934,10 +934,12 @@ tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network p
 tests/release/pvl_fixture.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_grid.py	py	excluded	-	-	-	reason: oracle: case grid of the provisional-verification checker (the r2 to r5 cases: placeholder shapes x six fields, per-field shapes, job and target positive shapes, look-alikes, due dates, fences, HTML comments, separator classes, golden-FALSE accepts) judged by the API, the command line and the independent oracle tests/release/pvl_oracle.py, run by tests/release/test_provisional_verification_lines.sh (P6) and by tests/release/pvl_mutate.py (P13); not a test entry point
 tests/release/pvl_inventory.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_lineend.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_linemodel.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_mutate.py	py	member	heavy	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_oracle.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_property.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_refreader.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_reviewer.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_timing.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
