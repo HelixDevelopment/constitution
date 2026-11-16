@@ -34,7 +34,7 @@
 #                        assignee value, a missing configuration file, a corpus file with a NUL byte (also
 #                        one that hides a fixture account after the NUL) and an unresolvable --changed-since
 #                        MUST exit 2; equal reviewer and assignee keys exit 64;
-#     * CON-424          a constitution that is its own consumer: a root-level <root>/config/delivery.conf
+#     * CON-PENDINGprgate          a constitution that is its own consumer: a root-level <root>/config/delivery.conf
 #                        (with the extra keys decision_id, decision_date, pr_repository, own_repositories) is
 #                        read by default and its accounts are scanned; under --changed-since that file is left
 #                        out by its resolved path (another file next to it, and a root-level file that was not
@@ -54,7 +54,7 @@
 #                        reported as PASS, present-means-mandatory removed, an empty reviewer list accepted
 #                        or not detected, an empty assignee list refused, the assignee list ignored or its
 #                        malformed value accepted, --changed-since ignored, a corpus file, file pattern or
-#                        guide directory dropped, the scan skipped, and for CON-424: either default location
+#                        guide directory dropped, the scan skipped, and for CON-PENDINGprgate: either default location
 #                        dropped, extra keys read as accounts, the configuration exclusion removed or widened to
 #                        a directory or a file name, the SQLite skip removed or widened to every changed file,
 #                        the skipped database not named in the PASS) MUST each
@@ -133,7 +133,8 @@ PYEOF
 op() { python3 -I "$PY" "$@" || { say "SETUP FAILURE: operator '$1 $2' failed (a no-op mutation is a test bug)"; exit 2; }; }
 fresh() { rm -rf "${L:?}"; cp -a "$BASE" "$L" || { say "SETUP FAILURE: scratch copy failed"; exit 2; }; }
 G="$GATE"
-run() { bash "$G" --root "$C" "$@" 2>&1; }
+# RUNROOT and RUNCWD let a case pass a symlinked root or run from the scratch root (a relative --consumer-config)
+run() { (cd "${RUNCWD:-.}" && bash "$G" --root "${RUNROOT:-$C}" "$@" 2>&1); }
 # a git history in the scratch constitution, isolated from the caller's git configuration
 fgit() { GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git -C "$C" -c user.name=fixture -c user.email=fixture@example.invalid -c init.defaultBranch=main "$@" >/dev/null 2>&1; }
 gitfresh() {
@@ -252,7 +253,7 @@ gitfresh; op append "$C/docs/research/note.md" "This note names $F2."; fgit comm
 expect "RED: a file committed after the base named by --changed-since" 1 "appears in docs/research/note.md:" --changed-since HEAD~1
 gitfresh; expect "BLIND: an unresolvable --changed-since" 2 "BLIND — --changed-since: 'no-such-rev' is not a commit" --changed-since no-such-rev
 
-# ── CON-424: a constitution that is its own consumer (root-level config/delivery.conf) ──
+# ── CON-PENDINGprgate: a constitution that is its own consumer (root-level config/delivery.conf) ──
 # self_consumer: the consumer-level configuration is removed and the fixture reviewers are declared at
 # <root>/config/delivery.conf instead, with the extra keys a real declaration carries (CON-423 decision (4))
 self_consumer() {
@@ -276,12 +277,91 @@ printf '%s\n' "other=$F1" >"$C/config/other.conf"
 expect "RED: another file next to the declared configuration is still scanned under --changed-since" 1 "appears in config/other.conf:" --changed-since HEAD
 gitfresh; cp "$L/consumer/config/delivery.conf" "$C/config/delivery.conf"
 expect "RED: a root-level configuration that was not read (an explicit --consumer-config) is scanned like any file" 1 "appears in config/delivery.conf:" --changed-since HEAD --consumer-config "$L/consumer/config/delivery.conf"
+# round 3 (B1): this case used to require a PASS for a database that HOLDS a fixture account (the database was left
+# unscanned); it now requires the account to be found in its text cells, and a clean database to pass and be named
 gitfresh; mkdb "$C/docs/workable_items.db" "$F1"
-expect "golden-FALSE: a changed SQLite tracker database is not scanned, and the PASS says so" 0 'PASS — .*1 SQLite database file\(s\) not scanned.*docs/workable_items.db' --changed-since HEAD
+expect "RED: a changed SQLite database holding an account is scanned through its text cells" 1 'appears in docs/workable_items.db \(SQLite text cells\):' --changed-since HEAD
+gitfresh; mkdb "$C/docs/workable_items.db" "no account here"
+expect "golden-FALSE: a clean changed SQLite database passes, and the PASS names it" 0 'PASS — .*1 SQLite database file\(s\) scanned as their text cells:.*docs/workable_items.db' --changed-since HEAD
 gitfresh; printf 'bin\000ary\n' >"$C/docs/research/blob.bin"
 expect "BLIND: a changed binary file that is not an SQLite database stays BLIND" 2 'BLIND — 1 corpus file\(s\) hold a NUL byte.*docs/research/blob.bin' --changed-since HEAD
 gitfresh; printf 'SQLite format 3\000 reviewer %s\n' "$F1" >"$C/CHANGELOG.md"
 expect "BLIND: a changed file of the fixed corpus is never skipped as an SQLite database" 2 'BLIND — 1 corpus file\(s\) hold a NUL byte.*CHANGELOG.md' --changed-since HEAD
+
+# ── round 3: SQLite by content, symlinks, path classes, the index, path names (B1, B2, F1, F2, F3) ──
+# the reviewer's scenarios S_db, S_near, S_prefix, S_symchg, S_symroot, S_relconf, S_untracked, S_unstaged,
+# S_explother (rev_prdeliv_r2 revmut.py) are the cases marked [S_...] below
+mkblobdb() { python3 -I -c 'import sqlite3, sys
+c = sqlite3.connect(sys.argv[1]); c.execute("create table t(x blob)"); c.execute("insert into t values (?)", (sys.argv[2].encode(),)); c.commit()' "$1" "$2" \
+    || { say "SETUP FAILURE: fixture SQLite database"; exit 2; }; }
+mknuldb() { python3 -I -c 'import sqlite3, sys
+c = sqlite3.connect(sys.argv[1]); c.execute("create table t(x text)"); c.execute("insert into t values (?)", ("a\x00b clean",)); c.commit()' "$1" \
+    || { say "SETUP FAILURE: fixture SQLite database"; exit 2; }; }
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf || { say "SETUP FAILURE: commit conf"; exit 2; }; mkdb "$C/docs/research/t.db" "reviewer $F1"
+expect "RED [S_db]: a real SQLite database holding an account, next to an edited declared configuration" 1 'appears in docs/research/t.db \(SQLite text cells\):' --changed-since HEAD
+gitfresh; mkblobdb "$C/docs/research/b.db" "blob names $F2"
+expect "RED: an account in a BLOB cell of a changed SQLite database" 1 'appears in docs/research/b.db \(SQLite text cells\):' --changed-since HEAD
+gitfresh; mknuldb "$C/docs/research/n.db"
+expect "golden-FALSE: a NUL inside a text cell of a clean database does not make the gate BLIND" 0 'PASS — .*scanned as their text cells' --changed-since HEAD
+gitfresh; printf 'SQLite format 3\000 a text file faking the header, reviewer %s\n' "$F1" >"$C/docs/research/fake.md"
+expect "BLIND: a text file that starts with the SQLite header cannot be opened as a database" 2 'BLIND — docs/research/fake.md starts with the SQLite header but cannot be read as an SQLite database' --changed-since HEAD
+gitfresh; printf 'SQLite format 3 near the header, reviewer %s\n' "$F1" >"$C/docs/research/near.md"
+expect "RED [S_near]: a text file whose first bytes resemble the SQLite header is scanned as text" 1 'appears in docs/research/near.md:' --changed-since HEAD
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf || { say "SETUP FAILURE: commit conf"; exit 2; }; printf '%s\n' "$F1" >"$C/config/delivery.c"
+expect "RED [S_prefix]: a changed path that is a prefix of the declared configuration path is scanned" 1 'appears in config/delivery.c:' --changed-since HEAD
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf || { say "SETUP FAILURE: commit conf"; exit 2; }
+op append "$C/config/delivery.conf" "# edited"; ln -s ../../config/delivery.conf "$C/docs/research/l.md"
+expect "RED [S_symchg]: a changed symbolic link to the declared configuration is never excluded" 1 'appears in docs/research/l.md -> config/delivery.conf:' --changed-since HEAD
+gitfresh; ln -s "no-such-target/$F2" "$C/docs/research/dangling.md"
+expect "RED: an account in the target text of a changed dangling symbolic link" 1 'appears in docs/research/dangling.md \(symbolic link target\):' --changed-since HEAD
+gitfresh; printf '%s\n' "outside $F1" >"$L/outside.txt"; ln -s "$L/outside.txt" "$C/docs/research/out.md"
+expect "BLIND: a changed symbolic link that points outside the root" 2 'BLIND — --changed-since: the changed symbolic link docs/research/out.md points outside the root' --changed-since HEAD
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf || { say "SETUP FAILURE: commit conf"; exit 2; }; op append "$C/config/delivery.conf" "# edited"; ln -s "$C" "$L/rlink"
+RUNROOT="$L/rlink" expect "PASS [S_symroot]: a symlinked root still leaves exactly the declared configuration out" 0 'excluded from --changed-since: 1 consumer configuration file\(s\) read in this run: config/delivery.conf' --changed-since HEAD
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf || { say "SETUP FAILURE: commit conf"; exit 2; }; op append "$C/config/delivery.conf" "# edited"
+RUNCWD="$C" expect "PASS [S_relconf]: a relative --consumer-config is resolved and its file is left out" 0 'excluded from --changed-since: 1 consumer configuration' --changed-since HEAD --consumer-config config/delivery.conf
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/u.md"
+expect "RED [S_untracked]: an untracked file" 1 'appears in docs/research/u.md:' --changed-since HEAD
+gitfresh; op append "$C/docs/research/note.md" "This note names $F1."
+expect "RED [S_unstaged]: an unstaged change to a tracked file outside the fixed corpus" 1 'appears in docs/research/note.md:' --changed-since HEAD
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf || { say "SETUP FAILURE: commit conf"; exit 2; }; op append "$C/config/delivery.conf" "# edited"
+printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$L/consumer/config/delivery.conf"
+expect "RED [S_explother]: with an explicit --consumer-config the root-level configuration is not read and is scanned" 1 'appears in config/delivery.conf:' --changed-since HEAD --consumer-config "$L/consumer/config/delivery.conf"
+fresh; rm -f "$L/consumer/config/delivery.conf"; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$C/docs/research/data.conf"; mkdir -p "$C/config"; ln -s ../docs/research/data.conf "$C/config/delivery.conf"
+expect "BLIND: the declared configuration is a symbolic link (to a data file)" 2 'BLIND — consumer configuration .*config/delivery.conf is a symbolic link'
+fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" "prose $F2" >"$L/data.md"
+expect "BLIND: a --consumer-config outside a directory named config" 2 'BLIND — consumer configuration .*data.md does not lie in a directory named config' --consumer-config "$L/data.md"
+fresh; mkdir -p "$C/docs/research/config"; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$C/docs/research/config/x.conf"
+expect "BLIND: a --consumer-config inside the root but not in <root>/config/" 2 'BLIND — consumer configuration .*lies inside the root but not in <root>/config/' --consumer-config "$C/docs/research/config/x.conf"
+fresh; rm -f "$L/consumer/config/delivery.conf"; mkdir -p "$L/elsewhere/config" "$C/config"; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$L/elsewhere/config/delivery.conf"; ln -s "$L/elsewhere/config/delivery.conf" "$C/config/delivery.conf"
+expect "BLIND: the declared configuration is a symbolic link (to a configuration elsewhere)" 2 'BLIND — consumer configuration .*is a symbolic link'
+gitfresh; mkdir -p "$C/docs/research"; printf '%s\n' "$F1" >"$C/docs/research/ü.md"
+expect "RED: a non-ASCII file name (F1)" 1 'appears in docs/research/ü.md:' --changed-since HEAD
+gitfresh; printf '%s\n' clean >"$C/docs/research/ü2.md"; fgit add -A; fgit commit -q -m u2 || { say "SETUP FAILURE: commit"; exit 2; }; printf '%s\n' "$F1" >>"$C/docs/research/ü2.md"
+expect "RED: a modified tracked file with a non-ASCII name (F1)" 1 'appears in docs/research/ü2.md:' --changed-since HEAD
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/a"$'\n'"b.md"
+expect "RED: a file name with a newline (F1)" 1 'appears in docs/research/a\?b.md:' --changed-since HEAD
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/a"$'\t'"b.md"
+expect "RED: a file name with a tab (F1)" 1 'appears in docs/research/a\?b.md:' --changed-since HEAD
+gitfresh; printf '%s\n' clean >"$C/docs/research/$F2.md"
+expect "RED: an account only in a changed path name (F3)" 1 'appears in \(names of the paths changed since HEAD\):' --changed-since HEAD
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/s.md"; fgit add docs/research/s.md; printf '%s\n' clean >"$C/docs/research/s.md"
+expect "RED: an account in the staged version while the working tree was cleaned (F2)" 1 'appears in index:docs/research/s.md:' --changed-since HEAD
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/g.md"; fgit add docs/research/g.md; rm -f "$C/docs/research/g.md"
+expect "RED: an account in a staged new file removed from the working tree (F2)" 1 'appears in index:docs/research/g.md:' --changed-since HEAD
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/locked.md"; chmod 000 "$C/docs/research/locked.md"
+if [ -r "$C/docs/research/locked.md" ]; then qsay "skip: unreadable-file case (this user reads mode-000 files)"; chmod 644 "$C/docs/research/locked.md"
+else expect "BLIND: a listed changed path that cannot be read (F1)" 2 'BLIND — --changed-since: the changed path docs/research/locked.md cannot be read' --changed-since HEAD; chmod 644 "$C/docs/research/locked.md"; fi
+# R12: the parent default is taken from the logical root path, not the physical one
+fresh; rm -f "$L/consumer/config/delivery.conf"; mkdir -p "$L/consumer2/config"; ln -s "$C" "$L/consumer2/constitution"
+printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$L/consumer2/config/delivery.conf"
+RUNROOT="$L/consumer2/constitution" expect "PASS: a root reached through a symlinked layout reads the logical parent's configuration" 0 'PASS — .*1 declared account'
+# the known-key list (round-3 operator answer): the extension keys raise no NOTE, another key a NOTE, never a refusal
+fresh; self_consumer
+expect "golden-FALSE: the declared extension keys are known (no NOTE)" 0 '^(PASS|CM-)' 
+if grep -q 'keys not in the known list' <<<"$(run 2>&1)"; then say "CASE FAILED [the extension keys raised a NOTE]"; RESULT=1; else NOK=$((NOK + 1)); qsay "ok: no NOTE for the extension keys"; fi
+fresh; self_consumer; printf '%s\n' 'some_future_key=x' 'decision_id_round2=R2' 'author_only_reviewer_policy=report-and-merge' 'go_record_location=pr-comment' >>"$C/config/delivery.conf"
+expect "PASS: an unknown key is named in a NOTE and not refused" 0 'NOTE  keys not in the known list \(not read, not refused\): some_future_key$'
 
 # ── SKIP and BLIND ───────────────────────────────────────────────────────────
 fresh; rm -f "$L/consumer/config/delivery.conf"
@@ -420,31 +500,120 @@ G="$(mutant corpus_drops_guides 'CORPUS_MD_DIRS="groups progressive/rules docs/g
 fresh; op append "$C/docs/guides/full_suite_runner_guide.md" "reviewer @$F2"; killed corpus_drops_guides 1 "$(outcome)"
 G="$(mutant changed_since_ignored 'if [ -n "$SINCE" ]; then' 'if false; then')"
 gitfresh; op append "$C/docs/research/note.md" "This note names $F1."; killed changed_since_ignored 1 "$(outcome --changed-since HEAD)"
-# CON-424: the root-level default, the configuration exclusion and the SQLite skip
+# CON-PENDINGprgate: the root-level default, the configuration exclusion and the SQLite scan
 G="$(mutant root_default_off 'for _d in "$ROOT/config/delivery.conf" "$(dirname "$ROOT")/config/delivery.conf"; do' 'for _d in "$(dirname "$ROOT")/config/delivery.conf"; do')"
 fresh; self_consumer; killed root_default_off 0 "$(outcome)"
 G="$(mutant parent_default_off 'for _d in "$ROOT/config/delivery.conf" "$(dirname "$ROOT")/config/delivery.conf"; do' 'for _d in "$ROOT/config/delivery.conf"; do')"
 fresh; killed parent_default_off 0 "$(outcome)"
 G="$(mutant extra_keys_read_as_accounts 'line ~ "^[ \t]*" key "[ \t]*=" {' 'line ~ "^[ \t]*pr_[a-z_]*[ \t]*=" {')"
 fresh; self_consumer; killed extra_keys_read_as_accounts 0 "$(outcome)"
-G="$(mutant config_exclusion_off 'if grep -F -x -q -- "$(readlink -f -- "$ROOT/$rel")" "$CONF_REAL"; then' 'if false; then')"
+G="$(mutant config_exclusion_off 'if is_read_config "$p"; then' 'if false; then')"
 gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited: reviewer $F1"
 killed config_exclusion_off 0 "$(outcome --changed-since HEAD)"
-G="$(mutant config_exclusion_by_directory 'if grep -F -x -q -- "$(readlink -f -- "$ROOT/$rel")" "$CONF_REAL"; then' 'if [ "${rel%/*}" = config ]; then')"
+G="$(mutant config_exclusion_by_directory 'if is_read_config "$p"; then' 'if [ "${rel%/*}" = config ]; then')"
 gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; printf '%s\n' "other=$F1" >"$C/config/other.conf"
 killed config_exclusion_by_directory 1 "$(outcome --changed-since HEAD)"
-G="$(mutant config_exclusion_by_name 'if grep -F -x -q -- "$(readlink -f -- "$ROOT/$rel")" "$CONF_REAL"; then' 'if [ "${rel##*/}" = delivery.conf ]; then')"
+G="$(mutant config_exclusion_by_name 'if is_read_config "$p"; then' 'if [ "${rel##*/}" = delivery.conf ]; then')"
 gitfresh; cp "$L/consumer/config/delivery.conf" "$C/config/delivery.conf"
 killed config_exclusion_by_name 1 "$(outcome --changed-since HEAD --consumer-config "$L/consumer/config/delivery.conf")"
-G="$(mutant sqlite_skip_off 'if head -c 16 -- "$ROOT/$rel" | cmp -s - "$SQLITE_MAGIC"; then' 'if false; then')"
-gitfresh; mkdb "$C/docs/workable_items.db" "$F1"; killed sqlite_skip_off 0 "$(outcome --changed-since HEAD)"
-G="$(mutant skip_every_changed_file 'if head -c 16 -- "$ROOT/$rel" | cmp -s - "$SQLITE_MAGIC"; then' 'if true; then')"
-gitfresh; printf 'bin\000ary\n' >"$C/docs/research/blob.bin"; killed skip_every_changed_file 2 "$(outcome --changed-since HEAD)"
+G="$(mutant sqlite_skip_off 'if head -c 16 -- "$1" | cmp -s - "$SQLITE_MAGIC"; then' 'if false; then')"
+gitfresh; mkdb "$C/docs/workable_items.db" "$F1"; killed sqlite_skip_off 1 "$(outcome --changed-since HEAD)"
+G="$(mutant skip_every_changed_file 'if head -c 16 -- "$1" | cmp -s - "$SQLITE_MAGIC"; then' 'if true; then')"
+gitfresh; op append "$C/docs/research/note.md" "This note names $F1."; killed skip_every_changed_file 1 "$(outcome --changed-since HEAD)"
 G="$(mutant sqlite_skip_not_reported '[ "$NSQL" -gt 0 ] && LEFT_OUT=' '[ "$NSQL" -lt 0 ] && LEFT_OUT=')"
-gitfresh; mkdb "$C/docs/workable_items.db" "$F1"
+gitfresh; mkdb "$C/docs/workable_items.db" "clean"
 NMUT=$((NMUT + 1))
-if run --changed-since HEAD --quiet | grep -E -q 'PASS — .*SQLite database file\(s\) not scanned'; then say "MUTANT SURVIVED: sqlite_skip_not_reported (the PASS still names the skipped database)"; RESULT=1
+if grep -E -q 'PASS — .*SQLite database file\(s\) scanned as their text cells' <<<"$(run --changed-since HEAD --quiet)"; then say "MUTANT SURVIVED: sqlite_skip_not_reported (the PASS still names the skipped database)"; RESULT=1
 else NKILL=$((NKILL + 1)); qsay "killed: sqlite_skip_not_reported (the PASS no longer names the skipped database)"; fi
+# ── round 3: the reviewer's mutants R1 to R12 (rev_prdeliv_r2 revmut.py). R1, R5 to R11 apply verbatim to this gate;
+# R2, R3, R4 and R12 are the same edit on the lines that replaced the round-2 code (the round-2 lines no longer exist)
+textkill() { # textkill <name> <regex the original's output holds> [gate args...]: the mutant's output must lack it
+    local name="$1" rx="$2"; shift 2; NMUT=$((NMUT + 1))
+    if grep -E -q -- "$rx" <<<"$(run "$@")"; then say "MUTANT SURVIVED: $name (output still matches /$rx/)"; RESULT=1
+    else NKILL=$((NKILL + 1)); qsay "killed: $name (output no longer matches /$rx/)"; fi
+}
+mutant2() { # mutant2 <name> <old1> <new1> <old2> <new2>
+    local name="$1" m="$TMPD/mut_$1.sh"
+    cp "$GATE" "$m"; python3 -I "$PY" sub "$m" "$2" "$3" && python3 -I "$PY" sub "$m" "$4" "$5" || { say "SETUP FAILURE: gate mutant $name is a no-op"; exit 2; }
+    printf '%s' "$m"
+}
+near_fx() { gitfresh; printf 'SQLite format 3 near the header, reviewer %s\n' "$F1" >"$C/docs/research/near.md"; }
+G="$(mutant2 R1_magic_no_nul "printf 'SQLite format 3\\000' >\"\$SQLITE_MAGIC\"" "printf 'SQLite format 3' >\"\$SQLITE_MAGIC\"" 'head -c 16 --' 'head -c 15 --')"
+near_fx; killed R1_magic_no_nul 1 "$(outcome --changed-since HEAD)"
+G="$(mutant R2_confreal_raw_path '_r="$(readlink -f -- "$c")" || blind' '_r="$c" || blind')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited"
+RUNCWD="$C" killed R2_confreal_raw_path 0 "$(RUNCWD="$C" outcome --changed-since HEAD --consumer-config config/delivery.conf)"
+G="$(mutant R3_changed_raw_path '    r="$(readlink -f -- "$p")" || return 1' '    r="$p" || return 1')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited"; ln -s "$C" "$L/rlink"
+killed R3_changed_raw_path 0 "$(RUNROOT="$L/rlink" outcome --changed-since HEAD)"
+G="$(mutant R4_substring_match 'for x in ${CONF_REALS[@]+"${CONF_REALS[@]}"}; do [ "$r" = "$x" ] && return 0; done' 'for x in ${CONF_REALS[@]+"${CONF_REALS[@]}"}; do case "$x" in "$r"*) return 0 ;; esac; done')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; printf '%s\n' "$F1" >"$C/config/delivery.c"; killed R4_substring_match 1 "$(outcome --changed-since HEAD)"
+G="$(mutant R5_excl_not_named '[ "$NEXCL" -gt 0 ] && LEFT_OUT=' '[ "$NEXCL" -lt 0 ] && LEFT_OUT=')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited"
+textkill R5_excl_not_named 'PASS — .*excluded from --changed-since: 1 consumer configuration' --changed-since HEAD --quiet
+G="$(mutant2 R6_magic_prefix6 'head -c 16 -- "$1" | cmp -s - "$SQLITE_MAGIC"' 'head -c 6 -- "$1" | cmp -s -n 6 - "$SQLITE_MAGIC"' 'SQLITE_MAGIC="$TMP/sqlite_magic";' 'SQLITE_MAGIC="$TMP/sqlite_magic";')"
+near_fx; killed R6_magic_prefix6 1 "$(outcome --changed-since HEAD)"
+G="$(mutant R7_defaults_always 'if [ "$CONFIG_GIVEN" = 0 ]; then' 'if true; then')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited"; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$L/consumer/config/delivery.conf"
+killed R7_defaults_always 1 "$(outcome --changed-since HEAD --consumer-config "$L/consumer/config/delivery.conf")"
+G="$(mutant R8_pass_line_drops_leftout 'appear in none of the $SCOPE$LEFT_OUT; files outside' 'appear in none of the $SCOPE; files outside')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited"
+textkill R8_pass_line_drops_leftout 'PASS — .*excluded from --changed-since: 1 consumer configuration' --changed-since HEAD --quiet
+G="$(mutant R9_untracked_dropped '&& git -C "$ROOT" -c core.quotePath=false ls-files -z --others --exclude-standard; }' '; }')"
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/u.md"; killed R9_untracked_dropped 1 "$(outcome --changed-since HEAD)"
+G="$(mutant R10_committed_only 'git -C "$ROOT" -c core.quotePath=false diff -z --relative --name-only "$SINCE" --' 'git -C "$ROOT" -c core.quotePath=false diff -z --relative --name-only "$SINCE" HEAD --')"
+gitfresh; op append "$C/docs/research/note.md" "This note names $F1."; killed R10_committed_only 1 "$(outcome --changed-since HEAD)"
+G="$(mutant R11_sql_count_noop 'NSQL=$((NSQL + 1)); SQL_LIST="$SQL_LIST $2"' 'SQL_LIST="$SQL_LIST $2"')"
+gitfresh; mkdb "$C/docs/workable_items.db" "clean"
+textkill R11_sql_count_noop 'PASS — .*1 SQLite database file\(s\) scanned as their text cells' --changed-since HEAD --quiet
+G="$(mutant R12_parent_default_physical '"$(dirname "$ROOT")/config/delivery.conf"; do' '"$(dirname "$(readlink -f "$ROOT")")/config/delivery.conf"; do')"
+fresh; rm -f "$L/consumer/config/delivery.conf"; mkdir -p "$L/consumer2/config"; ln -s "$C" "$L/consumer2/constitution"; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$L/consumer2/config/delivery.conf"
+killed R12_parent_default_physical 0 "$(RUNROOT="$L/consumer2/constitution" outcome)"
+# ── round 3: own mutants of the new code ────────────────────────────────────
+G="$(mutant sqlite_tables_skipped "            if typ == 'table':" "            if False:")"
+gitfresh; mkdb "$C/docs/research/t.db" "reviewer $F1"; killed sqlite_tables_skipped 1 "$(outcome --changed-since HEAD)"
+G="$(mutant sqlite_blob_ignored "                    if isinstance(v, bytes):" "                    if False:")"
+gitfresh; mkblobdb "$C/docs/research/b.db" "blob names $F2"; killed sqlite_blob_ignored 1 "$(outcome --changed-since HEAD)"
+G="$(mutant sqlite_error_swallowed "sys.stderr.write('%s\\n' % e); sys.exit(3)" "cells = []")"
+# the control needle (a fake header must give exit 3) makes the mutant BLIND on any input, so a clean database discriminates
+gitfresh; mkdb "$C/docs/research/t.db" "clean"; killed sqlite_error_swallowed 0 "$(outcome --changed-since HEAD)"
+G="$(mutant sqlite_nul_kept "fh.write(v.replace('\\x00', ' ') + '\\n')" "fh.write(v + '\\n')")"
+gitfresh; mknuldb "$C/docs/research/n.db"; killed sqlite_nul_kept 0 "$(outcome --changed-since HEAD)"
+G="$(mutant symlink_into_exclusion '    [ -L "$p" ] && return 1' '    :')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited"; ln -s ../../config/delivery.conf "$C/docs/research/l.md"
+killed symlink_into_exclusion 1 "$(outcome --changed-since HEAD)"
+G="$(mutant symlink_target_text_dropped 'add_scan "$rel (symbolic link target)"' ': "$rel (symbolic link target)"')"
+gitfresh; ln -s "no-such-target/$F2" "$C/docs/research/dangling.md"; killed symlink_target_text_dropped 1 "$(outcome --changed-since HEAD)"
+G="$(mutant symlink_outside_not_blind '*) blind "--changed-since: the changed symbolic link' '*) : "--changed-since: the changed symbolic link')"
+gitfresh; printf '%s\n' "outside $F1" >"$L/outside.txt"; ln -s "$L/outside.txt" "$C/docs/research/out.md"; killed symlink_outside_not_blind 2 "$(outcome --changed-since HEAD)"
+G="$(mutant config_symlink_accepted '[ -L "$c" ] && blind "consumer configuration $c is a symbolic link' '[ -L "$c" ] && : "consumer configuration $c is a symbolic link')"
+fresh; rm -f "$L/consumer/config/delivery.conf"; mkdir -p "$L/elsewhere/config" "$C/config"; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$L/elsewhere/config/delivery.conf"; ln -s "$L/elsewhere/config/delivery.conf" "$C/config/delivery.conf"
+killed config_symlink_accepted 2 "$(outcome)"
+G="$(mutant config_dir_check_off '[ "$(basename -- "$(dirname -- "$_r")")" = config ] || blind' 'true || blind')"
+fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" >"$L/data.md"; killed config_dir_check_off 2 "$(outcome --consumer-config "$L/data.md")"
+G="$(mutant inside_root_config_check_off '[ "$(dirname -- "$_r")" = "$ROOT_REAL/config" ] || blind' 'true || blind')"
+gitfresh; mkdir -p "$C/docs/research/config"; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" "prose $F1" >"$C/docs/research/config/x.conf"
+killed inside_root_config_check_off 2 "$(outcome --changed-since HEAD --consumer-config "$C/docs/research/config/x.conf")"
+G="$(mutant index_scan_dropped 'add_content "$TMP/idx/$NIDX" "index:$rel"' ': "$TMP/idx/$NIDX" "index:$rel"')"
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/s.md"; fgit add docs/research/s.md; printf '%s\n' clean >"$C/docs/research/s.md"; killed index_scan_dropped 1 "$(outcome --changed-since HEAD)"
+G="$(mutant cached_listing_dropped '      && git -C "$ROOT" -c core.quotePath=false diff -z --cached --relative --name-only "$SINCE" -- \' '      && : \')"
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/g.md"; fgit add docs/research/g.md; rm -f "$C/docs/research/g.md"; killed cached_listing_dropped 1 "$(outcome --changed-since HEAD)"
+G="$(mutant names_scan_dropped 'add_scan "(names of the paths changed since $SINCE)" "$NAMES"' ': "$NAMES"')"
+gitfresh; printf '%s\n' clean >"$C/docs/research/$F2.md"; killed names_scan_dropped 1 "$(outcome --changed-since HEAD)"
+G="$(mutant worktree_listing_not_nul 'git -C "$ROOT" -c core.quotePath=false diff -z --relative --name-only "$SINCE" --' 'git -C "$ROOT" -c core.quotePath=false diff --relative --name-only "$SINCE" --')"
+gitfresh; printf '%s\n' clean >"$C/docs/research/ü2.md"; fgit add -A; fgit commit -q -m u2; printf '%s\n' "$F1" >>"$C/docs/research/ü2.md"; killed worktree_listing_not_nul 1 "$(outcome --changed-since HEAD)"
+G="$(mutant unreadable_path_skipped '|| blind "--changed-since: the changed path $rel cannot be read"' '|| continue')"
+gitfresh; printf '%s\n' "$F1" >"$C/docs/research/locked.md"; chmod 000 "$C/docs/research/locked.md"
+if [ -r "$C/docs/research/locked.md" ]; then qsay "skip: mutant unreadable_path_skipped (this user reads mode-000 files)"; chmod 644 "$C/docs/research/locked.md"
+else killed unreadable_path_skipped 2 "$(outcome --changed-since HEAD)"; chmod 644 "$C/docs/research/locked.md"; fi
+G="$(mutant known_keys_dropped 'decision_id_round2 own_repositories author_only_reviewer_policy go_record_location $KEY' 'own_repositories $KEY')"
+fresh; self_consumer; printf '%s\n' 'decision_id_round2=R2' >>"$C/config/delivery.conf"; NMUT=$((NMUT + 1))
+if grep -q 'keys not in the known list' <<<"$(run)"; then NKILL=$((NKILL + 1)); qsay "killed: known_keys_dropped (a NOTE appears for an extension key)"; else say "MUTANT SURVIVED: known_keys_dropped"; RESULT=1; fi
+G="$(mutant staged_config_scanned '(a consumer configuration read in this run: it holds the account names)"
+            continue' '(a consumer configuration read in this run: it holds the account names)"
+            :')"
+gitfresh; self_consumer; fgit add -A; fgit commit -q -m conf; op append "$C/config/delivery.conf" "# edited"; fgit add config/delivery.conf; op append "$C/config/delivery.conf" "# edited again"
+killed staged_config_scanned 0 "$(outcome --changed-since HEAD)"
 G="$(mutant scan_skipped 'if [ "$NLOGIN" -gt 0 ]; then
     idx=0' 'if false; then
     idx=0')"
