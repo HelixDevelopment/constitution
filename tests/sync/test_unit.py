@@ -1873,7 +1873,10 @@ class RoundEleven(unittest.TestCase):  # review round 11 (RV10-1 .. RV10-8)
                  ("refs/heads/dev\nrefs/heads/x\n", ("unknown", None)), ("refs/heads/../x\n", ("unknown", None)),
                  ("refs/heads/a/../b\n", ("unknown", None)), ("refs/heads/x.lock\n", ("unknown", None)),
                  ("refs/heads/\n", ("unknown", None)), ("refs/heads/-x\n", ("unknown", None)),
-                 ("refs/heads/a b\n", ("unknown", None)), ("refs/heads/.x\n", ("unknown", None)))
+                 ("refs/heads/a b\n", ("unknown", None)), ("refs/heads/.x\n", ("unknown", None)),
+                 # two lines whose first is outside refs/heads/: malformed, never 'other' (kills AB08)
+                 ("refs/tags/x\nrefs/heads/main\n", ("unknown", None)),
+                 ("refs/remotes/o/x\nrefs/heads/y\n", ("unknown", None)))
         for out, want in cases:
             E.proc_run_git = answer(out)
             r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
@@ -1926,7 +1929,8 @@ class RoundEleven(unittest.TestCase):  # review round 11 (RV10-1 .. RV10-8)
 
     def test_engine_scrub_covers_the_canonical_list(self):  # RV10-3: git_env drops every repository-locating name
         lib = os.path.join(HERE, "..", "..", "scripts", "lib", "constitution_layout.sh")
-        line = [x for x in open(lib, encoding="utf-8") if x.startswith("CL_GIT_SCRUB_VARS=")]
+        with open(lib, encoding="utf-8") as fh:
+            line = [x for x in fh if x.startswith("CL_GIT_SCRUB_VARS=")]
         self.assertEqual(len(line), 1)
         names = line[0].split("=", 1)[1].strip().strip('"').split()
         self.assertEqual(len(names), 14, names)  # control needle: the list was really read
