@@ -38,7 +38,7 @@
 #      characters, or a placeholder) are never silent: a note names the
 #      variables and counts them (names only, never values).
 #      The blob ids reach `git cat-file --batch` from a file in $WORK, not a
-#      pipe written before the answers are read (CON-PENDING-secscan: with a
+#      pipe written before the answers are read (CON-423: with a
 #      few thousand blobs both pipes filled and both processes waited for
 #      ever). Every reply is checked against the requested id; a missing or
 #      malformed reply is exit 7, never a count.
@@ -198,7 +198,7 @@ ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects
 blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
 # The requests come from a regular file, never from a pipe this process
 # writes before it reads the answers: git reads requests while we read
-# answers, so neither side can block the other (CON-PENDING-secscan).
+# answers, so neither side can block the other (CON-423).
 with open(sys.argv[2], "wb") as f:
     f.write(b"".join(b + b"\n" for b in blobs))
 def bad_reply(p):

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test_history_secret_scan_deadlock_mutations.sh -- paired §1.1 mutations for
 # the exact-match fix of scripts/security/history_secret_scan.sh
-# (CON-PENDING-secscan). Each mutant puts one defect back into a COPY of the
+# (CON-423). Each mutant puts one defect back into a COPY of the
 # script; tests/security/test_history_secret_scan_deadlock.sh must then FAIL.
 # DM1 re-introduces the deadlock itself (all ids written to a pipe before any
 # answer is read). Each mutation must match the script EXACTLY ONCE (else the

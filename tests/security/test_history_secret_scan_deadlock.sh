@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test_history_secret_scan_deadlock.sh -- hermetic tests for the exact-match
 # pass of scripts/security/history_secret_scan.sh on a repository with many
-# blobs (CON-PENDING-secscan).
+# blobs (CON-423).
 #
 # Purpose: the exact-match pass used to write every blob id to
 # `git cat-file --batch` before reading any answer; with a few thousand blobs
