@@ -75,7 +75,7 @@ S059	a!=a.strip()	a!=a.strip()	1	ident	WSAUTH,ZSAUTH,AUTHNORM	RV7-04-authoriser-
 S060	 or "<" in a	"<" in a	1	ident	AUTHLTGT	auth-lt-dropped	an authoriser holding < is refused
 S061	 or ">" in a	">" in a	1	ident	AUTHLTGT	auth-gt-dropped	an authoriser holding > is refused
 S062	a!=a.strip()	a.strip()	1	ident	WSAUTH,ZSAUTH	RV8-02-authoriser-ascii-strip,RV9-10-auth-zs-only-pad	python isspace() strip, both sides
-S063	.startswith("C")	.startswith("C")	1	ident	AUTHCTRL	authoriser-control-chars-allowed	any control / format / unassigned character (category C*) is refused
+S063	.startswith("C")	.startswith("C")	1	ident	AUTHCTRL,AUTHCF,AUTHCO,AUTHCN	authoriser-control-chars-allowed,V12-authoriser-only-Cc,RVX-05-category-C-to-Cc-only	any control / format / unassigned character (category C*) is refused
 S064	if not a or 	not a	1	ident	EMPTYAUTH,NOAUTH	empty-authoriser-allowed	an empty authoriser is refused
 S065	).casefold()	casefold()	1	ident	AUTHNORM	no-casefold-no-nfc,V13-casefold-to-lower	full case folding (Cyrillic, sharp s)
 S067	f(i.strip())==f(a)	f(i.strip())==f(a)	1	ident	WSID4,WSID,IDENTONE,SELFAUTH	RV10-05-email-space-strip,ident-names-ascii-strip,RV8-01-ident-compare-unstripped,RV9-11-ident-zs-only-strip,self-authoriser-allowed	F1: ONE normalisation for all FOUR identity fields (names and emails): every isspace() character git keeps is stripped (WSID4)

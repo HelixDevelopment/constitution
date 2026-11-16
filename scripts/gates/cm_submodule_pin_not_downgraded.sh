@@ -241,7 +241,9 @@ def main():
     for l in b.decode("utf-8").split("\n")[:-1]:
         x,y=l.split("\t"); T[chr(int(x,16))]="".join(chr(int(z,16)) for z in y.split())
     k=lambda s: unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())
-    g=lambda s: k(unicodedata.normalize("NFD", "".join(T.get(c,c) for c in unicodedata.normalize("NFD", k(s)))))
+    # the UTS #39 skeleton NFD(map(NFD(x))) wrapped in k: k starts with NFD and its NFKD output is already NFD, so the
+    # two NFD calls of the spec are redundant here and are not written (measured: equal on all 1112064 scalar values)
+    g=lambda s: k("".join(T.get(c,c) for c in k(s)))
     def f(s):
         for _ in range(8):
             t=g(s)
