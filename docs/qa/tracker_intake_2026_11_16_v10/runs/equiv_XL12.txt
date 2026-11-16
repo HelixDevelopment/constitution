@@ -1,0 +1,5 @@
+EDIT edit_sha256=f2daacd398281e40c6220b738d373c6a3e2b4df86cc6385b1e0d1d7276ea4d5c
+CONTROL needle (SECRET_FOLD off): hit_differences>=1 ok
+RESULT corpus=2743564 view_differences=0 hit_differences=0 fuzz=200000 codepoints=True
+rc=0
+LINT intake_lint.py sha256=85e894e69a8501bd7ef3421de0230a0df14436901fdf9a2fa26bf523279188ad

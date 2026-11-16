@@ -5,6 +5,8 @@ Prints pattern names and counts only, never a match; checks that none of the per
 (CON-333) appears in the diff. Control needles: each pattern must match its planted needle, and a
 planted scan path must be found."""
 import re, sys
+import os as _ge_os
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 diff, paths_file = sys.argv[1], sys.argv[2]
 P = [
     ("aws-access-key-id", r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),

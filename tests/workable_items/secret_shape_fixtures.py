@@ -15,12 +15,20 @@ WHAT  One list, FIXTURES, of (label, text, want, detail):
 SOURCES  rv-pos-* and rv-neg-* are the round-8 reviewer's probe lists (probes/probe_r8.py, 51 shapes and
       52 lookalikes), rv-bs-* the reviewer's six backslash values (probes/probe_bs.py), copied verbatim;
       the other rows are the round-8 fixer's own (the new rules, the reviewer mutants RL3 to RL10 and the
-      round-7 needles).
+      round-7 needles). Round 9 added r9-pos-*, r9-neg-* and r9-adopt-*. Round 10 added the round-9
+      reviewer's 40 positives (r10-rv-q*) and 25 negatives (r10-rv-n*; four of them, n04, n06, n18 and
+      n19, are kept as hit rows, sections B41 to B44 of
+      docs/qa/tracker_intake_2026_11_16_v10/class_inventory.md) and the fixer's own rows (r10-own-*, one
+      per member class L36 to L52). The leak scan's test is now docs/qa/tracker_intake_2026_11_16_v10/
+      tools/leak_scan_test.py.
+GIT   the git-env scrub below is the census's canonical line; the module runs no git.
 SAFETY  Every string is assembled from fragments at import time; no row is a real credential, and no
       scanner prints a row's text (labels only, section 11.4.10).
 EVIDENCE CLASS  gate-logic only (section 11.4.289).
 """
 
+import os as _ge_os
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 PW = "pass" + "word"
 V = "Qz7" + "kWm4" + "Rt9p"          # 11 chars, letter + digit
 VL = "zqx" + "wvbn" + "mkjh"         # 11 letters only
@@ -387,6 +395,163 @@ R9_ADOPT = [
     ('r9-adopt-lr5-backtick-escape-close', 'pw' + 'd: `\\q' + V9 + '\\`', "hit"),
 ]
 
+# ---- round 10 (review r9 R9-1 to R9-4): the reviewer's 40 shapes and 25 lookalikes (probe_v9_reviewer.py),
+# verbatim with its fake value, and the fixer's own class members (class_inventory.md of the v10 pack, L36 to
+# L52): one row per member of every class dimension the round-10 front end claims
+import base64 as _b64
+import urllib.parse as _up
+
+V10 = "FA" + "KE" + "v4" + "lu3Zq9"      # the round-9 reviewer's value: 12 chars, says FAKE
+
+
+def _pct(s, n):
+    for i in range(n):
+        s = "".join("%%%02X" % ord(c) for c in s) if i == 0 else s.replace("%", "%25")
+    return s
+
+
+def _ent(s):
+    return "".join("&#%d;" % ord(c) for c in s)
+
+
+R10_POS = [
+    ("r10-rv-q01-pct-1", _pct(PW, 1) + "=" + V10),
+    ("r10-rv-q02-pct-3", _pct(PW, 3) + "=" + V10),
+    ("r10-rv-q03-pct-4-beyond", _pct(PW, 4) + "=" + V10),
+    ("r10-rv-q04-pct-6-beyond", _pct(PW, 6) + "=" + V10),
+    ("r10-rv-q05-entity-in-pct", _up.quote(_ent(PW)) + "=" + V10),
+    ("r10-rv-q06-entity-no-semicolon", "&#112" + "assword=" + V10),
+    ("r10-rv-q07-js-brace-escape", "\\u{70}assword=" + V10),
+    ("r10-rv-q08-py-long-escape", "\\U00000070assword=" + V10),
+    ("r10-rv-q09-perl-x-brace", "\\x{70}assword=" + V10),
+    ("r10-rv-q10-base64-whole-line", _b64.b64encode((PW + "=" + V10).encode()).decode()),
+    ("r10-rv-q11-entity-hex-named", "&#x70;&#x61;ssword=" + V10),
+    ("r10-rv-q12-entity-named-amp-equals", PW + "&equals;" + V10),
+    ("r10-rv-q13-double-escape", "\\\\u0070assword=" + V10),
+    ("r10-rv-q14-three-unfolded-homoglyphs", "p\u0251ss\u0175\u0585rd=" + V10),
+    ("r10-rv-q15-coptic-cherokee", "\u2ca3a\uabaa\uabaaword=" + V10),
+    ("r10-rv-q16-serbian-cyrillic-lozinka", "\u043b\u043e\u0437\u0438\u043d\u043a\u0430=" + V10),
+    ("r10-rv-q17-russian-parol", "\u043f\u0430\u0440\u043e\u043b\u044c=" + V10),
+    ("r10-rv-q18-math-bold", "".join(chr(0x1D41A + ord(c) - 97) for c in PW) + "=" + V10),
+    ("r10-rv-q19-fullwidth-sep", PW + "\uff1d" + V10),
+    ("r10-rv-q20-triple-quoted-toml", PW + ' = """' + V10 + '"""'),
+    ("r10-rv-q21-paren-concat-newline", PW + ' = ("FAKEv4"\n    "lu3Zq9")'),
+    ("r10-rv-q22-shell-default-expansion", PW + "=${DB_" + PW.upper() + ":-" + V10 + "}"),
+    ("r10-rv-q23-md-table-row", "| " + PW + " | " + V10 + " |"),
+    ("r10-rv-q24-r-assign", PW + ' <- "' + V10 + '"'),
+    ("r10-rv-q25-html-input-type", '<input type="' + PW + '" value="' + V10 + '">'),
+    ("r10-rv-q26-powershell-env", '$env:DB_' + PW.upper() + ' = "' + V10 + '"'),
+    ("r10-rv-q27-passphrase-spaced", 'pass' + 'phrase: "correct horse battery st4ple"'),
+    ("r10-rv-q28-header-x-api-key", "X-Api-" + "Key: " + V10),
+    ("r10-rv-q29-query-string", "https://h.example/login?user=a&" + PW + "=" + V10),
+    ("r10-rv-q30-concat-plus-newline", PW + ' = "FAKEv4" +\n "lu3Zq9"'),
+    ("r10-rv-q31-json-escaped-key", '{\\"' + PW + '\\": \\"' + V10 + '\\"}'),
+    ("r10-rv-q32-key-with-dash", "pass-" + "word=" + V10),
+    ("r10-rv-q33-yaml-flow", "{user: a, " + PW + ": " + V10 + "}"),
+    ("r10-rv-q34-vault-prefix", "vault_" + PW + "=" + V10),
+    ("r10-rv-q35-export-quoted-single", "export DB_PA" + "SS='" + V10 + "'"),
+    ("r10-rv-q36-tcl-set", "set " + PW + " " + V10),
+    ("r10-rv-q37-lozinka-latin", "lozi" + "nka=" + V10),
+    ("r10-rv-q38-zw-inside-value-only", PW + "=FAKEv4\u200blu3Zq9"),
+    ("r10-rv-q39-key-4-layers", _up.quote(_up.quote(_ent(PW))) + "=" + V10),
+    ("r10-rv-q40-secret-string-flag", "--secret-" + "string " + V10),
+]
+
+R10_NEG = [
+    ("r10-rv-n01-token-sha256", "tok" + "en_sha256=" + "9f8e7d6c5b4a" * 5 + "abcd"),
+    ("r10-rv-n02-password-sha256", PW + "_sha256: " + "0a1b2c3d4e5f" * 5 + "0a1b"),
+    ("r10-rv-n03-key-ticket-id", "key=CON-1234"),
+    ("r10-rv-n05-password-env-ref", PW + ": env:DB_" + PW.upper()),
+    ("r10-rv-n07-session-hex", "session 3fa9c1d2"),
+    ("r10-rv-n08-keyboard", "keyboard_layout=us-intl2"),
+    ("r10-rv-n09-gh-expr", PW + ": ${{ secrets.DB_" + PW.upper() + " }}"),
+    ("r10-rv-n10-password-min", PW + "_min_length=12345678"),
+    ("r10-rv-n11-pass-count", "pass=372/372 fail=0"),
+    ("r10-rv-n12-auth-flow", "auth: oauth2-client-credentials-flow"),
+    ("r10-rv-n13-token-version", "tok" + "en: v1.2.3-beta4"),
+    ("r10-rv-n14-key-version", "key=6.4.0-rc1-build42"),
+    ("r10-rv-n15-secret-name", "secret_name=db-creds-prod2"),
+    ("r10-rv-n16-commit-sha-token-word", "tok" + "en 4b825dc642cb6eb9a060e54bf8d69288fbee4904"),
+    ("r10-rv-n17-password-prompt", PW + "_prompt=Enter1Pass"),
+    ("r10-rv-n20-pwd-path", "PWD=/srv/app/rel2"),
+    ("r10-rv-n21-gitlab-var", PW + ": $CI_DB_" + PW.upper()),
+    ("r10-rv-n22-kubernetes-secretref", "secretKeyRef: db-pass-2"),
+    ("r10-rv-n23-item-anchor", "the " + PW + " rule (section 11.4.10) R2"),
+    ("r10-rv-n24-hash-of-key", "key_hash=ab12cd34ef56"),
+    ("r10-rv-n25-api-key-env-name", "API_KEY_ENV=MY_API_KEY_2"),
+]
+
+# the reviewer's lookalikes the lint still reports, kept on purpose (a recorded trade-off, class_inventory.md
+# of the v10 pack, rows B41 to B44): each is a hit row, so a change that silences it is a reviewed edit
+R10_FP_KEPT = [
+    ("r10-rv-n04-credentials-profile", "credent" + "ials: aws-profile-prod2"),   # B41: identifier after a strong key (XL6)
+    ("r10-rv-n06-pin-year", "pin=2026"),                                         # B42: a year is a PIN
+    ("r10-rv-n18-uuid-session", "session=3fa9c1d2-0b4e-4c1a-9d2e-7f6a5b4c3d2e"),  # B43: a session id is a credential
+    ("r10-rv-n19-cookie-name", "cook" + "ie=_ga_GA1.2"),                         # B44: a cookie value is a credential
+]
+
+# the fixer's own members, one per class dimension (class_inventory.md L36 to L52)
+_NATIVE = ["\u043f\u0430\u0440\u043e\u043b\u044c", "\u043b\u043e\u0437\u0438\u043d\u043a\u0430",
+           "\u043f\u0430\u0440\u043e\u043b\u0430", "\u03ba\u03c9\u03b4\u03b9\u03ba\u03bf\u03c2",
+           "\u5bc6\u7801", "\u5bc6\u78bc", "\u30d1\u30b9\u30ef\u30fc\u30c9", "\ube44\ubc00\ubc88\ud638",
+           "\uc554\ud638", "\u05e1\u05d9\u05e1\u05de\u05d4", "\u092a\u093e\u0938\u0935\u0930\u094d\u0921",
+           "parola", "haslo", "has\u0142o", "heslo", "jelszo", "geslo", "parool", "passord", "losenord",
+           "adgangskode", "kodeord", "sifre", "sifra", "katasandi", "motdepasse", "wagwoord", "sandi", "parolja"]
+R10_OWN = (
+    [("r10-own-native-%02d" % i, w + "=" + V10) for i, w in enumerate(_NATIVE)]
+    + [
+        # L36 split heads: the key word written with a separator or a case break (XL3: 'word' is not a tail)
+        ("r10-own-split-pass-underscore-word", "pass_" + "word=" + V10),
+        ("r10-own-split-camel", "pass" + "Word=" + V10),
+        ("r10-own-split-upper", "PASS_" + "WORD=" + V10),
+        ("r10-own-split-secret-word", "secret_" + "word=" + V10),
+        ("r10-own-split-mot-de-passe", "mot_de_" + "passe=" + V10),
+        # L37 stand-in letters, at most half of the head (XL4): four of eight in password
+        ("r10-own-four-standins-password", "p\u0251\u0219\u0219w\u0585rd=" + V10),
+        # L38 a strong key and an identifier-shaped value (XL6)
+        ("r10-own-strong-key-ident-value", PW + "=dbpass_prod2"),
+        # L39 a colon inside a value is no reference without / or # (XL9)
+        ("r10-own-colon-in-value", PW + "=Qz7k:Wm4Rt9p"),
+        # L40 escapes of every length
+        ("r10-own-js-brace-escape-key-mid", "pa\\u{73}sword=" + V10),
+        ("r10-own-long-escape-upper", "\\U00000050ASSWORD=" + V10),
+        # L41 base64 of a whole assignment, URL-safe alphabet
+        ("r10-own-base64-urlsafe", _b64.urlsafe_b64encode((PW + "=" + V10 + "??>").encode()).decode()),
+        # L42 percent layers past the closure depth (the fixpoint view)
+        ("r10-own-pct-8", _pct(PW, 8) + "=" + V10),
+        # L43 skeleton letters: Cherokee small, Armenian, Lisu
+        ("r10-own-cherokee-small-s", "pa\uabaa\uabaaword=" + V10),
+        ("r10-own-armenian-o", "passw\u0585rd=" + V10),
+        ("r10-own-lisu-capitals", "\ua4d1\ua4ee\ua4e2\ua4e2\ua4ea\ua4f3\ua4e3\ua4d3=" + V10),
+        # L44 triple quotes, parenthesised and joined literals
+        ("r10-own-triple-single", PW + " = '''" + V10 + "'''"),
+        ("r10-own-paren-single-literal", PW + ' = ("' + V10 + '")'),
+        ("r10-own-join-pipe-operator", PW + " = 'FAKEv4' || 'lu3Zq9'"),
+        # L45 table rows and set statements
+        ("r10-own-table-backtick-key", "| `" + PW + "` | `" + V10 + "` |"),
+        ("r10-own-table-plain-no-lead", PW + " | " + V10 + " |"),
+        ("r10-own-set-semicolon", "set tok" + "en " + V10 + "; puts ok"),
+        # L46 R and Haskell-style left arrows
+        ("r10-own-r-assign-dash-arrow", PW + ' <<- "' + V10 + '"'),
+        # L47 a folded Latin alpha in a short key (pass): the fold, not the wildcard, reads it
+        ("r10-own-folded-alpha-short-key", "p\u0251ss=" + V10),
+    ]
+)
+
+R10_OWN_NEG = [
+    ("r10-own-neg-ticket-after-short-key", "DB_PA" + "SS=CON-9876"),
+    ("r10-own-neg-vault-ref", PW + "=vault:secret/db#pw"),
+    ("r10-own-neg-sha512", PW + "_sha512=" + "ab" * 64),
+    # a digest with digits (the sha512 row above has none, so the value rule alone keeps it clean; this
+    # row needs the sha256 meta word, own mutant R10-18)
+    ("r10-own-neg-sha256-hex", PW + "_sha256=" + "9f86d081884c7d659a2feaa0c55ad015" + "a3bf4f1b2b0b822cd15d6c15b0f00a08"),
+    ("r10-own-neg-table-header", "| " + PW + " | description |"),
+    ("r10-own-neg-set-two-words", "set " + PW + " policy strict"),
+    ("r10-own-neg-base64-prose", _b64.b64encode(b"hello world, nothing here at all").decode()),
+    ("r10-own-neg-native-word-in-prose", "\u043f\u0430\u0440\u043e\u043b\u044c is required here"),
+]
+
+
 FIXTURES = (
     [(lb, t, "hit" if w == "hit" else "miss", w) for lb, t, w in RV_POS]
     + [(lb, t, "miss", "negative") for lb, t in RV_NEG]
@@ -395,6 +560,11 @@ FIXTURES = (
     + [(lb, t, "hit", None) for lb, t in R9_POS]
     + [(lb, t, "miss", "negative") for lb, t in R9_NEG]
     + [(lb, t, "hit" if w == "hit" else "miss", w) for lb, t, w in R9_ADOPT]
+    + [(lb, t, "hit", None) for lb, t in R10_POS]
+    + [(lb, t, "miss", "negative") for lb, t in R10_NEG]
+    + [(lb, t, "hit", None) for lb, t in R10_FP_KEPT]
+    + [(lb, t, "hit", None) for lb, t in R10_OWN]
+    + [(lb, t, "miss", "negative") for lb, t in R10_OWN_NEG]
 )
 
 # the exact rule names the lint reports for each "hit" row (frozen in round 8, extended in round 9; a change
@@ -569,6 +739,103 @@ EXPECT_RULES = {
     'r9-adopt-lr19-dot-joined-api-key': ('password-assign-unquoted',),
     'r9-adopt-lr5-escaped-quotes-in-plain-string': ('password-assign', 'password-assign-unquoted'),
     'r9-adopt-lr5-backtick-escape-close': ('short-key-assign',),
+    # round 10 (frozen from the round-10 lint, each row read and judged by the fixer)
+    'r10-rv-q01-pct-1': ('password-assign-unquoted',),
+    'r10-rv-q02-pct-3': ('password-assign-unquoted',),
+    'r10-rv-q03-pct-4-beyond': ('password-assign-unquoted',),
+    'r10-rv-q04-pct-6-beyond': ('password-assign-unquoted',),
+    'r10-rv-q05-entity-in-pct': ('password-assign-unquoted',),
+    'r10-rv-q06-entity-no-semicolon': ('password-assign-unquoted',),
+    'r10-rv-q07-js-brace-escape': ('password-assign-unquoted',),
+    'r10-rv-q08-py-long-escape': ('password-assign-unquoted',),
+    'r10-rv-q09-perl-x-brace': ('password-assign-unquoted',),
+    'r10-rv-q10-base64-whole-line': ('password-assign-unquoted',),
+    'r10-rv-q11-entity-hex-named': ('password-assign-unquoted',),
+    'r10-rv-q12-entity-named-amp-equals': ('password-assign-unquoted',),
+    'r10-rv-q13-double-escape': ('password-assign-unquoted',),
+    'r10-rv-q14-three-unfolded-homoglyphs': ('password-assign-unquoted',),
+    'r10-rv-q15-coptic-cherokee': ('password-assign-unquoted',),
+    'r10-rv-q16-serbian-cyrillic-lozinka': ('password-assign-unquoted',),
+    'r10-rv-q17-russian-parol': ('password-assign-unquoted',),
+    'r10-rv-q18-math-bold': ('password-assign-unquoted',),
+    'r10-rv-q19-fullwidth-sep': ('password-assign-unquoted',),
+    'r10-rv-q20-triple-quoted-toml': ('password-assign',),
+    'r10-rv-q21-paren-concat-newline': ('password-assign',),
+    'r10-rv-q22-shell-default-expansion': ('password-colon-unquoted',),
+    'r10-rv-q23-md-table-row': ('table-row-pair',),
+    'r10-rv-q24-r-assign': ('password-assign',),
+    'r10-rv-q25-html-input-type': ('xml-attribute-pair',),
+    'r10-rv-q26-powershell-env': ('password-assign',),
+    'r10-rv-q27-passphrase-spaced': ('password-assign-spaced',),
+    'r10-rv-q28-header-x-api-key': ('password-colon-unquoted',),
+    'r10-rv-q29-query-string': ('password-assign-unquoted',),
+    'r10-rv-q30-concat-plus-newline': ('password-assign',),
+    'r10-rv-q31-json-escaped-key': ('password-assign',),
+    'r10-rv-q32-key-with-dash': ('password-assign-unquoted',),
+    'r10-rv-q33-yaml-flow': ('password-colon-unquoted',),
+    'r10-rv-q34-vault-prefix': ('password-assign-unquoted',),
+    'r10-rv-q35-export-quoted-single': ('short-key-assign',),
+    'r10-rv-q36-tcl-set': ('set-command',),
+    'r10-rv-q37-lozinka-latin': ('password-assign-unquoted',),
+    'r10-rv-q38-zw-inside-value-only': ('password-assign-unquoted',),
+    'r10-rv-q39-key-4-layers': ('password-assign-unquoted',),
+    'r10-rv-q40-secret-string-flag': ('password-flag-space',),
+    'r10-rv-n04-credentials-profile': ('password-colon-unquoted',),
+    'r10-rv-n06-pin-year': ('short-key-assign',),
+    'r10-rv-n18-uuid-session': ('short-key-assign',),
+    'r10-rv-n19-cookie-name': ('short-key-assign',),
+    'r10-own-native-00': ('password-assign-unquoted',),
+    'r10-own-native-01': ('password-assign-unquoted',),
+    'r10-own-native-02': ('password-assign-unquoted',),
+    'r10-own-native-03': ('password-assign-unquoted',),
+    'r10-own-native-04': ('password-assign-unquoted',),
+    'r10-own-native-05': ('password-assign-unquoted',),
+    'r10-own-native-06': ('password-assign-unquoted',),
+    'r10-own-native-07': ('password-assign-unquoted',),
+    'r10-own-native-08': ('password-assign-unquoted',),
+    'r10-own-native-09': ('password-assign-unquoted',),
+    'r10-own-native-10': ('password-assign-unquoted',),
+    'r10-own-native-11': ('password-assign-unquoted',),
+    'r10-own-native-12': ('password-assign-unquoted',),
+    'r10-own-native-13': ('password-assign-unquoted',),
+    'r10-own-native-14': ('password-assign-unquoted',),
+    'r10-own-native-15': ('password-assign-unquoted',),
+    'r10-own-native-16': ('password-assign-unquoted',),
+    'r10-own-native-17': ('password-assign-unquoted',),
+    'r10-own-native-18': ('password-assign-unquoted',),
+    'r10-own-native-19': ('password-assign-unquoted',),
+    'r10-own-native-20': ('password-assign-unquoted',),
+    'r10-own-native-21': ('password-assign-unquoted',),
+    'r10-own-native-22': ('password-assign-unquoted',),
+    'r10-own-native-23': ('password-assign-unquoted',),
+    'r10-own-native-24': ('password-assign-unquoted',),
+    'r10-own-native-25': ('password-assign-unquoted',),
+    'r10-own-native-26': ('password-assign-unquoted',),
+    'r10-own-native-27': ('password-assign-unquoted',),
+    'r10-own-native-28': ('password-assign-unquoted',),
+    'r10-own-split-pass-underscore-word': ('password-assign-unquoted',),
+    'r10-own-split-camel': ('password-assign-unquoted',),
+    'r10-own-split-upper': ('password-assign-unquoted',),
+    'r10-own-split-secret-word': ('password-assign-unquoted',),
+    'r10-own-split-mot-de-passe': ('password-assign-unquoted',),
+    'r10-own-four-standins-password': ('password-assign-unquoted',),
+    'r10-own-strong-key-ident-value': ('password-assign-unquoted',),
+    'r10-own-colon-in-value': ('password-assign-unquoted',),
+    'r10-own-js-brace-escape-key-mid': ('password-assign-unquoted',),
+    'r10-own-long-escape-upper': ('password-assign-unquoted',),
+    'r10-own-base64-urlsafe': ('password-assign-unquoted',),
+    'r10-own-pct-8': ('password-assign-unquoted',),
+    'r10-own-cherokee-small-s': ('password-assign-unquoted',),
+    'r10-own-armenian-o': ('password-assign-unquoted',),
+    'r10-own-lisu-capitals': ('password-assign-unquoted',),
+    'r10-own-triple-single': ('password-assign',),
+    'r10-own-paren-single-literal': ('password-assign',),
+    'r10-own-join-pipe-operator': ('password-assign',),
+    'r10-own-table-backtick-key': ('table-row-pair',),
+    'r10-own-table-plain-no-lead': ('table-row-pair',),
+    'r10-own-set-semicolon': ('set-command',),
+    'r10-own-r-assign-dash-arrow': ('password-assign',),
+    'r10-own-folded-alpha-short-key': ('short-key-assign',),
 }
 
 # control needles of the oracle itself: a known member and a prose line (section 11.4.273)
@@ -609,7 +876,8 @@ def selfcheck():
         if lab not in hits:
             probs.append("EXPECT_RULES names a label that is not a hit row: %s" % lab)
     for name, lst, n in (("RV_POS", RV_POS, 51), ("RV_NEG", RV_NEG, 52), ("RV_BS", RV_BS, 6),
-                         ("R9_POS", R9_POS, 50), ("R9_NEG", R9_NEG, 20)):
+                         ("R9_POS", R9_POS, 50), ("R9_NEG", R9_NEG, 20),
+                         ("R10_POS", R10_POS, 40), ("R10_NEG + R10_FP_KEPT", R10_NEG + R10_FP_KEPT, 25)):
         if len(lst) != n:
             probs.append("%s holds %d rows, the reviewer's list holds %d" % (name, len(lst), n))
     if CONTROL_POSITIVE == CONTROL_NEGATIVE:

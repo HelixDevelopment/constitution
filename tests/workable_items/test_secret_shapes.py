@@ -37,6 +37,9 @@ def rules_of(mod, text):
 
 
 def main(argv):
+    if len(argv) == 1:  # no argument: the lint of this checkout (the full-suite runner calls it this way)
+        argv = [argv[0], os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                                      "scripts", "workable-items", "intake_lint.py")]
     if len(argv) < 2 or argv[1].startswith("-"):
         print("usage: test_secret_shapes.py <path-of-intake_lint.py> [--failfast]", file=sys.stderr)
         return 2

@@ -41,6 +41,7 @@
 #       the cleanup of the temp dir was refused.
 # EVIDENCE CLASS  gate-logic only (section 11.4.289).
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 root=$(cd "$here/../.." && pwd) || exit 2
 src=$root/scripts/workable-items/intake_lint.py
@@ -165,14 +166,14 @@ mutants=(
   $'LN4 SECRET: the password key family not read (remapped onto the round-9 STRONG_HEADS)|L|yes|STRONG_HEADS = frozenset({"password", "passwd", "passphrase", "passwort"|||STRONG_HEADS = frozenset({"passwort"'
   'LN5 SECRET: a reference value ($VAR, <placeholder>) reported as a secret (remapped onto the round-8 value classifier)|L|no|    if v[0] in _REF_START:\n|||    if False:\n'
   $'LS1 SECRET: a quoted key (JSON) not read (remapped onto _KQ)|L|no|_KQ = r"(?:\\\\?[\\"\'`])?"|||_KQ = r""'
-  'LS2 SECRET: the quoted value after a colon not read (remapped onto _SEP_Q)|L|no|_SEP_Q = r"\s*(?::=|=>|:|=)\s*"|||_SEP_Q = r"\s*(?::=|=>|=)\s*"'
+  'LS2 SECRET: the quoted value after a colon not read (remapped round 10)|L|no|_SEP_Q = r"\s*(?::=|=>|<<-|<-|:|=)\s*"|||_SEP_Q = r"\s*(?::=|=>|<<-|<-|=)\s*"'
   'LS3 SECRET: an unquoted colon value after a strong key not read (remapped)|L|no|        if tier == "strong" and credential_value("strong", v, ""):\n            yield "password-colon-unquoted"|||        if False:\n            yield "password-colon-unquoted"'
   'LS4 SECRET: a generic-key colon value read without a digit (too broad; remapped)|L|no|        elif tier == "generic" and credential_value("generic", v, ""):|||        elif tier == "generic" and credential_value("generic", v, "", generic_ld=False):'
   'LS5 SECRET: a masked unquoted value reported (remapped onto _MASK)|L|no|    if _MASK.match(v):\n|||    if _MASK.match(v) and quote:\n'
   'LS6 SECRET: a short URL user-info password not read (remapped)|L|no|:(?P<v>[^\s@]+)@")|||:(?P<v>[^\s@]{6,})@")'
   'LS7 SECRET: a URL user-info reference reported (remapped)|L|no|        if v[0] in "$<{%*" or re.fullmatch|||        if v[0] in "*" or re.fullmatch'
   $'LS8 SECRET: Authorization: Token not read|L|no|(?:bearer|token)\\s+|||(?:bearer)\\s+'
-  'LS9 SECRET: the => separator of a quoted value not read (remapped onto _SEP_Q)|L|no|_SEP_Q = r"\s*(?::=|=>|:|=)\s*"|||_SEP_Q = r"\s*(?::=|:|=)\s*"'
+  'LS9 SECRET: the => separator of a quoted value not read (remapped round 10)|L|no|_SEP_Q = r"\s*(?::=|=>|<<-|<-|:|=)\s*"|||_SEP_Q = r"\s*(?::=|<<-|<-|:|=)\s*"'
   'LS10 SECRET: the := separator of an unquoted value not read (remapped round 9)|L|no|_KQ + r"\s*(?::=|=>|=)\s*(?=(?P<v>|||_KQ + r"\s*(?:=>|=)\s*(?=(?P<v>'
   $'LS11 SECRET: a header key after a hyphen (X-Api-Key) not read (remapped onto the round-9 key split)|L|no|_WSPLIT = re.compile(r"[\\W_]+")|||_WSPLIT = re.compile(r"[^\\w-]+|_+")'
   'LS12 SECRET: a masked quoted value reported (remapped onto _MASK)|L|no|    if _MASK.match(v):\n|||    if _MASK.match(v) and not quote:\n'
@@ -184,7 +185,7 @@ mutants=(
   'LN11 a non-empty -wal sidecar read|L|no|    if os.path.isfile(wal) and os.path.getsize(wal) > 0:\n        raise Blind(|||    if False:\n        raise Blind('
   'LN12 the database path read as URI syntax|L|no|urllib.parse.quote(os.path.abspath(db))|||os.path.abspath(db)'
   'RV1 Cf strip narrowed to ZWSP (reviewer round 9, ported to the round-9 code)|L|no|            drop.add("Cf")|||            t = t.replace("\u200b", "")'
-  'RV3 \x escapes not decoded (reviewer round 9, verbatim)|L|no|u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}||||u[0-9A-Fa-f]{4}|'
+  'RV3 \x escapes not decoded (reviewer round 9, remapped round 10: both \x forms)|L|no|x\{[0-9A-Fa-f]{1,6}\}|x[0-9A-Fa-f]{2}|[0-7]{3}||||[0-7]{3}'
   'RV4 min value length 8->9 (reviewer round 9, verbatim)|L|no|    if len(v) < 8:\n        return False\n    if _MASK.match(v):|||    if len(v) < 9:\n        return False\n    if _MASK.match(v):'
   'RV5 mask regex unanchored at end (reviewer round 9, verbatim)|L|no|r"^[xX*.#\s-]+$"|||r"^[xX*.#\s-]+"'
   'RV6 percent not a reference start (reviewer round 9, verbatim)|L|no|_REF_START = "$<{%"|||_REF_START = "$<{"'
@@ -217,7 +218,7 @@ mutants=(
   'OL13 SECRET r9: the Authorization header of another scheme not read|L|no|        if credential_value("generic", v, ""):\n            yield "authorization-header"|||        if False:\n            yield "authorization-header"'
   'OL14 SECRET r9: openssl pass: not read|L|no|    r"(?<![\w-])-(?:pass|passin|passout)\s+pass:(?P<v>\S+)",\n|||'
   'OL15 SECRET r9: redis-cli -a not read|L|no|    r"\bredis-cli\b[^\\n|;&]*?\s-a\s+(?P<v>[^\s-]\S*)",\n|||'
-  'OL16 SECRET r9: the secret-manager reference guard off (vault:...)|L|no|    if _REF_URI.match(v) or _REF_ANNOT.match(v) or _REF_ARN.match(v):|||    if _REF_ARN.match(v):'
+  'OL16 SECRET r9: the secret-manager reference guard off (vault:..., remapped round 10)|L|no|    if _REF_URI.match(v) or _REF_ANNOT.match(v) or _REF_ARN.match(v) or _REF_SCHEME.match(v):|||    if _REF_ARN.match(v) or _REF_SCHEME.match(v):'
   'S1 suite cleanup refusal not an error|S|no|    echo "CLEANUP REFUSED: temp dir left behind: $tmp" >&2\n    exit 2|||    echo "CLEANUP REFUSED: temp dir left behind: $tmp" >&2'
   $'LR1 SECRET: a key joined to a prefix by nothing (PGPASSWORD) not read (remapped onto SUFFIX_HEADS)|L|no| or any(_ends_like(w, h) for h in SUFFIX_HEADS)|||'
   $'LR3 SECRET: an unquoted value starting with > read (remapped round 9)|L|no|        if tier is None or v[:1] in "\'\\"`(\\\\[>" or not v:|||        if tier is None or v[:1] in "\'\\"`(\\\\[" or not v:'
@@ -252,7 +253,7 @@ mutants=(
   'R8-3 SECRET front end: escapes not decoded|L|no|SECRET_DECODE_ESCAPES = True|||SECRET_DECODE_ESCAPES = False'
   'R8-4 SECRET front end: percent-encoding not decoded|L|no|SECRET_DECODE_PERCENT = True|||SECRET_DECODE_PERCENT = False'
   'R8-5 SECRET front end: Cyrillic a not folded|L|no|"\u0430": "a", "\u0435"|||"\u0435"'
-  'R8-6 SECRET front end: \u escapes not decoded|L|no|_ESC = re.compile(r"\\(u[0-9A-Fa-f]{4}|||_ESC = re.compile(r"\\(q[0-9A-Fa-f]{4}'
+  'R8-6 SECRET front end: \u escapes not decoded (remapped round 10)|L|no|U[0-9A-Fa-f]{8}|u[0-9A-Fa-f]{4}|x\{|||U[0-9A-Fa-f]{8}|q[0-9A-Fa-f]{4}|x\{'
   'R8-7 SECRET: a quoted value holding a backslash not read (the round-7 regression, N1)|L|no|(?P<v>(?:\\[^\\n]|(?!\\?(?P=q))[^\\n\\])*)\\?(?P=q)"\n|||(?P<v>(?:(?!\\?(?P=q))[^\\n\\])*)\\?(?P=q)"\n'
   'R8-8 SECRET: argument pairs not read (remapped round 9)|L|no|        if tier and credential_value(tier, v, q):\n            yield "argument-pair"|||        if False:\n            yield "argument-pair"'
   'R8-9 SECRET: the argument-pair separator not a comma|L|no|(?P=kq)\s*,\s*(?P<q>|||(?P=kq)\s*;\s*(?P<q>'
@@ -260,7 +261,7 @@ mutants=(
   'R8-11 SECRET: the snake-case setter (set_api_key) not read (remapped round 9)|L|no|r"(?<![A-Za-z0-9])set_?(?P<key>|||r"(?<![A-Za-z0-9])set(?P<key>'
   'R8-12 SECRET: the key/value XML attribute pair not read (remapped round 9)|L|no|        if tier and credential_value(tier, m.group("v"), m.group("q2")):|||        if False:'
   'R8-13 SECRET: an entry element whose closing tag differs read (remapped round 9)|L|no|if tier and m.group("ctag") == m.group("otag") and credential_value(tier, m.group("v"), "<"):|||if tier and credential_value(tier, m.group("v"), "<"):'
-  'R8-14 SECRET: the XML attribute name= key not read|L|no|\b(?:key|name)\s*=\s*(?P<q1>|||\b(?:key)\s*=\s*(?P<q1>'
+  'R8-14 SECRET: the XML attribute name= key not read (remapped round 10)|L|no|\b(?:key|name|type|id)\s*=\s*(?P<q1>|||\b(?:key|type|id)\s*=\s*(?P<q1>'
   'R8-15 SECRET: mysqldump'"'"'s -p flag not read|L|no|(?:mysql|mysqldump|mysqladmin|||(?:mysql|mysqladmin'
   'R8-16 SECRET: sshpass -p not read (remapped round 9)|L|no|    r"\bsshpass\b[^\\n|;&]*?\s-p\s*(?P<v>[^\s-]\S*)",\n|||'
   'R8-17 SECRET: curl --user not read|L|no|(?:-u|--user)\s+|||(?:-u)\s+'
@@ -281,19 +282,50 @@ mutants=(
   'R8-32 SECRET: a short-key value starting with a dot read|L|no|    if tier == "short" and v[0] in ".>":|||    if False:'
   'R8-33 SECRET: a generic key'"'"'s quoted = value needs a digit|L|no|        elif credential_value(tier, v, q, generic_ld=False):|||        elif credential_value(tier, v, q, generic_ld=True):'
   'R8-34 SECRET: the decoding closure applied to the first view of a layer only (remapped round 9)|L|no|        for v in frontier:\n            for f in _TRANSFORMS:|||        for v in frontier[:1]:\n            for f in _TRANSFORMS:'
+  # round 10: the round-9 reviewer's lint mutants XL2 to XL9 ported onto the round-10 text (XL12 is in
+  # equivalent=() below; the XL13 port is killed by contract C8 of test_secret_frontend.py), and the fixer's own mutants R10-1..R10-20 of every part round 10 added
+  'XL2 CGJ U+034F not an invisible char (reviewer round 9)|L|no|INVISIBLE_CHAR = re.compile("[\u034f|||INVISIBLE_CHAR = re.compile("['
+  'XL3 word back in META_WORDS (reviewer round 9, ported: round 10 removed it)|L|no|    "words", "case", "cases",|||    "word", "words", "case", "cases",'
+  'XL4 stand-ins: one more than half allowed (reviewer round 9, ported)|L|no|    return 2 * odd <= len(h)\n|||    return 2 * odd <= len(h) + 2\n'
+  'XL4b stand-ins: fewer than half allowed (the stricter twin of XL4)|L|no|    return 2 * odd <= len(h)\n|||    return 2 * odd < len(h)\n'
+  'XL5 stand-in reading for 4-letter heads (reviewer round 9)|L|no|or len(w) != len(h) or len(h) < 5:|||or len(w) != len(h) or len(h) < 4:'
+  'XL6 identifier value excluded after strong keys too (reviewer round 9)|L|no|    if tier in ("short", "generic") and _IDENT_VALUE.match(v):|||    if _IDENT_VALUE.match(v):'
+  'XL9 reference URI needs no / or # (reviewer round 9)|L|no|_REF_URI = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]{1,}:(?://)?\S*[/#]")|||_REF_URI = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]{1,}:(?://)?\S*")'
+  'R10-1 SECRET: the fixpoint view off|L|no|SECRET_FIXPOINT = True|||SECRET_FIXPOINT = False'
+  'R10-2 SECRET: the base64 view off|L|no|SECRET_DECODE_BASE64 = True|||SECRET_DECODE_BASE64 = False'
+  'R10-3 SECRET: triple-quoted strings not read|L|no|SECRET_TRIPLE_QUOTES = True|||SECRET_TRIPLE_QUOTES = False'
+  'R10-4 SECRET: parenthesised literals not read|L|no|SECRET_PAREN_LITERAL = True|||SECRET_PAREN_LITERAL = False'
+  'R10-5 SECRET: split heads (pass_word, mot_de_passe) not read|L|no|SECRET_SPLIT_HEADS = True|||SECRET_SPLIT_HEADS = False'
+  'R10-6 SECRET: the multilingual lexicon not added to the strong heads|L|no|STRONG_HEADS = STRONG_HEADS | frozenset(_clean(|||STRONG_HEADS = STRONG_HEADS | frozenset() and frozenset(_clean('
+  'R10-7 SECRET: the confusable skeleton (Coptic, Cherokee, Armenian, Lisu) not folded|L|no|_FOLD.update(str.maketrans(_SKELETON))|||_FOLD.update({})'
+  'R10-8 SECRET: spacing marks (Mc) kept in a key|L|no|            drop |= {"Mn", "Me", "Mc"}|||            drop |= {"Mn", "Me"}'
+  'R10-9 SECRET: brace escapes (\u{70}) not decoded|L|no|_ESC = re.compile(r"\\(u\{[0-9A-Fa-f]{1,6}\}||||_ESC = re.compile(r"\\('
+  'R10-10 SECRET: long escapes (\U00000070) not decoded|L|no|U[0-9A-Fa-f]{8}|u[0-9A-Fa-f]{4}||||u[0-9A-Fa-f]{4}|'
+  'R10-11 SECRET: table rows not read|L|no|        if tier and tier != "numeric" and _has_ld(v) and credential_value(tier, v, ""):\n            yield "table-row-pair"|||        if False:\n            yield "table-row-pair"'
+  'R10-12 SECRET: set statements not read|L|no|        if tier in ("strong", "generic") and _has_ld(v) and credential_value(tier, v, ""):\n            yield "set-command"|||        if False:\n            yield "set-command"'
+  'R10-13 SECRET: a ticket id after a generic key read as a value|L|no|(_TICKET_VALUE.match(v) or _VERSION_VALUE.match(v))|||(False or _VERSION_VALUE.match(v))'
+  'R10-14 SECRET: a version after a generic key read as a value|L|no|(_TICKET_VALUE.match(v) or _VERSION_VALUE.match(v))|||(_TICKET_VALUE.match(v) or False)'
+  'R10-15 SECRET: a secret-store scheme reference (env:...) read as a value|L|no| or _REF_SCHEME.match(v):|||:'
+  'R10-16 SECRET: joined literals across a newline not read|L|no|([\"'"'"'])\s*(?:\+|\.\.?|\|\||&|~)?\s*\1|||([\"'"'"'])[ \t]*(?:\+|\.\.?|\|\||&|~)?[ \t]*\1'
+  'R10-17 SECRET: the R left arrows (<-, <<-) not a separator|L|no|_SEP_Q = r"\s*(?::=|=>|<<-|<-|:|=)\s*"|||_SEP_Q = r"\s*(?::=|=>|:|=)\s*"'
+  'R10-18 SECRET: a digest key tail (sha256, split to sha) not a meta word|L|no|"storage", "sha", "md",|||"storage", "md",'
+  'R10-19 SECRET: the type= attribute key (input type=password) not read|L|no|\b(?:key|name|type|id)\s*=\s*(?P<q1>|||\b(?:key|name|id)\s*=\s*(?P<q1>'
+  'XL13 entity view on a text html.unescape leaves unchanged (reviewer round 9, ported: round 10 gates the view on a change, not on _ENT)|L|no|    d = html.unescape(t)\n    return d if d != t else None|||    d = html.unescape(t)\n    return d'
+  'R10-20 SECRET: named entities (&equals;) not decoded|L|no|    d = html.unescape(t)\n    return d if d != t else None|||    d = re.sub(r"&#(\d+);?", lambda m: chr(int(m.group(1))), t)\n    return d if d != t else None'
 )
 
 # Equivalent mutants (section 11.4.276(D), review r9 F4): an edit the harness would apply but that cannot
 # change the lint's answer. They are not run as mutants; each is listed with its evidence file, a run of
-# docs/qa/tracker_intake_2026_11_15_v9/tools/equiv_check.py on the same edit (every census member, every
+# docs/qa/tracker_intake_2026_11_16_v10/tools/equiv_check.py on the same edit (every census member, every
 # fixture row, 200000 seeded fuzz strings and every code point inside and before a key; views and rule
 # names compared; its control needle SECRET_FOLD off must differ). The harness checks that the edit still
 # matches the lint exactly once (so a code change re-opens the question) and that the evidence says
 # view_differences=0 hit_differences=0 with the control needle ok.
 # id description | evidence file (repo-relative) | old ||| new
 equivalent=(
-  'RV2 escape view without NFKC (reviewer round 9): _clean() applies NFKD then NFKC to every non-ASCII view, and NFKD(NFKC(s)) = NFKD(s)|docs/qa/tracker_intake_2026_11_15_v9/runs/equiv_RV2.txt|                d = _clean(unicodedata.normalize("NFKC", d))|||                d = _clean(d)'
-  'LR2 SECRET_NFKC off: the same identity for the first view; an ASCII text is NFKC-invariant|docs/qa/tracker_intake_2026_11_15_v9/runs/equiv_LR2.txt|SECRET_NFKC = True|||SECRET_NFKC = False'
+  'RV2 escape view without NFKC (reviewer round 9): _clean() applies NFKD then NFKC to every non-ASCII view, and NFKD(NFKC(s)) = NFKD(s)|docs/qa/tracker_intake_2026_11_16_v10/runs/equiv_RV2.txt|                d = _clean(unicodedata.normalize("NFKC", d))|||                d = _clean(d)'
+  'LR2 SECRET_NFKC off: the same identity for the first view; an ASCII text is NFKC-invariant|docs/qa/tracker_intake_2026_11_16_v10/runs/equiv_LR2.txt|SECRET_NFKC = True|||SECRET_NFKC = False'
+  'XL12 U+3164 dropped from the fillers (reviewer round 9): NFKC folds HANGUL FILLER U+3164 to U+1160, which stays a filler|docs/qa/tracker_intake_2026_11_16_v10/runs/equiv_XL12.txt|_FILLERS = frozenset("\u115f\u1160\u3164\uffa0")|||_FILLERS = frozenset("\u115f\u1160\uffa0")'
 )
 
 mkcopy() { # mkcopy <src> <dest> <old> <new>  (\n in old/new is a newline)

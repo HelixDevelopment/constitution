@@ -1,0 +1,41 @@
+PASS C1 control_char reports U+034F
+PASS C1 control_char reports U+115F
+PASS C1 control_char reports U+1160
+PASS C1 control_char reports U+17B4
+PASS C1 control_char reports U+17B5
+PASS C1 control_char reports U+180B
+PASS C1 control_char reports U+180F
+PASS C1 control_char reports U+3164
+PASS C1 control_char reports U+FE00
+PASS C1 control_char reports U+FE0F
+PASS C1 control_char reports U+FFA0
+PASS C1 control_char reports U+E0100
+PASS C1 control_char reports U+E01EF
+PASS C1 control_char silent on a plain letter
+PASS C2 password with 4 of 8 stand-ins
+PASS C2 password with 5 of 8 stand-ins fails
+PASS C2 token with 2 of 5 stand-ins
+PASS C2 token with 3 of 5 stand-ins fails
+PASS C2 equal word always passes
+PASS C3 four-letter head: one stand-in fails
+PASS C3 three-letter head: one stand-in fails
+PASS C4 ASCII letter out of place fails
+PASS C4 a non-letter stand-in fails
+PASS C4 a different length fails
+PASS C5 fixpoint view decodes 8 percent layers
+PASS C5 view count within SECRET_MAX_VIEWS
+PASS C5 fixpoint step bound is set
+PASS C6 every native head is a strong head
+PASS C6 lexicon holds at least 28 words
+PASS C7 ticket id after a generic key is not a credential
+PASS C7 version after a generic key is not a credential
+PASS C7 secret-store reference is not a credential
+PASS C7 colon value with no / or # after a strong key is a credential (XL9)
+PASS C7 identifier value after a strong key is a credential (XL6)
+PASS C8 bare ampersand gives no entity view
+PASS C8 a numeric entity gives a view
+PASS C9 closure witness 1 is reported
+PASS C9 closure witness 2 is reported
+PASS C9 closure witness 3 is reported
+RESULT: pass=39 fail=0
+rc=0

@@ -31,6 +31,8 @@ import sqlite3
 import sys
 import urllib.parse
 
+import os as _ge_os
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 DASH = "\u2010-\u2015\u2212\u2e3a\u2e3b\ufe58\ufe63\uff0d"
 # the connectors remint_ids.py reads as a range (loose_patterns and id_patterns), written out again here
 READ_SET = re.compile(r"^\s*(?:\.{2,3}|…|[~\u301c" + DASH + r"]|-{1,2}|(?i:to|through|thru|till|until))\s*$")

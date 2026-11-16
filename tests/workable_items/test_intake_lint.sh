@@ -30,6 +30,7 @@
 # EXIT  0 all cases pass; 1 a case failed; 2 setup error, or the cleanup of the temp dir was refused.
 # EVIDENCE CLASS  gate-logic only (section 11.4.289): it proves the lint's decisions on given text.
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 self=$here/$(basename "${BASH_SOURCE[0]}")
 root=$(cd "${INTAKE_LINT_ROOT:-$here/../..}" && pwd) || exit 2
@@ -70,6 +71,17 @@ if [ "$shape_rc" = 0 ]; then
   ok "SECRET shape oracle: $(tail -n 1 "$shape_out")"
 else
   bad "SECRET shape oracle" "rc=$shape_rc: $(grep -E '^(FAIL|BLIND|setup)' "$shape_out" | head -n 8 | tr '\n' '|')"
+fi
+
+# (0b) round 10 (review r9 R9-3): the front end's function contracts (the knobs a fixture row cannot reach:
+# XL2 invisible characters, XL4 and XL5 the stand-in reading, the fixpoint view, the lexicon)
+front_out=$tmp/frontend.txt
+python3 -I "$root/tests/workable_items/test_secret_frontend.py" "$lint" >"$front_out" 2>&1
+front_rc=$?
+if [ "$front_rc" = 0 ]; then
+  ok "SECRET front-end contracts: $(tail -n 1 "$front_out")"
+else
+  bad "SECRET front-end contracts" "rc=$front_rc: $(grep -E '^(FAIL|BLIND|setup)' "$front_out" | head -n 8 | tr '\n' '|')"
 fi
 
 # run_lint <out-file> <args...>  -> sets rc

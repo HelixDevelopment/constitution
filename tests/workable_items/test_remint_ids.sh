@@ -35,6 +35,7 @@
 # EXIT  0 all cases pass; 1 a case failed; 2 setup error, or the cleanup of the temp dir was refused.
 # EVIDENCE CLASS  gate-logic (section 11.4.289): real engine, scratch copies, no tracker database written.
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 root=${REMINT_IDS_ROOT:-$(cd "$here/../.." && pwd)} || exit 2
 tool=${REMINT_IDS:-$root/scripts/workable-items/remint_ids.py}
@@ -240,6 +241,23 @@ grep -q "^LIVE	docs/guides/g.md	CON-2$" "$tmp/out" && grep -q "^EVIDENCE	docs/qa
   || bad "refs lines" "$(tr '\n' '|' <"$tmp/out")"
 mkdir -p "$tmp/emptyrepo" && git -C "$tmp/emptyrepo" -c init.defaultBranch=main init -q || exit 2
 expect "refs on a repository with no tracked file is BLIND" 3 'no tracked file' refs --map "$tmp/m.tsv" --repo-root "$tmp/emptyrepo"
+# round 10 (R9-9): the reviewer's sentinel (gitenv_sentinel.sh) as a case. Ambient GIT_DIR, GIT_WORK_TREE
+# and GIT_INDEX_FILE name a sentinel repository; refs must judge the --repo-root it was given, never the
+# sentinel: a directory that is no repository is BLIND, a real repository lists its own files only, a
+# subdirectory of one is BLIND, and the sentinel's index is unchanged.
+sen=$tmp/sentinel; mkdir -p "$sen" "$tmp/norepo" || exit 2
+git -C "$sen" -c init.defaultBranch=main init -q && printf 'sentinel CON-2\n' >"$sen/keep.md" && git -C "$sen" add keep.md || exit 2
+sen_before=$(git -C "$sen" ls-files --stage | sha256sum)
+senv() { # senv <name> <want-rc> <pattern> <args...>: run the tool under the sentinel's ambient GIT_* variables
+  local name=$1 want=$2 pat=$3; shift 3
+  GIT_DIR="$sen/.git" GIT_WORK_TREE="$sen" GIT_INDEX_FILE="$sen/.git/index" python3 -I "$tool" "$@" >"$tmp/out" 2>&1; rc=$?
+  check "$name" "$want" "$pat"
+}
+senv "refs under an ambient GIT_DIR on a directory that is no repository is BLIND" 3 'is not a git repository' refs --map "$tmp/m.tsv" --repo-root "$tmp/norepo"
+senv "refs under an ambient GIT_DIR lists the given repository" 0 '^RESULT: REFS live=1 evidence=1 database=1$' refs --map "$tmp/m.tsv" --repo-root "$rr"
+grep -q 'keep.md' "$tmp/out" && bad "refs under an ambient GIT_DIR listed a sentinel file" "$(tr '\n' '|' <"$tmp/out")" || ok "refs under an ambient GIT_DIR names no sentinel file"
+senv "refs under an ambient GIT_DIR on a subdirectory of a repository is BLIND" 3 'is not the top of its repository' refs --map "$tmp/m.tsv" --repo-root "$rr/docs/guides"
+same "the sentinel index is unchanged by refs" "$(git -C "$sen" ls-files --stage | sha256sum)" "$sen_before"
 
 # ---- (3) plan, replay and verify with the real engine ----
 repo=$tmp/repo; mkdir -p "$repo/docs/qa" "$repo/scripts" || exit 2
@@ -542,9 +560,9 @@ for w in 1 3; do
   xp "plan: a new id keeps the width $w of the vehicle's own ids" 0 "^RESULT: PLAN mode=REPLAY own=1 .* first=$(wid 3) last=$(wid 3)\$" plan --vehicle-db "docs/w${w}v.db" --base-db "docs/w${w}b.db" --target-db "docs/w${w}t.db" --out "$tmp/w${w}.json" --prefix WZ
 done
 printf '{"schema": "other"}\n' >"$tmp/badplan.json"
-xp "replay: a plan of another schema is BLIND" 3 'plan has no remint_ids.plan/6 schema' replay --plan "$tmp/badplan.json"
+xp "replay: a plan of another schema is BLIND" 3 'plan has no remint_ids.plan/7 schema' replay --plan "$tmp/badplan.json"
 python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["schema"]="remint_ids.plan/4";json.dump(p,open(sys.argv[2],"w"))' "$tmp/plan.json" "$tmp/plan4.json" || exit 2
-xp "replay: a round-4 plan (re-pointed target text, R4-1) is refused as another schema" 3 'plan has no remint_ids.plan/6 schema' replay --plan "$tmp/plan4.json"
+xp "replay: a round-4 plan (re-pointed target text, R4-1) is refused as another schema" 3 'plan has no remint_ids.plan/7 schema' replay --plan "$tmp/plan4.json"
 printf 'not json\n' >"$tmp/notjson.json"
 xp "replay: an unreadable plan is BLIND" 3 'plan unreadable' replay --plan "$tmp/notjson.json"
 python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));del p["steps"];json.dump(p,open(sys.argv[2],"w"))' "$tmp/plan.json" "$tmp/nosteps.json" || exit 2
@@ -562,7 +580,13 @@ cmp -s "$repo/docs/w2.db" "$repo/docs/b.db" && ok "the refused replay wrote noth
 cpdb v v5; W update --id "$(id 8)" --db docs/v5.db --location Issues --severity High --title "Remint base item 8, see $(id 13)"
 cpdb t t5; W update --id "$(id 8)" --db docs/t5.db --location Issues --description "$D Base item 8; see $(id 9) for the related target item."
 P5=(--vehicle-db docs/v5.db --base-db docs/b.db --target-db docs/t5.db)
-xp "R4-1a: plan of a disjoint merge whose target text names a target id the map moves" 0 '^RESULT: PLAN mode=REPLAY own=5 base_changes=6 ' plan "${P5[@]}" --out "$tmp/p5.json"
+# round 10 (R9-5): the target's text names $(id 9), which the target holds and the vehicle holds too (it moves):
+# the number alone cannot say whose; the lander declares the target's own item (--target-own)
+xp "R10-3: without a declaration the target's own id that the vehicle also holds is refused (XREF-AMBIGUOUS)" 1 \
+  "^REFUSED XREF-AMBIGUOUS $(id 8): names $(id 9), which the target holds as its own item and the vehicle holds as another item that lands as $(id 11)" \
+  plan "${P5[@]}" --out "$tmp/p5x.json"
+xp "R4-1a: plan of a disjoint merge whose target text names a target id the map moves" 0 '^RESULT: PLAN mode=REPLAY own=5 base_changes=6 ' plan "${P5[@]}" --out "$tmp/p5.json" --target-own "$(id 8)=$(id 9)"
+grep -q "^TARGET-OWN $(id 8): $(id 9) mean the target's own items\$" "$tmp/out" && ok "R10-3: the plan reports the target-own declaration" || bad "R10-3: the plan reports the target-own declaration" "$(tr '\n' '|' <"$tmp/out" | cut -c1-300)"
 grep -q "^MERGE $(id 8): vehicle severity,title, target description (disjoint columns)\$" "$tmp/out" && ok "R4-1a: the merge line" || bad "R4-1a: the merge line" "$(grep MERGE "$tmp/out" | tr '\n' '|')"
 xp "R4-1a: dry run" 0 '^RESULT: DRY-RUN ' replay --plan "$tmp/p5.json"
 grep -F "\"--id=$(id 8)\"" "$tmp/out" >"$tmp/p5step.txt"
@@ -1066,6 +1090,9 @@ vn "an obsolete_details row added to an untouched item" "^MISMATCH $(id 4): obso
 # set to the vehicle's, so verify passes without that KNOWN line)
 ca=$(q "$repo/docs/v.db" 'select created_at from items where atm_id=?' "$(id 11)")
 cpdb r_after nca; fx_sql "$repo/docs/nca.db" "update items set created_at=? where atm_id=?" "$ca" "$(id 13)"
+# round 10: the other own item gets a fixed past created_at; before, its replay time could fall in the
+# same second as the vehicle's add, and then it had no KNOWN line either (a timing flake, seen in this round)
+fx_sql "$repo/docs/nca.db" "update items set created_at='2001-02-03 04:05:06' where atm_id=?" "$(id 14)"
 xp "verify of an own item whose created_at equals the vehicle's" 0 '^RESULT: PASS mode=REPLAY' verify --plan "$tmp/plan.json" "${PLAN[@]}" --db docs/nca.db
 grep -q "^KNOWN $(id 13) created_at:" "$tmp/out" && bad "no created_at KNOWN line for an own item whose created_at was carried" "$(grep "^KNOWN $(id 13)" "$tmp/out" | tr '\n' '|')" || ok "no created_at KNOWN line for an own item whose created_at was carried"
 grep -q "^KNOWN $(id 14) created_at: replay time " "$tmp/out" && ok "the created_at KNOWN line of another own item stays" || bad "the created_at KNOWN line of another own item stays" "$(grep '^KNOWN ' "$tmp/out" | tr '\n' '|' | cut -c1-300)"
@@ -1307,8 +1334,10 @@ xp "R9-F2: a supersede target that declares the id foreign itself needs no annot
   plan --vehicle-db docs/v9s.db --base-db docs/b.db --target-db docs/t9hf.db --out "$tmp/p9hf.json" --supersede "$(id 13)=$(id 12)" --dup-resolution "$tmp/dup9s.tsv"
 # a superseded id that is not the vehicle's last own id: the ids after it are minted without a gap
 # (round-9 mutant OR1 is equivalent on the case above, where the superseded id is the last one)
+# (round 10, R9-7: the target's item does not name $(id 11), so a SAME-DEFECT row backs the supersede)
+{ cat "$tmp/dup9s.tsv"; printf '%s\t%s\tSAME-DEFECT\tthe same fixture defect filed on both sides\n' "$(id 11)" "$(id 12)"; } >"$tmp/dup9m.tsv"
 xp "R9-F2: plan superseding a middle own id" 0 '^RESULT: PLAN mode=REPLAY own=5 .* conflicts=0 refusals=0 ' \
-  plan "${P9S[@]}" --out "$tmp/p9m.json" --map-out "$tmp/m9m.tsv" --supersede "$(id 11)=$(id 12)" --annotate-foreign "$(id 12)" --dup-resolution "$tmp/dup9s.tsv"
+  plan "${P9S[@]}" --out "$tmp/p9m.json" --map-out "$tmp/m9m.tsv" --supersede "$(id 11)=$(id 12)" --annotate-foreign "$(id 12)" --dup-resolution "$tmp/dup9m.tsv"
 same "R9-F2: superseding a middle own id leaves no gap in the minted ids" "$(cat "$tmp/m9m.tsv")" \
   "$(printf 'old\tnew\n%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s' "$(id 9)" "$(id 13)" "$(id 10)" "$(id 14)" "$(id 11)" "$(id 12)" "$(id 12)" "$(id 15)" "$(id 13)" "$(id 16)")"
 # verify recomputes from the plan's own inputs; a plan edited after it was made is caught (round-9
@@ -1352,6 +1381,115 @@ dr9s "a row given twice" "^REFUSED --dup-resolution line 3: $(id 10) and $(id 4)
 printf 'wrong header\n' >"$tmp/drh.tsv"
 xp "R9-F3: a --dup-resolution file with no header is BLIND" 3 "--dup-resolution .*: no 'vehicle_id<TAB>target_id<TAB>verdict<TAB>reason' header" \
   plan "${P9S[@]}" --out "$tmp/p9sr.json" --supersede "$(id 13)=$(id 12)" --annotate-foreign "$(id 12)" --dup-resolution "$tmp/drh.tsv"
+
+# ---- (13) round 10: cross-references decided on id identity (R9-5), verify re-applies every planner rule
+# (R9-6), declaration refusals (R9-7) ----
+# a target item the landing leaves untouched names $(id 9), which is both the target's own item and a vehicle
+# id that moves: either meaning is landable, but only when the lander says which
+cpdb t t10; W update --id "$(id 4)" --db docs/t10.db --location Issues --description "$D Base item 4; it waits on $(id 9)."
+P10=(--vehicle-db docs/v.db --base-db docs/b.db --target-db docs/t10.db)
+xp "R10-3: an untouched target item naming an id both sides hold is refused without a declaration" 1 \
+  "^REFUSED XREF-AMBIGUOUS $(id 4): names $(id 9), which the target holds as its own item" plan "${P10[@]}" --out "$tmp/p10x.json"
+for how in target-own annotate-foreign; do
+  xp "R10-3: --$how $(id 4)=$(id 9): plan" 0 '^RESULT: PLAN mode=REPLAY own=5 .* conflicts=0 refusals=0 ' plan "${P10[@]}" --out "$tmp/p10$how.json" "--$how" "$(id 4)=$(id 9)"
+  cpdb t10 r10$how
+  xp "R10-3: --$how: replay" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p10$how.json" --apply --engine "$wi" --db "docs/r10$how.db"
+  xp "R10-3: --$how: verify PASS" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/p10$how.json" "${P10[@]}" --db "docs/r10$how.db"
+done
+same "R10-3: --target-own leaves the target's text as it is" "$(q "$repo/docs/r10target-own.db" 'select description from items where atm_id=?' "$(id 4)")" "$D Base item 4; it waits on $(id 9)."
+q "$repo/docs/r10annotate-foreign.db" 'select description from items where atm_id=?' "$(id 4)" | grep -q "^Foreign ids (provisional ids of an unlanded vehicle.*$(id 9)" \
+  && ok "R10-3: --annotate-foreign appends the Foreign ids line" || bad "R10-3: --annotate-foreign appends the Foreign ids line" "$(q "$repo/docs/r10annotate-foreign.db" 'select description from items where atm_id=?' "$(id 4)" | tr '\n' '|')"
+tp10() { # tp10 <name> <pattern> <python edit of p>: verify of an edited --target-own plan
+  python3 -I - "$tmp/p10target-own.json" "$tmp/p10e.json" "$(id 4)" "$(id 9)" "$3" <<'PY' || exit 2
+import json, sys
+p = json.load(open(sys.argv[1])); tid, x = sys.argv[3], sys.argv[4]
+exec(sys.argv[5])
+json.dump(p, open(sys.argv[2], "w"))
+PY
+  xp "R10-6: verify FAIL: $1" 1 "$2" verify --plan "$tmp/p10e.json" "${P10[@]}" --db docs/r10target-own.db
+}
+tp10 "the target-own declaration removed" "^MISMATCH the plan's annotations .* are not the ones the target's text needs .*wrong: $(id 4)\\)$" 'p["target_own"] = {}'
+tp10 "a target-own id the target does not hold" "^MISMATCH the plan's annotations .*wrong: $(id 4)\\)$" 'p["target_own"][tid] = [x, "CON-999999"]'
+tp10 "an annotation and a target-own id for one id" "^MISMATCH the plan's annotations .*wrong: $(id 4)\\)$" \
+  'import re; p["annotations"][tid] = "Foreign ids (provisional ids of an unlanded vehicle, which this landing re-mints): " + x'
+tp10 "a target-own entry for an item the target does not hold" "^MISMATCH the plan's annotations .*wrong: CON-999999\\)$" 'p["target_own"]["CON-999999"] = [x]'
+p10r() { xp "R10-7: refused: $1" 1 "$2" plan "${P10[@]}" --out "$tmp/p10r.json" "${@:3}"; }
+p10r "--target-own and --annotate-foreign for one id" "^REFUSED .*$(id 4).*declared both" --target-own "$(id 4)=$(id 9)" --annotate-foreign "$(id 4)=$(id 9)"
+p10r "both bare forms on one item" "^REFUSED .*$(id 4)" --target-own "$(id 4)" --annotate-foreign "$(id 4)"
+p10r "a declaration of an id the item does not name as a vehicle id" "^REFUSED --target-own $(id 4)=$(id 1): the item does not name $(id 1) as a vehicle id that lands elsewhere" --target-own "$(id 4)=$(id 9),$(id 1)"
+p10r "a declaration on an item the target does not hold (reviewer mutant XR8)" "^REFUSED --target-own $(id 30): the target holds no such item" --target-own "$(id 4)=$(id 9)" --target-own "$(id 30)=$(id 9)"
+p10r "a declaration on an item that names no vehicle id" "^REFUSED --annotate-foreign $(id 7): the item names no provisional vehicle id" --target-own "$(id 4)=$(id 9)" --annotate-foreign "$(id 7)"
+xp "R10-7: a malformed declaration is BLIND" 3 "--target-own 'x=': want TARGET_ID or TARGET_ID=ID\[,ID\]" plan "${P10[@]}" --out "$tmp/p10r.json" --target-own 'x='
+xp "R10-7: a declaration given twice for one item is BLIND" 3 "--target-own $(id 4): given twice" plan "${P10[@]}" --out "$tmp/p10r.json" --target-own "$(id 4)=$(id 9)" --target-own "$(id 4)=$(id 9)"
+# --annotate-foreign on an item the landing replays: the replay writes the vehicle's text, so the annotation
+# would be lost or doubled (reviewer mutant XR5)
+xp "R10-7: refused: --annotate-foreign on an item the landing also replays (reviewer mutant XR5)" 1 "^REFUSED --annotate-foreign $(id 8): .*the landing also replays" \
+  plan "${P5[@]}" --out "$tmp/p5r.json" --annotate-foreign "$(id 8)=$(id 9)"
+# --target-own only decides an ambiguous id: a REBOUND or SUPERSEDED id means the vehicle's item
+xp "R10-7: refused: --target-own of an id the target does not hold (XREF-REBOUND)" 1 "^REFUSED --target-own $(id 12)=$(id 13): " \
+  plan "${P9S[@]}" --out "$tmp/p9sr.json" --target-own "$(id 12)=$(id 13)"
+xp "R10-7: refused: --target-own of the superseded id (XREF-SUPERSEDED)" 1 "^REFUSED --target-own $(id 12)=$(id 13): " \
+  plan "${P9S[@]}" --out "$tmp/p9sr.json" --supersede "$(id 13)=$(id 12)" --target-own "$(id 12)=$(id 13)" --dup-resolution "$tmp/dup9s.tsv"
+# a --supersede that nothing backs (the target's item does not name the vehicle id, no SAME-DEFECT row)
+pr9s "--supersede with no record that the two are one defect" "^REFUSED --supersede $(id 11)=$(id 12): nothing records that the two are one defect" \
+  --supersede "$(id 11)=$(id 12)" --dup-resolution "$tmp/dup9s.tsv"
+xp "R10-7: refused: --supersede of an id onto itself" 1 "^REFUSED --supersede $(id 13)=$(id 13): nothing records that the two are one defect: a shared number is not a shared defect" \
+  plan "${P9H[@]}" --out "$tmp/p9hr.json" --supersede "$(id 13)=$(id 13)" --dup-resolution "$tmp/dup9s.tsv"
+# verify re-applies the duplicate-resolution rules to the plan's own rows (R9-6): a hand-edited row fails
+tp9s "a dup row turned SAME-DEFECT" "^MISMATCH plan dup-resolution row $(id 10)/$(id 4): SAME-DEFECT lands through --supersede" 'p["dup_resolutions"][0][2] = "SAME-DEFECT"'
+tp9s "a dup row whose reason holds a ';'" "^MISMATCH plan dup-resolution row $(id 10)/$(id 4): the reason is empty or holds a semicolon" 'p["dup_resolutions"][0][3] += "; more"'
+tp9s "a dup row whose reason names an id" "^MISMATCH plan dup-resolution row $(id 10)/$(id 4): the reason names an id" 'p["dup_resolutions"][0][3] += " like CON-1"'
+tp9s "a dup row given twice" "^MISMATCH plan dup-resolution row $(id 10)/$(id 4): $(id 10) and $(id 4) given twice" 'p["dup_resolutions"].append(list(p["dup_resolutions"][0]))'
+# round 10 (reviewer-style mutants OR10, XR9): --target-own never covers an id the target does not hold or the
+# superseded id (a hand-edited plan moving an annotation to target_own fails verify), and an id the landing
+# MINTS for another vehicle item that a target text names needs its declaration too
+tp9s "an annotation turned into a --target-own id (the superseded id, absent from the target)" "^MISMATCH the plan's annotations .*wrong: $(id 12)\\)$" \
+  't = [k for k in p["annotations"] if vid in p["annotations"][k]][0]; p["annotations"].pop(t); p["target_own"][t] = [vid]'
+# reviewer mutant XR10: the superseded id is declared even when the vehicle's own text for the item also names the
+# id that lands on that number (the target's mention is then ambiguous between two vehicle items)
+cpdb v9s v9y; fx_sql "$repo/docs/v9y.db" "update items set description = description || ' See $(id 9).', body_md = replace(body_md, description, description || ' See $(id 9).') where atm_id=?" "$(id 12)"
+P9Y=(--vehicle-db docs/v9y.db --base-db docs/b.db --target-db docs/t9s.db)
+xp "XR10: the superseded id still needs its declaration when the vehicle's text names the id that lands there" 1 "^REFUSED XREF-" plan "${P9Y[@]}" --out "$tmp/p9ya.json" --supersede "$(id 13)=$(id 12)" --dup-resolution "$tmp/dup9s.tsv"
+xp "XR10: plan with the declaration" 0 '^RESULT: PLAN mode=REPLAY own=5 .* refusals=0 ' plan "${P9Y[@]}" --out "$tmp/p9y.json" "${S9S[@]}"
+cpdb t9s r9y
+xp "XR10: replay" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p9y.json" --apply --engine "$wi" --db docs/r9y.db
+xp "XR10: verify PASS" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/p9y.json" "${P9Y[@]}" --db docs/r9y.db
+python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));[p["annotations"].pop(k) for k in list(p["annotations"]) if sys.argv[3] in p["annotations"][k]];json.dump(p,open(sys.argv[2],"w"))' "$tmp/p9y.json" "$tmp/p9ye.json" "$(id 13)" || exit 2
+xp "XR10: verify FAIL: the superseded id's annotation removed" 1 "^MISMATCH the plan's annotations .*wrong: $(id 12)\\)$" verify --plan "$tmp/p9ye.json" "${P9Y[@]}" --db docs/r9y.db
+cpdb t9s t9x; W update --id "$(id 4)" --db docs/t9x.db --location Issues --description "$D Base item 4; it waits on $(id 15)."
+P9X=(--vehicle-db docs/v9s.db --base-db docs/b.db --target-db docs/t9x.db)
+xp "R10-3: a target text naming an id the landing mints for another vehicle item (XREF-REBOUND) is refused" 1 "^REFUSED XREF-REBOUND $(id 4): names $(id 15)" \
+  plan "${P9X[@]}" --out "$tmp/p9xa.json" "${S9S[@]}"
+xp "R10-3: with --annotate-foreign for the minted id the plan is landable" 0 '^RESULT: PLAN mode=REPLAY own=5 .* refusals=0 ' \
+  plan "${P9X[@]}" --out "$tmp/p9x.json" "${S9S[@]}" --annotate-foreign "$(id 4)"
+cpdb t9x r9x
+xp "R10-3: minted id: replay" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p9x.json" --apply --engine "$wi" --db docs/r9x.db
+xp "R10-3: minted id: verify PASS" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/p9x.json" "${P9X[@]}" --db docs/r9x.db
+python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["annotations"].pop(sys.argv[3]);json.dump(p,open(sys.argv[2],"w"))' "$tmp/p9x.json" "$tmp/p9xe.json" "$(id 4)" || exit 2
+xp "R10-6: verify FAIL: the annotation of a minted id removed" 1 "^MISMATCH the plan's annotations .*wrong: $(id 4)\\)$" verify --plan "$tmp/p9xe.json" "${P9X[@]}" --db docs/r9x.db
+# a middle supersede backed only by its SAME-DEFECT row: verify of the plan with that row removed fails
+cpdb t9s r9m
+xp "R10-7: replay of the middle supersede" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p9m.json" --apply --engine "$wi" --db docs/r9m.db
+xp "R10-7: verify PASS of the middle supersede" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/p9m.json" "${P9S[@]}" --db docs/r9m.db
+python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["dup_resolutions"]=[r for r in p["dup_resolutions"] if r[2]!="SAME-DEFECT"];json.dump(p,open(sys.argv[2],"w"))' "$tmp/p9m.json" "$tmp/p9me.json" || exit 2
+xp "R10-7: verify FAIL: the middle supersede's SAME-DEFECT row removed" 1 "^MISMATCH $(id 11) -> $(id 12): the supersede is backed neither by the target item naming the id nor by a SAME-DEFECT row" \
+  verify --plan "$tmp/p9me.json" "${P9S[@]}" --db docs/r9m.db
+# SHARED-PATH (R9-6): an own item and an open target item name one file; every such pair needs a verdict
+cpdb v9s v10s
+W update --id "$(id 10)" --db docs/v10s.db --location Issues --description "$D Links to $(id 9).${NL}Foreign ids (fix227 tracker): $(id 11)${NL}Duplicate check (section 11.4.214): DISTINCT; fixture method.${NL}${NL}**Affected scope / file-scope manifest:**${NL}- x/needle_scope_file.sh${NL}"
+cpdb t9s t10s; W update --id "$(id 7)" --db docs/t10s.db --location Issues --description "$D Base item 7; edits x/needle_scope_file.sh."
+P10S=(--vehicle-db docs/v10s.db --base-db docs/b.db --target-db docs/t10s.db)
+S10S=(--supersede "$(id 13)=$(id 12)" --annotate-foreign "$(id 12)")
+xp "R10-6: refused: a SHARED-PATH pair with no verdict" 1 "^REFUSED SHARED-PATH $(id 10): names needle_scope_file.sh, which the target's open $(id 7) names too" \
+  plan "${P10S[@]}" --out "$tmp/p10s.json" "${S10S[@]}" --dup-resolution "$tmp/dup9s.tsv"
+{ cat "$tmp/dup9s.tsv"; printf '%s\t%s\tDISTINCT\tthe same file, another defect\n' "$(id 10)" "$(id 7)"; } >"$tmp/dup10s.tsv"
+xp "R10-6: with a verdict for the pair the plan is landable" 0 '^RESULT: PLAN mode=REPLAY own=5 .* refusals=0 ' plan "${P10S[@]}" --out "$tmp/p10s.json" "${S10S[@]}" --dup-resolution "$tmp/dup10s.tsv"
+cpdb t10s r10s
+xp "R10-6: SHARED-PATH: replay" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p10s.json" --apply --engine "$wi" --db docs/r10s.db
+xp "R10-6: SHARED-PATH: verify PASS" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/p10s.json" "${P10S[@]}" --db docs/r10s.db
+python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["dup_resolutions"]=[r for r in p["dup_resolutions"] if r[1]!=sys.argv[3]];json.dump(p,open(sys.argv[2],"w"))' "$tmp/p10s.json" "$tmp/p10se.json" "$(id 7)" || exit 2
+xp "R10-6: verify FAIL: the SHARED-PATH row removed from the plan" 1 "^MISMATCH SHARED-PATH $(id 10): names needle_scope_file.sh, which the target's open $(id 7) names too" \
+  verify --plan "$tmp/p10se.json" "${P10S[@]}" --db docs/r10s.db
 same "the real database is untouched" "$(sha256sum "$realdb" | cut -d' ' -f1)" "$real_sha"
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

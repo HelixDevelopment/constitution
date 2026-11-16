@@ -15,6 +15,7 @@
 # unchanged. Nothing here writes a tracked database: every landing runs on a copy in a mktemp directory.
 # Exit: 0 every step ran (read the RESULT lines for verdicts); 2 usage; 3 a precondition failed.
 # Evidence class: gate-logic only (section 11.4.289).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
 set -u
 [ $# -ge 3 ] || { echo "usage: simulate_landing.sh <wi> <base rev> <name>=<target rev>[:no-ff] ..." >&2; exit 2; }
 WI=${1:?}; BASE=${2:?}; shift 2

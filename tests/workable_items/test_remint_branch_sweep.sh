@@ -23,6 +23,7 @@
 # EXIT  0 all cases pass; 1 a case failed; 2 setup error, or the cleanup of the temp dir was refused.
 # EVIDENCE CLASS  gate-logic (section 11.4.289): fake tool and stand-in suite, no engine, no database.
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 root=$(cd "$here/../.." && pwd) || exit 2
 sweep_src=${REMINT_BRANCH_SWEEP:-$here/remint_branch_sweep.py}

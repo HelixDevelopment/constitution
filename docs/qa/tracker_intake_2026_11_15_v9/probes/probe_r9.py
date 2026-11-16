@@ -1,6 +1,8 @@
 """Reviewer r9 probe: new secret shapes (values are obviously fake: they contain FAKE). Prints labels only."""
 import importlib.util, sys, time
 
+import os as _ge_os
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 spec = importlib.util.spec_from_file_location("lint", sys.argv[1])
 L = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(L)

@@ -19,6 +19,8 @@ import sqlite3
 import subprocess
 import sys
 
+import os as _ge_os
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 ORIGIN = "tracker-intake vehicle 2026-11-12"
 SRC = "docs/qa/tracker_intake_2026_11_12/sources/"
 V2 = "docs/qa/tracker_intake_2026_11_12_v2/"

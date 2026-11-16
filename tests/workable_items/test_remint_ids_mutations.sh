@@ -34,6 +34,13 @@
 #   RM-mutants: the round-6 reviewer's mutants (RM1..RM8) verbatim; RM2, RM3, RM6 and RM8 are killed by the
 #   round-7 cases of section (11) of the suite. RR-mutants: the round-8 reviewer's mutants (RR1..RR9)
 #   verbatim; RR3, RR4 and RR5 are killed by the round-8 check_body and is_slot cases of the suite.
+#   XR-mutants: the round-9 reviewer's re-mint mutants (XR1..XR12), verbatim where the text still exists and
+#   mapped onto the round-10 code otherwise (XR1, XR8, XR9, XR10, XR12); OR5..OR16 remapped the same way.
+#   T-mutants: every check round 10 added (cross-references by identity, the declarations and their
+#   refusals, the shared duplicate-resolution rules, SHARED-PATH coverage and supersede backing in plan
+#   and verify, refs of a subdirectory). G1 and G2, the two git-scrub halves, are equivalent one at a time
+#   (each alone keeps git away from an ambient GIT_DIR); their evidence tool is
+#   docs/qa/tracker_intake_2026_11_16_v10/remint/equiv_git_scrub.sh.
 #   S-mutants: the suite's own fixture instrument (fx_sql).
 # ENV   WORKABLE_ITEMS        path of the workable-items engine binary (default: the tracked
 #                             scripts/workable-items/bin/workable-items; exit 2 when not executable)
@@ -43,6 +50,7 @@
 #       the temp dir was refused.
 # EVIDENCE CLASS  gate-logic only (section 11.4.289).
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 root=$(cd "$here/../.." && pwd) || exit 2
 src=$root/scripts/workable-items/remint_ids.py
@@ -244,18 +252,18 @@ mutants=(
   'OR2 plan r9: the superseded id is not mapped onto the target item|T|            m.update(sup)|||            pass'
   'OR3 plan r9: --supersede onto a base item accepted|T|            elif tid in B:\n                refuse(tag + "%s is a base item|||            elif False:\n                refuse(tag + "%s is a base item'
   'OR4 plan r9: two vehicle ids onto one target item accepted|T|            if len(vids) > 1:|||            if len(vids) > 2:'
-  'OR5 plan r9: the supersede target naming its vehicle id not checked (XREF-SUPERSEDED off)|T|            names = sorted(set(names) | set(selfref), key=num)|||            names = sorted(set(names), key=num)'
-  'OR6 plan r9: the converged-text exemption dropped|T| and minted_new[x.group(0)] not in vnames}, key=num)|||}, key=num)'
-  'OR7 plan r9: the annotation is not appended|T|"--description=" + norm(t["description"]) + "\\n\\n" + line]})|||"--description=" + norm(t["description"])]})'
-  'OR8 plan r9: a resolution reason that names an id accepted|T|                elif re.search(r"(?<![\w-])[A-Z]+-[0-9]+\b", reason):|||                elif False:'
+  'OR5 plan r9 (remapped round 10): the XREF-SUPERSEDED refusal branch off|T|                if c == "XREF-SUPERSEDED":\n                    refuse(|||                if False:\n                    refuse('
+  'OR6 plan r9 (remapped round 10): the converged-text exemption dropped|T|                if x in minted_new and minted_new[x] in vnames and sup.get(x) != i:\n                    continue|||                if False:\n                    continue'
+  'OR7 plan r9 (remapped round 10): the annotation is not appended|T|"--description=" + norm(T[i][0]["description"]) + "\\n\\n" + line]})|||"--description=" + norm(T[i][0]["description"])]})'
+  'OR8 plan r9 (remapped round 10 into dup_rule_errors): a resolution reason that names an id accepted|T|        elif re.search(r"(?<![\w-])[A-Z]+-[0-9]+\b", reason):|||        elif False:'
   'OR9 plan r9: the landing check is not appended to the Duplicate check line|T|                lines_[k_] = lines_[k_].rstrip() + " " + landing_checks[new]|||                pass'
-  'OR10 verify r9: the supersede target naming its vehicle id not required to be annotated|T|                     | {x for x in t_names if sup.get(x) == i and not t_foreign(x)}, key=num)|||, key=num)'
+  'OR10 verify r9 (remapped round 10): a --target-own id the target does not hold accepted|T|any(x not in T or sup.get(x) == i for x in o_ids)|||any(False for x in o_ids)'
   'OR11 verify r9: the landing checks of the plan not recomputed|T|    if want_lc != plan["landing_checks"]:|||    if False:'
   'OR12 verify r9: the audit copy of a superseded row not compared|T|                    or au[0].get("description") != norm(V[old][0]["description"]):|||                    or False:'
   'OR13 verify r9: a re-bound id in the landed text not reported|T|            if x not in T and x in R and not (num(x) in nums_r|||            if False and x not in T and x in R and not (num(x) in nums_r'
   'OR14 verify r9: a superseded id may land on a base item|T|        if tid not in T or tid in B:|||        if tid not in T:'
-  'OR15 plan r9: an own item with no Duplicate check line accepted for a landing check|T|                elif len(DUP_LINE.findall(norm(vrow["description"]))) != 1:|||                elif False:'
-  'OR16 plan r9: a verdict outside the closed set accepted|T|                elif verdict not in DUP_VERDICTS:|||                elif False:'
+  'OR15 plan r9 (remapped round 10 into dup_rule_errors): an own item with no Duplicate check line accepted|T|        elif verdict != "SAME-DEFECT" and dup_line_count(vid) != 1:|||        elif False:'
+  'OR16 plan r9 (remapped round 10 into dup_rule_errors): a verdict outside the closed set accepted|T|        elif verdict not in DUP_VERDICTS:|||        elif False:'
   'OR17 verify r9: the annotated item compared to the target without the annotation|T|            if norm(r["description"]) != norm(t["description"]) + "\\n\\n" + want_annot[i]:|||            if norm(r["description"]) != norm(t["description"]) + "\\n\\n" + want_annot[i] and False:'
   'S1 suite: a failing fixture edit is ignored|S|echo "setup: fx_sql failed: $2" >&2; exit 2;|||true;'
   'S2 suite: a fixture edit that matches no row is accepted|S|if n == 0:  # DML that matched no row; DDL reports -1|||if False:'
@@ -269,6 +277,31 @@ mutants=(
   'RR7 check_body: the unchanged-target branch keyed on tdiff only (reviewer round 8, verbatim)|T|    if not tdiff and norm(t["body_md"]) == norm(b["body_md"]):\n|||    if not tdiff:\n'
   'RR8 planner: the created_at note never emitted (reviewer round 8, verbatim)|T|        steps.extend(isteps)\n        if norm(v["created_at"]) != norm(b["created_at"]):\n|||        steps.extend(isteps)\n        if False:\n'
   'RR9 check_body: heading compared with the vehicle title, not the landed one (reviewer round 8, verbatim)|T|    if heads and heads[0] not in ("## %s — %s" % (i, norm(r["title"])), "## %s. %s" % (i, norm(r["title"]))):|||    if heads and heads[0] not in ("## %s — %s" % (i, norm(v["title"])), "## %s. %s" % (i, norm(v["title"]))):'
+  'XR1 plan: XREF-SUPERSEDED self-reference not read (reviewer round 9, mapped onto the round-10 flagged loop)|T|                if sup.get(x) == i:\n                    cls = "XREF-SUPERSEDED"|||                if False:\n                    cls = "XREF-SUPERSEDED"'
+  'XR2 supersede onto a base item allowed (reviewer round 9, verbatim)|T|            elif tid in B:\n|||            elif False:\n'
+  'XR3 two vehicle ids onto one target allowed (reviewer round 9, verbatim)|T|if len(vids) > 1:|||if len(vids) > 2:'
+  'XR4 duplicate dup-resolution pair allowed (reviewer round 9, verbatim)|T|elif (vid, tid) in seen:|||elif False:'
+  'XR5 annotate of a replayed item allowed (reviewer round 9, verbatim)|T|if i in replayed_items:|||if False:'
+  'XR6 SAME-DEFECT allowed as a landing check (reviewer round 9, verbatim)|T|if verdict == "SAME-DEFECT":|||if False:'
+  'XR7 reason naming an id allowed (reviewer round 9, verbatim edit; the same text as OR8)|T|elif re.search(r"(?<![\w-])[A-Z]+-[0-9]+\b", reason):|||elif False:'
+  'XR8 annotate of an absent target id not refused (reviewer round 9, mapped onto the round-10 declaration loop)|T|            for i in sorted(set(d_) - set(T), key=id_key):|||            for i in []:'
+  'XR9 verify: rebound check off for minted ids (reviewer round 9, mapped onto the round-10 need set)|T|or (x not in T and x in minted_vals)|||or False'
+  'XR10 verify: supersede self-reference not wanted in annotations (reviewer round 9, mapped onto the round-10 need set)|T|            sup.get(x) == i\n            or (x not in meant|||            False\n            or (x not in meant'
+  'XR11 verify: landing checks not compared (reviewer round 9, verbatim)|T|if want_lc != plan["landing_checks"]:|||if False:'
+  'XR12 verify: annotations not compared (reviewer round 9, mapped onto the round-10 ann_bad report)|T|    if ann_bad:\n        bad.append("the plan|||    if False:\n        bad.append("the plan'
+  'T1 r10 dup_rule_errors: SAME-DEFECT legal for any pair|T|            if sup.get(vid) != tid:|||            if False:'
+  'T2 r10 plan: SHARED-PATH pairs need no verdict|T|            if (vid, tid) not in decided:\n                refuse("SHARED-PATH|||            if False:\n                refuse("SHARED-PATH'
+  'T3 r10 verify: SHARED-PATH coverage not checked|T|        if (vid, tid) not in decided:\n            bad.append("SHARED-PATH|||        if False:\n            bad.append("SHARED-PATH'
+  'T4 r10 plan: a supersede the target text does not back accepted|T|            elif vid not in t_toks:|||            elif False:'
+  'T5 r10 plan: a same-number supersede accepted|T|            if vid == tid:\n                refuse("--supersede %s=%s: nothing records|||            if False:\n                refuse("--supersede %s=%s: nothing records'
+  'T6 r10 verify: supersede backing not checked|T|            bad.append("%s -> %s: the supersede is backed neither|||            ("%s -> %s: the supersede is backed neither'
+  'T7 r10 plan: AMBIGUOUS read as REBOUND (the absence rule of round 9)|T|cls = "XREF-AMBIGUOUS" if x in T else "XREF-REBOUND"|||cls = "XREF-REBOUND"'
+  'T8 r10 plan: --target-own accepted on a REBOUND or SUPERSEDED id|T|                if fl[x] != "XREF-AMBIGUOUS":|||                if False:'
+  'T9 r10 plan: an id declared both ways accepted|T|            for x in sorted(a_ids & o_ids, key=num):|||            for x in []:'
+  'T10 r10 plan: a declared id the item does not flag accepted|T|                for x in sorted(ids - set(fl), key=num):|||                for x in []:'
+  'T11 r10 verify: the annotations and target_own union not compared with the need set|T|(a_ids | o_ids) != need|||False'
+  'T12 r10 refs: a subdirectory of a repository accepted|T|    if os.path.realpath(top) != os.path.realpath(a.repo_root):|||    if False:'
+  'T13 r10 parse_decl: a declaration given twice accepted|T|            raise Blind("%s %s: given twice" % (opt, mm.group(1)))|||            pass'
 )
 
 # Equivalent mutants (section 11.4.276(D), review r9 F4): an edit that cannot change the tool's answer is not
@@ -279,6 +312,8 @@ mutants=(
 # id description | evidence file (repo-relative) | evidence RESULT line | old ||| new
 equivalent=(
   'RW2 collision with target id not refused (reviewer round 9, verbatim; equivalent)|docs/qa/tracker_intake_2026_11_15_v9/runs/equiv_RW2.txt|RESULT cases=200000 collisions=0|                if new in T:\n                    refuse(|||                if new in T and False:\n                    refuse('
+  'G1 the file-level GIT_* scrub removed (round 10, equivalent: git_env() still strips the variables for every git call)|docs/qa/tracker_intake_2026_11_16_v10/remint/equiv_git_scrub.txt|RESULT single-mutants=2 blind=2 listed-own=2|    _ge_os.environ.pop(_ge_v, None)|||    pass'
+  'G2 git_env() returns the ambient environment (round 10, equivalent: the file-level scrub already removed the variables)|docs/qa/tracker_intake_2026_11_16_v10/remint/equiv_git_scrub.txt|RESULT single-mutants=2 blind=2 listed-own=2|return {k: v for k, v in os.environ.items() if k not in GIT_SCRUB_VARS}|||return dict(os.environ)'
 )
 
 mkcopy() { # mkcopy <src> <dest> <old> <new>  (\n in old/new is a newline)

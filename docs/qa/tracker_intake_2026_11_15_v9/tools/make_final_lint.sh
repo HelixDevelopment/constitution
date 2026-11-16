@@ -16,6 +16,7 @@
 #      and detail); the rendered-document findings of run 3 are listed apart, by code and item
 # Exit: 0 when every run gave the exit status recorded here (1 and 2 PASS, 3, 4 and 5 FAIL); 1 otherwise.
 # Evidence class: gate-logic only (section 11.4.289).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
 set -u
 base=${1:?usage: make_final_lint.sh BASE_DB}
 lint=scripts/workable-items/intake_lint.py

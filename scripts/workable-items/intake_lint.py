@@ -98,6 +98,8 @@
 #   instrument could not see, so no verdict is given).
 # EVIDENCE CLASS  gate-logic only (section 11.4.289): it reads text, it does not prove an item true.
 import argparse
+import base64
+import binascii
 import functools
 import hashlib
 import html
@@ -108,6 +110,8 @@ import sys
 import unicodedata
 import urllib.parse
 
+import os as _ge_os
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 STOP = set(
     "the a an on in of to is and or for with by from not no as at be it its this that are was when "
     "into than then there their these those over under after again only also each every item items "
@@ -136,7 +140,22 @@ SECTION_MARKERS = [
     ("Acceptance criteria", re.compile(r"^\*\*Acceptance criteria:\*\*", re.M)),
     ("Parent / links", re.compile(r"^Parent / links:", re.M)),
 ]
-# Credential shapes (section 11.4.10). Round 9 (review r9 finding F1, section 11.4.276(E): replace, do not
+# Credential shapes (section 11.4.10). Round 10 (review r9 R9-1 to R9-4, section 11.4.276(C)): the
+# front end DECODES TO A FIXPOINT (one more view: every transform applied again until nothing changes,
+# so a percent, entity or escape layer of any depth up to SECRET_FIXPOINT_STEPS is read), decodes the
+# brace and long escapes (\u{70}, \U00000070, \x{70}), every HTML character reference html.unescape
+# changes (also a numeric one without its semicolon), base64 runs that decode to printable text holding
+# '=' or ':', triple-quoted strings and a parenthesised literal after a separator, and joins literals
+# across newlines; the lookalike fold gains a CONFUSABLE SKELETON table (Coptic, Cherokee, Armenian,
+# Lisu, more Cyrillic) and the wildcard reads a word whose letters are at least half ASCII letters in
+# place; the key classifier gains a MULTILINGUAL lexicon (the word for password in other languages, in
+# its own script, folded like a key) and SPLIT HEADS (pass_word, pass-word, passWord read as password);
+# "word" is no longer a property word; new extractors read a markdown table row, a Tcl/Expect set
+# command, an R '<-' assignment and an HTML input's type/id attribute; the value classifier treats a
+# ticket id, a version string and a reference scheme (env:, file:, ...) as non-values and a hash
+# suffix (_sha256, _md5) as a property. The class and its census: class_inventory.md of
+# docs/qa/tracker_intake_2026_11_16_v10 (L36 to L52).
+# Round 9 (review r9 finding F1, section 11.4.276(E): replace, do not
 # layer): round 8 matched the KEY of a keyed credential against lists of spellings written into every
 # extractor's regular expression, so every spelling outside the lists (a suffix after the key, a camelCase
 # short key, a key in brackets, a qualified "key") was a silent miss. Round 9 keeps the three stages and
@@ -178,12 +197,37 @@ SECRET_DECODE_ESCAPES = True
 SECRET_DECODE_PERCENT = True
 SECRET_DECODE_ENTITIES = True
 SECRET_JOIN_LITERALS = True
+SECRET_DECODE_BASE64 = True
+SECRET_TRIPLE_QUOTES = True
+SECRET_PAREN_LITERAL = True
+SECRET_FIXPOINT = True
+SECRET_SPLIT_HEADS = True
 SECRET_SPLIT_KEYS = True
 SECRET_WILDCARD = True
 SECRET_VIEW_LAYERS = 3
 SECRET_MAX_VIEWS = 24
+# the fixpoint view: at most this many rounds of every transform (each round must change the text)
+SECRET_FIXPOINT_STEPS = 64
 # ---- the key words (stage 2's key classifier) ------------------------------------------------------
-# strong heads: any value of 8 or more characters
+# strong heads: any value of 8 or more characters. NATIVE_STRONG_HEADS (round 10, review r9 R9-1): the
+# word for "password" in other languages, in its own script and in its Latin spelling; they are folded
+# by the front end's own _clean below (so a Cyrillic word is compared as the front end sees it) and
+# added to STRONG_HEADS there. Multi-word forms are written joined (motdepasse = mot de passe) and are
+# found by the split-head reading (mot_de_passe).
+NATIVE_STRONG_HEADS = (
+    "\u043f\u0430\u0440\u043e\u043b\u044c",                    # ru, uk, be: parol'
+    "\u043b\u043e\u0437\u0438\u043d\u043a\u0430",              # sr, hr (Cyrillic): lozinka
+    "\u043f\u0430\u0440\u043e\u043b\u0430",                    # bg, mk: parola
+    "\u03ba\u03c9\u03b4\u03b9\u03ba\u03bf\u03c2",              # el: kodikos
+    "\u5bc6\u7801", "\u5bc6\u78bc",                          # zh: mima
+    "\u30d1\u30b9\u30ef\u30fc\u30c9",                          # ja: pasuwaado
+    "\ube44\ubc00\ubc88\ud638", "\uc554\ud638",              # ko: bimilbeonho, amho
+    "\u05e1\u05d9\u05e1\u05de\u05d4",                          # he: sisma
+    "\u092a\u093e\u0938\u0935\u0930\u094d\u0921",            # hi: paasvard
+    "parola", "haslo", "has\u0142o", "heslo", "jelszo", "geslo", "parool", "passord",
+    "losenord", "adgangskode", "kodeord", "sifre", "sifra", "katasandi", "motdepasse",
+    "wagwoord", "sandi", "parolja",
+)
 STRONG_HEADS = frozenset({"password", "passwd", "passphrase", "passwort", "kennwort", "contrasena", "senha",
                           "wachtwoord", "lozinka", "salasana", "credential", "credentials"})
 # a word may END with a strong head (PGPASSWORD, dbpasswd, mypassphrase, pgcredential); "passwordless"
@@ -244,8 +288,10 @@ META_WORDS = frozenset({
     "state", "flow", "grant", "endpoint", "server", "service", "helper", "util", "utils", "cache", "dump",
     "log", "logs", "event", "events", "length", "chars", "char", "count", "number", "num", "scan", "scanner",
     "scanning", "leak", "leaks", "shape", "shapes", "class", "census", "fixture", "fixtures", "rows", "row",
-    "word", "words", "case", "cases", "needle", "needles", "pair", "pairs", "line", "lines", "only", "free",
-    "field", "storage", "ui", "dialog", "modal", "visible", "visibility", "toggle", "show", "hidden", "auth",
+    "words", "case", "cases", "needle", "needles", "pair", "pairs", "line", "lines", "only", "free",
+    # digests: key_parts() splits a letter-digit boundary, so sha256 and md5 reach this set as "sha" and "md"
+    "field", "storage", "sha", "md", "checksum", "fingerprint",
+    "ui", "dialog", "modal", "visible", "visibility", "toggle", "show", "hidden", "auth",
 })
 # ---- stage 1: the front end -------------------------------------------------------------------------
 _FOLD = str.maketrans({
@@ -258,6 +304,38 @@ _FOLD = str.maketrans({
     "\u039c": "M", "\u039d": "N", "\u039f": "O", "\u03a1": "P", "\u03a4": "T", "\u03a5": "Y", "\u03a7": "X",
     "\u0131": "i", "\u0261": "g", "\u217c": "l", "\u2170": "i",
 })
+# The confusable skeleton (round 10, review r9 R9-1): letters of other scripts that are drawn like a
+# Latin letter and that NFKC keeps, taken from the Unicode confusables data for the scripts a key is
+# spelled with in practice: Coptic, Cherokee (capital and small), Armenian, Lisu and more Cyrillic. A
+# letter of these scripts NOT in this table is read by the wildcard (_like) when the word is at least
+# half ASCII letters; an all-lookalike word of letters outside the table is section-B row B40.
+_SKELETON = {
+    # Coptic
+    "\u2c80": "A", "\u2c81": "a", "\u2c82": "B", "\u2c88": "E", "\u2c8e": "H", "\u2c92": "I",
+    "\u2c93": "i", "\u2c94": "K", "\u2c95": "k", "\u2c98": "M", "\u2c9a": "N", "\u2c9e": "O",
+    "\u2c9f": "o", "\u2ca2": "P", "\u2ca3": "p", "\u2ca4": "C", "\u2ca5": "c", "\u2ca6": "T",
+    "\u2ca8": "Y", "\u2ca9": "y", "\u2cac": "X", "\u2cad": "x", "\u2cb0": "W", "\u2cb1": "w",
+    # Cherokee capitals and their small letters (U+AB70 + (capital - U+13A0))
+    "\u13aa": "A", "\uab7a": "a", "\u13f4": "B", "\u13df": "C", "\uabaf": "c", "\u13a0": "D",
+    "\uab70": "d", "\u13ac": "E", "\uab7c": "e", "\u13c0": "G", "\uab90": "g", "\u13bb": "H",
+    "\uab8b": "h", "\u13ab": "J", "\uab7b": "j", "\u13e6": "K", "\uabb6": "k", "\u13de": "L",
+    "\uabae": "l", "\u13b7": "M", "\uab87": "m", "\u13e2": "P", "\uabb2": "p", "\u13a1": "R",
+    "\uab71": "r", "\u13da": "S", "\uabaa": "s", "\u13a2": "T", "\uab72": "t", "\u13d9": "V",
+    "\uaba9": "v", "\u13b3": "W", "\uab83": "w", "\u13c3": "Z", "\uab93": "z",
+    # Armenian
+    "\u0585": "o", "\u0555": "O", "\u057d": "u", "\u054d": "U", "\u0578": "n", "\u0570": "h",
+    "\u0581": "g", "\u0566": "q", "\u053c": "L",
+    # Lisu
+    "\ua4ee": "A", "\ua4d0": "B", "\ua4da": "C", "\ua4d3": "D", "\ua4f0": "E", "\ua4dd": "F",
+    "\ua4d6": "G", "\ua4e7": "H", "\ua4f2": "I", "\ua4d9": "J", "\ua4d7": "K", "\ua4e1": "L",
+    "\ua4df": "M", "\ua4e0": "N", "\ua4f3": "O", "\ua4d1": "P", "\ua4e3": "R", "\ua4e2": "S",
+    "\ua4d4": "T", "\ua4f4": "U", "\ua4e6": "V", "\ua4ea": "W", "\ua4eb": "X", "\ua4ec": "Y",
+    "\ua4dc": "Z",
+    # more Cyrillic
+    "\u04cf": "l", "\u0461": "w", "\u0460": "W", "\u0475": "v", "\u0474": "V", "\u0491": "r",
+    "\u051c": "W", "\u0412": "B",
+}
+_FOLD.update(str.maketrans(_SKELETON))
 # Latin letters that NFKC keeps, folded by their Unicode name: LATIN LETTER SMALL CAPITAL P, LATIN SMALL
 # LETTER ALPHA, LATIN SMALL LETTER DOTLESS J, LATIN SMALL LETTER LONG S, ...
 _LATIN_NAME = re.compile(r"^LATIN (?:(SMALL|CAPITAL) )?LETTER (?:SMALL CAPITAL )?([A-Z]|ALPHA|DOTLESS [IJ]|LONG S|"
@@ -265,12 +343,16 @@ _LATIN_NAME = re.compile(r"^LATIN (?:(SMALL|CAPITAL) )?LETTER (?:SMALL CAPITAL )
 _LATIN_WORD = {"ALPHA": "a", "IOTA": "i", "UPSILON": "u", "LONG S": "s"}
 # the invisible letters a key can carry that are neither a format character nor a mark
 _FILLERS = frozenset("\u115f\u1160\u3164\uffa0")
-_ESC = re.compile(r"\\(u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}|[0-7]{3}|[\\/\"'])")
+_ESC = re.compile(r"\\(u\{[0-9A-Fa-f]{1,6}\}|U[0-9A-Fa-f]{8}|u[0-9A-Fa-f]{4}|x\{[0-9A-Fa-f]{1,6}\}|x[0-9A-Fa-f]{2}|[0-7]{3}|[\\/\"'])")
 _PCT = re.compile(r"%[0-9A-Fa-f]{2}")
-_ENT = re.compile(r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});")
+# base64 runs of 16 characters or more (standard or URL-safe alphabet)
+_B64 = re.compile(r"(?<![A-Za-z0-9+/=_-])(?:[A-Za-z0-9+/_-]{4}){4,}(?:[A-Za-z0-9+/_-]{2}(?:==)?|[A-Za-z0-9+/_-]{3}=?)?(?![A-Za-z0-9+/=_-])")
+_TRIPLE = re.compile(r"\"\"\"|'''")
+# a parenthesised literal after a separator: = ("ab"\n "cd")
+_PAREN = re.compile(r"((?:=|:=|:|<-|=>)[ \t]*)\(\s*([\"'`][^()]{0,1024}?[\"'`])\s*\)")
 # a closing quote, an optional concatenation operator and an opening quote of the same kind between two
 # value characters: "ab" "cd", "ab" + "cd", 'ab' . 'cd', 'ab' || 'cd'
-_JOIN = re.compile(r"(?<=[^\s\"'`\\])([\"'])[ \t]*(?:\+|\.|\|\|)?[ \t]*\1(?=[^\s\"'`,;:)\]}])")
+_JOIN = re.compile(r"(?<=[^\s\"'`\\])([\"'])\s*(?:\+|\.\.?|\|\||&|~)?\s*\1(?=[^\s\"'`,;:)\]}])")
 
 
 @functools.lru_cache(maxsize=4096)
@@ -295,7 +377,7 @@ def _clean(t):
         if SECRET_STRIP_FORMAT:
             drop.add("Cf")
         if SECRET_STRIP_MARKS:
-            drop |= {"Mn", "Me"}
+            drop |= {"Mn", "Me", "Mc"}  # Mc (round 10): an Indic vowel sign is not a \w character
         t = "".join(ch for ch in t if unicodedata.category(ch) not in drop and ch not in _FILLERS)
     if SECRET_STRIP_MARKS:
         t = unicodedata.normalize("NFKC", t)
@@ -306,10 +388,16 @@ def _clean(t):
     return t
 
 
+# the native-script strong heads, as the front end sees them (round 10)
+STRONG_HEADS = STRONG_HEADS | frozenset(_clean(unicodedata.normalize("NFKC", w)).lower() for w in NATIVE_STRONG_HEADS)
+SUFFIX_HEADS = tuple(sorted(STRONG_HEADS, key=len, reverse=True))
+
+
 def _unescape(m):
     s = m.group(1)
-    if s[0] in "ux":
-        return chr(int(s[1:], 16))
+    if s[0] in "uUx":
+        n = int(s[1:].strip("{}"), 16)
+        return chr(n) if n <= 0x10FFFF else m.group(0)
     if s[0].isdigit():
         return chr(int(s, 8))
     return s
@@ -324,14 +412,58 @@ def _v_percent(t):
 
 
 def _v_entities(t):
-    return html.unescape(t) if SECRET_DECODE_ENTITIES and "&" in t and _ENT.search(t) else None
+    if not SECRET_DECODE_ENTITIES or "&" not in t:
+        return None
+    d = html.unescape(t)
+    return d if d != t else None
 
 
 def _v_join(t):
     return _JOIN.sub("", t) if SECRET_JOIN_LITERALS and _JOIN.search(t) else None
 
 
-_TRANSFORMS = (_v_escapes, _v_percent, _v_entities, _v_join)
+def _b64_text(m):
+    s = m.group(0)
+    try:
+        b = base64.b64decode(s + "=" * (-len(s) % 4), altchars=b"-_" if ("-" in s or "_" in s) else None, validate=True)
+        d = b.decode("utf-8")
+    except (binascii.Error, ValueError):
+        return s
+    if len(d) < 8 or not re.search(r"[=:]", d) or not all(c.isprintable() or c in "\t\n" for c in d):
+        return s
+    return d
+
+
+def _v_base64(t):
+    if not SECRET_DECODE_BASE64 or not _B64.search(t):
+        return None
+    d = _B64.sub(_b64_text, t)
+    return d if d != t else None
+
+
+def _v_triple(t):
+    return _TRIPLE.sub(lambda m: m.group(0)[0], t) if SECRET_TRIPLE_QUOTES and _TRIPLE.search(t) else None
+
+
+def _v_paren(t):
+    return _PAREN.sub(r"\1\2", t) if SECRET_PAREN_LITERAL and _PAREN.search(t) else None
+
+
+_TRANSFORMS = (_v_escapes, _v_percent, _v_entities, _v_join, _v_base64, _v_triple, _v_paren)
+
+
+def _fixpoint(t):
+    """Every transform applied again, in order, until a round changes nothing (at most
+    SECRET_FIXPOINT_STEPS rounds): a percent, entity or escape layer of any depth."""
+    for _step in range(SECRET_FIXPOINT_STEPS):
+        before = t
+        for f in _TRANSFORMS:
+            d = f(t)
+            if d is not None:
+                t = _clean(unicodedata.normalize("NFKC", d))
+        if t == before:
+            break
+    return t
 
 
 def secret_views(text):
@@ -356,6 +488,10 @@ def secret_views(text):
         if not new:
             break
         frontier = new
+    if SECRET_FIXPOINT:
+        fp = _fixpoint(t)
+        if fp not in views:
+            views.append(fp)
     return views
 
 
@@ -384,8 +520,10 @@ def key_words(tok):
 
 
 def _like(w, h):
-    """w spells the head h: equal, or (a lookalike the folds do not know) of the same length with at most
-    two non-ASCII letters where h has a letter, for a head of five letters or more."""
+    """w spells the head h: equal, or (a lookalike the folds do not know) of the same length, for a head
+    of five letters or more, where every ASCII character of w is h's letter in place, every other
+    character is a non-ASCII letter, and those stand-in letters are at most half of the word (round 10,
+    review r9 R9-1: three or four stand-ins in password, two in token)."""
     if w == h:
         return True
     if not SECRET_WILDCARD or w.isascii() or len(w) != len(h) or len(h) < 5:
@@ -397,7 +535,7 @@ def _like(w, h):
         if a.isascii() or not a.isalpha():
             return False
         odd += 1
-    return odd <= 2
+    return 2 * odd <= len(h)
 
 
 def _ends_like(w, h):
@@ -468,6 +606,14 @@ def key_tier(tok):
         t = _word_tier(ws, i, upper)
         if t and _tail_ok([w for w, _ in ws[i + 1:]]) and (best is None or _TIER_RANK[t] > _TIER_RANK[best]):
             best = t
+    if best != "strong" and SECRET_SPLIT_HEADS:
+        # a strong head written in two or three parts: pass_word, pass-word, passWord, mot_de_passe
+        for i in range(len(ws)):
+            for j in (i + 2, i + 3):
+                if j <= len(ws) and _tail_ok([w for w, _ in ws[j:]]):
+                    joined = "".join(w for w, _ in ws[i:j])
+                    if any(_like(joined, h) for h in STRONG_HEADS):
+                        return "strong"
     return best
 
 
@@ -492,6 +638,12 @@ _REF_ANNOT = re.compile(r"^@[A-Za-z][\w.]*\(")
 _REF_ARN = re.compile(r"^arn:aws[\w-]*:[\w-]+:")
 # an identifier, not a credential, after a generic or short key: lint_suite_2, cache-v2-entry
 _IDENT_VALUE = re.compile(r"^[a-z]+[0-9]*(?:[_.-](?:[a-z]+[0-9]*|[0-9]+))+$")
+# round 10 (review r9 R9-4): a ticket id (CON-1234) and a version (6.4.0-rc1-build42, v1.2.3-beta4) after a
+# generic or short key; a reference with a secret-store scheme (env:DB_PASSWORD, file:..., op:...) after any key
+_TICKET_VALUE = re.compile(r"^[A-Z][A-Z0-9]{1,9}-[0-9]{1,7}$")
+_VERSION_VALUE = re.compile(r"^v?[0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z][0-9A-Za-z.-]*)?$")
+_REF_SCHEME = re.compile(r"(?i)^(?:env|file|secret|secrets|vault|sops|ssm|keyring|keychain|op|cmd|exec|gcpsm|"
+                         r"awssm|azkv|k8s|kms):[A-Za-z_$]")
 
 
 def _has_ld(v):
@@ -524,13 +676,15 @@ def credential_value(tier, v, quote, allow_space=False, generic_ld=True):
         return False
     if _PATH.match(v):
         return False
-    if _REF_URI.match(v) or _REF_ANNOT.match(v) or _REF_ARN.match(v):
+    if _REF_URI.match(v) or _REF_ANNOT.match(v) or _REF_ARN.match(v) or _REF_SCHEME.match(v):
         return False
     if not quote and (_CODE_CALL.match(v) or (_CODE_ATTR.match(v) and not any(c.isdigit() for c in v))):
         return False
     if (tier == "short" or (tier == "generic" and generic_ld)) and not _has_ld(v):
         return False
     if tier in ("short", "generic") and _IDENT_VALUE.match(v):
+        return False
+    if tier in ("short", "generic") and (_TICKET_VALUE.match(v) or _VERSION_VALUE.match(v)):
         return False
     if tier == "short" and v[0] in ".>":
         return False
@@ -554,7 +708,7 @@ _KQ = r"(?:\\?[\"'`])?"
 # escape sequence (\\, \", \u00e9, \/) is part of it
 _QPRE = r"(?P<sp>(?<![\w])[bBrRuUfF]{1,2})?"
 _QVAL = _QPRE + r"\\?(?P<q>[\"'`])(?P<v>(?:\\[^\n]|(?!\\?(?P=q))[^\n\\])*)\\?(?P=q)"
-_SEP_Q = r"\s*(?::=|=>|:|=)\s*"
+_SEP_Q = r"\s*(?::=|=>|<<-|<-|:|=)\s*"
 
 
 def _x_assign_quoted(view):
@@ -726,6 +880,24 @@ def _x_url(view):
         yield "url-userinfo-password", m.group(0)
 
 
+def _x_table_row(view):
+    """| password | VALUE | (a markdown or plain table row whose first cell is a key): the value needs a
+    letter and a digit (a table cell is mostly a word)."""
+    for m in _RX_TABLE.finditer(view):
+        tier, v = _tier(m), m.group("v")
+        if tier and tier != "numeric" and _has_ld(v) and credential_value(tier, v, ""):
+            yield "table-row-pair", m.group(0)
+
+
+def _x_set_command(view):
+    """set password VALUE (Tcl, Expect): a statement of exactly three words; the value needs a letter and
+    a digit."""
+    for m in _RX_SET_CMD.finditer(view):
+        tier, v = _tier(m), m.group("v")
+        if tier in ("strong", "generic") and _has_ld(v) and credential_value(tier, v, ""):
+            yield "set-command", m.group(0)
+
+
 def _x_authorization(view):
     """Authorization: <scheme> VALUE for any scheme but Basic (ApiKey, Token, a short Bearer); a value of
     8 characters with a letter and a digit. A Bearer or Token value of 20 characters or more is the
@@ -762,12 +934,14 @@ _RX_SPACE = re.compile(r"(?i)(?<![\w.-])(?P<key>[^\W\d][\w.-]{0,255})(?P<sep>[ \
 _RX_SPACE_Q = re.compile(r"(?i)(?:" + _KBEG + _KTOK + r"|\bidentified\s+by)[ \t]+" + _QVAL)
 _RX_NETRC = re.compile(r"(?i)\blogin\s+\S+\s+pass(?:word|wd)\s+(?P<v>\S+)")
 _RX_XML_EL = re.compile(r"(?i)<" + _KTOK.replace("[\\w.\\-]{0,255}", "[\\w.\\-:]{0,255}", 1) + r"(?:\s[^<>]*)?>\s*(?P<v>[^<>\s]+)\s*</(?P<ctag>[\w.:-]+)\s*>")
-_ATTR_KEY = r"\b(?:key|name)\s*=\s*(?P<q1>[\"'])(?P<key>[\w.:-]+)(?P=q1)"
+_ATTR_KEY = r"\b(?:key|name|type|id)\s*=\s*(?P<q1>[\"'])(?P<key>[\w.:-]+)(?P=q1)"
 _RX_XML_ATTR_V = re.compile(r"(?i)<[\w:.-]+\s[^<>]*?" + _ATTR_KEY + r"[^<>]*?\bvalue\s*=\s*(?P<q2>[\"'])(?P<v>[^\"'<>]*)(?P=q2)")
 _RX_XML_ATTR_T = re.compile(r"(?i)<(?P<otag>[\w:.-]+)\s[^<>]*?" + _ATTR_KEY + r"[^<>]*>\s*(?P<v>[^<>\s]+)\s*</(?P<ctag>[\w:.-]+)\s*>")
 _RX_YAML_BLOCK = re.compile(r"(?im)" + _KBEG + _KTOK + _KQ + r"[ \t]*:[ \t]*[|>][-+0-9]*[ \t]*\r?\n[ \t]+(?P<v>\S[^\n]*)")
 _RX_PGPASS = re.compile(r"(?m)^[ \t]*[^\s:#]+:(?:\d{1,5}|\*):[^\s:]+:[^\s:]+:(?P<v>\S+?)[ \t]*\r?$")
 _RX_URL = re.compile(r"(?i)(?<![\w+.-])[a-z][a-z0-9+.-]*://[^/\s:@\[\]]*:(?P<v>[^\s@]+)@")
+_RX_TABLE = re.compile(r"(?im)^[ \t]*\|?[ \t]*`?" + _KTOK + r"`?[ \t]*\|[ \t]*`?(?P<v>[^|`\s]{1,1024})`?[ \t]*(?:\||$)")
+_RX_SET_CMD = re.compile(r"(?im)(?:^|[;\[{])[ \t]*set[ \t]+" + _KTOK + r"[ \t]+(?P<v>[^\s;\]}\"'`]{1,1024})[ \t]*(?=$|[;\]}])")
 _RX_AUTHZ = re.compile(r"(?i)\bauthorization\s*[:=]\s*(?P<scheme>[A-Za-z][\w-]*)\s+(?P<v>[A-Za-z0-9._~+/=-]+)")
 
 # the extractors (stage 2) and the rule names each can report
@@ -788,6 +962,8 @@ KEYED_EXTRACTORS = [
     (_x_yaml_block, ("yaml-block-scalar",)),
     (_x_pgpass, ("pgpass-line",)),
     (_x_authorization, ("authorization-header",)),
+    (_x_table_row, ("table-row-pair",)),
+    (_x_set_command, ("set-command",)),
 ]
 # the token shapes: a vendor prefix or a fixed format (stage 2 for a credential that carries no key)
 SECRET_PATTERNS = [
@@ -810,7 +986,7 @@ SECRET_PATTERNS = [
     ("telegram-bot-token", re.compile(r"\b\d{8,10}:AA[A-Za-z0-9_-]{33}\b")),
 ]
 # the rules whose shape is a whole line (their needles are written on a line of their own)
-LINE_RULES = {"pgpass-line"}
+LINE_RULES = {"pgpass-line", "table-row-pair", "set-command"}
 SECRET_RULE_NAMES = [n for n, _ in SECRET_PATTERNS] + [n for _, ns in KEYED_EXTRACTORS for n in ns if n != "short-key-assign"] + ["short-key-assign"]
 EPHEMERAL_PATTERNS = [
     ("scratchpad", re.compile(r"scratchpad|/\.cache/claude-tmp/", re.I)),
@@ -1653,6 +1829,8 @@ def secret_needles():
         ("telegram-bot-token", "123456789" + ":AA" + a * 33, "123456789" + ":AA" + a * 32),
         ("password-space-quoted", "WITH PASS" + "WORD '" + v8 + "'", "WITH PASS" + "WORD '" + v8[:7] + "'"),
         ("authorization-header", "Authorization: " + "ApiKey " + v8, "Authorization: " + "ApiKey " + v8[:7]),
+        ("table-row-pair", "| pass" + "word | " + v8 + " |", "| pass" + "word | " + v8[:7] + " |"),
+        ("set-command", "set pass" + "word " + v8, "set pass" + "word " + v8[:7]),
     ]
 
 
