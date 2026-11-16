@@ -1,0 +1,7 @@
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 390 items, all invariants satisfied
+rc=0
+diff: DB and Markdown are in sync (compared 390 Markdown item(s) against 390 DB item(s); read docs/Issues.md, docs/Fixed.md)
+rc=0
+diff: DB-internal checks passed — 390 item(s) inspected; no Markdown compared (--db-only)
+rc=0
