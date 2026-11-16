@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# KV29b: a sitecustomize.py on PYTHONPATH that replaces unicodedata.normalize; with -I it is ignored (self-waive refused,
+# rc 1), without -I it runs at interpreter start and the self-waive is honoured (rc 0). Usage: probe_kv29b.sh <gate>
+set -uo pipefail; g="${1:?gate}"
+tmp="$(mktemp -d "${TMPDIR:?}/p29.XXXXXX")"; [ -n "$tmp" ] && [ -d "$tmp" ] || exit 2; trap 'rm -rf "${tmp:?}"' EXIT
+export HOME="$tmp/home" GIT_CONFIG_NOSYSTEM=1 GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t; mkdir -p "$HOME"
+git config --global init.defaultBranch main; git config --global protocol.file.allow always
+up="$tmp/up"; git init -q "$up"; git -C "$up" commit -q --allow-empty -m A; a=$(git -C "$up" rev-parse HEAD); git -C "$up" commit -q --allow-empty -m B; b=$(git -C "$up" rev-parse HEAD)
+s="$tmp/s"; git init -q "$s"; git -C "$s" submodule add -q "file://$up" sub >/dev/null 2>&1; git -C "$s" commit -q --no-verify -m base
+git -C "$s/sub" checkout -q "$a"; printf 'sub\t%s\t%s\tt\t%s\tCON-046\t%s\n' "$b" "$a" "$(date -d '+5 days' +%F)" "$(git -C "$s" rev-parse HEAD)" >"$s/.submodule_pin_waivers"
+git -C "$s" add sub .submodule_pin_waivers
+mkdir -p "$tmp/pp"; printf 'import itertools,unicodedata\n_c=itertools.count()\nunicodedata.normalize=lambda f,s: "u%%d" %% next(_c)\n' >"$tmp/pp/sitecustomize.py"
+r0=$(bash "$g" --root "$s" >"$tmp/o0" 2>&1; echo $?); r1=$(PYTHONPATH="$tmp/pp" bash "$g" --root "$s" >"$tmp/o1" 2>&1; echo $?)
+echo "KV29B=$r0/$(grep -c self-waive "$tmp/o0"),$r1/$(grep -c self-waive "$tmp/o1")"

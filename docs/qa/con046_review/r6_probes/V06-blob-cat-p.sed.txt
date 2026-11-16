@@ -1,0 +1,1 @@
+s/^  pg cat-file blob "\$id" 2>\/dev\/null || return 2$/  pg cat-file -p "$id" 2>\/dev\/null || return 2/

@@ -161,7 +161,8 @@ BUILTIN_LIBS = {
 }
 # Discovery limits: bound (or, by explicit choice, widen) where git looks for a repository; never scrubbed.
 LIMIT_VARS = ("GIT_CEILING_DIRECTORIES", "GIT_DISCOVERY_ACROSS_FILESYSTEM")
-WRITE = (r"init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge|reset|"
+# merge(?!-base\b): `git merge-base` only reads (CON-046 round 13: a read-only pre-commit gate was read as writing)
+WRITE = (r"init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge(?!-base\b)|reset|"
          r"stash|rm|mv|push|worktree|apply|am|cherry-pick|rebase|clone|submodule|fetch|pull|notes|gc|repack|"
          r"checkout-index|commit-tree|hash-object|symbolic-ref|restore|clean|write-tree|fast-import|bundle|"
          r"pack-objects|prune|replace|filter-branch|mktree|mktag|unpack-objects|index-pack")
@@ -999,6 +1000,9 @@ def needles(canon):
         ("sh guard, read only", "sh", "#!/bin/bash\nB=$(git rev-parse --abbrev-ref HEAD)\necho \"stage with git add <paths>\" >&2\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
         ("sh guard, write", "sh", "#!/bin/bash\ngit add -A\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
         ("sh guard, echo piped to sh", "sh", "#!/bin/bash\necho \"git add -A\" | sh\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, merge-base read", "sh", "#!/bin/bash\ngit merge-base --is-ancestor a b\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
+        ("sh guard, merge write", "sh", "#!/bin/bash\ngit merge -q x\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, merge-tree write", "sh", "#!/bin/bash\ngit merge-tree --write-tree a b\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
     ]
     bad = []
     for name, lang, text, row, want in cases:

@@ -1,0 +1,263 @@
+# CM-SUBMODULE-PIN-NOT-DOWNGRADED guard inventory (CON-046, structural round CON-146, re-minted CON-194, then CON-280). One row per guard MEMBER or
+# SITE of cm_submodule_pin_not_downgraded.sh. Columns (TAB): id, anchor (a fixed string occurring once in the gate's
+# code), mutants (comma list of Part-2 mutant names), eq (comma list of equivalence-proof names, or -), need, reason.
+# need: both = mutants must show a fail-open (fo: a refusal became exit 0) AND a false refusal (fr: an exit 0 became a
+# refusal); fo / fr = that direction only (reason says why the other has no form); ch = any observable change
+# (plumbing, no refusal of its own); none = equivalent member, eq column carries the differential proof.
+# Rows Hnnn anchor in the hook (scripts/hooks/pre-commit-submodule-pin-not-downgraded); anchors spanning lines write <NL>.
+# Checked by cm_submodule_pin_not_downgraded_mutation_test.sh (lint static in Part 1, lint dynamic after Part 2).
+# Round 8: the members below this inventory's line-segment granularity (case alternatives, regex quantifiers, anchors and
+# class parts, strip halves, comparison operators, && / || / or / and operands, `if !`) are GENERATED mechanically by
+# cm_submodule_pin_not_downgraded_members.py into the ledger cm_submodule_pin_not_downgraded_members.tsv; the test
+# regenerates the ledger, refuses a stale one, and runs every viable generated mutant (each must be killed).
+I001	set -uo pipefail	lastpipe-dropped	-	ch	shell options; the pipefail/lastpipe pair is falsified through lastpipe (the main loop sets fail in the pipeline's last stage)
+I002	shopt -s lastpipe	lastpipe-dropped,arg-nocasematch	-	fo	dropping it loses fail=1 set inside the loop: a refusal passes; no false-refusal form exists
+I002b	while [ $# -gt 0 ]; do	RV10-04-argloop-gt1	-	ch	Round 11 (RV10-04): the argument loop runs to the LAST argument (ARGNEAR: a trailing unknown flag is a usage error)
+I003	GATE="CM-SUBMODULE-PIN-NOT-DOWNGRADED"	diverged-silent,undecided-is-ok	-	ch	message prefix; the fixtures count prefixed lines (cnt '^CM-SUBMODULE-PIN-NOT-DOWNGRADED: WARN')
+I004	self="${BASH_SOURCE[0]:-$0}"	help-truncated,root-default-wrong	-	ch	source of the help text and the default root
+I005	root="$(cd "$(dirname "$self")/../.." && pwd -P)"	root-default-wrong	-	ch	default root (no --root): ROOTDEFAULT; round 8: ROOTNEST kills root-default-wrong (scripts/ is its own repository; ROOTDEFAULT alone could not, the root is normalised to --show-toplevel)
+I006	need() { [ "$1" -ge 2 ]	usage-value-unchecked,usage-argc-off-by-one	-	both	argc member: dropped (fo: a flag without value accepted) / off by one (fr: a valid flag refused); round 8: the fo direction is shown by ARGSFWD (a forward bump with --base '' / --waivers '': 2 -> 0)
+I007	&& [ -n "$2" ] ||	usage-empty-value-accepted,usage-argc-off-by-one	-	both	empty-value member; round 8: the fo direction is shown by ARGSFWD (a forward bump with --base '' / --waivers '': 2 -> 0)
+I007b	"$1" -ge 2 ] && [ -n	-	eq-need-argc-redundant	none	round 8 generated member (argc test dropped): equivalent, every caller passes "${2:-}", so argc < 2 implies an empty value which the -n member refuses (differential probe pr_needargc)
+I008	echo "$GATE: $3 needs a value" >&2; exit 2	usage-value-unchecked	-	ch	usage exit 2 (ARGS fixture)
+I009	--root) need $# "${2:-}" --root	root-cd-fail-ignored,usage-value-unchecked,argflag-prefix	-	ch	--root parse
+I010	root="$(cd "$2" && pwd -P)" || exit 2	root-cd-fail-ignored	-	ch	unenterable --root -> exit 2
+I011	--base) need $# "${2:-}" --base	base-arg-dropped	-	ch	--base value used (AMEND)
+I012	--waivers) need $# "${2:-}" --waivers	waivers-arg-dropped,waivers-file-not-read	-	ch	--waivers value used (WFILE)
+I013	-h|--help) awk	help-truncated,V02-help-exits-1	-	ch	help text and its exit 0 (HELP, KV02HELP); the `--help` alternative is row I013b
+I013b	|--help) awk	RV7-05-help-long-dropped	-	fr	`--help` alternative (round-7 reviewer mutant RV7-05; F_HELPLONG): dropped, `--help` is a usage error 2; no fail-open form (help prints, it never decides)
+I014	NR>1 {exit}' "$self"; exit 0 ;;	V02-help-exits-1	-	fr	help exit 0 -> 1 (KV02HELP); no fail-open form
+I015	*) echo "$GATE: unknown argument $1" >&2; exit 2 ;;	unknown-arg-accepted,V01-unknown-arg-exits-1	-	ch	usage error exit 2 vs 0/1
+I016	blind0() { echo "$GATE: BLIND — $1"; exit 2; }	blind0-exits-0	-	fo	BLIND exit 2 -> 0
+I017	top="$(git -C "$root" rev-parse --show-toplevel	not-a-worktree-always	-	fr	test member: a work tree read as none -> every run BLIND (fr); fail-open form is the reaction row
+I017b	|| blind0 "$root is not inside a git work tree"	not-a-worktree-unchecked	-	ch	reaction member: dropped -> the run continues with an empty root
+I018	root="$(cd "$top" && pwd -P)"	root-cd-top-fails	-	fr	test member: cd fails -> BLIND (fr)
+I018b	|| blind0 "cannot enter $top"	root-not-normalised,logical-paths	-	ch	reaction / normalisation member (RELATIVE, SYMROOT)
+I019	mapfile -t lev < <(git rev-parse --local-env-vars 2>/dev/null)	hook-env-inherited,local-env-vars-unchecked	-	ch	env vars to drop for submodule calls
+I020	[ "${#lev[@]}" -gt 0 ]	lev-check-always-blind,lev-gt-1	-	fr	test member: always empty -> every run BLIND (fr) Round 10: -gt 1 refuses a one-variable git (LEVBND, ch: 1 -> 2).
+I020b	|| blind0 "git rev-parse --local-env-vars returned nothing"	local-env-vars-unchecked	-	ch	reaction member (LEV)
+I021	GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;;	V03-env-keeps-GIT_DIR,config-params-all-unset	-	fr	keep-list: adding GIT_DIR breaks submodule calls (V03); dropping it (round 7 claimed equivalent; review R7-2 refuted) turns a `git -c safe.directory=*` commit in a foreign-owned checkout into a false BLIND (S_PARAMS*, S_COUNT*); no fail-open form (an unset variable only makes git stricter)
+I021a	in GIT_CONFIG_PARAMETERS|	RV7-02-keep-drops-PARAMETERS	-	fr	GIT_CONFIG_PARAMETERS alternative (RV7-02; S_PARAMSFWD / S_PARAMSDOWN): dropped, `git -c safe.directory=* commit` gives a false BLIND
+I021b	|GIT_CONFIG_COUNT) ;;	RV7-01-keep-drops-COUNT	-	fr	GIT_CONFIG_COUNT alternative (RV7-01; S_COUNTFWD / S_COUNTDOWN): dropped, the KEY_0/VALUE_0 channel gives a false BLIND
+I022	*) unsets+=(-u "$v") ;; esac; done	hook-env-inherited	-	ch	unset list feeds sg()
+I023	sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1	hook-env-inherited,replace-refs-honoured,R3m1-grafts-honoured,RV7-lazy-fetch	-	ch	submodule git environment (four members)
+I024	sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1	replace-refs-honoured	-	ch	replace refs member
+I023b	git -c core.commitGraph=false "$@"	commit-graph-honoured	-	fo	commit-graph off for every submodule call (round 8, R7-1): honoured, a downgrade whose middle commit is missing from the store reads as DIVERGED (WARN, exit 0) under a commit-graph (G_DOWNGRADE); no false-refusal form
+I025	pg() { GIT_NO_LAZY_FETCH=1	RM9-super-replace-honoured,RM10-super-lazy-fetch,spent-grafts-honoured	-	ch	superproject git environment (three members)
+I026	headc="$(pg rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null)"	headc-empty	-	ch	HEAD as default base and N4 reference
+I027	if [ -z "$base" ]; then	base-arg-dropped,base-resolve-unchecked	-	ch	base mode switch
+I028	basec="$headc"; [ -n "$basec" ] ||	unborn-base-fallback-dropped,headc-empty	-	ch	default base = HEAD
+I029	sha1) basec=4b825dc642cb6eb9a060e54bf8d69288fbee4904 ;;	unborn-base-fallback-dropped	-	ch	unborn HEAD -> built-in sha1 empty tree (UNBORN); round 13: constant instead of hash-object (git-env census r4 counts hash-object as a write)
+I029b	sha256) basec=6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321 ;; *) blind0	unborn-sha256-arm-dropped	-	ch	unborn HEAD in a sha256 repository -> built-in sha256 empty tree (UNBORN256); the * arm (unknown format -> BLIND) has no mutant: git refuses an unknown extensions.objectFormat before this line (probe: the gate reports BLIND "not inside a git work tree"), so it is unreachable and kept fail-closed
+I029c	case "$(pg rev-parse --show-object-format 2>/dev/null)" in	unborn-object-format-unchecked	-	ch	the empty tree is chosen by the repository object format (UNBORN256)
+I030	basec="$(pg rev-parse -q --verify "$base^{commit}" 2>/dev/null)"	base-peel-dropped	-	ch	--base peeled to a commit (BASEBAD)
+I031	--base $base does not resolve to a commit"	base-resolve-unchecked	-	ch	unresolvable --base -> BLIND
+I032	mergeh="$(pg rev-parse -q --verify 'MERGE_HEAD^{commit}' 2>/dev/null)"	mergeh-always,mergeh-never,V05-mergehead-wrong-ref	-	both	merge detection: never (fo) / always (fr)
+I033	pg cat-file -e "$1^{tree}"	NM7-tree-check-not-peeled,blob-tree-always-missing	-	fr	test member: every tree unreadable (fr); the fail-open form is the reaction row
+I033b	"$1^{tree}" 2>/dev/null || return 2	M1-tree-missing-is-absent	-	fo	reaction member: missing tree read as absent (fo, TREEMISS)
+I034	id="$(pg rev-parse -q --verify "$1:$2"	blob-always-absent	-	ch	test member: every blob absent (config and sibling files never read)
+I034b	"$1:$2" 2>/dev/null)" || return 1	blob-absent-is-unreadable	eq-blob-absent-as-empty	ch	reaction member: rc 1; rc 0 with empty text is equivalent (an empty config and an empty waiver file mean the same as absent; differential proof)
+I034c	nul="$(pg cat-file blob "$id" 2>/dev/null | tr -cd	blob-nul-unchecked	-	fo	Round 11 (F3): NUL count of the blob; a NUL is never dropped by the $(...) read (NULROW)
+I034d	[ "${nul// /}" = 0 ]	blob-nul-unchecked	-	fo	Round 11 (F3): test member: NUL ignored (fo, NULROW (c)(d))
+I034e	= 0 ] || return 3	blob-nul-as-unreadable	-	ch	Round 11 (F3): reaction member: rc 3 vs 2 changes only the reason (NULROW counts the NUL message)
+I035	pg cat-file blob "$id" 2>/dev/null || return 2	V06-blob-cat-p	-	ch	test member: cat-file blob vs -p
+I035b	"$id" 2>/dev/null || return 2	blob-unreadable-is-absent	-	fo	reaction member: unreadable read as absent (fo, CHILDTREE)
+I036	today="$(TZ=UTC date +%Y-%m-%d)"	today-past,today-future,today-local,RVR11-06-today-local-tz,RVX-13-locale-en-forced	-	both	today: past (fo: expired rows honoured) / future (fr) Round 13: RVX-13 re-exports a wide locale after the pin: LOC13 (fo).
+I036L	export LC_ALL=C	locale-unpinned,locale-pin-en	-	fo	round 13 (review r12 N1): the locale pin; dropped or set to a wide locale, [0-9] / [A-Z] accept Arabic-Indic and fullwidth digits and `É` under en_US.UTF-8 (LOC13, HLOC13: fo); no false-refusal form (the pin only narrows ranges to ASCII)
+I036b	if [ "$crc" = 3 ]; then conferr=	conf-nul-unchecked	-	fo	Round 11 (F3): a base config holding a NUL disables waivers (NULROW (d))
+I037	maxd=30; prefix=CON; conferr=""	default-days-31,default-days-29,default-prefix-wrong	-	both	defaults: 31 (fo) / 29 (fr, HORIZON d30) / prefix (fr)
+I038	ctext="$(blob "$basec" .submodule_pin_gate.conf)"; crc=$?	config-from-index	-	ch	config read from the base commit (CONF)
+I039	if [ "$crc" = 2 ]; then conferr=	RV1-config-unreadable-as-absent,crc-unreadable-always	-	both	unreadable config disables waivers: dropped (fo) / always (fr)
+I040	elif [ "$crc" = 0 ]; then	conf-comments-not-skipped	eq-conf-crc0-is-else	ch	crc 0 vs else: equivalent (absent config reads as empty text, no key set; differential proof)
+I041	seen=" "	RV3-duplicate-key-allowed,V09-conf-seen-no-space	-	ch	duplicate-key bookkeeping
+I042	while IFS= read -r line; do	conf-non-kv-unnamed,conf-kv-inverted,conf-read-ifs-dropped	-	ch	config line loop
+I043	case "$line" in ''|'#'*) continue ;; esac	conf-comments-not-skipped,conf-blank-not-skipped,conf-hash-not-skipped,conf-hash-anywhere	-	fr	skip blank and comment lines: not skipped -> a valid config errors (fr); no fail-open form
+I044	k="${line%%=*}"; v="${line#*=}"	conf-kv-inverted,confsplit-last	-	ch	key/value split
+I045	[ "$k" != "$line" ]	conf-kv-always-error	-	fr	test member: every line not key=value (fr)
+I045b	is not key=value"; break; }	conf-non-kv-unnamed	-	ch	reaction member: the line then fails as an unknown key; only the reason differs (CONFNOKV)
+I046	case "$seen" in *" $k "*) conferr=	RV3-duplicate-key-allowed,conf-dup-always-error,V09-conf-seen-no-space,dupkey-nospace	-	both	duplicate key: allowed (fo) / always (fr)
+I047	max_waiver_days) [[ "$v" =~ ^[1-9][0-9]{0,2}$ ]]	conf-days-regex-loosened,V07-conf-days-max-99,conf-days-always-error,days-min-2,confkey-prefix,RVX-11-days-digit-class	-	both	days form: loosened (fo) / 1..99 (fr, DAYS100) / always (fr) Round 10: [2-9] refuses max_waiver_days=1 (DAYSBND, fr). Round 13: RVX-11 ([[:digit:]]{1,3}) accepts 0 and leading zeros (fo/fr).
+I048	&& [ "$v" -le 365 ] ||	RV5-365-cap-removed,conf-days-366,V08-conf-days-365-exclusive	-	both	days cap: 366 (fo) / 365 exclusive (fr, KV365)
+I048b	{0,2}$ ]] && [ "$v" -le 365 ]	-	eq-maxdays-upper-bound-by-le	none	round 8 generated member (upper digit bound of the days regex): equivalent, a 4-digit value is >= 1000 > 365 and is refused by -le 365 (differential probe pr_maxdays: 999, 1000, 365)
+I049	maxd="$v" ;;	days-assign-dropped	-	ch	days assignment (DAYS100, CONF)
+I050	item_prefix) [[ "$v" =~ ^[A-Z][A-Z0-9]+$ ]]	RV4-prefix-unvalidated,prefix-plus-to-star,prefix-anchor-start-dropped,prefix-anchor-end-dropped,conf-prefix-always-error,prefix-min-3,itemkey-prefix	RVX-09-prefix-upper-class	both	prefix form members (+, ^, $): loosened (fo, PREFIXFORM) / always (fr) Round 10: {2,} refuses the two-character prefix CN (PFXBND, fr). Round 13: RVX-09 ([[:upper:]]) is equivalent under the LC_ALL=C pin (differential proof pr_loc13; control also deletes the pin).
+I051	prefix="$v" ;;	prefix-assign-dropped	-	ch	prefix assignment (PREFIX)
+I052	*) conferr="config key '$k' unknown"; break ;;	conf-unknown-key-accepted,conf-unknown-key-always	-	both	unknown key: accepted (fo) / every key unknown (fr)
+I053	done <<<"$ctext"	config-error-ignored	-	ch	config text source
+I054	lim="$(TZ=UTC date -d "$today +$maxd days" +%Y-%m-%d)"	horizon-plus-1,V21-horizon-minus-1	-	both	horizon: +1 (fo) / -1 (fr)
+I055	if [ -n "$waivers" ]; then wsrc="file $waivers"	waivers-file-not-read,waivers-arg-dropped	-	ch	waiver source switch (WFILE)
+I056	wtext="$(cat "$waivers" 2>/dev/null)"	waivers-file-not-read	-	ch	waiver file read
+I057	wtext="$(pg show :.submodule_pin_waivers 2>/dev/null)"	waiver-from-worktree,V10-waivers-from-head	-	ch	waivers from the index (UNTRACKED, PERSIST)
+I057b	wnul="$(tr -cd	wnul-file-zero	-	fo	Round 11 (F3): NUL count of the --waivers file (NULROW (b))
+I057c	wnul="$(pg show	wnul-index-zero	-	fo	Round 11 (F3): NUL count of the index waiver file (NULROW (a))
+I058	cident="$(pg var GIT_COMMITTER_IDENT 2>/dev/null)"	cident-empty,RM1-ident-guard	-	ch	committer identity
+I059	aident="$(pg var GIT_AUTHOR_IDENT 2>/dev/null)"	V11-author-is-committer,author-not-compared	-	ch	author identity
+I060	idname() { printf '%s' "${1%% <*}"; }	idname-empty	-	ch	identity name
+I061	idmail() { local m="${1#*<}"	idmail-empty	-	ch	identity mail
+I062	IDPY='import sys,unicodedata	V29-python-not-isolated	-	ch	authoriser check program; run isolated (KV29B)
+I063	p=[x.decode("utf-8") for x in sys.stdin.buffer.read().split(b"\0")]	idpy-split-wrong	-	fr	NUL split: wrong separator -> every authoriser check fails (fr)
+I064	if len(p)!=5: return 4	-	eq-idpy-len-dropped	none	equivalent: the shell always sends five fields (differential proof)
+I065	a=p[0]	auth-arg-is-committer	-	ch	authoriser field
+I066	if not a or a!=a.strip()	empty-authoriser-allowed,auth-form-always	-	both	empty authoriser: allowed (fo) / every form refused (fr)
+I067	a!=a.strip() or "<" in a	authoriser-form-unchecked,RV8-02-authoriser-ascii-strip,RV9-10-auth-zs-only-pad,RVX-04-auth-strip-ascii-only	-	fo	surrounding whitespace allowed (fo); an ASCII-only strip allows a non-ASCII space (RV8-02, ZSAUTH: fo); fr form is auth-form-always (I066) Round 10: RV9-10 (Zs + ASCII only) allows a U+2028 / U+2029 pad (WSAUTH, fo). Round 13: RVX-04 (strip(" ")) allows a non-ASCII pad (fo).
+I067b	!=a.strip() or "<"	RV7-04-authoriser-lstrip-only	-	fo	trailing half of strip() (RV7-04; F_SELFTRAIL): lstrip only lets the committer self-waive with a trailing space; no false-refusal form for this half (the leading half is the generated STRIP member)
+I068	or "<" in a	auth-lt-dropped	-	fo	'<' member (AUTHLTGT); fr form is auth-form-always (I066)
+I068b	or ">" in a	auth-gt-dropped	-	fo	'>' member (AUTHLTGT); fr form is auth-form-always (I066)
+I069	any(unicodedata.category(c).startswith("C") for c in a)	authoriser-control-chars-allowed,V12-authoriser-only-Cc,RVX-05-category-C-to-Cc-only	-	fo	control characters (KV12ZWSP, AUTHCTRL); fr form is auth-form-always Round 13: RVX-05 / V12 (Cc only) allow a format, private-use or unassigned character in a name that is not the producer (fo; AUTHCF, AUTHCO, AUTHCN).
+I070	k=lambda s: unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())	no-casefold-no-nfc,casefold-without-nfc,V13-casefold-to-lower,normalise-to-empty,RVR11-01-outer-nfc-dropped,RVR11-02-inner-nfc-dropped,RVX-01-nfc-to-nfkc-both,RVX-02-casefold-to-upper,RVX-03-nfc-to-nfd-both,RVX-12-casefold-lower-sharp-s-fix,skel-nfkd-to-nfd	-	both	normalisation: weaker (fo, AUTHNORM, KV13SHARPS) / everything equal (fr) Round 12 (review r11 F1): each NFC call has its own killer (AUTHNORM fields 7 and 8: committer U+0399 U+0308 U+0301 vs authoriser U+0390 kills the outer NFC dropped, RVR11-01; committer U+03B1 U+0345 U+0301 vs its NFC U+1FB4 kills the inner NFC dropped, RVR11-02); the generated NORM kind drops each normalize call, swaps casefold for lower and drops f on each == operand Round 13 (review r12): RVX-12 (lower plus sharp s) dies on FOLD13ALL; RVX-01 (NFKC) and RVX-02 (upper) die on COMPAT13 (fr: a waiver the real gate honours is refused); RVX-03 (NFD) dies on COMPAT13 case 3 (fo); the 12 NORMCLS members (one per casefold-only class) die on FOLD13CLS. Round 13 (operator decision on R12-2, the strict option): the line is now k(s) = NFKD(casefold(NFD(s))), the Unicode compatibility caseless form; the round-12 mutants whose text is gone are ADAPTED to the same intent on this line (no-casefold-no-nfc, casefold-without-nfc, RVR11-01 outer NFKD dropped, RVR11-02 inner NFD dropped, RVX-01 NFKC both, RVX-02 upper, RVX-03 NFC both, RVX-12 lower plus sharp-s, normalise-to-empty). skel-nfkd-to-nfd (fo, COMPAT13 `%` vs `o/o`).
+I070g	T.get(c,c) for c	skel-map-dropped	-	fo	round 13 (R12-2): the UTS #39 skeleton map from the pinned table; dropped, every confusable spelling of the producer (Cyrillic, Greek, mixed script, mi1os, rnilos) self-waives (COMPAT13: fo)
+I070f	if t==s: return t	skel-fixpoint-one-pass	-	fo	round 13 (R12-2): the fixpoint; one pass of g leaves a skeleton that a second pass still changes, so `%` vs `o/o` self-waives (COMPAT13: fo)
+I070h	hashlib.sha256(b).hexdigest()!=	conf-sha-unchecked	-	fo	round 13 (R12-2): the table pin; unchecked, a table one line short (or any other table) is used and its gaps self-waive (CONF13: fo)
+I070r	except OSError:<NL>        return 5	conf-missing-is-ok	-	fo	round 13 (R12-2): an unreadable table is rc 5 (fail closed); turned into rc 0 the waiver is honoured with no confusable check (CONF13: fo)
+I070d	conft="${CM_PIN_CONFUSABLES:-$(dirname "$self")/cm_submodule_pin_not_downgraded_confusables.tsv}"	conf-default-path-wrong	-	fr	round 13 (R12-2): the default table path is next to the gate; a wrong default refuses every waiver of a copied gate whose table sits beside it (CONF13 first case: fr); an override path is still the pinned content
+I070o	b=open(sys.argv[1],"rb").read()	conf-read-argv0	-	ch	round 13 (R12-2): the table is read from the argument; the wrong argument is an OSError, rc 5, every waiver refused (ch)
+I070t	T={}	conf-table-dict-dropped	-	ch	round 13 (R12-2): the skeleton map; undefined it is a NameError, rc 4, every waiver refused (ch)
+I070l	for l in b.decode("utf-8").split("\n")[:-1]:	conf-table-first-line-only	-	fo	round 13 (R12-2): every table line is read; reading one line leaves the confusables unmapped and they self-waive (COMPAT13: fo)
+I070x	x,y=l.split("\t"); T[chr(int(x,16))]=	conf-table-key-unparsed	-	fo	round 13 (R12-2): the key is the code point; kept as hex text no character maps and the confusables self-waive (COMPAT13: fo)
+I070i	def f(s):<NL>        for _ in range(8):<NL>            t=g(s)	skel-fixpoint-zero-rounds,skel-loop-no-skeleton	-	both	round 13 (R12-2): the fixpoint loop; zero rounds raise at once (rc 4, every waiver refused: fr); g replaced by k drops the skeleton (fo)
+I070s	            s=t<NL>        raise ValueError("skeleton did not settle")	skel-fixpoint-no-advance	-	ch	round 13 (R12-2): the loop advances; without s=t a changing string never settles and is refused (rc 4). The raise itself is fail-closed and is reached only when 8 rounds do not settle: measured never (tools/fixiter.py: at most 3 rounds over every code point and 100000 random strings, seed 13), so it has no mutant of its own
+I132b	5) WHY="confusables table	conf-rc5-message-lost	-	ch	round 13 (R12-2): rc 5 names the table; folded into the generic arm the message is lost (CONF13 second case `1m`: ch)
+I070e	if not f(a): return 3	empty-skeleton-authoriser-ok	-	fo	round 13 (R12-2): an authoriser whose skeleton is empty (invisible fillers, U+3164) names nobody; accepted, it waives for any producer (COMPAT13: fo)
+I126b	0) spent "$1"	skel-rc5-as-ok	-	fo	round 13 (R12-2): rc 5 (table missing or not pinned) dispatched as rc 0 honours the waiver unchecked (CONF13: fo)
+I071	return 10 if any(	self-authoriser-allowed,self-always,RV10-05-email-space-strip,ident-names-ascii-strip,RVX-06-any-to-all	-	both	self-waive: allowed (fo) / always (fr) Round 13: RVX-06 (all) misses a self-waive on one matching field (fo).
+I071b	i.strip() and f(i.strip())==f(a)	-	eq-idpy-strip-and-dropped	none	equivalent: an empty identity field never equals a non-empty authoriser (an empty authoriser is refused first; differential proof)
+I071c	==f(a) for i in p[1:]	RV8-01-ident-compare-unstripped,RV9-11-ident-zs-only-strip,RVX-07-ident-strip-ascii-only,RVX-08-names-only-no-emails	eq-ident-strip-truthiness	fo	round 9: the comparison strips the identity, and git keeps a non-ASCII space in a name, so an unstripped compare (RV8-01) or a one-sided strip (generated gen-strip-38f694f31b / gen-strip-a8ce0752e7) lets the committer self-waive (ZSID, fo; no false-refusal form); the truthiness halves (i.lstrip() / i.rstrip() and) are equivalent for every string (eq-ident-strip-truthiness). Round 8 claimed all halves equivalent (FALSE, review F1) Round 10: RV9-11 (strip Zs + ASCII only) lets a U+0085 / U+2028 / U+2029 padded identity self-waive (WSID, fo). Round 13: RVX-07 (ASCII-only identity strip) and RVX-08 (names only, emails skipped) let the committer self-waive (fo).
+I072	rc=main()	crash-is-ok	-	ch	run
+I073	except BaseException:	authoriser-crash-uncaught	-	ch	crash caught
+I074	rc=4	crash-is-ok	-	fo	crash rc 4 -> 0 (fo)
+I075	sys.exit(rc)'	crash-is-ok	-	ch	exit with rc
+I076	kids=""; kidsrc=""; SPENT=""	spent-unchecked	-	ch	spent cache
+I077	if [ -z "$kidsrc" ]; then	spent-unchecked	-	ch	compute once
+I078	hx=""	N4-head-always-excluded,RV10-08-spent-exclude-head-always	-	ch	HEAD exclusion default
+I079	pg diff-index --cached --quiet --ignore-submodules=none "${headc:-$basec}"	NM1-n4-ignore-submodules-dropped,NM6-n4-worktree-not-index-ADAPTED,N4-porcelain-diff,N4-quiet-dropped,N4-compares-base	-	both	test member: is the judged index HEAD's tree (N4INDEX, KNM1, KNM1GM)
+I079b	2>/dev/null && hx="$headc"	N4-head-always-excluded,V14-n4-hx-is-base	-	ch	reaction member: which commit is excluded
+I080	!= false ]; then kidsrc=shallow	M1-shallow-superproject-unchecked,NM2-shallow-unknown-is-deep,shallow-always	-	both	shallow superproject: unchecked (fo) / always (fr)
+I081	elif all="$(pg rev-list --exclude=refs/stash --all --parents 2>/dev/null)"; then kidsrc=ok	RM8-scope-branches-only,RM14-single-worktree,M2-stash-counted,NM8-stash-exclude-after-all,V15-spent-hides-remotes,V16-spent-hides-notes,spent-hides-tags,spent-no-parents,RVR11-07-stash-counted	-	both	candidate set: narrower (fo, KVREFS) / stash counted (fr, STASH)
+I082	kids="$(printf '%s\n' "$all" | awk 'BEGIN{b=ARGV[1]; h=ARGV[2]	spent-head-counted	-	ch	children filter
+I083	$1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}	spent-head-counted,NM3-first-parent-only,spent-any-parent-is-base,kids-awk-never-matches,RV10-03-spent-first-parent-only,RVR11-03-kids-first-parent-skipped	-	both	child-of-base: any parent (fr) / none (fo)
+I084	else kidsrc=err; fi	kidsrc-err-is-ok	-	fo	rev-list failure -> cannot tell; as ok (fo)
+I085	[ "$kidsrc" = shallow ] &&	shallow-test-never	-	ch	test member: exit-equivalent, any kidsrc other than ok refuses on the next line ([ "$kidsrc" = ok ] || return 2), so the member only selects the reason (SHALLOWSUP / KNM2 count it); the fo form of shallow detection is I084 (M1-shallow-superproject-unchecked); round 8 need corrected from fo
+I085b	fetch --unshallow in the superproject)"; return 2; }	shallow-reason-dropped,shallow-says-spent	-	ch	reaction member: dropped falls through to the ok check (return 2, other reason), says-spent returns spent (refused, other reason): every form refuses, only the reason differs (SHALLOWSUP / KNM2); round 8 need corrected from both
+I086	[ "$kidsrc" = ok ] ||	history-test-always	-	fr	test member: history always failed (fr)
+I086b	--all failed (a broken ref?)"; return 2; }	spent-history-error-ignored	-	fo	reaction member (BADREF)
+I087	for k in $kids; do	spender-ignored	-	ch	scan
+I088	t="$(blob "$k" .submodule_pin_waivers)"; rc=$?	spent-unreadable-ignored	-	ch	sibling waiver text
+I089	[ "$rc" = 2 ] &&	spent-absent-is-unreadable	-	fr	test member: an absent sibling file read as unreadable (fr)
+I089b	(same parent) is unreadable"; return 2; }	spent-unreadable-ignored,spent-unreadable-is-unspent	-	fo	reaction member (K13TELL)
+I089c	[ "$rc" = 3 ] &&	spent-nul-unchecked	-	fo	Round 11 (F3): test member: a sibling waiver file with a NUL cannot prove the row unspent (NULROW (c))
+I089d	contains a NUL byte"; return 2; }	spent-nul-as-unspent	-	fo	Round 11 (F3): reaction member: a NUL sibling skipped as if fileless (fo, NULROW (c))
+I090a	[ "$rc" = 0 ] ||	spent-kids-all-skipped	-	fo	test member: every sibling skipped (fo)
+I090	[ "$rc" = 0 ] || continue	V17-spent-fileless-kid-ends-scan,spent-absent-is-spent	eq-spent-absent-continue-dropped	both	reaction member: absent sibling file ends the scan (fo, KV17ORDER) / spent (fr); deleting the line is equivalent (differential proof)
+I091	printf '%s\n' "$t" | awk -F'\t'	NM5-spent-whitespace-split,spent-fs-whitespace	-	ch	tab split
+I092	NF==7 && $1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	NM9-spent-extra-fields,spent-nf-ge7	-	fr	field-count member: an 8-field sibling row spends (fr, KNM9); the fo form is spender-ignored (I093)
+I092b	$1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	RM11-spent-ignores-path,spent-numeric-path,RV10-07-spent-path-ignored,spent-path-nocase,spent-path-prefix	-	fr	path member (K11PATH, SPENTNUM)
+I092c	$2""==o"" && $3""==n"" && $7""==b""	RM12-spent-ignores-old,spent-old-prefix12	-	fr	old-pin member (K12OLD); Round 10: a sibling row with a near-miss old pin must not spend (SPENTNEAR field 1)
+I092d	$3""==n"" && $7""==b""	NM4-spent-ignores-new,spent-new-prefix12	-	fr	new-pin member (KNM4); Round 10: a sibling row with a near-miss new pin must not spend (SPENTNEAR field 2)
+I092e	$7""==b"" {f=0}	spent-base-ignored,spent-base-prefix12,RVR11-04-spent-base-field-unchecked	-	fr	base member (SIBOTHER); Round 10: a sibling row with a near-miss base must not spend (SPENTNEAR field 3)
+I092f	 {f=0} END{exit f}' "$1"	spent-awk-always-match	-	fr	match result: always (fr)
+I093	&& { SPENT="$k"; return 0; }	spender-ignored	-	fo	a spender found is ignored (fo)
+I094	  return 1<NL>}<NL>WHY=""	spent-default-spent	-	fr	NOTE anchor shared by three lines: see L1 exemption; spent default unspent -> spent (fr)
+I095	WHY=""	cand-empty-unchecked	-	ch	reason default
+I096	WHY="no waiver row for ($1	cand-empty-unchecked	-	ch	reason: no row (MSGNOROW)
+I097	[ -z "$conferr" ] ||	conferr-always,config-error-ignored	-	both	test member: always (fr) / ignored (fo)
+I097b	(waivers disabled)"; return 1; }	conferr-waives	-	fo	reaction member: a config error waives (fo)
+I098	[ -n "$wtext" ] ||	no-data-always	-	fr	test member: always no data (fr)
+I098b	no waiver data ($wsrc)"; return 1; }	no-data-unnamed,no-data-waives	-	fo	reaction member: no data waives (fo, NODATA)
+I098c	[ "${wnul// /}" = 0 ] ||	waiver-nul-unchecked	-	fo	Round 11 (F3): test member: NUL in the waiver data ignored (fo, NULROW (a)(b))
+I098d	(git shows such a file as binary); remove it"; return 1; }	waiver-nul-continues	-	fo	Round 11 (F3): reaction member: the NUL refusal falls through (fo, NULROW)
+I099	cand="$(printf '%s\n' "$wtext" | awk -F'\t'	waiver-ignores-path,waiver-fs-whitespace	-	ch	row selection
+I100	NF==7 && $1!~/^#/	RM4-extra-fields,six-field-rows	-	fo	field-count member (FIELDS8, FIELDS6)
+I100b	$1!~/^#/ && $1""==p""	waiver-comment-rows-honoured,V18-comment-hash-anywhere,waiver-hash-anywhere	-	both	comment member: honoured (fo, WCOMMENT) / # anywhere (fr, KV18HASHMID)
+I100c	$1""==p"" && $2""==o"" && $3""==n"" {print	waiver-ignores-path,R3n1-numeric-compare,RV10-11-waiver-path-nocase,waiver-path-prefix,waiver-path-trim,waiver-path-slash	-	fo	path member (TWOSUB, NUMPATH)
+I100d	$2""==o"" && $3""==n"" {print	waiver-ignores-old-sha,waiver-old-prefix12	-	fo	old-pin member (OLDBIND); Round 10: a prefix compare of the row's old pin is refused by SHANEAR field 1
+I100e	$3""==n"" {print	waiver-ignores-new-sha,waiver-new-prefix12	-	fo	new-pin member (WRONGSHA); Round 10: a prefix compare of the row's new pin is refused by SHANEAR field 2
+I101	[ -n "$cand" ]	cand-always-empty,cand-empty-unchecked	-	fr	test member: always empty (fr); unchecked changes only the reason (MSGNOROW)
+I101b	[ -n "$cand" ] || return 1	no-row-waives	-	fo	reaction member: no row waives (fo)
+I102	while IFS=$'\036' read -r row rest; do	RM5-first-bad-row-aborts,ifs036-tab	-	ch	row loop
+I103	IFS=$'\037' read -r a e i bs <<<"$rest"	author-not-compared,read-drop-remainder	-	ch	row fields
+I104	[[ "$row" != *$'\r'* ]] ||	cr-not-named,cr-always,crlf-endonly	-	both	CR row: honoured (fo) / always (fr)
+I105	save it with LF"; continue; }	site-cr-aborts	-	fr	site: abort instead of next row (SITECR)
+I106	[ "$bs" = "$basec" ] ||	base-unbound,base-always-mismatch,RV9-05-base-prefix-bind,base-suffix12,base-nocase	-	both	base binding: dropped (fo) / always (fr); Round 10: the base compared on a prefix (RV9-05, verbatim), a suffix or case-folded is refused by SHANEAR field 3 (near misses)
+I107	current HEAD)"; continue; }	V19-base-mismatch-aborts-rows	-	fr	site (KV19STALEFIRST)
+I108	[[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]	expiry-format-unchecked,expiry-always-bad	eq-expiry-tail-by-roundtrip	both	expiry form: unchecked (fo) / always (fr). Round 9: the year part ({4}, ^) is NOT given by the round trip (GNU date round-trips a five-digit year; the dropped regex is generated member gen-andor-3d5462c23c, killed by YEAR5; round 8 claimed it equivalent, FALSE, review F2); the tail (month and day widths, $) is (differential proof under both dates)
+I109	[ "$(date -d "$e" +%Y-%m-%d 2>/dev/null)" = "$e" ]	expiry-roundtrip-dropped	-	fo	round trip dropped (fo)
+I110	is not a real YYYY-MM-DD date"; continue; }	V20-bad-expiry-aborts-rows	-	fr	site (KV20BADEXPFIRST)
+I111	[[ "$e" < "$today" ]] &&	waiver-ignores-expiry,expiry-boundary,expired-always,RV9-02-expired-yesterday-ok	RVX-14-expiry-collation-le	both	expired: ignored (fo) / today expired (fr, TODAY) / always (fr) Round 10: RV9-02 (expiry check one day late) honours a row that expired yesterday (EXPBND, fo). Round 13: RVX-14 is equivalent: a validated YYYY-MM-DD under the pin (differential proof pr_expcmp, three locales).
+I112	WHY="waiver expired $e"; continue; }	site-expired-aborts	-	fr	site (SITEEXP)
+I113	[[ "$e" > "$lim" ]] &&	horizon-unchecked,horizon-boundary,horizon-always	-	both	horizon: unchecked (fo) / boundary (fr) / always (fr)
+I114	max_waiver_days=$maxd ($lim)"; continue; }	site-horizon-aborts	-	fr	site (SITEHOR)
+I115	[[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]] ||	item-format-unchecked,item-prefix-hardcoded,item-digits-loosened,item-anchor-dropped,item-always-bad,item-nocase	RVX-10-item-digit-class	both	item form: loosened (fo) / always (fr) Round 13: RVX-10 ([[:digit:]]) is equivalent: glibc [[:digit:]] is ASCII 0-9 under en_US.UTF-8, C.UTF-8 and C (measured, tools/locprobe.sh; differential proof pr_loc13).
+I115b	[0-9]{3,}$ ]] ||	RV7-03-item-exactly-3-digits	-	fr	unbounded upper digit count (RV7-03; F_ITEM4): {3} refuses a valid 4-digit item id; the loosened lower bound is item-digits-loosened (I115)
+I116	does not match ${prefix}-NNN"; continue; }	site-item-aborts	-	fr	site (SITEITEM)
+I117	[ -z "$mergeh" ] ||	merge-allowed,mergeh-always	-	both	merge in progress: allowed (fo) / always (fr)
+I118	commit the rollback on its own"; continue; }	-	eq-site-merge-aborts	none	site: equivalent (MERGE_HEAD is global, every row fails it the same way; differential proof) Round 10 (review N5): EXIT-equivalent only, not message-equivalent: `continue` reports the WHY of the LAST candidate row, `return 1` the WHY of the row at this site, so the FAIL text differs when a later row fails a different check; the differential probe compares the exit code and this site's message count on rows that all reach this site.
+I119	[ -n "$cident" ] && [ -n "$aident" ] ||	RM1-ident-guard,ident-always	-	both	identity: unchecked (fo) / always (fr)
+I120	[ -n "$aident" ] ||	RM1-ident-guard,cident-empty	-	both	author identity member
+I121	unresolvable; cannot check authoriser"; continue; }	-	eq-site-ident-aborts	none	site: equivalent (identity is global; differential proof) Round 10 (review N5): EXIT-equivalent only, not message-equivalent: `continue` reports the WHY of the LAST candidate row, `return 1` the WHY of the row at this site, so the FAIL text differs when a later row fails a different check; the differential probe compares the exit code and this site's message count on rows that all reach this site.
+I122	command -v python3 >/dev/null 2>&1 ||	python3-missing-unnamed,python3-always-missing	-	both	python3 presence: unnamed (message) / always missing (fr)
+I123	python3 missing; cannot check authoriser"; continue; }	-	eq-site-nopy-aborts	none	site: equivalent (python3 presence is global; differential proof) Round 10 (review N5): EXIT-equivalent only, not message-equivalent: `continue` reports the WHY of the LAST candidate row, `return 1` the WHY of the row at this site, so the FAIL text differs when a later row fails a different check; the differential probe compares the exit code and this site's message count on rows that all reach this site.
+I124	| python3 -I -c "$IDPY" "$conft"; irc=$?	V29-python-not-isolated,auth-arg-is-committer,conf-path-ignored	-	ch	isolated authoriser check (KV29B) Round 13: the confusables table path is the one argument (conf-path-ignored: every check rc 5, fr).
+I125	case "$irc" in	R3n4-failure-reported-as-self	-	ch	result dispatch
+I126	0) spent "$1" "$2" "$3"; case $? in	spent-unchecked	-	fo	spent check skipped (fo)
+I127	1) return 0 ;;	unspent-not-honoured	-	fr	unspent -> not waived (fr)
+I128	(a row waives one commit only)" ;;	-	eq-site-spent-aborts	none	site: equivalent (spent depends on path, old, new, base only; differential proof) Round 10 (review N5): EXIT-equivalent only, not message-equivalent: `continue` reports the WHY of the LAST candidate row, `return 1` the WHY of the row at this site, so the FAIL text differs when a later row fails a different check; the differential probe compares the exit code and this site's message count on rows that all reach this site.
+I129	*) WHY="$SPENT; cannot prove the row is unspent" ;;	RM13-spent-cannot-tell-is-unspent	eq-site-cannottell-aborts	fo	cannot tell -> waived (fo); abort site equivalent (global; differential proof) Round 10 (review N5): EXIT-equivalent only, not message-equivalent: `continue` reports the WHY of the LAST candidate row, `return 1` the WHY of the row at this site, so the FAIL text differs when a later row fails a different check; the differential probe compares the exit code and this site's message count on rows that all reach this site.
+I130	10) WHY="authoriser '$a' is the committer or author	R3n4-failure-reported-as-self	-	ch	self reason
+I131	(producer cannot self-waive)" ;;	site-self-aborts	-	fr	site (SITESELF)
+I132	3) WHY="authoriser '$a' is empty	form-reason-unnamed,RM5-first-bad-row-aborts	-	ch	form reason; abort site (RM5, DUPROW)
+I133	*) WHY="authoriser check failed (python3 rc $irc)" ;;	site-pyfail-aborts	-	fr	site (SITEUTF8)
+I134	done <<<"$cand"	rows-exhausted-is-waived	-	ch	rows source
+I134b	done <<<"$cand"<NL>  return 1	rows-exhausted-is-waived	-	fo	default after all rows: waived (fo)
+I135	fail=0; blind=0; checked=0	fail-init-1,blind-init-1,count-not-incremented	-	fr	initial state: fail/blind set (fr)
+I136	blindmsg() { echo "$GATE: BLIND $1 — $2. Fix: $3"; blind=1; }	blind-is-pass	-	fo	BLIND recorded
+I137	pg diff --cached --raw -z --no-abbrev --no-renames --ignore-submodules=none "$basec" |	RM2-ignore-submodules,RM3-renames,no-z-parsing,base-ignored,RVR11-05-main-diff-renames-on	-	ch	index diff (IGNSUB, RENAME)
+I138	while IFS= read -r -d '' meta && IFS= read -r -d '' path; do	no-z-parsing	-	ch	NUL records
+I138b	IFS= read -r -d '' path; do	path-read-not-nul,pathread-ifs-dropped	-	fo	path record member
+I139	[ -n "$path" ]	path-test-inverted	-	fo	test member: inverted (fo)
+I139b	[ -n "$path" ] || continue	-	eq-empty-path-dropped	none	reaction member: equivalent, a -z record never has an empty path (differential proof)
+I140	set -- $meta; om="${1#:}"	V25-meta-colon-kept	-	ch	meta fields
+I141	[ "$om" = 160000 ] &&	new-gitlink-judged,gitlink-filter-inverted	-	both	old-mode member: dropped (fr, NEWGL) / inverted (fo)
+I141b	[ "$nm" = 160000 ] || continue	deleted-gitlink-judged	-	fr	new-mode member: dropped (fr, DELGL); fo form is the inverted filter (I141)
+I141c	[ "$om" = 160000 ] && [ "$nm" = 160000 ] || continue	gitlink-filter-continue-dropped	-	fr	reaction member: non-gitlinks judged (fr)
+I142	[ "$osha" != "$nsha" ]	unchanged-test-inverted	-	fo	test member: inverted (fo)
+I142b	[ "$osha" != "$nsha" ] || continue	-	eq-unchanged-entry-dropped	none	reaction member: equivalent, diff --raw lists no unchanged gitlink (differential proof)
+I143	checked=$((checked+1)); sub="$root/$path"	count-not-incremented	-	ch	count (COUNT)
+I144	if [ -z "$subp" ] ||	-	eq-V28-missing-checkout-no-empty-check	none	empty-subp member: equivalent, every shape that empties subp also fails the git check (differential proof: absent, file, mode 000, empty dir)
+I144b	! sg -C "$sub" rev-parse --git-dir	checkout-check-dropped,checkout-always-missing	-	fr	git-dir member: always (fr, checkout-always-missing); dropped (checkout-check-dropped) is exit-equivalent, a directory that is not its own repository is refused by the toplevel member I145 with another reason (SUBBROKEN, a checkout with a dangling .git file, counts both reasons); round 8 need corrected from both
+I145	"submodule checkout missing or not a repository"	missing-checkout-unnamed	-	ch	BLIND dropped (fo); round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
+I146	if [ "$subp" != "$root/$path" ]; then	symlink-always,subp-prefix,subp-nocase	-	fr	test member: always (fr)
+I146b	"checkout path is a symlink (resolves to $subp)"	symlink-unchecked	-	fo	reaction member: SYMSUB (downgrade, 2 -> 1) and round-8 SYMSUBFWD (a forward bump through the link: 2 -> 0, fo)
+I147	rev-parse --show-toplevel 2>/dev/null)" != "$subp" ]; then	ownrepo-always,toplevel-prefix	-	fr	test member: always (fr)
+I147b	"path is not its own repository (resolves into the parent worktree)"	RV6-own-repo-unchecked	-	fo	reaction member (NOTOWN)
+I148	shallow="$(sg -C "$sub" rev-parse --is-shallow-repository 2>/dev/null)"	shallow-unchecked,V22-sub-shallow-unknown-is-complete	-	ch	submodule shallow state (KV22SUBUNKNOWN)
+I149	if [ "$shallow" = false ]; then fetchfix=	fetchfix-swapped	-	ch	fix text
+I150	if ! sg -C "$sub" cat-file -e "${osha}^{commit}"	old-peel-dropped,old-presence-always,presence-checks-removed	-	both	test member: dropped (fo, OLDOBJ) / always (fr)
+I150b	"old pin ${osha:0:7} not in the submodule object store"	old-presence-unnamed	-	ch	reaction member; round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
+I151	if ! sg -C "$sub" cat-file -e "${nsha}^{commit}"	new-peel-dropped,new-presence-always,presence-checks-removed	-	both	test member: dropped (fo, NEWOBJ) / always (fr)
+I151b	"new pin ${nsha:0:7} not in the submodule object store"	new-presence-unnamed	-	ch	reaction member; round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
+I152	merge-base --is-ancestor "$osha" "$nsha" 2>/dev/null; fwd=$?	forward-not-checked-first,V24-forward-args-swapped	-	both	forward test
+I153	if [ "$fwd" = 0 ]; then echo "$GATE: ok $path	forward-is-refused	-	fr	forward ok -> refused (fr)
+I154	merge-base --is-ancestor "$nsha" "$osha" 2>/dev/null; back=$?	downgrade-never-detected,always-ancestor,RV10-01-downgrade-one-step	-	both	backward test
+I155	if [ "$back" = 0 ]; then	downgrade-never-detected	-	fo	downgrade branch
+I156	if waived "$path" "$osha" "$nsha"; then	waived-always-refused,rows-exhausted-is-waived	-	both	waiver: always refused (fr) / exhausted rows waive (fo)
+I157	or stage a valid waiver"; fail=1; fi	fail-not-set	-	fo	fail recorded
+I158	elif [ "$fwd" = 1 ] && [ "$back" = 1 ] && [ "$shallow" = false ]; then	diverged-needs-no-rc1,diverged-is-blind	-	both	diverged decision: any rc (fo) / never (fr)
+I158a	elif [ "$fwd" = 1 ] &&	diverged-fwd-member-dropped	-	fo	fwd member (round 7 claimed equivalent; R7-2 refuted): with the forward test killed (rc 137, D_FWDKILLFWD) a true forward bump reads as DIVERGED (WARN, exit 0) instead of BLIND; no false-refusal form
+I158b	[ "$back" = 1 ] && [ "$shallow" = false ]; then	diverged-back-member-dropped	-	fo	back member (round 7 claimed equivalent; R7-2 refuted): with the back test killed (rc 137, D_DOWNKILLBACK) a true DOWNGRADE reads as DIVERGED (WARN, exit 0): fail-open; no false-refusal form
+I158c	&& [ "$shallow" = false ]; then	shallow-unchecked,V22-sub-shallow-unknown-is-complete	-	fo	shallow member: unchecked (fo, SHALLOW, KV22SUBUNKNOWN)
+I159	echo "$GATE: WARN $path	diverged-silent	-	ch	WARN line
+I160	cannot be decided (merge-base rc forward=$fwd	undecided-is-ok	-	fo	undecided -> ok (fo)
+I161	dstat=("${PIPESTATUS[@]}")	V27-dstat-wrong-index	-	ch	pipeline status
+I162	[ "${dstat[0]}" = 0 ]	diff-status-always-blind,V27-dstat-wrong-index	-	fr	test member: always (fr)
+I162b	index unreadable?)"; exit 2; }	diff-status-ignored,diff-status-exit-0	-	fo	reaction member (UNREAD)
+I163	[ "$fail" = 1 ] &&	fail-test-never	-	fo	test member: never (fo)
+I163b	[ "$fail" = 1 ] && exit 1	fail-is-pass,blind-outranks-fail	-	fo	reaction member
+I164	[ "$blind" = 1 ] &&	blind-test-never	-	fo	test member: never (fo)
+I164b	[ "$blind" = 1 ] && exit 2	blind-exit-dropped,V26-blind-exits-1	-	fo	reaction member
+I165	echo "$GATE: PASS ($checked staged gitlink change(s) inspected)"; exit 0	pass-exits-1,count-not-incremented	-	fr	PASS exit 0 -> 1 (fr)
+H001	exec bash "$gate" --root "$root"	HK30-hook-ignores-gate-exit,HK32-hook-drops-GIT_INDEX_FILE	-	fo	hook: the gate verdict is the commit verdict (fo when ignored)
+H002	self="$(readlink -f "${BASH_SOURCE[0]:-$0}")"	HK31-hook-no-readlink	-	ch	hook: symlink-installed hook finds the gate
+H003	if [ ! -r "$gate" ]; then	hook-skip-always	-	fo	hook: gate found -> guarded (fo when skipped)
+H004	NOT GUARDED." >&2; exit 0; fi	hook-skip-exits-1	-	ch	hook: no gate -> SKIP exit 0, never a silent block (HOOKSKIP)
+H005	root="$(git rev-parse --show-toplevel)"	hook-root-wrong	-	ch	hook: root of the work tree
+H006	--show-toplevel)" || exit 1	hook-root-fail-ignored	-	ch	hook: outside a work tree -> exit 1 (HOOKNOREPO)

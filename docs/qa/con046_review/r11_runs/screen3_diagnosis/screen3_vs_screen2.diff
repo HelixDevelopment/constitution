@@ -1,0 +1,37 @@
+432c432
+< BAD  generated member gen-rxq-da7dc34398 is claimed equivalent (eq-expiry-tail-by-roundtrip) but the suite kills it (pinned date survived, alternative date killed)
+---
+> ok   generated member gen-rxq-da7dc34398 survives: claimed equivalent by proof eq-expiry-tail-by-roundtrip (checked below)
+497,498c497,498
+< BAD  eqproof eq-site-ident-aborts: the suite kills it, so it is NOT equivalent (pinned date survived, alternative date killed)
+< BAD  eqproof eq-site-nopy-aborts: the suite kills it, so it is NOT equivalent (pinned date survived, alternative date killed)
+---
+> ok   eqproof eq-site-ident-aborts: whole-suite vector equals the real gate's
+> ok   eqproof eq-site-nopy-aborts: whole-suite vector equals the real gate's
+500c500
+< BAD  eqproof eq-site-cannottell-aborts: the suite kills it, so it is NOT equivalent (pinned date killed, alternative date killed)
+---
+> ok   eqproof eq-site-cannottell-aborts: whole-suite vector equals the real gate's
+514,515c514,515
+< BAD  eqproof eq-site-ident-aborts: probe real [ident:1/1] eq [ident:1/1] control [ident:0/0]; alternative date real [ident:1/1] eq [ident:1/1] control [ident:0/0] (pinned date survived, alternative date killed)
+< BAD  eqproof eq-site-nopy-aborts: probe real [nopy:1/1] eq [nopy:1/1] control [nopy:1/0]; alternative date real [nopy:1/1] eq [nopy:1/1] control [nopy:1/0] (pinned date survived, alternative date killed)
+---
+> ok   eqproof eq-site-ident-aborts: probe real=eq [ident:1/1]; control differs [ident:0/0]; alternative date: real=eq [ident:1/1], control differs [ident:0/0] (pinned date survived, alternative date survived)
+> ok   eqproof eq-site-nopy-aborts: probe real=eq [nopy:1/1]; control differs [nopy:1/0]; alternative date: real=eq [nopy:1/1], control differs [nopy:1/0] (pinned date survived, alternative date survived)
+517,523c517,520
+< BAD  eqproof eq-site-cannottell-aborts: probe real [badref:1/1] eq [badref:1/1] control [badref:0/0]; alternative date real [badref:1/1] eq [badref:1/1] control [badref:0/0] (pinned date killed, alternative date killed)
+< mutants: 485 (killed 458, survived 0, equivalent-with-proof 22, inconclusive 0)
+< lint dynamic: rows 234, code lines 173, registered 348, needles [3, 5, 2]+(3,1), findings 3
+< BAD  lint DYN I121: proof eq-site-ident-aborts did not pass
+< BAD  lint DYN I123: proof eq-site-nopy-aborts did not pass
+< BAD  lint DYN I129: proof eq-site-cannottell-aborts did not pass
+< ok   dynamic lint control needle: all-ch directions refused (140 findings), empty is BLIND
+---
+> ok   eqproof eq-site-cannottell-aborts: probe real=eq [badref:1/1]; control differs [badref:0/0]; alternative date: real=eq [badref:1/1], control differs [badref:0/0] (pinned date survived, alternative date survived)
+> mutants: 485 (killed 458, survived 0, equivalent-with-proof 26, inconclusive 0)
+> lint dynamic: rows 234, code lines 173, registered 348, needles [3, 5, 2]+(3,1), findings 0
+> ok   dynamic lint control needle: all-ch directions refused (137 findings), empty is BLIND
+527c524
+< rc=1
+---
+> rc=0
