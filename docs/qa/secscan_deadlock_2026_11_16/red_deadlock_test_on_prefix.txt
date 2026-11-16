@@ -1,0 +1,204 @@
+FAIL 1 exact-match pass over 8000 blobs ends within 60s (no deadlock; 124 = timed out)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FMBiZp4f4l/scratch/out.tsv (classify each: fixture vs real)
+     | Terminated                 { printf '%s\0%s\0%s\0%s\0' __HSS_CONTROL_PRESENT__ "$POS" __HSS_CONTROL_ABSENT__ "$NEGV"; env -i KF="$KEYS" bash --noprofile --norc -c '
+     |            before=$(compgen -v | sort); set +u; . "$KF" >/dev/null 2>&1
+     |            for n in $(comm -13 <(echo "$before") <(compgen -v | sort)); do
+     |              case "$n" in before|n|BASH_*|_|PIPESTATUS|FUNCNAME|LINENO|RANDOM|SECONDS|SRANDOM|EPOCH*|COLUMNS|LINES) continue ;; esac
+     |              printf "%s\0%s\0" "$n" "${!n}"
+     |            done'; } | python3 -I -c '
+     | import subprocess, sys
+     | raw = sys.stdin.buffer.read().split(b"\0")
+     | pairs = [(raw[i].decode(), raw[i + 1]) for i in range(0, len(raw) - 1, 2)]
+     | bad = (b"YOUR", b"CHANGE", b"placeholder", b"xxxx")
+     | vals, short, place = [], [], []
+     | for n, v in pairs:
+     |     if n.startswith("__HSS_CONTROL_"):
+     |         vals.append((n, v))
+     |     elif len(v) < 12:
+     |         short.append(n)
+     |     elif any(b in v for b in bad):
+     |         place.append(n)
+     |     else:
+     |         vals.append((n, v))
+     | cnt = {n: 0 for n, _ in vals}
+     | ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
+     |                      capture_output=True, check=True).stdout.split(b"\n")
+     | blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
+     | p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+     | p.stdin.write(b"".join(b + b"\n" for b in blobs)); p.stdin.close()
+     | for _ in blobs:
+     |     size = int(p.stdout.readline().split()[2]); data = p.stdout.read(size); p.stdout.read(1)
+FAIL 2 big repo: exit 1 (KEY_A found)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FMBiZp4f4l/scratch/out.tsv (classify each: fixture vs real)
+     | Terminated                 { printf '%s\0%s\0%s\0%s\0' __HSS_CONTROL_PRESENT__ "$POS" __HSS_CONTROL_ABSENT__ "$NEGV"; env -i KF="$KEYS" bash --noprofile --norc -c '
+     |            before=$(compgen -v | sort); set +u; . "$KF" >/dev/null 2>&1
+     |            for n in $(comm -13 <(echo "$before") <(compgen -v | sort)); do
+     |              case "$n" in before|n|BASH_*|_|PIPESTATUS|FUNCNAME|LINENO|RANDOM|SECONDS|SRANDOM|EPOCH*|COLUMNS|LINES) continue ;; esac
+     |              printf "%s\0%s\0" "$n" "${!n}"
+     |            done'; } | python3 -I -c '
+     | import subprocess, sys
+     | raw = sys.stdin.buffer.read().split(b"\0")
+     | pairs = [(raw[i].decode(), raw[i + 1]) for i in range(0, len(raw) - 1, 2)]
+     | bad = (b"YOUR", b"CHANGE", b"placeholder", b"xxxx")
+     | vals, short, place = [], [], []
+     | for n, v in pairs:
+     |     if n.startswith("__HSS_CONTROL_"):
+     |         vals.append((n, v))
+     |     elif len(v) < 12:
+     |         short.append(n)
+     |     elif any(b in v for b in bad):
+     |         place.append(n)
+     |     else:
+     |         vals.append((n, v))
+     | cnt = {n: 0 for n, _ in vals}
+     | ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
+     |                      capture_output=True, check=True).stdout.split(b"\n")
+     | blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
+     | p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+     | p.stdin.write(b"".join(b + b"\n" for b in blobs)); p.stdin.close()
+     | for _ in blobs:
+     |     size = int(p.stdout.readline().split()[2]); data = p.stdout.read(size); p.stdout.read(1)
+FAIL 3 KEY_A counted in exactly the 2 blobs that hold it (every blob read)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FMBiZp4f4l/scratch/out.tsv (classify each: fixture vs real)
+     | Terminated                 { printf '%s\0%s\0%s\0%s\0' __HSS_CONTROL_PRESENT__ "$POS" __HSS_CONTROL_ABSENT__ "$NEGV"; env -i KF="$KEYS" bash --noprofile --norc -c '
+     |            before=$(compgen -v | sort); set +u; . "$KF" >/dev/null 2>&1
+     |            for n in $(comm -13 <(echo "$before") <(compgen -v | sort)); do
+     |              case "$n" in before|n|BASH_*|_|PIPESTATUS|FUNCNAME|LINENO|RANDOM|SECONDS|SRANDOM|EPOCH*|COLUMNS|LINES) continue ;; esac
+     |              printf "%s\0%s\0" "$n" "${!n}"
+     |            done'; } | python3 -I -c '
+     | import subprocess, sys
+     | raw = sys.stdin.buffer.read().split(b"\0")
+     | pairs = [(raw[i].decode(), raw[i + 1]) for i in range(0, len(raw) - 1, 2)]
+     | bad = (b"YOUR", b"CHANGE", b"placeholder", b"xxxx")
+     | vals, short, place = [], [], []
+     | for n, v in pairs:
+     |     if n.startswith("__HSS_CONTROL_"):
+     |         vals.append((n, v))
+     |     elif len(v) < 12:
+     |         short.append(n)
+     |     elif any(b in v for b in bad):
+     |         place.append(n)
+     |     else:
+     |         vals.append((n, v))
+     | cnt = {n: 0 for n, _ in vals}
+     | ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
+     |                      capture_output=True, check=True).stdout.split(b"\n")
+     | blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
+     | p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+     | p.stdin.write(b"".join(b + b"\n" for b in blobs)); p.stdin.close()
+     | for _ in blobs:
+     |     size = int(p.stdout.readline().split()[2]); data = p.stdout.read(size); p.stdout.read(1)
+FAIL 4 KEY_12 (12 characters, the minimum) is searched and counted in exactly 1 blob
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FMBiZp4f4l/scratch/out.tsv (classify each: fixture vs real)
+     | Terminated                 { printf '%s\0%s\0%s\0%s\0' __HSS_CONTROL_PRESENT__ "$POS" __HSS_CONTROL_ABSENT__ "$NEGV"; env -i KF="$KEYS" bash --noprofile --norc -c '
+     |            before=$(compgen -v | sort); set +u; . "$KF" >/dev/null 2>&1
+     |            for n in $(comm -13 <(echo "$before") <(compgen -v | sort)); do
+     |              case "$n" in before|n|BASH_*|_|PIPESTATUS|FUNCNAME|LINENO|RANDOM|SECONDS|SRANDOM|EPOCH*|COLUMNS|LINES) continue ;; esac
+     |              printf "%s\0%s\0" "$n" "${!n}"
+     |            done'; } | python3 -I -c '
+     | import subprocess, sys
+     | raw = sys.stdin.buffer.read().split(b"\0")
+     | pairs = [(raw[i].decode(), raw[i + 1]) for i in range(0, len(raw) - 1, 2)]
+     | bad = (b"YOUR", b"CHANGE", b"placeholder", b"xxxx")
+     | vals, short, place = [], [], []
+     | for n, v in pairs:
+     |     if n.startswith("__HSS_CONTROL_"):
+     |         vals.append((n, v))
+     |     elif len(v) < 12:
+     |         short.append(n)
+     |     elif any(b in v for b in bad):
+     |         place.append(n)
+     |     else:
+     |         vals.append((n, v))
+     | cnt = {n: 0 for n, _ in vals}
+     | ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
+     |                      capture_output=True, check=True).stdout.split(b"\n")
+     | blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
+     | p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+     | p.stdin.write(b"".join(b + b"\n" for b in blobs)); p.stdin.close()
+     | for _ in blobs:
+     |     size = int(p.stdout.readline().split()[2]); data = p.stdout.read(size); p.stdout.read(1)
+FAIL 5 KEY_B (absent) counted 0
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FMBiZp4f4l/scratch/out.tsv (classify each: fixture vs real)
+     | Terminated                 { printf '%s\0%s\0%s\0%s\0' __HSS_CONTROL_PRESENT__ "$POS" __HSS_CONTROL_ABSENT__ "$NEGV"; env -i KF="$KEYS" bash --noprofile --norc -c '
+     |            before=$(compgen -v | sort); set +u; . "$KF" >/dev/null 2>&1
+     |            for n in $(comm -13 <(echo "$before") <(compgen -v | sort)); do
+     |              case "$n" in before|n|BASH_*|_|PIPESTATUS|FUNCNAME|LINENO|RANDOM|SECONDS|SRANDOM|EPOCH*|COLUMNS|LINES) continue ;; esac
+     |              printf "%s\0%s\0" "$n" "${!n}"
+     |            done'; } | python3 -I -c '
+     | import subprocess, sys
+     | raw = sys.stdin.buffer.read().split(b"\0")
+     | pairs = [(raw[i].decode(), raw[i + 1]) for i in range(0, len(raw) - 1, 2)]
+     | bad = (b"YOUR", b"CHANGE", b"placeholder", b"xxxx")
+     | vals, short, place = [], [], []
+     | for n, v in pairs:
+     |     if n.startswith("__HSS_CONTROL_"):
+     |         vals.append((n, v))
+     |     elif len(v) < 12:
+     |         short.append(n)
+     |     elif any(b in v for b in bad):
+     |         place.append(n)
+     |     else:
+     |         vals.append((n, v))
+     | cnt = {n: 0 for n, _ in vals}
+     | ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
+     |                      capture_output=True, check=True).stdout.split(b"\n")
+     | blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
+     | p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+     | p.stdin.write(b"".join(b + b"\n" for b in blobs)); p.stdin.close()
+     | for _ in blobs:
+     |     size = int(p.stdout.readline().split()[2]); data = p.stdout.read(size); p.stdout.read(1)
+FAIL 6 short values skipped and named, count 2 (KEY_11, KEY_3)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FMBiZp4f4l/scratch/out.tsv (classify each: fixture vs real)
+     | Terminated                 { printf '%s\0%s\0%s\0%s\0' __HSS_CONTROL_PRESENT__ "$POS" __HSS_CONTROL_ABSENT__ "$NEGV"; env -i KF="$KEYS" bash --noprofile --norc -c '
+     |            before=$(compgen -v | sort); set +u; . "$KF" >/dev/null 2>&1
+     |            for n in $(comm -13 <(echo "$before") <(compgen -v | sort)); do
+     |              case "$n" in before|n|BASH_*|_|PIPESTATUS|FUNCNAME|LINENO|RANDOM|SECONDS|SRANDOM|EPOCH*|COLUMNS|LINES) continue ;; esac
+     |              printf "%s\0%s\0" "$n" "${!n}"
+     |            done'; } | python3 -I -c '
+     | import subprocess, sys
+     | raw = sys.stdin.buffer.read().split(b"\0")
+     | pairs = [(raw[i].decode(), raw[i + 1]) for i in range(0, len(raw) - 1, 2)]
+     | bad = (b"YOUR", b"CHANGE", b"placeholder", b"xxxx")
+     | vals, short, place = [], [], []
+     | for n, v in pairs:
+     |     if n.startswith("__HSS_CONTROL_"):
+     |         vals.append((n, v))
+     |     elif len(v) < 12:
+     |         short.append(n)
+     |     elif any(b in v for b in bad):
+     |         place.append(n)
+     |     else:
+     |         vals.append((n, v))
+     | cnt = {n: 0 for n, _ in vals}
+     | ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
+     |                      capture_output=True, check=True).stdout.split(b"\n")
+     | blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
+     | p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+     | p.stdin.write(b"".join(b + b"\n" for b in blobs)); p.stdin.close()
+     | for _ in blobs:
+     |     size = int(p.stdout.readline().split()[2]); data = p.stdout.read(size); p.stdout.read(1)
+grep: /mnt/DATA1TB/claude-work/tmp/tmp.FMBiZp4f4l/scratch/out.tsv.keys.tsv: No such file or directory
+ok   7 short values are not in the searched list
+ok   8 no fake value in stdout, stderr or any output file
+ok   9 work directory removed
+FAIL 10 --exact-only on the big repo: exit 1, KEY_A=2, no deadlock
+     | usage: unknown option --exact-only
+FAIL 11 --exact-only does not run the scanner
+     | usage: unknown option --exact-only
+FAIL 12 --exact-only works without a scanner binary: clean repo -> exit 0
+     | usage: unknown option --exact-only
+FAIL 13 --exact-only: zero short values still reported (never silent)
+     | usage: unknown option --exact-only
+FAIL 14 --exact-only without --keys-file -> usage 2
+     | usage: unknown option --exact-only
+ok   15 without --exact-only a missing scanner is still exit 4
+FAIL 16 cat-file --batch answers 'missing' -> exit 7 (git error), no counts written
+     | usage: unknown option --exact-only
+RESULT: 4/16 passed
