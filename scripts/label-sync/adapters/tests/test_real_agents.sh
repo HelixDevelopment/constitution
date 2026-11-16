@@ -9,13 +9,17 @@
 #           an agent can never open a browser. Agents that are not installed are
 #           an honest SKIP (never a PASS).
 # Usage   : test_real_agents.sh [--only kimi|crush|opencode|aider]
-# Inputs  : the installed agents; no flags needed.
+# Inputs  : the installed agents; no flags needed. env LABEL_SYNC_TEST_OPENCODE_PORT: port of the
+#           sandbox `opencode serve` (default: a free ephemeral loopback port).
 # Outputs : `ok`/`FAIL`/`SKIP` lines and a summary line with the agent versions.
 # Exit    : 0 no FAIL (SKIPs allowed) | 1 a real-agent check FAILed | 2 environment
 #           error (no jq/python3).
 # Side-effects: starts ONE local fake server (and, for opencode, one `opencode
 #           serve`); each is killed by its own recorded pid on exit. Never touches
-#           the real home or any real agent config. Heavy: run niced, alone.
+#           the real home or any real agent config. opencode >= 2 additionally gets
+#           `service set disabled true` in the SANDBOX home, so no command of the test uses
+#           (or fails on) the host's shared opencode service on 127.0.0.1:49374.
+#           Heavy: run niced, alone.
 # Deps    : bash, jq, python3 (+jsonschema for the crush schema check), curl.
 # Cross-refs: §11.4.228(A)(3) (per-platform liveness probe), §11.4.69, §11.4.3
 #           (SKIP-with-reason), docs/label-sync/ADAPTERS.md.
@@ -99,25 +103,77 @@ fi
 # ── opencode ─────────────────────────────────────────────────────────────────
 if want opencode; then
 if command -v opencode >/dev/null; then
-  versions="$versions opencode=$(opencode --version 2>&1 | head -1)"
   sandbox opencode
+  ocver="$(runenv opencode --version 2>&1 </dev/null | head -1)"   # `opencode --version` WRITES a log under its data dir: keep it in the sandbox home
+  versions="$versions opencode=$ocver"
   bash "$AD/install_adapters.sh" --home "$H" --agents opencode --apply >/dev/null
-  ok "opencode: REAL opencode resolves the installed plugin entry (debug config)" bash -c "cd '$H/proj' && HOME='$H' XDG_CONFIG_HOME='$H/.config' XDG_DATA_HOME='$H/.local/share' XDG_STATE_HOME='$H/.local/state' XDG_CACHE_HOME='$H/.cache' timeout 60 opencode debug config | jq -e '.plugin[0]|endswith(\"label-sync.mjs\")'"
-  OPORT="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
-  # `exec` so $! IS the opencode process (a bare `cd && cmd &` backgrounds a subshell and
-  # killing that leaves opencode orphaned — observed: two leaked servers)
-  ( cd "$H/proj" && exec env HOME="$H" XDG_CONFIG_HOME="$H/.config" XDG_DATA_HOME="$H/.local/share" XDG_STATE_HOME="$H/.local/state" XDG_CACHE_HOME="$H/.cache" OPENCODE_DISABLE_AUTOUPDATE=true opencode serve --port "$OPORT" >"$H/serve.log" 2>&1 </dev/null ) &
-  PIDS+=("$!")
-  up=0; for _ in $(seq 1 60); do curl -s -m 2 "http://127.0.0.1:$OPORT/session" >/dev/null 2>&1 && { up=1; break; }; sleep 0.5; done
-  if [ "$up" = 1 ]; then
-    sid="$(curl -s -m 20 -X POST "http://127.0.0.1:$OPORT/session" -H 'content-type: application/json' -d '{"title":"labeltest"}' | jq -r .id)"
-    for _ in $(seq 1 30); do [ "$(field "opencode-$sid" state 2>/dev/null)" = running ] && break; sleep 0.3; done
-    eq "opencode: REAL session.created event registered the entity" "running" "$(field "opencode-$sid" state)"
-    eq "opencode: entity alias" "opencode" "$(field "opencode-$sid" alias)"
-    curl -s -m 20 -X DELETE "http://127.0.0.1:$OPORT/session/$sid" >/dev/null
-    for _ in $(seq 1 30); do [ "$(field "opencode-$sid" state 2>/dev/null)" = "done" ] && break; sleep 0.3; done
-    eq "opencode: REAL session.deleted event marked it done" "done" "$(field "opencode-$sid" state)"
-  else skip "opencode: serve did not come up (see $H/serve.log)"; fi
+  ocmajor="$(printf '%s' "$ocver" | sed -n 's/^[^0-9]*\([0-9][0-9]*\)\.[0-9].*$/\1/p')"
+  if [ -z "$ocmajor" ]; then
+    fail=$((fail+1)); echo "FAIL opencode: version not recognised (want 'N.x.y', got '$ocver')"
+  elif [ "$ocmajor" -ge 2 ]; then
+    # opencode >= 2 (the "v2" server). Three things changed against 1.x, each root-caused with a cause toggle (N-04):
+    #  (1) every CLI command goes through a per-HOME managed background service bound to 127.0.0.1:49374; a host whose own
+    #      `opencode serve --service` holds that port makes every sandbox command exit 1 -> `service set disabled true`
+    #      in the SANDBOX home makes the commands use private servers (no fixed port, nothing left running);
+    #  (2) `debug config` prints an ARRAY of config sources, each `info` holding the config with the key `plugins`
+    #      (1.x: ONE object, key `plugin`);
+    #  (3) the HTTP API lives under /api, is password protected (OPENCODE_SERVER_PASSWORD, basic auth, user `opencode`):
+    #      POST /api/session creates, DELETE /api/session/:id removes, GET /api/plugin lists the plugins the instance
+    #      of the directory loaded (the first request for the directory bootstraps it, then the list fills).
+    #      A plugin is only loaded from a DIRECTORY entry exporting a definition with an id and a setup function.
+    OCB() { printf 'http://127.0.0.1:%s%s' "$OPORT" "$1"; }
+    ocurl() { curl -s -m "${OC_TMO:-20}" -K "$H/curl.auth" "$@"; }
+    oc_plugin_state() { # active | failed: <error> | not-listed(<n> plugins loaded) | not-bootstrapped
+      local j n
+      j="$(ocurl "$(OCB /api/plugin)")" || true
+      n="$(printf '%s' "$j" | jq -r '.data|length' 2>/dev/null)"
+      case "$n" in ''|0) echo "not-bootstrapped"; return 0 ;; esac
+      printf '%s' "$j" | jq -r --argjson n "$n" '[.data[] | select(.id=="label-sync" or ((.source.path // "") | test("/adapters/opencode")))][0] | if . == null then "not-listed(\($n) plugins loaded)" else (.state.status + (if .state.error then ": " + .state.error else "" end)) end'
+    }
+    oc2_resolves_entry() { # the agent's own `debug config` resolves the entry the installer wrote
+      [ -n "$1" ] || return 1
+      (cd "$H/proj" && runenv timeout 60 opencode debug config) | jq -e --arg e "$1" 'any(.[]?; ((.info.plugins // .info.plugin // []) | index($e)) != null)'
+    }
+    (cd "$H/proj" && runenv timeout 30 opencode service set disabled true >/dev/null 2>&1 </dev/null)
+    ok "opencode: sandbox home opts out of the shared background service (service set disabled true)" test "$(cd "$H/proj" && runenv timeout 30 opencode service get 2>/dev/null </dev/null | jq -r '.disabled')" = true
+    entry="$(jq -r '(.plugins // .plugin // [])[0] // empty' "$H/.config/opencode/opencode.json" 2>/dev/null)"
+    ok "opencode: REAL opencode resolves the installed plugin entry (debug config)" oc2_resolves_entry "$entry"
+    OCPW="labeltest-$(python3 -c 'import secrets;print(secrets.token_hex(8))')"
+    printf 'user = "opencode:%s"\n' "$OCPW" >"$H/curl.auth"; chmod 600 "$H/curl.auth"
+    OPORT="${LABEL_SYNC_TEST_OPENCODE_PORT:-$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')}"
+    ( cd "$H/proj" && exec env HOME="$H" XDG_CONFIG_HOME="$H/.config" XDG_DATA_HOME="$H/.local/share" XDG_STATE_HOME="$H/.local/state" XDG_CACHE_HOME="$H/.cache" OPENCODE_DISABLE_AUTOUPDATE=true OPENCODE_SERVER_PASSWORD="$OCPW" opencode serve --port "$OPORT" >"$H/serve.log" 2>&1 </dev/null ) &
+    PIDS+=("$!"); spid="$!"
+    up=0; for _ in $(seq 1 60); do kill -0 "$spid" 2>/dev/null || break; [ "$(OC_TMO=2 ocurl -o /dev/null -w '%{http_code}' "$(OCB /api/info)")" = 200 ] && { up=1; break; }; sleep 0.5; done
+    if [ "$up" = 1 ]; then
+      pst="not-bootstrapped"; for _ in $(seq 1 60); do pst="$(oc_plugin_state)"; [ "$pst" != "not-bootstrapped" ] && break; sleep 0.5; done
+      eq "opencode: REAL opencode loaded the label-sync plugin (plugin list state)" "active" "$pst"
+      sid="$(ocurl -X POST "$(OCB /api/session)" -H 'content-type: application/json' -d '{"title":"labeltest"}' | jq -r '.data.id // empty' 2>/dev/null)"
+      ok "opencode: POST /api/session created a session" test -n "$sid"
+      for _ in $(seq 1 50); do [ "$(field "opencode-$sid" state 2>/dev/null)" = running ] && break; sleep 0.3; done
+      eq "opencode: REAL session.created event registered the entity" "running" "$(field "opencode-$sid" state)"
+      eq "opencode: entity alias" "opencode" "$(field "opencode-$sid" alias)"
+      ocurl -X DELETE "$(OCB "/api/session/$sid")" >/dev/null
+      for _ in $(seq 1 50); do [ "$(field "opencode-$sid" state 2>/dev/null)" = "done" ] && break; sleep 0.3; done
+      eq "opencode: REAL session.deleted event marked it done" "done" "$(field "opencode-$sid" state)"
+    else fail=$((fail+1)); echo "FAIL opencode: serve did not come up on port $OPORT: $(head -c 300 "$H/serve.log" 2>/dev/null | tr '\n' ' ')"; fi
+  else
+    ok "opencode: REAL opencode resolves the installed plugin entry (debug config)" bash -c "cd '$H/proj' && HOME='$H' XDG_CONFIG_HOME='$H/.config' XDG_DATA_HOME='$H/.local/share' XDG_STATE_HOME='$H/.local/state' XDG_CACHE_HOME='$H/.cache' timeout 60 opencode debug config | jq -e '.plugin[0]|endswith(\"label-sync.mjs\")'"
+    OPORT="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
+    # `exec` so $! IS the opencode process (a bare `cd && cmd &` backgrounds a subshell and
+    # killing that leaves opencode orphaned — observed: two leaked servers)
+    ( cd "$H/proj" && exec env HOME="$H" XDG_CONFIG_HOME="$H/.config" XDG_DATA_HOME="$H/.local/share" XDG_STATE_HOME="$H/.local/state" XDG_CACHE_HOME="$H/.cache" OPENCODE_DISABLE_AUTOUPDATE=true opencode serve --port "$OPORT" >"$H/serve.log" 2>&1 </dev/null ) &
+    PIDS+=("$!")
+    up=0; for _ in $(seq 1 60); do curl -s -m 2 "http://127.0.0.1:$OPORT/session" >/dev/null 2>&1 && { up=1; break; }; sleep 0.5; done
+    if [ "$up" = 1 ]; then
+      sid="$(curl -s -m 20 -X POST "http://127.0.0.1:$OPORT/session" -H 'content-type: application/json' -d '{"title":"labeltest"}' | jq -r .id)"
+      for _ in $(seq 1 30); do [ "$(field "opencode-$sid" state 2>/dev/null)" = running ] && break; sleep 0.3; done
+      eq "opencode: REAL session.created event registered the entity" "running" "$(field "opencode-$sid" state)"
+      eq "opencode: entity alias" "opencode" "$(field "opencode-$sid" alias)"
+      curl -s -m 20 -X DELETE "http://127.0.0.1:$OPORT/session/$sid" >/dev/null
+      for _ in $(seq 1 30); do [ "$(field "opencode-$sid" state 2>/dev/null)" = "done" ] && break; sleep 0.3; done
+      eq "opencode: REAL session.deleted event marked it done" "done" "$(field "opencode-$sid" state)"
+    else skip "opencode: serve did not come up (see $H/serve.log)"; fi
+  fi
 else skip "opencode: not installed"; fi
 fi
 

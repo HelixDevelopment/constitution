@@ -4901,32 +4901,111 @@ What: review F5 (source-defect, minor; stated in docs/release/README.md and the 
 
 What: review nits grouped. F6 (process-doc, nit): the GL_HOST post-strip regex in tag_and_release.sh duplicates the GITLAB_HOST lockdown (X3 is equivalent); keep it with a comment saying so, or remove it after the section 11.4.124 check. F7 (source-defect, nit): the GitLab create resolves its host itself (glab config host, git remote) while the read-back pins GITLAB_HOST or gitlab.com; divergence yields a GAP (fail-safe, stated in docs/release/README.md); glab host resolution with -R GROUP/REPO is UNCONFIRMED; acceptance: pin the create host too, or record the measured glab behaviour. F9 (test-instrumentation, nit): a leading-whitespace retest_statement accepted via .strip() is untested (X11 survives, stricter direction); acceptance: a case for it. Reproduction: not applicable. Source: independent review round 1 of the glpre+reltpl vehicle, verdict GO-with-follow-ups (review_r1_independent.md sha256 5a9398ab709873084ebff8fb2f9961eb06a4d5643fdb9b21a7d55283bca002a5, session-74ce2b36 scratchpad, outside the repository; reviewer mutant logs under /mnt/DATA1TB/claude-work/scratch/rv_glpre.ONFv/mw/, outside the repository). Landed as 5296e74d (CON-416) and 3f37d8d6 (CON-417).
 
-## CON-423 — Declare pull-request delivery (§11.4.297) for this repository and its own submodules (operator decision 2026-11-16)
-
-**Status:** In progress
-**Type:** Task
-**Severity:** High
-**Created-By:** AI
-
-What: the operator decided on 2026-11-16 (interactive question, relayed) that this repository switches to pull-request delivery under §11.4.297, merged by the author agent, recursively for every own submodule. Scope: config/delivery.conf (the §11.4.297(A) declaration, DATA only), docs/guides/pr_delivery_landing_guide.md (landing procedure with exact commands), README link, evidence docs/qa/pr_delivery_decision_20261116/. Acceptance: declaration present with every §11.4.297(A) key; CM-PR-DELIVERY-ACCOUNT-NAME-FREE PASS with the config; guide reachable from README; open questions reported to the operator. Known blocker: the reviewer list holds only the author account, so §11.4.297(D)(2) makes every delivery end non-zero (open question Q1). Class: gate-logic / declaration; nothing ENFORCED; PROVISIONAL. Open questions for the operator (none answered by the agent): Q1 author-only reviewer list: does merge condition (C)(2)(c) hold when (D)(2) leaves no requestable reviewer, or must a second authoring account or a second reviewer account be configured, or §11.4.297(D)(2) amended by a recorded decision? Q2 where is the per-PR source-correctness GO record kept? Q3 confirm PR mode, reviewer list, branch prefix and upstream list for each of the 10 own submodule repositories in own_repositories. Q4 should the GitHub repository allow only merge commits and should the main ruleset require pull requests (platform changes not made; merge settings unreadable with the current token)? Q5 which tool-written ledger paths (tool_written_paths is empty)? Q6 merge window value (24 h is a placeholder)? Q7 fix for the account-name gate gap CON-424? Q8 keep the extra keys pr_repository, pr_assignees, decision_date, own_repositories in the declaration? Q9 is the shared_single_files list right? Q10 install a local direct-push guard (expected or enforced)? Landing form recommended and recorded: merge-commit (PRs 7, 8, 9 measured as merge commits whose second parent is the PR head). Round 2 (2026-11-16, operator decisions OPD-2026-11-16-PR-DELIVERY-R2, relayed, paraphrased): Q1 answered by decision (1): agent creates, self-reviews and merges, PRs assigned to the owner account; the author-only reviewer point is reported and the delivery ends non-zero, the agent still merges when every other condition holds; recorded as a consumer departure (author_only_reviewer_policy=report-and-merge), follow-up question CON-425. Q6 answered: merge window none. Q7 answered: CON-424 fixed in this vehicle. Q8 answered: the extra keys stay; the gate test pins that they parse. Answered conservatively by the agent and still UNCONFIRMED (operator may narrow or change): Q2 GO record = a pull-request comment naming the reviewed head, never committed into the task branch (whether a committed copy under docs/qa/<id>/ is also wanted is open); Q9 shared_single_files widened to the tracker and its rendered docs, canon and four mirrors, index, rule catalogue, deferral ledger, README; Q10 direct_push_guard stays off (no guard exists; installing one needs consent); Q5 tool_written_paths stays empty (candidates docs/workable_items.db and rendered Issues/Fixed docs listed in the config); Q3 every own submodule in pr mode with this file's values, each submodule's own upstream list and merge-method settings unmeasured. Q4 (GitHub merge-method settings, ruleset requiring pull requests) unchanged: platform changes not made. Evidence docs/qa/pr_delivery_decision_20261116/r2/.
-
-## CON-424 — CM-PR-DELIVERY-ACCOUNT-NAME-FREE cannot serve a repository that is its own consumer: own config not found by default, --changed-since flags the config itself and goes BLIND on the tracker DB
+## CON-423 — history_secret_scan.sh exact-match pass deadlocks on a repository with a few thousand blobs
 
 **Status:** In progress
 **Type:** Bug
-**Severity:** Medium
-**Created-By:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/pr_delivery_decision_20261116/probe_selfflag.txt` — red-command `bash docs/qa/pr_delivery_decision_20261116/probe_selfflag.sh <repo-root> <probe-clone> docs/qa/pr_delivery_decision_20261116/probe_selfflag.txt` — signature `FAIL account '<reviewer-account>' appears in config/delivery.conf` — updated 2026-11-16T13:18:35Z — by `AI`
-**Investigation:** root-cause-found-with-evidence — root-cause `default config lookup only at the parent path; --changed-since loop added the read configuration and SQLite databases to the corpus (cm_pr_delivery_account_name_free.sh before this vehicle)` — evidence `docs/qa/pr_delivery_decision_20261116/r2/red_baseline_con424.txt` — updated 2026-11-16T13:41:34Z — by `AI`
+**Severity:** High
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/secscan_deadlock_2026_11_16/red_wchan_prefix.txt` — red-command `HSS_DL_TIMEOUT=60 bash tests/security/test_history_secret_scan_deadlock.sh (script sha256 e03c80988748a0cd)` — green-command `bash tests/security/test_history_secret_scan_deadlock.sh (fixed script, same test)` — env `host, clone of origin main bbdf4ac1, hermetic 8000-blob repository, fake gitleaks` — signature `case 1 rc=124; python3 matcher and git cat-file --batch both in wchan anon_pipe_write after 25 s` — updated 2026-11-16T14:22:15Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `all blob ids written to the cat-file stdin pipe before any stdout read; both pipe buffers fill. Toggling only that (ids from a file) removes the hang: green_wchan_fixed.txt shows the run finished within 25 s, and mutant DM1 (pipe write restored) hangs again` — evidence `docs/qa/secscan_deadlock_2026_11_16/green_wchan_fixed.txt` — updated 2026-11-16T14:22:15Z — by `AI`
 
-What: measured 2026-11-16 in a scratch clone (evidence docs/qa/pr_delivery_decision_20261116/gate_account_free_default.txt, gate_account_free_changed_since.txt, probe_selfflag.txt). (1) Without --consumer-config the gate looks only at <root>/../config/delivery.conf (the submodule layout), so in this repository, whose declaration is config/delivery.conf inside the root, the post-update run SKIPs (exit 3). (2) With --changed-since, the consumer's own config/delivery.conf is in the corpus and is reported FAIL (it is the one file that must hold the account names). (3) With --changed-since, a changed docs/workable_items.db (binary, NUL bytes) makes the gate BLIND (exit 2). Affected: scripts/gates/cm_pr_delivery_account_name_free.sh and its post_update_hook.sh call. Acceptance: the declared config path is excluded from the corpus by path (not by content), the gate finds a root-level config/delivery.conf when the root is its own consumer, binary tracker files are handled without hiding text files; RED cases for each, paired mutants. Needs an operator decision on the exclusion mechanism (Q7 in CON-423); not fixed here. Round 2 (2026-11-16, operator decision (3) of OPD-2026-11-16-PR-DELIVERY-R2): fixed in this vehicle, pending independent review. Root cause, read in scripts/gates/cm_pr_delivery_account_name_free.sh: the default configuration was only $(dirname ROOT)/config/delivery.conf; the --changed-since loop added every changed file, including the configuration just read and a binary SQLite database, to the corpus. Fix: both <root>/config/delivery.conf and <root>/../config/delivery.conf are read by default; under --changed-since a configuration read in this run is left out by its resolved path, and a file starting with the SQLite header is left out; both are named in the output and in the verdict; a file of the fixed corpus is never left out and any other binary file stays BLIND. RED first: 5 of 8 new cases failed on the old gate (docs/qa/pr_delivery_decision_20261116/r2/red_baseline_con424.txt), 8 of 8 pass after the fix (green_con424.txt); 10 new gate mutants added to the paired mutation test.
+What: the --keys-file exact-match pass of scripts/security/history_secret_scan.sh wrote every blob id into the stdin pipe of git cat-file --batch before it read any reply. With a few thousand blobs git fills its stdout pipe and stops reading stdin, the matcher fills the stdin pipe, and both wait for ever (observed on a real repository as a 2400 s timeout with 7,408 blob ids, about 300 KB). Scope: the exact-match matcher only; the gitleaks stage finishes first. Reproduction: tests/security/test_history_secret_scan_deadlock.sh builds a hermetic repository with 8000 blobs and runs the real script under timeout; on the unfixed script (sha256 e03c8098) case 1 fails with rc 124 after 60 s, and /proc wchan of both the python3 matcher and git cat-file --batch reads anon_pipe_write (docs/qa/secscan_deadlock_2026_11_16/red_wchan_prefix.txt). Fix: the ids reach git from a regular file in the work directory, and every reply is checked against the requested id (a missing or wrong reply is exit 7). Acceptance: the same test passes 17/17 within the bound, twice with identical output hashes; 14 paired mutants including the re-introduced deadlock are killed; the existing 45-case suite still passes. Evidence is gate-logic class (§11.4.289); a run with the real gitleaks binary stays owed (CON-401).
 
-## CON-425 — Author-only reviewer list under §11.4.297(D)(2): keep the recorded report-and-merge consumer departure, amend the anchor, or add a second account? (follow-up question, operator decision 2026-11-16)
+## CON-424 — history_secret_scan.sh exact-match pass: values shorter than 12 characters are not searched
 
 **Status:** Queued
 **Type:** Task
+**Severity:** Medium
+
+What: the --keys-file exact-match pass of scripts/security/history_secret_scan.sh never searches a value shorter than 12 characters (too many chance matches in a full history). Since CON-423 this limit is documented in the script header and in docs/guides/security_hardening_scripts.md, and every run prints the note 'not searched: N shorter than 12 characters (NAMES)' with variable names and count only, also when N is 0; tests/security/test_history_secret_scan_deadlock.sh checks the 11/12 character boundary and the names and count, and paired mutants DM6, DM7 and DM8 are killed. Owed: a way to check short values (for example a context-bound pattern such as NAME=value, or an operator decision that short values are out of scope), and the decision recorded. Acceptance: either short values are covered by a tested check with its own controls, or the operator decision to leave them out is recorded and cited by the guide.
+
+## CON-425 — history_secret_scan.sh: a refs/replace entry hides a secret blob from the exact-match pass and from gitleaks (CON-423 review NEW-1)
+
+**Status:** Queued
+**Type:** Bug
 **Severity:** High
 **Created-By:** AI
 
-What: by the recorded operator decision OPD-2026-11-16-PR-DELIVERY-R2 (paraphrased by the conductor, not verbatim) every pull request of this repository is created, self-reviewed and merged by the agent and assigned to the main repository owner's account. The configured reviewer list (config/delivery.conf pr_reviewers) holds only that account, which is also the author, so §11.4.297(D)(2) skips it, no reviewer is possible, and the delivery reports that and ends non-zero; the platform may also refuse the agent's own review. The decision records that the refusal is REPORTED (never dropped or replaced) and that the agent still merges when every OTHER merge condition holds. This is recorded in config/delivery.conf (author_only_reviewer_policy=report-and-merge) and docs/guides/pr_delivery_landing_guide.md as a CONSUMER departure; Constitution.md is NOT amended. Question for the operator: (a) keep the consumer departure as is, (b) amend §11.4.297(C)/(D) through the normal anchor-amendment path so an author-only reviewer list is a declared case, or (c) add a second reviewer account or open pull requests from a different account so (D)(2) is met. Until answered, every delivery ends non-zero on the reviewer point and that is reported, never hidden. Acceptance: the operator's answer recorded, and config/guide (or the anchor, via its own vehicle and review) changed to match. Scope: config/delivery.conf, docs/guides/pr_delivery_landing_guide.md; nothing ENFORCED. Note: the id CON-425 may collide with another vehicle minting CON-423..427; re-mint above the current maximum at landing.
+What: scripts/security/history_secret_scan.sh honours replace refs, so a repository that carries refs/replace/<secret-blob> -> <clean-blob> is scanned through the replacement. Measured by the CON-423 review round 2 (rev2_secscan_dl_ev, SHA256SUMS verified): replace_probe.txt, --exact-only, mode=plain rc=1 MYKEY=1, mode=replaced rc=0 MYKEY=0 (secret not found, clean verdict); replace_log_probe.txt: the mirror keeps 1 replace ref, git log -p --all -m sees the fake 0 times, with --no-replace-objects 1 time; rv16_probe.txt: a forced blob->tree replace makes cat-file --batch answer type tree for a blob id that --batch-check reports as blob. Pre-existing (not introduced by CON-423), source-defect, important; not fixed in the CON-423 landing. Fix idea: export GIT_NO_REPLACE_OBJECTS=1 right after the git-env scrub so every git call (mirror, cat-file, the scanner's git log) reads the stored objects, and refuse or report replace refs. Scope: scripts/security/history_secret_scan.sh, tests/security/test_history_secret_scan.sh, tests/security/test_history_secret_scan_deadlock.sh, docs/guides/security_hardening_scripts.md. Reproduction: reproduced-host-fixture by the reviewer probes above (host-only). Acceptance: RED first with the review fixtures (replaced blob; blob->tree replace) on the current script, then GREEN with the secret found (exit 1) in both the exact-match pass and the scanner pass; paired mutant that drops the setting is killed.
+
+## CON-426 — CON-423/CON-424: schedule the background verification job and move to the PROVISIONAL-DONE form with a Verification line (review F2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: the CON-423 fix landed on main (38c80398) but no verification job is scheduled, so section 11.4.290 does not allow the PROVISIONAL-DONE form; CON-423 is set to In progress at landing, not Ready for testing. Scope: tracker rows CON-423, CON-424 and a scheduled run of tests/security/test_history_secret_scan_deadlock.sh, test_history_secret_scan.sh and the deadlock mutation suite on the landed tree. Acceptance: a job id exists, the item carries the line Verification: provisional - job ... - checks ... - layer gate-logic - target host - artifact 38c80398 - due ..., and the status moves only then.
+
+## CON-427 — CON-423 evidence: the reproduction tier and the evidence-class wording do not match (review F3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: independent review of the CON-423 vehicle, finding F3 (relayed by the conductor; the reviewer's full wording is not in the evidence directories, UNCONFIRMED in detail): the tier recorded for the reproduction/evidence (reproduced-host-fixture, host-only, gate-logic per section 11.4.289) and the tier stated elsewhere for the same evidence disagree. Scope: CON-423 Reproduction line, docs/qa/secscan_deadlock_2026_11_16/README.md. Acceptance: one tier, named the same way in the item, the README and the commit text, matching the section 11.4.292(B)/11.4.289 vocabulary.
+
+## CON-428 — CON-423 evidence README: the RED note (4/16 pass, 16 vs 17 cases) is unclear (review F4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review finding F4 (relayed): docs/qa/secscan_deadlock_2026_11_16/README.md says the RED run passed 4/16 while GREEN has 17 cases; the README should state which case set the RED ran, that case 17 was added after the RED, and that case 1 is the one that proves the deadlock. Scope: that README. Acceptance: the note names the case count of each run and the red/green pair per section 11.4.292(E).
+
+## CON-429 — CON-423 docs: the deadlock threshold wording (a few thousand blobs) is host-dependent (review F5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review finding F5 (relayed): the script header, the guide and CON-423 say the old pass hung with a few thousand blobs; the point where both pipe buffers fill depends on the host pipe size and blob id lengths, so the number is host-dependent. Scope: scripts/security/history_secret_scan.sh header, docs/guides/security_hardening_scripts.md, CON-423. Acceptance: the wording says the threshold depends on the pipe buffer size and names the measured host value or none.
+
+## CON-430 — CON-423 tests: reviewer mutants RV4, RV5, RV6 and RV16 survive the deadlock and history-scan suites (review F6/F7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: rev2_secscan_dl_ev/rmut_out.txt: SURVIVED RV4 (trailing-data check reduced to read(1)), RV5 (cat-file exit status not checked), RV6 (no kill/wait before exit 7), RV16 (v in data[:-1], a value at the very end of a blob without a newline is missed; rv16_probe.txt shows rc=0 MYKEY=0). The mapping of these survivors to the reviewer labels F6 and F7 is inferred from the evidence, UNCONFIRMED. Test-instrumentation (section 11.4.235(D)). Scope: tests/security/test_history_secret_scan_deadlock.sh, tests/security/test_history_secret_scan_deadlock_mutations.sh. Acceptance: fixtures that kill RV4, RV5, RV6 and RV16 (RED with each mutant, GREEN without), added to the paired mutation suite.
+
+## CON-431 — codegraph_mcp_health.py: stderr=PIPE is never read while the session runs (bounded deadlock risk)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: docs/qa/secscan_deadlock_2026_11_16/class_census.md: scripts/codegraph/codegraph_mcp_health.py:459-496 starts the server with stderr=PIPE and never drains it during the session; a server that writes more than one pipe buffer of stderr would block. UNCONFIRMED whether any server does. Not fixed in CON-423 (section 11.4.293 scope). Scope: that file and its tests. Reproduction: not yet (UNREPRODUCED); a fixture server that writes more than 64 KiB to stderr is the RED. Acceptance: stderr goes to a file or is drained concurrently; RED then GREEN with the fixture.
+
+## CON-432 — test_review_record_gate_authority_r3_regression.sh:423 writes ev.bytes into a fifo before the reader starts (bounded deadlock shape)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: class_census.md of CON-423: scripts/fastcycle/tests/test_review_record_gate_authority_r3_regression.sh:423 does exec 7<>fifo; cat ev.bytes >&7 before the reader starts; it blocks only if ev.bytes exceeds one pipe buffer (today a small generated file). Not fixed in CON-423 (section 11.4.293). Scope: that test. Reproduction: UNREPRODUCED (needs an ev.bytes larger than the pipe buffer). Acceptance: the writer starts after (or concurrently with) the reader, or the input comes from a regular file; a large-input RED then GREEN.
+
+## CON-433 — scripts/forge/lib/credentials.sh: bracket ranges and classes in bash regexes are locale-dependent (no LC_ALL=C) (review I1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review item I1 (relayed): credentials.sh matches variable names with [A-Z][A-Z0-9_] ranges and [[:space:]] classes in [[ =~ ]] without LC_ALL=C, so in some locales a range matches more characters than A-Z. Scope: scripts/forge/lib/credentials.sh (lines 71, 80, 135 at 38c80398), tests/forge/test_forge_credentials.sh. Reproduction: UNREPRODUCED; RED under a locale where [A-Z] matches lowercase. Acceptance: matching runs under LC_ALL=C (local to the functions), RED then GREEN, paired mutant.
+
+## CON-434 — tests/release/test_tag_and_release.sh C49: a /proc stderr race makes the case output nondeterministic (review)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review item (relayed by the conductor, mechanism UNCONFIRMED): in case C49 of tests/release/test_tag_and_release.sh (lines 688-708 at 38c80398) the TERM-ignoring git double exits while /proc is still being read, and the resulting stderr line can appear or not between runs. Scope: that test case. Reproduction: UNREPRODUCED; repeated runs with a hash compare of the output are the RED. Acceptance: the case output is identical over N=3 runs, the race closed or the line filtered with a named reason.
 
