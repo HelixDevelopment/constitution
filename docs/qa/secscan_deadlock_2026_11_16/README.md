@@ -15,7 +15,7 @@ the producing agent: UNKNOWN.
 | `hash_compare.txt` | sha256 of run 1 and run 2 of each suite: identical |
 | `existing_hm_mutants.txt` | the 21 existing history-script mutants of `test_security_scripts_mutations.sh` on the fixed script |
 | `class_census.md` | §11.4.276(C) census of the same deadlock class in `scripts/` |
-| `wchan_probe.sh.txt` | the probe used for the two wchan files (stored as text, not a tracked script) |
+| `wchan_probe.sh.txt` | the probe used for the two wchan files (stored as text, not a tracked script). The stored copy adds the git-env scrub line after `set -uo pipefail` (required by the git-env census); the runs above used the copy without it, in a shell with no GIT_* variable set |
 
 The run-1 file of the deadlock suite was recorded after the 17th case was added
 (the first GREEN run had 16 cases and is not kept).
