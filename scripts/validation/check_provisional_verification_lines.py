@@ -15,7 +15,9 @@ below.
 
 THE READ (round 6, review r5 M-1). SQLite creates -wal and -shm files even for a read-only open of a WAL-mode
 database, so the database is never opened in place: its file and its -wal and -journal files (when present) are copied
-as bytes into a private temporary directory, the copy is opened, and the copy is taken again when a file changed
+as bytes into a private temporary directory (round 7, review r6 I-3 and M-1: the path is resolved to its real path
+first, because SQLite keeps the -wal next to a symlink's TARGET; every file is opened without blocking and must be a
+regular file, else BLIND; the copy is bounded by MAX_DB_BYTES, else BLIND), the copy is opened, and the copy is taken again when a file changed
 during it (inode, size or modification time; five tries, then BLIND). The original is never opened by SQLite, so no
 sidecar appears next to it and its bytes are unchanged. A status is matched as a person reads it (NFKC folded,
 look-alike letters mapped, format characters removed, white space collapsed, case folded): a status that reads as
@@ -60,45 +62,42 @@ independent implementation of the same grammar, and the suite compares the two):
   NOTE     = "note" then printable ASCII to the end of the line (at least one letter or digit); never evidence
   No term may appear twice in LAYER, TARGET or ARTIFACT; the line is at most 4096 characters.
 
-THE LINE MODEL (CommonMark 0.31; tests/release/pvl_linemodel.py compares it with pandoc and markdown-it-py, and
-tests/release/pvl_lineend.py enumerates the line-ending and start-of-line class against markdown-it-py). The body is
-split on the CommonMark line endings: LF, CR LF and a lone CR (round 6, review r5 I-1; pandoc drops a lone CR and is
-blind there, markdown-it-py is the reference for it), so U+2028, U+2029, U+0085, VT, FF, NUL and U+001C..U+001F are
-characters of a line. Indentation is counted in columns, a tab advancing to the next multiple of 4. A line counts when
-it starts at column 0 with the prefix, is outside a fenced code block (up to 3 spaces, 3 or more backticks or
-tildes; a backtick fence whose info string holds a backtick is not a fence; it closes on up to 3 spaces, the same
-character at least as often, then only spaces or tabs; an unclosed fence runs to the end), outside an HTML block of the
-seven CommonMark kinds (a kind 1 to 5 block ends on the first line, its start line included, that holds its end text,
-so `<!-->` ends at once; kinds 6 and 7 end before a blank line; kind 7 cannot interrupt a paragraph), is not a lazy
-continuation line of a block quote or list item paragraph, and STARTS a top-level paragraph (it follows a blank line, a
-heading, a thematic break, a setext `=` underline, a closed fence, a closed HTML block or the start of the body): a line
-that continues a paragraph is not counted, so no inline construct of an earlier line (a code span, an inline HTML
-comment) can reach it. A thematic break (`* * *`, `- - -`) takes precedence over a list item.
-A body is also read the older way (pandoc 3: the end text of an HTML block of kinds 2 to 5 is looked for only after its
-opener on the start line); when the two readings count different lines the body is refused (which lines a reader shows
-is then not certain).
-THE NEAR RULE (round 6). A body is refused when a line a reader shows (outside a fenced block and an HTML block of
-kinds 1 to 5) carries the Verification label (the word and a colon, read with character references decoded, NFKC
-folding, look-alike letters mapped and format characters removed, markup or spaces allowed before the colon) and is not the one counted line: a labelled
-line in a block quote, a list item, an HTML block of kind 6 or 7, a continuation line, or one that starts after a space,
-a tab, a format character or any other character. Such a line is refused rather than judged, because whether a reader
-shows it as a verification line depends on the reader.
+THE LINE MODEL (round 7, structural: review r6 I-1 was the third round of a hand-written CommonMark state machine
+missing a container or paragraph-state transition, section 11.4.250, section 11.4.276(E)(3)). The checker no longer
+models CommonMark by hand: the body is parsed by a real CommonMark parser, markdown-it-py with its `commonmark` preset
+(the version must be one of MDIT_TESTED; a missing or untested parser makes the run BLIND, never a pass), and the
+parser's token stream is the only source of the decision:
+  COUNTED  a line counts when it is the first source line of a TOP-LEVEL paragraph (token paragraph_open at level 0,
+           its map gives the line), the source line starts with the prefix at column 0, and the paragraph's inline
+           content starts with the bold `Verification:`. Source lines are the parser's own (its line endings: LF, CR LF,
+           a lone CR; NUL read as U+FFFD), so the checker and the parser cannot split a body differently.
+  RAW HTML any HTML block or inline HTML token that is not made only of complete comments refuses the body: raw HTML
+           can hide or wrap a line (`hidden`, `display:none`, `<details>`, a `<style>` anywhere), and readers disagree
+           on where an HTML block ends (`<!-->`), so a body with it is refused rather than judged.
+  ELSEWHERE the body is refused when the Verification label (THE NEAR RULE's reading) occurs anywhere other than at the
+           start of the one counted line: in any other source line, or in the text a reader renders anywhere in the
+           document (other paragraphs, headings, block quotes, list items, code spans, code blocks, fences, comments,
+           link titles and targets, image text, and the counted paragraph after its label). Such a body is refused
+           rather than judged, because whether a reader shows that text as a verification line depends on the reader.
+The test harnesses check this against independent readers: tests/release/pvl_blockstate.py enumerates the container
+and paragraph-state class and renders every accepted body with markdown-it-py, pandoc commonmark and pandoc gfm;
+tests/release/pvl_lineend.py enumerates the line-ending and start-of-line class.
+THE NEAR RULE: the label is the word Verification and a colon, read with character references decoded, NFKC folding,
+look-alike letters mapped and format characters removed, markup or spaces allowed before the colon.
 
 Known limits (stated): a sentence of the grammar can still be false (a real script that is not the right job, counts
 that will not be observed, a commit id that is not the fix: commit and tag ids are shape-checked, the checker runs no
-process); a selector, option or env value is accepted when the script merely mentions it; the line model covers block
-quotes and list items only as far as lazy continuation of a paragraph. It does NOT check whether a due date is past
-(derive_release_facts.sh reports that) or whether the job was run. False refusals, the safe direction (stated, review r5
-M-6): a line after a link reference definition, and a fence after a blank line inside a list item, are refused although
-CommonMark shows the line. A label written through a character reference (`&#86;erification:`) or split by inline HTML
-markup other than tags is not counted (it does not start with the prefix); since round 6 the near rule decodes
-character references (html.unescape) before it looks for the label, so such a line next to a counted line refuses the
-body (tests/release/pvl_lineend.py shapes S19 to S21; before the fix the checker accepted it, a danger found while
-writing these notes). A label split by markup the near rule does not model is a stated gap.
+process); a selector, option or env value is accepted when the script merely mentions it. It does NOT check whether a
+due date is past (derive_release_facts.sh reports that) or whether the job was run. The reader is CommonMark: syntax of
+other dialects (pandoc fenced divs and attributes, kramdown attribute lists, GFM) is read as CommonMark text; the
+enumeration renders accepted bodies with pandoc gfm too, other dialects are a stated gap. False refusals, the safe
+direction: a body holding any raw HTML other than complete comments, or the label anywhere else (also inside code).
 
 Output: one `FAIL <id> <status>: <reason>` line per refused item, then `ROOT: <real root>` and `TODAY: <date>
 window=<N>d`, then `CHECKED items=N provisional_status=P ok=K fail=F`, then `VERDICT: PASS|FAIL|BLIND`. Exit 0 PASS,
-1 FAIL, 2 BLIND (the database cannot be read, has no items table, or holds no items: a zero there proves nothing), 64
+1 FAIL, 2 BLIND (the database cannot be read, a database file or sidecar is not a regular file or exceeds the size
+bound, it has no items table, or holds no items: a zero there proves nothing; the CommonMark parser is missing or is
+not a tested version), 64
 usage (also a root that is not a directory, a --today that is not a date, a window that is not 0..3650).
 """
 
@@ -108,6 +107,7 @@ import os
 import pathlib
 import re
 import sqlite3
+import stat
 import sys
 import tempfile
 import time
@@ -164,84 +164,42 @@ CONFUSABLES = {
     "χ": "x",
 }
 
-# HTML block start conditions of CommonMark 0.31 section 4.6 (on the line after up to 3 spaces of indent)
-HTML1 = re.compile(r"<(?:script|pre|style|textarea)(?:[ \t>]|\Z)", re.I)
-HTML1_END = re.compile(r"</(?:script|pre|style|textarea)>", re.I)
-HTML6_NAMES = ("address article aside base basefont blockquote body caption center col colgroup dd details dialog dir "
-               "div dl dt fieldset figcaption figure footer form frame frameset h1 h2 h3 h4 h5 h6 head header hr html "
-               "iframe legend li link main menu menuitem nav noframes ol optgroup option p param search section summary "
-               "table tbody td tfoot th thead title tr track ul").split()
-HTML6 = re.compile(r"</?(?:%s)(?:[ \t]|/?>|\Z)" % "|".join(HTML6_NAMES), re.I)
-_ATTR = r"(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:[^ \t\"'=<>`]+|'[^']*'|\"[^\"]*\"))?)"
-HTML7 = re.compile(r"(?:<[A-Za-z][A-Za-z0-9-]*%s*[ \t]*/?>|</[A-Za-z][A-Za-z0-9-]*[ \t]*>)[ \t]*\Z" % _ATTR)
-FENCE_OPEN = re.compile(r" {0,3}(`{3,}|~{3,})(.*)\Z")
-FENCE_CLOSE = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*\Z")
-ATX = re.compile(r" {0,3}#{1,6}(?:[ \t]|\Z)")
-THEMATIC = re.compile(r" {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})\Z")
-LIST_ITEM = re.compile(r" {0,3}(?:[-+*]|[0-9]{1,9}[.)])(?:[ \t]|\Z)")
-QUOTE = re.compile(r" {0,3}>")
+# the CommonMark parser (round 7): markdown-it-py, `commonmark` preset; only a tested version is trusted (a different
+# version may tokenise differently; extend MDIT_TESTED only after the line-model suites pass with it)
+MDIT_TESTED = ("3.0.0",)
+try:
+    import markdown_it as _mdit_pkg
+    from markdown_it import MarkdownIt as _MarkdownIt
+    from markdown_it.rules_core.normalize import NEWLINES_RE as _MDIT_NEWLINES, NULL_RE as _MDIT_NULL
+    MDIT_VERSION = _mdit_pkg.__version__
+    _MDIT_ERROR = None
+except Exception as _exc:  # noqa: BLE001 -- reported as BLIND by main() and as a refusal by check_body()
+    _MarkdownIt = None
+    MDIT_VERSION = None
+    _MDIT_ERROR = "%s: %s" % (_exc.__class__.__name__, str(_exc)[:120])
+_MD = []
+MAX_BODY = 1024 * 1024
 
-
-def blind(msg):
-    print("BLIND %s" % msg)
-    print("VERDICT: BLIND")
-    return 2
-
-
-def html_start(s, para):
-    """The HTML block kind (1..7) a line S starts, or 0. Kind 7 cannot interrupt a paragraph (PARA true)."""
-    t = s[len(s) - len(s.lstrip(" ")):] if len(s) - len(s.lstrip(" ")) <= 3 else None
-    if t is None:
-        return 0
-    if HTML1.match(t):
-        return 1
-    if t.startswith("<!--"):
-        return 2
-    if t.startswith("<?"):
-        return 3
-    if re.match(r"<![A-Za-z]", t):
-        return 4
-    if t.startswith("<![CDATA["):
-        return 5
-    if HTML6.match(t):
-        return 6
-    if not para and HTML7.match(t):
-        return 7
-    return 0
-
-
-HTML_END = {1: lambda s: bool(HTML1_END.search(s)), 2: lambda s: "-->" in s, 3: lambda s: "?>" in s,
-            4: lambda s: ">" in s, 5: lambda s: "]]>" in s}
-# the length of each opener: a reader older than CommonMark 0.31 (pandoc 3, commonmark-hs) looks for the end text only
-# AFTER the opener on the start line, so `<!-->` and `<!--->` open a block there and close one in 0.31
-OPENER_LEN = {2: 4, 3: 2, 4: 2, 5: 9}
-
-
-def fence_open(s):
-    m = FENCE_OPEN.match(s)
-    if not m or (m.group(1)[0] == "`" and "`" in m.group(2)):
-        return None
-    return m.group(1)
-
-
-# CommonMark 0.31 section 2.1: a line ending is LF, CR LF, or a CR not followed by LF; nothing else ends a line
+# a line ending of the target registry (and of CommonMark 2.1): LF, CR LF, or a CR not followed by LF
 LINE_END = re.compile(r"\r\n|\r|\n")
-SETEXT_EQ = re.compile(r" {0,3}=+[ \t]*\Z")
 # the label a person reads as a verification statement, in any case, with markup or spaces before the colon
 LABEL = re.compile(r"verification[\s*_~`\\]*(?:</?[a-z][^>]*>[\s*_~`\\]*)*:", re.I)
+COMMENT = re.compile(r"<!--.*?-->", re.S)
 
 
-def indent_cols(s):
-    """The columns of S's leading spaces and tabs (a tab advances to the next multiple of 4, CommonMark 2.2)."""
-    col = 0
-    for ch in s:
-        if ch == " ":
-            col += 1
-        elif ch == "\t":
-            col += 4 - col % 4
-        else:
-            break
-    return col
+def reader_problem():
+    """None when the CommonMark parser is importable and a tested version; else the reason (the run is BLIND)."""
+    if _MarkdownIt is None:
+        return "markdown-it-py cannot be imported (%s)" % _MDIT_ERROR
+    if MDIT_VERSION not in MDIT_TESTED:
+        return "markdown-it-py %s is not a tested version (%s)" % (MDIT_VERSION, ", ".join(MDIT_TESTED))
+    return None
+
+
+def _md():
+    if not _MD:
+        _MD.append(_MarkdownIt("commonmark"))
+    return _MD[0]
 
 
 def has_label(s):
@@ -252,105 +210,80 @@ def has_label(s):
     return LABEL.search(t) is not None
 
 
-def visible_lines(body, legacy=False):
-    """The lines of BODY that count (see THE LINE MODEL); LEGACY: the end text of an HTML block of kinds 2 to 5 is looked
-    for after the opener on the start line (the older reading)."""
-    return scan(body, legacy)[0]
+def _is_label_start(children):
+    """True when inline CHILDREN start (empty text skipped) with strong_open, text `Verification:`, strong_close."""
+    ch = [c for c in children if not (c.type == "text" and c.content == "")]
+    return (len(ch) >= 3 and ch[0].type == "strong_open" and ch[1].type == "text" and ch[1].content == "Verification:"
+            and ch[2].type == "strong_close")
 
 
-def scan(body, legacy=False):
-    """(counted, near): the counted lines of BODY (THE LINE MODEL) and the other lines a reader shows that carry the
-    Verification label (outside a fenced code block and an HTML block of kinds 1 to 5); see check_body."""
+def _rendered(children, skip_label):
+    """The text a reader renders from inline CHILDREN (markup removed, so `Veri*fi*cation:` reads as the word); with
+    SKIP_LABEL the leading bold label of the counted line is left out."""
     out = []
-    near = []
-    fence = None      # the opening fence string while inside a top-level fenced block
-    html = 0          # the HTML block kind while inside one
-    para = None       # None, "top", "quote" or "list": the container of a paragraph the next line may continue
-    inner_fence = None  # a fence open inside a block quote or list item
-    for ln in LINE_END.split(body or ""):
-        blank = not ln.strip(" \t")
-        counted = False
-        if fence is not None:
-            m = FENCE_CLOSE.match(ln)
-            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):
-                fence = None
-            continue
-        if html:
-            if html in HTML_END:
-                if HTML_END[html](ln):
-                    html = 0
+    seen = 0
+    for c in children:
+        if skip_label and seen < 3:
+            if c.type == "text" and c.content == "":
                 continue
-            if blank:
-                html = 0
-                para = None
-            elif has_label(ln):
-                near.append(ln)
+            seen += 1
             continue
-        if blank:
-            para, inner_fence = None, None
-            continue
-        indent = indent_cols(ln)
-        f = fence_open(ln)
-        if f is not None:
-            fence, para, inner_fence = f, None, None
-            continue
-        k = html_start(ln, para is not None)
-        if k:
-            html, para, inner_fence = k, None, None
-            t = ln.lstrip(" ")
-            if k in HTML_END and HTML_END[k](t[OPENER_LEN[k]:] if legacy and k in OPENER_LEN else t):
-                html = 0
-            if k in (6, 7) and has_label(ln):
-                near.append(ln)
-            continue
-        if indent <= 3 and THEMATIC.match(ln):
-            # a thematic break takes precedence over a list item (CommonMark 4.1: `* * *` is a break, not an item)
-            para, inner_fence = None, None
-            continue
-        if para == "top" and SETEXT_EQ.match(ln):
-            # a setext heading underline of = ends the top-level paragraph above it (CommonMark 4.3)
-            para = None
-            continue
-        if QUOTE.match(ln) or LIST_ITEM.match(ln):
-            kind = "quote" if QUOTE.match(ln) else "list"
-            inner = re.sub(r"\A(?: {0,3}>[ ]?)+", "", ln) if kind == "quote" else LIST_ITEM.sub("", ln, count=1)
-            if inner_fence is not None:
-                m = FENCE_CLOSE.match(inner)
-                if m and m.group(1)[0] == inner_fence[0] and len(m.group(1)) >= len(inner_fence):
-                    inner_fence = None
-                para = None
-                continue
-            if has_label(ln):
-                near.append(ln)
-            fi = fence_open(inner)
-            if fi is not None:
-                inner_fence, para = fi, None
-            elif not inner.strip(" \t") or ATX.match(inner) or THEMATIC.match(inner) or html_start(inner, False):
-                para = None
-            else:
-                para = kind
-            continue
-        if has_label(ln) and not (para is None and ln.startswith(PREFIX)
-                                   and (len(ln) == len(PREFIX) or ln[len(PREFIX)] in " (")):
-            near.append(ln)
-            counted = True
-        if indent >= 4:
-            # an indented line continues a paragraph (any container) or is indented code / a list continuation
-            if para is None:
-                inner_fence = None
-            continue
-        inner_fence = None
-        if ATX.match(ln) or THEMATIC.match(ln):
-            # a heading or a thematic break ends any paragraph, a container's too (it is never lazy continuation)
-            para = None
-            continue
-        # a line that does not start a paragraph continues one (at top level, or lazily the paragraph of a block quote
-        # or list item): it is not counted (a continuation line with the prefix carries the label, so the near rule
-        # above has already reported it and set `counted`)
-        para = "top"
-        if not counted and ln.startswith(PREFIX) and (len(ln) == len(PREFIX) or ln[len(PREFIX)] in " ("):
-            out.append(ln)
-    return out, near
+        if c.type in ("text", "code_inline"):
+            out.append(c.content)
+        elif c.type == "html_inline":
+            out.append(COMMENT.sub("", c.content))
+            out.extend(COMMENT.findall(c.content))
+        elif c.type in ("softbreak", "hardbreak"):
+            out.append("\n")
+        for _k, v in (c.attrs or {}).items():
+            out.append("\n%s\n" % v)
+        if c.children:
+            out.append(_rendered(c.children, False))
+    return "".join(out)
+
+
+def scan(body):
+    """(counted, problems): the counted lines of BODY and the reasons it cannot be judged (raw HTML, the label
+    elsewhere); see THE LINE MODEL. The caller checks reader_problem() first."""
+    toks = _md().parse(body)
+    lines = _MDIT_NULL.sub("\ufffd", _MDIT_NEWLINES.sub("\n", body)).split("\n")
+    counted = []    # (source line index, line)
+    texts = []      # rendered text of the document outside the counted label
+    problems = []
+    for i, t in enumerate(toks):
+        if t.type in ("html_block", "html_inline") and COMMENT.sub("", t.content).strip():
+            problems.append("raw HTML %r" % t.content.strip()[:40])
+        for c in t.children or []:
+            if c.type == "html_inline" and COMMENT.sub("", c.content).strip():
+                problems.append("raw HTML %r" % c.content.strip()[:40])
+        if t.type == "inline":
+            prev = toks[i - 1]
+            first = None
+            if (prev.type == "paragraph_open" and prev.level == 0 and prev.map is not None
+                    and _is_label_start(t.children or [])):
+                ln = lines[prev.map[0]]
+                if ln.startswith(PREFIX) and (len(ln) == len(PREFIX) or ln[len(PREFIX)] in " ("):
+                    first = prev.map[0]
+                    counted.append((first, ln))
+            texts.append(_rendered(t.children or [], first is not None))
+        elif t.type in ("code_block", "fence", "html_block"):
+            texts.append(t.info + "\n" + COMMENT.sub("", t.content))
+            texts.extend(COMMENT.findall(t.content))
+        for _k, v in (t.attrs or {}).items():
+            texts.append(v)
+    keep = {j for j, _ in counted}
+    if has_label("\n".join(ln for j, ln in enumerate(lines) if j not in keep)):
+        problems.append("label in another source line")
+    elif any(has_label(x) for x in texts):
+        problems.append("label in the rendered text")
+    return [ln for _, ln in counted], problems
+
+
+def visible_lines(body):
+    """The lines of BODY that count (see THE LINE MODEL); [] when the parser is unavailable."""
+    if reader_problem() is not None or not isinstance(body, str):
+        return []
+    return scan(body)[0]
 
 
 def char_reason(v, where):
@@ -629,15 +562,20 @@ def check_body(body, root=None, ctx=None):
         ctx = Context(root)
     if not isinstance(body, str):
         return "the body is not text (%s)" % type(body).__name__
-    lines, near = scan(body)
-    old, near_old = scan(body, legacy=True)
-    if lines != old:
-        return ("the body reads differently in CommonMark 0.31 and in an older reader (an HTML block opener such as "
-                "<!--> closes itself in one and not in the other), so which lines are visible is not certain")
-    near = near or near_old
-    if near:
-        return ("a line a reader shows carries the Verification label but is not the one counted line (it does not "
-                "start a top-level paragraph with the prefix at column 0): %r" % near[0][:80])
+    rp = reader_problem()
+    if rp:
+        return "the CommonMark reader is unavailable: %s" % rp
+    if len(body) > MAX_BODY:
+        return "the body is longer than %d characters (%d)" % (MAX_BODY, len(body))
+    lines, problems = scan(body)
+    html_p = [x for x in problems if x.startswith("raw HTML")]
+    if html_p:
+        return ("the body holds raw HTML other than complete comments (%s): a reader may hide or wrap a line with it, "
+                "so which lines are visible is not certain" % html_p[0])
+    if problems:
+        return ("a line a reader shows carries the Verification label but is not the one counted line (the label "
+                "occurs outside the start of the one top-level paragraph that starts with the prefix at column 0: %s)"
+                % problems[0])
     if not lines:
         return "no '**Verification:** provisional' line"
     if len(lines) > 1:
@@ -680,6 +618,11 @@ def load_targets(path):
 
 
 DB_SUFFIXES = ("", "-wal", "-journal")
+MAX_DB_BYTES = 1 << 30   # the copy bound (all files together); a larger database is reported BLIND
+
+
+class NotRegular(Exception):
+    """A database file or sidecar is not a regular file (a FIFO, a device, a directory): never read, BLIND."""
 
 
 def _stats(db):
@@ -687,30 +630,51 @@ def _stats(db):
     for suf in DB_SUFFIXES:
         try:
             st = os.stat(db + suf)
-            out[suf] = (st.st_ino, st.st_size, st.st_mtime_ns)
+            out[suf] = (st.st_ino, st.st_size, st.st_mtime_ns, stat.S_IFMT(st.st_mode))
         except FileNotFoundError:
             out[suf] = None
     return out
 
 
+def _copy_regular(path, dst, budget):
+    """Copy the regular file PATH to DST, reading at most BUDGET bytes; return the bytes read. The file is opened
+    without blocking (a FIFO would block a plain open) and checked to be regular on the open descriptor (review r6
+    M-1: a -wal symlink to /dev/zero or a FIFO -journal hung the r6 copy)."""
+    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOCTTY", 0) | getattr(os, "O_CLOEXEC", 0))
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise NotRegular(path)
+        n = 0
+        with open(dst, "wb") as out:
+            while True:
+                chunk = os.read(fd, 1 << 20)
+                if not chunk:
+                    return n
+                n += len(chunk)
+                if n > budget:
+                    raise OverflowError(path)
+                out.write(chunk)
+    finally:
+        os.close(fd)
+
+
 def snapshot_db(db, tmp):
     """Copy the database file and its -wal and -journal files (when present) into the private directory TMP and return
     the copy's path; the original is only read as bytes, never opened by SQLite, so no -wal or -shm is ever created next
-    to it (review r5 M-1: a read-only SQLite open of a WAL database creates them). A copy taken while a file changed is
-    retried; after five tries the database is reported as changing (BLIND)."""
+    to it (review r5 M-1: a read-only SQLite open of a WAL database creates them). DB is resolved to its real path
+    first: SQLite keeps the -wal next to a symlink's target, so copying `<link>-wal` would miss committed rows (review
+    r6 I-3). A copy taken while a file changed is retried; after five tries the database is reported as changing
+    (BLIND). Raises NotRegular for a file that is not regular and OverflowError past MAX_DB_BYTES."""
+    db = os.path.realpath(db)
     dst = os.path.join(tmp, "items.db")
     for _ in range(5):
         before = _stats(db)
+        budget = MAX_DB_BYTES
         for suf in DB_SUFFIXES:
             if os.path.exists(dst + suf):
                 os.remove(dst + suf)
             if before[suf] is not None:
-                with open(db + suf, "rb") as src, open(dst + suf, "wb") as out:
-                    while True:
-                        chunk = src.read(1 << 20)
-                        if not chunk:
-                            break
-                        out.write(chunk)
+                budget -= _copy_regular(db + suf, dst + suf, budget)
         if _stats(db) == before:
             return dst
         time.sleep(0.1)
@@ -730,6 +694,12 @@ def status_key(st):
 
 
 PROVISIONAL_KEYS = {status_key(s): s for s in STATUSES}
+
+
+def blind(msg):
+    print("BLIND %s" % msg)
+    print("VERDICT: BLIND")
+    return 2
 
 
 def usage(msg):
@@ -768,11 +738,18 @@ def main(argv):
         targets = load_targets(opts["--targets"] or os.path.join(root, "config", "verification_targets.tsv"))
     except RegistryError as exc:
         return blind("the target registry cannot be read as UTF-8 text: %s" % exc)
-    if not os.path.isfile(db):
+    rp = reader_problem()
+    if rp:
+        return blind("the CommonMark reader is unavailable: %s" % rp)
+    if not os.path.exists(db):
         return blind("the database cannot be read (no such file)")
     with tempfile.TemporaryDirectory(prefix="pvl_db.") as tmp:
         try:
             copy = snapshot_db(os.path.abspath(db), tmp)
+        except NotRegular as exc:
+            return blind("the database cannot be read: %s is not a regular file" % exc)
+        except OverflowError as exc:
+            return blind("the database cannot be read: the copy passed %d bytes at %s" % (MAX_DB_BYTES, exc))
         except OSError as exc:
             return blind("the database cannot be read (%s)" % exc.__class__.__name__)
         if copy is None:

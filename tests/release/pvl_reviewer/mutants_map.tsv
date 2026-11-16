@@ -51,3 +51,9 @@ X12	OTHER-SUITE tests/release/test_redact_cut.sh
 R17	OTHER-SUITE tests/release/test_release_tooling_mutations.sh
 R18	OTHER-SUITE tests/release/test_release_tooling_mutations.sh
 RV04	r6: the fromisoformat call it removes no longer exists; it was redundant (DUE_RE fixes the shape, datetime.date the date, the explicit ranges hour 0..23, minute and second 0..59, offset at most 23:59 the time); grid due cases T25:00, T24:00, T10:60, T10:00:60, T23:59:60Z, +25:00, +01:60, -24:00 refused, T10:00Z, T10:00:00+01:00, T23:59:59-05:30 accepted; own O36 (the hour range)
+RV07	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (fence contexts, inner fence lengths, both readers) + pvl_lineend S01 S08 S15 + pvl_linemodel fence cases
+RV11	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (comment contexts and suffixes) + the raw-HTML refusal (only complete comments pass) + own O44 O45 O58
+RW04	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (quote and list contexts with a labelled line) + own O46 O47 O48 (label elsewhere refused, nested paragraph never counts)
+RW05	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (tab-indented contexts) + pvl_lineend TAB member + own O49 (column-0 prefix required)
+RW06	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (setext suffixes) + pvl_linemodel M06 (setext refused) + own O48 O49
+RW10	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (thematic-break contexts and joins) + own O46 O47

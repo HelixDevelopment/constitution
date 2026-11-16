@@ -1,0 +1,16 @@
+# id	file	old (Python literal)	new (Python literal)	what the mutant removed
+# CON-423 r7: own mutants retired because the code they mutated was removed when the hand-written CommonMark line model
+# was replaced by the markdown-it-py parse (section 11.4.276(E)(3)). tests/release/pvl_mutate.py re-proves every row on
+# every run: the old text must occur 0 times in the file, else the run fails (the code came back; reinstate the mutant).
+# The property each one guarded is covered by tests/release/pvl_blockstate.py, pvl_lineend.py and pvl_linemodel.py.
+O20	scripts/validation/check_provisional_verification_lines.py	'    if lines != old:\n'	'    if False:\n'	the two readings are not compared (r6: retargeted, the comparison now reads scan()'s result)
+O23	scripts/validation/check_provisional_verification_lines.py	'(m.group(1)[0] == "`" and "`" in m.group(2))'	'(False)'	a backtick fence may carry a backtick
+O24	scripts/validation/check_provisional_verification_lines.py	'        if has_label(ln) and not (para is None and ln.startswith(PREFIX)'	'        if has_label(ln) and not (ln.startswith(PREFIX)'	a line need not start a paragraph (r6: retargeted; the separate `starts` test was removed as redundant with the near rule)
+O25	scripts/validation/check_provisional_verification_lines.py	'        if ATX.match(ln) or THEMATIC.match(ln):\n            # a heading'	'        if False:\n            # a heading'	a heading or break does not end a container paragraph
+O26	scripts/validation/check_provisional_verification_lines.py	'    if not para and HTML7.match(t):\n'	'    if HTML7.match(t):\n'	kind 7 interrupts a paragraph
+O27	scripts/validation/check_provisional_verification_lines.py	'            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):\n'	'            if m and m.group(1)[0] == fence[0]:\n'	a fence closes on any length
+O32	scripts/validation/check_provisional_verification_lines.py	'    if near:\n        return ("a line a reader shows'	'    if False:\n        return ("a line a reader shows'	r6: a labelled line a reader shows outside the counted line is allowed
+O33	scripts/validation/check_provisional_verification_lines.py	'            col += 4 - col % 4\n'	'            col += 1\n'	r6: a tab counts one column (a tab-indented line is not indented code)
+O34	scripts/validation/check_provisional_verification_lines.py	'        if indent <= 3 and THEMATIC.match(ln):\n            # a thematic break takes precedence'	'        if False:\n            # a thematic break takes precedence'	r6: a thematic break no longer takes precedence over a list item
+O35	scripts/validation/check_provisional_verification_lines.py	'        if para == "top" and SETEXT_EQ.match(ln):'	'        if False and SETEXT_EQ.match(ln):'	r6: a setext = underline no longer ends the paragraph
+O42	scripts/validation/check_provisional_verification_lines.py	'            if k in (6, 7) and has_label(ln):\n                near.append(ln)'	'            if False:\n                near.append(ln)'	r6: a labelled line inside an HTML block of kind 6 or 7 is not reported

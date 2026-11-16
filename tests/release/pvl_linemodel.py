@@ -5,8 +5,8 @@
 Usage: python3 -I tests/release/pvl_linemodel.py CHECKER [--no-pandoc]
 Each body has the number of verification lines that count in the CommonMark 0.31 reading and in the older reading
 (the table's expectation; they differ only for an HTML block opener that closes itself in 0.31, and such a body must
-be refused by check_body). The checker's visible_lines(body) and visible_lines(body, legacy=True) must give those
-numbers. With pandoc 3 (or later) on PATH, each body is also rendered to its JSON AST (pandoc -f commonmark -t json),
+be refused by check_body). Round 7: the checker's visible_lines(body) must give the CommonMark number, and a body
+whose older reading differs must be refused by check_body (it holds raw HTML). With pandoc 3 (or later) on PATH, each body is also rendered to its JSON AST (pandoc -f commonmark -t json),
 and the number of top-level Para, Plain or level-1/2 Header blocks whose first inline is Strong [Str "Verification:"]
 is compared with the older reading's number (pandoc reads the older way; the prefix itself, at column 0, is the body's
 line start). Bodies marked pandoc=False hold a case where the checker is deliberately stricter than CommonMark.
@@ -78,7 +78,8 @@ CASES = [
     ("M06 inline comment reaching into the line", "x <!--\n" + G + "\n-->", 0, True),
     ("M06 after a thematic break", "---\n" + G, 1, True),
     ("M06 after an indented code block", "    code\n" + G, 1, True),
-    ("M06 setext heading still counts (visible)", G + "\n===", 1, True),
+    ("M06 a setext heading of the line: stricter since round 7 (only a top-level paragraph counts; refused)",
+     G + "\n===", 0, False),
     ("M06 prefix glued to text (visible, but not the prefix)", G.replace("provisional ", "provisionalx "), 0, False),
     # r6: a lone CR is a line ending (CommonMark 2.1); pandoc drops a lone CR, so markdown-it is the reference here
     ("M07 lone CR ends a line: a fence opened after it hides the line (review r5 I-1)", "x\r```\n\n" + G + "\n```\n", 0,
@@ -102,9 +103,10 @@ CASES = [
     ("M10 a tab-indented line is indented code, so === after it is no underline (r6 enumeration)",
      "\tTitle\n===\n" + G, 0, True),
     ("M10 a space then a tab is four columns: indented code", "  \tTitle\n===\n" + G, 0, True),
-    ("M09 a link reference definition before the line: stricter (stated, review r5 M-6)", "[a]: /u\n" + G, 0, False),
-    ("M09 a fence in a list item after a blank: stricter (stated, review r5 M-6)", "- item\n\n  ```\n" + G + "\n", 0,
-     False),
+    ("M09 a link reference definition before the line: counted as CommonMark counts it (round 7; was stricter)",
+     "[a]: /u\n" + G, 1, True),
+    ("M09 a fence in a list item after a blank: counted as CommonMark counts it (round 7; was stricter)",
+     "- item\n\n  ```\n" + G + "\n", 1, True),
 ]
 
 
@@ -147,15 +149,17 @@ def main(argv):
     for case in CASES:
         cid, body, want = case[:3]
         old = case[4] if len(case) > 4 else want
-        got, got_old = len(m.visible_lines(body)), len(m.visible_lines(body, legacy=True))
+        # round 7: the checker reads CommonMark with markdown-it-py; a body the older reading counts differently must be
+        # refused (it holds raw HTML that is not a complete comment, e.g. `<!-->`)
+        got = len(m.visible_lines(body))
         refused = m.check_body(body) or ""
-        amb_ok = (old == want) or refused.startswith("the body reads differently")
-        if got == want and got_old == old and amb_ok:
+        amb_ok = (old == want) or refused.startswith("the body holds raw HTML")
+        if got == want and amb_ok:
             print("LM-PASS %s" % cid)
         else:
             mism += 1
-            print("LM-FAIL %s: counted %d and %d (older reading), want %d and %d; check_body: %s" % (
-                cid, got, got_old, want, old, refused[:80]))
+            print("LM-FAIL %s: counted %d, want %d (older reading %d); check_body: %s" % (
+                cid, got, want, old, refused[:80]))
     exe = None if "--no-pandoc" in argv else shutil.which("pandoc")
     pmode, pm = "SKIP", 0
     if exe is None:

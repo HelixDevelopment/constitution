@@ -18,6 +18,8 @@
 #   P8        the line model against CommonMark cases, pandoc and markdown-it (tests/release/pvl_linemodel.py)
 #   P8b       the reference readers' self-test (tests/release/pvl_refreader.py) and the class-exhaustive line-ending
 #             and start-of-line enumeration (tests/release/pvl_lineend.py, round 6)
+#   P4c       round 7: the path resolved before the copy (a symlink), regular files only within a byte budget
+#   P8c       the container and paragraph-state class rendered by two readers (tests/release/pvl_blockstate.py)
 #   P9        the member inventory of the complement (tests/release/pvl_inventory.py), class list equal to the document
 #   P10       the work bound, 1 s per case (tests/release/pvl_timing.py)
 #   P11       the reviewers' probes r3, r3b, r4 run verbatim (tests/release/pvl_reviewer.py probes)
@@ -103,7 +105,7 @@ has "P2 prose is not a sentence of the grammar (the r4 golden-good line)" "^FAIL
 has "P2 no created date: the window cannot be checked" "^FAIL CON-018 Ready for testing: field 'due' cannot be checked: the item has no created date$"
 has "P2 due before the item was created" "^FAIL CON-019 In testing: field 'due' is 2026-11-20, before the item was created \(2026-11-25\)$"
 has "P2 a line that continues a paragraph does not count (r6: and its label refuses the body)" "^FAIL CON-020 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
-has "P2 a body the two readers read differently is refused" '^FAIL CON-021 Ready for testing: the body reads differently'
+has "P2 raw HTML other than a complete comment is refused (r7: the self-closing comment opener)" '^FAIL CON-021 Ready for testing: the body holds raw HTML other than complete comments'
 printf '%s\n' "$OUT" | grep -q '^FAIL CON-016' && bad "P2 a complete item among bad ones is not flagged" || ok "P2 a complete item among bad ones is not flagged"
 has "P2 counts" '^CHECKED items=12 provisional_status=11 ok=1 fail=10$'
 
@@ -162,8 +164,8 @@ has "P4b a blob body is refused, named" "^FAIL CON-902 Ready for testing: the bo
 has "P4b a status with a trailing space is refused, not skipped" "^FAIL CON-903 Ready for testing : the Status 'Ready for testing ' is not written exactly as 'Ready for testing'"
 has "P4b a status in another case is refused, not skipped" "^FAIL CON-904 in testing: the Status 'in testing' is not written exactly as 'In testing'"
 has "P4b hour 24 is refused" "^FAIL CON-905 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00"
-has "P4b a lone CR before a fence hides the line (review r5 I-1)" "^FAIL CON-906 Ready for testing: no '\*\*Verification:\*\* provisional' line"
-has "P4b a lone CR before a comment hides the line (review r5 I-1)" "^FAIL CON-907 Ready for testing: no '\*\*Verification:\*\* provisional' line"
+has "P4b a lone CR before a fence hides the line, and its label refuses the body (review r5 I-1)" "^FAIL CON-906 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
+has "P4b a lone CR before a comment hides the line, and its label refuses the body (review r5 I-1)" "^FAIL CON-907 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
 printf '%s\n' "$OUT" | grep -q '^FAIL CON-908' && bad "P4b the clean item among them is accepted (control)" || ok "P4b the clean item among them is accepted (control)"
 has "P4b counts: the trailing-space and other-case statuses are checked" '^CHECKED items=9 provisional_status=8 ok=1 fail=7$'
 printf 'board\tT1\n\377\376\n' >"$W/bad_reg.tsv"
@@ -200,12 +202,50 @@ has "P4b a WAL database with a live writer: the row only in -wal is read (needle
 has "P4b a WAL database with a live writer: counts include the -wal row" '^CHECKED items=3 provisional_status=2 ok=1 fail=1$'
 [ "$before" = "$after" ] && ok "P4b a WAL database with a live writer: its files unchanged byte for byte" || bad "P4b live WAL db changed: before '$before' after '$after'"
 
+# P4c review r6 (round 7): the path is resolved before the copy (I-3: a symlinked path to a WAL database with a live
+# writer), and the copy reads regular files only, within a byte budget (M-1: a -wal that is a symlink to /dev/zero, a
+# -journal that is a FIFO, a database path that is a FIFO or a directory): BLIND within the time bound, never a hang
+mkdir -p "$W/wal3" "$W/lnk"
+rdb "$W/wal3/w.db" WAL "$OPENPY" "('CON-901', 'Ready for testing', 'x\n\n' + $GOODPY, '2026-11-01')"
+ln -s "$W/wal3/w.db" "$W/lnk/l.db"
+python3 -I -c 'import sqlite3, sys, time, os
+c = sqlite3.connect(sys.argv[1]); c.execute("pragma wal_autocheckpoint=0")
+c.execute("insert into items values (?, ?, ?, ?)", ("CON-909", "Ready for testing", "x", "2026-11-01")); c.commit()
+open(sys.argv[2], "w").close()
+t = time.time()
+while not os.path.exists(sys.argv[3]) and time.time() - t < 120: time.sleep(0.05)
+c.close()' "$W/wal3/w.db" "$W/wal3.ready" "$W/wal3.stop" &
+wpid=$!
+t=0; while [ ! -e "$W/wal3.ready" ] && [ "$t" -lt 600 ]; do sleep 0.1; t=$((t + 1)); done
+[ -e "$W/wal3/w.db-wal" ] && [ ! -e "$W/lnk/l.db-wal" ] && ok "P4c the -wal is beside the target, not beside the link (control)" || bad "P4c the -wal placement control"
+CK "$W/lnk/l.db"
+: >"$W/wal3.stop"; wait "$wpid"
+has "P4c a symlinked path with a live writer: the row only in the target's -wal is read (needle CON-909, review r6 I-3)" "^FAIL CON-909 Ready for testing: no '\*\*Verification:\*\* provisional' line"
+has "P4c a symlinked path with a live writer: counts include the -wal row" '^CHECKED items=3 provisional_status=2 ok=1 fail=1$'
+for k in zero fifo; do
+  mkdir -p "$W/m1_$k"; rdb "$W/m1_$k/w.db" ROLLBACK "$OPENPY"
+done
+ln -s /dev/zero "$W/m1_zero/w.db-wal"; mkfifo "$W/m1_fifo/w.db-journal"
+for k in zero fifo; do
+  OUT="$(timeout 60 python3 -I "$C" --root "$FX" --today 2026-11-16 "$W/m1_$k/w.db" 2>&1)"; RC=$?
+  [ "$RC" = 2 ] && has "P4c a $k sidecar: BLIND within 60 s, not a regular file (review r6 M-1)" 'is not a regular file' || bad "P4c a $k sidecar ($RC: $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-300))"
+  notrace "P4c a $k sidecar: no traceback"
+done
+mkfifo "$W/fifo.db"; mkdir "$W/dir.db"
+for k in fifo dir; do
+  OUT="$(timeout 60 python3 -I "$C" --root "$FX" --today 2026-11-16 "$W/$k.db" 2>&1)"; RC=$?
+  [ "$RC" = 2 ] && printf '%s\n' "$OUT" | grep -qx 'VERDICT: BLIND' && ok "P4c a database path that is a $k: BLIND within 60 s" || bad "P4c a database path that is a $k ($RC: $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-300))"
+done
+
 # P5 the real tracker database of this checkout, --root this checkout
 DB="$ROOT/docs/workable_items.db"
 if [ -f "$DB" ]; then
   run --root "$ROOT" "$DB"
   { [ "$RC" = 0 ] || [ "$RC" = 1 ]; } && ok "P5 real database read (exit $RC: 0 every line a sentence, 1 refusals listed)" || bad "P5 real database ($RC): $OUT"
-  n="$(python3 -I -c 'import pathlib,sqlite3,sys; print(sqlite3.connect(pathlib.Path(sys.argv[1]).as_uri()+"?mode=ro", uri=True).execute("select count(*) from items where status in (\"Ready for testing\",\"In testing\")").fetchone()[0])' "$DB")"
+  # the needle counts on a byte copy of the database and its sidecars, never on the file in place (review r6 M-2: an
+  # open in place, even read-only, creates -wal and -shm beside a WAL-mode database)
+  mkdir -p "$W/p5"; for suf in "" -wal -journal; do [ -f "$DB$suf" ] && cp -- "$DB$suf" "$W/p5/db$suf"; done
+  n="$(python3 -I -c 'import sqlite3,sys; print(sqlite3.connect(sys.argv[1]).execute("select count(*) from items where status in (\"Ready for testing\",\"In testing\")").fetchone()[0])' "$W/p5/db")"
   has "P5 the checker counted the same $n rows (needle: an independent count)" "^CHECKED items=[0-9]+ provisional_status=$n "
   [ "$n" -gt 0 ] && ok "P5 the real database holds provisional items (control: $n > 0)" || bad "P5 the real database holds provisional items ($n)"
   nf="$(printf '%s\n' "$OUT" | grep -c '^FAIL ')"
@@ -245,9 +285,20 @@ has "P8b markdown-it is present and sees the needles" '^REFREADER-SELFTEST mdit=
 OUT="$(python3 -I "$HERE/pvl_lineend.py" "$C" "$W/le" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P8b no line-ending or start-of-line variant is accepted while markdown-it shows other lines" || bad "P8b line endings ($RC): $(printf '%s\n' "$OUT" | grep -E 'LE-DANGER|BLIND' | head -5 | tr '\n' '|')"
 if command -v pandoc >/dev/null 2>&1; then
-  has "P8b class needle (30 members, danger 0, pandoc blind to a lone CR, no reader disagreement accepted)" '^LINEEND variants=19350 agree=[0-9]+ refused=[0-9]+ danger=0 members=30 mdit=3\.0\.0 pandoc=checked pandoc_cr_blind=yes pandoc_danger=0$'
+  has "P8b class needle (30 members, danger 0, pandoc blind to a lone CR, no reader disagreement accepted)" '^LINEEND variants=19440 agree=[0-9]+ refused=[0-9]+ danger=0 members=30 mdit=3\.0\.0 pandoc=checked pandoc_cr_blind=yes pandoc_danger=0$'
 else
-  has "P8b class needle (30 members, danger 0, pandoc absent)" '^LINEEND variants=19350 agree=[0-9]+ refused=[0-9]+ danger=0 members=30 mdit=3\.0\.0 pandoc=SKIP pandoc_cr_blind=SKIP pandoc_danger=SKIP$'
+  has "P8b class needle (30 members, danger 0, pandoc absent)" '^LINEEND variants=19440 agree=[0-9]+ refused=[0-9]+ danger=0 members=30 mdit=3\.0\.0 pandoc=SKIP pandoc_cr_blind=SKIP pandoc_danger=SKIP$'
+fi
+
+# P8c the container and paragraph-state class (round 7): every context x join x suffix x line ending, rendered by
+# markdown-it-py and pandoc, judged by an independent HTML oracle; DANGER = the checker accepts a body a reader does
+# not render as exactly the one clean line
+OUT="$(python3 -I "$HERE/pvl_blockstate.py" "$C" "$W/bs" 2>&1)"; RC=$?
+[ "$RC" = 0 ] && ok "P8c no body accepted that a reader renders otherwise" || bad "P8c block state ($RC): $(printf '%s\n' "$OUT" | grep -E 'BS-DANGER|BLIND' | head -5 | tr '\n' '|')"
+if command -v pandoc >/dev/null 2>&1; then
+  has "P8c class needle (danger 0, both readers)" '^BLOCKSTATE bodies=39009 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=[0-9]+ joins=13 suffixes=9 endings=3 reviewer=16 mdit=3\.0\.0 pandoc=checked$'
+else
+  has "P8c class needle (danger 0, pandoc absent)" '^BLOCKSTATE bodies=39009 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=[0-9]+ joins=13 suffixes=9 endings=3 reviewer=16 mdit=3\.0\.0 pandoc=SKIP$'
 fi
 
 # P9 the inventory of the complement; its class list equals the document's table
@@ -269,20 +320,22 @@ OUT="$(python3 -I "$HERE/pvl_reviewer.py" probes "$ROOT" "$W/rev" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P11 reviewer probes: no REJ case accepted, every narrowed OK case listed with its reason" || bad "P11 reviewer probes ($RC): $(printf '%s\n' "$OUT" | grep -E 'UNEXPLAINED|STALE|REVERSED|BLIND' | head -5 | tr '\n' '|')"
 has "P11 probe needle (322 cases, 33 narrowed by the grammar)" '^REVIEWER probes cases=322 kept=289 narrowed=33 unexplained=0 stale=0 reversed=0 dos_worst=0\.[0-9]{3}$'
 has "P11 separator classes: none accepted; shape-only jobs refused" '^REV-R3B PASS separator-class cases 700 accepted 0$'
+has "P11 review r6 probes verbatim: no DANGER line, the 4 hiding bodies refused (round 7)" '^REVIEWER probes_r6 rc=0,0 bodies=50 danger=0 hide=4 hide_accepted=0 PASS$'
 
 # P12 the reviewers' mutants listed
 OUT="$(python3 -I "$HERE/pvl_reviewer.py" mutants "$ROOT" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P12 every reviewer mutant applies, is run by its suite, or is not applicable with covering cases" || bad "P12 reviewer mutants ($RC): $(printf '%s\n' "$OUT" | grep FAIL | head -5 | tr '\n' '|')"
-has "P12 mutant needle (68: R1-R22, X1-X12, N01-N22, RV01-RV12)" '^REVIEWER mutants total=68 applies=23 not_applicable=45 fail=0$'
+has "P12 mutant needle (78: R1-R22, X1-X12, N01-N22, RV01-RV12, RW01-RW10)" '^REVIEWER mutants total=78 applies=27 not_applicable=51 fail=0$'
 
 # P13 the paired mutants: each must be killed by a harness the unmutated copy passes
 OUT="$(python3 -I "$HERE/pvl_mutate.py" "$ROOT" "$W/mut" 2>&1)"; RC=$?
 printf '%s\n' "$OUT" | grep '^MUT '
 [ "$RC" = 0 ] && ok "P13 every mutant killed" || bad "P13 mutants ($RC): $(printf '%s\n' "$OUT" | grep -E 'SURVIVED|NOT-APPLIED|BLIND' | tr '\n' '|')"
 has "P13 the unmutated copy passes every kill harness (control)" '^MUT-CONTROL unmutated copy passes'
-nown="$(grep -vc '^#' "$HERE/pvl_mutants.tsv")"
+nown="$(grep -vc -e '^#' -e '^$' "$HERE/pvl_mutants.tsv")"
 [ "$nown" -ge 15 ] && ok "P13 own mutants: $nown (at least 15)" || bad "P13 own mutants: $nown (at least 15)"
-has "P13 mutant needle (own plus the 16 reviewer mutants of this suite that apply: 5 of r2-r4 and RV01-RV12 except RV04)" "^MUTATE total=$((nown + 16)) killed=$((nown + 16)) survived=0 not_applied=0\$"
+has "P13 mutant needle (own plus the 20 reviewer mutants of this suite that apply: 5 of r2-r4, RV01-RV12 except RV04 RV07 RV11, RW01-RW03 RW07-RW09; 11 retired own mutants re-proved absent; 3 equivalent own mutants O48 O50 O60 reported, not killed)" "^MUTATE total=$((nown + 20)) killed=$((nown + 20)) survived=0 not_applied=0 retired=11 equivalent=3 retired_fail=0\$"
+printf '%s\n' "$OUT" | grep -c '^MUT-EQUIVALENT ' | grep -qx 3 && ok "P13 the 3 equivalent mutants are listed with their argument" || bad "P13 equivalent mutants not listed"
 
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

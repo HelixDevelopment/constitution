@@ -131,7 +131,40 @@ def mutant_tables():
                 continue
             mid, rel, old, new, _why = ln.rstrip("\n").split("\t", 4)
             out.append((mid, rel, ast.literal_eval(old), ast.literal_eval(new)))
+    # round 7: the r6 reviewer's table, vendored verbatim; it is the whole own table of r6 with RW01-RW10 appended, so
+    # only the RW rows are reviewer mutants (the O rows are tests/release/pvl_mutants.tsv and its retired table)
+    with open(os.path.join(RD, "mutants_r6.tsv"), encoding="utf-8") as fh:
+        for ln in fh:
+            if not ln.startswith("RW"):
+                continue
+            mid, rel, old, new, _why = ln.rstrip("\n").split("\t", 4)
+            out.append((mid, rel, ast.literal_eval(old), ast.literal_eval(new)))
     return out
+
+
+def probes_r6(repo, work):
+    """Round 7: the r6 reviewer's probes, verbatim. probe_r6 prints one line per body; a line marked DANGER (the
+    checker accepts a body markdown-it does not show as the one line) is a FAIL. probe_hide prints `== <name>
+    accept=<bool> ...` per hiding body; every one must be refused."""
+    py = [sys.executable, "-I"]
+    env = dict(os.environ, TMPDIR=work)
+    os.makedirs(work, exist_ok=True)
+    p = subprocess.run(py + [os.path.join(RD, "probe_r6.py.txt"), repo], capture_output=True, text=True, env=env,
+                       timeout=600)
+    rows = [ln for ln in p.stdout.splitlines() if " accept=" in ln]
+    danger = [ln for ln in rows if " DANGER " in ln]
+    for ln in danger:
+        print("REV-R6-DANGER %s" % ln)
+    q = subprocess.run(py + [os.path.join(RD, "probe_hide.py.txt"), repo], capture_output=True, text=True, env=env,
+                       timeout=600)
+    hide = [ln for ln in q.stdout.splitlines() if ln.startswith("== ")]
+    hacc = [ln for ln in hide if " accept=True " in ln]
+    for ln in hacc:
+        print("REV-HIDE-ACCEPTED %s" % ln)
+    ok = p.returncode == 0 and q.returncode == 0 and rows and len(hide) == 4 and not danger and not hacc
+    print("REVIEWER probes_r6 rc=%d,%d bodies=%d danger=%d hide=%d hide_accepted=%d %s" % (
+        p.returncode, q.returncode, len(rows), len(danger), len(hide), len(hacc), "PASS" if ok else "FAIL"))
+    return 0 if ok else 1
 
 
 def mutants(repo):
@@ -177,7 +210,8 @@ def main(argv):
         print("REVIEWER-BLIND a reviewer file differs from its recorded sum: %s" % ", ".join(bad))
         return 2
     if len(argv) >= 4 and argv[1] == "probes":
-        return probes(os.path.abspath(argv[2]), argv[3], "--write-changes" in argv)
+        rc = probes(os.path.abspath(argv[2]), argv[3], "--write-changes" in argv)
+        return probes_r6(os.path.abspath(argv[2]), os.path.join(argv[3], "r6")) or rc
     if len(argv) == 3 and argv[1] == "mutants":
         return mutants(os.path.abspath(argv[2]))
     sys.stderr.write("usage: pvl_reviewer.py probes REPO WORKDIR [--write-changes] | mutants REPO\n")

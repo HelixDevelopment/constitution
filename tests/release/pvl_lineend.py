@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""tests/release/pvl_lineend.py -- class-exhaustive enumeration of line-ending and line-model shapes for the
-verification-line checker (CON-423 r6, section 11.4.276(C), section 11.4.201(7)).
+"""tests/release/pvl_lineend.py -- enumeration of the line-ending and start-of-line class for the verification-line
+checker (CON-423 r6, extended in r7, section 11.4.276(C), section 11.4.201(7)). It is exhaustive for the 30 members
+below only, at the places listed; it does not cover container or paragraph state (that class is enumerated by
+tests/release/pvl_blockstate.py, round 7, after review r6 M-5 found the r6 wording overstated).
 
 Usage: python3 -I tests/release/pvl_lineend.py CHECKER WORKDIR [--no-pandoc]
 
@@ -11,7 +13,7 @@ U+2028, U+2029, U+001C..U+001F, NUL, BOM, DEL) is a character of a line. The mem
            US, DEL (18), and the start-of-line class this enumeration found in round 6 (a character a reader skips
            or shows as blank before the label): one, three and four spaces, TAB, NBSP, ZWSP, ZWJ, WJ, soft hyphen,
            ideographic space, LRM, RLO (12); 30 members
-  bodies   the 65 bodies of tests/release/pvl_linemodel.py plus the 21 shapes below
+  bodies   the 65 bodies of tests/release/pvl_linemodel.py plus the 24 shapes below
   places   for every LF of a body: the LF replaced by the member, the member inserted before it, inserted after it;
            every LF replaced; the member at the start and at the end of the body
 Every verification line in the bodies is the fixture's grammar sentence (tests/release/pvl_fixture.py line(),
@@ -22,7 +24,7 @@ inferred. For each variant the checker's lines (CommonMark reading) are compared
   REFUSED    the checker refuses the body (check_body returns a reason) while markdown-it shows other lines: a false
              refusal, the safe direction
   DANGER     the checker ACCEPTS the body (check_body returns None) and markdown-it shows anything but that one line
-A DANGER case is a FAIL. pandoc is run on the 21 shapes only, as a second reader (a shape where pandoc, markdown-it
+A DANGER case is a FAIL. pandoc is run on the 24 shapes only, as a second reader (a shape where pandoc, markdown-it
 and the checker do not all count the same is listed; the checker must refuse it, else it is a FAIL too), and is BLIND to a lone CR: the needle
 `x<CR>```<LF><LF>G<LF>```` must count 0 in markdown-it and 1 in pandoc (pandoc drops the CR); bodies with a lone CR are
 never judged by pandoc.
@@ -79,6 +81,10 @@ SHAPES = [
     ("S19 decimal reference label then the line", "**&#86;erification:** provisional -- job: x@@@@" + G),
     ("S20 hex reference label then the line", "**&#x56;erification:** provisional -- job: x@@@@" + G),
     ("S21 named reference label then the line", "**&Vopf;erification:** provisional -- job: x@@@@" + G),
+    # r7: the three container / paragraph-state shapes of review r6 I-1 (each RED on the r6 checker)
+    ("R01 empty list item cannot interrupt a paragraph", "text@@*@@" + G),
+    ("R02 list item, blank, line indented 4 is lazy text", "- foo@@@@    bar@@" + G),
+    ("R03 quote paragraph then kind-7 HTML", "> text@@> <span>@@" + G),
 ]
 CR_BLIND_NEEDLE = "x\r```\n\n" + G + "\n```\n"
 

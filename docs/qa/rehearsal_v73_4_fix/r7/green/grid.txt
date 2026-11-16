@@ -1,0 +1,228 @@
+GRID-PASS job:ok:bash tests/t.sh -k case12; python3 -I tests/p.py
+GRID-PASS job:ok:bash tests/t.sh
+GRID-PASS job:ok:bash tests/t.sh --fast
+GRID-PASS job:ok:bash tests/t.sh -k case12 --fast
+GRID-PASS job:ok:MODE=on bash tests/t.sh
+GRID-PASS job:ok:MODE=on STRICT=1 bash tests/t.sh
+GRID-PASS job:ok:python3 -I tests/p.py --root .
+GRID-PASS job:ok:python3 tests/p.py 3
+GRID-PASS job:ok:sh tests/t.sh case12
+GRID-PASS job:ok:bash tests/t.sh --out=docs/Issues.md
+GRID-PASS job:ok:bash tests/t.sh --level=3
+GRID-PASS job:ok:bash tests/t.sh tests
+GRID-PASS job:ok:PVL_SEED=7 python3 -I tests/p.py --seed=quick
+GRID-PASS job:ok:bash tests/t.sh -k
+GRID-PASS job:ok:tracker CON-777 (In progress)
+GRID-PASS job:ok:tracker CON-776 (Queued)
+GRID-PASS job:ok:tracker CON-775 (Operator-blocked)
+GRID-PASS job:rej:
+GRID-PASS job:rej:TBD
+GRID-PASS job:rej:TO DO
+GRID-PASS job:rej:none yet
+GRID-PASS job:rej:pending scheduling
+GRID-PASS job:rej:re-run bash tests/t.sh
+GRID-PASS job:rej:on main, run bash tests/t.sh
+GRID-PASS job:rej:bash tests/absent.sh
+GRID-PASS job:rej:bash tests/
+GRID-PASS job:rej:bash tests
+GRID-PASS job:rej:bash README.md
+GRID-PASS job:rej:bash docs/Issues.md
+GRID-PASS job:rej:python3 tests/t.sh
+GRID-PASS job:rej:bash tests/p.py
+GRID-PASS job:rej:bash tests/t.sh --nope
+GRID-PASS job:rej:bash tests/t.sh case99
+GRID-PASS job:rej:bash tests/t.sh nodigit
+GRID-PASS job:rej:go test ./...
+GRID-PASS job:rej:make -
+GRID-PASS job:rej:git -x
+GRID-PASS job:rej:bash ../x.sh
+GRID-PASS job:rej:bash /etc/passwd
+GRID-PASS job:rej:bash tests/esc.sh
+GRID-PASS job:rej:bash tests/t.sh  --fast
+GRID-PASS job:rej:bash tests/t.sh;python3 tests/p.py
+GRID-PASS job:rej:bash tests/t.sh;
+GRID-PASS job:rej:NOPE=1 bash tests/t.sh
+GRID-PASS job:rej:MODE=off bash tests/t.sh
+GRID-PASS job:rej:bash tests/t.sh x/y
+GRID-PASS job:rej:bash tests/t.sh (nightly)
+GRID-PASS job:rej:\uff42ash tests/t.sh
+GRID-PASS job:rej:bash tests/t.sh\u200b
+GRID-PASS job:rej:bash tests/t.sh --out=nowhere/x
+GRID-PASS job:rej:bash ./tests/t.sh
+GRID-PASS job:rej:bash tests/./t.sh
+GRID-PASS job:rej:bash tests//t.sh
+GRID-PASS job:rej:JOB-42
+GRID-PASS job:rej:JOB-42 nightly
+GRID-PASS job:rej:CON-778
+GRID-PASS job:rej:CON-779
+GRID-PASS job:rej:CON-999
+GRID-PASS job:rej:CON-774
+GRID-PASS job:rej:bash
+GRID-PASS job:rej:python3 -I
+GRID-PASS job:rej:bash tests/t.sh 01
+GRID-PASS job:rej:bash tests/t.sh -K
+GRID-PASS job:rej:BASH tests/t.sh
+GRID-PASS job:rej:bash\ttests/t.sh
+GRID-PASS job:rej: bash tests/t.sh
+GRID-PASS job:rej:bash tests/t.sh 
+GRID-PASS job:rej:bash tests/t.sh --fast=
+GRID-PASS job:rej:bash tests/t.sh fast
+GRID-PASS job:rej:bash tests/t.sh --Fast
+GRID-PASS job:rej:mode=on bash tests/t.sh
+GRID-PASS job:rej:bash tests/t.sh $HOME
+GRID-PASS job:rej:bash tests/t.sh `id`
+GRID-PASS job:rej:bash tests/t.sh | tee x
+GRID-PASS job:rej:bash tests/t.sh && x
+GRID-PASS job:rej:bash tests/T.sh
+GRID-PASS job:rej:empty-word-reason
+GRID-PASS job:rej:rootlink-path
+GRID-PASS checks:ok:tests/t.sh pass=3
+GRID-PASS checks:ok:tests/t.sh pass=3 fail=0 verdict=PASS
+GRID-PASS checks:ok:case12 pass=1
+GRID-PASS checks:ok:tests/t.sh pass=3; tests/p.py killed=4 survived=0
+GRID-PASS checks:ok:tests/p.py rc=0 skip=1
+GRID-PASS checks:ok:tests/t.sh fail=1 verdict=FAIL
+GRID-PASS checks:ok:tests/t.sh skip=2 verdict=SKIP
+GRID-PASS checks:ok:tests/t.sh pass=0 rc=255 verdict=BLIND
+GRID-PASS checks:rej:3 passed
+GRID-PASS checks:rej:tests/t.sh
+GRID-PASS checks:rej:tests/t.sh rc=0
+GRID-PASS checks:rej:tests/t.sh verdict=PASS
+GRID-PASS checks:rej:tests/t.sh pass=3 pass=4
+GRID-PASS checks:rej:tests/t.sh pass=x
+GRID-PASS checks:rej:tests/t.sh rc=256 pass=1
+GRID-PASS checks:rej:tests/t.sh verdict=OK pass=1
+GRID-PASS checks:rej:tests/x.sh pass=1
+GRID-PASS checks:rej:none of the mutants survives
+GRID-PASS checks:rej:TBD
+GRID-PASS checks:rej:tests/t.sh pass=-1
+GRID-PASS checks:rej:tests/t.sh pass=01
+GRID-PASS checks:rej:tests/t.sh  pass=1
+GRID-PASS checks:rej:tests/t.sh pass=1;tests/p.py pass=1
+GRID-PASS checks:rej:tests/t.sh pass=1;
+GRID-PASS checks:rej:case7 pass=1
+GRID-PASS checks:rej:tests/t.sh passed=3
+GRID-PASS checks:rej:tests/t.sh pass=1 (later)
+GRID-PASS checks:rej:every suite passes with 0 failed
+GRID-PASS checks:rej:rc 0 and VERDICT: PASS
+GRID-PASS checks:rej:tests/t.sh Pass=1
+GRID-PASS checks:rej:tests/t.sh pass=1 verdict=pass
+GRID-PASS checks:rej:tests/t.sh pass=99999999999
+GRID-PASS checks:rej:\u0442ests/t.sh pass=1
+GRID-PASS layer:ok:host-only
+GRID-PASS layer:ok:gate-logic plus host-only
+GRID-PASS layer:ok:runtime plus artifact plus source
+GRID-PASS layer:ok:user-visible
+GRID-PASS layer:ok:live-target plus runtime
+GRID-PASS layer:rej:runtime on the host
+GRID-PASS layer:rej:host-only (tests)
+GRID-PASS layer:rej:gate-logic plus gate-logic
+GRID-PASS layer:rej:runtimeish
+GRID-PASS layer:rej:\u0455ource
+GRID-PASS layer:rej:Runtime
+GRID-PASS layer:rej:host-only, runtime
+GRID-PASS layer:rej:host-only plus
+GRID-PASS layer:rej:runtime clean target
+GRID-PASS layer:rej:TBD
+GRID-PASS layer:rej:host-only  plus runtime
+GRID-PASS target:ok:host
+GRID-PASS target:ok:host, repo checkout
+GRID-PASS target:ok:scratch clone
+GRID-PASS target:ok:remote github
+GRID-PASS target:ok:board T1
+GRID-PASS target:ok:device SER42, host
+GRID-PASS target:ok:container pvl-c1
+GRID-PASS target:ok:vm vm.1
+GRID-PASS target:ok:runner r:7
+GRID-PASS target:ok:remote github, remote gitlab
+GRID-PASS target:rej:host checkout
+GRID-PASS target:rej:remote nowhere
+GRID-PASS target:rej:board T9
+GRID-PASS target:rej:board serial ABC123
+GRID-PASS target:rej:host, host
+GRID-PASS target:rej:host or whichever
+GRID-PASS target:rej:TBD
+GRID-PASS target:rej:container c1
+GRID-PASS target:rej:board
+GRID-PASS target:rej:Host
+GRID-PASS target:rej:host,repo checkout
+GRID-PASS target:rej:remote GitHub
+GRID-PASS target:rej:host (pending)
+GRID-PASS target:rej:board T1 (Orange Pi)
+GRID-PASS target:rej:remote ../x
+GRID-PASS artifact:ok:main
+GRID-PASS artifact:ok:main@abc1234
+GRID-PASS artifact:ok:commit abc1234
+GRID-PASS artifact:ok:merge 0123456789abcdef
+GRID-PASS artifact:ok:tag v73.4
+GRID-PASS artifact:ok:main, tag v1
+GRID-PASS artifact:ok:commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+GRID-PASS artifact:rej:build
+GRID-PASS artifact:rej:commit abc123
+GRID-PASS artifact:rej:commit ABC1234
+GRID-PASS artifact:rej:tag release
+GRID-PASS artifact:rej:sha256 of the image
+GRID-PASS artifact:rej:main, main
+GRID-PASS artifact:rej:commit abc1234 (the fix)
+GRID-PASS artifact:rej:main containing 3b958793
+GRID-PASS artifact:rej:commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+GRID-PASS artifact:rej:tag
+GRID-PASS artifact:rej:Main
+GRID-PASS artifact:rej:image
+GRID-PASS artifact:rej:commit 0123456g
+GRID-PASS due:ok:2026-11-20
+GRID-PASS due:ok:2026-11-01
+GRID-PASS due:ok:2027-01-15
+GRID-PASS due:ok:2026-11-20T10:00Z
+GRID-PASS due:ok:2026-11-20T10:00:00+01:00
+GRID-PASS due:ok:2026-11-20T23:59:59-05:30
+GRID-PASS due:ok:2026-11-16
+GRID-PASS due:rej:2027-01-16
+GRID-PASS due:rej:2026-10-31
+GRID-PASS due:rej:2099-12-31
+GRID-PASS due:rej:2000-01-01
+GRID-PASS due:rej:2026-02-30
+GRID-PASS due:rej:2026-11-20T25:00
+GRID-PASS due:rej:2026-11-20T10:00:60
+GRID-PASS due:rej:2026-11-20T10:00+25:00
+GRID-PASS due:rej:2026-1-1
+GRID-PASS due:rej:TBD
+GRID-PASS due:rej:2026-11-20 (approx)
+GRID-PASS due:rej:\uff12\uff10\uff12\uff16-11-20
+GRID-PASS due:rej:2026-11-20x
+GRID-PASS due:rej:2026-11-20T10
+GRID-PASS due:rej:0000-00-00
+GRID-PASS due:rej:2026-11-20.
+GRID-PASS due:rej:2026-11-20T10:00z
+GRID-PASS due:rej:2026-11-20T24:00
+GRID-PASS due:rej:2026-11-20T10:60
+GRID-PASS due:rej:2026-11-20T10:00+01:60
+GRID-PASS due:rej:2026-11-20T10:00-24:00
+GRID-PASS due:rej:2026-11-20T23:59:60Z
+GRID-PASS line:ok:base
+GRID-PASS line:ok:em dash separators
+GRID-PASS line:ok:section suffix
+GRID-PASS line:ok:colon-less form
+GRID-PASS line:ok:note
+GRID-PASS line:ok:note with separators inside
+GRID-PASS line:rej:note non-ASCII
+GRID-PASS line:rej:note punctuation only
+GRID-PASS line:rej:note empty
+GRID-PASS line:rej:trailing text after due
+GRID-PASS line:rej:a part after due that is not a note
+GRID-PASS line:rej:a named part after due that is not a note
+GRID-PASS line:rej:missing checks
+GRID-PASS line:rej:fields out of order
+GRID-PASS line:rej:too long
+GRID-PASS line:rej:separator without spaces
+GRID-PASS line:rej:en dash separator
+GRID-PASS line:rej:text before the first field
+GRID-PASS line:rej:section suffix misspelt
+GRID-PASS line:rej:no fields
+GRID-PASS line:rej:a field twice
+GRID-PASS line:rej:jobs colon glued
+GRID-PASS line:rej:upper-case field name
+GRID-PASS line:rej:NBSP separator
+GRID-PASS noreg:rej:board without a registry
+GRID-PASS noreg:ok:host without a registry
+GRID cases=227 refused=166 accepted=61 mismatches=0 cli_mismatches=0 oracle_mismatches=0
