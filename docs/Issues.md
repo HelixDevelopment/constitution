@@ -5427,3 +5427,57 @@ What: operator decisions 2026-11-14 and 2026-11-16: the guard vehicle idguard (g
 
 What: providers/gitverse.sh read an annotated tag's commit only through GET /git/tags/{sha}, which GitVerse answers 400 VALIDATION_ERROR, so tag-get printed sha=unknown and release-ensure ended RESULT: UNVERIFIED-COMMIT (exit 5) even for the existing tag helixconstitution-v73.3; the v73.4 cut was blocked on it (operator decision 2026-11-16). Root cause (FACT, verifier defect, not a mirror lag): git ls-remote gitverse gives the same tag object e915eef7 and peeled commit aa5ae0a3 as the local tag; GET /repos/{o}/{r}/commits/{tag-object-sha} (the object.url of the matching-refs answer) answers 200 with sha aa5ae0a3, unknown objects answer 422. Fix: prov_tag_get falls back to commits/{tag-object-sha} when git/tags/{sha} is not 200, by the tag-object sha (never the tag name), and accepts only a 200 whose sha is a full commit id other than the tag-object sha. Scope: scripts/forge/providers/gitverse.sh, tests/forge/test_forge_gitverse.sh (G1-G8, G5b), tests/forge/test_forge_mutations.sh (G01-G09, M17 adapted). Acceptance: suite cases G1-G3 RED on the unfixed provider and GREEN after; every G mutant killed; live read-only tag-get reports the commit and the release-ensure dry-run for v73.3 ends OK, a wrong --sha ends FAIL tag_sha_mismatch. Evidence: docs/qa/gitverse_tag_peel_20261116/ (LIVE reads, section 11.4.289; suite gate-logic). Not proven: the GitVerse release write path (POST /releases) stays LIVE-UNPROVEN. Re-minted at landing from the vehicle's placeholder id (vehicle commit 5fc0cef9) (section 11.4.214).
 
+## CON-480 — CON-479 tests: no assertion that the API token is absent from output on the new GitVerse commits/{tag-object-sha} fallback path (reviewer mutant RV06 survives)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: review F1 (test gap). tests/forge/test_forge_gitverse.sh G1-G8 never check that the token stays out of stdout/stderr on the fallback call added by CON-479; reviewer mutant RV06 (token printed to stderr in the fallback) survives. The reviewer's patch idea, test_forge_gitverse_rvx.sh in the review evidence dir, kills it (reviewer_mutants_vs_extended_test.txt). Scope: tests/forge/test_forge_gitverse.sh. Acceptance: a token-absent assertion on the fallback path, RV06 killed. Source: independent review of the GitVerse release-verification vehicle (bundle 5fc0cef9, landed on main as merge a6f97681), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/gvrev_dMSU/ev/ outside the repository (SHA256SUMS sha256 e1c27e0a3abad8acffbf82373ae8764bf35f6e0b59d521f48c4675069ee16278; reviewer_mutants.txt, reviewer_mutants_vs_extended_test.txt), gate-logic class (section 11.4.289). Parent: CON-479.
+
+## CON-481 — CON-479 tests: a 422, a 3xx and any other 2xx (201/204) answer carrying a sha in the body are not tested on the GitVerse fallback (reviewer mutants RV01, RV10, RV02 survive)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: review F2 (test gap). The fallback must accept only a 200 whose sha is a full commit id; no case feeds a 422, a redirect (302) or a 201/204 with a sha in the body, so mutants RV01 (accept 422), RV10 (trust 3xx) and RV02 (accept any 2xx) survive. The reviewer's extended test kills RV01 and RV10; RV02 still survives it. Scope: tests/forge/test_forge_gitverse.sh. Acceptance: cases for 422, 302, 201 and 204 each ending sha=unknown, RV01, RV10 and RV02 killed. Source: independent review of the GitVerse release-verification vehicle (bundle 5fc0cef9, landed on main as merge a6f97681), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/gvrev_dMSU/ev/ outside the repository (SHA256SUMS sha256 e1c27e0a3abad8acffbf82373ae8764bf35f6e0b59d521f48c4675069ee16278; reviewer_mutants.txt, reviewer_mutants_vs_extended_test.txt), gate-logic class (section 11.4.289). Parent: CON-479.
+
+## CON-482 — CON-479 tests: a nested sha (.commit.sha, .parents[0].sha) and a curl failure on the commits call are not tested (reviewer mutants RV04, RV05 survive; fail-closed but wrong error class)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F3 (test gap). No case gives a commits answer whose only sha is nested (.commit.sha or .parents[0].sha) or makes the commits curl call fail; mutants RV04 (nested sha accepted) and RV05 (curl failure swallowed) survive. The behaviour stays fail-closed, but the reported error class is wrong. Scope: tests/forge/test_forge_gitverse.sh. Acceptance: both cases added with the expected error class asserted, RV04 and RV05 killed. Source: independent review of the GitVerse release-verification vehicle (bundle 5fc0cef9, landed on main as merge a6f97681), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/gvrev_dMSU/ev/ outside the repository (SHA256SUMS sha256 e1c27e0a3abad8acffbf82373ae8764bf35f6e0b59d521f48c4675069ee16278; reviewer_mutants.txt, reviewer_mutants_vs_extended_test.txt), gate-logic class (section 11.4.289). Parent: CON-479.
+
+## CON-483 — GitVerse commits/{X} also resolves branch names: a 40-hex branch named like the tag-object sha would answer the fallback (pathological, CON-479 review N1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review nit N1. GET /repos/{o}/{r}/commits/{X} resolves a branch name as well as a sha, so a branch whose name is the 40-hex tag-object sha could be read in its place. Pathological; record the limit in the provider header or guard against it. Scope: scripts/forge/providers/gitverse.sh header, multiforge guide. Acceptance: the limit documented, or a test showing it cannot occur. Source: independent review of the GitVerse release-verification vehicle (bundle 5fc0cef9, landed on main as merge a6f97681), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/gvrev_dMSU/ev/ outside the repository (SHA256SUMS sha256 e1c27e0a3abad8acffbf82373ae8764bf35f6e0b59d521f48c4675069ee16278; reviewer_mutants.txt, reviewer_mutants_vs_extended_test.txt), gate-logic class (section 11.4.289). Parent: CON-479.
+
+## CON-484 — Probe whether GitFlic .commitId is the peeled commit for an annotated tag (UNCONFIRMED; CON-479 review)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: review follow-up. The GitFlic provider reads a tag's commit from .commitId; whether that is the peeled commit of an annotated tag or the tag object is UNCONFIRMED. If it is the tag object, the GitFlic leg has the same class as CON-479. Related: CON-412, CON-414. Scope: a read-only live probe of an annotated tag on gitflic.ru compared with git ls-remote, then scripts/forge/providers/gitflic.sh if needed. Reproduction: UNREPRODUCED. Acceptance: probe output recorded as evidence; a fix with RED/GREEN if the value is the tag object. Source: independent review of the GitVerse release-verification vehicle (bundle 5fc0cef9, landed on main as merge a6f97681), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/gvrev_dMSU/ev/ outside the repository (SHA256SUMS sha256 e1c27e0a3abad8acffbf82373ae8764bf35f6e0b59d521f48c4675069ee16278; reviewer_mutants.txt, reviewer_mutants_vs_extended_test.txt), gate-logic class (section 11.4.289). Parent: CON-479.
+
+## CON-485 — GitVerse release write path (POST /releases) is LIVE-UNPROVEN and the release list answers 404: prove it or SKIP it honestly at the real cut
+
+**Status:** Queued
+**Type:** Task
+**Severity:** High
+**Created-By:** AI
+
+What: review follow-up and CON-479 boundary. CON-479 fixed the read path only (tag-get and release-ensure dry-run now OK live). The write path POST /repos/{o}/{r}/releases has never run live, and GET .../releases answers 404 REPO_NOT_FOUND for a repository that answers 200 (multiforge guide). The operator's block on the GitVerse cut is cleared at source level only. Related: CON-479, CON-412, CON-414. Scope: the real v73.4 cut on GitVerse: a live create with read-back, or an honest SKIP-with-reason in the release record. Reproduction: not applicable. Acceptance: a live release created and read back on gitverse.ru with captured evidence, or an explicit SKIP-with-reason recorded at the cut; never a claimed success without read-back. Source: independent review of the GitVerse release-verification vehicle (bundle 5fc0cef9, landed on main as merge a6f97681), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/gvrev_dMSU/ev/ outside the repository (SHA256SUMS sha256 e1c27e0a3abad8acffbf82373ae8764bf35f6e0b59d521f48c4675069ee16278; reviewer_mutants.txt, reviewer_mutants_vs_extended_test.txt), gate-logic class (section 11.4.289). Parent: CON-479.
+
