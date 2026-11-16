@@ -5659,6 +5659,8 @@ What: review finding 9 (minor, source-defect in the gate default). After round 3
 
 What: review findings 10 to 12 (process-doc). (10, minor) config/delivery.conf names pr_repository HelixDevelopment/constitution but own_repositories HelixDevelopment/HelixConstitution; reconcile (the old name redirects: a push to the HelixConstitution remote prints 'This repository moved', observed 2026-11-16). (11, nit) docs/guides/pr_delivery_landing_guide.md: the conf() awk helper truncates values containing '='; the step-8 is-ancestor check only echoes and does not fail. (12, nit) commit 8d86c8ef's message describes the pipefail test fix that is in 70860528; merge commit 9c79dbe5 uses CON-PENDING-prdeliv-* placeholders while later commits use the CON-PENDINGprgate form; correct in the landing record (history is not rewritten, section 11.4.113). Lander observation, same class: rounds 1-2 of the vehicle used CON-423 / CON-424 as its own ids, which are main's history_secret_scan items; citations remain in docs/qa/pr_delivery_decision_20261116/ (check_leak.sh, r2/*), CHANGELOG.md line 5 and the mutation test line 258 ('CON-423 decision'); the round-3 items are CON-496, CON-497, CON-498. Scope: config/delivery.conf, the guide, a landing-record note. Acceptance: names reconciled, guide helper and check fixed, a record note mapping the old ids and placeholders to CON-496..498. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
 
+Link (section 11.4.214, open original, link only; 2026-11-16, live inventory finding (a)): GitHub reports repository id 1238419173 as full_name HelixDevelopment/constitution (gh.out), and forge_get.out prints 'NOTE: repo_moved canonical=HelixDevelopment/constitution' three times, while config/delivery.conf own_repositories still names .:HelixDevelopment/HelixConstitution (its header names both). Same defect as review finding 10. Source: live host inventory 2026-11-16, evidence /mnt/DATA1TB/claude-work/scratch/live.MLQNpS/ev (SHA256SUMS sha256 c85e7e6f526f23efbb3b123ab9f53ea6d3b94b64fcdbb4e2d8b1fc0edc24458a), relayed by the coordinator; facts below re-read by the lander from that evidence.
+
 ## CON-504 — Replace the account-name test fixtures (@-fixtures in attribution_test.go and testdata) with a dedicated fixture account (PR-delivery r3 review F4)
 
 **Status:** Queued
@@ -5676,4 +5678,40 @@ What: review F4 (process-doc). The declared reviewer account name appears in 9 t
 **Created-By:** AI
 
 What: review F4 (process-doc). docs/research/quality/CROSS_PROJECT_HELIX_CODE.md contains an email-like string built on the declared account name. Review whether it is a personal address that should not be in a tracked research document (section 11.4.10 / privacy), and decide keep, redact or replace. The lander did not edit the document. Scope: that file. Acceptance: a recorded decision, and the change (if any) reviewed. Source: independent review round 3 of the pull-request delivery vehicle (reviewer Opus 5.5, verdict GO-with-follow-ups, all minor-class), findings relayed by the coordinator from the reviewer's hand-back text; review evidence /mnt/DATA1TB/claude-work/scratch/rev_prdeliv_r3.l5FP/ev (SHA256SUMS sha256 17ccc6f7673fdfe72d37df794035cdca3b3c4a844cd41eeafe2b95ad7e798965). Vehicle head 8d86c8ef landed on main as merge 83d3808a.
+
+## CON-506 — config/delivery.conf line 131 says no rulesets were found, while HelixDevelopment/constitution has an active ruleset protect-main-no-force-no-delete (deletion, non_fast_forward; no review or pull-request rule) (live inventory finding b)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: live inventory finding (b), process-doc. config/delivery.conf line 131 says the docs/qa/pr_delivery_decision_20261116/sub_*.txt reads 'found no rulesets'. That statement covers the submodule repositories, but the file also declares the root repository, and the live read-back (gh2.out) shows an active ruleset on HelixDevelopment/constitution: id 27164960, name protect-main-no-force-no-delete, enforcement active, rules deletion and non_fast_forward, no required-review or pull-request rule. The wording is ambiguous or stale for the root. Scope: config/delivery.conf comments (and the landing guide if it repeats the claim). Acceptance: the comment states per repository what was measured, citing the read-back. Related: CON-496, CON-503. Source: live host inventory 2026-11-16, evidence /mnt/DATA1TB/claude-work/scratch/live.MLQNpS/ev (SHA256SUMS sha256 c85e7e6f526f23efbb3b123ab9f53ea6d3b94b64fcdbb4e2d8b1fc0edc24458a), relayed by the coordinator; facts below re-read by the lander from that evidence.
+
+## CON-507 — Jev bootstrap reports endpoints reachable=true from the toolkit cache while claude_toolkit and llmctl are unavailable; reachable=true is not live proof (live inventory finding c)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: live inventory finding (c). jev_bootstrap.out step 3 lists both endpoints as source=toolkit-cache reachable=true, although step 2 recorded llmctl and claude_toolkit as unavailable (no checkout, cloning needs consent) and step 4 skipped wiring. The archived jev-detection.json records reachable_basis=probe with probed_at equal to generated_at. The coordinator reports that the cache records carry null probe, key_variable and status_class fields; in the archived jev-detection.json those fields are populated, so that detail is UNCONFIRMED by the lander. Only jev-probe.sh gave a live answer (per the coordinator). Scope: the bootstrap detect-models step and its record (section 11.4.279, section 11.4.289(D)). Acceptance: a cache-sourced endpoint is labelled as cached (not reachable) unless a probe in this run answered, with a RED case. Source: live host inventory 2026-11-16, evidence /mnt/DATA1TB/claude-work/scratch/live.MLQNpS/ev (SHA256SUMS sha256 c85e7e6f526f23efbb3b123ab9f53ea6d3b94b64fcdbb4e2d8b1fc0edc24458a), relayed by the coordinator; facts below re-read by the lander from that evidence.
+
+## CON-508 — Section 11.4.291 note says llmctl capacity schema 1 does not carry RLIMIT_NPROC headroom, but live llmctl.capacity/1 output carries host.nproc.headroom (live inventory finding d)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: live inventory finding (d), process-doc. Constitution.md section 11.4.291 (line about 12714) states 'Schema 1 does not carry the RLIMIT_NPROC headroom ... the consumer measures the RLIMIT_NPROC headroom itself'. The live output llmctl_capacity.json has schema llmctl.capacity/1 and host.nproc = {headroom 121072, rlimit_soft 123694, rlimit_hard 123694, user_threads 2622, source 'getrlimit(RLIMIT_NPROC) + /proc/<pid>/status Threads of uid 1000'}. The note is stale for the current llmctl. No existing tracker item for the planned Jev landing amendment was found (dedupe 2026-11-16), so this is filed for that amendment to absorb. Scope: section 11.4.291 contract table and its mirrors. Acceptance: the note corrected (and the consumer's own measurement requirement re-stated against the field), propagation gate PASS. Source: live host inventory 2026-11-16, evidence /mnt/DATA1TB/claude-work/scratch/live.MLQNpS/ev (SHA256SUMS sha256 c85e7e6f526f23efbb3b123ab9f53ea6d3b94b64fcdbb4e2d8b1fc0edc24458a), relayed by the coordinator; facts below re-read by the lander from that evidence.
+
+## CON-509 — Owner action: vasic-digital/HelixConstitution is private and its branch protection and rulesets cannot be read or set (HTTP 403, needs GitHub Pro or a public repository) (live inventory finding e)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: live inventory finding (e), owner-only action. gh.out and gh2.out show the GitHub API answering 403 'Upgrade to GitHub Pro or make this repository public to enable this feature' for branch protection and rulesets of vasic-digital/HelixConstitution (private, admin permission present). Agents cannot change plan or visibility; until the owner decides (upgrade, make public, or accept no protection on this mirror) the protection read-back for this mirror is a SKIP-with-reason, never a PASS. Related: CON-401 (forge branch protection scripts). Acceptance: an owner decision recorded (section 11.4.66) and the read-back result per decision. Source: live host inventory 2026-11-16, evidence /mnt/DATA1TB/claude-work/scratch/live.MLQNpS/ev (SHA256SUMS sha256 c85e7e6f526f23efbb3b123ab9f53ea6d3b94b64fcdbb4e2d8b1fc0edc24458a), relayed by the coordinator; facts below re-read by the lander from that evidence.
 
