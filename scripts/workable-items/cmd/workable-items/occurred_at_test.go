@@ -29,7 +29,7 @@ import (
 // source.
 func TestOccurredAt_Golden_BackfillFromClosingCommit(t *testing.T) {
 	dbPath := newTestDB(t)
-	const id = "T035-GOLDEN-1"
+	const id = "TOA-GOLDEN1"
 	seedOpenItem(t, dbPath, id)
 
 	db, err := openDB(dbPath)
@@ -71,7 +71,7 @@ func TestOccurredAt_Golden_BackfillFromClosingCommit(t *testing.T) {
 // use it as an occurred_at_source MUST be refused, never silently accepted.
 func TestOccurredAt_GoldenBad_BackfillFromCreatedAtRefused(t *testing.T) {
 	dbPath := newTestDB(t)
-	const id = "T035-GOLDENBAD-1"
+	const id = "TOA-GOLDENBAD1"
 	seedOpenItem(t, dbPath, id)
 
 	db, err := openDB(dbPath)
@@ -128,7 +128,7 @@ func TestOccurredAt_GoldenBad_BackfillFromCreatedAtRefused(t *testing.T) {
 // "UNKNOWN" — never a guessed/assumed timestamp (§11.4.6).
 func TestOccurredAt_NegativeControl_NoProvableTimeStaysUnknown(t *testing.T) {
 	dbPath := newTestDB(t)
-	const id = "T035-NEGCTRL-1"
+	const id = "TOA-NEGCTRL1"
 	// seedOpenItem's own internal addCmd call goes through the ORDINARY
 	// recordHistory path (crud.go), with no occurred_at supplied — the exact
 	// real-world case this negative control targets.

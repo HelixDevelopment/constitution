@@ -1,7 +1,7 @@
 # workable-items — §11.4.93 SQLite-SSoT Go binary
 
-**Revision:** 6
-**Last modified:** 2026-11-13T00:00:00Z
+**Revision:** 7
+**Last modified:** 2026-11-16T00:00:00Z
 **Description:** Authoritative source-of-truth registry for every workable item in every consuming project. Bidirectional regen between SQLite DB and Markdown trackers per Constitution §11.4.93.
 
 ## Overview
@@ -123,6 +123,39 @@ so a subsequent `sync db-to-md` regenerates a well-formed, re-parseable tracker
 (add is a stable fixed point; close round-trips and re-validates; update/reopen/
 block regenerate `body_md` with the new status + any §11.4.34/§11.4.21 detail
 line embedded in the heading-adjacent meta block).
+
+## Id grammar (CON-456)
+
+One grammar, defined once in `cmd/workable-items/idgrammar.go`, is read by the
+renderer, the parser, `add` (and `intake-match`, which mints through `add`),
+`validate` and `sync md-to-db`. An id is written in one of the two heading
+forms the parser reads:
+
+| Shape | Pattern | Heading | Examples |
+|---|---|---|---|
+| canonical | `[A-Z]{3}-[0-9A-Za-z]+` | `## <id> — <title>` | `CON-123`, `CON-14b`, `CON-PENDINGengine` |
+| legacy code | `[A-Z][A-Za-z0-9]*` with at most one `-[A-Za-z0-9]+` part | `## <id>. <title>` | `G01`, `GS-2`, `BJ-SOURCE`, `AB-001`, `CATS-001` |
+
+- `add` refuses (exit 1, nothing written) any id, explicit or allocated from
+  `--prefix`, that does not round-trip through the renderer and the parser of
+  both trackers; the message names the id, the heading it would get and the
+  grammar. Refused shapes include a second hyphen (`CON-PENDING-x2`,
+  `CON-033-001`), a lowercase key (`con-001`), digits only, an empty suffix,
+  whitespace, dots, `#`, brackets, `§`, an em dash and non-ASCII characters.
+  A placeholder id has one hyphen: `CON-PENDINGengine`, never `CON-PENDING-x`.
+- `validate` reports a section item whose stored body the parser does not read
+  back as its id (the `#N` dedup counter is ignored).
+- `sync md-to-db` refuses, writing nothing, when a DB item would be dropped
+  although its heading is still in the Markdown (the parser cannot read it). A
+  heading removed from the Markdown is a real deletion and is applied.
+- The grammar was not widened. A four-letter key (`CATS-001`) is now written
+  in the legacy dot form the parser already read (before, the renderer wrote
+  the em-dash form, which the canonical heading reads only for three letters,
+  and the item was dropped).
+- Known, tracked defect: a sub-task child of a canonical parent
+  (`ATM-025-001`, `subtaskAddCmd`, not reachable from the command line) does
+  not round-trip; `validate` reports it. A child of a legacy parent (`BG-001`)
+  does round-trip.
 
 ## created_at (CON-339)
 

@@ -51,6 +51,14 @@ func syncMDToDB(args []string) int {
 			return exitUsage
 		}
 		items, segs := parseIssues(string(content))
+		if lost, err := droppedButPresentItems(db, "Issues", items, segs); err != nil {
+			fmt.Fprintf(os.Stderr, "sync md-to-db: check issues: %v\n", err)
+			return exitUsage
+		} else if len(lost) > 0 {
+			fmt.Fprintf(os.Stderr, "sync md-to-db: refusing — %d DB item(s) whose heading is still in %s would be dropped because the parser cannot read the heading (nothing written): %s; %s\n",
+				len(lost), *issuesPath, strings.Join(lost, ", "), idGrammarHelp)
+			return exitUsage
+		}
 		if err := replaceDocumentWithSnapshot(db, "Issues", items, segs, snap); err != nil {
 			fmt.Fprintf(os.Stderr, "sync md-to-db: persist issues: %v\n", err)
 			return exitUsage
@@ -69,6 +77,14 @@ func syncMDToDB(args []string) int {
 			return exitUsage
 		}
 		items, segs := parseFixed(string(content))
+		if lost, err := droppedButPresentItems(db, "Fixed", items, segs); err != nil {
+			fmt.Fprintf(os.Stderr, "sync md-to-db: check fixed: %v\n", err)
+			return exitUsage
+		} else if len(lost) > 0 {
+			fmt.Fprintf(os.Stderr, "sync md-to-db: refusing — %d DB item(s) whose heading is still in %s would be dropped because the parser cannot read the heading (nothing written): %s; %s\n",
+				len(lost), *fixedPath, strings.Join(lost, ", "), idGrammarHelp)
+			return exitUsage
+		}
 		if err := replaceDocumentWithSnapshot(db, "Fixed", items, segs, snap); err != nil {
 			fmt.Fprintf(os.Stderr, "sync md-to-db: persist fixed: %v\n", err)
 			return exitUsage
@@ -200,6 +216,13 @@ func validateCmd(args []string) int {
 				it.CurrentLocation, it.repOrDefault(), it.AtmID))
 		}
 		seen[key] = true
+
+		// One id grammar (idgrammar.go): a section item whose own stored body
+		// the parser does not read back as its id is lost by the next
+		// sync md-to-db.
+		if err := checkStoredBodyRoundTrips(it); err != nil {
+			violations = append(violations, err.Error())
+		}
 
 		// §11.4.15/21/90 — status closed-set.
 		if !statusSet[it.Status] {

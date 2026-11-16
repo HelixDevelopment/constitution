@@ -15,15 +15,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 )
 
-// canonicalIDRe matches the canonical HelixCode ticket ID shape: 3+ uppercase
-// letters, a dash, then alphanumeric (e.g. ATM-001, HXC-044, WIT-042).
-// Non-canonical IDs (G01, R01) use dot separator for parser compatibility.
-var canonicalIDRe = regexp.MustCompile(`^[A-Z]{3,}-[0-9A-Za-z]+$`)
+// canonicalIDRe (the canonical id shape) is defined in idgrammar.go, the one
+// id grammar shared by the renderer, the parser, add and validate.
 
 // partitionArgs separates positional (non-flag) tokens from flag tokens so the
 // Go flag package — which stops at the first positional — can still parse flags
@@ -148,6 +145,13 @@ func addCmd(args []string) int {
 			fmt.Fprintf(os.Stderr, "add: item %s already exists in Issues\n", id)
 			return exitUsage
 		}
+	}
+	// One id grammar (idgrammar.go): refuse, before any write, an id the
+	// renderer and the parser cannot carry through db-to-md → md-to-db. This
+	// covers an explicit --id and an id allocated from --prefix alike.
+	if err := checkIDRoundTrips(id); err != nil {
+		fmt.Fprintf(os.Stderr, "add: refusing — %v\n", err)
+		return exitUsage
 	}
 
 	cb := strings.TrimSpace(*createdBy)

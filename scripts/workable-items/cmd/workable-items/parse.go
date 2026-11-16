@@ -18,7 +18,7 @@ import (
 // distinguishes item headings from structural headings like
 // `## Prefix convention`. This is the ORIGINAL, backward-compatible form and
 // is recognised unconditionally (no Status-block requirement).
-var issueHeadingRe = regexp.MustCompile(`^## ([A-Z]{3}-[0-9A-Za-z]+)(?: \([^)]*\))? — (.+)$`)
+var issueHeadingRe = regexp.MustCompile(`^## (` + canonicalIDPattern + `)(?: \([^)]*\))? — (.+)$`)
 
 // atmBracketIDRe matches a project-neutral `[PREFIX-NNN]` ticket id appearing
 // anywhere in a heading line, e.g. `## §GL CRITICAL — [ATM-238] title …` or
@@ -29,7 +29,7 @@ var issueHeadingRe = regexp.MustCompile(`^## ([A-Z]{3}-[0-9A-Za-z]+)(?: \([^)]*\
 // Shape-1/Shape-3 heading whose real id is bracketed silently falls through to
 // the section-letter code or a content-hash pseudo-id, producing phantom sync
 // divergences.
-var atmBracketIDRe = regexp.MustCompile(`\[([A-Z]{2,}-\d+)\]`)
+var atmBracketIDRe = regexp.MustCompile(`\[(` + bracketIDPattern + `)\]`)
 
 // atmCandidateHeadingRe recognises a consuming project's real tracker heading
 // SHAPES that MAY be workable items (subject to the Status-block test below).
@@ -56,8 +56,8 @@ var atmBracketIDRe = regexp.MustCompile(`\[([A-Z]{2,}-\d+)\]`)
 // Backward-compat note: the canonical `## ABC-123 — …` form is handled by
 // issueHeadingRe FIRST and never reaches this path.
 var (
-	atmShape1HeadingRe = regexp.MustCompile(`^## [A-Z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)?\. \S`)
-	atmShape2HeadingRe = regexp.MustCompile(`^## \[[A-Z]{2,}-\d+\] \S`)
+	atmShape1HeadingRe = regexp.MustCompile(`^## ` + legacyCodePattern + `\. \S`)
+	atmShape2HeadingRe = regexp.MustCompile(`^## \[` + bracketIDPattern + `\] \S`)
 	atmShape3HeadingRe = regexp.MustCompile(`^## §\S`)
 )
 
@@ -250,8 +250,8 @@ func parseIssues(content string) ([]item, []segment) {
 // project-decoupling — see atmBracketIDRe / atmShape2HeadingRe); atmShape3CodeRe
 // captures the §-code token.
 var (
-	atmShape1CodeRe = regexp.MustCompile(`^([A-Z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)?)\. (.*)$`)
-	atmShape2CodeRe = regexp.MustCompile(`^\[([A-Z]{2,}-\d+)\] (.*)$`)
+	atmShape1CodeRe = regexp.MustCompile(`^(` + legacyCodePattern + `)\. (.*)$`)
+	atmShape2CodeRe = regexp.MustCompile(`^\[(` + bracketIDPattern + `)\] (.*)$`)
 	atmShape3CodeRe = regexp.MustCompile(`^§(\S+)\s*(.*)$`)
 )
 
@@ -758,7 +758,7 @@ func isOBDWordChar(b byte) bool {
 var fixedRowRe = regexp.MustCompile(`^\| *([0-9]{4}-[0-9]{2}-[0-9]{2}) *\| *(.*?) *\| *([^|]*?) *\| *([^|]*?) *\| *([^|]*?) *\| *(.*?) *\| *(.*?) *\|\s*$`)
 
 // fixedTitleIDRe pulls the leading ticket id out of a Fixed.md title cell.
-var fixedTitleIDRe = regexp.MustCompile(`^([A-Z]{3}-[0-9A-Za-z]+)(?: \([^)]*\))?`)
+var fixedTitleIDRe = regexp.MustCompile(`^(` + canonicalIDPattern + `)(?: \([^)]*\))?`)
 
 // parseFixed decomposes Fixed.md into items + segments. The REAL Fixed.md uses
 // the SAME H2-heading + `**Status:**` metadata-block shape as Issues.md (the

@@ -1,0 +1,19 @@
+# runss.sh <tree> <out>: tests/lib/make_fixture_tracker.sh fixture, then the suites through <out>/p/constitution
+## ss_base_3e5e (base tree origin/main 3e5e7e7d)
+select_sample ok=65 notok=1
+NOT ok S13 runs: ok verdict: control: 'reopened window keyed on created_at' changes no live pair -- the real-data pass is inert for it | control: 'retroactive before bulk (precedence)' changes no live pair -- the real-data pass is inert for it
+test_shipped_workable_items_us3_red pass=6 fail=0 verdict-set-sha256=82bd026723f4961d
+test_2nd_display_triage_red pass=10 fail=20 verdict-set-sha256=49dfb3b0c822f5de
+select_sample normalised verdict-set-sha256=b7778bc31f1bdec9
+## ss_fix_3e5e (fixed tree)
+select_sample ok=65 notok=1
+NOT ok S13 runs: ok verdict: control: 'reopened window keyed on created_at' changes no live pair -- the real-data pass is inert for it | control: 'retroactive before bulk (precedence)' changes no live pair -- the real-data pass is inert for it
+test_shipped_workable_items_us3_red pass=6 fail=0 verdict-set-sha256=82bd026723f4961d
+test_2nd_display_triage_red pass=10 fail=20 verdict-set-sha256=49dfb3b0c822f5de
+select_sample normalised verdict-set-sha256=b7778bc31f1bdec9
+## ss_fix2_3e5e (fixed tree)
+select_sample ok=65 notok=1
+NOT ok S13 runs: ok verdict: control: 'reopened window keyed on created_at' changes no live pair -- the real-data pass is inert for it | control: 'retroactive before bulk (precedence)' changes no live pair -- the real-data pass is inert for it
+test_shipped_workable_items_us3_red pass=6 fail=0 verdict-set-sha256=82bd026723f4961d
+test_2nd_display_triage_red pass=10 fail=20 verdict-set-sha256=49dfb3b0c822f5de
+select_sample normalised verdict-set-sha256=b7778bc31f1bdec9
