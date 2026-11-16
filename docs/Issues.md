@@ -4926,3 +4926,47 @@ Source: the v73.4 PROVISIONAL cut rehearsal of 2026-11-16 (REHEARSAL_REPORT.md s
 - D10: --remotes accepted two remotes that push to one repository (the live checkout's origin pushes to gitflic; the scratch clone's origin is the same GitHub repository as github), and a repeated remote name.
 Acceptance (test-first, section 11.4.224): RED tests on the unfixed tools, then GREEN; paired mutants killed; a checker refuses every Ready-for-testing or In-testing item without a complete verification line, run on the real database; the six items carry complete lines written through the engine. Follow-ups of the same rehearsal: D1 (CON-379), D6 (CON-381, CON-382), D7, D8 and D11 (filed separately).
 
+## CON-424 — 24 of 25 PROVISIONAL items carry a verification due date already past at the v73.4 cut rehearsal (2026-11-16); the re-run-first queue of section 11.4.290(3) is not drained
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (rehearsal fixer subagent)
+
+Source: v73.4 PROVISIONAL cut rehearsal of 2026-11-16 (REHEARSAL_REPORT.md sha256 74ecd83f35174902d7732b966d0393dfad21c46beb72eabd486d1b54f4a0b3d5), finding D7, filed by the CON-423 fixer. derive_release_facts.sh counted 25 items with a verification due date; 24 of them were already past on 2026-11-16 (the one not past was CON-226, due 2026-11-18). Section 11.4.290(3): an overdue item stays PROVISIONAL-DONE labelled verification OVERDUE and is re-run first; nothing promotes or demotes it on time alone. Dedupe (section 11.4.214): no item title or body names overdue verification lines (search of 2026-11-16; control CON-226 found). Note: the six lines CON-423 added (CON-190, CON-191, CON-211, CON-235, CON-236, CON-265) carry the due date 2026-11-23 marked UNCONFIRMED, because no scheduler entry exists for them either.
+
+Acceptance: every Ready-for-testing or In-testing item whose due date is past has either been re-run (its verification job run on the current main, result recorded, the item promoted or reopened under section 11.4.290(2)) or carries a new due date with the reason recorded; the release entry lists the remaining OVERDUE items by id; a re-run of derive_release_facts.sh on the cut base shows the overdue count that the entry states.
+
+## CON-425 — Refs with commits not on main differ between mirrors at the v73.4 cut rehearsal: 23 on seven mirrors, 4 on m3w, one codeberg-only ref; FINAL precondition 4 needs them landed or retired
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (rehearsal fixer subagent)
+
+Source: v73.4 PROVISIONAL cut rehearsal of 2026-11-16 (REHEARSAL_REPORT.md sha256 74ecd83f35174902d7732b966d0393dfad21c46beb72eabd486d1b54f4a0b3d5), finding D8, filed by the CON-423 fixer. After git fetch --prune of every remote, derive_release_facts.sh counted the refs with commits not on main per remote (section 11.4.288): origin, gitflic, github, github_vasic_digital, gitlab_helixdevelopment1, gitlab_vasic_digital and gitverse each hold the same 23 unmerged wip/review refs; m3w holds 4 of them; codeberg holds only gitenv-r4:15, which no other mirror has. The mirrors therefore disagree, and the codeberg-only ref exists nowhere else. Dedupe (section 11.4.214): no item names unmerged refs per mirror (search of 2026-11-16).
+
+Acceptance: for every listed ref, either its commits are on main on every upstream and the ref is deleted on every mirror, or it is kept with a recorded reason (section 11.4.288(B)); the codeberg-only ref is inspected before anything is deleted (section 9.2, section 11.4.122: no ref with unique commits is deleted without a decision); a fresh fetch shows the same unmerged-ref list on every mirror; the FINAL precondition 4 of the release template is met or stated as open in the entry.
+
+## CON-426 — Owner action: the gitea release spec for m3w (git.m3w.org) needs its HTTPS base URL, which is UNKNOWN; without it the real v73.4 run pushes to m3w but creates no release there
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (rehearsal fixer subagent)
+
+Source: v73.4 PROVISIONAL cut rehearsal of 2026-11-16 (REHEARSAL_REPORT.md sha256 74ecd83f35174902d7732b966d0393dfad21c46beb72eabd486d1b54f4a0b3d5), finding D11, filed by the CON-423 fixer. The rehearsal had no gitea:m3w:BASE_URL:OWNER/REPO spec because the HTTPS base URL of the gitea instance is not known: m3w is reached over ssh on port 2222, and that does not tell which HTTPS host and port serve the gitea API. tag_and_release.sh pushes main and the tag to every listed remote, but a platform release is made only for a listed spec, so m3w would get the push and no release. UNKNOWN: the base URL, the owner/repository path on that instance, and whether the token held for it has release scope. Dedupe (section 11.4.214): CON-412 (multi-forge release tool, In progress) covers the tool for git.m3w.org but not this missing release spec; linked as related, not merged.
+
+Acceptance: the owner records the HTTPS base URL and owner/repository of the m3w gitea instance; a dry run of tag_and_release.sh with that gitea spec prints its PROBE line (token shape only, never the value); the cut step 8 command in docs/release/README.md names the spec, or the entry states that m3w gets no release with the reason.
+
+## CON-427 — workable-items engine: update --description rebuilds body_md from the description, so a body line cannot be added without replacing a short one-line description with the whole free text
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (rehearsal fixer subagent)
+
+Source: found by the CON-423 fixer on 2026-11-16 while adding section 11.4.290 verification lines. The engine renders body_md as the header lines followed by the description column. In 216 of 388 items the description equals the title (measured 2026-11-16), and in items such as CON-190 the long free text lives only in the body. To add a line to such a body through the engine, the whole free text has to be passed as the new description, so the description column (rendered by Issues_Summary.md as the item's one-line text) becomes the whole free text: measured for CON-190, CON-191, CON-211, CON-235 and CON-236 (each row stays correct, the summary table gets long rows). The other engine path, sync md-to-db, keeps the description but rewrote last_modified on all 388 items on a test copy, so it was not used. Dedupe (section 11.4.214): no item names this coupling (search of 2026-11-16). No hand edit of the database was made.
+
+Acceptance: the engine gains a way to change the free text of a body without changing the description (for example a body-append or body-text field), with a RED test showing the coupling first and a test that the change touches only that item; or the owner decides that the description column is the free text by design and Issues_Summary.md renders the title instead; the five rows named above are then made consistent through the engine.
+
