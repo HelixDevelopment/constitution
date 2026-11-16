@@ -129,9 +129,14 @@ else
 fi
 
 echo "======================================================================"
+# The last line is a summary the full-suite runner's verdict parser reads (judge_exit0 looks at the last 12 lines; the
+# "correctly FAILED" lines above carry a fail word, and without a parseable summary a passing run is judged ERROR
+# unparsed_fail_signal). 6 sub-cases T1-T6.
 if [ "$fail_count" -gt 0 ]; then
     echo "MUTATION-TEST: ${fail_count} sub-case(s) FAILED"
+    echo "MUTATION-TEST-SUMMARY: pass=$((6 - fail_count)) fail=${fail_count}"
     exit 1
 fi
 echo "MUTATION-TEST: ALL SUB-CASES PASSED — CM-README-BADGE-ROW-AT-TOP is genuinely load-bearing"
+echo "MUTATION-TEST-SUMMARY: pass=6 fail=0"
 exit 0
