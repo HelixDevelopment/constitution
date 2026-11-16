@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Paired mutants for the 2026-11-16 drift-seam / T4 / F10 fixes (gate-logic evidence, §11.4.289(C)(2)).
+
+Usage: [MUT_ONLY=id,id] python3 -I run_mut.py <repo root> <out dir>
+Each mutant is a (file, old, new) text replacement applied to a COPY of the repository file;
+the matching suite runs against the copy and the mutant is KILLED when the suite exits non-zero.
+Writes <out dir>/mutants.tsv (id, file, rc, verdict) and one log per mutant. Exit 0 iff every
+mutant is killed, 1 otherwise, 2 when a mutant's old text is absent (the runner is stale).
+"""
+import os, shutil, subprocess, sys, tempfile
+
+root, out = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2])
+os.makedirs(out, exist_ok=True)
+LV = "scripts/release/land_vehicle.sh"
+TW = "scripts/codegraph/tests/test_tripwire.sh"
+SC = "scripts/gates/scanner_gate_false_positive_repairs_test.sh"
+M = [
+    ("LV1-no-call", LV, '  drift_checks "$main_before" "$local_main" \\\n    || die 1', '  true \\\n    || die 1'),
+    ("LV2-req-head-only", LV, 'if g cat-file -e "$base:$path" 2>/dev/null || g cat-file', 'if false || g cat-file'),
+    ("LV3-req-base-only", LV, '|| g cat-file -e "$head:$path" 2>/dev/null; then req=yes', '|| false; then req=yes'),
+    ("LV4-rc-ignored", LV, 'if [ "$rc" -eq 0 ]; then res=PASS; else res=FAIL; bad=1; fi', 'res=PASS'),
+    ("LV5-no-dirty-recheck", LV, '|| { log "drift checks changed the clone working tree"; bad=1; }', '|| true'),
+    ("LV6-no-root-arg", LV, 'bash "$CLONE/$path" --root "$CLONE" "${argv[@]}"', 'bash "$CLONE/$path" "${argv[@]}"'),
+    ("LV7-no-check-arg", LV, '"badges|scripts/badges/compute_badges.sh|--check"', '"badges|scripts/badges/compute_badges.sh|"'),
+    ("LV8-no-printout", LV, '  bash scripts/badges/compute_badges.sh --check   #', '  #'),
+    ("LV9-missing-not-bad", LV, 'FAIL (script $path is in main_before but not in local main)"; bad=1; continue', 'FAIL"; continue'),
+    ("LV10-envgate-dropped", LV, '  "gate-env-allowlist|scripts/gates/cm_gate_env_reads_allowlisted.sh|"\n', ''),
+    ("TW1-fixed-400", TW, '--min-gib "$t4_gib"', '--min-gib 400'),
+    ("TW2-override-not-real-df", TW, '        bash "$TW" --pid "$LIVE" --dir "$t4_dir"', '        CG_SAFE_TEST_FREE_BYTES=1 bash "$TW" --pid "$LIVE" --dir "$t4_dir"'),
+    ("TW4-clamp-allowed", TW, 'if [ "$g" -ge 7 ] && [ "$g" -le 500 ]', 'g=5; if [ "$g" -le 500 ]'),
+    ("TW3-threshold-at-free", TW, 'g=$(( fb / 1073741824 + 2 ))', 'g=$(( fb / 1073741824 - 3 ))'),
+    ("SC1-precondition-forced-populated", SC, 'E2E_TP_POP=0\nfor _tp', 'E2E_TP_POP=1\nfor _tp'),
+]
+SUITE = {
+    LV: lambda p: ["bash", os.path.join(root, "tests/release/test_land_vehicle.sh"), p],
+    TW: lambda p: ["bash", p],
+    SC: lambda p: ["bash", p],
+}
+ENV = dict(os.environ)
+ENV["LANDER_TEST_DRIFT_ONLY"] = "1"
+ENV["ONLY"] = "T4"
+ENV["CM_REPAIR_SKIP_E2E"] = "0"
+ONLY = [x for x in os.environ.get("MUT_ONLY", "").split(",") if x]
+rows, stale, alive = [], 0, 0
+for mid, f, old, new in M:
+    if ONLY and mid not in ONLY:
+        continue
+    src = open(os.path.join(root, f)).read()
+    if src.count(old) != 1:
+        rows.append((mid, f, "-", "STALE(old text count=%d)" % src.count(old))); stale += 1; continue
+    # the copy sits next to the original so relative sourcing (lib_test.sh, ../lib) still resolves
+    d = os.path.dirname(os.path.join(root, f))
+    fd, cp = tempfile.mkstemp(prefix=".mut_" + mid + "_", suffix=".sh", dir=d)
+    os.close(fd)
+    try:
+        with open(cp, "w") as h:
+            h.write(src.replace(old, new))
+        os.chmod(cp, 0o755)
+        log = os.path.join(out, mid + ".log")
+        with open(log, "w") as h:
+            rc = subprocess.run(SUITE[f](cp), stdout=h, stderr=subprocess.STDOUT, env=ENV, cwd=root, stdin=subprocess.DEVNULL).returncode
+    finally:
+        os.unlink(cp)
+    v = "KILLED" if rc != 0 else "SURVIVED"
+    alive += v == "SURVIVED"
+    rows.append((mid, f, str(rc), v))
+with open(os.path.join(out, "mutants.tsv"), "w") as h:
+    h.write("id\tfile\trc\tverdict\n")
+    for r in rows:
+        h.write("\t".join(r) + "\n")
+for r in rows:
+    print("\t".join(r))
+sys.exit(2 if stale else (1 if alive else 0))
