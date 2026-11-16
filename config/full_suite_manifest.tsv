@@ -934,6 +934,7 @@ tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network p
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
 tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
+tests/release/test_pr_landing_check.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
 tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto

@@ -27,7 +27,7 @@
 #        stops at the first FAIL, used by the mutant runner; LANDER_TEST_R5_ONLY=1 runs
 #        the setup and the round-5 cases only, then prints RESULT and exits;
 #        LANDER_TEST_R6_ONLY=1 the setup and the round-6 cases only;
-#        LANDER_TEST_DRIFT_ONLY=1 the setup and the step-6b drift cases D1-D8 only)
+#        LANDER_TEST_DRIFT_ONLY=1 the setup and the step-6b drift cases D1-D13 only)
 # Exit:  0 all cases pass, 1 any case fails. Last line: "RESULT pass=N fail=M".
 set -euo pipefail
 
@@ -345,6 +345,66 @@ if no_remote_moved "$F" "$B" && [ "$(drift_row "$F" badges)" = FAIL ] && [ -s "$
 # D8 prepare names both checks in the derived-file steps it prints
 if grep -q 'compute_badges.sh --check' "$T/d2/p.out" && grep -q 'cm_gate_env_reads_allowlisted.sh' "$T/d2/p.out"; then
   ok "D8 prepare printout names the badge check and the env-allowlist gate"; else bad "D8 prepare printout"; sed 's/^/    | /' "$T/d2/p.out"; fi
+
+# D9 a check that runs past the timeout is killed and refuses publish (CON-444). A PATH shim
+# for timeout records the duration the lander asked for (900) and runs the real timeout with
+# 2 s, so the 30 s stand-in check is really killed (rc 124).
+drift_fixture d9 0 0 'exec sleep 30'; F=$T/d9; B=$(BASE_OF "$F")
+REALTIMEOUT=$(command -v timeout)
+mkdir -p "$F/tshim"
+# shellcheck disable=SC2016 # the shim text is written literally; $1 and $@ expand in the shim
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$1" >> %q\nshift\nexec %q 2 "$@"\n' "$F/timeout.argv" "$REALTIMEOUT" > "$F/tshim/timeout"
+chmod +x "$F/tshim/timeout"
+run "$F/p.out" prepare "$F"
+D9_T0=$SECONDS
+run "$F/out" env PATH="$F/tshim:$T/shim:$PATH" "$LANDER" publish --workdir "$F/work" --remotes-file "$F/remotes.txt" --evidence-dir "$F/ev"
+D9_DT=$((SECONDS - D9_T0))
+refused "D9 a drift check that times out refuses publish" 1 'derived-file drift checks failed; nothing was pushed' "$F/out"
+D9_RC=$(awk -F '\t' '$1=="badges" {print $4}' "$F/ev/drift_checks.tsv" 2>/dev/null || true)
+if no_remote_moved "$F" "$B" && [ "$(drift_row "$F" badges)" = FAIL-timeout ] && [ "$D9_RC" = 124 ] \
+   && [ "$(head -n 1 "$F/timeout.argv" 2>/dev/null)" = 900 ] && [ "$D9_DT" -lt 25 ]; then
+  ok "D9 no remote moved; tsv badges=FAIL-timeout rc=124; timeout asked for 900 s; killed after ${D9_DT}s"
+else bad "D9 remotes/tsv/timeout (row=$(drift_row "$F" badges) rc=$D9_RC argv=[$(head -n 1 "$F/timeout.argv" 2>/dev/null)] dt=${D9_DT}s)"; fi
+
+# D10 a check that exits 2 (BLIND) refuses publish; BLIND is never a pass (CON-444)
+drift_fixture d10 2 0; F=$T/d10; B=$(BASE_OF "$F")
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+refused "D10 a BLIND (exit 2) drift check refuses publish" 1 'derived-file drift checks failed; nothing was pushed' "$F/out"
+D10_RC=$(awk -F '\t' '$1=="badges" {print $4}' "$F/ev/drift_checks.tsv" 2>/dev/null || true)
+if no_remote_moved "$F" "$B" && [ "$(drift_row "$F" badges)" = FAIL ] && [ "$D10_RC" = 2 ] && [ "$(drift_row "$F" gate-env-allowlist)" = PASS ]; then
+  ok "D10 no remote moved; tsv badges=FAIL rc=2"; else bad "D10 remotes or tsv (row=$(drift_row "$F" badges) rc=$D10_RC)"; fi
+
+# D11 local main moved while the checks ran (tree unchanged, working tree clean): refused before
+# any push (CON-444). The stand-in check commits the same tree on top of main and moves main.
+# shellcheck disable=SC2016 # literal stub line; $2 and $c expand inside the stub
+drift_fixture d11 0 0 'cd "$2" && c=$(GIT_AUTHOR_NAME=m GIT_AUTHOR_EMAIL=m@invalid GIT_COMMITTER_NAME=m GIT_COMMITTER_EMAIL=m@invalid git commit-tree "HEAD^{tree}" -p HEAD -m moved) && git update-ref refs/heads/main "$c"'
+F=$T/d11; B=$(BASE_OF "$F")
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+refused "D11 local main moved during the drift checks refuses publish" 1 'derived-file drift checks failed; nothing was pushed' "$F/out"
+if no_remote_moved "$F" "$B" && grep -q 'landing candidate moved while the drift checks ran' "$F/out" \
+   && ! grep -q 'drift checks changed the clone working tree' "$F/out" && [ "$(drift_row "$F" badges)" = PASS ]; then
+  ok "D11 no remote moved; the move is named; the tree stayed clean"; else bad "D11"; sed 's/^/    | /' "$F/out"; fi
+
+# D12 drift_checks.tsv is complete (header and one row per check, exact columns) and every check's
+# output is kept in drift_<check>.log; each check runs inside the clone (CON-444)
+# shellcheck disable=SC2016 # literal stub line
+drift_fixture d12 0 0 'echo D12-LOG-NEEDLE; echo "cwd=$PWD"'; F=$T/d12
+run "$F/p.out" prepare "$F"
+run "$F/out" publish "$F"
+succeeded "D12 passing drift checks publish" "$F/out"
+CL=$F/work/constitution
+D12_WANT=$(printf 'check\tscript\trequired\trc\tresult\nbadges\t%s\tyes\t0\tPASS\ngate-env-allowlist\t%s\tyes\t0\tPASS' "$BADGE_P" "$ENVG_P")
+if [ "$(cat "$F/ev/drift_checks.tsv" 2>/dev/null)" = "$D12_WANT" ] && grep -qx 'D12-LOG-NEEDLE' "$F/ev/drift_badges.log" 2>/dev/null \
+   && grep -qx "cwd=$CL" "$F/ev/drift_badges.log" 2>/dev/null && [ -f "$F/ev/drift_gate-env-allowlist.log" ] && landed_all "$F"; then
+  ok "D12 drift_checks.tsv complete; drift_badges.log holds the check output; the check ran in the clone"
+else bad "D12 tsv or logs"; sed 's/^/    | /' "$F/ev/drift_checks.tsv" "$F/ev/drift_badges.log" 2>/dev/null || true; fi
+
+# D13 a lander copy without its drift-check library refuses at start-up (exit 2), before any work
+mkdir -p "$T/d13nolib"; cp "$LANDER" "$T/d13nolib/land_vehicle.sh"
+run "$T/d13.out" "$T/d13nolib/land_vehicle.sh" verify --workdir "$T/d13nolib/w" --remotes-file "$T/d13nolib/r"
+refused "D13 a missing drift-check library refuses at start-up" 2 'drift-check library not found' "$T/d13.out"
 
 if [ "${LANDER_TEST_DRIFT_ONLY:-0}" = 1 ]; then
   if push_log_clean || [ ! -s "$PUSHLOG" ]; then ok "SH2-D every push of the drift cases is plain"; else bad "SH2-D pushes of the drift cases"; fi
