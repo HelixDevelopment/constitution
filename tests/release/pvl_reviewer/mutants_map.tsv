@@ -1,0 +1,52 @@
+# mutant	covering cases (the mutated mechanism was removed in r5) or OTHER-SUITE <suite>
+X1	pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+X2	pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+X3	pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+R14	pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+N22	pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+X4	the placeholder blacklist was removed: pvl_inventory G01 (placeholders in every field) + pvl_grid placeholder cases
+X5	the placeholder blacklist was removed: pvl_inventory G01 + pvl_grid placeholder cases
+X6	ID_TOKEN removed: the target grammar is closed (pvl_inventory G08, pvl_grid target cases, own O12 O13)
+X7	TEMPLATE blacklist removed: pvl_inventory G01 (<job>, {{job}}, ${JOB}) + pvl_grid
+R1	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+R2	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+R3	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+R4	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+R5	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+R11	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+N02	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+N03	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+N04	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+N05	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+N06	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+N07	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+N08	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+N13	pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+R6	the word rules were removed: pvl_inventory G07 (checks shapes) + pvl_grid checks cases + own O08 O09
+R7	the lead-phrase rule was removed: pvl_inventory G01 (to be determined, will check later) + G07
+R9	the word-pair rule was removed: pvl_inventory G01 + pvl_property
+N09	the word rules were removed: pvl_inventory G01 (not yet, none yet) + G07
+N11	the word-boundary rule was removed: pvl_inventory G01 (placeholder before and after every value)
+R16	the stop-word list was removed: pvl_inventory G01 (lorem ipsum, UNCONFIRMED:)
+N14	TEMPLATE removed: pvl_inventory G01 (<job>) + pvl_grid
+R8	a path always resolves under the root now: pvl_inventory G04 G05 + pvl_grid job cases + own O04 O05
+N10	realpath kept in Context.__init__ and resolve(): own O04 (tests/esc.sh symlink leaves the root) + pvl_inventory G04
+R10	JOB_ID replaced by ID_RE plus a database lookup: pvl_inventory G04 (CON-999, CON-778, CON-779) + own O17 O18
+R12	HEX is a module string now (own O14) + pvl_inventory G09 + pvl_grid artifact cases
+N12	HEX holds no digit look-ahead (a hex id of letters is a hex id): own O14 + pvl_inventory G09
+R13	the year bound was replaced by the created..today+window window: pvl_inventory G10 + own O15 O16
+R20	the prefix rule is in check_line and visible_lines: own O02 O24 + pvl_grid prefix cases + pvl_property
+R22	field order: own O03 + pvl_inventory G12 (every order, omission, repetition)
+N01	SEP is ' (?:--|—) ' now: own O01 + pvl_property (both separators) + pvl_grid
+N17	pvl_inventory judge() rewritten: the clean control and own O19 (alphabet) must show a G02/G03 mismatch
+N18	pvl_inventory invisible-class shortcut removed: every code point is judged; own O19 kills through G02/G03
+N21	pvl_inventory range table removed: the whole code space U+0000..U+10FFFF is enumerated (code_points=1114112 needle)
+N19	pvl_grid reason check rewritten (want-part in the reason): pvl_grid GRID-FAIL on a wrong reason; own mutants O06-O18
+N20	pvl_grid CLI always passes --root (the grammar needs a root): pvl_grid cli_mismatches + api harness
+X8	OTHER-SUITE tests/release/test_render_release_entry.sh
+X9	OTHER-SUITE tests/release/test_render_release_entry.sh
+X10	OTHER-SUITE tests/release/test_derive_release_facts.sh
+X11	OTHER-SUITE tests/release/test_publish_gitea.sh
+X12	OTHER-SUITE tests/release/test_redact_cut.sh
+R17	OTHER-SUITE tests/release/test_release_tooling_mutations.sh
+R18	OTHER-SUITE tests/release/test_release_tooling_mutations.sh

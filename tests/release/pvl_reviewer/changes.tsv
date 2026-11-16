@@ -1,0 +1,34 @@
+# probe	field	value(repr)	reason the grammar refuses this golden-FALSE case (CON-423 r5 class_inventory.md section 5)
+r3	artifact	'main containing 3b958793'	free text is not in the closed grammar: has 'main containing 3b958793', which is not main, main@HEX, commit HEX, merge HEX or tag TAG
+r3	artifact	'sha256 of the image'	free text is not in the closed grammar: has 'sha256 of the image', which is not main, main@HEX, commit HEX, merge HEX or tag TAG
+r3	checks	'NOT ok tool docstring counts zero'	free text is not in the closed grammar: names NOT, which is not a script or selector of the job
+r3	checks	'every suite passes with 0 failed'	free text is not in the closed grammar: names every, which is not a script or selector of the job
+r3	checks	'no pending lock remains'	free text is not in the closed grammar: names no, which is not a script or selector of the job
+r3	checks	'none of the mutants survives'	free text is not in the closed grammar: names none, which is not a script or selector of the job
+r3	checks	'rc 0 and VERDICT: PASS'	free text is not in the closed grammar: names rc, which is not a script or selector of the job
+r3	checks	'unknown-id-only table gives rc 1'	free text is not in the closed grammar: names unknown-id-only, which is not a script or selector of the job
+r3	due	'2026-11-23 (UNCONFIRMED: no scheduler entry exists)'	free text is not in the closed grammar: is not YYYY-MM-DD[THH:MM[:SS][Z|+HH:MM]]: '2026-11-23 (UNCONFIRMED: no scheduler en'
+r3	due	'2026-11-23'	no created date in a field-only call (the window needs the item): cannot be checked: the item has no created date
+r3	due	'2026-11-23T10:00Z'	no created date in a field-only call (the window needs the item): cannot be checked: the item has no created date
+r3	job	'JOB-42 nightly'	free text is not in the closed grammar: does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'JOB-42 nightly'
+r3	job	'go test ./...'	free text is not in the closed grammar: does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'go test ./...'
+r3	job	'on main, run bash tests/release/test_redact_cut.sh'	free text is not in the closed grammar: does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, run bash tests/release/test_redact_cut.sh'
+r3	layer	'host-only (tests)'	free text is not in the closed grammar: has 'host-only (tests)', which is not one of user-visible, runtime, artifact, source, host-only, live-target, gate-logic
+r3	layer	'runtime on the host'	free text is not in the closed grammar: has 'runtime on the host', which is not one of user-visible, runtime, artifact, source, host-only, live-target, gate-logic
+r3	target	'board T1 (Orange Pi) device'	free text is not in the closed grammar: has 'board T1 (Orange Pi) device', which is not a target term (host, repo checkout, scratch clone, remote NAME, board|device|container|vm|runner ID)
+r3	target	'container on the host; consumer layout UNCONFIRMED here'	free text is not in the closed grammar: has 'container on the host; consumer layout U', which is not a target term (host, repo checkout, scratch clone, remote NAME, board|device|container|vm|runner ID)
+r4	artifact	'sha256 0123456789abcdef'	free text is not in the closed grammar: has 'sha256 0123456789abcdef', which is not main, main@HEX, commit HEX, merge HEX or tag TAG
+r4	body	'L5 control: plain GOOD'	free text is not in the closed grammar: field 'checks' names 3, which is not a script or selector of the job
+r4	checks	'3 passed, 0 failed'	free text is not in the closed grammar: names 3, which is not a script or selector of the job
+r4	checks	'TB of disk, 3 passed'	free text is not in the closed grammar: names TB, which is not a script or selector of the job
+r4	checks	'no pending lock remains'	free text is not in the closed grammar: names no, which is not a script or selector of the job
+r4	checks	'none of the mutants survives'	free text is not in the closed grammar: names none, which is not a script or selector of the job
+r4	checks	'nothing to do: 4 passed'	free text is not in the closed grammar: names nothing, which is not a script or selector of the job
+r4	checks	'the to-do list gate prints 0 open'	free text is not in the closed grammar: names the, which is not a script or selector of the job
+r4	due	'2026-11-23'	no created date in a field-only call (the window needs the item): cannot be checked: the item has no created date
+r4	due	'2026-11-23T10:00:00+01:00'	no created date in a field-only call (the window needs the item): cannot be checked: the item has no created date
+r4	job	'JOB-42'	free text is not in the closed grammar: names JOB-42, which is not an item of this database
+r4	layer	'runtime (clean target)'	free text is not in the closed grammar: has 'runtime (clean target)', which is not one of user-visible, runtime, artifact, source, host-only, live-target, gate-logic
+r4	target	'board serial ABC123, flashed image'	free text is not in the closed grammar: has 'board serial ABC123', which is not a target term (host, repo checkout, scratch clone, remote NAME, board|device|container|vm|runner ID)
+r4	target	'host checkout'	free text is not in the closed grammar: has 'host checkout', which is not a target term (host, repo checkout, scratch clone, remote NAME, board|device|container|vm|runner ID)
+r4	target	'host in the TO region'	free text is not in the closed grammar: has 'host in the TO region', which is not a target term (host, repo checkout, scratch clone, remote NAME, board|device|container|vm|runner ID)

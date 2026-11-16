@@ -99,13 +99,16 @@ NOTE is refused.
 | M02 | fenced code | an opening fence is up to 3 spaces, then 3 or more backticks or tildes; a BACKTICK fence whose info string holds a backtick is not a fence (review r4 L4); a fence closes on up to 3 spaces, the same character at least as many times, then only spaces or tabs; an unclosed fence runs to the end |
 | M03 | HTML blocks | the seven start conditions of CommonMark 4.6 (script/pre/style/textarea, comment, processing instruction, declaration, CDATA, block tag names, any complete tag alone on its line) with their end conditions; a comment block ends on the first line, the start line included, that holds `-->` (so `<!-->` and `<!--->` end at once, review r3 L3) |
 | M04 | lazy continuation | a column-0 line that continues the paragraph of a block quote or of a list item is inside it, not a line of its own |
+| M06 | paragraph start | a line counts only when it STARTS a top-level paragraph (after a blank line, a heading, a thematic break, a closed fence or HTML block, or the start of the body); a heading or thematic break also ends the paragraph of a block quote or list item |
+| M07 | two readings | each body is also read the pre-0.31 way (the end text of an HTML block of kinds 2 to 5 is looked for only after its opener); a body whose two readings count different lines is refused |
 | M05 | indentation | only a line that starts at column 0 with the prefix counts |
 
 ## 5. Mapping of every reviewer case to this design
 
 * probe_r3, probe_r3b, probe_r4: every REJ expectation is kept. OK (golden-FALSE) expectations whose value is free text
-  are changed to REJ by design and listed one by one in tests/release/pvl_grid.py with the reason "free text is not
-  in the grammar" (for example `checks: none of the mutants survives`, `target: host checkout`, `job: JOB-42` when no
+  are changed to REJ by design and listed one by one in tests/release/pvl_reviewer/changes.tsv (33 rows: 18 of
+  probe_r3, 15 of probe_r4) with the reason "free text is not in the closed grammar" or "no created date in a
+  field-only call" (for example `checks: none of the mutants survives`, `target: host checkout`, `job: JOB-42` when no
   such open item exists). This is a deliberate narrowing, not a loosening.
 * mutants N01 to N22 (r4), R1 to R22 (r3), X1 to X7 (r2): each one names a mechanism. Where the mechanism exists in
   the round-5 code (separator, realpath, due lookahead, line length, comment close, fence rules, field order, more
@@ -127,4 +130,30 @@ NOTE is refused.
 
 ## Changes after the code
 
-(filled in at the end of the round)
+* M06 (paragraph start) was added while the line model was compared with pandoc: a line that continues a paragraph is
+  invisible as a line of its own, and counting it let a code span or an inline comment of an earlier line reach it.
+* M07 (two readings) was added because pandoc 3.11 does not end a comment block at `<!-->`, `<!--->` or `<?>` while
+  CommonMark 0.31 does; instead of picking one reader the checker refuses a body the two read differently.
+* check_line checks the prefix itself (the property test found 699 accepted lines with a glued or changed prefix when
+  check_line was called directly; check_body had already filtered them).
+* SEP is exactly " -- " or " — " (one space each side); the em dash is the only non-ASCII character outside NOTE.
+* The lazy-continuation branch of the line model was removed (own mutant O25 survived, and two new line-model cases,
+  confirmed with pandoc, showed the branch hid a valid line after `> quote` then `# h`, or `- item` then `***`). A
+  line that does not start a paragraph is not counted, which already covers lazy continuation.
+* Own mutant O05 survived (a directory as SCRIPT): the fixture gained a directory named tests/dir.sh and class G05 its
+  case. O18 survived (the item itself as JOB was refused only by the open-status rule): the mutation harness checks
+  the reason. Both are now killed.
+* G01: a placeholder alone is refused outright; before or after a value the oracle decides. One member is accepted:
+  `job: bash tests/t.sh -k case12; python3 -I tests/p.py .` (`.` is a path argument, the root). The suite needles it.
+* The reviewer's mutants: 56 in all (R1 to R22, X1 to X12, N01 to N22). 5 apply verbatim to this suite's files and are
+  killed (R15, R19, R21, N15, N16); 7 apply to release tooling and run in that tooling's suites (X8 to X12, R17,
+  R18); 44 cannot apply because their mechanism was removed, each mapped to its covering cases in
+  tests/release/pvl_reviewer/mutants_map.tsv. N03 and N22 were questioned as equivalent in review r4; both are now
+  NOT-APPLICABLE (the digraph fold and the comment-close test they mutated no longer exist), so no equivalence claim
+  is made for them.
+* The reviewer files are stored as `.py.txt` (tests/release/pvl_reviewer/probe_r3.py.txt and the five others; same
+  bytes, sha256 in SHA256SUMS): as `.py` the full-suite census took the three mutant tables for test entry points.
+  python3 runs them by path, so they still run verbatim.
+* P0 (new): tests/release/pvl_fixture.py and tests/release/pvl_oracle.py check themselves before any harness uses
+  them (`--selftest`): the fixture its shape, the oracle that the golden line is accepted and each of 13 golden-bad
+  lines refused. A mutated oracle that accepts everything reports `wrong=13` and fails.
