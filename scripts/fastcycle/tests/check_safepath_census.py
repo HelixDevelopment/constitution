@@ -19,6 +19,12 @@ an EXEMPT row with its reason; the values of variables at run time beyond the pr
 
 Python (AST):
   imports      exactly PY_IMPORTS; an alias / `from` import / another module -> VIOLATION at the import and at every use
+  git-env      CON-402 (fallout fix, audit F1): the ONE modelled form of the file-level git-env scrub -- `import os as
+               _ge_os` IMMEDIATELY followed, as the first two non-docstring module statements, by `for _ge_v in
+               "<UPPERCASE WORDS>".split(): _ge_os.environ.pop(_ge_v, None)` (one body statement, no else) -- is an
+               EXEMPT row (it changes the process environment, no path); every other use of _ge_os, a second or a
+               displaced or a reshaped scrub stays a VIOLATION (fail-closed: _git_env_scrub_py); the shell form is
+               desugared, see `unset` below
   os.X         OS_PURE (no path), PY_OPS (path: classified below), PY_EXEMPT (function, op) with reason; else VIOLATION;
                a PY_OPS function REFERENCED but not called (functools.partial(os.unlink, p)) -> VIOLATION
   os.path.X    OS_PATH_PURE (strings); OS_PATH_READ -> needs a `# safepath:probe` tag; else VIOLATION
@@ -40,6 +46,10 @@ Shell (a lexer, _ShLex):
                every path operand must be PRIVATE (it starts with a PROVED variable; every other expansion in it is a
                proved variable; no '..' component, no '~', no bare relative word; a plain suffix only on a FILE
                variable), or TAGGED (param: PARAMS; devnull; procfs literal for reads)
+  git-env      CON-402: the canonical column-0 line `for _ge_v in <UPPERCASE WORDS>; do unset "$_ge_v"; done; unset _ge_v`
+               (outside a here-document body) is read as `unset <WORDS>; unset _ge_v` -- the same commands, with
+               literal NAMEs -- so every rule below still applies to each NAME; any other shape keeps its
+               non-literal `unset "$_ge_v"` and is a VIOLATION (_git_env_scrub_sh)
   PROVED       a variable EVERY assignment of which is: $(_fc_safe mkdtemp ...), $(_fc_safe mkdir --exclusive ...) (a
                plain `_fc_safe mkdir` result is NOT a namespace), $(_fc_mktemp), $(mktemp [-d] "$_FC_TMPDIR/NAME") with
                NAME free of '/' and '..', ${FC_BR_TMPDIR} (proved --exclusive at worker start), or a proved variable +
@@ -224,21 +234,69 @@ def _params(fn):
     return [x.arg for x in a.posonlyargs + a.args + a.kwonlyargs]
 
 
+# CON-402 (audit F1, 2026-11-16): the file-level git-env scrub of scripts/validation/git_env_class_census.py, python
+# form. Exactly ONE modelled shape; the check is structural (ast), never a text match, and anything else -- the
+# import alone, the loop alone, a non-literal word list, a second body statement, an else, a different target or
+# receiver, the pair after another statement or a second pair -- is left in the tree and refused by the ordinary
+# rules (an unmodelled import, a use of a name bound by an unmodelled import).
+_GE_WORD = re.compile(r"^[A-Z_][A-Z0-9_]*$")
+
+
+def _git_env_scrub_py(tree):
+    """index i in tree.body of the canonical scrub pair (tree.body[i] the import, tree.body[i+1] the loop), else None.
+    Only a module docstring may precede it."""
+    body = tree.body
+    i = 1 if (body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant)
+              and isinstance(body[0].value.value, str)) else 0
+    if len(body) < i + 2:
+        return None
+    imp, loop = body[i], body[i + 1]
+    if not (isinstance(imp, ast.Import) and len(imp.names) == 1 and imp.names[0].name == "os"
+            and imp.names[0].asname == "_ge_os"):
+        return None
+    if not (isinstance(loop, ast.For) and isinstance(loop.target, ast.Name) and loop.target.id == "_ge_v"
+            and not loop.orelse and len(loop.body) == 1 and isinstance(loop.body[0], ast.Expr)):
+        return None
+    it = loop.iter
+    if not (isinstance(it, ast.Call) and isinstance(it.func, ast.Attribute) and it.func.attr == "split"
+            and not it.args and not it.keywords and isinstance(it.func.value, ast.Constant)
+            and isinstance(it.func.value.value, str)):
+        return None
+    words = it.func.value.value.split()
+    if not words or not all(_GE_WORD.match(w) for w in words):
+        return None
+    c = loop.body[0].value
+    if not (isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) and c.func.attr == "pop"
+            and isinstance(c.func.value, ast.Attribute) and c.func.value.attr == "environ"
+            and isinstance(c.func.value.value, ast.Name) and c.func.value.value.id == "_ge_os"
+            and not c.keywords and len(c.args) == 2 and isinstance(c.args[0], ast.Name) and c.args[0].id == "_ge_v"
+            and isinstance(c.args[1], ast.Constant) and c.args[1].value is None):
+        return None
+    return i
+
+
 def py_census(path):
     src = open(path).read()
     lines = src.split("\n")
     tree = ast.parse(src)
-    scope, parent = _scopes(tree)
     rows = []
 
     def row(node, func, name, verdict, why):
         rows.append((os.path.basename(path), node.lineno, func, name, verdict, why))
+    # CON-402: the modelled git-env scrub pair leaves the tree (one EXEMPT row); _ge_os stays an UNMODELLED name, so
+    # any other use of it anywhere is still refused below
+    ge = _git_env_scrub_py(tree)
+    if ge is not None:
+        row(tree.body[ge], "<module>", "import os as _ge_os + environ.pop loop", "EXEMPT",
+            "the CON-402 file-level git-env scrub: os.environ.pop of literal NAMEs only, no path (_git_env_scrub_py)")
+        del tree.body[ge:ge + 2]
+    scope, parent = _scopes(tree)
     funcs = {}
     for n in ast.walk(tree):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
             funcs.setdefault(n.name, n)
     # ---- imports ----
-    unmodelled = set()
+    unmodelled = {"_ge_os"} if ge is not None else set()
     for n in ast.walk(tree):
         if isinstance(n, ast.Import):
             for al in n.names:
@@ -780,8 +838,37 @@ def _name_words(w0, args):
     return [], set()
 
 
+# CON-402 (audit F1): the canonical shell scrub line of scripts/validation/git_env_class_census.py (CANON_SH), at
+# column 0, read as the same commands with literal NAMEs. Anything that is not exactly this line is left as written.
+_GE_SH = re.compile(r'^for _ge_v in ((?:[A-Z_][A-Z0-9_]*)(?: [A-Z_][A-Z0-9_]*)*); do unset "\$_ge_v"; done; '
+                    r'unset _ge_v(?:[ \t]+#.*)?$')
+
+
+def _git_env_scrub_sh(lines):
+    """(lines with every canonical scrub line outside a here-document body rewritten to `unset WORDS; unset _ge_v`,
+    [their line numbers])"""
+    inside, end = set(), None
+    for no, raw in enumerate(lines, 1):
+        if end is not None:
+            inside.add(no)
+            if raw.strip() == end:
+                end = None
+            continue
+        if not raw.lstrip().startswith("#"):
+            m = HEREDOC_RE.search(code_part(raw))
+            if m:
+                end = m.group(2)
+    out, hits = list(lines), []
+    for no, raw in enumerate(lines, 1):
+        m = _GE_SH.match(raw)
+        if m and no not in inside:
+            out[no - 1] = "unset %s; unset _ge_v" % m.group(1)
+            hits.append(no)
+    return out, hits
+
+
 def sh_census(path):
-    lines = open(path).read().split("\n")
+    lines, ge_lines = _git_env_scrub_sh(open(path).read().split("\n"))
     cmds, funcs, extents = sh_commands(lines)
     bodies = _heredoc_bodies(lines)
     # ---- provenance: every assignment of every variable, by function ----
@@ -907,6 +994,10 @@ def sh_census(path):
                 return proved_in(fn, v)
         return K()
     rows = []
+    for no in ge_lines:                             # CON-402: one row per desugared scrub line (visible, not silent)
+        rows.append((os.path.basename(path), no, func_at(extents, no), "for _ge_v ... unset", "EXEMPT",
+                     "the CON-402 file-level git-env scrub: read as `unset <literal NAMEs>`, each NAME checked by the "
+                     "rules below (_git_env_scrub_sh)"))
 
     def tag_at(no):
         raw = lines[no - 1] if no - 1 < len(lines) else ""
@@ -1761,7 +1852,9 @@ def func_at(extents, line):
 # ---- --self-test: the forms the census must REFUSE (needles) and must ACCEPT (controls), each run on its own ----
 # the round-6 reviewer's 24 Python and 32 shell forms (v4_round6_review_20261012.md section 4) + round 13's own
 SELF_PY_MODULE = ["import os as _o2", "from os import unlink as _u", "import pathlib", "import io", "import glob",
-                  "import functools", "import codecs", "import sqlite3", "import shutil", "import tempfile"]
+                  "import functools", "import codecs", "import sqlite3", "import shutil", "import tempfile",
+                  # CON-402 (audit F1): a SECOND scrub import (only the first pair is modelled)
+                  "import os as _ge_os"]
 # "IMPORT;;LINE": the import is placed at module level, the line in a function (each needle on its own)
 SELF_PY = ['import os as _o2;;_o2.unlink(p)', 'from os import unlink as _u;;_u(p)', 'getattr(os, "unlink")(p)', 'import functools;;functools.partial(os.unlink, p)()',
            'import pathlib;;pathlib.Path(p).unlink()', 'import pathlib;;pathlib.Path(p).write_text("x")', 'import io;;io.open(p, "w")', 'import codecs;;codecs.open(p, "w")',
@@ -1783,9 +1876,13 @@ SELF_PY = ['import os as _o2;;_o2.unlink(p)', 'from os import unlink as _u;;_u(p
            # needles the census refuses (the rest are SELF_PY_OK rows below, each with the reason it is harmless)
            'locals()["os"].unlink(p)', 'dir(os)', 'help(os)', 'breakpoint()', '(lambda: 0).__code__', 'os.fspath(p)',
            'os.path.join(p, "x").__len__', 'time.sleep.__self__', 'importlib.util.spec_from_file_location("x", p)',
-           'subprocess.run(["true"])']
+           'subprocess.run(["true"])',
+           # CON-402 (audit F1): the modelled scrub binds _ge_os for ITS loop only; every other use is refused
+           '_ge_os.unlink(p)', '_ge_os.environ.pop("GIT_DIR", None)', 'x = _ge_os', 'getattr(_ge_os, "unlink")(p)']
 # needles that must be refused for a SPECIFIC reason (the rule that is meant to catch them, not a later fallback)
-SELF_REASON = {'\\rm -rf "$u/j"': "indirect", '"rm" -rf "$u/k"': "indirect", '${RMCMD:-rm} -rf "$u/m"': "indirect",
+SELF_REASON = {'_ge_os.unlink(p)': "unmodelled import", '_ge_os.environ.pop("GIT_DIR", None)': "unmodelled import",
+               'for _ge_v in GIT_DIR GIT_INDEX_FILE; do unset "$_ge_v"; done; unset _ge_v': "non-literal variable NAME",
+               '\\rm -rf "$u/j"': "indirect", '"rm" -rf "$u/k"': "indirect", '${RMCMD:-rm} -rf "$u/m"': "indirect",
                'eval "rm -rf $u/l"': "eval runs text", 'install -d "$u/a"': "not in the census's tables",
                'os.unlink(p, dir_fd=None)': "not a PROVED directory fd", '!os.listdir(fd)': "outside the trusted",
                'rm -rf "$_FC_TMPDIR/../../victim"': "not proved", 'f = os.unlink': "REFERENCED, not called",
@@ -1848,7 +1945,8 @@ SELF_PY_OK = ['os.listxattr("/proc/self/fd/%d" % fd)  # safepath:procfs', 'os.en
               'sys.stderr.buffer.raw', 'sys.stdout.reconfigure()', 'signal.signal(signal.SIGTERM, lambda *a: None)',
               'json.loads(p, object_hook=None)', '_st.S_IMODE(0)', '[o for o in (1,)]', 'print("x", file=sys.stderr)',
               'memoryview(b"x")', 'super', '(yield)']
-SELF_SH = ['install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "$u/c" "$u/d"', 'chmod 777 "$u/e"',
+SELF_SH = ['for _ge_v in GIT_DIR GIT_INDEX_FILE; do unset "$_ge_v"; done; unset _ge_v',   # CON-402: not at column 0
+           'install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "$u/c" "$u/d"', 'chmod 777 "$u/e"',
            'truncate -s0 "$u/f"', 'sed -i s/a/b/ "$u/g"', 'echo x >| "$u/h"', 'exec 3<> "$u/i"', '\\rm -rf "$u/j"',
            '"rm" -rf "$u/k"', 'eval "rm -rf $u/l"', '${RMCMD:-rm} -rf "$u/m"', "python3 -c 'import os; os.unlink(\"/x\")'",
            'git -C "$u" worktree move a b', 'git clone x "$u/n"', 'rm -rf "$_FC_TMPDIR" relative_victim',
