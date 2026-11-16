@@ -105,22 +105,33 @@
 #     Unicode compatibility caseless form k(s) = NFKD(casefold(NFD(s))) followed by the UTS #39 confusable skeleton
 #     (each character mapped to its prototype, then NFD, then k again, repeated until nothing changes; locale
 #     independent, python3) it equals none of committer name, committer email, author name, author email (git var
-#     GIT_COMMITTER_IDENT / GIT_AUTHOR_IDENT). The skeleton map is the vendored table
+#     GIT_COMMITTER_IDENT / GIT_AUTHOR_IDENT); and (round 14, review r13 R13-2) neither does its CASE-PRESERVING UTS #39
+#     skeleton map(NFD(s)) after the same fixpoint, so `AIex` (capital I) is refused for `Alex`, which the caseless form
+#     alone missed (casefold makes I an i before the table can map it to l). The two compares are a union: a name is
+#     the producer when EITHER matches. Measured over every single-code-point skeleton class of the table: 0 classes
+#     split by the union (165 split by the caseless form alone); the union refuses 12 more of 38781 pairs of distinct
+#     names in docs/qa/con046_review/r14_runs/tools/falseref14.py (0.0309%; round 13 refused 4, round 14 refuses 16;
+#     for example ELIA vs ELLA). The skeleton map is the vendored table
 #     cm_submodule_pin_not_downgraded_confusables.tsv next to this gate (CM_PIN_CONFUSABLES overrides the path; the
 #     content is sha256-pinned here, so an override cannot change it), generated from the host ICU 78.2 (Unicode
 #     confusables data) by docs/qa/con046_review/r13_runs/tools/gen_confusables.py and checked against ICU's whole-
 #     string skeleton (round 13, operator decision on review r12 R12-2: the strict option). Refused as a self-waive,
 #     so: a compatibility spelling of the producer's name (fullwidth `ｍilos`), a confusable one (dotless `alı`,
-#     Cyrillic or Greek `о`, mixed script, `mi1os`, `rnilos` for `milos`), a canonical caseless match (U+1FBC U+0342 vs
-#     U+1FB7) and every character whose full casefold differs from its lowercase in a way that changes the equality
-#     (163 code points, Unicode 16.0, enumerated by the paired test over the whole code space; fixtures COMPAT13,
-#     FOLD13ALL, FOLD13CLS). An authoriser whose skeleton is empty (only invisible fillers such as U+3164 or
-#     variation selectors: 267 non-C code points) identifies nobody and is refused as malformed. An unresolvable identity, python3 missing or failing, the table missing or not the pinned
+#     Cyrillic or Greek `о`, mixed script, `mi1os`, `rnilos` for `milos`, `AIex` for `Alex`), a canonical caseless
+#     match (U+1FBC U+0342 vs U+1FB7) and every character whose full casefold differs from its lowercase in a way that
+#     changes the equality (163 code points, Unicode 16.0, enumerated by the paired test over the whole code space;
+#     fixtures COMPAT13, FOLD13ALL, FOLD13CLS, CASE14). An authoriser whose skeleton is empty or only whitespace
+#     identifies nobody and is refused as malformed: the 267 invisible fillers (U+3164, variation selectors ...) and,
+#     round 14 (R13-3), U+2800 BRAILLE PATTERN BLANK, which the gate maps to nothing (268 single code points, Lo 4,
+#     Mn 263, So 1; docs/qa/con046_review/r14_runs/tools/blank14.py), alone or with spaces (`U+2800 U+2800`). OPEN
+#     (operator decision question, UNCONFIRMED): other visible-blank glyphs that are not category C and have a
+#     non-empty skeleton (none identified by any mechanical rule; rendering is font-dependent) are not refused. An
+#     unresolvable identity, python3 missing or failing, the table missing or not the pinned
 #     one (rc 5), or a skeleton that does not settle in 8 rounds, means not waived. FALSE-REFUSAL RISK (accepted by the
 #     operator): a genuinely different person whose name is a confusable of the producer's (rn/m, 1/l/I, 0/O, Cherokee
-#     or Cyrillic letters that look Latin, `%` vs `o/o`) cannot authorise that producer's waiver; a different name
-#     that is not a confusable (release-mgr, milo for milos, a transliteration such as `Milos Vasic` for `Милош Васић`)
-#     still can (COMPAT13 negative controls);
+#     or Cyrillic letters that look Latin, `%` vs `o/o`, ELIA vs ELLA) cannot authorise that producer's waiver; a
+#     different name that is not a confusable (release-mgr, milo for milos, a transliteration such as `Milos Vasic` for
+#     `Милош Васић`) still can (COMPAT13 and CASE14 negative controls);
 #   - a row with a CR (CRLF line ending) is refused and says so;
 #   - a waiver file (index copy or --waivers file) that holds a NUL byte waives nothing (bash would drop the byte
 #     silently and git shows such a file as binary, so the reviewed text is not the read text); a same-parent commit's
@@ -138,7 +149,8 @@
 # ── Usage ─────────────────────────────────────────────────────────────────
 #   cm_submodule_pin_not_downgraded.sh [--root <repo>] [--base <rev>] [--waivers <file>] [-h]
 #   --root is normalised to the repository top level (so diff.relative and a subdirectory --root cannot hide a path);
-#   --base defaults to HEAD (empty tree when HEAD is unborn). A submodule checkout path that is a symlink is BLIND.
+#   --base defaults to HEAD (empty tree when HEAD is unborn: HEAD names a ref that does not exist; a HEAD that is not a
+#   commit otherwise, detached at a missing object or naming an existing ref that is not a commit, is BLIND, round 14 R13-4). A submodule checkout path that is a symlink is BLIND.
 # Locale (round 13, review r12 N1): the gate exports LC_ALL=C before any check. Bash `=~` bracket ranges and `[[ < ]]`
 # compare by the caller's locale: under en_US.UTF-8 `[0-9]` also matched Arabic-Indic and fullwidth digits and `[A-Z]`
 # matched `É`, so a malformed item id or item prefix was honoured there and refused under C (measured, 6 locales x 3
@@ -183,6 +195,10 @@ sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT
 pg() { GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null git -C "$root" "$@"; }        # superproject
 headc="$(pg rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null)"
 if [ -z "$base" ]; then
+  if [ -z "$headc" ]; then # round 14 (review r13 R13-4): unborn only when HEAD names a ref that does not exist
+    sref="$(pg symbolic-ref -q HEAD 2>/dev/null)" || blind0 "HEAD is not a commit and not a symbolic ref (detached at a missing object?)"
+    pg rev-parse -q --verify "$sref" >/dev/null 2>&1 && blind0 "HEAD names $sref, which exists but is not a commit (missing object, or a tree)"
+  fi
   # unborn HEAD: the empty tree, spelled as git's built-in constant per object format (no hash-object: read-only)
   basec="$headc"; [ -n "$basec" ] || case "$(pg rev-parse --show-object-format 2>/dev/null)" in
     sha1) basec=4b825dc642cb6eb9a060e54bf8d69288fbee4904 ;;
@@ -240,17 +256,23 @@ def main():
     T={}
     for l in b.decode("utf-8").split("\n")[:-1]:
         x,y=l.split("\t"); T[chr(int(x,16))]="".join(chr(int(z,16)) for z in y.split())
+    T["\u2800"]=""
     k=lambda s: unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())
     # the UTS #39 skeleton NFD(map(NFD(x))) wrapped in k: k starts with NFD and its NFKD output is already NFD, so the
     # two NFD calls of the spec are redundant here and are not written (measured: equal on all 1112064 scalar values)
     g=lambda s: k("".join(T.get(c,c) for c in k(s)))
-    def f(s):
+    # the case-preserving UTS #39 skeleton map(NFD(x)), kept beside the caseless one so AIex/Alex stays a self-waive;
+    # its outer NFD is not written because f begins with NFD (f(z)=f(NFD(z)))
+    q=lambda s: "".join(T.get(d,d) for d in unicodedata.normalize("NFD", s))
+    def f(s,g=g):
         for _ in range(8):
             t=g(s)
             if t==s: return t
             s=t
         raise ValueError("skeleton did not settle")
-    if not f(a): return 3
+    e=lambda s: f(f(s,q))
+    if not f(a).split(): return 3
+    if any(e(i.strip())==e(a) for i in p[1:]): return 10
     return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0
 try:
     rc=main()

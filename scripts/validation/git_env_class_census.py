@@ -162,9 +162,13 @@ BUILTIN_LIBS = {
 # Discovery limits: bound (or, by explicit choice, widen) where git looks for a repository; never scrubbed.
 LIMIT_VARS = ("GIT_CEILING_DIRECTORIES", "GIT_DISCOVERY_ACROSS_FILESYSTEM")
 # merge(?!-base\b): `git merge-base` only reads (CON-046 round 13: a read-only pre-commit gate was read as writing)
+# symbolic-ref with read flags only and ONE name (`symbolic-ref -q HEAD`) only reads (CON-046 round 14: the gate's
+# broken-HEAD check, review r13 R13-4); a second argument (set) or -d / --delete (delete) is a write. The lookahead
+# needs whitespace after the subcommand, so python and go argument lists stay classified as writes (conservative).
+SYMREF_READ = r"""(?!(?:\s+(?:-q|--quiet|--short|--no-recurse))*\s+[^\s;&|)"'`<>-][^\s;&|)"'`<>]*\s*(?:[;&|)"'`]|[0-9]?>|$))"""
 WRITE = (r"init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge(?!-base\b)|reset|"
          r"stash|rm|mv|push|worktree|apply|am|cherry-pick|rebase|clone|submodule|fetch|pull|notes|gc|repack|"
-         r"checkout-index|commit-tree|hash-object|symbolic-ref|restore|clean|write-tree|fast-import|bundle|"
+         r"checkout-index|commit-tree|hash-object|symbolic-ref" + SYMREF_READ + r"|restore|clean|write-tree|fast-import|bundle|"
          r"pack-objects|prune|replace|filter-branch|mktree|mktag|unpack-objects|index-pack")
 MENTION = re.compile(r"(?<![A-Za-z])git", re.I)
 GOPT = r"(?:\s+(?:-C\s+\S+|-c\s+\S+|--[\w-]+(?:=\S+)?))*"
@@ -1003,6 +1007,16 @@ def needles(canon):
         ("sh guard, merge-base read", "sh", "#!/bin/bash\ngit merge-base --is-ancestor a b\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
         ("sh guard, merge write", "sh", "#!/bin/bash\ngit merge -q x\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
         ("sh guard, merge-tree write", "sh", "#!/bin/bash\ngit merge-tree --write-tree a b\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        # CON-046 round 14 (review r13 R13-6): a merge of a branch whose name ends in -base is a write; the mutant
+        # merge(?!.*base) read it as a read and passed every other needle
+        ("sh guard, merge of x-base write", "sh", "#!/bin/bash\ngit merge x-base\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        # CON-046 round 14 (R13-4): `symbolic-ref` with one name only reads; with a second argument or -d it writes
+        ("sh guard, symbolic-ref read", "sh", "#!/bin/bash\nsref=\"$(git symbolic-ref -q HEAD 2>/dev/null)\" || exit 2\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
+        ("sh guard, symbolic-ref short read", "sh", "#!/bin/bash\ngit symbolic-ref --short HEAD\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
+        ("sh guard, symbolic-ref set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD refs/heads/x\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref quiet set write", "sh", "#!/bin/bash\ngit symbolic-ref -q HEAD refs/heads/x 2>/dev/null\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref delete write", "sh", "#!/bin/bash\ngit symbolic-ref -d HEAD\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref long delete write", "sh", "#!/bin/bash\ngit symbolic-ref --delete HEAD\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
     ]
     bad = []
     for name, lang, text, row, want in cases:

@@ -432,6 +432,7 @@ classify() { # gate-path -> one-line verdict vector, then ` DATE=<start>~<end>` 
   out+="$(members10 "$g")"
   out+="$(members11 "$g")"
   out+="$(members13 "$g")"
+  out+="$(members14 "$g")"
   echo "${out}DATE=$ds~$(date +%F)"
 }
 # ── round 6: the class inventory (§11.4.276(C)). One fixture per guard of the gate that no earlier fixture falsifies;
@@ -1153,7 +1154,83 @@ members13() { # gate path -> vector part
     else printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' sub "$uB" "$uA" ops "$d10" $'CON-\xd9\xa0\xd9\xa4\xd9\xa7' "$(git -C "$rr" rev-parse HEAD)" >"$rr/.submodule_pin_waivers"
       git -C "$rr" add .submodule_pin_waivers; e+="$(LC_ALL="$k" lgc "$rr" -a -m rb)/$(lpin "$rr"),"; fi; done; o+="HLOC13=$e "
   echo "$o"; }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 UNBORN256=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHCF=1 AUTHCO=1 AUTHCN=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/157 F_HELPSHORT=0/157 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 ARGNEAR=00000/22222222222222 CONFHASH=0,1,1, CONFKEYNEAR=0/11111/0/111 CONFSPLIT=1/1/0 CRMID=1/1 DOWN2=1/1 DUPNEAR=1/1/0 HASHMID=0 IDDELIM=1/1 ITEMCASE=1,1,0, NULROW=1/1,1/1,1/1,1/1,0 PATHNEAR=0/111111111 PATHWS=1,1, SEPINJECT=1/1 SPENTFIELDS=0,0,1 SPENTPATHNEAR=000000000/1 SYMNEAR=2/1,2/1, TSVSPACE=1,0 TZPAIR=0,1,1,0/+1400/-1200 WSID4=11111111/8/19/0 FOLD13ALL=1 FOLD13CLS=1,1,1,1,1,1 COMPAT13=1,1,1,1,1,1,1,1,0,1,1,1,0,0,0 CONF13=0,1m,1,1,0 LOC13=1/1/1,1/1/1,1/1/1,0/0/0,1/1/1,0/0/0,1/1/1,1/1/1 HLOC13=1/B,1/B,1/B,0/A "
+# ── round 14 (CON-046, review r13 R13-1..R13-5, §11.4.276(C)): fixtures for the case-preserving skeleton e (a second
+# self-waive compare beside the caseless f), the braille blank U+2800, blank-only skeletons, the category check at every
+# position, the fixpoint bounds, the last table row and the unreadable-table message. Every hostile string is built once
+# here by python from a python literal (u14), never typed, so the bytes do not depend on the locale of this shell.
+# The union f-or-e means a fixture refused by BOTH compares cannot kill a mutant of only one of them, so FTWIN14 is the
+# f-only twin of the round-12/13 self-waive fixtures: U+2461 (circled 2) appended to the authoriser and `2` to the
+# identity keeps the caseless compare f equal and makes e differ (measured for every pair: r14_runs/twin14.txt).
+u14() { python3 -I -c 'import sys,ast; v=ast.literal_eval(sys.argv[1]); v="".join(v) if isinstance(v,tuple) else v; assert v, "u14: empty literal"; sys.stdout.buffer.write(v.encode("utf-8"))' "$1" || { echo "BLIND: u14 could not build $1" >&2; exit 2; }; }
+q14() { run "$1" "$2" GIT_COMMITTER_NAME=cn GIT_COMMITTER_EMAIL=ce@x GIT_AUTHOR_NAME=an GIT_AUTHOR_EMAIL=ae@x "${@:3}"; } # four distinct fields, then overrides
+p14cps=(200B FEFF 00AD 202E E000 F0000 10FFFD 0378 FFFF E0FFF 0001 007F); p14ch=()
+for k in "${p14cps[@]}"; do p14ch+=("$(u14 "'\\U$(printf %08X "0x$k")'")"); done
+b14=(  "$(u14 "'milos\\u2800'")" "$(u14 "'\\u2800'")" "$(u14 "'\\u3164 \\u3164'")" "$(u14 "'\\u2800 \\u2800'")" "$(u14 "'release\\u2800mgr'")" )
+c14nbsp="$(u14 "'\\u00a0'")"; c14q1="$(u14 "'a\\u0345\\u0348'")"; c14q2="$(u14 "'a\\u0348\\u1ab7'")"
+c14a779="$(u14 "'\\ua779\\u2461'")"; c14a77a="$(u14 "'\\ua77a2'")"; c14tm="$(u14 "'t\\u2461@t'")"; c14shr1="$(u14 "'\\u03da\\u2461'")"; c14shr2="$(u14 "'\\u03da\\u00ad2'")"; c14e0f="$(u14 "'milos\\U000e0fff'")"
+# FTWIN14 pairs: authoriser (twin: + U+2461), identity (twin: + 2); the base pairs are the refused ones of SELFAUTH,
+# AUTHNORM and COMPAT13 and the KV12ZWSP / KV13SHARPS shapes
+for x in "${p14ch[@]}" "${b14[@]}" "$c14nbsp" "$c14q1" "$c14q2" "$c14a779" "$c14a77a" "$c14tm" "$c14shr1" "$c14shr2" "$c14e0f"; do
+  [ -n "$x" ] || { echo "BLIND: a round-14 fixture literal is empty (u14 failed)" >&2; exit 2; }; done
+[ "${#p14ch[@]}" = "${#p14cps[@]}" ] && [ "${#b14[@]}" = 5 ] || { echo "BLIND: round-14 fixture arrays incomplete" >&2; exit 2; }
+t14a=(); t14c=()
+for pr in "'t'|'T'" "'\\u041c\\u0418\\u041b\\u041e\\u0428 \\u0412\\u0410\\u0421\\u0418\\u040b'|'\\u041c\\u0438\\u043b\\u043e\\u0448 \\u0412\\u0430\\u0441\\u0438\\u045b'" \
+  "'Milos\\u030c'|'Milo\\u0161'" "'\\u0390'|'\\u0399\\u0308\\u0301'" "'\\u1fb4'|'\\u03b1\\u0345\\u0301'" "'\\uff4dilos'|'milos'" "'al\\u0131'|'ali'" \
+  "'mil\\u043es'|'milos'" "'mil\\u03bfs'|'milos'" "'\\u0430li'|'ali'" "'mi1os'|'milos'" "'rnilos'|'milos'" "'\\u1fbc\\u0342'|'\\u1fb7'" "'%'|'o/o'" \
+  "'\\u03d2'|'y'" "'STRAU\\u00df'|'Strauss'" "'ops'|'o\\u200bps'"; do
+  t14a+=("$(u14 "(${pr%%|*},'\\u2461')")"); t14c+=("$(u14 "(${pr#*|},'2')")"); done
+[ "${#t14a[@]}" = 17 ] && [ "${#t14c[@]}" = 17 ] || { echo "BLIND: FTWIN14 twin arrays incomplete" >&2; exit 2; }
+for x in "${t14a[@]}" "${t14c[@]}"; do [ -n "$x" ] || { echo "BLIND: FTWIN14 empty twin" >&2; exit 2; }; done
+members14() { # gate path -> vector part
+  local g="$1" o="" r e k v side lay u h t
+  # AUTHPOS14 (R13-1): every category-C representative (Cf U+200B U+FEFF U+00AD U+202E, Co U+E000 U+F0000 U+10FFFD,
+  # Cn U+0378 U+FFFF U+E0FFF, Cc U+0001 U+007F) at the start, in the middle and at the end of `release-mgr` (a name
+  # that is not the producer): each refused as malformed (1), so the check covers every position, the first included
+  mk;r=$R; stage "$r" "$A"; e=""
+  for v in "${p14ch[@]}"; do for side in S M E; do case $side in S) u="${v}release-mgr" ;; M) u="release${v}-mgr" ;; E) u="release-mgr${v}" ;; esac
+    waive "$r" "$(wf sub "$B" "$A" "$u" "$d10" CON-046)\n"; e+="$(q14 "$r" "$g")"; done; done; o+="AUTHPOS14=$e/${#p14ch[@]} "
+  # BRAILLE14 (R13-3): milos+U+2800 for producer milos is a self-waive (1); U+2800 alone, U+3164 U+0020 U+3164 and
+  # U+2800 U+0020 U+2800 are blank skeletons, refused as malformed (1); release U+2800 mgr is someone else (0)
+  e=""; for k in 0 1 2 3 4; do waive "$r" "$(wf sub "$B" "$A" "${b14[k]}" "$d10" CON-046)\n"; e+="$(q14 "$r" "$g" GIT_COMMITTER_NAME=milos),"; done; o+="BRAILLE14=${e%,} "
+  # CASE14 (R13-2): the case-preserving skeleton. AIex / BiII / AI for Alex / Bill / Al (1), AIex for a committer `alex`
+  # (1: e, not f), AIex with an NBSP after and before the committer name (1: the e operand is stripped), Alex@x.invalid
+  # for an AUTHOR EMAIL AIex@x.invalid (1: e covers the fourth field), AIex for a committer EMAIL (1); Alexa for Alex (0)
+  e=""
+  for v in AIex:Alex BiII:Bill AI:Al AIex:alex "AIex:Alex$c14nbsp" "AIex:${c14nbsp}Alex"; do waive "$r" "$(wf sub "$B" "$A" "${v%%:*}" "$d10" CON-046)\n"; e+="$(q14 "$r" "$g" GIT_COMMITTER_NAME="${v#*:}"),"; done
+  waive "$r" "$(wf sub "$B" "$A" Alex@x.invalid "$d10" CON-046)\n"; e+="$(q14 "$r" "$g" GIT_AUTHOR_EMAIL=AIex@x.invalid),$(q14 "$r" "$g" GIT_COMMITTER_EMAIL=AIex@x.invalid),"
+  waive "$r" "$(wf sub "$B" "$A" Alexa "$d10" CON-046)\n"; e+="$(q14 "$r" "$g" GIT_COMMITTER_NAME=Alex)"; o+="CASE14=$e "
+  # QNFD14: the NFD inside q: a U+0345 U+0348 vs a U+0348 U+1AB7 meet only after canonical reordering (1)
+  waive "$r" "$(wf sub "$B" "$A" "$c14q1" "$d10" CON-046)\n"; o+="QNFD14=$(q14 "$r" "$g" GIT_COMMITTER_NAME="$c14q2") "
+  # FTWIN14: the f-only twins (each 1) and the four identity fields padded with every whitespace git keeps on either
+  # side, authoriser t+U+2461 / t+U+2461@t against T2 / T2@T (each 1); needle T2x (0)
+  e=""; for ((k=0; k<${#t14a[@]}; k++)); do waive "$r" "$(wf sub "$B" "$A" "${t14a[k]}" "$d10" CON-046)\n"; e+="$(q14 "$r" "$g" GIT_COMMITTER_NAME="${t14c[k]}")"; done
+  local -a F=(GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL) V=(T2 T2@T T2 T2@T) W=("${t14a[0]}" "$c14tm" "${t14a[0]}" "$c14tm"); e+="/"
+  for k in 0 1 2 3; do waive "$r" "$(wf sub "$B" "$A" "${W[k]}" "$d10" CON-046)\n"
+    for side in R L; do [ "$side" = R ] && v="${V[k]}$gkcat" || v="$gkcat${V[k]}"; e+="$(q14 "$r" "$g" "${F[k]}=$v")"; done; done
+  waive "$r" "$(wf sub "$B" "$A" "${W[0]}" "$d10" CON-046)\n"; e+="/$(q14 "$r" "$g" GIT_COMMITTER_NAME=T2x)"; o+="FTWIN14=$e "
+  # ROUNDS14 (R13-5): `%` needs three skeleton rounds and is someone else for producer milos (0: kills a two-round
+  # bound); U+03DA U+2461 vs U+03DA U+00AD 2 shrinks in round one and still changes in round two (1: kills a return on
+  # shrink); a committer name milos + U+E0FFF (the table's last row, erased) is milos (1: kills a dropped last row)
+  waive "$r" "$(wf sub "$B" "$A" % "$d10" CON-046)\n"; e="$(q14 "$r" "$g" GIT_COMMITTER_NAME=milos),"
+  waive "$r" "$(wf sub "$B" "$A" "$c14shr1" "$d10" CON-046)\n"; e+="$(q14 "$r" "$g" GIT_COMMITTER_NAME="$c14shr2"),"
+  waive "$r" "$(wf sub "$B" "$A" milos "$d10" CON-046)\n"; e+="$(q14 "$r" "$g" GIT_COMMITTER_NAME="$c14e0f")"; o+="ROUNDS14=$e "
+  # CONFDIR14 (R13-5): the table path names a directory: still the table message (rc 5, `1m`), not the generic rc 4
+  lay="$(mktemp -d "$tmp/cdir.XXXXXX")"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
+  o+="CONFDIR14=$(run "$r" "$g" CM_PIN_CONFUSABLES="$lay")$(grep -q "confusables table" "$tmp/out" && echo m) "
+  # UNBORNBAD14 (R13-4): HEAD names a ref that EXISTS but is not a commit -> BLIND (2), never the unborn PASS: a loose
+  # ref to a missing object, a packed ref to a missing object, a detached HEAD at a missing object, a ref to a tree;
+  # each with a staged downgrade. The unborn fixtures UNBORN / UNBORN256 stay PASS (the control).
+  e=""; h=0123456789abcdef0123456789abcdef01234567
+  for k in loose packed detached tree; do mk;r=$R; stage "$r" "$A"; t="$(git -C "$r" symbolic-ref HEAD)"
+    case $k in
+      loose) printf '%s\n' "$h" >"$r/.git/$t" ;;
+      packed) git -C "$r" pack-refs --all; printf '%s %s\n' "$h" "$t" >"$r/.git/packed-refs" ;;
+      detached) printf '%s\n' "$h" >"$r/.git/HEAD" ;;
+      tree) tt="$(git -C "$r" write-tree)" && [ -n "$tt" ] || { echo "BLIND: UNBORNBAD14 tree fixture" >&2; exit 2; }
+            printf '%s\n' "$tt" >"$r/.git/$t" ;; # the staged tree, which exists: the ref is valid, the object is no commit
+    esac; e+="$(run "$r" "$g")/$(cnt 'HEAD is not a commit\|which exists but is not a commit'),"; done; o+="UNBORNBAD14=${e%,} "
+  echo "$o"; }
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 UNBORN256=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHCF=1 AUTHCO=1 AUTHCN=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/169 F_HELPSHORT=0/169 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 ARGNEAR=00000/22222222222222 CONFHASH=0,1,1, CONFKEYNEAR=0/11111/0/111 CONFSPLIT=1/1/0 CRMID=1/1 DOWN2=1/1 DUPNEAR=1/1/0 HASHMID=0 IDDELIM=1/1 ITEMCASE=1,1,0, NULROW=1/1,1/1,1/1,1/1,0 PATHNEAR=0/111111111 PATHWS=1,1, SEPINJECT=1/1 SPENTFIELDS=0,0,1 SPENTPATHNEAR=000000000/1 SYMNEAR=2/1,2/1, TSVSPACE=1,0 TZPAIR=0,1,1,0/+1400/-1200 WSID4=11111111/8/19/0 FOLD13ALL=1 FOLD13CLS=1,1,1,1,1,1 COMPAT13=1,1,1,1,1,1,1,1,0,1,1,1,0,0,0 CONF13=0,1m,1,1,0 LOC13=1/1/1,1/1/1,1/1/1,0/0/0,1/1/1,0/0/0,1/1/1,1/1/1 HLOC13=1/B,1/B,1/B,0/A AUTHPOS14=111111111111111111111111111111111111/12 BRAILLE14=1,1,1,1,0 CASE14=1,1,1,1,1,1,1,1,0 QNFD14=1 FTWIN14=11111111111111111/11111111/0 ROUNDS14=0,1,1 CONFDIR14=1m UNBORNBAD14=2/1,2/1,2/1,2/1 "
 # ── the inventory lint (round 7, CON-146): the guard inventory is checked, not trusted. static (Part 1): L1 every anchor
 # occurs exactly once in the gate's code; L2 every code line that is not pure syntax is covered by an anchor; L3 every
 # line has at least as many rows as members (1 + the && / || joins of a shell line, 1 + the `or` / `and` joins of a
@@ -1399,6 +1476,12 @@ pr_maxdays() { local g="$1" x="" v; for v in 999 1000 365; do mk;r=$R; conf "$r"
 pr_loc13() { local g="$1" x="" k; mk;r=$R; stage "$r" "$A" # round 13: item digits and prefix letters under the WIDE locale
   for k in $'CON-\xd9\xa0\xd9\xa4\xd9\xa7' $'CON-\xef\xbc\x90\xef\xbc\x95\xef\xbc\x98' CON-047 CON-04; do waive "$r" "$(wf sub "$B" "$A" ops "$d10" "$k")\n"; x+="$(run "$r" "$g" LC_ALL="$lwide"),"; done
   mk;r=$R; conf "$r" $'item_prefix=\xc3\x89Q\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" $'\xc3\x89Q-047')\n"; x+="$(run "$r" "$g" LC_ALL="$lwide")"; echo "$x"; }
+pr_rounds14() { local g="$1" x=""; mk;r=$R; stage "$r" "$A" # round 14: three-round strings, waived and refused
+  waive "$r" "$(wf sub "$B" "$A" % "$d10" CON-046)\n"; x+="pct:$(q14 "$r" "$g" GIT_COMMITTER_NAME=milos),pctself:$(q14 "$r" "$g" GIT_COMMITTER_NAME=o/o),"
+  waive "$r" "$(wf sub "$B" "$A" "$c14shr1" "$d10" CON-046)\n"; x+="shr:$(q14 "$r" "$g" GIT_COMMITTER_NAME="$c14shr2")"; echo "$x"; }
+pr_outerk14() { local g="$1" x="" k; mk;r=$R; stage "$r" "$A" # round 14: U+A779 / U+A77A, d, and the f-only twins
+  for k in 5 13 0; do waive "$r" "$(wf sub "$B" "$A" "${t14a[k]}" "$d10" CON-046)\n"; x+="$(q14 "$r" "$g" GIT_COMMITTER_NAME="${t14c[k]}"),"; done
+  waive "$r" "$(wf sub "$B" "$A" "$c14a779" "$d10" CON-046)\n"; x+="$(q14 "$r" "$g" GIT_COMMITTER_NAME="$c14a77a"),$(q14 "$r" "$g" GIT_COMMITTER_NAME=d)"; echo "$x"; }
 pr_expcmp() { local g="$1" x="" e L; mk;r=$R; stage "$r" "$A" # round 13: the expiry compare at the day boundaries, three locales
   for L in "$lwide" C C.UTF-8; do for e in "$(date -d '-1 day' +%F)" "$(date +%F)" "$(date -d '+1 day' +%F)" "$d30" "$d31"; do
     waive "$r" "$(wf sub "$B" "$A" ops "$e" CON-046)\n"; x+="$(run "$r" "$g" LC_ALL="$L"),"; done; done; echo "$x"; }
@@ -1494,7 +1577,7 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant RV5-365-cap-removed 's/ \&\& \[ "\$v" -le 365 \]//'
   # authoriser (R2-m3, RM1, R3-n4)
   mutant RM1-ident-guard '/committer or author identity unresolvable/d'
-  mutant self-authoriser-allowed 's/    return 10 if any(.*) else 0/    return 0/'
+  mutant self-authoriser-allowed 's/    return 10 if any(.*) else 0/    return 0/;/^    if any(e(i.strip())==e(a) for i in p\[1:\]): return 10$/d' # ADAPTED r14: both self-waive compares
   mutant R3n4-failure-reported-as-self 's/^      10) WHY=/      1|10) WHY=/'
   mutant no-casefold-no-nfc 's/^    k=lambda s: .*/    k=lambda s: s/' # ADAPTED r13: no caseless normalisation at all
   mutant casefold-without-nfc 's/unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())/s.casefold()/' # ADAPTED r13
@@ -1513,7 +1596,7 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant skel-map-dropped 's/T.get(c,c) for c/c for c/'
   mutant skel-fixpoint-one-pass 's/^            if t==s: return t$/            return t/'
   mutant skel-nfkd-to-nfd 's/normalize("NFKD", unicodedata.normalize("NFD", s)/normalize("NFD", unicodedata.normalize("NFD", s)/'
-  mutant empty-skeleton-authoriser-ok '/^    if not f(a): return 3$/d'
+  mutant empty-skeleton-authoriser-ok '/^    if not f(a).split(): return 3$/d' # ADAPTED r14: the line now also refuses a blank-only skeleton
   mutant conf-default-path-wrong 's|_confusables.tsv}" # sha256|_x.tsv}" # sha256|'
   mutant conf-read-argv0 's/b=open(sys.argv\[1\],"rb")/b=open(sys.argv[0],"rb")/'
   mutant conf-table-dict-dropped '/^    T={}$/d'
@@ -1524,6 +1607,63 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant skel-fixpoint-no-advance '/^            s=t$/d'
   mutant conf-rc5-message-lost 's/^      5) WHY=/      9) WHY=/'
   mutant skel-rc5-as-ok 's/^      0) spent /      0|5) spent /'
+  # ── round 14 (CON-046, review r13): own mutants of the case-preserving skeleton, the braille blank, the blank-only
+  # skeleton, the category check positions, the identity-field slices and the broken-HEAD check; every one must be killed
+  mutant braille-row-dropped '/^    T\["\\u2800"\]=""$/d'
+  mutant blank-skeleton-split-dropped 's/^    if not f(a).split(): return 3$/    if not f(a): return 3/'
+  mutant q-map-dropped 's/T.get(d,d) for d in/d for d in/'
+  mutant e-outer-f-dropped 's/^    e=lambda s: f(f(s,q))$/    e=lambda s: f(s,q)/'
+  mutant e-is-f 's/^    e=lambda s: f(f(s,q))$/    e=lambda s: f(s)/'
+  mutant f-default-q 's/^    def f(s,g=g):$/    def f(s,g=q):/'
+  mutant e-check-dropped '/^    if any(e(i.strip())==e(a) for i in p\[1:\]): return 10$/d'
+  mutant e-check-always 's/^    if any(e(i.strip())==e(a) for i in p\[1:\]): return 10$/    return 10/'
+  mutant e-author-email-dropped 's/==e(a) for i in p\[1:\]): return 10/==e(a) for i in p[1:4]): return 10/'
+  mutant e-skip-committer-name 's/==e(a) for i in p\[1:\]): return 10/==e(a) for i in p[2:]): return 10/'
+  mutant ident-skip-committer-name 's/==f(a) for i in p\[1:\]) else 0/==f(a) for i in p[2:]) else 0/'
+  mutant auth-category-skips-last-char 's/startswith("C") for c in a)/startswith("C") for c in a[:-1])/'
+  mutant brokenhead-check-skipped 's/^  if \[ -z "\$headc" \]; then # round 14/  if false; then # round 14/'
+  mutant brokenhead-symref-failure-ignored 's/2>\/dev\/null)" || blind0 "HEAD is not a commit and not a symbolic ref/2>\/dev\/null)" || : "HEAD is not a commit and not a symbolic ref/'
+  mutant brokenhead-rev-parse-dropped '/^    pg rev-parse -q --verify "\$sref" >\/dev\/null 2>&1 && blind0/d'
+  mutant brokenhead-exists-inverted 's/>\/dev\/null 2>&1 \&\& blind0 "HEAD names/>\/dev\/null 2>\&1 || blind0 "HEAD names/'
+  # ── round 14 (§11.4.276(D), §11.4.194(6)(d)): the round-13 reviewer's mutants RVR13-01..15, adopted verbatim from
+  # rv13.Q0jX/tools/rv_addmut.py (here-docs keep the text byte for byte). RVR13-02, RVR13-07 and RVR13-09 are
+  # equivalence claims (eqp below); every other one must be killed.
+  mutf RVR13-01-rounds-2 <<'RVR13EOF'
+s/    for _ in range(8):/    for _ in range(2):/
+RVR13EOF
+  mutf RVR13-03-proto-first-char-only <<'RVR13EOF'
+s/T.get(c,c) for c in k(s)/T.get(c,c)[:1] for c in k(s)/
+RVR13EOF
+  mutf RVR13-04-category-skips-first-char <<'RVR13EOF'
+s/unicodedata.category(c).startswith("C") for c in a)/unicodedata.category(c).startswith("C") for c in a[1:])/
+RVR13EOF
+  mutf RVR13-05-table-last-row-dropped <<'RVR13EOF'
+s/split("\\n")\[:-1\]:/split("\\n")[:-2]:/
+RVR13EOF
+  mutf RVR13-06-authoriser-not-skeletonised <<'RVR13EOF'
+s/f(i.strip())==f(a)/f(i.strip())==a/
+RVR13EOF
+  mutf RVR13-08-lang-not-lc-all <<'RVR13EOF'
+s/^export LC_ALL=C$/export LANG=C/
+RVR13EOF
+  mutf RVR13-10-sha256-empty-tree-offbyone <<'RVR13EOF'
+s/b14b4b9b939dd74decc5321 ;;/b14b4b9b939dd74decc5320 ;;/
+RVR13EOF
+  mutf RVR13-11-sha1-empty-tree-offbyone <<'RVR13EOF'
+s/sha1) basec=4b825dc642cb6eb9a060e54bf8d69288fbee4904/sha1) basec=4b825dc642cb6eb9a060e54bf8d69288fbee4905/
+RVR13EOF
+  mutf RVR13-12-skeleton-inner-k-dropped <<'RVR13EOF'
+s/g=lambda s: k("".join(T.get(c,c) for c in k(s)))/g=lambda s: k("".join(T.get(c,c) for c in s))/
+RVR13EOF
+  mutf RVR13-13-return-on-shrink <<'RVR13EOF'
+s/            if t==s: return t/            if t==s or len(t)<len(s): return t/
+RVR13EOF
+  mutf RVR13-14-author-email-dropped <<'RVR13EOF'
+s/for i in p\[1:\]) else 0/for i in p[1:4]) else 0/
+RVR13EOF
+  mutf RVR13-15-only-filenotfound <<'RVR13EOF'
+s/    except OSError:/    except FileNotFoundError:/
+RVR13EOF
   # ── round 13 (§11.4.276(D), §11.4.194(6)(d)): the round-12 reviewer's mutants RVX-01..14, adopted verbatim from
   # rv12.fpb0/wtx (here-docs keep the text byte for byte). RVX-09, RVX-10 and RVX-14 are equivalence claims under the
   # LC_ALL=C pin (eqp below, each with a control that also deletes the pin); every other one must be killed.
@@ -2357,6 +2497,7 @@ MEOF
 s/any(i.strip() and f(i.strip())==f(a)/any(i.lstrip() and f(i.strip())==f(a)/
 --
 s/    return 10 if any(.*) else 0/    return 0/
+/^    if any(e(i.strip())==e(a) for i in p\[1:\]): return 10$/d
 MEOF
   eqp eq-V28-missing-checkout-no-empty-check pr_checkout_shapes <<'MEOF'
 s/if \[ -z "\$subp" \] || ! sg/if ! sg/
@@ -2387,6 +2528,7 @@ MEOF
 s/i.strip() and f(i.strip())==f(a)/f(i.strip())==f(a)/
 --
 s/    return 10 if any(.*) else 0/    return 0/
+/^    if any(e(i.strip())==e(a) for i in p\[1:\]): return 10$/d
 MEOF
   # round 9 (review F2): the round-8 proof `eq-expiry-regex-dropped` (the whole regex dropped) was FALSE under GNU date,
   # which round-trips a five-digit year (`date -d 20269-01-01 +%Y-%m-%d` prints 20269-01-01; the round-7 note "GNU date
@@ -2451,6 +2593,32 @@ MEOF
 s/\[\[ "\$e" < "\$today" \]\]/[[ ! "$e" > "$today" \&\& "$e" != "$today" ]]/
 --
 s/\[\[ "\$e" < "\$today" \]\]/[[ "$e" > "$today" ]]/
+MEOF
+  # ── round 14 equivalence claims (review r13 R13-5, R13-8). RVR13-02 (three skeleton rounds): rounds14.py and
+  # pairs14.py measured at most 3 calls of g and of q on every code point and on 10.4M two-character strings, and the
+  # loop needs exactly as many rounds as calls; control: two rounds, which refuses `%` (three calls). RVR13-07 / 09:
+  # the pin under C.UTF-8, or not exported, decides as LC_ALL=C (reviewer locale probe); control: the pin deleted.
+  # outer-k-dropped: g without its outer k; same partition (reviewer: 154828 code points, 2.0M and 426k pairs);
+  # control: RVR13-12 (inner k dropped), which the f-only fullwidth twin separates.
+  eqp RVR13-02-rounds-3 pr_rounds14 <<'MEOF'
+s/    for _ in range(8):/    for _ in range(3):/
+--
+s/    for _ in range(8):/    for _ in range(2):/
+MEOF
+  eqp RVR13-07-locale-c-utf8 pr_loc13 <<'MEOF'
+s/^export LC_ALL=C$/export LC_ALL=C.UTF-8/
+--
+/^export LC_ALL=C$/d
+MEOF
+  eqp RVR13-09-lc-all-not-exported pr_loc13 <<'MEOF'
+s/^export LC_ALL=C$/LC_ALL=C/
+--
+/^export LC_ALL=C$/d
+MEOF
+  eqp outer-k-dropped pr_outerk14 <<'MEOF'
+s/g=lambda s: k("".join(T.get(c,c) for c in k(s)))/g=lambda s: "".join(T.get(c,c) for c in k(s))/
+--
+s/g=lambda s: k("".join(T.get(c,c) for c in k(s)))/g=lambda s: k("".join(T.get(c,c) for c in s))/
 MEOF
   eqp eq-site-spent-aborts pr_spent <<'MEOF'
 s/(a row waives one commit only)" ;;/(a row waives one commit only)"; return 1 ;;/

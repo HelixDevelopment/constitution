@@ -30,6 +30,7 @@ S020	GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT	GIT_CONFIG_PARAMETERS|GIT_CONFIG_COU
 S021	_COUNT) ;; *	*	1	rc	I021,I021a,I021b,I022	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I021,I021a,I021b,I022
 S022	[ -z "$base" ]	[ -z "$base" ]	1	rc	I027	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I027
 S023	[ -n "$basec" ]	[ -n "$basec" ]	1	rc	I028,I029	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I028,I029
+S023b	[ -z "$headc" ]; then # round 14	[ -z "$headc" ]	1	rc	I026h	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I026h (R13-4 broken HEAD, UNBORNBAD14)
 S024	" 2>/dev/null | tr -cd '\000'	tr -cd '\000'	1	charset	NULROW	blob-nul-unchecked	F3: a NUL in a base or sibling blob is counted, never dropped by $(...)
 S025	[ "${nul// /}" = 0 ]	[ "${nul// /}" = 0 ]	1	charset	NULROW	blob-nul-unchecked,blob-nul-as-unreadable	F3: any NUL count other than 0 refuses (rc 3)
 S026	 "${nul// /}	${nul// /}	1	charset	NULROW	blob-nul-unchecked	F3: the space padding some wc builds print is removed before the compare
@@ -81,6 +82,8 @@ S065	).casefold()	casefold()	1	ident	AUTHNORM	no-casefold-no-nfc,V13-casefold-to
 S067	f(i.strip())==f(a)	f(i.strip())==f(a)	1	ident	WSID4,WSID,IDENTONE,SELFAUTH	RV10-05-email-space-strip,ident-names-ascii-strip,RV8-01-ident-compare-unstripped,RV9-11-ident-zs-only-strip,self-authoriser-allowed	F1: ONE normalisation for all FOUR identity fields (names and emails): every isspace() character git keeps is stripped (WSID4)
 S068	ny(i.strip()	i.strip()	1	ident	WSID4,WSID	RV10-05-email-space-strip,ident-names-ascii-strip,RV9-11-ident-zs-only-strip,eq-ident-strip-truthiness	F1: the same strip on every field (the truthiness strip is equivalent, eq-ident-strip-truthiness)
 S069	ny(i.strip()	i.strip()	2	ident	WSID4,WSID	RV10-05-email-space-strip,ident-names-ascii-strip,RV9-11-ident-zs-only-strip,eq-ident-strip-truthiness	F1: the same strip on every field (the truthiness strip is equivalent, eq-ident-strip-truthiness)
+S069a	any(e(i.strip())==e(a)	any(e(i.strip())==e(a)	1	ident	CASE14,QNFD14	e-check-dropped,e-author-email-dropped,e-skip-committer-name,self-authoriser-allowed	round 14 (R13-2): the case-preserving compare over all four identity fields, killed only by e-equal f-different pairs
+S069b	any(e(i.strip())==e(a)	i.strip()	1	ident	CASE14	e-skip-committer-name	round 14 (R13-2): the e operand is stripped (AIex against an NBSP-padded committer Alex, CASE14); the direct mutant is the generated member gen-strip-3d94e08116 (member ledger), which the site lint does not count as registered
 S070	[ -z "$kidsrc" ]	[ -z "$kidsrc" ]	1	rc	I077	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I077
 S071	[ "$(pg rev-parse --is-shallow-repository 2>/dev/null)" != false ]	[ "$(pg rev-parse --is-shallow-repository 2>/dev/null)" != false ]	1	text	SHALLOWSUP,KNM2	NM2-shallow-unknown-is-deep,M1-shallow-superproject-unchecked	only the exact word false is a complete history
 S072	all" | awk '	awk '	1	charset	nc,KIDPARENT	-	not constructible: rev-list --parents prints hex SHAs separated by single spaces (default FS is exact)

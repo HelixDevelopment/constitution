@@ -20,8 +20,8 @@ What it enumerates (one single-line edit per mutant; the closed operator set, no
   NEG      every `if ! ` / `elif ! `: the `!` dropped
   NORM     (round 12, review r11 F1) every Unicode normalisation / casing member of the python authoriser check: each
            `unicodedata.normalize(FORM, x)` call dropped ON ITS OWN (-> x), each `.casefold()` swapped for `.lower()`
-           (and `.lower()` / `.upper()` for `.casefold()`), and the normaliser `f(..)` dropped on each operand of an
-           `==` compare on its own. The census of the class (every normalisation / casing / locale path of the gate
+           (and `.lower()` / `.upper()` for `.casefold()`), and the normaliser `f(..)` (round 14: or the case-
+           preserving skeleton `e(..)`) dropped on each operand of an `==` compare on its own. The census of the class (every normalisation / casing / locale path of the gate
            and the hook) is docs/qa/con046_review/r12_runs/norm_census.py; what it finds outside this kind is stated
            there (none in the round-12 gate)
   NORMCLS  (round 13, review r12 R12-1) for each `.casefold()` and each class of CF_CLASSES (the KILLABLE casefold-only
@@ -180,7 +180,7 @@ def gen_line(i, x, py):
             for k in range(len(ops)):
                 rest = ops[:k] + ops[k + 1:]
                 muts.append(('PYBOOL', x, cm.group(1) + ' or '.join(rest) + cm.group(3)))
-        am = re.search(r'any\((i\.strip\(\)) and (f\(i\.strip\(\)\)==f\(a\))', x)
+        am = re.search(r'any\((i\.strip\(\)) and ([fe]\(i\.strip\(\)\)==[fe]\(a\))', x)
         if am:
             muts.append(('PYBOOL', x, x[:am.start(1)] + am.group(2) + x[am.end(2):]))
             muts.append(('PYBOOL', x, x[:am.start(1)] + am.group(1) + x[am.end(2):]))
@@ -205,7 +205,7 @@ def gen_line(i, x, py):
                                '(unicodedata.name(c,"?")+" ").split()[0]=="%s") else c.casefold() for c in %s)'
                                % (ln, cat, word, op))
                         sub('NORMCLS', st, m.end(), rep)
-        for m in re.finditer(r'(?<![\w.])f\(', x):
+        for m in re.finditer(r'(?<![\w.])[fe]\(', x):  # round 14: e (the case-preserving skeleton) like f
             close = match_paren(x, m.end() - 1)
             if close is not None and (x.startswith('==', close + 1) or x[:m.start()].endswith('==')):
                 sub('NORM', m.start(), close + 1, x[m.end():close])  # the normaliser dropped on that operand only
