@@ -2,7 +2,7 @@
 """scripts/release/render_release_entry.py — fill a release-entry template mechanically (§11.4.274).
 
 Usage:
-  python3 -I scripts/release/render_release_entry.py TEMPLATE FACTS MANUAL > entry.md
+  python3 -I scripts/release/render_release_entry.py [--draft] TEMPLATE FACTS MANUAL > entry.md
 
 TEMPLATE  Markdown with {{key}} placeholders (keys of FACTS) and {{MANUAL:name}} placeholders; a
           leading HTML comment (the template's own instructions) is dropped.
@@ -21,7 +21,15 @@ new at cut time would otherwise drop silently; extend the template), or the MANU
 does not START with one of the verdict tokens PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN (the §11.4.40 retest
 sentence of an entry is conditional on a recorded verdict, so an entry never implies a pass; the token is
 checked, the base, tier and log that follow it are not). Exit 2 = usage.
+
+A MANUAL value that contains the word DRAFT (whole word, case-sensitive, as TODO and TBD) is refused too, unless
+--draft is the first argument (CON-423, rehearsal D5: a rehearsal entry full of DRAFT values rendered with exit 0
+and could have been committed as the release entry). A --draft rendering starts with the line DRAFT_MARK below and
+says so on stderr, so it never passes for a release entry; TODO/TBD and every other check still apply. The MANUAL
+value cut_date (the entry heading takes it whole) must be a bare calendar date YYYY-MM-DD that exists, also with
+--draft (rehearsal D9).
 """
+import datetime
 import re
 import sys
 
@@ -36,11 +44,27 @@ def die(msg, rc):
 # The retest sentence of a release entry is conditional on a recorded verdict (§11.4.40, §11.4.230(F.3)(1)):
 # the manual value must START with one of these tokens, so a claim of a pass cannot be written without it.
 RETEST_VERDICT = re.compile(r"(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)(?![\w-])")
+DRAFT_WORD = re.compile(r"\bDRAFT\b")
+DRAFT_MARK = "<!-- DRAFT RENDERING (render_release_entry.py --draft): NOT A RELEASE ENTRY; do not commit it as one -->"
+BARE_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
+def is_bare_date(val):
+    if not BARE_DATE.fullmatch(val):
+        return False
+    try:
+        datetime.date.fromisoformat(val)
+    except ValueError:
+        return False
+    return True
 
 
 def main(argv):
-    if len(argv) != 4:
-        die("usage: render_release_entry.py TEMPLATE FACTS MANUAL", 2)
+    draft = len(argv) == 5 and argv[1] == "--draft"
+    if draft:
+        argv = argv[:1] + argv[2:]
+    if len(argv) != 4 or any(a.startswith("--") for a in argv[1:]):
+        die("usage: render_release_entry.py [--draft] TEMPLATE FACTS MANUAL", 2)
     tpl = open(argv[1], encoding="utf-8").read()
     tpl = re.sub(r"\A\s*<!--.*?-->\s*", "", tpl, count=1, flags=re.S)
     facts = {}
@@ -77,6 +101,12 @@ def main(argv):
             if val is None or not val.strip() or re.search(r"\b(TODO|TBD)\b", val):
                 missing.append(key)
                 return m.group(0)
+            if not draft and DRAFT_WORD.search(val):
+                missing.append("MANUAL:%s (still says DRAFT; use --draft for a draft rendering)" % name)
+                return m.group(0)
+            if name == "cut_date" and not is_bare_date(val):
+                missing.append("MANUAL:cut_date (must be a bare calendar date YYYY-MM-DD)")
+                return m.group(0)
             if name == "retest_statement" and not RETEST_VERDICT.match(val.strip()):
                 missing.append("MANUAL:retest_statement (must start with PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN)")
                 return m.group(0)
@@ -99,6 +129,10 @@ def main(argv):
     if unrendered:
         die("facts the template does not render (a value new at cut time; extend the template): %s"
             % ", ".join(unrendered), 3)
+    if draft:
+        sys.stderr.write("render_release_entry: draft rendering (--draft): the output starts with a DRAFT marker "
+                         "line and is not a release entry\n")
+        out = DRAFT_MARK + "\n" + out
     sys.stdout.write(out)
     return 0
 
