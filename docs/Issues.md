@@ -5025,7 +5025,7 @@ What: review item (relayed by the conductor, mechanism UNCONFIRMED): in case C49
 **Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/gitleaks_replace_2026_11_16/red/r2_red_real_1.txt` — red-command `GLRS_SCRIPT=<copy of cb7008c4:scripts/gitleaks/gitleaks_run_scan.sh> GLRS_GITLEAKS=<gitleaks 8.30.1> bash tests/security/test_gitleaks_run_scan_replace.sh (4/8)` — green-command `GLRS_GITLEAKS=<gitleaks 8.30.1> bash tests/security/test_gitleaks_run_scan_replace.sh on the fixed script (8/8)` — env `host, clone of origin main cb7008c4, real gitleaks 8.30.1 (sha256 88f91962aa2f93ac), git 2.53.0, local repositories with refs/replace entries` — signature `commit replaced by a clean commit: exit 1 with 1 finding (only the control), hidden secret missing; blob replaced by a clean blob: exit 0, 0 findings (false PASS); core.useReplaceRefs=true in repo config or GIT_CONFIG_PARAMETERS: hidden secret missing` — updated 2026-11-16T18:24:50Z — by `AI`
 **Investigation:** root-cause-found-with-evidence — root-cause `gitleaks detect reads history through git log -p, which follows refs/replace/*; the script's git-env scrub unsets GIT_NO_REPLACE_OBJECTS and never sets it. Toggling only the export after the scrub (mutant GM1 = unfixed behaviour) brings back the miss with the real binary; with it every case passes` — evidence `docs/qa/gitleaks_replace_2026_11_16/mutations/mut_real_1.txt` — updated 2026-11-16T18:24:50Z — by `AI`
 
-What: review F1 (pre-existing, important): scripts/gitleaks/gitleaks_run_scan.sh runs gitleaks detect over the full history and scrubs the git environment but never exports GIT_NO_REPLACE_OBJECTS=1, the same class CON-425 fixed in scripts/security/history_secret_scan.sh. UNCONFIRMED whether gitleaks' own git log invocation honours replace refs (real gitleaks is not installed on this host). Related: CON-425 (same class, other script), CON-401. Scope: scripts/gitleaks/gitleaks_run_scan.sh and its tests. Reproduction: UNREPRODUCED. Acceptance: a RED with a repository carrying refs/replace/<secret-blob> -> <clean-blob> scanned by the real gitleaks binary, then GREEN with the secret found; paired mutant that drops the export is killed. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289). Fix (this change, PROVISIONAL, not yet independently reviewed): export GIT_NO_REPLACE_OBJECTS=1 right after the git-env scrub of scripts/gitleaks/gitleaks_run_scan.sh. Live with the real gitleaks 8.30.1: RED 4/8 on the unfixed script (blob-replace repo exit 0 with 0 findings, a false PASS), GREEN 8/8 on the fix, three identical runs each; fake-scanner suite 9/9; mutants GM1-GM8 killed with both scanners, GE1/GE2 (value 0, empty) behaviour-equivalent. Evidence docs/qa/gitleaks_replace_2026_11_16/. The attributes class (caller or committed .gitattributes -diff gives a false PASS, measured live) is filed separately as CON-453.
+What: review F1 (pre-existing, important): scripts/gitleaks/gitleaks_run_scan.sh runs gitleaks detect over the full history and scrubs the git environment but never exports GIT_NO_REPLACE_OBJECTS=1, the same class CON-425 fixed in scripts/security/history_secret_scan.sh. Measured since (CON-435 fix run, 2026-11-16): gitleaks detect does honour replace refs; with the real gitleaks 8.30.1 a blob-replace repository gave exit 0 with 0 findings on the unfixed script (the original wording here said UNCONFIRMED; corrected per CON-435 review F7). Related: CON-425 (same class, other script), CON-401. Scope: scripts/gitleaks/gitleaks_run_scan.sh and its tests. Reproduction: reproduced-live on the host (see the reproduction record; the original wording said UNREPRODUCED). Acceptance: a RED with a repository carrying refs/replace/<secret-blob> -> <clean-blob> scanned by the real gitleaks binary, then GREEN with the secret found; paired mutant that drops the export is killed. Source: independent review of the CON-425 vehicle (bundle 778debdb, landed as 5999ff05), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev425_173245/ev/ outside the repository (SHA256SUMS sha256 e446e8235d28b5ddeb814bfa9d30082795ec1905bb00ab299313032646ffaf7b), gate-logic class (section 11.4.289). Fix (this change, PROVISIONAL, not yet independently reviewed): export GIT_NO_REPLACE_OBJECTS=1 right after the git-env scrub of scripts/gitleaks/gitleaks_run_scan.sh. Live with the real gitleaks 8.30.1: RED 4/8 on the unfixed script (blob-replace repo exit 0 with 0 findings, a false PASS), GREEN 8/8 on the fix, three identical runs each; fake-scanner suite 9/9; mutants GM1-GM8 killed with both scanners, GE1/GE2 (value 0, empty) behaviour-equivalent. Evidence docs/qa/gitleaks_replace_2026_11_16/. The attributes class (caller or committed .gitattributes -diff gives a false PASS, measured live) is filed separately as CON-453.
 
 ## CON-436 — history_secret_scan.sh: a ref that two remotes both name under refs/fetched/r1/ is overwritten by the second forced fetch and hides a commit (CON-425 review F2)
 
@@ -5190,4 +5190,229 @@ What: audit F9. The full-suite runner gives each unit a fresh HOME under TMPDIR 
 **Investigation:** not-started — updated 2026-11-16T18:24:50Z — by `AI`
 
 What: gitleaks detect reads history through git log -p, and git honours diff attributes: a path marked -diff is shown as a binary change, so gitleaks never sees its added lines. Measured live with the real gitleaks 8.30.1 and git 2.53.0 on the CON-435-fixed scripts/gitleaks/gitleaks_run_scan.sh (docs/qa/gitleaks_replace_2026_11_16/probes/attributes_probe_result.txt): control repository with no attributes exit 1 with 2 leaks; the same repository with the caller's GIT_CONFIG_GLOBAL naming a core.attributesFile that sets *.env -diff exit 0 PASS 0 leaks; a repository whose own committed .gitattributes holds *.env -diff, with a secret .env committed after it, exit 0 PASS 0 leaks. The committed case comes from the scanned history itself, so GIT_CONFIG_GLOBAL=/dev/null and GIT_CONFIG_NOSYSTEM=1 (the CON-438 fix idea) do not cover it. Related: CON-438 (same class in scripts/security/history_secret_scan.sh, UNCONFIRMED there for the committed case; its scanner runs on a bare mirror), CON-435, CON-425. Scope: scripts/gitleaks/gitleaks_run_scan.sh and its tests; check history_secret_scan.sh too. Fix idea (UNCONFIRMED): pass a log option that forces text diffs (for example --log-opts with --text) or neutralise attributes, and confirm with the real binary. Reproduction: reproduced-live on the host by the probe above; the probe repositories are outside the repository. Acceptance: RED with the real gitleaks on both attribute cases, GREEN with the secret found, positive and negative controls, paired mutant that drops the fix killed. Source: CON-435 fixer run 2026-11-16, evidence docs/qa/gitleaks_replace_2026_11_16/. Re-minted at landing from the placeholder CON-PENDINGcon435 (section 11.4.214).
+
+## CON-454 — gitleaks_run_scan.sh: gitleaks detect reads history without -m, so a secret added only in a merge commit (evil merge) is missed (CON-435 review F1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** AI
+
+What: review F1 (important, source defect, pre-existing). scripts/gitleaks/gitleaks_run_scan.sh runs gitleaks detect with the default log options; git log -p shows no diff for merge commits unless -m (or --cc/-c) is given, so a secret introduced only in the merge resolution is never scanned. scripts/security/history_secret_scan.sh already passes --log-opts="--all -m". Related: CON-435, CON-425. Scope: scripts/gitleaks/gitleaks_run_scan.sh and its tests. Reproduction: UNREPRODUCED (review finding). Acceptance: RED with the real gitleaks on a repository whose secret exists only in an evil merge, GREEN after the fix, positive and negative controls, paired mutant that drops -m killed. Source: independent review of the CON-435 vehicle (bundle 55b225f1, landed on main as merge 2ad83e18), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev_con435/ev/ outside the repository (SHA256SUMS sha256 56a680cb7d13c540ba086175cf1eac8470a27b98651993ca2420de26b38c04f8), gate-logic class for the fake scanner, host-only live for the real gitleaks (section 11.4.289).
+
+## CON-455 — gitleaks_run_scan.sh: .git/info/grafts and .git/shallow in the scanned repository hide history; GIT_NO_REPLACE_OBJECTS does not disable them (CON-435 review F2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** AI
+
+What: review F2 (important, pre-existing). A scanned repository can carry .git/info/grafts or .git/shallow, which rewrite or cut the parent chain git log follows; GIT_NO_REPLACE_OBJECTS=1 (the CON-435 fix) disables refs/replace only, so a graft can still hide a secret commit from gitleaks detect. Fix idea (UNCONFIRMED): scan a fresh --mirror clone, which carries neither file, and report a shallow source as history-incomplete. Related: CON-437 (shallow source in history_secret_scan.sh, other script), CON-435. Scope: scripts/gitleaks/gitleaks_run_scan.sh and its tests. Reproduction: UNREPRODUCED (review finding). Acceptance: RED with the real gitleaks on a repository with a graft that hides a secret commit, GREEN after the fix, paired mutant killed. Source: independent review of the CON-435 vehicle (bundle 55b225f1, landed on main as merge 2ad83e18), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev_con435/ev/ outside the repository (SHA256SUMS sha256 56a680cb7d13c540ba086175cf1eac8470a27b98651993ca2420de26b38c04f8), gate-logic class for the fake scanner, host-only live for the real gitleaks (section 11.4.289).
+
+## CON-456 — workable-items add accepts a placeholder id with a second hyphen (CON-PENDING-x2) that the Markdown round trip drops (heading regex [A-Z]{3}-[0-9A-Za-z]+) (CON-435 review F3)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** AI
+
+What: review F3 (important, engine source defect). workable-items add --id accepts an id such as CON-PENDING-x2, but the heading parser (parse.go, ^## [A-Z]{3}-[0-9A-Za-z]+) does not match a second hyphen, so a db to Markdown to db round trip silently drops the item. The CON-435 fixer worked around it with the one-hyphen placeholder CON-PENDINGcon435. Either add refuses an id the parser cannot read back, or the parser accepts what add writes. Related: the 2026-10-08 key-grammar owed engine work recorded in the section 11.4.54 / 11.4.248 EXTENSION (add does not enforce a key grammar), CON-391 (round-trip rewrite, different defect). Scope: scripts/workable-items (add, parse.go) and its tests. Reproduction: UNREPRODUCED here (review finding; the fixer's commit message records the drop). Acceptance: RED round trip with a two-hyphen id, GREEN after the fix, paired mutant killed. Source: independent review of the CON-435 vehicle (bundle 55b225f1, landed on main as merge 2ad83e18), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev_con435/ev/ outside the repository (SHA256SUMS sha256 56a680cb7d13c540ba086175cf1eac8470a27b98651993ca2420de26b38c04f8), gate-logic class for the fake scanner, host-only live for the real gitleaks (section 11.4.289).
+
+## CON-457 — CON-435 tests: the fake gitleaks scanner ignores --log-opts, so mutant RM6 survives the fake-scanner suite (CON-435 review F4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F4 (minor, test instrumentation). tests/security/fixtures/fake_gitleaks_detect.py does not read --log-opts, so a mutant that changes the log options (RM6) passes the fake-scanner suite; only the real-scanner run kills it. Scope: the fake scanner and test_gitleaks_run_scan_replace_mutations.sh. Acceptance: the fake honours --log-opts (or the suite asserts the argv), RM6 killed with the fake scanner. Source: independent review of the CON-435 vehicle (bundle 55b225f1, landed on main as merge 2ad83e18), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev_con435/ev/ outside the repository (SHA256SUMS sha256 56a680cb7d13c540ba086175cf1eac8470a27b98651993ca2420de26b38c04f8), gate-logic class for the fake scanner, host-only live for the real gitleaks (section 11.4.289).
+
+## CON-458 — CON-435 tests: no case asserts the scanned repository, refs/replace included, is unchanged after the scan (mutant RM15 survives) (CON-435 review F5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F5 (minor, test instrumentation). No test checks that gitleaks_run_scan.sh leaves the scanned repository untouched (refs, refs/replace, config); reviewer mutant RM15 that writes to it survives. Scope: tests/security/test_gitleaks_run_scan_replace.sh. Acceptance: a before/after ref and config fingerprint case, RM15 killed. Source: independent review of the CON-435 vehicle (bundle 55b225f1, landed on main as merge 2ad83e18), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev_con435/ev/ outside the repository (SHA256SUMS sha256 56a680cb7d13c540ba086175cf1eac8470a27b98651993ca2420de26b38c04f8), gate-logic class for the fake scanner, host-only live for the real gitleaks (section 11.4.289).
+
+## CON-459 — CON-435 class census covers replace refs only, not grafts, shallow, attributes or textconv (CON-435 review F6)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F6 (minor). docs/qa/gitleaks_replace_2026_11_16/class_census.md enumerates the history-hiding class for refs/replace only; grafts, .git/shallow, diff attributes (CON-453) and textconv drivers are members of the same class (git shows a history other than the stored objects) and are not enumerated. Related: CON-453, the F2 item of this review, CON-437, CON-438. Scope: the census document (and items for members not yet covered). Acceptance: every member enumerated with a control-needled instrument and closed or linked to a tracked item (section 11.4.276(C)). Source: independent review of the CON-435 vehicle (bundle 55b225f1, landed on main as merge 2ad83e18), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev_con435/ev/ outside the repository (SHA256SUMS sha256 56a680cb7d13c540ba086175cf1eac8470a27b98651993ca2420de26b38c04f8), gate-logic class for the fake scanner, host-only live for the real gitleaks (section 11.4.289).
+
+## CON-460 — v73.5: land or retire the parked ref wip/continue-20261105/atm1217-replace (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/continue-20261105/atm1217-replace, tip f26ae1af9bd8be96bdd69260577c27ede8562fd9, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,m3w,origin, 15 commit(s) not on main, last commit 2026-11-04T23:32:36+01:00: 'fix(fastcycle): units helper round 5 - NUL/\c/\u words not static, fd-0 redirection rules,'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-461 — v73.5: land or retire the parked ref wip/review-pending-20261014/atm1217-r3-20261013 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/atm1217-r3-20261013, tip 468f017a159ce06389d3065596d6395392c6a3e5, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 3 commit(s) not on main, last commit 2026-10-13T21:49:08+05:00: 'ATM-1217 r3 shellcheck baseline-delta (review candidate, local only)'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-462 — v73.5: land or retire the parked ref wip/review-pending-20261014/atm1217-r4-20261013 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/atm1217-r4-20261013, tip a6100a4a06a809cf94816edb924dd8f93c8065e6, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 3 commit(s) not on main, last commit 2026-10-13T22:48:28+05:00: 'ATM-1217 r4 shellcheck baseline-delta (review candidate, local only)'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-463 — v73.5: land or retire the parked ref wip/review-pending-20261014/atm1217-r5-20261013 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/atm1217-r5-20261013, tip 65fe773e1a20c220ceac2a41747092f06d2ad7d8, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 3 commit(s) not on main, last commit 2026-10-14T00:06:24+05:00: 'ATM-1217 r5 shellcheck baseline-delta (review candidate, local only)'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-464 — v73.5: land or retire the parked ref wip/review-pending-20261014/atm1217_r6 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/atm1217_r6, tip 15d2420ec56ae56f27979e6f3e2d95e1608cdfb7, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 3 commit(s) not on main, last commit 2026-10-14T11:33:55+05:00: 'ATM-1217 r6: shellcheck baseline-delta rule (review candidate)'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-465 — v73.5: land or retire the parked ref wip/review-pending-20261014/atm1217_r7 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/atm1217_r7, tip 45f5c86ea717a213aa876023555b9372e003e329, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 3 commit(s) not on main, last commit 2026-10-14T13:31:24+05:00: 'ATM-1217 r7: shellcheck baseline-delta rule (review candidate, round 5)'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-466 — v73.5: land or retire the parked ref wip/review-pending-20261014/atm1217_r8 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/atm1217_r8, tip 02c5612ab51af5620096e80f543ff7fd393b4930, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 4 commit(s) not on main, last commit 2026-10-14T15:30:21+05:00: 'ATM-1217 r8: tests + guide wording only, for the r7 review (K1, K3)'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-467 — v73.5: land or retire the parked ref wip/review-pending-20261014/atm1217_r9 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/atm1217_r9, tip 99bd6dd5bd4496397750251c57f278374851fae1, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 5 commit(s) not on main, last commit 2026-10-14T17:47:26+05:00: 'ATM-1217 r9: command-unit line map (r8 review L1), L2 cases, reviewer mutants R01-R06'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-468 — v73.5: land or retire the parked ref wip/continue-20261105/census-followups (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/continue-20261105/census-followups, tip 0e4b197b0236d96fba09aec3b8e9487d2a1a8f8f, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,m3w,origin, 5 commit(s) not on main, last commit 2026-11-05T10:23:09+01:00: 'fix(gates): env census disowns an awk program written to a file and run as awk -f $FILE (C'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-469 — v73.5: land or retire the parked ref wip/evidence-con017-94a1d28 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/evidence-con017-94a1d28, tip 94a1d28f292540ff5962dd08c73aef566929d9ef, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,m3w,origin, 7 commit(s) not on main, last commit 2026-11-05T13:08:21+01:00: 'fix(gates): env census CON-017 disowns a program only when the whole class is proven non-j'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-470 — v73.5: land or retire the parked ref wip/preserve-20261115/agentlabel_r7 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/preserve-20261115/agentlabel_r7, tip 70b8cd9695d00d4d988835cb9aa6aebdbf27aa22, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 1 commit(s) not on main, last commit 2026-10-15T09:32:03+05:00: 'agent-label definitions round 2: T<N>-<branch>-<alias>-<model>-<effort> agent types (gener'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-471 — v73.5: land or retire the parked ref wip/preserve-20261115/issuerule_r7 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/preserve-20261115/issuerule_r7, tip 59f5a4ad1d0501ebe795260b62fab625fbe69a23, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 1 commit(s) not on main, last commit 2026-10-15T09:26:36+05:00: 'constitution: §11.4.102 EXTENDED with clause (E), round 7 (last round of the §11.4.276 bud'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-472 — v73.5: land or retire the parked ref wip/preserve-20261115/stash2_anchors_11_4_205_206 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/preserve-20261115/stash2_anchors_11_4_205_206, tip 00e29d0fa3ebb4c6172b21ef26d56323c7f67288, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 2 commit(s) not on main, last commit 2026-07-15T14:59:19+05:00: 'WIP on main: c3cd967 ATM-785 (t1 - claude4): fix §11.4.201 vanished-PID false-refuse in mu'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-473 — v73.5: land or retire the parked ref wip/review-pending-20261014/held_precheck-gate-20261012 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/held_precheck-gate-20261012, tip 4b13814917505d984bd96377d815c847c7f89946, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 4 commit(s) not on main, last commit 2026-10-12T19:20:11+05:00: 'HELD (local only, DO NOT PUSH): snapshot of all uncommitted constitution work, 2026-10-12'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a). Note (operator decision 2026-11-16): the HELD snapshot 4b138149 needs a sensitive-content check first (gitleaks scan of paths and classes only, approved) before any landing or publishing decision.
+
+## CON-474 — v73.5: land or retire the parked ref wip/review-pending-20261014/atm1041-v4-r7-20261013 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/review-pending-20261014/atm1041-v4-r7-20261013, tip 33c9697b5b2f1b2063b4681f63586ff766b0ef98, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,origin, 9 commit(s) not on main, last commit 2026-10-13T20:27:40+05:00: 'fastcycle V4 round 7 (the LAST budget round, §11.4.276): close the round-6 review -- group'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-475 — v73.5: land or retire the parked ref wip/continue-20261105b/ownership-wave2-r2 (class D, work not on main)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decision 2026-11-16: the class D refs (work not on main) are parked for v73.5, listed as a gap in the v73.4 changelog, one tracked item each, never deleted before a decision. Ref wip/continue-20261105b/ownership-wave2-r2, tip 6b7462a51f6f8fb67befbfc469ca6eaf59db41fc, on remotes gitflic,github,github_vasic_digital,gitlab_helixdevelopment1,gitlab_vasic_digital,gitverse,m3w,origin, 1 commit(s) not on main, last commit 2026-11-05T14:24:25+01:00: 'WIP snapshot before reboot (unreviewed, not for main) ownership-wave2-r2'. Scope: decide per section 11.4.288 (B)(4)/(C.7)(4): land the work (review to GO, merge onto main) or retire it after a per-mirror bundle and an ls-remote read-back, with a recorded operator decision. Reproduction: not applicable. Acceptance: the ref is landed or retired and the decision is recorded. Source: ref audit /mnt/DATA1TB/claude-work/scratch/refaudit_288_UMPl/out/refs.tsv outside the repository (sha256 fa38a49d79f794b843ea198f14de5ce85e86ee715e6919fd6107cd676ee1c69a).
+
+## CON-476 — v73.5: resume or retire the parked guard vehicle case-alt (destructive-path guard)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decisions 2026-11-14 and 2026-11-16: the guard vehicle case-alt (destructive-path guard) is parked for v73.5 (listed as a gap in the v73.4 changelog) and gets one tracked item. State: round 4 reviewed NO-GO; parked after three safety-classifier stops in a row. Bundle and evidence outside the repository: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/guard_casealt_r4.QJoy/guard_casealt_r4.bundle (review REVIEW_r4.md sha 5535bdb1). Related findings already tracked: CON-373, CON-374, CON-375. Scope: resume with a fresh fixer and reviewer to GO and land on main, or retire with a recorded operator decision; never drop the bundle. Reproduction: not applicable. Acceptance: landed or retired, decision recorded.
+
+## CON-477 — v73.5: resume or retire the parked guard vehicle PE+G1 (destructive-path guard)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decisions 2026-11-14 and 2026-11-16: the guard vehicle PE+G1 (destructive-path guard) is parked for v73.5 (listed as a gap in the v73.4 changelog) and gets one tracked item. State: round 3, not reviewed to GO. Bundle and evidence outside the repository: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/guard_pe_g1.4a3x/guard_pe_g1_r3.bundle. Related findings already tracked: none found by title search. Scope: resume with a fresh fixer and reviewer to GO and land on main, or retire with a recorded operator decision; never drop the bundle. Reproduction: not applicable. Acceptance: landed or retired, decision recorded.
+
+## CON-478 — v73.5: resume or retire the parked guard vehicle idguard (git identity guard) round 9
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: operator decisions 2026-11-14 and 2026-11-16: the guard vehicle idguard (git identity guard) round 9 is parked for v73.5 (listed as a gap in the v73.4 changelog) and gets one tracked item. State: round 9, not landed on main. Bundle and evidence outside the repository: /mnt/DATA1TB/claude-work/scratch/fin9.03XH/ev/idguard_r9.bundle. Related findings already tracked: CON-334 to CON-341. Scope: resume with a fresh fixer and reviewer to GO and land on main, or retire with a recorded operator decision; never drop the bundle. Reproduction: not applicable. Acceptance: landed or retired, decision recorded.
 
