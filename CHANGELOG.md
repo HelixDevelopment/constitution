@@ -15,7 +15,7 @@
   - F3: changed path names are scanned.
   - A changed symbolic link has its target text scanned; a link pointing outside the root is BLIND.
   - An unknown configuration key gets a NOTE and is never refused.
-  - Mutation test: the round-2 case that required a PASS for a database holding an account is inverted. The reviewer's mutants R1 to R12 and own round-3 mutants are added. Result: <MUT_RESULT>.
+  - Mutation test: the round-2 case that required a PASS for a database holding an account is inverted. The reviewer's mutants R1 to R12 and own round-3 mutants are added. Result: 122 cases behave as required and 77 of 77 gate mutants are killed, twice with identical output. On the round-2 gate, 22 of the round-3 cases fail (RED). The anchor-gate mutation test gives 367 RED/BLIND and 10 GREEN cases, twice.
 - `config/git_env_class_exemptions.tsv`: three `pinned-fixture` rows for the round-1 evidence tools of this vehicle.
 - Evidence: `docs/qa/pr_delivery_decision_20261116/r3/`.
 
