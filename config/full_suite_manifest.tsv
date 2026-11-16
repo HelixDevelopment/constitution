@@ -726,7 +726,11 @@ tests/action_prefix/meta_test_action_prefix_grammar.sh	sh	entry	heavy	bash	-	aut
 tests/action_prefix/test_action_prefix_grammar.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_hook_e2e.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_subsystem_shortcuts.sh	sh	entry	default	bash	-	auto
-tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	member	heavy	-	tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh	override: run in four shards by tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh to _4.sh (--shard K/4, one unit each, under the runner's 900 s default; the whole list takes about 25 min); covered_by names shard 1 (one entry per row); every shard checks the other three exist and are entries
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_2.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_3.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_4.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_constitution_cmd.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_constitution_cmd_pty.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh	sh	entry	default	bash	-	auto
