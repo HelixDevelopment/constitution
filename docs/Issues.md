@@ -1697,7 +1697,9 @@ Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in ve
 **Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
 **Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
 
-Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: inventory class B of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md; reviewer runs docs/qa/manifest_triage_review/r1_unconfirmed_fastcycle_runs.tsv). Each gives rc 0 when run alone and fails in the batch: test_backstop_compare_exit_codes_r2_regression.sh, test_backstop_compare_r3_regression.sh, test_io_trace_build_map_device_safety_r2_regression.sh, test_io_trace_build_map_r3_regression.sh, test_io_trace_build_map_r5_regression.sh, test_io_trace_build_map_setsid_r5_regression.sh, test_io_trace_fork_cwd_and_faccessat_r2_regression.sh, test_precheck_pack_build_red.sh, test_precheck_pack_multi_slice_sibling_search_r5_regression.sh, test_precheck_sibling_blast_radius_honest_verdict_red.sh, test_precheck_sibling_search_unmeasured_literal_r6_regression.sh. Cause UNCONFIRMED (load, ordering, shared state or the batch timeout). Reproduction: run scripts/fastcycle/tests/run_all.sh with the exact batch order and record each failure (section 11.4.199). Acceptance: a recorded live reproduction in the batch, a proven root cause per test, and a fix with a deterministic test.
+Eleven fastcycle tests pass alone but fail in the batch (inventory class B)
+
+Link (section 11.4.214, open original, link only; 2026-11-16; author follow-up CON-PENDING-2): measured on a fixed snapshot at load about 37, TIMEOUT at 240 s for test_baseline_replay_r2_findings.sh, test_collect_baseline_red.sh, test_consumer_migrate_red.sh, test_fastcycle_r6_mutations.sh, test_triple_harness_red.sh and test_fc_supervisor_v4r5 / v4r8 / v4r9; test_run_all.sh r7f2 / r7f3 signal cases failed at load about 37 and passed at about 19, on the vehicle tree and on unfixed main. Source: vehicle follow-up file /mnt/DATA1TB/claude-work/scratch/fc097.IRoFwQ/out/followups.md of vehicle head d5d25e3f, landed on main as merge f090d082.
 
 ## CON-099 — Eleven fastcycle tests show behaviour mismatches that need a root cause (inventory class C)
 
@@ -1725,7 +1727,9 @@ fixu round 3 re-review (2026-11-06, docs/qa/fixu_review/review_fixu_r3.md, lande
 **Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
 **Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
 
-Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: inventory class D of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md). scripts/fastcycle/tests/test_host_attribute_red.sh reports btrfs_binary_unavailable because the exclusive-bytes instrument needs a btrfs tool this host lacks. Whether the tool is truly absent was not checked. Reproduction: run the test on a host with no btrfs binary and record the output and rc. Acceptance: when the tool is proven absent (control needle), the affected legs SKIP with reason=hardware_not_present or topology_unsupported, never FAIL; when present, they run.
+test_host_attribute_red.sh fails btrfs_binary_unavailable when the tool is absent (reported, not reproduced) (inventory class D)
+
+Link (section 11.4.214, open original, link only; 2026-11-16): the fastcycle vehicle author saw test_host_attribute_red.sh fail with btrfs unavailable on this host again (CON-PENDING-3, linked on CON-264). Source: vehicle follow-up file /mnt/DATA1TB/claude-work/scratch/fc097.IRoFwQ/out/followups.md of vehicle head d5d25e3f, landed on main as merge f090d082.
 
 ## CON-101 — test_precheck_shellcheck_red.sh times out under load with an M11 mutation-flip traceback (inventory class D2)
 
@@ -3514,6 +3518,8 @@ Every suite that skips a proof leg exits 77 with the leg named; run_all.sh repor
 
 **Census (CON-033 review round 3, finding R3-F7, reviewer probe skipexit0.py over 1193 tracked .sh files on main b939266a; an `echo SKIP` line not carrying `exit 77`, followed within 3 lines by `exit 0`):** 11 sites in 8 files. CON-033 round 4 fixed one of them in the vehicle (scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh:137, now `SKIP reason=topology_unsupported` and exit 77, measured rc 77). The other 10, pre-existing on main and NOT fixed here: test_io_trace_fork_cwd_and_faccessat_r2_regression.sh, test_precheck_shellcheck_red.sh, test_guard_branch_consistency.sh, test_guard_work_track_binding.sh (2 sites), test_multitrack_redpin_mutations.sh, test_multitrack_work_binding_submodule_db.sh (2 sites), tests/action_prefix/test_subsystem_shortcuts.sh (2 sites). Acceptance per site: the skip exits 77 with a section 11.4.69 reason, and a red test proves a skipped run is never counted as PASS.
 
+Note (2026-11-16): the fastcycle vehicle landed in merge f090d082 fixes the run_all.sh half (exit 77 = SKIP; a run with a skipped member exits 77). The other half, suites and runners that print a SKIP line and still exit 0, is not fixed; this item stays open for it (author follow-up CON-PENDING-1, not minted). Source: vehicle follow-up file /mnt/DATA1TB/claude-work/scratch/fc097.IRoFwQ/out/followups.md of vehicle head d5d25e3f, landed on main as merge f090d082.
+
 ## CON-263 — CON-033 round 4: accept two excluded-lock rows (review_record_guard_analyzer.py, sweep_review_record_subclauses.sh)
 
 **Status:** Operator-blocked
@@ -3531,7 +3537,11 @@ Parent: CON-033 (vehicle/con033). Found in CON-033 fix round 4 at the merge of m
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). The R4-CAP legs of test_review_record_gate_authority_r4_regression.sh need podman unshare, a subordinate-uid range and a writable directory whose whole chain is root-owned. With TMPDIR under a home directory they SKIP (exit 77). CON-033 round 4 ran them once with TMPDIR=/tmp: 26 PASS, 0 FAIL, 0 SKIP, R4-CAP-needle..R4-CAP7 all PASS (log sha256 221ab05de2da4f64075658b7682d8a00840d6e50f4b5bf56a56729285118e525, cited in the round-4 report). Nothing runs them regularly, so a regression in the capability tier would be seen only on a host and TMPDIR where they run. Acceptance: a scheduled or pre-landing run with TMPDIR=/tmp (or another root-owned-chain directory) whose result is recorded; a SKIP of these legs is reported, never read as PASS.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-123, re-minted at the merge of main 90efceb8 as CON-131 (main owns up to CON-115). Re-minted again at the merge of main 2e8cfb90 as CON-161 (main owns up to CON-145); old to new map: CON-131 -> CON-161. Re-minted again at the merge of main 27dcf518 as CON-178 (main owns up to CON-162); old to new map: CON-161 -> CON-178. Re-minted again at the merge of main fc57ad0c as CON-209 (main owns up to CON-193); old to new map: CON-178 -> CON-209. Re-minted again at the merge of main b20736f8 as CON-264 (main owns up to CON-248); old to new map: CON-209 -> CON-264. The R4-CAP legs of test_review_record_gate_authority_r4_regression.sh need podman unshare, a subordinate-uid range and a writable directory whose whole chain is root-owned. With TMPDIR under a home directory they SKIP (exit 77). CON-033 round 4 ran them once with TMPDIR=/tmp: 26 PASS, 0 FAIL, 0 SKIP, R4-CAP-needle..R4-CAP7 all PASS (log sha256 221ab05de2da4f64075658b7682d8a00840d6e50f4b5bf56a56729285118e525, cited in the round-4 report). Nothing runs them regularly, so a regression in the capability tier would be seen only on a host and TMPDIR where they run. Acceptance: a scheduled or pre-landing run with TMPDIR=/tmp (or another root-owned-chain directory) whose result is recorded; a SKIP of these legs is reported, never read as PASS.
+
+Round 4 note: the legs were run once with the base fix in the test (CAPBASE falls back to /tmp, /var/tmp, /dev/shm when no writable root-owned ancestor exists): 26 ok, rc 0. What remains owed is running them on a schedule.
+
+Link (section 11.4.214, open original, link only; 2026-11-16; author follow-up CON-PENDING-3): host-environment failures on this host, also on named main: review_record_* (resolution_ground_truth, store_tier_noncanonical_tmpdir, gate_authority_*, skip_status, guard_table) fail because the mandated TMPDIR /mnt/DATA1TB/claude-work/tmp is writable by others, so the capability controls cannot hold; guard_table also reports a STALE kill ledger (UNCONFIRMED whether host-only). Same note lists test_host_attribute_red.sh (btrfs binary unavailable, tracked as CON-100) and test_io_trace_build_map_r6_regression.sh (unshare cannot write uid_map on this host; no item of its own). Source: vehicle follow-up file /mnt/DATA1TB/claude-work/scratch/fc097.IRoFwQ/out/followups.md of vehicle head d5d25e3f, landed on main as merge f090d082.
 
 ## CON-266 — CON-033 R7-M1: extend mutate_tier_legs.py to the module constants the tier reads and to cmd_gate's consumption of the tier result, and cross-check the call-site census against an independent token count
 
@@ -4619,6 +4629,8 @@ What: while extracting the scanner, the round-2 reviewer evaluated a sed range o
 
 What: an unchanged sync db-to-md followed by sync md-to-db of the base tracker replaced description with different text on 38 rows (for example CON-030, CON-246) and set severity from Low to NULL on 3 rows (CON-266, CON-267, CON-268). Scope: workable-items engine sync db-to-md / sync md-to-db; pre-existing, measured by the engine created_at round-1 reviewer on the base bd0036bd binary and on the vehicle binary with the same result. Reproduction: UNREPRODUCED in this repository's evidence: the register records the reviewer's column census as reproduced-host-fixture, but that census file is not in the repository, so no state above UNREPRODUCED is set (section 11.4.294(C)). Reproduce first on a copy of docs/workable_items.db (section 11.4.292). Acceptance: a round trip of an unchanged database leaves every column of every row unchanged except last_modified, with a column census as the oracle and a regression test. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register CON-PENDING-MDRT-DATALOSS. Parent CON-313; related to register D-02 (filed as CON-396).
 
+Link (section 11.4.214, open original, link only; 2026-11-16): the fc097 review re-measured the lossy md-to-db round trip on a scratch DB: description rewritten on 190 rows, parent_atm_id on 17, severity on 3, last_modified on 407, while 'workable-items diff' reports DB and Markdown in sync (the vehicle author measured 182 / 17 / 3 / 399 earlier the same day). Source: independent review /mnt/DATA1TB/claude-work/scratch/rev097.GcJx93/ev/findings.md (evidence SHA256SUMS sha256 bf9b3ffb7aaa1f44c6c4a409dc901da89bae3c72c009f6c7cfb3402aad08b5b4) of vehicle head d5d25e3f, landed on main as merge f090d082.
+
 ## CON-392 — Decide the 226 tracker rows whose created_at is later than their first item_history event (restore with restore-created-at, or record why not)
 
 **Status:** Queued
@@ -4667,6 +4679,8 @@ What: these four write paths change items without an item_history row, so the se
 **Investigation:** not-started — updated 2026-11-15T16:42:10Z — by `Claude Opus 5.5 (filing subagent)`
 
 What: close loses six columns of the closed item and sync md-to-db loses five columns and resets last_modified; silent field loss. Scope: workable-items engine close and sync md-to-db. Reproduction: UNREPRODUCED in this filing; found while working on the engine created_at vehicle. Acceptance: close and md-to-db keep every listed column (or carry it through the Markdown), proven by a column census before and after, with tests. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register D-02. Parent CON-313; related to CON-391.
+
+Link (section 11.4.214, open original, link only; 2026-11-16): the fc097 review re-measured sync md-to-db on a scratch DB: description rewritten on 190 rows, parent_atm_id on 17, severity on 3, last_modified on 407; diff still reports in sync. See also CON-391. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev097.GcJx93/ev/findings.md (evidence SHA256SUMS sha256 bf9b3ffb7aaa1f44c6c4a409dc901da89bae3c72c009f6c7cfb3402aad08b5b4) of vehicle head d5d25e3f, landed on main as merge f090d082.
 
 ## CON-397 — Tracker-intake vehicle b48091ea holds duplicated Obsolete history rows (ids 592/593, 614/615, 616/617); dedupe before or at its landing
 
@@ -5489,4 +5503,85 @@ What: review follow-up and CON-479 boundary. CON-479 fixed the read path only (t
 **Created-By:** AI
 
 What: since tag helixconstitution-v73.3 (aa5ae0a3), eight vehicle landings reached main as one squash commit each, so the reviewed head is not an ancestor of main (measured 2026-11-16 in a full clone of main 3e5e7e7d: each head is absent from main's history, acff58ae is present locally and git merge-base --is-ancestor says no). The eight: 763726e0 CON-234 rounds 1-14 (reviewed head acff58ae); f4881591 land_vehicle lander rounds 4-6 (head b8f063e1, its message records a conductor decision, option (a), not to land the orphan history); d0a6832f CON-312 (head 2e397cba); 5da39508 CON-313 (head fa1c9302); 584c287e CON-314 (head d659fddd); e90d4aea CON-401 (head e940110e); 3281d92e CON-402 (head fd799642); e5879550 CON-412 (head 380ad64a). Landings by merge commit in the same range (for example 6c743898, 2ad83e18, a6f97681, 5999ff05, f4fc7215, 66ad6efe) keep their reviewed heads and are not affected. Rules: section 11.4.288(B)(3) says a vehicle lands fast-forward-only (main advanced with merge --ff-only after the vehicle merges main into itself) and (B)(4) says its unique commits must be on main on every upstream before the vehicle is retired; section 11.4.297(A) says the landing is a fast-forward or a merge commit whose second parent is the reviewed head, never a squash or rebase merge, but it binds only a project that declared PR mode (whether this repository declared it is UNCONFIRMED). A squash keeps the reviewed tree content (for 763726e0: 390 of 397 changed paths byte-equal to acff58ae, the other 7 are the shared files its message names as integrated) but not the reviewed commits. Open operator decision, not decided here: whether the existing history stays as it is (no rewrite, section 11.4.113 forbids it in any case) and whether future landings change practice (merge or fast-forward of the reviewed head instead of squash). Scope: landing practice and the land_vehicle lander (scripts/release/land_vehicle.sh); no code change in this item. Reproduction: not applicable (process observation). Acceptance: the operator decision recorded; if practice changes, the lander and landing docs follow it. Source: lander report 2026-11-16, evidence /mnt/DATA1TB/claude-work/scratch/landF5.M2YZfU/ev_227/ (CON-234 r14 re-landing check). Related: CON-299 (lander), CON-234.
+
+## CON-487 — fastcycle consumer-section tests: reviewer mutants RV4 (sticky section skip) and RV7 (skip count reset by a later present section, false PASS) survive test_consumer_section_con092_red.sh (fc097 review F1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F1 (minor, test-instrumentation). Mutants RV4 (a section skip that stays set for later sections) and RV7 (a later present section resets the skip count to 0, so the run reads PASS) both survive scripts/fastcycle/tests/test_consumer_section_con092_red.sh (reviewer log mymut.log). Scope: scripts/fastcycle/tests/test_consumer_section_con092_red.sh and its mutation companion. Reproduction: reviewer mutants on head d5d25e3f. Acceptance: RV4 and RV7 adopted as legs; each fails the suite. Parent CON-092. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev097.GcJx93/ev/findings.md (evidence SHA256SUMS sha256 bf9b3ffb7aaa1f44c6c4a409dc901da89bae3c72c009f6c7cfb3402aad08b5b4) of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+## CON-488 — fastcycle lib/consumer_section.sh reads FC_CONSUMER_SECTIONS_SKIPPED from the caller environment; an inherited -1 plus one real skip exits 0 (false PASS), an inherited 1 gives a false SKIP (fc097 review F2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review F2 (minor, source-defect in the test library). scripts/fastcycle/tests/lib/consumer_section.sh does not initialise FC_CONSUMER_SECTIONS_SKIPPED when sourced, so the value is taken from the environment: inherited -1 with one real skip yields exit 0 (false PASS), inherited 1 yields a false SKIP. Fix: set the counter to 0 when the library is sourced. Scope: scripts/fastcycle/tests/lib/consumer_section.sh and the con092 tests. Reproduction: reviewer, environment-injection runs on head d5d25e3f (UNREPRODUCED by the lander). Acceptance: RED with an inherited value, GREEN after init to 0, paired mutant killed. Parent CON-092. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev097.GcJx93/ev/findings.md (evidence SHA256SUMS sha256 bf9b3ffb7aaa1f44c6c4a409dc901da89bae3c72c009f6c7cfb3402aad08b5b4) of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+## CON-489 — CON-097 RED test live half resolves the canon from $(pwd): mutant RV8 survives when the test runs with cwd = canon root; run the live half from a neutral directory (fc097 review F3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F3 (minor, test-instrumentation). Mutant RV8 (the converted test resolves the canon root from $(pwd) instead of its own path) survives the CON-097 live half when scripts/fastcycle/tests/test_canon_root_rename_con097_red.sh is run with cwd = canon root (reviewer RV8_*.out). Scope: test_canon_root_rename_con097_red.sh. Acceptance: the live half cd's to a neutral directory and RV8 is killed. Parent CON-097. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev097.GcJx93/ev/findings.md (evidence SHA256SUMS sha256 bf9b3ffb7aaa1f44c6c4a409dc901da89bae3c72c009f6c7cfb3402aad08b5b4) of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+## CON-490 — CON-097 census pattern covers only $ROOT/ and $REPO_ROOT/ prefixes; test_render_keys_wiring_red.sh:62 uses $REPO_ROOT_REAL/constitution and is missed (fc097 review F4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F4 (minor, test-instrumentation). The CON-097 hard-coded-canon-name census matches only $ROOT/constitution and $REPO_ROOT/constitution; scripts/fastcycle/tests/test_render_keys_wiring_red.sh line 62 uses $REPO_ROOT_REAL/constitution, which is rename-fragile and not found. Scope: the CON-097 census and that test. Acceptance: the census matches any variable prefix (or names the variables it covers), with a control needle on line 62, and the test converted. Parent CON-097. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev097.GcJx93/ev/findings.md (evidence SHA256SUMS sha256 bf9b3ffb7aaa1f44c6c4a409dc901da89bae3c72c009f6c7cfb3402aad08b5b4) of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+## CON-491 — full_suite manifest note for scripts/fastcycle/tests/lib/consumer_section.sh names only test_anchor_citations_red.sh; about five tests source it (fc097 review F6, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F6 (nit, process-doc). The excluded-lock / manifest note for scripts/fastcycle/tests/lib/consumer_section.sh names only test_anchor_citations_red.sh as its user; about five tests source it. Scope: config/full_suite_manifest.tsv / excluded-lock note. Acceptance: the note lists every sourcing test (or says 'sourced helper' without a partial list), re-accepted after review. Parent CON-092. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev097.GcJx93/ev/findings.md (evidence SHA256SUMS sha256 bf9b3ffb7aaa1f44c6c4a409dc901da89bae3c72c009f6c7cfb3402aad08b5b4) of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+## CON-492 — test_custody_sweep_red.sh: fixture proposal_golden_good_verified_hash.json derives REFUSED where ALLOWED is expected; also on named main (fc097 author follow-up CON-PENDING-4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: author follow-up CON-PENDING-4. scripts/fastcycle/tests/test_custody_sweep_red.sh: the golden-good fixture proposal_golden_good_verified_hash.json derives REFUSED where ALLOWED is expected; it fails the same way on named main. PENDING_FORENSICS: not investigated (outside the canon-name / consumer-data class). Scope: custody_sweep and that fixture. Reproduction: UNREPRODUCED by the lander (author's runs). Acceptance: root cause established, the fixture or the derivation fixed with RED/GREEN. Related: CON-146, CON-157 (other custody_sweep defects, different symptom). Source: vehicle follow-up file /mnt/DATA1TB/claude-work/scratch/fc097.IRoFwQ/out/followups.md of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+## CON-493 — test_consumer_required_mutations.sh helper sweep reports 2 uncovered unset sites in the git-env scrub line of lib/consumer_required.sh (pre-existing on main; fc097 author follow-up CON-PENDING-5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: author follow-up CON-PENDING-5. The helper sweep of test_consumer_required_mutations.sh reports two uncovered 'unset' sites in the git-env scrub line of the fastcycle lib/consumer_required.sh; pre-existing on main, not introduced by the vehicle (the new section functions were kept in lib/consumer_section.sh so the sweep is unchanged). Scope: lib/consumer_required.sh and its mutation sweep. Reproduction: UNREPRODUCED by the lander. Acceptance: both sites covered by a killing mutant or recorded equivalent with a reason. Source: vehicle follow-up file /mnt/DATA1TB/claude-work/scratch/fc097.IRoFwQ/out/followups.md of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+## CON-494 — context/governance_subset.py, cycle/collect_baseline.py, gates/batch_bisect.py and orchestration/handoff.py default the consumer root to the parent of the canon, which is not the project in a standalone clone (fc097 author follow-up CON-PENDING-6)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: author follow-up CON-PENDING-6. These production tools derive the consumer/repo root as the parent of the canon when --repo is not given. That is the intended submodule default, but in a standalone clone the parent is not the project. Proposal: when the derived root has no 'constitution' entry that is this canon, fall back to the canon root or refuse loudly (section 11.4.201(4)). The vehicle changed only the tests (they now pass --repo); tool defaults are unchanged. Scope: the four tools named. Reproduction: UNREPRODUCED by the lander. Acceptance: RED in a standalone clone, GREEN after the fix, paired mutant. Related: CON-097. Source: vehicle follow-up file /mnt/DATA1TB/claude-work/scratch/fc097.IRoFwQ/out/followups.md of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+## CON-495 — workable-items engine: add a note / append-body subcommand so progress paragraphs can be added to an item body without the lossy md-to-db sync (fc097 author follow-up CON-PENDING-7)
+
+**Status:** Queued
+**Type:** Feature
+**Severity:** Low
+**Created-By:** AI
+
+What: author follow-up CON-PENDING-7. The vehicle could not add progress paragraphs to item bodies through the engine: update has no append-body, and sync md-to-db is lossy (CON-391, CON-396). Proposal: an engine subcommand that appends a dated note to body_md (and history), never rewriting other fields. Scope: scripts/workable-items. Acceptance: subcommand with tests, history event, round-trip stable. Related: CON-391, CON-396. Source: vehicle follow-up file /mnt/DATA1TB/claude-work/scratch/fc097.IRoFwQ/out/followups.md of vehicle head d5d25e3f, landed on main as merge f090d082.
 
