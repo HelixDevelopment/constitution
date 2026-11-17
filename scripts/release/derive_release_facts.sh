@@ -5,6 +5,7 @@
 #
 # Usage:
 #   scripts/release/derive_release_facts.sh --base COMMIT --prev-tag TAG [--remotes "R1 R2 ..."] [--today YYYY-MM-DD]
+#                                           [--retest-item ID [--require-retest-evidence]]
 #
 # Reads ONLY committed data: `git show COMMIT:docs/workable_items.db` (copied to a temp file, opened
 # read-only), `git rev-list`, `git diff --shortstat`, and the remote-tracking refs already present for
@@ -13,10 +14,18 @@
 # fixed order. Every line is a fact read from data; nothing is estimated.
 #
 # Meaning of the §11.4.290(4) count line it prints:
-#   P (provisional) = open items whose body carries a "**Verification:** provisional" line;
+#   P (provisional) = open items whose body carries a "**Verification:** provisional" LINE: a line that
+#                     STARTS with that text and is outside a fenced code block (a quotation of the marker
+#                     inside prose or inside a fence is not a verification line; rel1, CON-521);
 #   O (overdue)     = those of P whose "due:" field is a date before --today, or is not a date at all
 #                     ("UNSCHEDULED, treated as OVERDUE", review of v73.4 I-4);
 #   V (verified)    = items in the Fixed tracker whose closure_date is after the previous tag's date.
+#
+# --retest-item ID (rel2): prints retest_item_id, retest_item_status ("status (location)") and
+# retest_item_evidence=yes only when the item is in the Fixed tracker; any other item is an owed retest, not a
+# recorded one, and a line retest_item_flag=NOT-EVIDENCE ... is printed so a release entry never cites it as
+# evidence. An id that is not in the tracker exits 3. With --require-retest-evidence a not-evidence item exits 3
+# too (no facts printed).
 #
 # Exit status: 0 facts printed; 2 usage; 3 data missing (no tracker at COMMIT, unknown tag, sqlite3
 # absent, or any tracker query failed, e.g. a missing column) — never a partial set of facts: the
@@ -27,7 +36,7 @@ set +x   # first: an inherited xtrace (bash -x, SHELLOPTS=xtrace) traces this on
 set -u
 unset -v GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py; written as unset -v because the network-spawn gate of tests/release/channel_census.py admits only that form)
 LC_ALL=C; export LC_ALL
-BASE="" PREV="" REMOTES="" TODAY=""
+BASE="" PREV="" REMOTES="" TODAY="" RETEST="" REQ_RETEST=0
 DIE_FD=2
 die() { printf 'derive_release_facts: %s\n' "$1" >&"$DIE_FD"; exit "$2"; }
 # the one redact-then-cut helper for external-command output (round 3, CON-234 n-4 class)
@@ -43,6 +52,8 @@ while [ $# -gt 0 ]; do
     --prev-tag) [ $# -ge 2 ] || die "--prev-tag needs a value" 2; PREV="$2"; shift 2 ;;
     --remotes) [ $# -ge 2 ] || die "--remotes needs a value" 2; REMOTES="$2"; shift 2 ;;
     --today) [ $# -ge 2 ] || die "--today needs a value" 2; TODAY="$2"; shift 2 ;;
+    --retest-item) [ $# -ge 2 ] || die "--retest-item needs a value" 2; RETEST="$2"; shift 2 ;;
+    --require-retest-evidence) REQ_RETEST=1; shift ;;
     -h|--help) awk 'NR>1 && /^#/{print; next} NR>1{exit}' "$0"; exit 0 ;;
     *) if [[ $1 =~ ^--?[A-Za-z][A-Za-z0-9-]{0,40}$ ]]; then die "unknown argument: $1" 2
        else die "unknown argument (not shown: it is not shaped like an option)" 2; fi ;;
@@ -53,6 +64,8 @@ done
 # (round 5, CON-234 class): a revision name has no ":" (so it cannot be a URL), a tag and a remote are names
 [[ $BASE =~ ^[A-Za-z0-9][A-Za-z0-9._/~^-]{0,199}$ ]] || die "--base is not a revision name of [A-Za-z0-9._/~^-] (the value is not shown)" 2
 [[ $PREV =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$ ]] || die "--prev-tag has unsafe characters (the value is not shown)" 2
+[ -z "$RETEST" ] || [[ $RETEST =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$ ]] || die "--retest-item is not an item id of [A-Za-z0-9._-] (the value is not shown)" 2
+[ "$REQ_RETEST" -eq 0 ] || [ -n "$RETEST" ] || die "--require-retest-evidence needs --retest-item" 2
 _n=0
 for _r in $REMOTES; do
   _n=$((_n + 1)); [[ $_r =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$ ]] || die "remote name number $_n in --remotes has unsafe characters (not shown)" 2
@@ -128,8 +141,12 @@ PROV="" OVER=""
 # leaves open (without close-on-exec) in every command the loop body runs
 rows="$(qa "select atm_id, body_md from items where $O and body_md like '%**Verification:** provisional%'")"
 while IFS=$'\x1f' read -r -d $'\x1e' id body; do
+  # rel1: the SQL like above only pre-filters; the verification LINE is the first line that starts with the marker
+  # outside a fenced block (``` toggles), so a quotation of the marker in prose or in a fence does not count
+  vline="$(printf '%s\n' "$body" | awk '/^```/{f=!f; next} !f && index($0,"**Verification:** provisional")==1{print; exit}')"
+  [ -n "$vline" ] || continue
   PROV="$PROV $id"
-  due="$(printf '%s\n' "$body" | grep -m1 -F '**Verification:** provisional' | sed -n 's/.*due:[[:space:]]*\([^[:space:]]*\).*/\1/p')"
+  due="$(printf '%s\n' "$vline" | sed -n 's/.*due:[[:space:]]*\([^[:space:]]*\).*/\1/p')"
   if printf '%s' "$due" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
     [ "${due:0:10}" \< "$TODAY" ] && OVER="$OVER $id"
   else
@@ -145,6 +162,31 @@ VER="$(ids "select atm_id from items where current_location='Fixed' and coalesce
 kv verified_since_prev_ids "$VER"
 words() { printf '%s\n' "$1" | wc -w | tr -d ' '; }
 kv count_line "$(words "$VER") verified + $(words "$PROV") provisional ($(words "$OVER") overdue)"
+
+# rel2: the retest item a release entry cites. Evidence only when it is in the Fixed tracker; an owed (open) item
+# is flagged, an unknown id is refused. The id is validated above and never interpolated into SQL: the
+# lookup compares it in a here-string-free awk over a key,status,location listing.
+if [ -n "$RETEST" ]; then
+  rrow="$(qa "select atm_id, status, current_location from items" | awk -v want="$RETEST" '
+    BEGIN { FS = "\037"; RS = "\036" }
+    $1 == want { printf "%s\037%s", $2, $3; exit }')"
+  if [ -z "$rrow" ]; then
+    printf 'derive_release_facts: retest item %s is not in the tracker at %s; no facts printed\n' "$RETEST" "$B" >&3
+    echo retest >>"$QFAIL"
+  else
+    rstat="${rrow%%$'\x1f'*}"; rloc="${rrow#*$'\x1f'}"
+    kv retest_item_id "$RETEST"; kv retest_item_status "$rstat ($rloc)"
+    if [ "$rloc" = Fixed ]; then kv retest_item_evidence yes
+    else
+      kv retest_item_evidence no
+      kv retest_item_flag "NOT-EVIDENCE: $RETEST is $rstat in $rloc, an owed retest and not a recorded one (§11.4.40); a release entry must not cite it as a retest result"
+      if [ "$REQ_RETEST" -eq 1 ]; then
+        printf 'derive_release_facts: retest item %s is not recorded evidence (%s in %s); no facts printed\n' "$RETEST" "$rstat" "$rloc" >&3
+        echo retest >>"$QFAIL"
+      fi
+    fi
+  fi
+fi
 
 # §11.4.288 debt: remote refs other than main/HEAD with commits not on the base, per remote counted
 for r in $REMOTES; do
