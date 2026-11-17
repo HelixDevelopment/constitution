@@ -1,0 +1,5 @@
+id	file	rc	verdict
+TW1-fixed-400	scripts/codegraph/tests/test_tripwire.sh	1	KILLED
+TW2-override-not-real-df	scripts/codegraph/tests/test_tripwire.sh	1	KILLED
+TW4-clamp-allowed	scripts/codegraph/tests/test_tripwire.sh	1	KILLED
+TW3-threshold-at-free	scripts/codegraph/tests/test_tripwire.sh	1	KILLED

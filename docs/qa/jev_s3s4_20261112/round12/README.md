@@ -2,7 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Item | CON-423 (Jev S3/S4); the other four Jev items are CON-424 to CON-427 (`landing/mint_ids.txt`) |
+| Item | CON-PENDINGjev1 (Jev S3/S4); the other four Jev items are CON-PENDINGjev2 to CON-PENDINGjev5 (`landing/mint_ids.txt`) |
+| Ids | written CON-PENDINGjev1 to CON-PENDINGjev6 since round 14 (2026-11-17): on the vehicle these were CON-423 to CON-428, in that order; `main` holds other items under those numbers, so the lander re-mints the six through the engine (`../round14/landing/`). The files under `landing/` keep the ids they were written with |
 | Review | `review_jev_r11.md`, NO-GO, findings R11-A to R11-G |
 | Base | `main` at `09d3ad2f`, merged into the vehicle |
 | Author | a fresh structural fixer instance (Opus; effort UNKNOWN, it cannot be set or read on this dispatch path, §11.4.231(F.2)) |
@@ -64,7 +65,7 @@ The fix needs a change to the producer, which is outside this round's scope. Two
 - keep a record of the in-flight start that outlives the set deletion;
 - refuse adoption while a recent dispose of the profile is unanswered.
 
-The §11.4.291 refinement note in `Constitution.md` names the finding. It is filed through the engine as **CON-428**
+The §11.4.291 refinement note in `Constitution.md` names the finding. It is filed through the engine as **CON-PENDINGjev6**
 (Bug, UNREPRODUCED: gate-logic only, not on a live host; `landing/mint_r12f1.sh`, `landing/mint_r12f1_ids.txt`).
 
 ## Runs at the round-12 head (each 0 failures)
@@ -108,7 +109,7 @@ Earlier runs are kept as found:
 
 ## Follow-ups
 
-- R12-F1 (CON-428): fix it in the producer.
+- R12-F1 (CON-PENDINGjev6): fix it in the producer.
 - X11 and Y12: rows for their three-process windows (`mutants.md`).
 - Rows that time out the lock at the seven sites in `lock_timeout_census.md` that no row covers yet.
 - The `(top level)` attribution of write_census line 1446, which is the dispatcher, reported under `hb_locked`.
@@ -117,7 +118,7 @@ Earlier runs are kept as found:
 
 - `tools/*.txt`: the scratch tools, copied as data with mode 644.
 - `runs/`: run outputs and `results.tsv`.
-- `landing/`: the mint records (the five Jev items, and CON-428).
+- `landing/`: the mint records (the five Jev items, and CON-PENDINGjev6).
 - `SHA256SUMS`: covers every file in this directory except itself.
-- The pack index `../README.md` changed in round 12: the Jev ids were moved to CON-423 to CON-427, and a link list for
+- The pack index `../README.md` changed in round 12: the Jev ids were moved to CON-PENDINGjev1 to CON-PENDINGjev5, and a link list for
   rounds 4 to 12 was added. So its line in `../SHA256SUMS` is re-hashed. No other line of that file changed.

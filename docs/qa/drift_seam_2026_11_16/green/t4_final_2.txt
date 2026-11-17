@@ -1,0 +1,2 @@
+RESULT T4 PASS real-identity indexer + free < threshold (real df, threshold from measured free space) -> SIGSTOP (state T, not killed), exit 10, marker
+SUMMARY cases=1 failed=0

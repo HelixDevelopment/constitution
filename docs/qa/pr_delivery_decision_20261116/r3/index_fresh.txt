@@ -1,0 +1,4 @@
+# command: bash <root>/scripts/gates/cm_constitution_index_fresh.sh
+check: no drift
+CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+# exit: 0

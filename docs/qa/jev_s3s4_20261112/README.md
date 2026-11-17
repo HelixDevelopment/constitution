@@ -2,13 +2,14 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-15T17:22:22Z |
-| Status | evidence (CON-423, In progress; carried as CON-299 on the vehicle) |
+| Last modified | 2026-11-17T04:40:00Z |
+| Status | evidence (CON-PENDINGjev1, In progress; carried as CON-299 on the vehicle) |
+| Ids | written CON-PENDINGjev1 to CON-PENDINGjev6 since round 14 (2026-11-17): on the vehicle these were CON-423 to CON-428, in that order; `main` holds other items under those numbers, so the lander re-mints the six through the engine (`round14/landing/`). The files under `landing/` keep the ids they were written with |
 | Host | the reference host (16 CPUs, load average about 30 during the runs) |
 
-Live runs for CON-423 (carried as CON-299 on the vehicle before landing; on `main` CON-299 is another item) (Jev streams S3 and S4, operator decision of 2026-11-12). Every run used the real host, the
+Live runs for CON-PENDINGjev1 (carried as CON-299 on the vehicle before landing; on `main` CON-299 is another item) (Jev streams S3 and S4, operator decision of 2026-11-12). Every run used the real host, the
 real `llmctl` on PATH, the operator's keys file read BY PATH (values never printed; the pack was scanned for every
 key value after it was assembled and none is present), and sandbox directories for every Jev state, config,
 evidence and provider-cache path. No operator agent home was written: T4 ran with a sandbox `HOME`; the mtimes of
@@ -22,7 +23,7 @@ Round 3 (2026-11-12): the fixes for the review of `c2489197` and their RED/GREEN
 fails, shellcheck SC2164); the runs were made with the earlier text. `SHA256SUMS` was regenerated for the whole pack.
 None of the live runs here was re-captured in round 2 or round 3.
 
-Rounds 4 to 13 (gate-logic evidence, PROVISIONAL): [round 4](round4/README.md), [round 5](round5/README.md), [round 6](round6/README.md), [round 7](round7/README.md), [round 8](round8/README.md), [round 9](round9/README.md), [round 10](round10/README.md), [round 11](round11/README.md), [round 12](round12/README.md), [round 13](round13/README.md). Round 12 (review of `a1eeb0d7`) found the three-process finding R12-F1, filed as CON-428; round 13 (review of `c0455825`) reproduced it, found it worse than round 12 stated (a killed starter leaves a running unit with no set), and fixed it with a start intent (gate-logic evidence; independent review owed).
+Rounds 4 to 14 (gate-logic evidence, PROVISIONAL): [round 4](round4/README.md), [round 5](round5/README.md), [round 6](round6/README.md), [round 7](round7/README.md), [round 8](round8/README.md), [round 9](round9/README.md), [round 10](round10/README.md), [round 11](round11/README.md), [round 12](round12/README.md), [round 13](round13/README.md), [round 14](round14/README.md). Round 12 (review of `a1eeb0d7`) found the three-process finding R12-F1, filed as CON-PENDINGjev6; round 13 (review of `c0455825`) reproduced it, found it worse than round 12 stated (a killed starter leaves a running unit with no set), and fixed it with a start intent (gate-logic evidence; independent review owed); round 14 (review of `9442791d`) found the start intent judged too early when the starter is killed while its start is in flight (R13-B1), and moved the start into a gated start process named by the intent (gate-logic evidence; independent review owed).
 
 ## T3 detection (bootstrap, no consent, no default-on)
 

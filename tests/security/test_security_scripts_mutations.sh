@@ -134,7 +134,7 @@ X18	forge_branch_protect.sh	'-X "$m" --max-time 30'	'-X "$m" -L --location-trust
 Y7	github_actions_inventory_disable.sh	'printf \'%s\\n%s\\n\' "$sel_sorted" "$done_pin"'	'printf \'%s\\n\' "$sel_sorted"'
 Z3	history_secret_scan.sh	'__HSS_CONTROL_ABSENT__"{print $2}\' "$WORK/keys.tsv")" -eq 0 ]'	'__HSS_CONTROL_ABSENT__"{print $2}\' "$WORK/keys.tsv")" -ge 0 ]'
 Z4	history_secret_scan.sh	'perm=$(stat -c \'%a\' "$KEYS"); [ "${perm: -2}" = 00 ]'	'perm=$(stat -c \'%a\' "$KEYS"); [ "${perm: -1}" = 0 ]'
-Z8	history_secret_scan.sh	'if [ "$nf" -gt 0 ] || [ "$kh" -gt 0 ]; then exit 1; fi'	'if [ "$nf" -gt 0 ]; then exit 1; fi'
+Z8	history_secret_scan.sh	'if [ "$nf" -gt 0 ] || [ "$kh" -gt 0 ] || [ "$rh" -gt 0 ]; then exit 1; fi'	'if [ "$nf" -gt 0 ] || [ "$rh" -gt 0 ]; then exit 1; fi'
 Y4	github_actions_inventory_disable.sh	'export LC_ALL=C   # one collation'	': LC_ALL=C   # one collation'
 R3B1	forge_branch_protect.sh	'[ "$s" = https ] && [ "$h" = "$want" ]'	'[ "$s" = https ] && [[ "$h" == *"$want" ]]'
 R3B2	forge_branch_protect.sh	'  case "$port" in -|:443) ;; *) return 1 ;; esac\n'	''

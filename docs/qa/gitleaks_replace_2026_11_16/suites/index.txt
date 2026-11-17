@@ -1,0 +1,3 @@
+check: no drift
+CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+rc=0

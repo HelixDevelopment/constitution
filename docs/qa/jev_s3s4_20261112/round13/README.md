@@ -2,7 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Item | CON-423 (Jev S3/S4); the finding R12-F1 is CON-428. CON-424 to CON-427 are unchanged (`../round12/landing/mint_ids.txt`) |
+| Item | CON-PENDINGjev1 (Jev S3/S4); the finding R12-F1 is CON-PENDINGjev6. CON-PENDINGjev2 to CON-PENDINGjev5 are unchanged (`../round12/landing/mint_ids.txt`) |
+| Ids | written CON-PENDINGjev1 to CON-PENDINGjev6 since round 14 (2026-11-17): on the vehicle these were CON-423 to CON-428, in that order; `main` holds other items under those numbers, so the lander re-mints the six through the engine (`../round14/landing/`). The files under `landing/` keep the ids they were written with |
 | Review | `review_jev_r12.md`, NO-GO, findings R12-B1 to R12-B3, R12-M1 to R12-M3, R12-N1 and R12-N2 |
 | Base | the round-12 vehicle `c0455825`, merged (merge, not rebase) onto `main` at `bbdf4ac1` |
 | Author | a fresh structural fixer instance (§11.4.276(E)(3)); Opus; effort UNKNOWN (it cannot be set or read on this dispatch path, §11.4.231(F.2)) |
@@ -20,7 +21,7 @@
 | R12-M2 | R13-5: a refused start (rc 75) recorded under another live process's stopping mark, with no other lease, gets no owed stop and runs no stop; CONTROL: rc 1 in the same place gets an owed stop. R06 SURVIVED that row: the set there is made by the acquire's own mark, and the next observation drops it with or without `stop_owed`. R13-5c (crafted: the set is already constitution-started) is where the rule is visible, and it kills R06 (`mutants.md`) | `runs/probe5_R06.txt`, `runs/probe5c_R06.txt`, `runs/mut_R06_stopowed_for_rc75_r13.txt` |
 | R12-M3 | CMR1, CMR2 and CMR3 are killed. CMR1 and CMR3 are first killed by the census's own built-in control needles (BLIND on every row); with those needles switched off (`_noST`) the test rows still kill them: C2rc16 to C2rc18 (CMR1), C2rc20 (CMR3), and C2rc19 kills CMR2. CMR4 (a whitespace-tolerant `.rc`) survives and is judged harmless (`mutants.md`) | `runs/cmut_*.txt` |
 | R12-N1 | The round-12 README now names the first final r12 run (61 passes, 1 failure: R12-12's trailing-space assertion) among the runs kept as found | `../round12/README.md` |
-| R12-N2 | The account of R12-F1 now states the crash consequence, in the vehicle's documents: `../round12/README.md` (correction paragraph), this README, `CHANGELOG.md`, and CON-428 through the engine. The §11.4.291 note in `Constitution.md` was NOT edited (see "Open questions") | |
+| R12-N2 | The account of R12-F1 now states the crash consequence, in the vehicle's documents: `../round12/README.md` (correction paragraph), this README, `CHANGELOG.md`, and CON-PENDINGjev6 through the engine. The §11.4.291 note in `Constitution.md` was NOT edited (see "Open questions") | |
 
 ## The start intent (R12-B1)
 
@@ -120,8 +121,8 @@ Earlier runs kept as found: `runs/r13_RED_base_r12.txt` (RED on the round-12 pro
    NOT edited, and its Revision stays 97. Whether and how it is amended, with the matching carriers, is an operator
    decision.
 2. All evidence is host-fixture gate-logic evidence with a stub llmctl (§11.4.289); no live llmctl run was made.
-   CON-428 is therefore PROVISIONAL, not verified.
-3. The ids CON-423 to CON-428 are kept. The rehearsal bundle uses the same ids, so whichever lands second re-mints
+   CON-PENDINGjev6 is therefore PROVISIONAL, not verified.
+3. The ids CON-PENDINGjev1 to CON-PENDINGjev6 are kept. The rehearsal bundle uses the same ids, so whichever lands second re-mints
    them through the engine.
 4. Two judgements a reviewer should check: F15 judged equivalent (a foreign intent carrying this acquire's own start
    time reads as a reused pid; F15b, the non-equivalent form, is killed by R13-2h) and CMR4 judged harmless.
@@ -136,6 +137,6 @@ Earlier runs kept as found: `runs/r13_RED_base_r12.txt` (RED on the round-12 pro
 - `tests/jev/test_s4_round13.sh`: rows R13-1 to R13-5c (with R13-2h).
 - `tools/*.txt`: the scratch tools, copied as data with mode 644 (the reviewer's experiment is `tools/exp_r12f1_kill.sh.txt`).
 - `runs/`: run outputs and `results.tsv`.
-- `landing/`: the CON-428 engine update and the engine's validate / export / diff output.
+- `landing/`: the CON-PENDINGjev6 engine update and the engine's validate / export / diff output.
 - `mutants.md`: every mutant, its result and, for the survivor, the argument.
 - `SHA256SUMS`: covers every file in this directory except itself.

@@ -1,0 +1,3 @@
+FAIL P1 a failing badge check on a fast-forward PR head refuses (rc=0, want 1 / RESULT: FAIL)
+
+RESULT pass=0 fail=1 skip=0 (failfast)

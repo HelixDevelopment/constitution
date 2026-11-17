@@ -1,0 +1,91 @@
+FAIL D1 badge drift check FAIL refuses publish (rc=0, want rc=1 and /derived-file drift checks failed; nothing was pushed/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d1/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL D1 remotes or tsv (/)
+PASS D2 passing drift checks publish
+FAIL D2 landed=y b=[] e=[]
+FAIL D3 env-allowlist drift check FAIL refuses publish (rc=0, want rc=1 and /derived-file drift checks failed; nothing was pushed/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d3/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL D3 remotes or tsv
+PASS D4 repository without drift-check scripts publishes
+FAIL D4 tsv rows or landing
+FAIL D5 deleting a required check script refuses publish (rc=0, want rc=1 and /derived-file drift checks failed/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d5/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL D5 remotes or tsv ()
+FAIL D6 a check that dirties the clone refuses publish (rc=0, want rc=1 and /derived-file drift checks failed/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d6/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL D6
+FAIL D7 a check added by the vehicle is required and its FAIL refuses (rc=0, want rc=1 and /derived-file drift checks failed/)
+    | land_vehicle: gitflic: pushed -> PASS
+    | land_vehicle: github: pushed -> PASS
+    | land_vehicle: github_helixdevelopment: pushed -> PASS
+    | land_vehicle: github_vasic_digital: pushed -> PASS
+    | land_vehicle: gitlab_helixdevelopment1: pushed -> PASS
+    | land_vehicle: gitlab_vasic_digital: pushed -> PASS
+    | land_vehicle: gitverse: pushed -> PASS
+    | land_vehicle: m3w: pushed -> PASS
+    | land_vehicle: origin: pushed -> PASS
+    | land_vehicle: read-back evidence: /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d7/ev/publish.md
+    | land_vehicle: published to all 9 remotes
+FAIL D7
+FAIL D8 prepare printout
+    | land_vehicle: step 1: bundle sha256 OK (7f59ee779c05ed223a56c63f9fc42624cf98d2550215fb83b740c570c72963c4), copied to the clone
+    | land_vehicle: step 2: newest main across 9 remotes = f89f3993ae8cb405d8f69d36bbe8c86cfb6c8a2e
+    | land_vehicle: step 1b: bundle verified, head e9081dc55a9bd36f87d5e4124a035f976918aa13 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-777
+    | land_vehicle: step 4: vehicle head e9081dc55a9bd36f87d5e4124a035f976918aa13 -> c507d714e8751d8224496dd55ed489168e935a76 (tree equality: /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d2/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = d0523718ed9a7da9608cda25280e3c7985f08f09, item CON-777.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d2/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   ../land_vehicle.orig.sh publish --workdir /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d2/work --remotes-file /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d2/remotes.txt --evidence-dir /mnt/DATA1TB/claude-work/tmp/lvtest.VsfYA8/d2/ev
+PASS SH2-D every push of the drift cases is plain
+
+RESULT pass=3 fail=13 (drift cases only)

@@ -1,0 +1,6 @@
+base	695de4d91b43508d5b4bbba0a157be72ed30df63
+head	24abebb6b60d5843d83640d65133b28bb0c666d4
+form	fast-forward
+candidate	24abebb6b60d5843d83640d65133b28bb0c666d4
+candidate_tree	a03adf9cd916949e171f955b39cf3135f1b9efde
+candidate_parents	695de4d91b43508d5b4bbba0a157be72ed30df63

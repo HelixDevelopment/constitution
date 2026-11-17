@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 5 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-12T22:00:00Z |
+| Last modified | 2026-11-16T17:00:00Z |
 | Status | PROVISIONAL (§11.4.290) |
 | Status summary | How to run the three `scripts/security/` tools. Every write path is tested only against a loopback fixture or a fake `gh`; no apply has been run against a real forge or against GitHub. |
 | Authority | Tool documentation for `scripts/security/`; no new anchor and no new CM-* token. §11.4.10 (credentials), §11.4.113 (no force push), §11.4.156 (no CI/CD), §11.4.201 / §11.4.273 (instrument honesty), §11.4.18 (script documentation) govern. |
 | Scope | Universal (§11.4.17) for the scan; the target and repository lists are this repository's DATA (§11.4.35). |
-| Issues | Codeberg force-push blocking is UNCONFIRMED (no read-back field). How Gitea/Forgejo order a glob rule against an exact rule is UNCONFIRMED (a glob rule is reported, exit 6). A live run of the scan with the real gitleaks binary is owed (§11.4.289). The effect of disabling Actions on Dependabot for `terminator` is UNCONFIRMED. Round 3 (2026-11-12) is not yet independently reviewed. |
+| Issues | Codeberg force-push blocking is UNCONFIRMED (no read-back field). How Gitea/Forgejo order a glob rule against an exact rule is UNCONFIRMED (a glob rule is reported, exit 6). A live run of the scan with the real gitleaks binary is owed (§11.4.289); whether the real gitleaks runs git with the inherited `GIT_NO_REPLACE_OBJECTS=1` is UNCONFIRMED (CON-425). The effect of disabling Actions on Dependabot for `terminator` is UNCONFIRMED. Round 3 (2026-11-12) is not yet independently reviewed. |
 | Generated twins | .html / .pdf / .docx not generated for this revision (honestly absent, §11.4.106(E)). |
 
 ## The three tools
@@ -94,6 +94,7 @@ GH_ACTIONS_APPLY=yes bash scripts/security/github_actions_inventory_disable.sh a
 SCRATCH=/abs/scratch/dir OUT=/abs/scratch/dir/report.tsv \
   bash scripts/security/history_secret_scan.sh <url1> [<url2> ...]
 SCRATCH=/abs/scratch/dir bash scripts/security/history_secret_scan.sh --keys-file ~/api_keys.sh <url>
+SCRATCH=/abs/scratch/dir bash scripts/security/history_secret_scan.sh --keys-file ~/api_keys.sh --exact-only <url>
 ```
 
 - All remotes are fetched into one bare mirror.
@@ -104,6 +105,10 @@ SCRATCH=/abs/scratch/dir bash scripts/security/history_secret_scan.sh --keys-fil
 - One gitleaks run covers everything: `--redact --log-opts="--all -m"`. Only exit 0 or 1 with a consistent JSON report is accepted; anything else is SCANNER-ERROR (exit 6). A failed needle is BLIND (exit 3).
 - Findings go to `$OUT` as a value-free TSV.
 - `--keys-file` really performs an exact-match pass over every blob. The values travel on a pipe, never in argv. The output is `$OUT.keys.tsv`, with variable names and blob counts only. A present control and an absent control guard this pass too. Values shorter than 12 characters and placeholder values are not searched; a note names them and counts them (names only).
+- **Known limit:** a value shorter than 12 characters is never searched (too many chance matches). The note `not searched: N shorter than 12 characters (NAME,...)` is printed on every run with `--keys-file`, also when N is 0, so the skip is never silent. Check such values by another means.
+- The exact-match pass gives the blob ids to `git cat-file --batch` from a file in the work directory. Before 2026-11-16 it wrote all ids into a pipe before it read any answer; with a few thousand blobs both pipes filled and the run hung (deadlock, CON-423; evidence in `docs/qa/secscan_deadlock_2026_11_16/`). Every reply is now checked against the requested id; a missing or wrong reply is exit 7.
+- `--exact-only` (needs `--keys-file`) runs only the exact-match pass: gitleaks is not run and not needed, and only the exact-match controls guard the result.
+- **Replace refs (CON-425).** A `refs/replace/<id>` entry makes git tools show another object in place of `<id>`, and `git clone --mirror` copies these refs. Before 2026-11-16 a secret blob replaced by a clean blob (or by a tree), or a secret commit replaced by a clean commit, was hidden from both the exact-match pass and the scanner. The script now exports `GIT_NO_REPLACE_OBJECTS=1` right after the git-env scrub, so every git call it makes, and the scanner's own git (which inherits the environment), reads the stored objects. On git 2.53.0 this setting also wins over a `core.useReplaceRefs=true` setting. Replace refs of every other remote are fetched into `refs/fetched/r<n>/replace/*`. Every replace ref is listed in `$OUT.replace.tsv` (ref, object id, type; ids only), the count is printed as `replace refs: N`, and any replace ref makes the exit 1: classify it by hand. Whether the real gitleaks binary runs `git` with the inherited environment is UNCONFIRMED (no run with the real binary yet); the tests use the fake scanner, which does.
 - The scanner's own console output (file paths, commits, rule ids) is written to a file inside the work directory, never to the script's stdout or stderr.
 - Credential-carrying URLs are refused for every scheme, not only http(s): `scheme://user:password@host`.
 - Nothing is downloaded at run time. Without a pre-installed gitleaks the exit is 4.
@@ -121,6 +126,10 @@ SCRATCH=/abs/scratch/dir bash scripts/security/history_secret_scan.sh --keys-fil
 | `tests/security/test_forge_branch_protect.sh` | 168 | normal (loopback fixtures `tests/security/fixtures/forge_fixture.py`, two instances) |
 | `tests/security/test_github_actions_inventory_disable.sh` | 44 | normal (fake `gh`) |
 | `tests/security/test_history_secret_scan.sh` | 45 | normal (fake gitleaks, real git) |
+| `tests/security/test_history_secret_scan_deadlock.sh` | 19 | normal (8000-blob repository, each run bounded by `timeout`) |
+| `tests/security/test_history_secret_scan_deadlock_mutations.sh` | 16 mutants | normal (about 2 minutes) |
+| `tests/security/test_history_secret_scan_replace.sh` | 17 | normal (replace-ref fixtures, fake gitleaks, real git) |
+| `tests/security/test_history_secret_scan_replace_mutations.sh` | 14 mutants | normal (about 1 minute) |
 | `tests/security/test_security_scripts_mutations.sh` | 119 mutants | heavy (each mutant must make its test fail) |
 
 All tests use fake tokens and loopback endpoints only. No test writes to a real forge. They are hermetic gate-logic tests (§11.4.289(C)(2)): they prove that the scripts decide correctly, not that a real forge accepted a rule.

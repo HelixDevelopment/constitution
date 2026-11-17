@@ -1,0 +1,543 @@
+tests/forge/test_forge_credentials.sh rc=0
+PASS C1 rc
+PASS C1 env token used
+PASS C1 source reported by name only
+PASS C2 rc
+PASS C2 keys-file token used
+PASS C2 source
+PASS C3 rc
+PASS C3 insecure keys file warned
+PASS C3 dotenv token used
+PASS C3 insecure keys file not used
+PASS C4 rc
+PASS C4 placeholder skipped, second name used
+PASS C4b placeholder [] = absent: GAP
+PASS C4b reason names the variables
+PASS C4b placeholder [xxx] = absent: GAP
+PASS C4b reason names the variables
+PASS C4b placeholder [<your-token>] = absent: GAP
+PASS C4b reason names the variables
+PASS C4b placeholder [PLACEHOLDER] = absent: GAP
+PASS C4b reason names the variables
+PASS C4b placeholder [abc] = absent: GAP
+PASS C4b reason names the variables
+PASS C5 .env not executed
+PASS C5b single-quoted export form parsed
+PASS C6 rc
+PASS C6 token not in curl argv/environ
+PASS C6 non-identifier env entry not passed to curl
+PASS C6 unrelated secret env not passed to curl
+PASS C6 curl ran with -K - (config on stdin)
+PASS C6 no redirects
+PASS C6 token not on stdout
+PASS C6 token not on stderr
+PASS C6 server still got the token
+PASS C7 xtrace: token not on stderr
+PASS C7 allexport: token not in curl environ
+PASS C7b BASH_ENV set -x: token not on stderr
+PASS C8 bad charset: rc usage/gap
+PASS C8 reason
+PASS C9 foreign redirect: rc API
+PASS C9 reason
+PASS C9 exactly one request
+PASS C10 symlinked keys file refused
+PASS R1 notes = keys file: rc usage
+PASS R1 reason
+PASS R1 no POST
+PASS R1 token not echoed
+PASS R1b notes_link.md refused
+PASS R1b notes_hard.md refused
+PASS R1c notes = .env refused
+PASS R1d resolved token in notes: rc usage
+PASS R1d reason
+PASS R1d names the variable only
+PASS R1d value not echoed
+PASS R1e .env value of another name in notes refused
+PASS R1f token in the title refused
+PASS R1 no write in any refused case
+PASS R1g clean notes: rc
+PASS R1g one POST
+PASS R1g body sent
+PASS R1g no temporary directory left (I6 N09)
+PASS R2 0640 keys file refused
+PASS R2 not used
+PASS R3 foreign-owned keys file refused
+PASS R4 invalid keys value: rc GAP
+PASS R4 reason
+PASS R4 .env value not used
+PASS R5 rc
+PASS R5 no proxy variable in curl environ
+PASS R6 other host and other port refused by the pin; same origin reaches curl
+PASS R6 curl started only for the pinned origin
+PASS R7 world-writable hosts map: rc usage
+PASS R7 reason
+PASS R7b symlinked hosts map refused
+PASS R8 api base port 99999 refused
+PASS R8 api base port 0 refused
+PASS R8 remote URL port 70000: rc usage
+PASS R9 untrusted .env noted
+PASS R9 not used
+PASS R9 token never sent
+PASS R9b the same file given explicitly is used
+PASS P1 exported function curl not executed
+PASS P2 token not on stdout
+PASS P2 token not on stderr
+PASS P2 keys file used
+PASS P3 https password not echoed
+PASS P3 rc usage
+PASS P3b ssh password not echoed
+PASS P3b rc usage
+PASS P3c token-shaped argv word not echoed
+PASS P5 api base [https://api.example@evil.example] refused
+PASS P5 api base [https://evil.example\@api.example] refused
+PASS P5 api base [http://evil.example] refused
+PASS P5 api base [https://evil.example:99999] refused
+PASS P7 group-readable .env refused
+PASS P7 AUTH none
+PASS P8 trailing comment and CR stripped
+PASS P6 rc 143
+PASS P6 last line RESULT: INTERRUPTED
+PASS P6 reason
+PASS P6 ended within 4 s of the signal
+PASS P6 no temporary directory left
+PASS P6 token not in output
+PASS Q9 control: the process instrument sees none before the run
+PASS Q9 control: the POST is in flight
+PASS Q9 control: the instrument sees the curl child while it runs
+PASS Q9 rc 143
+PASS Q9 last line
+PASS Q9 no temporary directory left
+PASS Q9 X05 no curl/timeout child left running
+PASS Q10 rc 143
+PASS Q10 last line RESULT: INTERRUPTED
+PASS Q10 reason
+PASS Q10 no request made
+PASS R10 incomplete token set: rc GAP
+PASS R10 reason
+PASS R10 no write
+PASS R10b read-only command: warned, not stopped
+PASS R10b rc 0
+PASS Q7 another variable's token in the notes: rc usage
+PASS Q7 reason
+PASS Q7 names the variable only
+PASS Q7 value not echoed
+PASS X02 keys-file-only token name in the notes refused
+PASS X02 names it
+PASS R11 12-character part refused
+PASS R11 false-positive guard: an 11-character part is accepted
+PASS R1 dry-runs wrote nothing
+PASS X01 notes = the repository .env refused as a credentials file
+PASS X01 value not echoed
+PASS X04 rc 0
+PASS X04 control: the file WAS rewritten during the run
+PASS X04 the scanned text is sent
+PASS X04 the later text is not sent
+PASS X10 1000000 bytes accepted
+PASS X10 1000001 bytes: rc usage
+PASS X10 reason
+PASS R12 FIFO: rc usage
+PASS R12 reason
+PASS Q11 title refused
+PASS Q11 token not echoed
+PASS Q11 no write
+PASS Q8 own map in a 0755 directory accepted
+PASS Q8 0664 own map accepted
+PASS R13 0777 directory: rc usage
+PASS R13 reason
+PASS R13 the directory is named as the cause
+PASS R13 sticky 1777 directory accepted
+PASS X08 map owned by another user refused
+PASS X08 by the file owner check
+PASS Q8 root-owned map not refused as insecure
+PASS Q12 token not in curl argv/env
+PASS Q12 FORGE_ variable not in the child environment
+PASS Q12 control: the recorder saw a call
+PASS Z5 a 8-character token reflected in X-Request-Id is not printed
+PASS Z5 control (8): the request id was printed, scrubbed
+PASS Z6 (8) short notes with the token: refused
+PASS Z6 (8) short notes reason
+PASS Z6 (8) notes over 4096 bytes with the token: refused
+PASS Z6 (8) long notes reason
+PASS Z6 (8) no POST
+PASS Z5 a 9-character token reflected in X-Request-Id is not printed
+PASS Z5 control (9): the request id was printed, scrubbed
+PASS Z6 (9) short notes with the token: refused
+PASS Z6 (9) short notes reason
+PASS Z6 (9) notes over 4096 bytes with the token: refused
+PASS Z6 (9) long notes reason
+PASS Z6 (9) no POST
+PASS Z5 a 11-character token reflected in X-Request-Id is not printed
+PASS Z5 control (11): the request id was printed, scrubbed
+PASS Z6 (11) short notes with the token: refused
+PASS Z6 (11) short notes reason
+PASS Z6 (11) notes over 4096 bytes with the token: refused
+PASS Z6 (11) long notes reason
+PASS Z6 (11) no POST
+PASS Z5 a 12-character token reflected in X-Request-Id is not printed
+PASS Z5 control (12): the request id was printed, scrubbed
+PASS Z6 (12) short notes with the token: refused
+PASS Z6 (12) short notes reason
+PASS Z6 (12) notes over 4096 bytes with the token: refused
+PASS Z6 (12) long notes reason
+PASS Z6 (12) no POST
+PASS Z5 a 15-character token reflected in X-Request-Id is not printed
+PASS Z5 control (15): the request id was printed, scrubbed
+PASS Z6 (15) short notes with the token: refused
+PASS Z6 (15) short notes reason
+PASS Z6 (15) notes over 4096 bytes with the token: refused
+PASS Z6 (15) long notes reason
+PASS Z6 (15) no POST
+PASS Z5 a 19-character token reflected in X-Request-Id is not printed
+PASS Z5 control (19): the request id was printed, scrubbed
+PASS Z6 (19) short notes with the token: refused
+PASS Z6 (19) short notes reason
+PASS Z6 (19) notes over 4096 bytes with the token: refused
+PASS Z6 (19) long notes reason
+PASS Z6 (19) no POST
+PASS Z6 control: clean long notes are not refused
+PASS Z6 control: one POST
+PASS Z7 long notes with a 12-character middle piece: refused
+PASS Z7 no POST
+PASS R14 suffix piece in short notes refused
+PASS R14 suffix piece in long notes refused
+PASS U1 fg_msg scrubs the secret
+PASS U1 fg_msg control: the message is printed
+PASS U2 REASON scrubs the secret
+PASS U2 REASON control
+PASS U3 multi-line: the secret is scrubbed
+PASS U3 multi-line: line 1 scrubbed
+PASS U3 multi-line: line 2 kept
+PASS U3 multi-line: line 3 scrubbed with its key
+PASS LP1 real tool: rc 0
+PASS LP1 fingerprint names forge.sh
+PASS LP1 fingerprint has the sha256 of forge.sh
+PASS LP1 leak check counted the token
+PASS LP1 PEER line recorded
+PASS LP1 token not in any output file
+PASS LP2 leaking tool: rc 1
+PASS LP2 the leak is named
+PASS LP2 output files removed
+PASS LP3 silent tool: rc 1
+PASS LP3 blind reported
+PASS LP4 negative needle present: rc 1
+PASS LP4 broken check reported
+SUMMARY: 222 passed, 0 failed
+tests/forge/test_forge_detect.sh rc=0
+PASS D1 ssh url with port: rc
+PASS D1 provider
+PASS D1 repo
+PASS D1 api
+PASS D1 token vars
+PASS D1 result
+PASS D2 scp form: rc
+PASS D2 repo
+PASS D2 provider
+PASS D3 https form: rc
+PASS D3 repo (no .git)
+PASS D4 gitlab nested path: rc
+PASS D4 nested repo
+PASS D5 nested path on a two-level forge refused: rc
+PASS D6 https userinfo refused: rc
+PASS D6 password not echoed (stdout)
+PASS D6 password not echoed (stderr)
+PASS D7 https user-only userinfo refused: rc
+PASS D7 refused as userinfo (clear reason)
+PASS D7 token-like userinfo not echoed
+PASS D8 ssh password userinfo refused: rc
+PASS D9 unknown host: rc GAP
+PASS D9 reason
+PASS D10 unsafe characters refused: rc
+PASS D11 dot segment refused: rc
+PASS D12 plain http remote refused: rc
+PASS D13 host case-insensitive: rc
+PASS H1 unknown provider in hosts file: rc
+PASS H1 reason
+PASS H2 http api base for a non-loopback host refused: rc
+PASS H3 api base with userinfo refused: rc
+PASS H4 token variable name must be upper case and end in TOKEN: rc
+PASS H5 token variable PATH refused: rc
+PASS S shipped map knows git@github.com:HelixDevelopment/HelixConstitution.git
+PASS S shipped map knows git@gitlab.com:helixdevelopment1/helixconstitution.git
+PASS S shipped map knows ssh://git@codeberg.org/HelixDevelopment/constitution.git
+PASS S shipped map knows ssh://git@git.m3w.org:2222/Helix/constitution.git
+PASS S shipped map knows git@gitflic.ru:helixdevelopment/helixconstitution.git
+PASS S shipped map knows git@gitverse.ru:helixdevelopment/HelixConstitution.git
+PASS S gitverse provider
+PASS S gitverse api
+PASS R1 --remote rc
+PASS R1 --remote repo
+PASS R2 unknown remote: rc usage
+PASS R3 unsafe remote name: rc usage
+PASS U1 neither --remote nor --url: rc
+PASS U2 unknown command: rc
+PASS U2 result usage
+SUMMARY: 48 passed, 0 failed
+tests/forge/test_forge_gitea.sh rc=0
+PASS G1 rc
+PASS G1 present
+PASS G1 target
+PASS G2 rc
+PASS G2 absent
+PASS G2 not present
+PASS G3 release-get rc GAP
+PASS G3 reason
+PASS G3b release-ensure rc GAP
+PASS G3b reason
+PASS G3b no write
+PASS G4 rc
+PASS G4 notice logged
+PASS G4 patch body
+PASS G4 action
+PASS G4 readback
+PASS G4b enable not read back: rc FAIL
+PASS G4b reason
+PASS G4b no create
+PASS G5 rc
+PASS G5 created
+PASS G5 readback
+PASS G5 payload tag
+PASS G5 payload sha
+PASS G5 payload prerelease
+PASS G5 notes in payload
+PASS G5 result
+PASS G6 rc FAIL
+PASS G6 reason
+PASS G6b readback absent: rc FAIL
+PASS G6c readback target mismatch: rc FAIL
+PASS G7 rc
+PASS G7 action
+PASS G8 rc
+PASS G8 kept
+PASS G8 no write
+PASS G9 mismatch without --update: rc FAIL
+PASS G9 reason
+PASS G9 no write
+PASS G9b --update rc
+PASS G9b updated
+PASS G10 rc GAP
+PASS G10 reason
+PASS G10 no create
+PASS G10b tag at another sha: rc FAIL
+PASS G10b reason
+PASS G11 401 rc API
+PASS G11 reason
+PASS G11b 404 repo rc GAP
+PASS G11b reason
+PASS G11c redirect rc API
+PASS G11c reason
+PASS G11c redirect not followed
+PASS G11d 500 rc API
+PASS G12 rc
+PASS G12 would create
+PASS G12 no write
+PASS G13 tag sha
+PASS G13 probe rc
+PASS G13 probe version status
+PASS G13 probe repo peer
+PASS G13 probe repo keys
+PASS G13 probe is read-only
+PASS G13 unsafe tag: rc usage
+PASS G13 short sha: rc usage
+PASS G13 missing notes: rc usage
+PASS G13 --asset not implemented: rc usage
+PASS G14 no PEER line without FORGE_TRACE_PEER
+PASS G14 unsafe request id replaced in the PROBE line
+PASS G14 unsafe value not printed
+PASS G14 PEER line
+PASS G14 PEER request id
+PASS G14 plain http has no certificate
+PASS N16 other tag_name: rc FAIL
+PASS N16 reason
+PASS N16 no write
+PASS G15 rc
+PASS G15 would-create
+PASS G15 no command-not-found
+PASS G15 no write
+PASS G16 leaf certificate digest = openssl's DER sha256 of the LEAF
+PASS G16 never the issuer's digest
+PASS G16 control: the two test certificates differ
+PASS G16 subject of the leaf, spaces as _
+PASS G16 clean ip kept
+PASS G16 request id kept
+PASS G16 X13 ip outside the charset: unsafe
+PASS G16 X12 subject outside the charset: unsafe
+PASS G16 a token window in the certificate subject: unsafe
+PASS G16 subject token not printed
+PASS G16 a token in the request id: unsafe
+PASS G16 negative control: nothing marked unsafe on clean input
+PASS G17 target = sha, tag commit unreported: rc 5
+PASS G17 echo noted
+PASS G17 dry-run: rc 5
+SUMMARY: 95 passed, 0 failed
+tests/forge/test_forge_gitflic.sh rc=0
+PASS F1 rc
+PASS F1 present on page 2
+PASS F1 auth header form
+PASS F2 rc
+PASS F2 absent
+PASS F3 rc GAP
+PASS F3 reason
+PASS F3 stopped at the cap
+PASS F4 rc
+PASS F4 created
+PASS F4 readback
+PASS F4 payload tagName
+PASS F4 payload preRelease
+PASS F4 no project archive
+PASS F5 rc FAIL
+PASS F5 reason
+PASS F6 tag sha
+PASS F6b absent tag
+PASS F7 rc
+PASS F7 updated
+PASS F7 one PUT
+PASS F8 unsafe id: rc API
+PASS F8 no PUT
+PASS F9 commitId differs: rc 1
+PASS F9 reason
+PASS F9 target shown
+PASS F9b gitflic commitId not trusted alone: rc 5
+PASS F9b echo noted
+SUMMARY: 28 passed, 0 failed
+tests/forge/test_forge_github_gitlab.sh rc=0
+PASS H1 rc
+PASS H1 canonical name
+PASS H1 present
+PASS H1 bearer auth
+PASS H1 api version header
+PASS H2 rc
+PASS H2 created
+PASS H2 readback
+PASS H2 target not a sha -> noted, tag sha checked instead
+PASS H2 payload draft false
+PASS H3 draft flagged
+PASS H3b draft: rc FAIL
+PASS H3b reason
+PASS H3b never kept
+PASS H4 unverified commit: rc 5
+PASS H4 reason
+PASS H4 result
+PASS H4 never OK
+PASS H4b target = sha, tag unverified: rc 5
+PASS H4b echo noted
+PASS H4b never OK
+PASS N18 other ref: tag absent
+PASS N18 sha not reported
+PASS M1 422 invalid: rc API
+PASS M1 reason
+PASS M1b 422 already_exists: rc 0
+PASS M1b not created
+PASS M4 draft found
+PASS M4 rc FAIL
+PASS M4 reason
+PASS M4 no POST
+PASS M4b release-get shows the draft
+PASS L1 rc
+PASS L1 PRIVATE-TOKEN header
+PASS L1 path url-encoded
+PASS L1 created
+PASS L1 prerelease unsupported noted
+PASS L1 readback
+PASS L1 no Authorization header sent
+PASS L2 dotted tag id shown
+PASS L2 update rc
+PASS L2 updated
+PASS L2 one PUT
+PASS N11 409: rc 0
+PASS N11 not created
+PASS N11 kept
+PASS L3 derived target of a present release: rc 0
+PASS L3 tag commit not reported
+PASS L3 kept
+PASS L3 dry-run the same
+PASS L3b derived target differs: rc 1
+PASS L3c created on an unverified tag: rc 5
+PASS L3c created
+PASS L3c dry-run: rc 5 too
+PASS L3d exists after create, derived target read after the write: rc 5
+PASS L3d kept
+SUMMARY: 56 passed, 0 failed
+tests/forge/test_forge_gitverse.sh rc=0
+PASS V1 rc GAP
+PASS V1 reason
+PASS V1 not absent
+PASS V1 Accept header sent
+PASS V1 Bearer auth
+PASS V1b ensure rc GAP
+PASS V1b reason
+PASS V1b no write without opt-in
+PASS V2 rc
+PASS V2 notice
+PASS V2 created
+PASS V2 readback
+PASS V2b create refused: rc GAP
+PASS V2b reason
+PASS V2c 201 without read-back: rc FAIL
+PASS V3 rc
+PASS V3 absent
+PASS V4 rc
+PASS V4 prerelease unverified note
+PASS V5 rc API
+PASS V6 annotated tag dereferenced (and v10 not mistaken for v1)
+PASS V7 rc
+PASS V7 present, commit unverified
+PASS V7 no page-cap reason
+PASS V7 the tag-object sha is never shown as the commit
+PASS V8 rc 5
+PASS V8 reason
+PASS V8 last line
+PASS V8 never OK
+PASS V8 dry-run rc 5 too
+PASS V8b target = sha but tag unverified: rc 5
+PASS V8b echo noted
+PASS V8b never OK
+PASS V8b dry-run rc 5 too
+PASS V8c verified tag commit: rc 0
+PASS V8c OK
+PASS Q1 echo of own target: rc 5
+PASS Q1 the write did happen
+PASS Q1 read back
+PASS Q1 last line
+PASS Q1 dry-run of the same state: rc 5 (no disagreement)
+PASS Q1 dry-run would-create
+PASS Q1 dry-run wrote nothing
+PASS Q5 would-update
+PASS Q5 dry-run update: no write
+PASS Q5 rc 0 (tag commit verified)
+PASS Q5b control: without --dry-run the PATCH is sent
+PASS Q4 dry-run ambiguous: no write
+PASS Q2 reflected token not printed by probe
+PASS Q2 nor a 12-character part of it
+PASS Q2 the field is shown as unsafe
+PASS Q2 control: the probe ran
+PASS Q2b reflected token not printed in PEER lines
+PASS Q2b control: PEER lines printed
+PASS Q3 x-trace-id reflection (token inside a longer id) not printed
+PASS Q3b a 14-character part of the token not printed
+PASS Q3c token as a JSON key name not printed
+PASS Q3c the word holding it is shown as unsafe, the key kept
+PASS Q3d another variable's token reflected: not printed
+PASS G1 rc
+PASS G1 annotated tag commit read via commits/{tag-object-sha}
+PASS G1 the request used the tag-object sha
+PASS G1 never by tag name
+PASS G2 dry-run rc 0
+PASS G2 tag commit shown
+PASS G2 would-create
+PASS G2 not unverified
+PASS G2 dry-run wrote nothing
+PASS G3 mismatch rc 1
+PASS G3 reason
+PASS G4 echo of the tag-object sha is unknown
+PASS G4 tag-object sha never shown as the commit
+PASS G5 refused commit lookup: rc 5
+PASS G5 unverified note
+PASS G5b non-200 body sha ignored
+PASS G6 short sha is unknown
+PASS G7 no sha field is unknown
+PASS G8 git/tags answer used
+PASS G8 commits lookup not made
+PASS S1 one OK exit in release-ensure
+PASS S1 that exit is guarded by FG_COMMIT_OK
+PASS S1 control: the definition is found
+SUMMARY: 82 passed, 0 failed

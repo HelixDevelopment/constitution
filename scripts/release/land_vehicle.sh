@@ -83,6 +83,16 @@ set +x +v
 #                configuration differs from --remotes-file, and a prepare state that
 #                does not match the refs prepare recorded; read local main ONCE and
 #                refuse unless it contains both the prepared base and the landed head;
+#            (6b) derived-file drift checks (CON-144 recurrence, audit 2026-11-16 F5/F6):
+#                each check in DRIFT_CHECKS of scripts/release/lib/landing_drift_checks.sh (the
+#                list the pull-request path pr_landing_check.sh shares; README badge row
+#                `compute_badges.sh --check`,
+#                env-read allowlist `cm_gate_env_reads_allowlisted.sh`) is REQUIRED when
+#                its script is in the tree of main_before or of local main, and must exit 0
+#                when run with --root <clone> on local main. A required script that is
+#                missing, a non-zero exit or a timeout refuses publish before any remote
+#                is touched (nothing is pushed); results go to
+#                <evidence-dir>/drift_checks.tsv (check, script, required, rc, result);
 #            (7) preflight EVERY remote first (read the remote main, fetch it, check
 #                it is an ancestor of local main). If any remote is non-fast-forward,
 #                unreadable or has no main, NOTHING is pushed (`not-pushed-preflight`)
@@ -406,6 +416,18 @@ has_ctrl() { [[ "$1" == *[[:cntrl:]]* ]]; }
 run_caller_locale() {
   if [ "$CALLER_LC_ALL_SET" = 1 ]; then LC_ALL=$CALLER_LC_ALL "$@"; else env -u LC_ALL "$@"; fi
 }
+
+# Derived files that a landing must not leave stale (step 6b). Before 2026-11-16 the prepare
+# printout did not name them and publish did not run them, so main carried a stale README badge
+# row and stale env-read allowlist rows for 22 commits (audit 2026-11-16 F5/F6, CON-144
+# recurrence). The check list and the runner live in ONE library shared with the pull-request
+# landing path (scripts/release/pr_landing_check.sh, CON-443), so every landing path runs the
+# same checks; a missing library refuses the run.
+_lv_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/landing_drift_checks.sh"
+[ -f "$_lv_lib" ] || die 2 "drift-check library not found: $_lv_lib"
+# shellcheck source=scripts/release/lib/landing_drift_checks.sh
+. "$_lv_lib" || die 2 "cannot load the drift-check library $_lv_lib"
+unset _lv_lib
 
 # ---------------------------------------------------------------- arguments
 CMD=${1:-}
@@ -1143,6 +1165,8 @@ Run these derived-file steps NOW in the clone (not run by this script; heavy):
   scripts/run_full_suite.sh --sync-guide
   scripts/run_full_suite.sh --verify-manifest
   <workable-items engine> validate
+  bash scripts/badges/compute_badges.sh --check   # on a mismatch: put the --print row and the --facts values into README.md
+  bash scripts/gates/cm_gate_env_reads_allowlisted.sh   # uncovered or stale rows: fix config/gate_env_allowlist.tsv or the gate
   git status --short; git diff --stat
   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: $id"   # only if something changed
 Then publish (fast-forward only, all remotes, read-back):
@@ -1288,6 +1312,8 @@ state_keys() {
     || die 2 "prepare state has no valid item_id"
 }
 
+drift_checks() { LDC_GIT=g LDC_LOG=log LDC_REF=refs/heads/main ldc_run "$CLONE" "$1" "$2" "$EVIDENCE_DIR"; }
+
 do_publish() {
   need_state
   assert_remote_urls
@@ -1300,6 +1326,8 @@ do_publish() {
   g merge-base --is-ancestor "$main_before" "$local_main" || die 1 "local main no longer contains the prepared base"
   g merge-base --is-ancestor "$landed" "$local_main" || die 1 "local main does not contain the landed vehicle head $landed"
   mkdir -p "$EVIDENCE_DIR"
+  drift_checks "$main_before" "$local_main" \
+    || die 1 "derived-file drift checks failed; nothing was pushed (see $EVIDENCE_DIR/drift_checks.tsv)"
   local ok=0
   do_readback push "$local_main" "$main_before" "$landed" || ok=1
   now=$(g rev-parse -q --verify refs/heads/main || true)

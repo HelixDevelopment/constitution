@@ -1,0 +1,5 @@
+Avail Mounted on
+  689 /mnt/DATA1TB
+    4 /run/user/1000
+   15 /dev/shm
+  165 /

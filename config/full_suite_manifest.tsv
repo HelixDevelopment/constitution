@@ -223,6 +223,7 @@ scripts/fastcycle/tests/fixtures/triple_harness/stub_tool.sh	sh	fixture	-	-	-	fi
 scripts/fastcycle/tests/fixtures/verdict_cache/gate_script.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/lib/bb_ref_bisect.py	py	excluded	-	-	-	reason: oracle: reference bisector used as an oracle by test_batch_bisect_red.sh
 scripts/fastcycle/tests/lib/consumer_required.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_churn_rank_red.sh
+scripts/fastcycle/tests/lib/consumer_section.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_anchor_citations_red.sh
 scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_verdict_cache_red.sh (test_batch_bisect_red.sh and test_gate_shard_red.sh name it only in comments)
 scripts/fastcycle/tests/lib/dec15_flake_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_flake_ledger_red.sh
 scripts/fastcycle/tests/lib/dec17_drift_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_backstop_red.sh
@@ -256,6 +257,8 @@ scripts/fastcycle/tests/test_batch_bisect_r3_regression.sh	sh	member	default	-	s
 scripts/fastcycle/tests/test_batch_bisect_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_batch_bisect_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_build_deploy_qa_events_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_canon_root_rename_con097_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_canon_root_rename_con097_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_catchset_compare_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_catchset_compare_seed_independence_r2_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -269,6 +272,8 @@ scripts/fastcycle/tests/test_consumer_migrate_red.sh	sh	member	default	-	scripts
 scripts/fastcycle/tests/test_consumer_required_helper.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	override: tier heavy: runs the whole helper test 5 times on a copy of scripts/ (about 3.5 min measured; CON-222, CON-223)
 scripts/fastcycle/tests/test_consumer_required_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_section_con092_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_section_con092_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_core_ondemand_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -402,6 +407,8 @@ scripts/fastcycle/tests/test_review_record_store_tier_noncanonical_tmpdir_red.sh
 scripts/fastcycle/tests/test_review_record_subclause_cases.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_tier_legs_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_run_all.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_run_all_skip77_con262_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_run_all_skip77_con262_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_select_sample_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_shipped_workable_items_us3_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_sibling_search_check_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -728,7 +735,11 @@ tests/action_prefix/meta_test_action_prefix_grammar.sh	sh	entry	heavy	bash	-	aut
 tests/action_prefix/test_action_prefix_grammar.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_hook_e2e.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_subsystem_shortcuts.sh	sh	entry	default	bash	-	auto
-tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	member	heavy	-	tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh	override: run in four shards by tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh to _4.sh (--shard K/4, one unit each, under the runner's 900 s default; as one unit the whole list reached the limit at 900.1 s with 46 of the 48 mutants killed); covered_by names shard 1 (one entry per row); every shard checks the other three exist and are entries
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_2.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_3.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_4.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_constitution_cmd.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_constitution_cmd_pty.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh	sh	entry	default	bash	-	auto
@@ -951,6 +962,7 @@ tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network p
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
 tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
+tests/release/test_pr_landing_check.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
 tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
@@ -961,10 +973,17 @@ tests/security/fixtures/bin/gh	sh	fixture	-	-	-	fixture path (not a test entry p
 tests/security/fixtures/bin/gitleaks	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/fake_gh.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/fake_gitleaks.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/fake_gitleaks_detect.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/forge_fixture.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/test_forge_branch_protect.sh	sh	entry	default	bash	-	auto
 tests/security/test_github_actions_inventory_disable.sh	sh	entry	default	bash	-	auto
+tests/security/test_gitleaks_run_scan_replace.sh	sh	entry	default	bash	-	auto
+tests/security/test_gitleaks_run_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_history_secret_scan.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_secret_scan_deadlock.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_secret_scan_deadlock_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/security/test_history_secret_scan_replace.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_secret_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
 tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto

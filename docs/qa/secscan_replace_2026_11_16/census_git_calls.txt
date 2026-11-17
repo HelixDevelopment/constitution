@@ -1,0 +1,40 @@
+== per-file matches of pattern: (^|[^A-Za-z_./-])git( |")|"git",|\bgh +api|\bcurl\b
+scripts/security/forge_branch_protect.sh	6
+scripts/security/github_actions_inventory_disable.sh	2
+scripts/security/history_secret_scan.sh	30
+scripts/lib/safe_rm.sh	0
+== history_secret_scan.sh git invocations (line: text)
+76:for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_F
+110:for t in git jq python3 mktemp stat; do command -v "$t" >/dev/null 2>&1 || fail 5 "missing prerequisite: $t"; done
+127:git clone -q --mirror "${URLS[0]}" "$M" 2>"$WORK/git.err" || fail 7 "git error: clone of remote #1 failed"
+131:  git -C "$M" fetch -q --no-tags "$u" "+refs/heads/*:refs/fetched/r$i/heads/*" "+refs/tags/*:refs/fetched/r$i/tags/*" "+refs/replace/*:refs/fetched/r$i/repl
+132:    || fail 7 "git error: fetch of remote #$((i+1)) failed"
+137:git -C "$M" for-each-ref --format='%(refname)%09%(objectname)%09%(objecttype)' refs/replace/ refs/fetched/ >"$WORK/refs.tsv" 2>"$WORK/git.err" \
+138:  || fail 7 "git error: listing refs of the mirror failed"
+148:blob(){ printf '%s\n' "$1" | git -C "$M" hash-object -w --stdin; }
+152:  sub=$(for e in "$@"; do printf '100644 blob %s\t%s\n' "${e#*=}" "${e%%=*}"; done | git -C "$M" mktree)
+153:  printf '040000 tree %s\t__hss_needle__\n' "$sub" | git -C "$M" mktree
+155:EMPTY=$(git -C "$M" mktree </dev/null)
+156:commit(){ local t=$1; shift; git -C "$M" commit-tree "$t" "$@" -m hss-needle; }
+159:git -C "$M" update-ref refs/fetched/needle/pos "$p2"
+160:git -C "$M" update-ref refs/fetched/needle/neg "$(commit "$(ntree neg.txt="$B_NEG")")"
+165:git -C "$M" update-ref refs/fetched/needle/merge "$(commit "$(ntree base.txt="$B_BASE" a.txt="$B_A" b.txt="$B_B")" -p "$mm")"
+173:grc=0; "$GL" git --redact --no-banner --log-opts="--all -m" -f json -r "$REP" "$M" >"$WORK/gl.out" 2>&1 || grc=$?
+220:ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
+229:    sys.stderr.write("exact-match: unexpected reply from git cat-file --batch\n")
+232:    p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", "--batch"], stdin=req, stdout=subprocess.PIPE)
+249:    fail 7 "git error: exact-match pass failed"
+== git invocations in the other two security scripts and safe_rm.sh (expect none)
+scripts/security/forge_branch_protect.sh	local-git-calls=0	grep_rc=1
+scripts/security/github_actions_inventory_disable.sh	local-git-calls=0	grep_rc=1
+scripts/lib/safe_rm.sh	local-git-calls=0	grep_rc=1
+== positive control: the same pattern on history_secret_scan.sh finds the clone call
+18
+== negative control: fabricated token
+0
+== env -i / env -u / env= that could drop GIT_NO_REPLACE_OBJECTS in history_secret_scan.sh
+198:         env -i KF="$KEYS" bash --noprofile --norc -c '
+== GIT_NO_REPLACE_OBJECTS occurrences
+56:#   exports GIT_NO_REPLACE_OBJECTS=1 right after the git-env scrub, so EVERY git
+76:for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT
+81:export GIT_NO_REPLACE_OBJECTS=1

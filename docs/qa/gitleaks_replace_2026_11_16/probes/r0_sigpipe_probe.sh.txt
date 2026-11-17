@@ -1,0 +1,17 @@
+set -uo pipefail
+export TMPDIR=/mnt/DATA1TB/claude-work/tmp
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@invalid GIT_AUTHOR_DATE=2001-01-01T00:00:00Z GIT_COMMITTER_DATE=2001-01-01T00:00:00Z
+tok(){ python3 -I -c 'import secrets,string;a=string.ascii_letters+string.digits;print("gh"+"p_"+"".join(secrets.choice(a) for _ in range(36)))'; }
+for i in $(seq 1 ${N:-60}); do
+ t=$(mktemp -d); r=$t/c; SEC=$(tok); CTL=$(tok)
+ git init -q -b main "$r"; echo base > "$r/base.txt"; git -C "$r" add .; git -C "$r" commit -qm root
+ printf 'token=%s\n' "$SEC" > "$r/cfg.env"; git -C "$r" add .; git -C "$r" commit -qm add; s=$(git -C "$r" rev-parse HEAD)
+ git -C "$r" rm -q cfg.env; git -C "$r" commit -qm remove
+ git -C "$r" checkout -q -b cl "$s~1"; echo harmless > "$r/cfg.env"; git -C "$r" add .; git -C "$r" commit -qm stand-in
+ cl=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q main; git -C "$r" replace "$s" "$cl"
+ git -C "$r" checkout -q -b ctl main~2; printf 'token=%s\n' "$CTL" > "$r/ctl.env"; git -C "$r" add .; git -C "$r" commit -qm ctl; git -C "$r" checkout -q main
+ git -C "$r" log -p --all | grep -qF "$SEC"; a=("${PIPESTATUS[@]}")
+ GIT_NO_REPLACE_OBJECTS=1 git -C "$r" log -p --all | grep -qF "$SEC"; b=("${PIPESTATUS[@]}")
+ echo "hidden=${a[*]} shown=${b[*]} s=$s cl=$cl"
+ rm -rf "${t:?}"
+done

@@ -1,0 +1,9 @@
+# command: bash /mnt/DATA1TB/claude-work/scratch/prdeliv.mD7v/c/scripts/gates/cm_pr_delivery_account_name_free.sh --root /mnt/DATA1TB/claude-work/scratch/prdeliv.mD7v/c
+# time: 2026-11-16T13:13:31Z
+PASS  structure: the §11.4.297 canon block carries no @-mention
+PASS  structure: mirror CLAUDE.md §11.4.297 block carries no @-mention
+PASS  structure: mirror AGENTS.md §11.4.297 block carries no @-mention
+PASS  structure: mirror QWEN.md §11.4.297 block carries no @-mention
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: SKIP — no consumer reviewer list was found or given: the structure checks passed (5), the account scan did not run (not a PASS)
+# exit: 3
