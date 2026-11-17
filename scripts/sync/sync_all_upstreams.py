@@ -44,6 +44,7 @@ import json
 import os
 import re
 import select
+import shlex
 import shutil
 import signal
 import stat
@@ -1643,6 +1644,11 @@ def evaluate_pin(r, repo, gitlink, own_orgs):
         mains = {"refs/remotes/%s/%s" % (m.get("_name"), branch) for m in rec.get("remotes", [])
                  if m.get("state") != "invalid-name" and not m.get("branch_gone_upstream")}
         target = rec.get("target")
+        # RV13-5: only a ref under a CONFIGURED remote is "on a remote" (a stale refs/remotes/ghost/x of a remote
+        # that is not configured is not fetchable by anyone who clones this repository's configuration)
+        configured = {str(m.get("_name")) for m in rec.get("remotes", []) if m.get("_name")}
+        if refs is not None:
+            refs = [x for x in refs if any(x.startswith("refs/remotes/%s/" % n) for n in configured)]
         if refs is None:
             pin["state"] = "unknown"
         elif not refs:
@@ -1880,7 +1886,26 @@ def index_entries(raw):
     return out
 
 
-def stage_pin_verified(r, repo, target, pre_raw):
+def entry_text(e):
+    """'<mode> <id> <stage>' of one index entry from index_entries() (None: the entry did not exist)."""
+    return None if e is None else " ".join(e)
+
+
+def restore_command(parent_path, path, stage, before):
+    """The exact command that puts back one index entry the engine's own add changed (review round 14, RV13-1).
+    Never run by the engine: git's own case folding (core.ignoreCase) is what changed the entry, so the command pins
+    core.ignoreCase=false and GIT_LITERAL_PATHSPECS and is left to the user. Stage 0 entries only; a conflict stage
+    is reported, not restorable by one command."""
+    if stage != "0":
+        return None
+    q = shlex.quote
+    base = "git -C %s -c core.ignoreCase=false" % q(parent_path)
+    if before is None:
+        return "GIT_LITERAL_PATHSPECS=1 %s rm --cached -- %s" % (base, q(path))
+    return "%s update-index --cacheinfo %s,%s,%s" % (base, before[0], before[1], q(path))
+
+
+def stage_pin_verified(r, repo, target, pre_raw, detail=None):
     """('exact', []) when the parent's index, read now, differs from ``pre_raw`` (its 'ls-files -s -z' before the
     add) in EXACTLY one entry: the gitlink at path_in_parent, now '160000 <target> 0' (review round 13, RV12-2).
     ('other-entries', paths) when anything else changed, ('not-staged', []) when the intended entry is not the target,
@@ -1893,6 +1918,13 @@ def stage_pin_verified(r, repo, target, pre_raw):
     path = repo.rec["path_in_parent"]
     changed = sorted({k for k in set(before) | set(after) if before.get(k) != after.get(k)})
     others = sorted({k[0] for k in changed if k[0] != path})
+    if others and detail is not None:
+        # RV13-1: the value of EVERY other changed entry before and after the add, with the command that restores it
+        for k in changed:
+            if k[0] != path:
+                detail.append({"path": redact(k[0]), "stage": k[1], "before": entry_text(before.get(k)),
+                               "after": entry_text(after.get(k)),
+                               "restore": restore_command(repo.parent.abspath, k[0], k[1], before.get(k))})
     if others:
         return "other-entries", others
     if after.get((path, "0")) != ("160000", target, "0") or [k for k in after if k[0] == path and k[1] != "0"]:
@@ -2088,14 +2120,17 @@ def write_git(r, repo, op, target):
                 return "failed"
             return "no-answer"
         # git said 0: what did it stage? (review round 13, RV12-2) never "updated" on git's word alone
-        verdict, others = stage_pin_verified(r, repo, target, pre_parent[0])
+        detail = []
+        verdict, others = stage_pin_verified(r, repo, target, pre_parent[0], detail)
         if verdict != "exact":
             act["why"] = ("unresolved:stage-pin-verify" if verdict == "no-answer" else "stage-pin-not-exact:" + verdict)
             if others:
                 act["staged_other"] = [redact(x) for x in others[:20]]
+                act["staged_other_detail"] = detail[:20]  # before / after / restore command, not restored by the engine
             rec["actions"].append(act)
             if verdict == "no-answer":
                 return "no-answer"
+            act["failed"] = True
             repo.parent.rec["stage_pin_not_exact"] = verdict
             repo.parent.rec["failed"] = True
             rec["failed"] = True

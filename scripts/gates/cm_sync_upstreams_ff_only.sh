@@ -724,6 +724,9 @@ REFUSE = [["push", "origin", "main"], ["reset", "--hard", S], ["rebase", "origin
           ["rev-list", "--count", "HEAD"], ["rev-list", "--count", "main", "--"],
           ["rev-list", "--left-right", "--count", "HEAD...HEAD"],
           ["rev-list", "--left-right", "--count", S + "^{commit}..." + S + "^{commit}"],
+          # review round 14 (RV13-4, reviewer mutant RV13J): HEAD beside an id, with the '--' present
+          ["rev-list", "--left-right", "--count", "HEAD..." + S + "^{commit}", "--"],
+          ["rev-list", "--left-right", "--count", S + "^{commit}...HEAD", "--"],
           ["merge-base", "--is-ancestor", S + "^{commit}", "main"],
           ["ls-files", "--with-tree=main"], ["ls-files", "-s", "-z", "--", "x"], ["status", "--porcelain=v2"],
           ["for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/o/../x"],

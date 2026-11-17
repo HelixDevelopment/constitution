@@ -332,6 +332,8 @@ case_ R13-NO-LITERAL-PIN 1 py '    env.update(PATH_LITERAL_PIN)
 case_ R13-LITERAL-NOT-SCRUBBED 1 py '"GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS", "GIT_ICASE_PATHSPECS",' ''
 case_ R13-REVLIST-NO-DDASH 1 py '["rev-list", "--count", "HEAD", "--"]' '["rev-list", "--count", "HEAD"]'
 case_ R13-CONTAINS-OLD-FORMAT 1 py '["for-each-ref", "--contains", obj(gitlink), "--format=" + FER_CONTAINS_FORMAT, "refs/remotes"]' '["for-each-ref", "--contains", obj(gitlink), "--format=%(refname)", "refs/remotes"]'
+# review round 14 (RV13-4, reviewer mutant RV13J): HEAD accepted beside an id in the rev-list range -> the gate FAILs
+case_ R14-REVLIST-HEAD-BESIDE-ID 1 py '                 and all(_exact_obj(x) for x in rng)):' '                 and all(_exact_obj(x) or x == "HEAD" for x in rng)):'
 case_ SYNTAX 2 py 'def classify(ahead, behind):' 'def classify(ahead, behind'
 case_ MISSING 2 none "" ""
 echo "cases: $n"
