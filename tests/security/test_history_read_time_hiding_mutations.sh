@@ -25,8 +25,8 @@ MUTANTS=$(cat <<'EOF'
 AM1@@0@@S@@GLRS_TEXT_OPTS="-m --text --no-textconv"@@GLRS_TEXT_OPTS="-m --no-textconv"
 AM2@@0@@S@@GLRS_TEXT_OPTS="-m --text --no-textconv"@@GLRS_TEXT_OPTS="-m --text"
 AM3@@0@@S@@GLRS_TEXT_OPTS="-m --text --no-textconv"@@GLRS_TEXT_OPTS="--text --no-textconv"
-AM4@@0@@S@@SCAN_ARGS+=(--log-opts "${EXTRA_ARGS[${_glrs_i}]} ${GLRS_TEXT_OPTS}")@@SCAN_ARGS+=(--log-opts "${EXTRA_ARGS[${_glrs_i}]}")
-AM5@@0@@S@@--log-opts=*) SCAN_ARGS+=("${_glrs_a} ${GLRS_TEXT_OPTS}")@@--log-opts=*) SCAN_ARGS+=("${_glrs_a}")
+AM4@@0@@S@@SCAN_ARGS+=(--log-opts "$(glrs_force_opts "${EXTRA_ARGS[${_glrs_i}]}")")@@SCAN_ARGS+=(--log-opts "${EXTRA_ARGS[${_glrs_i}]}")
+AM5@@0@@S@@--log-opts=*) SCAN_ARGS+=("--log-opts=$(glrs_force_opts "${_glrs_a#--log-opts=}")")@@--log-opts=*) SCAN_ARGS+=("${_glrs_a}")
 AM6@@0@@S@@[ "${_glrs_lo}" = 1 ] || SCAN_ARGS+=(--log-opts "${GLRS_DEFAULT_LOG_OPTS} ${GLRS_TEXT_OPTS}")@@:
 AM7@@1@@S@@glrs_attr_selfcheck; _glrs_sc=$?@@_glrs_sc=0
 AM8@@1@@S@@[ "${nn}" -lt 1 ] || @@

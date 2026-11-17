@@ -89,15 +89,27 @@ fi
 # `--full-history --all --diff-filter=tuxdb`), because --log-opts replaces that default.
 GLRS_TEXT_OPTS="-m --text --no-textconv"
 GLRS_DEFAULT_LOG_OPTS="--full-history --all --diff-filter=tuxdb"
+# glrs_force_opts VALUE: VALUE with the forced options placed before the caller's first `--`
+# token (after it every word is a pathspec, so appended options would be read as paths and
+# lose their effect; review of PR #19, F4(a)). Without a `--` they are appended last.
+glrs_force_opts() {
+    local v=" $1 " pre post
+    case "${v}" in
+        *" -- "*) pre="${v%% -- *}"; post="${v#* -- }"
+                  pre="${pre# }"
+                  printf '%s%s -- %s' "${pre:+${pre} }" "${GLRS_TEXT_OPTS}" "${post% }" ;;
+        *) printf '%s %s' "$1" "${GLRS_TEXT_OPTS}" ;;
+    esac
+}
 SCAN_ARGS=(); _glrs_lo=0; _glrs_i=0
 while [ "${_glrs_i}" -lt "${#EXTRA_ARGS[@]}" ]; do
     _glrs_a="${EXTRA_ARGS[${_glrs_i}]}"
     case "${_glrs_a}" in
-        --log-opts=*) SCAN_ARGS+=("${_glrs_a} ${GLRS_TEXT_OPTS}"); _glrs_lo=1 ;;
+        --log-opts=*) SCAN_ARGS+=("--log-opts=$(glrs_force_opts "${_glrs_a#--log-opts=}")"); _glrs_lo=1 ;;
         --log-opts)
             if [ $((_glrs_i + 1)) -lt "${#EXTRA_ARGS[@]}" ]; then
                 _glrs_i=$((_glrs_i + 1))
-                SCAN_ARGS+=(--log-opts "${EXTRA_ARGS[${_glrs_i}]} ${GLRS_TEXT_OPTS}"); _glrs_lo=1
+                SCAN_ARGS+=(--log-opts "$(glrs_force_opts "${EXTRA_ARGS[${_glrs_i}]}")"); _glrs_lo=1
             else
                 gl_err "--log-opts needs a value"; exit 2
             fi ;;
