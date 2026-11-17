@@ -1,0 +1,3 @@
+NEEDLE an unclosed fence is listed, a closed one is not
+DOC Fixed segments=10 cmark-gfm_open=0 
+DOC Issues segments=481 cmark-gfm_open=0 

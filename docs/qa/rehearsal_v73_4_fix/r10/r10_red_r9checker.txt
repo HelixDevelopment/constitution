@@ -1,0 +1,59 @@
+R10 F1-NU_caps_after FAIL None
+R10 F1-NU_caps_bold FAIL None
+R10 F1-NU_caps_before FAIL None
+R10 F1-NU_mathbold FAIL None
+R10 F1-visarga_colon FAIL None
+R10 F1-visarga_bold FAIL None
+R10 F1-gujarati_visarga FAIL None
+R10 F1-fe30_colon FAIL None
+R10 F1-control_omicron FAIL a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of the one verification line
+R10 F1-lunate_sigma_c FAIL None
+R10 F1-long_s_f FAIL None
+R10 F1-palochka_caps_I FAIL None
+R10 F1-nu_in_list FAIL None
+R10 F1-nu_in_heading FAIL None
+R10 F1-nu_in_table FAIL None
+R10 F1-vt_000b FAIL None
+R10 F1-nel_mid_bold_heading FAIL a line a reader shows carries the Verification label but is not the one counted line (pandoc gfm shows the label elsewhere): the label may occur only at the start of the one verification line
+R10 F1-ls_2028 FAIL None
+R10 F1-ps_2029 FAIL None
+R10 F1-hair_200a FAIL None
+R10 F1-nel_0085 FAIL None
+R10 F1-entity_nu FAIL None
+R10 F1-entity_nu_dec FAIL None
+R10 F1-entity_named_nu FAIL None
+R10 F1-crash FAIL AttributeError: module 'pvl_r10_checker' has no attribute 'BODY_EXTRA'
+R10 F3-RV9M01a PASS a reader's output cannot be judged: pandoc markdown writes the attribute hidden=''
+R10 F3-RV9M01b PASS a reader's output cannot be judged: pandoc markdown writes the attribute lang='fr'
+R10 F3-RV9M02 PASS a reader's output cannot be judged: pandoc markdown writes the attribute style='display:none'
+R10 F3-RV9M03 PASS the body holds raw HTML ('<b' with a link reference definition in the body; HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+R10 F3-RV9M04 PASS the body holds raw HTML ('<b' with line 3 inside a fence that is not a ``` closing line; HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+R10 F3-RV9M05 PASS the body holds raw HTML ('<b' with line 1, a fence that is not ```WORD at column 0; HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+R10 F3-RV9M06 PASS the body holds raw HTML ('<b' with a ``` fence that is not closed; HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+R10 F3-RV9M07 PASS ['label: markdown-it commonmark shows the label elsewhere']
+R10 F3-RV9M08 PASS the body holds the bidi control U+2067 RIGHT-TO-LEFT ISOLATE: it can reorder what a reader shows
+R10 F3-RV9M09 PASS the body is not read: line 1 holds 513 or more characters with no white space between them; a reader's time grows faster than the length of such a run (break it with a space)
+R10 F3-RV9M10 PASS ['a<span><p>b</p></span>c']
+R10 F4-bang_brackets FAIL 39.06s a reader's output cannot be judged: pandoc markdown: TimeoutExpired
+R10 F4-brace FAIL 34.38s a reader's output cannot be judged: pandoc markdown: TimeoutExpired
+R10 F4-brackets FAIL 35.36s a reader's output cannot be judged: pandoc markdown: TimeoutExpired
+R10 F4-link_open FAIL 37.75s a reader's output cannot be judged: pandoc markdown: TimeoutExpired
+R10 F4-list_nest PASS 0.19s a reader does not show the verification line exactly as written: markdown-it commonmark does not show the line as a paragraph of its own, exactly as written
+R10 F4-nested_quote FAIL 32.44s a reader's output cannot be judged: pandoc gfm: TimeoutExpired
+R10 F4-pipes FAIL 5.44s a reader's output cannot be judged: pandoc markdown writes <colgroup>, which is not a tag of THE READER OUTPUT
+R10 F4-crash FAIL AttributeError: module 'pvl_r10_checker' has no attribute 'MAX_DEPTH'
+R10 F2-refused-CON-901 FAIL []
+R10 F2-refused-CON-911 FAIL []
+R10 F2-refused-CON-920 FAIL []
+R10 F2-accepted-CON-902 PASS []
+R10 F2-accepted-CON-904 PASS []
+R10 F2-accepted-CON-906 PASS []
+R10 F2-accepted-CON-912 PASS []
+R10 F2-accepted-CON-913 PASS []
+R10 F2-docfail-CON-903 FAIL 
+R10 F2-docfail-CON-905 FAIL 
+R10 F2-docfail-raw FAIL 
+R10 F2-verdict FAIL rc=0 ['ROOT: /mnt/DATA1TB/claude-work/scratch/fix10_con521_1794924276/work/r10red2/root/pvlroot', 'TODAY: 2026-11-16 window=60d', 'CHECKED items=15 provisional_status=8 ok=8 fail=0', 'VERDICT: PASS']
+R10 F2-blind-missing FAIL ROOT: /mnt/DATA1TB/claude-work/scratch/fix10_con521_1794924276/work/r10red2/root/pvlroot\nTODAY: 2026-11-16 window=60d\nCHECKED items=15 provisional_status=8 ok=8 fail=0\nVERDICT: PASS\n
+R10 F2-crash FAIL AttributeError: module 'pvl_r10_checker' has no attribute 'check_document'
+R10 cases=58 pass=17 fail=41
