@@ -1,0 +1,6 @@
+git version 2.53.0
+files: a b eb7f855a27a4063b3146b98f24c18c65f5fccd34 eb7f855a27a4063b3146b98f24c18c65f5fccd34^{commit} 
+checkout --detach <A>^{commit}: rc=0 head_is_A=yes detached=yes
+checkout --detach <A>: rc=0 head_is_A=yes
+negative needle (plain 'git checkout <A>' with a file named <A>):
+rc=0

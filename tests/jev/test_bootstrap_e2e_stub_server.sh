@@ -27,7 +27,7 @@ cp -r "$FIXTURES/home_seed/.claude" "$HOME/.claude"
 SRVLOG="$T/server.port"
 nice -n 10 python3 "$FIXTURES/jev_server.py" 0 >"$SRVLOG" 2>"$T/server.err" &
 SRV=$!
-trap 'kill "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null; rm -rf "$T"' EXIT
+jev_track_pid "$SRV"; trap _jev_cleanup_fixtures EXIT   # a later make_fixture_env re-installs the same trap: the server is still killed
 for _ in $(seq 1 300); do grep -q '^PORT ' "$SRVLOG" 2>/dev/null && break; sleep 0.1; done   # 30 s: a loaded host must not turn a slow start into a failure
 PORT="$(sed -n 's/^PORT //p' "$SRVLOG" | head -1)"
 [ -n "$PORT" ] || { fail "stub server did not report a port within 30 s (see $T/server.err); this is a harness start-up failure, not a product assertion"; finish; exit $?; }

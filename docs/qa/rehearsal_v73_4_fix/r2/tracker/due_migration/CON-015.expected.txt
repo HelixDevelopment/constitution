@@ -1,0 +1,30 @@
+## CON-015 — env census F-EC1: jq detection false negatives (variable, ${X:-jq}, array, function, trailing pipe) (implemented, PROVISIONAL-DONE)
+
+**Status:** Ready for testing
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-04T22:00:37Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Runner canon-fixes review r1 (important, test-instrumentation; the most important follow-up of the batch). The narrowing of the env-census jq regions creates false negatives: jq run through a variable or ${X:-jq} default (RE_JQ_WORD's lookbehind rejects ':-jq'), the program in an array, in a function, or on a pipeline continued by a trailing '|' (only backslash continuations are joined). No real tree file uses these shapes today (census diff). Suggested direction: keep the default ARMED when ownership cannot be decided and disarm only for regions provably owned by awk/perl/python/sed; and the report's 'Known limit' must name A1-A5.
+
+Source report(s) in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/: review_runner_canon_fixes.md; review_runner_canon_fixes_r2.md; runner_canon_fixes_r2_fix_report.md
+
+Origin: independent-review follow-up, section 11.4.276(G.2).
+
+**Affected scope / file-scope manifest:**
+scripts/gates/lib/gate_env_census.py and its test
+
+**Reproduction / context:**
+Feed the five shapes (variable, ${X:-jq}, array, function, trailing pipe) to the census.
+
+**Acceptance criteria:**
+Each shape is detected or the region stays armed; cases added to the regions test.
+
+**Implementation:** vehicle/census-safe, landed 2026-11-05 (fix e37aa4b: the env census keeps the jq environment check armed when region ownership is undecidable and disarms it only for regions provably owned by awk/perl/python/sed; cases G1-G9, W1/W2 and the F-EC1 shapes in tests/gates/test_gate_env_census_jq_regions.sh; reviewer mutants RM8, RM14, RN1, RN7 killed). Independent review round 3 of max 5: GO-with-follow-ups (finding follow-ups CON-064..CON-069; structural rewrite of the regex owner rules deferred to CON-047 by operator decision of 2026-11-05).
+
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/gates/test_gate_env_census_jq_regions.sh (expect 52 passed, 0 failed, 5 known-failure, rc 3), tests/gates/test_gate_env_census_closure.sh (31 passed, 0 failed, 1 known-failure, rc 3), scripts/gates/cm_gate_env_reads_allowlisted.sh (VERDICT PASS) and scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh (META PASS) on main after landing -- checks: real-tree census byte-identical across census variants, no false negative for the five shapes of the report -- layer: gate-logic plus real tree (class floor: runtime) -- target: host, repo checkout -- artifact: commit that lands vehicle/census-safe -- due: 2026-11-23 (UNCONFIRMED: date set by the CON-423 r2 fixer when the checker began to require a date; the line said "next full-suite run"; no scheduler entry exists).
+

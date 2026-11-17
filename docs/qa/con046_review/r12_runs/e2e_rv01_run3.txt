@@ -1,0 +1,4 @@
+real rc 1 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: FAIL sub — staged pin a29a030 is an ANCESTOR of the base pin a31692b (downgrade; waiver: authoriser 'ΐ' is the committer or author (producer cannot self-waive)). Advan
+mutant rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub a31692b -> a29a030 (waiver row bound to parent ec4ed8d0af91 in index :.submodule_pin_waivers)
+real-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub a31692b -> a29a030 (waiver row bound to parent ec4ed8d0af91 in index :.submodule_pin_waivers)
+mutant-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub a31692b -> a29a030 (waiver row bound to parent ec4ed8d0af91 in index :.submodule_pin_waivers)

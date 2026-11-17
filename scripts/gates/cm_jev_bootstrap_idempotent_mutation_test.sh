@@ -69,16 +69,16 @@ fi
 # C2: a bootstrap that (like the old stage 7) re-runs the gate must terminate with a BOUNDED
 # invocation count. Stub self-caps at 8 so even a broken guard cannot storm. Guarded gate
 # runs the stub exactly 4 times (2 digest runs + defer + clone run); nested gate calls exit 2.
-cat > "$SBX/storm-stub.sh" <<'STORM'
-#!/usr/bin/env bash
-n=$(wc -l < "$STORM_COUNT" 2>/dev/null || echo 0)
-[ "$n" -lt 8 ] || exit 0
-echo x >> "$STORM_COUNT"
-timeout --kill-after=2 30 bash "$GATE_UNDER_TEST" >/dev/null 2>&1
-exit 0
-STORM
-: > "$SBX/c2.count"
-STORM_COUNT="$SBX/c2.count" GATE_UNDER_TEST="$GATE" JEV_BOOTSTRAP_STUB="$SBX/storm-stub.sh" \
+# The gate runs its bootstrap from an EMPTY environment (env -i, round 4 R3-2), so the stub cannot take the count
+# file or the gate path from the environment: each storm stub carries its own paths, written in here.
+# The stub also names ITSELF as the bootstrap of the gate it re-runs (HELIX_TEST_MODE + a temp root that holds it, so
+# the guarded override is honoured): without that the empty environment alone already stops the recursion and the
+# neutered copy could not show that the NESTED guard is what bounds the storm.
+mkstorm() { # mkstorm <stub> <count file> <gate under test>
+  printf '#!/usr/bin/env bash\nn=$(wc -l < %q 2>/dev/null || echo 0)\n[ "$n" -lt 8 ] || exit 0\necho x >> %q\nHELIX_TEST_MODE=1 TMPDIR=%q JEV_BOOTSTRAP_STUB=%q timeout --kill-after=2 30 bash %q >/dev/null 2>&1\nexit 0\n' "$2" "$2" "$(dirname -- "$SBX")" "$1" "$3" > "$1"
+}
+: > "$SBX/c2.count"; mkstorm "$SBX/storm-stub.sh" "$SBX/c2.count" "$GATE"
+JEV_BOOTSTRAP_STUB="$SBX/storm-stub.sh" \
   timeout --kill-after=5 120 bash "$GATE" > "$SBX/outC2.log" 2>&1
 n_guard=$(wc -l < "$SBX/c2.count")
 # Neutered copy: guard block removed and the child export renamed away.
@@ -96,8 +96,8 @@ s2 = s2.replace('JEV_BOOTSTRAP_NESTED=1', 'JEV_NEUTERED_NOT_NESTED=1')
 assert s2 != s
 open(p, 'w').write(s2)
 PYEOF
-: > "$SBX/c3.count"
-STORM_COUNT="$SBX/c3.count" GATE_UNDER_TEST="$SBX/n2/gates/gate.sh" JEV_BOOTSTRAP_STUB="$SBX/storm-stub.sh" \
+: > "$SBX/c3.count"; mkstorm "$SBX/storm-stub3.sh" "$SBX/c3.count" "$SBX/n2/gates/gate.sh"
+JEV_BOOTSTRAP_STUB="$SBX/storm-stub3.sh" \
   timeout --kill-after=5 180 bash "$SBX/n2/gates/gate.sh" > "$SBX/outC3.log" 2>&1
 n_neut=$(wc -l < "$SBX/c3.count")
 if [ "$n_guard" -eq 4 ] && [ "$n_neut" -gt 4 ] && [ "$n_neut" -le 8 ]; then
@@ -112,6 +112,35 @@ JEV_BOOTSTRAP_STUB="$SBX/noop-stub.sh" timeout --kill-after=5 120 bash "$GATE" >
 { [ $? -eq 1 ] && grep -q 'clone-fallback' "$SBX/outD.log"; } \
   && say "RED flip D asserted: no-op bootstrap rejected (defer + clone-fallback clauses)" \
   || { say "MUTATION D SURVIVED: no-op bootstrap accepted"; rc=1; }
+
+# Mutation H (round 4, R3-2) - a bootstrap that reaches for the network (curl) or a real tool must turn clause 5 RED.
+printf '#!/usr/bin/env bash\ncurl -s https://hermetic.example.invalid/ >/dev/null 2>&1\nexec bash %q "$@"\n' "$HERE/../jev/bootstrap.sh" > "$SBX/net-stub.sh"
+JEV_BOOTSTRAP_STUB="$SBX/net-stub.sh" timeout --kill-after=5 300 bash "$GATE" > "$SBX/outH.log" 2>&1
+{ [ $? -eq 1 ] && grep -q 'hermetic: a bootstrap run called a guarded tool (network or real tool): curl' "$SBX/outH.log"; } \
+  && say "RED flip H asserted: a bootstrap run that calls curl is rejected by the hermetic clause" \
+  || { say "MUTATION H SURVIVED: a network-calling bootstrap was accepted"; rc=1; }
+
+# Mutation I (round 4, mutant Z1) - a gate whose hermetic PATH puts the ambient PATH first lets real tools through; the
+# control needle runs on that same PATH, so the gate must report the guard as blind (rc 2), never pass. The mutated gate
+# runs from a symlinked copy of scripts/ in the sandbox (it resolves its stubs, hook and libraries from its own dir).
+mkdir -p "$SBX/tree/scripts/gates"
+for _e in "$HERE"/../*; do [ "$(basename "$_e")" = gates ] || ln -s "$(cd "$_e" 2>/dev/null && pwd || printf '%s' "$_e")" "$SBX/tree/scripts/$(basename "$_e")"; done
+for _e in "$HERE"/*; do [ "$_e" = "$GATE" ] || ln -s "$_e" "$SBX/tree/scripts/gates/$(basename "$_e")"; done
+python3 - "$GATE" "$SBX/tree/scripts/gates/$(basename "$GATE")" <<'PYEOF'
+import sys
+s = open(sys.argv[1]).read()
+a = 'HERMETIC_PATH="$STUBBIN:$GUARDBIN:/usr/local/bin:/usr/bin:/bin"'
+if s.count(a) != 1:
+    sys.exit("mutation I: anchor not found exactly once")
+open(sys.argv[2], 'w').write(s.replace(a, 'HERMETIC_PATH="$PATH:$STUBBIN:$GUARDBIN:/usr/local/bin:/usr/bin:/bin"'))
+PYEOF
+if [ $? -ne 0 ]; then say "mutation I: could not build the mutated gate (cannot determine)"; rc=1
+else
+  timeout --kill-after=5 300 bash "$SBX/tree/scripts/gates/$(basename "$GATE")" > "$SBX/outI.log" 2>&1
+  { [ $? -eq 2 ] && grep -q 'the hermetic guard is blind' "$SBX/outI.log"; } \
+    && say "RED flip I asserted: an ambient-PATH-first hermetic PATH makes the guard blind (rc 2), never a pass" \
+    || { say "MUTATION I SURVIVED: a hermetic PATH that lets real tools through was accepted"; rc=1; }
+fi
 
 # Mutation E/F/G - the pin reader is STRUCTURAL (helix_deps_field.py), not line patterns.
 cat > "$SBX/decoy.yaml" <<'YEOF'

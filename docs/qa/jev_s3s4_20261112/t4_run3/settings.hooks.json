@@ -1,0 +1,14 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "Bash|Agent|Task",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t4_run3/home/.local/share/claude-multi-account/jev/jev-gate.sh",
+          "timeout": 5
+        }
+      ]
+    }
+  ]
+}

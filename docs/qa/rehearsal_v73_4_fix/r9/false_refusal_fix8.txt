@@ -1,0 +1,30 @@
+CON-015  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-016  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-023  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-043  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-144  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-159  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-160  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-161  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-162  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-183  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-184  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-185  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-186  r9=REFUSE   r8=REFUSE   kind=blank     grammar=field 'job' passes case, which is not an integer, an option, a path or 
+CON-189  r9=REFUSE   r8=REFUSE   kind=blank     grammar=field 'job' passes (expect, which is not an integer, an option, a path 
+CON-190  r9=REFUSE   r8=REFUSE   kind=blank     grammar=field 'job' passes (expect, which is not an integer, an option, a path 
+CON-191  r9=REFUSE   r8=REFUSE   kind=blank     grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-211  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-216  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' passes and, which is not an integer, an option, a path or  
+CON-217  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' passes on, which is not an integer, an option, a path or a 
+CON-218  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' passes on, which is not an integer, an option, a path or a 
+CON-219  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' passes on, which is not an integer, an option, a path or a 
+CON-220  r9=REFUSE   r8=REFUSE   kind=alphabet  grammar=field 'job' passes on, which is not an integer, an option, a path or a 
+CON-222  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' passes and, which is not an integer, an option, a path or  
+CON-223  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' passes on, which is not an integer, an option, a path or a 
+CON-224  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' passes on, which is not an integer, an option, a path or a 
+CON-226  r9=REFUSE   r8=REFUSE   kind=grammar   grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-235  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-236  r9=REFUSE   r8=REFUSE   kind=raw-html  grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+CON-265  r9=REFUSE   r8=REFUSE   kind=grammar   grammar=field 'job' does not start an invocation with a runner (bash, sh, pyth 
+SUMMARY {'items': 486, 'provisional': 29} with_prefix_line=29 kinds={'alphabet': 12, 'raw-html': 11, 'blank': 4, 'grammar': 2} grammar_valid_refused_by_line_model=0 

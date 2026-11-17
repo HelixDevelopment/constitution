@@ -1,0 +1,260 @@
+ok 1 - P1 acquire rc 0 when a candidate fits
+ok 2 - P1 first systemone-native candidate (decide-a) placed
+ok 3 - P1 exactly one llmctl start
+ok 4 - P1 local gateway in the cache at priority 10
+ok 5 - P1 gateway URL from the llmctl registry
+ok 6 - P1 key referenced by NAME
+ok 7 - P1 placement route local
+ok 8 - P1 set records constitution_started
+ok 9 - P1 the starting mark is cleared after the start
+ok 10 - P2 setup: the stub reports the started profile in llmctl's shape (verdict running, unit ok)
+ok 11 - P2 second holder joins decide-a (verdict running, unit status ok)
+ok 12 - P2 no second start
+ok 13 - P2 two leases
+ok 14 - P2 event joined, no capacity verdict for a running instance
+ok 15 - P3 release of one of two holders does not stop
+ok 16 - P3 the cache entry stays while a lease is held
+ok 17 - P3 last release rc 0
+ok 18 - P3 last release stops the model
+ok 19 - P3 stop names the started profile
+ok 20 - P3 cache entry removed
+ok 21 - P3 lease set removed
+ok 22 - P3 stub reports the model stopped
+ok 23 - P4 wrong schema -> rc 5
+ok 24 - P4 no start under undetermined
+ok 25 - P4 verdict undetermined
+ok 26 - P4 route none without a key
+ok 27 - P4 route cloud with a real hosted key
+ok 28 - P4 key variable NAME recorded
+ok 29 - P4 key value never written
+ok 30 - P5 capacity exit 1 -> rc 5, no start
+ok 31 - P5 reason names the exit code
+ok 32 - P5 slow capacity -> rc 5, no start
+ok 33 - P5 llmctl call bounded (1s)
+ok 34 - P5 reason says timed out
+ok 35 - P6 does_not_fit a skipped, b placed
+ok 36 - P6 a never started
+ok 37 - P7 nproc headroom unmeasured -> rc 5, no start (undetermined is never fits)
+ok 38 - P7 reason names RLIMIT_NPROC
+FAIL - P8 headroom < threads -> does_not_fit, no start (expected [5 0] got [0 1])
+ok 39 - P9 a degraded operator unit of decide-a -> not started a second time, rc 5
+ok 40 - P9 the degraded unit is not adopted
+ok 41 - P9 reason unit degraded
+ok 42 - P10 start refused (75) -> rc 5
+ok 43 - P10 no lease after a refused start
+ok 44 - P17 pressure not ok -> no start
+ok 45 - P11 setup: one start
+ok 46 - P11 reap never stops the model
+ok 47 - P11 dead holder reaped
+ok 48 - P11 acquire rejoins the running constitution-started model (no second start, no stop)
+ok 49 - P12 stopping set refuses a new acquire
+ok 50 - P13 lock held -> rc 4, no start
+ok 51 - P13 reason lease_lock_timeout
+ok 52 - P14 'enable' refused
+ok 53 - P14 'enable' refused as a forbidden verb, not as an unknown one
+ok 54 - P14 'disable' refused
+ok 55 - P14 'disable' refused as a forbidden verb, not as an unknown one
+ok 56 - P14 'switch' refused
+ok 57 - P14 'switch' refused as a forbidden verb, not as an unknown one
+ok 58 - P14 'auto' refused
+ok 59 - P14 'auto' refused as a forbidden verb, not as an unknown one
+ok 60 - P14 no enable/disable/switch/auto ever sent
+ok 61 - P15 candidates = systemone-native only
+ok 62 - P15 verdict never starts
+ok 63 - P16 heartbeat refreshed
+ok 64 - P16 pid-less lease past TTL reaped
+ok 65 - P18 failed start -> no local placement (rc 5)
+ok 66 - P18 a unit the producer tried to start and that failed is stopped again (no orphan)
+ok 67 - P18 the cleanup stop is logged
+ok 68 - P19 a start refused by the pressure gate (75, no partial start) sends no stop
+ok 69 - P20 an already-running operator unit (status ok) is adopted, never started again
+ok 70 - P20 an operator-started unit is recorded constitution_started=false
+ok 71 - P20 releasing the last lease of an operator-started unit never stops it
+ok 72 - P21 a failed stop on the last release returns rc 6 (never 0)
+ok 73 - P21 one stop attempted
+ok 74 - P21 the set is KEPT with constitution_started=true
+ok 75 - P21 the stopping mark is kept
+ok 76 - P21 the set records the failed stop rc
+ok 77 - P21 placement event stop_failed
+ok 78 - P26 stop_failed: verdict null in the closed set
+ok 79 - P21 a set with no lease is not routable: the cache entry is removed (R4-1 invariant)
+ok 80 - P21 the recorded route is the fallback, not local
+ok 81 - P21 stop_failed is logged
+ok 82 - P21 the next release re-attempts the stop and succeeds (rc 0)
+ok 83 - P21 a second stop was sent (retry)
+ok 84 - P21 only a successful stop removes the set
+ok 85 - P21 placement event stopped after the retry
+ok 86 - P26 stopped: verdict null in the closed set
+ok 87 - P21 model stopped after the retry
+ok 88 - P21 after a failed stop a new acquire joins the kept model (unit ok; no second start)
+ok 89 - P21 the joined set stays constitution-started (a later release still stops it)
+ok 90 - P21 the join registers the gateway again
+ok 91 - P22 a 3 s stop with read timeout 1 s and stop timeout 10 s succeeds (bounded by the stop timeout)
+ok 92 - P22 set removed after the slow stop
+ok 93 - P22 a stop slower than the stop timeout is stop_failed (rc 6)
+ok 94 - P22 the stop is bounded (2s)
+ok 95 - P22 timed-out stop keeps the set
+ok 96 - P23 two profiles started with JEV_PLACE_MAX=2
+ok 97 - P23 the last release stops BOTH started profiles
+ok 98 - P23 both sets removed
+ok 99 - P23 no model left running
+ok 100 - P23 no cache entry names a stopped model
+ok 101 - P24 the lease records the holder's process start time
+ok 102 - P24 a live pid holder with a matching start time is kept
+ok 103 - P24 a reused pid (start time differs) is reaped
+ok 104 - P24 the reap never stops the model
+ok 105 - P25 second holder joins
+ok 106 - P25 the join re-registers the local gateway in the cache
+ok 107 - P25 placement event joined
+ok 108 - P26 joined: verdict null in the closed set
+ok 109 - P25 a degraded unit is not joined (rc 5)
+ok 110 - P25 no lease added for the degraded unit
+ok 111 - P25 degraded => does_not_fit
+ok 112 - P25 degraded => event refused_degraded (not the generic refused_join)
+ok 113 - P25 reason names the degraded unit
+ok 114 - P25 no second start, and a held set is never stopped
+ok 115 - P26 a failed start is recorded as event start_failed
+ok 116 - P26 the verdict stays the measured capacity verdict (fits), not a false does_not_fit
+ok 117 - P26 start_failed: verdict fits in the closed set
+ok 118 - P26 no candidate fits => does_not_fit, event no_fit
+ok 119 - P27 failed start -> rc 5
+ok 120 - P27 event start_failed
+ok 121 - P27 the set is KEPT: constitution_started, no lease, start_failed rc 1, stop_failed rc 1
+ok 122 - P27 setup: the stub unit still runs after the failed cleanup
+ok 123 - P27 the kept set is logged
+ok 124 - P27 a later acquire (stop still failing) -> rc 5, nothing joined
+ok 125 - P27 the set is never adopted as operator-started and gets no lease
+ok 126 - P27 a later acquire does not join the failed-start unit
+ok 127 - P27 the later acquire retried the stop (2 stops) and never started again (1 start)
+ok 128 - P27 the retry is logged
+ok 129 - P27 a release with the stop working -> rc 0
+ok 130 - P27 the successful stop removes the set
+ok 131 - P27 the unit is no longer running
+ok 132 - P27 acquire retries the stop (rc 0), removes the kept set, reads capacity again, then places normally
+ok 133 - P27 the new set is a normal constitution-started set
+ok 134 - P27 after the stop the start is decided on a fresh capacity answer
+ok 135 - P28 unit gone (crashed) -> join refused (rc 5, event refused_join)
+ok 136 - P28 unit gone (crashed) -> no lease added
+ok 137 - P28 unit gone (crashed) -> the gateway is NOT registered in the cache
+ok 138 - P28 unit gone (crashed) -> a set that still holds a lease is never stopped
+ok 139 - P28 verdict running without an own unit -> join refused (rc 5, event refused_join)
+ok 140 - P28 verdict running without an own unit -> no lease added
+ok 141 - P28 verdict running without an own unit -> the gateway is NOT registered in the cache
+ok 142 - P28 verdict running without an own unit -> a set that still holds a lease is never stopped
+ok 143 - P28 only another user's unit -> join refused (rc 5, event refused_join)
+ok 144 - P28 only another user's unit -> no lease added
+ok 145 - P28 only another user's unit -> the gateway is NOT registered in the cache
+ok 146 - P28 only another user's unit -> a set that still holds a lease is never stopped
+ok 147 - P28 verdict undetermined -> join refused (rc 5, event refused_join)
+ok 148 - P28 verdict undetermined -> no lease added
+ok 149 - P28 verdict undetermined -> the gateway is NOT registered in the cache
+ok 150 - P28 verdict undetermined -> a set that still holds a lease is never stopped
+ok 151 - P28 host pressure (every unit degraded) -> join refused (rc 5, event refused_degraded)
+ok 152 - P28 host pressure (every unit degraded) -> no lease added
+ok 153 - P28 host pressure (every unit degraded) -> the gateway is NOT registered in the cache
+ok 154 - P28 host pressure (every unit degraded) -> a set that still holds a lease is never stopped
+ok 155 - P28 unit status outside ok/degraded -> join refused (rc 5, event refused_join)
+ok 156 - P28 unit status outside ok/degraded -> no lease added
+ok 157 - P28 unit status outside ok/degraded -> the gateway is NOT registered in the cache
+ok 158 - P28 unit status outside ok/degraded -> a set that still holds a lease is never stopped
+ok 159 - P28 an unreadable capacity answer is refused at the capacity check itself
+ok 160 - P28 undetermined capacity -> join refused (never a join on an unread answer)
+ok 161 - P28 no lease added and nothing stopped on an unread answer
+ok 162 - P28 CONTROL: unit ok -> joined, whatever a SECOND start of the profile would get
+ok 163 - P32 the last placement event is in the closed set
+ok 164 - P32b an event outside the closed set is refused (rc 2, nothing written)
+ok 165 - P32b CONTROL: an event in the set is written
+ok 166 - P32b refused_starting is in the closed set
+ok 167 - P29 pid_start equals /proc/<pid>/stat field 22 (python oracle)
+ok 168 - P29 CONTROL: field 23 (vsize) differs from field 22, so the oracle discriminates
+ok 169 - P30 setup: the holder is a zombie (pid exists, empty cmdline)
+ok 170 - P30 a zombie holder is dead: its lease is reaped
+ok 171 - P31 a fresh stop mark with no pid is kept (no pid is never a dead stopper)
+ok 172 - P31 the same mark older than the stop timeout + 30 s is cleared
+ok 173 - P33 setup (gone): one constitution-started set
+ok 174 - P33 unit gone, no lease: the acquire stops the constitution-started model (one bounded stop)
+ok 175 - P33 unit gone: the stopped set is removed (no stuck refused_join)
+ok 176 - P33 unit gone: the dead gateway is not left in the endpoint cache
+ok 177 - P33 unit gone: not a refused join
+ok 178 - P33 unit gone: the stopping acquire does not restart the profile (hold), rc 5 (b does not fit)
+ok 179 - P33 unit gone: the NEXT acquire places the profile again
+ok 180 - P33 unit gone: the new set is constitution-started with the new holder only
+ok 181 - P33 setup (degraded): one constitution-started set
+ok 182 - P33 unit degraded, no lease: the acquire stops the constitution-started model (one bounded stop)
+ok 183 - P33 unit degraded: the stopped set is removed (no stuck refused_join)
+ok 184 - P33 unit degraded: the dead gateway is not left in the endpoint cache
+ok 185 - P33 unit degraded: not a refused join
+ok 186 - P33 unit degraded: the stopping acquire does not restart the profile (hold), rc 5 (b does not fit)
+ok 187 - P33 unit degraded: the NEXT acquire places the profile again
+ok 188 - P33 unit degraded: the new set is constitution-started with the new holder only
+ok 189 - P33 an UNKNOWN instance state (running, no own unit) never stops the model and is refused
+ok 190 - P33 the unknown set is kept as it was
+ok 191 - P33 disposal stop fails: rc 5, one stop attempted
+ok 192 - P33 disposal stop fails: the set is kept (constitution_started, no lease, stop_failed rc 1)
+ok 193 - P33 disposal stop fails: the owed stop is recorded and the stop mark is cleared
+ok 194 - P33 the next acquire retries the owed stop (2 stops), never joins it (no lease)
+ok 195 - P33 the owed stop succeeds on a later acquire, the set goes and the profile is placed again
+ok 196 - P33 the new set is a normal constitution-started set
+ok 197 - P34 setup (degraded): two sets (decide-a, decide-b) under holder h1
+ok 198 - P34 a degraded first set does not block joining the healthy second set
+ok 199 - P34 (degraded) the new lease is on decide-b
+ok 200 - P34 (degraded) the first set that still has a live holder is left alone (no lease added, never stopped)
+ok 201 - P34 setup (gone): two sets (decide-a, decide-b) under holder h1
+ok 202 - P34 a gone first set does not block joining the healthy second set
+ok 203 - P34 (gone) the new lease is on decide-b
+ok 204 - P34 (gone) the first set that still has a live holder is left alone (no lease added, never stopped)
+ok 205 - P35 degraded unit, no lease: the model is stopped
+ok 206 - P35 decide-a no longer runs
+ok 207 - P35 its set is removed
+ok 208 - P35 the fitting candidate decide-b is placed instead
+ok 209 - P35 the cache names the placed model only
+ok 210 - P35 a lease-less constitution-started unit that is ok is JOINED, never stopped (a second start would not fit: irrelevant)
+ok 211 - P35 no other profile is started instead
+ok 212 - P35 single candidate degraded: stopped, set removed, rc 5 (fallback route)
+ok 213 - P35 setup: an operator unit adopted by a holder that has since exited
+ok 214 - P35 CONTROL: a degraded operator-started unit is never stopped by the disposal path
+ok 215 - P36 failed start + cleanup stop timing out -> rc 5
+ok 216 - P36 the cleanup stop is bounded (2s)
+ok 217 - P36 a timed-out cleanup stop keeps the set with stop_failed rc 124
+ok 218 - P36 the kept set is owned and has no lease (never adopted as operator-started)
+ok 219 - P37 reap alone never stops (disposal happens only in an acquire)
+ok 220 - P38 an operator-started decide-b (ok) is adopted instead of starting decide-a
+ok 221 - P38 the adopted set is not constitution-started and the cache names it
+ok 222 - P39 setup: the stub runs the tenant-keyed unit t1--decide-a
+ok 223 - P39 the tenant-keyed own unit is joined (no second start)
+ok 224 - P39 another tenant's (t2--) and another user's unit are never adopted: decide-b is started for t1
+ok 225 - P40 setup: the owed stop is retried and succeeds, nothing placed
+ok 226 - P40 after the owed stop no cache entry names the stopped model
+ok 227 - P40 setup: the cache names decide-b (the last model registered), decide-a is held by h1
+ok 228 - P40 release of h2 stops decide-b only
+ok 229 - P40 the cache entry is re-pointed to decide-a (still held), never left naming the stopped decide-b
+ok 230 - P41 a heartbeat during a slow stop returns rc 0 (the lock is not held across the stop)
+ok 231 - P41 the heartbeat did not wait for the stop (0s)
+ok 232 - P41 an acquire during the stop is refused_stopping, not a lock timeout
+ok 233 - P41 the slow stop completed and removed the set
+ok 234 - P41 a heartbeat during a slow start returns rc 0
+ok 235 - P41 the heartbeat did not wait for the start (1s)
+ok 236 - P41 an acquire during the start is refused_starting, not a lock timeout
+ok 237 - P41 the slow start completed: one start, mark cleared, one lease
+ok 238 - P41 after the start a new acquire joins
+ok 239 - P42 the starting mark of a starter that is gone is cleared
+ok 240 - P42 a live starter's mark is kept and refuses an acquire
+ok 241 - P43 exactly one llmctl stop call site (do_stop)
+ok 242 - P43 exactly one llmctl start call site
+ok 243 - P43 CONTROL needle: the capacity call site is found (the instrument sees call sites)
+ok 244 - P43 CONTROL needle: a fabricated verb is not found
+ok 245 - P44 verdict --json: decide-a ok (no capacity verdict), decide-b absent/fits
+ok 246 - P45 a unit status outside ok/degraded: unknown, nothing started or adopted
+ok 247 - P45 the reason names the unit status
+ok 248 - P46 an own unit next to a non-running verdict: unknown, nothing started or adopted
+ok 249 - P47 measurement.ok false (exit 75) -> undetermined, no start
+ok 250 - P47 the reason names the failed measurement
+ok 251 - P48 no llmctl call ran while the lease lock was held (stub LOCKHELD records over every scenario)
+ok 252 - P48 CONTROL: the stub records a call made with the lock file open (the instrument sees)
+ok 253 - P49 the human status names the starting mark
+ok 254 - P50 setup: the started set is in the cache
+ok 255 - P50 the degraded unit is refused
+ok 256 - P50 no cache entry names the degraded (still held) model
+ok 257 - P50 the held set keeps its lease and is not stopped
+ok 258 - P50 CONTROL: once the unit is ok again a join registers it again
+# test_s4_placement.sh: pass=258 fail=1 skip=0

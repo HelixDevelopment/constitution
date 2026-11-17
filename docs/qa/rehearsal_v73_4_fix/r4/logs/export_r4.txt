@@ -1,0 +1,6 @@
+export: wrote <repo>/docs/Issues.md
+export: wrote <repo>/docs/Fixed.md
+export: wrote <repo>/docs/Issues_Summary.md
+export: wrote <repo>/docs/Fixed_Summary.md
+export: --no-formats set; skipped HTML/PDF/DOCX sibling generation
+rc=0

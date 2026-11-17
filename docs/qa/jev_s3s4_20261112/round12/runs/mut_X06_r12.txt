@@ -1,0 +1,59 @@
+ok 1 - R12-1 the release's stop is in flight (armed) (its stop of decide-b is in flight)
+ok 2 - CONTROL: the external holder has the lease lock
+ok 3 - R12-1 every record wait timed out (the producer says so)
+FAIL - R12-1 release exits 6 (the stop result is not recorded), one stop ran, the set is kept (expected [6 1 true] got [0 1 true])
+ok 4 - R12-1 golden-FALSE: the same release with the lock free exits 0 and removes the set
+ok 5 - CONTROL: the external holder has the lease lock
+ok 6 - R12-2 the cleanup stop's record waits timed out
+ok 7 - R12-2 the first candidate started once; the next candidate is never started (the old model may be resident)
+FAIL - R12-2 the acquire says why it stops (no [no further candidate is started] in /mnt/DATA1TB/claude-work/scratch/jev_r12.9XGE/tmp/tmp.KiWN6ILVAy/a2.err)
+ok 8 - R12-2 CONTROL: with the cleanup stop recorded the next candidate IS started (the row can see a second start)
+ok 9 - R12-3 calibration: the release stops decide-b (its stop of decide-b is in flight)
+ok 10 - R12-3 CONTROL: the arm step is flock call 5
+ok 11 - R12-3 the release is paused before its arm step (paused at flock call 5)
+ok 12 - CONTROL: the external holder has the lease lock
+ok 13 - R12-3 release exits 6, no stop ran, the unit and the set are kept
+ok 14 - R12-3 the release names the lock timeout
+ok 15 - R12-4 the release's stop is in flight (its stop of decide-b is in flight)
+ok 16 - CONTROL: the external holder has the lease lock
+ok 17 - R12-4 the first record wait timed out
+ok 18 - R12-4 the second record wait succeeds: exit 0, the set is removed
+ok 19 - R12-4 the result is recorded
+ok 20 - CONTROL: the external holder has the lease lock
+ok 21 - R12-5 heartbeat, release and acquire exit 4 when the lease lock cannot be taken
+ok 22 - R12-5 nothing was stopped or started and the lease is kept
+ok 23 - R12-5 the acquire's unwritten record names lease_lock_timeout (no lease assumed)
+ok 24 - R12-5 no placement record is written without the lock (placement.json unchanged)
+ok 25 - calibration: A records at flock call 7
+ok 26 - calibration: B arms at flock call 9, records at 11
+ok 27 - R12-6 B is paused before its arm step (paused at flock call 9)
+ok 28 - R12-6 B armed its stop (its stop of decide-a is in flight)
+ok 29 - R12-6 B's stop returned; B is paused before its record step (paused at flock call 11)
+ok 30 - R12-6 A's start returned; A is paused before its record step (paused at flock call 7)
+ok 31 - R12-6 A's failed start (rc 1; the stub leaves the unit up) is recorded with an owed stop before B records
+ok 32 - R12-6 B runs the owed stop: no unit, no set
+ok 33 - R12-7 B is paused before its arm step (paused at flock call 9)
+ok 34 - R12-7 B armed its stop (its stop of decide-a is in flight)
+ok 35 - R12-7 B's stop returned; B is paused before its record step (paused at flock call 11)
+ok 36 - R12-7 A's start returned; A is paused before its record step (paused at flock call 7)
+ok 37 - R12-7 B recorded its failed stop; B is paused before its owed retry's arm step (paused at flock call 13)
+ok 38 - R12-7 CONTROL: B's call 13 is a lock call
+ok 39 - R12-7 B's failed stop took the owed-after-start branch
+ok 40 - R12-7 the owed-after-start record of the failed stop carries stop_failed (rc 1) and the owed stop
+ok 41 - R12-7 the next acquire runs the owed stop: no unit
+ok 42 - R12-8 B is paused before its arm step (paused at flock call 9)
+ok 43 - R12-8 B armed its stop (its stop of decide-a is in flight)
+ok 44 - R12-8 B's stop returned; B is paused before its record step (paused at flock call 11)
+ok 45 - R12-8 A's start returned; A is paused before its record step (paused at flock call 7)
+ok 46 - R12-8 B keeps the third process's stopping mark, keeps the owed stop and runs no second stop under it
+ok 47 - R12-8 B's owed retry refuses the set the third process is stopping
+ok 48 - R12-9 calibration: the release stops decide-b (its stop of decide-b is in flight)
+ok 49 - R12-9 the release is paused before its arm step (paused at flock call 5)
+ok 50 - R12-9 the arm step refuses the set another process is stopping
+ok 51 - R12-9 no stop runs; the unit and the third process's mark are kept
+ok 52 - R12-11 write_census.py: every lease write and map_values line of the producer is categorised
+ok 53 - R12-11 CONTROL: the census lists release_locked
+ok 54 - R12-11 a copy whose release no longer removes a lease by holder is BLIND (its needle is gone)
+ok 55 - R12-11 a copy with an uncategorised map_values lease write FAILs (closed world)
+ok 56 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round12.sh: pass=56 fail=2 skip=0

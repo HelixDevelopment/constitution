@@ -80,6 +80,11 @@ rc_safe_url() {
   else printf '<url not shown>'; fi
 }
 
+# rc_gitea_token_shape_ok VALUE: 0 when VALUE fits the gitea publisher's token charset and length, else 1. The ONE
+# definition of that shape (CON-423 review r1, M8): release_publish_gitea.sh refuses a token outside it and the
+# tag script's dry run reports TOKEN-SHAPE for it, so the two can never disagree. Nothing is printed.
+rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{8,200}$ ]]; }
+
 rc_git_env() {
   local v
   for v in $(compgen -e); do case "$v" in GIT_TRACE*|GIT_CURL_VERBOSE) unset -v "$v" ;; esac; done
@@ -386,6 +391,41 @@ rc_url_has_userinfo() {
   # scp-like or anything else: a "@" before the first "/" with a ":" (or an encoded one) before that "@"
   auth="${u%%/*}"
   case "$auth" in *@*) ui="${auth%@*}"; case "$ui" in *:*|*%3[Aa]*) return 0 ;; esac ;; esac
+  return 1
+}
+
+# rc_gitea_binding BASE_URL TOKEN_VAR (B-M2, 2026-11-16): status 0 when the gitea token held in the variable
+# named TOKEN_VAR may be sent to BASE_URL, else non-zero; nothing is printed and nothing outside bash runs (no
+# external command). The binding is DATA: config/forge/hosts.tsv two directories above this library
+# (scripts/release/ -> the repository root), the table scripts/forge/forge.sh reads. A https BASE_URL is bound
+# only when a row with provider "gitea" has api_base exactly BASE_URL/api/v1 and lists TOKEN_VAR in its
+# token_vars column; a loopback URL (127.0.0.1, localhost, [::1], either scheme: the test servers) is bound only to
+# GITEA_LOOPBACK_TEST_TOKEN, so a real token is never sent to a local listener. Status 1: not bound (unknown host,
+# a port the table does not name, a variable the row does not list, a scheme other than https); 2: TOKEN_VAR is
+# not an upper-case name or bash gives it a meaning of its own; 3: the table cannot be read or holds no gitea row
+# (fail closed: a missing table never means "any host").
+_RC_LIB_DIR="${BASH_SOURCE[0]%/*}"; [ "$_RC_LIB_DIR" = "${BASH_SOURCE[0]}" ] && _RC_LIB_DIR=.
+rc_gitea_binding() {
+  local LC_ALL=C base="${1:-}" tv="${2:-}" f="$_RC_LIB_DIR/../../config/forge/hosts.tsv" l p a t rows=0 tab=$'\t'
+  [[ $tv =~ ^[A-Z][A-Z0-9_]{0,63}$ ]] || return 2
+  _rc_env_reserved "$tv" && return 2
+  base="${base%/}"
+  case "$base" in http://127.0.0.1:*|http://localhost:*|http://\[::1\]:*|https://127.0.0.1|https://127.0.0.1:*|https://localhost|https://localhost:*|https://\[::1\]|https://\[::1\]:*)
+    [ "$tv" = GITEA_LOOPBACK_TEST_TOKEN ] && return 0; return 1 ;;
+  esac
+  case "$base" in https://*) ;; *) return 1 ;; esac
+  { [ -f "$f" ] && [ -r "$f" ]; } || return 3
+  # one line at a time, split on TAB by parameter expansion (IFS keeps the values the network gate admits); a line
+  # with fewer than four TABs is not a row
+  while IFS= read -r l || [ -n "$l" ]; do
+    case "$l" in ''|'#'*) continue ;; *"$tab"*"$tab"*"$tab"*"$tab"*) ;; *) continue ;; esac
+    l="${l#*"$tab"}"; p="${l%%"$tab"*}"; l="${l#*"$tab"}"; a="${l%%"$tab"*}"; l="${l#*"$tab"}"; t="${l%%"$tab"*}"
+    [ "$p" = gitea ] || continue
+    rows=$((rows + 1))
+    [ "$a" = "$base/api/v1" ] || continue
+    case ",$t," in *",$tv,"*) return 0 ;; esac
+  done <"$f" || return 3
+  [ "$rows" -gt 0 ] || return 3
   return 1
 }
 

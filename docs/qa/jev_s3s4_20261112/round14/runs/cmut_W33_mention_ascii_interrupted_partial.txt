@@ -1,0 +1,30 @@
+ok   C1: census of this tree PASS, universe 1926, 672 members
+ok   C1b: all 643 files the independent query finds are census members
+ok   C1c: scripts/gates/cm_rule_binds_to_seam.sh is HERMETIC
+ok   C1c: scripts/gates/cm_rule_binds_to_seam_mutation_test.sh is HERMETIC
+ok   C1c: scripts/gates/cm_gitlink_on_remote_mutation_test.sh is HERMETIC
+ok   C1c: scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh is HERMETIC
+ok   C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh is HERMETIC
+ok   C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh is HERMETIC
+ok   C1c: scripts/fastcycle/cycle/fc_supervisor.py is HERMETIC
+ok   C1c: scripts/codegraph/scope_enumerate.js is HERMETIC
+ok   C1c: install_upstreams.sh is HERMETIC
+ok   C1c: find_constitution.sh is HERMETIC
+ok   C1c: progressive/mutation_matrix.py is HERMETIC
+ok   C1c: progressive/validate_submodule.py is HERMETIC
+ok   C1c: scripts/multitrack/multitrack_device_lock.sh is HERMETIC
+ok   C1c: docs/qa/ownership_wave2/repro_p8.sh is HERMETIC
+ok   C1c: scripts/hooks/guard-branch-consistency.sh is EXEMPT subject-follows-caller (R4-7)
+ok   C1c: scripts/hooks/guard-track-branch-label.sh is EXEMPT subject-follows-caller (R4-7)
+ok   C1c: scripts/hooks/guard-work-track-binding.sh is EXEMPT subject-follows-caller (R4-7)
+ok   C1d: all 246 tracked code files with a git write (independent instrument, whole tree) are census members
+ok   C2a: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2b: census exit 0, 'PASS'
+ok   C2c: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2d: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2e: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2f: census exit 0, 'PASS'
+ok   C2g: census exit 0, 'exempt=2'
+ok   C2g2: census exit 1, 'row no-git-execution, but a git write is detected'
+ok   C2h: census exit 1, 'stale row'
+ok   C2i: census exit 1, 'malformed'

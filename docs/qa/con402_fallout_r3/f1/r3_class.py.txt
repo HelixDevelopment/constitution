@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""r3_class.py CENSUS BR WORKDIR -- fixer (round 3) copy of the reviewer's round-2 class instrument (out/tools of
+rev_con402r2.4icEda, r2_class.py, unchanged members), extended: every U / W / T member is ALSO placed AFTER the
+canonical line (mode suffix @after), so the unset / wrapper / trap rules are measured where the preamble rule cannot
+fire; new members X01..X06 (function run through a wrapper, redefinition, a function defined in a trap, a helper
+called after its unset, a helper in a loop, a proved variable through a brace). The
+reviewer's for the CON-402 shell desugar and F1-E.
+
+For every member: (a) BASH TRUTH -- a small standalone program (wt_path=/proved, stub functions _fc_safe,
+_fc_run_child, _fc_mktemp, the member text, the canonical loop) run by real bash 5 under env -i, cwd an empty dir;
+it reports whether the PROVED variable wt_path or a trusted function was removed. No member text runs a path
+operation (no rm, no mkdir): only declare / unset / printf -v / read / trap.
+(b) CENSUS -- the census run on the real baseline_replay.sh with the member text inserted in front of the canonical
+line (and the loop's word list given the same prefix the bash program uses).
+ESCAPE = bash CHANGES and census rc=0. Control needles: the real file must be accepted (rc=0), a literal
+`unset wt_path`-class line refused, and the census must still refuse the round-1 S1 shape (positive needle).
+Payload text is built here in Python, never in a shell heredoc."""
+import os, re, subprocess, sys
+
+census, br, work = sys.argv[1:4]
+BR = open(br, encoding="utf-8").read()
+LINE = re.search(r'^for _ge_v in ([A-Z_ ]+); do unset "\$_ge_v"; done; unset _ge_v[^\n]*$', BR, re.M).group(0)
+assert BR.count(LINE) == 1
+BS = "\\"
+G = "_g" + BS + "e_v"               # _ge_v spelled with a backslash: the text "_ge_v" does not occur
+G2 = "_g''e_v"                       # spelled with an empty single-quoted string
+FS = "_fc_s" + BS + "afe"            # _fc_safe spelled with a backslash
+DBG = "DEBUG"
+
+
+def line_with(prefix):
+    return LINE.replace("for _ge_v in ", "for _ge_v in " + prefix + " ", 1) if prefix else LINE
+
+
+# (id, member text placed in front of the canonical line, mode, word prefix, note)
+#   mode 'top': member + line at top level; 'fn': both inside one function that is then called;
+#   'caller': member is a function body (_rvc) called before the line; 'only': member only (no prefix words)
+M = [
+    # --- W: the `command` wrapper: blocker (2) only looks at a command whose FIRST word is local/declare/typeset
+    ("W01-command-declare-l-backslash", "command declare -l " + G, "top", "WT_PATH _FC_SAFE"),
+    ("W02-command-declare-l-emptyquote", "command declare -l " + G2, "top", "WT_PATH _FC_SAFE"),
+    ("W03-command-declare-c-backslash", "command declare -c " + G, "top", "WT_PATH _FC_SAFE"),
+    ("W04-command-declare-i-backslash", "command declare -i " + G, "top", "WT_PATH _FC_SAFE"),
+    ("W05-command-local-l-in-fn", "command local -l " + G, "fn", "WT_PATH _FC_SAFE"),
+    ("W06-caller-command-declare-gl", "command declare -gl " + G, "caller", "WT_PATH _FC_SAFE"),
+    ("W07-command-command-declare-l", "command command declare -l " + G, "top", "WT_PATH _FC_SAFE"),
+    ("W08-command-declare-l-continued", "command declare -l _g" + BS + "\ne_v", "top", "WT_PATH _FC_SAFE"),
+    ("W09-declare-l-continued-noprefix", "declare -l _g" + BS + "\ne_v", "top", "WT_PATH _FC_SAFE"),
+    ("W10-env-declare-l (external, no shell effect)", "env declare -l " + G + " 2>/dev/null || :", "top", "WT_PATH _FC_SAFE"),
+    ("W11-declare-l-backslash-control (author A09 shape)", "declare -l " + G, "top", "WT_PATH _FC_SAFE"),
+    # --- T: trap actions are censused by a sub-lexer whose commands never reach blocker (2)'s command list
+    ("T01-trap-debug-printf-v", "trap 'printf -v " + G + " %s wt_path' " + DBG, "top", ""),
+    ("T02-trap-debug-declare-l", "trap 'declare -l " + G + "' " + DBG, "top", "WT_PATH _FC_SAFE"),
+    ("T03-trap-debug-command-declare-l", "trap 'command declare -l " + G + "' " + DBG, "top", "WT_PATH _FC_SAFE"),
+    ("T04-trap-debug-printf-v-fc_safe", "trap 'printf -v " + G + " %s _fc_safe' " + DBG, "top", ""),
+    ("T05-trap-debug-read-herestring", "trap 'read -r " + G + " <<< wt_path' " + DBG, "top", ""),
+    ("T06-trap-debug-declare-n-control", "trap 'declare -n GIT_DIR=wt_path' " + DBG, "top", ""),
+    # --- U: F1-E, unset of a trusted function
+    ("U01-unset-f-quoted-var", '_rvu=_fc_safe\nunset -f "$_rvu"', "top", ""),
+    ("U02-unset-f-backslash-literal", "unset -f " + FS, "top", ""),
+    ("U03-unset-f-dashdash", "unset -f -- _fc_safe", "top", ""),
+    ("U04-command-unset-f", "command unset -f _fc_safe", "top", ""),
+    ("U05-unset-n-literal", "unset -n _fc_safe", "top", ""),
+    ("U06-unset-f-brace", "unset -f _fc_safe{,}", "top", ""),
+    ("U07-unset-f-cmdsubst", "unset -f $(printf %s _fc_safe)", "top", ""),
+    ("U08-unset-f-braced-var", '_rvu=_fc_safe\nunset -f "${_rvu}"', "top", ""),
+    ("U09-unset-f-literal-control", "unset -f _fc_run_child", "top", ""),
+    ("U10-unset-plain-var-quoted (fallback to function)", '_rvu=_fc_safe\nunset "$_rvu"', "top", ""),
+    ("U11-trap-debug-unset-f", "trap 'unset -f _fc_safe' " + DBG, "top", ""),
+    ("U12-unset-f-other-file-function (FU-2)", "unset -f run_gate_once", "top", ""),
+    # --- N: a WORD of the line made a nameref (the desugar `unset GIT_DIR` then removes its target)
+    ("N01-declare-n-word", "declare -n GIT_DIR=wt_path", "top", ""),
+    ("N02-command-declare-n-word", "command declare -n GIT_DIR=wt_path", "top", ""),
+    ("N03-local-n-word-in-fn", "local -n GIT_DIR=wt_path", "fn", ""),
+    # --- P: a PROVED (upper-case) variable as a WORD of the line
+    ("P01-word-_FC_TMPDIR", "", "top", "_FC_TMPDIR"),
+    ("P02-word-FC_BR_TMPDIR", "", "top", "FC_BR_TMPDIR"),
+    # --- R: readonly _ge_v (the loop cannot assign: the scrub does not run; a git-env, not a safepath, effect)
+    ("R01-readonly-backslash", "readonly " + G, "top", ""),
+    ("R02-command-declare-r-backslash", "command declare -r " + G, "top", ""),
+    # --- L: line shape
+    ("L01-crlf-on-line", None, "crlf", ""),
+    ("L02-nbsp-in-line", None, "nbsp", ""),
+    ("L03-comment-ending-in-backslash-before-line", "# reviewer note " + BS, "top", "WT_PATH _FC_SAFE"),
+    ("L04-line-inside-case-arm", None, "case", "WT_PATH _FC_SAFE"),
+    ("L05-and-chain-after-line", None, "andchain", ""),
+    ("L06-assignment-continuation-into-line", "_rvx=" + BS, "top", "WT_PATH _FC_SAFE"),
+    ("L07-set-o-posix", "set -o posix", "top", "WT_PATH _FC_SAFE"),
+    ("L08-unset-f-single-quoted", "unset -f '_fc_safe'", "top", ""),
+    ("W12-builtin-declare-l", "builtin declare -l " + G, "top", "WT_PATH _FC_SAFE"),
+    ("T07-trap-usr1-printf-v (async; census verdict only)", "trap 'printf -v " + G + " %s wt_path' USR1", "top", ""),
+    ("T08-trap-err-declare-l", "trap 'declare -l " + G + "' ERR\nfalse", "top", "WT_PATH _FC_SAFE"),
+    ("T09-trap-exit-declare-l-control (runs too late)", "trap 'declare -l " + G + "' EXIT", "top", "WT_PATH _FC_SAFE"),
+    # --- X: round 3, the rest of the class "a trusted / file function's meaning changed outside the model"
+    ("X01-command-runs-program-not-function", "command _fc_safe check /x 2>/dev/null; :", "after", ""),
+    ("X02-redefine-trusted", "_fc_safe() { unset wt_path; }; _fc_safe", "after", ""),
+    ("X03-trap-defines-trusted", "trap '_fc_safe() { :; }' EXIT", "after", ""),
+    ("X04-helper-called-after-unset", "_rvo() {\n_rvi() { :; }\nunset -f _rvi\n_rvi 2>/dev/null; :\n}\n_rvo", "after", ""),
+    ("X05-unset-proved-brace", "unset _FC_TMPDIR{,} wt_path{,}", "after", ""),
+    ("X06-scoped-helper-control (accepted)", "_rvo() {\n_rvi() { :; }\n_rvi\nunset -f _rvi\n}\n_rvo", "after", ""),
+]
+M += [(mid + "@after", ins, "after", prefix) for mid, ins, mode, prefix in list(M)
+      if mid[:1] in "UWT" and mode == "top" and ins]
+
+
+def build_census_input(mid, ins, mode, prefix):
+    ln = line_with(prefix)
+    if mode == "crlf":
+        return BR.replace(LINE, LINE + "\r")
+    if mode == "nbsp":
+        return BR.replace(LINE, LINE.replace("do unset", "do unset", 1))
+    if mode == "case":
+        return BR.replace(LINE, 'case "${1:-}" in\n*)\n' + ln + "\n;;\nesac")
+    if mode == "andchain":
+        return BR.replace(LINE, LINE.split("  #")[0] + " && :")
+    if mode == "fn":
+        return BR.replace(LINE, "_rvf() {\n%s\n%s\n}\n_rvf" % (ins, ln))
+    if mode == "caller":
+        return BR.replace(LINE, "_rvc() {\n%s\n}\n_rvc\n%s" % (ins, ln))
+    if mode == "after":
+        return BR.replace(LINE, ln + "\n" + ins)
+    return BR.replace(LINE, (ins + "\n" if ins else "") + ln)
+
+
+def bash_program(ins, mode, prefix):
+    words = (prefix + " " if prefix else "") + "GIT_DIR GIT_WORK_TREE"
+    loop = 'for _ge_v in %s; do unset "$_ge_v"; done; unset _ge_v' % words
+    pre = ("wt_path=/proved; _FC_TMPDIR=/proved2; GIT_DIR=/inherited/git\n_fc_safe() { :; }; _fc_run_child() { :; }; _fc_mktemp() { :; }\n"
+           "run_gate_once() { :; }\n")
+    post = ('\ntrap - DEBUG\necho "_FC_TMPDIR=${_FC_TMPDIR-[UNSET]} wt_path=${wt_path-[UNSET]} GIT_DIR=${GIT_DIR-[UNSET]}"\n'
+            'for f in _fc_safe _fc_run_child _fc_mktemp run_gate_once; do declare -F "$f" >/dev/null || echo "FUNC_GONE:$f"; done\n'
+            '_fc_safe probe; run_gate_once probe\n')
+    if mode == "crlf":
+        body = loop + "\r"
+    elif mode == "nbsp":
+        body = loop.replace("do unset", "do unset", 1)
+    elif mode == "case":
+        body = 'case x in\n*)\n' + loop + "\n;;\nesac"
+    elif mode == "andchain":
+        body = loop + " && :"
+    elif mode == "fn":
+        body = "_rvf() {\n%s\n%s\n}\n_rvf" % (ins, loop)
+    elif mode == "caller":
+        body = "_rvc() {\n%s\n}\n_rvc\n%s" % (ins, loop)
+    elif mode == "after":
+        body = loop + "\n" + ins
+    else:
+        body = (ins + "\n" if ins else "") + loop
+    return pre + body + post
+
+
+def bash_truth(ins, mode, prefix, d):
+    prog = bash_program(ins, mode, prefix)
+    pb = os.path.join(os.path.dirname(d), "path_bin")     # same-named PROGRAMS on PATH: a call that misses the
+    os.makedirs(pb, exist_ok=True)                        # function runs one of these and prints PATHRUN:<name>
+    for nm in ("_fc_safe", "_fc_run_child", "_fc_mktemp", "run_gate_once", "_rvi"):
+        f = os.path.join(pb, nm)
+        open(f, "w").write("#!/bin/sh\necho PATHRUN:%s\n" % nm)
+        os.chmod(f, 0o700)
+    p = subprocess.run(["/usr/bin/bash", "--norc", "--noprofile", "-c", prog], cwd=d, capture_output=True, text=True,
+                       env={"PATH": pb + ":/usr/bin:/bin"}, timeout=20)
+    out = (p.stdout + " | " + p.stderr.strip().replace("\n", " ; ")[:160]).replace("\n", " ").strip()
+    changed = []
+    if "_FC_TMPDIR=[UNSET]" in p.stdout:
+        changed.append("_FC_TMPDIR-UNSET")
+    if "wt_path=[UNSET]" in p.stdout:
+        changed.append("wt_path-UNSET")
+    elif "wt_path=/proved" not in p.stdout:
+        changed.append("wt_path-CHANGED")
+    changed += [t for t in p.stdout.split() if t.startswith(("FUNC_GONE:", "PATHRUN:"))]
+    scrub_ran = "GIT_DIR=[UNSET]" in p.stdout
+    return changed, scrub_ran, out
+
+
+def run_census(path):
+    p = subprocess.run([sys.executable, "-I", census, "--sup", os.path.join(os.path.dirname(os.path.abspath(br)), "fc_supervisor.py"), "--br", path], capture_output=True, text=True, timeout=600)
+    out = p.stdout + p.stderr
+    v = [l for l in out.splitlines() if l.startswith("VIOLATION")]
+    nd = [l for l in v if "NOT desugared" in l]
+    return p.returncode, v, nd
+
+
+os.makedirs(work, exist_ok=True)
+bt_dir = os.path.join(work, "bash_cwd")
+os.makedirs(bt_dir, exist_ok=True)
+esc = 0
+for mid, ins, mode, prefix in M:
+    src = build_census_input(mid, ins, mode, prefix)
+    f = os.path.join(work, re.sub(r"[^A-Za-z0-9_.-]", "_", mid) + ".sh")
+    open(f, "w", encoding="utf-8").write(src)
+    rc, v, nd = run_census(f)
+    changed, scrub_ran, out = bash_truth(ins, mode, prefix, bt_dir)
+    verdict = ("ESCAPE" if changed and rc == 0 else "held" if rc == 1 else
+               "accepted-nochange" if rc == 0 else "rc%d" % rc)
+    esc += verdict == "ESCAPE"
+    print("%-52s census_rc=%d not_desugared=%d bash=%s scrub_ran=%s %s | first: %s" % (
+        mid, rc, len(nd), ",".join(changed) or "nochange", "yes" if scrub_ran else "NO", verdict,
+        (v[0][:150] if v else "-")))
+    print("    bash-out: %s" % out[:300])
+# control needles
+f = os.path.join(work, "K-real.sh"); open(f, "w").write(BR)
+k_real = run_census(f)[0]
+f = os.path.join(work, "K-unset-wt_path.sh"); open(f, "w").write(BR.replace(LINE, LINE + "\nunset _FC_TMPDIR"))
+k_unset = run_census(f)[0]
+f = os.path.join(work, "K-S1-declare-l.sh"); open(f, "w").write(BR.replace(LINE, "declare -l _ge_v\n" + line_with("WT_PATH")))
+k_s1 = run_census(f)[0]
+print("CONTROL real=%d (want 0) literal-proved-unset=%d (want 1) S1=%d (want 1)" % (k_real, k_unset, k_s1))
+blind = not (k_real == 0 and k_unset == 1 and k_s1 == 1)
+print("SUMMARY members=%d escapes=%d%s" % (len(M), esc, " BLIND" if blind else ""))
+sys.exit(2 if blind else (1 if esc else 0))

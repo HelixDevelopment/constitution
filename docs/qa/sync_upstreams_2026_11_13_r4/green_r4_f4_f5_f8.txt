@@ -1,0 +1,5 @@
+GREEN F4-large-input guard refuses
+GREEN F5-gate X04 refused (rc 1): CM-SYNC-UPSTREAMS-FF-ONLY: FAIL — the guard of os.killpg is `isinstance(pgid, int) and (pgid > 1 or True)`, not exactly `isinstance(pgid, int) and pgid == p.pid and pgid > 1` (§11.4.263)
+GREEN F5-tests 9 references
+GREEN F8-r3 status re-read 128: rc=6 moved=no BLIND exit=6
+RED F8-X01 status re-read 128: rc=0 moved=yes APPLIED exit=0

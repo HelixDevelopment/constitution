@@ -1,0 +1,10 @@
+[hermetic] ok: control: a spy records its call
+[hermetic] ok: fake keys + hosted probe exported: gate GREEN (rc 0)
+[hermetic] ok: fake keys + hosted probe exported: no spy (llmctl / claude-providers / curl / agent CLI on the caller's PATH) was called
+[hermetic] ok: fake keys + hosted probe exported: the caller's CLAUDE_CONFIG_DIR was not written
+[hermetic] ok: fake keys + hosted probe exported: no key value printed
+[hermetic] ok: no keys exported: gate GREEN (rc 0)
+[hermetic] ok: no keys exported: no spy (llmctl / claude-providers / curl / agent CLI on the caller's PATH) was called
+[hermetic] ok: no keys exported: the caller's CLAUDE_CONFIG_DIR was not written
+[hermetic] ok: no keys exported: no key value printed
+[hermetic] pass=9 fail=0

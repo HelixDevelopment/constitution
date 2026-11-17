@@ -1,0 +1,7 @@
+r13 magic ':!x' rc=4 magic_staged_new=True other_index=0ee9cd6e other_local=54e0c508 OTHER_EXTRA_STAGED=False
+    verdict=ATTENTION; . result=current moved=False head 4a36a566->4a36a566 target=4a36a566 actions=[] reasons=[] remotes=[('origin', 'equal', '4a36a566')] | :!x result=updated moved=True head 0ee9cd6e->a0114f0f target=a0114f0f actions=[('advance-pin', 0)] reasons=[] remotes=[('origin', 'behind', 'a0114f0f')] | other result=attention moved=False head 54e0c508->54e0c508 target=0ee9cd6e actions=[('none', 'local-ahead')] reasons=['local-ahead'] remotes=[('origin', 'ahead', '0ee9cd6e')]
+100644 bc46be18937f1b8316a72a4386f1d039621bad8c 0	.gitmodules
+160000 a0114f0f6b141a289b6ef0bf604f8993c693f021 0	:!x
+100644 7baa7cce885f871298f7f7ceb8719b60cc5030ce 0	f0.txt
+160000 0ee9cd6e9a65f7c0a1950178ffd8b577a11bcf03 0	other
+

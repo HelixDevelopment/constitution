@@ -1,0 +1,29 @@
+AA01 KILLED     by unit           10.6s  (round-10 reviewer, verbatim) branch ref lock path case-folded (Dev -> refs/heads/dev.lock)
+AA02 KILLED     by unit           10.6s  (round-10 reviewer, verbatim) write_settled compares only the LENGTH of the index listing (a half-merge changes shas, same length)
+AA03 KILLED     by unit           10.9s  (round-10 reviewer, verbatim) write_settled ignores a HEAD that moved during a failed write
+AA04 KILLED     by unit           10.4s  (round-10 reviewer, verbatim) merge lock set loses reftable/tables.list.lock
+AA05 KILLED     by unit           10.4s  (round-10 reviewer, verbatim) in_progress no longer sees an interactive rebase (rebase-merge)
+AA06 KILLED     by unit           10.4s  (round-10 reviewer, verbatim) a symbolic link at the marker path is not reported by in_progress
+AA07 EQUIVALENT by -             658.5s  (round-10 reviewer, verbatim) register_site keys the site by the unresolved git dir spelling
+AA08 KILLED     by unit           10.1s  (round-10 reviewer, verbatim) end_write clears the marker for any answered write, settled or not
+AA09 KILLED     by robustness    475.9s  (round-10 reviewer, verbatim) write-time step 1 ignores in-progress operations (only the status output counts)
+AA10 KILLED     by unit           10.6s  (round-10 reviewer, verbatim) read_marker returns any op string from the marker (no closed vocabulary)
+AA11 EQUIVALENT by -             806.5s  (round-10 reviewer, verbatim) lock_paths decides worktree split by string, not realpath
+AA12 KILLED     by unit           10.8s  (round-10 reviewer, verbatim) a failed stage-pin whose parent index cannot be read counts as settled
+AB01 KILLED     by unit           10.5s  RV10-1: read_branch asks git for the short name again (--short disambiguates to heads/dev)
+AB02 KILLED     by unit           10.7s  RV10-1: the allow-list accepts symbolic-ref --short again
+AB03 KILLED     by unit           10.6s  RV10-1: branch_of_ref keeps the last component only (feature/x -> x)
+AB04 KILLED     by unit           10.6s  RV10-1: branch_of_ref strips refs/ instead of refs/heads/ (heads/dev)
+AB05 KILLED     by unit           10.7s  RV10-1: branch_of_ref does not validate the name
+AB06 KILLED     by unit           11.0s  RV10-2: branch_of_ref case-folds the name
+AB07 KILLED     by unit           10.8s  RV10-1: a symbolic ref outside refs/heads/ is taken as a branch
+AB08 SURVIVED   by -             138.3s  RV10-1: read_branch accepts a multi-line answer
+AB09 KILLED     by unit           10.6s  RV10-1: --branch is checked against BRANCH_RE only (dev.lock, dev/ and dev..x pass)
+AB10 KILLED     by unit           10.6s  RV10-1: valid_branch_name allows a leading dash
+AB11 KILLED     by unit           10.5s  RV10-1: valid_branch_name allows a trailing slash or dot
+AB12 KILLED     by unit           10.5s  RV10-1: valid_branch_name allows a component ending in .lock
+AB13 KILLED     by unit           10.5s  RV10-1: valid_branch_name allows @{ (reflog syntax)
+AB14 KILLED     by unit           10.5s  RV10-3: the engine's git-call scrub loses GIT_GRAFT_FILE and GIT_NO_REPLACE_OBJECTS
+sync-mutations (no-gate): mutants 26 killed 23 equivalent 2 survived 1 harness-errors 0
+survivors: AB08
+rc=1

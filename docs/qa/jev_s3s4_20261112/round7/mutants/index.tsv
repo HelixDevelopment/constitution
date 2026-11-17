@@ -1,0 +1,94 @@
+RM01	r7,r6,pl	022b3d3f613e6a9591b421a495a43a048aa1af7c7b07ea3b1fc82d1a44d0d2e7	holder_alive: a dead --pid holder counts as alive
+RM02	r7,r6,pl	f8d8de2ed1cf1777f0ffcd2321658f3ffb76c9110e0307999f8061bc27519fa9	pid_alive: a reused pid counts as alive
+RM03	r6,r7,pl	28ed11d60412c9270f33f62ffac735407fd4ce83458342576174c69626f387c8	plan_locked (C): an acquire on a starting/stopping set is not refused
+RM04	pl,r7,r6	2ab8369b873186cdad61335cd70a83e6b06e7af1a1a709ae4b847e6ea9ca0b12	reap_locked: a stopping/starting mark never ages out
+RM05	pl,r7,r6	1dea5f4cf478e5b2585ec1989370f583d1afffddcd369a01ad726389e294ee29	release_locked: the last release also stops an operator-started model
+RM06	r6,r7,pl	f747b1146e4d9d0ab5fa09a00633f13aabd12cbda8edc91740a079ed6e310e52	with_lock: a lock timeout proceeds without the lock
+RM07	pl,r7,r6	2d3c4314cd97505797e4a228834b72584971b026b6e8ee6747b0cbcae9871bd1	heartbeat: does not refresh heartbeat_at
+RM08	pl,r7,r6	7b28c2d44f8482ce3177dc4a8705de8689ffcdbb88c1368c423d2ccd85250e86	hosted_key_var: records the key VALUE instead of its name
+RM09	r7,r6,pl	a6a589b23e9b34820214722300f1d2c1ad1b5fc88530dbee8d3f35e75267f09c	derive_cache: a set marked stopping stays routed
+RM10	pl,r7,r6	8dbf7835e6f0662ea22e2722879491bc05b680db2769db7c33c81ab2870469b5	plan_locked (E): an undetermined candidate is a start candidate
+RM11	pl,r7,r6	7d5a745339a2c3bbcd88b90b054d6bd77465fa666c1d19f629b1f16d037810f9	derive_cache: the local entry is registered at priority 100
+RM12	pl,r7,r6	19333f723ce2647b6a6e0490aae2829a51057509a967c07c5ad08af2dac6e898	pid_alive: an empty cmdline counts as alive
+RM13	r6,r7,pl	4e35e4ee4fa22b44933a9b397642789ff0472c4981a9d6822a14fd882ba30fe8	gateway_url: the failure default is plain HTTP
+RM14	pl,r7,r6	f0ee5aedad66914ba768295ff1f1b11bc8ece89b8a677f29f94a72fe1a0aeb8c	holder_alive: a heartbeat lease outlives its TTL 1000-fold
+OM01	r6,r7,pl	d6b10ae24de5497ff9407bfa17fce3c7db37c43e6c07c871625390c90bf26715	derive_cache: health not required (a held set is routed before any ok observation)
+OM02	r6,r7,pl	79168e3f274fad350707244c4fbb46358d545dc4f8823bc6f000570c19eecfe1	acquire: after a late-recorded start the loop goes on to start another candidate
+OM03	r6,r7,pl	de66fe1a5ead4aea7d60e87046a746fe1c8d679cbd78f9d6b350fe8401354081	mark_start_locked: a start is marked while another set is starting/stopping
+OM04	r6,r7,pl	9011e604322e5befb59fd14ddddf3ea48ca09aa91fff11a8512167706411a413	gateway_url: a non-https URL is accepted
+OM05	r6,r7,pl	0859d38bf2c715de3ccecae1307ddd5ec3677a46ccdb15fae86d8dd0fd7f78a4	hb_locked: a heartbeat with no lease exits 0
+OM06	r6,pl,r7	39caef575e1e41c9dc604bfde9a8cbf47654151c37782d1f4502f206543d5028	acquire: the TTL > cadence + llmctl timeout check is removed
+OM07	r6,r7,pl	93d5d03b1f3ca57f29cdfab60b770fc6296a12e1c949baac5fe7f0763bc583b9	obs_locked: an older observation ticket overwrites a newer recorded health
+OM08	r6,r7,pl	19a22b2764824d151a28c6ead7154d664e2f8ada094d808ee3566fefd16d23d0	finish_start_locked: no observation floor on a just-started set
+OM09	r6,r7,pl	07ac3803274941cae34b42815bb1c62e0a5580fa455cf89b7925fc86caa150c8	obs_locked: a gone endpoint keeps its leases (= VM05)
+OM10	r6,pl,r7	e034605a20d08fedf39dcd77fbd0b2078138a1ea0d4a3e92fdd5458060ee0b9e	plan_locked: an unreadable candidate list is read as no candidate
+OM11	r6,r7,pl	7661e18e4a90307ef19470423c5acb81df04854a682c95d3ac83b948cd8bedf5	record_placement: the record is written without the lock
+OM12	r6,r7,pl	8659c109ca0e4daed8c11e5383eb31eddd8e11478ca70d01a24b238198e74000	inst_state: an unlimited RLIMIT_NPROC is reported as unmeasured
+OM13	r6,r7,pl	49412203d9ac9bd6a8ffb777dab01fe1254cb0ab44c3453d1d0928d999dcf044	write_placement: a stopping set has no endpoint_stopping reason code
+OM14	r6,r7,pl	7b0f7be7fd30a516953d20ca098c43d44b2b5c4632cbdcd3d8a309f54b5306f3	record_placement: no retry after a lock wait
+OM15	r6,r7,pl	74dea8e2da530e420f9597e3de2fcdb9069d0f1962f4c3a4e34451c4dc207987	obs_locked: no endpoint_gone record is written
+OM16	r6,r7,pl	912ae6c6a22301efcc830fb719496e6b3d28fb8232a75eb0ba77426e50d0ed95	acquire: a further start proceeds on an undetermined fresh answer
+VM01	r7p72,r7,r6,pl	267ef05fde8e9aa45bf6ce2d162193c1980d95f546f47309ff281bae4d42aebb	inst_state: the producer's own pressure guard removed
+VM02	pl,r6,r7	60ce00822bea586d1cc02994a411b1f5d1b6bd81c4d449e66036479e780e8a68	capacity_read: measurement.ok false no longer undetermined
+VM03	pl,r6,r7	7173fa56c64ab221e592ebced503f6528ca8543fd7f9f17701b9e5b6663c5d14	inst_state: nproc headroom no longer compared with the thread count
+VM04	r7,r6,pl	6f1707061a48158c0e51ba1598a8a3014c0793ca4e28c90bdac30d397bae9d7b	acquire: the fresh answer for a further candidate is not obeyed
+VM06	r7,r6,pl	0d17e354cb0f70e1496acca4a710b152ee764bb3a8895ac5e65c1f4044bfa966	reap_locked: a live process's mark expires after 30 s
+VM07	r7,r6,pl	e370f29e6c63702ca40bf009e1367cc2fc568e678215be2fae263322ceaa3b7f	hb_locked: a heartbeat refreshes every lease, not only the holder's
+VM08	r7,r6,pl	45fa9d57bafaeb53d174daca64e4f57df5285e1d89b7b2c4fef6e0031ed661ea	release_locked: stops lease-less sets the constitution did NOT start
+VM09	pl,r6,r7	da27ced7e8d55993520673628b8b4f8e4fb85853c7edb6f39a0c010e53adc527	bounded: llmctl calls unbounded
+VM10	r7,r6,pl	216b5ca4540c255f590806acb7b8fc0ed632a9db08827371d4fdc7773786d471	plan_locked: seam 1 (the plan's token check) removed
+VM11	r7,r6,pl	0cee738c9bf6d0341602a2818ef89cc4f6f1b2f835c3be43699c60639ce932f6	acquire: no re-plan after a stop by this acquire
+VM12	pl,r6,r7	b3ee39970ce8c24bfddb979a4dc17ad25b176e11f3646c6c88b219b8e3b9892c	capacity_read: any llmctl capacity exit status is an answer
+VM13	r7,r6,pl	74e9c9cb7a6db35c41702472fa30d5133a84e49c079d9f6cb3fcbbd62b9e0c4f	mark_start_locked: overwrites an existing set
+NM01	r7,r6,pl	6a3e79b9b37f74535c3a683c8452f275b9fa3df6d60258e88c444dbcb5a7a1a3	mark_start_locked: seam 2 (the mark's token check) removed
+NM02	r7,r6,pl	8a0202d583545c28c8e8a45494ebd21cdb245bdb93f5c66088375d1e5cb973c4	plan_locked: a registry change by the plan's own reap is not a change
+NM03	r7,r6,pl	776bfa5dadcdbb6425e1295f29a6d8c590c552df8a0b05c5c71bac0cfd1f5817	leases_token: generation only (no hash)
+NM04	r7,r6,pl	35d38a4283502cfaa183cb17c0261d9ed3ecc5ff7350d5cf0200cf90484ec5be	leases_token: hash only (no generation) - expected EQUIVALENT: the generation is a field of the hashed file
+NM05	r7,r6,pl	77d0bb9eb5cfe6d1059695b787391531682494db08e4643361a6743bb0dabc2d	leases_save: the generation is not raised
+NM06	r7,r6,pl	c54e146e31f0dc65b0f17cecde48523ae91328b2c857b16f4b97604560a3d8b7	plan_locked (A): an owed stop is retried by the same acquire (STOP_TRIED ignored)
+NM07	r7,r6,pl	c1faf06e9b0fcac3e5ee41da6d93dd86734a27c5e73a993538212221d287b137	plan_locked (E): a refused/failed start is retried by the same acquire (START_TRIED ignored)
+NM08	r7,r6,pl	c5f60680ae996d2b3a0780a518ea07be5d497dde4433188dc8808da7e94c0ac3	reap_locked: no observation floor when a mark is cleared (NF-3)
+NM09	r7,r6,pl	a98f0ed01b4c558fb82eb73d0b1cfc110e31e6bd9491a77b9f95da4bf4fdfe42	MARK_TTL: the record-step lock waits are not counted (the round-6 value)
+NM10	r7p72,r7,r6,pl	f5888025a8821491f0b4ed2c5afd3a8c6ca38284f01c48e3b068361595b9f5b3	capacity_read: llmctl's critical_inputs_unreadable ignored
+NM11	r7p72,r7,r6,pl	083cc448bdf4c1f287f66d53f7206aca8059e9113808d7162a04f0c33fa4b4de	inst_state: profiles.<p>.headroom not checked
+NM12	r7p72,r7,r6,pl	0217b03faad1670822e08f3ca366776938bcf1b6813809ae9897db7df37674e7	inst_state: profiles.<p>.threads not checked
+NM13	r7p72,r7,r6,pl	6153270f00b996db95ec161d3c2da497e04fffad2f189287d28b3338c95711ef	inst_state: profiles.<p>.reasons not checked
+NM14	r7p72,r7,r6,pl	b3c252e6c55e6546d8b74cbe023f3ed56ebb5f9c8f5cd4726dc97cb5149c2fb3	inst_state: profiles.<p>.verdict type not checked
+NM15	r7,r6,pl	9ba5c03e0e742949920917ad6b4bcdb3c387d71e18ba1664eb458a043e66f845	plan_locked: the joins-only plan after STALE_MAX stale reads may start
+NM16	r7,r6,pl	04cfc47d4ca281894f6d59356e887c0a97e1d73741fa8becc8bfc54a00e3c486	plan_locked: the gateway record is written even when unchanged
+NM17	r7,r6,pl	db9f4eb885267b606c2513622a07e30afa517d0b49c1d2a7ce6d828e018a58c9	acquire: no re-plan after a refused start (the next candidate on the same answer)
+NM18	r7,r6,pl	f311f2e27c9ff8eeead754b7b10c6269195e690245f0939e092f546e762d193e	acquire: no re-plan after a failed start + cleanup (the next candidate on the same answer)
+NM19	r7,r6,pl	40071f0ef9c0e6bc706ea588f74bb365a458bae3095fffb884fe8098590c5ded	mark_start_locked: a further start after the holder's lease from this acquire was released
+NM20	r7,r6,pl	a2f0f47b6fce20c6e9835d0753a9a69235844bb32f5fc087948540360495471a	acquire: the held profile is not passed to the further-start mark
+NM21	r7,r6,pl	305258f2959051f75f9057e502ecff188ed5f586b0f972164dea3732ceae6fe2	acquire: re-plans after a stale mark are unbounded
+NM22	r7,r6,pl	8401769922868a89029799d8dec27aa67f822bebb534e437444280dcaeb9eee8	acquire: re-reads after a stale plan are unbounded (no joins-only plan)
+NM23	r7,r6,pl	aee35a33e83fedc01c059d5e6e00a0b9c042dbb1e3fb089fed1f626ceef09a7c	plan_locked: the undetermined reason is generic again (N6-e)
+NM24	r7p72,r7,r6,pl	d5605200749608fce7b460774662a37d650ed782096c180140b686af6304bcd9	plan_locked: the does_not_fit reason is generic again (N6-e)
+NM25	r7,r6,pl	05c6cb0319e1fdd4c538a6cf33bf3957c007bd21bf261f64d23f13d8c5ae254c	status: no placement record exits non-zero again (N6-b)
+NM26	r7,r6,pl	bcae80909d4af17d2abc10a9e5c5e12be552690b4f9716046458cb31e35ef71e	acquire: the further-start mark is judged against the PLAN's token, not the fresh answer's
+CT01	r7p72,r7,r6,pl	b4b76b0c14fd927f2699c3a86f0d9c413cb0726a382f7c2b11db8c41205b05b9	contract table row schema not checked
+CT02	r7p72,r7,r6,pl	2dcc81e6a45ef2554e4d16c5b5033191b7d5c6530b0dff2120c0f9e4da4346e3	contract table row time not checked
+CT03	r7p72,r7,r6,pl	fa9ef32231090f2882280e044c54651a590cafbce35f07eaefd8f3d3919474f6	contract table row profiles not checked
+CT04	r7p72,r7,r6,pl	ceef369718218d0fafe291ef378a6561068fdb91e6c0792ebac279408a993c70	contract table row host not checked
+CT05	r7p72,r7,r6,pl	fc22f0dee2288f7fa63c75aebde8ae7e576bc14cf465accce03f4756abff90cb	contract table row host.cpus_online not checked
+CT06	r7p72,r7,r6,pl	f22563c771e1cd4f128baa0b4a3d6c187336a7a7aa2a82ce41d19081c1cdb680	contract table row host.mem_total_mb not checked
+CT07	r7p72,r7,r6,pl	23cc5c79a4ed5103f0b91b3ea133ebacd3631c609c3c612f96ac9afbc354aeda	contract table row host.mem_available_mb not checked
+CT08	r7p72,r7,r6,pl	51b101f086450b6fb4dee109d309b78cd5abab501a63c452d8ccf47aca6e5c44	contract table row host.usable_mem_mb not checked
+CT09	r7p72,r7,r6,pl	08ca50f45cd23048387efb9c70431c31ea16111307888cd714453d8a5229517e	contract table row host.swap_total_mb not checked
+CT10	r7p72,r7,r6,pl	e2c3a0f4585df5b3d0d904b3787818403b24dd8eb6ba6fc1b21043e0002567f7	contract table row host.swap_free_mb not checked
+CT11	r7p72,r7,r6,pl	9f6f03d00610d261d6f8f0b56637f1cc3fb36a1578b78302d53f2a854a216367	contract table row host.load not checked
+CT12	r7p72,r7,r6,pl	50de8a14d411d3a7319fc60aaf68ee61c75d64d16e501af3c102f6b09736ff65	contract table row host.psi not checked
+CT13	r7p72,r7,r6,pl	bc358c97f408d22b6021007939c38b3e1446ff4e78af5fb1d4f3dc87ca3ad7e5	contract table row host.cgroup not checked
+CT14	r7p72,r7,r6,pl	0d6ded5ad411f36205bafd1bb93c35047ffcb0dcc1b14ce7f29eb670fb15c353	contract table row reserve not checked
+CT15	r7p72,r7,r6,pl	7a98d2aaad7465fc7797331ae9249fc87b60c63ae2c60787a97beb270e4350dd	contract table row pressure.ok not checked
+CT16	r7p72,r7,r6,pl	3983e00745f9fc2ef2faeb30801836f9912e329b1a7cffd82ab258e0e3a850da	contract table row pressure.reasons not checked
+CT17	r7p72,r7,r6,pl	8937bee28fa76154b8b43e7311dc7679cd2e9b22e566545cd0f846146089be3a	contract table row llmctl.units not checked
+CT18	r7p72,r7,r6,pl	fd72aaf2d5e121c9de21292d4bb511e47b082a3b1baf310564f352ef033426d6	contract table row fallback.recommended not checked
+CT19	r7p72,r7,r6,pl	e8f4c535ba02854ecf48a48505102b906073471d1630eb61dd2063b2aa4171f7	contract table row fallback.key_variable not checked
+CT20	r7p72,r7,r6,pl	c2e89071da44171cf1bf29159bae13a3ce8d6af42add01f86498ae879375eddf	contract table row unknown_profiles not checked
+CT21	r7p72,r7,r6,pl	cf9fd966280001f77cae712996f959d5ff68de6c73bf080e66e85eba0a4d7982	contract table row degraded not checked
+CT22	r7p72,r7,r6,pl	40e60c1326fce928ce30911bab24831b7f82977033bf5ca7b92decb56b5e7e39	contract table row largest_decision_fit not checked
+REAL	r7p72,r7,r6,pl	103e0f9481dcf253	control: the unmodified round-7 producer (must survive every suite)
+RM15	r6,r7,pl	6ca81e30a9f24bec0f71237679d604688c4a9223db39dfa7b28c5e431fa32540	acquire: after a late-recorded start, return 4 instead of ending the loop (the reviewer's fix-direction probe)
+OM02x	r6,r7,pl	da36d9dc256ca275ea75f5fff08f86d25e24a034098a2b6a4f6540b9ea9bc2b3	control: OM02 plus OM03 (the loop goes on AND the start mark ignores marks)
+OM13x	r6,r7,pl	23a943d94c242413ae5026f414938f96d8fb96f61d8d20f8dacab308e1f46c51	control: OM13 plus the explicit F_CODE at the refusal site removed

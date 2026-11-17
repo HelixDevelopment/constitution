@@ -1,0 +1,23 @@
+separator-class cases 700 accepted 575
+checks 115 ['T/B/D later', 'T·B·D later', 'T,B,D later', 'T|B|D later', 'T+B+D later', 'T~B~D later', 'T:B:D later', 'T=B=D later', 'T•B•D later', 'T。B。D later', 'T‐B‐D later', 'T‑B‑D later']
+target 115 ['T/B/D host', 'T·B·D host', 'T,B,D host', 'T|B|D host', 'T+B+D host', 'T~B~D host', 'T:B:D host', 'T=B=D host', 'T•B•D host', 'T。B。D host', 'T‐B‐D host', 'T‑B‑D host']
+artifact 115 ['T/B/D build', 'T·B·D build', 'T,B,D build', 'T|B|D build', 'T+B+D build', 'T~B~D build', 'T:B:D build', 'T=B=D build', 'T•B•D build', 'T。B。D build', 'T‐B‐D build', 'T‑B‑D build']
+job 115 ['T/B/D bash a.sh', 'T·B·D bash a.sh', 'T,B,D bash a.sh', 'T|B|D bash a.sh', 'T+B+D bash a.sh', 'T~B~D bash a.sh', 'T:B:D bash a.sh', 'T=B=D bash a.sh', 'T•B•D bash a.sh', 'T。B。D bash a.sh', 'T‐B‐D bash a.sh', 'T‑B‑D bash a.sh']
+checks/pre 115 ['every suite T/B/D', 'every suite T·B·D', 'every suite T,B,D', 'every suite T|B|D', 'every suite T+B+D', 'every suite T~B~D', 'every suite T:B:D', 'every suite T=B=D', 'every suite T•B•D', 'every suite T。B。D', 'every suite T‐B‐D', 'every suite T‑B‑D']
+--- shape-only job (root=None, the invocation named in CON-423's own job text)
+none/yet                   None
+pending/scheduling         None
+to/be/scheduled            None
+not/yet/scheduled          None
+unknown/later              None
+nobody/knows               None
+later/                     does not name a job (a path, a command with a path or option, or a job id <KEY>-<digits>)
+./pending                  does not name a job (a path, a command with a path or option, or a job id <KEY>-<digits>)
+pending.sh                 None
+none.sh                    None
+scripts/nonexistent.sh     None
+sometime/maybe             None
+ask/operator               None
+n.a/n.a                    None
+na/na                      None
+none/none                  None

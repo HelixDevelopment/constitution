@@ -1,0 +1,15 @@
+ok [R15LOCK-home-env] two replays of uid 1000 on one filesystem, $HOME=/tmp/fc_r15.m18sUS/lock/h1 vs $HOME=/tmp/fc_r15.m18sUS/lock/h2: the second is REFUSED (BLIND 4) -- one lock file per user and filesystem (first: LOCKED <HOME>/.cache/fc_baseline_replay/locks/fc_baseline_replay.fs-47.lock)
+ok [R15LOCK-home-same] control: the same $HOME -> the second is REFUSED (BLIND 4)
+ok [R15LOCK-pwhome] _passwd_home() = <HOME> (getent passwd) with $HOME=another dir / unset / relative
+ok [R15LOCK-cache-shared] RV8-02: <home>/.cache/fc_baseline_replay/locks pre-made 1777 -> REFUSED (BLIND 4), nothing made in it
+ok [R15LOCK-lockdir-sharedgroup] RV8-03: a 1770 lock directory of ours in group 4 (another member) -> redirected to <home>/.cache/..., nothing made in it
+ok [R15LOCK-lockdir-privgroup] a 0770 lock directory in this user's PRIVATE group (no ACL) is used as it is; a sticky one WITH an ACL grant (mode 1770) is redirected to <home>/.cache/...
+ok [R15EXCL-mkdir-0775] RV8-05: safepath mkdir --exclusive on an EXISTING 0775 directory in this user's private group -> 0 (no umask-002 false refusal at ensure_dir's exclusive check)
+ok [R15EXCL-mkdtemp-0775] RV8-04: safepath mkdtemp --exclusive-parent on an EXISTING 0775 private-group directory -> 0, a 0700 directory made in it
+ok [R15EXCL-acl] the same 0775 private-group directory WITH an ACL grant: mkdir --exclusive -> 4, mkdtemp --exclusive-parent -> 4, nothing made
+ok [R15CENSUS-self] the census self-test: cases/failed = 279 0 (>= 200 cases)
+ok [R15CENSUS-rv8-sh] all 26 of the round-8 reviewer's shell census needles (verbatim) are REFUSED by the self-test
+ok [R15CENSUS-rv8-py] all 22 of the round-8 reviewer's Python census needles (verbatim) have their stated verdict
+ok [R15CENSUS-heredoc] ${_wr:=/etc} in an UNQUOTED here-document body is refused at its line (2022); the same under <<'EOF' is data (control: not refused)
+ok [R15CENSUS-param-guard] the ledger mktemp reverted to "$_FC_TMPDIR/ledger..." (a param-tagged operand) is a VIOLATION at line 581; the script under test: 0 violations
+ok [R15LOCK-noxdg] replay-sample with FC_REPLAY_LOCK_DIR unset and XDG_RUNTIME_DIR=/tmp/fc_r15.m18sUS/sh/xdg: rc 0, nothing in $XDG_RUNTIME_DIR, the per-filesystem lock under <HOME>/.cache/fc_baseline_replay/locks

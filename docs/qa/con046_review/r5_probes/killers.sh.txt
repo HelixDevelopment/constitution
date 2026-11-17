@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Reviewer round-5 probes (CON-046). Usage: killers.sh <gate-under-test> <hook> -> one vector line on stdout.
+# Every fixture is a throwaway repo under a mktemp dir below $TMPDIR; HOME is a temp dir; nothing else is touched.
+set -uo pipefail
+g="${1:?gate}"; hk="${2:?hook}"
+tmp="$(mktemp -d "${TMPDIR:?}/kl.XXXXXX")"; [ -n "$tmp" ] && [ -d "$tmp" ] || exit 2
+trap 'rm -rf "${tmp:?}"' EXIT; mkdir -p "$tmp/home"; export HOME="$tmp/home"
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t GIT_CONFIG_NOSYSTEM=1
+unset EMAIL
+git config --global protocol.file.allow always; git config --global init.defaultBranch main; git config --global advice.graftFileDeprecated false
+d10="$(date -d '+10 days' +%F)"; realgit="$(command -v git)"
+lay="$tmp/lay"; mkdir -p "$lay/scripts/gates" "$lay/scripts/hooks"
+cp "$g" "$lay/scripts/gates/cm_submodule_pin_not_downgraded.sh"; cp "$hk" "$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"
+LH="$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"; LG="$lay/scripts/gates/cm_submodule_pin_not_downgraded.sh"
+sup() { # sets SR uA uB: superproject with a REAL submodule `sub` at uB (upstream A <- B); hook installed
+  local up; up="$(mktemp -d "$tmp/up.XXXXXX")"; git -C "$up" init -q; for i in A B; do git -C "$up" commit -q --allow-empty -m "$i"; done
+  uA=$(git -C "$up" rev-parse HEAD~1); uB=$(git -C "$up" rev-parse HEAD); SR="$(mktemp -d "$tmp/sup.XXXXXX")"; git -C "$SR" init -q
+  git -C "$SR" submodule add -q "file://$up" sub >/dev/null 2>&1; echo 0 >"$SR/notes"; git -C "$SR" add -A; git -C "$SR" commit -q --no-verify -m base
+  ln -s "$LH" "$SR/.git/hooks/pre-commit"; }
+sup2() { # sup plus a second REAL submodule sub2 at u2B (upstream B2 <- C2)
+  sup; local up; up="$(mktemp -d "$tmp/up2.XXXXXX")"; git -C "$up" init -q; for i in B2 C2; do git -C "$up" commit -q --allow-empty -m "$i"; done
+  u2B=$(git -C "$up" rev-parse HEAD~1); u2C=$(git -C "$up" rev-parse HEAD)
+  git -C "$SR" submodule add -q "file://$up" sub2 >/dev/null 2>&1; git -C "$SR/sub2" checkout -q "$u2B"; git -C "$SR" add -A; git -C "$SR" commit -q --no-verify -m base2; }
+row() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' sub "$uB" "${3:-$uA}" "${2:-ops}" "$d10" CON-046 "$1"; } # <base> [authoriser] [new]
+gc() { local r="$1"; shift; git -C "$r" commit -q "$@" >"$tmp/hout" 2>&1; echo $?; }
+pin() { case "$(git -C "$1" ls-tree "${2:-HEAD}" -- sub | awk '{print $3}')" in "$uA") echo A ;; "$uB") echo B ;; *) echo X ;; esac; }
+gate() { bash "$LG" --root "$@" >"$tmp/gout" 2>&1; echo $?; }
+rb() { # reviewed rollback in ${1:-$SR} through the hook, authoriser ${2:-ops}
+  local r="${1:-$SR}"; git -C "$r/sub" checkout -q "$uA"; row "$(git -C "$r" rev-parse HEAD)" "${2:-ops}" >"$r/.submodule_pin_waivers"
+  git -C "$r" add .submodule_pin_waivers; gc "$r" -a -m rollback; }
+sib() { # sibling commit on branch Y at HEAD of $SR carrying waiver text $1 (no hook); back to main
+  local x; x=$(git -C "$SR" rev-parse HEAD); git -C "$SR" checkout -q -b Y; printf '%b' "$1" >"$SR/.submodule_pin_waivers"
+  git -C "$SR" add .submodule_pin_waivers; git -C "$SR" commit -q --no-verify -m y; git -C "$SR" checkout -q main; rm -f "$SR/.submodule_pin_waivers"; }
+out=""
+# KNM1: --base P, HEAD = reviewed rollback R, index = R's tree plus a FORWARD sub2 change; with diff.ignoreSubmodules=all the
+# index still differs from HEAD (gitlink), so R must count as a spender -> refused. Second value: same without the config.
+sup2; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; rb >/dev/null; git -C "$r/sub2" checkout -q "$u2C"; git -C "$r" add sub2
+git -C "$r" config diff.ignoreSubmodules all; a=$(gate "$r" --base "$P"); git -C "$r" config --unset diff.ignoreSubmodules; b=$(gate "$r" --base "$P")
+out+="KNM1=$a,$b "
+# KNM2: the superproject's shallow state cannot be read (a git that answers `unknown`) -> the row is not honoured;
+# second value: the same rollback with the real git (waived), first value with the fake git
+sup; r=$SR; git -C "$r/sub" checkout -q "$uA"; row "$(git -C "$r" rev-parse HEAD)" >"$r/.submodule_pin_waivers"; git -C "$r" add -A
+mkdir -p "$tmp/fk"; printf '#!/bin/bash\nfor a in "$@"; do [ "$a" = --is-shallow-repository ] && { echo unknown; exit 0; }; done\nexec %s "$@"\n' "$realgit" >"$tmp/fk/git"; chmod +x "$tmp/fk/git"
+a=$(PATH="$tmp/fk:$PATH" gate "$r"); c=$(grep -c 'shallow state is unknown' "$tmp/gout"); b=$(gate "$r"); out+="KNM2=$a/$c,$b "
+# KNM3: a merge commit M with P as its SECOND parent carries the row (bound to P) -> the rollback on P is spent (refused);
+# second value: M with P as FIRST parent
+e=(); for order in second first; do
+  sup; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b Q; echo q >"$r/notes"; git -C "$r" commit -q --no-verify -m q -- notes; q=$(git -C "$r" rev-parse HEAD)
+  git -C "$r" checkout -q main; bl=$(row "$P" | git -C "$r" hash-object -w --stdin); ix="$tmp/ix.$RANDOM"
+  GIT_INDEX_FILE="$ix" git -C "$r" read-tree "$q"; GIT_INDEX_FILE="$ix" git -C "$r" update-index --add --cacheinfo 100644,"$bl",.submodule_pin_waivers
+  t=$(GIT_INDEX_FILE="$ix" git -C "$r" write-tree)
+  if [ "$order" = second ]; then m=$(git -C "$r" commit-tree "$t" -p "$q" -p "$P" -m m); else m=$(git -C "$r" commit-tree "$t" -p "$P" -p "$q" -m m); fi
+  git -C "$r" update-ref refs/heads/M "$m"; x=$(rb); e[${#e[@]}]="$x/$(pin "$r")"
+done; out+="KNM3=${e[0]},${e[1]} "; unset e
+# KNM4: a sibling on P carries the row with ANOTHER new sha -> no spender (waived); second: same new sha (refused)
+sup; sib "$(row "$(git -C "$SR" rev-parse HEAD)" ops 4444444444444444444444444444444444444444)\n"; a=$(rb)/$(pin "$SR")
+sup; sib "$(row "$(git -C "$SR" rev-parse HEAD)")\n"; b=$(rb)/$(pin "$SR"); out+="KNM4=$a,$b "
+# KNM5: the R3-I1 squash shape with a TWO-WORD authoriser ('Ops Team'): vehicle X = reviewed rollback + index-only forward,
+# squash onto unmoved main, commit -a over the stale checkout -> refused (spent); second: authoriser 'ops'
+e=(); for au in 'Ops Team' ops; do
+  sup; r=$SR; git -C "$r" checkout -q -b X; rb "$r" "$au" >/dev/null; git -C "$r" update-index --cacheinfo 160000,"$uB",sub; gc "$r" -m fwd >/dev/null
+  git -C "$r" checkout -q main; git -C "$r" merge -q --squash X >/dev/null 2>&1; x=$(gc "$r" -a -m sq); e[${#e[@]}]="$x/$(pin "$r")"
+done; out+="KNM5=${e[0]},${e[1]} "; unset e
+# KNM6: --base P, HEAD = R. (a) index == R's tree, an unstaged worktree edit -> R is the judged commit (waived);
+# (b) a staged edit, worktree restored to R's content -> another commit, R counts (refused)
+sup; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; rb >/dev/null; echo z >"$r/notes"; a=$(gate "$r" --base "$P")
+echo n >"$r/notes"; git -C "$r" add notes; echo 0 >"$r/notes"; b=$(gate "$r" --base "$P"); out+="KNM6=$a,$b "
+# KNM9: a sibling on P carries the row with an 8th field -> no spender (that row could never waive); waived
+sup; sib "$(row "$(git -C "$SR" rev-parse HEAD)" | tr -d '\n')\textra\n"; out+="KNM9=$(rb)/$(pin "$SR") "
+# ── adversarial behaviour probes (real gate expected values are measured, not assumed) ──
+# A1: the first rollback R lives only behind a per-worktree ref of ANOTHER worktree (refs/worktree/keep, refs/bisect/bad);
+# then the same rollback on P in the main worktree. Last value: control with refs/heads/keep
+e=(); for kind in refs/worktree/keep refs/bisect/bad refs/heads/keep; do
+  sup; r=$SR; P=$(git -C "$r" rev-parse HEAD); w="$tmp/w.$RANDOM"; git -C "$r" worktree add -q --detach "$w" 2>/dev/null; git -C "$w" submodule update -q --init 2>/dev/null
+  rb "$w" >/dev/null; R1=$(git -C "$w" rev-parse HEAD); git -C "$w" update-ref "$kind" "$R1"; git -C "$w" checkout -q --detach "$P"
+  vis=$(git -C "$r" rev-list --all | grep -c "^$R1$"); x=$(rb); e[${#e[@]}]="$x/$(pin "$r")/vis$vis"
+done; out+="A1WTREF=${e[0]},${e[1]},${e[2]} "; unset e
+# A2: R reachable only as an ancestor of refs/stash (stash made on top of R, then R dropped by reset --hard); redo on P
+sup; r=$SR; a=$(rb); R1=$(git -C "$r" rev-parse HEAD); echo s >"$r/notes"; git -C "$r" stash push -q >/dev/null 2>&1
+git -C "$r" reset -q --hard HEAD~1; vis=$(git -C "$r" rev-list --exclude=refs/stash --all | grep -c "^$R1$"); b=$(rb); out+="A2STASHANC=$a,$b/$(pin "$r")/vis$vis "
+# A3: --base P, HEAD = R, index differs from R only in `notes`, and a textconv driver maps every version of notes to the
+# same text: does `diff --cached --quiet` (the N-4 test) still see the difference? (0 would be a leak)
+sup; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; rb >/dev/null; echo 'notes diff=same' >"$r/.git/info/attributes"
+git -C "$r" config diff.same.textconv "sh -c 'echo same' --"; echo n >"$r/notes"; git -C "$r" add notes
+q=$(git -C "$r" diff --cached --quiet HEAD -- >/dev/null 2>&1; echo $?); a=$(gate "$r" --base "$P")
+git -C "$r" config diff.external /bin/true; q2=$(git -C "$r" diff --cached --quiet HEAD -- >/dev/null 2>&1; echo $?); b=$(gate "$r" --base "$P")
+git -C "$r" config --unset diff.external; q3=$(git -C "$r" diff --cached --quiet --no-textconv --no-ext-diff HEAD -- >/dev/null 2>&1; echo $?)
+q4=$(git -C "$r" diff-index --cached --quiet HEAD -- >/dev/null 2>&1; echo $?); rm -f "$r/.git/info/attributes"; q5=$(git -C "$r" diff --cached --quiet HEAD -- >/dev/null 2>&1; echo $?); c=$(gate "$r" --base "$P")
+out+="A3TEXTCONV=$q/$a,$q2/$b,notextconv$q3,diffindex$q4,noattr$q5/$c "
+echo "$out"

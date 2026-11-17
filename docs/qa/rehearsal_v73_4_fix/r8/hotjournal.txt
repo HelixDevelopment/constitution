@@ -1,0 +1,5 @@
+HOTJOURNAL control journal=True spilled_rows=334
+HOTJOURNAL checker=CHECKED items=400 provisional_status=0 ok=0 fail=0
+HOTJOURNAL R7M08=rc=2 no CHECKED line; first output line: BLIND the database cannot be read (DatabaseError)
+HOTJOURNAL-KILLS-R7M08
+rc=0

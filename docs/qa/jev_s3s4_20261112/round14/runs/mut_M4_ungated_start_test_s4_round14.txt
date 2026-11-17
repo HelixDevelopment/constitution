@@ -1,0 +1,57 @@
+ok 1 - R14-1 the intent names the starter A
+ok 2 - R14-1 the intent names the start process: pid 217 (start 23915615) runs timeout and is a live process group (M6)
+ok 3 - R14-1 CONTROL: A is SIGKILLed and its start is still in flight (the start process group lives)
+ok 4 - R14-1 B keeps the intent while the start process runs (the log names it)
+ok 5 - R14-1 after B: no second start, the intent of A kept, no adoption, the unit not up yet
+ok 6 - R14-1 the orphaned start ended
+ok 7 - R14-1 CONTROL: the orphaned start brought the unit up after B
+ok 8 - R14-1 C resolves the intent: the running unit is owed a stop
+ok 9 - R14-1 after C: the owed stop ran, C holds its own constitution-started set, no intent, nothing adopted (stops 2)
+ok 10 - R14-1: after the cleanup no unit runs, no set and no start intent is left
+ok 11 - R14-2a a dead starter's intent with a live start process is kept (M1)
+FAIL - R14-2a no start while the start process runs; the intent kept (expected [0 3729] got [1 3729])
+FAIL - R14-2a once the start process is gone the intent is removed (no [no unit runs: the intent is removed] in /mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/tmp/tmp.hTrfJNKgle/2a2.err)
+FAIL - R14-2a then decide-a is started (expected [0 1 null] got [0 2 null])
+ok 12 - R14-2b a live start process: the running unit is not adopted, not stopped, the intent kept, no set made (M1)
+ok 13 - R14-2b once the start process is gone the running unit is owed a stop
+ok 14 - R14-2b the owed stop ran, nothing adopted, no intent
+ok 15 - R14-2c a reused start pid is a gone start process: the intent is removed and decide-a started (M3)
+ok 16 - R14-2d CONTROL: the leader 6415 is gone and its process group has a member
+FAIL - R14-2d a start process group with a live member is in flight: kept, no start (M2) (expected [0 6410] got [1 6410])
+ok 17 - R14-2d the group member ended
+FAIL - R14-2d once the group is empty the intent is removed and decide-a started (expected [0 1 null] got [0 2 null])
+FAIL - R14-2e a round-13 intent younger than MARK_TTL is kept, no start (M7) (expected [0 7509] got [1 7509])
+FAIL - R14-2e a round-13 intent older than MARK_TTL is resolved: removed, decide-a started (M7) (expected [0 1 null] got [0 2 null])
+ok 18 - R14-2f (WV01) a reused starter pid is a dead starter (V01)
+ok 19 - R14-2f (WV01) the intent is removed and decide-a started
+ok 20 - R14-2g (WV02) a degraded unit under a dead intent is owed a stop (V02)
+ok 21 - R14-2g (WV02) the owed stop ran, no intent left
+ok 22 - R14-2h a live starter's intent refuses the start (the log names it)
+FAIL - R14-2h no start, one capacity read, event no_fit with no reason code (never stale_answer) (F3, V08) (expected [5 0 1 no_fit null] got [5 1 1 no_fit null])
+ok 23 - R14-2i a live start pid with no recorded start time keeps the intent (M11)
+FAIL - R14-2i no start, the intent kept (expected [0 10281] got [1 10281])
+FAIL - R14-3a the refused mark of R14-2h ran no llmctl start at all (M4) (expected [0] got [1])
+ok 24 - R14-3b calibration: the call before the start is the mark's unlock (flock call 6)
+tests/jev/test_s4_round14.sh: line 95: 11484 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 25 - R14-3b A was SIGKILLed at the mark's unlock; its intent is in the registry
+FAIL - R14-3b the start process (11802) is still running
+FAIL - R14-3b llmctl start never ran, no unit (M4) (expected [0 ] got [1 ])
+FAIL - R14-3b the next acquire removes the intent and disposes of the set A left (one stop, no start: held) (expected [5 0 1 null] got [5 1 1 {"decide-a":{"at":1700000000,"mono":"test:5000","pid":11484,"pid_start":23921000,"holder":"sA","child":{"pid":11802,"pid_start":23921146}}}])
+FAIL - R14-3b the next evaluation starts decide-a (the intent never blocks it) (expected [0 1 null] got [5 2 {"decide-a":{"at":1700000000,"mono":"test:5000","pid":11484,"pid_start":23921000,"holder":"sA","child":{"pid":11802,"pid_start":23921146}}}])
+ok 26 - R14-4 the start process ended after B's answer was fixed (the unit came up)
+ok 27 - R14-4 B's answer was read while the start process ran: the intent is kept (M5)
+FAIL - R14-4 B: no start, no adoption, the intent kept, the unit running (expected [0 0 14198 decide-a ] got [1 0 14198 decide-a ])
+ok 28 - R14-4 the next observation resolves it: an owed stop
+ok 29 - R14-4 the owed stop ran, nothing adopted, no intent
+ok 30 - R14-5 the starter sees that llmctl never ran (no <out>.went)
+ok 31 - R14-5 no llmctl start, no stop (a refused start owes none), no intent left (M8)
+ok 32 - R14-5 the acquire does not report a start that never ran (rc 5)
+ok 33 - R14-6a a release by a holder with no lease clears the dead stopper's mark and stops the lease-less constitution-started set
+ok 34 - R14-6b an acquire joins it as constitution-started: no start, no adoption as operator-started
+ok 35 - R14-6b its release stops the unit
+ok 36 - R14-7 the mark is refused when the start process has no start time
+FAIL - R14-7 no llmctl start, no stop, no set and no intent of decide-a (M9) (expected [0 0 null null] got [1 0 null null])
+ok 37 - R14-7 CONTROL: the process scan sees a live process by its script path
+ok 38 - R14-7 the cancelled start process of this copy is gone (gate_cancel waits for it)
+ok 39 - no llmctl call ran under the lease lock in any row (R4-3)
+# test_s4_round14.sh: pass=39 fail=16 skip=0

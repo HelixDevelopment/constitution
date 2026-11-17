@@ -1,0 +1,10 @@
+ok 1 - P1 acquire rc 0 when a candidate fits
+ok 2 - P1 first systemone-native candidate (decide-a) placed
+ok 3 - P1 exactly one llmctl start
+FAIL - P1 local gateway in the cache at priority 10 (expected [10] got [100])
+ok 4 - P1 gateway URL from the llmctl registry
+ok 5 - P1 key referenced by NAME
+ok 6 - P1 placement route local
+ok 7 - P1 set records constitution_started
+ok 8 - P1 the starting mark is cleared after the start
+ok 9 - P2 setup: the stub reports the started profile in llmctl's shape (verdict running, unit ok)

@@ -1,0 +1,12 @@
+Q1 note + empty comment <!-->                human=one    checker=REFUSE 
+    reason: the body holds raw HTML ('<!-->' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholde
+Q2 note + dashes comment                     human=one    checker=REFUSE 
+    reason: the body holds raw HTML ('<!-- a -- b -->' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a 
+Q3 note + comment hides words                human=one    checker=REFUSE 
+    reason: the body holds raw HTML ('<!-- y -- z --> w' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write 
+Q4 note + javascript autolink                human=one    checker=REFUSE 
+    reason: the body holds raw HTML ('<javascript:alert(1)> y' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; 
+Q5 note + single tilde strike                human=one    checker=REFUSE 
+    reason: the line holds '~' (U+007E) after its label, outside THE LINE ALPHABET (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only as a separator)
+Q6 note + lone double star                   human=one    checker=REFUSE 
+    reason: the line holds '*' (U+002A) after its label, outside THE LINE ALPHABET (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only as a separator)

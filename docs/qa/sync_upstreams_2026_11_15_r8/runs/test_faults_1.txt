@@ -1,0 +1,24 @@
+== sync-faults (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.sUe50x)
+  ok   control: APPLIED exit 0
+  ok   control: 110 git calls logged
+  ok   control: root fast-forwarded
+  ok   control: libs/a followed its new pin
+  ok   control: vendor/t advanced
+  ok   control: the report says libs/a followed its new pin
+  ok   control: root, libs/a and vendor/t moved on disk
+  ok   control: the report's moved set equals the repositories whose HEAD changed on disk
+  ok   sites: 29 git call sites enumerated from the AST
+  ok   sites: every call site is reached by the control run (and recognisable)
+  ok   oracle: the gate prints its call-site table
+  ok   oracle: the engine's call sites equal the oracle's (prefix, ok=, want=) multiset
+  ok   oracle: every logged call has exactly one exit-128 class
+  ok   faults: 373 fault runs over 110 calls (sigkill rc77 rc128 garbage)
+  ok   rc128: 110 runs with a real exit 128
+  ok   rc128: 4 runs where 128 is a writer failure
+  ok   rc128: 4 runs where 128 is an unreachable remote
+  ok   rc128: 1 of 4 unreachable runs block a pin follow (FAILED), the rest are ATTENTION
+  ok   faults: every no-answer made the run BLIND and moved nothing it should not
+  ok   needle: an injected first-call failure is BLIND
+  ok   needle: the engine names the call
+sync-faults: PASS 21 FAIL 0
+rc=0

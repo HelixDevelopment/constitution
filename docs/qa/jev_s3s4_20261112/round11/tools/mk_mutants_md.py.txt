@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""mk_mutants_md.py <index.tsv> <verdicts.tsv> <v03_proof.md> : prints round11/mutants.md (a table per mutant)."""
+import sys
+idx = {}
+for l in open(sys.argv[1]):
+    f = l.rstrip('\n').split('\t')
+    if len(f) >= 3:
+        idx[f[0]] = (f[1], f[2])
+ver = {}
+for l in open(sys.argv[2]):
+    f = l.rstrip('\n').split('\t')
+    ver.setdefault(f[0], []).append(f)
+out = ['# Round-11 mutants', '',
+       'Evidence class: gate-logic / PROVISIONAL. Generator `tools/mkmut_r11.py` (the round-10 reviewer generator',
+       '`mkmut_r10rev.py` with its substitutions re-anchored on the round-11 file, plus the fixer mutants W01 to W09).',
+       'Each mutant is a full copy of `scripts/jev` with one exact-once substitution on the T_START-frozen base. Each runs',
+       'suite by suite (r11, r10, r9, r8, r7, r6, pl) against a frozen snapshot of the round-11 tree and stops at the first',
+       'suite that kills it (`tools/runmut11.sh`). The control RCTRL must survive every suite.', '',
+       '| Mutant | What it changes | sha256 (first 12) | Result | First failing row |', '|---|---|---|---|---|']
+killed = surv = 0
+for k in sorted(idx, key=lambda s: (s != 'RCTRL', s)):
+    desc, h = idx[k]
+    v = ver.get(k, [])
+    if not v:
+        res, first = 'NOT RUN', ''
+    elif v[-1][2] == 'killed':
+        res, first = 'killed at %s' % v[-1][1], (v[-1][3] if len(v[-1]) > 3 else '')
+    else:
+        res, first = 'survived %d suite(s)' % len(v), ''
+    if k != 'RCTRL':
+        if res.startswith('killed'):
+            killed += 1
+        elif res.startswith('survived'):
+            surv += 1
+    first = first.replace('|', '/')[:140]
+    out.append('| %s | %s | %s | %s | %s |' % (k, desc.replace('|', '/'), h[:12], res, first))
+out += ['', 'Summary: %d killed, %d survived (control excluded).' % (killed, surv), '']
+out.append(open(sys.argv[3]).read())
+print('\n'.join(out))

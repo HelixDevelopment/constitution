@@ -1,0 +1,52 @@
+ok 1 - N1 keyed probe still answers (system trust)
+ok 2 - N1 a record ca_file never reaches --cacert on a keyed request
+ok 3 - N1 the record's CA path is not on curl's argv at all
+ok 4 - N1-POS the OPERATOR's JEV_CA_FILE env is honoured on a keyed request
+ok 5 - N1-POS and the record CA is still ignored
+ok 6 - N1-POS an UNKEYED local llmctl-* probe may use the record's CA (no key travels)
+ok 7 - M4 no predictable $$ temp name in jev-probe.sh
+ok 8 - M4 no refusal temp file at all (stderr is captured in-process)
+ok 9 - M4 an untrusted record URL (unpinned, non-loopback, not llmctl-*) is not even GET-probed (rc 2)
+ok 10 - M4 curl never started for it
+ok 11 - M4 the refusal is stated
+ok 12 - M4 plain GETs are pinned to http(s) only
+ok 13 - M4-POS a loopback URL IS probed
+ok 14 - M4-POS a pinned origin without a key var is still GET-probed
+ok 15 - U5 userinfo URL refused
+ok 16 - U5 refused BY the userinfo check (reason: not a plain https URL), not by an origin mismatch
+ok 17 - U5 userinfo URL refused
+ok 18 - U5 refused BY the userinfo check (reason: not a plain https URL), not by an origin mismatch
+ok 19 - M1 percent-encoded dot/slash/control segment refused: api.openrouter.test/api/%2e%2e/evil
+ok 20 - M1 percent-encoded dot/slash/control segment refused: api.openrouter.test/api/%2E%2E/x
+ok 21 - M1 percent-encoded dot/slash/control segment refused: api.typesafe.test/v1/%0d%0aX
+ok 22 - M1 percent-encoded dot/slash/control segment refused: api.openrouter.test/api/a%2fb
+ok 23 - M1 percent-encoded dot/slash/control segment refused: api.openrouter.test/api/a%5Cb
+ok 24 - M1 percent-encoded dot/slash/control segment refused: api.openrouter.test/api/%2E/x
+ok 25 - M1-POS an explicit :443 equals the pinned origin
+ok 26 - M1-NEG a different port is a different origin
+ok 27 - M1 two pins on one origin: the SECOND pin's variable + path is accepted
+ok 28 - M1 two pins on one origin: the first pin still accepted
+ok 29 - M1-NEG a variable on the wrong pin's path is refused
+ok 30 - M1-NEG an unrelated variable is refused on a shared origin
+ok 31 - P1 label!=name, profile protocol jev-verdict: the gate calls the empty record lawful
+ok 32 - P1 and bootstrap detects no endpoint (the two agree) [bootstrap rc=0]
+ok 33 - P2 label!=name, usable profile: the gate calls the empty record a contradiction
+ok 34 - P2 and bootstrap detects ONE endpoint (the two agree) [bootstrap rc=0]
+ok 35 - P3 the shared predicate lives in lib_decide.sh
+ok 36 - M3 an UNPROMOTED type with a numeric threshold does not enable enforce
+ok 37 - M3-POS promoted type + validated PASS + relocated JEV_CONFIG_DIR => enforce (env written under JEV_CONFIG_DIR)
+ok 38 - M3 promoted type but require-validated FAILS => honest downgrade to shadow
+ok 39 - M3 the downgrade names require-validated on stderr
+ok 40 - M3 wiring clause 6: enforce with only UNPROMOTED types FAILs
+ok 41 - M3 and the failure is clause 6's own (not an unrelated clause)
+ok 42 - M3-POS wiring clause 6: a promoted type satisfies the clause
+ok 43 - M5 bootstrap used the builtin pins
+ok 44 - M5 no child of bootstrap ever sees the ambient JEV_PINS_FILE
+ok 45 - M2 guard curl refuses the live decide-gateway port (8095)
+ok 46 - M2 guard curl refuses the live decide-service port (8096)
+ok 47 - M2 both refusals are logged
+ok 48 - M2 test_decision_layer_gaps.sh no longer names the live decide-service port 8096 in fixtures
+ok 49 - M2E the fixture really took the default-port fallback
+ok 50 - M2E default gateway: reachable=false (the guard refused the live port)
+ok 51 - M2E the guard log proves the probe was refused, not answered
+# test_review_fixes_r2.sh: pass=51 fail=0 skip=0

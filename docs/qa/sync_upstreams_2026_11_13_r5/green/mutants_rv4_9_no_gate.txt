@@ -1,0 +1,13 @@
+V01  KILLED     by robustness:ext_repo    6.5s  SAFE_CONFIG: protocol.ext.allow=never dropped
+V02  KILLED     by robustness:autostash    8.1s  SAFE_CONFIG: merge.autoStash=false dropped
+V04  KILLED     by robustness:auth_header    7.0s  _AUTH: Authorization header values no longer redacted
+V08  KILLED     by robustness:invalid_remote    7.2s  BLOCKING_PREFIXES: invalid-remote does not block
+V09  KILLED     by robustness:diverged    8.9s  BLOCKING_PREFIXES: upstreams-diverged does not block
+V13  KILLED     by robustness:lock_symlink   17.5s  lock: O_NOFOLLOW dropped on the root lock (lock path may be a symlink)
+V16  SURVIVED   by -              41.4s  git_env: SSH_ASKPASS kept
+V17  KILLED     by robustness:secret8    7.3s  register_secret: 8-character secrets no longer remembered (threshold 9)
+V18  KILLED     by robustness:ctrl_url    6.7s  _CTRL: DEL and C1 controls kept
+V22  KILLED     by robustness:no_upstream_main    9.1s  BLOCKING_PREFIXES: no-upstream- does not block
+P34  SURVIVED   by -               7.2s  RV4-6: core.askPass not pinned empty by -c
+sync-mutations (no-gate): mutants 11 killed 9 equivalent 0 survived 2 harness-errors 0
+survivors: V16,P34

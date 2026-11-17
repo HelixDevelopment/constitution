@@ -1,0 +1,32 @@
+ok 1 - stub server healthz answers on loopback
+ok 2 - NEG: unreachable endpoint makes curl fail (round-trips are not faked)
+ok 3 - bootstrap rc 0
+ok 4 - detection evidence written
+ok 5 - DETECTION: running local profile + hosted pin detected; stopped profile (decide-laya) NOT listed
+ok 6 - DETECTION: parallelism taken from llmctl decide capacity
+ok 7 - DETECTION: hosted reachability is UNKNOWN (null), never claimed true without a probe
+ok 8 - DETECTION: capacity.instances matches endpoints
+ok 9 - DETECTION: NEG: the retired 'llmctl plan --json' is not called
+ok 10 - DETECTION: llmctl decide status --json consulted
+ok 11 - SHADOW: default mode shadow
+ok 12 - SHADOW: no thresholds before calibration
+ok 13 - SHADOW: status reports no thresholds
+ok 14 - SHADOW: 80 decisions captured from live stub round-trips
+ok 15 - SHADOW: answers are the stub server's own (first criteria key)
+ok 16 - calibrate rc 0
+ok 17 - PROMOTION: type agreeing with labels is promoted
+ok 18 - PROMOTION: promoted type mode=enforce
+ok 19 - NEG: type disagreeing with labels is NOT promoted
+ok 20 - NEG: non-promoted type stays shadow
+ok 21 - PROMOTION: visible through jev-status --json
+ok 22 - recalibration rc 0
+ok 23 - DEMOTION announced loudly
+ok 24 - current thresholds: good reverted to shadow
+ok 25 - previous thresholds preserved as jev-thresholds.<epoch>.json
+ok 26 - preserved file is byte-identical to the pre-recalibration version
+ok 27 - preserved version still records the earlier promotion
+ok 28 - current and previous differ in calibrated_at
+ok 29 - NEG: --enforce without calibrated thresholds stays shadow
+ok 30 - NEG: deferral is announced, not silent
+ok 31 - NEG: deferral recorded in state
+# test_bootstrap_e2e_stub_server.sh: pass=31 fail=0 skip=0

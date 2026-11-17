@@ -1,0 +1,106 @@
+ok 1 - P1 acquire rc 0 when a candidate fits
+ok 2 - P1 first systemone-native candidate (decide-a) placed
+ok 3 - P1 exactly one llmctl start
+ok 4 - P1 local gateway in the cache at priority 10
+ok 5 - P1 gateway URL from the llmctl registry
+ok 6 - P1 key referenced by NAME
+ok 7 - P1 placement route local
+ok 8 - P1 set records constitution_started
+ok 9 - P1 the starting mark is cleared after the start
+ok 10 - P2 setup: the stub reports the started profile in llmctl's shape (verdict running, unit ok)
+ok 11 - P2 second holder joins decide-a (verdict running, unit status ok)
+ok 12 - P2 no second start
+ok 13 - P2 two leases
+ok 14 - P2 event joined, no capacity verdict for a running instance
+ok 15 - P3 release of one of two holders does not stop
+ok 16 - P3 the cache entry stays while a lease is held
+ok 17 - P3 last release rc 0
+ok 18 - P3 last release stops the model
+ok 19 - P3 stop names the started profile
+ok 20 - P3 cache entry removed
+ok 21 - P3 lease set removed
+ok 22 - P3 stub reports the model stopped
+ok 23 - P4 wrong schema -> rc 5
+ok 24 - P4 no start under undetermined
+ok 25 - P4 verdict undetermined
+ok 26 - P4 route none without a key
+ok 27 - P4 route cloud with a real hosted key
+ok 28 - P4 key variable NAME recorded
+ok 29 - P4 key value never written
+ok 30 - P5 capacity exit 1 -> rc 5, no start
+ok 31 - P5 reason names the exit code
+ok 32 - P5 CONTROL: a capacity call that completes writes the completion marker
+ok 33 - P5 slow capacity -> rc 5, no start
+ok 34 - P5 llmctl call bounded: the 30 s capacity call never ran to its end
+ok 35 - P5 reason says timed out
+ok 36 - P6 does_not_fit a skipped, b placed
+ok 37 - P6 a never started
+ok 38 - P7 nproc headroom unmeasured -> rc 5, no start (undetermined is never fits)
+ok 39 - P7 reason names RLIMIT_NPROC
+ok 40 - P8 headroom < threads -> does_not_fit, no start
+ok 41 - P9 a degraded operator unit of decide-a -> not started a second time, rc 5
+ok 42 - P9 the degraded unit is not adopted
+ok 43 - P9 reason unit degraded
+ok 44 - P10 start refused (75) -> rc 5
+ok 45 - P10 no lease after a refused start
+ok 46 - P17 pressure not ok -> no start
+ok 47 - P11 setup: one start
+ok 48 - P11 reap never stops the model
+ok 49 - P11 dead holder reaped
+ok 50 - P11 acquire rejoins the running constitution-started model (no second start, no stop)
+ok 51 - P12 stopping set refuses a new acquire
+ok 52 - P13 lock held -> rc 4, no start
+ok 53 - P13 reason lease_lock_timeout
+ok 54 - P14 'enable' refused
+ok 55 - P14 'enable' refused as a forbidden verb, not as an unknown one
+ok 56 - P14 'disable' refused
+ok 57 - P14 'disable' refused as a forbidden verb, not as an unknown one
+ok 58 - P14 'switch' refused
+ok 59 - P14 'switch' refused as a forbidden verb, not as an unknown one
+ok 60 - P14 'auto' refused
+ok 61 - P14 'auto' refused as a forbidden verb, not as an unknown one
+ok 62 - P14 no enable/disable/switch/auto ever sent
+ok 63 - P15 candidates = systemone-native only
+ok 64 - P15 verdict never starts
+ok 65 - P16 heartbeat refreshed
+ok 66 - P16 pid-less lease past TTL reaped
+ok 67 - P18 failed start -> no local placement (rc 5)
+ok 68 - P18 a unit the producer tried to start and that failed is stopped again (no orphan)
+ok 69 - P18 the cleanup stop is logged
+ok 70 - P19 a start refused by the pressure gate (75, no partial start) sends no stop
+ok 71 - P20 an already-running operator unit (status ok) is adopted, never started again
+ok 72 - P20 an operator-started unit is recorded constitution_started=false
+ok 73 - P20 releasing the last lease of an operator-started unit never stops it
+ok 74 - P21 a failed stop on the last release returns rc 6 (never 0)
+ok 75 - P21 one stop attempted
+ok 76 - P21 the set is KEPT with constitution_started=true
+ok 77 - P21 the stopping mark is kept
+ok 78 - P21 the set records the failed stop rc
+ok 79 - P21 placement event stop_failed
+ok 80 - P26 stop_failed: verdict null in the closed set
+ok 81 - P21 a set with no lease is not routable: the cache entry is removed (R4-1 invariant)
+ok 82 - P21 the recorded route is the fallback, not local
+ok 83 - P21 stop_failed is logged
+ok 84 - P21 the next release re-attempts the stop and succeeds (rc 0)
+ok 85 - P21 a second stop was sent (retry)
+ok 86 - P21 only a successful stop removes the set
+ok 87 - P21 placement event stopped after the retry
+ok 88 - P26 stopped: verdict null in the closed set
+ok 89 - P21 model stopped after the retry
+ok 90 - P21 after a failed stop a new acquire joins the kept model (unit ok; no second start)
+ok 91 - P21 the joined set stays constitution-started (a later release still stops it)
+ok 92 - P21 the join registers the gateway again
+ok 93 - P22 a 3 s stop with read timeout 1 s and stop timeout 10 s succeeds (bounded by the stop timeout)
+ok 94 - P22 set removed after the slow stop
+ok 95 - P22 a stop slower than the stop timeout is stop_failed (rc 6)
+ok 96 - P22 the stop is bounded (3s)
+ok 97 - P22 timed-out stop keeps the set
+ok 98 - P23 two profiles started with JEV_PLACE_MAX=2
+ok 99 - P23 the last release stops BOTH started profiles
+ok 100 - P23 both sets removed
+ok 101 - P23 no model left running
+ok 102 - P23 no cache entry names a stopped model
+ok 103 - P24 the lease records the holder's process start time
+ok 104 - P24 a live pid holder with a matching start time is kept
+FAIL - P24 a reused pid (start time differs) is reaped (expected [0] got [1])
+ok 105 - P24 the reap never stops the model

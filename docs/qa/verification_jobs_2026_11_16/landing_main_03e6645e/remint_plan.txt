@@ -1,0 +1,30 @@
+BASE-CHANGE CON-015 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-016 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-023 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-043 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-144 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-159 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-160 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-161 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-162 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-183 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-184 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-185 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-186 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-189 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-190 vehicle=description,status target=description resolved=vehicle
+BASE-CHANGE CON-191 vehicle=description,status target=description resolved=vehicle
+BASE-CHANGE CON-211 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-216 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-217 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-218 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-219 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-220 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-222 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-223 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-224 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-226 vehicle=description target=-
+BASE-CHANGE CON-235 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-236 vehicle=description target=description resolved=vehicle
+BASE-CHANGE CON-265 vehicle=description target=description resolved=vehicle
+RESULT: PLAN mode=REPLAY own=0 base_changes=29 steps=31 conflicts=0 refusals=0 first=- last=-

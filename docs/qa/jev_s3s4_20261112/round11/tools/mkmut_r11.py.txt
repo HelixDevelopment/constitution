@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Round-11 mutants: the round-10 REVIEWER mutants V01-V13 re-anchored on the round-11 file, plus the round-11 FIXER mutants W01-W09 of scripts/jev/jev-place.sh, same frame as mkmut10.py:
+T_START-frozen base, every substitution must match exactly once, each mutant a full copy of scripts/jev.
+usage: mkmut_r11.py <repo> <out>"""
+import os, sys, hashlib, shutil
+repo, out = sys.argv[1], sys.argv[2]
+src = os.path.join(repo, 'scripts/jev/jev-place.sh')
+base = open(src).read()
+ANCHOR = 'clock_refresh\nfor n in "$RTMO"'
+assert base.count(ANCHOR) == 1
+base_t = base.replace(ANCHOR, 'clock_refresh\nT_START="$NOW"; T_MONO_T="$MONO_T"; T_MONO_TOK="$MONO_TOK"\nfor n in "$RTMO"', 1)
+def sub(t, old, new, hint):
+    n = t.count(old); assert n == 1, (hint, n); return t.replace(old, new, 1)
+M = {}
+M['RCTRL'] = ('control, no change', lambda t: t)
+M['V01'] = ('finish_start placed: a FOREIGN starting mark is cleared too',
+  lambda t: sub(t, """'(if $c == "ours" then .sets[$p].starting = null else . end) | .sets[$p].started_at = $now""",
+                   """'(.sets[$p].starting = null) | .sets[$p].started_at = $now""", 'placed foreign'))
+M['V02'] = ('set_view: own holder counted among the others',
+  lambda t: sub(t, 'select($h == "" or .holder != $h)] | length)', 'select(true)] | length)', 'others own'))
+M['V03'] = ('obs_locked: endpoint_gone also on a set carrying start_failed',
+  lambda t: sub(t, "((.sets[$p].leases // []) | length) > 0 and (.sets[$p].start_failed // null) == null and (.sets[$p].stop_owed // null) == null'",
+                   "((.sets[$p].leases // []) | length) > 0 and (.sets[$p].stop_owed // null) == null'", 'gone sf'))
+M['V04'] = ('finish_start not-sole: start_kept not recorded',
+  lambda t: sub(t, """       | .sets[$p].start_kept = {at:$now, mono:(if $mo=="" then null else $mo end), rc:$src, leases:$n, claim:$c, seen_stopping:$seen}\n""", '', 'start_kept'))
+M['V05'] = ('arm_stop_locked: a starting mark no longer refuses the stop',
+  lambda t: sub(t, '      elif ($s.starting // null) != null then "another process is starting it"\n', '', 'arm starting'))
+M['V06'] = ('derive_cache: a set with stop_owed is routed',
+  lambda t: sub(t, ' and (.value.stop_owed // null) == null and ((.value.health.state // "") == "ok"))', ' and ((.value.health.state // "") == "ok"))', 'cache owed'))
+M['V07'] = ('release_locked: a set with a starting mark is a stop candidate',
+  lambda t: sub(t, "(.value.constitution_started == true) and (.value.stopping // null) == null and (.value.starting // null) == null) | .key' <<<\"$cur\")",
+                   "(.value.constitution_started == true) and (.value.stopping // null) == null) | .key' <<<\"$cur\")", 'release starting'))
+M['V08'] = ('holder_alive: the recorded pid start time is ignored (pid reuse kept alive)',
+  lambda t: sub(t, '    pid_alive "$pid" "${4:-}" || rc=$?\n    case "$rc" in 0) return 0 ;; 1) return 1 ;; esac\n    # no /proc',
+                   '    pid_alive "$pid" "" || rc=$?\n    case "$rc" in 0) return 0 ;; 1) return 1 ;; esac\n    # no /proc', 'pid reuse'))
+M['V09'] = ('mark_start_locked: the release check (held set) is skipped',
+  lambda t: sub(t, '  if [ -n "$held" ] && ! jq -e', '  if false && ! jq -e', 'held'))
+M['V10'] = ('hosted_key_var: any non-empty key counts (placeholder not refused)',
+  lambda t: sub(t, '[ "$(key_state "$v" | cut -f1)" = real ] && { echo "$v"; return 0; }', '[ -n "${!v:-}" ] && { echo "$v"; return 0; }', 'key'))
+M['V11'] = ('finish_start noset rc!=0/75: start_failed not recorded',
+  lambda t: sub(t, "'.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[], start_failed:{at:$now, rc:$src}}'",
+                   "'.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:$m, leases:[]}'", 'noset sf'))
+M['V12'] = ('finish_stop kept set: a foreign stopping mark is cleared too',
+  lambda t: sub(t, """      '(if $ours == "true" then .sets[$p].stopping = null else . end)\n       | .sets[$p].stopped_while_held""",
+                   """      '(.sets[$p].stopping = null)\n       | .sets[$p].stopped_while_held""", 'kept foreign'))
+M['V13'] = ('reap_locked: a mark with a dead pid is kept (only age clears)',
+  lambda t: sub(t, '    if [ "$arc" = 1 ] || [ "$age" -gt "$MARK_TTL" ]; then', '    if [ "$age" -gt "$MARK_TTL" ]; then', 'dead mark'))
+M['W01'] = ('finish_stop: a start recorded after the arm is ignored (the R10-1 delete)',
+  lambda t: sub(t, '  if [ "$after" = yes ] && [ "$leased" = 0 ]; then', '  if false; then', 'after'))
+M['W02'] = ('finish_start not-sole, 0 leases: no stop_owed recorded',
+  lambda t: sub(t, '(if $n == 0 and $src != 75 then .sets[$p].stop_owed', '(if false then .sets[$p].stop_owed', 'start owed'))
+M['W03'] = ('plan (D): a profile this acquire stopped or disposed may be adopted',
+  lambda t: sub(t, '    case " $STOP_TRIED ${DISPOSED:-} " in *" $p "*) log "candidate $p: this acquire stopped it;', '    case " " in *" $p "*) log "candidate $p: this acquire stopped it;', 'adopt'))
+M['W04'] = ('finish_start rc 75 not-sole: constitution_started forced true (R10-3 reverted)',
+  lambda t: sub(t, '(if $src == 75 then .sets[$p].constitution_started = ((.sets[$p].constitution_started == true) and ((.sets[$p].started_at // null) != null))', '(if false then .', 'r75'))
+M['W05'] = ('do_stop: no owed retry after a kept set',
+  lambda t: sub(t, '  if [ "$STOP_RES" = owed_after_start ]; then', '  if false; then', 'retry'))
+M['W06'] = ('finish_stop: the start record is not answered (seen_stopping kept)',
+  lambda t: sub(t, '       | .sets[$p].start_kept.seen_stopping = null\n', '', 'answer'))
+M['W07'] = ('finish_stop: rc 75 start records count as a start after the arm',
+  lambda t: sub(t, 'if $k == null or ($k.rc // 0) == 75 or', 'if $k == null or', 'rc75 after'))
+M['W08'] = ('finish_start: the stopping mark seen is not recorded',
+  lambda t: sub(t, "'(.sets[$p].stopping // null) as $seen", "'null as $seen", 'seen'))
+M['W09'] = ('finish_stop: started-after also applies with leases held (stopped_while_held skipped)',
+  lambda t: sub(t, '  if [ "$after" = yes ] && [ "$leased" = 0 ]; then', '  if [ "$after" = yes ]; then', 'after leased'))
+idx = []
+for k, (d, f) in M.items():
+    t = f(base_t)
+    dst = os.path.join(out, k, 'scripts', 'jev')
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if os.path.exists(dst):
+        shutil.rmtree(dst)
+    shutil.copytree(os.path.join(repo, 'scripts/jev'), dst)
+    with open(os.path.join(dst, 'jev-place.sh'), 'w') as fh:
+        fh.write(t)
+    os.chmod(os.path.join(dst, 'jev-place.sh'), 0o755)
+    idx.append('%s\t%s\t%s' % (k, d, hashlib.sha256(t.encode()).hexdigest()))
+with open(os.path.join(out, 'index.tsv'), 'w') as fh:
+    fh.write('\n'.join(idx) + '\n')
+print(len(idx))

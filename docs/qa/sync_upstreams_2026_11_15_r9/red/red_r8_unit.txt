@@ -1,0 +1,411 @@
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+.EEEEEEE.................FF.............EEEEEEEEE.........EEEEEEEEEEE.................E.........
+======================================================================
+ERROR: test_write_atomic_unpredictable (__main__.Evidence.test_write_atomic_unpredictable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 407, in test_write_atomic_unpredictable
+    E.fs_write_atomic(p, "x")
+    ^^^^^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'fs_write_atomic'. Did you mean: 'write_atomic'?
+
+======================================================================
+ERROR: test_a_stop_starts_no_write (__main__.Integrate.test_a_stop_starts_no_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 810, in test_a_stop_starts_no_write
+    self.register(r, root, c)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_detached_submodule_is_advanced (__main__.Integrate.test_detached_submodule_is_advanced)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 770, in test_detached_submodule_is_advanced
+    r, c = self.run_integrate(None)
+           ~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 758, in run_integrate
+    self.register(r, root, c)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_head_after_is_read_for_every_repository (__main__.Integrate.test_head_after_is_read_for_every_repository)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 822, in test_head_after_is_read_for_every_repository
+    r, c = self.run_integrate("topic")
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 758, in run_integrate
+    self.register(r, root, c)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_marker_unwritable_blocks_the_write (__main__.Integrate.test_marker_unwritable_blocks_the_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 778, in test_marker_unwritable_blocks_the_write
+    self.register(r, root, c)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_stage_pin_ended_by_its_limit_is_write_killed (__main__.Integrate.test_stage_pin_ended_by_its_limit_is_write_killed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 796, in test_stage_pin_ended_by_its_limit_is_write_killed
+    self.register(r, root, c)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_submodule_on_a_branch_is_kept (__main__.Integrate.test_submodule_on_a_branch_is_kept)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 763, in test_submodule_on_a_branch_is_kept
+    r, c = self.run_integrate("topic")
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 758, in run_integrate
+    self.register(r, root, c)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_begin_write_never_overwrites_and_reports_unwritable (__main__.RoundEight.test_begin_write_never_overwrites_and_reports_unwritable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1448, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_end_write_transitions (__main__.RoundEight.test_end_write_transitions)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1448, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_every_unresolved_state_blocks_a_write (__main__.RoundEight.test_every_unresolved_state_blocks_a_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1448, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_token_refusals (__main__.RoundEight.test_token_refusals)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1448, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_transition_table_is_exactly_the_declared_one (__main__.RoundEight.test_transition_table_is_exactly_the_declared_one)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1448, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_branch_at_write_time_blocks_a_pin_write (__main__.RoundFive.test_branch_at_write_time_blocks_a_pin_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1068, in test_branch_at_write_time_blocks_a_pin_write
+    r, c, writes = self.integrate_with(
+                   ~~~~~~~~~~~~~~~~~~~^
+        lambda repo, a: ("exit", 0, "user-branch\n", "") if a[:1] == ["symbolic-ref"] and repo.endswith("libs/a")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        else None)
+        ^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1052, in integrate_with
+    Integrate.register(r, root, c)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_head_not_at_target_after_write_is_a_failure (__main__.RoundFive.test_head_not_at_target_after_write_is_a_failure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1089, in test_head_not_at_target_after_write_is_a_failure
+    r, c, writes = self.integrate_with(
+                   ~~~~~~~~~~~~~~~~~~~^
+        lambda repo, a: ("exit", 0, SHA + "\n", "") if a[:1] == ["rev-parse"] else None)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1052, in integrate_with
+    Integrate.register(r, root, c)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_moved_head_at_write_time_blocks (__main__.RoundFive.test_moved_head_at_write_time_blocks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1075, in test_moved_head_at_write_time_blocks
+    r, c, writes = self.integrate_with(
+                   ~~~~~~~~~~~~~~~~~~~^
+        lambda repo, a: ("exit", 0, "c" * 40 + "\n", "") if a[:2] == ["rev-parse", "--verify"]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        and repo.endswith("libs/a") else None)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1052, in integrate_with
+    Integrate.register(r, root, c)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_parent_head_tree_changed_blocks (__main__.RoundFive.test_parent_head_tree_changed_blocks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1082, in test_parent_head_tree_changed_blocks
+    r, c, writes = self.integrate_with(
+                   ~~~~~~~~~~~~~~~~~~~^
+        lambda repo, a: ("exit", 0, "160000 commit %s\tlibs/a\0" % ("d" * 40), "")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        if a[:4] == ["ls-tree", "-r", "-z", "HEAD"] else None)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1052, in integrate_with
+    Integrate.register(r, root, c)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_unread_branch_at_write_time_blocks (__main__.RoundFive.test_unread_branch_at_write_time_blocks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1061, in test_unread_branch_at_write_time_blocks
+    r, c, writes = self.integrate_with(
+                   ~~~~~~~~~~~~~~~~~~~^
+        lambda repo, a: ("exit", 128, "", "fatal") if a[:1] == ["symbolic-ref"] and repo.endswith("libs/a")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        else None)
+        ^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1052, in integrate_with
+    Integrate.register(r, root, c)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 753, in register
+    r.register_site(x.rec["_gitdir"], x.rec.get("_common_dir"), x.rec.get("branch"))
+    ^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_an_uninspected_git_dir_is_never_written (__main__.RoundNine.test_an_uninspected_git_dir_is_never_written)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_clear_marker_on_every_kind_reports_and_keeps_it (__main__.RoundNine.test_clear_marker_on_every_kind_reports_and_keeps_it)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_end_write_never_removes_a_marker_that_is_not_its_own (__main__.RoundNine.test_end_write_never_removes_a_marker_that_is_not_its_own)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_fetched_branches_on_a_fifo_answers_at_once (__main__.RoundNine.test_fetched_branches_on_a_fifo_answers_at_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_fs_open_lock_refuses_non_regular_objects (__main__.RoundNine.test_fs_open_lock_refuses_non_regular_objects)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_fs_read_never_opens_a_non_regular_file (__main__.RoundNine.test_fs_read_never_opens_a_non_regular_file)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_fs_read_refuses_a_fifo_swapped_in_after_the_lstat (__main__.RoundNine.test_fs_read_refuses_a_fifo_swapped_in_after_the_lstat)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_fs_remove_removes_regular_files_only_and_never_raises (__main__.RoundNine.test_fs_remove_removes_regular_files_only_and_never_raises)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_lock_sets_follow_the_measured_ground_truth (__main__.RoundNine.test_lock_sets_follow_the_measured_ground_truth)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_write_settled (__main__.RoundNine.test_write_settled)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1539, in setUp
+    self.r.register_site(self.d, self.d, "main")
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Runner' object has no attribute 'register_site'
+
+======================================================================
+ERROR: test_write_marker_round_trip (__main__.RoundSix.test_write_marker_round_trip)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1270, in test_write_marker_round_trip
+    self.assertIsNone(E.read_marker(d))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 'unknown' is not None
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 1279, in test_write_marker_round_trip
+    os.rmdir(d)
+    ~~~~~~~~^^^
+OSError: [Errno 39] Directory not empty: '/mnt/DATA1TB/claude-work/tmp/sync_unit_marker.y4geyrnm'
+
+======================================================================
+FAIL: test_in_progress (__main__.ProbeChild.test_in_progress)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 635, in test_in_progress
+    self.assertEqual(E.in_progress(g), [n + "?unreadable" for n in ("MERGE_HEAD", "CHERRY_PICK_HEAD",
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply", "index.lock", "HEAD.lock",
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "AUTO_MERGE.lock", "packed-refs.lock", "reftable/tables.list.lock", "ORIG_HEAD.lock")])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['MER[175 chars]able'] != ['MER[175 chars]able', 'HEAD.lock?unreadable', 'AUTO_MERGE.loc[109 chars]ble']
+
+Second list contains 5 additional elements.
+First extra element 7:
+'HEAD.lock?unreadable'
+
+  ['MERGE_HEAD?unreadable',
+   'CHERRY_PICK_HEAD?unreadable',
+   'REVERT_HEAD?unreadable',
+   'BISECT_LOG?unreadable',
+   'rebase-merge?unreadable',
+   'rebase-apply?unreadable',
+-  'index.lock?unreadable']
+?                         ^
+
++  'index.lock?unreadable',
+?                         ^
+
++  'HEAD.lock?unreadable',
++  'AUTO_MERGE.lock?unreadable',
++  'packed-refs.lock?unreadable',
++  'reftable/tables.list.lock?unreadable',
++  'ORIG_HEAD.lock?unreadable']
+
+======================================================================
+FAIL: test_path_kind (__main__.ProbeChild.test_path_kind)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix9.mWQ3/repo/tests/sync/test_unit.py", line 610, in test_path_kind
+    self.assertEqual(E.path_kind(f), "regular")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'other' != 'regular'
+- other
++ regular
+
+
+----------------------------------------------------------------------
+Ran 121 tests in 9.801s
+
+FAILED (failures=2, errors=28)
+sync-unit: PASS 91 FAIL 30 SKIP 0

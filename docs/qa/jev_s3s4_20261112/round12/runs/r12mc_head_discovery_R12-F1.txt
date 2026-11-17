@@ -1,0 +1,22 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+FAIL - R12-10 order starCA: running=[] i1=held adopt=1 final=[|{}]
+#   c: [jev-place] joined the already-running unit decide-a (not constitution-started; it is never stopped by this producer)
+#   c: [jev-place] route changed: none -> local (the endpoint cache is derived from the lease registry and the observed unit state, §11.4.291(D)(1)(F))
+#   c: [jev-place] last lease released: llmctl stop decide-a rc=0
+#   c: [jev-place] llmctl start decide-a refused (75): does_not_fit
+#   c: [jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+#   c: [jev-place] no local placement (start_refused); fallback route none
+FAIL - R12-10 order straCA: running=[] i1=held adopt=1 final=[|{}]
+#   c: [jev-place] joined the already-running unit decide-a (not constitution-started; it is never stopped by this producer)
+#   c: [jev-place] route changed: none -> local (the endpoint cache is derived from the lease registry and the observed unit state, §11.4.291(D)(1)(F))
+#   c: [jev-place] last lease released: llmctl stop decide-a rc=0
+#   c: [jev-place] llmctl start decide-a refused (75): does_not_fit
+#   c: [jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+#   c: [jev-place] no local placement (start_refused); fallback route none
+FAIL - R12-10 all 60 three-process interleavings: a running unit is always held or owed a stop, nothing is adopted, and after the cleanup no unit and no set is left (expected [60 0] got [60 2])
+ok 3 - R12-10 CONTROL: C both joined a running set (count 4) and started the unit itself (count 16) in some orders
+ok 4 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round12_mc.sh: pass=4 fail=3 skip=0

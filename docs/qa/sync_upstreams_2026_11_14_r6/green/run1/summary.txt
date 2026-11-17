@@ -1,0 +1,16 @@
+run 1 start 2026-11-14T18:20:05Z load: 41.38 41.76 44.74
+unit rc=0 10s sync-unit: PASS 101 FAIL 0 SKIP 0
+integration rc=0 172s load=43.46 sync-integration: PASS 149 FAIL 0
+e2e rc=0 13s load=43.78 sync-e2e: PASS 24 FAIL 0
+full_automation rc=0 33s load=45.85 sync-full-automation: PASS 34 FAIL 0
+security rc=0 51s load=49.12 sync-security: PASS 83 FAIL 0
+determinism rc=0 67s load=49.43 sync-determinism: PASS 15 FAIL 0
+ui rc=0 44s load=56.98 sync-ui: PASS 26 FAIL 0
+hardening rc=0 181s load=51.02 sync-hardening: PASS 119 FAIL 0
+chaos rc=0 174s load=46.76 sync-chaos: PASS 58 FAIL 0
+perf rc=0 94s load=41.54 sync-perf: PASS 13 FAIL 0
+faults rc=0 2814s load=37.71 sync-faults: PASS 21 FAIL 0
+robustness rc=0 226s load=40.46 sync-robustness: PASS 196 FAIL 0
+gate rc=0 1s
+gate_mutation rc=0 148s CM-SYNC-UPSTREAMS-FF-ONLY mutation test: PASS (91 cases)
+run 1 end 2026-11-14T19:27:14Z

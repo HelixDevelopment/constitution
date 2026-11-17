@@ -1,0 +1,2 @@
+U17  KILLED     by robustness:half_write   18.9s  RV8-1: a half-applied write is reported but not FAILED (the run reads as attention, not failed)
+sync-mutations (all): mutants 1 killed 1 equivalent 0 survived 0 harness-errors 0

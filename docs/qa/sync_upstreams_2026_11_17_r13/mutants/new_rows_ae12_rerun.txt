@@ -1,0 +1,5 @@
+AE05 KILLED     by robustness:symref,pin_symref,pathspec,head_file,stage_verify,pre_index  107.8s  the stage-pin is never verified on the index (git said 0 is enough)
+AE12 KILLED     by robustness:symref,pin_symref,pathspec,head_file,stage_verify,pre_index  102.4s  the pre-add index read failing is ignored (verification against nothing)
+AE13 KILLED     by robustness:symref,pin_symref,pathspec,head_file,stage_verify,pre_index   41.4s  control_needle rev-list drops its trailing -- (blind on a file named HEAD)
+sync-mutations (all): mutants 3 killed 3 equivalent 0 survived 0 harness-errors 0
+mut rc=0

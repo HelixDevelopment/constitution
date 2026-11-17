@@ -1,0 +1,8 @@
+# real engine, check final_cap
+== final_cap
+  ok   final_cap.control_interrupted
+  ok   final_cap.control_final_reads_started_and_hung
+  ok   final_cap.ends_within_cap
+  ok   final_cap.timed_out_read_recorded
+sync-robustness: PASS 4 FAIL 0
+rc=0

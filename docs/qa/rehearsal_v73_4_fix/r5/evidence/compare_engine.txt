@@ -1,0 +1,12 @@
+diff -r /mnt/DATA1TB/claude-work/tmp/r5runs/run1/engine/export.txt /mnt/DATA1TB/claude-work/tmp/r5runs/run2/engine/export.txt
+1,4c1,4
+< export: wrote /mnt/DATA1TB/claude-work/tmp/r5runs/run1/engine/export/Issues.md
+< export: wrote /mnt/DATA1TB/claude-work/tmp/r5runs/run1/engine/export/Fixed.md
+< export: wrote /mnt/DATA1TB/claude-work/tmp/r5runs/run1/engine/export/Issues_Summary.md
+< export: wrote /mnt/DATA1TB/claude-work/tmp/r5runs/run1/engine/export/Fixed_Summary.md
+---
+> export: wrote /mnt/DATA1TB/claude-work/tmp/r5runs/run2/engine/export/Issues.md
+> export: wrote /mnt/DATA1TB/claude-work/tmp/r5runs/run2/engine/export/Fixed.md
+> export: wrote /mnt/DATA1TB/claude-work/tmp/r5runs/run2/engine/export/Issues_Summary.md
+> export: wrote /mnt/DATA1TB/claude-work/tmp/r5runs/run2/engine/export/Fixed_Summary.md
+engine diff rc=1

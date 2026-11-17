@@ -1,0 +1,10 @@
+SEARCH O59 placements=0/336 blockstate=0/86672
+SEARCH O48 placements=0/336 blockstate=0/86672
+SEARCH O88 placements=0/336 blockstate=0/86672
+SEARCH O89 placements=0/336 blockstate=0/86672
+SEARCH O77 placements=30/336 blockstate=9132/86672
+  EXAMPLE O77 '=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20 <!-- Verification: x -->'
+  EXAMPLE O77 '=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n<!-- Verification: x -->'
+  EXAMPLE O77 '1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n<!-- Verification: x -->'
+SEARCH-DONE control O77 telling=9162
+rc=0

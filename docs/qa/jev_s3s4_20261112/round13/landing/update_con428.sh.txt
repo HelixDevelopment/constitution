@@ -1,0 +1,16 @@
+#!/bin/bash
+# update_con428.sh <repo>: round 13, record CON-428 (R12-F1) reproduction and root cause through the workable-items
+# engine (never a hand-edited DB). Run once at the repo root; then `export --no-formats` and `diff` (engine_update_export_diff.txt).
+set -euo pipefail
+cd "${1:?repo}"
+W=scripts/workable-items/bin/workable-items; R13=docs/qa/jev_s3s4_20261112/round13
+"$W" update --id CON-428 --db docs/workable_items.db --status "In progress" \
+ --reproduction-state reproduced-host-fixture --reproduction-surface host-only \
+ --reproduction-evidence "$R13/runs/r13_RED_base_r12.txt" \
+ --reproduction-red-cmd "S4_PLACE_UNDER_TEST=<round-12 jev-place.sh> bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)" \
+ --reproduction-green-cmd "bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)" \
+ --reproduction-env "hermetic bwrap runner, stub llmctl tests/jev/fixtures/bin-place, flock gate tests/jev/fixtures/bin-flockgate; gate-logic, not a live llmctl (section 11.4.289(C)(2))" \
+ --reproduction-signature "orders starCA, starAC, straCA with the starter SIGKILLed at its record lock call: 'joined the already-running unit' logged, and after the cleanup running=[decide-a] with sets={} (stops 1, starts 1)" \
+ --investigation-state root-cause-found-with-evidence \
+ --investigation-root-cause "the in-flight start lived only in the set's starting mark; a dispose that deleted the set erased the only record that a start was running, so a third acquire saw a running unit with no set and adopted it; with the starter dead nothing recorded the start again. Decisive experiment: with a start intent that outlives the set (round 13), adoption is refused (R13-2c) and the CONTROL without the intent adopts the same unit" \
+ --investigation-evidence "$R13/runs/r13_GREEN_try4.txt" --states-updated-by jev-r13-fixer

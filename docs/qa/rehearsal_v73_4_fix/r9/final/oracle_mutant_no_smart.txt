@@ -1,0 +1,3 @@
+# blockstate oracle with the pandoc-markdown smart expectation removed (a hand mutant; the quick mutation harness runs no pandoc)
+BLOCKSTATE-BLIND the oracle failed a control needle in pandoc-markdown
+rc=2

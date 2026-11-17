@@ -1,0 +1,9 @@
+CM-JEV-DETECTION ok: clause 1: record parses, schema-valid (2 endpoints)
+CM-JEV-DETECTION ok: clause 2: generated_at=1794490574 within window (>= 0)
+CM-JEV-DETECTION ok: clause 3: no materialized secrets in hosted entries
+CM-JEV-DETECTION ok: clause 4: tools provenance present (paths exist / unavailable reasoned)
+CM-JEV-DETECTION ok: clause 5: capacity.decision_instances is a number
+CM-JEV-DETECTION FAIL: probe: 2 endpoint(s) claim reachable=true but no JEV_PROBE_CMD mechanism is configured - unverifiable claims are bluffs (§7.1). Supply the replayable probe exactly as bootstrap does: JEV_PROBE_CMD=<constitution>/scripts/jev/jev-probe.sh JEV_DETECTION_FILE=<record> bash scripts/gates/cm_jev_detection.sh
+CM-JEV-DETECTION ok: clause 8: no hosted endpoint with a real key is unproven
+CM-JEV-DETECTION ok: clause 7: empty record consistent with llmctl's registry (or n/a: 2 endpoints)
+CM-JEV-DETECTION: RED

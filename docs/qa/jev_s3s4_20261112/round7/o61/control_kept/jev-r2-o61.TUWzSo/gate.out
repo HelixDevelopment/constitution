@@ -1,0 +1,9 @@
+CM-JEV-DETECTION ok: clause 1: record parses, schema-valid (0 endpoints)
+CM-JEV-DETECTION ok: clause 2: generated_at=1700000000 within window (>= 0)
+CM-JEV-DETECTION ok: clause 3: no materialized secrets in hosted entries
+CM-JEV-DETECTION ok: clause 4: tools provenance present (paths exist / unavailable reasoned)
+CM-JEV-DETECTION ok: clause 5: capacity.decision_instances is a number
+CM-JEV-DETECTION ok: clause 6: probe replay consistent with recorded reachability (0 claimed reachable)
+CM-JEV-DETECTION ok: clause 8: no hosted endpoint with a real key is unproven
+CM-JEV-DETECTION FAIL: contradiction: the record lists 0 endpoints but llmctl reports live decision infrastructure (service:svc-other-name) - re-run detection (§11.4.279(A), false-null §11.4.201(6))
+CM-JEV-DETECTION: RED

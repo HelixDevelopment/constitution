@@ -1,0 +1,9 @@
+# real engine, check lock_symlink
+== lock_symlink
+  ok   lock_symlink.exit_7
+  ok   lock_symlink.target_not_created
+  ok   lock_symlink.submodule_exit_7
+  ok   lock_symlink.submodule_target_not_created
+  ok   lock_symlink.control_no_link_runs
+sync-robustness: PASS 5 FAIL 0
+rc=0

@@ -1,0 +1,7 @@
+item-ascii-control C.UTF-8=0 en_US.UTF-8=0
+item-superscript-digits C.UTF-8=1 en_US.UTF-8=0  differs
+prefix-ascii-control C.UTF-8=0 en_US.UTF-8=0
+prefix-latin1-upper C.UTF-8=1 en_US.UTF-8=0  differs
+days-ascii-control C.UTF-8=0 en_US.UTF-8=0
+days-superscript C.UTF-8=1 en_US.UTF-8=1
+expiry-superscript-year C.UTF-8=1 en_US.UTF-8=1

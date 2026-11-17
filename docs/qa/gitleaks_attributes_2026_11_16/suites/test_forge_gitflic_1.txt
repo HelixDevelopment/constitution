@@ -1,0 +1,30 @@
+PASS F1 rc
+PASS F1 present on page 2
+PASS F1 auth header form
+PASS F2 rc
+PASS F2 absent
+PASS F3 rc GAP
+PASS F3 reason
+PASS F3 stopped at the cap
+PASS F4 rc
+PASS F4 created
+PASS F4 readback
+PASS F4 payload tagName
+PASS F4 payload preRelease
+PASS F4 no project archive
+PASS F5 rc FAIL
+PASS F5 reason
+PASS F6 tag sha
+PASS F6b absent tag
+PASS F7 rc
+PASS F7 updated
+PASS F7 one PUT
+PASS F8 unsafe id: rc API
+PASS F8 no PUT
+PASS F9 commitId differs: rc 1
+PASS F9 reason
+PASS F9 target shown
+PASS F9b gitflic commitId not trusted alone: rc 5
+PASS F9b echo noted
+SUMMARY: 28 passed, 0 failed
+rc=0

@@ -1,0 +1,352 @@
+[
+ {
+  "name": "Q1 note + empty comment <!-->",
+  "human": "one",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<!-->' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20 -- note: x <!-->\n"
+ },
+ {
+  "name": "Q2 note + dashes comment",
+  "human": "one",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<!-- a -- b -->' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a li",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20 -- note: x <!-- a -- b -->\n"
+ },
+ {
+  "name": "Q3 note + comment hides words",
+  "human": "one",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<!-- y -- z --> w' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a ",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20 -- note: x <!-- y -- z --> w\n"
+ },
+ {
+  "name": "Q4 note + javascript autolink",
+  "human": "one",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<javascript:alert(1)> y' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or w",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20 -- note: x x <javascript:alert(1)> y\n"
+ },
+ {
+  "name": "Q5 note + single tilde strike",
+  "human": "one",
+  "checker": "REFUSE",
+  "reason": "the line holds '~' (U+007E) after its label, outside THE LINE ALPHABET (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [
+     "element <sub>"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20 -- note: x x ~y~ z\n"
+ },
+ {
+  "name": "Q6 note + lone double star",
+  "human": "one",
+  "checker": "REFUSE",
+  "reason": "the line holds '*' (U+002A) after its label, outside THE LINE ALPHABET (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20 -- note: x **\n"
+ }
+]

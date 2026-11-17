@@ -1,0 +1,126 @@
+FAIL C1: census of this tree exit 2, universe 'none' members 'none' (want 0, PASS, >= 1500, >= 500, unclassified=0, tracked=accounted): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C1b: independent query found 643 files; not census members: docs/qa/con030_review/con030_class_repro.sh docs/qa/con030_review/review_r3_drv_ign_sub.sh docs/qa/con227_234_2026_11_11/round10/probe_sendenv_sshd.sh docs/qa/con227_234_2026_11_11/round11/make_spawn_sites.py docs/qa/con227_234_2026_11_11/round11/probe_sendenv_leak_sshd.sh 
+FAIL C1c: scripts/gates/cm_rule_binds_to_seam.sh is not HERMETIC: 
+FAIL C1c: scripts/gates/cm_rule_binds_to_seam_mutation_test.sh is not HERMETIC: 
+FAIL C1c: scripts/gates/cm_gitlink_on_remote_mutation_test.sh is not HERMETIC: 
+FAIL C1c: scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh is not HERMETIC: 
+FAIL C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh is not HERMETIC: 
+FAIL C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh is not HERMETIC: 
+FAIL C1c: scripts/fastcycle/cycle/fc_supervisor.py is not HERMETIC: 
+FAIL C1c: scripts/codegraph/scope_enumerate.js is not HERMETIC: 
+FAIL C1c: install_upstreams.sh is not HERMETIC: 
+FAIL C1c: find_constitution.sh is not HERMETIC: 
+FAIL C1c: progressive/mutation_matrix.py is not HERMETIC: 
+FAIL C1c: progressive/validate_submodule.py is not HERMETIC: 
+FAIL C1c: scripts/multitrack/multitrack_device_lock.sh is not HERMETIC: 
+FAIL C1c: docs/qa/ownership_wave2/repro_p8.sh is not HERMETIC: 
+FAIL C1c: scripts/hooks/guard-branch-consistency.sh: 
+FAIL C1c: scripts/hooks/guard-track-branch-label.sh: 
+FAIL C1c: scripts/hooks/guard-work-track-binding.sh: 
+FAIL C1d: 246 writer files found; not census members: docs/qa/con030_review/con030_class_repro.sh docs/qa/con030_review/review_r3_drv_ign_sub.sh docs/qa/con227_234_2026_11_11/round10/probe_sendenv_sshd.sh docs/qa/con227_234_2026_11_11/round11/probe_sendenv_leak_sshd.sh docs/qa/con227_234_2026_11_11/round12/probe_extra.py 
+FAIL C2a: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2b: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2c: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2d: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2e: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2f: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2g: census exit 2 (want 0 and 'exempt=2'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2g2: census exit 2 (want 1 and 'row no-git-execution, but a git write is detected'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2h: census exit 2 (want 1 and 'stale row'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2i: census exit 2 (want 1 and 'malformed'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2j: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2j2: census exit 2 (want 1 and 'discovery limit'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2k: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2l: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2m: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2m2: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2n: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2o: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2o2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2p: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2p2: census exit 2 (want 1 and 'no sourced-library row'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2p3: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2q: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2s: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2s2: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2t: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2u: census exit 2 (want 1 and 'no file-level scrub'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2v: census exit 2 (want 1 and 'is not effective'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2w: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2x: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2x2: census exit 2 (want 1 and 'row no-git-execution, but a git write is detected'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2y: census exit 2 (want 1 and 'row sourced-library, but'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2z: census exit 2 (want 1 and 'row no-git-execution, but a git write is detected'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2aa: census exit 2 (want 1 and 'row no-git-execution, but a git write is detected'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ab: census exit 2 (want 1 and 'no row in the exemption list'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ac: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ac2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ad: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ad2: census exit 2 (want 1 and 'UNSCRUBBED scripts/z.js'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ae: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ae2: census exit 2 (want 1 and 'needs its own row'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ae3: census exit 2 (want 1 and 'prefix row'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2af: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2af2: census exit 2 (want 1 and 'no list-operating clear'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ah: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ai: census exit 2 (want 1 and 'UNSCRUBBED scripts/z.js'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ai2: census exit 2 (want 1 and 'UNSCRUBBED scripts/z.js'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2ag: census exit 2 (want 0 and 'members=1 '): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4a: census exit 2 (want 1 and 'UNSCRUBBED tool.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4a2: census exit 2 (want 1 and 'UNSCRUBBED docs/qa/repro.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4b: census exit 2 (want 1 and 'UNSCRUBBED bin/run'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4b2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4c: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4c3: census exit 2 (want 1 and 'UNSCRUBBED tools/run.txt'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4c2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2mrg1: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2mrg1b: census exit 2 (want 1 and 'UNSCRUBBED tools/run.canon'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2mrg2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2mrg3: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4d: census exit 2 (want 1 and '(R4-2)'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4d2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4d3: census exit 2 (want 1 and '(R4-2)'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4e: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4e3: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4e4: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4e2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4f: census exit 2 (want 1 and 'row entry-function-scrub, but'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4f2: census exit 2 (want 1 and 'row entry-function-scrub, but'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4g: census exit 2 (want 1 and 'row entry-function-scrub, but'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4g2: census exit 2 (want 1 and 'row entry-function-scrub, but'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4h: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2r4h2: census exit 2 (want 1 and 'row subject-follows-caller, but a git write is detected'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc1: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc2: census exit 2 (want 1 and 'UNSCRUBBED scripts/evil_env.rc'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc3: census exit 2 (want 1 and 'UNSCRUBBED scripts/evil_list.ls'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc4: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc5: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc6: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc7: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc8: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc9: census exit 2 (want 1 and 'UNSCRUBBED docs/qa/r/gate.rc'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc10: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc11: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc12: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc13: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc14: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc15: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc16: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc17: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc18: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc19: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc20: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc21: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc22: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc24: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc25: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc26: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc27: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc23: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc28: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc29: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+FAIL C2rc30: census exit 2 (want 1 and 'unclassified'): git-env-class-census: BLIND - control needle: shape rule on docs/qa/a/x.rc '256\n' exec=False: got True 
+ok   C3: census exit 2, 'BLIND'
+ok   C3b: census exit 2, 'holds the discovery limit GIT_CEILING_DIRECTORIES'
+[git-env-class] passed=2 failed=123 skipped=0 (census cases only)

@@ -1,0 +1,4 @@
+P32  KILLED     by unit           10.3s  RV4-1: a malformed symbolic-ref answer (exit 0, empty) reads as a branch
+AB08 KILLED     by unit           10.3s  RV10-1: read_branch accepts a multi-line answer
+sync-mutations (no-gate): mutants 2 killed 2 equivalent 0 survived 0 harness-errors 0
+rc=0

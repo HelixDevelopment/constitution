@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""Round-3 mutant harness for the Jev S3/S4 vehicle (CON-299). Gate-logic class (§11.4.289(C)(2)): every suite runs on
+stub llmctl / stub curl only. Usage: mutants.py <repo> <outdir> [id ...]
+Each mutant = one or more exact replacements (each anchor must occur exactly once, else the mutant is INVALID and is
+reported, never silently skipped). The suite is run with nice -n 10 in its own process group; on the first 'FAIL - '
+line the group is terminated (fail-fast; the mutant is KILLED). The file is restored with `git checkout --` after
+every mutant and `git status --porcelain` must be empty again (checked).
+"""
+import os, signal, subprocess, sys, time, json
+
+REPO, OUT = sys.argv[1], sys.argv[2]
+ONLY = set(sys.argv[3:])
+S3, S4, H, LEAK = "tests/jev/test_s3_bootstrap_honesty.sh", "tests/jev/test_s4_placement.sh", \
+    "tests/jev/test_jev_status_health.sh", "tests/jev/test_run_all_leak_detector.sh"
+BS, PL, LD, ST, WG, RA = "scripts/jev/bootstrap.sh", "scripts/jev/jev-place.sh", "scripts/jev/lib_decide.sh", \
+    "scripts/jev/jev-status.sh", "scripts/gates/cm_jev_wiring.sh", "tests/jev/run_all.sh"
+REGEX_LINE = 'select(test("^\\\\s*(?:[A-Za-z_][A-Za-z0-9_]*=\\\\S*\\\\s+)*(?:(?:\\\\S*/)?(?:ba|z|da)?sh\\\\s+)?[\\"\\u0027]?(?:[^\\\\s\\"\\u0027]*/)?jev-gate\\\\.sh[\\"\\u0027]?(?:\\\\s|$)"))]'
+
+M = [
+ # ---- reviewer round-2 mutants X1..X19 (re-expressed on the round-3 code) ----
+ ("X1", "PROBE_SIG ignores local health endpoints", S3, [(BS, '      health) sig="${sig}${_pid}=$(probe_http_memo "${_purl%/}/healthz" "$_pca");" ;;', '      health) : ;;')]),
+ ("X2", "auth probe memo never hits", S3, [(BS, 'k="a|$1|$2|${3:-}|${4:-}"', 'k="a|$1|$2|${3:-}|${4:-}|$RANDOM$RANDOM"')]),
+ ("X3", "PROBE_SIG selects no endpoint", S3, [(BS, '.endpoints[] | select((.reachable_basis // "") == "probe")', '.endpoints[] | select(false)')]),
+ ("X4", "failed stop drops the stop mark", S4, [(PL, """'.sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")"\n    printf '%s\\n' "$cur" | leases_save\n    write_placement "$1\"""", """'.sets[$p].stop_failed = {at:$now, rc:$rc} | .sets[$p].stopping = null' <<<"$cur")"\n    printf '%s\\n' "$cur" | leases_save\n    write_placement "$1\"""")]),
+ ("X5", "failed stop exits 0", S4, [(PL, 'rrc=6; fi', 'rrc=0; fi')]),
+ ("X6", "proc_start reads field 23 (vsize) not 22", S4, [(PL, """printf '%s\\n' "${20:-}\"""", """printf '%s\\n' "${21:-}\"""")]),
+ ("X7", "empty-cmdline (zombie) check removed", S4, [(PL, """[ -n "$(head -c 64 "/proc/$pid/cmdline" 2>/dev/null | tr -d '\\0')" ] || return 1""", 'true')]),
+ ("X8", "stop mark cleared while the stopper is alive", S4, [(PL, 'if [ "$arc" = 1 ] || [', 'if [ "$arc" = 0 ] || [ "$arc" = 1 ] || [')]),
+ ("X9", "release stops only the first set", S4, [(PL, """    echo "$prof"\n  done < <(jq -r '.sets | to_entries[] | select((.value.leases | length) == 0""", """    echo "$prof"; break\n  done < <(jq -r '.sets | to_entries[] | select((.value.leases | length) == 0""")]),
+ ("X10", "join skips the degraded re-check", S4, [(PL, 'if [ "$us" = degraded ]; then', 'if false; then')]),
+ ("X11", "start failure stored as the verdict", S4, [(PL, 'out_v="$v"; out_ev="start_failed"', 'out_v="start_failed"; out_ev="start_failed"')]),
+ ("X11b", "verdict closed-set guard removed (paired with X11)", S4, [(PL, 'out_v="$v"; out_ev="start_failed"', 'out_v="start_failed"; out_ev="start_failed"'), (PL, """*) log "internal: verdict '$2' outside the closed set"; return 2 ;; esac""", '*) ;; esac')]),
+ ("X12", "llmctl enable sent after a successful start", S4, [(PL, 'log "started $p ($v, threads=$th)', 'bounded "$STMO" "$WORK/en.out" "$LLMCTL" enable "$p" || true; log "started $p ($v, threads=$th)')]),
+ ("X13", "health ts not normalised from ms", H, [(ST, 'if . > 100000000000 then (. / 1000 | floor) else . end', '.')]),
+ ("X14", "only the last attempt counted", H, [(ST, 'then .attempts[] |', 'then .attempts[-1] |')]),
+ ("X15", "wired for any hook event", H, [(LD, '.hooks.PreToolUse[]?', '.hooks[]?[]?')]),
+ ("X16", "jev-gate substring match (the round-2 matcher)", H, [(LD, REGEX_LINE, 'select(test("jev-gate"))]')]),
+ ("X17", "cm_jev_wiring: hook = settings file exists", H, [(WG, 'jev_settings_wired "$_cd/settings.json" && _hook=1', '[ -f "$_cd/settings.json" ] && _hook=1')]),
+ ("X18", "join does not re-register the cache", S4, [(PL, 'cache_register "$prof"\n    log "lease joined:', 'log "lease joined:')]),
+ ("X19", "run_all leak detector blinded", LEAK, [(RA, 'SRV_PATH="$HERE/fixtures/jev_server.py"', 'SRV_PATH="$HERE/fixtures/jev_server.py.none"')]),
+ # ---- round-3 own mutants on the new logic ----
+ ("N1", "probe signature not recomputed after the record is written", S3, [(BS, '  PROBE_SIG="$(compute_probe_sig "$DETECTION_FILE")"\n  awk -F', '  awk -F')]),
+ ("N2", "stage key not re-stamped after the record is written", S3, [(BS, """  awk -F'\\t' -v n="detect-models" -v k="$(digest "$(s3_key)")" 'BEGIN{OFS="\\t"} $1==n && $2!="tainted-retry"{$2=k} {print}' "$WORK/new.tsv" > "$WORK/new.tsv.t" && mv "$WORK/new.tsv.t" "$WORK/new.tsv"\n  if [ "${endpoints_count""", '  if [ "${endpoints_count')]),
+ ("N3", "signature fields joined with TAB again", S3, [(BS, "while IFS=$'\\x1f' read -r _pid", "while IFS=$'\\t' read -r _pid"), (BS, 'join("\\u001f")\' "$f"', 'join("\\t")\' "$f"')]),
+ ("N4", "re-stamp overwrites a tainted-retry stage", S3, [(BS, '$1==n && $2!="tainted-retry"{$2=k}', '$1==n{$2=k}')]),
+ ("N5", "failed-start set not saved", S4, [(PL, """        printf '%s\\n' "$cur" | leases_save\n        out_r="llmctl start $p failed rc=$src; cleanup""", '        out_r="llmctl start $p failed rc=$src; cleanup')]),
+ ("N6", "join query does not exclude start_failed sets", S4, [(PL, 'and (.value.start_failed // null) == null and ((.value.leases', 'and ((.value.leases')]),
+ ("N7", "acquire never retries the stop of a failed-start set", S4, [(PL, "select((.value.start_failed // null) != null and (.value.stopping // null) == null and (.value.leases | length) == 0) | .key' <<<\"$cur\")", "select(false) | .key' <<<\"$cur\")")]),
+ ("N8", "candidate with an existing set is not skipped", S4, [(PL, """if jq -e --arg p "$p" '.sets[$p] != null' <<<"$cur" >/dev/null; then""", 'if false; then')]),
+ ("N9", "join allow-list widened to undetermined/does_not_fit", S4, [(PL, 'case "$v" in fits|fits_with_reduced_threads) ;; *)\n      write_placement "$prof"', 'case "$v" in fits|fits_with_reduced_threads|undetermined|does_not_fit) ;; *)\n      write_placement "$prof"')]),
+ ("N10", "join unit-status allow-list removed", S4, [(PL, 'case "$us" in running|active) ;; *)\n      write_placement "$prof" "$v" "join refused: unit status', 'case "$us" in *) ;; xx)\n      write_placement "$prof" "$v" "join refused: unit status')]),
+ ("N11", "join proceeds when capacity is unreadable", S4, [(PL, 'if [ "$st" != ok ]; then\n      write_placement "$prof" "undetermined" "join refused:', 'if false; then\n      write_placement "$prof" "undetermined" "join refused:')]),
+ ("N12", "stop mark without a pid treated as a dead stopper", S4, [(PL, 'arc=0; if [ "$spid" != "null" ] && [ -n "$spid" ]; then pid_alive "$spid" "$sst" || arc=$?; fi', 'arc=0; pid_alive "$spid" "$sst" || arc=$?')]),
+ ("N13", "event closed-set guard removed", S4, [(PL, """*) log "internal: event '${7:-}' outside the closed set"; return 2 ;; esac""", '*) ;; esac')]),
+ ("N14", "release does not stop a failed-start set", S4, [(PL, "select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null) | .key' <<<\"$cur\")\n  # an empty set", "select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null and (.value.start_failed // null) == null) | .key' <<<\"$cur\")\n  # an empty set")]),
+ ("N15", "failed-start set recorded as not constitution-started", S4, [(PL, "'.sets[$p] = {constitution_started:true, started_at:$now, stopping:null, leases:[], start_failed", "'.sets[$p] = {constitution_started:false, started_at:$now, stopping:null, leases:[], start_failed")]),
+ ("N16", "successful retry stop does not remove the set", S4, [(PL, """cur="$(jq -c --arg p "$fprof" 'del(.sets[$p])' <<<"$cur")\"""", ':')]),
+ ("N17", "matcher: basename anchor loosened (any prefix)", H, [(LD, '(?:[^\\\\s\\"\\u0027]*/)?jev-gate', '(?:\\\\S*)?jev-gate')]),
+ ("N18", "matcher: interpreter prefix dropped", H, [(LD, '(?:(?:\\\\S*/)?(?:ba|z|da)?sh\\\\s+)?', '')]),
+ ("N19", "matcher: env-assignment prefix dropped", H, [(LD, '(?:[A-Za-z_][A-Za-z0-9_]*=\\\\S*\\\\s+)*', '')]),
+ ("N20", "matcher: trailing word-end anchor dropped", H, [(LD, 'jev-gate\\\\.sh[\\"\\u0027]?(?:\\\\s|$)"))]', 'jev-gate\\\\.sh"))]')]),
+ ("N21", "run_all: a leak does not fail the test", LEAK, [(RA, """trc=1; printf '%s\\n' "     LEAK""", """trc=0; printf '%s\\n' "     LEAK""")]),
+ ("N22", "run_all: a leaked server is not killed", LEAK, [(RA, '[ -n "$lp" ] && kill "$lp" 2>/dev/null', ':')]),
+]
+
+def sh(*a, **k):
+    return subprocess.run(list(a), cwd=REPO, capture_output=True, text=True, **k)
+
+def run_suite(suite, log):
+    env = dict(os.environ)
+    tmp = os.path.join(OUT, "tmp"); os.makedirs(tmp, exist_ok=True); env["TMPDIR"] = tmp
+    p = subprocess.Popen(["nice", "-n", "10", "timeout", "900", "bash", suite], cwd=REPO, env=env,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+    first_fail, lines = None, []
+    for line in p.stdout:
+        lines.append(line)
+        if first_fail is None and line.startswith("FAIL - "):
+            first_fail = line.strip()
+            pg = os.getpgid(p.pid)
+            if isinstance(pg, int) and pg > 1 and pg == p.pid:   # our own new session only (§11.4.263)
+                os.killpg(pg, signal.SIGTERM)
+            break
+    try:
+        rc = p.wait(timeout=120)
+    except subprocess.TimeoutExpired:
+        pg = p.pid
+        if pg > 1: os.killpg(pg, signal.SIGKILL)
+        rc = p.wait()
+    with open(log, "w") as f: f.writelines(lines)
+    summary = next((l.strip() for l in reversed(lines) if l.startswith("# test_")), "")
+    return rc, first_fail, summary
+
+results = []
+for mid, desc, suite, edits in M:
+    if ONLY and mid not in ONLY: continue
+    files = sorted({e[0] for e in edits})
+    status = "INVALID"
+    detail = ""
+    try:
+        for path, old, new in edits:
+            fp = os.path.join(REPO, path)
+            s = open(fp).read()
+            n = s.count(old)
+            if n != 1:
+                detail = f"anchor count {n} in {path}"; raise ValueError(detail)
+            open(fp, "w").write(s.replace(old, new))
+        if os.environ.get("MUT_DRY"):
+            status = "VALID"; raise ValueError("dry")
+        t0 = time.time()
+        rc, ff, summ = run_suite(suite, os.path.join(OUT, f"{mid}.log"))
+        dt = int(time.time() - t0)
+        if ff or rc != 0:
+            status = "KILLED"; detail = (ff or f"rc={rc} {summ}")[:200]
+        else:
+            status = "SURVIVED"; detail = summ
+        detail += f" ({dt}s)"
+    except ValueError:
+        pass
+    finally:
+        sh("git", "checkout", "--", *files)
+        dirty = sh("git", "status", "--porcelain").stdout.strip()
+        if dirty:
+            print(f"ABORT: tree not clean after {mid}: {dirty}", flush=True); sys.exit(3)
+    results.append({"id": mid, "desc": desc, "suite": os.path.basename(suite), "status": status, "detail": detail})
+    print(f"{mid}\t{status}\t{os.path.basename(suite)}\t{desc}\t{detail}", flush=True)
+
+with open(os.path.join(OUT, "results.json"), "a") as f:
+    for r in results: f.write(json.dumps(r, ensure_ascii=False) + "\n")

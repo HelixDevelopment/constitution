@@ -1,0 +1,4 @@
+real rc 1 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: FAIL sub — staged pin 197f154 is an ANCESTOR of the base pin 17f8bb8 (downgrade; waiver: authoriser 'ΐ' is the committer or author (producer cannot self-waive)). Advan
+mutant rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub 17f8bb8 -> 197f154 (waiver row bound to parent 50b01056dea0 in index :.submodule_pin_waivers)
+real-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub 17f8bb8 -> 197f154 (waiver row bound to parent 50b01056dea0 in index :.submodule_pin_waivers)
+mutant-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub 17f8bb8 -> 197f154 (waiver row bound to parent 50b01056dea0 in index :.submodule_pin_waivers)

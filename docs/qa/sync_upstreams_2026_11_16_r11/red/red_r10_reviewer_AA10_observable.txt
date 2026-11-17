@@ -1,0 +1,26 @@
+== repo
+--check rc 3
+REPORT_JSON=/mnt/DATA1TB/claude-work/scratch/rev_sync_r10.nAYA/probes/mop.cc7k20_i/o--check/sync_report.json
+CANONICAL_SHA256=b1874b223c71cbdb7a3beac7e8e8184eb7a99cbe13af95063cdb35c6c954bc93
+RESULT: UPDATES-AVAILABLE exit=3
+
+sync_report.tsv 'path\tkind\tdepth\tinitialised\tbranch\thead_before\thead_after\ttarget\tupstream_state\tlocal_vs_target\tpin_state\tpin_behind_main\town_org\tresult\treasons\tremotes\n.\troot\t0\ttrue\tmain\t20181e2560d7f154e5d8ebaff270ef62877f4f7d\t20181e2560d7f154e5d8ebaff270ef62877f4f7d\t8d8bce0dc0c0705e843146af0872d0ba977afcf8\tlinear\tbehind\t-\t-\t-\tbehind\t-\torigin=behind:0/1\n'
+--apply rc 0
+REPORT_JSON=/mnt/DATA1TB/claude-work/scratch/rev_sync_r10.nAYA/probes/mop.cc7k20_i/o--apply/sync_report.json
+CANONICAL_SHA256=93b865b4d2654e31a11299a946afaedad0d4da0d14ec2b249d9e5e153cc2aa42
+RESULT: APPLIED exit=0
+
+sync_report.tsv 'path\tkind\tdepth\tinitialised\tbranch\thead_before\thead_after\ttarget\tupstream_state\tlocal_vs_target\tpin_state\tpin_behind_main\town_org\tresult\treasons\tremotes\n.\troot\t0\ttrue\tmain\t20181e2560d7f154e5d8ebaff270ef62877f4f7d\t8d8bce0dc0c0705e843146af0872d0ba977afcf8\t8d8bce0dc0c0705e843146af0872d0ba977afcf8\tlinear\tbehind\t-\t-\t-\tupdated\t-\torigin=behind:0/1\n'
+== mut/AA10
+--check rc 3
+REPORT_JSON=/mnt/DATA1TB/claude-work/scratch/rev_sync_r10.nAYA/probes/mop.8oigr6lp/o--check/sync_report.json
+CANONICAL_SHA256=2ad880a9e226341726fde4d27847a442712c8ae80b65061cf85082b3b7b46f71
+RESULT: UPDATES-AVAILABLE exit=3
+
+sync_report.tsv 'path\tkind\tdepth\tinitialised\tbranch\thead_before\thead_after\ttarget\tupstream_state\tlocal_vs_target\tpin_state\tpin_behind_main\town_org\tresult\treasons\tremotes\n.\troot\t0\ttrue\tmain\t9e9bda78e9e4b186f4450f2b65696a223d4d3f5c\t9e9bda78e9e4b186f4450f2b65696a223d4d3f5c\t248cfb5135ef427f88dc75b06f843333f5911c6b\tlinear\tbehind\t-\t-\t-\tbehind\t-\torigin=behind:0/1\n'
+--apply rc 0
+REPORT_JSON=/mnt/DATA1TB/claude-work/scratch/rev_sync_r10.nAYA/probes/mop.8oigr6lp/o--apply/sync_report.json
+CANONICAL_SHA256=52d04911f822d7ca2b20d2fe4ef25bae6c8a156cbea96c64f2ccdff3f30cedc2
+RESULT: APPLIED exit=0
+
+sync_report.tsv 'path\tkind\tdepth\tinitialised\tbranch\thead_before\thead_after\ttarget\tupstream_state\tlocal_vs_target\tpin_state\tpin_behind_main\town_org\tresult\treasons\tremotes\n.\troot\t0\ttrue\tmain\t9e9bda78e9e4b186f4450f2b65696a223d4d3f5c\t248cfb5135ef427f88dc75b06f843333f5911c6b\t248cfb5135ef427f88dc75b06f843333f5911c6b\tlinear\tbehind\t-\t-\t-\tupdated\t-\torigin=behind:0/1\n'

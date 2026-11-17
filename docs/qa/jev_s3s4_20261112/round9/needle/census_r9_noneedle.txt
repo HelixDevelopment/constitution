@@ -1,0 +1,1 @@
+mark_census: processes=4 checked_stops=2 checked_starts=0 violations=0

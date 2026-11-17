@@ -1,0 +1,16 @@
+ok   L1: the gate and the mutation test clear the same 29 variables
+ok   L2: the gate's list holds all 29 required names
+ok   L3: neither list clears a discovery limit (GIT_CEILING_DIRECTORIES GIT_DISCOVERY_ACROSS_FILESYSTEM)
+ok   E1: gate exit 0, 'PASS'
+ok   E1: the sentinel is unchanged
+ok   E1: the inspected fixture is unchanged
+ok   E2: gate exit 0, 'PASS'
+ok   E2: the sentinel is unchanged
+ok   E2: the inspected fixture is unchanged
+ok   E3: gate exit 1, 'census file without manifest row: tests/a/test_registry_login.sh'
+ok   E3: the sentinel is unchanged
+ok   E3: the inspected fixture is unchanged
+ok   E4: the paired mutation test stays valid under every variable
+ok   E4: the sentinel is unchanged after the paired mutation test
+[git-env] passed=14 failed=0
+rc=0

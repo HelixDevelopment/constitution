@@ -1,0 +1,74 @@
+control needle: def write_git found 1 (want 1); write_markerX calls 0 (want 0)
+control needle R5: os.open calls 6 (want >= 1); os.openX calls 0 (want 0)
+
+== write paths: r.run(..., write=True) (3)
+  line 1534  in write_git    token=tok from begin_write
+  line 1536  in write_git    token=tok from begin_write
+  line 1580  in write_git    token=tok2 from begin_write
+
+== marker calls (5)
+  line 968  write_marker in begin_write
+  line 974  clear_marker in begin_write
+  line 916  clear_marker in write_marker
+  line 989  clear_marker in end_write
+  line 2063  clear_marker in run
+
+== R4 token checked at the spawn choke point: yes
+
+== filesystem operations (21)
+  line 1778  tempfile.mkstemp in write_atomic
+  line 734  os.lstat         in path_kind
+  line 866  os.open          in read_marker
+  line 883  os.open          in marker_write_id
+  line 903  os.open          in write_marker
+  line 1756  os.lstat         in evidence_file_ours
+  line 1784  os.replace       in write_atomic
+  line 1805  os.open          in __init__
+  line 1947  os.makedirs      in main
+  line 1948  tempfile.mkstemp in main
+  line 1950  os.unlink        in main
+  line 1970  os.open          in main
+  line 2201  os.makedirs      in run
+  line 925  os.unlink        in clear_marker
+  line 1086  open             in fetched_branches
+  line 1766  open             in evidence_file_ours
+  line 1780  os.fdopen        in write_atomic
+  line 2018  os.open          in lock_repositories
+  line 1787  os.unlink        in write_atomic
+  line 2153  os.path.isfile   in run
+  line 2154  os.path.isfile   in run
+
+== lock sets: write subcommands ['add', 'checkout', 'merge']; GITDIR_LOCKS {}; COMMON_LOCKS {}; OP_GIT {}
+
+== violations (29)
+  R3 line 916: clear_marker called in write_marker
+  R5 line 1778: tempfile.mkstemp outside the path access layer (in write_atomic)
+  R5 line 866: os.open outside the path access layer (in read_marker)
+  R5 line 883: os.open outside the path access layer (in marker_write_id)
+  R5 line 903: os.open outside the path access layer (in write_marker)
+  R5 line 1756: os.lstat outside the path access layer (in evidence_file_ours)
+  R5 line 1784: os.replace outside the path access layer (in write_atomic)
+  R5 line 1805: os.open outside the path access layer (in __init__)
+  R5 line 1947: os.makedirs outside the path access layer (in main)
+  R5 line 1948: tempfile.mkstemp outside the path access layer (in main)
+  R5 line 1950: os.unlink outside the path access layer (in main)
+  R5 line 1970: os.open outside the path access layer (in main)
+  R5 line 2201: os.makedirs outside the path access layer (in run)
+  R5 line 925: os.unlink outside the path access layer (in clear_marker)
+  R5 line 1086: open outside the path access layer (in fetched_branches)
+  R5 line 1766: open outside the path access layer (in evidence_file_ours)
+  R5 line 1780: os.fdopen outside the path access layer (in write_atomic)
+  R5 line 2018: os.open outside the path access layer (in lock_repositories)
+  R5 line 1787: os.unlink outside the path access layer (in write_atomic)
+  R5 line 2153: os.path.isfile outside the path access layer (in run)
+  R5 line 2154: os.path.isfile outside the path access layer (in run)
+  R6 write subcommand 'add' has no lock set
+  R6 write subcommand 'checkout' has no lock set
+  R6 write subcommand 'merge' has no lock set
+  R6 OP_GIT missing
+  R6 in_progress does not read its locks from lock_paths
+  R7 line 1539: end_write called without a settled argument
+  R7 line 1582: end_write called without a settled argument
+  R7 end_write clears the marker without a settled test and a marker_write_id check
+
+INSTRUMENT: SEES

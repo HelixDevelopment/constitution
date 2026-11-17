@@ -1,0 +1,14 @@
+old gen-strip-a8ce0752e7 rc=0
+old gen-strip-38f694f31b rc=0
+old RV8-01 rc=0
+old RV8-02 rc=0
+old gen-rxq-9efb96babf rc=0
+old gen-rxq-07a5aa0cf0 rc=0
+old gen-andor-3d5462c23c rc=0
+new RV8-01 rc=1
+new RV8-02 rc=1
+new gen-strip-38f694f31b rc=1
+new gen-strip-a8ce0752e7 rc=1
+new gen-rxq-9efb96babf rc=1
+new gen-rxq-07a5aa0cf0 rc=1
+new gen-andor-3d5462c23c rc=1

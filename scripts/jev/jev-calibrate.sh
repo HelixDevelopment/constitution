@@ -44,6 +44,7 @@
 #        provider alias <A> run headless through cma_run_provider (sourced from
 #        JEV_CALIBRATE_ALIAS_FILE or the toolkit default alias file).
 #   JEV_CALIBRATE_ALIAS_FILE  alias file defining cma_run_provider
+#   MAIN_LLM_ALIAS (labeling alias; also read from $JEV_CONFIG_DIR/env or the file $JEV_CONFIG_DIR/main_llm_alias)
 #   JEV_CALIBRATE_FLOOR (default 0.90), JEV_CALIBRATE_MIN_SAMPLE (default 30)
 #   JEV_NOW_EPOCH (deterministic-clock seam, honoured ONLY with JEV_TEST=1)
 
@@ -58,7 +59,7 @@ MIN_SAMPLE="${JEV_CALIBRATE_MIN_SAMPLE:-30}"
 
 SAMPLE=50
 ONLY_TYPE=""
-ALIAS="claude"
+ALIAS=""; ALIAS_SOURCE=""
 DRY_RUN=0
 need_val() { [ "$1" -ge 2 ] || { echo "jev-calibrate: $2 needs a value" >&2; exit 2; }; }
 while [ $# -gt 0 ]; do
@@ -66,7 +67,7 @@ while [ $# -gt 0 ]; do
     --now) shift ;;
     --sample) need_val $# "$1"; SAMPLE="$2"; shift 2 ;;
     --question-type) need_val $# "$1"; ONLY_TYPE="$2"; shift 2 ;;
-    --alias) need_val $# "$1"; ALIAS="$2"; shift 2 ;;
+    --alias) need_val $# "$1"; ALIAS="$2"; ALIAS_SOURCE="arg"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
     --help|-h) sed -n '2,/^set -euo/p' "$0" | sed '$d; s/^# \{0,1\}//' >&2; exit 0 ;;
     *) echo "jev-calibrate: unknown argument: $1" >&2; exit 2 ;;
@@ -76,7 +77,16 @@ case "$SAMPLE" in ''|*[!0-9]*) echo "jev-calibrate: --sample must be a positive 
 [ "$SAMPLE" -ge 1 ] || { echo "jev-calibrate: --sample must be >= 1" >&2; exit 2; }
 case "$MIN_SAMPLE" in ''|*[!0-9]*) echo "jev-calibrate: JEV_CALIBRATE_MIN_SAMPLE must be an integer" >&2; exit 2 ;; esac
 case "$FLOOR" in ''|*[!0-9.]*) echo "jev-calibrate: JEV_CALIBRATE_FLOOR must be a number" >&2; exit 2 ;; esac
-case "$ALIAS" in *[!A-Za-z0-9._-]*|"") echo "jev-calibrate: --alias must be a plain alias name" >&2; exit 2 ;; esac
+# main-LLM alias discovery (2026-11-12): --alias > MAIN_LLM_ALIAS (env) > MAIN_LLM_ALIAS in $JEV_CONFIG_DIR/env > $JEV_CONFIG_DIR/main_llm_alias (first line) > "claude".
+# The record (main_llm_alias {name, source}) names the alias AND where it came from; nothing is guessed silently.
+if [ -z "$ALIAS_SOURCE" ]; then
+  _envfile_alias=""; [ -f "$JEV_CONFIG_DIR/env" ] && _envfile_alias="$(jev_env_get "$JEV_CONFIG_DIR/env" MAIN_LLM_ALIAS 2>/dev/null || true)"
+  if [ -n "${MAIN_LLM_ALIAS:-}" ]; then ALIAS="$MAIN_LLM_ALIAS"; ALIAS_SOURCE="env:MAIN_LLM_ALIAS"
+  elif [ -n "$_envfile_alias" ]; then ALIAS="$_envfile_alias"; ALIAS_SOURCE="envfile:MAIN_LLM_ALIAS"
+  elif [ -s "$JEV_CONFIG_DIR/main_llm_alias" ]; then ALIAS="$(head -n1 "$JEV_CONFIG_DIR/main_llm_alias" | tr -d '\r')"; ALIAS_SOURCE="file:$JEV_CONFIG_DIR/main_llm_alias"
+  else ALIAS="claude"; ALIAS_SOURCE="default"; fi
+fi
+case "$ALIAS" in *[!A-Za-z0-9._-]*|"") echo "jev-calibrate: the main-LLM alias ($ALIAS_SOURCE) must be a plain alias name" >&2; exit 2 ;; esac
 
 command -v jq >/dev/null 2>&1 || { echo "jev-calibrate: jq is required (JSON parsing); cannot determine (rc 2)" >&2; exit 2; }
 
@@ -104,13 +114,14 @@ fi
 TMPD="$(mktemp -d)"
 trap 'rm -rf "$TMPD"' EXIT
 
-# Calibratable rows -> ts \t type \t conf \t prompt-json(compact, no TAB/NL) \t answer
+# Calibratable rows -> ts \t type \t conf \t prompt-json(compact, no TAB/NL) \t answer \t endpoint|model
 jq -r '
   select((.question | type) == "string" and (.criteria | type) == "object"
          and ((.state_text | type) == "string" or (.label_hint | type) == "string"))
   | [ (.ts // 0), (.question_type // .question), (.confidence // 0),
       ({question: .question, criteria: .criteria, state_text: (.state_text // ""), label_hint: (.label_hint // "")} | tojson),
-      (.answer | tostring) ]
+      (.answer | tostring),
+      ("\(.endpoint // .provider_id // "unknown")|\(.model // "unknown")") ]
   | map(tostring | gsub("[\t\n\r]"; " ")) | join("\t")' "$DECISIONS" > "$TMPD/all.tsv" 2>/dev/null || : > "$TMPD/all.tsv"
 TOTAL_ROWS="$(grep -c . "$DECISIONS" || true)"
 CAL_ROWS="$(grep -c . "$TMPD/all.tsv" || true)"
@@ -149,9 +160,9 @@ while IFS= read -r type; do
   k=$(( n_total / SAMPLE )); [ "$k" -lt 1 ] && k=1
   awk -v k="$k" '(NR - 1) % k == 0' "$TMPD/type.tsv" > "$TMPD/sample.tsv"
 
-  : > "$TMPD/labeled.tsv"   # conf \t agree(0|1)
+  : > "$TMPD/labeled.tsv"   # conf \t agree(0|1) \t endpoint|model
   n_labeled=0; n_errors=0
-  while IFS=$'\t' read -r _ts _qt conf prompt answer; do
+  while IFS=$'\x1f' read -r _ts _qt conf prompt answer epm; do
     # LABEL_CMD is a command template: intentional word splitting via eval of a
     # string the OPERATOR supplied (env/arg), never of decision data.
     out="$(printf '%s' "$prompt" | bash -c "$LABEL_CMD" 2>/dev/null || true)"
@@ -162,8 +173,8 @@ while IFS= read -r type; do
     fi
     n_labeled=$((n_labeled + 1))
     agree=0; [ "$label" = "$answer" ] && agree=1
-    printf '%s\t%s\n' "$conf" "$agree" >> "$TMPD/labeled.tsv"
-  done < "$TMPD/sample.tsv"
+    printf '%s\t%s\t%s\n' "$conf" "$agree" "${epm:-unknown|unknown}" >> "$TMPD/labeled.tsv"
+  done < <(tr '\t' '\037' < "$TMPD/sample.tsv")
 
   read -r agreement rec_threshold <<<"$(awk -F'\t' -v floor="$FLOOR" '
     { bin = int($1 * 10); if (bin > 9) bin = 9; if (bin < 0) bin = 0;
@@ -198,12 +209,32 @@ while IFS= read -r type; do
             --arg mode "$mode" --arg reason "$reason" \
             '{threshold:$thr, n:$n, label_errors:$le, agreement:$agr, floor:$floor, promoted:$promoted, mode:$mode, reason:$reason}')"
   printf '%s\t%s\n' "$type" "$frag" >> "$TMPD/frags.tsv"
+  # per (endpoint, model): the SAME labelled sample split by the endpoint|model that answered; each group earns enforce on
+  # its own (n >= min sample AND a bin >= floor), so a model that agrees on one endpoint never promotes another
+  cut -f3 "$TMPD/labeled.tsv" | sort -u | while IFS= read -r g; do
+    [ -n "$g" ] || continue
+    awk -F'\t' -v g="$g" -v floor="$FLOOR" -v min="$MIN_SAMPLE" '
+      $3 == g { bin = int($1 * 10); if (bin > 9) bin = 9; if (bin < 0) bin = 0; n[bin]++; hits[bin] += $2; tot++; hs += $2 }
+      END { rec = "null"; for (b = 0; b <= 9; b++) if (n[b] > 0 && hits[b] / n[b] >= floor + 0) { rec = sprintf("%.1f", b / 10); break }
+            printf("%d %.4f %s\n", tot, (tot ? hs / tot : 0), rec) }' "$TMPD/labeled.tsv" > "$TMPD/g.txt"
+    read -r gn gagr gthr < "$TMPD/g.txt"
+    gmode=shadow; greason=""
+    if [ "$gn" -lt "$MIN_SAMPLE" ]; then greason="insufficient-sample ($gn < $MIN_SAMPLE)"
+    elif [ "$gthr" = "null" ]; then greason="no-confidence-bin-meets-floor ($FLOOR)"
+    else gmode=enforce; fi
+    jq -cn --arg g "$g" --arg t "$type" --argjson thr "$gthr" --argjson n "$gn" --argjson agr "$gagr" --arg mode "$gmode" --arg reason "$greason" \
+      '{group:$g, type:$t, value:{threshold:$thr, n:$n, agreement:$agr, promoted:($mode=="enforce"), mode:$mode, reason:$reason}}' >> "$TMPD/epfrags.jsonl"
+  done
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$type" "$n_labeled" "$agreement" "$rec_threshold" "$promoted" "$reason" >> "$TMPD/report.tsv"
 done < "$TMPD/types.txt"
 
+touch "$TMPD/epfrags.jsonl"
 OUTPUT="$(jq -Rn --argjson now "$NOW" --argjson floor "$FLOOR" --argjson min "$MIN_SAMPLE" --argjson sample "$SAMPLE" \
   '{version:1, calibrated_at:$now, floor:$floor, min_sample:$min, sample_per_type:$sample,
     per_type: ([inputs | split("\t") | {key:.[0], value:(.[1] | fromjson)}] | from_entries)}' < "$TMPD/frags.tsv")"
+OUTPUT="$(jq -c --slurpfile ep "$TMPD/epfrags.jsonl" --arg an "$ALIAS" --arg as "$ALIAS_SOURCE" \
+  '. + {main_llm_alias:{name:$an, source:$as},
+        per_endpoint:(reduce $ep[] as $f ({}; .[$f.group][$f.type] = $f.value))}' <<<"$OUTPUT")"
 
 write_thresholds() { # atomic write (through a symlink); the previous file is kept as .<epoch>.json, newest 5 copies only
   local target="$1" dir c n=0
@@ -226,11 +257,11 @@ fi
 
 echo "jev-calibrate report (calibrated_at=$NOW floor=$FLOOR min_sample=$MIN_SAMPLE sample=$SAMPLE)"
 echo "  sampling: deterministic sorted-ts every-k-th; rows skipped as uncalibratable: $SKIPPED of $TOTAL_ROWS"
-while IFS=$'\t' read -r t n agr thr prom reason; do
+while IFS=$'\x1f' read -r t n agr thr prom reason; do
   line="  - $t: n=$n agreement=$agr recommended_threshold=$thr promoted=$prom"
   [ -n "$reason" ] && line="$line ($reason)"
   echo "$line"
-done < "$TMPD/report.tsv"
+done < <(tr '\t' '\037' < "$TMPD/report.tsv")
 [ -n "$DEMOTED" ] && echo "  DEMOTED (reverted to shadow): $DEMOTED"
 [ "$DRY_RUN" = "1" ] && echo "  (dry-run: no files written)"
 exit 0

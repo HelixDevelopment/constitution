@@ -1,0 +1,11 @@
+# bash boundary probes, GNU bash, version 5.3.9(1)-release (x86_64-pc-linux-gnu)
+## env IFS=_ is not inherited
+IFS=$' \t\n'
+## quoted / escaped function names are refused in a definition
+'_fc_safe'() { :; } -> /usr/bin/bash: line 1: `'_fc_safe'': not a valid identifier 
+"_fc_safe"() { :; } -> /usr/bin/bash: line 1: `"_fc_safe"': not a valid identifier 
+\_fc_safe() { :; } -> /usr/bin/bash: line 1: `\_fc_safe': not a valid identifier 
+_fc_s\afe() { :; } -> /usr/bin/bash: line 1: `_fc_s\afe': not a valid identifier 
+## exported BASH_FUNC_unset%% shadows the builtin
+SHADOW x
+x=1

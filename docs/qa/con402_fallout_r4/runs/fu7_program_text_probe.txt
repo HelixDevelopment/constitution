@@ -1,0 +1,4 @@
+# safepath census, one line inserted after the canonical line of baseline_replay.sh (2026-11-17, head = round-4 worktree)
+dollarq_cr    bash -c $'\r#;:'  rc=1 VIOLATION :299 <top> bash -- bash runs text the census cannot see (fail-closed)
+dollarq_plain bash -c $':'      rc=1 VIOLATION :299 <top> bash -- bash runs text the census cannot see (fail-closed)
+literal_c     bash -c ':'       rc=1 VIOLATION :299 <top> bash -- bash runs text the census cannot see (fail-closed)
