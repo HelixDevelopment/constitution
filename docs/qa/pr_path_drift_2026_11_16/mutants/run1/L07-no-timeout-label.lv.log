@@ -1,0 +1,19 @@
+PASS D1 badge drift check FAIL refuses publish (rc=1)
+PASS D1 no remote moved; tsv badges=FAIL gate-env-allowlist=PASS
+PASS D2 passing drift checks publish
+PASS D2 landed on all remotes; argv recorded; tsv PASS/PASS
+PASS D3 env-allowlist drift check FAIL refuses publish (rc=1)
+PASS D3 no remote moved; tsv gate-env-allowlist=FAIL
+PASS D4 repository without drift-check scripts publishes
+PASS D4 tsv rows not-applicable, landed
+PASS D5 deleting a required check script refuses publish (rc=1)
+PASS D5 no remote moved; tsv FAIL-script-missing; the deleted script never ran
+PASS D6 a check that dirties the clone refuses publish (rc=1)
+PASS D6 no remote moved; dirty tree named
+PASS D7 a check added by the vehicle is required and its FAIL refuses (rc=1)
+PASS D7 the vehicle-added check ran and failed
+PASS D8 prepare printout names the badge check and the env-allowlist gate
+PASS D9 a drift check that times out refuses publish (rc=1)
+FAIL D9 remotes/tsv/timeout (row=FAIL rc=124 argv=[900] dt=2s)
+
+RESULT pass=16 fail=1 (failfast)

@@ -1,0 +1,86 @@
+package main
+
+// zz_m05_equivalence_test.go - scratch instrument for CON-456 round 2, NOT
+// shipped. Claim under test (mutant M05, "body bytes not compared"): whenever
+// a parser reads a text as exactly one item segment, the item's BodyMD is the
+// whole text, so the body comparison in roundTripProblems can never fire
+// after the segment check passed. Method: 300000 deterministic random texts
+// assembled from heading, metadata, table, prose and line-ending fragments,
+// parsed by both trackers' parsers. Controls: (1) the single-item case must
+// occur (needle count > 0), (2) the comparator must report a planted
+// difference.
+
+import (
+	"math/rand"
+	"strings"
+	"testing"
+)
+
+func TestM05BodyEqualsTextForEverySingleItemParse(t *testing.T) {
+	frags := []string{
+		"## CON-001 — a title\n", "## CON-1 — y\n", "## [CON-002] bracket title\n", "## GO. legacy title\n",
+		"## §FL phase title\n", "## CON-003 — title — `Fixed (→ Fixed.md)`\n", "# Document title\n",
+		"### sub heading\n", "**Status:** Queued\n", "**Status:** Fixed (→ Fixed.md)\n", "**Severity:** Low\n",
+		"**Type:** Bug\n", "**Reproduction:** reproduced-live\n", "**Investigation:** in-progress\n",
+		"\n", "\n\n", "text line\n", "  indented text\n", "---\n", "no newline at end", "line with CR\r\n",
+		"| 2026-01-01 | t | Task | Fixed | r1 | abc1234 | ev |\n", "|---|---|---|---|---|---|---|\n",
+		"| Date | Title | Type | Status | Round | Commit(s) | Evidence |\n", "## \n", "##CON-004 — no space\n",
+	}
+	r := rand.New(rand.NewSource(456))
+	single, other := 0, 0
+	for i := 0; i < 300000; i++ {
+		var b strings.Builder
+		for j, k := 0, 1+r.Intn(9); j < k; j++ {
+			b.WriteString(frags[r.Intn(len(frags))])
+		}
+		text := b.String()
+		for _, loc := range []string{"Issues", "Fixed"} {
+			items, segs, _ := parseForLocation(loc, text)
+			if len(items) == 1 && len(segs) == 1 && segs[0].Kind == "item" {
+				single++
+				if items[0].BodyMD != text {
+					t.Fatalf("%s: single-item parse with BodyMD != text\ntext=%q\nbody=%q", loc, text, items[0].BodyMD)
+				}
+			} else {
+				other++
+			}
+		}
+	}
+	if single == 0 {
+		t.Fatalf("control needle: no single-item parse among the generated texts; the instrument saw nothing")
+	}
+	planted := "## CON-001 — a title\n**Status:** Queued\n"
+	items, _, _ := parseForLocation("Issues", planted)
+	if len(items) != 1 || items[0].BodyMD == planted+"x" {
+		t.Fatalf("control: the comparator did not see a planted difference")
+	}
+	t.Logf("single-item parses checked: %d; other parses: %d", single, other)
+}
+
+// Positive control of the property check (section 11.4.273): the same
+// generator and comparison, applied to a parser that drops trailing blank
+// lines from the body, MUST report mismatches; otherwise the check is blind.
+func TestM05ControlLossyParserIsSeen(t *testing.T) {
+	frags := []string{"## CON-001 — a title\n", "**Status:** Queued\n", "\n", "text line\n", "\n\n"}
+	r := rand.New(rand.NewSource(456))
+	seen := 0
+	for i := 0; i < 20000; i++ {
+		var b strings.Builder
+		b.WriteString(frags[0])
+		for j, k := 0, r.Intn(5); j < k; j++ {
+			b.WriteString(frags[1+r.Intn(len(frags)-1)])
+		}
+		text := b.String()
+		items, segs, _ := parseForLocation("Issues", text)
+		if len(items) == 1 && len(segs) == 1 && segs[0].Kind == "item" {
+			lossy := strings.TrimRight(items[0].BodyMD, "\n") + "\n"
+			if lossy != text {
+				seen++
+			}
+		}
+	}
+	if seen == 0 {
+		t.Fatalf("control: a lossy parser produced no mismatch; the check is blind")
+	}
+	t.Logf("control: lossy-parser mismatches seen: %d", seen)
+}

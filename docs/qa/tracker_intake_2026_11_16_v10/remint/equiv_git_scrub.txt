@@ -1,0 +1,7 @@
+VARIANT t0: no-repository dir: rc=3 sentinel-listed=no; real repository: rc=0 sentinel-listed=no
+VARIANT tA: no-repository dir: rc=3 sentinel-listed=no; real repository: rc=0 sentinel-listed=no
+VARIANT tB: no-repository dir: rc=3 sentinel-listed=no; real repository: rc=0 sentinel-listed=no
+VARIANT tAB (both scrubs removed): real repository: rc=3 sentinel-listed=no (unmutated: rc=0 sentinel-listed=no)
+CONTROL needle (both removed: refs no longer judges the real repository) ok
+RESULT single-mutants=2 blind=2 listed-own=2
+rc=0

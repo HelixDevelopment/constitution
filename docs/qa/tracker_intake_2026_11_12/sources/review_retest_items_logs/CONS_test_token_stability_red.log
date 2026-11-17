@@ -1,0 +1,55 @@
+PASS[1]: control needle #1a: a known-present, non-empty file IS found by the existence+non-empty check
+PASS[2]: control needle #1b: a fabricated (never-created) path IS reported absent
+
+=== Section 1: qa-results/fastcycle/tokens/stability/ RED baseline (live) ===
+INFO: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S/qa-results/fastcycle/tokens/stability NOT FOUND (or empty) -- T119 has not run yet; this is the EXPECTED RED-today outcome
+FAIL[3]: T119 has recorded a frozen sample item's double-run token comparison under qa-results/fastcycle/tokens/stability/ -- expected to FAIL today (RED)
+
+=== Section 2: tolerance-read invariant (config-driven, never hardcoded) ===
+FAIL[4]: config/fastcycle/thresholds.yaml (T003) is readable
+INFO: config/fastcycle/thresholds.yaml token_stability_tolerance_pct read live = ''
+FAIL[5]: the live-read real tolerance is a sane percentage in (0, 100] -- read dynamically, never assumed to be a specific literal (constitution 11.4.6)
+PASS[6]: control needle #2: read_tolerance_pct genuinely extracts a DIFFERENT numeric value from two syntactically-distinct fixture files ('1' vs '95') -- proves the extraction tracks file content, not a cached/hardcoded copy
+INFO: subprocess run against TIGHT (tol=1%): rc=1 output: delta_pct=10.000000 tolerance_pct=1.000000 verdict=FAIL
+INFO: subprocess run against LOOSE (tol=95%): rc=0 output: delta_pct=10.000000 tolerance_pct=95.000000 verdict=PASS
+PASS[7]: THE SAME SCRIPT FILE, invoked as a real child process against the TIGHT fixture (tolerance=1%), correctly FAILs the borderline 10%-delta fixture (rc!=0)
+PASS[8]: THE SAME SCRIPT FILE, invoked as a real child process against the LOOSE fixture (tolerance=95%), correctly PASSes the IDENTICAL borderline 10%-delta fixture (rc=0)
+PASS[9]: the two subprocess invocations of the SAME script against the SAME borderline fixture but DIFFERENT config files produce DIFFERENT verdicts -- mechanical proof the tolerance is read fresh from the given file at run time, never hardcoded (a hardcoded copy would make both invocations agree regardless of which config was passed)
+
+=== Section 3: GOLDEN -- within-tolerance double-run stability ===
+FAIL[10]: GOLDEN: within-tolerance double-run PASSes (skipped -- real tolerance unreadable, see Section 2)
+
+=== Section 4: GOLDEN-BAD -- outside-tolerance double-run FAILs ===
+FAIL[11]: GOLDEN-BAD: outside-tolerance double-run FAILs the item (skipped -- real tolerance unreadable, see Section 2)
+
+=== Section 5: negative control -- percentage delta, not absolute delta ===
+INFO: negative control (small-absolute-delta, unstable-by-percentage): run1=100 run2=115 tol=1% -- delta_pct=15.000000 tolerance_pct=1.000000 verdict=FAIL
+PASS[12]: negative control: a TINY absolute delta (15 tokens) that is a LARGE percentage delta (15%) correctly FAILs under a 1% tolerance -- the check is not fooled by a small raw number into declaring stability
+INFO: negative control (huge-absolute-delta, stable-by-percentage): run1=1000000 run2=1015000 tol=95% -- delta_pct=1.500000 tolerance_pct=95.000000 verdict=PASS
+PASS[13]: negative control: a HUGE absolute delta (15,000 tokens) that is a SMALL percentage delta (1.5%) correctly PASSes under a 95% tolerance -- proves the discrimination is genuinely RELATIVE (percentage-of-run1), never a bare 'big number = unstable' bluff
+
+=== Section 6: paired-mutation self-test (tasks.md T111: 'tolerance read after the runs') ===
+PASS[14]: control needle: the config-swap simulation genuinely changed /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/t.Qd3e/tmp.fH04cgPOlB/thresholds_mutation_swap.yaml's on-disk content between the 'before any run' read and the 'after the runs' read (before='schema_version: 1
+token_stability_tolerance_pct: 1   # T110 mutation fixture: the TRUE tolerance in force before any run' after='schema_version: 1
+token_stability_tolerance_pct: 50   # T110 mutation fixture: swapped in AFTER the runs already happened') -- this is a real content change, not a decorative no-op
+INFO: correct (tolerance frozen BEFORE any run, tol=1%): run1=5000 run2=5300 -- delta_pct=6.000000 tolerance_pct=1.000000 verdict=FAIL
+INFO: mutated (tolerance read AFTER the runs, from the swapped config): run1=5000 run2=5300 -- delta_pct=6.000000 tolerance_pct=50.000000 verdict=PASS
+PASS[15]: CORRECT ('before any run'): the SAME 6.0%-delta double-run FAILs stability (rc!=0) when the tolerance is the value that was genuinely true before any run happened (1%)
+PASS[16]: MUTATED ('tolerance read after the runs'): the IDENTICAL 6.0%-delta double-run wrongly PASSes stability (rc=0) once the tolerance is instead re-read only after the runs, from a config that changed in that window
+ok mutation-simulation: reading the tolerance AFTER the runs (tasks.md
+   T111's own named paired mutation, 'tolerance read after the runs')
+   flips this identical 6.0%-delta double-run's verdict from FAIL
+   (correct -- tolerance frozen BEFORE any run, 1%) to PASS (wrong --
+   tolerance re-read AFTER the runs from a since-swapped config, 50%).
+   A real T119 meta-test asserting this double-run's actual verdict
+   equals its fixed expected verdict (FAIL, since 6.0% exceeds the
+   true pre-run 1% tolerance) would go from PASS (matching expected
+   under correct 'before any run' behaviour) to FAIL (mismatching,
+   actual=PASS, once the implementation is mutated to read the
+   tolerance only after the runs) -- genuinely catching this mutation.
+PASS[17]: mutation-simulation (tasks.md T111: 'tolerance read after the runs'): the mutation genuinely flips the verdict from correctly-FAIL to wrongly-PASS on the identical run pair -- a real T119 meta-test would catch it
+
+=== Section 7: honest real-after note (informational, no schema assumed) ===
+INFO: qa-results/fastcycle/tokens/stability/ still absent or empty -- no schema to introspect yet; this is the EXPECTED RED-today outcome, matching Section 1
+
+SUMMARY pass=12 fail=5 skip=0 total=17

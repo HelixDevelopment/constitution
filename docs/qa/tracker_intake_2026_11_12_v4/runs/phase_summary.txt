@@ -1,0 +1,10 @@
+remint_green1 rc=0 secs=43 RESULT: pass=138 fail=0
+remint_green2 rc=0 secs=43 RESULT: pass=138 fail=0
+remint_red_r3 rc=2 secs=15 
+remint_mutations rc=0 secs=483 RESULT: mutants=53 all killed
+lint_green1 rc=0 secs=237 RESULT: pass=256 fail=0
+lint_green2 rc=0 secs=216 RESULT: pass=256 fail=0
+lint_green_ns rc=0 secs=134 RESULT: pass=256 fail=0
+lint_red_r3 rc=1 secs=126 RESULT: pass=132 fail=124
+lint_mutations rc=0 secs=1413 RESULT: mutants=92 all killed as declared
+phase f1 done

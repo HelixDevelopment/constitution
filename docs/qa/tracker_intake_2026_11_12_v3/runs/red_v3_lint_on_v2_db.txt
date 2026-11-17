@@ -1,0 +1,15 @@
+# RED: the round-3 lint (final code) on the round-2 database (git show 63f80e52:docs/workable_items.db), from the v3 checkout root
+# $ python3 -I scripts/workable-items/intake_lint.py --db <63f80e52 db> --origin 'tracker-intake vehicle 2026-11-12' --require-dup-check --repo-root .
+FINDING XREF-UNLABELLED CON-304 CON-092 without a label in a clause that shares no title word: Fastcycle consumer-data guard: skip per section, not the who
+FINDING XREF-UNLABELLED CON-304 CON-093 without a label in a clause that shares no title word: Nine more fastcycle tests fail on canon alone for missing co
+FINDING XREF-UNLABELLED CON-304 CON-102 without a label in a clause that shares no title word: Fastcycle consumer-data helper test: directory case, absolut
+FINDING XREF-UNLABELLED CON-308 CON-092 without a label in a clause that shares no title word: Fastcycle consumer-data guard: skip per section, not the who
+FINDING XREF-UNLABELLED CON-308 CON-098 without a label in a clause that shares no title word: Eleven fastcycle tests pass alone but fail in the batch (inv
+FINDING DUP-HEAD CON-308 CON-262 records open UNDECIDED candidate(s) CON-243: more than one head, the verdict is UNDECIDED (section 11.4.214(0))
+FINDING XREF-UNLABELLED CON-309 CON-092 without a label in a clause that shares no title word: Fastcycle consumer-data guard: skip per section, not the who
+FINDING XREF-LABEL CON-314 CON-271 (commits whose Roadmap-Item trailer is not an engine id; another vehicle) vs title: README-link review F3: commits carry 'Roadmap-Item: none-doc
+FINDING XREF-LABEL CON-321 CON-227 (other reviewer survivors, of the rel734 change, in the same script) vs title: CON-226 follow-up: tests that kill the 7 surviving reviewer 
+FINDING XREF-LABEL CON-328 CON-227 (the rel734 reviewer survivors that the same family of tests must kill) vs title: CON-226 follow-up: tests that kill the 7 surviving reviewer 
+FINDING XREF-LABEL CON-329 CON-271 (commits whose Roadmap-Item trailer is not an engine id; another vehicle) vs title: README-link review F3: commits carry 'Roadmap-Item: none-doc
+RESULT: FAIL selected=40 findings=11 prefix=CON
+# exit=1

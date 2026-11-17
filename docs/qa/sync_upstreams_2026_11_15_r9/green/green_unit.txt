@@ -1,0 +1,29 @@
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+................................................................................................
+----------------------------------------------------------------------
+Ran 121 tests in 9.970s
+
+OK
+sync-unit: PASS 121 FAIL 0 SKIP 0

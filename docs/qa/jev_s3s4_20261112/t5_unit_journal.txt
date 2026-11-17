@@ -1,0 +1,15 @@
+Nov 12 18:39:06 anton systemd[6709]: Starting llmctl-llama@decide-kev-08b.service - llmctl llama.cpp inference server (profile decide-kev-08b)...
+Nov 12 18:40:28 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Control process exited, code=killed, status=15/TERM
+Nov 12 18:40:28 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Failed with result 'signal'.
+Nov 12 18:40:28 anton systemd[6709]: Stopped llmctl-llama@decide-kev-08b.service - llmctl llama.cpp inference server (profile decide-kev-08b).
+Nov 12 18:40:28 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Consumed 5.359s CPU time over 1min 22.347s wall clock time, 8.5M memory peak.
+Nov 12 18:40:44 anton systemd[6709]: Starting llmctl-llama@decide-kev-08b.service - llmctl llama.cpp inference server (profile decide-kev-08b)...
+Nov 12 18:42:07 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Control process exited, code=killed, status=15/TERM
+Nov 12 18:42:07 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Failed with result 'signal'.
+Nov 12 18:42:07 anton systemd[6709]: Stopped llmctl-llama@decide-kev-08b.service - llmctl llama.cpp inference server (profile decide-kev-08b).
+Nov 12 18:42:07 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Consumed 5.036s CPU time over 1min 23.147s wall clock time, 8.3M memory peak.
+Nov 12 18:42:25 anton systemd[6709]: Starting llmctl-llama@decide-kev-08b.service - llmctl llama.cpp inference server (profile decide-kev-08b)...
+Nov 12 18:43:48 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Control process exited, code=killed, status=15/TERM
+Nov 12 18:43:48 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Failed with result 'signal'.
+Nov 12 18:43:48 anton systemd[6709]: Stopped llmctl-llama@decide-kev-08b.service - llmctl llama.cpp inference server (profile decide-kev-08b).
+Nov 12 18:43:48 anton systemd[6709]: llmctl-llama@decide-kev-08b.service: Consumed 5.249s CPU time over 1min 22.932s wall clock time, 9M memory peak.

@@ -1,0 +1,20 @@
+=== RUN   TestCON456R2_SeverityTheParserCannotCarryIsRefused
+add: created CON-997 (Task, status=Queued) in Issues
+update: CON-997 updated in Issues (status=Queued, type=Task)
+--- PASS: TestCON456R2_SeverityTheParserCannotCarryIsRefused (0.07s)
+=== RUN   TestCON456R2_StateLineInDescriptionIsRefused
+add: created CON-995 (Bug, status=Queued) in Issues
+update: CON-995 updated in Issues (status=Queued, type=Bug)
+--- PASS: TestCON456R2_StateLineInDescriptionIsRefused (0.07s)
+=== RUN   TestCON456R2_DescriptionLineTheRendererRewritesIsRefused
+add: created CON-993 (Bug, status=Queued) in Issues
+--- PASS: TestCON456R2_DescriptionLineTheRendererRewritesIsRefused (0.05s)
+=== RUN   TestCON456R2_UpdateRefusalNamesTheTitle
+add: created G76 (Task, status=Queued) in Issues
+add: created CON-997 (Task, status=Queued) in Issues
+update: CON-997 updated in Issues (status=Queued, type=Task)
+    idgrammar_r2_cli_test.go:877: update accepted title "title ending in a status suffix — `Fixed (→ Fixed.md)`" for CON-997
+--- FAIL: TestCON456R2_UpdateRefusalNamesTheTitle (0.14s)
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	0.348s
+FAIL

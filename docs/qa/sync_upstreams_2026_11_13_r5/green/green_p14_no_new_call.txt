@@ -1,0 +1,8 @@
+# real engine, check no_new_call
+== no_new_call
+  ok   no_new_call.control_trigger_seen
+  ok   no_new_call.control_interrupted
+  ok   no_new_call.only_final_reads_after_stop
+  ok   no_new_call.no_call_started_after_stop
+sync-robustness: PASS 4 FAIL 0
+rc=0

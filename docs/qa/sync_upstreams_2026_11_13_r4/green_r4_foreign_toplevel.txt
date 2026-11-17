@@ -1,0 +1,23 @@
+--- control (sane):
+rc=0
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_foreign_r4/helix-sync-test.MdLLdW/out/r1/sync_report.json
+CANONICAL_SHA256=42780b60af3c620a00fca8be9803a121fb74c8fa09514c1e96687d1b6f1a9db3
+RESULT: CURRENT exit=0
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_foreign_r4/helix-sync-test.MdLLdW/work/root: 4 repositories, 4 initialised, 4 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -
+vendor/t initialised=True result=current
+--- git itself, from inside vendor/t: <scratch>/syncfix4.Jiag/tmp/red_foreign_r4/helix-sync-test.MdLLdW/work/root (rc=0)
+--- broken (empty .git directory):
+rc=6
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_foreign_r4/helix-sync-test.MdLLdW/out/r2/sync_report.json
+CANONICAL_SHA256=f533c9566fd1ebc253f7a083a2163c2a614729e5a3830116bf73b22d5b2e9fa2
+RESULT: BLIND exit=6
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_foreign_r4/helix-sync-test.MdLLdW/work/root: 4 repositories, 3 initialised, 3 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 blind           pin-unreadable,unresolved:rev-parse:not-own-toplevel
+vendor/t initialised=False pin={'gitlink': '710911f5da8f4d6ceba570074bca81de41674730', 'state': 'unreadable'} result=blind reasons=['pin-unreadable', 'unresolved:rev-parse:not-own-toplevel'] unresolved=['rev-parse:not-own-toplevel']

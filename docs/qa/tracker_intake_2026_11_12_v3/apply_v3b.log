@@ -1,0 +1,17 @@
+# apply_v3b.py run 2026-11-13T13:56:40Z on 63f80e52 + working tree; engine 6f8dad3772247289
+$ workable-items update --db docs/workable_items.db --id CON-262 --description <4164 chars>
+  -> rc=0 update: CON-262 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-243 --description <745 chars>
+  -> rc=0 update: CON-243 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-308 --description <2423 chars>
+  -> rc=0 update: CON-308 updated in Issues (status=Reopened, type=Bug)
+$ workable-items close CON-243 --db docs/workable_items.db --status obsolete --evidence docs/operator_decisions/2026-11-12_relayed_decisions.md
+  -> rc=0 close: moved CON-243 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=docs/operator_decisions/2026-11-12_relayed_decisions.md)
+$ workable-items obsolete-details CON-243 --db docs/workable_items.db --since 2026-11-13 --reason duplicate-of --superseding CON-262 --evidence docs/operator_decisions/2026-11-12_relayed_decisions.md
+  -> rc=0 obsolete-details: CON-243 written (Since:2026-11-13 Reason:duplicate-of Superseding:CON-262 Evidence:docs/operator_decisions/2026-11-12_relayed_decisions.md)
+$ workable-items close CON-308 --db docs/workable_items.db --status obsolete --evidence docs/operator_decisions/2026-11-12_relayed_decisions.md
+  -> rc=0 close: moved CON-308 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=docs/operator_decisions/2026-11-12_relayed_decisions.md)
+$ workable-items obsolete-details CON-308 --db docs/workable_items.db --since 2026-11-13 --reason duplicate-of --superseding CON-262 --evidence docs/operator_decisions/2026-11-12_relayed_decisions.md
+  -> rc=0 obsolete-details: CON-308 written (Since:2026-11-13 Reason:duplicate-of Superseding:CON-262 Evidence:docs/operator_decisions/2026-11-12_relayed_decisions.md)
+RESULT: APPLIED
+exit=0

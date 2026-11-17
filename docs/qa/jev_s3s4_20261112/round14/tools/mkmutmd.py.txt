@@ -1,0 +1,93 @@
+# mkmutmd.py <mut_summary.txt> <out.md>: the mutant table of round 14 from the chain's summary lines (mechanical,
+# section 11.4.274). The survivor arguments are written by hand in notes/survivors14.md and appended verbatim.
+import sys, re
+W = "/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6"
+summ, out = sys.argv[1], sys.argv[2]
+desc = {
+ "M1_intent_resolved_regardless": "fixer: a dead starter's intent judged whatever its start process does (the round-13 rule)",
+ "M2_group_ignored": "fixer: child_running ignores the start process group (a zombie leader with live members reads gone)",
+ "M3_child_reuse_ignored": "fixer: child_running ignores a changed start time (a reused pid reads running)",
+ "M4_ungated_start": "fixer: the start process runs llmctl on any line or end-of-file, not only on `go`",
+ "M5_child_judged_at_resolve_time": "fixer: the start process judged when the intent is resolved, not at the observation ticket",
+ "M6_intent_without_child": "fixer: the intent written without its start process",
+ "M7a_legacy_always_gone": "fixer: a legacy intent (no start process) judged at once",
+ "M7b_legacy_never_gone": "fixer: a legacy intent never judged",
+ "M8_no_went_check": "fixer: a start process that ran no llmctl recorded with its own exit code, not as rc 75",
+ "M9_mark_without_gate": "fixer: the mark written without a gated start process",
+ "M10_gate_open_ignores_proc": "fixer: gate_open does not refuse without /proc/self/fd",
+ "M11_no_child_start_is_gone": "fixer: a start process with no recorded start time reads gone (not fail-safe running)",
+ "R01_arm_no_retry": "round-12 reviewer: the release's arm lock wait is not retried",
+ "R02_markttl_no_recordwaits": "round-12 reviewer: MARK_TTL without the record waits",
+ "R03_adopt_after_own_start": "round-12 reviewer: a unit this acquire tried to start can be adopted",
+ "R04_adopt_degraded": "round-12 reviewer: a degraded unit can be adopted",
+ "R05_rc75_counts_after_arm": "round-12 reviewer: rc 75 counted as a start after the arm",
+ "R06_stopowed_for_rc75": "round-12 reviewer: an owed stop for a refused start",
+ "R07_noset_rc75_released": "round-12 reviewer: a refused start with no set recorded as started",
+ "R08_owed_retry_fail_is_success": "round-12 reviewer: a failing owed retry reads as success",
+ "V01_intent_reuse_blind": "round-13 reviewer (WV01): the starter's start time ignored (a reused starter pid reads alive)",
+ "V02_degraded_intent_kept": "round-13 reviewer (WV02): a degraded unit under a dead intent gets no set",
+ "V03_intent_state_always_unknown": "round-13 reviewer: the unit state under a dead intent always unknown",
+ "V04_setexists_keeps_intent": "round-13 reviewer: an existing set made constitution-started keeps the intent",
+ "V05a_finish_leaves_empty_map": "round-13 reviewer: the record leaves an empty start_intents map",
+ "V05b_recover_leaves_empty_map": "round-13 reviewer: the recovery leaves an empty start_intents map",
+ "V06_intent_is_lease": "round-13 reviewer: the intent is written as a lease",
+ "V07_adopt_checks_other_profile": "round-13 reviewer: adoption checks another profile's intent",
+ "V08_mark_intent_refusal_is_stale": "round-13 reviewer: the intent refusal returns the stale code (2) instead of 1",
+ "V10_recover_after_observe": "round-13 reviewer: the intent recovery runs after the observation, not in it",
+ "V14_finish_removes_only_on_rc0": "round-13 reviewer: the record removes the intent only on rc 0",
+ "V15_adopt_skips_only_live_intent": "round-13 reviewer: adoption skips only a LIVE starter's intent",
+ "V20_finish_drops_start_half": "round-13 reviewer: the record matches the intent by pid only",
+ "W22_mention_lookbehind_digit": "census: git after a digit not a mention",
+ "W23_mention_case_sensitive_both": "census: mention case-sensitive",
+ "W24_ls_perm_any": "census: any 9 characters as ls permissions",
+ "W25_rc_max_999": "census: exit codes up to 999",
+ "W26_no_trailing_pop": "census: the trailing empty line kept",
+ "W27_scope_no_slash": "census: scope prefix `docs/qa` without the slash (round-13 reviewer F7)",
+ "W28_exec_ignored": "census: the executable bit ignored",
+ "W33_mention_ascii": "census: mention matching ASCII-only",
+ "W35_shape_mention_first_4k": "census: mention searched in the first 4096 characters only (round-13 reviewer F6)",
+ "W36_splitlines": "census: splitlines instead of split on newline",
+ "RCTRL": "control: no change, run from a mutant directory",
+ "RCTRL2": "control: no change, run from a copy of the RCTRL directory; r14 and the three heavy sweep parts (re-run of RCTRL)",
+}
+# A line written by the mutrun.sh rule before its timeout fix (round 14) reads "KILLED-by <suite> rc=124 (no FAIL line)"
+# for a run cut by runsuite's timeout; by the fixed rule (tools/test_mutrun.sh.txt) that is NO-RESULT, never a kill.
+TIMEOUT_AS_KILL = re.compile(r"^KILLED-by (\S+) rc=(124|137) \(no FAIL line\)$")
+rows = []
+for line in open(summ):
+    m = re.match(r"^(MUT|CMUT) (\S+) (.*)$", line.strip())
+    if m:
+        r = m.group(3)
+        t = TIMEOUT_AS_KILL.match(r)
+        if t:
+            r = ("NO-RESULT %s (timeout rc=%s, no FAIL line; recorded as `%s` by mutrun.sh before its timeout fix, "
+                 "reclassified by the fixed rule: a run cut by the clock decided nothing)" % (t.group(1), t.group(2), r))
+        rows.append((m.group(2), r))
+o = ["# Round 14 mutants", "",
+     "One exact substitution per mutant (`tools/mkmut.py.txt`, `tools/mut14.txt`), generated from the final producer and",
+     "census; each mutant runs its suites in order and stops at the first suite with a failure (`tools/mutrun.sh.txt`,",
+     "`tools/cmutrun.sh.txt`, `tools/chain14.sh.txt`). Raw summary: `runs/mut_summary.txt`; every run: `runs/mut_*.txt`",
+     "and `runs/cmut_*.txt`.", "",
+     "The chain was cut by a session interruption on 2026-11-17 (about 09:23 CET) while census mutant W33 ran; every",
+     "mutant before W33 had its summary line. `tools/chain14_resume.sh.txt` ran the remaining steps of the chain unchanged",
+     "(W33 from the start, W35, W36, RCTRL); the partial W33 output is kept as",
+     "`runs/cmut_W33_mention_ascii_interrupted_partial.txt` and the RESUME line in `runs/mut_summary.txt` marks the cut.",
+     "",
+     "The control RCTRL then ran into the runner's 2400 s timeout in the sweep (`runs/mut_RCTRL_sweep_s4_round14.txt`:",
+     "636 cells passed, 0 failures, rc 124) while other work held the host load near 49, and mutrun.sh recorded that as a",
+     "kill. That was a defect of mutrun.sh, fixed test-first (`tools/test_mutrun.sh.txt`; `runs/test_mutrun_RED.txt`",
+     "before the fix, `runs/test_mutrun_GREEN.txt` after, `runs/test_mutrun_mutant.txt` with the fix removed). The",
+     "control was re-run as RCTRL2 on the three heavy sweep parts, which together run every cell of the sweep.",
+     "", "| Mutant | What it changes | Result |", "|---|---|---|"]
+seen = set()
+for n, r in rows:
+    seen.add(n)
+    o.append("| %s | %s | %s |" % (n, desc.get(n, "UNKNOWN"), r))
+for n in desc:
+    if n not in seen:
+        o.append("| %s | %s | NOT RUN |" % (n, desc[n]))
+try:
+    o += ["", open(W + "/notes/survivors14.md").read().rstrip("\n")]
+except OSError:
+    o += ["", "No survivor arguments file was written."]
+open(out, "w").write("\n".join(o) + "\n")

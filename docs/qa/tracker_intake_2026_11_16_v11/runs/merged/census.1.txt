@@ -1,0 +1,19 @@
+control needles: PASS (a known member found, a prose line not reported)
+CLASS L36 members=48 hit=24 gap=0 fp=0
+CLASS L37 members=286 hit=177 gap=0 fp=0
+CLASS L38 members=6 hit=3 gap=0 fp=0
+CLASS L39 members=4 hit=2 gap=0 fp=0
+CLASS L40 members=48 hit=48 gap=0 fp=0
+CLASS L41 members=11 hit=9 gap=0 fp=0
+CLASS L42 members=13 hit=13 gap=0 fp=0
+CLASS L43 members=35 hit=35 gap=0 fp=0
+CLASS L44 members=261 hit=116 gap=0 fp=0
+CLASS L45 members=27 hit=9 gap=0 fp=0
+CLASS L46 members=9 hit=6 gap=0 fp=0
+CLASS L47 members=4 hit=4 gap=0 fp=0
+CLASS L48 members=16 hit=16 gap=0 fp=0
+CLASS L49 members=4 hit=2 gap=0 fp=0
+CLASS L50 members=22 hit=0 gap=0 fp=0
+CLASS L51 members=21 hit=0 gap=0 fp=0
+CLASS L52 members=6 hit=6 gap=0 fp=0
+RESULT: members=319279 hit=96651 miss_negative=193091 miss_boundary=29537 gap=0 fp=0

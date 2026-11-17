@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# lock_repro.sh REPO DELAY -- re-runs the paired-mutant part of tests/install/test_lock.sh (reclaim race, I-4)
+# with the same harness, except that run A starts DELAY seconds late (what a heavily loaded host does to a
+# freshly started bash that sources the whole installer). reclaim_race and the mutant build are copied
+# verbatim from test_lock.sh. Prints what the harness saw. Read-only for REPO (sources its lib.sh).
+REPO_ARG="${1:?repo}"; DELAY="${2:?delay}"
+T_NAME=lockrepro
+# shellcheck source=/dev/null
+. "$REPO_ARG/tests/install/lib.sh"
+new_sandbox
+P="$SB/proj"; new_project "$P" || exit 2
+LOCK="$P/.git/helix-constitution-install.lock"
+LIBI="sleep $DELAY; "'HELIX_INSTALLER_LIB_MODE=1; . "$1"; set +e; hi_init_state; O_ROOT="$2"; hi_lock; echo "rc=$?"'
+clean_lock() { rm -f -- "$LOCK" "$LOCK.reclaim" "$SB/resume" "$P/.git/helix-constitution-install.lock."*; }
+reclaim_race() { # script body   (verbatim from test_lock.sh)
+  local a t dead
+  clean_lock
+  sleep 0 & dead=$!; wait "$dead" 2>/dev/null; printf '%s\n' "$dead" >"$LOCK"
+  sleep 300 & live=$!
+  HELIX_INSTALLER_TEST=1 HELIX_INSTALLER_TEST_PAUSE=reclaim HELIX_INSTALLER_TEST_RESUME="$SB/resume" \
+    bash -c "$2" a "$1" "$P" >"$SB/ra" 2>&1 &
+  a=$!
+  for ((t=0; t<400; t++)); do grep -q 'TEST PAUSE reclaim' "$SB/ra" && break; sleep 0.05; done
+  rm -f -- "$LOCK"; printf '%s\n' "$live" >"$LOCK"
+  : >"$SB/resume"; wait "$a"
+}
+M4="$SB/mut_norecheck.sh"
+python3 -I - "$INSTALLER" "$M4" <<'PY2'
+import sys
+src = open(sys.argv[1]).read(); a = 'if [ "$pid2" != "$pid" ] || [ -L "$lockp" ]; then'
+if src.count(a) == 1: open(sys.argv[2], "w").write(src.replace(a, 'if false; then'))
+PY2
+[ -s "$M4" ] || { echo "mutant not built"; exit 2; }
+t0=$SECONDS
+reclaim_race "$M4" "$LIBI"
+echo "delay=$DELAY harness_wait_s=$((SECONDS-t0))"
+if grep -q 'TEST PAUSE reclaim' "$SB/ra"; then echo "pause_seen=yes"; else echo "pause_seen=no"; fi
+echo "A_rc_line=$(grep -m1 '^rc=' "$SB/ra" || echo none)"
+check "mutant (no re-check): A took the lock (rc=0)" grep -q '^rc=0$' "$SB/ra"
+kill "$live" 2>/dev/null; wait "$live" 2>/dev/null; clean_lock
+finish 2>/dev/null || true

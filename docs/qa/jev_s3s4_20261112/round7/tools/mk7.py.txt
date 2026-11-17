@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""mk7.py <W>: one-edit mutants of scripts/jev/jev-place.sh (round 7).
+RM01..RM14: round-5 reviewer mutants (ported in round 6, re-ported here). OM01..OM16: round-6 fixer mutants.
+VM01..VM13: round-6 reviewer mutants (rev_jev_r6.mbt5/mut/make_mutants.py), re-targeted where the round-7 code moved
+(VM06 -> the MARK_TTL value, VM10 -> the plan's token check). NM01..: round-7 mutants of every new guard.
+Each mutant replaces exactly ONE match of its pattern; a pattern that does not match exactly once is refused.
+Output: <W>/mut/<K>/scripts/jev/* (+ submodules symlink), <W>/mut/index.tsv (key, targets, sha256, description).
+targets: the suites the mutant is run against, in order, until one kills it (r7p72 = the P72 block of the round-7 file).
+"""
+import sys, os, shutil, hashlib
+W = sys.argv[1]
+SRC = os.path.join(W, "repo", "scripts", "jev")
+orig = open(os.path.join(SRC, "jev-place.sh")).read()
+R7, R6, PL, P72 = "r7", "r6", "pl", "r7p72"
+D = [R7, R6, PL]
+M = {}
+def m(k, a, b, desc, targets=None):
+    assert k not in M, k
+    M[k] = (a, b, desc, targets or D)
+
+# ---- round-5 reviewer mutants (RM) -----------------------------------------------------------------------------------
+m("RM01", 'case "$rc" in 0) return 0 ;; 1) return 1 ;; esac', 'case "$rc" in 0|1) return 0 ;; esac', "holder_alive: a dead --pid holder counts as alive")
+m("RM02", '[ "$cur" = "$rec" ] || return 1', '[ "$cur" = "$rec" ] || true', "pid_alive: a reused pid counts as alive")
+m("RM03", 'if [ -n "$foreign" ]; then', 'if false && [ -n "$foreign" ]; then', "plan_locked (C): an acquire on a starting/stopping set is not refused")
+m("RM04", '[ $(( NOW - sat )) -gt "$MARK_TTL" ]', '[ $(( NOW - sat )) -gt $(( MARK_TTL * 100000 )) ]', "reap_locked: a stopping/starting mark never ages out")
+m("RM05", "select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null",
+          "select((.value.leases | length) == 0 and true and (.value.stopping // null) == null", "release_locked: the last release also stops an operator-started model")
+m("RM06", 'if ! flock -w "$LOCK_TMO" 9; then exec 9>&-; return 4; fi', 'if ! flock -w "$LOCK_TMO" 9; then :; fi', "with_lock: a lock timeout proceeds without the lock")
+m("RM07", 'if .holder == $h then .heartbeat_at = $now else . end', 'if .holder == $h then . else . end', "heartbeat: does not refresh heartbeat_at")
+m("RM08", '{ echo "$v"; return 0; }', '{ echo "${!v}"; return 0; }', "hosted_key_var: records the key VALUE instead of its name")
+m("RM09", 'select(((.value.leases // []) | length) > 0 and (.value.stopping // null) == null and (.value.starting // null) == null',
+          'select(((.value.leases // []) | length) > 0 and (.value.starting // null) == null', "derive_cache: a set marked stopping stays routed")
+m("RM10", 'absent:fits|absent:fits_with_reduced_threads) START_CANDS', 'absent:fits|absent:fits_with_reduced_threads|absent:undetermined) START_CANDS', "plan_locked (E): an undetermined candidate is a start candidate")
+m("RM11", 'ca_file:($g.ca // ""), priority:10,', 'ca_file:($g.ca // ""), priority:100,', "derive_cache: the local entry is registered at priority 100")
+m("RM12", "| tr -d '\\0')\" ] || return 1", "| tr -d '\\0')\" ] || true", "pid_alive: an empty cmdline counts as alive")
+m("RM13", 'GW_DEFAULT="https://127.0.0.1:8095"', 'GW_DEFAULT="http://127.0.0.1:8095"', "gateway_url: the failure default is plain HTTP")
+m("RM14", '[ $(( NOW - hb )) -le "$ttl" ]', '[ $(( NOW - hb )) -le $(( ttl * 1000 )) ]', "holder_alive: a heartbeat lease outlives its TTL 1000-fold")
+# ---- round-6 fixer mutants (OM) --------------------------------------------------------------------------------------
+m("OM01", ' and ((.value.health.state // "") == "ok")) | .key] | sort) as $r', ')) | .key] | sort) as $r', "derive_cache: health not required (a held set is routed before any ok observation)")
+m("OM02", "No further candidate is started.\"\n            break", "No further candidate is started.\"\n            continue", "acquire: after a late-recorded start the loop goes on to start another candidate")
+m("OM03", "  if jq -e 'any(.sets[]?; (.starting // null) != null or (.stopping // null) != null)' <<<\"$cur\" >/dev/null; then return 1; fi\n",
+          "", "mark_start_locked: a start is marked while another set is starting/stopping", [R7, R6, PL])
+m("OM04", '    *) GW_WHY="the gateway URL from $GW_SRC is not https://', '    *) return 0; GW_WHY="the gateway URL from $GW_SRC is not https://', "gateway_url: a non-https URL is accepted")
+m("OM05", "a lease is never assumed (§11.4.291(J)(1))\"\n    return 3", "a lease is never assumed (§11.4.291(J)(1))\"\n    return 0", "hb_locked: a heartbeat with no lease exits 0", [R7, PL, R6])
+m("OM06", 'if [ "$ttl" -le $(( CADENCE + RTMO )) ]; then', 'if false; then', "acquire: the TTL > cadence + llmctl timeout check is removed", [PL, R6, R7])
+m("OM07", '    [ "$newer" = true ] || continue\n', '    :\n', "obs_locked: an older observation ticket overwrites a newer recorded health")
+m("OM08", '--argjson f "$floor" \\', '--argjson f -1 \\', "finish_start_locked: no observation floor on a just-started set")
+m("OM09", "'.sets[$p].leases = [] | .sets[$p].gone = {at:$now, detail:$d}'", "'.sets[$p].gone = {at:$now, detail:$d}'", "obs_locked: a gone endpoint keeps its leases (= VM05)")
+m("OM10", '  if [ "$CAND_RC" != 0 ]; then\n', '  if false; then\n', "plan_locked: an unreadable candidate list is read as no candidate", [PL, R6, R7])
+m("OM11", 'rc=0; with_lock write_placement "$@" || rc=$?', 'rc=0; write_placement "$@" || rc=$?', "record_placement: the record is written without the lock")
+m("OM12", 'out("absent"; "undetermined"; $e.threads; "nproc_unlimited: RLIMIT_NPROC is unlimited', 'out("absent"; "undetermined"; $e.threads; "nproc_not_measured: RLIMIT_NPROC headroom not measured; was unlimited', "inst_state: an unlimited RLIMIT_NPROC is reported as unmeasured")
+m("OM13", "refused_stopping) code=endpoint_stopping", "refused_stopping) code=", "write_placement: a stopping set has no endpoint_stopping reason code")
+m("OM14", "[ \"$rc\" = 4 ] || return 0\n    i=$((i+1))", "return 0\n    i=$((i+1))", "record_placement: no retry after a lock wait")
+m("OM15", '    write_placement "$p" "" "endpoint_gone: $det"', '    : write_placement "$p" "" "endpoint_gone: $det"', "obs_locked: no endpoint_gone record is written")
+m("OM16", '            if [ "$CAP_ST" != ok ]; then log "candidate $p: the fresh answer is undetermined', '            if false; then log "candidate $p: the fresh answer is undetermined', "acquire: a further start proceeds on an undetermined fresh answer")
+# ---- round-6 reviewer mutants (VM), re-targeted ------------------------------------------------------------------------
+m("VM01", '      elif .pressure.ok == false then out("absent"; "does_not_fit"; $e.threads; "pressure: \\((.pressure.reasons // []) | join("; "))")\n', '',
+          "inst_state: the producer's own pressure guard removed", [P72, R7, R6, PL])
+m("VM02", 'if [ "$(jq -r \'.measurement.ok == false\' "$WORK/cap.json")" = true ]; then', 'if false; then', "capacity_read: measurement.ok false no longer undetermined", [PL, R6, R7])
+m("VM03", 'elif $np < $e.threads then', 'elif $np < 0 then', "inst_state: nproc headroom no longer compared with the thread count", [PL, R6, R7])
+m("VM04", '*) log "candidate $p: $st/$v on the fresh answer ($r); not started"; mrc=1; break ;; esac', '*) ;; esac', "acquire: the fresh answer for a further candidate is not obeyed")
+m("VM06", 'MARK_TTL=$(( STMO + 2 + RETRIES * LOCK_TMO + 30 ))', 'MARK_TTL=30', "reap_locked: a live process's mark expires after 30 s")
+m("VM07", 'map(if .holder == $h then .heartbeat_at = $now else . end)', 'map(.heartbeat_at = $now)', "hb_locked: a heartbeat refreshes every lease, not only the holder's")
+m("VM08", "select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null and (.value.starting // null) == null)",
+          "select((.value.leases | length) == 0 and (.value.stopping // null) == null and (.value.starting // null) == null)", "release_locked: stops lease-less sets the constitution did NOT start")
+m("VM09", 'timeout --kill-after=2 "$t" "$@" >"$o"', '"$@" >"$o"', "bounded: llmctl calls unbounded", [PL, R6, R7])
+m("VM10", '  if [ -n "$g0" ] && [ "$(leases_token)" != "$g0" ]; then return 99; fi\n', '', "plan_locked: seam 1 (the plan's token check) removed")
+m("VM11", 'replan=1; log "this acquire stopped a model', 'replan=0; log "this acquire stopped a model', "acquire: no re-plan after a stop by this acquire")
+m("VM12", 'case "$rc" in 0|75|3) ;; 124|137)', 'case "$rc" in *) ;; 124|137)', "capacity_read: any llmctl capacity exit status is an answer", [PL, R6, R7])
+m("VM13", "  if jq -e --arg p \"$p\" '.sets[$p] != null' <<<\"$cur\" >/dev/null; then return 1; fi\n  if jq -e 'any(.sets[]?;",
+          "  if jq -e 'any(.sets[]?;", "mark_start_locked: overwrites an existing set")
+# ---- round-7 mutants of the new guards (NM) ---------------------------------------------------------------------------
+m("NM01", '  if [ -z "$BASE_GEN" ] || [ "$(leases_token)" != "$BASE_GEN" ]; then return 2; fi\n', '', "mark_start_locked: seam 2 (the mark's token check) removed")
+m("NM02", '  if [ -n "$g0" ] && [ "$(leases_token)" != "$jp" ]; then log "the reap changed the registry after the capacity read; reading it again"; return 99; fi\n', '',
+          "plan_locked: a registry change by the plan's own reap is not a change")
+m("NM03", "printf '%s:%s\\n' \"$(leases_gen)\" \"$h\"", "printf '%s\\n' \"$(leases_gen)\"", "leases_token: generation only (no hash)")
+m("NM04", "printf '%s:%s\\n' \"$(leases_gen)\" \"$h\"", "printf '%s\\n' \"$h\"", "leases_token: hash only (no generation) - expected EQUIVALENT: the generation is a field of the hashed file")
+m("NM05", 'jq -c --argjson g "$(( g + 1 ))" \'.gen = $g\'', 'jq -c --argjson g "$g" \'.gen = $g\'', "leases_save: the generation is not raised")
+m("NM06", '    case " $STOP_TRIED " in *" $p "*) log "owed stop of $p: already tried by this acquire; retried by the next acquire or release"; continue ;; esac\n', '',
+          "plan_locked (A): an owed stop is retried by the same acquire (STOP_TRIED ignored)")
+m("NM07", '    case " $START_TRIED " in *" $p "*) log "candidate $p: its start by this acquire was refused or failed; not started again by it"; continue ;; esac\n', '',
+          "plan_locked (E): a refused/failed start is retried by the same acquire (START_TRIED ignored)")
+m("NM08", ' | .sets[$p].health = {state:"pending", reason:"\\($m) mark cleared; not observed since", seq:$f, at:$now}', '',
+          "reap_locked: no observation floor when a mark is cleared (NF-3)")
+m("NM09", 'MARK_TTL=$(( STMO + 2 + RETRIES * LOCK_TMO + 30 ))', 'MARK_TTL=$(( STMO + 30 ))', "MARK_TTL: the record-step lock waits are not counted (the round-6 value)")
+m("NM10", '  if [ -n "$crit" ]; then printf', '  if false; then printf', "capacity_read: llmctl's critical_inputs_unreadable ignored", [P72, R7, R6, PL])
+m("NM11", ' or ($e.headroom|type) != "object" or ($e.verdict|type) != "string"', ' or ($e.verdict|type) != "string"', "inst_state: profiles.<p>.headroom not checked", [P72, R7, R6, PL])
+m("NM12", ' or ($e.threads|type) != "number" or ($e.reasons|type)', ' or ($e.reasons|type)', "inst_state: profiles.<p>.threads not checked", [P72, R7, R6, PL])
+m("NM13", ' or ($e.reasons|type) != "array" or ($e.headroom|type)', ' or ($e.headroom|type)', "inst_state: profiles.<p>.reasons not checked", [P72, R7, R6, PL])
+m("NM14", ' or ($e.verdict|type) != "string"\n', '\n', "inst_state: profiles.<p>.verdict type not checked", [P72, R7, R6, PL])
+m("NM15", '  if [ "$nostart" = 1 ]; then\n    F_V=undetermined; F_EV=undetermined; F_CODE=stale_answer', '  if false; then\n    F_V=undetermined; F_EV=undetermined; F_CODE=stale_answer',
+          "plan_locked: the joins-only plan after STALE_MAX stale reads may start")
+m("NM16", '  [ "$cur" = "$jp" ] || printf \'%s\\n\' "$cur" | leases_save', '  printf \'%s\\n\' "$cur" | leases_save', "plan_locked: the gateway record is written even when unchanged")
+m("NM17", '            # the refused start removed its set (a registry write): the next start needs a fresh answer\n            if [ "$n" = 0 ]; then replan=1; break; fi ;;',
+          '            ;;', "acquire: no re-plan after a refused start (the next candidate on the same answer)")
+m("NM18", '            if [ "$n" = 0 ]; then replan=1; break; fi ;;\n        esac', '            ;;\n        esac', "acquire: no re-plan after a failed start + cleanup (the next candidate on the same answer)")
+m("NM19", '  if [ -n "$held" ] && ! jq -e --arg s "$held" --arg h "$2" \'any(.sets[$s].leases[]?; .holder == $h)\' <<<"$(leases_load)" >/dev/null; then\n    return 3\n  fi\n', '',
+          "mark_start_locked: a further start after the holder's lease from this acquire was released")
+m("NM20", 'mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" "$prof" || mrc=$?', 'mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" || mrc=$?', "acquire: the held profile is not passed to the further-start mark")
+m("NM21", '            if [ "$stale_n" -ge "$STALE_MAX" ]; then', '            if false; then', "acquire: re-plans after a stale mark are unbounded")
+m("NM22", '        if [ "$tries" -ge "$STALE_MAX" ]; then nostart=1;', '        if false; then nostart=1;', "acquire: re-reads after a stale plan are unbounded (no joins-only plan)")
+m("NM23", '  if [ "$any_undet" = 1 ]; then F_V=undetermined; F_R="no candidate fits; undetermined: $undet_why"', '  if [ "$any_undet" = 1 ]; then F_V=undetermined; F_R="no candidate fits; at least one is undetermined"',
+          "plan_locked: the undetermined reason is generic again (N6-e)")
+m("NM24", '  elif [ -n "$nofit_why" ]; then F_R="no candidate profile fits: $nofit_why"; fi', '  fi', "plan_locked: the does_not_fit reason is generic again (N6-e)", [P72, R7, R6, PL])
+m("NM25", '      else echo "placement: none recorded yet"; fi; fi ;;', '      else false; fi; fi ;;', "status: no placement record exits non-zero again (N6-b)")
+m("NM26", '            BASE_GEN="$OBS_GEN"\n', '', "acquire: the further-start mark is judged against the PLAN's token, not the fresh answer's")
+# one mutant per row of the contract table (NF-1): the row's check is made always true
+rows = ["schema", "time", "profiles", "host", "host.cpus_online", "host.mem_total_mb", "host.mem_available_mb", "host.usable_mem_mb",
+        "host.swap_total_mb", "host.swap_free_mb", "host.load", "host.psi", "host.cgroup", "reserve", "pressure.ok", "pressure.reasons",
+        "llmctl.units", "fallback.recommended", "fallback.key_variable", "unknown_profiles", "degraded", "largest_decision_fit"]
+import re
+for i, f in enumerate(rows, 1):
+    line = [l for l in orig.splitlines() if re.match(r"\s*(\[\s*)?\[\s*\"%s\",\s+ok\(" % re.escape(f), l)]
+    assert len(line) == 1, (f, line)
+    a = line[0]
+    b = re.sub(r'ok\(.*\)\](,?)\s*(\]\')?$', lambda mm: 'true]' + mm.group(1) + (' ' + mm.group(2) if mm.group(2) else ''), a)
+    assert b != a, f
+    m("CT%02d" % i, a, b, "contract table row %s not checked" % f, [P72, R7, R6, PL])
+
+os.makedirs(os.path.join(W, "mut"), exist_ok=True)
+bad = 0
+with open(os.path.join(W, "mut", "index.tsv"), "w") as idx:
+    for k, (a, b, desc, targets) in M.items():
+        n = orig.count(a)
+        if n != 1:
+            print(f"{k}: pattern matched {n} times - refused", file=sys.stderr); bad += 1; continue
+        mut = orig.replace(a, b, 1)
+        assert mut != orig
+        d = os.path.join(W, "mut", k)
+        if os.path.isdir(d): shutil.rmtree(d)
+        os.makedirs(os.path.join(d, "scripts"))
+        shutil.copytree(SRC, os.path.join(d, "scripts", "jev"), symlinks=True)
+        os.symlink(os.path.join(W, "repo", "submodules"), os.path.join(d, "submodules"))
+        p = os.path.join(d, "scripts", "jev", "jev-place.sh")
+        open(p, "w").write(mut); os.chmod(p, 0o755)
+        idx.write(f"{k}\t{','.join(targets)}\t{hashlib.sha256(mut.encode()).hexdigest()}\t{desc}\n")
+print(f"mutants: {len(M) - bad} ready, {bad} refused")
+sys.exit(1 if bad else 0)

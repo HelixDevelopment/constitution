@@ -1,0 +1,11 @@
+2026-11-13T02:16:35+01:00 drive start day 2026-11-13 SUITE_NOW 2026-11-13T12:00:00Z
+2026-11-13T02:16:35+01:00 screen 1 start (pids.current 266)
+2026-11-13T06:42:01+01:00 screen 1 rc=0 duration 15926s
+2026-11-13T06:42:01+01:00 screen 2 start (pids.current 200)
+2026-11-13T10:35:20+01:00 screen 2 rc=0 duration 13999s
+2026-11-13T10:35:20+01:00 screen 3 start (pids.current 186)
+2026-11-13T11:52:37+01:00 host rebooted ~11:41 during screen 3 (partial log kept as screen3_cut_by_reboot.log, INCONCLUSIVE); resuming with screen 3
+2026-11-13T11:52:37+01:00 drive start (first screen 3, longest so far 15926s) day 2026-11-13 SUITE_NOW 2026-11-13T12:00:00Z
+2026-11-13T11:52:37+01:00 screen 3 start (pids.current 3)
+2026-11-14T01:17:51+01:00 screen 3 rc=0 duration 48314s
+2026-11-14T01:17:51+01:00 all done

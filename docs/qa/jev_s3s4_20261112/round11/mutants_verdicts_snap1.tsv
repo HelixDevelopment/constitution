@@ -1,0 +1,61 @@
+RCTRL	r11	survived	
+V01	r11	killed	FAIL - R11-4 A is placed and the other process's starting mark is kept (only A's own mark is ever cleared) (expected [0 83778 sA] got [0 null sA])
+RCTRL	r10	survived	
+RCTRL	r9	survived	
+V02	r11	survived	
+RCTRL	r8	survived	
+V02	r10	killed	FAIL - P115a the result is recorded (start_kept, claim gone) and the kept set is not routed until an observation newer than it (expected [gone 1 pending no] got [gone 2 pending no])
+RCTRL	r7	survived	
+V03	r11	survived	
+V03	r10	survived	
+V03	r9	survived	
+RCTRL	r6	survived	
+V03	r8	survived	
+RCTRL	pl	survived	
+V03	r7	survived	
+V04	r11	killed	FAIL - R11-1 A keeps the set constitution-started, records the stopping mark it saw and an owed stop; A runs no stop of its own (expected [5 true true 1746] got [5 true true null])
+V03	r6	survived	
+V05	r11	killed	FAIL - R11-5 the arm step refuses the set another process is starting (no [another process is starting it] in /mnt/DATA1TB/claude-work/scratch/jev_r11.jB5s/tmp/tmp.ZiFvCtMNWl/r5.err)
+V03	pl	survived	
+V06	r11	killed	FAIL - R11-6 a set carrying stop_owed is observed ok but never routed (expected [ok no] got [ok yes])
+V07	r11	killed	FAIL - R11-7 the set being started is not a stop candidate of the release (found [stop of decide-b (release) not run at its turn] in /mnt/DATA1TB/claude-work/scratch/jev_r11.jB5s/tmp/tmp.kamdcFGiuT/r7
+V08	r11	survived	
+V08	r10	survived	
+V09	r11	survived	
+V08	r9	survived	
+V09	r10	survived	
+V09	r9	survived	
+V08	r8	survived	
+V09	r8	survived	
+V08	r7	survived	
+V09	r7	killed	FAIL - P88 decide-b is never started for the released sA; sA holds no lease (expected [0 0] got [1 1])
+V08	r6	survived	
+V10	r11	killed	FAIL - R11-8 a placeholder key (length 8) gives route none, no key variable (expected [none null] got [cloud TYPESAFE_API_KEY])
+V08	pl	killed	FAIL - P24 a reused pid (start time differs) is reaped (expected [0] got [1])
+V11	r11	killed	FAIL - R11-9 the failed start found no set: it is recorded with start_failed and the failed cleanup stop with stop_failed; the unit runs (expected [true true decide-a ] got [false true decide-a ])
+V12	r11	survived	
+V12	r10	survived	
+V13	r11	killed	FAIL - R11-3 the next acquire runs the owed stop (the dead stopper's mark is reaped first) (no [retried the cleanup stop of decide-a] in /mnt/DATA1TB/claude-work/scratch/jev_r11.jB5s/tmp/tmp.N0ghLKeZW
+V12	r9	killed	FAIL - P102b the set is kept and the other stopper's mark is not cleared by A (expected [4161] got [null])
+W01	r11	killed	FAIL - R11-1 B sees A's start record and does not delete the set (no [a start of decide-a was recorded after this stop was armed] in /mnt/DATA1TB/claude-work/scratch/jev_r11.jB5s/tmp/tmp.SrTF99f2iN/b.
+W02	r11	killed	FAIL - R11-1 A keeps the set constitution-started, records the stopping mark it saw and an owed stop; A runs no stop of its own (expected [5 true true 1750] got [5 true false 1750])
+W03	r11	killed	FAIL - R11-2 rc 0 order starA: end state running=[decide-a ] rest=[{"decide-a":{"constitution_started":true,"stopping":null,"starting":null,"leases":[{"holder":"sB","pid":null,"pid_start":null,"heartb
+W04	r11	survived	
+W04	r10	killed	FAIL - P115b A's refused start (75) keeps B's lease; the re-plan joins the running set B holds; the set is not constitution-started (rc 75 started nothing) (expected [0 decide-a sB,sA false 0 decide-a
+W05	r11	killed	FAIL - R11-1 B retries the owed stop: the unit is stopped and the set is gone (never orphaned) (expected [2 1  {}] got [1 1 decide-a  {"decide-a":{"constitution_started":true,"started_at":null,"stoppi
+W06	r11	killed	FAIL - R11-1 B retries the owed stop: the unit is stopped and the set is gone (never orphaned) (expected [2 1  {}] got [2 1  {"decide-a":{"constitution_started":true,"started_at":null,"stopping":null,
+W07	r11	survived	
+W07	r10	survived	
+W07	r9	survived	
+W08	r11	killed	FAIL - R11-1 A keeps the set constitution-started, records the stopping mark it saw and an owed stop; A runs no stop of its own (expected [5 true true 1737] got [5 true true null])
+W07	r8	survived	
+W09	r11	survived	
+W09	r10	survived	
+W09	r9	survived	
+W07	r7	survived	
+W09	r8	survived	
+W09	r7	survived	
+W07	r6	survived	
+W07	pl	survived	
+W09	r6	survived	
+W09	pl	survived	

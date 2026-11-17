@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""patch_faq.py <repo> <utc-timestamp>: dated correction of FAQ question 23 (the capacity source IS vendored now);
+revision 4 -> 5. Each edit must match exactly once."""
+import sys
+repo, ts = sys.argv[1], sys.argv[2]
+p = repo + "/docs/jev/faq.md"
+s = open(p).read()
+E = [
+    ("| Revision | 4 |", "| Revision | 5 |"),
+    ("| Last modified | 2026-11-13T17:36:01Z |", f"| Last modified | {ts} |"),
+    ("revision 4 adds questions 28 and 29 (placement freshness, round 7) |",
+     "revision 4 adds questions 28 and 29 (placement freshness, round 7); revision 5 corrects question 23 (the capacity source is vendored) |"),
+    ("is started by automation (see the governance guide, \"Capacity-aware placement\").",
+     "is started by automation (see the governance guide, \"Capacity-aware placement\"). (Correction 2026-11-13: the "
+     "sentence about the capacity source is stale. The vendored llmctl (gitlink `391d8177`, 3.4.1) provides "
+     "`llmctl capacity --json` and `scripts/jev/jev-place.sh` reads it. What still keeps automation from starting a "
+     "local model is that no session calls `acquire` today; and a host whose `RLIMIT_NPROC` is unlimited gets "
+     "`undetermined` (`nproc_unlimited`) until the operator decides whether that admits a start.)"),
+]
+for a, b in E:
+    n = s.count(a)
+    assert n == 1, (a[:60], n)
+    s = s.replace(a, b, 1)
+open(p, "w").write(s)
+print("faq patched")

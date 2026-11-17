@@ -1,0 +1,6 @@
+id	rc	verdict
+CONTROL	0	CONTROL-PASS
+R01-no-timeout	0	SURVIVED
+R02-rc2-blind-pass	0	SURVIVED
+R03-no-main-moved	0	SURVIVED
+R07-log-discarded	0	SURVIVED

@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 8 |
 | Created | 2026-10-23 |
-| Last modified | 2026-10-28T19:34:34Z |
+| Last modified | 2026-11-17T03:25:18Z |
 | Status | active |
 | Status summary | Short answers to recurring questions, each tied to the source that settles it. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement) |
+| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement); revision 4 adds questions 28 and 29 (placement freshness, round 7); revision 5 corrects question 23 (the capacity source is vendored); revision 7 adds questions 30 and 31 (round 9: one mark per stop, monotonic ages); revision 8 adds question 32 (round 14: the start process of a killed acquire) |
 | Fixed summary | — |
 | Continuation | none |
 
@@ -25,6 +25,9 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 - [Calibration and proof](#calibration-and-proof)
 - [Bootstrap](#bootstrap)
 - [Capacity and placement](#capacity-and-placement)
+- [Default-on wiring and exit 5 (2026-11-12)](#default-on-wiring-and-exit-5-2026-11-12)
+- [Placement freshness (2026-11-13)](#placement-freshness-2026-11-13)
+- [Start intents (2026-11-17)](#start-intents-2026-11-17)
 
 ## General
 
@@ -91,7 +94,7 @@ Showing it would anchor the label toward agreement and inflate the promotion sta
 It found unwired agents and did not have permission to edit agent homes. Re-run with `--yes` after reading the audit lines.
 
 **19. Why does a second run print `no-change` everywhere?**
-By design: stage digests equal the stamp, nothing is rewritten.
+By design: stage digests equal the stamp, nothing is rewritten. Stage 3 still probes each endpoint of the previous record once, because the answer is part of its digest; when an answer changed (for example credit was added) that stage runs again and the record is rewritten.
 
 **20. Why does it want `jq`?**
 JSON parsing; a second parser would fork the wire format. Without it the wizard stops with rc 2 and a pending stamp.
@@ -105,4 +108,37 @@ Only with `--install-tools` (or a "y" at the prompt). They link into PATH and ed
 ## Capacity and placement
 
 **23. My host is busy. Will a local decision model still start?**
-Not unless it fits. §11.4.291 gives each decision profile a placement verdict from the live host load with a reserve kept free; only `fits` (or `fits_with_reduced_threads`, started with the fewer threads llmctl reports) allows a start, or an explicit, recorded operator override of `undetermined`. Otherwise the route is `cloud` (the hosted endpoint, in shadow mode) when a non-placeholder key is present, or `none`, and you get a notice plus a `placement` entry in `jev-detection.json`. The constitution never runs `llmctl enable`. The live capacity source (`llmctl capacity --json`, schema `llmctl.capacity/1`, llmctl 3.4.0) is not vendored yet, so today the verdict is `undetermined` and no local model is started by automation (see the governance guide, "Capacity-aware placement").
+Not unless it fits. (Update 2026-11-12: `scripts/jev/jev-place.sh` now reads `llmctl capacity --json` when the installed llmctl provides it; the paragraph below describes the rules it follows.) §11.4.291 gives each decision profile a placement verdict from the live host load with a reserve kept free; only `fits` (or `fits_with_reduced_threads`, started with the fewer threads llmctl reports) allows a start, or an explicit, recorded operator override of `undetermined`. Otherwise the route is `cloud` (the hosted endpoint, in shadow mode) when a non-placeholder key is present, or `none`, and you get a notice plus a `placement` entry in `jev-detection.json`. The constitution never runs `llmctl enable`. The live capacity source (`llmctl capacity --json`, schema `llmctl.capacity/1`, llmctl 3.4.0) is not vendored yet, so today the verdict is `undetermined` and no local model is started by automation (see the governance guide, "Capacity-aware placement"). (Correction 2026-11-13: the sentence about the capacity source is stale. The vendored llmctl (gitlink `391d8177`, 3.4.1) provides `llmctl capacity --json` and `scripts/jev/jev-place.sh` reads it. What still keeps automation from starting a local model is that no session calls `acquire` today; and a host whose `RLIMIT_NPROC` is unlimited gets `undetermined` (`nproc_unlimited`) until the operator decides whether that admits a start.)
+
+## Default-on wiring and exit 5 (2026-11-12)
+
+**24. Why did my constitution pull wire the Jev hook without asking?**
+The operator decision of 2026-11-12 made consent a standing order: when a non-placeholder decision key is present, the post-update hook runs the bootstrap with `--default-on`, which wires the hook and MCP server at user level and logs it. Undo: claude_toolkit `jev-setup --uninstall`. Opt out for good: `touch ~/.config/jev/wiring.disabled` (or `JEV_WIRING=off`).
+
+**25. Why does the bootstrap now exit 5?**
+It found decision endpoints but is not serving: either none answered 2xx (no credit, refused key, rate limit, unreachable) or no agent is wired. Before this change it exited 0 and printed `ok` in that state.
+
+**26. My key is real but OpenRouter is "not usable". Why?**
+A real key and a usable endpoint are different facts. HTTP 402 means the account has no credit; it is recorded `no_credit`, never reachable.
+
+**27. Are thresholds shared between endpoints?**
+No longer only per question type: `jev-thresholds.json` also has `per_endpoint["<endpoint>|<model>"]`, and each group earns enforce on its own sample. Rows that do not say which endpoint answered are grouped as `unknown|unknown`.
+
+## Placement freshness (2026-11-13)
+
+**28. Why did `acquire` start nothing and say `stale_answer`?**
+Another session changed the lease registry (started, stopped, joined or released a model) between this acquire's capacity read and its start, three times in a row. Since round 7 a start is decided only on a capacity answer read after the last registry change (the token is the registry's generation counter plus the sha256 of `leases.json`, checked at the plan and again at the start mark). A stale answer is read again; after three stale reads nothing is started and the route falls back. It means heavy contention, not a fault; the next acquire tries again.
+
+**29. Why does a held model stay unrouted for a while after its starter died?**
+Clearing a dead starter's mark sets the set's health to `pending` at the current observation counter (a floor): only an observation that begins after the clear may judge the set, so a capacity answer read before the start finished can never mark a running model gone. A live starter's mark is kept until the mark itself is older than `MARK_TTL` (the start/stop timeout + 2 s + retries × lock timeout + 30 s). The age counts from the mark's own `at`, stamped when the mark is written (round 8; up to round 7 it was stamped at the producer's process start, so a mark set late in a long acquire could be cleared while its starter was still running). Run `status` or the next `acquire` to observe the set.
+
+**30. Why does `acquire` or `release` log `stop of <p> (...) not run at its turn: <reason>`?**
+When one call has to stop several sets, each set is marked `stopping` and judged again under the lock immediately before its own `llmctl stop`, never at planning time (round 9, review R8-1). Up to round 8 every listed set got one mark written when the stops were planned, so the mark of a later set aged while the earlier stops ran and another session could clear the mark of a live stopper and join the set. Now a set that was joined, started, marked by another process, observed `ok` again (a disposal) or removed meanwhile is simply not stopped, and the reason is logged. That is not a failure: `release` exits 0 for it. A stop that returns rc 0 while the set holds a lease never deletes the set (`stopped_while_held` is recorded and the set is not routed until the next observation; when the unit is gone every lease is released as `endpoint_gone`). Gate-logic evidence only, `docs/qa/jev_s3s4_20261112/round9/`.
+
+**31. Can a clock step (NTP) clear a live mark or reap a live lease?**
+Not on a host with `/proc` (round 9, review R8-6). Every mark and lease heartbeat carries `mono` = `<boot id>:<uptime seconds>` next to the wall-clock `at` / `heartbeat_at`, and an age is judged on the monotonic difference when both records are from this boot. A record from another boot counts as expired; a record without `mono` (written by an older producer, or a host without `/proc`) is judged on wall time as before. While an acquire runs a bounded llmctl call, a lease whose holder is named by that process's live mark is not aged out. Gate-logic evidence only.
+
+## Start intents (2026-11-17)
+
+**32. An acquire was killed while it was starting a model. Can the model be left running with nobody to stop it?**
+Not by the paths the gate-logic tests show (round 14, review R13-B1). Every `llmctl start` runs in a start process (`scripts/jev/jev-start-gate.sh`) that the acquire creates before it records the start, and the record (the start intent) names that process. The start process runs llmctl only after the record is written, so a start that runs is always named by an intent. While that process or its process group still runs, the intent is kept: no other acquire adopts the model as operator-started or starts it a second time. Once an observation taken after the start process ended sees the model running, it is recorded as started by this producer with an owed stop, which the next `acquire` or `release` runs. Before round 14 a second acquire could judge the intent while the start was still running and remove it, and the model then came up with no record. Limits: a process that `llmctl start` leaves in another process group or session is not seen (UNCONFIRMED for a real llmctl); a live acquire's intent never expires by age (its start is bounded); evidence is gate-logic with a stub llmctl only, `docs/qa/jev_s3s4_20261112/round14/`.

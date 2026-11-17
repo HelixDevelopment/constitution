@@ -1,0 +1,20 @@
+$ remint_ids.py plan
+RESULT: PLAN own=44 first=CON-312 last=CON-355
+rc=0
+$ remint_ids.py replay --apply
+RESULT: APPLIED steps=47 items=44
+rc=0
+$ workable-items validate
+validate: OK — 319 items, all invariants satisfied
+$ remint_ids.py verify
+RESULT: PASS items=44 mismatches=0
+$ workable-items export
+export: wrote docs/Fixed_Summary.md
+export: --no-formats set; skipped HTML/PDF/DOCX sibling generation
+$ remint_ids.py verify --require-segments
+RESULT: PASS items=44 mismatches=0
+$ workable-items diff
+diff: DB and Markdown are in sync (compared 319 Markdown item(s) against 319 DB item(s); read docs/Issues.md, docs/Fixed.md)
+$ remint_ids.py replay --apply (second time, same map, on a copy of the replayed target)
+REFUSED: the target already holds new id(s) CON-312,CON-313,CON-314,CON-315,CON-316: replay only once, onto the database the map was planned against
+rc=1

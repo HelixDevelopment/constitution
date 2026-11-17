@@ -1,0 +1,13 @@
+cm_submodule_pin_not_downgraded.sh	190	L	range-in-regex	max_waiver_days) [[ "$v" =~ ^[1-9][0-9]{0,2}$ ]] && [ "$v" -le 365 ] || { conferr="config max_waiver_days='$v' not an integer 1..365"; break; }; maxd="$v" ;;
+cm_submodule_pin_not_downgraded.sh	191	L	range-in-regex	item_prefix) [[ "$v" =~ ^[A-Z][A-Z0-9]+$ ]] || { conferr="config item_prefix='$v' does not match ^[A-Z][A-Z0-9]+\$"; break; }; prefix="$v" ;;
+cm_submodule_pin_not_downgraded.sh	204	E	codec	p=[x.decode("utf-8") for x in sys.stdin.buffer.read().split(b"\0")]
+cm_submodule_pin_not_downgraded.sh	208	N	normalize	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())
+cm_submodule_pin_not_downgraded.sh	208	N	normalize	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())
+cm_submodule_pin_not_downgraded.sh	208	N	casefold	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())
+cm_submodule_pin_not_downgraded.sh	209	N	f-operand	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0
+cm_submodule_pin_not_downgraded.sh	257	L	range-in-regex	[[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && [ "$(date -d "$e" +%Y-%m-%d 2>/dev/null)" = "$e" ] || { WHY="expiry '$e' is not a real YYYY-MM-DD date"; continue; }
+cm_submodule_pin_not_downgraded.sh	260	L	range-in-regex	[[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]] || { WHY="tracked item '$i' does not match ${prefix}-NNN"; continue; }
+# hits per class/token: E/codec=1, L/range-in-regex=4, N/casefold=1, N/f-operand=1, N/normalize=2
+# tokens searched: 20 (each needled on its own line), negative control: 0 hits
+BLIND: needle N/casefold not found on its own line
+blind rc=2

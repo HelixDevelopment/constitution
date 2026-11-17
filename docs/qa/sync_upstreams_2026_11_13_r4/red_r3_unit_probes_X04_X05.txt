@@ -1,0 +1,6 @@
+== X05
+RED F9c-long-secret fatal: unable to access 'https://user:QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ@x:y%40zRRRRRRRRRRRRRR
+GREEN F5-behaviour bad-pgid signals=[] own-pgid signals=[4242]
+== X04
+GREEN F9c-long-secret fatal: unable to access 'https://example.org/r.git/': 403
+RED F5-behaviour bad-pgid signals=[1, 0, -1, True, 4243] own-pgid signals=[4242]

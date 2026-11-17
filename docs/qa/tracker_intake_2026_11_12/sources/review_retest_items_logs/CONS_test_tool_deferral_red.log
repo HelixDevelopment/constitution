@@ -1,0 +1,28 @@
+PASS[1]: control needle #1a: a known-present, non-empty file IS found by the existence+non-empty check
+PASS[2]: control needle #1b: a fabricated (never-created) path IS reported absent
+
+=== Section 1: config/fastcycle/deferral.yaml RED baseline (live) ===
+INFO: config/fastcycle/deferral.yaml NOT FOUND at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S/config/fastcycle/deferral.yaml -- T116 has not landed; this is the EXPECTED RED-today outcome
+FAIL[3]: T116 has landed config/fastcycle/deferral.yaml naming §11.4.272 deferral candidates -- expected to FAIL today (RED), documented honestly per T107's own scope note (2)
+
+=== Section 2: existing skill-activation engine presence (reuse precondition) ===
+PASS[4]: the existing skill-activation engine (skill_activate.sh + skill_activation_lib.sh + shipped default manifest + its own anti-bluff suite) is present and readable
+PASS[5]: skill_activate.sh + skill_activation_lib.sh parse clean (bash -n)
+PASS[6]: the CLI implements activate/list/prune (the three verbs T116 needs -- no new subcommand required)
+INFO: scope note (1): /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S/.mcp.json exists=no; MCP-deferral-mechanism hits under constitution/scripts=1 (0 confirms no existing MCP deferral mechanism -- out of this test's scope per note (1))
+
+=== Section 3: sandbox self-validation (golden / golden-bad / negative-control) ===
+PASS[7]: GOLDEN oracle: 'deferred-legit' (non-core, present in pool source) independently derives to LISTED_ONDEMAND before the real CLI runs
+PASS[8]: GOLDEN: the real 'list' output places 'deferred-legit' in the on-demand section (§11.4.272(B) discoverability -- matches the independent oracle)
+PASS[9]: GOLDEN: 'activate deferred-legit' produces a real, independently-readable SKILL.md at the active path (§11.4.272(B) activatability -- checked on the filesystem, not the CLI's own exit code)
+PASS[10]: GOLDEN-BAD oracle: 'deferred-broken' (named but present in NO pool source) independently derives to UNLISTABLE -- this test's checking logic correctly flags a §11.4.272(B) violation, proving it is not decoration
+PASS[11]: GOLDEN-BAD: the real 'list' output ALSO agrees 'deferred-broken' is ABSENT (never found in either section) -- the independent oracle and the real tool concur on the violation, so this is a genuine discrimination not a fixture artefact
+PASS[12]: GOLDEN-BAD: 'activate deferred-broken' correctly fails (non-zero, no dangling link) rather than silently claiming success on an unlistable capability (§11.4.201 fail-safe-never-silent)
+PASS[13]: negative control: a genuinely CORE capability ('core-one') independently derives to LISTED_CORE, not LISTED_ONDEMAND -- the oracle distinguishes core from deferred, never conflating the two
+PASS[14]: negative control: the real 'list' output ALSO places 'core-one' in the core section
+
+=== Section 4: real config/fastcycle/deferral.yaml after-check (live, read-only) ===
+INFO: config/fastcycle/deferral.yaml still absent -- no deferral to check yet; this is the EXPECTED RED-today outcome (T107's task text: 'this is the RED I write to protect T116')
+FAIL[15]: every capability named in config/fastcycle/deferral.yaml stays listed and activatable per §11.4.272(B) (real, live check against this project's own manifest) -- expected to FAIL today (RED), no deferral.yaml exists yet
+
+SUMMARY pass=13 fail=2 skip=0 total=15

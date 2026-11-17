@@ -1,0 +1,393 @@
+K0-unmodified                                        sp_rc=0 ge_rc=0 bash=noeffect control-ok
+    sp: -
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+K1-plain-declare-l-before                            sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) control-ok
+    sp: VIOLATION sp_K1-plain-declare-l-before.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the canonical scrub
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 299): canonical scrub line at line 299 is not effective (not at column 0 in the preamble: inside a block, a functio | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | 
+K2-true-before                                       sp_rc=1 ge_rc=1 bash=noeffect control-ok
+    sp: VIOLATION sp_K2-true-before.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the canonical scrub line (the 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 299): canonical scrub line at line 299 is not effective (not at column 0 in the preamble: inside a block, a functio | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+K3-plain-hidden-op-after                             sp_rc=1 ge_rc=0 bash=HIDDEN-OP control-ok
+    sp: VIOLATION sp_K3-plain-hidden-op-after.sh:299 <top> mkdir -- mkdir on an operand that is not proved ("${RV_UNPROVED:?}/k3")
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+K4-colon-after                                       sp_rc=0 ge_rc=0 bash=noeffect control-ok
+    sp: -
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+B01-CR-comment-then-command-declare-l                sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B01-CR-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+000D (unnamed, category Cc), outside the census's modelled character set (
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000D (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B01-CR-comment-then-command-declare-l/prog.sh: line 2: $'\r#': command not found ; 
+B02-FS(0x1c)-comment-then-command-declare-l          sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B02-FS_0x1c_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+001C (unnamed, category Cc), outside the census's modelled character
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+001C (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B02-FS_0x1c_-comment-then-command-declare-l/prog.sh: line 2: $'\034#': command not found ; 
+B03-VT-comment-then-command-declare-l                sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B03-VT-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+000B (unnamed, category Cc), outside the census's modelled character set (
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000B (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B03-VT-comment-then-command-declare-l/prog.sh: line 2: $'\v#': command not found ; 
+B04-FF-comment-then-command-declare-l                sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B04-FF-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+000C (unnamed, category Cc), outside the census's modelled character set (
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000C (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B04-FF-comment-then-command-declare-l/prog.sh: line 2: $'\f#': command not found ; 
+B05-NBSP-comment-then-command-declare-l              sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B05-NBSP-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+00A0 (NO-BREAK SPACE, category Zs), outside the census's modelled charac
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+00A0 (NO-BREAK SPACE, Zs) in the preamble: bash and this census read it differently; not mod | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B05-NBSP-comment-then-command-declare-l/prog.sh: line 2:  #: command not found ; 
+B06-NEL(U+0085)-comment-then-command-declare-l       sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B06-NEL_U_0085_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+0085 (unnamed, category Cc), outside the census's modelled charac
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+0085 (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B06-NEL_U_0085_-comment-then-command-declare-l/prog.sh: line 2: $'\302\205#': command not found
+B07-EMSP(U+2003)-comment-then-command-declare-l      sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B07-EMSP_U_2003_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+2003 (EM SPACE, category Zs), outside the census's modelled char
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+2003 (EM SPACE, Zs) in the preamble: bash and this census read it differently; not modelled, | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B07-EMSP_U_2003_-comment-then-command-declare-l/prog.sh: line 2:  #: command not found ; 
+B08-CR-comment-then-DEBUG-trap-on-proved             sp_rc=1 ge_rc=1 bash=wt_path-CHANGED held
+    sp: VIOLATION sp_B08-CR-comment-then-DEBUG-trap-on-proved.sh:298 <top> <file text> -- column 1 holds U+000D (unnamed, category Cc), outside the census's modelled character se
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000D (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/
+ | <P>/out/cls/bash/B08-CR-comment-then-DEBUG-trap-on-proved/prog.sh: line 2: $'\r#': command not found ; 
+B09-RS(0x1e)-comment-then-readonly                   sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B09-RS_0x1e_-comment-then-readonly.sh:298 <top> <file text> -- column 1 holds U+001E (unnamed, category Cc), outside the census's modelled character set (bas
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+001E (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B09-RS_0x1e_-comment-then-readonly/prog.sh: line 2: $'\036#': command not found ; <P-truncated>
+B10-CR-comment-then-declare-i (abort/skip)           sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B10-CR-comment-then-declare-i__abort_skip_.sh:298 <top> <file text> -- column 1 holds U+000D (unnamed, category Cc), outside the census's modelled character 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000D (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B10-CR-comment-then-declare-i__abort_skip_/prog.sh: line 2: $'\r#': command not found ; <P-truncated>
+B11-US(0x1f)-blank-looking-line-then-code-line       sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B11-US_0x1f_-blank-looking-line-then-code-line.sh:298 <top> <file text> -- column 1 holds U+001F (unnamed, category Cc), outside the census's modelled charac
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+001F (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B11-US_0x1f_-blank-looking-line-then-code-line/prog.sh: line 2: $'\037': command not found ; 
+B12-CR-comment-then-shadow-unset-function            sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B12-CR-comment-then-shadow-unset-function.sh:298 <top> <file text> -- column 1 holds U+000D (unnamed, category Cc), outside the census's modelled character s
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000D (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/B12-CR-comment-then-shadow-unset-function/prog.sh: line 2: $'\r#': command not found ; 
+B13-shebang-env-S-bash-c-declare                     sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_B13-shebang-env-S-bash-c-declare.sh:1 <top> <file text> -- line 1 is a #! line outside the closed set #!/bin/bash / #!/usr/bin/env bash: run directly, its ar
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 1): line 1 is a #! line outside the closed set (#!/usr/bin/env bash, #!/bin/bash, #!/bin/sh, #!/system/bin/sh): a f | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | 
+B14-backslash-unset-f-trusted                        sp_rc=1 ge_rc=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe held
+    sp: VIOLATION sp_B14-backslash-unset-f-trusted.sh:299 <top> \unset -- a quoted / escaped / indirect command word -- the census cannot see what runs (fail-closed)
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: PATHRUN:_fc_safe
+RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+FUNC_GONE:_fc_safe
+ | 
+B15-quoted-cmdword-unset-f                           sp_rc=1 ge_rc=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe held
+    sp: VIOLATION sp_B15-quoted-cmdword-unset-f.sh:299 <top> "unset" -- a quoted / escaped / indirect command word -- the census cannot see what runs (fail-closed)
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: PATHRUN:_fc_safe
+RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+FUNC_GONE:_fc_safe
+ | 
+B16-var-cmdword-unset-f                              sp_rc=1 ge_rc=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe held
+    sp: VIOLATION sp_B16-var-cmdword-unset-f.sh:299 <top> $_u -- a quoted / escaped / indirect command word -- the census cannot see what runs (fail-closed)
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: PATHRUN:_fc_safe
+RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+FUNC_GONE:_fc_safe
+ | 
+B17-builtin-unset-f                                  sp_rc=1 ge_rc=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe held
+    sp: VIOLATION sp_B17-builtin-unset-f.sh:299 <top> builtin -- a command word not in the census's tables (fail-closed: SH_NOOP / SH_READ / SH_WRITE / git / python3 / this file'
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: PATHRUN:_fc_safe
+RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+FUNC_GONE:_fc_safe
+ | 
+B18-eval-unset-f                                     sp_rc=1 ge_rc=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe held
+    sp: VIOLATION sp_B18-eval-unset-f.sh:299 <top> eval -- eval runs text the census cannot see (fail-closed)
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: PATHRUN:_fc_safe
+RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+FUNC_GONE:_fc_safe
+ | 
+B19-function-keyword-redefine                        sp_rc=1 ge_rc=0 bash=wt_path-CHANGED held
+    sp: VIOLATION sp_B19-function-keyword-redefine.sh:443 _fc_safe function _fc_safe -- the trusted function _fc_safe is defined 2 times: a later definition changes what every RO
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/
+ | 
+B20-alias-shadow-trusted                             sp_rc=1 ge_rc=0 bash=wt_path-CHANGED held
+    sp: VIOLATION sp_B20-alias-shadow-trusted.sh:299 <top> shopt -- a command word not in the census's tables (fail-closed: SH_NOOP / SH_READ / SH_WRITE / git / python3 / this fi
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/
+ | 
+B21-source-procsubst-redefine                        sp_rc=1 ge_rc=0 bash=wt_path-CHANGED held
+    sp: VIOLATION sp_B21-source-procsubst-redefine.sh:299 <top> . -- . runs text the census cannot see (fail-closed)
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/
+ | 
+B22-command-p-runs-program                           sp_rc=1 ge_rc=0 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_B22-command-p-runs-program.sh:299 <top> -p -- a command word not in the census's tables (fail-closed: SH_NOOP / SH_READ / SH_WRITE / git / python3 / this fil
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/B22-command-p-runs-program/prog.sh: line 7: _fc_safe: command not found ; 
+B23-command-dashdash-runs-program                    sp_rc=1 ge_rc=0 bash=PATHRUN:_fc_safe held
+    sp: VIOLATION sp_B23-command-dashdash-runs-program.sh:299 <top> -- -- a command word not in the census's tables (fail-closed: SH_NOOP / SH_READ / SH_WRITE / git / python3 / t
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: PATHRUN:_fc_safe
+RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+B24-unset-f-quoted-option-word                       sp_rc=1 ge_rc=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe held
+    sp: VIOLATION sp_B24-unset-f-quoted-option-word.sh:299 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever command of th
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: PATHRUN:_fc_safe
+RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+FUNC_GONE:_fc_safe
+ | 
+B25-builtin-declare-gl-after                         sp_rc=1 ge_rc=0 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_B25-builtin-declare-gl-after.sh:299 <top> builtin -- a command word not in the census's tables (fail-closed: SH_NOOP / SH_READ / SH_WRITE / git / python3 / t
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+N01-GS(0x1d)-comment-then-command-declare-l          sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N01-GS_0x1d_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+001D (unnamed, category Cc), outside the census's modelled character
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+001D (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N01-GS_0x1d_-comment-then-command-declare-l/prog.sh: line 2: $'\035#': command not found ; 
+N02-DEL(0x7f)-comment-then-command-declare-l         sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N02-DEL_0x7f_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+007F (unnamed, category Cc), outside the census's modelled characte
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+007F (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N02-DEL_0x7f_-comment-then-command-declare-l/prog.sh: line 2: $'\177#': command not found ; 
+N03-IDSP(U+3000)-comment-then-command-declare-l      sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N03-IDSP_U_3000_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+3000 (IDEOGRAPHIC SPACE, category Zs), outside the census's mode
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+3000 (IDEOGRAPHIC SPACE, Zs) in the preamble: bash and this census read it differently; not  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N03-IDSP_U_3000_-comment-then-command-declare-l/prog.sh: line 2: 　#: command not found ; 
+N04-LSEP(U+2028)-comment-then-command-declare-l      sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N04-LSEP_U_2028_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+2028 (LINE SEPARATOR, category Zl), outside the census's modelle
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+2028 (LINE SEPARATOR, Zl) in the preamble: bash and this census read it differently; not mod | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N04-LSEP_U_2028_-comment-then-command-declare-l/prog.sh: line 2: $'\342\200\250#': command not 
+N05-PSEP(U+2029)-comment-then-command-declare-l      sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N05-PSEP_U_2029_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+2029 (PARAGRAPH SEPARATOR, category Zp), outside the census's mo
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+2029 (PARAGRAPH SEPARATOR, Zp) in the preamble: bash and this census read it differently; no | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N05-PSEP_U_2029_-comment-then-command-declare-l/prog.sh: line 2: $'\342\200\251#': command not 
+N06-ZWSP(U+200B)-comment-then-command-declare-l      sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N06-ZWSP_U_200B_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+200B (ZERO WIDTH SPACE, category Cf), outside the census's model
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+200B (ZERO WIDTH SPACE, Cf) in the preamble: bash and this census read it differently; not m | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N06-ZWSP_U_200B_-comment-then-command-declare-l/prog.sh: line 2: ​#: command not found ; 
+N07-RLO(U+202E)-comment-then-command-declare-l       sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N07-RLO_U_202E_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+202E (RIGHT-TO-LEFT OVERRIDE, category Cf), outside the census's 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+202E (RIGHT-TO-LEFT OVERRIDE, Cf) in the preamble: bash and this census read it differently; | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N07-RLO_U_202E_-comment-then-command-declare-l/prog.sh: line 2: ‮#: command not found ; 
+N08-LRI(U+2066)-comment-then-command-declare-l       sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N08-LRI_U_2066_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+2066 (LEFT-TO-RIGHT ISOLATE, category Cf), outside the census's m
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+2066 (LEFT-TO-RIGHT ISOLATE, Cf) in the preamble: bash and this census read it differently;  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N08-LRI_U_2066_-comment-then-command-declare-l/prog.sh: line 2: ⁦#: command not found ; 
+N09-BOM(U+FEFF)-comment-then-command-declare-l       sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N09-BOM_U_FEFF_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+FEFF (ZERO WIDTH NO-BREAK SPACE, category Cf), outside the census
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+FEFF (ZERO WIDTH NO-BREAK SPACE, Cf) in the preamble: bash and this census read it different | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N09-BOM_U_FEFF_-comment-then-command-declare-l/prog.sh: line 2: ﻿#: command not found ; 
+N10-NNBSP(U+202F)-comment-then-command-declare-l     sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N10-NNBSP_U_202F_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+202F (NARROW NO-BREAK SPACE, category Zs), outside the census's
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+202F (NARROW NO-BREAK SPACE, Zs) in the preamble: bash and this census read it differently;  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N10-NNBSP_U_202F_-comment-then-command-declare-l/prog.sh: line 2:  #: command not found ; 
+N11-OGHAM(U+1680)-comment-then-command-declare-l     sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N11-OGHAM_U_1680_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+1680 (OGHAM SPACE MARK, category Zs), outside the census's mode
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+1680 (OGHAM SPACE MARK, Zs) in the preamble: bash and this census read it differently; not m | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N11-OGHAM_U_1680_-comment-then-command-declare-l/prog.sh: line 2:  #: command not found ; 
+N12-THSP(U+2009)-comment-then-command-declare-l      sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N12-THSP_U_2009_-comment-then-command-declare-l.sh:298 <top> <file text> -- column 1 holds U+2009 (THIN SPACE, category Zs), outside the census's modelled ch
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+2009 (THIN SPACE, Zs) in the preamble: bash and this census read it differently; not modelle | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N12-THSP_U_2009_-comment-then-command-declare-l/prog.sh: line 2:  #: command not found ; 
+N13-CR-comment-then-shadow-unset                     sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N13-CR-comment-then-shadow-unset.sh:298 <top> <file text> -- column 1 holds U+000D (unnamed, category Cc), outside the census's modelled character set (bash 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000D (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N13-CR-comment-then-shadow-unset/prog.sh: line 2: $'\r#': command not found ; 
+N14-CR-hides-op-after-the-line                       sp_rc=1 ge_rc=1 bash=HIDDEN-OP held
+    sp: VIOLATION sp_N14-CR-hides-op-after-the-line.sh:299 <top> <file text> -- column 2 holds U+000D (unnamed, category Cc), outside the census's modelled character set (bash an
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 299): column 2 holds U+000D (unnamed, Cc): bash and this census read it differently; not modelled, fail-closed (CON | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/N14-CR-hides-op-after-the-line/prog.sh: line 7: $':\r#': command not found ; 
+N15-VT-comment-then-shadow-unset                     sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N15-VT-comment-then-shadow-unset.sh:298 <top> <file text> -- column 1 holds U+000B (unnamed, category Cc), outside the census's modelled character set (bash 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000B (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N15-VT-comment-then-shadow-unset/prog.sh: line 2: $'\v#': command not found ; 
+N16-VT-hides-op-after-the-line                       sp_rc=1 ge_rc=1 bash=HIDDEN-OP held
+    sp: VIOLATION sp_N16-VT-hides-op-after-the-line.sh:299 <top> <file text> -- column 2 holds U+000B (unnamed, category Cc), outside the census's modelled character set (bash an
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 299): column 2 holds U+000B (unnamed, Cc): bash and this census read it differently; not modelled, fail-closed (CON | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/N16-VT-hides-op-after-the-line/prog.sh: line 7: $':\v#': command not found ; 
+N17-FF-comment-then-shadow-unset                     sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N17-FF-comment-then-shadow-unset.sh:298 <top> <file text> -- column 1 holds U+000C (unnamed, category Cc), outside the census's modelled character set (bash 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000C (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N17-FF-comment-then-shadow-unset/prog.sh: line 2: $'\f#': command not found ; 
+N18-FF-hides-op-after-the-line                       sp_rc=1 ge_rc=1 bash=HIDDEN-OP held
+    sp: VIOLATION sp_N18-FF-hides-op-after-the-line.sh:299 <top> <file text> -- column 2 holds U+000C (unnamed, category Cc), outside the census's modelled character set (bash an
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 299): column 2 holds U+000C (unnamed, Cc): bash and this census read it differently; not modelled, fail-closed (CON | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/N18-FF-hides-op-after-the-line/prog.sh: line 7: $':\f#': command not found ; 
+N19-NBSP-comment-then-shadow-unset                   sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N19-NBSP-comment-then-shadow-unset.sh:298 <top> <file text> -- column 1 holds U+00A0 (NO-BREAK SPACE, category Zs), outside the census's modelled character s
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+00A0 (NO-BREAK SPACE, Zs) in the preamble: bash and this census read it differently; not mod | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N19-NBSP-comment-then-shadow-unset/prog.sh: line 2:  #: command not found ; 
+N20-NBSP-hides-op-after-the-line                     sp_rc=1 ge_rc=0 bash=HIDDEN-OP held
+    sp: VIOLATION sp_N20-NBSP-hides-op-after-the-line.sh:299 <top> <file text> -- column 2 holds U+00A0 (NO-BREAK SPACE, category Zs), outside the census's modelled character set
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/N20-NBSP-hides-op-after-the-line/prog.sh: line 7: : #: command not found ; 
+N21-NEL-comment-then-shadow-unset                    sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N21-NEL-comment-then-shadow-unset.sh:298 <top> <file text> -- column 1 holds U+0085 (unnamed, category Cc), outside the census's modelled character set (bash
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+0085 (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N21-NEL-comment-then-shadow-unset/prog.sh: line 2: $'\302\205#': command not found ; 
+N22-NEL-hides-op-after-the-line                      sp_rc=1 ge_rc=0 bash=HIDDEN-OP held
+    sp: VIOLATION sp_N22-NEL-hides-op-after-the-line.sh:299 <top> <file text> -- column 2 holds U+0085 (unnamed, category Cc), outside the census's modelled character set (bash a
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/N22-NEL-hides-op-after-the-line/prog.sh: line 7: $':\302\205#': command not found ; 
+N23-FS-comment-then-shadow-unset                     sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N23-FS-comment-then-shadow-unset.sh:298 <top> <file text> -- column 1 holds U+001C (unnamed, category Cc), outside the census's modelled character set (bash 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+001C (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N23-FS-comment-then-shadow-unset/prog.sh: line 2: $'\034#': command not found ; 
+N24-FS-hides-op-after-the-line                       sp_rc=1 ge_rc=1 bash=HIDDEN-OP held
+    sp: VIOLATION sp_N24-FS-hides-op-after-the-line.sh:299 <top> <file text> -- column 2 holds U+001C (unnamed, category Cc), outside the census's modelled character set (bash an
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 299): column 2 holds U+001C (unnamed, Cc): bash and this census read it differently; not modelled, fail-closed (CON | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/N24-FS-hides-op-after-the-line/prog.sh: line 7: $':\034#': command not found ; 
+N25-CR-inside-the-canonical-line                     sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N25-CR-inside-the-canonical-line.sh:298 <top> <file text> -- column 50 holds U+000D (unnamed, category Cc), outside the census's modelled character set (bash
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 50 holds U+000D (unnamed, Cc): bash and this census read it differently; not modelled, fail-closed (CO | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | 
+N26-CRLF-whole-file                                  sp_rc=1 ge_rc=1 bash=NO-RESULT(rc=2) refused-noeffect(conservative)
+    sp: VIOLATION sp_N26-CRLF-whole-file.sh:1 <top> <file text> -- line 1 is a #! line outside the closed set #!/bin/bash / #!/usr/bin/env bash: run directly, its arguments run b
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 1): line 1 is a #! line outside the closed set (#!/usr/bin/env bash, #!/bin/bash, #!/bin/sh, #!/system/bin/sh): a f | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out:  | <P>/out/cls/bash/N26-CRLF-whole-file/prog.sh: line 13: syntax error: unexpected end of file from `{' command on line 4 ; 
+N27-CR-blank-line-before                             sp_rc=1 ge_rc=1 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_N27-CR-blank-line-before.sh:298 <top> <file text> -- column 1 holds U+000D (unnamed, category Cc), outside the census's modelled character set (bash and Pyth
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+000D (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled,  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/N27-CR-blank-line-before/prog.sh: line 2: $'\r': command not found ; 
+N28-CR-at-end-of-a-comment                           sp_rc=1 ge_rc=1 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_N28-CR-at-end-of-a-comment.sh:298 <top> <file text> -- column 12 holds U+000D (unnamed, category Cc), outside the census's modelled character set (bash and P
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 12 holds U+000D (unnamed, Cc) in the preamble: bash and this census read it differently; not modelled, | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+N29-comment-backslash-then-code                      sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N29-comment-backslash-then-code.sh:300 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 299 holds code before the canonical
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 300): canonical scrub line at line 300 is not effective (not at column 0 in the preamble: inside a block, a functio | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | 
+N30-heredoc-in-preamble                              sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N30-heredoc-in-preamble.sh:302 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the canonical scrub l
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 302): canonical scrub line at line 302 is not effective (not at column 0 in the preamble: inside a block, a functio | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | 
+N31-shebang-BASH_ENV-shadow-unset                    sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N31-shebang-BASH_ENV-shadow-unset.sh:1 <top> <file text> -- line 1 is a #! line outside the closed set #!/bin/bash / #!/usr/bin/env bash: run directly, its a
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 1): line 1 is a #! line outside the closed set (#!/usr/bin/env bash, #!/bin/bash, #!/bin/sh, #!/system/bin/sh): a f | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | 
+N32-shebang-bash-O-extdebug                          sp_rc=1 ge_rc=1 bash=NO-RESULT(rc=2) refused-noeffect(conservative)
+    sp: VIOLATION sp_N32-shebang-bash-O-extdebug.sh:1 <top> <file text> -- line 1 is a #! line outside the closed set #!/bin/bash / #!/usr/bin/env bash: run directly, its argumen
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 1): line 1 is a #! line outside the closed set (#!/usr/bin/env bash, #!/bin/bash, #!/bin/sh, #!/system/bin/sh): a f | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out:  | /bin/bash: - : invalid option ; Usage:	/bin/bash [GNU long option] [option] ... ; 	/bin/bash [GNU long option] [option] script-file ... ; GNU long options: ; 	--debug ; 	--debugger ; 	--dump-po-strings ; 	--dump-strings ; 	--help ; 	--in
+N33-shebang-space                                    sp_rc=1 ge_rc=1 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_N33-shebang-space.sh:1 <top> <file text> -- line 1 is a #! line outside the closed set #!/bin/bash / #!/usr/bin/env bash: run directly, its arguments run bef
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 1): line 1 is a #! line outside the closed set (#!/usr/bin/env bash, #!/bin/bash, #!/bin/sh, #!/system/bin/sh): a f | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+N34-shebang-CR                                       sp_rc=1 ge_rc=1 bash=NO-RESULT(rc=-1) refused-noeffect(conservative)
+    sp: VIOLATION sp_N34-shebang-CR.sh:1 <top> <file text> -- line 1 is a #! line outside the closed set #!/bin/bash / #!/usr/bin/env bash: run directly, its arguments run before
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 1): line 1 is a #! line outside the closed set (#!/usr/bin/env bash, #!/bin/bash, #!/bin/sh, #!/system/bin/sh): a f | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out:  | exec failed: [Errno 2] No such file or directory: '<P>/out/cls/bash/N34-shebang-CR/prog.sh'
+N35-BOM-before-shebang                               sp_rc=1 ge_rc=1 bash=NO-RESULT(rc=-1) refused-noeffect(conservative)
+    sp: VIOLATION sp_N35-BOM-before-shebang.sh:1 <top> <file text> -- column 1 holds U+FEFF (ZERO WIDTH NO-BREAK SPACE, category Cf), outside the census's modelled character set 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 1): column 1 holds U+FEFF (ZERO WIDTH NO-BREAK SPACE, Cf) in the preamble: bash and this census read it differently | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out:  | exec failed: [Errno 8] Exec format error: '<P>/out/cls/bash/N35-BOM-before-shebang/prog.sh'
+N36-NUL-comment-then-declare                         sp_rc=1 ge_rc=0 bash=NO-RESULT(rc=126) refused-noeffect(conservative)
+    sp: VIOLATION sp_N36-NUL-comment-then-declare.sh:298 <top> <file text> -- column 2 holds U+0000 (unnamed, category Cc), outside the census's modelled character set (bash and 
+    ge: - | git-env-class-census: PASS - members=1 hermetic=0 exempt=1 unscrubbed=0
+    bash-out:  | <P>/out/cls/bash/N36-NUL-comment-then-declare/prog.sh: <P>/out/cls/bash/N36-NUL-comment-then-declare/prog.sh: cannot execute binary file 
+N37-non-UTF-8-byte-in-comment                        sp_rc=1 ge_rc=1 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_N37-non-UTF-8-byte-in-comment.sh:298 <top> <file text> -- the file is not valid UTF-8 (byte 0xff): outside the census's modelled character set (fail-closed, 
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 3 holds U+FFFD (REPLACEMENT CHARACTER, So) in the preamble: bash and this census read it differently;  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+N38-non-UTF-8-byte-leading                           sp_rc=1 ge_rc=1 bash=SCRUB-DEFEATED(GIT_DIR),SCRUB-DEFEATED(GIT_INDEX_FILE) held
+    sp: VIOLATION sp_N38-non-UTF-8-byte-leading.sh:298 <top> <file text> -- the file is not valid UTF-8 (byte 0xff): outside the census's modelled character set (fail-closed, _sh
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 298): column 1 holds U+FFFD (REPLACEMENT CHARACTER, So) in the preamble: bash and this census read it differently;  | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=/inherited/git GIT_INDEX_FILE=/inherited/index wt_path=/proved
+ | <P>/out/cls/bash/N38-non-UTF-8-byte-leading/prog.sh: line 2: $'\377#': command not found ; 
+N39-VT-mid-line-hides-op                             sp_rc=1 ge_rc=1 bash=HIDDEN-OP held
+    sp: VIOLATION sp_N39-VT-mid-line-hides-op.sh:299 <top> <file text> -- column 5 holds U+000B (unnamed, category Cc), outside the census's modelled character set (bash and Pyth
+    ge: git-env-class-census: FAIL - UNSCRUBBED probe.sh (line 299): column 5 holds U+000B (unnamed, Cc): bash and this census read it differently; not modelled, fail-closed (CON | git-env-class-census: FAIL - members=2 hermetic=0 exempt=1 unscrubbed=1
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | <P>/out/cls/bash/N39-VT-mid-line-hides-op/prog.sh: line 7: $'true\v': command not found ; 
+N40-NBSP-in-an-assignment-after                      sp_rc=1 ge_rc=0 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_N40-NBSP-in-an-assignment-after.sh:299 <top> <file text> -- column 7 holds U+00A0 (NO-BREAK SPACE, category Zs), outside the census's modelled character set 
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+N41-RLO-in-a-string-after                            sp_rc=1 ge_rc=0 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_N41-RLO-in-a-string-after.sh:299 <top> <file text> -- column 4 holds U+202E (RIGHT-TO-LEFT OVERRIDE, category Cf), outside the census's modelled character se
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+N42-Cyrillic-in-code-after                           sp_rc=1 ge_rc=0 bash=noeffect refused-noeffect(conservative)
+    sp: VIOLATION sp_N42-Cyrillic-in-code-after.sh:299 <top> <file text> -- column 4 holds U+043C (CYRILLIC SMALL LETTER EM, category Ll), outside the census's modelled character
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+G01-TAB-led-comment                                  sp_rc=0 ge_rc=0 bash=noeffect golden-false-ok
+    sp: -
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+G02-blank-blanks                                     sp_rc=0 ge_rc=0 bash=noeffect golden-false-ok
+    sp: -
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+G03-unicode-full-line-comment                        sp_rc=0 ge_rc=0 bash=noeffect golden-false-ok
+    sp: -
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+G04-shebang-env-bash                                 sp_rc=0 ge_rc=0 bash=noeffect golden-false-ok
+    sp: -
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out: RES GIT_DIR=[UNSET] GIT_INDEX_FILE=[UNSET] wt_path=/proved
+ | 
+G05-no-shebang-comment-first                         sp_rc=0 ge_rc=0 bash=NO-RESULT(rc=-1) golden-false-ok
+    sp: -
+    ge: - | git-env-class-census: PASS - members=2 hermetic=1 exempt=1 unscrubbed=0
+    bash-out:  | exec failed: [Errno 8] Exec format error: '<P>/out/cls/bash/G05-no-shebang-comment-first/prog.sh'
+SUMMARY members=72 escapes=0 escape_safepath=0 escape_gitenv=0 held=53 golden_false_ok=5 golden_false_wrong=0 refused_noeffect=14 controls_wrong=0

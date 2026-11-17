@@ -1,0 +1,69 @@
+vehicle_id	target_id	verdict	reason
+CON-300	CON-314	DISTINCT	shares only bootstrap.sh, this item wires a recursive fetch and pull into first-time init, that item is timeouts that hang under uutils timeout when the command touches the terminal
+CON-315	CON-234	DISTINCT	shares only tag_and_release.sh, this item is the read-back glab api call (hostname, URL encoding), that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-315	CON-301	DISTINCT	shares only tag_and_release.sh, this item is the read-back glab api call (hostname, URL encoding), that item is the GitHub repository id printed without a number check
+CON-315	CON-303	DISTINCT	shares only tag_and_release.sh, this item is the read-back glab api call (hostname, URL encoding), that item is the SIGINT trap no test drives
+CON-316	CON-234	DISTINCT	shares only tag_and_release.sh, this item is the abort message after a failed mktemp, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-316	CON-301	DISTINCT	shares only tag_and_release.sh, this item is the abort message after a failed mktemp, that item is the GitHub repository id printed without a number check
+CON-316	CON-303	DISTINCT	shares only tag_and_release.sh, this item is the abort message after a failed mktemp, that item is the SIGINT trap no test drives
+CON-317	CON-234	DISTINCT	shares only tag_and_release.sh, this item is the released_at value printed raw, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-317	CON-301	DISTINCT	shares only tag_and_release.sh, this item is the released_at value printed raw, that item is the GitHub repository id printed without a number check
+CON-317	CON-303	DISTINCT	shares only tag_and_release.sh, this item is the released_at value printed raw, that item is the SIGINT trap no test drives
+CON-318	CON-234	DISTINCT	shares only tag_and_release.sh, this item is a final run over a PROVISIONAL-marked release, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-318	CON-301	DISTINCT	shares only tag_and_release.sh, this item is a final run over a PROVISIONAL-marked release, that item is the GitHub repository id printed without a number check
+CON-318	CON-303	DISTINCT	shares only tag_and_release.sh, this item is a final run over a PROVISIONAL-marked release, that item is the SIGINT trap no test drives
+CON-319	CON-234	DISTINCT	shares only tag_and_release.sh, this item is --gitlab-released-at accepted without a gitlab spec, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-319	CON-301	DISTINCT	shares only tag_and_release.sh, this item is --gitlab-released-at accepted without a gitlab spec, that item is the GitHub repository id printed without a number check
+CON-319	CON-303	DISTINCT	shares only tag_and_release.sh, this item is --gitlab-released-at accepted without a gitlab spec, that item is the SIGINT trap no test drives
+CON-320	CON-234	DISTINCT	shares only tag_and_release.sh, this item is --gitlab-released-at needing GNU date, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-320	CON-301	DISTINCT	shares only tag_and_release.sh, this item is --gitlab-released-at needing GNU date, that item is the GitHub repository id printed without a number check
+CON-320	CON-303	DISTINCT	shares only tag_and_release.sh, this item is --gitlab-released-at needing GNU date, that item is the SIGINT trap no test drives
+CON-321	CON-234	DISTINCT	shares only tag_and_release.sh, this item is surviving GitLab pre-release mutants, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-321	CON-301	DISTINCT	shares only tag_and_release.sh, this item is surviving GitLab pre-release mutants, that item is the GitHub repository id printed without a number check
+CON-321	CON-303	DISTINCT-but-similar	both are untested paths of the release scripts, this item names surviving GitLab pre-release mutants, that item the SIGINT trap no test drives
+CON-322	CON-234	DISTINCT	shares only tag_and_release.sh, this item is the GL_MARK wording and GL_NOTES creation, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-322	CON-301	DISTINCT	shares only tag_and_release.sh, this item is the GL_MARK wording and GL_NOTES creation, that item is the GitHub repository id printed without a number check
+CON-322	CON-303	DISTINCT	shares only tag_and_release.sh, this item is the GL_MARK wording and GL_NOTES creation, that item is the SIGINT trap no test drives
+CON-323	CON-234	DISTINCT	shares only tag_and_release.sh, this item is the EXIT trap a re-application would clobber, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-323	CON-301	DISTINCT	shares only tag_and_release.sh, this item is the EXIT trap a re-application would clobber, that item is the GitHub repository id printed without a number check
+CON-323	CON-303	DISTINCT	shares only tag_and_release.sh, this item is the EXIT trap a re-application would clobber, that item is the SIGINT trap no test drives
+CON-324	CON-234	DISTINCT	shares only tag_and_release.sh, this item is the new glab api call outside the network timeout wrapper, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-324	CON-301	DISTINCT	shares only tag_and_release.sh, this item is the new glab api call outside the network timeout wrapper, that item is the GitHub repository id printed without a number check
+CON-324	CON-303	DISTINCT	shares only tag_and_release.sh, this item is the new glab api call outside the network timeout wrapper, that item is the SIGINT trap no test drives
+CON-326	CON-234	DISTINCT	shares tag_and_release.sh and redact_cut.sh, this item is server-derived text printed without the redaction helpers, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-326	CON-301	DISTINCT-but-similar	both print server-derived text unchecked, this item is the GitLab read-back and released_at, that item the GitHub repository id
+CON-326	CON-303	DISTINCT	shares only tag_and_release.sh, this item is server-derived text printed without the redaction helpers, that item is the SIGINT trap no test drives
+CON-327	CON-234	DISTINCT	shares only tag_and_release.sh, this item is glab under the clean environment needing --hostname, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-327	CON-301	DISTINCT	shares only tag_and_release.sh, this item is glab under the clean environment needing --hostname, that item is the GitHub repository id printed without a number check
+CON-327	CON-303	DISTINCT	shares only tag_and_release.sh, this item is glab under the clean environment needing --hostname, that item is the SIGINT trap no test drives
+CON-326	CON-302	DISTINCT-but-similar	both concern the redact-then-cut helper, this item asks that server text go through it, that item lists the shapes it does not redact
+CON-325	CON-234	DISTINCT	shares only channel_census.py, this item asks for channel rows for the new GitLab invocations, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-325	CON-308	DISTINCT-but-similar	both concern the channel census, this item asks for rows for the new GitLab invocations, that item records the limits of the census instrument
+CON-328	CON-228	DISTINCT	shares only test_release_tooling_mutations.sh, this item asks for GitLab pre-release mutants in its catalogue, that item is another defect whose fix adds mutants there
+CON-328	CON-229	DISTINCT	shares only test_release_tooling_mutations.sh, this item asks for GitLab pre-release mutants in its catalogue, that item is another defect whose fix adds mutants there
+CON-328	CON-230	DISTINCT	shares only test_release_tooling_mutations.sh, this item asks for GitLab pre-release mutants in its catalogue, that item is another defect whose fix adds mutants there
+CON-328	CON-231	DISTINCT	shares only test_release_tooling_mutations.sh, this item asks for GitLab pre-release mutants in its catalogue, that item is another defect whose fix adds mutants there
+CON-328	CON-232	DISTINCT	shares only test_release_tooling_mutations.sh, this item asks for GitLab pre-release mutants in its catalogue, that item is another defect whose fix adds mutants there
+CON-328	CON-233	DISTINCT	shares only test_release_tooling_mutations.sh, this item asks for GitLab pre-release mutants in its catalogue, that item is another defect whose fix adds mutants there
+CON-328	CON-234	DISTINCT	shares only test_release_tooling_mutations.sh, this item asks for GitLab pre-release mutants in its catalogue, that item is another defect whose fix adds mutants there
+CON-330	CON-234	DISTINCT	shares only redact_cut.sh, this item is a URL with leading blanks in the userinfo scope, that item groups the review nits n-1 to n-5 of the earlier release cut
+CON-330	CON-302	DISTINCT-but-similar	both concern credentials in release output, this item is a URL with leading blanks in the userinfo scope, that item the shapes the redact helper misses
+CON-315	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-316	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-317	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-318	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-319	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-320	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-321	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-322	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-323	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-324	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-326	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-327	CON-383	UNDECIDED	whether the release template amendment of that item is the GitLab pre-release change these findings belong to is not decidable from the two texts, left for the operator
+CON-325	CON-362	DISTINCT	shares only channel_census.py, this item asks for channel rows for the new GitLab invocations, that item is a loop-guard mutant under a soft descriptor limit with a line-count nit in the pin regeneration
+CON-326	CON-333	DISTINCT	shares only redact_cut.sh, this item asks that server text go through the redaction helpers, that item is base-list values sent under a client SendEnv setting
+CON-326	CON-362	DISTINCT	shares only redact_cut.sh, this item asks that server text go through the redaction helpers, that item is a test that accepts a loop-guard mutant, the script itself correct
+CON-326	CON-385	DISTINCT-but-similar	that item registers audit follow-ups and leaves the GitLab pre-release child to this vehicle, this item asks that server text go through the redaction helpers
+CON-330	CON-333	DISTINCT	shares only redact_cut.sh, this item is a URL with leading blanks in the userinfo scope, that item is base-list values sent under a client SendEnv setting
+CON-330	CON-362	DISTINCT	shares only redact_cut.sh, this item is a URL with leading blanks in the userinfo scope, that item is a test that accepts a loop-guard mutant, the script itself correct
+CON-330	CON-385	DISTINCT-but-similar	that item registers audit follow-ups and leaves the GitLab pre-release child to this vehicle, this item is a URL with leading blanks in the userinfo scope

@@ -1,0 +1,1 @@
+RM15 rc=1 # test_s4_round6.sh: pass=180 fail=3 skip=0 | FAIL - P51 rc 0 and the profile: the lease IS held (it is in the registry since the mark) (expected [0 decide-a] got [4 ])|FAIL - P51c rc 0, lease held on decide-a (expected [0 decide-a] got [4 ])|FAIL - P51d rc 0, lease on decide-a, exactly one start (expected [0 decide-a 1] got [4  1])

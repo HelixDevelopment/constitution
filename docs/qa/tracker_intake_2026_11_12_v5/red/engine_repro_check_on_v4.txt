@@ -1,0 +1,14 @@
+$ ENGINE_REPRO=docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh bash docs/qa/tracker_intake_2026_11_12_v5/engine_repro_check.sh <wi> CON-001 CON-308 CON-002 CON-020
+# RED of R4-8: the round-5 check on the round-4 script and its capture (<wi> = $WI, the engine built from this tree)
+FAIL the prefix unset is refused: rc=0 want=3 stderr= stdout-bytes=4122
+FAIL a wrong prefix is refused: rc=0 want=3 stderr= stdout-bytes=4119
+FAIL an <open> of Type Bug is refused: rc=0 want=3 stderr= stdout-bytes=4321
+FAIL a <probe> of Type Bug is refused: rc=0 want=3 stderr= stdout-bytes=4119
+PASS an <obsolete> without obsolete_details is refused
+PASS the full run exits 0
+FAIL the run equals the committed engine_repro.txt: 0a1 > == preconditions: HELIX_RELEASE_PREFIX=CON; <open> and <probe> are open items of Type Task; <obsolete> is Obsolete with an obsolete_details row 25,26c26,27 < $ '<wi>' 'close' '<open>' '--db' '<db>' '--status' 'completed' '--evidence' 'docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh' <   | close: moved <open> Issues→Fixed (status=Completed (→ Fixed.md), evidence=docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh) --- 
+FAIL one masked line; the G1 verdict: == G1 (review R2-9): close rewrites created_at   created_at before: 2026-11-11 15:38:57   created_at after:  2026-11-13 23:32:11 
+PASS control needle: the v4 evidence differs
+PASS the tracked database is unchanged
+RESULT: pass=4 fail=6
+rc=1

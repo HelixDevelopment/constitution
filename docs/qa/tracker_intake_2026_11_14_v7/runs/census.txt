@@ -1,0 +1,4 @@
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v7/tools/secret_class_census.py scripts/workable-items/intake_lint.py
+control needles: PASS (a known member found, a prose line not reported)
+RESULT: members=282718 hit=88992 miss_negative=187810 miss_boundary=5916 gap=0 fp=0
+rc=0

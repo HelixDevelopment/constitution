@@ -1,0 +1,49 @@
+head=<SHA>
+gate manifest run1 rc=0 sha=b978ffb015e0c671 last=RESULT: MANIFEST-OK
+gate gitenv run1 rc=0 sha=9440d738ee10da06 last=git-env-class-census: PASS - members=665 hermetic=511 exempt=154 unscrubbed=0
+gate safepath run1 rc=0 sha=769021702ccaa28f last=SUMMARY operations=160 EXEMPT=13 PRIVATE=54 ROOT=1 ROUTED=61 TAGGED=31 violations=0 proved_shell_vars=_FC_LEDGER_FILE,_FC_LOG_DIR,_FC_LOG_LEDGER,_FC_R
+gate ratchet run1 rc=0 sha=4434693d3e855cc7 last=✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanishe
+gate index run1 rc=0 sha=5a7186bc96a86957 last=CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+gate validate run1 rc=0 sha=8d8fb0618fa2c7a6 last=validate: OK — 501 items, all invariants satisfied
+gate wdiff run1 rc=0 sha=99a870666430285c last=diff: DB and Markdown are in sync (compared 501 Markdown item(s) against 501 DB item(s); read docs/Issues.md, docs/Fixed.md)
+gate guardtable run1 rc=0 sha=f21a9de1682cfc7f last=== guard table: ok ==
+sync-guide run1 rc=0 tree_after=clean
+gate manifest run2 rc=0 sha=b978ffb015e0c671 last=RESULT: MANIFEST-OK
+gate gitenv run2 rc=0 sha=9440d738ee10da06 last=git-env-class-census: PASS - members=665 hermetic=511 exempt=154 unscrubbed=0
+gate safepath run2 rc=0 sha=769021702ccaa28f last=SUMMARY operations=160 EXEMPT=13 PRIVATE=54 ROOT=1 ROUTED=61 TAGGED=31 violations=0 proved_shell_vars=_FC_LEDGER_FILE,_FC_LOG_DIR,_FC_LOG_LEDGER,_FC_R
+gate ratchet run2 rc=0 sha=4434693d3e855cc7 last=✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanishe
+gate index run2 rc=0 sha=5a7186bc96a86957 last=CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+gate validate run2 rc=0 sha=8d8fb0618fa2c7a6 last=validate: OK — 501 items, all invariants satisfied
+gate wdiff run2 rc=0 sha=99a870666430285c last=diff: DB and Markdown are in sync (compared 501 Markdown item(s) against 501 DB item(s); read docs/Issues.md, docs/Fixed.md)
+gate guardtable run2 rc=0 sha=f21a9de1682cfc7f last=== guard table: ok ==
+sync-guide run2 rc=0 tree_after=clean
+LEDGER: unimplemented=394 baseline=394 fails=0
+LEDGER: unimplemented=394 baseline=394 fails=0
+test_fc_safepath_gitenv_scrub run1 rc=0 s=321 ok=182 notok=0 last=SUMMARY pass=182 fail=0
+test_fc_safepath_gitenv_scrub run2 rc=0 s=325 ok=182 notok=0 last=SUMMARY pass=182 fail=0
+test_fc_safepath_v4r12 run1 rc=0 s=12 ok=18 notok=0 last=SUMMARY pass=18 fail=0 skip=5
+test_fc_safepath_v4r12 run2 rc=0 s=11 ok=18 notok=0 last=SUMMARY pass=18 fail=0 skip=5
+test_fc_safepath_v4r13 run1 rc=0 s=69 ok=43 notok=0 last=SUMMARY pass=43 fail=0 skip=1
+test_fc_safepath_v4r13 run2 rc=0 s=69 ok=43 notok=0 last=SUMMARY pass=43 fail=0 skip=1
+STOP load=63.58
+head=<SHA>
+test_fc_safepath_v4r14 run1 rc=0 s=58 ok=32 notok=0 last=SUMMARY pass=32 fail=0 skip=3
+test_fc_safepath_v4r14 run2 rc=0 s=60 ok=32 notok=0 last=SUMMARY pass=32 fail=0 skip=3
+STOP load=61.46
+resume attempt=1 remaining= test_fc_safepath_v4r15 test_custody_sweep_r8_regression test_custody_sweep_r15_regression test_repo_verify_red test_review_record_guard_table test_sweep_review_record_subclauses_red load=49.55
+head=<SHA>
+test_fc_safepath_v4r15 run1 rc=0 s=59 ok=15 notok=0 last=SUMMARY pass=15 fail=0 skip=1
+test_fc_safepath_v4r15 run2 rc=0 s=58 ok=15 notok=0 last=SUMMARY pass=15 fail=0 skip=1
+test_custody_sweep_r8_regression run1 rc=0 s=7 ok=17 notok=0 last=    live env-sanitization-revert mutation). ===
+test_custody_sweep_r8_regression run2 rc=0 s=7 ok=17 notok=0 last=    live env-sanitization-revert mutation). ===
+test_custody_sweep_r15_regression run1 rc=0 s=101 ok=51 notok=0 last=    variables, bound every git call, and every check is proven load-bearing by a mutation.
+test_custody_sweep_r15_regression run2 rc=0 s=100 ok=51 notok=0 last=    variables, bound every git call, and every check is proven load-bearing by a mutation.
+test_repo_verify_red run1 rc=0 s=123 ok=104 notok=0 last=ok paired mutation CAUGHT (mutant_r23_no_inject): overrides discovered but never injected 
+test_repo_verify_red run2 rc=0 s=118 ok=104 notok=0 last=ok paired mutation CAUGHT (mutant_r23_no_inject): overrides discovered but never injected 
+test_review_record_guard_table run1 rc=0 s=5 ok=14 notok=0 last=== guard table: ok ==
+test_review_record_guard_table run2 rc=0 s=5 ok=14 notok=0 last=== guard table: ok ==
+test_sweep_review_record_subclauses_red run1 rc=0 s=128 ok=17 notok=0 last=== RESULT: 17 passed, 0 failed ==
+test_sweep_review_record_subclauses_red run2 rc=0 s=137 ok=17 notok=0 last=== RESULT: 17 passed, 0 failed ==
+tree_after_suites=clean
+DONE
+ALL-SUITES-DONE

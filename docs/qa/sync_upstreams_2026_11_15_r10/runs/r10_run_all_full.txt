@@ -1,0 +1,2075 @@
+=== test_unit
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+.....................................................................................................
+----------------------------------------------------------------------
+Ran 126 tests in 9.998s
+
+OK
+sync-unit: PASS 126 FAIL 0 SKIP 0
+=== test_unit OK
+=== test_integration
+== sync-integration (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.ylBj8f)
+  ok   fresh clone: exit 0
+  ok   fresh clone: verdict CURRENT
+  ok   discovery: 4 repositories
+  ok   discovery: nested inner found
+  ok   control needle ok
+  ok   own-org detected for libs/a
+  ok   third-party detected for vendor/t
+  ok   pin at-main for libs/a
+  ok   fetch ran once per remote (4)
+  ok   behind: exit 3
+  ok   behind: verdict
+  ok   root behind by 1
+  ok   libs/a pin behind-main
+  ok   check changed nothing (root)
+  ok   check changed nothing (libs/a)
+  ok   tsv has 5 lines (header + 4)
+  ok   dry-run: exit 3 (refs already fetched)
+  ok   dry-run: no fetch in the shim log
+  ok   dry-run: no change
+  ok   no-fetch: no fetch in the shim log
+  ok   no-fetch: sees only already-fetched refs (behind 1)
+  ok   apply: exit 3 (libs/a pin still behind: not fully current)
+  ok   apply: verdict UPDATES-AVAILABLE
+  ok   apply: root at upstream main
+  ok   apply: root result updated
+  ok   apply: libs/a unchanged without --advance-pins
+  ok   apply: libs/a still reported behind
+  ok   apply: root on branch main still
+  ok   apply: exactly one merge, and it is --ff-only
+  ok   advance-pins: exit 0
+  ok   advance-pins: libs/a at upstream main
+  ok   advance-pins: gitlink staged in root
+  ok   advance-pins: no commit created
+  ok   advance-pins: third-party untouched
+  ok   advance-pins: third-party behind is informational (current)
+  ok   advance-third-party: vendor/t advanced
+  ok   idempotent: exit 4 (staged pins await the user's commit)
+  ok   idempotent: staged pins reported
+  ok   idempotent: no write attempted
+  ok   idempotent: root unchanged
+  ok   idempotent: index unchanged
+  ok   idempotent: no repo updated
+  ok   follow: exit 0
+  ok   follow: libs/a followed root's new gitlink
+  ok   follow: inner followed libs/a's new gitlink
+  ok   follow: tree clean after follow
+  ok   dirty child: not followed
+  ok   dirty child: reason recorded
+  ok   dirty child: edit kept
+  ok   dirty: exit 4
+  ok   dirty: reason dirty-tree
+  ok   dirty: blocked by the precondition
+  ok   dirty: no write was attempted
+  ok   dirty: root not moved
+  ok   dirty: local edit kept
+  ok   merge in progress: exit 4
+  ok   merge in progress: reason
+  ok   index.lock: exit 4
+  ok   index.lock: root not moved
+  ok   local ahead: exit 4
+  ok   local ahead: reason
+  ok   diverged: exit 4
+  ok   diverged: reason local-diverged
+  ok   diverged: local commit kept
+  ok   root on topic: exit 4
+  ok   root on topic: reason
+  ok   two remotes linear: exit 0
+  ok   two remotes linear: newest main wins
+  ok   two remotes linear: mirror state is measured against the head before the run (equal)
+  ok   two remotes diverged: exit 4
+  ok   two remotes diverged: upstreams-diverged
+  ok   two remotes diverged: nothing moved
+  ok   pin not on main: exit 4
+  ok   pin not on main: state
+  ok   pin unfetchable: state
+  ok   pin unfetchable: exit 4
+  ok   uninitialised: state
+  ok   uninitialised: not attention by default
+  ok   uninitialised + --strict-pins: exit 4
+  ok   no mode: exit 2
+  ok   --out inside the work tree: exit 2
+  ok   --out inside: nothing written
+  ok   --root not a top level: exit 2
+  ok   --root outside any work tree: exit 2
+  ok   untracked: exit 4
+  ok   untracked: reason dirty-tree
+  ok   untracked: root not moved
+  ok   untracked: file kept
+  ok   submodule on branch: root moved
+  ok   submodule on branch: not moved
+  ok   submodule on branch: still on topic
+  ok   submodule on branch: reason recorded
+  ok   submodule on branch: reason kept-on-branch:follow-pin
+  ok   submodule on main: ff to upstream main
+  ok   submodule on main: exit 4 (parent gitlink modified)
+  ok   submodule on main: reason gitlink-modified:libs/a
+  ok   submodule on main: nothing staged in the parent
+  ok   topic root + advance-pins: exit 4
+  ok   topic root: index untouched
+  ok   topic root: still on topic
+  ok   topic root: libs/a reported parent-not-integrated
+  ok   feature/main pin: not-on-main
+  ok   main gone upstream: remote state no-main
+  ok   main gone upstream: exit 4
+  ok   main gone upstream: reason upstream-branch-gone:origin
+  ok   main gone upstream: refs/remotes/origin/main kept
+  ok   broken gitfile: exit 6
+  ok   broken gitfile: verdict BLIND
+  ok   broken gitfile: libs/a blind
+  ok   broken gitfile: pin state unreadable
+  ok   broken gitfile: the no-answer is git's exit 128
+  ok   broken gitfile: reason pin-unreadable
+  ok   broken gitfile: the blind row is printed under --quiet
+  ok   broken gitfile: the root is current (the control below is about a real current row)
+  ok   broken gitfile: a current row is not printed under --quiet (control)
+  ok   unknown extension: exit 6
+  ok   unknown extension: libs/a blind
+  ok   unknown extension: pin state unreadable
+  ok   unknown extension: a no-answer is recorded
+  ok   unknown extension: the blind row is printed under --quiet
+  ok   symlinked submodule: pin state not-a-directory
+  ok   symlinked submodule: reason pin-not-a-directory
+  ok   symlinked submodule: attention
+  ok   symlinked submodule: exit 4
+  ok   follow then blocked: libs/a at the new pin
+  ok   follow then blocked: it was not there before
+  ok   follow then blocked: followed
+  ok   follow then blocked: head_after is the real head
+  ok   follow then blocked: moved
+  ok   follow then blocked: attention, never updated
+  ok   follow then blocked: reason unreachable:origin
+  ok   follow then blocked: exit 4
+  ok   advance-pins, submodule on branch: not moved
+  ok   advance-pins, submodule on branch: still on topic
+  ok   advance-pins, submodule on branch: action recorded
+  ok   advance-pins, submodule on branch: reason kept-on-branch:advance-pin
+  ok   advance-pins, submodule on branch: nothing staged
+  ok   advance-pins, submodule on branch: exit 4
+  ok   advance-pins control (detached): starts at the recorded pin
+  ok   advance-pins control (detached): starts detached
+  ok   advance-pins control (detached): advanced
+  ok   advance-pins control (detached): staged
+  ok   follow blocked: the new pin is not present in the child (precondition)
+  ok   follow blocked: the parent moved to the new pin
+  ok   follow blocked: libs/a stays where it was
+  ok   follow blocked: libs/a failed
+  ok   follow blocked: one follow-blocked action
+  ok   follow blocked: exit 1
+  ok   follow blocked: verdict FAILED
+sync-integration: PASS 149 FAIL 0
+=== test_integration OK (84s)
+=== test_e2e
+== sync-e2e (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.OkLIF0)
+  ok   --help: exit 0
+  ok   --help lists --apply
+  ok   user run from a subdirectory: exit 0
+  ok   default evidence under XDG_CACHE_HOME
+  ok   schema id
+  ok   run id
+  ok   mode
+  ok   exit code recorded
+  ok   verdict recorded
+  ok   control needle recorded and ok
+  ok   timestamps are UTC ISO-8601
+  ok   root head_before = pre-run HEAD
+  ok   root head_after = HEAD now
+  ok   root action recorded (fast-forward rc 0)
+  ok   every repository has a result
+  ok   canonical hash recorded
+  ok   TSV header
+  ok   TSV row per repository
+  ok   TSV root row result
+  ok   stderr summary lists the root
+  ok   contract: behind -> 3
+  ok   contract: dirty -> 4
+  ok   contract: two modes -> 2
+  ok   contract: bad run id -> 2
+sync-e2e: PASS 24 FAIL 0
+=== test_e2e OK (6s)
+=== test_full_automation
+== sync-full-automation (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.Ewc2p5)
+  ok   off: verdict OFF
+  ok   off: prints the command
+  ok   offline: CURRENT (nothing fetched yet)
+  ok   offline: no fetch
+  ok   check: UPDATES-AVAILABLE
+  ok   check: rc 3
+  ok   offline after a fetch: UPDATES-AVAILABLE
+  ok   apply: CURRENT verdict (exit 0)
+  ok   apply: step returns 0
+  ok   apply: root fast-forwarded
+  ok   ask without a terminal: SKIP, never run unasked
+  ok   unknown mode: SKIP
+  ok   missing engine: SKIP
+  ok   not a work tree: SKIP
+  ok   apply on a dirty tree: ATTENTION, step still returns 0
+  ok   hook: STEP 5c reached
+  ok   hook: default offline check ran the engine
+  ok   hook: verdict reported, informational
+  ok   hook: offline check changed nothing
+  ok   hook: off
+  ok   hook: unknown mode is a warning
+  ok   hook: fetch mode runs --check
+  ok   hook: fetch mode never integrates
+  ok   hook: constitution without scripts/sync is a SKIP
+  ok   setup default: exit 0
+  ok   setup default: sync off, hint printed
+  ok   setup env check: UPDATES-AVAILABLE reported
+  ok   setup env check: setup still exits 0
+  ok   setup --sync-upstreams=apply: exit 0
+  ok   setup apply: engine ran
+  ok   setup apply: consumer fast-forwarded to its upstream main
+  ok   setup --sync-upstreams=bogus: exit 2
+  ok   setup bad env value: exit 2
+  ok   setup --check-only never runs the sync
+sync-full-automation: PASS 34 FAIL 0
+=== test_full_automation OK (16s)
+=== test_security
+== sync-security (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.4HRj4F)
+  ok   full apply: exit 0
+  ok   control needle: the shim recorded 111 calls
+  ok   no ' push ' in any git call
+  ok   no ' reset ' in any git call
+  ok   no ' rebase ' in any git call
+  ok   no ' commit ' in any git call
+  ok   no '--force' in any git call
+  ok   no ' -f ' in any git call
+  ok   no '--hard' in any git call
+  ok   no '--upload-pack' in any git call
+  ok   no 'ext::' in any git call
+  ok   no ' -s ours' in any git call
+  ok   no '--amend' in any git call
+  ok   no ' clean ' in any git call
+  ok   no ' update-ref ' in any git call
+  ok   no ' gc ' in any git call
+  ok   no ' stash ' in any git call
+  ok   no ' --prune ' in any git call
+  ok   no ' --tags ' in any git call
+  ok   every + refspec writes only refs/remotes/<remote>/*
+  ok   control needle: 4 engine-owned refspecs seen
+  ok   every git call carries core.hooksPath=/dev/null
+  ok   subcommand 'add' is on the allow-list
+  ok   subcommand 'checkout' is on the allow-list
+  ok   subcommand 'config' is on the allow-list
+  ok   subcommand 'fetch' is on the allow-list
+  ok   subcommand 'for-each-ref' is on the allow-list
+  ok   subcommand 'ls-files' is on the allow-list
+  ok   subcommand 'ls-tree' is on the allow-list
+  ok   subcommand 'merge' is on the allow-list
+  ok   subcommand 'merge-base' is on the allow-list
+  ok   subcommand 'remote' is on the allow-list
+  ok   subcommand 'rev-list' is on the allow-list
+  ok   subcommand 'rev-parse' is on the allow-list
+  ok   subcommand 'status' is on the allow-list
+  ok   subcommand 'symbolic-ref' is on the allow-list
+  ok   control needle: merge was among the recorded subcommands
+  ok   leaky remote: attention (unreachable)
+  ok   leaky remote: reported unreachable
+  ok   secret absent everywhere
+  ok   userinfo absent everywhere
+  ok   control needle: the redacted URL itself is reported
+  ok   ambient GIT_DIR: exit 4 (the pins section 1 staged)
+  ok   ambient GIT_DIR: every reason is a staged gitlink
+  ok   ambient GIT_DIR: control needle, a staged pin is reported
+  ok   ambient GIT_DIR: the decoy repository was not touched
+  ok   ambient GIT_DIR: the real tree was inspected (4 repos)
+  ok   metachar remote name: nothing executed
+  ok   metachar remote name: flagged invalid
+  ok   evidence dir mode 0700
+  ok   no interactive prompt (finished in 1s)
+  ok   mirror refspec + prune config, --check: every ref of ours identical
+  ok   --check: no tag auto-followed
+  ok   --apply: exit 0
+  ok   --apply: refs/heads/wip kept
+  ok   --apply: refs/heads/wip still present
+  ok   --apply: refs/tags/localonly kept
+  ok   --apply: refs/tags/localonly still present
+  ok   --apply: refs/remotes/origin/oldbranch kept
+  ok   --apply: refs/remotes/origin/oldbranch still present
+  ok   --apply: main fast-forwarded
+  ok   variant B --apply: exit 0
+  ok   variant B: local-only tag kept
+  ok   variant B: stale remote-tracking ref kept
+  ok   variant B: local branch kept
+  ok   --tags: the new upstream tag is fetched (control needle)
+  ok   --tags: local-only tag still present
+  ok   hooks: root fast-forwarded
+  ok   hooks: no repository hook ran
+  ok   hooks: fsmonitor never ran
+  ok   hooks: control needle: a plain git checkout DOES run the hook
+  ok   hooks: control needle: a plain git status DOES run fsmonitor
+  ok   ignored dir whose files the target does not touch: no false refusal (exit 0)
+  ok   ignored dir: moved
+  ok   ignored dir: ignored file kept
+  ok   ignored secret.env: exit 4
+  ok   ignored secret.env: reason
+  ok   ignored secret.env: content kept
+  ok   ignored secret.env: not moved
+  ok   ignored secret.env: content never in the report
+  ok   core.sshCommand: the repository's command was used
+  ok   core.sshCommand: report names it
+  ok   core.sshCommand: remote reported unreachable
+sync-security: PASS 83 FAIL 0
+=== test_security OK (20s)
+=== test_determinism
+== sync-determinism (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.KKf4su)
+  ok   --check: 3 identical canonical hashes
+  ok   --check: 3 identical TSV files
+  ok   --check: the JSON hash field equals the printed one
+  ok   --dry-run: 3 identical canonical hashes
+  ok   --dry-run: 3 identical TSV files
+  ok   --dry-run: the JSON hash field equals the printed one
+  ok   --check --no-fetch: 3 identical canonical hashes
+  ok   --check --no-fetch: 3 identical TSV files
+  ok   --check --no-fetch: the JSON hash field equals the printed one
+  ok   an unfetched upstream change does not change the offline hash
+  ok   control needle: a real state change changes the hash
+  ok   apply 1: exit 0
+  ok   apply 1: something moved
+  ok   apply 2 and 3: identical hash
+  ok   apply 3: nothing moved
+sync-determinism: PASS 15 FAIL 0
+=== test_determinism OK (29s)
+=== test_ui
+== sync-ui (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.iwvsPU)
+  ok   prompt 1 shows the scope
+  ok   prompt 1 asks before fetching
+  ok   no: zero fetch calls
+  ok   no: nothing changed
+  ok   no: consent recorded as interactive
+  ok   enter: zero fetch calls
+  ok   prompt 2 asks before fast-forwarding
+  ok   yes-no: exit 3
+  ok   yes-no: nothing changed
+  ok   yes-no: verdict shown on the terminal
+  ok   prompt 3 asks before staging pins
+  ok   yes: exit 0
+  ok   yes: root fast-forwarded
+  ok   yes: libs/a advanced
+  ok   transcripts never show the token
+  ok   transcripts never show userinfo
+  ok   check: exactly one prompt
+  ok   check: exit 4 (the staged pin is attention)
+  ok   check: the only reason is the staged pin
+  ok   check after commit: exit 0 (current)
+  ok   pins-only: fixture premise X != Y
+  ok   pins-only: no fast-forward prompt (nothing behind on main)
+  ok   pins-only: libs/a advanced
+  ok   pins-only: libs/a/inner followed liba's new pin (X), not upstream main (Y)
+  ok   no terminal: exit 2
+  ok   no terminal: says why
+sync-ui: PASS 26 FAIL 0
+=== test_ui OK (17s)
+=== test_hardening
+== sync-hardening (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.zI8BGU)
+  ok   hooks: control needle: a plain git checkout DOES run a hook here
+  ok   hooks: --apply over ff + follow + advance-pin: exit 0
+  ok   hooks: root fast-forwarded
+  ok   hooks: libs/a followed
+  ok   hooks: vendor/t advanced
+  ok   hooks: no hook ran on any write path
+  ok   ignored, follow path: libs/a not moved
+  ok   ignored, follow path: local file kept
+  ok   ignored, follow path: reason recorded
+  ok   ignored, follow path: ATTENTION exit 4
+  ok   ignored, advance-pin path: libs/a not moved
+  ok   ignored, advance-pin path: local file kept
+  ok   ignored, advance-pin path: nothing staged in the root
+  ok   ignored, advance-pin path: reason recorded
+  ok   ignored, fast-forward path: root not moved
+  ok   ignored, fast-forward path: local file kept
+  ok   ignored, fast-forward path: reason recorded
+  ok   status re-read killed: root not moved
+  ok   status re-read killed: BLIND exit 6
+  ok   status re-read killed: action names it
+  ok   status re-read exit 128: root not moved
+  ok   status re-read exit 128: BLIND exit 6
+  ok   status re-read exit 128: action names it
+  ok   status re-read exit 128: the repository is blind
+  ok   tree changed before the write: root not moved
+  ok   tree changed before the write: blocked
+  ok   tree changed before the write: the user's edit is kept
+  ok   status control needle: without the fault the root fast-forwards
+  ok   inspect status killed: root not moved
+  ok   inspect status killed: dirty-tree (an unread status is never clean)
+  ok   token in URL path: absent from every output
+  ok   token in URL path: the field itself was redacted (backstop found nothing)
+  ok   token in URL path: remote reported unreachable
+  ok   GIT_CONFIG_PARAMETERS: dropped (no core.sshCommand seen)
+  ok   GIT_CONFIG_COUNT/KEY/VALUE: dropped
+  ok   control needle: a real repository core.sshCommand IS seen
+  ok   credential shapes: 'Xq9pwd' absent
+  ok   credential shapes: 'Zz7mark' absent
+  ok   credential shapes: 'cepw0rdmark' absent
+  ok   credential shapes: 'spa cepw' absent
+  ok   credential shapes: 'a@b@c' absent
+  ok   credential shapes: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWX' absent
+  ok   credential shapes: backstop found nothing
+  ok   credential shapes: the token-named remote is still fetched (by its real name)
+  ok   --out with a user's file: usage exit 2
+  ok   --out with a user's file: file untouched
+  ok   --out with a symlinked tsv: usage exit 2
+  ok   --out with a symlinked tsv: target untouched
+  ok   --out with a symlinked tsv: still a symlink
+  ok   --out control: a second run over our own report is allowed
+  ok   no remote: ATTENTION exit 4, never CURRENT
+  ok   no remote: reason no-upstream-main
+  ok   remote without main: ATTENTION exit 4
+  ok   remote without main: reason no-upstream-main
+  ok   moved tag: remote fetch state tag-rejected (the remote answered)
+  ok   moved tag: reason tag-rejected:origin
+  ok   moved tag: never labelled unreachable
+  ok   moved tag: the branch was still fetched and evaluated (behind 1)
+  ok   moved tag: local tag kept (never forced)
+  ok   moved tag: ATTENTION exit 4
+  ok   moved tag, --apply: integration blocked (exit 4), nothing moved
+  ok   M37: the concurrent staging happened (control needle)
+  ok   M37: libs/a never checked out at the staged gitlink
+  ok   M37b: a root that did not move makes no child follow (no follow action at all)
+  ok   M37b: pre-staged gitlink, root not moved: no follow action for libs/a
+  ok   M37b: libs/a not moved
+  ok   extra args: anything but --out is ignored, with a note
+  ok   extra args: --apply smuggled into a check never moved the root
+  ok   extra args: --out /dir is honoured
+  ok   partial guard: no config line
+  ok   partial guard: promisor false
+  ok   partial guard: promisor with an empty value (git reads it as false), a remote name with a space
+  ok   partial guard: no / OFF / 0
+  ok   partial guard: value-less promisor (a boolean true)
+  ok   partial guard: promisor true
+  ok   partial guard: promisor Yes (the round-3 pattern missed it)
+  ok   partial guard: promisor 1
+  ok   partial guard: promisor on
+  ok   partial guard: partialclonefilter
+  ok   partial guard: value-less partialclonefilter
+  ok   partial guard: extensions.partialclone
+  ok   partial guard: mixed-case extensions.partialClone
+  ok   partial guard: a later promisor true after a false
+  ok   partial guard: a line it cannot read
+  ok   partial guard: large input, the match on line 1 (the fail-open shape)
+  ok   partial guard: large input, the match on the last line
+  ok   partial guard: large input, nothing partial (golden false)
+  ok   partial guard: control needle: the round-3 pipeline returns 141 on the large input
+  ok   partial guard, _refuse_shallow: large partial config
+  ok   partial guard, _refuse_shallow: large config, nothing partial (golden false)
+  ok   partial guard, _refuse_shallow: config read exits 3 (cannot read it)
+  ok   partial guard, _refuse_shallow: shallow source
+  ok   partial guard, _refuse_shallow: rev-parse fails
+  ok   partial guard: six parallel guards on a large partial config: none accepted
+  ok   partial guard: six parallel guards ran
+  ok   partial guard, real repository: a full clone is accepted
+  ok   partial guard, real repository: a partial-clone configuration is refused
+  ok   pipe lint: positive control: every early-exit reader is found
+  ok   pipe lint: negative control: nothing else is flagged
+  ok   pipe lint: 21 shell files listed
+  ok   pipe lint: no early-exit pipe in the 21 shell files of this vehicle
+  ok   pipe lint: the only allowed pipeline is the section-12 control needle
+  ok   M67: the concurrent staging happened after discovery (control needle)
+  ok   M67: libs/a not checked out at the new pin
+  ok   M67: the gitlink the other writer staged is kept
+  ok   M67: the writer names the changed index
+  ok   M67: a blocked write is attention, exit 4
+  ok   M67: the blocked write is a reason
+  ok   M67 control: without the other writer libs/a is advanced
+  ok   M67 control: and its new gitlink is staged
+  ok   M67 control: exit 0
+  ok   M70: a real report to link to (exit 0)
+  ok   M70: a symlink to a report of ours: usage exit 2
+  ok   M70: a symlink to a report of ours: named as not ours
+  ok   M70: the symlink is still a symlink
+  ok   M70: the report it points at is unchanged
+  ok   M70: a FIFO at the report path: usage exit 2 (124 = the engine blocked on it)
+  ok   M70: the FIFO is still a FIFO
+  ok   M70 control: a regular report of ours is reused (exit 0)
+sync-hardening: PASS 119 FAIL 0
+=== test_hardening OK (74s)
+=== test_chaos
+== sync-chaos (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.YqOq6C)
+  ok   unreachable: exit 4
+  ok   unreachable remote state
+  ok   garbage remote state
+  ok   origin still fetched and evaluated
+  ok   repo with an unreachable remote is not integrated
+  ok   third-party repo unaffected
+  ok   slow remote: fetch state timeout
+  ok   slow remote: reported unreachable
+  ok   slow remote: run bounded (5s)
+  ok   slow remote: the process count sees this sandbox's needle
+  ok   slow remote: no surviving upload-pack process
+  ok   deadline: run bounded (4s)
+  ok   deadline: slow remote not fetched in time
+  ok   concurrent run: exit 7 (locked, distinct from usage 2)
+  ok   concurrent run: says the lock is held
+  ok   concurrent run: nothing changed
+  ok   after the holder exits the lock is free (exit 0)
+  ok   re-run after SIGKILL: exit 0
+  ok   re-run: root at upstream main
+  ok   re-run: libs/a at upstream main
+  ok   re-run: no index.lock left
+  ok   many: exit 4 (one broken)
+  ok   many: 13 repositories discovered
+  ok   many: broken one is attention
+  ok   many: three own-org pins advanced
+  ok   many: three gitlinks staged
+  ok   stalled HEAD read, --check: exit 5 (INCONCLUSIVE)
+  ok   stalled HEAD read: root result unresolved
+  ok   stalled HEAD read: verdict INCONCLUSIVE
+  ok   stalled read: bounded (10s)
+  ok   stalled HEAD read, --apply: exit 5
+  ok   stalled HEAD read, --apply: root not moved
+  ok   stalled HEAD read, --apply: never reported updated
+  ok   HEAD read stalls only after the move: exit 5, not 0
+  ok   after-move stall: result unresolved, never updated-with-unknown-head
+  ok   after-move stall: the move itself happened (real HEAD)
+  ok   stalled reads: no surviving stalled process
+  ok   control needle: without the stall the root is read (result current)
+  ok   control needle: without the stall the verdict is not INCONCLUSIVE
+  ok   escaped grandchild: run bounded (5s)
+  ok   escaped grandchild: remote reported unreachable
+  ok   escaped grandchild: control needle: it really started (pid 3319860)
+  ok   escaped grandchild: control needle: its stderr is a pipe
+  ok   failed HEAD read: control needle: the failure was injected
+  ok   HEAD read rc 128, --check: exit 6 (BLIND), never 0, 3 or 4
+  ok   HEAD read rc 128, --check: root result blind
+  ok   HEAD read rc 128, --check: reason names the call
+  ok   failed HEAD read, --apply: the failure was injected
+  ok   HEAD read rc 128, --apply: exit 6
+  ok   HEAD read rc 128, --apply: root not moved
+  ok   HEAD read rc 128, --apply: integration blocked as unresolved
+  ok   HEAD read rc 128, --apply: never reported updated
+  ok   8b: the rc-1 answer was injected
+  ok   8b: HEAD read rc 1 (unborn): exit 4 (ATTENTION)
+  ok   8b: reason head-unreadable
+  ok   8b, --apply: root not moved
+  ok   8b, --apply: integration blocked by head-unreadable
+  ok   control needle: without the failure the root is behind (exit 3)
+sync-chaos: PASS 58 FAIL 0
+=== test_chaos OK (113s)
+=== test_perf
+== sync-perf (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.7S3M9E)
+  ok   jobs 1: exit 0
+  ok   jobs 1: 31 repositories
+  ok   jobs 1: exactly one fetch per remote
+  ok   jobs 1: report records the job count
+  ok   jobs 1: git calls 467 <= 16 per repository
+  ok   jobs 1: wall 12209 ms < 180 s
+  ok   jobs 4: exit 0
+  ok   jobs 4: 31 repositories
+  ok   jobs 4: exactly one fetch per remote
+  ok   jobs 4: report records the job count
+  ok   jobs 4: git calls 467 <= 16 per repository
+  ok   jobs 4: wall 11332 ms < 180 s
+  ok   jobs ceiling: 1000 is clamped to at most 8
+-- benchmark (host load at start: 31.54 26.52 20.01)
+jobs	wall_ms	fetch_calls	git_calls	repos
+1	12209	31	467	31
+4	11332	31	467	31
+sync-perf: PASS 13 FAIL 0
+=== test_perf OK (48s)
+=== test_faults
+== sync-faults (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.mQAPHU)
+  ok   control: APPLIED exit 0
+  ok   control: 110 git calls logged
+  ok   control: root fast-forwarded
+  ok   control: libs/a followed its new pin
+  ok   control: vendor/t advanced
+  ok   control: the report says libs/a followed its new pin
+  ok   control: root, libs/a and vendor/t moved on disk
+  ok   control: the report's moved set equals the repositories whose HEAD changed on disk
+  ok   sites: 30 git call sites enumerated from the AST
+  ok   sites: every call site is reached by the control run (and recognisable)
+  ok   oracle: the gate prints its call-site table
+  ok   oracle: the engine's call sites equal the oracle's (prefix, ok=, want=) multiset
+  ok   oracle: every logged call has exactly one exit-128 class
+  ok   faults: 373 fault runs over 110 calls (sigkill rc77 rc128 garbage)
+  ok   rc128: 110 runs with a real exit 128
+  ok   rc128: 4 runs where 128 is a writer failure
+  ok   rc128: 4 runs where 128 is an unreachable remote
+  ok   rc128: 1 of 4 unreachable runs block a pin follow (FAILED), the rest are ATTENTION
+  ok   faults: every no-answer made the run BLIND and moved nothing it should not
+  ok   needle: an injected first-call failure is BLIND
+  ok   needle: the engine names the call
+sync-faults: PASS 21 FAIL 0
+=== test_faults OK (1573s)
+=== test_robustness
+== race_commit
+  ok   race_commit.action_fired
+  ok   race_commit.user_commit_still_checked_out
+  ok   race_commit.not_reported_updated
+  ok   race_commit.run_not_applied
+  ok   race_commit.refusal_recorded
+== race_switch
+  ok   race_switch.action_fired
+  ok   race_switch.topic_not_moved
+  ok   race_switch.main_not_moved
+  ok   race_switch.run_not_applied
+  ok   race_switch.refusal_recorded
+== race_sub_branch
+  ok   race_sub_branch.action_fired
+  ok   race_sub_branch.submodule_still_on_branch
+  ok   race_sub_branch.head_not_moved
+== race_control
+  ok   race_control.user_commit_kept_on_main
+  ok   race_control.not_applied
+== race_other
+  ok   race_other.action_fired_control
+  ok   race_other.head_moved_recorded
+  ok   race_other.reason_head_changed_during_run
+  ok   race_other.changed_by_other
+  ok   race_other.not_reported_updated
+== autostash
+  ok   autostash.action_fired
+  ok   autostash.head_not_moved
+  ok   autostash.no_stash_created
+  ok   autostash.user_edit_kept
+  ok   autostash.failed_verdict
+  ok   autostash.no_marker_after_answered_failure
+== sigterm_write
+  ok   sigterm_write.signal_sent
+  ok   sigterm_write.exit_8
+  ok   sigterm_write.result_line
+  ok   sigterm_write.report_written
+  ok   sigterm_write.move_recorded
+  ok   sigterm_write.root_really_at_r2
+  ok   sigterm_write.no_traceback
+== no_new_call
+  ok   no_new_call.control_trigger_seen
+  ok   no_new_call.control_interrupted
+  ok   no_new_call.only_final_reads_after_stop
+  ok   no_new_call.no_call_started_after_stop
+== final_cap
+  ok   final_cap.control_interrupted
+  ok   final_cap.control_final_reads_started_and_hung
+  ok   final_cap.ends_within_cap
+  ok   final_cap.timed_out_read_recorded
+== sigterm_fetch
+  ok   sigterm_fetch.fetch_hanging
+  ok   sigterm_fetch.exits_fast
+  ok   sigterm_fetch.exit_8
+  ok   sigterm_fetch.no_traceback
+  ok   sigterm_fetch.no_orphan
+  ok   sigterm_fetch.report_interrupted
+== sigint_fetch
+  ok   sigint_fetch.fetch_hanging
+  ok   sigint_fetch.exits_fast
+  ok   sigint_fetch.exit_8
+  ok   sigint_fetch.no_traceback
+  ok   sigint_fetch.no_orphan
+  ok   sigint_fetch.report_interrupted
+== staged_gitlink
+  ok   staged_gitlink.index_untouched
+  ok   staged_gitlink.reason_reported
+  ok   staged_gitlink.attention
+== escaped_after_exit
+  ok   escaped_after_exit.control_grandchild_alive_after_run
+  ok   escaped_after_exit.answer_not_waiting_for_the_pipe
+  ok   escaped_after_exit.remote_reachable
+  ok   escaped_after_exit.root_behind_exit_3
+== long_line
+  ok   long_line.bounded_time
+  ok   long_line.report_written
+== huge_stderr
+  ok   huge_stderr.peak_rss_bounded
+  ok   huge_stderr.run_ended_with_report
+== askpass
+  ok   askpass.core_askPass_not_run
+  ok   askpass.GIT_ASKPASS_not_run
+  ok   askpass.SSH_ASKPASS_not_run
+  ok   askpass.remote_reported_unreachable_auth
+== askpass_ssh_only
+  ok   askpass_ssh_only.not_run
+== ext_env
+  ok   ext_env.helper_not_run
+== ext_repo
+  ok   ext_repo.helper_not_run
+== protocol_from_user
+  ok   protocol_from_user.fetched
+== trace_env
+  ok   trace_env.no_trace_file
+== auth_header
+  ok   auth_header.control_needle_seen
+  ok   auth_header.value_redacted
+  ok   auth_header.failed_merge_exit_1
+== secret8
+  ok   secret8.absent_everywhere
+== ctrl_url
+  ok   ctrl_url.url_reported
+  ok   ctrl_url.no_del_or_c1
+== invalid_remote
+  ok   invalid_remote[bad.lock].not_moved
+  ok   invalid_remote[bad.lock].attention
+  ok   invalid_remote[-dash].not_moved
+  ok   invalid_remote[-dash].attention
+== diverged
+  ok   diverged.child_held
+  ok   diverged.attention
+== no_upstream_main
+  ok   no_upstream_main.child_held
+  ok   no_upstream_main.attention
+== lock_symlink
+  ok   lock_symlink.exit_1
+  ok   lock_symlink.target_not_created
+  ok   lock_symlink.submodule_exit_1
+  ok   lock_symlink.submodule_target_not_created
+  ok   lock_symlink.control_no_link_runs
+== lock_overlap
+  ok   lock_overlap.exit_7
+  ok   lock_overlap.root_not_moved
+== out_unwritable
+  ok   out_unwritable.exit_2
+  ok   out_unwritable.not_moved
+  ok   out_unwritable.existing_dir_exit_2
+  ok   out_unwritable.existing_dir_not_moved
+  ok   out_unwritable.control_writable_dir_accepted
+== out_lost
+  ok   out_lost.moved
+  ok   out_lost.exit_1
+  ok   out_lost.move_on_stderr
+== default_out_symlink
+  ok   default_out_symlink.refused
+  ok   default_out.nothing_in_tree
+== default_out_relative
+  ok   default_out_relative.refused
+  ok   default_out_relative.nothing_in_tree
+  ok   default_out_relative.outside_cwd_refused
+  ok   default_out_relative.outside_cwd_nothing_written
+  ok   default_out_relative.control_absolute_accepted
+== unsafe_path
+  ok   unsafe_path[-dash].reported
+  ok   unsafe_path[-dash].attention
+  ok   unsafe_path[back\slash].reported
+  ok   unsafe_path[back\slash].attention
+== outside_parent
+  ok   outside_parent.not_inspected
+  ok   outside_parent.attention
+== write_deadline
+  ok   write_deadline.control_slow
+  ok   write_deadline.head_at_target
+  ok   write_deadline.no_index_lock
+  ok   write_deadline.tree_clean
+  ok   write_deadline.move_recorded
+  ok   write_deadline.not_unresolved
+  ok   write_deadline.applied
+  ok   write_deadline.marker_removed
+== write_timeout
+  ok   write_timeout.failed_exit_1
+  ok   write_timeout.ended_before_finish
+  ok   write_timeout.reason_write_killed
+  ok   write_timeout.term_sufficed
+  ok   write_timeout.no_index_lock_after_term
+  ok   write_timeout.head_not_moved
+  ok   write_timeout.recovery_steps
+  ok   write_timeout.recovery_printed
+  ok   write_timeout.marker_kept
+  ok   write_timeout.control_leftovers_present
+  ok   write_timeout.rerun_attributes
+  ok   write_timeout.rerun_no_plain_dirty_tree
+  ok   write_timeout.rerun_attention_not_moved
+  ok   write_timeout.recovered_apply
+  ok   write_timeout.marker_cleared
+  ok   write_timeout.marker_clear_noted
+== write_kill
+  ok   write_kill.failed_exit_1
+  ok   write_kill.reason
+  ok   write_kill.named_signal
+  ok   write_kill.locks_listed_when_left
+  ok   write_kill.bounded
+== marker_success
+  ok   marker_success.applied
+  ok   marker_success.no_marker
+== switch_at_merge
+  ok   switch_at_merge.fired
+  ok   switch_at_merge.reported
+  ok   switch_at_merge.not_updated
+== sigterm_pin
+  ok   sigterm_pin.signalled
+  ok   sigterm_pin.exit_8
+  ok   sigterm_pin.child_at_s2
+  ok   sigterm_pin.index_staged_s2
+  ok   sigterm_pin.action_verified
+== marker_inspect
+  ok   marker_inspect.fired
+  ok   marker_inspect.root_not_moved
+  ok   marker_inspect.attention
+== wrote_then_other
+  ok   wrote_then_other.fired
+  ok   wrote_then_other.reason
+  ok   wrote_then_other.changed_by_other
+  ok   wrote_then_other.attention
+== staged_root
+  ok   staged_root.attention_exit_4
+  ok   staged_root.blocked_before_write
+  ok   staged_root.root_not_moved
+  ok   staged_root.stage_kept
+  ok   staged_root.control_moved
+  ok   staged_root.control_stage_kept
+== lock_open
+  ok   lock_open.sub_exit_1
+  ok   lock_open.sub_own_message
+  ok   lock_open.root_exit_1
+  ok   lock_open.root_own_message
+  ok   lock_open.control_runs
+== ctrl_c
+  ok   ctrl_c.prompted
+  ok   ctrl_c.ends_without_enter
+  ok   ctrl_c.exit_8
+  ok   ctrl_c.nothing_moved
+== update_none
+  ok   update_none.root_moved
+  ok   update_none.child_not_followed
+  ok   update_none.reason
+  ok   update_none.attention
+  ok   update_none.gitmodules_root_moved
+  ok   update_none.gitmodules_rebase_not_followed
+  ok   update_none.gitmodules_reason
+  ok   update_none.control_follows
+== interrupted_labels
+  ok   interrupted_labels.exit_8
+  ok   interrupted_labels.no_unreachable
+  ok   interrupted_labels.no_no_upstream
+  ok   interrupted_labels.labelled
+== blind_failed
+  ok   blind_failed.fired
+  ok   blind_failed.malformed_recorded
+  ok   blind_failed.blind_exit_6
+== stale_marker
+  ok   stale_marker.check_keeps
+  ok   stale_marker.check_notes_present
+  ok   stale_marker.check_not_blocked
+  ok   stale_marker.apply_clears
+  ok   stale_marker.apply_notes_cleared
+  ok   stale_marker.apply_current
+== refused_marker
+  ok   refused_marker.ff.stop-after-marker.ran
+  ok   refused_marker.ff.stop-after-marker.not_moved
+  ok   refused_marker.ff.stop-after-marker.no_marker
+  ok   refused_marker.ff.stop-after-marker.marker_was_written
+  ok   refused_marker.ff.stop-after-marker.user_edit_is_users
+  ok   refused_marker.ff.stop-after-marker.not_blamed_on_engine
+  ok   refused_marker.ff.deadline-after-marker.ran
+  ok   refused_marker.ff.deadline-after-marker.not_moved
+  ok   refused_marker.ff.deadline-after-marker.no_marker
+  ok   refused_marker.ff.deadline-after-marker.marker_was_written
+  ok   refused_marker.ff.deadline-after-marker.user_edit_is_users
+  ok   refused_marker.ff.deadline-after-marker.not_blamed_on_engine
+  ok   refused_marker.ff.stop-before-marker.ran
+  ok   refused_marker.ff.stop-before-marker.not_moved
+  ok   refused_marker.ff.stop-before-marker.no_marker
+  ok   refused_marker.ff.stop-before-marker.marker_never_written
+  ok   refused_marker.ff.stop-before-marker.user_edit_is_users
+  ok   refused_marker.ff.stop-before-marker.not_blamed_on_engine
+  ok   refused_marker.ff.deadline-before-marker.ran
+  ok   refused_marker.ff.deadline-before-marker.not_moved
+  ok   refused_marker.ff.deadline-before-marker.no_marker
+  ok   refused_marker.ff.deadline-before-marker.marker_never_written
+  ok   refused_marker.ff.deadline-before-marker.user_edit_is_users
+  ok   refused_marker.ff.deadline-before-marker.not_blamed_on_engine
+  ok   refused_marker.ff.spawn-fails-write.ran
+  ok   refused_marker.ff.spawn-fails-write.not_moved
+  ok   refused_marker.ff.spawn-fails-write.no_marker
+  ok   refused_marker.ff.spawn-fails-write.marker_was_written
+  ok   refused_marker.ff.spawn-fails-write.user_edit_is_users
+  ok   refused_marker.ff.spawn-fails-write.not_blamed_on_engine
+  ok   refused_marker.pin.stop-after-marker.ran
+  ok   refused_marker.pin.stop-after-marker.not_moved
+  ok   refused_marker.pin.stop-after-marker.no_marker
+  ok   refused_marker.pin.stop-after-marker.marker_was_written
+  ok   refused_marker.pin.stop-after-marker.user_edit_is_users
+  ok   refused_marker.pin.stop-after-marker.not_blamed_on_engine
+  ok   refused_marker.pin.deadline-after-marker.ran
+  ok   refused_marker.pin.deadline-after-marker.not_moved
+  ok   refused_marker.pin.deadline-after-marker.no_marker
+  ok   refused_marker.pin.deadline-after-marker.marker_was_written
+  ok   refused_marker.pin.deadline-after-marker.user_edit_is_users
+  ok   refused_marker.pin.deadline-after-marker.not_blamed_on_engine
+  ok   refused_marker.pin.spawn-fails-write.ran
+  ok   refused_marker.pin.spawn-fails-write.not_moved
+  ok   refused_marker.pin.spawn-fails-write.no_marker
+  ok   refused_marker.pin.spawn-fails-write.marker_was_written
+  ok   refused_marker.pin.spawn-fails-write.user_edit_is_users
+  ok   refused_marker.pin.spawn-fails-write.not_blamed_on_engine
+== refused_stage
+  ok   refused_stage.markers
+  ok   refused_stage.child_moved
+  ok   refused_stage.not_staged
+  ok   refused_stage.reported_unresolved
+  ok   refused_stage.no_parent_marker
+  ok   refused_stage.no_child_marker
+  ok   refused_stage.user_edit_is_users
+  ok   refused_stage.not_blamed_on_engine
+  ok   refused_stage.before.child_moved
+  ok   refused_stage.before.stage_marker_never_written
+  ok   refused_stage.before.no_parent_marker
+  ok   refused_stage.before.not_staged
+== marker_lock
+  ok   marker_lock.control_tree_clean
+  ok   marker_lock.exit_4
+  ok   marker_lock.attributed
+  ok   marker_lock.not_users
+  ok   marker_lock.marker_kept
+  ok   marker_lock.control_users
+== flock_error
+  ok   flock_error.flock-error-root.exit_1
+  ok   flock_error.flock-error-root.message
+  ok   flock_error.flock-error-root.not_another_run
+  ok   flock_error.flock-error-root.result_failed
+  ok   flock_error.flock-error-repo.exit_1
+  ok   flock_error.flock-error-repo.message
+  ok   flock_error.flock-error-repo.not_another_run
+  ok   flock_error.flock-error-repo.result_failed
+  ok   flock_error.flock-held-repo.exit_7
+  ok   flock_error.flock-held-repo.message
+== sibling_kill
+  ok   sibling_kill.every_write_held_its_own_marker
+  ok   sibling_kill.exit_1
+  ok   sibling_kill.one_add_only
+  ok   sibling_kill.a_moved
+  ok   sibling_kill.b_not_moved
+  ok   sibling_kill.b_blocked_before_move
+  ok   sibling_kill.marker_kept
+  ok   sibling_kill.marker_is_the_killed_writes
+  ok   sibling_kill.lock_left
+  ok   sibling_kill.later_run_attributes
+  ok   sibling_kill.not_blamed_on_user
+  ok   sibling_kill.control.every_write_held_its_own_marker
+  ok   sibling_kill.control_exit_0
+  ok   sibling_kill.control_both_staged
+  ok   sibling_kill.control_nothing_left
+== sibling_wipe
+  ok   sibling_wipe.every_write_held_its_own_marker
+  ok   sibling_wipe.one_add_only
+  ok   sibling_wipe.b_not_moved
+  ok   sibling_wipe.b_blocked_by_state
+== marker_pre
+  ok   marker_pre.plant-ff.planted
+  ok   marker_pre.plant-ff.foreign_marker_intact
+  ok   marker_pre.plant-ff.no_write_into_that_git_dir
+  ok   marker_pre.plant-ff.every_write_held_its_own_marker
+  ok   marker_pre.plant-ff.not_exit_0
+  ok   marker_pre.plant-ff.not_moved
+  ok   marker_pre.plant-ff.reported
+  ok   marker_pre.plant-pin.planted
+  ok   marker_pre.plant-pin.foreign_marker_intact
+  ok   marker_pre.plant-pin.no_write_into_that_git_dir
+  ok   marker_pre.plant-pin.every_write_held_its_own_marker
+  ok   marker_pre.plant-pin.not_exit_0
+  ok   marker_pre.plant-pin.not_moved
+  ok   marker_pre.plant-pin.reported
+  ok   marker_pre.plant-follow.planted
+  ok   marker_pre.plant-follow.foreign_marker_intact
+  ok   marker_pre.plant-follow.no_write_into_that_git_dir
+  ok   marker_pre.plant-follow.every_write_held_its_own_marker
+  ok   marker_pre.plant-follow.not_exit_0
+  ok   marker_pre.plant-follow.not_moved
+  ok   marker_pre.plant-follow.reported
+  ok   marker_pre.plant-stage.planted
+  ok   marker_pre.plant-stage.foreign_marker_intact
+  ok   marker_pre.plant-stage.no_write_into_that_git_dir
+  ok   marker_pre.plant-stage.every_write_held_its_own_marker
+  ok   marker_pre.plant-stage.not_exit_0
+  ok   marker_pre.plant-stage.reported
+  ok   marker_pre.race-ff.planted
+  ok   marker_pre.race-ff.foreign_marker_intact
+  ok   marker_pre.race-ff.no_write_into_that_git_dir
+  ok   marker_pre.race-ff.every_write_held_its_own_marker
+  ok   marker_pre.race-ff.not_exit_0
+  ok   marker_pre.race-ff.not_moved
+  ok   marker_pre.race-ff.reported
+  ok   marker_pre.race-pin.planted
+  ok   marker_pre.race-pin.foreign_marker_intact
+  ok   marker_pre.race-pin.no_write_into_that_git_dir
+  ok   marker_pre.race-pin.every_write_held_its_own_marker
+  ok   marker_pre.race-pin.not_exit_0
+  ok   marker_pre.race-pin.not_moved
+  ok   marker_pre.race-pin.reported
+  ok   marker_pre.race-follow.planted
+  ok   marker_pre.race-follow.foreign_marker_intact
+  ok   marker_pre.race-follow.no_write_into_that_git_dir
+  ok   marker_pre.race-follow.every_write_held_its_own_marker
+  ok   marker_pre.race-follow.not_exit_0
+  ok   marker_pre.race-follow.not_moved
+  ok   marker_pre.race-follow.reported
+  ok   marker_pre.race-stage.planted
+  ok   marker_pre.race-stage.foreign_marker_intact
+  ok   marker_pre.race-stage.no_write_into_that_git_dir
+  ok   marker_pre.race-stage.every_write_held_its_own_marker
+  ok   marker_pre.race-stage.not_exit_0
+  ok   marker_pre.race-stage.reported
+  ok   marker_pre.swap-ff.planted
+  ok   marker_pre.swap-ff.foreign_marker_intact
+  ok   marker_pre.swap-ff.no_write_into_that_git_dir
+  ok   marker_pre.swap-ff.every_write_held_its_own_marker
+  ok   marker_pre.swap-ff.not_exit_0
+  ok   marker_pre.swap-ff.not_moved
+  ok   marker_pre.swap-ff.reported
+  ok   marker_pre.swap-pin.planted
+  ok   marker_pre.swap-pin.foreign_marker_intact
+  ok   marker_pre.swap-pin.no_write_into_that_git_dir
+  ok   marker_pre.swap-pin.every_write_held_its_own_marker
+  ok   marker_pre.swap-pin.not_exit_0
+  ok   marker_pre.swap-pin.not_moved
+  ok   marker_pre.swap-pin.reported
+  ok   marker_pre.swap-follow.planted
+  ok   marker_pre.swap-follow.foreign_marker_intact
+  ok   marker_pre.swap-follow.no_write_into_that_git_dir
+  ok   marker_pre.swap-follow.every_write_held_its_own_marker
+  ok   marker_pre.swap-follow.not_exit_0
+  ok   marker_pre.swap-follow.not_moved
+  ok   marker_pre.swap-follow.reported
+  ok   marker_pre.swap-stage.planted
+  ok   marker_pre.swap-stage.foreign_marker_intact
+  ok   marker_pre.swap-stage.no_write_into_that_git_dir
+  ok   marker_pre.swap-stage.every_write_held_its_own_marker
+  ok   marker_pre.swap-stage.not_exit_0
+  ok   marker_pre.swap-stage.reported
+  ok   marker_pre.plant-pinparent.planted
+  ok   marker_pre.plant-pinparent.foreign_marker_intact
+  ok   marker_pre.plant-pinparent.no_write_into_that_git_dir
+  ok   marker_pre.plant-pinparent.every_write_held_its_own_marker
+  ok   marker_pre.plant-pinparent.not_exit_0
+  ok   marker_pre.plant-pinparent.not_moved
+  ok   marker_pre.plant-pinparent.reported
+== stop_pin
+  ok   stop_pin.every_write_held_its_own_marker
+  ok   stop_pin.exit_8
+  ok   stop_pin.add_ran
+  ok   stop_pin.staged_s2
+  ok   stop_pin.nothing_left
+== parent_lock
+  ok   parent_lock.not_exit_0
+  ok   parent_lock.child_not_moved
+  ok   parent_lock.no_write_started
+  ok   parent_lock.blocked_before_move
+  ok   parent_lock.lock_kept
+  ok   parent_lock.late.exit_1
+  ok   parent_lock.late.no_add_started
+  ok   parent_lock.late.stage_blocked_reported
+  ok   parent_lock.late.child_failed
+  ok   parent_lock.late.lock_kept_no_marker
+== lock_matrix
+  ok   lock_matrix.ff.index.lock.not_moved
+  ok   lock_matrix.ff.index.lock.no_half_write
+  ok   lock_matrix.ff.index.lock.lock_untouched
+  ok   lock_matrix.ff.index.lock.not_exit_0
+  ok   lock_matrix.ff.index.lock.lock_named
+  ok   lock_matrix.ff.index.lock.marker.not_moved
+  ok   lock_matrix.ff.index.lock.marker.no_half_write
+  ok   lock_matrix.ff.index.lock.marker.lock_untouched
+  ok   lock_matrix.ff.index.lock.marker.not_exit_0
+  ok   lock_matrix.ff.index.lock.marker.lock_named
+  ok   lock_matrix.ff.index.lock.marker.marker_kept
+  ok   lock_matrix.ff.index.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.HEAD.lock.not_moved
+  ok   lock_matrix.ff.HEAD.lock.no_half_write
+  ok   lock_matrix.ff.HEAD.lock.lock_untouched
+  ok   lock_matrix.ff.HEAD.lock.not_exit_0
+  ok   lock_matrix.ff.HEAD.lock.lock_named
+  ok   lock_matrix.ff.HEAD.lock.marker.not_moved
+  ok   lock_matrix.ff.HEAD.lock.marker.no_half_write
+  ok   lock_matrix.ff.HEAD.lock.marker.lock_untouched
+  ok   lock_matrix.ff.HEAD.lock.marker.not_exit_0
+  ok   lock_matrix.ff.HEAD.lock.marker.lock_named
+  ok   lock_matrix.ff.HEAD.lock.marker.marker_kept
+  ok   lock_matrix.ff.HEAD.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.ORIG_HEAD.lock.not_moved
+  ok   lock_matrix.ff.ORIG_HEAD.lock.no_half_write
+  ok   lock_matrix.ff.ORIG_HEAD.lock.lock_untouched
+  ok   lock_matrix.ff.ORIG_HEAD.lock.not_exit_0
+  ok   lock_matrix.ff.ORIG_HEAD.lock.lock_named
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.not_moved
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.no_half_write
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.lock_untouched
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.not_exit_0
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.lock_named
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.marker_kept
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.AUTO_MERGE.lock.not_moved
+  ok   lock_matrix.ff.AUTO_MERGE.lock.no_half_write
+  ok   lock_matrix.ff.AUTO_MERGE.lock.lock_untouched
+  ok   lock_matrix.ff.AUTO_MERGE.lock.not_exit_0
+  ok   lock_matrix.ff.AUTO_MERGE.lock.lock_named
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.not_moved
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.no_half_write
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.lock_untouched
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.not_exit_0
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.lock_named
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.marker_kept
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.common_packed-refs.lock.not_moved
+  ok   lock_matrix.ff.common_packed-refs.lock.no_half_write
+  ok   lock_matrix.ff.common_packed-refs.lock.lock_untouched
+  ok   lock_matrix.ff.common_packed-refs.lock.not_exit_0
+  ok   lock_matrix.ff.common_packed-refs.lock.lock_named
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.not_moved
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.no_half_write
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.lock_untouched
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.not_exit_0
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.lock_named
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.marker_kept
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.common_refs_heads_main.lock.not_moved
+  ok   lock_matrix.ff.common_refs_heads_main.lock.no_half_write
+  ok   lock_matrix.ff.common_refs_heads_main.lock.lock_untouched
+  ok   lock_matrix.ff.common_refs_heads_main.lock.not_exit_0
+  ok   lock_matrix.ff.common_refs_heads_main.lock.lock_named
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.not_moved
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.no_half_write
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.lock_untouched
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.not_exit_0
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.lock_named
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.marker_kept
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.never_left_nothing
+  ok   lock_matrix.pin.index.lock.not_moved
+  ok   lock_matrix.pin.index.lock.no_half_write
+  ok   lock_matrix.pin.index.lock.lock_untouched
+  ok   lock_matrix.pin.index.lock.not_exit_0
+  ok   lock_matrix.pin.index.lock.lock_named
+  ok   lock_matrix.pin.HEAD.lock.not_moved
+  ok   lock_matrix.pin.HEAD.lock.no_half_write
+  ok   lock_matrix.pin.HEAD.lock.lock_untouched
+  ok   lock_matrix.pin.HEAD.lock.not_exit_0
+  ok   lock_matrix.pin.HEAD.lock.lock_named
+  ok   lock_matrix.pin.AUTO_MERGE.lock.not_moved
+  ok   lock_matrix.pin.AUTO_MERGE.lock.no_half_write
+  ok   lock_matrix.pin.AUTO_MERGE.lock.lock_untouched
+  ok   lock_matrix.pin.AUTO_MERGE.lock.not_exit_0
+  ok   lock_matrix.pin.AUTO_MERGE.lock.lock_named
+  ok   lock_matrix.pin.common_packed-refs.lock.not_moved
+  ok   lock_matrix.pin.common_packed-refs.lock.no_half_write
+  ok   lock_matrix.pin.common_packed-refs.lock.lock_untouched
+  ok   lock_matrix.pin.common_packed-refs.lock.not_exit_0
+  ok   lock_matrix.pin.common_packed-refs.lock.lock_named
+  ok   lock_matrix.follow.index.lock.not_moved
+  ok   lock_matrix.follow.index.lock.no_half_write
+  ok   lock_matrix.follow.index.lock.lock_untouched
+  ok   lock_matrix.follow.index.lock.not_exit_0
+  ok   lock_matrix.follow.index.lock.lock_named
+  ok   lock_matrix.follow.HEAD.lock.not_moved
+  ok   lock_matrix.follow.HEAD.lock.no_half_write
+  ok   lock_matrix.follow.HEAD.lock.lock_untouched
+  ok   lock_matrix.follow.HEAD.lock.not_exit_0
+  ok   lock_matrix.follow.HEAD.lock.lock_named
+  ok   lock_matrix.follow.AUTO_MERGE.lock.not_moved
+  ok   lock_matrix.follow.AUTO_MERGE.lock.no_half_write
+  ok   lock_matrix.follow.AUTO_MERGE.lock.lock_untouched
+  ok   lock_matrix.follow.AUTO_MERGE.lock.not_exit_0
+  ok   lock_matrix.follow.AUTO_MERGE.lock.lock_named
+  ok   lock_matrix.follow.common_packed-refs.lock.not_moved
+  ok   lock_matrix.follow.common_packed-refs.lock.no_half_write
+  ok   lock_matrix.follow.common_packed-refs.lock.lock_untouched
+  ok   lock_matrix.follow.common_packed-refs.lock.not_exit_0
+  ok   lock_matrix.follow.common_packed-refs.lock.lock_named
+  ok   lock_matrix.golden_false.common_refs_heads_other.lock.exit_0
+  ok   lock_matrix.golden_false.common_refs_heads_other.lock.moved
+  ok   lock_matrix.golden_false.common_config.lock.exit_0
+  ok   lock_matrix.golden_false.common_config.lock.moved
+== worktree_locks
+  ok   worktree.common_refs_heads_main.lock.fixture_split
+  ok   worktree.common_refs_heads_main.lock.not_moved
+  ok   worktree.common_refs_heads_main.lock.no_half_write
+  ok   worktree.common_refs_heads_main.lock.not_exit_0
+  ok   worktree.common_refs_heads_main.lock.lock_untouched
+  ok   worktree.common_packed-refs.lock.fixture_split
+  ok   worktree.common_packed-refs.lock.not_moved
+  ok   worktree.common_packed-refs.lock.no_half_write
+  ok   worktree.common_packed-refs.lock.not_exit_0
+  ok   worktree.common_packed-refs.lock.lock_untouched
+  ok   worktree.wt_HEAD.lock.fixture_split
+  ok   worktree.wt_HEAD.lock.not_moved
+  ok   worktree.wt_HEAD.lock.no_half_write
+  ok   worktree.wt_HEAD.lock.not_exit_0
+  ok   worktree.wt_HEAD.lock.lock_untouched
+  ok   worktree.wt_index.lock.fixture_split
+  ok   worktree.wt_index.lock.not_moved
+  ok   worktree.wt_index.lock.no_half_write
+  ok   worktree.wt_index.lock.not_exit_0
+  ok   worktree.wt_index.lock.lock_untouched
+  ok   worktree.common_HEAD.lock.fixture_split
+  ok   worktree.common_HEAD.lock.golden_false_exit_0
+  ok   worktree.common_HEAD.lock.golden_false_moved
+  ok   worktree.common_HEAD.lock.lock_untouched
+== marker_kind
+  ok   marker_kind.fifo.check.bounded
+  ok   marker_kind.fifo.check.untouched
+  ok   marker_kind.fifo.check.not_moved
+  ok   marker_kind.fifo.check.exit_4
+  ok   marker_kind.fifo.check.named
+  ok   marker_kind.fifo.apply.bounded
+  ok   marker_kind.fifo.apply.untouched
+  ok   marker_kind.fifo.apply.not_moved
+  ok   marker_kind.fifo.apply.exit_4
+  ok   marker_kind.fifo.apply.named
+  ok   marker_kind.fifo.dry-run.bounded
+  ok   marker_kind.fifo.dry-run.untouched
+  ok   marker_kind.fifo.dry-run.not_moved
+  ok   marker_kind.fifo.dry-run.exit_4
+  ok   marker_kind.fifo.dry-run.named
+  ok   marker_kind.dir.check.bounded
+  ok   marker_kind.dir.check.untouched
+  ok   marker_kind.dir.check.not_moved
+  ok   marker_kind.dir.check.exit_4
+  ok   marker_kind.dir.check.named
+  ok   marker_kind.dir.apply.bounded
+  ok   marker_kind.dir.apply.untouched
+  ok   marker_kind.dir.apply.not_moved
+  ok   marker_kind.dir.apply.exit_4
+  ok   marker_kind.dir.apply.named
+  ok   marker_kind.dir.dry-run.bounded
+  ok   marker_kind.dir.dry-run.untouched
+  ok   marker_kind.dir.dry-run.not_moved
+  ok   marker_kind.dir.dry-run.exit_4
+  ok   marker_kind.dir.dry-run.named
+  ok   marker_kind.symlink.check.bounded
+  ok   marker_kind.symlink.check.untouched
+  ok   marker_kind.symlink.check.not_moved
+  ok   marker_kind.symlink.check.exit_4
+  ok   marker_kind.symlink.check.named
+  ok   marker_kind.symlink.apply.bounded
+  ok   marker_kind.symlink.apply.untouched
+  ok   marker_kind.symlink.apply.not_moved
+  ok   marker_kind.symlink.apply.exit_4
+  ok   marker_kind.symlink.apply.named
+  ok   marker_kind.symlink.dry-run.bounded
+  ok   marker_kind.symlink.dry-run.untouched
+  ok   marker_kind.symlink.dry-run.not_moved
+  ok   marker_kind.symlink.dry-run.exit_4
+  ok   marker_kind.symlink.dry-run.named
+  ok   marker_kind.dangling.check.bounded
+  ok   marker_kind.dangling.check.untouched
+  ok   marker_kind.dangling.check.not_moved
+  ok   marker_kind.dangling.check.exit_4
+  ok   marker_kind.dangling.check.named
+  ok   marker_kind.dangling.apply.bounded
+  ok   marker_kind.dangling.apply.untouched
+  ok   marker_kind.dangling.apply.not_moved
+  ok   marker_kind.dangling.apply.exit_4
+  ok   marker_kind.dangling.apply.named
+  ok   marker_kind.dangling.dry-run.bounded
+  ok   marker_kind.dangling.dry-run.untouched
+  ok   marker_kind.dangling.dry-run.not_moved
+  ok   marker_kind.dangling.dry-run.exit_4
+  ok   marker_kind.dangling.dry-run.named
+  ok   marker_kind.socket.check.bounded
+  ok   marker_kind.socket.check.untouched
+  ok   marker_kind.socket.check.not_moved
+  ok   marker_kind.socket.check.exit_4
+  ok   marker_kind.socket.check.named
+  ok   marker_kind.socket.apply.bounded
+  ok   marker_kind.socket.apply.untouched
+  ok   marker_kind.socket.apply.not_moved
+  ok   marker_kind.socket.apply.exit_4
+  ok   marker_kind.socket.apply.named
+  ok   marker_kind.socket.dry-run.bounded
+  ok   marker_kind.socket.dry-run.untouched
+  ok   marker_kind.socket.dry-run.not_moved
+  ok   marker_kind.socket.dry-run.exit_4
+  ok   marker_kind.socket.dry-run.named
+== lock_kind
+  ok   lock_kind.fifo.bounded
+  ok   lock_kind.fifo.exit_1
+  ok   lock_kind.fifo.cannot_open
+  ok   lock_kind.fifo.untouched
+  ok   lock_kind.fifo.not_moved
+  ok   lock_kind.socket.bounded
+  ok   lock_kind.socket.exit_1
+  ok   lock_kind.socket.cannot_open
+  ok   lock_kind.socket.untouched
+  ok   lock_kind.socket.not_moved
+  ok   lock_kind.dir.bounded
+  ok   lock_kind.dir.exit_1
+  ok   lock_kind.dir.cannot_open
+  ok   lock_kind.dir.untouched
+  ok   lock_kind.dir.not_moved
+== half_write
+  ok   half_write.ff.HEAD.lock.fixture_effect
+  ok   half_write.ff.HEAD.lock.not_exit_0
+  ok   half_write.ff.HEAD.lock.marker_kept
+  ok   half_write.ff.HEAD.lock.reported
+  ok   half_write.ff.HEAD.lock.exit_failed
+  ok   half_write.ff.HEAD.lock.repo_result_failed
+  ok   half_write.ff.HEAD.lock.next_run_attributes
+  ok   half_write.ff.common_refs_heads_main.lock.fixture_effect
+  ok   half_write.ff.common_refs_heads_main.lock.not_exit_0
+  ok   half_write.ff.common_refs_heads_main.lock.marker_kept
+  ok   half_write.ff.common_refs_heads_main.lock.reported
+  ok   half_write.ff.common_refs_heads_main.lock.exit_failed
+  ok   half_write.ff.common_refs_heads_main.lock.repo_result_failed
+  ok   half_write.ff.common_refs_heads_main.lock.next_run_attributes
+  ok   half_write.pin.HEAD.lock.fixture_effect
+  ok   half_write.pin.HEAD.lock.not_exit_0
+  ok   half_write.pin.HEAD.lock.marker_kept
+  ok   half_write.pin.HEAD.lock.reported
+  ok   half_write.pin.HEAD.lock.exit_failed
+  ok   half_write.pin.HEAD.lock.repo_result_failed
+  ok   half_write.pin.HEAD.lock.next_run_attributes
+  ok   half_write.ff.ORIG_HEAD.lock.fixture_effect
+  ok   half_write.ff.ORIG_HEAD.lock.not_exit_0
+  ok   half_write.ff.ORIG_HEAD.lock.golden_false_marker_removed
+  ok   half_write.ff.ORIG_HEAD.lock.golden_false_nothing_attributed
+  ok   half_write.ff.index.lock.fixture_effect
+  ok   half_write.ff.index.lock.not_exit_0
+  ok   half_write.ff.index.lock.golden_false_marker_removed
+  ok   half_write.ff.index.lock.golden_false_nothing_attributed
+== marker_vanish
+  ok   vanish.ff.no_write_without_marker
+  ok   vanish.ff.every_spawn_marked
+  ok   vanish.ff.not_exit_0
+  ok   vanish.ff.not_moved
+  ok   vanish.ff.reported
+  ok   vanish.pin.no_write_without_marker
+  ok   vanish.pin.every_spawn_marked
+  ok   vanish.pin.not_exit_0
+  ok   vanish.pin.not_moved
+  ok   vanish.pin.reported
+  ok   vanish.follow.no_write_without_marker
+  ok   vanish.follow.every_spawn_marked
+  ok   vanish.follow.not_exit_0
+  ok   vanish.follow.not_moved
+  ok   vanish.follow.reported
+  ok   vanish.stage.no_write_without_marker
+  ok   vanish.stage.every_spawn_marked
+  ok   vanish.stage.not_exit_0
+  ok   vanish.stage.reported
+== earlier_lock
+  ok   earlier_lock.index.lock.marker_kept
+  ok   earlier_lock.index.lock.noted_kept
+  ok   earlier_lock.index.lock.never_left_nothing
+  ok   earlier_lock.index.lock.attributed
+  ok   earlier_lock.HEAD.lock.marker_kept
+  ok   earlier_lock.HEAD.lock.noted_kept
+  ok   earlier_lock.HEAD.lock.never_left_nothing
+  ok   earlier_lock.HEAD.lock.attributed
+  ok   earlier_lock.ORIG_HEAD.lock.marker_kept
+  ok   earlier_lock.ORIG_HEAD.lock.noted_kept
+  ok   earlier_lock.ORIG_HEAD.lock.never_left_nothing
+  ok   earlier_lock.ORIG_HEAD.lock.attributed
+  ok   earlier_lock.AUTO_MERGE.lock.marker_kept
+  ok   earlier_lock.AUTO_MERGE.lock.noted_kept
+  ok   earlier_lock.AUTO_MERGE.lock.never_left_nothing
+  ok   earlier_lock.AUTO_MERGE.lock.attributed
+  ok   earlier_lock.packed-refs.lock.marker_kept
+  ok   earlier_lock.packed-refs.lock.noted_kept
+  ok   earlier_lock.packed-refs.lock.never_left_nothing
+  ok   earlier_lock.packed-refs.lock.attributed
+  ok   earlier_lock.refs_heads_main.lock.marker_kept
+  ok   earlier_lock.refs_heads_main.lock.noted_kept
+  ok   earlier_lock.refs_heads_main.lock.never_left_nothing
+  ok   earlier_lock.refs_heads_main.lock.attributed
+  ok   earlier_lock.control.cleared
+  ok   earlier_lock.control.noted
+== marker_unremovable
+  ok   marker_unremovable.no_internal_error
+  ok   marker_unremovable.kept
+  ok   marker_unremovable.noted
+  ok   marker_unremovable.never_left_nothing
+== branch_lock
+  ok   branch_lock.plain.main.not_moved
+  ok   branch_lock.plain.main.no_half_write
+  ok   branch_lock.plain.main.exit_4
+  ok   branch_lock.plain.main.lock_untouched
+  ok   branch_lock.plain.main.reason
+  ok   branch_lock.plain.main.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.plain.main.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.plain.dev.not_moved
+  ok   branch_lock.plain.dev.no_half_write
+  ok   branch_lock.plain.dev.exit_4
+  ok   branch_lock.plain.dev.lock_untouched
+  ok   branch_lock.plain.dev.reason
+  ok   branch_lock.plain.dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.plain.dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.plain.dev.earlier_marker.not_moved
+  ok   branch_lock.plain.dev.earlier_marker.no_half_write
+  ok   branch_lock.plain.dev.earlier_marker.exit_4
+  ok   branch_lock.plain.dev.earlier_marker.marker_kept
+  ok   branch_lock.plain.dev.earlier_marker.never_left_nothing
+  ok   branch_lock.plain.feature_x.not_moved
+  ok   branch_lock.plain.feature_x.no_half_write
+  ok   branch_lock.plain.feature_x.exit_4
+  ok   branch_lock.plain.feature_x.lock_untouched
+  ok   branch_lock.plain.feature_x.reason
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_x.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.earlier_marker.not_moved
+  ok   branch_lock.plain.feature_x.earlier_marker.no_half_write
+  ok   branch_lock.plain.feature_x.earlier_marker.exit_4
+  ok   branch_lock.plain.feature_x.earlier_marker.marker_kept
+  ok   branch_lock.plain.feature_x.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.main.not_moved
+  ok   branch_lock.wt.main.no_half_write
+  ok   branch_lock.wt.main.exit_4
+  ok   branch_lock.wt.main.lock_untouched
+  ok   branch_lock.wt.main.reason
+  ok   branch_lock.wt.main.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.wt.main.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.wt.dev.not_moved
+  ok   branch_lock.wt.dev.no_half_write
+  ok   branch_lock.wt.dev.exit_4
+  ok   branch_lock.wt.dev.lock_untouched
+  ok   branch_lock.wt.dev.reason
+  ok   branch_lock.wt.dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.wt.dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.wt.dev.earlier_marker.not_moved
+  ok   branch_lock.wt.dev.earlier_marker.no_half_write
+  ok   branch_lock.wt.dev.earlier_marker.exit_4
+  ok   branch_lock.wt.dev.earlier_marker.marker_kept
+  ok   branch_lock.wt.dev.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.feature_x.not_moved
+  ok   branch_lock.wt.feature_x.no_half_write
+  ok   branch_lock.wt.feature_x.exit_4
+  ok   branch_lock.wt.feature_x.lock_untouched
+  ok   branch_lock.wt.feature_x.reason
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_x.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.earlier_marker.not_moved
+  ok   branch_lock.wt.feature_x.earlier_marker.no_half_write
+  ok   branch_lock.wt.feature_x.earlier_marker.exit_4
+  ok   branch_lock.wt.feature_x.earlier_marker.marker_kept
+  ok   branch_lock.wt.feature_x.earlier_marker.never_left_nothing
+== wt_param
+  ok   wt_param.own.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.own.HEAD.lock.plain.not_moved
+  ok   wt_param.own.HEAD.lock.plain.no_half_write
+  ok   wt_param.own.HEAD.lock.plain.exit_4
+  ok   wt_param.own.HEAD.lock.plain.named
+  ok   wt_param.own.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.own.MERGE_HEAD.plain.not_moved
+  ok   wt_param.own.MERGE_HEAD.plain.no_half_write
+  ok   wt_param.own.MERGE_HEAD.plain.exit_4
+  ok   wt_param.own.MERGE_HEAD.plain.named
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.not_moved
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.no_half_write
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.exit_4
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.named
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.untouched
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.fixture_ids_differ
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.not_moved
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.no_half_write
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.exit_4
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.marker_kept
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.attributed
+  ok   wt_param.common.packed-refs.lock.plain.fixture_ids_differ
+  ok   wt_param.common.packed-refs.lock.plain.not_moved
+  ok   wt_param.common.packed-refs.lock.plain.no_half_write
+  ok   wt_param.common.packed-refs.lock.plain.exit_4
+  ok   wt_param.common.packed-refs.lock.plain.named
+  ok   wt_param.other.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.other.HEAD.lock.plain.golden_false_exit_0
+  ok   wt_param.other.HEAD.lock.plain.golden_false_moved
+  ok   wt_param.other.HEAD.lock.plain.golden_false_untouched
+  ok   wt_param.other.index.lock.plain.fixture_ids_differ
+  ok   wt_param.other.index.lock.plain.golden_false_exit_0
+  ok   wt_param.other.index.lock.plain.golden_false_moved
+  ok   wt_param.other.index.lock.plain.golden_false_untouched
+  ok   wt_param.other.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_exit_0
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_moved
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_untouched
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_exit_0
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_moved
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_untouched
+  ok   wt_param.common.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.common.HEAD.lock.plain.golden_false_exit_0
+  ok   wt_param.common.HEAD.lock.plain.golden_false_moved
+  ok   wt_param.common.HEAD.lock.plain.golden_false_untouched
+  ok   wt_param.common.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_exit_0
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_moved
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_untouched
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.fixture_ids_differ
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_exit_0
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_moved
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_untouched
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_exit_0
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_moved
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_untouched
+== run_lock
+  ok   run_lock.common.holder_ready
+  ok   run_lock.common.exit_7
+  ok   run_lock.common.not_moved
+  ok   run_lock.own.holder_ready
+  ok   run_lock.own.golden_false_exit_0
+  ok   run_lock.own.golden_false_moved
+== write_race
+  ok   write_race.0.control.golden_false_exit_0
+  ok   write_race.0.control.golden_false_moved
+  ok   write_race.0.control_calls
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.fired
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.not_moved
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.no_half_write
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.exit_4
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.lock_untouched
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.reason
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.fired
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.not_moved
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.no_half_write
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.exit_4
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.lock_untouched
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.reason
+  ok   write_race.1.control.golden_false_exit_0
+  ok   write_race.1.control.golden_false_moved
+  ok   write_race.1.control_calls
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.fired
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.not_moved
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.no_half_write
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.exit_4
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.lock_untouched
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.reason
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.fired
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.not_moved
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.no_half_write
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.exit_4
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.lock_untouched
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.reason
+  ok   write_race.2.control.golden_false_exit_0
+  ok   write_race.2.control.golden_false_moved
+  ok   write_race.2.control_calls
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.fired
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.not_moved
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.no_half_write
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.exit_4
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.lock_untouched
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.reason
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.fired
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.not_moved
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.no_half_write
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.exit_4
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.lock_untouched
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.reason
+  ok   write_race.3.control.golden_false_exit_0
+  ok   write_race.3.control.golden_false_moved
+  ok   write_race.3.control_calls
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.fired
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.not_moved
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.no_half_write
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.exit_4
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.lock_untouched
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.reason
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.fired
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.not_moved
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.no_half_write
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.exit_4
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.lock_untouched
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.reason
+  ok   write_race.4.control.golden_false_exit_0
+  ok   write_race.4.control.golden_false_moved
+  ok   write_race.4.control_calls
+  ok   write_race.plain.dev.own.index.lock.fetch.fired
+  ok   write_race.plain.dev.own.index.lock.fetch.not_moved
+  ok   write_race.plain.dev.own.index.lock.fetch.no_half_write
+  ok   write_race.plain.dev.own.index.lock.fetch.exit_4
+  ok   write_race.plain.dev.own.index.lock.fetch.lock_untouched
+  ok   write_race.plain.dev.own.index.lock.fetch.reason
+  ok   write_race.plain.dev.own.index.lock.last-read.fired
+  ok   write_race.plain.dev.own.index.lock.last-read.not_moved
+  ok   write_race.plain.dev.own.index.lock.last-read.no_half_write
+  ok   write_race.plain.dev.own.index.lock.last-read.exit_4
+  ok   write_race.plain.dev.own.index.lock.last-read.lock_untouched
+  ok   write_race.plain.dev.own.index.lock.last-read.reason
+== marker_read
+  ok   marker_read.too_large.check.fixture_size
+  ok   marker_read.too_large.check.exit_3
+  ok   marker_read.too_large.check.noted_unknown
+  ok   marker_read.too_large.check.marker_untouched
+  ok   marker_read.too_large.apply.fixture_size
+  ok   marker_read.too_large.apply.exit_0
+  ok   marker_read.too_large.apply.cleared_noted
+  ok   marker_read.too_large.apply.marker_removed
+  ok   marker_read.too_large.apply.moved
+  ok   marker_read.unreadable.check.fixture_size
+  ok   marker_read.unreadable.check.exit_3
+  ok   marker_read.unreadable.check.noted_unknown
+  ok   marker_read.unreadable.check.marker_untouched
+  ok   marker_read.unreadable.apply.fixture_size
+  ok   marker_read.unreadable.apply.exit_0
+  ok   marker_read.unreadable.apply.cleared_noted
+  ok   marker_read.unreadable.apply.marker_removed
+  ok   marker_read.unreadable.apply.moved
+  ok   marker_read.invalid_json.check.fixture_size
+  ok   marker_read.invalid_json.check.exit_3
+  ok   marker_read.invalid_json.check.noted_unknown
+  ok   marker_read.invalid_json.check.marker_untouched
+  ok   marker_read.invalid_json.apply.fixture_size
+  ok   marker_read.invalid_json.apply.exit_0
+  ok   marker_read.invalid_json.apply.cleared_noted
+  ok   marker_read.invalid_json.apply.marker_removed
+  ok   marker_read.invalid_json.apply.moved
+== wt_only
+  ok   wt_only.index_lock.worktree_changed_known_limit.fixture_effect
+  ok   wt_only.index_lock.worktree_changed_known_limit.head_not_moved
+  ok   wt_only.index_lock.worktree_changed_known_limit.marker_removed
+  ok   wt_only.index_lock.worktree_changed_known_limit.not_reported_left_changes
+  ok   wt_only.index_lock.worktree_changed_known_limit.exit_failed
+  ok   wt_only.index_lock.worktree_changed_known_limit.next_run_sees_dirty
+  ok   wt_only.index_lock.worktree_changed_known_limit.file_kept
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.fixture_effect
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.head_not_moved
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.marker_removed
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.not_reported_left_changes
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.exit_failed
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.next_run_sees_dirty
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.file_kept
+  ok   wt_only.index_lock.golden_false.fixture_effect
+  ok   wt_only.index_lock.golden_false.head_not_moved
+  ok   wt_only.index_lock.golden_false.marker_removed
+  ok   wt_only.index_lock.golden_false.not_reported_left_changes
+  ok   wt_only.index_lock.golden_false.exit_failed
+sync-robustness: PASS 963 FAIL 0
+=== test_robustness OK (414s)
+=== cm_sync_upstreams_ff_only
+CM-SYNC-UPSTREAMS-FF-ONLY: PASS — imports and module attributes on the allow-list, no dynamic access; one spawn point (proc_run_git: argv from git_argv(check_git_args(args))) and one guarded signal point (proc_kill_group); 30 git call sites (plus the g_out forwarder) with literal allow-listed argv and bounded answer statuses, equal to the 30-row call-site oracle; 25 accepted shapes carry the exact safe argv (each safe key once); git_env scrubs 27 injectors; 15 redaction shapes + 4 secret paths; 56/56 forbidden shapes refused; control needle 25/25 accepted
+=== cm_sync_upstreams_ff_only_mutation_test
+ok   GOLDEN (rc=0)
+ok   PUSH-IN-WRITE (rc=1) :: WRITE_SUBCOMMANDS is ['add', 'checkout', 'fetch', 'merge', 'push'], expected exactly {fetc
+ok   RESET-IN-READ (rc=1) :: allow-list contains ['reset']
+ok   CATFILE-IN-READ (rc=1) :: allow-list contains ['cat-file']
+ok   NO-PLUS-CHECK (rc=1) :: ACCEPTED a forbidden shape: git rev-parse +refs/heads/main
+ok   MERGE-ANY (rc=1) :: ACCEPTED a forbidden shape: git merge 0123456789abcdef0123456789abcdef01234567
+ok   CHECKOUT-ANY (rc=1) :: ACCEPTED a forbidden shape: git checkout -f 0123456789abcdef0123456789abcdef01234567
+ok   SECOND-SPAWN (rc=1) :: module use os.system is not on the allow-list (line 680)
+ok   NO-CHECK-IN-CHOKE (rc=1) :: `checked = check_git_args(args)` is not bound exactly once, at the top of proc_run_git, be
+ok   CHECKED-REBOUND (rc=1) :: `checked = check_git_args(args)` is not bound exactly once, at the top of proc_run_git, be
+ok   ARGS-REBOUND (rc=1) :: proc_run_git rebinds its parameter `args`
+ok   ARGV-NOT-GIT-ARGV (rc=1) :: the Popen argv is not git_argv(git_bin, repo, checked) in proc_run_git(git_bin, repo, args
+ok   NO-PGID-GUARD (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and pgid == p.pid`, not exactly `isinstan
+ok   NO-ISOLATED-PY (rc=1) :: wrapper does not exec the engine with python3 -I
+ok   REFUSE-ALL (rc=1) :: control needle: REFUSED a shape the engine uses: git status --porcelain=v1 --ignore-submod
+ok   R1-MERGE-FF (rc=1) :: ACCEPTED a forbidden shape: git merge --ff 0123456789abcdef0123456789abcdef01234567
+ok   R2-GETATTR-SPAWN (rc=1) :: dynamic-access name getattr (line 680)
+ok   FROM-IMPORT (rc=1) :: `from` import is not allowed (line 51)
+ok   IMPORT-ALIAS (rc=1) :: import subprocess as subprocess is not on the allow-list (line 50)
+ok   IMPORTLIB-IMPORT (rc=1) :: import importlib is not on the allow-list (line 51)
+ok   MODULE-ALIAS (rc=1) :: module use subprocess is not on the allow-list (line 679)
+ok   DUNDER (rc=1) :: dunder attribute .__dict__ (line 680)
+ok   SHADOW (rc=1) :: definition shadows eval (line 679)
+ok   GLOBAL-STMT (rc=1) :: global/nonlocal statement (line 680)
+ok   K01-POPEN-ALIAS (rc=1) :: subprocess.Popen used outside proc_run_git (line 680)
+ok   K02-POPEN-MAP (rc=1) :: subprocess.Popen used outside proc_run_git (line 680)
+ok   K03-KILLPG-ALIAS (rc=1) :: os.killpg used outside proc_kill_group (line 680)
+ok   K04-HOOKS-MERGE (rc=1) :: git_argv for git merge --ff-only 0123456789abcdef0123456789abcdef01234567 is not [git -C r
+ok   POPEN-OUTSIDE (rc=1) :: subprocess.Popen used outside proc_run_git (line 680)
+ok   NESTED-DEF-POPEN (rc=1) :: subprocess.Popen used outside proc_run_git (line 388)
+ok   KILLPG-ELSEWHERE (rc=1) :: os.killpg used outside proc_kill_group (line 680)
+ok   KILL-ATTR (rc=1) :: signal-sending attribute .kill (line 430)
+ok   SECOND-CHOKE-CALL (rc=1) :: proc_run_git must be referenced exactly once, called from Runner.run (found 2 reference(s)
+ok   CHOKE-REBOUND (rc=1) :: proc_run_git is bound 2 time(s) (must be exactly once, at module level)
+ok   RUN-AS-VALUE (rc=1) :: .run used as a value, not called (line 680)
+ok   COMPUTED-ARGS (rc=1) :: git call at line 1013 does not pass a literal allow-listed argument list
+ok   NO-OK-DECLARED (rc=1) :: git call at line 1270 does not declare its answer statuses as a literal ok=(0, ...) tuple
+ok   OK-NOT-LITERAL (rc=1) :: git call at line 1013 does not declare its answer statuses as a literal ok=(0, ...) tuple
+ok   POPEN-SHELL-KW (rc=1) :: Popen uses ['shell']
+ok   NO-HOOKSPATH (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   NO-FSMONITOR (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   NO-OPTIONAL-LOCKS (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   K16-ENV (rc=1) :: git_env keeps injecting variables ['GIT_CONFIG_PARAMETERS']
+ok   S1-REDACT (rc=1) :: redact('https://user:pa ss@word@example.org/r.git') = 'https://word@example.org/r.git' (a 
+ok   NO-REFMAP (rc=1) :: fetch_args(tags=False) lacks --refmap=
+ok   PRUNE-IN-FETCH (rc=1) :: fetch_args(tags=False) lacks --no-prune
+ok   MIRROR-REFSPEC (rc=1) :: fetch_args(tags=False) refspecs are ['fetch', '--no-prune', '--no-prune-tags', '--no-recur
+ok   FORCED-TAGS (rc=1) :: fetch_args(tags=True) refspecs are ['fetch', '--no-prune', '--no-prune-tags', '--no-recurs
+ok   X01-STATUS-OK128 (rc=1) :: call site not in the oracle table (1x): write_git STATUS_ARGS ok=(0, 128) want=-
+ok   X02-DIRECT-MERGE (rc=1) :: git merge call at line 1635 is outside write_git, the one guarded writer
+ok   X02B-DIRECT-MERGE-RECORDED (rc=1) :: git merge call at line 1635 is outside write_git, the one guarded writer
+ok   X04-OR-TRUE (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and (pgid > 1 or True)`, not exactly `isi
+ok   X05-WINDOW-48 (rc=1) :: redact("fatal: unable to access 'https://user:QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
+ok   X06-OK-ALL (rc=1) :: git call at line 1013 declares ok=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1
+ok   X07-HOOKS-OVERRIDE (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   KILLPG-OR (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and pgid > 1 or pgid == p.pid`, not exact
+ok   KILLPG-NOT (rc=1) :: the guard of os.killpg is `not (isinstance(pgid, int) and pgid > 1 and (pgid == p.pid))`, 
+ok   KILLPG-GE1 (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and pgid >= 1 and (pgid == p.pid)`, not e
+ok   KILLPG-EXTRA-TERM (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and pgid > 1 and (pgid == p.pid) and (pgi
+ok   KILLPG-ELSE (rc=1) :: os.killpg is not in the body of an `if` (found else before any `if`) (§11.4.263)
+ok   KILLPG-REBIND (rc=1) :: pgid is not bound exactly once, as `pgid = os.getpgid(p.pid)`, in proc_kill_group (§11.4.2
+ok   KILLPG-OWN-GROUP (rc=1) :: pgid is not bound exactly once, as `pgid = os.getpgid(p.pid)`, in proc_kill_group (§11.4.2
+ok   KILLPG-SIG9 (rc=1) :: `sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_gro
+ok   KILLPG-SIGKILL-ONLY (rc=1) :: `sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_gro
+ok   KILLPG-ORDER-REVERSED (rc=1) :: `sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_gro
+ok   KILLPG-SIGINT (rc=1) :: signal.SIGINT used outside proc_on_stop_signals (line 493)
+ok   KILLPG-SIG-REBOUND (rc=1) :: `sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_gro
+ok   SELECT-OUTSIDE (rc=1) :: select.select used outside proc_run_git / Tty.ask (line 680)
+ok   WAITID-OUTSIDE (rc=1) :: os.waitid used outside proc_kill_group (line 680)
+ok   UPDATE-STRATEGY-OK-128 (rc=1) :: call site not in the oracle table (1x): update_strategies ['config', '-z', '--get-regexp',
+ok   CONFIG-WRITE-SHAPE (rc=1) :: call site not in the oracle table (1x): update_strategies ['config', '-z', '--unset-all', 
+ok   NO-NEW-SESSION (rc=1) :: the one Popen does not pass start_new_session=True (the group it kills must be its own)
+ok   OK-128-AT-READ (rc=1) :: call site not in the oracle table (1x): index_gitlinks ['ls-files', '-s', '-z'] ok=(0, 128
+ok   OK-TWO (rc=1) :: git call at line 1013 declares ok=(0, 2): an answer set is a subset of {0, 1, 128} with at
+ok   WANT-DROPPED (rc=1) :: call site not in the oracle table (1x): read_head ['rev-parse', '--verify', '-q', 'HEAD^{c
+ok   FETCH-ELSEWHERE (rc=1) :: fetch_args(...) is passed at line 680 outside fetch_repo
+ok   WRITE-VIA-CONST (rc=1) :: git merge call at line 683 is outside write_git, the one guarded writer
+ok   CFG-CASE-OVERRIDE (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   CFG-EXTRA-KEY (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   TRACE-KEPT (rc=1) :: git_env keeps injecting variables ['GIT_TRACE', 'GIT_TRACE2', 'GIT_TRACE2_EVENT', 'GIT_TRA
+ok   CURL-VERBOSE-KEPT (rc=1) :: git_env keeps injecting variables ['GIT_CURL_VERBOSE']
+ok   AUTH-NOT-REDACTED (rc=1) :: redact('< Authorization: Basic dXNlcjpzM2NyM3Q=') = '< Authorization: Basic dXNlcjpzM2NyM3
+ok   REDACT-URL-LINEWISE (rc=1) :: redact_url('https://u:pa\nS3cr3tPwXY@example.org/r.git') = 'https://u:pa\nS3cr3tPwXY@examp
+ok   REPORT-KEY-RAW (rc=1) :: redact_report leaves a secret in a KEY or does not report it: {'https://u:S3cr3tKey9@h.exa
+ok   REGISTRY-OFF (rc=1) :: a registered remote secret survives in text without its URL: 'error: RegS3cr3t77 rejected 
+ok   ARGPARSE-RAW (rc=1) :: an argument-parser error prints a secret: '                 [--run-id RUN_ID] [--quiet] [-
+ok   SITE-MOVED (rc=1) :: call site not in the oracle table (1x): <Lambda> ['remote'] ok=(0,) want=-
+ok   STAT-NAME-UNLISTED (rc=1) :: module use stat.filemode is not on the allow-list (line 806)
+ok   ERRNO-ALIASED (rc=1) :: import errno as e_ is not on the allow-list (line 40)
+ok   ORACLE-ROW-DROPPED (rc=1) :: call site not in the oracle table (1x): index_gitlinks ['ls-files', '-s', '-z'] ok=(0,) wa
+ok   ORACLE-CLASS-WRONG (rc=1) :: oracle row index_gitlinks ['ls-files', '-s', '-z']: class failed does not match ok=(0,) (b
+ok   SYNTAX (rc=2)
+ok   MISSING (rc=2)
+cases: 93
+CM-SYNC-UPSTREAMS-FF-ONLY mutation test: PASS (93 cases)
+=== test_mutations
+M01  KILLED     by unit           10.5s  +refspec allowed
+M02  KILLED     by unit           10.4s  transport helper :: allowed
+M03  KILLED     by unit           10.4s  push on the write allow-list
+M04  KILLED     by unit           10.4s  merge shape not enforced
+M05  KILLED     by unit           10.5s  checkout shape not enforced
+M06  KILLED     by unit           10.5s  add path not checked
+M07  KILLED     by unit           10.4s  fetch shape not enforced
+M08  KILLED     by unit           10.0s  URL userinfo not redacted
+M09  KILLED     by unit           10.4s  tokens not redacted
+M10  KILLED     by unit           10.5s  git may prompt
+M11  KILLED     by unit           10.4s  ambient GIT_DIR kept
+M12  KILLED     by unit           10.4s  jobs ceiling 64
+M13  KILLED     by unit           10.4s  behind classified as ahead
+M14  KILLED     by unit           10.4s  newest = first, not the linear maximum
+M15  KILLED     by unit           10.4s  MERGE_HEAD not detected
+M16  KILLED     by integration    93.0s  dirty tree not detected
+M17  KILLED     by integration    87.2s  dirty tree does not block integration
+M18  KILLED     by ui             25.9s  fast-forward without consent
+M19  KILLED     by integration    90.2s  dry-run fetches
+M20  KILLED     by integration    90.1s  --no-fetch ignored
+M21  KILLED     by integration    92.2s  third-party pins advanced without the flag
+M22  KILLED     by integration    94.7s  children never follow
+M23  KILLED     by integration    97.8s  pin not on main not reported
+M24  KILLED     by integration    92.9s  unfetchable pin reported at-main
+M25  KILLED     by unit           10.4s  timestamp enters the canonical hash
+M26  KILLED     by integration    76.5s  --out inside the work tree allowed
+M27  KILLED     by chaos         115.1s  lock per process (no mutual exclusion)
+M28  KILLED     by integration    65.5s  behind reported as exit 0
+M29  KILLED     by unit           10.1s  third-party pin behind counts as an update
+M30  KILLED     by unit           10.2s  root not on main not reported
+M31  KILLED     by integration    67.7s  control needle always fails
+M32  KILLED     by unit           89.7s  timeout does not kill the process group
+M33  KILLED     by chaos         112.0s  failed fetch not reported unreachable
+M34  KILLED     by ui             24.9s  Enter means yes
+M35  KILLED     by integration    81.9s  dirty child followed
+M36  KILLED     by ui             27.3s  follow only under the fast-forward consent (pin consent ignored)
+M37  EQUIVALENT by -              27.7s  follow consent guard removed
+M38  KILLED     by unit           10.5s  R1: merge --ff accepted
+M39  KILLED     by integration    96.3s  R3: follow detaches a submodule on a branch
+M40  KILLED     by unit           10.5s  R4: control characters not stripped
+M41  KILLED     by integration    99.0s  R5: untracked files do not make a tree dirty
+M42  KILLED     by chaos         123.4s  R6: an unreachable remote does not block
+M43  KILLED     by unit           10.4s  F1: fetch prunes
+M44  KILLED     by unit           10.5s  F1: configured refspecs apply (no --refmap=)
+M45  KILLED     by unit           10.5s  F1: tags forced
+M46  KILLED     by unit           10.4s  F2: repository hooks run
+M47  KILLED     by unit           10.6s  F2: fsmonitor runs
+M48  KILLED     by unit           10.4s  F3: a local timeout is not recorded
+M49  KILLED     by chaos         123.0s  F3: unresolved never classified
+M50  KILLED     by chaos         119.7s  F3: an unreadable HEAD is not flagged (reads as current)
+M51  KILLED     by security       29.7s  F4: ignored files never checked
+M52  KILLED     by integration    88.7s  F7: a topic root does not block its pins
+M53  KILLED     by robustness:escaped_after_exit   26.4s  F8: the stderr pipe of an escaped grandchild is waited for
+M54  KILLED     by security       27.8s  F9: core.sshCommand ignored
+M55  KILLED     by integration    82.2s  F11: a modified parent gitlink is not reported
+M56  KILLED     by integration    78.9s  F13: refs/remotes/<r>/feature/main counts as main
+M57  KILLED     by integration    82.6s  an upstream branch deleted upstream is not reported
+M58  KILLED     by chaos         112.3s  N3: a held lock exits 2 (= usage)
+M59  KILLED     by faults       1307.7s  F3: moved computed with an unknown head
+M60  KILLED     by chaos         111.0s  F3: an unreadable HEAD does not block integration
+M61  KILLED     by faults        999.6s  I-1: the guarded writer writes a repository with an earlier no-answer
+M62  KILLED     by unit           10.4s  I-1: a signal-killed git reads as an answer
+M63  KILLED     by unit           10.0s  I-1: any exit status is an answer (declared ok ignored)
+M64  KILLED     by unit           10.0s  I-1: a malformed rc-0 output reads as an answer (n-5)
+M65  KILLED     by hardening      60.7s  I-3: the status re-read before a write is skipped (K11 class)
+M66  KILLED     by hardening      57.2s  I-3: a tree changed before the write is written anyway
+M67  KILLED     by unit            9.9s  I-3: the parent index is not re-checked before staging a pin
+M73  KILLED     by robustness:blind_failed   11.5s  I-1: a failure judged on a no-answer reads as FAILED, not BLIND
+M37b KILLED     by hardening      60.2s  follow after a parent that did not move in this run
+M68  KILLED     by unit            9.9s  m-4: a moved upstream tag is not labelled tag-rejected
+M69  KILLED     by hardening      59.5s  m-2: no upstream main reads as current
+M70  KILLED     by unit            9.9s  n-3: any existing --out file is overwritten
+M71  KILLED     by unit            9.9s  S-1: the report backstop keeps raw '_' fields
+M72  KILLED     by chaos         109.3s  BLIND: a non-time no-answer is reported as INCONCLUSIVE
+K01  KILLED     by gate            1.1s  gate-evading spawn: Popen bound to an alias, then called
+K02  KILLED     by gate            1.0s  gate-evading spawn: Popen passed as a callable to map()
+K03  KILLED     by gate            1.0s  killpg through an alias, no pgid>1 guard, outside the signal point
+K04  KILLED     by gate            1.1s  core.hooksPath=/dev/null dropped for merge/checkout only
+K05  KILLED     by hardening      71.3s  credentials: remote URL written unredacted (the backstop must report it)
+K06  KILLED     by hardening      74.1s  data overwrite: ignored-file guard skipped on the follow path
+K07  KILLED     by hardening      73.7s  data overwrite: ignored-file guard skipped on the advance-pin path
+K07b KILLED     by security       23.3s  data overwrite: ignored-file guard skipped on the fast-forward path
+K08  KILLED     by gate            1.0s  fetch shape: forced refspec into refs/heads/*
+K09  KILLED     by gate            1.0s  fetch shape: check_git_args accepts any fetch
+K10  KILLED     by unit           10.8s  empty rc-0 read equivalence: a failed read returns ''
+K11  KILLED     by hardening     221.9s  a failing status call reads as a clean tree
+K12  KILLED     by hardening     194.1s  credentials: fetch_error written unredacted
+K13  KILLED     by gate            1.4s  credentials: GitLab token shape no longer redacted
+K14  KILLED     by gate            1.4s  --no-optional-locks dropped
+K15  KILLED     by gate            1.4s  diff-driver path: a git diff call added after a fast-forward
+K16  KILLED     by gate            1.4s  ambient GIT_CONFIG_PARAMETERS no longer scrubbed
+K17  KILLED     by unit           11.8s  per-call limit ignores the run deadline
+R1   KILLED     by gate            1.3s  merge --ff accepted
+R2   KILLED     by gate            1.3s  getattr spawn
+R3   KILLED     by integration    91.8s  follow detaches a submodule on a branch
+R4   KILLED     by gate            1.4s  control characters not stripped
+R5   KILLED     by integration    72.2s  untracked files do not make a tree dirty
+R6   KILLED     by chaos         110.8s  an unreachable remote does not block
+X01  KILLED     by gate            1.0s  writer status re-read accepts rc 128 as a clean answer (ok-set widened at a write guard)
+X02  KILLED     by gate            0.9s  fast-forward bypasses the one guarded writer (direct merge call site in integrate)
+X03  KILLED     by gate            0.9s  a second spawn site (git --version precheck) inside proc_run_git
+X04  KILLED     by gate            1.0s  tautological pgid guard: (pgid > 1 or True), pgid == p.pid dropped
+X05  KILLED     by gate            0.9s  userinfo cut looks only 48 chars past scheme:// (long password leaks)
+X06  KILLED     by gate            1.0s  a call site whose 'declared' ok set is every status 0..255 (ls-files -s, index gitlinks)
+X07  KILLED     by gate            0.9s  SAFE_CONFIG: a trailing core.hooksPath pair overrides /dev/null (presence-only argv check)
+X02b KILLED     by gate            1.0s  fast-forward bypasses write_git but still records the action (guards skipped, record intact)
+N01  KILLED     by unit           10.9s  F1/B: a path lstat cannot read is "absent"
+N02  KILLED     by unit           10.9s  F1/A: a submodule whose rev-parse exits 128 is "uninitialised"
+N03  KILLED     by unit           11.0s  F1/A: a foreign top level (git walked up to the parent) is accepted as the submodule
+N04  KILLED     by unit           10.8s  F1/A: a foreign top level is "uninitialised" with no no-answer recorded (the r3 shape)
+N05  KILLED     by unit           10.9s  F1/B: an operation marker that cannot be read is not "in progress"
+N06  KILLED     by unit           11.1s  F1/A start-dir: exit 128 with a .git present is "not a work tree" (usage), never BLIND
+N07  KILLED     by unit           11.0s  F2: head_after is a copy of head_before, never re-read after the pass
+N08  KILLED     by integration    69.1s  F2: a repository that moved and is blocked afterwards is "updated"
+N09  KILLED     by unit           11.0s  F3: --advance-pins detaches a submodule checked out on a branch
+N10  KILLED     by unit           11.0s  F3: kept-on-branch is never a reason (a kept submodule reads as current)
+N11  KILLED     by integration    61.1s  F1: a path that is not a directory (a symbolic link) needs no attention
+N12  KILLED     by integration    65.7s  F1: an unreadable submodule carries no pin-unreadable reason
+N13  KILLED     by gate            0.9s  F9: userinfo cut at the FIRST "@" (a password holding "@" leaks its tail)
+N14  KILLED     by gate            0.9s  F9: the URL token ends at a space (a password holding a space leaks its tail)
+N15  KILLED     by gate            0.9s  F9: only secrets of 64 characters or more are remembered
+N16  KILLED     by gate            0.9s  F9: a remembered secret said without its URL is not removed
+N17  KILLED     by unit           11.2s  F9: the lines of a multi-line userinfo are not remembered one by one
+N18  KILLED     by gate            0.8s  class D: report keys are written unredacted
+N19  KILLED     by gate            0.8s  class D: a usage error echoes its argument unredacted
+N20  KILLED     by gate            0.8s  F7: GIT_TRACE* variables are no longer dropped (prefix)
+N21  KILLED     by gate            1.0s  F7: GIT_CURL_VERBOSE is no longer dropped
+N22  KILLED     by gate            0.8s  F5: the group guard drops "pgid == p.pid" (a foreign group can be signalled)
+N23  KILLED     by gate            0.8s  F5: the group is assumed to be the pid, never read
+N24  KILLED     by integration    79.0s  F1: --quiet hides blind and not-initialised rows (the r3 shape)
+N25  KILLED     by integration    87.5s  F8 class: a child that cannot fetch its new pin is not failed
+V01  KILLED     by robustness:ext_repo   11.2s  SAFE_CONFIG: protocol.ext.allow=never dropped
+V02  KILLED     by robustness:autostash   12.5s  SAFE_CONFIG: merge.autoStash=false dropped
+V03  KILLED     by unit           10.0s  SAFE_CONFIG: submodule.recurse=false dropped
+V04  KILLED     by robustness:auth_header   11.4s  _AUTH: Authorization header values no longer redacted
+V05  KILLED     by unit           10.0s  in_progress: rebase-merge not detected
+V06  KILLED     by unit           10.0s  in_progress: CHERRY_PICK_HEAD not detected
+V07  KILLED     by unit           10.0s  in_progress: index.lock not detected
+V08  KILLED     by robustness:invalid_remote   11.3s  BLOCKING_PREFIXES: invalid-remote does not block
+V09  KILLED     by robustness:diverged   13.2s  BLOCKING_PREFIXES: upstreams-diverged does not block
+V10  KILLED     by unit           10.4s  safe_remote: names ending in .lock or . accepted
+V11  KILLED     by unit           10.4s  safe_relpath: backslash accepted
+V12  KILLED     by chaos         165.1s  lock: blocking flock (no LOCK_NB)
+V13  KILLED     by robustness:lock_symlink   12.9s  lock: O_NOFOLLOW dropped on the root lock (lock path may be a symlink)
+V14  KILLED     by integration    67.7s  evaluate_pin: any on-main pin reads at-main
+V15  KILLED     by unit            9.8s  git_env: GIT_PROXY_COMMAND kept
+V16  KILLED     by gate           24.8s  git_env: SSH_ASKPASS kept
+V17  KILLED     by robustness:secret8   10.7s  register_secret: 8-character secrets no longer remembered (threshold 9)
+V18  KILLED     by robustness:ctrl_url   10.8s  _CTRL: DEL and C1 controls kept
+V19  KILLED     by unit            9.9s  _CTRL: ESC kept (terminal escape injection)
+V20  KILLED     by unit            9.8s  git_env: ssh without BatchMode
+V21  KILLED     by hardening      57.1s  BLOCKING_PREFIXES: tag-rejected does not block
+V22  KILLED     by robustness:no_upstream_main   11.0s  BLOCKING_PREFIXES: no-upstream- does not block
+V23  KILLED     by unit            9.8s  redact_report: a key that carried a secret is not recorded as a backstop hit
+V24  KILLED     by unit           10.0s  classify_fetch_failure: tag clobber read only on rc 128 (never on 1)
+P01  KILLED     by unit            9.8s  RV4-1: HEAD not re-read before a write (a user commit is overwritten)
+P02  KILLED     by unit            9.8s  RV4-1: the symbolic ref is not re-checked before a write
+P03  KILLED     by unit            9.9s  RV4-1: an unread symbolic ref at write time is treated as detached
+P04  KILLED     by unit            9.8s  RV4-1: the write is not verified (HEAD not compared with the target afterwards)
+P05  KILLED     by robustness:race_other   12.3s  RV4-1: a ref moved by someone else during the run is reported as this run's update
+P06  KILLED     by robustness:staged_gitlink   11.5s  RV4-2: a gitlink the user staged is not reported
+P07  KILLED     by unit            9.9s  RV4-2: the parent HEAD tree is not compared at write time
+P08  KILLED     by robustness:staged_gitlink   11.4s  RV4-2: a staged gitlink is reported only when HEAD has no entry for the path
+P09  KILLED     by unit           10.4s  RV4-5: a read ignores the first stop signal
+P10  KILLED     by unit            9.9s  RV4-5: a write is killed by the stop signal (level 1)
+P11  KILLED     by robustness:sigterm_fetch,sigint_fetch   42.4s  RV4-5: no signal handlers installed
+P12  KILLED     by unit            9.9s  RV4-5: the second signal never hard-stops
+P13  KILLED     by robustness:sigterm_fetch,sigint_fetch   12.6s  RV4-5: an interrupted run is not reported INTERRUPTED (exit 8)
+P14  KILLED     by unit            9.9s  RV4-5: new calls after a stop are not refused
+P15  KILLED     by unit           10.0s  RV4-4: stdout is not capped
+P16  KILLED     by unit            9.9s  RV4-4: stderr tail not trimmed (whole stream kept)
+P17  KILLED     by unit            9.9s  RV4-3: the partial first line of a trimmed stderr tail is kept (half a URL)
+P18  KILLED     by unit            9.8s  RV4-3: redaction ignores the scheme letter rule (cuts at any ://)
+P19  KILLED     by unit            9.9s  RV4-6: GIT_ASKPASS left to the environment
+P20  KILLED     by unit            9.8s  RV4-6: SSH_ASKPASS_REQUIRE not forced to never
+P21  KILLED     by unit            9.8s  RV4-7: GIT_ALLOW_PROTOCOL kept from the environment
+P22  KILLED     by unit           10.0s  RV4-7: GIT_PROTOCOL_FROM_USER kept from the environment
+P23  KILLED     by unit           10.1s  RV4-7: GIT_SSL_NO_VERIFY kept from the environment
+P24  KILLED     by robustness:out_unwritable   11.7s  RV4-8: the evidence directory is not probed before the run
+P25  KILLED     by robustness:out_lost   12.6s  RV4-8: evidence lost after the write exits 2 (usage)
+P26  KILLED     by robustness:lock_overlap   12.1s  RV4-11: repository locks of the tree not taken (overlapping roots)
+P27  KILLED     by robustness:lock_symlink   12.3s  RV4-11: repository lock taken without O_NOFOLLOW
+P28  KILLED     by robustness:default_out_symlink   10.8s  RV4-12: an evidence directory inside the work tree is accepted
+P29  KILLED     by robustness:default_out_relative   11.3s  RV4-12: a relative cache directory is accepted
+P30  KILLED     by robustness:unsafe_path   10.9s  RV4-13: an unsafe gitlink path is not reported
+P31  KILLED     by robustness:outside_parent   12.2s  RV4-15: a submodule reached through a link leaving the parent is inspected
+P32  KILLED     by unit           10.1s  RV4-1: a malformed symbolic-ref answer (exit 0, empty) reads as a branch
+P33  KILLED     by robustness:final_cap  103.5s  RV4-5: final reads after a stop get no time cap
+P34  KILLED     by gate           12.0s  RV4-6: core.askPass not pinned empty by -c
+RR01 KILLED     by robustness:switch_at_merge   13.1s  post-write verify ignores the branch (ff lands on another branch unnoticed)
+RR10 KILLED     by hardening      62.3s  step 3 compares only the parent HEAD tree, not the index (a staged gitlink is overwritten)
+RR12 KILLED     by unit           10.0s  the FIRST stop signal already hard-stops (final head reads refused)
+RR14 KILLED     by robustness:sigterm_pin   14.2s  the parent 'add' of an advance-pin is not final (a stop between checkout and add leaves half a write)
+RR16 KILLED     by robustness    295.4s  evidence dir resolved with abspath (a symlink into the tree is not followed)
+RR17 KILLED     by unit            9.6s  redaction cuts to the FIRST '@' (password holding '@' leaks its tail)
+RR21 KILLED     by robustness:sigterm_pin,sigterm_write   20.4s  post-write verify reads are not final (a stop during the write leaves the result unverified)
+RR27 KILLED     by robustness    314.8s  level-2 (final) calls are killed by the FIRST stop
+RR29 KILLED     by robustness:marker_inspect   12.9s  step 1 ignores in-progress markers that appear after inspection
+RR35 KILLED     by robustness:lock_overlap  611.4s  per-repository lock is a blocking flock (an overlapping run waits instead of exit 7)
+RR36 KILLED     by robustness:wrote_then_other   15.4s  head-changed-during-run only when this run wrote nothing (wrote X, other moved to Y unreported)
+RR37 KILLED     by robustness:wrote_then_other,race_other   18.7s  head-changed-during-run is not blocking (a foreign move can read as 'updated')
+RR38 KILLED     by robustness:lock_open   13.0s  a per-repository lock that cannot be opened is skipped (run proceeds unlocked)
+RR39 KILLED     by unit           10.3s  after a SECOND signal final reads still run
+RR40 KILLED     by unit           10.2s  integrate does not stop starting writes after a stop (defence in depth; Runner refuses anyway)
+Q01  KILLED     by unit           10.3s  RV5-1: a write's limit is capped by the run deadline
+Q02  KILLED     by unit            9.0s  RV5-1: a write is ended by SIGKILL at once (no SIGTERM first)
+Q03  KILLED     by unit            8.9s  RV5-1: no grace between SIGTERM and SIGKILL
+Q04  KILLED     by unit           10.2s  RV5-1: no write-in-progress marker before a write
+Q05  KILLED     by unit           10.3s  RV5-1: the marker is not cleared when the write answered
+Q06  KILLED     by robustness:write_timeout   15.4s  RV5-1: an earlier run's marker is ignored at inspection
+Q07  KILLED     by unit           10.3s  RV5-1: leftovers of an interrupted write read as the user's dirty tree
+Q08  KILLED     by robustness:write_kill,write_timeout   18.0s  RV5-1: a write-killed write is not FAILED
+Q09  KILLED     by robustness:stale_marker,write_timeout   14.9s  RV5-1: a marker over a clean tree is never cleared in --apply
+Q10  KILLED     by robustness:staged_root   12.0s  RV5-3: a staged gitlink the target would change is overwritten
+Q11  KILLED     by robustness:lock_open   11.3s  RV5-2: a run lock that cannot be opened reads as 'another run' (exit 7)
+Q12  KILLED     by unit           12.8s  RV5-5: Ctrl-C at the prompt waits for Enter
+Q13  KILLED     by robustness:update_none   13.3s  RV5-7: a submodule with update=none/merge/rebase/!cmd is checked out anyway
+Q14  KILLED     by robustness:interrupted_labels   11.9s  RV5-6: a fetch refused by a stop is labelled no-answer
+Q15  KILLED     by unit            9.7s  RV5-1: final reads are refused after the deadline (the write's second half cannot run)
+Q16  KILLED     by unit            9.8s  RV5-1: a write ended by its own limit is recorded as an unknown state
+Q17  KILLED     by unit            9.8s  RV5-1: a write gets the short read grace before SIGKILL
+Q18  KILLED     by unit            9.8s  RV5-1: a marker that cannot be written does not stop the write
+Q19  KILLED     by unit            9.8s  RV5-1: the parent's 'add' of an advance-pin ended by its limit is not write-killed
+RV6A KILLED     by robustness:write_deadline,write_timeout,write_kill,marker_success,marker_inspect,stale_marker,staged_root,lock_open,update_none,sigterm_pin,ctrl_c,interrupted_labels   62.7s  marker of an earlier run cleared in every mode (check / dry-run too), not only --apply
+RV6B KILLED     by unit           10.1s  an in-progress operation is not a leftover of an interrupted write (labels)
+RV6C KILLED     by unit           10.0s  proc_kill_group reaps the child while waiting (WNOWAIT dropped: pid/pgid may be reused before SIGKILL)
+RV6D KILLED     by robustness:write_deadline,write_timeout,write_kill,marker_success,marker_inspect,stale_marker,staged_root,lock_open,update_none,sigterm_pin,ctrl_c,interrupted_labels   61.7s  update=rebase is followed like checkout
+RV6E KILLED     by unit           10.7s  a per-repository lock that cannot be taken (not held by another run) reads as 'another run' (exit 7)
+RV6F KILLED     by unit            9.9s  the stage-pin marker in the parent is never cleared after the add answered
+RV6G KILLED     by unit            9.9s  a write ended by its own limit is reported as unresolved (not write-killed)
+S01  KILLED     by robustness:refused_marker   18.8s  RV6-1: a write refused now still gets a marker (no pre-check at the first write site)
+S02  KILLED     by robustness:refused_marker   18.2s  RV6-1: the marker of a write whose git never started is kept (first write site)
+S03  KILLED     by robustness:refused_stage   13.0s  RV6-1: the stage-pin marker of an add that never started is kept
+S04  KILLED     by robustness:refused_stage   12.7s  RV6-1: a stage-pin refused now still gets a marker (no pre-check at the second write site)
+S05  KILLED     by unit            9.8s  RV6-1: a git the kernel could not start counts as started
+S06  KILLED     by unit            9.8s  RV6-1: a call refused by a stop counts as started
+S07  KILLED     by unit            9.8s  RV6-1: a call refused by the deadline counts as started
+S08  KILLED     by unit            9.8s  RV6-1: a call refused by the allow-list counts as started
+S09  KILLED     by unit            9.8s  a marker created but not written is left behind (reads 'unknown' later)
+S10  KILLED     by unit            9.8s  a failed marker write removes an EARLIER run's marker
+S11  KILLED     by unit            9.7s  RV6-1: the pre-check refuses a final write after the FIRST signal (the add then runs without a marker)
+S12  KILLED     by unit            9.7s  RV6-1: the pre-check ignores the deadline
+S13  KILLED     by robustness:flock_error   11.2s  RV6-3: a root run lock whose flock fails (not held) reads as 'another run' (exit 7)
+S14  KILLED     by robustness:refused_stage   12.7s  a refused stage-pin add has no 'why' in its action
+RV7A KILLED     by unit            9.8s  a write whose git did not start clears the git dir's marker even when that marker is not its own (re-anchored: end_write's not-ours branch removed)
+RV7B KILLED     by robustness:sibling_kill,sibling_wipe,marker_pre,stop_pin,parent_lock,autostash   50.2s  a write that got no marker of its own clears the marker already there (re-anchored: begin_write's exists branch)
+RV7C KILLED     by robustness:sibling_kill,sibling_wipe,marker_pre,stop_pin,parent_lock,autostash   50.6s  stage-pin pre-check uses the NON-final predicate: after one stop (or the deadline) the add runs without a marker (re-anchored)
+RV7D KILLED     by unit           10.2s  a write git ended by an outside signal (OOM kill, kill -9) counts as never started: its marker is cleared
+RV7E KILLED     by unit           10.2s  a write git refused itself (declared rc 1/128) keeps its marker: a later run blames leftovers on it (re-anchored)
+RV7F KILLED     by robustness:refused_marker,refused_stage,marker_lock,flock_error,write_deadline,write_timeout,write_kill,marker_success,marker_inspect,stale_marker,staged_root,lock_open,lock_overlap,update_none,sigterm_pin,sigterm_write,ctrl_c,interrupted_labels,blind_failed  727.5s  per-repository run lock taken BLOCKING: a second run waits forever instead of exit 7
+RV7G KILLED     by chaos         421.3s  root run lock taken BLOCKING: a second run waits forever instead of exit 7
+RV7H KILLED     by unit           10.4s  a stage-pin marker reads as 'unknown' (label of the interrupted write lost)
+RV7I KILLED     by unit           10.4s  the marker is opened so that an earlier marker is overwritten (O_EXCL replaced by O_TRUNC; re-anchored: round 8 made overwrite impossible, so this is the killable form)
+RV7J KILLED     by unit           10.3s  the non-final pre-check ignores a stop signal (the marker is written, then r.run refuses)
+RV7K KILLED     by unit           10.4s  a git the kernel cannot start is reported as exit 127 (counts as started: marker kept)
+RV7L KILLED     by unit           10.3s  run() lets a final call through after the SECOND signal (the stage-pin add runs without its marker)
+T01  KILLED     by unit           10.3s  RV7-1: an unresolved state of the git dir does not block a write (only the disk does)
+T02  KILLED     by unit           10.4s  RV7-1: a lock / operation in progress in the git dir does not block a write (step 3a sees nothing)
+T03  KILLED     by robustness:sibling_kill,parent_lock    9.3s  RV7-1: step 3a removed (the parent is checked only after the child moved)
+T04  KILLED     by robustness:marker_pre   22.6s  RV7-1: Runner.run does not check the write token (a write starts without its own marker)
+T05  KILLED     by robustness:marker_pre   24.3s  RV7-1: the marker on disk is not compared with the token (a swapped marker is written over)
+T06  KILLED     by unit           10.3s  RV7-1: a token whose write already ended still lets a write start
+T07  KILLED     by unit           10.4s  RV7-1: a killed git dir may take a new write (transition table)
+T08  KILLED     by unit           10.4s  RV7-1: a write ended by its own limit is recorded as interrupted, not killed
+T09  KILLED     by unit           10.4s  RV7-1: GD_KILLED is not an unresolved state
+T10  KILLED     by unit           10.4s  RV7-1: GD_INTERRUPTED is not an unresolved state
+T11  KILLED     by robustness:flock_error,lock_open    4.5s  RV7-6: the flock / open wording is swapped
+T12  KILLED     by unit           10.1s  RV7-1: the marker does not carry the write id (no write can prove its marker is its own)
+T13  KILLED     by unit           10.4s  RV7-1: an unknown git dir is not refused by the block check
+T14  KILLED     by unit           10.4s  RV7-1: end_write without a token is not a no-op (a refused stage-pin crashes)
+T15  KILLED     by robustness:parent_lock,marker_pre   26.3s  RV7-1: a stage-pin blocked by its git dir does not mark the child's record failed
+T16  KILLED     by robustness:marker_pre   22.8s  RV7-1: a write blocked by begin_write still runs git (without a token)
+T17  KILLED     by unit           10.3s  RV7-1: begin_write's checks are skipped (only O_EXCL protects an unresolved git dir)
+W01  KILLED     by robustness    299.5s  earlier marker cleared in --apply although an operation/lock is in progress (only dirty keeps it)
+W02  KILLED     by unit            9.9s  a cleared git dir can never take a second write (sibling stage-pins after the first fail)
+W03  KILLED     by robustness    257.4s  a token whose marker vanished (removed under it) still lets the write start without a marker
+W04  KILLED     by unit           10.0s  a write refused before git started (stop/deadline after begin_write) keeps its marker (re-anchored)
+W05  KILLED     by robustness    275.3s  step 3a checks the CHILD git dir instead of the parent one
+W06  KILLED     by unit           10.4s  a half-written marker (write/fsync error) is left on disk (re-anchored to fs_create_excl)
+W07  KILLED     by unit           10.4s  a killed stage-pin does not mark the PARENT write_killed (no recovery hint for the root)
+W08  KILLED     by unit           10.3s  a not-ours marker at run() time moves the git dir to CLEARED (a later write may start there)
+W09  KILLED     by unit           10.7s  begin_write moves the state to WRITING BEFORE the marker is created (a failed create leaves WRITING)
+W10  KILLED     by unit           10.5s  the stage-pin begin_write is told the CHILD git dir (the root index is written with no root marker)
+U01  KILLED     by unit           10.3s  RV8-1: in_progress checks no lock at all (operations only)
+U02  KILLED     by unit           10.4s  RV8-1: HEAD.lock is not in any git-dir lock set (the measured half-write)
+U03  KILLED     by unit           10.6s  RV8-1: the branch ref lock is not in the merge lock set (the measured half-write)
+U04  KILLED     by unit           10.5s  RV8-1 linked worktree: common-dir locks are looked for in the per-worktree git dir
+U05  KILLED     by unit           20.4s  RV8-2: a marker read opens without O_NONBLOCK (a FIFO swapped in after the lstat blocks forever)
+U06  KILLED     by unit           10.4s  RV8-2: a read trusts the open descriptor without the fstat S_ISREG check
+U07  KILLED     by unit           10.3s  RV8-4: fs_remove removes any kind of object (a FIFO, a socket, a link at the marker path)
+U08  KILLED     by unit           10.3s  RV8-1: end_write clears the marker after any answered write (a half-applied merge included)
+U09  KILLED     by unit           10.4s  RV8-1: a failed write is settled without comparing the index (the half-applied merge is missed)
+U10  KILLED     by unit           10.4s  RV8-1: a failed write is settled although HEAD moved
+U11  KILLED     by robustness:marker_unremovable   12.1s  RV8-4: an earlier marker that could not be removed is reported cleared
+U12  KILLED     by unit           10.3s  RV8-2: the run lock is any object that opens (a FIFO is taken as the lock)
+U13  KILLED     by robustness:lock_symlink   13.2s  the run lock open follows a symbolic link (O_NOFOLLOW dropped in fs_open_lock)
+U14  KILLED     by integration    79.9s  inspection registers no git dir (every write is refused as unknown-git-dir: nothing is ever written)
+U15  KILLED     by unit           10.4s  RV8-2: a non-regular object at the marker path is not reported by in_progress (check reads clean)
+U16  KILLED     by unit           10.4s  RV8-1: the reftable lock is not in any lock set
+U17  KILLED     by robustness:half_write   19.1s  RV8-1: a half-applied write is reported but not FAILED (the run reads as attention, not failed)
+U18  KILLED     by unit           20.3s  RV8-2: FETCH_HEAD is read with a blocking open (a FIFO there hangs the fetch evaluation)
+Z01  KILLED     by unit           10.3s  reviewer r9: a failed stage-pin (git add) is always settled: the marker is cleared whatever the parent index shows
+Z04  KILLED     by unit           10.5s  reviewer r9: the branch ref lock is always refs/heads/main.lock whatever branch is checked out
+Z07  KILLED     by robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only   93.1s  reviewer r9: write-time step 1 re-check drops the common dir and branch (git-dir locks only)
+Z11  KILLED     by unit           10.5s  reviewer r9: the marker read accepts a too-large marker as unknown->None (no marker): read_marker ignores too-large
+Z12  EQUIVALENT by -              95.0s  reviewer r9: fs_remove follows the lstat kind only for "absent": an unreadable path is unlinked anyway
+Y01  KILLED     by unit           10.5s  RV9-1 class: the git-dir locks are looked for in the common dir (a linked worktree's own HEAD.lock missed)
+Y02  KILLED     by unit           10.4s  RV9-1 class: the common-dir locks are looked for in the write's git dir
+Y03  KILLED     by unit           10.5s  RV9-1 class: the branch ref lock uses the last name component only (feature/x -> x.lock)
+Y04  KILLED     by unit           10.4s  RV9-1 class: the branch name is flattened (feature/x -> feature_x.lock)
+Y05  KILLED     by unit           10.3s  RV9-1 class: MERGE_HEAD and the other operation names are looked for in the common dir
+Y06  KILLED     by unit           10.4s  RV9-1 class: the write-marker path kind is read in the common dir
+Y07  KILLED     by robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only   96.5s  RV9-1 class: inspection registers the git dir without its branch (begin_write misses the branch ref lock)
+Y08  KILLED     by robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only   95.2s  RV9-1 class: inspection registers the git dir as its own common dir (begin_write misses common-dir locks)
+Y09  KILLED     by robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only   92.8s  RV9-1 class: the root's run lock is keyed by its git dir, not its common dir (worktree runs overlap)
+Y12  KILLED     by unit           10.4s  RV9-1 class: a common-dir lock of a linked worktree loses its 'common:' label (the reason names the wrong place)
+Y13  KILLED     by unit           10.4s  RV9-1 class: an unknown branch is taken as main (a detached repository is blocked by main's ref lock)
+sync-mutations (all): mutants 317 killed 315 equivalent 2 survived 0 harness-errors 0
+RUN_ALL: PASS
+rc=0

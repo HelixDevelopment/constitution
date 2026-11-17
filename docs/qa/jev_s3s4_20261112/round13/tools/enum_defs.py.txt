@@ -1,0 +1,41 @@
+# enum_defs.py <r12-census> <head-census>: R12-B2, enumerate where the round-12 shape-rule git exclusion
+# (`\bgit\b|GIT_`, case-sensitive) and the member detector MENTION (`(?<![A-Za-z])git`, re.I) disagree, and where the
+# round-12 digit / space classes accept non-ASCII. Every probe is run through BOTH census modules' real functions
+# (shaped_data, MENTION), never re-implemented. Output: one TSV line per probe.
+import importlib.util, sys
+
+def load(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m
+
+old, new = load(sys.argv[1], "c12"), load(sys.argv[2], "c13")
+HDR = "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 "
+probes = [
+    # (class, label, path, ext, text)
+    ("case", "GIT word only", "docs/qa/a/x.ls", "ls", HDR + "x; G=GIT; ${G,,} commit -q -m y\n"),
+    ("case", "Git=1", "docs/qa/a/x.ls", "ls", HDR + "Git=1\n"),
+    ("case", "gIt", "docs/qa/a/x.ls", "ls", HDR + "gIt\n"),
+    ("left-boundary", "x_git (underscore before)", "docs/qa/a/x.ls", "ls", HDR + "x_git\n"),
+    ("left-boundary", "1git (digit before)", "docs/qa/a/x.ls", "ls", HDR + "1git\n"),
+    ("right-boundary", "gitx (letter after)", "docs/qa/a/x.ls", "ls", HDR + "gitx\n"),
+    ("right-boundary", "github", "docs/qa/a/x.ls", "ls", HDR + "github\n"),
+    ("right-boundary", "git_dir (underscore after)", "docs/qa/a/x.ls", "ls", HDR + "git_dir\n"),
+    ("GIT_ alternative", "AGIT_X (letter before GIT_)", "docs/qa/a/x.ls", "ls", HDR + "AGIT_X\n"),
+    ("unicode-casefold", "U+0131 dotless i: gıt", "docs/qa/a/x.ls", "ls", HDR + "gıt\n"),
+    ("unicode-casefold", "U+0130 dotted I: GİT", "docs/qa/a/x.ls", "ls", HDR + "GİT\n"),
+    ("unicode-digit", ".rc U+0661 U+0662", "docs/qa/a/x.rc", "rc", "١٢\n"),
+    ("unicode-digit", "total U+0668", "docs/qa/a/x.ls", "ls", "total ٨\n"),
+    ("unicode-digit", "listing link count U+0661", "docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- ١ u u 1 Nov 13 18:38 x\n"),
+    ("unicode-space", "listing U+2003 em space", "docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x\n"),
+    ("unicode-space", "listing U+00A0 no-break space", "docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x\n"),
+    ("control", "digit (no mention)", "docs/qa/a/x.ls", "ls", HDR + "digit\n"),
+    ("control", "legitimate (no mention)", "docs/qa/a/x.ls", "ls", HDR + "legitimate\n"),
+    ("control", ".rc 0", "docs/qa/a/x.rc", "rc", "0\n"),
+    ("control", "git lowercase word", "docs/qa/a/x.ls", "ls", HDR + "git\n"),
+]
+print("class\tprobe\tMENTION(member)\tr12 shaped_data\thead shaped_data\tr12 disagrees with MENTION\thead disagrees")
+for cls, lab, p, e, t in probes:
+    men = bool(new.MENTION.search(t))
+    o, n = old.shaped_data(p, e, t, False), new.shaped_data(p, e, t, False)
+    # a disagreement: the text is a member-detector mention but the shape rule still calls it data
+    print("%s\t%s\t%s\t%s\t%s\t%s\t%s" % (cls, lab, men, o, n, "YES" if (men and o) else "-", "YES" if (men and n) else "-"))

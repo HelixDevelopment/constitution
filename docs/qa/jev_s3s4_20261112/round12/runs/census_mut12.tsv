@@ -1,0 +1,6 @@
+CMCTRL	rc=0	[git-env-class] passed=110 failed=0 skipped=0 (census cases only)
+CM4	rc=1	[git-env-class] passed=2 failed=108 skipped=0 (census cases only)
+CM5	rc=1	[git-env-class] passed=2 failed=108 skipped=0 (census cases only)
+CM6	rc=1	[git-env-class] passed=2 failed=108 skipped=0 (census cases only)
+CM7	rc=1	[git-env-class] passed=2 failed=108 skipped=0 (census cases only)
+CM8	rc=1	[git-env-class] passed=2 failed=108 skipped=0 (census cases only)

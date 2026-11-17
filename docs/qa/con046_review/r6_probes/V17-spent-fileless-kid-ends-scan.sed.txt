@@ -1,0 +1,1 @@
+s/^    \[ "\$rc" = 0 \] || continue$/    [ "$rc" = 0 ] || return 1/

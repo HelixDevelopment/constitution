@@ -1,0 +1,30 @@
+{
+ "engine_sha256": "3c70485a422f4160449fb5bdfa2c2337e19b50e88488f5de6bbeb50a8906d69a",
+ "control_needle_fenced": {
+  "fenced_headings": 1,
+  "fenced_rows": 0,
+  "fenced_status_lines": 1
+ },
+ "negative_control_unfenced": {
+  "fenced_headings": 0,
+  "fenced_rows": 0,
+  "fenced_status_lines": 0
+ },
+ "real_Issues": {
+  "fenced_headings": 0,
+  "fenced_rows": 0,
+  "fenced_status_lines": 0
+ },
+ "real_Fixed": {
+  "fenced_headings": 0,
+  "fenced_rows": 0,
+  "fenced_status_lines": 0
+ },
+ "engine_inject": {
+  "md2db_rc": 0,
+  "items_before": 501,
+  "items_after": 501,
+  "phantom_items": 0,
+  "stderr_tail": ""
+ }
+}

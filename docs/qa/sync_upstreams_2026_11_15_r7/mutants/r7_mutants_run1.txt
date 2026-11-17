@@ -1,0 +1,23 @@
+RV6A KILLED     by robustness:write_deadline,write_timeout,write_kill,marker_success,marker_inspect,stale_marker,staged_root,lock_open,update_none,sigterm_pin,ctrl_c,interrupted_labels   54.7s  marker of an earlier run cleared in every mode (check / dry-run too), not only --apply
+RV6B KILLED     by unit            9.7s  an in-progress operation is not a leftover of an interrupted write (labels)
+RV6C KILLED     by unit            9.7s  proc_kill_group reaps the child while waiting (WNOWAIT dropped: pid/pgid may be reused before SIGKILL)
+RV6D KILLED     by robustness:write_deadline,write_timeout,write_kill,marker_success,marker_inspect,stale_marker,staged_root,lock_open,update_none,sigterm_pin,ctrl_c,interrupted_labels   53.8s  update=rebase is followed like checkout
+RV6E KILLED     by unit            9.6s  a per-repository lock that cannot be taken (not held by another run) reads as 'another run' (exit 7)
+RV6F KILLED     by unit            9.6s  the stage-pin marker in the parent is never cleared after the add answered
+RV6G KILLED     by unit            9.7s  a write ended by its own limit is reported as unresolved (not write-killed)
+S01  KILLED     by robustness:refused_marker   17.7s  RV6-1: a write refused now still gets a marker (no pre-check at the first write site)
+S02  KILLED     by robustness:refused_marker   17.9s  RV6-1: the marker of a write whose git never started is kept (first write site)
+S03  KILLED     by robustness:refused_stage   11.4s  RV6-1: the stage-pin marker of an add that never started is kept
+S04  SURVIVED   by -              15.3s  RV6-1: a stage-pin refused now still gets a marker (no pre-check at the second write site)
+S05  KILLED     by unit            9.7s  RV6-1: a git the kernel could not start counts as started
+S06  KILLED     by unit            9.6s  RV6-1: a call refused by a stop counts as started
+S07  KILLED     by unit            9.6s  RV6-1: a call refused by the deadline counts as started
+S08  KILLED     by unit            9.6s  RV6-1: a call refused by the allow-list counts as started
+S09  KILLED     by unit            9.6s  a marker created but not written is left behind (reads 'unknown' later)
+S10  KILLED     by unit            9.6s  a failed marker write removes an EARLIER run's marker
+S11  KILLED     by unit            9.6s  RV6-1: the pre-check refuses a final write after the FIRST signal (the add then runs without a marker)
+S12  KILLED     by unit            9.6s  RV6-1: the pre-check ignores the deadline
+S13  KILLED     by robustness:flock_error   11.0s  RV6-3: a root run lock whose flock fails (not held) reads as 'another run' (exit 7)
+S14  KILLED     by robustness:refused_stage   11.3s  a refused stage-pin add has no 'why' in its action
+sync-mutations (all): mutants 21 killed 20 equivalent 0 survived 1 harness-errors 0
+survivors: S04

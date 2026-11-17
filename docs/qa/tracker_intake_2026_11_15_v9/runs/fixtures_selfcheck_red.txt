@@ -1,0 +1,6 @@
+OK unmutated rc=0 want=0 | RESULT rows=288 hit=168 problems=0
+OK duplicate-label rc=1 want=1 | RESULT rows=289 hit=169 problems=1
+OK hit-row-without-rules rc=1 want=1 | RESULT rows=288 hit=168 problems=2
+OK reviewer-negatives-short rc=1 want=1 | RESULT rows=288 hit=168 problems=1
+RESULT controls=4 bad=0
+rc=0

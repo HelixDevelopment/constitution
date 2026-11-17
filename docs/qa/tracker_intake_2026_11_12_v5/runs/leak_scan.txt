@@ -1,0 +1,51 @@
+# secret and identity scan of the round-5 change, 2026-11-14T05:49:39Z
+# the identity needles come from $HOME (the real home directory) at run time; no hit prints matched identity text
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan.py --diff b48091ea   (the staged round-5 change)
+control needles: PASS (one fake of each of the 9 secret kinds and the 3 identity kinds found; a plain line not reported)
+HIT docs/qa/tracker_intake_2026_11_12_v5/remint/fix227/plan.json line=927 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/remint/main-replay/plan.json line=927 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/runs/lint_mutations.txt line=20 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/runs/lint_mutations.txt line=99 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/runs/lint_mutations.txt line=105 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/runs/lint_mutations.txt line=106 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/sources/review_r4_rvmut.tsv line=15 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT tests/workable_items/test_intake_lint_mutations.sh line=149 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT tests/workable_items/test_intake_lint_mutations.sh line=156 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+RESULT: secret_hits=9 identity_hits=0 pre_existing=0 binary_skipped=1
+rc=0
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan.py --db vehicle=<staged docs/workable_items.db> --db-base r4=<b48091ea:docs/workable_items.db>
+control needles: PASS (one fake of each of the 9 secret kinds and the 3 identity kinds found; a plain line not reported)
+RESULT: secret_hits=0 identity_hits=0 pre_existing=156 binary_skipped=0
+rc=0
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan.py --db vehicle=<staged docs/workable_items.db> --db-base base=<02c10935:docs/workable_items.db>
+control needles: PASS (one fake of each of the 9 secret kinds and the 3 identity kinds found; a plain line not reported)
+HIT vehicle items.description rowid=967 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT vehicle items.body_md rowid=967 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+RESULT: secret_hits=2 identity_hits=0 pre_existing=154 binary_skipped=0
+rc=0
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan.py --db base=<02c10935:docs/workable_items.db>   (the base alone: what its pre-existing hits are)
+control needles: PASS (one fake of each of the 9 secret kinds and the 3 identity kinds found; a plain line not reported)
+RESULT: secret_hits=0 identity_hits=154 pre_existing=0 binary_skipped=0
+rc=0
+# hits of the base alone by kind (HIT lines carry no matched text; counted here, not listed):
+     38 kind=home-fragment
+     38 kind=home-path
+     78 kind=user-name
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan_mutations.py
+KILLED private_key rc=3
+KILLED aws_key rc=3
+KILLED github_token rc=3
+KILLED sk_key rc=3
+KILLED slack rc=3
+KILLED google rc=3
+KILLED url_cred rc=3
+KILLED assignment_unquoted rc=3
+KILLED auth_header rc=3
+KILLED home_path rc=3
+KILLED user_name rc=3
+KILLED assignment_broadened rc=3
+KILLED report_dropped rc=0
+CONTROL: the unmutated scan reports the one fake hit
+RESULT: mutants=13 bad=0
+rc=0
+# scrubbed copy (tools/scrub_paths.py): <tmp> x0, <work> x0, <home> x0, <tmp> x0

@@ -1,0 +1,12 @@
+# repo shell suites that exercise the workable-items engine, final tree (3e5e7e7d + this change)
+# run 1 (scripts run directly from the clone; us3 and triage need the consumer layout, see fixture_suites_base_vs_fixed.txt)
+tests/gates/test_fastcycle_real_db.sh rc=1 10 1
+tests/gates/test_workable_items_db_sidecars_ignored.sh rc=0 6 0
+tests/release/test_land_vehicle.sh rc=0 346 0
+scripts/fastcycle/tests/test_shipped_workable_items_us3_red.sh rc=1 0 1
+scripts/fastcycle/tests/test_2nd_display_triage_red.sh rc=77 0 0
+# run 2
+tests/gates/test_fastcycle_real_db.sh rc=1 ok=10 notok=1
+tests/gates/test_workable_items_db_sidecars_ignored.sh rc=0 ok=6 notok=0
+tests/release/test_land_vehicle.sh rc=0 ok=346 notok=0
+# test_fastcycle_real_db.sh: its only NOT ok is 'select_sample suite rc=1', caused by S13, present on the base tree too (fixture_suites_base_vs_fixed.txt)

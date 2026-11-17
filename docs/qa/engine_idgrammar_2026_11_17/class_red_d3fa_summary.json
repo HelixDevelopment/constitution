@@ -1,0 +1,12 @@
+{
+ "cases": 489,
+ "controls_ok": true,
+ "verdicts": {
+  "RT_FIELD": 120,
+  "RT_OK": 318,
+  "RT_PARTIAL": 6,
+  "RT_PHANTOM": 21,
+  "RT_REPLACED": 15,
+  "RT_STUCK": 9
+ }
+}

@@ -1,0 +1,184 @@
+FAIL - P51 no further candidate is considered after the late-recorded start (found [candidate decide-b] in <W>/tmp/tmp.hw9u2Cbtya/a51.err)
+ok 1 - P51 no fresh answer is read for a next candidate
+ok 2 - P51 exactly one llmctl start when the record step cannot take the lock (never a second candidate)
+ok 3 - P51 only decide-a runs
+FAIL - P51 rc 0 and the profile: the lease IS held (it is in the registry since the mark) (expected [0 decide-a] got [5 ])
+FAIL - P51 the outcome is announced: lease held, start recorded late (no [start recorded late] in <W>/tmp/tmp.hw9u2Cbtya/a51.err)
+ok 4 - P51 the registry holds s1's lease on decide-a
+ok 5 - P51 release stops the late-recorded model (nothing orphaned)
+ok 6 - P51b a retried record step that gets the lock records the start
+ok 7 - P51b the starting mark is cleared and the placement recorded
+ok 8 - P51b not reported late when a retry succeeded
+FAIL - P51c control needle: the stderr is captured and the late record is announced (no [start recorded late] in <W>/tmp/tmp.fRW9anVSCB/c51.err)
+ok 9 - P51c the loop ended at the late record: decide-b is never considered
+FAIL - P51c the next candidate is never started after a start succeeded (review repro shape) (expected [1 decide-a ] got [2 decide-a decide-b ])
+FAIL - P51c rc 0, lease held on decide-a (expected [0 decide-a] got [0 decide-b])
+ok 10 - P51c release leaves nothing running
+FAIL - P51d control needle: the late record is announced (no [start recorded late] in <W>/tmp/tmp.87lSfOpo51/d51.err)
+ok 11 - P51d JEV_PLACE_MAX=2: after the late-recorded start decide-b is never considered
+FAIL - P51d rc 0, lease on decide-a, exactly one start (expected [0 decide-a 1] got [0 decide-b 2])
+ok 12 - P52 setup: one (dead) lease and one cache entry
+FAIL - P52 reap: lease dropped, cache entry removed, no stop (expected [0 0 0 0] got [0 0 1 0])
+FAIL - P52 status reports the fallback route (none: no hosted key) (expected [none] got [null])
+ok 13 - P53 setup: placed and routed
+FAIL - P53 heartbeat: entry removed, the lease kept (the session drains, then releases) (expected [0 0 1] got [0 1 1])
+FAIL - P53 the observation is recorded on the set (expected [degraded] got [null])
+FAIL - P53 the route change is announced (no [route] in <W>/tmp/tmp.yeloQ7YsBO/e53)
+ok 14 - P53 heartbeat starts nothing (the one start is the setup)
+FAIL - P53 after status: still no entry for the degraded unit (expected [0] got [1])
+FAIL - P53 after verdict: still no entry for the degraded unit (expected [0] got [1])
+FAIL - P53 after reap: still no entry for the degraded unit (expected [0] got [1])
+ok 15 - P53 the unit reads ok again: routed again at the next observation
+ok 16 - P54 decide status fails: placement still proceeds
+ok 17 - P54 the failure default is https://127.0.0.1:8095 (RM13)
+FAIL - P54 applying the default is logged (no [default] in <W>/tmp/tmp.XqbfgQmINY/e54)
+ok 18 - P54 no gateway in the registry: the https default
+FAIL - P54 the no-gateway default is logged (no [default] in <W>/tmp/tmp.CLKHfxK8XE/e54b)
+FAIL - P54 an http:// registry URL is refused: no start, no entry (expected [5 0 0 gateway_refused] got [0 1 1 placed])
+FAIL - P54 the refusal names the https rule (no [https] in <W>/tmp/tmp.dc12N4iLJJ/e54c)
+FAIL - P54 an http:// LLMCTL_GATEWAY_URL is refused (expected [5 0 0] got [0 1 1])
+FAIL - P54 a later http:// registry URL removes the existing local entry (the key never goes over http) (expected [5 0] got [0 1])
+ok 19 - P54 CONTROL: an https override is used
+ok 20 - P55 needle+ (the checker sees a correct entry): cache names decide-a, routable {decide-a}
+ok 21 - P55 needle- the checker flags an entry naming an unheld set
+ok 22 - P55 needle- the checker flags a missing entry
+ok 23 - P55 [none x acquire] rc=0: cache names decide-a, routable {decide-a}
+ok 24 - P55 [none x heartbeat] rc=0: cache names decide-a, routable {decide-a}
+ok 25 - P55 [none x heartbeat] no llmctl start or stop
+ok 26 - P55 [none x release] rc=0: cache names decide-a, routable {decide-a}
+ok 27 - P55 [none x reap] rc=0: cache names decide-a, routable {decide-a}
+ok 28 - P55 [none x reap] no llmctl start or stop
+ok 29 - P55 [none x status] rc=0: cache names decide-a, routable {decide-a}
+ok 30 - P55 [none x status] no llmctl start or stop
+ok 31 - P55 [none x verdict] rc=0: cache names decide-a, routable {decide-a}
+ok 32 - P55 [none x verdict] no llmctl start or stop
+ok 33 - P55 [degraded x acquire] rc=5: no routable set and no llmctl-local entry
+FAIL - P55 [degraded x heartbeat] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 34 - P55 [degraded x heartbeat] no llmctl start or stop
+FAIL - P55 [degraded x release] rc=0: no routable set but the cache names [decide-a] (1 entries)
+FAIL - P55 [degraded x reap] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 35 - P55 [degraded x reap] no llmctl start or stop
+FAIL - P55 [degraded x status] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 36 - P55 [degraded x status] no llmctl start or stop
+FAIL - P55 [degraded x verdict] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 37 - P55 [degraded x verdict] no llmctl start or stop
+ok 38 - P55 [gone x acquire] rc=5: no routable set and no llmctl-local entry
+FAIL - P55 [gone x heartbeat] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 39 - P55 [gone x heartbeat] no llmctl start or stop
+FAIL - P55 [gone x release] rc=0: no routable set but the cache names [decide-a] (1 entries)
+FAIL - P55 [gone x reap] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 40 - P55 [gone x reap] no llmctl start or stop
+FAIL - P55 [gone x status] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 41 - P55 [gone x status] no llmctl start or stop
+FAIL - P55 [gone x verdict] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 42 - P55 [gone x verdict] no llmctl start or stop
+ok 43 - P55 [pressure x acquire] rc=5: no routable set and no llmctl-local entry
+FAIL - P55 [pressure x heartbeat] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 44 - P55 [pressure x heartbeat] no llmctl start or stop
+FAIL - P55 [pressure x release] rc=0: no routable set but the cache names [decide-a] (1 entries)
+FAIL - P55 [pressure x reap] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 45 - P55 [pressure x reap] no llmctl start or stop
+FAIL - P55 [pressure x status] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 46 - P55 [pressure x status] no llmctl start or stop
+FAIL - P55 [pressure x verdict] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 47 - P55 [pressure x verdict] no llmctl start or stop
+FAIL - P55 [capfail x acquire] rc=5: no routable set but the cache names [decide-a] (1 entries)
+FAIL - P55 [capfail x heartbeat] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 48 - P55 [capfail x heartbeat] no llmctl start or stop
+FAIL - P55 [capfail x release] rc=0: no routable set but the cache names [decide-a] (1 entries)
+FAIL - P55 [capfail x reap] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 49 - P55 [capfail x reap] no llmctl start or stop
+FAIL - P55 [capfail x status] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 50 - P55 [capfail x status] no llmctl start or stop
+FAIL - P55 [capfail x verdict] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 51 - P55 [capfail x verdict] no llmctl start or stop
+ok 52 - P55 [dead x acquire] rc=0: cache names decide-a, routable {decide-a}
+ok 53 - P55 [dead x heartbeat] rc=0: cache names decide-a, routable {decide-a}
+ok 54 - P55 [dead x heartbeat] no llmctl start or stop
+ok 55 - P55 [dead x release] rc=0: no routable set and no llmctl-local entry
+FAIL - P55 [dead x reap] rc=0: no routable set but the cache names [decide-a] (1 entries)
+ok 56 - P55 [dead x reap] no llmctl start or stop
+ok 57 - P55 [dead x status] rc=0: cache names decide-a, routable {decide-a}
+ok 58 - P55 [dead x status] no llmctl start or stop
+ok 59 - P55 [dead x verdict] rc=0: cache names decide-a, routable {decide-a}
+ok 60 - P55 [dead x verdict] no llmctl start or stop
+ok 61 - P55 [recover x acquire] rc=0: cache names decide-a, routable {decide-a}
+ok 62 - P55 [recover x heartbeat] rc=0: cache names decide-a, routable {decide-a}
+ok 63 - P55 [recover x heartbeat] no llmctl start or stop
+ok 64 - P55 [recover x release] rc=0: cache names decide-a, routable {decide-a}
+ok 65 - P55 [recover x reap] rc=0: cache names decide-a, routable {decide-a}
+ok 66 - P55 [recover x reap] no llmctl start or stop
+ok 67 - P55 [recover x status] rc=0: cache names decide-a, routable {decide-a}
+ok 68 - P55 [recover x status] no llmctl start or stop
+ok 69 - P55 [recover x verdict] rc=0: cache names decide-a, routable {decide-a}
+ok 70 - P55 [recover x verdict] no llmctl start or stop
+FAIL - P56 --ttl 1 is a config error: refused, no start (expected [2 0] got [0 1])
+FAIL - P56 the refusal names the cadence rule (no [cadence] in <W>/tmp/tmp.1UttOgihZT/e56)
+FAIL - P56 JEV_LEASE_TTL=0 refused (expected [2 0] got [0 1])
+FAIL - P56 ttl = cadence 300 + llmctl timeout 20 is not greater: refused (expected [2 0] got [0 1])
+ok 71 - P56 CONTROL: ttl 321 > 300 + 20 accepted
+ok 72 - P56 CONTROL: a declared cadence 10 s admits ttl 100
+FAIL - P56 a non-numeric cadence is a config error (expected [2] got [1])
+FAIL - P57 heartbeat of a holder that never held a lease exits 3 (expected [3] got [0])
+FAIL - P57 the session is told it holds no lease (no [no lease] in <W>/tmp/tmp.SFN0FtiUU4/e57)
+FAIL - P57 heartbeat of a reaped holder exits 3 (expected [3] got [0])
+ok 73 - P57 CONTROL: heartbeat of a live lease exits 0
+FAIL - P58 a stopping set: reason_code endpoint_stopping (expected [5 refused_stopping endpoint_stopping] got [5 refused_stopping null])
+FAIL - P58 reason [a lease set is stopping (refused per §11.4.291(J))]
+FAIL - P58 unit gone: endpoint_gone recorded; the heartbeat tells s1 it holds no lease (rc 3) (expected [3 endpoint_gone endpoint_gone] got [0 joined null])
+FAIL - P58 every lease of the gone endpoint released, no cache entry (expected [0 0] got [2 1])
+ok 74 - P58 nothing restarted
+ok 75 - P58 the detail is filled [joined an existing lease set (running instance, unit status ok)]
+FAIL - P58 the notice names endpoint_gone (no [endpoint_gone] in <W>/tmp/tmp.3JrUQED6Bp/e58)
+FAIL - P59 decide capacity fails: undetermined, not does_not_fit (expected [5 0 undetermined undetermined] got [5 0 does_not_fit no_fit])
+FAIL - P59 reason [no candidate profile fits]
+FAIL - P59 verdict --json reports the candidate list as undetermined (expected [undetermined] got [null])
+FAIL - P60 a starting lease: project, started_by_this_session true (expected [proj6 true] got [null null])
+FAIL - P60 the record names this holder's lease (expected [s1 true] got [null null])
+FAIL - P60 override_id present (null: no override path) (expected [true null] got [false null])
+FAIL - P60 a joining lease: started_by_this_session false (expected [false] got [null])
+FAIL - P60 the record keeps the previous event (placed) (expected [placed] got [null])
+FAIL - P60 the record keeps the previous verdict (expected [true] got [false])
+FAIL - P60 no detection record: not merged (expected [false] got [null])
+ok 76 - P60 no detection record is fabricated
+FAIL - P60 an existing detection record gets the placement entry, its fields kept (expected [joined fixture true] got [joined fixture null])
+ok 77 - P61 unlimited: still undetermined (operator decision owed)
+FAIL - P61 the reason code is nproc_unlimited (measured: rlimit_soft null) (expected [nproc_unlimited] got [RLIMIT_NPROC headroom not measured])
+FAIL - P61 CONTROL: an absent headroom has the reason code nproc_not_measured (expected [nproc_not_measured] got [RLIMIT_NPROC headroom not measured])
+FAIL - P61 an unreadable thread census (user_threads null) has the reason code nproc_not_measured, never nproc_unlimited (expected [nproc_not_measured] got [RLIMIT_NPROC headroom not measured])
+ok 78 - P62 bash -s WORD: WORD is a positional parameter, not wiring
+ok 79 - P62 bash -ns: not wiring
+ok 80 - P62 bash -c -- WORD runs WORD
+ok 81 - P62 bash -c -e WORD: options before the command string
+ok 82 - P62 env -S STRING is split
+ok 83 - P62 env --split-string= is split
+ok 84 - P62 env -S of another command is not wiring
+ok 85 - P62 CONTROL: bash WORD is wiring
+ok 86 - P62 CONTROL: bash -n is not wiring
+ok 87 - P63 lock held: rc 4, no start
+FAIL - P63 the lost placement record is logged (no [NOT written] in <W>/tmp/tmp.dwZSJR5pTX/e63)
+FAIL - P63 placement.json written without the lock
+FAIL - P64 once decide-a is resident the fresh answer says decide-b does not fit: one start (expected [0 decide-a 1] got [0 decide-a 2])
+FAIL - P64 the re-judgement is logged (no [fresh] in <W>/tmp/tmp.t7aTYpiRyC/e64)
+ok 88 - P64 CONTROL: with room for both, two starts
+FAIL - P65 the cleanup stop failed (the model may be resident): no further candidate is started (expected [5 1] got [5 2])
+ok 89 - P65 CONTROL: after a failed start whose cleanup stop succeeded the next candidate is tried
+ok 90 - P66 under pressure a non-running profile is does_not_fit (threads 0)
+FAIL - P68 setup: decide-a observed ok and routed (expected [ok 1] got [null 1])
+FAIL - P68 the slow older (degraded) answer did not overwrite the newer ok observation; still routed (expected [ok null 1] got [null null 1])
+FAIL - P68 CONTROL: the same degraded answer, when it is the newest, is recorded and leaves the cache (expected [degraded 0] got [null 1])
+FAIL - P69 the pre-start answer (no unit) did not release the started set: one start, lease kept, routed, health ok (expected [1 1 1 ok] got [1 1 1 null])
+ok 91 - P69 no endpoint_gone was announced for the just-started set
+FAIL - P69 CONTROL: the same answer read after the start does release the set (endpoint_gone) (expected [0 0] got [1 1])
+FAIL - P69 CONTROL: the post-start answer names endpoint_gone (no [endpoint_gone] in <W>/tmp/tmp.3UADfNMvW6/e69c)
+FAIL - P70 setup: no fresh read after the start of decide-a
+ok 92 - P70 setup: the concurrent release stopped decide-a
+FAIL - P70 decide-b is never started while decide-a is stopping (mark refused) (expected [0] got [1])
+FAIL - P70 the refusal is announced (no [candidate decide-b: no longer startable] in <W>/tmp/tmp.DdWA9kpdus/a70.err)
+ok 93 - P70 CONTROL: without the release decide-b is started on the fresh answer
+ok 94 - P71 setup: decide-a is starting
+FAIL - P71 the failed fresh answer is announced (no [the fresh answer is undetermined] in <W>/tmp/tmp.VbT29islXc/a71.err)
+FAIL - P71 one start (decide-a, rc 0); decide-b is never started on the stale pre-start answer (expected [0 decide-a 1 0] got [0 decide-a 2 1])
+ok 95 - P71 CONTROL: with a good fresh answer decide-b is started
+ok 96 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round6.sh: pass=96 fail=87 skip=0

@@ -1,0 +1,1 @@
+s/'MERGE_HEAD^{commit}'/'CHERRY_PICK_HEAD^{commit}'/

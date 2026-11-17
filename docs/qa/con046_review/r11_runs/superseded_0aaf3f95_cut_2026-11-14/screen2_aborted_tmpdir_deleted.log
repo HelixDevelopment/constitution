@@ -1,0 +1,8 @@
+start 2026-11-14T12:43:35+01:00 head 0aaf3f956125cba11dfa305675a1716fca19d4aa clean-tree-lines 0 host anton SUITE_NOW 2026-11-14T12:00:00Z load 23.50 8.67 3.52
+clock (injected, one instant for the whole run): 2026-11-14T12:00:00Z
+date (pinned, first on PATH): /usr/bin/gnudate: date (GNU coreutils) 9.7
+date (alternative, the host default): /usr/bin/date: date (uutils coreutils) 0.10.0
+Unicode Zs: 17 characters enumerated
+Unicode isspace(): 29 characters enumerated (Zs 17 of them; 27 can sit inside a TSV field)
+isspace() characters git keeps at the end of a name and an email: 19 (measured through git var)
+cgroup pids/oom event counter: 0 (none = unreadable: only stderr signatures are checked)

@@ -1,0 +1,20 @@
+== red_8f688bf1: tool sha256 615a49dc52d9829a
+-- R9-5 (3): real target f67d926c; CON-313, CON-387, CON-388 name the vehicle's CON-308 (lands elsewhere)
+x1_real rc=0 RESULT: PLAN mode=REPLAY own=46 base_changes=3 steps=70 conflicts=0 refusals=0 first=CON-412 last=CON-456
+annotations: ['CON-313'] target_own: []
+-- R9-5 (3): reviewer probe b1 (CON-405 names the vehicle's CON-320 on a colliding target)
+b1_rebound_collides rc=0 RESULT: PLAN mode=REPLAY own=46 base_changes=3 steps=70 conflicts=0 refusals=0 first=CON-412 last=CON-456
+-- R9-7 (5): probe a7 (supersede onto an unrelated target item, nothing names the pair)
+a7_other_target rc=0 RESULT: PLAN mode=REPLAY own=46 base_changes=3 steps=69 conflicts=0 refusals=0 first=CON-412 last=CON-456
+-- R9-7 (5): probe a6 (supersede an own id onto the target's item of the same number)
+a6_same_number rc=1 RESULT: NOT-LANDABLE mode=REPLAY own=46 base_changes=3 steps=71 conflicts=0 refusals=1 first=CON-412 last=CON-456
+REFUSED --annotate-foreign CON-313: the item names no provisional vehicle id
+-- R9-6 (4): a SHARED-PATH pair with no verdict (the bcac0882 file without the three new rows)
+d1_missing_rows rc=0 RESULT: PLAN mode=REPLAY own=46 base_changes=3 steps=70 conflicts=0 refusals=0 first=CON-412 last=CON-456
+-- R9-6 (4): reviewer plan_edit_probe: a made plan edited consistently (DISTINCT -> SAME-DEFECT, reason gains an id and ';'), replayed, verified
+replay rc=0 RESULT: APPLIED steps=70 items=46
+verify rc=0 RESULT: PASS mode=REPLAY items=49 mismatches=0 known=46
+-- R9-9 (7): refs on an empty directory under ambient GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE of a sentinel repository
+refs rc=0 (want 3 BLIND: the directory is no repository); first lines:
+RESULT: REFS live=0 evidence=0 database=0
+work dir /mnt/DATA1TB/claude-work/scratch/fix_ti_r10_remint.cp1v/red.yBL4np

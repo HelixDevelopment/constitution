@@ -1,0 +1,2 @@
+fc685d299f5a3041877bae9f38c4e6df94ca888849441ec046a43fe1644a74b6  /mnt/DATA1TB/claude-work/scratch/rev456_nkcE3V/scripts/rev_cases.sh
+54b9dc42922e68773f71c5c787041d2b117d2363efec9ee298cd31d156e360c6  /mnt/DATA1TB/claude-work/scratch/rev456_nkcE3V/scripts/partial_write.sh

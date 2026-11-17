@@ -1,0 +1,16 @@
+# $ REMINT_IDS_MUT_JOBS=2 REMINT_IDS_MUT_ONLY=ROV1,...,ROV10,ROVFIX bash tests/workable_items/test_remint_ids_mutations.sh
+PASS control: unmutated copy passes the suite (RESULT: pass=448 fail=0)
+PASS ROV1 verify FAST-FORWARD: item_history not compared: rc=1 first-failure=verify FAST-FORWARD FAILs on a copy whose item_history differs: rc=0 want=1: RESULT: 
+PASS ROV2 verify: a new vehicle id in non-ASCII digits read into the own set: rc=1 first-failure=verify FAIL: a new id in non-ASCII digits, on a plan whose refusals were removed: /^M
+PASS ROV3 verify: the referent check ignores the item type: rc=1 first-failure=verify FAIL: an id whose landed item has another type: /^MISMATCH CON-353 description
+PASS ROV4 planner: the close step replays the latest closure row, not the plain close: rc=1 first-failure=plan: the close step replays the plain close's evidence: got: --evidence=docs/qa/y.tx
+PASS ROV5 planner: a base item foreign set read from the vehicle row only: rc=1 first-failure=plan: a base Foreign line the vehicle drops still covers the base text: rc=1 want=0: 
+PASS ROV6 verify: obsolete_details triple_check_evidence not compared: rc=1 first-failure=verify FAIL: an obsolete_details evidence path: rc=0 want=1: KNOWN CON-345 created_at
+PASS ROV7 Rewriter: ids of at most three digits: rc=1 first-failure=ROV7: ids of four and five digits are rewritten: got: 0|see CON-1000 and CON-12345. w
+PASS ROV8 verify: foreign-id declarations of one digit only: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-345 created_at: landed 2026-11-1
+PASS ROV9 verify: the referent check ignores created_by: rc=1 first-failure=verify FAIL: an id whose landed item is not the item it named in the vehicle: /^MISMA
+PASS ROV10 verify: the referent check ignores the title: rc=1 first-failure=verify FAIL: an id whose landed item has another title: /^MISMATCH CON-353 descriptio
+PASS ROVFIX planner: a field-only update re-renders the body through a forced --description (the round-5 defect R5-1): rc=1 first-failure=plan: an update step passes --description once: got: 2 want: 1
+RESULT: mutants=11 all killed
+rc=0
+# scrubbed copy (tools/scrub_paths.py): <work> x0, <cache> x0, <home> x0, <tmp> x0

@@ -544,8 +544,13 @@ type stateParse struct {
 func parseStateLines(body string) stateParse {
 	p := stateParse{reproIdx: -1, invIdx: -1}
 	lines := splitKeepNewlines(body)
-	limit := ownMetaRegionLineCount(lines)
-	for i := 0; i < limit; i++ {
+	r := newOwnRegion(lines)
+	for i := 0; i < r.limit; i++ {
+		// CON-456 round 6: a record line inside a fenced code block is quoted
+		// text, never the item's record (ownlines.go).
+		if r.fenced[i] {
+			continue
+		}
 		t := strings.TrimRight(lines[i], "\n")
 		switch {
 		case strings.HasPrefix(t, reproLinePrefix):
@@ -599,29 +604,19 @@ func (r *stateRecord) copyInv(s stateRecord) {
 // heading-adjacent meta block, including any continuation bullets, so a
 // multi-line `**Operator-Block-Details:**` / `**Reopened-Details:**` block is
 // never split). Without a Status line: right after the heading line.
-func stateAnchor(lines []string, limit int) int {
-	s := -1
-	for i := 0; i < limit; i++ {
-		if strings.HasPrefix(lines[i], "**Status:**") {
-			s = i
-			break
-		}
-	}
+func stateAnchor(r ownRegion) int {
+	// CON-456 round 6: the item's own Status line is the one the parser reads
+	// (ownlines.go), and the run ends where a metadata block ends (a blank
+	// line, a separator, a heading or a fence), so a record is never inserted
+	// into a fenced block.
+	s := r.statusIdx()
 	if s < 0 {
-		if limit > 0 && strings.HasPrefix(lines[0], "## ") {
+		if r.limit > 0 && strings.HasPrefix(r.lines[0], "## ") {
 			return 1
 		}
 		return 0
 	}
-	j := s + 1
-	for j < limit {
-		t := strings.TrimSpace(lines[j])
-		if t == "" || t == "---" || strings.HasPrefix(t, "## ") {
-			break
-		}
-		j++
-	}
-	return j
+	return r.blockEnd(s)
 }
 
 // canonicalizeStateLines returns body with its records made to match want.
@@ -640,7 +635,7 @@ func canonicalizeStateLines(body string, want stateRecord, representation string
 		return body
 	}
 	lines := splitKeepNewlines(body)
-	limit := ownMetaRegionLineCount(lines)
+	eol := bodyEOL(lines)
 	newRepro := renderReproLine(want)
 	newInv := renderInvestigationLine(want)
 
@@ -650,11 +645,7 @@ func canonicalizeStateLines(body string, want stateRecord, representation string
 		ins  bool
 	}
 	setLine := func(i int, s string) {
-		nl := ""
-		if strings.HasSuffix(lines[i], "\n") {
-			nl = "\n"
-		}
-		lines[i] = s + nl
+		lines[i] = s + eolOf(lines[i])
 	}
 	// Replace or blank-out existing records in place (a blanked line is
 	// removed below), so indices stay valid while we decide insertions.
@@ -678,16 +669,16 @@ func canonicalizeStateLines(body string, want stateRecord, representation string
 	needInv := p.invIdx < 0 && newInv != ""
 	switch {
 	case needRepro && needInv:
-		a := stateAnchor(lines, limit)
+		a := stateAnchor(newOwnRegion(lines))
 		inserts = append(inserts, op{idx: a, line: newRepro, ins: true}, op{idx: a, line: newInv, ins: true})
 	case needRepro && p.invIdx >= 0 && newInv != "":
 		inserts = append(inserts, op{idx: p.invIdx, line: newRepro, ins: true})
 	case needRepro:
-		inserts = append(inserts, op{idx: stateAnchor(lines, limit), line: newRepro, ins: true})
+		inserts = append(inserts, op{idx: stateAnchor(newOwnRegion(lines)), line: newRepro, ins: true})
 	case needInv && p.reproIdx >= 0 && newRepro != "":
 		inserts = append(inserts, op{idx: p.reproIdx + 1, line: newInv, ins: true})
 	case needInv:
-		inserts = append(inserts, op{idx: stateAnchor(lines, limit), line: newInv, ins: true})
+		inserts = append(inserts, op{idx: stateAnchor(newOwnRegion(lines)), line: newInv, ins: true})
 	}
 	var out []string
 	pos := 0
@@ -699,9 +690,9 @@ func canonicalizeStateLines(body string, want stateRecord, representation string
 	for _, o := range inserts {
 		emitUpTo(o.idx)
 		if len(out) > 0 && !strings.HasSuffix(out[len(out)-1], "\n") && out[len(out)-1] != drop {
-			out[len(out)-1] += "\n"
+			out[len(out)-1] += eol
 		}
-		out = append(out, o.line+"\n")
+		out = append(out, o.line+eol)
 	}
 	emitUpTo(len(lines))
 	var b strings.Builder

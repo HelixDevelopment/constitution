@@ -1,0 +1,7 @@
+--- PASS: TestCON456R4_DetailLossGate (0.00s)
+--- PASS: TestCON456R4_GateItemWriteInputCheckPinned (0.09s)
+    idgrammar_r4_cli_test.go:365: close left 1 operator_block_details rows behind (the next md-to-db deletes them)
+--- FAIL: TestCON456R4_CloseOfBlockedItemRemovesBlockRow (0.24s)
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	0.587s
+FAIL

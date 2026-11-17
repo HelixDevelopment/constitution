@@ -1,0 +1,22 @@
+--- control (sane):
+rc=3
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_unknown_ext/helix-sync-test.hguOSF/out/r1/sync_report.json
+CANONICAL_SHA256=c17483a8f095848537b7ca7b1c3fba9c0a125720bf1f882cd3fc7f080ce23dc6
+RESULT: UPDATES-AVAILABLE exit=3
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_unknown_ext/helix-sync-test.hguOSF/work/root: 4 repositories, 4 initialised, 4 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   behind          -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -
+libs/a pin=behind-main result=behind
+--- broken:
+rc=0
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_unknown_ext/helix-sync-test.hguOSF/out/r2/sync_report.json
+CANONICAL_SHA256=f62e785484f0e4fe308e1495c88c2f49cb25a4c518e43aa7ccbf5c0247260506
+RESULT: CURRENT exit=0
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_unknown_ext/helix-sync-test.hguOSF/work/root: 3 repositories, 2 initialised, 2 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   not-initialised -
+[sync-upstreams] vendor/t                                 current         -
+libs/a initialised=False pin={'gitlink': 'dc13c6f51906f2adbfaf40327ed1197e19cb8090', 'state': 'uninitialised'} result=not-initialised unresolved=None
+libs/a/inner present in report: False

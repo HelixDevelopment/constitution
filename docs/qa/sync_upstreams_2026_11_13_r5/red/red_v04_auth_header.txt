@@ -1,0 +1,1 @@
+V04 RED/GREEN 2026-11-14: the round-5 first version of robustness auth_header was a FALSE NULL (fetch stderr is never printed; V04 SURVIVED the first full mutation run). New fixture (a failed fast-forward whose required smudge filter prints a needle + Authorization line): real engine PASS 3 FAIL 0; V04 mutant PASS 1 FAIL 2 (token leaked, needle seen unredacted)

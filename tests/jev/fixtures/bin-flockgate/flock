@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Test seam (round 7, tests/jev/test_s4_round7.sh): a `flock` wrapper that pauses the CALLING jev-place process at its N-th
+# flock call until the test lets it go, so a race between two sessions is replayed in a fixed order, never by sleeping.
+# GATE-LOGIC ONLY (§11.4.289(C)(2)): it changes when a lock is taken, never what the producer decides.
+#   FLOCK_GATE_DIR      required: this process's call counter (count), call log (calls.log), reached.<n> / go.<n> / killed
+#   FLOCK_GATE_AT       comma list of call numbers to pause at, BEFORE the lock is taken (0 or unset: never); at call <n>
+#                       it creates <dir>/reached.<n>, then waits for <dir>/go.<n> (at most FLOCK_GATE_WAIT s, default 120;
+#                       a timeout is logged)
+#   FLOCK_GATE_KILL_AT  the call number at which the calling jev-place process is SIGKILLed (an OOM kill of the starter):
+#                       only a single pid > 1 whose /proc cmdline names jev-place.sh is ever signalled, never a process
+#                       group (§11.4.263); the wrapper then exits 1 without taking the lock
+# Each with_lock in jev-place.sh is two flock calls (lock, then `flock -u`). The real flock is the first `flock` on PATH
+# that is not this wrapper.
+set -u
+d="${FLOCK_GATE_DIR:?FLOCK_GATE_DIR must be set}"
+c=0; [ -f "$d/count" ] && c="$(cat "$d/count")"; c=$((c+1)); echo "$c" > "$d/count"
+echo "flock#$c $*" >> "$d/calls.log"
+case ",${FLOCK_GATE_AT:-0}," in
+  *",$c,"*)
+    : > "$d/reached.$c"
+    i=0; lim=$(( ${FLOCK_GATE_WAIT:-120} * 10 ))
+    while [ ! -e "$d/go.$c" ] && [ "$i" -lt "$lim" ]; do sleep 0.1; i=$((i+1)); done
+    [ -e "$d/go.$c" ] || echo "flock gate: timed out waiting for $d/go.$c" >> "$d/calls.log" ;;
+esac
+if [ "$c" = "${FLOCK_GATE_KILL_AT:-0}" ]; then
+  pp="$PPID"
+  case "$pp" in ''|*[!0-9]*) exit 1 ;; esac
+  if [ "$pp" -gt 1 ] && tr '\0' ' ' < "/proc/$pp/cmdline" 2>/dev/null | grep -q 'jev-place\.sh'; then
+    echo "killing $pp at flock#$c" >> "$d/calls.log"; : > "$d/killed"; kill -9 "$pp"
+  fi
+  exit 1
+fi
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+IFS=: read -ra parts <<<"$PATH"
+for p in "${parts[@]}"; do
+  [ -n "$p" ] || continue
+  [ "$(cd "$p" 2>/dev/null && pwd)" = "$self_dir" ] && continue
+  [ -x "$p/flock" ] && exec "$p/flock" "$@"
+done
+echo "flock gate: no real flock on PATH" >&2
+exit 127

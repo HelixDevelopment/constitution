@@ -1,0 +1,21 @@
+#!/bin/bash
+# final14.sh: every suite of the vehicle twice on the final tree (repo), one at a time; runs/final{1,2}_<key>.txt and a
+# line each in runs/results.tsv; then runs/final_compare.tsv: per suite the two normalized verdict hashes (tools/norm.sh)
+# and SAME or DIFF.
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6
+cd "$W" || exit 1
+SUITES="tests/jev/test_s4_round14.sh tests/jev/s4_round14_sweep_x_chaos_test.sh tests/jev/s4_round14_sweep_y_chaos_test.sh tests/jev/s4_round14_sweep_zd_chaos_test.sh r13 r12 r12mc r11 r10 r9 r8 r7 r6 pl census mg"
+name() { case "$1" in tests/jev/test_s4_round14.sh) echo r14 ;; tests/*) basename "$1" .sh ;; *) echo "$1" ;; esac; }
+for i in 1 2; do
+  for k in $SUITES; do
+    bash tools/runsuite.sh "$W/repo" "$k" "$W/runs/final${i}_$(name "$k")"
+  done
+done
+: > runs/final_compare.tsv
+for k in $SUITES; do
+  n="$(name "$k")"; a="$(bash tools/norm.sh "runs/final1_$n.txt")"; b="$(bash tools/norm.sh "runs/final2_$n.txt")"
+  v=DIFF; [ "$a" = "$b" ] && v=SAME
+  printf '%s\t%s\t%s\t%s\n' "$n" "$a" "$b" "$v" >> runs/final_compare.tsv
+done
+echo "FINAL14 DONE" >> runs/final_compare.tsv

@@ -1,0 +1,38 @@
+update: CON-428 updated in Issues (status=In progress, type=Bug)
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 393 items, all invariants satisfied
+validate rc=0
+    	explicit Fixed.md output path (overrides --out-dir)
+  -out-issues string
+    	explicit Issues.md output path (overrides --out-dir)
+export rc=0
+~ CON-428 body differs (md=2805 bytes db=2801 bytes)
+~ CON-428 states: md="repro=reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/jev_s3s4_20261112/round13/runs/r13_RED_base_r12.txt` — red-command `S4_PLACE_UNDER_TEST=<round-12 jev-place.sh> bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)` — green-command `bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)` — env `hermetic bwrap runner, stub llmctl tests/jev/fixtures/bin-place, flock gate tests/jev/fixtures/bin-flockgate; gate-logic, not a live llmctl (section 11.4.289(C)(2))` — signature `orders starCA, starAC, straCA with the starter SIGKILLed at its record lock call: 'joined the already-running unit' logged, and after the cleanup running=[decide-a] with sets={} (stops 1, starts 1)` — updated 2026-11-16T14:43:42Z — by `jev-r13-fixer` inv=root-cause-found-with-evidence — root-cause `the in-flight start lived only in the set's starting mark; a dispose that deleted the set erased the only record that a start was running, so a third acquire saw a running unit with no set and adopted it; with the starter dead nothing recorded the start again. Decisive experiment: with a start intent that outlives the set (round 13), adoption is refused (R13-2c) and the CONTROL without the intent adopts the same unit` — evidence `docs/qa/jev_s3s4_20261112/round13/runs/r13_GREEN_try4.txt` — updated 2026-11-16T14:43:42Z — by `jev-r13-fixer`" db="repro=reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/jev_s3s4_20261112/round13/runs/r13_RED_base_r12.txt` — red-command `S4_PLACE_UNDER_TEST=<round-12 jev-place.sh> bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)` — green-command `bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)` — env `hermetic bwrap runner, stub llmctl tests/jev/fixtures/bin-place, flock gate tests/jev/fixtures/bin-flockgate; gate-logic, not a live llmctl (section 11.4.289(C)(2))` — signature `orders starCA, starAC, straCA with the starter SIGKILLed at its record lock call: 'joined the already-running unit' logged, and after the cleanup running=[decide-a] with sets={} (stops 1, starts 1)` — updated 2026-11-16T14:43:42Z — by `jev-r13-fixer` inv=root-cause-found-with-evidence — root-cause `the in-flight start lived only in the set's starting mark; a dispose that deleted the set erased the only record that a start was running, so a third acquire saw a running unit with no set and adopted it; with the starter dead nothing recorded the start again. Decisive experiment: with a start intent that outlives the set (round 13), adoption is refused (R13-2c) and the CONTROL without the intent adopts the same unit` — evidence `docs/qa/jev_s3s4_20261112/round13/runs/final1_r13.txt` — updated 2026-11-16T17:30:14Z — by `jev-r13-fixer`"
+diff: 2 difference(s) (compared 393 Markdown item(s) against 393 DB item(s); read docs/Issues.md, docs/Fixed.md)
+diff rc=1
+== (the export above used wrong flags and wrote nothing; re-run with the default output paths)
+export: wrote <repo>/Issues.md
+export: wrote <repo>/Fixed.md
+export: wrote <repo>/Issues_Summary.md
+export: wrote <repo>/Fixed_Summary.md
+export: --no-formats set; skipped HTML/PDF/DOCX sibling generation
+export rc=0
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 393 items, all invariants satisfied
+validate rc=0
+~ CON-428 body differs (md=2805 bytes db=2801 bytes)
+~ CON-428 states: md="repro=reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/jev_s3s4_20261112/round13/runs/r13_RED_base_r12.txt` — red-command `S4_PLACE_UNDER_TEST=<round-12 jev-place.sh> bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)` — green-command `bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)` — env `hermetic bwrap runner, stub llmctl tests/jev/fixtures/bin-place, flock gate tests/jev/fixtures/bin-flockgate; gate-logic, not a live llmctl (section 11.4.289(C)(2))` — signature `orders starCA, starAC, straCA with the starter SIGKILLed at its record lock call: 'joined the already-running unit' logged, and after the cleanup running=[decide-a] with sets={} (stops 1, starts 1)` — updated 2026-11-16T14:43:42Z — by `jev-r13-fixer` inv=root-cause-found-with-evidence — root-cause `the in-flight start lived only in the set's starting mark; a dispose that deleted the set erased the only record that a start was running, so a third acquire saw a running unit with no set and adopted it; with the starter dead nothing recorded the start again. Decisive experiment: with a start intent that outlives the set (round 13), adoption is refused (R13-2c) and the CONTROL without the intent adopts the same unit` — evidence `docs/qa/jev_s3s4_20261112/round13/runs/r13_GREEN_try4.txt` — updated 2026-11-16T14:43:42Z — by `jev-r13-fixer`" db="repro=reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/jev_s3s4_20261112/round13/runs/r13_RED_base_r12.txt` — red-command `S4_PLACE_UNDER_TEST=<round-12 jev-place.sh> bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)` — green-command `bash tests/jev/test_s4_round13.sh (rows R13-1 kill=k)` — env `hermetic bwrap runner, stub llmctl tests/jev/fixtures/bin-place, flock gate tests/jev/fixtures/bin-flockgate; gate-logic, not a live llmctl (section 11.4.289(C)(2))` — signature `orders starCA, starAC, straCA with the starter SIGKILLed at its record lock call: 'joined the already-running unit' logged, and after the cleanup running=[decide-a] with sets={} (stops 1, starts 1)` — updated 2026-11-16T14:43:42Z — by `jev-r13-fixer` inv=root-cause-found-with-evidence — root-cause `the in-flight start lived only in the set's starting mark; a dispose that deleted the set erased the only record that a start was running, so a third acquire saw a running unit with no set and adopted it; with the starter dead nothing recorded the start again. Decisive experiment: with a start intent that outlives the set (round 13), adoption is refused (R13-2c) and the CONTROL without the intent adopts the same unit` — evidence `docs/qa/jev_s3s4_20261112/round13/runs/final1_r13.txt` — updated 2026-11-16T17:30:14Z — by `jev-r13-fixer`"
+diff: 2 difference(s) (compared 393 Markdown item(s) against 393 DB item(s); read docs/Issues.md, docs/Fixed.md)
+diff rc=1
+== (that export wrote to the repo root, the default --out-dir; those four untracked files were removed and the export re-run into docs/)
+export: wrote <repo>/docs/Issues.md
+export: wrote <repo>/docs/Fixed.md
+export: wrote <repo>/docs/Issues_Summary.md
+export: wrote <repo>/docs/Fixed_Summary.md
+export: --no-formats set; skipped HTML/PDF/DOCX sibling generation
+export rc=0
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 393 items, all invariants satisfied
+validate rc=0
+diff: DB and Markdown are in sync (compared 393 Markdown item(s) against 393 DB item(s); read docs/Issues.md, docs/Fixed.md)
+diff rc=0

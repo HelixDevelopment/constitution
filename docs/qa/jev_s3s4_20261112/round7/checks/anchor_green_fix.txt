@@ -1,0 +1,18 @@
+ok 1 - anchors 272..286 unique+ascending, 277/278 upstream meaning, 279..286 Jev meanings
+ok 2 - no duplicate '### §11.4.N' heading in the whole corpus
+ok 3 - NEG: duplicated 11.4.280 heading is detected
+ok 4 - NEG: Jev meaning re-attached to 277 is detected
+ok 5 - NEG: missing 286 is detected
+ok 6 - no Jev artifact still cites §11.4.277/278 with Jev meaning
+ok 7 - Constitution.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 8 - CLAUDE.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 9 - AGENTS.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 10 - QWEN.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 11 - GEMINI.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 12 - constitution_index.yaml: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 13 - NEG: duplicated carrier definition is detected
+ok 14 - NEG: Jev meaning on 278 in a carrier is detected
+ok 15 - NEG: missing index entry is detected
+ok 16 - CLAUDE_ANCHORS_FULL.md attaches no Jev meaning to 11.4.277/278
+# test_anchor_renumber_integrity.sh: pass=16 fail=0 skip=0
+rc=0

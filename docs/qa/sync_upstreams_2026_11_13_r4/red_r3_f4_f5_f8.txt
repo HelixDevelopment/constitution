@@ -1,0 +1,5 @@
+RED F4-large-input guard: not-refused (fail-open)
+RED F5-gate X04 passes the gate (rc 0)
+RED F5-tests no unit test references proc_kill_group
+GREEN F8-r3 status re-read 128: rc=6 moved=no BLIND exit=6
+RED F8-X01 status re-read 128: rc=0 moved=yes APPLIED exit=0

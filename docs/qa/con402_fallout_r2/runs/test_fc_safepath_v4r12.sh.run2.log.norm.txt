@@ -1,0 +1,18 @@
+ok [R12LINT] every path operation of the files under test is routed / proved-private / a checked exemption: SUMMARY operations=160 EXEMPT=13 PRIVATE=54 ROOT=1 ROUTED=61 TAGGED=31 violations=0 proved_shell_vars=_FC_LEDGER_FILE,_FC_LOG_DIR,_FC_LOG_LEDGER,_FC_RUN_TIMING,
+ok [R12LINT-ctl-py] a raw os.listdir added to the module FAILS the lint (VIOLATION sup_raw.py:1820 _gc_at os.listdir -- a path operation outside the trusted-parent)
+ok [R12LINT-ctl-sh] a plain redirect into a path under an unproved variable FAILS the lint (VIOLATION br_raw.sh:1150 do_one_replay redirect> -- redirect> on an operand that is not pr)
+ok [R12LINT-ctl-tag] an exemption tag outside the closed set FAILS the lint
+ok [R12LINT-ctl-param] a param tag on a variable PARAMS does not list FAILS the lint
+ok [R12PARITY-own755] shell _fc_safe check and the module's _walk agree with the rule: trusted
+ok [R12PARITY-own1777] shell _fc_safe check and the module's _walk agree with the rule: trusted
+ok [R12PARITY-mylink] shell _fc_safe check and the module's _walk agree with the rule: trusted
+ok [R12PARITY-rootsticky] shell _fc_safe check and the module's _walk agree with the rule: trusted
+ok [R12PARITY-own777] shell _fc_safe check and the module's _walk agree with the rule: refused
+ok [R12PARITY-missing] shell _fc_safe check and the module's _walk agree with the rule: refused
+ok [R12CLI-write-needle] control: _fc_safe write into a 0700 directory of ours writes the text
+ok [R12CLI-write-link] a symlink planted at the name -> refused (4), nothing created through it
+ok [R12CLI-write-dirmode] a directory of ours writable by others (0777) -> refused (4), nothing written
+ok [R12CLI-rmtree] _fc_safe rmtree removes a tree holding a symlink to elsewhere; the target is untouched
+ok [R12SH-needle] control: a replay under trusted directories runs and writes its report (exit 0)
+ok [R12SH-wtroot-sticky] a --worktree-root of ours that is 1777 (others may create names in it) -> BLIND 4: a namespace must be this user's ALONE
+ok [R12SH-workerinit] a worker handed a temp directory of ours writable by others (0777) refuses (BLIND 4) before any work

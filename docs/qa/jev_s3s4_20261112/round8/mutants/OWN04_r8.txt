@@ -1,0 +1,13 @@
+ok 1 - P91 CONTROL: A disposed decide-b and its start of decide-a is in flight when the observer runs
+ok 2 - P91 CONTROL: the observer runs when A's process is older than MARK_TTL (47 s > 43 s)
+ok 3 - P91 the starting mark carries the time it was SET (t0+46 s), not A's process start
+ok 4 - P91 the observer keeps the live starter's mark (its age is below MARK_TTL)
+ok 5 - P91 after the observer the set still carries the starting mark
+ok 6 - P91 a second observer does not release A's lease (no endpoint_gone)
+ok 7 - P91 A's start is kept: rc 0, decide-a placed, never stopped
+ok 8 - P91 decide-a runs at the end
+ok 9 - P92 CONTROL: A disposed decide-b and its start of decide-a is in flight when the observer runs
+ok 10 - P92 CONTROL: the observer runs when A's process is older than MARK_TTL (45 s > 43 s)
+FAIL - P92 B is refused and starts nothing while A's start is in flight (expected [5 0] got [4 0])
+FAIL - P92 B's refusal names endpoint_starting (§11.4.291(J)(3)) (no [endpoint_starting] in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r8.ppJI/tmp/tmp.tuDUvaANpD/b92.err)
+ok 11 - P92 B does not stop decide-a while it is being started

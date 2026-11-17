@@ -27,6 +27,11 @@ func syncMDToDB(args []string) int {
 		return exitUsage
 	}
 
+	if *issuesPath == "" && *fixedPath == "" {
+		fmt.Fprintln(os.Stderr, "sync md-to-db: at least one of --issues / --fixed is required")
+		return exitUsage
+	}
+
 	db, err := openDB(*dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sync md-to-db: %v\n", err)
@@ -34,51 +39,64 @@ func syncMDToDB(args []string) int {
 	}
 	defer db.Close()
 
-	// CON-339: one created_at snapshot taken before both document
-	// transactions, so an item the Markdown moved from Issues to Fixed keeps
-	// its creation time (the Issues transaction deletes its row first).
+	// CON-456 round 2 (review F2): read and judge BOTH documents before the
+	// first write, then rebuild them in ONE transaction. The former flow
+	// committed Issues.md and only then refused Fixed.md, so an item the
+	// Markdown had moved from Issues.md to Fixed.md was deleted while the tool
+	// printed "nothing written".
+	stored, err := loadItems(db)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sync md-to-db: load items: %v\n", err)
+		return exitUsage
+	}
+	type input struct {
+		document, path string
+		parse          func(string) ([]item, []segment)
+	}
+	var docs []documentImport
+	var paths []string
+	var losses []string
+	for _, in := range []input{
+		{"Issues", *issuesPath, parseIssues},
+		{"Fixed", *fixedPath, parseFixed},
+	} {
+		if in.path == "" {
+			continue
+		}
+		content, err := os.ReadFile(in.path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "sync md-to-db: read %s: %v\n", strings.ToLower(in.document), err)
+			return exitUsage
+		}
+		items, segs := in.parse(string(content))
+		for _, l := range mdImportLosses(stored, in.document, string(content), items) {
+			losses = append(losses, in.path+": "+l)
+		}
+		docs = append(docs, documentImport{in.document, items, segs})
+		paths = append(paths, in.path)
+	}
+	if len(losses) > 0 {
+		fmt.Fprintf(os.Stderr, "sync md-to-db: refusing — the import would drop or change %d DB item(s) whose Markdown the parser does not read back as the item (nothing written):\n  %s\nRepair each item with the engine (for example `update --title`), export with `sync db-to-md`, then import again; %s\n",
+			len(losses), strings.Join(losses, "\n  "), idGrammarHelp)
+		return exitUsage
+	}
+
+	// CON-339: one created_at snapshot taken before the rebuild, so an item
+	// the Markdown moved from Issues to Fixed keeps its creation time.
 	snap, err := takeCreatedAtSnapshot(db)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sync md-to-db: snapshot created_at: %v\n", err)
 		return exitUsage
 	}
-
-	total := 0
-	if *issuesPath != "" {
-		content, err := os.ReadFile(*issuesPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "sync md-to-db: read issues: %v\n", err)
-			return exitUsage
-		}
-		items, segs := parseIssues(string(content))
-		if err := replaceDocumentWithSnapshot(db, "Issues", items, segs, snap); err != nil {
-			fmt.Fprintf(os.Stderr, "sync md-to-db: persist issues: %v\n", err)
-			return exitUsage
-		}
-		// BOB-155 (same acceptance criterion, lesser instance): name the file
-		// ACTUALLY read, not a hardcoded tracker filename. The literal label
-		// misreported the input whenever the caller passed any other path, and
-		// baked one consumer's tracker naming into a shared submodule (§11.4.28).
-		fmt.Printf("%s: %d items, %d segments\n", *issuesPath, len(items), len(segs))
-		total += len(items)
-	}
-	if *fixedPath != "" {
-		content, err := os.ReadFile(*fixedPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "sync md-to-db: read fixed: %v\n", err)
-			return exitUsage
-		}
-		items, segs := parseFixed(string(content))
-		if err := replaceDocumentWithSnapshot(db, "Fixed", items, segs, snap); err != nil {
-			fmt.Fprintf(os.Stderr, "sync md-to-db: persist fixed: %v\n", err)
-			return exitUsage
-		}
-		fmt.Printf("%s: %d items, %d segments\n", *fixedPath, len(items), len(segs))
-		total += len(items)
-	}
-	if *issuesPath == "" && *fixedPath == "" {
-		fmt.Fprintln(os.Stderr, "sync md-to-db: at least one of --issues / --fixed is required")
+	if err := replaceDocumentsAtomic(db, docs, snap, true); err != nil {
+		fmt.Fprintf(os.Stderr, "sync md-to-db: persist (nothing written): %v\n", err)
 		return exitUsage
+	}
+	total := 0
+	for i, d := range docs {
+		// BOB-155: name the file ACTUALLY read, not a hardcoded tracker filename.
+		fmt.Printf("%s: %d items, %d segments\n", paths[i], len(d.items), len(d.segs))
+		total += len(d.items)
 	}
 	fmt.Printf("synced %d total items into %s\n", total, *dbPath)
 	return exitOK
@@ -200,6 +218,12 @@ func validateCmd(args []string) int {
 				it.CurrentLocation, it.repOrDefault(), it.AtmID))
 		}
 		seen[key] = true
+
+		// One round trip (idgrammar.go, CON-456): an item whose rendered
+		// Markdown the parser does not read back as exactly this item (id,
+		// representation, body, carried fields) is dropped or changed by the
+		// next sync md-to-db.
+		violations = append(violations, roundTripProblems(it)...)
 
 		// §11.4.15/21/90 — status closed-set.
 		if !statusSet[it.Status] {

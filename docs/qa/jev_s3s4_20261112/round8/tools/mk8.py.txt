@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""mk8.py <W> <rev_mkmut.py>: the round-8 standing mutant set of scripts/jev/jev-place.sh, rebuilt on the round-8 producer.
+ * the round-7 set: every m(...) of round7/tools/mk7.py.txt (RM, OM, VM, NM, CT) and the three of mk7_extra.py.txt
+   (RM15, OM02x, OM13x), re-applied to the round-8 producer (each edit must still match exactly once);
+ * the round-7 reviewer's mutants OWN01..OWN12 (its mkmut.py; FIX1 is a fix-direction control, not a mutant: left out);
+ * R8M01..R8M05: one per new guard of round 8 (the clock).
+Targets: r7p72 of round 7 is mapped to the full r7 suite (no extract is kept in round 8). OWN and R8M run r8 first.
+Output: <W>/mut/<K>/scripts/jev/* (+ submodules symlink), <W>/mut/index.tsv (key, targets, sha256, description).
+"""
+import sys, os, shutil, hashlib, re
+W, REV = sys.argv[1], sys.argv[2]
+SRC = os.path.join(W, "repo", "scripts", "jev")
+T7 = os.path.join(W, "repo", "docs", "qa", "jev_s3s4_20261112", "round7", "tools")
+orig = open(os.path.join(SRC, "jev-place.sh")).read()
+ALL = {}  # key -> (edits [(a,b)], targets [..], desc)
+
+def norm(ts):
+    out = []
+    for t in ts:
+        t = "r7" if t == "r7p72" else t
+        if t not in out: out.append(t)
+    return out
+
+# 1. round-7 mk7: run its definition part (up to the writer) with our producer as `orig`
+src = open(os.path.join(T7, "mk7.py.txt")).read()
+defs = src.split('os.makedirs(os.path.join(W, "mut"), exist_ok=True)')[0]
+def ns(): # one namespace (globals = locals) so the generators' helper functions see their own M
+    return {"__builtins__": __builtins__, "__name__": "gen", "os": os, "shutil": shutil, "hashlib": hashlib, "re": re,
+            "sys": type("S", (), {"argv": ["gen", W]}), "ORIG": orig}
+loc = ns()
+exec(compile(defs.replace("orig = open(os.path.join(SRC, \"jev-place.sh\")).read()", "orig = ORIG"), "mk7", "exec"), loc)
+for k, (a, b, desc, targets) in loc["M"].items():
+    ALL[k] = ([(a, b)], norm(targets), desc)
+# 2. round-7 mk7_extra
+src = open(os.path.join(T7, "mk7_extra.py.txt")).read()
+defs = src.split("rows = []")[0].replace("orig = open(os.path.join(SRC, \"jev-place.sh\")).read()", "orig = ORIG")
+loc2 = ns()
+exec(compile(defs, "mk7_extra", "exec"), loc2)
+for k, (edits, targets, desc) in loc2["M"].items():
+    ALL[k] = (edits, norm(targets.split(",")), desc)
+# 3. the round-7 reviewer's OWN01..OWN12
+src = open(REV).read()
+defs = src.split("idx = open(")[0].replace('base = open(os.path.join(src_dir, "jev-place.sh")).read()', "base = ORIG")
+loc3 = ns()
+exec(compile(defs, "rev_mkmut", "exec"), loc3)
+for k, (desc, edits) in loc3["M"].items():
+    if k == "FIX1": continue
+    ALL[k] = (edits, ["r8", "r7", "r6", "pl"], "reviewer r7: " + desc)
+# 4. round 8: the clock
+R8 = ["r8", "r7", "r6", "pl"]
+ALL["R8M01"] = ([("  clock_refresh\n  local rc=0;", "  local rc=0;")], R8, "with_lock: the clock is not read again after the lock (NOW frozen at process start, the R7-A defect)")
+ALL["R8M02"] = ([('if [ -n "${JEV_NOW_FILE:-}" ]; then t=', 'if false; then t=')], R8, "clock_now: JEV_NOW_FILE is ignored (the test clock cannot advance)")
+ALL["R8M03"] = ([('  if ! flock -w "$LOCK_TMO" 9; then exec 9>&-; return 4; fi\n', '  clock_refresh\n  if ! flock -w "$LOCK_TMO" 9; then exec 9>&-; return 4; fi\n'),
+                 ("  clock_refresh\n  local rc=0;", "  local rc=0;")], R8, "with_lock: the clock is read BEFORE the lock (a lock wait counts as the time a mark is written)")
+ALL["R8M04"] = ([('  if [ "${JEV_TEST:-}" = "1" ]; then\n    if [ -n "${JEV_NOW_FILE:-}" ]', '  if true; then\n    if [ -n "${JEV_NOW_FILE:-}" ]')], R8, "clock_now: the test clock seams are honoured without JEV_TEST=1")
+ALL["R8M05"] = ([("  case \"$NOW\" in ''|*[!0-9]*) echo \"jev-place: the clock could not be read", "  case \"$NOW\" in __never__) echo \"jev-place: the clock could not be read")], R8, "clock_refresh: an unreadable clock is not refused")
+
+os.makedirs(os.path.join(W, "mut"), exist_ok=True)
+bad = []
+with open(os.path.join(W, "mut", "index.tsv"), "w") as idx:
+    for k, (edits, targets, desc) in ALL.items():
+        mut = orig; ok = True
+        for a, b in edits:
+            n = mut.count(a)
+            if n != 1: bad.append(f"{k}: pattern matched {n} times: {a[:70]!r}"); ok = False; break
+            mut = mut.replace(a, b, 1)
+        if not ok: continue
+        assert mut != orig, k
+        d = os.path.join(W, "mut", k)
+        if os.path.isdir(d): shutil.rmtree(d)
+        os.makedirs(os.path.join(d, "scripts"))
+        shutil.copytree(SRC, os.path.join(d, "scripts", "jev"), symlinks=True)
+        os.symlink(os.path.join(W, "repo", "submodules"), os.path.join(d, "submodules"))
+        p = os.path.join(d, "scripts", "jev", "jev-place.sh")
+        open(p, "w").write(mut); os.chmod(p, 0o755)
+        idx.write(f"{k}\t{','.join(targets)}\t{hashlib.sha256(mut.encode()).hexdigest()}\t{desc}\n")
+for b in bad: print("REFUSED", b, file=sys.stderr)
+print(f"mutants: {len(ALL) - len(bad)} ready, {len(bad)} refused")
+sys.exit(1 if bad else 0)

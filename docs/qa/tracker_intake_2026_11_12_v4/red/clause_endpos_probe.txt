@@ -1,0 +1,3 @@
+endpos-bounded: [32]
+full-text: []
+control needle (real sentence end before s): [3]

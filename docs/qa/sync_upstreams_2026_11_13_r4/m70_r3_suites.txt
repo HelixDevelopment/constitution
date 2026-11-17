@@ -1,0 +1,109 @@
+# M70 on the round-3 tree (bc1a03a5, scripts/ and tests/ from git archive): the round-3 M70 mutant engine (the
+# round-3 harness's own M70 replacement, `if (st.st_mode & 0o170000) != 0o100000:` -> `if False:`, applied to the
+# round-3 engine) run through M70's declared suites (unit, hardening), each with SYNC_ENGINE_PY (and, for the
+# hardening suite, SX_ENGINE) set inside the hermetic wrapper. The same invocation is the one m67_r3_suites.txt
+# proves with a control needle (the round-3 hardening suite fails on the round-3 M66 mutant, so the mutant engine
+# is the one that runs).
+# Result: both suites pass on M70, so M70 survived in round 3 too. Root cause: the only symlink case (unit
+# test_only_our_files, hardening section 7) links the tsv path to a file whose CONTENT the content check refuses
+# anyway, so the file-type check was never the only thing between the case and a PASS.
+
+## m70_r3_unit
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+................
+----------------------------------------------------------------------
+Ran 41 tests in 0.041s
+
+OK
+sync-unit: PASS 41 FAIL 0
+unit rc=0
+
+## m70_r3_hardening
+== sync-hardening (sandbox <scratch>/syncfix4.Jiag/tmp/m70r3h/helix-sync-test.ACsLxI)
+  ok   hooks: control needle: a plain git checkout DOES run a hook here
+  ok   hooks: --apply over ff + follow + advance-pin: exit 0
+  ok   hooks: root fast-forwarded
+  ok   hooks: libs/a followed
+  ok   hooks: vendor/t advanced
+  ok   hooks: no hook ran on any write path
+  ok   ignored, follow path: libs/a not moved
+  ok   ignored, follow path: local file kept
+  ok   ignored, follow path: reason recorded
+  ok   ignored, follow path: ATTENTION exit 4
+  ok   ignored, advance-pin path: libs/a not moved
+  ok   ignored, advance-pin path: local file kept
+  ok   ignored, advance-pin path: nothing staged in the root
+  ok   ignored, advance-pin path: reason recorded
+  ok   ignored, fast-forward path: root not moved
+  ok   ignored, fast-forward path: local file kept
+  ok   ignored, fast-forward path: reason recorded
+  ok   status re-read killed: root not moved
+  ok   status re-read killed: BLIND exit 6
+  ok   status re-read killed: action names it
+  ok   tree changed before the write: root not moved
+  ok   tree changed before the write: blocked
+  ok   tree changed before the write: the user's edit is kept
+  ok   status control needle: without the fault the root fast-forwards
+  ok   inspect status killed: root not moved
+  ok   inspect status killed: dirty-tree (an unread status is never clean)
+  ok   token in URL path: absent from every output
+  ok   token in URL path: the field itself was redacted (backstop found nothing)
+  ok   token in URL path: remote reported unreachable
+  ok   GIT_CONFIG_PARAMETERS: dropped (no core.sshCommand seen)
+  ok   GIT_CONFIG_COUNT/KEY/VALUE: dropped
+  ok   control needle: a real repository core.sshCommand IS seen
+  ok   credential shapes: 'Xq9pwd' absent
+  ok   credential shapes: 'Zz7mark' absent
+  ok   credential shapes: 'cepw0rdmark' absent
+  ok   credential shapes: 'spa cepw' absent
+  ok   credential shapes: 'a@b@c' absent
+  ok   credential shapes: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWX' absent
+  ok   credential shapes: backstop found nothing
+  ok   credential shapes: the token-named remote is still fetched (by its real name)
+  ok   --out with a user's file: usage exit 2
+  ok   --out with a user's file: file untouched
+  ok   --out with a symlinked tsv: usage exit 2
+  ok   --out with a symlinked tsv: target untouched
+  ok   --out with a symlinked tsv: still a symlink
+  ok   --out control: a second run over our own report is allowed
+  ok   no remote: ATTENTION exit 4, never CURRENT
+  ok   no remote: reason no-upstream-main
+  ok   remote without main: ATTENTION exit 4
+  ok   remote without main: reason no-upstream-main
+  ok   moved tag: remote fetch state tag-rejected (the remote answered)
+  ok   moved tag: reason tag-rejected:origin
+  ok   moved tag: never labelled unreachable
+  ok   moved tag: the branch was still fetched and evaluated (behind 1)
+  ok   moved tag: local tag kept (never forced)
+  ok   moved tag: ATTENTION exit 4
+  ok   moved tag, --apply: integration blocked (exit 4), nothing moved
+  ok   M37: the concurrent staging happened (control needle)
+  ok   M37: libs/a never checked out at the staged gitlink
+  ok   M37b: a root that did not move makes no child follow (no follow action at all)
+  ok   M37b: pre-staged gitlink, root not moved: no follow action for libs/a
+  ok   M37b: libs/a not moved
+  ok   extra args: anything but --out is ignored, with a note
+  ok   extra args: --apply smuggled into a check never moved the root
+  ok   extra args: --out /dir is honoured
+sync-hardening: PASS 65 FAIL 0
+hardening rc=0

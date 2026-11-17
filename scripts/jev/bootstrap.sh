@@ -16,6 +16,11 @@
 # $JEV_STATE_DIR/bootstrap.stamp. A second run with unchanged inputs prints
 # "no-change" per stage and rewrites nothing (the stamp is byte-stable: it
 # keeps its first created_at and is replaced only when a digest changes).
+# Stage 3 (detect-models) is the one stage whose input is OUTSIDE this host: its
+# digest includes the CURRENT answer of every endpoint the previous record
+# probed (one memoized probe per endpoint per run, review 2026-11-12 F1), so a
+# change such as credit added (402 -> 200) or lost (200 -> 402) re-runs the stage
+# and rewrites the record; an unchanged answer is still a byte-stable no-change.
 #
 # Consent boundaries (nothing below happens silently). The DEFAULT run, including
 # the post-update hook's --non-interactive run, installs, clones and downloads
@@ -35,7 +40,17 @@
 #     run ONLY with --install-tools / JEV_BOOTSTRAP_INSTALL_TOOLS=1 or an
 #     interactive "y". They link into PATH and edit shell rc files.
 #   - editing agent homes (claude_toolkit scripts/jev-setup.sh) runs ONLY with
-#     --yes / JEV_BOOTSTRAP_CONSENT=1 or an interactive "y".
+#     --yes / JEV_BOOTSTRAP_CONSENT=1 or an interactive "y", OR under DEFAULT-ON
+#     (--default-on / JEV_BOOTSTRAP_DEFAULT_ON=1; the post-update hook passes it):
+#     operator standing order 2026-11-12 (§11.4.66 decision, §11.4.280 dated note).
+#     DEFAULT-ON engages ONLY when a NON-PLACEHOLDER decision key is present (key
+#     variable names from the provider pins: TYPESAFE_API_KEY, OPENROUTER_API_KEY,
+#     LLMCTL_API_KEY; values never printed), and NOT when the opt-out marker
+#     $JEV_CONFIG_DIR/wiring.disabled exists or JEV_WIRING=off. Engaged, it applies
+#     wiring consent and allows cloning claude_toolkit (only that tool) so jev-setup
+#     can run; it is logged loudly, recorded in $JEV_STATE_DIR/consent.json, and
+#     reversible with claude_toolkit `jev-setup --uninstall`. jev-setup keeps backups
+#     and never overwrites a hand-made config (its contract; claude_toolkit owns it).
 #   - a model download (`llmctl models download <profile>`) runs ONLY with
 #     JEV_BOOTSTRAP_DOWNLOAD_PROFILE=<profile> or an interactive "y".
 #
@@ -47,24 +62,30 @@
 #     usage error, or a hard prerequisite such as jq is absent)
 #   3 diverged managed clone (it has local changes; nothing is overwritten)
 #   4 clone fallback refused           (reserved by §11.4.279(G); NOT emitted by this script)
-#   5 completed with honest skips      (reserved by §11.4.279(G); NOT emitted by this script:
-#                                        honest skips are written to the evidence and the
-#                                        pending stamp, exit 0)
-# Emitted deliberately by this version: 0, 2, 3 only. The script runs under `set -euo pipefail`, so an
+#   5 completed with honest skips: decision endpoint(s) DETECTED but the layer is not
+#     serving - "detected, not wired" (no agent wired) or "no usable decision endpoint"
+#     (every detected endpoint answered non-2xx: no_credit / rate_limited / 401 / 403 /
+#     other / timeout). Emitted since 2026-11-12 (S3): before, such a run exited 0 and
+#     printed "detect-models: ok", a false green. No key and nothing detected stays 0.
+#   reachable=true in the record means the endpoint ANSWERED 2xx (usable); a 402 is
+#     recorded reachable=false, auth_status_class=no_credit, usable=false.
+# Emitted deliberately by this version: 0, 2, 3, 5. The script runs under `set -euo pipefail`, so an
 # unguarded command failure (a defect path, not a design) ends it with that command's own status, commonly
 # 1 but possibly any other; such an exit is not one of the documented codes above. The reserved codes stay documented so a caller that
 # maps rc 1/4/5 (the post-update hook does) is not surprised by a later version.
 #
 # Usage:
 #   bootstrap.sh [--non-interactive] [--defer] [--enforce] [--yes]
-#                [--allow-clone] [--install-tools] [--agent <csv>|all]
+#                [--allow-clone] [--install-tools] [--agent <csv>|all] [--default-on]
 #                [--llmctl-ref <ref>] [--toolkit-ref <ref>] [--report-json PATH]
 # Env (names only; values are never printed):
-#   JEV_BOOTSTRAP_NON_INTERACTIVE, JEV_BOOTSTRAP_DEFER, JEV_BOOTSTRAP_CONSENT,
+#   JEV_BOOTSTRAP_NON_INTERACTIVE, JEV_BOOTSTRAP_DEFER, JEV_BOOTSTRAP_CONSENT, JEV_BOOTSTRAP_DEFAULT_ON, JEV_WIRING (off = opt out),
 #   JEV_BOOTSTRAP_ALLOW_CLONE, JEV_BOOTSTRAP_INSTALL_TOOLS, JEV_BOOTSTRAP_DOWNLOAD_PROFILE,
 #   JEV_BOOTSTRAP_MODE (shadow|enforce), JEV_BOOTSTRAP_AGENTS (csv|all),
 #   JEV_BOOTSTRAP_HOME (managed-clone root, default ~/.local/share/helix),
 #   LLMCTL_DIR / CLAUDE_TOOLKIT_DIR (explicit existing checkouts),
+#   JEV_LLMCTL_BIN / JEV_TOOLKIT_BIN (explicit llmctl / claude-providers binary: when set it is the ONLY candidate, no PATH
+#     lookup and no checkout fallback; a value that is not an executable makes the tool ABSENT - the hermetic gate uses this),
 #   JEV_HOME (target home; default $HOME), JEV_STATE_DIR (default <home>/.local/state/jev),
 #   JEV_EVIDENCE_DIR (default <state>/evidence - absolute, NEVER cwd-relative), JEV_CONFIG_DIR (default <home>/.config/jev),
 #   JEV_DETECTION_FILE (SELECTS the detection record; default <evidence>/jev-detection.json),
@@ -125,6 +146,8 @@ DEFER="${JEV_BOOTSTRAP_DEFER:-0}"
 CONSENT="${JEV_BOOTSTRAP_CONSENT:-0}"
 INSTALL_TOOLS="${JEV_BOOTSTRAP_INSTALL_TOOLS:-0}"
 ALLOW_CLONE="${JEV_BOOTSTRAP_ALLOW_CLONE:-0}"
+DEFAULT_ON="${JEV_BOOTSTRAP_DEFAULT_ON:-0}"
+WIRE_CONSENT=0   # set by DEFAULT-ON (standing order 2026-11-12); separate from CONSENT so it never implies tool installers
 DOWNLOAD_PROFILE="${JEV_BOOTSTRAP_DOWNLOAD_PROFILE:-}"
 MODE="${JEV_BOOTSTRAP_MODE:-shadow}"
 AGENTS="${JEV_BOOTSTRAP_AGENTS:-all}"
@@ -142,6 +165,7 @@ while [ $# -gt 0 ]; do
     --enforce)         MODE="enforce"; shift ;;
     --yes)             CONSENT=1; shift ;;
     --allow-clone)     ALLOW_CLONE=1; shift ;;
+    --default-on)      DEFAULT_ON=1; shift ;;
     --install-tools)   INSTALL_TOOLS=1; shift ;;
     --agent|--agents)  need_val $# "$1"; AGENTS="$2"; shift 2 ;;
     --llmctl-ref)      need_val $# "$1"; LLMCTL_REF_OVERRIDE="$2"; shift 2 ;;
@@ -290,6 +314,8 @@ provision_tool() { # provision_tool <tool> <ENVDIR_VAR> <ref-override>
   local url path="" source="" ref head="" ref_status="unpinned" installer="not-run" reason=""
   local may_net=0
   { [ "$ALLOW_CLONE" = "1" ] || [ "$CONSENT" = "1" ]; } && may_net=1
+  # DEFAULT-ON wiring needs a claude_toolkit checkout (jev-setup lives there); it never clones llmctl
+  { [ "$WIRE_CONSENT" = "1" ] && [ "$tool" = "claude_toolkit" ]; } && may_net=1
 
   url="$(manifest_field "$tool" ssh_url)" || exit 2
   [ -n "$url" ] || url="git@github.com:vasic-digital/$tool.git"
@@ -416,16 +442,68 @@ probe_http() {
   if [ -n "$c" ] && [ "$c" != "000" ]; then echo true; else echo false; fi
 }
 
+# Memoized probes (review 2026-11-12 F1): the stage-3 key re-probes the endpoints of the previous record BEFORE the
+# stage decides "no-change"; the stage then reuses the same answer, so every endpoint is probed at most ONCE per run.
+probe_http_memo() { # same contract as probe_http
+  local k r; k="h|$1|${2:-}"
+  r="$(awk -F'\t' -v k="$k" '$1==k{print $2; exit}' "$WORK/probe_memo.tsv" 2>/dev/null)"
+  if [ -z "$r" ]; then r="$(probe_http "$1" "${2:-}")"; printf '%s\t%s\n' "$k" "$r" >> "$WORK/probe_memo.tsv"; fi
+  printf '%s\n' "$r"
+}
+auth_probe_memo() { # same contract as auth_probe <VAR> <url> [model] [ca]
+  local k r; k="a|$1|$2|${3:-}|${4:-}"
+  r="$(awk -F'\t' -v k="$k" '$1==k{print $2; exit}' "$WORK/probe_memo.tsv" 2>/dev/null)"
+  if [ -z "$r" ]; then r="$(auth_probe "$1" "$2" "${3:-}" "${4:-}")"; printf '%s\t%s\n' "$k" "$r" >> "$WORK/probe_memo.tsv"; fi
+  printf '%s\n' "$r"
+}
+
 # shellcheck source=lib_keys.sh
 . "$SCRIPT_DIR/lib_keys.sh"
 # shellcheck source=lib_decide.sh
 . "$SCRIPT_DIR/lib_decide.sh"
 KEYS_FILE="$(jev_keys_file)"
 
+# ---- DEFAULT-ON wiring decision (operator standing order 2026-11-12, §11.4.66; §11.4.280 dated note) ----
+# Engages ONLY with a NON-PLACEHOLDER key for a pinned decision variable (names only; never a value), and never when the
+# operator opted out. The decision and its basis are recorded in consent.json and logged loudly (never silent).
+CONSENT_FILE="$JEV_STATE_DIR/consent.json"
+OPTED_OUT=""   # an explicit operator opt-out: the final verdict then reports "not wired, opted out" with rc 0, never a false "serving"
+if [ -f "$JEV_CONFIG_DIR/wiring.disabled" ]; then OPTED_OUT="marker $JEV_CONFIG_DIR/wiring.disabled"; elif [ "${JEV_WIRING:-on}" = "off" ]; then OPTED_OUT="JEV_WIRING=off"; fi
+DO_ENGAGED=false; DO_WHY="not requested (no --default-on)"; DO_KEYVARS=""
+if [ "$DEFAULT_ON" = "1" ]; then
+  _do_vars="TYPESAFE_API_KEY OPENROUTER_API_KEY LLMCTL_API_KEY"
+  if [ -n "${CMA_JEV_PINS_FILE:-}" ] && [ -f "$CMA_JEV_PINS_FILE" ] && [ "$HAVE_JQ" = "1" ]; then
+    _do_vars="$(jq -r '[((.hosted // {})[] | .key_var // empty), (.local_gateway.key_var // empty)] | unique | join(" ")' "$CMA_JEV_PINS_FILE" 2>/dev/null || echo "$_do_vars")"
+  fi
+  for _dv in $_do_vars; do
+    [ "$(key_state "$_dv" | cut -f1)" = "real" ] && DO_KEYVARS="${DO_KEYVARS:+$DO_KEYVARS,}$_dv"
+  done
+  if [ -f "$JEV_CONFIG_DIR/wiring.disabled" ]; then
+    DO_WHY="opt-out marker $JEV_CONFIG_DIR/wiring.disabled present"
+  elif [ "${JEV_WIRING:-on}" = "off" ]; then
+    DO_WHY="JEV_WIRING=off"
+  elif [ -z "$DO_KEYVARS" ]; then
+    DO_WHY="no non-placeholder decision key present (checked: $_do_vars)"
+  else
+    DO_ENGAGED=true; WIRE_CONSENT=1
+    DO_WHY="non-placeholder key(s) present: $DO_KEYVARS"
+  fi
+  if [ "$DO_ENGAGED" = "true" ]; then
+    log "" "  DEFAULT-ON: wiring the Jev hook + MCP at user level for agents=$AGENTS ($DO_WHY; operator standing order 2026-11-12)."
+    log "" "  DEFAULT-ON: undo with claude_toolkit 'jev-setup --uninstall'; opt out with: touch $JEV_CONFIG_DIR/wiring.disabled (or JEV_WIRING=off)."
+  else
+    log "" "  default-on not engaged: $DO_WHY"
+  fi
+  jq -nc --argjson eng "$DO_ENGAGED" --arg why "$DO_WHY" --arg kv "$DO_KEYVARS" --arg agents "$AGENTS" --arg marker "$JEV_CONFIG_DIR/wiring.disabled" \
+    '{consent:{default_on:$eng, basis:"operator-standing-order-2026-11-12", reason:$why, key_vars:($kv | split(",") | map(select(length>0))), agents:$agents, opt_out_marker:$marker, undo:"claude_toolkit scripts/jev-setup.sh --uninstall"}}' \
+    | atomic_write "$CONSENT_FILE"
+fi
+WIRED_NOW=0
+
 # ============================================================== STAGES ====
 
 # ---- Stage 1: detect-tools (pre-flight) ----
-S1_KEY="v$VERSION|$MODE|$AGENTS|$JEV_CONSTITUTION_ROOT|jq=$HAVE_JQ|consent=$CONSENT|clone=$ALLOW_CLONE|install=$INSTALL_TOOLS|dl=$DOWNLOAD_PROFILE"
+S1_KEY="v$VERSION|$MODE|$AGENTS|$JEV_CONSTITUTION_ROOT|jq=$HAVE_JQ|consent=$CONSENT|wire=$WIRE_CONSENT|clone=$ALLOW_CLONE|install=$INSTALL_TOOLS|dl=$DOWNLOAD_PROFILE"
 if [ "$HAVE_JQ" = "0" ]; then
   echo "jev-bootstrap: jq is a hard prerequisite (JSON parsing) and is absent; cannot determine (rc 2)." >&2
   printf '{"pending_at":%s,"reason":"missing-prerequisite:jq","version":"%s"}\n' "$NOW" "$VERSION" | atomic_write "$PENDING_FILE"
@@ -449,7 +527,7 @@ fi
 # ---- Stage 2: provision (llmctl + claude_toolkit) ----
 S2_REF_LLMCTL="$(manifest_field llmctl ref)" || exit 2
 S2_REF_TOOLKIT="$(manifest_field claude_toolkit ref)" || exit 2
-S2_KEY="prov|${LLMCTL_DIR:-}|${CLAUDE_TOOLKIT_DIR:-}|${LLMCTL_REF_OVERRIDE}|${TOOLKIT_REF_OVERRIDE}|install=$INSTALL_TOOLS|clone=$ALLOW_CLONE|consent=$CONSENT|$JEV_BOOTSTRAP_HOME|$S2_REF_LLMCTL|$S2_REF_TOOLKIT|sm=$({ ls -d "$JEV_CONSTITUTION_ROOT"/submodules/llmctl "$JEV_CONSTITUTION_ROOT"/submodules/claude_toolkit 2>/dev/null || true; } | tr '\n' ',')"
+S2_KEY="prov|${LLMCTL_DIR:-}|${CLAUDE_TOOLKIT_DIR:-}|${LLMCTL_REF_OVERRIDE}|${TOOLKIT_REF_OVERRIDE}|install=$INSTALL_TOOLS|clone=$ALLOW_CLONE|consent=$CONSENT|wire=$WIRE_CONSENT|$JEV_BOOTSTRAP_HOME|$S2_REF_LLMCTL|$S2_REF_TOOLKIT|sm=$({ ls -d "$JEV_CONSTITUTION_ROOT"/submodules/llmctl "$JEV_CONSTITUTION_ROOT"/submodules/claude_toolkit 2>/dev/null || true; } | tr '\n' ',')"
 if stage_begin 2 "provision" "$S2_KEY"; then
   rm -f "$WORK"/prov.*.json
   PROV_UNAVAILABLE=0
@@ -468,9 +546,17 @@ TOOL_PROVENANCE=""
 
 # ---- Stage 3: detect-models ----
 LLMCTL_BIN=""; TOOLKIT_BIN=""
-if command -v llmctl >/dev/null 2>&1; then LLMCTL_BIN="llmctl"
+# An explicit JEV_LLMCTL_BIN / JEV_TOOLKIT_BIN is the ONLY candidate (round 4, review R3-2 nit): a real binary elsewhere on
+# PATH can never win over it, and a value that is not an executable means "absent" (logged, never a silent fallback).
+if [ -n "${JEV_LLMCTL_BIN:-}" ]; then
+  if [ -f "$JEV_LLMCTL_BIN" ] && [ -x "$JEV_LLMCTL_BIN" ]; then LLMCTL_BIN="$JEV_LLMCTL_BIN"
+  else log "" "  JEV_LLMCTL_BIN is set but is not an executable file: llmctl treated as absent"; fi
+elif command -v llmctl >/dev/null 2>&1; then LLMCTL_BIN="llmctl"
 elif [ -n "$(tool_path llmctl)" ] && [ -x "$(tool_path llmctl)/bin/llmctl" ]; then LLMCTL_BIN="$(tool_path llmctl)/bin/llmctl"; fi
-if command -v claude-providers >/dev/null 2>&1; then TOOLKIT_BIN="claude-providers"
+if [ -n "${JEV_TOOLKIT_BIN:-}" ]; then
+  if [ -f "$JEV_TOOLKIT_BIN" ] && [ -x "$JEV_TOOLKIT_BIN" ]; then TOOLKIT_BIN="$JEV_TOOLKIT_BIN"
+  else log "" "  JEV_TOOLKIT_BIN is set but is not an executable file: claude-providers treated as absent"; fi
+elif command -v claude-providers >/dev/null 2>&1; then TOOLKIT_BIN="claude-providers"
 elif [ -n "$(tool_path claude_toolkit)" ] && [ -x "$(tool_path claude_toolkit)/scripts/claude-providers.sh" ]; then TOOLKIT_BIN="$(tool_path claude_toolkit)/scripts/claude-providers.sh"; fi
 
 # Read-only inputs, gathered BEFORE the stage key so a model started later
@@ -515,13 +601,13 @@ fi
 if [ "$PINS_SOURCE" = "file" ]; then export JEV_PINS_FILE="$PINS_FILE"; else unset JEV_PINS_FILE CMA_JEV_PINS_FILE; fi
 KEY_SIG=""; KEY_ROWS=""   # KEY_ROWS: "<key_var>\t<state>\t<reason>" (names and classes only)
 KEYS_MODE=""; KEYS_PERMS_WARN=false
-while IFS=$'\t' read -r _k _n _v _u _m _p; do
+while IFS=$'\x1f' read -r _k _n _v _u _m _p; do
   [ -n "$_n" ] || continue
   [ -n "$_v" ] || continue
   _st="$(key_state "$_v")"; _state="${_st%%$'\t'*}"; _reason=""; case "$_st" in *$'\t'*) _reason="${_st#*$'\t'}";; esac
   KEY_ROWS="${KEY_ROWS}${_v}"$'\t'"${_state}"$'\t'"${_reason}"$'\n'
   KEY_SIG="${KEY_SIG}${_v}=${_state};"
-done <<< "$PIN_VARS"
+done <<<"${PIN_VARS//$'\t'/$'\x1f'}"
 if [ -e "$KEYS_FILE" ]; then
   KEYS_MODE="$(keys_file_mode)"
   case "$KEYS_MODE" in ""|*[!0-7]*) ;; *) [ $(( 8#$KEYS_MODE & 8#077 )) -ne 0 ] && KEYS_PERMS_WARN=true ;; esac
@@ -531,7 +617,36 @@ fi
 LLM_STATUS_KEY="$(printf '%s' "$LLM_STATUS" | jq -c '{g:(.gateway.running // false), gu:((.gateway.detail // "") | [scan("https?://[^ \")]+")] | first // ""), gb:(.gateway.base_url // ""),
     p:[.profiles[]? | {profile, running}], r:[.registry.services[]? | {name, healthy, url, k:(.labels.kind // ""), pf:(.labels.profile // ""), ca:(.labels.ca_file // "")}]}' 2>/dev/null || printf '%s' "$LLM_STATUS")"
 LLM_CAP_KEY="$(printf '%s' "$LLM_CAP" | jq -c '(.decision_instances // {}) | if type == "object" then map_values({protocol, s:.effective_slots_per_instance}) else . end' 2>/dev/null || printf '%s' "$LLM_CAP")"
-s3_key() { printf '%s' "det|bin=${LLMCTL_BIN:+1}${TOOLKIT_BIN:+t}|st=$LLM_STATUS_KEY|cap=$LLM_CAP_KEY|cache=$CACHE_BODY|dl=$DOWNLOAD_PROFILE|keys=$KEY_SIG|kperm=$KEYS_PERMS_WARN|hp=${JEV_HOSTED_PROBE:-1}|gwenv=${LLMCTL_ENDPOINT:-}:${LLMCTL_DECIDE_PORT:-}:${LLMCTL_CACERT:-}|$TOOL_PROVENANCE"; }
+# PROBE_SIG (review 2026-11-12 F1; round 3 R2-1/X1): the CURRENT answer CLASS of every endpoint a detection record
+# probed (auth: 2xx / no_credit / 401 / ... ; health: true / false / null). Without it the key held the key STATE only,
+# so a credit change was never seen after the first run. Hosted / toolkit-cache endpoints are re-probed with the same
+# authenticated call (key on stdin, class only); local endpoints with the same unauthenticated healthz GET.
+# Two rules keep §11.4.281(C) idempotency: (1) the signature is a function of the probe OUTCOMES only (never of
+# timestamps), and (2) after stage 3 writes a new record the stored stage key is re-computed from THAT record (the
+# probes are memoised, so no extra call), so the next run computes the same key whether or not this run started with a
+# record. Fields are joined with \x1f, never TAB: TAB is IFS whitespace and `read` collapses empty TAB fields, which
+# silently dropped every local health row (round 3, X1).
+compute_probe_sig() { # compute_probe_sig <detection-record> -> signature on stdout ("" when nothing was probed)
+  local f="$1" sig="" _pid _pkind _pkv _purl _ppath _pmodel _pca
+  [ "${JEV_HOSTED_PROBE:-1}" != "0" ] || return 0
+  [ -f "$f" ] && jq -e '.endpoints | type == "array"' "$f" >/dev/null 2>&1 || return 0
+  while IFS=$'\x1f' read -r _pid _pkind _pkv _purl _ppath _pmodel _pca; do
+    [ -n "$_pid" ] && [ -n "$_purl" ] || continue
+    case "$_pkind" in
+      auth) [ -n "$_pkv" ] || continue
+            case "$_purl" in https://*) ;; *) continue ;; esac
+            [ "$(key_state "$_pkv" | cut -f1)" = "real" ] || { sig="${sig}${_pid}=key-not-real;"; continue; }
+            sig="${sig}${_pid}=$(auth_probe_memo "$_pkv" "${_purl%/}${_ppath:-/v1/systemone}" "$_pmodel");" ;;
+      health) sig="${sig}${_pid}=$(probe_http_memo "${_purl%/}/healthz" "$_pca");" ;;
+    esac
+  done < <(jq -r '.endpoints[] | select((.reachable_basis // "") == "probe")
+      | if ((.auth_status_class // "") != "") then [.id, "auth", (.key_var // ""), (.url // ""), (.probe_path // "/v1/systemone"), (.model // ""), ""]
+        elif .source == "local-llmctl" then [.id, "health", "", (.url // ""), "", "", (.ca_file // "")]
+        else empty end | map(tostring) | join("\u001f")' "$f" 2>/dev/null)
+  printf '%s' "$sig"
+}
+PROBE_SIG="$(compute_probe_sig "$DETECTION_FILE")"
+s3_key() { printf '%s' "det|bin=${LLMCTL_BIN:+1}${TOOLKIT_BIN:+t}|st=$LLM_STATUS_KEY|cap=$LLM_CAP_KEY|cache=$CACHE_BODY|dl=$DOWNLOAD_PROFILE|keys=$KEY_SIG|kperm=$KEYS_PERMS_WARN|hp=${JEV_HOSTED_PROBE:-1}|gwenv=${LLMCTL_ENDPOINT:-}:${LLMCTL_DECIDE_PORT:-}:${LLMCTL_CACERT:-}|$TOOL_PROVENANCE|probe=$PROBE_SIG"; }
 S3_KEY="$(s3_key)"
 if stage_begin 3 "detect-models" "$S3_KEY"; then
   # Refresh the toolkit endpoint cache (hosted/LAN pins: key var NAMES only).
@@ -564,7 +679,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
   if [ -z "$gw_url" ]; then gw_url="https://127.0.0.1:8095"; gw_basis="llmctl-default-port"; fi
   [ -n "$gw_ca" ] || gw_ca="${LLMCTL_CACERT:-}"
   # `running` in llmctl means SCHEDULER-MANAGED; it does not mean reachable. Probe the gateway.
-  if [ "$gw_running" = "true" ]; then gw_reach="$(probe_http "${gw_url%/}/healthz" "$gw_ca")"; else gw_reach="false"; fi
+  if [ "$gw_running" = "true" ]; then gw_reach="$(probe_http_memo "${gw_url%/}/healthz" "$gw_ca")"; else gw_reach="false"; fi
   excluded_notes=""
   proto_of() { printf '%s' "$LLM_CAP" | jq -r --arg p "$1" '.decision_instances[$p].protocol // ""' 2>/dev/null || true; }
   # Local decision instances: (a) decide profiles the scheduler reports running; (b) decide services llmctl's
@@ -580,7 +695,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
       par="$(printf '%s' "$LLM_CAP" | jq -r --arg p "$prof" '.decision_instances[$p].effective_slots_per_instance // 1' 2>/dev/null || echo 1)"
       printf 'llmctl-%s\tlocal-llmctl\t%s\t%s\t%s\t%s\t%s\t%s\n' "$prof" "$prof" "$gw_reach" "$par" "$gw_url" "$gw_basis" "$gw_ca" >> "$WORK/endpoints.tsv"
   done < <(printf '%s' "$LLM_STATUS" | jq -r '.profiles[]? | select(.running == true) | .profile' 2>/dev/null)
-  while IFS=$'\t' read -r rname rprof rurl rproto; do
+  while IFS=$'\x1f' read -r rname rprof rurl rproto; do
       [ -n "$rname" ] || continue
       if grep -q "^llmctl-${rprof}	" "$WORK/endpoints.tsv" 2>/dev/null; then continue; fi
       if [ "$rproto" = "jev-verdict" ]; then
@@ -588,8 +703,8 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
         continue
       fi
       par="$(printf '%s' "$LLM_CAP" | jq -r --arg p "$rprof" '.decision_instances[$p].effective_slots_per_instance // 1' 2>/dev/null || echo 1)"
-      printf 'llmctl-%s\tlocal-llmctl\t%s\t%s\t%s\t%s\t%s\t\n' "$rprof" "$rprof" "$(probe_http "${rurl%/}/healthz" "")" "$par" "$rurl" "llmctl-registry-health" >> "$WORK/endpoints.tsv"
-  done < <(jev_decide_services "$LLM_STATUS" "$LLM_CAP")
+      printf 'llmctl-%s\tlocal-llmctl\t%s\t%s\t%s\t%s\t%s\t\n' "$rprof" "$rprof" "$(probe_http_memo "${rurl%/}/healthz" "")" "$par" "$rurl" "llmctl-registry-health" >> "$WORK/endpoints.tsv"
+  done < <(jev_decide_services "$LLM_STATUS" "$LLM_CAP" | tr '\t' '\037')
   if [ -n "$CACHE_BODY" ]; then
     # reachable is UNKNOWN from the cache (it records resolution, not a probe): null.
     jq -r '.endpoints[]? | [.provider_id, "toolkit-cache", (.model // "jev-latest"), "null", "1", (.base_url // ""), "resolution-only", "", (.key_var // "")] | @tsv' "$CACHE" \
@@ -608,27 +723,27 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
   # Toolkit-cache endpoints record resolution only (reachable=null). When their key variable holds a REAL key,
   # prove reachability with a minimal authenticated probe (HTTP class only) so a GREEN detection means "answers".
   if [ "${JEV_HOSTED_PROBE:-1}" != "0" ]; then
-    while IFS=$'\t' read -r _cid _ckv _curl _cmodel; do
+    while IFS=$'\x1f' read -r _cid _ckv _curl _cmodel; do
       [ -n "$_cid" ] && [ -n "$_ckv" ] && [ -n "$_curl" ] || continue
       case "$_curl" in https://*) ;; *) continue ;; esac
       [ "$(key_state "$_ckv" | cut -f1)" = "real" ] || continue
       _cpath="$(jq -r --arg kv "$_ckv" '[(.hosted // {})[] | select(.key_var == $kv) | .systemone_path][0] // "/v1/systemone"' "$PINS_FILE" 2>/dev/null || echo /v1/systemone)"
-      _ccls="$(auth_probe "$_ckv" "${_curl%/}${_cpath}" "$_cmodel")"
-      case "$_ccls" in timeout) _creach=false ;; unavailable|refused) _creach=null ;; *) _creach=true ;; esac
+      _ccls="$(auth_probe_memo "$_ckv" "${_curl%/}${_cpath}" "$_cmodel")"
+      case "$_ccls" in 2xx) _creach=true ;; unavailable|refused) _creach=null ;; *) _creach=false ;; esac   # reachable = answered 2xx ONLY (S3)
       endpoints_json="$(jq -c --arg id "$_cid" --arg cls "$_ccls" --arg r "$_creach" --arg pp "$_cpath" \
         'map(if .id == $id then . + {reachable:(if $r=="true" then true elif $r=="false" then false else null end), auth_status_class:$cls, probe_path:$pp,
                                      reachable_basis:(if $r=="null" then "probe-unavailable" else "probe" end)} else . end)' <<<"$endpoints_json")"
-    done < <(printf '%s' "$endpoints_json" | jq -r '.[] | select(.source == "toolkit-cache" and (.key_var // "") != "") | [.id, .key_var, (.url // ""), .model] | @tsv')
+    done < <(printf '%s' "$endpoints_json" | jq -r '.[] | select(.source == "toolkit-cache" and (.key_var // "") != "") | [.id, .key_var, (.url // ""), .model] | @tsv' | tr '\t' '\037')
   fi
   # Hosted endpoints discovered through the operator's keys file (key variable NAMES from the provider pins).
   hosted_json="[]"; key_vars_json="[]"; key_notes=""
   if [ -n "$KEY_ROWS" ]; then
-    while IFS=$'\t' read -r _kv _state _reason; do
+    while IFS=$'\x1f' read -r _kv _state _reason; do
       [ -n "$_kv" ] || continue
       key_vars_json="$(jq -c --arg v "$_kv" --arg s "$_state" --arg r "$_reason" '. + [{key_var:$v, state:$s} + (if $r != "" then {reason:$r} else {} end)]' <<<"$key_vars_json")"
       if [ "$_state" != "real" ]; then key_notes="${key_notes:+$key_notes; }$_kv $_state${_reason:+ ($_reason)}"; fi
-    done <<< "$KEY_ROWS"
-    while IFS=$'\t' read -r _k _n _v _u _m _p; do
+    done <<<"${KEY_ROWS//$'\t'/$'\x1f'}"
+    while IFS=$'\x1f' read -r _k _n _v _u _m _p; do
       [ "$_k" = "hosted" ] || continue
       [ -n "$_v" ] && [ -n "$_u" ] || continue
       _st="$(printf '%s' "$KEY_ROWS" | awk -F'\t' -v v="$_v" '$1==v{print $2; exit}')"
@@ -641,20 +756,33 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
       fi
       if [ "${JEV_HOSTED_PROBE:-1}" = "0" ]; then _cls="not-probed"; _reach="null"
       else
-        _cls="$(auth_probe "$_v" "${_u%/}${_p}" "$_m")"
-        case "$_cls" in timeout) _reach="false" ;; unavailable|refused) _reach="null" ;; *) _reach="true" ;; esac
+        _cls="$(auth_probe_memo "$_v" "${_u%/}${_p}" "$_m")"
+        case "$_cls" in 2xx) _reach="true" ;; unavailable|refused) _reach="null" ;; *) _reach="false" ;; esac   # 2xx only (S3)
       fi
       # where the key REALLY came from (review round 2, N1): the process environment wins over the keys file
       # (lib_keys.sh _jev_key_value), so a variable set in the environment is labelled `environment`, never `api-keys-file`
       if [ -n "${!_v:-}" ]; then _src="environment"; else _src="api-keys-file"; fi
-      hosted_json="$(jq -c --arg id "hosted-$_n" --arg m "$_m" --arg u "$_u" --arg kv "$_v" --arg cls "$_cls" --arg r "$_reach" --arg src "$_src" --argjson now "$NOW" \
+      hosted_json="$(jq -c --arg id "hosted-$_n" --arg m "$_m" --arg u "$_u" --arg kv "$_v" --arg cls "$_cls" --arg r "$_reach" --arg src "$_src" --arg pp "$_p" --argjson now "$NOW" \
         '. + [{id:$id, source:$src, model:$m, reachable:(if $r=="true" then true elif $r=="false" then false else null end),
-               parallel:1, probed_at:$now, reason:null, url:$u, key_var:$kv, auth_status_class:$cls,
+               parallel:1, probed_at:$now, reason:null, url:$u, key_var:$kv, auth_status_class:$cls, probe_path:$pp,
                reachable_basis:(if $r=="null" then "probe-unavailable" else "probe" end)}]' <<<"$hosted_json")"
-    done <<< "$PIN_VARS"
+    done <<<"${PIN_VARS//$'\t'/$'\x1f'}"
     endpoints_json="$(jq -c --argjson h "$hosted_json" '. + $h' <<<"$endpoints_json")"
   fi
+  # usable = answered 2xx (hosted) / healthz answered (local). Probed non-2xx endpoints carry the class as unusable_reason.
+  endpoints_json="$(jq -c 'map(. + {usable:(.reachable == true)} + (if .reachable == false and (.auth_status_class // "") != "" then {unusable_reason:.auth_status_class} else {} end))' <<<"$endpoints_json")"
   endpoints_count="$(printf '%s' "$endpoints_json" | jq 'length')"
+  usable_count="$(printf '%s' "$endpoints_json" | jq '[.[] | select(.usable == true)] | length')"
+  # proven unusable = probed and answered non-2xx (reachable == false); an unprobed endpoint (reachable == null) is UNKNOWN, not unusable
+  unusable_count="$(printf '%s' "$endpoints_json" | jq '[.[] | select(.reachable == false)] | length')"
+  while IFS=$'\x1f' read -r _uid _ucls; do
+    [ -n "$_uid" ] || continue
+    case "$_ucls" in
+      no_credit) log "" "  WARNING: $_uid answered HTTP 402 no_credit: the account has no credit; this endpoint cannot serve decisions" ;;
+      rate_limited) log "" "  WARNING: $_uid answered HTTP 429 rate_limited: not usable right now" ;;
+      *) log "" "  WARNING: $_uid is not usable (probe class $_ucls)" ;;
+    esac
+  done < <(printf '%s' "$endpoints_json" | jq -r '.[] | select(.usable == false and (.auth_status_class // "") != "") | [.id, .auth_status_class] | @tsv' | tr '\t' '\037')
   key_discovery_json="$(jq -nc --arg f "$KEYS_FILE" --argjson vars "$key_vars_json" --arg mode "$KEYS_MODE" --argjson warn "$KEYS_PERMS_WARN" --arg pins "$PINS_FILE" --arg psrc "$PINS_SOURCE" --argjson present "$([ -e "$KEYS_FILE" ] && echo true || echo false)" \
       '{keys_file:$f, keys_file_present:$present, keys_file_mode:(if $mode == "" then null else $mode end), perms_warning:$warn, pins_file:(if $psrc == "file" then $pins else null end), pins_source:$psrc, vars:$vars}')"
   if [ "$KEYS_PERMS_WARN" = "true" ]; then
@@ -693,7 +821,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
       fi
     fi
   else
-    printf '%s' "$endpoints_json" | jq -r '.[] | "  endpoint: \(.id) (source=\(.source) model=\(.model) reachable=\(.reachable))"' | while IFS= read -r l; do log "" "$l"; done
+    printf '%s' "$endpoints_json" | jq -r '.[] | "  endpoint: \(.id) (source=\(.source) model=\(.model) reachable=\(.reachable) usable=\(.usable)\(if .auth_status_class then " class=" + .auth_status_class else "" end))"' | while IFS= read -r l; do log "" "$l"; done
   fi
   reason_json="null"
   [ -n "$absence_reason" ] && reason_json="$(json_escape "$absence_reason")"
@@ -701,7 +829,17 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
   printf '{"version":1,"generated_at":%s,"endpoints":%s,"reason":%s,"capacity":{"instances":%s,"decision_instances":%s,"parallel_total":%s},"key_discovery":%s,"tools":{%s}}\n' \
     "$NOW" "$endpoints_json" "$reason_json" "${endpoints_count:-0}" "${endpoints_count:-0}" "$par_total" "$key_discovery_json" "$TOOL_PROVENANCE" \
     | jq -c '.' | atomic_write "$DETECTION_FILE"
-  stage_commit 3 "detect-models" "ok endpoints=${endpoints_count:-0}"
+  # Round 3 (R2-1): store the key the NEXT run will compute from the record just written (memoised probes, no new call).
+  PROBE_SIG="$(compute_probe_sig "$DETECTION_FILE")"
+  awk -F'\t' -v n="detect-models" -v k="$(digest "$(s3_key)")" 'BEGIN{OFS="\t"} $1==n && $2!="tainted-retry"{$2=k} {print}' "$WORK/new.tsv" > "$WORK/new.tsv.t" && mv "$WORK/new.tsv.t" "$WORK/new.tsv"
+  if [ "${endpoints_count:-0}" -gt 0 ] && [ "${unusable_count:-0}" -eq "${endpoints_count:-0}" ]; then
+    # no stage_taint: §11.4.281 requires a byte-stable second run. The NEXT run re-probes every endpoint of this record before
+    # its stage key is computed (PROBE_SIG), so credit added later re-runs this stage and rewrites the record; the RESULT verdict
+    # below is recomputed on every run from the record. jev-status.sh makes no probe; jev-probe.sh only sets its exit code.
+    stage_commit 3 "detect-models" "degraded endpoints=${endpoints_count:-0} usable=0"
+  else
+    stage_commit 3 "detect-models" "ok endpoints=${endpoints_count:-0} usable=${usable_count:-0}"
+  fi
 fi
 
 # ---- Stage 4: install-per-agent ----
@@ -712,7 +850,7 @@ CHECK_OUT=""; CHECK_RC=0
 if [ -n "$TK_SETUP" ]; then
   CHECK_OUT="$(jb__scrubbed bash "$TK_SETUP" --check --agents "$AGENTS" 2>&1)" || CHECK_RC=$?
 fi
-S4_KEY="agents|$AGENTS|consent=$CONSENT|setup=${TK_SETUP:+1}|rc=$CHECK_RC|$CHECK_OUT"
+S4_KEY="agents|$AGENTS|consent=$CONSENT|wire=$WIRE_CONSENT|setup=${TK_SETUP:+1}|rc=$CHECK_RC|$CHECK_OUT"
 if stage_begin 4 "install-per-agent" "$S4_KEY"; then
   if [ -z "$TK_SETUP" ]; then
     log "" "  SKIP wiring: claude_toolkit scripts/jev-setup.sh unavailable (no toolkit checkout)"
@@ -720,7 +858,7 @@ if stage_begin 4 "install-per-agent" "$S4_KEY"; then
     stage_commit 4 "install-per-agent" "skipped toolkit-unavailable"
   elif [ "$CHECK_RC" = "0" ]; then
     stage_commit 4 "install-per-agent" "ok already-wired (jev-setup --check clean)"
-  elif [ "$CONSENT" != "1" ]; then
+  elif [ "$CONSENT" != "1" ] && [ "$WIRE_CONSENT" != "1" ]; then
     log "" "  wiring not applied: consent not given. jev-setup --check reported:"
     printf '%s\n' "$CHECK_OUT" | while IFS= read -r l; do log "" "    $l"; done
     log "" "  apply with: bootstrap.sh --yes   (or JEV_BOOTSTRAP_CONSENT=1)"
@@ -728,8 +866,10 @@ if stage_begin 4 "install-per-agent" "$S4_KEY"; then
     stage_commit 4 "install-per-agent" "pending-consent"
   else
     setup_rc=0
+    [ "$WIRE_CONSENT" = "1" ] && [ "$CONSENT" != "1" ] && log "" "  DEFAULT-ON: wiring agents=$AGENTS now (standing order 2026-11-12; undo: jev-setup --uninstall)"
     jb__scrubbed bash "$TK_SETUP" --agents "$AGENTS" --yes >"$WORK/setup.out" 2>&1 || setup_rc=$?
     if [ "$setup_rc" = "0" ]; then
+      WIRED_NOW=1
       stage_commit 4 "install-per-agent" "ok wired agents=$AGENTS"
     else
       tail -n 5 "$WORK/setup.out" | while IFS= read -r l; do log "" "    $l"; done
@@ -751,7 +891,7 @@ S5_STORED="$(jev_env_get "$ENV_FILE" JEV_MODE || true)"   # last assignment wins
 S5_MCP="$(jev_mcp_modes | cut -f2 | sort -u | paste -sd, - || true)"
 S5_REQ="$MODE"; [ "$S5_STORED" = "enforce" ] && S5_REQ="enforce"
 S5_EFF="shadow"; S5_WHY="unknown"
-IFS=$'\t' read -r S5_EFF S5_WHY < <(jev_effective_mode "$S5_REQ" "" "$DETECTION_FILE") || true
+IFS=$'\x1f' read -r S5_EFF S5_WHY < <(jev_effective_mode "$S5_REQ" "" "$DETECTION_FILE" | tr '\t' '\037') || true
 [ "$S5_EFF" = "enforce" ] || S5_EFF="shadow"
 S5_KEY="cfg|$MODE|req=$S5_REQ|eff=$S5_EFF|why=$S5_WHY|drift=$([ -n "$S5_STORED" ] && [ "$S5_STORED" != "$S5_EFF" ] && echo 1 || echo 0)|det=$(jq -r '[.endpoints[]?.source] | join(",")' "$DETECTION_FILE" 2>/dev/null || true)|thr=$([ -f "$JEV_CONFIG_DIR/jev-thresholds.json" ] && echo 1 || echo 0)|mcp=$S5_MCP"
 if stage_begin 5 "configure" "$S5_KEY"; then
@@ -773,7 +913,7 @@ if stage_begin 5 "configure" "$S5_KEY"; then
   fi
   # the MCP entry's env.JEV_MODE is part of the same decision (the docs say both are rewritten): re-derived here, never left
   # at a stale enforce (review r5 m5-5). EVERY covered file (jev_mcp_files, r6 m6-3) with an EXISTING jev entry that carries a JEV_MODE is edited.
-  while IFS=$'\t' read -r _mf _mm; do
+  while IFS=$'\x1f' read -r _mf _mm; do
     [ -n "${_mf:-}" ] && [ "$_mm" != "$effective_mode" ] || continue
     # backup (first only, never of a key-bearing file) + optimistic write that survives a running agent rewriting the file (m7-6)
     if jev_mcp_mode_rewrite "$_mf" "$effective_mode"; then
@@ -781,7 +921,7 @@ if stage_begin 5 "configure" "$S5_KEY"; then
     else
       log "" "  MCP 'jev' env.JEV_MODE NOT rewritten in $_mf (concurrent writer or unreadable); jev-status will report the mismatch"
     fi
-  done < <(jev_mcp_modes)
+  done < <(jev_mcp_modes | tr '\t' '\037')
   if [ -n "$enforce_note" ]; then printf '%s\n' "$enforce_note" | atomic_write "$JEV_STATE_DIR/enforce-deferred"
   else rm -f "$JEV_STATE_DIR/enforce-deferred"; fi
   stored_now="$(jev_env_get "$ENV_FILE" JEV_MODE || true)"
@@ -867,4 +1007,21 @@ else
   rm -f "$PENDING_FILE"   # a fully completed run discharges an earlier deferral
 fi
 
-exit 0
+# ---- serving verdict: detected but not serving is exit 5, never a silent 0 (S3, 2026-11-12) ----
+DET_N="$(jq '[.endpoints[]?] | length' "$DETECTION_FILE" 2>/dev/null || echo 0)"
+DET_USABLE="$(jq '[.endpoints[]? | select(.usable == true or (.usable == null and .reachable == true))] | length' "$DETECTION_FILE" 2>/dev/null || echo 0)"
+DET_UNUSABLE="$(jq '[.endpoints[]? | select(.reachable == false)] | length' "$DETECTION_FILE" 2>/dev/null || echo 0)"
+WIRED=0
+if [ "$WIRED_NOW" = "1" ]; then WIRED=1
+elif [ -n "$TK_SETUP" ] && [ "$CHECK_RC" = "0" ]; then WIRED=1; fi
+FINAL_RC=0
+if [ "${DET_N:-0}" -gt 0 ] && [ "${DET_UNUSABLE:-0}" -eq "${DET_N:-0}" ]; then
+  log "" "  RESULT rc 5: no usable decision endpoint ($DET_N detected, every one probed and found unusable: non-2xx or unreachable; see jev-status.sh)"
+  FINAL_RC=5
+elif [ "${DET_N:-0}" -gt 0 ] && [ "$WIRED" != "1" ] && [ -n "${OPTED_OUT:-}" ]; then
+  log "" "  RESULT rc 0: detected, NOT wired - the operator opted out ($OPTED_OUT); not serving decisions (undo: remove the opt-out)"
+elif [ "${DET_N:-0}" -gt 0 ] && [ "$WIRED" != "1" ]; then
+  log "" "  RESULT rc 5: detected, not wired ($DET_USABLE usable endpoint(s), no agent wired: run with --yes, or --default-on with a key)"
+  FINAL_RC=5
+fi
+exit "$FINAL_RC"

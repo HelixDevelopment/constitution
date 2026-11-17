@@ -1,0 +1,10 @@
+[sync-upstreams] libs/a                                   updated         -
+[sync-upstreams] libs/b                                   updated         -
+REPORT_JSON=/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibkill._rt51r_w/out/e1/sync_report.json
+CANONICAL_SHA256=a0fc46168101196a9956f76117e1885a23e3af514846ec466abc1c47c6dd3e90
+RESULT: APPLIED exit=0
+RUN1 .        result=current actions=[]
+RUN1 libs/a   result=updated actions=[('advance-pin', None)]
+RUN1 libs/b   result=updated actions=[('advance-pin', None)]
+RUN1 rc=0 adds=2 parent_marker=False index_lock=False a_moved=True b_moved=True
+RUN2 rc=4 root reasons=['gitlink-staged:libs/a', 'gitlink-staged:libs/b']

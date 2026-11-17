@@ -1,0 +1,92 @@
+KILLED cf_strip_dropped
+KILLED mn_strip_dropped
+KILLED invisible_dropped
+KILLED nfkc_dropped
+KILLED nfkd_dropped
+KILLED fold_dropped
+KILLED latin_by_name_dropped
+KILLED octal_dropped
+KILLED tool_arg_dropped
+KILLED minlen_9
+KILLED special_dropped
+KILLED digit_required_dropped
+KILLED url_case_dropped
+KILLED url_digits_dropped
+KILLED short_flag_user_dropped
+KILLED short_flag_a_dropped
+KILLED short_flag_joined_dropped
+KILLED pgpass_star_dropped
+KILLED pgpass_dropped
+KILLED vendor_aws
+KILLED vendor_github
+KILLED vendor_slack
+KILLED vendor_auth_header
+KILLED home_path
+KILLED user_name
+KILLED r10_fixpoint_dropped
+KILLED r10_brace_escape_dropped
+KILLED r10_long_escape_dropped
+KILLED r10_hex_escape_dropped
+KILLED r10_skeleton_dropped
+KILLED fix_unescape_dropped
+KILLED fix_percent_dropped
+KILLED fix_html_dropped
+KILLED fix_join_dropped
+KILLED fix_b64_dropped
+KILLED r11_url_placeholder_read
+KILLED r11_set_cmd_dropped
+KILLED r11_canon_call_dropped
+KILLED report_dropped
+KILLED prints_match
+KILLED canon C25 (by scan-fixtures)
+KILLED canon C26 (by scan-fixtures)
+KILLED canon C28 (by canon-contracts)
+KILLED canon C29 (by canon-contracts)
+KILLED canon C30 (by canon-contracts)
+KILLED canon C31 (by canon-contracts)
+KILLED canon C32 (by canon-contracts)
+KILLED canon C33 (by canon-contracts)
+KILLED canon C27 (by scan-fixtures)
+KILLED canon SM1c (by canon-contracts)
+KILLED canon SM1d (by scan-fixtures)
+KILLED canon SM2c (by scan-fixtures)
+KILLED canon SM3c (by canon-contracts)
+KILLED canon SM4c (by scan-fixtures)
+KILLED canon SM5c (by scan-fixtures)
+KILLED canon SM6c (by scan-fixtures)
+KILLED canon SM7c (by scan-fixtures)
+KILLED canon SM8c (by canon-contracts)
+KILLED canon SM11c (by scan-fixtures)
+KILLED canon SM13c (by canon-contracts)
+KILLED canon SM14c (by canon-contracts)
+KILLED canon SM15c (by scan-fixtures)
+KILLED canon K2a (by scan-fixtures)
+KILLED canon K3a (by scan-fixtures)
+KILLED canon K3b (by scan-fixtures)
+KILLED canon K4a (by canon-contracts)
+KILLED canon K6a (by canon-contracts)
+KILLED canon K6b (by canon-contracts)
+KILLED canon K6c (by canon-contracts)
+KILLED canon K6d (by canon-contracts)
+KILLED canon SM10c (by scan-fixtures)
+KILLED canon SM12c (by scan-fixtures)
+KILLED canon SM12d (by scan-fixtures)
+PORTED SM1 -> SM1c, SM1d
+PORTED SM2 -> SM2c
+PORTED SM3 -> SM3c
+PORTED SM4 -> SM4c
+PORTED SM5 -> SM5c
+PORTED SM6 -> SM6c
+PORTED SM7 -> SM7c
+PORTED SM8 -> SM8c
+PORTED SM9 -> SM9 has no knob in the shared module (contract K5-triple-quote)
+PORTED SM10 -> SM10c
+PORTED SM11 -> SM11c
+PORTED SM12 -> SM12c, SM12d
+PORTED SM13 -> SM13c
+PORTED SM14 -> SM14c
+PORTED SM15 -> SM15c
+PORTED SM16 -> contract K5-colon-value (the layout reader reads a colon inside a value whole; no window length)
+CONTROL: the unmutated scan reports the fake hit and prints none of it
+CONTROL: leak_scan_test.py passes on the unmutated scan
+RESULT: mutants=40 canon_mutants=33 bad=0

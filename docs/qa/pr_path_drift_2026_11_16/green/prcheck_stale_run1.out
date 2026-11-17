@@ -1,0 +1,5 @@
+pr_landing_check: base 695de4d91b43508d5b4bbba0a157be72ed30df63, head 24abebb6b60d5843d83640d65133b28bb0c666d4, form fast-forward, candidate 24abebb6b60d5843d83640d65133b28bb0c666d4
+pr_landing_check: drift check badges: FAIL (rc=1, log /mnt/DATA1TB/claude-work/scratch/fix443.US7OOH/ev/green_stale_1/prcheck/drift_badges.log)
+pr_landing_check: drift check gate-env-allowlist: PASS (rc=0, log /mnt/DATA1TB/claude-work/scratch/fix443.US7OOH/ev/green_stale_1/prcheck/drift_gate-env-allowlist.log)
+pr_landing_check: FAIL: derived-file drift checks failed; do not merge (see /mnt/DATA1TB/claude-work/scratch/fix443.US7OOH/ev/green_stale_1/prcheck/drift_checks.tsv)
+RESULT: FAIL

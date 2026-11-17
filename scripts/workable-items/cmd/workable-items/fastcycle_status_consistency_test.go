@@ -241,7 +241,7 @@ func TestStatusDesyncQuery_GoldenBad_PlantedDesyncCaught(t *testing.T) {
 	}
 	defer db.Close()
 
-	const id = "T026-GOLDENBAD-1"
+	const id = "TFC-GOLDENBAD1"
 	seedOpenItem(t, dbPath, id) // real addCmd; item_history gets a real "Opened" row
 
 	// Plant the exact P-05 defect shape directly: record a terminal history
@@ -296,7 +296,7 @@ func TestStatusDesyncQuery_NegativeControl_ConsistentItemPasses(t *testing.T) {
 	}
 	defer db.Close()
 
-	const id = "T026-NEGCTRL-1"
+	const id = "TFC-NEGCTRL1"
 	seedOpenItem(t, dbPath, id) // status remains 'Queued'; last event is 'Opened' (non-terminal)
 
 	const query = `
