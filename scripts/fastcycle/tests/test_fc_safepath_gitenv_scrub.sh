@@ -39,6 +39,10 @@
 # [RV3M*]     the reviewer's round-3 census mutants (rev_con402r3 tools/mk_rvm.py), adopted verbatim; RV3M1 / RV3M4 /
 #             RV3M6 / RV3M7 each have a behaviour row of their own (GE-sh-pre-code-then-comment,
 #             GE-sh-post-helper-defined-twice, GE-sh-post-command-file-func, GE-sh-post-dash-c-func).
+# [GE-r5-*]   CON-450 round 5 (review R4-1 / R4-2, section 11.4.276(E) structural): the Python file is read the way the
+#             interpreter reads it (a coding cookie other than utf-8 / ascii and a NUL byte are refused); an UNQUOTED
+#             here-document body holding `$(` or a backtick is refused (bash runs it); the reviewer's D2 / D3 / D4 / D18 /
+#             D19 / E4 escapes and SM1 / SM3 / SM4 / SM5 / SM6 / SM8 mutants (adopted verbatim) each have a row.
 # [GE-mut-*]  paired mutants of the census itself (each must make at least one row above fail).
 #
 # Env: FC_CENSUS_UNDER_TEST / FC_SUP_UNDER_TEST / FC_BR_UNDER_TEST -- the files under test.
@@ -211,6 +215,41 @@ SH_GATE_FILE = {
     "GE-r4-gf-shebang-env-bash": (lambda t: "\n".join(["#!/usr/bin/env bash"] + t.split("\n")[1:]), False),
     "GE-r4-gf-no-shebang": (lambda t: "\n".join(["# no shebang line"] + t.split("\n")[1:]), False),
 }
+# CON-450 round 5 (review R4-1 / R4-2 and the reviewer's SM1 / SM4 / SM5 mutants): whole-file rows. id: (function BR_SRC ->
+# new text, True = refused by the read-as-bash gate / False = golden-false, must be accepted)
+HD_TAIL = "\ncat <<EOF >/dev/null\n%s\nEOF\n"
+SH_GATE_FILE.update({
+    "GE-r5-hd-dollar-R4-2-D2": (lambda t: t.rstrip("\n") + HD_TAIL % "$(mkdir -p -- /fake/x)", True),
+    "GE-r5-hd-backtick": (lambda t: t.rstrip("\n") + HD_TAIL % "`mkdir -p -- /fake/x`", True),
+    "GE-r5-hd-comment-line-R4-2-D3": (lambda t: t.rstrip("\n") + HD_TAIL % "# $(mkdir -p -- /fake/x)", True),
+    "GE-r5-hd-dash-R4-2-D4": (lambda t: t.rstrip("\n") + "\ncat <<-EOF >/dev/null\n\t$(mkdir -p -- /fake/x)\n\tEOF\n", True),
+    "GE-r5-hd-in-subst-R4-2-D18": (lambda t: t.rstrip("\n") + "\nx=$(cat <<EOF\n$(mkdir -p -- /fake/x)\nEOF\n)\n", True),
+    "GE-r5-hd-in-function-R4-2-D19": (lambda t: t.rstrip("\n") + "\n_fake() {\ncat <<EOF >/dev/null\n$(mkdir -p -- /fake/x)\nEOF\n}\n", True),
+    "GE-r5-hd-unicode-comment-R4-2-E4": (lambda t: t.rstrip("\n") + HD_TAIL % "# \u00e9 $(mkdir -p -- /fake/x)", True),
+    "GE-r5-gf-hd-quoted-substitution": (lambda t: t.rstrip("\n") + "\ncat <<'EOF' >/dev/null\n$(mkdir -p -- /fake/x)\nEOF\n", False),
+    "GE-r5-gf-hd-unquoted-plain": (lambda t: t.rstrip("\n") + HD_TAIL % "just words, $HOME and a # sign", False),
+    "GE-r5-lastline-no-newline-SM1": (lambda t: t.rstrip("\n") + "\n:\u00a0x", True),
+    "GE-r5-section-sign-code-SM4": (lambda t: t.replace(LINE, LINE + "\n: '\u00a7'"), True),
+    "GE-r5-del-code-SM5": (lambda t: t.replace(LINE, LINE + "\n:\x7fx"), True),
+})
+# Python file rows: id: (function SUP_SRC -> new text, text the refusal must hold)
+def _py_cookie(ck, line=0):
+    def f(t):
+        ls = t.split("\n")
+        ls.insert(line, "# -*- coding: %s -*-" % ck)
+        return "\n".join(ls)
+    return f
+
+
+PY_FILE = {
+    "GE-r5-py-cookie-utf7-R4-1": (_py_cookie("utf-7"), "PEP 263"),
+    "GE-r5-py-cookie-utf7-line2": (_py_cookie("utf-7", 1), "PEP 263"),
+    "GE-r5-py-cookie-latin1": (_py_cookie("latin-1"), "PEP 263"),
+    "GE-r5-py-cookie-cp037": (_py_cookie("cp037"), "PEP 263"),
+    "GE-r5-py-nul": (lambda t: t.rstrip("\n") + "\n# n\x00\n", "NUL byte"),
+    "GE-r5-gf-py-cookie-utf8": (_py_cookie("utf-8"), None),
+    "GE-r5-gf-py-cookie-utf8-upper": (_py_cookie("UTF-8"), None),
+}
 # CON-450 round 3: text inserted AFTER the canonical line (the preamble rule cannot fire there), so each row pins one
 # rule on its own. id: (text, True = "NOT desugared" / a str = refused with that text / False = golden-false)
 SH_AFTER = {
@@ -325,6 +364,14 @@ def cases(cen):
                     rc, " | ".join(l for l in o.splitlines() if l.startswith("VIOLATION"))[:200])
             return rc == 1 and GATE in o, "rc=%d gate-reason-present=%s" % (rc, GATE in o)
         out.append((k, tf))
+
+    for k, (fn, want) in PY_FILE.items():
+        def tp(k=k, fn=fn, want=want):
+            rc, o = run(cen, sup_text=fn(SUP_SRC), tag=k)
+            if want is None:
+                return rc == 0, "rc=%d (golden-false: must be accepted)" % rc
+            return rc == 1 and want in o, "rc=%d reason-present=%s" % (rc, want in o)
+        out.append((k, tp))
 
     def heredoc():   # a canonical line inside a here-document body is TEXT: no EXEMPT row, the census still passes
         hd = BR_SRC.rstrip("\n") + "\n: <<'FAKE_HD_END'\n" + LINE + "\nFAKE_HD_END\n"
@@ -451,6 +498,24 @@ MUTANTS.update({
                         '    if ch == "\\t" or o < 0x7f:\n        return True\n    return comment_line'),
     "GE-mut-r4-utf8-lenient": ('        text = data.decode("utf-8")\n', '        text = data.decode("utf-8", "replace")\n'),
 })
+MUTANTS.update({
+    # CON-450 round 5: paired mutants of the new rules, and the reviewer's SM1 / SM3 / SM4 / SM5 / SM6 / SM8 VERBATIM
+    # (SM2, `[ \t]*#` -> `\s*#`, is equivalent: the gate refuses every character that `\s` adds, wherever it stands)
+    "GE-mut-r5-hd-ok": ('            elif not hd_quoted and ("$(" in raw or "`" in raw):', '            elif False:'),
+    "GE-mut-r5-hd-quoted-too": ('            elif not hd_quoted and ("$(" in raw or "`" in raw):', '            elif ("$(" in raw or "`" in raw):'),
+    "GE-mut-r5-hd-dollar-only": ('            elif not hd_quoted and ("$(" in raw or "`" in raw):', '            elif not hd_quoted and "$(" in raw:'),
+    "GE-mut-r5-hd-no-open": ('            if _m:\n                hd_end, hd_quoted, hd_open = _m.group(2), bool(_m.group(1)), no', '            if False:\n                hd_end, hd_quoted, hd_open = _m.group(2), bool(_m.group(1)), no'),
+    "GE-mut-r5-py-any-encoding": ('    if enc.lower() not in PY_ENCODINGS:', '    if False:'),
+    "GE-mut-r5-py-no-nul": ('    if b"\\0" in data:\n        return None, "the file holds a NUL', '    if False:\n        return None, "the file holds a NUL'),
+    "SM1_lastline_skip": ('    for no, raw in enumerate(text.split("\\n"), 1):\n        if hd_end is not None:',
+                          '    for no, raw in enumerate(text.split("\\n")[:-1] if not text.endswith("\\n") else text.split("\\n"), 1):\n        if hd_end is not None:'),
+    "SM3_shebang_extra_arg": ('SH_SHEBANGS = ("#!/bin/bash", "#!/usr/bin/env bash")', 'SH_SHEBANGS = ("#!/bin/bash", "#!/usr/bin/env bash", "#!/bin/bash -O extdebug")'),
+    "SM4_section_sign_anywhere": ('    return comment_line and o >= 0x80 and unicodedata.category(ch)[0] in "LMNPS" and not ch.isspace()',
+                                  '    return (comment_line or ch == "\u00a7") and o >= 0x80 and unicodedata.category(ch)[0] in "LMNPS" and not ch.isspace()'),
+    "SM5_del_ok": ('    if ch == "\\t" or 0x20 <= o <= 0x7e:\n        return True\n    return comment_line', '    if ch == "\\t" or 0x20 <= o <= 0x7f:\n        return True\n    return comment_line'),
+    "SM6_shebang_slash_prefix": ('        if no == 1 and raw.startswith("#!") and raw not in SH_SHEBANGS:', '        if no == 1 and raw.startswith("#!/") and raw not in SH_SHEBANGS:'),
+    "SM8_first_char_only": ('        for col, ch in enumerate(raw, 1):\n            if not _sh_char_ok(ch, com):', '        for col, ch in enumerate(raw[:1], 1):\n            if not _sh_char_ok(ch, com):'),
+})
 KILLERS = {   # rows tried first (time only; any broken row kills)
     "GE-mut-blockers-ignored": ("GE-sh-attr-declare-l",), "GE-mut-no-sole-use": ("GE-sh-post-sole-readonly",),
     "GE-mut-no-attr-rule": ("GE-sh-attr-backslash",), "GE-mut-attr-name-exact": ("GE-sh-attr-backslash",),
@@ -475,6 +540,12 @@ KILLERS = {   # rows tried first (time only; any broken row kills)
     "GE-mut-r4-any-shebang": ("GE-r4-shebang-env-S-B13",), "GE-mut-r4-shebang-prefix": ("GE-r4-shebang-argument",),
     "GE-mut-r4-comment-any-char": ("GE-r4-pre-nbsp-comment",), "GE-mut-r4-code-nonascii-ok": ("GE-r4-nonascii-code-after",),
     "GE-mut-r4-c0-ok": ("GE-r4-pre-ff-blank",), "GE-mut-r4-utf8-lenient": ("GE-r4-invalid-utf8",),
+    "GE-mut-r5-hd-ok": ("GE-r5-hd-dollar-R4-2-D2",), "GE-mut-r5-hd-quoted-too": ("GE-r5-gf-hd-quoted-substitution",),
+    "GE-mut-r5-hd-dollar-only": ("GE-r5-hd-backtick",), "GE-mut-r5-hd-no-open": ("GE-r5-hd-dollar-R4-2-D2",),
+    "GE-mut-r5-py-any-encoding": ("GE-r5-py-cookie-utf7-R4-1",), "GE-mut-r5-py-no-nul": ("GE-r5-py-nul",),
+    "SM1_lastline_skip": ("GE-r5-lastline-no-newline-SM1",), "SM3_shebang_extra_arg": ("GE-r4-shebang-argument",),
+    "SM4_section_sign_anywhere": ("GE-r5-section-sign-code-SM4",), "SM5_del_ok": ("GE-r5-del-code-SM5",),
+    "SM6_shebang_slash_prefix": ("GE-r4-shebang-space",), "SM8_first_char_only": ("GE-r4-nbsp-code-after",),
 }
 for name, (old, new) in MUTANTS.items():
     n = CEN_SRC.count(old)

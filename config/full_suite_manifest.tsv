@@ -967,6 +967,7 @@ tests/security/test_history_secret_scan_replace_mutations.sh	sh	entry	heavy	bash
 tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
 tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto
+tests/test_git_env_census_differential.sh	sh	entry	default	bash	-	auto
 tests/test_git_env_class.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder_mutations.sh	sh	entry	default	bash	-	override: fast (measured 5.6 s, one shared clone, no sweep); paired mutations of the redpin census guard
