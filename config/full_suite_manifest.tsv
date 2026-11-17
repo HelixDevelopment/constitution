@@ -966,18 +966,18 @@ tests/release/channel_census.py	py	excluded	-	-	-	reason: oracle: channel census
 tests/release/env_allow.sh	sh	excluded	-	-	-	reason: library: shell library sourced (through $HERE) by the tag, publisher and derive suites and the mutation harness: allow-list, dirty entries, hup_ignored and its control; not a test entry point
 tests/release/env_census.py	py	excluded	-	-	-	reason: tool: runtime environment census (recorders and check) run by the tag, publisher and derive suites (C48, case 29, L2); not a test entry point
 tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network probe run by tests/release/test_tag_and_release.sh (cases C41, C43, C44); not a test entry point
-tests/release/pvl_blockstate.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_fixture.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_grid.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_inventory.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_lineend.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_linemodel.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_mutate.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_oracle.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_property.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_refreader.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_reviewer.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
-tests/release/pvl_timing.py	py	excluded	-	-	-	UNREVIEWED: helper-like file; write `reason: <why>` or reclassify
+tests/release/pvl_blockstate.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_fixture.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_grid.py	py	excluded	-	-	-	reason: oracle: case grid of the provisional-verification checker (the r2 to r5 cases: placeholder shapes x six fields, per-field shapes, job and target positive shapes, look-alike letters, due dates, whole-line structure (separators, field order, notes, length), the target registry, golden-FALSE accepts; it has no code-fence, HTML or other block-context case, those are in tests/release/pvl_blockstate.py and the suite's P-checks) judged by the API, the command line and the independent oracle tests/release/pvl_oracle.py, run by tests/release/test_provisional_verification_lines.sh (P6) and by tests/release/pvl_mutate.py (P13); not a test entry point
+tests/release/pvl_inventory.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_lineend.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_linemodel.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_mutate.py	py	member	heavy	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_oracle.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_property.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_refreader.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_reviewer.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_timing.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts_provisional.sh	sh	entry	default	bash	-	auto
