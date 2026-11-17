@@ -20,3 +20,11 @@ replayed it through the engine.
   the update leaves the length unchanged). The copy was discarded.
 
 Evidence class: gate-logic only (section 11.4.289).
+
+## Severity body lines (CON-266, CON-267, CON-268)
+
+The r6 engine renders `**Severity:**` from the column; these three bodies
+lacked the line, so `diff` reported a body mismatch (18 bytes each). Fixed
+through the engine with `repair-bodies` (3 rewrites, 546 no-ops). The new body
+lengths (740, 500, 555) equal the vehicle's own DB. Afterwards: validate OK
+549, diff in sync. Output: repair_bodies.txt.
