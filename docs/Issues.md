@@ -3422,6 +3422,8 @@ The hashed files name sweep_review_record_subclauses.sh; the ledger is regenerat
 
 Recurrence link (section 11.4.214, open original, link only; 2026-11-16): audit F4 found the kill ledger stale again after CON-402 (3281d92e) changed the hashed tool files: test_review_record_guard_table.sh M4 'kill ledger is STALE: tool sha256 f2c1ffbc... != current 489cbe12...', 3/3 at main 09d3ad2f, PASS at e90d4aea. Same remedy (regenerate with sweep_review_record_subclauses.sh --out, about 70 min, on main) and the same missing schedule. Source: pre-release regression audit of main 09d3ad2f, /mnt/DATA1TB/claude-work/scratch/audit.YfaTde/out/AUDIT_FINDINGS_2026-11-16.md outside the repository (sha256 726e4a0867c5c37dec72fbf45f7e2526bcc08721c478d5d450166d49b92a9c6d).
 
+History note (round 4, review R3-6; no history rewrite, 2026-11-17): the R2-3 renames (20 files) are in cc8a63b7, which is labelled CON-450; 66fb5655, labelled CON-251 and titled as the rename, only updates SHA256SUMS and followups.md. The evidence commit 652dd9af covers CON-450, CON-451 and CON-251 but is labelled CON-450 only. 62362649 is a git-env-RED intermediate state on the landed history. See docs/qa/con402_fallout_r4/README.md.
+
 ## CON-252 — SPECKIT004 diagrams: mmd-08 and mmd-09 images missing on main
 
 **Status:** Queued
