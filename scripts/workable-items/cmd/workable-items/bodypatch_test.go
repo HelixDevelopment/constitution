@@ -181,19 +181,21 @@ func TestBodyPatch_UpdateRefusesDroppingBlockRecordFromDescription(t *testing.T)
 	}
 }
 
-// Class sweep (upd_sev / upd_type / upd_assign): a field update owns only the
-// lines of the fields it sets.
-func TestBodyPatch_FieldOwnership(t *testing.T) {
+// Class sweep (upd_sev / upd_type / upd_assign): no body writer owns the
+// Type / Severity / Created-By / Assigned-To lines. A field-only update keeps
+// body_md byte-identical (TestUpdateCmd_PreservesRichBodyOnSeverityOnlyUpdate)
+// and db-to-md aligns those lines at render (alignMetaLines,
+// TestCON456R2_UpdateSeverityReachesMarkdown); a writer that rewrote one is
+// refused.
+func TestBodyPatch_FieldLinesAreNotOwned(t *testing.T) {
 	b := "## CON-1 — t\n\n**Status:** Queued\n**Type:** Task\n**Severity:** Low\n\nprose\n"
 	sev := strings.Replace(b, "**Severity:** Low", "**Severity:** High", 1)
-	if p := ownedLinesProblems(b, sev, bodyOwnership{fields: []string{"Severity"}}, "", ""); len(p) != 0 {
-		t.Fatalf("golden-FALSE: an owned Severity change was refused: %v", p)
+	all := bodyOwnership{title: true, status: true, description: true, records: []string{recEvidence, recOBD, recChoices, recObsolete, recReopened}}
+	if p := ownedLinesProblems(b, sev, all, "prose", "prose"); len(p) == 0 {
+		t.Fatal("a Severity line change was not refused")
 	}
-	if p := ownedLinesProblems(b, sev, bodyOwnership{fields: []string{"Type"}}, "", ""); len(p) == 0 {
-		t.Fatal("a Severity change by a writer owning only Type was not refused")
-	}
-	if p := ownedLinesProblems(b, strings.Replace(b, "prose", "", 1), bodyOwnership{fields: []string{"Severity"}}, "", ""); len(p) == 0 {
-		t.Fatal("a dropped prose line was not refused for a field owner")
+	if p := ownedLinesProblems(b, b, all, "prose", "prose"); len(p) != 0 {
+		t.Fatalf("golden-FALSE: an unchanged body was refused: %v", p)
 	}
 }
 
