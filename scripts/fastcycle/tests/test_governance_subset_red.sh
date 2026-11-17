@@ -106,12 +106,15 @@ set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/governance_subset"
 IMPL="$FC/context/governance_subset.py"
-ANCHOR_INDEX="$ROOT/constitution/constitution_index.yaml"
-CONSTITUTION_MD="$ROOT/constitution/Constitution.md"
+ANCHOR_INDEX="$FC_CANON_ROOT/constitution_index.yaml"
+CONSTITUTION_MD="$FC_CANON_ROOT/Constitution.md"
 DB="$ROOT/docs/workable_items.db"
+# CON-093: a standalone canon (no consumer above it) is its own live tracker (the same fallback as test_reopen_rate_red.sh).
+[ -f "$DB" ] || [ ! -f "$FC_CANON_ROOT/docs/workable_items.db" ] || DB="$FC_CANON_ROOT/docs/workable_items.db"
 
 fail=0
 failx() { fail=1; }
@@ -654,6 +657,15 @@ fi
 # now-landed tool genuinely agrees with the same oracle T104's derive.py
 # already proved correct, not merely that it exits 0 and writes a file.
 # ---------------------------------------------------------------------------
+# CON-097: the index records each group file as "constitution/groups/<file>" relative to the CONSUMER root,
+# so --repo must be a directory whose "constitution" entry IS this canon. When canon is checked out under
+# another name (or standalone), a scratch layout root holding a "constitution" symlink to this canon is passed
+# instead: the tool still reads the real canon files through the documented layout.
+GS_REPO=$ROOT
+if [ ! -d "$ROOT/constitution" ] || [ "$(cd "$ROOT/constitution" && pwd -P)" != "$(cd "$FC_CANON_ROOT" && pwd -P)" ]; then
+  GS_REPO="$TMP/gs_layout_root"; mkdir -p "$GS_REPO" && ln -s "$FC_CANON_ROOT" "$GS_REPO/constitution" \
+    || { echo "NOT ok cannot build the scratch layout root $GS_REPO"; failx; }
+fi
 if [ "$TOOL_PRESENT" = "1" ]; then
   echo
   echo "=== Real-tool invocation: context/governance_subset.py select/verify ==="
@@ -664,7 +676,7 @@ if [ "$TOOL_PRESENT" = "1" ]; then
     OUT="$TMP/${name}.select.actual.json"
     ERR="$TMP/${name}.select.actual.err"
     python3 "$IMPL" select --config "$FIXDIR/rule_table.json" --item "$item_id" \
-      --item-record "$FIXDIR/${name}.json" --index "$ANCHOR_INDEX" --repo "$ROOT" \
+      --item-record "$FIXDIR/${name}.json" --index "$ANCHOR_INDEX" --repo "$GS_REPO" \
       --out "$OUT" >"$ERR" 2>&1
     RC=$?
     if [ "$RC" != "$want_rc" ] || [ ! -f "$OUT" ]; then

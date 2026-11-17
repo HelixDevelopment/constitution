@@ -1,0 +1,5 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+ok 3 - R13-5c (rc 75) the record took the non-sole branch with no other lease
+FAIL - R13-5c a refused start (rc 75) on a set already constitution-started, under a foreign stopping mark: the set is kept for its stopper, no owed stop, no stop run (kills R06) (expected [75 true sStopper false 0] got [75 true sStopper true 0])
+ok 4 - R13-5c CONTROL: rc 1 in the same place carries an owed stop

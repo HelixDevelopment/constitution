@@ -159,7 +159,8 @@ set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/handoff"
 IMPL="$FC/orchestration/handoff.py"
 FC_COMMON="$FC/lib/fc_common.py"

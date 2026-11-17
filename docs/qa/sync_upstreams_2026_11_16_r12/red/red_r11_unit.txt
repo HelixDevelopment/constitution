@@ -1,0 +1,107 @@
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+...............................................sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+.....................................................EFFEFE........
+======================================================================
+ERROR: test_evaluate_upstream_uses_the_exact_lookup (__main__.RoundTwelve.test_evaluate_upstream_uses_the_exact_lookup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix12.zGcd/repo/tests/sync/test_unit.py", line 2052, in test_evaluate_upstream_uses_the_exact_lookup
+    [("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/origin/dev")])
+                                    ^^^^^^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'FER_EXACT_FORMAT'
+
+======================================================================
+ERROR: test_obj_form (__main__.RoundTwelve.test_obj_form)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix12.zGcd/repo/tests/sync/test_unit.py", line 1968, in test_obj_form
+    self.assertEqual(E.obj(SHA), SHA + "^{commit}")
+                     ^^^^^
+AttributeError: module 'sync_engine' has no attribute 'obj'
+
+======================================================================
+ERROR: test_resolve_ref_exact (__main__.RoundTwelve.test_resolve_ref_exact)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix12.zGcd/repo/tests/sync/test_unit.py", line 2031, in test_resolve_ref_exact
+    res, got = E.resolve_ref_exact(r, "/r", want)
+               ^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'resolve_ref_exact'
+
+======================================================================
+FAIL: test_every_engine_object_name_goes_through_obj (__main__.RoundTwelve.test_every_engine_object_name_goes_through_obj)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix12.zGcd/repo/tests/sync/test_unit.py", line 2013, in test_every_engine_object_name_goes_through_obj
+    self.assertEqual(seen, [["merge-base", "--is-ancestor", SHA + "^{commit}", "b" * 40 + "^{commit}"],
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                            ["rev-list", "--left-right", "--count", "%s^{commit}...%s^{commit}" % (SHA, "b" * 40)],
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                            ["rev-parse", "--verify", "-q", SHA + "^{commit}"],
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                            ["ls-tree", "-r", "-z", SHA + "^{commit}"]])
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [['me[64 chars]aaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb[284 chars]aa']] != [['me[64 chars]aaaaa^{commit}', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbb[329 chars]t}']]
+
+First differing element 0:
+['mer[63 chars]aaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']
+['mer[63 chars]aaaaa^{commit}', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbb[18 chars]it}']
+
+Diff is 1057 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_git_env_pins_object_visibility (__main__.RoundTwelve.test_git_env_pins_object_visibility)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix12.zGcd/repo/tests/sync/test_unit.py", line 2059, in test_git_env_pins_object_visibility
+    self.assertEqual(env.get("GIT_NO_REPLACE_OBJECTS"), "1", given)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != '1' : {}
+
+======================================================================
+FAIL: test_object_names_are_exact_at_the_allow_list (__main__.RoundTwelve.test_object_names_are_exact_at_the_allow_list)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix12.zGcd/repo/tests/sync/test_unit.py", line 1978, in test_object_names_are_exact_at_the_allow_list
+    self.bad("rev-parse", "--verify", "-q", name)  # RV11-1: never a DWIM lookup of a ref name
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix12.zGcd/repo/tests/sync/test_unit.py", line 1961, in bad
+    with self.assertRaises(E.GitRefused, msg=repr(a)):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: GitRefused not raised : ('rev-parse', '--verify', '-q', 'refs/remotes/origin/dev^{commit}')
+
+----------------------------------------------------------------------
+Ran 139 tests in 10.106s
+
+FAILED (failures=3, errors=3)
+sync-unit: PASS 133 FAIL 6 SKIP 0

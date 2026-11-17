@@ -25,8 +25,9 @@
 # Usage : bash test_shipped_workable_items_us3_red.sh   exit 0 = all hold.
 set -u
 ROOT=$(cd "$(dirname "$0")/../../../.." && pwd)
-BIN="$ROOT/constitution/scripts/workable-items/bin/workable-items"
-RI="$ROOT/constitution/scripts/reporting/report_item.sh"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+BIN="$FC_CANON_ROOT/scripts/workable-items/bin/workable-items"
+RI="$FC_CANON_ROOT/scripts/reporting/report_item.sh"
 fail=0
 chk() { if [ "$2" = 1 ]; then echo "ok $1"; else echo "NOT ok $1"; fail=1; fi; }
 
@@ -54,7 +55,7 @@ chk "report_item.sh logs a greppable notice when intake-match is unavailable/fai
 # report_item.sh's own mktemp dir, deleted by its own `rm -rf "$TMP_EVID"`).
 if command -v sqlite3 >/dev/null 2>&1; then
   E2E=$(mktemp -d); trap 'rm -rf "$E2E"' EXIT
-  sqlite3 "$E2E/w.db" < "$ROOT/constitution/scripts/workable-items/schema.sql" >/dev/null
+  sqlite3 "$E2E/w.db" < "$FC_CANON_ROOT/scripts/workable-items/schema.sql" >/dev/null
   printf 'schema_version: 1\ndb: %s\nid_prefix: E2E\nsync_command: ""\nevidence_dir: %s/ev\ntrackers: []\nworkable_items_bin: %s\n' \
     "$E2E/w.db" "$E2E" "$BIN" > "$E2E/cfg.yaml"
   bash "$RI" --kind bug --title "Subtitle overlay missing on second display after seek" \

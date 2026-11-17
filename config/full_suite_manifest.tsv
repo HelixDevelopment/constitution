@@ -223,6 +223,7 @@ scripts/fastcycle/tests/fixtures/triple_harness/stub_tool.sh	sh	fixture	-	-	-	fi
 scripts/fastcycle/tests/fixtures/verdict_cache/gate_script.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/lib/bb_ref_bisect.py	py	excluded	-	-	-	reason: oracle: reference bisector used as an oracle by test_batch_bisect_red.sh
 scripts/fastcycle/tests/lib/consumer_required.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_churn_rank_red.sh
+scripts/fastcycle/tests/lib/consumer_section.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_anchor_citations_red.sh
 scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_verdict_cache_red.sh (test_batch_bisect_red.sh and test_gate_shard_red.sh name it only in comments)
 scripts/fastcycle/tests/lib/dec15_flake_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_flake_ledger_red.sh
 scripts/fastcycle/tests/lib/dec17_drift_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_backstop_red.sh
@@ -256,6 +257,8 @@ scripts/fastcycle/tests/test_batch_bisect_r3_regression.sh	sh	member	default	-	s
 scripts/fastcycle/tests/test_batch_bisect_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_batch_bisect_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_build_deploy_qa_events_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_canon_root_rename_con097_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_canon_root_rename_con097_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_catchset_compare_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_catchset_compare_seed_independence_r2_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -269,6 +272,8 @@ scripts/fastcycle/tests/test_consumer_migrate_red.sh	sh	member	default	-	scripts
 scripts/fastcycle/tests/test_consumer_required_helper.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	override: tier heavy: runs the whole helper test 5 times on a copy of scripts/ (about 3.5 min measured; CON-222, CON-223)
 scripts/fastcycle/tests/test_consumer_required_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_section_con092_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_section_con092_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_core_ondemand_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -298,6 +303,7 @@ scripts/fastcycle/tests/test_fc_common_red.sh	sh	member	default	-	scripts/fastcy
 scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_entry_r10_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_safepath_gitenv_scrub.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_safepath_v4r12.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_safepath_v4r13.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_safepath_v4r14.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
@@ -402,6 +408,8 @@ scripts/fastcycle/tests/test_review_record_store_tier_noncanonical_tmpdir_red.sh
 scripts/fastcycle/tests/test_review_record_subclause_cases.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_tier_legs_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_run_all.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_run_all_skip77_con262_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_run_all_skip77_con262_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_select_sample_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_shipped_workable_items_us3_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_sibling_search_check_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -616,6 +624,7 @@ scripts/gates/cm_setup_prompt_latest_present.sh	sh	excluded	-	-	-	reason: gate: 
 scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 scripts/gates/cm_state_fields_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_subsystem_shortcuts_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_sync_upstreams_ff_only_mutation_test.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 scripts/gates/cm_test_mock_pid_explicit_int.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh
 scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_track_branch_label_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -837,7 +846,9 @@ tests/install/test_unit.sh	sh	member	default	-	tests/install/run_all.sh	auto: ru
 tests/install/test_updater.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_upstream_main.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
 tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	sh	excluded	-	-	-	reason: fake: recording stub used by post_update_hook trigger tests
+tests/jev/fixtures/bin-flockgate/flock	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin-hosted/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/bin-place/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude-providers	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -846,10 +857,16 @@ tests/jev/fixtures/bin/jev-label-stub	sh	fixture	-	-	-	fixture path (not a test 
 tests/jev/fixtures/bin/kimi	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/jev_server.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/mark_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/sweep_s4_round14.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/install.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/jev-setup.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/write_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/lib_assert.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/jev/test_anchor_renumber_integrity.sh
 tests/jev/run_all.sh	runall	entry	default	runall-whole	-	auto
+tests/jev/s4_round14_sweep_x_chaos_test.sh	sh	entry	heavy	bash	-	auto
+tests/jev/s4_round14_sweep_y_chaos_test.sh	sh	entry	heavy	bash	-	auto
+tests/jev/s4_round14_sweep_zd_chaos_test.sh	sh	entry	heavy	bash	-	auto
 tests/jev/test_anchor_renumber_integrity.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_e2e_stub_server.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_header_truth.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
@@ -858,16 +875,20 @@ tests/jev/test_bootstrap_manifest_reader.sh	sh	member	default	-	tests/jev/run_al
 tests/jev/test_bootstrap_noninteractive.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_provision_fallback.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_summary_mode_default.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_calibrate_per_endpoint.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_calibration_math.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_decision_layer_gaps.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_gate_blind_without_llmctl.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_matrix.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_producer_gate_e2e.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_failopen_and_coverage_gaps.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_gate_bootstrap_hermetic.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_gate_pairs.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_hosted_key_discovery.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_jev_status.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_jev_status_health.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_mcp_register_hardening.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_no_real_tools.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_post_update_hook_trigger.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r2.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
@@ -876,7 +897,21 @@ tests/jev/test_review_fixes_r4.sh	sh	member	default	-	tests/jev/run_all.sh	auto:
 tests/jev/test_review_fixes_r5.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_run_all_leak_detector.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s3_bootstrap_honesty.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_placement.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round10.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round11.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round12.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round12_mc.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round13.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round14.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round8.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round9.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_tab_fields.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/layout/hermetic_lint.py	py	excluded	-	-	-	reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point
 tests/layout/lib_layout_harness.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/layout/test_canonical_root_layout.sh
 tests/layout/run_all.sh	runall	entry	default	runall-whole	-	auto
@@ -931,11 +966,29 @@ tests/release/channel_census.py	py	excluded	-	-	-	reason: oracle: channel census
 tests/release/env_allow.sh	sh	excluded	-	-	-	reason: library: shell library sourced (through $HERE) by the tag, publisher and derive suites and the mutation harness: allow-list, dirty entries, hup_ignored and its control; not a test entry point
 tests/release/env_census.py	py	excluded	-	-	-	reason: tool: runtime environment census (recorders and check) run by the tag, publisher and derive suites (C48, case 29, L2); not a test entry point
 tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network probe run by tests/release/test_tag_and_release.sh (cases C41, C43, C44); not a test entry point
+tests/release/pvl_blockstate.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_fixture.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_grid.py	py	excluded	-	-	-	reason: oracle: case grid of the provisional-verification checker (the r2 to r5 cases: placeholder shapes x six fields, per-field shapes, job and target positive shapes, look-alike letters, due dates, whole-line structure (separators, field order, notes, length), the target registry, golden-FALSE accepts; it has no code-fence, HTML or other block-context case, those are in tests/release/pvl_blockstate.py and the suite's P-checks) judged by the API, the command line and the independent oracle tests/release/pvl_oracle.py, run by tests/release/test_provisional_verification_lines.sh (P6) and by tests/release/pvl_mutate.py (P13); not a test entry point
+tests/release/pvl_inventory.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_lineend.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_linemodel.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_mutate.py	py	member	heavy	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_oracle.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_property.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_refreader.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_reviewer.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_timing.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
+tests/release/test_derive_release_facts_provisional.sh	sh	entry	default	bash	-	auto
+tests/release/test_derive_release_facts_provisional_mutants.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
+tests/release/test_pr_landing_check.sh	sh	entry	default	bash	-	auto
+tests/release/test_provisional_verification_lines.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
+tests/release/test_release_template_delivery_paragraph.sh	sh	entry	default	bash	-	auto
+tests/release/test_release_template_delivery_paragraph_mutants.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
@@ -944,15 +997,32 @@ tests/security/fixtures/bin/gh	sh	fixture	-	-	-	fixture path (not a test entry p
 tests/security/fixtures/bin/gitleaks	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/fake_gh.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/fake_gitleaks.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/fake_gitleaks_detect.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/forge_fixture.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/test_forge_branch_protect.sh	sh	entry	default	bash	-	auto
 tests/security/test_github_actions_inventory_disable.sh	sh	entry	default	bash	-	auto
+tests/security/test_gitleaks_run_scan_replace.sh	sh	entry	default	bash	-	auto
+tests/security/test_gitleaks_run_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_history_secret_scan.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_deadlock.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_deadlock_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_history_secret_scan_replace.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/sync/run_all.sh	runall	entry	default	runall-members	-	auto: covers 5 heavy member(s)
+tests/sync/test_chaos.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_determinism.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_e2e.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_faults.sh	sh	member	heavy	-	tests/sync/run_all.sh	override: tier heavy: about 213 full --apply runs, one fault each (skipped by run_all.sh --quick)
+tests/sync/test_full_automation.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_hardening.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_integration.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_mutations.py	py	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_perf.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_robustness.sh	sh	member	default	-	tests/sync/run_all.sh	auto: invoked by tests/sync/run_all.sh
+tests/sync/test_security.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_ui.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_unit.py	py	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
 tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto
 tests/test_git_env_class.sh	sh	entry	default	bash	-	auto

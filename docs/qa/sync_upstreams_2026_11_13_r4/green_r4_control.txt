@@ -1,0 +1,20 @@
+rc=0
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/r4_control/helix-sync-test.BSGAFr/out/r1/sync_report.json
+CANONICAL_SHA256=958cd06296825e0a570601fa853f140a18c3ef2ce42bc50400b1e50de5619308
+RESULT: CURRENT exit=0
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/r4_control/helix-sync-test.BSGAFr/work/root: 4 repositories, 4 initialised, 4 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -
+vendor/t initialised=True pin={'checkout': 'at-pin', 'gitlink': '710911f5da8f4d6ceba570074bca81de41674730', 'state': 'at-main'} result=current
+--- strict-pins:
+rc=0
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/r4_control/helix-sync-test.BSGAFr/out/r2/sync_report.json
+CANONICAL_SHA256=8aea54c0b94e324f6dd88b7f807c904bfcfc45f415dd9741a30fae18216e3163
+RESULT: CURRENT exit=0
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/r4_control/helix-sync-test.BSGAFr/work/root: 4 repositories, 4 initialised, 4 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -

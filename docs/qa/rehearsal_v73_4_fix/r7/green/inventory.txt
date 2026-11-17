@@ -1,0 +1,14 @@
+G01-ACCEPTED 1 job='bash tests/t.sh -k case12; python3 -I tests/p.py .'
+CLASS G01 members=720 mismatches=0 placeholder words and phrases, every field
+CLASS G02 members=6686382 mismatches=0 every code point in the middle of every field value
+CLASS G03 members=1114397 mismatches=0 every code point in the middle of a note
+CLASS G04 members=18 mismatches=0 references that do not resolve under the root
+CLASS G05 members=44 mismatches=0 a directory or a non-runnable file as the script
+CLASS G06 members=18 mismatches=0 a command that runs no script
+CLASS G07 members=72 mismatches=0 checks with no count or naming no test of the job
+CLASS G08 members=22 mismatches=0 target words that name nothing
+CLASS G09 members=16 mismatches=0 artifact words and prose
+CLASS G10 members=876 mismatches=0 every due day from 400 days before creation to 400 days after the window
+CLASS G11 members=13 mismatches=0 text after due that is not a note
+CLASS G12 members=732 mismatches=0 every order, omission and repetition of the six fields
+INVENTORY classes=12 members=7803310 mismatches=0 code_points=1114112

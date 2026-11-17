@@ -1,0 +1,3 @@
+?? docs/qa/rehearsal_v73_4_fix/r5/evidence/
+?? docs/qa/rehearsal_v73_4_fix/r5/review_bin/
+?? docs/qa/rehearsal_v73_4_fix/r5/tools/

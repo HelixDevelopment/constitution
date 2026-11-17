@@ -35,15 +35,15 @@ jev_running_profiles() {
 jev_usable_live() {
   local out="" n p u proto rp sv
   rp="$(jev_running_profiles "$1" "${2:-{\}}")" || return 3
-  while IFS=$'\t' read -r p proto; do
+  while IFS=$'\x1f' read -r p proto; do
     [ -n "$p" ] || continue; [ "$proto" = "jev-verdict" ] && continue
     out="${out:+$out,}profile:$p"
-  done <<<"$rp"
+  done <<<"${rp//$'\t'/$'\x1f'}"
   sv="$(jev_decide_services "$1" "${2:-{\}}")" || return 3
-  while IFS=$'\t' read -r n p u proto; do
+  while IFS=$'\x1f' read -r n p u proto; do
     [ -n "$n" ] || continue; [ "$proto" = "jev-verdict" ] && continue
     out="${out:+$out,}service:$n"
-  done <<<"$sv"
+  done <<<"${sv//$'\t'/$'\x1f'}"
   printf '%s' "$out"
 }
 
@@ -108,6 +108,190 @@ jev_providers_dir() { jev_abs "${CMA_PROVIDERS_DIR:-$(jev_cma_share_dir)/provide
 # CMA_PROVIDERS_DIR (live-measured 2026-10-24): always under the real $HOME.
 jev_default_cache_file() { printf '%s/.local/share/claude-multi-account/providers/jev-endpoints.json' "${HOME:-}"; }
 jev_aliases_file() { jev_abs "${JEV_CALIBRATE_ALIAS_FILE:-$(jev_cma_share_dir)/aliases.sh}"; }
+
+# ---- Claude Code settings the toolkit installer wires (review 2026-11-12 F4) -----------------------------------------------
+# claude_toolkit jev-setup.sh writes the PreToolUse hook into ${SHARED_DIR:-$HOME/.claude-shared}/settings.json and into
+# every $HOME/.claude-* home (plus $HOME/.claude when it is in scope); live T4 (2026-11-12) wired ~/.claude-shared. ONE
+# resolver for jev-status.sh and cm_jev_wiring.sh. CLAUDE_CONFIG_DIR and SHARED_DIR are honoured only when JEV_HOME is
+# unset (the real user's home); a gate run against a declared JEV_HOME stays inside it.
+# jev_claude_settings_dirs -> candidate agent config dirs (existing ones only, de-duplicated by real path), one per line
+jev_claude_settings_dirs() {
+  local h d r seen=""; h="$(jev_home)"
+  {
+    if [ -z "${JEV_HOME:-}" ]; then
+      [ -z "${CLAUDE_CONFIG_DIR:-}" ] || printf '%s\n' "$CLAUDE_CONFIG_DIR"
+      printf '%s\n' "${SHARED_DIR:-$h/.claude-shared}"
+    else printf '%s\n' "$h/.claude-shared"; fi
+    printf '%s\n' "$h/.claude"
+    for d in "$h"/.claude-*; do [ -d "$d" ] && printf '%s\n' "$d"; done
+  } | while IFS= read -r d; do
+    [ -n "$d" ] && [ -d "$d" ] || continue
+    r="$(readlink -f -- "$d" 2>/dev/null || printf '%s' "$d")"
+    case " $seen " in *" $r "*) continue ;; esac
+    seen="$seen $r"; printf '%s\n' "$d"
+  done
+}
+# jev_settings_wired <settings.json> -> 0 when a PreToolUse hook COMMAND runs jev-gate.sh (round 4, review R3-3: STRUCTURAL).
+# Each hook command is split into shell words (single quotes, double quotes with \" \\ \$ \` escapes, backslash escapes,
+# a `#` comment at the start of a word) and into simple commands at unquoted ; & | ( ) and newlines. A simple command
+# runs jev-gate.sh when, after leading VAR=value words, reserved words (! { } if then else elif do while until time),
+# `exec`, and an `env` with its options and assignments, EITHER its command word has the basename exactly jev-gate.sh,
+# OR its command word is one of the interpreters sh, bash, zsh, dash and its first non-option word is such a script, OR
+# it is an interpreter with -c (also a combined flag such as -ec) whose script runs it (checked the same way, at most
+# 3 levels deep).
+# NOT wiring: an assignment value (X=/x/jev-gate.sh), a comment (#/x/jev-gate.sh), an argument of another command
+# (echo /x/jev-gate.sh), a renamed file (jev-gate.sh.disabled), an unterminated quote (conservative: not wired).
+# Honest limits: no expansion is performed ($VAR, $(...), aliases, functions, eval and a script fed to an interpreter
+# on stdin are not followed); a QUOTED assignment-looking first word ('X=1') is treated as an assignment. Round 6
+# (review R5-12): `bash -s WORD` runs stdin with WORD as a positional parameter, so it is NOT wiring; `bash -c -- WORD`
+# runs WORD; `env -S STRING` splits STRING into words (a separator inside STRING is not followed: conservative).
+_jev_shell_words() { # _jev_shell_words <string> -> globals _JW (tokens), _JK (w = word, s = separator); rc 1 on an unterminated quote
+  local s="$1" n=${#1} i=0 c q="" w="" have=0
+  _JW=(); _JK=()
+  while [ "$i" -lt "$n" ]; do
+    c="${s:i:1}"
+    if [ "$q" = "'" ]; then
+      if [ "$c" = "'" ]; then q=""; else w+="$c"; fi
+    elif [ "$q" = '"' ]; then
+      if [ "$c" = '"' ]; then q=""
+      elif [ "$c" = '\' ] && [ $((i+1)) -lt "$n" ] && [[ "${s:i+1:1}" == [\"\\\$\`] ]]; then i=$((i+1)); w+="${s:i:1}"
+      else w+="$c"; fi
+    elif [ "$c" = "'" ] || [ "$c" = '"' ]; then
+      q="$c"; have=1
+    elif [ "$c" = '\' ]; then
+      if [ $((i+1)) -lt "$n" ]; then i=$((i+1)); [ "${s:i:1}" = $'\n' ] || { w+="${s:i:1}"; have=1; }; fi
+    elif [ "$c" = ' ' ] || [ "$c" = $'\t' ]; then
+      if [ "$have" = 1 ]; then _JW+=("$w"); _JK+=(w); w=""; have=0; fi
+    elif [[ "$c" == [\;\&\|\(\)] ]] || [ "$c" = $'\n' ]; then
+      if [ "$have" = 1 ]; then _JW+=("$w"); _JK+=(w); w=""; have=0; fi
+      _JW+=("$c"); _JK+=(s)
+    elif [ "$c" = '#' ] && [ "$have" = 0 ]; then
+      while [ "$i" -lt "$n" ] && [ "${s:i:1}" != $'\n' ]; do i=$((i+1)); done
+      continue
+    else
+      w+="$c"; have=1
+    fi
+    i=$((i+1))
+  done
+  [ -z "$q" ] || return 1
+  if [ "$have" = 1 ]; then _JW+=("$w"); _JK+=(w); fi
+  return 0
+}
+_jev_is_assignment() { [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; }
+_jev_is_prefix_word() { [[ "$1" == '!' || "$1" == '{' || "$1" == '}' || "$1" == 'if' || "$1" == 'then' || "$1" == 'else' \
+  || "$1" == 'elif' || "$1" == 'do' || "$1" == 'while' || "$1" == 'until' ]]; }
+_jev_is_interpreter() { [[ "$1" == sh || "$1" == bash || "$1" == zsh || "$1" == dash ]]; }
+# _jev_simple_runs_gate <depth> <word>... -> 0 when this simple command runs jev-gate.sh. The wrappers it follows are a CLOSED
+# list (review R4-4): env, exec (-a NAME, -c, -l), command (-p; -v and -V only print, so they never run it), nice (-n N, -N,
+# --adjustment=N), nohup, time (-p), timeout (its options, then the DURATION), and sh/bash/zsh/dash, whose option cluster
+# containing c runs the next word as a script and whose noexec (-n in a cluster, -o noexec) only checks the syntax. Any other
+# command word is the command itself. A conditional (`false && ...`) cannot be decided statically; it counts as wiring.
+_jev_simple_runs_gate() {
+  local d="$1" b noexec=0; shift
+  while [ $# -gt 0 ] && { _jev_is_prefix_word "$1" || _jev_is_assignment "$1"; }; do shift; done
+  [ $# -gt 0 ] || return 1
+  b="${1##*/}"
+  case "$b" in
+    env) shift
+      while [ $# -gt 0 ]; do
+        if [[ "$1" == -u || "$1" == -C || "$1" == --unset || "$1" == --chdir ]]; then shift; [ $# -gt 0 ] && shift
+        elif [[ "$1" == -S || "$1" == --split-string || "$1" == -S?* || "$1" == --split-string=* ]]; then
+          # env -S STRING: STRING is split into words that come first (round 6, review R5-12); at most 3 levels deep
+          local es; case "$1" in -S|--split-string) shift; es="${1:-}"; [ $# -gt 0 ] && shift ;; --split-string=*) es="${1#*=}"; shift ;; *) es="${1#-S}"; shift ;; esac
+          [ "$d" -lt 3 ] || return 1
+          _jev_shell_words "$es" || return 1
+          local -a ew=(${_JW[@]+"${_JW[@]}"}) ek=(${_JK[@]+"${_JK[@]}"}); local ei
+          for ei in ${ek[@]+"${ek[@]}"}; do [ "$ei" = w ] || return 1; done   # a separator inside -S: not a simple command
+          _jev_simple_runs_gate $((d+1)) env ${ew[@]+"${ew[@]}"} "$@"; return
+        elif [ "$1" = -- ]; then shift; break
+        elif [[ "$1" == -* ]] || _jev_is_assignment "$1"; then shift
+        else break; fi
+      done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    exec) shift
+      while [ $# -gt 0 ]; do
+        if [ "$1" = -a ]; then shift; [ $# -gt 0 ] && shift
+        elif [ "$1" = -- ]; then shift; break
+        elif [[ "$1" =~ ^-[cl]+$ ]]; then shift
+        else break; fi
+      done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    command) shift
+      while [ $# -gt 0 ]; do
+        if [ "$1" = -- ]; then shift; break
+        elif [[ "$1" =~ ^-[pvV]+$ ]]; then [[ "$1" == *[vV]* ]] && return 1; shift
+        else break; fi
+      done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    nice) shift
+      while [ $# -gt 0 ]; do
+        if [[ "$1" == -n || "$1" == --adjustment ]]; then shift; [ $# -gt 0 ] && shift
+        elif [ "$1" = -- ]; then shift; break
+        elif [[ "$1" =~ ^-n?-?[0-9]+$ || "$1" == --adjustment=* ]]; then shift
+        else break; fi
+      done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    nohup) shift; [ "${1:-}" = -- ] && shift
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    time) shift
+      while [[ "${1:-}" == -p || "${1:-}" == -- ]]; do shift; done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    timeout) shift
+      while [ $# -gt 0 ]; do
+        if [[ "$1" == -s || "$1" == -k || "$1" == --signal || "$1" == --kill-after ]]; then shift; [ $# -gt 0 ] && shift
+        elif [ "$1" = -- ]; then shift; break
+        elif [[ "$1" == -* ]]; then shift
+        else break; fi
+      done
+      [ $# -gt 0 ] || return 1; shift   # the DURATION; the command follows it
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+  esac
+  if _jev_is_interpreter "$b"; then
+    # Round 6 (review R5-12): every option is parsed first (bash reads its options before the first operand), tracking
+    # c (the first operand is a command string), s (the operands are positional parameters; commands come from stdin)
+    # and noexec (-n in a cluster, -o noexec). `--` and a lone `-` end the options.
+    local fc=0 fs=0
+    shift
+    while [ $# -gt 0 ]; do
+      if [[ "$1" == -o || "$1" == +o || "$1" == -O || "$1" == +O || "$1" == --rcfile || "$1" == --init-file ]]; then
+        [[ "$1" == -o && "${2:-}" == noexec ]] && noexec=1
+        shift; [ $# -gt 0 ] && shift
+      elif [ "$1" = -- ] || [ "$1" = - ]; then shift; break
+      elif [[ "$1" =~ ^-[A-Za-z]+$ ]]; then
+        [[ "$1" == *c* ]] && fc=1; [[ "$1" == *s* ]] && fs=1; [[ "$1" == *n* ]] && noexec=1; shift
+      elif [[ "$1" == -* || "$1" == +* ]]; then shift
+      else break; fi
+    done
+    [ "$noexec" = 0 ] || return 1
+    if [ "$fc" = 1 ]; then { [ $# -gt 0 ] && [ "$d" -lt 3 ]; } || return 1; _jev_cmd_runs_gate "$1" $((d+1)); return; fi
+    [ "$fs" = 0 ] || return 1
+    [ $# -gt 0 ] && [ "${1##*/}" = jev-gate.sh ]; return
+  fi
+  [ "$b" = jev-gate.sh ]
+}
+_jev_cmd_runs_gate() { # _jev_cmd_runs_gate <command string> [depth] -> 0 when some simple command in it runs jev-gate.sh
+  local d="${2:-0}" i
+  local -a W=() K=() S=()
+  _jev_shell_words "$1" || return 1
+  W=(${_JW[@]+"${_JW[@]}"}); K=(${_JK[@]+"${_JK[@]}"})
+  for ((i = 0; i <= ${#W[@]}; i++)); do
+    if [ "$i" -eq "${#W[@]}" ] || [ "${K[i]}" = s ]; then
+      if [ "${#S[@]}" -gt 0 ] && _jev_simple_runs_gate "$d" "${S[@]}"; then return 0; fi
+      S=()
+    else
+      S+=("${W[i]}")
+    fi
+  done
+  return 1
+}
+jev_settings_wired() {
+  [ -f "$1" ] || return 1
+  local c
+  while IFS= read -r -d '' c; do
+    _jev_cmd_runs_gate "$c" 0 && return 0
+  done < <(jq -j '.hooks.PreToolUse[]? | .. | objects | .command? // empty | strings | gsub("\u0000"; " ") + "\u0000"' "$1" 2>/dev/null)
+  return 1
+}
 
 # ---- value whitelists for anything written into an env file / MCP entry (review r6 m6-5) --------------------------------------
 # The env file is SOURCED by a shell, so a value must be inert there: `a;cmd` or `http://h/$(id)` must never be written.
@@ -308,13 +492,13 @@ jev_effective_mode() {
   { [[ "$gen" =~ ^[0-9]+$ ]] && [[ "$now" =~ ^[0-9]+$ ]] && [[ "$max" =~ ^[0-9]+$ ]] \
     && [ "$gen" -le $((now + 3600)) ] && [ $((now - gen)) -le "$max" ]; } \
     || { printf 'shadow\tdetection-record-stale-or-undated%s\n' "$note"; return 0; }
-  while IFS=$'\t' read -r id url; do
+  while IFS=$'\x1f' read -r id url; do
     [ -n "$id" ] || continue
     [[ "$id" == llmctl-* ]] || continue
     p="${id#llmctl-}"; jev_profile_name_ok "$p" || continue
     [ "$(jev_url_host_class "$url")" = "loopback" ] || continue
     profs="${profs:+$profs }$p"
-  done < <(jq -r '.endpoints[]? | select(.source == "local-llmctl") | [(.id // ""), (.url // "")] | @tsv' <<< "$dj" 2>/dev/null)
+  done < <(jq -r '.endpoints[]? | select(.source == "local-llmctl") | [(.id // ""), (.url // "")] | @tsv' <<< "$dj" 2>/dev/null | tr '\t' '\037')
   [ -n "$profs" ] || { printf 'shadow\tno-qualifying-local-llmctl-endpoint(hosted-or-non-llmctl-or-non-loopback-never-enforce)%s\n' "$note"; return 0; }
   while IFS= read -r f; do
     [ -f "$f" ] || continue

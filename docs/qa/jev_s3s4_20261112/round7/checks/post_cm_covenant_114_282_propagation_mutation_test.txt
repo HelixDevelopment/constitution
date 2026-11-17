@@ -1,0 +1,25 @@
+======================================================================
+§1.1 paired-mutation meta-test for CM-COVENANT-114-282-PROPAGATION (anchor §11.4.282)
+fixtures under: <W>/tmp/cm_282_mut.tIyojQ
+======================================================================
+✅ META OK:   MISSING (mid-body citation is not a block-start) — gate correctly FAILed on the mutation
+✅ META OK:   DUPLICATED (one carrier carries the block twice, F7-class) — gate correctly FAILed on the mutation
+✅ META OK:   DIVERGENT-HEAD (one carrier's heading line differs, §11.4.157 lockstep) — gate correctly FAILed on the mutation
+✅ META OK:   DIVERGENT-BODY (identical heading, divergent body — the body-drift class) — gate correctly FAILed on the mutation
+✅ META OK:   FENCE-MISSING (block lost, only the fenced inheritance EXAMPLE remains) — gate correctly FAILed on the mutation
+✅ META OK:   POINTER-OK (nested §11.4.35 pointer carrier with zero blocks -> honest SKIP, not FAIL) — gate correctly PASSed on clean fixture
+✅ META OK:   clean fleet (exactly-once + byte-identical full-block everywhere) — gate correctly PASSed on clean fixture
+✅ META OK:   ANCHOR-BOUNDARY (prefix-sharing decoy anchor §11.4.2820 is not a duplicate) — gate correctly PASSed on clean fixture
+✅ META OK:   COMPACT-OK (compact entry -> single valid full block, compared via the target) — gate correctly PASSed on clean fixture
+✅ META OK:   COMPACT-MISSING-TARGET (pointed-to file absent -> compact hash kept -> DIVERGENT) — gate correctly FAILed on the mutation
+✅ META OK:   COMPACT-DUP-TARGET (target carries the block twice, real 11.4.162 relocation shape; kills ME1) — gate correctly FAILed on the mutation
+✅ META OK:   COMPACT-TAMPERED (target block body differs from the full carriers) — gate correctly FAILed on the mutation
+✅ META OK:   COMPACT-DOTDOT (pointer escapes the root via '..' even though the outside target is valid; kills ME2) — gate correctly FAILed on the mutation
+✅ META OK:   COMPACT-TRAILER-BAD (a trailer only the compact carrier has is compared and diverges; kills ME3) — gate correctly FAILed on the mutation
+✅ META OK:   COMPACT-TRAILER-OK (target block + the shared trailer equals every full carrier; kills ME3) — gate correctly PASSed on clean fixture
+✅ META OK:   H2-BOUNDARY (a consumer-only '## ' section after the block is not part of the block; kills ME4) — gate correctly PASSed on clean fixture
+✅ META OK:   COMPACT-NOT-BULLET (only a '- §N' compact line may delegate; a bold block-start may not; kills ME5) — gate correctly FAILed on the mutation
+✅ META OK:   COMPACT-AT-CARRIER (a pointer to another carrier would compare a block with itself; kills ME6) — gate correctly FAILed on the mutation
+======================================================================
+✅ META PASS: CM-COVENANT-114-282-PROPAGATION is a genuine (non-bluff) gate
+======================================================================

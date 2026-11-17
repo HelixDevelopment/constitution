@@ -1,0 +1,6 @@
+import importlib.util,sys
+spec=importlib.util.spec_from_file_location("r",sys.argv[1]);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+vals=["T/B/D later","T.B.D later","T·B·D","TㅤBD","TBᅟD","DㅤRAFT","DR⠀AFT","ⓉⒷⒹ","ᴛʙᴅ","T0D0","TBD","TODO"]
+for v in vals:
+    f=m.fold(v)
+    print("%-14r ph=%-5s draft=%s"%(v,bool(m.PLACEHOLDER_WORD.search(f)),bool(m.DRAFT_WORD.search(f))))

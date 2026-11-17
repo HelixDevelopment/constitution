@@ -1,0 +1,4 @@
+split40k 0.0005s parts=7
+field40k 0.0462s accepted
+body20k 0.0776s accepted
+TIMING cases=129 worst=0.078s limit=1.00s OK

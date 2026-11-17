@@ -1,0 +1,4 @@
+# compare of suite_run1.txt and suite_run2.txt
+full diff lines: 0
+PASS/FAIL verdict lines run1=96 run2=96
+verdict-line diff: 0

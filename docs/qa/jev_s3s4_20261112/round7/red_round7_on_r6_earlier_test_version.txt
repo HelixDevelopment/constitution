@@ -1,0 +1,166 @@
+ok 1 - P72 CONTROL: the full document served raw starts decide-a
+ok 2 - P72 CONTROL: the full document served computed starts decide-a
+ok 3 - P72 schema absent: verdict undetermined, nothing started, the reason names [schema]
+ok 4 - P72 schema of another version: verdict undetermined, nothing started, the reason names [schema]
+ok 5 - P72 time absent: verdict undetermined, nothing started, the reason names [time]
+ok 6 - P72 time a string: verdict undetermined, nothing started, the reason names [time]
+FAIL - P72 host.cpus_online absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.cpus_online]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.cpus_online a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.cpus_online]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.mem_total_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.mem_total_mb]; got rc 5, 0 starts, verdict undetermined, reason [contract fields missing or wrong: host.mem])
+FAIL - P72 host.mem_total_mb a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.mem_total_mb]; got rc 5, 0 starts, verdict undetermined, reason [contract fields missing or wrong: host.mem])
+FAIL - P72 host.mem_available_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.mem_available_mb]; got rc 5, 0 starts, verdict undetermined, reason [contract fields missing or wrong: host.mem])
+FAIL - P72 host.mem_available_mb a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.mem_available_mb]; got rc 5, 0 starts, verdict undetermined, reason [contract fields missing or wrong: host.mem])
+FAIL - P72 host.usable_mem_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.usable_mem_mb]; got rc 5, 0 starts, verdict undetermined, reason [contract fields missing or wrong: host.mem])
+FAIL - P72 host.usable_mem_mb a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.usable_mem_mb]; got rc 5, 0 starts, verdict undetermined, reason [contract fields missing or wrong: host.mem])
+FAIL - P72 host.swap_total_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.swap_total_mb]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.swap_total_mb a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.swap_total_mb]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.swap_free_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.swap_free_mb]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.swap_free_mb a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.swap_free_mb]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.load absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.load]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.load a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.load]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.load.5 absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.load]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.psi absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.psi]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.psi a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.psi]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.psi.cpu absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.psi]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.cgroup absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.cgroup]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 host.cgroup an array (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.cgroup]; got rc 0, 1 starts, verdict fits, reason [])
+ok 7 - P72 host absent: verdict undetermined, nothing started, the reason names [host]
+ok 8 - P72 reserve absent: verdict undetermined, nothing started, the reason names [reserve]
+ok 9 - P72 reserve a string: verdict undetermined, nothing started, the reason names [reserve]
+ok 10 - P72 pressure absent: verdict undetermined, nothing started, the reason names [pressure]
+FAIL - P72 pressure.ok a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [pressure.ok]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 pressure.reasons absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [pressure.reasons]; got rc 0, 1 starts, verdict fits, reason [])
+ok 11 - P72 llmctl.units absent: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 12 - P72 llmctl.units an object: verdict undetermined, nothing started, the reason names [llmctl.units]
+FAIL - P72 llmctl.units[].profile absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [llmctl.units]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 llmctl.units[].profile a number (expected rc 5, 0 starts, verdict undetermined, a reason naming [llmctl.units]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 llmctl.units[].status absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [llmctl.units]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 llmctl.units[].status a number (expected rc 5, 0 starts, verdict undetermined, a reason naming [llmctl.units]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 llmctl.units[].reasons absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [llmctl.units]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 llmctl.units[].reasons a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [llmctl.units]; got rc 0, 1 starts, verdict fits, reason [])
+ok 13 - P72 fallback.recommended absent: verdict undetermined, nothing started, the reason names [fallback.recommended]
+ok 14 - P72 fallback.recommended outside the set: verdict undetermined, nothing started, the reason names [fallback.recommended]
+FAIL - P72 fallback.key_variable absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [fallback.key_variable]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 fallback.key_variable a number (expected rc 5, 0 starts, verdict undetermined, a reason naming [fallback.key_variable]; got rc 0, 1 starts, verdict fits, reason [])
+ok 15 - P72 unknown_profiles absent: verdict undetermined, nothing started, the reason names [unknown_profiles]
+ok 16 - P72 unknown_profiles an object: verdict undetermined, nothing started, the reason names [unknown_profiles]
+FAIL - P72 degraded absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [degraded]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 degraded a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [degraded]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 largest_decision_fit absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [largest_decision_fit]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 largest_decision_fit a number (expected rc 5, 0 starts, verdict undetermined, a reason naming [largest_decision_fit]; got rc 0, 1 starts, verdict fits, reason [])
+ok 17 - P72 profiles absent: verdict undetermined, nothing started, the reason names [profiles]
+FAIL - P72 profiles.decide-a.verdict absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [verdict]; got rc 5, 0 starts, verdict undetermined, reason [no candidate fits; at least one is undetermined])
+FAIL - P72 profiles.decide-a.threads absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [threads]; got rc 5, 0 starts, verdict undetermined, reason [no candidate fits; at least one is undetermined])
+FAIL - P72 profiles.decide-a.reasons absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [reasons]; got rc 5, 0 starts, verdict undetermined, reason [no candidate fits; at least one is undetermined])
+FAIL - P72 profiles.decide-a.headroom absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [headroom]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 profiles.decide-a.verdict a number (expected rc 5, 0 starts, verdict undetermined, a reason naming [verdict]; got rc 5, 0 starts, verdict undetermined, reason [no candidate fits; at least one is undetermined])
+FAIL - P72 profiles.decide-a.threads a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [threads]; got rc 5, 0 starts, verdict undetermined, reason [no candidate fits; at least one is undetermined])
+FAIL - P72 profiles.decide-a.reasons a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [reasons]; got rc 5, 0 starts, verdict undetermined, reason [no candidate fits; at least one is undetermined])
+FAIL - P72 profiles.decide-a.headroom a number (expected rc 5, 0 starts, verdict undetermined, a reason naming [headroom]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 measurement.critical_inputs_unreadable non-empty (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.psi.memory]; got rc 0, 1 starts, verdict fits, reason [])
+FAIL - P72 pressure.ok false with verdict fits (VM01) (expected rc 5, 0 starts, verdict does_not_fit, a reason naming [psi full avg10 3.1]; got rc 5, 0 starts, verdict does_not_fit, reason [no candidate profile fits])
+ok 18 - P73 B planned decide-a on an answer read before any start (paused at flock call 5)
+ok 19 - P73 A starts decide-a while B waits at its start mark
+FAIL - P73 B joins decide-a (a fresh plan after the stale mark) (expected [0 decide-a] got [0 decide-b])
+FAIL - P73 one start in all; decide-b is never started on B's pre-start answer (expected [1 0] got [2 1])
+FAIL - P73 only decide-a runs (expected [decide-a ] got [decide-a decide-b ])
+FAIL - P73 B announces the stale answer and the fresh plan (no [stale answer] in <SESSION-TMP>)
+ok 20 - P73 every start follows a capacity answer read after the previous start
+ok 21 - P74 B planned decide-a (paused at flock call 5)
+ok 22 - P74 C starts decide-b while B waits
+FAIL - P74 B re-plans and joins decide-b (its fresh answer says decide-a does not fit) (expected [0 decide-b] got [0 decide-a])
+FAIL - P74 decide-a is never started next to decide-b on B's stale answer (expected [1 0] got [2 1])
+ok 23 - P75 A planned decide-a (paused at flock call 5)
+ok 24 - P75 the older-pin writer left the generation unchanged (the instrument)
+FAIL - P75 A re-plans and joins the set the older-pin writer created (expected [0 decide-a] got [0 decide-b])
+FAIL - P75 only the writer's start; decide-b is never started on A's stale answer (expected [1 0] got [2 1])
+FAIL - P75 the writer's lease is kept, A's is added (expected [sOld,sA] got [sOld])
+ok 25 - P75b B took its ticket; its capacity call waits
+ok 26 - P75b C's start of decide-a failed with the unit up; its record waits (paused at flock call 7)
+ok 27 - P75b B read its answer while C's unit was up (paused at flock call 3)
+ok 28 - P75b C cleaned up: rc 5, no unit left
+FAIL - P75b CONTROL: the registry is not an ABA of B's ticket (the row would not test the generation): {
+  "sets": {},
+  "gateway": {
+    "url": "https://127.0.0.1:18095",
+    "ca": "/nonexistent/ca.crt",
+    "source": "llmctl decide status registry"
+  }
+} vs {
+  "sets": {},
+  "gateway": {
+    "url": "https://127.0.0.1:18095",
+    "ca": "/nonexistent/ca.crt",
+    "source": "llmctl decide status registry"
+  }
+}
+FAIL - P75b B re-reads and STARTS decide-a; it never adopts the gone unit (expected [0 decide-a placed] got [0 decide-a joined_running])
+FAIL - P75b decide-a runs (expected [decide-a ] got [])
+ok 29 - P76 A started decide-a; its next ticket waits (paused at flock call 9)
+ok 30 - P76 A placed decide-a
+ok 31 - P76 decide-b is started once (by the writer), never again by A's mark
+FAIL - P76 A announces it did not start decide-b (no [candidate decide-b: not started] in <SESSION-TMP>)
+ok 32 - P77 B read its answer (paused at flock call 3)
+ok 33 - P77 A started decide-a; its post-start observation waits (paused at flock call 9)
+ok 34 - P77 A's set is pending (floored at the start)
+ok 35 - P77 B re-reads (its answer predates the start) and joins
+ok 36 - P77 A finishes; one start
+ok 37 - P78 the observer read its answer before any start (paused at flock call 3)
+ok 38 - P78 the starter was killed after llmctl start rc 0, before its record (the instrument)
+ok 39 - P78 the unit runs; the set still carries the dead starter's mark
+FAIL - P78 the observer clears the mark and does NOT mark the set gone (its answer predates the start) (expected [0 null 1] got [0 {
+  "at": 1700000000,
+  "detail": "no own unit reported, verdict fits"
+} 0])
+FAIL - P78 the set is pending (floor), its mark cleared (expected [pending null] got [absent null])
+FAIL - P78 no endpoint_gone (found [endpoint_gone] in <SESSION-TMP>)
+FAIL - P78 sA still holds its lease; a newer observation reads the unit ok (expected [0 ok] got [3 ok])
+FAIL - P78 another holder's release stops nothing (the set keeps sA's lease) (expected [0 decide-a ] got [1 ])
+FAIL - P79 a live starter's mark is kept at MARK_TTL (138 s) (expected [4034755] got [null])
+ok 40 - P79 it is cleared one second later
+ok 41 - P79 the clearing is recorded
+ok 42 - P80 sB's heartbeat leaves sA's heartbeat_at at its own value
+ok 43 - P80 sA (no heartbeat for 1000 s > TTL 900) is reaped; the last release stops the model
+ok 44 - P81a both starts refused (75): each tried once, rc 5
+FAIL - P81a after a refused start the next start is decided on a fresh answer (expected [0] got [1])
+ok 45 - P81a the fresh answer comes from the planned re-plan, never from the stale-mark backstop
+ok 46 - P81c both starts fail; each cleaned up, rc 5, no unit left
+FAIL - P81c after a failed start and its cleanup stop the next start is decided on a fresh answer (expected [0] got [1])
+ok 47 - P81c the fresh answer comes from the planned re-plan, never from the stale-mark backstop
+ok 48 - P81b CONTROL shape: the degraded lease-less set is disposed, then decide-b placed
+ok 49 - P81b after the disposal stop the start is decided on a fresh answer
+ok 50 - P81b the fresh answer comes from the planned re-plan, never from the stale-mark backstop
+ok 51 - P81 CONTROL: the property checker sees a start right after a start
+ok 52 - P82 B is at start mark 5 (paused at flock call 5)
+ok 53 - P82 B is at start mark 11 (paused at flock call 11)
+FAIL - P82 B is at start mark 17: never reached flock call 17
+FAIL - P82 B is at start mark 23: never reached flock call 23
+FAIL - P82 four stale marks: no start, undetermined (stale_answer) (expected [5 0 undetermined stale_answer] got [0 1 placed null])
+FAIL - P82 STALE_MAX (3) re-plans, then it stops (expected [3] got [0])
+ok 54 - P82b B is at plan 3 (paused at flock call 3)
+ok 55 - P82b B is at plan 7 (paused at flock call 7)
+ok 56 - P82b B is at plan 11 (paused at flock call 11)
+FAIL - P82b three stale reads: a plan with joins only, no start (stale_answer) (expected [5 0 stale_answer] got [0 1 null])
+FAIL - P82b the joins-only plan is announced (no [planning joins only] in <SESSION-TMP>)
+ok 57 - P83 B is at its start mark (paused at flock call 5)
+ok 58 - P83 C's acquire on an undetermined answer wrote nothing to the registry
+ok 59 - P83 B starts on its answer (one read before the plan, one after the start: no re-read)
+FAIL - P84 status exits 0 when no placement has been recorded yet (expected [0] got [1])
+FAIL - P84 it says so (no [placement: none recorded yet] in <SESSION-TMP>)
+ok 60 - P85 an unlimited RLIMIT_NPROC: undetermined, no start
+FAIL - P85 the record does not name the reason: no candidate fits; at least one is undetermined
+ok 61 - P86 the owed stop fails: tried once by this acquire, which ends (rc 5)
+ok 62 - P86 the set is kept with its failed stop (retried by the next acquire or release)
+ok 63 - P87 A started decide-a; the ticket of its fresh read for decide-b waits (paused at flock call 9)
+ok 64 - P87 another set is stopping (a live stopper) before A's ticket
+ok 65 - P87 decide-b is not started while decide-c is stopping
+FAIL - P87 the refusal is announced (no [candidate decide-b: not started (not fitting on the fresh answer, a set exists, or a set is starting/stopping)] in <SESSION-TMP>)
+ok 66 - P88 A started decide-a; the ticket of its fresh read for decide-b waits (paused at flock call 9)
+ok 67 - P88 the release of sA (its only lease) stopped decide-a
+FAIL - P88 decide-b is never started for the released sA; sA holds no lease (expected [0 0] got [1 1])
+FAIL - P88 the reason is announced (no [the lease of sA on decide-a, taken by this acquire, is gone] in <SESSION-TMP>)
+ok 68 - P88 CONTROL: A waits at the same ticket (paused at flock call 9)
+ok 69 - P88 CONTROL: without the release decide-b is started
+ok 70 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round7.sh: pass=70 fail=77 skip=0
+rc=1 secs=602

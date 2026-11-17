@@ -1,0 +1,16 @@
+#!/bin/bash
+# hrun.sh <workdir> <guardlog> cmd... : hermetic run (Jev round 12): real home hidden by tmpfs, no network, own pid/ipc
+# ns, env -i, refusal guards first on PATH. Fake HOME = fresh mktemp dir under $R/homes, checked before use.
+set -u
+R=/mnt/DATA1TB/claude-work/scratch/jev_r12.9XGE
+[ -d "$R/homes" ] || { echo "hrun: work dir unresolved" >&2; exit 2; }
+WD="${1:?workdir}"; GL="${2:?guardlog}"; shift 2
+H="$(mktemp -d "$R/homes/h.XXXXXX")"
+case "$H" in "$R/homes/h."?*) ;; *) echo "hrun: fake home not under $R/homes: [$H]" >&2; exit 2 ;; esac
+REALHOME="$(getent passwd "$(id -u)" | cut -d: -f6)"
+[ -n "$REALHOME" ] && [ "$REALHOME" != / ] || { echo "hrun: cannot resolve the real home to hide" >&2; exit 2; }
+exec bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --tmpfs "$REALHOME" --tmpfs /run/user/1000 \
+  --bind "$R" "$R" --unshare-net --unshare-pid --unshare-ipc --die-with-parent --chdir "$WD" \
+  /usr/bin/env -i PATH="$R/${HRUN_GUARD:-guard}:/usr/bin:/bin" HOME="${H:?}" LANG=C.UTF-8 LC_ALL=C.UTF-8 TERM=dumb USER=fixer LOGNAME=fixer \
+  TMPDIR="$R/tmp" JEV_HOSTED_PROBE=0 GIT_SSH_COMMAND=/bin/false GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 REVIEW_GUARD_LOG="$GL" \
+  ${HRUN_EXTRA_ENV:-} "$@"

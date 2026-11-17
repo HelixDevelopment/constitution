@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 5 |
 | Created | 2026-10-23 |
-| Last modified | 2026-10-28T14:40:00Z |
+| Last modified | 2026-11-17T03:25:18Z |
 | Status | active |
 | Status summary | Task-oriented operating manual: set up, run, read status, calibrate, switch endpoints, turn it off. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -95,11 +95,27 @@ Add an entry to the `lan` list of the toolkit's `providers/jev.json` (or point `
 
 ```bash
 bash scripts/jev/jev-status.sh          # human sections
-bash scripts/jev/jev-status.sh --json   # {version, detection, thresholds, bootstrap:{stamp,pending}, mode (effective), mode_stored, mode_reason, test_override}
+bash scripts/jev/jev-status.sh --json   # {version, detection, thresholds, bootstrap:{stamp,pending}, mode (effective), mode_stored, mode_reason, test_override, mcp_mode_mismatch, health, calibration_age_s, consent, wiring, placement, leases}
 bash scripts/jev/jev-status.sh --no-validate   # or JEV_STATUS_NO_VALIDATE=1: do NOT run llmctl require-validated; a stored enforce then reports mode unknown (reason validation-skipped)
 ```
 
-Sections: Mode, Endpoints (as last recorded, not live), Tools (provenance), Thresholds, Evidence log (decision count, kill-switch uses), Bootstrap (stamp, pending and why). For savings estimates use the toolkit's `jev-stats.sh [--days N] [--json]`; those numbers are ESTIMATES.
+Sections: Mode, Endpoints (as last recorded, not live), Tools (provenance), Thresholds, Evidence log (decision count, kill-switch uses), Endpoint health (per endpoint from the gate's `decisions.jsonl` rows: total, ok = answered with no fallback, last success and last seen in epoch seconds, counts by result; a row with `attempts[]` counts each attempt), Calibration age, Consent (default-on record), Wiring (a PreToolUse hook whose command runs `jev-gate.sh`, decided structurally, see [troubleshooting](troubleshooting.md), in a settings file the toolkit writes: `$CLAUDE_CONFIG_DIR`, `~/.claude-shared`, `~/.claude`, `~/.claude-*`; each file is named), Placement (local profile, verdict, route, lease sets), Bootstrap (stamp, pending and why). Endpoint health reads only rows that name their endpoint; rows without one are counted under `unknown`.
+
+### Default-on wiring (2026-11-12)
+
+With a non-placeholder key in the keys file, every constitution pull runs `bootstrap.sh --non-interactive --default-on`, which wires the hook and MCP server at user level, logs `DEFAULT-ON: ...` with the undo command, and writes `~/.local/state/jev/consent.json`. Opt out: `touch ~/.config/jev/wiring.disabled` or `JEV_WIRING=off`. Undo: claude_toolkit `jev-setup --uninstall`. The bootstrap exits 5 when it detects endpoints but cannot serve (see the bootstrap reference).
+
+### Local placement (§11.4.291)
+
+```bash
+bash scripts/jev/jev-place.sh verdict            # read-only verdict per systemone-native decide profile
+bash scripts/jev/jev-place.sh acquire <session-id> --pid <session-pid>   # start the best fitting profile, or join the running one
+bash scripts/jev/jev-place.sh heartbeat <session-id>   # exit 3 = this holder has no lease (acquire again); never assumed
+bash scripts/jev/jev-place.sh release <session-id>   # the LAST release stops every model the constitution started; exit 6 = stop failed, set kept, retried by the next release
+bash scripts/jev/jev-place.sh status
+```
+
+It never runs `llmctl enable`, `disable`, `switch` or `auto`. A model you started yourself is never stopped by it. Each `llmctl start` runs in a start process, `scripts/jev/jev-start-gate.sh`, which only `jev-place.sh` runs: it waits until the start is recorded in the lease registry, then runs the bounded `llmctl start`, and it exits without starting anything if `jev-place.sh` dies first (see the governance guide, start-intent rules). A lease TTL (`--ttl`, default `JEV_LEASE_TTL`) must exceed `JEV_REEVAL_CADENCE` (default 300 s) plus `JEV_LLMCTL_TIMEOUT` (default 20 s), else `acquire` exits 2. The `llmctl-local` cache entry is derived from the lease registry and only an `https://` gateway is registered. No session calls these commands automatically today, and the re-evaluation cadence, drain and hold window are not built (see the governance guide). For savings estimates use the toolkit's `jev-stats.sh [--days N] [--json]`; those numbers are ESTIMATES.
 
 ## 6. Shadow mode and enforce mode
 
@@ -111,13 +127,14 @@ Sections: Mode, Endpoints (as last recorded, not live), Tools (provenance), Thre
 ## 7. Calibrating
 
 ```bash
-# Add your main LLM alias to the env file once:
+# Add your main LLM alias once (read in this order: --alias, MAIN_LLM_ALIAS in the environment, MAIN_LLM_ALIAS in this env file,
+# ~/.config/jev/main_llm_alias, then the default "claude"; the alias and its source are recorded in jev-thresholds.json):
 echo 'MAIN_LLM_ALIAS=<alias>' >> ~/.config/jev/env
 bash scripts/jev/jev-calibrate.sh --dry-run      # report only, writes nothing
 bash scripts/jev/jev-calibrate.sh --now --alias <alias>
 ```
 
-Output: per question type, `n`, agreement, recommended threshold, promoted or not, with the reason. Thresholds are written atomically to `~/.config/jev/jev-thresholds.json` (mirrored to the evidence dir, `~/.local/state/jev/evidence` by default); the previous file is kept as `jev-thresholds.<epoch>.json`. Rows that lack question text, criteria and state text are counted as skipped and never labeled blind. Today's gate rows lack them; see the limitation in the governance guide. The labeling command can be replaced with `JEV_CALIBRATE_ALIAS_CMD`.
+Output: per question type and per (endpoint, model) (`per_endpoint`), `n`, agreement, recommended threshold, promoted or not, with the reason. Thresholds are written atomically to `~/.config/jev/jev-thresholds.json` (mirrored to the evidence dir, `~/.local/state/jev/evidence` by default); the previous file is kept as `jev-thresholds.<epoch>.json`. Rows that lack question text, criteria and state text are counted as skipped and never labeled blind. Today's gate rows lack them; see the limitation in the governance guide. The labeling command can be replaced with `JEV_CALIBRATE_ALIAS_CMD`.
 
 ## 8. Routing and voting across several endpoints
 

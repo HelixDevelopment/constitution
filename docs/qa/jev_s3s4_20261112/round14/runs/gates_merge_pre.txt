@@ -1,0 +1,47 @@
+== cm_constitution_index_fresh
+CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+rc=0
+== cm_gate_ledger_ratchet
+CM-GATE-LEDGER-RATCHET: corpus read (corpus = Constitution.md + its status-summary archive docs/amendment-log/status-summary-constitution.md)
+LEDGER: unimplemented=394 baseline=394 fails=0
+✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanished name
+rc=0
+== 279
+✅ CM-COVENANT-114-279-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.279 block
+rc=0
+== 280
+✅ CM-COVENANT-114-280-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.280 block
+rc=0
+== 281
+✅ CM-COVENANT-114-281-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.281 block
+rc=0
+== 282
+✅ CM-COVENANT-114-282-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.282 block
+rc=0
+== 283
+✅ CM-COVENANT-114-283-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.283 block
+rc=0
+== 284
+✅ CM-COVENANT-114-284-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.284 block
+rc=0
+== 285
+✅ CM-COVENANT-114-285-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.285 block
+rc=0
+== 286
+✅ CM-COVENANT-114-286-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.286 block
+rc=0
+== 291
+✅ CM-COVENANT-114-291-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.291 block
+rc=0
+== verify-manifest
+MANIFEST: docs/guides/full_suite_runner_guide.md: census block is stale (run --sync-guide)
+census: go/entry=5 js/excluded=5 py/entry=12 py/excluded=34 py/fixture=21 py/member=24 runall/entry=9 sh/entry=389 sh/excluded=29 sh/fixture=117 sh/member=341 total=986
+RESULT: MANIFEST-MISMATCH (3 problem(s); nothing was run)
+rc=3
+== engine validate
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 491 items, all invariants satisfied
+rc=0
+== engine diff
+diff: DB and Markdown are in sync (compared 491 Markdown item(s) against 491 DB item(s); read docs/Issues.md, docs/Fixed.md)
+rc=0

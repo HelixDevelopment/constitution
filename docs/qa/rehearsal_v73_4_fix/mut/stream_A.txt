@@ -1,0 +1,6 @@
+control PASS control tag_and_release.sh passes its suite
+DP1 PASS DP1 killed by its property (FAIL RH2 github probe: would create, repository id read (no line matching /^PROBE release github:r1:acc/one OK would-cre)
+DP2 PASS DP2 killed by its property (FAIL GL13 github plan line states the pre-release flag (no line matching /^PLAN release github:r1:acc/one prerelease=fla)
+DP3 PASS DP3 killed by its property (FAIL RH10 no token text in the output)
+DP4 PASS DP4 killed by its property (FAIL RH3 exit 5 (got '0', want '5'))
+DP5 PASS DP5 killed by its property (FAIL RH6 a project answer that is not a JSON object: exit 1 (got '0', want '1'))

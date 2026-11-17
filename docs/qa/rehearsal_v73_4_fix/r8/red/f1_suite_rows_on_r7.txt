@@ -1,0 +1,3 @@
+CHECKED items=3 provisional_status=3 ok=3 fail=0
+VERDICT: PASS
+F1ROWS rc=0 accepted=CON-016,CON-022,CON-023 refused=-

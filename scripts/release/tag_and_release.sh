@@ -7,7 +7,7 @@
 #       [--title TITLE] [--prerelease] [--gitlab-released-at ISO8601] [--message MSG] \
 #       [--release github:REMOTE:OWNER/REPO]... \
 #       [--release gitlab:REMOTE:OWNER/REPO]... \
-#       [--release gitea:REMOTE:BASE_URL:OWNER/REPO]... \
+#       [--release gitea:REMOTE:BASE_URL:OWNER/REPO:TOKEN_VAR]... \
 #       [--no-badge-check] [--dry-run]
 #
 # What it guarantees (each one is a finding of the v73.4 review, I-3 and m-3/m-4):
@@ -34,7 +34,8 @@
 #   * nothing is ever forced: no --force, no --force-with-lease, no "+" refspec,
 #     no tag deletion, no history rewrite (§11.4.113).
 #   * release notes are cut from `git show SHA:CHANGELOG.md`, never from the
-#     working tree.
+#     working tree; notes holding the DRAFT RENDER marker line of
+#     render_release_entry.py --draft abort a real run (a dry run prints PLAN refuse).
 #   * GitLab has NO pre-release flag (its Releases API has no such attribute, and
 #     glab 1.129.0 "release create" has no --prerelease option). With --prerelease
 #     the GitLab leg marks the release itself: the name is prefixed "PROVISIONAL
@@ -49,6 +50,23 @@
 #     show upcoming_release=true and the same instant, otherwise the leg is a GAP
 #     (UNCONFIRMED). A final release gets no mark and no date; a final re-run over a
 #     kept PROVISIONAL-marked release keeps it as it is (no promotion path).
+#   * one remote per distinct repository (CON-423, D10): a remote name listed
+#     twice in --remotes is a usage error; two remotes whose push URLs name the
+#     same repository (compared by host and path, case-folded, user, port and a
+#     trailing ".git" removed) abort the preflight without printing the URLs;
+#     for github.com remotes the repository id is compared too when gh is
+#     logged in (a renamed or moved repository keeps its id), else an INFO line
+#     says the id check is UNCONFIRMED.
+#
+# Dry run (CON-423, D3 and D4): --dry-run writes nothing, and after preflight it
+# prints one plan line per release leg ("prerelease=flag", "prerelease=none" or,
+# for GitLab, "prerelease=marked-by-title-and-description") and probes what it
+# can read without writing: GitHub login, repository id, de-duplication and an
+# existing release; GitLab login, project access and an existing release; for
+# gitea only the token SHAPE (never its value; an empty or unset token is
+# SKIPPED-NO-TOKEN, access is not probed and stays a WOULD-GAP). A probe that
+# shows the real run would fail prints "PROBE ... WOULD-FAIL"; one that cannot
+# decide prints "PROBE ... WOULD-GAP".
 #
 # Exit status (machine-readable; the last line is "RESULT: <word> ..."):
 #   0 OK       every remote OK and every requested release present
@@ -58,7 +76,9 @@
 #              access); a gap is never reported as released. A gitea publisher
 #              exit 3 is a gap only with its SKIPPED-NO-TOKEN line; any other
 #              exit 3 (configuration or precondition) is a FAIL
-# A --dry-run that passes preflight prints the plan and exits 0 without writing.
+# A --dry-run that passes preflight prints the plan and its probes and exits 0 when
+# no probe found a problem, 1 ("RESULT: FAIL dry-run ...") when a probe says the
+# real run would fail, and 5 ("RESULT: GAPS dry-run ...") when it would leave a gap.
 #
 # Output of external commands (round 5, CON-234 class, threat model
 # docs/qa/con227_234_2026_11_11/round5/threat_model.md): the stderr of every NETWORK command (git fetch,
@@ -79,8 +99,15 @@
 # "https://TOKEN@h/r", "ssh://u:p@h/r") is refused before any network command, because git passes the URL,
 # userinfo included, in the argv of its transport helper, which every local user can read in /proc. Use a git
 # credential helper, an ssh key (ssh agent) or GIT_ASKPASS. The environment of every child is an allow-list
-# (rc_env_lockdown): a caller's M3W_GITEA_TOKEN reaches the gitea publisher only, GH_TOKEN and GITLAB_TOKEN reach
-# nothing (gh and glab use their own stored login: gh auth login, glab auth login).
+# (rc_env_lockdown): the token variable a gitea spec names (its fifth field, TOKEN_VAR) reaches the gitea
+# publisher of that spec only, GH_TOKEN and GITLAB_TOKEN reach nothing (gh and glab use their own stored login: gh
+# auth login, glab auth login).
+# Gitea token binding (B-M2, 2026-11-16): a gitea spec MUST name its token variable, and the pair (BASE_URL,
+# TOKEN_VAR) must be bound in config/forge/hosts.tsv (a gitea row whose api_base is BASE_URL/api/v1 lists
+# TOKEN_VAR; a loopback test URL takes GITEA_LOOPBACK_TEST_TOKEN only; scripts/release/redact_cut.sh
+# rc_gitea_binding). An unbound pair, an unknown host, an unreadable table or the old four-field spec is a usage
+# error (exit 2) before anything is fetched or written, also on --dry-run. The publisher is called with
+# --token-var TOKEN_VAR (it has no default variable any more), so it can never fall back to M3W_GITEA_TOKEN.
 set +x   # first: an inherited xtrace (bash -x, SHELLOPTS=xtrace) traces this one line only
 set -u
 unset -v GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py; written as unset -v because the network-spawn gate of tests/release/channel_census.py admits only that form)
@@ -92,8 +119,24 @@ RELEASES=()
 # shellcheck source=scripts/release/redact_cut.sh
 _rc_d="${BASH_SOURCE[0]}"; case "$_rc_d" in */*) _rc_d="${_rc_d%/*}" ;; *) _rc_d=. ;; esac   # no external command before the lockdown (round 6)
 . "$(cd "$_rc_d" && pwd)/redact_cut.sh" || { printf 'tag_and_release: cannot load redact_cut.sh\n' >&2; exit 2; }
-rc_env_clean "RELEASE_NET_TIMEOUT M3W_GITEA_TOKEN" "$@"; _rc=$?   # children get an environment built from the allow-list only: no caller token variable reaches any child (round 7, L1 L2; K3)
+# B-M2: the token variables named by the gitea specs (fifth field) are carried over (as shell variables no child
+# receives); the arguments are read the way the loop below reads them. A name that is not an upper-case variable
+# name, or that bash gives a meaning of its own, is not carried and is refused by the spec check below.
+_tar_reads="RELEASE_NET_TIMEOUT"; _tar_a=("$@"); _tar_i=0
+while [ "$_tar_i" -lt "${#_tar_a[@]}" ]; do
+  case "${_tar_a[_tar_i]}" in
+    --release) _tar_v="${_tar_a[_tar_i+1]:-}"; _tar_i=$((_tar_i + 2))
+      case "$_tar_v" in gitea:*) _tar_v="${_tar_v##*:}"
+        if [[ $_tar_v =~ ^[A-Z][A-Z0-9_]{0,63}$ ]] && ! _rc_env_reserved "$_tar_v"; then
+          case " $_tar_reads " in *" $_tar_v "*) ;; *) _tar_reads="$_tar_reads $_tar_v" ;; esac
+        fi ;; esac ;;
+    --tag|--sha|--remotes|--title|--message|--gitlab-released-at) _tar_i=$((_tar_i + 2)) ;;
+    *) _tar_i=$((_tar_i + 1)) ;;
+  esac
+done
+rc_env_clean "$_tar_reads" "$@"; _rc=$?   # children get an environment built from the allow-list only: no caller token variable reaches any child (round 7, L1 L2; K3)
 [ "$_rc" -eq 0 ] || { printf 'tag_and_release: cannot build a clean environment for the child processes (rc_env_clean status %s; Linux /proc is required)\n' "$_rc" >&2; printf 'RESULT: USAGE\n'; exit 2; }
+unset -v _tar_reads _tar_a _tar_i _tar_v
 rc_git_env   # no git trace anywhere, no terminal prompt, GIT_TRACE_REDACT=1
 usage() { awk 'NR>1 && /^#/{print; next} NR>1{exit}' "$0"; }
 die_usage() { printf 'tag_and_release: %s\n' "$1" >&2; printf 'RESULT: USAGE\n'; exit 2; }
@@ -121,18 +164,31 @@ done
 SEG='[A-Za-z0-9][A-Za-z0-9._-]*'
 [[ $TAG =~ ^$SEG$ ]] || die_usage "tag has unsafe characters (not shown)"
 [[ $SHA =~ ^[0-9A-Fa-f]{7,64}$ ]] || die_usage "--sha must be a hexadecimal commit id of 7 to 64 digits (the value is not shown)"
-n=0
+n=0 _seen=" "
 for r in $REMOTES; do
   n=$((n + 1)); [[ $r =~ ^$SEG$ ]] || die_usage "remote name number $n in --remotes has unsafe characters (not shown)"
+  case "$_seen" in *" $r "*) die_usage "remote name number $n in --remotes repeats an earlier name (list each remote once; one remote per distinct repository)" ;; esac
+  _seen="$_seen$r "
 done
+unset -v _seen
 RE_GH="^github:$SEG:$SEG/$SEG\$" RE_GL="^gitlab:$SEG:$SEG(/$SEG)+\$"
-RE_GT="^gitea:$SEG:(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]{1,5}):$SEG/$SEG\$"
+RE_GT="^gitea:$SEG:(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]{1,5}):$SEG/$SEG:[A-Z][A-Z0-9_]{0,63}\$"
 n=0
 for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
   n=$((n + 1))
-  [[ $spec =~ $RE_GH || $spec =~ $RE_GL || $spec =~ $RE_GT ]] || die_usage "bad --release spec number $n (expected github:REMOTE:OWNER/REPO, gitlab:REMOTE:GROUP/.../REPO or gitea:REMOTE:https://HOST[:PORT]:OWNER/REPO; the spec is not shown)"
+  [[ $spec =~ $RE_GH || $spec =~ $RE_GL || $spec =~ $RE_GT ]] || die_usage "bad --release spec number $n (expected github:REMOTE:OWNER/REPO, gitlab:REMOTE:GROUP/.../REPO or gitea:REMOTE:https://HOST[:PORT]:OWNER/REPO:TOKEN_VAR; the spec is not shown)"
   rr="${spec#*:}"; rr="${rr%%:*}"
   case " $REMOTES " in *" $rr "*) ;; *) die_usage "--release spec number $n names remote '$rr' that is not in --remotes" ;; esac
+  case "$spec" in gitea:*)   # B-M2: the token variable must be bound to the base URL (config/forge/hosts.tsv)
+    gtv="${spec##*:}"; gt="${spec#*:*:}"; gt="${gt%:*}"; gbase="${gt%:*}"
+    rc_gitea_binding "$gbase" "$gtv"; gb=$?
+    case "$gb" in
+      0) ;;
+      3) die_usage "--release spec number $n: cannot read config/forge/hosts.tsv beside this script, or it has no gitea row (fail closed)" ;;
+      2) die_usage "--release spec number $n: the token variable $gtv is a name bash gives a meaning of its own" ;;
+      *) die_usage "--release spec number $n: the token variable $gtv is not bound to $gbase in config/forge/hosts.tsv (a gitea row whose api_base is $gbase/api/v1 must list it; a loopback test URL takes GITEA_LOOPBACK_TEST_TOKEN only)" ;;
+    esac ;;
+  esac
 done
 NET_TIMEOUT="${RELEASE_NET_TIMEOUT:-600}"
 [[ $NET_TIMEOUT =~ ^[1-9][0-9]{0,5}$ ]] || die_usage "RELEASE_NET_TIMEOUT must be a positive whole number of seconds (the value is not shown)"
@@ -180,13 +236,13 @@ trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM
 # deadline (round 6, K2: with --foreground only the direct child was signalled and git's transport helpers kept
 # running); -k 10 sends KILL to the group when TERM was not enough. net ARGS...: git with a low-speed limit for
 # the HTTP transport, bounded the same way. pub ARGS...: the gitea publisher, the one child that receives the
-# caller's M3W_GITEA_TOKEN (exported in this command-substitution subshell only); it is not run under timeout(1),
+# caller's token variable of that spec (pub TOKEN_VAR ARGS...; exported in this command-substitution subshell only); it is not run under timeout(1),
 # so the token is in no other process's environment; its own curl calls are bounded (-m 60 --connect-timeout 20).
 if command -v timeout >/dev/null 2>&1; then HAVE_TIMEOUT=1
 else HAVE_TIMEOUT=0; printf 'tag_and_release: WARNING timeout(1) not found; network commands are not time-bounded\n' >&3; fi
 nt() { if [ "$HAVE_TIMEOUT" -eq 1 ]; then rc_net timeout -k 10 "$NET_TIMEOUT" "$@"; else rc_net "$@"; fi; }   # round 11: every network child through rc_net
 net() { nt git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 "$@"; }
-pub() { if [ -n "${M3W_GITEA_TOKEN+x}" ]; then export M3W_GITEA_TOKEN; fi; bash scripts/release_publish_gitea.sh "$@"; }
+pub() { local tv="$1"; shift; export "${tv?}"; bash scripts/release_publish_gitea.sh --token-var "$tv" "$@"; }   # tv matched RE_GT's [A-Z][A-Z0-9_]{0,63}; an unset variable stays out of the environment
 # xcls OUTPUT RC: the reason class of a failed network command (never any byte of OUTPUT)
 xcls() {
   if [ "$HAVE_TIMEOUT" -eq 1 ] && { [ "$2" -eq 124 ] || [ "$2" -eq 137 ]; }; then printf 'timeout'
@@ -198,6 +254,27 @@ withheld() { printf '(%s exit %s, reason class: %s; %s'"'"'s own message is with
 own1() { printf '%s\n' "$1" | grep -m 1 '^release_publish_gitea: ' | rc_redact_cut "$2"; }
 # oid TEXT: TEXT when it is an object id (40 or 64 hexadecimal digits), else NOT-AN-OBJECT-ID
 oid() { if [[ ${1:-} =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then printf '%s' "$1"; elif [ -z "${1:-}" ]; then printf -- '-'; else printf 'NOT-AN-OBJECT-ID'; fi; }
+# repo_key URL: the identity of the repository a push URL names (CON-423, D10): the scheme, a user name and a port
+# are dropped, doubled "/" fold to one and trailing "/" go. A hosted URL's host and path are case-folded (the forges
+# this script serves treat both case-insensitively) and one ".git" suffix goes, in any case (".GIT" too; review r1,
+# M3). A local path keeps its case and its ".git": /srv/repo.git and /srv/repo are two directories, so folding them
+# would refuse a run that pushes to two repositories (review r1, M3). Pure bash: no command runs.
+repo_key() {
+  local u="${1:-}" h p
+  case "$u" in
+    [Ff][Ii][Ll][Ee]://*) h=""; p="${u#*://}" ;;
+    *://*) u="${u#*://}"; h="${u%%/*}"; p="${u#"$h"}" ;;
+    /*|./*|../*) h=""; p="$u" ;;
+    *:*) h="${u%%:*}"; p="${u#*:}"; case "$h" in */*) h=""; p="$u" ;; esac ;;
+    *) h=""; p="$u" ;;
+  esac
+  h="${h##*@}"; [[ $h =~ ^(.*):[0-9]*$ ]] && h="${BASH_REMATCH[1]}"
+  while [[ $p == *//* ]]; do p="${p%%//*}/${p#*//}"; done
+  while [[ $p == */ ]]; do p="${p%/}"; done
+  if [ -n "$h" ]; then
+    p="${p#/}"; p="${p,,}"; p="${p%.git}"; printf 'host:%s/%s' "${h,,}" "$p"
+  else printf 'local:%s' "$p"; fi
+}
 printf '== %s start tag=%s sha=%s dry_run=%s\n' "$(date -Is)" "$TAG" "$SHA" "$DRY"
 
 # ---------- preflight (no writes) ----------
@@ -208,6 +285,9 @@ SHA="$FULL"
 [ -z "$(rc_net git status --porcelain --untracked-files=normal 2>/dev/null)" ] || abort "working tree is not clean"
 
 declare -A RMAIN
+declare -A PUSHID   # CON-423 (D10): repository identity of a push URL -> the remote that pushes to it
+declare -A GHREMOTE # CON-423 (D10): remote -> its github.com OWNER/REPO push paths
+GH_N=0
 for r in $REMOTES; do
   rc_net git remote get-url "$r" >/dev/null 2>&1 || abort "remote $r is not configured"
   # K1: every fetch and push URL of the remote (after insteadOf) must be free of a user name or password
@@ -216,6 +296,19 @@ for r in $REMOTES; do
     [ -n "$u" ] || continue
     if rc_url_has_userinfo "$u"; then abort "remote $r has a URL with a user name or password in it; git would put it in the argv of its transport helper, which every local user can read (the URL is not shown); use a credential helper, an ssh key or GIT_ASKPASS instead"; fi
   done <<<"$urls"
+  # CON-423 (D10): one remote per distinct repository. Two remotes whose push URLs name one repository would push it
+  # twice and count it as two upstreams; refused before any write (the URLs are never shown).
+  purls="$(rc_net git remote get-url --push --all "$r" 2>/dev/null)"
+  while IFS= read -r u; do
+    [ -n "$u" ] || continue
+    k="$(repo_key "$u")"
+    if [ -n "${PUSHID[$k]:-}" ] && [ "${PUSHID[$k]}" != "$r" ]; then
+      abort "remotes ${PUSHID[$k]} and $r push to the same repository (push URLs compared without scheme, user name, port, trailing / and .git, host and path case-folded; the URLs are not shown); list one remote per distinct repository in --remotes"
+    fi
+    PUSHID[$k]="$r"
+    case "$k" in host:github.com/*) gp="${k#host:github.com/}"
+      if [[ $gp =~ ^$SEG/$SEG$ ]]; then GHREMOTE[$r]="${GHREMOTE[$r]:-} $gp"; GH_N=$((GH_N + 1)); fi ;; esac
+  done <<<"$purls"
   # No destination refspec and no "+": the fetched tip lands in FETCH_HEAD only.
   x_fetch="$(net fetch -q --no-tags "$r" refs/heads/main 2>&1 >/dev/null)"; frc=$?
   [ "$frc" -eq 0 ] || abort "fetch of $r main failed $(withheld git "$frc" "$(xcls "$x_fetch" "$frc")")"
@@ -223,6 +316,28 @@ for r in $REMOTES; do
   RMAIN[$r]="$t"
   rc_net git merge-base --is-ancestor "$t" "$SHA" || abort "$r main $t is not an ancestor of $SHA (main moved; merge the new main into the release commit and re-review)"
 done
+# CON-423 (D10): a renamed GitHub repository keeps answering under its old name, so two different github.com URLs
+# can name one repository. Their repository ids are compared (read-only gh api); an id that cannot be read leaves
+# the check UNCONFIRMED for that remote (said so), never passed.
+if [ "$GH_N" -gt 0 ]; then
+  if command -v gh >/dev/null 2>&1 && nt gh auth status >/dev/null 2>&1; then
+    declare -A GHID_OF
+    for r in $REMOTES; do
+      [ -n "${GHREMOTE[$r]:-}" ] || continue
+      for gp in ${GHREMOTE[$r]}; do
+        gid="$(nt gh api "repos/$gp" --jq .id 2>/dev/null)" || gid=""
+        [[ $gid =~ ^[0-9]{1,20}$ ]] || gid=""
+        if [ -z "$gid" ]; then printf 'INFO remote %s: GitHub repository id UNCONFIRMED (gh api could not read it; the URL identity check still applied)\n' "$r"; continue; fi
+        if [ -n "${GHID_OF[$gid]:-}" ] && [ "${GHID_OF[$gid]}" != "$r" ]; then
+          abort "remotes ${GHID_OF[$gid]} and $r push to the same GitHub repository (id $gid; one of the names is an old name GitHub still answers to; the URLs are not shown); list one remote per distinct repository in --remotes"
+        fi
+        GHID_OF[$gid]="$r"
+      done
+    done
+  else
+    printf 'INFO GitHub remote identity by repository id UNCONFIRMED (gh absent or not authenticated); the URL identity check still applied\n'
+  fi
+fi
 
 FIRST="$(rc_net git show "$SHA:CHANGELOG.md" 2>/dev/null | awk '/^## /{print substr($0,4); exit}')"
 case "$FIRST" in
@@ -231,6 +346,13 @@ case "$FIRST" in
 esac
 rc_net git show "$SHA:CHANGELOG.md" | TAG="$TAG" awk 'BEGIN{t=ENVIRON["TAG"];on=0} /^## /{if(on)exit; h=substr($0,4); if(h==t||index(h,t" ")==1)on=1} on{print}' > "$NOTES"
 [ -s "$NOTES" ] || abort "no release notes for $TAG at $SHA"
+# B-M4 (v73.4 dry run): notes holding the fixed marker line of render_release_entry.py --draft are a rehearsal render
+# that may carry placeholders; a real run never cuts a release from them, a dry run says it would refuse.
+DRAFT_NOTES=0
+if grep -qF 'DRAFT RENDER — not a release entry' "$NOTES"; then
+  [ "$DRY" -eq 1 ] || abort "the release notes of $TAG at $SHA are a --draft render of render_release_entry.py (they hold its DRAFT RENDER marker line); render the entry without --draft and commit that"
+  DRAFT_NOTES=1
+fi
 
 if [ "$BADGE_CHECK" -eq 1 ]; then
   [ -f scripts/badges/compute_badges.sh ] || abort "scripts/badges/compute_badges.sh absent (use --no-badge-check only where the repository has no badge computer)"
@@ -257,15 +379,72 @@ for r in $REMOTES; do
   fi
 done
 
+# wfail / wgap SPEC TEXT: a would-be failure or gap of one release leg in the dry run (CON-423, D3)
+WF=0 WG=0
+wfail() { WF=$((WF + 1)); printf 'PROBE release %s WOULD-FAIL %s\n' "$1" "$2"; }
+wgap()  { WG=$((WG + 1)); printf 'PROBE release %s WOULD-GAP %s\n' "$1" "$2"; }
+# the host of the GitLab API reads: GITLAB_HOST (value-checked by the lockdown) without its scheme and slash, else gitlab.com
+GL_HOST="${GITLAB_HOST:-gitlab.com}"; GL_HOST="${GL_HOST#http://}"; GL_HOST="${GL_HOST#https://}"; GL_HOST="${GL_HOST%/}"
+[[ $GL_HOST =~ ^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$ ]] || GL_HOST=""
+
 if [ "$DRY" -eq 1 ]; then
   for r in $REMOTES; do printf 'PLAN push --atomic %s %s:refs/heads/main refs/tags/%s (remote main %s, remote tag %s)\n' "$r" "$SHA" "$TAG" "${RMAIN[$r]}" "${RTAG[$r]:-absent}"; done
   for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
     case "$spec:$PRERELEASE" in
       gitlab:*:1) printf 'PLAN release %s prerelease=marked-by-title-and-description upcoming=%s\n' "$spec" "${GL_RELEASED_AT:-none}" ;;
-      *) printf 'PLAN release %s\n' "$spec" ;;
+      *:1) printf 'PLAN release %s prerelease=flag\n' "$spec" ;;
+      *) printf 'PLAN release %s prerelease=none\n' "$spec" ;;
     esac
   done
-  printf 'RESULT: OK dry-run (no tag created, nothing pushed)\n'
+  # CON-423 (D3): read-only probes of every release leg, so the plan shows what the real run would report. Only exit
+  # codes, fixed words and value-checked ids are printed: no command's own output (a login status can carry a token),
+  # never a token value. A probe never writes: auth status, gh api repos/X, glab api projects/X, release view.
+  WF=0 WG=0
+  declare -A DGH_SEEN
+  GH_AUTH_RC="" GL_AUTH_RC=""
+  for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
+    kind="${spec%%:*}"; rest="${spec#*:}"; target="${rest#*:}"
+    case "$kind" in
+      github)
+        if ! command -v gh >/dev/null 2>&1; then wgap "$spec" "SKIPPED-NO-TOKEN (gh absent)"; continue; fi
+        if [ -z "$GH_AUTH_RC" ]; then nt gh auth status >/dev/null 2>&1; GH_AUTH_RC=$?; fi
+        if [ "$GH_AUTH_RC" -ne 0 ]; then wgap "$spec" "SKIPPED-NO-TOKEN (gh auth status exit $GH_AUTH_RC)"; continue; fi
+        id="$(nt gh api "repos/$target" --jq .id 2>/dev/null)"; irc=$?
+        [[ $id =~ ^[0-9]{1,20}$ ]] || id=""
+        if [ -z "$id" ]; then wgap "$spec" "NOT-ACCESSIBLE (gh api repos/$target exit $irc or no repository id; not released there)"; continue; fi
+        if [ -n "${DGH_SEEN[$id]:-}" ]; then printf 'PROBE release %s OK would-deduplicate (same repository id %s as %s)\n' "$spec" "$id" "${DGH_SEEN[$id]}"; continue; fi
+        DGH_SEEN[$id]="$target"
+        if nt gh release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'PROBE release %s OK would-keep (release exists; repository id %s)\n' "$spec" "$id"
+        else printf 'PROBE release %s OK would-create (gh auth status exit 0; repository id %s)\n' "$spec" "$id"; fi ;;
+      gitlab)
+        if ! command -v glab >/dev/null 2>&1; then wgap "$spec" "SKIPPED-NO-TOKEN (glab absent)"; continue; fi
+        if [ -z "$GL_AUTH_RC" ]; then nt glab auth status >/dev/null 2>&1; GL_AUTH_RC=$?; fi
+        if [ "$GL_AUTH_RC" -ne 0 ]; then wgap "$spec" "SKIPPED-NO-TOKEN (glab auth status exit $GL_AUTH_RC)"; continue; fi
+        if [ -z "$GL_HOST" ] || ! command -v jq >/dev/null 2>&1; then wgap "$spec" "ACCESS-UNCONFIRMED (GITLAB_HOST is not a host name, or jq is absent; the project was not read)"; continue; fi
+        enc="$(printf '%s' "$target" | jq -sRr @uri 2>/dev/null)" || enc=""
+        if ! [[ $enc =~ ^[A-Za-z0-9._%-]+$ ]]; then wfail "$spec" "NOT-ACCESSIBLE (the project path could not be encoded)"; continue; fi
+        pj="$(nt glab api --hostname "$GL_HOST" "projects/$enc" 2>/dev/null)"; prc=$?
+        pt="$(printf '%s' "$pj" | jq -r 'type' 2>/dev/null)" || pt=""
+        if [ "$prc" -ne 0 ] || [ "$pt" != object ]; then wfail "$spec" "NOT-ACCESSIBLE (glab api projects/$enc exit $prc, answer type ${pt:-unparsable}; the real run's release create would fail)"; continue; fi
+        if nt glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'PROBE release %s OK would-keep (release exists; project readable)\n' "$spec"
+        else printf 'PROBE release %s OK would-create (glab auth status exit 0; project readable)\n' "$spec"; fi ;;
+      gitea)
+        gtv="${target##*:}"   # B-M2 (merged at the landing): the spec's fifth field names the token variable
+        if [ -z "${!gtv:-}" ]; then wgap "$spec" "SKIPPED-NO-TOKEN (gitea token variable not set)"
+        elif ! rc_gitea_token_shape_ok "${!gtv}"; then wfail "$spec" "TOKEN-SHAPE (token variable set, but outside the publisher's charset or length; the value is not shown)"
+        else wgap "$spec" "ACCESS-UNCONFIRMED (token variable set, value not shown; the gitea publisher has no read-only probe and needs the tag, which a dry run does not create)"; fi ;;
+    esac
+  done
+  if [ "$DRAFT_NOTES" -eq 1 ]; then
+    printf 'PLAN refuse: the release notes of %s at %s are a --draft render; a real run aborts here before any write\n' "$TAG" "$SHA"
+  fi
+  if [ "$WF" -gt 0 ]; then printf 'RESULT: FAIL dry-run (no tag created, nothing pushed; would-fail=%d would-gap=%d)\n' "$WF" "$WG"; exit 1; fi
+  if [ "$WG" -gt 0 ]; then printf 'RESULT: GAPS dry-run (no tag created, nothing pushed; would-fail=0 would-gap=%d)\n' "$WG"; exit 5; fi
+  if [ "$DRAFT_NOTES" -eq 1 ]; then
+    printf 'RESULT: OK dry-run (no tag created, nothing pushed; the notes are a DRAFT render, a real run refuses them)\n'
+  else
+    printf 'RESULT: OK dry-run (no tag created, nothing pushed)\n'
+  fi
   exit 0
 fi
 
@@ -331,9 +510,6 @@ if [ "$PRERELEASE" -eq 1 ] && [ "$GL_ANY" -eq 1 ]; then
   { printf '%s\n\n' "$GL_MARK"; cat -- "$NOTES"; } >"$GL_NOTES" || GL_NOTES_OK=0
   [ -n "$GL_RELEASED_AT" ] && GL_ARGS+=(--released-at "$GL_RELEASED_AT")
 fi
-# the host of the read-back: GITLAB_HOST (value-checked by the lockdown) without its scheme and slash, else gitlab.com
-GL_HOST="${GITLAB_HOST:-gitlab.com}"; GL_HOST="${GL_HOST#http://}"; GL_HOST="${GL_HOST#https://}"; GL_HOST="${GL_HOST%/}"
-[[ $GL_HOST =~ ^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$ ]] || GL_HOST=""
 # gl_readback SPEC TARGET: read the release back through the API and check the PROVISIONAL marks. Only fixed words
 # and a value-checked time are printed; the server's own text never is (the tag needs no encoding: it matches SEG).
 gl_readback() {
@@ -395,18 +571,18 @@ for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do
         [ "$PRERELEASE" -eq 1 ] && gl_readback "$spec" "$target"
       else fail "RELEASE $spec create failed"; fi ;;
     gitea)
-      base="${target%:*}"; repo="${target##*:}"
+      gtv="${target##*:}"; gt="${target%:*}"; base="${gt%:*}"; repo="${gt##*:}"   # B-M2: URL:OWNER/REPO:TOKEN_VAR
       args=(--tag "$TAG" --notes-file "$NOTES" --title "$PRE_TITLE" --base-url "$base" --repo "$repo")
       [ "$PRERELEASE" -eq 1 ] && args+=(--prerelease)
       # The publisher has its own network timeouts (pub, above). Only its own
       # "release_publish_gitea: " lines are printed (any other line could come from curl or git).
-      x_gitea="$(pub "${args[@]}" 2>&1 >/dev/null)"; rc=$?
+      x_gitea="$(pub "$gtv" "${args[@]}" 2>&1 >/dev/null)"; rc=$?
       gmsg="$(own1 "$x_gitea" 200)"; [ -n "$gmsg" ] || gmsg="(no message of the publisher's own)"
       # rc 3 is a GAP only when the publisher says SKIPPED-NO-TOKEN (no credential); every other rc 3
       # (bad token charset, jq/curl missing, tag absent, no notes) is a configuration failure (review m-9)
       case "$rc" in
         0) printf 'RELEASE %s CREATED-OR-UPDATED\n' "$spec" ;;
-        3) if printf '%s\n' "$x_gitea" | grep -q '^SKIPPED-NO-TOKEN:'; then gap "RELEASE $spec SKIPPED-NO-TOKEN (gitea token variable not set)"
+        3) if printf '%s\n' "$x_gitea" | grep -q '^SKIPPED-NO-TOKEN:'; then gap "RELEASE $spec SKIPPED-NO-TOKEN (gitea token variable $gtv not set)"
            else fail "RELEASE $spec REFUSED rc=3 (configuration or precondition: $gmsg)"; fi ;;
         *) fail "RELEASE $spec failed rc=$rc: $gmsg" ;;
       esac ;;

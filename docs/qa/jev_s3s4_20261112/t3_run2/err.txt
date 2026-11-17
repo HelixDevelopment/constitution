@@ -1,0 +1,32 @@
+[jev-bootstrap 1/7] detect-tools: running
+[jev-bootstrap ]   tools present: jq curl git make
+[jev-bootstrap 1/7] detect-tools: ok
+[jev-bootstrap 2/7] provision: running
+[jev-bootstrap ]   llmctl not present locally and cloning needs consent; recording it as unavailable
+[jev-bootstrap ]   provision llmctl: source=unavailable path=none ref=3877467 ref_status=unpinned installer=not-run
+[jev-bootstrap ]   claude_toolkit not present locally and cloning needs consent; recording it as unavailable
+[jev-bootstrap ]   provision claude_toolkit: source=unavailable path=none ref=25c4803 ref_status=unpinned installer=not-run
+[jev-bootstrap 2/7] provision: incomplete tool(s) unavailable
+[jev-bootstrap 3/7] detect-models: running
+[jev-bootstrap ]   WARNING: jev-openrouter answered HTTP 402 no_credit: the account has no credit; this endpoint cannot serve decisions
+[jev-bootstrap ]   endpoint: jev-openrouter (source=toolkit-cache model=typesafe/jev-1.13 reachable=false usable=false class=no_credit)
+[jev-bootstrap ]   endpoint: jev-typesafe (source=toolkit-cache model=jev-latest reachable=true usable=true class=2xx)
+[jev-bootstrap 3/7] detect-models: ok endpoints=2 usable=1
+[jev-bootstrap 4/7] install-per-agent: running
+[jev-bootstrap ]   SKIP wiring: claude_toolkit scripts/jev-setup.sh unavailable (no toolkit checkout)
+[jev-bootstrap 4/7] install-per-agent: skipped toolkit-unavailable
+[jev-bootstrap 5/7] configure: running
+[jev-bootstrap 5/7] configure: ok mode=shadow
+[jev-bootstrap 6/7] calibrate-shadow: running
+[jev-bootstrap ]   shadow mode: decisions are logged to <HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run2/state/decisions.jsonl; enforcement requires calibrated thresholds
+[jev-bootstrap 6/7] calibrate-shadow: ok shadow
+[jev-bootstrap 7/7] report: running
+[jev-bootstrap ]   gate cm_jev_bootstrap_idempotent: not run from bootstrap (it executes bootstrap; run it directly)
+[jev-bootstrap ]   gate cm_jev_detection: PASS (advisory)
+[jev-bootstrap ]   gate cm_jev_wiring: FAIL rc=1 (advisory, non-blocking): CM-JEV-WIRING FAIL: kimi: MCP server 'jev' not registered in config.toml
+[jev-bootstrap ]   gate cm_jev_token_reduction: BLIND (advisory; no verdict possible: CM-JEV-TOKEN-REDUCTION BLIND: no real BEFORE/AFTER harness pair configured (set JEV_BEFORE and JEV_AFTER, or place before.jsonl/after.jsonl in <HOME>/.cache/claude-tmp/claude-1000/-home-milo)
+[jev-bootstrap ]   summary: state=<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run2/state evidence=<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run2/evidence mode=shadow
+[jev-bootstrap ]   next: scripts/jev/jev-status.sh for status; claude_toolkit scripts/jev-stats.sh for savings (ESTIMATES only)
+[jev-bootstrap 7/7] report: ok
+[jev-bootstrap ]   PENDING: provision requires consent (llmctl); provision requires consent (claude_toolkit); agent wiring skipped: claude_toolkit unavailable
+[jev-bootstrap ]   RESULT rc 5: detected, not wired (1 usable endpoint(s), no agent wired: run with --yes, or --default-on with a key)

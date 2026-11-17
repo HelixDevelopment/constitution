@@ -1,0 +1,25 @@
+# command: pyright <file> (pyright from the host's Node install, run on each tree; engine classes from pyright --outputjson, quoted names replaced by X)
+repo scripts/sync/sync_all_upstreams.py: 20 errors, 0 warnings, 0 informations
+repo tests/sync/test_unit.py: 10 errors, 0 warnings, 0 informations
+repo tests/sync/test_mutations.py: 0 errors, 0 warnings, 0 informations
+r3tree scripts/sync/sync_all_upstreams.py: 26 errors, 0 warnings, 0 informations
+r3tree tests/sync/test_unit.py: 10 errors, 0 warnings, 0 informations
+r3tree tests/sync/test_mutations.py: 0 errors, 0 warnings, 0 informations
+
+## scripts/sync/sync_all_upstreams.py error classes, r4 vs r3
+r4= 9 r3=10  reportArgumentType  Argument of type "X" cannot be assigned to parameter "X" of type "X" in function "X"
+r4= 3 r3= 6  reportAttributeAccessIssue  Cannot access attribute "X" for class "X"
+r4= 5 r3= 6  reportCallIssue  No overloads for "X" match the provided arguments
+r4= 2 r3= 2  reportIndexIssue  "X" method not defined on type "X"
+r4= 0 r3= 1  reportOperatorIssue  Operator "X" not supported for types "X" and "X"
+r4= 1 r3= 1  reportOptionalMemberAccess  "X" is not a known attribute of "X"
+classes only in r4: 0
+
+## tests/sync/test_unit.py error classes, r4 tree
+      3 error: Argument of type "X" cannot be assigned to parameter "X" of type "X" in function "X"
+      1 error: Cannot assign to attribute "X" for class "X"
+      6 error: "X" is not a known attribute of "X" (reportOptionalMemberAccess)
+## the same, r3 tree
+      3 error: Argument of type "X" cannot be assigned to parameter "X" of type "X" in function "X"
+      1 error: Cannot assign to attribute "X" for class "X"
+      6 error: "X" is not a known attribute of "X" (reportOptionalMemberAccess)

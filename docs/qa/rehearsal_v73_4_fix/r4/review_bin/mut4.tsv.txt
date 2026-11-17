@@ -1,0 +1,59 @@
+R1-port	NONTEXT_CATEGORIES = frozenset(("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"))	NONTEXT_CATEGORIES = frozenset(("Cc", "Cs", "Co", "Cn", "Zl", "Zp"))
+R2-port	if unicodedata.category(ch) not in MARK_CATEGORIES)	if True)
+R3-port	low.replace("0", "o").replace("1", "i")}	low.replace("0", "o")}
+R4-port	if ch.isalnum() and i < len(v):	if (ch.isalnum() or ch.isspace()) and i < len(v):
+R5-port	if ch.isalnum() and i < len(v):	if (ch.isalnum() or ch == "_") and i < len(v):
+R6-port	not (head == "none" and nxt == "of")	not (head == "none")
+R7-port	BE_LEADS = frozenset(("to", "will", "shall", "should", "would"))	BE_LEADS = frozenset(("to", "shall", "should", "would"))
+R8-port	return os.path.exists(p) and p != real_root	return p != real_root
+R9-verbatim	[i + 1:i + 3]	[i + 1:i + 2]
+R10-verbatim	JOB_ID = re.compile(r"[A-Z][A-Z0-9]{1,15}	JOB_ID = re.compile(r"[A-Z][A-Z0-9]{0,15}
+R11-port	re.findall(r"[A-Za-z0-9]+", core) if w.isascii()]	re.findall(r"[A-Za-z0-9]+", "".join(skeleton_char(c) for c in core))]
+R12-verbatim	[0-9a-f]{7,64}	[0-9a-f]{6,64}
+R13-verbatim	if not 2000 <= y <= 2099:	if not 2000 <= y <= 2199:
+R14-verbatim	comment = "-->" not in ln[ln.index("<!--") + 4:]	comment = True
+R15-verbatim	"live-target", "gate-logic")	"live-target")
+R16-verbatim	"unconfirmed", "lorem"))	"unconfirmed"))
+R19-verbatim	"ρ": "p", "υ": "u"	"υ": "u"
+R20-verbatim	provisional(?=[\s(]|\Z)	provisional
+R21-verbatim	if len(lines) > 1:	if len(lines) > 99:
+R22-verbatim	if tuple(found) != FIELDS:	if False:
+X1-verbatim	elif m and m.group(1)[0] == fence[0] and len	elif m and len
+X2-verbatim	len(m.group(1)) >= len(fence) and not ln[m.end():].strip():	len(m.group(1)) >= len(fence):
+X3-verbatim	FENCE = re.compile(r" {0,3}(	FENCE = re.compile(r" *(
+X4-port	INSIDE_CAPITALS = frozenset(("XXX",))	INSIDE_CAPITALS = frozenset()
+X5-port	INSIDE_ANY_CASE = frozenset(("tbd", "tba", "tbc", "todo", "fixme"))	INSIDE_ANY_CASE = frozenset(("tbd", "tbc", "todo", "fixme"))
+X6-port	if path_anchor(t, root):	if path_anchor(t, root) or len(toks) == 1:
+X7-verbatim	|\{\{.*?\}\}|\$\{[^}]*\}")	|\{\{.*?\}\}")
+O01-default-ignorable	        return True\n    return ch != "\t"	        return False\n    return ch != "\t"
+O02-tab-not-invisible	return ch != "\t" and unicodedata.category	return unicodedata.category
+O03-compat-fold	v = "".join(compat_char(ch) for ch in raw if not is_invisible(ch))	v = "".join(ch for ch in raw if not is_invisible(ch))
+O05-skeleton-decimal	if unicodedata.decimal(ch, None) is not None:	if False:
+O06-skeleton-confusables	if ch in CONFUSABLES:	if False:
+O07-skeleton-latin-name	if words[:1] == ["LATIN"] and key:	if False and key:
+O08-single-runs	if len(cur) >= 2:	if len(cur) >= 99:
+O09-lead-letters	return n, "".join(t[3] for t in toks[:n])	return 0, ""
+O10-weak-path	return path_ok(t, root) if root is not None else not weak_path(t)	return path_ok(t, root) if root is not None else True
+O11-path-dotdot	if ".." in t.split("/"):	if False:
+O12-path-commonpath	 and os.path.commonpath([real_root, p]) == real_root	
+O13-path-root-itself	return os.path.exists(p) and p != real_root and	return os.path.exists(p) and
+O14-trailing	    if last:\n	    if False:\n
+O15-note	            if hit:\n                return "holds a placeholder note	            if False:\n                return "holds a placeholder note
+O16-mixed-script	if len(scripts) > 1:	if False:
+O17-declared-script	if sc != "COMMON" and sc not in DECLARED_SCRIPTS:	if False:
+O18-outcome-shape	if key == "checks" and not (re.search	if False and not (re.search
+O19-max-line	if len(lines[0]) > MAX_LINE:	if False:
+O20-lead-only	lead_only = sorted(heads & LEAD_ONLY_WORDS)	lead_only = []
+O21-checks-trail-none	trail = TRAIL_WORDS if key == "checks" else	trail = TRAIL_WORDS | TRAIL_WORDS_NOT_CHECKS if key == "checks" else
+O22-invisible-refused	    if gone:\n	    if False:\n
+O23-strong-lead	    strong = sorted(cands & STRONG_WORDS)	    strong = []
+O24-weak-lead	    weak = sorted(heads & WEAK_WORDS)	    weak = []
+O25-inside	        if readings(s) & INSIDE_ANY_CASE or s in INSIDE_CAPITALS	        if False and readings(s) & INSIDE_ANY_CASE or s in INSIDE_CAPITALS
+O26-inside-run	        if any(w in run.lower() for w in INSIDE_ANY_CASE)	        if False and any(w in run.lower() for w in INSIDE_ANY_CASE)
+O27-template	    m = TEMPLATE.search(core)	    m = None
+O28-punct-led	        return "starts with no word	        pass  # "starts with no word
+O29-run-prefixes	        cands |= prefixes(run)	        pass
+O30-not-no-lead	        if head in ("not", "no") and len(toks) > 1:	        if False:
+O31-checks-not	        if head == "not" and (nxt in CHECKS_NOT_WORDS	        if False and (nxt in CHECKS_NOT_WORDS
+O32-target-words	if key == "target" and not TARGET_WORDS.intersection(ascii_words):	if False:
+O33-compat-char-single	return al[0] if n != ch and len(al) == 1 else ch	return ch

@@ -1,0 +1,53 @@
+test_fc_safepath_gitenv_scrub.sh run1 rc=0 s=255 notok=0 norm_sha=5b0c32c2a7dc0a33
+test_fc_safepath_gitenv_scrub.sh run2 rc=0 s=250 notok=0 norm_sha=5b0c32c2a7dc0a33
+  test_fc_safepath_gitenv_scrub.sh run1 == run2 (normalised)
+test_fc_safepath_v4r12.sh run1 rc=0 s=12 notok=0 norm_sha=b06029a3601d3910
+test_fc_safepath_v4r12.sh run2 rc=0 s=12 notok=0 norm_sha=b06029a3601d3910
+  test_fc_safepath_v4r12.sh run1 == run2 (normalised)
+test_fc_safepath_v4r13.sh run1 rc=0 s=64 notok=0 norm_sha=b6c293ceb1c375dd
+test_fc_safepath_v4r13.sh run2 rc=0 s=66 notok=0 norm_sha=b6c293ceb1c375dd
+  test_fc_safepath_v4r13.sh run1 == run2 (normalised)
+test_fc_safepath_v4r14.sh run1 rc=0 s=52 notok=0 norm_sha=3c1149d33a826c24
+test_fc_safepath_v4r14.sh run2 rc=0 s=52 notok=0 norm_sha=3c1149d33a826c24
+  test_fc_safepath_v4r14.sh run1 == run2 (normalised)
+test_fc_safepath_v4r15.sh run1 rc=0 s=56 notok=0 norm_sha=19f1b4550e81be3e
+test_fc_safepath_v4r15.sh run2 rc=0 s=59 notok=0 norm_sha=81022562198fe675
+  test_fc_safepath_v4r15.sh run1 != run2
+test_custody_sweep_r8_regression.sh run1 rc=0 s=8 notok=0 norm_sha=5099ee976371be38
+test_custody_sweep_r8_regression.sh run2 rc=0 s=10 notok=0 norm_sha=5099ee976371be38
+  test_custody_sweep_r8_regression.sh run1 == run2 (normalised)
+test_custody_sweep_r15_regression.sh run1 rc=0 s=108 notok=0 norm_sha=83008c2aedffc701
+test_custody_sweep_r15_regression.sh run2 rc=0 s=105 notok=0 norm_sha=2de4b2a2b2c33fee
+  test_custody_sweep_r15_regression.sh run1 != run2
+test_repo_verify_red.sh run1 rc=0 s=142 notok=0 norm_sha=3337e4d537c85274
+test_repo_verify_red.sh run2 rc=0 s=139 notok=0 norm_sha=3337e4d537c85274
+  test_repo_verify_red.sh run1 == run2 (normalised)
+test_review_record_guard_table.sh run1 rc=0 s=8 notok=0 norm_sha=84dd3069b58f738f
+test_review_record_guard_table.sh run2 rc=0 s=6 notok=0 norm_sha=84dd3069b58f738f
+  test_review_record_guard_table.sh run1 == run2 (normalised)
+test_sweep_review_record_subclauses_red.sh run1 rc=0 s=153 notok=0 norm_sha=4770a7386fc547fc
+test_sweep_review_record_subclauses_red.sh run2 rc=0 s=152 notok=0 norm_sha=4770a7386fc547fc
+  test_sweep_review_record_subclauses_red.sh run1 == run2 (normalised)
+DONE
+volatile re-normalisation (40-hex commit ids and mktemp suffixes):
+  test_fc_safepath_v4r15.sh run1 == run2
+  test_custody_sweep_r15_regression.sh run1 == run2
+gate manifest run1 rc=0 sha=b978ffb015e0c671 last=RESULT: MANIFEST-OK
+gate manifest run2 rc=0 sha=b978ffb015e0c671 last=RESULT: MANIFEST-OK
+gate gitenv run1 rc=0 sha=e47af9389182004b last=git-env-class-census: PASS - members=665 hermetic=511 exempt=154 unscrubbed=0
+gate gitenv run2 rc=0 sha=e47af9389182004b last=git-env-class-census: PASS - members=665 hermetic=511 exempt=154 unscrubbed=0
+gate safepath run1 rc=0 sha=769021702ccaa28f last=SUMMARY operations=160 EXEMPT=13 PRIVATE=54 ROOT=1 ROUTED=61 TAGGED=31 violations=0 proved_shell_vars=_FC_LEDG
+gate safepath run2 rc=0 sha=769021702ccaa28f last=SUMMARY operations=160 EXEMPT=13 PRIVATE=54 ROOT=1 ROUTED=61 TAGGED=31 violations=0 proved_shell_vars=_FC_LEDG
+gate ratchet run1 rc=0 sha=b22a005d35fecffb last=✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monoto
+gate ratchet run2 rc=0 sha=b22a005d35fecffb last=✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monoto
+gate index run1 rc=0 sha=5a7186bc96a86957 last=CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+gate index run2 rc=0 sha=5a7186bc96a86957 last=CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+gate validate run1 rc=0 sha=839974974afcd5e3 last=validate: OK — 491 items, all invariants satisfied
+gate validate run2 rc=0 sha=839974974afcd5e3 last=validate: OK — 491 items, all invariants satisfied
+gate wdiff run1 rc=0 sha=9c845133908abc8b last=diff: DB and Markdown are in sync (compared 491 Markdown item(s) against 491 DB item(s); read docs/Issues.md, 
+gate wdiff run2 rc=0 sha=9c845133908abc8b last=diff: DB and Markdown are in sync (compared 491 Markdown item(s) against 491 DB item(s); read docs/Issues.md, 
+gate guardtable run1 rc=0 sha=f21a9de1682cfc7f last=== guard table: ok ==
+gate guardtable run2 rc=0 sha=f21a9de1682cfc7f last=== guard table: ok ==
+sync-guide run1 rc=0 tree_after=clean
+sync-guide run2 rc=0 tree_after=clean
+DONE

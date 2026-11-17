@@ -1,0 +1,59 @@
+SUPERSEDE CON-425 -> CON-519 (lands on the target's item; no row minted)
+XREF CON-424 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-425 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-426 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-426 names CON-424: XREF-AMBIGUOUS, target-own
+XREF CON-427 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-428 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-429 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-430 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-430 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-431 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-432 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-435 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-436 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-437 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-438 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-439 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-439 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-440 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-441 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-442 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-453 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-454 names CON-425: XREF-AMBIGUOUS, target-own
+XREF CON-503 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-503 names CON-424: XREF-AMBIGUOUS, target-own
+XREF CON-513 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-516 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-517 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-519 names CON-423: XREF-AMBIGUOUS, target-own
+XREF CON-519 names CON-424: XREF-AMBIGUOUS, target-own
+XREF CON-519 names CON-425: XREF-SUPERSEDED, annotate
+XREF CON-521 names CON-423: XREF-AMBIGUOUS, target-own
+ANNOTATE CON-519: Foreign ids (provisional ids of an unlanded vehicle, named before this landing; not the items that hold these numbers after it): CON-425
+TARGET-OWN CON-424: CON-423 mean the target's own items
+TARGET-OWN CON-425: CON-423 mean the target's own items
+TARGET-OWN CON-426: CON-423, CON-424 mean the target's own items
+TARGET-OWN CON-427: CON-423 mean the target's own items
+TARGET-OWN CON-428: CON-423 mean the target's own items
+TARGET-OWN CON-429: CON-423 mean the target's own items
+TARGET-OWN CON-430: CON-423, CON-425 mean the target's own items
+TARGET-OWN CON-431: CON-423 mean the target's own items
+TARGET-OWN CON-432: CON-423 mean the target's own items
+TARGET-OWN CON-435: CON-425 mean the target's own items
+TARGET-OWN CON-436: CON-425 mean the target's own items
+TARGET-OWN CON-437: CON-425 mean the target's own items
+TARGET-OWN CON-438: CON-425 mean the target's own items
+TARGET-OWN CON-439: CON-423, CON-425 mean the target's own items
+TARGET-OWN CON-440: CON-425 mean the target's own items
+TARGET-OWN CON-441: CON-425 mean the target's own items
+TARGET-OWN CON-442: CON-425 mean the target's own items
+TARGET-OWN CON-453: CON-425 mean the target's own items
+TARGET-OWN CON-454: CON-425 mean the target's own items
+TARGET-OWN CON-503: CON-423, CON-424 mean the target's own items
+TARGET-OWN CON-513: CON-423 mean the target's own items
+TARGET-OWN CON-516: CON-423 mean the target's own items
+TARGET-OWN CON-517: CON-423 mean the target's own items
+TARGET-OWN CON-519: CON-423, CON-424 mean the target's own items
+TARGET-OWN CON-521: CON-423 mean the target's own items
+RESULT: PLAN mode=REPLAY own=3 base_changes=0 steps=3 conflicts=0 refusals=0 first=CON-537 last=CON-519

@@ -1,0 +1,675 @@
+HERMETIC	sh	docs/qa/con030_review/con030_class_repro.sh	5	canonical scrub at line 5
+EXEMPT	sh	docs/qa/con030_review/review_r3_drv_ign_sub.sh	7	pinned-fixture: a reviewer driver copy whose sha256 docs/Issues.md (CON-290) cites as evidence; editing it would break that citation. It runs git init/commit in a new fixture directory given as $2 (refused if it exists); under an ambient GIT_DIR those writes go to that repository, so it must not be run under one (round-4 note)
+HERMETIC	sh	docs/qa/con227_234_2026_11_11/round10/probe_sendenv_sshd.sh	18	canonical scrub at line 18
+HERMETIC	py	docs/qa/con227_234_2026_11_11/round11/make_spawn_sites.py	2	canonical scrub at line 2
+HERMETIC	sh	docs/qa/con227_234_2026_11_11/round11/probe_sendenv_leak_sshd.sh	37	canonical scrub at line 37
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round12/make_class_inventory.py	18	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 0ec38e46c2db15ee… is recorded in docs/qa/con227_234_2026_11_11/round12/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round12/make_spawn_sites.py	16	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 e13940dd57d0aa87… is recorded in docs/qa/con227_234_2026_11_11/round12/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round12/probe_extra.py	11	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 aab3b5d6959b083b… is recorded in docs/qa/con227_234_2026_11_11/round12/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round12/run_red.py	20	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 e4bd96d318af6e7e… is recorded in docs/qa/con227_234_2026_11_11/round12/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round13/make_class_inventory.py	83	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 4d7f1ef4d66d20c5… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round13/tools/fill13.py	104	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 7ad598a128d8cccf… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round13/tools/launch_standing13.sh	17	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 d9b04d4b61ea4c04… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: git -C "$W/repo" worktree add --detach "$st/tree" "$head" >/dev/null 2>&1 || { echo "workt); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round13/tools/mk_cases13.py	8	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 693405f357019199… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round13/tools/mk_controls13.py	18	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 76653a4eb8bb25a3… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round13/tools/mr5_mr10.py	18	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 88ef4bb44c13ed5c… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round13/tools/mut13.py	14	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 7411e09321fac6e1… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round13/tools/oracle13.py	17	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 991c601b57ab6c44… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/con227_234_2026_11_11/round13/tools/pn13_probe.py	28	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 21f8cc0a574e4864… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round13/tools/run_checks13.sh	18	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 3024c526a3c27db6… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round13/tools/run_full_harness13.sh	9	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 e9e038bf9698b6e9… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round13/tools/run_suites.sh	10	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 36ae9edc9d6d78b1… is recorded in docs/qa/con227_234_2026_11_11/round13/SHA256SUMS and docs/qa/con227_234_2026_11_11/round14/round13_sums_before_r14.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round14/c43/tools/c43_new.sh	76	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 9685e07ddedbe788… is recorded in docs/qa/con227_234_2026_11_11/round14/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: "${G[@]}" init -q --bare "$D/r1.git"; "${G[@]}" init -q --bare "$D/r2.git"); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round14/c43/tools/c43_only.sh	76	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 99cb9c91abb3f341… is recorded in docs/qa/con227_234_2026_11_11/round14/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: "${G[@]}" init -q --bare "$D/r1.git"; "${G[@]}" init -q --bare "$D/r2.git"); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round14/c43/tools/c43_red.sh	76	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 9cb4c93311d275dc… is recorded in docs/qa/con227_234_2026_11_11/round14/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: "${G[@]}" init -q --bare "$D/r1.git"; "${G[@]}" init -q --bare "$D/r2.git"); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round14/c43/tools/git_shim_0p6s	2	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 ba94d19c24a29478… is recorded in docs/qa/con227_234_2026_11_11/round14/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round14/tools/landing_gate14.sh	16	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 9bbd968fbd0af532… is recorded in docs/qa/con227_234_2026_11_11/round14/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: git clone -q --shared --no-checkout "$REPO" "$CL/repo" && git -C "$CL/repo" checkout -q --); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/con227_234_2026_11_11/round14/tools/make_bundle14.sh	14	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 9750b0ec929b51d2… is recorded in docs/qa/con227_234_2026_11_11/round14/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: br="$(git -C "$REPO" symbolic-ref -q --short HEAD)" || { echo "make_bundle14: HEAD is deta); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+HERMETIC	py	docs/qa/con227_234_2026_11_11/round5/census_print_sites.py	13	canonical scrub at line 13
+HERMETIC	sh	docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh	28	canonical scrub at line 28
+HERMETIC	sh	docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh	20	canonical scrub at line 20
+HERMETIC	sh	docs/qa/gitleaks_replace_2026_11_16/suites/heavy.sh.txt	4	canonical scrub at line 4
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/f9/f9_search.sh	9	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 c4105e26a0e9f4bf… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/installer_sigpipe_2026_11_13/round2/tools/assemble_evidence.py	122	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 a81e13e151ab2de8… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/byte_identity_run.sh	13	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 8b2a10c667e59025… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/exit3_sentinel.sh	18	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 51d8aaf605845455… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/gate_by_commit.sh	3	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 523251cd7a68cf3e… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/inventory.sh	14	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 736d4fcedcfaf47e… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/installer_sigpipe_2026_11_13/round2/tools/kill_table_runner.py	71	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 d3cf0d7d49e1d3a1… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/lane_a.sh	8	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 1de77d16dbe8d5d9… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/lane_b.sh	7	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 36ba329110706245… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/lane_c.sh	10	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 6201484191da63c8… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/lane_t.sh	9	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 944e6faa379b6cdb… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/lane_u.sh	10	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 636caf97684c854d… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/round2/tools/trial_merge.sh	22	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 afa5ff19683e6e24… is recorded in docs/qa/installer_sigpipe_2026_11_13/round2/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: git clone -q --no-hardlinks "$W/repo" "$T/tm" || return 2); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/tools/lock_race_probe.sh	8	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 5090c4175fb7ac2d… is recorded in docs/qa/installer_sigpipe_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/tools/r8_chaos_probe.sh	14	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 3352d4f2f9c479e8… is recorded in docs/qa/installer_sigpipe_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: mkinstalled() { new_project "$1"; run_installer "$1" "${BASE[@]}"; git -C "$1" commit -qm ); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/installer_sigpipe_2026_11_13/tools/r8_chaos_probe_v2.sh	14	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 524357e306b31b6f… is recorded in docs/qa/installer_sigpipe_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: mkinstalled() { new_project "$1"; run_installer "$1" "${BASE[@]}"; git -C "$1" commit -qm ); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/jev_s3s4_20261112/round10/landing/mint.sh	27	no-git-execution: closed-round mint record, hashed in round10/landing/SHA256SUMS; it runs only the workable-items engine; `git` appears only in item text ("gitlink"). Not run by any suite or gate (Jev round 11 merge of f67d926c)
+EXEMPT	py	docs/qa/jev_s3s4_20261112/round10/landing/resolve_merge.py	32	pinned-fixture: closed-round merge helper, hashed in round10/landing/SHA256SUMS, so editing it would break that evidence record; it runs read-only git diff/show with -C on the worktree given; not run by any suite or gate; must not be run under an ambient GIT_DIR
+EXEMPT	sh	docs/qa/jev_s3s4_20261112/round10/tools/hrun.sh	15	pinned-fixture: closed-round review runner copy, hashed in round10/SHA256SUMS; it runs no git itself, it sets GIT_SSH_COMMAND/GIT_CONFIG_NOSYSTEM for a bwrap sandbox; not run by any suite or gate
+EXEMPT	sh	docs/qa/jev_s3s4_20261112/round11/landing/mint.sh	32	no-git-execution: round-11 mint record, hashed in round11/landing/SHA256SUMS; it runs only the workable-items engine from the repository root; `git` appears only in item text ("gitlink"). Not run by any suite or gate
+EXEMPT	sh	docs/qa/jev_s3s4_20261112/round12/landing/mint.sh	32	no-git-execution: round-12 mint record (mode 644), hashed in round12/landing/SHA256SUMS; it runs only the workable-items engine from the repository root; `git` appears only in item text ("gitlink"). Not run by any suite or gate
+EXEMPT	py	docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	27	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 c2e376f08dca8a66… is recorded in docs/qa/land_vehicle_r4_2026_11_13/SHA256SUMS and config/full_suite_excluded.lock, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_scen.sh	19	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 c301ac0051fac78c… is recorded in docs/qa/land_vehicle_r4_2026_11_13/SHA256SUMS and docs/qa/land_vehicle_r4_2026_11_13/scen/scen_meta.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: git config --file "$GIT_CONFIG_GLOBAL" user.name "Rev Test"); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/land_vehicle_r4_2026_11_13/tools/scen_doc_wrapper.sh	19	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 9805b4094a76ca52… is recorded in docs/qa/land_vehicle_r4_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: git config --file "$GIT_CONFIG_GLOBAL" user.name "Rev Test"); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/land_vehicle_r5_2026_11_13/tools/deliver_r5.sh	15	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 7867cbdafe371235… is recorded in docs/qa/land_vehicle_r5_2026_11_13/SHA256SUMS and docs/qa/land_vehicle_r5_2026_11_13/shellcheck_bashn.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: git init -q --bare "$OUT/bundle_repo"); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/land_vehicle_r5_2026_11_13/tools/edit_header_ar.py	5	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 68138f587438e991… is recorded in docs/qa/land_vehicle_r5_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/land_vehicle_r5_2026_11_13/tools/edit_header_gitconfig.py	4	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 6edece5ac80ab8de… is recorded in docs/qa/land_vehicle_r5_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/land_vehicle_r5_2026_11_13/tools/edit_lander_arnote.py	25	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 f6cc62a614fa7178… is recorded in docs/qa/land_vehicle_r5_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/land_vehicle_r5_2026_11_13/tools/edit_lander_n123.py	19	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 45b9003c75f5d37c… is recorded in docs/qa/land_vehicle_r5_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	22	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 9366c50673c05dc2… is recorded in docs/qa/land_vehicle_r5_2026_11_13/SHA256SUMS and config/full_suite_excluded.lock, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	py	docs/qa/land_vehicle_r5_2026_11_13/tools/gen_r5mut.py	15	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 85c3c504b974c1d3… is recorded in docs/qa/land_vehicle_r5_2026_11_13/SHA256SUMS, so editing it would break that evidence record (merge of origin/main into gitenv-r4). No git write is detected by the census; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/land_vehicle_r5_2026_11_13/tools/scen_r5.sh	50	pinned-fixture: closed-round evidence tool, not run by any suite or gate; its sha256 ce5b7643b1fadbb0… is recorded in docs/qa/land_vehicle_r5_2026_11_13/SHA256SUMS and docs/qa/land_vehicle_r5_2026_11_13/shellcheck_bashn.txt, so editing it would break that evidence record (merge of origin/main into gitenv-r4). It runs git writes (first detected: git config --file "$1/gc" user.name "Scen5 Test"); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+HERMETIC	sh	docs/qa/ownership_wave2/repro_p8.sh	13	canonical scrub at line 13
+EXEMPT	sh	docs/qa/pr_delivery_decision_20261116/check_leak.sh	12	pinned-fixture: round-1 evidence tool of the pull-request delivery vehicle (CON-496 / CON-497), not run by any suite or gate; its sha256 f452eb610b154f5d… is recorded in docs/qa/pr_delivery_decision_20261116/SHA256SUMS, so editing it would break that evidence record. The census detects no git write in it; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/pr_delivery_decision_20261116/measure_platform.sh	41	pinned-fixture: round-1 evidence tool of the pull-request delivery vehicle (CON-496 / CON-497), not run by any suite or gate; its sha256 07ac79f6b35af6ca… is recorded in docs/qa/pr_delivery_decision_20261116/SHA256SUMS, so editing it would break that evidence record. The census detects no git write in it; it mentions git; it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+EXEMPT	sh	docs/qa/pr_delivery_decision_20261116/probe_selfflag.sh	9	pinned-fixture: round-1 evidence tool of the pull-request delivery vehicle (CON-496 / CON-497), not run by any suite or gate; its sha256 a230ffcc1adb3f7d… is recorded in docs/qa/pr_delivery_decision_20261116/SHA256SUMS, so editing it would break that evidence record. Its one git write is `git checkout --detach` in the throwaway probe clone given as $2 (it creates no clone); it must not be run under an ambient GIT_DIR or GIT_INDEX_FILE
+HERMETIC	sh	docs/qa/pr_delivery_decision_20261116/r3/run_gates_r3.sh	10	canonical scrub at line 10
+HERMETIC	sh	docs/qa/secscan_deadlock_2026_11_16/wchan_probe.sh.txt	5	canonical scrub at line 5
+HERMETIC	sh	docs/research/quality/solutions/poc/sol08_scope_coverage/scope_coverage.sh	13	canonical scrub at line 13
+HERMETIC	sh	docs/research/quality/solutions/poc/sol08_scope_coverage/test_sol08.sh	22	canonical scrub at line 22
+HERMETIC	sh	find_constitution.sh	26	canonical scrub at line 26
+HERMETIC	sh	install_upstreams.sh	56	canonical scrub at line 56
+EXEMPT	sh	plugins/scheduled-work/build.sh	7	no-git-execution: `git` appears only in a comment ("gitignored"); the script runs no git
+EXEMPT	py	progressive/gen_evidence.py	7	no-git-execution: `.git` appears only as a directory name to skip and in report text; the script runs no git
+HERMETIC	py	progressive/generate_split.py	27	canonical scrub at line 27
+HERMETIC	py	progressive/mutation_matrix.py	17	canonical scrub at line 17
+HERMETIC	py	progressive/token_harness.py	29	canonical scrub at line 29
+HERMETIC	py	progressive/validate_submodule.py	14	canonical scrub at line 14
+EXEMPT	sh	scripts/action_prefix_lib.sh	26	no-git-execution: sourced; `.git`/`.gitmodules` appear only as path and URL text (a regex stripping `.git`)
+HERMETIC	py	scripts/anchors/anchor_lib.py	18	canonical scrub at line 18
+HERMETIC	py	scripts/anchors/constitution_generate.py	7	canonical scrub at line 7
+HERMETIC	py	scripts/anchors/constitution_wiring_audit.py	10	canonical scrub at line 10
+HERMETIC	py	scripts/anchors/tests/test_anchor_lib.py	2	canonical scrub at line 2
+HERMETIC	py	scripts/anchors/tests/test_cwd_independence.py	9	canonical scrub at line 9
+HERMETIC	py	scripts/anchors/tests/test_generate_us3.py	3	canonical scrub at line 3
+HERMETIC	py	scripts/anchors/tests/test_query_us2.py	3	canonical scrub at line 3
+HERMETIC	py	scripts/anchors/tests/test_regeneration_matches_committed.py	23	canonical scrub at line 23
+HERMETIC	sh	scripts/badges/compute_badges.sh	31	canonical scrub at line 31
+HERMETIC	sh	scripts/badges/test_static_badges.sh	11	canonical scrub at line 11
+HERMETIC	sh	scripts/badges/test_twins_badge_formats_switch.sh	20	canonical scrub at line 20
+HERMETIC	py	scripts/catalog-engine/generate_catalog.py	24	canonical scrub at line 24
+HERMETIC	py	scripts/catalog-engine/lib/gitmeta.py	16	canonical scrub at line 16
+HERMETIC	py	scripts/catalog-engine/lib/scan.py	16	canonical scrub at line 16
+HERMETIC	sh	scripts/codegraph/codegraph_guard.sh	32	canonical scrub at line 32
+HERMETIC	py	scripts/codegraph/codegraph_mcp_health.py	54	canonical scrub at line 54
+HERMETIC	sh	scripts/codegraph/codegraph_mcp_preflight.sh	33	canonical scrub at line 33
+HERMETIC	sh	scripts/codegraph/codegraph_safe.sh	132	canonical scrub at line 132
+HERMETIC	py	scripts/codegraph/codegraph_scope_guard.py	48	canonical scrub at line 48
+HERMETIC	js	scripts/codegraph/scope_enumerate.js	32	canonical scrub at line 32
+HERMETIC	py	scripts/codegraph/scope_render.py	49	canonical scrub at line 49
+HERMETIC	sh	scripts/codegraph/tests/run_scope_tests.sh	21	canonical scrub at line 21
+HERMETIC	py	scripts/codegraph/tests/t_scope_cases.py	19	canonical scrub at line 19
+HERMETIC	py	scripts/codegraph/tests/t_scope_fixture.py	24	canonical scrub at line 24
+HERMETIC	py	scripts/codegraph/tests/t_scope_mutations.py	22	canonical scrub at line 22
+HERMETIC	sh	scripts/codegraph/tests/test_mcp_readonly.sh	39	canonical scrub at line 39
+HERMETIC	sh	scripts/codegraph/tests/test_update_and_resync.sh	20	canonical scrub at line 20
+HERMETIC	sh	scripts/codegraph_update_and_resync.sh	37	canonical scrub at line 37
+HERMETIC	sh	scripts/constitution_cmd/constitution_cmd.sh	46	canonical scrub at line 46
+HERMETIC	sh	scripts/constitution_ext/constitution_ext.sh	90	canonical scrub at line 90
+HERMETIC	py	scripts/constitution_ext/ext_engine.py	70	canonical scrub at line 70
+HERMETIC	py	scripts/constitution_ext/wiring_ledger.py	30	canonical scrub at line 30
+HERMETIC	py	scripts/credscan/credscan.py	22	canonical scrub at line 22
+HERMETIC	py	scripts/credscan/tests/test_credscan.py	6	canonical scrub at line 6
+HERMETIC	sh	scripts/decisions/constitution_decisions.sh	39	canonical scrub at line 39
+HERMETIC	py	scripts/decisions/decisions_engine.py	26	canonical scrub at line 26
+HERMETIC	py	scripts/deps_manifest/helix_deps_manifest.py	37	canonical scrub at line 37
+HERMETIC	sh	scripts/deps_manifest/verify_helix_deps_manifests.sh	40	canonical scrub at line 40
+HERMETIC	sh	scripts/extensions/bridge_supply_chain_check.sh	68	canonical scrub at line 68
+HERMETIC	sh	scripts/extensions/install_speckit_superpowers_bridge.sh	110	canonical scrub at line 110
+HERMETIC	sh	scripts/extensions/install_speckit_superpowers_bridge_test.sh	96	canonical scrub at line 96
+HERMETIC	sh	scripts/extensions/probe_bridge_layers.sh	75	canonical scrub at line 75
+HERMETIC	sh	scripts/extensions/validate_bridge.sh	110	canonical scrub at line 110
+HERMETIC	py	scripts/fastcycle/closure/churn_rank.py	130	canonical scrub at line 130
+HERMETIC	py	scripts/fastcycle/consumers/_enumerate_impl.py	51	canonical scrub at line 51
+HERMETIC	py	scripts/fastcycle/consumers/_layout.py	18	canonical scrub at line 18
+HERMETIC	py	scripts/fastcycle/consumers/audit.py	79	canonical scrub at line 79
+HERMETIC	sh	scripts/fastcycle/consumers/migrate.sh	40	own reviewed scrub at top level naming and clearing every variable of the list
+HERMETIC	py	scripts/fastcycle/context/anchor_citations.py	185	canonical scrub at line 185
+HERMETIC	py	scripts/fastcycle/context/evidence_ref.py	132	canonical scrub at line 132
+HERMETIC	py	scripts/fastcycle/context/governance_subset.py	152	canonical scrub at line 152
+HERMETIC	sh	scripts/fastcycle/cycle/baseline_replay.sh	298	canonical scrub at line 298
+HERMETIC	py	scripts/fastcycle/cycle/collect_baseline.py	149	canonical scrub at line 149
+HERMETIC	py	scripts/fastcycle/cycle/cycle_report.py	186	canonical scrub at line 186
+HERMETIC	py	scripts/fastcycle/cycle/fc_supervisor.py	240	canonical scrub at line 240
+HERMETIC	py	scripts/fastcycle/cycle/select_sample.py	190	canonical scrub at line 190
+HERMETIC	py	scripts/fastcycle/gates/affected_set.py	79	canonical scrub at line 79
+HERMETIC	py	scripts/fastcycle/gates/lib/io_trace_build_map.py	134	canonical scrub at line 134
+HERMETIC	py	scripts/fastcycle/host/host_report.py	76	canonical scrub at line 76
+HERMETIC	py	scripts/fastcycle/lib/fc_common.py	37	canonical scrub at line 37
+HERMETIC	py	scripts/fastcycle/orchestration/custody_sweep.py	213	canonical scrub at line 213
+HERMETIC	py	scripts/fastcycle/orchestration/handoff.py	361	canonical scrub at line 361
+HERMETIC	sh	scripts/fastcycle/orchestration/sc006_exercise.sh	183	canonical scrub at line 183
+HERMETIC	py	scripts/fastcycle/review/lib/precheck_common.py	22	canonical scrub at line 22
+HERMETIC	py	scripts/fastcycle/review/lib/precheck_pack_build_run.py	123	canonical scrub at line 123
+HERMETIC	py	scripts/fastcycle/review/lib/precheck_pack_run.py	136	canonical scrub at line 136
+HERMETIC	py	scripts/fastcycle/review/lib/tower_detector_run.py	171	canonical scrub at line 171
+HERMETIC	sh	scripts/fastcycle/review/precheck_pack.sh	109	canonical scrub at line 109
+HERMETIC	sh	scripts/fastcycle/review/precheck_pack_build.sh	119	canonical scrub at line 119
+HERMETIC	py	scripts/fastcycle/review/review_record.py	322	canonical scrub at line 322
+HERMETIC	sh	scripts/fastcycle/review/tower_detector.sh	39	canonical scrub at line 39
+HERMETIC	sh	scripts/fastcycle/tests/capture_fc_timer_triplet.sh	110	canonical scrub at line 110
+HERMETIC	sh	scripts/fastcycle/tests/check_deps.sh	16	canonical scrub at line 16
+HERMETIC	py	scripts/fastcycle/tests/check_safepath_census.py	74	canonical scrub at line 74
+HERMETIC	sh	scripts/fastcycle/tests/fixtures/churn_rank/build_frozen_repo.sh	27	canonical scrub at line 27
+HERMETIC	sh	scripts/fastcycle/tests/fixtures/consumer_migrate/build_fixtures.sh	15	canonical scrub at line 15
+EXEMPT	py	scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py	243	pinned-fixture: frozen pre-fix copy that test_custody_sweep_r6_regression.sh RUNS to reproduce the pre-fix RED; editing it changes that baseline; its only git call is the read-only `git stash list` (counted because the census treats every `stash` as a write)
+EXEMPT	py	scripts/fastcycle/tests/fixtures/custody_sweep/_pinned/custody_sweep_pre_r7_fix.py	243	pinned-fixture: frozen pre-fix copy that test_custody_sweep_r7_regression.sh RUNS to reproduce the pre-fix RED; editing it changes that baseline; its only git call is the read-only `git stash list` (counted because the census treats every `stash` as a write)
+HERMETIC	py	scripts/fastcycle/tests/fixtures/cycle_report/build_asof_scenario.py	83	canonical scrub at line 83
+EXEMPT	sh	scripts/fastcycle/tests/fixtures/gate_audit/_shared/real_sample/cm_covenant_114_167_propagation.sh	30	fixture-tree scripts/fastcycle/tests/fixtures/gate_audit/: verbatim sample copies of real gates that the gate-audit tests read as data; they never run git
+EXEMPT	sh	scripts/fastcycle/tests/fixtures/gate_audit/_shared/real_sample/lib/covenant_propagation_engine.sh	84	fixture-tree scripts/fastcycle/tests/fixtures/gate_audit/: verbatim sample copies of real gates that the gate-audit tests read as data; they never run git
+EXEMPT	py	scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_i4_fix.py	127	fixture-tree scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/: byte-pinned pre-fix copies of handoff.py that the resume-revalidate tests run to reproduce old REDs; editing them changes those baselines
+EXEMPT	py	scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r2i2_fix.py	127	fixture-tree scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/: byte-pinned pre-fix copies of handoff.py that the resume-revalidate tests run to reproduce old REDs; editing them changes those baselines
+EXEMPT	py	scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r3i1_fix.py	127	fixture-tree scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/: byte-pinned pre-fix copies of handoff.py that the resume-revalidate tests run to reproduce old REDs; editing them changes those baselines
+EXEMPT	py	scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r4i1_fix.py	127	fixture-tree scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/: byte-pinned pre-fix copies of handoff.py that the resume-revalidate tests run to reproduce old REDs; editing them changes those baselines
+EXEMPT	py	scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r5i1_fix.py	127	fixture-tree scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/: byte-pinned pre-fix copies of handoff.py that the resume-revalidate tests run to reproduce old REDs; editing them changes those baselines
+EXEMPT	py	scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r6_fix.py	127	fixture-tree scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/: byte-pinned pre-fix copies of handoff.py that the resume-revalidate tests run to reproduce old REDs; editing them changes those baselines
+EXEMPT	py	scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/handoff_pre_r7_fix.py	127	fixture-tree scripts/fastcycle/tests/fixtures/resume_revalidate/_pinned/: byte-pinned pre-fix copies of handoff.py that the resume-revalidate tests run to reproduce old REDs; editing them changes those baselines
+EXEMPT	sh	scripts/fastcycle/tests/fixtures/triple_harness/f5_check.sh	7	fixture-tree scripts/fastcycle/tests/fixtures/triple_harness/: rig scripts of the triple harness; they mention git only in text
+EXEMPT	sh	scripts/fastcycle/tests/fixtures/triple_harness/sigwin_rig.sh	64	fixture-tree scripts/fastcycle/tests/fixtures/triple_harness/: rig scripts of the triple harness; they mention git only in text
+HERMETIC	sh	scripts/fastcycle/tests/lib/consumer_required.sh	23	canonical scrub at line 23
+HERMETIC	sh	scripts/fastcycle/tests/lib/golden_triplet_fixture.sh	43	canonical scrub at line 43
+HERMETIC	sh	scripts/fastcycle/tests/test_affected_set_red.sh	93	canonical scrub at line 93
+HERMETIC	sh	scripts/fastcycle/tests/test_anchor_citations_red.sh	78	canonical scrub at line 78
+HERMETIC	sh	scripts/fastcycle/tests/test_backstop_red.sh	74	canonical scrub at line 74
+HERMETIC	sh	scripts/fastcycle/tests/test_baseline_replay_r2_findings.sh	78	canonical scrub at line 78
+HERMETIC	sh	scripts/fastcycle/tests/test_baseline_replay_r4_findings.sh	43	canonical scrub at line 43
+HERMETIC	sh	scripts/fastcycle/tests/test_baseline_replay_r6_findings.sh	35	canonical scrub at line 35
+HERMETIC	sh	scripts/fastcycle/tests/test_baseline_replay_red.sh	64	canonical scrub at line 64
+HERMETIC	sh	scripts/fastcycle/tests/test_baseline_replay_worktree_cleanup.sh	32	canonical scrub at line 32
+HERMETIC	sh	scripts/fastcycle/tests/test_build_deploy_qa_events_red.sh	173	canonical scrub at line 173
+HERMETIC	sh	scripts/fastcycle/tests/test_canon_root_rename_con097_mutations.sh	6	canonical scrub at line 6
+HERMETIC	sh	scripts/fastcycle/tests/test_canon_root_rename_con097_red.sh	14	canonical scrub at line 14
+HERMETIC	sh	scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh	29	canonical scrub at line 29
+HERMETIC	sh	scripts/fastcycle/tests/test_catchset_compare_red.sh	102	canonical scrub at line 102
+HERMETIC	sh	scripts/fastcycle/tests/test_check_deps.sh	5	canonical scrub at line 5
+HERMETIC	sh	scripts/fastcycle/tests/test_churn_rank_red.sh	80	canonical scrub at line 80
+HERMETIC	sh	scripts/fastcycle/tests/test_collect_baseline_red.sh	47	canonical scrub at line 47
+HERMETIC	sh	scripts/fastcycle/tests/test_consumer_audit_red.sh	55	canonical scrub at line 55
+HERMETIC	sh	scripts/fastcycle/tests/test_consumer_enumerate_red.sh	53	canonical scrub at line 53
+HERMETIC	sh	scripts/fastcycle/tests/test_consumer_migrate_red.sh	63	canonical scrub at line 63
+HERMETIC	sh	scripts/fastcycle/tests/test_consumer_required_helper.sh	41	canonical scrub at line 41
+HERMETIC	sh	scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh	18	canonical scrub at line 18
+HERMETIC	sh	scripts/fastcycle/tests/test_core_ondemand_red.sh	192	canonical scrub at line 192
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh	31	canonical scrub at line 31
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh	34	canonical scrub at line 34
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh	35	canonical scrub at line 35
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh	78	canonical scrub at line 78
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r19_regression.sh	98	canonical scrub at line 98
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r21_regression.sh	45	canonical scrub at line 45
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh	98	canonical scrub at line 98
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r7_regression.sh	59	canonical scrub at line 59
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r8_regression.sh	47	canonical scrub at line 47
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_r9_regression.sh	39	canonical scrub at line 39
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_red.sh	110	canonical scrub at line 110
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh	20	canonical scrub at line 20
+HERMETIC	sh	scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh	64	canonical scrub at line 64
+HERMETIC	sh	scripts/fastcycle/tests/test_cycle_report_red.sh	93	canonical scrub at line 93
+HERMETIC	sh	scripts/fastcycle/tests/test_cycle_report_s12_fix_red.sh	157	canonical scrub at line 157
+HERMETIC	sh	scripts/fastcycle/tests/test_escape_classify_red.sh	130	canonical scrub at line 130
+HERMETIC	sh	scripts/fastcycle/tests/test_evidence_ref_red.sh	169	canonical scrub at line 169
+HERMETIC	sh	scripts/fastcycle/tests/test_fastcycle_r6_mutations.sh	101	canonical scrub at line 101
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_commit_stage_timer_mutations.sh	19	canonical scrub at line 19
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_commit_stage_timer_red.sh	39	canonical scrub at line 39
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_common_red.sh	18	canonical scrub at line 18
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_entry_r10_regression.sh	60	canonical scrub at line 60
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_safepath_v4r12.sh	35	canonical scrub at line 35
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_safepath_v4r13.sh	40	canonical scrub at line 40
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_safepath_v4r14.sh	63	canonical scrub at line 63
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_safepath_v4r15.sh	52	canonical scrub at line 52
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_supervisor_unit.sh	47	canonical scrub at line 47
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh	114	canonical scrub at line 114
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh	47	canonical scrub at line 47
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh	51	canonical scrub at line 51
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_timer_golden_output.sh	113	canonical scrub at line 113
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_timer_golden_output_r10_regression.sh	55	canonical scrub at line 55
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_timer_golden_output_r14_regression.sh	38	canonical scrub at line 38
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_timer_golden_output_r8_regression.sh	63	canonical scrub at line 63
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_timer_prebuild_mutations.sh	21	canonical scrub at line 21
+HERMETIC	sh	scripts/fastcycle/tests/test_fc_timer_prebuild_red.sh	43	canonical scrub at line 43
+HERMETIC	sh	scripts/fastcycle/tests/test_governance_subset_conservative.sh	26	canonical scrub at line 26
+HERMETIC	sh	scripts/fastcycle/tests/test_handoff_i4_regression.sh	367	canonical scrub at line 367
+HERMETIC	sh	scripts/fastcycle/tests/test_handoff_r6_regression.sh	96	canonical scrub at line 96
+HERMETIC	sh	scripts/fastcycle/tests/test_handoff_r8_regression.sh	46	canonical scrub at line 46
+HERMETIC	sh	scripts/fastcycle/tests/test_handoff_r9_regression.sh	57	canonical scrub at line 57
+HERMETIC	sh	scripts/fastcycle/tests/test_host_attribute_red.sh	26	canonical scrub at line 26
+HERMETIC	sh	scripts/fastcycle/tests/test_io_trace_build_map_r6_regression.sh	94	canonical scrub at line 94
+HERMETIC	sh	scripts/fastcycle/tests/test_io_trace_red.sh	51	canonical scrub at line 51
+HERMETIC	sh	scripts/fastcycle/tests/test_limit_class_place_r5i3_regression.sh	119	canonical scrub at line 119
+HERMETIC	sh	scripts/fastcycle/tests/test_limit_class_r6_regression.sh	89	canonical scrub at line 89
+HERMETIC	sh	scripts/fastcycle/tests/test_limit_class_red.sh	121	canonical scrub at line 121
+HERMETIC	sh	scripts/fastcycle/tests/test_metatest_per_mutant_r4_regression.sh	90	canonical scrub at line 90
+HERMETIC	sh	scripts/fastcycle/tests/test_metatest_per_mutant_red.sh	185	canonical scrub at line 185
+HERMETIC	sh	scripts/fastcycle/tests/test_mutation_anchor_census.sh	14	canonical scrub at line 14
+HERMETIC	sh	scripts/fastcycle/tests/test_plan_struct_causes_red.sh	120	canonical scrub at line 120
+HERMETIC	sh	scripts/fastcycle/tests/test_plan_struct_landing_rulediff_red.sh	150	canonical scrub at line 150
+HERMETIC	sh	scripts/fastcycle/tests/test_prebuild_tsv_root_wiring_red.sh	39	canonical scrub at line 39
+HERMETIC	sh	scripts/fastcycle/tests/test_precheck_pack_build_red.sh	51	canonical scrub at line 51
+HERMETIC	sh	scripts/fastcycle/tests/test_precheck_shellcheck_red.sh	43	canonical scrub at line 43
+HERMETIC	sh	scripts/fastcycle/tests/test_precheck_slicer_red.sh	77	canonical scrub at line 77
+HERMETIC	sh	scripts/fastcycle/tests/test_prefix_cache_red.sh	160	canonical scrub at line 160
+HERMETIC	sh	scripts/fastcycle/tests/test_render_keys_red.sh	68	canonical scrub at line 68
+HERMETIC	sh	scripts/fastcycle/tests/test_reopen_rate_red.sh	97	canonical scrub at line 97
+HERMETIC	sh	scripts/fastcycle/tests/test_repo_verify_red.sh	36	canonical scrub at line 36
+HERMETIC	sh	scripts/fastcycle/tests/test_resume_revalidate_red.sh	119	canonical scrub at line 119
+HERMETIC	sh	scripts/fastcycle/tests/test_select_sample_r5_regression.sh	76	canonical scrub at line 76
+HERMETIC	sh	scripts/fastcycle/tests/test_sibling_search_check_red.sh	70	canonical scrub at line 70
+HERMETIC	sh	scripts/fastcycle/tests/test_token_attribution_red.sh	121	canonical scrub at line 121
+HERMETIC	sh	scripts/fastcycle/tests/test_tower_detector_red.sh	37	canonical scrub at line 37
+EXEMPT	sh	scripts/fastcycle/timing/fc_timer.sh	54	sourced-library: sourced timing helpers; only `git -C <root> rev-parse HEAD` (read); its callers are entry points that scrub first
+HERMETIC	sh	scripts/fastcycle/timing/fc_timer_selftest.sh	21	canonical scrub at line 21
+HERMETIC	sh	scripts/fastcycle/tokens/dispatch_stamp.sh	3	canonical scrub at line 3
+HERMETIC	sh	scripts/fastcycle/tokens/test_dispatch_stamp.sh	98	canonical scrub at line 98
+HERMETIC	sh	scripts/fastcycle/tokens/test_dispatch_stamp_r5_regression.sh	120	canonical scrub at line 120
+HERMETIC	sh	scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh	128	canonical scrub at line 128
+HERMETIC	sh	scripts/fastcycle/tokens/test_dispatch_stamp_r7_matrix.sh	45	canonical scrub at line 45
+HERMETIC	py	scripts/fastcycle/verify/plan_struct_check.py	596	canonical scrub at line 596
+HERMETIC	py	scripts/fastcycle/verify/repo_verify.py	135	canonical scrub at line 135
+HERMETIC	sh	scripts/feature/schedule_feature_research.sh	103	canonical scrub at line 103
+HERMETIC	sh	scripts/forge/forge.sh	52	canonical scrub at line 52
+EXEMPT	sh	scripts/forge/lib/http.sh	159	no-git-execution: sourced HTTP helper; git appears only in response-header names (x-github-request-id, x-gitlab-meta, x-gitea-request-id); it runs curl, never git
+HERMETIC	sh	scripts/forge/live_probe.sh	30	canonical scrub at line 30
+EXEMPT	sh	scripts/forge/providers/gitea.sh	3	no-git-execution: sourced provider; git appears only as forge names and API words (gitea, github); it calls the forge API through fg_http, never git
+EXEMPT	sh	scripts/forge/providers/gitflic.sh	3	no-git-execution: sourced provider; git appears only as forge names and API words (gitflic); it calls the forge API through fg_http, never git
+EXEMPT	sh	scripts/forge/providers/github.sh	3	no-git-execution: sourced provider; git appears only as forge names and API words (github); it calls the forge API through fg_http, never git
+EXEMPT	sh	scripts/forge/providers/gitlab.sh	3	no-git-execution: sourced provider; git appears only as forge names and API words (gitlab); it calls the forge API through fg_http, never git
+EXEMPT	sh	scripts/forge/providers/gitverse.sh	3	no-git-execution: sourced provider; git appears only as forge names and API words (gitverse); it calls the forge API through fg_http, never git
+EXEMPT	sh	scripts/formats_export_lib.sh	24	sourced-library: sourced export helpers; only `git rev-parse --show-toplevel` (read); callers scrub first
+HERMETIC	py	scripts/full_suite/run_full_suite.py	44	canonical scrub at line 44
+HERMETIC	sh	scripts/gates/cm_agent_type_label.sh	65	canonical scrub at line 65
+HERMETIC	sh	scripts/gates/cm_anchor_detects_tail_truncation.sh	82	canonical scrub at line 82
+HERMETIC	sh	scripts/gates/cm_anchor_record_complete.sh	102	canonical scrub at line 102
+HERMETIC	sh	scripts/gates/cm_anchor_record_complete_mutation_test.sh	66	canonical scrub at line 66
+HERMETIC	sh	scripts/gates/cm_bridge_layer_presence.sh	64	canonical scrub at line 64
+HERMETIC	sh	scripts/gates/cm_bridge_layer_presence_mutation_test.sh	55	canonical scrub at line 55
+HERMETIC	sh	scripts/gates/cm_canonical_root_clarity.sh	161	canonical scrub at line 161
+HERMETIC	sh	scripts/gates/cm_canonical_root_clarity_mutation_test.sh	71	canonical scrub at line 71
+HERMETIC	sh	scripts/gates/cm_chain_entry_union_rule.sh	68	canonical scrub at line 68
+HERMETIC	sh	scripts/gates/cm_chain_integrity_detects_alteration.sh	66	canonical scrub at line 66
+HERMETIC	sh	scripts/gates/cm_codegraph_mcp_health.sh	41	canonical scrub at line 41
+HERMETIC	sh	scripts/gates/cm_codegraph_mcp_health_mutation_test.sh	24	canonical scrub at line 24
+HERMETIC	sh	scripts/gates/cm_continuum_resume_engine_present_mutation_test.sh	48	canonical scrub at line 48
+HERMETIC	sh	scripts/gates/cm_control_needle_required.sh	49	canonical scrub at line 49
+HERMETIC	sh	scripts/gates/cm_core_scripts_project_literal_free_mutation_test.sh	64	canonical scrub at line 64
+HERMETIC	sh	scripts/gates/cm_covenant_114_167_propagation.sh	63	canonical scrub at line 63
+HERMETIC	sh	scripts/gates/cm_dangerous_combination_fail_closed.sh	620	canonical scrub at line 620
+HERMETIC	sh	scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	378	canonical scrub at line 378
+HERMETIC	sh	scripts/gates/cm_decisions_wizard_safety.sh	22	canonical scrub at line 22
+HERMETIC	sh	scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	7	canonical scrub at line 7
+HERMETIC	sh	scripts/gates/cm_dependency_register_verdicts.sh	44	canonical scrub at line 44
+HERMETIC	sh	scripts/gates/cm_escape_ratchet.sh	67	canonical scrub at line 67
+HERMETIC	sh	scripts/gates/cm_full_suite_manifest_complete.sh	21	own reviewed scrub at top level naming and clearing every variable of the list
+HERMETIC	sh	scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh	6	own reviewed scrub at top level naming and clearing every variable of the list
+HERMETIC	sh	scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh	46	canonical scrub at line 46
+HERMETIC	sh	scripts/gates/cm_git_hooks_installed.sh	81	canonical scrub at line 81
+HERMETIC	sh	scripts/gates/cm_git_hooks_installed_mutation_test.sh	30	canonical scrub at line 30
+HERMETIC	sh	scripts/gates/cm_github_issues_source_anchor_wired.sh	63	canonical scrub at line 63
+HERMETIC	sh	scripts/gates/cm_github_issues_source_anchor_wired_mutation_test.sh	43	canonical scrub at line 43
+HERMETIC	sh	scripts/gates/cm_gitlink_on_remote.sh	37	canonical scrub at line 37
+HERMETIC	sh	scripts/gates/cm_gitlink_on_remote_mutation_test.sh	30	canonical scrub at line 30
+HERMETIC	sh	scripts/gates/cm_helix_deps_manifest_present.sh	25	canonical scrub at line 25
+HERMETIC	sh	scripts/gates/cm_helix_deps_manifest_present_mutation_test.sh	24	canonical scrub at line 24
+HERMETIC	sh	scripts/gates/cm_helix_deps_ref_matches_gitlink.sh	46	canonical scrub at line 46
+HERMETIC	sh	scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh	30	canonical scrub at line 30
+HERMETIC	sh	scripts/gates/cm_hub_engine_no_ownorg_nesting.sh	31	canonical scrub at line 31
+HERMETIC	sh	scripts/gates/cm_hub_engine_no_ownorg_nesting_mutation_test.sh	28	canonical scrub at line 28
+HERMETIC	sh	scripts/gates/cm_installer_no_push_no_force.sh	95	canonical scrub at line 95
+HERMETIC	sh	scripts/gates/cm_installer_no_push_no_force_mutation_test.sh	27	canonical scrub at line 27
+HERMETIC	sh	scripts/gates/cm_installer_script_modes.sh	33	canonical scrub at line 33
+HERMETIC	sh	scripts/gates/cm_installer_script_modes_mutation_test.sh	15	canonical scrub at line 15
+HERMETIC	sh	scripts/gates/cm_installer_snippets_consistent.sh	20	canonical scrub at line 20
+HERMETIC	sh	scripts/gates/cm_installer_snippets_consistent_mutation_test.sh	11	canonical scrub at line 11
+HERMETIC	sh	scripts/gates/cm_installer_truncation_safe.sh	27	canonical scrub at line 27
+HERMETIC	sh	scripts/gates/cm_jev_bootstrap_idempotent.sh	23	canonical scrub at line 23
+HERMETIC	sh	scripts/gates/cm_jev_bootstrap_idempotent_mutation_test.sh	12	canonical scrub at line 12
+HERMETIC	sh	scripts/gates/cm_jev_detection_mutation_test.sh	10	canonical scrub at line 10
+HERMETIC	sh	scripts/gates/cm_jev_wiring.sh	16	canonical scrub at line 16
+HERMETIC	sh	scripts/gates/cm_killpg_pgid_guard.sh	195	canonical scrub at line 195
+HERMETIC	sh	scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh	12	canonical scrub at line 12
+HERMETIC	sh	scripts/gates/cm_label_sync_hooks.sh	52	canonical scrub at line 52
+HERMETIC	sh	scripts/gates/cm_label_sync_hooks_mutation_test.sh	33	canonical scrub at line 33
+HERMETIC	sh	scripts/gates/cm_llmctl_submodule_nonrecursive.sh	47	canonical scrub at line 47
+HERMETIC	sh	scripts/gates/cm_llmctl_submodule_nonrecursive_mutation_test.sh	13	canonical scrub at line 13
+HERMETIC	sh	scripts/gates/cm_mechanism_observed_refusing.sh	42	canonical scrub at line 42
+HERMETIC	sh	scripts/gates/cm_opendesign_ui_system.sh	97	canonical scrub at line 97
+HERMETIC	sh	scripts/gates/cm_oracle_strategy_named_and_independent.sh	216	canonical scrub at line 216
+HERMETIC	sh	scripts/gates/cm_pr_delivery_account_name_free.sh	126	canonical scrub at line 126
+HERMETIC	sh	scripts/gates/cm_pr_delivery_account_name_free_mutation_test.sh	76	canonical scrub at line 76
+HERMETIC	sh	scripts/gates/cm_pr_delivery_anchor_wired.sh	66	canonical scrub at line 66
+HERMETIC	sh	scripts/gates/cm_pr_delivery_anchor_wired_mutation_test.sh	53	canonical scrub at line 53
+HERMETIC	sh	scripts/gates/cm_rule_binds_to_seam.sh	143	canonical scrub at line 143
+HERMETIC	sh	scripts/gates/cm_rule_binds_to_seam_mutation_test.sh	62	canonical scrub at line 62
+HERMETIC	sh	scripts/gates/cm_setup_prompt_latest_present.sh	54	canonical scrub at line 54
+HERMETIC	sh	scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh	32	canonical scrub at line 32
+HERMETIC	sh	scripts/gates/cm_subsystem_shortcuts.sh	81	canonical scrub at line 81
+HERMETIC	sh	scripts/gates/cm_test_mock_pid_explicit_int.sh	99	canonical scrub at line 99
+HERMETIC	sh	scripts/gates/cm_unreferenced_gate_bound_or_retired.sh	121	canonical scrub at line 121
+HERMETIC	sh	scripts/gates/cm_unreferenced_gate_bound_or_retired_mutation_test.sh	44	canonical scrub at line 44
+HERMETIC	sh	scripts/gates/cm_zero_findings_monotone_ratchet.sh	79	canonical scrub at line 79
+HERMETIC	sh	scripts/gates/covenant_propagation_default_root_test.sh	7	canonical scrub at line 7
+HERMETIC	sh	scripts/gates/covenant_propagation_suite.sh	44	canonical scrub at line 44
+HERMETIC	sh	scripts/gates/covenant_propagation_superspec_exclusion_topology_test.sh	15	canonical scrub at line 15
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/live_hooks/commit-msg	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/live_hooks/lib/hook_helpers.sh	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/live_hooks/post-commit	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/live_hooks/post-merge	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/live_hooks/pre-commit	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/live_hooks/pre-push	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_a/commit-msg	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_a/lib/hook_helpers.sh	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_a/post-commit	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_a/pre-commit	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_a/pre-push	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_a/test_pre_commit_credscan.sh	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_b/action_prefix_expand.sh	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_b/credential_scan_lib.sh	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_b/guard-forbidden-commands.sh	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_b/post-merge	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/live_hooks/commit-msg	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/live_hooks/post-commit	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/live_hooks/pre-commit	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/live_hooks/pre-push	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/src_a/commit-msg	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/src_a/post-commit	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/src_a/pre-commit	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/src_a/pre-push	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+EXEMPT	sh	scripts/gates/fixtures/cm_git_hooks_installed/golden_true_missing_declared/src_b/post-merge	2	fixture-tree scripts/gates/fixtures/cm_git_hooks_installed/: decoy and golden hook trees that the hooks-installed gate reads as data
+HERMETIC	sh	scripts/gates/fixtures/jev/bin/bootstrap.sh	12	canonical scrub at line 12
+EXEMPT	sh	scripts/gates/fixtures/jev/bin/git	2	fixture-tree scripts/gates/fixtures/jev/bin/: a stub `git` executable put first on PATH by the jev gate tests; it is not git
+HERMETIC	sh	scripts/gates/gate_ledger.sh	210	canonical scrub at line 210
+EXEMPT	sh	scripts/gates/lib/covenant_propagation_engine.sh	85	no-git-execution: sourced; `.git` appears only in find prune patterns and an existence test
+HERMETIC	sh	scripts/gates/lib/dependency_register.sh	80	canonical scrub at line 80
+HERMETIC	py	scripts/gates/lib/nested_fence_detector.py	70	canonical scrub at line 70
+HERMETIC	sh	scripts/gates/scanner_gate_false_positive_repairs_mutation_test.sh	10	canonical scrub at line 10
+HERMETIC	sh	scripts/gates/scanner_gate_false_positive_repairs_test.sh	35	canonical scrub at line 35
+HERMETIC	sh	scripts/gitleaks/gitleaks_install_check.sh	16	canonical scrub at line 16
+EXEMPT	sh	scripts/gitleaks/gitleaks_lib.sh	2	no-git-execution: sourced; the only matches are the tool name gitleaks
+HERMETIC	sh	scripts/gitleaks/gitleaks_run_scan.sh	21	canonical scrub at line 21
+EXEMPT	sh	scripts/hawkscan/hawkscan_lib.sh	17	no-git-execution: sourced; the only match is the word gitignored in a comment
+EXEMPT	sh	scripts/helix_code/helix_code_home.sh	97	sourced-library: sourced; every git call goes through hc__git, which clears the list in a subshell
+HERMETIC	sh	scripts/hooks/constitution-submodule-post-checkout	6	own reviewed scrub at top level naming and clearing every variable of the list
+EXEMPT	sh	scripts/hooks/credential_scan_lib.sh	20	no-git-execution: sourced; git words are scan patterns (git@ remotes, github_pat_) and messages; it runs no git
+EXEMPT	sh	scripts/hooks/guard-branch-consistency.sh	20	subject-follows-caller: PreToolUse guard that reads branch and staged state of the repository the guarded command will act on; under an ambient GIT_DIR that is the GIT_DIR repository, so clearing it would check the wrong repository (round-4 R4-7)
+HERMETIC	py	scripts/hooks/guard-destructive-paths.py	101	canonical scrub at line 101
+HERMETIC	sh	scripts/hooks/guard-evidence-store-write.sh	63	calls the library scrub (cl_scrub_git_env) at top level
+HERMETIC	sh	scripts/hooks/guard-forbidden-commands.sh	47	canonical scrub at line 47
+EXEMPT	sh	scripts/hooks/guard-track-branch-label.sh	65	subject-follows-caller: PreToolUse guard that reads branch and staged state of the repository the guarded command will act on; under an ambient GIT_DIR that is the GIT_DIR repository, so clearing it would check the wrong repository (round-4 R4-7)
+EXEMPT	sh	scripts/hooks/guard-work-track-binding.sh	332	subject-follows-caller: PreToolUse guard that reads branch and staged state of the repository the guarded command will act on; under an ambient GIT_DIR that is the GIT_DIR repository, so clearing it would check the wrong repository (round-4 R4-7)
+HERMETIC	sh	scripts/hooks/post-merge	3	own reviewed scrub at top level naming and clearing every variable of the list
+HERMETIC	sh	scripts/hooks/test_credential_scan_lib.sh	40	canonical scrub at line 40
+HERMETIC	sh	scripts/hooks/test_guard_agent_type_label.sh	17	canonical scrub at line 17
+HERMETIC	sh	scripts/hooks/test_guard_branch_consistency.sh	34	canonical scrub at line 34
+HERMETIC	py	scripts/hooks/test_guard_bypasses.py	10	canonical scrub at line 10
+HERMETIC	sh	scripts/hooks/test_guard_destructive_paths.sh	7	canonical scrub at line 7
+HERMETIC	sh	scripts/hooks/test_guard_forbidden_commands.sh	33	canonical scrub at line 33
+HERMETIC	sh	scripts/hooks/test_guard_work_track_binding.sh	34	canonical scrub at line 34
+HERMETIC	sh	scripts/hooks/test_label_sync_hooks.sh	43	canonical scrub at line 43
+HERMETIC	sh	scripts/install_cli_agent_plugins.sh	28	calls the library scrub (cl_scrub_git_env) at top level
+HERMETIC	sh	scripts/install_constitution.sh	32	canonical scrub at line 32
+HERMETIC	sh	scripts/jev/bootstrap.sh	103	canonical scrub at line 103
+HERMETIC	sh	scripts/jev/jev-place.sh	207	canonical scrub at line 207
+HERMETIC	sh	scripts/label-sync/adapters/tests/test_real_agents.sh	27	canonical scrub at line 27
+EXEMPT	sh	scripts/label-sync/bincache.sh	41	no-git-execution: sourced; git and .git appear only in comments
+HERMETIC	py	scripts/label-sync/hook_mutants.py	26	canonical scrub at line 26
+EXEMPT	sh	scripts/label-sync/hooks/request_history_append.sh	22	no-git-execution: sourced; GitHub/GitLab appear only as redaction patterns
+HERMETIC	sh	scripts/label-sync/install_label_sync.sh	92	canonical scrub at line 92
+HERMETIC	sh	scripts/label-sync/mcp/prove_mcp_mutations.sh	34	canonical scrub at line 34
+HERMETIC	sh	scripts/label-sync/prove_adapter_mutations.sh	31	canonical scrub at line 31
+HERMETIC	sh	scripts/label-sync/prove_hook_mutations.sh	37	canonical scrub at line 37
+HERMETIC	sh	scripts/label-sync/render/shell-hook.sh	51	canonical scrub at line 51
+EXEMPT	sh	scripts/label-sync/render/shell-integration.bash	21	sourced-library: sourced into the operator's INTERACTIVE shell (label rendering); it reads .git files directly and never runs git; a top-level scrub would clear the operator's own GIT_DIR
+HERMETIC	sh	scripts/label-sync/render/tests/test_render.sh	23	canonical scrub at line 23
+EXEMPT	sh	scripts/lib/constitution_layout.sh	209	sourced-library: built-in sourced-library: defines CL_GIT_SCRUB_VARS, cl_scrub_git_env and the scrubbing wrapper cl__git
+EXEMPT	sh	scripts/lib/default_scan_root.sh	28	sourced-library: sourced; only `git -C <dir> rev-parse --show-superproject-working-tree` (read); callers scrub first
+EXEMPT	sh	scripts/lib/hook_install.sh	101	sourced-library: sourced; every git call goes through chi__git = cl__git (scrubbing wrapper of constitution_layout.sh)
+EXEMPT	sh	scripts/lib/safe_rm.sh	38	no-git-execution: sourced; .git appears only in a comment
+EXEMPT	sh	scripts/lib/third_party_prune.sh	189	sourced-library: sourced; every git call goes through _cm_tp_git, which clears the list in a subshell
+HERMETIC	py	scripts/lumen/gen_lumenignore.py	20	canonical scrub at line 20
+HERMETIC	sh	scripts/mechanical/census_query.sh	67	canonical scrub at line 67
+HERMETIC	sh	scripts/mechanical/mutation_harness.sh	73	canonical scrub at line 73
+HERMETIC	sh	scripts/mechanical/residue_scan.sh	59	canonical scrub at line 59
+HERMETIC	sh	scripts/multitrack/install_agent_label_defs.sh	67	canonical scrub at line 67
+HERMETIC	sh	scripts/multitrack/multitrack.sh	62	canonical scrub at line 62
+HERMETIC	sh	scripts/multitrack/multitrack_alias_orchestrator.sh	123	canonical scrub at line 123
+EXEMPT	sh	scripts/multitrack/multitrack_balance.sh	130	sourced-library: sourced; only `git rev-parse --show-toplevel` (read); callers scrub first
+HERMETIC	sh	scripts/multitrack/multitrack_bootstrap.sh	137	canonical scrub at line 137
+HERMETIC	sh	scripts/multitrack/multitrack_checkout_owner_lock.sh	97	canonical scrub at line 97
+EXEMPT	sh	scripts/multitrack/multitrack_config.sh	77	sourced-library: sourced; only `git -C <base> rev-parse --show-superproject-working-tree` (read); callers scrub first
+EXEMPT	sh	scripts/multitrack/multitrack_constitution_sync.sh	135	entry-function-scrub: the only top-level statements are set -u, three assignments and `main "$@"`; main() clears the list first and prints a NOTICE naming the dropped variables (kept there for the notice)
+HERMETIC	sh	scripts/multitrack/multitrack_cwd_hook.sh	104	canonical scrub at line 104
+HERMETIC	sh	scripts/multitrack/multitrack_device_lock.sh	79	canonical scrub at line 79
+HERMETIC	sh	scripts/multitrack/multitrack_fallback_monitor.sh	115	canonical scrub at line 115
+EXEMPT	sh	scripts/multitrack/multitrack_host_budget.sh	130	sourced-library: sourced; only `git rev-parse --show-toplevel` (read); callers scrub first
+EXEMPT	sh	scripts/multitrack/multitrack_resolve_worktree.sh	7	sourced-library: sourced; only `git -C <wt> rev-parse` (read); callers scrub first
+HERMETIC	sh	scripts/multitrack/multitrack_sessions.sh	111	canonical scrub at line 111
+HERMETIC	sh	scripts/multitrack/multitrack_supervisor.sh	127	canonical scrub at line 127
+HERMETIC	sh	scripts/multitrack/multitrack_work_binding.sh	69	canonical scrub at line 69
+HERMETIC	sh	scripts/multitrack/test_install_agent_label_defs.sh	17	canonical scrub at line 17
+HERMETIC	sh	scripts/multitrack/test_multitrack_alias_priority_limits.sh	43	canonical scrub at line 43
+HERMETIC	sh	scripts/multitrack/test_multitrack_bootstrap.sh	107	canonical scrub at line 107
+HERMETIC	sh	scripts/multitrack/test_multitrack_conductor_autoarm.sh	40	canonical scrub at line 40
+HERMETIC	sh	scripts/multitrack/test_multitrack_cwd_hook_consumer_root.sh	51	canonical scrub at line 51
+HERMETIC	sh	scripts/multitrack/test_multitrack_excluded_aliases.sh	42	canonical scrub at line 42
+HERMETIC	sh	scripts/multitrack/test_multitrack_host_budget_jvm_daemons.sh	113	canonical scrub at line 113
+HERMETIC	sh	scripts/multitrack/test_multitrack_host_budget_rb02_pgrep.sh	76	canonical scrub at line 76
+HERMETIC	sh	scripts/multitrack/test_multitrack_monday_dryrun.sh	97	canonical scrub at line 97
+HERMETIC	sh	scripts/multitrack/test_multitrack_native_first_fallback.sh	46	canonical scrub at line 46
+HERMETIC	sh	scripts/multitrack/test_multitrack_orchestrator_reconcile.sh	108	canonical scrub at line 108
+HERMETIC	sh	scripts/multitrack/test_multitrack_orchestrator_reconcile_rc.sh	110	canonical scrub at line 110
+HERMETIC	sh	scripts/multitrack/test_multitrack_redpin_mutations.sh	58	canonical scrub at line 58
+HERMETIC	sh	scripts/multitrack/test_multitrack_ruler_suite.sh	71	canonical scrub at line 71
+HERMETIC	sh	scripts/multitrack/test_multitrack_sessions_argparse.sh	68	canonical scrub at line 68
+HERMETIC	sh	scripts/multitrack/test_multitrack_sessions_balance_autoselect.sh	61	canonical scrub at line 61
+HERMETIC	sh	scripts/multitrack/test_multitrack_sessions_pid_status.sh	103	canonical scrub at line 103
+HERMETIC	sh	scripts/multitrack/test_multitrack_supervisor.sh	98	canonical scrub at line 98
+HERMETIC	sh	scripts/multitrack/test_multitrack_supervisor_wiring.sh	161	canonical scrub at line 161
+HERMETIC	sh	scripts/multitrack/test_multitrack_work_binding_submodule_db.sh	82	canonical scrub at line 82
+HERMETIC	sh	scripts/multitrack/test_ruler_suite_discovery.sh	37	canonical scrub at line 37
+HERMETIC	sh	scripts/multitrack/track_branch_label.sh	119	canonical scrub at line 119
+HERMETIC	sh	scripts/post_update_hook.sh	9	own reviewed scrub at top level naming and clearing every variable of the list
+HERMETIC	sh	scripts/prompts/rotate_setup_prompt.sh	98	canonical scrub at line 98
+HERMETIC	sh	scripts/release/derive_release_facts.sh	9	own reviewed scrub at top level naming and clearing every variable of the list
+HERMETIC	sh	scripts/release/land_vehicle.sh	353	canonical scrub at line 353
+HERMETIC	sh	scripts/release/lib/landing_drift_checks.sh	23	canonical scrub at line 23
+HERMETIC	sh	scripts/release/pr_landing_check.sh	41	canonical scrub at line 41
+EXEMPT	sh	scripts/release/redact_cut.sh	13	no-git-execution: sourced by the three release scripts (never executed); it runs no git itself: its git words are error-message patterns of rc_err_class, a URL scheme of rc_safe_url and the GIT_* class of rc_env_lockdown, which drops every GIT_* name from a child environment; rc_net runs only the command line its caller passes, and every caller (derive_release_facts.sh, tag_and_release.sh, release_publish_gitea.sh) clears the list at top level before sourcing it. Its bytes are pinned line by line in tests/release/netgate_pin.tsv, so it is not edited here
+HERMETIC	sh	scripts/release/tag_and_release.sh	7	own reviewed scrub at top level naming and clearing every variable of the list
+EXEMPT	sh	scripts/release_prefix.sh	8	sourced-library: sourced; only `git -C <dir> rev-parse --show-superproject-working-tree/--show-toplevel` (read); callers scrub first
+HERMETIC	sh	scripts/release_publish_gitea.sh	2	own reviewed scrub at top level naming and clearing every variable of the list
+HERMETIC	sh	scripts/release_tag.sh	8	canonical scrub at line 8
+HERMETIC	sh	scripts/render/render-governance-twins.sh	19	canonical scrub at line 19
+HERMETIC	sh	scripts/reporting/report_item.sh	90	canonical scrub at line 90
+HERMETIC	sh	scripts/run_full_suite.sh	119	canonical scrub at line 119
+EXEMPT	sh	scripts/security/forge_branch_protect.sh	15	no-git-execution: git appears only as forge names and API words (github, gitea, gitlab, gitflic); it calls forge HTTP APIs and gh, never git
+EXEMPT	sh	scripts/security/github_actions_inventory_disable.sh	2	no-git-execution: git appears only as github names; it calls gh api, never git
+HERMETIC	sh	scripts/security/history_secret_scan.sh	76	canonical scrub at line 76
+HERMETIC	sh	scripts/setup.sh	4	calls the library scrub (cl_scrub_git_env) at top level
+EXEMPT	sh	scripts/skill_activation/skill_activation_lib.sh	202	no-git-execution: sourced; git and gitignored appear only in comments
+HERMETIC	sh	scripts/skill_activation/test_skill_activation.sh	12	canonical scrub at line 12
+HERMETIC	sh	scripts/sonarqube/sonarqube_run_scan.sh	34	canonical scrub at line 34
+HERMETIC	sh	scripts/test_portable_skill_symlink.sh	56	canonical scrub at line 56
+HERMETIC	sh	scripts/translation/render-articles.sh	15	canonical scrub at line 15
+HERMETIC	sh	scripts/trivy/trivy_install_check.sh	15	canonical scrub at line 15
+HERMETIC	sh	scripts/update_constitution.sh	53	canonical scrub at line 53
+HERMETIC	py	scripts/validation/enumerate_decision_mutants.py	56	canonical scrub at line 56
+HERMETIC	py	scripts/validation/git_env_class_census.py	140	canonical scrub at line 140
+HERMETIC	sh	scripts/validation/test_enumerate_decision_mutants_r2_regression.sh	31	canonical scrub at line 31
+HERMETIC	sh	scripts/validation/test_meta_test_verification_r1_regression.sh	52	canonical scrub at line 52
+EXEMPT	go	scripts/workable-items/cmd/workable-items/group.go	169	go-binary-owed: the scrub in Go source is owed together with a rebuild of the committed binary scripts/workable-items/bin/workable-items; a source-only edit would make source and shipped binary disagree (tracked follow-up)
+HERMETIC	py	scripts/workable-items/mutation/created_at_r2_mutation_runner.py	26	canonical scrub at line 26
+EXEMPT	sh	skills/multitrack/register.sh	9	no-git-execution: `git` appears only in a comment naming the pull command that triggers it; the script runs no git
+EXEMPT	sh	skills/session-sync/session-sync.sh	62	no-git-execution: `git` appears only in comments and in printed text; the script runs no git
+EXEMPT	sh	skills/skill-catalog/register.sh	10	no-git-execution: `git` appears only in a comment naming the pull command that triggers it; the script runs no git
+HERMETIC	sh	tests/action_prefix/test_action_prefix_grammar.sh	51	canonical scrub at line 51
+HERMETIC	sh	tests/action_prefix/test_hook_e2e.sh	70	canonical scrub at line 70
+HERMETIC	sh	tests/action_prefix/test_subsystem_shortcuts.sh	54	canonical scrub at line 54
+HERMETIC	sh	tests/constitution_cmd/test_constitution_cmd.sh	16	canonical scrub at line 16
+HERMETIC	sh	tests/constitution_cmd/test_constitution_cmd_pty.sh	30	canonical scrub at line 30
+HERMETIC	sh	tests/constitution_cmd/test_wiring_cmd.sh	9	canonical scrub at line 9
+HERMETIC	sh	tests/decisions/lib.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/decisions/repo_guard.sh	32	canonical scrub at line 32
+HERMETIC	sh	tests/decisions/run_all.sh	14	canonical scrub at line 14
+HERMETIC	sh	tests/decisions/test_core.sh	5	canonical scrub at line 5
+HERMETIC	sh	tests/decisions/test_own_mutants.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/decisions/test_repo_guard_mutants.sh	6	canonical scrub at line 6
+HERMETIC	sh	tests/decisions/test_round10.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/decisions/test_round11.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/decisions/test_round2.sh	5	canonical scrub at line 5
+HERMETIC	sh	tests/decisions/test_round3.sh	6	canonical scrub at line 6
+HERMETIC	sh	tests/decisions/test_round4.sh	7	canonical scrub at line 7
+HERMETIC	sh	tests/decisions/test_round5.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/decisions/test_round6.sh	9	canonical scrub at line 9
+HERMETIC	sh	tests/decisions/test_round7.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/decisions/test_round8.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/decisions/test_round9.sh	7	canonical scrub at line 7
+HERMETIC	sh	tests/docs/test_no_dead_methodology_link.sh	11	canonical scrub at line 11
+HERMETIC	sh	tests/extensions/lib.sh	20	canonical scrub at line 20
+HERMETIC	sh	tests/extensions/run_all.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/extensions/test_attacks.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/extensions/test_e2e.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/extensions/test_integration.sh	11	canonical scrub at line 11
+HERMETIC	sh	tests/extensions/test_mutations.sh	15	canonical scrub at line 15
+HERMETIC	sh	tests/extensions/test_ownership_e01.sh	11	canonical scrub at line 11
+HERMETIC	sh	tests/extensions/test_provenance.sh	15	canonical scrub at line 15
+HERMETIC	sh	tests/extensions/test_security.sh	8	canonical scrub at line 8
+HERMETIC	py	tests/extensions/test_unit.py	13	canonical scrub at line 13
+HERMETIC	sh	tests/extensions/test_wiring_ledger.sh	11	canonical scrub at line 11
+HERMETIC	sh	tests/extensions/test_wiring_ledger_mutations.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/forge/test_forge_credentials.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/forge/test_forge_detect.sh	5	canonical scrub at line 5
+EXEMPT	sh	tests/forge/test_forge_gitea.sh	2	no-git-execution: drives forge.sh against a local fixture server; git appears only as forge names, fake token names and git@ URLs; it never runs git
+EXEMPT	sh	tests/forge/test_forge_gitflic.sh	2	no-git-execution: drives forge.sh against a local fixture server; git appears only as forge names, fake token names and git@ URLs; it never runs git
+EXEMPT	sh	tests/forge/test_forge_github_gitlab.sh	2	no-git-execution: drives forge.sh against a local fixture server; git appears only as forge names, fake token names and git@ URLs; it never runs git
+EXEMPT	sh	tests/forge/test_forge_gitverse.sh	2	no-git-execution: drives forge.sh against a local fixture server; git appears only as forge names, fake token names and git@ URLs; it never runs git
+EXEMPT	sh	tests/forge/test_forge_mutations.sh	19	no-git-execution: mutation harness; git appears only in mutant source strings and comments naming forge files (github.sh, gitea.sh); it copies files and runs the suites, never git
+HERMETIC	sh	tests/gates/test_default_scan_root.sh	15	canonical scrub at line 15
+HERMETIC	sh	tests/gates/test_gate_env_census_jq_regions.sh	15	canonical scrub at line 15
+HERMETIC	sh	tests/gates/test_gate_env_overrides_guarded.sh	13	canonical scrub at line 13
+HERMETIC	sh	tests/gates/test_manifest_structural_parser.sh	11	canonical scrub at line 11
+HERMETIC	sh	tests/gates/test_manifest_structural_parser_mutation_test.sh	5	canonical scrub at line 5
+HERMETIC	sh	tests/gates/test_oracle_frozen_exclusions.sh	17	canonical scrub at line 17
+HERMETIC	sh	tests/gates/test_oracle_ratchet_and_consumer_skips.sh	14	canonical scrub at line 14
+HERMETIC	sh	tests/gates/test_oracle_verdict_fields.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/gates/test_standalone_canon_gates.sh	13	canonical scrub at line 13
+HERMETIC	sh	tests/gates/test_workable_items_db_sidecars_ignored.sh	26	canonical scrub at line 26
+HERMETIC	sh	tests/hooks_range/test_post_update_hook_range.sh	7	canonical scrub at line 7
+HERMETIC	sh	tests/install/lib.sh	17	canonical scrub at line 17
+HERMETIC	sh	tests/install/mutants_round11.sh	9	canonical scrub at line 9
+HERMETIC	sh	tests/install/run_all.sh	7	canonical scrub at line 7
+HERMETIC	sh	tests/install/test_agent.sh	15	canonical scrub at line 15
+HERMETIC	sh	tests/install/test_chaos.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/install/test_detection.sh	9	canonical scrub at line 9
+HERMETIC	sh	tests/install/test_determinism.sh	9	canonical scrub at line 9
+HERMETIC	sh	tests/install/test_e2e.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/install/test_git_wrapper.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/install/test_integration.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/install/test_lock.sh	14	canonical scrub at line 14
+HERMETIC	sh	tests/install/test_minor.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/install/test_round10.sh	18	canonical scrub at line 18
+HERMETIC	sh	tests/install/test_round11.sh	14	canonical scrub at line 14
+HERMETIC	sh	tests/install/test_round6.sh	18	canonical scrub at line 18
+HERMETIC	sh	tests/install/test_round8.sh	13	canonical scrub at line 13
+HERMETIC	sh	tests/install/test_round9.sh	21	canonical scrub at line 21
+HERMETIC	sh	tests/install/test_security.sh	11	canonical scrub at line 11
+HERMETIC	sh	tests/install/test_self_guard.sh	18	canonical scrub at line 18
+HERMETIC	sh	tests/install/test_sigpipe.sh	46	canonical scrub at line 46
+HERMETIC	sh	tests/install/test_stress_perf.sh	11	canonical scrub at line 11
+HERMETIC	sh	tests/install/test_timeout_tty.sh	38	canonical scrub at line 38
+HERMETIC	sh	tests/install/test_unit.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/install/test_updater.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/install/test_upstream_main.sh	15	canonical scrub at line 15
+EXEMPT	sh	tests/jev/fixtures/bin/git	2	fixture-tree tests/jev/fixtures/bin/: a stub `git` executable put first on PATH by the jev tests; it is not git
+HERMETIC	sh	tests/jev/lib_assert.sh	6	canonical scrub at line 6
+HERMETIC	sh	tests/jev/run_all.sh	7	canonical scrub at line 7
+HERMETIC	sh	tests/jev/test_bootstrap_manifest_reader.sh	7	canonical scrub at line 7
+HERMETIC	sh	tests/jev/test_bootstrap_provision_fallback.sh	9	canonical scrub at line 9
+HERMETIC	sh	tests/jev/test_bootstrap_summary_mode_default.sh	11	canonical scrub at line 11
+HERMETIC	sh	tests/jev/test_detection_matrix.sh	20	canonical scrub at line 20
+HERMETIC	sh	tests/jev/test_detection_producer_gate_e2e.sh	19	canonical scrub at line 19
+HERMETIC	sh	tests/jev/test_hosted_key_discovery.sh	18	canonical scrub at line 18
+HERMETIC	sh	tests/jev/test_mcp_register_hardening.sh	15	canonical scrub at line 15
+HERMETIC	sh	tests/jev/test_post_update_hook_trigger.sh	17	canonical scrub at line 17
+HERMETIC	sh	tests/jev/test_s3_bootstrap_honesty.sh	22	canonical scrub at line 22
+HERMETIC	sh	tests/jev/test_tab_fields.sh	14	canonical scrub at line 14
+HERMETIC	py	tests/layout/hermetic_lint.py	44	canonical scrub at line 44
+HERMETIC	sh	tests/layout/lib_layout_harness.sh	25	canonical scrub at line 25
+HERMETIC	sh	tests/layout/run_all.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/layout/test_constitution_layout_lib.sh	8	canonical scrub at line 8
+HERMETIC	sh	tests/layout/test_consumer_trust_lock.sh	19	canonical scrub at line 19
+HERMETIC	sh	tests/layout/test_deps_manifest_layout.sh	15	canonical scrub at line 15
+HERMETIC	sh	tests/layout/test_fastcycle_layout.sh	17	canonical scrub at line 17
+HERMETIC	sh	tests/layout/test_generator_atomic.sh	19	canonical scrub at line 19
+HERMETIC	sh	tests/layout/test_hermetic_generator.sh	18	canonical scrub at line 18
+HERMETIC	sh	tests/layout/test_layout_mutations.sh	12	calls the library scrub (cl_scrub_git_env) at top level
+HERMETIC	sh	tests/layout/test_multitrack_sync_layout.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/layout/test_pending_update_layout.sh	17	canonical scrub at line 17
+HERMETIC	sh	tests/layout/test_post_merge_layout.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/layout/test_round4_hardening.sh	25	canonical scrub at line 25
+HERMETIC	sh	tests/layout/test_round6_hardening.sh	35	canonical scrub at line 35
+HERMETIC	sh	tests/layout/test_round7_ambient.sh	38	canonical scrub at line 38
+HERMETIC	sh	tests/layout/test_round8_git_env.sh	2	calls the library scrub (cl_scrub_git_env) at top level
+HERMETIC	sh	tests/layout/test_setup_layout.sh	13	canonical scrub at line 13
+HERMETIC	py	tests/prompts/allowlist_bypass_forms.py	16	canonical scrub at line 16
+HERMETIC	py	tests/prompts/git_allowlist.py	51	canonical scrub at line 51
+HERMETIC	sh	tests/prompts/test_rotate_hardening.sh	17	canonical scrub at line 17
+HERMETIC	sh	tests/prompts/test_rotate_integration.sh	5	canonical scrub at line 5
+HERMETIC	sh	tests/prompts/test_setup_prompt_behaviour.sh	29	canonical scrub at line 29
+HERMETIC	sh	tests/prompts/test_setup_prompt_content.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/prompts/test_setup_prompt_round3.sh	33	canonical scrub at line 33
+HERMETIC	sh	tests/prompts/test_setup_prompt_round3_mutants.sh	14	canonical scrub at line 14
+HERMETIC	sh	tests/prompts/test_setup_prompt_round4.sh	29	canonical scrub at line 29
+HERMETIC	sh	tests/prompts/test_setup_prompt_round4_mutants.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/prompts/test_setup_prompt_round5.sh	31	canonical scrub at line 31
+HERMETIC	sh	tests/prompts/test_setup_prompt_round5_mutants.sh	12	canonical scrub at line 12
+HERMETIC	sh	tests/prompts/test_setup_prompt_round5_stops.sh	25	canonical scrub at line 25
+HERMETIC	sh	tests/prompts/test_setup_prompt_round5_stops_mutants.sh	10	canonical scrub at line 10
+HERMETIC	sh	tests/prompts/test_setup_prompt_round7.sh	30	canonical scrub at line 30
+HERMETIC	sh	tests/prompts/test_setup_prompt_round7_mutants.sh	9	canonical scrub at line 9
+HERMETIC	py	tests/release/channel_census.py	52	canonical scrub at line 52
+EXEMPT	sh	tests/release/env_allow.sh	6	no-git-execution: sourced by the release suites; GIT_* names appear only as entries of the ENV_ALLOW and NET_ALLOW allow-list strings (data); it runs no git
+HERMETIC	py	tests/release/env_census.py	39	canonical scrub at line 39
+HERMETIC	py	tests/release/net_probe.py	25	canonical scrub at line 25
+HERMETIC	sh	tests/release/test_channel_census.sh	13	canonical scrub at line 13
+HERMETIC	sh	tests/release/test_derive_release_facts.sh	6	canonical scrub at line 6
+HERMETIC	sh	tests/release/test_land_vehicle.sh	34	canonical scrub at line 34
+HERMETIC	sh	tests/release/test_pr_landing_check.sh	18	canonical scrub at line 18
+HERMETIC	sh	tests/release/test_publish_gitea.sh	5	canonical scrub at line 5
+HERMETIC	sh	tests/release/test_redact_cut.sh	16	canonical scrub at line 16
+HERMETIC	sh	tests/release/test_release_tooling_mutations.sh	115	canonical scrub at line 115
+HERMETIC	sh	tests/release/test_tag_and_release.sh	14	canonical scrub at line 14
+EXEMPT	sh	tests/security/fixtures/bin/gh	5	fixture-tree tests/security/fixtures/: stub binaries and fakes of tests/security (gh and gitleaks shims, fake_gh.py, fake_gitleaks.py); fake_gitleaks.py only reads the target with git -C; its callers (test_history_secret_scan.sh) scrub at file level first
+EXEMPT	sh	tests/security/fixtures/bin/gitleaks	2	fixture-tree tests/security/fixtures/: stub binaries and fakes of tests/security (gh and gitleaks shims, fake_gh.py, fake_gitleaks.py); fake_gitleaks.py only reads the target with git -C; its callers (test_history_secret_scan.sh) scrub at file level first
+EXEMPT	py	tests/security/fixtures/fake_gitleaks.py	2	fixture-tree tests/security/fixtures/: stub binaries and fakes of tests/security (gh and gitleaks shims, fake_gh.py, fake_gitleaks.py); fake_gitleaks.py only reads the target with git -C; its callers (test_history_secret_scan.sh) scrub at file level first
+EXEMPT	py	tests/security/fixtures/fake_gitleaks_detect.py	2	fixture-tree tests/security/fixtures/: stub binaries and fakes of tests/security (gh and gitleaks shims, fake_gh.py, fake_gitleaks.py); fake_gitleaks.py only reads the target with git -C; its callers (test_history_secret_scan.sh) scrub at file level first
+EXEMPT	sh	tests/security/test_forge_branch_protect.sh	45	no-git-execution: git appears only as forge names and fake token names; it drives forge_branch_protect.sh against fake servers, never git
+EXEMPT	sh	tests/security/test_github_actions_inventory_disable.sh	2	no-git-execution: git appears only as github names; it drives github_actions_inventory_disable.sh with the fake gh, never git
+HERMETIC	sh	tests/security/test_gitleaks_run_scan_replace.sh	38	canonical scrub at line 38
+HERMETIC	sh	tests/security/test_gitleaks_run_scan_replace_mutations.sh	24	canonical scrub at line 24
+HERMETIC	sh	tests/security/test_history_secret_scan.sh	22	canonical scrub at line 22
+HERMETIC	sh	tests/security/test_history_secret_scan_deadlock.sh	29	canonical scrub at line 29
+HERMETIC	sh	tests/security/test_history_secret_scan_deadlock_mutations.sh	34	canonical scrub at line 34
+HERMETIC	sh	tests/security/test_history_secret_scan_replace.sh	29	canonical scrub at line 29
+HERMETIC	sh	tests/security/test_history_secret_scan_replace_mutations.sh	18	canonical scrub at line 18
+HERMETIC	sh	tests/security/test_security_scripts_mutations.sh	34	canonical scrub at line 34
+HERMETIC	sh	tests/test_cli_agent_plugins.sh	74	canonical scrub at line 74
+HERMETIC	sh	tests/test_full_suite_manifest_gate_git_env.sh	50	canonical scrub at line 50
+HERMETIC	sh	tests/test_git_env_class.sh	54	canonical scrub at line 54
+HERMETIC	sh	tests/test_no_head_red_builder.sh	53	canonical scrub at line 53
+HERMETIC	sh	tests/test_no_head_red_builder_mutations.sh	33	canonical scrub at line 33
+HERMETIC	sh	tests/test_post_update_hub_gates.sh	27	canonical scrub at line 27
+HERMETIC	sh	tests/test_run_full_suite.sh	13	canonical scrub at line 13
+HERMETIC	sh	tests/test_run_full_suite_go.sh	20	canonical scrub at line 20
+HERMETIC	sh	tests/test_run_full_suite_mutations.sh	83	canonical scrub at line 83
+HERMETIC	sh	tests/test_verify_helix_deps_manifests.sh	22	canonical scrub at line 22
+EXEMPT	sh	upstreams/codeberg.sh	3	no-git-execution: a data file sourced by install_upstreams.sh; `git` appears only in the repository URL and comments
+EXEMPT	sh	upstreams/gitflic.sh	3	no-git-execution: a data file sourced by install_upstreams.sh; `git` appears only in the repository URL and comments
+EXEMPT	sh	upstreams/github.sh	3	no-git-execution: a data file sourced by install_upstreams.sh; `git` appears only in the repository URL and comments
+EXEMPT	sh	upstreams/gitlab.sh	3	no-git-execution: a data file sourced by install_upstreams.sh; `git` appears only in the repository URL and comments
+EXEMPT	sh	upstreams/gitverse.sh	3	no-git-execution: a data file sourced by install_upstreams.sh; `git` appears only in the repository URL and comments
+EXEMPT	sh	upstreams/m3w.sh	3	no-git-execution: a data file sourced by install_upstreams.sh; `git` appears only in the repository URL and comments
+EXEMPT	sh	upstreams/vasic_digital_github.sh	3	no-git-execution: a data file sourced by install_upstreams.sh; `git` appears only in the repository URL and comments
+EXEMPT	sh	upstreams/vasic_digital_gitlab.sh	3	no-git-execution: a data file sourced by install_upstreams.sh; `git` appears only in the repository URL and comments
+git-env-class-census: inventory: tracked=7789 accounted=7789 universe=1926 (go=184 js=12 other=2 py=254 sh=1474) gitlink=27 symlink=1 binary=24 data=5811 unclassified=0 absent=0 members=672 non_members=1254
+git-env-class-census: control needles seen (117 samples)
+git-env-class-census: PASS - members=672 hermetic=513 exempt=159 unscrubbed=0

@@ -1,0 +1,30 @@
+## CON-016 — env census F-EC2: surviving mutants E1 (yq|gojq) and E5 ($'...' owner) (implemented, PROVISIONAL-DONE)
+
+**Status:** Ready for testing
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-04T22:00:38Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Review r1 own mutants surviving the regions and closure suites: E1 drop yq|gojq from RE_JQ_WORD (31/0, 9/0 still green); E5 do not set the owner for a $'...' region (owner leaks from the previous region). Add a yq case and a $'..' case. Severity minor, test-instrumentation.
+
+Source report(s) in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/: review_runner_canon_fixes.md
+
+Origin: independent-review follow-up, section 11.4.276(G.2).
+
+**Affected scope / file-scope manifest:**
+scripts/gates/lib/gate_env_census.py tests
+
+**Reproduction / context:**
+Mutants E1 and E5.
+
+**Acceptance criteria:**
+Both mutants are killed by new cases.
+
+**Implementation:** vehicle/census-safe, landed 2026-11-05 (cases Y1-Y4 (yq/gojq words) and D1/D2 (the $'..' region owner) in tests/gates/test_gate_env_census_jq_regions.sh; whether they kill review-r1 mutants E1 and E5 was not re-measured at landing (UNCONFIRMED; the allowlist mutation test does not run E1/E5); independent review round 3 of max 5: GO-with-follow-ups; follow-ups CON-064 pins the $'..' separator member).
+
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/gates/test_gate_env_census_jq_regions.sh (52 passed, 0 failed, 5 known-failure, rc 3) and the allowlist mutation test (META PASS) on main after landing -- checks: Y1-Y4 and D1 fire, D2 quiet, E1/E5 mutants (to be re-measured) fail the suite -- layer: gate-logic (class floor: runtime for a gate-logic item) -- target: host, repo checkout -- artifact: commit that lands vehicle/census-safe -- due: 2026-11-23 (UNCONFIRMED: date set by the CON-423 r2 fixer when the checker began to require a date; the line said "next full-suite run"; no scheduler entry exists).
+

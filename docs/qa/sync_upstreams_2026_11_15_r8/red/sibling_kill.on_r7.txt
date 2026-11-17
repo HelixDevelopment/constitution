@@ -1,0 +1,12 @@
+[sync-upstreams] .                                        failed          write-killed:stage-pin
+[sync-upstreams] libs/a                                   failed          -
+[sync-upstreams] libs/b                                   failed          -
+[sync-upstreams] next step (never run automatically): write-killed recovery for .: make sure no git process runs in it; inspect 'git -C /mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibkill.vhxq16_x/work/p status'; remove /mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibkill.vhxq16_x/work/p/.git/index.lock only if it is still there; keep any leftovers with 'git -C /mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibkill.vhxq16_x/work/p stash push --include-untracked -m helix-sync-write-killed'; then re-run with a larger --write-timeout
+REPORT_JSON=/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibkill.vhxq16_x/out/e1/sync_report.json
+CANONICAL_SHA256=00b5e7e5dd402d88d526b55b1e8ecdd71da5ba24e163535d04982ce41785f43e
+RESULT: FAILED exit=1
+RUN1 .        result=failed actions=[]
+RUN1 libs/a   result=failed actions=[('advance-pin', 'write-killed:stage-pin')]
+RUN1 libs/b   result=failed actions=[('advance-pin', None)]
+RUN1 rc=1 adds=2 parent_marker=False index_lock=True a_moved=True b_moved=True
+RUN2 rc=4 root reasons=['in-progress:index.lock']

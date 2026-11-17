@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# CON-435 heavy runs: every tests/security suite twice + hash compare; the new mutation suite twice (fake) and twice (real).
+set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
+N=${1:?}; O=${2:?}; GL=${3:?}; mkdir -p "$O"; cd "$N" || exit 9
+export TMPDIR=/mnt/DATA1TB/claude-work/tmp
+S="forge_branch_protect github_actions_inventory_disable history_secret_scan history_secret_scan_deadlock history_secret_scan_replace gitleaks_run_scan_replace"
+for r in 1 2; do
+  for s in $S; do bash tests/security/test_$s.sh </dev/null > "$O/${s}_run$r.txt" 2>&1; echo "rc=$?" >> "$O/${s}_run$r.txt"; done
+  GLRS_GITLEAKS=$GL bash tests/security/test_gitleaks_run_scan_replace.sh </dev/null > "$O/gitleaks_run_scan_replace_real_run$r.txt" 2>&1; echo "rc=$?" >> "$O/gitleaks_run_scan_replace_real_run$r.txt"
+  bash tests/security/test_gitleaks_run_scan_replace_mutations.sh </dev/null > "$O/gitleaks_replace_mutations_run$r.txt" 2>&1; echo "rc=$?" >> "$O/gitleaks_replace_mutations_run$r.txt"
+  GLRS_GITLEAKS=$GL bash tests/security/test_gitleaks_run_scan_replace_mutations.sh </dev/null > "$O/gitleaks_replace_mutations_real_run$r.txt" 2>&1; echo "rc=$?" >> "$O/gitleaks_replace_mutations_real_run$r.txt"
+done
+: > "$O/hash_compare.txt"
+for s in $S gitleaks_run_scan_replace_real gitleaks_replace_mutations gitleaks_replace_mutations_real; do
+  a=$(sha256sum < "$O/${s}_run1.txt" | cut -c1-64); b=$(sha256sum < "$O/${s}_run2.txt" | cut -c1-64)
+  if [ "$a" = "$b" ]; then v=IDENTICAL; else v=DIFFERENT; fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$s" "$a" "$b" "$v" "$(grep -E '^(RESULT|PASS|FAIL:|ALL|[0-9]+ passed)' "$O/${s}_run1.txt" | tail -1)" "$(tail -1 "$O/${s}_run1.txt")" >> "$O/hash_compare.txt"
+done
+echo done > "$O/heavy.done"

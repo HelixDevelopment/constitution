@@ -1,0 +1,3 @@
+X10	KILLED	test_s4_placement.sh	join skips the degraded re-check	FAIL - P25 degraded => event refused_degraded (not the generic refused_join) (expected [refused_degraded] got [refused_join])
+N11	KILLED	test_s4_placement.sh	join proceeds when capacity is unreadable	FAIL - P28 an unreadable capacity answer is refused at the capacity check itself (not later by the unit check) (no [capacity undetermined] in <scratch>/jev_r3.s5St/mut/run2/tmp/tmp.vyd4UUY3SL/e28u)
+N13	KILLED	test_s4_placement.sh	event closed-set guard removed	FAIL - P32b an event outside the closed set is refused (rc 2, nothing written) (expected [rc=2 file=no] got [rc=0 file=yes])

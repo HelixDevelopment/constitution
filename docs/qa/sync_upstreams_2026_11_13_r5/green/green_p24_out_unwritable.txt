@@ -1,0 +1,9 @@
+# real engine, check out_unwritable
+== out_unwritable
+  ok   out_unwritable.exit_2
+  ok   out_unwritable.not_moved
+  ok   out_unwritable.existing_dir_exit_2
+  ok   out_unwritable.existing_dir_not_moved
+  ok   out_unwritable.control_writable_dir_accepted
+sync-robustness: PASS 5 FAIL 0
+rc=0

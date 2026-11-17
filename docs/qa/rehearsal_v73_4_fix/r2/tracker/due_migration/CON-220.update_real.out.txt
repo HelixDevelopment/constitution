@@ -1,0 +1,2 @@
+update: CON-220 updated in Issues (status=Ready for testing, type=Task)
+rc=0

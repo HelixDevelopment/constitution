@@ -1,0 +1,26 @@
+control GOOD alone                           checker=ACCEPT want=ACCEPT 
+control plain duplicate                      checker=REFUSE want=REFUSE 
+F11 continuation line appended               checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+F11 inline comment spans into next line      checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+F11 hard break then text                     checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+F11 GFM table delimiter after line           checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+F11 emphasis in note                         checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+F11 entity in note                           checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+F3 GFM footnote def before line              checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+F3 GFM footnote def after line               checker=REFUSE want=REFUSE 
+colon U+2236 RATIO                           checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+colon U+A789                                 checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+colon U+0589                                 checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+colon U+02F8                                 checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+letter U+13D9 Cherokee V                     checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+letter U+0585 Armenian o                     checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+mark U+0323 dot below                        checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+upper Cyrillic TE                            checker=REFUSE want=REFUSE 
+F5 raw HTML in image alt                     checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+F5 raw HTML in link text                     checker=REFUSE want=REFUSE 
+F1 complete comment alone                    checker=ACCEPT want=REFUSE <-- MEMBER OPEN
+status 'Ready for testing'                      reads=PROVISIONAL want=PROVISIONAL 
+status 'Ready for te️sting'                     reads=SKIPPED want=PROVISIONAL <-- MEMBER OPEN
+status 'Reаdy for testing'                      reads=PROVISIONAL want=PROVISIONAL 
+status 'In te͏sting'                            reads=SKIPPED want=PROVISIONAL <-- MEMBER OPEN
+PROBE_CLASS_R8 open=18

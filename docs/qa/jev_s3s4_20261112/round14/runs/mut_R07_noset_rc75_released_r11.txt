@@ -1,0 +1,65 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+ok 3 - R11-1 B planned the disposal and is paused before its arm step (paused at flock call 9)
+ok 4 - R11-1 B armed its stop (its stop of decide-a is in flight)
+ok 5 - R11-1 B's stop returned rc 0 before A's unit came up; B is paused before its record step (paused at flock call 11)
+ok 6 - R11-1 CONTROL: no unit runs (B's stop came first)
+ok 7 - R11-1 A's start returned rc 0 (the unit is up); A is paused before its record step (paused at flock call 7)
+ok 8 - R11-1 CONTROL: A's unit is up after B's stop
+ok 9 - R11-1 A keeps the set constitution-started, records the stopping mark it saw and an owed stop; A runs no stop of its own
+ok 10 - R11-1 A's log does not claim the set is held by other leases
+ok 11 - R11-1 A's log names the real reason
+ok 12 - R11-1 B sees A's start record and does not delete the set
+ok 13 - R11-1 B never adopts the unit as operator-started
+ok 14 - R11-1 B retries the owed stop: the unit is stopped and the set is gone (never orphaned)
+FAIL - R11-2 rc 75 order astrA: B treated the refused start as a start (kept-after-arm lines 0, stops 2)
+FAIL - R11-2 rc 75 order satrA: B treated the refused start as a start (kept-after-arm lines 0, stops 2)
+FAIL - R11-2 rc 75 order starA: B treated the refused start as a start (kept-after-arm lines 0, stops 2)
+FAIL - R11-2 rc 75 order straA: B treated the refused start as a start (kept-after-arm lines 0, stops 2)
+ok 15 - R11-2 CONTROL: at least one rc 75 order reaches A's not-sole record with B's stopping mark (count 3)
+FAIL - R11-2 all 30 interleavings (rc 0, 1, 75 x 10 orders) end with no unit running, no lease set, one start, no adoption (expected [30 0] got [30 4])
+ok 16 - R11-3 B is paused before its arm step (paused at flock call 9)
+ok 17 - R11-3 B armed its stop (its stop of decide-a is in flight)
+tests/jev/test_s4_round11.sh: line 92: 81168 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 18 - R11-3 CONTROL: B was killed at its record step
+ok 19 - R11-3 A's unit is up; A is paused before its record step (paused at flock call 7)
+ok 20 - R11-3 the unit runs and the set carries the owed stop A recorded
+ok 21 - R11-3 the next acquire runs the owed stop (the dead stopper's mark is reaped first)
+ok 22 - R11-3 the unit is stopped (never orphaned)
+ok 23 - R11-4 A's start returned rc 0; A is paused before its record step (paused at flock call 7)
+ok 24 - R11-4 A is placed and the other process's starting mark is kept (only A's own mark is ever cleared)
+ok 25 - R11-5 calibration: the release stops decide-b (its stop of decide-b is in flight)
+ok 26 - R11-5 the release is paused before its stop's arm step (paused at flock call 5)
+ok 27 - R11-5 the arm step refuses the set another process is starting
+ok 28 - R11-5 no stop runs; the unit and the other process's mark are kept
+ok 29 - R11-6 CONTROL: the same set without stop_owed is observed ok and routed
+ok 30 - R11-6 a set carrying stop_owed is observed ok but never routed
+ok 31 - R11-7 the set being started is not a stop candidate of the release
+ok 32 - R11-7 nothing is stopped; the starter's mark is kept
+ok 33 - R11-8 a placeholder key (length 8) gives route none, no key variable
+ok 34 - R11-8 a placeholder key (length 24) gives route none, no key variable
+ok 35 - R11-8 a placeholder key (length 9) gives route none, no key variable
+ok 36 - R11-8 a placeholder key (length 10) gives route none, no key variable
+ok 37 - R11-8 CONTROL: a well-formed (fake) key gives route cloud
+ok 38 - R11-9 the failed start found no set: it is recorded with start_failed and the failed cleanup stop with stop_failed; the unit runs
+ok 39 - R11-9 the next acquire retries the cleanup stop
+ok 40 - R11-9 the next acquire does not join the unit that is owed a stop
+ok 41 - R11-9 the unit is stopped
+ok 42 - R11-10 B is paused before its arm step (paused at flock call 9)
+ok 43 - R11-10 B armed its stop (its stop of decide-a is in flight)
+ok 44 - R11-10 B's stop returned; B is paused before its record step (paused at flock call 11)
+ok 45 - R11-10 A's unit is up; A is paused before its record step (paused at flock call 7)
+ok 46 - R11-10 the set is kept for hX (stopped_while_held), the unit hX holds is not stopped again
+ok 47 - R11-10 the start-after-arm rule applies only to a lease-less set
+ok 48 - R11-11 B is paused before its arm step (paused at flock call 9)
+ok 49 - R11-11 B armed its stop (its stop of decide-a is in flight)
+ok 50 - R11-11 A's start returned rc 75; A is paused before its record step (paused at flock call 7)
+ok 51 - R11-11 A recorded the refusal; A is paused before its next lock call (paused at flock call 9)
+ok 52 - R11-11 CONTROL: A's call 9 is a lock call
+ok 53 - R11-11 CONTROL: the set still carries A's rc 75 record with B's stopping mark and is not constitution-started
+ok 54 - R11-11 B's stop returned; B is paused before its record step (paused at flock call 11)
+ok 55 - R11-11 B's stop result never treats the refused start as a start
+ok 56 - R11-11 one stop only and the set is gone (no owed stop of a unit that never started)
+ok 57 - R11-11 after A ends: no unit, no set, no further stop
+ok 58 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round11.sh: pass=58 fail=5 skip=0

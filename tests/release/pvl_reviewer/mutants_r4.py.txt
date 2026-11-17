@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Reviewer r4 mutants (new; none of O01-O42, R1-R22, X1-X7). Each is one exact replacement (count must be 1) in a
+file of MUTREPO, then the full PVL suite runs in MUTREPO; rc != 0 => KILLED, rc 0 => SURVIVED. The file is restored
+byte-for-byte after each run (sha256 checked). Usage: python3 -I mutants_r4.py MUTREPO OUTFILE [ID...]"""
+import hashlib, os, subprocess, sys, time
+mut, outp = sys.argv[1], sys.argv[2]
+only = set(sys.argv[3:])
+CK = "scripts/validation/check_provisional_verification_lines.py"
+INV = "tests/release/pvl_inventory.py"
+GRID = "tests/release/pvl_grid.py"
+TIM = "tests/release/pvl_timing.py"
+M = [
+    ("N01 em dash no longer a field separator", CK, 'SEP = re.compile(r"(?<!\\s)\\s+(?:--|—)\\s+")',
+     'SEP = re.compile(r"(?<!\\s)\\s+(?:--)\\s+")'),
+    ("N02 note rule ignores [ ", CK, '        if ch not in "([":', '        if ch not in "(":'),
+    ("N03 digraphs no longer folded", CK, 'if key == "LIGATURE" or "DIGRAPH" in after or', 'if key == "LIGATURE" or'),
+    ("N04 small letters keep capital base", CK, 'return base.lower() if small else base', 'return base'),
+    ("N05 run prefixes start at 3 letters", CK, 'for n in range(2, min(len(s), WORD_MAX) + 1)}',
+     'for n in range(3, min(len(s), WORD_MAX) + 1)}'),
+    ("N06 WORD_MAX 10 (unconfirmed is 11)", CK, 'WORD_MAX = 12  #', 'WORD_MAX = 10  #'),
+    ("N07 lead reads only the first token of the first word", CK, 'for t in in_word[:3]))', 'for t in in_word[:1]))'),
+    ("N08 bracket note '[' not a whole-value note", CK, 'rest.lstrip().startswith(("(", "["))',
+     'rest.lstrip().startswith(("(",))'),
+    ("N09 checks 'not yet' no longer refused", CK, '"assigned", "known", "scheduled", "yet", "set",',
+     '"assigned", "known", "scheduled", "set",'),
+    ("N10 real_root without realpath", CK, '    real_root = os.path.realpath(root)\n', '    real_root = root\n'),
+    ("N11 due date lookahead removed", CK, 'r"(?=\\Z|[\\s.,;(])")', 'r"")'),
+    ("N12 hex needs no digit", CK, 'HEX = re.compile(r"\\b(?=[0-9a-f]*[0-9])[0-9a-f]{7,64}\\b")',
+     'HEX = re.compile(r"\\b[0-9a-f]{7,64}\\b")'),
+    ("N13 compat char with several letters folds to the first", CK, 'return al[0] if n != ch and len(al) == 1 else ch',
+     'return al[0] if n != ch and len(al) >= 1 else ch'),
+    ("N14 template word up to 4 chars", CK, 'TEMPLATE = re.compile(r"<[A-Za-z][A-Za-z0-9 _-]{0,40}>',
+     'TEMPLATE = re.compile(r"<[A-Za-z][A-Za-z0-9 _-]{0,4}>'),
+    ("N15 MAX_LINE 40960", CK, 'MAX_LINE = 4096\n', 'MAX_LINE = 40960\n'),
+    ("N16 timing default limit 100 s", TIM, 'else 1.0\n', 'else 100.0\n'),
+    ("N17 inventory judges every case ok", INV, '            ok = (got is None) if want == "OK" else (got is not None)\n',
+     '            ok = True\n'),
+    ("N18 inventory fold-closure never counts", INV, '        if gone or any(m.is_invisible(c) for c in v):\n',
+     '        if False:\n'),
+    ("N19 grid ignores the refusal reason", GRID, '            ok = got is not None and got.startswith(want)\n',
+     '            ok = got is not None\n'),
+    ("N20 grid root run uses no --root", GRID, '(["--root", repo_root] if with_root else [])', '([])'),
+    ("N21 inventory Default_Ignorable oracle drops U+3164", INV,
+     '(0x2060, 0x206F), (0x3164, 0x3164),\n            (0xFE00', '(0x2060, 0x206F),\n            (0xFE00'),
+    ("N22 checker comment close needs --> at line start", CK, '            if "-->" in ln:\n',
+     '            if ln.lstrip().startswith("-->"):\n'),
+]
+env = dict(os.environ)
+env.pop("PVL_SCRIPT", None)
+res = []
+for name, rel, old, new in M:
+    mid = name.split()[0]
+    if only and mid not in only:
+        continue
+    path = os.path.join(mut, rel)
+    src = open(path, encoding="utf-8").read()
+    h0 = hashlib.sha256(src.encode()).hexdigest()
+    if src.count(old) != 1:
+        res.append((mid, "NOT-APPLIED count=%d" % src.count(old), name, 0.0, ""))
+        print(res[-1], flush=True)
+        continue
+    open(path, "w", encoding="utf-8").write(src.replace(old, new))
+    t = time.time()
+    p = subprocess.run(["bash", "tests/release/test_provisional_verification_lines.sh"], cwd=mut, env=env,
+                       capture_output=True, text=True)
+    dt = time.time() - t
+    open(path, "w", encoding="utf-8").write(src)
+    assert hashlib.sha256(open(path, encoding="utf-8").read().encode()).hexdigest() == h0
+    fl = [ln for ln in p.stdout.splitlines() if ln.startswith("FAIL ")]
+    last = p.stdout.strip().splitlines()[-1] if p.stdout.strip() else ""
+    verdict = "KILLED" if p.returncode != 0 else "SURVIVED"
+    res.append((mid, verdict, name, dt, last + " | " + " || ".join(fl[:3])[:400]))
+    print(res[-1], flush=True)
+with open(outp, "w", encoding="utf-8") as fh:
+    for r in res:
+        fh.write("%s\t%s\t%s\t%.0fs\t%s\n" % r)
+    fh.write("TOTAL %d KILLED %d SURVIVED %d NOT-APPLIED %d\n" % (
+        len(res), sum(r[1] == "KILLED" for r in res), sum(r[1] == "SURVIVED" for r in res),
+        sum(r[1].startswith("NOT") for r in res)))

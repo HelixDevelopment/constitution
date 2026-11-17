@@ -1,0 +1,25 @@
+control needle: def write_marker found 1 (want 1); write_markerX calls 0 (want 0)
+
+== marker calls (6)
+  line 873  read_marker  in inspect_local      read_marker(gitdir)
+  line 1362  write_marker in write_git          write_marker(gitdir, op, target, r.run_id)
+  line 1372  clear_marker in write_git          clear_marker(gitdir)
+  line 1407  write_marker in write_git          write_marker(pgitdir, "stage-pin", target, r.run_id)
+  line 1414  clear_marker in write_git          clear_marker(pgitdir)
+  line 1888  clear_marker in run                clear_marker(x.rec.get("_gitdir") or "")
+
+== write calls r.run(..., write=True) (3)
+  line 1366  in write_git    r.run(p, ["merge", "--ff-only", target], ok=(0, 1, 128), write=True)
+  line 1368  in write_git    r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128), write=True)
+  line 1412  in write_git    r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]], ok=(0, 128), write=True, final=True)
+
+== GitResult returns in Runner.run (7)
+  line 584  why=why                    started=True (default)
+  line 552  why="interrupted"          started=True (default)
+  line 556  why="deadline"             started=True (default)
+  line 578  why=None                   started=True (default)
+  line 581  why="write-killed"         started=True (default)
+  line 573  why="refused"              started=True (default)
+  line 577  why="malformed-output"     started=True (default)
+
+INSTRUMENT: SEES

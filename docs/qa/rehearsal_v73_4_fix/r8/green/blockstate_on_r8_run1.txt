@@ -1,0 +1,2 @@
+BLOCKSTATE bodies=65004 accepted=2286 refused=62718 danger=0 false_refusals=4296 contexts=128 joins=13 suffixes=13 endings=3 reviewer=36 mdit=3.0.0 pandoc=checked oracle_selftest=14 icu=78.2
+rc=0

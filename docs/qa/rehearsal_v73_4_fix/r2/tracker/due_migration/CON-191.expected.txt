@@ -1,0 +1,12 @@
+## CON-191 — Tracked resolve1 proposal says not applied though e6b16598 applied it; CON-187 should cite the tracked round-3 inputs (fixu follow-ups review N3, N4)
+
+**Status:** Ready for testing
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-186 (M3), CON-187 (M4). Source: independent review of the fixu landing follow-ups 65383536 (CON-186..CON-188), GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit, kept as docs/qa/fixu_review/landing/review_fixu_fu.md. N3 (nit): docs/qa/fixu_review/resolve1_lock_PROPOSAL_r2.md still says Status: PROPOSAL. Not applied in any tracked tree, but e6b16598 applied it; a one-line header note (applied in e6b16598, kept as the record under section 11.4.215) would stop it misleading. N4 (nit): CON-187 says the round-3 convergence-assessment inputs of CON-099 are not recoverable from the tracker text alone, but they are in tracked files: docs/qa/fixu_review/review_fixu_r3.md section 5 (F099-4 same carrier class as F099-2), section 6 (reviewer class inventory, line 433 the only open member) and the N099-6 note; CON-187 should cite them so the fixer can write the assessment from them. Finding layer: process-doc, minor-class under section 11.4.276(G.2). At registration no fix was claimed: the item was Queued, its reproduction and investigation states were UNSET, and it was neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290); the Fix and Verification lines below record its later state (review fu_c F-C).
+
+Fix: N3 -- docs/qa/fixu_review/resolve1_lock_PROPOSAL_r2.md header now says APPLIED in e6b16598 (lock 53 -> 55 rows) and keeps the original status text as the record; N4 -- CON-187 now cites the tracked round-3 inputs.
+**Verification:** provisional (section 11.4.290) -- job: read both texts; scripts/workable-items validate and diff in sync -- checks: validate OK and diff in sync from the engine, and both texts read against the record (added by the CON-423 fixer, taken from the job text) -- layer: host-only (documentation) -- target: host, repo checkout -- artifact: the commit that lands the CON-191 change -- due: 2026-11-23 (UNCONFIRMED: date set by the CON-423 r2 fixer when the checker began to require a date; the line said "next tracker review"; no scheduler entry exists). Not VERIFIED-DONE; no independent review yet.
+

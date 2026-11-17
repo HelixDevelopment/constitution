@@ -1,0 +1,1101 @@
+[
+ {
+  "name": "T1 lowercase declaration <!x",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<!x' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; ",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "<!x\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n"
+ },
+ {
+  "name": "T2 lowercase doctype",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<!doctype html' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a lin",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "<!doctype html\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n"
+ },
+ {
+  "name": "T3 incomplete search tag, open quote",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML (\"<search x='\" on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line w",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "attr &gt;< on <search>",
+     "attr p on <search>",
+     "attr x on <search>",
+     "element <search>"
+    ],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "attr &gt;< on <search>",
+     "attr p on <search>",
+     "attr x on <search>",
+     "element <search>"
+    ],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "attr x on <search>",
+     "element <search>"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "<search x='\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\nend'>\n"
+ },
+ {
+  "name": "T4 incomplete search hidden",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<search hidden' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a lin",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "attr <p on <search>",
+     "attr hidden on <search>",
+     "element <search>"
+    ],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "attr <p on <search>",
+     "attr hidden on <search>",
+     "element <search>"
+    ],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "<search hidden\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n"
+ },
+ {
+  "name": "T5 uppercase declaration (control)",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<!DOCTYPE x' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line w",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "<!DOCTYPE x\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n"
+ },
+ {
+  "name": "P1 pandoc fenced div display none",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds a fenced div (line 1 starts a pandoc fenced div): a pandoc reader can hide what is inside it",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "<div> with {'style': 'display:none'}"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "::: {style=\"display:none\"}\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n:::\n"
+ },
+ {
+  "name": "P2 pandoc fenced div blank-separated",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds a fenced div (line 1 starts a pandoc fenced div): a pandoc reader can hide what is inside it",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "<div> with {'style': 'display:none'}"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "::: {style=\"display:none\"}\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n:::\n"
+ },
+ {
+  "name": "P3 pandoc fenced div .hidden class",
+  "human": "?",
+  "checker": "REFUSE",
+  "reason": "the body holds a fenced div (line 1 starts a pandoc fenced div): a pandoc reader can hide what is inside it",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [
+     "<div> with {'class': 'hidden'}"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "::: {.hidden}\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n:::\n"
+ },
+ {
+  "name": "P4 pandoc fenced div hidden attr",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds a fenced div (line 1 starts a pandoc fenced div): a pandoc reader can hide what is inside it",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "<div> with {'hidden': ''}",
+     "attr hidden on <div>"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "::: {hidden=\"\"}\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n:::\n"
+ },
+ {
+  "name": "P5 pandoc comment-like raw block",
+  "human": "hidden",
+  "checker": "REFUSE",
+  "reason": "the body holds raw HTML ('<d' with line 1, a fence that is not ```WORD at column 0; HTML comments and autolinks too): a reader may hide or w",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 0,
+    "top_good": false,
+    "raw": [
+     "<div> with {'hidden': ''}",
+     "attr hidden on <div>"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "```{=html}\n<div hidden>\n```\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n```{=html}\n</div>\n```\n"
+ },
+ {
+  "name": "P6 pandoc line block before",
+  "human": "one",
+  "checker": "ACCEPT",
+  "reason": "",
+  "danger": [
+   "pandoc-md-export(real line not a top-level p,raw <div> with {'class': 'line-block'})"
+  ],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [
+     "<div> with {'class': 'line-block'}"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "| a\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n"
+ },
+ {
+  "name": "P7 pandoc definition list",
+  "human": "one",
+  "checker": "ACCEPT",
+  "reason": "",
+  "danger": [
+   "pandoc-md-export(real line not a top-level p,raw element <dd>;element <dl>;element <dt>)"
+  ],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [
+     "element <dd>",
+     "element <dl>",
+     "element <dt>"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "Term\n\n: def\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n"
+ },
+ {
+  "name": "P8 pandoc percent title",
+  "human": "one",
+  "checker": "ACCEPT",
+  "reason": "",
+  "danger": [
+   "pandoc-md-export(real line not a top-level p)"
+  ],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "% title\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n"
+ },
+ {
+  "name": "P9 pandoc example list",
+  "human": "one",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 2,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "(**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20) x\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n"
+ },
+ {
+  "name": "P10 pandoc raw latex",
+  "human": "hidden",
+  "checker": "ACCEPT",
+  "reason": "",
+  "danger": [
+   "pandoc-md-export(real line not a top-level p)"
+  ],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "\\iffalse\n\n**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n\\fi\n"
+ },
+ {
+  "name": "P11 pandoc native span fake",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 2,
+    "top_good": false,
+    "raw": [
+     "<span> with {'class': 'x'}"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n[**Verification:** provisional -- job: FAKE]{.x}\n"
+ },
+ {
+  "name": "P12 pandoc span hides nothing (control)",
+  "human": "one",
+  "checker": "ACCEPT",
+  "reason": "",
+  "danger": [
+   "pandoc-md-export(real line not a top-level p,raw <span> with {'class': 'y'})"
+  ],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [
+     "<span> with {'class': 'y'}"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n[x]{.y}\n"
+ },
+ {
+  "name": "P13 pandoc fenced div with raw-HTML-free fake label inside code",
+  "human": "one",
+  "checker": "REFUSE",
+  "reason": "the body holds a fenced div (line 3 starts a pandoc fenced div): a pandoc reader can hide what is inside it",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 1,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [
+     "<div> with {'class': 'x'}"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n::: x\nok\n:::\n"
+ }
+]

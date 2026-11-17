@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""engine_edit.py ENGINE REALDB COPYDB OUTDIR SPECFILE
+SPECFILE: JSON list of {"id": ..., "edits": [[old, new], ...]} -- each old must occur exactly once in the item's
+freeform text. For each item: build the new freeform (description) and the expected body, run
+`ENGINE update --db COPYDB --id ID --description NEW` and compare body_md byte for byte with the expected body;
+only when every item matched on the copy, run the same on REALDB and compare again. Writes per-item files to
+OUTDIR. Never writes the DB except through the engine."""
+import json
+import sqlite3
+import subprocess
+import sys
+
+engine, real, copy, out, spec = sys.argv[1:6]
+items = json.load(open(spec, encoding="utf-8"))
+
+
+def body_of(db, iid):
+    con = sqlite3.connect("file:%s?mode=ro" % db, uri=True)
+    r = con.execute("select body_md from items where atm_id=?", (iid,)).fetchone()
+    con.close()
+    return r[0]
+
+
+def prep(db, it):
+    body = body_of(db, it["id"])
+    first = body.index("\n\n") + 2
+    second = body.index("\n\n", first) + 2
+    head, free = body[:second], body[second:].rstrip("\n")
+    assert all(ln.startswith("**") for ln in body[first:second].strip("\n").split("\n")), it["id"]
+    new = free
+    for old, rep in it["edits"]:
+        assert new.count(old) == 1, (it["id"], old, new.count(old))
+        new = new.replace(old, rep)
+    return body, new, head + new + "\n\n"
+
+
+def run(db, it, new, exp, tag):
+    p = subprocess.run([engine, "update", "--db", db, "--id", it["id"], "--description", new],
+                       capture_output=True, text=True)
+    open("%s/%s.update_%s.out" % (out, it["id"], tag), "w").write(p.stdout + p.stderr + "rc=%d\n" % p.returncode)
+    got = body_of(db, it["id"])
+    return p.returncode == 0 and got == exp
+
+
+for tag, db in (("copy", copy), ("real", real)):
+    for it in items:
+        before, new, exp = prep(db, it)
+        if tag == "copy":
+            open("%s/%s.before" % (out, it["id"]), "w", encoding="utf-8").write(before)
+            open("%s/%s.desc" % (out, it["id"]), "w", encoding="utf-8").write(new)
+            open("%s/%s.expected" % (out, it["id"]), "w", encoding="utf-8").write(exp)
+        ok = run(db, it, new, exp, tag)
+        print("%s %s %s" % (tag, it["id"], "MATCH" if ok else "MISMATCH"))
+        if not ok:
+            sys.exit("stop: %s on %s did not match the expected body" % (it["id"], tag))
+print("DONE items=%d" % len(items))

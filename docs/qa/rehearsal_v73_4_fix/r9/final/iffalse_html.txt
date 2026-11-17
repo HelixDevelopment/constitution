@@ -1,0 +1,9 @@
+# pandoc pandoc 3.11; body: \iffalse, blank, line, blank, \fi; reader markdown-yaml_metadata_block to html
+<p>\iffalse</p>
+<p><strong>Verification:</strong> provisional x</p>
+# same body to latex (not an export output; shown for the limit)
+\textbackslash iffalse
+
+\textbf{Verification:} provisional x
+
+\fi

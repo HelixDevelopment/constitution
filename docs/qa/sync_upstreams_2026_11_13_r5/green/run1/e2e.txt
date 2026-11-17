@@ -1,0 +1,26 @@
+== sync-e2e (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix5.VjLJ/tmp/helix-sync-test.lP2kJr)
+  ok   --help: exit 0
+  ok   --help lists --apply
+  ok   user run from a subdirectory: exit 0
+  ok   default evidence under XDG_CACHE_HOME
+  ok   schema id
+  ok   run id
+  ok   mode
+  ok   exit code recorded
+  ok   verdict recorded
+  ok   control needle recorded and ok
+  ok   timestamps are UTC ISO-8601
+  ok   root head_before = pre-run HEAD
+  ok   root head_after = HEAD now
+  ok   root action recorded (fast-forward rc 0)
+  ok   every repository has a result
+  ok   canonical hash recorded
+  ok   TSV header
+  ok   TSV row per repository
+  ok   TSV root row result
+  ok   stderr summary lists the root
+  ok   contract: behind -> 3
+  ok   contract: dirty -> 4
+  ok   contract: two modes -> 2
+  ok   contract: bad run id -> 2
+sync-e2e: PASS 24 FAIL 0

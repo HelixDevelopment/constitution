@@ -1,0 +1,17 @@
+BASELINE PASS test_forge_credentials.sh
+BASELINE PASS test_forge_detect.sh
+BASELINE PASS test_forge_gitea.sh
+BASELINE PASS test_forge_gitflic.sh
+BASELINE PASS test_forge_github_gitlab.sh
+BASELINE PASS test_forge_gitverse.sh
+KILLED M17 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL G4 echo of the tag-object sha is unknown (missing [TAG: present sha=unknown]))
+KILLED G01 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL G1 annotated tag commit read via commits/{tag-object-sha} (missing [TAG: present sha=0123456789abcdef0123)
+KILLED G02 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL G1 annotated tag commit read via commits/{tag-object-sha} (missing [TAG: present sha=0123456789abcdef0123)
+KILLED G03 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL G4 echo of the tag-object sha is unknown (missing [TAG: present sha=unknown]))
+KILLED G04 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL G5b non-200 body sha ignored (missing [TAG: present sha=unknown]))
+KILLED G05 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL V6 annotated tag dereferenced (and v10 not mistaken for v1) (missing [TAG: present sha=0123456789abcdef01)
+KILLED G06 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL G1 annotated tag commit read via commits/{tag-object-sha} (missing [TAG: present sha=0123456789abcdef0123)
+KILLED G07 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL G1 annotated tag commit read via commits/{tag-object-sha} (missing [TAG: present sha=0123456789abcdef0123)
+KILLED G08 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL G1 annotated tag commit read via commits/{tag-object-sha} (missing [TAG: present sha=0123456789abcdef0123)
+KILLED G09 (providers/gitverse.sh by test_forge_gitverse.sh: FAIL V6 annotated tag dereferenced (and v10 not mistaken for v1) (missing [TAG: present sha=0123456789abcdef01)
+SUMMARY: 96 mutants, 96 killed, 0 survived, 0 errors

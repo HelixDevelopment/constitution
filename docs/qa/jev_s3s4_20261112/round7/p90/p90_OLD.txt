@@ -1,0 +1,6 @@
+ok 1 - P90 a start that ends rc 1 is tried once by this acquire, which ends rc 5 with no unit
+FAIL - P90 (rc 1) the re-plan skips the candidate and says so (no [its start by this acquire was refused or failed; not started again by it] in <W>/tmp/tmp.r4Fix0dq9L/e90)
+ok 2 - P90 a start that ends rc 75 is tried once by this acquire, which ends rc 5 with no unit
+FAIL - P90 (rc 75) the re-plan skips the candidate and says so (no [its start by this acquire was refused or failed; not started again by it] in <W>/tmp/tmp.OSq4fLmZb1/e90)
+# zz_r7_p90_only.sh: pass=2 fail=2 skip=0
+rc=1 secs=8

@@ -1,0 +1,29 @@
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 4 items, 2 provisional, 2 ok
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 empty field value
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an option: usage exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P4 the database is unchanged
+PASS P5 real database: every Ready-for-testing and In-testing item has a complete line
+PASS P5 the checker counted the same 29 rows (needle: an independent count)
+PASS P5 the real database holds provisional items (control: 29 > 0)
+PASS P6 control: the correct checker refuses the single missing-checks item
+PASS P6 control: the correct checker refuses the single In-testing item
+PASS P6 mutant checks-not-required is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant status-in-testing-dropped is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant blind-check-dropped is caught (rc 0)
+RESULT: pass=28 fail=0

@@ -1,0 +1,19 @@
+ok 1 - anchors 272..286 unique+ascending, 277/278 upstream meaning, 279..286 Jev meanings
+ok 2 - no duplicate '### §11.4.N' heading in the whole corpus
+ok 3 - NEG: duplicated 11.4.280 heading is detected
+ok 4 - NEG: Jev meaning re-attached to 277 is detected
+ok 5 - NEG: missing 286 is detected
+    stale 277/278 reference: tests/jev/fixtures/bin-place/llmctl: 45:#                         except on 75: llmctl's pressure-gate refusal starts nothing (§11.4.277(E), "no partial start";
+FAIL - no Jev artifact still cites §11.4.277/278 with Jev meaning (expected [0] got [1])
+ok 6 - Constitution.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 7 - CLAUDE.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 8 - AGENTS.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 9 - QWEN.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 10 - GEMINI.md: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 11 - constitution_index.yaml: 11.4.279..286 each defined exactly once with the Jev meaning; 277/278 keep upstream meaning
+ok 12 - NEG: duplicated carrier definition is detected
+ok 13 - NEG: Jev meaning on 278 in a carrier is detected
+ok 14 - NEG: missing index entry is detected
+ok 15 - CLAUDE_ANCHORS_FULL.md attaches no Jev meaning to 11.4.277/278
+# test_anchor_renumber_integrity.sh: pass=15 fail=1 skip=0
+rc=1

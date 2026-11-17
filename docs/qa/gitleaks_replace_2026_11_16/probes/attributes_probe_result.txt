@@ -1,0 +1,6 @@
+no-attr rc=1
+FAIL: gitleaks scan completed — 2 real leak(s) found
+global-attributesFile(-diff) rc=0
+PASS: gitleaks scan completed — 0 real leak(s) found
+committed .gitattributes -diff rc=0
+PASS: gitleaks scan completed — 0 real leak(s) found

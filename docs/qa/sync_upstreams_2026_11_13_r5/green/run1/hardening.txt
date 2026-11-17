@@ -1,0 +1,121 @@
+== sync-hardening (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix5.VjLJ/tmp/helix-sync-test.DGsOD9)
+  ok   hooks: control needle: a plain git checkout DOES run a hook here
+  ok   hooks: --apply over ff + follow + advance-pin: exit 0
+  ok   hooks: root fast-forwarded
+  ok   hooks: libs/a followed
+  ok   hooks: vendor/t advanced
+  ok   hooks: no hook ran on any write path
+  ok   ignored, follow path: libs/a not moved
+  ok   ignored, follow path: local file kept
+  ok   ignored, follow path: reason recorded
+  ok   ignored, follow path: ATTENTION exit 4
+  ok   ignored, advance-pin path: libs/a not moved
+  ok   ignored, advance-pin path: local file kept
+  ok   ignored, advance-pin path: nothing staged in the root
+  ok   ignored, advance-pin path: reason recorded
+  ok   ignored, fast-forward path: root not moved
+  ok   ignored, fast-forward path: local file kept
+  ok   ignored, fast-forward path: reason recorded
+  ok   status re-read killed: root not moved
+  ok   status re-read killed: BLIND exit 6
+  ok   status re-read killed: action names it
+  ok   status re-read exit 128: root not moved
+  ok   status re-read exit 128: BLIND exit 6
+  ok   status re-read exit 128: action names it
+  ok   status re-read exit 128: the repository is blind
+  ok   tree changed before the write: root not moved
+  ok   tree changed before the write: blocked
+  ok   tree changed before the write: the user's edit is kept
+  ok   status control needle: without the fault the root fast-forwards
+  ok   inspect status killed: root not moved
+  ok   inspect status killed: dirty-tree (an unread status is never clean)
+  ok   token in URL path: absent from every output
+  ok   token in URL path: the field itself was redacted (backstop found nothing)
+  ok   token in URL path: remote reported unreachable
+  ok   GIT_CONFIG_PARAMETERS: dropped (no core.sshCommand seen)
+  ok   GIT_CONFIG_COUNT/KEY/VALUE: dropped
+  ok   control needle: a real repository core.sshCommand IS seen
+  ok   credential shapes: 'Xq9pwd' absent
+  ok   credential shapes: 'Zz7mark' absent
+  ok   credential shapes: 'cepw0rdmark' absent
+  ok   credential shapes: 'spa cepw' absent
+  ok   credential shapes: 'a@b@c' absent
+  ok   credential shapes: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWX' absent
+  ok   credential shapes: backstop found nothing
+  ok   credential shapes: the token-named remote is still fetched (by its real name)
+  ok   --out with a user's file: usage exit 2
+  ok   --out with a user's file: file untouched
+  ok   --out with a symlinked tsv: usage exit 2
+  ok   --out with a symlinked tsv: target untouched
+  ok   --out with a symlinked tsv: still a symlink
+  ok   --out control: a second run over our own report is allowed
+  ok   no remote: ATTENTION exit 4, never CURRENT
+  ok   no remote: reason no-upstream-main
+  ok   remote without main: ATTENTION exit 4
+  ok   remote without main: reason no-upstream-main
+  ok   moved tag: remote fetch state tag-rejected (the remote answered)
+  ok   moved tag: reason tag-rejected:origin
+  ok   moved tag: never labelled unreachable
+  ok   moved tag: the branch was still fetched and evaluated (behind 1)
+  ok   moved tag: local tag kept (never forced)
+  ok   moved tag: ATTENTION exit 4
+  ok   moved tag, --apply: integration blocked (exit 4), nothing moved
+  ok   M37: the concurrent staging happened (control needle)
+  ok   M37: libs/a never checked out at the staged gitlink
+  ok   M37b: a root that did not move makes no child follow (no follow action at all)
+  ok   M37b: pre-staged gitlink, root not moved: no follow action for libs/a
+  ok   M37b: libs/a not moved
+  ok   extra args: anything but --out is ignored, with a note
+  ok   extra args: --apply smuggled into a check never moved the root
+  ok   extra args: --out /dir is honoured
+  ok   partial guard: no config line
+  ok   partial guard: promisor false
+  ok   partial guard: promisor with an empty value (git reads it as false), a remote name with a space
+  ok   partial guard: no / OFF / 0
+  ok   partial guard: value-less promisor (a boolean true)
+  ok   partial guard: promisor true
+  ok   partial guard: promisor Yes (the round-3 pattern missed it)
+  ok   partial guard: promisor 1
+  ok   partial guard: promisor on
+  ok   partial guard: partialclonefilter
+  ok   partial guard: value-less partialclonefilter
+  ok   partial guard: extensions.partialclone
+  ok   partial guard: mixed-case extensions.partialClone
+  ok   partial guard: a later promisor true after a false
+  ok   partial guard: a line it cannot read
+  ok   partial guard: large input, the match on line 1 (the fail-open shape)
+  ok   partial guard: large input, the match on the last line
+  ok   partial guard: large input, nothing partial (golden false)
+  ok   partial guard: control needle: the round-3 pipeline returns 141 on the large input
+  ok   partial guard, _refuse_shallow: large partial config
+  ok   partial guard, _refuse_shallow: large config, nothing partial (golden false)
+  ok   partial guard, _refuse_shallow: config read exits 3 (cannot read it)
+  ok   partial guard, _refuse_shallow: shallow source
+  ok   partial guard, _refuse_shallow: rev-parse fails
+  ok   partial guard: six parallel guards on a large partial config: none accepted
+  ok   partial guard: six parallel guards ran
+  ok   partial guard, real repository: a full clone is accepted
+  ok   partial guard, real repository: a partial-clone configuration is refused
+  ok   pipe lint: positive control: every early-exit reader is found
+  ok   pipe lint: negative control: nothing else is flagged
+  ok   pipe lint: 21 shell files listed
+  ok   pipe lint: no early-exit pipe in the 21 shell files of this vehicle
+  ok   pipe lint: the only allowed pipeline is the section-12 control needle
+  ok   M67: the concurrent staging happened after discovery (control needle)
+  ok   M67: libs/a not checked out at the new pin
+  ok   M67: the gitlink the other writer staged is kept
+  ok   M67: the writer names the changed index
+  ok   M67: a blocked write is attention, exit 4
+  ok   M67: the blocked write is a reason
+  ok   M67 control: without the other writer libs/a is advanced
+  ok   M67 control: and its new gitlink is staged
+  ok   M67 control: exit 0
+  ok   M70: a real report to link to (exit 0)
+  ok   M70: a symlink to a report of ours: usage exit 2
+  ok   M70: a symlink to a report of ours: named as not ours
+  ok   M70: the symlink is still a symlink
+  ok   M70: the report it points at is unchanged
+  ok   M70: a FIFO at the report path: usage exit 2 (124 = the engine blocked on it)
+  ok   M70: the FIFO is still a FIFO
+  ok   M70 control: a regular report of ours is reused (exit 0)
+sync-hardening: PASS 119 FAIL 0

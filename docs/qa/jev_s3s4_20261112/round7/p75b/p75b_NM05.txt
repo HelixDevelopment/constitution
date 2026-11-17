@@ -1,0 +1,23 @@
+ok 1 - P75b B took its ticket; its capacity call waits
+ok 2 - P75b C's start of decide-a failed with the unit up; its record waits (paused at flock call 7)
+ok 3 - P75b B read its answer while C's unit was up (paused at flock call 3)
+ok 4 - P75b C cleaned up: rc 5, no unit left
+FAIL - P75b CONTROL: the registry is not an ABA of B's ticket (the row would not test the generation): {
+  "sets": {},
+  "gateway": {
+    "url": "https://127.0.0.1:18095",
+    "ca": "/nonexistent/ca.crt",
+    "source": "llmctl decide status registry"
+  }
+} vs {
+  "sets": {},
+  "gateway": {
+    "url": "https://127.0.0.1:18095",
+    "ca": "/nonexistent/ca.crt",
+    "source": "llmctl decide status registry"
+  }
+}
+FAIL - P75b B re-reads and STARTS decide-a; it never adopts the gone unit (expected [0 decide-a placed] got [0 decide-a joined_running])
+FAIL - P75b decide-a runs (expected [decide-a ] got [])
+# zz_r7_p75b_only.sh: pass=4 fail=3 skip=0
+rc=1 secs=12
