@@ -32,9 +32,9 @@ derive_release_facts.sh	git	ac18bad8	validated-data	net-allowlist	none	none	loca
 derive_release_facts.sh	sed	ac18bad8	fixed	allowlist	pipe-local	none	local	
 derive_release_facts.sh	git	df53159c	validated-data	net-allowlist	none	none	local	
 derive_release_facts.sh	git	1f8cc176	validated-data	net-allowlist	none	none	local	
-derive_release_facts.sh	git	513af769	validated-data	net-allowlist	none	none	local	
-derive_release_facts.sh	awk	513af769	validated-data	allowlist	pipe-local	none	local	
-derive_release_facts.sh	cut	513af769	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	git	5e2d9c12	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	awk	5e2d9c12	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	cut	5e2d9c12	fixed	allowlist	pipe-local	none	local	
 derive_release_facts.sh	sha256sum	098d0155	validated-data	allowlist	none	none	local	
 derive_release_facts.sh	cut	098d0155	fixed	allowlist	pipe-local	none	local	
 derive_release_facts.sh	awk	d079755d	fixed	allowlist	pipe-local	none	local	

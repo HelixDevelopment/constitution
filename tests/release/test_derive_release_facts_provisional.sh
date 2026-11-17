@@ -115,6 +115,46 @@ INSERT INTO items VALUES ('T-020','Queued','Low','Issues','x
 INSERT INTO items VALUES ('T-101','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET','2001-01-01');
 INSERT INTO items VALUES ('T-102','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET','2026-03-01');
 INSERT INTO items VALUES ('T-103','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET',NULL);
+-- round 3 (review of f4c6e8ab, N1): one fixture per rule of the header that no fixture pinned, each killing a reviewer mutant
+-- T-023 a fence line indented 4 spaces is not a fence: the marker after it counts (past, overdue; kills X3, reviewer E-02)
+INSERT INTO items VALUES ('T-023','Queued','Low','Issues','x
+    $BT
+**Verification:** provisional -- due: 2000-01-01','UNSET','UNSET',NULL);
+-- T-024 a tilde fence whose info string holds a backtick IS a fence: the marker inside is hidden (kills X2, reviewer E-04)
+INSERT INTO items VALUES ('T-024','Queued','Low','Issues','x
+~~~ a\`b
+**Verification:** provisional -- due: 2000-01-01
+~~~','UNSET','UNSET',NULL);
+-- T-025 a closing fence followed by blanks closes the fence: the marker after it counts (past, overdue; kills X4, reviewer E-07)
+INSERT INTO items VALUES ('T-025','Queued','Low','Issues','x
+$BT
+$BT   
+**Verification:** provisional -- due: 2000-01-01','UNSET','UNSET',NULL);
+-- T-026 due on --today itself is not overdue (strictly before today; kills X5, reviewer E-18)
+INSERT INTO items VALUES ('T-026','Queued','Low','Issues','x
+**Verification:** provisional -- due: 2026-06-01','UNSET','UNSET',NULL);
+-- N5: a due: that is not a real calendar date is no date, so the item is UNSCHEDULED and overdue (T-027 month 13,
+-- reviewer E-20; T-028 29 February of a common year); T-029 29 February of a leap year is a real future date
+INSERT INTO items VALUES ('T-027','Queued','Low','Issues','x
+**Verification:** provisional -- due: 2026-13-45','UNSET','UNSET',NULL);
+INSERT INTO items VALUES ('T-028','Queued','Low','Issues','x
+**Verification:** provisional -- due: 2027-02-29','UNSET','UNSET',NULL);
+INSERT INTO items VALUES ('T-029','Queued','Low','Issues','x
+**Verification:** provisional -- due: 2028-02-29','UNSET','UNSET',NULL);
+-- T-030: a real date followed by one more digit is not a date (kills Y16: read as 2030-01-01 it would be future)
+INSERT INTO items VALUES ('T-030','Queued','Low','Issues','x
+**Verification:** provisional -- due: 2030-01-015','UNSET','UNSET',NULL);
+-- retest (the previous tag is dated 2026-01-02): T-104 closed ON the tag's date is not evidence (kills X6, reviewer
+-- F-02); T-105 an OPEN item that carries a closure date after the tag is not evidence (kills X11, reviewer F-09);
+-- N5: T-106 a timestamp on the tag's own day, T-107 9999-99-99, T-108 2026-1-5 and T-109 2026-02-30 are not
+-- evidence and are not counted in V; T-110 a timestamp on a later day is evidence and is counted (positive control)
+INSERT INTO items VALUES ('T-104','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET','2026-01-02');
+INSERT INTO items VALUES ('T-105','Ready for testing','Medium','Issues','x','UNSET','UNSET','2026-05-01');
+INSERT INTO items VALUES ('T-106','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET','2026-01-02T10:00:00');
+INSERT INTO items VALUES ('T-107','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET','9999-99-99');
+INSERT INTO items VALUES ('T-108','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET','2026-1-5');
+INSERT INTO items VALUES ('T-109','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET','2026-02-30');
+INSERT INTO items VALUES ('T-110','Fixed (→ Fixed.md)','Medium','Fixed','retest recorded','UNSET','UNSET','2026-03-01T08:00:00');
 SQL
 ( cd "$R" && printf '## Unreleased\n' >CHANGELOG.md && "${G[@]}" add -A && GIT_COMMITTER_DATE=2026-01-02T00:00:00 "${G[@]}" commit -qm a \
   && "${G[@]}" tag -a prev-v1 -m prev && printf 'b\n' >b && "${G[@]}" add b && "${G[@]}" commit -qm b )
@@ -122,10 +162,11 @@ run(){ ( cd "$R" && timeout 120 bash "$S" --base HEAD --prev-tag prev-v1 --today
 OUT="$(run)"; RC=$?
 has(){ if printf '%s\n' "$OUT" | grep -qxF -- "$2"; then ok "$1"; else bad "$1 (missing line: $2)"; fi; }
 [ "$RC" = 0 ] && ok "rel1 exit 0" || bad "rel1 exit 0 (got $RC)"
-has "rel1 positive control: real lines counted, quoted and fenced markers not" "provisional_ids=T-001 T-002 T-003 T-006 T-011 T-012 T-014 T-015 T-017 T-018 T-019 T-020 T-021"
-has "rel1 overdue: undated and past-dated, not future; the first due: of the first line" "overdue_ids=T-001 T-003 T-006 T-011 T-012 T-014 T-018 T-019"
-has "rel1 count line" "count_line=1 verified + 13 provisional (8 overdue)"
-for x in T-004:prose T-005:fence T-007:tilde-fence T-008:indented-fence T-009:longer-fence-inner-line T-010:indented-marker T-013:provisionally T-016:non-closing-lines T-022:mid-line-quotation; do
+has "rel1 positive control: real lines counted, quoted and fenced markers not" "provisional_ids=T-001 T-002 T-003 T-006 T-011 T-012 T-014 T-015 T-017 T-018 T-019 T-020 T-021 T-023 T-025 T-026 T-027 T-028 T-029 T-030"
+has "rel1 overdue: undated and past-dated, not future; the first due: of the first line" "overdue_ids=T-001 T-003 T-006 T-011 T-012 T-014 T-018 T-019 T-023 T-025 T-027 T-028 T-030"
+has "rel1 count line" "count_line=2 verified + 20 provisional (13 overdue)"
+has "N5 V: only Fixed items closed on a calendar day after the tag (the timestamp on the tag's day, 9999-99-99, 2026-1-5 and 2026-02-30 are not)" "verified_since_prev_ids=T-102 T-110"
+for x in T-004:prose T-005:fence T-007:tilde-fence T-008:indented-fence T-009:longer-fence-inner-line T-010:indented-marker T-013:provisionally T-016:non-closing-lines T-022:mid-line-quotation T-024:tilde-fence-info-backtick; do
   printf '%s\n' "$OUT" | grep -E '^(provisional_ids|overdue_ids)=' | grep -qw "${x%%:*}" && bad "rel1 ${x%%:*} (${x#*:}) is not provisional" || ok "rel1 ${x%%:*} (${x#*:}) is not provisional"
 done
 # rel2: --retest-item
@@ -139,13 +180,23 @@ OUT="$(run --retest-item T-102)"; RC=$?
 has "rel2 positive control: a Fixed item closed after the previous tag is evidence" "retest_item_evidence=yes"
 has "rel2/F8 the closure date is printed" "retest_item_closure=2026-03-01"
 printf '%s\n' "$OUT" | grep -q '^retest_item_flag=' && bad "rel2 no flag for a Fixed item closed after the tag" || ok "rel2 no flag for a Fixed item closed after the tag"
-for x in T-101:2001-01-01 T-103:none; do
+for x in T-101:2001-01-01 T-103:none T-104:2026-01-02 T-106:2026-01-02T10:00:00 T-107:9999-99-99 T-108:2026-1-5 T-109:2026-02-30; do
   OUT="$(run --retest-item "${x%%:*}")"; RC=$?
   has "F8 ${x%%:*} (Fixed, closed ${x#*:}) is not this candidate's evidence" "retest_item_evidence=no"
+  has "F8/N1 ${x%%:*} the closure is printed exactly as stored (kills X13)" "retest_item_closure=${x#*:}"
   printf '%s\n' "$OUT" | grep -q '^retest_item_flag=NOT-EVIDENCE: .*not after the previous tag' && ok "F8 ${x%%:*} flag names the stale or undated closure" || bad "F8 ${x%%:*} flag names the stale or undated closure"
   OUT="$(run --retest-item "${x%%:*}" --require-retest-evidence)"; RC=$?
   [ "$RC" = 3 ] && ok "F8 --require-retest-evidence refuses ${x%%:*} (rc 3)" || bad "F8 --require-retest-evidence refuses ${x%%:*} (rc $RC)"
 done
+# N1 (kills X11, reviewer F-09): an OPEN item that carries a closure date after the tag is not evidence
+OUT="$(run --retest-item T-105)"; RC=$?
+has "N1 T-105 (open, closure after the tag) is not evidence" "retest_item_evidence=no"
+has "N1 T-105 status and location printed" "retest_item_status=Ready for testing (Issues)"
+has "N1 T-105 closure printed" "retest_item_closure=2026-05-01"
+# N5 positive control: a timestamped closure on a later calendar day is evidence
+OUT="$(run --retest-item T-110)"; RC=$?
+has "N5 T-110 (Fixed, 2026-03-01T08:00:00) is evidence" "retest_item_evidence=yes"
+has "N5 T-110 closure printed as stored" "retest_item_closure=2026-03-01T08:00:00"
 OUT="$(run --retest-item T-100 --require-retest-evidence)"; RC=$?
 [ "$RC" = 3 ] && ok "rel2 --require-retest-evidence refuses a Queued item (rc 3)" || bad "rel2 --require-retest-evidence refuses a Queued item (rc $RC)"
 [ -z "$(printf '%s' "$OUT" | grep '^base=')" ] && ok "rel2 a refusal prints no facts" || bad "rel2 a refusal prints no facts"

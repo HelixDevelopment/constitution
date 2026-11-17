@@ -108,17 +108,25 @@ printf '%s\n' "$OUT" | grep -q 'T-999' && bad "negative control T-999 absent" ||
 # missing data fails closed (exit 3), never a partial set of facts
 ( cd "$R" && bash "$S" --base HEAD --prev-tag no-such-tag >/dev/null 2>&1 ); [ $? = 3 ] && ok "unknown tag exits 3" || bad "unknown tag exits 3"
 # a value with a quote must neither break nor alter any query (no DB value is put back into SQL)
-sqlite3 -bail "$DB" "INSERT INTO items VALUES ('T-011','Queued','x''y) or 1=1 --','Issues','plain','UN''SET','not-started',NULL);" \
+sqlite3 -bail "$DB" "INSERT INTO items VALUES ('T-011','Queued','x''y) or 1 --','Issues','plain','UN''SET','not-started',NULL);" \
   || { echo "FAIL quote fixture could not be built"; exit 1; }
 ( cd "$R" && "${G[@]}" add -A && "${G[@]}" commit -qm quote )
 OUT="$(cd "$R" && bash "$S" --base HEAD --prev-tag prev-v1 --today 2026-06-01 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "quote value: exit 0" || bad "quote value: exit 0 (got $RC)"
-has "quote severity counted" "open_severity[x'y) or 1=1 --]=1"
-has "quote severity ids exact" "open_severity_ids[x'y) or 1=1 --]=T-011"
+has "quote severity counted" "open_severity[x'y) or 1 --]=1"
+has "quote severity ids exact" "open_severity_ids[x'y) or 1 --]=T-011"
 has "quote state ids exact" "open_states_ids[UN'SET/not-started]=T-011"
 has "other severity unchanged" "open_severity_ids[medium]=T-002 T-003 T-010"
 has "quote: open count" "items_open=6"
 printf '%s\n' "$OUT" | grep -qi 'error\|parse' && bad "no sqlite error printed" || ok "no sqlite error printed"
+# round 3 (review of f4c6e8ab, N4): a value that becomes part of a KEY may not hold "=", "[" or "]": a reader splitting
+# KEY=VALUE at the first "=" would read another key (the quote case above used "1=1" until round 3). Refused, exit 3,
+# nothing printed; then the fixture is put back.
+sqlite3 -bail "$DB" "UPDATE items SET severity='a=b' WHERE atm_id='T-011'" && ( cd "$R" && "${G[@]}" commit -qam eqkey )
+EOUT="$(cd "$R" && bash "$S" --base HEAD --prev-tag prev-v1 --today 2026-06-01 2>"$W/eqerr")"; ERC=$?
+[ "$ERC" = 3 ] && [ -z "$EOUT" ] && grep -q 'or (in a key) \[, \] or =' "$W/eqerr" && ok "N4: a severity holding = is refused as a key (exit 3, nothing printed)" \
+  || bad "N4: a severity holding = is refused as a key (rc $ERC: $(head -c 300 "$W/eqerr"))"
+sqlite3 -bail "$DB" "UPDATE items SET severity='x''y) or 1 --' WHERE atm_id='T-011'" && ( cd "$R" && "${G[@]}" commit -qam eqkey-back )
 # CON-227 (review mutants D1, D5). D5: an item with UNSET reproduction and a SET investigation state
 # counts as an item with a state. D1: an item closed ON the previous tag's date (2026-01-02) is NOT
 # verified since that tag: the tag date has day granularity only, so a same-day closure cannot be
@@ -161,6 +169,21 @@ for col in reproduction_state closure_date body_md; do
   [ "$MRC" = 3 ] && ok "CON-228 [$col]: missing column exits 3" || bad "CON-228 [$col]: missing column exits 3 (got $MRC)"
   [ -z "$MOUT" ] && ok "CON-228 [$col]: no partial facts on stdout" || bad "CON-228 [$col]: no partial facts on stdout (got $(printf '%s\n' "$MOUT" | wc -l) lines)"
   grep -q 'query failed' "$W/merr" && ok "CON-228 [$col]: the refusal is named on stderr" || bad "CON-228 [$col]: the refusal is named on stderr"
+done
+# round 3 (review of f4c6e8ab): every column q() reads is now also read by a qa() query and the other way round (the
+# separator check reads the bodies through q()), so a missing column no longer covers one wrapper alone (it covered
+# mutants O4 and O7 of test_release_tooling_mutations.sh). Fault injection instead (gate-logic test, section
+# 11.4.289(C)(2)): a sqlite3 on PATH that fails every call of one wrapper (q(): no -ascii; qa(): -ascii) and runs the
+# real sqlite3 for the other. Each run must fail closed AND name the tracker query.
+qreal="$(command -v sqlite3)"
+for qn in q qa; do
+  QS="$W/qshim_$qn"; mkdir -p "$QS"
+  if [ "$qn" = q ]; then qcase='*" -ascii "*) exec "%s" "$@" ;;'; else qcase='*" -ascii "*) ;; *) exec "%s" "$@" ;;'; fi
+  printf "#!/bin/sh\ncase \" \$* \" in $qcase esac\necho \"Error: injected $qn() failure\" >&2\nexit 1\n" "$qreal" >"$QS/sqlite3"; chmod 755 "$QS/sqlite3"
+  QOUT="$(cd "$R" && PATH="$QS:$PATH" bash "$S" --base HEAD --prev-tag prev-v1 --today 2026-06-01 2>"$W/qerr")"; QRC=$?
+  [ "$QRC" = 3 ] && [ -z "$QOUT" ] && grep -q 'tracker query failed' "$W/qerr" && ok "$qn() failure alone: exit 3, nothing printed, named as a tracker query" \
+    || bad "$qn() failure alone: exit 3, nothing printed, named (rc $QRC, $(printf '%s\n' "$QOUT" | wc -l) lines: $(head -c 200 "$W/qerr"))"
+  grep -q "injected $qn() failure" "$W/qerr" && ok "$qn() failure alone: the shim was reached (control needle)" || bad "$qn() failure alone: the shim was not reached (instrument blind)"
 done
 # F6: a base without CHANGELOG.md fails closed (exit 3, empty stdout, named)
 N="$W/nochg"; "${G[@]}" init -q "$N"; mkdir -p "$N/docs"; cp -- "$DB" "$N/docs/workable_items.db"
