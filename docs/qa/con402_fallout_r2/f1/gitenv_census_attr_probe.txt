@@ -1,0 +1,8 @@
+HERMETIC	sh	a_plain.sh	2	canonical scrub at line 2
+UNSCRUBBED	sh	b_declare.sh	3	canonical scrub line at line 3 is not effective (not at column 0 in the preamble: inside a block, a function or after other code)
+HERMETIC	sh	c_assign.sh	3	canonical scrub at line 3
+HERMETIC	sh	d_shopt.sh	3	canonical scrub at line 3
+EXEMPT	sh	scripts/lib/constitution_layout.sh	209	sourced-library: built-in sourced-library: defines CL_GIT_SCRUB_VARS, cl_scrub_git_env and the scrubbing wrapper cl__git
+git-env-class-census: inventory: tracked=5 accounted=5 universe=5 (sh=5) gitlink=0 symlink=0 binary=0 data=0 unclassified=0 absent=0 members=5 non_members=0
+git-env-class-census: FAIL - UNSCRUBBED b_declare.sh (line 3): canonical scrub line at line 3 is not effective (not at column 0 in the preamble: inside a block, a function or after other code)
+git-env-class-census: FAIL - members=5 hermetic=3 exempt=1 unscrubbed=1

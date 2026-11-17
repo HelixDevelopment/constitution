@@ -1,0 +1,8 @@
+rc=0  bash -s jev-gate.sh
+rc=0  bash jev-gate.sh
+rc=1  bash -c -- jev-gate.sh
+rc=1  env -S "bash jev-gate.sh"
+rc=1  bash -n jev-gate.sh
+rc=1  echo jev-gate.sh
+rc=1  bash -c "echo jev-gate.sh"
+rc=0  sh -c "exec /x/jev-gate.sh"

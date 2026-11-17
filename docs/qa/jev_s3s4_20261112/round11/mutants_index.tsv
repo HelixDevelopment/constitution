@@ -1,0 +1,23 @@
+RCTRL	control, no change	165f84a7b63b82fa4cfb90908b052811b7e06b547c70bf5908d6ff56ef0d35a1
+V01	finish_start placed: a FOREIGN starting mark is cleared too	4f58a2d1c6a050fe1f0d886061a909c659ab9ec1dba20cae56673587cb3a268f
+V02	set_view: own holder counted among the others	77c6f4256073f5cdab66c2563fc4d1cacd1303b0490bb23ddbde8401770a9ef4
+V03	obs_locked: endpoint_gone also on a set carrying start_failed	a8d056f1ba060acaaa6cc734bef6a7b82c1fe47db07d7fb2be78ffd39b19ab35
+V04	finish_start not-sole: start_kept not recorded	466b0d4b0905e494cf08267c4cd052c4904955c0b6f2bf00e7cd966c10246c65
+V05	arm_stop_locked: a starting mark no longer refuses the stop	b29553e3fdbab46782d9c3258335cf2a0a3b45ba8e493b19a66db69f2c2a4af9
+V06	derive_cache: a set with stop_owed is routed	829a22d2289221570b74c05895b7989002c44c92795d4cfef00c1a35f520c008
+V07	release_locked: a set with a starting mark is a stop candidate	06b79f6ba602cb74b32659bf39c45e83e87886d85578322b647dfe57305802ec
+V08	holder_alive: the recorded pid start time is ignored (pid reuse kept alive)	12d79c23935f1b3202b1a85744761f44091474e7eb690f3558dc5e8433ec9d51
+V09	mark_start_locked: the release check (held set) is skipped	17e1faa48a84d71241073568fa7d199af3bd516b713496f7cfa04356f0a3b5fc
+V10	hosted_key_var: any non-empty key counts (placeholder not refused)	144fa5d1603ae39d5bb135499f301964ffdfb5eef53df1a248a2bb3ef387318c
+V11	finish_start noset rc!=0/75: start_failed not recorded	7fc9e2c4414af8855478b114bb543b14ea7e93ad3478c671f079ced645b0f993
+V12	finish_stop kept set: a foreign stopping mark is cleared too	d55139a429a41d02c431b4172e02037c78ea6ea48dac138e04184761b86e01c4
+V13	reap_locked: a mark with a dead pid is kept (only age clears)	7df73391317bb8bd5d3d814a03889dbef61944ff847bb068ffb1e87c7c7547ce
+W01	finish_stop: a start recorded after the arm is ignored (the R10-1 delete)	439242f13a255ee272938a2f88b1e06b2a4d51a124cfa11c257c715d3777c287
+W02	finish_start not-sole, 0 leases: no stop_owed recorded	89e3849c999b47fc7350cda6db8b9fb9ffa2553302570945310470f2db6e375e
+W03	plan (D): a profile this acquire stopped or disposed may be adopted	fdb836c745ee7eb3036436c3e037fee063c0b54ffdc32221177b1d7e457f6919
+W04	finish_start rc 75 not-sole: constitution_started forced true (R10-3 reverted)	467c25216847fb2ed2b1fce65bab84cd99013343bbdb9bd6fb9ccf9f0ec3cda2
+W05	do_stop: no owed retry after a kept set	da25c80465f44bc765e21fb6f5ede7800a299a6d73c690c3d9b19266f2156d2f
+W06	finish_stop: the start record is not answered (seen_stopping kept)	c9938841fa1867cb81763ff4ff30a3abfc1a7d0f27e8e772eb3f6b83b2fa38e2
+W07	finish_stop: rc 75 start records count as a start after the arm	1f36706171b97da35cbe4a00a144277167d77e9c12fcaef05f6956cd9a27feec
+W08	finish_start: the stopping mark seen is not recorded	5a68672d3392c1fe24c5378e2266bc0d96fbf9cc9dc5c88cfca897b3c4f01482
+W09	finish_stop: started-after also applies with leases held (stopped_while_held skipped)	0ef632903348b16b251eed4d20f39aa2b6af989e6b8cbffe693635d67b464e54

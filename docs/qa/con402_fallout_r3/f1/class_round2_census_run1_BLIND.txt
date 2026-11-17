@@ -1,0 +1,173 @@
+W01-command-declare-l-backslash                      census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W02-command-declare-l-emptyquote                     census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W03-command-declare-c-backslash                      census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W04-command-declare-i-backslash                      census_rc=2 not_desugared=0 bash=wt_path-CHANGED scrub_ran=NO rc2 | first: -
+    bash-out: | /usr/bin/bash: line 5: /inherited/git: arithmetic syntax error: operand expected (error token is "/inherited/git")
+W05-command-local-l-in-fn                            census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W06-caller-command-declare-gl                        census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W07-command-command-declare-l                        census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W08-command-declare-l-continued                      census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W09-declare-l-continued-noprefix                     census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W10-env-declare-l (external, no shell effect)        census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W11-declare-l-backslash-control (author A09 shape)   census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T01-trap-debug-printf-v                              census_rc=2 not_desugared=0 bash=wt_path-UNSET scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git  |
+T02-trap-debug-declare-l                             census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T03-trap-debug-command-declare-l                     census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T04-trap-debug-printf-v-fc_safe                      census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T05-trap-debug-read-herestring                       census_rc=2 not_desugared=0 bash=wt_path-UNSET scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git  |
+T06-trap-debug-declare-n-control                     census_rc=2 not_desugared=0 bash=wt_path-UNSET scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=[UNSET]  |
+U01-unset-f-quoted-var                               census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U02-unset-f-backslash-literal                        census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U03-unset-f-dashdash                                 census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U04-command-unset-f                                  census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U05-unset-n-literal                                  census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+U06-unset-f-brace                                    census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U07-unset-f-cmdsubst                                 census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U08-unset-f-braced-var                               census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U09-unset-f-literal-control                          census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_run_child scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_run_child  |
+U10-unset-plain-var-quoted (fallback to function)    census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U11-trap-debug-unset-f                               census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U12-unset-f-other-file-function (FU-2)               census_rc=2 not_desugared=0 bash=FUNC_GONE:run_gate_once,PATHRUN:run_gate_once scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:run_gate_once PATHRUN:run_gate_once  |
+N01-declare-n-word                                   census_rc=2 not_desugared=0 bash=wt_path-UNSET scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=[UNSET]  |
+N02-command-declare-n-word                           census_rc=2 not_desugared=0 bash=wt_path-UNSET scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=[UNSET]  |
+N03-local-n-word-in-fn                               census_rc=2 not_desugared=0 bash=wt_path-UNSET scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git  |
+P01-word-_FC_TMPDIR                                  census_rc=2 not_desugared=0 bash=_FC_TMPDIR-UNSET scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=[UNSET] wt_path=/proved GIT_DIR=[UNSET]  |
+P02-word-FC_BR_TMPDIR                                census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+R01-readonly-backslash                               census_rc=2 not_desugared=0 bash=nochange scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/inherited/git  | /usr/bin/bash: line 5: _ge_v: readonly variable ; /usr/bin/bash: line 5: unset: _ge_v: cannot unset: readonly variable
+R02-command-declare-r-backslash                      census_rc=2 not_desugared=0 bash=nochange scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/inherited/git  | /usr/bin/bash: line 5: _ge_v: readonly variable ; /usr/bin/bash: line 5: unset: _ge_v: cannot unset: readonly variable
+L01-crlf-on-line                                     census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L02-nbsp-in-line                                     census_rc=2 not_desugared=0 bash=wt_path-CHANGED scrub_ran=NO rc2 | first: -
+    bash-out: | /usr/bin/bash: -c: line 4: syntax error near unexpected token `$'do\302\240unset'' ; /usr/bin/bash: -c: line 4: `for _ge_v in GIT_DIR GIT_WORK_TREE; do unset "$
+L03-comment-ending-in-backslash-before-line          census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L04-line-inside-case-arm                             census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L05-and-chain-after-line                             census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L06-assignment-continuation-into-line                census_rc=2 not_desugared=0 bash=wt_path-CHANGED scrub_ran=NO rc2 | first: -
+    bash-out: | /usr/bin/bash: -c: line 5: syntax error near unexpected token `do' ; /usr/bin/bash: -c: line 5: `for _ge_v in WT_PATH _FC_SAFE GIT_DIR GIT_WORK_TREE; do unset "
+L07-set-o-posix                                      census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L08-unset-f-single-quoted                            census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W12-builtin-declare-l                                census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T07-trap-usr1-printf-v (async; census verdict only)  census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T08-trap-err-declare-l                               census_rc=2 not_desugared=0 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T09-trap-exit-declare-l-control (runs too late)      census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+X01-command-runs-program-not-function                census_rc=2 not_desugared=0 bash=PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: PATHRUN:_fc_safe _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+X02-redefine-trusted                                 census_rc=2 not_desugared=0 bash=wt_path-UNSET scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=[UNSET]  |
+X03-trap-defines-trusted                             census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+X04-helper-called-after-unset                        census_rc=2 not_desugared=0 bash=PATHRUN:_rvi scrub_ran=yes rc2 | first: -
+    bash-out: PATHRUN:_rvi _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+X05-unset-proved-brace                               census_rc=2 not_desugared=0 bash=_FC_TMPDIR-UNSET,wt_path-UNSET scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=[UNSET] wt_path=[UNSET] GIT_DIR=[UNSET]  |
+X06-scoped-helper-control (accepted)                 census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W01-command-declare-l-backslash@after                census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W02-command-declare-l-emptyquote@after               census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W03-command-declare-c-backslash@after                census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W04-command-declare-i-backslash@after                census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W07-command-command-declare-l@after                  census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W08-command-declare-l-continued@after                census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W09-declare-l-continued-noprefix@after               census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W10-env-declare-l (external, no shell effect)@after  census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W11-declare-l-backslash-control (author A09 shape)@after census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T01-trap-debug-printf-v@after                        census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T02-trap-debug-declare-l@after                       census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T03-trap-debug-command-declare-l@after               census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T04-trap-debug-printf-v-fc_safe@after                census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T05-trap-debug-read-herestring@after                 census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T06-trap-debug-declare-n-control@after               census_rc=2 not_desugared=0 bash=nochange scrub_ran=NO rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/proved  |
+U01-unset-f-quoted-var@after                         census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U02-unset-f-backslash-literal@after                  census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U03-unset-f-dashdash@after                           census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U04-command-unset-f@after                            census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U05-unset-n-literal@after                            census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+U06-unset-f-brace@after                              census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U07-unset-f-cmdsubst@after                           census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U08-unset-f-braced-var@after                         census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U09-unset-f-literal-control@after                    census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_run_child scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_run_child  |
+U10-unset-plain-var-quoted (fallback to function)@after census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U11-trap-debug-unset-f@after                         census_rc=2 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U12-unset-f-other-file-function (FU-2)@after         census_rc=2 not_desugared=0 bash=FUNC_GONE:run_gate_once,PATHRUN:run_gate_once scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:run_gate_once PATHRUN:run_gate_once  |
+W12-builtin-declare-l@after                          census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T07-trap-usr1-printf-v (async; census verdict only)@after census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T08-trap-err-declare-l@after                         census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T09-trap-exit-declare-l-control (runs too late)@after census_rc=2 not_desugared=0 bash=nochange scrub_ran=yes rc2 | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+CONTROL real=2 (want 0) literal-proved-unset=2 (want 1) S1=2 (want 1)
+SUMMARY members=85 escapes=0 BLIND
+rc=2

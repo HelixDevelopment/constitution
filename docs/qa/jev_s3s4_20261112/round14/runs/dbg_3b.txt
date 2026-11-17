@@ -1,0 +1,35 @@
+ok 1 - R14-3b calibration: the call before the start is the mark's unlock (flock call 6)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/r14_3b.sh: line 84:   592 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 2 - R14-3b A was SIGKILLed at the mark's unlock; its intent is in the registry
+ok 3 - R14-3b the start process (824) exited on the closed gate
+ok 4 - R14-3b llmctl start never ran, no unit (M4)
+FAIL - R14-3b the intent is then removed (no unit) and decide-a started (expected [0 1 null] got [5 0 null])
+[jev-place] cleared the starting mark of decide-a (its process is gone or the mark is older than 338s); the set is judged by the next observation newer than this
+[jev-place] reaped dead lease holder=sA profile=decide-a
+[jev-place] the reap changed the registry after the capacity read; reading it again
+[jev-place] the lease registry changed during the capacity read; reading it again (1)
+[jev-place] start intent of decide-a (pid 592) was never answered and its starter is gone; the existing set is kept constitution-started (the unit may be one this producer started)
+[jev-place] disposing decide-a: no lease left, constitution-started, instance absent (); bounded llmctl stop outside the lock (marked at its turn)
+[jev-place] candidate decide-a: a lease set already exists (not joinable); skipped
+[jev-place] disposed decide-a: llmctl stop rc 0, set removed (not restarted by this acquire)
+[jev-place] this acquire stopped a model; reading the capacity answer again (a fresh plan) before any start
+[jev-place] candidate decide-a: this acquire stopped it; a unit running now is not adopted as operator-started
+[jev-place] candidate decide-a: stopped by this acquire (hold until the next evaluation, §11.4.291(D))
+[jev-place] no local placement (no_fit); fallback route none
+{
+  "sets": {},
+  "gateway": {
+    "url": "https://127.0.0.1:18095",
+    "ca": "/nonexistent/ca.crt",
+    "source": "llmctl decide status registry"
+  },
+  "gen": 7
+}
+llmctl decide status --json
+llmctl capacity --json
+llmctl decide status --json
+llmctl capacity --json
+llmctl capacity --json
+llmctl stop decide-a
+llmctl capacity --json
+# r14_3b.sh: pass=4 fail=1 skip=0

@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""mkmutmd.py <index.tsv> <verdicts.tsv> : prints the mutant table (last recorded run of each key; a key with no
+killing suite is 'survived'). Mechanical: the verdict text is copied from the run's first FAIL line, never written."""
+import sys
+idx = [l.rstrip('\n').split('\t') for l in open(sys.argv[1]) if l.strip()]
+runs = {}
+for l in open(sys.argv[2]):
+    f = l.rstrip('\n').split('\t')
+    if len(f) < 3:
+        continue
+    k, suite, v = f[0], f[1], f[2]
+    first = f[3] if len(f) > 3 else ''
+    if suite == 'r9':  # a new run of k starts with r9: forget the older run
+        runs[k] = []
+    runs.setdefault(k, []).append((suite, v, first))
+print('| Mutant | Change | Verdict | Suites run | Killing row (first FAIL line, truncated) |')
+print('|---|---|---|---|---|')
+miss = 0
+for k, desc, sha in idx:
+    r = runs.get(k)
+    if not r:
+        print(f'| {k} | {desc} | NOT RUN | - | - |'); miss += 1; continue
+    killed = [x for x in r if x[1] == 'killed']
+    verdict = 'killed' if killed else 'survived'
+    row = (killed[0][2][:150].replace('|', '/') if killed else '-')
+    print(f'| {k} | {desc.replace("|", "/")} | {verdict} | {" ".join(x[0] for x in r)} | {row} |')
+sys.exit(1 if miss else 0)

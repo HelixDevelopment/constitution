@@ -1,0 +1,14 @@
+#!/bin/bash
+# chain14_resume.sh: the tail of tools/chain14.sh after the session interruption of 2026-11-17 (about 09:23 CET).
+# The chain stopped while census mutant W33 ran (runs/cmut_W33_mention_ascii.txt partial, no summary line); every
+# mutant before it has its summary line in runs/mut_summary.txt. This script runs the remaining steps of chain14.sh
+# unchanged: W33 (from the start), W35, W36, then RCTRL, then the CHAIN14 DONE line.
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6
+cd "$W" || exit 1
+echo "RESUME chain14 at W33 after the session interruption (W33 partial output discarded and re-run)" >> "$W/runs/mut_summary.txt"
+for m in W33_mention_ascii W35_shape_mention_first_4k W36_splitlines; do
+  bash tools/cmutrun.sh "$m"
+done
+SUITES="r14 sw14" bash tools/mutrun.sh RCTRL
+echo "CHAIN14 DONE" >> "$W/runs/mut_summary.txt"

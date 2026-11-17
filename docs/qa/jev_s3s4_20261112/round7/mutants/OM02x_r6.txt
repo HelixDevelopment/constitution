@@ -1,0 +1,19 @@
+ok 1 - P51 no further candidate is considered after the late-recorded start
+ok 2 - P51 no fresh answer is read for a next candidate
+ok 3 - P51 exactly one llmctl start when the record step cannot take the lock (never a second candidate)
+ok 4 - P51 only decide-a runs
+ok 5 - P51 rc 0 and the profile: the lease IS held (it is in the registry since the mark)
+ok 6 - P51 the outcome is announced: lease held, start recorded late
+ok 7 - P51 the registry holds s1's lease on decide-a
+ok 8 - P51 release stops the late-recorded model (nothing orphaned)
+ok 9 - P51b a retried record step that gets the lock records the start
+ok 10 - P51b the starting mark is cleared and the placement recorded
+ok 11 - P51b not reported late when a retry succeeded
+ok 12 - P51c control needle: the stderr is captured and the late record is announced
+ok 13 - P51c the loop ended at the late record: decide-b is never considered
+ok 14 - P51c the next candidate is never started after a start succeeded (review repro shape)
+ok 15 - P51c rc 0, lease held on decide-a
+ok 16 - P51c release leaves nothing running
+ok 17 - P51d control needle: the late record is announced
+FAIL - P51d JEV_PLACE_MAX=2: after the late-recorded start decide-b is never considered (found [candidate decide-b] in <W>/tmp/tmp.gKnWjLkoCg/d51.err)
+FAIL - P51d rc 0, lease on decide-a, exactly one start (expected [0 decide-a 1] got [0 decide-a 2])

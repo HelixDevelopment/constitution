@@ -1,0 +1,2 @@
+Z16c	KILLED	test_s4_placement.sh	Z16 plus both earlier filters removed (all three layers that keep a set we did not start out of disposal)	FAIL - P35 CONTROL: an operator-started unit is never stopped by the disposal path (expected [0] got [1]) (58s)
+Z11	KILLED	test_jev_status_health.sh	matcher: unterminated quote accepted	FAIL - S9 command [/x/jev-gate.sh '] is NOT wiring (expected [unwired] got [wired]) (2s)

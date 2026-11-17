@@ -24,7 +24,7 @@ out="$T/run1.out"; err="$T/run1.err"
 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive --install-tools --yes --report-json "$T/report.jsonl" \
   >"$out" 2>"$err"
 rc=$?
-assert_rc 0 "$rc" "non-interactive run exits rc 0"
+assert_rc 5 "$rc" "non-interactive run exits rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 
 for s in "1/7" "2/7" "3/7" "4/7" "5/7" "6/7" "7/7"; do
   if grep -qF "[jev-bootstrap $s]" "$err"; then ok "stage $s reported"; else fail "stage $s reported"; fi
@@ -51,7 +51,8 @@ assert_file_exists "$JEV_CONFIG_DIR/env" "jev env file written"
 assert_contains "$JEV_CONFIG_DIR/env" "JEV_MODE=shadow" "default mode is shadow"
 assert_file_exists "$JEV_STATE_DIR/decisions.jsonl" "decisions.jsonl scaffolded"
 assert_file_exists "$T/report.jsonl" "report-json written"
-assert_contains "$T/report.jsonl" '"name":"detect-models","result":"ok' "report-json logs detect-models ok"
+# S3 2026-11-12: the fixture's only endpoint (local, no gateway) is unreachable, so detect-models is honestly "degraded"
+assert_contains "$T/report.jsonl" '"name":"detect-models","result":"degraded' "report-json logs detect-models degraded (no usable endpoint)"
 
 # --- non-TTY without flag => rc 2, fast ----------------------------------
 start=$SECONDS
@@ -67,7 +68,7 @@ make_fixture_env noconsent
 make_fixture_constitution_root with-submodules
 cp -r "$FIXTURES/home_seed/.claude" "$HOME/.claude"
 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive >/dev/null 2>"$T/nc.err"
-assert_rc 0 "$?" "no-consent run rc 0 (degraded states are reported, not fatal)"
+assert_rc 5 "$?" "no-consent run rc 5 (degraded states are reported, not fatal) (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_file_absent "$STUB_LOG/installers.log" "NEG: tool installers did NOT run without --install-tools"
 assert_file_absent "$HOME/.claude/jev-wiring.marker" "NEG: agent home NOT edited without --yes"
 if [ -f "$STUB_LOG/jev-setup.log" ]; then

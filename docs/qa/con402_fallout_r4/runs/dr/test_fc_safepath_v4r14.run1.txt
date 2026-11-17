@@ -1,0 +1,37 @@
+SKIP [R14ACL-*] foreign uid unavailable: namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1 / POSIX ACL 1 on this host -- not counted [reason=topology_unsupported]
+ok [R14ACL-synthetic-trust-own775] _trusted_ok(mode 775, ours, a PRIVATE group, WITH an ACL) = False (want False)
+ok [R14ACL-synthetic-trust-own770] _trusted_ok(mode 770, ours, a PRIVATE group, WITH an ACL) = False (want False)
+ok [R14ACL-synthetic-trust-own755] _trusted_ok(mode 755, ours, a PRIVATE group, WITH an ACL) = True (want True)
+ok [R14ACL-synthetic-trust-own1775] _trusted_ok(mode 1775, ours, a PRIVATE group, WITH an ACL) = True (want True)
+ok [R14ACL-synthetic-owned-own770] _owned_ok(mode 770, ours, a PRIVATE group, WITH an ACL) = False (want False)
+ok [R14ACL-synthetic-owned-own750] _owned_ok(mode 750, ours, a PRIVATE group, WITH an ACL) = True (want True)
+ok [R14ACL-synthetic-owned-noacl] control: the same 0770 WITHOUT an ACL = True (want True)
+ok [R14ACL-unreadable-control] a real directory without an ACL: _acl_free = True
+ok [R14ACL-unreadable-none] ref None -> _acl_free = False (no exemption)
+ok [R14ACL-unreadable-ENOTSUP] SIMULATED listxattr -> ENOTSUP: _acl_free = False (want False: FAIL CLOSED)
+ok [R14ACL-unreadable-EACCES] SIMULATED listxattr -> EACCES: _acl_free = False (want False: FAIL CLOSED)
+ok [R14ACL-unreadable-EIO] SIMULATED listxattr -> EIO: _acl_free = False (want False: FAIL CLOSED)
+ok [R14ACL-unreadable-EBADF] SIMULATED listxattr -> EBADF: _acl_free = False (want False: FAIL CLOSED)
+ok [R14ACL-names-nfs4_acl] SIMULATED listxattr -> ['system.nfs4_acl']: _acl_free = False (want False)
+ok [R14ACL-names-richacl] SIMULATED listxattr -> ['system.<RND>']: _acl_free = False (want False)
+ok [R14ACL-names-posix_acl_default] SIMULATED listxattr -> ['security.<RND>', 'system.posix_acl_default']: _acl_free = False (want False)
+ok [R14ACL-names-cifs_acl] SIMULATED listxattr -> ['system.cifs_acl']: _acl_free = False (want False)
+ok [R14ACL-names-nonsystem] SIMULATED listxattr -> security.<RND>, user.note (grant nothing): _acl_free = True (want True)
+ok [R14SGID-private] a 2770 directory in this user's private group -> a namespace (0)
+ok [R14SGID-shared] a 2770 directory in a group with another member (4) -> 4
+SKIP [R14HARDLINK] no foreign uid (namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1) -- not counted [reason=topology_unsupported]
+SKIP [R14LOCK-preplant / R14LOCK-nohome] no foreign uid (namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1) -- not counted [reason=topology_unsupported]
+ok [R14LOCK-own] a lock directory of this user's alone is used as it is ($HOME/.cache not created)
+ok [R14LOCK-0640] an old 0640 lock file (group bits only) is REPLACED while held: now 0600, a new inode (NIT-A, RV7-06)
+ok [R14LOCK-0660] an old 0660 lock file (group bits only) is REPLACED while held: now 0600, a new inode (NIT-A, RV7-06)
+ok [R14SAMPLE-wtroot-sticky] replay-sample with a --worktree-root of ours that is 1777 -> BLIND 4, nothing made in it (NIT-B: behavioural)
+ok [R14CENSUS-self] the census self-test: cases/failed = 279 0 (>= 132 cases)
+ok [R14CENSUS-escape] refused for its own rule: os.<RND>.__call__(p)
+ok [R14CENSUS-escape] refused for its own rule: type(os).__getattribute__(os, "unlink")(p)
+ok [R14CENSUS-escape] refused for its own rule: select.__builtins__["open"](p, "w")
+ok [R14CENSUS-escape] refused for its own rule: argparse.<RND>("w")(p)
+ok [R14CENSUS-escape] refused for its own rule: printf -v _wr %s /etc; rm -rf "$_wr/x"
+ok [R14CENSUS-escape] refused for its own rule: local -n _rvref=_wr; _rvref=/etc; rm -rf "$_wr"
+ok [R14CENSUS-escape] refused for its own rule: unset _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"
+----
+SUMMARY pass=32 fail=0 skip=3

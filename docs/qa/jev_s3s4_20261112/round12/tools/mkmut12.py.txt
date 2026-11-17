@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""Reviewer-authored mutants (round-11 review, adopted verbatim by the round-12 fixer; own Y mutants added) of scripts/jev/jev-place.sh. Each substitution must match exactly once.
+usage: mkmut_rev.py <repo> <out>"""
+import os, sys, hashlib, shutil
+repo, out = sys.argv[1], sys.argv[2]
+base = open(os.path.join(repo, 'scripts/jev/jev-place.sh')).read()
+def sub(t, old, new, hint):
+    n = t.count(old); assert n == 1, (hint, n); return t.replace(old, new, 1)
+M = {}
+M['XCTRL'] = ('control, no change', lambda t: t)
+M['X01'] = ('finish_stop after-check, no armed mark: pid_start no longer compared (pid reuse matches)',
+  lambda t: sub(t, """elif (($k.seen_stopping.pid // null) | tostring) == $pid and ((($k.seen_stopping.pid_start // null) | tostring) == (if $pst == "" then "null" else $pst end)) then "yes\"""",
+                   """elif (($k.seen_stopping.pid // null) | tostring) == $pid then "yes\"""", 'x01'))
+M['X02'] = ('finish_start: ARMED_MARK not recorded for its own release/cleanup stop',
+  lambda t: sub(t, '  case "$START_RES" in released|failed) ARMED_MARK[$p]="$m" ;; esac\n', '', 'x02'))
+M['X03'] = ('arm_stop_locked: ARMED_MARK not recorded',
+  lambda t: sub(t, 'local m; m="$(me_mark)"; ARMED_MARK[$p]="$m"', 'local m; m="$(me_mark)"', 'x03'))
+M['X04'] = ('finish_stop owed-after-start branch: a FOREIGN stopping mark is cleared too',
+  lambda t: sub(t, """      '(if $ours == "true" then .sets[$p].stopping = null else . end)
+       | .sets[$p].constitution_started = true""", """      '(.sets[$p].stopping = null)
+       | .sets[$p].constitution_started = true""", 'x04'))
+M['X05'] = ('finish_start not-sole: stop_owed only for rc 0 (a failed start rc 1 owes no stop)',
+  lambda t: sub(t, '(if $n == 0 and $src != 75 then .sets[$p].stop_owed', '(if $n == 0 and $src == 0 then .sets[$p].stop_owed', 'x05'))
+M['X06'] = ('do_stop: the record step lock timeout reports success (return 0, not 4)',
+  lambda t: sub(t, 'the stopping mark expires and the next release / acquire re-judges the set"; return 4; fi',
+                   'the stopping mark expires and the next release / acquire re-judges the set"; return 0; fi', 'x06'))
+M['X07'] = ('plan (D): a DISPOSED profile may be adopted (only STOP_TRIED skipped)',
+  lambda t: sub(t, 'case " $STOP_TRIED ${DISPOSED:-} " in', 'case " $STOP_TRIED " in', 'x07'))
+M['X08'] = ('arm_stop_locked: another process\'s stopping mark no longer refuses the arm (two stoppers)',
+  lambda t: sub(t, '      elif ($s.stopping // null) != null then "another process is stopping it"\n', '', 'x08'))
+M['X09'] = ('finish_start not-sole: stop_owed also with one other lease (n <= 1)',
+  lambda t: sub(t, '(if $n == 0 and $src != 75 then .sets[$p].stop_owed', '(if $n <= 1 and $src != 75 then .sets[$p].stop_owed', 'x09'))
+M['X10'] = ('finish_stop owed-after-start branch: stop_failed not recorded on a failed stop',
+  lambda t: sub(t, '       | (if $rc != 0 then .sets[$p].stop_failed = {at:$now, rc:$rc} else . end)\n       | .sets[$p].health = {state:"pending", reason:"a start was recorded after a stop was armed',
+                   '       | .sets[$p].health = {state:"pending", reason:"a start was recorded after a stop was armed', 'x10'))
+M['X11'] = ('do_stop: the owed retry runs even when already retried (bound removed)',
+  lambda t: sub(t, '*" $p "*) log "owed stop of $p: already retried by this process; run by the next acquire"; return 1 ;;',
+                   '*" NEVER-$p "*) log "owed stop of $p: already retried by this process; run by the next acquire"; return 1 ;;', 'x11'))
+M['X12'] = ('finish_stop after-check: start_kept rc 1 (failed start) does not count as a start after the arm',
+  lambda t: sub(t, "| if $k == null or ($k.rc // 0) == 75 or ($k.seen_stopping // null) == null then \"no\"",
+                   "| if $k == null or ($k.rc // 0) != 0 or ($k.seen_stopping // null) == null then \"no\"", 'x12'))
+
+M['Y01'] = ('release: a stop whose result was not recorded (4) counts as success', lambda t: sub(t, 'case "$src" in 0|5) ;; *) rrc=6 ;; esac', 'case "$src" in 0|4|5) ;; *) rrc=6 ;; esac', 'y01'))
+M['Y02'] = ('acquire: the cleanup stop result is ignored', lambda t: sub(t, 'if ! do_stop "$p" cleanup; then', 'if ! { do_stop "$p" cleanup; true; }; then', 'y02'))
+M['Y03'] = ('stop_turn: a stopping mark that cannot be written reads as stopped', lambda t: sub(t, 'its stopping mark could not be written (lock timeout)"; return 4 ;;', 'its stopping mark could not be written (lock timeout)"; return 0 ;;', 'y03'))
+M['Y04'] = ('do_stop: no retry of the record step', lambda t: sub(t, 'i=$((i+1)); log "record step for llmctl stop $p: lock wait', 'i=$RETRIES; log "record step for llmctl stop $p: lock wait', 'y04'))
+M['Y05'] = ('heartbeat: a lock timeout exits 0', lambda t: sub(t, 'observe_read || { log "heartbeat: lease lock timeout (the heartbeat is not recorded)"; exit 4; }', 'observe_read || { log "heartbeat: lease lock timeout (the heartbeat is not recorded)"; exit 0; }', 'y05'))
+M['Y06'] = ('release: a lock timeout at the observation exits 0', lambda t: sub(t, 'observe_read || { log "release: lock timeout (rc 4)"; exit 4; }', 'observe_read || { log "release: lock timeout (rc 4)"; exit 0; }', 'y06'))
+M['Y07'] = ('acquire: a lock timeout at the observation returns 5 (not 4)', lambda t: sub(t, '      observe_read || return 4\n', '      observe_read || return 5\n', 'y07'))
+M['Y08'] = ('with_lock: a lock timeout returns 0', lambda t: sub(t, 'if ! flock -w "$LOCK_TMO" 9; then exec 9>&-; return 4; fi', 'if ! flock -w "$LOCK_TMO" 9; then exec 9>&-; return 0; fi', 'y08'))
+M['Y09'] = ('finish_stop owed-after-start: the set is not marked constitution-started', lambda t: sub(t, "       | .sets[$p].constitution_started = true\n       | .sets[$p].start_kept.answered_stop", "       | .sets[$p].start_kept.answered_stop", 'y09'))
+M['Y10'] = ('release: a failed stop (1) counts as success', lambda t: sub(t, 'case "$src" in 0|5) ;; *) rrc=6 ;; esac', 'case "$src" in 0|1|5) ;; *) rrc=6 ;; esac', 'y10'))
+M['Y12'] = ('finish_stop owed-after-start: no stop_owed recorded', lambda t: sub(t, '       | .sets[$p].stop_owed = {at:$now, reason:"a start was recorded after the', '       | .sets[$p].stop_owed_x = {at:$now, reason:"a start was recorded after the', 'y12'))
+M['Y13'] = ('acquire: no break after a failed cleanup stop', lambda t: sub(t, 'so no further candidate is started"\n              break\n', 'so no further candidate is started"\n', 'y13'))
+M['Y14'] = ('acquire: a lock timeout is recorded as undetermined, not lease_lock_timeout', lambda t: sub(t, 'false 0 lease_lock_timeout; log "lease_lock_timeout: no lease taken"', 'false 0 undetermined; log "lease_lock_timeout: no lease taken"', 'y14'))
+idx = []
+for k, (d, f) in M.items():
+    t = f(base)
+    dst = os.path.join(out, k, 'scripts', 'jev')
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if os.path.exists(dst):
+        shutil.rmtree(dst)
+    shutil.copytree(os.path.join(repo, 'scripts/jev'), dst)
+    with open(os.path.join(dst, 'jev-place.sh'), 'w') as fh:
+        fh.write(t)
+    os.chmod(os.path.join(dst, 'jev-place.sh'), 0o755)
+    idx.append('%s\t%s\t%s' % (k, d, hashlib.sha256(t.encode()).hexdigest()))
+with open(os.path.join(out, 'index.tsv'), 'w') as fh:
+    fh.write('\n'.join(idx) + '\n')
+print(len(idx))

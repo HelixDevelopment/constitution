@@ -1,0 +1,9 @@
+CM-JEV-DETECTION ok: clause 1: record parses, schema-valid (0 endpoints)
+CM-JEV-DETECTION ok: clause 2: generated_at=1700000000 within window (>= 0)
+CM-JEV-DETECTION ok: clause 3: no materialized secrets in hosted entries
+CM-JEV-DETECTION ok: clause 4: tools provenance present (paths exist / unavailable reasoned)
+CM-JEV-DETECTION ok: clause 5: capacity.decision_instances is a number
+CM-JEV-DETECTION ok: clause 6: probe replay consistent with recorded reachability (0 claimed reachable)
+CM-JEV-DETECTION ok: clause 8: no hosted endpoint with a real key is unproven
+CM-JEV-DETECTION ok: clause 7: empty record consistent with llmctl's registry (or n/a: 0 endpoints)
+CM-JEV-DETECTION: GREEN (record read: <W>/tmp/tmp.1zT1v8eO6u/empty.json; llmctl consulted: <W>/snap/o61ctl/tests/jev/fixtures/bin/llmctl)

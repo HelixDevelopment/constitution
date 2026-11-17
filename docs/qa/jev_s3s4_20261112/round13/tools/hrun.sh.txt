@@ -1,0 +1,15 @@
+#!/bin/bash
+# hrun.sh <workdir> cmd... : hermetic run (reviewer copy): real home hidden by tmpfs, no network, own pid/ipc ns, env -i
+set -u
+R=/mnt/DATA1TB/claude-work/scratch/jev_r13.7MaT
+[ -d "$R/homes" ] || { echo "hrun: work dir unresolved" >&2; exit 2; }
+WD="${1:?workdir}"; shift
+H="$(mktemp -d "$R/homes/h.XXXXXX")"
+case "$H" in "$R/homes/h."?*) ;; *) echo "hrun: bad fake home [$H]" >&2; exit 2 ;; esac
+REALHOME="$(getent passwd "$(id -u)" | cut -d: -f6)"
+[ -n "$REALHOME" ] && [ "$REALHOME" != / ] || exit 2
+exec bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --tmpfs "$REALHOME" --tmpfs /run/user/1000 \
+  --bind "$R" "$R" --unshare-net --unshare-pid --unshare-ipc --die-with-parent --chdir "$WD" \
+  /usr/bin/env -i PATH="/usr/bin:/bin" HOME="${H:?}" LANG=C.UTF-8 LC_ALL=C.UTF-8 TERM=dumb USER=fixer LOGNAME=fixer \
+  TMPDIR="$R/tmp" JEV_HOSTED_PROBE=0 GIT_SSH_COMMAND=/bin/false GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 \
+  ${HRUN_EXTRA_ENV:-} "$@"

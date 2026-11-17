@@ -1,0 +1,12 @@
+DBG call=1 mut=<P> parent_changed=n
+U/.git/config
+repo_verify: BLIND -- repo unreadable at '.': git rev-parse HEAD failed: fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+DBG call=1 mut=<P> parent_changed=n
+DBG call=1 mut=<P> parent_changed=n
+DBG call=1 mut=<P> parent_changed=n
+U/.git/config
+repo_verify: BLIND -- repo unreadable at '.': git rev-parse HEAD failed: fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'

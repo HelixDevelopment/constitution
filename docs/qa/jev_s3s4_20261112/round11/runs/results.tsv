@@ -1,0 +1,9 @@
+final_head_r10	r10	rc=0	fails=0	passes=52	36s	norm=1f92197bb7d85554
+final_head_r9	r9	rc=0	fails=0	passes=70	33s	norm=29a687fcd554f33b
+final_head_r8	r8	rc=0	fails=0	passes=47	159s	norm=a62963563117e53a
+final_head_r7	r7	rc=0	fails=0	passes=157	124s	norm=b0f467fbd32c732b
+final_head_r6	r6	rc=0	fails=0	passes=183	294s	norm=22e7665c2d0f4efd
+final_head_pl	pl	rc=0	fails=0	passes=266	150s	norm=6a602a318b81d739
+final2_head_r11	r11	rc=0	fails=0	passes=59	328s	norm=a2b02c340bcf2e99
+final_red_r10_on_aaa2b3b0	r10	rc=1	fails=3	passes=49	47s	norm=5d46d0011881e3d1
+final_red_r11b_on_aaa2b3b0	r11	rc=1	fails=17	passes=46	321s	norm=7a80c1aa75aa6086

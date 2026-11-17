@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""mk7_extra.py <W>: the round-6 standing mutants mk7.py left out, rebuilt on the round-7 producer.
+RM15 (the round-5 reviewer's fix-direction probe, rebuilt in round 6) and the two double-mutant controls of round 6
+(OM02x = OM02 + OM03, OM13x = OM13 + the explicit F_CODE at the refusal site). Each edit must match exactly once.
+Appends rows to <W>/mut/index.tsv through a temp file + rename (the running driver reads the file per mutant).
+"""
+import sys, os, shutil, hashlib
+W = sys.argv[1]
+SRC = os.path.join(W, "repo", "scripts", "jev")
+orig = open(os.path.join(SRC, "jev-place.sh")).read()
+OM02 = ("No further candidate is started.\"\n            break", "No further candidate is started.\"\n            continue")
+OM03 = ("  if jq -e 'any(.sets[]?; (.starting // null) != null or (.stopping // null) != null)' <<<\"$cur\" >/dev/null; then return 1; fi\n", "")
+OM13 = ("refused_stopping) code=endpoint_stopping", "refused_stopping) code=")
+SITE = ('F_EV="refused_$foreign"; F_CODE="endpoint_$foreign"', 'F_EV="refused_$foreign"; F_CODE=""')
+M = {
+    "RM15": ([("No further candidate is started.\"\n            break", "No further candidate is started.\"\n            return 4")],
+             "r6,r7,pl", "acquire: after a late-recorded start, return 4 instead of ending the loop (the reviewer's fix-direction probe)"),
+    "OM02x": ([OM02, OM03], "r6,r7,pl", "control: OM02 plus OM03 (the loop goes on AND the start mark ignores marks)"),
+    "OM13x": ([OM13, SITE], "r6,r7,pl", "control: OM13 plus the explicit F_CODE at the refusal site removed"),
+}
+rows = []
+for k, (edits, targets, desc) in M.items():
+    mut = orig
+    for a, b in edits:
+        n = mut.count(a)
+        assert n == 1, (k, a[:60], n)
+        mut = mut.replace(a, b, 1)
+    assert mut != orig
+    d = os.path.join(W, "mut", k)
+    if os.path.isdir(d):
+        shutil.rmtree(d)
+    os.makedirs(os.path.join(d, "scripts"))
+    shutil.copytree(SRC, os.path.join(d, "scripts", "jev"), symlinks=True)
+    os.symlink(os.path.join(W, "repo", "submodules"), os.path.join(d, "submodules"))
+    p = os.path.join(d, "scripts", "jev", "jev-place.sh")
+    open(p, "w").write(mut)
+    os.chmod(p, 0o755)
+    rows.append(f"{k}\t{targets}\t{hashlib.sha256(mut.encode()).hexdigest()}\t{desc}\n")
+idx = os.path.join(W, "mut", "index.tsv")
+old = open(idx).read()
+keep = [l for l in old.splitlines(True) if l.split("\t", 1)[0] not in M]
+tmp = idx + ".tmp"
+open(tmp, "w").write("".join(keep) + "".join(rows))
+os.replace(tmp, idx)
+print("extra mutants:", ", ".join(M))

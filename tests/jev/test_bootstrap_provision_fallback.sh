@@ -17,7 +17,7 @@ source "$HERE/lib_assert.sh"
 make_fixture_env provision_a
 make_fixture_constitution_root with-submodules
 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive >/dev/null 2>"$T/err"
-assert_rc 0 "$?" "(a) run rc 0"
+assert_rc 5 "$?" "(a) run rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 if command -v jq >/dev/null 2>&1; then
   assert_eq "submodule" "$(jq -r '.tools.llmctl.source' "$JEV_EVIDENCE_DIR/jev-detection.json")" "(a) llmctl source=submodule"
   assert_eq "$JEV_CONSTITUTION_ROOT/submodules/llmctl" "$(jq -r '.tools.llmctl.path' "$JEV_EVIDENCE_DIR/jev-detection.json")" "(a) llmctl path is submodule checkout"
@@ -33,7 +33,7 @@ else ok "(a) no git invoked at all when submodule present"; fi
 make_fixture_env provision_b0
 make_fixture_constitution_root   # no submodules
 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive >"$T/b0.out" 2>"$T/b0.err"
-assert_rc 0 "$?" "(b0) no-consent run exits 0 (degraded, not fatal)"
+assert_rc 5 "$?" "(b0) no-consent run exits 5 (degraded, not fatal) (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 if [ -f "$STUB_LOG/git.log" ]; then
   for verb in clone fetch checkout; do assert_not_contains "$STUB_LOG/git.log" " $verb " "(b0) git stub log has no '$verb' without consent"; done
 else ok "(b0) git was not invoked at all without consent"; fi
@@ -73,7 +73,7 @@ assert_eq "$d1" "$(digest_all)" "(b4) two successful runs leave byte-identical s
 make_fixture_env provision_b
 make_fixture_constitution_root   # no submodules
 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive --allow-clone >/dev/null 2>"$T/err"
-assert_rc 0 "$?" "(b) run rc 0"
+assert_rc 5 "$?" "(b) run rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_file_exists "$STUB_LOG/git.log" "(b) git stub recorded clone"
 assert_contains "$STUB_LOG/git.log" "clone --quiet git@github.com:HelixDevelopment/llmctl.git $JEV_BOOTSTRAP_HOME/llmctl" "(b) clone url+dest for llmctl"
 assert_contains "$STUB_LOG/git.log" "clone --quiet git@github.com:HelixDevelopment/claude_toolkit.git $JEV_BOOTSTRAP_HOME/claude_toolkit" "(b) clone url+dest for toolkit"
@@ -99,7 +99,7 @@ make_fixture_env provision_b3
 make_fixture_constitution_root
 mkdir -p "$T/failgit"; printf '#!/usr/bin/env bash\n[ "${1:-}" = clone ] && exit 128\nexit 0\n' > "$T/failgit/git"; chmod +x "$T/failgit/git"
 PATH="$T/failgit:$PATH" bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive --allow-clone >/dev/null 2>"$T/err"
-assert_rc 0 "$?" "(b3) failed clone does not abort the wizard"
+assert_rc 5 "$?" "(b3) failed clone does not abort the wizard rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_eq "unavailable" "$(jq -r '.tools.llmctl.source' "$JEV_EVIDENCE_DIR/jev-detection.json")" "(b3) failed clone recorded as source=unavailable"
 
 # --- (c) diverged managed clone -> stop, nothing overwritten --------------

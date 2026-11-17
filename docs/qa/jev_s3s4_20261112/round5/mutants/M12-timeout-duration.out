@@ -1,0 +1,111 @@
+ok 1 - fixture: the real rows carry class "gate" (the producer's shape)
+ok 2 - status --json rc 0
+ok 3 - S1 jev-typesafe: the real success row + the attempt => ok 2, last_success in SECONDS
+ok 4 - S1 jev-openrouter: a fallback row and a failed attempt are never a success
+ok 5 - S1 a row without an endpoint is counted as unknown (a fallback, not a success)
+ok 6 - S2 calibration age = now - calibrated_at
+ok 7 - S3 consent inlined
+ok 8 - S4 the hook in ~/.claude-shared/settings.json (where the toolkit wires) => wired
+ok 9 - S4 the wired settings file is named
+ok 10 - S5 placement + leases inlined
+ok 11 - S6 human view shows 'Endpoint health'
+ok 12 - S6 human view shows 'Calibration'
+ok 13 - S6 human view shows 'Consent'
+ok 14 - S6 human view shows 'Wiring'
+ok 15 - S6 human view shows 'Placement'
+ok 16 - S6 human view names the failing endpoint
+ok 17 - S7 key value never printed
+ok 18 - S4 the hook in $CLAUDE_CONFIG_DIR/settings.json => wired
+ok 19 - S4 the hook in $SHARED_DIR/settings.json (outside $HOME) => wired
+ok 20 - S4 CONTROL: the same files without SHARED_DIR => not wired
+ok 21 - S4-NEG a jev-gate mention outside a PreToolUse hook => NOT wired
+ok 22 - S4 cm_jev_wiring: hook + MCP in ~/.claude-shared => no claude FAIL
+ok 23 - S4 cm_jev_wiring CONTROL: the claude clause ran and passed on the shared dir
+ok 24 - S4 cm_jev_wiring on the REAL T4 wiring (captured hooks in ~/.claude-shared) => no claude FAIL
+ok 25 - S4 cm_jev_wiring CONTROL: the T4 replay passes the claude clause
+ok 26 - S4-NEG cm_jev_wiring: an unwired shared dir is a claude FAIL
+ok 27 - S8 command [/x/jev-gate.sh.disabled] is NOT wiring
+ok 28 - S8 command [/x/jev-gate] is NOT wiring
+ok 29 - S8 command [echo not running /x/jev-gate.sh] is NOT wiring
+ok 30 - S8 command [/x/not-jev-gate.sh] is NOT wiring
+ok 31 - S8 command [/x/jev-gate.shx] is NOT wiring
+ok 32 - S8 command [true # /x/jev-gate.sh] is NOT wiring
+ok 33 - S8 command [/x/jev-gate.sh] is wiring
+ok 34 - S8 command [jev-gate.sh] is wiring
+ok 35 - S8 command [bash /x/jev-gate.sh] is wiring
+ok 36 - S8 command [A=1 B=2 /x/jev-gate.sh --flag] is wiring
+ok 37 - S8 command ['/x/jev-gate.sh'] is wiring
+ok 38 - S8 command ["/x/jev-gate.sh" arg] is wiring
+ok 39 - S8 command [  /x/.local/share/claude-multi-account/jev/jev-gate.sh] is wiring
+ok 40 - S9 command [JEV_GATE=/x/jev-gate.sh other-tool] is NOT wiring
+ok 41 - S9 command [X=/x/jev-gate.sh] is NOT wiring
+ok 42 - S9 command [#/x/jev-gate.sh] is NOT wiring
+ok 43 - S9 command [echo /x/jev-gate.sh] is NOT wiring
+ok 44 - S9 command [cat /x/jev-gate.sh] is NOT wiring
+ok 45 - S9 command [env X=/x/jev-gate.sh other-tool] is NOT wiring
+ok 46 - S9 command [bash -c 'echo /x/jev-gate.sh'] is NOT wiring
+ok 47 - S9 command [sh -c 'X=/x/jev-gate.sh true'] is NOT wiring
+ok 48 - S9 command [bash -x] is NOT wiring
+ok 49 - S9 command [/x/other.sh # /x/jev-gate.sh] is NOT wiring
+ok 50 - S9 command ['/x/jev-gate.sh.bak'] is NOT wiring
+ok 51 - S9 command [bash /x/jev-gate.sh.disabled] is NOT wiring
+ok 52 - S9 command [printf %s\\n /x/jev-gate.sh] is NOT wiring
+ok 53 - S9 command [] is NOT wiring
+ok 54 - S9 command [/x/jev-gate.sh '] is NOT wiring
+ok 55 - S9 command ["/x/jev-gate.sh] is NOT wiring
+ok 56 - S9 command [bash -c '/x/jev-gate.sh] is NOT wiring
+ok 57 - S9 command [/usr/bin/env bash /x/jev-gate.sh] is wiring
+ok 58 - S9 command [bash -c '/x/jev-gate.sh'] is wiring
+ok 59 - S9 command [bash -c "/x/jev-gate.sh --pre"] is wiring
+ok 60 - S9 command [env /x/jev-gate.sh] is wiring
+ok 61 - S9 command [env -i HOME=/h /x/jev-gate.sh] is wiring
+ok 62 - S9 command [/usr/bin/env -u FOO X=1 /x/jev-gate.sh] is wiring
+ok 63 - S9 command [sh -e /x/jev-gate.sh] is wiring
+ok 64 - S9 command [exec /x/jev-gate.sh] is wiring
+ok 65 - S9 command [X='a b' /x/jev-gate.sh] is wiring
+ok 66 - S9 command [set -e; /x/jev-gate.sh] is wiring
+ok 67 - S9 command [bash -o pipefail /x/jev-gate.sh] is wiring
+ok 68 - S9 command [/x/my\ dir/jev-gate.sh] is wiring
+ok 69 - S9 command [sh -c 'exec bash /x/jev-gate.sh'] is wiring
+ok 70 - S9 command ["/x/a b/jev-gate.sh"] is wiring
+ok 71 - S10 command [exec -a jevgate /x/jev-gate.sh] is wiring
+ok 72 - S10 command [exec -- /x/jev-gate.sh] is wiring
+ok 73 - S10 command [exec -cl /x/jev-gate.sh] is wiring
+ok 74 - S10 command [nice -n 5 /x/jev-gate.sh] is wiring
+ok 75 - S10 command [nice /x/jev-gate.sh] is wiring
+ok 76 - S10 command [nice -5 /x/jev-gate.sh] is wiring
+ok 77 - S10 command [nice --adjustment=3 /x/jev-gate.sh] is wiring
+FAIL - S10 command [timeout 5 /x/jev-gate.sh] is wiring (expected [wired] got [unwired])
+FAIL - S10 command [timeout -s KILL -k 2 5 /x/jev-gate.sh] is wiring (expected [wired] got [unwired])
+FAIL - S10 command [timeout --signal=TERM --preserve-status 5s /x/jev-gate.sh] is wiring (expected [wired] got [unwired])
+ok 78 - S10 command [command /x/jev-gate.sh] is wiring
+ok 79 - S10 command [command -p /x/jev-gate.sh] is wiring
+ok 80 - S10 command [bash -lc '/x/jev-gate.sh'] is wiring
+ok 81 - S10 command [bash -ec '/x/jev-gate.sh'] is wiring
+ok 82 - S10 command [sh -xc '/x/jev-gate.sh'] is wiring
+ok 83 - S10 command [nohup /x/jev-gate.sh] is wiring
+ok 84 - S10 command [time -p /x/jev-gate.sh] is wiring
+FAIL - S10 command [nice -n 5 timeout 5 env A=1 /x/jev-gate.sh] is wiring (expected [wired] got [unwired])
+ok 85 - S10 command [exec -a g bash -lc 'nice /x/jev-gate.sh'] is wiring
+ok 86 - S10 command [bash -lc '/x/jev-gate.sh --pre'] is wiring
+ok 87 - S10 command [bash -ec 'cd /x && ./jev-gate.sh pre'] is wiring
+ok 88 - S10 command [bash -n /x/jev-gate.sh] is NOT wiring
+ok 89 - S10 command [sh -n /x/jev-gate.sh] is NOT wiring
+ok 90 - S10 command [bash -en /x/jev-gate.sh] is NOT wiring
+ok 91 - S10 command [bash -o noexec /x/jev-gate.sh] is NOT wiring
+ok 92 - S10 command [bash -nc '/x/jev-gate.sh'] is NOT wiring
+ok 93 - S10 command [command -v /x/jev-gate.sh] is NOT wiring
+ok 94 - S10 command [command -V jev-gate.sh] is NOT wiring
+ok 95 - S10 command [timeout 5] is NOT wiring
+FAIL - S10 command [timeout /x/jev-gate.sh] is NOT wiring (expected [unwired] got [wired])
+ok 96 - S10 command [nice -n /x/jev-gate.sh] is NOT wiring
+ok 97 - S10 command [exec -a /x/jev-gate.sh other-tool] is NOT wiring
+ok 98 - S10 command [nohup echo /x/jev-gate.sh] is NOT wiring
+ok 99 - S10 command [time -p cat /x/jev-gate.sh] is NOT wiring
+ok 100 - S10 command [exec] is NOT wiring
+ok 101 - S10 command [bash -lc 'echo /x/jev-gate.sh'] is NOT wiring
+ok 102 - S10 command [sh -ec 'cat /x/jev-gate.sh'] is NOT wiring
+ok 103 - S8 a stale ~/.claude-old with a disabled hook does NOT wire claude
+ok 104 - S8 CONTROL: the same dir with a real PreToolUse jev-gate.sh entry counts
+ok 105 - S2-S4 absent => null / null / false (never a false green)
+# test_jev_status_health.sh: pass=105 fail=5 skip=0

@@ -1,0 +1,7 @@
+#!/bin/bash
+# norm.sh <run.txt>: sha256 (16 hex) of the run's verdict lines with volatile parts removed (test numbers, temp paths,
+# pids, numbers inside parentheses or brackets), so two runs of one suite compare row by row and verdict by verdict.
+f="${1:?}"
+grep -E '^(ok|FAIL|not ok|ko)\b|^# .*pass=' "$f" \
+  | sed -E 's/^ok [0-9]+ - /ok - /; s#/mnt/DATA1TB/[^ ]*#<path>#g; s/[0-9]+/N/g' \
+  | sha256sum | cut -c1-16

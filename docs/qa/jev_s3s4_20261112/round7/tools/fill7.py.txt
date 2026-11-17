@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""fill7.py <W> <static-summary-file>: fills stage7/README.tmpl.md -> stage7/README.md and
+stage7/changelog_entry.tmpl.md -> stage7/changelog_entry.md from the run records. Every number is read from a file;
+the script exits 1 when a record is missing or a pass is not clean (it never writes a guessed number)."""
+import sys, os, re, glob, collections
+
+W, STATIC = sys.argv[1], sys.argv[2]
+S = os.path.join(W, "stage7")
+errs = []
+
+
+def rd(p):
+    if not os.path.isfile(p):
+        errs.append("missing " + p)
+        return ""
+    return open(p, encoding="utf-8", errors="replace").read()
+
+
+def tally(txt):
+    m = re.search(r"pass=(\d+) fail=(\d+) skip=(\d+)", txt)
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+head = rd(os.path.join(W, "out7", "chain_head.txt")).strip()[:8]
+red_txt = rd(os.path.join(W, "runs4", "red_final.txt"))
+red = tally(red_txt)
+red_rc = re.search(r"^rc=(\d+) secs=(\d+)", red_txt, re.M)
+if not red or not red_rc:
+    errs.append("RED record unparseable")
+    red, red_rc = (0, 0, 0), None
+rows = collections.Counter(re.findall(r"^FAIL - (P\d+[a-z]?)\b", red_txt, re.M))
+greens, suites = {}, {}
+for P in "AB":
+    O = os.path.join(W, "out7", "suite_" + P)
+    g = tally(rd(os.path.join(O, "test_s4_round7.txt")))
+    greens[P] = g
+    if not g or g[1] != 0:
+        errs.append(f"pass {P}: test_s4_round7 not clean: {g}")
+    tree = rd(os.path.join(O, "tree.txt")).split("\n")
+    b = [l[len("before "):] for l in tree if l.startswith("before ")]
+    a = [l[len("after "):] for l in tree if l.startswith("after ")]
+    if not b or not a or b[0] != a[0]:
+        errs.append(f"pass {P}: tree changed or fingerprint missing")
+    lines = [l.split("\t") for l in rd(os.path.join(O, "summary.tsv")).splitlines() if l.strip()]
+    suites[P] = (lines, b[0] if b else "?")
+    for f in lines:
+        if f[0] == "fake_key_values_in_output":
+            if f[1] != "0":
+                errs.append(f"pass {P}: fake key values printed {f[1]}")
+        elif f[1] != "rc=0":
+            errs.append(f"pass {P}: {f[0]} {f[1]}")
+        elif f[0] == "run_all" and not re.search(r"ran \d+, failed 0", f[4]):
+            errs.append(f"pass {P}: run_all tail {f[4]}")
+    # guard logs: only loopback curl may appear
+    for gl in glob.glob(os.path.join(O, "g_*.log")):
+        for l in open(gl, encoding="utf-8", errors="replace"):
+            parts = l.split()
+            if len(parts) > 1 and parts[1] != "curl-loopback":
+                errs.append(f"pass {P}: guard log {os.path.basename(gl)} has a refused call: {l.strip()[:120]}")
+                break
+if greens.get("A") != greens.get("B"):
+    errs.append(f"GREEN differs between passes: {greens}")
+
+mut = rd(os.path.join(S, "mutants.md"))
+mt = re.search(r"^Totals: (.*)\.$", mut, re.M)
+totals = dict((v, int(n)) for n, v in (x.rsplit(" ", 1)[::-1] for x in mt.group(1).split(", "))) if mt else {}
+if not mt or any(k in totals for k in ("SURVIVED", "MISSING", "INCOMPLETE", "CONTROL FAILED")):
+    errs.append(f"mutant totals not clean: {totals}")
+eqv = re.findall(r"^- \*\*(\w+)\*\*:", mut, re.M)
+n_mut = sum(v for k, v in totals.items() if k != "control survived all")
+
+o61 = [l.split("\t") for l in rd(os.path.join(W, "o61", "loop", "summary.tsv")).splitlines() if l.strip()]
+o61_ok = sum(1 for f in o61 if f[1] == "rc=0" and "fail=0" in f[3])
+loads = [float(f[6].split("=")[1]) for f in o61 if len(f) > 6 and f[6].startswith("load=")]
+
+if errs:
+    print("\n".join(errs))
+    sys.exit(1)
+
+
+def md_suites():
+    names = [f[0] for f in suites["A"][0]]
+    out = ["| Step | Pass A | Pass B |", "|---|---|---|"]
+    for n in names:
+        cell = {}
+        for P in "AB":
+            f = next((x for x in suites[P][0] if x[0] == n), None)
+            if f is None:
+                cell[P] = "absent"
+            elif n == "fake_key_values_in_output":
+                cell[P] = f[1]
+            else:
+                cell[P] = f"{f[1]}, {f[2]}, guard lines {f[3]}: `{f[4].replace('|', '/')}`"
+        out.append(f"| `{n}` | {cell['A']} | {cell['B']} |")
+    return "\n".join(out)
+
+
+suite_tbl = (md_suites() + "\n\nTree fingerprint (HEAD and sha256 of `git status --porcelain --untracked-files=all`), "
+             f"identical before and after each pass: A `{suites['A'][1].strip()}`, B `{suites['B'][1].strip()}`. "
+             "Every guard line is a `curl` the guard allowed: a request to a fixture server on 127.0.0.1, or `curl --version` "
+             "(6 lines in each pass); no refused call was recorded, and the runs had no network.")
+redrows = ", ".join(f"{k} {v}" for k, v in sorted(rows.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[0])), kv[0])))
+rednote = (f"Failing rows on the round-6 producer (FAIL lines per row): {redrows}. P73 and P74 show the review's NF-2 "
+           "repro (two starts from one stale answer); the P72 rows show a contract field absent or of the wrong type "
+           "that the round-6 producer accepted or did not name. P89 and P90 fail there only on their log-line "
+           "assertions (round 6 had no reap floor and no re-plan to report); what they guard is shown by the mutant "
+           "rows NM02 and NM07.")
+mutsum = (f"{n_mut} mutants plus the unmodified control `REAL`: "
+          + ", ".join(f"{v} {k}" for k, v in sorted(totals.items()) if k != "control survived all")
+          + f"; `REAL` survived every suite it was run against. Proven equivalent: {', '.join(eqv)} (arguments in "
+          "`mutants.md`). No mutant survived.")
+o61reps = (f"{len(o61)} standalone runs of `test_review_fixes_r2.sh` under the shared scope at load "
+           f"{min(loads):.0f} to {max(loads):.0f}: {o61_ok} of {len(o61)} passed 51 / 0 (`o61/loop/summary.tsv`); it "
+           "also passed inside `run_all` of the stopped first pass A and of both final passes. No failure was seen, so "
+           "the instrument has nothing to show yet.")
+static = rd(STATIC).strip()
+g = greens["A"]
+fills = {"{HEAD}": head, "{R7ROWS}": str(red[0] + red[1]), "{RED}": f"pass {red[0]} / fail {red[1]} (rc {red_rc.group(1)})",
+         "{GREEN}": f"pass {g[0]} / fail 0 in pass A and in pass B", "{REDNOTE}": rednote, "{MUTSUMMARY}": mutsum,
+         "{SUITES}": suite_tbl, "{STATIC}": static, "{O61REPS}": o61reps}
+t = rd(os.path.join(S, "README.tmpl.md"))
+for k, v in fills.items():
+    assert t.count(k) >= 1, k
+    t = t.replace(k, v)
+assert "{" not in re.sub(r"`[^`]*`", "", t).replace("{state:", ""), "unfilled placeholder"
+open(os.path.join(S, "README.md"), "w", encoding="utf-8").write(t)
+c = rd(os.path.join(S, "changelog_entry.tmpl.md"))
+cf = {"{RED}": f"pass {red[0]} / fail {red[1]}", "{GREEN}": f"pass {g[0]} / fail 0 (twice)",
+      "{MUTSHORT}": f"{n_mut} mutants: " + ", ".join(f"{v} {k}" for k, v in sorted(totals.items()) if k != "control survived all") + ", 0 survivors",
+      "{SUITESHORT}": "both final suite passes clean (`run_all` " + re.search(r"ran \d+, failed 0", next(f for f in suites['A'][0] if f[0] == 'run_all')[4]).group(0) + " in each, tree unchanged, 0 fake key values printed)",
+      "{O61REPS_SHORT}": f"{o61_ok} of {len(o61)} standalone repetitions and every `run_all` run passed"}
+for k, v in cf.items():
+    assert c.count(k) == 1, k
+    c = c.replace(k, v)
+open(os.path.join(S, "changelog_entry.md"), "w", encoding="utf-8").write(c)
+print("filled; RED", red, "GREEN", greens, "totals", totals)

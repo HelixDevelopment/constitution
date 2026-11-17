@@ -1,0 +1,7 @@
+be_l.sh | unset -n _ge_v; | declare -l _ge_v wt_path=[UNSET] GIT_DIR=/x 
+be_l.sh | unset -n _ge_v; unset -v _ge_v; | /usr/bin/bash: line 1: declare: _ge_v: not found wt_path=/proved GIT_DIR=[UNSET] 
+be_l.sh | declare +n _ge_v 2>/dev/null; unset -v _ge_v; | /usr/bin/bash: line 1: declare: _ge_v: not found wt_path=/proved GIT_DIR=[UNSET] 
+be_n.sh | unset -n _ge_v; | /usr/bin/bash: line 1: declare: _ge_v: not found wt_path=/proved GIT_DIR=[UNSET] 
+be_n.sh | unset -n _ge_v; unset -v _ge_v; | /usr/bin/bash: line 1: declare: _ge_v: not found wt_path=/proved GIT_DIR=[UNSET] 
+be_n.sh | declare +n _ge_v 2>/dev/null; unset -v _ge_v; | /usr/bin/bash: line 1: declare: _ge_v: not found wt_path=/proved GIT_DIR=[UNSET] 
+GNU bash, version 5.3.9(1)-release (x86_64-pc-linux-gnu)
