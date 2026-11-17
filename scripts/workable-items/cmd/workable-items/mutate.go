@@ -132,6 +132,9 @@ func updateCmd(args []string) int {
 		return exitUsage
 	}
 
+	// The stored description and body before this update (detailcarry.go).
+	oldDescription, oldBody := cur.Description, cur.BodyMD
+
 	// Apply only the explicitly-set fields onto the loaded item.
 	if set["title"] {
 		if strings.TrimSpace(*title) == "" {
@@ -382,6 +385,9 @@ func updateCmd(args []string) int {
 	var newBody string
 	if set["description"] && cur.repOrDefault() != "table" {
 		newBody = renderItemBody(cur.AtmID, cur.Title, cur.Type, cur.Severity, cur.Description, cur.Status, cur.CreatedBy, cur.AssignedTo)
+		// CON-456 round 4 (review finding 1): the regenerated body keeps the
+		// engine-written detail lines of the old one (detailcarry.go).
+		newBody = carryDetailBlocks(cur.BodyMD, newBody, oldDescription, nil)
 	} else {
 		newBody = cur.BodyMD
 		if set["title"] {
@@ -422,6 +428,11 @@ func updateCmd(args []string) int {
 	gated.BodyMD = newBody
 	if newBody, err = gateItemWrite(gated, inputs...); err != nil {
 		fmt.Fprintf(os.Stderr, "update: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+	// CON-456 round 4: update replaces no detail line, so it may lose none.
+	if probs := detailLossProblems(oldBody, newBody, oldDescription, nil); len(probs) > 0 {
+		fmt.Fprintf(os.Stderr, "update: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
 
@@ -1025,6 +1036,10 @@ func blockCmd(args []string) int {
 
 	cur.Status = "Operator-blocked"
 	newBody := renderBlockedBody(cur, *details, *why, *unblock, *who)
+	// CON-456 round 4: block writes its own block record and keeps every
+	// other engine-written detail line of the old body (detailcarry.go).
+	blockReplaces := supersedes(detailOBD, detailChoices)
+	newBody = carryDetailBlocks(cur.BodyMD, newBody, cur.Description, blockReplaces)
 	// One round trip (idgrammar.go, CON-456): the blocked item's Markdown must
 	// read back as the blocked item, and the operator's block text must
 	// survive in it verbatim.
@@ -1032,6 +1047,10 @@ func blockCmd(args []string) int {
 	blocked.BodyMD = newBody
 	if newBody, err = gateItemWrite(blocked, *details, *why, *unblock, *who); err != nil {
 		fmt.Fprintf(os.Stderr, "block: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+	if probs := detailLossProblems(cur.BodyMD, newBody, cur.Description, blockReplaces); len(probs) > 0 {
+		fmt.Fprintf(os.Stderr, "block: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
 

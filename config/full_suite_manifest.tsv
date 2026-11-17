@@ -947,6 +947,7 @@ tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
 tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
+tests/reporting/test_report_item_bug_states.sh	sh	entry	default	bash	-	auto
 tests/security/fixtures/bin/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/bin/gh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/bin/gitleaks	sh	fixture	-	-	-	fixture path (not a test entry point)

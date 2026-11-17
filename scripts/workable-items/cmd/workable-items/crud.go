@@ -153,9 +153,13 @@ func addCmd(args []string) int {
 		probeID = *prefix + "-001"
 		probeNote = fmt.Sprintf(" (judged with %s, the first id --prefix %s allocates; the real id is allocated after this check)", probeID, *prefix)
 	}
-	if ad, ast, ok := adoptLegacyTemplateStates(desc, states, setFlags); ok {
-		if _, err := gateNewItem(newItemWith(probeID, ad, ast), ad); err == nil {
-			desc, states = ad, ast
+	// CON-456 round 4 (review finding 5): the legacy template was the Bug
+	// template only, so only a Bug adopts it.
+	if typ == "Bug" {
+		if ad, ast, ok := adoptLegacyTemplateStates(desc, states, setFlags); ok {
+			if _, err := gateNewItem(newItemWith(probeID, ad, ast), ad); err == nil {
+				desc, states = ad, ast
+			}
 		}
 	}
 	if _, err := gateNewItem(newItem(probeID), desc); err != nil {
@@ -261,11 +265,28 @@ var legacyTemplateStateLines = []struct {
 func adoptLegacyTemplateStates(desc string, st stateRecord, set map[string]bool) (string, stateRecord, bool) {
 	st = st.norm()
 	lines := strings.Split(desc, "\n")
+	// CON-456 round 4 (review finding 5): a template line inside a fenced
+	// code block is quoted text, never adopted.
+	fenced := make([]bool, len(lines))
+	inFence := false
+	for i, ln := range lines {
+		if isFenceLine(ln) {
+			inFence = !inFence
+			fenced[i] = true
+			continue
+		}
+		fenced[i] = inFence
+	}
 	adopted := false
 	for _, l := range legacyTemplateStateLines {
 		at, n := -1, 0
 		for i, ln := range lines {
 			if ln == l.line {
+				if fenced[i] {
+					// A fenced copy makes the line ambiguous: adopt nothing.
+					n += 2
+					continue
+				}
 				at, n = i, n+1
 			}
 		}
@@ -470,6 +491,11 @@ func closeCmd(args []string) int {
 	// §11.4.104: closure preserves the attribution columns unchanged.
 	closedBody := renderItemBody(id, src.Title, src.Type, src.Severity, src.Description, mapping.status, src.CreatedBy, src.AssignedTo)
 	closedBody = appendEvidence(closedBody, *evidence)
+	// CON-456 round 4: close writes its own evidence line and ends a block;
+	// every other engine-written detail line of the old body is kept
+	// (detailcarry.go).
+	closeReplaces := supersedes(detailEvidence, detailOBD, detailChoices)
+	closedBody = carryDetailBlocks(src.BodyMD, closedBody, src.Description, closeReplaces)
 	// §11.4.292: the regenerated body carries the item's records again (the
 	// state columns move with the row below).
 	closedBody = canonicalizeStateLines(closedBody, src.States, src.repOrDefault())
@@ -481,6 +507,10 @@ func closeCmd(args []string) int {
 	closed.BodyMD = closedBody
 	if closedBody, err = gateItemWrite(closed, *evidence); err != nil {
 		fmt.Fprintf(os.Stderr, "close: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+	if probs := detailLossProblems(src.BodyMD, closedBody, src.Description, closeReplaces); len(probs) > 0 {
+		fmt.Fprintf(os.Stderr, "close: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
 
@@ -551,6 +581,17 @@ func closeCmd(args []string) int {
 	if err := recordHistory(tx, id, mapping.event, "AI", "", *evidence); err != nil {
 		fmt.Fprintf(os.Stderr, "close: history: %v\n", err)
 		return exitUsage
+	}
+	// CON-456 round 4 (class sweep, RT_SIDE): close ends a block and the
+	// closed body carries no Operator-Block-Details record (closeReplaces), so
+	// the operator_block_details row goes in the same transaction. Before, the
+	// row stayed until the next sync md-to-db deleted it, and the database
+	// and the Markdown disagreed in between.
+	if _, ok := operatorBlockSource(closedBody); !ok {
+		if _, err := tx.Exec(`DELETE FROM operator_block_details WHERE atm_id=?`, id); err != nil {
+			fmt.Fprintf(os.Stderr, "close: remove the block record: %v\n", err)
+			return exitUsage
+		}
 	}
 	// Per §11.4.90, Obsolete closures carry triple-check evidence in their own
 	// table when the operator supplies the required fields; the minimal close

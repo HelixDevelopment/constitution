@@ -643,8 +643,9 @@ func (s segment) repOrDefault() string {
 // joinability -- the SAME TSV (or a TSV sharing the identical 11-column
 // header) can be read by whatever consumes bash-emitted rows (e.g. a future
 // cycle_report.py):
-//   run_id  candidate_fingerprint  id  start_ns  end_ns  duration_ms  verdict
-//   checks  fails  warns  extra
+//
+//	run_id  candidate_fingerprint  id  start_ns  end_ns  duration_ms  verdict
+//	checks  fails  warns  extra
 //
 // This is a Go-NATIVE reimplementation of that contract, not a port: there is
 // no practical way for this Go binary to `source` a bash library across a

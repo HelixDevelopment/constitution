@@ -1,0 +1,195 @@
+[mutation:repro] GREEN kept: GREEN control: genuine tree
+[mutation:repro] GREEN kept: mid-body citation of §11.4.292 inside another anchor's block is not a second block
+[mutation:repro] GREEN kept: an unrelated project H2 section after the CLAUDE.md block does not break the mirror check
+[mutation:repro] GREEN kept: prefix-colliding heading §11.4.2920 is not counted as §11.4.292
+[mutation:repro] GREEN kept: whitespace-only change inside the block keeps the gate green
+[mutation:repro] RED flip: marker removed: critical and absolute first priority
+[mutation:repro] RED flip: marker removed: reproduce the reported symptom LIVE
+[mutation:repro] RED flip: marker removed: wait until the record exists
+[mutation:repro] RED flip: marker removed: `reproduced-live`
+[mutation:repro] RED flip: marker removed: `reproduced-host-fixture`
+[mutation:repro] RED flip: marker removed: `not-reproducible-with-evidence`
+[mutation:repro] RED flip: marker removed: `blocked-no-device-with-recorded-blocker`
+[mutation:repro] RED flip: marker removed: There is no fifth result
+[mutation:repro] RED flip: marker removed: `REPRODUCED`
+[mutation:repro] RED flip: marker removed: `UNREPRODUCED`
+[mutation:repro] RED flip: marker removed: `host-only`
+[mutation:repro] RED flip: marker removed: `live-target`
+[mutation:repro] RED flip: marker removed: **Reproduction:**
+[mutation:repro] RED flip: marker removed: **Reproduction:** none — UNREPRODUCED
+[mutation:repro] RED flip: marker removed: exact command
+[mutation:repro] RED flip: marker removed: captured RED output
+[mutation:repro] RED flip: marker removed: environment / build id
+[mutation:repro] RED flip: marker removed: board serial
+[mutation:repro] RED flip: marker removed: fixture sha256
+[mutation:repro] RED flip: marker removed: symptom signature
+[mutation:repro] RED flip: marker removed: UNCONFIRMED: <reason>
+[mutation:repro] RED flip: marker removed: RED BEFORE, GREEN AFTER
+[mutation:repro] RED flip: marker removed: SAME recorded command
+[mutation:repro] RED flip: marker removed: SAME target identity
+[mutation:repro] RED flip: marker removed: SAME symptom signature
+[mutation:repro] RED flip: marker removed: promote nothing
+[mutation:repro] RED flip: marker removed: CANNOT reach VERIFIED-DONE while `UNREPRODUCED`
+[mutation:repro] RED flip: marker removed: only as PROVISIONAL-DONE
+[mutation:repro] RED flip: marker removed: blocker record
+[mutation:repro] RED flip: marker removed: positive control needle
+[mutation:repro] RED flip: marker removed: no fix is written against the unobserved symptom
+[mutation:repro] RED flip: marker removed: established as FACT
+[mutation:repro] RED flip: marker removed: decisive experiment
+[mutation:repro] RED flip: marker removed: LIVE coverage test
+[mutation:repro] RED flip: marker removed: deterministic
+[mutation:repro] RED flip: marker removed: `host-substitute`
+[mutation:repro] RED flip: marker removed: Honest boundary
+[mutation:repro] RED flip: marker removed: DOES NOT CHANGE
+[mutation:repro] RED flip: marker removed: CM-COVENANT-114-292-PROPAGATION
+[mutation:repro] RED flip: marker removed: CM-REPRO-FIRST-ANCHOR-WIRED
+[mutation:repro] RED flip: marker removed: OWED-GATE-174
+[mutation:repro] RED flip: escape-hatch flag removed: --fix-before-reproduce
+[mutation:repro] RED flip: escape-hatch flag removed: --skip-live-reproduction
+[mutation:repro] RED flip: escape-hatch flag removed: --hypothesis-as-root-cause
+[mutation:repro] RED flip: escape-hatch flag removed: --unreproduced-counts-as-verified
+[mutation:repro] RED flip: escape-hatch flag removed: --green-without-red
+[mutation:repro] RED flip: escape-hatch flag removed: --green-on-other-signature
+[mutation:repro] RED flip: escape-hatch flag removed: --host-fixture-as-live
+[mutation:repro] RED flip: escape-hatch flag removed: --blocked-means-verified
+[mutation:repro] RED flip: escape-hatch flag removed: --fix-unobserved-symptom
+[mutation:repro] RED flip: escape-hatch flag removed: --unlabelled-unreproduced
+[mutation:repro] RED flip: cross-reference removed: §11.4.3
+[mutation:repro] RED flip: cross-reference removed: §11.4.6
+[mutation:repro] RED flip: cross-reference removed: §11.4.7
+[mutation:repro] RED flip: cross-reference removed: §11.4.15
+[mutation:repro] RED flip: cross-reference removed: §11.4.21
+[mutation:repro] RED flip: cross-reference removed: §11.4.33
+[mutation:repro] RED flip: cross-reference removed: §11.4.34
+[mutation:repro] RED flip: cross-reference removed: §11.4.35
+[mutation:repro] RED flip: cross-reference removed: §11.4.43
+[mutation:repro] RED flip: cross-reference removed: §11.4.50
+[mutation:repro] RED flip: cross-reference removed: §11.4.90
+[mutation:repro] RED flip: cross-reference removed: §11.4.102
+[mutation:repro] RED flip: cross-reference removed: §11.4.108
+[mutation:repro] RED flip: cross-reference removed: §11.4.111
+[mutation:repro] RED flip: cross-reference removed: §11.4.114
+[mutation:repro] RED flip: cross-reference removed: §11.4.115
+[mutation:repro] RED flip: cross-reference removed: §11.4.123
+[mutation:repro] RED flip: cross-reference removed: §11.4.135
+[mutation:repro] RED flip: cross-reference removed: §11.4.146
+[mutation:repro] RED flip: cross-reference removed: §11.4.199
+[mutation:repro] RED flip: cross-reference removed: §11.4.200
+[mutation:repro] RED flip: cross-reference removed: §11.4.201
+[mutation:repro] RED flip: cross-reference removed: §11.4.226
+[mutation:repro] RED flip: cross-reference removed: §11.4.227
+[mutation:repro] RED flip: cross-reference removed: §11.4.242
+[mutation:repro] RED flip: cross-reference removed: §11.4.262
+[mutation:repro] RED flip: cross-reference removed: §11.4.267
+[mutation:repro] RED flip: cross-reference removed: §11.4.273
+[mutation:repro] RED flip: cross-reference removed: §11.4.289
+[mutation:repro] RED flip: cross-reference removed: §11.4.290
+[mutation:repro] RED flip: cross-reference removed: §1.1
+[mutation:repro] RED flip: cross-reference removed: §7.1
+[mutation:repro] RED flip: line-start Classification line removed
+[mutation:repro] RED flip: Canonical authority line removed
+[mutation:repro] RED flip: non-compliance line weakened
+[mutation:repro] RED flip: decoy: heading demoted, mid-body citations remain
+[mutation:repro] RED flip: duplicate canon heading
+[mutation:repro] RED flip: second block-start form in canon
+[mutation:repro] RED flip: heading no longer names 'Reproduce first'
+[mutation:repro] RED flip: heading no longer names REPRODUCED LIVE
+[mutation:repro] RED flip: heading no longer names UNREPRODUCED
+[mutation:repro] RED flip: heading loses the mandate date
+[mutation:repro] RED flip: refinement note removed from §11.4.43
+[mutation:repro] RED flip: refinement note in §11.4.43 no longer cites §11.4.292
+[mutation:repro] RED flip: refinement note removed from §11.4.115
+[mutation:repro] RED flip: refinement note in §11.4.115 no longer cites §11.4.292
+[mutation:repro] RED flip: refinement note removed from §11.4.146
+[mutation:repro] RED flip: refinement note in §11.4.146 no longer cites §11.4.292
+[mutation:repro] RED flip: refinement note removed from §11.4.199
+[mutation:repro] RED flip: refinement note in §11.4.199 no longer cites §11.4.292
+[mutation:repro] RED flip: mirror block deleted: CLAUDE.md
+[mutation:repro] RED flip: mirror block duplicated: CLAUDE.md
+[mutation:repro] RED flip: mirror loses result reproduced-live: CLAUDE.md
+[mutation:repro] RED flip: mirror loses result reproduced-host-fixture: CLAUDE.md
+[mutation:repro] RED flip: mirror loses result not-reproducible-with-evidence: CLAUDE.md
+[mutation:repro] RED flip: mirror loses result blocked-no-device-with-recorded-blocker: CLAUDE.md
+[mutation:repro] RED flip: mirror loses the Reproduction: carrier: CLAUDE.md
+[mutation:repro] RED flip: mirror loses the UNREPRODUCED label: CLAUDE.md
+[mutation:repro] RED flip: mirror loses the gate token: CLAUDE.md
+[mutation:repro] RED flip: mirror file missing: CLAUDE.md
+[mutation:repro] RED flip: mirror block deleted: AGENTS.md
+[mutation:repro] RED flip: mirror block duplicated: AGENTS.md
+[mutation:repro] RED flip: mirror loses result reproduced-live: AGENTS.md
+[mutation:repro] RED flip: mirror loses result reproduced-host-fixture: AGENTS.md
+[mutation:repro] RED flip: mirror loses result not-reproducible-with-evidence: AGENTS.md
+[mutation:repro] RED flip: mirror loses result blocked-no-device-with-recorded-blocker: AGENTS.md
+[mutation:repro] RED flip: mirror loses the Reproduction: carrier: AGENTS.md
+[mutation:repro] RED flip: mirror loses the UNREPRODUCED label: AGENTS.md
+[mutation:repro] RED flip: mirror loses the gate token: AGENTS.md
+[mutation:repro] RED flip: mirror file missing: AGENTS.md
+[mutation:repro] RED flip: mirror block deleted: QWEN.md
+[mutation:repro] RED flip: mirror block duplicated: QWEN.md
+[mutation:repro] RED flip: mirror loses result reproduced-live: QWEN.md
+[mutation:repro] RED flip: mirror loses result reproduced-host-fixture: QWEN.md
+[mutation:repro] RED flip: mirror loses result not-reproducible-with-evidence: QWEN.md
+[mutation:repro] RED flip: mirror loses result blocked-no-device-with-recorded-blocker: QWEN.md
+[mutation:repro] RED flip: mirror loses the Reproduction: carrier: QWEN.md
+[mutation:repro] RED flip: mirror loses the UNREPRODUCED label: QWEN.md
+[mutation:repro] RED flip: mirror loses the gate token: QWEN.md
+[mutation:repro] RED flip: mirror file missing: QWEN.md
+[mutation:repro] RED flip: mirror block deleted: GEMINI.md
+[mutation:repro] RED flip: mirror block duplicated: GEMINI.md
+[mutation:repro] RED flip: mirror loses result reproduced-live: GEMINI.md
+[mutation:repro] RED flip: mirror loses result reproduced-host-fixture: GEMINI.md
+[mutation:repro] RED flip: mirror loses result not-reproducible-with-evidence: GEMINI.md
+[mutation:repro] RED flip: mirror loses result blocked-no-device-with-recorded-blocker: GEMINI.md
+[mutation:repro] RED flip: mirror loses the Reproduction: carrier: GEMINI.md
+[mutation:repro] RED flip: mirror loses the UNREPRODUCED label: GEMINI.md
+[mutation:repro] RED flip: mirror loses the gate token: GEMINI.md
+[mutation:repro] RED flip: mirror file missing: GEMINI.md
+[mutation:repro] RED flip: template no longer passes --reproduction-state UNREPRODUCED
+[mutation:repro] RED flip: RR6: operative state-flag line removed, preview string kept
+[mutation:repro] RED flip: an add call no longer forwards the state flags
+[mutation:repro] RED flip: template no longer cites §11.4.292
+[mutation:repro] RED flip: template file missing
+[mutation:repro] RED flip: skill reporting-workable-items no longer cites §11.4.292
+[mutation:repro] RED flip: skill reporting-workable-items loses the Reproduction: field
+[mutation:repro] RED flip: skill reporting-workable-items loses the UNREPRODUCED label
+[mutation:repro] RED flip: skill reporting-workable-items loses result reproduced-live
+[mutation:repro] RED flip: skill reporting-workable-items loses result reproduced-host-fixture
+[mutation:repro] RED flip: skill reporting-workable-items loses result not-reproducible-with-evidence
+[mutation:repro] RED flip: skill reporting-workable-items loses result blocked-no-device-with-recorded-blocker
+[mutation:repro] RED flip: skill file missing: reporting-workable-items
+[mutation:repro] RED flip: skill workable-item-lifecycle no longer cites §11.4.292
+[mutation:repro] RED flip: skill workable-item-lifecycle loses the Reproduction: field
+[mutation:repro] RED flip: skill workable-item-lifecycle loses the UNREPRODUCED label
+[mutation:repro] RED flip: skill workable-item-lifecycle loses result reproduced-live
+[mutation:repro] RED flip: skill workable-item-lifecycle loses result reproduced-host-fixture
+[mutation:repro] RED flip: skill workable-item-lifecycle loses result not-reproducible-with-evidence
+[mutation:repro] RED flip: skill workable-item-lifecycle loses result blocked-no-device-with-recorded-blocker
+[mutation:repro] RED flip: skill file missing: workable-item-lifecycle
+[mutation:repro] RED flip: index entry for 11.4.292 gone
+[mutation:repro] RED flip: index propagation_gate wrong
+[mutation:repro] RED flip: index group wrong
+[mutation:repro] RED flip: index classification wrong
+[mutation:repro] RED flip: group file loses the block
+[mutation:repro] RED flip: group file missing
+[mutation:repro] RED flip: progressive rule file missing
+[mutation:repro] RED flip: catalog entry gone
+[mutation:repro] RED flip: catalog file pointer wrong
+[mutation:repro] RED flip: data-pack row removed
+[mutation:repro] RED flip: data-pack row points at the wrong anchor
+[mutation:repro] RED flip: generated propagation gate missing
+[mutation:repro] RED flip: generated propagation mutation test missing
+[mutation:repro] RED flip: seam binding row removed
+[mutation:repro] RED flip: deferral row OWED-GATE-174 removed
+[mutation:repro] RED flip: deferral row OWED-GATE-174 carries the wrong id
+[mutation:repro] RED flip: deferral id OWED-GATE-174 registered twice
+[mutation:repro] RED flip: deferral row OWED-GATE-174 names a gate the canon does not name
+[mutation:repro] RED flip: canon block no longer names the OWED-GATE-174 gate
+[mutation:repro] RED flip: deferral row OWED-GATE-174 names no CM-* gate
+[mutation:repro] RED flip: this gate's own mutation test missing
+[mutation:repro] RED flip: hook no longer runs the gate
+[mutation:repro] RED flip: hook no longer names the token
+[mutation:repro] RED flip: hook file missing
+[mutation:repro] BLIND asserted: heading extractor broken -> control needle fails
+[mutation:repro] BLIND asserted: Constitution.md missing
+[mutation:repro] BLIND asserted: real-file control needle (§11.4.286 heading) lost
+[mutation:repro] PASS: 189 RED/BLIND cases and 5 GREEN cases (1 control + 4 golden-FALSE) behaved as required — cm_repro_first_anchor_wired.sh genuinely discriminates

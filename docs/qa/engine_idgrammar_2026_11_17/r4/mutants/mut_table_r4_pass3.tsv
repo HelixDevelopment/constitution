@@ -1,0 +1,4 @@
+mutant	description	verdict	killing_tests	counts
+CONTROL	pristine tree	-		pass=999 fail=0 skip=6
+M2	update: detail-loss gate removed	SURVIVED		pass=999 fail=0 skip=6
+M9	gate: OBD source comparison removed	KILLED	TestCON456R4_DetailLossGate	pass=998 fail=1 skip=6
