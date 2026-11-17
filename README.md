@@ -617,7 +617,7 @@ within a primary version.
 | `upstreams/`, `install_upstreams.sh` | One `.sh` declaration per upstream remote and the installer. |
 | `find_constitution.sh`, `meta_test_inheritance.sh` | Locate this submodule from any nesting depth; sentinel test for the inheritance gate. |
 | `docs/jev/` | The decision-layer (Jev) operator documents. |
-| `docs/operator_decisions/` | Records of operator decisions relayed to the conductor (not verbatim): [2026-11-11 relayed decisions](docs/operator_decisions/2026-11-11_relayed_decisions.md). |
+| `docs/operator_decisions/` | Records of operator decisions relayed to the conductor (not verbatim): [2026-11-11 relayed decisions](docs/operator_decisions/2026-11-11_relayed_decisions.md); [2026-11-16 release landing](docs/operator_decisions/2026-11-16_release_landing.md) (PROVISIONAL). |
 | `LICENSE` | Apache License 2.0, governing the constitution text itself. |
 
 Agents work only with Markdown (operator order 2026-10-26): the
