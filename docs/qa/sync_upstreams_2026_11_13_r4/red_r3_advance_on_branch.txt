@@ -1,0 +1,12 @@
+rc=0
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_advance_on_branch/helix-sync-test.bCL8li/out/r1/sync_report.json
+CANONICAL_SHA256=e3a594b2eeb8b4ddedfceb9364780237ab05c117467ba8561daba3ebaabd66a8
+RESULT: APPLIED exit=0
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_advance_on_branch/helix-sync-test.bCL8li/work/root: 4 repositories, 4 initialised, 4 remotes, mode apply, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   updated         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -
+branch before=feature after=DETACHED head=89ac9be0ea4b626d5f2ad8979ede8b28297e439d
+actions=[{'error': '', 'op': 'advance-pin', 'rc': 0, 'staged_rc': 0, 'to': '89ac9be0ea4b626d5f2ad8979ede8b28297e439d'}] result=updated
+feature ref=f30cca925cee5cbb87ea09be8a25b53318ac6999

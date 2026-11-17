@@ -1,0 +1,11 @@
+ok 1 - P72 CONTROL: the full document served raw starts decide-a
+ok 2 - P72 CONTROL: the full document served computed starts decide-a
+ok 3 - P72 schema absent: verdict undetermined, nothing started, the reason names [schema]
+ok 4 - P72 schema of another version: verdict undetermined, nothing started, the reason names [schema]
+ok 5 - P72 time absent: verdict undetermined, nothing started, the reason names [time]
+ok 6 - P72 time a string: verdict undetermined, nothing started, the reason names [time]
+ok 7 - P72 host.cpus_online absent: verdict undetermined, nothing started, the reason names [host.cpus_online]
+ok 8 - P72 host.cpus_online a string: verdict undetermined, nothing started, the reason names [host.cpus_online]
+ok 9 - P72 host.mem_total_mb absent: verdict undetermined, nothing started, the reason names [host.mem_total_mb]
+ok 10 - P72 host.mem_total_mb a string: verdict undetermined, nothing started, the reason names [host.mem_total_mb]
+FAIL - P72 host.mem_available_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.mem_available_mb]; got rc 0, 1 starts, verdict fits, reason [])

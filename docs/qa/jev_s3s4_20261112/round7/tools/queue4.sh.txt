@@ -1,0 +1,6 @@
+#!/bin/bash
+# queue4.sh: REAL and CT04 on the final P72 extract (after the host-row needle)
+W="<W>"
+"$W/runmut7c.sh" "$W" "$W/snap/s3" REAL "$W/mutout7" r7p72f
+"$W/runmut7c.sh" "$W" "$W/snap/s3" CT04 "$W/mutout7" r7p72f
+: > "$W/mutout7/queue4.done"

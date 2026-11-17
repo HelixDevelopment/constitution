@@ -1,0 +1,27 @@
+CM-COVENANT-114-291-PROPAGATION: consumer exclusions applied (17) from /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/w/config/covenant_propagation_exclusions.tsv:
+    ⊘ EXCLUDED  */submodules/llmctl/.specify/extensions/superspec/examples/*  [non-shipping-fixtures]
+    ⊘ EXCLUDED  */submodules/agentic-validation/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/claude-video/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/donespec/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/repo-proof/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/skill-doctor/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/verfix/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/verify/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/watch-skill/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/claude_toolkit/.specify/extensions/superspec/examples/*  [non-shipping-fixtures]
+    ⊘ EXCLUDED  */submodules/superspec/examples/*  [non-shipping-fixtures]
+    ⊘ EXCLUDED  */submodules/open_design/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/verification/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/claude_toolkit/submodules/ccusage/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/claude_toolkit/submodules/go/*  [vendored-third-party]
+    ⊘ EXCLUDED  */submodules/llmctl/submodules/llama.cpp/*  [vendored-third-party]
+    ⊘ EXCLUDED  */.specify/extensions/superspec/examples/*  [non-shipping-fixtures]
+✅ PRESENT     AGENTS.md  — exactly one 11.4.291 block (lines 2046-2047)
+✅ PRESENT     CLAUDE.md  — exactly one 11.4.291 block (lines 808-809)
+✅ PRESENT     GEMINI.md  — exactly one 11.4.291 block (lines 775-776)
+✅ PRESENT     QWEN.md  — exactly one 11.4.291 block (lines 712-713)
+⏭ POINTER-INHERITANCE-SKIP submodules/clickup_sync/AGENTS.md  — §11.4.35 pointer consumer (engine-rules-only mirror; zero 11.4.291 blocks expected, not a violation)
+⏭ POINTER-INHERITANCE-SKIP submodules/clickup_sync/CLAUDE.md  — §11.4.35 pointer consumer (engine-rules-only mirror; zero 11.4.291 blocks expected, not a violation)
+----------------------------------------------------------------------
+CM-COVENANT-114-291-PROPAGATION: 4 single-block-PRESENT, 2 POINTER-INHERITANCE-SKIP, 0 MISSING/DUPLICATED, 0 DIVERGENT (anchor 11.4.291) under /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/w
+✅ CM-COVENANT-114-291-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.291 block

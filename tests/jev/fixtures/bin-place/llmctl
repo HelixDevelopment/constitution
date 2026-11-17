@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# Stub: llmctl for the S4 placement producer gate-logic tests (scripts/jev/jev-place.sh). GATE-LOGIC ONLY (§11.4.289(C)(2)):
+# it proves the producer decides correctly on a declared capacity answer; it is never evidence that a local model runs.
+#
+# Round 5 (review R4-2, §11.4.276(B)): the answer has the SHAPE of the pinned llmctl (submodules/llmctl @ 391d8177,
+# lib/capacity.sh; the derivation is docs/qa/jev_s3s4_20261112/round5/ground_truth.md). The round-4 stub reported a started
+# unit with status `running` and kept a `fits` verdict for a running profile; llmctl never emits either.
+#
+#   capacity --json   PLACE_CAP_JSON is a capacity document for the profiles as NEW starts (verdicts fits /
+#                     fits_with_reduced_threads / does_not_fit / undetermined) plus any units declared in .llmctl.units
+#                     (operator-started or foreign units, in llmctl's shape: unit, profile, owner, status, reasons).
+#                     The stub then applies llmctl's own rules:
+#                       * a profile this stub runs ($STUB_LOG/running.<key>, key = <LLMCTL_TENANT_ID>--<p> or <p>) is a
+#                         unit {unit:"llmctl-llama@<key>.service", profile:<key>, owner:"self"} with status `ok`, or
+#                         `degraded` when <key> is listed in PLACE_DEGRADED (comma list) or host pressure is present
+#                         (lib/capacity.sh:461: every unit starts with the pressure reasons);
+#                       * a profile whose <key> is listed in PLACE_GONE (comma list) has no unit at all: the unit crashed
+#                         or was stopped outside the producer (the running.<key> file is kept; nothing is deleted);
+#                       * a declared unit gets the pressure reasons too (and status degraded) when pressure is present;
+#                       * a profile whose own unit (owner self, profile == key) is up gets verdict `running`,
+#                         verdict_class null, running true, threads 0, reasons ["already running", ...pressure]
+#                         (lib/capacity.sh:503-534);
+#                       * round 6 (review N5-2): a profile that does NOT run gets the pressure reasons too and becomes
+#                         does_not_fit (threads 0), as lib/capacity.sh does for every non-running profile under pressure;
+#                       * PLACE_FULL_AFTER=<p>: while <p> runs, every other non-running profile is does_not_fit (the
+#                         reserve has no room for a second model; used to prove a second start is judged on a fresh answer);
+#                       * .degraded = any unit degraded; exit 75 when measurement.ok is false, 3 when degraded, else 0
+#                         (capacity_exit_code, lib/capacity.sh:634-642). PLACE_CAP_RC overrides the exit status.
+#                     PLACE_CAP_RAW=1 (or a file that is not JSON) returns the file unchanged, exit ${PLACE_CAP_RC:-0}.
+#                     PLACE_CAP_SLEEP seconds first (timeout cases).
+#                     PLACE_CAP_RC_FILE=<file>: while <file> exists the call exits with its content (round 6).
+#                     Round 7: after the PLACE_CAP_SLEEP the call appends one line to $STUB_LOG/cap.done (a call killed by
+#                     the producer's timeout never writes it: T6-2 proves the bound without a wall clock).
+#                     PLACE_CAP_GATE=<dir> (round 7): the caller's capacity calls are counted in <dir>/count; the call
+#                     numbered PLACE_CAP_GATE_AT (default 1) computes its answer, then creates <dir>/reached and waits
+#                     (at most PLACE_CAP_GATE_WAIT s, default 120) for <dir>/go before returning it: the answer is fixed
+#                     BEFORE another session acts, so the caller holds an answer that is stale by construction.
+#                     PLACE_CAP_GATE_WHEN=before: the gated call waits BEFORE it computes its answer instead (the answer
+#                     then describes the stub state after another session acted; used for the ABA row of round 7).
+#   decide capacity --json   -> two systemone-native profiles (decide-a, decide-b) + one letter-logit (decide-x);
+#                               exit ${PLACE_DCAP_RC:-0} first when it is set (round 6, R5-7)
+#   decide status --json     -> a gateway registry entry (PLACE_STATUS_URL, default https://127.0.0.1:18095); exit
+#                               ${PLACE_STATUS_RC:-0} first when set; PLACE_STATUS_NOGW=1 -> a registry without a gateway (R5-14)
+#   start <p>          -> PLACE_START_SLEEP seconds first; exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<key>,
+#                         except on 75: nothing is started (llmctl validation anchor §11.4.277(E), "no partial start";
+#                         round 7: the round-6 stub created the unit on 75 too, which a re-plan after a refusal would
+#                         then read as an operator-started unit)
+#   stop <p>           -> PLACE_STOP_SLEEP seconds first; exit ${PLACE_STOP_RC:-0}; removes $STUB_LOG/running.<key> only on rc 0
+#   enable|disable|switch|auto -> recorded and exit 97 (the producer must never call them)
+# Round 8 (review R7-A), the ADVANCING TEST CLOCK: with JEV_NOW_FILE set (the producer reads it under JEV_TEST=1 every time
+# it takes the lease lock), PLACE_CAP_CLOCK_ADD / PLACE_START_CLOCK_ADD / PLACE_STOP_CLOCK_ADD add that many seconds to
+# the epoch in the file when a capacity call / a start / a stop ends: a slow call, replayed without a wall clock.
+# PLACE_START_SNAPSHOT=1: a start first copies $JEV_STATE_DIR/leases.json to $STUB_LOG/leases_at_start.<p>.json (the
+# registry WHILE the starting mark is set; a gate-logic instrument, it changes nothing the producer reads).
+# Round 9 (review R8-1): PLACE_STOP_SNAPSHOT=1: a stop first copies $JEV_STATE_DIR/leases.json to
+# $STUB_LOG/leases_at_stop.<p>.<n>.json and the test clock to clock_at_stop.<p>.<n> (n = 1, 2, ... per stop of <p>);
+# PLACE_STOP_GATE=<dir>: a stop of <p> creates <dir>/reached.stop.<p> and waits (at most PLACE_STOP_GATE_WAIT s, default
+# 120) for <dir>/go.stop.<p>: a deterministic interleaving of two sessions without timing windows.
+# Round 11 (review R10-1): PLACE_START_GATE=<dir>: a start of <p> creates <dir>/reached.start.<p> and waits (at most
+# PLACE_START_GATE_WAIT s, default 120) for <dir>/go.start.<p> BEFORE it brings the unit up (the running.<key> file appears
+# only after the gate): the moment the unit comes up is placed exactly between another session's stop and record steps.
+# Every call is logged to $STUB_LOG/llmctl.log. A call made while the CALLER holds the placement lease lock (an open file
+# descriptor on $JEV_STATE_DIR/placement.lock is inherited by this process) is ALSO logged as "LOCKHELD llmctl ..."
+# (review R4-3: no llmctl call may run under the lease lock).
+set -euo pipefail
+logdir="${STUB_LOG:?STUB_LOG must be set}"
+printf '%s\n' "llmctl $*" >> "$logdir/llmctl.log"
+if [ -n "${JEV_STATE_DIR:-}" ] && [ -d /proc/$$/fd ]; then
+  lockp="$JEV_STATE_DIR/placement.lock"
+  for fd in /proc/$$/fd/*; do
+    [ "$(readlink "$fd" 2>/dev/null || true)" = "$lockp" ] && { printf '%s\n' "LOCKHELD llmctl $*" >> "$logdir/llmctl.log"; break; }
+  done
+fi
+clock_add() { # clock_add <seconds>: advance the test clock file (no-op without JEV_NOW_FILE or with an empty value)
+  [ -n "${JEV_NOW_FILE:-}" ] && [ -n "${1:-}" ] || return 0
+  local c; c="$(tr -dc '0-9' < "$JEV_NOW_FILE")"; printf '%s\n' "$(( c + $1 ))" > "$JEV_NOW_FILE.w" && mv -f -- "$JEV_NOW_FILE.w" "$JEV_NOW_FILE"
+}
+key() { if [ -n "${LLMCTL_TENANT_ID:-}" ]; then printf '%s--%s' "$LLMCTL_TENANT_ID" "$1"; else printf '%s' "$1"; fi; }
+case "${1:-} ${2:-}" in
+  "capacity --json") [ -z "${PLACE_CAP_SLEEP:-}" ] || sleep "$PLACE_CAP_SLEEP"
+    printf '%s\n' "$$" >> "$logdir/cap.done"
+    gate=0
+    if [ -n "${PLACE_CAP_GATE:-}" ]; then
+      gc=0; [ -f "$PLACE_CAP_GATE/count" ] && gc="$(cat "$PLACE_CAP_GATE/count")"; gc=$((gc+1)); echo "$gc" > "$PLACE_CAP_GATE/count"
+      [ "$gc" != "${PLACE_CAP_GATE_AT:-1}" ] || gate=1
+    fi
+    gate_wait() { [ "$gate" = 1 ] || return 0; gate=0; : > "$PLACE_CAP_GATE/reached"; local i=0 lim=$(( ${PLACE_CAP_GATE_WAIT:-120} * 10 ))
+      while [ ! -e "$PLACE_CAP_GATE/go" ] && [ "$i" -lt "$lim" ]; do sleep 0.1; i=$((i+1)); done; }
+    [ "${PLACE_CAP_GATE_WHEN:-after}" != before ] || gate_wait
+    # round 6 (own mutant OM16): PLACE_CAP_RC_FILE=<file>: while <file> exists, exit with its content (fails one later read)
+    if [ -n "${PLACE_CAP_RC_FILE:-}" ] && [ -f "$PLACE_CAP_RC_FILE" ]; then exit "$(cat "$PLACE_CAP_RC_FILE")"; fi
+    if [ "${PLACE_CAP_RAW:-}" = 1 ] || ! jq -e . "${PLACE_CAP_JSON:?}" >/dev/null 2>&1; then
+      cp -- "${PLACE_CAP_JSON:?}" "$logdir/cap.out.$$"; gate_wait; cat "$logdir/cap.out.$$"; exit "${PLACE_CAP_RC:-0}"; fi
+    run=""; for f in "$logdir"/running.*; do [ -e "$f" ] || continue; r="${f##*/running.}"
+      case ",${PLACE_GONE:-}," in *",$r,"*) continue ;; esac; run="$run$r,"; done
+    jq -c --arg run "${run%,}" --arg deg "${PLACE_DEGRADED:-}" --arg tenant "${LLMCTL_TENANT_ID:-}" --arg full "${PLACE_FULL_AFTER:-}" '
+      def base: (if test("--") then split("--") | last else . end) | sub("\\.([2-9]|[1-9][0-9]+)$"; "");
+      def k($p): if $tenant == "" then $p else "\($tenant)--\($p)" end;
+      (if .pressure.ok == false then (.pressure.reasons // ["pressure"]) else [] end) as $pr
+      | ($deg | split(",") | map(select(. != ""))) as $dl
+      | ([.llmctl.units[]? | .profile] ) as $declared
+      | .llmctl.units = (
+          [ .llmctl.units[]? | .reasons = ($pr + (.reasons // [])) | .status = (if (.reasons | length) > 0 then "degraded" else (.status // "ok") end)
+                             | .owner = (.owner // "self") | .base_profile = (.base_profile // (.profile | base)) ]
+          + [ ($run | split(",") | map(select(. != "")))[] | select(. as $r | $declared | index($r) | not)
+              | . as $r | (($pr + (if ($dl | index($r)) then ["memory 950 MiB is at >= 90% of its 1000 MiB limit"] else [] end))) as $rs
+              | {unit:"llmctl-llama@\($r).service", profile:$r, base_profile:($r | base), owner:"self", cgroup:"/stub/\($r)",
+                 status:(if ($rs | length) > 0 then "degraded" else "ok" end), reasons:$rs,
+                 suggest:(if ($rs | length) > 0 then "llmctl stop \($r | base)" else null end)} ])
+      | ([.llmctl.units[] | select(.owner == "self") | .profile]) as $own
+      | .profiles = ((.profiles // {}) | with_entries(
+          .key as $kk | if ($own | index(k($kk))) then .value = (.value + {verdict:"running", verdict_class:null, running:true, threads:0,
+                                                              reasons:(["already running"] + $pr)})
+          elif ($pr | length) > 0 then .value = (.value + {verdict:"does_not_fit", verdict_class:"does_not_fit", threads:0,
+                                                              reasons:((.value.reasons // []) + $pr)})
+          elif $full != "" and ($own | index(k($full))) then .value = (.value + {verdict:"does_not_fit", verdict_class:"does_not_fit", threads:0,
+                                                              reasons:((.value.reasons // []) + ["memory: \($full) is resident; the reserve leaves no room for another model"])})
+          else . end))
+      | .degraded = ([.llmctl.units[] | select(.status == "degraded")] | length > 0)
+      | if ([.profiles | to_entries[] | select(.value.verdict == "fits" or .value.verdict == "fits_with_reduced_threads")] | length > 0)
+           or ([.llmctl.units[] | select(.owner == "self" and .status == "ok")] | length > 0)
+        then .fallback = ((.fallback // {}) + {recommended:"local", route:"local"}) else . end' "$PLACE_CAP_JSON" > "$logdir/cap.out.$$"
+    # round 7: a per-call answer file (concurrent callers never read each other's answer); the gate pauses AFTER the answer
+    # is fixed
+    gate_wait
+    clock_add "${PLACE_CAP_CLOCK_ADD:-}"
+    cat "$logdir/cap.out.$$"
+    if [ -n "${PLACE_CAP_RC:-}" ]; then exit "$PLACE_CAP_RC"; fi
+    if [ "$(jq -r '.measurement.ok == false' "$logdir/cap.out.$$")" = true ]; then exit 75; fi
+    if [ "$(jq -r '.degraded' "$logdir/cap.out.$$")" = true ]; then exit 3; fi
+    exit 0 ;;
+  "decide capacity") [ "${PLACE_DCAP_RC:-0}" = 0 ] || exit "$PLACE_DCAP_RC"
+    echo '{"decision_instances":{"decide-x":{"protocol":"letter-logit"},"decide-a":{"protocol":"systemone-native"},"decide-b":{"protocol":"systemone-native"}}}' ;;
+  "decide status") [ "${PLACE_STATUS_RC:-0}" = 0 ] || exit "$PLACE_STATUS_RC"
+    if [ "${PLACE_STATUS_NOGW:-}" = 1 ]; then echo '{"registry":{"services":[]}}'; exit 0; fi
+    jq -nc --arg u "${PLACE_STATUS_URL:-https://127.0.0.1:18095}" '{registry:{services:[{name:"decide-gateway", url:$u, labels:{kind:"gateway", ca_file:"/nonexistent/ca.crt"}}]}}' ;;
+  "start "*) if [ "${PLACE_START_SNAPSHOT:-}" = 1 ] && [ -n "${JEV_STATE_DIR:-}" ]; then cp -- "$JEV_STATE_DIR/leases.json" "$logdir/leases_at_start.${2:?}.json" 2>/dev/null || true; fi
+             if [ -n "${PLACE_START_GATE:-}" ]; then
+               : > "$PLACE_START_GATE/reached.start.${2:?}"; gi=0
+               while [ ! -e "$PLACE_START_GATE/go.start.${2:?}" ] && [ "$gi" -lt "$(( ${PLACE_START_GATE_WAIT:-120} * 10 ))" ]; do sleep 0.1; gi=$((gi+1)); done
+             fi
+             [ -z "${PLACE_START_SLEEP:-}" ] || sleep "$PLACE_START_SLEEP"
+             clock_add "${PLACE_START_CLOCK_ADD:-}"
+             [ "${PLACE_START_RC:-0}" = 75 ] || touch "$logdir/running.$(key "${2:?}")"; exit "${PLACE_START_RC:-0}" ;;
+  "stop "*) if [ "${PLACE_STOP_SNAPSHOT:-}" = 1 ] && [ -n "${JEV_STATE_DIR:-}" ]; then
+              sn=1; while [ -e "$logdir/leases_at_stop.${2:?}.$sn.json" ]; do sn=$((sn+1)); done
+              cp -- "$JEV_STATE_DIR/leases.json" "$logdir/leases_at_stop.${2:?}.$sn.json" 2>/dev/null || true
+              [ -z "${JEV_NOW_FILE:-}" ] || tr -dc '0-9' < "$JEV_NOW_FILE" > "$logdir/clock_at_stop.${2:?}.$sn"
+            fi
+            if [ -n "${PLACE_STOP_GATE:-}" ]; then   # round 9: <dir>/reached.stop.<p> then wait for <dir>/go.stop.<p>
+              : > "$PLACE_STOP_GATE/reached.stop.${2:?}"; gi=0
+              while [ ! -e "$PLACE_STOP_GATE/go.stop.${2:?}" ] && [ "$gi" -lt "$(( ${PLACE_STOP_GATE_WAIT:-120} * 10 ))" ]; do sleep 0.1; gi=$((gi+1)); done
+            fi
+            [ -z "${PLACE_STOP_SLEEP:-}" ] || sleep "$PLACE_STOP_SLEEP"
+            clock_add "${PLACE_STOP_CLOCK_ADD:-}"
+            [ "${PLACE_STOP_RC:-0}" = 0 ] || exit "$PLACE_STOP_RC"
+            rm -f -- "$logdir/running.$(key "${2:?}")" ;;
+  enable*|disable*|switch*|auto*) exit 97 ;;
+  *) echo "llmctl stub: unknown command '$*'" >&2; exit 1 ;;
+esac

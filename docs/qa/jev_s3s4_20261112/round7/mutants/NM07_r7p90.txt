@@ -1,0 +1,2 @@
+FAIL - P90 a start that ends rc 1 is tried once by this acquire, which ends rc 5 with no unit (expected [5 1 ] got [124 90 ])
+FAIL - P90 (rc 1) the re-plan skips the candidate and says so (no [its start by this acquire was refused or failed; not started again by it] in <W>/tmp/tmp.VlgxxoOJX7/e90)

@@ -1,0 +1,3 @@
+[jev-place] llmctl start decide-kev-08b failed rc=1: Warning: The unit file, source configuration file or drop-ins of llmctl-llama@decide-kev-08b.service changed on disk. Run 'systemctl --user daemon-reload' to reload units. WARN: llmctl-llama@decide-kev-08b.service is still starting after 20s (pressure gate waiting or model loading); not holding the 
+[jev-place] start of decide-kev-08b failed after it was requested; stopping it again so no unit is left without a lease
+[jev-place] no local placement; fallback route cloud

@@ -1,0 +1,352 @@
+# M67 on the round-3 tree (bc1a03a5, scripts/ and tests/ from git archive): the round-3 M67 mutant engine
+# (the round-3 harness's own M67 replacement applied to the round-3 engine) run through M67's declared suites
+# (unit, hardening, integration), each with SYNC_ENGINE_PY and SX_ENGINE set inside the hermetic wrapper;
+# plus the round-3 hardening suite on the unmutated round-3 engine, and, as the control needle, the round-3
+# hardening suite on the round-3 M66 mutant with the same invocation (it fails, so the mutant engine is used).
+# Result: all three suites pass on M67, so M67 survived in round 3 too; the round-3 inventory's claim that
+# test_hardening.sh killed it was not true.
+
+## m67_r3_unit
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+................
+----------------------------------------------------------------------
+Ran 41 tests in 0.053s
+
+OK
+sync-unit: PASS 41 FAIL 0
+
+## m67_r3_hardening
+== sync-hardening (sandbox <scratch>/syncfix4.Jiag/tmp/m67r3m/helix-sync-test.rXFFLl)
+  ok   hooks: control needle: a plain git checkout DOES run a hook here
+  ok   hooks: --apply over ff + follow + advance-pin: exit 0
+  ok   hooks: root fast-forwarded
+  ok   hooks: libs/a followed
+  ok   hooks: vendor/t advanced
+  ok   hooks: no hook ran on any write path
+  ok   ignored, follow path: libs/a not moved
+  ok   ignored, follow path: local file kept
+  ok   ignored, follow path: reason recorded
+  ok   ignored, follow path: ATTENTION exit 4
+  ok   ignored, advance-pin path: libs/a not moved
+  ok   ignored, advance-pin path: local file kept
+  ok   ignored, advance-pin path: nothing staged in the root
+  ok   ignored, advance-pin path: reason recorded
+  ok   ignored, fast-forward path: root not moved
+  ok   ignored, fast-forward path: local file kept
+  ok   ignored, fast-forward path: reason recorded
+  ok   status re-read killed: root not moved
+  ok   status re-read killed: BLIND exit 6
+  ok   status re-read killed: action names it
+  ok   tree changed before the write: root not moved
+  ok   tree changed before the write: blocked
+  ok   tree changed before the write: the user's edit is kept
+  ok   status control needle: without the fault the root fast-forwards
+  ok   inspect status killed: root not moved
+  ok   inspect status killed: dirty-tree (an unread status is never clean)
+  ok   token in URL path: absent from every output
+  ok   token in URL path: the field itself was redacted (backstop found nothing)
+  ok   token in URL path: remote reported unreachable
+  ok   GIT_CONFIG_PARAMETERS: dropped (no core.sshCommand seen)
+  ok   GIT_CONFIG_COUNT/KEY/VALUE: dropped
+  ok   control needle: a real repository core.sshCommand IS seen
+  ok   credential shapes: 'Xq9pwd' absent
+  ok   credential shapes: 'Zz7mark' absent
+  ok   credential shapes: 'cepw0rdmark' absent
+  ok   credential shapes: 'spa cepw' absent
+  ok   credential shapes: 'a@b@c' absent
+  ok   credential shapes: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWX' absent
+  ok   credential shapes: backstop found nothing
+  ok   credential shapes: the token-named remote is still fetched (by its real name)
+  ok   --out with a user's file: usage exit 2
+  ok   --out with a user's file: file untouched
+  ok   --out with a symlinked tsv: usage exit 2
+  ok   --out with a symlinked tsv: target untouched
+  ok   --out with a symlinked tsv: still a symlink
+  ok   --out control: a second run over our own report is allowed
+  ok   no remote: ATTENTION exit 4, never CURRENT
+  ok   no remote: reason no-upstream-main
+  ok   remote without main: ATTENTION exit 4
+  ok   remote without main: reason no-upstream-main
+  ok   moved tag: remote fetch state tag-rejected (the remote answered)
+  ok   moved tag: reason tag-rejected:origin
+  ok   moved tag: never labelled unreachable
+  ok   moved tag: the branch was still fetched and evaluated (behind 1)
+  ok   moved tag: local tag kept (never forced)
+  ok   moved tag: ATTENTION exit 4
+  ok   moved tag, --apply: integration blocked (exit 4), nothing moved
+  ok   M37: the concurrent staging happened (control needle)
+  ok   M37: libs/a never checked out at the staged gitlink
+  ok   M37b: a root that did not move makes no child follow (no follow action at all)
+  ok   M37b: pre-staged gitlink, root not moved: no follow action for libs/a
+  ok   M37b: libs/a not moved
+  ok   extra args: anything but --out is ignored, with a note
+  ok   extra args: --apply smuggled into a check never moved the root
+  ok   extra args: --out /dir is honoured
+sync-hardening: PASS 65 FAIL 0
+mutant rc=0
+
+## m67_r3_integration
+== sync-integration (sandbox <scratch>/syncfix4.Jiag/tmp/m67r3i/helix-sync-test.aMUMA9)
+  ok   fresh clone: exit 0
+  ok   fresh clone: verdict CURRENT
+  ok   discovery: 4 repositories
+  ok   discovery: nested inner found
+  ok   control needle ok
+  ok   own-org detected for libs/a
+  ok   third-party detected for vendor/t
+  ok   pin at-main for libs/a
+  ok   fetch ran once per remote (4)
+  ok   behind: exit 3
+  ok   behind: verdict
+  ok   root behind by 1
+  ok   libs/a pin behind-main
+  ok   check changed nothing (root)
+  ok   check changed nothing (libs/a)
+  ok   tsv has 5 lines (header + 4)
+  ok   dry-run: exit 3 (refs already fetched)
+  ok   dry-run: no fetch in the shim log
+  ok   dry-run: no change
+  ok   no-fetch: no fetch in the shim log
+  ok   no-fetch: sees only already-fetched refs (behind 1)
+  ok   apply: exit 3 (libs/a pin still behind: not fully current)
+  ok   apply: verdict UPDATES-AVAILABLE
+  ok   apply: root at upstream main
+  ok   apply: root result updated
+  ok   apply: libs/a unchanged without --advance-pins
+  ok   apply: libs/a still reported behind
+  ok   apply: root on branch main still
+  ok   apply: exactly one merge, and it is --ff-only
+  ok   advance-pins: exit 0
+  ok   advance-pins: libs/a at upstream main
+  ok   advance-pins: gitlink staged in root
+  ok   advance-pins: no commit created
+  ok   advance-pins: third-party untouched
+  ok   advance-pins: third-party behind is informational (current)
+  ok   advance-third-party: vendor/t advanced
+  ok   idempotent: exit 0
+  ok   idempotent: root unchanged
+  ok   idempotent: index unchanged
+  ok   idempotent: no repo updated
+  ok   follow: exit 0
+  ok   follow: libs/a followed root's new gitlink
+  ok   follow: inner followed libs/a's new gitlink
+  ok   follow: tree clean after follow
+  ok   dirty child: not followed
+  ok   dirty child: reason recorded
+  ok   dirty child: edit kept
+  ok   dirty: exit 4
+  ok   dirty: reason dirty-tree
+  ok   dirty: blocked by the precondition
+  ok   dirty: no write was attempted
+  ok   dirty: root not moved
+  ok   dirty: local edit kept
+  ok   merge in progress: exit 4
+  ok   merge in progress: reason
+  ok   index.lock: exit 4
+  ok   index.lock: root not moved
+  ok   local ahead: exit 4
+  ok   local ahead: reason
+  ok   diverged: exit 4
+  ok   diverged: reason local-diverged
+  ok   diverged: local commit kept
+  ok   root on topic: exit 4
+  ok   root on topic: reason
+  ok   two remotes linear: exit 0
+  ok   two remotes linear: newest main wins
+  ok   two remotes linear: mirror state is measured against the head before the run (equal)
+  ok   two remotes diverged: exit 4
+  ok   two remotes diverged: upstreams-diverged
+  ok   two remotes diverged: nothing moved
+  ok   pin not on main: exit 4
+  ok   pin not on main: state
+  ok   pin unfetchable: state
+  ok   pin unfetchable: exit 4
+  ok   uninitialised: state
+  ok   uninitialised: not attention by default
+  ok   uninitialised + --strict-pins: exit 4
+  ok   no mode: exit 2
+  ok   --out inside the work tree: exit 2
+  ok   --out inside: nothing written
+  ok   --root not a top level: exit 2
+  ok   --root outside any work tree: exit 2
+  ok   untracked: exit 4
+  ok   untracked: reason dirty-tree
+  ok   untracked: root not moved
+  ok   untracked: file kept
+  ok   submodule on branch: root moved
+  ok   submodule on branch: not moved
+  ok   submodule on branch: still on topic
+  ok   submodule on branch: reason recorded
+  ok   submodule on main: ff to upstream main
+  ok   submodule on main: exit 4 (parent gitlink modified)
+  ok   submodule on main: reason gitlink-modified:libs/a
+  ok   submodule on main: nothing staged in the parent
+  ok   topic root + advance-pins: exit 4
+  ok   topic root: index untouched
+  ok   topic root: still on topic
+  ok   topic root: libs/a reported parent-not-integrated
+  ok   feature/main pin: not-on-main
+  ok   main gone upstream: remote state no-main
+  ok   main gone upstream: exit 4
+  ok   main gone upstream: reason upstream-branch-gone:origin
+  ok   main gone upstream: refs/remotes/origin/main kept
+sync-integration: PASS 103 FAIL 0
+
+## m67_r3_hardening_control
+== sync-hardening (sandbox <scratch>/syncfix4.Jiag/tmp/m67r3c/helix-sync-test.VifME7)
+  ok   hooks: control needle: a plain git checkout DOES run a hook here
+  ok   hooks: --apply over ff + follow + advance-pin: exit 0
+  ok   hooks: root fast-forwarded
+  ok   hooks: libs/a followed
+  ok   hooks: vendor/t advanced
+  ok   hooks: no hook ran on any write path
+  ok   ignored, follow path: libs/a not moved
+  ok   ignored, follow path: local file kept
+  ok   ignored, follow path: reason recorded
+  ok   ignored, follow path: ATTENTION exit 4
+  ok   ignored, advance-pin path: libs/a not moved
+  ok   ignored, advance-pin path: local file kept
+  ok   ignored, advance-pin path: nothing staged in the root
+  ok   ignored, advance-pin path: reason recorded
+  ok   ignored, fast-forward path: root not moved
+  ok   ignored, fast-forward path: local file kept
+  ok   ignored, fast-forward path: reason recorded
+  ok   status re-read killed: root not moved
+  ok   status re-read killed: BLIND exit 6
+  ok   status re-read killed: action names it
+  ok   tree changed before the write: root not moved
+  ok   tree changed before the write: blocked
+  ok   tree changed before the write: the user's edit is kept
+  ok   status control needle: without the fault the root fast-forwards
+  ok   inspect status killed: root not moved
+  ok   inspect status killed: dirty-tree (an unread status is never clean)
+  ok   token in URL path: absent from every output
+  ok   token in URL path: the field itself was redacted (backstop found nothing)
+  ok   token in URL path: remote reported unreachable
+  ok   GIT_CONFIG_PARAMETERS: dropped (no core.sshCommand seen)
+  ok   GIT_CONFIG_COUNT/KEY/VALUE: dropped
+  ok   control needle: a real repository core.sshCommand IS seen
+  ok   credential shapes: 'Xq9pwd' absent
+  ok   credential shapes: 'Zz7mark' absent
+  ok   credential shapes: 'cepw0rdmark' absent
+  ok   credential shapes: 'spa cepw' absent
+  ok   credential shapes: 'a@b@c' absent
+  ok   credential shapes: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWX' absent
+  ok   credential shapes: backstop found nothing
+  ok   credential shapes: the token-named remote is still fetched (by its real name)
+  ok   --out with a user's file: usage exit 2
+  ok   --out with a user's file: file untouched
+  ok   --out with a symlinked tsv: usage exit 2
+  ok   --out with a symlinked tsv: target untouched
+  ok   --out with a symlinked tsv: still a symlink
+  ok   --out control: a second run over our own report is allowed
+  ok   no remote: ATTENTION exit 4, never CURRENT
+  ok   no remote: reason no-upstream-main
+  ok   remote without main: ATTENTION exit 4
+  ok   remote without main: reason no-upstream-main
+  ok   moved tag: remote fetch state tag-rejected (the remote answered)
+  ok   moved tag: reason tag-rejected:origin
+  ok   moved tag: never labelled unreachable
+  ok   moved tag: the branch was still fetched and evaluated (behind 1)
+  ok   moved tag: local tag kept (never forced)
+  ok   moved tag: ATTENTION exit 4
+  ok   moved tag, --apply: integration blocked (exit 4), nothing moved
+  ok   M37: the concurrent staging happened (control needle)
+  ok   M37: libs/a never checked out at the staged gitlink
+  ok   M37b: a root that did not move makes no child follow (no follow action at all)
+  ok   M37b: pre-staged gitlink, root not moved: no follow action for libs/a
+  ok   M37b: libs/a not moved
+  ok   extra args: anything but --out is ignored, with a note
+  ok   extra args: --apply smuggled into a check never moved the root
+  ok   extra args: --out /dir is honoured
+sync-hardening: PASS 65 FAIL 0
+control rc=0
+
+## m66_r3_hardening_needle
+== sync-hardening (sandbox <scratch>/syncfix4.Jiag/tmp/m66r3/helix-sync-test.0F1cn2)
+  ok   hooks: control needle: a plain git checkout DOES run a hook here
+  ok   hooks: --apply over ff + follow + advance-pin: exit 0
+  ok   hooks: root fast-forwarded
+  ok   hooks: libs/a followed
+  ok   hooks: vendor/t advanced
+  ok   hooks: no hook ran on any write path
+  ok   ignored, follow path: libs/a not moved
+  ok   ignored, follow path: local file kept
+  ok   ignored, follow path: reason recorded
+  ok   ignored, follow path: ATTENTION exit 4
+  ok   ignored, advance-pin path: libs/a not moved
+  ok   ignored, advance-pin path: local file kept
+  ok   ignored, advance-pin path: nothing staged in the root
+  ok   ignored, advance-pin path: reason recorded
+  ok   ignored, fast-forward path: root not moved
+  ok   ignored, fast-forward path: local file kept
+  ok   ignored, fast-forward path: reason recorded
+  ok   status re-read killed: root not moved
+  ok   status re-read killed: BLIND exit 6
+  ok   status re-read killed: action names it
+  FAIL tree changed before the write: root not moved (expected [3993750a69305ab22ed1a86b385b2e28329e5bff] got [3b6da306cc2e30afb987a7794cafcf8ade1e8a31])
+  FAIL tree changed before the write: blocked (missing [blocked:tree-changed-before-write])
+  ok   tree changed before the write: the user's edit is kept
+  ok   status control needle: without the fault the root fast-forwards
+  ok   inspect status killed: root not moved
+  ok   inspect status killed: dirty-tree (an unread status is never clean)
+  ok   token in URL path: absent from every output
+  ok   token in URL path: the field itself was redacted (backstop found nothing)
+  ok   token in URL path: remote reported unreachable
+  ok   GIT_CONFIG_PARAMETERS: dropped (no core.sshCommand seen)
+  ok   GIT_CONFIG_COUNT/KEY/VALUE: dropped
+  ok   control needle: a real repository core.sshCommand IS seen
+  ok   credential shapes: 'Xq9pwd' absent
+  ok   credential shapes: 'Zz7mark' absent
+  ok   credential shapes: 'cepw0rdmark' absent
+  ok   credential shapes: 'spa cepw' absent
+  ok   credential shapes: 'a@b@c' absent
+  ok   credential shapes: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWX' absent
+  ok   credential shapes: backstop found nothing
+  ok   credential shapes: the token-named remote is still fetched (by its real name)
+  ok   --out with a user's file: usage exit 2
+  ok   --out with a user's file: file untouched
+  ok   --out with a symlinked tsv: usage exit 2
+  ok   --out with a symlinked tsv: target untouched
+  ok   --out with a symlinked tsv: still a symlink
+  ok   --out control: a second run over our own report is allowed
+  ok   no remote: ATTENTION exit 4, never CURRENT
+  ok   no remote: reason no-upstream-main
+  ok   remote without main: ATTENTION exit 4
+  ok   remote without main: reason no-upstream-main
+  ok   moved tag: remote fetch state tag-rejected (the remote answered)
+  ok   moved tag: reason tag-rejected:origin
+  ok   moved tag: never labelled unreachable
+  ok   moved tag: the branch was still fetched and evaluated (behind 1)
+  ok   moved tag: local tag kept (never forced)
+  ok   moved tag: ATTENTION exit 4
+  ok   moved tag, --apply: integration blocked (exit 4), nothing moved
+  ok   M37: the concurrent staging happened (control needle)
+  ok   M37: libs/a never checked out at the staged gitlink
+  ok   M37b: a root that did not move makes no child follow (no follow action at all)
+  ok   M37b: pre-staged gitlink, root not moved: no follow action for libs/a
+  ok   M37b: libs/a not moved
+  ok   extra args: anything but --out is ignored, with a note
+  ok   extra args: --apply smuggled into a check never moved the root
+  ok   extra args: --out /dir is honoured
+sync-hardening: PASS 63 FAIL 2

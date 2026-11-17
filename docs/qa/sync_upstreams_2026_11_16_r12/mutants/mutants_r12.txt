@@ -1,0 +1,33 @@
+M04  KILLED     by unit           10.7s  merge shape not enforced
+M05  KILLED     by unit           10.5s  checkout shape not enforced
+M38  KILLED     by unit           10.7s  R1: merge --ff accepted
+R1   KILLED     by gate            1.4s  merge --ff accepted
+AB14 KILLED     by unit           10.5s  RV10-3: the engine's git-call scrub loses GIT_GRAFT_FILE and GIT_NO_REPLACE_OBJECTS
+AC01 KILLED     by unit           10.8s  branch_of_ref keeps only the LAST component (feature/x -> x)
+AC02 KILLED     by unit           10.6s  branch_of_ref case-folds the name at its source
+AC03 KILLED     by unit           10.6s  --branch validated by BRANCH_RE only (valid_branch_name dropped at the CLI)
+AC04 KILLED     by unit           10.6s  valid_branch_name no longer refuses a component ending in .lock
+AC05 KILLED     by unit           10.5s  read_branch: a symbolic ref outside refs/heads/ is returned as a branch with its full name
+AC06 KILLED     by unit           10.4s  read_branch strips the prefix with --short semantics again: heads/<name> when a tag exists is not reproduced, but the disambiguation fallback is simulated by keeping the "heads/" prefix
+AC07 KILLED     by unit           10.5s  valid_branch_name no longer refuses a leading "-"
+AC08 KILLED     by unit           10.4s  read_branch takes the FIRST line of a multi-line answer instead of refusing it
+AC09 KILLED     by unit           10.1s  git_env no longer scrubs GIT_GRAFT_FILE / GIT_NO_REPLACE_OBJECTS (the module-level pop stays)
+AC10 EQUIVALENT by -             686.0s  module-level git-env pop removed (git_env _SCRUB stays)
+AC11 KILLED     by unit           10.2s  _REF_BAD_CHARS no longer refuses a space or control character
+CX1  EQUIVALENT by -             705.6s  CONTROL (must SURVIVE): docstring word changed in branch_of_ref
+CX2  KILLED     by unit           10.2s  CONTROL (must DIE): AA01 again
+AD01 KILLED     by unit           10.1s  obj() gives the bare id again (no ^{commit})
+AD02 KILLED     by unit           10.2s  resolve_ref_exact takes the first listed ref, not the exact refname (a child stands in)
+AD03 KILLED     by unit           10.3s  evaluate_upstream back to the DWIM rev-parse lookup
+AD04 KILLED     by unit           10.2s  check_object_names never called
+AD05 KILLED     by unit           10.2s  git_env drops the object-visibility pin
+AD06 KILLED     by unit           10.2s  the pin keeps replace refs off but leaves grafts on
+AD07 KILLED     by unit           10.3s  the pin leaves replace refs on
+AD08 KILLED     by unit           10.5s  an annotated tag that peels to a non-commit is taken as the upstream commit
+AD09 KILLED     by unit           10.4s  write_git checks out the bare id (a branch named <hex> wins)
+AD10 KILLED     by unit           10.6s  two lines for one exact ref accepted (the first wins)
+AD11 KILLED     by unit           10.4s  exact_remote_ref accepts any refs/remotes/ pattern (globs, ..)
+AD12 KILLED     by robustness:ref_exact,checkout_exact,objvis   32.0s  merge passes the bare id again
+AD13 KILLED     by unit           10.6s  the malformed-row check dropped (a short row is read as no hit)
+sync-mutations (all): mutants 31 killed 29 equivalent 2 survived 0 harness-errors 0
+mut rc=0

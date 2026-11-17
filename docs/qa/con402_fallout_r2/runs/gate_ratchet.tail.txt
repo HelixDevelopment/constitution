@@ -1,0 +1,3 @@
+CM-GATE-LEDGER-RATCHET: corpus read (corpus = Constitution.md + its status-summary archive docs/amendment-log/status-summary-constitution.md)
+LEDGER: unimplemented=394 baseline=394 fails=0
+✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanished name

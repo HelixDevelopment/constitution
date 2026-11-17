@@ -1,0 +1,120 @@
+== race_commit
+  ok   race_commit.action_fired
+  FAIL race_commit.user_commit_still_checked_out  (sub HEAD fd7c8736d03caedcb8dc14f4b40677744da21db1 user fac51ef818ca77de5b529f69ac5be90464629478)
+  FAIL race_commit.not_reported_updated  (updated)
+  FAIL race_commit.run_not_applied  (rc=0)
+  FAIL race_commit.refusal_recorded  ([{'error': '', 'op': 'follow-pin', 'rc': 0, 'to': 'fd7c8736d03caedcb8dc14f4b40677744da21db1'}])
+== race_switch
+  ok   race_switch.action_fired
+  FAIL race_switch.topic_not_moved  (topic 41848b8d354d5db4df48b701dcd6f67ee8a33202 r1 45d97d54ee2e21dc05bb94f8a933d34767367730 r2 41848b8d354d5db4df48b701dcd6f67ee8a33202)
+  ok   race_switch.main_not_moved
+  FAIL race_switch.run_not_applied  (rc=0)
+  FAIL race_switch.refusal_recorded  ([{'error': '', 'op': 'fast-forward', 'rc': 0, 'to': '41848b8d354d5db4df48b701dcd6f67ee8a33202'}])
+== race_sub_branch
+  ok   race_sub_branch.action_fired
+  FAIL race_sub_branch.submodule_still_on_branch  (branch now '')
+  FAIL race_sub_branch.head_not_moved  ()
+== race_control
+  ok   race_control.user_commit_kept_on_main
+  ok   race_control.not_applied
+== autostash
+  ok   autostash.action_fired
+  ok   autostash.head_not_moved
+  ok   autostash.no_stash_created
+  ok   autostash.user_edit_kept
+  ok   autostash.failed_verdict
+== sigterm_write
+  ok   sigterm_write.signal_sent
+  FAIL sigterm_write.exit_8  (rc=-15 stderr=)
+  FAIL sigterm_write.result_line  ()
+  FAIL sigterm_write.report_written  ()
+  FAIL sigterm_write.move_recorded  (moved=None head_after=None r2=6142b020c95c7e27f2fa16042ae1c1e931fffe15)
+  ok   sigterm_write.root_really_at_r2
+  ok   sigterm_write.no_traceback
+== sigterm_fetch
+  ok   sigterm_fetch.fetch_hanging
+  ok   sigterm_fetch.exits_fast
+  FAIL sigterm_fetch.exit_8  (rc=-15)
+  ok   sigterm_fetch.no_traceback
+  FAIL sigterm_fetch.no_orphan  ()
+  FAIL sigterm_fetch.report_interrupted  ()
+== sigint_fetch
+  ok   sigint_fetch.fetch_hanging
+  FAIL sigint_fetch.exits_fast  (30.1s)
+  FAIL sigint_fetch.exit_8  (rc=-9)
+  ok   sigint_fetch.no_traceback
+  FAIL sigint_fetch.no_orphan  ()
+  FAIL sigint_fetch.report_interrupted  ()
+== staged_gitlink
+  FAIL staged_gitlink.index_untouched  (staged fd7c8736d03caedcb8dc14f4b40677744da21db1 now 4916f271fc1926cacb2fb90218c32e8b0ba405e4 s2 fd7c8736d03caedcb8dc14f4b40677744da21db1 x 4916f271fc1926cacb2fb90218c32e8b0ba405e4)
+  FAIL staged_gitlink.reason_reported  ([])
+  FAIL staged_gitlink.attention  (rc=0)
+== long_line
+  FAIL long_line.bounded_time  (127.1s rc=5)
+  ok   long_line.report_written
+== huge_stderr
+  FAIL huge_stderr.peak_rss_bounded  (maxrss 565136 KiB rc=5)
+  ok   huge_stderr.run_ended_with_report
+== askpass
+  FAIL askpass.core_askPass_not_run  ()
+  ok   askpass.GIT_ASKPASS_not_run
+  ok   askpass.SSH_ASKPASS_not_run
+  ok   askpass.remote_reported_unreachable_auth
+== askpass_ssh_only
+  ok   askpass_ssh_only.not_run
+== ext_env
+  FAIL ext_env.helper_not_run  ()
+== ext_repo
+  ok   ext_repo.helper_not_run
+== protocol_from_user
+  FAIL protocol_from_user.fetched  ([{'ahead': 0, 'behind': 0, 'fetch': 'failed', 'fetch_error': "fatal: transport 'file' not allowed", 'fetch_failure': 'other', 'fetch_rc': 128, 'main_sha': 'e79823c4606a757fbca1fc0c114ea72a965259da', 'name': 'origin', 'state': 'unreachable', 'url': 'file:///home/milosvasic/.cache/claude-tmp/helix-sync-robust.protocol_from_user.548tis2r/remotes/HelixDevelopment/solo.git'}])
+== trace_env
+  ok   trace_env.no_trace_file
+== auth_header
+  ok   auth_header.value_redacted
+== secret8
+  ok   secret8.absent_everywhere
+== ctrl_url
+  ok   ctrl_url.url_reported
+  ok   ctrl_url.no_del_or_c1
+== invalid_remote
+  ok   invalid_remote[bad.lock].not_moved
+  ok   invalid_remote[bad.lock].attention
+  ok   invalid_remote[-dash].not_moved
+  ok   invalid_remote[-dash].attention
+== diverged
+  ok   diverged.child_held
+  ok   diverged.attention
+== no_upstream_main
+  ok   no_upstream_main.child_held
+  ok   no_upstream_main.attention
+== lock_symlink
+  ok   lock_symlink.exit_7
+  ok   lock_symlink.target_not_created
+== lock_overlap
+  FAIL lock_overlap.exit_7  (rc=0)
+  FAIL lock_overlap.root_not_moved  ()
+== out_unwritable
+  ok   out_unwritable.exit_2
+  FAIL out_unwritable.not_moved  ()
+== out_lost
+  ok   out_lost.moved
+  FAIL out_lost.exit_1  (rc=2)
+  FAIL out_lost.move_on_stderr  (sync-upstreams: ERROR: cannot write evidence to /home/milosvasic/.cache/claude-tmp/helix-sync-robust.out_lost.rmt8htvv/out/lost: [Errno 13] Permission denied: '/home/milosvasic/.cache/claude-tmp/helix-sync-robust.out_lost.rmt8htvv/out/lost/.sync_report.rc3oajax'
+)
+== default_out_symlink
+  FAIL default_out_symlink.refused  (rc=0)
+  FAIL default_out.nothing_in_tree  (['/home/milosvasic/.cache/claude-tmp/helix-sync-robust.default_out_symlink.v_vvwzl5/work/w/cachedir/helix_sync_upstreams/w-r1/sync_report.json', '/home/milosvasic/.cache/claude-tmp/helix-sync-robust.default_out_symlink.v_vvwzl5/work/w/cachedir/helix_sync_upstreams/w-r1/sync_report.tsv'])
+== default_out_relative
+  FAIL default_out_relative.refused  (rc=0)
+  FAIL default_out_relative.nothing_in_tree  (['/home/milosvasic/.cache/claude-tmp/helix-sync-robust.default_out_relative.oabxlhow/work/w/relcache/helix_sync_upstreams/w-r1/sync_report.json', '/home/milosvasic/.cache/claude-tmp/helix-sync-robust.default_out_relative.oabxlhow/work/w/relcache/helix_sync_upstreams/w-r1/sync_report.tsv'])
+== unsafe_path
+  FAIL unsafe_path[-dash].reported  (['.'])
+  FAIL unsafe_path[-dash].attention  (None)
+  FAIL unsafe_path[back\slash].reported  (['.'])
+  FAIL unsafe_path[back\slash].attention  (None)
+== outside_parent
+  FAIL outside_parent.not_inspected  ({'actions': [], 'depth': 1, 'initialised': False, 'kind': 'submodule', 'moved': False, 'parent': '.', 'path': 'libs/a', 'path_in_parent': 'libs/a', 'pin': {'gitlink': 'f7cb0d8a96586d2b4bc642b59daf212acef82bbe', 'state': 'unreadable'}, 'reasons': ['pin-unreadable', 'unresolved:rev-parse:rc:128'], 'recorded_gitlink': 'f7cb0d8a96586d2b4bc642b59daf212acef82bbe', 'result': 'blind', 'unresolved': ['rev-parse:rc:128']})
+  FAIL outside_parent.attention  (['pin-unreadable', 'unresolved:rev-parse:rc:128'])
+sync-robustness: PASS 43 FAIL 43
+rc=1

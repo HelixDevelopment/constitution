@@ -233,11 +233,13 @@ esac
 exit 9
 SH
   ( cd "$D/w" && "${G[@]}" add scripts && "${G[@]}" commit -q --amend --no-edit ); REL="$(git -C "$D/w" rev-parse HEAD)"; }
-GSPEC=gitea:r1:https://g.example:o/r
+# B-M2 (2026-11-16): a gitea spec names its token variable (fifth field), bound to the URL in config/forge/hosts.tsv
+GSPEC=gitea:r1:https://git.m3w.org:o/r:M3W_GITEA_TOKEN
 mkg c17; GITEA_MODE=ok run --release "$GSPEC"
 chk "C17 gitea ok exit 0" "$RC" 0
 printf '%s\n' "$OUT" | grep -q "^RELEASE $GSPEC CREATED-OR-UPDATED" && ok "C17 gitea created" || bad "C17 gitea created"
-grep -q -- "--base-url https://g.example --repo o/r" "$D/stub.log" && ok "C17 base URL and repo passed" || bad "C17 base URL and repo passed"
+grep -q -- "--base-url https://git.m3w.org --repo o/r" "$D/stub.log" && ok "C17 base URL and repo passed" || bad "C17 base URL and repo passed"
+grep -q -- "^gitea --token-var M3W_GITEA_TOKEN " "$D/stub.log" && ok "C17 B-M2: the publisher is called with --token-var M3W_GITEA_TOKEN" || bad "C17 B-M2: the publisher is called with --token-var M3W_GITEA_TOKEN ($(cut -c1-80 "$D/stub.log"))"
 mkg c18; GITEA_MODE=notoken run --release "$GSPEC"
 chk "C18 gitea missing token is a GAP (exit 5)" "$RC" 5
 printf '%s\n' "$OUT" | grep -q "^GAP RELEASE $GSPEC SKIPPED-NO-TOKEN" && ok "C18 SKIPPED-NO-TOKEN gap" || bad "C18 SKIPPED-NO-TOKEN gap"
@@ -262,7 +264,8 @@ left="$(find "$D/gtmp" -maxdepth 1 -name 'tar_gitea.*' | wc -l)"
 # not a credential.
 if command -v jq >/dev/null 2>&1 && command -v curl >/dev/null 2>&1; then
   mkr() { mk "$1"; mkdir -p "$D/w/scripts/release"; cp -- "$ROOT/scripts/release_publish_gitea.sh" "$D/w/scripts/release_publish_gitea.sh"; cp -- "$ROOT/scripts/release/redact_cut.sh" "$D/w/scripts/release/redact_cut.sh"
-    ( cd "$D/w" && "${G[@]}" add scripts && "${G[@]}" commit -q --amend --no-edit ); REL="$(git -C "$D/w" rev-parse HEAD)"; }
+    mkdir -p "$D/w/config/forge"; cp -- "$ROOT/config/forge/hosts.tsv" "$D/w/config/forge/hosts.tsv"   # B-M2: the publisher's host table
+    ( cd "$D/w" && "${G[@]}" add scripts config && "${G[@]}" commit -q --amend --no-edit ); REL="$(git -C "$D/w" rev-parse HEAD)"; }
   mkr c22; M3W_GITEA_TOKEN="" run --release "$GSPEC"
   chk "C22 real publisher, no token: GAP exit 5" "$RC" 5
   printf '%s\n' "$OUT" | grep -q "^GAP RELEASE $GSPEC SKIPPED-NO-TOKEN" && ok "C22 SKIPPED-NO-TOKEN gap" || bad "C22 SKIPPED-NO-TOKEN gap"
@@ -462,7 +465,7 @@ for bad_spec in 'gitea:r1:https://u:ZZSPEC1@h:o/r' 'github:r1:https://ZZSPEC2@h/
   printf '%s\n' "$OUT" | grep -q 'ZZSPEC' && bad "C36 the bad spec is not echoed (${bad_spec%%:*})" || ok "C36 the bad spec is not echoed (${bad_spec%%:*})"
 done
 printf '%s\n' "$OUT" | grep -q 'bad --release spec number 1' && ok "C36 the refusal names the spec by number (positive needle)" || bad "C36 the refusal names the spec by number (positive needle)"
-run --release gitlab:r1:grp/sub/repo --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
+run --release gitlab:r1:grp/sub/repo --release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN --dry-run
 chk "C36 control: a nested GitLab path and a loopback gitea URL are accepted (no usage error; the dry-run probe of the gitea leg without a token is a would-gap, exit 5)" "$RC" 5
 run --frobnicate; printf '%s\n' "$OUT" | grep -q 'unknown argument: --frobnicate' && ok "C36 an option-shaped unknown argument is named (control)" || bad "C36 an option-shaped unknown argument is named (control)"
 run '--https://u:ZZARG@h/x'; chk "C36 credential-shaped unknown argument: usage" "$RC" 2
@@ -822,8 +825,8 @@ mk rh1; run --release github:r1:acc/one --release gitlab:r1:grp/one --dry-run
 chk "RH1 no --prerelease: exit 0" "$RC" 0
 outhas "RH1 github plan line: prerelease=none" '^PLAN release github:r1:acc/one prerelease=none$'
 outhas "RH1 gitlab plan line: prerelease=none" '^PLAN release gitlab:r1:grp/one prerelease=none$'
-mk rh1b; M3W_GITEA_TOKEN=ZZRH1TOK run --prerelease --release gitea:r1:http://127.0.0.1:3000:o/r --release github:r1:acc/one --dry-run
-outhas "RH1 gitea plan line: prerelease=flag" '^PLAN release gitea:r1:http://127.0.0.1:3000:o/r prerelease=flag$'
+mk rh1b; GITEA_LOOPBACK_TEST_TOKEN=ZZRH1TOK run --prerelease --release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN --release github:r1:acc/one --dry-run
+outhas "RH1 gitea plan line: prerelease=flag" '^PLAN release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN prerelease=flag$'
 outhas "RH1 github plan line: prerelease=flag" '^PLAN release github:r1:acc/one prerelease=flag$'
 # RH2 (D3) all legs reachable: a would-create line per leg, exit 0, the unchanged OK result line, nothing written
 mk rh2; run --prerelease --release github:r1:acc/one --release gitlab:r1:grp/one --dry-run
@@ -855,12 +858,12 @@ outhas "RH6 would-fail NOT-ACCESSIBLE" '^PROBE release gitlab:r1:grp/one WOULD-F
 mk rh6c; echo 'GLAPI_MODE=junk' >>"$W/.stubenv"; run --release gitlab:r1:grp/one --dry-run
 chk "RH6 a project answer that is not a JSON object: exit 1" "$RC" 1; outhas "RH6 junk answer: would-fail" '^PROBE release gitlab:r1:grp/one WOULD-FAIL NOT-ACCESSIBLE '
 # RH7 (D3) gitea: token presence only (never the value); its repository access cannot be probed (UNCONFIRMED, a would-gap)
-mk rh7; M3W_GITEA_TOKEN= run --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run   # an empty value counts as not set (as in the publisher)
-chk "RH7 no token exit 5" "$RC" 5; outhas "RH7 would-gap SKIPPED-NO-TOKEN" '^PROBE release gitea:r1:http://127.0.0.1:3000:o/r WOULD-GAP SKIPPED-NO-TOKEN \(gitea token variable not set\)$'
-mk rh7b; M3W_GITEA_TOKEN=ZZRH7GITEATOKEN run --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
-chk "RH7 token set exit 5 (access unconfirmed)" "$RC" 5; outhas "RH7 token set: ACCESS UNCONFIRMED" '^PROBE release gitea:r1:http://127.0.0.1:3000:o/r WOULD-GAP ACCESS-UNCONFIRMED \(token variable set'
+mk rh7; GITEA_LOOPBACK_TEST_TOKEN= run --release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN --dry-run   # an empty value counts as not set (as in the publisher)
+chk "RH7 no token exit 5" "$RC" 5; outhas "RH7 would-gap SKIPPED-NO-TOKEN" '^PROBE release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN WOULD-GAP SKIPPED-NO-TOKEN \(gitea token variable not set\)$'
+mk rh7b; GITEA_LOOPBACK_TEST_TOKEN=ZZRH7GITEATOKEN run --release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN --dry-run
+chk "RH7 token set exit 5 (access unconfirmed)" "$RC" 5; outhas "RH7 token set: ACCESS UNCONFIRMED" '^PROBE release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN WOULD-GAP ACCESS-UNCONFIRMED \(token variable set'
 # RH10 (D3) no token text reaches the output: the doubles print token-shaped text on auth status (control: it is in their stdout)
-mk rh10; GH_TOKEN=ZZRH10GH GITLAB_TOKEN=ZZRH10GL M3W_GITEA_TOKEN=ZZRH10GT run --release github:r1:acc/one --release gitlab:r1:grp/one --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
+mk rh10; GH_TOKEN=ZZRH10GH GITLAB_TOKEN=ZZRH10GL GITEA_LOOPBACK_TEST_TOKEN=ZZRH10GT run --release github:r1:acc/one --release gitlab:r1:grp/one --release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN --dry-run
 printf '%s\n' "$OUT" | grep -qE 'ZZSTUB|ZZRH10' && bad "RH10 no token text in the output" || ok "RH10 no token text in the output (gh, glab, gitea legs probed)"
 "$W/bin/gh" auth status 2>/dev/null | grep -q ZZSTUBGHTOKEN && ok "RH10 control: the gh double does print token text" || bad "RH10 control: the gh double does print token text"
 # RH11 (D10) two remotes that push to one repository: refused before any write, the URL not shown (trailing slash and
@@ -912,11 +915,11 @@ fi
 # RH17 (CON-423 review r1, M8) the gitea token shape has ONE definition (rc_gitea_token_shape_ok in redact_cut.sh):
 # a token outside it is TOKEN-SHAPE in the dry run (exit 1, value not shown), one inside it is ACCESS-UNCONFIRMED,
 # and neither the script under test nor the publisher carries a copy of the charset
-mk rh17; M3W_GITEA_TOKEN='ZZRH17 bad!' run --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
+mk rh17; GITEA_LOOPBACK_TEST_TOKEN='ZZRH17 bad!' run --release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN --dry-run
 chk "RH17 a token outside the shape: exit 1" "$RC" 1
 outhas "RH17 a token outside the shape is TOKEN-SHAPE" 'TOKEN-SHAPE'
 printf '%s\n' "$OUT" | grep -q ZZRH17 && bad "RH17 the bad token value is not shown" || ok "RH17 the bad token value is not shown"
-mk rh17b; M3W_GITEA_TOKEN='ZZRH17goodtoken' run --release gitea:r1:http://127.0.0.1:3000:o/r --dry-run
+mk rh17b; GITEA_LOOPBACK_TEST_TOKEN='ZZRH17goodtoken' run --release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN --dry-run
 printf '%s\n' "$OUT" | grep -q 'ACCESS-UNCONFIRMED (token variable set' && ok "RH17 a token inside the shape is ACCESS-UNCONFIRMED" || bad "RH17 a token inside the shape is ACCESS-UNCONFIRMED ($RC: $(printf '%s' "$OUT" | tail -n 3))"
 for f in "$S" "$ROOT/scripts/release_publish_gitea.sh"; do
   if grep -vE '^[[:space:]]*#' "$f" | grep -qF 'A-Za-z0-9._~+/=-]{8,200}'; then bad "RH17 no copy of the gitea token charset in $(basename "$f")"
@@ -938,6 +941,66 @@ sed '2i date >/dev/null' "$S" >"$l1t/needle.sh"
 python3 -I "$HERE/channel_census.py" lint "$HERE/channels.tsv" "$l1t/needle.sh" 2>&1 | grep -q 'before rc_env_clean: needle.sh:2 date' \
   && ok "L1 needle: a date inserted at line 2 is found" || bad "L1 needle: a date inserted at line 2 is not found"
 rm -rf -- "${l1t:?}"
+# C54 (B-M4 of the v73.4 dry run): release notes that are a --draft render of scripts/release/render_release_entry.py
+# (they carry its fixed marker line) are refused by a real run before anything is written; a dry run says so; the
+# marker in an OLDER section is not the release notes and does not count; a lower-case "draft" is not the marker.
+DMARK54='> **DRAFT RENDER — not a release entry.** Made by render_release_entry.py --draft; it may carry placeholders, and scripts/release/tag_and_release.sh refuses to cut a release from notes that contain this line.'
+mk54(){ mk "$1"; ( cd "$D/w" && printf '# Changelog\n\n## %s — 2026-01-01 — PROVISIONAL pre-release\n%s\nNOTES-BODY\n\n## Unreleased — base\n%s\n' "$TAG" "$2" "$3" >CHANGELOG.md \
+  && "${G[@]}" commit -q --amend -am release ); REL="$(git -C "$D/w" rev-parse HEAD)"; }
+mk54 c54a "$DMARK54" ""; run
+chk "C54 draft notes: exit 1" "$RC" 1; chk "C54 draft notes: RESULT FAIL" "$(last)" "RESULT: FAIL"
+printf '%s\n' "$OUT" | grep -q 'a --draft render' && ok "C54 draft notes: the reason is named" || bad "C54 draft notes: the reason is named ($OUT)"
+chk "C54 draft notes: no local tag" "$(git -C "$D/w" rev-parse -q --verify "refs/tags/$TAG" || echo -)" -
+chk "C54 draft notes: r1 main untouched" "$(rmain r1)" "$BASE"; chk "C54 draft notes: r1 no tag" "$(rtag r1)" -
+run --dry-run
+chk "C54 draft notes, dry run: exit 0" "$RC" 0
+printf '%s\n' "$OUT" | grep -q '^PLAN refuse: .*--draft render' && printf '%s\n' "$OUT" | tail -n 1 | grep -q 'DRAFT render, a real run refuses' \
+  && ok "C54 draft notes, dry run: PLAN refuse line and RESULT say a real run refuses" || bad "C54 draft notes, dry run ($OUT)"
+mk54 c54b "a draft note in lower case" "$DMARK54"; run
+chk "C54 control: marker only in an older section, lower-case draft in the notes: exit 0" "$RC" 0
+chk "C54 control: r1 tag" "$(rtag r1)" "$REL"
+
+# C56 (B-M2 of the v73.4 dry run): a gitea spec names its token variable and the pair (URL, variable) must be bound
+# in config/forge/hosts.tsv; anything else is a usage error before any fetch or write (also on --dry-run), and the
+# publisher gets --token-var and only that variable. The doubles record their arguments and which token
+# variables they received (set / empty, never a value); the values are fixture strings.
+mk56() { mkg "$1"; sed -i '2i echo "tok m3w=${M3W_GITEA_TOKEN:+set} cb=${CODEBERG_TOKEN:+set} lt=${GITEA_LOOPBACK_TEST_TOKEN:+set}" >>"$STUB_LOG"' "$D/w/scripts/release_publish_gitea.sh"
+  ( cd "$D/w" && "${G[@]}" commit -q -am tokrec ); REL="$(git -C "$D/w" rev-parse HEAD)"; }
+c56no() { # c56no NAME TEXT: RC 2, the reason, nothing called, nothing written
+  chk "C56 $1: usage error (exit 2)" "$RC" 2
+  printf '%s\n' "$OUT" | grep -qF -- "$2" && ok "C56 $1: says '$2'" || bad "C56 $1: no '$2' in: $(printf '%s\n' "$OUT" | grep -a 'tag_and_release:' | head -n 1)"
+  [ -s "$D/stub.log" ] && bad "C56 $1: the publisher ran" || ok "C56 $1: the publisher did not run"
+  chk "C56 $1: no local tag" "$(git -C "$D/w" rev-parse -q --verify "refs/tags/$TAG" || echo -)" -
+  chk "C56 $1: r1 main untouched" "$(rmain r1)" "$BASE"
+  printf '%s\n' "$OUT" | grep -q 'ZZ56' && bad "C56 $1: a token value is printed" || ok "C56 $1: no token value is printed"
+}
+export M3W_GITEA_TOKEN=ZZ56M3W CODEBERG_TOKEN=ZZ56CB GITEA_LOOPBACK_TEST_TOKEN=ZZ56LT
+mk56 c56a; run --release gitea:r1:https://git.m3w.org:o/r; c56no "the old four-field spec" "bad --release spec number 1"
+mk56 c56b; run --release gitea:r1:https://codeberg.org:o/r:M3W_GITEA_TOKEN; c56no "codeberg with M3W_GITEA_TOKEN" "the token variable M3W_GITEA_TOKEN is not bound to https://codeberg.org"
+mk56 c56c; run --release gitea:r1:https://codeberg.org:o/r:M3W_GITEA_TOKEN --dry-run; c56no "codeberg with M3W_GITEA_TOKEN, dry run" "is not bound to https://codeberg.org"
+mk56 c56d; run --release gitea:r1:https://g.example:o/r:M3W_GITEA_TOKEN; c56no "an unknown host" "is not bound to https://g.example"
+mk56 c56e; run --release gitea:r1:http://127.0.0.1:3000:o/r:M3W_GITEA_TOKEN --dry-run; c56no "a loopback URL with M3W_GITEA_TOKEN" "is not bound to http://127.0.0.1:3000"
+mk56 c56f; run --release gitea:r1:https://git.m3w.org:o/r:BASH_ENV; c56no "a variable bash gives a meaning of its own" "bash gives a meaning of its own"
+mk56 c56k; run --release gitea:r1:https://codeberg.org:o/r:GITEA_TOKEN; c56no "a name that is only part of a listed name" "the token variable GITEA_TOKEN is not bound to https://codeberg.org"
+mk56 c56l; run --release gitea:r1:https://git.m3w.or:o/r:M3W_GITEA_TOKEN; c56no "a host that is only a prefix of a listed one" "is not bound to https://git.m3w.or"
+# controls: bound pairs publish; each publisher call gets its own spec's variable and no other
+mk56 c56g; run --release gitea:r1:https://git.m3w.org:o/r:M3W_GITEA_TOKEN --release gitea:r2:https://codeberg.org:o/r:CODEBERG_TOKEN
+chk "C56 control: two bound gitea specs: exit 0" "$RC" 0
+grep -q -- '^gitea --token-var M3W_GITEA_TOKEN .*--base-url https://git.m3w.org --repo o/r' "$D/stub.log" && ok "C56 control: the m3w call names M3W_GITEA_TOKEN" || bad "C56 control: the m3w call ($(tr '\n' '|' <"$D/stub.log" | cut -c1-200))"
+grep -q -- '^gitea --token-var CODEBERG_TOKEN .*--base-url https://codeberg.org --repo o/r' "$D/stub.log" && ok "C56 control: the codeberg call names CODEBERG_TOKEN" || bad "C56 control: the codeberg call"
+chk "C56 the token variables each call received" "$(grep '^tok ' "$D/stub.log" | tr '\n' '|')" 'tok m3w=set cb= lt=|tok m3w= cb=set lt=|'
+mk56 c56h; run --release gitea:r1:http://127.0.0.1:3000:o/r:GITEA_LOOPBACK_TEST_TOKEN --dry-run
+chk "C56 control: a loopback URL with GITEA_LOOPBACK_TEST_TOKEN, dry run: no usage error (landing merge: the CON-423 dry-run gitea probe now sets 1 or 5 by token shape)" "$([ "$RC" -ne 2 ] && echo not-usage || echo "usage $RC")" not-usage
+unset -v M3W_GITEA_TOKEN CODEBERG_TOKEN GITEA_LOOPBACK_TEST_TOKEN
+# the host table: a copy of the script and its library without config/forge/hosts.tsv refuses every gitea spec
+# (fail closed); the same copy with the real table runs (control)
+c56t="$W/c56tab"; mkdir -p "$c56t/scripts/release"; cp -- "$S" "$c56t/scripts/release/tag_and_release.sh"; cp -- "$(dirname "$S")/redact_cut.sh" "$c56t/scripts/release/redact_cut.sh"
+S56="$S"; S="$c56t/scripts/release/tag_and_release.sh"
+mk56 c56i; run --release "$GSPEC" --dry-run; c56no "no host table beside the script" "cannot read config/forge/hosts.tsv"
+mkdir -p "$c56t/config/forge"; cp -- "$ROOT/config/forge/hosts.tsv" "$c56t/config/forge/hosts.tsv"
+mk56 c56j; run --release "$GSPEC" --dry-run
+chk "C56 control: the copy with the real host table, dry run: no usage error (landing merge: the CON-423 dry-run gitea probe now sets 1 or 5 by token shape)" "$([ "$RC" -ne 2 ] && echo not-usage || echo "usage $RC")" not-usage
+S="$S56"
 # C53 (round 12, F1 of the round-11 review): the network-spawn gate (tests/release/channel_census.py netgate) over
 # this copy of the script and the helper library it loads: every network child goes through rc_net and every command
 # is classified by its syntax alone (an unclassified command word is a finding; round 13: not a proof of default

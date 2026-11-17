@@ -1,0 +1,14 @@
+PASS docs/qa/sync_upstreams_2026_11_13_r5/ground_truth/git_precedence_experiments.py sha256 1291b7377124f963 in docs/qa/sync_upstreams_2026_11_13_r5/SHA256SUMS
+PASS docs/qa/sync_upstreams_2026_11_13_r5/ground_truth/git_uploadpack_experiment.py sha256 d23fe558997e2116 in docs/qa/sync_upstreams_2026_11_13_r5/SHA256SUMS
+PASS docs/qa/sync_upstreams_2026_11_14_r6/ground_truth/git_signal_lock_experiment.py sha256 bd66e779790f6d82 in docs/qa/sync_upstreams_2026_11_14_r6/SHA256SUMS
+PASS docs/qa/sync_upstreams_2026_11_15_r7/class_inventory_marker_lifecycle.py sha256 bae193f685a75b4f in docs/qa/sync_upstreams_2026_11_15_r7/SHA256SUMS
+PASS docs/qa/sync_upstreams_2026_11_15_r8/class_inventory_write_paths.py sha256 adfc26625610509f in docs/qa/sync_upstreams_2026_11_15_r8/SHA256SUMS
+PASS docs/qa/sync_upstreams_2026_11_15_r9/class_inventory_write_paths.py sha256 5ac060404305a543 in docs/qa/sync_upstreams_2026_11_15_r9/SHA256SUMS
+PASS docs/qa/sync_upstreams_2026_11_15_r9/ground_truth/git_lock_matrix.py sha256 17c7b37c8e6475a6 in docs/qa/sync_upstreams_2026_11_15_r9/SHA256SUMS
+PASS docs/qa/sync_upstreams_2026_11_15_r9/ground_truth/git_lock_probe.sh sha256 b4b0f0f073658a99 in docs/qa/sync_upstreams_2026_11_15_r9/SHA256SUMS
+PASS scripts/sync/sync_step_lib.sh git verbs=rev-parse
+PASS caller scripts/setup.sh scrubs at file level
+PASS caller scripts/post_update_hook.sh scrubs at file level
+PASS caller tests/sync/test_full_automation.sh scrubs at file level
+verify-exemption-rows: PASS 9 rows
+rc=0

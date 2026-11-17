@@ -1,0 +1,3 @@
+KNOWN CON-537 created_at: replay time 2026-11-17 20:41:28 (vehicle 2026-11-16 08:39:05), not carried
+KNOWN CON-538 created_at: replay time 2026-11-17 20:41:29 (vehicle 2026-11-16 08:40:00), not carried
+RESULT: PASS mode=REPLAY items=3 mismatches=0 known=2

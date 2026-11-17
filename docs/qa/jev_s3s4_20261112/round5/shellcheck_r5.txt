@@ -1,0 +1,10 @@
+scripts/jev/jev-place.sh | r5:       2 SC1091  | r4:       2 SC1091 
+tests/jev/test_s4_placement.sh | r5:       1 SC1091      10 SC2015       4 SC2016       3 SC2329  | r4:       1 SC1091      10 SC2015       4 SC2016       3 SC2329 
+tests/jev/test_jev_status_health.sh | r5:       1 SC1091  | r4:       1 SC1091 
+scripts/jev/jev-status.sh | r5:       1 SC1091       2 SC2015  | r4:       1 SC1091       2 SC2015 
+skills/jev-decision-layer/register.sh | r5:       1 SC1091  | r4:       1 SC1091 
+tests/jev/test_tab_fields.sh | r5:       2 SC1091  | r4:       2 SC1091 
+tests/jev/test_no_real_tools.sh | r5:       1 SC1091  | r4: NEW
+tests/jev/test_review_fixes_r5.sh | r5:       1 SC1090       6 SC1091       1 SC2016       2 SC2034  | r4:       1 SC1090       6 SC1091       1 SC2016       2 SC2034 
+scripts/jev/lib_decide.sh | r5:       2 SC1003       1 SC1091       1 SC2015       2 SC2034  | r4:       2 SC1003       1 SC1091       1 SC2015       2 SC2034 
+tests/jev/fixtures/bin-place/llmctl | r5:       1 SC2231  | r4:       1 SC2231 

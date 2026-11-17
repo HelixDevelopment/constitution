@@ -1,0 +1,22 @@
+REFUSED curl -fsS http://127.0.0.1:46283/healthz
+REFUSED curl -fsS --max-time 2 http://127.0.0.1:1/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:46283/healthz
+REFUSED curl -fsS --max-time 5 -X POST http://127.0.0.1:46283/v1/systemone -H Content-Type: application/json -d {"model":"jev-fixture","state":"s","questions":{"q":{"type":"choice","instructions":"i","criteria":{"yes":"y","no":"n"}}}}
+REFUSED curl -fsS --max-time 5 -X POST http://127.0.0.1:46283/v1/systemone -H Content-Type: application/json -d {"model":"jev-fixture","state":"s","questions":{"q":{"type":"choice","instructions":"i","criteria":{"yes":"y","no":"n"}}}}
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:43035/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:9/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:43035/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:43035/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:43035/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:1/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:43035/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:43035/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:43035/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:43035/healthz
+REFUSED curl -fsS --max-time 3 http://127.0.0.1:38651/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:38651/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:38651/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:38651/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:38651/healthz
+REFUSED curl --version
+REFUSED curl --version

@@ -178,8 +178,9 @@ s2="$(env -i PATH=/nonexistent LANG=C.UTF-8 "$PY3" -I "$CEN" netgate --pin "$PIN
 ns="$(printf '%s\n' "$s1" | grep -c '^SITE')"
 nf="$(printf '%s\n' "$s1" | awk -F '\t' '$1=="SITE" && $6=="FINDING"' | wc -l)"
 nu="$(printf '%s\n' "$s1" | awk -F '\t' '$1=="SITE" && $6 !~ /^(network-through-(rc_net|nt|net)|interpreter-allow-listed|local|local-checked-(awk|sed|sort|sqlite3))$/' | wc -l)"
-# CON-423 (2026-11-16): 146 sites (135 + 11: the D10 push-URL read and GitHub id check, the D3 dry-run probes)
-[ "$ns" -eq 146 ] && [ "$nf" -eq 0 ] && [ "$nu" -eq 0 ] && ok "netgate: the golden-FALSE corpus: 146 sites of the real scripts, every one labelled with a class of the closed set, none a finding" || bad "netgate golden-FALSE: sites=$ns findings=$nf unlabelled=$nu"
+# CON-423 (2026-11-16): +11 sites (the D10 push-URL read and GitHub id check, the D3 dry-run probes); merged on main
+# with B-M1/B-M2/B-M4 (136 sites): 147
+[ "$ns" -eq 147 ] && [ "$nf" -eq 0 ] && [ "$nu" -eq 0 ] && ok "netgate: the golden-FALSE corpus: 147 sites of the real scripts, every one labelled with a class of the closed set, none a finding" || bad "netgate golden-FALSE: sites=$ns findings=$nf unlabelled=$nu"
 
 # ---- part 2d (round 13, F3 of the round-12 review): the byte pin, the first layer of the network-spawn gate ----
 # tests/release/netgate_pin.tsv pins the exact bytes of the four release files: every line (key8 of the normalised
@@ -195,7 +196,7 @@ pin(){ # pin NAME WANT-RC PATTERN TABLE FILE...: netgate --pin on the files
   local n="$1" want="$2" pat="$3" tab="$4"; shift 4
   o="$(env -i PATH=/nonexistent LANG=C.UTF-8 "$PY3" -I "$CEN" netgate --pin "$tab" "$@" 2>&1)"; r=$?
   if [ "$r" -eq "$want" ] && printf '%s\n' "$o" | grep -qF -- "$pat"; then ok "netgate pin: $n"; else bad "netgate pin: $n (rc $r): $(printf '%s\n' "$o" | head -3 | tr '\n' ' ')"; fi; }
-pcopy "$W/pc0"; pin "unchanged copies pass (control)" 0 'NETGATE layer=pin+analyser invocations=146 network_through_rc_net=61 findings=0' "$PIN" "${PCS[@]}"
+pcopy "$W/pc0"; pin "unchanged copies pass (control)" 0 'NETGATE layer=pin+analyser invocations=147 network_through_rc_net=61 findings=0' "$PIN" "${PCS[@]}"
 pcopy "$W/pc1"; sed -i '2s/$/ /' "$W/pc1/release/tag_and_release.sh"
 pin "a trailing space on one line (same normalised key, other bytes)" 1 'PIN tag_and_release.sh:2 line key' "$PIN" "${PCS[@]}"
 pcopy "$W/pc2"; printf '%s\n' '# a comment line' >>"$W/pc2/release_publish_gitea.sh"
@@ -285,7 +286,7 @@ PORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print
 python3 "$W/stub.py" "$PORT" & SRV=$!
 for _ in 1 2 3 4 5 6 7 8 9 10; do (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null && break; sleep 0.3; done
 BASH_BIN="$(command -v bash)"; TO_BIN="$(command -v timeout)"
-out="$(cd "$P" && PATH="$REC:$PATH" M3W_GITEA_TOKEN=$T XYZ_TOKEN=ZZCENXYZ "$TO_BIN" 60 "$BASH_BIN" "${SCRIPTS[3]}" --tag rel-1 --base-url "http://127.0.0.1:$PORT" </dev/null 2>&1)"; rc=$?
+out="$(cd "$P" && PATH="$REC:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T M3W_GITEA_TOKEN=ZZCENM3W XYZ_TOKEN=ZZCENXYZ "$TO_BIN" 60 "$BASH_BIN" "${SCRIPTS[3]}" --tag rel-1 --base-url "http://127.0.0.1:$PORT" --token-var GITEA_LOOPBACK_TEST_TOKEN </dev/null 2>&1)"; rc=$?
 [ $rc -eq 0 ] && printf '%s\n' "$out" | grep -q '^CREATED' && ok "runtime: the publisher run completes (control, rc 0)" || bad "runtime: publisher rc=$rc $out"
 grep -qx '== curl' "$CEN_LOG" && ok "runtime: the curl call is recorded (control needle)" || bad "runtime: curl not recorded (recorders blind)"
 grep -q '^A .*/api/v1/repos/' "$CEN_LOG" && ok "runtime: the request URL is in the recorded argv (positive needle)" || bad "runtime: argv census blind"
@@ -293,6 +294,7 @@ unk=""; while IFS= read -r c; do printf '%s\n' "${TCMDS[@]}" | grep -qx -- "$c" 
 [ -z "$unk" ] && ok "runtime: every command the publisher ran is in the table" || bad "runtime: commands not in the table:$unk"
 grep -q -- "$T" "$CEN_LOG" && { awk -v t="$T" '/^== /{c=$0} index($0,t){print c": "$0}' "$CEN_LOG" | head -5; bad "runtime: the token is in the argv or environment of a child"; } || ok "runtime: no argv and no environment of any child holds the token"
 grep -q 'ZZCENXYZ' "$CEN_LOG" && bad "runtime: a caller *TOKEN* variable reaches a child" || ok "runtime: no caller *TOKEN* variable reaches a child"
+grep -q 'ZZCENM3W' "$CEN_LOG" && bad "runtime: the unnamed M3W_GITEA_TOKEN reaches a child (B-M2)" || ok "runtime: the token variable not named by --token-var reaches no child (B-M2)"
 grep -q '^E PATH=' "$CEN_LOG" && ok "runtime: the environment census reads PATH (control needle)" || bad "runtime: env census blind"
 # round 11 (rc_net at run time): the curl child's environment is the network allow-list: it has LC_ALL=C (positive
 # needle) and no CEN_LOG, which a local child of the same run has (control needle: a RELEASE_ENV_KEEP name)

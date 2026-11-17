@@ -1,0 +1,41 @@
+FAIL - M1 loopback gateway stub reachable (expected [0] got [126])
+ok 1 - M1 bootstrap rc 0
+ok 2 - M1 Kev, Laya, Verdict profiles detected; stopped decide-max NOT listed
+ok 3 - M1 all sourced local-llmctl
+ok 4 - M1 per-profile parallelism = effective_slots_per_instance
+ok 5 - M1 capacity.instances == endpoint count
+ok 6 - M1 capacity.parallel_total == sum of parallelism
+ok 7 - M1 no absence reason when endpoints exist
+ok 8 - M1-NEG: after kev stops, only laya remains (stage re-ran: status is part of the key)
+ok 9 - M2 bootstrap rc 0
+ok 10 - M2 both hosted providers detected from the endpoint cache
+ok 11 - M2 provenance source = toolkit-cache
+ok 12 - M2 models preserved
+ok 13 - M2 detection refreshed the cache through claude-providers sync-jev
+ok 14 - M2 cache lives at $CMA_PROVIDERS_DIR/jev-endpoints.json
+ok 15 - M2: placeholder credential VALUE appears in no output/state/evidence file
+ok 16 - M2 detection evidence holds no key value
+ok 17 - M3 one local + one hosted endpoint
+ok 18 - M3 local instance carries parallel=3
+ok 19 - M3 hosted endpoint does not inherit local parallelism (parallel=1)
+ok 20 - M3: placeholder credential VALUE appears in no output/state/evidence file
+ok 21 - M4 hosted reachable=null (cache records resolution, not a probe)
+FAIL - M4 local reachable=true because the gateway URL really answered /healthz (probed, not claimed) (expected [true] got [false])
+ok 22 - M4-NEG: gateway down => reachable=false
+ok 23 - M5 empty detection is lawful (rc 0)
+ok 24 - M5 zero endpoints recorded
+ok 25 - M5 absence carries an explicit reason (never silent)
+ok 26 - M5 NEG: nothing downloaded without consent
+ok 27 - M6-NEG: capacity fits but NO consent => no download
+ok 28 - M6 consent + capacity fits => download requested
+ok 29 - M6 downloaded-but-not-started is recorded as pending
+ok 30 - M6-NEG: consent given but capacity does not fit => no download
+ok 31 - M6-NEG: the refusal reason is in the evidence
+ok 32 - M6-NEG: shell-metacharacter profile name rejected (rc 2)
+ok 33 - M7 bootstrap rc 0 on the real-schema capacity report
+ok 34 - M7 NEG: no endpoint with id/model null fabricated from the object-shaped report
+ok 35 - M7 Kev, Laya and Verdict each yield one endpoint
+ok 36 - M8 NEG: no toolkit/llmctl on PATH -> endpoints NOT invented
+ok 37 - M8 absence carries an explicit reason
+ok 38 - M8 reason says llmctl was not found
+# test_detection_matrix.sh: pass=38 fail=2 skip=0

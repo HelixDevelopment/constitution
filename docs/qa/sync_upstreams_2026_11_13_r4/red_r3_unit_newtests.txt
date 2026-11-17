@@ -1,0 +1,247 @@
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+....F.......EEEEEEEEEFEEEEEEF.......F.......
+======================================================================
+ERROR: test_argparse_error_is_redacted (__main__.LongSecrets.test_argparse_error_is_redacted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_fuzz (__main__.LongSecrets.test_fuzz)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_internal_error_is_redacted (__main__.LongSecrets.test_internal_error_is_redacted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_known_secret_quoted_without_its_url (__main__.LongSecrets.test_known_secret_quoted_without_its_url)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_long_secrets (__main__.LongSecrets.test_long_secrets)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_redact_url_whole_value (__main__.LongSecrets.test_redact_url_whole_value)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_register_secret_pieces (__main__.LongSecrets.test_register_secret_pieces)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_report_keys (__main__.LongSecrets.test_report_keys)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_secret_holding_scheme_marks_and_at_signs (__main__.LongSecrets.test_secret_holding_scheme_marks_and_at_signs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 716, in setUp
+    with E._KNOWN_LOCK:
+         ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute '_KNOWN_LOCK'
+
+======================================================================
+ERROR: test_path_kind (__main__.ProbeChild.test_path_kind)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 554, in test_path_kind
+    self.assertEqual(E.path_kind(os.path.join(self.d, "nope")), "absent")
+                     ^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'path_kind'
+
+======================================================================
+ERROR: test_path_kind_permission_denied_is_unreadable (__main__.ProbeChild.test_path_kind_permission_denied_is_unreadable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 565, in test_path_kind_permission_denied_is_unreadable
+    self.assertEqual(E.path_kind(os.path.join(box, "child")), "absent")  # control: readable box, no child
+                     ^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'path_kind'
+
+======================================================================
+ERROR: test_probe_child_exit_128_is_unreadable_not_uninitialised (__main__.ProbeChild.test_probe_child_exit_128_is_unreadable_not_uninitialised)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 608, in test_probe_child_exit_128_is_unreadable_not_uninitialised
+    kind, r = self.probe(sub, ("exit", 128, "", "fatal: not a git repository: /nonexistent/broken"))
+              ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 583, in probe
+    return E.probe_child(r, path), r
+           ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'probe_child'
+
+======================================================================
+ERROR: test_probe_child_foreign_toplevel_is_unreadable (__main__.ProbeChild.test_probe_child_foreign_toplevel_is_unreadable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 615, in test_probe_child_foreign_toplevel_is_unreadable
+    kind, r = self.probe(sub, ("exit", 0, self.d + "\n", ""))
+              ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 583, in probe
+    return E.probe_child(r, path), r
+           ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'probe_child'
+
+======================================================================
+ERROR: test_probe_child_kinds (__main__.ProbeChild.test_probe_child_kinds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 587, in test_probe_child_kinds
+    self.assertEqual(self.probe(sub, ("exit", 0, sub + "\n", ""))[0], "absent")
+                     ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 583, in probe
+    return E.probe_child(r, path), r
+           ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'probe_child'
+
+======================================================================
+ERROR: test_probe_child_unreadable_parent (__main__.ProbeChild.test_probe_child_unreadable_parent)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 624, in test_probe_child_unreadable_parent
+    kind, r = self.probe(sub, ("exit", 0, sub + "\n", ""))
+              ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 583, in probe
+    return E.probe_child(r, path), r
+           ^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'probe_child'
+
+======================================================================
+FAIL: test_submodule_on_a_branch_is_kept (__main__.Integrate.test_submodule_on_a_branch_is_kept)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 681, in test_submodule_on_a_branch_is_kept
+    self.assertIn({"op": "none", "why": "advance-skipped:submodule-on-branch"}, c.rec["actions"])
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'op': 'none', 'why': 'advance-skipped:submodule-on-branch'} not found in [{'op': 'advance-pin', 'to': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'rc': 0, 'error': '', 'staged_rc': 0}]
+
+======================================================================
+FAIL: test_in_progress (__main__.ProbeChild.test_in_progress)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 578, in test_in_progress
+    self.assertEqual(E.in_progress(g), [n + "?unreadable" for n in ("MERGE_HEAD", "CHERRY_PICK_HEAD",
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply", "index.lock")])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != ['MERGE_HEAD?unreadable', 'CHERRY_PICK_HEA[139 chars]ble']
+
+Second list contains 7 additional elements.
+First extra element 0:
+'MERGE_HEAD?unreadable'
+
+- []
++ ['MERGE_HEAD?unreadable',
++  'CHERRY_PICK_HEAD?unreadable',
++  'REVERT_HEAD?unreadable',
++  'BISECT_LOG?unreadable',
++  'rebase-merge?unreadable',
++  'rebase-apply?unreadable',
++  'index.lock?unreadable']
+
+======================================================================
+FAIL: test_start_directory_exit_128 (__main__.ProbeChild.test_start_directory_exit_128)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 645, in test_start_directory_exit_128
+    self.assertEqual(code, E.EXIT_BLIND)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 6
+
+======================================================================
+FAIL: test_every_trace_and_curl_verbose_variable_is_dropped (__main__.TraceScrub.test_every_trace_and_curl_verbose_variable_is_dropped)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 709, in test_every_trace_and_curl_verbose_variable_is_dropped
+    self.assertEqual(sorted(k for k in bad if k in env), [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['GIT_CURL_VERBOSE', 'GIT_TRACE2', 'GIT_TR[304 chars]LOW'] != []
+
+First list contains 16 additional elements.
+First extra element 0:
+'GIT_CURL_VERBOSE'
+
++ []
+- ['GIT_CURL_VERBOSE',
+-  'GIT_TRACE2',
+-  'GIT_TRACE2_CONFIG_PARAMS',
+-  'GIT_TRACE2_ENV_VARS',
+-  'GIT_TRACE2_EVENT',
+-  'GIT_TRACE2_EVENT_NESTING',
+-  'GIT_TRACE2_PERF',
+-  'GIT_TRACE_CURL_NO_DATA',
+-  'GIT_TRACE_FSMONITOR',
+-  'GIT_TRACE_PACKFILE',
+-  'GIT_TRACE_PACK_ACCESS',
+-  'GIT_TRACE_PERFORMANCE',
+-  'GIT_TRACE_REDACT',
+-  'GIT_TRACE_REFS',
+-  'GIT_TRACE_SETUP',
+-  'GIT_TRACE_SHALLOW']
+
+----------------------------------------------------------------------
+Ran 69 tests in 0.202s
+
+FAILED (failures=4, errors=15)
+sync-unit: PASS 50 FAIL 19 SKIP 0

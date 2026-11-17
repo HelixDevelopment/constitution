@@ -1,0 +1,1 @@
+CM-JEV-TOKEN-REDUCTION BLIND: no real BEFORE/AFTER harness pair configured (set JEV_BEFORE and JEV_AFTER, or place before.jsonl/after.jsonl in /home/milosvasic/.local/state/jev/evidence); no verdict is possible (rc 2, never a pass)

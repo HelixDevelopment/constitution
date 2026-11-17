@@ -1,0 +1,9 @@
+head rc=0 lines=675 sha256=81ee54671dc50066
+NEGATIVE-CONTROL head vs head: identical
+POSITIVE-CONTROL W23_mention_case_sensitive_both rc=2 differing_lines=676
+SURVIVOR W22_mention_lookbehind_digit rc=0 differing_lines=0
+SURVIVOR W24_ls_perm_any rc=0 differing_lines=0
+SURVIVOR W33_mention_ascii rc=0 differing_lines=0
+SURVIVOR W36_splitlines rc=0 differing_lines=0
+git-env-class-census: PASS - members=672 hermetic=513 exempt=159 unscrubbed=0
+rc=0

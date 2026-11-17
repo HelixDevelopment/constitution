@@ -1,0 +1,9 @@
+5a3fc68e4f2ec433e9f756d9ad414f1ae6d5333c590ceae28e257258842713f7  <P>
+census_bundle_head.py S1-declare-l-ge_v-unsets-proved-wt_path.sh rc=0 violations=0 not_desugared_rows=0
+check_safepath_census.py S1-declare-l-ge_v-unsets-proved-wt_path.sh rc=1 violations=2 not_desugared_rows=1
+4e1e1edfe33518bbb7416c864c7f94768521eb0465853f945bbf3ba108631147  <P>
+census_bundle_head.py S13-local-l-in-function.sh rc=0 violations=0 not_desugared_rows=0
+check_safepath_census.py S13-local-l-in-function.sh rc=1 violations=2 not_desugared_rows=1
+control: real baseline_replay.sh
+census_bundle_head.py real rc=0
+check_safepath_census.py real rc=0

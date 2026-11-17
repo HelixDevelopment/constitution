@@ -91,7 +91,7 @@ case "$MODE" in shadow|enforce) ;; *) refuse "JEV_MODE must be shadow or enforce
 # Test-only overrides (honoured only with JEV_TEST=1): JEV_REQUIRE_VALIDATED_CMD, JEV_DECISION_PROFILES.
 _det="$(jev_detection_file)"
 REQ_MODE="$MODE"
-IFS=$'\t' read -r MODE MODE_WHY < <(jev_effective_mode "$REQ_MODE" "" "$_det" "$CFGDIR/jev-thresholds.json") || true
+IFS=$'\x1f' read -r MODE MODE_WHY < <(jev_effective_mode "$REQ_MODE" "" "$_det" "$CFGDIR/jev-thresholds.json" | tr '\t' '\037') || true   # \x1f, never TAB (r4 N1)
 [ "$MODE" = "enforce" ] || MODE="shadow"
 # (No separate stored-base-URL check: the shared jev_effective_mode resolves JEV_BASE_URL from the process env, the env
 # file, the MCP entry and the ranked cache itself, review r4 I4-1; one hosted value anywhere forces shadow.)
@@ -186,11 +186,11 @@ if [ -d "$JHOME/.claude" ]; then
   fi
   # every OTHER covered config with a jev entry that carries a JEV_MODE agrees with this run too (r7 n7-3; bootstrap does the
   # same, so jev-status never reports a mismatch after register alone). Optimistic write, skipped with a warning on a race.
-  while IFS=$'\t' read -r _mf _mm; do
+  while IFS=$'\x1f' read -r _mf _mm; do   # \x1f, never TAB (r4 N1)
     [ -n "${_mf:-}" ] && [ "$_mm" != "$MODE" ] || continue
     [ "$(jev_real_target "$_mf")" != "$(jev_real_target "$m")" ] || continue
     jev_mcp_mode_rewrite "$_mf" "$MODE" && log "claude: MCP 'jev' env.JEV_MODE re-derived -> $MODE ($_mf)"
-  done < <(jev_mcp_modes)
+  done < <(jev_mcp_modes | tr '\t' '\037')
 fi
 
 # ── kimi ──

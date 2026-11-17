@@ -1,0 +1,15 @@
+run_all	rc=0	2763s	guard=101	ran 37, failed 0
+gate_pairs_nokeys	rc=0	170s	guard=1	[test_gate_pairs] PASS (4 pairs GREEN+RED, propagation data pack + wrappers consistent)
+gate_pairs_fakekeys	rc=0	183s	guard=1	[test_gate_pairs] PASS (4 pairs GREEN+RED, propagation data pack + wrappers consistent)
+fake_key_values_in_output	0
+gate_bootstrap_idempotent_mutation	rc=0	111s	guard=1	[mutation:bootstrap] PASS: cm_jev_bootstrap_idempotent.sh genuinely discriminates (GREEN genuine / RED mutated)
+gate_detection_mutation	rc=0	12s	guard=0	[mutation:detection] PASS: cm_jev_detection.sh genuinely discriminates (GREEN genuine / RED mutated)
+gate_token_reduction_mutation	rc=0	3s	guard=0	[mutation:token] PASS: cm_jev_token_reduction.sh genuinely discriminates (GREEN genuine / RED mutated)
+gate_wiring_mutation	rc=0	3s	guard=0	[mutation:wiring] PASS: cm_jev_wiring.sh genuinely discriminates (GREEN genuine / RED mutated)
+test_s4_placement	rc=0	488s	guard=0	# test_s4_placement.sh: pass=266 fail=0 skip=0
+test_s4_round6	rc=0	526s	guard=0	# test_s4_round6.sh: pass=183 fail=0 skip=0
+test_s4_round7	rc=0	429s	guard=0	# test_s4_round7.sh: pass=157 fail=0 skip=0
+test_review_fixes_r2	rc=0	24s	guard=0	# test_review_fixes_r2.sh: pass=51 fail=0 skip=0
+test_jev_status_health	rc=0	11s	guard=0	# test_jev_status_health.sh: pass=110 fail=0 skip=0
+test_tab_fields	rc=0	9s	guard=0	# test_tab_fields.sh: pass=15 fail=0 skip=0
+test_no_real_tools	rc=0	174s	guard=1	# test_no_real_tools.sh: pass=11 fail=0 skip=0

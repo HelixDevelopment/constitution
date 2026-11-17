@@ -1,0 +1,20 @@
+control needle: def write_git found 1 (want 1); write_markerX calls 0 (want 0)
+
+== write paths: r.run(..., write=True) (3)
+  line 1534  in write_git    token=tok from begin_write
+  line 1536  in write_git    token=tok from begin_write
+  line 1580  in write_git    token=tok2 from begin_write
+
+== marker calls (5)
+  line 968  write_marker in begin_write
+  line 974  clear_marker in begin_write
+  line 916  clear_marker in write_marker
+  line 989  clear_marker in end_write
+  line 2063  clear_marker in run
+
+== R4 token checked at the spawn choke point: yes
+
+== violations (0)
+
+INSTRUMENT: SEES
+rc=0

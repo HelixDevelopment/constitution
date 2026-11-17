@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""r4_class.py WT OUTDIR -- fixer (round 4) class instrument for CON-450 / the CON-402 git-env census (review R3-7).
+
+Extends the reviewer's round-3 instrument (rev_con402r3 tools/rv3_class.py, members B01..B25 and controls K0..K2 kept
+VERBATIM) with members invented here, so that the instrument can SEE what rounds 1 to 3 could not: an attack that does
+not change a proved variable but DEFEATS THE SCRUB (GIT_DIR / GIT_INDEX_FILE survive the canonical line), and an
+operation hidden from the census's reading of the file.
+
+For every member:
+ (a) BASH TRUTH (the oracle): a standalone program = [line 1] + [member placed as its kind says] + the REAL canonical
+     line + a tail that assigns wt_path=/proved, defines _fc_safe, runs it, and prints GIT_DIR / GIT_INDEX_FILE (both
+     inherited from the environment), wt_path and whether _fc_safe is still a function. Run by GNU bash 5
+     (/usr/bin/bash --norc --noprofile FILE; kind 'shebang' runs the file directly) under a fixed small environment.
+     Effects: SCRUB-DEFEATED(GIT_DIR / GIT_INDEX_FILE), wt_path-CHANGED, FUNC_GONE, PATHRUN (a PATH program ran instead of
+     a function), HIDDEN-OP (a `mkdir -p -- "${RV_UNPROVED:?}/..."` in the member created its directory).
+ (b) SAFEPATH census on the real baseline_replay.sh with the member placed the same way (rc, first VIOLATION).
+ (c) GIT-ENV census, the real tool (main(), whole run) over a mini repository that holds the probe file (= the real
+     baseline_replay.sh with the member) plus the canonical library and an empty exemption list; rc and the probe
+     file's row.
+ESCAPE(safepath) = any bash effect AND safepath rc=0.  ESCAPE(git-env) = SCRUB-DEFEATED AND git-env rc=0.
+Control needles (section 11.4.273; a wrong control makes the run BLIND, exit 2):
+  K0 unmodified file (both censuses rc=0, bash: no effect); K1 plain `declare -l _ge_v` before the line (both refuse;
+  bash: SCRUB-DEFEATED -- the oracle sees scrub defeat); K2 `true` before the line (both refuse); K3 a plain hidden-op
+  line after the canonical line (bash: HIDDEN-OP -- the oracle sees an operation; safepath refuses); K4 `:` after the
+  line (bash: no effect -- the oracle is not always-on).
+Payloads are built here in Python (bytes where a member needs a byte that is not UTF-8); nothing here is a shell
+heredoc, and no member removes or rewrites a file outside OUTDIR."""
+import hashlib, os, re, shutil, subprocess, sys
+
+wt, out = sys.argv[1:3]
+os.makedirs(out, exist_ok=True)
+BRP = os.path.join(wt, "scripts/fastcycle/cycle/baseline_replay.sh")
+SUP = os.path.join(wt, "scripts/fastcycle/cycle/fc_supervisor.py")
+SP = os.path.join(wt, "scripts/fastcycle/tests/check_safepath_census.py")
+GE = os.path.join(wt, "scripts/validation/git_env_class_census.py")
+LIB = os.path.join(wt, "scripts/lib/constitution_layout.sh")
+ORIG = open(BRP, "rb").read()
+BR = ORIG.decode("utf-8")
+LINE = re.search(r'^for _ge_v in ([A-Z_ ]+); do unset "\$_ge_v"; done; unset _ge_v[^\n]*$', BR, re.M).group(0)
+assert BR.count(LINE) == 1
+BS = "\\"
+G = "_g" + BS + "e_v"
+CD = "command declare -l " + G
+HOP = 'mkdir -p -- "${RV_UNPROVED:?}/x"'
+
+# (id, kind, text) kind: 'pre' before the line, 'post' after it, 'shebang' replaces line 1, 'file' = a function of the
+# whole text (applied to the program and to the censused file alike), 'line' = a replacement for the canonical line
+M = [
+    # ---- the reviewer's round-3 members, verbatim (rv3_class.py) ----
+    ("B01-CR-comment-then-command-declare-l", "pre", "\r#;" + CD),
+    ("B02-FS(0x1c)-comment-then-command-declare-l", "pre", "\x1c#;" + CD),
+    ("B03-VT-comment-then-command-declare-l", "pre", "\x0b#;" + CD),
+    ("B04-FF-comment-then-command-declare-l", "pre", "\x0c#;" + CD),
+    ("B05-NBSP-comment-then-command-declare-l", "pre", "\u00a0#;" + CD),
+    ("B06-NEL(U+0085)-comment-then-command-declare-l", "pre", "\u0085#;" + CD),
+    ("B07-EMSP(U+2003)-comment-then-command-declare-l", "pre", "\u2003#;" + CD),
+    ("B08-CR-comment-then-DEBUG-trap-on-proved", "pre", "\r#;trap '[[ ${wt_path-} == /proved ]] && wt_path=/' DEBUG"),
+    ("B09-RS(0x1e)-comment-then-readonly", "pre", "\x1e#;readonly " + G),
+    ("B10-CR-comment-then-declare-i (abort/skip)", "pre", "\r#;command declare -i " + G),
+    ("B11-US(0x1f)-blank-looking-line-then-code-line", "pre", "\x1f;" + CD),
+    ("B12-CR-comment-then-shadow-unset-function", "pre", "\r#;unset(){ :; }"),
+    ("B13-shebang-env-S-bash-c-declare", "shebang", "#!/usr/bin/env -S bash -c 'declare -l _g\\\\e_v; . \"$0\"'"),
+    ("B14-backslash-unset-f-trusted", "post", BS + "unset -f _fc_safe"),
+    ("B15-quoted-cmdword-unset-f", "post", '"unset" -f _fc_safe'),
+    ("B16-var-cmdword-unset-f", "post", "_u=unset; $_u -f _fc_safe"),
+    ("B17-builtin-unset-f", "post", "builtin unset -f _fc_safe"),
+    ("B18-eval-unset-f", "post", "eval 'unset -f _fc_safe'"),
+    ("B19-function-keyword-redefine", "post", "function _fc_safe { wt_path=/; }"),
+    ("B20-alias-shadow-trusted", "post", "shopt -s expand_aliases; alias _fc_safe='wt_path=/;:'"),
+    ("B21-source-procsubst-redefine", "post", ". <(printf '%s' '_fc_safe(){ wt_path=/; }')"),
+    ("B22-command-p-runs-program", "post", "command -p _fc_safe probe"),
+    ("B23-command-dashdash-runs-program", "post", "command -- _fc_safe probe"),
+    ("B24-unset-f-quoted-option-word", "post", "unset '-f' _fc_safe"),
+    ("B25-builtin-declare-gl-after", "post", "builtin declare -l " + G),
+]
+# ---- invented here (round 4) ----
+CHARS = [("GS(0x1d)", "\x1d"), ("DEL(0x7f)", "\x7f"), ("IDSP(U+3000)", "\u3000"), ("LSEP(U+2028)", "\u2028"),
+         ("PSEP(U+2029)", "\u2029"), ("ZWSP(U+200B)", "\u200b"), ("RLO(U+202E)", "\u202e"), ("LRI(U+2066)", "\u2066"),
+         ("BOM(U+FEFF)", "\ufeff"), ("NNBSP(U+202F)", "\u202f"), ("OGHAM(U+1680)", "\u1680"), ("THSP(U+2009)", "\u2009")]
+n = 1
+for nm, ch in CHARS:
+    M.append(("N%02d-%s-comment-then-command-declare-l" % (n, nm), "pre", ch + "#;" + CD)); n += 1
+for nm, ch in (("CR", "\r"), ("VT", "\x0b"), ("FF", "\x0c"), ("NBSP", "\u00a0"), ("NEL", "\u0085"), ("FS", "\x1c")):
+    M.append(("N%02d-%s-comment-then-shadow-unset" % (n, nm), "pre", ch + "#;unset(){ :; }")); n += 1
+    M.append(("N%02d-%s-hides-op-after-the-line" % (n, nm), "post", ":" + ch + "#;" + HOP.replace("/x", "/" + nm))); n += 1
+M += [
+    ("N%02d-CR-inside-the-canonical-line" % n, "line", LINE.replace("GIT_INDEX_FILE ", "GIT_INDEX_FILE\r ", 1)),
+    ("N%02d-CRLF-whole-file" % (n + 1), "file", lambda t: t.replace("\n", "\r\n")),
+    ("N%02d-CR-blank-line-before" % (n + 2), "pre", "\r"),
+    ("N%02d-CR-at-end-of-a-comment" % (n + 3), "pre", "# a comment\r"),
+    ("N%02d-comment-backslash-then-code" % (n + 4), "pre", "# a comment " + BS + "\n" + CD),
+    ("N%02d-heredoc-in-preamble" % (n + 5), "pre", "cat >/dev/null <<'RVH'\nx\nRVH\n" + CD),
+    ("N%02d-shebang-BASH_ENV-shadow-unset" % (n + 6), "shebang", "#!/usr/bin/env -S BASH_ENV=./benv.sh bash"),
+    ("N%02d-shebang-bash-O-extdebug" % (n + 7), "shebang", "#!/bin/bash -O extdebug"),
+    ("N%02d-shebang-space" % (n + 8), "shebang", "#! /bin/bash"),
+    ("N%02d-shebang-CR" % (n + 9), "shebang", "#!/bin/bash\r"),
+    ("N%02d-BOM-before-shebang" % (n + 10), "shebang", "\ufeff#!/bin/bash"),
+    ("N%02d-NUL-comment-then-declare" % (n + 11), "pre", "#\x00;" + CD),
+    ("N%02d-non-UTF-8-byte-in-comment" % (n + 12), "pre", "# \udcff"),
+    ("N%02d-non-UTF-8-byte-leading" % (n + 13), "pre", "\udcff#;" + CD),
+    ("N%02d-VT-mid-line-hides-op" % (n + 14), "post", "true\x0b;" + HOP.replace("/x", "/vt2")),
+    ("N%02d-NBSP-in-an-assignment-after" % (n + 15), "post", "_rvn=a\u00a0b"),
+    ("N%02d-RLO-in-a-string-after" % (n + 16), "post", ": '\u202e'"),
+    ("N%02d-Cyrillic-in-code-after" % (n + 17), "post", ": '\u043c'"),
+    # golden-false members (bash: no effect; the censuses should accept them)
+    ("G01-TAB-led-comment", "pre", "\t# a TAB-led comment"),
+    ("G02-blank-blanks", "pre", " \t "),
+    ("G03-unicode-full-line-comment", "pre", "# a \u2014 \u043c \u00a7 b"),
+    ("G04-shebang-env-bash", "shebang", "#!/usr/bin/env bash"),
+    ("G05-no-shebang-comment-first", "shebang", "# no shebang line"),
+]
+CONTROLS = [("K0-unmodified", None, None), ("K1-plain-declare-l-before", "pre", "declare -l _ge_v"),
+            ("K2-true-before", "pre", "true"), ("K3-plain-hidden-op-after", "post", HOP.replace("/x", "/k3")),
+            ("K4-colon-after", "post", ":")]
+
+POSTTAIL = ("\nwt_path=/proved\n_fc_safe() { :; }\n:\n:\n{POST}\n:\n_fc_safe probe\ntrap - DEBUG\n"
+            "echo \"RES GIT_DIR=${GIT_DIR-[UNSET]} GIT_INDEX_FILE=${GIT_INDEX_FILE-[UNSET]} wt_path=${wt_path-[UNSET]}\"\n"
+            "declare -F _fc_safe >/dev/null || echo FUNC_GONE:_fc_safe\n")
+
+
+def enc(t):
+    return t.encode("utf-8", "surrogateescape")
+
+
+def place(kind, text, src, line):
+    """the member placed in src (a file whose canonical line is `line`)"""
+    if kind == "pre":
+        return src.replace(line, text + "\n" + line, 1)
+    if kind == "post":
+        return src.replace(line, line + "\n" + text, 1)
+    if kind == "line":
+        return src.replace(line, text, 1)
+    if kind == "file":
+        return text(src)
+    ls = src.split("\n")
+    return "\n".join([text] + ls[1:])
+
+
+def bash_truth(mid, kind, text):
+    d = os.path.join(out, "bash", re.sub(r"[^A-Za-z0-9_.-]", "_", mid))
+    os.makedirs(d, exist_ok=True)
+    pb = os.path.join(out, "path_bin")
+    os.makedirs(pb, exist_ok=True)
+    f = os.path.join(pb, "_fc_safe")
+    open(f, "w").write("#!/bin/sh\necho PATHRUN:_fc_safe\n")
+    os.chmod(f, 0o700)
+    open(os.path.join(d, "benv.sh"), "w").write("unset(){ :; }\n")
+    unp = os.path.join(d, "unproved")
+    base = "#!/bin/bash\n" + LINE + POSTTAIL.replace("{POST}", ":")
+    if kind is None:
+        body = base
+    elif kind == "post":
+        body = "#!/bin/bash\n" + LINE + POSTTAIL.replace("{POST}", text)
+    else:
+        body = place(kind, text, base, LINE)
+    prog = os.path.join(d, "prog.sh")
+    open(prog, "wb").write(enc(body))
+    os.chmod(prog, 0o700)
+    env = {"PATH": pb + ":/usr/bin:/bin", "GIT_DIR": "/inherited/git", "GIT_INDEX_FILE": "/inherited/index",
+           "LC_ALL": "C.UTF-8", "RV_UNPROVED": unp}
+    argv = [prog] if kind == "shebang" else ["/usr/bin/bash", "--norc", "--noprofile", prog]
+    try:
+        p = subprocess.run(argv, cwd=d, capture_output=True, env=env, timeout=20)
+        o, e, rc = p.stdout.decode("utf-8", "replace"), p.stderr.decode("utf-8", "replace"), p.returncode
+    except OSError as x:
+        o, e, rc = "", "exec failed: %s" % x, -1
+    eff = []
+    if "RES " in o:
+        if "GIT_DIR=[UNSET]" not in o:
+            eff.append("SCRUB-DEFEATED(GIT_DIR)")
+        if "GIT_INDEX_FILE=[UNSET]" not in o:
+            eff.append("SCRUB-DEFEATED(GIT_INDEX_FILE)")
+        if not re.search(r"wt_path=/proved\s", o + "\n"):
+            eff.append("wt_path-CHANGED")
+    else:
+        eff.append("NO-RESULT(rc=%d)" % rc)
+    eff += sorted({t for t in o.split() if t.startswith(("FUNC_GONE:", "PATHRUN:"))})
+    if os.path.isdir(unp):
+        eff.append("HIDDEN-OP")
+    return eff, (o + " | " + e.replace("\n", " ; "))[:240]
+
+
+def safepath(src, tag):
+    f = os.path.join(out, "sp_" + tag + ".sh")
+    open(f, "wb").write(enc(src))
+    p = subprocess.run([sys.executable, "-I", SP, "--sup", SUP, "--br", f], capture_output=True, text=True, timeout=600)
+    v = [l for l in (p.stdout + p.stderr).splitlines() if l.startswith("VIOLATION")]
+    return p.returncode, (v[0][:170] if v else "-")
+
+
+MINI = os.path.join(out, "mini")
+GENV = {"PATH": "/usr/bin:/bin", "HOME": os.path.join(out, "home"), "LC_ALL": "C.UTF-8",
+        "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@t"}
+
+
+def mini_setup():
+    """a tiny repository: the canonical library, an empty exemption list, and probe.sh (100755) -- tracked once"""
+    os.makedirs(GENV["HOME"], exist_ok=True)
+    if os.path.isdir(MINI):
+        shutil.rmtree(MINI)
+    os.makedirs(os.path.join(MINI, "scripts", "lib"))
+    os.makedirs(os.path.join(MINI, "config"))
+    shutil.copy(LIB, os.path.join(MINI, "scripts", "lib", "constitution_layout.sh"))
+    open(os.path.join(MINI, "config", "git_env_class_exemptions.tsv"), "w").write("# empty (round-4 class instrument)\n")
+    open(os.path.join(MINI, "probe.sh"), "wb").write(ORIG)
+    os.chmod(os.path.join(MINI, "probe.sh"), 0o755)
+    for a in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "mini"]):
+        subprocess.run(["git", "-C", MINI] + a, check=True, env=GENV, capture_output=True)
+
+
+def gitenv(src):
+    open(os.path.join(MINI, "probe.sh"), "wb").write(enc(src))
+    p = subprocess.run([sys.executable, "-I", GE, "--root", MINI], capture_output=True, text=True, timeout=300, env=GENV)
+    o = p.stdout + p.stderr
+    u = [l for l in o.splitlines() if "probe.sh" in l and "UNSCRUBBED" in l]
+    s = [l for l in o.splitlines() if "PASS" in l or "FAIL" in l or "BLIND" in l]
+    return p.returncode, (u[0][:170] if u else "-"), (s[-1][:110] if s else "-")
+
+
+mini_setup()
+rows, blind = [], []
+for mid, kind, text in CONTROLS + M:
+    src = BR if kind is None else place(kind, text, BR, LINE)
+    tag = re.sub(r"[^A-Za-z0-9_.-]", "_", mid)
+    sp_rc, sp_v = safepath(src, tag)
+    ge_rc, ge_u, ge_s = gitenv(src)
+    eff, bo = bash_truth(mid, kind, text)
+    real = [x for x in eff if not x.startswith("NO-RESULT")]
+    scrub = [x for x in eff if x.startswith("SCRUB-DEFEATED")]
+    if mid.startswith("K"):
+        want = {"K0-unmodified": (0, 0, False), "K1-plain-declare-l-before": (1, 1, True),
+                "K2-true-before": (1, 1, None), "K3-plain-hidden-op-after": (1, None, "HIDDEN-OP"),
+                "K4-colon-after": (0, 0, False)}[mid]
+        good = sp_rc == want[0] and (want[1] is None or ge_rc == want[1]) and (
+            want[2] is None or (want[2] is False and not real) or (want[2] is True and bool(scrub)) or
+            (isinstance(want[2], str) and want[2] in eff))
+        v = "control-ok" if good else "CONTROL-WRONG"
+        if not good:
+            blind.append(mid)
+    else:
+        esp = bool(real) and sp_rc == 0
+        ege = bool(scrub) and ge_rc == 0
+        v = ("ESCAPE-BOTH" if esp and ege else "ESCAPE-SAFEPATH" if esp else "ESCAPE-GITENV" if ege else
+             "held" if real else ("golden-false-ok" if sp_rc == 0 and ge_rc == 0 else "refused-noeffect(conservative)"))
+        if mid.startswith("G") and (sp_rc != 0 or ge_rc != 0 or real):
+            v = "GOLDEN-FALSE-WRONG"
+    print("%-52s sp_rc=%d ge_rc=%d bash=%s %s\n    sp: %s\n    ge: %s | %s\n    bash-out: %s"
+          % (mid, sp_rc, ge_rc, ",".join(eff) or "noeffect", v, sp_v, ge_u, ge_s, bo.replace("\r", "\\r")), flush=True)
+    rows.append(v)
+print("SUMMARY members=%d escapes=%d escape_safepath=%d escape_gitenv=%d held=%d golden_false_ok=%d "
+      "golden_false_wrong=%d refused_noeffect=%d controls_wrong=%d" % (
+          len(M), sum(r.startswith("ESCAPE") for r in rows), sum(r in ("ESCAPE-BOTH", "ESCAPE-SAFEPATH") for r in rows),
+          sum(r in ("ESCAPE-BOTH", "ESCAPE-GITENV") for r in rows), rows.count("held"), rows.count("golden-false-ok"),
+          rows.count("GOLDEN-FALSE-WRONG"), rows.count("refused-noeffect(conservative)"), len(blind)))
+if blind:
+    print("BLIND - control needle(s) wrong: %s" % ", ".join(blind))
+    sys.exit(2)
+sys.exit(1 if any(r.startswith("ESCAPE") or r == "GOLDEN-FALSE-WRONG" for r in rows) else 0)

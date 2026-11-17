@@ -7,6 +7,10 @@
 set -uo pipefail
 export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 unset JEV_CONFIG_DIR   # the wiring gate honours it; these fixtures address their config through JEV_HOME
+# R5-11 (round 6): the gates never fall back to the caller's PATH llmctl here (on an operator host that is the real one):
+# a named llmctl that does not exist makes the detection gate's empty-record cross-check a deterministic NOTE.
+_GP_NOLLM="$(mktemp -d)"; trap 'rm -rf "${_GP_NOLLM:?}"' EXIT
+export JEV_LLMCTL_BIN="$_GP_NOLLM/no-llmctl"
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
 GATES="$REPO/scripts/gates"

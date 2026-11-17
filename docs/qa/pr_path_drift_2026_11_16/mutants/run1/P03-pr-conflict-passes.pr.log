@@ -1,0 +1,10 @@
+PASS P1 a failing badge check on a fast-forward PR head refuses (rc=1)
+PASS P1 tsv badges=FAIL gate-env-allowlist=PASS; candidate = head (fast-forward)
+PASS P2 passing checks on a fast-forward PR head pass (rc=0)
+PASS P2 argv recorded (--root <temporary clone> [--check]); the temporary clone is removed
+PASS P3 a merge-commit candidate with passing checks passes (rc=0)
+PASS P3 candidate is a merge commit of base and head
+PASS P3b the merge candidate is not in --repo
+FAIL P4 a merge conflict refuses (rc=0, want 1 / RESULT: FAIL)
+
+RESULT pass=7 fail=1 skip=0 (failfast)
