@@ -407,15 +407,23 @@ mut_allows MI1_stash_history_check '    if lost:
         return ["%d commit(s)' "$I1/main" stash 'stash@{0}' land "$I1/st.patch"
 mut_allows MI2_stash_counts_as_anchor '        if ref == "refs/stash" or ref.startswith(_PER_WORKTREE_REF_PREFIXES):' \
   '        if ref.startswith(_PER_WORKTREE_REF_PREFIXES):' "$I1/main" stash 'stash@{0}' land "$I1/st.patch"
+# CON-451 round 3 (review R2-6): ONE vector, read by ME1 (the polarity control) and by both layer checks below, so
+# the legs cannot drift apart; each layer check also asserts the vector is in the environment its case runs in.
+ME1_VECTOR="GIT_INDEX_FILE=$E2/main/.git/index"
 mut_allows ME1_inherit_ambient_env '    child_env = _targeted_git_env() if env is None else env' \
-  '    child_env = env' "$E2/main" worktree wt retire "$E2/wt.patch" "GIT_INDEX_FILE=$E2/main/.git/index" strip-scrub
+  '    child_env = env' "$E2/main" worktree wt retire "$E2/wt.patch" "$ME1_VECTOR" strip-scrub
+vector_present() {  # prints VECTOR_PRESENT when the inherited vector is exported in this (sub)shell
+  [ "$(printenv GIT_INDEX_FILE)" = "${ME1_VECTOR#GIT_INDEX_FILE=}" ] && echo VECTOR_PRESENT
+}
 # the CON-402 layer alone: ME1's in-function revert, the file-level scrub KEPT -> the mutant still REFUSES
 me1s=$(mk_mutant ME1_scrub_only '    child_env = _targeted_git_env() if env is None else env' '    child_env = env')
 if [ -z "$me1s" ]; then
   notok "layer check ME1_scrub_only: anchor not found ($(cat "$TMP/mut_ME1_scrub_only.log"))"
 else
-  me1r=$(export "GIT_INDEX_FILE=$E2/main/.git/index"; run_case "$me1s" "$E2/main" worktree wt retire "$E2/wt.patch")
-  if [ "${me1r%%$'\t'*}" = REFUSED ]; then
+  me1r=$(export "$ME1_VECTOR"; vector_present; run_case "$me1s" "$E2/main" worktree wt retire "$E2/wt.patch")
+  if [ "${me1r%%VECTOR_PRESENT$'\n'*}" != "" ]; then
+    notok "layer check ME1_scrub_only: the inherited vector ($ME1_VECTOR) is not in the case's environment"
+  elif me1r=${me1r#VECTOR_PRESENT$'\n'}; [ "${me1r%%$'\t'*}" = REFUSED ]; then
     ok "layer check ME1_scrub_only (CON-402 file-level scrub alone): in-function isolation reverted, scrub kept -> still REFUSED"
   else
     notok "layer check ME1_scrub_only: expected REFUSED with the file-level scrub kept, got ${me1r:0:200}"
@@ -429,8 +437,10 @@ me1f=$(mk_mutant ME1_func_only '    child_env = _targeted_git_env() if env is No
 if [ -z "$me1f" ]; then
   notok "layer check ME1_func_only: anchor or scrub pair not found ($(cat "$TMP/mut_ME1_func_only.log"))"
 else
-  me1fr=$(export "GIT_INDEX_FILE=$E2/main/.git/index"; run_case "$me1f" "$E2/main" worktree wt retire "$E2/wt.patch")
-  if [ "${me1fr%%$'\t'*}" = REFUSED ]; then
+  me1fr=$(export "$ME1_VECTOR"; vector_present; run_case "$me1f" "$E2/main" worktree wt retire "$E2/wt.patch")
+  if [ "${me1fr%%VECTOR_PRESENT$'\n'*}" != "" ]; then
+    notok "layer check ME1_func_only: the inherited vector ($ME1_VECTOR) is not in the case's environment"
+  elif me1fr=${me1fr#VECTOR_PRESENT$'\n'}; [ "${me1fr%%$'\t'*}" = REFUSED ]; then
     ok "layer check ME1_func_only (round-15 _targeted_git_env alone): the CON-402 scrub stripped from both files, the in-function layer kept -> still REFUSED"
   else
     notok "layer check ME1_func_only: expected REFUSED with the in-function layer kept, got ${me1fr:0:200}"
