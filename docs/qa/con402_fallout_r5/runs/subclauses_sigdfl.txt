@@ -1,0 +1,3 @@
+ok S7: a mutant with the control's status on every suite (77 and 0) SURVIVED; exit 1
+ok S8: a mutant whose only other difference is a $HOME path in a PASS line has n_isolating_cases 1, and the row names no $HOME path
+== RESULT: 17 passed, 0 failed ==

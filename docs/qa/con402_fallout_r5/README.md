@@ -54,3 +54,14 @@ now say "round-4 hardening, reopened". Follow-ups FU-6..FU-8 are in `followups.m
 
 Re-exporting a scrubbed variable after the scrub, names built at run time (`g\it`), inherited attributes (BASH_ENV),
 and the other census-style gates of FU-6. PROVISIONAL: nothing here is a live product run.
+
+## Double run (gates and ten suites, twice)
+
+`runs/double_run_summary.txt`: head e1053b96 (before the evidence commit). Gates manifest, gitenv, safepath, ratchet
+(unimplemented=394 baseline=394), index, validate, wdiff, guardtable and sync-guide each ran twice; normalised run 1 ==
+run 2 for every gate and every suite log. Nine suites passed both runs (F1 213/0, v4r12..v4r15, r8, r15 51/0,
+repo_verify_red, guard_table). `test_sweep_review_record_subclauses_red` FAILED both runs (S4 SIGHUP/SIGINT rc=0, want
+129): the runner was started with `nohup` and background `&`, which make SIGHUP and SIGINT ignored in every child, so
+the signal cases cannot work. Re-run with those dispositions reset to default (`runs/subclauses_sigdfl.txt`): 17 passed,
+0 failed. This vehicle's diff does not touch that suite. The differential test (not in the ten-suite list) was run
+once: 372 pass, 0 fail.
