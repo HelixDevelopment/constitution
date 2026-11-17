@@ -1,0 +1,12 @@
+M15 probe: does an id that differs from <prefix>-001 only in its digits ever get a different add verdict? (2026-11-17T02:07:37Z, engine r2 83e93abaeaa5ef09bbb10437595f859bbbf78a03355c4e4204d56cbe79cb9080)
+positive control: the same harness gives different verdicts for ids that differ in shape (CON-001 accepted, CON-0-1 refused)
+  control CON-001 rc=0
+  control CON-0-1 rc=1
+CON: 001=0 002=0 099=0 1000=0 123456789=0 007000=0
+AB: 001=0 002=0 099=0 1000=0 123456789=0 007000=0
+A: 001=0 002=0 099=0 1000=0 123456789=0 007000=0
+ABCD: 001=0 002=0 099=0 1000=0 123456789=0 007000=0
+C1T: 001=0 002=0 099=0 1000=0 123456789=0 007000=0
+Con: 001=0 002=0 099=0 1000=0 123456789=0 007000=0
+GS: 001=0 002=0 099=0 1000=0 123456789=0 007000=0
+G: 001=0 002=0 099=0 1000=0 123456789=0 007000=0

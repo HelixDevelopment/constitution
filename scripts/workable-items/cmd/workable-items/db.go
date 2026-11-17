@@ -891,12 +891,81 @@ func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs
 		extra := fmt.Sprintf("document=%s;items=%d;segments=%d", document, len(items), len(segs))
 		fcTimerAppendRow("tracker-writer:"+document, requestedNS, appliedNS, verdict, checks, fails, warns, extra)
 	}()
+	return replaceDocumentsAtomic(db, []documentImport{{document, items, segs}}, prior, false)
+}
+
+// documentImport is one tracker rebuilt by an md-to-db import.
+type documentImport struct {
+	document string
+	items    []item
+	segs     []segment
+}
+
+// replaceDocumentsAtomic rebuilds every given tracker from its parsed items
+// and segments in ONE transaction, so an import that fails on any tracker
+// leaves the database byte-unchanged (CON-456 review F2: the two-transaction
+// import committed Issues.md and then refused Fixed.md, deleting an item the
+// Markdown had moved between them while reporting "nothing written").
+// timed=true appends one tracker-writer timing row per document with the
+// verdict of the single commit.
+func replaceDocumentsAtomic(db *sql.DB, docs []documentImport, prior createdAtSnapshot, timed bool) (err error) {
+	if timed {
+		requestedNS := time.Now().UnixNano()
+		defer func() {
+			appliedNS := time.Now().UnixNano()
+			for _, d := range docs {
+				verdict, checks, fails, warns := "PASS", 1, 0, 0
+				if err != nil {
+					verdict, checks, fails, warns = "FAIL", 0, 1, 0
+				}
+				extra := fmt.Sprintf("document=%s;items=%d;segments=%d", d.document, len(d.items), len(d.segs))
+				fcTimerAppendRow("tracker-writer:"+d.document, requestedNS, appliedNS, verdict, checks, fails, warns, extra)
+			}
+		}()
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+
+	// CON-339: read every row's created_at before the delete below.
+	snap, err := takeCreatedAtSnapshot(tx)
+	if err != nil {
+		return fmt.Errorf("snapshot created_at: %w", err)
+	}
+	for k, v := range prior {
+		if _, ok := snap[k]; !ok {
+			snap[k] = v
+		}
+	}
+	for _, d := range docs {
+		if err := replaceDocumentInTx(tx, d.document, d.items, d.segs, snap); err != nil {
+			return err
+		}
+	}
+
+	// §11.4.292: an item that left Fixed (a Markdown-side reopen / move) loses
+	// its closure-gate exemption, so its next closure is checked.
+	if err := pruneReproExemptions(tx); err != nil {
+		return fmt.Errorf("prune repro_gate_exemptions: %w", err)
+	}
+
+	if _, err := tx.Exec(`UPDATE meta SET value=?, last_modified=datetime('now') WHERE key='last_sync_direction'`, "md-to-db"); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE meta SET value=datetime('now') WHERE key='last_sync_timestamp'`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// replaceDocumentInTx deletes one tracker's segments, items and their
+// operator_block_details rows inside tx and re-inserts them from the parsed
+// items and segments. snap carries the created_at every row held before the
+// import (CON-339), taken once for the whole transaction.
+func replaceDocumentInTx(tx *sql.Tx, document string, items []item, segs []segment, snap createdAtSnapshot) error {
 
 	// Clear segments for this document; clear items whose current_location is
 	// this document (so a full two-document sync rebuilds everything).
@@ -912,16 +981,6 @@ func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs
 	}
 	if _, err := tx.Exec(`DELETE FROM doc_segments WHERE document = ?`, document); err != nil {
 		return fmt.Errorf("clear segments: %w", err)
-	}
-	// CON-339: read every row's created_at before the delete below.
-	snap, err := takeCreatedAtSnapshot(tx)
-	if err != nil {
-		return fmt.Errorf("snapshot created_at: %w", err)
-	}
-	for k, v := range prior {
-		if _, ok := snap[k]; !ok {
-			snap[k] = v
-		}
 	}
 	if _, err := tx.Exec(`DELETE FROM items WHERE current_location = ?`, document); err != nil {
 		return fmt.Errorf("clear items: %w", err)
@@ -1000,19 +1059,7 @@ func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs
 		}
 	}
 
-	// §11.4.292: an item that left Fixed (a Markdown-side reopen / move) loses
-	// its closure-gate exemption, so its next closure is checked.
-	if err := pruneReproExemptions(tx); err != nil {
-		return fmt.Errorf("prune repro_gate_exemptions: %w", err)
-	}
-
-	if _, err := tx.Exec(`UPDATE meta SET value=?, last_modified=datetime('now') WHERE key='last_sync_direction'`, "md-to-db"); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`UPDATE meta SET value=datetime('now') WHERE key='last_sync_timestamp'`); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return nil
 }
 
 func nullable(s string) any {
@@ -1082,17 +1129,13 @@ func renderDocument(db *sql.DB, document string) (string, error) {
 	// representations' bodies; the segment carries which representation it points
 	// to, so the lookup key is atm_id + "\x00" + representation.
 	bodyByKey := map[string]string{}
-	brows, err := db.Query(`SELECT atm_id, representation, status, COALESCE(body_md,''), `+
-		statesSelectCols+` FROM items WHERE current_location = ?`, document)
+	all, err := loadItems(db)
 	if err != nil {
 		return "", err
 	}
-	for brows.Next() {
-		var id, rep, status, body string
-		var st stateRecord
-		if err := brows.Scan(append([]any{&id, &rep, &status, &body}, statesScanDest(&st)...)...); err != nil {
-			brows.Close()
-			return "", err
+	for _, it := range all {
+		if it.CurrentLocation != document {
+			continue
 		}
 		// ATM-627 (task #20) generator-symmetry: emit the `**Status:**` line from the
 		// authoritative items.status column so a directly-mutated (stale-body) item
@@ -1108,11 +1151,12 @@ func renderDocument(db *sql.DB, document string) (string, error) {
 		// authoritative state columns — a STRICT no-op for every item whose body
 		// already parses to its columns (every md→db-synced item, by
 		// construction), so the byte-identical round-trip is preserved.
-		bodyByKey[id+"\x00"+rep] = canonicalizeStateLines(canonicalizeBodyStatusLine(body, status), st, rep)
-	}
-	brows.Close()
-	if err := brows.Err(); err != nil {
-		return "", err
+		//
+		// CON-456 round 2: the item's own Type / Severity / Created-By /
+		// Assigned-To lines get the same generator symmetry (alignMetaLines);
+		// renderedItemBody is the one place these transforms are composed, so
+		// the write gate and the md-to-db guard judge exactly this text.
+		bodyByKey[it.AtmID+"\x00"+it.repOrDefault()] = renderedItemBody(it)
 	}
 
 	rows, err := db.Query(`SELECT seq, kind, COALESCE(atm_id,''), representation, COALESCE(raw,'')

@@ -23,6 +23,15 @@
 
 M13 (validate reads Fixed bodies with the Issues parser) and M18 (`add` checks only the Issues tracker) survive. A probe of 200 000 generated ids found no id on which the Issues and Fixed parsers disagree. While the two parsers read ids the same way, these mutants cannot be told apart from the fixed code. The checks are kept, so that a future divergence is caught.
 
+## Corrections after the independent review (round 2, 2026-11-17)
+
+The round-1 review returned NO-GO. These statements above are wrong or incomplete; the files they describe are kept unchanged as the round-1 record, except `repro.sh`.
+
+- M13 is not equivalent (review F4). The two parsers read ids the same way, but not documents: `parseFixed` reads a pipe-table row as a table item and `parseIssues` does not. A Fixed section item whose body holds a pipe row with its own id reads back as a table item, which the Issues parser cannot see. The 200 000-id probe rendered headings only, so it could not reach that input. Round 2 compares the representation; see `../engine_idgrammar_2026_11_17/`.
+- The two `go test` runs had 423 PASS, 6 SKIP and 0 FAIL each (review F6). The verdict files list the PASS lines only. The six SKIPs are pre-existing: `TestRoundTrip_RealDocs`, `TestValidate_OK_RealDocs` and `TestStatusDesyncAndDuplicateHistoryRows_StayZero` look for the trackers five directories above `cmd/workable-items` (a vendored layout), `TestParseFixed_Real_FullFile_Count` needs `/tmp/atm_fixed_real.md`, and `TestGapA_RenderRepresentationKeyIsLoadBearing` and `TestGapB_PipeRowSynthesisIsParseable` are GREEN-only guards that skip by design (reasons as printed, `../engine_idgrammar_2026_11_17/gotest_r2_summary.txt`).
+- The `subtask_child` row of both tables tested nothing (review F7): it called `subtask-add`, which is not a command-line verb, so its `add_rc` 1 is the unknown-command exit. The row is removed from `repro.sh`. The two `.tsv` files still hold it as recorded.
+- "13 shapes are accepted and each round-trips with `diff` 0" held for the id shapes in the sweep, but not for every title: a legacy id with a `[XX-N]` bracket or a leading space in its title was accepted and then lost or blocked on `sync md-to-db` (review F1, F3), and a Fixed-side refusal could follow a committed Issues write (review F2).
+
 ## Limits
 
 - The child id of a sub-task under a canonical parent (`ATM-025-001`) does not round-trip. `subtaskAddCmd` is not reachable from the command line. `validate` now reports such a row, and a test pins the defect. The child id grammar is left for an operator decision.

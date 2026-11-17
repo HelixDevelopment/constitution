@@ -29,7 +29,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
@@ -111,68 +110,369 @@ func checkIDRoundTrips(id string) error {
 	return nil
 }
 
-// checkStoredBodyRoundTrips returns nil iff a stored section item's own
-// body_md is read back by the parser of its tracker as the item's id (modulo
-// the `#N` dedup counter). An empty body is not judged here.
-func checkStoredBodyRoundTrips(it item) error {
-	if strings.TrimSpace(it.BodyMD) == "" || it.repOrDefault() != "section" {
-		return nil
-	}
-	parse := parseIssues
-	if it.CurrentLocation == "Fixed" {
-		parse = parseFixed
-	}
-	items, _ := parse(it.BodyMD)
-	want := baseItemID(it.AtmID)
-	for _, p := range items {
-		if baseItemID(p.AtmID) == want {
-			return nil
-		}
-	}
-	return fmt.Errorf("%s [%s/section]: stored body heading %q is not read back as this id by the %s.md parser, so the next sync md-to-db would drop the item; %s",
-		it.AtmID, it.CurrentLocation, strings.TrimRight(strings.SplitN(it.BodyMD, "\n", 2)[0], "\n"),
-		it.CurrentLocation, idGrammarHelp)
+// ---------------------------------------------------------------------------
+// Whole-item round trip (CON-456 round 2).
+//
+// checkIDRoundTrips above judges an id alone, with a fixed probe title, so it
+// could not see the rest of the class "what the engine stores is not what
+// sync md-to-db reads back": a legacy-code item whose title carries a
+// `[XX-N]` bracket id parses as that other id (review F1), a title with a
+// leading space parses as no item at all (F3), a status-suffixed title is cut
+// (O2), and a description line `## CON-N — …` splits the item in two (O1).
+// The functions below run the REAL renderer transforms and the REAL parser on
+// the complete stored item (id, title, body, representation, carried fields),
+// so every write path and md-to-db judge the same thing the next sync does.
+// ---------------------------------------------------------------------------
+
+// renderedItemBody returns the exact text `sync db-to-md` writes for it.
+// renderDocument applies these same three transforms, in this order.
+func renderedItemBody(it item) string {
+	body := canonicalizeBodyStatusLine(it.BodyMD, it.Status)
+	body = alignMetaLines(body, it)
+	return canonicalizeStateLines(body, it.States, it.repOrDefault())
 }
 
-// droppedButPresentItems lists DB section items of `document` that the new
-// parse result no longer contains although their stored heading line is still
-// in the Markdown as unrecognised (raw) text. Such an item is not a deletion
-// by the operator: the parser cannot read its heading, and replacing the
-// document would silently drop it. An item whose heading was removed from the
-// Markdown is a real deletion and is not listed.
-func droppedButPresentItems(db *sql.DB, document string, parsed []item, segs []segment) ([]string, error) {
-	have := map[string]bool{}
+// metaFieldOrder is the order renderItemBody writes the item's own metadata
+// lines in; alignMetaLines inserts a missing line after its predecessors.
+var metaFieldOrder = []string{"Status", "Type", "Severity", "Created-By", "Assigned-To"}
+
+// alignMetaLines returns body with its own `**Type:**`, `**Severity:**`,
+// `**Created-By:**` and `**Assigned-To:**` lines carrying the item's column
+// values: the generator symmetry renderDocument already applies to the Status
+// line (ATM-627) and the state records (§11.4.292), extended to the other
+// fields the parser derives from the body. Without it a column changed by a
+// path that did not rewrite the body (measured: three live items whose
+// severity column differs from their body) is silently reverted by the next
+// md-to-db. STRICT no-op when the body already parses to the columns, which
+// every md-to-db-synced item does by construction.
+func alignMetaLines(body string, it item) string {
+	if it.repOrDefault() != "section" || strings.TrimSpace(body) == "" {
+		return body
+	}
+	parsed := buildItem(it.AtmID, it.Title, body, it.CurrentLocation)
+	for _, f := range []struct{ key, col, got string }{
+		{"Type", it.Type, parsed.Type},
+		{"Severity", strings.TrimSpace(it.Severity), parsed.Severity},
+		{"Created-By", strings.TrimSpace(it.CreatedBy), parsed.CreatedBy},
+		{"Assigned-To", strings.TrimSpace(it.AssignedTo), parsed.AssignedTo},
+	} {
+		if f.key == "Type" && (f.col == "" || normalizeType(f.col) == f.got) {
+			continue
+		}
+		if f.col == f.got {
+			continue
+		}
+		body = setOwnMetaLine(body, f.key, f.col)
+	}
+	return body
+}
+
+// setOwnMetaLine makes the item's own metadata region read `**key:** value`:
+// the LAST own line for key (the one buildItem reads, last-wins) is replaced;
+// with no such line one is inserted after the nearest preceding key of
+// metaFieldOrder (or after the heading block); an empty value removes every own
+// line for key.
+func setOwnMetaLine(body, key, value string) string {
+	lines := splitKeepNewlines(body)
+	limit := ownMetaRegionLineCount(lines)
+	keyOf := func(ln string) string {
+		m := metaLineRe.FindStringSubmatch(strings.TrimRight(ln, "\n"))
+		if m == nil {
+			return ""
+		}
+		return strings.ToLower(m[1])
+	}
+	want := strings.ToLower(key)
+	if value == "" {
+		out := make([]string, 0, len(lines))
+		for i, ln := range lines {
+			if i < limit && keyOf(ln) == want {
+				continue
+			}
+			out = append(out, ln)
+		}
+		return strings.Join(out, "")
+	}
+	newLine := "**" + key + ":** " + value
+	last := -1
+	for i := 0; i < limit; i++ {
+		if keyOf(lines[i]) == want {
+			last = i
+		}
+	}
+	if last >= 0 {
+		nl := ""
+		if strings.HasSuffix(lines[last], "\n") {
+			nl = "\n"
+		}
+		lines[last] = newLine + nl
+		return strings.Join(lines, "")
+	}
+	// Insert after the last own line of the nearest preceding key that exists.
+	at := -1
+	for k := len(metaFieldOrder) - 1; k >= 0 && at < 0; k-- {
+		if strings.EqualFold(metaFieldOrder[k], key) {
+			continue
+		}
+		before := false
+		for _, o := range metaFieldOrder {
+			if strings.EqualFold(o, key) {
+				break
+			}
+			if o == metaFieldOrder[k] {
+				before = true
+			}
+		}
+		if !before {
+			continue
+		}
+		pk := strings.ToLower(metaFieldOrder[k])
+		for i := 0; i < limit; i++ {
+			if keyOf(lines[i]) == pk {
+				at = i
+			}
+		}
+	}
+	if at < 0 {
+		// No preceding key: after the heading and its blank line.
+		at = 0
+		if len(lines) > 1 && strings.TrimSpace(lines[1]) == "" {
+			at = 1
+		}
+	}
+	if !strings.HasSuffix(lines[at], "\n") {
+		lines[at] += "\n"
+	}
+	out := make([]string, 0, len(lines)+1)
+	out = append(out, lines[:at+1]...)
+	out = append(out, newLine+"\n")
+	out = append(out, lines[at+1:]...)
+	return strings.Join(out, "")
+}
+
+// parseForLocation runs the parser of the tracker an item lives in.
+func parseForLocation(location, content string) ([]item, []segment, bool) {
+	switch location {
+	case "Issues":
+		items, segs := parseIssues(content)
+		return items, segs, true
+	case "Fixed":
+		items, segs := parseFixed(content)
+		return items, segs, true
+	}
+	return nil, nil, false
+}
+
+// carriedFieldDiffs lists every field the parser derives from an item's
+// Markdown that differs between got (parsed) and want (stored). The
+// description is not compared: md-to-db derives it from the title and the
+// body (deriveDescription) by design, so it is not a round-trip field.
+func carriedFieldDiffs(got, want item) []string {
+	var d []string
+	cmp := func(field, g, w string) {
+		if g != w {
+			d = append(d, fmt.Sprintf("%s reads back as %q, stored %q", field, g, w))
+		}
+	}
+	cmp("title", got.Title, want.Title)
+	cmp("type", got.Type, want.Type)
+	cmp("status", got.Status, want.Status)
+	cmp("severity", got.Severity, want.Severity)
+	cmp("created-by", got.CreatedBy, want.CreatedBy)
+	cmp("assigned-to", got.AssignedTo, want.AssignedTo)
+	if want.repOrDefault() == "table" {
+		cmp("closure date", got.ClosureDate, want.ClosureDate)
+		cmp("round", got.Round, want.Round)
+		cmp("commit", got.CommitRef, want.CommitRef)
+	}
+	if got.States.norm() != want.States.norm() {
+		d = append(d, "the reproduction/investigation records read back differently from the stored state columns")
+	}
+	return d
+}
+
+// itemWhere names an item in a refusal or a violation.
+func itemWhere(it item) string {
+	return fmt.Sprintf("%s (%s, %s)", it.AtmID, it.CurrentLocation, it.repOrDefault())
+}
+
+// roundTripProblems returns nil iff the text sync db-to-md writes for it,
+// read back by the parser of its tracker, is exactly one item segment with the
+// same id, the same representation, the same body bytes and the same carried
+// fields. An empty body is not judged (no heading is written for it).
+func roundTripProblems(it item) []string {
+	body := renderedItemBody(it)
+	if strings.TrimSpace(body) == "" {
+		return nil
+	}
+	where := itemWhere(it)
+	items, segs, ok := parseForLocation(it.CurrentLocation, body)
+	if !ok {
+		return []string{fmt.Sprintf("%s: unknown tracker %q", where, it.CurrentLocation)}
+	}
+	if len(items) != 1 || len(segs) != 1 || segs[0].Kind != "item" {
+		ids := make([]string, 0, len(items))
+		for _, p := range items {
+			ids = append(ids, p.AtmID)
+		}
+		return []string{fmt.Sprintf("%s: its Markdown reads back as %d item(s) %v in %d segment(s), not as this one item",
+			where, len(items), ids, len(segs))}
+	}
+	got := items[0]
+	var p []string
+	if got.AtmID != baseItemID(it.AtmID) {
+		p = append(p, fmt.Sprintf("%s: its heading reads back as id %q", where, got.AtmID))
+	}
+	if got.repOrDefault() != it.repOrDefault() {
+		p = append(p, fmt.Sprintf("%s: it reads back as a %s item", where, got.repOrDefault()))
+	}
+	if got.BodyMD != body {
+		p = append(p, fmt.Sprintf("%s: its body does not read back byte-identically", where))
+	}
+	for _, d := range carriedFieldDiffs(got, it) {
+		p = append(p, where+": "+d)
+	}
+	return p
+}
+
+// gateItemWrite is the write gate every body-writing command calls before it
+// stores an item (it.BodyMD is the body the command is about to store). It
+// judges the text sync db-to-md will write for that item (renderedItemBody)
+// and refuses when that text does not read back as the item, or when an
+// operator-supplied text the command embeds (inputs) does not survive in it
+// verbatim. It returns the body to store, unchanged: the stored body keeps
+// the command's own bytes (the body-preservation contracts of move, reopen and
+// update hold), and the generator symmetry is applied at render, as for the
+// Status line. Nothing is written on a refusal; the caller exits non-zero.
+func gateItemWrite(it item, inputs ...string) (string, error) {
+	rendered := renderedItemBody(it)
+	if probs := roundTripProblems(it); len(probs) > 0 {
+		return "", fmt.Errorf("the Markdown of %s would not read back as this item on the next sync md-to-db: %s",
+			itemWhere(it), strings.Join(probs, "; "))
+	}
+	for _, in := range inputs {
+		if in != "" && !strings.Contains(rendered, in) {
+			return "", fmt.Errorf("the text %q would not survive in the Markdown of %s: a line in it that reads as one of the item's own metadata lines (for example `**Status:**`, `**Severity:**`) is rewritten from the item's columns",
+				in, itemWhere(it))
+		}
+	}
+	return it.BodyMD, nil
+}
+
+// titleRoundTrips reports why a title, rendered under id in either tracker,
+// does not read back as that title (nil when it does). It isolates the title
+// as the cause for a refusal message (review F9).
+func titleRoundTrips(id, title string) error {
+	const probeDesc = "title round-trip probe description, long enough for the description floor."
+	for _, doc := range []struct{ name, status string }{
+		{"Issues", "Queued"}, {"Fixed", "Fixed (→ Fixed.md)"},
+	} {
+		it := item{AtmID: id, Title: title, Type: "Task", Status: doc.status, CurrentLocation: doc.name,
+			Representation: "section"}
+		it.BodyMD = renderItemBody(id, title, "Task", "", probeDesc, doc.status, "", "")
+		if probs := roundTripProblems(it); len(probs) > 0 {
+			return fmt.Errorf("title %q does not round-trip under id %q in %s.md: %s",
+				title, id, doc.name, strings.Join(probs, "; "))
+		}
+	}
+	return nil
+}
+
+// mdImportLosses returns every item of `document` the database holds that a
+// rebuild from content would drop or change although the Markdown still
+// carries what sync db-to-md wrote for it. stored is the whole items table,
+// parsed what the parser read from content. The cases:
+//
+//   - the Markdown holds the item's rendered text unchanged and the parser
+//     reads an item with its id and representation: refuse when a carried
+//     field would change (the parser reads the unchanged text differently);
+//   - the Markdown holds the rendered text verbatim, but the parser reads no
+//     item with the id, or only a truncated body (a description line split it,
+//     O1): refuse;
+//   - the parser reads no item with the id but the item's heading line is still
+//     a line of the Markdown (the heading now parses as another id or as no
+//     item, F1/F4): refuse.
+//
+// Anything else is a real edit or a deletion in the Markdown and is imported.
+func mdImportLosses(stored []item, document, content string, parsed []item) []string {
+	byKey := map[string][]item{}
 	for _, p := range parsed {
-		have[baseItemID(p.AtmID)] = true
+		k := baseItemID(p.AtmID) + "\x00" + p.repOrDefault()
+		byKey[k] = append(byKey[k], p)
 	}
-	rawLines := map[string]bool{}
-	for _, s := range segs {
-		if s.Kind != "raw" {
-			continue
-		}
-		for _, ln := range splitKeepNewlines(s.Raw) {
-			rawLines[strings.TrimRight(ln, "\n")] = true
-		}
+	lines := map[string]bool{}
+	for _, ln := range splitKeepNewlines(content) {
+		lines[strings.TrimRight(ln, "\n")] = true
 	}
-	rows, err := db.Query(`SELECT atm_id, COALESCE(body_md,'') FROM items
-		WHERE current_location = ? AND COALESCE(representation,'section') = 'section'`, document)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	var out []string
-	for rows.Next() {
-		var id, body string
-		if err := rows.Scan(&id, &body); err != nil {
-			return nil, err
-		}
-		if have[baseItemID(id)] || strings.TrimSpace(body) == "" {
+	for _, x := range stored {
+		if x.CurrentLocation != document {
 			continue
 		}
-		heading := strings.TrimRight(strings.SplitN(body, "\n", 2)[0], "\n")
-		if strings.HasPrefix(heading, "## ") && rawLines[heading] {
-			out = append(out, fmt.Sprintf("%s (heading %q)", id, heading))
+		r := renderedItemBody(x)
+		if strings.TrimSpace(r) == "" {
+			continue
+		}
+		where := itemWhere(x)
+		ps := byKey[baseItemID(x.AtmID)+"\x00"+x.repOrDefault()]
+		var same *item
+		truncated := false
+		for i := range ps {
+			switch {
+			case ps[i].BodyMD == r || ps[i].BodyMD == r+"\n":
+				same = &ps[i]
+			case len(ps[i].BodyMD) < len(r) && strings.HasPrefix(r, ps[i].BodyMD):
+				truncated = true
+			}
+			if same != nil {
+				break
+			}
+		}
+		present := strings.Contains(content, r)
+		heading := strings.TrimRight(strings.SplitN(r, "\n", 2)[0], "\n")
+		switch {
+		case same != nil:
+			if d := carriedFieldDiffs(*same, x); len(d) > 0 {
+				out = append(out, fmt.Sprintf("%s: the Markdown is unchanged but the import would change it: %s",
+					where, strings.Join(d, "; ")))
+			}
+		case present && (truncated || len(ps) == 0):
+			out = append(out, fmt.Sprintf("%s: the Markdown still holds its text but the parser reads it as %s",
+				where, readAs(parsed, r)))
+		case len(ps) == 0 && lines[heading]:
+			out = append(out, fmt.Sprintf("%s: its heading line %q is still in the Markdown but the parser reads it as %s",
+				where, heading, readAs(parsed, heading)))
 		}
 	}
-	return out, rows.Err()
+	return out
+}
+
+// readAs names what the parser made of a text the database item wrote: the
+// parsed items whose body starts with, or contains, its first line.
+func readAs(parsed []item, text string) string {
+	head := strings.TrimRight(strings.SplitN(text, "\n", 2)[0], "\n")
+	var ids []string
+	for _, p := range parsed {
+		if strings.Contains(p.BodyMD, head) {
+			ids = append(ids, fmt.Sprintf("%s [%s]", p.AtmID, p.repOrDefault()))
+		}
+	}
+	if len(ids) == 0 {
+		return "no item (raw text)"
+	}
+	return "item(s) " + strings.Join(ids, ", ")
+}
+
+// gateNewItem is the gate of a path that writes an item from operator text
+// (add, update --title): it names the cause of a refusal in the order id,
+// title, then the rest of the item (review F9: a title that cannot round-trip
+// was reported as an id-grammar error), and returns the body to store.
+func gateNewItem(it item, inputs ...string) (string, error) {
+	if err := checkIDRoundTrips(baseItemID(it.AtmID)); err != nil {
+		return "", err
+	}
+	if err := titleRoundTrips(baseItemID(it.AtmID), it.Title); err != nil {
+		return "", err
+	}
+	return gateItemWrite(it, inputs...)
 }

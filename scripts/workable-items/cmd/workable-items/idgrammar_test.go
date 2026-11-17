@@ -137,8 +137,10 @@ func TestIDGrammar_PrefixAllocatedIDs(t *testing.T) {
 			t.Fatalf("--prefix %q: add exit %d, want accept=%v", c.prefix, code, c.accept)
 		}
 		if !c.accept {
-			if n := idgCount(t, db, `1=1`); n != 0 {
-				t.Fatalf("--prefix %q refused but wrote %d row(s)", c.prefix, n)
+			// CON-456 round 2 (review F8): a refusal is decided before the
+			// database is opened, so no database file is created at all.
+			if _, err := os.Stat(db); !os.IsNotExist(err) {
+				t.Fatalf("--prefix %q refused but the database file exists (stat err=%v)", c.prefix, err)
 			}
 			continue
 		}
@@ -377,8 +379,8 @@ func TestIDGrammar_ExistingTrackerIDsAccepted(t *testing.T) {
 		if err := checkIDRoundTrips(baseItemID(it.AtmID)); err != nil {
 			t.Errorf("existing id refused: %v", err)
 		}
-		if err := checkStoredBodyRoundTrips(it); err != nil {
-			t.Errorf("existing body: %v", err)
+		for _, pr := range roundTripProblems(it) {
+			t.Errorf("existing item: %s", pr)
 		}
 	}
 }
@@ -459,20 +461,86 @@ func TestIDGrammar_CanonicalIDsUseEmDashHeading(t *testing.T) {
 }
 
 // TestIDGrammar_EmptyBodyNotJudged: an empty stored body is the business of
-// repair-bodies, not of the id-grammar check (no false positive).
+// repair-bodies, not of the round-trip check (no false positive).
 func TestIDGrammar_EmptyBodyNotJudged(t *testing.T) {
 	for _, loc := range []string{"Issues", "Fixed"} {
-		it := item{AtmID: "CON-1", CurrentLocation: loc, BodyMD: "", Representation: "section"}
-		if err := checkStoredBodyRoundTrips(it); err != nil {
-			t.Fatalf("%s: empty body judged: %v", loc, err)
+		it := item{AtmID: "CON-1", Title: "t", Type: "Task", Status: "Queued",
+			CurrentLocation: loc, BodyMD: "", Representation: "section"}
+		if p := roundTripProblems(it); p != nil {
+			t.Fatalf("%s: empty body judged: %v", loc, p)
 		}
 		it.BodyMD = "## CON-1 — t\n\n**Status:** Queued\n"
-		if err := checkStoredBodyRoundTrips(it); err != nil {
-			t.Fatalf("%s: control body judged: %v", loc, err)
+		if p := roundTripProblems(it); p != nil {
+			t.Fatalf("%s: control body judged: %v", loc, p)
 		}
+		it.AtmID = "CON-1-2"
 		it.BodyMD = "## CON-1-2. t\n\n**Status:** Queued\n"
-		if err := checkStoredBodyRoundTrips(it); err == nil {
+		if p := roundTripProblems(it); p == nil {
 			t.Fatalf("%s: golden-bad body not judged", loc)
 		}
+	}
+}
+
+// TestIDGrammar_RoundTripMatchesTheExactID (review RM04): a stored GS-7 whose
+// Markdown reads back as GS-72 (a bracket id in the title) is a violation; a
+// prefix match of the ids would pass it. Control: the same item with an
+// ordinary title is clean.
+func TestIDGrammar_RoundTripMatchesTheExactID(t *testing.T) {
+	mk := func(title string) item {
+		return item{AtmID: "GS-7", Title: title, Type: "Task", Status: "Queued",
+			CurrentLocation: "Issues", Representation: "section",
+			BodyMD: renderItemBody("GS-7", title, "Task", "", idgDesc, "Queued", "", "")}
+	}
+	if p := roundTripProblems(mk("ordinary probe title")); len(p) != 0 {
+		t.Fatalf("control: an ordinary GS-7 item reports %v", p)
+	}
+	p := roundTripProblems(mk("[GS-72] probe title"))
+	if len(p) == 0 || !strings.Contains(strings.Join(p, "; "), `"GS-72"`) {
+		t.Fatalf("GS-7 read back as GS-72 is not reported by its id: %v", p)
+	}
+}
+
+// TestIDGrammar_RoundTripComparesRepresentation (review F4, the M13 input): a
+// Fixed SECTION item whose heading the parser cannot read and whose body holds
+// a pipe row with the same id reads back as a TABLE item; that is a violation.
+// Control: a real Fixed table row is clean, which also fails a gate that would
+// read Fixed bodies with the Issues parser (the M13 mutant).
+func TestIDGrammar_RoundTripComparesRepresentation(t *testing.T) {
+	row := "| 2026-01-01 | CON-900 thing | Bug | Fixed | R1 | abc1234 | docs/x.md |\n"
+	section := item{AtmID: "CON-900", Title: "", Type: "Bug", Status: "Fixed (→ Fixed.md)",
+		CurrentLocation: "Fixed", Representation: "section", BodyMD: "## CON-900 —\n\n" + row}
+	if p := roundTripProblems(section); len(p) == 0 {
+		t.Fatal("a Fixed section item that reads back as a table row is not reported")
+	}
+	items, _ := parseFixed(row)
+	if len(items) != 1 || items[0].repOrDefault() != "table" {
+		t.Fatalf("fixture: the pipe row parses as %d item(s)", len(items))
+	}
+	table := items[0]
+	table.CurrentLocation = "Fixed"
+	if p := roundTripProblems(table); len(p) != 0 {
+		t.Fatalf("control: a real Fixed table row reports %v", p)
+	}
+	// Only the representation differs: a section item whose body is a pipe
+	// row and whose fields are what the row carries reads back as one item, in
+	// one segment, with the same body and fields, but as a table row. The row
+	// has an empty Type cell, so the section render inserts no `**Type:**`
+	// line (alignMetaLines skips an empty Type column) and the body stays the
+	// bare row; with a Type the render adds a line and the segment-count check
+	// fires first, which would leave the representation compare unexercised.
+	bareRow := "| 2026-01-01 | CON-901 thing |  | Fixed | R1 | abc1234 | docs/x.md |\n"
+	bareItems, _ := parseFixed(bareRow)
+	if len(bareItems) != 1 || bareItems[0].repOrDefault() != "table" {
+		t.Fatalf("fixture: the empty-Type pipe row parses as %d item(s) %+v", len(bareItems), bareItems)
+	}
+	bare := bareItems[0]
+	bare.CurrentLocation = "Fixed"
+	if p := roundTripProblems(bare); len(p) != 0 {
+		t.Fatalf("control: the empty-Type Fixed table row reports %v", p)
+	}
+	bare.Representation = "section"
+	p := roundTripProblems(bare)
+	if len(p) != 1 || !strings.Contains(p[0], "reads back as a table item") {
+		t.Fatalf("a section item read back as a table row reports %v, want the representation alone", p)
 	}
 }

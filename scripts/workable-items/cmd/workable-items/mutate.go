@@ -138,10 +138,11 @@ func updateCmd(args []string) int {
 			fmt.Fprintln(os.Stderr, "update: --title cannot be empty")
 			return exitUsage
 		}
-		cur.Title = *title
+		// CON-456 round 2: surrounding whitespace is trimmed, as in add.
+		cur.Title = strings.TrimSpace(*title)
 	}
 	if set["severity"] {
-		cur.Severity = *severity
+		cur.Severity = strings.TrimSpace(*severity)
 	}
 	if set["description"] {
 		if wordCount(*description) < 6 && len(*description) < 40 {
@@ -401,6 +402,29 @@ func updateCmd(args []string) int {
 	newBody = canonicalizeStateLines(newBody, cur.States, cur.repOrDefault())
 	newBody = ensureTrailingNewline(newBody)
 
+	// One round trip (idgrammar.go, CON-456): the updated item's Markdown must
+	// read back as the updated item on the next md-to-db. A column this update
+	// changes that the body does not carry (severity, type, attribution) is
+	// written into the Markdown's own metadata lines at render
+	// (alignMetaLines) instead of being reverted by the next import. A new
+	// title is judged first, to name it as the cause.
+	if set["title"] && cur.repOrDefault() == "section" {
+		if err := titleRoundTrips(baseItemID(cur.AtmID), cur.Title); err != nil {
+			fmt.Fprintf(os.Stderr, "update: refusing (nothing written) — %v\n", err)
+			return exitUsage
+		}
+	}
+	var inputs []string
+	if set["description"] && cur.repOrDefault() != "table" {
+		inputs = append(inputs, cur.Description)
+	}
+	gated := *cur
+	gated.BodyMD = newBody
+	if newBody, err = gateItemWrite(gated, inputs...); err != nil {
+		fmt.Fprintf(os.Stderr, "update: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+
 	tx, err := db.Begin()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "update: begin: %v\n", err)
@@ -546,6 +570,19 @@ func reopenCmd(args []string) int {
 
 	cur.Status = "Reopened"
 	newBody := reopenedBody(cur, byVal, *when, *why, *incident)
+	// One round trip (idgrammar.go, CON-456): the reopened item's Markdown in
+	// its destination tracker must read back as the reopened item.
+	reopened := *cur
+	reopened.CurrentLocation = dest
+	reopened.BodyMD = newBody
+	var reopenInputs []string
+	if reopened.repOrDefault() != "table" {
+		reopenInputs = []string{*why, *incident}
+	}
+	if newBody, err = gateItemWrite(reopened, reopenInputs...); err != nil {
+		fmt.Fprintf(os.Stderr, "reopen: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -860,6 +897,16 @@ func moveCmd(args []string) int {
 	// line when the status actually changed (canonicalizeBodyStatusLine is a STRICT
 	// no-op otherwise, so a pure relocation leaves body_md byte-identical).
 	newBody := ensureTrailingNewline(canonicalizeBodyStatusLine(cur.BodyMD, newStatus))
+	// One round trip (idgrammar.go, CON-456): the moved item's Markdown must
+	// read back as the moved item in its destination tracker.
+	moved := *cur
+	moved.Status = newStatus
+	moved.CurrentLocation = dest
+	moved.BodyMD = newBody
+	if newBody, err = gateItemWrite(moved); err != nil {
+		fmt.Fprintf(os.Stderr, "move: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -978,6 +1025,15 @@ func blockCmd(args []string) int {
 
 	cur.Status = "Operator-blocked"
 	newBody := renderBlockedBody(cur, *details, *why, *unblock, *who)
+	// One round trip (idgrammar.go, CON-456): the blocked item's Markdown must
+	// read back as the blocked item, and the operator's block text must
+	// survive in it verbatim.
+	blocked := *cur
+	blocked.BodyMD = newBody
+	if newBody, err = gateItemWrite(blocked, *details, *why, *unblock, *who); err != nil {
+		fmt.Fprintf(os.Stderr, "block: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -1054,7 +1110,17 @@ func renderBlockedBody(it *item, what, why, unblock, who string) string {
 // is ever disturbed. This keeps a field-only --title update's heading in sync with
 // the column without regenerating (and thus truncating) the authored body.
 func replaceHeadingTitle(body, id, newTitle string) string {
-	prefix := "## " + id + " — "
+	// CON-456 round 2: the heading carries the BASE id (the parser's `#N`
+	// dedup counter is never written) in either renderable form — canonical
+	// `## <id> — <title>` or legacy code `## <id>. <title>`. The former code
+	// knew only the canonical form, so `update --title` on a legacy-code item
+	// changed the column while the heading kept the old title, and the next
+	// md-to-db reverted it.
+	base := baseItemID(id)
+	prefix := "## " + base + " — "
+	if !canonicalIDRe.MatchString(base) {
+		prefix = "## " + base + ". "
+	}
 	lines := splitKeepNewlines(body)
 	for i, ln := range lines {
 		if strings.HasPrefix(strings.TrimRight(ln, "\n"), prefix) {

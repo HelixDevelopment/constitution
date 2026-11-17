@@ -1,0 +1,26 @@
+--- /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/trees/main_ebd8818c/docs/Issues.md	2026-11-17 01:34:41.000000000 +0100
++++ /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/real_tracker/main_ebd8818c_r2/Issues1.md	2026-11-17 02:46:44.465540745 +0100
+@@ -3543,6 +3543,7 @@
+ 
+ **Status:** Queued
+ **Type:** Task
++**Severity:** Low
+ **Created-By:** Claude
+ 
+ Round 7 review finding R7-M1 (test-instrumentation, minor, follow-up): the mechanical enumerator covers tier function bodies and tier function call sites only; module constants (_FOREIGN_WRITE, _SUBID_FILES, HIGH_BLAST_SEAMS) and the gate-side consumption of the tier result are covered by hand-written mutants (all killed). Extend the enumerator and add a token-count cross-check of the census. Review: docs/qa/con033_review/review_con033_r7.md
+@@ -3551,6 +3552,7 @@
+ 
+ **Status:** Queued
+ **Type:** Task
++**Severity:** Low
+ **Created-By:** Claude
+ 
+ Round 7 review finding R7-M2 (test-instrumentation, minor, follow-up, carried from round 6): mutate_tier_legs.py has no self-test RED. Add a small RED suite that plants a survivor and a dropped-kind generator. Review: docs/qa/con033_review/review_con033_r7.md
+@@ -3559,6 +3561,7 @@
+ 
+ **Status:** Queued
+ **Type:** Task
++**Severity:** Low
+ **Created-By:** Claude
+ 
+ Round 7 review nit R7-N1 (test-instrumentation, nit): with --keys every equivalence key outside the selected subset is printed STALE and the run exits 1; only a full run gives a meaningful stale check (the same happens with --only). Compute staleness against the full enumeration. Review: docs/qa/con033_review/review_con033_r7.md

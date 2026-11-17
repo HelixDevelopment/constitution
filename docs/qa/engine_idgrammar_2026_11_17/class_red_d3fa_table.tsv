@@ -1,0 +1,494 @@
+name	block	verdict	at	id	validate_rc	desc_changed	body_same	detail	control
+CTL_pos_replaced	CTL	RT_REPLACED		GS-972	1(+1)	-	-	lost=[('GS-972', 'Issues', 'section')] new=[('ABC-9', 'Issues', 'section')]	CONTROL-OK
+CTL_pos_phantom	CTL	RT_PHANTOM		CON-9810	0(=base)	yes	no	new=[('CON-9811', 'Issues', 'section')]	CONTROL-OK
+CTL_pos_field	CTL	RT_FIELD		GZ974	0(=base)	yes	yes	GZ974.title	CONTROL-OK
+CTL_neg_plain	CTL	RT_OK		CON-9999	0(=base)	yes	yes		CONTROL-OK
+A_canon_plain_Issues	A	RT_OK		CON-70001	0(=base)	yes	yes		
+A_canon_plain_Fixed	A	RT_OK		CON-70002	0(=base)	yes	yes		
+A_canon_lead_space_Issues	A	RT_OK		CON-70003	0(=base)	yes	yes		
+A_canon_lead_space_Fixed	A	RT_OK		CON-70004	0(=base)	yes	yes		
+A_canon_trail_space_Issues	A	RT_OK		CON-70005	0(=base)	yes	yes		
+A_canon_trail_space_Fixed	A	RT_OK		CON-70006	0(=base)	yes	yes		
+A_canon_bracket_start_Issues	A	RT_OK		CON-70007	0(=base)	yes	yes		
+A_canon_bracket_start_Fixed	A	RT_OK		CON-70008	0(=base)	yes	yes		
+A_canon_bracket_mid_existing_Issues	A	RT_OK		CON-70009	0(=base)	yes	yes		
+A_canon_bracket_mid_existing_Fixed	A	RT_OK		CON-70010	0(=base)	yes	yes		
+A_canon_bracket_mid_new_Issues	A	RT_OK		CON-70011	0(=base)	yes	yes		
+A_canon_bracket_mid_new_Fixed	A	RT_OK		CON-70012	0(=base)	yes	yes		
+A_canon_bracket_alpha_Issues	A	RT_OK		CON-70013	0(=base)	yes	yes		
+A_canon_bracket_alpha_Fixed	A	RT_OK		CON-70014	0(=base)	yes	yes		
+A_canon_status_suffix_Issues	A	RT_OK		CON-70015	0(=base)	yes	yes		
+A_canon_status_suffix_Fixed	A	RT_OK		CON-70016	0(=base)	yes	yes		
+A_canon_status_nodash_Issues	A	RT_OK		CON-70017	0(=base)	yes	yes		
+A_canon_status_nodash_Fixed	A	RT_OK		CON-70018	0(=base)	yes	yes		
+A_canon_migrated_Issues	A	RT_OK		CON-70019	0(=base)	yes	yes		
+A_canon_migrated_Fixed	A	RT_OK		CON-70020	0(=base)	yes	yes		
+A_canon_paren_dash_Issues	A	RT_OK		CON-70021	0(=base)	yes	yes		
+A_canon_paren_dash_Fixed	A	RT_OK		CON-70022	0(=base)	yes	yes		
+A_canon_emdash_Issues	A	RT_OK		CON-70023	0(=base)	yes	yes		
+A_canon_emdash_Fixed	A	RT_OK		CON-70024	0(=base)	yes	yes		
+A_canon_backticks_Issues	A	RT_OK		CON-70025	0(=base)	yes	yes		
+A_canon_backticks_Fixed	A	RT_OK		CON-70026	0(=base)	yes	yes		
+A_canon_nl_heading_Issues	A	RT_PHANTOM		CON-70027	0(=base)	yes	no	new=[('CON-8811', 'Issues', 'section')]	
+A_canon_nl_heading_Fixed	A	RT_PHANTOM		CON-70028	0(=base)	yes	no	new=[('CON-8811', 'Fixed', 'section')]	
+A_canon_nl_plain_Issues	A	RT_FIELD		CON-70029	0(=base)	yes	yes	CON-70029.title	
+A_canon_nl_plain_Fixed	A	RT_FIELD		CON-70030	0(=base)	yes	yes	CON-70030.title	
+A_canon_cr_Issues	A	RT_OK		CON-70031	0(=base)	yes	yes		
+A_canon_cr_Fixed	A	RT_OK		CON-70032	0(=base)	yes	yes		
+A_canon_section_sign_Issues	A	RT_OK		CON-70033	0(=base)	yes	yes		
+A_canon_section_sign_Fixed	A	RT_OK		CON-70034	0(=base)	yes	yes		
+A_canon_hash_start_Issues	A	RT_OK		CON-70035	0(=base)	yes	yes		
+A_canon_hash_start_Fixed	A	RT_OK		CON-70036	0(=base)	yes	yes		
+A_canon_dot_start_Issues	A	RT_OK		CON-70037	0(=base)	yes	yes		
+A_canon_dot_start_Fixed	A	RT_OK		CON-70038	0(=base)	yes	yes		
+A_canon_unicode_Issues	A	RT_OK		CON-70039	0(=base)	yes	yes		
+A_canon_unicode_Fixed	A	RT_OK		CON-70040	0(=base)	yes	yes		
+A_canon_long_Issues	A	RT_OK		CON-70041	0(=base)	yes	yes		
+A_canon_long_Fixed	A	RT_OK		CON-70042	0(=base)	yes	yes		
+A_canon_tab_Issues	A	RT_OK		CON-70043	0(=base)	yes	yes		
+A_canon_tab_Fixed	A	RT_OK		CON-70044	0(=base)	yes	yes		
+A_canon_meta_like_Issues	A	RT_OK		CON-70045	0(=base)	yes	yes		
+A_canon_meta_like_Fixed	A	RT_OK		CON-70046	0(=base)	yes	yes		
+A_canon_trail_backslash_Issues	A	RT_OK		CON-70047	0(=base)	yes	yes		
+A_canon_trail_backslash_Fixed	A	RT_OK		CON-70048	0(=base)	yes	yes		
+A_legacy_plain_Issues	A	RT_OK		GZ49	0(=base)	yes	yes		
+A_legacy_plain_Fixed	A	RT_OK		GZ50	0(=base)	yes	yes		
+A_legacy_lead_space_Issues	A	RT_STUCK	md-to-db	GZ51	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_legacy_lead_space_Iss	
+A_legacy_lead_space_Fixed	A	RT_PARTIAL	md-to-db	GZ52	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_legacy_lead_space_Fix	
+A_legacy_trail_space_Issues	A	RT_FIELD		GZ53	0(=base)	yes	yes	GZ53.title	
+A_legacy_trail_space_Fixed	A	RT_FIELD		GZ54	0(=base)	yes	yes	GZ54.title	
+A_legacy_bracket_start_Issues	A	RT_REPLACED		GZ55	1(+1)	-	-	lost=[('GZ55', 'Issues', 'section')] new=[('ABC-9', 'Issues', 'section')]	
+A_legacy_bracket_start_Fixed	A	RT_REPLACED		GZ56	1(+1)	-	-	lost=[('GZ56', 'Fixed', 'section')] new=[('ABC-9', 'Fixed', 'section')]	
+A_legacy_bracket_mid_existing_Issues	A	RT_STUCK	md-to-db	GZ57	1(+1)	no	yes	sync md-to-db: persist issues: insert item CON-123 [section]: UNIQUE constraint failed: items.atm_id, items.current_location, items.representation	
+A_legacy_bracket_mid_existing_Fixed	A	RT_REPLACED		GZ58	1(+1)	-	-	lost=[('GZ58', 'Fixed', 'section')] new=[('CON-123', 'Fixed', 'section')]	
+A_legacy_bracket_mid_new_Issues	A	RT_REPLACED		GZ59	1(+1)	-	-	lost=[('GZ59', 'Issues', 'section')] new=[('ZZQ-77', 'Issues', 'section')]	
+A_legacy_bracket_mid_new_Fixed	A	RT_REPLACED		GZ60	1(+1)	-	-	lost=[('GZ60', 'Fixed', 'section')] new=[('ZZQ-77', 'Fixed', 'section')]	
+A_legacy_bracket_alpha_Issues	A	RT_OK		GZ61	0(=base)	yes	yes		
+A_legacy_bracket_alpha_Fixed	A	RT_OK		GZ62	0(=base)	yes	yes		
+A_legacy_status_suffix_Issues	A	RT_FIELD		GZ63	0(=base)	yes	yes	GZ63.title	
+A_legacy_status_suffix_Fixed	A	RT_FIELD		GZ64	0(=base)	yes	yes	GZ64.title	
+A_legacy_status_nodash_Issues	A	RT_FIELD		GZ65	0(=base)	yes	yes	GZ65.title	
+A_legacy_status_nodash_Fixed	A	RT_FIELD		GZ66	0(=base)	yes	yes	GZ66.title	
+A_legacy_migrated_Issues	A	RT_FIELD		GZ67	0(=base)	yes	yes	GZ67.title	
+A_legacy_migrated_Fixed	A	RT_FIELD		GZ68	0(=base)	yes	yes	GZ68.title	
+A_legacy_paren_dash_Issues	A	RT_OK		GZ69	0(=base)	yes	yes		
+A_legacy_paren_dash_Fixed	A	RT_OK		GZ70	0(=base)	yes	yes		
+A_legacy_emdash_Issues	A	RT_OK		GZ71	0(=base)	yes	yes		
+A_legacy_emdash_Fixed	A	RT_OK		GZ72	0(=base)	yes	yes		
+A_legacy_backticks_Issues	A	RT_OK		GZ73	0(=base)	yes	yes		
+A_legacy_backticks_Fixed	A	RT_OK		GZ74	0(=base)	yes	yes		
+A_legacy_nl_heading_Issues	A	RT_STUCK	md-to-db	GZ75	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_legacy_nl_heading_Iss	
+A_legacy_nl_heading_Fixed	A	RT_PARTIAL	md-to-db	GZ76	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_legacy_nl_heading_Fix	
+A_legacy_nl_plain_Issues	A	RT_FIELD		GZ77	0(=base)	yes	yes	GZ77.title	
+A_legacy_nl_plain_Fixed	A	RT_FIELD		GZ78	0(=base)	yes	yes	GZ78.title	
+A_legacy_cr_Issues	A	RT_OK		GZ79	0(=base)	yes	yes		
+A_legacy_cr_Fixed	A	RT_OK		GZ80	0(=base)	yes	yes		
+A_legacy_section_sign_Issues	A	RT_OK		GZ81	0(=base)	yes	yes		
+A_legacy_section_sign_Fixed	A	RT_OK		GZ82	0(=base)	yes	yes		
+A_legacy_hash_start_Issues	A	RT_OK		GZ83	0(=base)	yes	yes		
+A_legacy_hash_start_Fixed	A	RT_OK		GZ84	0(=base)	yes	yes		
+A_legacy_dot_start_Issues	A	RT_OK		GZ85	0(=base)	yes	yes		
+A_legacy_dot_start_Fixed	A	RT_OK		GZ86	0(=base)	yes	yes		
+A_legacy_unicode_Issues	A	RT_OK		GZ87	0(=base)	yes	yes		
+A_legacy_unicode_Fixed	A	RT_OK		GZ88	0(=base)	yes	yes		
+A_legacy_long_Issues	A	RT_OK		GZ89	0(=base)	yes	yes		
+A_legacy_long_Fixed	A	RT_OK		GZ90	0(=base)	yes	yes		
+A_legacy_tab_Issues	A	RT_OK		GZ91	0(=base)	yes	yes		
+A_legacy_tab_Fixed	A	RT_OK		GZ92	0(=base)	yes	yes		
+A_legacy_meta_like_Issues	A	RT_OK		GZ93	0(=base)	yes	yes		
+A_legacy_meta_like_Fixed	A	RT_OK		GZ94	0(=base)	yes	yes		
+A_legacy_trail_backslash_Issues	A	RT_OK		GZ95	0(=base)	yes	yes		
+A_legacy_trail_backslash_Fixed	A	RT_OK		GZ96	0(=base)	yes	yes		
+A_legacy1_plain_Issues	A	RT_OK		GS-90097	0(=base)	yes	yes		
+A_legacy1_plain_Fixed	A	RT_OK		GS-90098	0(=base)	yes	yes		
+A_legacy1_lead_space_Issues	A	RT_STUCK	md-to-db	GS-90099	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_legacy1_lead_space_Is	
+A_legacy1_lead_space_Fixed	A	RT_PARTIAL	md-to-db	GS-90100	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_legacy1_lead_space_Fi	
+A_legacy1_trail_space_Issues	A	RT_FIELD		GS-90101	0(=base)	yes	yes	GS-90101.title	
+A_legacy1_trail_space_Fixed	A	RT_FIELD		GS-90102	0(=base)	yes	yes	GS-90102.title	
+A_legacy1_bracket_start_Issues	A	RT_REPLACED		GS-90103	1(+1)	-	-	lost=[('GS-90103', 'Issues', 'section')] new=[('ABC-9', 'Issues', 'section')]	
+A_legacy1_bracket_start_Fixed	A	RT_REPLACED		GS-90104	1(+1)	-	-	lost=[('GS-90104', 'Fixed', 'section')] new=[('ABC-9', 'Fixed', 'section')]	
+A_legacy1_bracket_mid_existing_Issues	A	RT_STUCK	md-to-db	GS-90105	1(+1)	no	yes	sync md-to-db: persist issues: insert item CON-123 [section]: UNIQUE constraint failed: items.atm_id, items.current_location, items.representation	
+A_legacy1_bracket_mid_existing_Fixed	A	RT_REPLACED		GS-90106	1(+1)	-	-	lost=[('GS-90106', 'Fixed', 'section')] new=[('CON-123', 'Fixed', 'section')]	
+A_legacy1_bracket_mid_new_Issues	A	RT_REPLACED		GS-90107	1(+1)	-	-	lost=[('GS-90107', 'Issues', 'section')] new=[('ZZQ-77', 'Issues', 'section')]	
+A_legacy1_bracket_mid_new_Fixed	A	RT_REPLACED		GS-90108	1(+1)	-	-	lost=[('GS-90108', 'Fixed', 'section')] new=[('ZZQ-77', 'Fixed', 'section')]	
+A_legacy1_bracket_alpha_Issues	A	RT_OK		GS-90109	0(=base)	yes	yes		
+A_legacy1_bracket_alpha_Fixed	A	RT_OK		GS-90110	0(=base)	yes	yes		
+A_legacy1_status_suffix_Issues	A	RT_FIELD		GS-90111	0(=base)	yes	yes	GS-90111.title	
+A_legacy1_status_suffix_Fixed	A	RT_FIELD		GS-90112	0(=base)	yes	yes	GS-90112.title	
+A_legacy1_status_nodash_Issues	A	RT_FIELD		GS-90113	0(=base)	yes	yes	GS-90113.title	
+A_legacy1_status_nodash_Fixed	A	RT_FIELD		GS-90114	0(=base)	yes	yes	GS-90114.title	
+A_legacy1_migrated_Issues	A	RT_FIELD		GS-90115	0(=base)	yes	yes	GS-90115.title	
+A_legacy1_migrated_Fixed	A	RT_FIELD		GS-90116	0(=base)	yes	yes	GS-90116.title	
+A_legacy1_paren_dash_Issues	A	RT_OK		GS-90117	0(=base)	yes	yes		
+A_legacy1_paren_dash_Fixed	A	RT_OK		GS-90118	0(=base)	yes	yes		
+A_legacy1_emdash_Issues	A	RT_OK		GS-90119	0(=base)	yes	yes		
+A_legacy1_emdash_Fixed	A	RT_OK		GS-90120	0(=base)	yes	yes		
+A_legacy1_backticks_Issues	A	RT_OK		GS-90121	0(=base)	yes	yes		
+A_legacy1_backticks_Fixed	A	RT_OK		GS-90122	0(=base)	yes	yes		
+A_legacy1_nl_heading_Issues	A	RT_STUCK	md-to-db	GS-90123	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_legacy1_nl_heading_Is	
+A_legacy1_nl_heading_Fixed	A	RT_PARTIAL	md-to-db	GS-90124	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_legacy1_nl_heading_Fi	
+A_legacy1_nl_plain_Issues	A	RT_FIELD		GS-90125	0(=base)	yes	yes	GS-90125.title	
+A_legacy1_nl_plain_Fixed	A	RT_FIELD		GS-90126	0(=base)	yes	yes	GS-90126.title	
+A_legacy1_cr_Issues	A	RT_OK		GS-90127	0(=base)	yes	yes		
+A_legacy1_cr_Fixed	A	RT_OK		GS-90128	0(=base)	yes	yes		
+A_legacy1_section_sign_Issues	A	RT_OK		GS-90129	0(=base)	yes	yes		
+A_legacy1_section_sign_Fixed	A	RT_OK		GS-90130	0(=base)	yes	yes		
+A_legacy1_hash_start_Issues	A	RT_OK		GS-90131	0(=base)	yes	yes		
+A_legacy1_hash_start_Fixed	A	RT_OK		GS-90132	0(=base)	yes	yes		
+A_legacy1_dot_start_Issues	A	RT_OK		GS-90133	0(=base)	yes	yes		
+A_legacy1_dot_start_Fixed	A	RT_OK		GS-90134	0(=base)	yes	yes		
+A_legacy1_unicode_Issues	A	RT_OK		GS-90135	0(=base)	yes	yes		
+A_legacy1_unicode_Fixed	A	RT_OK		GS-90136	0(=base)	yes	yes		
+A_legacy1_long_Issues	A	RT_OK		GS-90137	0(=base)	yes	yes		
+A_legacy1_long_Fixed	A	RT_OK		GS-90138	0(=base)	yes	yes		
+A_legacy1_tab_Issues	A	RT_OK		GS-90139	0(=base)	yes	yes		
+A_legacy1_tab_Fixed	A	RT_OK		GS-90140	0(=base)	yes	yes		
+A_legacy1_meta_like_Issues	A	RT_OK		GS-90141	0(=base)	yes	yes		
+A_legacy1_meta_like_Fixed	A	RT_OK		GS-90142	0(=base)	yes	yes		
+A_legacy1_trail_backslash_Issues	A	RT_OK		GS-90143	0(=base)	yes	yes		
+A_legacy1_trail_backslash_Fixed	A	RT_OK		GS-90144	0(=base)	yes	yes		
+A_pfx_canon_plain_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_plain_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_lead_space_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_lead_space_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_trail_space_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_trail_space_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_bracket_start_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_bracket_start_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_bracket_mid_existing_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_bracket_mid_existing_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_bracket_mid_new_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_bracket_mid_new_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_bracket_alpha_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_bracket_alpha_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_status_suffix_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_status_suffix_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_status_nodash_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_status_nodash_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_migrated_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_migrated_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_paren_dash_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_paren_dash_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_emdash_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_emdash_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_backticks_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_backticks_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_nl_heading_Issues	A	RT_PHANTOM		CON-522	0(=base)	yes	no	new=[('CON-8811', 'Issues', 'section')]	
+A_pfx_canon_nl_heading_Fixed	A	RT_PHANTOM		CON-522	0(=base)	yes	no	new=[('CON-8811', 'Fixed', 'section')]	
+A_pfx_canon_nl_plain_Issues	A	RT_FIELD		CON-522	0(=base)	yes	yes	CON-522.title	
+A_pfx_canon_nl_plain_Fixed	A	RT_FIELD		CON-522	0(=base)	yes	yes	CON-522.title	
+A_pfx_canon_cr_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_cr_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_section_sign_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_section_sign_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_hash_start_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_hash_start_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_dot_start_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_dot_start_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_unicode_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_unicode_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_long_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_long_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_tab_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_tab_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_meta_like_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_meta_like_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_trail_backslash_Issues	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_canon_trail_backslash_Fixed	A	RT_OK		CON-522	0(=base)	yes	yes		
+A_pfx_legacy_plain_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_plain_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_lead_space_Issues	A	RT_STUCK	md-to-db	GS-001	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_pfx_legacy_lead_space	
+A_pfx_legacy_lead_space_Fixed	A	RT_PARTIAL	md-to-db	GS-001	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_pfx_legacy_lead_space	
+A_pfx_legacy_trail_space_Issues	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_trail_space_Fixed	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_bracket_start_Issues	A	RT_REPLACED		GS-001	1(+1)	-	-	lost=[('GS-001', 'Issues', 'section')] new=[('ABC-9', 'Issues', 'section')]	
+A_pfx_legacy_bracket_start_Fixed	A	RT_REPLACED		GS-001	1(+1)	-	-	lost=[('GS-001', 'Fixed', 'section')] new=[('ABC-9', 'Fixed', 'section')]	
+A_pfx_legacy_bracket_mid_existing_Issues	A	RT_STUCK	md-to-db	GS-001	1(+1)	no	yes	sync md-to-db: persist issues: insert item CON-123 [section]: UNIQUE constraint failed: items.atm_id, items.current_location, items.representation	
+A_pfx_legacy_bracket_mid_existing_Fixed	A	RT_REPLACED		GS-001	1(+1)	-	-	lost=[('GS-001', 'Fixed', 'section')] new=[('CON-123', 'Fixed', 'section')]	
+A_pfx_legacy_bracket_mid_new_Issues	A	RT_REPLACED		GS-001	1(+1)	-	-	lost=[('GS-001', 'Issues', 'section')] new=[('ZZQ-77', 'Issues', 'section')]	
+A_pfx_legacy_bracket_mid_new_Fixed	A	RT_REPLACED		GS-001	1(+1)	-	-	lost=[('GS-001', 'Fixed', 'section')] new=[('ZZQ-77', 'Fixed', 'section')]	
+A_pfx_legacy_bracket_alpha_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_bracket_alpha_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_status_suffix_Issues	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_status_suffix_Fixed	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_status_nodash_Issues	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_status_nodash_Fixed	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_migrated_Issues	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_migrated_Fixed	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_paren_dash_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_paren_dash_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_emdash_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_emdash_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_backticks_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_backticks_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_nl_heading_Issues	A	RT_STUCK	md-to-db	GS-001	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_pfx_legacy_nl_heading	
+A_pfx_legacy_nl_heading_Fixed	A	RT_PARTIAL	md-to-db	GS-001	1(+1)	no	yes	sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/scratch/fix456r2_qesMFU/ev/red_d3fa/class_enum/A_pfx_legacy_nl_heading	
+A_pfx_legacy_nl_plain_Issues	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_nl_plain_Fixed	A	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.title	
+A_pfx_legacy_cr_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_cr_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_section_sign_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_section_sign_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_hash_start_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_hash_start_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_dot_start_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_dot_start_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_unicode_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_unicode_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_long_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_long_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_tab_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_tab_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_meta_like_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_meta_like_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_trail_backslash_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_trail_backslash_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+B_canon_plain_Issues	B	RT_OK		CON-70241	0(=base)	yes	yes		
+B_canon_plain_Fixed	B	RT_OK		CON-70242	0(=base)	yes	yes		
+B_canon_heading_item_Issues	B	RT_PHANTOM		CON-70243	0(=base)	yes	no	new=[('CON-8813', 'Issues', 'section')]	
+B_canon_heading_item_Fixed	B	RT_PHANTOM		CON-70244	0(=base)	yes	no	new=[('CON-8813', 'Fixed', 'section')]	
+B_canon_heading_raw_Issues	B	RT_OK		CON-70245	0(=base)	yes	no		
+B_canon_heading_raw_Fixed	B	RT_OK		CON-70246	0(=base)	yes	no		
+B_canon_status_line_Issues	B	RT_OK		CON-70247	1(+1)	yes	no		
+B_canon_status_line_Fixed	B	RT_OK		CON-70248	0(=base)	yes	yes		
+B_canon_type_line_Issues	B	RT_FIELD		CON-70249	0(=base)	yes	yes	CON-70249.type	
+B_canon_type_line_Fixed	B	RT_FIELD		CON-70250	0(=base)	yes	yes	CON-70250.type	
+B_canon_severity_line_Issues	B	RT_FIELD		CON-70251	0(=base)	yes	yes	CON-70251.severity	
+B_canon_severity_line_Fixed	B	RT_FIELD		CON-70252	0(=base)	yes	yes	CON-70252.severity	
+B_canon_subheading_Issues	B	RT_OK		CON-70253	0(=base)	yes	yes		
+B_canon_subheading_Fixed	B	RT_OK		CON-70254	0(=base)	yes	yes		
+B_canon_pipe_row_Issues	B	RT_OK		CON-70255	0(=base)	yes	yes		
+B_canon_pipe_row_Fixed	B	RT_OK		CON-70256	0(=base)	yes	yes		
+B_canon_repro_line_Issues	B	RT_FIELD		CON-70257	1(+1)	yes	yes	CON-70257.reproduction_state	
+B_canon_repro_line_Fixed	B	RT_FIELD		CON-70258	1(+1)	yes	yes	CON-70258.reproduction_state	
+B_canon_leading_nl_Issues	B	RT_OK		CON-70259	0(=base)	yes	yes		
+B_canon_leading_nl_Fixed	B	RT_OK		CON-70260	0(=base)	yes	yes		
+B_canon_trail_spaces_Issues	B	RT_OK		CON-70261	0(=base)	yes	yes		
+B_canon_trail_spaces_Fixed	B	RT_OK		CON-70262	0(=base)	yes	yes		
+B_canon_cr_desc_Issues	B	RT_OK		CON-70263	0(=base)	yes	yes		
+B_canon_cr_desc_Fixed	B	RT_OK		CON-70264	0(=base)	yes	yes		
+B_legacy_plain_Issues	B	RT_OK		GZ265	0(=base)	yes	yes		
+B_legacy_plain_Fixed	B	RT_OK		GZ266	0(=base)	yes	yes		
+B_legacy_heading_item_Issues	B	RT_PHANTOM		GZ267	0(=base)	yes	no	new=[('CON-8813', 'Issues', 'section')]	
+B_legacy_heading_item_Fixed	B	RT_PHANTOM		GZ268	0(=base)	yes	no	new=[('CON-8813', 'Fixed', 'section')]	
+B_legacy_heading_raw_Issues	B	RT_OK		GZ269	0(=base)	yes	no		
+B_legacy_heading_raw_Fixed	B	RT_OK		GZ270	0(=base)	yes	no		
+B_legacy_status_line_Issues	B	RT_OK		GZ271	1(+1)	yes	no		
+B_legacy_status_line_Fixed	B	RT_OK		GZ272	0(=base)	yes	yes		
+B_legacy_type_line_Issues	B	RT_FIELD		GZ273	0(=base)	yes	yes	GZ273.type	
+B_legacy_type_line_Fixed	B	RT_FIELD		GZ274	0(=base)	yes	yes	GZ274.type	
+B_legacy_severity_line_Issues	B	RT_FIELD		GZ275	0(=base)	yes	yes	GZ275.severity	
+B_legacy_severity_line_Fixed	B	RT_FIELD		GZ276	0(=base)	yes	yes	GZ276.severity	
+B_legacy_subheading_Issues	B	RT_OK		GZ277	0(=base)	yes	yes		
+B_legacy_subheading_Fixed	B	RT_OK		GZ278	0(=base)	yes	yes		
+B_legacy_pipe_row_Issues	B	RT_OK		GZ279	0(=base)	yes	yes		
+B_legacy_pipe_row_Fixed	B	RT_OK		GZ280	0(=base)	yes	yes		
+B_legacy_repro_line_Issues	B	RT_FIELD		GZ281	1(+1)	yes	yes	GZ281.reproduction_state	
+B_legacy_repro_line_Fixed	B	RT_FIELD		GZ282	1(+1)	yes	yes	GZ282.reproduction_state	
+B_legacy_leading_nl_Issues	B	RT_OK		GZ283	0(=base)	yes	yes		
+B_legacy_leading_nl_Fixed	B	RT_OK		GZ284	0(=base)	yes	yes		
+B_legacy_trail_spaces_Issues	B	RT_OK		GZ285	0(=base)	yes	yes		
+B_legacy_trail_spaces_Fixed	B	RT_OK		GZ286	0(=base)	yes	yes		
+B_legacy_cr_desc_Issues	B	RT_OK		GZ287	0(=base)	yes	yes		
+B_legacy_cr_desc_Fixed	B	RT_OK		GZ288	0(=base)	yes	yes		
+B_legacy1_plain_Issues	B	RT_OK		GS-90289	0(=base)	yes	yes		
+B_legacy1_plain_Fixed	B	RT_OK		GS-90290	0(=base)	yes	yes		
+B_legacy1_heading_item_Issues	B	RT_PHANTOM		GS-90291	0(=base)	yes	no	new=[('CON-8813', 'Issues', 'section')]	
+B_legacy1_heading_item_Fixed	B	RT_PHANTOM		GS-90292	0(=base)	yes	no	new=[('CON-8813', 'Fixed', 'section')]	
+B_legacy1_heading_raw_Issues	B	RT_OK		GS-90293	0(=base)	yes	no		
+B_legacy1_heading_raw_Fixed	B	RT_OK		GS-90294	0(=base)	yes	no		
+B_legacy1_status_line_Issues	B	RT_OK		GS-90295	1(+1)	yes	no		
+B_legacy1_status_line_Fixed	B	RT_OK		GS-90296	0(=base)	yes	yes		
+B_legacy1_type_line_Issues	B	RT_FIELD		GS-90297	0(=base)	yes	yes	GS-90297.type	
+B_legacy1_type_line_Fixed	B	RT_FIELD		GS-90298	0(=base)	yes	yes	GS-90298.type	
+B_legacy1_severity_line_Issues	B	RT_FIELD		GS-90299	0(=base)	yes	yes	GS-90299.severity	
+B_legacy1_severity_line_Fixed	B	RT_FIELD		GS-90300	0(=base)	yes	yes	GS-90300.severity	
+B_legacy1_subheading_Issues	B	RT_OK		GS-90301	0(=base)	yes	yes		
+B_legacy1_subheading_Fixed	B	RT_OK		GS-90302	0(=base)	yes	yes		
+B_legacy1_pipe_row_Issues	B	RT_OK		GS-90303	0(=base)	yes	yes		
+B_legacy1_pipe_row_Fixed	B	RT_OK		GS-90304	0(=base)	yes	yes		
+B_legacy1_repro_line_Issues	B	RT_FIELD		GS-90305	1(+1)	yes	yes	GS-90305.reproduction_state	
+B_legacy1_repro_line_Fixed	B	RT_FIELD		GS-90306	1(+1)	yes	yes	GS-90306.reproduction_state	
+B_legacy1_leading_nl_Issues	B	RT_OK		GS-90307	0(=base)	yes	yes		
+B_legacy1_leading_nl_Fixed	B	RT_OK		GS-90308	0(=base)	yes	yes		
+B_legacy1_trail_spaces_Issues	B	RT_OK		GS-90309	0(=base)	yes	yes		
+B_legacy1_trail_spaces_Fixed	B	RT_OK		GS-90310	0(=base)	yes	yes		
+B_legacy1_cr_desc_Issues	B	RT_OK		GS-90311	0(=base)	yes	yes		
+B_legacy1_cr_desc_Fixed	B	RT_OK		GS-90312	0(=base)	yes	yes		
+B_pfx_canon_plain_Issues	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_plain_Fixed	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_heading_item_Issues	B	RT_PHANTOM		CON-522	0(=base)	yes	no	new=[('CON-8813', 'Issues', 'section')]	
+B_pfx_canon_heading_item_Fixed	B	RT_PHANTOM		CON-522	0(=base)	yes	no	new=[('CON-8813', 'Fixed', 'section')]	
+B_pfx_canon_heading_raw_Issues	B	RT_OK		CON-522	0(=base)	yes	no		
+B_pfx_canon_heading_raw_Fixed	B	RT_OK		CON-522	0(=base)	yes	no		
+B_pfx_canon_status_line_Issues	B	RT_OK		CON-522	1(+1)	yes	no		
+B_pfx_canon_status_line_Fixed	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_type_line_Issues	B	RT_FIELD		CON-522	0(=base)	yes	yes	CON-522.type	
+B_pfx_canon_type_line_Fixed	B	RT_FIELD		CON-522	0(=base)	yes	yes	CON-522.type	
+B_pfx_canon_severity_line_Issues	B	RT_FIELD		CON-522	0(=base)	yes	yes	CON-522.severity	
+B_pfx_canon_severity_line_Fixed	B	RT_FIELD		CON-522	0(=base)	yes	yes	CON-522.severity	
+B_pfx_canon_subheading_Issues	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_subheading_Fixed	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_pipe_row_Issues	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_pipe_row_Fixed	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_repro_line_Issues	B	RT_FIELD		CON-522	1(+1)	yes	yes	CON-522.reproduction_state	
+B_pfx_canon_repro_line_Fixed	B	RT_FIELD		CON-522	1(+1)	yes	yes	CON-522.reproduction_state	
+B_pfx_canon_leading_nl_Issues	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_leading_nl_Fixed	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_trail_spaces_Issues	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_trail_spaces_Fixed	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_cr_desc_Issues	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_canon_cr_desc_Fixed	B	RT_OK		CON-522	0(=base)	yes	yes		
+B_pfx_legacy_plain_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_plain_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_heading_item_Issues	B	RT_PHANTOM		GS-001	0(=base)	yes	no	new=[('CON-8813', 'Issues', 'section')]	
+B_pfx_legacy_heading_item_Fixed	B	RT_PHANTOM		GS-001	0(=base)	yes	no	new=[('CON-8813', 'Fixed', 'section')]	
+B_pfx_legacy_heading_raw_Issues	B	RT_OK		GS-001	0(=base)	yes	no		
+B_pfx_legacy_heading_raw_Fixed	B	RT_OK		GS-001	0(=base)	yes	no		
+B_pfx_legacy_status_line_Issues	B	RT_OK		GS-001	1(+1)	yes	no		
+B_pfx_legacy_status_line_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_type_line_Issues	B	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.type	
+B_pfx_legacy_type_line_Fixed	B	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.type	
+B_pfx_legacy_severity_line_Issues	B	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.severity	
+B_pfx_legacy_severity_line_Fixed	B	RT_FIELD		GS-001	0(=base)	yes	yes	GS-001.severity	
+B_pfx_legacy_subheading_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_subheading_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_pipe_row_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_pipe_row_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_repro_line_Issues	B	RT_FIELD		GS-001	1(+1)	yes	yes	GS-001.reproduction_state	
+B_pfx_legacy_repro_line_Fixed	B	RT_FIELD		GS-001	1(+1)	yes	yes	GS-001.reproduction_state	
+B_pfx_legacy_leading_nl_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_leading_nl_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_trail_spaces_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_trail_spaces_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_cr_desc_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_cr_desc_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+C_update_title_canon_plain	C	RT_OK		CON-70361	0(=base)	yes	yes		
+C_update_title_canon_lead_space	C	RT_OK		CON-70362	0(=base)	yes	yes		
+C_update_title_canon_trail_space	C	RT_OK		CON-70363	0(=base)	yes	yes		
+C_update_title_canon_bracket_start	C	RT_OK		CON-70364	0(=base)	yes	yes		
+C_update_title_canon_bracket_mid_existing	C	RT_OK		CON-70365	0(=base)	yes	yes		
+C_update_title_canon_bracket_mid_new	C	RT_OK		CON-70366	0(=base)	yes	yes		
+C_update_title_canon_bracket_alpha	C	RT_OK		CON-70367	0(=base)	yes	yes		
+C_update_title_canon_status_suffix	C	RT_OK		CON-70368	0(=base)	yes	yes		
+C_update_title_canon_status_nodash	C	RT_OK		CON-70369	0(=base)	yes	yes		
+C_update_title_canon_migrated	C	RT_OK		CON-70370	0(=base)	yes	yes		
+C_update_title_canon_paren_dash	C	RT_OK		CON-70371	0(=base)	yes	yes		
+C_update_title_canon_emdash	C	RT_OK		CON-70372	0(=base)	yes	yes		
+C_update_title_canon_backticks	C	RT_OK		CON-70373	0(=base)	yes	yes		
+C_update_title_canon_nl_heading	C	RT_PHANTOM		CON-70374	0(=base)	yes	no	new=[('CON-8811', 'Issues', 'section')]	
+C_update_title_canon_nl_plain	C	RT_FIELD		CON-70375	0(=base)	yes	yes	CON-70375.title	
+C_update_title_canon_cr	C	RT_OK		CON-70376	0(=base)	yes	yes		
+C_update_title_canon_section_sign	C	RT_OK		CON-70377	0(=base)	yes	yes		
+C_update_title_canon_hash_start	C	RT_OK		CON-70378	0(=base)	yes	yes		
+C_update_title_canon_dot_start	C	RT_OK		CON-70379	0(=base)	yes	yes		
+C_update_title_canon_unicode	C	RT_OK		CON-70380	0(=base)	yes	yes		
+C_update_title_canon_long	C	RT_OK		CON-70381	0(=base)	yes	yes		
+C_update_title_canon_tab	C	RT_OK		CON-70382	0(=base)	yes	yes		
+C_update_title_canon_meta_like	C	RT_OK		CON-70383	0(=base)	yes	yes		
+C_update_title_canon_trail_backslash	C	RT_OK		CON-70384	0(=base)	yes	yes		
+C_update_desc_canon_plain	C	RT_OK		CON-70385	0(=base)	yes	yes		
+C_update_desc_canon_heading_item	C	RT_PHANTOM		CON-70386	0(=base)	yes	no	new=[('CON-8813', 'Issues', 'section')]	
+C_update_desc_canon_heading_raw	C	RT_OK		CON-70387	0(=base)	yes	no		
+C_update_desc_canon_status_line	C	RT_OK		CON-70388	1(+1)	yes	no		
+C_update_desc_canon_type_line	C	RT_FIELD		CON-70389	0(=base)	yes	yes	CON-70389.type	
+C_update_desc_canon_severity_line	C	RT_FIELD		CON-70390	0(=base)	yes	yes	CON-70390.severity	
+C_update_desc_canon_subheading	C	RT_OK		CON-70391	0(=base)	yes	yes		
+C_update_desc_canon_pipe_row	C	RT_OK		CON-70392	0(=base)	yes	yes		
+C_update_desc_canon_repro_line	C	RT_FIELD		CON-70393	1(+1)	yes	yes	CON-70393.reproduction_state	
+C_update_desc_canon_leading_nl	C	RT_OK		CON-70394	0(=base)	yes	yes		
+C_update_desc_canon_trail_spaces	C	RT_OK		CON-70395	0(=base)	yes	yes		
+C_update_desc_canon_cr_desc	C	RT_OK		CON-70396	0(=base)	yes	yes		
+C_block_canon_plain	C	RT_OK		CON-70397	1(+1)	yes	yes		
+C_close_reopen_canon_plain	C	RT_OK		CON-70398	0(=base)	yes	yes		
+C_block_canon_nl_heading	C	RT_PHANTOM		CON-70399	1(+1)	yes	no	new=[('CON-8815', 'Issues', 'section')]	
+C_close_reopen_canon_nl_heading	C	RT_OK		CON-70400	0(=base)	yes	yes		
+C_block_canon_nl_status	C	RT_OK		CON-70401	1(+2)	yes	no		
+C_close_reopen_canon_nl_status	C	RT_OK		CON-70402	0(=base)	yes	yes		
+C_close_canon	C	RT_OK		CON-70403	0(=base)	yes	yes		
+C_update_title_legacy_plain	C	RT_OK		GZ404	0(=base)	yes	yes		
+C_update_title_legacy_lead_space	C	RT_FIELD		GZ405	0(=base)	yes	yes	GZ405.title	
+C_update_title_legacy_trail_space	C	RT_FIELD		GZ406	0(=base)	yes	yes	GZ406.title	
+C_update_title_legacy_bracket_start	C	RT_FIELD		GZ407	0(=base)	yes	yes	GZ407.title	
+C_update_title_legacy_bracket_mid_existing	C	RT_FIELD		GZ408	0(=base)	yes	yes	GZ408.title	
+C_update_title_legacy_bracket_mid_new	C	RT_FIELD		GZ409	0(=base)	yes	yes	GZ409.title	
+C_update_title_legacy_bracket_alpha	C	RT_FIELD		GZ410	0(=base)	yes	yes	GZ410.title	
+C_update_title_legacy_status_suffix	C	RT_FIELD		GZ411	0(=base)	yes	yes	GZ411.title	
+C_update_title_legacy_status_nodash	C	RT_FIELD		GZ412	0(=base)	yes	yes	GZ412.title	
+C_update_title_legacy_migrated	C	RT_FIELD		GZ413	0(=base)	yes	yes	GZ413.title	
+C_update_title_legacy_paren_dash	C	RT_FIELD		GZ414	0(=base)	yes	yes	GZ414.title	
+C_update_title_legacy_emdash	C	RT_FIELD		GZ415	0(=base)	yes	yes	GZ415.title	
+C_update_title_legacy_backticks	C	RT_FIELD		GZ416	0(=base)	yes	yes	GZ416.title	
+C_update_title_legacy_nl_heading	C	RT_FIELD		GZ417	0(=base)	yes	yes	GZ417.title	
+C_update_title_legacy_nl_plain	C	RT_FIELD		GZ418	0(=base)	yes	yes	GZ418.title	
+C_update_title_legacy_cr	C	RT_FIELD		GZ419	0(=base)	yes	yes	GZ419.title	
+C_update_title_legacy_section_sign	C	RT_FIELD		GZ420	0(=base)	yes	yes	GZ420.title	
+C_update_title_legacy_hash_start	C	RT_FIELD		GZ421	0(=base)	yes	yes	GZ421.title	
+C_update_title_legacy_dot_start	C	RT_FIELD		GZ422	0(=base)	yes	yes	GZ422.title	
+C_update_title_legacy_unicode	C	RT_FIELD		GZ423	0(=base)	yes	yes	GZ423.title	
+C_update_title_legacy_long	C	RT_FIELD		GZ424	0(=base)	yes	yes	GZ424.title	
+C_update_title_legacy_tab	C	RT_FIELD		GZ425	0(=base)	yes	yes	GZ425.title	
+C_update_title_legacy_meta_like	C	RT_FIELD		GZ426	0(=base)	yes	yes	GZ426.title	
+C_update_title_legacy_trail_backslash	C	RT_FIELD		GZ427	0(=base)	yes	yes	GZ427.title	
+C_update_desc_legacy_plain	C	RT_OK		GZ428	0(=base)	yes	yes		
+C_update_desc_legacy_heading_item	C	RT_PHANTOM		GZ429	0(=base)	yes	no	new=[('CON-8813', 'Issues', 'section')]	
+C_update_desc_legacy_heading_raw	C	RT_OK		GZ430	0(=base)	yes	no		
+C_update_desc_legacy_status_line	C	RT_OK		GZ431	1(+1)	yes	no		
+C_update_desc_legacy_type_line	C	RT_FIELD		GZ432	0(=base)	yes	yes	GZ432.type	
+C_update_desc_legacy_severity_line	C	RT_FIELD		GZ433	0(=base)	yes	yes	GZ433.severity	
+C_update_desc_legacy_subheading	C	RT_OK		GZ434	0(=base)	yes	yes		
+C_update_desc_legacy_pipe_row	C	RT_OK		GZ435	0(=base)	yes	yes		
+C_update_desc_legacy_repro_line	C	RT_FIELD		GZ436	1(+1)	yes	yes	GZ436.reproduction_state	
+C_update_desc_legacy_leading_nl	C	RT_OK		GZ437	0(=base)	yes	yes		
+C_update_desc_legacy_trail_spaces	C	RT_OK		GZ438	0(=base)	yes	yes		
+C_update_desc_legacy_cr_desc	C	RT_OK		GZ439	0(=base)	yes	yes		
+C_block_legacy_plain	C	RT_OK		GZ440	1(+1)	yes	yes		
+C_close_reopen_legacy_plain	C	RT_OK		GZ441	0(=base)	yes	yes		
+C_block_legacy_nl_heading	C	RT_PHANTOM		GZ442	1(+1)	yes	no	new=[('CON-8815', 'Issues', 'section')]	
+C_close_reopen_legacy_nl_heading	C	RT_OK		GZ443	0(=base)	yes	yes		
+C_block_legacy_nl_status	C	RT_OK		GZ444	1(+2)	yes	no		
+C_close_reopen_legacy_nl_status	C	RT_OK		GZ445	0(=base)	yes	yes		
+C_close_legacy	C	RT_OK		GZ446	0(=base)	yes	yes		
+C_update_title_legacy1_plain	C	RT_OK		GS-90447	0(=base)	yes	yes		
+C_update_title_legacy1_lead_space	C	RT_FIELD		GS-90448	0(=base)	yes	yes	GS-90448.title	
+C_update_title_legacy1_trail_space	C	RT_FIELD		GS-90449	0(=base)	yes	yes	GS-90449.title	
+C_update_title_legacy1_bracket_start	C	RT_FIELD		GS-90450	0(=base)	yes	yes	GS-90450.title	
+C_update_title_legacy1_bracket_mid_existing	C	RT_FIELD		GS-90451	0(=base)	yes	yes	GS-90451.title	
+C_update_title_legacy1_bracket_mid_new	C	RT_FIELD		GS-90452	0(=base)	yes	yes	GS-90452.title	
+C_update_title_legacy1_bracket_alpha	C	RT_FIELD		GS-90453	0(=base)	yes	yes	GS-90453.title	
+C_update_title_legacy1_status_suffix	C	RT_FIELD		GS-90454	0(=base)	yes	yes	GS-90454.title	
+C_update_title_legacy1_status_nodash	C	RT_FIELD		GS-90455	0(=base)	yes	yes	GS-90455.title	
+C_update_title_legacy1_migrated	C	RT_FIELD		GS-90456	0(=base)	yes	yes	GS-90456.title	
+C_update_title_legacy1_paren_dash	C	RT_FIELD		GS-90457	0(=base)	yes	yes	GS-90457.title	
+C_update_title_legacy1_emdash	C	RT_FIELD		GS-90458	0(=base)	yes	yes	GS-90458.title	
+C_update_title_legacy1_backticks	C	RT_FIELD		GS-90459	0(=base)	yes	yes	GS-90459.title	
+C_update_title_legacy1_nl_heading	C	RT_FIELD		GS-90460	0(=base)	yes	yes	GS-90460.title	
+C_update_title_legacy1_nl_plain	C	RT_FIELD		GS-90461	0(=base)	yes	yes	GS-90461.title	
+C_update_title_legacy1_cr	C	RT_FIELD		GS-90462	0(=base)	yes	yes	GS-90462.title	
+C_update_title_legacy1_section_sign	C	RT_FIELD		GS-90463	0(=base)	yes	yes	GS-90463.title	
+C_update_title_legacy1_hash_start	C	RT_FIELD		GS-90464	0(=base)	yes	yes	GS-90464.title	
+C_update_title_legacy1_dot_start	C	RT_FIELD		GS-90465	0(=base)	yes	yes	GS-90465.title	
+C_update_title_legacy1_unicode	C	RT_FIELD		GS-90466	0(=base)	yes	yes	GS-90466.title	
+C_update_title_legacy1_long	C	RT_FIELD		GS-90467	0(=base)	yes	yes	GS-90467.title	
+C_update_title_legacy1_tab	C	RT_FIELD		GS-90468	0(=base)	yes	yes	GS-90468.title	
+C_update_title_legacy1_meta_like	C	RT_FIELD		GS-90469	0(=base)	yes	yes	GS-90469.title	
+C_update_title_legacy1_trail_backslash	C	RT_FIELD		GS-90470	0(=base)	yes	yes	GS-90470.title	
+C_update_desc_legacy1_plain	C	RT_OK		GS-90471	0(=base)	yes	yes		
+C_update_desc_legacy1_heading_item	C	RT_PHANTOM		GS-90472	0(=base)	yes	no	new=[('CON-8813', 'Issues', 'section')]	
+C_update_desc_legacy1_heading_raw	C	RT_OK		GS-90473	0(=base)	yes	no		
+C_update_desc_legacy1_status_line	C	RT_OK		GS-90474	1(+1)	yes	no		
+C_update_desc_legacy1_type_line	C	RT_FIELD		GS-90475	0(=base)	yes	yes	GS-90475.type	
+C_update_desc_legacy1_severity_line	C	RT_FIELD		GS-90476	0(=base)	yes	yes	GS-90476.severity	
+C_update_desc_legacy1_subheading	C	RT_OK		GS-90477	0(=base)	yes	yes		
+C_update_desc_legacy1_pipe_row	C	RT_OK		GS-90478	0(=base)	yes	yes		
+C_update_desc_legacy1_repro_line	C	RT_FIELD		GS-90479	1(+1)	yes	yes	GS-90479.reproduction_state	
+C_update_desc_legacy1_leading_nl	C	RT_OK		GS-90480	0(=base)	yes	yes		
+C_update_desc_legacy1_trail_spaces	C	RT_OK		GS-90481	0(=base)	yes	yes		
+C_update_desc_legacy1_cr_desc	C	RT_OK		GS-90482	0(=base)	yes	yes		
+C_block_legacy1_plain	C	RT_OK		GS-90483	1(+1)	yes	yes		
+C_close_reopen_legacy1_plain	C	RT_OK		GS-90484	0(=base)	yes	yes		
+C_block_legacy1_nl_heading	C	RT_PHANTOM		GS-90485	1(+1)	yes	no	new=[('CON-8815', 'Issues', 'section')]	
+C_close_reopen_legacy1_nl_heading	C	RT_OK		GS-90486	0(=base)	yes	yes		
+C_block_legacy1_nl_status	C	RT_OK		GS-90487	1(+2)	yes	no		
+C_close_reopen_legacy1_nl_status	C	RT_OK		GS-90488	0(=base)	yes	yes		
+C_close_legacy1	C	RT_OK		GS-90489	0(=base)	yes	yes		

@@ -190,8 +190,13 @@ func TestReopenCmd_DetailLineIsUpserted(t *testing.T) {
 // TestReopenCmd_TableRepresentationPreservedVerbatim guards the legacy Fixed.md
 // pipe-table row shape: it has no meta block, so injecting a detail line would
 // corrupt the table and emitting an H2 block would make the row unparseable on the
-// next round-trip (the F-DBTOOL-2 defect class). The row must survive verbatim; the
-// §11.4.34 facts live in item_history.
+// next round-trip (the F-DBTOOL-2 defect class). The row must survive verbatim.
+//
+// CON-456 round 2: relocating the row into Issues.md is refused, because the
+// Issues parser reads no pipe-table rows: the reopened item would be raw text in
+// Issues.md and the next sync md-to-db would drop it (and its status cell would
+// still read "Fixed"). The refusal writes nothing, so the row stays in Fixed
+// verbatim.
 func TestReopenCmd_TableRepresentationPreservedVerbatim(t *testing.T) {
 	dbPath := newTestDB(t)
 	seedFixedItem(t, dbPath, "WIT-403")
@@ -209,8 +214,8 @@ func TestReopenCmd_TableRepresentationPreservedVerbatim(t *testing.T) {
 
 	if code := reopenCmd([]string{"--db", dbPath, "--id", "WIT-403",
 		"--why", "test-failed", "--who", "AI",
-		"--when", "2026-07-20", "--incident", "docs/evidence/WIT-403.md"}); code != exitOK {
-		t.Fatalf("reopenCmd: exit %d", code)
+		"--when", "2026-07-20", "--incident", "docs/evidence/WIT-403.md"}); code == exitOK {
+		t.Fatalf("reopenCmd relocated a pipe-table row into Issues.md, where the next md-to-db cannot read it")
 	}
 
 	db, err = openDB(dbPath)
@@ -218,11 +223,14 @@ func TestReopenCmd_TableRepresentationPreservedVerbatim(t *testing.T) {
 		t.Fatalf("openDB: %v", err)
 	}
 	defer db.Close()
-	it, err := loadItem(db, "WIT-403", "Issues")
-	if err != nil || it == nil {
-		t.Fatalf("loadItem: %v", err)
+	if it, err := loadItem(db, "WIT-403", "Issues"); err != nil || it != nil {
+		t.Fatalf("refused reopen still wrote an Issues row (err=%v)", err)
 	}
-	if it.BodyMD != row {
-		t.Fatalf("table-representation row mutated by reopen:\n got %q\nwant %q", it.BodyMD, row)
+	it, err := loadItem(db, "WIT-403", "Fixed")
+	if err != nil || it == nil {
+		t.Fatalf("loadItem Fixed: %v", err)
+	}
+	if it.BodyMD != row || it.Status == "Reopened" {
+		t.Fatalf("table-representation row mutated by a refused reopen:\n got %q (status %q)\nwant %q", it.BodyMD, it.Status, row)
 	}
 }

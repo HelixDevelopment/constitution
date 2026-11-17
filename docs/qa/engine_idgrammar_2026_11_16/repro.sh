@@ -39,7 +39,6 @@ shapes=(
   "prefix_lower|PREFIX:cat"
   "prefix_2letter|PREFIX:AB"
   "prefix_hyphen|PREFIX:CON-X"
-  "subtask_child|SUBTASK:CON-033"
 )
 printf 'shape\tid\tadd_rc\tdb_has\tmd_heading\trt_kept\trt_same_id\tvalidate_rc\tdiff_rc\n' > "$OUT/table.tsv"
 for s in "${shapes[@]}"; do
@@ -48,8 +47,6 @@ for s in "${shapes[@]}"; do
   cp "$REAL" "$d/db.sqlite"
   case "$id" in
     PREFIX:*) "$BIN" add Task Low --db "$d/db.sqlite" --title "idshape $name" --description "$DESC" --prefix "${id#PREFIX:}" >"$d/add.out" 2>&1; addrc=$?
-              key=$(sqlite3 "$d/db.sqlite" "select atm_id from items where title like '%idshape $name';");;
-    SUBTASK:*) "$BIN" subtask-add "${id#SUBTASK:}" --db "$d/db.sqlite" --session "idshape $name" --description "$DESC" >"$d/add.out" 2>&1; addrc=$?
               key=$(sqlite3 "$d/db.sqlite" "select atm_id from items where title like '%idshape $name';");;
     *) "$BIN" add Task Low --db "$d/db.sqlite" --title "idshape $name" --description "$DESC" --id "$id" >"$d/add.out" 2>&1; addrc=$?
        key="$(printf '%s' "$id" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')";;

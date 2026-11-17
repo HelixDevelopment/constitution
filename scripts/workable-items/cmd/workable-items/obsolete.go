@@ -122,6 +122,14 @@ func obsoleteDetailsCmd(args []string) int {
 	// obsolete_details table. Inject it into the item body so a db-to-md regen
 	// surfaces it (idempotent: a prior Obsolete-Details line is replaced).
 	newBody := injectObsoleteDetails(cur.BodyMD, sinceVal, reasonVal, supersedingVal, evidenceVal)
+	// One round trip (idgrammar.go, CON-456): the item's Markdown must still
+	// read back as this item after the details line is injected.
+	gated := *cur
+	gated.BodyMD = newBody
+	if newBody, err = gateItemWrite(gated); err != nil {
+		fmt.Fprintf(os.Stderr, "obsolete-details: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
 
 	tx, err := db.Begin()
 	if err != nil {

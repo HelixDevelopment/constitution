@@ -1,7 +1,7 @@
 # workable-items — §11.4.93 SQLite-SSoT Go binary
 
-**Revision:** 7
-**Last modified:** 2026-11-16T00:00:00Z
+**Revision:** 8
+**Last modified:** 2026-11-17T00:00:00Z
 **Description:** Authoritative source-of-truth registry for every workable item in every consuming project. Bidirectional regen between SQLite DB and Markdown trackers per Constitution §11.4.93.
 
 ## Overview
@@ -136,26 +136,61 @@ forms the parser reads:
 | canonical | `[A-Z]{3}-[0-9A-Za-z]+` | `## <id> — <title>` | `CON-123`, `CON-14b`, `CON-PENDINGengine` |
 | legacy code | `[A-Z][A-Za-z0-9]*` with at most one `-[A-Za-z0-9]+` part | `## <id>. <title>` | `G01`, `GS-2`, `BJ-SOURCE`, `AB-001`, `CATS-001` |
 
-- `add` refuses (exit 1, nothing written) any id, explicit or allocated from
-  `--prefix`, that does not round-trip through the renderer and the parser of
-  both trackers; the message names the id, the heading it would get and the
-  grammar. Refused shapes include a second hyphen (`CON-PENDING-x2`,
-  `CON-033-001`), a lowercase key (`con-001`), digits only, an empty suffix,
-  whitespace, dots, `#`, brackets, `§`, an em dash and non-ASCII characters.
-  A placeholder id has one hyphen: `CON-PENDINGengine`, never `CON-PENDING-x`.
-- `validate` reports a section item whose stored body the parser does not read
-  back as its id (the `#N` dedup counter is ignored).
-- `sync md-to-db` refuses, writing nothing, when a DB item would be dropped
-  although its heading is still in the Markdown (the parser cannot read it). A
-  heading removed from the Markdown is a real deletion and is applied.
-- The grammar was not widened. A four-letter key (`CATS-001`) is now written
-  in the legacy dot form the parser already read (before, the renderer wrote
-  the em-dash form, which the canonical heading reads only for three letters,
-  and the item was dropped).
-- Known, tracked defect: a sub-task child of a canonical parent
-  (`ATM-025-001`, `subtaskAddCmd`, not reachable from the command line) does
-  not round-trip; `validate` reports it. A child of a legacy parent (`BG-001`)
-  does round-trip.
+- Every command that writes an item judges the WHOLE item, not only its id,
+  before it writes anything: the text `sync db-to-md` would write for the item
+  is read back by the parser of the item's tracker (`parseFixed` for Fixed,
+  `parseIssues` for Issues), and must be exactly one item segment with the
+  same id (an exact match; the `#N` dedup counter is ignored), the same
+  representation (section or table), a byte-identical body, the same title,
+  type, status, severity, created-by, assigned-to and state records, and for a
+  table row the same closure date, round and commit. Any operator text the
+  command embeds (a description, block details, a reopen reason, evidence)
+  must also appear unchanged in that text. Otherwise the command refuses (exit
+  1, nothing written) and names the cause: the id, the title or the text.
+  The commands are `add`, `update`, `move`, `block`, `reopen`, `close`,
+  `obsolete-details`, `states import` and `repair-bodies`.
+- `add` makes these checks before it opens the database, so a refused `add`
+  on a new `--db` path creates no file. It refuses an id that does not
+  round-trip (a second hyphen such as `CON-PENDING-x2`, a lowercase key,
+  digits only, an empty suffix, whitespace inside, dots, `#`, brackets, `§`,
+  an em dash, non-ASCII) and a title or description the parser would read
+  differently: a `[XX-N]` bracket in a legacy item's title (the parser takes
+  the bracket as the id), a `` — `Status` `` suffix in a title (the parser cuts
+  the title there), a line in the title or description that reads as a
+  heading (`## CON-811 — x` adds an item; `## Notes` detaches the text after
+  it), and a description line that reads as one of the item's own metadata
+  lines (`**Status:** …`, which the generator rewrites from the columns).
+  Outer whitespace around an explicit id, a title, a severity, created-by and
+  assigned-to is trimmed. A placeholder id has one hyphen:
+  `CON-PENDINGengine`, never `CON-PENDING-x`.
+- `sync db-to-md` writes each item's own `**Type:**`, `**Severity:**`,
+  `**Created-By:**` and `**Assigned-To:**` lines from the columns (the
+  symmetry the Status line and the state records already had), so a column
+  changed by a path that did not rewrite the body is no longer reverted by the
+  next `md-to-db`. `repair-bodies` stores the same lines in the body.
+- `sync md-to-db` parses and judges BOTH documents before it writes, and
+  writes both in one transaction: a refusal on the Fixed side, or a failure
+  while Fixed is written, leaves the database unchanged. It refuses when a
+  stored item would be lost or changed although its text is still in the
+  Markdown (the parser reads it as no item, as another id, as a table row, or
+  truncated). A heading removed from the Markdown is a real deletion and is
+  applied; a real edit of a field is imported.
+- `validate` reports every stored item whose rendered text does not read back
+  as the item, under the same checks.
+- The grammar was not widened. A four-letter key (`CATS-001`) is written in
+  the legacy dot form the parser already read.
+- Behaviour changes: a table-row item in Fixed cannot be reopened into Issues
+  (`parseIssues` reads no pipe rows; the real tracker has none); `update` of a
+  field a table row cannot carry is refused; titles and severities are
+  trimmed.
+- Known limits, not changed here: `sync md-to-db` re-derives the description
+  column from the Markdown (on the real tracker it changes 279 of 491 items
+  on the first round trip and none on the second); `md-to-db` does not carry
+  `parent_atm_id`, `destination`, `logic_group` or `session_ref` (on the real
+  tracker 17 sub-tasks of CON-033 lose their parent link on every round trip,
+  before and after this change); a sub-task
+  child of a canonical parent (`ATM-025-001`, `subtaskAddCmd`, not reachable
+  from the command line) does not round-trip, and `validate` reports it.
 
 ## created_at (CON-339)
 

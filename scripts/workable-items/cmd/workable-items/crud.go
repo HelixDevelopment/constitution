@@ -91,7 +91,9 @@ func addCmd(args []string) int {
 	typ := normalizeType(pos[0])
 	severity := ""
 	if len(pos) >= 2 {
-		severity = pos[1]
+		// CON-456 round 2: surrounding whitespace is trimmed (the parser
+		// trims every metadata value, so it could never read it back).
+		severity = strings.TrimSpace(pos[1])
 	}
 	if *dbPath == "" {
 		fmt.Fprintln(os.Stderr, "add: --db is required")
@@ -121,6 +123,31 @@ func addCmd(args []string) int {
 		return exitUsage
 	}
 
+	// CON-456 round 2: surrounding whitespace of the title is trimmed, as the
+	// id's is: a legacy-code heading cannot carry it (review F3), and a
+	// canonical one keeps it only by accident of the regular expression.
+	itemTitle := strings.TrimSpace(*title)
+	cb := strings.TrimSpace(*createdBy)
+	at := strings.TrimSpace(*assignedTo)
+	newItem := func(id string) item {
+		return item{AtmID: id, Title: itemTitle, Type: typ, Status: "Queued", Severity: severity,
+			CreatedBy: cb, AssignedTo: at, CurrentLocation: "Issues", Representation: "section",
+			States: states,
+			BodyMD: canonicalizeStateLines(renderItemBody(id, itemTitle, typ, severity, *description, "Queued", cb, at), states, "section")}
+	}
+	// Judge the whole item BEFORE the database is opened, so a refusal never
+	// creates a database file at a fresh --db path (review F8). An id to be
+	// allocated from --prefix is judged by the shape of its first id; the
+	// allocated id differs only in its digits and is judged again below.
+	probeID := strings.TrimSpace(*explicitID)
+	if probeID == "" {
+		probeID = *prefix + "-001"
+	}
+	if _, err := gateNewItem(newItem(probeID), *description); err != nil {
+		fmt.Fprintf(os.Stderr, "add: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+
 	db, err := openDB(*dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "add: %v\n", err)
@@ -146,17 +173,14 @@ func addCmd(args []string) int {
 			return exitUsage
 		}
 	}
-	// One id grammar (idgrammar.go): refuse, before any write, an id the
-	// renderer and the parser cannot carry through db-to-md → md-to-db. This
-	// covers an explicit --id and an id allocated from --prefix alike.
-	if err := checkIDRoundTrips(id); err != nil {
-		fmt.Fprintf(os.Stderr, "add: refusing — %v\n", err)
+	// One round trip (idgrammar.go): refuse, before any write, an item whose
+	// stored Markdown the next db-to-md → md-to-db would not read back as this
+	// item. This covers an explicit --id and an id allocated from --prefix.
+	body, err := gateNewItem(newItem(id), *description)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "add: refusing (nothing written) — %v\n", err)
 		return exitUsage
 	}
-
-	cb := strings.TrimSpace(*createdBy)
-	at := strings.TrimSpace(*assignedTo)
-	body := canonicalizeStateLines(renderItemBody(id, *title, typ, severity, *description, "Queued", cb, at), states, "section")
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -168,7 +192,7 @@ func addCmd(args []string) int {
 	if _, err := tx.Exec(`INSERT INTO items
 		(atm_id, type, status, severity, title, description, created_by, assigned_to, current_location, body_md, `+statesInsertCols+`)
 		VALUES (?,?,?,?,?,?,?,?,?,?,`+statesInsertMarks+`)`,
-		append([]any{id, typ, "Queued", nullable(severity), *title, *description, cb, at, "Issues", body},
+		append([]any{id, typ, "Queued", nullable(severity), itemTitle, *description, cb, at, "Issues", body},
 			statesInsertArgs(states)...)...); err != nil {
 		fmt.Fprintf(os.Stderr, "add: insert item: %v\n", err)
 		return exitUsage
@@ -368,6 +392,16 @@ func closeCmd(args []string) int {
 	// §11.4.292: the regenerated body carries the item's records again (the
 	// state columns move with the row below).
 	closedBody = canonicalizeStateLines(closedBody, src.States, src.repOrDefault())
+	// One round trip (idgrammar.go, CON-456): the closed item's Markdown in
+	// Fixed.md must read back as the closed item on the next md-to-db.
+	closed := *src
+	closed.Status = mapping.status
+	closed.CurrentLocation = "Fixed"
+	closed.BodyMD = closedBody
+	if closedBody, err = gateItemWrite(closed, *evidence); err != nil {
+		fmt.Fprintf(os.Stderr, "close: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -548,6 +582,7 @@ func loadItem(db *sql.DB, id, location string) (*item, error) {
 		COALESCE(created_by,''), COALESCE(assigned_to,''),
 		current_location, COALESCE(body_md,''),
 		COALESCE(representation,'section'),
+		COALESCE(closure_date,''), COALESCE(round,''), COALESCE(commit_ref,''),
 		COALESCE(destination,''), COALESCE(logic_group,''),
 		`+statesSelectCols+`
 		FROM items WHERE atm_id=? AND current_location=?
@@ -557,7 +592,8 @@ func loadItem(db *sql.DB, id, location string) (*item, error) {
 	dest := []any{&it.AtmID, &it.Type, &it.Status, &it.Severity,
 		&it.Title, &it.Description, &it.ForensicAnchor, &it.ClosureCriteria,
 		&it.ComposesWith, &it.CreatedBy, &it.AssignedTo, &it.CurrentLocation, &it.BodyMD,
-		&it.Representation, &it.Destination, &it.LogicGroup}
+		&it.Representation, &it.ClosureDate, &it.Round, &it.CommitRef,
+		&it.Destination, &it.LogicGroup}
 	err := row.Scan(append(dest, statesScanDest(&it.States)...)...)
 	if err == sql.ErrNoRows {
 		return nil, nil
