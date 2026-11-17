@@ -277,7 +277,17 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   `why` `stage-pin-not-exact:other-entries` (the other paths in `staged_other`) or
   `stage-pin-not-exact:not-staged`, the parent's record carries `stage_pin_not_exact`, the reason
   `stage-pin-not-exact:<verdict>` is reported, and the run is not `applied`; an index that cannot be read before
-  or after is `unresolved:stage-pin-pre-index` / `unresolved:stage-pin-verify`. Nothing is unstaged or reset.
+  or after is `unresolved:stage-pin-pre-index` / `unresolved:stage-pin-verify`. Review round 14 (RV13-1): the
+  engine does NOT unstage or reset anything, so another entry that git's own add changed (the case: the
+  parent's own config `core.ignoreCase=true` with the gitlinks `LIB` and `lib`; `git add -- LIB` rewrites the
+  entry `lib` to the other submodule's new commit) STAYS changed in your index. The action therefore records
+  `staged_other_detail`: for each other changed entry its path, stage, the value before (`<mode> <id> <stage>`,
+  null when the add created it), the value after, and `restore`, the command that puts it back (stage 0 only:
+  `git -C <parent> -c core.ignoreCase=false update-index --cacheinfo <mode>,<id>,<path>`, or `rm --cached` for
+  an entry the add created). The engine never runs that command: the change came from git's case folding, so
+  the restore is yours to run (checked: the recorded command returns the index to the recorded value,
+  `stage_icase.on.restore_exact`). A conflict stage is reported, not restorable by one command. The run is `FAILED`,
+  exit 1.
 * Unambiguous revisions (review round 13, RV12-3). `rev-list --count HEAD` is ambiguous (rc 128) when a work-tree
   file is named `HEAD`; every rev-list shape the allow-list accepts ends with `--` (`--count HEAD --`,
   `--left-right --count A...B --`), and `checkout --detach <id>^{commit}` takes no pathspec (measured with a tracked
@@ -316,7 +326,13 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   `GIT_CONFIG_COUNT` and `GIT_CONFIG_KEY_*` / `GIT_CONFIG_VALUE_*` are dropped. `GIT_SSH_COMMAND` from the
   caller's environment is NOT honoured: the engine sets its own (`ssh -o BatchMode=yes -o ConnectTimeout=10`).
   A repository that sets `core.sshCommand` keeps it (`repos[].ssh = "core.sshCommand"`; the call still has no
-  terminal and `SSH_ASKPASS_REQUIRE=never`). The full table, with the ground truth of each row, is
+  terminal and `SSH_ASKPASS_REQUIRE=never`). Config read from FILES is trusted, not scrubbed (review round 14,
+  RV13-6): `url.<other>.insteadOf` in the user's global config (`~/.gitconfig`, `$XDG_CONFIG_HOME/git/config`), in
+  the system config, in a file named by `GIT_CONFIG_GLOBAL` / `GIT_CONFIG_SYSTEM`, or under a `HOME` that holds
+  one, rewrites an upstream URL and the engine then fetches and fast-forwards to the rewritten (effective) URL;
+  only the environment channels `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_COUNT` and `GIT_CONFIG_KEY_*` are dropped.
+  The report shows the CONFIGURED URL of each remote, not the effective one: check the effective URL with
+  `git -C <repo> remote get-url <name>` (it applies `insteadOf`). The full table, with the ground truth of each row, is
   `docs/qa/sync_upstreams_2026_11_13_r5/class_inventory.md`, class (d).
 * Fetched code is never executed: no hook or fsmonitor runs, and the post-update hook command is printed,
   not run (a clean/smudge filter or diff driver configured by the user is the stated exception, see below).
@@ -470,7 +486,11 @@ stripped by string, with case kept, because `git symbolic-ref --short` answers `
 top-level ref of the same name exists (a same-named remote does not cause it, measured with git 2.53). On a
 case-insensitive file system `refs/heads/Dev.lock` and `refs/heads/dev.lock` are one file, so branches that
 differ only in case cannot be told apart there (git's own limit; the tests run on a case-sensitive Linux file
-system only). `--branch` accepts ASCII only; a root branch with other letters is compared exactly. A failed
+system only). `--branch` accepts ASCII only; a root branch with other letters is compared exactly. Remote names that overlap
+(`a` and `a/b`, which `git remote add` refuses but a hand-edited config allows) share `refs/remotes/a/b/*`, the last
+fetch wins and the engine does not detect it; symbolic-link tracking refs in the file system that git 2.53 does not
+list are not seen (the pin then has no upstream: ATTENTION). A pin counts as "on a remote" only through a ref
+under a CONFIGURED remote (RV13-5): a stale `refs/remotes/<removed remote>/x` does not. A failed
 write that changed only the work tree is read as settled (see Safety properties;
 tracked as CON-PENDINGsync1). The defaults are `off` (setup) and `offline` (hook step 5c); the operator decision of 2026-11-14 to
 make them on, online and bounded is owed work, tracked as CON-PENDINGsync2. Follow-up ids (review round 12,
