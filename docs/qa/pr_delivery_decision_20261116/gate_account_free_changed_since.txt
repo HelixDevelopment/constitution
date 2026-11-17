@@ -1,0 +1,4 @@
+# command: bash /mnt/DATA1TB/claude-work/scratch/prdeliv.mD7v/c/scripts/gates/cm_pr_delivery_account_name_free.sh --root /mnt/DATA1TB/claude-work/scratch/prdeliv.mD7v/c --consumer-config /mnt/DATA1TB/claude-work/scratch/prdeliv.mD7v/c/config/delivery.conf --changed-since HEAD
+# time: 2026-11-16T13:14:03Z
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: BLIND — 1 corpus file(s) hold a NUL byte, so grep would read them as binary and scan nothing in them: docs/workable_items.db 
+# exit: 2

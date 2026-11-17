@@ -78,7 +78,9 @@ else
 fi
 
 # 2 golden-FALSE: fully-resolved item-record keeps its narrow 10-anchor selection
-python3 "$GS" select --config "$RT" --item FC-GS-SAMPLE-001 --item-record "$GOOD" \
+# CON-097: --repo "$R" ($R/constitution -> this canon), so the anchor bodies are found whatever the canon
+# directory is named; without it the tool takes <parent of canon> as the body root.
+python3 "$GS" select --config "$RT" --item FC-GS-SAMPLE-001 --item-record "$GOOD" --repo "$R" \
   --index "$IDX" --out "$TMP/good_sel.json" >/dev/null 2>&1
 n=$(jget "$TMP/good_sel.json" "len(d['selected_anchors'])" 2>/dev/null); fb=$(jget "$TMP/good_sel.json" "d.get('fallback')" 2>/dev/null)
 [ "$n" = 10 ] && [ "$fb" = null ] && ok "fully-resolved item keeps narrow 10-anchor selection" \

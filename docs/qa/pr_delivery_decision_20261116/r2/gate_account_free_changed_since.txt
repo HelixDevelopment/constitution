@@ -1,0 +1,12 @@
+# command: bash <root>/scripts/gates/cm_pr_delivery_account_name_free.sh --root <root> --changed-since origin/main
+# time: 2026-11-16T14:00:34Z
+NOTE  excluded from --changed-since: config/delivery.conf (a consumer configuration read in this run: it holds the account names)
+NOTE  not scanned under --changed-since: docs/workable_items.db (an SQLite database: binary, grep cannot read it)
+PASS  structure: the §11.4.297 canon block carries no @-mention
+PASS  structure: mirror CLAUDE.md §11.4.297 block carries no @-mention
+PASS  structure: mirror AGENTS.md §11.4.297 block carries no @-mention
+PASS  structure: mirror QWEN.md §11.4.297 block carries no @-mention
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 1 appears in none of the 417 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 6/6 checks: 1 declared account(s) (1 reviewer and 1 assignee entries read) appear in none of the 417 corpus files (52 named by --changed-since origin/main); excluded from --changed-since: 1 consumer configuration file(s) read in this run: config/delivery.conf; 1 SQLite database file(s) not scanned (binary): docs/workable_items.db; files outside the corpus are not scanned (root: <root>)
+# exit: 0

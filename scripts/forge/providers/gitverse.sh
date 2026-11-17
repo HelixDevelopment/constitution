@@ -10,8 +10,8 @@
 # never "absent" and never success. forge.sh release-ensure creates there only with the explicit opt-in
 # --try-create-on-ambiguous, and then only the read-back decides. The prerelease field is not documented:
 # when the read-back does not report it, forge.sh says "NOTE: prerelease_unverified".
-# Tags: git/matching-refs/tags/{tag} works; git/tags/{sha} and /tags answer 400 (live 2026-11-12), so an
-# annotated tag is "present" with its commit UNVERIFIED (forge.sh: "TAG: present sha=unknown").
+# Tags: git/matching-refs/tags/{tag} works; git/tags/{sha} and /tags answer 400 (live 2026-11-12); the commit of
+# an annotated tag is read from commits/{tag-object-sha} (live 2026-11-16), else "TAG: present sha=unknown".
 # Write paths (POST /releases, PATCH /releases/{id}) are LIVE-UNPROVEN.
 
 prov_init() {
@@ -70,7 +70,7 @@ prov_release_update() { # ID TAG SHA TITLE NOTES PRE
 }
 
 prov_tag_get() {
-  local t s
+  local t s o
   FG_TAG_STATE=error FG_TAG_SHA=""
   fg_http GET "$FG_RPATH/git/matching-refs/tags/$1" || return 1
   case "$FG_CODE" in 200) ;; 404) FG_TAG_STATE=absent; return 0 ;; *) return 0 ;; esac
@@ -78,11 +78,20 @@ prov_tag_get() {
   s="$(jq -r --arg r "refs/tags/$1" '[.[]? | select(.ref == $r)][0].object.sha // empty' <"$FG_TMP/resp" 2>/dev/null)"
   [ -n "$t" ] || { FG_TAG_STATE=absent; return 0; }
   if [ "$t" = tag ] && fg_ok_sha "$s"; then
-    fg_http GET "$FG_RPATH/git/tags/$s" || return 1
-    # live 2026-11-12: GitVerse answers 400 VALIDATION_ERROR here (and to /tags), so the commit of an
-    # annotated tag cannot be read: the tag is present, its commit unverified (never the tag-object sha)
-    [ "$FG_CODE" = 200 ] || { FG_TAG_STATE=present; FG_TAG_SHA=""; return 0; }
-    t="$(fg_json '.object.type // empty')"; s="$(fg_json '.object.sha // empty')"
+    o="$s"
+    fg_http GET "$FG_RPATH/git/tags/$o" || return 1
+    if [ "$FG_CODE" = 200 ]; then
+      t="$(fg_json '.object.type // empty')"; s="$(fg_json '.object.sha // empty')"
+    else
+      # live 2026-11-12/16: GitVerse answers 400 VALIDATION_ERROR to git/tags/{sha} (and to /tags), but
+      # GET commits/{tag-object-sha} (the object.url of the matching-refs answer) answers 200 with the commit
+      # the forge PEELS from the tag (live v73.3: tag object e915eef..., sha aa5ae0a... = ls-remote T^{}).
+      # Asked by the tag-object sha, never by the tag name (a branch of that name could shadow it). Only a
+      # full commit id that is not the tag-object sha itself counts; anything else: commit unverified.
+      fg_http GET "$FG_RPATH/commits/$o" || return 1
+      s=""; [ "$FG_CODE" = 200 ] && s="$(fg_json '.sha // empty')"
+      if fg_ok_sha "$s" && [ "$s" != "$o" ]; then t=commit; else FG_TAG_STATE=present; FG_TAG_SHA=""; return 0; fi
+    fi
   fi
   FG_TAG_STATE=present
   [ "$t" = commit ] && FG_TAG_SHA="$s"

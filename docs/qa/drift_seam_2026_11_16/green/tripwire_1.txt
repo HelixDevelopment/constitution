@@ -1,0 +1,7 @@
+RESULT T1 PASS pid not an int > 1 -> refused (exit 2), no signal (§11.4.263)
+RESULT T2 PASS carrier (argv mentions codegraph.js, not a node indexer) -> refuses to arm, never signalled
+RESULT T3 PASS threshold outside the documented bound [5,500] GiB -> refused
+RESULT T4 PASS real-identity indexer + free < threshold (real df, threshold from measured free space) -> SIGSTOP (state T, not killed), exit 10, marker
+RESULT T5 PASS enough free disk -> no trip; exits 0 when the indexer ends
+RESULT T6 PASS test-only lower-only free-bytes override trips at the default-range threshold
+SUMMARY cases=6 failed=0

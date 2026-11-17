@@ -1,0 +1,15 @@
+# F4 (round 3): tracked files at the round-3 base that hold a declared account as a whole word (case-insensitive),
+# found with `git grep -l -I -i -w -F` for each account read from config/delivery.conf (pr_reviewers, pr_assignees).
+# Control needle: config/delivery.conf (the declaration) is found. Paths only; the account is not printed.
+# These files lie outside the gate corpus (a PASS says nothing about them); reported, not scrubbed (brief F4).
+config/delivery.conf   (control needle: the declaration itself)
+docs/research/quality/CROSS_PROJECT_HELIX_CODE.md
+docs/research/quality/helix_code_repo_classification.tsv
+docs/research/quality/solutions/PHASE4_ANTIBLUFF_APPLIED.md
+docs/research/reactive_submodule_sync/DESIGN.md
+docs/scripts/codegraph_mcp_health.md
+scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh
+scripts/workable-items/cmd/workable-items/attribution_test.go
+scripts/workable-items/cmd/workable-items/testdata/fx_attrib_with.md
+submodules-catalogue.md
+# count: 9 outside the corpus + the control needle

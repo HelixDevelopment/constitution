@@ -1,0 +1,126 @@
+# RED baseline: the round-3 mutation test run against the round-2 gate (78e3d9fd:scripts/gates/cm_pr_delivery_account_name_free.sh) in a git-archive copy of round-3 HEAD 70860528; --quiet, temp paths normalised
+[mutation:account-name] CASE FAILED [RED: a changed SQLite database holding an account is scanned through its text cells]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); 1 SQLite database file(s) not scanned (binary): docs/workable_items.db; files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [golden-FALSE: a clean changed SQLite database passes, and the PASS names it]: exit 0 but output lacks /PASS — .*1 SQLite database file\(s\) scanned as their text cells:.*docs/workable_items.db/
+[mutation:account-name] CASE FAILED [RED [S_db]: a real SQLite database holding an account, next to an edited declared configuration]: exit 0, expected 1
+PASS  account #1 of 3 appears in none of the 28 corpus files
+PASS  account #2 of 3 appears in none of the 28 corpus files
+PASS  account #3 of 3 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 8/8 checks: 3 declared account(s) (2 reviewer and 1 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); 1 SQLite database file(s) not scanned (binary): docs/research/t.db; files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: an account in a BLOB cell of a changed SQLite database]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); 1 SQLite database file(s) not scanned (binary): docs/research/b.db; files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [golden-FALSE: a NUL inside a text cell of a clean database does not make the gate BLIND]: exit 0 but output lacks /PASS — .*scanned as their text cells/
+[mutation:account-name] CASE FAILED [BLIND: a text file that starts with the SQLite header cannot be opened as a database]: exit 0, expected 2
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); 1 SQLite database file(s) not scanned (binary): docs/research/fake.md; files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED [S_symchg]: a changed symbolic link to the declared configuration is never excluded]: exit 0, expected 1
+PASS  account #1 of 3 appears in none of the 28 corpus files
+PASS  account #2 of 3 appears in none of the 28 corpus files
+PASS  account #3 of 3 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 8/8 checks: 3 declared account(s) (2 reviewer and 1 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); excluded from --changed-since: 2 consumer configuration file(s) read in this run: config/delivery.conf docs/research/l.md; files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: an account in the target text of a changed dangling symbolic link]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [BLIND: a changed symbolic link that points outside the root]: exit 1, expected 2
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+FAIL  account 'fixture-rev-one' appears in docs/research/out.md:1
+PASS  account #2 of 2 appears in none of the 29 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: FAIL — 1 of 7 checks failed over 29 corpus files (1 named by --changed-since HEAD) (root: <tmp>)
+[mutation:account-name] CASE FAILED [BLIND: the declared configuration is a symbolic link (to a data file)]: exit 0, expected 2
+PASS  structure: mirror QWEN.md §11.4.297 block carries no @-mention
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 1 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 6/6 checks: 1 declared account(s) (1 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [BLIND: a --consumer-config outside a directory named config]: exit 0, expected 2
+PASS  structure: mirror QWEN.md §11.4.297 block carries no @-mention
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 1 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 6/6 checks: 1 declared account(s) (1 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [BLIND: a --consumer-config inside the root but not in <root>/config/]: exit 0, expected 2
+PASS  structure: mirror QWEN.md §11.4.297 block carries no @-mention
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 1 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 6/6 checks: 1 declared account(s) (1 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [BLIND: the declared configuration is a symbolic link (to a configuration elsewhere)]: exit 0, expected 2
+PASS  structure: mirror QWEN.md §11.4.297 block carries no @-mention
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 1 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 6/6 checks: 1 declared account(s) (1 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: a non-ASCII file name (F1)]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: a modified tracked file with a non-ASCII name (F1)]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: a file name with a newline (F1)]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: a file name with a tab (F1)]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: an account only in a changed path name (F3)]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 29 corpus files
+PASS  account #2 of 2 appears in none of the 29 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 29 corpus files (1 named by --changed-since HEAD); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: an account in the staged version while the working tree was cleaned (F2)]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 29 corpus files
+PASS  account #2 of 2 appears in none of the 29 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 29 corpus files (1 named by --changed-since HEAD); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [RED: an account in a staged new file removed from the working tree (F2)]: exit 0, expected 1
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 2 appears in none of the 28 corpus files
+PASS  account #2 of 2 appears in none of the 28 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 7/7 checks: 2 declared account(s) (2 reviewer and 0 assignee entries read) appear in none of the 28 corpus files (0 named by --changed-since HEAD); files outside the corpus are not scanned (root: <tmp>)
+[mutation:account-name] CASE FAILED [BLIND: a listed changed path that cannot be read (F1)]: exit 2 but output lacks /BLIND — --changed-since: the changed path docs/research/locked.md cannot be read/
+[mutation:account-name] CASE FAILED [PASS: an unknown key is named in a NOTE and not refused]: exit 0 but output lacks /NOTE  keys not in the known list \(not read, not refused\): some_future_key$/
+NOOP: 'if is_read_config "$p"; then' not in <tmp>
+NOOP: 'if is_read_config "$p"; then' not in <tmp>
+NOOP: 'if is_read_config "$p"; then' not in <tmp>
+NOOP: 'if head -c 16 -- "$1" | cmp -s - "$SQLITE_MAGIC"; then' not in <tmp>
+NOOP: 'if head -c 16 -- "$1" | cmp -s - "$SQLITE_MAGIC"; then' not in <tmp>
+NOOP: '_r="$(readlink -f -- "$c")" || blind' not in <tmp>
+NOOP: '    r="$(readlink -f -- "$p")" || return 1' not in <tmp>
+NOOP: 'for x in ${CONF_REALS[@]+"${CONF_REALS[@]}"}; do [ "$r" = "$x" ] && return 0; done' not in <tmp>
+NOOP: 'head -c 16 -- "$1" | cmp -s - "$SQLITE_MAGIC"' not in <tmp>
+NOOP: '&& git -C "$ROOT" -c core.quotePath=false ls-files -z --others --exclude-standard; }' not in <tmp>
+NOOP: 'git -C "$ROOT" -c core.quotePath=false diff -z --relative --name-only "$SINCE" --' not in <tmp>
+NOOP: 'NSQL=$((NSQL + 1)); SQL_LIST="$SQL_LIST $2"' not in <tmp>
+NOOP: "            if typ == 'table':" not in <tmp>
+NOOP: '                    if isinstance(v, bytes):' not in <tmp>
+NOOP: "sys.stderr.write('%s\\n' % e); sys.exit(3)" not in <tmp>
+NOOP: "fh.write(v.replace('\\x00', ' ') + '\\n')" not in <tmp>
+NOOP: '    [ -L "$p" ] && return 1' not in <tmp>
+NOOP: 'add_scan "$rel (symbolic link target)"' not in <tmp>
+NOOP: '*) blind "--changed-since: the changed symbolic link' not in <tmp>
+NOOP: '[ -L "$c" ] && blind "consumer configuration $c is a symbolic link' not in <tmp>
+NOOP: '[ "$(basename -- "$(dirname -- "$_r")")" = config ] || blind' not in <tmp>
+NOOP: '[ "$(dirname -- "$_r")" = "$ROOT_REAL/config" ] || blind' not in <tmp>
+NOOP: 'add_content "$TMP/idx/$NIDX" "index:$rel"' not in <tmp>
+NOOP: '      && git -C "$ROOT" -c core.quotePath=false diff -z --cached --relative --name-only "$SINCE" -- \\' not in <tmp>
+NOOP: 'add_scan "(names of the paths changed since $SINCE)" "$NAMES"' not in <tmp>
+NOOP: 'git -C "$ROOT" -c core.quotePath=false diff -z --relative --name-only "$SINCE" --' not in <tmp>
+NOOP: '|| blind "--changed-since: the changed path $rel cannot be read"' not in <tmp>
+NOOP: 'decision_id_round2 own_repositories author_only_reviewer_policy go_record_location $KEY' not in <tmp>
+[mutation:account-name] MUTANT SURVIVED: known_keys_dropped
+[mutation:account-name] FAIL: at least one case misbehaved or one gate mutant survived
+rc=1

@@ -1,0 +1,3 @@
+76cd88fa35fd514a08ef3905c7c0c06d4d5dad204cb08fa5c64563813f5585ed
+76cd88fa35fd514a08ef3905c7c0c06d4d5dad204cb08fa5c64563813f5585ed
+forge_branch_protect differs only in the ephemeral loopback fixture port; hashes above are after replacing 127.0.0.1:<port> with 127.0.0.1:PORT

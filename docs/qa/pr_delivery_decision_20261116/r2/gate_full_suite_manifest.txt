@@ -1,0 +1,6 @@
+# command: bash <root>/scripts/gates/cm_full_suite_manifest_complete.sh --root <root>
+# time: 2026-11-16T14:01:30Z
+CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (missing row, stale row, unaccepted excluded set, stale guide block, duplicated row)
+CM-FULL-SUITE-MANIFEST-COMPLETE: NOTE: the work tree differs from HEAD 5e70468230cd (staged: no, unstaged: yes, untracked: yes); those changes were NOT judged — commit them to have them judged
+CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <root> (HEAD 5e70468230cd): manifest matches the census (946 census file(s))
+# exit: 0

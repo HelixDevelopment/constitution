@@ -1,0 +1,16 @@
+(probe script used for api_*.txt, kept as text; run with bash)
+# read-only GitVerse probe: GET only; token taken from env var GITVERSE_TOKEN by name, sent via a curl config on stdin
+set -u
+: "${GITVERSE_TOKEN:?}"
+B=https://api.gitverse.ru/repos/helixdevelopment/HelixConstitution
+out=$(mktemp -d "${TMPDIR:?}/gvp.XXXXXX")
+for p in "$@"; do
+  printf 'header = "Authorization: Bearer %s"\n' "$GITVERSE_TOKEN" | curl -sS -K - -o "$out/b" -w '%{http_code}' \
+    -H 'Accept: application/vnd.gitverse.object+json;version=1' --max-time 30 "$B$p" > "$out/c"
+  c=$(cat "$out/c")
+  printf '== GET %s -> %s\n' "$p" "$c"
+  if jq -e . "$out/b" >/dev/null 2>&1; then
+    jq -c 'if type=="array" then {len:length, first:(.[0]|tostring|.[0:400])} else (tostring|.[0:600]) end' "$out/b"
+  else head -c 300 "$out/b"; echo; fi
+done
+case "$out" in "${TMPDIR:?}"/gvp.*) rm -rf "${out:?}";; esac

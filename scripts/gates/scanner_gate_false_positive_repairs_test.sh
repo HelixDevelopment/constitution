@@ -573,7 +573,17 @@ done
 unset DANGEROUS_COMBO_PYTHON
 
 echo "== e2e: canon root + consumer-shaped root =="
-if [ "${CM_REPAIR_SKIP_E2E:-0}" != 1 ]; then
+# Precondition (audit 2026-11-16 F10, §11.4.3 / §11.4.201(6)): the canon legs need at least one
+# of the third_party:true submodules (superspec, open_design) checked out. In a clone without
+# them both "never names" legs pass vacuously and the opt-in leg cannot find anything, so all
+# three are an honest SKIP (topology_unsupported), never a PASS and never a FAIL.
+E2E_TP_POP=0
+for _tp in superspec open_design; do
+    if [ -d "$CANON/submodules/$_tp" ] && [ -n "$(find "$CANON/submodules/$_tp" -type f -print -quit 2>/dev/null)" ]; then E2E_TP_POP=1; fi
+done
+if [ "${CM_REPAIR_SKIP_E2E:-0}" != 1 ] && [ "$E2E_TP_POP" = 0 ]; then
+    skp "e2e canon (3 legs): topology_unsupported - submodules/superspec and submodules/open_design are not checked out"
+elif [ "${CM_REPAIR_SKIP_E2E:-0}" != 1 ]; then
     run bash -c "cd '$TMP' && '$ORACLE' --root '$CANON' --quiet"
     expect_noout "e2e canon: oracle output never names third_party:true submodules" 'submodules/(superspec|open_design)/'
     ORC=$(printf '%s\n' "$OUT" | grep -c 'no oracle-strategy annotation')

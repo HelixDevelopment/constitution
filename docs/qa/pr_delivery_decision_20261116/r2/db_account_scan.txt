@@ -1,0 +1,4 @@
+# measurement: rows of docs/workable_items.db whose text holds the declared reviewer account (case-insensitive substring); the account itself is not printed
+# time: 2026-11-16T13:44:43Z
+rows_holding_account=0 tables_scanned=11
+control_needle_rows_holding_CON-423= 3

@@ -1,0 +1,15 @@
+AUTH: env:GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: helixdevelopment/HelixConstitution
+PEER: GET /repos/helixdevelopment/HelixConstitution status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/git/matching-refs/tags/helixconstitution-v73.3 status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/git/tags/e915eef70f7ed70a811b348113a3686d05e07a72 status=400 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+NOTE: tag_sha_unverified (the forge did not report the tag's commit)
+PEER: GET /repos/helixdevelopment/HelixConstitution/releases/tags/helixconstitution-v73.3 status=404 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/releases status=404 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+forge: NOTICE: release list is ambiguous (404 for an existing repository); trying the create, the read-back decides
+ACTION: would-create
+forge: the tag's commit was not verified, and no release target derived from the tag was read before any write: the release is not proven to be on --sha
+REASON: commit_unverified
+RESULT: UNVERIFIED-COMMIT
+rc=5
