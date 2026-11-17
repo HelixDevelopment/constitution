@@ -78,7 +78,13 @@ PYEOF
   if [ -n "${RC_VECTOR_REC:-}" ]; then
     # CON-451 round 4 (review R3-4): record GIT_INDEX_FILE in the process that BECOMES the tool -- `sh` writes the value
     # it holds and then execs python3 (same pid, same environment), so the record is the case's own environment
-    sh -c 'printenv GIT_INDEX_FILE >"$1" || : >"$1"; shift; exec python3 "$@"' sh "$RC_VECTOR_REC" \
+    # CON-451 round 5 (review RC1): the record is written by the python3 process that then RUNS the tool in-process
+    # (runpy): no exec, no launcher and no other process sits between the record and the tool, and the record and the
+    # run are adjacent statements. (A record taken AFTER the run is not usable: the tool edits its own os.environ.)
+    python3 -c 'import os, runpy, sys
+open(sys.argv[1], "w").write(os.environ.get("GIT_INDEX_FILE", ""))
+sys.argv = sys.argv[2:]
+runpy.run_path(sys.argv[0], run_name="__main__")' "$RC_VECTOR_REC" \
       "$impl" verify-proposal --proposal "$pj" --repo-root "$root" --out "$oj" >/dev/null 2>&1
   else
     python3 "$impl" verify-proposal --proposal "$pj" --repo-root "$root" --out "$oj" >/dev/null 2>&1
@@ -416,7 +422,7 @@ mut_allows MI2_stash_counts_as_anchor '        if ref == "refs/stash" or ref.sta
   '        if ref.startswith(_PER_WORKTREE_REF_PREFIXES):' "$I1/main" stash 'stash@{0}' land "$I1/st.patch"
 # CON-451 round 3 (review R2-6): ONE vector, read by ME1 (the polarity control) and by both layer checks below, so
 # the legs cannot drift apart. CON-451 round 4 (review R3-4): each layer check asserts the vector in the environment of
-# the process the case runs in (RC_VECTOR_REC in run_case: recorded by the shell that execs the tool), not in the
+# the process the case runs in (RC_VECTOR_REC in run_case: recorded by the python3 process that runs the tool in-process), not in the
 # subshell before run_case; the control leg below removes the vector right before the case and must see it missing.
 ME1_VECTOR="GIT_INDEX_FILE=$E2/main/.git/index"
 mut_allows ME1_inherit_ambient_env '    child_env = _targeted_git_env() if env is None else env' \
