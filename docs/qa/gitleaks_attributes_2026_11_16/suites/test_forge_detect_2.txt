@@ -1,0 +1,50 @@
+PASS D1 ssh url with port: rc
+PASS D1 provider
+PASS D1 repo
+PASS D1 api
+PASS D1 token vars
+PASS D1 result
+PASS D2 scp form: rc
+PASS D2 repo
+PASS D2 provider
+PASS D3 https form: rc
+PASS D3 repo (no .git)
+PASS D4 gitlab nested path: rc
+PASS D4 nested repo
+PASS D5 nested path on a two-level forge refused: rc
+PASS D6 https userinfo refused: rc
+PASS D6 password not echoed (stdout)
+PASS D6 password not echoed (stderr)
+PASS D7 https user-only userinfo refused: rc
+PASS D7 refused as userinfo (clear reason)
+PASS D7 token-like userinfo not echoed
+PASS D8 ssh password userinfo refused: rc
+PASS D9 unknown host: rc GAP
+PASS D9 reason
+PASS D10 unsafe characters refused: rc
+PASS D11 dot segment refused: rc
+PASS D12 plain http remote refused: rc
+PASS D13 host case-insensitive: rc
+PASS H1 unknown provider in hosts file: rc
+PASS H1 reason
+PASS H2 http api base for a non-loopback host refused: rc
+PASS H3 api base with userinfo refused: rc
+PASS H4 token variable name must be upper case and end in TOKEN: rc
+PASS H5 token variable PATH refused: rc
+PASS S shipped map knows git@github.com:HelixDevelopment/HelixConstitution.git
+PASS S shipped map knows git@gitlab.com:helixdevelopment1/helixconstitution.git
+PASS S shipped map knows ssh://git@codeberg.org/HelixDevelopment/constitution.git
+PASS S shipped map knows ssh://git@git.m3w.org:2222/Helix/constitution.git
+PASS S shipped map knows git@gitflic.ru:helixdevelopment/helixconstitution.git
+PASS S shipped map knows git@gitverse.ru:helixdevelopment/HelixConstitution.git
+PASS S gitverse provider
+PASS S gitverse api
+PASS R1 --remote rc
+PASS R1 --remote repo
+PASS R2 unknown remote: rc usage
+PASS R3 unsafe remote name: rc usage
+PASS U1 neither --remote nor --url: rc
+PASS U2 unknown command: rc
+PASS U2 result usage
+SUMMARY: 48 passed, 0 failed
+rc=0

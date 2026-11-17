@@ -1,0 +1,6 @@
+Size probe on this repository at 55b225f1 (1532 commits), real gitleaks 8.30.1, 2026-11-17.
+Key = (RuleID, File, sha256 of the Secret field, first 12 hex; the values themselves stay in the scratch report and are not copied here).
+unfixed: findings 228, distinct keys 157, in merge commits 0
+fixed:   findings 682, distinct keys 157, in merge commits 454
+keys only in fixed: 0; keys only in unfixed: 0
+Reading: every extra finding is a merge-commit repeat of a key already found (-m); no new key on this repository.

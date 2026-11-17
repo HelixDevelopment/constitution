@@ -1,0 +1,13 @@
+control: unmutated copy passes (RESULT: 9/9 passed (scanner: fake))
+killed   GM1 (FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1))
+killed   GM2 (FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1))
+killed   GM3 (FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1))
+killed   GM4 (FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1))
+killed   GM5 (FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1))
+killed   GM6 (FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1))
+killed   GM7 (FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1))
+killed   GM8 (FAIL 2 R1 commit-replace repo: hidden secret not found (rc=1, findings=1))
+equiv    GE1 behaviour cases pass (FAIL 9 R8 scanner process saw: 0 0 )
+equiv    GE2 behaviour cases pass (FAIL 9 R8 scanner process saw:   )
+RESULT: killed=8 survived=0 broken=0 equivalent_ok=2 equivalent_wrong=0
+rc=0

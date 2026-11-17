@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Compare run _1 and run _2 of every suite leg in ev/final (CON-453).
+# Normalises only what is known to vary per run: the ephemeral loopback port
+# (127.0.0.1:<n>) and temp-directory paths under TMPDIR. Prints one row per suite:
+# name, hash1, hash2, IDENTICAL|DIFFERENT, last RESULT/summary line of run 1, rc of runs.
+set -eu
+W="${1:?workdir}"
+O="$W/ev/final"
+norm() {
+  sed -E -e 's#127\.0\.0\.1:[0-9]+#127.0.0.1:PORT#g' \
+         -e 's#/mnt/DATA1TB/claude-work/tmp/[^ /:]+#TMP#g' "$1" | sha256sum | cut -c1-64
+}
+for f1 in "$O"/*_1.txt; do
+  s=$(basename "$f1" _1.txt)
+  case "$s" in green_fake|green_real|mut_fake|mut_real) continue ;; esac
+  f2="$O/${s}_2.txt"
+  [ -e "$f2" ] || { printf '%s\tMISSING-RUN-2\n' "$s"; continue; }
+  a=$(norm "$f1"); b=$(norm "$f2")
+  if [ "$a" = "$b" ]; then v=IDENTICAL; else v=DIFFERENT; fi
+  sum=$(grep -E '^(RESULT|PASS|FAIL:|ALL|[0-9]+ passed)' "$f1" | tail -1 || true)
+  printf '%s\t%s\t%s\t%s\t%s\t%s/%s\n' "$s" "$a" "$b" "$v" "$sum" "$(tail -1 "$f1")" "$(tail -1 "$f2")"
+done
