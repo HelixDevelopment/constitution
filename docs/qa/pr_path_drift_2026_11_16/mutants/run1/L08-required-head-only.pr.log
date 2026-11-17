@@ -1,0 +1,17 @@
+PASS P1 a failing badge check on a fast-forward PR head refuses (rc=1)
+PASS P1 tsv badges=FAIL gate-env-allowlist=PASS; candidate = head (fast-forward)
+PASS P2 passing checks on a fast-forward PR head pass (rc=0)
+PASS P2 argv recorded (--root <temporary clone> [--check]); the temporary clone is removed
+PASS P3 a merge-commit candidate with passing checks passes (rc=0)
+PASS P3 candidate is a merge commit of base and head
+PASS P3b the merge candidate is not in --repo
+PASS P4 a merge conflict refuses (rc=1)
+PASS P4 conflict named; no check ran
+PASS P5 --form ff-only refuses a non-fast-forward (rc=1)
+PASS P6 an unresolvable --head is BLIND (rc=2)
+PASS P6b a missing --evidence-dir is a usage error (exit 2)
+PASS P7 a repository without drift-check scripts passes (rc=0)
+PASS P7 both rows not-applicable
+FAIL P8 deleting a required check script refuses (rc=0, want 1 / RESULT: FAIL)
+
+RESULT pass=14 fail=1 skip=0 (failfast)

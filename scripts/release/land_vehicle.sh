@@ -84,7 +84,9 @@ set +x +v
 #                does not match the refs prepare recorded; read local main ONCE and
 #                refuse unless it contains both the prepared base and the landed head;
 #            (6b) derived-file drift checks (CON-144 recurrence, audit 2026-11-16 F5/F6):
-#                each check in DRIFT_CHECKS (README badge row `compute_badges.sh --check`,
+#                each check in DRIFT_CHECKS of scripts/release/lib/landing_drift_checks.sh (the
+#                list the pull-request path pr_landing_check.sh shares; README badge row
+#                `compute_badges.sh --check`,
 #                env-read allowlist `cm_gate_env_reads_allowlisted.sh`) is REQUIRED when
 #                its script is in the tree of main_before or of local main, and must exit 0
 #                when run with --root <clone> on local main. A required script that is
@@ -414,6 +416,18 @@ has_ctrl() { [[ "$1" == *[[:cntrl:]]* ]]; }
 run_caller_locale() {
   if [ "$CALLER_LC_ALL_SET" = 1 ]; then LC_ALL=$CALLER_LC_ALL "$@"; else env -u LC_ALL "$@"; fi
 }
+
+# Derived files that a landing must not leave stale (step 6b). Before 2026-11-16 the prepare
+# printout did not name them and publish did not run them, so main carried a stale README badge
+# row and stale env-read allowlist rows for 22 commits (audit 2026-11-16 F5/F6, CON-144
+# recurrence). The check list and the runner live in ONE library shared with the pull-request
+# landing path (scripts/release/pr_landing_check.sh, CON-443), so every landing path runs the
+# same checks; a missing library refuses the run.
+_lv_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/landing_drift_checks.sh"
+[ -f "$_lv_lib" ] || die 2 "drift-check library not found: $_lv_lib"
+# shellcheck source=scripts/release/lib/landing_drift_checks.sh
+. "$_lv_lib" || die 2 "cannot load the drift-check library $_lv_lib"
+unset _lv_lib
 
 # ---------------------------------------------------------------- arguments
 CMD=${1:-}
@@ -1298,47 +1312,7 @@ state_keys() {
     || die 2 "prepare state has no valid item_id"
 }
 
-# DRIFT_CHECKS: name|repository-relative script|arguments. Derived files that a landing
-# must not leave stale (step 6b). Before 2026-11-16 the prepare printout did not name them
-# and publish did not run them, so main carried a stale README badge row and stale
-# env-read allowlist rows for 22 commits (audit 2026-11-16 F5/F6, CON-144 recurrence).
-DRIFT_CHECKS=(
-  "badges|scripts/badges/compute_badges.sh|--check"
-  "gate-env-allowlist|scripts/gates/cm_gate_env_reads_allowlisted.sh|"
-)
-DRIFT_TIMEOUT=900
-# drift_checks <main_before> <local_main>: runs every required check on the clean clone
-# (working tree = local main); returns 1 when one fails, after writing drift_checks.tsv
-drift_checks() {
-  local base=$1 head=$2 tsv="$EVIDENCE_DIR/drift_checks.tsv" spec name path args req rc res bad=0
-  printf 'check\tscript\trequired\trc\tresult\n' > "$tsv"
-  for spec in "${DRIFT_CHECKS[@]}"; do
-    IFS='|' read -r name path args <<< "$spec"
-    req=no
-    if g cat-file -e "$base:$path" 2>/dev/null || g cat-file -e "$head:$path" 2>/dev/null; then req=yes; fi
-    if [ "$req" = no ]; then
-      printf '%s\t%s\tno\t-\tnot-applicable\n' "$name" "$path" >> "$tsv"; continue
-    fi
-    if ! g cat-file -e "$head:$path" 2>/dev/null || [ ! -f "$CLONE/$path" ]; then
-      printf '%s\t%s\tyes\t-\tFAIL-script-missing\n' "$name" "$path" >> "$tsv"
-      log "drift check $name: FAIL (script $path is in main_before but not in local main)"; bad=1; continue
-    fi
-    local -a argv=()
-    [ -z "$args" ] || read -r -a argv <<< "$args"
-    rc=0
-    (cd "$CLONE" && timeout "$DRIFT_TIMEOUT" bash "$CLONE/$path" --root "$CLONE" "${argv[@]}") \
-      < /dev/null > "$EVIDENCE_DIR/drift_$name.log" 2>&1 9>&- || rc=$?
-    if [ "$rc" -eq 0 ]; then res=PASS; else res=FAIL; bad=1; fi
-    if [ "$rc" -eq 124 ]; then res=FAIL-timeout; fi
-    printf '%s\t%s\tyes\t%s\t%s\n' "$name" "$path" "$rc" "$res" >> "$tsv"
-    log "drift check $name: $res (rc=$rc, log $EVIDENCE_DIR/drift_$name.log)"
-  done
-  [ -z "$(g status --porcelain --untracked-files=all --ignore-submodules=none)" ] \
-    || { log "drift checks changed the clone working tree"; bad=1; }
-  [ "$(g rev-parse -q --verify refs/heads/main || true)" = "$head" ] \
-    || { log "local main moved while the drift checks ran"; bad=1; }
-  [ "$bad" -eq 0 ]
-}
+drift_checks() { LDC_GIT=g LDC_LOG=log LDC_REF=refs/heads/main ldc_run "$CLONE" "$1" "$2" "$EVIDENCE_DIR"; }
 
 do_publish() {
   need_state
