@@ -791,12 +791,10 @@ func upsertMetaLine(body, key, metaLine string) string {
 		return insertMetaLine(body, metaLine)
 	}
 	lines := splitKeepNewlines(body)
+	ownR := newOwnRegion(lines) // CON-456 round 6: unfenced own lines only
 	for i, ln := range lines {
-		if strings.HasPrefix(strings.TrimRight(ln, "\n"), key) {
-			nl := ""
-			if strings.HasSuffix(ln, "\n") {
-				nl = "\n"
-			}
+		if ownR.own(i) && strings.HasPrefix(strings.TrimRight(ln, "\n"), key) {
+			nl := eolOf(ln)
 			// F1 (§11.4.34 / §11.4.6): when the matched line is the
 			// `**Reopened-Details:**` header, a PRIOR reopen may have written its
 			// attribution as a MULTI-LINE bulleted block (the ATM-393/398/448 live
@@ -1269,13 +1267,11 @@ func replaceHeadingTitle(body, id, newTitle string) string {
 		prefix = "## " + base + ". "
 	}
 	lines := splitKeepNewlines(body)
+	fenced := fencedMask(lines) // CON-456 round 6: the heading is never a fenced line
 	for i, ln := range lines {
-		if strings.HasPrefix(strings.TrimRight(ln, "\n"), prefix) {
-			nl := ""
-			if strings.HasSuffix(ln, "\n") {
-				nl = "\n"
-			}
-			lines[i] = prefix + newTitle + nl
+		if !fenced[i] && strings.HasPrefix(strings.TrimRight(ln, "\n"), prefix) {
+			// The line keeps its own ending (CRLF stays CRLF, review r5 M2).
+			lines[i] = prefix + newTitle + eolOf(ln)
 			return strings.Join(lines, "")
 		}
 	}
@@ -1288,19 +1284,23 @@ func replaceHeadingTitle(body, id, newTitle string) string {
 // block where the §11.4.21 / §11.4.34 walk-pattern gates look for it.
 func insertMetaLine(body, metaLine string) string {
 	lines := strings.SplitAfter(body, "\n")
+	eol := bodyEOL(lines)
+	// CON-456 round 6: the item's own Type line, never a fenced one (ownlines.go).
+	at := newOwnRegion(lines).firstIdx("**Type:**", 0)
 	var out strings.Builder
-	inserted := false
-	for _, ln := range lines {
+	for i, ln := range lines {
 		out.WriteString(ln)
-		if !inserted && strings.HasPrefix(ln, "**Type:**") {
+		if i == at {
+			if !strings.HasSuffix(ln, "\n") {
+				out.WriteString(eol)
+			}
 			out.WriteString(metaLine)
-			out.WriteString("\n")
-			inserted = true
+			out.WriteString(eol)
 		}
 	}
-	if !inserted {
+	if at < 0 {
 		out.WriteString(metaLine)
-		out.WriteString("\n")
+		out.WriteString(eol)
 	}
 	return out.String()
 }

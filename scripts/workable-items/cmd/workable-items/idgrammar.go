@@ -174,7 +174,9 @@ func alignMetaLines(body string, it item) string {
 // line for key.
 func setOwnMetaLine(body, key, value string) string {
 	lines := splitKeepNewlines(body)
-	limit := ownMetaRegionLineCount(lines)
+	// CON-456 round 6: only unfenced lines of the own region (ownlines.go).
+	r := newOwnRegion(lines)
+	eol := bodyEOL(lines)
 	keyOf := func(ln string) string {
 		m := metaLineRe.FindStringSubmatch(strings.TrimRight(ln, "\n"))
 		if m == nil {
@@ -186,7 +188,7 @@ func setOwnMetaLine(body, key, value string) string {
 	if value == "" {
 		out := make([]string, 0, len(lines))
 		for i, ln := range lines {
-			if i < limit && keyOf(ln) == want {
+			if r.own(i) && keyOf(ln) == want {
 				continue
 			}
 			out = append(out, ln)
@@ -195,17 +197,13 @@ func setOwnMetaLine(body, key, value string) string {
 	}
 	newLine := "**" + key + ":** " + value
 	last := -1
-	for i := 0; i < limit; i++ {
-		if keyOf(lines[i]) == want {
+	for i := 0; i < r.limit; i++ {
+		if r.own(i) && keyOf(lines[i]) == want {
 			last = i
 		}
 	}
 	if last >= 0 {
-		nl := ""
-		if strings.HasSuffix(lines[last], "\n") {
-			nl = "\n"
-		}
-		lines[last] = newLine + nl
+		lines[last] = newLine + eolOf(lines[last])
 		return strings.Join(lines, "")
 	}
 	// Insert after the last own line of the nearest preceding key that exists.
@@ -227,8 +225,8 @@ func setOwnMetaLine(body, key, value string) string {
 			continue
 		}
 		pk := strings.ToLower(metaFieldOrder[k])
-		for i := 0; i < limit; i++ {
-			if keyOf(lines[i]) == pk {
+		for i := 0; i < r.limit; i++ {
+			if r.own(i) && keyOf(lines[i]) == pk {
 				at = i
 			}
 		}
@@ -241,11 +239,11 @@ func setOwnMetaLine(body, key, value string) string {
 		}
 	}
 	if !strings.HasSuffix(lines[at], "\n") {
-		lines[at] += "\n"
+		lines[at] += eol
 	}
 	out := make([]string, 0, len(lines)+1)
 	out = append(out, lines[:at+1]...)
-	out = append(out, newLine+"\n")
+	out = append(out, newLine+eol)
 	out = append(out, lines[at+1:]...)
 	return strings.Join(out, "")
 }

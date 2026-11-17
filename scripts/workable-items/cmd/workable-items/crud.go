@@ -267,16 +267,7 @@ func adoptLegacyTemplateStates(desc string, st stateRecord, set map[string]bool)
 	lines := strings.Split(desc, "\n")
 	// CON-456 round 4 (review finding 5): a template line inside a fenced
 	// code block is quoted text, never adopted.
-	fenced := make([]bool, len(lines))
-	inFence := false
-	for i, ln := range lines {
-		if isFenceLine(ln) {
-			inFence = !inFence
-			fenced[i] = true
-			continue
-		}
-		fenced[i] = inFence
-	}
+	fenced := fencedMask(lines) // CON-456 round 6: the shared fence definition
 	adopted := false
 	for _, l := range legacyTemplateStateLines {
 		at, n := -1, 0
@@ -905,18 +896,6 @@ func renderItemBody(id, title, typ, severity, description, status, createdBy, as
 // body, immediately after the `**Type:**` line, so closures carry their
 // captured-evidence reference in the regenerated Markdown.
 func appendEvidence(body, evidence string) string {
-	lines := strings.SplitAfter(body, "\n")
-	var out strings.Builder
-	inserted := false
-	for _, ln := range lines {
-		out.WriteString(ln)
-		if !inserted && strings.HasPrefix(ln, "**Type:**") {
-			fmt.Fprintf(&out, "**Evidence:** %s\n", evidence)
-			inserted = true
-		}
-	}
-	if !inserted {
-		fmt.Fprintf(&out, "**Evidence:** %s\n", evidence)
-	}
-	return out.String()
+	// CON-456 round 6: one implementation, after the item's own (unfenced) Type line.
+	return insertMetaLine(body, "**Evidence:** "+evidence)
 }

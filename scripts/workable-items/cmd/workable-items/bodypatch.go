@@ -97,26 +97,20 @@ func metaBlockEnds(line string) bool {
 }
 
 func metaBlockOf(lines []string) metaBlock {
-	limit := ownMetaRegionLineCount(lines)
-	s := -1
-	for i := 0; i < limit; i++ {
-		if strings.HasPrefix(lines[i], "**Status:**") {
-			s = i
-			break
-		}
-	}
+	// CON-456 round 6: the block is built around the item's own Status line,
+	// the one the parser reads and the status writers rewrite (ownlines.go
+	// statusIdx: the last unfenced Status line of the own region).
+	r := newOwnRegion(lines)
+	s := r.statusIdx()
 	if s < 0 {
-		a := stateAnchor(lines, limit)
+		a := stateAnchor(r)
 		return metaBlock{a, a, -1}
 	}
 	start := s
 	for start > 0 && !metaBlockEnds(lines[start-1]) {
 		start--
 	}
-	end := s + 1
-	for end < limit && !metaBlockEnds(lines[end]) {
-		end++
-	}
+	end := r.blockEnd(s)
 	ty := -1
 	for i := start; i < end; i++ {
 		if strings.HasPrefix(lines[i], "**Type:**") {
@@ -167,20 +161,18 @@ func metaRecords(lines []string, m metaBlock) []recSpan {
 
 // withNewline returns s ending in exactly the line ending ref ends with.
 func withNewline(s, ref string) string {
-	if strings.HasSuffix(ref, "\n") {
-		return s + "\n"
-	}
-	return s
+	return s + eolOf(ref)
 }
 
 // joinLines joins lines that carry their own line endings; a line that is not
 // the last and has no ending gets one (an insertion after a body's last line).
 func joinLines(lines []string) string {
+	eol := bodyEOL(lines)
 	var b strings.Builder
 	for i, ln := range lines {
 		b.WriteString(ln)
 		if i < len(lines)-1 && !strings.HasSuffix(ln, "\n") {
-			b.WriteString("\n")
+			b.WriteString(eol)
 		}
 	}
 	return b.String()
@@ -218,7 +210,7 @@ func setRecord(body, kind, record string) string {
 		at = m.typeIdx + 1
 	}
 	out = append(out, lines[:at]...)
-	out = append(out, record+"\n")
+	out = append(out, record+bodyEOL(lines))
 	out = append(out, lines[at:]...)
 	return joinLines(out)
 }
@@ -282,7 +274,8 @@ func descriptionRegion(lines []string, desc string) (a, b int, ok bool) {
 // of the body is removed.
 func replaceDescription(body, oldDesc, newDesc string) string {
 	lines := splitKeepNewlines(body)
-	nl := strings.Split(newDesc, "\n")
+	eol := bodyEOL(lines)
+	nl := strings.Split(strings.ReplaceAll(newDesc, "\r\n", "\n"), "\n")
 	if a, b, ok := descriptionRegion(lines, oldDesc); ok {
 		var out []string
 		out = append(out, lines[:a]...)
@@ -290,7 +283,7 @@ func replaceDescription(body, oldDesc, newDesc string) string {
 			if i == len(nl)-1 {
 				out = append(out, withNewline(ln, lines[b-1]))
 			} else {
-				out = append(out, ln+"\n")
+				out = append(out, ln+eol)
 			}
 		}
 		out = append(out, lines[b:]...)
@@ -305,12 +298,12 @@ func replaceDescription(body, oldDesc, newDesc string) string {
 	if at < len(lines) && strings.TrimSpace(lines[at]) == "" {
 		at++
 	} else {
-		ins = append(ins, "\n")
+		ins = append(ins, eol)
 	}
 	for _, ln := range nl {
-		ins = append(ins, ln+"\n")
+		ins = append(ins, ln+eol)
 	}
-	ins = append(ins, "\n")
+	ins = append(ins, eol)
 	var out []string
 	out = append(out, lines[:at]...)
 	out = append(out, ins...)
@@ -331,23 +324,19 @@ type bodyOwnership struct {
 func unownedLines(body string, own bodyOwnership, desc string) []string {
 	lines := splitKeepNewlines(body)
 	skip := make([]bool, len(lines))
+	r := newOwnRegion(lines)
 	if own.title {
+		// The heading is the first unfenced `## ` line.
 		for i, ln := range lines {
-			if strings.HasPrefix(ln, "## ") {
+			if !r.fenced[i] && strings.HasPrefix(ln, "## ") {
 				skip[i] = true
 				break
 			}
 		}
 	}
-	limit := ownMetaRegionLineCount(lines)
 	if own.status {
-		last := -1
-		for i := 0; i < limit; i++ {
-			if strings.HasPrefix(bodyText(lines[i]), "**Status:**") {
-				last = i
-			}
-		}
-		if last >= 0 {
+		// The same line the parser reads and the writers rewrite (ownlines.go).
+		if last := r.statusIdx(); last >= 0 {
 			skip[last] = true
 		}
 	}
