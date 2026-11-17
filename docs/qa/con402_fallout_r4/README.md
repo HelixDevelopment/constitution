@@ -110,6 +110,17 @@ that drop comment lines with the same wrong whitespace semantics are listed in F
 
 ## Other runs
 
+`runs/double_run_summary.txt` and `runs/dr/`: every gate and suite run twice on a clean worktree at head
+`6a78f728` (the code state of this round; the evidence commits after it add only files under this directory).
+Gates: manifest OK, git-env census PASS (members=665, unscrubbed=0), safepath census violations=0, ratchet
+unimplemented=394 baseline=394 fails=0, index fresh, workable-items validate OK (501 items), diff in sync, guard
+table ok, sync-guide leaves the tree clean. Suites (rc 0 both runs): gitenv_scrub 182, v4r12 18 (skip 5), v4r13 43
+(skip 1), v4r14 32 (skip 3), v4r15 15 (skip 1), custody r8 17, custody r15 51, repo_verify_red 104, guard table 14,
+sweep_review_record_subclauses_red 17. Each log is normalised (`<P>`, `<S>`, `<H>`, `<SHA>`, `<RND>`, `<T>s`)
+and run 1 is byte-identical to run 2 for every suite and gate. The run paused twice when the host load (other
+processes) went above 60 (`STOP` lines) and resumed the remaining suites below 50; no run was repeated after a
+failure. `test_repo_verify_red` logs contain the test's own fake `SECRET123` fixture, not a credential.
+
 `runs/sweep_red_on_base_e48ca38f.txt`: `test_custody_sweep_red.sh` fails in a fresh clone on the base too
 (FU-8, pre-existing, a gitignored fixture input). `runs/fu7_program_text_probe.txt`: FU-7.
 
