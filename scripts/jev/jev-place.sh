@@ -49,6 +49,23 @@
 #   JEV_TRACE_FILE (ONLY with JEV_TEST=1: a trace of every bounded llmctl call and every registry write, read by the
 #   gate-logic census tests/jev/fixtures/mark_census.py).
 #
+# Round 14 (structural, review of 9442791d: R13-B1; docs/qa/jev_s3s4_20261112/round14/):
+# * THE START PROCESS IS NAMED BY THE INTENT, AND IT IS JUDGED, NOT THE STARTER ALONE. Round 13 judged a start intent by
+#   its starter (this process) only. A starter SIGKILLed while its bounded `llmctl start` was in flight left that start
+#   running (it is not this process's child any more); another acquire read the unit absent, removed the intent, stopped
+#   and dropped the set, and the start then brought the unit up with no set, no lease, no owed stop and no intent: the
+#   next acquire adopted it as operator-started (a leak). Now every start runs in a GATED start process
+#   (scripts/jev/jev-start-gate.sh), spawned before the starting mark: the mark and the start intent written in ONE
+#   registry write name that process (child {pid, pid_start}); only then is the gate opened and llmctl run (a starter that
+#   dies before it closes the gate: llmctl never runs). The start is IN FLIGHT while the start process lives or its
+#   process group has a member (child_running). A dead starter's intent is resolved only with an observation whose ticket
+#   was taken AFTER its start process was seen gone (take_ticket_locked records which intents' start processes are gone
+#   when the ticket is taken; the capacity answer is read after that), so the state that answer reports is the final
+#   state of that start. While the start is in flight, or before such an observation, the intent is kept: it blocks the
+#   adoption of the unit as operator-started and a second start, and it outlives any set (a stop that drops the set, a
+#   reap that clears the mark). An intent written by a round-13 producer names no start process: it is in flight until
+#   it is older than MARK_TTL.
+#
 # Round 10 (structural, review of 911c5b9a: R9-1 to R9-7; census docs/qa/jev_s3s4_20261112/round10/census.md):
 # * ONE OWNERSHIP RULE FOR EVERY RESULT RECORD (R9-1). A start's result (finish_start_locked) and a stop's result
 #   (finish_stop_locked) are recorded through ONE reader, set_view, and ONE rule, rule_sole: a result deletes or replaces a
@@ -294,6 +311,73 @@ bounded() { # bounded <seconds> <out> cmd... -> rc of cmd (124/137 on timeout)
   trace_ev call "$*"
   timeout --kill-after=2 "$t" "$@" >"$o" 2>"$o.err" </dev/null || rc=$?
   return "$rc"
+}
+
+# ---- round 14 (R13-B1): the GATED start process ------------------------------------------------------------------------
+# gate_open <profile> (NEVER under the lock: the start process must not inherit the lock descriptor) -> 0 and GATE_PID /
+# GATE_PST set: a start process (scripts/jev/jev-start-gate.sh) waits on its gate; 1 (GATE_WHY set): no gate could be
+# set up (no /proc/self/fd, no fifo), nothing is started. gate_go runs the start (after the registry write that names
+# GATE_PID), gate_cancel closes the gate without a start; exactly one of them follows every successful gate_open.
+START_GATE="$SCRIPT_DIR/jev-start-gate.sh"
+GATE_PID=""; GATE_PST=""; GATE_FD=""; GATE_FIFO=""; GATE_WHY=""; GATE_N=0
+gate_open() {
+  local p="$1"
+  GATE_PID=""; GATE_PST=""; GATE_WHY=""
+  if [ ! -d /proc/self/fd ]; then GATE_WHY="no /proc/self/fd: the start process cannot be gated and named (fail-closed, no start)"; return 1; fi
+  [ -r "$START_GATE" ] || { GATE_WHY="the start gate $START_GATE is missing (no start)"; return 1; }
+  GATE_N=$((GATE_N+1)); GATE_FIFO="$WORK/start.gate.$GATE_N"
+  mkfifo -m 600 "$GATE_FIFO" 2>/dev/null || { GATE_WHY="mkfifo $GATE_FIFO failed (no start)"; return 1; }
+  exec {GATE_FD}<>"$GATE_FIFO"
+  rm -f -- "${WORK:?}/start.out.went"
+  bash "$START_GATE" "$GATE_FIFO" "$WORK/start.out" "$STMO" "$LLMCTL" start "$p" {GATE_FD}>&- </dev/null >/dev/null 2>&1 &
+  GATE_PID=$!
+  GATE_PST="$(proc_start "$GATE_PID")"
+  return 0
+}
+gate_close_fd() { [ -z "$GATE_FD" ] || exec {GATE_FD}>&-; GATE_FD=""; [ -z "$GATE_FIFO" ] || rm -f -- "$GATE_FIFO"; GATE_FIFO=""; }
+gate_cancel() { # the start process exits 79 without running llmctl; waited for, so it never outlives this decision
+  [ -n "$GATE_PID" ] || return 0
+  printf 'no\n' >&"$GATE_FD" 2>/dev/null || true
+  wait "$GATE_PID" 2>/dev/null || true
+  gate_close_fd; GATE_PID=""; GATE_PST=""
+}
+gate_go() { # gate_go <profile> -> the start's exit code (79 mapped to 75 when llmctl never ran: nothing was started)
+  local p="$1" rc=0
+  trace_ev call "$LLMCTL start $p"
+  printf 'go\n' >&"$GATE_FD"
+  wait "$GATE_PID" || rc=$?
+  gate_close_fd
+  if [ ! -e "$WORK/start.out.went" ]; then
+    log "the start process of $p (pid $GATE_PID) exited $rc before it ran llmctl (its gate could not be read): nothing was started; recorded as a refused start (rc 75)"
+    rc=75
+  fi
+  GATE_PID=""; GATE_PST=""
+  return "$rc"
+}
+# child_running <pid> <pid_start> -> 0 when the start process named by an intent may still run (the pid with its start
+# time lives, or a process of its process group lives); 1 when it is PROVABLY gone. A pid can never be reused while it
+# is the id of a live process group, so a pid that names another process (another start time) proves the group gone too.
+# Fail-safe: no pid, a pid that is not an integer > 1 (§11.4.263: no group id <= 1 is ever used), or no start time to
+# tell a reused pid from ours -> running. Without /proc: kill -0 on the pid and on the group (a reused pid keeps it
+# running: stated, never a release of a start that may run).
+child_running() {
+  local c="$1" cs="${2:-}" cur
+  case "$c" in ''|null|*[!0-9]*) return 0 ;; esac
+  [ "$c" -gt 1 ] || return 0
+  if [ -d /proc/self ]; then
+    if [ -d "/proc/$c" ]; then
+      [ -n "$cs" ] && [ "$cs" != null ] || return 0
+      cur="$(proc_start "$c")"
+      if [ -n "$cur" ] && [ "$cur" != "$cs" ]; then return 1; fi
+      # the same process: alive, or a zombie whose process group may still hold the running llmctl
+      [ -z "$(head -c 64 "/proc/$c/cmdline" 2>/dev/null | tr -d '\0')" ] || return 0
+    fi
+    kill -0 -- "-$c" 2>/dev/null && return 0
+    return 1
+  fi
+  kill -0 "$c" 2>/dev/null && return 0
+  kill -0 -- "-$c" 2>/dev/null && return 0
+  return 1
 }
 
 # ---- §11.4.291(C) contract table: schema llmctl.capacity/1 -------------------------------------------------
@@ -656,16 +740,40 @@ take_ticket_locked() { # caller holds the lock: next observation ticket + the re
   [ -s "$OBSSEQ" ] && c="$(head -c 32 "$OBSSEQ" | tr -dc '0-9')"
   c=$(( ${c:-0} + 1 ))
   printf '%s\n' "$c" | jev_write_atomic "$OBSSEQ"
-  TICKET="$c"; TICKET_GEN="$(leases_token)"
+  TICKET="$c"; TICKET_GEN="$(leases_token)"; TICKET_GONE="$(intents_gone_now)"
+}
+# intents_gone_now (caller holds the lock; round 14, review R13-B1) -> one line per start intent whose start can no longer
+# bring its unit up NOW: the identity "<profile> <starter pid> <starter start> <start pid> <start start>" (intent_id).
+# take_ticket_locked records these lines with the ticket, so the capacity answer read after the ticket was produced after
+# that start was over: only such an answer may resolve a dead starter's intent (intents_locked). A start is over when the
+# start process the intent names is provably gone (child_running). A round-13 intent names no start process: its bounded
+# start is over once the intent is older than MARK_TTL (the longest such a start and its record can take), the one
+# age rule left (honest limit: a start that left work behind in its own process group is not seen there).
+TICKET_GONE=""
+intent_id() { printf '%s %s %s %s %s' "$1" "$2" "$3" "$4" "$5"; }
+intents_gone_now() {
+  local p ipid ipst iat imo cpid cpst
+  while IFS="$US" read -r p ipid ipst iat imo cpid cpst; do
+    [ -n "$p" ] || continue
+    if [ "$cpid" = null ]; then
+      [ "$(age_of "$iat" "$imo")" -gt "$MARK_TTL" ] || continue
+    else
+      ! child_running "$cpid" "$cpst" || continue
+    fi
+    intent_id "$p" "$ipid" "$ipst" "$cpid" "$cpst"; printf '\n'
+  done < <(jq -r '(.start_intents // {}) | to_entries[] | [.key, (.value.pid // "null"), (.value.pid_start // "null"), (.value.at // 0), (.value.mono // "null"),
+                 (.value.child.pid // "null"), (.value.child.pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$(leases_load)")
 }
 obs_counter() { local c=0; [ -s "$OBSSEQ" ] && c="$(head -c 32 "$OBSSEQ" | tr -dc '0-9')"; echo "${c:-0}"; }
 # observe_read -> 0 (OBS_TICKET, OBS_GEN, CAP_ST, CAP_REASON, $WORK/cap.json set) or 4 (lock timeout: nothing read).
 # OBS_GEN is the registry token (leases_token) when the ticket was taken: the capacity answer read after it describes that
 # registry.
-OBS_TICKET=""; OBS_GEN=""; CAP_ST=""; CAP_REASON=""; TICKET_GEN=""
+# OBS_GONE (round 14): the start intents whose start was over when the ticket was taken (intents_gone_now); it is set in
+# the same step as OBS_TICKET, so it always describes the ticket of the answer in CAP_ST.
+OBS_TICKET=""; OBS_GEN=""; CAP_ST=""; CAP_REASON=""; TICKET_GEN=""; OBS_GONE=""
 observe_read() {
-  TICKET=""; TICKET_GEN=""; with_lock take_ticket_locked || return 4
-  OBS_TICKET="$TICKET"; OBS_GEN="$TICKET_GEN"
+  TICKET=""; TICKET_GEN=""; TICKET_GONE=""; OBS_GONE=""; with_lock take_ticket_locked || return 4
+  OBS_TICKET="$TICKET"; OBS_GEN="$TICKET_GEN"; OBS_GONE="$TICKET_GONE"
   IFS="$US" read -r CAP_ST CAP_REASON < <(capacity_read)
 }
 # obs_locked (caller holds the lock; OBS_TICKET + CAP_ST from observe_read): records the instance state of every unmarked
@@ -679,19 +787,31 @@ GONE_WRITTEN=0
 # process's stop that deletes the set, or a reap that clears the mark by age, never removes it. While an intent exists,
 # a running unit of that profile is never adopted as operator-started (plan step D) and no second start is marked
 # (mark_start_locked). An intent whose starter is provably dead (pid + start time; without /proc, kill -0) was never
-# answered: the start it covers may have brought the unit up. Here, with the observation of this ticket:
+# answered: the start it covers may have brought the unit up. Round 14 (review R13-B1): it is judged ONLY with an
+# observation whose ticket was taken after its start was over (the intent identity is in OBS_GONE, recorded by
+# take_ticket_locked): the start process survives a SIGKILL of its starter, and an answer read while it runs (or read
+# before it brought the unit up) cannot say whether the unit comes up. Until then the intent is KEPT, whatever the sets
+# do: it blocks adoption and a second start, and a set dropped meanwhile cannot take it along. Then:
 #   a set of the profile exists      -> the set is made constitution-started (its unit may be ours), the intent removed
 #   no set, the unit runs (ok or degraded) -> a lease-less constitution-started set with stop_owed is created (the owed
 #                                       stop of plan step A, or the next release, stops it), the intent removed
 #   no set, the unit is absent       -> nothing was started (or it is gone): the intent is removed
 #   no set, the state is unknown     -> the intent is kept (judged by a later observation)
 # A LIVE starter's intent is never judged by age (the starting mark is; that is what R12-F1 showed is not enough).
+# Honest limit (§11.4.6): a starter killed after its intent was written and before `go` started nothing (its start
+# process exits on the closed gate), yet a unit found running then (an operator start meanwhile) is recorded with an
+# owed stop, the same ambiguity as a refused start (review R13-F5).
 intents_locked() {
-  local cur out p ipid ipst iat st v th r f
+  local cur out p ipid ipst iat st v th r f cpid cpst
   cur="$(leases_load)"; out="$cur"
-  while IFS="$US" read -r p ipid ipst iat; do
+  while IFS="$US" read -r p ipid ipst iat cpid cpst; do
     [ -n "$p" ] || continue
     pid_dead "$ipid" "$ipst" || continue
+    case $'\n'"$OBS_GONE"$'\n' in
+      *$'\n'"$(intent_id "$p" "$ipid" "$ipst" "$cpid" "$cpst")"$'\n'*) ;;
+      *) log "start intent of $p (pid $ipid): its starter is gone, its start process ($cpid) may still run or was not seen gone before this observation; the intent is kept"
+         continue ;;
+    esac
     if jq -e --arg p "$p" '.sets[$p] != null' <<<"$out" >/dev/null; then
       log "start intent of $p (pid $ipid) was never answered and its starter is gone; the existing set is kept constitution-started (the unit may be one this producer started)"
       out="$(jq -c --arg p "$p" '.sets[$p].constitution_started = true | del(.start_intents[$p])' <<<"$out")"
@@ -712,7 +832,8 @@ intents_locked() {
         out="$(jq -c --arg p "$p" 'del(.start_intents[$p])' <<<"$out")" ;;
       *) log "start intent of $p (pid $ipid): its starter is gone, the unit state is not known now; the intent is kept" ;;
     esac
-  done < <(jq -r '(.start_intents // {}) | to_entries[] | [.key, (.value.pid // "null"), (.value.pid_start // "null"), (.value.at // 0)] | map(tostring) | join("\u001f")' <<<"$cur")
+  done < <(jq -r '(.start_intents // {}) | to_entries[] | [.key, (.value.pid // "null"), (.value.pid_start // "null"), (.value.at // 0),
+                 (.value.child.pid // "null"), (.value.child.pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$cur")
   [ "$out" = "$cur" ] && return 0
   out="$(jq -c 'if (.start_intents // null) == {} then del(.start_intents) else . end' <<<"$out")"
   printf '%s\n' "$out" | leases_save
@@ -1154,9 +1275,15 @@ mark_start_locked() {
   if jq -e 'any(.sets[]?; (.starting // null) != null or (.stopping // null) != null)' <<<"$cur" >/dev/null; then return 1; fi
   # round 13 (R12-B1): an unanswered start intent of this profile (another starter, live or not yet judged) refuses a second start
   if jq -e --arg p "$p" '(.start_intents // {})[$p] != null' <<<"$cur" >/dev/null; then log "candidate $p: a start intent of pid $(intent_of "$p") is unanswered; not started"; return 1; fi
-  # round 13 (R12-B1): the start intent is written in the SAME registry write as the starting mark (see intents_locked)
+  # round 14 (R13-B1): only a start process that waits on its gate (gate_open, pid + start time known) may be named;
+  # without one nothing is marked and nothing is started (fail-closed)
+  if [ -z "$GATE_PID" ] || [ -z "$GATE_PST" ]; then log "candidate $p: no gated start process (${GATE_WHY:-its start time is unreadable}); not started"; return 1; fi
+  # round 13 (R12-B1): the start intent is written in the SAME registry write as the starting mark (see intents_locked);
+  # round 14 (R13-B1): it names the start process (child: pid + start time), so a dead starter's start is judged in flight
+  # while that process or its process group lives
   cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$2" "$3" "$4" "$5" true)" --argjson m "$(me_mark)" \
-    '.sets[$p] = {constitution_started:true, started_at:null, stopping:null, starting:$m, leases:[$l]} | .start_intents[$p] = $m' <<<"$cur")"
+    --argjson cp "$GATE_PID" --argjson cs "$GATE_PST" \
+    '.sets[$p] = {constitution_started:true, started_at:null, stopping:null, starting:$m, leases:[$l]} | .start_intents[$p] = ($m + {child:{pid:$cp, pid_start:$cs}})' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
 }
 # finish_start_locked <profile> <start-rc> -> sets START_RES (caller holds the lock). Round 10 (R9-1): every branch goes
@@ -1313,8 +1440,11 @@ cmd_acquire() {
             IFS="$US" read -r st v th r <<<"$(inst_state "$p")"
             case "$st:$v" in absent:fits|absent:fits_with_reduced_threads) ;; *) log "candidate $p: $st/$v on the fresh answer ($r); not started"; mrc=1; break ;; esac
             BASE_GEN="$OBS_GEN"
-            # the 6th argument: the lease this acquire holds is the authority for every further start (rc 3 when gone)
+            # the 6th argument: the lease this acquire holds is the authority for every further start (rc 3 when gone).
+            # Round 14 (R13-B1): the gated start process exists before the mark that names it (gate_open, outside the lock)
+            if ! gate_open "$p"; then log "candidate $p: $GATE_WHY"; mrc=1; break; fi
             mrc=0; with_lock mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" "$prof" || mrc=$?
+            [ "$mrc" = 0 ] || gate_cancel
             [ "$mrc" = 2 ] || break
             k=$((k+1)); log "candidate $p: the registry changed after the fresh capacity read; reading it again ($k)"
           done
@@ -1327,7 +1457,10 @@ cmd_acquire() {
             *) break ;;
           esac
         else
+          # round 14 (R13-B1): the gated start process exists before the mark that names it (gate_open, outside the lock)
+          if ! gate_open "$p"; then log "candidate $p: $GATE_WHY"; continue; fi
           mrc=0; with_lock mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" || mrc=$?
+          [ "$mrc" = 0 ] || gate_cancel
           if [ "$mrc" = 4 ]; then return 4; fi
           if [ "$mrc" = 2 ]; then
             if [ "$stale_n" -ge "$STALE_MAX" ]; then
@@ -1344,7 +1477,8 @@ cmd_acquire() {
           # on the same answer
           if [ "$mrc" != 0 ]; then log "candidate $p: no longer startable (a set exists or a set is starting/stopping)"; continue; fi
         fi
-        src=0; bounded "$STMO" "$WORK/start.out" "$LLMCTL" start "$p" || src=$?
+        # round 14 (R13-B1): the start runs in the start process named by the intent (gate_go: llmctl runs only now)
+        src=0; gate_go "$p" || src=$?
         START_RES=""; frc=4; i=0
         while [ "$i" -lt "$RETRIES" ]; do
           frc=0; with_lock finish_start_locked "$p" "$src" || frc=$?

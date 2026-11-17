@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-15T11:43:50Z |
+| Last modified | 2026-11-17T03:25:18Z |
 | Status | active |
 | Status summary | Short answers to recurring questions, each tied to the source that settles it. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement); revision 4 adds questions 28 and 29 (placement freshness, round 7); revision 5 corrects question 23 (the capacity source is vendored); revision 7 adds questions 30 and 31 (round 9: one mark per stop, monotonic ages) |
+| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement); revision 4 adds questions 28 and 29 (placement freshness, round 7); revision 5 corrects question 23 (the capacity source is vendored); revision 7 adds questions 30 and 31 (round 9: one mark per stop, monotonic ages); revision 8 adds question 32 (round 14: the start process of a killed acquire) |
 | Fixed summary | — |
 | Continuation | none |
 
@@ -27,6 +27,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 - [Capacity and placement](#capacity-and-placement)
 - [Default-on wiring and exit 5 (2026-11-12)](#default-on-wiring-and-exit-5-2026-11-12)
 - [Placement freshness (2026-11-13)](#placement-freshness-2026-11-13)
+- [Start intents (2026-11-17)](#start-intents-2026-11-17)
 
 ## General
 
@@ -136,3 +137,8 @@ When one call has to stop several sets, each set is marked `stopping` and judged
 
 **31. Can a clock step (NTP) clear a live mark or reap a live lease?**
 Not on a host with `/proc` (round 9, review R8-6). Every mark and lease heartbeat carries `mono` = `<boot id>:<uptime seconds>` next to the wall-clock `at` / `heartbeat_at`, and an age is judged on the monotonic difference when both records are from this boot. A record from another boot counts as expired; a record without `mono` (written by an older producer, or a host without `/proc`) is judged on wall time as before. While an acquire runs a bounded llmctl call, a lease whose holder is named by that process's live mark is not aged out. Gate-logic evidence only.
+
+## Start intents (2026-11-17)
+
+**32. An acquire was killed while it was starting a model. Can the model be left running with nobody to stop it?**
+Not by the paths the gate-logic tests show (round 14, review R13-B1). Every `llmctl start` runs in a start process (`scripts/jev/jev-start-gate.sh`) that the acquire creates before it records the start, and the record (the start intent) names that process. The start process runs llmctl only after the record is written, so a start that runs is always named by an intent. While that process or its process group still runs, the intent is kept: no other acquire adopts the model as operator-started or starts it a second time. Once an observation taken after the start process ended sees the model running, it is recorded as started by this producer with an owed stop, which the next `acquire` or `release` runs. Before round 14 a second acquire could judge the intent while the start was still running and remove it, and the model then came up with no record. Limits: a process that `llmctl start` leaves in another process group or session is not seen (UNCONFIRMED for a real llmctl); a live acquire's intent never expires by age (its start is bounded); evidence is gate-logic with a stub llmctl only, `docs/qa/jev_s3s4_20261112/round14/`.

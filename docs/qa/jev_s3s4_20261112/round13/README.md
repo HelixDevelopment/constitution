@@ -47,6 +47,16 @@ A crash between the start and its record is therefore recoverable: the intent ou
 the owed-stop path stops the unit. R13-1 shows it for the three orders that leaked, and the same orders without the
 kill stay clean.
 
+**Correction added in round 14 (review R13-B1 and R13-F4).** The sentence above holds for a starter killed after its
+bounded start returned (the orders R13-1 shows), not for a starter killed while the start is in flight. Then the
+`timeout` child keeps running, step 4 judges the intent at once, sees the unit absent and removes the intent, and the
+orphaned start brings the unit up afterwards with no set, no lease, no owed stop and no intent (a leak). The review
+showed it in order X with the kill during the start (`runs/sweep_head.txt` of the review). Round 14 closes it:
+`../round14/README.md`. Also (review R13-F5): a starter killed after a REFUSED start (rc 75) and before its record
+leaves its set constitution-started; if the operator started the unit meanwhile, this producer may stop it. That
+ambiguity was not in the honest limits below; it is the same one the round-14 README names for a starter killed before
+`go`.
+
 Honest limits (§11.4.6): the rows cover the orders listed, one profile and the stub llmctl. A live intent never
 expires by age: a starter that hangs without dying blocks a second start and adoption of that profile until it exits
 (the start itself is bounded by `JEV_LLMCTL_START_TIMEOUT`). A pid reused by an unrelated process with the same start
@@ -88,7 +98,7 @@ That is consistent, because MENTION does not count `AGIT_X` as a mention, so the
 
 Each suite ran twice (outputs `runs/final1_<key>.txt` and `runs/final2_<key>.txt`) under the hermetic runner
 (`tools/runsuite.sh.txt`); the verdict hash is `tools/norm.sh.txt` over the verdict lines (test numbers, paths and
-digits normalised). The real-tree census in C1: PASS, universe 1888, 652 members. Gates (`tools/gates.sh.txt`, twice,
+digits normalised). The real-tree census in C1: PASS, universe 1888, 652 members (correction, round 14, review R13-N1: the review measured universe 1889 at the same head; why this README recorded 1888 is UNCONFIRMED). Gates (`tools/gates.sh.txt`, twice,
 `runs/gates_1.txt` and `runs/gates_2.txt`): index freshness, gate-ledger ratchet (unimplemented 394 = baseline 394),
 propagation of §11.4.279 to §11.4.286 and §11.4.291, `--verify-manifest` and engine validate / diff.
 

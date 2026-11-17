@@ -237,9 +237,15 @@ done
 assert_eqx 4 "$nk" "R13-1 CONTROL: A was SIGKILLed at its record lock call in all four kill orders"
 
 # ---- R13-2 (R12-B1): the start intent, on crafted registries ---------------------------------------------------------
+# Round 14 adaptation (review R13-B1): an intent written by the round-14 producer names its start process (child: pid +
+# start time), and a dead starter's intent is judged only once that start process is seen gone. These crafted intents
+# therefore name a start process that is gone (dead_proc); a crafted intent WITHOUT a child is a round-13 intent, in
+# flight until it is older than MARK_TTL (tests/jev/test_s4_round14.sh covers both).
 ireg() { # ireg <pid> <pid_start|null> [sets-json]: a registry with one start intent of decide-a and the given sets
-  reg -n --argjson pid "$1" --argjson pst "$2" --argjson t "$T0" --argjson s "${3:-{\}}" \
-    '{gen:1, sets:$s, start_intents:{"decide-a":{at:$t, mono:null, pid:$pid, pid_start:$pst, holder:"sZ"}}}'
+  local dp="${DP:-}" dps="${DPST:-}"
+  dead_proc; local cp="$DP" cps="${DPST:-null}"; DP="$dp"; DPST="$dps"
+  reg -n --argjson pid "$1" --argjson pst "$2" --argjson t "$T0" --argjson s "${3:-{\}}" --argjson cp "$cp" --argjson cps "$cps" \
+    '{gen:1, sets:$s, start_intents:{"decide-a":{at:$t, mono:null, pid:$pid, pid_start:$pst, holder:"sZ", child:{pid:$cp, pid_start:$cps}}}}'
 }
 # (a) a dead starter, no set, the unit runs: an acquire turns the intent into an owed stop and runs it
 fresh; live_proc; dead_proc; ireg "$DP" "${DPST:-null}"; : > "$STUB_LOG/running.decide-a"

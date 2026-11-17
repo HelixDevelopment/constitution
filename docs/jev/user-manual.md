@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-13T11:41:27Z |
+| Last modified | 2026-11-17T03:25:18Z |
 | Status | active |
 | Status summary | Task-oriented operating manual: set up, run, read status, calibrate, switch endpoints, turn it off. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -115,7 +115,7 @@ bash scripts/jev/jev-place.sh release <session-id>   # the LAST release stops ev
 bash scripts/jev/jev-place.sh status
 ```
 
-It never runs `llmctl enable`, `disable`, `switch` or `auto`. A model you started yourself is never stopped by it. A lease TTL (`--ttl`, default `JEV_LEASE_TTL`) must exceed `JEV_REEVAL_CADENCE` (default 300 s) plus `JEV_LLMCTL_TIMEOUT` (default 20 s), else `acquire` exits 2. The `llmctl-local` cache entry is derived from the lease registry and only an `https://` gateway is registered. No session calls these commands automatically today, and the re-evaluation cadence, drain and hold window are not built (see the governance guide). For savings estimates use the toolkit's `jev-stats.sh [--days N] [--json]`; those numbers are ESTIMATES.
+It never runs `llmctl enable`, `disable`, `switch` or `auto`. A model you started yourself is never stopped by it. Each `llmctl start` runs in a start process, `scripts/jev/jev-start-gate.sh`, which only `jev-place.sh` runs: it waits until the start is recorded in the lease registry, then runs the bounded `llmctl start`, and it exits without starting anything if `jev-place.sh` dies first (see the governance guide, start-intent rules). A lease TTL (`--ttl`, default `JEV_LEASE_TTL`) must exceed `JEV_REEVAL_CADENCE` (default 300 s) plus `JEV_LLMCTL_TIMEOUT` (default 20 s), else `acquire` exits 2. The `llmctl-local` cache entry is derived from the lease registry and only an `https://` gateway is registered. No session calls these commands automatically today, and the re-evaluation cadence, drain and hold window are not built (see the governance guide). For savings estimates use the toolkit's `jev-stats.sh [--days N] [--json]`; those numbers are ESTIMATES.
 
 ## 6. Shadow mode and enforce mode
 

@@ -21,7 +21,7 @@
 | R11-E | `Constitution.md` Revision is 97: `main` has 96, and the vehicle's 98 never landed | `Constitution.md` header |
 | R11-F | A three-process model check runs 60 interleavings (R12-10, `tests/jev/test_s4_round12_mc.sh`). It found **R12-F1** (below) | `runs/r12mc_head_discovery_R12-F1.txt` |
 
-## Finding R12-F1 (open in round 12; fixed in round 13, see the correction below)
+## Finding R12-F1 (open in round 12; the round-13 fix was partial, closed in round 14: see the corrections below)
 
 Found by R12-10 on its first run at the round-12 head, in 2 of the 60 orders: `starCA` and `straCA`.
 
@@ -45,6 +45,14 @@ the releases of C, B and A, an owed-stop acquire, its release and a `reap`, the 
 with no set; one start and one stop ran. That is a model the constitution started that this producer never stops
 (§11.4.291(G)), a host-safety leak, not only a mis-treatment by C. The sentence "the cleanup leaves no unit and no set"
 holds only when A survives the window. Round 13 fixes it (a start intent; `../round13/README.md`).
+
+**Correction added in round 14 (review R13-F4).** "Round 13 fixes it" overstated the round-13 change. The round-13
+start intent closes the orders shown above (A killed at its record lock call, after its start returned), but review
+R13-B1 found the same class still open when A is killed while its bounded `llmctl start` is in flight: the `timeout`
+child survives A, B judged A's intent dead, saw the unit absent, removed the intent and dropped the set, and the
+orphaned start then brought the unit up with no set, no lease and no owed stop. Round 14 closes that window (a gated
+start process named in the intent; a dead starter's intent is judged only after that process is provably gone;
+`../round14/README.md`). Gate-logic evidence with the stub llmctl only, PROVISIONAL.
 
 What R12-10 does about it:
 

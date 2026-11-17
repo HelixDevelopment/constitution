@@ -376,8 +376,17 @@ census_case C2rc24 1 "$(fx rc24 docs/qa/r/d.ls "$(pyx 'total 8\n-rw-rw-r--\u00a0
 census_case C2rc25 1 "$(fx rc25 docs/qa/r/d.ls "$(pyx 'total \u0668')")" "unclassified"                                          # a Unicode-digit total
 census_case C2rc26 1 "$(fx rc26 docs/qa/r/d.ls "$(pyx 'total 8\n-rw-rw-r-- \u0661 u u 1 Nov 13 18:38 x')")" "unclassified"  # a Unicode-digit link count
 census_case C2rc27 0 "$(fx rc27 docs/qa/r/gate.rc "$(pyx '12')")" "PASS"                                                            # golden-FALSE: an ASCII status is data
-[ -e "$T/pyx_failed" ] && setup_bug "a pyx fixture failed (see SETUP BUG above)"
 census_case C2rc23 0 "$(fx rc23 docs/qa/r/d.ls "$(pyx 'total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 digit')")" "PASS"                                # golden-FALSE: `digit` is no mention
+# Round 14 (review R13-F6, census mutant W35): the git exclusion reads the WHOLE text. A listing longer than 4 KB whose
+# LAST line names a file `git` is no data by shape; CONTROL: the same listing ending in `x` is data (the length alone is
+# no reason). (review R13-N2: these rows and C2rc23 now sit BEFORE the pyx marker check, so every pyx fixture is checked)
+LONGLS="$(pyx "total 8\n$(python3 -I -c 'import sys; sys.stdout.write("".join("-rw-rw-r-- 1 u u 1 Nov 13 18:38 f%04d\\n" % i for i in range(200)))')")"
+[ "${#LONGLS}" -gt 4096 ] || setup_bug "the long listing fixture is not longer than 4 KB (${#LONGLS})"
+census_case C2rc28 1 "$(fx rc28 docs/qa/r/d.ls "$LONGLS$(pyx '\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 git')")" "unclassified"     # W35: a git mention after the first 4 KB
+census_case C2rc29 0 "$(fx rc29 docs/qa/r/d.ls "$LONGLS$(pyx '\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x')")" "PASS"               # golden-FALSE: the same length, no mention
+# Round 14 (review R13-F7, census mutant W27): the scope is the directory docs/qa/, not the prefix `docs/qa`
+census_case C2rc30 1 "$(fx rc30 docs/qaz/r/gate.rc "$(pyx '0')")" "unclassified"                                         # a sibling directory of docs/qa/
+[ -e "$T/pyx_failed" ] && setup_bug "a pyx fixture failed (see SETUP BUG above)"
 
 # ---- C3 BLIND ---------------------------------------------------------------------------------
 D="$(fx nolib scripts/x.sh "$(printf '#!/usr/bin/env bash\ngit init -q')")"

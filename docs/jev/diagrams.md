@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-13T11:41:27Z |
+| Last modified | 2026-11-17T03:25:18Z |
 | Status | active |
-| Status summary | Four Mermaid diagrams: architecture, data flow, bootstrap state machine, routing and consensus sequence. |
+| Status summary | Mermaid diagrams: architecture, data flow, bootstrap state machine, failover and placement sequence, the start and its start intent (round 14), routing and consensus sequence. |
 | Authority | Constitution §11.4.279–§11.4.286. The scripts and the claude_toolkit / llmctl sources govern wherever a diagram simplifies. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
@@ -23,6 +23,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 - [Data flow of one gated tool call](#data-flow-of-one-gated-tool-call)
 - [Bootstrap state machine](#bootstrap-state-machine)
 - [Failover and placement sequence (2026-11-12)](#failover-and-placement-sequence-2026-11-12)
+- [The start and its start intent (2026-11-17)](#the-start-and-its-start-intent-2026-11-17)
 - [Routing and consensus sequence](#routing-and-consensus-sequence)
 
 ## Architecture
@@ -172,6 +173,37 @@ sequenceDiagram
     P->>K: remove llmctl-local
   else stop failed or timed out
     P-->>S: rc 6, set kept (stop_failed); the next release retries
+  end
+```
+
+## The start and its start intent (2026-11-17)
+
+How `jev-place.sh` starts a model since round 14 (review R13-B1, §11.4.291). The start runs in a start process that exists before the registry write naming it, and that runs llmctl only after that write, so every `llmctl start` that runs is named by a durable start intent. A second acquire (B) judges a dead starter's intent only with an observation taken after the start process and its process group were gone. Gate-logic evidence only (`docs/qa/jev_s3s4_20261112/round14/`): what a real `llmctl start` leaves in another process group or session when its client is killed is UNCONFIRMED.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant A as Acquire A (starter)
+  participant G as Start process (jev-start-gate.sh)
+  participant R as Lease registry (under the lock)
+  participant L as llmctl
+  participant B as Acquire B
+  A->>G: spawn, outside the lock, it waits on a fifo only A writes
+  A->>R: one write: set + starting mark + start intent naming A and G (pid, start time)
+  alt the mark is refused
+    A->>G: no (G exits 79, llmctl never runs)
+  else the mark is written
+    A->>G: go
+    G->>L: exec timeout llmctl start (process group id = G's pid)
+    Note over A,G: A SIGKILLed here: G keeps running. A killed before go: G reads end-of-file, exits 79
+    B->>R: ticket: which intents' start processes are provably gone now
+    B->>L: capacity --json (read after the ticket)
+    alt A dead and G (or its group) may still run, or was not gone at B's ticket
+      B->>R: intent kept: no adoption, no second start
+    else A dead and G gone at B's ticket
+      B->>R: set exists -> constitution-started, no set and unit runs -> lease-less constitution-started set with an owed stop, unit absent -> intent removed
+    end
+    G-->>A: exit code (A alive): A records the result and removes its own intent
   end
 ```
 

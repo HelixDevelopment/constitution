@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 9 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-15T17:19:38Z |
+| Last modified | 2026-11-17T03:25:18Z |
 | Status | active |
 | Status summary | Symptom, cause, action, and the command that shows which it is. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -118,6 +118,9 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 | Verdict `undetermined`, reason `nproc_unlimited: RLIMIT_NPROC is unlimited ...` | `ulimit -u` is unlimited (llmctl reports `rlimit_soft` null) | Measured, not missing; whether an unlimited limit admits a start is an operator decision (§11.4.291(C), §11.4.66), so no start until then. `nproc_not_measured` means the headroom could not be read. |
 | Verdict `undetermined`, reason `candidate list undetermined: llmctl decide capacity exit <n>` | The candidate list could not be read | Never read as "no candidate"; no local start. |
 | `llmctl-onnx@decide-nli` is `failed` | Its start gate (`svc_hook.sh gate`) refused with exit 75 under memory pressure four times and hit the start limit (measured 2026-11-12 on the reference host) | This is an operator-enabled unit; the constitution does not restart it. `systemctl --user reset-failed llmctl-onnx@decide-nli` and start it by hand when pressure is low, if you want it. |
+| `acquire` logs `start intent of <p> (pid N): its starter is gone, its start process (M) may still run or was not seen gone before this observation; the intent is kept`, and `<p>` is neither started nor joined | An acquire that started `<p>` died (SIGKILL, OOM) and its start process M (`scripts/jev/jev-start-gate.sh`, which runs the bounded `llmctl start`) or a process of its process group still runs, or it ended after this acquire's observation began (round 14, 2026-11-17) | Intended: the start may still bring the unit up, so the intent is kept until an observation taken after M and its group are gone; then the unit is recorded constitution-started (with an owed stop if no set is left) or the intent is removed. Wait for the start to end (bounded by `JEV_LLMCTL_START_TIMEOUT` + 2 s) and run `status` or `acquire` again. `jq '.start_intents' "$JEV_STATE_DIR/leases.json"` shows the intent and its `child` (pid, start time). |
+| `acquire` logs `candidate <p>: no gated start process (...)` or `the start gate ... is missing` | The start process could not be set up: no `/proc/self/fd`, `mkfifo` failed, or `scripts/jev/jev-start-gate.sh` is not next to `jev-place.sh` | Fail-closed: nothing is marked and nothing is started; the route is the fallback. Restore the file, or run on a host with `/proc`. |
+| `acquire` logs `the start process of <p> (pid N) exited R before it ran llmctl ...: recorded as a refused start (rc 75)` | The start process could not write its `<out>.went` file (for example a full disk) after `go`, so it exited without running llmctl | Nothing was started and no stop is owed. Note the same rc 75 ambiguity as a refused start: if an operator started the unit meanwhile, the set this producer marked stays constitution-started (review R13-F5). |
 
 ## Status
 
