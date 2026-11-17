@@ -145,6 +145,7 @@ import re
 import subprocess
 import sys
 import tokenize
+import unicodedata
 
 TOOL = "git-env-class-census"
 REASONS = {
@@ -193,6 +194,66 @@ SH_CLEARS = re.compile(r"\bunset\b|(?:^|\s)-u\s+\S")
 # caller's SHELLOPTS=xtrace (scripts/fastcycle/tokens/dispatch_stamp.sh, test RV11-2: the scrub line must come after it)
 PREAMBLE = re.compile(r"""^(?:set(?:[ \t]+(?:[-+][A-Za-z]+|[a-z]+|--))+[ \t]*$|shopt(?:[ \t]+-[su])+(?:[ \t]+[a-z_]+)+[ \t]*$|umask[ \t]+[0-7]{3,4}[ \t]*$|\{ set [+-]o [a-z]+(?: [+-]o [a-z]+)*; \} 2>/dev/null$|export\s+[A-Za-z_]\w*=[^$`();&|<>]*$|[A-Za-z_]\w*=[^$`();&|<>]*$)""")
 FUNC_RE = re.compile(r"^(\s*)(?:function\s+)?([A-Za-z_][\w]*)\s*\(\)\s*(\{.*)?$")
+# CON-450 round 4 (review R3-1 / R3-2 / R3-5, section 11.4.276(E) structural): a member is judged on the text its
+# interpreter runs. Python's str.lstrip / strip / isspace and `\s` treat CR, VT, FF, FS..US, NEL, NBSP and the other
+# Unicode spaces as blank; bash treats only SPACE and TAB as blank and LF as the only line end, so `\r#;cmd` or
+# `<NBSP>#;cmd` was a comment to this census and a command to bash (measured: the scrub defeated, the census PASS).
+# The census therefore admits a CLOSED ALLOW-LIST and refuses the rest, fail-closed (READING_PROBLEM below):
+#   shell   every character: TAB, LF or printable ASCII, or a non-ASCII character of a Unicode category L M N P S that
+#           str.isspace() does not accept (CR, NUL..US but TAB / LF, DEL anywhere are refused);
+#           every line: the first character after its SPACE / TAB run is printable ASCII or such a character;
+#           line 1: a `#!` line is one of SH_SHEBANGS exactly (a file run directly runs its shebang's arguments first);
+#           the preamble (every line up to and including the first canonical-looking scrub line): a full-line comment
+#           may carry the characters above (no U+FFFD, the mark of a byte that is not UTF-8); any other line is TAB /
+#           printable ASCII only;
+#   python  no CR (the interpreter ends a line at a lone CR, measured: `# c\ry=2` runs y=2; this census numbers lines
+#           by LF);
+#   js      no CR, U+2028 or U+2029 (JavaScript line terminators).
+SH_SHEBANGS = ("#!/usr/bin/env bash", "#!/bin/bash", "#!/bin/sh", "#!/system/bin/sh")
+SH_COMMENT_LINE = re.compile(r"[ \t]*#")
+
+
+def _ok_char(ch, ascii_only=False):
+    o = ord(ch)
+    if ch == "\t" or 0x20 <= o <= 0x7e:
+        return True
+    return (not ascii_only and o >= 0x80 and ch != "\ufffd" and unicodedata.category(ch)[0] in "LMNPS"
+            and not ch.isspace())
+
+
+def reading_problem(lang, text):
+    """(line, reason) where the file leaves what this census models of its interpreter's reading, or None."""
+    if lang in ("py", "js"):
+        bad = "\r" if lang == "py" else "\r\u2028\u2029"
+        for no, l in enumerate(text.split("\n"), 1):
+            for ch in l:
+                if ch in bad:
+                    return no, ("U+%04X ends a line for the %s interpreter but not for this census (lines split on LF); "
+                                "not modelled, fail-closed (CON-450 r4)" % (ord(ch), lang))
+        return None
+    if lang != "sh":
+        return None
+    lines = text.split("\n")
+    canon_at = next((i for i, l in enumerate(lines, 1) if CANON_SH_ANY.match(l)), 0)
+    for no, l in enumerate(lines, 1):
+        if no == 1 and l.startswith("#!") and l not in SH_SHEBANGS:
+            return no, ("line 1 is a #! line outside the closed set (%s): a file run directly runs its shebang's "
+                        "arguments before line 2; not modelled, fail-closed (CON-450 r4)" % ", ".join(SH_SHEBANGS))
+        com = bool(SH_COMMENT_LINE.match(l))
+        pre = no <= canon_at
+        rest = l.lstrip(" \t")
+        for col, ch in enumerate(l, 1):
+            o = ord(ch)
+            if (ch != "\t" and o < 0x20) or o == 0x7f or (pre and not _ok_char(ch, ascii_only=not com)):
+                return no, ("column %d holds U+%04X (%s, %s)%s: bash and this census read it differently; not "
+                            "modelled, fail-closed (CON-450 r4)" % (col, o, unicodedata.name(ch, "unnamed"),
+                                                                    unicodedata.category(ch),
+                                                                    " in the preamble" if pre else ""))
+        if rest and not _ok_char(rest[0]) and rest[0] != "\ufffd":
+            return no, ("the first character after the blanks is U+%04X (%s, %s): blank to Python, a word to bash; not "
+                        "modelled, fail-closed (CON-450 r4)" % (ord(rest[0]), unicodedata.name(rest[0], "unnamed"),
+                                                                unicodedata.category(rest[0])))
+    return None
 # Round 4 (R4-1): the universe is every tracked file. A text file is data only when its extension is in this closed
 # list (or it has no extension, no shebang and no executable bit); any other extension is UNCLASSIFIED and the census
 # FAILs, so a new kind of file can never fall silently outside the census. Systemd units, templates and configs are
@@ -266,7 +327,7 @@ def code_lines(lang, text):
     """List of the file's lines with comments (and python docstrings) blanked; same line numbering."""
     lines = text.split("\n")
     if lang == "sh":
-        return [strip_sh_comment(l) if not l.lstrip().startswith("#") else "" for l in lines]
+        return [strip_sh_comment(l) if not SH_COMMENT_LINE.match(l) else "" for l in lines]   # bash blanks only (r4)
     if lang in ("go", "js"):
         return ["" if l.lstrip().startswith("//") else l for l in lines]
     if lang != "py":
@@ -674,7 +735,7 @@ def py_top_scrub(text, canon):
 def sh_top_scrub(code_raw, code):
     """(line, words) of a canonical shell scrub at column 0 in the preamble, or None."""
     for i, raw in enumerate(code_raw, 1):
-        c = code[i - 1].strip()
+        c = code[i - 1].strip(" \t")
         if i == 1 and raw.startswith("#!"):
             continue
         m = CANON_SH.match(raw)
@@ -782,6 +843,9 @@ def judge(lang, text, canon):
     if mm is None:
         return None, 0, "", []
     mline = text[:mm.start()].count("\n") + 1
+    rp = reading_problem(lang, text)
+    if rp is not None:
+        return "UNSCRUBBED", rp[0], rp[1], []
     code = code_lines(lang, text)
     gv = git_vars(code) if lang == "sh" else set()
     wraps, funcs = (wrappers(code, canon, gv) if lang == "sh" else ({}, {}))
@@ -999,6 +1063,33 @@ def needles(canon):
         ("sh guard, read only", "sh", "#!/bin/bash\nB=$(git rev-parse --abbrev-ref HEAD)\necho \"stage with git add <paths>\" >&2\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
         ("sh guard, write", "sh", "#!/bin/bash\ngit add -A\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
         ("sh guard, echo piped to sh", "sh", "#!/bin/bash\necho \"git add -A\" | sh\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+    ]
+    # CON-450 round 4 (review R3-1 / R3-2 / R3-5): the closed allow-list of the interpreter's reading. Each refused
+    # sample is a member bash runs differently from the census's old reading (the scrub defeated or a write hidden).
+    cd = "command declare -l _g\\e_v\n"
+    for nm, ch in (("CR", "\r"), ("VT", "\x0b"), ("FF", "\x0c"), ("FS", "\x1c"), ("GS", "\x1d"), ("RS", "\x1e"),
+                   ("US", "\x1f"), ("NEL", "\u0085"), ("NBSP", "\u00a0"), ("EMSP", "\u2003"), ("LSEP", "\u2028"),
+                   ("ZWSP", "\u200b"), ("RLO", "\u202e"), ("BOM", "\ufeff"), ("NUL-like DEL", "\x7f")):
+        cases.append(("sh %s comment before the canonical line" % nm, "sh", "#!/bin/bash\n" + ch + "#;" + cd + sh_scrub +
+                      "git init -q x\n", None, "UNSCRUBBED"))
+        cases.append(("sh %s inside a preamble comment" % nm, "sh", "#!/bin/bash\n# x" + ch + "y\n" + sh_scrub +
+                      "git init -q x\n", None, "UNSCRUBBED"))
+    cases += [
+        ("sh CRLF file", "sh", ("#!/bin/bash\n" + sh_scrub + "git init -q x\n").replace("\n", "\r\n"), None, "UNSCRUBBED"),
+        ("sh env -S shebang", "sh", "#!/usr/bin/env -S bash -c 'declare -l _g\\\\e_v; . \"$0\"'\n" + sh_scrub +
+         "git init -q x\n", None, "UNSCRUBBED"),
+        ("sh shebang with an argument", "sh", "#!/bin/bash -x\n" + sh_scrub + "git init -q x\n", None, "UNSCRUBBED"),
+        ("sh CR hides a write, text row", "sh", "#!/bin/sh\necho hi\n:\r#; git commit -qm x\n", ("no-git-execution", "x", ""), "UNSCRUBBED"),
+        ("sh NBSP-led line after the scrub", "sh", "#!/bin/bash\n" + sh_scrub + "\u00a0#; git init -q x\n", None, "UNSCRUBBED"),
+        ("sh non-UTF-8 byte in the preamble", "sh", "#!/bin/bash\n# x\ufffdy\n" + sh_scrub + "git init -q x\n", None, "UNSCRUBBED"),
+        ("sh em dash and Cyrillic in a preamble comment", "sh", "#!/bin/bash\n# a \u2014 \u043c \u00a7 b\n" + sh_scrub +
+         "git init -q x\n", None, "HERMETIC"),
+        ("sh NBSP inside a string after the scrub", "sh", "#!/bin/bash\n" + sh_scrub + "echo 'a\u00a0b'\ngit init -q x\n", None, "HERMETIC"),
+        ("sh no shebang, comment first", "sh", "# shellcheck shell=bash\n" + sh_scrub + "git init -q x\n", None, "HERMETIC"),
+        ("sh /bin/sh shebang", "sh", "#!/bin/sh\n" + sh_scrub + "git init -q x\n", None, "HERMETIC"),
+        ("py CR hides a write", "py", py_scrub.replace("import os as _ge_os\n", "import os as _ge_os  # c\rimport subprocess; subprocess.run(['git', 'init', 'x'])\n"), None, "UNSCRUBBED"),
+        ("js LSEP ends a comment", "js", "#!/usr/bin/env node\n// c\u2028execFileSync('git', ['init']);\n" + js_scrub, None, "UNSCRUBBED"),
+        ("js CR ends a comment", "js", "#!/usr/bin/env node\n// c\rexecFileSync('git', ['init']);\n" + js_scrub, None, "UNSCRUBBED"),
     ]
     bad = []
     for name, lang, text, row, want in cases:

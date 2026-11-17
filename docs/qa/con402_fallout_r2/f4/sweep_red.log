@@ -1,0 +1,18 @@
+ok C: the stand-in suite passes the control (rc=0) and fails mutant G-B-BODY-HASH#1 (rc=1)
+ok S1: an interrupted sweep exits 143
+ok S1: an interrupted sweep does not print the success line
+ok S1: no ledger was written
+ok S1: no .tmp file next to the --out path
+ok S2: an ID list matching no sub-clause fails (rc=1) and does not claim a clean sweep
+ok S3: a full default run exits 0
+ok S3: it reports every mutant KILLED
+ok S3: the ledger went to a temp file (<P> not into fixtures/
+ok S3: the tracked ledger is unchanged
+ok S3: the ledger has one row per sub-clause (345)
+ok S4: SIGHUP exits 129, no success line, no ledger
+ok S4: SIGINT exits 130, no success line, no ledger
+ok S5: a missing result is refused (rc 1, result count 1 != 2) and no ledger is written
+ok S6: a 77 control suite is named, both mutants KILLED by the other suites, exit 77 (SKIP), the ledger header names it
+ok S7: a mutant with the control's status on every suite (77 and 0) SURVIVED; exit 1
+ok S8: a mutant whose only other difference is a $HOME path in a PASS line has n_isolating_cases 1, and the row names no $HOME path
+== RESULT: 17 passed, 0 failed ==
