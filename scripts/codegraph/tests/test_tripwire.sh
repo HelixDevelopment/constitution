@@ -67,12 +67,39 @@ if t_want T3; then
 fi
 
 if t_want T4; then
-    spawn_live
-    bash "$TW" --pid "$LIVE" --dir "$W" --min-gib 400 --interval 1 --log "$W/t4.log" >/dev/null 2>&1; rc=$?
-    st="$(t_pid_state "$LIVE")"
-    [ "$rc" -eq 10 ] && [ "$st" = "T" ] && grep -q TRIPPED "$W/t4.log" && [ -f "$W/t4.log.TRIPPED" ]
-    t_check T4 "real-identity indexer + free < threshold -> SIGSTOP (state T, not killed), exit 10, marker" $? "rc=$rc state=$st"
-    t_kill_codegraph_pid "$LIVE"; LIVE=""
+    # T4 drives the REAL df read (no override). The threshold is derived from the free space
+    # measured on the df target, never hard-coded: a fixed 400 GiB did not trip on a volume with
+    # more than 400 GiB free (audit 2026-11-16 F7). The df target is the first candidate whose
+    # free space is at least 5 GiB and free space + 2 GiB fits the documented bound [5,500]; the
+    # tripwire only runs df on --dir and writes nothing there. The tripwire's own logged avail_bytes must match the independent df
+    # read within 2 GiB, and its logged min_bytes must be the derived threshold (control needles: the
+    # trip came from the real df and from the measured threshold, not from a default or a fixed value).
+    # No candidate fits -> honest SKIP, never counted as a PASS (T6 covers the override path).
+    t4_dir=""; t4_gib=""; t4_fb=""
+    for cand in "$W" "${XDG_RUNTIME_DIR:-}" /dev/shm /; do
+        [ -n "$cand" ] && [ -d "$cand" ] || continue
+        fb="$(df -B1 --output=avail "$cand" 2>/dev/null | tail -n 1 | tr -d ' ')"
+        case "$fb" in ''|*[!0-9]*) continue ;; esac
+        # a target with less than 5 GiB free would need the lower clamp of the bound, and a
+        # clamped threshold would no longer be derived from the measurement: skip it
+        g=$(( fb / 1073741824 + 2 ))
+        if [ "$g" -ge 7 ] && [ "$g" -le 500 ]; then t4_dir="$cand"; t4_gib="$g"; t4_fb="$fb"; break; fi
+    done
+    if [ -z "$t4_dir" ]; then
+        printf 'RESULT T4 SKIP real-df trip: no df target with 5 to 498 GiB free (threshold bound [5,500]); override path covered by T6\n'
+    else
+        spawn_live
+        bash "$TW" --pid "$LIVE" --dir "$t4_dir" --min-gib "$t4_gib" --interval 1 --log "$W/t4.log" >/dev/null 2>&1; rc=$?
+        st="$(t_pid_state "$LIVE")"
+        lav="$(sed -n 's/.*avail_bytes=\([0-9][0-9]*\) min_bytes.*/\1/p' "$W/t4.log" 2>/dev/null | tail -n 1)"
+        lmin="$(sed -n 's/.*avail_bytes=[0-9][0-9]* min_bytes=\([0-9][0-9]*\).*/\1/p' "$W/t4.log" 2>/dev/null | tail -n 1)"
+        dif=$(( ${lav:-0} - t4_fb )); [ "$dif" -lt 0 ] && dif=$(( -dif ))
+        [ "$rc" -eq 10 ] && [ "$st" = "T" ] && grep -q TRIPPED "$W/t4.log" && [ -f "$W/t4.log.TRIPPED" ] \
+            && [ -n "$lav" ] && [ "$dif" -le 2147483648 ] && [ "${lmin:-0}" = "$(( t4_gib * 1073741824 ))" ]
+        t_check T4 "real-identity indexer + free < threshold (real df, threshold from measured free space) -> SIGSTOP (state T, not killed), exit 10, marker" $? \
+            "rc=$rc state=$st dir=$t4_dir min_gib=$t4_gib df_bytes=$t4_fb logged_avail=${lav:-none} logged_min=${lmin:-none}"
+        t_kill_codegraph_pid "$LIVE"; LIVE=""
+    fi
 fi
 
 if t_want T5; then

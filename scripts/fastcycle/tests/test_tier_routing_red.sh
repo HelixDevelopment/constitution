@@ -128,12 +128,15 @@ set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/tier_route"
 IMPL="$FC/context/tier_route.py"
-ANCHOR_INDEX="$ROOT/constitution/constitution_index.yaml"
+ANCHOR_INDEX="$FC_CANON_ROOT/constitution_index.yaml"
 REVIEW_RECORD="$FC/review/review_record.py"
 DB="$ROOT/docs/workable_items.db"
+# CON-093: a standalone canon (no consumer above it) is its own live tracker (the same fallback as test_reopen_rate_red.sh).
+[ -f "$DB" ] || [ ! -f "$FC_CANON_ROOT/docs/workable_items.db" ] || DB="$FC_CANON_ROOT/docs/workable_items.db"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "NOT ok python3 not on PATH -- cannot run any of the checks below"

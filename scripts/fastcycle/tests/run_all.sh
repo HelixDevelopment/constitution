@@ -1,7 +1,8 @@
 #!/bin/sh
 # Purpose: run every test_*.sh in a directory; fail if none match (empty-glob false-null guard, §11.4.201(6)).
 # Usage: run_all.sh [tests_dir]   (default: directory of this script)
-# Exit: 0 all pass; 1 any failure or zero tests found; 2 usage, or a HUP/INT/TERM received while running.
+# Exit: 0 all pass; 1 any failure or zero tests found; 77 no failure but at least one member exited 77 (an honest
+# SKIP, printed as SKIP and counted on a separate summary line; CON-262); 2 usage, or a HUP/INT/TERM received while running.
 # Signals (R7-F2): `timeout` leads its own process group, so a signal to the runner (or Ctrl-C to its group)
 # never reached the running test. A HUP/INT/TERM now sends TERM to the running test's `timeout` (which forwards
 # it to the test's whole group and sends KILL 2 s later), waits up to 3 s, then KILLs the group and exits 2.
@@ -78,7 +79,7 @@ on_signal() {
   exit 2
 }
 trap on_signal HUP INT TERM
-count=0; failed=0
+count=0; failed=0; skipped=0
 for t in "$dir"/test_*.sh; do
   [ -f "$t" ] || continue
   count=$((count + 1))
@@ -89,8 +90,15 @@ for t in "$dir"/test_*.sh; do
   timeout -k "$KILL_AFTER_S" "$bound" "$interp" "$t" </dev/null &
   wait "$!"; trc=$?
   if [ "$trc" -eq 124 ] || [ "$trc" -eq 137 ]; then echo "TIMEOUT $(basename "$t")"; fi
-  if [ "$trc" -eq 0 ]; then echo "PASS $(basename "$t")"; else echo "FAIL $(basename "$t")"; failed=$((failed + 1)); fi
+  # CON-262 / CON-243: exactly 77 is the honest SKIP of lib/consumer_required.sh (section 11.4.3 / 11.4.69); it is
+  # neither a PASS nor a FAIL. Every other non-zero status, 76 and 78 included, stays FAIL.
+  if [ "$trc" -eq 0 ]; then echo "PASS $(basename "$t")"
+  elif [ "$trc" -eq 77 ]; then echo "SKIP $(basename "$t")"; skipped=$((skipped + 1))
+  else echo "FAIL $(basename "$t")"; failed=$((failed + 1)); fi
 done
 if [ "$count" -eq 0 ]; then echo "run_all: zero tests matched in $dir (refusing to pass vacuously)" >&2; exit 1; fi
 echo "run_all: $count run, $failed failed"
-[ "$failed" -eq 0 ]
+[ "$skipped" -eq 0 ] || echo "run_all: $skipped skipped (exit 77, honest SKIP: not a PASS)"
+[ "$failed" -eq 0 ] || exit 1
+[ "$skipped" -eq 0 ] || exit 77
+exit 0

@@ -1,0 +1,5 @@
+# repo: vasic-digital/anti_bluff
+{"default_branch":"main","full_name":"vasic-digital/anti_bluff","permissions":{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}}
+# exit: 0
+[]
+# exit: 0

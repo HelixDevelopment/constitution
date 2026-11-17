@@ -90,7 +90,8 @@ set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/gate_audit"
 SHARED="$FIXDIR/_shared"
 GATE_AUDIT="$FC/gates/gate_audit.py"
@@ -134,11 +135,11 @@ paths:
   evidence_root: $ROOT/qa-results/fastcycle
   pre_build_verification: $ROOT/device/rockchip/rk3588/tests/pre_build_verification.sh
   gate_search_dirs:
-    - $ROOT/constitution/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/gates
+    - $FC_CANON_ROOT/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/gates
   patch_search_dirs:
-    - $ROOT/constitution/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/patches
+    - $FC_CANON_ROOT/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/patches
   base_tree_dirs:
-    - $ROOT/constitution/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/base_tree
+    - $FC_CANON_ROOT/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/base_tree
   transfer_records_dir: $WORK/transfer_records
 EOF
 

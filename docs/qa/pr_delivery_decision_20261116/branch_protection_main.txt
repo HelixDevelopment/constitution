@@ -1,0 +1,4 @@
+# command: gh api repos/HelixDevelopment/HelixConstitution/branches/main/protection
+# time: 2026-11-16T13:10:29Z
+{"message":"Resource not accessible by personal access token","documentation_url":"https://docs.github.com/rest/branches/branch-protection#get-branch-protection","status":"403"}gh: Resource not accessible by personal access token (HTTP 403)
+# exit: 1
