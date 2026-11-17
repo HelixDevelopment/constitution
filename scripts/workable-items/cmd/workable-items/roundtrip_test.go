@@ -201,7 +201,7 @@ func TestValidate_FailsOnBadStatus(t *testing.T) {
 		AtmID: "HXC-999", Type: "Bug", Status: "Queued",
 		Title:           "valid baseline item with a sufficiently long description",
 		Description:     "valid baseline item with a sufficiently long description that clears the §11.4.91 floor",
-		CurrentLocation: "Issues", BodyMD: "## HXC-999 — x\n",
+		CurrentLocation: "Issues", BodyMD: "## HXC-999 — valid baseline item with a sufficiently long description\n",
 	}
 	if err := replaceDocument(db, "Issues", []item{good}, []segment{
 		{Document: "Issues", Seq: 0, Kind: "item", AtmID: "HXC-999"},

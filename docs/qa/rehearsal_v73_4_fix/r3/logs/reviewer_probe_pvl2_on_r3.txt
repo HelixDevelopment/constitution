@@ -1,0 +1,75 @@
+OK CON-0001 cyr_TBD_job expect=R got=R FAIL CON-0001 Ready for testing: field 'job' is a placeholder (tbd)
+OK CON-0002 cyr_TBD_checks expect=R got=R FAIL CON-0002 Ready for testing: field 'checks' is a placeholder (tbd)
+OK CON-0003 cyr_TBD_layer expect=R got=R FAIL CON-0003 Ready for testing: field 'layer' is a placeholder (tbd)
+OK CON-0004 cyr_TBD_target expect=R got=R FAIL CON-0004 Ready for testing: field 'target' is a placeholder (tbd)
+OK CON-0005 cyr_TBD_artifact expect=R got=R FAIL CON-0005 Ready for testing: field 'artifact' is a placeholder (tbd)
+OK CON-0006 cyr_TBD_due expect=R got=R FAIL CON-0006 Ready for testing: field 'due' is a placeholder (tbd)
+OK CON-0007 pending_sched_job expect=R got=R FAIL CON-0007 Ready for testing: field 'job' is a placeholder (pending)
+OK CON-0008 none_assigned_job expect=R got=R FAIL CON-0008 Ready for testing: field 'job' is a placeholder (none)
+OK CON-0009 not_applicable_job expect=R got=R FAIL CON-0009 Ready for testing: field 'job' is a placeholder (not applicable)
+OK CON-0010 lorem_job expect=R got=R FAIL CON-0010 Ready for testing: field 'job' is a placeholder (lorem)
+OK CON-0011 TBD_underscore_job expect=R got=R FAIL CON-0011 Ready for testing: field 'job' is a placeholder (tbd)
+OK CON-0012 T.B.D_job expect=R got=R FAIL CON-0012 Ready for testing: field 'job' is a placeholder (tbd)
+OK CON-0013 unknown_word_job expect=R got=R FAIL CON-0013 Ready for testing: field 'job' is a placeholder (unknown)
+OK CON-0014 qqq_job expect=R got=R FAIL CON-0014 Ready for testing: field 'job' starts with no word (???)
+OK CON-0015 to_be_done_job expect=R got=R FAIL CON-0015 Ready for testing: field 'job' is a placeholder (to be)
+OK CON-0016 will_be_job expect=R got=R FAIL CON-0016 Ready for testing: field 'job' is a placeholder (will be)
+OK CON-0017 XXX_lower_job expect=R got=R FAIL CON-0017 Ready for testing: field 'job' is a placeholder (xxx)
+OK CON-0018 pending_sched_checks expect=R got=R FAIL CON-0018 Ready for testing: field 'checks' is a placeholder (pending)
+OK CON-0019 none_assigned_checks expect=R got=R FAIL CON-0019 Ready for testing: field 'checks' is a placeholder (none)
+OK CON-0020 not_applicable_checks expect=R got=R FAIL CON-0020 Ready for testing: field 'checks' is a placeholder (not applicable)
+OK CON-0021 lorem_checks expect=R got=R FAIL CON-0021 Ready for testing: field 'checks' is a placeholder (lorem)
+OK CON-0022 TBD_underscore_checks expect=R got=R FAIL CON-0022 Ready for testing: field 'checks' is a placeholder (tbd)
+OK CON-0023 T.B.D_checks expect=R got=R FAIL CON-0023 Ready for testing: field 'checks' is a placeholder (tbd)
+OK CON-0024 unknown_word_checks expect=R got=R FAIL CON-0024 Ready for testing: field 'checks' is a placeholder (unknown)
+OK CON-0025 qqq_checks expect=R got=R FAIL CON-0025 Ready for testing: field 'checks' starts with no word (???)
+OK CON-0026 to_be_done_checks expect=R got=R FAIL CON-0026 Ready for testing: field 'checks' is a placeholder (to be)
+OK CON-0027 will_be_checks expect=R got=R FAIL CON-0027 Ready for testing: field 'checks' is a placeholder (will be)
+OK CON-0028 XXX_lower_checks expect=R got=R FAIL CON-0028 Ready for testing: field 'checks' is a placeholder (xxx)
+OK CON-0029 pending_sched_target expect=R got=R FAIL CON-0029 Ready for testing: field 'target' is a placeholder (pending)
+OK CON-0030 none_assigned_target expect=R got=R FAIL CON-0030 Ready for testing: field 'target' is a placeholder (none)
+OK CON-0031 not_applicable_target expect=R got=R FAIL CON-0031 Ready for testing: field 'target' is a placeholder (not applicable)
+OK CON-0032 lorem_target expect=R got=R FAIL CON-0032 Ready for testing: field 'target' is a placeholder (lorem)
+OK CON-0033 TBD_underscore_target expect=R got=R FAIL CON-0033 Ready for testing: field 'target' is a placeholder (tbd)
+OK CON-0034 T.B.D_target expect=R got=R FAIL CON-0034 Ready for testing: field 'target' is a placeholder (tbd)
+OK CON-0035 unknown_word_target expect=R got=R FAIL CON-0035 Ready for testing: field 'target' is a placeholder (unknown)
+OK CON-0036 qqq_target expect=R got=R FAIL CON-0036 Ready for testing: field 'target' starts with no word (???)
+OK CON-0037 to_be_done_target expect=R got=R FAIL CON-0037 Ready for testing: field 'target' is a placeholder (to be)
+OK CON-0038 will_be_target expect=R got=R FAIL CON-0038 Ready for testing: field 'target' is a placeholder (will be)
+OK CON-0039 XXX_lower_target expect=R got=R FAIL CON-0039 Ready for testing: field 'target' is a placeholder (xxx)
+OK CON-0040 artifact_TBD_main expect=R got=R FAIL CON-0040 Ready for testing: field 'artifact' is a placeholder (tbd)
+INFO CON-0041 artifact_lorem_main expect=A? got=R FAIL CON-0041 Ready for testing: field 'artifact' is a placeholder (lorem)
+OK CON-0042 layer_runtime_cyr expect=R got=R FAIL CON-0042 Ready for testing: field 'layer' does not start with a known layer (user-visible, runtime, artifact, source, host-only, live-target, gate-logic)
+OK CON-0043 due_leap2000 expect=A got=A 
+OK CON-0044 due_2100 expect=R got=R FAIL CON-0044 Ready for testing: field 'due' has a year outside 2000 to 2099 (2100)
+OK CON-0045 due_13 expect=R got=R FAIL CON-0045 Ready for testing: field 'due' is not a real calendar date (2026-13-01)
+OK CON-0046 due_time_ok expect=A got=A 
+OK CON-0047 due_time_25 expect=R got=R FAIL CON-0047 Ready for testing: field 'due' has an invalid time (2026-11-23T25:00)
+OK CON-0048 due_time_space expect=A got=A 
+OK CON-0049 due_time_offset expect=A got=A 
+OK CON-0050 due_fullwidth expect=R got=R FAIL CON-0050 Ready for testing: field 'due' is not a date (YYYY-MM-DD at the start, ASCII digits)
+OK CON-0051 due_zwsp_lead expect=R got=R FAIL CON-0051 Ready for testing: field 'due' is not a date (YYYY-MM-DD at the start, ASCII digits)
+OK CON-0052 due_unconfirmed_trailing expect=A got=A 
+OK CON-0053 due_tbd_after expect=R got=R FAIL CON-0053 Ready for testing: field 'due' holds the placeholder word TBD
+OK CON-0054 due_date_slash expect=R got=R FAIL CON-0054 Ready for testing: field 'due' is not a date (YYYY-MM-DD at the start, ASCII digits)
+OK CON-0055 job_unconfirmed_trailing expect=A got=A 
+OK CON-0056 job_UNCONFIRMED_lower expect=R got=R FAIL CON-0056 Ready for testing: field 'job' is a placeholder (unconfirmed)
+OK CON-0057 job_bracket_tbd expect=R got=R FAIL CON-0057 Ready for testing: field 'job' is a placeholder (tbd)
+OK CON-0058 job_quoted_todo expect=R got=R FAIL CON-0058 Ready for testing: field 'job' is a placeholder (todo)
+OK CON-0059 job_none_paren expect=R got=R FAIL CON-0059 Ready for testing: field 'job' is a placeholder (none)
+MISMATCH CON-0060 job_DRAFTS_golden expect=A got=R FAIL CON-0060 Ready for testing: field 'job' does not name a job (a path, a command with a path or option, or a job id <KEY>-<digits>)
+OK CON-0061 job_XTBD_golden expect=A got=A 
+OK CON-0062 checks_fw_todo expect=R got=R FAIL CON-0062 Ready for testing: field 'checks' is a placeholder (todo)
+OK CON-0063 target_zwj_tbd expect=R got=R FAIL CON-0063 Ready for testing: field 'target' is a placeholder (tbd)
+OK CON-0064 artifact_hex_only_ok expect=A got=A 
+OK CON-0065 layer_gate_logic expect=A got=A 
+OK CON-9000 html_comment_only expect=R got=R FAIL CON-9000 In testing: no '**Verification:** provisional' line
+OK CON-9001 tilde_fence_only expect=R got=R FAIL CON-9001 In testing: no '**Verification:** provisional' line
+OK CON-9002 nested_fence expect=A got=A 
+OK CON-9003 indented3_fence expect=R got=R FAIL CON-9003 In testing: no '**Verification:** provisional' line
+OK CON-9004 indented4_notfence expect=A got=A 
+OK CON-9005 colonless expect=A got=A 
+OK CON-9006 colonless_tbd expect=R got=R FAIL CON-9006 In testing: field 'job' is a placeholder (tbd)
+OK CON-9007 prefix_glued expect=R? got=R FAIL CON-9007 In testing: no '**Verification:** provisional' line
+OK CON-9008 extra_unknown_field expect=A? got=A 
+PROBE cases=74 mismatches=1 checker_rc=1 last=VERDICT: FAIL

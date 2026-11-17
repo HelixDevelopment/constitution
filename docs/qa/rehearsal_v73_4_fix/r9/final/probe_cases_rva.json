@@ -1,0 +1,474 @@
+[
+ {
+  "name": "V01a code span splits label",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 2,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\nVerifi`cation`: provisional -- job: FAKE -- checks: FAKE pass=999\n"
+ },
+ {
+  "name": "V01b code span splits bold label",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 2,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n**Verifi`cation:`** provisional -- job: FAKE -- checks: FAKE pass=999\n"
+ },
+ {
+  "name": "V03a strike splits label (gfm)",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 2,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\nVerifi~~cation~~: provisional -- job: FAKE -- checks: FAKE pass=999\n"
+ },
+ {
+  "name": "V03b strike splits bold label (gfm)",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 2,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n**Verifi~~cation~~:** provisional -- job: FAKE -- checks: FAKE pass=999\n"
+ },
+ {
+  "name": "V11a VS17 inside label",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 2,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\nVerifi\udb40\udd00cation: provisional -- job: FAKE -- checks: FAKE pass=999\n"
+ },
+ {
+  "name": "V11b tag letter inside bold label",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 2,
+    "top_good": false,
+    "raw": [],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n**Verifi\udb40\udc41cation:** provisional -- job: FAKE -- checks: FAKE pass=999\n"
+ },
+ {
+  "name": "V12a emphasis split, soft break before colon",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [
+     "element <dd>",
+     "element <dl>",
+     "element <dt>"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\nVeri*fi*cation\n: provisional -- job: FAKE -- checks: FAKE pass=999\n"
+ },
+ {
+  "name": "V12b emphasis split, hard break before colon",
+  "human": "two",
+  "checker": "REFUSE",
+  "reason": "a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur onl",
+  "danger": [],
+  "readers": {
+   "mdit": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "mdit-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "cmark-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-cm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-gfm": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "commonmark.py": {
+    "labels": 2,
+    "top_good": true,
+    "raw": [],
+    "bidi": false
+   },
+   "pandoc-md-export": {
+    "labels": 1,
+    "top_good": false,
+    "raw": [
+     "element <dd>",
+     "element <dl>",
+     "element <dt>"
+    ],
+    "bidi": false
+   }
+  },
+  "body": "**Verification:** provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20\n\nVeri*fi*cation\\\n: provisional -- job: FAKE -- checks: FAKE pass=999\n"
+ }
+]

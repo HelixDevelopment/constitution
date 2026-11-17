@@ -1,0 +1,586 @@
+PASS L4 the SIGHUP detector sees an ignored and a not ignored SIGHUP (control needles)
+PASS C1 exit 0
+PASS C1 RESULT OK
+PASS C1 r1 main
+PASS C1 r2 tag peels to release
+PASS C1 annotated tag
+PASS C2 exit 1
+PASS C2 RESULT FAIL
+PASS C2 r2 has no tag
+PASS C2 r2 main unchanged
+PASS C2 r1 still OK
+PASS C2 MISMATCH reported for r2
+PASS C3 resume exit 0
+PASS C3 tag object reused
+PASS C3 r2 tag object equals local
+PASS C3 OK remote skipped
+PASS C4 exit 1
+PASS C4 fetch abort
+PASS C4 no local tag
+PASS C4 r1 untouched
+PASS C5 exit 1
+PASS C5 ancestor abort
+PASS C5 no local tag
+PASS C6 exit 1
+PASS C6 heading abort
+PASS C7 exit 1
+PASS C7 r2 has no tag
+PASS C7 fallback path taken
+PASS C7 fallback completes on resume
+PASS C7 r2 tag
+PASS C8 exit 1
+PASS C8 impostor kept
+PASS C8 r1 untouched
+PASS C9 exit 1 (r2 not OK)
+PASS C9 no release on the non-OK remote
+PASS C9 glab gets --ref SHA
+PASS C9 one github create for one repository id
+PASS C9 gh --verify-tag
+PASS C9 resume with an inaccessible repo exits 5 (GAPS)
+PASS C9 existing releases not re-created
+PASS C9 resumed release on the now-OK remote
+PASS C10 exit 0
+PASS C10 no tag
+PASS C10 r1 untouched
+PASS C11 missing --remotes is usage error
+PASS C13 dirty tree exit 1
+PASS C13 dirty-tree abort
+PASS C13 no local tag
+PASS C13 r1 untouched
+PASS C14 HEAD!=SHA exit 1
+PASS C14 HEAD!=SHA abort
+PASS C14 no local tag
+PASS C14 r1 untouched
+PASS C15 exit 1
+PASS C15 different-object abort
+PASS C15 impostor kept
+PASS C15 r1 untouched
+PASS C16 exit 0
+PASS C16 r2 tag pushed
+PASS C16 r2 not skipped
+PASS C17 gitea ok exit 0
+PASS C17 gitea created
+PASS C17 base URL and repo passed
+PASS C18 gitea missing token is a GAP (exit 5)
+PASS C18 SKIPPED-NO-TOKEN gap
+PASS C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1)
+PASS C19 refusal named
+PASS C20 gitea rc 4 exit 1
+PASS C20b gitea rc 3 with the token mid-line is a FAIL (exit 1)
+PASS C20b mid-line token is not a GAP
+PASS C20c private TMPDIR exists (control)
+PASS C20c gitea stderr temp file removed (all rcs)
+PASS C22 real publisher, no token: GAP exit 5
+PASS C22 SKIPPED-NO-TOKEN gap
+PASS C23 real publisher, bad token charset: FAIL exit 1
+PASS C23 refusal names the publisher's reason
+PASS C23 token value not printed
+PASS C21 exit 1
+PASS C21 userinfo not printed
+PASS C21 fetch abort (control)
+PASS C21 the reason class is printed (positive needle)
+PASS C21 no byte of git's message is printed
+PASS C21b exit 1
+PASS C21b long message: secret prefix not printed
+PASS C21b fetch abort (control)
+PASS C21c exit 1
+PASS C21c push failure printed with its class (control)
+PASS C21c push stderr: no secret printed (raw @ and second URL included)
+PASS C21c no byte of git's push message is printed
+PASS C21c (G8) no 'tag pushed only' after a failed push
+PASS C21c (G8) the INFO line says the push is NOT OK
+PASS C21d dry-run still exit 0
+PASS C21d exit-time stderr flush: no secret
+PASS C21d exit-time flush prints the redacted line (positive needle)
+PASS C21e a 5000-byte git message: nothing of it printed
+PASS C21e the abort names the class (control)
+PASS C24 no head -c in the three scripts (only rc_redact_cut cuts)
+PASS C24 the helper defines the one cutter (control needle)
+PASS C24b no temp FILE outside a private run directory in the three scripts (mktemp -d only)
+PASS C25 real git, raw '/' in the password: exit 1
+PASS C25 fetch abort (control)
+PASS C25 raw '/' password not printed
+PASS C25 the class of git's message is printed (positive needle)
+PASS C25 no byte of git's message is printed
+PASS C25b real git, query token: exit 1
+PASS C25b query token not printed
+PASS C25b the class is printed (positive needle)
+PASS C25b the parameter name is not printed either
+PASS C26 success: exit 0
+PASS C26 success: nothing left in TMPDIR
+PASS C26 the run directory is created under TMPDIR (control needle)
+PASS C26 git runs with GIT_TRACE_REDACT=1 even when the caller set 0
+PASS C34 git runs with GIT_TERMINAL_PROMPT=0
+PASS C33 the run directory mode is read during the run (control needle)
+PASS C33 the run directory is mode 700 (V13)
+PASS C26 fetch failure: exit 1
+PASS C26 fetch failure: nothing left in TMPDIR
+PASS C26 push failure: exit 1
+PASS C26 push failure: nothing left in TMPDIR
+PASS C26 fallback push failure: exit 1
+PASS C26 fallback push failure: nothing left in TMPDIR
+PASS C26 gitea legs (all rcs): nothing left in TMPDIR
+PASS C27 TERM: the run ends non-zero (rc 143)
+PASS C27 TERM: nothing left in TMPDIR
+PASS C27 TERM: no secret printed
+PASS C27 TERM: the script had started (control)
+PASS C27 HUP: the run ends non-zero (rc 129)
+PASS C27 HUP: nothing left in TMPDIR
+PASS C27 HUP: no secret printed
+PASS C27 HUP: the script had started (control)
+PASS C28 exit 1
+PASS C28 the fallback push failure carries git's reason class
+PASS C28 no byte of the hook's message is printed
+PASS C28 the reason is redacted
+PASS C29 dry-run exit 0
+PASS C29 the cut flush ends with a truncation marker
+PASS C30 bash -x run: exit 1
+PASS C30 bash -x run: no secret printed
+PASS C30 bash -x run: the class of git's message is printed (positive needle)
+PASS C31 real git, 'token:' inside the password: exit 1
+PASS C31 no part of the password is printed (J1)
+PASS C31 the class is printed (positive needle)
+PASS C32 publisher rc 4: exit 1
+PASS C32 the publisher's own line is printed (positive needle)
+PASS C32 a line that is not the publisher's own is not printed (rc 4)
+PASS C32 rc 3: the publisher's own line is printed (positive needle)
+PASS C32 rc 3: a line that is not the publisher's own is not printed
+PASS C32c the publisher's own line is printed redacted (positive needle)
+PASS C32c no credential of the publisher's own line is printed
+PASS C34 control: GIT_TRACE_CURL writes a file outside the script
+PASS C34 exit 1 (host does not resolve)
+PASS C34 no GIT_TRACE_CURL file is written by the script
+PASS C34 no git trace line on the output
+PASS C35 a hung fetch: exit 1
+PASS C35 a hung fetch ends within the bound (2s)
+PASS C35 the abort says timeout (positive needle)
+PASS C35 RELEASE_NET_TIMEOUT must be a positive number (usage)
+PASS C39 TERM during a hung fetch: the script exits 143 through its trap
+PASS C39 TERM: nothing left in TMPDIR
+PASS C39 HUP during a hung fetch: the script exits 129 through its trap
+PASS C39 HUP: nothing left in TMPDIR
+PASS C36 bad --release spec is a usage error: gitea
+PASS C36 the bad spec is not echoed (gitea)
+PASS C36 bad --release spec is a usage error: github
+PASS C36 the bad spec is not echoed (github)
+PASS C36 bad --release spec is a usage error: gitlab
+PASS C36 the bad spec is not echoed (gitlab)
+PASS C36 bad --release spec is a usage error: gitea
+PASS C36 the bad spec is not echoed (gitea)
+PASS C36 the refusal names the spec by number (positive needle)
+PASS C36 control: a nested GitLab path and a loopback gitea URL are accepted (no usage error; the dry-run probe of the gitea leg without a token is a would-gap, exit 5)
+PASS C36 an option-shaped unknown argument is named (control)
+PASS C36 credential-shaped unknown argument: usage
+PASS C36 a credential-shaped unknown argument is not echoed
+PASS C36 a URL as remote name: usage
+PASS C36 the unsafe remote name is not echoed
+PASS C36 a non-hex --sha: usage
+PASS C36 the bad --sha is not echoed (not even on the start line)
+PASS C37 a server answering non-object ids: exit 1
+PASS C37 MISMATCH reported (positive needle)
+PASS C37 the server's non-object-id text is not printed
+PASS C37b a remote tag answer that is not an object id aborts
+PASS C37b the abort says so (positive needle)
+PASS C37b the answer is not printed
+PASS C38 non-numeric repository id: GAPS exit 5
+PASS C38 the gap is named (positive needle)
+PASS C38 the non-numeric id is not printed
+PASS C40 captured-output variables found (control needle)
+PASS C40 every use of a captured output is a classification, a decision or the own-line filter
+PASS C41 http: a hung fetch through real git: exit 1
+PASS C41 http: a git transport helper was running during the hang (control needle)
+PASS C41 http: the run ends within the deadline + 7 s (3s)
+PASS C41 http: the abort says timeout (positive needle)
+PASS C41 http: no git process of the run is left (the whole process group got the signal)
+PASS C41 https: a hung fetch through real git: exit 1
+PASS C41 https: a git transport helper was running during the hang (control needle)
+PASS C41 https: the run ends within the deadline + 7 s (3s)
+PASS C41 https: the abort says timeout (positive needle)
+PASS C41 https: no git process of the run is left (the whole process group got the signal)
+PASS C42 userinfo URL refused: exit 1 (https)
+PASS C42 the refusal names the remote (positive needle, https)
+PASS C42 the URL is not shown (https)
+PASS C42 no network command ran (https)
+PASS C42 userinfo URL refused: exit 1 (https)
+PASS C42 the refusal names the remote (positive needle, https)
+PASS C42 the URL is not shown (https)
+PASS C42 no network command ran (https)
+PASS C42 userinfo URL refused: exit 1 (http)
+PASS C42 the refusal names the remote (positive needle, http)
+PASS C42 the URL is not shown (http)
+PASS C42 no network command ran (http)
+PASS C42 userinfo URL refused: exit 1 (ssh)
+PASS C42 the refusal names the remote (positive needle, ssh)
+PASS C42 the URL is not shown (ssh)
+PASS C42 no network command ran (ssh)
+PASS C42 userinfo URL refused: exit 1 (u)
+PASS C42 the refusal names the remote (positive needle, u)
+PASS C42 the URL is not shown (u)
+PASS C42 no network command ran (u)
+PASS C42 userinfo URL refused: exit 1 (HTTPS)
+PASS C42 the refusal names the remote (positive needle, HTTPS)
+PASS C42 the URL is not shown (HTTPS)
+PASS C42 no network command ran (HTTPS)
+PASS C42 userinfo URL refused: exit 1 (ssh)
+PASS C42 the refusal names the remote (positive needle, ssh)
+PASS C42 the URL is not shown (ssh)
+PASS C42 no network command ran (ssh)
+PASS C42 a push URL with userinfo is refused too
+PASS C42 the push URL is not shown
+PASS C42 an insteadOf rewrite that adds userinfo is refused
+PASS C42 the rewritten URL is not shown
+PASS C42 control: a user name without a password is accepted (ssh://git@h.invalid/r.git reaches the fetch)
+PASS C42 control: a user name without a password is accepted (git@h.invalid:r.git reaches the fetch)
+PASS C43 the listener got the Basic header of the credential helper (control needle)
+PASS C43 a transport helper was sampled (control needle)
+PASS C43 the environments of the descendants were read (control needle)
+PASS C43 no descendant argv holds the password
+PASS C43 no child the script started holds a caller token or header value in its environment
+PASS C43 children of the script were checked (control needle)
+PASS C43 the instrument sees a token in an environment (positive needle: the sleep 1.43 child of the wrapper)
+PASS C43 the re-executed tag script was sampled (control needle)
+PASS C43 the re-executed tag script has an empty environment
+PASS C43 the hung authenticated fetch ends at the deadline: exit 1
+PASS C43 no git process of the run is left
+PASS C43b the slowed wrapper git was sampled (control needle)
+PASS C43b no child holds a caller token or header value, every caller-started git visible
+PASS C43b no git process of the run is left
+PASS C44 run with every kind of release: exit 0
+PASS C44 the environment of git was recorded (control needle)
+PASS C44 the environment of timeout was recorded (control needle)
+PASS C44 the environment of gh was recorded (control needle)
+PASS C44 the environment of glab was recorded (control needle)
+PASS C44 the environment of pub was recorded (control needle)
+PASS C44 the publisher receives M3W_GITEA_TOKEN (the intended child)
+PASS C44 no caller token in the environment of git
+PASS C44 no caller token in the environment of timeout
+PASS C44 no caller token in the environment of gh
+PASS C44 no caller token in the environment of glab
+PASS C44 the publisher receives no other caller token
+PASS C45 control: bash -x traces (instrument sees trace lines)
+PASS C45 bash -x dry run: exit 0
+PASS C45 bash -x: at most one trace line
+PASS C45 SHELLOPTS=xtrace: at most one trace line
+PASS C46 the own line is printed (positive needle)
+PASS C46 a line that only contains the prefix is not printed
+PASS C47 run: exit 0
+PASS C47 network git commands were recorded (control needle)
+PASS C47 every network git command has both low-speed settings
+PASS C48 control: the census sees names that are not identifiers
+PASS C48 control (N1): LC_ZZTOKEN is a finding (no name prefix)
+PASS C48 control (N3): an inherited descriptor is a finding
+PASS C48 shellopts: run with every kind of release: exit 0
+PASS C48 shellopts: git was recorded (control needle)
+PASS C48 shellopts: timeout was recorded (control needle)
+PASS C48 shellopts: gh was recorded (control needle)
+PASS C48 shellopts: glab was recorded (control needle)
+PASS C48 shellopts: bash was recorded (control needle)
+PASS C48 shellopts: no child has a name outside the allow-list or a marker (ENVCENSUS records=90 checked=85 findings=0)
+PASS C48 shellopts: every network child has only the network allow-list (ENVCENSUS records=90 checked=59 findings=0)
+PASS C48 dasha: run with every kind of release: exit 0
+PASS C48 dasha: git was recorded (control needle)
+PASS C48 dasha: timeout was recorded (control needle)
+PASS C48 dasha: gh was recorded (control needle)
+PASS C48 dasha: glab was recorded (control needle)
+PASS C48 dasha: bash was recorded (control needle)
+PASS C48 dasha: no child has a name outside the allow-list or a marker (ENVCENSUS records=89 checked=84 findings=0)
+PASS C48 dasha: every network child has only the network allow-list (ENVCENSUS records=89 checked=58 findings=0)
+PASS C52 dry run with the badge check: exit 0
+PASS C52 the badge computer ran (control needle)
+PASS C52 the badge computer has LC_ALL=C (rc_net)
+PASS C52 every name of the badge computer is on NET_ALLOW
+PASS C52 no caller value reaches the badge computer
+PASS C50 control: descriptor 7 is a finding for a plain child
+PASS C50 control: descriptor 300 is a finding for a plain child
+PASS C50 control: descriptor 12345 is a finding for a plain child
+PASS C50 control: descriptor 100000 is a finding for a plain child
+PASS C50 run with descriptors 7 300 12345 100000: exit 0
+PASS C50 git was recorded (control needle)
+PASS C50 gh was recorded (control needle)
+PASS C50 glab was recorded (control needle)
+PASS C50 no child of the tag script inherits a descriptor of 1, 3, 5 or 6 digits (ENVCENSUS records=90 checked=85 findings=0)
+tests/release/test_tag_and_release.sh: line 706: /proc/1291324/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3040101/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3040160/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3040290/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3040740/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3093298/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3108666/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3136015/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3136165/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3141321/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3216019/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3223176/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3226713/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3229020/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3229691/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3229890/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3229910/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3229912/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3230339/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3230558/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3231395/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3232231/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3233352/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3233534/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3234077/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3234416/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3234675/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3234690/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3235017/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3235058/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3235283/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3235443/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3235536/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3235915/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3236035/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3236932/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237110/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237126/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237167/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237174/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237248/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237250/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237439/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237463/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237609/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237639/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237742/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237921/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237935/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237974/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237991/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3237993/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3238110/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3238111/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3238112/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3238330/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3238853/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239053/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239060/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239144/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239222/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239229/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239273/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239279/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239372/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239379/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239478/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239499/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239578/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239583/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239690/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239694/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239830/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239845/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239860/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239871/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239904/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239913/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239917/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239919/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239928/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239933/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239950/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239960/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239971/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239973/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239984/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239989/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239992/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239994/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239998/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3239999/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240001/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240003/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240004/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240006/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240007/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240008/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240009/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240010/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240013/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240014/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240018/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240020/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240023/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240026/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240028/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240029/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240030/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240031/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240033/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240034/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240035/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240036/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240037/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240038/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240039/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240040/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240041/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3240042/cmdline: No such file or directory
+tests/release/test_tag_and_release.sh: line 706: /proc/3996447/cmdline: No such file or directory
+PASS C49 a TERM-ignoring network git: exit 1
+PASS C49 the run ends within the deadline + the kill delay + 16 s (13s)
+PASS C49 the double outlived the TERM (control: 13s >= 10 s)
+PASS C49 the abort says git exit 137, reason class timeout
+PASS C49 no process of the double is left
+PASS GL1 exit 0
+PASS GL1 name prefixed PROVISIONAL
+PASS GL1 notes start with the mark
+PASS GL1 glab create gets --no-update
+PASS GL1 no --released-at without --gitlab-released-at
+PASS GL1 read back through glab api on the pinned host
+PASS GL1 PRERELEASE MARKED line
+PASS GL1 the run directory (with the marked notes copy) is removed at exit
+PASS GL2 exit 0
+PASS GL2 title kept, no double prefix
+PASS GL3 exit 0
+PASS GL3 name is the title
+PASS GL3 notes are the changelog section
+PASS GL3 no read-back for a final release
+PASS GL3 --no-update on a final release
+PASS GL4 exit 0
+PASS GL4 --released-at passed
+PASS GL4 upcoming read back
+PASS GL5 offset form exit 0
+PASS GL5 offset form passed verbatim
+PASS GL5 offset form read back as the same instant
+PASS GL6 usage exit 2: --gitlab-released-at 2026-12-16T14:25:12Z --release gitlab:r1:grp/one
+PASS GL6 no tag: --gitlab-released-at 2026-12-16T14:25:12Z --release gitlab:r1:grp/one
+PASS GL6 no glab or gh call: --gitlab-released-at 2026-12-16T14:25:12Z --release gitlab:r1:grp/one
+error: remote r1 already exists.
+PASS GL6 usage exit 2: --prerelease --gitlab-released-at 2026-12-31 --release gitlab:r1:grp/one
+PASS GL6 no tag: --prerelease --gitlab-released-at 2026-12-31 --release gitlab:r1:grp/one
+PASS GL6 no glab or gh call: --prerelease --gitlab-released-at 2026-12-31 --release gitlab:r1:grp/one
+On branch main
+nothing to commit, working tree clean
+PASS GL6 usage exit 2: --prerelease --gitlab-released-at 2026-02-30T00:00:00Z --release gitlab:r1:grp/one
+PASS GL6 no tag: --prerelease --gitlab-released-at 2026-02-30T00:00:00Z --release gitlab:r1:grp/one
+PASS GL6 no glab or gh call: --prerelease --gitlab-released-at 2026-02-30T00:00:00Z --release gitlab:r1:grp/one
+On branch main
+nothing to commit, working tree clean
+PASS GL6 usage exit 2: --prerelease --gitlab-released-at 2020-01-01T00:00:00Z --release gitlab:r1:grp/one
+PASS GL6 no tag: --prerelease --gitlab-released-at 2020-01-01T00:00:00Z --release gitlab:r1:grp/one
+PASS GL6 no glab or gh call: --prerelease --gitlab-released-at 2020-01-01T00:00:00Z --release gitlab:r1:grp/one
+On branch main
+nothing to commit, working tree clean
+PASS GL6 usage exit 2: --prerelease --gitlab-released-at 2026-12-16T14:25:12Z --release github:r1:acc/one
+PASS GL6 no tag: --prerelease --gitlab-released-at 2026-12-16T14:25:12Z --release github:r1:acc/one
+PASS GL6 no glab or gh call: --prerelease --gitlab-released-at 2026-12-16T14:25:12Z --release github:r1:acc/one
+On branch main
+nothing to commit, working tree clean
+PASS GL6 usage exit 2: --prerelease --gitlab-released-at 2026-12-16T14:25:12Z
+PASS GL6 no tag: --prerelease --gitlab-released-at 2026-12-16T14:25:12Z
+PASS GL6 no glab or gh call: --prerelease --gitlab-released-at 2026-12-16T14:25:12Z
+PASS GL6b bad value exit 2
+PASS GL6b a bad value is not echoed
+PASS GL7 api failure exit 5
+PASS GL7 GAP readback unconfirmed
+PASS GL7 not reported MARKED
+PASS GL8 unparsable exit 1
+PASS GL8 FAIL unparsable
+PASS GL9 name without PROVISIONAL exit 1
+PASS GL9 FAIL mark missing
+PASS GL9b first line without the mark exit 1
+PASS GL9b FAIL mark missing
+PASS GL10 upcoming false exit 5
+PASS GL10 GAP upcoming unconfirmed
+PASS GL10b other time exit 5
+PASS GL10b GAP date differs
+PASS GL11 injected released_at exit 5
+PASS GL11 server text not printed
+PASS GL11 NOT-AN-ISO-TIME printed instead
+PASS GL12 kept unmarked release exit 1
+PASS GL12 kept
+PASS GL12 FAIL mark missing on the kept release
+PASS GL12 the kept release is not re-created
+PASS GL13 dry run exit 0
+PASS GL13 the dry run probes the platforms (positive needle: the doubles were called)
+PASS GL13 dry run calls only read-only glab and gh subcommands
+PASS GL13 gitlab plan line names the marking
+PASS GL13 github plan line states the pre-release flag
+PASS GL14 no auth exit 5
+PASS GL14 GAP skipped no token
+PASS GL14 no create without auth
+PASS GL15 hang exit 5
+PASS GL15 GAP with reason class timeout
+PASS GL15 bounded (well under the 30 s hang)
+PASS GL16 no glab call site outside nt
+PASS GL16 8 glab call sites, all through nt (control: at least 5)
+PASS GL17 one EXIT trap
+PASS GL17 marked notes in the run directory
+PASS RH1 no --prerelease: exit 0
+PASS RH1 github plan line: prerelease=none
+PASS RH1 gitlab plan line: prerelease=none
+PASS RH1 gitea plan line: prerelease=flag
+PASS RH1 github plan line: prerelease=flag
+PASS RH2 exit 0
+PASS RH2 RESULT OK
+PASS RH2 github probe: would create, repository id read
+PASS RH2 gitlab probe: would create
+PASS RH2 the gitlab project is read on the pinned host
+PASS RH2 no write call to any platform
+PASS RH2 no local tag
+PASS RH2 r1 untouched
+PASS RH3 exit 5
+PASS RH3 RESULT GAPS dry-run
+PASS RH3 would-gap SKIPPED-NO-TOKEN with the exit code
+PASS RH3 no api call without authentication
+PASS RH4 exit 5
+PASS RH4 would-gap NOT-ACCESSIBLE
+PASS RH5 exit 0
+PASS RH5 existing release would be kept
+PASS RH5 same repository id: would be deduplicated
+PASS RH6 glab no auth exit 5
+PASS RH6 would-gap SKIPPED-NO-TOKEN
+PASS RH6 unreadable project exit 1
+PASS RH6 RESULT FAIL dry-run
+PASS RH6 would-fail NOT-ACCESSIBLE
+PASS RH6 a project answer that is not a JSON object: exit 1
+PASS RH6 junk answer: would-fail
+PASS RH7 no token exit 5
+PASS RH7 would-gap SKIPPED-NO-TOKEN
+PASS RH7 token set exit 5 (access unconfirmed)
+PASS RH7 token set: ACCESS UNCONFIRMED
+PASS RH10 no token text in the output (gh, glab, gitea legs probed)
+PASS RH10 control: the gh double does print token text
+PASS RH11 same repository by URL: exit 1
+PASS RH11 ABORT names both remotes
+PASS RH11 no local tag
+PASS RH11 scp-style and ssh:// forms of one GitHub repository (case-folded): exit 1
+PASS RH11 real run aborts too
+PASS RH11 the push URL is not shown
+PASS RH11 r1 untouched by the aborted real run
+PASS RH12 repeated remote name: usage
+PASS RH12 names the repeated position
+PASS RH13 one GitHub repository id behind two URLs: exit 1
+PASS RH13 ABORT names both remotes and the id
+PASS RH13 control: two GitHub repository ids: exit 0
+PASS RH14 exit 0
+PASS RH14 id check UNCONFIRMED
+PASS RH15 exit 0
+PASS RH15 per-remote UNCONFIRMED
+PASS RH16 control: scp-style and https forms of one repository
+PASS RH16 upper-case .GIT suffix
+PASS RH16 doubled slash in the path
+PASS RH16 local doubled and trailing slashes
+PASS RH16 file:// URL and the local path
+PASS RH16 local /srv/repo.git and /srv/repo are two directories
+PASS RH16 local paths keep their case
+PASS RH16 control: two hosted repositories
+PASS RH17 a token outside the shape: exit 1
+PASS RH17 a token outside the shape is TOKEN-SHAPE
+PASS RH17 the bad token value is not shown
+PASS RH17 a token inside the shape is ACCESS-UNCONFIRMED
+PASS RH17 no copy of the gitea token charset in tag_and_release.sh
+PASS RH17 no copy of the gitea token charset in release_publish_gitea.sh
+PASS RH17 control: the publisher calls the shared definition
+PASS C12 no force/delete in script
+PASS L1 the lint sees tag_and_release.sh (control)
+PASS L1 no external command before rc_env_clean
+PASS L1 needle: a date inserted at line 2 is found
+PASS C53 netgate: tag_and_release.sh and its library start every network child through rc_net, every command classified (NETGATE layer=analyser invocations=77 network_through_rc_net=46 findings=0)
+PASS C53 netgate: 46 network calls are seen through rc_net (positive needle)
+PASS C53 netgate control needle: a command -p git appended to a copy is the only finding
+RESULT: pass=455 fail=0

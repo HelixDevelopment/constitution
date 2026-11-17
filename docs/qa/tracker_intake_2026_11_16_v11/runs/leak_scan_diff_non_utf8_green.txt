@@ -1,0 +1,4 @@
+# GREEN: the same test against the fixed scan
+PASS scan diff non-utf8
+RESULT: hit_rows=264 missed=0 broader_leads=1 own_spec_wrong=0 r11_wrong=0
+rc=0

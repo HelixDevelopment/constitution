@@ -3,11 +3,17 @@
 gitleaks_run_scan.sh tests (gate-logic tests only, section 11.4.289: never evidence of what the
 real gitleaks finds; the real binary is driven by the same test with GLRS_GITLEAKS set).
 
-`detect --source DIR --report-path P [--report-format json] [--no-banner] [--config C] ...` runs
-`git -C DIR log -p -U0 --full-history --all` (the command the real gitleaks 8 runs; git therefore
-follows refs/replace/* unless GIT_NO_REPLACE_OBJECTS is set in the environment it inherits) and
-reports every ADDED line that matches ghp_[A-Za-z0-9]{36} as a JSON array
-{RuleID, File, StartLine, Commit, Secret}. Exit 1 with findings, 0 without, 2 on a git error.
+`detect --source DIR --report-path P [--report-format json] [--no-banner] [--config C]
+[--log-opts OPTS] ...` runs `git -C DIR log -p -U0 OPTS` (OPTS split on spaces), or without
+--log-opts `git -C DIR log -p -U0 --full-history --all --diff-filter=tuxdb` (the commands the real
+gitleaks 8.30.1 runs, read from its argv; git therefore follows refs/replace/* unless
+GIT_NO_REPLACE_OBJECTS is set, and applies git attributes unless --text/--no-textconv are given)
+and reports every ADDED line that matches ghp_[A-Za-z0-9]{36} as a JSON array
+{RuleID, File, StartLine, Commit, Secret}. Exit 1 with findings, 0 without. Like the real binary
+(measured), when git exits non-zero or writes anything to stderr the scan reads nothing: the report
+is [] and the exit is 0 (a false PASS the caller must guard against).
+$FAKE_GLD_IGNORE_LOGOPTS=1 drops --log-opts (emulates a scanner that does not pass them to git);
+$FAKE_GLD_STRIP="W1 W2 ..." drops only those words from them (for example --text).
 `version` prints a fake version line. If $FAKE_GL_ENVLOG is set, the value of
 GIT_NO_REPLACE_OBJECTS seen by this process (or the word UNSET) is appended to that file.
 """
@@ -24,7 +30,7 @@ if a and a[0] == "version":
 if not a or a[0] != "detect":
     sys.stderr.write("fake gitleaks detect: only `detect` and `version` are supported\n")
     sys.exit(2)
-src, rep = ".", None
+src, rep, opts = ".", None, None
 i = 1
 while i < len(a):
     x = a[i]
@@ -32,6 +38,10 @@ while i < len(a):
         src = a[i + 1]; i += 2; continue
     if x == "--report-path" and i + 1 < len(a):
         rep = a[i + 1]; i += 2; continue
+    if x == "--log-opts" and i + 1 < len(a):
+        opts = a[i + 1]; i += 2; continue
+    if x.startswith("--log-opts="):
+        opts = x[len("--log-opts="):]; i += 1; continue
     if x in ("--report-format", "--config") and i + 1 < len(a):
         i += 2; continue
     i += 1
@@ -39,11 +49,18 @@ log = os.environ.get("FAKE_GL_ENVLOG")
 if log:
     with open(log, "a") as f:
         f.write("%s\n" % os.environ.get("GIT_NO_REPLACE_OBJECTS", "UNSET"))
-p = subprocess.run(["git", "-C", src, "log", "-p", "-U0", "--full-history", "--all"],
-                   capture_output=True, text=True)
-if p.returncode != 0:
-    sys.stderr.write(p.stderr)
-    sys.exit(2)
+if opts is None or os.environ.get("FAKE_GLD_IGNORE_LOGOPTS") == "1":
+    words = ["--full-history", "--all", "--diff-filter=tuxdb"]
+else:
+    strip = os.environ.get("FAKE_GLD_STRIP", "").split()
+    words = [w for w in opts.split() if w not in strip]
+p = subprocess.run(["git", "-C", src, "log", "-p", "-U0"] + words, capture_output=True, text=True, errors="replace")
+if p.returncode != 0 or p.stderr:
+    sys.stderr.write("fake gitleaks detect: stderr is not empty\n")
+    if rep:
+        with open(rep, "w") as f:
+            json.dump([], f)
+    sys.exit(0)
 pat = re.compile(r"ghp_[A-Za-z0-9]{36}")
 out, commit, fname, line = [], None, None, 0
 for ln in p.stdout.splitlines():

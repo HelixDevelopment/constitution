@@ -1,0 +1,7 @@
+# Removed copies (duplicates of tracked files; the sha256 values were taken before removal)
+17beee04ad1ef3be541b18b1216fdc3166f2fa052799360e5ff7ad8b8df25d13  logs/run2/engine/db_copy.db
+8f8385a0db87f36cbd62daf9fbf5d1d671da846de7f47981c628127c114b9250  logs/run2/engine/export/Issues.md
+c5749fcdb6f103e965ad27df6bfcbe32cf8f18364977b53cc26e897a636af471  logs/run2/engine/export/Issues_Summary.md
+17beee04ad1ef3be541b18b1216fdc3166f2fa052799360e5ff7ad8b8df25d13  logs/run3/engine/db_copy.db
+8f8385a0db87f36cbd62daf9fbf5d1d671da846de7f47981c628127c114b9250  logs/run3/engine/export/Issues.md
+c5749fcdb6f103e965ad27df6bfcbe32cf8f18364977b53cc26e897a636af471  logs/run3/engine/export/Issues_Summary.md

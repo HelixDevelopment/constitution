@@ -1,0 +1,7 @@
+[mutation:token] GREEN on genuine fixture harness confirmed
+[mutation:token] RED flip asserted: inflated AFTER rejected by clause 3 (measured reduction)
+[mutation:token] RED flip B asserted: non-isolated arms rejected (clause 2)
+[mutation:token] RED flip C asserted: empty harness rejected (no vacuous pass)
+[mutation:token] RED flip D asserted: no configured pair is BLIND (rc 2)
+[mutation:token] RED flip E asserted: .question-shaped log lacking classes rejected
+[mutation:token] PASS: cm_jev_token_reduction.sh genuinely discriminates (GREEN genuine / RED mutated)

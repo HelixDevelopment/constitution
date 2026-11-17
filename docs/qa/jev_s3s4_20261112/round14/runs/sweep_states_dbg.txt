@@ -1,0 +1,144 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+# SWEEP A flock calls: 1 2 3 4 5 6 7 8 9 10 11 12 ; B flock calls: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 
+ok 3 - CONTROL: the sweep covers every flock call of A (12) and of B (18), unlock calls included
+ok 4 - SW ord=X killA=0 killB=0 after B: no unit runs
+ok 5 - SW ord=X killA=0 killB=0 after B: no set is operator-owned (noset)
+# STATE ord=X killA=0 killB=0 | running=[] | {"sets":{},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":8}
+ok 6 - SW ord=X killA=0 killB=0 after the start ended: no unit runs
+ok 7 - SW ord=X killA=0 killB=0 after the start ended: no set is operator-owned (noset)
+ok 8 - SW ord=X killA=0 killB=0 after C: the running unit is held
+ok 9 - SW ord=X killA=0 killB=0 after C: no set is operator-owned (true)
+ok 10 - SW ord=X killA=0 killB=0: no adoption as operator-started
+ok 11 - SW ord=X killA=0 killB=0: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=n)
+ok 12 - SW ord=X killA=S killB=0 after B: no unit runs
+ok 13 - SW ord=X killA=S killB=0 after B: no set is operator-owned (noset)
+# STATE ord=X killA=S killB=0 | running=[decide-a ] | {"sets":{},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":6,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":5393,"pid_start":23102788,"holder":"sA","child":{"pid":5631,"pid_start":23102849}}}}
+ok 14 - SW ord=X killA=S killB=0 after the start ended: the running unit is intent
+ok 15 - SW ord=X killA=S killB=0 after the start ended: no set is operator-owned (noset)
+ok 16 - SW ord=X killA=S killB=0 after C: the running unit is held
+ok 17 - SW ord=X killA=S killB=0 after C: no set is operator-owned (true)
+ok 18 - SW ord=X killA=S killB=0: A was killed while its start was in flight, and the start then brought the unit up
+ok 19 - SW ord=X killA=S killB=0: no adoption as operator-started
+ok 20 - SW ord=X killA=S killB=0: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=n)
+ok 21 - SW ord=X killA=8 killB=0 after B: no unit runs
+ok 22 - SW ord=X killA=8 killB=0 after B: no set is operator-owned (noset)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91:  9379 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+# STATE ord=X killA=8 killB=0 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":1700000000,"starting":null,"stopping":{"at":1700000000,"mono":"test:7400","pid":9379,"pid_start":23103885,"holder":"sA"},"leases":[]}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":7}
+ok 23 - SW ord=X killA=8 killB=0 after the start ended: the running unit is ours
+ok 24 - SW ord=X killA=8 killB=0 after the start ended: no set is operator-owned (true)
+ok 25 - SW ord=X killA=8 killB=0 after C: the running unit is held
+ok 26 - SW ord=X killA=8 killB=0 after C: no set is operator-owned (true)
+ok 27 - SW ord=X killA=8 killB=0: no adoption as operator-started
+ok 28 - SW ord=X killA=8 killB=0: after the cleanup nothing runs, no set, no intent (starts 2 stops 2 killedA=y killedB=n)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 13475 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 29 - SW ord=X killA=S killB=3 after B: no unit runs
+ok 30 - SW ord=X killA=S killB=3 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=3 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":null,"starting":{"at":1700000000,"mono":"test:5000","pid":13115,"pid_start":23104920,"holder":"sA"},"leases":[{"holder":"sA","pid":null,"pid_start":null,"heartbeat_at":1700000000,"heartbeat_mono":"test:5000","ttl":900,"project":"stubhead00000000000000000000000000000000","started_by_this_session":true}]}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":2,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":13115,"pid_start":23104920,"holder":"sA","child":{"pid":13370,"pid_start":23104988}}}}
+ok 31 - SW ord=X killA=S killB=3 after the start ended: the running unit is held
+ok 32 - SW ord=X killA=S killB=3 after the start ended: no set is operator-owned (true)
+ok 33 - SW ord=X killA=S killB=3 after C: the running unit is held
+ok 34 - SW ord=X killA=S killB=3 after C: no set is operator-owned (true)
+ok 35 - SW ord=X killA=S killB=3: A was killed while its start was in flight, and the start then brought the unit up
+ok 36 - SW ord=X killA=S killB=3: no adoption as operator-started
+ok 37 - SW ord=X killA=S killB=3: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 16351 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 38 - SW ord=X killA=S killB=4 after B: no unit runs
+ok 39 - SW ord=X killA=S killB=4 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=4 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":null,"starting":null,"leases":[],"mark_cleared":{"mark":"starting","at":1700000000,"mono":"test:7400"},"health":{"state":"pending","reason":"starting mark cleared; not observed since","seq":2,"at":1700000000}}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":3,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":15980,"pid_start":23105815,"holder":"sA","child":{"pid":16242,"pid_start":23105877}}}}
+ok 40 - SW ord=X killA=S killB=4 after the start ended: the running unit is ours
+ok 41 - SW ord=X killA=S killB=4 after the start ended: no set is operator-owned (true)
+ok 42 - SW ord=X killA=S killB=4 after C: the running unit is held
+ok 43 - SW ord=X killA=S killB=4 after C: no set is operator-owned (true)
+ok 44 - SW ord=X killA=S killB=4: A was killed while its start was in flight, and the start then brought the unit up
+ok 45 - SW ord=X killA=S killB=4: no adoption as operator-started
+ok 46 - SW ord=X killA=S killB=4: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 19196 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 47 - SW ord=X killA=S killB=5 after B: no unit runs
+ok 48 - SW ord=X killA=S killB=5 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=5 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":null,"starting":null,"leases":[],"mark_cleared":{"mark":"starting","at":1700000000,"mono":"test:7400"},"health":{"state":"pending","reason":"starting mark cleared; not observed since","seq":2,"at":1700000000}}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":3,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":18813,"pid_start":23106585,"holder":"sA","child":{"pid":19083,"pid_start":23106646}}}}
+ok 49 - SW ord=X killA=S killB=5 after the start ended: the running unit is ours
+ok 50 - SW ord=X killA=S killB=5 after the start ended: no set is operator-owned (true)
+ok 51 - SW ord=X killA=S killB=5 after C: the running unit is held
+ok 52 - SW ord=X killA=S killB=5 after C: no set is operator-owned (true)
+ok 53 - SW ord=X killA=S killB=5: A was killed while its start was in flight, and the start then brought the unit up
+ok 54 - SW ord=X killA=S killB=5: no adoption as operator-started
+ok 55 - SW ord=X killA=S killB=5: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 22081 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 56 - SW ord=X killA=S killB=6 after B: no unit runs
+ok 57 - SW ord=X killA=S killB=6 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=6 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":null,"starting":null,"leases":[],"mark_cleared":{"mark":"starting","at":1700000000,"mono":"test:7400"},"health":{"state":"pending","reason":"starting mark cleared; not observed since","seq":2,"at":1700000000}}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":3,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":21686,"pid_start":23107358,"holder":"sA","child":{"pid":21965,"pid_start":23107422}}}}
+ok 58 - SW ord=X killA=S killB=6 after the start ended: the running unit is ours
+ok 59 - SW ord=X killA=S killB=6 after the start ended: no set is operator-owned (true)
+ok 60 - SW ord=X killA=S killB=6 after C: the running unit is held
+ok 61 - SW ord=X killA=S killB=6 after C: no set is operator-owned (true)
+ok 62 - SW ord=X killA=S killB=6: A was killed while its start was in flight, and the start then brought the unit up
+ok 63 - SW ord=X killA=S killB=6: no adoption as operator-started
+ok 64 - SW ord=X killA=S killB=6: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 25051 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 65 - SW ord=X killA=S killB=7 after B: no unit runs
+ok 66 - SW ord=X killA=S killB=7 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=7 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":null,"starting":null,"leases":[],"mark_cleared":{"mark":"starting","at":1700000000,"mono":"test:7400"},"health":{"state":"pending","reason":"starting mark cleared; not observed since","seq":2,"at":1700000000}}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":3,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":24643,"pid_start":23108142,"holder":"sA","child":{"pid":24929,"pid_start":23108201}}}}
+ok 67 - SW ord=X killA=S killB=7 after the start ended: the running unit is ours
+ok 68 - SW ord=X killA=S killB=7 after the start ended: no set is operator-owned (true)
+ok 69 - SW ord=X killA=S killB=7 after C: the running unit is held
+ok 70 - SW ord=X killA=S killB=7 after C: no set is operator-owned (true)
+ok 71 - SW ord=X killA=S killB=7: A was killed while its start was in flight, and the start then brought the unit up
+ok 72 - SW ord=X killA=S killB=7: no adoption as operator-started
+ok 73 - SW ord=X killA=S killB=7: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 28093 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 74 - SW ord=X killA=S killB=8 after B: no unit runs
+ok 75 - SW ord=X killA=S killB=8 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=8 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":null,"starting":null,"leases":[],"mark_cleared":{"mark":"starting","at":1700000000,"mono":"test:7400"},"health":{"state":"absent","reason":"","seq":3,"at":1700000000}}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":4,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":27674,"pid_start":23109007,"holder":"sA","child":{"pid":27968,"pid_start":23109068}}}}
+ok 76 - SW ord=X killA=S killB=8 after the start ended: the running unit is ours
+ok 77 - SW ord=X killA=S killB=8 after the start ended: no set is operator-owned (true)
+ok 78 - SW ord=X killA=S killB=8 after C: the running unit is held
+ok 79 - SW ord=X killA=S killB=8 after C: no set is operator-owned (true)
+ok 80 - SW ord=X killA=S killB=8: A was killed while its start was in flight, and the start then brought the unit up
+ok 81 - SW ord=X killA=S killB=8: no adoption as operator-started
+ok 82 - SW ord=X killA=S killB=8: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 31311 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 83 - SW ord=X killA=S killB=9 after B: no unit runs
+ok 84 - SW ord=X killA=S killB=9 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=9 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":null,"starting":null,"leases":[],"mark_cleared":{"mark":"starting","at":1700000000,"mono":"test:7400"},"health":{"state":"absent","reason":"","seq":3,"at":1700000000}}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":4,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":30878,"pid_start":23109870,"holder":"sA","child":{"pid":31181,"pid_start":23109939}}}}
+ok 85 - SW ord=X killA=S killB=9 after the start ended: the running unit is ours
+ok 86 - SW ord=X killA=S killB=9 after the start ended: no set is operator-owned (true)
+ok 87 - SW ord=X killA=S killB=9 after C: the running unit is held
+ok 88 - SW ord=X killA=S killB=9 after C: no set is operator-owned (true)
+ok 89 - SW ord=X killA=S killB=9: A was killed while its start was in flight, and the start then brought the unit up
+ok 90 - SW ord=X killA=S killB=9: no adoption as operator-started
+ok 91 - SW ord=X killA=S killB=9: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 34582 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 92 - SW ord=X killA=S killB=10 after B: no unit runs
+ok 93 - SW ord=X killA=S killB=10 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=10 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":{"at":1700000000,"mono":"test:7400","pid":34582,"pid_start":23110885,"holder":"sB"},"starting":null,"leases":[],"mark_cleared":{"mark":"starting","at":1700000000,"mono":"test:7400"},"health":{"state":"absent","reason":"","seq":3,"at":1700000000}}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":5,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":34138,"pid_start":23110778,"holder":"sA","child":{"pid":34450,"pid_start":23110858}}}}
+ok 94 - SW ord=X killA=S killB=10 after the start ended: the running unit is ours
+ok 95 - SW ord=X killA=S killB=10 after the start ended: no set is operator-owned (true)
+ok 96 - SW ord=X killA=S killB=10 after C: the running unit is held
+ok 97 - SW ord=X killA=S killB=10 after C: no set is operator-owned (true)
+ok 98 - SW ord=X killA=S killB=10: A was killed while its start was in flight, and the start then brought the unit up
+ok 99 - SW ord=X killA=S killB=10: no adoption as operator-started
+ok 100 - SW ord=X killA=S killB=10: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 38087 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 101 - SW ord=X killA=S killB=11 after B: no unit runs
+ok 102 - SW ord=X killA=S killB=11 after B: no set is operator-owned (true)
+# STATE ord=X killA=S killB=11 | running=[decide-a ] | {"sets":{"decide-a":{"constitution_started":true,"started_at":null,"stopping":{"at":1700000000,"mono":"test:7400","pid":38087,"pid_start":23111871,"holder":"sB"},"starting":null,"leases":[],"mark_cleared":{"mark":"starting","at":1700000000,"mono":"test:7400"},"health":{"state":"absent","reason":"","seq":3,"at":1700000000}}},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":5,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":37631,"pid_start":23111763,"holder":"sA","child":{"pid":37951,"pid_start":23111840}}}}
+ok 103 - SW ord=X killA=S killB=11 after the start ended: the running unit is ours
+ok 104 - SW ord=X killA=S killB=11 after the start ended: no set is operator-owned (true)
+ok 105 - SW ord=X killA=S killB=11 after C: the running unit is held
+ok 106 - SW ord=X killA=S killB=11 after C: no set is operator-owned (true)
+ok 107 - SW ord=X killA=S killB=11: A was killed while its start was in flight, and the start then brought the unit up
+ok 108 - SW ord=X killA=S killB=11: no adoption as operator-started
+ok 109 - SW ord=X killA=S killB=11: after the cleanup nothing runs, no set, no intent (starts 2 stops 2 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/dbg/sweep_states.sh: line 91: 41664 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 110 - SW ord=X killA=S killB=12 after B: no unit runs
+ok 111 - SW ord=X killA=S killB=12 after B: no set is operator-owned (noset)
+# STATE ord=X killA=S killB=12 | running=[decide-a ] | {"sets":{},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":6,"start_intents":{"decide-a":{"at":1700000000,"mono":"test:5000","pid":41196,"pid_start":23112711,"holder":"sA","child":{"pid":41523,"pid_start":23112784}}}}
+ok 112 - SW ord=X killA=S killB=12 after the start ended: the running unit is intent
+ok 113 - SW ord=X killA=S killB=12 after the start ended: no set is operator-owned (noset)
+ok 114 - SW ord=X killA=S killB=12 after C: the running unit is held
+ok 115 - SW ord=X killA=S killB=12 after C: no set is operator-owned (true)
+ok 116 - SW ord=X killA=S killB=12: A was killed while its start was in flight, and the start then brought the unit up
+ok 117 - SW ord=X killA=S killB=12: no adoption as operator-started
+ok 118 - SW ord=X killA=S killB=12: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=y)
+# LOCKHELD 0

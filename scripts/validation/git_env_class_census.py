@@ -162,9 +162,14 @@ BUILTIN_LIBS = {
 }
 # Discovery limits: bound (or, by explicit choice, widen) where git looks for a repository; never scrubbed.
 LIMIT_VARS = ("GIT_CEILING_DIRECTORIES", "GIT_DISCOVERY_ACROSS_FILESYSTEM")
-WRITE = (r"init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge|reset|"
+# merge(?!-base\b): `git merge-base` only reads (CON-046 round 13: a read-only pre-commit gate was read as writing)
+# symbolic-ref with read flags only and ONE name (`symbolic-ref -q HEAD`) only reads (CON-046 round 14: the gate's
+# broken-HEAD check, review r13 R13-4); a second argument (set) or -d / --delete (delete) is a write. The lookahead
+# needs whitespace after the subcommand, so python and go argument lists stay classified as writes (conservative).
+SYMREF_READ = r"""(?!(?:\s+(?:-q|--quiet|--short|--no-recurse))*\s+[^\s;&|)"'`<>-][^\s;&|)"'`<>]*\s*(?:[;&|)]|[0-9]?>|$))"""
+WRITE = (r"init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge(?!-base\b)|reset|"
          r"stash|rm|mv|push|worktree|apply|am|cherry-pick|rebase|clone|submodule|fetch|pull|notes|gc|repack|"
-         r"checkout-index|commit-tree|hash-object|symbolic-ref|restore|clean|write-tree|fast-import|bundle|"
+         r"checkout-index|commit-tree|hash-object|symbolic-ref" + SYMREF_READ + r"|restore|clean|write-tree|fast-import|bundle|"
          r"pack-objects|prune|replace|filter-branch|mktree|mktag|unpack-objects|index-pack")
 MENTION = re.compile(r"(?<![A-Za-z])git", re.I)
 GOPT = r"(?:\s+(?:-C\s+\S+|-c\s+\S+|--[\w-]+(?:=\S+)?))*"
@@ -332,6 +337,36 @@ DATA_EXT = ("md", "txt", "json", "jsonl", "tsv", "yaml", "yml", "lock", "html", 
             "cfg", "ini", "svg", "png", "sum", "mod", "sql", "log", "out", "err", "diff", "patch", "template", "tmpl",
             "example", "list", "sha256", "config", "conf", "css", "roster", "mdy", "summary", "service", "timer",
             "precheck-evidence", "canon", "xml", "rst", "gif", "jpg", "jpeg", "ico", "pub", "asc", "bundle", "gz", "tar", "zip")
+# Jev round 12 (review of a1eeb0d7, R11-C): `.rc` and `.ls` are NOT data extensions. A blanket extension rule made every
+# non-executable `*.rc` / `*.ls` file data, so a file of that name holding git writes was no longer counted. A file with
+# one of these extensions is data only when it is not executable, lies under docs/qa/, and its WHOLE content has the
+# captured shape: `.rc` one exit status (an integer 0 to 255, optional newline); `.ls` an `ls -l` listing (a `total N`
+# line, then only listing lines). Any other `.rc` / `.ls` file stays UNCLASSIFIED and fails the run (closed world).
+# Jev round 13 (R12-B2): re.ASCII, so a digit is 0-9 and a space is an ASCII space (a Unicode digit such as U+0661 or a
+# Unicode space such as U+2003 never makes a line listing-shaped).
+LS_LINE = re.compile(r"^[-dlcbpsD][rwxsStT-]{9}[.+@]?\s+\d+\s+\S+\s+\S+\s+\d+\s+[A-Z][a-z]{2}\s+\d{1,2}\s+(?:\d{1,2}:\d{2}|\d{4})\s+\S.*$", re.ASCII)
+
+
+def shaped_data(path, ext, text, executable):
+    """True when an `.rc` / `.ls` file is a captured evidence record of the declared shape (see the note above)."""
+    if executable or ext not in ("rc", "ls") or not path.startswith("docs/qa/"):
+        return False
+    # round 12: a listing line may carry any file name (`\S.*$`), so a record that names git is never data by shape.
+    # Round 13 (R12-B2): the SAME definition the member detector uses (MENTION, case-insensitive, letter boundary only),
+    # so no text the detector counts as a git mention (GIT, Git, _git, 1git, gitx, ${G,,} after G=GIT) is data by shape.
+    if MENTION.search(text):
+        return False
+    if ext == "rc":
+        m = re.fullmatch(r"(\d{1,3})\n?", text, re.ASCII)
+        return bool(m) and int(m.group(1)) <= 255
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    if len(lines) < 1 or not re.fullmatch(r"total \d+", lines[0], re.ASCII):
+        return False
+    return all(LS_LINE.match(ln) for ln in lines[1:])
+
+
 SKIP_EXT = re.compile(r"\.(" + "|".join(re.escape(e) for e in DATA_EXT) + r")$")
 OTHER_CODE_EXT = (".fish", ".pl", ".pm", ".rb", ".lua", ".ps1", ".ts", ".tcl", ".awk", ".sed", ".exp", ".php")
 CODE_EXT = (".sh", ".bash", ".zsh", ".ksh", ".py", ".go", ".js", ".mjs", ".cjs", ".mk") + OTHER_CODE_EXT
@@ -1136,6 +1171,23 @@ def needles(canon):
         ("sh guard, read only", "sh", "#!/bin/bash\nB=$(git rev-parse --abbrev-ref HEAD)\necho \"stage with git add <paths>\" >&2\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
         ("sh guard, write", "sh", "#!/bin/bash\ngit add -A\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
         ("sh guard, echo piped to sh", "sh", "#!/bin/bash\necho \"git add -A\" | sh\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, merge-base read", "sh", "#!/bin/bash\ngit merge-base --is-ancestor a b\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
+        ("sh guard, merge write", "sh", "#!/bin/bash\ngit merge -q x\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, merge-tree write", "sh", "#!/bin/bash\ngit merge-tree --write-tree a b\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        # CON-046 round 14 (review r13 R13-6): a merge of a branch whose name ends in -base is a write; the mutant
+        # merge(?!.*base) read it as a read and passed every other needle
+        ("sh guard, merge of x-base write", "sh", "#!/bin/bash\ngit merge x-base\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        # CON-046 round 14 (R13-4): `symbolic-ref` with one name only reads; with a second argument or -d it writes
+        ("sh guard, symbolic-ref read", "sh", "#!/bin/bash\nsref=\"$(git symbolic-ref -q HEAD 2>/dev/null)\" || exit 2\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
+        ("sh guard, symbolic-ref short read", "sh", "#!/bin/bash\ngit symbolic-ref --short HEAD\n", ("subject-follows-caller", "x", ""), "EXEMPT"),
+        ("sh guard, symbolic-ref set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD refs/heads/x\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref quiet set write", "sh", "#!/bin/bash\ngit symbolic-ref -q HEAD refs/heads/x 2>/dev/null\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref delete write", "sh", "#!/bin/bash\ngit symbolic-ref -d HEAD\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        # review of PR #22 (R14-C1): a quoted, single-quoted or command-substituted second argument still sets HEAD
+        ("sh guard, symbolic-ref quoted set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD \"$r\"\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref single-quoted set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD 'refs/heads/x'\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref backtick set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD `cat f`\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref long delete write", "sh", "#!/bin/bash\ngit symbolic-ref --delete HEAD\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
     ]
     # CON-450 round 4 (review R3-1 / R3-2 / R3-5): the closed allow-list of the interpreter's reading. Each refused
     # sample is a member bash runs differently from the census's old reading (the scrub defeated or a write hidden).
@@ -1214,7 +1266,34 @@ def needles(canon):
                     ("GIT_DIR", True), ("digit", False), ("legitimate", False)):
         if bool(MENTION.search(s)) != want:
             bad.append("mention detector on %r: got %s" % (s, not want))
-    return bad, len(cases) + 15
+    # R11-C: the `.rc` / `.ls` shape rule (control needles: the captured shapes pass, a git write does not)
+    lsok = "total 8\ndrwxrwxr-x 2 u u 4096 Nov 13 18:38 .\ndrwx------ 8 u u 4096 Nov 13 18:38 ..\n"
+    shapes = (("docs/qa/a/x.rc", "rc", "0\n", False, True), ("docs/qa/a/x.rc", "rc", "255", False, True),
+              ("docs/qa/a/x.rc", "rc", "256\n", False, False), ("docs/qa/a/x.rc", "rc", "0\n", True, False),
+              ("tests/x.rc", "rc", "0\n", False, False),
+              ("docs/qa/a/x.rc", "rc", "GIT_DIR=/tmp/x git commit -q -m m\n", False, False),
+              ("docs/qa/a/x.rc", "rc", "0\ngit init -q d\n", False, False),
+              ("docs/qa/a/x.ls", "ls", lsok, False, True), ("docs/qa/a/x.ls", "ls", lsok, True, False),
+              ("docs/qa/a/x.ls", "ls", lsok + "git -C d commit -m x\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "GIT_DIR=/tmp/x git commit -q -m m\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "", False, False),
+              # round 12: a listing-shaped line that names git, and a header followed by a non-listing line
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x; git commit -q -m y\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 0\nrm -rf x\n", False, False),
+              # round 13 (R12-B2): the shape rule and the detector share one definition; digits and spaces are ASCII
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x; G=GIT; ${G,,} commit -q -m y\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 Git=1\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x_git\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 gitx\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 digit\n", False, True),
+              ("docs/qa/a/x.rc", "rc", "\u0661\u0662\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total \u0668\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r--\u20031 u u 1 Nov 13 18:38 x\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- \u0661 u u 1 Nov 13 18:38 x\n", False, False))
+    for sp, se, st_, sx, want in shapes:
+        if shaped_data(sp, se, st_, sx) != want:
+            bad.append("shape rule on %s %r exec=%s: got %s" % (sp, st_[:40], sx, not want))
+    return bad, len(cases) + 15 + len(shapes)
 
 
 def git_env(canon):
@@ -1347,7 +1426,8 @@ def main(argv):
         ext = base.lstrip(".").rsplit(".", 1)[1] if "." in base.lstrip(".") else ""
         # a data extension wins over a shebang (evidence copies of scripts are stored as `*.sh.txt`), but never
         # over the executable bit: an executable file can be run as `./file` whatever its name
-        lang = None if (ext in DATA_EXT and not executable) else lang_of(f, text[:200], executable)
+        lang = None if ((ext in DATA_EXT and not executable) or shaped_data(f, ext, text, executable)) \
+            else lang_of(f, text[:200], executable)
         if b"\0" in b and (lang is None or b[:4] in BINARY_MAGIC):
             # round 5 (R4-3): only a file that is NOT code, or a native executable (ELF / Mach-O / PE magic, which the
             # kernel runs itself and never as a script), is set aside as binary; a script with a NUL byte is judged
@@ -1355,7 +1435,7 @@ def main(argv):
             inv["binary"] += 1
             continue
         if lang is None:
-            if ext and ext not in DATA_EXT:
+            if ext and ext not in DATA_EXT and not shaped_data(f, ext, text, executable):
                 inv["unclassified"] += 1
                 problems.append("tracked file %s has the extension .%s, which is neither code nor in the closed data list "
                                 "(add it to DATA_EXT or a code language; the universe is closed-world)" % (f, ext))

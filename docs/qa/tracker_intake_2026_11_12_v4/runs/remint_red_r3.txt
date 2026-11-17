@@ -1,0 +1,75 @@
+PASS rewrite dry run counts
+PASS rewrite dry run writes nothing
+FAIL rewrite --write without --target-db is a usage error: rc=0 want=2: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/a.txt	4|RESULT: WRITTEN files=1 replaced=4|
+FAIL rewrite --write: rc=2 want=0: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --target-db --own CON-1 /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/a.txt|
+PASS tokens, no chaining, boundaries, range, sentence dot
+FAIL an id the target also holds is refused as ambiguous: rc=2 want=1: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --target-db|
+FAIL --own declares the ambiguous id: rc=2 want=0: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --target-db --own CON-90 /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/amb.txt|
+FAIL --foreign declares the ambiguous id: rc=2 want=0: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --target-db /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/amb.txt|
+FAIL Foreign line and its ids left alone in the whole file: rc=2 want=0: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --target-db|
+FAIL Foreign line text: got: Foreign ids (another tracker): CON-1, CON-5..CON-7|here CON-1 is foreign, CON-2 is ours want: Foreign ids (another tracker): CON-1, CON-5..CON-7|here CON-1 is foreign, CON-3 is ours
+FAIL Foreign line left alone before its colon too: rc=2 want=0: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --target-db|
+FAIL Foreign line text before its colon: got: Foreign ids (copied from the CON-8 notes): CON-1|ours CON-8 want: Foreign ids (copied from the CON-8 notes): CON-1|ours CON-30
+PASS --foreign excludes an id
+FAIL --foreign that does not parse is BLIND: rc=0 want=3: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/x.txt	1|RESULT: DRY-RUN files=1 replaced=1|
+FAIL partly moved range refused: rc=2 want=1: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --target-db|
+PASS a refusal writes no file at all (the first file is checked before any write)
+PASS range with non-contiguous new ids refused
+FAIL short-form range refused: rc=0 want=1: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/s.txt	1|RESULT: DRY-RUN files=1 replaced=1|
+FAIL reverse range refused: rc=0 want=1: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/r.txt	0|RESULT: DRY-RUN files=1 replaced=0|
+FAIL range mixing foreign and moved ids refused: /mixes foreign and moved ids/ not in: REFUSED: range CON-5..CON-7 maps to ids that are not contiguous|
+FAIL a zero-padded token of a moved id refused: rc=0 want=1: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/z.txt	0|RESULT: DRY-RUN files=1 replaced=0|
+FAIL an id inside a path refused (slash): rc=0 want=1: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/pa.txt	1|RESULT: DRY-RUN files=1 replaced=1|
+FAIL an id inside a path refused (extension): rc=0 want=1: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/pb.txt	1|RESULT: DRY-RUN files=1 replaced=1|
+PASS a .db file refused
+PASS a binary file refused
+FAIL a non-UTF-8 file is BLIND: rc=1 want=3: Traceback (most recent call last):|  File "/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/red/remint_ids_r3.py", line 405, in <module>|    sys.exit(main(sys.argv[1:]))|             ~~~~^^^^^^^^^^^^^^|  File "/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution
+PASS map naming an id twice is BLIND
+PASS map giving two old ids one new id is BLIND
+PASS map mixing prefixes is BLIND
+PASS empty map is BLIND
+PASS map line that does not parse is BLIND
+PASS map without header is BLIND
+PASS usage: no subcommand
+PASS usage: unknown option
+FAIL refs lists LIVE, EVIDENCE and DATABASE: rc=2 want=0: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: argument cmd: invalid choice: 'refs' (choose from plan, rewrite, replay, verify)|
+FAIL refs lines: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: argument cmd: invalid choice: 'refs' (choose from plan, rewrite, replay, verify)|
+FAIL refs on a repository with no tracked file is BLIND: rc=2 want=3: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: argument cmd: invalid choice: 'refs' (choose from plan, rewrite, replay, verify)|
+PASS fx_sql refuses an edit that changes no row
+PASS fx_sql refuses the real database
+FAIL plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=2 want=0: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --map-out /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/map.tsv --repo-root .|
+FAIL plan: disjoint base change merged: usage: remint_ids.py [-h] {plan,rewrite,replay,verify} ...|remint_ids.py: error: unrecognized arguments: --map-out /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/map.tsv --repo-root .|
+FAIL plan: base change CON-343 listed: missing
+FAIL plan: base change CON-344 listed: missing
+FAIL plan: base change CON-345 listed: missing
+FAIL plan: base change CON-347 listed: missing
+FAIL plan: base change CON-348 listed: missing
+PASS plan: the three databases are not written
+cat: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/tmp/tmp.cS5Ip2slXc/map.tsv: No such file or directory
+FAIL plan: map file: got:  want: old	new|CON-351	CON-353|CON-352	CON-354|CON-353	CON-355|CON-354	CON-356|CON-355	CON-357
+FAIL replay dry run: rc=2 want=0: usage: remint_ids.py replay [-h] --map MAP --vehicle-db VEHICLE_DB [--apply]|                            [--engine ENGINE] [--db DB]|remint_ids.py replay: error: the following arguments are required: --map, --vehicle-db|
+FAIL dry run: own text rewritten without chaining: 
+FAIL dry run: obsolete_details steps: 
+FAIL replay --apply through the engine: rc=2 want=0: usage: remint_ids.py replay [-h] --map MAP --vehicle-db VEHICLE_DB [--apply]|                            [--engine ENGINE] [--db DB]|remint_ids.py replay: error: the following arguments are required: --map, --vehicle-db|
+FAIL verify PASS after the replay: rc=2 want=0: usage: remint_ids.py verify [-h] --map MAP --vehicle-db VEHICLE_DB --db DB|                            [--require-segments]|remint_ids.py verify: error: the following arguments are required: --map|
+FAIL verify: CON-339 KNOWN line: usage: remint_ids.py verify [-h] --map MAP --vehicle-db VEHICLE_DB --db DB|                            [--require-segments]|remint_ids.py verify: error: the following arguments are required: --map|
+FAIL landed: base description change carried and rewritten; target severity kept: got: **What:** remint fixture item for the remint_ids test, never landed in a tracker. Base item 1.|Medium want: **What:** remint fixture item for the remint_ids test, never landed in a tracker. Base item one, changed by the vehicle; see CON-355.|Medium
+FAIL landed: base state block with the vehicle's stamps: got: UNSET|| want: UNREPRODUCED|remint test|2026-11-13T11:00:00Z
+FAIL landed: base close with its obsolete_details row, superseding rewritten: got:  want: Obsolete (→ Fixed.md)|superseded-by-design-change|CON-353
+PASS landed: target-only title kept
+FAIL landed: rewritten obsolete_details row of a closed base item: got: 2026-11-13|duplicate-of|CON-343 want: 2026-11-12|not-reproducible|none
+FAIL landed: base reopen with the obsolete_details row the vehicle rewrote before it: got: Obsolete (→ Fixed.md)|Fixed|duplicate-of|CON-344 want: Reopened|Issues|superseded-by-later-mandate|none
+FAIL landed: own alpha text and assignee: got:  want: **What:** remint fixture item for the remint_ids test, never landed in a tracker. Parent / links: see CON-355 (remint fixture gamma) and the range CON-353..CON-354.|Conductor
+FAIL landed: own beta keeps its fix227 id on every column (R3-2): got:  want: Remint fixture beta item, seen in fix227 CON-353|**What:** remint fixture item for the remint_ids test, never landed in a tracker. Links to CON-353.|Foreign ids (fix227 tracker): CON-353
+FAIL landed: own beta state stamps: got:  want: 2026-11-13T10:00:00Z|2026-11-13T10:00:00Z|not-started
+FAIL landed: own gamma Obsolete onto alpha: got:  want: Obsolete (→ Fixed.md)|CON-353
+FAIL landed: own delta Reopened with its obsolete_details row: got:  want: Reopened|CON-354
+FAIL landed: own epsilon status: got:  want: In progress
+PASS landed: the colliding target items are untouched
+PASS validate reports no new finding on the landed copy (control needle seen)
+FAIL a second replay is refused before any write: rc=2 want=1: usage: remint_ids.py replay [-h] --map MAP --vehicle-db VEHICLE_DB [--apply]|                            [--engine ENGINE] [--db DB]|remint_ids.py replay: error: the following arguments are required: --map, --vehicle-db|
+PASS the refused second replay wrote nothing
+setup: engine step failed: update --id CON-353 --db docs/n1.db --location Issues --description **What:** remint fixture item for the remint_ids test, never landed in a tracker. A description changed after the replay.
+update: CON-346 updated in Issues (status=Queued, type=Task)
+update: CON-343 updated in Issues (status=Queued, type=Task)
+update: item CON-353 not found in Issues

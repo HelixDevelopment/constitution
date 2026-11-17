@@ -1,0 +1,20 @@
+=== RUN   TestCON456R2_SeverityTheParserCannotCarryIsRefused
+add: created CON-998 (Task, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:742: add accepted the severity "High\nmore text", which reads back as "High"
+--- FAIL: TestCON456R2_SeverityTheParserCannotCarryIsRefused (0.04s)
+=== RUN   TestCON456R2_StateLineInDescriptionIsRefused
+add: created CON-996 (Bug, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:787: add accepted a description line that md-to-db reads as a reproduction record
+--- FAIL: TestCON456R2_StateLineInDescriptionIsRefused (0.06s)
+=== RUN   TestCON456R2_DescriptionLineTheRendererRewritesIsRefused
+add: created CON-994 (Bug, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:833: add accepted a description line that the renderer replaces
+--- FAIL: TestCON456R2_DescriptionLineTheRendererRewritesIsRefused (0.05s)
+=== RUN   TestCON456R2_UpdateRefusalNamesTheTitle
+add: created G76 (Task, status=Queued) in Issues
+update: G76 updated in Issues (status=Queued, type=Task)
+    idgrammar_r2_cli_test.go:876: update accepted title "[ABC-9] bracket title" for G76
+--- FAIL: TestCON456R2_UpdateRefusalNamesTheTitle (0.06s)
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	0.208s
+FAIL

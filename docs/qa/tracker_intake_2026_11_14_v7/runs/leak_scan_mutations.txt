@@ -1,0 +1,20 @@
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan_mutations.py
+KILLED private_key rc=3
+KILLED aws_key rc=3
+KILLED github_token rc=3
+KILLED sk_key rc=3
+KILLED slack rc=3
+KILLED google rc=3
+KILLED url_cred rc=3
+KILLED assignment_unquoted rc=3
+KILLED assignment_json_key rc=3
+KILLED lint_kinds_dropped rc=3
+KILLED auth_header rc=3
+KILLED home_path rc=3
+KILLED user_name rc=3
+KILLED assignment_broadened rc=3
+KILLED nfkc_dropped rc=3
+KILLED report_dropped rc=3
+CONTROL: the unmutated scan reports the one fake hit
+RESULT: mutants=16 bad=0
+rc=0

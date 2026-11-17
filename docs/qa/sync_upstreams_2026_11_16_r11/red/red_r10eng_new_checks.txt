@@ -1,0 +1,403 @@
+== branch_lock
+  ok   branch_lock.plain.main.not_moved
+  ok   branch_lock.plain.main.no_half_write
+  ok   branch_lock.plain.main.exit_4
+  ok   branch_lock.plain.main.lock_untouched
+  ok   branch_lock.plain.main.reason
+  ok   branch_lock.plain.main.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.plain.main.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.plain.dev.not_moved
+  ok   branch_lock.plain.dev.no_half_write
+  ok   branch_lock.plain.dev.exit_4
+  ok   branch_lock.plain.dev.lock_untouched
+  ok   branch_lock.plain.dev.reason
+  ok   branch_lock.plain.dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.plain.dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.plain.dev.earlier_marker.not_moved
+  ok   branch_lock.plain.dev.earlier_marker.no_half_write
+  ok   branch_lock.plain.dev.earlier_marker.exit_4
+  ok   branch_lock.plain.dev.earlier_marker.marker_kept
+  ok   branch_lock.plain.dev.earlier_marker.never_left_nothing
+  ok   branch_lock.plain.feature_x.not_moved
+  ok   branch_lock.plain.feature_x.no_half_write
+  ok   branch_lock.plain.feature_x.exit_4
+  ok   branch_lock.plain.feature_x.lock_untouched
+  ok   branch_lock.plain.feature_x.reason
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_x.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.earlier_marker.not_moved
+  ok   branch_lock.plain.feature_x.earlier_marker.no_half_write
+  ok   branch_lock.plain.feature_x.earlier_marker.exit_4
+  ok   branch_lock.plain.feature_x.earlier_marker.marker_kept
+  ok   branch_lock.plain.feature_x.earlier_marker.never_left_nothing
+  ok   branch_lock.plain.Dev.not_moved
+  ok   branch_lock.plain.Dev.no_half_write
+  ok   branch_lock.plain.Dev.exit_4
+  ok   branch_lock.plain.Dev.lock_untouched
+  ok   branch_lock.plain.Dev.reason
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_DEV.lock.golden_false_exit_0
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_DEV.lock.golden_false_moved
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.plain.Dev.earlier_marker.not_moved
+  ok   branch_lock.plain.Dev.earlier_marker.no_half_write
+  ok   branch_lock.plain.Dev.earlier_marker.exit_4
+  ok   branch_lock.plain.Dev.earlier_marker.marker_kept
+  ok   branch_lock.plain.Dev.earlier_marker.never_left_nothing
+  ok   branch_lock.plain.Feature_X.not_moved
+  ok   branch_lock.plain.Feature_X.no_half_write
+  ok   branch_lock.plain.Feature_X.exit_4
+  ok   branch_lock.plain.Feature_X.lock_untouched
+  ok   branch_lock.plain.Feature_X.reason
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_Feature_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_Feature_x.lock.golden_false_moved
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_feature_X.lock.golden_false_exit_0
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_feature_X.lock.golden_false_moved
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_X.lock.golden_false_exit_0
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_X.lock.golden_false_moved
+  ok   branch_lock.plain.Feature_X.earlier_marker.not_moved
+  ok   branch_lock.plain.Feature_X.earlier_marker.no_half_write
+  ok   branch_lock.plain.Feature_X.earlier_marker.exit_4
+  ok   branch_lock.plain.Feature_X.earlier_marker.marker_kept
+  ok   branch_lock.plain.Feature_X.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.main.not_moved
+  ok   branch_lock.wt.main.no_half_write
+  ok   branch_lock.wt.main.exit_4
+  ok   branch_lock.wt.main.lock_untouched
+  ok   branch_lock.wt.main.reason
+  ok   branch_lock.wt.main.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.wt.main.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.wt.dev.not_moved
+  ok   branch_lock.wt.dev.no_half_write
+  ok   branch_lock.wt.dev.exit_4
+  ok   branch_lock.wt.dev.lock_untouched
+  ok   branch_lock.wt.dev.reason
+  ok   branch_lock.wt.dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.wt.dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.wt.dev.earlier_marker.not_moved
+  ok   branch_lock.wt.dev.earlier_marker.no_half_write
+  ok   branch_lock.wt.dev.earlier_marker.exit_4
+  ok   branch_lock.wt.dev.earlier_marker.marker_kept
+  ok   branch_lock.wt.dev.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.feature_x.not_moved
+  ok   branch_lock.wt.feature_x.no_half_write
+  ok   branch_lock.wt.feature_x.exit_4
+  ok   branch_lock.wt.feature_x.lock_untouched
+  ok   branch_lock.wt.feature_x.reason
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_x.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.earlier_marker.not_moved
+  ok   branch_lock.wt.feature_x.earlier_marker.no_half_write
+  ok   branch_lock.wt.feature_x.earlier_marker.exit_4
+  ok   branch_lock.wt.feature_x.earlier_marker.marker_kept
+  ok   branch_lock.wt.feature_x.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.Dev.not_moved
+  ok   branch_lock.wt.Dev.no_half_write
+  ok   branch_lock.wt.Dev.exit_4
+  ok   branch_lock.wt.Dev.lock_untouched
+  ok   branch_lock.wt.Dev.reason
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_DEV.lock.golden_false_exit_0
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_DEV.lock.golden_false_moved
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.wt.Dev.earlier_marker.not_moved
+  ok   branch_lock.wt.Dev.earlier_marker.no_half_write
+  ok   branch_lock.wt.Dev.earlier_marker.exit_4
+  ok   branch_lock.wt.Dev.earlier_marker.marker_kept
+  ok   branch_lock.wt.Dev.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.Feature_X.not_moved
+  ok   branch_lock.wt.Feature_X.no_half_write
+  ok   branch_lock.wt.Feature_X.exit_4
+  ok   branch_lock.wt.Feature_X.lock_untouched
+  ok   branch_lock.wt.Feature_X.reason
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_Feature_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_Feature_x.lock.golden_false_moved
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_feature_X.lock.golden_false_exit_0
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_feature_X.lock.golden_false_moved
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_X.lock.golden_false_exit_0
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_X.lock.golden_false_moved
+  ok   branch_lock.wt.Feature_X.earlier_marker.not_moved
+  ok   branch_lock.wt.Feature_X.earlier_marker.no_half_write
+  ok   branch_lock.wt.Feature_X.earlier_marker.exit_4
+  ok   branch_lock.wt.Feature_X.earlier_marker.marker_kept
+  ok   branch_lock.wt.Feature_X.earlier_marker.never_left_nothing
+== wt_param
+  ok   wt_param.own.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.own.HEAD.lock.plain.not_moved
+  ok   wt_param.own.HEAD.lock.plain.no_half_write
+  ok   wt_param.own.HEAD.lock.plain.exit_4
+  ok   wt_param.own.HEAD.lock.plain.named
+  ok   wt_param.own.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.own.MERGE_HEAD.plain.not_moved
+  ok   wt_param.own.MERGE_HEAD.plain.no_half_write
+  ok   wt_param.own.MERGE_HEAD.plain.exit_4
+  ok   wt_param.own.MERGE_HEAD.plain.named
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.not_moved
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.no_half_write
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.exit_4
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.named
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.untouched
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.fixture_ids_differ
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.not_moved
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.no_half_write
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.exit_4
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.marker_kept
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.attributed
+  ok   wt_param.common.packed-refs.lock.plain.fixture_ids_differ
+  ok   wt_param.common.packed-refs.lock.plain.not_moved
+  ok   wt_param.common.packed-refs.lock.plain.no_half_write
+  ok   wt_param.common.packed-refs.lock.plain.exit_4
+  ok   wt_param.common.packed-refs.lock.plain.named
+  ok   wt_param.other.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.other.HEAD.lock.plain.golden_false_exit_0
+  ok   wt_param.other.HEAD.lock.plain.golden_false_moved
+  ok   wt_param.other.HEAD.lock.plain.golden_false_untouched
+  ok   wt_param.other.index.lock.plain.fixture_ids_differ
+  ok   wt_param.other.index.lock.plain.golden_false_exit_0
+  ok   wt_param.other.index.lock.plain.golden_false_moved
+  ok   wt_param.other.index.lock.plain.golden_false_untouched
+  ok   wt_param.other.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_exit_0
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_moved
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_untouched
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_exit_0
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_moved
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_untouched
+  ok   wt_param.common.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.common.HEAD.lock.plain.golden_false_exit_0
+  ok   wt_param.common.HEAD.lock.plain.golden_false_moved
+  ok   wt_param.common.HEAD.lock.plain.golden_false_untouched
+  ok   wt_param.common.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_exit_0
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_moved
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_untouched
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.fixture_ids_differ
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_exit_0
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_moved
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_untouched
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_exit_0
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_moved
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_untouched
+== branch_shape
+  ok   branch_shape.plain.tag.own_lock.not_moved
+  ok   branch_shape.plain.tag.own_lock.no_half_write
+  ok   branch_shape.plain.tag.own_lock.exit_4
+  ok   branch_shape.plain.tag.own_lock.lock_untouched
+  FAIL branch_shape.plain.tag.own_lock.reason  (['root-not-on-dev'])
+  FAIL branch_shape.plain.tag.own_lock.branch_recorded_exactly  (['heads/dev'])
+  FAIL branch_shape.plain.tag.no_lock.golden_false_exit_0  (rc=4 [sync-upstreams] .                                        attention       root-not-on-dev
+)
+  FAIL branch_shape.plain.tag.no_lock.golden_false_moved  ()
+  ok   branch_shape.plain.tag.no_lock.still_on_branch
+  FAIL branch_shape.plain.tag.no_lock.branch_recorded_exactly  (['heads/dev'])
+  ok   branch_shape.plain.toplevel_ref.own_lock.not_moved
+  ok   branch_shape.plain.toplevel_ref.own_lock.no_half_write
+  ok   branch_shape.plain.toplevel_ref.own_lock.exit_4
+  ok   branch_shape.plain.toplevel_ref.own_lock.lock_untouched
+  FAIL branch_shape.plain.toplevel_ref.own_lock.reason  (['root-not-on-dev'])
+  FAIL branch_shape.plain.toplevel_ref.own_lock.branch_recorded_exactly  (['heads/dev'])
+  FAIL branch_shape.plain.toplevel_ref.no_lock.golden_false_exit_0  (rc=4 [sync-upstreams] .                                        attention       root-not-on-dev
+)
+  FAIL branch_shape.plain.toplevel_ref.no_lock.golden_false_moved  ()
+  ok   branch_shape.plain.toplevel_ref.no_lock.still_on_branch
+  FAIL branch_shape.plain.toplevel_ref.no_lock.branch_recorded_exactly  (['heads/dev'])
+  ok   branch_shape.plain.remote.own_lock.not_moved
+  ok   branch_shape.plain.remote.own_lock.no_half_write
+  ok   branch_shape.plain.remote.own_lock.exit_4
+  ok   branch_shape.plain.remote.own_lock.lock_untouched
+  ok   branch_shape.plain.remote.own_lock.reason
+  ok   branch_shape.plain.remote.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.remote.no_lock.golden_false_exit_0
+  ok   branch_shape.plain.remote.no_lock.golden_false_moved
+  ok   branch_shape.plain.remote.no_lock.still_on_branch
+  ok   branch_shape.plain.remote.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.heads_dev_upstream.own_lock.not_moved
+  FAIL branch_shape.plain.heads_dev_upstream.own_lock.no_half_write  ('A  CHANGES')
+  FAIL branch_shape.plain.heads_dev_upstream.own_lock.exit_4  (rc=1)
+  ok   branch_shape.plain.heads_dev_upstream.own_lock.lock_untouched
+  FAIL branch_shape.plain.heads_dev_upstream.own_lock.reason  (['write-left-changes:fast-forward'])
+  FAIL branch_shape.plain.heads_dev_upstream.own_lock.branch_recorded_exactly  (['heads/dev'])
+  FAIL branch_shape.plain.heads_dev_upstream.no_lock.not_moved  ()
+  ok   branch_shape.plain.heads_dev_upstream.no_lock.no_half_write
+  FAIL branch_shape.plain.heads_dev_upstream.no_lock.exit_4  (rc=0)
+  FAIL branch_shape.plain.heads_dev_upstream.no_lock.reason  ([])
+  FAIL branch_shape.plain.heads_dev_upstream.no_lock.branch_recorded_exactly  (['heads/dev'])
+  ok   branch_shape.plain.literal.own_lock.not_moved
+  ok   branch_shape.plain.literal.own_lock.no_half_write
+  ok   branch_shape.plain.literal.own_lock.exit_4
+  ok   branch_shape.plain.literal.own_lock.lock_untouched
+  ok   branch_shape.plain.literal.own_lock.reason
+  ok   branch_shape.plain.literal.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.literal.no_lock.golden_false_exit_0
+  ok   branch_shape.plain.literal.no_lock.golden_false_moved
+  ok   branch_shape.plain.literal.no_lock.still_on_branch
+  ok   branch_shape.plain.literal.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.literal.other_lock.golden_false_exit_0
+  ok   branch_shape.plain.literal.other_lock.golden_false_moved
+  ok   branch_shape.plain.literal.other_lock.still_on_branch
+  ok   branch_shape.plain.literal.other_lock.golden_false_lock_untouched
+  ok   branch_shape.plain.literal.other_lock.branch_recorded_exactly
+  ok   branch_shape.plain.case.own_lock.not_moved
+  ok   branch_shape.plain.case.own_lock.no_half_write
+  ok   branch_shape.plain.case.own_lock.exit_4
+  ok   branch_shape.plain.case.own_lock.lock_untouched
+  ok   branch_shape.plain.case.own_lock.reason
+  ok   branch_shape.plain.case.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.case.no_lock.golden_false_exit_0
+  ok   branch_shape.plain.case.no_lock.golden_false_moved
+  ok   branch_shape.plain.case.no_lock.still_on_branch
+  ok   branch_shape.plain.case.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.case.other_lock.golden_false_exit_0
+  ok   branch_shape.plain.case.other_lock.golden_false_moved
+  ok   branch_shape.plain.case.other_lock.still_on_branch
+  ok   branch_shape.plain.case.other_lock.golden_false_lock_untouched
+  ok   branch_shape.plain.case.other_lock.branch_recorded_exactly
+  ok   branch_shape.wt.tag.own_lock.not_moved
+  ok   branch_shape.wt.tag.own_lock.no_half_write
+  ok   branch_shape.wt.tag.own_lock.exit_4
+  ok   branch_shape.wt.tag.own_lock.lock_untouched
+  FAIL branch_shape.wt.tag.own_lock.reason  (['root-not-on-dev'])
+  FAIL branch_shape.wt.tag.own_lock.branch_recorded_exactly  (['heads/dev'])
+  FAIL branch_shape.wt.tag.no_lock.golden_false_exit_0  (rc=4 [sync-upstreams] .                                        attention       root-not-on-dev
+)
+  FAIL branch_shape.wt.tag.no_lock.golden_false_moved  ()
+  ok   branch_shape.wt.tag.no_lock.still_on_branch
+  FAIL branch_shape.wt.tag.no_lock.branch_recorded_exactly  (['heads/dev'])
+  ok   branch_shape.wt.toplevel_ref.own_lock.not_moved
+  ok   branch_shape.wt.toplevel_ref.own_lock.no_half_write
+  ok   branch_shape.wt.toplevel_ref.own_lock.exit_4
+  ok   branch_shape.wt.toplevel_ref.own_lock.lock_untouched
+  FAIL branch_shape.wt.toplevel_ref.own_lock.reason  (['root-not-on-dev'])
+  FAIL branch_shape.wt.toplevel_ref.own_lock.branch_recorded_exactly  (['heads/dev'])
+  FAIL branch_shape.wt.toplevel_ref.no_lock.golden_false_exit_0  (rc=4 [sync-upstreams] .                                        attention       root-not-on-dev
+)
+  FAIL branch_shape.wt.toplevel_ref.no_lock.golden_false_moved  ()
+  ok   branch_shape.wt.toplevel_ref.no_lock.still_on_branch
+  FAIL branch_shape.wt.toplevel_ref.no_lock.branch_recorded_exactly  (['heads/dev'])
+  ok   branch_shape.wt.remote.own_lock.not_moved
+  ok   branch_shape.wt.remote.own_lock.no_half_write
+  ok   branch_shape.wt.remote.own_lock.exit_4
+  ok   branch_shape.wt.remote.own_lock.lock_untouched
+  ok   branch_shape.wt.remote.own_lock.reason
+  ok   branch_shape.wt.remote.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.remote.no_lock.golden_false_exit_0
+  ok   branch_shape.wt.remote.no_lock.golden_false_moved
+  ok   branch_shape.wt.remote.no_lock.still_on_branch
+  ok   branch_shape.wt.remote.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.heads_dev_upstream.own_lock.not_moved
+  FAIL branch_shape.wt.heads_dev_upstream.own_lock.no_half_write  ('A  CHANGES')
+  FAIL branch_shape.wt.heads_dev_upstream.own_lock.exit_4  (rc=1)
+  ok   branch_shape.wt.heads_dev_upstream.own_lock.lock_untouched
+  FAIL branch_shape.wt.heads_dev_upstream.own_lock.reason  (['write-left-changes:fast-forward'])
+  FAIL branch_shape.wt.heads_dev_upstream.own_lock.branch_recorded_exactly  (['heads/dev'])
+  FAIL branch_shape.wt.heads_dev_upstream.no_lock.not_moved  ()
+  ok   branch_shape.wt.heads_dev_upstream.no_lock.no_half_write
+  FAIL branch_shape.wt.heads_dev_upstream.no_lock.exit_4  (rc=0)
+  FAIL branch_shape.wt.heads_dev_upstream.no_lock.reason  ([])
+  FAIL branch_shape.wt.heads_dev_upstream.no_lock.branch_recorded_exactly  (['heads/dev'])
+  ok   branch_shape.wt.literal.own_lock.not_moved
+  ok   branch_shape.wt.literal.own_lock.no_half_write
+  ok   branch_shape.wt.literal.own_lock.exit_4
+  ok   branch_shape.wt.literal.own_lock.lock_untouched
+  ok   branch_shape.wt.literal.own_lock.reason
+  ok   branch_shape.wt.literal.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.literal.no_lock.golden_false_exit_0
+  ok   branch_shape.wt.literal.no_lock.golden_false_moved
+  ok   branch_shape.wt.literal.no_lock.still_on_branch
+  ok   branch_shape.wt.literal.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.literal.other_lock.golden_false_exit_0
+  ok   branch_shape.wt.literal.other_lock.golden_false_moved
+  ok   branch_shape.wt.literal.other_lock.still_on_branch
+  ok   branch_shape.wt.literal.other_lock.golden_false_lock_untouched
+  ok   branch_shape.wt.literal.other_lock.branch_recorded_exactly
+  ok   branch_shape.wt.case.own_lock.not_moved
+  ok   branch_shape.wt.case.own_lock.no_half_write
+  ok   branch_shape.wt.case.own_lock.exit_4
+  ok   branch_shape.wt.case.own_lock.lock_untouched
+  ok   branch_shape.wt.case.own_lock.reason
+  ok   branch_shape.wt.case.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.case.no_lock.golden_false_exit_0
+  ok   branch_shape.wt.case.no_lock.golden_false_moved
+  ok   branch_shape.wt.case.no_lock.still_on_branch
+  ok   branch_shape.wt.case.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.case.other_lock.golden_false_exit_0
+  ok   branch_shape.wt.case.other_lock.golden_false_moved
+  ok   branch_shape.wt.case.other_lock.still_on_branch
+  ok   branch_shape.wt.case.other_lock.golden_false_lock_untouched
+  ok   branch_shape.wt.case.other_lock.branch_recorded_exactly
+== branch_param
+  FAIL branch_param.bad_0.exit_2  ('dev/' rc=4 [sync-upstreams] .                                        attention       root-not-on-dev/
+)
+  FAIL branch_param.bad_0.nothing_fetched  (dev/)
+  FAIL branch_param.bad_0.no_report  (dev/)
+  FAIL branch_param.bad_1.exit_2  ('dev.lock' rc=4 [sync-upstreams] .                                        attention       root-not-on-dev.lock
+)
+  ok   branch_param.bad_1.nothing_fetched
+  FAIL branch_param.bad_1.no_report  (dev.lock)
+  FAIL branch_param.bad_2.exit_2  ('dev..x' rc=4 [sync-upstreams] .                                        attention       root-not-on-dev..x
+)
+  ok   branch_param.bad_2.nothing_fetched
+  FAIL branch_param.bad_2.no_report  (dev..x)
+  FAIL branch_param.bad_3.exit_2  ('dev/.x' rc=4 [sync-upstreams] .                                        attention       root-not-on-dev/.x
+)
+  ok   branch_param.bad_3.nothing_fetched
+  FAIL branch_param.bad_3.no_report  (dev/.x)
+  FAIL branch_param.bad_4.exit_2  ('HEAD' rc=4 [sync-upstreams] .                                        attention       upstream-branch-gone:origin,root-not-on-HEAD
+)
+  ok   branch_param.bad_4.nothing_fetched
+  FAIL branch_param.bad_4.no_report  (HEAD)
+  FAIL branch_param.bad_5.exit_2  ('dev//x' rc=4 [sync-upstreams] .                                        attention       root-not-on-dev//x
+)
+  ok   branch_param.bad_5.nothing_fetched
+  FAIL branch_param.bad_5.no_report  (dev//x)
+  ok   branch_param.bad_6.exit_2
+  ok   branch_param.bad_6.nothing_fetched
+  ok   branch_param.bad_6.no_report
+  ok   branch_param.bad_7.exit_2
+  ok   branch_param.bad_7.nothing_fetched
+  ok   branch_param.bad_7.no_report
+  ok   branch_param.bad_8.exit_2
+  ok   branch_param.bad_8.nothing_fetched
+  ok   branch_param.bad_8.no_report
+  ok   branch_param.bad_9.exit_2
+  ok   branch_param.bad_9.nothing_fetched
+  ok   branch_param.bad_9.no_report
+  ok   branch_param.golden_false.exit_4
+  ok   branch_param.golden_false.reason
+  ok   branch_param.unicode_root.exit_4
+  ok   branch_param.unicode_root.reason
+  ok   branch_param.unicode_root.not_moved
+  ok   branch_param.unicode_root.branch_recorded
+== marker_foreign
+  ok   marker_foreign.foreign.exit_3
+  ok   marker_foreign.foreign.noted
+  ok   marker_foreign.foreign.planted_text_absent
+  ok   marker_foreign.foreign.notes_one_line
+  ok   marker_foreign.known.exit_3
+  ok   marker_foreign.known.noted
+  ok   marker_foreign.known.planted_text_absent
+  ok   marker_foreign.known.notes_one_line
+sync-robustness: PASS 338 FAIL 49

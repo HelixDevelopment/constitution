@@ -1,0 +1,9 @@
+# fixed engine (bin/workable-items sha256 c9884871...) on a copy of docs/workable_items.db at origin main 3e5e7e7d; validate run from the repository root
+validate: OK — 450 items, all invariants satisfied
+validate rc=0
+diff: DB and Markdown are in sync (compared 450 Markdown item(s) against 450 DB item(s); read realchk_3e5e7e7d/Issues.md, realchk_3e5e7e7d/Fixed.md)
+diff rc=0
+synced 450 total items into db.sqlite
+m2d rc=0
+items after=450
+diff: DB and Markdown are in sync (compared 450 Markdown item(s) against 450 DB item(s); read Issues.md, Fixed.md)

@@ -1,0 +1,35 @@
+$ workable-items add Bug Low --db docs/workable_items.db --id CON-339 --title workable-items close rewrites created_at to the time of the close (round-2 review R2-9) --description <1995 chars> --created-by Claude --reproduction-state reproduced-host-fixture --investigation-state not-started --states-updated-by Claude (tracker-intake round-3 fixer, Opus 5.5) --reproduction-surface host-only --reproduction-evidence docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt --reproduction-env scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree --reproduction-signature created_at after close equals the close time, not the creation time --reproduction-red-cmd <169 chars>
+  -> rc=0 add: created CON-339 (Bug, status=Queued) in Issues
+$ workable-items add Bug Low --db docs/workable_items.db --id CON-340 --title <139 chars> --description <2053 chars> --created-by Claude --reproduction-state reproduced-host-fixture --investigation-state not-started --states-updated-by Claude (tracker-intake round-3 fixer, Opus 5.5) --reproduction-surface host-only --reproduction-evidence docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt --reproduction-env scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree --reproduction-signature <95 chars> --reproduction-red-cmd <169 chars>
+  -> rc=0 add: created CON-340 (Bug, status=Queued) in Issues
+$ workable-items add Bug Low --db docs/workable_items.db --id CON-341 --title <116 chars> --description <1760 chars> --created-by Claude --reproduction-state reproduced-host-fixture --investigation-state not-started --states-updated-by Claude (tracker-intake round-3 fixer, Opus 5.5) --reproduction-surface host-only --reproduction-evidence docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt --reproduction-env scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree --reproduction-signature <94 chars> --reproduction-red-cmd <169 chars>
+  -> rc=0 add: created CON-341 (Bug, status=Queued) in Issues
+$ workable-items add Bug Low --db docs/workable_items.db --id CON-342 --title <117 chars> --description <1772 chars> --created-by Claude --reproduction-state reproduced-host-fixture --investigation-state not-started --states-updated-by Claude (tracker-intake round-3 fixer, Opus 5.5) --reproduction-surface host-only --reproduction-evidence docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt --reproduction-env scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree --reproduction-signature obsolete-details with a superseding id that is not an item exits 0 and validate exits 0 --reproduction-red-cmd <169 chars>
+  -> rc=0 add: created CON-342 (Bug, status=Queued) in Issues
+$ workable-items reopen --db docs/workable_items.db --id CON-308 --why design-reconsidered --who AI --when 2026-11-13 --incident docs/qa/tracker_intake_2026_11_12_v3/inventory/r2_1_reopen.txt
+  -> rc=0 reopen: CON-308 reopened, relocated Fixed→Issues (By:AI On:2026-11-13 Reason:design-reconsidered Evidence:docs/qa/tracker_intake_2026_11_12_v3/inventory/r2_1_reopen.txt)
+$ workable-items update --db docs/workable_items.db --id CON-243 --description <589 chars>
+  -> rc=0 update: CON-243 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-262 --description <4034 chars>
+  -> rc=0 update: CON-262 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-299 --description <3512 chars>
+  -> rc=0 update: CON-299 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-304 --description <1853 chars>
+  -> rc=0 update: CON-304 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-308 --description <2805 chars>
+  -> rc=0 update: CON-308 updated in Issues (status=Reopened, type=Bug)
+$ workable-items update --db docs/workable_items.db --id CON-309 --description <1226 chars>
+  -> rc=0 update: CON-309 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-314 --description <1479 chars>
+  -> rc=0 update: CON-314 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-321 --description <2053 chars>
+  -> rc=0 update: CON-321 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-328 --description <1450 chars>
+  -> rc=0 update: CON-328 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-329 --description <1644 chars>
+  -> rc=0 update: CON-329 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-336 --reproduction-env <161 chars> --states-updated-by Claude (tracker-intake round-3 fixer, Opus 5.5)
+  -> rc=0 update: CON-336 updated in Issues (status=Queued, type=Bug)
+$ workable-items update --db docs/workable_items.db --id CON-337 --reproduction-env <161 chars> --states-updated-by Claude (tracker-intake round-3 fixer, Opus 5.5)
+  -> rc=0 update: CON-337 updated in Issues (status=Queued, type=Bug)
+new ids: G1=CON-339, G2=CON-340, G3=CON-341, G4=CON-342

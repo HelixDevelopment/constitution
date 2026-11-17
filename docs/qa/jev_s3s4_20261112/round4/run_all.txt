@@ -1,0 +1,36 @@
+PASS test_anchor_renumber_integrity.sh
+PASS test_bootstrap_e2e_stub_server.sh
+PASS test_bootstrap_header_truth.sh
+PASS test_bootstrap_idempotent.sh
+PASS test_bootstrap_manifest_reader.sh
+PASS test_bootstrap_noninteractive.sh
+PASS test_bootstrap_provision_fallback.sh
+PASS test_bootstrap_summary_mode_default.sh
+PASS test_calibrate_per_endpoint.sh
+PASS test_calibration_math.sh
+PASS test_decision_layer_gaps.sh
+PASS test_detection_gate_blind_without_llmctl.sh
+PASS test_detection_matrix.sh
+PASS test_detection_producer_gate_e2e.sh
+PASS test_failopen_and_coverage_gaps.sh
+PASS test_gate_bootstrap_hermetic.sh
+PASS test_gate_pairs.sh
+PASS test_hosted_key_discovery.sh
+PASS test_jev_status_health.sh
+PASS test_jev_status.sh
+PASS test_mcp_register_hardening.sh
+PASS test_post_update_hook_trigger.sh
+PASS test_review_fixes_r2.sh
+PASS test_review_fixes_r3.sh
+PASS test_review_fixes_r4.sh
+PASS test_review_fixes_r5.sh
+PASS test_review_fixes_r6.sh
+PASS test_review_fixes_r7.sh
+PASS test_review_fixes.sh
+PASS test_run_all_leak_detector.sh
+PASS test_s3_bootstrap_honesty.sh
+PASS test_s4_placement.sh
+PASS test_skill_and_action_registration.sh
+PASS test_tab_fields.sh
+ran 34, failed 0
+rc=0

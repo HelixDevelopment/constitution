@@ -1,0 +1,34 @@
+shape	id	add_rc	db_has	md_heading	rt_kept	rt_same_id	validate_rc	diff_rc
+golden	CON-999	0	1	5181:## CON-999 — idshape golden	1	1	0	0
+golden_alnum_suffix	CON-14b	0	1	5181:## CON-14b — idshape golden_alnum_suffix	1	1	0	0
+golden_4digit	CON-0999	0	1	5181:## CON-0999 — idshape golden_4digit	1	1	0	0
+second_hyphen	CON-PENDING-x2	1	0	<none>	0	0	0	0
+second_hyphen_digits	CON-033-001	1	0	<none>	0	0	0	0
+lowercase_prefix	con-998	1	0	<none>	0	0	0	0
+mixedcase_prefix	Con-997	0	1	5181:## Con-997. idshape mixedcase_prefix	1	1	0	0
+two_letter_key	AB-001	0	1	5181:## AB-001. idshape two_letter_key	1	1	0	0
+four_letter_key	CATS-001	0	1	5181:## CATS-001. idshape four_letter_key	1	1	0	0
+digits_only	123	1	0	<none>	0	0	0	0
+letters_only	CONX	0	1	5181:## CONX. idshape letters_only	1	1	0	0
+empty_suffix	CON-	1	0	<none>	0	0	0	0
+leading_hyphen	-001	1	0	<none>	0	0	0	0
+unicode_prefix	ČON-001	1	0	<none>	0	0	0	0
+unicode_suffix	CON-00ž	1	0	<none>	0	0	0	0
+inner_space	CON 001	1	0	<none>	0	0	0	0
+outer_space	  CON-996  	0	1	5181:## CON-996 — idshape outer_space	1	1	0	0
+tab_inside	CON-9~9	1	0	<none>	0	0	0	0
+very_long	CON-99999999999999999999	0	1	5181:## CON-99999999999999999999999999999999999999999999999999999999999999999999	1	1	0	0
+dot_inside	CON-1.2	1	0	<none>	0	0	0	0
+legacy_letter_code	G01	0	1	5181:## G01. idshape legacy_letter_code	1	1	0	0
+legacy_code_hyphen	GS-2	0	1	5181:## GS-2. idshape legacy_code_hyphen	1	1	0	0
+hash_suffix	CON-995#2	1	0	<none>	0	0	0	0
+bracket	[CON-994]	1	0	<none>	0	0	0	0
+section_sign	§FL	1	0	<none>	0	0	0	0
+paren	CON-993(x)	1	0	<none>	0	0	0	0
+emdash	CON—992	1	0	<none>	0	0	0	0
+underscore	CON_991	1	0	<none>	0	0	0	0
+prefix_4letter	PREFIX:CATS	0	1	5181:## CATS-001. idshape prefix_4letter	1	1	0	0
+prefix_lower	PREFIX:cat	1	0	<none>	0	0	0	0
+prefix_2letter	PREFIX:AB	0	1	5181:## AB-001. idshape prefix_2letter	1	1	0	0
+prefix_hyphen	PREFIX:CON-X	1	0	<none>	0	0	0	0
+subtask_child	SUBTASK:CON-033	1	0	<none>	0	0	0	0

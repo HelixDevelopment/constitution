@@ -1,0 +1,67 @@
+control_pos=True control_neg=True
+POS q01-pct-1                                     lint=HIT scan=HIT
+POS q02-pct-3                                     lint=HIT scan=HIT
+POS q03-pct-4-beyond                              lint=MISS scan=MISS
+POS q04-pct-6-beyond                              lint=MISS scan=MISS
+POS q05-entity-in-pct                             lint=HIT scan=HIT
+POS q06-entity-no-semicolon                       lint=MISS scan=HIT
+POS q07-js-brace-escape                           lint=MISS scan=MISS
+POS q08-py-long-escape                            lint=MISS scan=MISS
+POS q09-perl-x-brace                              lint=MISS scan=MISS
+POS q10-base64-whole-line                         lint=MISS scan=MISS
+POS q11-entity-hex-named                          lint=HIT scan=HIT
+POS q12-entity-named-amp-equals                   lint=HIT scan=HIT
+POS q13-double-escape                             lint=HIT scan=HIT
+POS q14-three-unfolded-homoglyphs                 lint=HIT scan=HIT
+POS q15-coptic-cherokee                           lint=MISS scan=MISS
+POS q16-serbian-cyrillic-lozinka                  lint=MISS scan=MISS
+POS q17-russian-parol                             lint=MISS scan=MISS
+POS q18-math-bold                                 lint=HIT scan=HIT
+POS q19-fullwidth-sep                             lint=HIT scan=HIT
+POS q20-triple-quoted-toml                        lint=MISS scan=HIT
+POS q21-paren-concat-newline                      lint=MISS scan=HIT
+POS q22-shell-default-expansion                   lint=HIT scan=HIT
+POS q23-md-table-row                              lint=MISS scan=HIT
+POS q24-r-assign                                  lint=MISS scan=HIT
+POS q25-html-input-type                           lint=MISS scan=HIT
+POS q26-powershell-env                            lint=HIT scan=HIT
+POS q27-passphrase-spaced                         lint=HIT scan=HIT
+POS q28-header-x-api-key                          lint=HIT scan=HIT
+POS q29-query-string                              lint=HIT scan=HIT
+POS q30-split-across-assign-concat-plus-newline   lint=MISS scan=HIT
+POS q31-json-escaped-key                          lint=HIT scan=HIT
+POS q32-key-with-space-dash                       lint=MISS scan=MISS
+POS q33-yaml-flow                                 lint=HIT scan=HIT
+POS q34-sops-yaml-hashicorp                       lint=HIT scan=HIT
+POS q35-env-file-export-quoted-single             lint=HIT scan=HIT
+POS q36-tcl-set                                   lint=MISS scan=HIT
+POS q37-lozinka-latin                             lint=HIT scan=MISS
+POS q38-zw-inside-value-only                      lint=HIT scan=HIT
+POS q39-key-repeat-4layers-ent-pct                lint=HIT scan=HIT
+POS q40-gcloud-secret-string                      lint=HIT scan=MISS
+NEG n01-token-sha256                              lint=FP scan=FP password-assign-unquoted
+NEG n02-password-sha256                           lint=FP scan=FP password-colon-unquoted
+NEG n03-key-ticket-id                             lint=FP scan=FP short-key-assign
+NEG n04-credentials-profile                       lint=FP scan=FP password-colon-unquoted
+NEG n05-password-env-ref                          lint=FP scan=ok password-colon-unquoted
+NEG n06-pin-year                                  lint=FP scan=FP short-key-assign
+NEG n07-session-hex                               lint=ok scan=FP 
+NEG n08-keyboard                                  lint=ok scan=ok 
+NEG n09-gh-expr                                   lint=ok scan=ok 
+NEG n10-password-min                              lint=ok scan=ok 
+NEG n11-pass-count                                lint=ok scan=ok 
+NEG n12-auth-flow                                 lint=ok scan=FP 
+NEG n13-token-version                             lint=ok scan=FP 
+NEG n14-key-version                               lint=FP scan=FP short-key-assign
+NEG n15-secret-name                               lint=ok scan=FP 
+NEG n16-commit-sha-token-word                     lint=ok scan=FP 
+NEG n17-password-prompt                           lint=ok scan=FP 
+NEG n18-uuid-session                              lint=FP scan=FP short-key-assign
+NEG n19-cookie-name                               lint=FP scan=FP short-key-assign
+NEG n20-pwd-path                                  lint=ok scan=ok 
+NEG n21-gitlab-var                                lint=ok scan=ok 
+NEG n22-kubernetes-secretref                      lint=ok scan=FP 
+NEG n23-item-anchor                               lint=ok scan=ok 
+NEG n24-hash-of-key                               lint=ok scan=FP 
+NEG n25-api-key-env-name                          lint=ok scan=ok 
+SUMMARY pos=40 lint_miss=18 scan_miss=12 neg=25 lint_fp=9 scan_fp=16

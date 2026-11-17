@@ -1,0 +1,27 @@
+== hide_empty_bullet accept=True mdit_lines=[]
+<p>x <span hidden>
+*
+<strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20</p>
+
+== hide_quote_kind7 accept=True mdit_lines=[]
+<blockquote>
+<p>x
+<span style="display:none">
+<strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20</p>
+</blockquote>
+
+== hide_list_lazy accept=True mdit_lines=[]
+<ul>
+<li>
+<p>x</p>
+<p><span hidden>y
+<strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20</p>
+</li>
+</ul>
+
+== hide_comment_open_lazy accept=True mdit_lines=[]
+<p>x &lt;!--
+*
+<strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20
+--&gt;</p>
+

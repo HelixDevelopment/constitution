@@ -1,0 +1,1 @@
+git-env-class-census: BLIND - control needle: sh guard, merge-base read: got UNSCRUBBED, want EXEMPT (row subject-follows-caller, but a git write is detected: git merge-base --is-ancestor a b)

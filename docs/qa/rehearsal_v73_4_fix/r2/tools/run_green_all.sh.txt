@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -u
+R="${1:?repo}"; E="${2:?ev}"
+cd "$R" || exit 9
+for t in tag_and_release redact_cut publish_gitea channel_census provisional_verification_lines render_release_entry derive_release_facts; do
+  bash "tests/release/test_$t.sh" >"$E/green_r2_$t.log" 2>&1; echo "$t rc=$?" >>"$E/green_r2_rc.txt"
+done
+echo DONE >>"$E/green_r2_rc.txt"

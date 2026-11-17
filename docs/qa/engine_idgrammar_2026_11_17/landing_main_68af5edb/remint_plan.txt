@@ -1,0 +1,2 @@
+BASE-CHANGE CON-456 vehicle=reproduction_state,reproduction_surface,reproduction_evidence,reproduction_red_cmd,reproduction_green_cmd,reproduction_env,reproduction_signature,investigation_state,investigation_root_cause,investigation_evidence,status target=-
+RESULT: PLAN mode=REPLAY own=0 base_changes=1 steps=3 conflicts=0 refusals=0 first=- last=-

@@ -1,0 +1,586 @@
+name	block	verdict	at	id	validate_rc	desc_changed	body_same	detail	control
+CTL_pos_replaced	CTL	RT_REPLACED		GS-972	0(=base)	-	-	lost=[('GS-972', 'Issues', 'section')] new=[('ABC-9', 'Issues', 'section')]	CONTROL-OK
+CTL_pos_phantom	CTL	RT_PHANTOM		CON-9810	0(=base)	yes	no	new=[('CON-9811', 'Issues', 'section')]	CONTROL-OK
+CTL_pos_field	CTL	RT_FIELD		GZ974	0(=base)	yes	yes	GZ974.title	CONTROL-OK
+CTL_pos_detail_loss	CTL	OP_DETAIL_LOSS	update_desc	CON-9812	-	-	-	**Operator-Block-Details:** WHAT: blocked on the operator de	CONTROL-OK
+CTL_neg_detail	CTL	RT_OK		CON-9813	1(+1)	yes	no		CONTROL-OK
+CTL_neg_plain	CTL	RT_OK		CON-9999	0(=base)	yes	yes		CONTROL-OK
+A_canon_plain_Issues	A	RT_OK		CON-70001	0(=base)	yes	yes		
+A_canon_plain_Fixed	A	RT_OK		CON-70002	0(=base)	yes	yes		
+A_canon_lead_space_Issues	A	RT_OK		CON-70003	0(=base)	yes	yes		
+A_canon_lead_space_Fixed	A	RT_OK		CON-70004	0(=base)	yes	yes		
+A_canon_trail_space_Issues	A	RT_OK		CON-70005	0(=base)	yes	yes		
+A_canon_trail_space_Fixed	A	RT_OK		CON-70006	0(=base)	yes	yes		
+A_canon_bracket_start_Issues	A	RT_OK		CON-70007	0(=base)	yes	yes		
+A_canon_bracket_start_Fixed	A	RT_OK		CON-70008	0(=base)	yes	yes		
+A_canon_bracket_mid_existing_Issues	A	RT_OK		CON-70009	0(=base)	yes	yes		
+A_canon_bracket_mid_existing_Fixed	A	RT_OK		CON-70010	0(=base)	yes	yes		
+A_canon_bracket_mid_new_Issues	A	RT_OK		CON-70011	0(=base)	yes	yes		
+A_canon_bracket_mid_new_Fixed	A	RT_OK		CON-70012	0(=base)	yes	yes		
+A_canon_bracket_alpha_Issues	A	RT_OK		CON-70013	0(=base)	yes	yes		
+A_canon_bracket_alpha_Fixed	A	RT_OK		CON-70014	0(=base)	yes	yes		
+A_canon_status_suffix_Issues	A	RT_OK		CON-70015	0(=base)	yes	yes		
+A_canon_status_suffix_Fixed	A	RT_OK		CON-70016	0(=base)	yes	yes		
+A_canon_status_nodash_Issues	A	RT_OK		CON-70017	0(=base)	yes	yes		
+A_canon_status_nodash_Fixed	A	RT_OK		CON-70018	0(=base)	yes	yes		
+A_canon_migrated_Issues	A	RT_OK		CON-70019	0(=base)	yes	yes		
+A_canon_migrated_Fixed	A	RT_OK		CON-70020	0(=base)	yes	yes		
+A_canon_paren_dash_Issues	A	RT_OK		CON-70021	0(=base)	yes	yes		
+A_canon_paren_dash_Fixed	A	RT_OK		CON-70022	0(=base)	yes	yes		
+A_canon_emdash_Issues	A	RT_OK		CON-70023	0(=base)	yes	yes		
+A_canon_emdash_Fixed	A	RT_OK		CON-70024	0(=base)	yes	yes		
+A_canon_backticks_Issues	A	RT_OK		CON-70025	0(=base)	yes	yes		
+A_canon_backticks_Fixed	A	RT_OK		CON-70026	0(=base)	yes	yes		
+A_canon_nl_heading_Issues	A	REFUSED	add	CON-70027	-	-	-	add: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "CON-70027" in Issues.md: CON-70027 (Issues, section): its Mark	
+A_canon_nl_heading_Fixed	A	REFUSED	add	CON-70028	-	-	-	add: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "CON-70028" in Issues.md: CON-70028 (Issues, section): its Mark	
+A_canon_nl_plain_Issues	A	REFUSED	add	CON-70029	-	-	-	add: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "CON-70029" in Issues.md: CON-70029 (Issues, section): title reads back as	
+A_canon_nl_plain_Fixed	A	REFUSED	add	CON-70030	-	-	-	add: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "CON-70030" in Issues.md: CON-70030 (Issues, section): title reads back as	
+A_canon_cr_Issues	A	RT_OK		CON-70031	0(=base)	yes	yes		
+A_canon_cr_Fixed	A	RT_OK		CON-70032	0(=base)	yes	yes		
+A_canon_section_sign_Issues	A	RT_OK		CON-70033	0(=base)	yes	yes		
+A_canon_section_sign_Fixed	A	RT_OK		CON-70034	0(=base)	yes	yes		
+A_canon_hash_start_Issues	A	RT_OK		CON-70035	0(=base)	yes	yes		
+A_canon_hash_start_Fixed	A	RT_OK		CON-70036	0(=base)	yes	yes		
+A_canon_dot_start_Issues	A	RT_OK		CON-70037	0(=base)	yes	yes		
+A_canon_dot_start_Fixed	A	RT_OK		CON-70038	0(=base)	yes	yes		
+A_canon_unicode_Issues	A	RT_OK		CON-70039	0(=base)	yes	yes		
+A_canon_unicode_Fixed	A	RT_OK		CON-70040	0(=base)	yes	yes		
+A_canon_long_Issues	A	RT_OK		CON-70041	0(=base)	yes	yes		
+A_canon_long_Fixed	A	RT_OK		CON-70042	0(=base)	yes	yes		
+A_canon_tab_Issues	A	RT_OK		CON-70043	0(=base)	yes	yes		
+A_canon_tab_Fixed	A	RT_OK		CON-70044	0(=base)	yes	yes		
+A_canon_meta_like_Issues	A	RT_OK		CON-70045	0(=base)	yes	yes		
+A_canon_meta_like_Fixed	A	RT_OK		CON-70046	0(=base)	yes	yes		
+A_canon_trail_backslash_Issues	A	RT_OK		CON-70047	0(=base)	yes	yes		
+A_canon_trail_backslash_Fixed	A	RT_OK		CON-70048	0(=base)	yes	yes		
+A_legacy_plain_Issues	A	RT_OK		GZ49	0(=base)	yes	yes		
+A_legacy_plain_Fixed	A	RT_OK		GZ50	0(=base)	yes	yes		
+A_legacy_lead_space_Issues	A	RT_OK		GZ51	0(=base)	yes	yes		
+A_legacy_lead_space_Fixed	A	RT_OK		GZ52	0(=base)	yes	yes		
+A_legacy_trail_space_Issues	A	RT_OK		GZ53	0(=base)	yes	yes		
+A_legacy_trail_space_Fixed	A	RT_OK		GZ54	0(=base)	yes	yes		
+A_legacy_bracket_start_Issues	A	REFUSED	add	GZ55	-	-	-	add: refusing (nothing written) — title "[ABC-9] bracket id at start" does not round-trip under id "GZ55" in Issues.md: GZ55 (Issues, section): its heading read	
+A_legacy_bracket_start_Fixed	A	REFUSED	add	GZ56	-	-	-	add: refusing (nothing written) — title "[ABC-9] bracket id at start" does not round-trip under id "GZ56" in Issues.md: GZ56 (Issues, section): its heading read	
+A_legacy_bracket_mid_existing_Issues	A	REFUSED	add	GZ57	-	-	-	add: refusing (nothing written) — title "crash in [CON-123] path" does not round-trip under id "GZ57" in Issues.md: GZ57 (Issues, section): its heading reads ba	
+A_legacy_bracket_mid_existing_Fixed	A	REFUSED	add	GZ58	-	-	-	add: refusing (nothing written) — title "crash in [CON-123] path" does not round-trip under id "GZ58" in Issues.md: GZ58 (Issues, section): its heading reads ba	
+A_legacy_bracket_mid_new_Issues	A	REFUSED	add	GZ59	-	-	-	add: refusing (nothing written) — title "crash in [ZZQ-77] path" does not round-trip under id "GZ59" in Issues.md: GZ59 (Issues, section): its heading reads bac	
+A_legacy_bracket_mid_new_Fixed	A	REFUSED	add	GZ60	-	-	-	add: refusing (nothing written) — title "crash in [ZZQ-77] path" does not round-trip under id "GZ60" in Issues.md: GZ60 (Issues, section): its heading reads bac	
+A_legacy_bracket_alpha_Issues	A	RT_OK		GZ61	0(=base)	yes	yes		
+A_legacy_bracket_alpha_Fixed	A	RT_OK		GZ62	0(=base)	yes	yes		
+A_legacy_status_suffix_Issues	A	REFUSED	add	GZ63	-	-	-	add: refusing (nothing written) — title "thing — `Fixed (→ Fixed.md)`" does not round-trip under id "GZ63" in Issues.md: GZ63 (Issues, section): title reads bac	
+A_legacy_status_suffix_Fixed	A	REFUSED	add	GZ64	-	-	-	add: refusing (nothing written) — title "thing — `Fixed (→ Fixed.md)`" does not round-trip under id "GZ64" in Issues.md: GZ64 (Issues, section): title reads bac	
+A_legacy_status_nodash_Issues	A	REFUSED	add	GZ65	-	-	-	add: refusing (nothing written) — title "thing `Completed later`" does not round-trip under id "GZ65" in Issues.md: GZ65 (Issues, section): title reads back as 	
+A_legacy_status_nodash_Fixed	A	REFUSED	add	GZ66	-	-	-	add: refusing (nothing written) — title "thing `Completed later`" does not round-trip under id "GZ66" in Issues.md: GZ66 (Issues, section): title reads back as 	
+A_legacy_migrated_Issues	A	REFUSED	add	GZ67	-	-	-	add: refusing (nothing written) — title "thing [migrated from old]" does not round-trip under id "GZ67" in Issues.md: GZ67 (Issues, section): title reads back a	
+A_legacy_migrated_Fixed	A	REFUSED	add	GZ68	-	-	-	add: refusing (nothing written) — title "thing [migrated from old]" does not round-trip under id "GZ68" in Issues.md: GZ68 (Issues, section): title reads back a	
+A_legacy_paren_dash_Issues	A	RT_OK		GZ69	0(=base)	yes	yes		
+A_legacy_paren_dash_Fixed	A	RT_OK		GZ70	0(=base)	yes	yes		
+A_legacy_emdash_Issues	A	RT_OK		GZ71	0(=base)	yes	yes		
+A_legacy_emdash_Fixed	A	RT_OK		GZ72	0(=base)	yes	yes		
+A_legacy_backticks_Issues	A	RT_OK		GZ73	0(=base)	yes	yes		
+A_legacy_backticks_Fixed	A	RT_OK		GZ74	0(=base)	yes	yes		
+A_legacy_nl_heading_Issues	A	REFUSED	add	GZ75	-	-	-	add: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "GZ75" in Issues.md: GZ75 (Issues, section): its Markdown reads	
+A_legacy_nl_heading_Fixed	A	REFUSED	add	GZ76	-	-	-	add: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "GZ76" in Issues.md: GZ76 (Issues, section): its Markdown reads	
+A_legacy_nl_plain_Issues	A	REFUSED	add	GZ77	-	-	-	add: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "GZ77" in Issues.md: GZ77 (Issues, section): title reads back as "a", stor	
+A_legacy_nl_plain_Fixed	A	REFUSED	add	GZ78	-	-	-	add: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "GZ78" in Issues.md: GZ78 (Issues, section): title reads back as "a", stor	
+A_legacy_cr_Issues	A	RT_OK		GZ79	0(=base)	yes	yes		
+A_legacy_cr_Fixed	A	RT_OK		GZ80	0(=base)	yes	yes		
+A_legacy_section_sign_Issues	A	RT_OK		GZ81	0(=base)	yes	yes		
+A_legacy_section_sign_Fixed	A	RT_OK		GZ82	0(=base)	yes	yes		
+A_legacy_hash_start_Issues	A	RT_OK		GZ83	0(=base)	yes	yes		
+A_legacy_hash_start_Fixed	A	RT_OK		GZ84	0(=base)	yes	yes		
+A_legacy_dot_start_Issues	A	RT_OK		GZ85	0(=base)	yes	yes		
+A_legacy_dot_start_Fixed	A	RT_OK		GZ86	0(=base)	yes	yes		
+A_legacy_unicode_Issues	A	RT_OK		GZ87	0(=base)	yes	yes		
+A_legacy_unicode_Fixed	A	RT_OK		GZ88	0(=base)	yes	yes		
+A_legacy_long_Issues	A	RT_OK		GZ89	0(=base)	yes	yes		
+A_legacy_long_Fixed	A	RT_OK		GZ90	0(=base)	yes	yes		
+A_legacy_tab_Issues	A	RT_OK		GZ91	0(=base)	yes	yes		
+A_legacy_tab_Fixed	A	RT_OK		GZ92	0(=base)	yes	yes		
+A_legacy_meta_like_Issues	A	RT_OK		GZ93	0(=base)	yes	yes		
+A_legacy_meta_like_Fixed	A	RT_OK		GZ94	0(=base)	yes	yes		
+A_legacy_trail_backslash_Issues	A	RT_OK		GZ95	0(=base)	yes	yes		
+A_legacy_trail_backslash_Fixed	A	RT_OK		GZ96	0(=base)	yes	yes		
+A_legacy1_plain_Issues	A	RT_OK		GS-90097	0(=base)	yes	yes		
+A_legacy1_plain_Fixed	A	RT_OK		GS-90098	0(=base)	yes	yes		
+A_legacy1_lead_space_Issues	A	RT_OK		GS-90099	0(=base)	yes	yes		
+A_legacy1_lead_space_Fixed	A	RT_OK		GS-90100	0(=base)	yes	yes		
+A_legacy1_trail_space_Issues	A	RT_OK		GS-90101	0(=base)	yes	yes		
+A_legacy1_trail_space_Fixed	A	RT_OK		GS-90102	0(=base)	yes	yes		
+A_legacy1_bracket_start_Issues	A	REFUSED	add	GS-90103	-	-	-	add: refusing (nothing written) — title "[ABC-9] bracket id at start" does not round-trip under id "GS-90103" in Issues.md: GS-90103 (Issues, section): its head	
+A_legacy1_bracket_start_Fixed	A	REFUSED	add	GS-90104	-	-	-	add: refusing (nothing written) — title "[ABC-9] bracket id at start" does not round-trip under id "GS-90104" in Issues.md: GS-90104 (Issues, section): its head	
+A_legacy1_bracket_mid_existing_Issues	A	REFUSED	add	GS-90105	-	-	-	add: refusing (nothing written) — title "crash in [CON-123] path" does not round-trip under id "GS-90105" in Issues.md: GS-90105 (Issues, section): its heading 	
+A_legacy1_bracket_mid_existing_Fixed	A	REFUSED	add	GS-90106	-	-	-	add: refusing (nothing written) — title "crash in [CON-123] path" does not round-trip under id "GS-90106" in Issues.md: GS-90106 (Issues, section): its heading 	
+A_legacy1_bracket_mid_new_Issues	A	REFUSED	add	GS-90107	-	-	-	add: refusing (nothing written) — title "crash in [ZZQ-77] path" does not round-trip under id "GS-90107" in Issues.md: GS-90107 (Issues, section): its heading r	
+A_legacy1_bracket_mid_new_Fixed	A	REFUSED	add	GS-90108	-	-	-	add: refusing (nothing written) — title "crash in [ZZQ-77] path" does not round-trip under id "GS-90108" in Issues.md: GS-90108 (Issues, section): its heading r	
+A_legacy1_bracket_alpha_Issues	A	RT_OK		GS-90109	0(=base)	yes	yes		
+A_legacy1_bracket_alpha_Fixed	A	RT_OK		GS-90110	0(=base)	yes	yes		
+A_legacy1_status_suffix_Issues	A	REFUSED	add	GS-90111	-	-	-	add: refusing (nothing written) — title "thing — `Fixed (→ Fixed.md)`" does not round-trip under id "GS-90111" in Issues.md: GS-90111 (Issues, section): title r	
+A_legacy1_status_suffix_Fixed	A	REFUSED	add	GS-90112	-	-	-	add: refusing (nothing written) — title "thing — `Fixed (→ Fixed.md)`" does not round-trip under id "GS-90112" in Issues.md: GS-90112 (Issues, section): title r	
+A_legacy1_status_nodash_Issues	A	REFUSED	add	GS-90113	-	-	-	add: refusing (nothing written) — title "thing `Completed later`" does not round-trip under id "GS-90113" in Issues.md: GS-90113 (Issues, section): title reads 	
+A_legacy1_status_nodash_Fixed	A	REFUSED	add	GS-90114	-	-	-	add: refusing (nothing written) — title "thing `Completed later`" does not round-trip under id "GS-90114" in Issues.md: GS-90114 (Issues, section): title reads 	
+A_legacy1_migrated_Issues	A	REFUSED	add	GS-90115	-	-	-	add: refusing (nothing written) — title "thing [migrated from old]" does not round-trip under id "GS-90115" in Issues.md: GS-90115 (Issues, section): title read	
+A_legacy1_migrated_Fixed	A	REFUSED	add	GS-90116	-	-	-	add: refusing (nothing written) — title "thing [migrated from old]" does not round-trip under id "GS-90116" in Issues.md: GS-90116 (Issues, section): title read	
+A_legacy1_paren_dash_Issues	A	RT_OK		GS-90117	0(=base)	yes	yes		
+A_legacy1_paren_dash_Fixed	A	RT_OK		GS-90118	0(=base)	yes	yes		
+A_legacy1_emdash_Issues	A	RT_OK		GS-90119	0(=base)	yes	yes		
+A_legacy1_emdash_Fixed	A	RT_OK		GS-90120	0(=base)	yes	yes		
+A_legacy1_backticks_Issues	A	RT_OK		GS-90121	0(=base)	yes	yes		
+A_legacy1_backticks_Fixed	A	RT_OK		GS-90122	0(=base)	yes	yes		
+A_legacy1_nl_heading_Issues	A	REFUSED	add	GS-90123	-	-	-	add: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "GS-90123" in Issues.md: GS-90123 (Issues, section): its Markdo	
+A_legacy1_nl_heading_Fixed	A	REFUSED	add	GS-90124	-	-	-	add: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "GS-90124" in Issues.md: GS-90124 (Issues, section): its Markdo	
+A_legacy1_nl_plain_Issues	A	REFUSED	add	GS-90125	-	-	-	add: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "GS-90125" in Issues.md: GS-90125 (Issues, section): title reads back as "	
+A_legacy1_nl_plain_Fixed	A	REFUSED	add	GS-90126	-	-	-	add: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "GS-90126" in Issues.md: GS-90126 (Issues, section): title reads back as "	
+A_legacy1_cr_Issues	A	RT_OK		GS-90127	0(=base)	yes	yes		
+A_legacy1_cr_Fixed	A	RT_OK		GS-90128	0(=base)	yes	yes		
+A_legacy1_section_sign_Issues	A	RT_OK		GS-90129	0(=base)	yes	yes		
+A_legacy1_section_sign_Fixed	A	RT_OK		GS-90130	0(=base)	yes	yes		
+A_legacy1_hash_start_Issues	A	RT_OK		GS-90131	0(=base)	yes	yes		
+A_legacy1_hash_start_Fixed	A	RT_OK		GS-90132	0(=base)	yes	yes		
+A_legacy1_dot_start_Issues	A	RT_OK		GS-90133	0(=base)	yes	yes		
+A_legacy1_dot_start_Fixed	A	RT_OK		GS-90134	0(=base)	yes	yes		
+A_legacy1_unicode_Issues	A	RT_OK		GS-90135	0(=base)	yes	yes		
+A_legacy1_unicode_Fixed	A	RT_OK		GS-90136	0(=base)	yes	yes		
+A_legacy1_long_Issues	A	RT_OK		GS-90137	0(=base)	yes	yes		
+A_legacy1_long_Fixed	A	RT_OK		GS-90138	0(=base)	yes	yes		
+A_legacy1_tab_Issues	A	RT_OK		GS-90139	0(=base)	yes	yes		
+A_legacy1_tab_Fixed	A	RT_OK		GS-90140	0(=base)	yes	yes		
+A_legacy1_meta_like_Issues	A	RT_OK		GS-90141	0(=base)	yes	yes		
+A_legacy1_meta_like_Fixed	A	RT_OK		GS-90142	0(=base)	yes	yes		
+A_legacy1_trail_backslash_Issues	A	RT_OK		GS-90143	0(=base)	yes	yes		
+A_legacy1_trail_backslash_Fixed	A	RT_OK		GS-90144	0(=base)	yes	yes		
+A_pfx_canon_plain_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_plain_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_lead_space_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_lead_space_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_trail_space_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_trail_space_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_bracket_start_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_bracket_start_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_bracket_mid_existing_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_bracket_mid_existing_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_bracket_mid_new_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_bracket_mid_new_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_bracket_alpha_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_bracket_alpha_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_status_suffix_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_status_suffix_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_status_nodash_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_status_nodash_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_migrated_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_migrated_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_paren_dash_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_paren_dash_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_emdash_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_emdash_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_backticks_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_backticks_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_nl_heading_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — title "a\n## CON-8811 — 	
+A_pfx_canon_nl_heading_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — title "a\n## CON-8811 — 	
+A_pfx_canon_nl_plain_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — title "a\nsecond line" d	
+A_pfx_canon_nl_plain_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — title "a\nsecond line" d	
+A_pfx_canon_cr_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_cr_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_section_sign_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_section_sign_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_hash_start_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_hash_start_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_dot_start_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_dot_start_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_unicode_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_unicode_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_long_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_long_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_tab_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_tab_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_meta_like_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_meta_like_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_trail_backslash_Issues	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_canon_trail_backslash_Fixed	A	RT_OK		CON-527	0(=base)	yes	yes		
+A_pfx_legacy_plain_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_plain_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_lead_space_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_lead_space_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_trail_space_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_trail_space_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_bracket_start_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "[ABC-9] bracket id 	
+A_pfx_legacy_bracket_start_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "[ABC-9] bracket id 	
+A_pfx_legacy_bracket_mid_existing_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "crash in [CON-123] 	
+A_pfx_legacy_bracket_mid_existing_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "crash in [CON-123] 	
+A_pfx_legacy_bracket_mid_new_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "crash in [ZZQ-77] p	
+A_pfx_legacy_bracket_mid_new_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "crash in [ZZQ-77] p	
+A_pfx_legacy_bracket_alpha_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_bracket_alpha_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_status_suffix_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "thing — `Fixed (→ F	
+A_pfx_legacy_status_suffix_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "thing — `Fixed (→ F	
+A_pfx_legacy_status_nodash_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "thing `Completed la	
+A_pfx_legacy_status_nodash_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "thing `Completed la	
+A_pfx_legacy_migrated_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "thing [migrated fro	
+A_pfx_legacy_migrated_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "thing [migrated fro	
+A_pfx_legacy_paren_dash_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_paren_dash_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_emdash_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_emdash_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_backticks_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_backticks_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_nl_heading_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "a\n## CON-8811 — in	
+A_pfx_legacy_nl_heading_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "a\n## CON-8811 — in	
+A_pfx_legacy_nl_plain_Issues	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "a\nsecond line" doe	
+A_pfx_legacy_nl_plain_Fixed	A	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — title "a\nsecond line" doe	
+A_pfx_legacy_cr_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_cr_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_section_sign_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_section_sign_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_hash_start_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_hash_start_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_dot_start_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_dot_start_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_unicode_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_unicode_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_long_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_long_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_tab_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_tab_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_meta_like_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_meta_like_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_trail_backslash_Issues	A	RT_OK		GS-001	0(=base)	yes	yes		
+A_pfx_legacy_trail_backslash_Fixed	A	RT_OK		GS-001	0(=base)	yes	yes		
+B_canon_plain_Issues	B	RT_OK		CON-70241	0(=base)	yes	yes		
+B_canon_plain_Fixed	B	RT_OK		CON-70242	0(=base)	yes	yes		
+B_canon_heading_item_Issues	B	REFUSED	add	CON-70243	-	-	-	add: refusing (nothing written) — the Markdown of CON-70243 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70243 (Issues, sec	
+B_canon_heading_item_Fixed	B	REFUSED	add	CON-70244	-	-	-	add: refusing (nothing written) — the Markdown of CON-70244 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70244 (Issues, sec	
+B_canon_heading_raw_Issues	B	REFUSED	add	CON-70245	-	-	-	add: refusing (nothing written) — the Markdown of CON-70245 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70245 (Issues, sec	
+B_canon_heading_raw_Fixed	B	REFUSED	add	CON-70246	-	-	-	add: refusing (nothing written) — the Markdown of CON-70246 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70246 (Issues, sec	
+B_canon_status_line_Issues	B	REFUSED	add	CON-70247	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown of 	
+B_canon_status_line_Fixed	B	REFUSED	add	CON-70248	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown of 	
+B_canon_type_line_Issues	B	REFUSED	add	CON-70249	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of CON-70249 (Issues	
+B_canon_type_line_Fixed	B	REFUSED	add	CON-70250	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of CON-70250 (Issues	
+B_canon_severity_line_Issues	B	REFUSED	add	CON-70251	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of CON-7025	
+B_canon_severity_line_Fixed	B	REFUSED	add	CON-70252	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of CON-7025	
+B_canon_subheading_Issues	B	RT_OK		CON-70253	0(=base)	yes	yes		
+B_canon_subheading_Fixed	B	RT_OK		CON-70254	0(=base)	yes	yes		
+B_canon_pipe_row_Issues	B	RT_OK		CON-70255	0(=base)	yes	yes		
+B_canon_pipe_row_Fixed	B	RT_OK		CON-70256	0(=base)	yes	yes		
+B_canon_repro_line_Issues	B	REFUSED	add	CON-70257	-	-	-	add: refusing (nothing written) — the Markdown of CON-70257 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70257 (Issues, sec	
+B_canon_repro_line_Fixed	B	REFUSED	add	CON-70258	-	-	-	add: refusing (nothing written) — the Markdown of CON-70258 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70258 (Issues, sec	
+B_canon_leading_nl_Issues	B	RT_OK		CON-70259	0(=base)	yes	yes		
+B_canon_leading_nl_Fixed	B	RT_OK		CON-70260	0(=base)	yes	yes		
+B_canon_trail_spaces_Issues	B	RT_OK		CON-70261	0(=base)	yes	yes		
+B_canon_trail_spaces_Fixed	B	RT_OK		CON-70262	0(=base)	yes	yes		
+B_canon_cr_desc_Issues	B	RT_OK		CON-70263	0(=base)	yes	yes		
+B_canon_cr_desc_Fixed	B	RT_OK		CON-70264	0(=base)	yes	yes		
+B_legacy_plain_Issues	B	RT_OK		GZ265	0(=base)	yes	yes		
+B_legacy_plain_Fixed	B	RT_OK		GZ266	0(=base)	yes	yes		
+B_legacy_heading_item_Issues	B	REFUSED	add	GZ267	-	-	-	add: refusing (nothing written) — the Markdown of GZ267 (Issues, section) would not read back as this item on the next sync md-to-db: GZ267 (Issues, section): i	
+B_legacy_heading_item_Fixed	B	REFUSED	add	GZ268	-	-	-	add: refusing (nothing written) — the Markdown of GZ268 (Issues, section) would not read back as this item on the next sync md-to-db: GZ268 (Issues, section): i	
+B_legacy_heading_raw_Issues	B	REFUSED	add	GZ269	-	-	-	add: refusing (nothing written) — the Markdown of GZ269 (Issues, section) would not read back as this item on the next sync md-to-db: GZ269 (Issues, section): i	
+B_legacy_heading_raw_Fixed	B	REFUSED	add	GZ270	-	-	-	add: refusing (nothing written) — the Markdown of GZ270 (Issues, section) would not read back as this item on the next sync md-to-db: GZ270 (Issues, section): i	
+B_legacy_status_line_Issues	B	REFUSED	add	GZ271	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown of 	
+B_legacy_status_line_Fixed	B	REFUSED	add	GZ272	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown of 	
+B_legacy_type_line_Issues	B	REFUSED	add	GZ273	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of GZ273 (Issues, se	
+B_legacy_type_line_Fixed	B	REFUSED	add	GZ274	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of GZ274 (Issues, se	
+B_legacy_severity_line_Issues	B	REFUSED	add	GZ275	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of GZ275 (I	
+B_legacy_severity_line_Fixed	B	REFUSED	add	GZ276	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of GZ276 (I	
+B_legacy_subheading_Issues	B	RT_OK		GZ277	0(=base)	yes	yes		
+B_legacy_subheading_Fixed	B	RT_OK		GZ278	0(=base)	yes	yes		
+B_legacy_pipe_row_Issues	B	RT_OK		GZ279	0(=base)	yes	yes		
+B_legacy_pipe_row_Fixed	B	RT_OK		GZ280	0(=base)	yes	yes		
+B_legacy_repro_line_Issues	B	REFUSED	add	GZ281	-	-	-	add: refusing (nothing written) — the Markdown of GZ281 (Issues, section) would not read back as this item on the next sync md-to-db: GZ281 (Issues, section): t	
+B_legacy_repro_line_Fixed	B	REFUSED	add	GZ282	-	-	-	add: refusing (nothing written) — the Markdown of GZ282 (Issues, section) would not read back as this item on the next sync md-to-db: GZ282 (Issues, section): t	
+B_legacy_leading_nl_Issues	B	RT_OK		GZ283	0(=base)	yes	yes		
+B_legacy_leading_nl_Fixed	B	RT_OK		GZ284	0(=base)	yes	yes		
+B_legacy_trail_spaces_Issues	B	RT_OK		GZ285	0(=base)	yes	yes		
+B_legacy_trail_spaces_Fixed	B	RT_OK		GZ286	0(=base)	yes	yes		
+B_legacy_cr_desc_Issues	B	RT_OK		GZ287	0(=base)	yes	yes		
+B_legacy_cr_desc_Fixed	B	RT_OK		GZ288	0(=base)	yes	yes		
+B_legacy1_plain_Issues	B	RT_OK		GS-90289	0(=base)	yes	yes		
+B_legacy1_plain_Fixed	B	RT_OK		GS-90290	0(=base)	yes	yes		
+B_legacy1_heading_item_Issues	B	REFUSED	add	GS-90291	-	-	-	add: refusing (nothing written) — the Markdown of GS-90291 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90291 (Issues, secti	
+B_legacy1_heading_item_Fixed	B	REFUSED	add	GS-90292	-	-	-	add: refusing (nothing written) — the Markdown of GS-90292 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90292 (Issues, secti	
+B_legacy1_heading_raw_Issues	B	REFUSED	add	GS-90293	-	-	-	add: refusing (nothing written) — the Markdown of GS-90293 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90293 (Issues, secti	
+B_legacy1_heading_raw_Fixed	B	REFUSED	add	GS-90294	-	-	-	add: refusing (nothing written) — the Markdown of GS-90294 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90294 (Issues, secti	
+B_legacy1_status_line_Issues	B	REFUSED	add	GS-90295	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown of 	
+B_legacy1_status_line_Fixed	B	REFUSED	add	GS-90296	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown of 	
+B_legacy1_type_line_Issues	B	REFUSED	add	GS-90297	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of GS-90297 (Issues,	
+B_legacy1_type_line_Fixed	B	REFUSED	add	GS-90298	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of GS-90298 (Issues,	
+B_legacy1_severity_line_Issues	B	REFUSED	add	GS-90299	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of GS-90299	
+B_legacy1_severity_line_Fixed	B	REFUSED	add	GS-90300	-	-	-	add: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of GS-90300	
+B_legacy1_subheading_Issues	B	RT_OK		GS-90301	0(=base)	yes	yes		
+B_legacy1_subheading_Fixed	B	RT_OK		GS-90302	0(=base)	yes	yes		
+B_legacy1_pipe_row_Issues	B	RT_OK		GS-90303	0(=base)	yes	yes		
+B_legacy1_pipe_row_Fixed	B	RT_OK		GS-90304	0(=base)	yes	yes		
+B_legacy1_repro_line_Issues	B	REFUSED	add	GS-90305	-	-	-	add: refusing (nothing written) — the Markdown of GS-90305 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90305 (Issues, secti	
+B_legacy1_repro_line_Fixed	B	REFUSED	add	GS-90306	-	-	-	add: refusing (nothing written) — the Markdown of GS-90306 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90306 (Issues, secti	
+B_legacy1_leading_nl_Issues	B	RT_OK		GS-90307	0(=base)	yes	yes		
+B_legacy1_leading_nl_Fixed	B	RT_OK		GS-90308	0(=base)	yes	yes		
+B_legacy1_trail_spaces_Issues	B	RT_OK		GS-90309	0(=base)	yes	yes		
+B_legacy1_trail_spaces_Fixed	B	RT_OK		GS-90310	0(=base)	yes	yes		
+B_legacy1_cr_desc_Issues	B	RT_OK		GS-90311	0(=base)	yes	yes		
+B_legacy1_cr_desc_Fixed	B	RT_OK		GS-90312	0(=base)	yes	yes		
+B_pfx_canon_plain_Issues	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_plain_Fixed	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_heading_item_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the Markdown of CON-001 	
+B_pfx_canon_heading_item_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the Markdown of CON-001 	
+B_pfx_canon_heading_raw_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the Markdown of CON-001 	
+B_pfx_canon_heading_raw_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the Markdown of CON-001 	
+B_pfx_canon_status_line_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the text "line one of th	
+B_pfx_canon_status_line_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the text "line one of th	
+B_pfx_canon_type_line_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the text "line one of th	
+B_pfx_canon_type_line_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the text "line one of th	
+B_pfx_canon_severity_line_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the text "line one of th	
+B_pfx_canon_severity_line_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the text "line one of th	
+B_pfx_canon_subheading_Issues	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_subheading_Fixed	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_pipe_row_Issues	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_pipe_row_Fixed	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_repro_line_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the Markdown of CON-001 	
+B_pfx_canon_repro_line_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with CON-001, the first id --prefix CON allocates; the real id is allocated after this check) — the Markdown of CON-001 	
+B_pfx_canon_leading_nl_Issues	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_leading_nl_Fixed	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_trail_spaces_Issues	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_trail_spaces_Fixed	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_cr_desc_Issues	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_canon_cr_desc_Fixed	B	RT_OK		CON-527	0(=base)	yes	yes		
+B_pfx_legacy_plain_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_plain_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_heading_item_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the Markdown of GS-001 (Is	
+B_pfx_legacy_heading_item_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the Markdown of GS-001 (Is	
+B_pfx_legacy_heading_raw_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the Markdown of GS-001 (Is	
+B_pfx_legacy_heading_raw_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the Markdown of GS-001 (Is	
+B_pfx_legacy_status_line_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the text "line one of the 	
+B_pfx_legacy_status_line_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the text "line one of the 	
+B_pfx_legacy_type_line_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the text "line one of the 	
+B_pfx_legacy_type_line_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the text "line one of the 	
+B_pfx_legacy_severity_line_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the text "line one of the 	
+B_pfx_legacy_severity_line_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the text "line one of the 	
+B_pfx_legacy_subheading_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_subheading_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_pipe_row_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_pipe_row_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_repro_line_Issues	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the Markdown of GS-001 (Is	
+B_pfx_legacy_repro_line_Fixed	B	REFUSED	add		-	-	-	add: refusing (nothing written) (judged with GS-001, the first id --prefix GS allocates; the real id is allocated after this check) — the Markdown of GS-001 (Is	
+B_pfx_legacy_leading_nl_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_leading_nl_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_trail_spaces_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_trail_spaces_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_cr_desc_Issues	B	RT_OK		GS-001	0(=base)	yes	yes		
+B_pfx_legacy_cr_desc_Fixed	B	RT_OK		GS-001	0(=base)	yes	yes		
+C_update_title_canon_plain	C	RT_OK		CON-70361	0(=base)	yes	yes		
+C_update_title_canon_lead_space	C	RT_OK		CON-70362	0(=base)	yes	yes		
+C_update_title_canon_trail_space	C	RT_OK		CON-70363	0(=base)	yes	yes		
+C_update_title_canon_bracket_start	C	RT_OK		CON-70364	0(=base)	yes	yes		
+C_update_title_canon_bracket_mid_existing	C	RT_OK		CON-70365	0(=base)	yes	yes		
+C_update_title_canon_bracket_mid_new	C	RT_OK		CON-70366	0(=base)	yes	yes		
+C_update_title_canon_bracket_alpha	C	RT_OK		CON-70367	0(=base)	yes	yes		
+C_update_title_canon_status_suffix	C	RT_OK		CON-70368	0(=base)	yes	yes		
+C_update_title_canon_status_nodash	C	RT_OK		CON-70369	0(=base)	yes	yes		
+C_update_title_canon_migrated	C	RT_OK		CON-70370	0(=base)	yes	yes		
+C_update_title_canon_paren_dash	C	RT_OK		CON-70371	0(=base)	yes	yes		
+C_update_title_canon_emdash	C	RT_OK		CON-70372	0(=base)	yes	yes		
+C_update_title_canon_backticks	C	RT_OK		CON-70373	0(=base)	yes	yes		
+C_update_title_canon_nl_heading	C	REFUSED	update_title	CON-70374	-	-	-	update: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "CON-70374" in Issues.md: CON-70374 (Issues, section): its M	
+C_update_title_canon_nl_plain	C	REFUSED	update_title	CON-70375	-	-	-	update: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "CON-70375" in Issues.md: CON-70375 (Issues, section): title reads back	
+C_update_title_canon_cr	C	RT_OK		CON-70376	0(=base)	yes	yes		
+C_update_title_canon_section_sign	C	RT_OK		CON-70377	0(=base)	yes	yes		
+C_update_title_canon_hash_start	C	RT_OK		CON-70378	0(=base)	yes	yes		
+C_update_title_canon_dot_start	C	RT_OK		CON-70379	0(=base)	yes	yes		
+C_update_title_canon_unicode	C	RT_OK		CON-70380	0(=base)	yes	yes		
+C_update_title_canon_long	C	RT_OK		CON-70381	0(=base)	yes	yes		
+C_update_title_canon_tab	C	RT_OK		CON-70382	0(=base)	yes	yes		
+C_update_title_canon_meta_like	C	RT_OK		CON-70383	0(=base)	yes	yes		
+C_update_title_canon_trail_backslash	C	RT_OK		CON-70384	0(=base)	yes	yes		
+C_update_desc_canon_plain	C	RT_OK		CON-70385	0(=base)	yes	yes		
+C_update_desc_canon_heading_item	C	REFUSED	update_desc	CON-70386	-	-	-	update: refusing (nothing written) — the Markdown of CON-70386 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70386 (Issues, 	
+C_update_desc_canon_heading_raw	C	REFUSED	update_desc	CON-70387	-	-	-	update: refusing (nothing written) — the Markdown of CON-70387 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70387 (Issues, 	
+C_update_desc_canon_status_line	C	REFUSED	update_desc	CON-70388	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+C_update_desc_canon_type_line	C	REFUSED	update_desc	CON-70389	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of CON-70389 (Iss	
+C_update_desc_canon_severity_line	C	REFUSED	update_desc	CON-70390	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of CON-7	
+C_update_desc_canon_subheading	C	RT_OK		CON-70391	0(=base)	yes	yes		
+C_update_desc_canon_pipe_row	C	RT_OK		CON-70392	0(=base)	yes	yes		
+C_update_desc_canon_repro_line	C	REFUSED	update_desc	CON-70393	-	-	-	update: refusing (nothing written) — the Markdown of CON-70393 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70393 (Issues, 	
+C_update_desc_canon_leading_nl	C	RT_OK		CON-70394	0(=base)	yes	yes		
+C_update_desc_canon_trail_spaces	C	RT_OK		CON-70395	0(=base)	yes	yes		
+C_update_desc_canon_cr_desc	C	RT_OK		CON-70396	0(=base)	yes	yes		
+C_block_details_canon_plain	C	RT_OK		CON-70398	1(+1)	yes	yes		
+C_block_why_canon_plain	C	RT_OK		CON-70399	1(+1)	yes	yes		
+C_block_unblock_canon_plain	C	RT_OK		CON-70400	1(+1)	yes	yes		
+C_block_who_canon_plain	C	RT_OK		CON-70401	1(+1)	yes	yes		
+C_close_reopen_canon_plain	C	RT_OK		CON-70402	0(=base)	yes	yes		
+C_block_details_canon_nl_heading	C	REFUSED	block	CON-70404	-	-	-	block: refusing (nothing written) — the Markdown of CON-70404 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70404 (Issues, s	
+C_block_why_canon_nl_heading	C	REFUSED	block	CON-70405	-	-	-	block: refusing (nothing written) — the Markdown of CON-70405 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70405 (Issues, s	
+C_block_unblock_canon_nl_heading	C	REFUSED	block	CON-70406	-	-	-	block: refusing (nothing written) — the Markdown of CON-70406 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70406 (Issues, s	
+C_block_who_canon_nl_heading	C	REFUSED	block	CON-70407	-	-	-	block: refusing (nothing written) — the Markdown of CON-70407 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70407 (Issues, s	
+C_close_reopen_canon_nl_heading	C	REFUSED	reopen	CON-70408	-	-	-	reopen: refusing (nothing written) — the Markdown of CON-70408 (Issues, section) would not read back as this item on the next sync md-to-db: CON-70408 (Issues, 	
+C_block_details_canon_nl_status	C	REFUSED	block	CON-70410	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of CON-70410 (Issues, section): a line 	
+C_block_why_canon_nl_status	C	REFUSED	block	CON-70411	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of CON-70411 (Issues, section): a line 	
+C_block_unblock_canon_nl_status	C	REFUSED	block	CON-70412	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of CON-70412 (Issues, section): a line 	
+C_block_who_canon_nl_status	C	REFUSED	block	CON-70413	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of CON-70413 (Issues, section): a line 	
+C_close_reopen_canon_nl_status	C	REFUSED	reopen	CON-70414	-	-	-	reopen: refusing (nothing written) — the text "/mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/sweep/out_r3/C_close_reopen_canon_nl_status/evidence.txt\n**Stat	
+C_close_canon	C	RT_OK		CON-70415	0(=base)	yes	yes		
+C_update_title_legacy_plain	C	RT_OK		GZ416	0(=base)	yes	yes		
+C_update_title_legacy_lead_space	C	RT_OK		GZ417	0(=base)	yes	yes		
+C_update_title_legacy_trail_space	C	RT_OK		GZ418	0(=base)	yes	yes		
+C_update_title_legacy_bracket_start	C	REFUSED	update_title	GZ419	-	-	-	update: refusing (nothing written) — title "[ABC-9] bracket id at start" does not round-trip under id "GZ419" in Issues.md: GZ419 (Issues, section): its heading	
+C_update_title_legacy_bracket_mid_existing	C	REFUSED	update_title	GZ420	-	-	-	update: refusing (nothing written) — title "crash in [CON-123] path" does not round-trip under id "GZ420" in Issues.md: GZ420 (Issues, section): its heading rea	
+C_update_title_legacy_bracket_mid_new	C	REFUSED	update_title	GZ421	-	-	-	update: refusing (nothing written) — title "crash in [ZZQ-77] path" does not round-trip under id "GZ421" in Issues.md: GZ421 (Issues, section): its heading read	
+C_update_title_legacy_bracket_alpha	C	RT_OK		GZ422	0(=base)	yes	yes		
+C_update_title_legacy_status_suffix	C	REFUSED	update_title	GZ423	-	-	-	update: refusing (nothing written) — title "thing — `Fixed (→ Fixed.md)`" does not round-trip under id "GZ423" in Issues.md: GZ423 (Issues, section): title read	
+C_update_title_legacy_status_nodash	C	REFUSED	update_title	GZ424	-	-	-	update: refusing (nothing written) — title "thing `Completed later`" does not round-trip under id "GZ424" in Issues.md: GZ424 (Issues, section): title reads bac	
+C_update_title_legacy_migrated	C	REFUSED	update_title	GZ425	-	-	-	update: refusing (nothing written) — title "thing [migrated from old]" does not round-trip under id "GZ425" in Issues.md: GZ425 (Issues, section): title reads b	
+C_update_title_legacy_paren_dash	C	RT_OK		GZ426	0(=base)	yes	yes		
+C_update_title_legacy_emdash	C	RT_OK		GZ427	0(=base)	yes	yes		
+C_update_title_legacy_backticks	C	RT_OK		GZ428	0(=base)	yes	yes		
+C_update_title_legacy_nl_heading	C	REFUSED	update_title	GZ429	-	-	-	update: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "GZ429" in Issues.md: GZ429 (Issues, section): its Markdown 	
+C_update_title_legacy_nl_plain	C	REFUSED	update_title	GZ430	-	-	-	update: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "GZ430" in Issues.md: GZ430 (Issues, section): title reads back as "a",	
+C_update_title_legacy_cr	C	RT_OK		GZ431	0(=base)	yes	yes		
+C_update_title_legacy_section_sign	C	RT_OK		GZ432	0(=base)	yes	yes		
+C_update_title_legacy_hash_start	C	RT_OK		GZ433	0(=base)	yes	yes		
+C_update_title_legacy_dot_start	C	RT_OK		GZ434	0(=base)	yes	yes		
+C_update_title_legacy_unicode	C	RT_OK		GZ435	0(=base)	yes	yes		
+C_update_title_legacy_long	C	RT_OK		GZ436	0(=base)	yes	yes		
+C_update_title_legacy_tab	C	RT_OK		GZ437	0(=base)	yes	yes		
+C_update_title_legacy_meta_like	C	RT_OK		GZ438	0(=base)	yes	yes		
+C_update_title_legacy_trail_backslash	C	RT_OK		GZ439	0(=base)	yes	yes		
+C_update_desc_legacy_plain	C	RT_OK		GZ440	0(=base)	yes	yes		
+C_update_desc_legacy_heading_item	C	REFUSED	update_desc	GZ441	-	-	-	update: refusing (nothing written) — the Markdown of GZ441 (Issues, section) would not read back as this item on the next sync md-to-db: GZ441 (Issues, section)	
+C_update_desc_legacy_heading_raw	C	REFUSED	update_desc	GZ442	-	-	-	update: refusing (nothing written) — the Markdown of GZ442 (Issues, section) would not read back as this item on the next sync md-to-db: GZ442 (Issues, section)	
+C_update_desc_legacy_status_line	C	REFUSED	update_desc	GZ443	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+C_update_desc_legacy_type_line	C	REFUSED	update_desc	GZ444	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of GZ444 (Issues,	
+C_update_desc_legacy_severity_line	C	REFUSED	update_desc	GZ445	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of GZ445	
+C_update_desc_legacy_subheading	C	RT_OK		GZ446	0(=base)	yes	yes		
+C_update_desc_legacy_pipe_row	C	RT_OK		GZ447	0(=base)	yes	yes		
+C_update_desc_legacy_repro_line	C	REFUSED	update_desc	GZ448	-	-	-	update: refusing (nothing written) — the Markdown of GZ448 (Issues, section) would not read back as this item on the next sync md-to-db: GZ448 (Issues, section)	
+C_update_desc_legacy_leading_nl	C	RT_OK		GZ449	0(=base)	yes	yes		
+C_update_desc_legacy_trail_spaces	C	RT_OK		GZ450	0(=base)	yes	yes		
+C_update_desc_legacy_cr_desc	C	RT_OK		GZ451	0(=base)	yes	yes		
+C_block_details_legacy_plain	C	RT_OK		GZ453	1(+1)	yes	yes		
+C_block_why_legacy_plain	C	RT_OK		GZ454	1(+1)	yes	yes		
+C_block_unblock_legacy_plain	C	RT_OK		GZ455	1(+1)	yes	yes		
+C_block_who_legacy_plain	C	RT_OK		GZ456	1(+1)	yes	yes		
+C_close_reopen_legacy_plain	C	RT_OK		GZ457	0(=base)	yes	yes		
+C_block_details_legacy_nl_heading	C	REFUSED	block	GZ459	-	-	-	block: refusing (nothing written) — the Markdown of GZ459 (Issues, section) would not read back as this item on the next sync md-to-db: GZ459 (Issues, section):	
+C_block_why_legacy_nl_heading	C	REFUSED	block	GZ460	-	-	-	block: refusing (nothing written) — the Markdown of GZ460 (Issues, section) would not read back as this item on the next sync md-to-db: GZ460 (Issues, section):	
+C_block_unblock_legacy_nl_heading	C	REFUSED	block	GZ461	-	-	-	block: refusing (nothing written) — the Markdown of GZ461 (Issues, section) would not read back as this item on the next sync md-to-db: GZ461 (Issues, section):	
+C_block_who_legacy_nl_heading	C	REFUSED	block	GZ462	-	-	-	block: refusing (nothing written) — the Markdown of GZ462 (Issues, section) would not read back as this item on the next sync md-to-db: GZ462 (Issues, section):	
+C_close_reopen_legacy_nl_heading	C	REFUSED	reopen	GZ463	-	-	-	reopen: refusing (nothing written) — the Markdown of GZ463 (Issues, section) would not read back as this item on the next sync md-to-db: GZ463 (Issues, section)	
+C_block_details_legacy_nl_status	C	REFUSED	block	GZ465	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of GZ465 (Issues, section): a line in i	
+C_block_why_legacy_nl_status	C	REFUSED	block	GZ466	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of GZ466 (Issues, section): a line in i	
+C_block_unblock_legacy_nl_status	C	REFUSED	block	GZ467	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of GZ467 (Issues, section): a line in i	
+C_block_who_legacy_nl_status	C	REFUSED	block	GZ468	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of GZ468 (Issues, section): a line in i	
+C_close_reopen_legacy_nl_status	C	REFUSED	reopen	GZ469	-	-	-	reopen: refusing (nothing written) — the text "/mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/sweep/out_r3/C_close_reopen_legacy_nl_status/evidence.txt\n**Sta	
+C_close_legacy	C	RT_OK		GZ470	0(=base)	yes	yes		
+C_update_title_legacy1_plain	C	RT_OK		GS-90471	0(=base)	yes	yes		
+C_update_title_legacy1_lead_space	C	RT_OK		GS-90472	0(=base)	yes	yes		
+C_update_title_legacy1_trail_space	C	RT_OK		GS-90473	0(=base)	yes	yes		
+C_update_title_legacy1_bracket_start	C	REFUSED	update_title	GS-90474	-	-	-	update: refusing (nothing written) — title "[ABC-9] bracket id at start" does not round-trip under id "GS-90474" in Issues.md: GS-90474 (Issues, section): its h	
+C_update_title_legacy1_bracket_mid_existing	C	REFUSED	update_title	GS-90475	-	-	-	update: refusing (nothing written) — title "crash in [CON-123] path" does not round-trip under id "GS-90475" in Issues.md: GS-90475 (Issues, section): its headi	
+C_update_title_legacy1_bracket_mid_new	C	REFUSED	update_title	GS-90476	-	-	-	update: refusing (nothing written) — title "crash in [ZZQ-77] path" does not round-trip under id "GS-90476" in Issues.md: GS-90476 (Issues, section): its headin	
+C_update_title_legacy1_bracket_alpha	C	RT_OK		GS-90477	0(=base)	yes	yes		
+C_update_title_legacy1_status_suffix	C	REFUSED	update_title	GS-90478	-	-	-	update: refusing (nothing written) — title "thing — `Fixed (→ Fixed.md)`" does not round-trip under id "GS-90478" in Issues.md: GS-90478 (Issues, section): titl	
+C_update_title_legacy1_status_nodash	C	REFUSED	update_title	GS-90479	-	-	-	update: refusing (nothing written) — title "thing `Completed later`" does not round-trip under id "GS-90479" in Issues.md: GS-90479 (Issues, section): title rea	
+C_update_title_legacy1_migrated	C	REFUSED	update_title	GS-90480	-	-	-	update: refusing (nothing written) — title "thing [migrated from old]" does not round-trip under id "GS-90480" in Issues.md: GS-90480 (Issues, section): title r	
+C_update_title_legacy1_paren_dash	C	RT_OK		GS-90481	0(=base)	yes	yes		
+C_update_title_legacy1_emdash	C	RT_OK		GS-90482	0(=base)	yes	yes		
+C_update_title_legacy1_backticks	C	RT_OK		GS-90483	0(=base)	yes	yes		
+C_update_title_legacy1_nl_heading	C	REFUSED	update_title	GS-90484	-	-	-	update: refusing (nothing written) — title "a\n## CON-8811 — injected" does not round-trip under id "GS-90484" in Issues.md: GS-90484 (Issues, section): its Mar	
+C_update_title_legacy1_nl_plain	C	REFUSED	update_title	GS-90485	-	-	-	update: refusing (nothing written) — title "a\nsecond line" does not round-trip under id "GS-90485" in Issues.md: GS-90485 (Issues, section): title reads back a	
+C_update_title_legacy1_cr	C	RT_OK		GS-90486	0(=base)	yes	yes		
+C_update_title_legacy1_section_sign	C	RT_OK		GS-90487	0(=base)	yes	yes		
+C_update_title_legacy1_hash_start	C	RT_OK		GS-90488	0(=base)	yes	yes		
+C_update_title_legacy1_dot_start	C	RT_OK		GS-90489	0(=base)	yes	yes		
+C_update_title_legacy1_unicode	C	RT_OK		GS-90490	0(=base)	yes	yes		
+C_update_title_legacy1_long	C	RT_OK		GS-90491	0(=base)	yes	yes		
+C_update_title_legacy1_tab	C	RT_OK		GS-90492	0(=base)	yes	yes		
+C_update_title_legacy1_meta_like	C	RT_OK		GS-90493	0(=base)	yes	yes		
+C_update_title_legacy1_trail_backslash	C	RT_OK		GS-90494	0(=base)	yes	yes		
+C_update_desc_legacy1_plain	C	RT_OK		GS-90495	0(=base)	yes	yes		
+C_update_desc_legacy1_heading_item	C	REFUSED	update_desc	GS-90496	-	-	-	update: refusing (nothing written) — the Markdown of GS-90496 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90496 (Issues, se	
+C_update_desc_legacy1_heading_raw	C	REFUSED	update_desc	GS-90497	-	-	-	update: refusing (nothing written) — the Markdown of GS-90497 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90497 (Issues, se	
+C_update_desc_legacy1_status_line	C	REFUSED	update_desc	GS-90498	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+C_update_desc_legacy1_type_line	C	REFUSED	update_desc	GS-90499	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Type:** Bug\nmore words" would not survive in the Markdown of GS-90499 (Issu	
+C_update_desc_legacy1_severity_line	C	REFUSED	update_desc	GS-90500	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Severity:** Critical\nmore words" would not survive in the Markdown of GS-90	
+C_update_desc_legacy1_subheading	C	RT_OK		GS-90501	0(=base)	yes	yes		
+C_update_desc_legacy1_pipe_row	C	RT_OK		GS-90502	0(=base)	yes	yes		
+C_update_desc_legacy1_repro_line	C	REFUSED	update_desc	GS-90503	-	-	-	update: refusing (nothing written) — the Markdown of GS-90503 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90503 (Issues, se	
+C_update_desc_legacy1_leading_nl	C	RT_OK		GS-90504	0(=base)	yes	yes		
+C_update_desc_legacy1_trail_spaces	C	RT_OK		GS-90505	0(=base)	yes	yes		
+C_update_desc_legacy1_cr_desc	C	RT_OK		GS-90506	0(=base)	yes	yes		
+C_block_details_legacy1_plain	C	RT_OK		GS-90508	1(+1)	yes	yes		
+C_block_why_legacy1_plain	C	RT_OK		GS-90509	1(+1)	yes	yes		
+C_block_unblock_legacy1_plain	C	RT_OK		GS-90510	1(+1)	yes	yes		
+C_block_who_legacy1_plain	C	RT_OK		GS-90511	1(+1)	yes	yes		
+C_close_reopen_legacy1_plain	C	RT_OK		GS-90512	0(=base)	yes	yes		
+C_block_details_legacy1_nl_heading	C	REFUSED	block	GS-90514	-	-	-	block: refusing (nothing written) — the Markdown of GS-90514 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90514 (Issues, sec	
+C_block_why_legacy1_nl_heading	C	REFUSED	block	GS-90515	-	-	-	block: refusing (nothing written) — the Markdown of GS-90515 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90515 (Issues, sec	
+C_block_unblock_legacy1_nl_heading	C	REFUSED	block	GS-90516	-	-	-	block: refusing (nothing written) — the Markdown of GS-90516 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90516 (Issues, sec	
+C_block_who_legacy1_nl_heading	C	REFUSED	block	GS-90517	-	-	-	block: refusing (nothing written) — the Markdown of GS-90517 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90517 (Issues, sec	
+C_close_reopen_legacy1_nl_heading	C	REFUSED	reopen	GS-90518	-	-	-	reopen: refusing (nothing written) — the Markdown of GS-90518 (Issues, section) would not read back as this item on the next sync md-to-db: GS-90518 (Issues, se	
+C_block_details_legacy1_nl_status	C	REFUSED	block	GS-90520	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of GS-90520 (Issues, section): a line i	
+C_block_why_legacy1_nl_status	C	REFUSED	block	GS-90521	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of GS-90521 (Issues, section): a line i	
+C_block_unblock_legacy1_nl_status	C	REFUSED	block	GS-90522	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of GS-90522 (Issues, section): a line i	
+C_block_who_legacy1_nl_status	C	REFUSED	block	GS-90523	-	-	-	block: refusing (nothing written) — the text "blocked\n**Status:** Fixed (→ Fixed.md)" would not survive in the Markdown of GS-90523 (Issues, section): a line i	
+C_close_reopen_legacy1_nl_status	C	REFUSED	reopen	GS-90524	-	-	-	reopen: refusing (nothing written) — the text "/mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/sweep/out_r3/C_close_reopen_legacy1_nl_status/evidence.txt\n**St	
+C_close_legacy1	C	RT_OK		GS-90525	0(=base)	yes	yes		
+D_reopened_update_desc_canon	D	OP_DETAIL_LOSS	update_desc	CON-70526	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_update_desc_status_canon	D	REFUSED	update_desc	CON-70527	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_reopened_update_title_canon	D	RT_OK		CON-70528	0(=base)	yes	yes		
+D_reopened_update_sev_canon	D	RT_OK		CON-70529	0(=base)	yes	no		
+D_reopened_block_canon	D	OP_DETAIL_LOSS	block	CON-70530	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_close_canon	D	OP_DETAIL_LOSS	close	CON-70531	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai	
+D_blocked_update_desc_canon	D	OP_DETAIL_LOSS	update_desc	CON-70532	-	-	-	**Operator-Block-Details:** WHAT: blocked on the operator de	
+D_blocked_update_desc_status_canon	D	REFUSED	update_desc	CON-70533	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_blocked_update_title_canon	D	RT_OK		CON-70534	1(+1)	yes	yes		
+D_blocked_update_sev_canon	D	RT_OK		CON-70535	1(+1)	yes	no		
+D_blocked_block_canon	D	RT_OK		CON-70536	1(+1)	yes	yes		
+D_blocked_close_canon	D	RT_SIDE		CON-70537	0(=base)	yes	yes	before=([('blocked on the operator decision about the sweep', 'no alternative left in t after=([], [])	
+D_reopened_blocked_update_desc_canon	D	OP_DETAIL_LOSS	block	CON-70538	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_desc_status_canon	D	OP_DETAIL_LOSS	block	CON-70539	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_title_canon	D	OP_DETAIL_LOSS	block	CON-70540	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_sev_canon	D	OP_DETAIL_LOSS	block	CON-70541	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_block_canon	D	OP_DETAIL_LOSS	block	CON-70542	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_close_canon	D	OP_DETAIL_LOSS	block	CON-70543	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_obsolete_update_desc_canon	D	OP_DETAIL_LOSS	update_desc	CON-70544	-	-	-	**Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg; **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-o	
+D_obsolete_update_desc_status_canon	D	REFUSED	update_desc	CON-70545	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_obsolete_update_sev_canon	D	RT_OK		CON-70546	0(=base)	yes	no		
+D_reopened_update_desc_legacy	D	OP_DETAIL_LOSS	update_desc	GZ547	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_update_desc_status_legacy	D	REFUSED	update_desc	GZ548	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_reopened_update_title_legacy	D	RT_OK		GZ549	0(=base)	yes	yes		
+D_reopened_update_sev_legacy	D	RT_OK		GZ550	0(=base)	yes	no		
+D_reopened_block_legacy	D	OP_DETAIL_LOSS	block	GZ551	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_close_legacy	D	OP_DETAIL_LOSS	close	GZ552	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai	
+D_blocked_update_desc_legacy	D	OP_DETAIL_LOSS	update_desc	GZ553	-	-	-	**Operator-Block-Details:** WHAT: blocked on the operator de	
+D_blocked_update_desc_status_legacy	D	REFUSED	update_desc	GZ554	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_blocked_update_title_legacy	D	RT_OK		GZ555	1(+1)	yes	yes		
+D_blocked_update_sev_legacy	D	RT_OK		GZ556	1(+1)	yes	no		
+D_blocked_block_legacy	D	RT_OK		GZ557	1(+1)	yes	yes		
+D_blocked_close_legacy	D	RT_SIDE		GZ558	0(=base)	yes	yes	before=([('blocked on the operator decision about the sweep', 'no alternative left in t after=([], [])	
+D_reopened_blocked_update_desc_legacy	D	OP_DETAIL_LOSS	block	GZ559	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_desc_status_legacy	D	OP_DETAIL_LOSS	block	GZ560	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_title_legacy	D	OP_DETAIL_LOSS	block	GZ561	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_sev_legacy	D	OP_DETAIL_LOSS	block	GZ562	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_block_legacy	D	OP_DETAIL_LOSS	block	GZ563	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_close_legacy	D	OP_DETAIL_LOSS	block	GZ564	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_obsolete_update_desc_legacy	D	OP_DETAIL_LOSS	update_desc	GZ565	-	-	-	**Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg; **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-o	
+D_obsolete_update_desc_status_legacy	D	REFUSED	update_desc	GZ566	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_obsolete_update_sev_legacy	D	RT_OK		GZ567	0(=base)	yes	no		
+D_reopened_update_desc_legacy1	D	OP_DETAIL_LOSS	update_desc	GS-90568	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_update_desc_status_legacy1	D	REFUSED	update_desc	GS-90569	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_reopened_update_title_legacy1	D	RT_OK		GS-90570	0(=base)	yes	yes		
+D_reopened_update_sev_legacy1	D	RT_OK		GS-90571	0(=base)	yes	no		
+D_reopened_block_legacy1	D	OP_DETAIL_LOSS	block	GS-90572	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_close_legacy1	D	OP_DETAIL_LOSS	close	GS-90573	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai	
+D_blocked_update_desc_legacy1	D	OP_DETAIL_LOSS	update_desc	GS-90574	-	-	-	**Operator-Block-Details:** WHAT: blocked on the operator de	
+D_blocked_update_desc_status_legacy1	D	REFUSED	update_desc	GS-90575	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_blocked_update_title_legacy1	D	RT_OK		GS-90576	1(+1)	yes	yes		
+D_blocked_update_sev_legacy1	D	RT_OK		GS-90577	1(+1)	yes	no		
+D_blocked_block_legacy1	D	RT_OK		GS-90578	1(+1)	yes	yes		
+D_blocked_close_legacy1	D	RT_SIDE		GS-90579	0(=base)	yes	yes	before=([('blocked on the operator decision about the sweep', 'no alternative left in t after=([], [])	
+D_reopened_blocked_update_desc_legacy1	D	OP_DETAIL_LOSS	block	GS-90580	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_desc_status_legacy1	D	OP_DETAIL_LOSS	block	GS-90581	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_title_legacy1	D	OP_DETAIL_LOSS	block	GS-90582	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_update_sev_legacy1	D	OP_DETAIL_LOSS	block	GS-90583	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_block_legacy1	D	OP_DETAIL_LOSS	block	GS-90584	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_reopened_blocked_close_legacy1	D	OP_DETAIL_LOSS	block	GS-90585	-	-	-	**Reopened-Details:** By: AI On: 2026-11-17 Reason: test-fai; **Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg	
+D_obsolete_update_desc_legacy1	D	OP_DETAIL_LOSS	update_desc	GS-90586	-	-	-	**Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqg; **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-o	
+D_obsolete_update_desc_status_legacy1	D	REFUSED	update_desc	GS-90587	-	-	-	update: refusing (nothing written) — the text "line one of the description words\n**Status:** Fixed (→ Fixed.md)\nmore words" would not survive in the Markdown 	
+D_obsolete_update_sev_legacy1	D	RT_OK		GS-90588	0(=base)	yes	no		

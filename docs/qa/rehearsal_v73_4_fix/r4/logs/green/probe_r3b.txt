@@ -1,0 +1,18 @@
+separator-class cases 700 accepted 0
+--- shape-only job (root=None, the invocation named in CON-423's own job text)
+none/yet                   is a placeholder (none)
+pending/scheduling         is a placeholder (pending)
+to/be/scheduled            is a placeholder (to be)
+not/yet/scheduled          is a placeholder (not yet)
+unknown/later              is a placeholder (unknown)
+nobody/knows               is a placeholder (nobody)
+later/                     is a placeholder (later)
+./pending                  is a placeholder (pending)
+pending.sh                 is a placeholder (pending)
+none.sh                    is a placeholder (none)
+scripts/nonexistent.sh     None
+sometime/maybe             does not name a job (a path, a command with a path or option, or a job id <KEY>-<digits>)
+ask/operator               None
+n.a/n.a                    is a placeholder (na)
+na/na                      is a placeholder (na)
+none/none                  is a placeholder (none)

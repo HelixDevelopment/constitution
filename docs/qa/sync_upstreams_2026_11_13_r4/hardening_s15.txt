@@ -1,0 +1,27 @@
+# Hardening section 15 (n-3 / M70), run standalone with tmp/m70case/run_section15.sh (the section exactly as it is
+# pasted into tests/sync/test_hardening.sh, sourced after fixture_lib.sh and the suite's own fresh()), under the
+# hermetic wrapper. First on the round-4 engine (GREEN), then on the round-4 M70 mutant (SX_ENGINE and
+# SYNC_ENGINE_PY pointing at the mutant copy): 4 checks fail (RED). On the mutant the link is replaced by a regular
+# file (exit 0) and the engine blocks on the FIFO until `timeout 120` stops it (exit 124).
+
+## section 15 on the round-4 engine
+  ok   M70: a real report to link to (exit 0)
+  ok   M70: a symlink to a report of ours: usage exit 2
+  ok   M70: a symlink to a report of ours: named as not ours
+  ok   M70: the symlink is still a symlink
+  ok   M70: the report it points at is unchanged
+  ok   M70: a FIFO at the report path: usage exit 2 (124 = the engine blocked on it)
+  ok   M70: the FIFO is still a FIFO
+  ok   M70 control: a regular report of ours is reused (exit 0)
+sync-hardening-s15: PASS 8 FAIL 0
+
+## section 15 on the round-4 M70 mutant
+  ok   M70: a real report to link to (exit 0)
+  FAIL M70: a symlink to a report of ours: usage exit 2 (expected [2] got [0])
+  FAIL M70: a symlink to a report of ours: named as not ours (missing [was not written by this engine])
+  FAIL M70: the symlink is still a symlink (expected [yes] got [no])
+  ok   M70: the report it points at is unchanged
+  FAIL M70: a FIFO at the report path: usage exit 2 (124 = the engine blocked on it) (expected [2] got [124])
+  ok   M70: the FIFO is still a FIFO
+  ok   M70 control: a regular report of ours is reused (exit 0)
+sync-hardening-s15: PASS 4 FAIL 4

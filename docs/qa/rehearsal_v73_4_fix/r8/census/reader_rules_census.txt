@@ -1,0 +1,11 @@
+markdown-it-py 3.0.0
+commonmark core: normalize block inline text_join
+commonmark block: code fence blockquote hr list reference html_block heading lheading paragraph
+commonmark inline: text newline escape backticks emphasis link image autolink html_inline entity
+commonmark inline2: balance_pairs emphasis fragments_join
+gfm core: normalize block inline text_join
+gfm block: table code fence blockquote hr list reference html_block heading lheading paragraph
+gfm inline: text newline escape backticks strikethrough emphasis link image autolink html_inline entity
+gfm inline2: balance_pairs strikethrough emphasis fragments_join
+positive control 'paragraph' active: True | 'table' active in gfm: True
+negative control 'zzq_rule' active: False | 'linkify' active: False

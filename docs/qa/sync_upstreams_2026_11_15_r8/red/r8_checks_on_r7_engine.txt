@@ -1,0 +1,164 @@
+== autostash
+  ok   autostash.action_fired
+  ok   autostash.head_not_moved
+  ok   autostash.no_stash_created
+  ok   autostash.user_edit_kept
+  ok   autostash.failed_verdict
+  ok   autostash.no_marker_after_answered_failure
+== flock_error
+  ok   flock_error.flock-error-root.exit_1
+  ok   flock_error.flock-error-root.message
+  ok   flock_error.flock-error-root.not_another_run
+  ok   flock_error.flock-error-root.result_failed
+  ok   flock_error.flock-error-repo.exit_1
+  FAIL flock_error.flock-error-repo.message  (sync-upstreams: ERROR: cannot open the run lock /mnt/DATA1TB/claude-work/tmp/helix-sync-robust.flock_error._lrxetss/work/p/.git/modules/libs/a/helix-sync-upstreams.lock (No locks available (inproc_driver: flock-error-repo)); nothing fetched or changed
+)
+  ok   flock_error.flock-error-repo.not_another_run
+  ok   flock_error.flock-error-repo.result_failed
+  ok   flock_error.flock-held-repo.exit_7
+  ok   flock_error.flock-held-repo.message
+== sibling_kill
+  ok   sibling_kill.every_write_held_its_own_marker
+  ok   sibling_kill.exit_1
+  FAIL sibling_kill.one_add_only  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibling_kill.faa4kr9y/work/p/.git/modules/libs/a', 'marker': True, 'own': True, 'planted': False}, {'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibling_kill.faa4kr9y/work/p/.git', 'marker': True, 'own': True, 'planted': False}, {'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibling_kill.faa4kr9y/work/p/.git/modules/libs/b', 'marker': True, 'own': True, 'planted': False}, {'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibling_kill.faa4kr9y/work/p/.git', 'marker': True, 'own': True, 'planted': False}])
+  ok   sibling_kill.a_moved
+  FAIL sibling_kill.b_not_moved  ()
+  FAIL sibling_kill.b_blocked_before_move  ([{'error': "ex.lock': File exists.\n\nAnother git process seems to be running in this repository, e.g.\nan editor opened by 'git commit'. Please make sure all processes\nare terminated then try again. If it still fails, a git process\nmay have crashed in this repository earlier:\nremove the file manually to continue.", 'op': 'advance-pin', 'rc': 0, 'staged_rc': 128, 'to': '21421dd5a0f35660cb9d2b36ff1f9808ad8d9ee6'}])
+  FAIL sibling_kill.marker_kept  ()
+  FAIL sibling_kill.marker_is_the_killed_writes  (None)
+  ok   sibling_kill.lock_left
+  FAIL sibling_kill.later_run_attributes  (['in-progress:index.lock'])
+  FAIL sibling_kill.not_blamed_on_user  (['in-progress:index.lock'])
+  ok   sibling_kill.control.every_write_held_its_own_marker
+  ok   sibling_kill.control_exit_0
+  ok   sibling_kill.control_both_staged
+  ok   sibling_kill.control_nothing_left
+== sibling_wipe
+  ok   sibling_wipe.every_write_held_its_own_marker
+  FAIL sibling_wipe.one_add_only  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibling_wipe.6j7zuu95/work/p/.git/modules/libs/a', 'marker': True, 'own': True, 'planted': False}, {'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibling_wipe.6j7zuu95/work/p/.git', 'marker': True, 'own': True, 'planted': False}, {'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibling_wipe.6j7zuu95/work/p/.git/modules/libs/b', 'marker': True, 'own': True, 'planted': False}, {'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.sibling_wipe.6j7zuu95/work/p/.git', 'marker': True, 'own': True, 'planted': False}])
+  FAIL sibling_wipe.b_not_moved  ()
+  FAIL sibling_wipe.b_blocked_by_state  ([{'error': '', 'op': 'advance-pin', 'rc': 0, 'staged_rc': 0, 'to': '21421dd5a0f35660cb9d2b36ff1f9808ad8d9ee6'}])
+== marker_pre
+  ok   marker_pre.plant-ff.planted
+  FAIL marker_pre.plant-ff.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_0.84vse8tm/work/w/.git': False})
+  FAIL marker_pre.plant-ff.no_write_into_that_git_dir  ([{'sub': 'merge', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_0.84vse8tm/work/w/.git', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.plant-ff.every_write_held_its_own_marker
+  FAIL marker_pre.plant-ff.not_exit_0  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL marker_pre.plant-ff.not_moved  ()
+  FAIL marker_pre.plant-ff.reported  (['None'])
+  ok   marker_pre.plant-pin.planted
+  FAIL marker_pre.plant-pin.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_1.nkw7nj1q/work/p/.git/modules/libs/a': False})
+  FAIL marker_pre.plant-pin.no_write_into_that_git_dir  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_1.nkw7nj1q/work/p/.git/modules/libs/a', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.plant-pin.every_write_held_its_own_marker
+  FAIL marker_pre.plant-pin.not_exit_0  (rc=0 [sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.plant-pin.not_moved  ()
+  FAIL marker_pre.plant-pin.reported  (['None'])
+  ok   marker_pre.plant-follow.planted
+  FAIL marker_pre.plant-follow.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_2.6azshwto/work/p/.git/modules/libs/a': False})
+  FAIL marker_pre.plant-follow.no_write_into_that_git_dir  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_2.6azshwto/work/p/.git/modules/libs/a', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.plant-follow.every_write_held_its_own_marker
+  FAIL marker_pre.plant-follow.not_exit_0  (rc=0 [sync-upstreams] .                                        updated         -
+[sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.plant-follow.not_moved  ()
+  FAIL marker_pre.plant-follow.reported  (['None', 'None'])
+  ok   marker_pre.plant-stage.planted
+  FAIL marker_pre.plant-stage.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_3.5_bttodv/work/p/.git': False})
+  FAIL marker_pre.plant-stage.no_write_into_that_git_dir  ([{'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_3.5_bttodv/work/p/.git', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.plant-stage.every_write_held_its_own_marker
+  FAIL marker_pre.plant-stage.not_exit_0  (rc=0 [sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.plant-stage.reported  (['None'])
+  ok   marker_pre.race-ff.planted
+  FAIL marker_pre.race-ff.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_4.ky2mtnef/work/w/.git': False})
+  FAIL marker_pre.race-ff.no_write_into_that_git_dir  ([{'sub': 'merge', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_4.ky2mtnef/work/w/.git', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.race-ff.every_write_held_its_own_marker
+  FAIL marker_pre.race-ff.not_exit_0  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL marker_pre.race-ff.not_moved  ()
+  FAIL marker_pre.race-ff.reported  (['None'])
+  ok   marker_pre.race-pin.planted
+  FAIL marker_pre.race-pin.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_5.y1lex4t5/work/p/.git/modules/libs/a': False})
+  FAIL marker_pre.race-pin.no_write_into_that_git_dir  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_5.y1lex4t5/work/p/.git/modules/libs/a', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.race-pin.every_write_held_its_own_marker
+  FAIL marker_pre.race-pin.not_exit_0  (rc=0 [sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.race-pin.not_moved  ()
+  FAIL marker_pre.race-pin.reported  (['None'])
+  ok   marker_pre.race-follow.planted
+  FAIL marker_pre.race-follow.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_6.k0h4xv5c/work/p/.git/modules/libs/a': False})
+  FAIL marker_pre.race-follow.no_write_into_that_git_dir  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_6.k0h4xv5c/work/p/.git/modules/libs/a', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.race-follow.every_write_held_its_own_marker
+  FAIL marker_pre.race-follow.not_exit_0  (rc=0 [sync-upstreams] .                                        updated         -
+[sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.race-follow.not_moved  ()
+  FAIL marker_pre.race-follow.reported  (['None', 'None'])
+  ok   marker_pre.race-stage.planted
+  FAIL marker_pre.race-stage.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_7.7uv5pem6/work/p/.git': False})
+  FAIL marker_pre.race-stage.no_write_into_that_git_dir  ([{'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_7.7uv5pem6/work/p/.git', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.race-stage.every_write_held_its_own_marker
+  FAIL marker_pre.race-stage.not_exit_0  (rc=0 [sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.race-stage.reported  (['None'])
+  ok   marker_pre.swap-ff.planted
+  FAIL marker_pre.swap-ff.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_8.ryrhmdlg/work/w/.git': False})
+  FAIL marker_pre.swap-ff.no_write_into_that_git_dir  ([{'sub': 'merge', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_8.ryrhmdlg/work/w/.git', 'marker': True, 'own': False, 'planted': True}])
+  FAIL marker_pre.swap-ff.every_write_held_its_own_marker  ([{'sub': 'merge', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_8.ryrhmdlg/work/w/.git', 'marker': True, 'own': False, 'planted': True}])
+  FAIL marker_pre.swap-ff.not_exit_0  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL marker_pre.swap-ff.not_moved  ()
+  FAIL marker_pre.swap-ff.reported  (['None'])
+  ok   marker_pre.swap-pin.planted
+  FAIL marker_pre.swap-pin.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_9.8zz6taj5/work/p/.git/modules/libs/a': False})
+  FAIL marker_pre.swap-pin.no_write_into_that_git_dir  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_9.8zz6taj5/work/p/.git/modules/libs/a', 'marker': True, 'own': False, 'planted': True}])
+  FAIL marker_pre.swap-pin.every_write_held_its_own_marker  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_9.8zz6taj5/work/p/.git/modules/libs/a', 'marker': True, 'own': False, 'planted': True}])
+  FAIL marker_pre.swap-pin.not_exit_0  (rc=0 [sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.swap-pin.not_moved  ()
+  FAIL marker_pre.swap-pin.reported  (['None'])
+  ok   marker_pre.swap-follow.planted
+  FAIL marker_pre.swap-follow.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_10.ejqjv8v6/work/p/.git/modules/libs/a': False})
+  FAIL marker_pre.swap-follow.no_write_into_that_git_dir  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_10.ejqjv8v6/work/p/.git/modules/libs/a', 'marker': True, 'own': False, 'planted': True}])
+  FAIL marker_pre.swap-follow.every_write_held_its_own_marker  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_10.ejqjv8v6/work/p/.git/modules/libs/a', 'marker': True, 'own': False, 'planted': True}])
+  FAIL marker_pre.swap-follow.not_exit_0  (rc=0 [sync-upstreams] .                                        updated         -
+[sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.swap-follow.not_moved  ()
+  FAIL marker_pre.swap-follow.reported  (['None', 'None'])
+  ok   marker_pre.swap-stage.planted
+  FAIL marker_pre.swap-stage.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_11.z8e6n6tf/work/p/.git': False})
+  FAIL marker_pre.swap-stage.no_write_into_that_git_dir  ([{'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_11.z8e6n6tf/work/p/.git', 'marker': True, 'own': False, 'planted': True}])
+  FAIL marker_pre.swap-stage.every_write_held_its_own_marker  ([{'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_11.z8e6n6tf/work/p/.git', 'marker': True, 'own': False, 'planted': True}])
+  FAIL marker_pre.swap-stage.not_exit_0  (rc=0 [sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.swap-stage.reported  (['None'])
+  ok   marker_pre.plant-pinparent.planted
+  FAIL marker_pre.plant-pinparent.foreign_marker_intact  ({'/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_12.wlu383pz/work/p/.git': False})
+  FAIL marker_pre.plant-pinparent.no_write_into_that_git_dir  ([{'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.pre_12.wlu383pz/work/p/.git', 'marker': True, 'own': True, 'planted': False}])
+  ok   marker_pre.plant-pinparent.every_write_held_its_own_marker
+  FAIL marker_pre.plant-pinparent.not_exit_0  (rc=0 [sync-upstreams] libs/a                                   updated         -
+)
+  FAIL marker_pre.plant-pinparent.not_moved  ()
+  FAIL marker_pre.plant-pinparent.reported  (['None'])
+== stop_pin
+  ok   stop_pin.every_write_held_its_own_marker
+  ok   stop_pin.exit_8
+  ok   stop_pin.add_ran
+  ok   stop_pin.staged_s2
+  ok   stop_pin.nothing_left
+== parent_lock
+  ok   parent_lock.not_exit_0
+  FAIL parent_lock.child_not_moved  ()
+  FAIL parent_lock.no_write_started  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.parent_lock.f1ws18e3/work/p/.git/modules/libs/a', 'marker': True, 'own': True, 'planted': False}, {'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.parent_lock.f1ws18e3/work/p/.git', 'marker': True, 'own': True, 'planted': False}])
+  FAIL parent_lock.blocked_before_move  ([{'error': "ex.lock': File exists.\n\nAnother git process seems to be running in this repository, e.g.\nan editor opened by 'git commit'. Please make sure all processes\nare terminated then try again. If it still fails, a git process\nmay have crashed in this repository earlier:\nremove the file manually to continue.", 'op': 'advance-pin', 'rc': 0, 'staged_rc': 128, 'to': 'fd7c8736d03caedcb8dc14f4b40677744da21db1'}])
+  ok   parent_lock.lock_kept
+  ok   parent_lock.late.exit_1
+  FAIL parent_lock.late.no_add_started  ([{'sub': 'checkout', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.parent_lock_late.u30gyeev/work/p/.git/modules/libs/a', 'marker': True, 'own': True, 'planted': False}, {'sub': 'add', 'gitdir': '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.parent_lock_late.u30gyeev/work/p/.git', 'marker': True, 'own': True, 'planted': False}])
+  FAIL parent_lock.late.stage_blocked_reported  ([{'error': "ex.lock': File exists.\n\nAnother git process seems to be running in this repository, e.g.\nan editor opened by 'git commit'. Please make sure all processes\nare terminated then try again. If it still fails, a git process\nmay have crashed in this repository earlier:\nremove the file manually to continue.", 'op': 'advance-pin', 'rc': 0, 'staged_rc': 128, 'to': 'fd7c8736d03caedcb8dc14f4b40677744da21db1'}])
+  ok   parent_lock.late.child_failed
+  ok   parent_lock.late.lock_kept_no_marker
+sync-robustness: PASS 56 FAIL 82
+rc=1

@@ -1,0 +1,186 @@
+# shape oracle (tests/workable_items/test_secret_shapes.py) run on the round-7 lint (b3e3142b), labels only
+FAIL shape rv-pos-php-define (got none, want argument-pair)
+FAIL shape rv-pos-getenv-default-py (got none, want argument-pair)
+FAIL shape rv-pos-getenv-default-go (got none, want argument-pair)
+FAIL shape rv-pos-setter-java (got none, want setter-call)
+PASS shape rv-pos-ctor-kw-space
+FAIL shape rv-pos-dotnet-appsettings (got none, want xml-attribute-pair)
+FAIL shape rv-pos-xml-entry-key (got none, want xml-attribute-pair)
+FAIL shape rv-pos-mysql-p-joined (got none, want short-flag-value)
+FAIL shape rv-pos-sshpass-p (got none, want short-flag-value)
+FAIL shape rv-pos-curl-u (got none, want short-flag-value)
+FAIL shape rv-pos-value-with-other-quote (got none, want password-assign)
+FAIL shape rv-pos-value-with-backslash-json (got none, want password-assign)
+FAIL shape rv-pos-value-unicode-escape (got none, want password-assign)
+FAIL shape rv-pos-yaml-block-scalar (got none, want yaml-block-scalar)
+FAIL shape rv-pos-yaml-folded (got none, want yaml-block-scalar)
+FAIL shape rv-pos-urlencoded-eq (got none, want password-assign-unquoted)
+PASS shape rv-pos-json-escaped-colon
+FAIL shape rv-pos-homoglyph-cyrillic-a (got none, want password-assign-unquoted)
+FAIL shape rv-pos-zwsp-inside-key (got none, want password-assign-unquoted)
+FAIL shape rv-pos-soft-hyphen-key (got none, want password-assign-unquoted)
+FAIL shape rv-pos-tag-char-key (got none, want password-assign-unquoted)
+PASS shape rv-pos-nbsp-separator
+PASS shape rv-pos-ideographic-space-flag
+PASS shape rv-pos-fullwidth-equals
+PASS shape rv-pos-math-bold-key
+PASS shape rv-pos-circled-letters
+PASS shape rv-pos-tab-separator
+PASS shape rv-pos-crlf-line
+PASS shape rv-pos-value-starts-hash
+FAIL shape rv-pos-value-starts-dollar-literal (got none, want password-assign)
+PASS shape rv-pos-value-starts-gt
+PASS shape rv-pos-value-7-chars
+PASS shape rv-pos-pwd-letters-only
+PASS shape rv-pos-pass-colon-quoted-special
+PASS shape rv-pos-special-chars-unquoted
+PASS shape rv-pos-special-in-url
+PASS shape rv-pos-url-digits-pw
+FAIL shape rv-pos-url-upper-scheme (got none, want url-userinfo-password)
+PASS shape rv-pos-key-word
+PASS shape rv-pos-pin-key
+PASS shape rv-pos-cookie-session
+PASS shape rv-pos-bearer-short
+PASS shape rv-pos-x-api-key-lower
+PASS shape rv-pos-token-letters-colon
+FAIL shape rv-pos-pgpass-line (got none, want pgpass-line)
+PASS shape rv-pos-kubectl-flag
+FAIL shape rv-pos-env-json-array (got none, want argument-pair)
+PASS shape rv-pos-ini-quoted-semicolon
+PASS shape rv-pos-passwd-key
+PASS shape rv-pos-auth-token-camel
+PASS shape rv-pos-secretKey-camel
+PASS shape rv-neg-env-ref
+PASS shape rv-neg-brace-ref
+PASS shape rv-neg-mask
+PASS shape rv-neg-placeholder-angle
+FAIL shape rv-neg-placeholder-upper (got password-assign-unquoted, want none; negative)
+FAIL shape rv-neg-placeholder-changeme (got password-assign-unquoted, want none; negative)
+FAIL shape rv-neg-your-api-key-here (got password-assign-unquoted, want none; negative)
+FAIL shape rv-neg-prose-required (got password-colon-unquoted, want none; negative)
+FAIL shape rv-neg-prose-optional (got password-colon-unquoted, want none; negative)
+FAIL shape rv-neg-py-environ (got password-assign-unquoted, want none; negative)
+FAIL shape rv-neg-py-getpass (got password-assign-unquoted, want none; negative)
+FAIL shape rv-neg-py-request-form (got password-assign-unquoted, want none; negative)
+FAIL shape rv-neg-py-settings (got password-assign-unquoted, want none; negative)
+FAIL shape rv-neg-py-gen-token (got password-assign-unquoted, want none; negative)
+FAIL shape rv-neg-passwd-path (got password-colon-unquoted, want none; negative)
+PASS shape rv-neg-nsswitch
+PASS shape rv-neg-password-hash-col
+PASS shape rv-neg-passwordless
+PASS shape rv-neg-password-reset-url
+PASS shape rv-neg-flag-file
+PASS shape rv-neg-flag-ref
+PASS shape rv-neg-gh-actions
+PASS shape rv-neg-jinja
+PASS shape rv-neg-pyformat
+PASS shape rv-neg-auth-true
+PASS shape rv-neg-pass-label
+PASS shape rv-neg-bypass
+PASS shape rv-neg-compass
+PASS shape rv-neg-prose-is
+FAIL shape rv-neg-prose-policy (got password-space, want none; negative)
+PASS shape rv-neg-netrc-prose
+PASS shape rv-neg-xml-ref
+PASS shape rv-neg-xml-example
+PASS shape rv-neg-url-port
+FAIL shape rv-neg-url-host-port-placeholder (got url-userinfo-password, want none; negative)
+FAIL shape rv-neg-url-ipv6 (got url-userinfo-password, want none; negative)
+PASS shape rv-neg-url-env
+PASS shape rv-neg-url-gh-actions
+PASS shape rv-neg-ssh-git
+PASS shape rv-neg-mailto
+PASS shape rv-neg-token-prose
+PASS shape rv-neg-fat-arrow-short
+PASS shape rv-neg-test-name
+PASS shape rv-neg-css-class
+PASS shape rv-neg-i18n-key
+PASS shape rv-neg-sql-column
+PASS shape rv-neg-docs-flag-usage
+PASS shape rv-neg-kv-none
+PASS shape rv-neg-pass-through
+FAIL shape rv-neg-credentials-path (got password-colon-unquoted, want none; negative)
+FAIL shape rv-neg-credentials-file (got password-assign-unquoted, want none; negative)
+PASS shape rv-neg-api-key-header-name
+FAIL shape rv-bs-dq-backslash-mid (got none, want password-assign)
+FAIL shape rv-bs-json-escaped-bs (got none, want password-assign)
+FAIL shape rv-bs-json-u-escape (got none, want password-assign)
+FAIL shape rv-bs-yaml-dq-escape (got none, want password-assign)
+FAIL shape rv-bs-sq-backslash (got none, want password-assign)
+FAIL shape rv-bs-api-key-json-bs (got none, want password-assign)
+FAIL shape own-bs-backtick (got none, want password-assign)
+FAIL shape own-bs-single-mid (got none, want password-assign)
+FAIL shape own-bs-escaped-quote-inside (got none, want password-assign)
+PASS shape own-bs-unquoted-mid
+FAIL shape own-bs-short-key (got none, want short-key-assign)
+FAIL shape own-bs-json-in-string (got none, want password-assign)
+PASS shape own-bs-ref-still-ref
+FAIL shape own-argpair-sq (got none, want argument-pair)
+FAIL shape own-argpair-backtick (got none, want argument-pair)
+FAIL shape own-argpair-short (got none, want argument-pair)
+PASS shape own-argpair-empty-default
+PASS shape own-argpair-placeholder
+PASS shape own-argpair-word-key
+PASS shape own-argpair-message
+PASS shape own-argpair-generic-letters
+FAIL shape own-setter-snake (got none, want setter-call)
+PASS shape own-setter-ref
+PASS shape own-setter-builder
+FAIL shape own-xmlattr-param-name (got none, want xml-attribute-pair)
+PASS shape own-xmlattr-ref
+PASS shape own-xmlattr-other-key
+PASS shape own-xmlattr-entry-mismatch
+FAIL shape own-shortflag-mysqldump (got none, want short-flag-value)
+PASS shape own-shortflag-mysql-prompt
+PASS shape own-shortflag-mysql-port
+FAIL shape own-shortflag-sshpass-joined (got none, want short-flag-value)
+PASS shape own-shortflag-sshpass-env
+FAIL shape own-shortflag-curl-user (got none, want short-flag-value)
+PASS shape own-shortflag-curl-ref
+FAIL shape own-yaml-literal-keep (got none, want yaml-block-scalar)
+FAIL shape own-yaml-generic (got none, want yaml-block-scalar)
+PASS shape own-yaml-ref
+PASS shape own-yaml-generic-letters
+FAIL shape own-pgpass-star (got none, want pgpass-line)
+PASS shape own-pgpass-time
+FAIL shape own-pct-key (got none, want password-assign-unquoted)
+FAIL shape own-pct-colon (got none, want password-colon-unquoted)
+PASS shape own-pct-ref
+PASS shape own-url-mixed-scheme
+PASS shape own-url-upper-mask
+PASS shape own-url-xmask
+FAIL shape own-zwnj-key (got none, want password-assign-unquoted)
+FAIL shape own-bidi-key (got none, want password-assign-unquoted)
+PASS shape own-bom-key
+FAIL shape own-greek-omicron (got none, want password-assign-unquoted)
+FAIL shape own-cyrillic-upper (got none, want password-assign-unquoted)
+PASS shape own-cyrillic-prose
+PASS shape own-armenian-lookalike
+PASS shape own-dollar-literal-ref-upper
+PASS shape own-dollar-literal-ref-lower
+PASS shape own-dollar-literal-dq
+FAIL shape own-code-call-arg (got password-assign-unquoted, want none; negative)
+PASS shape own-code-attr-digit
+FAIL shape own-placeholder-here (got password-assign-unquoted, want none; negative)
+FAIL shape own-placeholder-my (got password-assign-unquoted, want none; negative)
+FAIL shape own-path-dot (got password-assign-unquoted, want none; negative)
+FAIL shape own-path-quoted (got password-assign, want none; B13)
+PASS shape own-space-upper
+FAIL shape own-space-title-prose (got password-space, want none; B14)
+PASS shape own-rl5-tab-space
+PASS shape own-rl5-tab-flag
+PASS shape own-rl3-no-space
+PASS shape own-rl4-xml-mismatch
+PASS shape own-rl6-digits-colon
+PASS shape own-rl6-digits-flag
+PASS shape own-rl6-digits-xml
+PASS shape own-rl7-url-xmask-upper
+PASS shape own-rl8-joined-dashes
+PASS shape own-rl10-two-rules
+FAIL shape own-rl10-three-rules (got password-assign-unquoted,password-flag-space, want password-assign-unquoted,password-flag-space,xml-attribute-pair)
+PASS shape own-spaced-value
+PASS shape own-secret-colon
+FAIL shape own-netrc (got password-netrc,password-space, want password-netrc)
+PASS shape own-xml-element
+FAIL rule inventory: the lint has no KEYED_EXTRACTORS list
+RESULT: pass=108 fail=76 rows=183

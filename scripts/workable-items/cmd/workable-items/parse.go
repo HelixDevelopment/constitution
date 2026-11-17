@@ -18,7 +18,7 @@ import (
 // distinguishes item headings from structural headings like
 // `## Prefix convention`. This is the ORIGINAL, backward-compatible form and
 // is recognised unconditionally (no Status-block requirement).
-var issueHeadingRe = regexp.MustCompile(`^## ([A-Z]{3}-[0-9A-Za-z]+)(?: \([^)]*\))? — (.+)$`)
+var issueHeadingRe = regexp.MustCompile(`^## (` + canonicalIDPattern + `)(?: \([^)]*\))? — (.+)$`)
 
 // atmBracketIDRe matches a project-neutral `[PREFIX-NNN]` ticket id appearing
 // anywhere in a heading line, e.g. `## §GL CRITICAL — [ATM-238] title …` or
@@ -29,7 +29,7 @@ var issueHeadingRe = regexp.MustCompile(`^## ([A-Z]{3}-[0-9A-Za-z]+)(?: \([^)]*\
 // Shape-1/Shape-3 heading whose real id is bracketed silently falls through to
 // the section-letter code or a content-hash pseudo-id, producing phantom sync
 // divergences.
-var atmBracketIDRe = regexp.MustCompile(`\[([A-Z]{2,}-\d+)\]`)
+var atmBracketIDRe = regexp.MustCompile(`\[(` + bracketIDPattern + `)\]`)
 
 // atmCandidateHeadingRe recognises a consuming project's real tracker heading
 // SHAPES that MAY be workable items (subject to the Status-block test below).
@@ -56,8 +56,8 @@ var atmBracketIDRe = regexp.MustCompile(`\[([A-Z]{2,}-\d+)\]`)
 // Backward-compat note: the canonical `## ABC-123 — …` form is handled by
 // issueHeadingRe FIRST and never reaches this path.
 var (
-	atmShape1HeadingRe = regexp.MustCompile(`^## [A-Z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)?\. \S`)
-	atmShape2HeadingRe = regexp.MustCompile(`^## \[[A-Z]{2,}-\d+\] \S`)
+	atmShape1HeadingRe = regexp.MustCompile(`^## ` + legacyCodePattern + `\. \S`)
+	atmShape2HeadingRe = regexp.MustCompile(`^## \[` + bracketIDPattern + `\] \S`)
 	atmShape3HeadingRe = regexp.MustCompile(`^## §\S`)
 )
 
@@ -77,16 +77,9 @@ func isATMCandidateHeading(trimmed string) bool {
 // Status only under a nested `### `, so they correctly fail this test and stay
 // raw. `body` is the verbatim H2 block (already cut at the next `## ` / EOF).
 func statusBeforeSubheading(body string) bool {
-	for _, ln := range splitKeepNewlines(body) {
-		t := strings.TrimRight(ln, "\n")
-		if isSubItemHeading(t) {
-			return false
-		}
-		if strings.HasPrefix(t, "**Status:**") {
-			return true
-		}
-	}
-	return false
+	// CON-456 round 6: a fenced line is quoted text (ownlines.go).
+	r := newOwnRegion(splitKeepNewlines(body))
+	return r.firstIdx("**Status:**", 0) >= 0
 }
 
 // isSubItemHeading reports whether a newline-trimmed line opens a NESTED
@@ -114,12 +107,9 @@ func isSubItemHeading(trimmed string) bool {
 // own `Fixed (→ Fixed.md)`/`Bug` was displaced by its last sub-item's
 // `Completed (→ Fixed.md)`/`Task`, breaking §11.4.33 Status↔Type pairing).
 func ownMetaRegionLineCount(lines []string) int {
-	for i, ln := range lines {
-		if isSubItemHeading(strings.TrimRight(ln, "\n")) {
-			return i
-		}
-	}
-	return len(lines)
+	// CON-456 round 6: a `### ` line inside a fenced code block is quoted text,
+	// not a nested sub-item (ownlines.go).
+	return newOwnRegion(lines).limit
 }
 
 // itemOwnMetaRegion returns the prefix of an item's block that belongs to the
@@ -128,11 +118,12 @@ func ownMetaRegionLineCount(lines []string) int {
 // overwhelmingly common case.
 func itemOwnMetaRegion(body string) string {
 	lines := splitKeepNewlines(body)
-	n := ownMetaRegionLineCount(lines)
-	if n == len(lines) {
-		return body
+	r := newOwnRegion(lines)
+	// CON-456 round 6: fenced lines are blanked (never metadata, ownlines.go).
+	if r.limit == len(lines) {
+		return blankFenced(body)
 	}
-	return strings.Join(lines[:n], "")
+	return blankFenced(strings.Join(lines[:r.limit], ""))
 }
 
 // metaLineRe extracts `**Key:** value` metadata lines from an item body.
@@ -159,6 +150,9 @@ func splitKeepNewlines(s string) []string {
 // parseIssues decomposes Issues.md into items + segments.
 func parseIssues(content string) ([]item, []segment) {
 	lines := splitKeepNewlines(content)
+	// CON-456 round 6: a `## ` line inside a fenced code block is quoted text,
+	// never an item heading and never the end of an item's block.
+	fenced := fencedMask(lines)
 	var items []item
 	var segs []segment
 	seq := 0
@@ -179,8 +173,11 @@ func parseIssues(content string) ([]item, []segment) {
 	for i < len(lines) {
 		trimmed := strings.TrimRight(lines[i], "\n")
 
-		canonical := issueHeadingRe.FindStringSubmatch(trimmed)
-		atmShaped := canonical == nil && isATMCandidateHeading(trimmed)
+		var canonical []string
+		if !fenced[i] {
+			canonical = issueHeadingRe.FindStringSubmatch(trimmed)
+		}
+		atmShaped := !fenced[i] && canonical == nil && isATMCandidateHeading(trimmed)
 
 		if canonical == nil && !atmShaped {
 			rawBuf.WriteString(lines[i])
@@ -197,7 +194,7 @@ func parseIssues(content string) ([]item, []segment) {
 		i++
 		for i < len(lines) {
 			lt := strings.TrimRight(lines[i], "\n")
-			if strings.HasPrefix(lt, "## ") {
+			if !fenced[i] && strings.HasPrefix(lt, "## ") {
 				break
 			}
 			block.WriteString(lines[i])
@@ -250,8 +247,8 @@ func parseIssues(content string) ([]item, []segment) {
 // project-decoupling — see atmBracketIDRe / atmShape2HeadingRe); atmShape3CodeRe
 // captures the §-code token.
 var (
-	atmShape1CodeRe = regexp.MustCompile(`^([A-Z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)?)\. (.*)$`)
-	atmShape2CodeRe = regexp.MustCompile(`^\[([A-Z]{2,}-\d+)\] (.*)$`)
+	atmShape1CodeRe = regexp.MustCompile(`^(` + legacyCodePattern + `)\. (.*)$`)
+	atmShape2CodeRe = regexp.MustCompile(`^\[(` + bracketIDPattern + `)\] (.*)$`)
 	atmShape3CodeRe = regexp.MustCompile(`^§(\S+)\s*(.*)$`)
 )
 
@@ -556,21 +553,14 @@ func canonicalizeBodyStatusLine(body, columnStatus string) string {
 	// ATM-842: the patch target is the item's OWN Status line. Scanning the
 	// whole block rewrote the LAST NESTED SUB-ITEM's Status line instead —
 	// corrupting the sub-item while leaving the item's own line stale.
-	limit := ownMetaRegionLineCount(lines)
-	lastIdx := -1
-	for i := 0; i < limit; i++ {
-		if strings.HasPrefix(strings.TrimRight(lines[i], "\n"), "**Status:**") {
-			lastIdx = i
-		}
-	}
+	// CON-456 round 6: and never a line inside a fenced code block; the line
+	// is the one the parser reads (ownlines.go statusIdx).
+	lastIdx := newOwnRegion(lines).statusIdx()
 	if lastIdx < 0 {
 		return body // defensive: lastBodyStatus said a Status line exists → unreachable
 	}
-	nl := ""
-	if strings.HasSuffix(lines[lastIdx], "\n") {
-		nl = "\n"
-	}
-	lines[lastIdx] = "**Status:** " + columnStatus + nl
+	// The line keeps its own ending (CRLF stays CRLF, round 6 review M2).
+	lines[lastIdx] = "**Status:** " + columnStatus + eolOf(lines[lastIdx])
 	return strings.Join(lines, "")
 }
 
@@ -630,43 +620,10 @@ type operatorBlock struct {
 // operator_block_details sub-table), so this reconstruction cannot perturb the
 // byte-identical md↔db round-trip.
 func parseOperatorBlockDetails(body string) (operatorBlock, bool) {
-	lines := strings.Split(body, "\n")
-	start := -1
-	for i, ln := range lines {
-		if strings.HasPrefix(strings.TrimSpace(ln), "**Operator-Block-Details") {
-			start = i
-			break
-		}
-	}
-	if start < 0 {
+	blockText, choices, ok := operatorBlockParts(body)
+	if !ok {
 		return operatorBlock{}, false
 	}
-	// Capture the marker line + continuation lines up to the first blank line,
-	// sibling `**Label:**` field, heading, or `---` separator. Bullet lines
-	// (`- …` / `* …`) are continuation, NOT siblings, so they are included.
-	block := []string{lines[start]}
-	for j := start + 1; j < len(lines); j++ {
-		t := strings.TrimSpace(lines[j])
-		if t == "" ||
-			(strings.HasPrefix(t, "**") && strings.Contains(t, ":**")) ||
-			strings.HasPrefix(t, "## ") || strings.HasPrefix(t, "### ") ||
-			strings.HasPrefix(t, "---") {
-			break
-		}
-		block = append(block, lines[j])
-	}
-	blockText := strings.TrimSpace(strings.Join(block, "\n"))
-
-	// A separate `**Unblock-Choices:**` line (ATM-015/356) carries the enumerated
-	// [A]…·[B]… choices OUTSIDE the OBD block; fold it into the unblock text so
-	// the §11.4.148 D3 enumerated-choice assertion sees it.
-	choices := ""
-	for _, mm := range metaLineRe.FindAllStringSubmatch(body, -1) {
-		if strings.EqualFold(mm[1], "Unblock-Choices") {
-			choices = strings.TrimSpace(mm[2])
-		}
-	}
-
 	ob := operatorBlock{
 		what: firstNonEmpty(extractOBDField(blockText, "WHAT"), blockText),
 		why:  firstNonEmpty(extractOBDField(blockText, "WHY"), blockText),
@@ -682,6 +639,62 @@ func parseOperatorBlockDetails(body string) (operatorBlock, bool) {
 	parts = append(parts, blockText) // safety net: the whole block (its bullets satisfy the enumeration check)
 	ob.unblock = strings.TrimSpace(strings.Join(parts, "\n"))
 	return ob, true
+}
+
+// operatorBlockSource is every part of body that parseOperatorBlockDetails
+// reads (the block text and the `**Unblock-Choices:**` value), joined into one
+// comparable string; ok is false when body carries no block. Two bodies with
+// the same source give the same derived row (obdSnapshot, CON-456 round 3).
+func operatorBlockSource(body string) (string, bool) {
+	blockText, choices, ok := operatorBlockParts(body)
+	if !ok {
+		return "", false
+	}
+	return choices + "\x00" + blockText, true
+}
+
+// operatorBlockParts captures the block text and the Unblock-Choices value of
+// a body (see parseOperatorBlockDetails).
+func operatorBlockParts(body string) (blockText, choices string, ok bool) {
+	// CON-456 round 6: a record line inside a fenced code block is quoted text
+	// (ownlines.go); the fenced lines are blanked before either read.
+	body = blankFenced(body)
+	lines := strings.Split(body, "\n")
+	start := -1
+	for i, ln := range lines {
+		if strings.HasPrefix(strings.TrimSpace(ln), "**Operator-Block-Details") {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return "", "", false
+	}
+	// Capture the marker line + continuation lines up to the first blank line,
+	// sibling `**Label:**` field, heading, or `---` separator. Bullet lines
+	// (`- …` / `* …`) are continuation, NOT siblings, so they are included.
+	block := []string{lines[start]}
+	for j := start + 1; j < len(lines); j++ {
+		t := strings.TrimSpace(lines[j])
+		if t == "" ||
+			(strings.HasPrefix(t, "**") && strings.Contains(t, ":**")) ||
+			strings.HasPrefix(t, "## ") || strings.HasPrefix(t, "### ") ||
+			strings.HasPrefix(t, "---") {
+			break
+		}
+		block = append(block, lines[j])
+	}
+	blockText = strings.TrimSpace(strings.Join(block, "\n"))
+
+	// A separate `**Unblock-Choices:**` line (ATM-015/356) carries the enumerated
+	// [A]…·[B]… choices OUTSIDE the OBD block; fold it into the unblock text so
+	// the §11.4.148 D3 enumerated-choice assertion sees it.
+	for _, mm := range metaLineRe.FindAllStringSubmatch(body, -1) {
+		if strings.EqualFold(mm[1], "Unblock-Choices") {
+			choices = strings.TrimSpace(mm[2])
+		}
+	}
+	return blockText, choices, true
 }
 
 // extractOBDField pulls the text of a single §11.4.21 field (key one of
@@ -758,7 +771,7 @@ func isOBDWordChar(b byte) bool {
 var fixedRowRe = regexp.MustCompile(`^\| *([0-9]{4}-[0-9]{2}-[0-9]{2}) *\| *(.*?) *\| *([^|]*?) *\| *([^|]*?) *\| *([^|]*?) *\| *(.*?) *\| *(.*?) *\|\s*$`)
 
 // fixedTitleIDRe pulls the leading ticket id out of a Fixed.md title cell.
-var fixedTitleIDRe = regexp.MustCompile(`^([A-Z]{3}-[0-9A-Za-z]+)(?: \([^)]*\))?`)
+var fixedTitleIDRe = regexp.MustCompile(`^(` + canonicalIDPattern + `)(?: \([^)]*\))?`)
 
 // parseFixed decomposes Fixed.md into items + segments. The REAL Fixed.md uses
 // the SAME H2-heading + `**Status:**` metadata-block shape as Issues.md (the
@@ -770,6 +783,8 @@ var fixedTitleIDRe = regexp.MustCompile(`^([A-Z]{3}-[0-9A-Za-z]+)(?: \([^)]*\))?
 // + raw segments reassemble the source exactly.
 func parseFixed(content string) ([]item, []segment) {
 	lines := splitKeepNewlines(content)
+	// CON-456 round 6: see parseIssues (fenced `## ` lines are quoted text).
+	fenced := fencedMask(lines)
 	var items []item
 	var segs []segment
 	seq := 0
@@ -794,8 +809,11 @@ func parseFixed(content string) ([]item, []segment) {
 	for i < len(lines) {
 		trimmed := strings.TrimRight(lines[i], "\n")
 
-		canonical := issueHeadingRe.FindStringSubmatch(trimmed)
-		atmShaped := canonical == nil && isATMCandidateHeading(trimmed)
+		var canonical []string
+		if !fenced[i] {
+			canonical = issueHeadingRe.FindStringSubmatch(trimmed)
+		}
+		atmShaped := !fenced[i] && canonical == nil && isATMCandidateHeading(trimmed)
 
 		if canonical == nil && !atmShaped {
 			rawBuf.WriteString(lines[i])
@@ -811,7 +829,7 @@ func parseFixed(content string) ([]item, []segment) {
 		i++
 		for i < len(lines) {
 			lt := strings.TrimRight(lines[i], "\n")
-			if strings.HasPrefix(lt, "## ") {
+			if !fenced[i] && strings.HasPrefix(lt, "## ") {
 				break
 			}
 			block.WriteString(lines[i])
@@ -869,9 +887,14 @@ func emitLegacyTable(raw string, items *[]item, segs *[]segment, seq *int, seenI
 		buf.Reset()
 	}
 
-	for _, ln := range splitKeepNewlines(raw) {
+	rawLines := splitKeepNewlines(raw)
+	rawFenced := fencedMask(rawLines) // CON-456 round 6: a quoted row is text
+	for li, ln := range rawLines {
 		trimmed := strings.TrimRight(ln, "\n")
-		m := fixedRowRe.FindStringSubmatch(trimmed)
+		var m []string
+		if !rawFenced[li] {
+			m = fixedRowRe.FindStringSubmatch(trimmed)
+		}
 		if m == nil {
 			buf.WriteString(ln)
 			continue

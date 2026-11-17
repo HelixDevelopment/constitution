@@ -1,0 +1,1 @@
+/hx="\$headc"$/s/diff --cached --quiet/diff --quiet/

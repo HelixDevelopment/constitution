@@ -1,0 +1,150 @@
+== race_commit
+  ok   race_commit.action_fired
+  ok   race_commit.user_commit_still_checked_out
+  ok   race_commit.not_reported_updated
+  ok   race_commit.run_not_applied
+  ok   race_commit.refusal_recorded
+== race_switch
+  ok   race_switch.action_fired
+  ok   race_switch.topic_not_moved
+  ok   race_switch.main_not_moved
+  ok   race_switch.run_not_applied
+  ok   race_switch.refusal_recorded
+== race_sub_branch
+  ok   race_sub_branch.action_fired
+  ok   race_sub_branch.submodule_still_on_branch
+  ok   race_sub_branch.head_not_moved
+== race_control
+  ok   race_control.user_commit_kept_on_main
+  ok   race_control.not_applied
+== race_other
+  ok   race_other.action_fired_control
+  ok   race_other.head_moved_recorded
+  ok   race_other.reason_head_changed_during_run
+  ok   race_other.changed_by_other
+  ok   race_other.not_reported_updated
+== autostash
+  ok   autostash.action_fired
+  ok   autostash.head_not_moved
+  ok   autostash.no_stash_created
+  ok   autostash.user_edit_kept
+  ok   autostash.failed_verdict
+== sigterm_write
+  ok   sigterm_write.signal_sent
+  ok   sigterm_write.exit_8
+  ok   sigterm_write.result_line
+  ok   sigterm_write.report_written
+  ok   sigterm_write.move_recorded
+  ok   sigterm_write.root_really_at_r2
+  ok   sigterm_write.no_traceback
+== no_new_call
+  ok   no_new_call.control_trigger_seen
+  ok   no_new_call.control_interrupted
+  ok   no_new_call.only_final_reads_after_stop
+  ok   no_new_call.no_call_started_after_stop
+== final_cap
+  ok   final_cap.control_interrupted
+  ok   final_cap.control_final_reads_started_and_hung
+  ok   final_cap.ends_within_cap
+  ok   final_cap.timed_out_read_recorded
+== sigterm_fetch
+  ok   sigterm_fetch.fetch_hanging
+  ok   sigterm_fetch.exits_fast
+  ok   sigterm_fetch.exit_8
+  ok   sigterm_fetch.no_traceback
+  ok   sigterm_fetch.no_orphan
+  ok   sigterm_fetch.report_interrupted
+== sigint_fetch
+  ok   sigint_fetch.fetch_hanging
+  ok   sigint_fetch.exits_fast
+  ok   sigint_fetch.exit_8
+  ok   sigint_fetch.no_traceback
+  ok   sigint_fetch.no_orphan
+  ok   sigint_fetch.report_interrupted
+== staged_gitlink
+  ok   staged_gitlink.index_untouched
+  ok   staged_gitlink.reason_reported
+  ok   staged_gitlink.attention
+== escaped_after_exit
+  ok   escaped_after_exit.control_grandchild_alive_after_run
+  ok   escaped_after_exit.answer_not_waiting_for_the_pipe
+  ok   escaped_after_exit.remote_reachable
+  ok   escaped_after_exit.root_behind_exit_3
+== long_line
+  ok   long_line.bounded_time
+  ok   long_line.report_written
+== huge_stderr
+  ok   huge_stderr.peak_rss_bounded
+  ok   huge_stderr.run_ended_with_report
+== askpass
+  ok   askpass.core_askPass_not_run
+  ok   askpass.GIT_ASKPASS_not_run
+  ok   askpass.SSH_ASKPASS_not_run
+  ok   askpass.remote_reported_unreachable_auth
+== askpass_ssh_only
+  ok   askpass_ssh_only.not_run
+== ext_env
+  ok   ext_env.helper_not_run
+== ext_repo
+  ok   ext_repo.helper_not_run
+== protocol_from_user
+  ok   protocol_from_user.fetched
+== trace_env
+  ok   trace_env.no_trace_file
+== auth_header
+  ok   auth_header.control_needle_seen
+  ok   auth_header.value_redacted
+  ok   auth_header.failed_merge_exit_1
+== secret8
+  ok   secret8.absent_everywhere
+== ctrl_url
+  ok   ctrl_url.url_reported
+  ok   ctrl_url.no_del_or_c1
+== invalid_remote
+  ok   invalid_remote[bad.lock].not_moved
+  ok   invalid_remote[bad.lock].attention
+  ok   invalid_remote[-dash].not_moved
+  ok   invalid_remote[-dash].attention
+== diverged
+  ok   diverged.child_held
+  ok   diverged.attention
+== no_upstream_main
+  ok   no_upstream_main.child_held
+  ok   no_upstream_main.attention
+== lock_symlink
+  ok   lock_symlink.exit_7
+  ok   lock_symlink.target_not_created
+  ok   lock_symlink.submodule_exit_7
+  ok   lock_symlink.submodule_target_not_created
+  ok   lock_symlink.control_no_link_runs
+== lock_overlap
+  ok   lock_overlap.exit_7
+  ok   lock_overlap.root_not_moved
+== out_unwritable
+  ok   out_unwritable.exit_2
+  ok   out_unwritable.not_moved
+  ok   out_unwritable.existing_dir_exit_2
+  ok   out_unwritable.existing_dir_not_moved
+  ok   out_unwritable.control_writable_dir_accepted
+== out_lost
+  ok   out_lost.moved
+  ok   out_lost.exit_1
+  ok   out_lost.move_on_stderr
+== default_out_symlink
+  ok   default_out_symlink.refused
+  ok   default_out.nothing_in_tree
+== default_out_relative
+  ok   default_out_relative.refused
+  ok   default_out_relative.nothing_in_tree
+  ok   default_out_relative.outside_cwd_refused
+  ok   default_out_relative.outside_cwd_nothing_written
+  ok   default_out_relative.control_absolute_accepted
+== unsafe_path
+  ok   unsafe_path[-dash].reported
+  ok   unsafe_path[-dash].attention
+  ok   unsafe_path[back\slash].reported
+  ok   unsafe_path[back\slash].attention
+== outside_parent
+  ok   outside_parent.not_inspected
+  ok   outside_parent.attention
+sync-robustness: PASS 114 FAIL 0

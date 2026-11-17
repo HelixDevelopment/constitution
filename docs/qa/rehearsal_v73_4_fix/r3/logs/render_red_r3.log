@@ -1,0 +1,98 @@
+PASS exit 0
+PASS manual value
+PASS fact value
+PASS empty fact rendered as none
+PASS states block, ids listed
+PASS UNSET/UNSET not in states block
+PASS refs block
+PASS multi-line manual
+PASS leading comment dropped
+PASS no placeholder left
+PASS missing manual refused
+PASS TODO value refused
+PASS unused manual block refused
+PASS missing fact refused
+PASS retest verdict accepted: PASS-FULL
+PASS retest verdict accepted: PARTIAL-TOPOLOGY
+PASS retest verdict accepted: FAIL
+PASS retest verdict accepted: NOT
+PASS retest value without a leading verdict token refused: passed
+PASS retest value without a leading verdict token refused: all green
+PASS retest value without a leading verdict token refused: PASS-FULLY done
+PASS retest value without a leading verdict token refused: pass-full
+PASS retest value without a leading verdict token refused: has never run
+PASS retest value without a leading verdict token refused: FAILED
+PASS retest value without a leading verdict token refused: the retest: PASS-FULL
+PASS retest_statement missing from the manual file: refused
+PASS a template without retest_statement renders
+PASS usage exit 2
+PASS CON-231 every status/severity key rendered: exit 0
+PASS CON-231 a status/severity value the template does not render is refused
+PASS D5 a DRAFT manual value is refused without --draft
+PASS D5 a DRAFT retest_statement is refused without --draft
+PASS D5 --draft renders a DRAFT value: exit 0
+PASS D5 a draft rendering starts with the fixed marker line
+PASS D5 --draft keeps the DRAFT value
+PASS D5 --draft says so on stderr
+PASS D5 a normal rendering has no draft marker
+PASS D5 not the word DRAFT, accepted: DRAFTED by the conductor
+PASS D5 not the word DRAFT, accepted: a draft column
+PASS D5 not the word DRAFT, accepted: redraft
+PASS M4 a DRAFT marker is refused: DRAFT_1 of the list
+PASS M4 a DRAFT marker is refused: see DRAFT2
+PASS M4 a DRAFT marker is refused: v-DRAFT-3
+PASS M4 a DRAFT marker is refused: (DRAFT)
+PASS M4 a DRAFT marker is refused: ＤＲＡＦＴ list
+PASS M4 a DRAFT marker is refused: DR​AFT list
+PASS M4 a TODO/TBD marker glued to a digit or underscore is refused: TODO_1 the list
+PASS M4 a TODO/TBD marker glued to a digit or underscore is refused: TBD2
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: MY_TODO the list
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: see 2DRAFT list
+FAIL M4 r3 refused: DRАFT list (0: )
+FAIL M4 r3 refused: ТBD later (0: )
+FAIL M4 r3 refused: ТОDО list (0: )
+FAIL M4 r3 refused: DRΑFT list (0: )
+FAIL M4 r3 refused: D̈RAFT list (0: )
+PASS M4 r3 golden FALSE, accepted: Пlan notes
+PASS M4 r3 golden FALSE, accepted: λόγος list
+PASS M4 r3 golden FALSE, accepted: ДRAFT is not D
+FAIL M4 r3 the two look-alike maps are equal
+PASS mutant X8 killed (real refuses rc 3, mutant accepts: MY_TODO the list)
+PASS mutant X9 killed (real refuses rc 3, mutant accepts: see 2DRAFT list)
+FAIL mutant R1-no-confusables applies (rc 5)
+FAIL mutant R2-no-mark-strip applies (rc 5)
+FAIL mutant R3-cyrillic-T-dropped applies (rc 5)
+FAIL mutant R4-greek-A-dropped applies (rc 5)
+PASS M4 golden FALSE, accepted: DRAFTS of the plan
+PASS M4 golden FALSE, accepted: REDRAFT done
+PASS M4 golden FALSE, accepted: Draft notes
+PASS M4 golden FALSE, accepted: draft_1 lower case
+PASS M4 golden FALSE, accepted: TODOS done
+PASS M4 golden FALSE, accepted: XTBD
+PASS D5 --draft with two files: usage exit 2
+PASS D5 --draft only as the first argument: usage exit 2
+PASS D5 an unknown option: usage exit 2
+PASS D5 --draft still refuses TODO
+PASS D9 cut_date bare date accepted: 2026-11-16
+PASS D9 cut_date bare date accepted: 2028-02-29
+PASS D9 cut_date not a bare date refused (also with --draft): 2026-11-16 (DRAFT)
+PASS D9 cut_date not a bare date refused (also with --draft): 16 Nov 2026
+PASS D9 cut_date not a bare date refused (also with --draft): 2026-13-01
+PASS D9 cut_date not a bare date refused (also with --draft): 2026-02-30
+PASS D9 cut_date not a bare date refused (also with --draft): 2027-02-29
+PASS D9 cut_date not a bare date refused (also with --draft):  2026-11-16x
+PASS D9 cut_date not a bare date refused (also with --draft): 2026-11-6
+PASS D9 cut_date not a bare date refused (also with --draft): 20261116
+PASS D9 cut_date not a bare date refused (also with --draft): 2026-W46-1
+PASS template has no unconditional never-run sentence
+PASS template takes the retest sentence from MANUAL:retest_statement
+PASS template does not say (L7) rides open or is relaxed
+PASS template states an open (L7) blocks every class
+PASS template calls the decision an override, not a conforming waiver
+PASS shipped template: 33 fact keys named (control: more than 10)
+PASS shipped template renders from synthetic facts
+PASS D9 the refs line is rendered exactly (positive needle)
+PASS D9 no '.' after the last ref name
+PASS D9 the heading carries the bare cut date
+SKIP shipped template renders from real facts: RRE_FACTS is not set to a facts file (run derive_release_facts.sh and set RRE_FACTS=<file> to run it)
+RESULT: pass=86 fail=10

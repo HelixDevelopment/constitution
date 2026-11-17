@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# run_mut_par.sh REPO OUTDIR NAME...: run each listed mutant (--only NAME) four at a time; one log per name
+set -u
+R="${1:?repo}"; O="${2:?outdir}"; shift 2
+mkdir -p "$O"
+one() { bash "$1/tests/release/test_release_tooling_mutations.sh" --only "$3" >"$2/$3.log" 2>&1; echo "$3 rc=$?" >>"$2/rc.txt"; }
+export -f one
+printf '%s\n' "$@" | xargs -P 4 -I{} bash -c 'one "$0" "$1" "$2"' "$R" "$O" {}
+echo DONE >>"$O/rc.txt"

@@ -1,0 +1,5 @@
+# round 8 repeat comparison (cmp, then diff line count)
+suite_run1.txt vs suite_run2.txt: identical, diff_lines=0, sha256 070f1b371702b945 070f1b371702b945
+blockstate_on_r8_run1.txt vs blockstate_on_r8_run2.txt: identical, diff_lines=0, sha256 fb6adf385b351adb fb6adf385b351adb
+# control: the comparison can see a difference (a copy with one changed line)
+control: differs, diff_lines=4

@@ -1,0 +1,7 @@
+EDIT edit_sha256=02a71ddd7bcc4c8dc99b135b86eb251c7ab15f0568ce69d1e562c476aeb0156d
+EDIT edit_sha256=02a71ddd7bcc4c8dc99b135b86eb251c7ab15f0568ce69d1e562c476aeb0156d
+CONTROL needle (SECRET_FOLD off): hit_differences>=1 ok
+RESULT corpus=2743655 view_differences=0 hit_differences=0 fuzz=200000 codepoints=True
+rc=0
+LINT intake_lint.py sha256=765fbe13b7753ebaa1fb149bd4bb41eda198b9553acdf42c070c086eb531cf3f
+CANON secret_canon.py sha256=42595b5543d92754f92b08397d75a564f28a2120604ae7a4da6f196c0122bb13

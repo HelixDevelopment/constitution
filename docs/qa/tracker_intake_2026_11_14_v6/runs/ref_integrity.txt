@@ -1,0 +1,22 @@
+# $ python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/ref_integrity.py base=<base 02c10935 db> vehicle=docs/workable_items.db
+control needles: PASS (a clean fixture reads CLEAN; a dirty fixture reports each of its 10 defects; a corrupt file reads integrity != ok)
+base items=263 hist(max,count,min)=(509, 509, 1) seq=509 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=263 fk=[] integrity=ok CLEAN
+vehicle items=309 hist(max,count,min)=(637, 637, 1) seq=637 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=309 fk=[] integrity=ok CLEAN
+RESULT: CLEAN databases=2
+rc=0
+# $ python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/ref_integrity_mutations.py
+KILLED gaps
+KILLED orphan_hist
+KILLED orphan_od
+KILLED orphan_obd
+KILLED obsolete_without_od
+KILLED od_on_open
+KILLED no_opened_row
+KILLED dup_ids
+KILLED seg_mismatch_items
+KILLED seg_mismatch_segments
+KILLED clean_verdict
+KILLED integrity_verdict
+KILLED corrupt_key_write
+RESULT: mutants=13 bad=0 known=0
+rc=0

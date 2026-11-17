@@ -1,0 +1,72 @@
+# mkmut.py <repo> <mutdir>: round-13 REVIEWER mutants (V06 re-anchored to the round-14 intent write) + round-14 FIXER mutants M1-M11. One exact substitution each, matched exactly once.
+import sys, os, shutil
+repo, md = sys.argv[1], sys.argv[2]
+P = "scripts/jev/jev-place.sh"; G = "scripts/jev/jev-start-gate.sh"; C = "scripts/validation/git_env_class_census.py"
+M = {
+ # --- adopted round-12 reviewer mutants (re-run on the r13 head) ---
+ "R01_arm_no_retry": (P, '    arc=0; with_lock arm_stop_locked "$p" "$kind" || arc=$?\n    [ "$arc" = 4 ] || break',
+                      '    arc=0; with_lock arm_stop_locked "$p" "$kind" || arc=$?\n    break'),
+ "R02_markttl_no_recordwaits": (P, 'MARK_TTL=$(( STMO + 2 + RETRIES * LOCK_TMO + 30 ))', 'MARK_TTL=$(( STMO + 2 + 30 ))'),
+ "R03_adopt_after_own_start": (P, '    case " $START_TRIED " in *" $p "*) log "candidate $p: this acquire tried to start it; it is not adopted as operator-started"; continue ;; esac\n', '    :\n'),
+ "R04_adopt_degraded": (P, '    [ "$st" = ok ] || continue\n    cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$holder" "$pid" "$pst" "$ttl" false)"',
+                        '    [ "$st" = ok ] || [ "$st" = degraded ] || continue\n    cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$holder" "$pid" "$pst" "$ttl" false)"'),
+ "R05_rc75_counts_after_arm": (P, 'if $k == null or ($k.rc // 0) == 75 or', 'if $k == null or ($k.rc // 0) == 76 or'),
+ "R06_stopowed_for_rc75": (P, '(if $n == 0 and $src != 75 then .sets[$p].stop_owed', '(if $n == 0 then .sets[$p].stop_owed'),
+ "R07_noset_rc75_released": (P, '      75) START_RES=refused ;;\n      0)  cur=', '      75|0)  cur='),
+ "R08_owed_retry_fail_is_success": (P, '    stop_turn "$p" owed; return $?\n', '    stop_turn "$p" owed; return 0\n'),
+ # --- own producer mutants (start intent, R12-B1) ---
+ "V01_intent_reuse_blind": (P, '    pid_dead "$ipid" "$ipst" || continue\n', '    pid_dead "$ipid" "" || continue\n'),
+ "V02_degraded_intent_kept": (P, '      ok|degraded)\n        f="$(obs_counter)"', '      ok)\n        f="$(obs_counter)"'),
+ "V03_intent_state_always_unknown": (P, '    if [ "$CAP_ST" = ok ]; then IFS="$US" read -r st v th r <<<"$(inst_state "$p")"; else st=unknown; fi\n    case "$st" in\n      ok|degraded)',
+                                     '    st=unknown\n    case "$st" in\n      ok|degraded)'),
+ "V04_setexists_keeps_intent": (P, "'.sets[$p].constitution_started = true | del(.start_intents[$p])'", "'.sets[$p].constitution_started = true'"),
+ "V05a_finish_leaves_empty_map": (P, 'then del(.start_intents[$p]) | (if (.start_intents | length) == 0 then del(.start_intents) else . end) else . end', 'then del(.start_intents[$p]) else . end'),
+ "V05b_recover_leaves_empty_map": (P, "  out=\"$(jq -c 'if (.start_intents // null) == {} then del(.start_intents) else . end' <<<\"$out\")\"\n", ''),
+ "V06_intent_is_lease": (P, '| .start_intents[$p] = ($m + {child:{pid:$cp, pid_start:$cs}})\' <<<"$cur")"', '| .start_intents[$p] = ($l + {child:{pid:$cp, pid_start:$cs}})\' <<<"$cur")"'),
+ "V07_adopt_checks_other_profile": (P, "    if jq -e --arg p \"$p\" '(.start_intents // {})[$p] != null' <<<\"$cur\" >/dev/null; then\n      log \"candidate $p: a start of it by pid",
+                                    "    if jq -e --arg p \"$p\" '(.start_intents // {})[\"zz-none\"] != null' <<<\"$cur\" >/dev/null; then\n      log \"candidate $p: a start of it by pid"),
+ "V08_mark_intent_refusal_is_stale": (P, 'a start intent of pid $(intent_of "$p") is unanswered; not started"; return 1; fi', 'a start intent of pid $(intent_of "$p") is unanswered; not started"; return 2; fi'),
+ "V10_recover_after_observe": (P, [('  [ -n "$OBS_TICKET" ] || return 0\n  intents_locked\n', '  [ -n "$OBS_TICKET" ] || return 0\n'),
+                               ("  [ \"$out\" = \"$cur\" ] || printf '%s\\n' \"$out\" | leases_save\n  for p in $gone; do", "  [ \"$out\" = \"$cur\" ] || printf '%s\\n' \"$out\" | leases_save\n  intents_locked\n  for p in $gone; do")]),
+ "V14_finish_removes_only_on_rc0": (P, '  # round 13 (R12-B1): the start is answered in this write: its intent is removed, only when it names THIS process\n  cur=',
+                                    '  # round 13 (R12-B1): the start is answered in this write: its intent is removed, only when it names THIS process\n  [ "$src" = 0 ] && cur='),
+ "V15_adopt_skips_only_live_intent": (P, "    if jq -e --arg p \"$p\" '(.start_intents // {})[$p] != null' <<<\"$cur\" >/dev/null; then\n      log \"candidate $p: a start of it by pid",
+                                      "    if jq -e --arg p \"$p\" '(.start_intents // {})[$p] != null' <<<\"$cur\" >/dev/null && ! pid_dead \"$(jq -r --arg p \"$p\" '.start_intents[$p].pid' <<<\"$cur\")\" \"$(jq -r --arg p \"$p\" '.start_intents[$p].pid_start' <<<\"$cur\")\"; then\n      log \"candidate $p: a start of it by pid"),
+ "V20_finish_drops_start_half": (P, '(($i.pid // null) | tostring) == $pid and ((($i.pid_start // null) | tostring) == (if $pst == "" then "null" else $pst end))', '(($i.pid // null) | tostring) == $pid'),
+ # --- own census mutants ---
+ "W22_mention_lookbehind_digit": (C, 'MENTION = re.compile(r"(?<![A-Za-z])git", re.I)', 'MENTION = re.compile(r"(?<![A-Za-z0-9])git", re.I)'),
+ "W23_mention_case_sensitive_both": (C, 'MENTION = re.compile(r"(?<![A-Za-z])git", re.I)', 'MENTION = re.compile(r"(?<![A-Za-z])git")'),
+ "W24_ls_perm_any": (C, r'LS_LINE = re.compile(r"^[-dlcbpsD][rwxsStT-]{9}', r'LS_LINE = re.compile(r"^[-dlcbpsD].{9}'),
+ "W25_rc_max_999": (C, 'return bool(m) and int(m.group(1)) <= 255', 'return bool(m) and int(m.group(1)) <= 999'),
+ "W26_no_trailing_pop": (C, '    if lines and lines[-1] == "":\n        lines.pop()\n', ''),
+ "W27_scope_no_slash": (C, 'or not path.startswith("docs/qa/"):', 'or not path.startswith("docs/qa"):'),
+ "W28_exec_ignored": (C, '    if executable or ext not in ("rc", "ls")', '    if ext not in ("rc", "ls")'),
+ "W33_mention_ascii": (C, 'MENTION = re.compile(r"(?<![A-Za-z])git", re.I)', 'MENTION = re.compile(r"(?<![A-Za-z])git", re.I | re.ASCII)'),
+ "W35_shape_mention_first_4k": (C, '    if MENTION.search(text):\n        return False\n    if ext == "rc":', '    if MENTION.search(text[:4096]):\n        return False\n    if ext == "rc":'),
+ "W36_splitlines": (C, '    lines = text.split("\\n")\n    if lines and lines[-1] == "":', '    lines = text.splitlines() + [""]\n    if lines and lines[-1] == "":'),
+ "RCTRL": None,
+}
+# round-14 fixer mutants: tools/mut14.txt blocks "@@@ <name> <file>\n<old>===\n<new>>>>"
+_t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "mut14.txt")).read()
+for _blk in _t.split("@@@ ")[1:]:
+    _hdr, _rest = _blk.split("\n", 1)
+    _name, _file = _hdr.split()
+    _old, _new = _rest.split("===\n", 1)
+    _new = _new.split(">>>\n", 1)[0]
+    M[_name] = (_file, _old, _new)
+for name, sub in M.items():
+    d = os.path.join(md, name)
+    if os.path.exists(d): shutil.rmtree(d)
+    os.makedirs(os.path.join(d, "scripts"))
+    shutil.copytree(os.path.join(repo, "scripts/jev"), os.path.join(d, "scripts/jev"))
+    shutil.copytree(os.path.join(repo, "scripts/validation"), os.path.join(d, "scripts/validation"))
+    os.symlink(os.path.join(repo, "submodules"), os.path.join(d, "submodules"))
+    if sub:
+        subs = sub[1] if isinstance(sub[1], list) else [(sub[1], sub[2])]
+        f = os.path.join(d, sub[0]); t = open(f).read()
+        for a, b in subs:
+            n = t.count(a)
+            if n != 1: print(name, "MATCH COUNT", n, repr(a[:60])); sys.exit(1)
+            t = t.replace(a, b)
+        open(f, "w").write(t)
+    print(name, "ok")

@@ -1,0 +1,15 @@
+suite rc=0
+RESULT: pass=142 fail=0
+PASS golden-bad BODY-SYNC/header-line-separator
+PASS BLIND: a NULL description names the item
+PASS BLIND: a crash is BLIND, never a traceback
+== <scratch>/trackintake_v3/exp/pyr/lint_nowrap.py
+PASS golden-bad BODY-SYNC/header-line-separator
+PASS BLIND: a NULL description names the item
+FAIL BLIND: a crash is BLIND, never a traceback: rc=1 want=3: Traceback (most recent call last):|  File "<scratch>
+== <scratch>/trackintake_v3/v2keep/intake_lint.py
+FAIL golden-bad BODY-SYNC/header-line-separator: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL BLIND: a NULL description names the item: rc=1 want=3: Traceback (most recent call last):|  File "<scratch>
+FAIL BLIND: a crash is BLIND, never a traceback: rc=0 want=3: RESULT: PASS selected=1 findings=0 prefix=FX|
+
+[exited with code 0]

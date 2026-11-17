@@ -1,0 +1,8 @@
+== marker_unremovable
+  FAIL marker_unremovable.no_internal_error  (sync-upstreams: internal error: <class 'PermissionError'>: [Errno 13] Permission denied: '/mnt/DATA1TB/claude-work/tmp/helix-sync-robust.unrm.iyw0bh4w/work/unrm/.git/helix-sync-upstreams.write-in-progress'
+)
+  ok   marker_unremovable.kept
+  FAIL marker_unremovable.noted  ([])
+  ok   marker_unremovable.never_left_nothing
+sync-robustness: PASS 2 FAIL 2
+rc=1

@@ -1,0 +1,13 @@
+SEARCH O46 placements=26/154 blockstate=0/78018
+  EXAMPLE O46 'h pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20'
+  EXAMPLE O46 'h pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20'
+  EXAMPLE O46 ": host-only -- target: host -- artifact: main -- due: 2026-11-20\n\n[r]: /u '<!-- Verification: x -->'"
+SEARCH O48 placements=0/154 blockstate=0/78018
+SEARCH O50 placements=0/154 blockstate=0/78018
+SEARCH O58 placements=0/154 blockstate=0/78018
+SEARCH O59 placements=0/154 blockstate=0/78018
+SEARCH O60 placements=0/154 blockstate=0/78018
+SEARCH RW03 placements=12/154 blockstate=0/78018
+  EXAMPLE RW03 'h pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20'
+  EXAMPLE RW03 'h pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20'
+  EXAMPLE RW03 'h pass=3; tests/p.py pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20'

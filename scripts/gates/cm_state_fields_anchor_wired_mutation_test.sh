@@ -263,8 +263,8 @@ fresh; mut append Constitution.md '### §11.4.2940 — prefix-collision decoy he
 expect_green "prefix-colliding heading §11.4.2940 is not counted as §11.4.294"
 fresh; mut block-sub Constitution.md "$N" 'Honest boundary (§11.4.6).' 'Honest boundary (§11.4.6).  '
 expect_green "whitespace-only change inside the block keeps the gate green"
-fresh; mut file-sub scripts/reporting/report_item.sh '**Investigation:** not-started (§11.4.294)' '**Investigation:** not-started (§11.4.294) '
-expect_green "whitespace-only change after the template's Investigation line keeps the gate green"
+fresh; mut file-sub scripts/reporting/report_item.sh '**Investigation:** not-started — updated' '**Investigation:** not-started  — updated'
+expect_green "whitespace-only change inside the template's Investigation preview line keeps the gate green"
 fresh; mut block-append Constitution.md 286 'Unrelated note that spells `blocked-no-device` inside another anchor block.'
 expect_green "the short spelling inside another anchor's block is not counted against §11.4.294"
 fresh; mut block-append Constitution.md "$N" 'Extra sentence that names `blocked-no-device-with-recorded-blocker` once more.'
@@ -369,10 +369,16 @@ done
 
 # ── RED: item template and the two skills ────────────────────────────────────
 TPL=scripts/reporting/report_item.sh
-fresh; mut file-sub "$TPL" '**Investigation:** not-started' '**Invest:** pending'
-expect_red "template no longer renders the Investigation line" "FAIL  template: report_item.sh renders the '**Investigation:** not-started' line"
-fresh; mut file-sub "$TPL" '**Reproduction:** none — UNREPRODUCED' '**Repro:** pending'
-expect_red "template no longer renders the Reproduction line" "FAIL  template: report_item.sh still renders the '**Reproduction:** none — UNREPRODUCED' line"
+fresh; mut file-sub "$TPL" '--investigation-state not-started' '--investigation-state in-progress'
+expect_red "template no longer passes --investigation-state not-started" "FAIL  template: report_item.sh passes --investigation-state not-started to add (operative set -- line)"
+fresh; mut file-sub "$TPL" 'set -- --reproduction-state UNREPRODUCED' 'set -- --reproduction-state UNSET'
+expect_red "template no longer passes --reproduction-state UNREPRODUCED" "FAIL  template: report_item.sh passes --reproduction-state UNREPRODUCED to add (operative set -- line)"
+# RR6 (CON-456 round 4): the operative state-flag line removed while the dry-run
+# STATE_PREVIEW string and the comments still mention the records (a carrier).
+fresh; mut del-lines "$TPL" '^\s*set -- --reproduction-state UNREPRODUCED'
+expect_red "RR6: operative state-flag line removed, preview string kept" "FAIL  template: report_item.sh passes --reproduction-state UNREPRODUCED to add (operative set -- line)"
+fresh; mut file-sub "$TPL" '--created-by "$REPORTED_BY" "$@" >' '--created-by "$REPORTED_BY" >'
+expect_red "an add call no longer forwards the state flags" "FAIL  template: both report_item.sh add calls forward the state flags (\"\$@\")"
 fresh; mut file-sub "$TPL" '§11.4.294' '§11.4.X94'
 expect_red "template no longer cites §11.4.294" "FAIL  template: report_item.sh cites §11.4.$N"
 fresh; rm -f "${W:?}/${TPL:?}"

@@ -1,0 +1,12 @@
+green_fake_1.txt	RESULT: 33/33 passed (scanner: fake)	f900ba58fe7cd9f22f7f9252bb22d1270b464c5cd17d55a3bcc5661fbe70bf84
+green_fake_2.txt	RESULT: 33/33 passed (scanner: fake)	f900ba58fe7cd9f22f7f9252bb22d1270b464c5cd17d55a3bcc5661fbe70bf84
+green_fake_3.txt	RESULT: 33/33 passed (scanner: fake)	f900ba58fe7cd9f22f7f9252bb22d1270b464c5cd17d55a3bcc5661fbe70bf84
+green_real_1.txt	RESULT: 27/27 passed (scanner: real)	e1e0a9228b56f3d27a3452230e630a5b0a98d4b9dc9d2752ce56ef7c34e463c2
+green_real_2.txt	RESULT: 27/27 passed (scanner: real)	e1e0a9228b56f3d27a3452230e630a5b0a98d4b9dc9d2752ce56ef7c34e463c2
+green_real_3.txt	RESULT: 27/27 passed (scanner: real)	e1e0a9228b56f3d27a3452230e630a5b0a98d4b9dc9d2752ce56ef7c34e463c2
+red_fake_1.txt	RESULT: 8/33 passed (scanner: fake)	3249f3a54d36ae292b1136af6424c562bbcc411f5261ea82c41f775cd8c2bec5
+red_fake_2.txt	RESULT: 8/33 passed (scanner: fake)	3249f3a54d36ae292b1136af6424c562bbcc411f5261ea82c41f775cd8c2bec5
+red_fake_3.txt	RESULT: 8/33 passed (scanner: fake)	3249f3a54d36ae292b1136af6424c562bbcc411f5261ea82c41f775cd8c2bec5
+red_real_1.txt	RESULT: 8/27 passed (scanner: real)	f0ad575c5e558da2480295e71ddb5ed2467730d5f818babd4485d5df6dedb2dc
+red_real_2.txt	RESULT: 8/27 passed (scanner: real)	f0ad575c5e558da2480295e71ddb5ed2467730d5f818babd4485d5df6dedb2dc
+red_real_3.txt	RESULT: 8/27 passed (scanner: real)	f0ad575c5e558da2480295e71ddb5ed2467730d5f818babd4485d5df6dedb2dc

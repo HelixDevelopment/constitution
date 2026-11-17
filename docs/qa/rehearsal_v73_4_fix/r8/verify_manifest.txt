@@ -1,0 +1,4 @@
+MANIFEST: excluded set differs from the accepted lock /mnt/DATA1TB/claude-work/scratch/fix8_con423_NbYe/repo/config/full_suite_excluded.lock (added ['tests/release/pvl_grid.py'], removed [], note changed []); review and run --verify-manifest --accept-excluded-change <reviewer>
+census: go/entry=5 js/excluded=5 py/entry=12 py/excluded=35 py/fixture=19 py/member=35 runall/entry=9 sh/entry=389 sh/excluded=29 sh/fixture=115 sh/member=324 total=977
+RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)
+rc=3

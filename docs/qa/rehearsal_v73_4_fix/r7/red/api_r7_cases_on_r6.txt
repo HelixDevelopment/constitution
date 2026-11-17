@@ -1,0 +1,5 @@
+RED-CASE I-3 direct path rc=1 ['CHECKED items=2 provisional_status=1 ok=0 fail=1']
+RED-CASE I-3 symlinked path rc=0 ['CHECKED items=1 provisional_status=0 ok=0 fail=0']
+RED-CASE M-1 -wal symlink to /dev/zero TIMEOUT after 60 s (the r6 copy does not finish)
+RED-CASE M-1 FIFO -journal TIMEOUT after 60 s (the r6 copy does not finish)
+api() on the r6 checker -> 1

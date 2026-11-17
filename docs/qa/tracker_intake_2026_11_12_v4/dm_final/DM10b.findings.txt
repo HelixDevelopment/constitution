@@ -1,0 +1,5 @@
+FINDING DUP-HEAD CON-308 more than one head (section 11.4.214(0)): CON-243 names CON-262 as a duplicate
+FINDING STATE-EVIDENCE CON-339 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-340 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-341 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-342 reproduction_state reproduced-host-fixture carries no evidence sha256

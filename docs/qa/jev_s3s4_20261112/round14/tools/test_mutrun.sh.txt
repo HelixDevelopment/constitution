@@ -1,0 +1,33 @@
+#!/bin/bash
+# test_mutrun.sh: the classification of tools/mutrun.sh, driven by a stub suite runner (MUTRUN_RUNSUITE) that writes a
+# chosen output and exit code. Cases: a FAIL line is a kill; rc 1 with no FAIL line is a kill; rc 0 everywhere is a
+# survivor; rc 124 or 137 (the runner's timeout, `timeout --kill-after`) is NO-RESULT, never a kill: a run cut by the
+# clock decided nothing (added after the RCTRL sweep hit the 2400 s limit under host load, round 14). Each case checks
+# the exact summary line. Exit 0 when every case passes.
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6
+MR="${MUTRUN_UNDER_TEST:-$W/tools/mutrun.sh}"
+T="$(mktemp -d "$W/tmp/tmr.XXXXXX")"
+case "$T" in "$W/tmp/tmr."?*) ;; *) echo "bad tmp dir" >&2; exit 2 ;; esac
+cat > "$T/stub.sh" <<'EOF'
+#!/bin/bash
+# stub runsuite: <repo> <suite> <out-prefix> <producer>; writes STUB_OUT as the output and STUB_RC as the exit code
+printf '%b' "$STUB_OUT" > "$3.txt"; echo "$STUB_RC" > "$3.rc"
+EOF
+pass=0; fail=0
+case_() { # <name> <out> <rc> <expected summary line>
+  : > "$T/summ"
+  STUB_OUT="$2" STUB_RC="$3" MUTRUN_RUNSUITE="$T/stub.sh" MUTRUN_RUNS="$T" MUTRUN_SUMMARY="$T/summ" SUITES="tests/x/s.sh" \
+    bash "$MR" "M_$1" >/dev/null 2>&1
+  got="$(cat "$T/summ")"
+  if [ "$got" = "$4" ]; then echo "ok   $1: $got"; pass=$((pass+1)); else echo "FAIL $1: got [$got], want [$4]"; fail=$((fail+1)); fi
+}
+case_ failline 'PASS a\nFAIL b\n' 1 "MUT M_failline KILLED-by s fails=1"
+case_ rc1      'PASS a\n'         1 "MUT M_rc1 KILLED-by s rc=1 (no FAIL line)"
+case_ rc0      'PASS a\n'         0 "MUT M_rc0 SURVIVED tests/x/s.sh"
+case_ rc124    'PASS a\n'         124 "MUT M_rc124 NO-RESULT s (timeout rc=124, no FAIL line: the run was cut by the clock and decided nothing)"
+case_ rc137    'PASS a\n'         137 "MUT M_rc137 NO-RESULT s (timeout rc=137, no FAIL line: the run was cut by the clock and decided nothing)"
+case_ t124fail 'PASS a\nFAIL b\n' 124 "MUT M_t124fail KILLED-by s fails=1"
+rm -r -- "${T:?}"
+echo "passes=$pass fails=$fail"
+[ "$fail" -eq 0 ]

@@ -1,0 +1,69 @@
+OK	fetch_args	sink	percent:refs/remotes/	line 145	remote from safe_remote(); the whole vector is re-checked by check_git_args()
+OK	read_head	git	rev-parse	line 726	SHA_RE
+OK	read_branch	git	symbolic-ref	line 737	FULL ref only (-q HEAD; --short refused by check_git_args); refs/heads/ stripped by branch_of_ref(); name checked by valid_branch_name(); case kept (RV10-1, RV10-2)
+OK	is_ancestor	git	merge-base	line 759	exit code only; objects named by obj() (exact)
+OK	count_range	git	rev-list	line 765	TWO_COUNTS_RE; objects named by obj() (exact)
+OK	commit_present	git	rev-parse	line 774	SHA_RE; the object named by obj() (exact)
+OK	lock_paths	sink	join	line 984	git dir / common dir: absolute paths from rev-parse; names are fixed constants
+OK	lock_paths	sink	format:branch	line 989	branch from read_branch() (valid_branch_name) only; case kept
+OK	lock_paths	sink	join	line 993	git dir / common dir: absolute paths from rev-parse; names are fixed constants
+OK	in_progress	sink	join	line 1003	fixed operation names joined to the absolute git dir
+OK	in_progress	sink	join	line 1011	fixed operation names joined to the absolute git dir
+OK	probe_child	sink	join	line 1030	fixed '.git' joined to a child path that walk() checked (safe_relpath, inside parent)
+OK	probe_child	git	rev-parse	line 1036	ABS_PATH_RE
+OK	index_gitlinks	git	ls-files	line 1060	-z records; paths checked by safe_relpath() where used
+OK	head_gitlinks	git	ls-tree	line 1078	-z records; paths checked by safe_relpath() where used
+OK	tree_gitlinks	git	ls-tree	line 1084	-z records; paths checked by safe_relpath() where used
+OK	update_strategies	git	config	line 1102	-z records keyed by submodule path; values lower-cased words
+OK	update_strategies	git	config	line 1104	-z records keyed by submodule path; values lower-cased words
+OK	marker_path	sink	join	line 1118	fixed WRITE_MARKER joined to the absolute git dir
+OK	write_settled	git	ls-files	line 1279	byte comparison with the pre-write listing
+OK	inspect_local	git	rev-parse	line 1304	three absolute paths, one per line (THREE_ABS_PATHS_RE), else unknown git dir
+OK	inspect_local	git	status	line 1315	porcelain listing: dirty or not, never a name
+OK	inspect_local	git	remote	line 1317	each name checked by safe_remote() before any use; invalid -> state invalid-name
+OK	inspect_local	git	config	line 1323	remote.<name>.url / core.sshCommand: values, never used in a path
+OK	inspect_local	sink	percent:remote.	line 1323	config key of a safe_remote() name
+OK	inspect_local	git	config	line 1335	remote.<name>.url / core.sshCommand: values, never used in a path
+OK	fetch_repo	git	fetch	line 1383	remote name from safe_remote(); refspec fixed by fetch_args()
+UNCLASSIFIED	evaluate_upstream	git	rev-parse	line 1423	-
+OK	evaluate_upstream	sink	percent:refs/remotes/	line 1423	safe_remote() + valid_branch_name() (--branch); the ref is handed to resolve_ref_exact() only
+OK	evaluate_pin	git	for-each-ref	line 1492	full refnames compared EXACTLY with refs/remotes/<remote>/<branch>; the gitlink named by obj()
+OK	evaluate_pin	sink	percent:refs/remotes/	line 1496	safe_remote() + valid_branch_name() (--branch)
+OK	discover	sink	join	line 1618	gitlink path joined to the parent; probed or walked ONLY when safe_relpath() and the outside-parent check pass (RV4-13, RV4-15)
+OK	walk	sink	join	line 1618	same site as discover (walk is nested in discover)
+OK	write_git	git	status	line 1736	porcelain listing: dirty or not
+OK	write_git	git	merge	line 1817	write: target named by obj() (exact)
+OK	write_git	git	checkout	line 1819	write: target named by obj() (exact; a branch named <hex> cannot win)
+OK	write_git	git	add	line 1871	write: path_in_parent checked by safe_relpath()
+OK	ignored_clobbers	git	ls-files	line 1910	-z paths compared as strings, never joined
+OK	ignored_clobbers	git	ls-tree	line 1916	-z paths compared as strings, never joined
+OK	tsv_rows	sink	percent:/	line 2041	report text (counts 'ahead/behind'); remote name already redacted, no path
+OK	control_needle	git	rev-list	line 2072	DIGITS_RE / TWO_COUNTS_RE
+OK	control_needle	git	rev-list	line 2073	DIGITS_RE / TWO_COUNTS_RE
+OK	main	git	rev-parse	line 2179	ABS_PATH_RE (common dir of the run lock)
+OK	main	sink	join	line 2189	fixed names (.git, the cache dir, the run lock, evidence file names) joined to an absolute path: --root's toplevel, XDG_CACHE_HOME / ~/.cache, --out, the common dir
+OK	main	sink	join	line 2204	fixed names (.git, the cache dir, the run lock, evidence file names) joined to an absolute path: --root's toplevel, XDG_CACHE_HOME / ~/.cache, --out, the common dir
+OK	main	sink	join	line 2210	fixed names (.git, the cache dir, the run lock, evidence file names) joined to an absolute path: --root's toplevel, XDG_CACHE_HOME / ~/.cache, --out, the common dir
+OK	main	sink	join	line 2217	fixed names (.git, the cache dir, the run lock, evidence file names) joined to an absolute path: --root's toplevel, XDG_CACHE_HOME / ~/.cache, --out, the common dir
+OK	main	sink	join	line 2219	fixed names (.git, the cache dir, the run lock, evidence file names) joined to an absolute path: --root's toplevel, XDG_CACHE_HOME / ~/.cache, --out, the common dir
+OK	main	git	rev-parse	line 2235	ABS_PATH_RE (common dir of the run lock)
+OK	main	sink	join	line 2241	fixed names (.git, the cache dir, the run lock, evidence file names) joined to an absolute path: --root's toplevel, XDG_CACHE_HOME / ~/.cache, --out, the common dir
+OK	lock_repositories	sink	join	line 2288	fixed run-lock name joined to a realpath'd common dir
+OK	run	sink	percent:/	line 2397	recovery hint TEXT for the operator (a command line to copy), never opened or run
+OK	run	sink	join	line 2436	fixed names (post_update_hook.sh, Constitution.md, the report files) joined to absolute paths
+OK	run	sink	join	line 2437	fixed names (post_update_hook.sh, Constitution.md, the report files) joined to absolute paths
+OK	run	sink	percent:/	line 2438	recovery hint TEXT for the operator (a command line to copy), never opened or run
+OK	run	sink	join	line 2485	fixed names (post_update_hook.sh, Constitution.md, the report files) joined to absolute paths
+OK	run	sink	join	line 2486	fixed names (post_update_hook.sh, Constitution.md, the report files) joined to absolute paths
+OK	run	sink	join	line 2505	fixed names (post_update_hook.sh, Constitution.md, the report files) joined to absolute paths
+SEMANTIC-FAIL	is_ancestor line 759: git merge-base resolves a name by git's lookup rules (not exact): ['merge-base', '--is-ancestor', a, b]
+SEMANTIC-FAIL	count_range line 765: git rev-list resolves a name by git's lookup rules (not exact): ['rev-list', '--left-right', '--count', '%s...%s' % (a, b)]
+SEMANTIC-FAIL	commit_present line 774: git rev-parse resolves a name by git's lookup rules (not exact): ['rev-parse', '--verify', '-q', '%s^{commit}' % sha]
+SEMANTIC-FAIL	tree_gitlinks line 1084: git ls-tree resolves a name by git's lookup rules (not exact): ['ls-tree', '-r', '-z', target]
+SEMANTIC-FAIL	evaluate_upstream line 1423: git rev-parse resolves a name by git's lookup rules (not exact): ['rev-parse', '--verify', '-q', 'refs/remotes/%s/%s^{commit}' % (rem['_name'], branch)]
+SEMANTIC-FAIL	evaluate_pin line 1492: git for-each-ref resolves a name by git's lookup rules (not exact): ['for-each-ref', '--contains', gitlink, '--format=%(refname)', 'refs/remotes']
+SEMANTIC-FAIL	write_git line 1817: git merge resolves a name by git's lookup rules (not exact): ['merge', '--ff-only', target]
+SEMANTIC-FAIL	write_git line 1819: git checkout resolves a name by git's lookup rules (not exact): ['checkout', '--quiet', '--detach', target]
+SEMANTIC-FAIL	ignored_clobbers line 1916: git ls-tree resolves a name by git's lookup rules (not exact): ['ls-tree', '-r', '-z', '--name-only', '--full-tree', target]
+STALE	resolve_ref_exact	git	for-each-ref
+class-inventory-names: FAIL - sites=58 classified-keys=42 unclassified=10 stale=1

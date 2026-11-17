@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""copy_evidence.py <W> <dest>: copies the round-7 evidence into <dest> (the repo's round7 directory), redacting paths:
+<W> = the scratch work dir, <HOME> = the operator home, -HOME- = the user part of the session temp path,
+<SESSION-TMP> = a session temp path cut short by a column limit, <USER> = the operator account name. Shell and
+python sources are stored with a .txt suffix so the full-suite manifest never counts them as scripts. Refuses to
+overwrite inventory.md (tracked, written by hand). Prints every file written."""
+import sys, os, re, glob, shutil
+
+W, D = sys.argv[1], sys.argv[2]
+HOME = "<HOME>"
+
+
+def red(b):
+    t = b.decode("utf-8", "replace")
+    t = t.replace(W, "<W>").replace(HOME, "<HOME>").replace("-HOME-", "-HOME-")
+    # a session temp path cut short by a column limit (so <W> did not match it): the rest of the token is redacted
+    t = re.sub(r"<HOME>/\.cache/claude-tmp/[^\s\]\)\"'|`]*", "<SESSION-TMP>", t)
+    t = t.replace("<USER>", "<USER>")  # owner and group columns of a kept `ls -l`
+    return t.encode()
+
+
+written = []
+
+
+def put(src, rel, suffix=""):
+    if not os.path.isfile(src):
+        print("MISSING", src)
+        return
+    dst = os.path.join(D, rel + suffix)
+    assert not dst.endswith("inventory.md"), dst
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    open(dst, "wb").write(red(open(src, "rb").read()))
+    written.append(dst)
+
+
+S = os.path.join(W, "stage7")
+put(os.path.join(S, "README.md"), "README.md")
+put(os.path.join(S, "mutants.md"), "mutants.md")
+put(os.path.join(W, "runs4", "red_final.txt"), "red_final_round7_on_r6.txt")
+put(os.path.join(W, "runs3", "red_r7.txt"), "red_round7_on_r6_earlier_test_version.txt")
+put(os.path.join(W, "runs4", "red_final.txt"), "red_final_round7_on_r6.txt")
+put(os.path.join(W, "out7", "chain_head.txt"), "suites/chain_head.txt")
+for f in glob.glob(os.path.join(S, "s2_vs_final_*.diff")):
+    put(f, os.path.basename(f))
+M = os.path.join(W, "mutout7")
+put(os.path.join(M, "results.tsv"), "mutants/results.tsv")
+put(os.path.join(M, "queue2.log"), "mutants/queue2.log")
+put(os.path.join(W, "mut", "index.tsv"), "mutants/index.tsv")
+put(os.path.join(W, "mut", "index.before_reorder.tsv"), "mutants/index.before_reorder.tsv")
+for f in sorted(glob.glob(os.path.join(M, "*_*.txt"))):
+    b = os.path.basename(f)
+    if not b.startswith("keys_"):
+        put(f, "mutants/" + b)
+put(os.path.join(W, "snap", "s2", "tests", "jev", "zz_r7_p72_only.sh"), "mutants/zz_r7_p72_only.sh", ".txt")
+put(os.path.join(W, "snap", "s3", "tests", "jev", "zz_r7_p89_only.sh"), "mutants/zz_r7_p89_only.sh", ".txt")
+for f in sorted(glob.glob(os.path.join(W, "runs6", "*"))):
+    put(f, "p89/" + os.path.basename(f))
+put(os.path.join(W, "snap", "s3", "tests", "jev", "zz_r7_p75b_only.sh"), "mutants/zz_r7_p75b_only.sh", ".txt")
+for f in sorted(glob.glob(os.path.join(W, "runs7", "*"))):
+    put(f, "p75b/" + os.path.basename(f))
+put(os.path.join(W, "snap", "s3", "tests", "jev", "zz_r7_p90_only.sh"), "mutants/zz_r7_p90_only.sh", ".txt")
+put(os.path.join(W, "snap", "s3", "tests", "jev", "zz_r7_p72_only.sh"), "mutants/zz_r7_p72_only_final.sh", ".txt")
+for f in sorted(glob.glob(os.path.join(W, "runs8", "*"))):
+    put(f, "p90/" + os.path.basename(f))
+for P in "AB":
+    O = os.path.join(W, "out7", "suite_" + P)
+    for f in sorted(glob.glob(os.path.join(O, "*"))):
+        b = os.path.basename(f)
+        if b != "done":
+            put(f, f"suites/pass{P}/{b}")
+O = os.path.join(W, "out7", "aborted_passA_commit1")
+for f in sorted(glob.glob(os.path.join(O, "*"))):
+    put(f, "suites/aborted_passA_commit1/" + os.path.basename(f))
+put(os.path.join(W, "runs5", "anchor_red_commit1.txt"), "checks/anchor_red_commit1.txt")
+put(os.path.join(W, "runs5", "anchor_green_fix.txt"), "checks/anchor_green_fix.txt")
+put(os.path.join(W, "o61", "control.txt"), "o61/control.txt")
+for f in sorted(glob.glob(os.path.join(W, "o61", "control_kept", "*", "*"))):
+    put(f, "o61/control_kept/" + os.path.relpath(f, os.path.join(W, "o61", "control_kept")))
+for f in sorted(glob.glob(os.path.join(W, "o61", "loop", "*.t*"))):
+    put(f, "o61/loop/" + os.path.basename(f))
+for f in sorted(glob.glob(os.path.join(W, "checks", "*"))):
+    put(f, "checks/" + os.path.basename(f))
+for t in ["hrun.sh", "suites7.sh", "chain7.sh", "runmut7b.sh", "runmut7c.sh", "mutdrive.sh", "static7.sh", "queue2.sh", "o61loop.sh",
+          "mk7.py", "mk7_extra.py", "gen_mutants_md.py", "scdelta.py"]:
+    put(os.path.join(W, t), "tools/" + t, ".txt")
+put(os.path.join(S, "patch_faq.py"), "tools/patch_faq.py", ".txt")
+put(os.path.join(S, "copy_evidence.py"), "tools/copy_evidence.py", ".txt")
+put(os.path.join(S, "fill7.py"), "tools/fill7.py", ".txt")
+put(os.path.join(S, "p89_block.sh"), "tools/p89_block.sh", ".txt")
+put(os.path.join(W, "queue3.sh"), "tools/queue3.sh", ".txt")
+put(os.path.join(W, "queue4.sh"), "tools/queue4.sh", ".txt")
+print(len(written), "files")

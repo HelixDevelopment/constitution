@@ -1,0 +1,31 @@
+== half_write
+  ok   half_write.ff.HEAD.lock.fixture_effect
+  ok   half_write.ff.HEAD.lock.not_exit_0
+  ok   half_write.ff.HEAD.lock.marker_kept
+  ok   half_write.ff.HEAD.lock.reported
+  ok   half_write.ff.HEAD.lock.exit_failed
+  ok   half_write.ff.HEAD.lock.repo_result_failed
+  ok   half_write.ff.HEAD.lock.next_run_attributes
+  ok   half_write.ff.common_refs_heads_main.lock.fixture_effect
+  ok   half_write.ff.common_refs_heads_main.lock.not_exit_0
+  ok   half_write.ff.common_refs_heads_main.lock.marker_kept
+  ok   half_write.ff.common_refs_heads_main.lock.reported
+  ok   half_write.ff.common_refs_heads_main.lock.exit_failed
+  ok   half_write.ff.common_refs_heads_main.lock.repo_result_failed
+  ok   half_write.ff.common_refs_heads_main.lock.next_run_attributes
+  ok   half_write.pin.HEAD.lock.fixture_effect
+  ok   half_write.pin.HEAD.lock.not_exit_0
+  ok   half_write.pin.HEAD.lock.marker_kept
+  ok   half_write.pin.HEAD.lock.reported
+  ok   half_write.pin.HEAD.lock.exit_failed
+  ok   half_write.pin.HEAD.lock.repo_result_failed
+  ok   half_write.pin.HEAD.lock.next_run_attributes
+  ok   half_write.ff.ORIG_HEAD.lock.fixture_effect
+  ok   half_write.ff.ORIG_HEAD.lock.not_exit_0
+  ok   half_write.ff.ORIG_HEAD.lock.golden_false_marker_removed
+  ok   half_write.ff.ORIG_HEAD.lock.golden_false_nothing_attributed
+  ok   half_write.ff.index.lock.fixture_effect
+  ok   half_write.ff.index.lock.not_exit_0
+  ok   half_write.ff.index.lock.golden_false_marker_removed
+  ok   half_write.ff.index.lock.golden_false_nothing_attributed
+sync-robustness: PASS 29 FAIL 0

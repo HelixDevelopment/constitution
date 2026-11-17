@@ -1,0 +1,4 @@
+scripts/fastcycle/tests/test_shipped_workable_items_us3_red.sh	0	1s	SUMMARY: all hold
+tests/gates/test_fastcycle_real_db.sh	124	1500s	ok   mutation empty killed: select_sample rc=1, S5 and S6/S3 report NOT ok
+tests/constitution_cmd/test_constitution_cmd.sh	0	120s	PASS=292 FAIL=0
+scripts/gates/cm_feature_directive_mutation_test.sh	0	53s	cm_feature_directive_mutation_test: PASS (gate is genuine — every mutation caught)

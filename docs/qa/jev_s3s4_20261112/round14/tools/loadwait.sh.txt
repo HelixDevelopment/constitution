@@ -1,0 +1,8 @@
+#!/bin/bash
+# loadwait.sh: block before a heavy job while 1-min load > 50; abort job (rc 3) if load > 60 persists 30 min
+W=/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6; waited=0
+while :; do l=$(cut -d' ' -f1 /proc/loadavg); i=${l%.*}
+  [ "$i" -le 50 ] && exit 0
+  echo "$(date +%T) LOADWAIT load=$l" >> "$W/done.txt"; sleep 60; waited=$((waited+60))
+  [ "$i" -gt 60 ] && [ "$waited" -ge 1800 ] && { echo "$(date +%T) LOADABORT load=$l" >> "$W/done.txt"; exit 3; }
+done

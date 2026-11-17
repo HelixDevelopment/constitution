@@ -1,0 +1,8 @@
+== marker_lock
+  ok   marker_lock.control_tree_clean
+  ok   marker_lock.exit_4
+  FAIL marker_lock.attributed  (['in-progress:index.lock'])
+  FAIL marker_lock.not_users  (['in-progress:index.lock'])
+  ok   marker_lock.marker_kept
+  ok   marker_lock.control_users
+sync-robustness: PASS 4 FAIL 2

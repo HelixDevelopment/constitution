@@ -1,0 +1,25 @@
+$ python3 -I tests/workable_items/remint_branch_sweep_mutations.py --jobs 2
+# run 2026-11-13T23:39:35Z on the final tree (env -i, HOME=<work>/home, nice -n 10, a TasksMax=3000 scope); rc and wall seconds on the last line
+PASS control: the unmutated sweep passes its test (RESULT: pass=42 fail=0)
+KILLED SW1 (the unmutated control is never run): control: a suite that fails on the unmutated source is a setup error: rc=0 want=2: CONTROL: the unmutated source passes the suite|make_
+KILLED SW2 (a suite exit 1 without a FAIL line counts as KILLED): full run: an unregistered survivor and a SETUP verdict fail the sweep: /^RESULT: mutants=16 EQUIVALENT=3 KILLED=8 SETUP=2 SURVIVED=2 TI
+KILLED SW3 (a register entry turns any verdict into EQUIVALENT): register: an entry does not turn a killed mutant into an equivalent: /^RESULT: mutants=2 KILLED=2 skipped=0 stale-register=0 PASS$/ not
+KILLED SW4 (a SETUP verdict does not fail the sweep): --only: a SETUP verdict fails the sweep: rc=0 want=1: CONTROL: the unmutated source passes the suite|check_history|if|n < 0#1=True	36	S
+KILLED SW5 (a stale register entry fails a --only run): register: a stale entry is reported but not counted with --only: rc=1 want=0: CONTROL: the unmutated source passes the suite|make_plan|
+KILLED SW6 (a TIMEOUT verdict fails the sweep): --only: killed, equivalent and timeout verdicts pass the sweep: rc=1 want=0: CONTROL: the unmutated source passes the suite|make_plan|i
+KILLED SW7 (a while True loop is mutated, not skipped): list: the inventory counts every target branch point, two mutants each: /^INVENTORY: mutants=16 branch-points=8 skipped=1$/ not in: mak
+KILLED SW8 (comprehension filters are not walked): list: the inventory counts every target branch point, two mutants each: /^INVENTORY: mutants=16 branch-points=8 skipped=1$/ not in: mak
+KILLED SW9 (the span control needle is removed): needle: a span taken from byte offsets as characters is a setup error: rc=0 want=2: make_plan|if|n > 2#1=True	line 5|make_plan|if|n > 2
+KILLED SW10 (--only-file takes the whole line as the key): --only-file: the first TAB field of each line names a key: rc=2 want=0: setup: --only names keys that are not in the inventory: ['Rewri
+KILLED SW11 (an unknown --only key is accepted): usage: an unknown --only key is a setup error: rc=0 want=2: CONTROL: the unmutated source passes the suite|RESULT: mutants=0  skipped=1
+KILLED SW12 (the suite runs without REMINT_IDS_FAILFAST=1): full run: an unregistered survivor and a SETUP verdict fail the sweep: rc=2 want=1: setup: the unmutated source does not pass the suite
+KILLED SW13 (byte offsets are taken as character offsets): list: the inventory counts every target branch point, two mutants each: rc=2 want=0: setup: the span of the condition at line 24 does n
+KILLED SW14 (a setup error exits 1): register: a line without a TAB and a reason is a setup error: rc=1 want=2: setup: <home>/.cache/claude-tmp/claude-1000/-home-
+KILLED SW15 (cmd_replay is not a target): list: the inventory counts every target branch point, two mutants each: /^INVENTORY: mutants=16 branch-points=8 skipped=1$/ not in: mak
+KILLED SW16 (conditional expressions are not walked): list: the inventory counts every target branch point, two mutants each: /^INVENTORY: mutants=16 branch-points=8 skipped=1$/ not in: mak
+KILLED SW17 (a suite that does not finish counts as KILLED): full run: an unregistered survivor and a SETUP verdict fail the sweep: /^RESULT: mutants=16 EQUIVALENT=3 KILLED=8 SETUP=2 SURVIVED=2 TI
+KILLED SW18 (a passing suite counts as KILLED): full run: an unregistered survivor and a SETUP verdict fail the sweep: /^RESULT: mutants=16 EQUIVALENT=3 KILLED=8 SETUP=2 SURVIVED=2 TI
+RESULT: mutants=18 killed=18 survived=0 PASS
+rc=0 secs=230
+# scrubbed copy (tools/scrub_paths.py): <work> x0, <home> x1, <tmp> x0
+# cut path fragments replaced: 0

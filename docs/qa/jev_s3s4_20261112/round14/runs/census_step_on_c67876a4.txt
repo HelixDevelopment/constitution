@@ -1,0 +1,4 @@
+== git-env census (unscrubbed must be 0)
+git-env-class-census: FAIL - tracked file docs/qa/jev_s3s4_20261112/round14/start_intent.mmd has the extension .mmd, which is neither code nor in the closed data list (add it to DATA_EXT or a code language; the universe is closed-world)
+git-env-class-census: FAIL - members=672 hermetic=513 exempt=159 unscrubbed=0
+rc=1

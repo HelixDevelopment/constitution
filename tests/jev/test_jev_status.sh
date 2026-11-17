@@ -41,7 +41,7 @@ if command -v jq >/dev/null 2>&1; then
   bash "$REPO/scripts/jev/jev-status.sh" --json >"$T/status.json"
   assert_rc 0 "$?" "--json run rc 0"
   keys="$(jq -r 'keys_unsorted | join(",")' "$T/status.json")"
-  assert_eq "version,detection,thresholds,bootstrap,mode,mode_stored,mode_reason,test_override,mcp_mode_mismatch" "$keys" "--json top-level keys exact"
+  assert_eq "version,detection,thresholds,bootstrap,mode,mode_stored,mode_reason,test_override,mcp_mode_mismatch,health,calibration_age_s,consent,wiring,placement,leases" "$keys" "--json top-level keys exact (control-view keys added 2026-11-12)"
   bkeys="$(jq -r '.bootstrap | keys_unsorted | join(",")' "$T/status.json")"
   assert_eq "stamp,pending" "$bkeys" "--json bootstrap keys exact"
   assert_eq "1" "$(jq -r '.version' "$T/status.json")" "--json version=1"

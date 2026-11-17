@@ -1,0 +1,55 @@
+PASS control: unmutated copy passes the suite (RESULT: pass=138 fail=0)
+PASS RC1 verify: obsolete_details values not compared: rc=1 first-failure=verify FAIL: an obsolete_details field: /^MISMATCH CON-355 obsolete_details.since: la
+PASS RC2 verify: own status not compared: rc=1 first-failure=verify FAIL: an own status: /^MISMATCH CON-357 status: landed 'Queued', expected 'In 
+PASS RC3 verify: Opened history row not required: rc=1 first-failure=verify FAIL: a missing Opened history row: rc=0 want=1: KNOWN CON-343: body_md not co
+PASS RC4 rewrite: each file written before the next is checked: rc=1 first-failure=a refusal writes no file at all (the first file is checked before any write): got: se
+PASS RC5 replay: states updated_at dropped: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the t
+PASS RC6 replay: assigned_to dropped: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the t
+PASS RC7 map: two old ids may share one new id: rc=1 first-failure=map giving two old ids one new id is BLIND: rc=0 want=3: /home/milosvasic/.cache/clau
+PASS RC8 plan: first new id = max(target) (collides): rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want
+PASS X1 base item: update step not replayed: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X2 base item: state block not replayed: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X3 base item: lifecycle not replayed: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X4 conflicts not detected: rc=1 first-failure=conflict: both sides changed one column: rc=0 want=1: BASE-CHANGE CON-343 vehicle=des
+PASS X5 plan foreign set from the title only (R3-2 shape): rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the t
+PASS X6 verify foreign set from the title only (R3-2 shape): rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the t
+PASS X7 plan always FAST-FORWARD: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X8 replay: target sha256 not checked: rc=1 first-failure=a second replay is refused before any write: /re-plan against this target/ not in: cl
+PASS X9 replay: -wal sidecar not checked: rc=1 first-failure=replay refuses a target copy with a non-empty -wal sidecar: rc=0 want=1: step 1 updat
+PASS X10 verify: untouched target items not compared: rc=1 first-failure=verify FAIL: an untouched target item: rc=0 want=1: KNOWN CON-343: body_md not compar
+PASS X11 --resolve target ignored: rc=1 first-failure=verify of --resolve target: rc=1 want=0: KNOWN CON-345 created_at: landed 2026-11-13 
+PASS X12 stamp-only change not refused: rc=1 first-failure=plan refusal: only a state stamp changed: rc=0 want=1: BASE-CHANGE CON-343 vehicle=de
+PASS X13 body_md-only change not refused: rc=1 first-failure=plan refusal: body_md changed with no column change: rc=0 want=1: BASE-CHANGE CON-343
+PASS X14 red/green scripts not scanned: rc=1 first-failure=plan refusal: a red command whose script names a moved id: rc=0 want=1: BASE-CHANGE C
+PASS X15 another table changed by the vehicle not refused: rc=1 first-failure=plan refusal: another table changed: rc=0 want=1: BASE-CHANGE CON-343 vehicle=descrip
+PASS X16 own item with a column add cannot carry not refused: rc=1 first-failure=plan refusal: an own item with a column add cannot carry: rc=0 want=1: BASE-CHANGE CO
+PASS X17 verify: closure row evidence not compared: rc=1 first-failure=verify FAIL: a closure row citing other evidence: rc=0 want=1: KNOWN CON-343: body_md
+PASS X18 obsolete_details lost on close-then-reopen (round-4 fix reverted): rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X19 obsolete_details lost on close: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X20 obsolete_details lost when the lifecycle is unchanged: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X21 obsolete_details lost before a reopen of a closed item: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X22 obsolete_details on an open item not refused: rc=1 first-failure=plan refusal: an obsolete_details row on an item left open: rc=0 want=1: BASE-CHANGE 
+PASS X23 a script comment Foreign line not honoured: rc=1 first-failure=plan: a script that declares its id foreign in a comment is not refused: rc=1 want=0:
+PASS X24 the item foreign set not applied to its scripts: rc=1 first-failure=plan: --foreign covers the script scan too: rc=1 want=0: BASE-CHANGE CON-343 vehicle=
+PASS X25 verify: database sha256 not checked against the plan: rc=1 first-failure=verify refuses databases the plan was not made from: /the vehicle database is not the
+PASS X26 verify: Reopened row not compared: rc=1 first-failure=verify FAIL: a changed Reopened row: rc=0 want=1: KNOWN CON-343: body_md not compared
+PASS X27 verify: target history rows not compared: rc=1 first-failure=verify FAIL: a target history row: rc=0 want=1: KNOWN CON-343: body_md not compared (
+PASS X28 verify: other tables not compared: rc=1 first-failure=verify FAIL: another table: rc=0 want=1: KNOWN CON-343: body_md not compared (the tar
+PASS X29 verify: --require-segments not checked: rc=1 first-failure=verify --require-segments FAILs on an item with no segment: rc=0 want=1: KNOWN CON-34
+PASS X30 rewrite: Foreign line rewritten: rc=1 first-failure=Foreign line left alone before its colon too: /replaced=1$/ not in: /home/milosvasic/
+PASS X31 verify: map keys not checked against the own set: rc=1 first-failure=verify FAIL: a plan map that is not the own set: /^MISMATCH the plan's map keys are n
+PASS X32 verify: plan map prefix not checked: rc=1 first-failure=verify: a plan whose map prefix is not its prefix is BLIND: rc=1 want=3: KNOWN CON-34
+PASS X33 a deleted base item not refused: rc=1 first-failure=plan refusal: the vehicle deleted a base item: rc=0 want=1: BASE-CHANGE CON-343 vehic
+PASS X34 a rewritten base history row not refused: rc=1 first-failure=plan refusal: a base history row rewritten: rc=0 want=1: BASE-CHANGE CON-343 vehicle=
+PASS X35 a non-item doc segment not refused: rc=1 first-failure=plan refusal: a non-item doc segment: rc=0 want=1: BASE-CHANGE CON-343 vehicle=descri
+PASS X36 an ambiguous base text not refused: rc=1 first-failure=plan refusal: a base text that already names an id the vehicle minted later: rc=0 wan
+PASS X37 rewrite: partly moved range not refused: rc=1 first-failure=partly moved range refused: /is partly moved \(2 of 3 ids\)/ not in: Traceback (most 
+PASS X38 rewrite: tokens chained once: rc=1 first-failure=tokens, no chaining, boundaries, range, sentence dot: got: see CON-3 and CON-3; CON-1
+PASS X39 rewrite: non-contiguous range not refused: rc=1 first-failure=range with non-contiguous new ids refused: rc=0 want=1: /home/milosvasic/.cache/claud
+PASS X40 rewrite: a .db file accepted: rc=1 first-failure=a .db file refused: rc=0 want=1: /home/milosvasic/.cache/claude-tmp/claude-1000/-home
+PASS X41 verify: base-change state stamps not compared: rc=1 first-failure=verify FAIL: a base-change state stamp: rc=0 want=1: KNOWN CON-343: body_md not compa
+PASS X42 rewrite: an id inside a path rewritten: rc=1 first-failure=an id inside a path refused (slash): rc=0 want=1: /home/milosvasic/.cache/claude-tmp/
+PASS S1 suite: a failing fixture edit is ignored: rc=1 first-failure=fx_sql refuses an edit that changes no row: rc=0
+PASS S2 suite: a fixture edit that matches no row is accepted: rc=1 first-failure=fx_sql refuses an edit that changes no row: rc=0
+PASS S3 suite: fx_sql may touch the real database: rc=1 first-failure=fx_sql refuses the real database: rc=0
+RESULT: mutants=53 all killed

@@ -1,0 +1,88 @@
+start 2026-11-15T10:36:34+01:00 head 892aa4ea05bfbef660c26d418ddaefaf2e8b4447 clean-tree-lines 0 SUITE_NOW 2026-11-15T12:00:00Z MUT_JOBS 3 MUT_ONLY ^(RVR11-|gen-norm-|eq-|selftest-|gen-andor-5d778c1c49|gen-rxq-1faaa1a2b7|gen-strip-99db10f56c|gen-strip-7144af3e42|gen-pybool-6ef1faee03|gen-rxq-774fef6d84|gen-rxq-53ad123043|gen-rxq-da7dc34398|gen-andor-2468ed98ae|no-casefold-no-nfc$|casefold-without-nfc$|V13-casefold-to-lower$|normalise-to-empty$|self-authoriser-allowed$|self-always$|RV10-05-email-space-strip$|ident-names-ascii-strip$)
+scope con046r12-t1 cgroup /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/con046r12-t1.scope pids.max 2000 load 36.75 23.46 11.80 start 2026-11-15T10:36:34+01:00
+clock (injected, one instant for the whole run): 2026-11-15T12:00:00Z
+date (pinned, first on PATH): /usr/bin/gnudate: date (GNU coreutils) 9.7
+date (alternative, the host default): /usr/bin/date: date (uutils coreutils) 0.10.0
+Unicode Zs: 17 characters enumerated
+Unicode isspace(): 29 characters enumerated (Zs 17 of them; 27 can sit inside a TSV field)
+isspace() characters git keeps at the end of a name and an email: 19 (measured through git var)
+cgroup pids/oom event counter: 480 (none = unreadable: only stderr signatures are checked)
+gate vector: DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/135 F_HELPSHORT=0/135 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 ARGNEAR=00000/22222222222222 CONFHASH=0,1,1, CONFKEYNEAR=0/11111/0/111 CONFSPLIT=1/1/0 CRMID=1/1 DOWN2=1/1 DUPNEAR=1/1/0 HASHMID=0 IDDELIM=1/1 ITEMCASE=1,1,0, NULROW=1/1,1/1,1/1,1/1,0 PATHNEAR=0/111111111 PATHWS=1,1, SEPINJECT=1/1 SPENTFIELDS=0,0,1 SPENTPATHNEAR=000000000/1 SYMNEAR=2/1,2/1, TSVSPACE=1,0 TZPAIR=0,1,1,0/+1400/-1200 WSID4=11111111/8/19/0
+gate vector date: 2026-11-15~2026-11-15
+gate vector date under the alternative date: 2026-11-15~2026-11-15
+ok   gate vector under the alternative date (/usr/bin/date) equals want
+lint static: rows 234, code lines 173, registered 355, needles [3, 5, 2]+(3,1), findings 0
+ok   lint control needle: a broken inventory is refused (L1, L3, L5)
+site lint static: sites 153, rows 153, data rows 103, needles [9, 3, 1]+(3), findings 0
+ok   site lint control needles: an added compare, a removed row and an emptied data row are refused (S1, S1, S3)
+ok   member ledger current: 141 generated members, 141 viable
+ok   judge unit check: survived,killed,inconclusive,inconclusive,inconclusive,inconclusive
+ok   mutant self-authoriser-allowed killed
+ok   mutant no-casefold-no-nfc killed
+ok   mutant casefold-without-nfc killed
+ok   mutant RVR11-01-outer-nfc-dropped killed
+ok   mutant RVR11-02-inner-nfc-dropped killed
+ok   mutant RVR11-03-kids-first-parent-skipped killed
+ok   mutant RVR11-04-spent-base-field-unchecked killed
+ok   mutant RVR11-05-main-diff-renames-on killed
+ok   mutant RVR11-06-today-local-tz killed
+ok   mutant RVR11-07-stash-counted killed
+ok   mutant V13-casefold-to-lower killed
+ok   mutant normalise-to-empty killed
+ok   mutant self-always killed
+ok   mutant RV10-05-email-space-strip killed
+ok   mutant ident-names-ascii-strip killed
+ok   generated member gen-andor-5d778c1c49 survives: claimed equivalent by proof eq-need-argc-redundant (checked below)
+ok   generated member gen-rxq-1faaa1a2b7 survives: claimed equivalent by proof eq-maxdays-upper-bound-by-le (checked below)
+ok   mutant gen-norm-d6488cc903 killed
+ok   mutant gen-norm-5f221ef89a killed
+ok   mutant gen-norm-1e01bc5d9d killed
+ok   generated member gen-strip-99db10f56c survives: claimed equivalent by proof eq-ident-strip-truthiness (checked below)
+ok   generated member gen-strip-7144af3e42 survives: claimed equivalent by proof eq-ident-strip-truthiness (checked below)
+ok   generated member gen-pybool-6ef1faee03 survives: claimed equivalent by proof eq-idpy-strip-and-dropped (checked below)
+ok   mutant gen-norm-8961072579 killed
+ok   mutant gen-norm-fbc19b3fc8 killed
+ok   generated member gen-rxq-774fef6d84 survives: claimed equivalent by proof eq-expiry-tail-by-roundtrip (checked below)
+ok   generated member gen-rxq-53ad123043 survives: claimed equivalent by proof eq-expiry-tail-by-roundtrip (checked below)
+ok   generated member gen-rxq-da7dc34398 survives: claimed equivalent by proof eq-expiry-tail-by-roundtrip (checked below)
+ok   generated member gen-andor-2468ed98ae survives: claimed equivalent by proof eq-V28-missing-checkout-no-empty-check (checked below)
+ok   date self-test: a job one day behind is INCONCLUSIVE (never killed)
+ok   resource self-test: a job with a refused fork is INCONCLUSIVE (never killed): events 480->480 fatal: fork failed: Resource temporarily unavailable
+ok   eqproof eq-need-argc-redundant: whole-suite vector equals the real gate's
+ok   eqproof eq-maxdays-upper-bound-by-le: whole-suite vector equals the real gate's
+ok   eqproof eq-ident-strip-truthiness: whole-suite vector equals the real gate's
+ok   eqproof eq-V28-missing-checkout-no-empty-check: whole-suite vector equals the real gate's
+ok   eqproof eq-spent-absent-continue-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-blob-absent-as-empty: whole-suite vector equals the real gate's
+ok   eqproof eq-conf-crc0-is-else: whole-suite vector equals the real gate's
+ok   eqproof eq-idpy-len-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-idpy-strip-and-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-expiry-tail-by-roundtrip: whole-suite vector equals the real gate's
+ok   eqproof eq-empty-path-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-unchanged-entry-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-site-merge-aborts: whole-suite vector equals the real gate's
+ok   eqproof eq-site-ident-aborts: whole-suite vector equals the real gate's
+ok   eqproof eq-site-nopy-aborts: whole-suite vector equals the real gate's
+ok   eqproof eq-site-spent-aborts: whole-suite vector equals the real gate's
+ok   eqproof eq-site-cannottell-aborts: whole-suite vector equals the real gate's
+ok   eqproof eq-need-argc-redundant: probe real=eq [last:2,empty:2,lastw:2,emptyw:2]; control differs [last:2,empty:0,lastw:2,emptyw:0]; alternative date: real=eq [last:2,empty:2,lastw:2,emptyw:2], control differs [last:2,empty:0,lastw:2,emptyw:0] (pinned date survived, alternative date survived)
+ok   eqproof eq-maxdays-upper-bound-by-le: probe real=eq [999:1,1000:1,365:0,]; control differs [999:0,1000:1,365:0,]; alternative date: real=eq [999:1,1000:1,365:0,], control differs [999:0,1000:1,365:0,] (pinned date survived, alternative date survived)
+ok   eqproof eq-ident-strip-truthiness: probe real=eq [padname:1/1,zsname:1/1,padmail:1]; control differs [padname:0/0,zsname:0/0,padmail:0]; alternative date: real=eq [padname:1/1,zsname:1/1,padmail:1], control differs [padname:0/0,zsname:0/0,padmail:0] (pinned date survived, alternative date survived)
+ok   eqproof eq-V28-missing-checkout-no-empty-check: probe real=eq [absent:2/1,file:2/1,mode000:2/1,emptydir:2/0,]; control differs [absent:2/0,file:2/0,mode000:2/0,emptydir:2/0,]; alternative date: real=eq [absent:2/1,file:2/1,mode000:2/1,emptydir:2/0,], control differs [absent:2/0,file:2/0,mode000:2/0,emptydir:2/0,] (pinned date survived, alternative date survived)
+ok   eqproof eq-spent-absent-continue-dropped: probe real=eq [nowaiver:0,otherrow:0,]; control differs [nowaiver:1,otherrow:0,]; alternative date: real=eq [nowaiver:0,otherrow:0,], control differs [nowaiver:1,otherrow:0,] (pinned date survived, alternative date survived)
+ok   eqproof eq-blob-absent-as-empty: probe real=eq [nowaiver:0,otherrow:0,]; control differs [nowaiver:1,otherrow:1,]; alternative date: real=eq [nowaiver:0,otherrow:0,], control differs [nowaiver:1,otherrow:1,] (pinned date survived, alternative date survived)
+ok   eqproof eq-conf-crc0-is-else: probe real=eq [absent:0,cat:0]; control differs [absent:1,cat:1]; alternative date: real=eq [absent:0,cat:0], control differs [absent:1,cat:1] (pinned date survived, alternative date survived)
+ok   eqproof eq-idpy-len-dropped: probe real=eq [ok:0,noemail:0,self:1,badutf8:1/1]; control differs [ok:1,noemail:1,self:1,badutf8:1/1]; alternative date: real=eq [ok:0,noemail:0,self:1,badutf8:1/1], control differs [ok:1,noemail:1,self:1,badutf8:1/1] (pinned date survived, alternative date survived)
+ok   eqproof eq-idpy-strip-and-dropped: probe real=eq [ok:0,noemail:0,self:1,badutf8:1/1]; control differs [ok:0,noemail:0,self:0,badutf8:1/1]; alternative date: real=eq [ok:0,noemail:0,self:1,badutf8:1/1], control differs [ok:0,noemail:0,self:0,badutf8:1/1] (pinned date survived, alternative date survived)
+ok   eqproof eq-expiry-tail-by-roundtrip: probe real=eq [0/0,1/1,1/1,0/0,1/1,1/1,1/1,1/1,1/1,1/1,1/1,]; control differs [0/0,1/0,1/0,0/0,1/0,1/0,0/0,0/0,1/0,1/0,0/0,]; alternative date: real=eq [0/0,1/1,1/1,0/0,1/1,1/1,1/1,1/1,1/1,1/1,1/1,], control differs [0/0,1/0,1/0,0/0,1/0,1/0,0/0,0/0,1/0,1/0,0/0,] (pinned date survived, alternative date survived)
+ok   eqproof eq-empty-path-dropped: probe real=eq [down:1,ren:1/1,plain:0/(1 staged]; control differs [down:0,ren:0/0,plain:0/(0 staged]; alternative date: real=eq [down:1,ren:1/1,plain:0/(1 staged], control differs [down:0,ren:0/0,plain:0/(0 staged] (pinned date survived, alternative date survived)
+ok   eqproof eq-unchanged-entry-dropped: probe real=eq [same:0/(0 staged,wtonly:0/(0 staged,down:1,gl2f:0/(0 staged,f2gl:0/(0 staged]; control differs [same:0/(0 staged,wtonly:0/(0 staged,down:1,gl2f:0/(0 staged,f2gl:2/]; alternative date: real=eq [same:0/(0 staged,wtonly:0/(0 staged,down:1,gl2f:0/(0 staged,f2gl:0/(0 staged], control differs [same:0/(0 staged,wtonly:0/(0 staged,down:1,gl2f:0/(0 staged,f2gl:2/] (pinned date survived, alternative date survived)
+ok   eqproof eq-site-merge-aborts: probe real=eq [merge:1/1]; control differs [merge:0/0]; alternative date: real=eq [merge:1/1], control differs [merge:0/0] (pinned date survived, alternative date survived)
+ok   eqproof eq-site-ident-aborts: probe real=eq [ident:1/1]; control differs [ident:0/0]; alternative date: real=eq [ident:1/1], control differs [ident:0/0] (pinned date survived, alternative date survived)
+ok   eqproof eq-site-nopy-aborts: probe real=eq [nopy:1/1]; control differs [nopy:1/0]; alternative date: real=eq [nopy:1/1], control differs [nopy:1/0] (pinned date survived, alternative date survived)
+ok   eqproof eq-site-spent-aborts: probe real=eq [spent:1/1]; control differs [spent:0/0]; alternative date: real=eq [spent:1/1], control differs [spent:0/0] (pinned date survived, alternative date survived)
+ok   eqproof eq-site-cannottell-aborts: probe real=eq [badref:1/1]; control differs [badref:0/0]; alternative date: real=eq [badref:1/1], control differs [badref:0/0] (pinned date survived, alternative date survived)
+mutants: 48 (killed 20, survived 0, equivalent-with-proof 26, inconclusive 0)
+hook: plain downgrade rc=1 forward rc=0 downgrade-after rc=1 ; real-submodule worktree (real) forward rc=0 downgrade rc=1 ; persist rollback rc=0 fwd rc=0 snapshot rc=1 pin=B ; layout-skip rc=0 [CM-SUBMODULE-PIN-NOT-DOWNGRADED: SKIP — gate not found beside this hook (/mnt/]
+rc=0 end 2026-11-15T12:18:35+01:00 pids.peak 48 pids.events max 0 
+end 2026-11-15T12:18:35+01:00 head 892aa4ea05bfbef660c26d418ddaefaf2e8b4447 clean-tree-lines 0 rc=0

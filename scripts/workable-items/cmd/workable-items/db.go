@@ -643,8 +643,9 @@ func (s segment) repOrDefault() string {
 // joinability -- the SAME TSV (or a TSV sharing the identical 11-column
 // header) can be read by whatever consumes bash-emitted rows (e.g. a future
 // cycle_report.py):
-//   run_id  candidate_fingerprint  id  start_ns  end_ns  duration_ms  verdict
-//   checks  fails  warns  extra
+//
+//	run_id  candidate_fingerprint  id  start_ns  end_ns  duration_ms  verdict
+//	checks  fails  warns  extra
 //
 // This is a Go-NATIVE reimplementation of that contract, not a port: there is
 // no practical way for this Go binary to `source` a bash library across a
@@ -875,11 +876,11 @@ func takeCreatedAtSnapshot(q sqlQueryer) (createdAtSnapshot, error) {
 }
 
 // replaceDocumentWithSnapshot is replaceDocument with an optional snapshot
-// taken by the caller before an earlier transaction. md-to-db replaces Issues
-// and Fixed in two transactions, so an item the Markdown moved from Issues to
-// Fixed has no row left when the Fixed transaction starts; the caller's
-// snapshot, taken before both, still holds its created_at. The rows present at
-// the start of this transaction always win over the caller's values.
+// taken by the caller before this transaction (CON-339). md-to-db itself
+// rebuilds Issues and Fixed in ONE transaction (replaceDocumentsAtomic, CON-456
+// round 2) and passes its snapshot there; this single-document entry keeps the
+// prior argument for callers that rebuild one tracker. The rows present at the
+// start of this transaction always win over the caller's values.
 func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs []segment, prior createdAtSnapshot) (err error) {
 	requestedNS := time.Now().UnixNano()
 	defer func() {
@@ -891,12 +892,153 @@ func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs
 		extra := fmt.Sprintf("document=%s;items=%d;segments=%d", document, len(items), len(segs))
 		fcTimerAppendRow("tracker-writer:"+document, requestedNS, appliedNS, verdict, checks, fails, warns, extra)
 	}()
+	return replaceDocumentsAtomic(db, []documentImport{{document, items, segs}}, prior, false)
+}
+
+// documentImport is one tracker rebuilt by an md-to-db import.
+type documentImport struct {
+	document string
+	items    []item
+	segs     []segment
+}
+
+// replaceDocumentsAtomic rebuilds every given tracker from its parsed items
+// and segments in ONE transaction, so an import that fails on any tracker
+// leaves the database byte-unchanged (CON-456 review F2: the two-transaction
+// import committed Issues.md and then refused Fixed.md, deleting an item the
+// Markdown had moved between them while reporting "nothing written").
+// timed=true appends one tracker-writer timing row per document with the
+// verdict of the single commit.
+func replaceDocumentsAtomic(db *sql.DB, docs []documentImport, prior createdAtSnapshot, timed bool) (err error) {
+	if timed {
+		requestedNS := time.Now().UnixNano()
+		defer func() {
+			appliedNS := time.Now().UnixNano()
+			for _, d := range docs {
+				verdict, checks, fails, warns := "PASS", 1, 0, 0
+				if err != nil {
+					verdict, checks, fails, warns = "FAIL", 0, 1, 0
+				}
+				extra := fmt.Sprintf("document=%s;items=%d;segments=%d", d.document, len(d.items), len(d.segs))
+				fcTimerAppendRow("tracker-writer:"+d.document, requestedNS, appliedNS, verdict, checks, fails, warns, extra)
+			}
+		}()
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+
+	// CON-339: read every row's created_at before the delete below.
+	snap, err := takeCreatedAtSnapshot(tx)
+	if err != nil {
+		return fmt.Errorf("snapshot created_at: %w", err)
+	}
+	for k, v := range prior {
+		if _, ok := snap[k]; !ok {
+			snap[k] = v
+		}
+	}
+	// CON-456 round 3 (review F-B): read every stored operator_block_details
+	// row with the block text it was written for, before the delete below.
+	obd, err := takeOBDSnapshot(tx)
+	if err != nil {
+		return fmt.Errorf("snapshot operator_block_details: %w", err)
+	}
+	for _, d := range docs {
+		if err := replaceDocumentInTx(tx, d.document, d.items, d.segs, snap, obd); err != nil {
+			return err
+		}
+	}
+
+	// §11.4.292: an item that left Fixed (a Markdown-side reopen / move) loses
+	// its closure-gate exemption, so its next closure is checked.
+	if err := pruneReproExemptions(tx); err != nil {
+		return fmt.Errorf("prune repro_gate_exemptions: %w", err)
+	}
+
+	if _, err := tx.Exec(`UPDATE meta SET value=?, last_modified=datetime('now') WHERE key='last_sync_direction'`, "md-to-db"); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE meta SET value=datetime('now') WHERE key='last_sync_timestamp'`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// obdSnapshot maps an atm_id to the operator_block_details row stored for it
+// and the block source (operatorBlockSource) of the Operator-blocked section
+// body it was stored with.
+//
+// CON-456 round 3 (review F-B): md-to-db rebuilds the sub-table from the one
+// `**Operator-Block-Details:**` Markdown line. parseOperatorBlockDetails splits
+// that line on the words WHAT: / WHY: / UNBLOCK: / WHO: and folds the whole
+// block into unblock_condition, so a row `block` wrote (or a value that
+// contains a separator word) read back differently although the Markdown was
+// unchanged: on the real tracker the first cycle grew CON-263's UNBLOCK from
+// 220 to 695 characters. An item whose block source is unchanged keeps its
+// stored row; an edited block is re-derived as before.
+type obdSnapshot map[string]struct {
+	src string
+	row operatorBlock
+}
+
+func takeOBDSnapshot(q sqlQueryer) (obdSnapshot, error) {
+	rows, err := q.Query(`SELECT o.atm_id, o.what, o.why_exhausted_alternatives, o.unblock_condition,
+		COALESCE(o.who,''), i.body_md
+		FROM operator_block_details o JOIN items i ON i.atm_id = o.atm_id
+		WHERE i.status = 'Operator-blocked' AND COALESCE(i.representation,'section') = 'section'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := obdSnapshot{}
+	seen := map[string]int{}
+	for rows.Next() {
+		var id, what, why, unblock, who, body string
+		if err := rows.Scan(&id, &what, &why, &unblock, &who, &body); err != nil {
+			return nil, err
+		}
+		seen[id]++
+		src, ok := operatorBlockSource(body)
+		if !ok {
+			continue
+		}
+		out[id] = struct {
+			src string
+			row operatorBlock
+		}{src, operatorBlock{what: what, why: why, unblock: unblock, who: who}}
+	}
+	// An id with more than one Operator-blocked section row has no single
+	// source to compare; it is re-derived.
+	for id, n := range seen {
+		if n > 1 {
+			delete(out, id)
+		}
+	}
+	return out, rows.Err()
+}
+
+// keep returns the stored row of id when body still carries the block source
+// that row was stored with.
+func (s obdSnapshot) keep(id, body string) (operatorBlock, bool) {
+	e, ok := s[id]
+	if !ok {
+		return operatorBlock{}, false
+	}
+	if src, ok := operatorBlockSource(body); !ok || src != e.src {
+		return operatorBlock{}, false
+	}
+	return e.row, true
+}
+
+// replaceDocumentInTx deletes one tracker's segments, items and their
+// operator_block_details rows inside tx and re-inserts them from the parsed
+// items and segments. snap carries the created_at every row held before the
+// import (CON-339), taken once for the whole transaction.
+func replaceDocumentInTx(tx *sql.Tx, document string, items []item, segs []segment, snap createdAtSnapshot, obd obdSnapshot) error {
 
 	// Clear segments for this document; clear items whose current_location is
 	// this document (so a full two-document sync rebuilds everything).
@@ -912,16 +1054,6 @@ func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs
 	}
 	if _, err := tx.Exec(`DELETE FROM doc_segments WHERE document = ?`, document); err != nil {
 		return fmt.Errorf("clear segments: %w", err)
-	}
-	// CON-339: read every row's created_at before the delete below.
-	snap, err := takeCreatedAtSnapshot(tx)
-	if err != nil {
-		return fmt.Errorf("snapshot created_at: %w", err)
-	}
-	for k, v := range prior {
-		if _, ok := snap[k]; !ok {
-			snap[k] = v
-		}
 	}
 	if _, err := tx.Exec(`DELETE FROM items WHERE current_location = ?`, document); err != nil {
 		return fmt.Errorf("clear items: %w", err)
@@ -977,7 +1109,14 @@ func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs
 		// representation guard skips a pipe-table 'table' row for the same id,
 		// which carries no OBD block of its own.
 		if it.Status == "Operator-blocked" && it.repOrDefault() == "section" {
-			if ob, ok := parseOperatorBlockDetails(it.BodyMD); ok {
+			if ob, ok := obd.keep(it.AtmID, it.BodyMD); ok {
+				// The block text is unchanged since the row was written:
+				// keep the stored row (a re-split would change it).
+				if _, err := insOBD.Exec(it.AtmID, ob.what, ob.why,
+					ob.unblock, nullable(ob.who)); err != nil {
+					return fmt.Errorf("insert operator_block_details %s: %w", it.AtmID, err)
+				}
+			} else if ob, ok := parseOperatorBlockDetails(it.BodyMD); ok {
 				if _, err := insOBD.Exec(it.AtmID, ob.what, ob.why,
 					ob.unblock, nullable(ob.who)); err != nil {
 					return fmt.Errorf("insert operator_block_details %s: %w", it.AtmID, err)
@@ -1000,19 +1139,7 @@ func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs
 		}
 	}
 
-	// §11.4.292: an item that left Fixed (a Markdown-side reopen / move) loses
-	// its closure-gate exemption, so its next closure is checked.
-	if err := pruneReproExemptions(tx); err != nil {
-		return fmt.Errorf("prune repro_gate_exemptions: %w", err)
-	}
-
-	if _, err := tx.Exec(`UPDATE meta SET value=?, last_modified=datetime('now') WHERE key='last_sync_direction'`, "md-to-db"); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`UPDATE meta SET value=datetime('now') WHERE key='last_sync_timestamp'`); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return nil
 }
 
 func nullable(s string) any {
@@ -1082,17 +1209,13 @@ func renderDocument(db *sql.DB, document string) (string, error) {
 	// representations' bodies; the segment carries which representation it points
 	// to, so the lookup key is atm_id + "\x00" + representation.
 	bodyByKey := map[string]string{}
-	brows, err := db.Query(`SELECT atm_id, representation, status, COALESCE(body_md,''), `+
-		statesSelectCols+` FROM items WHERE current_location = ?`, document)
+	all, err := loadItems(db)
 	if err != nil {
 		return "", err
 	}
-	for brows.Next() {
-		var id, rep, status, body string
-		var st stateRecord
-		if err := brows.Scan(append([]any{&id, &rep, &status, &body}, statesScanDest(&st)...)...); err != nil {
-			brows.Close()
-			return "", err
+	for _, it := range all {
+		if it.CurrentLocation != document {
+			continue
 		}
 		// ATM-627 (task #20) generator-symmetry: emit the `**Status:**` line from the
 		// authoritative items.status column so a directly-mutated (stale-body) item
@@ -1108,11 +1231,12 @@ func renderDocument(db *sql.DB, document string) (string, error) {
 		// authoritative state columns — a STRICT no-op for every item whose body
 		// already parses to its columns (every md→db-synced item, by
 		// construction), so the byte-identical round-trip is preserved.
-		bodyByKey[id+"\x00"+rep] = canonicalizeStateLines(canonicalizeBodyStatusLine(body, status), st, rep)
-	}
-	brows.Close()
-	if err := brows.Err(); err != nil {
-		return "", err
+		//
+		// CON-456 round 2: the item's own Type / Severity / Created-By /
+		// Assigned-To lines get the same generator symmetry (alignMetaLines);
+		// renderedItemBody is the one place these transforms are composed, so
+		// the write gate and the md-to-db guard judge exactly this text.
+		bodyByKey[it.AtmID+"\x00"+it.repOrDefault()] = renderedItemBody(it)
 	}
 
 	rows, err := db.Query(`SELECT seq, kind, COALESCE(atm_id,''), representation, COALESCE(raw,'')

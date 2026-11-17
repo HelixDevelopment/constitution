@@ -1,0 +1,9 @@
+# findings of intake_lint.py --ids CON-262,CON-243 before (<) and after (>) apply_v3b.py
+10d9
+< FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-308
+19,20d17
+< FINDING XREF-LABEL CON-262 CON-243 (the same run_all.sh behaviour plus tier awareness) vs title: CON-222 follow-up: run_all.sh counts the new exit 77 of the 
+< FINDING XREF-UNLABELLED CON-243 CON-262 without a label in a clause that shares no title word: Wider SKIP class: suites and runners that print SKIP but exi
+33d29
+< FINDING XREF-UNLABELLED CON-262 CON-243 without a label in a clause that shares no title word: CON-222 follow-up: run_all.sh counts the new exit 77 of the 
+# diff exit=1

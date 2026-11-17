@@ -1,0 +1,12 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+tests/jev/test_s4_round13_probe5.sh: line 85: wait: pid 1509 is not a child of this shell
+acq rc=
+== a5.err
+[jev-place] the result of llmctl start decide-a (rc 75) found that no other lease holds the set, but another process (pid 1504) marks it stopping (claim ours): only this acquire's own lease is dropped; the set is kept and is not stopped by this acquire
+[jev-place] llmctl start decide-a refused (75): does_not_fit
+[jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+[jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+[jev-place] no local placement (start_refused); fallback route none
+== reg
+{"sets":{},"gateway":{"url":"https://127.0.0.1:18095","ca":"/nonexistent/ca.crt","source":"llmctl decide status registry"},"gen":5}

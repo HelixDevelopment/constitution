@@ -1,0 +1,4 @@
+census runs=3 distinct_hashes=1 hash=caaab274dec7b187 last=RESULT: members=319279 hit=96651 miss_negative=193091 miss_boundary=29537 gap=0 fp=0
+lint_mutations runs=3 distinct_hashes=1 hash=28e2895d59c5c33a last=RESULT: mutants=247 equivalent=3 all killed as declared
+done
+leak_scan_mutations runs=3 distinct_hashes=1 hash=8c8916e09e79dcb4 last=RESULT: mutants=61 bad=0

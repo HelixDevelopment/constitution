@@ -1,0 +1,6 @@
+# Scratch mutant runners (not shipped). sha256 of the exact files used:
+acb011bcd3d48423819dfa949de6e1814b3c3d987de5a1b7d2bf7124c3988f5f  r2_mutants.py (run 1, mutants_r2_run1.tsv)
+a37201a554cc66cb0c162ea423a17498703fcbfce71db4225129b179951b744f  r2_mutants_subset.py (run 2, mutants_r2_run2.tsv)
+d3375c29eb5a55ff70040bc9ee1dcf4cfba9042c86aebb21e89249f866955801  r2_mutants_subset.py (run 3, mutants_r2_run3.tsv; M38 and M39 added)
+# r2_mutants_subset.py = r2_mutants.py restricted to the tags in R2_MUTANTS_ONLY, with M20b (M20 rebuilt so it compiles) and, for run 3, M38 and M39 added; build-error output recorded.
+7ab5801b65e6475623908aef8aaadb228b4fda8ea77e15a63a64ab370db566d9  gotest_verdicts.py (go test verdict extraction)

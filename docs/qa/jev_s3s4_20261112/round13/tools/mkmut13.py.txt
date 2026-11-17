@@ -1,0 +1,73 @@
+# mkmut13.py <repo> <mutdir>: round-13 mutants. Each = a copy of scripts/jev (or of the census) with ONE exact
+# substitution, matched exactly once. R0x/RCTRL: the reviewer's round-12 mutants, adopted verbatim (same substitution
+# text); F1x: the fixer's own producer mutants; C*: census mutants (CMR1..4 the reviewer's, CF* the fixer's).
+import sys, os, shutil
+repo, md = sys.argv[1], sys.argv[2]
+P = "scripts/jev/jev-place.sh"
+C = "scripts/validation/git_env_class_census.py"
+M = {
+ # ---- reviewer, verbatim ----
+ "R01_arm_no_retry": (P, '    arc=0; with_lock arm_stop_locked "$p" "$kind" || arc=$?\n    [ "$arc" = 4 ] || break',
+                      '    arc=0; with_lock arm_stop_locked "$p" "$kind" || arc=$?\n    break'),
+ "R02_markttl_no_recordwaits": (P, 'MARK_TTL=$(( STMO + 2 + RETRIES * LOCK_TMO + 30 ))', 'MARK_TTL=$(( STMO + 2 + 30 ))'),
+ "R03_adopt_after_own_start": (P, '    case " $START_TRIED " in *" $p "*) log "candidate $p: this acquire tried to start it; it is not adopted as operator-started"; continue ;; esac\n',
+                               '    :\n'),
+ "R04_adopt_degraded": (P, '    [ "$st" = ok ] || continue\n    cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$holder" "$pid" "$pst" "$ttl" false)"',
+                        '    [ "$st" = ok ] || [ "$st" = degraded ] || continue\n    cur="$(jq -c --arg p "$p" --argjson l "$(lease_json "$holder" "$pid" "$pst" "$ttl" false)"'),
+ "R05_rc75_counts_after_arm": (P, 'if $k == null or ($k.rc // 0) == 75 or', 'if $k == null or ($k.rc // 0) == 76 or'),
+ "R06_stopowed_for_rc75": (P, '(if $n == 0 and $src != 75 then .sets[$p].stop_owed', '(if $n == 0 then .sets[$p].stop_owed'),
+ "R07_noset_rc75_released": (P, '      75) START_RES=refused ;;\n      0)  cur=', '      75|0)  cur='),
+ "R08_owed_retry_fail_is_success": (P, '    stop_turn "$p" owed; return $?\n', '    stop_turn "$p" owed; return 0\n'),
+ "RCTRL": None,
+ # ---- fixer's own producer mutants (the start intent, R12-B1) ----
+ "F11_no_intent_write": (P, '.sets[$p] = {constitution_started:true, started_at:null, stopping:null, starting:$m, leases:[$l]} | .start_intents[$p] = $m',
+                         '.sets[$p] = {constitution_started:true, started_at:null, stopping:null, starting:$m, leases:[$l]}'),
+ "F12_adopt_ignores_intent": (P, "    if jq -e --arg p \"$p\" '(.start_intents // {})[$p] != null' <<<\"$cur\" >/dev/null; then\n      log \"candidate $p: a start of it by pid",
+                              "    if false; then\n      log \"candidate $p: a start of it by pid"),
+ "F13_mark_ignores_intent": (P, "  if jq -e --arg p \"$p\" '(.start_intents // {})[$p] != null' <<<\"$cur\" >/dev/null; then log \"candidate $p: a start intent",
+                             "  if false; then log \"candidate $p: a start intent"),
+ "F14_recovery_no_stop_owed": (P, '''             stop_owed:{at:$now, reason:"the start by pid \\($ipid) was never recorded (its starter is gone) and the unit runs (\\($st)); a unit this producer may have started is owed a stop"},\n''', ''),
+ "F15_finish_drops_any_intent": (P, '| if $i != null and (($i.pid // null) | tostring) == $pid and', '| if $i != null and'),
+ "F15b_finish_drops_every_intent": (P, 'if $i != null and (($i.pid // null) | tostring) == $pid and ((($i.pid_start // null) | tostring) == (if $pst == "" then "null" else $pst end))\n      then', 'if $i != null\n      then'),
+ "F16_unknown_state_removes_intent": (P, '''      *) log "start intent of $p (pid $ipid): its starter is gone, the unit state is not known now; the intent is kept" ;;''',
+                                      '''      *) out="$(jq -c --arg p "$p" 'del(.start_intents[$p])' <<<"$out")" ;;'''),
+ "F17_live_intent_treated_dead": (P, '    pid_dead "$ipid" "$ipst" || continue\n    if jq -e', '    :\n    if jq -e'),
+ "F18_recovery_operator_owned": (P, "          '.sets[$p] = {constitution_started:true, started_at:$at,", "          '.sets[$p] = {constitution_started:false, started_at:$at,"),
+ "F19_no_recovery_call": (P, '  [ -n "$OBS_TICKET" ] || return 0\n  intents_locked\n', '  [ -n "$OBS_TICKET" ] || return 0\n'),
+ "F1A_dead_intent_set_stays_operator": (P, "'.sets[$p].constitution_started = true | del(.start_intents[$p])'", "'del(.start_intents[$p])'"),
+ "F1B_absent_keeps_intent": (P, '''        log "start intent of $p (pid $ipid) was never answered and its starter is gone; no unit runs: the intent is removed"\n        out="$(jq -c --arg p "$p" 'del(.start_intents[$p])' <<<"$out")" ;;''',
+                             '''        log "start intent of $p (pid $ipid) was never answered and its starter is gone; no unit runs: the intent is removed" ;;'''),
+ # ---- census (R12-B2): the reviewer's CMR1..4 re-expressed on the round-13 text, and the fixer's own ----
+ "CMR1_shape_rule_r12_case_sensitive": (C, '    if MENTION.search(text):\n        return False\n    if ext == "rc":',
+                                        '    if re.search(r"\\bgit\\b", text):\n        return False\n    if ext == "rc":'),
+ "CMR1b_shape_rule_r12_exact": (C, '    if MENTION.search(text):\n        return False\n    if ext == "rc":',
+                                '    if re.search(r"\\bgit\\b|GIT_", text):\n        return False\n    if ext == "rc":'),
+ "CMR2_scope_docs": (C, 'or not path.startswith("docs/qa/"):', 'or not path.startswith("docs/"):'),
+ "CMR3_no_total_header": (C, '    if len(lines) < 1 or not re.fullmatch(r"total \\d+", lines[0], re.ASCII):\n        return False\n    return all(LS_LINE.match(ln) for ln in lines[1:])',
+                          '    if len(lines) < 1:\n        return False\n    return all(LS_LINE.match(ln) or re.fullmatch(r"total \\d+", ln) for ln in lines)'),
+ "CMR4_rc_ws_tolerant": (C, 'm = re.fullmatch(r"(\\d{1,3})\\n?", text, re.ASCII)', 'm = re.fullmatch(r"\\s*(\\d{1,3})\\s*", text, re.ASCII)'),
+ "CF1_rc_unicode_digits": (C, 'm = re.fullmatch(r"(\\d{1,3})\\n?", text, re.ASCII)', 'm = re.fullmatch(r"(\\d{1,3})\\n?", text)'),
+ "CF2_ls_unicode": (C, '(?:\\d{1,2}:\\d{2}|\\d{4})\\s+\\S.*$", re.ASCII)', '(?:\\d{1,2}:\\d{2}|\\d{4})\\s+\\S.*$")'),
+ "CF3_total_unicode": (C, 're.fullmatch(r"total \\d+", lines[0], re.ASCII)', 're.fullmatch(r"total \\d+", lines[0])'),
+ "CF4_shape_mention_case_sensitive": (C, '    if MENTION.search(text):\n        return False\n    if ext == "rc":',
+                                      '    if re.search(r"(?<![A-Za-z])git", text):\n        return False\n    if ext == "rc":'),
+ "CF5_shape_mention_word_boundary": (C, '    if MENTION.search(text):\n        return False\n    if ext == "rc":',
+                                     '    if re.search(r"\\bgit", text, re.I):\n        return False\n    if ext == "rc":'),
+ "CCTRL": None,
+}
+only = sys.argv[3:] or list(M)
+for name in only:
+    sub = M[name]
+    d = os.path.join(md, name)
+    if os.path.exists(d): shutil.rmtree(d)
+    if name.startswith("C"):
+        shutil.copytree(os.path.join(repo, "scripts/validation"), os.path.join(d, "scripts/validation"))
+    else:
+        shutil.copytree(os.path.join(repo, "scripts/jev"), os.path.join(d, "scripts/jev"))
+        os.symlink(os.path.join(repo, "submodules"), os.path.join(d, "submodules"))
+    if sub:
+        f = os.path.join(d, sub[0]); t = open(f, encoding="utf-8").read()
+        n = t.count(sub[1])
+        if n != 1: print(name, "MATCH COUNT", n); sys.exit(1)
+        t = t.replace(sub[1], sub[2]); open(f, "w", encoding="utf-8").write(t)
+    print(name, "ok")

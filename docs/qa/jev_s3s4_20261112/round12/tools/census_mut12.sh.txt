@@ -1,0 +1,23 @@
+#!/bin/bash
+# census_mut12.sh: round-12 census mutants CM4..CM8 of scripts/validation/git_env_class_census.py, each run through
+# tests/test_git_env_class.sh --only-census in a copy of the tree (cmbase); the census file is restored after each.
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r12.9XGE; B="$W/cmbase"; F="$B/scripts/validation/git_env_class_census.py"
+cp -f -- "$W/repo/scripts/validation/git_env_class_census.py" "$F"; cp -f -- "$W/repo/tests/test_git_env_class.sh" "$B/tests/test_git_env_class.sh"
+cp -f -- "$F" "$W/runs/census_orig.py"
+mut() { # mut <id> <old> <new>
+  python3 -I - "$F" "$2" "$3" <<'PY' || { echo "$1 SUBST-FAILED"; return 1; }
+import sys
+p, o, n = sys.argv[1:4]; s = open(p).read(); assert s.count(o) == 1, s.count(o); open(p, "w").write(s.replace(o, n))
+PY
+  systemd-run --user --scope -q -p TasksMax=2000 nice -n 10 "$W/tools/hrun.sh" "$B" "$W/runs/cm.guard.log" bash tests/test_git_env_class.sh --only-census > "$W/runs/census_$1.txt" 2>&1
+  rc=$?; printf '%s\trc=%s\t%s\n' "$1" "$rc" "$(tail -1 "$W/runs/census_$1.txt")"
+  cp -f -- "$W/runs/census_orig.py" "$F"
+}
+mut CMCTRL 'def shaped_data(' 'def shaped_data('
+mut CM4 ' or not path.startswith("docs/qa/"):' ':'
+mut CM5 'return bool(m) and int(m.group(1)) <= 255' 'return bool(m)'
+mut CM6 '    if executable or ext not in ("rc", "ls")' '    if ext not in ("rc", "ls")'
+mut CM7 '    return all(LS_LINE.match(ln) for ln in lines[1:])' '    return True'
+mut CM8 '    if re.search(r"\bgit\b|GIT_", text):
+        return False' '    pass'

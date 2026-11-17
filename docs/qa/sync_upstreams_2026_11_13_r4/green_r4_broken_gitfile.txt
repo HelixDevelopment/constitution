@@ -1,0 +1,22 @@
+rc=6
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/r4_broken_gitfile/helix-sync-test.Sn68W3/out/r1/sync_report.json
+CANONICAL_SHA256=44f3c90c7f3c09b467b4634ccc5bba08a7b60dd50a2a96b86a6d7fdb4aa474b8
+RESULT: BLIND exit=6
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/r4_broken_gitfile/helix-sync-test.Sn68W3/work/root: 4 repositories, 3 initialised, 3 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 blind           pin-unreadable,unresolved:rev-parse:rc:128
+vendor/t initialised=False pin={'gitlink': '710911f5da8f4d6ceba570074bca81de41674730', 'state': 'unreadable'} result=blind reasons=['pin-unreadable', 'unresolved:rev-parse:rc:128']
+root reasons=[] unresolved=None
+--- strict-pins:
+rc=6
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/r4_broken_gitfile/helix-sync-test.Sn68W3/out/r2/sync_report.json
+CANONICAL_SHA256=beb9b5215f4368b9f6ae3c450c3ba90c03a378915a50553469708fa57f546b00
+RESULT: BLIND exit=6
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/r4_broken_gitfile/helix-sync-test.Sn68W3/work/root: 4 repositories, 3 initialised, 3 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 blind           pin-unreadable,unresolved:rev-parse:rc:128
+--- control: same tree with a sane submodule (rm the bad .git -> absent dir? no: restore)

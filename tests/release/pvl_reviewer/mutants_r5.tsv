@@ -1,0 +1,12 @@
+RV01	scripts/validation/check_provisional_verification_lines.py	'return re.search(r"(?<![A-Za-z0-9_.-])%s(?![A-Za-z0-9_.-])" % re.escape(word), self.text(real)) is not None'	'return re.search(r"%s" % re.escape(word), self.text(real)) is not None'	occurs: substring match, no word boundary
+RV02	scripts/validation/check_provisional_verification_lines.py	'        return "names a target twice"\n'	'        return None\n'	target duplicate allowed
+RV03	scripts/validation/check_provisional_verification_lines.py	'(WORD_RE.fullmatch(v) and ctx.occurs(script, v))'	'(WORD_RE.fullmatch(v))'	VAL word need not occur in script
+RV04	scripts/validation/check_provisional_verification_lines.py	'            datetime.datetime.fromisoformat(v.replace("Z", "+00:00"))\n'	'            pass\n'	time part not validated
+RV05	scripts/validation/check_provisional_verification_lines.py	'        if "" in toks:\n            return "holds an empty word (two spaces'	'        if False:\n            return "holds an empty word (two spaces'	job empty word allowed
+RV06	scripts/validation/check_provisional_verification_lines.py	'            if k in keys:\n'	'            if False:\n'	checks key repeated allowed
+RV07	scripts/validation/check_provisional_verification_lines.py	'                if m and m.group(1)[0] == inner_fence[0] and len(m.group(1)) >= len(inner_fence):\n'	'                if m and m.group(1)[0] == inner_fence[0]:\n'	inner fence closes on a shorter run
+RV08	scripts/validation/check_provisional_verification_lines.py	'        if not (" " <= ch <= "~"):\n'	'        if not (" " <= ch <= "\\x7f"):\n'	DEL accepted
+RV09	scripts/validation/check_provisional_verification_lines.py	'        if p == self.root or os.path.commonpath'	'        if os.path.commonpath'	the root itself as a path
+RV10	scripts/validation/check_provisional_verification_lines.py	'    if parts[0] != "":\n'	'    if False:\n'	text between prefix and first field
+RV11	scripts/validation/check_provisional_verification_lines.py	'HTML_END = {1: lambda s: bool(HTML1_END.search(s)), 2: lambda s: "-->" in s,'	'HTML_END = {1: lambda s: bool(HTML1_END.search(s)), 2: lambda s: s.lstrip(" ").startswith("-->"),'	r4 N22 analogue: comment close only at line start
+RV12	scripts/validation/check_provisional_verification_lines.py	'    root = os.path.realpath(os.path.abspath(opts["--root"]))\n'	'    root = os.path.abspath(opts["--root"])\n'	r4 N10 analogue: main root without realpath

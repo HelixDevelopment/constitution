@@ -80,6 +80,20 @@ func obsoleteDetailsCmd(args []string) int {
 	// item_history.evidence_path (below) on an item already in a terminal
 	// status, exactly the rows the HXC-217 validator scopes to. Refuse an
 	// unresolvable path here rather than at a later sweep.
+	// CON-456 round 3 (review F-D): the four values are written into ONE
+	// `**Obsolete-Details:**` line. A line break would split it, so a later
+	// line could read as one of the item's own metadata lines and be
+	// rewritten from the columns, and a re-run (injectObsoleteDetails drops
+	// only the marker line) would leave the tail behind. Refuse it, naming
+	// the flag.
+	for _, f := range []struct{ name, val string }{
+		{"--since", sinceVal}, {"--reason", reasonVal}, {"--superseding", supersedingVal}, {"--evidence", evidenceVal},
+	} {
+		if i := strings.IndexAny(f.val, "\r\n\u0085  "); i >= 0 {
+			fmt.Fprintf(os.Stderr, "obsolete-details: refusing (nothing written) — %s %q carries a line break; the §11.4.90 details are one Markdown line\n", f.name, f.val)
+			return exitUsage
+		}
+	}
 	if !requireEvidencePath("obsolete-details", evidenceVal) {
 		return exitUsage
 	}
@@ -122,6 +136,22 @@ func obsoleteDetailsCmd(args []string) int {
 	// obsolete_details table. Inject it into the item body so a db-to-md regen
 	// surfaces it (idempotent: a prior Obsolete-Details line is replaced).
 	newBody := injectObsoleteDetails(cur.BodyMD, sinceVal, reasonVal, supersedingVal, evidenceVal)
+	// One round trip (idgrammar.go, CON-456): the item's Markdown must still
+	// read back as this item after the details line is injected.
+	gated := *cur
+	gated.BodyMD = newBody
+	// The operator values are judged as inputs: each must appear unchanged in
+	// the text db-to-md writes (review F-D: a metadata line inside a value was
+	// accepted and then rewritten from the columns in Fixed.md).
+	if newBody, err = gateItemWrite(gated, sinceVal, supersedingVal, evidenceVal); err != nil {
+		fmt.Fprintf(os.Stderr, "obsolete-details: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+	// CON-456 round 5: obsolete-details changes only its own record.
+	if probs := ownedLinesProblems(cur.BodyMD, newBody, bodyOwnership{records: []string{recObsolete}}, cur.Description, cur.Description); len(probs) > 0 {
+		fmt.Fprintf(os.Stderr, "obsolete-details: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
+		return exitUsage
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -194,38 +224,10 @@ func obsoleteDetailsCmd(args []string) int {
 func injectObsoleteDetails(body, since, reason, superseding, evidence string) string {
 	detailsLine := fmt.Sprintf("**Obsolete-Details:** Since: %s; Reason: %s; Superseding-item: %s; Triple-check evidence: %s",
 		since, reason, superseding, evidence)
-
-	rawLines := strings.Split(body, "\n")
-	lines := make([]string, 0, len(rawLines))
-	for _, ln := range rawLines {
-		// Drop a pre-existing Obsolete-Details line (idempotent re-run).
-		if strings.HasPrefix(strings.TrimSpace(ln), "**Obsolete-Details:**") {
-			continue
-		}
-		lines = append(lines, ln)
-	}
-
-	out := make([]string, 0, len(lines)+1)
-	inserted := false
-	for i, ln := range lines {
-		out = append(out, ln)
-		if inserted {
-			continue
-		}
-		// Insert after the LAST contiguous `**Field:**` meta line, i.e. when the
-		// current line is a meta field and the next is not (blank or prose).
-		isMeta := strings.HasPrefix(strings.TrimSpace(ln), "**") && strings.Contains(ln, ":**")
-		nextIsMeta := i+1 < len(lines) &&
-			strings.HasPrefix(strings.TrimSpace(lines[i+1]), "**") &&
-			strings.Contains(lines[i+1], ":**")
-		if isMeta && !nextIsMeta {
-			out = append(out, detailsLine)
-			inserted = true
-		}
-	}
-	if !inserted {
-		// No meta block found — append the line at the end as a fallback.
-		out = append(out, detailsLine)
-	}
-	return strings.Join(out, "\n")
+	// CON-456 round 5 (bodypatch.go): the record of the item's own metadata
+	// block is replaced in place, or added at the end of the block; a line of
+	// the same kind elsewhere in the body (a quote in prose or in a fence) is
+	// the operator's text and is kept. The former code dropped every such line
+	// anywhere in the body.
+	return setRecord(body, recObsolete, detailsLine)
 }

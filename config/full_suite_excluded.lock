@@ -10,10 +10,23 @@
 # accepted 2026-11-14T22:54:44Z accepted_by=i@mvasic.ru set=fcf07cdb2524f605 rows=66 chain=e344e2533b72bd13
 # accepted 2026-11-15T21:33:43Z accepted_by=i@mvasic.ru set=c2f084132fe835c7 rows=67 chain=60e57ebc33d3ee8b
 # accepted 2026-11-16T21:44:29Z accepted_by=i@mvasic.ru set=5aa1a7570cddcf6f rows=68 chain=f115932418777e29
+# accepted 2026-11-17T21:45:21Z accepted_by=i@mvasic.ru set=02b9c6fd9d954ea6 rows=69 chain=b692f455932d7bc9
+# accepted 2026-11-17T21:59:48Z accepted_by=i@mvasic.ru set=5850e0be4ca030ab rows=81 chain=b31be11093c66a29
 docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	63c38a93d87363bb
 docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	0837ba36a0a34a88
 docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	b2f4fc376f1c395c
 docs/qa/land_vehicle_r5_2026_11_13/tools/mk_mutant_table.py	8749d52c26700523
+docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan_mutations.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_12_v5/tools/ref_integrity_mutations.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan_mutations.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_14_v6/tools/ref_integrity_mutations.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan_mutations.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_14_v7/tools/ref_integrity_mutations.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_15_v8/tools/leak_scan_mutations.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_15_v8/tools/leak_scan_test.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_15_v9/tools/leak_scan_mutations.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_15_v9/tools/leak_scan_test.py	e5817990669de103
+docs/qa/tracker_intake_2026_11_16_v10/probes/rev_mutants_v9_reviewer.py	12476cb9eabc385a
 scripts/amendment_log/tests/independent_lossless_rebuild.py	1ff98c08ece1bf81
 scripts/anchors/tests/_paths.py	c1eceac5bf69b0ff
 scripts/catalog-engine/lib/parse_mutation.py	e82605554384010c
@@ -78,3 +91,5 @@ tests/release/channel_census.py	2858a5704c1b304d
 tests/release/env_allow.sh	ab229010c3e1ce41
 tests/release/env_census.py	968cf36c778c35b7
 tests/release/net_probe.py	8ec600d3bbcbca9a
+tests/release/pvl_grid.py	90a905182007fd7d
+tests/workable_items/secret_shape_fixtures_r11.py	6d53b22ba44bc59c

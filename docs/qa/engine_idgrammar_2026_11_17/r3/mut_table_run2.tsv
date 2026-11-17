@@ -1,0 +1,5 @@
+mutant	description	verdict	killing_tests	counts
+CONTROL	pristine	rc=1 build_failed=False		passed=873 failed=111 skipped=7 secs=99.3
+M15R	M15 re-run (r3 text): add does not judge the allocated id	SURVIVED		rc=1 passed=873 failed=111 skipped=7 secs=97.3
+FX02	legacy adoption overrides an explicit --reproduction-state	KILLED	TestCON456R3_LegacyTemplateAdoptionIsExact,TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_and_an_explicit_UNSET_flag	rc=1 passed=871 failed=113 skipped=7 secs=95.4
+FX05	nextID: no refusal at the int64 maximum	KILLED	TestCON456R3_NextIDOverflowRefusedBeforeAllocation,TestCON456R3_NextIDOverflowRefusedBeforeAllocation/CON-9223372036854775807	rc=1 passed=871 failed=113 skipped=7 secs=98.4

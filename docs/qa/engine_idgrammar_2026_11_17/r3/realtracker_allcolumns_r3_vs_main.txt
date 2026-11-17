@@ -1,0 +1,15 @@
+== r3
+ db0->db1 item columns changed: {'description': 279, 'last_modified': 491, 'parent_atm_id': 17}
+ db0->db1 operator_block_details rows changed: 0 []
+ parent_atm_id cleared ids: ['CON-249', 'CON-250', 'CON-251', 'CON-252', 'CON-253', 'CON-254', 'CON-255', 'CON-256', 'CON-257', 'CON-258', 'CON-259', 'CON-260', 'CON-261', 'CON-262', 'CON-263', 'CON-264', 'CON-265']
+ db1->db2 item columns changed: {}
+ db1->db2 operator_block_details rows changed: 0 []
+ all item columns db1==db2: True
+== main
+ db0->db1 item columns changed: {'description': 279, 'last_modified': 491, 'parent_atm_id': 17}
+ db0->db1 operator_block_details rows changed: 1 ['CON-263']
+   CON-263 unblock len 220 -> 695
+ parent_atm_id cleared ids: ['CON-249', 'CON-250', 'CON-251', 'CON-252', 'CON-253', 'CON-254', 'CON-255', 'CON-256', 'CON-257', 'CON-258', 'CON-259', 'CON-260', 'CON-261', 'CON-262', 'CON-263', 'CON-264', 'CON-265']
+ db1->db2 item columns changed: {}
+ db1->db2 operator_block_details rows changed: 0 []
+ all item columns db1==db2: True

@@ -1,0 +1,5 @@
+CM-JEV-WIRING FAIL: opencode: opencode.json lacks the jev plugin entry and/or mcp.jev registration
+CM-JEV-WIRING ok: clause 3: env exports present at /home/milosvasic/.config/jev/env
+CM-JEV-WIRING ok: clause 5: no decision endpoint in chat-model configs
+CM-JEV-WIRING ok: clause 6: skipped (mode=shadow, enforce not active)
+CM-JEV-WIRING: RED

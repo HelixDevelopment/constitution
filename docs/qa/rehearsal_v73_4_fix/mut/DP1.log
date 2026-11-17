@@ -1,0 +1,2 @@
+PASS DP1 killed by its property (FAIL RH2 github probe: would create, repository id read (no line matching /^PROBE release github:r1:acc/one OK would-cre)
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0

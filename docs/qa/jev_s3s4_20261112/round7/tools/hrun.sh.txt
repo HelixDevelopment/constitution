@@ -1,0 +1,11 @@
+#!/bin/bash
+# hrun.sh <workdir> <guardlog> cmd... : hermetic run (bwrap: real home hidden, no network, own pid ns, env -i, refusal guards first on PATH)
+set -u
+R=<W>
+WD="$1"; GL="$2"; shift 2
+H="$(mktemp -d "$R/homes/h.XXXXXX")"
+exec bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --tmpfs <HOME> --tmpfs /run/user/1000 \
+  --bind "$R" "$R" --unshare-net --unshare-pid --unshare-ipc --die-with-parent --chdir "$WD" \
+  /usr/bin/env -i PATH="$R/guard:/usr/bin:/bin" HOME="$H" LANG=C.UTF-8 LC_ALL=C.UTF-8 TERM=dumb USER=fixer LOGNAME=fixer \
+  TMPDIR="$R/tmp" JEV_HOSTED_PROBE=0 GIT_SSH_COMMAND=/bin/false GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 REVIEW_GUARD_LOG="$GL" \
+  ${HRUN_EXTRA_ENV:-} "$@"

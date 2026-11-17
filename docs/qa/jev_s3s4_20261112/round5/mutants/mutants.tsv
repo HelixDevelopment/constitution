@@ -1,0 +1,20 @@
+id	file	test	rc	pass	fail	skip	verdict	secs	description
+M01-R4M2	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	1	258	1	0	KILLED	118	R4M2 shape: the cache entry is kept while ANY routable set remains, even when it names the model just stopped
+M02-R4M12	scripts/jev/lib_decide.sh	tests/jev/test_jev_status_health.sh	1	106	4	0	KILLED	4	R4M12 shape: the interpreter recurses only on an exact -c (not -lc / -ec)
+M03-stop-cache	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	0	259	0	0	SURVIVED	113	single stop helper: a successful stop no longer normalises the endpoint cache
+M04-stop-under-lock	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	1	258	1	0	KILLED	119	single stop helper: the llmctl stop runs with the lease lock file open
+M05-stub-status-running	tests/jev/fixtures/bin-place/llmctl	tests/jev/test_s4_placement.sh	1	236	23	0	KILLED	114	real-shape stub: a started unit reports status running (the round-4 shape llmctl never emits)
+M06-stub-keeps-fits	tests/jev/fixtures/bin-place/llmctl	tests/jev/test_s4_placement.sh	1	207	52	0	KILLED	108	real-shape stub: a running profile keeps its fits verdict (the round-4 shape)
+M07-measurement-alt	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	1	258	1	0	KILLED	114	the measurement check uses the jq alternative operator (false // true is true: never fires)
+M08-stub-ignores-gone	tests/jev/fixtures/bin-place/llmctl	tests/jev/test_s4_placement.sh	1	247	12	0	KILLED	113	real-shape stub: a crashed unit (PLACE_GONE) is still reported
+M09-degraded-as-ok	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	1	226	33	0	KILLED	105	a degraded own unit is treated as ok (joinable)
+M10-noexec-cluster	scripts/jev/lib_decide.sh	tests/jev/test_jev_status_health.sh	1	107	3	0	KILLED	3	matcher: bash -n (noexec cluster) counts as running the gate
+M11-command-v	scripts/jev/lib_decide.sh	tests/jev/test_jev_status_health.sh	1	108	2	0	KILLED	3	matcher: command -v counts as running the gate
+M12-timeout-duration	scripts/jev/lib_decide.sh	tests/jev/test_jev_status_health.sh	1	105	5	0	KILLED	3	matcher: timeout does not skip its DURATION word
+M13-register-tab	skills/jev-decision-layer/register.sh	tests/jev/test_tab_fields.sh	1	14	1	0	KILLED	3	N1: register.sh reads the MCP mode rows with IFS=TAB again
+M14-r5-passwd-lookup	tests/jev/test_review_fixes_r5.sh	tests/jev/test_no_real_tools.sh	1	4	4	0	KILLED	11	R4-5: test_review_fixes_r5.sh looks a real llmctl up through the user database again
+M15-status-no-starting	scripts/jev/jev-status.sh	tests/jev/test_s4_placement.sh	1	258	1	0	KILLED	105	jev-status hides the starting mark
+M16-cache-bad-ignored	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	1	258	1	0	KILLED	107	cache_normalize ignores the not-ok profile list (a degraded set stays routable)
+M17-nproc	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	1	258	1	0	KILLED	103	RLIMIT_NPROC headroom below the start threads is ignored
+M18-own-unit-other-tenant	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	1	258	1	0	KILLED	101	another tenant's unit of the same profile counts as this user's own unit
+M19-held-degraded-cached	scripts/jev/jev-place.sh	tests/jev/test_s4_placement.sh	1	258	1	0	KILLED	101	P50 fix removed: a held set that is degraded in this answer stays in the endpoint cache

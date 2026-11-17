@@ -1,0 +1,50 @@
+M70  KILLED     by unit           10.3s  n-3: any existing --out file is overwritten
+X06  KILLED     by gate            1.2s  a call site whose 'declared' ok set is every status 0..255 (ls-files -s, index gitlinks)
+N01  KILLED     by gate            1.2s  F1/B: a path lstat cannot read is "absent"
+N10  KILLED     by gate            1.2s  F3: kept-on-branch is never a reason (a kept submodule reads as current)
+V05  KILLED     by unit           10.3s  in_progress: rebase-merge not detected
+V07  KILLED     by unit           10.5s  in_progress: index.lock not detected
+V13  KILLED     by robustness:lock_symlink   12.8s  lock: O_NOFOLLOW dropped on the root lock (lock path may be a symlink)
+P24  KILLED     by robustness:out_unwritable   12.1s  RV4-8: the evidence directory is not probed before the run
+P27  KILLED     by robustness:lock_symlink   13.1s  RV4-11: repository lock taken without O_NOFOLLOW
+RR38 KILLED     by robustness:lock_open   13.6s  a per-repository lock that cannot be opened is skipped (run proceeds unlocked)
+Q05  KILLED     by unit           10.3s  RV5-1: the marker is not cleared when the write answered
+Q09  KILLED     by robustness:stale_marker,write_timeout   16.6s  RV5-1: a marker over a clean tree is never cleared in --apply
+RV6F KILLED     by unit           10.4s  the stage-pin marker in the parent is never cleared after the add answered
+S02  KILLED     by robustness:refused_marker   21.9s  RV6-1: the marker of a write whose git never started is kept (first write site)
+S03  KILLED     by robustness:refused_stage   15.2s  RV6-1: the stage-pin marker of an add that never started is kept
+S09  KILLED     by unit           10.4s  a marker created but not written is left behind (reads 'unknown' later)
+S10  KILLED     by unit           10.3s  a failed marker write removes an EARLIER run's marker
+RV7E KILLED     by unit           10.3s  a write git refused itself (declared rc 1/128) keeps its marker: a later run blames leftovers on it (re-anchored)
+T02  KILLED     by unit           10.3s  RV7-1: a lock / operation in progress in the git dir does not block a write (step 3a sees nothing)
+T13  KILLED     by unit           10.3s  RV7-1: an unknown git dir is not refused by the block check
+W01  KILLED     by robustness    278.6s  earlier marker cleared in --apply although an operation/lock is in progress (only dirty keeps it)
+W02  KILLED     by unit           10.3s  a cleared git dir can never take a second write (sibling stage-pins after the first fail)
+W03  KILLED     by robustness    275.3s  a token whose marker vanished (removed under it) still lets the write start without a marker
+W04  KILLED     by unit           10.3s  a write refused before git started (stop/deadline after begin_write) keeps its marker (re-anchored)
+W05  KILLED     by robustness    265.6s  step 3a checks the CHILD git dir instead of the parent one
+W06  KILLED     by unit           10.3s  a half-written marker (write/fsync error) is left on disk (re-anchored to fs_create_excl)
+W07  KILLED     by unit           10.3s  a killed stage-pin does not mark the PARENT write_killed (no recovery hint for the root)
+W08  KILLED     by unit           10.3s  a not-ours marker at run() time moves the git dir to CLEARED (a later write may start there)
+W09  KILLED     by unit           10.2s  begin_write moves the state to WRITING BEFORE the marker is created (a failed create leaves WRITING)
+W10  KILLED     by unit           10.2s  the stage-pin begin_write is told the CHILD git dir (the root index is written with no root marker)
+U01  KILLED     by unit           10.3s  RV8-1: in_progress checks no lock at all (operations only)
+U02  KILLED     by unit           10.3s  RV8-1: HEAD.lock is not in any git-dir lock set (the measured half-write)
+U03  KILLED     by unit           10.3s  RV8-1: the branch ref lock is not in the merge lock set (the measured half-write)
+U04  KILLED     by unit           10.3s  RV8-1 linked worktree: common-dir locks are looked for in the per-worktree git dir
+U05  KILLED     by unit           20.3s  RV8-2: a marker read opens without O_NONBLOCK (a FIFO swapped in after the lstat blocks forever)
+U06  KILLED     by unit           10.3s  RV8-2: a read trusts the open descriptor without the fstat S_ISREG check
+U07  KILLED     by unit           10.3s  RV8-4: fs_remove removes any kind of object (a FIFO, a socket, a link at the marker path)
+U08  KILLED     by unit           10.3s  RV8-1: end_write clears the marker after any answered write (a half-applied merge included)
+U09  KILLED     by unit           10.3s  RV8-1: a failed write is settled without comparing the index (the half-applied merge is missed)
+U10  KILLED     by unit           10.3s  RV8-1: a failed write is settled although HEAD moved
+U11  KILLED     by robustness:marker_unremovable   11.7s  RV8-4: an earlier marker that could not be removed is reported cleared
+U12  KILLED     by unit           10.3s  RV8-2: the run lock is any object that opens (a FIFO is taken as the lock)
+U13  KILLED     by robustness:lock_symlink   13.0s  the run lock open follows a symbolic link (O_NOFOLLOW dropped in fs_open_lock)
+U14  KILLED     by integration    78.2s  inspection registers no git dir (every write is refused as unknown-git-dir: nothing is ever written)
+U15  KILLED     by unit           10.3s  RV8-2: a non-regular object at the marker path is not reported by in_progress (check reads clean)
+U16  KILLED     by unit           10.3s  RV8-1: the reftable lock is not in any lock set
+U17  SURVIVED   by -              18.1s  RV8-1: a half-applied write is reported but not FAILED (the run reads as attention, not failed)
+U18  KILLED     by unit           20.3s  RV8-2: FETCH_HEAD is read with a blocking open (a FIFO there hangs the fetch evaluation)
+sync-mutations (all): mutants 48 killed 47 equivalent 0 survived 1 harness-errors 0
+survivors: U17

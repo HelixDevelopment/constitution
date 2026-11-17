@@ -1,0 +1,32 @@
+AS-EXPECTED  rc=1 want=1 CR: grammar line hidden in fenced code | FAIL CON-900 Ready for testing: no '**Verification:** provisional' line | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 CR: grammar line hidden in comment | FAIL CON-900 Ready for testing: no '**Verification:** provisional' line | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 CR: visible prose line, hidden grammar line | FAIL CON-900 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verification:** provisional -- job: not scheduled yet' | VERDICT: FAI
+AS-EXPECTED  rc=1 want=1 created_at as integer | FAIL CON-900 Ready for testing: the created date is not text (int) | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 body_md as blob | FAIL CON-900 Ready for testing: the body is not text (bytes) | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 status with trailing space escapes the check | FAIL CON-900 Ready for testing : the Status 'Ready for testing ' is not written exactly as 'Ready for testing' (it reads as a provisional status) | VERDICT: FAIL
+AS-EXPECTED  rc=0 want=0 due = today + 60 (2027-01-15) | VERDICT: PASS
+AS-EXPECTED  rc=1 want=1 due = today + 61 (2027-01-16) | FAIL CON-900 Ready for testing: field 'due' is 2027-01-16, after today plus the window (2027-01-15, 60 days) | VERDICT: FAIL
+AS-EXPECTED  rc=0 want=0 due = created (2026-11-01) | VERDICT: PASS
+AS-EXPECTED  rc=1 want=1 due = created - 1 | FAIL CON-900 Ready for testing: field 'due' is 2026-10-31, before the item was created (2026-11-01) | VERDICT: FAIL
+AS-EXPECTED  rc=0 want=0 due in the past (2026-11-02, overdue) | VERDICT: PASS
+AS-EXPECTED  rc=1 want=1 due hour 24 | FAIL CON-900 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00 | VERDICT: FAIL
+AS-EXPECTED  rc=0 want=0 due offset +23:59 | VERDICT: PASS
+AS-EXPECTED  rc=1 want=1 due fullwidth digits | FAIL CON-900 Ready for testing: field 'due' holds U+FF12 FULLWIDTH DIGIT TWO outside the ASCII grammar of due | VERDICT: FAIL
+AS-EXPECTED  rc=0 want=0 checks verdict=FAIL fail=9 | VERDICT: PASS
+AS-EXPECTED  rc=0 want=0 checks pass=0 only | VERDICT: PASS
+AS-EXPECTED  rc=0 want=0 note TBD | VERDICT: PASS
+AS-EXPECTED  rc=0 want=0 selector mentioned only in a comment | VERDICT: PASS
+AS-EXPECTED  rc=0 want=0 option --level=nightly | VERDICT: PASS
+AS-EXPECTED  rc=0 want=0 env STRICT=docs (a path value) | VERDICT: PASS
+AS-EXPECTED  rc=1 want=1 NBSP inside SEP | FAIL CON-900 Ready for testing: the fields are not job, checks, layer, target, artifact, due in that order: job, layer, target, artifact, due | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 en dash SEP | FAIL CON-900 Ready for testing: text between the prefix and the first field: ' – job: bash tests/t.sh -k case12; python3 -I tests/p.py – c' | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 em dash with ZWJ | FAIL CON-900 Ready for testing: the fields are not job, checks, layer, target, artifact, due in that order: job, layer, target, artifact, due | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 U+2028 in job | FAIL CON-900 Ready for testing: field 'job' holds U+2028 LINE SEPARATOR outside the ASCII grammar of job | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 fullwidth TBD in artifact | FAIL CON-900 Ready for testing: field 'artifact' holds U+FF34 FULLWIDTH LATIN CAPITAL LETTER T outside the ASCII grammar of artifact | VERDICT: FAIL
+AS-EXPECTED  rc=1 want=1 tab in job | FAIL CON-900 Ready for testing: field 'job' holds U+0009 unnamed outside the ASCII grammar of job | VERDICT: FAIL
+AS-EXPECTED  rc=0 want=0 placeholder as path arg (README.md) | VERDICT: PASS
+AS-EXPECTED  rc=0 want=0 bash on a .sh symlink to a .py | VERDICT: PASS
+AS-EXPECTED  rc=1 want=1 job = the item itself | FAIL CON-900 Ready for testing: field 'job' names the item itself (CON-900), not a job | VERDICT: FAIL
+INFO         rc=2 registry with non-UTF-8 bytes | BLIND the target registry cannot be read as UTF-8 text: /mnt/DATA1TB/claude-work/tmp/pe.5wzM/bad_reg.tsv (UnicodeDecodeError) | VERDICT: BLIND
+DBWRITE      rc=0 WAL db closed files_before=['w.db'] files_after=['w.db'] changed=[] | VERDICT: PASS
+DBWRITE      rc=0 WAL db with live -wal files_before=['w.db', 'w.db-shm', 'w.db-wal'] files_after=['w.db', 'w.db-shm', 'w.db-wal'] changed=[] | VERDICT: PASS

@@ -1,0 +1,60 @@
+== sync-chaos (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix5.VjLJ/tmp/helix-sync-test.1ndIxA)
+  ok   unreachable: exit 4
+  ok   unreachable remote state
+  ok   garbage remote state
+  ok   origin still fetched and evaluated
+  ok   repo with an unreachable remote is not integrated
+  ok   third-party repo unaffected
+  ok   slow remote: fetch state timeout
+  ok   slow remote: reported unreachable
+  ok   slow remote: run bounded (5s)
+  ok   slow remote: the process count sees this sandbox's needle
+  ok   slow remote: no surviving upload-pack process
+  ok   deadline: run bounded (4s)
+  ok   deadline: slow remote not fetched in time
+  ok   concurrent run: exit 7 (locked, distinct from usage 2)
+  ok   concurrent run: says the lock is held
+  ok   concurrent run: nothing changed
+  ok   after the holder exits the lock is free (exit 0)
+  ok   re-run after SIGKILL: exit 0
+  ok   re-run: root at upstream main
+  ok   re-run: libs/a at upstream main
+  ok   re-run: no index.lock left
+  ok   many: exit 4 (one broken)
+  ok   many: 13 repositories discovered
+  ok   many: broken one is attention
+  ok   many: three own-org pins advanced
+  ok   many: three gitlinks staged
+  ok   stalled HEAD read, --check: exit 5 (INCONCLUSIVE)
+  ok   stalled HEAD read: root result unresolved
+  ok   stalled HEAD read: verdict INCONCLUSIVE
+  ok   stalled read: bounded (10s)
+  ok   stalled HEAD read, --apply: exit 5
+  ok   stalled HEAD read, --apply: root not moved
+  ok   stalled HEAD read, --apply: never reported updated
+  ok   HEAD read stalls only after the move: exit 5, not 0
+  ok   after-move stall: result unresolved, never updated-with-unknown-head
+  ok   after-move stall: the move itself happened (real HEAD)
+  ok   stalled reads: no surviving stalled process
+  ok   control needle: without the stall the root is read (result current)
+  ok   control needle: without the stall the verdict is not INCONCLUSIVE
+  ok   escaped grandchild: run bounded (5s)
+  ok   escaped grandchild: remote reported unreachable
+  ok   escaped grandchild: control needle: it really started (pid 3902172)
+  ok   escaped grandchild: control needle: its stderr is a pipe
+  ok   failed HEAD read: control needle: the failure was injected
+  ok   HEAD read rc 128, --check: exit 6 (BLIND), never 0, 3 or 4
+  ok   HEAD read rc 128, --check: root result blind
+  ok   HEAD read rc 128, --check: reason names the call
+  ok   failed HEAD read, --apply: the failure was injected
+  ok   HEAD read rc 128, --apply: exit 6
+  ok   HEAD read rc 128, --apply: root not moved
+  ok   HEAD read rc 128, --apply: integration blocked as unresolved
+  ok   HEAD read rc 128, --apply: never reported updated
+  ok   8b: the rc-1 answer was injected
+  ok   8b: HEAD read rc 1 (unborn): exit 4 (ATTENTION)
+  ok   8b: reason head-unreadable
+  ok   8b, --apply: root not moved
+  ok   8b, --apply: integration blocked by head-unreadable
+  ok   control needle: without the failure the root is behind (exit 3)
+sync-chaos: PASS 58 FAIL 0

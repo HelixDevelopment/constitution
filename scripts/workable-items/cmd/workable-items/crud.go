@@ -14,16 +14,15 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"math"
 	"os"
-	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
 
-// canonicalIDRe matches the canonical HelixCode ticket ID shape: 3+ uppercase
-// letters, a dash, then alphanumeric (e.g. ATM-001, HXC-044, WIT-042).
-// Non-canonical IDs (G01, R01) use dot separator for parser compatibility.
-var canonicalIDRe = regexp.MustCompile(`^[A-Z]{3,}-[0-9A-Za-z]+$`)
+// canonicalIDRe (the canonical id shape) is defined in idgrammar.go, the one
+// id grammar shared by the renderer, the parser, add and validate.
 
 // partitionArgs separates positional (non-flag) tokens from flag tokens so the
 // Go flag package — which stops at the first positional — can still parse flags
@@ -94,7 +93,9 @@ func addCmd(args []string) int {
 	typ := normalizeType(pos[0])
 	severity := ""
 	if len(pos) >= 2 {
-		severity = pos[1]
+		// CON-456 round 2: surrounding whitespace is trimmed (the parser
+		// trims every metadata value, so it could never read it back).
+		severity = strings.TrimSpace(pos[1])
 	}
 	if *dbPath == "" {
 		fmt.Fprintln(os.Stderr, "add: --db is required")
@@ -124,6 +125,48 @@ func addCmd(args []string) int {
 		return exitUsage
 	}
 
+	// CON-456 round 2: surrounding whitespace of the title is trimmed, as the
+	// id's is: a legacy-code heading cannot carry it (review F3), and a
+	// canonical one keeps it only by accident of the regular expression.
+	itemTitle := strings.TrimSpace(*title)
+	cb := strings.TrimSpace(*createdBy)
+	at := strings.TrimSpace(*assignedTo)
+	// desc and states are what add stores. They differ from the flags only
+	// when the description carries the engine's own legacy Bug template lines
+	// (adoptLegacyTemplateStates, CON-456 round 3).
+	desc := *description
+	newItemWith := func(id, d string, st stateRecord) item {
+		return item{AtmID: id, Title: itemTitle, Type: typ, Status: "Queued", Severity: severity,
+			CreatedBy: cb, AssignedTo: at, CurrentLocation: "Issues", Representation: "section",
+			States: st,
+			BodyMD: canonicalizeStateLines(renderItemBody(id, itemTitle, typ, severity, d, "Queued", cb, at), st, "section")}
+	}
+	newItem := func(id string) item { return newItemWith(id, desc, states) }
+	// Judge the whole item BEFORE the database is opened, so a refusal never
+	// creates a database file at a fresh --db path (review F8). An id to be
+	// allocated from --prefix is judged by the shape of its first id here and
+	// the allocated id is judged again below; nextID refuses, before it
+	// allocates, a number that would overflow (CON-456 round 3, review F-E).
+	probeID := strings.TrimSpace(*explicitID)
+	probeNote := ""
+	if probeID == "" {
+		probeID = *prefix + "-001"
+		probeNote = fmt.Sprintf(" (judged with %s, the first id --prefix %s allocates; the real id is allocated after this check)", probeID, *prefix)
+	}
+	// CON-456 round 4 (review finding 5): the legacy template was the Bug
+	// template only, so only a Bug adopts it.
+	if typ == "Bug" {
+		if ad, ast, ok := adoptLegacyTemplateStates(desc, states, setFlags); ok {
+			if _, err := gateNewItem(newItemWith(probeID, ad, ast), ad); err == nil {
+				desc, states = ad, ast
+			}
+		}
+	}
+	if _, err := gateNewItem(newItem(probeID), desc); err != nil {
+		fmt.Fprintf(os.Stderr, "add: refusing (nothing written)%s — %v\n", probeNote, err)
+		return exitUsage
+	}
+
 	db, err := openDB(*dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "add: %v\n", err)
@@ -149,10 +192,14 @@ func addCmd(args []string) int {
 			return exitUsage
 		}
 	}
-
-	cb := strings.TrimSpace(*createdBy)
-	at := strings.TrimSpace(*assignedTo)
-	body := canonicalizeStateLines(renderItemBody(id, *title, typ, severity, *description, "Queued", cb, at), states, "section")
+	// One round trip (idgrammar.go): refuse, before any write, an item whose
+	// stored Markdown the next db-to-md → md-to-db would not read back as this
+	// item. This covers an explicit --id and an id allocated from --prefix.
+	body, err := gateNewItem(newItem(id), desc)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "add: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -164,7 +211,7 @@ func addCmd(args []string) int {
 	if _, err := tx.Exec(`INSERT INTO items
 		(atm_id, type, status, severity, title, description, created_by, assigned_to, current_location, body_md, `+statesInsertCols+`)
 		VALUES (?,?,?,?,?,?,?,?,?,?,`+statesInsertMarks+`)`,
-		append([]any{id, typ, "Queued", nullable(severity), *title, *description, cb, at, "Issues", body},
+		append([]any{id, typ, "Queued", nullable(severity), itemTitle, desc, cb, at, "Issues", body},
 			statesInsertArgs(states)...)...); err != nil {
 		fmt.Fprintf(os.Stderr, "add: insert item: %v\n", err)
 		return exitUsage
@@ -184,6 +231,80 @@ func addCmd(args []string) int {
 
 	fmt.Printf("add: created %s (%s, status=Queued) in Issues\n", id, typ)
 	return exitOK
+}
+
+// legacyTemplateStateLines are the two record lines scripts/reporting/report_item.sh
+// appended, as text, to the description of every Bug until CON-456 round 3.
+// They never matched the record grammar (states.go): the first is a malformed
+// `**Reproduction:**` record (the ` (§11.4.292)` tail is not a ` — <key>
+// <value>` detail), the second is prose. On main such an add stored UNSET and
+// the next md-to-db silently set UNREPRODUCED; a round-2 engine refused the
+// add, which broke the §11.4.202 fallback mint for every Bug (review F-A).
+// The lines are the engine's own shipped template, so add adopts them: each
+// line is read as the state it names and replaced by the canonical record
+// line of that state.
+var legacyTemplateStateLines = []struct {
+	line  string
+	repro bool
+	state string
+}{
+	{"**Reproduction:** none — UNREPRODUCED (§11.4.292)", true, reproUnreproduced},
+	{"**Investigation:** not-started (§11.4.294)", false, invNotStarted},
+}
+
+// adoptLegacyTemplateStates returns the description with each legacy
+// template line (legacyTemplateStateLines) replaced by the canonical record
+// line of the state it names, and the state record with that state set; ok
+// is false when nothing was adopted. A line is adopted only when it is a whole
+// line of desc, occurs exactly once, and its block has no state yet (an
+// explicit state flag is never overridden by text). No other text is ever
+// adopted, a well-formed record line included: a state read from description
+// text would be a state nobody set with the state flags. The caller still
+// runs the whole-item gate on the adopted item and keeps the original text
+// when that gate refuses it.
+func adoptLegacyTemplateStates(desc string, st stateRecord, set map[string]bool) (string, stateRecord, bool) {
+	st = st.norm()
+	lines := strings.Split(desc, "\n")
+	// CON-456 round 4 (review finding 5): a template line inside a fenced
+	// code block is quoted text, never adopted.
+	fenced := fencedMask(lines) // CON-456 round 6: the shared fence definition
+	adopted := false
+	for _, l := range legacyTemplateStateLines {
+		at, n := -1, 0
+		for i, ln := range lines {
+			if ln == l.line {
+				if fenced[i] {
+					// A fenced copy makes the line ambiguous: adopt nothing.
+					n += 2
+					continue
+				}
+				at, n = i, n+1
+			}
+		}
+		if n != 1 {
+			continue
+		}
+		var canon string
+		if l.repro {
+			if set["reproduction-state"] || st.ReproState != stateUnset {
+				continue
+			}
+			st.ReproState = l.state
+			canon = renderReproLine(stateRecord{ReproState: l.state})
+		} else {
+			if set["investigation-state"] || st.InvState != stateUnset {
+				continue
+			}
+			st.InvState = l.state
+			canon = renderInvestigationLine(stateRecord{InvState: l.state})
+		}
+		lines[at] = canon
+		adopted = true
+	}
+	if !adopted {
+		return desc, st, false
+	}
+	return strings.Join(lines, "\n"), st, true
 }
 
 // closeStatusMap maps the close --status keyword onto the closed-set terminal
@@ -359,11 +480,40 @@ func closeCmd(args []string) int {
 	}
 
 	// §11.4.104: closure preserves the attribution columns unchanged.
-	closedBody := renderItemBody(id, src.Title, src.Type, src.Severity, src.Description, mapping.status, src.CreatedBy, src.AssignedTo)
-	closedBody = appendEvidence(closedBody, *evidence)
-	// §11.4.292: the regenerated body carries the item's records again (the
-	// state columns move with the row below).
+	//
+	// CON-456 round 5 (review r4 finding 1, structural): close patches the body
+	// in place — its Status line, its closure Evidence record, and (when it
+	// ends a block) the block record — and keeps every other line
+	// (bodypatch.go). Only an empty body is rendered from the columns.
+	var closedBody, endedRecord string
+	endsBlock := src.Status == "Operator-blocked"
+	if strings.TrimSpace(src.BodyMD) == "" {
+		closedBody = renderItemBody(id, src.Title, src.Type, src.Severity, src.Description, mapping.status, src.CreatedBy, src.AssignedTo)
+		closedBody = appendEvidence(closedBody, *evidence)
+	} else {
+		closedBody = canonicalizeBodyStatusLine(src.BodyMD, mapping.status)
+		closedBody = setRecord(closedBody, recEvidence, "**Evidence:** "+*evidence)
+	}
+	// A closed item carries no block record (Fixed.md has no Operator-blocked
+	// section); the row goes in the transaction below.
+	closedBody, endedRecord = dropRecords(closedBody, recOBD, recChoices)
+	// §11.4.292: the body carries the item's records (the state columns move
+	// with the row below).
 	closedBody = canonicalizeStateLines(closedBody, src.States, src.repOrDefault())
+	// One round trip (idgrammar.go, CON-456): the closed item's Markdown in
+	// Fixed.md must read back as the closed item on the next md-to-db.
+	closed := *src
+	closed.Status = mapping.status
+	closed.CurrentLocation = "Fixed"
+	closed.BodyMD = closedBody
+	if closedBody, err = gateItemWrite(closed, *evidence); err != nil {
+		fmt.Fprintf(os.Stderr, "close: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+	if probs := ownedLinesProblems(src.BodyMD, closedBody, bodyOwnership{status: true, records: []string{recEvidence, recOBD, recChoices}}, src.Description, src.Description); len(probs) > 0 {
+		fmt.Fprintf(os.Stderr, "close: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
+		return exitUsage
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -429,6 +579,19 @@ func closeCmd(args []string) int {
 		fmt.Fprintf(os.Stderr, "close: append Fixed segment: %v\n", err)
 		return exitUsage
 	}
+	// CON-456 round 4 (class sweep, RT_SIDE) and round 5: a closed item has
+	// no block, so the operator_block_details row goes in the same
+	// transaction; when close ended a block, the removed record is kept in
+	// item_history (endBlockInTx).
+	if endsBlock || endedRecord != "" {
+		if err := endBlockInTx(tx, id, endedRecord); err != nil {
+			fmt.Fprintf(os.Stderr, "close: %v\n", err)
+			return exitUsage
+		}
+	} else if _, err := tx.Exec(`DELETE FROM operator_block_details WHERE atm_id=?`, id); err != nil {
+		fmt.Fprintf(os.Stderr, "close: remove the block record: %v\n", err)
+		return exitUsage
+	}
 	if err := recordHistory(tx, id, mapping.event, "AI", "", *evidence); err != nil {
 		fmt.Fprintf(os.Stderr, "close: history: %v\n", err)
 		return exitUsage
@@ -457,7 +620,7 @@ func nextID(db *sql.DB, prefix string) (string, error) {
 		return "", err
 	}
 	defer rows.Close()
-	max := 0
+	var max int64
 	want := prefix + "-"
 	for rows.Next() {
 		var id string
@@ -467,7 +630,14 @@ func nextID(db *sql.DB, prefix string) (string, error) {
 		if !strings.HasPrefix(id, want) {
 			continue
 		}
-		n := atoiSafe(id[len(want):])
+		n, err := idNumber(id[len(want):])
+		if err != nil {
+			// CON-456 round 3 (review F-E): atoiSafe wrapped an id number at
+			// the int64 maximum to a negative one, so the next allocation
+			// was CON--9223372036854775808, an id no parser reads. Refuse
+			// before anything is allocated.
+			return "", fmt.Errorf("existing id %s: %v; allocate with an explicit --id instead", id, err)
+		}
 		if n > max {
 			max = n
 		}
@@ -475,7 +645,28 @@ func nextID(db *sql.DB, prefix string) (string, error) {
 	if err := rows.Err(); err != nil {
 		return "", err
 	}
+	if max == math.MaxInt64 {
+		return "", fmt.Errorf("existing id %s-%d is the largest number an id can carry, so no next id exists; allocate with an explicit --id instead", prefix, max)
+	}
 	return fmt.Sprintf("%s-%03d", prefix, max+1), nil
+}
+
+// idNumber parses the leading run of digits of an id suffix (stops at the
+// first non-digit, tolerating suffixes like "014b"), 0 when there is none.
+// Unlike atoiSafe it reports a number that does not fit an int64.
+func idNumber(s string) (int64, error) {
+	end := 0
+	for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+		end++
+	}
+	if end == 0 {
+		return 0, nil
+	}
+	n, err := strconv.ParseInt(s[:end], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("its number %s does not fit a 64-bit id counter", s[:end])
+	}
+	return n, nil
 }
 
 // atoiSafe parses the leading run of digits in s (stops at the first non-digit,
@@ -544,6 +735,7 @@ func loadItem(db *sql.DB, id, location string) (*item, error) {
 		COALESCE(created_by,''), COALESCE(assigned_to,''),
 		current_location, COALESCE(body_md,''),
 		COALESCE(representation,'section'),
+		COALESCE(closure_date,''), COALESCE(round,''), COALESCE(commit_ref,''),
 		COALESCE(destination,''), COALESCE(logic_group,''),
 		`+statesSelectCols+`
 		FROM items WHERE atm_id=? AND current_location=?
@@ -553,7 +745,8 @@ func loadItem(db *sql.DB, id, location string) (*item, error) {
 	dest := []any{&it.AtmID, &it.Type, &it.Status, &it.Severity,
 		&it.Title, &it.Description, &it.ForensicAnchor, &it.ClosureCriteria,
 		&it.ComposesWith, &it.CreatedBy, &it.AssignedTo, &it.CurrentLocation, &it.BodyMD,
-		&it.Representation, &it.Destination, &it.LogicGroup}
+		&it.Representation, &it.ClosureDate, &it.Round, &it.CommitRef,
+		&it.Destination, &it.LogicGroup}
 	err := row.Scan(append(dest, statesScanDest(&it.States)...)...)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -628,12 +821,19 @@ func recordHistory(tx *sql.Tx, id, event, by, reason, evidence string) error {
 // STRICT no-op (no Status line to rewrite), matching the empty-body class that
 // repair-bodies / renderItemBody own — so this helper never fabricates a body.
 func setStatusAndSyncBody(tx *sql.Tx, atmID, location, newStatus string) error {
-	var body string
-	if err := tx.QueryRow(`SELECT COALESCE(body_md,'') FROM items
-		WHERE atm_id=? AND current_location=?`, atmID, location).Scan(&body); err != nil {
+	var body, oldStatus string
+	if err := tx.QueryRow(`SELECT COALESCE(body_md,''), status FROM items
+		WHERE atm_id=? AND current_location=?`, atmID, location).Scan(&body, &oldStatus); err != nil {
 		return err
 	}
 	synced := canonicalizeBodyStatusLine(body, newStatus)
+	// CON-456 round 5 (review r4 finding 3, writer sweep): a status write off
+	// Operator-blocked ends the block — body record and row together.
+	endsBlock := oldStatus == "Operator-blocked" && newStatus != "Operator-blocked"
+	var endedRecord string
+	if endsBlock {
+		synced, endedRecord = dropRecords(synced, recOBD, recChoices)
+	}
 	res, err := tx.Exec(`UPDATE items SET status=?, body_md=?, last_modified=datetime('now')
 		WHERE atm_id=? AND current_location=?`, newStatus, synced, atmID, location)
 	if err != nil {
@@ -641,6 +841,9 @@ func setStatusAndSyncBody(tx *sql.Tx, atmID, location, newStatus string) error {
 	}
 	if n, _ := res.RowsAffected(); n != 1 {
 		return fmt.Errorf("setStatusAndSyncBody: %s [%s] affected %d rows (expected 1)", atmID, location, n)
+	}
+	if endsBlock {
+		return endBlockInTx(tx, atmID, endedRecord)
 	}
 	return nil
 }
@@ -693,18 +896,6 @@ func renderItemBody(id, title, typ, severity, description, status, createdBy, as
 // body, immediately after the `**Type:**` line, so closures carry their
 // captured-evidence reference in the regenerated Markdown.
 func appendEvidence(body, evidence string) string {
-	lines := strings.SplitAfter(body, "\n")
-	var out strings.Builder
-	inserted := false
-	for _, ln := range lines {
-		out.WriteString(ln)
-		if !inserted && strings.HasPrefix(ln, "**Type:**") {
-			fmt.Fprintf(&out, "**Evidence:** %s\n", evidence)
-			inserted = true
-		}
-	}
-	if !inserted {
-		fmt.Fprintf(&out, "**Evidence:** %s\n", evidence)
-	}
-	return out.String()
+	// CON-456 round 6: one implementation, after the item's own (unfenced) Type line.
+	return insertMetaLine(body, "**Evidence:** "+evidence)
 }

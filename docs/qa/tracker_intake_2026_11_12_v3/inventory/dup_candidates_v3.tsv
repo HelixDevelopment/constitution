@@ -1,0 +1,33 @@
+new_item	open_item	shared_words	shared_files	open_title
+G1	CON-336	closed	crud.go,engine_repro.sh	workable-items add records the Opened history row as by=User whatever --created-by says (crud.go rec
+G1	CON-337	closed	crud.go,engine_repro.sh	workable-items fail-open: update --status outside the closed set exits 0 and changes nothing; add wi
+G1	CON-003	down		speckit F-C: NET-LIVE reduced child must record and assert net_probe_state=down
+G1	CON-030	closed		full-suite runner: sub_paths splits the status line on whitespace (submodule path with a space)
+G1	CON-070	closed		CON-030 class follow-up: whitespace and line splitting of git submodule names/paths in validate_subm
+G1	CON-105	closed		Map reason=rb05_mock_absent to a section 11.4.69 closed reason on main (review R2-6)
+G1	CON-108	copy		ownership F1: a byte copy of a checkout can remove the shared extension tree
+G1	CON-111	command		ownership wave 2 FU (round 4): extensions FAQ item 10 still says the /constitution command is planne
+G2	CON-337	stays	engine_repro.sh	workable-items fail-open: update --status outside the closed set exits 0 and changes nothing; add wi
+G2	CON-145		run_all.sh	Full-suite manifest auto note of scripts/fastcycle/tests/run_all.sh says 12 heavy members while 14 a
+G2	CON-243		run_all.sh	CON-222 follow-up: run_all.sh counts the new exit 77 of the helper test as FAIL and has no tier awar
+G2	CON-261		run_all.sh	test_review_record_backfill_evidence_r2_regression.sh exits 2 when run as sh (its shebang), on main 
+G2	CON-262		run_all.sh	Wider SKIP class: suites and runners that print SKIP but exit 0, and run_all.sh labels exit 77 FAIL
+G2	CON-294	line,reader,removes		full-suite runner: guide census near-marker test does not cover blank glyphs or look-alike letters t
+G2	CON-336		engine_repro.sh	workable-items add records the Opened history row as by=User whatever --created-by says (crud.go rec
+G2	CON-070	line,reports		CON-030 class follow-up: whitespace and line splitting of git submodule names/paths in validate_subm
+G3	CON-336	history	crud.go,engine_repro.sh	workable-items add records the Opened history row as by=User whatever --created-by says (crud.go rec
+G3	CON-337	update	crud.go,engine_repro.sh	workable-items fail-open: update --status outside the closed set exits 0 and changes nothing; add wi
+G3	CON-293	evidence,history,keeps,later		full-suite runner self-test: one run lost files from its own mktemp tree mid-run (8 FAIL, cause unkn
+G3	CON-333	header,lines,record		Secrets found in other own-org repositories: report only (repository names and key kinds, no values)
+G3	CON-022	evidence,header		jvm-daemons test: missing header cross-reference and evidence dir written under the parent toplevel
+G3	CON-070	drops,lines		CON-030 class follow-up: whitespace and line splitting of git submodule names/paths in validate_subm
+G3	CON-085	description,keeps		parse_mutation.py keeps the trailing double quote of the echo in the description when a mutation ban
+G3	CON-090	evidence,update		CON-031 excluded FU-4 (review X3): workable-items update records an evidence path but no sha256
+G4	CON-337	cannot,nothing	engine_repro.sh	workable-items fail-open: update --status outside the closed set exits 0 and changes nothing; add wi
+G4	CON-248	chain,link,nothing		CON-235 follow-up (review N-1): the full-suite guide should state that a symlink swapped in between 
+G4	CON-336		engine_repro.sh	workable-items add records the Opened history row as by=User whatever --created-by says (crud.go rec
+G4	CON-338	duplicate,nothing,validate		Content lint for intake batches: wire scripts/workable-items/intake_lint.py into the reporting and l
+G4	CON-246	chain,writes		CON-235 follow-up (review M-1): excl_accept opens its temp file lock_path+'.tmp.<pid>' with a plain 
+G4	CON-247	chain,link		CON-235 follow-up (review M-2): a lock reached through a symlinked config/ directory passes the isli
+G4	CON-263	accept,reports		CON-033 round 4: accept two excluded-lock rows (review_record_guard_analyzer.py, sweep_review_record
+G4	CON-264	chain,nothing		CON-033: run the review_record R4-CAP proof legs on a schedule (they SKIP when TMPDIR is under a hom

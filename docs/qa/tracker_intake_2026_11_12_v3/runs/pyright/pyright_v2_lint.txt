@@ -1,0 +1,5 @@
+# $ pyright intake_lint_v2.py   (git show 63f80e52:scripts/workable-items/intake_lint.py)
+<scratch>/trackintake_v3/tmp/pyb/intake_lint_v2.py
+  <scratch>/trackintake_v3/tmp/pyb/intake_lint_v2.py:219:91 - error: "group" is not a known attribute of "None" (reportOptionalMemberAccess)
+  <scratch>/trackintake_v3/tmp/pyb/intake_lint_v2.py:225:24 - error: Object of type "None" cannot be called (reportOptionalCall)
+2 errors, 0 warnings, 0 informations

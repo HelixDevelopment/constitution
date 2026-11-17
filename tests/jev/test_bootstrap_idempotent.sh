@@ -24,11 +24,11 @@ state_digest() {
 }
 
 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive >"$T/r1.out" 2>"$T/r1.err"
-assert_rc 0 "$?" "first run rc 0"
+assert_rc 5 "$?" "first run rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 d1="$(state_digest)"
 
 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive >"$T/r2.out" 2>"$T/r2.err"
-assert_rc 0 "$?" "second run rc 0"
+assert_rc 5 "$?" "second run rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 d2="$(state_digest)"
 
 assert_eq "$d1" "$d2" "resulting-state digests identical across runs"
@@ -60,7 +60,7 @@ fi
 # --- negative control: a changed input MUST re-run the affected stage -------
 # (otherwise "no-change" is a constant the detector prints regardless of input)
 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive --enforce >"$T/r4.out" 2>"$T/r4.err"
-assert_rc 0 "$?" "changed-input run (--enforce) rc 0"
+assert_rc 5 "$?" "changed-input run (--enforce) rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_not_contains "$T/r4.err" "configure: no-change" "NEG: --enforce changes configure inputs, stage is NOT reported no-change"
 assert_not_contains "$T/r4.err" "detect-tools: no-change" "NEG: mode is part of stage-1 key, stage re-runs"
 n4="$(grep -c 'no-change' "$T/r4.err" || true)"

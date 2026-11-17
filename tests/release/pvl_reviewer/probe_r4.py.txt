@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""Reviewer r4 probe grid (independent, first principles). FAKE values only.
+Usage: python3 -I probe_r4.py REPO ROOT_FOR_PATHS
+expect REJ = a placeholder / non-thing that a correct checker must refuse; OK = a real value it must accept.
+Each case prints: MATCH|MISMATCH field expect got reason | value(repr)."""
+import importlib.util, sys, time
+repo, root = sys.argv[1], sys.argv[2]
+spec = importlib.util.spec_from_file_location("pvl", repo + "/scripts/validation/check_provisional_verification_lines.py")
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+C = chr
+cases = []
+def r(f, v, cls, rootmode=True): cases.append((f, v, "REJ", cls, rootmode))
+def ok(f, v, cls, rootmode=True): cases.append((f, v, "OK", cls, rootmode))
+
+# C1 strong word split into MULTI-letter pieces by a separator (not all single letters)
+for v in ["TO DO", "TO-DO", "to-do", "To-Do", "TO_DO", "FIX ME", "FIX-ME", "FIX_ME", "fix_me", "TB D", "T BD", "TB.D",
+          "T.BD", "TB-A", "FI XME", "FIXM E", "TO.DO", "T.O.DO"]:
+    r("checks", "3 passed, " + v, "C1 split strong word, multi-letter pieces")
+    r("target", "host " + v, "C1 split strong word, multi-letter pieces")
+    r("artifact", "main " + v, "C1 split strong word, multi-letter pieces")
+# C2 glued to an ordinary word (golden FALSE keeps todolist; these are suffix/prefix glue on a field word)
+for v in ["3 passedTBD", "3 passed TBDs", "3 passed TODOs", "3 passed xTODO", "3 passed TBDTBD"]:
+    r("checks", v, "C2 glued strong word")
+r("artifact", "main TBDx", "C2 glued strong word")
+# C3 symbol-category letter look-alikes (So, no compatibility decomposition)
+NEG_SQ = lambda s: "".join(C(0x1F170 + ord(c) - 65) for c in s)   # NEGATIVE SQUARED LATIN CAPITAL LETTER
+NEG_CI = lambda s: "".join(C(0x1F150 + ord(c) - 65) for c in s)   # NEGATIVE CIRCLED LATIN CAPITAL LETTER
+RI = lambda s: "".join(C(0x1F1E6 + ord(c) - 65) for c in s)       # REGIONAL INDICATOR SYMBOL LETTER
+for name, f in (("neg-squared", NEG_SQ), ("neg-circled", NEG_CI), ("regional-ind", RI)):
+    for w in ("TBD", "TODO", "FIXME"):
+        r("checks", "3 passed " + f(w), "C3 symbol look-alike " + name)
+        r("target", "host " + f(w), "C3 symbol look-alike " + name)
+        r("artifact", "main " + f(w), "C3 symbol look-alike " + name)
+# C4 leet beyond 0->o 1->i
+for v in ["F1XM3", "T8D", "70D0", "TB|)", "+BD", "7BD", "T13D"]:
+    r("checks", "3 passed " + v, "C4 leet")
+# C5 English placeholder phrases not in the closed lists (inside or trailing)
+for v in ["host to be determined", "host (to be decided)", "host, unspecified", "undecided host", "host tentative",
+          "host, awaiting assignment", "host TBC by operator", "host (unassigned)", "host, not yet known",
+          "host or whichever is free"]:
+    r("target", v, "C5 English placeholder phrase")
+for v in ["all", "every", "one", "zero", "ok", "1 2 3", "abc 1", "will report afterwards", "all deferred",
+          "results to follow", "every check deferred", "checks run, outcome tbd later"]:
+    r("checks", v, "C5 checks with no observed signature")
+for v in ["commit to be decided", "build", "main (to be confirmed)", "tag, not yet cut"]:
+    r("artifact", v, "C5 English placeholder phrase")
+# C6 sentinel dates (a due time that never comes)
+for v in ["2099-12-31", "2099-12-31T23:59:59Z", "2000-01-01", "2026-11-20 (approx., will slip)"]:
+    r("due", v, "C6 sentinel or vague due")
+# C7 invisible-but-not-removed separators at the end / inside (Braille blank, ideographic space trailing)
+r("artifact", "commit " + C(0x2800) * 3, "C7 trailing braille blank")
+r("checks", "3 passed" + C(0x3000) * 2 + C(0x2800), "C7 trailing blanks")
+# C8 lorem inside
+r("checks", "3 passed lorem ipsum", "C8 lorem inside")
+# C9 job: directories / non-job existing files with --root
+r("job", "scripts/", "C9 directory as job")
+r("job", "./README.md", "C9 non-runnable file as job")
+r("job", "docs/Issues.md", "C9 non-runnable file as job")
+# Golden FALSE (must stay accepted)
+for f, v in [("checks", "3 passed, 0 failed"), ("checks", "none of the mutants survives"),
+             ("checks", "no pending lock remains"), ("checks", "nothing to do: 4 passed"),
+             ("checks", "the to-do list gate prints 0 open"), ("target", "host checkout"),
+             ("target", "board serial ABC123, flashed image"), ("artifact", "commit abc1234"),
+             ("artifact", "sha256 0123456789abcdef"), ("due", "2026-11-23"),
+             ("due", "2026-11-23T10:00:00+01:00"), ("layer", "gate-logic"), ("layer", "runtime (clean target)"),
+             ("job", "bash tests/release/test_provisional_verification_lines.sh"),
+             ("job", "python3 -I scripts/validation/check_provisional_verification_lines.py --root . docs/workable_items.db"),
+             ("job", "JOB-42"), ("checks", "TB of disk, 3 passed"), ("target", "host in the TO region")]:
+    ok(f, v, "golden FALSE")
+
+res = []
+t0 = time.time()
+for f, v, exp, cls, rm in cases:
+    got = m.field_problem(f, v, root if rm else None)
+    g = "REJ" if got else "OK"
+    res.append((g == exp, f, exp, g, got, v, cls))
+
+# Line-model (check_body) probes: divergence from CommonMark
+GOOD = ("**Verification:** provisional -- job: bash tests/release/test_provisional_verification_lines.sh -- checks: 3 passed -- layer: host-only -- target: host"
+        " -- artifact: main -- due: 2026-11-23")
+BAD = ("**Verification:** provisional -- job: bash tests/release/test_provisional_verification_lines.sh -- checks: TBD -- layer: host-only -- target: host"
+       " -- artifact: main -- due: 2026-11-23")
+bodies = [
+    ("L1 FS control char splits a quoted line into a column-0 line", "## x\n> quote\x1c" + GOOD, "REJ"),
+    ("L2 U+2028 line separator splits a quote", "## x\n> quote " + GOOD, "REJ"),
+    ("L3 '<!-->' is a complete comment in CommonMark; checker opens a block and hides BAD",
+     "## x\n<!-->\n" + BAD + "\n-->\n" + GOOD, "REJ"),
+    ("L4 info string with backtick is not a fence in CommonMark; checker hides BAD, GOOD is in a real fence",
+     "## x\n```a`b\n" + BAD + "\n```\n" + GOOD + "\n", "REJ"),
+    ("L5 control: plain GOOD", "## x\n" + GOOD, "OK"),
+    ("L6 control: plain BAD", "## x\n" + BAD, "REJ"),
+]
+for name, body, exp in bodies:
+    got = m.check_body(body, root)
+    g = "REJ" if got else "OK"
+    res.append((g == exp, "body", exp, g, got, name, "L line model"))
+el = time.time() - t0
+mm = 0
+for okk, f, exp, g, got, v, cls in res:
+    if not okk:
+        mm += 1
+    print("%s\t%s\t%s\t%s\t%s\t%s\t%r" % ("MATCH" if okk else "MISMATCH", cls, f, exp, g, got, v))
+print("SUMMARY cases=%d mismatches=%d seconds=%.3f" % (len(res), mm, el))

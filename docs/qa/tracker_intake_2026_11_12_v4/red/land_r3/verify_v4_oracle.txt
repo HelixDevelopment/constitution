@@ -1,0 +1,70 @@
+$ remint_ids.py verify (round 4) --db <the round-3 landed copy, red/land_r3>
+KNOWN CON-243: lifecycle history rows vehicle 2, landed 0 (history is not carried; M-14)
+KNOWN CON-312 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:17), not carried
+KNOWN CON-313 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-314 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-315 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-316 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-317 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-318 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-319 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-320 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-321 created_at: replay time 2026-11-13 15:15:59 (vehicle 2026-11-13 13:56:42), not carried
+KNOWN CON-321: lifecycle history rows vehicle 5, landed 2 (history is not carried; M-14)
+KNOWN CON-322 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-323 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-324 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-325 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-326 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-327 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-328 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-329 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-330 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-331 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-332 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-333 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-334 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-335 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-336 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-337 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-338 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-339 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-340 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-341 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-342 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-343 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-344 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-345 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-346 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-347 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-348 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-349 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-350 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-351 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-352 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 13:09:02), not carried
+KNOWN CON-353 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 13:09:02), not carried
+KNOWN CON-354 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 13:09:02), not carried
+KNOWN CON-355 created_at: replay time 2026-11-13 15:16:00 (vehicle 2026-11-13 13:09:02), not carried
+MISMATCH CON-046 description: text differs outside the ids near 'Operator auto-commit 724d818 regressed s'
+MISMATCH CON-046 reproduction_state: landed 'UNSET', expected 'UNREPRODUCED'
+MISMATCH CON-046 reproduction_updated_at: landed None, vehicle '2026-11-13T11:27:03Z'
+MISMATCH CON-046 reproduction_updated_by: landed None, vehicle 'Claude (tracker-intake round-2 fixer, Opus 5.5)'
+MISMATCH CON-046 body_md: text differs outside the ids near ' — auto-commit tooling downgraded the Co'
+MISMATCH CON-243 description: text differs outside the ids near ' follow-up: run_all.sh counts the new ex'
+MISMATCH CON-243 status: landed 'Queued', expected 'Obsolete (→ Fixed.md)'
+MISMATCH CON-243 current_location: landed 'Issues', expected 'Fixed'
+MISMATCH CON-243 body_md: text differs outside the ids near ' follow-up: run_all.sh counts the new ex'
+MISMATCH CON-243 obsolete_details: present in the vehicle only
+MISMATCH CON-243: the vehicle closed CON-243 but the landed history has no closure row
+MISMATCH CON-262 description: text differs outside the ids near ' round 4 fixed one of them in the vehicl'
+MISMATCH CON-262 body_md: text differs outside the ids near ' round 4 fixed one of them in the vehicl'
+MISMATCH CON-343 title: id CON-310 landed as CON-323, expected CON-310
+MISMATCH CON-343 body_md: id CON-310 landed as CON-323, expected CON-310
+MISMATCH CON-349 investigation_updated_at: landed '2026-11-13T13:09:02Z', expected '2026-11-13T11:27:00Z'
+MISMATCH CON-349 investigation_updated_by: landed 'Claude (tracker-intake round-3 fixer, Opus 5.5)', expected 'Claude (tracker-intake round-2 fixer, Opus 5.5)'
+MISMATCH CON-349 body_md: text differs outside the ids near ' — workable-items add records the Opened'
+MISMATCH CON-350 investigation_updated_at: landed '2026-11-13T13:09:02Z', expected '2026-11-13T11:27:00Z'
+MISMATCH CON-350 investigation_updated_by: landed 'Claude (tracker-intake round-3 fixer, Opus 5.5)', expected 'Claude (tracker-intake round-2 fixer, Opus 5.5)'
+MISMATCH CON-350 body_md: text differs outside the ids near ' — workable-items fail-open: update --st'
+RESULT: FAIL mode=REPLAY items=47 mismatches=21 known=46
+rc=1

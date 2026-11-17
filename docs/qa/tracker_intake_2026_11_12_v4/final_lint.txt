@@ -1,0 +1,8 @@
+$ intake_lint.py --db docs/workable_items.db --ids CON-299..CON-342 --prefix CON --require-dup-check --repo-root .
+RESULT: PASS selected=44 findings=0 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md
+rc=0
+$ intake_lint.py --db docs/workable_items.db --ids CON-046,CON-243,CON-262 --prefix CON --repo-root . --skip-check <format codes>
+  (base items the vehicle changed; their descriptions predate the section 11.4.148 intake format, so the
+   format codes SECTIONS, XREF-*, PATH-MISSING, SHARED-PATH and DUP-CHECK are skipped; every other code runs)
+RESULT: PASS selected=3 findings=0 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md
+rc=0

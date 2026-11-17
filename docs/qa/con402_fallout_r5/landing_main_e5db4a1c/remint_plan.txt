@@ -1,0 +1,4 @@
+BASE-CHANGE CON-251 vehicle=description target=-
+BASE-CHANGE CON-450 vehicle=description target=-
+BASE-CHANGE CON-451 vehicle=description target=-
+RESULT: PLAN mode=REPLAY own=0 base_changes=3 steps=3 conflicts=0 refusals=0 first=- last=-

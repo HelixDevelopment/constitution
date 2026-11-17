@@ -1,0 +1,174 @@
+PASS P0 fixture self-check
+PASS P0 oracle self-check
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 6 items, 3 provisional, 3 ok
+PASS P1 the root is reported
+PASS P1 --today and the window are reported
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count (r6: and its label refuses the body)
+PASS P2 prose is not a sentence of the grammar (the r4 golden-good line)
+PASS P2 no created date: the window cannot be checked
+PASS P2 due before the item was created
+PASS P2 a line that continues a paragraph does not count (r6: and its label refuses the body)
+PASS P2 a body the two readers read differently is refused
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an unknown option: usage exit 64
+PASS P3 a root that is not a directory: exit 64
+PASS P3 a --today that is not a date: exit 64
+PASS P3 a window above 3650: exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P3 a database path with a space opens (pathlib URI)
+PASS P4 the database is unchanged
+PASS P4 no -wal, -shm or -journal sidecar
+PASS P4b typed values: exit 1
+PASS P4b typed values: no traceback
+PASS P4b an integer created_at is refused, named
+PASS P4b a blob body is refused, named
+PASS P4b a status with a trailing space is refused, not skipped
+PASS P4b a status in another case is refused, not skipped
+PASS P4b hour 24 is refused
+PASS P4b a lone CR before a fence hides the line (review r5 I-1)
+PASS P4b a lone CR before a comment hides the line (review r5 I-1)
+PASS P4b the clean item among them is accepted (control)
+PASS P4b counts: the trailing-space and other-case statuses are checked
+PASS P4b a target registry that is not UTF-8: BLIND
+PASS P4b registry not UTF-8: no traceback
+PASS P4b a closed WAL-mode database is read
+PASS P4b a closed WAL-mode database: no -wal or -shm created, bytes unchanged
+PASS P4b a closed WAL-mode database in a directory that cannot be written is read (the copy)
+PASS P4b the live writer committed its row (control)
+PASS P4b a WAL database with a live writer: the row only in -wal is read (needle CON-909)
+PASS P4b a WAL database with a live writer: counts include the -wal row
+PASS P4b a WAL database with a live writer: its files unchanged byte for byte
+PASS P5 real database read (exit 1: 0 every line a sentence, 1 refusals listed)
+PASS P5 the checker counted the same 29 rows (needle: an independent count)
+PASS P5 the real database holds provisional items (control: 29 > 0)
+PASS P5 the fail count equals the FAIL lines (29)
+PASS P5 the root is reported
+PASS P5 the verdicts are written to ../ev/p5_run1/real_db_verdicts.txt
+P5-REFUSED FAIL CON-015 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_census_jq_regions.sh (expec'
+P5-REFUSED FAIL CON-016 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_census_jq_regions.sh (52 pa'
+P5-REFUSED FAIL CON-023 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_overrides_guarded.sh on mai'
+P5-REFUSED FAIL CON-043 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_oracle_frozen_exclusions.sh, tests/g'
+P5-REFUSED FAIL CON-144 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verificat
+P5-REFUSED FAIL CON-159 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard, bash scripts/validation/test_decision_'
+P5-REFUSED FAIL CON-160 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard, bash scripts/fastcycle/tests/test_cust'
+P5-REFUSED FAIL CON-161 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard, bash scripts/fastcycle/tests/test_host'
+P5-REFUSED FAIL CON-162 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard, bash scripts/validation/test_enumerate'
+P5-REFUSED FAIL CON-183 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run bash scripts/fastcycle/tests/test_consumer_required_m'
+P5-REFUSED FAIL CON-184 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run bash scripts/fastcycle/tests/test_consumer_required_m'
+P5-REFUSED FAIL CON-185 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run bash scripts/fastcycle/tests/test_consumer_required_h'
+P5-REFUSED FAIL CON-186 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verificat
+P5-REFUSED FAIL CON-189 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verificat
+P5-REFUSED FAIL CON-190 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verificat
+P5-REFUSED FAIL CON-191 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verificat
+P5-REFUSED FAIL CON-211 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, re-run bash scripts/codegraph/tests/test_unit_safe.'
+P5-REFUSED FAIL CON-216 Ready for testing: field 'job' passes and, which is not an integer, an option, a path or a selector scripts/fastcycle/tests/test_host_report_probe_thread_headro names
+P5-REFUSED FAIL CON-217 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_enumerate_decision_mutants_r2_regres names
+P5-REFUSED FAIL CON-218 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_enumerate_decision_mutants_r2_regres names
+P5-REFUSED FAIL CON-219 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_decision_mutant_census_wording_r1_re names
+P5-REFUSED FAIL CON-220 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_enumerate_decision_mutants_r2_regres names
+P5-REFUSED FAIL CON-222 Ready for testing: field 'job' passes and, which is not an integer, an option, a path or a selector scripts/fastcycle/tests/test_consumer_required_helper_l29_sk names
+P5-REFUSED FAIL CON-223 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/fastcycle/tests/test_consumer_required_helper_l29_sk names
+P5-REFUSED FAIL CON-224 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/fastcycle/tests/test_consumer_required_mutations.sh names
+P5-REFUSED FAIL CON-226 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/release/test_tag_and_release.sh (45 passed, 0 f'
+P5-REFUSED FAIL CON-235 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, re-run bash tests/test_run_full_suite.sh, the paire'
+P5-REFUSED FAIL CON-236 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, re-run bash tests/test_run_full_suite_mutations_tab'
+P5-REFUSED FAIL CON-265 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, re-run bash scripts/fastcycle/tests/run_all.sh (it '
+PASS P6 grid: API, command line and oracle agree
+PASS P6 grid size needle (222 cases, 161 refused, 61 accepted)
+PASS P7 property: no line the checker accepts is refused by the grammar's oracle
+PASS P7 property size needle (3000 sentences, 18000 perturbations, both verdicts reached)
+PASS P8 line model: every case counted as CommonMark counts it
+PASS P8 pandoc and markdown-it cross-checks ran with no mismatch
+PASS P8b the reference readers pass their control needles
+PASS P8b markdown-it is present and sees the needles
+PASS P8b no line-ending or start-of-line variant is accepted while markdown-it shows other lines
+PASS P8b class needle (30 members, danger 0, pandoc blind to a lone CR, no reader disagreement accepted)
+PASS P9 inventory: every member refused or accepted as the grammar says
+PASS P9 inventory needle (12 classes, the whole code space)
+PASS P9 the one G01 member the grammar accepts is the root path argument
+PASS P9 the generator's classes equal the document's (G01 G02 G03 G04 G05 G06 G07 G08 G09 G10 G11 G12 )
+PASS P10 every pathological case within the limit
+PASS P10 the limit is 1 s and every case ran
+PASS P11 reviewer probes: no REJ case accepted, every narrowed OK case listed with its reason
+PASS P11 probe needle (322 cases, 33 narrowed by the grammar)
+PASS P11 separator classes: none accepted; shape-only jobs refused
+PASS P12 every reviewer mutant applies, is run by its suite, or is not applicable with covering cases
+PASS P12 mutant needle (68: R1-R22, X1-X12, N01-N22, RV01-RV12)
+MUT O01 KILLED by grid (rc 1)
+MUT O02 KILLED by property (rc 1)
+MUT O03 KILLED by grid (rc 1)
+MUT O04 KILLED by grid (rc 1)
+MUT O05 KILLED by inventory (rc 1)
+MUT O06 KILLED by grid (rc 1)
+MUT O07 KILLED by grid (rc 1)
+MUT O08 KILLED by grid (rc 1)
+MUT O09 KILLED by grid (rc 1)
+MUT O10 KILLED by grid (rc 1)
+MUT O11 KILLED by grid (rc 1)
+MUT O12 KILLED by grid (rc 1)
+MUT O13 KILLED by grid (rc 1)
+MUT O14 KILLED by grid (rc 1)
+MUT O15 KILLED by api (rc 1)
+MUT O16 KILLED by api (rc 1)
+MUT O17 KILLED by grid (rc 1)
+MUT O18 KILLED by api (rc 1)
+MUT O19 KILLED by api (rc 1)
+MUT O20 NOT-APPLIED (scripts/validation/check_provisional_verification_lines.py: old text occurs 0 times)
+MUT O21 KILLED by grid (rc 1)
+MUT O22 KILLED by grid (rc 1)
+MUT O23 KILLED by linemodel (rc 1)
+MUT O24 NOT-APPLIED (scripts/validation/check_provisional_verification_lines.py: old text occurs 0 times)
+MUT O25 KILLED by linemodel (rc 1)
+MUT O26 KILLED by linemodel (rc 1)
+MUT O27 KILLED by linemodel (rc 1)
+MUT O28 KILLED by grid (rc 1)
+MUT O29 KILLED by grid (rc 1)
+MUT O30 KILLED by grid (rc 1)
+MUT O31 KILLED by api (rc 1)
+MUT O32 KILLED by lineend (rc 1)
+MUT O33 KILLED by linemodel (rc 1)
+MUT O34 KILLED by linemodel (rc 1)
+MUT O35 KILLED by linemodel (rc 1)
+MUT O36 KILLED by api (rc 1)
+MUT O37 KILLED by api (rc 1)
+MUT O38 KILLED by api (rc 1)
+MUT O39 KILLED by api (rc 1)
+MUT O40 KILLED by api (rc 1)
+MUT O41 KILLED by api (rc 1)
+MUT O42 SURVIVED
+MUT O43 SURVIVED
+MUT R15 KILLED by grid (rc 1)
+MUT R19 KILLED by api (rc 1)
+MUT R21 KILLED by api (rc 1)
+MUT N15 KILLED by grid (rc 1)
+MUT N16 KILLED by timing (rc 1)
+MUT RV01 KILLED by property (rc 1)
+MUT RV02 KILLED by grid (rc 1)
+MUT RV03 KILLED by grid (rc 1)
+MUT RV04 SURVIVED
+MUT RV05 KILLED by grid (rc 1)
+MUT RV06 KILLED by grid (rc 1)
+MUT RV07 KILLED by linemodel (rc 1)
+MUT RV08 KILLED by inventory (rc 1)
+MUT RV09 KILLED by grid (rc 1)
+MUT RV10 KILLED by grid (rc 1)
+MUT RV11 KILLED by linemodel (rc 1)
+MUT RV12 KILLED by api (rc 1)
+FAIL P13 mutants (1): MUT O20 NOT-APPLIED (scripts/validation/check_provisional_verification_lines.py: old text occurs 0 times)|MUT O24 NOT-APPLIED (scripts/validation/check_provisional_verification_lines.py: old text occurs 0 times)|MUT O42 SURVIVED|MUT O43 SURVIVED|MUT RV04 SURVIVED|
+PASS P13 the unmutated copy passes every kill harness (control)
+PASS P13 own mutants: 43 (at least 15)
+FAIL P13 mutant needle (own plus the 17 reviewer mutants of this suite that apply: 5 of r2-r4, RV01-RV12) (no line /^MUTATE total=60 killed=60 survived=0 not_applied=0$/: MUT-CONTROL unmutated copy passes api grid linemodel lineend property timing inventory|MUT O01 KILLED by grid (rc 1)|MUT O02 KILLED by property (rc 1)|MUT O03 KILLED by grid (rc 1)|MUT O04 KILLED by grid (rc 1)|MUT O05 KILLED by inventory (rc 1)|MUT O06 KILLED by grid (rc 1)|MUT O07 KILLED by grid ()
+RESULT: pass=82 fail=2

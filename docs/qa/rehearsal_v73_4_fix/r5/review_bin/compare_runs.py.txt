@@ -1,0 +1,66 @@
+"""Compare two run_all output directories file by file.
+
+Each file is hashed raw and after normalising run-specific text (the run directory name, durations, temp paths,
+timestamps). Prints one line per file: SAME-RAW, SAME-NORM, or DIFF (with the first differing normalised line).
+Exit 0 when every file is SAME-RAW or SAME-NORM, 1 otherwise, 64 on usage error.
+"""
+import hashlib
+import os
+import re
+import sys
+
+if len(sys.argv) != 3:
+    sys.exit(64)
+a, b = sys.argv[1:3]
+NORM = [
+    (re.compile(r"/run[12]\b"), "/runN"),
+    (re.compile(r"/mnt/DATA1TB/claude-work/tmp/[^\s'\"]+"), "<tmp>"),
+    (re.compile(r"/tmp/[^\s'\"]+"), "<tmp>"),
+    (re.compile(r"\b\d+(\.\d+)?\s*(s|ms|sec|seconds)\b"), "<dur>"),
+    (re.compile(r"(worst|elapsed|time|took)[=:]\s*[0-9.]+"), r"\1=<dur>"),
+    (re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?"), "<ts>"),
+    (re.compile(r"tmp\.[A-Za-z0-9]{6,}"), "tmp.<x>"),
+    (re.compile(r"/proc/\d+/"), "/proc/<pid>/"),
+]
+
+
+DROP = re.compile(r"^tests/release/test_tag_and_release\.sh: line 706: /proc/<pid>/cmdline: No such file or directory$")
+
+
+def norm(text):
+    for rx, rep in NORM:
+        text = rx.sub(rep, text)
+    return text
+
+
+fa = sorted(os.listdir(a))
+fb = sorted(os.listdir(b))
+bad = 0
+for name in sorted(set(fa) | set(fb)):
+    pa, pb = os.path.join(a, name), os.path.join(b, name)
+    if not (os.path.isfile(pa) and os.path.isfile(pb)):
+        kind = "dir" if os.path.isdir(pa) or os.path.isdir(pb) else "missing"
+        if kind == "dir" and os.path.isdir(pa) and os.path.isdir(pb):
+            print("DIR %s (not compared here)" % name)
+            continue
+        print("MISSING %s" % name)
+        bad += 1
+        continue
+    ra, rb = open(pa, "rb").read(), open(pb, "rb").read()
+    ha, hb = hashlib.sha256(ra).hexdigest(), hashlib.sha256(rb).hexdigest()
+    if ha == hb:
+        print("SAME-RAW %s %s" % (name, ha))
+        continue
+    na = [x for x in norm(ra.decode("utf-8", "replace")).splitlines() if not DROP.match(x)]
+    nb = [x for x in norm(rb.decode("utf-8", "replace")).splitlines() if not DROP.match(x)]
+    dropped = (len(norm(ra.decode("utf-8", "replace")).splitlines()) - len(na), len(norm(rb.decode("utf-8", "replace")).splitlines()) - len(nb))
+    if na == nb:
+        print("SAME-NORM %s %s %s dropped_race_lines=%d,%d" % (name, ha[:12], hb[:12], dropped[0], dropped[1]))
+        continue
+    bad += 1
+    first = next((i for i, (x, y) in enumerate(zip(na, nb)) if x != y), min(len(na), len(nb)))
+    print("DIFF %s line %d" % (name, first + 1))
+    print("  a: %s" % (na[first][:240] if first < len(na) else "<eof>"))
+    print("  b: %s" % (nb[first][:240] if first < len(nb) else "<eof>"))
+print("COMPARE files=%d bad=%d" % (len(set(fa) | set(fb)), bad))
+sys.exit(1 if bad else 0)

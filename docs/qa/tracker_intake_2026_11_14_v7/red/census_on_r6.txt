@@ -1,0 +1,20 @@
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v7/tools/secret_class_census.py <round-6 lint: git show 02126123:scripts/workable-items/intake_lint.py>
+control needles: PASS (a known member found, a prose line not reported)
+# summary of the full output (69274 lines, sha256 80811d223dcfdacf8e8d8ae04867f3662613034e782d210b5980bed3694855cc, not kept): MISMATCH lines counted by kind, family and key tier
+  60372 MISMATCH GAP keyed LONG
+   3744 MISMATCH GAP keyed GENERIC
+   1998 MISMATCH GAP keyed SHORT
+   1860 MISMATCH FP keyed LONG
+    528 MISMATCH GAP xml LONG
+    228 MISMATCH GAP flag flag-prefixed
+    228 MISMATCH GAP flag flag
+    180 MISMATCH FP keyed GENERIC
+     66 MISMATCH GAP space LONG
+     36 MISMATCH GAP xml SHORT
+     24 MISMATCH GAP xml GENERIC
+      2 MISMATCH GAP netrc password
+      2 MISMATCH GAP netrc passwd
+      1 MISMATCH GAP url url-slash
+      1 MISMATCH GAP url url-empty-user
+RESULT: members=282718 hit=21762 miss_negative=185770 miss_boundary=5916 gap=67230 fp=2040
+rc=1
