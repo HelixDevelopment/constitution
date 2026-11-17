@@ -20,6 +20,7 @@ spec = importlib.util.spec_from_file_location("sync_engine", ENGINE)
 E = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(E)
 SHA = "a" * 40
+O = SHA + "^{commit}"  # the exact object name of SHA (review round 12)
 
 
 def fake_runner(result):
@@ -73,25 +74,25 @@ class AllowList(unittest.TestCase):
 
     def test_transport_helper_refused_everywhere(self):
         # the "::" rule on its own: these shapes pass every other check, so only that rule refuses them
-        self.ok("rev-parse", "x:y")
-        self.bad("rev-parse", "x::y")
+        self.ok("config", "--get", "x:y")
+        self.bad("config", "--get", "x::y")
         self.bad("config", "--get", "remote.ext::sh.url")
         self.bad("cat-file", "-e", "ext::sh")
         self.bad("cat-file", "-e", SHA)  # cat-file left the allow-list in round 3: presence is rev-parse --verify
 
     def test_check_returns_the_checked_tuple(self):  # proc_run_git builds the command from the CHECKED value
-        self.assertEqual(E.check_git_args(["rev-parse", "HEAD"]), ("rev-parse", "HEAD"))
+        self.assertEqual(E.check_git_args(["rev-parse", "--show-toplevel"]), ("rev-parse", "--show-toplevel"))
 
     def test_writes_exact(self):
-        self.ok("merge", "--ff-only", SHA)
-        self.bad("merge", SHA)
+        self.ok("merge", "--ff-only", O)
+        self.bad("merge", O)
         for flag in ("--ff", "--no-ff", "--squash", "--commit", "--no-commit"):  # R1 shape: --ff is not --ff-only
-            self.bad("merge", flag, SHA)
-        self.bad("merge", "--ff-only", "-s", "ours", SHA)
+            self.bad("merge", flag, O)
+        self.bad("merge", "--ff-only", "-s", "ours", O)
         self.bad("merge", "--ff-only", "origin/main")
-        self.ok("checkout", "--quiet", "--detach", SHA)
-        self.bad("checkout", "-f", SHA)
-        self.bad("checkout", "--quiet", "--detach", "--force", SHA)
+        self.ok("checkout", "--quiet", "--detach", O)
+        self.bad("checkout", "-f", O)
+        self.bad("checkout", "--quiet", "--detach", "--force", O)
         self.bad("checkout", "--quiet", "--detach", "main")
         self.ok("add", "--", "libs/a")
         self.bad("add", "-A")
@@ -105,7 +106,8 @@ class AllowList(unittest.TestCase):
             self.bad(s)
 
     def test_read_only_shapes(self):
-        self.ok("rev-parse", "HEAD")
+        self.ok("rev-parse", "--verify", "-q", "HEAD^{commit}")
+        self.bad("rev-parse", "HEAD")  # round 12: the closed set of rev-parse shapes (no bare names)
         self.ok("ls-files", "-s", "-z")
         self.ok("symbolic-ref", "-q", "HEAD")
         self.bad("symbolic-ref", "--short", "-q", "HEAD")  # round 11 (RV10-1): --short disambiguates (heads/dev)
@@ -742,7 +744,7 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
                 b = "main" if repo == "/nonexistent/root" else branch
                 return ("exit", 0, "refs/heads/" + b + "\n", "") if b else ("exit", 1, "", "")
             if a[:3] == ["checkout", "--quiet", "--detach"]:
-                head[repo] = a[3]
+                head[repo] = a[3][:-len("^{commit}")]
             if a[0] == "rev-parse":
                 return "exit", 0, head.get(repo, SHA) + "\n", ""
             return "exit", 0, "", ""
@@ -772,7 +774,7 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
     def test_detached_submodule_is_advanced(self):  # control: the same tree, detached, reaches the writer
         r, c = self.run_integrate(None)
         writes = [a for _, a in r.seen if a[0] in E.WRITE_SUBCOMMANDS]
-        self.assertEqual(writes, [("checkout", "--quiet", "--detach", "b" * 40), ("add", "--", "libs/a")])
+        self.assertEqual(writes, [("checkout", "--quiet", "--detach", "b" * 40 + "^{commit}"), ("add", "--", "libs/a")])
         self.assertNotIn("kept_on_branch", c.rec)
 
     def test_marker_unwritable_blocks_the_write(self):  # RV5-1 (round 6): no marker, no write
@@ -1023,7 +1025,7 @@ class RoundFive(unittest.TestCase):
             kind = F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 30, 1)[0]
             self.assertEqual(kind, "interrupted")
             self.assertLess(F.time.monotonic() - t0, 2.5)
-            kind, code = F.proc_run_git(fake, d, ["merge", "--ff-only", SHA], {"PATH": "/usr/bin:/bin"}, 30, 0)[:2]
+            kind, code = F.proc_run_git(fake, d, ["merge", "--ff-only", O], {"PATH": "/usr/bin:/bin"}, 30, 0)[:2]
             self.assertEqual((kind, code), ("exit", 0))  # a write runs to its end
             r = F.Runner(fake, 10, F.time.monotonic() + 600)
             res = r.run(d, ["status"], ok=(0,))
@@ -1091,7 +1093,7 @@ class RoundFive(unittest.TestCase):
     def test_head_not_at_target_after_write_is_a_failure(self):  # RV4-1 step 6: the write is verified
         r, c, writes = self.integrate_with(
             lambda repo, a: ("exit", 0, SHA + "\n", "") if a[:1] == ["rev-parse"] else None)
-        self.assertEqual(writes, [("checkout", "--quiet", "--detach", "b" * 40)])  # never staged after a bad write
+        self.assertEqual(writes, [("checkout", "--quiet", "--detach", "b" * 40 + "^{commit}")])  # never staged after a bad write
         self.assertTrue(c.rec.get("failed"))
         self.assertIn("head-not-at-target-after-write", json.dumps(c.rec["actions"]))
 
@@ -1133,9 +1135,9 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
 
     def test_write_has_its_own_limit_not_the_deadline(self):  # RV5-1: a write never gets min(timeout, deadline)
         F, r, seen = self.limits_runner(2)
-        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True, token=live_token(self, F, r))
+        res = r.run("/r", ["merge", "--ff-only", O], ok=(0,), write=True, token=live_token(self, F, r))
         self.assertTrue(res.answered)
-        self.assertEqual(seen[-1], (("merge", "--ff-only", SHA), 1234, 0))
+        self.assertEqual(seen[-1], (("merge", "--ff-only", O), 1234, 0))
 
     def test_no_process_starts_after_a_second_signal(self):  # RR39 (round 6): a final read is refused BEFORE spawn
         F, r, seen = self.limits_runner(10)
@@ -1149,7 +1151,7 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
 
     def test_write_never_starts_after_the_deadline(self):
         F, r, seen = self.limits_runner(-1)
-        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True, token=live_token(self, F, r))
+        res = r.run("/r", ["merge", "--ff-only", O], ok=(0,), write=True, token=live_token(self, F, r))
         self.assertEqual((res.answered, res.why, seen), (False, "deadline", []))
 
     def test_second_half_of_a_write_and_final_reads_run_after_the_deadline(self):
@@ -1171,7 +1173,7 @@ class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
         F = fresh_engine("sync_engine_r6_wk")
         F.proc_run_git = lambda *a, **k: ("timeout", None, "", "timeout after 3s; ended by SIGTERM")
         r = F.Runner("/nonexistent/git", 7, F.time.monotonic() + 600, 3)
-        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0, 1, 128), write=True, token=live_token(self, F, r))
+        res = r.run("/r", ["merge", "--ff-only", O], ok=(0, 1, 128), write=True, token=live_token(self, F, r))
         self.assertEqual((res.answered, res.why), (False, "write-killed"))
         self.assertEqual(r.unresolved_for("/r"), [])  # never an unknown state: the write's end is known
         res = r.run("/r", ["remote"], ok=(0,))  # a READ timeout stays a no-answer (control)
@@ -1345,7 +1347,7 @@ class RoundSeven(unittest.TestCase):  # review round 7 (RV6-1 .. RV6-3)
                             F.HARD_STOP.set()
                         tok = live_token(self, F, r)
                         pred = r.write_refused_now(final=final)
-                        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True, final=final, token=tok)
+                        res = r.run("/r", ["merge", "--ff-only", O], ok=(0,), write=True, final=final, token=tok)
                         self.assertEqual(pred, not res.started, (stop, hard, left, final))
                         self.assertEqual(pred, seen == [], (stop, hard, left, final))
 
@@ -1358,7 +1360,7 @@ class RoundSeven(unittest.TestCase):  # review round 7 (RV6-1 .. RV6-3)
         for kind, code, started in (("not-runnable", None, False), ("exit", 0, True), ("exit", 5, True),
                                     ("signal", 9, True), ("timeout", None, True), ("output-too-large", None, True)):
             F.proc_run_git = lambda *a, _k=kind, _c=code, **kw: (_k, _c, "", "")
-            res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0, 1, 128), write=True, token=live_token(self, F, r))
+            res = r.run("/r", ["merge", "--ff-only", O], ok=(0, 1, 128), write=True, token=live_token(self, F, r))
             self.assertEqual(res.started, started, kind)
         F.STOP_REQUESTED.set()
         self.assertFalse(r.run("/r", ["remote"], ok=(0,)).started)  # interrupted before spawn
@@ -1936,7 +1938,13 @@ class RoundEleven(unittest.TestCase):  # review round 11 (RV10-1 .. RV10-8)
         self.assertEqual(len(names), 14, names)  # control needle: the list was really read
         self.assertEqual(sorted(set(names) - set(E._SCRUB)), [])
         env = E.git_env({n: "/elsewhere" for n in names} | {"PATH": "/usr/bin"})
-        self.assertEqual(sorted(n for n in names if n in env), [])
+        # round 12 (RV11-2): the caller's value never reaches git; two names are then PINNED (replace refs off, an
+        # empty graft file), the rest are absent
+        pinned = dict(E.OBJECT_VISIBILITY_PIN)
+        self.assertEqual(sorted(pinned), ["GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS"])
+        self.assertEqual(sorted(n for n in names if n in env), sorted(pinned))
+        self.assertEqual({n: env[n] for n in pinned}, {"GIT_NO_REPLACE_OBJECTS": "1", "GIT_GRAFT_FILE": "/dev/null"})
+        self.assertEqual([n for n in names if env.get(n) == "/elsewhere"], [])
         self.assertEqual(env["PATH"], "/usr/bin")  # golden-FALSE: an unrelated variable is kept
 
     def test_marker_op_outside_the_vocabulary_is_unknown(self):  # RV10-7 / AA10
@@ -1950,6 +1958,123 @@ class RoundEleven(unittest.TestCase):  # review round 11 (RV10-1 .. RV10-8)
             self.assertEqual(E.read_marker(g), want, repr(op))
         os.unlink(path)
         self.assertIsNone(E.read_marker(g))
+
+
+class RoundTwelve(unittest.TestCase):  # review round 12 (RV11-1, RV11-2, the checkout-by-branch-name instance)
+    """One rule for every object name the engine gives git: HEAD, or an object id with ^{commit} (git never reads
+    a ref name out of '<hex>^{commit}': '^' cannot be in a ref name). A ref name is resolved ONLY by
+    resolve_ref_exact() (for-each-ref, exact refname match). Object visibility is real history: git_env pins
+    GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null on every call."""
+    def bad(self, *a):
+        with self.assertRaises(E.GitRefused, msg=repr(a)):
+            E.check_git_args(list(a))
+
+    def ok(self, *a):
+        self.assertEqual(E.check_git_args(list(a)), tuple(a))
+
+    def test_obj_form(self):
+        self.assertEqual(E.obj(SHA), SHA + "^{commit}")
+        for x in ("", "main", "refs/remotes/origin/dev", SHA[:39], SHA.upper(), SHA + "^{commit}", None, 7):
+            self.assertEqual(E.obj(x), E.INVALID_OBJ, repr(x))
+            self.bad("merge", "--ff-only", E.obj(x))  # never a lookup: the call is refused before git starts
+        # the whole string, never a prefix: re's '$' also matches before a final newline
+        self.assertEqual(E.obj(SHA + "\n"), E.INVALID_OBJ)
+        self.assertFalse(E._exact_obj(SHA + "^{commit}\n"))
+        self.assertTrue(E._exact_obj(SHA + "^{commit}"))
+
+    def test_object_names_are_exact_at_the_allow_list(self):
+        o = SHA + "^{commit}"
+        self.ok("rev-parse", "--verify", "-q", "HEAD^{commit}")
+        self.ok("rev-parse", "--verify", "-q", o)
+        for name in ("refs/remotes/origin/dev^{commit}", "main", "origin/main", SHA, "HEAD", "@", "dev^{commit}"):
+            self.bad("rev-parse", "--verify", "-q", name)  # RV11-1: never a DWIM lookup of a ref name
+        self.bad("rev-parse", "refs/remotes/origin/dev")
+        self.ok("merge", "--ff-only", o)
+        self.bad("merge", "--ff-only", SHA)      # a bare id is refused: one form for every object name
+        self.ok("checkout", "--quiet", "--detach", o)
+        self.bad("checkout", "--quiet", "--detach", SHA)  # checkout reads a branch named <hex> before the object
+        self.ok("merge-base", "--is-ancestor", o, o)
+        self.bad("merge-base", "--is-ancestor", SHA, o)
+        self.bad("merge-base", "--is-ancestor", "main", o)
+        self.ok("rev-list", "--left-right", "--count", o + "..." + o)
+        self.ok("rev-list", "--left-right", "--count", "HEAD...HEAD")
+        self.ok("rev-list", "--count", "HEAD")
+        self.bad("rev-list", "--left-right", "--count", SHA + "..." + SHA)
+        self.bad("rev-list", "--left-right", "--count", "origin/main...HEAD")
+        self.ok("ls-tree", "-r", "-z", "HEAD")
+        self.ok("ls-tree", "-r", "-z", o)
+        self.ok("ls-tree", "-r", "-z", "--name-only", "--full-tree", o)
+        self.bad("ls-tree", "-r", "-z", SHA)
+        self.bad("ls-tree", "-r", "-z", "main")
+        self.ok("for-each-ref", "--contains", o, "--format=%(refname)", "refs/remotes")
+        self.bad("for-each-ref", "--contains", SHA, "--format=%(refname)", "refs/remotes")
+        self.ok("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/origin/dev")
+        self.ok("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/up/x/feature/y")
+        for ref in ("refs/remotes/origin/*", "refs/heads/dev", "refs/tags/x", "refs/remotes/origin/de?",
+                    "refs/remotes/../x", "dev", "refs/remotes/origin/dev.lock"):
+            self.bad("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, ref)
+        self.bad("for-each-ref", "--format=%(refname)", "refs/remotes/origin/dev")
+
+    def test_every_engine_object_name_goes_through_obj(self):  # the class, read on the engine's own builders
+        seen = []
+        r = scripted_runner(lambda repo, a: (seen.append(a) or ("exit", 0, "", "")))
+        E.is_ancestor(r, "/r", SHA, "b" * 40)
+        E.count_range(r, "/r", SHA, "b" * 40)
+        E.commit_present(r, "/r", SHA)
+        E.tree_gitlinks(r, "/r", SHA)
+        self.assertEqual(seen, [["merge-base", "--is-ancestor", SHA + "^{commit}", "b" * 40 + "^{commit}"],
+                                ["rev-list", "--left-right", "--count", "%s^{commit}...%s^{commit}" % (SHA, "b" * 40)],
+                                ["rev-parse", "--verify", "-q", SHA + "^{commit}"],
+                                ["ls-tree", "-r", "-z", SHA + "^{commit}"]])
+
+    def test_resolve_ref_exact(self):  # RV11-1: only the EXACT refname counts; children and DWIM never do
+        want = "refs/remotes/origin/dev"
+        rows = {
+            "exact-commit": ("%s\0commit\0%s\0\0\n" % (want, SHA), SHA),
+            "child-only": ("%s/x\0commit\0%s\0\0\n" % (want, "c" * 40), None),
+            "child-and-exact": ("%s/x\0commit\0%s\0\0\n%s\0commit\0%s\0\0\n" % (want, "c" * 40, want, SHA), SHA),
+            "annotated-tag": ("%s\0tag\0%s\0commit\0%s\n" % (want, "d" * 40, SHA), SHA),
+            "tag-of-tree": ("%s\0tag\0%s\0tree\0%s\n" % (want, "d" * 40, "e" * 40), None),
+            "tree": ("%s\0tree\0%s\0\0\n" % (want, "e" * 40), None),
+            "absent": ("", None),
+        }
+        for label, (out, sha) in rows.items():
+            r = scripted_runner(lambda repo, a, _o=out: ("exit", 0, _o, ""))
+            res, got = E.resolve_ref_exact(r, "/r", want)
+            self.assertTrue(res.answered, label)
+            self.assertEqual(got, sha, label)
+            self.assertEqual(r.seen, [("/r", ("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, want))], label)
+        for out in ("%s\0commit\0nothex\0\0\n" % want, "%s\0commit\0%s\0\0\n%s\0commit\0%s\0\0\n" % (want, SHA, want, "c" * 40),
+                    "garbage\n"):
+            r = scripted_runner(lambda repo, a, _o=out: ("exit", 0, _o, ""))
+            res, got = E.resolve_ref_exact(r, "/r", want)
+            self.assertFalse(res.answered, repr(out))  # malformed output is no answer, never "absent"
+            self.assertIsNone(got)
+        r = scripted_runner(lambda repo, a: ("exit", 128, "", "fatal"))
+        res, got = E.resolve_ref_exact(r, "/r", want)
+        self.assertFalse(res.answered)
+        self.assertIsNone(got)
+
+    def test_evaluate_upstream_uses_the_exact_lookup(self):
+        r = scripted_runner(lambda repo, a: ("exit", 0, "", ""))
+        rec = {"remotes": [{"name": "origin", "_name": "origin", "fetch": "ok"}], "head_before": SHA}
+        repo = type("Repo", (), {"rec": rec, "abspath": "/r"})()
+        E.evaluate_upstream(r, repo, "dev")
+        self.assertEqual([a for _, a in r.seen if a[0] in ("rev-parse", "for-each-ref")],
+                         [("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/origin/dev")])
+        self.assertEqual(rec["upstream_state"], "none")  # absent exact ref: no upstream, never a fallback
+
+    def test_git_env_pins_object_visibility(self):  # RV11-2: the user's value is never what git sees
+        for given in ({}, {"GIT_NO_REPLACE_OBJECTS": "1"}, {"GIT_NO_REPLACE_OBJECTS": ""},
+                      {"GIT_NO_REPLACE_OBJECTS": "0", "GIT_GRAFT_FILE": "/tmp/grafts"}, {"GIT_GRAFT_FILE": ""}):
+            env = E.git_env(dict(given, PATH="/usr/bin"))
+            self.assertEqual(env.get("GIT_NO_REPLACE_OBJECTS"), "1", given)
+            self.assertEqual(env.get("GIT_GRAFT_FILE"), "/dev/null", given)
+            self.assertNotIn("GIT_REPLACE_REF_BASE", env)
+            self.assertEqual(env["PATH"], "/usr/bin")
+        r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
+        self.assertEqual((r.env["GIT_NO_REPLACE_OBJECTS"], r.env["GIT_GRAFT_FILE"]), ("1", "/dev/null"))
+        self.assertEqual((r.env_repo_ssh["GIT_NO_REPLACE_OBJECTS"], r.env_repo_ssh["GIT_GRAFT_FILE"]), ("1", "/dev/null"))
 
 
 if __name__ == "__main__":

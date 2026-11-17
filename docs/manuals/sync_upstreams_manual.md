@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 11 |
+| Revision | 12 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-16T09:00:00Z |
+| Last modified | 2026-11-16T23:30:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Reference for every option, state, reason, exit code, report field, integration point and safety property of the sync-all-upstreams engine. |
 | Authority | Constitution §2.1, §11.4.10, §11.4.37, §11.4.50, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.263, §11.4.273, §11.4.288(D), §12. The canonical text wins where this manual and the constitution disagree. |
 | Scope | Universal (§11.4.17); consumed by reference. |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 8: review round 7 (NO-GO) RV7-1 (a per-git-directory marker state machine: no marker is overwritten or removed by a write that did not create it; a git directory with an unresolved write, a marker or a lock takes no further write; the parent is checked before a pin is advanced), RV7-6 (`cannot take the run lock` for a refused flock); revision 7: review round 6 (NO-GO) RV6-1 (a write refused before git starts leaves no marker; a half-written marker is removed), RV6-2 (a lock-only leftover attributed to the interrupted write, guarded), RV6-3 (a run-lock flock error other than 'held' guarded in both lock paths); revision 6: review round 5; revision 5: review round 4 (NO-GO) RV4-1–RV4-15 (write-time re-read of HEAD, branch and the parent's HEAD-tree gitlink; staged gitlinks reported; linear redaction; capped output; stop signals end in a report, exit 8; askpass and protocol variables pinned or dropped; evidence directory probed before any write; one lock per repository of the tree; unsafe and outside-parent gitlink paths reported) and the false claims of revision 4 corrected; revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 2: review round 2 (NO-GO) fixes F1–F13, N3; revision 3: review round 2 of the fixes (NO-GO) I-1–I-4, S-1, m-1–m-5, n-1–n-6 |
+| Fixed | revision 12: review round 11 (NO-GO) RV11-1 (the upstream is resolved by its exact refname, never by git's lookup rules; every object is named `<id>^{commit}`), RV11-2 (replace refs and grafts are switched off for every git call), RV11-3 (the vehicle's follow-up ids are placeholders until the lander re-mints them); revision 8: review round 7 (NO-GO) RV7-1 (a per-git-directory marker state machine: no marker is overwritten or removed by a write that did not create it; a git directory with an unresolved write, a marker or a lock takes no further write; the parent is checked before a pin is advanced), RV7-6 (`cannot take the run lock` for a refused flock); revision 7: review round 6 (NO-GO) RV6-1 (a write refused before git starts leaves no marker; a half-written marker is removed), RV6-2 (a lock-only leftover attributed to the interrupted write, guarded), RV6-3 (a run-lock flock error other than 'held' guarded in both lock paths); revision 6: review round 5; revision 5: review round 4 (NO-GO) RV4-1–RV4-15 (write-time re-read of HEAD, branch and the parent's HEAD-tree gitlink; staged gitlinks reported; linear redaction; capped output; stop signals end in a report, exit 8; askpass and protocol variables pinned or dropped; evidence directory probed before any write; one lock per repository of the tree; unsafe and outside-parent gitlink paths reported) and the false claims of revision 4 corrected; revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 2: review round 2 (NO-GO) fixes F1–F13, N3; revision 3: review round 2 of the fixes (NO-GO) I-1–I-4, S-1, m-1–m-5, n-1–n-6 |
 | Fixed summary | Fetch never deletes or rewrites a ref; no repository hook or fsmonitor runs; every git call declares which exit statuses are an answer, and a call with no answer makes the run BLIND (exit 6; INCONCLUSIVE, exit 5, when it only ran out of time), never "absent" or "clean"; one guarded writer re-checks the tree and ignored files before every move; distinct exit codes 5/6/7. |
 | Continuation | — |
 
@@ -232,7 +232,7 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
 | Where | How |
 |---|---|
 | `scripts/setup.sh` | `--sync-upstreams=off|check|apply|ask` or `CONSTITUTION_SYNC_UPSTREAMS`; default `off` (hint only). `ask` → `--interactive`; `check` / `apply` → `--non-interactive`. Only an `apply` failure (or an `apply` run that was interrupted) fails setup. `--check-only` exits before this step. |
-| `scripts/post_update_hook.sh` STEP 5c | `CONSTITUTION_SYNC_CHECK=offline` (default, `--check --no-fetch`; the 2026-11-14 decision to default to online is owed, CON-424), `fetch` (`--check`), `off`. Read-only; never fails the hook; `BLIND`, `INCONCLUSIVE` and `INTERRUPTED` are warnings. |
+| `scripts/post_update_hook.sh` STEP 5c | `CONSTITUTION_SYNC_CHECK=offline` (default, `--check --no-fetch`; the 2026-11-14 decision to default to online is owed, CON-PENDINGsync2), `fetch` (`--check`), `off`. Read-only; never fails the hook; `BLIND`, `INCONCLUSIVE` and `INTERRUPTED` are warnings. |
 | Scheduling | `scripts/sync/examples/` (not installed). |
 
 ## Safety properties
@@ -240,10 +240,29 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
 * The engine starts a process at ONE place only (`proc_run_git`), which puts every argument list through
   one allow-list (`check_git_args`) before it starts git, and sends a signal at ONE place only
   (`proc_kill_group`: only the child's OWN group, `os.getpgid(pid) == pid`, and never pgid ≤ 1). Write
-  subcommands are exactly the one fetch shape above, `merge --ff-only <sha>`, `checkout --quiet --detach
-  <sha>` and `add -- <relative path>`. Refused: push, commit, reset, rebase, `-s ours`, `merge --ff` /
+  subcommands are exactly the one fetch shape above, `merge --ff-only <sha>^{commit}`, `checkout --quiet
+  --detach <sha>^{commit}` and `add -- <relative path>`. Refused: push, commit, reset, rebase, `-s ours`, `merge --ff` /
   `--no-ff` / `--squash`, any other refspec, `--prune`, `--force`, transport helpers (`::`),
   `--upload-pack=`, config writes, remote edits.
+* Exact names (review round 12, RV11-1). git resolves a name with lookup rules: `rev-parse
+  refs/remotes/<r>/<b>` falls back to `refs/tags/refs/remotes/<r>/<b>` and `refs/heads/refs/remotes/<r>/<b>`
+  when the exact ref is absent, and `checkout --detach <hex>` takes a local BRANCH named `<hex>` before the
+  object (both measured, git 2.53). So the engine gives git no name to look up: every object it names is
+  `<id>^{commit}` (`obj()`; `^` cannot be part of a ref name), the HEAD forms are literal, and the one ref the
+  engine resolves (the upstream `refs/remotes/<remote>/<branch>`) goes through `resolve_ref_exact()`:
+  `for-each-ref` lists the ref and its children and only the line whose refname IS the ref counts (a commit
+  gives its id, an annotated tag the commit it peels to, anything else "no such commit"; two lines for the one
+  ref or a malformed line is no answer). `check_git_args` refuses every other shape of rev-parse, rev-list,
+  merge-base, ls-tree and for-each-ref (a closed list), so a bare id or a ref name never reaches git. A local
+  tag or branch literally named `refs/remotes/origin/dev` therefore never stands in for a deleted upstream:
+  the branch is reported `no-upstream-dev` and nothing moves.
+* Real history (review round 12, RV11-2). A replace ref (`git replace --graft U L`) or a graft
+  (`<git dir>/info/grafts`, `GIT_GRAFT_FILE`) can make a local commit look like an ancestor of the upstream,
+  and a fast-forward would then drop it. Every git call runs with `GIT_NO_REPLACE_OBJECTS=1` and
+  `GIT_GRAFT_FILE=/dev/null` (the environment variable wins over `core.useReplaceRefs`), whatever the caller
+  or the repository set: the caller's values are dropped first, then these are set. A shallow boundary is not
+  neutralised: it only removes edges, so the engine sees less ancestry (diverged), never more; alternates are
+  content-addressed and add no ancestry.
 * Every git call runs as `git -C <repo> -c core.hooksPath=/dev/null -c core.fsmonitor=false -c
   submodule.recurse=false -c gc.auto=0 -c maintenance.auto=false -c merge.autoStash=false -c
   protocol.ext.allow=never -c fetch.prune=false -c fetch.pruneTags=false -c fetch.recurseSubmodules=false
@@ -340,7 +359,7 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   that changed only the work tree (not HEAD, not the index) is read as settled, because it cannot be told from
   a user's edit made in the same moment without comparing file content with the target; no such case was
   measured with git 2.53, nothing is lost (the next run reports the tree dirty), and the content comparison is
-  tracked as CON-423 (filed in review round 11; RV10-4). The next run then attributes
+  tracked as CON-PENDINGsync1 (filed in review round 11; RV10-4). The next run then attributes
   the leftovers to the write, never to you. An earlier marker that cannot be removed (for example the git
   directory is not writable) is kept and reported `write-marker-kept:cannot-remove:<reason>`; it is never
   reported as cleared. A non-regular object at the marker path (FIFO, directory, socket, symbolic link,
@@ -426,5 +445,10 @@ case-insensitive file system `refs/heads/Dev.lock` and `refs/heads/dev.lock` are
 differ only in case cannot be told apart there (git's own limit; the tests run on a case-sensitive Linux file
 system only). `--branch` accepts ASCII only; a root branch with other letters is compared exactly. A failed
 write that changed only the work tree is read as settled (see Safety properties;
-tracked as CON-423). The defaults are `off` (setup) and `offline` (hook step 5c); the operator decision of 2026-11-14 to
-make them on, online and bounded is owed work, tracked as CON-424.
+tracked as CON-PENDINGsync1). The defaults are `off` (setup) and `offline` (hook step 5c); the operator decision of 2026-11-14 to
+make them on, online and bounded is owed work, tracked as CON-PENDINGsync2. Follow-up ids (review round 12,
+RV11-3): `CON-PENDINGsync1`, `CON-PENDINGsync2` and the vehicle item `CON-PENDINGsync3` are placeholders (their
+round-11 numbers collide with main); the lander mints the real ids through the workable-items engine. Object
+lookup (review round 12): a corrupted commit-graph file can still give wrong ancestry (git trusts it; not
+neutralised, UNCONFIRMED whether `core.commitGraph=false` would be needed), and `GIT_TEST_*` variables of the
+caller are not dropped (debug variables of git's test suite; not shown exhaustive).

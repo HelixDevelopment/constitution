@@ -142,9 +142,11 @@ except Exception as e:  # unparseable engine: cannot decide
 #    statuses, declared output shape ("-" for none), what an exit 128 becomes there.
 SITES = [
     ("read_head", "['rev-parse', '--verify', '-q', 'HEAD^{commit}']", (0, 1), "SHA_RE", "blind"),
-    ("is_ancestor", "['merge-base', '--is-ancestor', a, b]", (0, 1), "-", "blind"),
-    ("count_range", "['rev-list', '--left-right', '--count', '%s...%s' % (a, b)]", (0,), "TWO_COUNTS_RE", "blind"),
-    ("commit_present", "['rev-parse', '--verify', '-q', '%s^{commit}' % sha]", (0, 1), "SHA_RE", "blind"),
+    # review round 12 (the ref-resolution class): every object the engine names is obj(<id>) = '<id>^{commit}'
+    ("is_ancestor", "['merge-base', '--is-ancestor', obj(a), obj(b)]", (0, 1), "-", "blind"),
+    ("count_range", "['rev-list', '--left-right', '--count', '%s...%s' % (obj(a), obj(b))]", (0,), "TWO_COUNTS_RE",
+     "blind"),
+    ("commit_present", "['rev-parse', '--verify', '-q', obj(sha)]", (0, 1), "SHA_RE", "blind"),
     ("probe_child", "['rev-parse', '--show-toplevel']", (0,), "ABS_PATH_RE", "blind"),
     ("index_gitlinks", "['ls-files', '-s', '-z']", (0,), "-", "blind"),
     # review round 9 (RV8-1): the index after a write git answered with a failure, compared with the index
@@ -152,7 +154,7 @@ SITES = [
     ("write_settled", "['ls-files', '-s', '-z']", (0,), "-", "blind"),
     ("head_gitlinks", "['ls-tree', '-r', '-z', 'HEAD']", (0,), "-", "blind"),
     # review round 6 (RV5-3): the gitlinks of the write's target tree, read at write time
-    ("tree_gitlinks", "['ls-tree', '-r', '-z', target]", (0,), "-", "blind"),
+    ("tree_gitlinks", "['ls-tree', '-r', '-z', obj(target)]", (0,), "-", "blind"),
     # review round 6 (RV5-7): the submodule update strategy, read only when a checkout is about to happen
     ("update_strategies", "['config', '--file', '.gitmodules', '-z', '--get-regexp', "
      "'^submodule\\\\..*\\\\.(path|update)$']", (0, 1), "-", "blind"),
@@ -165,16 +167,16 @@ SITES = [
     ("inspect_local", "['config', '--get', 'remote.%s.url' % n]", (0, 1), "-", "blind"),
     ("inspect_local", "['config', '--get', 'core.sshCommand']", (0, 1), "-", "blind"),
     ("fetch_repo", "fetch_args(rem['_name'], tags)", (0, 1, 128), "-", "unreachable"),
-    ("evaluate_upstream", "['rev-parse', '--verify', '-q', 'refs/remotes/%s/%s^{commit}' % (rem['_name'], branch)]",
-     (0, 1), "SHA_RE", "blind"),
-    ("evaluate_pin", "['for-each-ref', '--contains', gitlink, '--format=%(refname)', 'refs/remotes']", (0,), "-",
-     "blind"),
+    # review round 12 (RV11-1): the upstream is resolved by the EXACT refname, never by rev-parse's lookup rules
+    ("resolve_ref_exact", "['for-each-ref', '--format=' + FER_EXACT_FORMAT, ref]", (0,), "-", "blind"),
+    ("evaluate_pin", "['for-each-ref', '--contains', obj(gitlink), '--format=%(refname)', 'refs/remotes']", (0,),
+     "-", "blind"),
     ("write_git", "STATUS_ARGS", (0,), "-", "blind"),
-    ("write_git", "['merge', '--ff-only', target]", (0, 1, 128), "-", "failed"),
-    ("write_git", "['checkout', '--quiet', '--detach', target]", (0, 1, 128), "-", "failed"),
+    ("write_git", "['merge', '--ff-only', obj(target)]", (0, 1, 128), "-", "failed"),
+    ("write_git", "['checkout', '--quiet', '--detach', obj(target)]", (0, 1, 128), "-", "failed"),
     ("write_git", "['add', '--', rec['path_in_parent']]", (0, 128), "-", "failed"),
     ("ignored_clobbers", "['ls-files', '-z', '--others', '--ignored', '--exclude-standard']", (0,), "-", "blind"),
-    ("ignored_clobbers", "['ls-tree', '-r', '-z', '--name-only', '--full-tree', target]", (0,), "-", "blind"),
+    ("ignored_clobbers", "['ls-tree', '-r', '-z', '--name-only', '--full-tree', obj(target)]", (0,), "-", "blind"),
     ("control_needle", "['rev-list', '--count', 'HEAD']", (0,), "DIGITS_RE", "blind"),
     ("control_needle", "['rev-list', '--left-right', '--count', 'HEAD...HEAD']", (0,), "TWO_COUNTS_RE", "blind"),
     ("main", "['rev-parse', '--show-toplevel']", (0, 128), "ABS_PATH_RE", "start-dir"),
@@ -657,6 +659,17 @@ if STATUS[:1] != ["status"]:
 for need in ("proc_run_git", "git_env", "redact"):
     if not callable(getattr(E, need, None)):
         fails.append("engine has no %s()" % need)
+# review round 12: obj() is the ONE way an object is named (an exact '<id>^{commit}', never a bare id or a ref
+# name), and every git call sees real history (replace refs off, empty graft file) whatever the caller set
+try:
+    if E.obj(S) != S + "^{commit}" or E.obj("refs/remotes/origin/main") == "refs/remotes/origin/main" \
+            or E.obj(S + "\n") == S + "\n^{commit}":
+        fails.append("obj() does not give '<id>^{commit}' for an id and a refused name for anything else")
+    _ge = E.git_env({"GIT_NO_REPLACE_OBJECTS": "0", "GIT_GRAFT_FILE": "/elsewhere", "PATH": "/usr/bin"})
+    if _ge.get("GIT_NO_REPLACE_OBJECTS") != "1" or _ge.get("GIT_GRAFT_FILE") != "/dev/null":
+        fails.append("git_env does not pin GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null")
+except Exception as e:
+    fails.append("obj() / git_env() not usable: %s" % e)
 
 
 def fx(*extra):  # the engine's own fetch shape with one change
@@ -685,21 +698,44 @@ REFUSE = [["push", "origin", "main"], ["reset", "--hard", S], ["rebase", "origin
           ["submodule", "update", "--force"], ["clean", "-fdx"], ["stash"], ["status", "--force"],
           ["rev-parse", "--git-dir=/x"], ["rev-parse", "x\ny"], ["rev-parse", "+refs/heads/main"],
           ["merge-base", "--is-ancestor", "+x", S], ["cat-file", "-e", S + "^{commit}"],
-          ["diff", "--stat", "HEAD@{1}", "HEAD"], []]
+          ["diff", "--stat", "HEAD@{1}", "HEAD"], [],
+          # review round 12: a bare id or a ref name where an object is named (git's lookup rules may read it as a
+          # tag or a branch), and the exact lookup with anything but one valid refs/remotes/ ref
+          ["merge", "--ff-only", S], ["checkout", "--quiet", "--detach", S],
+          ["rev-parse", "--verify", "-q", "refs/remotes/origin/main^{commit}"], ["rev-parse", "--verify", "-q", S],
+          ["rev-parse", "HEAD"], ["merge-base", "--is-ancestor", S, S], ["ls-tree", "-r", "-z", S],
+          ["ls-tree", "-r", "-z", "--name-only", "--full-tree", S], ["rev-list", "--left-right", "--count", S + "..." + S],
+          ["rev-list", "--left-right", "--count", "origin/main...HEAD"], ["for-each-ref", "--contains", S,
+          "--format=%(refname)", "refs/remotes"], ["for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/*"],
+          ["for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/o/../x"],
+          ["for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/tags/dev"],
+          ["for-each-ref", "--format=%(objectname)", "refs/remotes/origin/main"],
+          # the '+' refusal alone (round 12 moved the other '+' shapes under the exact-name rule): config --get
+          # takes any key, so only the forced-refspec check refuses this one
+          ["config", "--get", "+remote.origin.url"],
+          # the merge / checkout option checks with an EXACT object (round 12: a bare id is refused by the exact-name
+          # rule already, so these are the shapes only the option check refuses)
+          ["merge", "--ff", S + "^{commit}"], ["merge", "--no-ff", S + "^{commit}"], ["merge", "--squash", S + "^{commit}"],
+          ["merge", "--ff-only", "-s", "ours", S + "^{commit}"], ["checkout", "-f", S + "^{commit}"],
+          ["checkout", "--quiet", "--detach", "--force", S + "^{commit}"]]
 # every shape the engine really uses (one per call site; the control needle)
 ACCEPT = [FA, FT, STATUS,
-          ["merge", "--ff-only", S], ["checkout", "--quiet", "--detach", S], ["add", "--", "libs/a"],
+          ["merge", "--ff-only", S + "^{commit}"], ["checkout", "--quiet", "--detach", S + "^{commit}"],
+          ["add", "--", "libs/a"],
           ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ["rev-parse", "--verify", "-q", S + "^{commit}"],
-          ["rev-parse", "--verify", "-q", "refs/remotes/origin/main^{commit}"], ["rev-parse", "--show-toplevel"],
+          ["for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/origin/main"],
+          ["rev-parse", "--show-toplevel"],
           ["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD", "--git-common-dir"],
           ["rev-parse", "--path-format=absolute", "--git-common-dir"], ["ls-files", "-s", "-z"],
-          ["ls-tree", "-r", "-z", "HEAD"], ["ls-tree", "-r", "-z", "--name-only", "--full-tree", S],
+          ["ls-tree", "-r", "-z", "HEAD"], ["ls-tree", "-r", "-z", S + "^{commit}"],
+          ["ls-tree", "-r", "-z", "--name-only", "--full-tree", S + "^{commit}"],
           ["symbolic-ref", "-q", "HEAD"], ["config", "--get", "remote.origin.url"],
-          ["config", "--get", "core.sshCommand"], ["remote"], ["merge-base", "--is-ancestor", S, S],
-          ["rev-list", "--left-right", "--count", S + "..." + S], ["rev-list", "--count", "HEAD"],
+          ["config", "--get", "core.sshCommand"], ["remote"],
+          ["merge-base", "--is-ancestor", S + "^{commit}", S + "^{commit}"],
+          ["rev-list", "--left-right", "--count", S + "^{commit}..." + S + "^{commit}"], ["rev-list", "--count", "HEAD"],
           ["rev-list", "--left-right", "--count", "HEAD...HEAD"],
           ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
-          ["for-each-ref", "--contains", S, "--format=%(refname)", "refs/remotes"]]
+          ["for-each-ref", "--contains", S + "^{commit}", "--format=%(refname)", "refs/remotes"]]
 refused = 0
 for a in REFUSE:
     try:

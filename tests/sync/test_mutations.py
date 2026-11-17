@@ -12,7 +12,7 @@ The table holds M01-M73 (the fixers' own mutants), K01-K17 and R1-R6 (the round-
 X01-X07 and X02b (the round-3 reviewer's mutants, verbatim), N01-N25 (the round-4 fixer's own mutants), V01-V24 (the
 round-4 reviewer's mutants), P01-P34 (the round-5 fixer's own mutants), RR01-RR40 (the round-5 reviewer's
 mutants, ids R01-R40 renamed so they do not clash with the round-2 R1-R6; RR37 and RR38 re-anchored to the
-round-6 text) Q01-Q19 (the round-6 fixer's own mutants), RV6A-RV6G (the round-6 reviewer's mutants, verbatim anchors), S01-S14 (the round-7 fixer's own mutants), RV7A-RV7L (the round-7 reviewer's mutants) T01-T17 (the round-8 fixer's own mutants), W01-W10 (the round-8 reviewer's mutants), U01-U18 (the round-9 fixer's own mutants), Z01, Z04, Z07, Z11, Z12 (the round-9 reviewer's mutants, anchors verbatim) and Y01-Y09, Y12, Y13 (the round-10 fixer's own mutants); round 9 re-anchored M70, X06, N01, V05, V07, V13, P24, P27, RR38, Q05, Q09, RV6F, S02, S03, S09, S10, RV7E, T02, T13, W04 and W06 (same meaning; the lines they mutated were replaced by the path-access layer, the lock sets and the settled end_write); round 8 re-anchored RR14, RR38, Q04, Q05, Q09, Q18, RV6F, S01-S04, S09, S10 and RV7A, RV7B, RV7C, RV7E, RV7I (same meaning; the marker lines they mutated were replaced by begin_write / end_write); M32, M58, M37b were re-anchored in round 6 (same
+round-6 text) Q01-Q19 (the round-6 fixer's own mutants), RV6A-RV6G (the round-6 reviewer's mutants, verbatim anchors), S01-S14 (the round-7 fixer's own mutants), RV7A-RV7L (the round-7 reviewer's mutants) T01-T17 (the round-8 fixer's own mutants), W01-W10 (the round-8 reviewer's mutants), U01-U18 (the round-9 fixer's own mutants), Z01, Z04, Z07, Z11, Z12 (the round-9 reviewer's mutants, anchors verbatim) and Y01-Y09, Y12, Y13 (the round-10 fixer's own mutants), AC01-AC11 with the controls CX1 (must survive, in EQUIVALENT) and CX2 (must die) (the round-11 reviewer's mutants, anchors verbatim) and AD01-AD13 (the round-12 fixer's own mutants); round 12 re-anchored M04, M05, M38 and R1 (same meaning: the merge / checkout shape now requires '<id>^{commit}', _exact_obj); round 9 re-anchored M70, X06, N01, V05, V07, V13, P24, P27, RR38, Q05, Q09, RV6F, S02, S03, S09, S10, RV7E, T02, T13, W04 and W06 (same meaning; the lines they mutated were replaced by the path-access layer, the lock sets and the settled end_write); round 8 re-anchored RR14, RR38, Q04, Q05, Q09, Q18, RV6F, S01-S04, S09, S10 and RV7A, RV7B, RV7C, RV7E, RV7I (same meaning; the marker lines they mutated were replaced by begin_write / end_write); M32, M58, M37b were re-anchored in round 6 (same
 meaning); anchors follow the round-5 text (M08,
 M27, M53, M58, M67, M37b, M72, X05, X07, N07, N11-N14, V13, V21, V22 were re-anchored, same meaning). X04, N22 and N23 change the process-group guard and therefore only ever run the static
 gate and the unit suite (whose KillGroup tests replace the engine's ``os`` with a recorder; section 11.4.263).
@@ -50,10 +50,10 @@ MUTANTS = [
      'WRITE_SUBCOMMANDS = {"fetch", "merge", "checkout", "add"}',
      'WRITE_SUBCOMMANDS = {"fetch", "merge", "checkout", "add", "push"}', ['unit', 'integration']),
     ('M04', 'merge shape not enforced',
-     'if len(rest) != 2 or rest[0] != "--ff-only" or not SHA_RE.match(rest[1]):',
+     'if len(rest) != 2 or rest[0] != "--ff-only" or not _exact_obj(rest[1]):',
      'if False:', ['unit', 'integration']),
     ('M05', 'checkout shape not enforced',
-     'if len(rest) != 3 or rest[0] != "--quiet" or rest[1] != "--detach" or not SHA_RE.match(rest[2]):',
+     'if len(rest) != 3 or rest[0] != "--quiet" or rest[1] != "--detach" or not _exact_obj(rest[2]):',
      'if False:', ['unit', 'integration']),
     ('M06', 'add path not checked',
      'if len(rest) != 2 or rest[0] != "--" or not safe_relpath(rest[1]):',
@@ -154,8 +154,8 @@ MUTANTS = [
      '        if not (consent.get("integrate") or consent.get("pins")):\n            continue\n',
      '', ['unit', 'ui']),
     ('M38', 'R1: merge --ff accepted',
-     'if len(rest) != 2 or rest[0] != "--ff-only" or not SHA_RE.match(rest[1]):',
-     'if len(rest) != 2 or rest[0] not in ("--ff-only", "--ff") or not SHA_RE.match(rest[1]):', ['unit', 'integration']),
+     'if len(rest) != 2 or rest[0] != "--ff-only" or not _exact_obj(rest[1]):',
+     'if len(rest) != 2 or rest[0] not in ("--ff-only", "--ff") or not _exact_obj(rest[1]):', ['unit', 'integration']),
     ('M39', 'R3: follow detaches a submodule on a branch',
      '        if c.rec.get("branch"):\n            c.rec.setdefault("actions", []).append({"op": "none", "why": "follow-skipped:submodule-on-branch"})',
      '        if False:\n            c.rec.setdefault("actions", []).append({"op": "none", "why": "follow-skipped:submodule-on-branch"})', ['unit', 'integration']),
@@ -319,8 +319,8 @@ MUTANTS = [
      '        limit = min(self.timeout if network else max(self.timeout, 60), left)',
      '        limit = self.timeout if network else max(self.timeout, 60)', ['gate', 'unit', 'chaos']),
     ('R1', 'merge --ff accepted',
-     'if len(rest) != 2 or rest[0] != "--ff-only" or not SHA_RE.match(rest[1]):',
-     'if len(rest) != 2 or rest[0] not in ("--ff-only", "--ff") or not SHA_RE.match(rest[1]):', ['gate', 'unit', 'integration']),
+     'if len(rest) != 2 or rest[0] != "--ff-only" or not _exact_obj(rest[1]):',
+     'if len(rest) != 2 or rest[0] not in ("--ff-only", "--ff") or not _exact_obj(rest[1]):', ['gate', 'unit', 'integration']),
     ('R2', 'getattr spawn',
      'def now_utc():',
      'def _hidden():\n    getattr(subprocess, "call")(["true"])\n\n\ndef now_utc():', ['gate', 'unit', 'security']),
@@ -1048,6 +1048,74 @@ MUTANTS = [
     ('AB14', "RV10-3: the engine's git-call scrub loses GIT_GRAFT_FILE and GIT_NO_REPLACE_OBJECTS",
      '          "GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS",\n',
      '', ['unit', 'robustness:branch_shape,branch_param,marker_foreign,branch_lock,wt_param']),
+
+    # review round 12: the round-11 reviewer's mutants AC01-AC11 and the controls CX1 (must survive) and CX2
+    # (must die), anchors and suites verbatim from rev_sync_r11 probes/rv11_mutants.py (ALL expanded)
+    ('AC01', 'branch_of_ref keeps only the LAST component (feature/x -> x)',
+     '    name = full[len(HEADS):]\n    return name if valid_branch_name(name) else None',
+     '    name = full[len(HEADS):].split("/")[-1]\n    return name if valid_branch_name(name) else None', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC02', 'branch_of_ref case-folds the name at its source',
+     '    return name if valid_branch_name(name) else None',
+     '    return name.lower() if valid_branch_name(name) else None', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC03', '--branch validated by BRANCH_RE only (valid_branch_name dropped at the CLI)',
+     'if not BRANCH_RE.match(a.branch) or not valid_branch_name(a.branch):',
+     'if not BRANCH_RE.match(a.branch):', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC04', 'valid_branch_name no longer refuses a component ending in .lock',
+     'return all(x and not x.startswith(".") and not x.endswith(".lock") for x in name.split("/"))',
+     'return all(x and not x.startswith(".") for x in name.split("/"))', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC05', 'read_branch: a symbolic ref outside refs/heads/ is returned as a branch with its full name',
+     '    if not name.startswith(HEADS):\n        return "other", None',
+     '    if not name.startswith(HEADS):\n        return "branch", name', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC06', 'read_branch strips the prefix with --short semantics again: heads/<name> when a tag exists is not reproduced, but the disambiguation fallback is simulated by keeping the "heads/" prefix',
+     '    name = full[len(HEADS):]\n    return name if valid_branch_name(name) else None',
+     '    name = full[len("refs/"):]\n    return name if valid_branch_name(name) else None', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC07', 'valid_branch_name no longer refuses a leading "-"',
+     'if not isinstance(name, str) or not name or name in ("@", "HEAD") or name.startswith(("-", "/")):',
+     'if not isinstance(name, str) or not name or name in ("@", "HEAD") or name.startswith("/"):', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC08', 'read_branch takes the FIRST line of a multi-line answer instead of refusing it',
+     '    name = res.out.rstrip("\\n")',
+     '    name = res.out.split("\\n")[0]', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC09', 'git_env no longer scrubs GIT_GRAFT_FILE / GIT_NO_REPLACE_OBJECTS (the module-level pop stays)',
+     '          "GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS",\n', '', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC10', 'module-level git-env pop removed (git_env _SCRUB stays)',
+     '_ge_os.environ.pop(_ge_v, None)', 'pass', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('AC11', '_REF_BAD_CHARS no longer refuses a space or control character',
+     '_REF_BAD_CHARS = re.compile(r"[\\x00-\\x20\\x7f~^:?*\\[\\\\]")',
+     '_REF_BAD_CHARS = re.compile(r"[\\x7f~^:?*\\[\\\\]")', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('CX1', 'CONTROL (must SURVIVE): docstring word changed in branch_of_ref',
+     'The prefix is stripped by string, never by', 'The prefix is removed by string, never by', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    ('CX2', 'CONTROL (must DIE): AA01 again',
+     'n = n.format(branch=branch)', 'n = n.format(branch=branch.lower())', ['unit', 'robustness', 'hardening', 'integration', 'chaos']),
+    # review round 12: the round-12 fixer's own mutants (exact object names, exact ref lookup, object visibility)
+    ('AD01', 'obj() gives the bare id again (no ^{commit})',
+     'return sha + "^{commit}" if isinstance(sha, str) and SHA_RE.fullmatch(sha) else INVALID_OBJ',
+     'return sha if isinstance(sha, str) and SHA_RE.fullmatch(sha) else INVALID_OBJ', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD02', 'resolve_ref_exact takes the first listed ref, not the exact refname (a child stands in)',
+     '    hits = [x for x in rows if x[0] == ref]', '    hits = rows[:1]', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD03', 'evaluate_upstream back to the DWIM rev-parse lookup',
+     '        res, sha = resolve_ref_exact(r, p, "refs/remotes/%s/%s" % (rem["_name"], branch))',
+     '        res = r.run(p, ["rev-parse", "--verify", "-q", "refs/remotes/%s/%s^{commit}" % (rem["_name"], branch)],\n                    ok=(0, 1), want=SHA_RE)\n        sha = res.text()', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD04', 'check_object_names never called', '    check_object_names(sub, rest)\n', '', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD05', 'git_env drops the object-visibility pin', '    env.update(OBJECT_VISIBILITY_PIN)\n', '', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD06', 'the pin keeps replace refs off but leaves grafts on',
+     'OBJECT_VISIBILITY_PIN = (("GIT_NO_REPLACE_OBJECTS", "1"), ("GIT_GRAFT_FILE", "/dev/null"))',
+     'OBJECT_VISIBILITY_PIN = (("GIT_NO_REPLACE_OBJECTS", "1"),)', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD07', 'the pin leaves replace refs on',
+     'OBJECT_VISIBILITY_PIN = (("GIT_NO_REPLACE_OBJECTS", "1"), ("GIT_GRAFT_FILE", "/dev/null"))',
+     'OBJECT_VISIBILITY_PIN = (("GIT_GRAFT_FILE", "/dev/null"),)', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD08', 'an annotated tag that peels to a non-commit is taken as the upstream commit',
+     '    if kind == "tag" and pkind == "commit":', '    if kind == "tag":', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD09', 'write_git checks out the bare id (a branch named <hex> wins)',
+     '["checkout", "--quiet", "--detach", obj(target)]', '["checkout", "--quiet", "--detach", target]', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD10', 'two lines for one exact ref accepted (the first wins)',
+     '    if len(hits) > 1 or any(', '    if len(hits) > 2 or any(', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD11', 'exact_remote_ref accepts any refs/remotes/ pattern (globs, ..)',
+     'return isinstance(ref, str) and ref.startswith("refs/remotes/") and valid_branch_name(ref[len("refs/"):])',
+     'return isinstance(ref, str) and ref.startswith("refs/remotes/")', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD12', 'merge passes the bare id again',
+     '["merge", "--ff-only", obj(target)]', '["merge", "--ff-only", target]', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    ('AD13', 'the malformed-row check dropped (a short row is read as no hit)',
+     '    if any(len(x) != 5 for x in rows):', '    if False:', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
 ]
 # id -> proof. A mutant listed here may survive; it is reported EQUIVALENT, never KILLED.
 # M59 is no longer listed (round 4): its round-2 proof ended with "head_after = head_before (None)", which stopped
@@ -1055,6 +1123,12 @@ MUTANTS = [
 # run and is read after it (a fault at inspect_local's read) makes the mutant report moved=True for a repository
 # that never moved; the record check of tests/sync/test_faults.sh catches it.
 EQUIVALENT = {
+    "AC10": "Round-11 reviewer: the module-level pop of the git variables is redundant for the engine's git calls: "
+            "every spawn goes through proc_run_git with env=git_env(...), which copies the environment, drops every "
+            "name in _SCRUB (a superset of the popped list, checked by test_engine_scrub_covers_the_canonical_list) "
+            "and then sets OBJECT_VISIBILITY_PIN; no git call inherits os.environ directly (the static gate refuses "
+            "any other spawn). The pop only matters to a non-git child, and the engine starts none.",
+    "CX1": "Round-11 reviewer CONTROL: a docstring word; must survive, and does.",
     "AA07": "(round 11, the round-10 reviewer's proof, re-checked) register_site is called with the git dir that "
             "inspect_local read from 'rev-parse --absolute-git-dir', and git returns that path resolved (no symbolic "
             "link components; the reviewer's probe logs/p_symroot.txt gave a root reached through a symbolic link and "

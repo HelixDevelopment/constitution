@@ -68,6 +68,16 @@ ABS_PATH_RE = re.compile(r"^/[^\n]*$")
 REMOTE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 HEADS = "refs/heads/"
+# ONE form for every object name the engine gives git (review round 12, the ref-resolution class): an object id
+# followed by ^{commit}. git never reads a REF NAME out of '<hex>^{commit}' ('^' cannot be in a ref name), so no
+# lookup rule can turn it into a tag or a branch; a bare id is NOT enough: 'git checkout --detach <hex>' takes a
+# local branch named <hex> before the object (measured, git 2.53). The other exact names are the literal HEAD forms.
+# A ref name is resolved to an id ONLY by resolve_ref_exact() (for-each-ref, exact refname match): 'rev-parse
+# refs/remotes/<r>/<b>' falls back to refs/tags/<name> and refs/heads/<name> when the exact ref is absent (RV11-1).
+EXACT_OBJ_RE = re.compile(r"^[0-9a-f]{40}([0-9a-f]{24})?\^\{commit\}$")
+INVALID_OBJ = "<not-an-object-id>"  # what obj() gives for anything that is not an id: check_git_args refuses it
+# the fields of the exact lookup, NUL-separated: refname, type, id, peeled type, peeled id (one line per ref)
+FER_EXACT_FORMAT = "%(refname)%00%(objecttype)%00%(objectname)%00%(*objecttype)%00%(*objectname)"
 # Characters git never allows in a ref name (git check-ref-format, rule 4 and 5): ASCII control characters, space,
 # ~ ^ : ? * [ and backslash. Used by valid_branch_name() for a name read from git and for --branch (review round 11).
 _REF_BAD_CHARS = re.compile(r"[\x00-\x20\x7f~^:?*\[\\]")
@@ -148,6 +158,58 @@ def fetch_args(remote, tags):
     return a
 
 
+def obj(sha):
+    """The exact object name of the object id ``sha``: '<sha>^{commit}'. Anything that is not an id gives
+    INVALID_OBJ, which check_git_args() refuses, so the call is refused (no answer, recorded), never a lookup."""
+    return sha + "^{commit}" if isinstance(sha, str) and SHA_RE.fullmatch(sha) else INVALID_OBJ
+
+
+def _exact_obj(x):
+    return isinstance(x, str) and bool(EXACT_OBJ_RE.fullmatch(x))
+
+
+def exact_remote_ref(ref):
+    """True for 'refs/remotes/<rest>' whose <rest> is a valid ref path (no glob, no '..', no '.lock' part): the
+    only pattern the exact lookup may give for-each-ref, which then matches it literally (and its children,
+    which resolve_ref_exact() drops)."""
+    return isinstance(ref, str) and ref.startswith("refs/remotes/") and valid_branch_name(ref[len("refs/"):])
+
+
+def check_object_names(sub, rest):
+    """The exact-name rule of review round 12, for every subcommand that names an object or a ref: the whole
+    argument vector is one of a CLOSED set of shapes, and every object in it is HEAD or an obj() name. Raises
+    GitRefused otherwise. Subcommands that name no object (status, ls-files, config, remote, symbolic-ref -q HEAD,
+    add, fetch) are not checked here."""
+    if sub == "rev-parse":
+        if (len(rest) == 3 and rest[:2] == ["--verify", "-q"] and (rest[2] == "HEAD^{commit}" or _exact_obj(rest[2]))) \
+                or rest in (["--show-toplevel"], ["--path-format=absolute", "--git-common-dir"],
+                            ["--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD",
+                             "--git-common-dir"]):
+            return
+        raise GitRefused("rev-parse: only --verify -q HEAD^{commit}|<id>^{commit} and the path queries")
+    if sub == "rev-list":
+        rng = rest[2].split("...") if len(rest) == 3 else []
+        if rest == ["--count", "HEAD"] or rest == ["--left-right", "--count", "HEAD...HEAD"] or \
+                (rest[:2] == ["--left-right", "--count"] and len(rng) == 2 and all(_exact_obj(x) for x in rng)):
+            return
+        raise GitRefused("rev-list: only --left-right --count <id>^{commit}...<id>^{commit} and the HEAD needles")
+    if sub == "merge-base":
+        if len(rest) == 3 and rest[0] == "--is-ancestor" and _exact_obj(rest[1]) and _exact_obj(rest[2]):
+            return
+        raise GitRefused("merge-base: only --is-ancestor <id>^{commit} <id>^{commit}")
+    if sub == "ls-tree":
+        if (len(rest) == 3 and rest[:2] == ["-r", "-z"] and (rest[2] == "HEAD" or _exact_obj(rest[2]))) or \
+                (len(rest) == 5 and rest[:4] == ["-r", "-z", "--name-only", "--full-tree"] and _exact_obj(rest[4])):
+            return
+        raise GitRefused("ls-tree: only -r -z [--name-only --full-tree] HEAD|<id>^{commit}")
+    if sub == "for-each-ref":
+        if (len(rest) == 4 and rest[0] == "--contains" and _exact_obj(rest[1])
+                and rest[2:] == ["--format=%(refname)", "refs/remotes"]) or \
+                (len(rest) == 2 and rest[0] == "--format=" + FER_EXACT_FORMAT and exact_remote_ref(rest[1])):
+            return
+        raise GitRefused("for-each-ref: only --contains <id>^{commit} under refs/remotes, or the exact lookup")
+
+
 def git_argv(git_bin, repo, args):
     """The full command line of one git call: SAFE_CONFIG before the subcommand, never a shell."""
     cmd = [git_bin, "-C", repo]
@@ -205,11 +267,11 @@ def check_git_args(args):
         if a in FORBIDDEN_TOKENS or any(a.startswith(p) for p in FORBIDDEN_PREFIXES):
             raise GitRefused("option '%s' is forbidden" % a)
     if sub == "merge":
-        if len(rest) != 2 or rest[0] != "--ff-only" or not SHA_RE.match(rest[1]):
-            raise GitRefused("merge must be: merge --ff-only <sha>")
+        if len(rest) != 2 or rest[0] != "--ff-only" or not _exact_obj(rest[1]):
+            raise GitRefused("merge must be: merge --ff-only <sha>^{commit}")
     elif sub == "checkout":
-        if len(rest) != 3 or rest[0] != "--quiet" or rest[1] != "--detach" or not SHA_RE.match(rest[2]):
-            raise GitRefused("checkout must be: checkout --quiet --detach <sha>")
+        if len(rest) != 3 or rest[0] != "--quiet" or rest[1] != "--detach" or not _exact_obj(rest[2]):
+            raise GitRefused("checkout must be: checkout --quiet --detach <sha>^{commit}")
     elif sub == "add":
         if len(rest) != 2 or rest[0] != "--" or not safe_relpath(rest[1]):
             raise GitRefused("add must be: add -- <relative gitlink path>")
@@ -225,6 +287,7 @@ def check_git_args(args):
     elif sub == "remote":
         if rest:
             raise GitRefused("remote is read-only here: bare 'git remote'")
+    check_object_names(sub, rest)
     return tuple(args)
 
 
@@ -531,6 +594,13 @@ def proc_kill_group(p, grace):
 
 
 # ───────────────────────────── git runner ─────────────────────────────
+# Object visibility is REAL history (review round 12, RV11-2): a replace ref ('git replace --graft U L') or a graft
+# (<git dir>/info/grafts, GIT_GRAFT_FILE) can make a local commit L look like an ancestor of the upstream U, and the
+# fast-forward then drops L. Every git call runs with replace refs off and an empty graft file, whatever the user's
+# environment or the repository's config (core.useReplaceRefs) says; the caller's value is scrubbed first (_SCRUB),
+# then the pin is set. Shallow boundaries are not neutralised: they only REMOVE edges, which makes the engine see
+# less ancestry (diverged / attention), never more. Ground truth: docs/qa/sync_upstreams_2026_11_16_r12/.
+OBJECT_VISIBILITY_PIN = (("GIT_NO_REPLACE_OBJECTS", "1"), ("GIT_GRAFT_FILE", "/dev/null"))
 _SCRUB = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR",
           "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_EXEC_PATH", "GIT_SSH", "GIT_ASKPASS",
           "SSH_ASKPASS", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_PROXY_COMMAND",
@@ -560,6 +630,7 @@ def git_env(base=None):
     env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o ConnectTimeout=10"
     env["LC_ALL"] = "C"
     env["LANG"] = "C"
+    env.update(OBJECT_VISIBILITY_PIN)
     return env
 
 
@@ -756,13 +827,13 @@ def read_branch(r, repo, final=False):
 
 def is_ancestor(r, repo, a, b):
     """True / False (merge-base --is-ancestor exits 0 / 1), or None when it gave no answer (recorded)."""
-    res = r.run(repo, ["merge-base", "--is-ancestor", a, b], ok=(0, 1))
+    res = r.run(repo, ["merge-base", "--is-ancestor", obj(a), obj(b)], ok=(0, 1))
     return (res.rc == 0) if res.answered else None
 
 
 def count_range(r, repo, a, b):
     """(ahead_of_b, behind_b) for a vs b, or None (no answer, recorded)."""
-    out = g_out(r, repo, ["rev-list", "--left-right", "--count", "%s...%s" % (a, b)], ok=(0,), want=TWO_COUNTS_RE)
+    out = g_out(r, repo, ["rev-list", "--left-right", "--count", "%s...%s" % (obj(a), obj(b))], ok=(0,), want=TWO_COUNTS_RE)
     if out is None:
         return None
     parts = out.split()
@@ -771,7 +842,7 @@ def count_range(r, repo, a, b):
 
 def commit_present(r, repo, sha):
     """True / False (rev-parse --verify -q exits 0 / 1), or None when it gave no answer (recorded)."""
-    res = r.run(repo, ["rev-parse", "--verify", "-q", "%s^{commit}" % sha], ok=(0, 1), want=SHA_RE)
+    res = r.run(repo, ["rev-parse", "--verify", "-q", obj(sha)], ok=(0, 1), want=SHA_RE)
     return (res.rc == 0) if res.answered else None
 
 
@@ -1081,7 +1152,7 @@ def head_gitlinks(r, repo):
 
 def tree_gitlinks(r, repo, target):
     """{path: sha} of the gitlinks of ``target``'s tree, or None when git gave no answer (recorded)."""
-    res = r.run(repo, ["ls-tree", "-r", "-z", target], ok=(0,))
+    res = r.run(repo, ["ls-tree", "-r", "-z", obj(target)], ok=(0,))
     return parse_ls_tree(res.out) if res.answered else None
 
 
@@ -1266,7 +1337,7 @@ def write_settled(r, repo, op, target, res, pre_index):
     Limit (stated; review round 10 tried and withdrew a 'git status must stay empty' check): a failed write that
     changed the work tree but not the index cannot be told from a user's edit made between step 1 and the write
     (the autostash race fixture is such an edit: blaming it on the write would be a false positive). Telling them
-    apart needs the changed files' content compared with the target tree: tracked as CON-423, not done here."""
+    apart needs the changed files' content compared with the target tree: tracked as CON-PENDINGsync1, not done here."""
     rec = repo.rec
     if res.rc == 0:
         return True
@@ -1412,6 +1483,33 @@ def fetch_repo(r, repo, tags):
             rem["branch_gone_upstream"] = True
 
 
+def resolve_ref_exact(r, repo, ref):
+    """(GitResult, commit id or None) of the EXACT ref ``ref`` (review round 12, RV11-1). for-each-ref lists the
+    ref and its children; only a line whose refname IS ``ref`` counts, so no lookup rule (refs/tags/<name>,
+    refs/heads/<name>, ...) can stand in for an absent ref. A ref to a commit gives its id; to an annotated tag, the
+    commit the tag peels to; to anything else, None (the 'rev-parse <ref>^{commit}' answer 'no such commit').
+    Output of the wrong shape, or two lines for the one ref, is NO ANSWER (recorded), never 'absent'."""
+    res = r.run(repo, ["for-each-ref", "--format=" + FER_EXACT_FORMAT, ref], ok=(0,))
+    if not res.answered:
+        return res, None
+    rows = [x.split("\0") for x in res.out.split("\n") if x]
+    if any(len(x) != 5 for x in rows):
+        r.no_answer(repo, "for-each-ref", "malformed-output")
+        return GitResult(False, res.rc, res.out, res.err, "malformed-output"), None
+    hits = [x for x in rows if x[0] == ref]
+    if len(hits) > 1 or any(not SHA_RE.match(x[2]) or (x[4] and not SHA_RE.match(x[4])) for x in hits):
+        r.no_answer(repo, "for-each-ref", "malformed-output")
+        return GitResult(False, res.rc, res.out, res.err, "malformed-output"), None
+    if not hits:
+        return res, None
+    _, kind, sha, pkind, psha = hits[0]
+    if kind == "commit":
+        return res, sha
+    if kind == "tag" and pkind == "commit":
+        return res, psha
+    return res, None
+
+
 def evaluate_upstream(r, repo, branch):
     rec = repo.rec
     p = repo.abspath
@@ -1420,9 +1518,7 @@ def evaluate_upstream(r, repo, branch):
     for rem in rec["remotes"]:
         if rem.get("state") == "invalid-name":
             continue
-        res = r.run(p, ["rev-parse", "--verify", "-q", "refs/remotes/%s/%s^{commit}" % (rem["_name"], branch)],
-                    ok=(0, 1), want=SHA_RE)
-        sha = res.text()
+        res, sha = resolve_ref_exact(r, p, "refs/remotes/%s/%s" % (rem["_name"], branch))
         if not res.answered:  # no answer is not "no main" (review round 6, RV5-6): the remote's state is unknown
             rem["main_sha"] = None
             rem["state"] = rem["fetch"] if rem.get("fetch") in ("not-fetched-interrupted", "deadline") else "unknown"
@@ -1489,7 +1585,7 @@ def evaluate_pin(r, repo, gitlink, own_orgs):
     elif not present:
         pin["state"] = "unfetchable"
     else:
-        res = r.run(p, ["for-each-ref", "--contains", gitlink, "--format=%(refname)", "refs/remotes"], ok=(0,))
+        res = r.run(p, ["for-each-ref", "--contains", obj(gitlink), "--format=%(refname)", "refs/remotes"], ok=(0,))
         refs = [x for x in res.out.split() if x] if res.answered else None
         branch = rec.get("_branch_wanted", "main")
         # exact match (F13): refs/remotes/<remote>/feature/main is NOT <remote>'s main
@@ -1814,9 +1910,9 @@ def write_git(r, repo, op, target):
         rec["actions"].append({"op": "none", "why": why, "for": op})
         return "blocked"
     if op == "fast-forward":
-        res = r.run(p, ["merge", "--ff-only", target], ok=(0, 1, 128), write=True, token=tok)
+        res = r.run(p, ["merge", "--ff-only", obj(target)], ok=(0, 1, 128), write=True, token=tok)
     else:
-        res = r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128), write=True, token=tok)
+        res = r.run(p, ["checkout", "--quiet", "--detach", obj(target)], ok=(0, 1, 128), write=True, token=tok)
     act["rc"] = res.rc
     act["error"] = redact(res.err).strip()[-300:] if (res.rc or not res.answered) else ""
     settled = write_settled(r, repo, op, target, res, pre_index[0] if pre_index else None) if res.answered else True
@@ -1913,7 +2009,7 @@ def ignored_clobbers(r, path, target):
     ignored = sorted({x.rstrip("/") for x in res.out.split("\0") if x.strip("/")})
     if not ignored:
         return []
-    res = r.run(path, ["ls-tree", "-r", "-z", "--name-only", "--full-tree", target], ok=(0,))
+    res = r.run(path, ["ls-tree", "-r", "-z", "--name-only", "--full-tree", obj(target)], ok=(0,))
     if not res.answered:
         return None
     files = {x for x in res.out.split("\0") if x}

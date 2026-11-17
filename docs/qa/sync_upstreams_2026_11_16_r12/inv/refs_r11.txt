@@ -1,0 +1,67 @@
+site read_head          rev-parse     line 726   exact  ['rev-parse', '--verify', '-q', 'HEAD^{commit}']
+site is_ancestor        merge-base    line 759   LOOKUP ['merge-base', '--is-ancestor', a, b]
+site count_range        rev-list      line 765   LOOKUP ['rev-list', '--left-right', '--count', '%s...%s' % (a, b)]
+site commit_present     rev-parse     line 774   LOOKUP ['rev-parse', '--verify', '-q', '%s^{commit}' % sha]
+site probe_child        rev-parse     line 1036  exact  ['rev-parse', '--show-toplevel']
+site head_gitlinks      ls-tree       line 1078  exact  ['ls-tree', '-r', '-z', 'HEAD']
+site tree_gitlinks      ls-tree       line 1084  LOOKUP ['ls-tree', '-r', '-z', target]
+site inspect_local      rev-parse     line 1304  exact  ['rev-parse', '--absolute-git-dir', '--path-format=absolute', '--git-path', 'FETCH_HEAD', '--git-common-dir']
+site evaluate_upstream  rev-parse     line 1423  LOOKUP ['rev-parse', '--verify', '-q', 'refs/remotes/%s/%s^{commit}' % (rem['_name'], branch)]
+site evaluate_pin       for-each-ref  line 1492  LOOKUP ['for-each-ref', '--contains', gitlink, '--format=%(refname)', 'refs/remotes']
+site write_git          merge         line 1817  LOOKUP ['merge', '--ff-only', target]
+site write_git          checkout      line 1819  LOOKUP ['checkout', '--quiet', '--detach', target]
+site ignored_clobbers   ls-tree       line 1916  LOOKUP ['ls-tree', '-r', '-z', '--name-only', '--full-tree', target]
+site control_needle     rev-list      line 2072  exact  ['rev-list', '--count', 'HEAD']
+site control_needle     rev-list      line 2073  exact  ['rev-list', '--left-right', '--count', 'HEAD...HEAD']
+site main               rev-parse     line 2179  exact  ['rev-parse', '--show-toplevel']
+site main               rev-parse     line 2235  exact  ['rev-parse', '--path-format=absolute', '--git-common-dir']
+refuse ACCEPTED  rev-parse --verify -q refs/remotes/origin/dev^{commit}
+refuse ACCEPTED  rev-parse --verify -q 0123456789abcdef0123456789abcdef01234567
+refuse ACCEPTED  merge --ff-only 0123456789abcdef0123456789abcdef01234567
+refuse ACCEPTED  checkout --quiet --detach 0123456789abcdef0123456789abcdef01234567
+refuse ACCEPTED  merge-base --is-ancestor 0123456789abcdef0123456789abcdef01234567 0123456789abcdef0123456789abcdef01234567
+refuse ACCEPTED  rev-list --left-right --count origin/dev...HEAD
+refuse ACCEPTED  ls-tree -r -z 0123456789abcdef0123456789abcdef01234567
+refuse ACCEPTED  for-each-ref --contains 0123456789abcdef0123456789abcdef01234567 --format=%(refname) refs/remotes
+refuse ACCEPTED  for-each-ref --format=%(objectname) refs/remotes/*
+refuse refused   show-ref --verify refs/remotes/origin/dev
+accept accepted  rev-parse --verify -q 0123456789abcdef0123456789abcdef01234567^{commit}
+accept REFUSED   merge --ff-only 0123456789abcdef0123456789abcdef01234567^{commit}
+accept REFUSED   checkout --quiet --detach 0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  merge-base --is-ancestor 0123456789abcdef0123456789abcdef01234567^{commit} 0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  rev-list --left-right --count 0123456789abcdef0123456789abcdef01234567^{commit}...0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  ls-tree -r -z 0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  for-each-ref --contains 0123456789abcdef0123456789abcdef01234567^{commit} --format=%(refname) refs/remotes
+accept accepted  for-each-ref --format=%(objectname) refs/remotes/origin/dev
+env    None      GIT_NO_REPLACE_OBJECTS
+env    None      GIT_GRAFT_FILE
+env    None      GIT_ALTERNATE_OBJECT_DIRECTORIES
+env    None      GIT_OBJECT_DIRECTORY
+env    None      GIT_SHALLOW_FILE
+env    None      GIT_REPLACE_REF_BASE
+env    None      GIT_NAMESPACE
+class-inventory-refs: sites 17 (exact 8, lookup 9); allow-list probes 18; env probes 7
+FAIL is_ancestor line 759: git merge-base resolves a name by git's lookup rules: ['merge-base', '--is-ancestor', a, b]
+FAIL count_range line 765: git rev-list resolves a name by git's lookup rules: ['rev-list', '--left-right', '--count', '%s...%s' % (a, b)]
+FAIL commit_present line 774: git rev-parse resolves a name by git's lookup rules: ['rev-parse', '--verify', '-q', '%s^{commit}' % sha]
+FAIL tree_gitlinks line 1084: git ls-tree resolves a name by git's lookup rules: ['ls-tree', '-r', '-z', target]
+FAIL evaluate_upstream line 1423: git rev-parse resolves a name by git's lookup rules: ['rev-parse', '--verify', '-q', 'refs/remotes/%s/%s^{commit}' % (rem['_name'], branch)]
+FAIL evaluate_pin line 1492: git for-each-ref resolves a name by git's lookup rules: ['for-each-ref', '--contains', gitlink, '--format=%(refname)', 'refs/remotes']
+FAIL write_git line 1817: git merge resolves a name by git's lookup rules: ['merge', '--ff-only', target]
+FAIL write_git line 1819: git checkout resolves a name by git's lookup rules: ['checkout', '--quiet', '--detach', target]
+FAIL ignored_clobbers line 1916: git ls-tree resolves a name by git's lookup rules: ['ls-tree', '-r', '-z', '--name-only', '--full-tree', target]
+FAIL no resolve_ref_exact(): no exact ref lookup
+FAIL allow-list ACCEPTS the lookup shape git rev-parse --verify -q refs/remotes/origin/dev^{commit}
+FAIL allow-list ACCEPTS the lookup shape git rev-parse --verify -q 0123456789abcdef0123456789abcdef01234567
+FAIL allow-list ACCEPTS the lookup shape git merge --ff-only 0123456789abcdef0123456789abcdef01234567
+FAIL allow-list ACCEPTS the lookup shape git checkout --quiet --detach 0123456789abcdef0123456789abcdef01234567
+FAIL allow-list ACCEPTS the lookup shape git merge-base --is-ancestor 0123456789abcdef0123456789abcdef01234567 0123456789abcdef0123456789abcdef01234567
+FAIL allow-list ACCEPTS the lookup shape git rev-list --left-right --count origin/dev...HEAD
+FAIL allow-list ACCEPTS the lookup shape git ls-tree -r -z 0123456789abcdef0123456789abcdef01234567
+FAIL allow-list ACCEPTS the lookup shape git for-each-ref --contains 0123456789abcdef0123456789abcdef01234567 --format=%(refname) refs/remotes
+FAIL allow-list ACCEPTS the lookup shape git for-each-ref --format=%(objectname) refs/remotes/*
+FAIL allow-list refuses the exact shape git merge --ff-only 0123456789abcdef0123456789abcdef01234567^{commit} (merge must be: merge --ff-only <sha>)
+FAIL allow-list refuses the exact shape git checkout --quiet --detach 0123456789abcdef0123456789abcdef01234567^{commit} (checkout must be: checkout --quiet --detach <sha>)
+FAIL git_env gives GIT_NO_REPLACE_OBJECTS=None, not '1' (object visibility not pinned)
+FAIL git_env gives GIT_GRAFT_FILE=None, not '/dev/null' (object visibility not pinned)
+class-inventory-refs: FAIL (23)

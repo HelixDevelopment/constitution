@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 9 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-16T09:00:00Z |
+| Last modified | 2026-11-16T23:30:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Questions raised while designing, building and testing `scripts/sync/sync_all_upstreams.sh`, with the answers the engine gives. |
 | Authority | Constitution §11.4.84, §11.4.113, §11.4.233(G), §11.4.288(D). The canonical text wins where this FAQ and the constitution disagree. |
@@ -122,7 +122,7 @@ configure may prompt on its own terminal. Real forges are UNCONFIRMED until the 
 No. The defaults are `off` for `scripts/setup.sh` and `offline` (`--check --no-fetch`) for the post-update hook,
 so nothing is fetched or changed unless you opt in (`--sync-upstreams=check|apply|ask`,
 `CONSTITUTION_SYNC_CHECK=fetch`). This is what the code on this revision does. An operator decision of
-2026-11-14 (relayed, not verbatim) moves the defaults to on, online and bounded; that change is tracked as CON-424
+2026-11-14 (relayed, not verbatim) moves the defaults to on, online and bounded; that change is tracked as CON-PENDINGsync2
 and is not made in this revision, so until it lands the answer above stays true.
 
 **19. A run says `write-left-changes:fast-forward` or `blocked:in-progress:HEAD.lock`. What happened?**
@@ -154,3 +154,14 @@ with other letters (for example `café`) is read and compared exactly and is nev
 On a case-insensitive file system (macOS, Windows defaults) `Dev.lock` and `dev.lock` are one file, so two
 branches that differ only in case cannot be told apart there; git itself has the same limit. The tests run on
 Linux (case-sensitive) only. Tested live: `tests/sync/test_robustness.sh --only branch_shape,branch_param`.
+
+**22. I use `git replace` (or `info/grafts`), or I have a tag named like a remote-tracking ref. Can that fool the tool?**
+No (review round 12). Every git call runs with `GIT_NO_REPLACE_OBJECTS=1` and `GIT_GRAFT_FILE=/dev/null`, so
+ancestry is the real commit history whatever your environment or `core.useReplaceRefs` says; a replaced or
+grafted history that would make a local commit look like an ancestor of the upstream is reported
+`local-diverged` and nothing moves. The upstream is resolved by its exact refname (`for-each-ref`, exact
+match), never by git's lookup rules, so a local tag or branch literally named `refs/remotes/origin/dev` is not
+taken as the upstream (the branch is reported `no-upstream-dev`), and every object the tool hands git is written
+`<id>^{commit}`, so a branch named like a commit id cannot be checked out in its place. A shallow clone is not
+changed: it only hides ancestry, which the tool reports as diverged. Tested live:
+`tests/sync/test_robustness.sh --only ref_exact,checkout_exact,objvis`.

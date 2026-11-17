@@ -1,0 +1,74 @@
+== ref_exact
+  FAIL ref_exact.tag.apply.not_moved  (head 0235caf8cf4f9054a2b2c5f722d909de9b7180e6 planted 0235caf8cf4f9054a2b2c5f722d909de9b7180e6)
+  FAIL ref_exact.tag.apply.never_the_planted_ref  ()
+  FAIL ref_exact.tag.apply.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL ref_exact.tag.apply.reason  ([])
+  ok   ref_exact.tag.apply.still_on_dev
+  ok   ref_exact.tag.check.not_moved
+  ok   ref_exact.tag.check.never_the_planted_ref
+  FAIL ref_exact.tag.check.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL ref_exact.tag.check.reason  ([])
+  ok   ref_exact.tag.check.still_on_dev
+  ok   ref_exact.tag.dry-run.not_moved
+  ok   ref_exact.tag.dry-run.never_the_planted_ref
+  FAIL ref_exact.tag.dry-run.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL ref_exact.tag.dry-run.reason  ([])
+  ok   ref_exact.tag.dry-run.still_on_dev
+  FAIL ref_exact.branch.apply.not_moved  (head 0235caf8cf4f9054a2b2c5f722d909de9b7180e6 planted 0235caf8cf4f9054a2b2c5f722d909de9b7180e6)
+  FAIL ref_exact.branch.apply.never_the_planted_ref  ()
+  FAIL ref_exact.branch.apply.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL ref_exact.branch.apply.reason  ([])
+  ok   ref_exact.branch.apply.still_on_dev
+  ok   ref_exact.branch.check.not_moved
+  ok   ref_exact.branch.check.never_the_planted_ref
+  FAIL ref_exact.branch.check.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL ref_exact.branch.check.reason  ([])
+  ok   ref_exact.branch.check.still_on_dev
+  ok   ref_exact.branch.dry-run.not_moved
+  ok   ref_exact.branch.dry-run.never_the_planted_ref
+  FAIL ref_exact.branch.dry-run.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL ref_exact.branch.dry-run.reason  ([])
+  ok   ref_exact.branch.dry-run.still_on_dev
+  ok   ref_exact.golden_false.exit_0
+  ok   ref_exact.golden_false.moved_to_remote
+== checkout_exact
+  FAIL checkout_exact.exit_0  (rc=1 [sync-upstreams] libs/a                                   failed          -
+)
+  FAIL checkout_exact.at_target  (head f7cb0d8a96586d2b4bc642b59daf212acef82bbe s1 f7cb0d8a96586d2b4bc642b59daf212acef82bbe s2 fd7c8736d03caedcb8dc14f4b40677744da21db1)
+  ok   checkout_exact.detached
+  FAIL checkout_exact.staged_target  (staged f7cb0d8a96586d2b4bc642b59daf212acef82bbe)
+  ok   checkout_exact.hex_branch_untouched
+== objvis
+  FAIL objvis.replace.not_moved  (head 059b8d117692eaffe8402831fb51ec439d96dff4 L 67c8016c00eca3c62ced30b6c63c9da16dcf8bcc U 059b8d117692eaffe8402831fb51ec439d96dff4)
+  FAIL objvis.replace.local_commit_kept  (merge-base rc 1)
+  FAIL objvis.replace.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL objvis.replace.reason  ([])
+  FAIL objvis.replace_env_noreplace.not_moved  (head 059b8d117692eaffe8402831fb51ec439d96dff4 L 67c8016c00eca3c62ced30b6c63c9da16dcf8bcc U 059b8d117692eaffe8402831fb51ec439d96dff4)
+  FAIL objvis.replace_env_noreplace.local_commit_kept  (merge-base rc 1)
+  FAIL objvis.replace_env_noreplace.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL objvis.replace_env_noreplace.reason  ([])
+  FAIL objvis.replace_config_on.not_moved  (head 059b8d117692eaffe8402831fb51ec439d96dff4 L 67c8016c00eca3c62ced30b6c63c9da16dcf8bcc U 059b8d117692eaffe8402831fb51ec439d96dff4)
+  FAIL objvis.replace_config_on.local_commit_kept  (merge-base rc 1)
+  FAIL objvis.replace_config_on.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL objvis.replace_config_on.reason  ([])
+  FAIL objvis.info_grafts.not_moved  (head 059b8d117692eaffe8402831fb51ec439d96dff4 L 67c8016c00eca3c62ced30b6c63c9da16dcf8bcc U 059b8d117692eaffe8402831fb51ec439d96dff4)
+  FAIL objvis.info_grafts.local_commit_kept  (merge-base rc 1)
+  FAIL objvis.info_grafts.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL objvis.info_grafts.reason  ([])
+  ok   objvis.graft_file_env.not_moved
+  ok   objvis.graft_file_env.local_commit_kept
+  ok   objvis.graft_file_env.exit_4
+  ok   objvis.graft_file_env.reason
+  ok   objvis.golden_false.golden_false_exit_0
+  ok   objvis.golden_false.golden_false_moved
+sync-robustness: PASS 24 FAIL 35

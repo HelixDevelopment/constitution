@@ -7,8 +7,8 @@
 | Last modified | 2026-11-16 |
 | Status | PROVISIONAL (§11.4.290); pending independent review |
 | Evidence class | gate-logic / unit-class (§11.4.289): real git against real bare repositories in scratch directories; no forge, no network remote |
-| Roadmap item | CON-425 (re-minted in this round from the placeholder `CON-PENDING-sync-r8`; commit trailers keep the placeholder spelling) |
-| Follow-ups filed | CON-423 (work-tree-only failed write, RV10-4), CON-424 (defaults per the 2026-11-14 decision, RV10-6) |
+| Roadmap item | CON-PENDINGsync3 (re-minted in this round from the placeholder `CON-PENDING-sync-r8`; commit trailers keep the placeholder spelling) |
+| Follow-ups filed | CON-PENDINGsync1 (work-tree-only failed write, RV10-4), CON-PENDINGsync2 (defaults per the 2026-11-14 decision, RV10-6) |
 | Prior review | round 10, `review_sync_r10.md` sha256 `7d98dbd4…` (NO-GO, findings RV10-1..RV10-8) |
 | Base | `origin/main` 09d3ad2f (merged into the vehicle: `merge/merge_record.txt`) |
 | Producer | fresh structural fixer (not the round-10 author, not the reviewer), Opus; effort UNKNOWN |
@@ -30,9 +30,9 @@
 | RV10-1 | `read_branch` reads the full ref (`git symbolic-ref -q HEAD`) and strips `refs/heads/` by string (`branch_of_ref`); `--short` is refused by the allow-list. `valid_branch_name` applies git's ref-name rules to a name read from git and to `--branch` (invalid `--branch` = usage error, exit 2, before any fetch). Census of every branch, ref or remote name used in a path, lock, marker or comparison: `class_inventory_names.py` (closed-world AST inventory, 58 sites, control needles, semantic checks; PASS on r11; on the r10 engine FAIL with 2 semantic failures and 2 unclassified sites). |
 | RV10-2 | Case kept everywhere (`Dev` is not `dev`); mixed-case branches in the unit lock-path test and in the live `branch_lock` / `branch_shape` checks (kills AA01). |
 | RV10-3 | Canonical git-env scrub in 21 vehicle files; engine `_SCRUB` holds all of `CL_GIT_SCRUB_VARS` (`GIT_GRAFT_FILE`, `GIT_NO_REPLACE_OBJECTS` were missing). 9 exemption rows (8 `pinned-fixture` evidence scripts whose sha256 is in their pack's `SHA256SUMS`; `scripts/sync/sync_step_lib.sh` `sourced-library`), each checked by `verify_exemption_rows.py`, which does not reuse the census. The ff-only gate accepts the scrub only in its exact two-statement form (4 paired meta-test cases). Go: the census covers Go members; the vehicle changes no `.go` file. |
-| RV10-4 | The work-tree-only limit filed through the engine as CON-423 after a dedupe search (§11.4.214; control needles: a present term 1, a fabricated term 0); cited in the manual, the `write_settled` docstring and the r10 README. |
+| RV10-4 | The work-tree-only limit filed through the engine as CON-PENDINGsync1 after a dedupe search (§11.4.214; control needles: a present term 1, a fabricated term 0); cited in the manual, the `write_settled` docstring and the r10 README. |
 | RV10-5 | README `docs/` row: `[upstream-sync guide](…)` bracket restored. |
-| RV10-6 | Not implemented (held out by the brief). Docs state the current defaults (`setup --sync-upstreams` = `off`; hook step 5c = `offline`, `--check --no-fetch`); the 2026-11-14 decision (on, online, bounded; fetch-only default; ff merges only on explicit consent; hook on every pull) is filed as CON-424. |
+| RV10-6 | Not implemented (held out by the brief). Docs state the current defaults (`setup --sync-upstreams` = `off`; hook step 5c = `offline`, `--check --no-fetch`); the 2026-11-14 decision (on, online, bounded; fetch-only default; ff merges only on explicit consent; hook on every pull) is filed as CON-PENDINGsync2. |
 | RV10-7 | Live check `marker_foreign`: a marker whose op is outside the closed set (tab, newline, fake report line) is reported `unknown-left-nothing`, and the planted text is absent from the notes (kills AA10). |
 | RV10-8 | r10 README wording corrected (ids ran to CON-400 when round 10 began, CON-411 after its merge); its checksum line updated; the r10 pack verifies (`sha256sum -c`, 0 failures). |
 
@@ -95,8 +95,8 @@ and kept as history; the `final_*` files are the current results.
 
 ## Tracker
 
-Every tracker change went through the engine (`scripts/workable-items/bin/workable-items`): `add` CON-423,
-CON-424, CON-425 (the vehicle item, then `update --status "In progress"`); `sync db-to-md`; `export` (Markdown
+Every tracker change went through the engine (`scripts/workable-items/bin/workable-items`): `add` CON-PENDINGsync1,
+CON-PENDINGsync2, CON-PENDINGsync3 (the vehicle item, then `update --status "In progress"`); `sync db-to-md`; `export` (Markdown
 only; `Issues_Summary.md` regenerated). `validate`: OK, 390 items. `diff --issues --fixed`: in sync (390/390);
 `diff --db-only`: passed. `created_at` set by the engine on each add (no restore needed).
 
@@ -105,8 +105,8 @@ only; `Issues_Summary.md` regenerated). `validate`: OK, 390 items. `diff --issue
 - Case-insensitive file systems: `refs/heads/Dev.lock` and `refs/heads/dev.lock` are one file there; branches that
   differ only in case cannot be told apart (git's own limit). Tests run on case-sensitive Linux only.
 - `--branch` is ASCII (`[A-Za-z0-9._/-]`, 1–128 characters); a root branch with other letters is compared exactly.
-- A failed write that changed only the work tree is read as settled (CON-423).
-- Defaults unchanged this round (CON-424).
+- A failed write that changed only the work tree is read as settled (CON-PENDINGsync1).
+- Defaults unchanged this round (CON-PENDINGsync2).
 
 ## Files
 

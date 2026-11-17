@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 9 |
+| Revision | 10 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-16T09:00:00Z |
+| Last modified | 2026-11-16T23:30:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Task-oriented guide for `scripts/sync/sync_all_upstreams.sh`: check, apply, interactive use, setup and post-update integration, scheduling. |
 | Authority | Constitution §11.4.37, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.288(D). The canonical text wins where this guide and the constitution disagree. |
@@ -94,7 +94,7 @@ The default is `off`, which only prints a hint. The same value can come from the
 (`CONSTITUTION_SYNC_CHECK=offline`). Set `CONSTITUTION_SYNC_CHECK=fetch` to fetch first, or `off` to
 skip it. It prints the verdict and never fails the hook; `BLIND` and `INCONCLUSIVE` are shown as warnings.
 The operator decision of 2026-11-14 moves these defaults to on, online and bounded; that change is owed
-(tracked as CON-424) and is not in this revision, so the defaults above are what the code does today.
+(tracked as CON-PENDINGsync2) and is not in this revision, so the defaults above are what the code does today.
 
 ## 6. Run it regularly
 
@@ -121,5 +121,8 @@ Per-repository lines show the path, the result and the reasons, for example
 
 What the tool never does: it never deletes a ref or a tag (a branch deleted upstream keeps its
 `refs/remotes/<remote>/<branch>`; run `git remote prune <remote>` yourself when you mean it), never runs
-a hook or fsmonitor of the repository, and never overwrites an ignored file. The [manual](../manuals/sync_upstreams_manual.md) lists every
+a hook or fsmonitor of the repository, and never overwrites an ignored file. It also never lets a local name
+stand in for the upstream (a tag or branch called `refs/remotes/origin/dev` is ignored; the upstream is looked up
+by its exact name), and it reads real history only: replace refs (`git replace`) and grafts are switched off for
+its git calls, so a replaced ancestry can never make it fast-forward over a local commit. The [manual](../manuals/sync_upstreams_manual.md) lists every
 reason and every field of the report.

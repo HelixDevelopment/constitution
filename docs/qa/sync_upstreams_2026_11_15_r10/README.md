@@ -46,7 +46,7 @@ survived the whole suite. RV9-5 was the trailer placeholder, and RV9-6 asked us 
   `autostash.no_marker_after_answered_failure`: a user's edit between step 1 and the write was then blamed on the write
   (a false positive). The limit stays as stated, now pinned live by `wt_only` (the work-tree-only case is read as
   settled, the run fails with exit 1, the file is kept, and the next run reports the tree dirty) and by a unit test.
-  Telling the two apart needs file content compared with the target tree, which is a tracked follow-up (filed in round 11 as CON-423; corrected in round 11, RV10-4).
+  Telling the two apart needs file content compared with the target tree, which is a tracked follow-up (filed in round 11 as CON-PENDINGsync1; corrected in round 11, RV10-4).
 - Permanent mutants: the reviewer's Z01, Z04, Z07, Z11 and Z12 (Z12 recorded as equivalent, with proof), plus the
   fixer's own Y01 to Y09, Y12 and Y13 in `tests/sync/test_mutations.py`.
 - Docs: manual revision 10, FAQ revision 7 (Q20: non-main branches and worktrees).

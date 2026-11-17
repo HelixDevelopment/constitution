@@ -2544,6 +2544,202 @@ def c_marker_foreign_op(box):
             b.cleanup()
 
 
+# ───────────── review round 12: ref resolution is exact, object visibility is real history ─────────────
+def reasons_of(rep):
+    return [y for x in (rep or {}).get("repos", []) for y in (x.get("reasons") or [])]
+
+
+def dwim_tree(b, shape, name):
+    """A root on branch 'dev' whose remote has NO dev any more (deleted upstream, the remote-tracking ref removed),
+    and a LOCAL ref literally named refs/remotes/origin/dev under refs/tags/ ('tag') or refs/heads/ ('branch') that
+    points at a local commit ahead of dev. git's name lookup ('rev-parse refs/remotes/origin/dev', the rules of
+    git-rev-parse(1) 'SPECIFYING REVISIONS') falls back to refs/tags/<name> and refs/heads/<name> when the exact ref is
+    absent. Returns (work, before, planted_sha)."""
+    r_url, r_seed = b.bare("HelixDevelopment", name)
+    b.git(r_seed, "push", "-q", "origin", "HEAD:refs/heads/dev")
+    work = b.clone(r_url, "c_" + name)
+    b.git(work, "checkout", "-q", "-b", "dev", "--track", "origin/dev")
+    b.git(r_seed, "push", "-q", "origin", ":refs/heads/dev")
+    b.git(work, "update-ref", "-d", "refs/remotes/origin/dev")
+    before = b.git(work, "rev-parse", "HEAD")
+    b.git(work, "checkout", "-q", "-b", "tmpx")
+    with open(os.path.join(work, "LOCAL"), "w") as f:
+        f.write("local only\n")
+    b.git(work, "add", "LOCAL")
+    b.git(work, "commit", "-q", "-m", "local only")
+    planted = b.git(work, "rev-parse", "HEAD")
+    b.git(work, "checkout", "-q", "dev")
+    b.git(work, "branch", "-q", "-D", "tmpx")
+    if shape == "tag":
+        b.git(work, "tag", "refs/remotes/origin/dev", planted)
+    else:
+        b.git(work, "branch", "-q", "refs/remotes/origin/dev", planted)
+    return work, before, planted
+
+
+def c_ref_resolution_exact(box):
+    """RV11-1 (round-11 reviewer, logs/probes_r11_dwim.txt): the upstream of <remote>/<branch> is the EXACT ref
+    refs/remotes/<remote>/<branch>, never what git's name lookup falls back to. A local tag or branch named
+    refs/remotes/origin/dev, with the exact ref absent, is NOT the upstream: no move in any mode, the repository
+    has no upstream dev (exit 4, reason no-upstream-dev). r11: --apply --no-fetch fast-forwarded dev to the local
+    commit (rc 0 'updated'); --check / --dry-run said 'behind' (rc 3). Golden-FALSE (section 11.4.201(1)): with the
+    exact remote-tracking ref present AND a planted tag of the same name at a local commit, the engine moves to the
+    remote's commit, never to the planted one."""
+    for shape in ("tag", "branch"):
+        for mode in (["--apply", "--no-fetch"], ["--check", "--no-fetch"], ["--dry-run"]):
+            tag = "ref_exact.%s.%s" % (shape, mode[0].lstrip("-"))
+            b = Box("rx_%s_%s" % (shape, mode[0].lstrip("-")))
+            try:
+                work, before, planted = dwim_tree(b, shape, "rx")
+                rc, so, se, rep, _ = b.run(*(mode + ["--branch", "dev", "--root", work, "--quiet"]), timeout=300)
+                head = b.git(work, "rev-parse", "HEAD")
+                ok(tag + ".not_moved", head == before, "head %s planted %s" % (head, planted))
+                ok(tag + ".never_the_planted_ref", head != planted)
+                ok(tag + ".exit_4", rc == 4, "rc=%s %s" % (rc, se[-200:]))
+                ok(tag + ".reason", "no-upstream-dev" in reasons_of(rep), reasons_of(rep))
+                ok(tag + ".still_on_dev", b.git(work, "symbolic-ref", "-q", "HEAD") == "refs/heads/dev")
+            except Exception as e:
+                ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+            finally:
+                b.cleanup()
+    tag = "ref_exact.golden_false"
+    b = Box("rx_gf")
+    try:
+        work, gd, common, args = branch_tree(b, "plain", "dev", name="rxgf")
+        b.git(work, "fetch", "-q", "origin")
+        want = b.git(work, "rev-parse", "refs/remotes/origin/dev")
+        b.git(work, "checkout", "-q", "-b", "tmpx")
+        with open(os.path.join(work, "LOCAL"), "w") as f:
+            f.write("local only\n")
+        b.git(work, "add", "LOCAL")
+        b.git(work, "commit", "-q", "-m", "local only")
+        planted = b.git(work, "rev-parse", "HEAD")
+        b.git(work, "checkout", "-q", "dev")
+        b.git(work, "branch", "-q", "-D", "tmpx")
+        b.git(work, "tag", "refs/remotes/origin/dev", planted)
+        rc, so, se, rep, _ = b.run("--apply", "--no-fetch", "--branch", "dev", "--root", work, "--quiet", timeout=300)
+        ok(tag + ".exit_0", rc == 0, "rc=%s %s" % (rc, se[-300:]))
+        ok(tag + ".moved_to_remote", b.git(work, "rev-parse", "HEAD") == want)
+    except Exception as e:
+        ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+    finally:
+        b.cleanup()
+
+
+def c_checkout_target_exact(box):
+    """Round 12 (found by the class enumeration of the ref-resolution class, section 11.4.276(C)): the pin write
+    'git checkout --detach <sha>' takes a LOCAL BRANCH whose name is that 40-hex string before the object (measured,
+    git 2.53: HEAD became the branch's commit). A submodule with a branch named exactly the target gitlink, pointing
+    at the old pin, must still end DETACHED at the target with --advance-pins (exit 0, the parent index staged at the
+    target). r11: the checkout attached HEAD to the branch, the pin did not move to the target."""
+    tag = "checkout_exact"
+    try:
+        work, s1, s2, r1 = pin_behind_tree(box)
+        sub = os.path.realpath(os.path.join(work, "libs/a"))
+        box.git(sub, "fetch", "-q", "origin")
+        box.git(sub, "branch", "-q", s2, s1)  # a branch NAMED the target's object id, pointing at the old pin
+        rc, so, se, rep, _ = box.run("--apply", "--advance-pins", "--root", work, "--quiet", timeout=300)
+        head = box.git(sub, "rev-parse", "HEAD")
+        sym = box.git(sub, "symbolic-ref", "-q", "HEAD", check=False)
+        staged = box.git(work, "ls-files", "-s", "libs/a").split()[1]
+        ok(tag + ".exit_0", rc == 0, "rc=%s %s" % (rc, se[-300:]))
+        ok(tag + ".at_target", head == s2, "head %s s1 %s s2 %s" % (head, s1, s2))
+        ok(tag + ".detached", sym == "", repr(sym))
+        ok(tag + ".staged_target", staged == s2, "staged %s" % staged)
+        ok(tag + ".hex_branch_untouched", box.git(sub, "rev-parse", "refs/heads/" + s2) == s1)
+    except Exception as e:
+        ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+
+
+def engine_py():
+    return os.path.join(os.path.dirname(os.path.abspath(ENGINE)), "sync_all_upstreams.py")
+
+
+def c_object_visibility(box):
+    """RV11-2 (round-11 reviewer, logs/probe_noreplace.txt, probe_replace.txt, probe_graft.txt): ancestry is read
+    on the REAL history. A local commit L and a fetched upstream U that diverged stay diverged when a replace ref
+    ('git replace --graft U L') or a graft ('<git dir>/info/grafts', or GIT_GRAFT_FILE) pretends that L is U's
+    parent: no write, exit 4, reason local-diverged, L still on the branch. Shapes: replace ref with no variable;
+    replace ref with the user's GIT_NO_REPLACE_OBJECTS=1 given to the ENGINE itself (python3 -I on the .py, the way
+    the reviewer ran it; the wrapper unsets the variable before the engine starts); replace ref plus the repository
+    config core.useReplaceRefs=true; info/grafts; GIT_GRAFT_FILE (engine run directly). r10 honoured replace refs and
+    grafts; r11 also dropped the user's GIT_NO_REPLACE_OBJECTS=1 and fast-forwarded off L in every shape.
+    Golden-FALSE: an unrelated replace ref (one blob for another) on an ordinary behind tree does not stop the
+    fast-forward."""
+    for shape in ("replace", "replace_env_noreplace", "replace_config_on", "info_grafts", "graft_file_env"):
+        tag = "objvis." + shape
+        b = Box("ov_" + shape)
+        try:
+            work, gd, common, args = branch_tree(b, "plain", "dev", name="ov")
+            with open(os.path.join(work, "LOCAL"), "w") as f:
+                f.write("local only\n")
+            b.git(work, "add", "LOCAL")
+            b.git(work, "commit", "-q", "-m", "local only L")
+            L = b.git(work, "rev-parse", "HEAD")
+            b.git(work, "fetch", "-q", "origin")
+            U = b.git(work, "rev-parse", "refs/remotes/origin/dev")
+            env, direct = None, False
+            if shape.startswith("replace"):
+                b.git(work, "replace", "--graft", U, L)
+            if shape == "replace_env_noreplace":
+                env, direct = {"GIT_NO_REPLACE_OBJECTS": "1"}, True
+            if shape == "replace_config_on":
+                b.git(work, "config", "core.useReplaceRefs", "true")
+            if shape == "info_grafts":
+                os.makedirs(os.path.join(gd, "info"), exist_ok=True)
+                with open(os.path.join(gd, "info", "grafts"), "w") as f:
+                    f.write("%s %s\n" % (U, L))
+            if shape == "graft_file_env":
+                gf = b.p("grafts")
+                with open(gf, "w") as f:
+                    f.write("%s %s\n" % (U, L))
+                env, direct = {"GIT_GRAFT_FILE": gf}, True
+            if direct:
+                argv, o = b.engine_argv(*args)
+                argv = [PY, "-I", engine_py()] + argv[2:] + ["--out", o]
+                e = dict(b.env)
+                e.update(env)
+                r = subprocess.run(argv, env=e, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
+                rc, se = r.returncode, r.stderr
+                try:
+                    with open(os.path.join(o, "sync_report.json"), encoding="utf-8") as f:
+                        rep = json.load(f)
+                except (OSError, ValueError):
+                    rep = None
+            else:
+                rc, so, se, rep, _ = b.run(*args, timeout=300)
+            head = b.git(work, "rev-parse", "HEAD")
+            real = subprocess.run([GIT, "--no-replace-objects", "-C", work, "merge-base", "--is-ancestor", L, "HEAD"],
+                                  env=dict(b.env, GIT_GRAFT_FILE="/dev/null"), stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL).returncode
+            ok(tag + ".not_moved", head == L, "head %s L %s U %s" % (head, L, U))
+            ok(tag + ".local_commit_kept", real == 0, "merge-base rc %s" % real)
+            ok(tag + ".exit_4", rc == 4, "rc=%s %s" % (rc, se[-300:]))
+            ok(tag + ".reason", "local-diverged" in reasons_of(rep), reasons_of(rep))
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+    tag = "objvis.golden_false"
+    b = Box("ov_gf")
+    try:
+        work, gd, common, args = branch_tree(b, "plain", "dev", name="ovgf")
+        p1, p2 = b.p("blob1"), b.p("blob2")
+        with open(p1, "w") as f:
+            f.write("one\n")
+        with open(p2, "w") as f:
+            f.write("two\n")
+        h1 = b.git(work, "hash-object", "-w", p1)
+        h2 = b.git(work, "hash-object", "-w", p2)
+        b.git(work, "replace", h1, h2)
+        rc, so, se, rep, _ = b.run(*args, timeout=300)
+        assert_moved(tag, b, work, rc, se, "dev")
+    except Exception as e:
+        ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+    finally:
+        b.cleanup()
+
+
 CHECKS = [
     ("race_commit", c_race_commit_detached_sub), ("race_switch", c_race_switch_root_branch),
     ("race_sub_branch", c_race_branch_in_sub), ("race_control", c_race_control_commit_on_main),
@@ -2588,6 +2784,9 @@ CHECKS = [
     # review round 11
     ("branch_shape", c_branch_name_shapes), ("branch_param", c_branch_param_shapes),
     ("marker_foreign", c_marker_foreign_op),
+    # review round 12
+    ("ref_exact", c_ref_resolution_exact), ("checkout_exact", c_checkout_target_exact),
+    ("objvis", c_object_visibility),
 ]
 
 
