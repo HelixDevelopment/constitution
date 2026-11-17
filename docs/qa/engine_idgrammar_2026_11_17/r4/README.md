@@ -140,7 +140,7 @@ the final working tree before the commit:
 | Gate | Result |
 |---|---|
 | `run_full_suite.sh --verify-manifest` | MANIFEST-OK (census 966 with the new test) |
-| `cm_full_suite_manifest_complete` | PASS before the commit (it reads HEAD); re-run after the commit: see the second commit |
+| `cm_full_suite_manifest_complete` | PASS before the commit (it reads HEAD: 965); after the commit `ec1d0bf5`: PASS, 966 census files (`gates/cm_full_suite_manifest_complete_postcommit.out`) |
 | `cm_gate_ledger_ratchet` | PASS (baseline 394) |
 | `cm_constitution_index_fresh` | PASS |
 | `git_env_class_census.py` | PASS, members=664 hermetic=510 exempt=154 unscrubbed=0 |
