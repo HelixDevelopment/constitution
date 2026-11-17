@@ -318,11 +318,20 @@ case_ R12-CHECKOUT-BARE-ID 1 py '["checkout", "--quiet", "--detach", obj(target)
 case_ R12-NO-OBJECT-NAMES 1 py '    check_object_names(sub, rest)
 ' ''
 case_ R12-OBJ-BARE 1 py 'return sha + "^{commit}" if isinstance(sha, str) and SHA_RE.fullmatch(sha) else INVALID_OBJ' 'return sha if isinstance(sha, str) and SHA_RE.fullmatch(sha) else INVALID_OBJ'
-case_ R12-UPSTREAM-DWIM 1 py '        res, sha = resolve_ref_exact(r, p, "refs/remotes/%s/%s" % (rem["_name"], branch))' '        res = r.run(p, ["rev-parse", "--verify", "-q", "refs/remotes/%s/%s^{commit}" % (rem["_name"], branch)], ok=(0, 1), want=SHA_RE)
+case_ R12-UPSTREAM-DWIM 1 py '        res, sha = resolve_ref_exact(r, p, "refs/remotes/%s/%s" % (rem["_name"], branch), notes)' '        res = r.run(p, ["rev-parse", "--verify", "-q", "refs/remotes/%s/%s^{commit}" % (rem["_name"], branch)], ok=(0, 1), want=SHA_RE)
         sha = res.text()'
 case_ R12-EXACT-ANY-PATTERN 1 py 'and valid_branch_name(ref[len("refs/"):])' ''
 case_ R12-NO-PIN 1 py '    env.update(OBJECT_VISIBILITY_PIN)
 ' ''
+# review round 13 (RV12-1, RV12-2, RV12-3): the symref field dropped from either lookup, the literal-path pin
+# dropped, a rev-list shape without '--' -> the gate FAILs
+case_ R13-EXACT-NO-SYMREF 1 py 'FER_EXACT_FORMAT = "%(refname)%00%(symref)%00' 'FER_EXACT_FORMAT = "%(refname)%00%(refname)%00'
+case_ R13-CONTAINS-NO-SYMREF 1 py 'FER_CONTAINS_FORMAT = "%(refname)%00%(symref)"' 'FER_CONTAINS_FORMAT = "%(refname)%00%(refname)"'
+case_ R13-NO-LITERAL-PIN 1 py '    env.update(PATH_LITERAL_PIN)
+' ''
+case_ R13-LITERAL-NOT-SCRUBBED 1 py '"GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS", "GIT_ICASE_PATHSPECS",' ''
+case_ R13-REVLIST-NO-DDASH 1 py '["rev-list", "--count", "HEAD", "--"]' '["rev-list", "--count", "HEAD"]'
+case_ R13-CONTAINS-OLD-FORMAT 1 py '["for-each-ref", "--contains", obj(gitlink), "--format=" + FER_CONTAINS_FORMAT, "refs/remotes"]' '["for-each-ref", "--contains", obj(gitlink), "--format=%(refname)", "refs/remotes"]'
 case_ SYNTAX 2 py 'def classify(ahead, behind):' 'def classify(ahead, behind'
 case_ MISSING 2 none "" ""
 echo "cases: $n"

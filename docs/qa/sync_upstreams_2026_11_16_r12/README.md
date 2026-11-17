@@ -55,7 +55,7 @@ subcommand `frobnicate` must not.
 | grafts (`info/grafts`, `GIT_GRAFT_FILE`) | rewrites ancestry | `GIT_GRAFT_FILE=/dev/null` pinned (objvis `info_grafts`, `graft_file_env`) |
 | shallow (`shallow` file, `GIT_SHALLOW_FILE`) | only removes edges: less ancestry, reported diverged | file honoured (safe direction); env scrubbed |
 | alternates (`objects/info/alternates`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`) | content-addressed: adds objects, no ancestry change | file honoured; env scrubbed |
-| `GIT_OBJECT_DIRECTORY`, `GIT_DIR`, `GIT_COMMON_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_NAMESPACE` | repository relocation | scrubbed (census 676 members, 0 unscrubbed) |
+| `GIT_OBJECT_DIRECTORY`, `GIT_DIR`, `GIT_COMMON_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_NAMESPACE` | repository relocation | scrubbed (the round-12 text said "census 676 members, 0 unscrubbed"; corrected in round 13: on the COMMITTED r12 head the census FAILed, 678 members, 1 unscrubbed, this directory's own `class_inventory_refs.py`, which had no scrub line; round 13 added it, see `../sync_upstreams_2026_11_17_r13/README.md`) |
 | `GIT_CONFIG_PARAMETERS` / `GIT_CONFIG_COUNT` | could set `core.useReplaceRefs` | scrubbed; the env pin wins anyway |
 | object format (sha256 repositories) | 64-hex ids | `SHA_RE` / `EXACT_OBJ_RE` accept 40 or 64 hex |
 | ref lookup rules (DWIM) | a tag/branch stands in for a ref; a branch named `<hex>` beats the object | exact-name rule (above) |
@@ -85,7 +85,7 @@ Gate `cm_sync_upstreams_ff_only.sh` PASS (oracle: 30 rows = 30 sites; 26 accepte
 now including bare ids, ref names, lookup patterns, the `+` check alone, and merge/checkout options with an exact
 object). Gate meta-test PASS, 104 cases (new: R12-MERGE-BARE-ID, R12-CHECKOUT-BARE-ID, R12-NO-OBJECT-NAMES,
 R12-OBJ-BARE, R12-UPSTREAM-DWIM, R12-EXACT-ANY-PATTERN, R12-NO-PIN; MERGE-ANY / CHECKOUT-ANY / R1-MERGE-FF
-re-anchored). Census PASS (676 members, 0 unscrubbed). `tests/test_git_env_class.sh`: 142 passed, 0 failed, 1 skipped.
+re-anchored). Census PASS (676 members, 0 unscrubbed) on the work tree before the evidence files were added [corrected in round 13 (RV12-6): on the committed head it FAILed, 678 members, 1 unscrubbed (`class_inventory_refs.py`)]. `tests/test_git_env_class.sh`: 142 passed, 0 failed, 1 skipped.
 
 ## Mutants
 

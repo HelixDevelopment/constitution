@@ -123,6 +123,8 @@ What the tool never does: it never deletes a ref or a tag (a branch deleted upst
 `refs/remotes/<remote>/<branch>`; run `git remote prune <remote>` yourself when you mean it), never runs
 a hook or fsmonitor of the repository, and never overwrites an ignored file. It also never lets a local name
 stand in for the upstream (a tag or branch called `refs/remotes/origin/dev` is ignored; the upstream is looked up
-by its exact name), and it reads real history only: replace refs (`git replace`) and grafts are switched off for
+by its exact name, and a symbolic ref at that exact name is not the upstream either: reason
+`symbolic-tracking-ref:<remote>`), it passes submodule paths to git literally (no glob, no pathspec magic, your
+`GIT_ICASE_PATHSPECS` dropped) and checks after staging a pin that only that gitlink changed, and it reads real history only: replace refs (`git replace`) and grafts are switched off for
 its git calls, so a replaced ancestry can never make it fast-forward over a local commit. The [manual](../manuals/sync_upstreams_manual.md) lists every
 reason and every field of the report.

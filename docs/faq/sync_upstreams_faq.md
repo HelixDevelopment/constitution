@@ -162,6 +162,24 @@ grafted history that would make a local commit look like an ancestor of the upst
 `local-diverged` and nothing moves. The upstream is resolved by its exact refname (`for-each-ref`, exact
 match), never by git's lookup rules, so a local tag or branch literally named `refs/remotes/origin/dev` is not
 taken as the upstream (the branch is reported `no-upstream-dev`), and every object the tool hands git is written
-`<id>^{commit}`, so a branch named like a commit id cannot be checked out in its place. A shallow clone is not
+`<id>^{commit}`, so a branch named like a commit id cannot be checked out in its place. An exact refname is not
+enough on its own (review round 13): a SYMBOLIC ref at the exact name `refs/remotes/origin/dev` (made with `git
+symbolic-ref`) has the exact name but the value of whatever it points at, a local branch, a tag or another
+remote's ref. The tool reads `%(symref)` on the same line: a symbolic ref there is not the upstream (reasons
+`symbolic-tracking-ref:origin` and `no-upstream-dev`, exit 4, nothing moves), and a symbolic line under
+`refs/remotes` never makes a submodule pin count as "on a remote" (it is reported `pin-not-on-any-remote`). The
+`refs/remotes/<remote>/HEAD` that every clone has is symbolic too and is simply not used. A shallow clone is not
 changed: it only hides ancestry, which the tool reports as diverged. Tested live:
-`tests/sync/test_robustness.sh --only ref_exact,checkout_exact,objvis`.
+`tests/sync/test_robustness.sh --only ref_exact,checkout_exact,objvis,symref,pin_symref`.
+
+**23. A submodule path has `[`, `*`, `:` in it, or I set `GIT_ICASE_PATHSPECS`. Can the pin write stage the wrong submodule?**
+No (review round 13). `git add -- <path>` reads `<path>` as a pathspec: `lib[1]` also matches `lib1`, `lib*` also
+`libB`, `:!x` is "everything except x", and `GIT_ICASE_PATHSPECS=1` makes `lib` match `LIB` (measured, git 2.53).
+Every git call of the tool runs with `GIT_LITERAL_PATHSPECS=1`, and your `GIT_GLOB_PATHSPECS`,
+`GIT_NOGLOB_PATHSPECS` and `GIT_ICASE_PATHSPECS` are dropped first (git refuses LITERAL together with GLOB or
+ICASE). After the add the tool also reads the parent's index again and checks that exactly ONE entry changed, the
+gitlink, now at the target; anything else (another entry changed by `core.ignoreCase` or by someone staging
+at the same moment) fails the action with `stage-pin-not-exact:<other-entries|not-staged>` naming the other
+paths, and the run does not end `applied`. Your staged files are left as they are. A tracked file named `HEAD`
+no longer makes a run blind either: every `rev-list` call ends with `--`. Tested live:
+`tests/sync/test_robustness.sh --only pathspec,stage_verify,head_file`.

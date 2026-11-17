@@ -19,7 +19,10 @@ Faults:
                          checkout or add; every other call runs
   hardstop-after-stage-marker   the second stop signal lands right after the stage-pin marker is written
   hardstop-before-stage-marker  the second stop signal lands right after the child's post-write branch read (the
-                         first final read_branch), before the stage-pin marker would be written
+                         first final read_branch), before the stage-pin marker would be written; since review
+                         round 13 the parent's pre-add index read is refused first, so the marker site is not reached
+  hardstop-after-pre-index  the second stop signal lands right after the parent's pre-add index read answered (round
+                         13, mutant S04): the stage-pin marker site is the next step; ``fired`` names the parent
   flock-error-root       the root run lock's flock fails with ENOLCK (not "held by another run")
   flock-error-repo       the first per-repository run lock's flock fails with ENOLCK
   flock-held-repo        control: the first per-repository flock fails with EWOULDBLOCK (another run holds it)
@@ -144,6 +147,20 @@ def main(argv):
                 eng.HARD_STOP.set()
             return got
         eng.read_branch = branch2
+
+    fired = []
+    if fault == "hardstop-after-pre-index":
+        orig_idx = eng.index_gitlinks
+
+        def idx(r, repo, final=False, raw=None):
+            got = orig_idx(r, repo, final=final, raw=raw)
+            if final and raw is not None and got is not None and not eng.HARD_STOP.is_set() \
+                    and markers[-1:] == ["advance-pin"]:
+                fired.append(os.path.realpath(repo))  # the parent's pre-add read answered; the stop lands now
+                eng.STOP_REQUESTED.set()
+                eng.HARD_STOP.set()
+            return got
+        eng.index_gitlinks = idx
 
     if fault == "spawn-fails-write":
         real_popen = eng.subprocess.Popen
@@ -286,7 +303,8 @@ def main(argv):
             left[gd] = False
     sys.stdout.flush()
     sys.stderr.flush()
-    print("DRIVER " + json.dumps({"rc": rc, "markers": markers, "spawns": spawns, "planted_intact": left}))
+    print("DRIVER " + json.dumps({"rc": rc, "markers": markers, "spawns": spawns, "planted_intact": left,
+                                    "fired": fired}))
     return 0
 
 

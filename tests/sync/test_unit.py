@@ -80,6 +80,13 @@ class AllowList(unittest.TestCase):
         self.bad("cat-file", "-e", "ext::sh")
         self.bad("cat-file", "-e", SHA)  # cat-file left the allow-list in round 3: presence is rev-parse --verify
 
+    def test_forced_refspec_refused_where_a_shape_is_open(self):
+        # review round 13 (mutant M01): every non-fetch shape is closed now except config --get/--get-regexp, so a
+        # leading '+' reaches the '+' rule ONLY through config; these pass every other check, the '+' rule refuses
+        self.ok("config", "--get", "x.y")
+        self.bad("config", "--get", "+refs/heads/*:refs/heads/*")
+        self.bad("config", "--get-regexp", "+x")
+
     def test_check_returns_the_checked_tuple(self):  # proc_run_git builds the command from the CHECKED value
         self.assertEqual(E.check_git_args(["rev-parse", "--show-toplevel"]), ("rev-parse", "--show-toplevel"))
 
@@ -1996,18 +2003,18 @@ class RoundTwelve(unittest.TestCase):  # review round 12 (RV11-1, RV11-2, the ch
         self.ok("merge-base", "--is-ancestor", o, o)
         self.bad("merge-base", "--is-ancestor", SHA, o)
         self.bad("merge-base", "--is-ancestor", "main", o)
-        self.ok("rev-list", "--left-right", "--count", o + "..." + o)
-        self.ok("rev-list", "--left-right", "--count", "HEAD...HEAD")
-        self.ok("rev-list", "--count", "HEAD")
-        self.bad("rev-list", "--left-right", "--count", SHA + "..." + SHA)
-        self.bad("rev-list", "--left-right", "--count", "origin/main...HEAD")
+        self.ok("rev-list", "--left-right", "--count", o + "..." + o, "--")
+        self.ok("rev-list", "--left-right", "--count", "HEAD...HEAD", "--")
+        self.ok("rev-list", "--count", "HEAD", "--")
+        self.bad("rev-list", "--left-right", "--count", SHA + "..." + SHA, "--")
+        self.bad("rev-list", "--left-right", "--count", "origin/main...HEAD", "--")
         self.ok("ls-tree", "-r", "-z", "HEAD")
         self.ok("ls-tree", "-r", "-z", o)
         self.ok("ls-tree", "-r", "-z", "--name-only", "--full-tree", o)
         self.bad("ls-tree", "-r", "-z", SHA)
         self.bad("ls-tree", "-r", "-z", "main")
-        self.ok("for-each-ref", "--contains", o, "--format=%(refname)", "refs/remotes")
-        self.bad("for-each-ref", "--contains", SHA, "--format=%(refname)", "refs/remotes")
+        self.ok("for-each-ref", "--contains", o, "--format=" + E.FER_CONTAINS_FORMAT, "refs/remotes")
+        self.bad("for-each-ref", "--contains", SHA, "--format=" + E.FER_CONTAINS_FORMAT, "refs/remotes")
         self.ok("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/origin/dev")
         self.ok("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/up/x/feature/y")
         for ref in ("refs/remotes/origin/*", "refs/heads/dev", "refs/tags/x", "refs/remotes/origin/de?",
@@ -2023,19 +2030,22 @@ class RoundTwelve(unittest.TestCase):  # review round 12 (RV11-1, RV11-2, the ch
         E.commit_present(r, "/r", SHA)
         E.tree_gitlinks(r, "/r", SHA)
         self.assertEqual(seen, [["merge-base", "--is-ancestor", SHA + "^{commit}", "b" * 40 + "^{commit}"],
-                                ["rev-list", "--left-right", "--count", "%s^{commit}...%s^{commit}" % (SHA, "b" * 40)],
+                                ["rev-list", "--left-right", "--count", "%s^{commit}...%s^{commit}" % (SHA, "b" * 40), "--"],
                                 ["rev-parse", "--verify", "-q", SHA + "^{commit}"],
                                 ["ls-tree", "-r", "-z", SHA + "^{commit}"]])
 
     def test_resolve_ref_exact(self):  # RV11-1: only the EXACT refname counts; children and DWIM never do
         want = "refs/remotes/origin/dev"
         rows = {
-            "exact-commit": ("%s\0commit\0%s\0\0\n" % (want, SHA), SHA),
-            "child-only": ("%s/x\0commit\0%s\0\0\n" % (want, "c" * 40), None),
-            "child-and-exact": ("%s/x\0commit\0%s\0\0\n%s\0commit\0%s\0\0\n" % (want, "c" * 40, want, SHA), SHA),
-            "annotated-tag": ("%s\0tag\0%s\0commit\0%s\n" % (want, "d" * 40, SHA), SHA),
-            "tag-of-tree": ("%s\0tag\0%s\0tree\0%s\n" % (want, "d" * 40, "e" * 40), None),
-            "tree": ("%s\0tree\0%s\0\0\n" % (want, "e" * 40), None),
+            "exact-commit": ("%s\0\0commit\0%s\0\0\n" % (want, SHA), SHA),
+            "child-only": ("%s/x\0\0commit\0%s\0\0\n" % (want, "c" * 40), None),
+            "child-and-exact": ("%s/x\0\0commit\0%s\0\0\n%s\0\0commit\0%s\0\0\n" % (want, "c" * 40, want, SHA), SHA),
+            "annotated-tag": ("%s\0\0tag\0%s\0commit\0%s\n" % (want, "d" * 40, SHA), SHA),
+            "tag-of-tree": ("%s\0\0tag\0%s\0tree\0%s\n" % (want, "d" * 40, "e" * 40), None),
+            "tree": ("%s\0\0tree\0%s\0\0\n" % (want, "e" * 40), None),
+            # review round 13 (RV12-1): a symbolic ref at the exact name is never the upstream (its id is its target's)
+            "symbolic-to-branch": ("%s\0refs/heads/evil\0commit\0%s\0\0\n" % (want, SHA), None),
+            "symbolic-to-tag": ("%s\0refs/tags/t\0commit\0%s\0\0\n" % (want, SHA), None),
             "absent": ("", None),
         }
         for label, (out, sha) in rows.items():
@@ -2044,8 +2054,9 @@ class RoundTwelve(unittest.TestCase):  # review round 12 (RV11-1, RV11-2, the ch
             self.assertTrue(res.answered, label)
             self.assertEqual(got, sha, label)
             self.assertEqual(r.seen, [("/r", ("for-each-ref", "--format=" + E.FER_EXACT_FORMAT, want))], label)
-        for out in ("%s\0commit\0nothex\0\0\n" % want, "%s\0commit\0%s\0\0\n%s\0commit\0%s\0\0\n" % (want, SHA, want, "c" * 40),
-                    "garbage\n"):
+        for out in ("%s\0\0commit\0nothex\0\0\n" % want,
+                    "%s\0\0commit\0%s\0\0\n%s\0\0commit\0%s\0\0\n" % (want, SHA, want, "c" * 40),
+                    "garbage\n", "%s\0commit\0%s\0\0\n" % (want, SHA)):  # the last: the 5-field (r12) shape
             r = scripted_runner(lambda repo, a, _o=out: ("exit", 0, _o, ""))
             res, got = E.resolve_ref_exact(r, "/r", want)
             self.assertFalse(res.answered, repr(out))  # malformed output is no answer, never "absent"
@@ -2075,6 +2086,168 @@ class RoundTwelve(unittest.TestCase):  # review round 12 (RV11-1, RV11-2, the ch
         r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
         self.assertEqual((r.env["GIT_NO_REPLACE_OBJECTS"], r.env["GIT_GRAFT_FILE"]), ("1", "/dev/null"))
         self.assertEqual((r.env_repo_ssh["GIT_NO_REPLACE_OBJECTS"], r.env_repo_ssh["GIT_GRAFT_FILE"]), ("1", "/dev/null"))
+
+
+class RoundThirteen(unittest.TestCase):  # review round 13 (RV12-1 .. RV12-8)
+    """RV12-1: a SYMBOLIC ref is never an upstream answer, neither at the exact name nor in the pin's --contains list.
+    RV12-2: every path is literal (GIT_LITERAL_PATHSPECS=1 pinned, the caller's pathspec variables scrubbed) and the
+    stage-pin is verified on the index (exactly one entry changed). RV12-3: rev-list shapes end with '--'. RV12-5:
+    ls-files and status have closed shapes. RV12-7: one refusal per position of every closed shape. RV12-8: main is
+    matched EXACTLY, never by prefix."""
+    def bad(self, *a):
+        with self.assertRaises(E.GitRefused, msg=repr(a)):
+            E.check_git_args(list(a))
+
+    def ok(self, *a):
+        self.assertEqual(E.check_git_args(list(a)), tuple(a))
+
+    def test_closed_shapes_refuse_each_position(self):  # RV12-7 (reviewer mutants RV12C, RV12D, RV12E), RV12-3, RV12-5
+        o = SHA + "^{commit}"
+        # rev-list: the HEAD needles exactly, '--' required (a file named HEAD makes the bare form ambiguous)
+        self.ok("rev-list", "--count", "HEAD", "--")
+        for x in ("main", "origin/main", SHA, o, "HEAD^{commit}", "refs/remotes/origin/main"):
+            self.bad("rev-list", "--count", x, "--")
+        self.bad("rev-list", "--count", "HEAD")
+        self.bad("rev-list", "--left-right", "--count", "HEAD...HEAD")
+        self.bad("rev-list", "--left-right", "--count", o + "..." + o)
+        self.bad("rev-list", "--left-right", "--count", o + "..." + o, "x")
+        self.bad("rev-list", "--left-right", "--count", o + "..." + "main", "--")
+        self.bad("rev-list", "--left-right", "--count", "main..." + o, "--")
+        self.bad("rev-list", "--left-right", "--count", "HEAD...main", "--")
+        # for-each-ref --contains: valid object in position 1, every other position wrong in turn
+        self.ok("for-each-ref", "--contains", o, "--format=" + E.FER_CONTAINS_FORMAT, "refs/remotes")
+        self.bad("for-each-ref", "--contains", o, "--format=%(refname)", "refs/remotes")  # the r12 (symref-blind) format
+        self.bad("for-each-ref", "--contains", o, "--format=" + E.FER_CONTAINS_FORMAT, "refs/heads")
+        self.bad("for-each-ref", "--contains", o, "--format=" + E.FER_CONTAINS_FORMAT, "refs")
+        self.bad("for-each-ref", "--contains", o, "--format=" + E.FER_CONTAINS_FORMAT, "refs/remotes", "x")
+        self.bad("for-each-ref", "--contains", "main", "--format=" + E.FER_CONTAINS_FORMAT, "refs/remotes")
+        self.bad("for-each-ref", "--format=" + E.FER_EXACT_FORMAT.replace("%(symref)%00", ""), "refs/remotes/o/dev")
+        # merge-base: the SECOND object checked as well as the first
+        self.ok("merge-base", "--is-ancestor", o, o)
+        for x in ("main", SHA, "HEAD", "refs/remotes/origin/main"):
+            self.bad("merge-base", "--is-ancestor", o, x)
+            self.bad("merge-base", "--is-ancestor", x, o)
+        self.bad("merge-base", o, o, o)
+        # ls-files, status: closed (RV12-5)
+        self.ok("ls-files", "-s", "-z")
+        self.ok("ls-files", "-z", "--others", "--ignored", "--exclude-standard")
+        for a in (["--with-tree=main"], ["-s", "-z", "--", "x"], ["-s"], ["-z", "--others"], ["-s", "-z", "--with-tree=HEAD"]):
+            self.bad("ls-files", *a)
+        self.ok(*E.STATUS_ARGS)
+        self.bad("status", "--porcelain=v1", "--", "x")
+        self.bad("status", "--porcelain=v2")
+
+    def test_symbolic_ref_at_the_exact_name_is_not_the_upstream(self):  # RV12-1
+        want = "refs/remotes/origin/dev"
+        for target in ("refs/heads/evil", "refs/tags/t-evil", "refs/remotes/other/dev"):
+            out = "%s\0%s\0commit\0%s\0\0\n" % (want, target, SHA)
+            r = scripted_runner(lambda repo, a, _o=out: ("exit", 0, _o, ""))
+            notes = {}
+            res, got = E.resolve_ref_exact(r, "/r", want, notes)
+            self.assertTrue(res.answered, target)
+            self.assertIsNone(got, target)
+            self.assertEqual(notes, {"symbolic": target})
+        # through evaluate_upstream: no upstream, and the reason names the symbolic ref
+        out = "%s\0refs/heads/evil\0commit\0%s\0\0\n" % (want, SHA)
+        r = scripted_runner(lambda repo, a: ("exit", 0, out if a[0] == "for-each-ref" else "", ""))
+        rec = {"remotes": [{"name": "origin", "_name": "origin", "fetch": "ok"}], "head_before": SHA, "kind": "root",
+               "branch": "dev", "initialised": True}
+        repo = type("Repo", (), {"rec": rec, "abspath": "/r"})()
+        E.evaluate_upstream(r, repo, "dev")
+        self.assertEqual(rec["upstream_state"], "none")
+        self.assertIsNone(rec["target"])
+        self.assertIn("symbolic-tracking-ref:origin", E.reasons_for(rec, False, "dev"))
+        self.assertIn("no-upstream-dev", E.reasons_for(rec, False, "dev"))
+        # golden-FALSE: an ordinary (non-symbolic) exact ref is still the upstream, and no symbolic reason
+        out2 = "%s\0\0commit\0%s\0\0\n" % (want, SHA)
+        r = scripted_runner(lambda repo, a: ("exit", 0, out2 if a[0] == "for-each-ref" else "0\t0\n", ""))
+        rec2 = dict(rec, remotes=[{"name": "origin", "_name": "origin", "fetch": "ok"}])
+        repo2 = type("Repo", (), {"rec": rec2, "abspath": "/r"})()
+        E.evaluate_upstream(r, repo2, "dev")
+        self.assertEqual(rec2["target"], SHA)
+        self.assertNotIn("symbolic-tracking-ref:origin", E.reasons_for(rec2, False, "dev"))
+
+    def pin(self, contains_out, branch="main", target=None, remotes=("origin",)):
+        def answer(repo_, a):
+            if a[0] == "rev-parse":
+                return "exit", 0, SHA + "\n", ""
+            if a[0] == "for-each-ref":
+                return "exit", 0, contains_out, ""
+            if a[0] == "merge-base":
+                return "exit", 0, "", ""
+            return "exit", 0, "0\t1\n", ""
+        r = scripted_runner(answer)
+        rec = {"remotes": [{"name": n, "_name": n, "_url": "file:///x/" + n} for n in remotes], "head_before": SHA,
+               "_branch_wanted": branch, "target": target}
+        repo = type("Repo", (), {"rec": rec, "abspath": "/r"})()
+        E.evaluate_pin(r, repo, SHA, ["HelixDevelopment"])
+        return rec["pin"]["state"], r
+
+    def test_contains_list_drops_symbolic_lines(self):  # RV12-1, the pin half (the false CURRENT of the hook mode)
+        st, r = self.pin("refs/remotes/origin/main\0refs/heads/local\n")
+        self.assertEqual(st, "not-on-any-remote")
+        self.assertIn(("/r", ("for-each-ref", "--contains", SHA + "^{commit}", "--format=" + E.FER_CONTAINS_FORMAT,
+                              "refs/remotes")), r.seen)
+        st, _ = self.pin("refs/remotes/origin/main\0refs/heads/local\nrefs/remotes/origin/feature\0\n")
+        self.assertEqual(st, "not-on-main")
+        # golden-FALSE: the ordinary refs/remotes/origin/HEAD symref beside the real main changes nothing
+        st, _ = self.pin("refs/remotes/origin/HEAD\0refs/remotes/origin/main\nrefs/remotes/origin/main\0\n", target=SHA)
+        self.assertEqual(st, "at-main")
+        # malformed output is no answer, never "not on any remote"
+        for out in ("refs/remotes/origin/main\n", "refs/heads/x\0\n", "a\0b\0c\n"):
+            st, _ = self.pin(out)
+            self.assertEqual(st, "unknown", repr(out))
+
+    def test_main_is_matched_exactly_never_by_prefix(self):  # RV12-8 (reviewer mutant RV12F), F13 both directions
+        for refs in ("refs/remotes/origin/main-x\0\n", "refs/remotes/origin/main/y\0\n",
+                     "refs/remotes/origin/feature/main\0\n", "refs/remotes/origin/mainx\0\n",
+                     "refs/remotes/origin/main-x\0\nrefs/remotes/origin/main/y\0\n"):
+            st, _ = self.pin(refs, target="b" * 40)
+            self.assertEqual(st, "not-on-main", repr(refs))
+        st, _ = self.pin("refs/remotes/origin/main\0\n", target=SHA)
+        self.assertEqual(st, "at-main")
+
+    def test_git_env_pins_literal_pathspecs(self):  # RV12-2: the caller's pathspec grammar never reaches git
+        for given in ({}, {"GIT_ICASE_PATHSPECS": "1"}, {"GIT_GLOB_PATHSPECS": "1"}, {"GIT_NOGLOB_PATHSPECS": "1"},
+                      {"GIT_LITERAL_PATHSPECS": "0"}, {"GIT_ICASE_PATHSPECS": "1", "GIT_GLOB_PATHSPECS": "1"}):
+            env = E.git_env(dict(given, PATH="/usr/bin"))
+            self.assertEqual(env.get("GIT_LITERAL_PATHSPECS"), "1", given)
+            for k in ("GIT_ICASE_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS"):
+                self.assertNotIn(k, env, given)
+        r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
+        self.assertEqual((r.env["GIT_LITERAL_PATHSPECS"], r.env_repo_ssh["GIT_LITERAL_PATHSPECS"]), ("1", "1"))
+
+    def verify(self, before, after, answer=True):
+        parent = E.Repo("/nonexistent/p", ".", 0, None)
+        repo = E.Repo("/nonexistent/p/lib[1]", "lib[1]", 1, parent)
+        repo.rec.update(path_in_parent="lib[1]")
+        r = scripted_runner(lambda repo_, a: ("exit", 0, after, "") if answer else ("signal", 9, "", ""))
+        return E.stage_pin_verified(r, repo, "b" * 40, before)
+
+    def test_stage_pin_is_verified_on_the_index(self):  # RV12-2: exactly one entry may change, to the target
+        A, B, L = SHA, "b" * 40, "c" * 40
+        ent = lambda m, s, p, st="0": "%s %s %s\t%s\0" % (m, s, st, p)
+        base = ent("160000", A, "lib[1]") + ent("160000", A, "lib1") + ent("100644", A, "README")
+        exact = ent("160000", B, "lib[1]") + ent("160000", A, "lib1") + ent("100644", A, "README")
+        self.assertEqual(self.verify(base, exact), ("exact", []))
+        # a second gitlink staged at the user's local commit (the 'lib[1]' glob shape of the reviewer's probe)
+        self.assertEqual(self.verify(base, ent("160000", B, "lib[1]") + ent("160000", L, "lib1") + ent("100644", A, "README")),
+                         ("other-entries", ["lib1"]))
+        # the intended one NOT staged, another one staged (the GIT_ICASE_PATHSPECS shape)
+        self.assertEqual(self.verify(base, ent("160000", A, "lib[1]") + ent("160000", L, "lib1") + ent("100644", A, "README")),
+                         ("other-entries", ["lib1"]))
+        self.assertEqual(self.verify(base, base), ("not-staged", []))  # git said 0 and staged nothing
+        self.assertEqual(self.verify(base, ent("100644", B, "lib[1]") + ent("160000", A, "lib1") + ent("100644", A, "README")),
+                         ("not-staged", []))  # not a gitlink
+        self.assertEqual(self.verify(base, ent("160000", B, "lib[1]") + ent("160000", A, "lib1")),
+                         ("other-entries", ["README"]))  # an entry removed
+        self.assertEqual(self.verify(base, exact + ent("160000", B, "lib[1]", "1")), ("not-staged", []))  # a conflict stage
+        self.assertEqual(self.verify(base, exact, answer=False), ("no-answer", []))
+
+    def test_index_entries(self):
+        raw = "160000 %s 0\tlib[1]\x00100644 %s 0\ta b\x00" % (SHA, "b" * 40)
+        self.assertEqual(E.index_entries(raw), {("lib[1]", "0"): ("160000", SHA, "0"),
+                                                ("a b", "0"): ("100644", "b" * 40, "0")})
 
 
 if __name__ == "__main__":

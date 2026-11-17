@@ -12,7 +12,7 @@ The table holds M01-M73 (the fixers' own mutants), K01-K17 and R1-R6 (the round-
 X01-X07 and X02b (the round-3 reviewer's mutants, verbatim), N01-N25 (the round-4 fixer's own mutants), V01-V24 (the
 round-4 reviewer's mutants), P01-P34 (the round-5 fixer's own mutants), RR01-RR40 (the round-5 reviewer's
 mutants, ids R01-R40 renamed so they do not clash with the round-2 R1-R6; RR37 and RR38 re-anchored to the
-round-6 text) Q01-Q19 (the round-6 fixer's own mutants), RV6A-RV6G (the round-6 reviewer's mutants, verbatim anchors), S01-S14 (the round-7 fixer's own mutants), RV7A-RV7L (the round-7 reviewer's mutants) T01-T17 (the round-8 fixer's own mutants), W01-W10 (the round-8 reviewer's mutants), U01-U18 (the round-9 fixer's own mutants), Z01, Z04, Z07, Z11, Z12 (the round-9 reviewer's mutants, anchors verbatim) and Y01-Y09, Y12, Y13 (the round-10 fixer's own mutants), AC01-AC11 with the controls CX1 (must survive, in EQUIVALENT) and CX2 (must die) (the round-11 reviewer's mutants, anchors verbatim) and AD01-AD13 (the round-12 fixer's own mutants); round 12 re-anchored M04, M05, M38 and R1 (same meaning: the merge / checkout shape now requires '<id>^{commit}', _exact_obj); round 9 re-anchored M70, X06, N01, V05, V07, V13, P24, P27, RR38, Q05, Q09, RV6F, S02, S03, S09, S10, RV7E, T02, T13, W04 and W06 (same meaning; the lines they mutated were replaced by the path-access layer, the lock sets and the settled end_write); round 8 re-anchored RR14, RR38, Q04, Q05, Q09, Q18, RV6F, S01-S04, S09, S10 and RV7A, RV7B, RV7C, RV7E, RV7I (same meaning; the marker lines they mutated were replaced by begin_write / end_write); M32, M58, M37b were re-anchored in round 6 (same
+round-6 text) Q01-Q19 (the round-6 fixer's own mutants), RV6A-RV6G (the round-6 reviewer's mutants, verbatim anchors), S01-S14 (the round-7 fixer's own mutants), RV7A-RV7L (the round-7 reviewer's mutants) T01-T17 (the round-8 fixer's own mutants), W01-W10 (the round-8 reviewer's mutants), U01-U18 (the round-9 fixer's own mutants), Z01, Z04, Z07, Z11, Z12 (the round-9 reviewer's mutants, anchors verbatim) and Y01-Y09, Y12, Y13 (the round-10 fixer's own mutants), AC01-AC11 with the controls CX1 (must survive, in EQUIVALENT) and CX2 (must die) (the round-11 reviewer's mutants, anchors verbatim) and AD01-AD13 (the round-12 fixer's own mutants); RV12A-RV12I and the control RVCX2 (the round-12 reviewer's mutants, re-anchored to the round-13 text, same meaning) and AE01-AE14 (the round-13 fixer's own mutants); round 13 re-anchored AD03 and AD13 (the exact lookup now passes `notes` and reads 6 fields); round 12 re-anchored M04, M05, M38 and R1 (same meaning: the merge / checkout shape now requires '<id>^{commit}', _exact_obj); round 9 re-anchored M70, X06, N01, V05, V07, V13, P24, P27, RR38, Q05, Q09, RV6F, S02, S03, S09, S10, RV7E, T02, T13, W04 and W06 (same meaning; the lines they mutated were replaced by the path-access layer, the lock sets and the settled end_write); round 8 re-anchored RR14, RR38, Q04, Q05, Q09, Q18, RV6F, S01-S04, S09, S10 and RV7A, RV7B, RV7C, RV7E, RV7I (same meaning; the marker lines they mutated were replaced by begin_write / end_write); M32, M58, M37b were re-anchored in round 6 (same
 meaning); anchors follow the round-5 text (M08,
 M27, M53, M58, M67, M37b, M72, X05, X07, N07, N11-N14, V13, V21, V22 were re-anchored, same meaning). X04, N22 and N23 change the process-group guard and therefore only ever run the static
 gate and the unit suite (whose KillGroup tests replace the engine's ``os`` with a recorder; section 11.4.263).
@@ -38,6 +38,8 @@ REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 ENGINE = os.path.join(REPO, "scripts", "sync", "sync_all_upstreams.py")
 WRAPPER = os.path.join(REPO, "scripts", "sync", "sync_all_upstreams.sh")
 
+R13S = ['unit', 'robustness:symref,pin_symref,pathspec,head_file,stage_verify,pre_index', 'robustness:ref_exact,checkout_exact,objvis',
+        'integration', 'security', 'hardening']
 # (id, what it breaks, old, new, suite run when the unit suite does not kill it)
 MUTANTS = [
     ('M01', '+refspec allowed',
@@ -1093,7 +1095,7 @@ MUTANTS = [
     ('AD02', 'resolve_ref_exact takes the first listed ref, not the exact refname (a child stands in)',
      '    hits = [x for x in rows if x[0] == ref]', '    hits = rows[:1]', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
     ('AD03', 'evaluate_upstream back to the DWIM rev-parse lookup',
-     '        res, sha = resolve_ref_exact(r, p, "refs/remotes/%s/%s" % (rem["_name"], branch))',
+     '        res, sha = resolve_ref_exact(r, p, "refs/remotes/%s/%s" % (rem["_name"], branch), notes)',
      '        res = r.run(p, ["rev-parse", "--verify", "-q", "refs/remotes/%s/%s^{commit}" % (rem["_name"], branch)],\n                    ok=(0, 1), want=SHA_RE)\n        sha = res.text()', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
     ('AD04', 'check_object_names never called', '    check_object_names(sub, rest)\n', '', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
     ('AD05', 'git_env drops the object-visibility pin', '    env.update(OBJECT_VISIBILITY_PIN)\n', '', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
@@ -1115,7 +1117,71 @@ MUTANTS = [
     ('AD12', 'merge passes the bare id again',
      '["merge", "--ff-only", obj(target)]', '["merge", "--ff-only", target]', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
     ('AD13', 'the malformed-row check dropped (a short row is read as no hit)',
-     '    if any(len(x) != 5 for x in rows):', '    if False:', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+     '    if any(len(x) != 6 for x in rows):', '    if False:', ['unit', 'robustness:ref_exact,checkout_exact,objvis']),
+    # ── review round 13: the round-12 reviewer's mutants (probes/rv_mutants.py), re-anchored to the round-13 text
+    #    (same meaning; RV12C/RV12D/RV12E/RV12F SURVIVED the round-12 table), then the round-13 fixer's own AE01-AE14
+    ('RV12A', 'resolve_ref_exact takes a ref to ANY non-tag object (tree/blob) as the upstream commit id',
+     '    if kind == "commit":\n        return res, sha\n    if kind == "tag" and pkind == "commit":',
+     '    if kind != "tag":\n        return res, sha\n    if kind == "tag" and pkind == "commit":', R13S),
+    ('RV12B', 'obj() wraps ANY string as <x>^{commit} (a ref name becomes a rev expression)',
+     'return sha + "^{commit}" if isinstance(sha, str) and SHA_RE.fullmatch(sha) else INVALID_OBJ',
+     'return sha + "^{commit}" if isinstance(sha, str) else INVALID_OBJ', R13S),
+    ('RV12C', 'rev-list shape: any "--count <name>" accepted (a DWIM name reaches rev-list)',
+     'if rest == ["--count", "HEAD", "--"] or rest == ["--left-right", "--count", "HEAD...HEAD", "--"] or \\',
+     'if rest[:1] == ["--count"] or rest == ["--left-right", "--count", "HEAD...HEAD", "--"] or \\', R13S),
+    ('RV12D', 'for-each-ref --contains: the format/pattern half of the shape no longer checked',
+     'and rest[2:] == ["--format=" + FER_CONTAINS_FORMAT, "refs/remotes"]) or \\',
+     ') or \\', R13S),
+    ('RV12E', 'merge-base --is-ancestor: the second object no longer checked',
+     'if len(rest) == 3 and rest[0] == "--is-ancestor" and _exact_obj(rest[1]) and _exact_obj(rest[2]):',
+     'if len(rest) == 3 and rest[0] == "--is-ancestor" and _exact_obj(rest[1]):', R13S),
+    ('RV12F', 'evaluate_pin: a remote ref counts as main by PREFIX (refs/remotes/o/main-x, .../main/y)',
+     '        elif not [x for x in refs if x in mains]:',
+     '        elif not [x for x in refs if any(x.startswith(m) for m in mains)]:', R13S),
+    ('RV12G', 'resolve_ref_exact: the id-shape check of the hit dropped (only the 2-line check kept)',
+     'if len(hits) > 1 or any(not SHA_RE.match(x[3]) or (x[5] and not SHA_RE.match(x[5])) for x in hits):',
+     'if len(hits) > 1:', R13S),
+    ('RV12H', 'ls-tree -r -z: any third argument accepted (a ref name reaches ls-tree)',
+     '(len(rest) == 3 and rest[:2] == ["-r", "-z"] and (rest[2] == "HEAD" or _exact_obj(rest[2]))) or \\',
+     '(len(rest) == 3 and rest[:2] == ["-r", "-z"]) or \\', R13S),
+    ('RV12I', 'rev-parse --verify -q: any third argument accepted',
+     'if (len(rest) == 3 and rest[:2] == ["--verify", "-q"] and (rest[2] == "HEAD^{commit}" or _exact_obj(rest[2]))) \\',
+     'if (len(rest) == 3 and rest[:2] == ["--verify", "-q"]) \\', R13S),
+    ('RVCX2', 'CONTROL (must DIE): _exact_obj accepts any string',
+     'return isinstance(x, str) and bool(EXACT_OBJ_RE.fullmatch(x))', 'return isinstance(x, str)', R13S),
+    ('AE01', 'resolve_ref_exact: a symbolic hit is read as the ref (its target\'s id is the upstream)',
+     '    if symref:\n        if isinstance(notes, dict):', '    if False:\n        if isinstance(notes, dict):', R13S),
+    ('AE02', 'contained_refs keeps symbolic lines (a symbolic ref makes a pin "on a remote")',
+     '    return [x[0] for x in rows if not x[1]]', '    return [x[0] for x in rows]', R13S),
+    ('AE03', 'git_env no longer pins GIT_LITERAL_PATHSPECS=1 (the add path is a pattern again)',
+     '    env.update(PATH_LITERAL_PIN)\n', '', R13S),
+    ('AE04', 'the caller\'s pathspec variables are no longer scrubbed (GIT_ICASE_PATHSPECS reaches git)',
+     '          "GIT_LITERAL_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS", "GIT_ICASE_PATHSPECS",\n', '', R13S),
+    ('AE05', 'the stage-pin is never verified on the index (git said 0 is enough)',
+     '        verdict, others = stage_pin_verified(r, repo, target, pre_parent[0])',
+     '        verdict, others = "exact", []', R13S),
+    ('AE06', 'stage_pin_verified ignores other changed entries',
+     '    if others:\n        return "other-entries", others', '    if False:\n        return "other-entries", others', R13S),
+    ('AE07', 'count_range drops the trailing -- (a file named HEAD / an id is ambiguous)',
+     '["rev-list", "--left-right", "--count", "%s...%s" % (obj(a), obj(b)), "--"]',
+     '["rev-list", "--left-right", "--count", "%s...%s" % (obj(a), obj(b))]', R13S),
+    ('AE08', 'ls-files shape no longer closed (any argument, a pathspec included, accepted)',
+     '        if rest in (["-s", "-z"], ["-z", "--others", "--ignored", "--exclude-standard"]):\n            return',
+     '        if True:\n            return', R13S),
+    ('AE09', 'contained_refs accepts lines of the wrong shape as refs (no "no answer")',
+     '    if any(len(x) != 2 or not x[0].startswith("refs/remotes/") for x in rows):', '    if False:', R13S),
+    ('AE10', 'evaluate_upstream no longer records a symbolic tracking ref (no reason given)',
+     '            rem["symbolic_tracking_ref"] = True', '            pass', R13S),
+    ('AE11', 'stage_pin_verified ignores the intended entry (a wrong id at the path is accepted)',
+     '    if after.get((path, "0")) != ("160000", target, "0") or [k for k in after if k[0] == path and k[1] != "0"]:',
+     '    if False:', R13S),
+    ('AE12', 'the pre-add index read failing is ignored (verification against nothing)',
+     '        if index_gitlinks(r, repo.parent.abspath, final=True, raw=pre_parent) is None:\n            act["why"] = "unresolved:stage-pin-pre-index"',
+     '        if index_gitlinks(r, repo.parent.abspath, final=True, raw=pre_parent) is None and False:\n            act["why"] = "unresolved:stage-pin-pre-index"', R13S),
+    ('AE13', 'control_needle rev-list drops its trailing -- (blind on a file named HEAD)',
+     '["rev-list", "--count", "HEAD", "--"]', '["rev-list", "--count", "HEAD"]', R13S),
+    ('AE14', 'the exact lookup format no longer reads %(symref) (6-field rows broken: every lookup no answer)',
+     'FER_EXACT_FORMAT = "%(refname)%00%(symref)%00%(objecttype)', 'FER_EXACT_FORMAT = "%(refname)%00%(objecttype)', R13S),
 ]
 # id -> proof. A mutant listed here may survive; it is reported EQUIVALENT, never KILLED.
 # M59 is no longer listed (round 4): its round-2 proof ended with "head_after = head_before (None)", which stopped

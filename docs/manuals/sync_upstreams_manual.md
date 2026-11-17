@@ -174,6 +174,7 @@ the engine cannot read counts as in progress: `<name>?unreadable`),
 `unreachable:<remote>`, `invalid-remote-name`, `upstreams-diverged`, `root-not-on-<branch>`,
 `no-upstream-<branch>` (no remote has `<branch>`, or there is no remote: never `current`),
 `tag-rejected:<remote>`, `local-ahead`, `local-diverged`, `pin-unfetchable`, `pin-not-on-any-remote`, `pin-not-on-main`,
+`symbolic-tracking-ref:<remote>`, `stage-pin-not-exact:<other-entries|not-staged>`,
 `pin-checkout-drifted`, `head-unreadable` (HEAD could not be read as a full object id: unborn, an error,
 empty or odd output; the repository is never integrated), `ignored-file-would-be-overwritten`, `gitlink-modified:<path>`,
 `upstream-branch-gone:<remote>`, `kept-on-branch:<follow-pin|advance-pin>` (a submodule on a local branch was
@@ -256,6 +257,32 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   merge-base, ls-tree and for-each-ref (a closed list), so a bare id or a ref name never reaches git. A local
   tag or branch literally named `refs/remotes/origin/dev` therefore never stands in for a deleted upstream:
   the branch is reported `no-upstream-dev` and nothing moves.
+* Symbolic refs (review round 13, RV12-1). An exact refname is not an exact VALUE: `git symbolic-ref
+  refs/remotes/origin/dev refs/heads/evil` gives the exact name the value of a local branch (or a tag, or another
+  remote's ref), and `for-each-ref --contains` lists such a ref under its own name (measured, git 2.53,
+  `docs/qa/sync_upstreams_2026_11_17_r13/ground_truth/gt_raw_git.txt`). Both for-each-ref formats therefore read
+  `%(refname)%00%(symref)` first (`FER_EXACT_FORMAT`, `FER_CONTAINS_FORMAT`). `resolve_ref_exact()` gives no
+  commit for a symbolic hit and the remote is reported `symbolic-tracking-ref:<remote>` (with
+  `no-upstream-<branch>` when no other remote has the branch); `contained_refs()` drops symbolic lines from the
+  `--contains` answer, so a symbolic ref never makes a pin `at-main` or "on a remote" (`pin-not-on-any-remote`),
+  and a line of the wrong shape (not two fields, or a refname outside `refs/remotes/`) is no answer, never "no
+  ref". `refs/remotes/<remote>/HEAD`, symbolic in every clone, is dropped the same way and changes nothing.
+* Literal paths (review round 13, RV12-2). git reads a path argument as a PATHSPEC: globs (`lib[1]` matches
+  `lib1`), magic (`:!x`), `GIT_GLOB_PATHSPECS` / `GIT_ICASE_PATHSPECS`, and `core.ignoreCase`. Every git call
+  runs with `GIT_LITERAL_PATHSPECS=1` (`PATH_LITERAL_PIN`); the caller's `GIT_LITERAL_PATHSPECS`,
+  `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS` and `GIT_ICASE_PATHSPECS` are dropped first, because git refuses
+  LITERAL combined with GLOB or ICASE (rc 128, measured). The stage-pin is `add -- <path>`; after it,
+  `stage_pin_verified()` reads the parent's index again and compares it with the index read just before the
+  add: exactly one entry may differ, `<path>` at stage 0 as `160000 <target>`. Otherwise the action fails with
+  `why` `stage-pin-not-exact:other-entries` (the other paths in `staged_other`) or
+  `stage-pin-not-exact:not-staged`, the parent's record carries `stage_pin_not_exact`, the reason
+  `stage-pin-not-exact:<verdict>` is reported, and the run is not `applied`; an index that cannot be read before
+  or after is `unresolved:stage-pin-pre-index` / `unresolved:stage-pin-verify`. Nothing is unstaged or reset.
+* Unambiguous revisions (review round 13, RV12-3). `rev-list --count HEAD` is ambiguous (rc 128) when a work-tree
+  file is named `HEAD`; every rev-list shape the allow-list accepts ends with `--` (`--count HEAD --`,
+  `--left-right --count A...B --`), and `checkout --detach <id>^{commit}` takes no pathspec (measured with a tracked
+  file of that exact name, `ground_truth/gt_checkout_detach.txt`). The allow-list also closes the shapes of
+  `ls-files` (`-s -z`, `-z --others --ignored --exclude-standard`) and `status` (the `STATUS_ARGS` shape, or bare `status` with no argument, which takes no path).
 * Real history (review round 12, RV11-2). A replace ref (`git replace --graft U L`) or a graft
   (`<git dir>/info/grafts`, `GIT_GRAFT_FILE`) can make a local commit look like an ancestor of the upstream,
   and a fast-forward would then drop it. Every git call runs with `GIT_NO_REPLACE_OBJECTS=1` and

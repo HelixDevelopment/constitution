@@ -1416,6 +1416,24 @@ def c_refused_stage_pin_leaves_no_marker(box):
         ok("refused_stage.before.not_staged", box2.git(work2, "ls-files", "-s", "libs/a").split()[1] == s1b)
     finally:
         box2.cleanup()
+    # review round 13 (mutant S04): since RV12-2 the stop above is refused at the parent's pre-add index read, so
+    # the marker site's own pre-check is no longer reached there. The stop lands right AFTER that read answered: the
+    # stage-pin marker must still never be written, the add never runs, the pin is not staged
+    box3 = Box("refused_stage_after_pre_index")
+    try:
+        work3, s1c, s2c, r1c = pin_behind_tree(box3)
+        rc4, so4, se4, drv4, rep4 = inproc(box3, "hardstop-after-pre-index", "--apply", "--advance-pins",
+                                           "--root", work3, "--quiet")
+        pin3 = [x for x in (rec(rep4, "libs/a") or {}).get("actions") or [] if x.get("op") == "advance-pin"]
+        ok("refused_stage.after_pre_index.fired", drv4.get("fired") == [os.path.realpath(work3)], drv4)
+        ok("refused_stage.after_pre_index.stage_marker_never_written", drv4.get("markers") == ["advance-pin"], drv4)
+        ok("refused_stage.after_pre_index.no_parent_marker", not os.path.exists(os.path.join(work3, ".git", MARKER)))
+        ok("refused_stage.after_pre_index.not_staged",
+           box3.git(work3, "ls-files", "-s", "libs/a").split()[1] == s1c)
+        ok("refused_stage.after_pre_index.reported_unresolved",
+           bool(pin3) and str(pin3[-1].get("why", "")).startswith("unresolved:"), pin3)
+    finally:
+        box3.cleanup()
 
 
 def c_marker_and_lock_on_clean_tree(box):
@@ -2740,6 +2758,288 @@ def c_object_visibility(box):
         b.cleanup()
 
 
+# ───────── review round 13: ref names git does not take literally, paths git reads as patterns ─────────
+def symref_tree(b, kind, name):
+    """A root on dev, origin/dev at A (fetched), and a local-only commit X on refs/heads/evil. Then the remote-tracking
+    ref refs/remotes/origin/dev is made a SYMBOLIC ref: to refs/heads/evil ('branch'), to a tag at X ('tag'), or to
+    another remote's ref refs/remotes/other/dev at X ('other'). for-each-ref prints the exact refname for it but the
+    value is the target's (measured, git 2.53, ground_truth/gt_raw_git.txt). Returns (work, before, x)."""
+    r_url, r_seed = b.bare("HelixDevelopment", name)
+    b.git(r_seed, "push", "-q", "origin", "HEAD:refs/heads/dev")
+    work = b.clone(r_url, "c_" + name)
+    b.git(work, "checkout", "-q", "-b", "dev", "--track", "origin/dev")
+    before = b.git(work, "rev-parse", "HEAD")
+    b.git(work, "checkout", "-q", "-b", "evil")
+    with open(os.path.join(work, "LOCAL"), "w") as f:
+        f.write("local only\n")
+    b.git(work, "add", "LOCAL")
+    b.git(work, "commit", "-q", "-m", "local only X")
+    x = b.git(work, "rev-parse", "HEAD")
+    b.git(work, "checkout", "-q", "dev")
+    if kind == "branch":
+        b.git(work, "symbolic-ref", "refs/remotes/origin/dev", "refs/heads/evil")
+    elif kind == "tag":
+        b.git(work, "tag", "t-evil", x)
+        b.git(work, "symbolic-ref", "refs/remotes/origin/dev", "refs/tags/t-evil")
+    else:
+        b.git(work, "update-ref", "refs/remotes/other/dev", x)
+        b.git(work, "symbolic-ref", "refs/remotes/origin/dev", "refs/remotes/other/dev")
+    return work, before, x
+
+
+def c_symbolic_tracking_ref(box):
+    """RV12-1 (round-12 reviewer, probes/p_symref.py): a SYMBOLIC ref at the exact name refs/remotes/<r>/<b> is not
+    the upstream. Its value is whatever it points at (a local branch, a tag, another remote's ref), so the remote has
+    no readable <b>: nothing moves, exit 4, reasons symbolic-tracking-ref:origin and no-upstream-dev, in every mode.
+    r12: --apply --no-fetch fast-forwarded dev to the local commit X (rc 0), --check / --dry-run said 'behind'
+    (rc 3). Golden-FALSE (section 11.4.201(1)): every clone carries the symbolic ref refs/remotes/origin/HEAD; an
+    ordinary behind tree with it still fast-forwards (exit 0)."""
+    for kind in ("branch", "tag", "other"):
+        for mode in (["--apply", "--no-fetch"], ["--check", "--no-fetch"], ["--dry-run"], ["--apply"]):
+            m = "_".join(x.lstrip("-") for x in mode)
+            tag = "symref.%s.%s" % (kind, m)
+            b = Box("sy_%s_%s" % (kind, m))
+            try:
+                work, before, x = symref_tree(b, kind, "sy")
+                rc, so, se, rep, _ = b.run(*(mode + ["--branch", "dev", "--root", work, "--quiet"]), timeout=300)
+                head = b.git(work, "rev-parse", "HEAD")
+                rs = reasons_of(rep)
+                ok(tag + ".not_moved", head == before, "head %s x %s" % (head, x))
+                ok(tag + ".never_the_target", head != x)
+                if mode == ["--apply"]:
+                    # the fetch rewrites the ref as a plain remote-tracking ref of the real remote (which has dev at
+                    # A = the local dev): the honest outcome is 'current', exit 0, still never X
+                    ok(tag + ".exit_0_or_4", rc in (0, 4), "rc=%s %s %s" % (rc, rs, se[-200:]))
+                else:
+                    ok(tag + ".exit_4", rc == 4, "rc=%s %s" % (rc, se[-200:]))
+                    ok(tag + ".reason_symbolic", "symbolic-tracking-ref:origin" in rs, rs)
+                    ok(tag + ".reason_no_upstream", "no-upstream-dev" in rs, rs)
+            except Exception as e:
+                ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+            finally:
+                b.cleanup()
+    tag = "symref.golden_false"
+    b = Box("sy_gf")
+    try:
+        work, gd, common, args = branch_tree(b, "plain", "dev", name="sygf")
+        b.git(work, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/dev", check=False)
+        ok(tag + ".origin_head_is_symbolic",
+           b.git(work, "symbolic-ref", "-q", "refs/remotes/origin/HEAD", check=False) != "")
+        rc, so, se, rep, _ = b.run(*args, timeout=300)
+        assert_moved(tag, b, work, rc, se, "dev")
+    except Exception as e:
+        ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+    finally:
+        b.cleanup()
+
+
+def pushed_local_pin_tree(b, symref):
+    """A parent whose committed AND pushed gitlink for 'sub' is a commit L that exists only in the submodule's local
+    branch 'local' (never pushed). With symref, the submodule's refs/remotes/origin/main is a SYMBOLIC ref to
+    refs/heads/local, so 'for-each-ref --contains L refs/remotes' lists origin/main. Returns (work, L)."""
+    s_url, s_seed = b.bare("HelixDevelopment", "sub")
+    r_url, r_seed = b.bare("HelixDevelopment", "par")
+    b.add_sub(r_seed, s_url, "sub")
+    work = b.clone(r_url, "c_par")
+    sp = os.path.join(work, "sub")
+    b.git(sp, "checkout", "-q", "-b", "local")
+    with open(os.path.join(sp, "LOCAL"), "w") as f:
+        f.write("local only\n")
+    b.git(sp, "add", "LOCAL")
+    b.git(sp, "commit", "-q", "-m", "local only L")
+    L = b.git(sp, "rev-parse", "HEAD")
+    b.git(work, "add", "--", "sub")
+    b.git(work, "commit", "-q", "-m", "pin sub at local-only L")
+    b.git(work, "push", "-q", "origin", "HEAD:main")
+    if symref:
+        b.git(sp, "symbolic-ref", "refs/remotes/origin/main", "refs/heads/local")
+    return work, L
+
+
+def c_pin_symbolic_ref(box):
+    """RV12-1, second half (round-12 reviewer, probes/p_pinsym_pushed.py): a gitlink is 'on a remote' only through
+    a REAL remote-tracking ref. A symbolic refs/remotes/origin/main that points at a local branch holding the pin
+    does not make the pin fetchable: --check --no-fetch reports the pin not-on-any-remote, exit 4. r12: state
+    at-main, exit 0 CURRENT. Control (the same tree without the symbolic ref): not-on-any-remote, exit 4 (both
+    versions)."""
+    for symref in (True, False):
+        tag = "pin_symref.%s" % ("symbolic" if symref else "control")
+        b = Box("ps_%s" % symref)
+        try:
+            work, L = pushed_local_pin_tree(b, symref)
+            rc, so, se, rep, _ = b.run("--check", "--no-fetch", "--root", work, "--quiet", timeout=300)
+            pin = (rec(rep, "sub") or {}).get("pin") or {}
+            ok(tag + ".exit_4", rc == 4, "rc=%s %s" % (rc, se[-200:]))
+            ok(tag + ".pin_not_on_any_remote", pin.get("state") == "not-on-any-remote", pin)
+            ok(tag + ".reason", "pin-not-on-any-remote" in reasons_of(rep), reasons_of(rep))
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
+def two_sub_tree(b, a_path, b_path, name):
+    """A parent with two own-org submodules at the paths a_path and b_path. Then A's upstream moves (the parent's pin
+    of A is behind A's main: --advance-pins stages it), and B gets a LOCAL commit on a branch (B's checkout differs
+    from its pin; never to be staged). Returns (work, a_new, b_pin, b_local)."""
+    a_url, a_seed = b.bare("HelixDevelopment", name + "a")
+    s_url, s_seed = b.bare("HelixDevelopment", name + "b")
+    r_url, r_seed = b.bare("HelixDevelopment", name + "r")
+    b.add_sub(r_seed, a_url, a_path)
+    b.add_sub(r_seed, s_url, b_path)
+    work = b.clone(r_url, "c_" + name)
+    a_new = b.commit(a_seed, "a moves")
+    bp = os.path.join(work, b_path)
+    b_pin = b.git(bp, "rev-parse", "HEAD")
+    b.git(bp, "checkout", "-q", "-B", "main")
+    with open(os.path.join(bp, "LOCAL"), "w") as f:
+        f.write("local only\n")
+    b.git(bp, "add", "LOCAL")
+    b.git(bp, "commit", "-q", "-m", "local B")
+    return work, a_new, b_pin, b.git(bp, "rev-parse", "HEAD")
+
+
+def staged(b, work, path):
+    for line in b.git(work, "ls-files", "-s", "-z").split("\0"):
+        meta, _, p = line.partition("\t")
+        if p == path:
+            return meta.split()[1]
+    return None
+
+
+def c_pathspec_literal(box):
+    """RV12-2 (round-12 reviewer, probes/p_pathspec.py, p_icase_wrap.py, p_magic.py): the stage-pin 'git add --
+    <path>' is a PATHSPEC; without GIT_LITERAL_PATHSPECS=1 git matches globs (lib[1] also matches lib1, lib* also
+    libB), magic, and the caller's GIT_ICASE_PATHSPECS (lib also matches LIB). Only the advanced pin A is staged;
+    B's local commit is never staged. r12: B staged in each shape. Shapes: lib[1]/lib1, lib*/libB, lib/LIB with
+    GIT_ICASE_PATHSPECS=1 through the wrapper (the wrapper does not drop it) and given to the engine directly.
+    Golden-FALSE: liba/libb (no pattern character), the same result as before the change."""
+    for shape, a_path, b_path, env in (("bracket", "lib[1]", "lib1", None), ("star", "lib*", "libB", None),
+                                       ("icase_wrapper", "lib", "LIB", {"GIT_ICASE_PATHSPECS": "1"}),
+                                       ("icase_direct", "lib", "LIB", {"GIT_ICASE_PATHSPECS": "1"}),
+                                       ("golden_false", "liba", "libb", None)):
+        tag = "pathspec." + shape
+        b = Box("pl_" + shape)
+        try:
+            work, a_new, b_pin, b_local = two_sub_tree(b, a_path, b_path, "pl")
+            args = ["--apply", "--advance-pins", "--root", work, "--quiet"]
+            if shape == "icase_direct":
+                argv, o = b.engine_argv(*args)
+                argv = [PY, "-I", engine_py()] + argv[2:] + ["--out", o]
+                r = subprocess.run(argv, env=dict(b.env, **env), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True, timeout=300)
+                rc, se = r.returncode, r.stderr
+            else:
+                rc, so, se, rep, _ = b.run(*args, env=env, timeout=300)
+            ok(tag + ".a_staged_new", staged(b, work, a_path) == a_new, "a %s want %s" % (staged(b, work, a_path),
+                                                                              a_new))
+            ok(tag + ".b_not_staged", staged(b, work, b_path) == b_pin,
+               "b %s pin %s local %s" % (staged(b, work, b_path), b_pin, b_local))
+            ok(tag + ".exit_4", rc == 4, "rc=%s %s" % (rc, se[-200:]))  # B's local-ahead is ATTENTION
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
+def c_head_file(box):
+    """RV12-3 (round-12 reviewer, probes/p_extra.py head_file): a tracked work-tree FILE named HEAD makes
+    'git rev-list --count HEAD' ambiguous (rc 128: 'ambiguous argument'); every rev-list shape ends with '--'.
+    r12: exit 6 BLIND (unresolved:rev-list:rc:128) on a current tree. Now: exit 0 CURRENT."""
+    tag = "head_file"
+    try:
+        r_url, r_seed = box.bare("HelixDevelopment", "hf")
+        with open(os.path.join(r_seed, "HEAD"), "w") as f:
+            f.write("a file named HEAD\n")
+        box.git(r_seed, "add", "--", "HEAD")
+        box.git(r_seed, "commit", "-q", "-m", "file named HEAD")
+        box.git(r_seed, "push", "-q", "origin", "HEAD:main")
+        work = box.clone(r_url, "c_hf")
+        for mode in (["--check", "--no-fetch"], ["--check"], ["--apply"]):
+            rc, so, se, rep, _ = box.run(*(mode + ["--root", work, "--quiet"]), timeout=300)
+            m = "_".join(x.lstrip("-") for x in mode)
+            ok(tag + "." + m + ".exit_0", rc == 0, "rc=%s %s %s" % (rc, reasons_of(rep), se[-200:]))
+            ok(tag + "." + m + ".no_unresolved", not [x for x in reasons_of(rep) if x.startswith("unresolved")],
+               reasons_of(rep))
+    except Exception as e:
+        ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+
+
+def c_stage_pin_verified(box):
+    """RV12-2, the generic guard: after the stage-pin add, the parent's index must differ from its state before the
+    add in EXACTLY the gitlink. Fixture: the race shim (a user) writes and stages a file in the parent at the
+    engine's add. The engine cannot claim it staged only the pin: the action is failed with
+    'stage-pin-not-exact:other-entries' naming the other path, a non-zero exit, the user's staged file kept as
+    staged. Control: the same tree without the action stages the pin and reports no such reason."""
+    for racing in (True, False):
+        tag = "stage_verify.%s" % ("race" if racing else "control")
+        b = Box("sv_%s" % racing)
+        try:
+            work, s1, s2, r1 = pin_behind_tree(b)
+            env, pre = None, None
+            if racing:
+                env = race_env(b, "stage-path", "add@" + os.path.realpath(work), work, SXR_FILE="user_staged.txt")
+                pre = b.shim()
+            rc, so, se, rep, _ = b.run("--apply", "--advance-pins", "--root", work, "--quiet", env=env,
+                                       path_prefix=pre, timeout=300)
+            rs = reasons_of(rep)
+            acts = [a for a in (rec(rep, "libs/a") or {}).get("actions") or [] if a.get("op") == "advance-pin"]
+            if racing:
+                ok(tag + ".fired", os.path.exists(b.p("mark")))
+                ok(tag + ".reason", "stage-pin-not-exact:other-entries" in rs, rs)
+                ok(tag + ".why", bool(acts) and acts[-1].get("why") == "stage-pin-not-exact:other-entries", acts)
+                ok(tag + ".names_other", bool(acts) and "user_staged.txt" in (acts[-1].get("staged_other") or []),
+                   acts)
+                ok(tag + ".nonzero", rc != 0, "rc=%s" % rc)
+                ok(tag + ".not_applied", (rep or {}).get("verdict") not in (None, "APPLIED"), (rep or {}).get("verdict"))
+                ok(tag + ".user_file_still_staged", staged(b, work, "user_staged.txt") is not None)
+            else:
+                ok(tag + ".exit_0", rc == 0, "rc=%s %s %s" % (rc, rs, se[-200:]))
+                ok(tag + ".no_reason", not [x for x in rs if x.startswith("stage-pin-not-exact")], rs)
+                ok(tag + ".staged_target", staged(b, work, "libs/a") == s2)
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
+def c_stage_pin_pre_index_unread(box):
+    """RV12-2 (round 13, mutant AE12): the parent's index read BEFORE the stage-pin add gives no answer. Fixture: the
+    race shim plants a harmless file at the child's checkout, and every later 'ls-files' hangs 75 s, past the
+    engine's local limit (--timeout 15: a local read gets max(15, 60) = 60 s). The engine must not stage the pin
+    against nothing: the action records 'unresolved:stage-pin-pre-index' with no add run, the parent's index keeps
+    the old gitlink, the run is not APPLIED and exits non-zero. Control: the same tree with no shim stages the pin (rc 0)."""
+    for hang in (True, False):
+        tag = "pre_index.%s" % ("hang" if hang else "control")
+        b = Box("pi_%s" % hang)
+        try:
+            work, s1, s2, r1 = pin_behind_tree(b)
+            sub = os.path.realpath(os.path.join(work, "libs/a"))
+            env, pre = None, None
+            if hang:
+                env = race_env(b, "plant", "checkout@" + sub, work, SXR_PLANT=b.p("planted_nothing"),
+                               SXR_HANG_AFTER="ls-files:75")
+                pre = b.shim()
+            rc, so, se, rep, _ = b.run("--apply", "--advance-pins", "--root", work, "--quiet", "--timeout", "15",
+                                       env=env, path_prefix=pre, timeout=400)
+            acts = [a for a in (rec(rep, "libs/a") or {}).get("actions") or [] if a.get("op") == "advance-pin"]
+            if hang:
+                ok(tag + ".fired", os.path.exists(b.p("mark")))
+                ok(tag + ".why", bool(acts) and acts[-1].get("why") == "unresolved:stage-pin-pre-index", acts)
+                ok(tag + ".no_add_ran", bool(acts) and "staged_rc" not in acts[-1], acts)
+                ok(tag + ".index_kept_old_pin", staged(b, work, "libs/a") == s1, staged(b, work, "libs/a"))
+                ok(tag + ".nonzero", rc != 0, "rc=%s" % rc)
+                ok(tag + ".not_applied", (rep or {}).get("verdict") not in (None, "APPLIED"),
+                   (rep or {}).get("verdict"))
+            else:
+                ok(tag + ".exit_0", rc == 0, "rc=%s %s" % (rc, se[-200:]))
+                ok(tag + ".staged_target", staged(b, work, "libs/a") == s2)
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
 CHECKS = [
     ("race_commit", c_race_commit_detached_sub), ("race_switch", c_race_switch_root_branch),
     ("race_sub_branch", c_race_branch_in_sub), ("race_control", c_race_control_commit_on_main),
@@ -2787,6 +3087,9 @@ CHECKS = [
     # review round 12
     ("ref_exact", c_ref_resolution_exact), ("checkout_exact", c_checkout_target_exact),
     ("objvis", c_object_visibility),
+    # review round 13
+    ("symref", c_symbolic_tracking_ref), ("pin_symref", c_pin_symbolic_ref), ("pathspec", c_pathspec_literal),
+    ("head_file", c_head_file), ("stage_verify", c_stage_pin_verified), ("pre_index", c_stage_pin_pre_index_unread),
 ]
 
 

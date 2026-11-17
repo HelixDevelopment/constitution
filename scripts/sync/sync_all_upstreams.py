@@ -76,8 +76,15 @@ HEADS = "refs/heads/"
 # refs/remotes/<r>/<b>' falls back to refs/tags/<name> and refs/heads/<name> when the exact ref is absent (RV11-1).
 EXACT_OBJ_RE = re.compile(r"^[0-9a-f]{40}([0-9a-f]{24})?\^\{commit\}$")
 INVALID_OBJ = "<not-an-object-id>"  # what obj() gives for anything that is not an id: check_git_args refuses it
-# the fields of the exact lookup, NUL-separated: refname, type, id, peeled type, peeled id (one line per ref)
-FER_EXACT_FORMAT = "%(refname)%00%(objecttype)%00%(objectname)%00%(*objecttype)%00%(*objectname)"
+# the fields of the exact lookup, NUL-separated: refname, symref target, type, id, peeled type, peeled id (one line
+# per ref). Review round 13 (RV12-1): %(symref) is read in the SAME line as the id. A symbolic ref at the exact name
+# (refs/remotes/<r>/<b> -> refs/heads/x, or -> a tag) has that refname, and its %(objectname) is its TARGET's; so a
+# line whose symref field is not empty is never an upstream answer (resolve_ref_exact reports it 'symbolic').
+FER_EXACT_FORMAT = "%(refname)%00%(symref)%00%(objecttype)%00%(objectname)%00%(*objecttype)%00%(*objectname)"
+# the fields of the pin's ancestry lookup ('for-each-ref --contains'), NUL-separated: refname, symref target. A
+# symbolic line names its TARGET's history under its own name (raw git 2.53: a local-only commit is "contained in"
+# a symbolic refs/remotes/origin/main pointing at a local branch); evaluate_pin drops every symbolic line.
+FER_CONTAINS_FORMAT = "%(refname)%00%(symref)"
 # Characters git never allows in a ref name (git check-ref-format, rule 4 and 5): ASCII control characters, space,
 # ~ ^ : ? * [ and backslash. Used by valid_branch_name() for a name read from git and for --branch (review round 11).
 _REF_BAD_CHARS = re.compile(r"[\x00-\x20\x7f~^:?*\[\\]")
@@ -178,8 +185,8 @@ def exact_remote_ref(ref):
 def check_object_names(sub, rest):
     """The exact-name rule of review round 12, for every subcommand that names an object or a ref: the whole
     argument vector is one of a CLOSED set of shapes, and every object in it is HEAD or an obj() name. Raises
-    GitRefused otherwise. Subcommands that name no object (status, ls-files, config, remote, symbolic-ref -q HEAD,
-    add, fetch) are not checked here."""
+    GitRefused otherwise. ls-files and status (review round 13, RV12-5) have their closed shapes here too; the others
+    (config, remote, symbolic-ref -q HEAD, add, fetch) are checked by check_git_args itself."""
     if sub == "rev-parse":
         if (len(rest) == 3 and rest[:2] == ["--verify", "-q"] and (rest[2] == "HEAD^{commit}" or _exact_obj(rest[2]))) \
                 or rest in (["--show-toplevel"], ["--path-format=absolute", "--git-common-dir"],
@@ -188,11 +195,14 @@ def check_object_names(sub, rest):
             return
         raise GitRefused("rev-parse: only --verify -q HEAD^{commit}|<id>^{commit} and the path queries")
     if sub == "rev-list":
-        rng = rest[2].split("...") if len(rest) == 3 else []
-        if rest == ["--count", "HEAD"] or rest == ["--left-right", "--count", "HEAD...HEAD"] or \
-                (rest[:2] == ["--left-right", "--count"] and len(rng) == 2 and all(_exact_obj(x) for x in rng)):
+        # every shape ends with '--' (review round 13, RV12-3): without it git dies 128 "ambiguous argument 'HEAD':
+        # both revision and filename" when the work tree has a file named HEAD (raw git 2.53, ground_truth/)
+        rng = rest[2].split("...") if len(rest) == 4 else []
+        if rest == ["--count", "HEAD", "--"] or rest == ["--left-right", "--count", "HEAD...HEAD", "--"] or \
+                (len(rest) == 4 and rest[:2] == ["--left-right", "--count"] and rest[3] == "--" and len(rng) == 2
+                 and all(_exact_obj(x) for x in rng)):
             return
-        raise GitRefused("rev-list: only --left-right --count <id>^{commit}...<id>^{commit} and the HEAD needles")
+        raise GitRefused("rev-list: only --left-right --count <id>^{commit}...<id>^{commit} -- and the HEAD needles")
     if sub == "merge-base":
         if len(rest) == 3 and rest[0] == "--is-ancestor" and _exact_obj(rest[1]) and _exact_obj(rest[2]):
             return
@@ -204,10 +214,18 @@ def check_object_names(sub, rest):
         raise GitRefused("ls-tree: only -r -z [--name-only --full-tree] HEAD|<id>^{commit}")
     if sub == "for-each-ref":
         if (len(rest) == 4 and rest[0] == "--contains" and _exact_obj(rest[1])
-                and rest[2:] == ["--format=%(refname)", "refs/remotes"]) or \
+                and rest[2:] == ["--format=" + FER_CONTAINS_FORMAT, "refs/remotes"]) or \
                 (len(rest) == 2 and rest[0] == "--format=" + FER_EXACT_FORMAT and exact_remote_ref(rest[1])):
             return
         raise GitRefused("for-each-ref: only --contains <id>^{commit} under refs/remotes, or the exact lookup")
+    if sub == "ls-files":  # review round 13 (RV12-5): the two shapes the engine uses, nothing else
+        if rest in (["-s", "-z"], ["-z", "--others", "--ignored", "--exclude-standard"]):
+            return
+        raise GitRefused("ls-files: only -s -z, or -z --others --ignored --exclude-standard")
+    if sub == "status":  # the engine's one shape; bare 'status' (no option, no path) stays for the runner tests
+        if rest in (STATUS_ARGS[1:], []):
+            return
+        raise GitRefused("status: only " + " ".join(STATUS_ARGS))
 
 
 def git_argv(git_bin, repo, args):
@@ -601,6 +619,13 @@ def proc_kill_group(p, grace):
 # then the pin is set. Shallow boundaries are not neutralised: they only REMOVE edges, which makes the engine see
 # less ancestry (diverged / attention), never more. Ground truth: docs/qa/sync_upstreams_2026_11_16_r12/.
 OBJECT_VISIBILITY_PIN = (("GIT_NO_REPLACE_OBJECTS", "1"), ("GIT_GRAFT_FILE", "/dev/null"))
+# Paths are literal (review round 13, RV12-2): every path the engine gives git ('add -- <gitlink path>') is a PATH,
+# never a pathspec pattern. Without the pin, glob characters ('lib[1]', 'lib*'), magic (':!x' = every path but x)
+# and the caller's GIT_ICASE_PATHSPECS / GIT_GLOB_PATHSPECS made 'add' stage OTHER gitlinks or miss the intended one
+# (raw git 2.53, ground_truth/). The caller's four pathspec variables are scrubbed first (_SCRUB): git refuses
+# GIT_LITERAL_PATHSPECS together with any other global pathspec setting. write_git also VERIFIES after the add that
+# exactly one index entry changed (stage_pin_verified), whatever grammar or config (core.ignoreCase) git applied.
+PATH_LITERAL_PIN = (("GIT_LITERAL_PATHSPECS", "1"),)
 _SCRUB = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR",
           "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_EXEC_PATH", "GIT_SSH", "GIT_ASKPASS",
           "SSH_ASKPASS", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_PROXY_COMMAND",
@@ -609,6 +634,8 @@ _SCRUB = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", 
           # review round 11 (RV10-3): the rest of the repository-locating list CL_GIT_SCRUB_VARS of
           # scripts/lib/constitution_layout.sh (a unit test asserts this tuple holds every name of that list)
           "GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS",
+          # review round 13 (RV12-2): pathspec grammar of the caller; PATH_LITERAL_PIN is set after the scrub
+          "GIT_LITERAL_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS", "GIT_ICASE_PATHSPECS",
           # review round 4: GIT_ALLOW_PROTOCOL beats -c protocol.ext.allow=never (ground truth row D2);
           # GIT_PROTOCOL_FROM_USER changes what protocol.*.allow=user means (D5); SSH_ASKPASS_REQUIRE can force
           # the ssh askpass (set below); GIT_SSL_NO_VERIFY turns TLS verification off
@@ -631,6 +658,7 @@ def git_env(base=None):
     env["LC_ALL"] = "C"
     env["LANG"] = "C"
     env.update(OBJECT_VISIBILITY_PIN)
+    env.update(PATH_LITERAL_PIN)
     return env
 
 
@@ -833,7 +861,7 @@ def is_ancestor(r, repo, a, b):
 
 def count_range(r, repo, a, b):
     """(ahead_of_b, behind_b) for a vs b, or None (no answer, recorded)."""
-    out = g_out(r, repo, ["rev-list", "--left-right", "--count", "%s...%s" % (obj(a), obj(b))], ok=(0,), want=TWO_COUNTS_RE)
+    out = g_out(r, repo, ["rev-list", "--left-right", "--count", "%s...%s" % (obj(a), obj(b)), "--"], ok=(0,), want=TWO_COUNTS_RE)
     if out is None:
         return None
     parts = out.split()
@@ -1483,26 +1511,32 @@ def fetch_repo(r, repo, tags):
             rem["branch_gone_upstream"] = True
 
 
-def resolve_ref_exact(r, repo, ref):
+def resolve_ref_exact(r, repo, ref, notes=None):
     """(GitResult, commit id or None) of the EXACT ref ``ref`` (review round 12, RV11-1). for-each-ref lists the
     ref and its children; only a line whose refname IS ``ref`` counts, so no lookup rule (refs/tags/<name>,
     refs/heads/<name>, ...) can stand in for an absent ref. A ref to a commit gives its id; to an annotated tag, the
     commit the tag peels to; to anything else, None (the 'rev-parse <ref>^{commit}' answer 'no such commit').
+    A SYMBOLIC ref at the exact name (review round 13, RV12-1) gives None and, when ``notes`` is a dict,
+    notes['symbolic'] = its target: its id is the target's (a local branch, a tag), never the remote's.
     Output of the wrong shape, or two lines for the one ref, is NO ANSWER (recorded), never 'absent'."""
     res = r.run(repo, ["for-each-ref", "--format=" + FER_EXACT_FORMAT, ref], ok=(0,))
     if not res.answered:
         return res, None
     rows = [x.split("\0") for x in res.out.split("\n") if x]
-    if any(len(x) != 5 for x in rows):
+    if any(len(x) != 6 for x in rows):
         r.no_answer(repo, "for-each-ref", "malformed-output")
         return GitResult(False, res.rc, res.out, res.err, "malformed-output"), None
     hits = [x for x in rows if x[0] == ref]
-    if len(hits) > 1 or any(not SHA_RE.match(x[2]) or (x[4] and not SHA_RE.match(x[4])) for x in hits):
+    if len(hits) > 1 or any(not SHA_RE.match(x[3]) or (x[5] and not SHA_RE.match(x[5])) for x in hits):
         r.no_answer(repo, "for-each-ref", "malformed-output")
         return GitResult(False, res.rc, res.out, res.err, "malformed-output"), None
     if not hits:
         return res, None
-    _, kind, sha, pkind, psha = hits[0]
+    _, symref, kind, sha, pkind, psha = hits[0]
+    if symref:
+        if isinstance(notes, dict):
+            notes["symbolic"] = symref
+        return res, None
     if kind == "commit":
         return res, sha
     if kind == "tag" and pkind == "commit":
@@ -1518,7 +1552,8 @@ def evaluate_upstream(r, repo, branch):
     for rem in rec["remotes"]:
         if rem.get("state") == "invalid-name":
             continue
-        res, sha = resolve_ref_exact(r, p, "refs/remotes/%s/%s" % (rem["_name"], branch))
+        notes = {}
+        res, sha = resolve_ref_exact(r, p, "refs/remotes/%s/%s" % (rem["_name"], branch), notes)
         if not res.answered:  # no answer is not "no main" (review round 6, RV5-6): the remote's state is unknown
             rem["main_sha"] = None
             rem["state"] = rem["fetch"] if rem.get("fetch") in ("not-fetched-interrupted", "deadline") else "unknown"
@@ -1532,6 +1567,8 @@ def evaluate_upstream(r, repo, branch):
             rem["stale_tracking_ref"] = bool(sha)
             sha = None
         rem["main_sha"] = sha
+        if notes.get("symbolic"):  # review round 13 (RV12-1): never an upstream; reported by name, never silent
+            rem["symbolic_tracking_ref"] = True
         if rem.get("fetch") in ("failed", "timeout", "no-answer"):
             rem["state"] = "unreachable"
         elif rem.get("fetch") == "deadline":
@@ -1567,6 +1604,19 @@ def evaluate_upstream(r, repo, branch):
         rec["behind_target"] = None
 
 
+def contained_refs(r, repo, res):
+    """The NON-symbolic refnames of a 'for-each-ref --contains --format=FER_CONTAINS_FORMAT refs/remotes' answer
+    (review round 13, RV12-1), or None when there is no answer. A symbolic line names its target's history under
+    its own name and is dropped; a line of the wrong shape is no answer (recorded), never "no ref"."""
+    if not res.answered:
+        return None
+    rows = [x.split("\0") for x in res.out.split("\n") if x]
+    if any(len(x) != 2 or not x[0].startswith("refs/remotes/") for x in rows):
+        r.no_answer(repo, "for-each-ref", "malformed-output")
+        return None
+    return [x[0] for x in rows if not x[1]]
+
+
 def evaluate_pin(r, repo, gitlink, own_orgs):
     """Pin state of a submodule repo against its recorded gitlink (from the parent)."""
     rec = repo.rec
@@ -1585,8 +1635,9 @@ def evaluate_pin(r, repo, gitlink, own_orgs):
     elif not present:
         pin["state"] = "unfetchable"
     else:
-        res = r.run(p, ["for-each-ref", "--contains", obj(gitlink), "--format=%(refname)", "refs/remotes"], ok=(0,))
-        refs = [x for x in res.out.split() if x] if res.answered else None
+        res = r.run(p, ["for-each-ref", "--contains", obj(gitlink), "--format=" + FER_CONTAINS_FORMAT, "refs/remotes"],
+                    ok=(0,))
+        refs = contained_refs(r, p, res)
         branch = rec.get("_branch_wanted", "main")
         # exact match (F13): refs/remotes/<remote>/feature/main is NOT <remote>'s main
         mains = {"refs/remotes/%s/%s" % (m.get("_name"), branch) for m in rec.get("remotes", [])
@@ -1637,6 +1688,8 @@ def reasons_for(rec, strict_pins, branch):
         reasons.append("write-killed:" + rec["write_killed"])
     if rec.get("write_left_changes"):
         reasons.append("write-left-changes:" + rec["write_left_changes"])
+    if rec.get("stage_pin_not_exact"):
+        reasons.append("stage-pin-not-exact:" + rec["stage_pin_not_exact"])
     if rec.get("not_followed"):
         reasons.append("not-followed:update-" + rec["not_followed"])
     if rec.get("head_unreadable"):
@@ -1650,6 +1703,8 @@ def reasons_for(rec, strict_pins, branch):
             reasons.append("tag-rejected:" + rem["name"])
         if rem.get("stale_tracking_ref"):
             reasons.append("upstream-branch-gone:" + rem["name"])
+        if rem.get("symbolic_tracking_ref"):
+            reasons.append("symbolic-tracking-ref:" + rem["name"])
     if rec.get("upstream_state") == "upstreams-diverged":
         reasons.append("upstreams-diverged")
     if rec["kind"] == "root" and rec.get("branch") != branch:
@@ -1813,6 +1868,38 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
                 repo.rec["head_unreadable"] = True
 
 
+def index_entries(raw):
+    """{path: (mode, id, stage)} of every entry of an 'ls-files -s -z' output (paths are NUL-terminated, unquoted)."""
+    out = {}
+    for x in raw.split("\0"):
+        if not x:
+            continue
+        meta, _, path = x.partition("\t")
+        f = meta.split()
+        out[(path, f[2] if len(f) == 3 else "?")] = tuple(f)
+    return out
+
+
+def stage_pin_verified(r, repo, target, pre_raw):
+    """('exact', []) when the parent's index, read now, differs from ``pre_raw`` (its 'ls-files -s -z' before the
+    add) in EXACTLY one entry: the gitlink at path_in_parent, now '160000 <target> 0' (review round 13, RV12-2).
+    ('other-entries', paths) when anything else changed, ('not-staged', []) when the intended entry is not the target,
+    ('no-answer', []) when the index could not be read (recorded). The generic guard for any grammar or config git
+    applied to the path (pathspec patterns, magic, GIT_*_PATHSPECS, core.ignoreCase)."""
+    raw = []
+    if index_gitlinks(r, repo.parent.abspath, final=True, raw=raw) is None:
+        return "no-answer", []
+    before, after = index_entries(pre_raw), index_entries(raw[0])
+    path = repo.rec["path_in_parent"]
+    changed = sorted({k for k in set(before) | set(after) if before.get(k) != after.get(k)})
+    others = sorted({k[0] for k in changed if k[0] != path})
+    if others:
+        return "other-entries", others
+    if after.get((path, "0")) != ("160000", target, "0") or [k for k in after if k[0] == path and k[1] != "0"]:
+        return "not-staged", []
+    return "exact", []
+
+
 def write_git(r, repo, op, target):
     """The ONE guarded writer: every merge / checkout / add of the engine runs here, after the guards.
     op: 'fast-forward' (merge --ff-only), 'advance-pin' (checkout --detach, then stage the gitlink in the parent),
@@ -1958,6 +2045,12 @@ def write_git(r, repo, op, target):
         # the second half of the same consented write: runs even after a stop signal (final); a stop signal never
         # ends it, only its own --write-timeout does (SIGTERM first, then SIGKILL; write-killed:stage-pin)
         pgitdir = repo.parent.rec.get("_gitdir") or ""
+        # the parent's whole index, read NOW (review round 13, RV12-2): after the add, exactly one entry may differ
+        pre_parent = []
+        if index_gitlinks(r, repo.parent.abspath, final=True, raw=pre_parent) is None:
+            act["why"] = "unresolved:stage-pin-pre-index"
+            rec["actions"].append(act)
+            return "no-answer"
         tok2, why2 = begin_write(r, pgitdir, "stage-pin", target, final=True)
         if why2:
             act["why"] = why2
@@ -1994,6 +2087,19 @@ def write_git(r, repo, op, target):
                 rec["failed"] = True
                 return "failed"
             return "no-answer"
+        # git said 0: what did it stage? (review round 13, RV12-2) never "updated" on git's word alone
+        verdict, others = stage_pin_verified(r, repo, target, pre_parent[0])
+        if verdict != "exact":
+            act["why"] = ("unresolved:stage-pin-verify" if verdict == "no-answer" else "stage-pin-not-exact:" + verdict)
+            if others:
+                act["staged_other"] = [redact(x) for x in others[:20]]
+            rec["actions"].append(act)
+            if verdict == "no-answer":
+                return "no-answer"
+            repo.parent.rec["stage_pin_not_exact"] = verdict
+            repo.parent.rec["failed"] = True
+            rec["failed"] = True
+            return "failed"
     rec["actions"].append(act)
     return "done"
 
@@ -2165,8 +2271,8 @@ def evidence_file_ours(path, kind):
 
 def control_needle(r, root):
     """§11.4.273: the instrument must see a known count before any zero is believed."""
-    n = g_out(r, root, ["rev-list", "--count", "HEAD"], ok=(0,), want=DIGITS_RE)
-    lr = g_out(r, root, ["rev-list", "--left-right", "--count", "HEAD...HEAD"], ok=(0,), want=TWO_COUNTS_RE)
+    n = g_out(r, root, ["rev-list", "--count", "HEAD", "--"], ok=(0,), want=DIGITS_RE)
+    lr = g_out(r, root, ["rev-list", "--left-right", "--count", "HEAD...HEAD", "--"], ok=(0,), want=TWO_COUNTS_RE)
     ok = bool(n and n.isdigit() and int(n) >= 1 and lr is not None and lr.split() == ["0", "0"])
     return {"probe": "rev-list --count HEAD >= 1 and HEAD...HEAD == 0 0", "count": n, "self_range": lr, "ok": ok}
 

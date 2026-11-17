@@ -7,12 +7,14 @@ double for the user, never for git: every git call still reaches the real binary
 
 Environment (all set by the test; no action without SXR_ACTION and SXR_ON):
   SXR_GIT     the real git binary (absolute path)
-  SXR_ACTION  commit | switch-branch | checkout-branch | touch-file | chmod-out | sigterm-parent | plant
+  SXR_ACTION  commit | switch-branch | checkout-branch | touch-file | stage-path | chmod-out | sigterm-parent | plant
   SXR_ON      '<subcommand>@<realpath of -C directory>': the engine call that triggers the action
   SXR_NTH     trigger on the n-th matching call (default 1)
   SXR_TARGET  the repository (or directory) the user acts in
   SXR_MARK    marker path: the action fires once (O_EXCL); commit writes <mark>.sha
-  SXR_FILE    touch-file: the work-tree file (relative to SXR_TARGET) that is overwritten
+  SXR_FILE    touch-file: the work-tree file (relative to SXR_TARGET) that is overwritten; stage-path: the file
+              that is written and then staged with 'git add' (review round 13: a second index entry changes while
+              the engine stages a pin)
   SXR_PLANT   plant: absolute paths (os.pathsep-separated) of empty regular files created now (a stale lock another
               program left, or a work-tree file; review round 10), parent directories created as needed
   SXR_LOG     optional: every call appends '<subcommand>\t<realpath of -C directory>\t<before|after>' (after =
@@ -72,6 +74,10 @@ def act(action, target, mark):
     elif action == "touch-file":
         with open(os.path.join(target, os.environ["SXR_FILE"]), "w") as f:
             f.write("user edit made while the engine was about to write\n")
+    elif action == "stage-path":
+        with open(os.path.join(target, os.environ["SXR_FILE"]), "w") as f:
+            f.write("user file staged while the engine was staging a pin\n")
+        subprocess.run([REAL, "-C", target, "add", "--", os.environ["SXR_FILE"]], env=env, check=True)
     elif action == "plant":
         for path in [x for x in os.environ.get("SXR_PLANT", "").split(os.pathsep) if x]:
             os.makedirs(os.path.dirname(path), exist_ok=True)

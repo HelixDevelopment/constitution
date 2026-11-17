@@ -144,8 +144,9 @@ SITES = [
     ("read_head", "['rev-parse', '--verify', '-q', 'HEAD^{commit}']", (0, 1), "SHA_RE", "blind"),
     # review round 12 (the ref-resolution class): every object the engine names is obj(<id>) = '<id>^{commit}'
     ("is_ancestor", "['merge-base', '--is-ancestor', obj(a), obj(b)]", (0, 1), "-", "blind"),
-    ("count_range", "['rev-list', '--left-right', '--count', '%s...%s' % (obj(a), obj(b))]", (0,), "TWO_COUNTS_RE",
-     "blind"),
+    # review round 13 (RV12-3): every rev-list shape ends with '--' (a work-tree file named HEAD made it ambiguous)
+    ("count_range", "['rev-list', '--left-right', '--count', '%s...%s' % (obj(a), obj(b)), '--']", (0,),
+     "TWO_COUNTS_RE", "blind"),
     ("commit_present", "['rev-parse', '--verify', '-q', obj(sha)]", (0, 1), "SHA_RE", "blind"),
     ("probe_child", "['rev-parse', '--show-toplevel']", (0,), "ABS_PATH_RE", "blind"),
     ("index_gitlinks", "['ls-files', '-s', '-z']", (0,), "-", "blind"),
@@ -169,16 +170,17 @@ SITES = [
     ("fetch_repo", "fetch_args(rem['_name'], tags)", (0, 1, 128), "-", "unreachable"),
     # review round 12 (RV11-1): the upstream is resolved by the EXACT refname, never by rev-parse's lookup rules
     ("resolve_ref_exact", "['for-each-ref', '--format=' + FER_EXACT_FORMAT, ref]", (0,), "-", "blind"),
-    ("evaluate_pin", "['for-each-ref', '--contains', obj(gitlink), '--format=%(refname)', 'refs/remotes']", (0,),
-     "-", "blind"),
+    # review round 13 (RV12-1): the symref field is read with the refname; a symbolic line is dropped
+    ("evaluate_pin", "['for-each-ref', '--contains', obj(gitlink), '--format=' + FER_CONTAINS_FORMAT, 'refs/remotes']",
+     (0,), "-", "blind"),
     ("write_git", "STATUS_ARGS", (0,), "-", "blind"),
     ("write_git", "['merge', '--ff-only', obj(target)]", (0, 1, 128), "-", "failed"),
     ("write_git", "['checkout', '--quiet', '--detach', obj(target)]", (0, 1, 128), "-", "failed"),
     ("write_git", "['add', '--', rec['path_in_parent']]", (0, 128), "-", "failed"),
     ("ignored_clobbers", "['ls-files', '-z', '--others', '--ignored', '--exclude-standard']", (0,), "-", "blind"),
     ("ignored_clobbers", "['ls-tree', '-r', '-z', '--name-only', '--full-tree', obj(target)]", (0,), "-", "blind"),
-    ("control_needle", "['rev-list', '--count', 'HEAD']", (0,), "DIGITS_RE", "blind"),
-    ("control_needle", "['rev-list', '--left-right', '--count', 'HEAD...HEAD']", (0,), "TWO_COUNTS_RE", "blind"),
+    ("control_needle", "['rev-list', '--count', 'HEAD', '--']", (0,), "DIGITS_RE", "blind"),
+    ("control_needle", "['rev-list', '--left-right', '--count', 'HEAD...HEAD', '--']", (0,), "TWO_COUNTS_RE", "blind"),
     ("main", "['rev-parse', '--show-toplevel']", (0, 128), "ABS_PATH_RE", "start-dir"),
     ("main", "['rev-parse', '--path-format=absolute', '--git-common-dir']", (0,), "ABS_PATH_RE", "blind"),
 ]
@@ -668,6 +670,15 @@ try:
     _ge = E.git_env({"GIT_NO_REPLACE_OBJECTS": "0", "GIT_GRAFT_FILE": "/elsewhere", "PATH": "/usr/bin"})
     if _ge.get("GIT_NO_REPLACE_OBJECTS") != "1" or _ge.get("GIT_GRAFT_FILE") != "/dev/null":
         fails.append("git_env does not pin GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null")
+    # review round 13 (RV12-2): paths are literal; the caller's pathspec grammar never reaches git
+    _gp = E.git_env({"GIT_ICASE_PATHSPECS": "1", "GIT_GLOB_PATHSPECS": "1", "GIT_NOGLOB_PATHSPECS": "1",
+                     "GIT_LITERAL_PATHSPECS": "0", "PATH": "/usr/bin"})
+    if _gp.get("GIT_LITERAL_PATHSPECS") != "1" or any(k in _gp for k in ("GIT_ICASE_PATHSPECS", "GIT_GLOB_PATHSPECS",
+                                                                        "GIT_NOGLOB_PATHSPECS")):
+        fails.append("git_env does not pin GIT_LITERAL_PATHSPECS=1 and drop the caller's other pathspec variables")
+    # review round 13 (RV12-1): the exact lookup and the contains list read the symref field in the same line
+    if "%(symref)" not in getattr(E, "FER_EXACT_FORMAT", "") or getattr(E, "FER_CONTAINS_FORMAT", "") != "%(refname)%00%(symref)":
+        fails.append("FER_EXACT_FORMAT / FER_CONTAINS_FORMAT do not read %(symref) with the refname")
 except Exception as e:
     fails.append("obj() / git_env() not usable: %s" % e)
 
@@ -707,6 +718,14 @@ REFUSE = [["push", "origin", "main"], ["reset", "--hard", S], ["rebase", "origin
           ["ls-tree", "-r", "-z", "--name-only", "--full-tree", S], ["rev-list", "--left-right", "--count", S + "..." + S],
           ["rev-list", "--left-right", "--count", "origin/main...HEAD"], ["for-each-ref", "--contains", S,
           "--format=%(refname)", "refs/remotes"], ["for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/*"],
+          # review round 13: the symref-blind contains format, rev-list without '--', any other ls-files / status
+          ["for-each-ref", "--contains", S + "^{commit}", "--format=%(refname)", "refs/remotes"],
+          ["for-each-ref", "--contains", S + "^{commit}", "--format=" + E.FER_CONTAINS_FORMAT, "refs/heads"],
+          ["rev-list", "--count", "HEAD"], ["rev-list", "--count", "main", "--"],
+          ["rev-list", "--left-right", "--count", "HEAD...HEAD"],
+          ["rev-list", "--left-right", "--count", S + "^{commit}..." + S + "^{commit}"],
+          ["merge-base", "--is-ancestor", S + "^{commit}", "main"],
+          ["ls-files", "--with-tree=main"], ["ls-files", "-s", "-z", "--", "x"], ["status", "--porcelain=v2"],
           ["for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/remotes/o/../x"],
           ["for-each-ref", "--format=" + E.FER_EXACT_FORMAT, "refs/tags/dev"],
           ["for-each-ref", "--format=%(objectname)", "refs/remotes/origin/main"],
@@ -732,10 +751,10 @@ ACCEPT = [FA, FT, STATUS,
           ["symbolic-ref", "-q", "HEAD"], ["config", "--get", "remote.origin.url"],
           ["config", "--get", "core.sshCommand"], ["remote"],
           ["merge-base", "--is-ancestor", S + "^{commit}", S + "^{commit}"],
-          ["rev-list", "--left-right", "--count", S + "^{commit}..." + S + "^{commit}"], ["rev-list", "--count", "HEAD"],
-          ["rev-list", "--left-right", "--count", "HEAD...HEAD"],
+          ["rev-list", "--left-right", "--count", S + "^{commit}..." + S + "^{commit}", "--"],
+          ["rev-list", "--count", "HEAD", "--"], ["rev-list", "--left-right", "--count", "HEAD...HEAD", "--"],
           ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
-          ["for-each-ref", "--contains", S + "^{commit}", "--format=%(refname)", "refs/remotes"]]
+          ["for-each-ref", "--contains", S + "^{commit}", "--format=" + E.FER_CONTAINS_FORMAT, "refs/remotes"]]
 refused = 0
 for a in REFUSE:
     try:
