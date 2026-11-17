@@ -1,0 +1,8 @@
+# pandoc 3.11, markdown-yaml_metadata_block to docx: body 'a \textbf{rawtex} b', blank, line; word/document.xml text runs:
+<w:t xml:space="preserve">a</w:t>
+<w:t xml:space="preserve"> </w:t>
+<w:t xml:space="preserve"> </w:t>
+<w:t xml:space="preserve">b</w:t>
+<w:t xml:space="preserve">Verification:</w:t>
+<w:t xml:space="preserve"> </w:t>
+<w:t xml:space="preserve">provisional x</w:t>

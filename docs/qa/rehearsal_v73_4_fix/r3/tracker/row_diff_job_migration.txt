@@ -1,0 +1,16 @@
+rows before=392 after=392 added=[] removed=[]
+changed CON-159 ['description', 'body_md', 'last_modified']
+changed CON-160 ['description', 'body_md', 'last_modified']
+changed CON-161 ['description', 'body_md', 'last_modified']
+changed CON-162 ['description', 'body_md', 'last_modified']
+table items 392 392
+table item_history 723 727
+table sqlite_sequence 2 2
+table obsolete_details 1 1
+table operator_block_details 2 2
+table firebase_metadata 0 0
+table logic_groups 0 0
+table doc_segments 392 392
+table test_diary 0 0
+table repro_gate_exemptions 0 0
+table meta 4 4

@@ -130,7 +130,7 @@ if [ -z "$_rpg_tok" ] && [ "$DRY" -eq 0 ]; then
   printf 'SKIPPED-NO-TOKEN: env var %s is not set; nothing was published\n' "$TOKEN_VAR" >&2
   exit 3
 fi
-if [ -n "$_rpg_tok" ] && ! [[ $_rpg_tok =~ ^[A-Za-z0-9._~+/=-]{8,200}$ ]]; then
+if [ -n "$_rpg_tok" ] && ! rc_gitea_token_shape_ok "$_rpg_tok"; then
   die "token has characters outside [A-Za-z0-9._~+/=-] or a bad length: refusing" 3
 fi
 

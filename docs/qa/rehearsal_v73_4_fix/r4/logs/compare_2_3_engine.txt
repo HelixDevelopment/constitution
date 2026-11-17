@@ -1,0 +1,7 @@
+SAME-RAW db_copy.db 17beee04ad1ef3be541b18b1216fdc3166f2fa052799360e5ff7ad8b8df25d13
+SAME-RAW derived_cmp.txt 401c3d047430c2cb82036a4f1e92548626f01c80b283c2e2587bf67375867031
+SAME-RAW diff.txt 00ccd513c3054321006ade0b6b541c8535eb5a4b9d5f43d51349224e75a165de
+DIR export (not compared here)
+SAME-NORM export.txt f104e18513ae 4651c1e3f769
+SAME-RAW validate.txt 1c5dd7600d6c7a074d14ea8f032ca3c9bcd3d7b33d6ca715ac5d761d42032dee
+COMPARE files=6 bad=0

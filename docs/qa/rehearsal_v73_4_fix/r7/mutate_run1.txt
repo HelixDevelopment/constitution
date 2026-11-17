@@ -1,0 +1,85 @@
+MUT-RETIRED O20: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O23: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O24: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O25: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O26: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O27: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O32: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O33: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O34: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O35: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O42: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-CONTROL unmutated copy passes api grid linemodel lineend blockstate property timing inventory
+MUT O01 KILLED by grid (rc 1)
+MUT O02 KILLED by property (rc 1)
+MUT O03 KILLED by grid (rc 1)
+MUT O04 KILLED by grid (rc 1)
+MUT O05 KILLED by inventory (rc 1)
+MUT O06 KILLED by grid (rc 1)
+MUT O07 KILLED by grid (rc 1)
+MUT O08 KILLED by grid (rc 1)
+MUT O09 KILLED by grid (rc 1)
+MUT O10 KILLED by grid (rc 1)
+MUT O11 KILLED by grid (rc 1)
+MUT O12 KILLED by grid (rc 1)
+MUT O13 KILLED by grid (rc 1)
+MUT O14 KILLED by grid (rc 1)
+MUT O15 KILLED by api (rc 1)
+MUT O16 KILLED by api (rc 1)
+MUT O17 KILLED by grid (rc 1)
+MUT O18 KILLED by api (rc 1)
+MUT O19 KILLED by api (rc 1)
+MUT O21 KILLED by grid (rc 1)
+MUT O22 KILLED by grid (rc 1)
+MUT O28 KILLED by grid (rc 1)
+MUT O29 KILLED by grid (rc 1)
+MUT O30 KILLED by grid (rc 1)
+MUT O31 KILLED by api (rc 1)
+MUT O36 KILLED by api (rc 1)
+MUT O37 KILLED by api (rc 1)
+MUT O38 KILLED by api (rc 1)
+MUT O39 KILLED by api (rc 1)
+MUT O40 KILLED by api (rc 1)
+MUT O41 KILLED by api (rc 1)
+MUT O43 KILLED by api (rc 1)
+MUT O44 KILLED by api (rc 1)
+MUT O45 KILLED by api (rc 1)
+MUT O46 SURVIVED
+MUT O47 KILLED by api (rc 1)
+MUT O48 SURVIVED
+MUT O49 KILLED by linemodel (rc 1)
+MUT O50 SURVIVED
+MUT O51 KILLED by api (rc 1)
+MUT O52 KILLED by api (rc 1)
+MUT O53 KILLED by api (rc 1)
+MUT O54 KILLED by api (rc 1)
+MUT O55 KILLED by api (rc 1)
+MUT O56 KILLED by api (rc 1)
+MUT O57 KILLED by api (rc 1)
+MUT O58 SURVIVED
+MUT O59 SURVIVED
+MUT O60 SURVIVED
+MUT O61 KILLED by api (rc 1)
+MUT O62 KILLED by linemodel (rc 1)
+MUT O63 KILLED by api (rc 1)
+MUT R15 KILLED by grid (rc 1)
+MUT R19 KILLED by api (rc 1)
+MUT R21 KILLED by api (rc 1)
+MUT N15 KILLED by grid (rc 1)
+MUT N16 KILLED by timing (rc 1)
+MUT RV01 KILLED by property (rc 1)
+MUT RV02 KILLED by grid (rc 1)
+MUT RV03 KILLED by grid (rc 1)
+MUT RV05 KILLED by grid (rc 1)
+MUT RV06 KILLED by grid (rc 1)
+MUT RV08 KILLED by inventory (rc 1)
+MUT RV09 KILLED by grid (rc 1)
+MUT RV10 KILLED by grid (rc 1)
+MUT RV12 KILLED by api (rc 1)
+MUT RW01 KILLED by api (rc 1)
+MUT RW02 KILLED by api (rc 1)
+MUT RW03 SURVIVED
+MUT RW07 KILLED by api (rc 1)
+MUT RW08 KILLED by grid (rc 1)
+MUT RW09 KILLED by api (rc 1)
+MUTATE total=72 killed=65 survived=7 not_applied=0 retired=11 retired_fail=0

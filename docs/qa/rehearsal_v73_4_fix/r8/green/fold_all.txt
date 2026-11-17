@@ -1,0 +1,3 @@
+CONTROL changed=U+13D9 mismatches=1 at=U+13D9
+FOLD-ALL code_points=1112063 mismatches=0 control=1 table_problem=None
+rc=0

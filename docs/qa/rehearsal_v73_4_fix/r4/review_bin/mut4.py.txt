@@ -1,0 +1,14 @@
+import os,subprocess,sys
+ck,grid,work,tsv=sys.argv[1:5]
+src=open(ck,encoding="utf-8").read()
+for ln in open(tsv,encoding="utf-8").read().splitlines():
+    name,old,new=ln.split("\t")
+    old=old.replace("\\n","\n") if name.startswith("O") else old
+    new=new.replace("\\n","\n") if name.startswith("O") else new
+    c=src.count(old)
+    if c!=1:
+        print("%s STALE count=%d"%(name,c)); continue
+    mp=os.path.join(work,"m_%s.py"%name.split("-")[0]); open(mp,"w",encoding="utf-8").write(src.replace(old,new))
+    p=subprocess.run([sys.executable,"-I",grid,mp,work],capture_output=True,text=True)
+    nf=p.stdout.count("GRID-FAIL")
+    print("%s %s rc=%d fails=%d"%(name,"KILLED" if p.returncode==1 else "SURVIVED",p.returncode,nf))

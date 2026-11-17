@@ -1,0 +1,10 @@
+PASS control tag_and_release.sh passes its suite
+PASS control derive_release_facts.sh passes its suite
+PASS control render_release_entry.py passes its suite
+PASS control helixconstitution-v73.4_entry.template.md passes its suite
+PASS control release_publish_gitea.sh passes its suite
+PASS control redact_cut.sh passes its suite
+PASS control env_allow.sh passes its suite
+PASS control channel_census.py passes its suite
+PASS control env_census.py passes its suite
+RESULT: killed=0 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0

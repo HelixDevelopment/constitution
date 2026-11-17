@@ -1,0 +1,36 @@
+== D1-badge
+CON-379|Queued|v73.4 wrap-up: README.md and docs/CONTINUATION.md are stale (badge row, latest tag, remotes, pin table, release table, rev 3 of 2026-11-05)
+== D2-verification-line
+== D3-dryrun
+== D4-prerelease
+CON-416|In progress|GitLab release of a --prerelease cut looked final: mark it by title and description, --no-update, optional released_at, read back through nt (glpre)
+== D5-draft
+CON-382|Queued|v73.4 waiver: record the section 11.4.271 waiver (authoriser, expiry, source) and fix the draft wording 'relaxes (L7)'
+CON-388|Queued|Follow-up filing wave 2 2026-11-15: register the follow-ups the audit found missing (installer SIGPIPE r2 F2/F6, engine created_at register drafts)
+== D6-retest-waiver
+CON-229|In progress|CON-226 follow-up: the v73.4 entry template's waiver wording 'recorded operator override' overclaims a decision that may only be relayed
+CON-230|In progress|CON-226 follow-up: FINAL precondition 2 in the v73.4 template must not accept a section 11.4.271 waiver in place of the section 11.4.185 QA confirmati
+CON-376|Queued|Retest C-5/C-7: traceability and temp-dir leaks of test_check_deps (leaked=6) and repo_verify (leaked=2)
+CON-381|Queued|v73.4: the section 11.4.40 full-suite retest is not registered in the tracker
+CON-382|Queued|v73.4 waiver: record the section 11.4.271 waiver (authoriser, expiry, source) and fix the draft wording 'relaxes (L7)'
+CON-417|In progress|v73.4 entry template asserted the retest never ran and let (L7) ride open: retest_statement key verdict-checked by the renderer, (L7) wording correcte
+CON-421|Queued|CON-417 follow-up: retest_statement is checked by verdict token only; a hand-written PASS-FULL with no log makes the entry read (L6) closed
+CON-422|Queued|CON-416/CON-417 follow-up nits: GL_HOST post-strip check is dead defence (X3), create vs read-back host resolution, leading-whitespace retest_statemen
+== D7-overdue
+== D8-unmerged-refs
+CON-384|Queued|v73.4: the vasic-digital GitHub mirror release API returns 404 (record as a GAP and re-check at tag time)
+== D9-template
+CON-229|In progress|CON-226 follow-up: the v73.4 entry template's waiver wording 'recorded operator override' overclaims a decision that may only be relayed
+CON-230|In progress|CON-226 follow-up: FINAL precondition 2 in the v73.4 template must not accept a section 11.4.271 waiver in place of the section 11.4.185 QA confirmati
+CON-231|In progress|CON-226 follow-up: template fixed status/severity keys let a new value at cut time drop silently from the release entry
+CON-232|In progress|CON-226 follow-up: the shipped-template smoke case in test_render_release_entry.sh is skipped silently unless RRE_FACTS is set
+CON-383|Queued|v73.4: the release template amendment conflicts with fix227 and is neither landed nor reviewed
+CON-417|In progress|v73.4 entry template asserted the retest never ran and let (L7) ride open: retest_statement key verdict-checked by the renderer, (L7) wording correcte
+CON-420|Queued|CON-417 follow-up: template wording guards are fixed-phrase greps; '(L7) is waived' (X12) and a false 'manual-QA confirmation is recorded' (X13) pass 
+== D10-remotes
+== D11-m3w
+CON-233|In progress|CON-226 follow-up: tag_and_release.sh counts gitea publisher exit code 3 as a gap, but rc 3 also covers configuration failures
+CON-412|In progress|Multi-forge release tool: one REST-over-curl entry point (scripts/forge/forge.sh) for GitHub, GitLab, Codeberg, git.m3w.org, GitFlic and GitVerse rele
+== control-CON-226
+CON-226|Ready for testing|v73.4 release tooling: tag_and_release, derive release facts, render release entry, killpg guards (vehicle rel734)
+== negative

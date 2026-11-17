@@ -1,0 +1,50 @@
+ctl_visible                        accept=True  ck_lines=1 mdit=1  
+ctl_hidden_fence                   accept=False ck_lines=0 mdit=0  reason=no '**Verification:** provisional' line
+empty_bullet_star                  accept=True  ck_lines=1 mdit=0 DANGER 
+empty_bullet_plus                  accept=True  ck_lines=1 mdit=0 DANGER 
+empty_ordered_1                    accept=True  ck_lines=1 mdit=0 DANGER 
+empty_ordered_paren                accept=True  ck_lines=1 mdit=0 DANGER 
+list_blank_indent4                 accept=True  ck_lines=1 mdit=0 DANGER 
+list_blank_indent4_ord             accept=True  ck_lines=1 mdit=0 DANGER 
+list_blank_indent5                 accept=True  ck_lines=1 mdit=0 DANGER 
+list_blank_tab                     accept=True  ck_lines=1 mdit=0 DANGER 
+quote_para_then_kind7              accept=True  ck_lines=1 mdit=0 DANGER 
+quote_para_then_kind7_close        accept=True  ck_lines=1 mdit=0 DANGER 
+list_indent_kind7_lazy             accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+setext_quote_eq                    accept=False ck_lines=0 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+quote_empty_bullet                 accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+nested_quote_list                  accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+list_list_blank_code               accept=True  ck_lines=1 mdit=1  
+table_gfm                          accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+linkref                            accept=False ck_lines=0 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+linkref_title_next                 accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+html_kind7_attr_newline            accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+html_comment_inline_in_para        accept=True  ck_lines=1 mdit=1  
+code_span_open                     accept=True  ck_lines=1 mdit=1  
+autolink                           accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+frontmatter                        accept=True  ck_lines=1 mdit=1  
+indented_after_list_blank_code6    accept=True  ck_lines=1 mdit=1  
+label_tag_inside_word_quote        accept=True  ck_lines=1 mdit=1  
+label_comment_inside_word          accept=True  ck_lines=1 mdit=1  
+label_emph_split                   accept=True  ck_lines=1 mdit=1  
+label_hex_entity_quote             accept=False ck_lines=1 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+label_backslash_colon_quote        accept=False ck_lines=1 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+label_named_colon                  accept=False ck_lines=1 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+label_link_wrapped                 accept=False ck_lines=1 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+label_image_alt                    accept=False ck_lines=1 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+label_html_block6_line2            accept=False ck_lines=1 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+label_html_comment_hidden          accept=True  ck_lines=1 mdit=1  
+label_after_hardbreak              accept=False ck_lines=1 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+label_combining                    accept=True  ck_lines=1 mdit=1  
+heading_label                      accept=False ck_lines=1 mdit=1  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+setext_label                       accept=False ck_lines=2 mdit=2  reason=2 verification lines (one expected)
+fence_tab_info                     accept=False ck_lines=0 mdit=0  reason=no '**Verification:** provisional' line
+fence_close_tab_indent             accept=False ck_lines=0 mdit=0  reason=no '**Verification:** provisional' line
+html1_close_other_line             accept=True  ck_lines=1 mdit=1  
+html1_textarea                     accept=False ck_lines=0 mdit=0  reason=no '**Verification:** provisional' line
+html4_decl                         accept=False ck_lines=0 mdit=0  reason=no '**Verification:** provisional' line
+html3_pi                           accept=False ck_lines=0 mdit=0  reason=no '**Verification:** provisional' line
+html5_cdata                        accept=False ck_lines=0 mdit=0  reason=no '**Verification:** provisional' line
+html2_in_list_item                 accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+bom_start                          accept=False ck_lines=0 mdit=0  reason=a line a reader shows carries the Verification label but is not the one counted line (it d
+nul_in_prefix                      accept=False ck_lines=0 mdit=0  reason=no '**Verification:** provisional' line

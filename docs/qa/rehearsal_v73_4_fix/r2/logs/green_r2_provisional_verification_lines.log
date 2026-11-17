@@ -1,0 +1,61 @@
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 4 items, 2 provisional, 2 ok
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 empty field value
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an option: usage exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P4 the database is unchanged
+PASS P5 real database: every Ready-for-testing and In-testing item has a complete line
+PASS P5 the checker counted the same 30 rows (needle: an independent count)
+PASS P5 the real database holds provisional items (control: 30 > 0)
+PASS P6 control: the correct checker refuses the single missing-checks item
+PASS P6 control: the correct checker refuses the single In-testing item
+PASS P6 mutant checks-not-required is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant status-in-testing-dropped is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant blind-check-dropped is caught (rc 0)
+PASS P7 grid: no mismatch
+PASS P7 grid size (needle: the grid really ran its cases)
+PASS P7 M1: the case 'due: .' is in the grid and refused
+PASS P8 mutant empty-check is caught (30 grid cases)
+PASS P8 mutant pv2-strip is caught (18 grid cases)
+PASS P8 mutant punctuation-check is caught (24 grid cases)
+PASS P8 mutant strong-placeholder is caught (78 grid cases)
+PASS P8 mutant unconfirmed-word is caught (18 grid cases)
+PASS P8 mutant weak-placeholder is caught (48 grid cases)
+PASS P8 mutant placeholder-phrase is caught (12 grid cases)
+PASS P8 mutant placeholder-inside is caught (12 grid cases)
+PASS P8 mutant template is caught (18 grid cases)
+PASS P8 mutant nfkc is caught (12 grid cases)
+PASS P8 mutant format-chars is caught (6 grid cases)
+PASS P8 mutant job-shape is caught (1 grid cases)
+PASS P8 mutant checks-shape is caught (1 grid cases)
+PASS P8 mutant target-shape is caught (1 grid cases)
+PASS P8 mutant layer-shape is caught (2 grid cases)
+PASS P8 mutant artifact-shape is caught (2 grid cases)
+PASS P8 mutant due-not-date is caught (8 grid cases)
+PASS P8 mutant due-calendar is caught (3 grid cases)
+PASS P8 mutant due-year-range is caught (2 grid cases)
+PASS P8 mutant due-time is caught (1 grid cases)
+PASS P8 mutant fence-ignored is caught (5 grid cases)
+PASS P8 mutant fence-close-length is caught (1 grid cases)
+PASS P8 mutant colonless-form is caught (3 grid cases)
+PASS P9 job: UNCONFIRMED: refused
+PASS P9 due: TODO refused
+PASS P9 every field TBD refused (the first field is named)
+PASS P9 job: - refused
+PASS P9 due: . refused (reviewer mutant PV2 shape)
+PASS P9 a line inside a code fence does not count
+RESULT: pass=60 fail=0

@@ -1,0 +1,16 @@
+LE-READERS-DIFFER S04 member at the start NEL: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start VT: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start FF: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start LS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start PS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start BOM: pandoc 1 mdit 0
+LE-READERS-DIFFER S04 member at the start FS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start GS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start RS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start US: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start NBSP: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start IDSP: pandoc 0 mdit 1
+LE-READERS-DIFFER S18 self-closing comment opener LF: pandoc 0 mdit 1
+LE-READERS-DIFFER S18 self-closing comment opener CRLF: pandoc 0 mdit 1
+LE-PANDOC shapes without a lone CR where the two readers differ: 14
+LINEEND variants=18720 agree=16630 refused=2090 danger=0 members=30 mdit=3.0.0 pandoc=checked pandoc_cr_blind=yes

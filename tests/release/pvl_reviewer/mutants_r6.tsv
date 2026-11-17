@@ -1,0 +1,54 @@
+# id	file	old (Python literal)	new (Python literal)	what the mutant removes (CON-423 r5 own mutants; run by tests/release/pvl_mutate.py)
+O01	scripts/validation/check_provisional_verification_lines.py	'SEP = re.compile(" (?:--|—) ")'	'SEP = re.compile(" (?:--) ")'	SEP em dash dropped
+O02	scripts/validation/check_provisional_verification_lines.py	'    if not line.startswith(PREFIX):\n'	'    if False:\n'	prefix not required in check_line
+O03	scripts/validation/check_provisional_verification_lines.py	'    if names[:6] != list(FIELDS):\n'	'    if False:\n'	field order not checked
+O04	scripts/validation/check_provisional_verification_lines.py	'        if p == self.root or os.path.commonpath([self.root, p]) != self.root:\n'	'        if p == self.root:\n'	a path may leave the root
+O05	scripts/validation/check_provisional_verification_lines.py	'            return p if os.path.isfile(p) else None\n'	'            return p if os.path.exists(p) else None\n'	a directory counts as a script
+O06	scripts/validation/check_provisional_verification_lines.py	'        if not script.endswith(RUNNERS[runner]):\n'	'        if False:\n'	the runner's extension is not checked
+O07	scripts/validation/check_provisional_verification_lines.py	'                if not m or not ctx.occurs(real, m.group(1)) or'	'                if not m or'	an option need not occur in the script
+O08	scripts/validation/check_provisional_verification_lines.py	'        if toks[0] not in subjects:\n'	'        if False:\n'	a checks subject need not be in the job
+O09	scripts/validation/check_provisional_verification_lines.py	'        if not keys & set(COUNT_KEYS):\n'	'        if False:\n'	a result needs no count
+O10	scripts/validation/check_provisional_verification_lines.py	'(k == "rc" and int(val) > 255)'	'(k == "rc" and int(val) > 999)'	rc may exceed 255
+O11	scripts/validation/check_provisional_verification_lines.py	'    if len(set(words)) != len(words):\n'	'    if False:\n'	a layer may repeat
+O12	scripts/validation/check_provisional_verification_lines.py	'            if (m.group(1), m.group(2)) not in ctx.targets:\n'	'            if False:\n'	a KIND ID need not be in the registry
+O13	scripts/validation/check_provisional_verification_lines.py	'            if not ctx.resolve("upstreams/%s.sh" % m.group(1), True):\n'	'            if False:\n'	a remote needs no upstreams file
+O14	scripts/validation/check_provisional_verification_lines.py	'HEX = r"[0-9a-f]{7,64}"'	'HEX = r"[0-9a-f]{1,64}"'	a hex id may be short
+O15	scripts/validation/check_provisional_verification_lines.py	'    if d < ctx.created:\n'	'    if False:\n'	due may precede creation
+O16	scripts/validation/check_provisional_verification_lines.py	'    if d > last:\n'	'    if False:\n'	due may pass the window
+O17	scripts/validation/check_provisional_verification_lines.py	'        if st not in OPEN_STATUSES:\n'	'        if False:\n'	a tracker job may be closed
+O18	scripts/validation/check_provisional_verification_lines.py	'        if v == ctx.item_id:\n'	'        if False:\n'	a job may name the item itself
+O19	scripts/validation/check_provisional_verification_lines.py	'        if not (" " <= ch <= "~"):\n'	'        if not (" " <= ch <= "\\U0010ffff"):\n'	the alphabet admits every code point
+O20	scripts/validation/check_provisional_verification_lines.py	'    if lines != old:\n'	'    if False:\n'	the two readings are not compared (r6: retargeted, the comparison now reads scan()'s result)
+O21	scripts/validation/check_provisional_verification_lines.py	'    if len(line) > MAX_LINE:\n'	'    if False:\n'	no line length cap
+O22	scripts/validation/check_provisional_verification_lines.py	'(None if re.search(r"[A-Za-z0-9]", raw) else'	'(None if True else'	a note needs no letter or digit
+O23	scripts/validation/check_provisional_verification_lines.py	'(m.group(1)[0] == "`" and "`" in m.group(2))'	'(False)'	a backtick fence may carry a backtick
+O24	scripts/validation/check_provisional_verification_lines.py	'        if has_label(ln) and not (para is None and ln.startswith(PREFIX)'	'        if has_label(ln) and not (ln.startswith(PREFIX)'	a line need not start a paragraph (r6: retargeted; the separate `starts` test was removed as redundant with the near rule)
+O25	scripts/validation/check_provisional_verification_lines.py	'        if ATX.match(ln) or THEMATIC.match(ln):\n            # a heading'	'        if False:\n            # a heading'	a heading or break does not end a container paragraph
+O26	scripts/validation/check_provisional_verification_lines.py	'    if not para and HTML7.match(t):\n'	'    if HTML7.match(t):\n'	kind 7 interrupts a paragraph
+O27	scripts/validation/check_provisional_verification_lines.py	'            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):\n'	'            if m and m.group(1)[0] == fence[0]:\n'	a fence closes on any length
+O28	scripts/validation/check_provisional_verification_lines.py	'            if not ctx.occurs(real, name) or not val_ok(ctx, real, val):\n'	'            if not ctx.occurs(real, name):\n'	an env value need not occur
+O29	scripts/validation/check_provisional_verification_lines.py	'            if not (SELECTOR_RE.fullmatch(a) and ctx.occurs(real, a)):\n'	'            if not SELECTOR_RE.fullmatch(a):\n'	a selector need not occur
+O30	scripts/validation/check_provisional_verification_lines.py	'        return "names an artifact twice"\n'	'        return None\n'	an artifact may repeat
+O31	scripts/validation/check_provisional_verification_lines.py	'LINE_END = re.compile(r"\\r\\n|\\r|\\n")'	'LINE_END = re.compile(r"\\n")'	r6: a lone CR is not a line ending again (review r5 I-1)
+O32	scripts/validation/check_provisional_verification_lines.py	'    if near:\n        return ("a line a reader shows'	'    if False:\n        return ("a line a reader shows'	r6: a labelled line a reader shows outside the counted line is allowed
+O33	scripts/validation/check_provisional_verification_lines.py	'            col += 4 - col % 4\n'	'            col += 1\n'	r6: a tab counts one column (a tab-indented line is not indented code)
+O34	scripts/validation/check_provisional_verification_lines.py	'        if indent <= 3 and THEMATIC.match(ln):\n            # a thematic break takes precedence'	'        if False:\n            # a thematic break takes precedence'	r6: a thematic break no longer takes precedence over a list item
+O35	scripts/validation/check_provisional_verification_lines.py	'        if para == "top" and SETEXT_EQ.match(ln):'	'        if False and SETEXT_EQ.match(ln):'	r6: a setext = underline no longer ends the paragraph
+O36	scripts/validation/check_provisional_verification_lines.py	'            if int(m.group(4)) > 23 or'	'            if False and int(m.group(4)) > 23 or'	r6: hour 24 accepted again (review r5 M-3)
+O37	scripts/validation/check_provisional_verification_lines.py	'    return " ".join(t.split()).casefold()\n'	'    return st\n'	r6: a status is matched exactly again (review r5 M-4)
+O38	scripts/validation/check_provisional_verification_lines.py	'            copy = snapshot_db(os.path.abspath(db), tmp)'	'            copy = os.path.abspath(db)'	r6: the database is opened in place (review r5 M-1: SQLite creates -wal/-shm)
+O39	scripts/validation/check_provisional_verification_lines.py	'            text = fh.read().decode("utf-8")\n'	'            text = fh.read().decode("utf-8", "replace")\n'	r6: a non-UTF-8 registry is read with replacements (review r5 M-2)
+O40	scripts/validation/check_provisional_verification_lines.py	'    if not isinstance(body, str):\n        return "the body is not text'	'    if False:\n        return "the body is not text'	r6: a blob body reaches the line model (review r5 M-2)
+O41	scripts/validation/check_provisional_verification_lines.py	'        elif created is not None and not isinstance(created, str):'	'        elif False:'	r6: an integer created_at reaches the date parser (review r5 M-2)
+O42	scripts/validation/check_provisional_verification_lines.py	'            if k in (6, 7) and has_label(ln):\n                near.append(ln)'	'            if False:\n                near.append(ln)'	r6: a labelled line inside an HTML block of kind 6 or 7 is not reported
+O43	scripts/validation/check_provisional_verification_lines.py	'    t = "".join(CONFUSABLES.get(c, c) for c in t if unicodedata.category(c) != "Cf")\n    return LABEL.search(t)'	'    t = "".join(CONFUSABLES.get(c, c) for c in t)\n    return LABEL.search(t)'	r6: a format character inside the label hides it from the near check
+RW01	scripts/validation/check_provisional_verification_lines.py	'DB_SUFFIXES = ("", "-wal", "-journal")'	'DB_SUFFIXES = ("", "-journal")'	reviewer r6: the -wal file is not copied
+RW02	scripts/validation/check_provisional_verification_lines.py	'LINE_END = re.compile(r"\\r\\n|\\r|\\n")'	'LINE_END = re.compile(r"\\r\\n|\\n")'	reviewer r6: lone CR not a line ending
+RW03	scripts/validation/check_provisional_verification_lines.py	't = unicodedata.normalize("NFKC", html.unescape(s))'	't = unicodedata.normalize("NFKC", s)'	reviewer r6: character references not decoded in the near rule
+RW04	scripts/validation/check_provisional_verification_lines.py	'            if has_label(ln):\n                near.append(ln)\n            fi = fence_open(inner)'	'            if False:\n                near.append(ln)\n            fi = fence_open(inner)'	reviewer r6: labelled quote/list line not reported
+RW05	scripts/validation/check_provisional_verification_lines.py	'            col += 4 - col % 4'	'            col += 1'	reviewer r6: a tab counts one column
+RW06	scripts/validation/check_provisional_verification_lines.py	'        if para == "top" and SETEXT_EQ.match(ln):'	'        if False and para == "top" and SETEXT_EQ.match(ln):'	reviewer r6: setext = underline ignored
+RW07	scripts/validation/check_provisional_verification_lines.py	'    return " ".join(t.split()).casefold()\n'	'    return t.casefold()\n'	reviewer r6: status white space not collapsed
+RW08	scripts/validation/check_provisional_verification_lines.py	'(int(off[1:3]) > 23 or int(off[4:6]) > 59)'	'False'	reviewer r6: offset range unchecked
+RW09	scripts/validation/check_provisional_verification_lines.py	'    if d > last:\n'	'    if d > last + datetime.timedelta(days=1):\n'	reviewer r6: window off by one day
+RW10	scripts/validation/check_provisional_verification_lines.py	'        if indent <= 3 and THEMATIC.match(ln):'	'        if False and indent <= 3 and THEMATIC.match(ln):'	reviewer r6: thematic precedence over list removed

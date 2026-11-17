@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Reviewer-authored mutants (round 2). Each mutant: exact single replacement in a copy beside the original inside
+MUTREPO (a separate clone), then run the matching suite with its override variable; exit != 0 => KILLED.
+Usage: mutants.py MUTREPO OUTFILE [NAME ...]"""
+import os, shutil, subprocess, sys
+
+mut, outp = sys.argv[1], sys.argv[2]
+only = set(sys.argv[3:])
+CK = "scripts/validation/check_provisional_verification_lines.py"
+RRE = "scripts/release/render_release_entry.py"
+TAR = "scripts/release/tag_and_release.sh"
+LIB = "scripts/release/redact_cut.sh"
+M = [
+    ("X1 fence closed by the other fence character", CK,
+     "elif m and m.group(1)[0] == fence[0] and len", "elif m and len", "pvl"),
+    ("X2 fence closed by an opening line with an info string", CK,
+     "len(m.group(1)) >= len(fence) and not ln[m.end():].strip():", "len(m.group(1)) >= len(fence):", "pvl"),
+    ("X3 4-space-indented ``` opens a fence", CK, 'FENCE = re.compile(r" {0,3}(', 'FENCE = re.compile(r" *(', "pvl"),
+    ("X4 XXX inside a value no longer refused", CK, r'(?i:\b(TBD|TBA|TODO|FIXME)\b)|\bXXX\b"', r'(?i:\b(TBD|TBA|TODO|FIXME)\b)"', "pvl"),
+    ("X5 TBA inside a value no longer refused", CK, r'(?i:\b(TBD|TBA|TODO|FIXME)\b)', r'(?i:\b(TBD|TODO|FIXME)\b)', "pvl"),
+    ("X6 single-word job needs no digit or punctuation", CK, r'ID_TOKEN = re.compile(r"(?=.*[0-9_:/.-])\S{3,}\Z")',
+     r'ID_TOKEN = re.compile(r"\S{3,}\Z")', "pvl"),
+    ("X7 template ${...} no longer refused", CK, r'|\{\{.*?\}\}|\$\{[^}]*\}")', r'|\{\{.*?\}\}")', "pvl"),
+    ("X8 render: TODO after an underscore accepted (MY_TODO)", RRE,
+     'PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z])(TODO|TBD)', 'PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z_])(TODO|TBD)', "rre"),
+    ("X9 render: DRAFT preceded by a digit accepted (2DRAFT)", RRE,
+     'DRAFT_WORD = re.compile(r"(?<![A-Za-z])DRAFT', 'DRAFT_WORD = re.compile(r"(?<![A-Za-z0-9])DRAFT', "rre"),
+    ("X10 repo_key host not case-folded", TAR, "printf 'host:%s/%s' \"${h,,}\" \"$p\"", "printf 'host:%s/%s' \"$h\" \"$p\"", "tar"),
+    ("X11 repo_key doubled slash folded to nothing", TAR,
+     'do p="${p%%//*}/${p#*//}"; done', 'do p="${p%%//*}${p#*//}"; done', "tar"),
+    ("X12 token shape outside the C locale", LIB, "rc_gitea_token_shape_ok() { local LC_ALL=C; [[", "rc_gitea_token_shape_ok() { [[", "rc"),
+]
+SUITE = {"pvl": ("tests/release/test_provisional_verification_lines.sh", "PVL_SCRIPT"),
+         "rre": ("tests/release/test_render_release_entry.sh", "RRE_SCRIPT"),
+         "tar": ("tests/release/test_tag_and_release.sh", "TAR_SCRIPT"),
+         "rc": ("tests/release/test_redact_cut.sh", "RC_LIB")}
+out = open(outp, "a", encoding="utf-8")
+for name, rel, old, new, suite in M:
+    if only and name.split()[0] not in only:
+        continue
+    src = os.path.join(mut, rel)
+    s = open(src, encoding="utf-8").read()
+    if s.count(old) != 1:
+        out.write("STALE %s (count %d)\n" % (name, s.count(old))); out.flush(); continue
+    base, ext = os.path.splitext(src)
+    dst = base + ".rvmut" + ext
+    open(dst, "w", encoding="utf-8").write(s.replace(old, new))
+    shutil.copymode(src, dst)
+    test, var = SUITE[suite]
+    env = dict(os.environ); env[var] = dst
+    p = subprocess.run(["bash", os.path.join(mut, test)], cwd=mut, env=env, capture_output=True, text=True)
+    fails = [l for l in p.stdout.splitlines() if l.startswith("FAIL")]
+    last = (p.stdout.strip().splitlines() or [""])[-1]
+    out.write("%s %s rc=%d %s first_fail=%s\n" % ("KILLED" if p.returncode != 0 else "SURVIVED", name, p.returncode, last,
+                                                  (fails[0][:160] if fails else "-")))
+    out.flush()
+    os.unlink(dst)
+out.write("DONE\n"); out.close()

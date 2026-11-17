@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Reviewer r3 mutants (own; v2: a checker mutant also runs the render suite with PVL_SCRIPT, the map-equality check). Exact single replacement in a copy beside the original inside MUTREPO; run the suite
+with its override variable; exit != 0 => KILLED. Usage: mutants_r3.py MUTREPO OUTFILE"""
+import os, subprocess, sys
+mut, outp = sys.argv[1], sys.argv[2]
+only = set(sys.argv[3:])
+CK = "scripts/validation/check_provisional_verification_lines.py"
+RRE = "scripts/release/render_release_entry.py"
+M = [
+ ("R1 normalise keeps format chars", CK, 'if unicodedata.category(ch) != "Cf")\n\n\ndef fold', 'if True)\n\n\ndef fold'),
+ ("R2 fold drops the NFKD Mn strip", CK, 'normalize("NFKD", v) if unicodedata.category(ch) != "Mn"', 'normalize("NFKD", v) if True'),
+ ("R3 digit reading drops 1->i", CK, '.replace("0", "o").replace("1", "i"))', '.replace("0", "o"))'),
+ ("R4 SINGLE_RUN separators lose whitespace", CK, r'[._\s-]{1,2}', r'[._-]{1,2}'),
+ ("R5 compound regex no longer matches underscore", CK, r'(?:[_-][A-Za-z]+)+", first)', r'(?:[-][A-Za-z]+)+", first)'),
+ ("R6 checks: none-of exemption widened to any next word", CK, 'not (low == "none" and nxt == "of")', 'not (low == "none")'),
+ ("R7 BE_PHRASE loses 'will'", CK, '(to|will|shall|should|would) be', '(to|shall|should|would) be'),
+ ("R8 job path existence ignored under --root", CK, 'if root is None or os.path.exists(', 'if True or os.path.exists('),
+ ("R9 COMMANDS argument window shrinks to 1 word", CK, '[i + 1:i + 3]', '[i + 1:i + 2]'),
+ ("R10 JOB_ID KEY min length 1", CK, r'JOB_ID = re.compile(r"[A-Z][A-Z0-9]{1,15}', r'JOB_ID = re.compile(r"[A-Z][A-Z0-9]{0,15}'),
+ ("R11 target word match accepts non-ASCII", CK, 'if w.isascii()):', 'if True):'),
+ ("R12 HEX min length 6", CK, '[0-9a-f]{7,64}', '[0-9a-f]{6,64}'),
+ ("R13 due year upper bound 2199", CK, 'if not 2000 <= y <= 2099:', 'if not 2000 <= y <= 2199:'),
+ ("R14 comment open ignores same-line close", CK, 'comment = "-->" not in ln[ln.index("<!--") + 4:]', 'comment = True'),
+ ("R15 layer vocab drops gate-logic", CK, '"live-target", "gate-logic")', '"live-target")'),
+ ("R16 strong word LOREM dropped", CK, '"unconfirmed", "lorem"))', '"unconfirmed"))'),
+ ("R17 render fold loses confusable map", RRE, 'return "".join(CONFUSABLES.get(ch, ch) for ch in val)', 'return val'),
+ ("R18 render fold loses NFKD Mn strip", RRE, 'normalize("NFKD", val) if unicodedata.category(ch) != "Mn"', 'normalize("NFKD", val) if True'),
+ ("R19 checker CONFUSABLES drops Greek rho", CK, '"ρ": "p", "υ": "u"', '"υ": "u"'),
+ ("R20 PREFIX allows any continuation", CK, r'provisional(?=[\s(]|\Z)', r'provisional'),
+ ("R21 more-than-one-line check off", CK, 'if len(lines) > 1:', 'if len(lines) > 99:'),
+ ("R22 field order not enforced", CK, 'if tuple(found) != FIELDS:', 'if False:'),
+]
+SUITE = {CK: ("tests/release/test_provisional_verification_lines.sh", "PVL_SCRIPT"),
+         RRE: ("tests/release/test_render_release_entry.sh", "RRE_SCRIPT")}
+out = open(outp, "w", encoding="utf-8")
+for name, rel, old, new in M:
+    if only and name.split()[0] not in only:
+        continue
+    src = open(os.path.join(mut, rel), encoding="utf-8").read()
+    n = src.count(old)
+    if n != 1:
+        out.write("%s | STALE (old string found %d times)\n" % (name, n)); out.flush(); continue
+    mp = os.path.join(mut, rel + ".mut.py")
+    open(mp, "w", encoding="utf-8").write(src.replace(old, new))
+    suites = [SUITE[rel]] + ([(SUITE[RRE][0], "PVL_SCRIPT")] if rel == CK else [])
+    res = []
+    for test, var in suites:
+        env = dict(os.environ, **{var: mp})
+        p = subprocess.run(["bash", os.path.join(mut, test)], cwd=mut, env=env, capture_output=True, text=True, timeout=900)
+        fails = [l for l in p.stdout.splitlines() if l.startswith(("FAIL", "not ok", "NOT OK"))][:3]
+        res.append("%s rc=%d %s" % (os.path.basename(test), p.returncode, fails))
+    killed = any(" rc=0 " not in r for r in res)
+    out.write("%s | %s | %s\n" % (name, "KILLED" if killed else "SURVIVED", " ; ".join(res))); out.flush()
+    os.remove(mp)
