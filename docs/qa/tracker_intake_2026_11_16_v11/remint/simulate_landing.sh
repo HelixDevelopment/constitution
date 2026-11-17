@@ -8,7 +8,8 @@
 # Usage (from the repository root): bash docs/qa/tracker_intake_2026_11_16_v11/remint/simulate_landing.sh \
 #             <workable-items binary> <base rev> [plan options] <name>=<target rev>[:no-ff] ...
 #   [plan options]  --supersede VID=TID, --annotate-foreign TID[=ID,ID], --target-own TID[=ID,ID],
-#                   --dup-resolution FILE, passed unchanged to every `remint_ids.py plan`
+#                   --dup-resolution FILE, --resolve ID=target|vehicle (round 11, a base item both sides
+#                   changed), passed unchanged to every `remint_ids.py plan`
 #   <base rev>      the commit the vehicle branched from (its docs/workable_items.db is the base B)
 #   <name>=<rev>    a landing target: its docs/workable_items.db is T; `:no-ff` adds --no-fast-forward
 # The vehicle V is the working-tree docs/workable_items.db. Outputs per target as in the v9 script (plan.json,
@@ -24,7 +25,7 @@ WI=${1:?}; BASE=${2:?}; shift 2
 popts=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --supersede|--annotate-foreign|--target-own|--dup-resolution) [ $# -ge 2 ] || { echo "usage: $1 needs a value" >&2; exit 2; }
+    --supersede|--annotate-foreign|--target-own|--dup-resolution|--resolve) [ $# -ge 2 ] || { echo "usage: $1 needs a value" >&2; exit 2; }
       popts+=("$1" "$2"); shift 2 ;;
     --*) echo "usage: unknown option $1" >&2; exit 2 ;;
     *) break ;;
