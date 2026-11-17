@@ -1,0 +1,13 @@
+# F8 needled census of tests/release/pvl_grid.py (block-context cases)
+needle=\`\`\` lines=0
+needle=\~~~ lines=0
+needle=\<\!-- lines=0
+needle=\<div lines=0
+needle=\< lines=1
+needle=fence lines=0
+needle=TBD lines=5
+needle=ｂash lines=1
+needle=\ --\  lines=11
+# positive controls: TBD, fullwidth b, ' -- ' must be >0; negative control below must be 0
+negative_control lines=0
+11:with every case. Output: GRID-PASS / GRID-FAIL <id> lines, then

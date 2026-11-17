@@ -1,0 +1,21 @@
+db=main.db items=486 bodycol=body_md
+  needle '<!--' bodies=0
+  needle '--!>' bodies=0
+  needle '[^' footnote-def at line start bodies=0
+  needle prose <word> outside backticks bodies=39
+  positive control '**Verification:**' bodies=25
+  positive control 'CON-' bodies=486
+  negative control 'zzq-not-present-7731' bodies=0
+db=r7.db items=407 bodycol=body_md
+  needle '<!--' bodies=0
+  needle '--!>' bodies=0
+  needle '[^' footnote-def at line start bodies=0
+  needle prose <word> outside backticks bodies=34
+  positive control '**Verification:**' bodies=29
+  positive control 'CON-' bodies=407
+  negative control 'zzq-not-present-7731' bodies=0
+# same predicates on control strings (each of the first four must fire; the last must not fire the prose rule)
+  '<!--' [True, False, False, False, False]
+  '--!>' [False, True, False, False, False]
+  footnote [False, False, True, False, False]
+  prose <word> [False, False, False, True, False]
