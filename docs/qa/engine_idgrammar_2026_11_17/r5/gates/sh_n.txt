@@ -1,0 +1,4 @@
+sh -n cm_state_fields_anchor_wired rc=2
+bash -n cm_state_fields_anchor_wired rc=0
+sh -n cm_repro_first_anchor_wired rc=2
+bash -n cm_repro_first_anchor_wired rc=0

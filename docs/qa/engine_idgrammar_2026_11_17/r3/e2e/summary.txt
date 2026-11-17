@@ -1,0 +1,53 @@
+engine sha256: 61bbab0ec80e3e9430f43b66cc18cda6f98c980be19a73fc4f918a5400c8a755
+report_item.sh sha256: 70b29d9ad08d83643422b37b32eeeec1fd7578f0835878a4fe38b6873bccda65
+source db sha256: 1ca8399e2d44719dba402a433b24a252d760b99e3096a3e044107865d255f8d0
+== bug_fallback: rc=0 items 491 -> 492 db_changed=yes last_id=CON-527
+   [report_item] (1) CREATED CON-527  type=Bug  severity=Medium  status=Queued
+   [report_item] INTAKE-MATCH UNAVAILABLE: §11.4.214 recurrence dedup was SKIPPED for this Bug report — falling back to a direct mint (binary: /mnt/DATA1TB/claude-work/scratch/fix456r3_3Kpt0z/ev/e2e/shim_no_intake_match.sh). Matcher output:
+   CON-527 type=Bug repro=UNREPRODUCED inv=not-started repro_by=Operator inv_by=Operator
+   body: 7:**Reproduction:** none — UNREPRODUCED — updated 2026-11-17T05:30:58Z — by `Operator`
+   body: 8:**Investigation:** not-started — updated 2026-11-17T05:30:58Z — by `Operator`
+   description carries a record line: 0
+   validate rc=0
+   export 1 rc=0
+   md-to-db 1 rc=0
+   export 2 rc=0
+   md-to-db 2 rc=0
+   new item states+body sha16: minted=f5ec15e0da015680 cycle1=f5ec15e0da015680 cycle2=f5ec15e0da015680 same=yes
+   validate after two cycles rc=0
+== bug_matcher: rc=0 items 491 -> 492 db_changed=yes last_id=CON-527
+   [report_item] (1) CREATED CON-527  type=Bug  severity=Medium  status=Queued
+   CON-527 type=Bug repro=UNSET inv=UNSET repro_by= inv_by=
+   description carries a record line: 0
+   validate rc=0
+   export 1 rc=0
+   md-to-db 1 rc=0
+   export 2 rc=0
+   md-to-db 2 rc=0
+   new item states+body sha16: minted=b0d7366d743df5b8 cycle1=b0d7366d743df5b8 cycle2=b0d7366d743df5b8 same=yes
+   validate after two cycles rc=0
+== task: rc=0 items 491 -> 492 db_changed=yes last_id=CON-527
+   [report_item] (1) CREATED CON-527  type=Task  severity=Medium  status=Queued
+   CON-527 type=Task repro=UNSET inv=UNSET repro_by= inv_by=
+   description carries a record line: 0
+   validate rc=0
+   export 1 rc=0
+   md-to-db 1 rc=0
+   export 2 rc=0
+   md-to-db 2 rc=0
+   new item states+body sha16: minted=9b91094e3cee3c67 cycle1=9b91094e3cee3c67 cycle2=9b91094e3cee3c67 same=yes
+   validate after two cycles rc=0
+== issue_auto: rc=0 items 491 -> 492 db_changed=yes last_id=CON-527
+   [report_item] (1) CREATED CON-527  type=Task  severity=Medium  status=Queued
+   CON-527 type=Task repro=UNSET inv=UNSET repro_by= inv_by=
+   description carries a record line: 0
+   validate rc=0
+   export 1 rc=0
+   md-to-db 1 rc=0
+   export 2 rc=0
+   md-to-db 2 rc=0
+   new item states+body sha16: minted=085fe5a1375e990c cycle1=085fe5a1375e990c cycle2=085fe5a1375e990c same=yes
+   validate after two cycles rc=0
+== dry_run: rc=0 items 491 -> 491 db_changed=no last_id=CON-526
+   [report_item] DRY-RUN — nothing written.
+dry run output carries the preview records: 2

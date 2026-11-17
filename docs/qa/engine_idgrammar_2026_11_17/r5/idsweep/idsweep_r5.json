@@ -1,0 +1,362 @@
+[
+ {
+  "kind": "id",
+  "value": "CON-999",
+  "add_rc": 0,
+  "new": [
+   "CON-999"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "con-999",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "CON-0999",
+  "add_rc": 0,
+  "new": [
+   "CON-0999"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "CON-99a",
+  "add_rc": 0,
+  "new": [
+   "CON-99a"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "CON-9999999",
+  "add_rc": 0,
+  "new": [
+   "CON-9999999"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "AB-001",
+  "add_rc": 0,
+  "new": [
+   "AB-001"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "ABCD-001",
+  "add_rc": 0,
+  "new": [
+   "ABCD-001"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "C0N-001",
+  "add_rc": 0,
+  "new": [
+   "C0N-001"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "CON-1.2",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "CON-١٢",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "CON-999 ",
+  "add_rc": 0,
+  "new": [
+   "CON-999"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "CON--999",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "CON_999",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "XYZ-001",
+  "add_rc": 0,
+  "new": [
+   "XYZ-001"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "Q-1",
+  "add_rc": 0,
+  "new": [
+   "Q-1"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "CON-999​",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "CON-９９",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "CO-1",
+  "add_rc": 0,
+  "new": [
+   "CO-1"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "G12",
+  "add_rc": 0,
+  "new": [
+   "G12"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "R7",
+  "add_rc": 0,
+  "new": [
+   "R7"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "ATM-DERIVED-abc",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "CON-00",
+  "add_rc": 0,
+  "new": [
+   "CON-00"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "CON-0",
+  "add_rc": 0,
+  "new": [
+   "CON-0"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "id",
+  "value": "CON-+9",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "id",
+  "value": "CON-9e9",
+  "add_rc": 0,
+  "new": [
+   "CON-9e9"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "prefix",
+  "value": "CON",
+  "add_rc": 0,
+  "new": [
+   "CON-527"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "prefix",
+  "value": "con",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "prefix",
+  "value": "Ab",
+  "add_rc": 0,
+  "new": [
+   "Ab-001"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "prefix",
+  "value": "ABCDEFGHIJ",
+  "add_rc": 0,
+  "new": [
+   "ABCDEFGHIJ-001"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "prefix",
+  "value": "C1",
+  "add_rc": 0,
+  "new": [
+   "C1-001"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ },
+ {
+  "kind": "prefix",
+  "value": "ÄBC",
+  "add_rc": 1,
+  "new": []
+ },
+ {
+  "kind": "prefix",
+  "value": "X",
+  "add_rc": 0,
+  "new": [
+   "X-001"
+  ],
+  "export1": 0,
+  "md2db": 0,
+  "ids_equal": true,
+  "body_equal": true,
+  "md_stable": true,
+  "LOSS": false
+ }
+]

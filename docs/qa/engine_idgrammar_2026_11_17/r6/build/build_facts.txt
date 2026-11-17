@@ -1,0 +1,4 @@
+go version: go1.26.8 linux/amd64
+build command (scripts/workable-items): GOEXPERIMENT=nodwarf5 GOPROXY=off go build -trimpath -buildvcs=false -ldflags=-buildid= -o <out> ./cmd/workable-items
+two builds: 3c70485a422f4160449fb5bdfa2c2337e19b50e88488f5de6bbeb50a8906d69a (byte-equal), equal to bin/workable-items and bin/workable-items-linux
+bin/.source.sha256: f55330f84429f348cdd9c3ecabd7490f8aa41d195fec8b06e189516ca16a9338 (formula as r2/build_facts_r2.txt)

@@ -1,0 +1,9 @@
+# go test on the merged tree (1eae120b9418f33312e9345fd9354c1b93586967), 2026-11-17T03:26:34Z
+$ cd scripts/workable-items && go test -count=1 -json ./...   (go1.26.4; GOPROXY=off GOFLAGS=-mod=mod)
+exit status: not captured (the run was detached with nohup); 0 fail events in the JSON stream
+top-level {'pass': 441, 'fail': 0, 'skip': 6}
+all {'pass': 955, 'fail': 0, 'skip': 6}
+non-json lines 0
+sha256 sorted verdicts 8b7803a85d5d4936dd1a13e7b2e41a2e8bd045e303e0d4f85501856e8d85b116
+skipped top-level: ['TestGapA_RenderRepresentationKeyIsLoadBearing', 'TestGapB_PipeRowSynthesisIsParseable', 'TestParseFixed_Real_FullFile_Count', 'TestRoundTrip_RealDocs', 'TestStatusDesyncAndDuplicateHistoryRows_StayZero', 'TestValidate_OK_RealDocs']
+sorted verdict list byte-identical to gotest_r2_run1_verdicts.txt (cmp rc 0)

@@ -1,0 +1,8 @@
+  OK    CTRL gate PASSed as expected
+  OK    M1   gate FAILed as expected (mutation caught)
+  OK    M2   gate FAILed as expected (mutation caught)
+  OK    M3   gate FAILed as expected (mutation caught)
+  OK    M4   gate FAILed as expected (mutation caught)
+  OK    M5   gate FAILed as expected (mutation caught)
+  OK    M6   gate FAILed as expected (mutation caught)
+cm_reporting_directives_mutation_test: PASS (gate is genuine — every mutation caught)

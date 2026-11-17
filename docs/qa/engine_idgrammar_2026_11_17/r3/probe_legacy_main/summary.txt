@@ -1,0 +1,19 @@
+main add rc=0
+stored states: UNSET|UNSET
+r3 validate rc=1 (  - CON-930 [Issues/section]: malformed **Reproduction:** record on body line 9: expected " — " before " (§11.4.292)")
+r3 export rc=0
+r3 md-to-db of the unchanged export rc=1
+   sync md-to-db: refusing — the import would drop or change 1 DB item(s) whose Markdown the parser does not read back as the item (nothing written):
+     /mnt/DATA1TB/claude-work/scratch/fix456r3_3Kpt0z/ev/probe_legacy_main/I.md: CON-930 (Issues, section): the Markdown is unchanged but the import would change it: the reproduction/investigation records read back differently from the stored state columns
+   Repair each item with the engine (for example `update --title`), export with `sync db-to-md`, then import again; an id must be <KEY>-<suffix> with KEY exactly three ASCII uppercase letters and suffix one or more of [0-9A-Za-z] (e.g. CON-123, CON-14b, CON-PENDINGengine), or a legacy code [A-Z][A-Za-z0-9]* with at most one -[A-Za-z0-9]+ part (e.g. G01, GS-2); a second hyphen, a lowercase or non-three-letter key followed by more than one part, whitespace, dots, '#', brackets, '§' and non-ASCII characters cannot round-trip through the Markdown trackers
+db unchanged by the refused md-to-db: yes
+main md-to-db of the same export rc=0
+main md-to-db stored states: UNREPRODUCED|UNSET
+edited lines: 1
+r3 md-to-db of the edited export rc=0
+   /mnt/DATA1TB/claude-work/scratch/fix456r3_3Kpt0z/ev/probe_legacy_main/I_edit.md: 1 items, 1 segments
+   /mnt/DATA1TB/claude-work/scratch/fix456r3_3Kpt0z/ev/probe_legacy_main/F.md: 0 items, 0 segments
+   synced 1 total items into /mnt/DATA1TB/claude-work/scratch/fix456r3_3Kpt0z/ev/probe_legacy_main/rt_edit.sqlite
+after the edit, stored states: UNREPRODUCED|UNSET
+r3 validate after the edit rc=0
+e44b md-to-db rc=1

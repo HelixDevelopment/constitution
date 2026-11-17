@@ -1,0 +1,4 @@
+PASS  fallback Bug: states UNREPRODUCED/not-started, records in the body, none in the description
+PASS  Task: both states UNSET, no record lines
+PASS  control: mutant RR6 mints the Bug UNSET (the test sees the flags)
+report_item bug states: 3 passed, 0 failed

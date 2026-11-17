@@ -3674,6 +3674,7 @@ Link (section 11.4.214, open original, link only; 2026-11-16; author follow-up C
 
 **Status:** Queued
 **Type:** Task
+**Severity:** Low
 **Created-By:** Claude
 
 Round 7 review finding R7-M1 (test-instrumentation, minor, follow-up): the mechanical enumerator covers tier function bodies and tier function call sites only; module constants (_FOREIGN_WRITE, _SUBID_FILES, HIGH_BLAST_SEAMS) and the gate-side consumption of the tier result are covered by hand-written mutants (all killed). Extend the enumerator and add a token-count cross-check of the census. Review: docs/qa/con033_review/review_con033_r7.md
@@ -3682,6 +3683,7 @@ Round 7 review finding R7-M1 (test-instrumentation, minor, follow-up): the mecha
 
 **Status:** Queued
 **Type:** Task
+**Severity:** Low
 **Created-By:** Claude
 
 Round 7 review finding R7-M2 (test-instrumentation, minor, follow-up, carried from round 6): mutate_tier_legs.py has no self-test RED. Add a small RED suite that plants a survivor and a dropped-kind generator. Review: docs/qa/con033_review/review_con033_r7.md
@@ -3690,6 +3692,7 @@ Round 7 review finding R7-M2 (test-instrumentation, minor, follow-up, carried fr
 
 **Status:** Queued
 **Type:** Task
+**Severity:** Low
 **Created-By:** Claude
 
 Round 7 review nit R7-N1 (test-instrumentation, nit): with --keys every equivalence key outside the selected subset is printed STALE and the run exits 1; only a full run gives a meaningful stale check (the same happens with --only). Compute staleness against the full enumeration. Review: docs/qa/con033_review/review_con033_r7.md
@@ -5372,10 +5375,12 @@ What: review F2 (important, pre-existing). A scanned repository can carry .git/i
 
 ## CON-456 — workable-items add accepts a placeholder id with a second hyphen (CON-PENDING-x2) that the Markdown round trip drops (heading regex [A-Z]{3}-[0-9A-Za-z]+) (CON-435 review F3)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** AI
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/engine_idgrammar_2026_11_16/red_table_base_ce3dfaea.tsv` — red-command `VALCWD=<repo> bash docs/qa/engine_idgrammar_2026_11_16/repro.sh <engine built from ce3dfaea> <copy of docs/workable_items.db> <out>` — green-command `same command with the fixed engine (green_table_fixed.tsv)` — env `host, scratch clone of origin main, sqlite copies of docs/workable_items.db` — signature `add rc 0 for CON-PENDING-x2; after db-to-md-to-db the id is absent (rt_kept 0) and diff rc 1 while validate rc 0` — updated 2026-11-17T03:18:55Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `renderer canonicalIDRe [A-Z]{3,}- disagreed with the parser's [A-Z]{3}- and non-canonical ids fell to the legacy dot heading that reads at most one hyphen part; decisive toggle: with one shared grammar the GREEN sweep keeps or refuses every shape (diff 0), with the old regexes 21 shapes are lost; round 2: every writer and sync md-to-db judged a part of the item (its id) instead of the whole text sync db-to-md writes for it, and md-to-db wrote one document per transaction; decisive toggle: the class sweep of 489 cases gives 171 violation verdicts on the round-1 engine and none on round 2 (331 RT_OK, 158 REFUSED with the database unchanged)` — evidence `docs/qa/engine_idgrammar_2026_11_17/class_green_r2_table.tsv` — updated 2026-11-17T03:18:55Z — by `AI`
 
 What: review F3 (important, engine source defect). workable-items add --id accepts an id such as CON-PENDING-x2, but the heading parser (parse.go, ^## [A-Z]{3}-[0-9A-Za-z]+) does not match a second hyphen, so a db to Markdown to db round trip silently drops the item. The CON-435 fixer worked around it with the one-hyphen placeholder CON-PENDINGcon435. Either add refuses an id the parser cannot read back, or the parser accepts what add writes. Related: the 2026-10-08 key-grammar owed engine work recorded in the section 11.4.54 / 11.4.248 EXTENSION (add does not enforce a key grammar), CON-391 (round-trip rewrite, different defect). Scope: scripts/workable-items (add, parse.go) and its tests. Reproduction: UNREPRODUCED here (review finding; the fixer's commit message records the drop). Acceptance: RED round trip with a two-hyphen id, GREEN after the fix, paired mutant killed. Source: independent review of the CON-435 vehicle (bundle 55b225f1, landed on main as merge 2ad83e18), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev_con435/ev/ outside the repository (SHA256SUMS sha256 56a680cb7d13c540ba086175cf1eac8470a27b98651993ca2420de26b38c04f8), gate-logic class for the fake scanner, host-only live for the real gitleaks (section 11.4.289).
 

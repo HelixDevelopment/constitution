@@ -1,0 +1,26 @@
+engine sha256: 83e93abaeaa5ef09bbb10437595f859bbbf78a03355c4e4204d56cbe79cb9080
+db0 sha256: 8e73f3534b03d0daa9864ca3eaff4ca5908e8da6057ed193ffdbd1f8f5ca8453
+db0 items: 491
+validate rc=0
+diff vs committed Markdown rc=0
+repair-bodies --dry-run rc=0
+export 1 rc=0
+committed Issues.md vs export 1: diff rc=1 lines=3
+committed Fixed.md vs export 1: diff rc=0 lines=0
+md-to-db cycle 1 rc=0
+db1 items: 491
+export 2 rc=0
+Issues export 1 == export 2: cmp rc=0
+Fixed export 1 == export 2: cmp rc=0
+md-to-db cycle 2 rc=0
+db2 items: 491
+validate after two cycles rc=0
+keys db0 == db1: True (lost 0, new 0)
+keys db1 == db2: True
+description changed db0->db1: 279   db1->db2:   0   first: CON-030, CON-070, CON-098, CON-100, CON-144
+body        changed db0->db1:   3   db1->db2:   0   first: CON-266, CON-267, CON-268
+title       changed db0->db1:   0   db1->db2:   0   
+type        changed db0->db1:   0   db1->db2:   0   
+status      changed db0->db1:   0   db1->db2:   0   
+severity    changed db0->db1:   0   db1->db2:   0   
+descriptions longer after cycle 2 than after cycle 1: 0

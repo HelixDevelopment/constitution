@@ -1,0 +1,50 @@
+# CON-456 r3 caller scan: lines where an engine reference is followed by a mutating verb
+# control needle: scripts/reporting/report_item.sh add must be found: True
+# negative control: verb 'frobnicate' hits: 0
+# code hits: 11  doc hits: 35
+CODE	docs/qa/engine_created_at_2026_11_13/repro_con339.sh:51	update	"$WI" update --db "$DB" --id "$CTRL" --title "$(q "select title from items where atm_id=? and current_location='Issues'" "$CTRL") (repro C0)" >"$TMPD/c0.out" 2>&1
+CODE	docs/qa/engine_created_at_2026_11_13/repro_con339.sh:63	close	"$WI" close "$OPEN" --db "$DB" --status obsolete --evidence "$EV" >"$TMPD/c1.out" 2>&1
+CODE	docs/qa/land_vehicle_r4_2026_11_13/tools/scen_doc_wrapper.sh:418	add	run "$F/p.out" prep "$F" --mint-cmd "$WI add Task low --db docs/wi.db --title 'lander r4 probe' --description 'probe of the documented sed wrapper against the real engine binary' --prefix CON | sed -n
+CODE	docs/qa/land_vehicle_r4_2026_11_13/tools/scen_doc_wrapper.sh:423	add	run "$F/p2.out" prep "$F" --mint-cmd "$WI add Task low --db docs/absent.db --title 'lander r4 probe' --description 'probe of the wrapper when the engine fails on a missing database' --prefix CON | sed
+CODE	scripts/fastcycle/cycle/select_sample.py:112	update	tracker keeps no history of an item's type (`workable-items update
+CODE	scripts/fastcycle/cycle/select_sample.py:242	update	"reason": "the tracker keeps no type history: `workable-items update --type` writes only a "
+CODE	scripts/reporting/report_item.sh:473	add	"$WI" add "$TYPE" "$SEVERITY" --db "$DB" --title "$TITLE" --description "$DESCRIPTION"  			--prefix "$CFG_ID_PREFIX" --created-by "$REPORTED_BY" "$@" >"$CREATE_LOG" 2>&1
+CODE	scripts/reporting/report_item.sh:475	add	"$WI" add "$TYPE" "$SEVERITY" --db "$DB" --title "$TITLE" --description "$DESCRIPTION"  			--created-by "$REPORTED_BY" "$@" >"$CREATE_LOG" 2>&1
+CODE	tests/lib/make_fixture_tracker.sh:68	add	"$WI" add "$typ" medium --db "$DB" --id "$id" --title "fixture $id"      --description "fixture item $id for fastcycle real-db tests (seeded)" >/dev/null || { echo "add $id failed" >&2; exit 3; }
+CODE	tests/lib/make_fixture_tracker.sh:71	close	"$WI" close "$id" --db "$DB" --status "$st" --evidence "$FIX/evidence/$id/ev.log" >/dev/null 2>"$FIX/close.err"      || { echo "close $id failed: $(tail -2 "$FIX/close.err")" >&2; exit 3; }
+CODE	tests/test_run_full_suite.sh:1700	add	gen "$WI"; gitc "$WI" add -A; gitc "$WI" commit -q -m wti
+DOC	AGENTS.md:2042	add	**EXTENSION landed 2026-10-08 — §11.4.54 / §11.4.248 ticket-id key is per-project DATA (full text in `Constitution.md`).** This carrier cites the two anchors; it is not a second block-start for either
+DOC	CLAUDE.md:804	add	**EXTENSION landed 2026-10-08 — §11.4.54 / §11.4.248 ticket-id key is per-project DATA (full text in `Constitution.md`).** This carrier cites the two anchors; it is not a second block-start for either
+DOC	Constitution.md:5093	add	**EXTENSION (2026-10-08) — per-project ticket-id key.** Extend, never restate (§11.4.227): the ticket-id KEY is per-project DATA, not the literal `ATM`. The spelling `ATM-NNN` in this corpus (the `[AT
+DOC	Constitution.md:8000	add	- `workable-items add <type> <severity> --title <title> --description <description>` — interactive entry with mandatory fields enforced.
+DOC	Constitution.md:8001	close	- `workable-items close <atm-id> --status <fixed|implemented|completed|obsolete> --evidence <path>` — terminal transition with mandatory captured-evidence per §11.4.5/§11.4.90.
+DOC	GEMINI.md:771	add	**EXTENSION landed 2026-10-08 — §11.4.54 / §11.4.248 ticket-id key is per-project DATA (full text in `Constitution.md`).** This carrier cites the two anchors; it is not a second block-start for either
+DOC	QWEN.md:708	add	**EXTENSION landed 2026-10-08 — §11.4.54 / §11.4.248 ticket-id key is per-project DATA (full text in `Constitution.md`).** This carrier cites the two anchors; it is not a second block-start for either
+DOC	docs/Issues.md:1616	update	## CON-090 — CON-031 excluded FU-4 (review X3): workable-items update records an evidence path but no sha256
+DOC	docs/Issues.md:5235	add	## CON-456 — workable-items add accepts a placeholder id with a second hyphen (CON-PENDING-x2) that the Markdown round trip drops (heading regex [A-Z]{3}-[0-9A-Za-z]+) (CON-435 review F3)
+DOC	docs/Issues.md:5244	add	What: review F3 (important, engine source defect). workable-items add --id accepts an id such as CON-PENDING-x2, but the heading parser (parse.go, ^## [A-Z]{3}-[0-9A-Za-z]+) does not match a second hy
+DOC	docs/Issues_Summary.md:110	update	| CON-090 | Task | Queued | Low | CON-031 excluded FU-4 (review X3): workable-items update records an evidence path but no sha256 | UNSET | UNSET |
+DOC	docs/Issues_Summary.md:434	add	| CON-456 | Bug | In progress | Medium | What: review F3 (important, engine source defect). workable-items add --id accepts an id such as CON-PENDING-x2, but the heading parser (parse.go, ^## [A-Z]{3}
+DOC	docs/qa/con227_234_2026_11_11/round8/threat_model.md:97	update	`workable-items update CON-310` with the description amended by that sentence, and the acceptance criterion
+DOC	docs/qa/engine_idgrammar_2026_11_17/merge_resolution.txt:4	update	2. workable-items update --id CON-456 ... (status In progress; round-1 reproduction and investigation records; description and root cause extended with round 2)
+DOC	docs/qa/engine_idgrammar_2026_11_17/merge_resolution.txt:38	add	-What: review F3 (important, engine source defect). workable-items add --id accepts an id
+DOC	docs/qa/engine_idgrammar_2026_11_17/merge_resolution.txt:39	add	+What: review F3 (important, engine source defect). workable-items add --id accepts an id
+DOC	docs/scripts/report_item.md:99	add	4. **Create** → `workable-items add <Type> <Severity> …`; the assigned id is
+DOC	groups/workable-items-and-tracking.md:421	add	**EXTENSION (2026-10-08) — per-project ticket-id key.** Extend, never restate (§11.4.227): the ticket-id KEY is per-project DATA, not the literal `ATM`. The spelling `ATM-NNN` in this corpus (the `[AT
+DOC	groups/workable-items-and-tracking.md:705	add	- `workable-items add <type> <severity> --title <title> --description <description>` — interactive entry with mandatory fields enforced.
+DOC	groups/workable-items-and-tracking.md:706	close	- `workable-items close <atm-id> --status <fixed|implemented|completed|obsolete> --evidence <path>` — terminal transition with mandatory captured-evidence per §11.4.5/§11.4.90.
+DOC	progressive/EVIDENCE/CONSUMERS.json:1646	add	"text": "#   ./constitution/scripts/workable-items/workable-items add \\"
+DOC	progressive/rules/11.4.54.md:86	add	**EXTENSION (2026-10-08) — per-project ticket-id key.** Extend, never restate (§11.4.227): the ticket-id KEY is per-project DATA, not the literal `ATM`. The spelling `ATM-NNN` in this corpus (the `[AT
+DOC	progressive/rules/11.4.93.md:26	add	- `workable-items add <type> <severity> --title <title> --description <description>` — interactive entry with mandatory fields enforced.
+DOC	progressive/rules/11.4.93.md:27	close	- `workable-items close <atm-id> --status <fixed|implemented|completed|obsolete> --evidence <path>` — terminal transition with mandatory captured-evidence per §11.4.5/§11.4.90.
+DOC	scripts/workable-items/README.md:55	add	workable-items add <type> <severity> --db <p> --title <T> --description <D> [--id <id>] [--prefix <P>]
+DOC	scripts/workable-items/README.md:60	update	workable-items update --id <ID> --db <p> [--title|--severity|--description|--type|--status|--created-by|--assigned-to ...] [--location Issues|Fixed]
+DOC	scripts/workable-items/README.md:65	reopen	workable-items reopen --id <ID> --db <p> --why <reason> --who <AI|User> --when <ISO> --incident <p> [--location Issues|Fixed]
+DOC	scripts/workable-items/README.md:73	block	workable-items block --id <ID> --db <p> --details <WHAT> [--why <T>] [--unblock <T>] [--who <T>] [--location Issues|Fixed]
+DOC	scripts/workable-items/README.md:77	close	workable-items close <atm-id> --db <p> --status <fixed|implemented|completed|obsolete> --evidence <p>
+DOC	scripts/workable-items/README.md:348	update	workable-items update --id WIT-123 --db tracker.db      --reproduction-state reproduced-live --reproduction-surface live-target      --reproduction-evidence qa-results/wit123/red.txt      --reproducti
+DOC	scripts/workable-items/README.md:349	update	workable-items update --id WIT-124 --db tracker.db --reproduction-state blocked-no-device      --reproduction-blocker 'needs: D2 board; missing: HDMI capture rig' --states-updated-by conductor
+DOC	scripts/workable-items/UPSTREAM-EXTENSION-EVIDENCE.md:128	add	$ workable-items add Bug Critical --db wi.db --title "..." --description "..."
+DOC	scripts/workable-items/UPSTREAM-EXTENSION-EVIDENCE.md:130	update	$ workable-items update --id WIT-001 --db wi.db --status "In progress"
+DOC	scripts/workable-items/UPSTREAM-EXTENSION-EVIDENCE.md:132	reopen	$ workable-items reopen --id WIT-001 --db wi.db --why test-failed --who AI --when 2026-05-31 --incident qa/x.log
+DOC	scripts/workable-items/UPSTREAM-EXTENSION-EVIDENCE.md:134	block	$ workable-items block --id WIT-001 --db wi.db --details "Needs operator host"

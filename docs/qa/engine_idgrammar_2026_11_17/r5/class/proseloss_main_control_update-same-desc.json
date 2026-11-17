@@ -1,0 +1,43 @@
+{
+ "writer": "update-same-desc",
+ "n": 479,
+ "rc_nonzero": 0,
+ "lost_bytes_total": 314118,
+ "items_lost_gt100": 207,
+ "lost_meta_keys": {
+  "Reported-Via": 44,
+  "Reported-By": 44,
+  "Implementation": 2,
+  "Verification": 24
+ },
+ "examples": [
+  {
+   "id": "CON-001",
+   "lost_bytes": 878,
+   "first_lost": [
+    "**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-04T22:00:30Z",
+    "**Reported-By:** Conductor",
+    "**What (the report, verbatim):**"
+   ]
+  },
+  {
+   "id": "CON-002",
+   "lost_bytes": 1139,
+   "first_lost": [
+    "**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-04T22:00:31Z",
+    "**Reported-By:** Conductor",
+    "**What (the report, verbatim):**"
+   ]
+  },
+  {
+   "id": "CON-003",
+   "lost_bytes": 1007,
+   "first_lost": [
+    "**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-04T22:00:31Z",
+    "**Reported-By:** Conductor",
+    "**What (the report, verbatim):**"
+   ]
+  }
+ ],
+ "validate_rc": 0
+}

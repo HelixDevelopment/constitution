@@ -27,7 +27,7 @@ import (
 // parentIDRe matches a top-level workable-item id (the §11.4.54 grammar): an
 // ATM-NNN / 3-letter-NNN form (`ATM-025`, `BOB-014`) OR a legacy §-letter id
 // (1-3 uppercase letters, e.g. `BG`).
-var parentIDRe = regexp.MustCompile(`^([A-Z]{3}-[0-9A-Za-z]+|[A-Z]{1,3})$`)
+var parentIDRe = regexp.MustCompile(`^(` + canonicalIDPattern + `|[A-Z]{1,3})$`)
 
 // childSuffixRe splits a candidate child id into <parent>-<3+ digits>. The
 // parent portion is validated SEPARATELY against parentIDRe so a full parent id

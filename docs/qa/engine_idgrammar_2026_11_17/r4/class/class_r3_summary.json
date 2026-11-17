@@ -1,0 +1,10 @@
+{
+ "cases": 579,
+ "controls_ok": true,
+ "verdicts": {
+  "OP_DETAIL_LOSS": 33,
+  "REFUSED": 191,
+  "RT_OK": 352,
+  "RT_SIDE": 3
+ }
+}
