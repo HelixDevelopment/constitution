@@ -260,14 +260,19 @@ on c67876a4 it prints the reason). On a passing tree it prints the same single l
 and 2 stay comparable. The lesson, kept for later rounds: gates count as evidence only on a committed tree that holds
 the evidence pack.
 
+Runs 4 and 5 ran on the fix commit 5af9e126 (the tree with this pack, the diagram source as Markdown): their outputs are
+identical to each other and to run 1, every check rc=0 (116 s and 118 s). The commit that adds them changes only this
+README, SHA256SUMS and the two run files; a further run on that commit is reported with the hand-back, not in this pack
+(it could not hold its own output).
+
 Gate outputs in this pack (copied verbatim):
 
 - `runs/gates_final1.txt`: run 1, code tree before the pack was committed
 - `runs/gates_final2.txt`: run 2, the same tree
 - `runs/gates_run3_c67876a4.txt`: run 3, commit c67876a4 (the pack commit): the census FAIL
 - `runs/census_step_on_c67876a4.txt`: the fixed census step on c67876a4: it names the reason
-- run 4, the fix commit: added by the next commit (it runs on this commit's tree)
-- run 5, the fix commit: added by the next commit (it runs on this commit's tree)
+- `runs/gates_final4.txt`: run 4, the fix commit
+- `runs/gates_final5.txt`: run 5, the fix commit
 
 ## Open questions (for the operator and the reviewer)
 
