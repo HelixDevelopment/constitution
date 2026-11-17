@@ -1,0 +1,7 @@
+script still running after 25s: no
+stdout of run:
+needles: history=1 merge=2 negative=0 (control OK)
+findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.XyWLBSFIg4/scr/o.tsv (classify each: fixture vs real)
+exact-match: 1 variables searched, 0 found in a blob -> /mnt/DATA1TB/claude-work/tmp/tmp.XyWLBSFIg4/scr/o.tsv.keys.tsv (names + counts only)
+exact-match note: not searched: 0 shorter than 12 characters (), 0 placeholder ()
+stderr tail:

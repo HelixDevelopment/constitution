@@ -188,6 +188,67 @@ ft_run probe --url "$U"
 ft_lacks "Q3d another variable's token reflected: not printed" "$FT_OUT$FT_ERR" "$OTOKV"
 FT_ENV=(TEST_GITVERSE_TOKEN="$TOKV")
 
+# G1-G8 (CON-479, live finding 2026-11-16, release rehearsal B-M6): GitVerse answers 400 to
+# git/tags/{sha}, but GET /repos/{o}/{r}/commits/{tag-object-sha} answers 200 with the PEELED commit (live,
+# read-only, helixconstitution-v73.3: tag object e915eef..., commit aa5ae0a..., equal to `git ls-remote`
+# refs/tags/T^{}). The matching-refs answer itself names that URL in object.url. So the annotated tag's commit
+# IS readable: the forge peels it server-side from the tag-object sha (never from the tag NAME, which a branch
+# of the same name could shadow). Only a 200 whose sha is a full commit id DIFFERENT from the tag-object sha counts.
+GOBJ=2222222222222222222222222222222222222222
+GTAG='"GET /repos/o/r/git/matching-refs/tags/v1":[{"status":200,"body":[{"ref":"refs/tags/v1","object":{"type":"tag","sha":"'$GOBJ'"}}]}],"GET /repos/o/r/git/tags/'$GOBJ'":[{"status":400,"body":{"error":{"code":"VALIDATION_ERROR"}}}]'
+gcommit() { printf '"GET /repos/o/r/commits/%s":[{"status":%s,"body":%s}]' "$GOBJ" "$1" "$2"; }
+# G1 the peeled commit is read through commits/{tag-object-sha}
+ft_server '{"routes":{'"$REPO"','"$GTAG"','"$(gcommit 200 '{"sha":"'$SHA'"}')"'}}'; hosts
+ft_run tag-get --url "$U" --tag v1
+ft_ok "G1 rc" "$FT_RC" 0
+ft_has "G1 annotated tag commit read via commits/{tag-object-sha}" "$FT_OUT" "TAG: present sha=$SHA"
+ft_has "G1 the request used the tag-object sha" "$(ft_reqs)" "/repos/o/r/commits/$GOBJ"
+ft_lacks "G1 never by tag name" "$(ft_reqs)" "/repos/o/r/commits/v1"
+# G2 release-ensure on the ambiguous release list (the live v73.3 state) now ends OK in a dry-run: the commit
+# was verified BEFORE any write (this exact state ended rc 5 UNVERIFIED-COMMIT before the fix)
+ft_server '{"routes":{'"$REPO"','"$GTAG"','"$(gcommit 200 '{"sha":"'$SHA'"}')"','"$AMBIG"'}}'; hosts
+ensure --try-create-on-ambiguous --dry-run
+ft_ok "G2 dry-run rc 0" "$FT_RC" 0
+ft_has "G2 tag commit shown" "$FT_OUT" "TAG: present sha=$SHA"
+ft_has "G2 would-create" "$FT_OUT" "ACTION: would-create"
+ft_lacks "G2 not unverified" "$FT_OUT" "tag_sha_unverified"
+ft_ok "G2 dry-run wrote nothing" "$(( $(ft_req_count POST) + $(ft_req_count PATCH) + $(ft_req_count PUT) ))" 0
+# G3 the forge's peeled commit differs from --sha: FAIL tag_sha_mismatch (rc 1), never OK
+ft_server '{"routes":{'"$REPO"','"$GTAG"','"$(gcommit 200 '{"sha":"3333333333333333333333333333333333333333"}')"','"$AMBIG"'}}'; hosts
+ensure --try-create-on-ambiguous --dry-run
+ft_ok "G3 mismatch rc 1" "$FT_RC" 1
+ft_has "G3 reason" "$FT_OUT" "REASON: tag_sha_mismatch"
+# G4 the commits endpoint echoes the tag-object sha: not a commit of the tag, stays unverified
+ft_server '{"routes":{'"$REPO"','"$GTAG"','"$(gcommit 200 '{"sha":"'$GOBJ'"}')"'}}'; hosts
+ft_run tag-get --url "$U" --tag v1
+ft_has "G4 echo of the tag-object sha is unknown" "$FT_OUT" "TAG: present sha=unknown"
+ft_lacks "G4 tag-object sha never shown as the commit" "$FT_OUT" "sha=$GOBJ"
+# G5 commits/{sha} refused (422, as GitVerse answers for an unknown object): unverified, rc 5 on ensure
+ft_server '{"routes":{'"$REPO"','"$GTAG"','"$(gcommit 422 '{"error":{"code":"UNPROCESSABLE_ENTITY"}}')"','"$(rel "$SHA")"'}}'; hosts
+ensure --prerelease
+ft_ok "G5 refused commit lookup: rc 5" "$FT_RC" 5
+ft_has "G5 unverified note" "$FT_OUT" "NOTE: tag_sha_unverified"
+# G5b a non-200 answer that still carries a commit-shaped sha is never read as the tag's commit
+ft_server '{"routes":{'"$REPO"','"$GTAG"','"$(gcommit 404 '{"sha":"'$SHA'"}')"'}}'; hosts
+ft_run tag-get --url "$U" --tag v1
+ft_has "G5b non-200 body sha ignored" "$FT_OUT" "TAG: present sha=unknown"
+# G6 a 200 whose sha is not a full lowercase commit id: unverified
+ft_server '{"routes":{'"$REPO"','"$GTAG"','"$(gcommit 200 '{"sha":"aa5ae0a"}')"'}}'; hosts
+ft_run tag-get --url "$U" --tag v1
+ft_has "G6 short sha is unknown" "$FT_OUT" "TAG: present sha=unknown"
+# G7 a 200 with no sha field: unverified
+ft_server '{"routes":{'"$REPO"','"$GTAG"','"$(gcommit 200 '{"url":"x"}')"'}}'; hosts
+ft_run tag-get --url "$U" --tag v1
+ft_has "G7 no sha field is unknown" "$FT_OUT" "TAG: present sha=unknown"
+# G8 git/tags/{sha} works (a future GitVerse): it is used and the commits lookup is not needed
+ft_server '{"routes":{'"$REPO"',
+ "GET /repos/o/r/git/matching-refs/tags/v1":[{"status":200,"body":[{"ref":"refs/tags/v1","object":{"type":"tag","sha":"'$GOBJ'"}}]}],
+ "GET /repos/o/r/git/tags/'$GOBJ'":[{"status":200,"body":{"object":{"type":"commit","sha":"'$SHA'"}}}],
+ '"$(gcommit 200 '{"sha":"3333333333333333333333333333333333333333"}')"'}}'; hosts
+ft_run tag-get --url "$U" --tag v1
+ft_has "G8 git/tags answer used" "$FT_OUT" "TAG: present sha=$SHA"
+ft_lacks "G8 commits lookup not made" "$(ft_reqs)" "/repos/o/r/commits/"
+
 # S1 (review R2-I1, structural) release-ensure reaches OK at exactly one place: fg_end_ensure, which needs
 # FG_COMMIT_OK. Count the "fg_end OK" calls after the definition line of fg_end_ensure: exactly one.
 ft_ok "S1 one OK exit in release-ensure" "$(sed -n '/^fg_end_ensure() {/,$p' "$FORGE" | grep -c 'fg_end OK')" 1

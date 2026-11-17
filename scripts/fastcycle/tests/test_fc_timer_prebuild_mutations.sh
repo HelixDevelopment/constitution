@@ -24,6 +24,10 @@ ROOT="$(cd "$HERE/../../../.." && pwd)"
 REL="device/rockchip/rk3588/tests"
 PBV="$ROOT/$REL/pre_build_verification.sh"
 TEST="$HERE/test_fc_timer_prebuild_red.sh"
+# CON-093: the mutated input is a CONSUMER-root script; on canon alone the whole test is an honest SKIP naming
+# that effective path (exit 77), while a missing canon test file stays the FATAL below.
+. "$HERE/lib/consumer_required.sh"
+fc_require_consumer "$PBV"
 [ -f "$PBV" ] && [ -f "$TEST" ] || { echo "FATAL: inputs missing"; exit 2; }
 TMP="$(mktemp -d)" || exit 2
 trap 'rm -rf "$TMP"' EXIT

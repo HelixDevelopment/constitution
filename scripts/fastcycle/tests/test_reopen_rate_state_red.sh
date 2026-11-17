@@ -33,7 +33,8 @@
 # Usage : bash test_reopen_rate_state_red.sh   exit 0 = all cases hold.
 set -u
 ROOT=$(cd "$(dirname "$0")/../../../.." && pwd)
-TOOL="$ROOT/constitution/scripts/fastcycle/closure/reopen_rate.py"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+TOOL="$FC_CANON_ROOT/scripts/fastcycle/closure/reopen_rate.py"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 fail=0
 chk() { if [ "$2" = 1 ]; then echo "ok $1"; else echo "NOT ok $1"; fail=1; fi; }

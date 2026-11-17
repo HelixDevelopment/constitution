@@ -63,9 +63,9 @@ PORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print
 python3 "$W/stub.py" "$PORT" "$LOG" "$T" & SRV=$!
 for _ in 1 2 3 4 5 6 7 8 9 10; do (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null && break; sleep 0.3; done
 URL="http://127.0.0.1:$PORT"
-run(){ timeout 30 env M3W_GITEA_TOKEN="${TOK:-$T}" bash "$S" "$@" </dev/null 2>&1; }
+run(){ timeout 30 env GITEA_LOOPBACK_TEST_TOKEN="${TOK:-$T}" bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN "$@" </dev/null 2>&1; }
 # 1 token handling
-out=$(env -u M3W_GITEA_TOKEN timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
+out=$(env -u GITEA_LOOPBACK_TEST_TOKEN timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
 [ $rc -eq 3 ] && echo "$out" | grep -q SKIPPED-NO-TOKEN && ok "missing token -> SKIPPED-NO-TOKEN rc=3" || bad "missing token rc=$rc"
 # 2 create with correct section, flags, exact body
 out=$(run --tag rel-1 --base-url "$URL" --prerelease --draft); rc=$?
@@ -83,29 +83,29 @@ out=$(TOK=WRONGTOKEN123 run --tag rel-1 --base-url "$URL"); rc=$?
 [ $rc -eq 4 ] && ok "bad token -> rc=4" || bad "bad token rc=$rc"
 echo "$out" | grep -q WRONGTOKEN123 && bad "token leaked in output" || ok "token not echoed (control: server rejected with 401 above)"
 # 5 input refusal
-bash "$S" --tag 'a;b' </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "unsafe tag refused" || bad "unsafe tag"
-bash "$S" --tag nosuchtag --base-url "$URL" </dev/null >/dev/null 2>&1; [ $? -eq 3 ] && ok "missing tag refused" || bad "missing tag"
+GITEA_LOOPBACK_TEST_TOKEN=$T bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag 'a;b' </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "unsafe tag refused" || bad "unsafe tag"
+GITEA_LOOPBACK_TEST_TOKEN=$T bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag nosuchtag --base-url "$URL" </dev/null >/dev/null 2>&1; [ $? -eq 3 ] && ok "missing tag refused" || bad "missing tag"
 for u in http://evil.example http://localhost:@example.invalid http://127.0.0.1:1@example.invalid http://127.0.0.1:80/x https://user@host.example; do
-  M3W_GITEA_TOKEN=$T bash "$S" --tag rel-1 --base-url "$u" --dry-run </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "base URL refused: $u" || bad "base URL accepted: $u"
+  GITEA_LOOPBACK_TEST_TOKEN=$T bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$u" --dry-run </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "base URL refused: $u" || bad "base URL accepted: $u"
 done
-timeout 5 bash "$S" --tag </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "trailing --tag does not hang (rc 2)" || bad "trailing --tag hang/rc"
-timeout 5 bash "$S" --repo </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "trailing --repo does not hang (rc 2)" || bad "trailing --repo hang/rc"
-M3W_GITEA_TOKEN=$T bash "$S" --tag rel-1 --repo '../..' --base-url "$URL" --dry-run </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "repo dot segments refused" || bad "repo dot segments"
+timeout 5 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "trailing --tag does not hang (rc 2)" || bad "trailing --tag hang/rc"
+timeout 5 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --repo </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "trailing --repo does not hang (rc 2)" || bad "trailing --repo hang/rc"
+GITEA_LOOPBACK_TEST_TOKEN=$T bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --repo '../..' --base-url "$URL" --dry-run </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && ok "repo dot segments refused" || bad "repo dot segments"
 # 6 hostile token (curl-config injection)
 for t in $'abc"\nurl = "http://127.0.0.1:1/INJECTED' 'ab\cd"ef12345' 'short'; do
   (TOK="$t"; run --tag rel-1 --base-url "$URL" >/dev/null; exit $?); [ $? -eq 3 ] && ok "hostile/short token refused" || bad "hostile token accepted"
 done
 # 7 changelog rules
-rm -f CHANGELOG.md; M3W_GITEA_TOKEN=$T bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1; [ $? -eq 3 ] && ok "no changelog -> refused" || bad "no changelog"
+rm -f CHANGELOG.md; GITEA_LOOPBACK_TEST_TOKEN=$T bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1; [ $? -eq 3 ] && ok "no changelog -> refused" || bad "no changelog"
 printf '## [Unreleased]\nx\n' > CHANGELOG.md
-M3W_GITEA_TOKEN=$T bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1; [ $? -eq 3 ] && ok "no matching section -> refused (never publishes Unreleased)" || bad "unreleased published"
+GITEA_LOOPBACK_TEST_TOKEN=$T bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1; [ $? -eq 3 ] && ok "no matching section -> refused (never publishes Unreleased)" || bad "unreleased published"
 out=$(run --tag rel-2 --base-url "$URL" --generic-notes); [ $? -eq 0 ] && grep '"p": "/api/v1/repos/Helix/constitution/releases"' "$LOG" | tail -1 | jq -e '.b.body=="Release rel-2\n"' >/dev/null && ok "--generic-notes" || bad "generic notes"
 # 8 large body (argv limit regression: > 128 KiB)
 python3 -c 'print("## rel-2 — big"); print("x"*200000)' > CHANGELOG.md
 out=$(run --tag rel-2 --base-url "$URL"); [ $? -eq 0 ] && ok "200 KB notes publish (no argv limit)" || bad "big body failed: $out"
 grep '"m": "PATCH"' "$LOG" | tail -1 | jq -e '.b.body|length>199000' >/dev/null && ok "big body delivered intact" || bad "big body truncated"
 # 9 dry-run
-out=$(M3W_GITEA_TOKEN=$T bash "$S" --tag rel-2 --base-url "$URL" --dry-run </dev/null 2>&1); echo "$out" | grep -q "DRY-RUN: would publish rel-2 on $URL/Helix/constitution" && ok "dry-run names the target" || bad "dry-run: $out"
+out=$(GITEA_LOOPBACK_TEST_TOKEN=$T bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-2 --base-url "$URL" --dry-run </dev/null 2>&1); echo "$out" | grep -q "DRY-RUN: would publish rel-2 on $URL/Helix/constitution" && ok "dry-run names the target" || bad "dry-run: $out"
 # 10 argv leak + redirect hardening (curl shim = unit-class double; control needle: URL must be recorded)
 SH="$W/shim"; mkdir -p "$SH"; cat > "$SH/curl" <<'SHIM'
 #!/usr/bin/env bash
@@ -115,7 +115,7 @@ printf '404'
 SHIM
 chmod +x "$SH/curl"; ARGV_LOG="$W/argv.log"; : > "$ARGV_LOG"
 printf '## rel-1 — y\nz\n' > CHANGELOG.md
-stubenv "$SH" ARGV_LOG="$ARGV_LOG"; PATH="$SH:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
+stubenv "$SH" ARGV_LOG="$ARGV_LOG"; PATH="$SH:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
 grep -q '/api/v1/repos/' "$ARGV_LOG" && ok "argv instrument sees the request (control needle found)" || bad "argv instrument blind"
 grep -q "$T" "$ARGV_LOG" && bad "token in curl argv" || ok "token absent from curl argv"
 grep -q -- '^-q ' "$ARGV_LOG" && ok "curl runs with -q (no curlrc)" || bad "curl without -q"
@@ -128,7 +128,7 @@ echo "curl: (7) Failed to connect to 'http://u:ZZCURLSECRET@ZZRAWAT@127.0.0.1:1/
 exit 7
 SHIM
 chmod +x "$SH2/curl"
-out=$(PATH="$SH2:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
+out=$(PATH="$SH2:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
 [ $rc -eq 4 ] && echo "$out" | grep -q 'network/request failure' && ok "curl failure reported (control, rc 4)" || bad "curl failure rc=$rc $out"
 echo "$out" | grep -q 'ZZCURLSECRET\|ZZRAWAT\|ZZCURLTWO' && bad "curl stderr: no secret printed" || ok "curl stderr: no secret printed"
 echo "$out" | grep -q "network/request failure (curl exit 7, reason class: network-unreachable; curl's own message is withheld" && ok "curl failure: exit status and reason class printed (positive needle)" || bad "curl failure: exit status and class: $out"
@@ -136,7 +136,7 @@ echo "$out" | grep -q 'Failed to connect\|h2/y' && bad "curl stderr: no byte of 
 # 12 (round 3 G1 class) stderr of other external commands the publisher runs (git here) is redacted when flushed at exit
 SH3="$W/shim3"; mkdir -p "$SH3"; REALGIT="$(command -v git)"
 printf '#!/bin/sh\nfor a in "$@"; do [ "$a" = rev-list ] && { echo "warning: https://u:ZZGITSECRET@ZZRAWAT@h.invalid/x" >&2; break; }; done\nexec "%s" "$@"\n' "$REALGIT" >"$SH3/git"; chmod +x "$SH3/git"
-out=$(PATH="$SH3:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" --dry-run </dev/null 2>&1); rc=$?
+out=$(PATH="$SH3:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" --dry-run </dev/null 2>&1); rc=$?
 [ $rc -eq 0 ] && echo "$out" | grep -q '^DRY-RUN' && ok "git warning does not fail the run (control)" || bad "git warning run rc=$rc $out"
 echo "$out" | grep -q 'https://<redacted>@h.invalid' && ok "git stderr flushed redacted (positive needle)" || bad "git stderr flushed redacted"
 echo "$out" | grep -q 'ZZGITSECRET\|ZZRAWAT' && bad "git stderr: no secret printed" || ok "git stderr: no secret printed"
@@ -152,13 +152,13 @@ SHIM
 chmod +x "$SH4/curl"; SEEN="$W/seen"; : > "$SEEN"
 printf '## rel-1 — y\nz\n' > CHANGELOG.md
 pleft() { find "$PT" -mindepth 1 | wc -l | tr -d ' '; }
-stubenv "$SH4" SEEN="$SEEN"; TMPDIR="$PT" PATH="$SH4:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1; rc=$?
+stubenv "$SH4" SEEN="$SEEN"; TMPDIR="$PT" PATH="$SH4:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1; rc=$?
 [ $rc -eq 0 ] && ok "run dir census: success run (control rc 0)" || bad "run dir census: success rc=$rc"
 grep -q '^rpg\.' "$SEEN" && ok "run dir is created under TMPDIR (control needle)" || bad "run dir not seen under TMPDIR (census blind)"
 [ "$(pleft)" = 0 ] && ok "nothing left in TMPDIR after a success" || bad "left in TMPDIR after a success: $(pleft)"
-TMPDIR="$PT" PATH="$SH2:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
+TMPDIR="$PT" PATH="$SH2:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
 [ "$(pleft)" = 0 ] && ok "nothing left in TMPDIR after a curl failure (err.out removed)" || bad "left in TMPDIR after a curl failure: $(pleft)"
-TMPDIR="$PT" M3W_GITEA_TOKEN='bad token!' timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
+TMPDIR="$PT" GITEA_LOOPBACK_TEST_TOKEN='bad token!' timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
 [ "$(pleft)" = 0 ] && ok "nothing left in TMPDIR after a refusal" || bad "left in TMPDIR after a refusal: $(pleft)"
 # 14 (round 4, H2, Q12; round 5 J6) SIGTERM and SIGHUP while curl writes a credential to stderr: nothing left,
 # nothing leaked, and the run ends through the script's own trap with exit status 143 / 129 (python reads the
@@ -175,9 +175,9 @@ for sg in TERM:143 HUP:129; do
   src="$(python3 -I - "${sg%%:*}" "$S" "$SH5" "$PT" "$W/ready" "$URL" "$T" "$W/sig.out" <<'PYS'
 import os, signal, subprocess, sys, time
 sig, s, sh, pt, ready, url, tok, outf = sys.argv[1:9]
-env = dict(os.environ, PATH=sh + ":" + os.environ["PATH"], TMPDIR=pt, READY=ready, M3W_GITEA_TOKEN=tok)
+env = dict(os.environ, PATH=sh + ":" + os.environ["PATH"], TMPDIR=pt, READY=ready, GITEA_LOOPBACK_TEST_TOKEN=tok)
 with open(outf, "wb") as o:
-    p = subprocess.Popen(["bash", s, "--tag", "rel-1", "--base-url", url], env=env, stdin=subprocess.DEVNULL, stdout=o, stderr=o)
+    p = subprocess.Popen(["bash", s, "--token-var", "GITEA_LOOPBACK_TEST_TOKEN", "--tag", "rel-1", "--base-url", url], env=env, stdin=subprocess.DEVNULL, stdout=o, stderr=o)
     for _ in range(200):
         if os.path.exists(ready): break
         time.sleep(0.1)
@@ -196,7 +196,7 @@ o=""; m=GET; p=""; for a in "$@"; do [ "$p" = -o ] && o="$a"; [ "$p" = -X ] && m
 if [ "$m" = POST ]; then printf '{"id":"ZZEVILID\u001b[2J"}' >"$o"; printf 201; else printf '{}' >"$o"; printf 404; fi
 SHIM
 chmod +x "$SH6/curl"
-out=$(PATH="$SH6:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
+out=$(PATH="$SH6:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
 [ $rc -eq 4 ] && ok "non-numeric created id refused (rc 4)" || bad "non-numeric created id rc=$rc $out"
 echo "$out" | grep -q ZZEVILID && bad "server-controlled id printed" || ok "server-controlled id not printed"
 # 16 (round 4, I-2) an Authorization header line in curl's stderr is redacted
@@ -205,7 +205,7 @@ SH7="$W/shim7"; mkdir -p "$SH7"; cat > "$SH7/curl" <<'SHIM'
 echo "> Authorization: token ZZHDRSECRET" >&2; exit 7
 SHIM
 chmod +x "$SH7/curl"
-out=$(PATH="$SH7:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null 2>&1)
+out=$(PATH="$SH7:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null 2>&1)
 echo "$out" | grep -q ZZHDRSECRET && bad "Authorization header value printed" || ok "Authorization header value not printed"
 echo "$out" | grep -q 'network/request failure (curl exit 7, reason class: ' && ok "the failure is reported by exit status and class (positive needle)" || bad "curl failure not reported: $out"
 echo "$out" | grep -q 'Authorization' && bad "no byte of the header line is printed" || ok "no byte of the header line is printed"
@@ -224,7 +224,7 @@ o=""; p=""; for a in "$@"; do [ "$p" = -o ] && o="$a"; p="$a"; done; printf '{}'
 SHIM
 chmod +x "$SH8/curl"; : >"$REC/tmpfiles"
 printf '## rel-1 — y\nz\n' > CHANGELOG.md
-stubenv "$SH8" REC="$REC"; TMPDIR="$PT8" PATH="$SH8:$PATH" TOKEN=unrelated-caller-value M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
+stubenv "$SH8" REC="$REC"; TMPDIR="$PT8" PATH="$SH8:$PATH" TOKEN=unrelated-caller-value GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
 grep -q -- ' -K - ' "$REC/argv" && ok "curl reads its config from stdin (-K -)" || bad "curl does not read -K -: $(head -1 "$REC/argv")"
 grep -q "Authorization: token $T" "$REC/stdin" && ok "the token reaches curl on stdin (control needle)" || bad "the token is not on curl's stdin (instrument blind)"
 [ -s "$REC/tmpfiles" ] && ok "the TMPDIR census read files during the run (control needle)" || bad "the TMPDIR census is blind"
@@ -243,7 +243,7 @@ cat >/dev/null; printf '%s' "$$" >"$PIDF"; : >"$READY"; exec sleep 20   # the re
 SHIM
 chmod +x "$SH9/curl"; rm -f -- "$W/ready9" "$W/pid9"
 stubenv "$SH9" READY="$W/ready9" PIDF="$W/pid9"
-( TMPDIR="$PT9" PATH="$SH9:$PATH" M3W_GITEA_TOKEN=$T exec bash "$S" --tag rel-1 --base-url "$URL" </dev/null ) >/dev/null 2>&1 &
+( TMPDIR="$PT9" PATH="$SH9:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T exec bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null ) >/dev/null 2>&1 &
 kp=$!; i=0; while [ ! -e "$W/ready9" ] && [ $i -lt 200 ]; do sleep 0.1; i=$((i+1)); done
 [ "$kp" -gt 1 ] && kill -s KILL "$kp"; wait "$kp" 2>/dev/null
 cp9="$(cat "$W/pid9" 2>/dev/null)"; case "$cp9" in ''|*[!0-9]*) cp9=0 ;; esac
@@ -255,7 +255,7 @@ grep -rq "$T" "$PT9" && bad "SIGKILL: a file under TMPDIR holds the token" || ok
 SH10="$W/shim10"; mkdir -p "$SH10"
 printf '#!/bin/sh\n. "${0%%/*}/.stubenv"\nfor a in "$@"; do [ "$a" = rev-list ] && { echo "redact=$GIT_TRACE_REDACT prompt=$GIT_TERMINAL_PROMPT trace=${GIT_TRACE:-unset}" >>"$GSEEN"; env >>"$GENV"; break; }; done\nexec "%s" "$@"\n' "$REALGIT" >"$SH10/git"; chmod +x "$SH10/git"
 GSEEN="$W/gseen"; : >"$GSEEN"; GENV="$W/genv"; : >"$GENV"
-stubenv "$SH10" GSEEN="$GSEEN" GENV="$GENV"; TOKEN=unrelated-caller-value GIT_TRACE_REDACT=0 GIT_TERMINAL_PROMPT=1 GIT_TRACE=1 PATH="$SH10:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" --dry-run </dev/null >/dev/null 2>&1
+stubenv "$SH10" GSEEN="$GSEEN" GENV="$GENV"; TOKEN=unrelated-caller-value GIT_TRACE_REDACT=0 GIT_TERMINAL_PROMPT=1 GIT_TRACE=1 PATH="$SH10:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" --dry-run </dev/null >/dev/null 2>&1
 grep -q '^PATH=' "$GENV" && ok "the environment census of git works (control needle)" || bad "the git environment census is blind"
 grep -q "$T" "$GENV" && bad "the token is in git's environment (a caller's exported TOKEN must not carry it)" || ok "the token is not in git's environment, even with a caller TOKEN exported"
 grep -q '^redact=' "$GSEEN" && ok "the git environment census saw rev-list (control needle)" || bad "the git environment census is blind"
@@ -273,7 +273,7 @@ out=$(run --tag rel-1 --base-url 'https://u:ZZPURL@h'); rc=$?
 echo "$out" | grep -q ZZPURL && bad "the bad base URL is echoed" || ok "the bad base URL is not echoed"
 # 21 (J5) a curl timeout is reported as the class "timeout"
 SH11="$W/shim11"; mkdir -p "$SH11"; printf '#!/bin/sh\ncat >/dev/null; echo "curl: (28) Operation timed out https://u:ZZTO@h" >&2; exit 28\n' >"$SH11/curl"; chmod +x "$SH11/curl"
-out=$(PATH="$SH11:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
+out=$(PATH="$SH11:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
 [ $rc -eq 4 ] && echo "$out" | grep -q 'curl exit 28, reason class: timeout' && ok "curl timeout reported with the class timeout (rc 4)" || bad "curl timeout: rc=$rc $out"
 echo "$out" | grep -q ZZTO && bad "curl timeout: message printed" || ok "curl timeout: message not printed"
 # 22 a non-numeric HTTP status from curl's -w is refused, never printed
@@ -283,7 +283,7 @@ SH12="$W/shim12"; mkdir -p "$SH12"; cat > "$SH12/curl" <<'SHIM'
 cat >/dev/null; o=""; p=""; for a in "$@"; do [ "$p" = -o ] && o="$a"; p="$a"; done; printf '{}' >"$o"; printf 'ZZCODE'
 SHIM
 chmod +x "$SH12/curl"
-out=$(PATH="$SH12:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
+out=$(PATH="$SH12:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
 [ $rc -eq 4 ] && ok "a non-numeric HTTP status is a failure (rc 4)" || bad "non-numeric status rc=$rc $out"
 echo "$out" | grep -q ZZCODE && bad "the non-numeric status is printed" || ok "the non-numeric status is not printed"
 # ---- round 6 (structural; reviewer mutants X6, X12, X13, X14 and K3) ----
@@ -299,7 +299,7 @@ SHIM
 chmod +x "$SH13/curl"
 for id in '{"id":"7\nZZEVILID23"}' '{"id":"ZZEVILID23"}' '{"id":7.5}'; do
   SEEN="$W/seen13"; : >"$SEEN"
-  stubenv "$SH13" ID23="$id" SEEN="$SEEN"; out=$(PATH="$SH13:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
+  stubenv "$SH13" ID23="$id" SEEN="$SEEN"; out=$(PATH="$SH13:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
   grep -qx GET "$SEEN" && ok "X6 $id: the GET is recorded (control needle)" || bad "X6 $id: census blind"
   [ $rc -eq 4 ] && ok "X6 $id: a bad release id is refused (rc 4)" || bad "X6 $id: rc=$rc $out"
   grep -qx PATCH "$SEEN" && bad "X6 $id: a PATCH was sent with a bad id" || ok "X6 $id: no PATCH is sent"
@@ -312,8 +312,8 @@ printf '## rel-1 — y\nz\n' > CHANGELOG.md
 # Control: env SHELLOPTS=xtrace does trace a two-command bash.
 [ "$(env SHELLOPTS=xtrace bash -c 'true; true' 2>&1 | grep -c '^+')" -ge 2 ] && ok "xtrace control: env SHELLOPTS=xtrace traces (instrument sees trace lines)" || bad "xtrace control: env SHELLOPTS=xtrace does not trace"
 for how in bashx shellopts; do
-  if [ "$how" = bashx ]; then out=$(M3W_GITEA_TOKEN=$T timeout 30 bash -x "$S" --tag rel-1 --base-url "$URL" --dry-run </dev/null 2>&1)
-  else out=$(env SHELLOPTS=xtrace M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" --dry-run </dev/null 2>&1); fi
+  if [ "$how" = bashx ]; then out=$(GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash -x "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" --dry-run </dev/null 2>&1)
+  else out=$(env SHELLOPTS=xtrace GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" --dry-run </dev/null 2>&1); fi
   echo "$out" | grep -q '^DRY-RUN' && ok "xtrace $how: the run completes (control)" || bad "xtrace $how: $out"
   n=$(printf '%s\n' "$out" | grep -c '^+')
   [ "$n" -le 1 ] && ok "xtrace $how: at most one trace line ($n)" || bad "xtrace $how: $n trace lines"
@@ -327,17 +327,17 @@ for c in curl git jq; do
   printf '#!/bin/sh\n{ echo "== %s"; env; } >>"%s"\nexec "%s" "$@"\n' "$c" "$E14" "$real" >"$SH14/$c"; chmod +x "$SH14/$c"
 done
 printf 'echo ZZBASHENV25 >/dev/null\n' >"$W/bashenv25"
-_rpg_tok=ZZCALLERRPG25 XYZ_TOKEN=ZZXYZ25 GH_TOKEN=ZZGH25 BASH_ENV="$W/bashenv25" PATH="$SH14:$PATH" M3W_GITEA_TOKEN=$T \
-  timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
+_rpg_tok=ZZCALLERRPG25 XYZ_TOKEN=ZZXYZ25 GH_TOKEN=ZZGH25 BASH_ENV="$W/bashenv25" PATH="$SH14:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T M3W_GITEA_TOKEN=ZZM3W25ENV \
+  timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1
 for c in curl git jq; do grep -qx "== $c" "$E14" && ok "K3: $c environment recorded (control needle)" || bad "K3: $c environment census blind"; done
 grep -q '^PATH=' "$E14" && ok "K3: the environment census reads PATH (control needle)" || bad "K3: env census blind"
-for v in "$T" ZZCALLERRPG25 ZZXYZ25 ZZGH25 '^BASH_ENV=' '^_rpg_tok=' '^M3W_GITEA_TOKEN='; do
+for v in "$T" ZZCALLERRPG25 ZZXYZ25 ZZGH25 '^BASH_ENV=' '^_rpg_tok=' '^GITEA_LOOPBACK_TEST_TOKEN=' ZZM3W25ENV '^M3W_GITEA_TOKEN='; do
   grep -q -- "$v" "$E14" && bad "K3: a child holds $v in its environment" || ok "K3: no child holds $v in its environment"
 done
 # 26 (X13) the run directory has a fresh random name per run: two runs, two different names of the form rpg.XXXXXX
 SH15="$W/shim15"; mkdir -p "$SH15"; PT15="$W/ptmp15"; mkdir -p "$PT15"; N15="$W/names15"; : >"$N15"
 printf '#!/bin/sh\nls -A "$TMPDIR" >>"%s"\nexec "%s" "$@"\n' "$N15" "$REALCURL" >"$SH15/curl"; chmod +x "$SH15/curl"
-for _ in 1 2; do TMPDIR="$PT15" PATH="$SH15:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1; done
+for _ in 1 2; do TMPDIR="$PT15" PATH="$SH15:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1; done
 nn=$(sort -u "$N15" | grep -c .)
 [ "$nn" -ge 1 ] && ok "X13: run directory names recorded (control needle, $nn)" || bad "X13: name census blind"
 [ "$nn" -eq 2 ] && ok "X13: two runs use two different run directory names" || bad "X13: names: $(sort -u "$N15" | tr '\n' ' ')"
@@ -349,7 +349,7 @@ cat >/dev/null; o=""; m=GET; p=""; for a in "$@"; do [ "$p" = -o ] && o="$a"; [ 
 if [ "$m" = POST ]; then printf '{"id":"7\\nZZEVILNEW27"}' >"$o"; printf 201; else printf '{}' >"$o"; printf 404; fi
 SHIM
 chmod +x "$SH16/curl"
-out=$(PATH="$SH16:$PATH" M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
+out=$(PATH="$SH16:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null 2>&1); rc=$?
 [ $rc -eq 4 ] && ok "27: a multi-line created id is refused (rc 4)" || bad "27: multi-line created id rc=$rc $out"
 echo "$out" | grep -q ZZEVILNEW27 && bad "27: the created id is printed" || ok "27: the created id is not printed"
 # 28 (round 6, X11) --token-var may name a variable that is on the rc_env_lockdown allow-list (GH_HOST here), which
@@ -365,9 +365,13 @@ while IFS= read -r c; do
 exec "%s" "$@"
 ' "$c" "$ENVB" "$E28" "$real" >"$SH28/$c"; chmod +x "$SH28/$c"
 done < <(python3 -I "$HERE/channel_census.py" commands "$HERE/channels.tsv")
-GH_HOST=$T PATH="$SH28:$PATH" "$TOB" 30 "$BASHB" "$S" --tag rel-1 --base-url "$URL" --token-var GH_HOST </dev/null >/dev/null 2>&1
+# B-M2 (2026-11-16): GH_HOST is bound to no host in config/forge/hosts.tsv, so the publish run is now refused
+# (exit 2) before any child; the --help run still reads and unsets the variable before its sed. The curl and grep
+# needles of the old publish run cannot fire any more (no child runs), so only sed is a needle here.
+GH_HOST=$T PATH="$SH28:$PATH" "$TOB" 30 "$BASHB" "$S" --tag rel-1 --base-url "$URL" --token-var GH_HOST </dev/null >/dev/null 2>&1; r28=$?
+[ "$r28" -eq 2 ] && ok "28 B-M2: --token-var GH_HOST is bound to no host: refused, exit 2" || bad "28 B-M2: --token-var GH_HOST rc $r28 (want 2)"
 GH_HOST=$T PATH="$SH28:$PATH" "$TOB" 30 "$BASHB" "$S" --token-var GH_HOST --help </dev/null >/dev/null 2>&1
-for c in curl grep sed; do grep -qx "== $c" "$E28" && ok "28: the $c environment is recorded (control needle)" || bad "28: $c env census blind"; done
+for c in sed; do grep -qx "== $c" "$E28" && ok "28: the $c environment is recorded (control needle)" || bad "28: $c env census blind"; done
 grep -q -- "$T" "$E28" && bad "28 X11: a child holds the token of an allow-listed --token-var ($(awk -v t="$T" '/^== /{c=$0} index($0,t){print c; exit}' "$E28"))" || ok "28 X11: no child holds the token of an allow-listed --token-var"
 # 29 (round 7, L1 L2) the child environment is built POSITIVELY: nothing outside the allow-list reaches any child,
 # also entries whose names are not shell identifiers (BAD-NAME=, A.TOKEN=, npm_config_//host/:_authToken=), and also
@@ -387,8 +391,8 @@ printf '%s\n' "$o29" | grep -q "^FINDING jq: file descriptor 7 is inherited" && 
   && ok "29: the recorder sees non-identifier names (control needle)" || bad "29: the recorder is blind to non-identifier names: $o29"
 : >"$E29"
 for how in shellopts bash-a; do
-  if [ "$how" = shellopts ]; then env "${ENV_DIRTY[@]}" SHELLOPTS=allexport PATH="$SH29:$PATH" M3W_GITEA_TOKEN=$T "$TOB" 30 "$BASHB" "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1 7</dev/null; r29=$?
-  else env "${ENV_DIRTY[@]}" PATH="$SH29:$PATH" M3W_GITEA_TOKEN=$T "$TOB" 30 "$BASHB" -a "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1 7</dev/null; r29=$?; fi
+  if [ "$how" = shellopts ]; then env "${ENV_DIRTY[@]}" SHELLOPTS=allexport PATH="$SH29:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T "$TOB" 30 "$BASHB" "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1 7</dev/null; r29=$?
+  else env "${ENV_DIRTY[@]}" PATH="$SH29:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T "$TOB" 30 "$BASHB" -a "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1 7</dev/null; r29=$?; fi
   [ "$r29" -eq 0 ] && ok "29 $how: the publisher run completes (control, rc 0)" || bad "29 $how: the publisher rc $r29"
 done
 for c in curl git jq; do grep -qx "== $c" "$E29" && ok "29: the $c environment is recorded (control needle)" || bad "29: $c env census blind"; done
@@ -402,7 +406,7 @@ K29="SEEN GITEA_PAT NPM_PAT DATABASE_DSN SLACK_WEBHOOK X_PRIVATE CLIENT_CERT SIG
 : >"$E29"
 # shellcheck disable=SC2046   # one NAME=VALUE argument per name, split on purpose
 env "${ENV_DIRTY[@]}" $(for n in $K29; do printf '%s=ZZFAKE-%s-11 ' "$n" "$n"; done) LANG=C.UTF-8 USER=zzk11 TERM=xterm \
-  RELEASE_ENV_KEEP="$RELEASE_ENV_KEEP $K29" PATH="$SH29:$PATH" M3W_GITEA_TOKEN=$T "$TOB" 30 "$BASHB" "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1 7</dev/null; r29=$?
+  RELEASE_ENV_KEEP="$RELEASE_ENV_KEEP $K29" PATH="$SH29:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T "$TOB" 30 "$BASHB" "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1 7</dev/null; r29=$?
 [ "$r29" -eq 0 ] && ok "29c the publisher run completes (control, rc 0)" || bad "29c the publisher rc $r29"
 o29="$(python3 -I "$HERE/env_census.py" check "$E29" --cmd curl git --allow $NET_ALLOW --allow-fd 3 --marker "$T" ZZFAKE- zzk11 $ENV_MARKERS --min 2)"; r29=$?
 [ "$r29" -eq 0 ] && ok "29c no network child has a name outside the network allow-list ($(printf '%s\n' "$o29" | tail -n 1))" || bad "29c network child: $(printf '%s\n' "$o29" | grep FINDING | sort -u | head -n 6 | tr '\n' ' ')"
@@ -416,7 +420,7 @@ if nofile_room; then
   : >"$E29"; env -i PATH="$SH29:$PATH" "$BASHB" -c 'jq --version >/dev/null; :' </dev/null >/dev/null 2>&1 7</dev/null 300</dev/null 12345</dev/null 100000</dev/null
   o29="$(python3 -I "$HERE/env_census.py" check "$E29" --parent bash --allow PATH PWD SHLVL _)"
   for d in 7 300 12345 100000; do case "$o29" in *"file descriptor $d is inherited"*) ok "29b control: descriptor $d is a finding for a plain child" ;; *) bad "29b control: descriptor $d not seen by the census" ;; esac; done
-  : >"$E29"; env PATH="$SH29:$PATH" M3W_GITEA_TOKEN=$T "$TOB" 30 "$BASHB" "$S" --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1 7</dev/null 300</dev/null 12345</dev/null 100000</dev/null; r29=$?
+  : >"$E29"; env PATH="$SH29:$PATH" GITEA_LOOPBACK_TEST_TOKEN=$T "$TOB" 30 "$BASHB" "$S" --token-var GITEA_LOOPBACK_TEST_TOKEN --tag rel-1 --base-url "$URL" </dev/null >/dev/null 2>&1 7</dev/null 300</dev/null 12345</dev/null 100000</dev/null; r29=$?
   [ "$r29" -eq 0 ] && ok "29b the publisher run with descriptors 7 300 12345 100000 completes (rc 0)" || bad "29b the publisher rc $r29"
   for c in curl jq; do grep -qx "== $c" "$E29" && ok "29b the $c record is made (control needle)" || bad "29b $c census blind"; done
   o29="$(python3 -I "$HERE/env_census.py" check "$E29" --allow $ENV_ALLOW $RELEASE_ENV_KEEP --allow-fd 3 --marker "$T" --min 3)"; r29=$?
@@ -426,15 +430,72 @@ else skp "29b descriptors of 5 and 6 digits: $NOFILE_WHY"; fi
 # carries its value across the re-execution as a plain shell variable (the argument prescan names it in READS),
 # so the token is found and the publish goes ahead (rc 0); without the prescan the re-executed publisher would
 # report SKIPPED-NO-TOKEN.
-out=$(env -u M3W_GITEA_TOKEN MY_GITEA_TOK=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" --token-var MY_GITEA_TOK </dev/null 2>&1); rc=$?
-{ [ $rc -eq 0 ] && ! printf '%s\n' "$out" | grep -q SKIPPED-NO-TOKEN; } && ok "30 --token-var MY_GITEA_TOK: the token crosses the re-execution (rc 0)" || bad "30 --token-var MY_GITEA_TOK: rc $rc $(printf '%s\n' "$out" | tail -n 1)"
+# B-M2: the variable is GITEA_LOOPBACK_TEST_TOKEN (the one name a loopback URL is bound to; it is not on the
+# allow-list either, so the case still needs the prescan).
+out=$(env -u M3W_GITEA_TOKEN GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" --token-var GITEA_LOOPBACK_TEST_TOKEN </dev/null 2>&1); rc=$?
+{ [ $rc -eq 0 ] && ! printf '%s\n' "$out" | grep -q SKIPPED-NO-TOKEN; } && ok "30 --token-var GITEA_LOOPBACK_TEST_TOKEN: the token crosses the re-execution (rc 0)" || bad "30 --token-var GITEA_LOOPBACK_TEST_TOKEN: rc $rc $(printf '%s\n' "$out" | tail -n 1)"
 printf '%s\n' "$out" | grep -q "$T" && bad "30 the token is printed" || ok "30 the token is not printed"
 # 31 (round 7) --token-var naming a variable bash gives a meaning of its own (BASH_ENV, SHELLOPTS, IFS) is refused
 # with exit 2 before anything runs
 for tv in BASH_ENV SHELLOPTS IFS; do
-  out=$(M3W_GITEA_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" --token-var "$tv" </dev/null 2>&1); rc=$?
+  out=$(GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" --token-var "$tv" </dev/null 2>&1); rc=$?
   { [ $rc -eq 2 ] && printf '%s\n' "$out" | grep -q 'bash gives a meaning of its own'; } && ok "31 --token-var $tv: refused, exit 2" || bad "31 --token-var $tv: rc $rc $(printf '%s\n' "$out" | tail -n 1)"
 done
+# B-M2 (2026-11-16): --token-var is required and the variable must be bound to the --base-url host in
+# config/forge/hosts.tsv; every refusal comes before any network call (a curl shim on PATH counts the calls and
+# the stub server logs every request with its Authorization header). Token values are fixture strings. The shim
+# never runs the real curl (it records the call and exits 7), so a refusal that comes too late reaches no real host.
+SHB="$W/shimbm2"; mkdir -p "$SHB"; CB="$W/curlbm2"; : >"$CB"
+printf '#!/bin/sh\necho call >>"%s"\nexit 7\n' "$CB" >"$SHB/curl"; chmod +x "$SHB/curl"
+bm2(){ # bm2 NAME WANT-RC WANT-TEXT ARGS... (the token variables are set by the caller)
+  local nm="$1" want="$2" txt="$3" l0 o r; shift 3; l0="$(wc -l <"$LOG")"; : >"$CB"
+  o="$(PATH="$SHB:$PATH" timeout 30 bash "$S" "$@" </dev/null 2>&1)"; r=$?
+  [ "$r" -eq "$want" ] && ok "B-M2 $nm: exit $want" || bad "B-M2 $nm: rc $r (want $want): $(printf '%s\n' "$o" | tail -n 1)"
+  [ -z "$txt" ] || { printf '%s\n' "$o" | grep -qF -- "$txt" && ok "B-M2 $nm: says '$txt'" || bad "B-M2 $nm: no '$txt' in: $(printf '%s\n' "$o" | tail -n 1)"; }
+  if [ "$want" -ne 0 ]; then
+    [ -s "$CB" ] && bad "B-M2 $nm: curl ran before the refusal" || ok "B-M2 $nm: no curl call"
+    [ "$(wc -l <"$LOG")" = "$l0" ] && ok "B-M2 $nm: the server got no request" || bad "B-M2 $nm: the server got a request"
+  fi
+  printf '%s\n' "$o" | grep -q -- "$T" && bad "B-M2 $nm: the token is printed" || ok "B-M2 $nm: the token is not printed"
+}
+export M3W_GITEA_TOKEN=$T GITEA_LOOPBACK_TEST_TOKEN=$T CODEBERG_TOKEN=$T CODEBERG_GITEA_TOKEN=$T
+bm2 "no --token-var" 2 "--token-var NAME is required" --tag rel-1 --base-url "$URL"
+bm2 "no --token-var, default URL" 2 "--token-var NAME is required" --tag rel-1 --dry-run
+bm2 "loopback URL with M3W_GITEA_TOKEN" 2 "is not bound to $URL" --tag rel-1 --base-url "$URL" --token-var M3W_GITEA_TOKEN
+bm2 "codeberg with M3W_GITEA_TOKEN" 2 "--token-var M3W_GITEA_TOKEN is not bound to https://codeberg.org" --tag rel-1 --base-url https://codeberg.org --token-var M3W_GITEA_TOKEN
+bm2 "m3w with CODEBERG_TOKEN" 2 "is not bound to https://git.m3w.org" --tag rel-1 --base-url https://git.m3w.org --token-var CODEBERG_TOKEN
+bm2 "unknown host" 2 "is not bound to https://g.example" --tag rel-1 --base-url https://g.example --token-var M3W_GITEA_TOKEN
+bm2 "m3w with a port the table does not name" 2 "is not bound" --tag rel-1 --base-url https://git.m3w.org:8443 --token-var M3W_GITEA_TOKEN
+bm2 "default URL with CODEBERG_TOKEN" 2 "is not bound to https://git.m3w.org" --tag rel-1 --token-var CODEBERG_TOKEN
+bm2 "loopback test variable on a real host" 2 "is not bound to https://git.m3w.org" --tag rel-1 --base-url https://git.m3w.org --token-var GITEA_LOOPBACK_TEST_TOKEN
+bm2 "lower-case name" 2 "--token-var must be an env var NAME" --tag rel-1 --base-url https://git.m3w.org --token-var m3w_gitea_token
+# controls: a bound pair passes the check (dry run: no network call)
+bm2 "control: m3w with M3W_GITEA_TOKEN (dry run)" 0 "DRY-RUN: would publish rel-1 on https://git.m3w.org/" --tag rel-1 --base-url https://git.m3w.org --token-var M3W_GITEA_TOKEN --dry-run
+bm2 "control: default URL with M3W_GITEA_TOKEN (dry run)" 0 "DRY-RUN: would publish rel-1 on https://git.m3w.org/" --tag rel-1 --token-var M3W_GITEA_TOKEN --dry-run
+bm2 "control: codeberg with CODEBERG_TOKEN (dry run)" 0 "DRY-RUN: would publish rel-1 on https://codeberg.org/" --tag rel-1 --base-url https://codeberg.org --token-var CODEBERG_TOKEN --dry-run
+bm2 "control: codeberg with CODEBERG_GITEA_TOKEN (dry run)" 0 "DRY-RUN" --tag rel-1 --base-url https://codeberg.org/ --token-var CODEBERG_GITEA_TOKEN --dry-run
+[ -s "$CB" ] && bad "B-M2 dry runs made a curl call" || ok "B-M2 dry runs made no curl call"
+# the value sent is the one of the named variable: the server records the Authorization header
+OTHER=OTHERTOKEN987654
+l0="$(wc -l <"$LOG")"
+out=$(M3W_GITEA_TOKEN=$OTHER GITEA_LOOPBACK_TEST_TOKEN=$T timeout 30 bash "$S" --tag rel-1 --base-url "$URL" --token-var GITEA_LOOPBACK_TEST_TOKEN </dev/null 2>&1); rc=$?
+[ $rc -eq 0 ] && ok "B-M2 loopback with GITEA_LOOPBACK_TEST_TOKEN: exit 0 (control)" || bad "B-M2 loopback with GITEA_LOOPBACK_TEST_TOKEN: rc $rc $(printf '%s\n' "$out" | tail -n 1)"
+na="$(tail -n +"$((l0 + 1))" "$LOG" | jq -r '.a' | sort -u | tr '\n' ' ')"
+[ "$na" = "token $T " ] && ok "B-M2 the server got exactly 'token <the GITEA_LOOPBACK_TEST_TOKEN value>' on every request" || bad "B-M2 Authorization headers seen: ${na//$T/<T>}"
+[ "$(tail -n +"$((l0 + 1))" "$LOG" | wc -l)" -ge 1 ] && ok "B-M2 the server log grew (control needle)" || bad "B-M2 the server log did not grow (blind)"
+tail -n +"$((l0 + 1))" "$LOG" | grep -q "$OTHER" && bad "B-M2 the M3W_GITEA_TOKEN value reached the loopback server" || ok "B-M2 the M3W_GITEA_TOKEN value never reached the loopback server"
+unset -v M3W_GITEA_TOKEN GITEA_LOOPBACK_TEST_TOKEN CODEBERG_TOKEN CODEBERG_GITEA_TOKEN
+# the table: a copy of the script and its library without config/forge/hosts.tsv, or with a table that has no
+# gitea row, refuses every https URL (fail closed); with the real table copied it passes (control)
+bmt="$W/bm2tab"; mkdir -p "$bmt/scripts/release"; cp -- "$S" "$bmt/scripts/release_publish_gitea.sh"; cp -- "$(dirname "$S")/release/redact_cut.sh" "$bmt/scripts/release/redact_cut.sh"
+o=$(M3W_GITEA_TOKEN=$T timeout 30 bash "$bmt/scripts/release_publish_gitea.sh" --tag rel-1 --token-var M3W_GITEA_TOKEN --dry-run </dev/null 2>&1); rc=$?
+{ [ $rc -eq 2 ] && printf '%s\n' "$o" | grep -q 'cannot read config/forge/hosts.tsv'; } && ok "B-M2 no host table: refused, exit 2 (fail closed)" || bad "B-M2 no host table: rc $rc $(printf '%s\n' "$o" | tail -n 1)"
+mkdir -p "$bmt/config/forge"; printf '# c\ngithub.com\tgithub\thttps://api.github.com\tGITHUB_TOKEN\tx\n' >"$bmt/config/forge/hosts.tsv"
+o=$(M3W_GITEA_TOKEN=$T timeout 30 bash "$bmt/scripts/release_publish_gitea.sh" --tag rel-1 --token-var M3W_GITEA_TOKEN --dry-run </dev/null 2>&1); rc=$?
+{ [ $rc -eq 2 ] && printf '%s\n' "$o" | grep -q 'no gitea row'; } && ok "B-M2 a host table without a gitea row: refused, exit 2" || bad "B-M2 no gitea row: rc $rc $(printf '%s\n' "$o" | tail -n 1)"
+cp -- "$ROOT/config/forge/hosts.tsv" "$bmt/config/forge/hosts.tsv"
+o=$(M3W_GITEA_TOKEN=$T timeout 30 bash "$bmt/scripts/release_publish_gitea.sh" --tag rel-1 --token-var M3W_GITEA_TOKEN --dry-run </dev/null 2>&1); rc=$?
+{ [ $rc -eq 0 ] && printf '%s\n' "$o" | grep -q '^DRY-RUN'; } && ok "B-M2 the copy with the real host table passes (control)" || bad "B-M2 the copy with the real host table: rc $rc $(printf '%s\n' "$o" | tail -n 1)"
 # L1 (round 6, K5 class; round 7: rc_env_clean): no external command runs before rc_env_clean in the script under test. The census lint
 # runs on this copy; only its order findings count here (the table rows are checked by test_channel_census.sh).
 l1t="$(mktemp -d "${TMPDIR:-/tmp}/l1.XXXXXX")"; : "${l1t:?}"

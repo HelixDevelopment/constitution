@@ -152,9 +152,10 @@ set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 TOOL="$FC/verify/plan_struct_check.py"
-GATE_LEDGER="$ROOT/constitution/scripts/gates/gate_ledger.sh"
+GATE_LEDGER="$FC_CANON_ROOT/scripts/gates/gate_ledger.sh"
 
 fail=0
 failx() { fail=1; }
@@ -205,7 +206,7 @@ fi
 #     naming a real violation), never a specific one, so this test does not silently start
 #     failing the moment a real gate lands or a deferral is registered (§11.4.6: asserting a
 #     status this file has not independently verified would itself be a guess).
-python3 "$TOOL" landing --constitution "$ROOT/constitution/" --anchors 11.4.230 \
+python3 "$TOOL" landing --constitution "$FC_CANON_ROOT/" --anchors 11.4.230 \
   --out "$TMP/landing.json" >"$TMP/landing_invoke.out" 2>"$TMP/landing_invoke.err"
 LANDING_RC=$?
 LANDING_ERR=$(cat "$TMP/landing_invoke.err" 2>/dev/null)
@@ -253,7 +254,7 @@ fi
 #     regardless of real corpus content -- a safe, real-data smoke test with a guaranteed outcome
 #     (the negative-control "UNCHANGED" case the embedded classify_diff instrument below already
 #     independently proves, exercised here through the real CLI + real git integration instead).
-python3 "$TOOL" rule-diff --constitution "$ROOT/constitution/" --base HEAD \
+python3 "$TOOL" rule-diff --constitution "$FC_CANON_ROOT/" --base HEAD \
   --out "$TMP/rulediff.json" >"$TMP/rulediff_invoke.out" 2>"$TMP/rulediff_invoke.err"
 RULEDIFF_RC=$?
 RULEDIFF_ERR=$(cat "$TMP/rulediff_invoke.err" 2>/dev/null)
@@ -299,7 +300,7 @@ fi
 # §11.4.201(1)).
 # ---------------------------------------------------------------------------
 NEEDLE_GATE="CM-T156-FIXTURE-NEEDLE-BAD"
-GATES_DIR="$ROOT/constitution/scripts/gates"
+GATES_DIR="$FC_CANON_ROOT/scripts/gates"
 
 # Sanity: the fictional token must occur nowhere in the REAL directory this
 # instrument is about to scan for a seam -- else the fixture would not be
@@ -1181,7 +1182,7 @@ echo "=== REVIEW ROUND 3: NB2 (a block ends at any top-level '## ' or non-anchor
 #     its own 6 `gate_unimplemented` violations to gates that actually belong to §12
 #     (CM-COVENANT-12-11-PROPAGATION, CM-COVENANT-12-12-PROPAGATION, CM-MAXRES-DYNAMIC-BUILD,
 #     CM-NPROC-HEADROOM-CHECK). The fixed tool must report ONLY §11.4.170's own two real gates.
-python3 "$TOOL" landing --constitution "$ROOT/constitution/" --anchors 11.4.170 \
+python3 "$TOOL" landing --constitution "$FC_CANON_ROOT/" --anchors 11.4.170 \
   --out "$TMP/nb2_landing.json" >"$TMP/nb2_landing.out" 2>"$TMP/nb2_landing.err"
 NB2_LANDING_RC=$?
 if python3 -c "
@@ -1243,7 +1244,7 @@ if [ "$MUT_NB2_PREP_RC" -ne 0 ]; then
   echo "     changed shape -- update this mutation test's anchor text to match)"
   failx
 else
-  python3 "$MUT_NB2" landing --constitution "$ROOT/constitution/" --anchors 11.4.170 \
+  python3 "$MUT_NB2" landing --constitution "$FC_CANON_ROOT/" --anchors 11.4.170 \
     --out "$TMP/nb2_mut.json" >"$TMP/nb2_mut.out" 2>"$TMP/nb2_mut.err"
   MUT_NB2_RC=$?
   MUT_NB2_ERR=$(cat "$TMP/nb2_mut.err" 2>/dev/null)
@@ -1427,7 +1428,7 @@ echo "=== REVIEW ROUND 3: NI3 test-coverage gaps (c) -- CLI-level anchor_not_fou
 
 # --- (c-i) anchor_not_found, REAL CLI, real corpus data (read-only): a requested anchor that
 #     genuinely does not exist in Constitution.md at all.
-python3 "$TOOL" landing --constitution "$ROOT/constitution/" --anchors 11.4.999999999 \
+python3 "$TOOL" landing --constitution "$FC_CANON_ROOT/" --anchors 11.4.999999999 \
   --out "$TMP/ni3_notfound.json" >"$TMP/ni3_notfound.out" 2>"$TMP/ni3_notfound.err"
 NI3_NOTFOUND_RC=$?
 if [ "$NI3_NOTFOUND_RC" -eq 1 ] && python3 -c "
@@ -1895,7 +1896,7 @@ r5_run midbreak "$TMP/r5_midbreak_base.md" "$TMP/r5_midbreak_after.md" \
 # appends a brand-new §11.4.192 (verified: the pre-existing §11.4.191's own text is unchanged; its
 # trailing '---' moved into §11.4.192's block). Pre-round-5 this reported substantive_change on
 # §11.4.191 (rc=1). Read-only against the real history: both blobs are copied into an isolated tree.
-R5_REAL="$ROOT/constitution"
+R5_REAL="$FC_CANON_ROOT"
 if git -C "$R5_REAL" cat-file -e 91aa99d~1:Constitution.md 2>/dev/null \
     && git -C "$R5_REAL" cat-file -e 91aa99d:Constitution.md 2>/dev/null; then
   git -C "$R5_REAL" show 91aa99d~1:Constitution.md >"$TMP/r5_real_before.md"

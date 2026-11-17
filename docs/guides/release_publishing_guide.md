@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-10-31 |
-| Last modified | 2026-10-31T11:30:00Z |
+| Last modified | 2026-11-16T20:00:00Z |
 | Status | draft |
 | Status summary | How a tagged release is published to GitHub, GitLab and the private Gitea. Built from the header of `scripts/release_publish_gitea.sh` and its `--help`; no live publish was made for this document. |
 | Authority | Tool documentation; no new anchor. §11.4.113 (no force-push), §11.4.10 (credentials), §11.4.201 (a skip is never a success), §11.4.18, §11.4.257 govern. |
@@ -27,11 +27,11 @@ Use the forge CLIs: `gh release create <TAG> --notes-file <FILE>` for GitHub and
 The private `m3w` Gitea has no CLI on our hosts, so `scripts/release_publish_gitea.sh` calls its REST API. It is safe to re-run (last write wins for title, notes and the draft / prerelease flags).
 
 ```bash
-M3W_GITEA_TOKEN=... scripts/release_publish_gitea.sh --tag helixconstitution-v73 --dry-run
-M3W_GITEA_TOKEN=... scripts/release_publish_gitea.sh --tag helixconstitution-v73
+M3W_GITEA_TOKEN=... scripts/release_publish_gitea.sh --token-var M3W_GITEA_TOKEN --tag helixconstitution-v73 --dry-run
+M3W_GITEA_TOKEN=... scripts/release_publish_gitea.sh --token-var M3W_GITEA_TOKEN --tag helixconstitution-v73
 ```
 
-Options: `--notes-file FILE` or `--generic-notes`, `--title TITLE` (default: the tag), `--base-url URL` (default `https://git.m3w.org`), `--repo OWNER/REPO` (default `Helix/constitution`), `--token-var NAME` (the NAME of the environment variable that holds the token), `--prerelease`, `--draft`, `--dry-run`.
+Options: `--notes-file FILE` or `--generic-notes`, `--title TITLE` (default: the tag), `--base-url URL` (default `https://git.m3w.org`), `--repo OWNER/REPO` (default `Helix/constitution`), `--token-var NAME` (REQUIRED since revision 2, B-M2 of the v73.4 dry run: the NAME of the environment variable that holds the token; there is no default any more, and the pair (base URL, NAME) must be bound in `config/forge/hosts.tsv`, a `gitea` row whose `api_base` is `BASE_URL/api/v1` listing NAME, or the script refuses with exit 2 before any network call; a loopback test URL takes `GITEA_LOOPBACK_TEST_TOKEN` only), `--prerelease`, `--draft`, `--dry-run`.
 
 - Notes default to the `CHANGELOG.md` section whose heading is exactly `## TAG` or `## [TAG]`. With no such section the script refuses (exit 3) unless `--notes-file` or `--generic-notes` is given; it never publishes an `[Unreleased]` or `[vNEXT]` section under a tag.
 - The token is read from the environment only (never argv, never printed), validated against a strict charset, kept out of child environments and sent through a 0600 curl config; curl runs with `-q`, no redirects and a protocol allow-list. Put the token in the environment by variable name; do not write its value in files or docs.

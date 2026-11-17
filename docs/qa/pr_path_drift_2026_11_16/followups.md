@@ -1,0 +1,13 @@
+# Follow-ups found while fixing CON-443 / CON-444 (2026-11-16)
+
+These are NOT filed in the tracker by this change (the fixer brief limits tracker writes to
+CON-443 and CON-444). Each line is a candidate item for the conductor to file through the
+engine. The ids below are placeholders, not tracker ids.
+
+| Placeholder id | Type | What | Evidence |
+|---|---|---|---|
+| CON-PENDING-tag-release-drift-set | Bug | `scripts/release/tag_and_release.sh` can push `SHA:refs/heads/main` (when a remote main is an ancestor of SHA) but runs only the badge check (`compute_badges.sh --check`, and `--no-badge-check` skips even that). It does not run the env-read allowlist gate, so a different and smaller step set guards that landing path. Fix direction: source `scripts/release/lib/landing_drift_checks.sh` and call `ldc_run`, the same list the lander and the PR check use. Scoped out of CON-443 because it is another script with its own suite. | `class_inventory.md` row 4; `census.txt` |
+| CON-PENDING-pr-check-not-enforced | Task | `scripts/release/pr_landing_check.sh` is run by the merging agent as a §11.4.297 procedure step. Nothing in this repository can stop a forge merge made without it (no CI, §11.4.156; no server-side hook). A procedure-text update in the §11.4.297 delivery guide naming the step, and a review check that a PR merge record cites the `RESULT: PASS` line of this tool, are the mechanisms available. | `class_inventory.md` row 3 |
+| CON-PENDING-forge-merge-engine-parity | Task | The PR check builds its merge candidate with `git merge-tree --write-tree` (git 2.53.0) plus `commit-tree`. Whether the forge's merge button produces the same tree for every PR is UNCONFIRMED (no live forge run in this change, by brief rule). A forge-side read-back comparing the merged tree with `candidate_tree` in `candidate.txt` would settle it per PR. | `green/prcheck_stale_run1_candidate.txt` |
+| CON-PENDING-drift-check-head-repoint | Task | Observation from mutant V02 (`LDC_REF=HEAD` in the lander survives): a drift-check script that runs `git symbolic-ref HEAD refs/heads/<other>`, pointing HEAD at a commit with the same tree, is not refused by publish. It is harmless for what is pushed (publish pushes `$local_main`, read from `refs/heads/main` before the checks, and the ref check re-reads `refs/heads/main`), but the clone is left on another branch. A post-check `symbolic-ref -q HEAD = refs/heads/main` assertion would close it. | `mutants/mutants.tsv` row V02 |
+| (none, recorded only) | - | A hand-typed `git push <remote> main` runs no drift check. This is a gap by construction; the procedure is `land_vehicle.sh` or a PR plus `pr_landing_check.sh`. No mechanism is added. | `class_inventory.md` row 5 |

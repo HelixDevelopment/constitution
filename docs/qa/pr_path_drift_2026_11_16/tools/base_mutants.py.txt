@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""CON-444 reproduction: the reviewer mutants R01, R02, R03, R07 (strings copied from the review's
+rmut.py) applied to land_vehicle.sh of a checkout, run against THAT checkout's drift-only suite.
+Usage: python3 -I base_mutants.py <checkout root> <out dir>. CONTROL (no change) must pass."""
+import os, subprocess, sys, tempfile
+root, out = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2]); os.makedirs(out, exist_ok=True)
+LV = "scripts/release/land_vehicle.sh"
+M = [("CONTROL", None, None),
+ ("R01-no-timeout", 'timeout "$DRIFT_TIMEOUT" bash "$CLONE/$path"', 'bash "$CLONE/$path"'),
+ ("R02-rc2-blind-pass", 'if [ "$rc" -eq 0 ]; then res=PASS', 'if [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]; then res=PASS'),
+ ("R03-no-main-moved", '    || { log "local main moved while the drift checks ran"; bad=1; }', '    || true'),
+ ("R07-log-discarded", '< /dev/null > "$EVIDENCE_DIR/drift_$name.log" 2>&1 9>&-', '< /dev/null > /dev/null 2>&1 9>&-')]
+src = open(os.path.join(root, LV)).read(); rows = []
+for mid, old, new in M:
+    if old is not None and src.count(old) != 1: rows.append((mid, "-", "STALE(%d)" % src.count(old))); continue
+    fd, cp = tempfile.mkstemp(prefix=".bmut_" + mid + "_", suffix=".sh", dir=os.path.join(root, "scripts/release")); os.close(fd)
+    open(cp, "w").write(src if old is None else src.replace(old, new)); os.chmod(cp, 0o755)
+    e = dict(os.environ); e["LANDER_TEST_DRIFT_ONLY"] = "1"
+    try:
+        with open(os.path.join(out, mid + ".log"), "w") as h:
+            rc = subprocess.run(["bash", os.path.join(root, "tests/release/test_land_vehicle.sh"), cp], stdout=h, stderr=subprocess.STDOUT, env=e, cwd=root, stdin=subprocess.DEVNULL, timeout=1500).returncode
+    finally: os.unlink(cp)
+    v = ("CONTROL-PASS" if rc == 0 else "CONTROL-FAIL") if old is None else ("KILLED" if rc else "SURVIVED")
+    rows.append((mid, str(rc), v)); print("\t".join(rows[-1]), flush=True)
+with open(os.path.join(out, "base_mutants.tsv"), "w") as h:
+    h.write("id\trc\tverdict\n"); [h.write("\t".join(r) + "\n") for r in rows]

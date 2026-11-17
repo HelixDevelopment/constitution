@@ -1,0 +1,5 @@
+# repo: vasic-digital/token_optimizer
+{"default_branch":"main","full_name":"vasic-digital/token_optimizer","permissions":{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}}
+# exit: 0
+[]
+# exit: 0

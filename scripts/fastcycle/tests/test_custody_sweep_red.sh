@@ -112,7 +112,8 @@ set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/custody_sweep"
 IMPL="$FC/orchestration/custody_sweep.py"
 QARESULTS="$ROOT/qa-results/agent_custody_20260926"
@@ -165,7 +166,9 @@ fi
 # ---------------------------------------------------------------------------
 echo
 echo "=== REAL-STATE: live git stash list (re-verified, never assumed) ==="
-STASH_RAW="$(git -C "$ROOT" stash list 2>&1)"
+# CON-097: a standalone canon clone (its consumer root is not a git checkout) is itself the real checkout to read.
+GIT_STATE_ROOT=$ROOT; [ -e "$ROOT/.git" ] || [ ! -e "$FC_CANON_ROOT/.git" ] || GIT_STATE_ROOT=$FC_CANON_ROOT
+STASH_RAW="$(git -C "$GIT_STATE_ROOT" stash list 2>&1)"
 if [ -z "$STASH_RAW" ]; then
   echo "-- (empty stash list -- if you expected stash@{3} / stash@{5} to be"
   echo "   present, the real state has changed since this test was authored;"
@@ -178,7 +181,7 @@ echo "-- live stash count: $STASH_COUNT"
 
 echo
 echo "=== REAL-STATE: live git worktree list (re-verified, never assumed) ==="
-WT_RAW="$(git -C "$ROOT" worktree list --porcelain 2>&1)"
+WT_RAW="$(git -C "$GIT_STATE_ROOT" worktree list --porcelain 2>&1)"
 echo "$WT_RAW" | sed 's/^/   /'
 WT_PATHS=$(printf '%s\n' "$WT_RAW" | awk '/^worktree /{print $2}')
 WT_COUNT=$(printf '%s\n' "$WT_PATHS" | grep -c . || true)
@@ -188,7 +191,7 @@ echo
 echo "=== REAL-STATE: correction (1) -- is stash@{3} genuinely 'already landed'? ==="
 STASH3_REF='stash@{3}'
 if printf '%s\n' "$STASH_RAW" | grep -q '^stash@{3}:'; then
-  S3_STAT="$(git -C "$ROOT" stash show -p "$STASH3_REF" --stat 2>&1)"
+  S3_STAT="$(git -C "$GIT_STATE_ROOT" stash show -p "$STASH3_REF" --stat 2>&1)"
   if [ -n "$S3_STAT" ]; then
     echo "ok CONFIRMED: stash@{3} is STILL a real, non-empty diff (shown below,"
     echo "   truncated) -- the task text's 'already landed, never pop' claim"

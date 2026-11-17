@@ -128,12 +128,12 @@ done
 for _pair in "hook:$hook" "labeler:$labeler"; do
     _nm="${_pair%%:*}"; _p="${_pair#*:}"
     [ -r "$_p" ] || continue
-    if bash -n "$_p" 2>/tmp/cm_tbl_bn.$$; then
+    if bash -n "$_p" 2>"${TMPDIR:-/tmp}"/cm_tbl_bn.$$; then
         say "✅ PARSEABILITY: ${_nm} clean (bash -n)"
     else
-        echo "❌ PARSEABILITY: ${_nm} fails bash -n: $(tr '\n' ' ' < /tmp/cm_tbl_bn.$$)"; fail=1
+        echo "❌ PARSEABILITY: ${_nm} fails bash -n: $(tr '\n' ' ' < "${TMPDIR:-/tmp}"/cm_tbl_bn.$$)"; fail=1
     fi
-    rm -f /tmp/cm_tbl_bn.$$
+    rm -f "${TMPDIR:-/tmp}"/cm_tbl_bn.$$
 done
 
 # ── Invariant 3: DOC (§11.4.18 convention doc) ──────────────────────────────

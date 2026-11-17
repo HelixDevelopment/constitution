@@ -1,0 +1,13 @@
+== fixed_minus_export_only script sha256 42174271822453d4 git 2.53.0
+mode=plain pass=exact caller_env=none rc=1 keys=[MYKEY=1 ] scanner_findings=- replace_line=[..] stderr=[] fake_value_files=0
+mode=plain pass=exact caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=1 keys=[MYKEY=1 ] scanner_findings=- replace_line=[..] stderr=[] fake_value_files=0
+mode=plain pass=scanner caller_env=none rc=1 keys=[] scanner_findings=1 replace_line=[..] stderr=[] fake_value_files=0
+mode=plain pass=scanner caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=1 keys=[] scanner_findings=1 replace_line=[..] stderr=[] fake_value_files=0
+mode=replaced pass=exact caller_env=none rc=1 keys=[MYKEY=0 ] scanner_findings=- replace_line=[..] stderr=[] fake_value_files=0
+mode=replaced pass=exact caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=1 keys=[MYKEY=0 ] scanner_findings=- replace_line=[..] stderr=[] fake_value_files=0
+mode=replaced pass=scanner caller_env=none rc=1 keys=[] scanner_findings=0 replace_line=[..] stderr=[] fake_value_files=0
+mode=replaced pass=scanner caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=1 keys=[] scanner_findings=0 replace_line=[..] stderr=[] fake_value_files=0
+mode=tree pass=exact caller_env=none rc=7 keys=[] scanner_findings=- replace_line=[..] stderr=[exact-match: unexpected reply from git cat-file --batch git error: exact-match pass failed ] fake_value_files=0
+mode=tree pass=exact caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=7 keys=[] scanner_findings=- replace_line=[..] stderr=[exact-match: unexpected reply from git cat-file --batch git error: exact-match pass failed ] fake_value_files=0
+mode=tree pass=scanner caller_env=none rc=1 keys=[] scanner_findings=0 replace_line=[..] stderr=[] fake_value_files=0
+mode=tree pass=scanner caller_env=GIT_NO_REPLACE_OBJECTS=1 rc=1 keys=[] scanner_findings=0 replace_line=[..] stderr=[] fake_value_files=0

@@ -1,0 +1,10 @@
+== GET /commits/e915eef70f7ed70a811b348113a3686d05e07a72 -> 200
+"{\"url\":\"https://api.gitverse.ru/repos/helixdevelopment/HelixConstitution/commits/aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"sha\":\"aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2\",\"html_url\":\"https://gitverse.ru/helixdevelopment/HelixConstitution/commit/aa
+== GET /commits/helixconstitution-v99.9-nonexistent -> 422
+"{\"error\":{\"code\":\"UNPROCESSABLE_ENTITY\",\"message\":\"<elided>",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"status\":422}}"
+== GET /commits/0000000000000000000000000000000000000000 -> 422
+"{\"error\":{\"code\":\"UNPROCESSABLE_ENTITY\",\"message\":\"<elided>",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"status\":422}}"
+== GET /commits/main -> 200
+"{\"url\":\"https://api.gitverse.ru/repos/helixdevelopment/HelixConstitution/commits/cb7008c4e3488b96f225377e096298c2a7726e46\",\"sha\":\"cb7008c4e3488b96f225377e096298c2a7726e46\",\"html_url\":\"https://gitverse.ru/helixdevelopment/HelixConstitution/commit/cb
+== GET /commits/heads/main -> 400
+"{\"error\":{\"code\":\"VALIDATION_ERROR\",\"documentation_url\":\"https://gitverse.ru/docs/developers/public-api\",\"message\":\"<elided>",\"status\":\"400\"}}"

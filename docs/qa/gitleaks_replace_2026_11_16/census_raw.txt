@@ -1,0 +1,33 @@
+# git grep census over scripts/ at cb7008c4 (+ working tree change to gitleaks_run_scan.sh)
+## query 1 (scanner invokers)
+scripts/anchors/anchor_lib.py
+scripts/fastcycle/tests/fixtures/core_ondemand/baseline_lines_sorted.txt
+scripts/gates/gate_ledger_prev_names.txt
+scripts/gitleaks/gitleaks_install_check.sh
+scripts/gitleaks/gitleaks_lib.sh
+scripts/gitleaks/gitleaks_run_scan.sh
+scripts/security/history_secret_scan.sh
+scripts/workable-items/bin/workable-items
+scripts/workable-items/bin/workable-items-linux
+## query 2 (history readers)
+scripts/fastcycle/consumers/migrate.sh
+scripts/fastcycle/cycle/baseline_replay.sh
+scripts/fastcycle/gates/lib/io_trace_build_map.py
+scripts/fastcycle/orchestration/custody_sweep.py
+scripts/fastcycle/tests/fixtures/anchor_citations/atm277_control_needle.json
+scripts/fastcycle/tests/fixtures/cycle_report/golden_atm953/tracker_export.json
+scripts/fastcycle/tests/test_anchor_citations_red.sh
+scripts/fastcycle/tests/test_consumer_migrate_red.sh
+scripts/fastcycle/tests/test_fastcycle_r6_mutations.sh
+scripts/gates/gate_ledger_removals.tsv
+scripts/gitleaks/gitleaks_run_scan.sh
+scripts/hooks/credential_scan_lib.sh
+scripts/install_constitution.sh
+scripts/release/land_vehicle.sh
+scripts/security/history_secret_scan.sh
+## exporters of GIT_NO_REPLACE_OBJECTS
+scripts/fastcycle/consumers/migrate.sh:956:GIT_NO_REPLACE_OBJECTS=1; export GIT_NO_REPLACE_OBJECTS
+scripts/fastcycle/consumers/migrate.sh:1002:            GIT_NO_REPLACE_OBJECTS=$FC_CALLER_NRO; export GIT_NO_REPLACE_OBJ
+scripts/gitleaks/gitleaks_run_scan.sh:28:export GIT_NO_REPLACE_OBJECTS=1
+scripts/security/history_secret_scan.sh:81:export GIT_NO_REPLACE_OBJECTS=1
+## negative control (fabricated token zqxjNOTAREALTOKEN): 0 files

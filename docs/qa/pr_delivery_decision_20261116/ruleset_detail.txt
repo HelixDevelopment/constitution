@@ -1,0 +1,4 @@
+# command: gh api repos/HelixDevelopment/HelixConstitution/rulesets/27164960 --jq {name,enforcement,target,conditions,rules,bypass_actors}
+# time: 2026-11-16T13:10:31Z
+{"bypass_actors":[],"conditions":{"ref_name":{"exclude":[],"include":["refs/heads/main"]}},"enforcement":"active","name":"protect-main-no-force-no-delete","rules":[{"type":"deletion"},{"type":"non_fast_forward"}],"target":"branch"}
+# exit: 0

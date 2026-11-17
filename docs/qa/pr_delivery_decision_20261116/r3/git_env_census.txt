@@ -1,0 +1,5 @@
+# command: python3 <root>/scripts/validation/git_env_class_census.py
+git-env-class-census: inventory: tracked=6416 accounted=6416 universe=1865 (go=184 js=12 other=2 py=249 sh=1418) gitlink=27 symlink=1 binary=24 data=4499 unclassified=0 absent=0 members=651 non_members=1214
+git-env-class-census: control needles seen (94 samples)
+git-env-class-census: PASS - members=651 hermetic=498 exempt=153 unscrubbed=0
+# exit: 0
