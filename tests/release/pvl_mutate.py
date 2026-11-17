@@ -34,8 +34,8 @@ CHECKER = "scripts/validation/check_provisional_verification_lines.py"
 RENDER = "scripts/release/render_release_entry.py"
 READING = "scripts/validation/pvl_reading_table.py"  # round 8: pvl_blockstate's oracle reads labels with it
 HARNESS = ["pvl_fixture.py", "pvl_oracle.py", "pvl_grid.py", "pvl_linemodel.py", "pvl_property.py", "pvl_timing.py",
-           "pvl_inventory.py", "pvl_refreader.py", "pvl_lineend.py", "pvl_blockstate.py"]
-KILLERS = ("grid", "linemodel", "lineend", "blockstate", "property", "timing", "inventory")
+           "pvl_inventory.py", "pvl_refreader.py", "pvl_lineend.py", "pvl_blockstate.py", "pvl_r10.py"]
+KILLERS = ("r10", "grid", "linemodel", "lineend", "blockstate", "property", "timing", "inventory")  # r10 first: fast
 SUITE_FILES = {CHECKER} | {"tests/release/" + h for h in HARNESS}
 
 
@@ -397,15 +397,16 @@ def api_r8(box, work, F, fx):
     def second(word):
         return "\n\n**" + word + ":** provisional -- job: FAKE -- checks: FAKE pass=999"
     # r9: the reasons are those of the allowlist (THE BODY, THE LINE); CON-983 (an unused definition, then the line) is
-    # accepted, every reader shows the one line; CON-987 is refused by the alphabet (a '|' after the label)
+    # accepted, every reader shows the one line; CON-987 is refused by the alphabet (a '|' after the label); r10: a
+    # character outside THE BODY ALPHABET (CON-973..978, 988, 990) is refused by the character rule before the label rule
     bodies = [("CON-971", "<!-- a --!><div hidden>\n-->\n\n" + line, "raw HTML"),
               ("CON-972", line + "\n\n<!-- --!><style>p{display:none}</style> -->", "raw HTML"),
-              ("CON-973", line + second("Verif\ufe0fication"), "label in another source line"),
-              ("CON-974", line + second("Verif&#xFE0F;ication"), "label in another source line"),
-              ("CON-975", line + second("V\u0435rification"), "label in another source line"),
-              ("CON-976", line + "\n\nVerification\u2236 x", "label in another source line"),
-              ("CON-977", line + second("Verifi\u3164cation"), "label in another source line"),
-              ("CON-978", line + second("Verificat\u0323ion"), "label in another source line"),
+              ("CON-973", line + second("Verif\ufe0fication"), "outside THE BODY ALPHABET"),
+              ("CON-974", line + second("Verif&#xFE0F;ication"), "outside THE BODY ALPHABET"),
+              ("CON-975", line + second("V\u0435rification"), "outside THE BODY ALPHABET"),
+              ("CON-976", line + "\n\nVerification\u2236 x", "outside THE BODY ALPHABET"),
+              ("CON-977", line + second("Verifi\u3164cation"), "outside THE BODY ALPHABET"),
+              ("CON-978", line + second("Verificat\u0323ion"), "outside THE BODY ALPHABET"),
               ("CON-979", line + "\n-- checks: FAKE pass=999", "the line below it is not blank"),
               ("CON-980", line + " -- note a&amp;b", "THE LINE ALPHABET"),
               ("CON-981", line + " -- note *x*", "THE LINE ALPHABET"),
@@ -415,9 +416,9 @@ def api_r8(box, work, F, fx):
               ("CON-985", line + " -- note x\\\nchecks: FAKE pass=999", "the line below it is not blank"),
               ("CON-986", "[r]: /u 'Verification: x'\n\n" + line, "label in another source line"),
               ("CON-987", line + " -- note a|b", "THE LINE ALPHABET"),
-              ("CON-988", line + "\n\u3000", "the line below it is not blank"),
+              ("CON-988", line + "\n\u3000", "outside THE BODY ALPHABET"),
               ("CON-989", "| x |\n---\n" + line, "the line above it is not blank"),
-              ("CON-990", line + "\n\n\u13d9erification: x", "label in another source line")]
+              ("CON-990", line + "\n\n\u13d9erification: x", "outside THE BODY ALPHABET")]
     statuses = [("CON-991", "In\u034f testing", "is not written exactly as 'In testing'"),
                 ("CON-992", "Ready\ufe0f for testing", "is not written exactly as 'Ready for testing'")]
     rdb = os.path.join(d, "r8.db")
@@ -579,8 +580,8 @@ def api_r9(box, work, F, fx):
         (line + "\n\n**Verifi`cation`:**" + fake, "label in another source line"),             # R9A01b
         ("**Verifi[cation](x):**" + fake + "\n\n" + line, "label in another source line"),     # R7M11: a line BEFORE
         (line + "\n\n**Verification**" + fake, "label in another source line"),                # O99 (G)
-        (line + "\n\n**Veriﬁcation:**" + fake, "label in another source line"),           # RVA10
-        (line + "\n\n**Verif\U000E0100ication:**" + fake, "label in another source line"),     # RVA11
+        (line + "\n\n**Veriﬁcation:**" + fake, "outside THE BODY ALPHABET"),           # RVA10 (r10: char rule)
+        (line + "\n\n**Verif\U000E0100ication:**" + fake, "outside THE BODY ALPHABET"),     # RVA11 (r10: char rule)
         ("x\n\n<!-- a note -->\n\n" + line, "raw HTML"),                                       # R9A08
         ("   " + line, "does not start at column 0"),
         ("<!x\n\n" + line + "\n\n>", "raw HTML"),                                           # CommonMark 0.30 vs 0.31.2
@@ -629,7 +630,8 @@ def run(box, work, name):
     rl = os.path.join(box, "tests/release")
     ck = os.path.join(box, CHECKER)
     py = [sys.executable, "-I"]
-    cmd = {"grid": py + [os.path.join(rl, "pvl_grid.py"), ck, os.path.join(work, "grid")],
+    cmd = {"r10": py + [os.path.join(rl, "pvl_r10.py"), ck, os.path.join(work, "r10")],
+           "grid": py + [os.path.join(rl, "pvl_grid.py"), ck, os.path.join(work, "grid")],
            "linemodel": py + [os.path.join(rl, "pvl_linemodel.py"), ck, "--no-pandoc"],
            "lineend": py + [os.path.join(rl, "pvl_lineend.py"), ck, os.path.join(work, "le"), "--no-pandoc"],
            "blockstate": py + [os.path.join(rl, "pvl_blockstate.py"), ck, os.path.join(work, "bs"), "--quick"],
