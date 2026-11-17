@@ -21,8 +21,8 @@ C.UTF-8 locale also matches CR, VT, FF and, through `iswspace`, several Unicode 
 
 | file | what it classifies | in class? | note |
 |---|---|---|---|
-| `scripts/validation/git_env_class_census.py` | shell / Python / JS source | yes | FIXED in round 4 (`reading_problem`, closed shebang set) |
-| `scripts/fastcycle/tests/check_safepath_census.py` | `baseline_replay.sh` | yes | FIXED in round 4 (`_sh_read_as_bash`); every shell helper (`_blank_heredocs`, `_heredoc_bodies`, `_git_env_scrub_sh`, `tag_at`, `_sh_text_lines`, `sh_commands`) only sees text that passed the gate. `py_census` keeps universal newlines on purpose: Python's own parser treats a lone CR as a line break (measured, `ast.parse("# c\ry=2")` yields `y=2`) |
+| `scripts/validation/git_env_class_census.py` | shell / Python / JS source | yes | round-4 hardening (`reading_problem`, closed shebang set); the review of round 4 reopened the class (R4-1, R4-3, R4-4), see `../con402_fallout_r5/` |
+| `scripts/fastcycle/tests/check_safepath_census.py` | `baseline_replay.sh` | yes | round-4 hardening (`_sh_read_as_bash`), reopened by R4-1 and R4-2 and re-hardened in round 5 (`../con402_fallout_r5/`); every shell helper (`_blank_heredocs`, `_heredoc_bodies`, `_git_env_scrub_sh`, `tag_at`, `_sh_text_lines`, `sh_commands`) only sees text that passed the gate. `py_census` keeps universal newlines on purpose: Python's own parser treats a lone CR as a line break (measured, `ast.parse("# c\ry=2")` yields `y=2`) |
 | `scripts/gates/lib/instrument_trap_scan.sh` | shell source (awk `/^[[:space:]]*#/`) | yes | a `VT#; <trap>` line is skipped as a comment while bash runs it: an evasion of the scanner |
 | `scripts/gates/cm_feature_directive.sh`, `scripts/gates/cm_reporting_directives.sh` | engine source (`grep -vE '^[[:space:]]*#'`) before a project-literal leak check | yes | a literal after a VT/FF/CR-led "comment" is hidden from the leak check |
 | `scripts/gates/cm_test_mock_pid_explicit_int.sh` | Python test files (`sed 's/^[[:space:]]*#.*$//'`) | yes, weaker | Python accepts SPACE, TAB and FF as indentation; VT/CR-led lines differ |
