@@ -967,10 +967,14 @@ tests/release/env_census.py	py	excluded	-	-	-	reason: tool: runtime environment 
 tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network probe run by tests/release/test_tag_and_release.sh (cases C41, C43, C44); not a test entry point
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
+tests/release/test_derive_release_facts_provisional.sh	sh	entry	default	bash	-	auto
+tests/release/test_derive_release_facts_provisional_mutants.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
 tests/release/test_pr_landing_check.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
+tests/release/test_release_template_delivery_paragraph.sh	sh	entry	default	bash	-	auto
+tests/release/test_release_template_delivery_paragraph_mutants.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
