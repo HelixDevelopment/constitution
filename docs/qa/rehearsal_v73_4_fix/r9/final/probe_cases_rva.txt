@@ -1,0 +1,16 @@
+V01a code span splits label                  human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+V01b code span splits bold label             human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+V03a strike splits label (gfm)               human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+V03b strike splits bold label (gfm)          human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+V11a VS17 inside label                       human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+V11b tag letter inside bold label            human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+V12a emphasis split, soft break before colon human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+V12b emphasis split, hard break before colon human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th

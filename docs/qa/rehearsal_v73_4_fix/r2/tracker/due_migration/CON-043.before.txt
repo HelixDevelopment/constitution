@@ -1,0 +1,11 @@
+## CON-043 — frozen-evidence exclusion gate for the 64 oracle-baseline entries (implemented, PROVISIONAL-DONE)
+
+**Status:** Ready for testing
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+The 64 oracle-baseline entries (3 frozen RED-evidence files under submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/) are now covered by a checked-in exclusion list, config/oracle_frozen_evidence_exclusions.tsv, enforced by scripts/gates/cm_oracle_strategy_named_and_independent.sh: closed class set, no globs, the git blob id of the owning repository voids an entry on mismatch, a monotone-nonincreasing ceiling, a malformed list is BLIND, and a path that is not a regular file (/dev/null) means no list. The ratchet baseline went from 64 entries to 0. Tests: tests/gates/test_oracle_frozen_exclusions.sh (79 pass, 0 fail) and tests/gates/test_oracle_ratchet_and_consumer_skips.sh. Landing was ordered by the conductor; the operator decision record itself is not verified by this run (UNKNOWN). Independent review: round 2 of max 5, verdict GO-with-follow-ups (section 11.4.276(G)), report scratchpad/review_con043_r2.md; vehicle head f8a45db. Follow-ups: see the items registered with this landing (CON-049 to CON-053).
+
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/gates/test_oracle_frozen_exclusions.sh, tests/gates/test_oracle_ratchet_and_consumer_skips.sh and the oracle gate on main after landing -- checks: gate on the real tree PASS excluded=3 voided=0, control with --exclusions /dev/null FAIL ratchet total=64 -- layer: gate-logic plus real tree (class floor: runtime) -- target: host, repo checkout -- artifact: commit that lands f8a45db -- due: next full-suite run.
+

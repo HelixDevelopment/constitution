@@ -26,6 +26,8 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 command -v python3 >/dev/null 2>&1 || { echo "env: python3 missing" >&2; exit 2; }
 tmp="$(mktemp -d)"; trap 'rm -rf "${tmp:?}"' EXIT
 mkdir -p "$tmp/scripts/gitleaks"; cp "$here/scripts/gitleaks/gitleaks_lib.sh" "$tmp/scripts/gitleaks/"
+# The scanner script sources ../lib/safe_rm.sh (attribute self-check cleanup, CON-453).
+cp -a "$here/scripts/lib" "$tmp/scripts/"
 SRC="$here/scripts/gitleaks/gitleaks_run_scan.sh"
 DST="$tmp/scripts/gitleaks/gitleaks_run_scan.sh"
 TEST="$here/tests/security/test_gitleaks_run_scan_replace.sh"

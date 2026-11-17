@@ -1,0 +1,78 @@
+import sys, os, importlib.util, tempfile, datetime
+repo = sys.argv[1]
+sys.path.insert(0, os.path.join(repo, "tests/release"))
+import pvl_fixture as F, pvl_refreader as R
+spec = importlib.util.spec_from_file_location("ck", os.path.join(repo, "scripts/validation/check_provisional_verification_lines.py"))
+C = importlib.util.module_from_spec(spec); spec.loader.exec_module(C)
+w = tempfile.mkdtemp(dir=os.environ.get("TMPDIR"))
+root = F.make_root(os.path.join(w, "fx"))["root"]
+G = F.line()
+# a second grammar sentence a "forger" would want hidden from the checker or vice versa
+G2 = G.replace("pass=3", "pass=4") if "pass=3" in G else G + " -- note other"
+ctx = C.Context(root, {}, "CON-1", datetime.date(2026, 11, 1), datetime.date(2026, 11, 16), 60, None)
+# self-check: G accepted alone
+assert C.check_body(G, ctx=ctx) is None, C.check_body(G, ctx=ctx)
+cases = [
+ ("ctl_visible", "x\n\n" + G),
+ ("ctl_hidden_fence", "```\n" + G + "\n```\n"),
+ ("empty_bullet_star", "text\n*\n" + G),
+ ("empty_bullet_plus", "text\n+\n" + G),
+ ("empty_ordered_1", "text\n1.\n" + G),
+ ("empty_ordered_paren", "text\n1)\n" + G),
+ ("list_blank_indent4", "- foo\n\n    bar\n" + G),
+ ("list_blank_indent4_ord", "1. foo\n\n    bar\n" + G),
+ ("list_blank_indent5", "- foo\n\n     bar\n" + G),
+ ("list_blank_tab", "- foo\n\n\tbar\n" + G),
+ ("quote_para_then_kind7", "> text\n> <span>\n" + G),
+ ("quote_para_then_kind7_close", "> text\n> </span>\n" + G),
+ ("list_indent_kind7_lazy", "- text\n  <span>\n" + G),
+ ("setext_quote_eq", "> text\n> ===\n" + G),
+ ("quote_empty_bullet", "> text\n> *\n" + G),
+ ("nested_quote_list", "> - a\n>\n>     b\n" + G),
+ ("list_list_blank_code", "- a\n  - b\n\n        c\n" + G),
+ ("table_gfm", "| a |\n| - |\n" + G),
+ ("linkref", "[x]: /u\n" + G),
+ ("linkref_title_next", "[x]: /u\n'" + G + "'"),
+ ("html_kind7_attr_newline", "<a\nhref=x>\n" + G),
+ ("html_comment_inline_in_para", "x <!--\n\n" + G + "\n-->"),
+ ("code_span_open", "x `\n\n" + G + "\n`"),
+ ("autolink", "<http://a>\n" + G),
+ ("frontmatter", "---\ntitle: a\n---\n" + G),
+ ("indented_after_list_blank_code6", "- foo\n\n      code\n" + G),
+ ("label_tag_inside_word_quote", G + "\n\n> **Veri<b></b>fication:** provisional -- job: fake"),
+ ("label_comment_inside_word", G + "\n\n> **Veri<!-- -->fication:** provisional -- job: fake"),
+ ("label_emph_split", G + "\n\n> **Veri*fi*cation:** provisional -- job: fake"),
+ ("label_hex_entity_quote", G + "\n\n> **&#x56;erification:** provisional -- job: fake"),
+ ("label_backslash_colon_quote", G + "\n\n> **Verification\\:** provisional -- job: fake"),
+ ("label_named_colon", G + "\n\n> **Verification&colon;** provisional -- job: fake"),
+ ("label_link_wrapped", G + "\n\n> [**Verification:**](x) provisional"),
+ ("label_image_alt", G + "\n\n![Verification: provisional](x)"),
+ ("label_html_block6_line2", G + "\n\n<div>\n**Verification:** provisional fake\n</div>"),
+ ("label_html_comment_hidden", G + "\n\n<!--\n**Verification:** provisional fake\n-->"),
+ ("label_after_hardbreak", G + "\n\nfoo\\\n**Verification:** provisional fake"),
+ ("label_combining", G + "\n\n> **Verificatión:** x"),
+ ("heading_label", G + "\n\n## Verification: provisional"),
+ ("setext_label", "**Verification:** provisional fake\n===\n\n" + G),
+ ("fence_tab_info", "```\tx\n" + G + "\n```"),
+ ("fence_close_tab_indent", "```\nx\n\t```\n\n" + G + "\n```"),
+ ("html1_close_other_line", "<pre>\n</pre>x\n\n" + G),
+ ("html1_textarea", "<textarea>\n\n" + G + "\n</textarea>"),
+ ("html4_decl", "<!DOCTYPE\n\n" + G + "\n>"),
+ ("html3_pi", "<?php\n\n" + G + "\n?>"),
+ ("html5_cdata", "<![CDATA[\n\n" + G + "\n]]>"),
+ ("html2_in_list_item", "- <!--\n\n  " + G + "\n-->"),
+ ("bom_start", "﻿" + G),
+ ("nul_in_prefix", G.replace("Verification", "Verifi\x00cation", 1)),
+]
+for name, body in cases:
+    try:
+        ck = C.check_body(body, ctx=ctx)
+    except Exception as e:
+        ck = "EXC %r" % e
+    lines = C.visible_lines(body)
+    md = R.mdit_lines(body)
+    acc = ck is None
+    # danger: checker accepts and markdown-it does not show exactly that one line (G) among top-level
+    md_shows_all = md
+    danger = acc and (md != [G.split("\n")[0]] )
+    print("%-34s accept=%-5s ck_lines=%d mdit=%d %s %s" % (name, acc, len(lines), len(md), "DANGER" if danger else "", "" if acc else "reason=" + str(ck)[:90]))

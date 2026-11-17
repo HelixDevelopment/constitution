@@ -1,0 +1,47 @@
+"""Reviewer probe r5: line model bodies, checker count vs pandoc -f commonmark (and gfm)."""
+import importlib.util, json, subprocess, sys
+repo = sys.argv[1]
+spec = importlib.util.spec_from_file_location("ck", repo + "/scripts/validation/check_provisional_verification_lines.py")
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+G = "**Verification:** provisional -- job: bash tests/t.sh -- checks: tests/t.sh pass=1 -- layer: host-only -- target: host -- artifact: main -- due: 2026-11-20"
+def strong(c):
+    return bool(c) and c[0].get("t") == "Strong" and len(c[0]["c"]) == 1 and c[0]["c"][0].get("c") == "Verification:"
+def pcount(body, fmt):
+    p = subprocess.run(["pandoc", "-f", fmt, "-t", "json"], input=body, capture_output=True, text=True, timeout=60)
+    n = 0
+    for b in json.loads(p.stdout)["blocks"]:
+        if b["t"] in ("Para", "Plain") and strong(b["c"]): n += 1
+        elif b["t"] == "Header" and strong(b["c"][2]): n += 1
+    return n
+CASES = [
+ ("lone CR before fence opener", "x\r```\n\n" + G + "\n```\n"),
+ ("lone CR before comment opener", "x\r<!--\n\n" + G + "\n-->\n"),
+ ("lone CR before tilde fence", "x\r~~~\n\n" + G + "\n~~~\n"),
+ ("lone CR then G on same LF line", "x\r" + G),
+ ("lone CR heading", "# h\r" + G),
+ ("star thematic break with spaces", "* * *\n" + G),
+ ("dash thematic break with spaces", "- - -\n" + G),
+ ("setext === underline", "Title\n===\n" + G),
+ ("link reference definition", "[a]: /u\n" + G),
+ ("list item with fence after blank, indented 2", "- item\n\n  ```\n" + G + "\n"),
+ ("list item opened HTML comment, column 0 line", "- <!--\n" + G + "\n-->\n"),
+ ("quote opened HTML comment, column 0 line", "> <!--\n" + G + "\n-->\n"),
+ ("quote kind 6", "> <div>\n" + G + "\n"),
+ ("lazy quote then line", "> q\n" + G),
+ ("nested list lazy", "- a\n  - b\n" + G),
+ ("list item empty marker", "-\n" + G),
+ ("ordered list starting not 1 interrupts? (cannot)", "text\n2. x\n" + G),
+ ("html7 after blank", "\n<x-y a='1'>\n" + G),
+ ("NBSP indented", " " + G),
+ ("form feed line before", "\f\n" + G),
+ ("tab blank line", "x\n\t\n" + G),
+ ("vertical tab blank line", "x\n\x0b\n" + G),
+ ("fence in list item closed by column0 fence", "- ```\n" + G + "\n```\n"),
+ ("backslash hard break", "x\\\n" + G),
+ ("table row before", "| a |\n|---|\n" + G),
+]
+for name, body in CASES:
+    c = len(m.visible_lines(body)); cl = len(m.visible_lines(body, legacy=True))
+    pc = pcount(body, "commonmark"); pg = pcount(body, "gfm")
+    tag = "OK" if c == pc else ("DANGER-checker-counts-hidden" if c > pc else "strict-refusal")
+    print("%-28s checker=%d legacy=%d pandoc_cm=%d pandoc_gfm=%d  %s" % (tag, c, cl, pc, pg, name))

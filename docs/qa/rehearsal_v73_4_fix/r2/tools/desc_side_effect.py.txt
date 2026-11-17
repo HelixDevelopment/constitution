@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+"""desc_side_effect.py BEFOREDB AFTERDB ID...: for each id print whether the description column changed."""
+import sqlite3, sys
+b, a = (sqlite3.connect("file:%s?mode=ro" % p, uri=True) for p in sys.argv[1:3])
+ch = []
+for i in sys.argv[3:]:
+    d0 = b.execute("select description from items where atm_id=?", (i,)).fetchone()[0]
+    d1 = a.execute("select description from items where atm_id=?", (i,)).fetchone()[0]
+    print("%s %s len %d -> %d" % (i, "CHANGED" if d0 != d1 else "same", len(d0), len(d1)))
+    if d0 != d1 and len(d1) > len(d0) + 40: ch.append(i)
+print("description-replaced-by-free-text=%d: %s" % (len(ch), " ".join(ch)))

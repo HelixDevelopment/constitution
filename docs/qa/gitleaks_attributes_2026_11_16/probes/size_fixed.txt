@@ -1,0 +1,13 @@
+18.20 17.61 18.60 17/2772 884908
+script sha256 082067c65487ca114d81850351d414663d8e4de34557a23bffadc25f4fc17de5
+gitleaks 8.30.1 sha256 88f91962aa2f93ac
+repo 55b225f1, commits 1532
+[gitleaks] project root : /mnt/DATA1TB/claude-work/scratch/fix_attr_20261116T185226/sizeprobe
+[gitleaks] evidence dir : /mnt/DATA1TB/claude-work/scratch/fix_attr_20261116T185226/sizeprobe/qa-results/gitleaks/20261117T033203Z
+[gitleaks] control needles: -diff=1 textconv=1 merge=2 negative=0
+[gitleaks] running gitleaks detect (full history) ...
+----------------------------------------------------------------------
+FAIL: gitleaks scan completed — 682 real leak(s) found
+      [evidence: /mnt/DATA1TB/claude-work/scratch/fix_attr_20261116T185226/sizeprobe/qa-results/gitleaks/20261117T033203Z]
+----------------------------------------------------------------------
+rc=1 wall_seconds=76.384830203

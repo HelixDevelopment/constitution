@@ -1,0 +1,135 @@
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 4 items, 2 provisional, 2 ok
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 empty field value
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an option: usage exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P4 the database is unchanged
+PASS P5 real database: every Ready-for-testing and In-testing item has a complete line
+PASS P5 the checker counted the same 30 rows (needle: an independent count)
+FAIL P5 without --root the paths are checked for their shape only (said on the PATHS line) (no line /^PATHS: shape-only$/: CHECKED items=392 provisional_status=30 ok=30 fail=0|VERDICT: PASS)
+PASS P5 the real database holds provisional items (control: 30 > 0)
+FAIL P5 real database with --root (64): 
+FAIL P5 --root is reported (no line /^PATHS: exist-under /mnt/DATA1TB/claude-work/scratch/fix3_rehearsal_v73_4_20261116T144527/repo$/: usage: check_provisional_verification_lines.py [DB])
+PASS P6 control: the correct checker refuses the single missing-checks item
+PASS P6 control: the correct checker refuses the single In-testing item
+PASS P6 mutant checks-not-required is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant status-in-testing-dropped is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant blind-check-dropped is caught (rc 0)
+GRID-FAIL CON-5273 r3:cyr_TBD_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5274 r3:cyr_TBD_checks: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5276 r3:cyr_TBD_target: want 'field 'target' is a placeholder...', got accepted
+GRID-FAIL CON-5277 r3:cyr_TBD_artifact: want 'field 'artifact' is a placeholder...', got accepted
+GRID-FAIL CON-5279 r3:pending_sched_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5280 r3:none_assigned_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5281 r3:not_applicable_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5282 r3:lorem_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5283 r3:TBD_underscore_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5284 r3:T.B.D_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5285 r3:unknown_word_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5286 r3:to_be_done_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5287 r3:will_be_job: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5289 r3:qqq_job: want 'field 'job' starts with no word...', got 'field 'job' does not name a job (one id-like token or at least 2 words)'
+GRID-FAIL CON-5290 r3:pending_sched_checks: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5291 r3:none_assigned_checks: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5292 r3:not_applicable_checks: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5293 r3:lorem_checks: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5294 r3:TBD_underscore_checks: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5295 r3:T.B.D_checks: want 'field 'checks' is a placeholder...', got accepted
+FAIL P7 grid: mismatches (rc 1): GRID cases=433 refused=372 accepted=61 mismatches=91 checker_rc=1
+FAIL P7 grid size (needle: the grid really ran its cases) (no line /^GRID cases=4[0-9][0-9] refused=3[0-9][0-9] accepted=[5-9][0-9] mismatches=0 checker_rc=1$/: GRID-PASS CON-5001 job:empty|GRID-PASS CON-5002 job:spaces|GRID-PASS CON-5003 job:dot|GRID-PASS CON-5004 job:dash|GRID-PASS CON-5005 job:endash|GRID-PASS CON-5006 job:ellipsis|GRID-PASS CON-5007 job:ellipsis_char|GRID-PASS CON-5008 job:question|GRID-PASS CON-5009 job:dashes|GRID-PASS CON-5010 job:TB)
+FAIL P7 B2: the reviewer case r3:cyr_TBD_job
+FAIL P7 B2: the reviewer case r3:pending_sched_job
+FAIL P7 B2: the reviewer case r3:none_assigned_target
+FAIL P7 B2: the reviewer case r3:not_applicable_checks
+FAIL P7 B2: the reviewer case r3:T.B.D_job
+FAIL P7 B2: the reviewer case r3:TBD_underscore_target
+FAIL P7 B2: the reviewer case r3:qqq_checks
+FAIL P7 B2: the reviewer case r3:body:html_comment_only
+FAIL P7 B2: the reviewer case r3:body:prefix_glued
+FAIL P7 B2: r3 cases (70)
+PASS P7 M1: the case 'due: .' is in the grid and refused
+PASS P8 mutant empty-check is caught (121 grid cases)
+PASS P8 mutant pv2-strip is caught (109 grid cases)
+PASS P8 mutant punctuation-check is caught (115 grid cases)
+FAIL P8 mutant strong-lead did not apply exactly once
+FAIL P8 mutant unconfirmed-word did not apply exactly once
+FAIL P8 mutant lorem-word did not apply exactly once
+FAIL P8 mutant weak-lead did not apply exactly once
+FAIL P8 mutant weak-lead-checks did not apply exactly once
+FAIL P8 mutant none-of-exception did not apply exactly once
+FAIL P8 mutant not-no-lead did not apply exactly once
+FAIL P8 mutant checks-not-list did not apply exactly once
+FAIL P8 mutant be-phrase did not apply exactly once
+FAIL P8 mutant compound-alone did not apply exactly once
+FAIL P8 mutant compound-anywhere did not apply exactly once
+FAIL P8 mutant punct-led did not apply exactly once
+FAIL P8 mutant inside did not apply exactly once
+FAIL P8 mutant split-letter-digit did not apply exactly once
+FAIL P8 mutant digit-read did not apply exactly once
+FAIL P8 mutant single-run-inside did not apply exactly once
+FAIL P8 mutant single-run-lead did not apply exactly once
+FAIL P8 mutant confusables did not apply exactly once
+FAIL P8 mutant combining-marks did not apply exactly once
+PASS P8 mutant template is caught (109 grid cases)
+PASS P8 mutant nfkc is caught (104 grid cases)
+PASS P8 mutant format-chars is caught (98 grid cases)
+FAIL P8 mutant job-shape did not apply exactly once
+FAIL P8 mutant job-shape-reads-folded did not apply exactly once
+FAIL P8 mutant job-id did not apply exactly once
+FAIL P8 mutant job-path did not apply exactly once
+FAIL P8 mutant job-command did not apply exactly once
+PASS P8 mutant checks-shape is caught (92 grid cases)
+PASS P8 mutant target-shape is caught (92 grid cases)
+FAIL P8 mutant target-words did not apply exactly once
+FAIL P8 mutant target-reads-folded did not apply exactly once
+PASS P8 mutant layer-shape is caught (95 grid cases)
+PASS P8 mutant artifact-shape is caught (94 grid cases)
+FAIL P8 mutant artifact-reads-folded survived (rc 2)
+PASS P8 mutant due-not-date is caught (103 grid cases)
+PASS P8 mutant due-calendar is caught (95 grid cases)
+PASS P8 mutant due-year-range is caught (94 grid cases)
+PASS P8 mutant due-time is caught (93 grid cases)
+FAIL P8 mutant fence-ignored did not apply exactly once
+PASS P8 mutant fence-close-length is caught (93 grid cases)
+PASS P8 mutant colonless-form is caught (96 grid cases)
+FAIL P8 mutant prefix-boundary did not apply exactly once
+FAIL P8 mutant comment-skipped did not apply exactly once
+FAIL P8 mutant comment-close did not apply exactly once
+FAIL P8 mutant comment-one-line did not apply exactly once
+PASS P9 job: UNCONFIRMED: refused
+PASS P9 due: TODO refused
+PASS P9 every field TBD refused (the first field is named)
+PASS P9 job: - refused
+PASS P9 due: . refused (reviewer mutant PV2 shape)
+PASS P9 a line inside a code fence does not count
+FAIL P10 --root: exit 1 (64: usage: check_provisional_verification_lines.py [DB])
+FAIL P10 --root: the absent path is refused (no line /^FAIL CON-051 Ready for testing: field 'job' does not name a job/: usage: check_provisional_verification_lines.py [DB])
+PASS P10 --root: an existing path is accepted
+PASS P10 --root: a command with ./... needs no path
+FAIL P10 --root is reported (no line /^PATHS: exist-under /mnt/DATA1TB/claude-work/tmp/pvl.wR53Cd/root$/: usage: check_provisional_verification_lines.py [DB])
+FAIL P10 without --root the shape is enough (control) (no line /^PATHS: shape-only$/: CHECKED items=3 provisional_status=3 ok=3 fail=0|VERDICT: PASS)
+PASS P10 --root that is not a directory: usage exit 64
+PASS P10 --root without a value: usage exit 64
+FAIL P10 mutant root-ignored did not apply
+PASS P8 mutant X1-verbatim is caught (92 grid cases)
+PASS P8 mutant X2-verbatim is caught (92 grid cases)
+PASS P8 mutant X3-verbatim is caught (93 grid cases)
+FAIL P8 mutant X4-port did not apply exactly once
+FAIL P8 mutant X5-port did not apply exactly once
+FAIL P8 mutant X6-port did not apply exactly once
+PASS P8 mutant X7-verbatim is caught (97 grid cases)
+RESULT: pass=59 fail=55

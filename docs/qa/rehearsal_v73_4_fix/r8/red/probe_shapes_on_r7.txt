@@ -1,0 +1,49 @@
+gfm-table-header                           ACCEPT  mdit=clean pd-cm=clean pd-gfm=DIRTY(0 top-level verification paragraphs)  <== ACCEPTED-BUT-DIRTY
+gfm-table-header2                          ACCEPT  mdit=clean pd-cm=clean pd-gfm=DIRTY(0 top-level verification paragraphs)  <== ACCEPTED-BUT-DIRTY
+gfm-table-pipe-start                       ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+lref-before                                ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+lref-title-multiline-open                  REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+lref-title-multiline-dq                    REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+frontmatter-yaml                           REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=clean
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+setext-after-blank                         ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+hr-after                                   ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+paragraph-cont-setext-eq                   REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+paragraph-cont-setext-dash-sp              REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+tab-before-setext                          ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+trailing-bs-then-hr                        REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+footnote-def-gfm                           ACCEPT  mdit=clean pd-cm=clean pd-gfm=DIRTY(0 top-level verification paragraphs)  <== ACCEPTED-BUT-DIRTY
+footnote-def-gfm-indent                    REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=clean pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+task-like                                  ACCEPT  mdit=clean pd-cm=clean pd-gfm=DIRTY(raw HTML: element <label>)  <== ACCEPTED-BUT-DIRTY
+html-block-kind7-after-blank-inline-in-p   REFUSE  mdit=DIRTY(raw HTML: attribute hidden on <x-y>, ele) pd-cm=DIRTY(raw HTML: attribute hidden on <x-y>, ele) pd-gfm=DIRTY(raw HTML: attribute hidden on <x-y>, ele)
+      reason: the body holds raw HTML other than complete comments (raw HTML '<x-y hidden>'): a reader may hide or wrap a li
+autolink-www-gfm                           ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+strike-gfm                                 ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+fenced-div-pandoc                          REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+comment-multiline-block                    ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+comment-two-on-line                        ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+comment-then-text-same-line                REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML other than complete comments (raw HTML '<!-- a -->x'): a reader may hide or wrap a lin
+comment-dashdash-inside                    ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+comment-empty                              ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+comment-dash-gt-inside                     ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+comment-indent3                            ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+comment-in-quote                           ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+comment-unterminated-eof                   REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML other than complete comments (raw HTML '<!-- x'): a reader may hide or wrap a line wit
+inline-comment-in-label-para               ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+inline-comment-multiline-in-para           REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: field 'note' holds no letter or digit
+bom-first                                  REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=clean pd-gfm=clean
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+nbsp-indent                                REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+entity-label-line                          REFUSE  mdit=DIRTY(the label reads elsewhere in the documen) pd-cm=DIRTY(the label reads elsewhere in the documen) pd-gfm=DIRTY(the label reads elsewhere in the documen)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside

@@ -1,0 +1,2 @@
+PASS DP2 killed by its property (FAIL GL13 github plan line states the pre-release flag (no line matching /^PLAN release github:r1:acc/one prerelease=fla)
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0

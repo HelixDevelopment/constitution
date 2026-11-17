@@ -1,0 +1,37 @@
+scanner: fake
+ok   1 S0 precondition: a committed -diff attribute hides the secret from git log -p; --text shows it
+ok   2 S1 control: secret found (exit 1)
+ok   3 S2 committed .gitattributes -diff: secret found (exit 1)
+ok   4 S3 committed binary macro: secret found (exit 1)
+ok   5 S4 diff driver textconv in repo config: secret found (exit 1)
+ok   6 S5 .git/info/attributes: secret found (exit 1)
+ok   7 S6 caller core.attributesFile: secret found (exit 1)
+ok   8 S7 caller XDG attributes: secret found (exit 1)
+ok   9 S8 caller GIT_ATTR_SOURCE: secret found (exit 1)
+ok   10 S9 caller GIT_CONFIG_PARAMETERS: secret found (exit 1)
+ok   11 S10 caller --log-opts (two words): secret found (exit 1)
+ok   12 S11 caller --log-opts= (one word): secret found (exit 1)
+Automatic merge went well; stopped before committing as requested
+ok   13 S12 secret only in a merge commit: secret found (exit 1)
+ok   14 S13 .git/info/grafts: secret found (exit 1)
+ok   15 S14 .git/shallow with parents present: secret found (exit 1)
+ok   16 S15 real shallow clone: exit 3 INCONCLUSIVE
+ok   17 S16 negative control: exit 0, zero findings
+ok   18 S17 --log-opts with no value: exit 2
+ok   19 S18 no glrs_selfcheck.* directory left behind
+ok   20 S19 scanner ignoring --log-opts: exit 3 INCONCLUSIVE
+ok   21 S20 scanner dropping only --text: exit 3 INCONCLUSIVE
+ok   22 S21 scanner dropping only --no-textconv: exit 3 INCONCLUSIVE
+ok   23 S22 scanner dropping only -m: exit 3 INCONCLUSIVE
+ok   24 H1 control: secret found (exit 1)
+ok   25 H2 caller core.attributesFile: secret found (exit 1)
+ok   26 H3 caller GIT_ATTR_SOURCE: secret found (exit 1)
+ok   27 H4 caller XDG attributes: secret found (exit 1)
+ok   28 H5 caller textconv driver: secret found (exit 1)
+ok   29 H6 source with .git/info/grafts: secret found (exit 1)
+ok   30 H7 shallow source: exit 3 BLIND
+ok   31 H8 negative control: exit 0
+ok   32 H9 scanner dropping only --text: exit 3 BLIND
+ok   33 H10 scanner dropping only --no-textconv: exit 3 BLIND
+RESULT: 33/33 passed (scanner: fake)
+rc=0

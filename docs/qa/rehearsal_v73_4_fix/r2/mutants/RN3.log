@@ -1,0 +1,2 @@
+PASS RN3 killed by its property (FAIL RH11 real run aborts too (no line matching /^ABORT remotes r1 and r2 push to the same repository /: FAIL VERIFY r1 )
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0

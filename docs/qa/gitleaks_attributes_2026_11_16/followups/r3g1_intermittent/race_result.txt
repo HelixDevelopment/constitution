@@ -1,0 +1,6 @@
+mutlog.txt GNU grep 3.12: check PASS 50/300 last PIPESTATUS 0 0
+mutlog_big.txt GNU grep 3.12: check PASS 300/300 last PIPESTATUS 141 0
+argv43.log GNU grep 3.12: check PASS 300/300 last PIPESTATUS 1 1
+mutlog.txt fixed form (! grep -qv): check PASS 0/300
+mutlog_big.txt fixed form (! grep -qv): check PASS 0/300
+argv43.log fixed form (! grep -qv): check PASS 300/300
