@@ -103,6 +103,24 @@ Real tracker (origin main `ebd8818c`, 491 items):
   have no Severity line, so the first `md-to-db` cleared the column from `Low`
   to NULL (`real_tracker_d3fa_summary.txt`, "severity changed db0->db1: 3").
 
+Merge of origin main (`ebd8818c`) into the task branch (merge commit
+`1eae120b`):
+
+- `merge_resolution.txt`: the database conflict was resolved through the
+  engine: main's database, then `update` of CON-456, `repair-bodies` (the three
+  bodies of CON-266, CON-267 and CON-268 gain the Severity line the export
+  writes) and `export`. Against main the database differs only in those four
+  items and one history row, and the Markdown only in the three Severity lines
+  and CON-456.
+- `real_tracker_merged_summary.txt`: `real_tracker.sh` on a full extract of the
+  merge commit: `validate` 0, `diff` against the committed Markdown 0, the
+  export equals the committed Markdown, both `md-to-db` cycles keep all 491
+  items and no severity changes.
+- `gotest_merged_summary.txt`: one `go test -count=1 -json ./...` run on the
+  merge commit: 441 PASS, 6 SKIP, 0 FAIL top-level, the same sorted verdict
+  list as the two full runs listed under Go tests below (its exit status was
+  not captured).
+
 Go tests:
 
 - `red_d3fa_gotest_con456r2.txt`: the round-2 tests run against the d3fa
