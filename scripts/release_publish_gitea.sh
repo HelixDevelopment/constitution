@@ -7,12 +7,19 @@
 # upstream runs Gitea, which has no such CLI on our hosts, so the API is used.
 #
 # Usage:
-#   M3W_GITEA_TOKEN=... scripts/release_publish_gitea.sh --tag TAG \
+#   M3W_GITEA_TOKEN=... scripts/release_publish_gitea.sh --token-var M3W_GITEA_TOKEN --tag TAG \
 #       [--notes-file FILE | --generic-notes] [--title TITLE] \
-#       [--base-url URL] [--repo OWNER/REPO] [--token-var NAME] \
+#       [--base-url URL] [--repo OWNER/REPO] \
 #       [--prerelease] [--draft] [--dry-run]
 #
 # Defaults: base URL https://git.m3w.org, repo Helix/constitution, title = TAG.
+# --token-var NAME is REQUIRED (B-M2, 2026-11-16: there is no default variable any more, so a token is never
+# sent to a host it does not belong to). The pair (base URL, NAME) must be bound in config/forge/hosts.tsv: a
+# row with provider gitea whose api_base is BASE_URL/api/v1 and whose token_vars column lists NAME (for
+# example https://git.m3w.org with M3W_GITEA_TOKEN, https://codeberg.org with CODEBERG_GITEA_TOKEN or
+# CODEBERG_TOKEN). A loopback test URL takes GITEA_LOOPBACK_TEST_TOKEN only. An unbound pair, an unknown host
+# or an unreadable table is refused with exit 2 before any network call (scripts/release/redact_cut.sh
+# rc_gitea_binding).
 # Notes: the CHANGELOG.md section whose heading is exactly `## TAG` or
 # `## [TAG]` (up to the next `## `). If no such section exists the script
 # refuses (exit 3) unless --notes-file or --generic-notes is given; it never
@@ -25,7 +32,8 @@
 # carry a credential): a failure prints curl's exit status and one word of a
 # closed set (scripts/release/redact_cut.sh rc_err_class, or "timeout").
 #
-# Exit codes: 0 published/updated, 2 usage, 3 precondition missing or refused
+# Exit codes: 0 published/updated, 2 usage (also: no --token-var, or a token variable not bound to the base
+# URL), 3 precondition missing or refused
 # (token variable unset = SKIPPED-NO-TOKEN, bad token charset, tag not in local
 # git, jq/curl missing, no matching changelog section), 4 API/network failure.
 # A missing token is reported as SKIPPED-NO-TOKEN, never as success (§11.4.201).
@@ -35,7 +43,7 @@ unset -v GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJE
 LC_ALL=C; export LC_ALL
 
 TAG="" NOTES_FILE="" TITLE="" BASE_URL="https://git.m3w.org" REPO="Helix/constitution"
-PRERELEASE=false DRAFT=false DRY=0 TOKEN_VAR="M3W_GITEA_TOKEN" GENERIC=0
+PRERELEASE=false DRAFT=false DRY=0 TOKEN_VAR="" GENERIC=0   # B-M2: no default token variable
 HELP=0   # round 10 (R9-2): -h sets it; it is never taken from the caller
 
 DIE_FD=2
@@ -47,7 +55,7 @@ _rc_d="${BASH_SOURCE[0]}"; case "$_rc_d" in */*) _rc_d="${_rc_d%/*}" ;; *) _rc_d
 # The token variable may be named by --token-var; it is looked up in the arguments the same way the argument loop
 # below reads them (an option with a value takes the next word), so rc_env_clean carries that variable over (as a
 # shell variable no child receives). An invalid name is carried as nothing and refused by the check after the loop.
-_rpg_tv=M3W_GITEA_TOKEN; _rpg_a=("$@"); _rpg_i=0
+_rpg_tv=""; _rpg_a=("$@"); _rpg_i=0
 while [ "$_rpg_i" -lt "${#_rpg_a[@]}" ]; do
   case "${_rpg_a[_rpg_i]}" in
     --token-var) _rpg_tv="${_rpg_a[_rpg_i+1]:-}"; _rpg_i=$((_rpg_i + 2)) ;;
@@ -81,16 +89,17 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-[[ $TOKEN_VAR =~ ^[A-Z_][A-Z0-9_]*$ ]] || die "--token-var must be an env var NAME" 2
+[ -z "$TOKEN_VAR" ] || [[ $TOKEN_VAR =~ ^[A-Z_][A-Z0-9_]*$ ]] || die "--token-var must be an env var NAME" 2
 # Read the token once, drop it from the environment so no child inherits it. The holding variable is unset
 # first, so it is never exported (a caller's exported variable of the same name would otherwise keep its
 # export attribute and hand the token to every child). Round 6 (X11): this runs right after the argument loop,
 # before the first external command, because --token-var may name a variable on the rc_env_lockdown
 # allow-list (GH_HOST, say), which the lockdown leaves exported.
 unset -v _rpg_tok
-_rpg_tok="${!TOKEN_VAR:-}"
-unset -v "$TOKEN_VAR" 2>/dev/null || true
-if [ "${HELP:-0}" -eq 1 ]; then sed -n '2,29p' "$0"; exit 0; fi
+_rpg_tok=""
+if [ -n "$TOKEN_VAR" ]; then _rpg_tok="${!TOKEN_VAR:-}"; unset -v "$TOKEN_VAR" 2>/dev/null || true; fi
+if [ "${HELP:-0}" -eq 1 ]; then sed -n '2,39p' "$0"; exit 0; fi
+[ -n "$TOKEN_VAR" ] || die "--token-var NAME is required (the variable that holds the gitea token of the --base-url host; see config/forge/hosts.tsv)" 2
 [ -n "$TAG" ] || die "--tag is required" 2
 printf '%s' "$TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$' || die "tag has unsafe characters: refusing" 2
 printf '%s' "$REPO" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$' || die "repo must be OWNER/REPO" 2
@@ -106,6 +115,13 @@ if [ "$(rc_safe_url "$BASE_URL")" = "${BASE_URL%/}" ]; then
 fi
 [ "$SCHEME_OK" -eq 1 ] || die "base URL must be https://host[:port] (or http://127.0.0.1|localhost|[::1]:port for tests), no userinfo, no path" 2
 BASE_URL="${BASE_URL%/}"
+# B-M2: the token variable must belong to this host (config/forge/hosts.tsv), checked before any network call
+rc_gitea_binding "$BASE_URL" "$TOKEN_VAR"; _rpg_b=$?
+case "$_rpg_b" in
+  0) ;;
+  3) die "cannot read config/forge/hosts.tsv beside this script's library, or it has no gitea row: refusing (fail closed)" 2 ;;
+  *) die "--token-var $TOKEN_VAR is not bound to $BASE_URL in config/forge/hosts.tsv (a gitea row whose api_base is $BASE_URL/api/v1 must list it; a loopback test URL takes GITEA_LOOPBACK_TEST_TOKEN only): refusing before any network call" 2 ;;
+esac
 command -v jq >/dev/null 2>&1 || die "jq is required" 3
 command -v curl >/dev/null 2>&1 || die "curl is required" 3
 rc_net git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1 || die "tag $TAG does not exist in this repository" 3
