@@ -1,0 +1,32 @@
+# M03 probe: PROBE-DOSTOP = do_stop entered; PROBE-CACHE-NAMES-STOPPING = the endpoint cache names the set being stopped at that moment
+## probe (final jev-place.sh + probe lines)
+# test_s4_placement.sh: pass=259 fail=0 skip=0
+DOSTOP=29 CACHE-NAMES=0
+      6 PROBE-DOSTOP decide-a cleanup
+      5 PROBE-DOSTOP decide-a dispose
+      5 PROBE-DOSTOP decide-a owed
+     10 PROBE-DOSTOP decide-a release
+      1 PROBE-DOSTOP decide-b cleanup
+      2 PROBE-DOSTOP decide-b release
+## probe_ctl (control: release-path cache_normalize removed)
+# test_s4_placement.sh: pass=257 fail=2 skip=0
+DOSTOP=29 CACHE-NAMES=9
+      8 PROBE-CACHE-NAMES-STOPPING decide-a release
+      1 PROBE-CACHE-NAMES-STOPPING decide-b release
+      6 PROBE-DOSTOP decide-a cleanup
+      5 PROBE-DOSTOP decide-a dispose
+      5 PROBE-DOSTOP decide-a owed
+     10 PROBE-DOSTOP decide-a release
+      1 PROBE-DOSTOP decide-b cleanup
+      2 PROBE-DOSTOP decide-b release
+## probe diff (final -> probe, final -> control)
+348a349,351
+>   printf 'PROBE-DOSTOP %s %s\n' "$p" "$kind" >> "${PROBE_LOG:?}"
+>   if [ -f "$CACHE" ] && jq -e --arg p "$p" 'any(.endpoints[]?; .provider_id == "llmctl-local" and .model == $p)' "$CACHE" >/dev/null 2>&1; then
+>     printf 'PROBE-CACHE-NAMES-STOPPING %s %s\n' "$p" "$kind" >> "$PROBE_LOG"; fi
+348a349,351
+>   printf 'PROBE-DOSTOP %s %s\n' "$p" "$kind" >> "${PROBE_LOG:?}"
+>   if [ -f "$CACHE" ] && jq -e --arg p "$p" 'any(.endpoints[]?; .provider_id == "llmctl-local" and .model == $p)' "$CACHE" >/dev/null 2>&1; then
+>     printf 'PROBE-CACHE-NAMES-STOPPING %s %s\n' "$p" "$kind" >> "$PROBE_LOG"; fi
+608d610
+<   cache_normalize "$cur"

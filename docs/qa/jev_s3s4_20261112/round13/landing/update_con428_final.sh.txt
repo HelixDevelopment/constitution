@@ -1,0 +1,7 @@
+#!/bin/bash
+# update_con428_final.sh <repo>: round 13, point CON-428's investigation evidence at the final r13 run (pass 1 of 2,
+# verdict hash equal to pass 2). Engine only, never a hand-edited DB; then `export --no-formats` and `diff`.
+set -euo pipefail
+cd "${1:?repo}"
+W=scripts/workable-items/bin/workable-items; R13=docs/qa/jev_s3s4_20261112/round13
+"$W" update --id CON-428 --db docs/workable_items.db --investigation-evidence "$R13/runs/final1_r13.txt" --states-updated-by jev-r13-fixer

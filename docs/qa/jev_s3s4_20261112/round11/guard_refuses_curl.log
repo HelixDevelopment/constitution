@@ -1,0 +1,5 @@
+REFUSED curl -fsS --max-time 3 http://127.0.0.1:40907/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:40907/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:40907/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:40907/healthz
+REFUSED curl -q -sS --globoff -o /dev/null -w %{http_code} --max-time 3 http://127.0.0.1:40907/healthz

@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+# Fixer-authored mutants (round 4). Gate-logic class (stub llmctl/curl). Engine copied from the fixer's harness
+# (exact single-anchor replacement, git checkout restore, clean-tree check).
+import os, signal, subprocess, sys, time, json
+REPO, OUT = sys.argv[1], sys.argv[2]
+ONLY = set(sys.argv[3:])
+S3, S4, H, LEAK = "tests/jev/test_s3_bootstrap_honesty.sh", "tests/jev/test_s4_placement.sh", "tests/jev/test_jev_status_health.sh", "tests/jev/test_run_all_leak_detector.sh"
+BS, PL, LD = "scripts/jev/bootstrap.sh", "scripts/jev/jev-place.sh", "scripts/jev/lib_decide.sh"
+TAB, HERM, BMUT = "tests/jev/test_tab_fields.sh", "tests/jev/test_gate_bootstrap_hermetic.sh", "scripts/gates/cm_jev_bootstrap_idempotent_mutation_test.sh"
+CAL, DG, BG = "scripts/jev/jev-calibrate.sh", "scripts/gates/cm_jev_detection.sh", "scripts/gates/cm_jev_bootstrap_idempotent.sh"
+LIVE_ASSIGN = "  if [ \"$leased\" = 0 ] && [ \"$(jq -r --arg p \"$jp\" '.sets[$p].constitution_started == true' <<<\"$cur\")\" = true ]; then"
+M = [
+ ("Y2", "signature health probe drops the CA (round-3 Y2 shape)", S3, [(BS,
+   'health) sig="${sig}${_pid}=$(probe_http_memo "${_purl%/}/healthz" "$_pca");" ;;',
+   'health) sig="${sig}${_pid}=$(probe_http_memo "${_purl%/}/healthz" "");" ;;')]),
+ ("Y7", "cleanup-stop failure recognised only for rc 1 (round-3 Y7 shape)", S4, [(PL,
+   '      if [ "$crc" != 0 ]; then', '      if [ "$crc" = 1 ]; then')]),
+ ("Y11", "matcher: every word is an interpreter (round-3 Y11 shape)", H, [(LD,
+   '_jev_is_interpreter() { [[ "$1" == sh ||', '_jev_is_interpreter() { [[ -n "$1" ||')]),
+ ("Z1", "hermetic PATH prefixed with the ambient PATH", HERM, [(BG,
+   'HERMETIC_PATH="$STUBBIN:$GUARDBIN:/usr/local/bin:/usr/bin:/bin"',
+   'HERMETIC_PATH="$PATH:$STUBBIN:$GUARDBIN:/usr/local/bin:/usr/bin:/bin"')]),
+ ("Z2", "hermetic check always passes", BMUT, [(BG,
+   'hermetic_check() { # every bootstrap run above: no guarded tool / network command was attempted',
+   'hermetic_check() { return 0; }\n_unused_hc() { # every bootstrap run above: no guarded tool / network command was attempted')]),
+ ("Z3", "hosted probing left on inside the hermetic run", HERM, [(BG,
+   'JEV_HOSTED_PROBE=0 JEV_LLMCTL_BIN', 'JEV_HOSTED_PROBE=1 JEV_LLMCTL_BIN')]),
+ ("Z4", "bootstrap JEV_LLMCTL_BIN executable check dropped", S3, [(BS,
+   '  if [ -f "$JEV_LLMCTL_BIN" ] && [ -x "$JEV_LLMCTL_BIN" ]; then LLMCTL_BIN="$JEV_LLMCTL_BIN"',
+   '  if true; then LLMCTL_BIN="$JEV_LLMCTL_BIN"')]),
+ ("Z5", "bootstrap non-executable JEV_TOOLKIT_BIN falls back to PATH", S3, [(BS,
+   '  else log "" "  JEV_TOOLKIT_BIN is set but is not an executable file: claude-providers treated as absent"; fi',
+   '  else TOOLKIT_BIN="$(command -v claude-providers || true)"; fi')]),
+ ("Z6", "detection gate non-executable JEV_LLMCTL_BIN falls back to PATH", S3, [(DG,
+   'else _llm_why="JEV_LLMCTL_BIN is not an executable file"; fi',
+   'else _llm="$(command -v llmctl || true)"; fi')]),
+ ("Z7", "matcher: assignments are command words", H, [(LD,
+   '_jev_is_assignment() { [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; }', '_jev_is_assignment() { false; }')]),
+ ("Z8", "matcher: # comment rule removed", H, [(LD,
+   "    elif [ \"$c\" = '#' ] && [ \"$have\" = 0 ]; then", "    elif false; then")]),
+ ("Z9", "matcher: interpreter -c not followed", H, [(LD,
+   '        _jev_cmd_runs_gate "$1" $((d+1)); return', '        return 1')]),
+ ("Z10", "matcher: env wrapper not unwrapped", H, [(LD,
+   '  if [ "$b" = env ]; then', '  if false; then')]),
+ ("Z11", "matcher: unterminated quote accepted", H, [(LD,
+   '  [ -z "$q" ] || return 1', '  :')]),
+ ("Z12", "jev_usable_live: service rows read with TAB again", TAB, [(LD,
+   "  done <<<\"${sv//$'\\t'/$'\\x1f'}\"", "  done <<<\"${sv//$'\\t'/$'\\t'}\"")]),
+ ("Z13", "calibrate sample read with TAB again", TAB, [(CAL,
+   "  done < <(tr '\\t' '\\037' < \"$TMPD/sample.tsv\")", "  done < <(tr '\\t' '\\t' < \"$TMPD/sample.tsv\")")]),
+ ("Z14", "detection clause 6 read with TAB again", TAB, [(DG,
+   "@tsv' \"$DETECTION\" | tr '\\t' '\\037')", "@tsv' \"$DETECTION\" | tr '\\t' '\\t')")]),
+ ("Z15", "disposal also stops a set that still has a live lease", S4, [(PL,
+   "    " + LIVE_ASSIGN, "      if [ \"$(jq -r --arg p \"$jp\" '.sets[$p].constitution_started == true' <<<\"$cur\")\" = true ]; then")]),
+ ("Z16", "disposal stops a set this producer did not start", S4, [(PL,
+   "    " + LIVE_ASSIGN, '      if [ "$leased" = 0 ]; then')]),
+]
+M.append(("Z16c", "Z16 plus both earlier filters removed (all three layers that keep a set we did not start out of disposal)", S4, [
+  (PL, "  # an empty set this producer did not start (its holders were reaped) is forgotten, like release does; never stopped\n  cur=\"$(jq -c '.sets |= with_entries(select((.value.leases | length) > 0 or .value.constitution_started == true))' <<<\"$cur\")\"",
+       "  # filter removed (mutant)\n  :"),
+  (PL, "(.value.stop_owed // null) == null and ((.value.leases | length) > 0 or .value.constitution_started == true)) | .key' <<<\"$cur\")\"",
+       "(.value.stop_owed // null) == null) | .key' <<<\"$cur\")\""),
+  (PL, "    " + LIVE_ASSIGN, '      if [ "$leased" = 0 ]; then')]))
+def sh(*a, **k):
+    return subprocess.run(list(a), cwd=REPO, capture_output=True, text=True, **k)
+
+def run_suite(suite, log):
+    env = dict(os.environ)
+    tmp = os.path.join(OUT, "tmp"); os.makedirs(tmp, exist_ok=True); env["TMPDIR"] = tmp
+    p = subprocess.Popen(["nice", "-n", "10", "timeout", "900", "bash", suite], cwd=REPO, env=env,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+    first_fail, lines = None, []
+    for line in p.stdout:
+        lines.append(line)
+        if first_fail is None and line.startswith("FAIL - "):
+            first_fail = line.strip()
+            pg = os.getpgid(p.pid)
+            if isinstance(pg, int) and pg > 1 and pg == p.pid:   # our own new session only (§11.4.263)
+                os.killpg(pg, signal.SIGTERM)
+            break
+    try:
+        rc = p.wait(timeout=120)
+    except subprocess.TimeoutExpired:
+        pg = p.pid
+        if pg > 1: os.killpg(pg, signal.SIGKILL)
+        rc = p.wait()
+    with open(log, "w") as f: f.writelines(lines)
+    summary = next((l.strip() for l in reversed(lines) if l.startswith("# test_")), "")
+    return rc, first_fail, summary
+
+results = []
+for mid, desc, suite, edits in M:
+    if ONLY and mid not in ONLY: continue
+    files = sorted({e[0] for e in edits})
+    status = "INVALID"
+    detail = ""
+    try:
+        for path, old, new in edits:
+            fp = os.path.join(REPO, path)
+            s = open(fp).read()
+            n = s.count(old)
+            if n != 1:
+                detail = f"anchor count {n} in {path}"; raise ValueError(detail)
+            open(fp, "w").write(s.replace(old, new))
+        if os.environ.get("MUT_DRY"):
+            status = "VALID"; raise ValueError("dry")
+        t0 = time.time()
+        rc, ff, summ = run_suite(suite, os.path.join(OUT, f"{mid}.log"))
+        dt = int(time.time() - t0)
+        if ff or rc != 0:
+            status = "KILLED"; detail = (ff or f"rc={rc} {summ}")[:200]
+        else:
+            status = "SURVIVED"; detail = summ
+        detail += f" ({dt}s)"
+    except ValueError:
+        pass
+    finally:
+        sh("git", "checkout", "--", *files)
+        dirty = sh("git", "status", "--porcelain").stdout.strip()
+        if dirty:
+            print(f"ABORT: tree not clean after {mid}: {dirty}", flush=True); sys.exit(3)
+    results.append({"id": mid, "desc": desc, "suite": os.path.basename(suite), "status": status, "detail": detail})
+    print(f"{mid}\t{status}\t{os.path.basename(suite)}\t{desc}\t{detail}", flush=True)
+
+with open(os.path.join(OUT, "results.json"), "a") as f:
+    for r in results: f.write(json.dumps(r, ensure_ascii=False) + "\n")

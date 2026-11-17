@@ -1,0 +1,88 @@
+ok 1 - P99 A disposes decide-a first (its stop of decide-a is in flight)
+ok 2 - P99 then decide-b (its stop of decide-b is in flight)
+ok 3 - P99 CONTROL: the first stop took 44 s of the test clock (MARK_TTL is 43 s)
+FAIL - P99 while decide-a is stopped, decide-b carries NO mark yet (it is marked at its own turn) (expected [1700000000 null] got [1700000000 {
+  "at": 1700000000,
+  "pid": 16,
+  "pid_start": 8647127
+}])
+FAIL - P99 decide-b's mark carries the time of ITS turn (after the first stop), not the plan's (expected [1700000044] got [1700000000])
+FAIL - P110 the producer's own stopping mark: pid, pid_start (its start time), mono, holder (expected [16 8647127 test:1700000044 sA] got [16 8647127 null null])
+FAIL - P99 an observer keeps the live stopper's mark (its age is 0, not 44) (found [cleared the stopping mark] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.fzBXZW104h/o99.err)
+FAIL - P99 after the observer the mark is still A's (expected [16] got [null])
+FAIL - P99 C (the unit is ok for it) is refused while decide-b is stopping and holds no lease (expected [5 0] got [0 1])
+FAIL - P99 C's refusal names endpoint_stopping (§11.4.291(J)(3)) (no [endpoint_stopping] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.fzBXZW104h/c99.err)
+ok 4 - P99 A stops each set once; the registry is empty; nothing was lost (C never held a lease)
+ok 5 - P99 no unit runs at the end
+ok 6 - P100 A disposes decide-a first (its stop of decide-a is in flight)
+FAIL - P100 B (refused: decide-a is stopping) disposes decide-b, which nobody had marked yet (expected [5 1] got [5 0])
+ok 7 - P100 A does not stop decide-b again: one stop of each set
+FAIL - P100 A judges decide-b at its turn and says why it is not stopped (no [stop of decide-b (dispose) not run at its turn: the set is gone] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.uulf4TSv4s/a100.err)
+ok 8 - P101 the release of sA stops decide-a first (its stop of decide-a is in flight)
+FAIL - P101 decide-b is not marked while decide-a is stopped (expected [null] got [{
+  "at": 1700000000,
+  "pid": 4528,
+  "pid_start": 8661103
+}])
+FAIL - P101 C joins decide-b while decide-a's stop is in flight (expected [0 decide-b] got [5 ])
+FAIL - P101 the release stops decide-a only (expected [0 1 0] got [0 1 1])
+FAIL - P101 the release judges decide-b at its turn (no [stop of decide-b (release) not run at its turn: it holds 1 lease(s) now] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.5x6sqEVbC6/r101.err)
+FAIL - P101 C still holds its lease and decide-b runs (expected [0 decide-b ] got [3 ])
+ok 9 - P102a A disposes decide-b (its stop of decide-b is in flight)
+FAIL - P102a the set is KEPT when its stop returns with a lease in it (the anomaly recorded), then the lease is released as endpoint_gone; A's mark is cleared (expected [1 dispose true 0 null] got [null null false 0 null])
+FAIL - P102a A says the set is kept (no [the set is KEPT (never deleted with a lease)] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.T6G4SdVAlb/a102.err)
+FAIL - P102a the lease is released through endpoint_gone (announced), never dropped silently (no [endpoint_gone: the unit of decide-b is gone] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.T6G4SdVAlb/a102.err)
+ok 10 - P102b A disposes decide-b (its stop of decide-b is in flight)
+FAIL - P102b the set is kept and the other stopper's mark is not cleared by A (expected [8559] got [null])
+ok 11 - P103 CONTROL: a live marker's mark 300 s old (MARK_TTL 338) is kept
+FAIL - P103 after a 100 s capacity read the mark is 400 s old at the judging lock: cleared; mark_cleared and health carry that time (expected [null 1700000400 test:1700000400 1700000400] got [null 1700000400 null 1700000400])
+ok 12 - P104 CONTROL: a pid-less lease 850 s old (TTL 900) is kept
+ok 13 - P104 after a 100 s capacity read it is 950 s old at the judging lock: reaped
+ok 14 - P105 gone.at is the time of the observation that found the unit gone (after its 100 s read)
+ok 15 - P106 the failed disposal stop (read +100 s, stop +25 s) records stop_owed.at and stop_failed.at at T0+125; A's mark is cleared
+FAIL - P108 the heartbeat stamps heartbeat_at and heartbeat_mono after its 100 s read (expected [0 1700000100 test:1700000100] got [0 1700000100 null])
+ok 16 - P109 A started decide-a and is paused at its record step (paused at flock call 7)
+FAIL - P110 the producer's own starting mark: pid, pid_start (its start time), mono, holder, written after the 100 s read (expected [10422 8675536 test:1700000100 sA 1700000100] got [10422 8675536 null null 1700000100])
+ok 17 - P109 started_at and stop_failed.at are the time the result was recorded (read +100, start +50); the failed release stop keeps A's mark
+FAIL - P111 the wall clock stepped +10000 s, monotonic +10 s: the live mark is kept (expected [true] got [false])
+FAIL - P111 the wall clock stepped back to the mark's time, monotonic +400 s: the mark is cleared (expected [null] got [{
+  "at": 1700000000,
+  "mono": "test:5000",
+  "pid": 11623,
+  "pid_start": 8676001,
+  "holder": "sM"
+}])
+FAIL - P111 a mark from another boot is expired (expected [null] got [{
+  "at": 1700000000,
+  "mono": "otherboot:5000",
+  "pid": 11763,
+  "pid_start": 8676067,
+  "holder": "sM"
+}])
+ok 18 - P111 a mark with no mono (an older producer), wall age 10 s: kept
+ok 19 - P111 the same mark at wall age 400 s: cleared (the wall rule)
+FAIL - P111 an empty JEV_MONO_FILE: exit 2 (expected [2] got [0])
+FAIL - P111 the config error says so (no [the monotonic clock could not be read] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.y1MKNksUX4/e111)
+FAIL - P111 a pid-less lease, wall +5000 s, monotonic +10 s: kept (expected [1] got [0])
+FAIL - P111 wall +0 s, monotonic +901 s (TTL 900): reaped (expected [0] got [1])
+ok 20 - P111 CONTROL: the boot id is readable in this run
+FAIL - P111 with no seam the mark and the lease carry mono = <boot id>:<uptime seconds> (expected [0 yes yes] got [0 no no])
+ok 21 - P112 A (a pid-less holder, TTL 60 s) started decide-a and is paused at its record step (paused at flock call 7)
+ok 22 - P112 CONTROL: the start took 100 s; the lease was written at the start mark (100 s > TTL 60 s)
+FAIL - P112 an observer keeps the lease while A's live starting mark names its holder (expected [1] got [0])
+FAIL - P112 the observer says why (no [kept while a live mark names the holder] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.MInOKTRcwb/o112a.err)
+FAIL - P112 A refreshed its lease when it recorded the start; an observer at once keeps it (expected [0 1 1700000100] got [5 0 null])
+ok 23 - P112 the suspension ended with the mark: 61 s after the refresh the pid-less lease is reaped
+ok 24 - P112 a lease whose pid is dead is reaped although a live mark names its holder
+FAIL - P113 A runs the owed stop, reads a fresh answer and joins decide-a (expected [0 decide-a 1 2] got [0 decide-a 1 1])
+FAIL - P113 the lease is written by the fresh plan after the stop (read +100, stop +500, read +100) (expected [1700000700] got [1700000100])
+FAIL - P113 A says why it does not join in the first plan (no [the join is taken after this acquire's stops] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.OjkSV3NcYn/a113.err)
+ok 25 - P114 A disposes decide-a first (its stop of decide-a is in flight)
+FAIL - P114 CONTROL: an observer records decide-b ok while decide-a's stop is in flight (expected [ok] got [degraded])
+FAIL - P114 decide-b is not stopped: at its turn it is recorded ok (expected [1 0 decide-b ] got [1 1 ])
+FAIL - P114 A says why (no [stop of decide-b (dispose) not run at its turn: its recorded instance state is ok now] in /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.ZV4AK8LAqf/a114.err)
+FAIL - P107 every bounded stop / start in this file runs under a mark written after its process's previous bounded call (mark_census: cannot read /mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.l3fedUOtHH/trace.*: [Errno 2] No such file or directory: '/mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX/tmp/tmp.l3fedUOtHH/trace.*') (expected [0] got [2])
+ok 26 - P107 CONTROL (golden-bad): the round-8 shape (one plan-time mark over two stops) is one violation
+ok 27 - P107 CONTROL: the per-turn shape passes; an empty trace is BLIND (2), never clean
+ok 28 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round9.sh: pass=28 fail=39 skip=0

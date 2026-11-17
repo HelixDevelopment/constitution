@@ -1,0 +1,12 @@
+#!/bin/bash
+# drive8.sh <W> <outdir>: two lanes (the brief's limit); lane 1 runs REAL (all four suites, the GREEN control) then
+# takes mutants, lane 2 takes mutants at once; a mutant is claimed exactly once through a flock'ed counter file.
+set -u
+W="${1:?W}"; O="${2:?outdir}"; mkdir -p "$O"; Q="$O/queue.txt"; cut -f1 "$W/mut/index.tsv" > "$Q"; echo 0 > "$O/next"
+claim() { ( flock -w 60 7 || exit 1; n=$(cat "$O/next"); echo $((n+1)) > "$O/next"; sed -n "$((n+1))p" "$Q" ) 7>>"$O/next.lock"; }
+lane() {
+  [ "$1" = 1 ] && bash "$W/tools/runmut8.sh" "$W" REAL "$O"
+  while k="$(claim)" && [ -n "$k" ]; do bash "$W/tools/runmut8.sh" "$W" "$k" "$O"; done
+}
+lane 1 & lane 2 & wait
+echo "drive8 done $(date -u +%FT%TZ)" >> "$O/done.txt"

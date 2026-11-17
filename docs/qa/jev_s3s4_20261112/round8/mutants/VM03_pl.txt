@@ -1,0 +1,40 @@
+ok 1 - P1 acquire rc 0 when a candidate fits
+ok 2 - P1 first systemone-native candidate (decide-a) placed
+ok 3 - P1 exactly one llmctl start
+ok 4 - P1 local gateway in the cache at priority 10
+ok 5 - P1 gateway URL from the llmctl registry
+ok 6 - P1 key referenced by NAME
+ok 7 - P1 placement route local
+ok 8 - P1 set records constitution_started
+ok 9 - P1 the starting mark is cleared after the start
+ok 10 - P2 setup: the stub reports the started profile in llmctl's shape (verdict running, unit ok)
+ok 11 - P2 second holder joins decide-a (verdict running, unit status ok)
+ok 12 - P2 no second start
+ok 13 - P2 two leases
+ok 14 - P2 event joined, no capacity verdict for a running instance
+ok 15 - P3 release of one of two holders does not stop
+ok 16 - P3 the cache entry stays while a lease is held
+ok 17 - P3 last release rc 0
+ok 18 - P3 last release stops the model
+ok 19 - P3 stop names the started profile
+ok 20 - P3 cache entry removed
+ok 21 - P3 lease set removed
+ok 22 - P3 stub reports the model stopped
+ok 23 - P4 wrong schema -> rc 5
+ok 24 - P4 no start under undetermined
+ok 25 - P4 verdict undetermined
+ok 26 - P4 route none without a key
+ok 27 - P4 route cloud with a real hosted key
+ok 28 - P4 key variable NAME recorded
+ok 29 - P4 key value never written
+ok 30 - P5 capacity exit 1 -> rc 5, no start
+ok 31 - P5 reason names the exit code
+ok 32 - P5 CONTROL: a capacity call that completes writes the completion marker
+ok 33 - P5 slow capacity -> rc 5, no start
+ok 34 - P5 llmctl call bounded: the 30 s capacity call never ran to its end
+ok 35 - P5 reason says timed out
+ok 36 - P6 does_not_fit a skipped, b placed
+ok 37 - P6 a never started
+ok 38 - P7 nproc headroom unmeasured -> rc 5, no start (undetermined is never fits)
+ok 39 - P7 reason names RLIMIT_NPROC
+FAIL - P8 headroom < threads -> does_not_fit, no start (expected [5 0] got [0 1])

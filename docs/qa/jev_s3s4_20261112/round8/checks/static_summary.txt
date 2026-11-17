@@ -1,0 +1,5 @@
+verify_manifest	rc=3	guard=0	RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)
+cm_constitution_index_fresh	rc=0	guard=0	CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+cm_gate_ledger_ratchet	rc=0	guard=0	✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanished name
+cm_covenant_114_282_propagation	rc=0	guard=0	✅ CM-COVENANT-114-282-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.282 block
+cm_covenant_114_291_propagation	rc=0	guard=0	✅ CM-COVENANT-114-291-PROPAGATION: PASS — every owned carrier carries exactly one byte-identical §11.4.291 block

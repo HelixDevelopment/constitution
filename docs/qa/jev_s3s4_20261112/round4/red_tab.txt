@@ -1,0 +1,12 @@
+FAIL - F1 an empty-url jev-verdict service is NOT usable (expected [] got [service:svc])
+ok 1 - F1 CONTROL: the same service with a url is NOT usable
+ok 2 - F1 CONTROL: an empty-url service with a usable protocol IS counted
+FAIL - F2 the empty-url jev-verdict service is not recorded as an endpoint (expected [0] got [1])
+FAIL - F2 no endpoint carries the protocol as its url (expected [0] got [1])
+FAIL - F2 the exclusion is recorded with its reason (no [decide-tiny excluded: protocol jev-verdict has no driver] in <HOME>/.cache/claude-tmp/tmp.8yN8oK4Ne2/.jev/jev-detection.json)
+FAIL - F3 an empty-id endpoint claiming reachable=true is probe-replayed (no [probe: endpoint '' claimed reachable=true but probe replay FAILED] in <HOME>/.cache/claude-tmp/tmp.8yN8oK4Ne2/f3.out)
+FAIL - F3 the probe received the url (not a shifted field) (no [https://api.typesafe.test/v1] in <HOME>/.cache/claude-tmp/tmp.8yN8oK4Ne2/probe.calls)
+FAIL - F4 an empty-id endpoint with a real key and reachable=null is still checked (no [(key variable TYPESAFE_API_KEY) holds a real key but reachable=null] in <HOME>/.cache/claude-tmp/tmp.8yN8oK4Ne2/f4.out)
+FAIL - F5 empty answers keep their endpoint|model (typesafe|jev-latest n=12) (expected [12] got [absent])
+FAIL - F5 nothing is mis-attributed to unknown|unknown (expected [absent] got [12])
+# test_tab_fields.sh: pass=2 fail=9 skip=0

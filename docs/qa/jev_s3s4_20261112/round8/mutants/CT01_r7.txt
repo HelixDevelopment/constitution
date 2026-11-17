@@ -1,0 +1,3 @@
+ok 1 - P72 CONTROL: the full document served raw starts decide-a
+ok 2 - P72 CONTROL: the full document served computed starts decide-a
+FAIL - P72 schema absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [schema]; got rc 0, 1 starts, verdict fits, reason [])

@@ -1,0 +1,5 @@
+scripts/jev/jev-place.sh	warnings+errors=0
+tests/jev/test_s4_round9.sh	warnings+errors=0
+tests/jev/lib_assert.sh	warnings+errors=0
+tests/jev/test_s4_round8.sh	warnings+errors=0
+tests/jev/fixtures/bin-place/llmctl	warnings+errors=0

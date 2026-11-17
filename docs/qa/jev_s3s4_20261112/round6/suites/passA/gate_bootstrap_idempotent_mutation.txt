@@ -1,0 +1,14 @@
+[mutation:bootstrap] GREEN on genuine state confirmed
+[mutation:bootstrap] RED flip A asserted: gate fails when the invocation block is deleted
+[mutation:bootstrap] RED flip B asserted: non-idempotent bootstrap rejected by clause 2
+[mutation:bootstrap] RED flip C1 asserted: nested start exits 2 without invoking bootstrap
+[mutation:bootstrap] RED flip C2 asserted: guarded storm count=4 (bounded, exact); neutered-guard count=8 (>4) proves the test discriminates
+[mutation:bootstrap] RED flip D asserted: no-op bootstrap rejected (defer + clone-fallback clauses)
+[mutation:bootstrap] RED flip H asserted: a bootstrap run that calls curl is rejected by the hermetic clause
+[mutation:bootstrap] RED flip I asserted: an ambient-PATH-first hermetic PATH makes the guard blind (rc 2), never a pass
+[mutation:bootstrap] E asserted: structural reader attributes pins correctly on bare-dash/quoted-key/'name :'/decoy manifest
+[mutation:bootstrap] F asserted: duplicate-key manifest rc=2 and unlisted-tool manifest rc=2 are CANNOT DETERMINE (rc 2)
+[mutation:bootstrap] G asserted: reader failure (no PyYAML / failing reader) is rc 2, never a pass
+[mutation:bootstrap] M1 killed: dropping the reader-failure refusal lets the duplicate-key manifest through (rc=1, not 2)
+[mutation:bootstrap] M2 killed: first-match awk misreads the decoy manifest (rc=1)
+[mutation:bootstrap] PASS: cm_jev_bootstrap_idempotent.sh genuinely discriminates (GREEN genuine / RED mutated)

@@ -1756,6 +1756,10 @@ Classification: universal (§11.4.17) — the consuming project supplies its key
 
 **Refinement note (2026-10-28).** §11.4.291 adds `placement` entries to `jev-detection.json` (verdict, measured inputs, route, the hosted key's variable NAME only) and lets a reasoned-empty record cite a `does_not_fit` or `undetermined` placement verdict as its reason; detection itself is unchanged.
 
+**Refinement note (2026-11-12, decision record).** Operator decision 2026-11-12 (recorded per §11.4.66, relayed by the conductor, not verbatim): consent to user-level Jev wiring becomes a standing order (default-on on every constitution pull when a non-placeholder key is present; reversible with `jev-setup --uninstall`; logged; an opt-out marker is honoured; hand-made config is never overwritten; backups kept); the Jev decision model is used whenever a key and credit exist; local llmctl decision instances run alongside when the host allows, under §11.4.291; all instances are used; thresholds are tuned per (endpoint, model). The detection record keeps the reasoned-empty rule; a detected endpoint that cannot answer (no credit, refused key, rate limit, unreachable) is recorded with its class and is not counted usable.
+
+**Refinement note (2026-11-12).** What changed for this anchor (decision recorded in the §11.4.279 note above): (1) a probe counts an endpoint `reachable` only when it answered 2xx; HTTP 402 is recorded `reachable:false`, `auth_status_class:no_credit` (429 `rate_limited`), so a hosted endpoint without credit is never a green (measured before the change: an OpenRouter endpoint answering 402 was recorded `reachable:true`); (2) a present non-placeholder key is a key; whether it can be USED is the probe class, reported separately. The record schema gains `usable` and `unusable_reason`; nothing is removed. Detection-first, the reasoned-empty record and the key-by-name rule are unchanged.
+
 ### §11.4.280 — Per-agent decision-layer installation mandate (User mandate, 2026-10-07)
 
 **Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Install all the plugins, skills and MCPs per agent so every agent on the host can reach the decision layer."
@@ -1775,6 +1779,8 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-280-PRO
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.280.
 
 **Non-compliance is a release blocker. No escape hatch — no flag skips wiring a detected agent; uninstall is a deliberate, logged operator act (`jev-setup --uninstall`), never a side effect.**
+
+**Refinement note (2026-11-12).** Under the operator decision recorded in the §11.4.279 note, `bootstrap.sh --default-on` (and the post-update hook, which now passes it) applies consent for user-level wiring of the Jev hook and MCP server when a non-placeholder key is present, logs it loudly with the undo command (`jev-setup --uninstall`), writes `consent.json` (basis `operator-standing-order-2026-11-12`), and does nothing when `$JEV_CONFIG_DIR/wiring.disabled` exists or `JEV_WIRING=off`. Coverage gaps of each platform stay stated per this anchor; nothing here claims a platform is covered that its mechanics do not allow.
 
 ### §11.4.281 — Bootstrap wizard and post-update auto-trigger (User mandate, 2026-10-07)
 
@@ -1797,6 +1803,8 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-281-PRO
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.281.
 
 **Non-compliance is a release blocker. No escape hatch — deferral is bounded and logged; silent skipping is non-compliance.**
+
+**Refinement note (2026-11-12).** (1) STEP 4e of `scripts/post_update_hook.sh` also runs the idempotent bootstrap on a pull that changed no Jev file when a non-placeholder decision key is present (before the change it ran only on a Jev-file change and passed no consent, so a pull never wired anything while printing `detect-models: ok`). (2) The bootstrap's exit code now tells the truth about serving: 5 = endpoints detected but none usable (every one probed non-2xx or unreachable), or detected but no agent wired; 0 = serving, nothing detected, or an explicit operator opt-out (named in the RESULT line, never as serving). The post-update hook reports rc 5 as a warning, not a deferral. The idempotency rule of this anchor holds: a run whose only finding is "no usable endpoint" no longer re-runs the detect stage on the next pull; the verdict is recomputed from the record on every run.
 
 ### §11.4.285 — Traditional-LLM auto-tuning of decision thresholds (User mandate, 2026-10-07)
 

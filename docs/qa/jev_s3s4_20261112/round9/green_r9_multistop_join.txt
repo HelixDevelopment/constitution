@@ -1,0 +1,17 @@
+stops-begun: llmctl stop decide-a,llmctl stop decide-b
+clock-now: 44 s after T0; A alive: yes
+second-set mark before observer: [{"p":"decide-b","stopping":1700000044}]
+observer rc=0
+observer stderr: 
+after observer: [{"p":"decide-b","stopping":1700000044,"health":"degraded","cleared":null}]
+A still alive: yes
+C rc=5 out=
+C stderr: [jev-place] refused (endpoint_stopping): a lease set is stopping; fallback route none [jev-place] no local placement (refused_stopping); fallback route none 
+after C: [{"p":"decide-b","stopping":1700000044,"health":"degraded","leases":[]}]
+cache after C: 
+A rc=5
+after A: {}
+running units after A: 
+C heartbeat: rc=3
+llmctl log: llmctl decide status --json,llmctl decide capacity --json,llmctl capacity --json,llmctl stop decide-a,llmctl stop decide-b,llmctl capacity --json,llmctl decide status --json,llmctl decide capacity --json,llmctl capacity --json,llmctl capacity --json,llmctl capacity --json
+RESULT: mark kept

@@ -543,7 +543,7 @@ install_mcp_configs() {
             rm -f "$frag" "$tmpfile"; continue
         fi
         local key idx str rewrote=() k
-        while IFS=$'\t' read -r key idx str; do
+        while IFS=$'\x1f' read -r key idx str; do
             [ -n "$str" ] || continue
             case "$str" in /*|*://*) continue ;; */*) ;; *) continue ;; esac
             [ -e "$croot/$str" ] && [ ! -e "$proot/$str" ] || continue
@@ -555,7 +555,7 @@ install_mcp_configs() {
             info "  -> path resolved for the consumer: $str -> $cprefix/$str"
             for k in ${rewrote[@]+"${rewrote[@]}"}; do [ "$k" = "$key" ] && continue 2; done
             rewrote+=("$key")   # an ARRAY: a server key may contain spaces (re-review 3 finding 5)
-        done < <(jq -r '.mcpServers | to_entries[] | .key as $k | ([.value.command] + (.value.args // [])) | to_entries[] | [$k, (.key|tostring), (.value // "" | tostring)] | @tsv' "$frag" 2>/dev/null)
+        done < <(jq -r '.mcpServers | to_entries[] | .key as $k | ([.value.command] + (.value.args // [])) | to_entries[] | [$k, (.key|tostring), (.value // "" | tostring)] | @tsv' "$frag" 2>/dev/null | tr '\t' '\037')
         if [ "${cprefix#/}" = "$cprefix" ] && [ "${#rewrote[@]}" -gt 0 ]; then
             local qp walk
             qp="'${cprefix//\'/\'\\\'\'}'"     # single-quoted for sh
@@ -921,12 +921,36 @@ install_label_sync_adapters() {
 #   * Bounded: `timeout` (JEV_HOOK_TIMEOUT seconds, default 900) when available,
 #     so a hung provisioning step cannot stall the pull forever.
 #   * Idempotent: bootstrap.sh is marker/stamp-guarded and reports "no-change"
-#     on unchanged inputs; this step only fires on a Jev-relevant change.
+#     on unchanged inputs. It fires on a Jev-relevant change, AND (operator
+#     standing order 2026-11-12, §11.4.280 dated note) on EVERY pull while a
+#     non-placeholder decision key is present, so a layer that is not yet wired
+#     gets wired; checked by NAME through lib_keys.sh, value never read here.
+#   * DEFAULT-ON: always passes --default-on. bootstrap.sh engages it only with a
+#     non-placeholder key and without the opt-out ($JEV_CONFIG_DIR/wiring.disabled
+#     or JEV_WIRING=off); it logs loudly and records consent.json.
+#   * rc 5 ("detected, not wired" / "no usable decision endpoint") is a WARNING,
+#     never deferred over and never an ERROR: the pull succeeded, the layer is
+#     honestly not serving yet.
+jev__real_key_present() { # 0 when a pinned decision key variable holds a non-placeholder value (names only)
+    local lk="${CONST_DIR}/scripts/jev/lib_keys.sh"
+    [ -f "$lk" ] || return 1
+    ( cd "$PROJECT_ROOT" 2>/dev/null || exit 1
+      # shellcheck source=/dev/null
+      . "$lk" >/dev/null 2>&1 || exit 1
+      for v in TYPESAFE_API_KEY OPENROUTER_API_KEY LLMCTL_API_KEY; do
+          [ "$(key_state "$v" 2>/dev/null | cut -f1)" = real ] && exit 0
+      done
+      exit 1 )
+}
 install_jev_bootstrap() {
     header "STEP 4e: Jev decision-layer bootstrap (§11.4.281(C))"
     if [ "$(arr_len CHANGED_JEV)" -eq 0 ]; then
-        info "No Jev decision-layer changes — nothing to bootstrap."
-        return 0
+        if jev__real_key_present; then
+            info "jev-bootstrap: no Jev file changed, but a real decision key present - running the idempotent bootstrap (default-on wiring, standing order 2026-11-12)"
+        else
+            info "No Jev decision-layer changes — nothing to bootstrap."
+            return 0
+        fi
     fi
     # >>> helix-jev-bootstrap >>>
     local boot="${CONST_DIR}/scripts/jev/bootstrap.sh"
@@ -957,9 +981,12 @@ install_jev_bootstrap() {
     if command -v timeout >/dev/null 2>&1; then tmo="${JEV_HOOK_TIMEOUT:-900}"; fi
     local rc=0
     # cd to PROJECT_ROOT (the .jev/bootstrap.disabled opt-out marker is project-level; the bootstrap.pending stamp is state-level: <state dir>/bootstrap.pending, the file jev-status reads). Evidence is NOT written here: bootstrap.sh resolves it via lib_decide.sh (<state>/evidence unless JEV_EVIDENCE_DIR is set), independent of the cwd.
-    (cd "$PROJECT_ROOT" || exit 1; if [ -n "$tmo" ]; then trap '' TTIN TTOU; exec timeout "$tmo" bash "$boot" --non-interactive; fi; exec bash "$boot" --non-interactive) || rc=$?
+    (cd "$PROJECT_ROOT" || exit 1; if [ -n "$tmo" ]; then trap '' TTIN TTOU; exec timeout "$tmo" bash "$boot" --non-interactive --default-on; fi; exec bash "$boot" --non-interactive --default-on) || rc=$?
     if [ "$rc" -eq 0 ]; then
         info "jev-bootstrap: completed (non-interactive)"
+    elif [ "$rc" -eq 5 ]; then
+        warn "jev-bootstrap: rc 5 - decision endpoint(s) detected, not wired or not usable (see scripts/jev/jev-status.sh); NOT deferred"
+        WARNINGS+=("jev-bootstrap: rc 5 detected, not wired / no usable endpoint")
     elif [ "$rc" -eq 3 ]; then
         warn "jev-bootstrap: operator action required (rc 3, e.g. diverged managed clone) — nothing overwritten; run it interactively"
         WARNINGS+=("jev-bootstrap: operator action required (rc 3)")
@@ -1286,6 +1313,8 @@ main() {
        [ "$(arr_len CHANGED_JEV)" -eq 0 ] && \
        [ "$STALE_JEV_MCP" -eq 0 ]; then
         info "No relevant changes detected. Nothing to propagate."
+        # default-on (standing order 2026-11-12): a real decision key keeps STEP 4e running on every pull
+        if jev__real_key_present; then run_step install_jev_bootstrap; fi
         if [ "$(arr_len ERRORS)" -gt 0 ]; then
             report_summary
             return $?

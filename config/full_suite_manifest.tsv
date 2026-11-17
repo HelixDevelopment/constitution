@@ -845,7 +845,9 @@ tests/install/test_unit.sh	sh	member	default	-	tests/install/run_all.sh	auto: ru
 tests/install/test_updater.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_upstream_main.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
 tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	sh	excluded	-	-	-	reason: fake: recording stub used by post_update_hook trigger tests
+tests/jev/fixtures/bin-flockgate/flock	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin-hosted/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/bin-place/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude-providers	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -854,10 +856,16 @@ tests/jev/fixtures/bin/jev-label-stub	sh	fixture	-	-	-	fixture path (not a test 
 tests/jev/fixtures/bin/kimi	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/jev_server.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/mark_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/sweep_s4_round14.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/install.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/jev-setup.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/write_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/lib_assert.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/jev/test_anchor_renumber_integrity.sh
 tests/jev/run_all.sh	runall	entry	default	runall-whole	-	auto
+tests/jev/s4_round14_sweep_x_chaos_test.sh	sh	entry	heavy	bash	-	auto
+tests/jev/s4_round14_sweep_y_chaos_test.sh	sh	entry	heavy	bash	-	auto
+tests/jev/s4_round14_sweep_zd_chaos_test.sh	sh	entry	heavy	bash	-	auto
 tests/jev/test_anchor_renumber_integrity.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_e2e_stub_server.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_header_truth.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
@@ -866,16 +874,20 @@ tests/jev/test_bootstrap_manifest_reader.sh	sh	member	default	-	tests/jev/run_al
 tests/jev/test_bootstrap_noninteractive.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_provision_fallback.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_summary_mode_default.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_calibrate_per_endpoint.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_calibration_math.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_decision_layer_gaps.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_gate_blind_without_llmctl.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_matrix.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_producer_gate_e2e.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_failopen_and_coverage_gaps.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_gate_bootstrap_hermetic.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_gate_pairs.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_hosted_key_discovery.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_jev_status.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_jev_status_health.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_mcp_register_hardening.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_no_real_tools.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_post_update_hook_trigger.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r2.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
@@ -884,7 +896,21 @@ tests/jev/test_review_fixes_r4.sh	sh	member	default	-	tests/jev/run_all.sh	auto:
 tests/jev/test_review_fixes_r5.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_run_all_leak_detector.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s3_bootstrap_honesty.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_placement.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round10.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round11.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round12.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round12_mc.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round13.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round14.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round8.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round9.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_tab_fields.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/layout/hermetic_lint.py	py	excluded	-	-	-	reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point
 tests/layout/lib_layout_harness.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/layout/test_canonical_root_layout.sh
 tests/layout/run_all.sh	runall	entry	default	runall-whole	-	auto

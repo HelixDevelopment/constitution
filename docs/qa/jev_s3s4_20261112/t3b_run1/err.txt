@@ -1,0 +1,186 @@
+[jev-bootstrap 1/7] detect-tools: running
+[jev-bootstrap ]   tools present: jq curl git make
+[jev-bootstrap 1/7] detect-tools: ok
+[jev-bootstrap 2/7] provision: running
+[jev-bootstrap ]   provision llmctl: source=explicit path=<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/tools/llmctl ref=3877467 ref_status=as-checked-out installer=not-run
+[jev-bootstrap ]   provision claude_toolkit: source=explicit path=<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/tools/claude_toolkit ref=25c4803 ref_status=as-checked-out installer=not-run
+[jev-bootstrap 2/7] provision: ok
+[jev-bootstrap 3/7] detect-models: running
+[jev-bootstrap ]   WARNING: jev-openrouter answered HTTP 402 no_credit: the account has no credit; this endpoint cannot serve decisions
+[jev-bootstrap ]   endpoint: jev-openrouter (source=toolkit-cache model=typesafe/jev-1.13 reachable=false usable=false class=no_credit)
+[jev-bootstrap ]   endpoint: jev-typesafe (source=toolkit-cache model=jev-latest reachable=true usable=true class=2xx)
+[jev-bootstrap 3/7] detect-models: ok endpoints=2 usable=1
+[jev-bootstrap 4/7] install-per-agent: running
+[jev-bootstrap ]   wiring not applied: consent not given. jev-setup --check reported:
+[jev-bootstrap ]     common: would install gate copy, env file, bin links
+[jev-bootstrap ]     claude: <HOME>/.claude-shared/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-shared/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude1/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude1/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude2/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude3/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude4/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude4/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude5/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-claude5/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes1/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes1/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes2/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes3/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes4/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes4/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes5/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-chutes5/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-deepseek/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-deepseek/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-fireworks-ai/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-fireworks-ai/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixagent/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixagent/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixagent-native/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixagent-native/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixcoder/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixcoder/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixllm-anton-qwen2-5-coder-3b-instruct-q4_k_m-f6771589d190/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixllm-anton-qwen2-5-coder-3b-instruct-q4_k_m-f6771589d190/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixllm-gateway/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-helixllm-gateway/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-huggingface/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-huggingface/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper1/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper1/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper2/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper3/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper4/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper4/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper5/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-hyper5/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-inference/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-inference/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kc-for-coding/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kc-for-coding/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kc-for-coding2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kc-for-coding2/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-cn/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-cn/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-cn2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-cn2/.mcp.json MISSING jev mcp
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-cn3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-cn3/.mcp.json MISSING jev mcp
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-global/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-global/.mcp.json MISSING jev mcp
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-global2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-global2/.mcp.json MISSING jev mcp
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-global3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-kimi-code-plan-global3/.mcp.json MISSING jev mcp
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-llmctl-moe-fast/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-llmctl-moe-fast/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-llmctl-small/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-llmctl-small/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-llmctl-vision-pro/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-llmctl-vision-pro/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-novita-ai/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-novita-ai/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-nvidia/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-nvidia/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-nvidia2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-nvidia2/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-nvidia3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-nvidia3/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-nvidia4/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-nvidia4/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go1/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go1/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go2/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go3/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go4/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go4/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go5/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-go5/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen1/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen1/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen2/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen3/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen4/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen4/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen5/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-opencode-zen5/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter2/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter2/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter3/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter3/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter4/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter4/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter5/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-openrouter5/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-poe/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-poe/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-sarvam/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-sarvam/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-siliconflow/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-siliconflow/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tencent-tokenhub/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tencent-tokenhub/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tokenrouter-code/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tokenrouter-code/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tokenrouter-fast/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tokenrouter-fast/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tokenrouter-long/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tokenrouter-long/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tokenrouter-reasoning/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-tokenrouter-reasoning/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-upstage/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-upstage/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-xiaomi/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-xiaomi/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-zai/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-zai/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-zai-coding-plan/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-zai-coding-plan/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-zhipuai/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-zhipuai/.mcp.json MISSING jev mcp
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-zhipuai-coding-plan/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude-prov-zhipuai-coding-plan/.mcp.json mcp OK
+[jev-bootstrap ]     claude: <HOME>/.claude/settings.json hooks OK
+[jev-bootstrap ]     claude: <HOME>/.claude/.mcp.json mcp OK
+[jev-bootstrap ]     claude: CLAUDE.md block OK
+[jev-bootstrap ]     kimi: <HOME>/.kimi-code-kimi2/config.toml MISSING hooks
+[jev-bootstrap ]     kimi: <HOME>/.kimi-code-kimi2/mcp.json MISSING jev mcp
+[jev-bootstrap ]     jev-setup: pi — would run: pi install npm:@riposta/pi-jev for each pi home (<HOME>/.pi-prov-chutes <HOME>/.pi-prov-chutes1 <HOME>/.pi-prov-chutes2 <HOME>/.pi-prov-chutes3 <HOME>/.pi-prov-chutes4 <HOME>/.pi-prov-chutes5 <HOME>/.pi-prov-deepseek <HOME>/.pi-prov-fireworks-ai <HOME>/.pi-prov-helixagent <HOME>/.pi-prov-helixagent-native <HOME>/.pi-prov-helixcoder <HOME>/.pi-prov-helixllm-gateway <HOME>/.pi-prov-huggingface <HOME>/.pi-prov-hyper <HOME>/.pi-prov-hyper1 <HOME>/.pi-prov-hyper2 <HOME>/.pi-prov-hyper3 <HOME>/.pi-prov-hyper5 <HOME>/.pi-prov-inference <HOME>/.pi-prov-kilo <HOME>/.pi-prov-llmctl-moe-fast <HOME>/.pi-prov-llmctl-small <HOME>/.pi-prov-llmctl-vision <HOME>/.pi-prov-llmctl-vision-pro <HOME>/.pi-prov-novita-ai <HOME>/.pi-prov-nvidia <HOME>/.pi-prov-nvidia2 <HOME>/.pi-prov-nvidia3 <HOME>/.pi-prov-nvidia4 <HOME>/.pi-prov-opencode <HOME>/.pi-prov-opencode-go1 <HOME>/.pi-prov-opencode-go2 <HOME>/.pi-prov-opencode-go3 <HOME>/.pi-prov-opencode-go4 <HOME>/.pi-prov-opencode-go5 <HOME>/.pi-prov-opencode-zen1 <HOME>/.pi-prov-opencode-zen2 <HOME>/.pi-prov-opencode-zen3 <HOME>/.pi-prov-opencode-zen4 <HOME>/.pi-prov-opencode-zen5 <HOME>/.pi-prov-openrouter <HOME>/.pi-prov-openrouter2 <HOME>/.pi-prov-openrouter3 <HOME>/.pi-prov-openrouter4 <HOME>/.pi-prov-poe <HOME>/.pi-prov-sarvam <HOME>/.pi-prov-siliconflow <HOME>/.pi-prov-tencent-tokenhub <HOME>/.pi-prov-tokenrouter <HOME>/.pi-prov-tokenrouter-code <HOME>/.pi-prov-tokenrouter-fast <HOME>/.pi-prov-tokenrouter-long <HOME>/.pi-prov-tokenrouter-reasoning <HOME>/.pi-prov-upstage <HOME>/.pi-prov-xiaomi <HOME>/.pi-prov-zai <HOME>/.pi-prov-zai-coding-plan <HOME>/.pi-prov-zhipuai <HOME>/.pi-prov-zhipuai-coding-plan )
+[jev-bootstrap ]     opencode: plugin file MISSING/stale
+[jev-bootstrap ]     opencode: mcp entry MISSING in <HOME>/.config/opencode/opencode.json
+[jev-bootstrap ]   apply with: bootstrap.sh --yes   (or JEV_BOOTSTRAP_CONSENT=1)
+[jev-bootstrap 4/7] install-per-agent: pending-consent
+[jev-bootstrap 5/7] configure: running
+[jev-bootstrap 5/7] configure: ok mode=shadow
+[jev-bootstrap 6/7] calibrate-shadow: running
+[jev-bootstrap ]   shadow mode: decisions are logged to <HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3b_run1/state/decisions.jsonl; enforcement requires calibrated thresholds
+[jev-bootstrap 6/7] calibrate-shadow: ok shadow
+[jev-bootstrap 7/7] report: running
+[jev-bootstrap ]   gate cm_jev_bootstrap_idempotent: not run from bootstrap (it executes bootstrap; run it directly)
+[jev-bootstrap ]   gate cm_jev_detection: PASS (advisory)
+[jev-bootstrap ]   gate cm_jev_wiring: FAIL rc=1 (advisory, non-blocking): CM-JEV-WIRING FAIL: opencode: opencode.json lacks the jev plugin entry and/or mcp.jev registration
+[jev-bootstrap ]   gate cm_jev_token_reduction: BLIND (advisory; no verdict possible: CM-JEV-TOKEN-REDUCTION BLIND: no real BEFORE/AFTER harness pair configured (set JEV_BEFORE and JEV_AFTER, or place before.jsonl/after.jsonl in <HOME>/.cache/claude-tmp/claude-1000/-home-milo)
+[jev-bootstrap ]   summary: state=<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3b_run1/state evidence=<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3b_run1/evidence mode=shadow
+[jev-bootstrap ]   next: scripts/jev/jev-status.sh for status; claude_toolkit scripts/jev-stats.sh for savings (ESTIMATES only)
+[jev-bootstrap 7/7] report: ok
+[jev-bootstrap ]   PENDING: agent wiring awaits consent
+[jev-bootstrap ]   RESULT rc 5: detected, not wired (1 usable endpoint(s), no agent wired: run with --yes, or --default-on with a key)

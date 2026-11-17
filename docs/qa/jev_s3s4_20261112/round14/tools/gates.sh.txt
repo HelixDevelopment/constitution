@@ -1,0 +1,17 @@
+#!/bin/bash
+# gates.sh <repo>: index freshness, ledger ratchet, propagation 279-286/291, manifest verify, engine validate/diff
+R="${1:?}"; cd "$R" || exit 2
+for g in cm_constitution_index_fresh cm_gate_ledger_ratchet; do echo "== $g"; bash scripts/gates/$g.sh 2>&1 | grep -E 'PASS|FAIL|BLIND|baseline|count|= ' | grep -vE '\s(UN)?IMPLEMENTED\s|\sDEFERRED\s' | tail -4; echo "rc=${PIPESTATUS[0]}"; done
+for n in 279 280 281 282 283 284 285 286 291; do echo "== $n"; bash scripts/gates/cm_covenant_114_${n}_propagation.sh 2>&1 | tail -1; echo "rc=${PIPESTATUS[0]}"; done
+echo "== verify-manifest"; bash scripts/run_full_suite.sh --verify-manifest 2>&1 | tail -3; echo "rc=${PIPESTATUS[0]}"
+W=scripts/workable-items/bin/workable-items
+echo "== engine validate"; "$W" validate --db docs/workable_items.db 2>&1 | tail -2; echo "rc=${PIPESTATUS[0]}"
+echo "== engine diff"; "$W" diff --db docs/workable_items.db --issues docs/Issues.md --fixed docs/Fixed.md 2>&1 | tail -2; echo "rc=${PIPESTATUS[0]}"
+echo "== sync-guide (the guide must be unchanged by it)"; bash scripts/run_full_suite.sh --sync-guide 2>&1 | tail -2; echo "rc=${PIPESTATUS[0]}"
+git diff --quiet -- docs/guides/full_suite_runner_guide.md; echo "guide unchanged after sync: rc=$? (0 = unchanged)"
+echo "== gate_constitution_generate_no_drift"; bash scripts/gates/gate_constitution_generate_no_drift.sh 2>&1 | tail -2; echo "rc=${PIPESTATUS[0]}"
+echo "== progressive split --check"; python3 progressive/generate_split.py --check 2>&1 | tail -2; echo "rc=${PIPESTATUS[0]}"
+echo "== git-env census (unscrubbed must be 0)"; python3 scripts/validation/git_env_class_census.py --root . --tsv > "${TMPDIR:?}/gates_census.$$" 2>&1; c=$?
+# every verdict line of the census (each FAIL reason, then the summary); no tail, so no reason line is dropped
+grep -E '^git-env-class-census: (PASS|FAIL|BLIND) ' "$TMPDIR/gates_census.$$"; echo "rc=$c"; rm -f -- "${TMPDIR:?}/gates_census.$$"
+echo "== working tree after the gates (tracked files only)"; git status --short --untracked-files=no | head -5; echo "end"

@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""lock_census.py <jev-place.sh> - round 12 (review R11-G): every lock-timeout path of the producer.
+
+Lists each code line that calls `with_lock` or `observe_read` (the two lock entry points; with_lock returns 4 on a lock
+timeout, observe_read returns 4 when with_lock does), the enclosing function, and how the line handles a non-zero
+result (the text after the call). Control needles: the with_lock definition must be found, the do_stop record call
+(`with_lock finish_stop_locked`) must be found, and a fabricated name must NOT be found; otherwise BLIND (exit 2).
+GATE-LOGIC instrument (section 11.4.289(C)(2)): a static list, it proves nothing about runtime; the runtime evidence is
+the test row each site is mapped to in round12/lock_timeout_census.md.
+"""
+import re, sys
+src = open(sys.argv[1], encoding="utf-8").read().splitlines()
+fdef = re.compile(r"^([a-z_][a-z0-9_]*)\(\)\s*\{")
+func = "(top level)"; rows = []; defs = []
+def code(l):
+    out, q = [], None
+    for i, ch in enumerate(l):
+        if q:
+            if ch == q: q = None
+            out.append(ch); continue
+        if ch in "'\"": q = ch; out.append(ch); continue
+        if ch == "#" and (i == 0 or l[i-1] in " \t;"): break
+        out.append(ch)
+    return "".join(out)
+for n, line in enumerate(src, 1):
+    m = fdef.match(line)
+    if m: func = m.group(1)
+    elif line.startswith("}"): func = "(top level)"; continue
+    if re.match(r"^\s*(with_lock|observe_read)\(\)\s*\{", line): defs.append((n, line.split("(")[0].strip())); continue
+    c = code(line)
+    for mm in re.finditer(r"\b(with_lock|observe_read)\b(?!\(\))", c):
+        tail = c[mm.end():].strip()
+        rows.append((n, func, mm.group(1), tail[:110]))
+needles = [any(d[1] == "with_lock" for d in defs),
+           any("finish_stop_locked" in r[3] and r[2] == "with_lock" for r in rows),
+           not any("no_such_fabricated_fn" in r[3] for r in rows)]
+if not all(needles):
+    print("BLIND: control needles %s" % needles); sys.exit(2)
+print("needles: OK (with_lock defined at %s; do_stop record call found; fabricated name absent)" % [d[0] for d in defs if d[1] == "with_lock"])
+print("line\tfunction\tentry\thandling")
+for r in rows: print("%d\t%s\t%s\t%s" % r)
+print("sites: %d" % len(rows))
