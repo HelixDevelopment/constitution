@@ -47,6 +47,7 @@ func TestCON456R6_FenceMask(t *testing.T) {
 		{"plain", []string{"a\n", "```\n", "b\n", "```\n", "c\n"}, []bool{false, true, true, true, false}},
 		{"tilde does not close backtick", []string{"```\n", "~~~\n", "x\n", "```\n", "y\n"}, []bool{true, true, true, true, false}},
 		{"unterminated is not a fence", []string{"a\n", "```\n", "b\n"}, []bool{false, false, false}},
+		{"shorter run does not close", []string{"````\n", "x\n", "```\n", "y\n", "````\n", "z\n"}, []bool{true, true, true, true, true, false}},
 		{"longer closes", []string{"```\n", "x\n", "````\n", "y\n"}, []bool{true, true, true, false}},
 		{"info string opens, not closes", []string{"```go\n", "x\n", "```go\n", "y\n", "```\n", "z\n"}, []bool{true, true, true, true, true, false}},
 	}
