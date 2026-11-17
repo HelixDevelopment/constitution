@@ -1,0 +1,2 @@
+id	file	suites	rc	verdict
+L03-no-ref-moved(R03)	scripts/release/lib/landing_drift_checks.sh	lv,pr	lv:1(142s) pr:1(17s)	KILLED

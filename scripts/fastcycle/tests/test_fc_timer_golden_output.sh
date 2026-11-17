@@ -476,6 +476,14 @@ if [ "$TRIPLET_STATE" = none ]; then
   if [ -z "$BASELINE_LOG" ] && [ -d "$EVIDENCE_DIR" ]; then
     BASELINE_LOG="$(find "$EVIDENCE_DIR" -maxdepth 1 -name 'prebuild_full_run_*.log' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n1 | cut -d' ' -f2-)"
   fi
+  # CON-093: on canon alone (no override given, and the default CONSUMER evidence dir does not exist) there is no
+  # real log to check and no canon-runnable check: honest SKIP naming that effective path. An existing evidence
+  # dir without a log, or an explicit override that points nowhere, stays the FATAL below.
+  if [ -z "$BASELINE_LOG" ] && [ -z "${FC_TIMER_GOLDEN_ROOT:-}" ] && [ -z "${FC_TIMER_GOLDEN_EVIDENCE_DIR:-}" ] \
+     && [ -z "${FC_TIMER_GOLDEN_TRIPLET:-}" ] && [ ! -e "$EVIDENCE_DIR" ]; then
+    . "$HERE/lib/consumer_required.sh"
+    fc_require_consumer "$EVIDENCE_DIR"
+  fi
   if [ -z "$BASELINE_LOG" ] || [ ! -f "$BASELINE_LOG" ]; then
     echo "FATAL: no real pre_build evidence log found (no triplet manifest, and no" \
          "FC_TIMER_GOLDEN_LOG / prebuild_full_run_*.log in $EVIDENCE_DIR)."

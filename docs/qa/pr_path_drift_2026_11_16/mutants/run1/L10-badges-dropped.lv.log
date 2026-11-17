@@ -1,0 +1,3 @@
+FAIL D1 badge drift check FAIL refuses publish (rc=0, want rc=1 and /derived-file drift checks failed; nothing was pushed/)
+
+RESULT pass=0 fail=1 (failfast)

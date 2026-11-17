@@ -1,0 +1,4 @@
+# command: <root>/scripts/workable-items/bin/workable-items validate --db <root>/docs/workable_items.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 402 items, all invariants satisfied
+# exit: 0

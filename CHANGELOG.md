@@ -1,5 +1,24 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-16 — pull-request delivery declared for this repository (`config/delivery.conf`, landing guide), §11.4.297(D)(6) author-only reviewer list, and the account-name gate reads SQLite cells, refuses symlinked or misplaced configurations and scans the index and changed path names
+
+**Status of this entry: UNRELEASED; PROVISIONAL (§11.4.290), not VERIFIED-DONE; evidence class gate-logic and unit (§11.4.289(C)(2)); round 3 of the vehicle. The §11.4.297(D)(6) amendment text has NOT had its own independent §11.4.209 review yet.** Items: CON-496, CON-497, CON-498 (placeholders; the lander re-mints them, since main already holds CON-423 to CON-434, which earlier commits of this vehicle cite).
+
+- **§11.4.297(D)(6), amendment of 2026-11-16** (operator answer of 2026-11-16, quoted verbatim in the clause): a project whose only reviewer is the account that opens its pull requests declares `author_only_reviewer_policy` (`report-and-stop`, also when absent, or `report-and-merge`). Under `report-and-merge` the author agent self-reviews on the platform and merges after it reports, in the pull request and read back, that no reviewer is possible. This relaxes merge condition (c) of (C)(2) only; the GO, the self-review and every other condition stay. The compact mirrors in CLAUDE.md, AGENTS.md, QWEN.md and GEMINI.md carry one identical sentence; the index, groups and progressive rule are regenerated; the `cm_pr_delivery_anchor_wired.sh` pins and markers are updated.
+- **`config/delivery.conf`** (DATA): `mode=pr`, `merge_window_hours=24` (a staleness threshold for reporting; merging stays immediate), `author_only_reviewer_policy=report-and-merge`.
+- **`docs/guides/pr_delivery_landing_guide.md`** revision 3: the recorded operator answers, a configuration-key table including the extension keys, a check that refuses a task branch already merged into the base until it is retired (§11.4.297(C)(4)), a two-id `Roadmap-Item` example with `Multi-Task-Reason`, and "every finding answered" in the merge conditions.
+- **`cm_pr_delivery_account_name_free.sh`**:
+  - B1: a file with the SQLite header is opened read-only as a database and its text cells, BLOB cells and schema are scanned. A file that has the header but cannot be opened is BLIND. (Round 2 left SQLite files out unscanned.)
+  - B2: the configuration exclusion matches only a non-symlink whose resolved path equals a configuration read in the run. A configuration that is a symbolic link, lies outside a `config/` directory, or lies inside the root but not at `<root>/config/` is BLIND.
+  - F1: changed paths are listed NUL-separated with `core.quotePath=false`. An unreadable path is BLIND.
+  - F2: the staged version of a changed file is scanned.
+  - F3: changed path names are scanned.
+  - A changed symbolic link has its target text scanned; a link pointing outside the root is BLIND.
+  - An unknown configuration key gets a NOTE and is never refused.
+  - Mutation test: the round-2 case that required a PASS for a database holding an account is inverted. The reviewer's mutants R1 to R12 and own round-3 mutants are added. Result: 122 cases behave as required and 77 of 77 gate mutants are killed, twice with identical output. On the round-2 gate, 22 of the round-3 cases fail (RED). The anchor-gate mutation test gives 367 RED/BLIND and 10 GREEN cases, twice.
+- `config/git_env_class_exemptions.tsv`: three `pinned-fixture` rows for the round-1 evidence tools of this vehicle.
+- Evidence: `docs/qa/pr_delivery_decision_20261116/r3/`.
+
 ## Unreleased — 2026-11-15 — CON-312 installer SIGPIPE under pipefail: no pipe into an early-exit reader at any decision
 
 **Status of this entry: UNRELEASED; PROVISIONAL (§11.4.290), not VERIFIED-DONE; evidence class gate-logic and unit (§11.4.289); independent review round 2 GO-with-follow-ups (`review_installer_sigpipe_r2.md`, sha256 66c4b476a7efa8ff60046fd174c74392f8123528a0679ddf53a1756ec7d95997).**

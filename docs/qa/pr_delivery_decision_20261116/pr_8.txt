@@ -1,0 +1,4 @@
+# command: gh pr view 8 -R HelixDevelopment/HelixConstitution --json number,state,author,mergedBy,mergeCommit,headRefName,headRefOid,reviewRequests,reviews,baseRefName
+# time: 2026-11-16T13:10:34Z
+{"author":{"id":"MDQ6VXNlcjE4MDM1OTc=","is_bot":false,"login":"<reviewer-account>","name":"Милош Васић 🇷🇸 🇷🇺"},"baseRefName":"main","headRefName":"task/ATM-2188-label-sync-hooks-host-bash","headRefOid":"7dd68968ad280aae10ada80694ead9725c0686fa","mergeCommit":{"oid":"9fc9c904da63475596dca1c480f020f624b28488"},"mergedBy":{"id":"MDQ6VXNlcjE4MDM1OTc=","is_bot":false,"login":"<reviewer-account>","name":"Милош Васић 🇷🇸 🇷🇺"},"number":8,"reviewRequests":[],"reviews":[],"state":"MERGED"}
+# exit: 0

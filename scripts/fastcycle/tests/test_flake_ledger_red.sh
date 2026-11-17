@@ -100,6 +100,10 @@ else
     echo "     assumed"
 fi
 
+# CON-093: the contracts needle reads consumer-project data (specs/ at the consumer root); in canon alone
+# only that section is skipped (fc_consumer_section) and the test ends with fc_consumer_exit (77 = passed
+# but skipped, never a PASS).
+. "$(dirname "$0")/lib/consumer_section.sh"
 CONTRACTS_DIR=$(cd "$FC/../../../specs/004-fast-dev-cycles/contracts" 2>/dev/null && pwd)
 if [ -n "$CONTRACTS_DIR" ]; then
     if find "$CONTRACTS_DIR" -maxdepth 1 -iname '*flak*' 2>/dev/null | grep -q .; then
@@ -114,7 +118,8 @@ if [ -n "$CONTRACTS_DIR" ]; then
         echo "   this file's own CLI wire format (header comment) is the"
         echo "   only definition and is binding-if-adopted on T-C09"
     fi
-else
+elif fc_consumer_section "contracts control needle" "specs/004-fast-dev-cycles/contracts"; then
+    # CON-093: the consumer path EXISTS but could not be entered -- a real failure, not a skip.
     bad "control needle FAILED: specs/004-fast-dev-cycles/contracts/ itself"
     echo "   could not be resolved -- cannot confirm the no-contract claim"
 fi
@@ -401,5 +406,4 @@ echo "  'What this RED test does NOT cover'."
 
 echo
 echo "SUMMARY pass=$PASS fail=$FAIL"
-[ "$FAIL" -eq 0 ] && exit 0
-exit 1
+if [ "$FAIL" -eq 0 ]; then fc_consumer_exit 0; else fc_consumer_exit 1; fi

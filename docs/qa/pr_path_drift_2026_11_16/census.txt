@@ -1,0 +1,95 @@
+$ git grep -nE "git[^|;]* push|send-pack|:refs/heads/main|gh pr merge|merge --ff-only|update-ref refs/heads/main" -- scripts (minus tests/fixtures/_test.sh), at 695de4d9
+scripts/fastcycle/consumers/migrate.sh:2230:# remote" from this SAME $WORKDIR git config for push targets -- that
+scripts/fastcycle/consumers/migrate.sh:2862:        if ! git -C "$FC_BARE" -c protocol.file.allow=always push "$url" "$NEW_COMMIT":"refs/heads/$BRANCH" 2>"$MIGRATE_SCRATCH/migrate_push_$r.err"; then
+scripts/fastcycle/consumers/migrate.sh:2995:    # never calls `git push`).
+scripts/fastcycle/orchestration/custody_sweep.py:59:      `worktree remove`, no `git push`; section 11.4.113 / C-006). For
+scripts/fastcycle/orchestration/custody_sweep.py:856:    with `git stash push -u`/`--include-untracked` (or `-a`) stores the
+scripts/fastcycle/orchestration/custody_sweep.py:2094:        # applies to STASHES too -- a `git stash push -u` stash keeps its
+scripts/fastcycle/timing/fc_timer.sh:630:#     caller with a long foreground child (a git commit, a push, a build) unkillable by a
+scripts/fastcycle/verify/repo_verify.py:547:    """T158 remediation round 1, finding #3: the sorted, de-duplicated set of URL(s) `git push
+scripts/fastcycle/verify/repo_verify.py:924:# obvious future wrapper implementation stores git's own push stderr verbatim, which routinely
+scripts/fastcycle/verify/repo_verify.py:1368:            # ("pushed" never actually checked against what `git push` itself would use). Checked
+scripts/forge/forge.sh:16:# release-ensure is idempotent: the tag must already be on the forge (tags arrive by git push; this tool
+scripts/gates/cm_anchor_record_complete.sh:313:  && git push -q ../remote.git main ) >>"$build_log" 2>&1
+scripts/gates/cm_installer_no_push_no_force.sh:47:#      none may be push/send-pack/reset/rebase/filter-branch/update-ref/clean/tag/branch/switch/…, the default
+scripts/gates/cm_installer_no_push_no_force.sh:55:#      send-pack, --force, reset, rebase, filter-branch, update-ref, clean -f, checkout -f/-B, branch -D, tag -f,
+scripts/gates/cm_installer_no_push_no_force.sh:83:# A malicious edit that adds a raw `command git push` is caught by (a); a fully dynamic construct is caught by
+scripts/gates/cm_installer_no_push_no_force.sh:128:FORBIDDEN_SUB = {"push", "send-pack", "receive-pack", "reset", "rebase", "filter-branch", "filter-repo",
+scripts/gates/cm_installer_no_push_no_force.sh:1140:    ("push", re.compile(r"\bpush\b")), ("send-pack", re.compile(r"send-pack")),
+scripts/gates/cm_installer_no_push_no_force.sh:1164:                                              "HI_CLAUDE_DENY='WebFetch,WebSearch,Bash(git push *),Bash(git push),Bash(git * push *),Bash(git * push),Bash(*git push*),B
+scripts/gates/cm_installer_no_push_no_force.sh:1254:P=p; x=pu; y=sh; S=send-pack; F=--force
+scripts/gates/cm_installer_no_push_no_force.sh:1263:t refuse hi_gx send-pack x
+scripts/gates/cm_installer_no_push_no_force.sh:1276:t refuse hi_gx update-ref refs/heads/main HEAD~3
+scripts/gates/cm_installer_no_push_no_force.sh:1315:t refuse hi_gx config alias.p '!git push'
+scripts/gates/cm_installer_no_push_no_force.sh:1324:t refuse hi_gx submodule foreach 'git push'
+scripts/gates/cm_installer_no_push_no_force.sh:1337:t refuse hi_gx -c alias.p='!git push' p
+scripts/gates/cm_installer_no_push_no_force.sh:1340:t refuse hi_gx --git-dir=x push
+scripts/gates/cm_installer_no_push_no_force.sh:1349:t refuse hi_gx fetch --quiet -- origin +refs/heads/main:refs/heads/main
+scripts/gates/cm_installer_no_push_no_force.sh:1350:t refuse hi_gx fetch --quiet --tags origin +refs/heads/main:refs/heads/main
+scripts/gates/cm_installer_no_push_no_force.sh:1351:t refuse hi_gx fetch --quiet --tags origin refs/heads/main:refs/heads/main
+scripts/gates/cm_installer_no_push_no_force.sh:1569:MUST_FIND = ["x=1\n  git push origin main\n", 'bash -c "hi_gx status"\n', 'cmd=(git status); "${cmd[@]}"\n',
+scripts/gates/cm_installer_no_push_no_force.sh:1573:             'hi_git push\n', 'hi_git_url "$u" -C x fetch --force\n', 'f() { git "$@"; }\n', 'eval "$x"\n',
+scripts/gates/cm_installer_no_push_no_force.sh:1580:             '(( HI_GX_COMMIT_OK=1 ))\n', 'x=$(( ${v}=1 ))\n', 'trap "$x" EXIT\n', "trap 'git push' EXIT\n",
+scripts/gates/cm_installer_no_push_no_force.sh:1590:MUST_PASS = ["# git push origin main\n", 'hi_say "the installer never pushes; git push yourself"\n',
+scripts/gates/cm_installer_no_push_no_force.sh:1593:             '[[ "$u" =~ ^(https?|ssh|git|file)://x ]] && return 0\n', '[[ "$x" =~ ^git\\ push$ ]] && y=1\n', "cat <<'EOF'\ngit push origin main\nEOF\n",
+scripts/gates/cm_installer_no_push_no_force.sh:1602:             "printf '%s\\n' 'usage:\ngit push is never run\nend' >&2\n", 'shopt -u extglob\n']
+scripts/gates/cm_installer_no_push_no_force.sh:1604:RAW_MUST_FIND = ["x='a\ngit push origin main\nb'\n", "printf '%s\\n' 'a\nb'; git push origin main\n",
+scripts/gates/cm_installer_no_push_no_force.sh:1605:                 'y="\nprintf \'%s\\n\' \'a\n"; git push; z=\'\n\'\n',
+scripts/gates/cm_installer_no_push_no_force.sh:1606:                 "cat <<EOF\nprintf '%s\\n' 'a\nEOF\ngit push\nz='\n'\n",
+scripts/gates/cm_installer_no_push_no_force.sh:1611:                 "true; printf '%s\\n' 'a\ngit push\nb'\n", "ssh h \\\necho 'a\ngit push\nb'\n"]
+scripts/gates/cm_installer_no_push_no_force.sh:1612:RAW_MUST_PASS = ["printf '%s\\n' 'usage:\ngit push is never run\nend'\n", "echo 'a\nnever --force\nb' >&2\n",
+scripts/hooks/guard-forbidden-commands.sh:24:#   - git push --force / -f / --force-with-lease / --no-verify / --no-gpg-sign → §6.T.3
+scripts/hooks/guard-forbidden-commands.sh:166:# BLOCKED as an emulator gate violation, and `ls -la # git push --force is
+scripts/hooks/guard-forbidden-commands.sh:395:#       satisfied it even though it had nothing to do with any git push.
+scripts/hooks/guard-forbidden-commands.sh:402:# `git push -o ci.skip="a;b" --force` is never sliced apart -- and require
+scripts/hooks/guard-forbidden-commands.sh:407:# `git push ... --force` apart -- so this can never cause a genuine
+scripts/hooks/guard-forbidden-commands.sh:477:# Word-bounded "git ... push" detector -- "git" and "push" MUST each be
+scripts/hooks/guard-forbidden-commands.sh:486:#     echo $(git push --force ...)     <- `(` before git   (command subst)
+scripts/hooks/guard-forbidden-commands.sh:487:#     echo `git push --force ...`      <- '`' before git   (backtick subst)
+scripts/hooks/guard-forbidden-commands.sh:488:#     (git push --force ...)           <- `(` before git   (subshell)
+scripts/hooks/guard-forbidden-commands.sh:489:#     /usr/bin/git push --force ...    <- `/` before git   (absolute path)
+scripts/hooks/guard-forbidden-commands.sh:490:#     x $(y $(git push --force z) w)   <- nested subst
+scripts/hooks/guard-forbidden-commands.sh:493:# ([:alnum:], `_`, `-`). `legit push` / `mygit push` still do NOT match,
+scripts/hooks/guard-forbidden-commands.sh:497:#   echo repo.git push +tag        x:git push +x        .../repo.git push +1
+scripts/hooks/guard-forbidden-commands.sh:499:# relative invocation `./git push` is unaffected: the char immediately
+scripts/hooks/guard-forbidden-commands.sh:509:#     git push gitlab main > "log_$(date -u +%Y%m%dT%H%M%SZ).log"
+scripts/hooks/guard-forbidden-commands.sh:511:# like a `+<refspec>` and shared a clause with the outer `git push`.
+scripts/hooks/guard-forbidden-commands.sh:516:# `git push $(get_remote) --force` into pieces and MISS a genuine force-push.
+scripts/hooks/guard-forbidden-commands.sh:519:# place -- so `git push` and `--force` stay in the SAME outer clause.
+scripts/hooks/guard-forbidden-commands.sh:644:    #     (cd repo && git push --force)
+scripts/hooks/guard-forbidden-commands.sh:647:    # spelled `(git push --force origin main)`, i.e. with tokens AFTER the
+scripts/hooks/test_guard_branch_consistency.sh:96:run_case "push DELETE refspec (bare src) not a create" 0 '{"tool_name":"Bash","tool_input":{"command":"git push origin :refs/heads/feature/old-divergent"}}'
+scripts/hooks/test_guard_branch_consistency.sh:122:run_case "push refspec UNREGISTERED dst blocked"       2 '{"tool_name":"Bash","tool_input":{"command":"git push . HEAD:refs/heads/feature/push-divergent"}}'
+scripts/hooks/test_guard_forbidden_commands.sh:60:GIT_PUSH_LIT=$'git ''push'                 # 'git push'
+scripts/hooks/test_guard_forbidden_commands.sh:110:run_case "real git push --force"               2 "${GIT_PUSH_LIT} ${FORCE_FLAG} origin main"
+scripts/hooks/test_guard_forbidden_commands.sh:124:run_case "carrier prose (git push --force)"    0 "echo ${SQ}${GIT_PUSH_LIT} ${FORCE_FLAG} is forbidden${SQ}"
+scripts/hooks/test_guard_forbidden_commands.sh:136:run_case "comment carrier (git push --force)"  0 "ls -la # ${GIT_PUSH_LIT} ${FORCE_FLAG} is forbidden"
+scripts/hooks/test_guard_forbidden_commands.sh:173:# fixture placed a LIVE `git push` behind a non-space boundary, and none put a
+scripts/hooks/test_guard_forbidden_commands.sh:185:# substitution sits BETWEEN `git push` and the force flag.
+scripts/hooks/test_guard_forbidden_commands.sh:201:# -- so the very common `(cd repo && git push --force)` was ALLOWED. The
+scripts/hooks/test_guard_forbidden_commands.sh:202:# first fix's own fixture was spelled `(git push --force origin main)`, with
+scripts/hooks/test_guard_forbidden_commands.sh:213:run_case "repo.git is not a git invocation"    0 "echo repo.git push +tag"
+scripts/hooks/test_guard_forbidden_commands.sh:214:run_case "x:git is not a git invocation"       0 "echo x:git push +x"
+scripts/hooks/test_guard_forbidden_commands.sh:215:run_case "url ending .git is not invocation"   0 "curl https://h/repo.git push +1"
+scripts/hooks/test_guard_forbidden_commands.sh:281:run_case "legit push is not git push"          0 "echo legit push ${FORCE_FLAG} nothing"
+scripts/hooks/test_guard_forbidden_commands.sh:282:run_case "mygit push is not git push"          0 "echo mygit push ${FORCE_FLAG} nothing"
+scripts/install_constitution.sh:191:                            web tools and git push forms (printed in the plan), never
+scripts/install_constitution.sh:1600:HI_CLAUDE_DENY='WebFetch,WebSearch,Bash(git push *),Bash(git push),Bash(git * push *),Bash(git * push),Bash(*git push*),Bash(*git * push*),Bash(env git*),Bash(command git*),Bash(*send
+scripts/install_constitution.sh:2316:  hi_say "done. The installer never pushes; review 'git status' and push yourself when ready."
+scripts/multitrack/multitrack_constitution_sync.sh:28:#   * FAST-FORWARD ONLY: `git merge --ff-only <tip>` while attached to <branch>.
+scripts/multitrack/multitrack_constitution_sync.sh:166:    if git -C "$checkout" merge --ff-only "$target" >/dev/null 2>&1; then
+scripts/release/land_vehicle.sh:109:#                that was checked, as `<sha>:refs/heads/main`, to each remote that is
+scripts/release/land_vehicle.sh:138:#   No forced update of any kind: the only push is `<sha>:refs/heads/main` without
+scripts/release/land_vehicle.sh:1228:    if g push -q --no-verify --no-follow-tags --recurse-submodules=no "${R_NAMES[$i]}" "$local_main:refs/heads/main" 2>>"$ERRLOG"; then action[i]=pushed; PUSHED_NAMES+=" ${R_NAMES[$i]
+scripts/release/redact_cut.sh:13:#   rc_err_class            stdin -> stdout. The PRIMARY control for network commands (git fetch, git push,
+scripts/release/tag_and_release.sh:19:#   * main and the tag reach a remote together: `git push --atomic REMOTE
+scripts/release/tag_and_release.sh:20:#     SHA:refs/heads/main refs/tags/TAG:refs/tags/TAG`; when a server does not
+scripts/release/tag_and_release.sh:65:# git push, gh, glab, the gitea publisher) is never printed. A failure prints the exit status and one word
+scripts/release/tag_and_release.sh:261:  for r in $REMOTES; do printf 'PLAN push --atomic %s %s:refs/heads/main refs/tags/%s (remote main %s, remote tag %s)\n' "$r" "$SHA" "$TAG" "${RMAIN[$r]}" "${RTAG[$r]:-absent}"; don
+scripts/release/tag_and_release.sh:294:  x_push="$(net push --atomic "$r" "$SHA:refs/heads/main" "refs/tags/$TAG:refs/tags/$TAG" 2>&1 >/dev/null)"; prc=$?
+scripts/release/tag_and_release.sh:301:    x_main="$(net push "$r" "$SHA:refs/heads/main" 2>&1 >/dev/null)"; mrc=$?
+scripts/release_tag.sh:19:printf 'fan-out (§2.1): git push origin "%s"   # origin pushes to every upstream\n' "$tag"
+scripts/security/forge_branch_protect.sh:510:    gitflic)  echo "  plan: NO API PATH (no documented branch-protection REST endpoint, UNCONFIRMED). Manual UI step: project Settings -> Branches / Protected branches -> prot
+scripts/security/forge_branch_protect.sh:511:    gitverse) echo "  plan: NO API PATH (branch-protection API not documented, UNCONFIRMED). Manual UI step: repository Settings -> Branches -> protect $BRANCH, forbid force p
+--- negative control: zzq-nonexistent-landing-token files:
+0

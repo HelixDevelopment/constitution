@@ -1,0 +1,25 @@
+id	file	suites	rc	verdict	run	note
+CONTROL	-	lv,pr	lv:0(145s) pr:0(19s)	CONTROL-PASS	run1	
+L01-no-timeout(R01)	scripts/release/lib/landing_drift_checks.sh	lv	lv:1(150s)	KILLED	run1	
+L02-rc2-pass(R02)	scripts/release/lib/landing_drift_checks.sh	lv,pr	lv:1(141s) pr:1(11s)	KILLED	run1	
+L03-no-ref-moved(R03)	scripts/release/lib/landing_drift_checks.sh	lv,pr	lv:1(142s) pr:1(17s)	KILLED	run3	run1 killed by the lander suite only (pr:0); P15 added; run3 killed by both (D11, P15).
+L04-log-discarded(R07)	scripts/release/lib/landing_drift_checks.sh	lv	lv:1(181s)	KILLED	run1	
+L05-run-not-in-root(R09)	scripts/release/lib/landing_drift_checks.sh	lv	lv:1(133s)	KILLED	run1	
+L06-return-0	scripts/release/lib/landing_drift_checks.sh	lv,pr	lv:1(23s) pr:1(1s)	KILLED	run1	
+L07-no-timeout-label	scripts/release/lib/landing_drift_checks.sh	lv	lv:1(52s)	KILLED	run1	
+L08-required-head-only	scripts/release/lib/landing_drift_checks.sh	lv,pr	lv:1(35s) pr:1(4s)	KILLED	run1	
+L09-untracked-no	scripts/release/lib/landing_drift_checks.sh	lv,pr	lv:1(41s) pr:1(4s)	KILLED	run1	
+L10-badges-dropped	scripts/release/lib/landing_drift_checks.sh	lv,pr	lv:1(9s) pr:1(0s)	KILLED	run1	
+V01-lander-skips-drift	scripts/release/land_vehicle.sh	lv	lv:1(11s)	KILLED	run1	
+V02-lander-ref-HEAD	scripts/release/land_vehicle.sh	lv	lv:0(135s)	SURVIVED	run1	EQUIVALENT-OR-STRICTER: do_publish refuses unless HEAD is the symbolic ref refs/heads/main (land_vehicle.sh do_publish, "clone is not on main") before the checks run, so HEAD and refs/heads/main name the same commit when ldc_run reads LDC_REF; they differ only if a check repoints HEAD, where the mutant refuses (stricter). The pushed commit is $local_main either way. Follow-up CON-PENDING-drift-check-head-repoint.
+V03-lander-missing-lib-ok	scripts/release/land_vehicle.sh	lv	lv:1(128s)	KILLED	run1	
+P01-pr-skips-checks	scripts/release/pr_landing_check.sh	pr	pr:1(1s)	KILLED	run1	
+P02-pr-checks-head-not-candidate	scripts/release/pr_landing_check.sh	pr	pr:1(3s)	KILLED	run1	
+P03-pr-conflict-passes	scripts/release/pr_landing_check.sh	pr	pr:1(4s)	KILLED	run1	
+P04-pr-ff-only-ignored	scripts/release/pr_landing_check.sh	pr	pr:1(4s)	KILLED	run1	
+P05-pr-checkout-head	scripts/release/pr_landing_check.sh	pr	pr:1(3s)	KILLED	run1	
+P06-pr-merge-as-ff	scripts/release/pr_landing_check.sh	pr	pr:1(3s)	KILLED	run1	
+P07-pr-bad-rev-pass	scripts/release/pr_landing_check.sh	pr	pr:1(5s)	KILLED	run1	
+P08-pr-missing-lib-ok	scripts/release/pr_landing_check.sh	pr	pr:1(15s)	KILLED	run2	run1 SURVIVED (the source line `. lib || blind` gives the same BLIND exit 2); P14b added (the refusal must name the missing library path); run2 KILLED by P14b.
+CONTROL	-	lv,pr	lv:0(164s) pr:0(13s)	CONTROL-PASS	run2	
+V04-lander-always-merge	scripts/release/land_vehicle.sh	lv	lv:1(157s)	KILLED	run2	pairs D14: killed by "D14 prepare path".
