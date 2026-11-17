@@ -39,10 +39,24 @@ printf '%s' "$P7" | grep -qF 'OPD-2026-11-16-PR-DELIVERY' && ok "the paragraph c
 printf '%s' "$P7" | grep -qiE 'decision 8|2026-11-11' && bad "the paragraph does not cite the superseded 2026-11-11 decision 8" || ok "the paragraph does not cite the superseded 2026-11-11 decision 8"
 printf '%s' "$P7" | grep -qi 'open question' && bad "the paragraph does not call the answered landing question open" || ok "the paragraph does not call the answered landing question open"
 printf '%s' "$P7" | grep -qiE 'fast-forward' && printf '%s' "$P7" | grep -qiE 'no pull requests' && ok "the paragraph states the answered landing path (fast-forward, no pull requests)" || bad "the paragraph states the answered landing path (fast-forward, no pull requests)"
+# round 3 (review of f4c6e8ab, N2): the checks above read words, so a wording that keeps the words but reverses the
+# landing or drops a status passed (reviewer TX1, TX4-TX7). The two statements are now pinned EXACTLY, and the record
+# is read by its table cells, not by any occurrence of a word (TX2).
+DECL='(a PROVISIONAL declaration of 2026-11-16, decision `OPD-2026-11-16-PR-DELIVERY`: its own header says no delivery tool reads it yet and nothing is ENFORCED, §11.4.297(G))'
+LAND="this release's own landing follows the operator's relayed answer of 2026-11-16 (\`docs/operator_decisions/2026-11-16_release_landing.md\`, PROVISIONAL, wording UNCONFIRMED): the rest of this release queue lands by fast-forward push with no pull requests, so the release commit is pushed fast-forward together with the tag by \`scripts/release/tag_and_release.sh\`, and pull-request mode applies after the release."
+printf '%s' "$P7" | grep -qF -- "$DECL" && ok "the declaration's status parenthesis is exactly as pinned (PROVISIONAL, nothing ENFORCED)" || bad "the declaration's status parenthesis is exactly as pinned"
+printf '%s' "$P7" | grep -qF -- "$LAND" && ok "the landing sentence is exactly as pinned (fast-forward, no pull requests, PR mode after the release, wording UNCONFIRMED)" || bad "the landing sentence is exactly as pinned"
+printf '%s' "$P7" | grep -qiwE 'confirmed|binding|final' && bad "the paragraph calls nothing confirmed, binding or final (UNCONFIRMED is another word)" || ok "the paragraph calls nothing confirmed, binding or final (UNCONFIRMED is another word)"
 REC="$(printf '%s' "$P7" | grep -oE 'docs/operator_decisions/[A-Za-z0-9._-]+\.md' | head -n 1)"
+# cell NAME FILE: the text of the table row "| NAME | text |" (exactly one such row, else empty)
+cell(){ awk -v n="$1" -F' [|] ' 'index($0, "| " n " | ") == 1 { c++; v = $2; sub(/ [|]$/, "", v) } END { if (c == 1) print v }' "$2" 2>/dev/null; }
 if [ -n "$REC" ]; then
-  [ -f "${RTD_ROOT:-$ROOT}/$REC" ] && ok "the cited decision record $REC exists" || bad "the cited decision record $REC exists"
-  grep -qw 'PROVISIONAL' "${RTD_ROOT:-$ROOT}/$REC" 2>/dev/null && ok "the cited decision record is marked PROVISIONAL" || bad "the cited decision record is marked PROVISIONAL"
+  RF="${RTD_ROOT:-$ROOT}/$REC"
+  [ -f "$RF" ] && ok "the cited decision record $REC exists" || bad "the cited decision record $REC exists"
+  [ "$(cell Revision "$RF")" = 1 ] && ok "the record's Revision cell is read (control needle: 1)" || bad "the record's Revision cell could not be read (got '$(cell Revision "$RF")')"
+  [ "$(cell Status "$RF")" = PROVISIONAL ] && ok "the record's Status cell is exactly PROVISIONAL" || bad "the record's Status cell is exactly PROVISIONAL (got '$(cell Status "$RF")')"
+  case "$(cell 'Exact wording' "$RF")" in "UNCONFIRMED: "*) ok "the record's Exact wording cell starts with UNCONFIRMED:" ;; *) bad "the record's Exact wording cell starts with UNCONFIRMED: (got '$(cell 'Exact wording' "$RF")')" ;; esac
+  grep -qiwE 'confirmed|verified' "$RF" 2>/dev/null && bad "the record calls nothing confirmed or verified" || ok "the record calls nothing confirmed or verified"
 else
   bad "the paragraph names the decision record of the landing answer (docs/operator_decisions/...)"
 fi

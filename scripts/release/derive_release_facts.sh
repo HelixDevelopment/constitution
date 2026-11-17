@@ -16,17 +16,27 @@
 # Meaning of the §11.4.290(4) count line it prints:
 #   P (provisional) = open items whose body carries a "**Verification:** provisional" LINE: a line that
 #                     STARTS with that text, followed by the end of the line or a character that is not a
-#                     letter, digit or underscore, and is outside a fenced code block (backtick or tilde fences
-#                     indented 0 to 3 spaces, closed by the same character at least as long; a quotation of the
-#                     marker inside prose or inside a fence is not a verification line; rel1, CON-521);
-#   O (overdue)     = those of P whose first "due:" field of that line is a date before --today, or is not a date at all
-#                     ("UNSCHEDULED, treated as OVERDUE", review of v73.4 I-4);
-#   V (verified)    = items in the Fixed tracker whose closure_date is after the previous tag's date.
+#                     letter, digit or underscore, and is outside a top-level fenced code block (backtick or tilde
+#                     fences indented 0 to 3 spaces, closed by the same character at least as long; a quotation of
+#                     the marker inside prose or inside such a fence is not a verification line; rel1, CON-521).
+#                     Only top-level fences are modelled: container blocks (list items, block quotes) and HTML blocks
+#                     are not, so a fence opened inside a list item stays open here past the item's end (review of
+#                     f4c6e8ab, N3);
+#   O (overdue)     = those of P whose first "due:" field of that line is a calendar date before --today, or is not a
+#                     real calendar date at all ("UNSCHEDULED, treated as OVERDUE", review of v73.4 I-4; a date is
+#                     YYYY-MM-DD of a day that exists, not followed by a digit: 2026-13-45 and 2027-02-29 are not dates,
+#                     review of f4c6e8ab, N5);
+#   V (verified)    = items in the Fixed tracker whose closure_date names a calendar day after the previous tag's date.
+#                     The closure_date must start with a real calendar date YYYY-MM-DD, alone or followed by "T" or a
+#                     space (a time); only that day is compared, so a closure on the tag's own day is not counted even
+#                     with a time later than the tag (the tag date has day granularity, so a same-day closure cannot be
+#                     shown to postdate the tag), and 9999-99-99, 2026-1-5 or 2026-02-30 are never counted (N5).
 #
 # --retest-item ID (rel2): prints retest_item_id, retest_item_status ("status (location)"), retest_item_closure
-# (the closure_date, or "none") and retest_item_evidence=yes only when the item is in the Fixed tracker AND its
-# closure_date is after the previous tag's date (the rule of V; review of e5efbf77, F8). Any other item (open, or
-# Fixed but closed on or before the previous tag, or with no closure date) is not this candidate's recorded retest,
+# (the closure_date exactly as stored, or "none") and retest_item_evidence=yes only when the item is in the Fixed
+# tracker AND its closure_date names a calendar day after the previous tag's date (the rule of V; review of e5efbf77,
+# F8). Any other item (open, or Fixed but closed on or before the previous tag's day, or with no closure date or one
+# that is not a real date) is not this candidate's recorded retest,
 # and a line retest_item_flag=NOT-EVIDENCE ... is printed so a release entry never cites it as evidence. An id that
 # is not in the tracker exits 3; a failed lookup query exits 3 with its own message (F9). With
 # --require-retest-evidence a not-evidence item exits 3 too (no facts printed).
@@ -34,8 +44,14 @@
 # Exit status: 0 facts printed; 2 usage; 3 data missing (no tracker at COMMIT, unknown tag, sqlite3
 # absent, or any tracker query failed, e.g. a missing column) — never a partial set of facts: the
 # facts are buffered and printed only when every query succeeded; on exit 3 stdout stays empty.
-# Verified count boundary: an item closed ON the previous tag's date is not counted (the tag date
-# has day granularity, so a same-day closure cannot be shown to postdate the tag).
+# Output integrity (review of f4c6e8ab, N4): every fact goes through kv, which refuses (exit 3, nothing printed) a key
+# or value holding a control character (C0, DEL, C1 incl. NEL), a line or paragraph separator, a bidi control, a
+# zero-width or other invisible format character (the Unicode categories Cc, Cf, Zl, Zp), or bytes that are not
+# UTF-8, and a key whose bracket part holds [, ] or =; a key printed twice is refused too, so a reader that takes the
+# first and one that takes the last copy of a key always read the same value. Exit 3 as well, before any value is
+# used, when a tracker item id is not of [A-Za-z0-9._-] (1-40 characters, starting with a letter or digit), or a
+# value the script splits on separator bytes holds one (0x1c-0x1f: it could forge a record without any control
+# character reaching the output). The refusal names the reason and the key, never the value.
 set +x   # first: an inherited xtrace (bash -x, SHELLOPTS=xtrace) traces this one line only
 set -u
 unset -v GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py; written as unset -v because the network-spawn gate of tests/release/channel_census.py admits only that form)
@@ -99,10 +115,81 @@ q() { sqlite3 -safe -readonly -batch -noheader "$DB" "$1" || { echo query >>"$QF
 # control characters, so a separator built with char(31) would come back as the two characters ^_)
 qa() { sqlite3 -safe -readonly -batch -noheader -ascii "$DB" "$1" || { echo query >>"$QFAIL"; return 1; }; }
 ids() { q "$1" | sort -V | tr '\n' ' ' | sed 's/ $//'; }
-kv() { printf '%s=%s\n' "$1" "$2"; }
+# >>> fact-guard
+# (review of f4c6e8ab, N4 and N5; tested on its own by tests/release/test_fact_value_guard.sh, which sources exactly
+# this block; the bracket ranges below are BYTE ranges, so the block needs LC_ALL=C, set above)
+# well-formed UTF-8 (no overlong form, no encoded surrogate, nothing above U+10FFFF), printable ASCII for one byte
+_FV_UTF8=$'^([ -~]|[\xc2-\xdf][\x80-\xbf]|\xe0[\xa0-\xbf][\x80-\xbf]|[\xe1-\xec\xee\xef][\x80-\xbf][\x80-\xbf]|\xed[\x80-\x9f][\x80-\xbf]|\xf0[\x90-\xbf][\x80-\xbf][\x80-\xbf]|[\xf1-\xf3][\x80-\xbf][\x80-\xbf][\x80-\xbf]|\xf4[\x80-\x8f][\x80-\xbf][\x80-\xbf])*$'
+# fact_text_ok TEXT: 0 when TEXT is UTF-8 made of printable ASCII and code points outside the categories Cc, Cf, Zl and
+# Zp (Unicode 16.0): the C0 controls (newline, CR, tab, ESC, ...) and DEL fail the UTF-8 pattern (printable ASCII
+# only); the case below lists every other member, by its UTF-8 bytes. U+2065 (unassigned) is refused with its block.
+fact_text_ok() {
+  [[ $1 =~ $_FV_UTF8 ]] || return 1
+  case "$1" in
+    *$'\xc2'[$'\x80'-$'\x9f']*|*$'\xc2\xad'*) return 1 ;;                                    # C1 (incl. NEL), SOFT HYPHEN
+    *$'\xd8'[$'\x80'-$'\x85']*|*$'\xd8\x9c'*|*$'\xdb\x9d'*|*$'\xdc\x8f'*) return 1 ;;          # U+0600-0605 061C 06DD 070F
+    *$'\xe0\xa2'[$'\x90'$'\x91']*|*$'\xe0\xa3\xa2'*|*$'\xe1\xa0\x8e'*) return 1 ;;             # U+0890-0891 08E2 180E
+    *$'\xe2\x80'[$'\x8b'-$'\x8f']*|*$'\xe2\x80'[$'\xa8'-$'\xae']*) return 1 ;;                 # U+200B-200F, 2028-202E
+    *$'\xe2\x81'[$'\xa0'-$'\xaf']*|*$'\xef\xbb\xbf'*|*$'\xef\xbf'[$'\xb9'-$'\xbb']*) return 1 ;; # U+2060-206F FEFF FFF9-FFFB
+    *$'\xf0\x91\x82\xbd'*|*$'\xf0\x91\x83\x8d'*|*$'\xf0\x93\x90'[$'\xb0'-$'\xbf']*) return 1 ;; # U+110BD 110CD 13430-1343F
+    *$'\xf0\x9b\xb2'[$'\xa0'-$'\xa3']*|*$'\xf0\x9d\x85'[$'\xb3'-$'\xba']*) return 1 ;;         # U+1BCA0-1BCA3 1D173-1D17A
+    *$'\xf3\xa0'[$'\x80'$'\x81'][$'\x80'-$'\xbf']*) return 1 ;;                                 # U+E0000-E007F (tags)
+  esac
+  return 0
+}
+# fact_key_ok KEY: lower-case name, optionally one [..] part that holds no [, ] or = (it is built from tracker values)
+_FV_KEY='^[a-z][a-z0-9_]*(\[[^]=[]*\])?$'
+fact_key_ok() { [[ $1 =~ $_FV_KEY ]]; }
+# cal_date TEXT: 0 when TEXT starts with YYYY-MM-DD of a day that exists (year 0001-9999, leap years by the Gregorian
+# rule) and the 11th character is not a digit (review of f4c6e8ab, N5: dates were checked by pattern only)
+cal_date() {
+  local y m d mx q
+  [[ ${1:0:10} =~ ^([0-9]{4})-([0-9]{2})-([0-9]{2})$ ]] || return 1
+  [[ ${1:10:1} == [0-9] ]] && return 1
+  y="${BASH_REMATCH[1]}"; m="${BASH_REMATCH[2]}"; d="${BASH_REMATCH[3]}"
+  [ "$y" != 0000 ] || return 1
+  # no shell arithmetic (the network-spawn gate refuses it): test -ge reads 08 as decimal; a year is a leap year when
+  # its last two digits are a multiple of 4, or they are 00 and its first two digits are a multiple of 4 (a two-digit
+  # number is a multiple of 4 when an even tens digit has unit 0, 4 or 8, or an odd tens digit has unit 2 or 6)
+  case "$m" in
+    01|03|05|07|08|10|12) mx=31 ;; 04|06|09|11) mx=30 ;;
+    02) q="${y:2:2}"; [ "$q" != 00 ] || q="${y:0:2}"
+        case "$q" in [02468][048]|[13579][26]) mx=29 ;; *) mx=28 ;; esac ;;
+    *) return 1 ;;
+  esac
+  [ "$d" -ge 1 ] && [ "$d" -le "$mx" ]
+}
+# closure_day TEXT: sets CDAY to the calendar day of a closure_date (a real date, alone or followed by T or a space);
+# CDAY is empty and the status 1 otherwise
+closure_day() { CDAY=""; cal_date "$1" || return 1; case "${1:10}" in ""|T*|" "*) CDAY="${1:0:10}"; return 0 ;; esac; return 1; }
+# <<< fact-guard
+# kv KEY VALUE: the one writer of facts. A key or value the guard refuses is never printed: the refusal is recorded
+# in the flag file (with the key's fixed name only, never the value) and the run ends with exit 3 (N4)
+kv() {
+  if fact_key_ok "$1" && fact_text_ok "$1" && fact_text_ok "$2"; then printf '%s=%s\n' "$1" "$2"
+  else
+    local n="${1%%\[*}"; [[ $n =~ ^[a-z][a-z0-9_]*$ ]] || n="?"
+    printf 'ctrl %s\n' "$n" >>"$QFAIL"
+  fi
+}
 
 # stdout is buffered: nothing reaches the caller until every query has succeeded
 exec 4>&1 >"$DBDIR/out"
+# N4 (review of f4c6e8ab), checked before any value is used: item ids are printed in space-separated lists and
+# compared as keys, so an id holding a space, a newline or any other character outside [A-Za-z0-9._-] could forge an id
+# or a line; and the values below are split on separator bytes (ascii mode, US 0x1f between columns, RS 0x1e between
+# rows; GS 0x1d in grp), so a value holding one (0x1c-0x1f) could forge a record, a count or a retest verdict without
+# any control character reaching the output. Scope: every row for the columns the retest lookup and V read, the
+# open rows for the grouped columns, and the bodies the provisional count reads.
+_O="current_location='Issues'"
+_SEP="glob '*['||char(28)||'-'||char(31)||']*'"
+nbadid="$(q "select count(*) from items where atm_id is null or length(atm_id) < 1 or length(atm_id) > 40 or atm_id glob '*[^A-Za-z0-9._-]*' or atm_id glob '[^A-Za-z0-9]*'")"
+[ "$nbadid" = 0 ] || printf 'idgrammar %s\n' "$nbadid" >>"$QFAIL"
+nsep="$(q "select count(*) from items where coalesce(atm_id,'')||coalesce(status,'')||coalesce(current_location,'')||coalesce(closure_date,'') $_SEP or ($_O and coalesce(severity,'')||coalesce(reproduction_state,'')||coalesce(investigation_state,'') $_SEP) or ($_O and body_md like '%**Verification:** provisional%' and body_md $_SEP)")"
+[ "$nsep" = 0 ] || printf 'sep %s\n' "$nsep" >>"$QFAIL"
+# the location is the closed set of the tracker schema; an item elsewhere would drop out of every count unseen
+nloc="$(q "select count(*) from items where current_location is null or current_location not in ('Issues','Fixed')")"
+[ "$nloc" = 0 ] || printf 'location %s\n' "$nloc" >>"$QFAIL"
 kv base "$B"
 kv prev_tag "$PREV"; kv prev_tag_object "$(rc_net git rev-parse "refs/tags/$PREV")"; kv prev_tag_commit "$P"
 PREV_DATE="$(rc_net git log -1 --format=%cs "$P")"; kv prev_tag_date "$PREV_DATE"
@@ -110,7 +197,18 @@ kv commits_since_prev "$(rc_net git rev-list --count "$P..$B")"
 kv shortstat_since_prev "$(rc_net git diff --shortstat "$P" "$B" | sed 's/^ *//')"
 kv merges_since_prev "$(rc_net git rev-list --merges --count "$P..$B")"
 rc_net git cat-file -e "$B:CHANGELOG.md" 2>/dev/null || echo changelog >>"$QFAIL"
-kv changelog_first_heading "$(rc_net git show "$B:CHANGELOG.md" | awk '/^## /{print substr($0,4); exit}' | cut -c1-120)"
+_h="$(rc_net git show "$B:CHANGELOG.md" | awk '/^## /{print substr($0,4); exit}' | cut -c1-120)"
+_h="${_h%$'\r'}"   # a CRLF file: the line ending, not part of the heading
+# the cut is at 120 BYTES (LC_ALL=C): when it fell inside a UTF-8 character, drop that partial character (a lead byte
+# and at most two continuation bytes at the very end), never anything else (N4: a value that is not UTF-8 is refused)
+_PART=$'^[\xc2-\xf4][\x80-\xbf]*$'   # a lead byte and continuation bytes only: the start of one cut character
+if [ "${#_h}" -eq 120 ] && ! [[ $_h =~ $_FV_UTF8 ]]; then
+  if [[ ${_h:119} =~ $_PART ]] && [[ ${_h:0:119} =~ $_FV_UTF8 ]]; then _h="${_h:0:119}"
+  elif [[ ${_h:118} =~ $_PART ]] && [[ ${_h:0:118} =~ $_FV_UTF8 ]]; then _h="${_h:0:118}"
+  elif [[ ${_h:117} =~ $_PART ]] && [[ ${_h:0:117} =~ $_FV_UTF8 ]]; then _h="${_h:0:117}"
+  fi
+fi
+kv changelog_first_heading "$_h"
 kv db_sha256 "$(sha256sum "$DB" | cut -d' ' -f1)"
 
 O="current_location='Issues'"
@@ -179,6 +277,7 @@ while IFS=$'\x1f' read -r -d $'\x1e' id body; do
   [ -n "$vline" ] || continue
   PROV="$PROV $id"
   due="${vline#V}"
+  cal_date "$due" || due="not-a-date"   # N5: a due: that is not a real calendar date is no date (UNSCHEDULED)
   if printf '%s' "$due" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
     [ "${due:0:10}" \< "$TODAY" ] && OVER="$OVER $id"
   else
@@ -190,7 +289,13 @@ PROV="$(sv "$PROV")"; OVER="$(sv "$OVER")"
 kv provisional_ids "$PROV"; kv overdue_ids "$OVER"
 # PREV_DATE is git's %cs (YYYY-MM-DD); checked before it is used in SQL
 printf '%s' "$PREV_DATE" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || die "tag date $PREV_DATE is not YYYY-MM-DD" 3
-VER="$(ids "select atm_id from items where current_location='Fixed' and coalesce(closure_date,'') > '$PREV_DATE'")"
+# V: the closure's calendar day (closure_day, the same rule as the retest evidence below) after the tag's date (N5)
+VER=""
+vrows="$(qa "select atm_id, coalesce(closure_date,'') from items where current_location='Fixed'")"
+while IFS=$'\x1f' read -r -d $'\x1e' vid vclos; do
+  closure_day "$vclos" && [ "$CDAY" \> "$PREV_DATE" ] && VER="$VER $vid"
+done <<<"$vrows"
+VER="$(sv "$VER")"
 kv verified_since_prev_ids "$VER"
 words() { printf '%s\n' "$1" | wc -w | tr -d ' '; }
 kv count_line "$(words "$VER") verified + $(words "$PROV") provisional ($(words "$OVER") overdue)"
@@ -213,12 +318,15 @@ if [ -n "$RETEST" ]; then
     echo retest >>"$QFAIL"
   else
     rstat="${rrow%%$'\x1f'*}"; rrest="${rrow#*$'\x1f'}"; rloc="${rrest%%$'\x1f'*}"; rclos="${rrest#*$'\x1f'}"
+    # N4: the status and location are also printed on stderr below; a value the guard refuses is never shown
+    if ! fact_text_ok "$rstat" || ! fact_text_ok "$rloc"; then rstat="(not shown)"; rloc="(not shown)"; echo "ctrl retest_item_status" >>"$QFAIL"; fi
     kv retest_item_id "$RETEST"; kv retest_item_status "$rstat ($rloc)"; kv retest_item_closure "${rclos:-none}"
+    rraw="$rclos"; closure_day "$rclos"; rclos="$CDAY"   # N5: from here on rclos is the closure's calendar day ("" if none)
     if [ "$rloc" = Fixed ] && [ -n "$rclos" ] && [ "$rclos" \> "$PREV_DATE" ]; then kv retest_item_evidence yes
     else
       kv retest_item_evidence no
       if [ "$rloc" = Fixed ]; then
-        kv retest_item_flag "NOT-EVIDENCE: $RETEST is in Fixed but its closure (${rclos:-none}) is not after the previous tag ($PREV_DATE), so it is not this candidate's retest (§11.4.40); a release entry must not cite it as a retest result"
+        kv retest_item_flag "NOT-EVIDENCE: $RETEST is in Fixed but its closure (${rraw:-none}) is missing, not a calendar date, or not after the previous tag ($PREV_DATE), so it is not this candidate's retest (§11.4.40); a release entry must not cite it as a retest result"
       else
         kv retest_item_flag "NOT-EVIDENCE: $RETEST is $rstat in $rloc, an owed retest and not a recorded one (§11.4.40); a release entry must not cite it as a retest result"
       fi
@@ -242,7 +350,29 @@ for r in $REMOTES; do
   kv "unmerged_refs_count[$r]" "$n"; kv "unmerged_refs[$r]" "${list# }"
 done
 exec 1>&4 4>&-
+# N4: every key once, so a first-match and a last-match reader of the facts read the same value
+# (a newline-separated list of the keys seen; a key holds no newline, the guard refused that; no array, no break: the
+# network-spawn gate models neither)
+_seen=$'\n'; _dup=""
+while IFS= read -r _l; do
+  _k="${_l%%=*}"
+  case "$_seen" in *$'\n'"$_k"$'\n'*) [ -n "$_dup" ] || _dup="$_k" ;; esac
+  _seen="$_seen$_k"$'\n'
+done <"$DBDIR/out"
+[ -z "$_dup" ] || printf 'dup %s\n' "${_dup%%\[*}" >>"$QFAIL"
+# qtag TAG: the word after the first line "TAG word" of the flag file (bash only: no new external command)
+qtag() { local t v; while read -r t v; do [ "$t" = "$1" ] && { printf '%s' "$v"; return 0; }; done <"$QFAIL"; return 0; }
 if [ -e "$QFAIL" ]; then
+  _r="$(qtag ctrl)"
+  [ -n "$_r" ] && printf 'derive_release_facts: a fact key or value holds a control, line-separator, bidi or invisible format character, text that is not UTF-8, or (in a key) [, ] or = (first key: %s; the value is not shown); no facts printed\n' "$_r" >&3
+  _r="$(qtag idgrammar)"
+  [ -n "$_r" ] && printf 'derive_release_facts: %s tracker item id(s) are not item ids of [A-Za-z0-9._-] (1-40 characters, starting with a letter or digit; the ids are not shown); no facts printed\n' "$_r" >&3
+  _r="$(qtag sep)"
+  [ -n "$_r" ] && printf 'derive_release_facts: %s tracker item(s) hold a field or record separator byte (0x1c-0x1f) in a value this script splits on it; no facts printed\n' "$_r" >&3
+  _r="$(qtag location)"
+  [ -n "$_r" ] && printf 'derive_release_facts: %s tracker item(s) have a location outside the closed set Issues, Fixed (the values are not shown); no facts printed\n' "$_r" >&3
+  _r="$(qtag dup)"
+  [ -n "$_r" ] && printf 'derive_release_facts: a fact key would be printed twice (%s); no facts printed\n' "$_r" >&3
   grep -q '^changelog$' "$QFAIL" && printf 'derive_release_facts: CHANGELOG.md is missing at the base %s; no facts printed\n' "$B" >&3
   grep -q '^query$' "$QFAIL" && printf 'derive_release_facts: a tracker query failed (the sqlite3 error is printed after this line); no facts printed\n' >&3
   exit 3

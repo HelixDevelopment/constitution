@@ -7,7 +7,7 @@
 #   N name script:line               every variable name the scripts write (none of DANGER_NAMES but IFS)
 # A change to a release script fails "netgate --pin" until this table is regenerated. Regenerate only after
 # reviewing "channel_census.py pin-diff TABLE SCRIPT..." (line keys and sites, never script text).
-F	derive_release_facts.sh	f4cd25a88f9b5e7b471ce077b9e5ca71457f9fee49fa61fddf39a3df5806bd48	252
+F	derive_release_facts.sh	06ee9a07cc7be21bd375ad3fdc043a92a59ef441db43784e8172fe764f9eeeba	382
 L	derive_release_facts.sh	1	e2b37d0f	e2b37d0fbeebd535
 L	derive_release_facts.sh	2	217ceb64	217ceb6480e318f3
 L	derive_release_facts.sh	3	e5f34d96	e5f34d969323d67c
@@ -26,240 +26,370 @@ L	derive_release_facts.sh	15	334359b9	334359b90efed75d
 L	derive_release_facts.sh	16	6fe8c841	6fe8c841fe2803a8
 L	derive_release_facts.sh	17	6dc0176a	a35f7cca589862e1
 L	derive_release_facts.sh	18	d89c73ae	077c5f2adcbebf36
-L	derive_release_facts.sh	19	bedd0be9	1a508650e1ef8e76
-L	derive_release_facts.sh	20	2a654a16	81ac1a930e878753
-L	derive_release_facts.sh	21	bf123359	36a56b9614140b5b
-L	derive_release_facts.sh	22	49aebacc	7cd6537889cec99b
-L	derive_release_facts.sh	23	02762a8b	f7f7f86d2c17a9b6
-L	derive_release_facts.sh	24	b02b66fd	f8d21f40de9d063c
-L	derive_release_facts.sh	25	334359b9	334359b90efed75d
-L	derive_release_facts.sh	26	0c1d3fd4	0c1d3fd410897444
-L	derive_release_facts.sh	27	3e23988a	3e23988a5e2047cd
-L	derive_release_facts.sh	28	45bec362	45bec362e97af68e
-L	derive_release_facts.sh	29	853edfc7	853edfc76b0e10ae
-L	derive_release_facts.sh	30	1a699071	1a6990713b53aa94
-L	derive_release_facts.sh	31	321ffe92	321ffe925a19508a
-L	derive_release_facts.sh	32	37ce0408	37ce0408f1edb688
-L	derive_release_facts.sh	33	334359b9	334359b90efed75d
-L	derive_release_facts.sh	34	e83a277d	e83a277dd0910bb1
-L	derive_release_facts.sh	35	7c2fd9e5	7c2fd9e58720e1a6
-L	derive_release_facts.sh	36	71088383	7108838393513987
-L	derive_release_facts.sh	37	e5c6922f	e5c6922f9b46eb74
-L	derive_release_facts.sh	38	035e480c	035e480c63b44ad7
-L	derive_release_facts.sh	39	9751cc5f	1ee6e4f30af6ed2d
-L	derive_release_facts.sh	40	2d510a6e	2d510a6eb4e36076
-L	derive_release_facts.sh	41	08e1d5d4	985fc46b234766fc
-L	derive_release_facts.sh	42	08570e99	08570e99941c2dbd
-L	derive_release_facts.sh	43	ccb6ccdd	ccb6ccdd814e0e28
-L	derive_release_facts.sh	44	f5725d72	f5725d72914f37f4
-L	derive_release_facts.sh	45	e5fbc9f4	e5fbc9f41b4332e5
-L	derive_release_facts.sh	46	1a7e6d37	1a7e6d3710e319b7
-L	derive_release_facts.sh	47	32f8265a	32f8265ac981063d
-L	derive_release_facts.sh	48	5d1dddc3	d5e39f47b493d261
-L	derive_release_facts.sh	49	043c3f72	043c3f72908a2b0c
-L	derive_release_facts.sh	50	5d8b1f38	a6ad311bef65498a
-L	derive_release_facts.sh	51	78b3e41b	78b3e41b17ed005c
-L	derive_release_facts.sh	52	2a935554	207734b31bfed0cd
-L	derive_release_facts.sh	53	da2e5f65	da2e5f65a6727489
-L	derive_release_facts.sh	54	6879dc3c	cea2bbda44f0212a
-L	derive_release_facts.sh	55	5dd902c6	f9c3d20c62b31b01
-L	derive_release_facts.sh	56	b1c67eaa	cc42bdeb8c1df42b
-L	derive_release_facts.sh	57	755b387d	41e11b71454ce4db
-L	derive_release_facts.sh	58	55e38241	a213dff008c98b5f
-L	derive_release_facts.sh	59	75b5a1c7	d253c16e98440088
-L	derive_release_facts.sh	60	3db6fe9f	6033af5a1c8fc9e9
-L	derive_release_facts.sh	61	30f58115	dca1cbb607680cf9
-L	derive_release_facts.sh	62	e4155ab6	2c5819c833368294
-L	derive_release_facts.sh	63	a544d1af	d68ab5eb532fac0b
-L	derive_release_facts.sh	64	327b7264	bc6a7ce687d0fab2
-L	derive_release_facts.sh	65	a4c3ed04	a4c3ed04a95a3da1
-L	derive_release_facts.sh	66	00c8dde0	00c8dde04ab8edd7
-L	derive_release_facts.sh	67	82d34b4d	82d34b4d3cf0361b
-L	derive_release_facts.sh	68	6e189c26	6e189c2655d88d81
-L	derive_release_facts.sh	69	28c132fd	28c132fda0deca3b
-L	derive_release_facts.sh	70	4a8bf290	4a8bf290fc5c2eb8
-L	derive_release_facts.sh	71	fe09e762	fe09e762114ad7cf
-L	derive_release_facts.sh	72	27a98122	27a9812213c88f4f
-L	derive_release_facts.sh	73	0a1c40be	0a1c40bedddb6481
-L	derive_release_facts.sh	74	08e93e5d	08e93e5d59101f02
-L	derive_release_facts.sh	75	926fd110	fbe7573d70878341
-L	derive_release_facts.sh	76	a4c3ed04	a4c3ed04a95a3da1
-L	derive_release_facts.sh	77	649cfe2c	b7801b9d90fd551a
-L	derive_release_facts.sh	78	0d3cc75c	0d3cc75ce7dd4b4f
-L	derive_release_facts.sh	79	d9bfaa22	d9bfaa223f4d054f
-L	derive_release_facts.sh	80	feb7dd5a	feb7dd5afb18f3df
-L	derive_release_facts.sh	81	3e591f2d	3e591f2db6a89cf8
-L	derive_release_facts.sh	82	c8d72438	c8d724389a8ae0e2
-L	derive_release_facts.sh	83	ef2b8a65	ef2b8a656df8528d
-L	derive_release_facts.sh	84	912d671e	912d671ec4ff3b90
-L	derive_release_facts.sh	85	a5bab39f	a5bab39f0c6adbda
-L	derive_release_facts.sh	86	6de13623	6de1362371c3d853
-L	derive_release_facts.sh	87	e7a01635	e7a01635686c71a1
-L	derive_release_facts.sh	88	3c484663	3c484663db17402f
-L	derive_release_facts.sh	89	d5965541	d5965541dc2c9d95
-L	derive_release_facts.sh	90	9db3ccf9	66a3aa48d21b6d28
-L	derive_release_facts.sh	91	95c7f3eb	95c7f3eb3936a1c8
-L	derive_release_facts.sh	92	1d47288c	1d47288c79b54c5f
-L	derive_release_facts.sh	93	cd1f390b	cd1f390bdaaa14aa
-L	derive_release_facts.sh	94	cf1950b6	cf1950b635c83702
-L	derive_release_facts.sh	95	000c3ca5	000c3ca5bc7b1d36
-L	derive_release_facts.sh	96	3d0f48d6	3d0f48d6ad277f35
-L	derive_release_facts.sh	97	fdaef393	fdaef39354851447
-L	derive_release_facts.sh	98	df128b1a	df128b1a6c9ff98b
-L	derive_release_facts.sh	99	93d24f65	93d24f6528733864
-L	derive_release_facts.sh	100	9d146727	9d146727881d5277
-L	derive_release_facts.sh	101	068140ce	068140ce17046f86
-L	derive_release_facts.sh	102	abdc89a4	abdc89a420982da4
-L	derive_release_facts.sh	103	e3b0c442	e3b0c44298fc1c14
-L	derive_release_facts.sh	104	baaaeb5b	baaaeb5b016ff7f6
-L	derive_release_facts.sh	105	43a9f820	43a9f820e4e1998c
-L	derive_release_facts.sh	106	ce0f3294	ce0f329434faf2b5
-L	derive_release_facts.sh	107	47770773	47770773b82d4d95
-L	derive_release_facts.sh	108	33843491	3384349117752699
-L	derive_release_facts.sh	109	5f15fd96	5f15fd964a63cbbb
-L	derive_release_facts.sh	110	ac18bad8	ac18bad8395af914
-L	derive_release_facts.sh	111	df53159c	df53159ce5a29c23
-L	derive_release_facts.sh	112	1f8cc176	1f8cc1768c646655
-L	derive_release_facts.sh	113	513af769	513af769874b7fb2
-L	derive_release_facts.sh	114	098d0155	098d015511743736
-L	derive_release_facts.sh	115	e3b0c442	e3b0c44298fc1c14
-L	derive_release_facts.sh	116	21d9fe9c	21d9fe9c59840618
-L	derive_release_facts.sh	117	deeeff2d	deeeff2d99efbb1d
-L	derive_release_facts.sh	118	ec4d1065	ec4d1065a29df060
-L	derive_release_facts.sh	119	8efaad25	8efaad256c5c565e
-L	derive_release_facts.sh	120	dcc3ad40	dcc3ad400b5eaa44
-L	derive_release_facts.sh	121	d4bab783	d4bab783c4f5535b
-L	derive_release_facts.sh	122	0b72d3da	0b72d3daa6ff84ae
-L	derive_release_facts.sh	123	7b0e4a24	8b3413c2b80cf2f0
-L	derive_release_facts.sh	124	d079755d	98d45989d0b3b92a
-L	derive_release_facts.sh	125	2e28cecb	70814c689062a7ee
-L	derive_release_facts.sh	126	7b0468dd	d19df1dec2572e9c
-L	derive_release_facts.sh	127	307ea672	2597fcb696f67b94
-L	derive_release_facts.sh	128	be7388a5	94d20d6b9407642b
-L	derive_release_facts.sh	129	e135f40c	0445615cead3d54c
-L	derive_release_facts.sh	130	9f30c819	768b4614b8eb3468
-L	derive_release_facts.sh	131	919c60fd	ea1fbc7b1672bce2
-L	derive_release_facts.sh	132	e639c7f0	4db28055ac881679
-L	derive_release_facts.sh	133	d10b36aa	d10b36aa74a59bcf
-L	derive_release_facts.sh	134	3fe815d3	58a3466a9fa874e5
-L	derive_release_facts.sh	135	bfc9795e	bfc9795e696a0d95
-L	derive_release_facts.sh	136	3062847e	3062847e8fb7962a
-L	derive_release_facts.sh	137	c3071c17	c3071c17394b7b74
-L	derive_release_facts.sh	138	a66336d6	a66336d6436be2a4
-L	derive_release_facts.sh	139	63d6997d	63d6997de95c764c
-L	derive_release_facts.sh	140	e3b0c442	e3b0c44298fc1c14
-L	derive_release_facts.sh	141	41577f25	41577f250883a47f
-L	derive_release_facts.sh	142	7f7ebae8	7f7ebae8cfcd1034
-L	derive_release_facts.sh	143	efd32ddf	efd32ddf544d9ffc
-L	derive_release_facts.sh	144	97c6c527	97c6c527e48f81db
-L	derive_release_facts.sh	145	ac53df7a	ac53df7a822560fd
-L	derive_release_facts.sh	146	e1f22b9b	e1f22b9bcd9c9fa7
-L	derive_release_facts.sh	147	94c7933e	94c7933edf94967e
-L	derive_release_facts.sh	148	997da0b0	5f69d999907f3c86
-L	derive_release_facts.sh	149	9bf712d2	8c0c77ebf6ed221b
-L	derive_release_facts.sh	150	aa65f152	43c643320428e46c
-L	derive_release_facts.sh	151	2f139239	0d951d1b5d5ff814
-L	derive_release_facts.sh	152	129de952	a5360a1e7f208d06
-L	derive_release_facts.sh	153	dbd610bb	055086aa0c23d14e
-L	derive_release_facts.sh	154	a8f9f669	20da5e306d3b2141
-L	derive_release_facts.sh	155	48dd2bd0	2f4f6c6221c1abeb
-L	derive_release_facts.sh	156	2b857167	fc70b2cd714aac79
-L	derive_release_facts.sh	157	92529db3	29941cbdd98b750c
-L	derive_release_facts.sh	158	bc8b71e4	497f80e1bc244edd
-L	derive_release_facts.sh	159	66b5ba57	24228ff20b7e4d83
-L	derive_release_facts.sh	160	235eaf93	dc09dc10fc1a51ee
-L	derive_release_facts.sh	161	7ee0bbb7	5a4a1977ec491139
-L	derive_release_facts.sh	162	31a9bbf1	b6dbf8b94c489a71
-L	derive_release_facts.sh	163	14dd8c71	a1362c76484355c0
-L	derive_release_facts.sh	164	866c3188	44732561d2fa4a8a
-L	derive_release_facts.sh	165	d10b36aa	f61f5bbc379fd349
-L	derive_release_facts.sh	166	1295fa96	85b552f74193d2cf
-L	derive_release_facts.sh	167	89b8e92a	ed0c2e196d062e23
-L	derive_release_facts.sh	168	05e733f0	562852738262b98d
-L	derive_release_facts.sh	169	7352a736	04598e98d91accc9
-L	derive_release_facts.sh	170	206d9ede	ce2b56431bf7ecf1
-L	derive_release_facts.sh	171	e31b8808	9b9dad2861282b41
-L	derive_release_facts.sh	172	b78e87d1	b75007c1c94d9685
-L	derive_release_facts.sh	173	3a31ce83	07ac8c25a77ac51d
-L	derive_release_facts.sh	174	253a3f7d	225ef9dc6b4f35da
-L	derive_release_facts.sh	175	770ae834	8b7427110e1f8a4f
-L	derive_release_facts.sh	176	d10b36aa	f61f5bbc379fd349
-L	derive_release_facts.sh	177	ee3c61c0	64198d4a2775a982
-L	derive_release_facts.sh	178	159ea575	17a48da412e827bd
-L	derive_release_facts.sh	179	54810eca	2e1657a156abbe20
-L	derive_release_facts.sh	180	34c9bdf3	9f4a00763bacc140
-L	derive_release_facts.sh	181	db1f18c2	06443418f7be4b98
-L	derive_release_facts.sh	182	ba69dffe	a6cb618237d7c606
-L	derive_release_facts.sh	183	86a6c935	00acb6ff5446852a
-L	derive_release_facts.sh	184	7dd530c4	421185ca32f0cea5
-L	derive_release_facts.sh	185	d0811ee6	11722b5080c5743a
-L	derive_release_facts.sh	186	b4bdc848	78c0770dcd09bc54
-L	derive_release_facts.sh	187	a7b5c9a8	a7b5c9a8b686430b
-L	derive_release_facts.sh	188	91525da3	91525da340d52fe9
-L	derive_release_facts.sh	189	5c187d44	5c187d443d4f219c
-L	derive_release_facts.sh	190	4f0f0d0c	4f0f0d0ca7a8585c
-L	derive_release_facts.sh	191	37af4572	37af457289bdc572
-L	derive_release_facts.sh	192	67264daf	67264daf4c381dbc
-L	derive_release_facts.sh	193	df0e40f8	df0e40f8bbb8ecac
-L	derive_release_facts.sh	194	aa231eea	aa231eea0bc0a0e6
-L	derive_release_facts.sh	195	1b5de5e4	1b5de5e4ac7e5346
-L	derive_release_facts.sh	196	a7aaee6c	a7aaee6c98bf2d02
-L	derive_release_facts.sh	197	e3b0c442	e3b0c44298fc1c14
-L	derive_release_facts.sh	198	d33bff4b	d33bff4b00420975
-L	derive_release_facts.sh	199	c35d66d2	c35d66d2ec7445ee
-L	derive_release_facts.sh	200	a5159766	a51597669d2ce07c
-L	derive_release_facts.sh	201	13f9b5b1	13f9b5b12b253219
-L	derive_release_facts.sh	202	8fce68b1	8fce68b1c7f674d5
-L	derive_release_facts.sh	203	1b1f259d	1b1f259d2227adb3
-L	derive_release_facts.sh	204	be1039f9	44987b422b0d25a4
-L	derive_release_facts.sh	205	49d4f633	03ba69b89837a3b3
-L	derive_release_facts.sh	206	8a44f99b	82622a2a24d7d048
-L	derive_release_facts.sh	207	2e28cecb	70814c689062a7ee
-L	derive_release_facts.sh	208	33c1c346	7d7dd5e4d85fec1b
-L	derive_release_facts.sh	209	64601cdb	8b44f638bcc322eb
-L	derive_release_facts.sh	210	339288d1	2db35e55630dc781
-L	derive_release_facts.sh	211	acd0bf86	61346b0e4e097010
-L	derive_release_facts.sh	212	8ed7701f	8fea21b1ab992b96
-L	derive_release_facts.sh	213	0159394b	09bcbdc9c3dd599a
-L	derive_release_facts.sh	214	7dd530c4	421185ca32f0cea5
-L	derive_release_facts.sh	215	f38ad28d	2d1d117b13ad8e97
-L	derive_release_facts.sh	216	7a0be954	0d88403854659ba0
-L	derive_release_facts.sh	217	3e1618fa	34afdbcbfab737b4
-L	derive_release_facts.sh	218	7dd530c4	88f33c8effc8a0a0
-L	derive_release_facts.sh	219	3b082f8b	5f06321b4935fed6
-L	derive_release_facts.sh	220	b109de35	2d8a924e53c8777f
-L	derive_release_facts.sh	221	8499938c	819a64c116ae7c10
-L	derive_release_facts.sh	222	7dd530c4	ff6f623cd010dfe2
-L	derive_release_facts.sh	223	6d58e180	a6228ff35d674e1d
-L	derive_release_facts.sh	224	b4bdc848	de00b5eaddb07713
-L	derive_release_facts.sh	225	dd51c009	c30b260f1d14ddb6
-L	derive_release_facts.sh	226	109463ab	79ec6a3fad721724
-L	derive_release_facts.sh	227	0159394b	8d45c17f36846792
-L	derive_release_facts.sh	228	b4bdc848	de00b5eaddb07713
-L	derive_release_facts.sh	229	b4bdc848	b80df2ba032901f2
-L	derive_release_facts.sh	230	b4bdc848	78c0770dcd09bc54
-L	derive_release_facts.sh	231	b4bdc848	b4bdc848109722a3
-L	derive_release_facts.sh	232	e3b0c442	e3b0c44298fc1c14
-L	derive_release_facts.sh	233	5e6d3a80	5e6d3a805a3780d3
-L	derive_release_facts.sh	234	de5aba2c	de5aba2c68cdf59b
-L	derive_release_facts.sh	235	917c4ace	08992da287120397
-L	derive_release_facts.sh	236	bf8bc6fc	59be3a85f3f2d247
-L	derive_release_facts.sh	237	16b44570	76545d47d680c15a
-L	derive_release_facts.sh	238	1903e161	d57e9f193768cef4
-L	derive_release_facts.sh	239	83c7bf45	5e87d6f424eaf1d1
-L	derive_release_facts.sh	240	ad06025f	ef7cde460da0fd16
-L	derive_release_facts.sh	241	c293a461	bc903e18145588bf
-L	derive_release_facts.sh	242	1c2cca68	f8da83cc377d9dd0
-L	derive_release_facts.sh	243	a4c3ed04	a4c3ed04a95a3da1
-L	derive_release_facts.sh	244	1b9d9950	1b9d9950ab28ca1d
-L	derive_release_facts.sh	245	1a64b300	1a64b3001cbc0c37
-L	derive_release_facts.sh	246	beb7f7d9	3995ec9984744b11
-L	derive_release_facts.sh	247	f6b7fd9d	403d110d496206a5
-L	derive_release_facts.sh	248	f83f8905	2f475a16b7866ba7
-L	derive_release_facts.sh	249	b4bdc848	b4bdc848109722a3
-L	derive_release_facts.sh	250	6d6ad1d6	6d6ad1d65e2f7b1a
-L	derive_release_facts.sh	251	c22995ad	c22995adc29757a9
-L	derive_release_facts.sh	252	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	19	2ce52620	d18485efbc7b2a3b
+L	derive_release_facts.sh	20	887f4df0	d59ccf4119972375
+L	derive_release_facts.sh	21	19fbd8ad	c93dd898a2d9fd53
+L	derive_release_facts.sh	22	5375ff7a	4337adad403d1046
+L	derive_release_facts.sh	23	4c8e7a68	4f8c8f0f0858c10a
+L	derive_release_facts.sh	24	a7383733	23ae736fd7f092c1
+L	derive_release_facts.sh	25	42b3c2bf	a74e8cfcf8f3c736
+L	derive_release_facts.sh	26	951e3701	cf8e0577cfd547f3
+L	derive_release_facts.sh	27	16be7557	6ef03080b1e6f977
+L	derive_release_facts.sh	28	5be407db	8390d2d1d04f3758
+L	derive_release_facts.sh	29	4ed45d4c	323b829a140bb446
+L	derive_release_facts.sh	30	adeab412	e9282fcb1f5a3672
+L	derive_release_facts.sh	31	6000e366	8d78183abd94e2d6
+L	derive_release_facts.sh	32	85c12631	6c10426a81f9a249
+L	derive_release_facts.sh	33	8a77c9d2	d950b02e747e0327
+L	derive_release_facts.sh	34	334359b9	334359b90efed75d
+L	derive_release_facts.sh	35	0c1d3fd4	0c1d3fd410897444
+L	derive_release_facts.sh	36	23ac7e87	23ac7e87ace87813
+L	derive_release_facts.sh	37	f58ded35	f58ded35a616824c
+L	derive_release_facts.sh	38	4a479d02	4a479d02afa2ea69
+L	derive_release_facts.sh	39	c61968bd	c61968bd1e72aee5
+L	derive_release_facts.sh	40	1a699071	1a6990713b53aa94
+L	derive_release_facts.sh	41	321ffe92	321ffe925a19508a
+L	derive_release_facts.sh	42	37ce0408	37ce0408f1edb688
+L	derive_release_facts.sh	43	334359b9	334359b90efed75d
+L	derive_release_facts.sh	44	e83a277d	e83a277dd0910bb1
+L	derive_release_facts.sh	45	7c2fd9e5	7c2fd9e58720e1a6
+L	derive_release_facts.sh	46	71088383	7108838393513987
+L	derive_release_facts.sh	47	2cfe38b3	2cfe38b39d05a195
+L	derive_release_facts.sh	48	130c2074	130c2074626c8f8a
+L	derive_release_facts.sh	49	6cb67ddf	6cb67ddfac7a150e
+L	derive_release_facts.sh	50	c62aaf05	c62aaf054a156a98
+L	derive_release_facts.sh	51	50319ea8	50319ea8b59db705
+L	derive_release_facts.sh	52	624c0e96	624c0e96af3b37d5
+L	derive_release_facts.sh	53	6e40136e	6e40136e268bbfd8
+L	derive_release_facts.sh	54	d93c3ea2	d93c3ea2dc6ce6ac
+L	derive_release_facts.sh	55	9751cc5f	1ee6e4f30af6ed2d
+L	derive_release_facts.sh	56	2d510a6e	2d510a6eb4e36076
+L	derive_release_facts.sh	57	08e1d5d4	985fc46b234766fc
+L	derive_release_facts.sh	58	08570e99	08570e99941c2dbd
+L	derive_release_facts.sh	59	ccb6ccdd	ccb6ccdd814e0e28
+L	derive_release_facts.sh	60	f5725d72	f5725d72914f37f4
+L	derive_release_facts.sh	61	e5fbc9f4	e5fbc9f41b4332e5
+L	derive_release_facts.sh	62	1a7e6d37	1a7e6d3710e319b7
+L	derive_release_facts.sh	63	32f8265a	32f8265ac981063d
+L	derive_release_facts.sh	64	5d1dddc3	d5e39f47b493d261
+L	derive_release_facts.sh	65	043c3f72	043c3f72908a2b0c
+L	derive_release_facts.sh	66	5d8b1f38	a6ad311bef65498a
+L	derive_release_facts.sh	67	78b3e41b	78b3e41b17ed005c
+L	derive_release_facts.sh	68	2a935554	207734b31bfed0cd
+L	derive_release_facts.sh	69	da2e5f65	da2e5f65a6727489
+L	derive_release_facts.sh	70	6879dc3c	cea2bbda44f0212a
+L	derive_release_facts.sh	71	5dd902c6	f9c3d20c62b31b01
+L	derive_release_facts.sh	72	b1c67eaa	cc42bdeb8c1df42b
+L	derive_release_facts.sh	73	755b387d	41e11b71454ce4db
+L	derive_release_facts.sh	74	55e38241	a213dff008c98b5f
+L	derive_release_facts.sh	75	75b5a1c7	d253c16e98440088
+L	derive_release_facts.sh	76	3db6fe9f	6033af5a1c8fc9e9
+L	derive_release_facts.sh	77	30f58115	dca1cbb607680cf9
+L	derive_release_facts.sh	78	e4155ab6	2c5819c833368294
+L	derive_release_facts.sh	79	a544d1af	d68ab5eb532fac0b
+L	derive_release_facts.sh	80	327b7264	bc6a7ce687d0fab2
+L	derive_release_facts.sh	81	a4c3ed04	a4c3ed04a95a3da1
+L	derive_release_facts.sh	82	00c8dde0	00c8dde04ab8edd7
+L	derive_release_facts.sh	83	82d34b4d	82d34b4d3cf0361b
+L	derive_release_facts.sh	84	6e189c26	6e189c2655d88d81
+L	derive_release_facts.sh	85	28c132fd	28c132fda0deca3b
+L	derive_release_facts.sh	86	4a8bf290	4a8bf290fc5c2eb8
+L	derive_release_facts.sh	87	fe09e762	fe09e762114ad7cf
+L	derive_release_facts.sh	88	27a98122	27a9812213c88f4f
+L	derive_release_facts.sh	89	0a1c40be	0a1c40bedddb6481
+L	derive_release_facts.sh	90	08e93e5d	08e93e5d59101f02
+L	derive_release_facts.sh	91	926fd110	fbe7573d70878341
+L	derive_release_facts.sh	92	a4c3ed04	a4c3ed04a95a3da1
+L	derive_release_facts.sh	93	649cfe2c	b7801b9d90fd551a
+L	derive_release_facts.sh	94	0d3cc75c	0d3cc75ce7dd4b4f
+L	derive_release_facts.sh	95	d9bfaa22	d9bfaa223f4d054f
+L	derive_release_facts.sh	96	feb7dd5a	feb7dd5afb18f3df
+L	derive_release_facts.sh	97	3e591f2d	3e591f2db6a89cf8
+L	derive_release_facts.sh	98	c8d72438	c8d724389a8ae0e2
+L	derive_release_facts.sh	99	ef2b8a65	ef2b8a656df8528d
+L	derive_release_facts.sh	100	912d671e	912d671ec4ff3b90
+L	derive_release_facts.sh	101	a5bab39f	a5bab39f0c6adbda
+L	derive_release_facts.sh	102	6de13623	6de1362371c3d853
+L	derive_release_facts.sh	103	e7a01635	e7a01635686c71a1
+L	derive_release_facts.sh	104	3c484663	3c484663db17402f
+L	derive_release_facts.sh	105	d5965541	d5965541dc2c9d95
+L	derive_release_facts.sh	106	9db3ccf9	66a3aa48d21b6d28
+L	derive_release_facts.sh	107	95c7f3eb	95c7f3eb3936a1c8
+L	derive_release_facts.sh	108	1d47288c	1d47288c79b54c5f
+L	derive_release_facts.sh	109	cd1f390b	cd1f390bdaaa14aa
+L	derive_release_facts.sh	110	cf1950b6	cf1950b635c83702
+L	derive_release_facts.sh	111	000c3ca5	000c3ca5bc7b1d36
+L	derive_release_facts.sh	112	3d0f48d6	3d0f48d6ad277f35
+L	derive_release_facts.sh	113	fdaef393	fdaef39354851447
+L	derive_release_facts.sh	114	df128b1a	df128b1a6c9ff98b
+L	derive_release_facts.sh	115	93d24f65	93d24f6528733864
+L	derive_release_facts.sh	116	9d146727	9d146727881d5277
+L	derive_release_facts.sh	117	068140ce	068140ce17046f86
+L	derive_release_facts.sh	118	511ce402	511ce402f42814cf
+L	derive_release_facts.sh	119	25273cd8	25273cd8e4cdfce6
+L	derive_release_facts.sh	120	fc3f2f73	fc3f2f7379dfb935
+L	derive_release_facts.sh	121	3dde3654	3dde3654030a73a7
+L	derive_release_facts.sh	122	5a481a1c	5a481a1cc477d150
+L	derive_release_facts.sh	123	3a012571	3a0125710e17dcda
+L	derive_release_facts.sh	124	843cf143	843cf14385aaaae9
+L	derive_release_facts.sh	125	cdf19e7d	cdf19e7d47e8edbb
+L	derive_release_facts.sh	126	e13dee0b	e13dee0b886f88da
+L	derive_release_facts.sh	127	8246357c	eed12b725a196f78
+L	derive_release_facts.sh	128	6879dc3c	cea2bbda44f0212a
+L	derive_release_facts.sh	129	e47e3f0e	1c08cda602354277
+L	derive_release_facts.sh	130	37799196	3a2929c95c2884d1
+L	derive_release_facts.sh	131	f1bd63cb	2a88be276390bb90
+L	derive_release_facts.sh	132	e2abe3be	be027394e2d103a3
+L	derive_release_facts.sh	133	48f08e02	ec1c20d5706f26b5
+L	derive_release_facts.sh	134	3b496196	d88531a7ca62e0fc
+L	derive_release_facts.sh	135	dd77f246	f2d2d116153f7716
+L	derive_release_facts.sh	136	f74b1e06	630ceb6ecfa258b5
+L	derive_release_facts.sh	137	327b7264	bc6a7ce687d0fab2
+L	derive_release_facts.sh	138	30945f34	f66c7546a945b51f
+L	derive_release_facts.sh	139	d10b36aa	d10b36aa74a59bcf
+L	derive_release_facts.sh	140	c0bfc799	c0bfc7991f42e6ad
+L	derive_release_facts.sh	141	9c0c0e8f	9c0c0e8fd43a4404
+L	derive_release_facts.sh	142	78196899	781968993528420f
+L	derive_release_facts.sh	143	fb896414	fb89641454fead59
+L	derive_release_facts.sh	144	f1706b65	f1706b659cf3dfa9
+L	derive_release_facts.sh	145	9d640999	9d640999ebd67ddb
+L	derive_release_facts.sh	146	dc3b0848	5c1bb79303e8c09c
+L	derive_release_facts.sh	147	ba6d8b84	cb699d51219e49c5
+L	derive_release_facts.sh	148	53f66120	5ecfc3552f40f1c0
+L	derive_release_facts.sh	149	63521f47	edb1d390fec1b4c9
+L	derive_release_facts.sh	150	689aa794	1450e0b23a1d7aa0
+L	derive_release_facts.sh	151	c9acd1d4	d86c403adac02e76
+L	derive_release_facts.sh	152	f0122ed0	42980225cb1989a2
+L	derive_release_facts.sh	153	c4df9842	a086ae47aba7325e
+L	derive_release_facts.sh	154	4f7e7c4d	bdc6325a70d8984b
+L	derive_release_facts.sh	155	73804eee	6b5c63e6a3748ca3
+L	derive_release_facts.sh	156	b392dc41	0ba2f4941cd246c7
+L	derive_release_facts.sh	157	8cbaf004	fe2c78036acf40be
+L	derive_release_facts.sh	158	4fc3ec4c	ee6f043625ca8695
+L	derive_release_facts.sh	159	327b7264	bc6a7ce687d0fab2
+L	derive_release_facts.sh	160	86f80476	88f2aaa041cd7f00
+L	derive_release_facts.sh	161	d10b36aa	d10b36aa74a59bcf
+L	derive_release_facts.sh	162	1e48a9e7	1e48a9e795d82cf8
+L	derive_release_facts.sh	163	12d190a9	12d190a954d6eee2
+L	derive_release_facts.sh	164	f13fd1ce	f13fd1ce0a25d9b0
+L	derive_release_facts.sh	165	41755f18	41755f184a00a152
+L	derive_release_facts.sh	166	b3817669	b381766946129ab6
+L	derive_release_facts.sh	167	af05c44f	af05c44f2993885d
+L	derive_release_facts.sh	168	b59c4e5d	b59c4e5d27f67ad8
+L	derive_release_facts.sh	169	0b705207	f54cd80c80d4820d
+L	derive_release_facts.sh	170	7dd530c4	421185ca32f0cea5
+L	derive_release_facts.sh	171	65432663	acd5c88e9ef11c6d
+L	derive_release_facts.sh	172	44927bfb	d42441fec397d60f
+L	derive_release_facts.sh	173	b4bdc848	78c0770dcd09bc54
+L	derive_release_facts.sh	174	d10b36aa	d10b36aa74a59bcf
+L	derive_release_facts.sh	175	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	176	baaaeb5b	baaaeb5b016ff7f6
+L	derive_release_facts.sh	177	43a9f820	43a9f820e4e1998c
+L	derive_release_facts.sh	178	907f0e91	907f0e9176699e56
+L	derive_release_facts.sh	179	6354c3fb	6354c3fb2abda492
+L	derive_release_facts.sh	180	87eecb1b	87eecb1bd48448e5
+L	derive_release_facts.sh	181	50821c70	50821c708802c173
+L	derive_release_facts.sh	182	11bf318e	11bf318ea5d7aa06
+L	derive_release_facts.sh	183	d661e1b6	d661e1b668621904
+L	derive_release_facts.sh	184	f43586af	f43586af7d15d59c
+L	derive_release_facts.sh	185	af9132c1	af9132c15592a715
+L	derive_release_facts.sh	186	3f4006da	3f4006da01114837
+L	derive_release_facts.sh	187	966afc96	966afc96ffc2c935
+L	derive_release_facts.sh	188	a0cf6b48	a0cf6b484ce1b9d1
+L	derive_release_facts.sh	189	9a015e22	9a015e22b89d3950
+L	derive_release_facts.sh	190	8deb289f	8deb289f295ce4ac
+L	derive_release_facts.sh	191	92aa3c5d	92aa3c5db285fd92
+L	derive_release_facts.sh	192	4df9b803	4df9b803801e188a
+L	derive_release_facts.sh	193	ce0f3294	ce0f329434faf2b5
+L	derive_release_facts.sh	194	47770773	47770773b82d4d95
+L	derive_release_facts.sh	195	33843491	3384349117752699
+L	derive_release_facts.sh	196	5f15fd96	5f15fd964a63cbbb
+L	derive_release_facts.sh	197	ac18bad8	ac18bad8395af914
+L	derive_release_facts.sh	198	df53159c	df53159ce5a29c23
+L	derive_release_facts.sh	199	1f8cc176	1f8cc1768c646655
+L	derive_release_facts.sh	200	5e2d9c12	5e2d9c1273238a34
+L	derive_release_facts.sh	201	420e0dd6	9f6c3948a069765e
+L	derive_release_facts.sh	202	4fafddec	4fafddec4684c762
+L	derive_release_facts.sh	203	dbcb976e	dbcb976e4b79e089
+L	derive_release_facts.sh	204	d6958a99	dc6a45206995deff
+L	derive_release_facts.sh	205	54e1c586	54e1c586896ed2d6
+L	derive_release_facts.sh	206	4ec0915a	0a3ce96f2498134b
+L	derive_release_facts.sh	207	bf7db5ba	94ada4e2b8566e4d
+L	derive_release_facts.sh	208	fc41c45a	9e7714272282f725
+L	derive_release_facts.sh	209	b4bdc848	78c0770dcd09bc54
+L	derive_release_facts.sh	210	b4bdc848	b4bdc848109722a3
+L	derive_release_facts.sh	211	90dcb335	90dcb335e10c1e09
+L	derive_release_facts.sh	212	098d0155	098d015511743736
+L	derive_release_facts.sh	213	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	214	21d9fe9c	21d9fe9c59840618
+L	derive_release_facts.sh	215	deeeff2d	deeeff2d99efbb1d
+L	derive_release_facts.sh	216	ec4d1065	ec4d1065a29df060
+L	derive_release_facts.sh	217	8efaad25	8efaad256c5c565e
+L	derive_release_facts.sh	218	dcc3ad40	dcc3ad400b5eaa44
+L	derive_release_facts.sh	219	d4bab783	d4bab783c4f5535b
+L	derive_release_facts.sh	220	0b72d3da	0b72d3daa6ff84ae
+L	derive_release_facts.sh	221	7b0e4a24	8b3413c2b80cf2f0
+L	derive_release_facts.sh	222	d079755d	98d45989d0b3b92a
+L	derive_release_facts.sh	223	2e28cecb	70814c689062a7ee
+L	derive_release_facts.sh	224	7b0468dd	d19df1dec2572e9c
+L	derive_release_facts.sh	225	307ea672	2597fcb696f67b94
+L	derive_release_facts.sh	226	be7388a5	94d20d6b9407642b
+L	derive_release_facts.sh	227	e135f40c	0445615cead3d54c
+L	derive_release_facts.sh	228	9f30c819	768b4614b8eb3468
+L	derive_release_facts.sh	229	919c60fd	ea1fbc7b1672bce2
+L	derive_release_facts.sh	230	e639c7f0	4db28055ac881679
+L	derive_release_facts.sh	231	d10b36aa	d10b36aa74a59bcf
+L	derive_release_facts.sh	232	3fe815d3	58a3466a9fa874e5
+L	derive_release_facts.sh	233	bfc9795e	bfc9795e696a0d95
+L	derive_release_facts.sh	234	3062847e	3062847e8fb7962a
+L	derive_release_facts.sh	235	c3071c17	c3071c17394b7b74
+L	derive_release_facts.sh	236	a66336d6	a66336d6436be2a4
+L	derive_release_facts.sh	237	63d6997d	63d6997de95c764c
+L	derive_release_facts.sh	238	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	239	41577f25	41577f250883a47f
+L	derive_release_facts.sh	240	7f7ebae8	7f7ebae8cfcd1034
+L	derive_release_facts.sh	241	efd32ddf	efd32ddf544d9ffc
+L	derive_release_facts.sh	242	97c6c527	97c6c527e48f81db
+L	derive_release_facts.sh	243	ac53df7a	ac53df7a822560fd
+L	derive_release_facts.sh	244	e1f22b9b	e1f22b9bcd9c9fa7
+L	derive_release_facts.sh	245	94c7933e	94c7933edf94967e
+L	derive_release_facts.sh	246	997da0b0	5f69d999907f3c86
+L	derive_release_facts.sh	247	9bf712d2	8c0c77ebf6ed221b
+L	derive_release_facts.sh	248	aa65f152	43c643320428e46c
+L	derive_release_facts.sh	249	2f139239	0d951d1b5d5ff814
+L	derive_release_facts.sh	250	129de952	a5360a1e7f208d06
+L	derive_release_facts.sh	251	dbd610bb	055086aa0c23d14e
+L	derive_release_facts.sh	252	a8f9f669	20da5e306d3b2141
+L	derive_release_facts.sh	253	48dd2bd0	2f4f6c6221c1abeb
+L	derive_release_facts.sh	254	2b857167	fc70b2cd714aac79
+L	derive_release_facts.sh	255	92529db3	29941cbdd98b750c
+L	derive_release_facts.sh	256	bc8b71e4	497f80e1bc244edd
+L	derive_release_facts.sh	257	66b5ba57	24228ff20b7e4d83
+L	derive_release_facts.sh	258	235eaf93	dc09dc10fc1a51ee
+L	derive_release_facts.sh	259	7ee0bbb7	5a4a1977ec491139
+L	derive_release_facts.sh	260	31a9bbf1	b6dbf8b94c489a71
+L	derive_release_facts.sh	261	14dd8c71	a1362c76484355c0
+L	derive_release_facts.sh	262	866c3188	44732561d2fa4a8a
+L	derive_release_facts.sh	263	d10b36aa	f61f5bbc379fd349
+L	derive_release_facts.sh	264	1295fa96	85b552f74193d2cf
+L	derive_release_facts.sh	265	89b8e92a	ed0c2e196d062e23
+L	derive_release_facts.sh	266	05e733f0	562852738262b98d
+L	derive_release_facts.sh	267	7352a736	04598e98d91accc9
+L	derive_release_facts.sh	268	206d9ede	ce2b56431bf7ecf1
+L	derive_release_facts.sh	269	e31b8808	9b9dad2861282b41
+L	derive_release_facts.sh	270	b78e87d1	b75007c1c94d9685
+L	derive_release_facts.sh	271	3a31ce83	07ac8c25a77ac51d
+L	derive_release_facts.sh	272	253a3f7d	225ef9dc6b4f35da
+L	derive_release_facts.sh	273	770ae834	8b7427110e1f8a4f
+L	derive_release_facts.sh	274	d10b36aa	f61f5bbc379fd349
+L	derive_release_facts.sh	275	ee3c61c0	64198d4a2775a982
+L	derive_release_facts.sh	276	159ea575	17a48da412e827bd
+L	derive_release_facts.sh	277	54810eca	2e1657a156abbe20
+L	derive_release_facts.sh	278	34c9bdf3	9f4a00763bacc140
+L	derive_release_facts.sh	279	db1f18c2	06443418f7be4b98
+L	derive_release_facts.sh	280	35d7922f	470e9436b1de6c09
+L	derive_release_facts.sh	281	ba69dffe	a6cb618237d7c606
+L	derive_release_facts.sh	282	86a6c935	00acb6ff5446852a
+L	derive_release_facts.sh	283	7dd530c4	421185ca32f0cea5
+L	derive_release_facts.sh	284	d0811ee6	11722b5080c5743a
+L	derive_release_facts.sh	285	b4bdc848	78c0770dcd09bc54
+L	derive_release_facts.sh	286	a7b5c9a8	a7b5c9a8b686430b
+L	derive_release_facts.sh	287	91525da3	91525da340d52fe9
+L	derive_release_facts.sh	288	5c187d44	5c187d443d4f219c
+L	derive_release_facts.sh	289	4f0f0d0c	4f0f0d0ca7a8585c
+L	derive_release_facts.sh	290	37af4572	37af457289bdc572
+L	derive_release_facts.sh	291	67264daf	67264daf4c381dbc
+L	derive_release_facts.sh	292	037d6bb1	037d6bb12c83b9e4
+L	derive_release_facts.sh	293	57edaca7	57edaca7962418a0
+L	derive_release_facts.sh	294	139ad741	139ad7413e37aa6d
+L	derive_release_facts.sh	295	2d83067a	2d83067ac3c6446d
+L	derive_release_facts.sh	296	7d151d45	e92a69110035f8bb
+L	derive_release_facts.sh	297	94d36fad	94d36fadb04af533
+L	derive_release_facts.sh	298	d87b1a6f	d87b1a6f1e7b7869
+L	derive_release_facts.sh	299	aa231eea	aa231eea0bc0a0e6
+L	derive_release_facts.sh	300	1b5de5e4	1b5de5e4ac7e5346
+L	derive_release_facts.sh	301	a7aaee6c	a7aaee6c98bf2d02
+L	derive_release_facts.sh	302	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	303	d33bff4b	d33bff4b00420975
+L	derive_release_facts.sh	304	c35d66d2	c35d66d2ec7445ee
+L	derive_release_facts.sh	305	a5159766	a51597669d2ce07c
+L	derive_release_facts.sh	306	13f9b5b1	13f9b5b12b253219
+L	derive_release_facts.sh	307	8fce68b1	8fce68b1c7f674d5
+L	derive_release_facts.sh	308	1b1f259d	1b1f259d2227adb3
+L	derive_release_facts.sh	309	be1039f9	44987b422b0d25a4
+L	derive_release_facts.sh	310	49d4f633	03ba69b89837a3b3
+L	derive_release_facts.sh	311	8a44f99b	82622a2a24d7d048
+L	derive_release_facts.sh	312	2e28cecb	70814c689062a7ee
+L	derive_release_facts.sh	313	33c1c346	7d7dd5e4d85fec1b
+L	derive_release_facts.sh	314	64601cdb	8b44f638bcc322eb
+L	derive_release_facts.sh	315	339288d1	2db35e55630dc781
+L	derive_release_facts.sh	316	acd0bf86	61346b0e4e097010
+L	derive_release_facts.sh	317	8ed7701f	8fea21b1ab992b96
+L	derive_release_facts.sh	318	0159394b	09bcbdc9c3dd599a
+L	derive_release_facts.sh	319	7dd530c4	421185ca32f0cea5
+L	derive_release_facts.sh	320	f38ad28d	2d1d117b13ad8e97
+L	derive_release_facts.sh	321	885b9580	de3f5926e12efd21
+L	derive_release_facts.sh	322	2a7ff5d2	fff751a651b576d0
+L	derive_release_facts.sh	323	7a0be954	0d88403854659ba0
+L	derive_release_facts.sh	324	c62d2356	8d26e3567452eb15
+L	derive_release_facts.sh	325	3e1618fa	34afdbcbfab737b4
+L	derive_release_facts.sh	326	7dd530c4	88f33c8effc8a0a0
+L	derive_release_facts.sh	327	3b082f8b	5f06321b4935fed6
+L	derive_release_facts.sh	328	b109de35	2d8a924e53c8777f
+L	derive_release_facts.sh	329	c3ef8c87	5dac0ab921f6d892
+L	derive_release_facts.sh	330	7dd530c4	ff6f623cd010dfe2
+L	derive_release_facts.sh	331	6d58e180	a6228ff35d674e1d
+L	derive_release_facts.sh	332	b4bdc848	de00b5eaddb07713
+L	derive_release_facts.sh	333	dd51c009	c30b260f1d14ddb6
+L	derive_release_facts.sh	334	109463ab	79ec6a3fad721724
+L	derive_release_facts.sh	335	0159394b	8d45c17f36846792
+L	derive_release_facts.sh	336	b4bdc848	de00b5eaddb07713
+L	derive_release_facts.sh	337	b4bdc848	b80df2ba032901f2
+L	derive_release_facts.sh	338	b4bdc848	78c0770dcd09bc54
+L	derive_release_facts.sh	339	b4bdc848	b4bdc848109722a3
+L	derive_release_facts.sh	340	e3b0c442	e3b0c44298fc1c14
+L	derive_release_facts.sh	341	5e6d3a80	5e6d3a805a3780d3
+L	derive_release_facts.sh	342	de5aba2c	de5aba2c68cdf59b
+L	derive_release_facts.sh	343	917c4ace	08992da287120397
+L	derive_release_facts.sh	344	bf8bc6fc	59be3a85f3f2d247
+L	derive_release_facts.sh	345	16b44570	76545d47d680c15a
+L	derive_release_facts.sh	346	1903e161	d57e9f193768cef4
+L	derive_release_facts.sh	347	83c7bf45	5e87d6f424eaf1d1
+L	derive_release_facts.sh	348	ad06025f	ef7cde460da0fd16
+L	derive_release_facts.sh	349	c293a461	bc903e18145588bf
+L	derive_release_facts.sh	350	1c2cca68	f8da83cc377d9dd0
+L	derive_release_facts.sh	351	a4c3ed04	a4c3ed04a95a3da1
+L	derive_release_facts.sh	352	1b9d9950	1b9d9950ab28ca1d
+L	derive_release_facts.sh	353	4f75c8d7	4f75c8d7fa1ee756
+L	derive_release_facts.sh	354	a255d322	a255d322abf20eb2
+L	derive_release_facts.sh	355	d2f470f4	d2f470f4ccf6f42e
+L	derive_release_facts.sh	356	cef6dfa8	cef6dfa85a3c404c
+L	derive_release_facts.sh	357	3e24dd26	3e24dd2639eae3e1
+L	derive_release_facts.sh	358	e1a08662	3d17a3e4307da628
+L	derive_release_facts.sh	359	3110c154	f9bb79b37b8e96e4
+L	derive_release_facts.sh	360	744b9fc0	fb9ab2679f14c394
+L	derive_release_facts.sh	361	0b4a5d8b	0b4a5d8b4e8edb6b
+L	derive_release_facts.sh	362	24a76ceb	24a76ceb1c1df32a
+L	derive_release_facts.sh	363	0549bc0e	0549bc0e314e8a97
+L	derive_release_facts.sh	364	54fe8b60	54fe8b60d245f741
+L	derive_release_facts.sh	365	1a64b300	1a64b3001cbc0c37
+L	derive_release_facts.sh	366	5e8d26fd	795cb87770dbe4af
+L	derive_release_facts.sh	367	96a02f4d	e34bd8dd6556f58b
+L	derive_release_facts.sh	368	70a78883	119710bfc0149d90
+L	derive_release_facts.sh	369	16533b6b	5b38adbe1821b60a
+L	derive_release_facts.sh	370	00b8756d	e1e5489df7a2264f
+L	derive_release_facts.sh	371	d4df480c	6841d629e0c88245
+L	derive_release_facts.sh	372	47ce9bc8	28d9295774fbf36e
+L	derive_release_facts.sh	373	f6031af7	eecce0bea483c85c
+L	derive_release_facts.sh	374	45a248c4	f4f99260b49eb595
+L	derive_release_facts.sh	375	77c97742	81396ac25f09fafc
+L	derive_release_facts.sh	376	beb7f7d9	3995ec9984744b11
+L	derive_release_facts.sh	377	f6b7fd9d	403d110d496206a5
+L	derive_release_facts.sh	378	f83f8905	2f475a16b7866ba7
+L	derive_release_facts.sh	379	b4bdc848	b4bdc848109722a3
+L	derive_release_facts.sh	380	6d6ad1d6	6d6ad1d65e2f7b1a
+L	derive_release_facts.sh	381	c22995ad	c22995adc29757a9
+L	derive_release_facts.sh	382	e3b0c442	e3b0c44298fc1c14
 F	redact_cut.sh	90e6bd85f862284c0b2f1e809d6327b13a9da49b391689ec3915f0ae1b264387	451
 L	redact_cut.sh	1	e2b37d0f	e2b37d0fbeebd535
 L	redact_cut.sh	2	97c329f0	97c329f0de79f162
@@ -1356,56 +1486,56 @@ L	tag_and_release.sh	425	fbf2e150	fbf2e150f1557ae9
 L	tag_and_release.sh	426	d4c2168c	d4c2168c94f2669f
 L	tag_and_release.sh	427	696d2f09	696d2f090b36efe5
 L	tag_and_release.sh	428	e3b0c442	e3b0c44298fc1c14
-S	derive_release_facts.sh	61	awk	-	local-checked-awk	30f58115
-S	derive_release_facts.sh	77	date	-	local	649cfe2c
-S	derive_release_facts.sh	78	grep	-	local	0d3cc75c
-S	derive_release_facts.sh	80	git	rc_net	network-through-rc_net	feb7dd5a
-S	derive_release_facts.sh	81	git	rc_net	network-through-rc_net	3e591f2d
-S	derive_release_facts.sh	82	mktemp	-	local	c8d72438
-S	derive_release_facts.sh	83	chmod	-	local	ef2b8a65
-S	derive_release_facts.sh	88	rmdir	-	local	3c484663
-S	derive_release_facts.sh	88	unlink	-	local	3c484663
-S	derive_release_facts.sh	91	git	rc_net	network-through-rc_net	95c7f3eb
-S	derive_release_facts.sh	97	sqlite3	-	local-checked-sqlite3	fdaef393
-S	derive_release_facts.sh	100	sqlite3	-	local-checked-sqlite3	9d146727
-S	derive_release_facts.sh	101	sed	-	local-checked-sed	068140ce
-S	derive_release_facts.sh	101	sort	-	local-checked-sort	068140ce
-S	derive_release_facts.sh	101	tr	-	local	068140ce
-S	derive_release_facts.sh	107	git	rc_net	network-through-rc_net	47770773
-S	derive_release_facts.sh	108	git	rc_net	network-through-rc_net	33843491
-S	derive_release_facts.sh	109	git	rc_net	network-through-rc_net	5f15fd96
-S	derive_release_facts.sh	110	git	rc_net	network-through-rc_net	ac18bad8
-S	derive_release_facts.sh	110	sed	-	local-checked-sed	ac18bad8
-S	derive_release_facts.sh	111	git	rc_net	network-through-rc_net	df53159c
-S	derive_release_facts.sh	112	git	rc_net	network-through-rc_net	1f8cc176
-S	derive_release_facts.sh	113	awk	-	local-checked-awk	513af769
-S	derive_release_facts.sh	113	cut	-	local	513af769
-S	derive_release_facts.sh	113	git	rc_net	network-through-rc_net	513af769
-S	derive_release_facts.sh	114	cut	-	local	098d0155
-S	derive_release_facts.sh	114	sha256sum	-	local	098d0155
-S	derive_release_facts.sh	124	awk	-	local-checked-awk	d079755d
-S	derive_release_facts.sh	131	sed	-	local-checked-sed	919c60fd
-S	derive_release_facts.sh	131	sort	-	local-checked-sort	919c60fd
-S	derive_release_facts.sh	131	tr	-	local	919c60fd
-S	derive_release_facts.sh	132	sort	-	local-checked-sort	e639c7f0
-S	derive_release_facts.sh	134	grep	-	local	3fe815d3
-S	derive_release_facts.sh	136	sed	-	local-checked-sed	3062847e
-S	derive_release_facts.sh	136	tr	-	local	3062847e
-S	derive_release_facts.sh	156	awk	-	local-checked-awk	2b857167
-S	derive_release_facts.sh	182	grep	-	local	ba69dffe
-S	derive_release_facts.sh	188	sed	-	local-checked-sed	91525da3
-S	derive_release_facts.sh	188	sed	-	local-checked-sed	91525da3
-S	derive_release_facts.sh	188	sort	-	local-checked-sort	91525da3
-S	derive_release_facts.sh	188	tr	-	local	91525da3
-S	derive_release_facts.sh	192	grep	-	local	67264daf
-S	derive_release_facts.sh	195	tr	-	local	1b5de5e4
-S	derive_release_facts.sh	195	wc	-	local	1b5de5e4
-S	derive_release_facts.sh	206	awk	-	local-checked-awk	8a44f99b
-S	derive_release_facts.sh	236	git	rc_net	network-through-rc_net	bf8bc6fc
-S	derive_release_facts.sh	239	git	rc_net	network-through-rc_net	83c7bf45
-S	derive_release_facts.sh	246	grep	-	local	beb7f7d9
-S	derive_release_facts.sh	247	grep	-	local	f6b7fd9d
-S	derive_release_facts.sh	250	cat	-	local	6d6ad1d6
+S	derive_release_facts.sh	77	awk	-	local-checked-awk	30f58115
+S	derive_release_facts.sh	93	date	-	local	649cfe2c
+S	derive_release_facts.sh	94	grep	-	local	0d3cc75c
+S	derive_release_facts.sh	96	git	rc_net	network-through-rc_net	feb7dd5a
+S	derive_release_facts.sh	97	git	rc_net	network-through-rc_net	3e591f2d
+S	derive_release_facts.sh	98	mktemp	-	local	c8d72438
+S	derive_release_facts.sh	99	chmod	-	local	ef2b8a65
+S	derive_release_facts.sh	104	rmdir	-	local	3c484663
+S	derive_release_facts.sh	104	unlink	-	local	3c484663
+S	derive_release_facts.sh	107	git	rc_net	network-through-rc_net	95c7f3eb
+S	derive_release_facts.sh	113	sqlite3	-	local-checked-sqlite3	fdaef393
+S	derive_release_facts.sh	116	sqlite3	-	local-checked-sqlite3	9d146727
+S	derive_release_facts.sh	117	sed	-	local-checked-sed	068140ce
+S	derive_release_facts.sh	117	sort	-	local-checked-sort	068140ce
+S	derive_release_facts.sh	117	tr	-	local	068140ce
+S	derive_release_facts.sh	194	git	rc_net	network-through-rc_net	47770773
+S	derive_release_facts.sh	195	git	rc_net	network-through-rc_net	33843491
+S	derive_release_facts.sh	196	git	rc_net	network-through-rc_net	5f15fd96
+S	derive_release_facts.sh	197	git	rc_net	network-through-rc_net	ac18bad8
+S	derive_release_facts.sh	197	sed	-	local-checked-sed	ac18bad8
+S	derive_release_facts.sh	198	git	rc_net	network-through-rc_net	df53159c
+S	derive_release_facts.sh	199	git	rc_net	network-through-rc_net	1f8cc176
+S	derive_release_facts.sh	200	awk	-	local-checked-awk	5e2d9c12
+S	derive_release_facts.sh	200	cut	-	local	5e2d9c12
+S	derive_release_facts.sh	200	git	rc_net	network-through-rc_net	5e2d9c12
+S	derive_release_facts.sh	212	cut	-	local	098d0155
+S	derive_release_facts.sh	212	sha256sum	-	local	098d0155
+S	derive_release_facts.sh	222	awk	-	local-checked-awk	d079755d
+S	derive_release_facts.sh	229	sed	-	local-checked-sed	919c60fd
+S	derive_release_facts.sh	229	sort	-	local-checked-sort	919c60fd
+S	derive_release_facts.sh	229	tr	-	local	919c60fd
+S	derive_release_facts.sh	230	sort	-	local-checked-sort	e639c7f0
+S	derive_release_facts.sh	232	grep	-	local	3fe815d3
+S	derive_release_facts.sh	234	sed	-	local-checked-sed	3062847e
+S	derive_release_facts.sh	234	tr	-	local	3062847e
+S	derive_release_facts.sh	254	awk	-	local-checked-awk	2b857167
+S	derive_release_facts.sh	281	grep	-	local	ba69dffe
+S	derive_release_facts.sh	287	sed	-	local-checked-sed	91525da3
+S	derive_release_facts.sh	287	sed	-	local-checked-sed	91525da3
+S	derive_release_facts.sh	287	sort	-	local-checked-sort	91525da3
+S	derive_release_facts.sh	287	tr	-	local	91525da3
+S	derive_release_facts.sh	291	grep	-	local	67264daf
+S	derive_release_facts.sh	300	tr	-	local	1b5de5e4
+S	derive_release_facts.sh	300	wc	-	local	1b5de5e4
+S	derive_release_facts.sh	311	awk	-	local-checked-awk	8a44f99b
+S	derive_release_facts.sh	344	git	rc_net	network-through-rc_net	bf8bc6fc
+S	derive_release_facts.sh	347	git	rc_net	network-through-rc_net	83c7bf45
+S	derive_release_facts.sh	376	grep	-	local	beb7f7d9
+S	derive_release_facts.sh	377	grep	-	local	f6b7fd9d
+S	derive_release_facts.sh	380	cat	-	local	6d6ad1d6
 S	redact_cut.sh	60	awk	-	local-checked-awk	84bb8322
 S	redact_cut.sh	60	tr	-	local	84bb8322
 S	redact_cut.sh	365	bash	exec	interpreter-allow-listed	a614cc7f
@@ -1492,57 +1622,58 @@ S	tag_and_release.sh	394	glab	nt	network-through-nt	76c05f6a
 S	tag_and_release.sh	409	grep	-	local	15c512f6
 S	tag_and_release.sh	424	date	-	local	2778ea72
 P	awk	2d022d3b4851f7b01032c312af162c5eff91412a643ab055e58f7428108a77d1	tag_and_release.sh:232
-P	awk	39e572287b4d68f238d50751d8558c8470a82f821185850cf16fe1662900dcd5	derive_release_facts.sh:156
+P	awk	39e572287b4d68f238d50751d8558c8470a82f821185850cf16fe1662900dcd5	derive_release_facts.sh:254
 P	awk	51de011e7c8a209cc550f7942c5b657bb83b3acb3e4776fdb99b3ada2da341a1	tag_and_release.sh:251
-P	awk	757caff674f315f7f4b147ebefe1c8d7fea9e25af169bbb494b7ef1e63570f8d	derive_release_facts.sh:206
-P	awk	7819a5914eeecf76d481c161d365ac3f27d3d36de32398b9cfc23855f50e595c	derive_release_facts.sh:113
+P	awk	757caff674f315f7f4b147ebefe1c8d7fea9e25af169bbb494b7ef1e63570f8d	derive_release_facts.sh:311
+P	awk	7819a5914eeecf76d481c161d365ac3f27d3d36de32398b9cfc23855f50e595c	derive_release_facts.sh:200
 P	awk	7e4ba9d97e11d8a4872d7b4f694d712e89c6c43a878b0b9eea9eea89b8641a52	redact_cut.sh:395
-P	awk	8633262a02bb032c29d5840655c659ff209de17548a3d9b5e45d65a9e5a42d94	derive_release_facts.sh:61
+P	awk	8633262a02bb032c29d5840655c659ff209de17548a3d9b5e45d65a9e5a42d94	derive_release_facts.sh:77
 P	awk	a27f3e6fd43c19b08ae4e019180c922b8464a2d483a5255167d0a399a9b943fe	release_publish_gitea.sh:143
 P	awk	b8de75827dc64682b8f7527b592ed488387ca212c4f203eb5560411079667e95	tag_and_release.sh:284
 P	awk	d6c6e7caba04a7a4d4e644fd71a67011f195cdcd57e02db341436f41af93af43	redact_cut.sh:60
-P	awk	ee297f0952f7d4783c20261e0d26a8d33e067da1be8e7a558a430629539bd7cb	derive_release_facts.sh:124
-P	sed	2d28ea9fd1ae3ad30c004390a9bf3864f857a1598127f9274644694be9fb8d59	derive_release_facts.sh:101
-P	sed	4549ae6fc3fb108fd7cf5504cc56633f1495b2fd6dc9bac856f6eb4d7ed15d63	derive_release_facts.sh:110
-P	sed	c1fd0812a18452a07a573174aad7a4a990be9ac2fa704a05a367ead56ac35f39	derive_release_facts.sh:188
+P	awk	ee297f0952f7d4783c20261e0d26a8d33e067da1be8e7a558a430629539bd7cb	derive_release_facts.sh:222
+P	sed	2d28ea9fd1ae3ad30c004390a9bf3864f857a1598127f9274644694be9fb8d59	derive_release_facts.sh:117
+P	sed	4549ae6fc3fb108fd7cf5504cc56633f1495b2fd6dc9bac856f6eb4d7ed15d63	derive_release_facts.sh:197
+P	sed	c1fd0812a18452a07a573174aad7a4a990be9ac2fa704a05a367ead56ac35f39	derive_release_facts.sh:287
 P	sed	c25cdbef7a63133dd1acf5f785519921a7086bcace698be821386b7ea0a1c2b7	release_publish_gitea.sh:93
 N	API_BODY	release_publish_gitea.sh:169
 N	API_CODE	release_publish_gitea.sh:169
-N	B	derive_release_facts.sh:80
+N	B	derive_release_facts.sh:96
 N	BADGE_CHECK	tag_and_release.sh:89
-N	BASE	derive_release_facts.sh:43
+N	BASE	derive_release_facts.sh:59
 N	BASE_URL	release_publish_gitea.sh:37
-N	DB	derive_release_facts.sh:83
-N	DBDIR	derive_release_facts.sh:82
-N	DIE_FD	derive_release_facts.sh:44
+N	CDAY	derive_release_facts.sh:164
+N	DB	derive_release_facts.sh:99
+N	DBDIR	derive_release_facts.sh:98
+N	DIE_FD	derive_release_facts.sh:60
 N	DRAFT	release_publish_gitea.sh:38
 N	DRY	release_publish_gitea.sh:38
-N	EXTERR	derive_release_facts.sh:87
+N	EXTERR	derive_release_facts.sh:103
 N	FAILS	tag_and_release.sh:154
 N	FIRST	tag_and_release.sh:227
 N	FULL	tag_and_release.sh:205
 N	GAPS	tag_and_release.sh:154
 N	GENERIC	release_publish_gitea.sh:38
 N	GH_SEEN	tag_and_release.sh:371
-N	GIT_ALTERNATE_OBJECT_DIRECTORIES	derive_release_facts.sh:41
-N	GIT_COMMON_DIR	derive_release_facts.sh:41
-N	GIT_DIR	derive_release_facts.sh:41
-N	GIT_GRAFT_FILE	derive_release_facts.sh:41
-N	GIT_INDEX_FILE	derive_release_facts.sh:41
-N	GIT_INTERNAL_SUPER_PREFIX	derive_release_facts.sh:41
-N	GIT_NAMESPACE	derive_release_facts.sh:41
-N	GIT_NO_REPLACE_OBJECTS	derive_release_facts.sh:41
-N	GIT_OBJECT_DIRECTORY	derive_release_facts.sh:41
-N	GIT_PREFIX	derive_release_facts.sh:41
-N	GIT_QUARANTINE_PATH	derive_release_facts.sh:41
-N	GIT_REPLACE_REF_BASE	derive_release_facts.sh:41
-N	GIT_SHALLOW_FILE	derive_release_facts.sh:41
+N	GIT_ALTERNATE_OBJECT_DIRECTORIES	derive_release_facts.sh:57
+N	GIT_COMMON_DIR	derive_release_facts.sh:57
+N	GIT_DIR	derive_release_facts.sh:57
+N	GIT_GRAFT_FILE	derive_release_facts.sh:57
+N	GIT_INDEX_FILE	derive_release_facts.sh:57
+N	GIT_INTERNAL_SUPER_PREFIX	derive_release_facts.sh:57
+N	GIT_NAMESPACE	derive_release_facts.sh:57
+N	GIT_NO_REPLACE_OBJECTS	derive_release_facts.sh:57
+N	GIT_OBJECT_DIRECTORY	derive_release_facts.sh:57
+N	GIT_PREFIX	derive_release_facts.sh:57
+N	GIT_QUARANTINE_PATH	derive_release_facts.sh:57
+N	GIT_REPLACE_REF_BASE	derive_release_facts.sh:57
+N	GIT_SHALLOW_FILE	derive_release_facts.sh:57
 N	GIT_TERMINAL_PROMPT	redact_cut.sh:86
 N	GIT_TRACE2	redact_cut.sh:86
 N	GIT_TRACE2_EVENT	redact_cut.sh:86
 N	GIT_TRACE2_PERF	redact_cut.sh:86
 N	GIT_TRACE_REDACT	redact_cut.sh:86
-N	GIT_WORK_TREE	derive_release_facts.sh:41
+N	GIT_WORK_TREE	derive_release_facts.sh:57
 N	GL_ANY	tag_and_release.sh:141
 N	GL_ARGS	tag_and_release.sh:327
 N	GL_AT	tag_and_release.sh:143
@@ -1555,8 +1686,8 @@ N	GL_RELEASED_AT	tag_and_release.sh:89
 N	GL_TITLE	tag_and_release.sh:327
 N	HAVE_TIMEOUT	tag_and_release.sh:185
 N	HELP	release_publish_gitea.sh:39
-N	IFS	derive_release_facts.sh:128
-N	LC_ALL	derive_release_facts.sh:42
+N	IFS	derive_release_facts.sh:226
+N	LC_ALL	derive_release_facts.sh:58
 N	LOCAL_TAG_EXISTS	tag_and_release.sh:241
 N	M3W_GITEA_TOKEN	tag_and_release.sh:189
 N	MESSAGE	tag_and_release.sh:89
@@ -1564,23 +1695,23 @@ N	NET_TIMEOUT	tag_and_release.sh:137
 N	NEWID	release_publish_gitea.sh:201
 N	NOTES	tag_and_release.sh:168
 N	NOTES_FILE	release_publish_gitea.sh:37
-N	O	derive_release_facts.sh:116
+N	O	derive_release_facts.sh:214
 N	OK	tag_and_release.sh:291
-N	OVER	derive_release_facts.sh:143
-N	P	derive_release_facts.sh:81
+N	OVER	derive_release_facts.sh:241
+N	P	derive_release_facts.sh:97
 N	PRERELEASE	release_publish_gitea.sh:38
-N	PREV	derive_release_facts.sh:43
-N	PREV_DATE	derive_release_facts.sh:108
+N	PREV	derive_release_facts.sh:59
+N	PREV_DATE	derive_release_facts.sh:195
 N	PRE_GH	tag_and_release.sh:323
 N	PRE_TITLE	tag_and_release.sh:323
 N	PROTO	release_publish_gitea.sh:103
-N	PROV	derive_release_facts.sh:143
-N	QFAIL	derive_release_facts.sh:94
+N	PROV	derive_release_facts.sh:241
+N	QFAIL	derive_release_facts.sh:110
 N	RELEASES	tag_and_release.sh:90
-N	REMOTES	derive_release_facts.sh:43
+N	REMOTES	derive_release_facts.sh:59
 N	REPO	release_publish_gitea.sh:37
-N	REQ_RETEST	derive_release_facts.sh:43
-N	RETEST	derive_release_facts.sh:43
+N	REQ_RETEST	derive_release_facts.sh:59
+N	RETEST	derive_release_facts.sh:59
 N	RE_GH	tag_and_release.sh:128
 N	RE_GL	tag_and_release.sh:128
 N	RE_GT	tag_and_release.sh:129
@@ -1594,39 +1725,50 @@ N	TAG	release_publish_gitea.sh:37
 N	TAGOBJ	tag_and_release.sh:278
 N	TARGET	release_publish_gitea.sh:155
 N	TITLE	release_publish_gitea.sh:37
-N	TODAY	derive_release_facts.sh:43
+N	TODAY	derive_release_facts.sh:59
 N	TOKEN_VAR	release_publish_gitea.sh:38
-N	VER	derive_release_facts.sh:193
+N	VER	derive_release_facts.sh:293
 N	W	release_publish_gitea.sh:123
+N	_FV_KEY	derive_release_facts.sh:141
+N	_FV_UTF8	derive_release_facts.sh:122
+N	_O	derive_release_facts.sh:184
+N	_PART	derive_release_facts.sh:204
 N	_RC_ENV_MARK	redact_cut.sh:286
 N	_RC_ENV_STATE	redact_cut.sh:295
 N	_RC_LOCALE_CODESET	redact_cut.sh:147
 N	_RC_LOCALE_MOD	redact_cut.sh:148
 N	_RC_NET_CONST	redact_cut.sh:207
 N	_RC_NET_KEEP	redact_cut.sh:206
-N	_f	derive_release_facts.sh:88
-N	_n	derive_release_facts.sh:73
-N	_r	derive_release_facts.sh:74
-N	_rc	derive_release_facts.sh:50
-N	_rc_d	derive_release_facts.sh:48
+N	_SEP	derive_release_facts.sh:185
+N	_dup	derive_release_facts.sh:356
+N	_f	derive_release_facts.sh:104
+N	_h	derive_release_facts.sh:200
+N	_k	derive_release_facts.sh:358
+N	_l	derive_release_facts.sh:357
+N	_n	derive_release_facts.sh:89
+N	_r	derive_release_facts.sh:90
+N	_rc	derive_release_facts.sh:66
+N	_rc_d	derive_release_facts.sh:64
 N	_rc_v	redact_cut.sh:217
 N	_rpg_a	release_publish_gitea.sh:50
 N	_rpg_i	release_publish_gitea.sh:50
 N	_rpg_tok	release_publish_gitea.sh:90
 N	_rpg_tv	release_publish_gitea.sh:50
+N	_seen	derive_release_facts.sh:356
 N	a0	redact_cut.sh:294
 N	arc	tag_and_release.sh:340
 N	args	release_publish_gitea.sh:172
 N	atomic_unsupported	tag_and_release.sh:295
 N	auth	redact_cut.sh:376
 N	base	tag_and_release.sh:398
-N	body	derive_release_facts.sh:147
-N	c	derive_release_facts.sh:239
+N	body	derive_release_facts.sh:245
+N	c	derive_release_facts.sh:347
 N	cls	release_publish_gitea.sh:171
 N	covered	tag_and_release.sh:416
 N	crc	release_publish_gitea.sh:171
 N	cs	redact_cut.sh:150
-N	due	derive_release_facts.sh:181
+N	d	derive_release_facts.sh:146
+N	due	derive_release_facts.sh:279
 N	e	redact_cut.sh:166
 N	enc	tag_and_release.sh:340
 N	extra	redact_cut.sh:235
@@ -1634,57 +1776,66 @@ N	f	redact_cut.sh:315
 N	fl	redact_cut.sh:315
 N	frc	tag_and_release.sh:220
 N	gmsg	tag_and_release.sh:404
-N	id	derive_release_facts.sh:147
-N	idl	derive_release_facts.sh:128
+N	id	derive_release_facts.sh:245
+N	idl	derive_release_facts.sh:226
 N	j	tag_and_release.sh:340
-N	k	derive_release_facts.sh:128
+N	k	derive_release_facts.sh:226
 N	keep	redact_cut.sh:235
 N	kind	tag_and_release.sh:373
-N	list	derive_release_facts.sh:235
-N	m	release_publish_gitea.sh:171
+N	list	derive_release_facts.sh:343
+N	m	derive_release_facts.sh:146
 N	mark	redact_cut.sh:393
 N	md	redact_cut.sh:150
 N	mk	tag_and_release.sh:340
 N	mrc	tag_and_release.sh:301
-N	n	derive_release_facts.sh:128
+N	mx	derive_release_facts.sh:146
+N	n	derive_release_facts.sh:171
+N	nbadid	derive_release_facts.sh:186
+N	nloc	derive_release_facts.sh:191
+N	nsep	derive_release_facts.sh:188
 N	o	tag_and_release.sh:282
 N	out	tag_and_release.sh:282
 N	p	release_publish_gitea.sh:171
 N	prc	tag_and_release.sh:294
-N	r	derive_release_facts.sh:234
+N	q	derive_release_facts.sh:146
+N	r	derive_release_facts.sh:342
 N	rat	tag_and_release.sh:340
 N	rc	release_publish_gitea.sh:42
-N	rclos	derive_release_facts.sh:215
+N	rclos	derive_release_facts.sh:320
 N	re	redact_cut.sh:78
 N	reads	redact_cut.sh:346
-N	ref	derive_release_facts.sh:237
-N	refs	derive_release_facts.sh:236
+N	ref	derive_release_facts.sh:345
+N	refs	derive_release_facts.sh:344
 N	repo	tag_and_release.sh:398
 N	res	tag_and_release.sh:340
 N	rest	redact_cut.sh:166
-N	rlist	derive_release_facts.sh:205
-N	rloc	derive_release_facts.sh:215
+N	rlist	derive_release_facts.sh:310
+N	rloc	derive_release_facts.sh:320
 N	ro	tag_and_release.sh:251
-N	rok	derive_release_facts.sh:204
-N	rows	derive_release_facts.sh:146
+N	rok	derive_release_facts.sh:309
+N	rows	derive_release_facts.sh:244
 N	rr	tag_and_release.sh:134
-N	rrest	derive_release_facts.sh:215
-N	rrow	derive_release_facts.sh:206
-N	rstat	derive_release_facts.sh:215
+N	rraw	derive_release_facts.sh:324
+N	rrest	derive_release_facts.sh:320
+N	rrow	derive_release_facts.sh:311
+N	rstat	derive_release_facts.sh:320
 N	s	tag_and_release.sh:289
 N	scheme	redact_cut.sh:376
 N	seen	redact_cut.sh:315
 N	spec	tag_and_release.sh:131
-N	t	tag_and_release.sh:222
+N	t	derive_release_facts.sh:364
 N	target	tag_and_release.sh:373
 N	trc	tag_and_release.sh:303
 N	u	redact_cut.sh:376
 N	ui	redact_cut.sh:376
 N	up	tag_and_release.sh:340
 N	urls	tag_and_release.sh:214
-N	v	redact_cut.sh:84
+N	v	derive_release_facts.sh:364
 N	val	redact_cut.sh:331
-N	vline	derive_release_facts.sh:156
+N	vclos	derive_release_facts.sh:295
+N	vid	derive_release_facts.sh:295
+N	vline	derive_release_facts.sh:254
+N	vrows	derive_release_facts.sh:294
 N	x	redact_cut.sh:131
 N	x_curl	release_publish_gitea.sh:171
 N	x_fetch	tag_and_release.sh:220
@@ -1692,3 +1843,4 @@ N	x_gitea	tag_and_release.sh:403
 N	x_main	tag_and_release.sh:301
 N	x_push	tag_and_release.sh:294
 N	x_tagpush	tag_and_release.sh:303
+N	y	derive_release_facts.sh:146

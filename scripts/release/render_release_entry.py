@@ -21,9 +21,17 @@ new at cut time would otherwise drop silently; extend the template), or the MANU
 does not START with one of the verdict tokens PASS-FULL, PARTIAL-TOPOLOGY, FAIL or NOT RUN (the §11.4.40 retest
 sentence of an entry is conditional on a recorded verdict, so an entry never implies a pass; the token is
 checked, the base, tier and log that follow it are not). Exit 2 = usage.
+
+FACTS integrity (review of f4c6e8ab, N4): every FACTS line must be KEY=VALUE with a key of the shape
+derive_release_facts.sh prints (lower-case name, optionally one [..] part without [, ] or =), no key may occur
+twice (so this reader, which would keep the last copy, and a reader that keeps the first copy cannot disagree), and
+no key or value may hold a character of the Unicode categories Cc, Cf, Zl or Zp (controls, line separators, bidi
+controls, invisible format characters) or bytes that are not UTF-8. Any violation: exit 3, nothing on stdout, and the
+message names the line number, never the value.
 """
 import re
 import sys
+import unicodedata
 
 EMPTY = "(none recorded in the tracker)"
 
@@ -36,6 +44,32 @@ def die(msg, rc):
 # The retest sentence of a release entry is conditional on a recorded verdict (§11.4.40, §11.4.230(F.3)(1)):
 # the manual value must START with one of these tokens, so a claim of a pass cannot be written without it.
 RETEST_VERDICT = re.compile(r"(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)(?![\w-])")
+FACT_KEY = re.compile(r"[a-z][a-z0-9_]*(\[[^\[\]=]*\])?\Z")
+BAD_CATEGORIES = {"Cc", "Cf", "Zl", "Zp", "Cs"}
+
+
+def read_facts(path):
+    """KEY=VALUE lines of derive_release_facts.sh, checked line by line (N4); exit 3 on the first bad line"""
+    try:
+        data = open(path, "rb").read().decode("utf-8")
+    except UnicodeDecodeError:
+        die("FACTS is not UTF-8", 3)
+    facts = {}
+    lines = data.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    for no, line in enumerate(lines, 1):
+        if any(unicodedata.category(c) in BAD_CATEGORIES for c in line):
+            die("FACTS line %d holds a control, line-separator, bidi or invisible format character (not shown)" % no, 3)
+        if "=" not in line:
+            die("FACTS line %d is not KEY=VALUE" % no, 3)
+        k, v = line.split("=", 1)
+        if not FACT_KEY.match(k):
+            die("FACTS line %d has a malformed key (not shown)" % no, 3)
+        if k in facts:
+            die("FACTS key %s occurs twice (line %d); a first-match and a last-match reader would disagree" % (k, no), 3)
+        facts[k] = v
+    return facts
 
 
 def main(argv):
@@ -43,12 +77,7 @@ def main(argv):
         die("usage: render_release_entry.py TEMPLATE FACTS MANUAL", 2)
     tpl = open(argv[1], encoding="utf-8").read()
     tpl = re.sub(r"\A\s*<!--.*?-->\s*", "", tpl, count=1, flags=re.S)
-    facts = {}
-    for line in open(argv[2], encoding="utf-8"):
-        line = line.rstrip("\n")
-        if "=" in line:
-            k, v = line.split("=", 1)
-            facts[k] = v
+    facts = read_facts(argv[2])
     manual, cur = {}, None
     for line in open(argv[3], encoding="utf-8"):
         if line.startswith("@@"):
