@@ -1,0 +1,19 @@
+== sync-perf (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix6.gk0k/tmp/helix-sync-test.pHsXKE)
+  ok   jobs 1: exit 0
+  ok   jobs 1: 31 repositories
+  ok   jobs 1: exactly one fetch per remote
+  ok   jobs 1: report records the job count
+  ok   jobs 1: git calls 467 <= 16 per repository
+  ok   jobs 1: wall 16728 ms < 180 s
+  ok   jobs 4: exit 0
+  ok   jobs 4: 31 repositories
+  ok   jobs 4: exactly one fetch per remote
+  ok   jobs 4: report records the job count
+  ok   jobs 4: git calls 467 <= 16 per repository
+  ok   jobs 4: wall 12909 ms < 180 s
+  ok   jobs ceiling: 1000 is clamped to at most 8
+-- benchmark (host load at start: 32.39 33.26 33.41)
+jobs	wall_ms	fetch_calls	git_calls	repos
+1	16728	31	467	31
+4	12909	31	467	31
+sync-perf: PASS 13 FAIL 0

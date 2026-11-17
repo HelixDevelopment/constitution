@@ -1,0 +1,9 @@
+# command: bash <root>/scripts/gates/cm_pr_delivery_account_name_free.sh --root <root> --consumer-config <root>/config/delivery.conf
+PASS  structure: the §11.4.297 canon block carries no @-mention
+PASS  structure: mirror CLAUDE.md §11.4.297 block carries no @-mention
+PASS  structure: mirror AGENTS.md §11.4.297 block carries no @-mention
+PASS  structure: mirror QWEN.md §11.4.297 block carries no @-mention
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+PASS  account #1 of 1 appears in none of the 370 corpus files
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: PASS — 6/6 checks: 1 declared account(s) (1 reviewer and 1 assignee entries read) appear in none of the 370 corpus files (370 fixed; 0 changed, 0 staged versions and 0 changed path names named by --changed-since); files outside the corpus are not scanned (root: <root>)
+# exit: 0

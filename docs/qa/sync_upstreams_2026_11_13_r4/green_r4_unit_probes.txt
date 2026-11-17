@@ -1,0 +1,9 @@
+GREEN F9a-scheme-in-password https://example.org/r.git
+BOUNDARY F9b-free-text-unregistered 'https://u:pa\nS3cr3tPw@example.org/r.git'
+GREEN F9b-configured-value 'https://example.org/r.git'
+GREEN F9b-registered-free-text "fatal: unable to access 'https://example.org/r.git/': bad url"
+GREEN F9c-long-secret fatal: unable to access 'https://example.org/r.git/': 403
+GREEN F9d-argparse-error rc=2 stderr=' RUN_ID] [--quiet] [--interactive |\n                             --non-interactive]\nsync_all_upstreams.sh: error: unrecognized arguments: https://example.org/x\n'
+GREEN F9e-report-key {'https://h/x': 1}
+GREEN F7-trace-env []
+GREEN F5-behaviour bad-pgid signals=[] own-pgid signals=[4242]

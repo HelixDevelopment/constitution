@@ -1,0 +1,9 @@
+[mutation:account-name] ok: PASS: a root-level config/delivery.conf is read by default, the extra keys parse (exit 0)
+[mutation:account-name] ok: RED: an account of the root-level configuration in the canon block (exit 1)
+[mutation:account-name] ok: golden-FALSE: the declared configuration is excluded from --changed-since by path (exit 0)
+[mutation:account-name] ok: RED: another file next to the declared configuration is still scanned under --changed-since (exit 1)
+[mutation:account-name] ok: RED: a root-level configuration that was not read (an explicit --consumer-config) is scanned like any file (exit 1)
+[mutation:account-name] ok: golden-FALSE: a changed SQLite tracker database is not scanned, and the PASS says so (exit 0)
+[mutation:account-name] ok: BLIND: a changed binary file that is not an SQLite database stays BLIND (exit 2)
+[mutation:account-name] ok: BLIND: a changed file of the fixed corpus is never skipped as an SQLite database (exit 2)
+[mutation:account-name] subset: 8 ok, RESULT=0

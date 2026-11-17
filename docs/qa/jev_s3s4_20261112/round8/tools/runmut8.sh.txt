@@ -1,0 +1,30 @@
+#!/bin/bash
+# runmut8.sh <W> <K> <outdir>: run mutant K (its producer <W>/mut/K/scripts/jev/jev-place.sh; K=REAL: the unmodified
+# producer) hermetic (hrun.sh), suite by suite in the order of its index.tsv targets, stopping at the first suite that
+# kills it (first FAIL / not ok line, or a non-zero exit). The early stop TERMs only the background pid this script
+# started (pid > 1); its bwrap pid namespace takes every child down. Waits while the 1-minute load is >= 60.
+set -u
+W="${1:?W}"; K="${2:?K}"; O="${3:?outdir}"; mkdir -p "$O"
+P="$W/mut/$K/scripts/jev/jev-place.sh"; targets="$(awk -F'\t' -v k="$K" '$1==k{print $2}' "$W/mut/index.tsv")"
+if [ "$K" = REAL ]; then P="$W/repo/scripts/jev/jev-place.sh"; targets="r8,r7,r6,pl"; fi
+[ -f "$P" ] && [ -n "$targets" ] || { printf '%s\t-\tERROR\tno producer or targets\n' "$K" >> "$O/results.tsv"; exit 2; }
+IFS=, read -ra TS <<<"$targets"
+for t in "${TS[@]}"; do
+  case "$t" in r8) f=tests/jev/test_s4_round8.sh ;; r7) f=tests/jev/test_s4_round7.sh ;; r6) f=tests/jev/test_s4_round6.sh ;; pl) f=tests/jev/test_s4_placement.sh ;;
+    *) printf '%s\t%s\tERROR\tunknown target\n' "$K" "$t" >> "$O/results.tsv"; exit 2 ;; esac
+  while [ "$(cut -d. -f1 /proc/loadavg)" -ge 60 ]; do sleep 20; done
+  out="$O/${K}_$t.txt"; st=$(date +%s); early=0
+  HRUN_EXTRA_ENV="S4_PLACE_UNDER_TEST=$P" systemd-run --user --scope -q -p TasksMax=1500 nice -n 10 \
+    "$W/tools/hrun.sh" "$W/repo" "$O/g_${K}_$t.log" timeout --kill-after=10 1800 bash "$f" > "$out" 2>&1 &
+  bp=$!
+  while kill -0 "$bp" 2>/dev/null; do
+    if [ "$K" != REAL ] && grep -q '^FAIL\|^not ok' "$out" 2>/dev/null; then early=1; [ "$bp" -gt 1 ] && kill -TERM "$bp" 2>/dev/null; break; fi
+    sleep 2
+  done
+  wait "$bp"; rc=$?
+  nf=$(grep -c '^FAIL\|^not ok' "$out"); first="$(grep -m1 '^FAIL\|^not ok' "$out" | cut -c1-200)"
+  verdict=survived; { [ "$nf" -gt 0 ] || [ "$rc" != 0 ]; } && verdict=killed
+  printf '%s\t%s\t%s\trc=%s\tearly=%s\tfails=%s\t%ss\t%s\n' "$K" "$t" "$verdict" "$rc" "$early" "$nf" "$(( $(date +%s) - st ))" "$first" >> "$O/results.tsv"
+  [ "$K" != REAL ] && [ "$verdict" = killed ] && break
+done
+exit 0

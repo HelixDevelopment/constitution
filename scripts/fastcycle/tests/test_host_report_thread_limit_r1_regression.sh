@@ -28,7 +28,8 @@
 set -u
 
 ROOT=$(cd "$(dirname "$0")/../../../.." && pwd)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 IMPL="$FC/host/host_report.py"
 LIB="$FC/lib/fc_common.py"
 GUARD="$FC/lib/host_guard.sh"

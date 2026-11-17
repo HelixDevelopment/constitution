@@ -1,0 +1,27 @@
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-unit: PASS 139 FAIL 0 SKIP 0
+sync-integration: PASS 149 FAIL 0
+sync-e2e: PASS 24 FAIL 0
+sync-full-automation: PASS 34 FAIL 0
+sync-security: PASS 83 FAIL 0
+sync-determinism: PASS 15 FAIL 0
+sync-ui: PASS 26 FAIL 0
+sync-hardening: PASS 119 FAIL 0
+sync-chaos: PASS 58 FAIL 0
+sync-perf: PASS 13 FAIL 0
+sync-faults: PASS 21 FAIL 0
+sync-robustness: PASS 1276 FAIL 0
+gate rc=0
+class-inventory-refs: PASS
+class-inventory-names: PASS - sites=58 classified-keys=42 unclassified=0 stale=0
+git-env-class-census: PASS - members=676 hermetic=517 exempt=159 unscrubbed=0
+[git-env-class] passed=142 failed=0 skipped=1

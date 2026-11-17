@@ -1,0 +1,35 @@
+#!/bin/bash
+# pack14.sh: copies the round-14 runs and tools into the evidence directory of the repo (mechanical, section 11.4.274).
+# Tools are copied as <name>.txt (mode 644) so no copy is a script the full-suite census or the git-env census reads
+# as a test or a fixture. Run files keep their names; *.rc exit-code files are not copied (their content is in
+# runs/results.tsv). Then README.md and mutants.md are built, and SHA256SUMS is written last.
+set -eu
+W=/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6
+E="$W/repo/docs/qa/jev_s3s4_20261112/round14"
+[ -d "$E/landing" ] || { echo "pack14: evidence dir unresolved" >&2; exit 2; }
+mkdir -p "$E/runs" "$E/tools"
+for f in "$W"/runs/*.txt "$W"/runs/*.tsv; do
+  case "$(basename "$f")" in genman_dry.txt|genman_dry2.txt|excluded_lock_before.txt|*.log) continue ;; esac
+  cp "$f" "$E/runs/"
+done
+for f in chain14.sh chain14_resume.sh census_survivor_diff.sh cmutrun.sh final14.sh gates.sh hrun.sh loadwait.sh mkmut.py \
+         mkmutmd.py mkreadme14.py mkruns14.py mut14.txt mutrun.sh norm.sh pack14.sh patch_sweep_inv.py runsuite.sh test_mutrun.sh; do
+  cp "$W/tools/$f" "$E/tools/$f.txt"
+done
+cp "$W/notes/exp_r14_sweep_draft.sh" "$E/tools/exp_rev_killsweep.sh.txt"
+cp "$W/dbg/sweep_states.sh" "$E/tools/sweep_states.sh.txt"
+cp "$W/dbg/r14_3b.sh" "$E/tools/r14_3b.sh.txt"
+cp "$W/mmd/pptr.json" "$E/tools/pptr.json.txt"
+# the diagram source ships as Markdown with a mermaid block (byte-identical to the rendered .mmd): the git-env census
+# is closed-world and has no .mmd type, and the repository keeps diagrams as mermaid blocks in .md (gate run 3)
+cp "$W/mmd/start_intent.md" "$W/mmd/start_intent.svg" "$W/mmd/mmdc.log" "$E/"
+[ ! -e "$E/start_intent.mmd" ] || { echo "pack14: a stale start_intent.mmd is in the evidence dir (git rm it)" >&2; exit 2; }
+chmod 644 "$E"/tools/* "$E"/runs/* "$E"/start_intent.* "$E"/mmdc.log
+python3 "$W/tools/mkruns14.py" "$W/notes/runs14_table.md"
+cat "$W/notes/runs14_table.md" > "$W/notes/readme14_runs.md"
+printf '\n' >> "$W/notes/readme14_runs.md"
+cat "$W/notes/readme14_runsnote.md" >> "$W/notes/readme14_runs.md"
+python3 "$W/tools/mkreadme14.py" "$E/README.md" "$W/notes/readme14_runs.md"
+python3 "$W/tools/mkmutmd.py" "$W/runs/mut_summary.txt" "$E/mutants.md"
+( cd "$E" && find . -type f ! -name SHA256SUMS -printf '%P\0' | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c --quiet SHA256SUMS )
+echo "pack14: $(wc -l < "$E/SHA256SUMS") files in SHA256SUMS"

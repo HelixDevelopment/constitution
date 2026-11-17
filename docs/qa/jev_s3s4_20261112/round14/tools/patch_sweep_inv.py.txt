@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+# patch_sweep_inv.py <file>: the round-14 sweep invariant, second form (applied after the first sweep run, which found
+# the cell ord=X killA=8: A killed at the unlock after its noset record write leaves a lease-less constitution-started
+# set with A's own stopping mark; that is the designed state, see the comment written below).
+import sys
+p = sys.argv[1]
+s = open(p).read()
+
+old_hdr = """# Invariant at every quiescent point (after B, after the start ended, after C / P): a running unit is held by a lease,
+# owed a stop, or named by an unanswered start intent; no set is operator-owned (constitution_started false) and nothing
+# is adopted as operator-started; after the cleanup (releases, an acquire that runs every owed stop with its own start
+# refused, its release, a reap) no unit runs, no set and no start intent is left.
+"""
+new_hdr = """# Invariant at every quiescent point (after B, after the start ended, after C / P): a running unit is held by a lease,
+# owed a stop, named by an unanswered start intent, or recorded in a lease-less constitution-started set ("ours": the
+# state a reap of a dead holder leaves, and the state a starter killed between its noset record write and its own stop
+# leaves; it is never adopted as operator-started, the next release stops it and the next acquire joins or disposes it,
+# section 11.4.291(J)); no set is operator-owned (constitution_started false) and nothing is adopted as operator-started;
+# after the cleanup (releases, an acquire that runs every owed stop with its own start refused, its release, a reap) no
+# unit runs, no set and no start intent is left. The first sweep run (round 14) treated "ours" as a violation and failed
+# the cell ord=X killA=8 for that reason only; that run is kept in the evidence pack.
+"""
+assert s.count(old_hdr) == 1, "header anchor"
+s = s.replace(old_hdr, new_hdr)
+
+old_inv = """  i1="$(jq -r 'if (.sets["decide-a"] // null) != null then (if ((.sets["decide-a"].leases // []) | length) > 0 then "held" elif (.sets["decide-a"].stop_owed // null) != null then "owed" else "bare" end)
+               elif ((.start_intents // {})["decide-a"] // null) != null then "intent" else "noset" end' "$JEV_STATE_DIR/leases.json" 2>/dev/null)"
+  if [ -n "$(running)" ]; then
+    case "$i1" in held|owed|intent) chk 0 "SW $1 $2: the running unit is $i1" ;; *) chk 1 "SW $1 $2: a unit runs and is $i1 (no lease, no owed stop, no start intent)" ;; esac
+"""
+new_inv = """  # "ours": a lease-less set the constitution started, no owed stop; it is not adopted (constitution_started is true),
+  # release_locked stops it once no live stopping mark is on it and plan step B joins (ok) or disposes (degraded,
+  # absent) it, section 11.4.291(J). "bare": a lease-less set NOT marked constitution-started: nobody would stop it.
+  i1="$(jq -r 'if (.sets["decide-a"] // null) != null then (if ((.sets["decide-a"].leases // []) | length) > 0 then "held" elif (.sets["decide-a"].stop_owed // null) != null then "owed" elif (.sets["decide-a"].constitution_started // null) == true then "ours" else "bare" end)
+               elif ((.start_intents // {})["decide-a"] // null) != null then "intent" else "noset" end' "$JEV_STATE_DIR/leases.json" 2>/dev/null)"
+  if [ -n "$(running)" ]; then
+    case "$i1" in held|owed|intent|ours) chk 0 "SW $1 $2: the running unit is $i1" ;; *) chk 1 "SW $1 $2: a unit runs and is $i1 (no lease, no owed stop, no start intent, not a constitution-started set)" ;; esac
+"""
+assert s.count(old_inv) == 1, "inv anchor"
+s = s.replace(old_inv, new_inv)
+open(p, "w").write(s)
+print("patched")

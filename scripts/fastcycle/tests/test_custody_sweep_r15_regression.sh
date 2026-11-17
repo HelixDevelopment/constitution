@@ -35,7 +35,8 @@ set -u
 for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 IMPL="$FC/orchestration/custody_sweep.py"
 LIB="$FC/lib/fc_common.py"
 EXLIB="$FC/lib/fc_entry.py"
@@ -74,7 +75,14 @@ p, kind, eid, action, h, path = sys.argv[1:]
 json.dump({"entry_kind": kind, "entry_id": eid, "action": action,
            "backup_hash": h, "backup_artifact_path": path}, open(p, "w"))
 PYEOF
-  python3 "$impl" verify-proposal --proposal "$pj" --repo-root "$root" --out "$oj" >/dev/null 2>&1
+  if [ -n "${RC_VECTOR_REC:-}" ]; then
+    # CON-451 round 4 (review R3-4): record GIT_INDEX_FILE in the process that BECOMES the tool -- `sh` writes the value
+    # it holds and then execs python3 (same pid, same environment), so the record is the case's own environment
+    sh -c 'printenv GIT_INDEX_FILE >"$1" || : >"$1"; shift; exec python3 "$@"' sh "$RC_VECTOR_REC" \
+      "$impl" verify-proposal --proposal "$pj" --repo-root "$root" --out "$oj" >/dev/null 2>&1
+  else
+    python3 "$impl" verify-proposal --proposal "$pj" --repo-root "$root" --out "$oj" >/dev/null 2>&1
+  fi
   python3 - "$oj" <<'PYEOF'
 import json, sys
 try:
@@ -341,19 +349,39 @@ if c.count(old) != 1:
 open(p, "w", encoding="utf-8").write(c.replace(old, new))
 PYEOF
 }
-mk_mutant() {  # NAME OLD NEW -> prints mutant impl path, or "" on anchor failure
+# CON-402 (audit F2/F3 class, 2026-11-16): the CON-402 file-level git-env scrub at the top of custody_sweep.py and of
+# lib/fc_common.py clears GIT_INDEX_FILE / GIT_DIR before any code runs, so a mutant that removes only an in-function
+# isolation layer no longer reaches an ambient-variable vector (measured on cc51c320: ME1 SURVIVED, mutant REFUSED).
+# strip_ge_scrub removes that pair (exactly one per file) from a copy.
+strip_ge_scrub() {   # strip_ge_scrub FILE...
+  python3 - "$@" <<'PYEOF'
+import re, sys
+pair = re.compile(r'^import os as _ge_os[^\n]*\nfor _ge_v in "[A-Z_ ]+"\.split\(\): _ge_os\.environ\.pop\(_ge_v, None\)\n', re.M)
+for f in sys.argv[1:]:
+    t = open(f, encoding="utf-8").read()
+    t2, n = pair.subn("", t)
+    if n != 1:
+        print("scrub pair count=%d in %s" % (n, f))
+        sys.exit(1)
+    open(f, "w", encoding="utf-8").write(t2)
+PYEOF
+}
+mk_mutant() {  # NAME OLD NEW [strip-scrub] -> prints mutant impl path, or "" on anchor failure
   local d="$TMP/mut_$1"
   build_copy "$d"
   if mutate "$d/orchestration/custody_sweep.py" "$2" "$3" >"$d.log" 2>&1; then
+    if [ "${4:-}" = strip-scrub ]; then
+      strip_ge_scrub "$d/orchestration/custody_sweep.py" "$d/lib/fc_common.py" >>"$d.log" 2>&1 || return 0
+    fi
     echo "$d/orchestration/custody_sweep.py"
   fi
 }
 # mut_allows NAME OLD NEW ROOT KIND ID ACTION BACKUP [ENVASSIGN]
 #   the REAL tool refuses; the mutant must ALLOW (the check is load-bearing)
 mut_allows() {
-  local name="$1" old="$2" new="$3" root="$4" kind="$5" id="$6" action="$7" path="$8" envs="${9:-}"
+  local name="$1" old="$2" new="$3" root="$4" kind="$5" id="$6" action="$7" path="$8" envs="${9:-}" strip="${10:-}"
   local m real mutant
-  m=$(mk_mutant "$name" "$old" "$new")
+  m=$(mk_mutant "$name" "$old" "$new" "$strip")
   if [ -z "$m" ]; then notok "mutation $name: anchor not found ($(cat "$TMP/mut_$name.log"))"; return; fi
   real=$( [ -n "$envs" ] && export "${envs?}"; run_case "$IMPL" "$root" "$kind" "$id" "$action" "$path")
   mutant=$( [ -n "$envs" ] && export "${envs?}"; run_case "$m" "$root" "$kind" "$id" "$action" "$path")
@@ -386,8 +414,61 @@ mut_allows MI1_stash_history_check '    if lost:
         return ["%d commit(s)' "$I1/main" stash 'stash@{0}' land "$I1/st.patch"
 mut_allows MI2_stash_counts_as_anchor '        if ref == "refs/stash" or ref.startswith(_PER_WORKTREE_REF_PREFIXES):' \
   '        if ref.startswith(_PER_WORKTREE_REF_PREFIXES):' "$I1/main" stash 'stash@{0}' land "$I1/st.patch"
+# CON-451 round 3 (review R2-6): ONE vector, read by ME1 (the polarity control) and by both layer checks below, so
+# the legs cannot drift apart. CON-451 round 4 (review R3-4): each layer check asserts the vector in the environment of
+# the process the case runs in (RC_VECTOR_REC in run_case: recorded by the shell that execs the tool), not in the
+# subshell before run_case; the control leg below removes the vector right before the case and must see it missing.
+ME1_VECTOR="GIT_INDEX_FILE=$E2/main/.git/index"
 mut_allows ME1_inherit_ambient_env '    child_env = _targeted_git_env() if env is None else env' \
-  '    child_env = env' "$E2/main" worktree wt retire "$E2/wt.patch" "GIT_INDEX_FILE=$E2/main/.git/index"
+  '    child_env = env' "$E2/main" worktree wt retire "$E2/wt.patch" "$ME1_VECTOR" strip-scrub
+VEC_WANT="${ME1_VECTOR#GIT_INDEX_FILE=}"
+vector_reached() {  # REC -> 0 when the case's own process held the vector (the record run_case wrote)
+  [ -f "$1" ] && [ "$(cat "$1")" = "$VEC_WANT" ]
+}
+# the CON-402 layer alone: ME1's in-function revert, the file-level scrub KEPT -> the mutant still REFUSES
+me1s=$(mk_mutant ME1_scrub_only '    child_env = _targeted_git_env() if env is None else env' '    child_env = env')
+if [ -z "$me1s" ]; then
+  notok "layer check ME1_scrub_only: anchor not found ($(cat "$TMP/mut_ME1_scrub_only.log"))"
+else
+  rec="$TMP/vec_scrub_only.rec"
+  me1r=$(export "$ME1_VECTOR"; RC_VECTOR_REC="$rec" run_case "$me1s" "$E2/main" worktree wt retire "$E2/wt.patch")
+  if ! vector_reached "$rec"; then
+    notok "layer check ME1_scrub_only: the inherited vector ($ME1_VECTOR) is not in the environment of the process that ran the case"
+  elif [ "${me1r%%$'\t'*}" = REFUSED ]; then
+    ok "layer check ME1_scrub_only (CON-402 file-level scrub alone): in-function isolation reverted, scrub kept -> still REFUSED"
+  else
+    notok "layer check ME1_scrub_only: expected REFUSED with the file-level scrub kept, got ${me1r:0:200}"
+  fi
+fi
+# CON-451 round 2 (review F23-C): the round-15 in-function layer alone -- the file-level scrub stripped from both
+# files, _targeted_git_env() KEPT (an identity substitution) -> the mutant still REFUSES. ME1 above (both layers
+# removed, ALLOWED) is this check's polarity control: the same case does reach the vector without the layer.
+me1f=$(mk_mutant ME1_func_only '    child_env = _targeted_git_env() if env is None else env' \
+  '    child_env = _targeted_git_env() if env is None else env' strip-scrub)
+if [ -z "$me1f" ]; then
+  notok "layer check ME1_func_only: anchor or scrub pair not found ($(cat "$TMP/mut_ME1_func_only.log"))"
+else
+  rec="$TMP/vec_func_only.rec"
+  me1fr=$(export "$ME1_VECTOR"; RC_VECTOR_REC="$rec" run_case "$me1f" "$E2/main" worktree wt retire "$E2/wt.patch")
+  if ! vector_reached "$rec"; then
+    notok "layer check ME1_func_only: the inherited vector ($ME1_VECTOR) is not in the environment of the process that ran the case"
+  elif [ "${me1fr%%$'\t'*}" = REFUSED ]; then
+    ok "layer check ME1_func_only (round-15 _targeted_git_env alone): the CON-402 scrub stripped from both files, the in-function layer kept -> still REFUSED"
+  else
+    notok "layer check ME1_func_only: expected REFUSED with the in-function layer kept, got ${me1fr:0:200}"
+  fi
+fi
+# control needle for the record (section 11.4.273): the vector exported, then removed right before the case (the
+# reviewer's rvt451a/b placement) -> the record must show it MISSING, so a vector lost on the way is seen
+if [ -n "$me1s" ]; then
+  rec="$TMP/vec_control.rec"
+  (export "$ME1_VECTOR"; unset GIT_INDEX_FILE; RC_VECTOR_REC="$rec" run_case "$me1s" "$E2/main" worktree wt retire "$E2/wt.patch") >/dev/null
+  if [ -f "$rec" ] && ! vector_reached "$rec"; then
+    ok "layer check control: a vector removed before the case is recorded as missing in the case's process"
+  else
+    notok "layer check control: the record did not show the removed vector as missing (record present=$([ -f "$rec" ] && echo y || echo n))"
+  fi
+fi
 mut_allows MM1_stdin_paths_unquoting \
   '        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--"] + [p for p, _h in chunk], env=env)' \
   '        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--stdin-paths"], env=env, input_bytes="".join(p + "\n" for p, _h in chunk).encode("utf-8", "surrogateescape"))' \

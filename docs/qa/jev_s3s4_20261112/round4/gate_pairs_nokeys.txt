@@ -1,0 +1,17 @@
+[test_gate_pairs] GREEN: CM-JEV-BOOTSTRAP-IDEMPOTENT on genuine fixture state
+[test_gate_pairs] RED-PAIR OK: cm_jev_bootstrap_idempotent_mutation_test.sh asserts the mutation flip
+[test_gate_pairs] GREEN: CM-JEV-DETECTION on genuine fixture state
+[test_gate_pairs] RED-PAIR OK: cm_jev_detection_mutation_test.sh asserts the mutation flip
+[test_gate_pairs] GREEN: CM-JEV-TOKEN-REDUCTION on genuine fixture state
+[test_gate_pairs] RED-PAIR OK: cm_jev_token_reduction_mutation_test.sh asserts the mutation flip
+[test_gate_pairs] GREEN: CM-JEV-WIRING on genuine fixture state
+[test_gate_pairs] RED-PAIR OK: cm_jev_wiring_mutation_test.sh asserts the mutation flip
+[test_gate_pairs] NEG OK: CM-JEV-DETECTION gate is RED against absent/broken evidence
+[test_gate_pairs] NEG OK: CM-JEV-WIRING gate is RED against absent/broken evidence
+[test_gate_pairs] NEG OK: CM-JEV-TOKEN-REDUCTION gate is RED against absent/broken evidence
+[test_gate_pairs] NEG OK: CM-JEV-BOOTSTRAP-IDEMPOTENT gate is RED against absent/broken evidence
+[test_gate_pairs] GEN OK: covenant_propagation_wrappers_generate.sh --check rc 0 (no wrapper drift)
+[test_gate_pairs] NEG OK: removed 283 row is detected
+[test_gate_pairs] NEG OK: mis-bound 284 row is detected
+[test_gate_pairs] NEG OK: generator --check rejects a tampered wrapper
+[test_gate_pairs] PASS (4 pairs GREEN+RED, propagation data pack + wrappers consistent)

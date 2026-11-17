@@ -1,0 +1,7 @@
+ok 1 - P89 the starter was killed after llmctl start rc 0, before its record (the instrument)
+ok 2 - P89 the unit runs; the set carries the dead starter's mark
+ok 3 - P89 C reads again after its own reap cleared the mark, joins the running unit and starts nothing
+ok 4 - P89 the re-read is announced
+ok 5 - P89 the set is observed ok after the floor; the mark is cleared
+# zz_r7_p89_only.sh: pass=5 fail=0 skip=0
+rc=0 secs=7

@@ -45,7 +45,7 @@ keeps them, docs/qa/con227_234_2026_11_11/round13/README.md):
 
 Lint findings: an invocation with no row; a row whose invocation is gone; a value outside the closed
 vocabulary; a secret channel on any row but the two allowed ones; a line that names a secret variable
-(_rpg_tok, TOKEN_VAR, M3W_GITEA_TOKEN) that is neither an allowed secret row nor listed as a secret-ref row;
+(_rpg_tok, TOKEN_VAR, M3W_GITEA_TOKEN; since B-M2 also _tar_reads, gtv and ${!tv} of the tag script) that is neither an allowed secret row nor listed as a secret-ref row;
 a parse error.
 """
 import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
@@ -57,7 +57,7 @@ import re
 import sys
 from typing import Any
 
-SECRET = re.compile(r'_rpg_tok|TOKEN_VAR|M3W_GITEA_TOKEN')
+SECRET = re.compile(r'_rpg_tok|TOKEN_VAR|M3W_GITEA_TOKEN|_tar_reads|\bgtv\b|\$\{!tv')   # B-M2: the tag script's token variable of a gitea spec (gtv, ${!tv}, the READS prescan)
 COLS = ["script", "command", "key", "argv", "env", "stdin", "files", "bound", "note"]
 VOCAB = {
     "argv": {"fixed", "validated-data", "url-validated", "caller-path", "own-argv"},
@@ -237,13 +237,13 @@ LOCAL_OK = LOCAL_SIMPLE | LOCAL_PROG
 # (script, via, words from the program word on): the only interpreter calls a release script makes, matched against
 # the parsed words (round 13, R06/R07 of the round-12 review: round 12 matched a substring of the line)
 ALLOW_EXEC = {("tag_and_release.sh", "rc_net", ("bash", "scripts/badges/compute_badges.sh", "--check")),
-              ("tag_and_release.sh", "", ("bash", "scripts/release_publish_gitea.sh", '"$@"')),
+              ("tag_and_release.sh", "", ("bash", "scripts/release_publish_gitea.sh", "--token-var", '"$tv"', '"$@"')),   # B-M2
               ("redact_cut.sh", "exec", ('"$BASH"', '"$0"', '"$@"'))}
 # (script, function, raw words): the only commands that run a command named by an expansion or write a name read at
 # run time: rc_net's builtin exec "$@" (its own arguments) and its environment census; the lockdown's export -n;
 # rc_git_env's unset -v; _rc_env_closefds's eval "exec $n<&-" ($n matched ^[0-9]+$); _rc_env_restore's printf -v
 # and export (n matched ^[A-Za-z_][A-Za-z0-9_]{0,63}$ and not _rc_env_reserved); the publisher's unset of the token
-# variable (TOKEN_VAR matched ^[A-Z_][A-Z0-9_]*$)
+# variable (TOKEN_VAR matched ^[A-Z_][A-Z0-9_]*$); the tag script's pub export of the spec's token variable (B-M2)
 DYN_SITES = {("redact_cut.sh", "rc_net", ("builtin", "exec", '"$@"')),
              ("redact_cut.sh", "rc_net", ("builtin", "export", "-n", '"$_rc_v"')),
              ("redact_cut.sh", "rc_net", ("builtin", "export", "-n", "-f", '"$_rc_v"')),
@@ -253,7 +253,8 @@ DYN_SITES = {("redact_cut.sh", "rc_net", ("builtin", "exec", '"$@"')),
              ("redact_cut.sh", "_rc_env_closefds", ("eval", '"exec $n<&-"')),
              ("redact_cut.sh", "_rc_env_restore", ("printf", "-v", '"$n"', "'%s'", '"$val"')),
              ("redact_cut.sh", "_rc_env_restore", ("export", '"${n?}"')),
-             ("release_publish_gitea.sh", "", ("unset", "-v", '"$TOKEN_VAR"'))}
+             ("release_publish_gitea.sh", "", ("unset", "-v", '"$TOKEN_VAR"')),
+             ("tag_and_release.sh", "pub", ("export", '"${tv?}"'))}   # B-M2: the gitea spec's token variable (matched RE_GT's [A-Z][A-Z0-9_]{0,63})
 # (script, name): the names an indirect expansion ${!name} may read (each validated as a variable name before use)
 INDIRECT_OK = {("redact_cut.sh", "_rc_v"), ("redact_cut.sh", "v"), ("release_publish_gitea.sh", "TOKEN_VAR")}
 # (script, raw source word, the analysed script it loads): the only source commands (round 13, R22: round 12 accepted

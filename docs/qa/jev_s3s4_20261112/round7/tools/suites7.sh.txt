@@ -1,0 +1,20 @@
+#!/bin/bash
+# suites7.sh <W> <pass>: the round-6 suite set plus the round-7 suite and test_review_fixes_r2, hermetic (hrun.sh), from the
+# committed vehicle tree; writes <W>/out7/suite_<pass>/summary.tsv and a tree fingerprint before and after
+W="$1"; P="$2"; O="$W/out7/suite_$P"; mkdir -p "$O"; R="$W/repo"
+fp() { ( cd "$R" && git rev-parse HEAD && git status --porcelain --untracked-files=all | sha256sum ) | tr '\n' ' '; }
+echo "before $(fp)" > "$O/tree.txt"
+run() { local n="$1"; shift; local s rc=0; s=$(date +%s)
+  "$W/hrun.sh" "$R" "$O/g_$n.log" "$@" > "$O/$n.txt" 2>&1 || rc=$?
+  printf '%s\trc=%s\t%ss\tguard=%s\t%s\n' "$n" "$rc" "$(( $(date +%s)-s ))" "$( [ -s "$O/g_$n.log" ] && wc -l < "$O/g_$n.log" || echo 0)" "$(tail -1 "$O/$n.txt" | cut -c1-160)" >> "$O/summary.tsv"; }
+: > "$O/summary.tsv"
+run run_all bash tests/jev/run_all.sh
+run gate_pairs_nokeys bash tests/jev/test_gate_pairs.sh
+FK="$W/tmp/fake_keys_$P.sh"; printf 'export TYPESAFE_API_KEY=fake-typesafe-0000-not-a-key\nexport OPENROUTER_API_KEY=fake-openrouter-0000-not-a-key\n' > "$FK"; chmod 600 "$FK"
+( export HRUN_EXTRA_ENV="TYPESAFE_API_KEY=fake-typesafe-0000-not-a-key OPENROUTER_API_KEY=fake-openrouter-0000-not-a-key LLMCTL_API_KEY=fake-llmctl-0000-not-a-key JEV_API_KEYS_FILE=$FK"
+  run gate_pairs_fakekeys bash tests/jev/test_gate_pairs.sh )
+printf 'fake_key_values_in_output\t%s\n' "$(grep -c 'fake-typesafe-0000\|fake-openrouter-0000\|fake-llmctl-0000' "$O/gate_pairs_fakekeys.txt")" >> "$O/summary.tsv"
+for g in bootstrap_idempotent detection token_reduction wiring; do run "gate_${g}_mutation" bash "scripts/gates/cm_jev_${g}_mutation_test.sh"; done
+for t in test_s4_placement test_s4_round6 test_s4_round7 test_review_fixes_r2 test_jev_status_health test_tab_fields test_no_real_tools; do run "$t" bash "tests/jev/$t.sh"; done
+echo "after $(fp)" >> "$O/tree.txt"
+echo "SUITES_DONE $P" > "$O/done"

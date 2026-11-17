@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""RED probes of round-4 findings at unit level, run against an engine file given as argv[1].
+Each probe prints 'RED <id> ...' when the defect is present and 'GREEN <id> ...' when it is not.
+Fake secrets only."""
+import importlib.util, io, os, sys, contextlib
+
+eng = sys.argv[1]
+spec = importlib.util.spec_from_file_location("eng", eng)
+E = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(E)
+res = []
+
+
+def rep(cid, bad, detail):
+    res.append(("RED" if bad else "GREEN", cid, detail))
+
+
+SECRET = "S3cr3tPw"
+# F9a: a password holding '://'
+out = E.redact("https://user:pa://" + SECRET + "@example.org/r.git")
+rep("F9a-scheme-in-password", "user" in out or "pa" in out.split("example.org")[0][8:], out)
+# F9b: a configured URL whose password holds a newline (config values may hold one)
+VAL = "https://u:pa\n" + SECRET + "@example.org/r.git"
+out = E.redact(VAL)
+# free text with an UNREGISTERED secret split by a newline cannot be recognised structurally (the line holding
+# the scheme has no '@'); it is reported as a BOUNDARY, never as GREEN. The two paths the engine really uses are:
+if ":pa" in out or SECRET in out:
+    res.append(("BOUNDARY", "F9b-free-text-unregistered", repr(out)))
+else:
+    rep("F9b-free-text-unregistered", False, repr(out))
+# (1) the configured value itself, redacted as one value
+if hasattr(E, "redact_url"):
+    out = E.redact_url(VAL)
+    rep("F9b-configured-value", ":pa" in out or SECRET in out or "u:" in out, repr(out))
+else:
+    rep("F9b-configured-value", True, "no redact_url: the url field is redacted line by line")
+# (2) free text after the value was registered (git repeating the value in an error)
+if hasattr(E, "register_secret"):
+    E.register_secret(VAL)
+    out = E.redact("fatal: unable to access '" + VAL + "/': bad url")
+    rep("F9b-registered-free-text", SECRET in out, repr(out))
+    E._KNOWN.clear()
+else:
+    rep("F9b-registered-free-text", True, "no secret registry")
+# F9c: a long secret (r3 passes; X05 leaks)
+long = "Q" * 60 + "@x:y%40z" + "R" * 60
+out = E.redact("fatal: unable to access 'https://user:" + long + "@example.org/r.git/': 403")
+rep("F9c-long-secret", "Q" * 10 in out or "R" * 10 in out, out[:120])
+# F9d: argparse error echoes an unknown argument (a URL with a secret)
+buf = io.StringIO()
+with contextlib.redirect_stderr(buf):
+    try:
+        rc = E.main(["--check", "https://u:" + SECRET + "@example.org/x"])
+    except SystemExit as e:
+        rc = e.code
+rep("F9d-argparse-error", SECRET in buf.getvalue(), "rc=%s stderr=%r" % (rc, buf.getvalue()[-160:]))
+# F9e: report keys are not redacted
+hits = []
+outr = E.redact_report({"https://u:" + SECRET + "@h/x": 1}, "r", hits)
+rep("F9e-report-key", any(SECRET in k for k in outr), str(outr))
+# F7: tracing variables survive git_env
+env = E.git_env({"GIT_CURL_VERBOSE": "1", "GIT_TRACE2": "1", "GIT_TRACE2_EVENT": "/x", "GIT_TRACE_PERFORMANCE": "1",
+                 "PATH": "/usr/bin"})
+left = sorted(k for k in env if k.startswith("GIT_TRACE") or k == "GIT_CURL_VERBOSE")
+rep("F7-trace-env", bool(left), str(left))
+# F5: proc_kill_group with a pgid of 1 (patched getpgid / killpg; nothing is really signalled)
+calls = []
+real_getpgid, real_killpg = E.os.getpgid, E.os.killpg
+
+
+class P:
+    pid = 4242
+
+
+try:
+    for fake in (1, 0, -1, "7", True, 4243):
+        E.os.getpgid = lambda pid, v=fake: v
+        E.os.killpg = lambda pg, sig: calls.append(pg)
+        E.proc_kill_group(P())
+    bad = list(calls)
+    calls.clear()
+    E.os.getpgid = lambda pid: 4242
+    E.proc_kill_group(P())
+    good = list(calls)
+finally:
+    E.os.getpgid, E.os.killpg = real_getpgid, real_killpg
+rep("F5-behaviour", bool(bad) or good != [4242], "bad-pgid signals=%s own-pgid signals=%s" % (bad, good))
+for s, cid, d in res:
+    print(s, cid, d)

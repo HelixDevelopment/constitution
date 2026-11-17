@@ -1,0 +1,62 @@
+op	worktree	lock	rc	head_moved	status_after	lock_left	last_err
+ff	False	gitdir/index.lock	1	False	''	True	remove the file manually to continue.
+ff	False	gitdir/HEAD.lock	128	False	'M  f'	True	remove the file manually to continue.
+ff	False	gitdir/ORIG_HEAD.lock	128	False	''	True	remove the file manually to continue.
+ff	False	gitdir/AUTO_MERGE.lock	0	True	''	True	remove the file manually to continue.
+ff	False	common/packed-refs.lock	0	True	''	True	remove the file manually to continue.
+ff	False	common/refs/heads/{b}.lock	128	False	'M  f'	True	remove the file manually to continue.
+ff	False	common/objects/maintenance.lock	0	True	''	True	
+ff	False	common/config.lock	0	True	''	True	
+ff	False	common/shallow.lock	0	True	''	True	
+ff	False	common/refs/heads/other.lock	0	True	''	True	
+ff	False	common/HEAD.lock	128	False	'M  f'	True	remove the file manually to continue.
+ff	False	gitdir/MERGE_HEAD.lock	0	True	''	True	
+ff	False	gitdir/logs/HEAD.lock	0	True	''	True	
+ff	False	common/logs/refs/heads/{b}.lock	0	True	''	True	
+ff	True	gitdir/index.lock	1	False	''	True	remove the file manually to continue.
+ff	True	gitdir/HEAD.lock	128	False	'M  f'	True	remove the file manually to continue.
+ff	True	gitdir/ORIG_HEAD.lock	128	False	''	True	remove the file manually to continue.
+ff	True	gitdir/AUTO_MERGE.lock	0	True	''	True	remove the file manually to continue.
+ff	True	common/packed-refs.lock	0	True	''	True	remove the file manually to continue.
+ff	True	common/refs/heads/{b}.lock	128	False	'M  f'	True	remove the file manually to continue.
+ff	True	common/objects/maintenance.lock	0	True	''	True	
+ff	True	common/config.lock	0	True	''	True	
+ff	True	common/shallow.lock	0	True	''	True	
+ff	True	common/refs/heads/other.lock	0	True	''	True	
+ff	True	common/HEAD.lock	0	True	''	True	
+ff	True	gitdir/MERGE_HEAD.lock	0	True	''	True	
+ff	True	gitdir/logs/HEAD.lock	0	True	''	True	
+ff	True	common/logs/refs/heads/{b}.lock	0	True	''	True	
+detach	False	gitdir/index.lock	128	False	''	True	remove the file manually to continue.
+detach	False	gitdir/HEAD.lock	128	False	'M  f'	True	remove the file manually to continue.
+detach	False	gitdir/ORIG_HEAD.lock	0	True	''	True	
+detach	False	gitdir/AUTO_MERGE.lock	0	True	''	True	remove the file manually to continue.
+detach	False	common/packed-refs.lock	0	True	''	True	remove the file manually to continue.
+detach	False	common/refs/heads/{b}.lock	0	True	''	True	
+detach	False	common/objects/maintenance.lock	0	True	''	True	
+detach	False	common/config.lock	0	True	''	True	
+detach	False	common/shallow.lock	0	True	''	True	
+detach	False	common/refs/heads/other.lock	0	True	''	True	
+detach	False	common/HEAD.lock	128	False	'M  f'	True	remove the file manually to continue.
+detach	False	gitdir/MERGE_HEAD.lock	0	True	''	True	
+detach	False	gitdir/logs/HEAD.lock	0	True	''	True	
+detach	False	common/logs/refs/heads/{b}.lock	0	True	''	True	
+detach	True	gitdir/index.lock	128	False	''	True	remove the file manually to continue.
+detach	True	gitdir/HEAD.lock	128	False	'M  f'	True	remove the file manually to continue.
+detach	True	gitdir/ORIG_HEAD.lock	0	True	''	True	
+detach	True	gitdir/AUTO_MERGE.lock	0	True	''	True	remove the file manually to continue.
+detach	True	common/packed-refs.lock	0	True	''	True	remove the file manually to continue.
+detach	True	common/refs/heads/{b}.lock	0	True	''	True	
+detach	True	common/objects/maintenance.lock	0	True	''	True	
+detach	True	common/config.lock	0	True	''	True	
+detach	True	common/shallow.lock	0	True	''	True	
+detach	True	common/refs/heads/other.lock	0	True	''	True	
+detach	True	common/HEAD.lock	0	True	''	True	
+detach	True	gitdir/MERGE_HEAD.lock	0	True	''	True	
+detach	True	gitdir/logs/HEAD.lock	0	True	''	True	
+detach	True	common/logs/refs/heads/{b}.lock	0	True	''	True	
+add	False	gitdir/index.lock	128	-	staged=''	True	remove the file manually to continue.
+add	False	gitdir/HEAD.lock	0	-	staged='sub'	True	
+add	False	common/packed-refs.lock	0	-	staged='sub'	True	
+add	False	common/config.lock	0	-	staged='sub'	True	
+SANDBOX /mnt/DATA1TB/claude-work/tmp/glm.zu60vxty

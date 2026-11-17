@@ -1,0 +1,9 @@
+ok 1 - P75b B took its ticket; its capacity call waits
+ok 2 - P75b C's start of decide-a failed with the unit up; its record waits (paused at flock call 7)
+ok 3 - P75b B read its answer while C's unit was up (paused at flock call 3)
+ok 4 - P75b C cleaned up: rc 5, no unit left
+ok 5 - P75b CONTROL: the registry bytes are as B's ticket saw them, except the generation (1 -> 4)
+ok 6 - P75b B re-reads and STARTS decide-a; it never adopts the gone unit
+ok 7 - P75b decide-a runs
+# zz_r7_p75b_only.sh: pass=7 fail=0 skip=0
+rc=0 secs=22

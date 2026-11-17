@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""CON-443/CON-444 paired mutants. Usage: python3 -I mutants_con443.py <repo root> <out dir> [id ...]
+Each mutant: copy scripts/release, scripts/lib, tests/release into a fresh temp tree, apply ONE
+replacement (the old text must occur exactly once, else STALE), run the suites named for it with
+FAILFAST; rc != 0 => KILLED. Id CONTROL applies no change and must PASS (rc 0) on every suite."""
+import os, shutil, subprocess, sys, tempfile, time
+root, out = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2]); os.makedirs(out, exist_ok=True)
+only = set(sys.argv[3:])
+LIB = "scripts/release/lib/landing_drift_checks.sh"; LV = "scripts/release/land_vehicle.sh"; PR = "scripts/release/pr_landing_check.sh"
+LVT = "tests/release/test_land_vehicle.sh"; PRT = "tests/release/test_pr_landing_check.sh"
+BOTH = ("lv", "pr")
+M = [
+ ("CONTROL", None, None, None, BOTH),
+ ("L01-no-timeout(R01)", LIB, 'timeout "$DRIFT_TIMEOUT" bash "$root/$path"', 'bash "$root/$path"', ("lv",)),
+ ("L02-rc2-pass(R02)", LIB, 'if [ "$rc" -eq 0 ]; then res=PASS', 'if [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]; then res=PASS', BOTH),
+ ("L03-no-ref-moved(R03)", LIB, '    || { "$LDC_LOG" "landing candidate moved while the drift checks ran"; bad=1; }', '    || true', BOTH),
+ ("L04-log-discarded(R07)", LIB, '> "$evdir/drift_$name.log" 2>&1 9>&-', '> /dev/null 2>&1 9>&-', ("lv",)),
+ ("L05-run-not-in-root(R09)", LIB, '(cd "$root" && timeout', '(cd / && timeout', ("lv",)),
+ ("L06-return-0", LIB, '  [ "$bad" -eq 0 ]\n}', '  return 0\n}', BOTH),
+ ("L07-no-timeout-label", LIB, '    if [ "$rc" -eq 124 ]; then res=FAIL-timeout; fi\n', '', ("lv",)),
+ ("L08-required-head-only", LIB, 'if "$LDC_GIT" cat-file -e "$base:$path" 2>/dev/null || "$LDC_GIT"', 'if "$LDC_GIT"', BOTH),
+ ("L09-untracked-no", LIB, 'status --porcelain --untracked-files=all', 'status --porcelain --untracked-files=no', BOTH),
+ ("L10-badges-dropped", LIB, '  "badges|scripts/badges/compute_badges.sh|--check"\n', '', BOTH),
+ ("V01-lander-skips-drift", LV, '  drift_checks "$main_before" "$local_main" \\\n    || die 1', '  true \\\n    || die 1', ("lv",)),
+ ("V02-lander-ref-HEAD", LV, 'LDC_REF=refs/heads/main', 'LDC_REF=HEAD', ("lv",)),
+ ("V03-lander-missing-lib-ok", LV, '[ -f "$_lv_lib" ] || die 2 "drift-check library not found: $_lv_lib"', '[ -f "$_lv_lib" ] || true', ("lv",)),
+ ("V04-lander-always-merge", LV, '  if g merge-base --is-ancestor "$before" "$new_head"; then\n    g merge -q --ff-only', '  if false; then\n    g merge -q --ff-only', ("lv",)),
+ ("P01-pr-skips-checks", PR, 'if LDC_GIT=g LDC_LOG=log LDC_REF=HEAD ldc_run "$CL" "$base" "$cand" "$EVIDENCE_DIR"; then', 'if true; then', ("pr",)),
+ ("P02-pr-checks-head-not-candidate", PR, 'ldc_run "$CL" "$base" "$cand"', 'ldc_run "$CL" "$base" "$head"', ("pr",)),
+ ("P03-pr-conflict-passes", PR, '[ "$mt" -eq 1 ] && fail "merge conflict', '[ "$mt" -eq 1 ] && end PASS 0 "merge conflict', ("pr",)),
+ ("P04-pr-ff-only-ignored", PR, '[ "$FORM" != ff-only ] || fail', 'true || fail', ("pr",)),
+ ("P05-pr-checkout-head", PR, 'g checkout -q --detach "$cand"', 'g checkout -q --detach "$head"', ("pr",)),
+ ("P06-pr-merge-as-ff", PR, 'if [ "$form" = fast-forward ]; then\n  cand=$head', 'if true; then\n  cand=$head', ("pr",)),
+ ("P07-pr-bad-rev-pass", PR, '|| blind "--head does not resolve to a commit: $HEAD_REV"', '|| end PASS 0', ("pr",)),
+ ("P08-pr-missing-lib-ok", PR, '[ -f "$HERE/lib/landing_drift_checks.sh" ] || blind', '[ -f "$HERE/lib/landing_drift_checks.sh" ] || true', ("pr",)),
+]
+def suite_cmd(t, s):
+    if s == "lv": return ["bash", os.path.join(t, LVT)], {"LANDER_TEST_DRIFT_ONLY": "1", "LANDER_TEST_FAILFAST": "1"}
+    return ["bash", os.path.join(t, PRT)], {"PRLC_TEST_SKIP_LIVE": "1", "PRLC_TEST_FAILFAST": "1"}
+rows = []; stale = 0; ctrl_bad = 0
+for mid, f, old, new, suites in M:
+    if only and mid.split("(")[0] not in only and mid not in only: continue
+    t = tempfile.mkdtemp(prefix="m443_", dir=os.environ["TMPDIR"])
+    try:
+        for d in ("scripts/release", "scripts/lib", "tests/release"):
+            shutil.copytree(os.path.join(root, d), os.path.join(t, d), symlinks=True)
+        if f:
+            p = os.path.join(t, f); src = open(p).read()
+            if src.count(old) != 1:
+                rows.append((mid, f or "-", "-", "-", "STALE(%d)" % src.count(old))); stale += 1; continue
+            open(p, "w").write(src.replace(old, new))
+        verdict = "SURVIVED"; rcs = []
+        for s in suites:
+            cmd, extra = suite_cmd(t, s); e = dict(os.environ); e.update(extra)
+            t0 = time.time()
+            with open(os.path.join(out, "%s.%s.log" % (mid, s)), "w") as h:
+                rc = subprocess.run(cmd, stdout=h, stderr=subprocess.STDOUT, env=e, cwd=t, stdin=subprocess.DEVNULL, timeout=1500).returncode
+            rcs.append("%s:%d(%ds)" % (s, rc, time.time() - t0))
+            if rc != 0: verdict = "KILLED"
+        if mid == "CONTROL":
+            verdict = "CONTROL-PASS" if verdict == "SURVIVED" else "CONTROL-FAIL"
+            if verdict == "CONTROL-FAIL": ctrl_bad = 1
+        rows.append((mid, f or "-", ",".join(suites), " ".join(rcs), verdict))
+        print("\t".join(rows[-1]), flush=True)
+    finally:
+        shutil.rmtree(t)
+with open(os.path.join(out, "mutants.tsv"), "w") as h:
+    h.write("id\tfile\tsuites\trc\tverdict\n"); [h.write("\t".join(r) + "\n") for r in rows]
+sys.exit(3 if ctrl_bad else (2 if stale else 0))

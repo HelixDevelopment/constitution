@@ -1,0 +1,27 @@
+needles: OK (with_lock defined at [631]; do_stop record call found; fabricated name absent)
+line	function	entry	handling
+447	record_placement	with_lock	write_placement "$@" || rc=$?
+667	observe_read	with_lock	take_ticket_locked || return 4
+720	cmd_verdict	observe_read	; then with_lock finalize_locked 1 1 || log "verdict: the observation could not be recorded (lock rc $?)"
+720	cmd_verdict	with_lock	finalize_locked 1 1 || log "verdict: the observation could not be recorded (lock rc $?)"
+889	stop_turn	with_lock	arm_stop_locked "$p" "$kind" || arc=$?
+912	do_stop	with_lock	finish_stop_locked "$p" "$src" "$kind" || frc=$?
+1201	cmd_acquire	with_lock	gw_refuse_locked || rc=$?
+1211	cmd_acquire	observe_read	|| return 4
+1213	cmd_acquire	with_lock	plan_locked "$holder" "$pid" "$ttl" "$OBS_GEN" 0 || rc=$?
+1214	cmd_acquire	with_lock	plan_locked "$holder" "$pid" "$ttl" "" 1 || rc=$?; fi
+1250	cmd_acquire	observe_read	|| { mrc=4; break; }
+1256	cmd_acquire	with_lock	mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" "$prof" || mrc=$?
+1269	cmd_acquire	with_lock	mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" || mrc=$?
+1289	cmd_acquire	with_lock	finish_start_locked "$p" "$src" || frc=$?
+1352	cmd_acquire	observe_read	; then frc=0; with_lock finalize_locked 0 0 || frc=$?; [ "$frc" = 0 ] || log "the observation after the start 
+1352	cmd_acquire	with_lock	finalize_locked 0 0 || frc=$?; [ "$frc" = 0 ] || log "the observation after the start could not be recorded (l
+1421	(top level)	observe_read	|| { log "heartbeat: lease lock timeout (the heartbeat is not recorded)"; exit 4; }
+1422	(top level)	with_lock	hb_locked "$holder" || rc=$?
+1428	(top level)	observe_read	|| { log "release: lock timeout (rc 4)"; exit 4; }
+1429	(top level)	with_lock	release_locked "$holder")" || rc=$?
+1440	(top level)	observe_read	|| { log "reap: lock timeout (rc 4)"; exit 4; }
+1441	(top level)	with_lock	finalize_locked 1 1 ;;
+1443	(top level)	observe_read	; then with_lock finalize_locked 1 1 || log "status: the observation could not be recorded (lock rc $?)"
+1443	(top level)	with_lock	finalize_locked 1 1 || log "status: the observation could not be recorded (lock rc $?)"
+sites: 24

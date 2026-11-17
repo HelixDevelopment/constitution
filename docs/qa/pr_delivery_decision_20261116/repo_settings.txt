@@ -1,0 +1,4 @@
+# command: gh api repos/HelixDevelopment/HelixConstitution --jq {full_name,default_branch,allow_merge_commit,allow_squash_merge,allow_rebase_merge,delete_branch_on_merge,allow_auto_merge,owner_type:.owner.type,permissions}
+# time: 2026-11-16T13:10:28Z
+{"allow_auto_merge":null,"allow_merge_commit":null,"allow_rebase_merge":null,"allow_squash_merge":null,"default_branch":"main","delete_branch_on_merge":null,"full_name":"HelixDevelopment/constitution","owner_type":"Organization","permissions":{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}}
+# exit: 0

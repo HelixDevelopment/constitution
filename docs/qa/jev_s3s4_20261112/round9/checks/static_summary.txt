@@ -1,0 +1,7 @@
+cm_constitution_index_fresh rc=0
+cm_covenant_114_282_propagation rc=0
+cm_covenant_114_291_propagation rc=0
+cm_gate_ledger_ratchet rc=0
+verify-manifest rc=0 (MANIFEST-OK, total=916)
+shellcheck: 0 warnings/errors in 5 shell files (shellcheck_warning_counts.txt)
+mark_census.py: py_compile ok

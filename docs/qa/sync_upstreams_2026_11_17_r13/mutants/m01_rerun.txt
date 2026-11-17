@@ -1,0 +1,4 @@
+M01  KILLED     by unit            9.9s  +refspec allowed
+M02  KILLED     by unit            9.9s  transport helper :: allowed
+sync-mutations (all): mutants 2 killed 2 equivalent 0 survived 0 harness-errors 0
+mut rc=0

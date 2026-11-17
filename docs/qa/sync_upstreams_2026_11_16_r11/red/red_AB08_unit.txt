@@ -1,0 +1,40 @@
+AB08 applied; unit RoundEleven rc=1
+pper name='/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/../../scripts/lib/constitution_layout.sh' mode='r' encoding='utf-8'>
+  line = [x for x in open(lib, encoding="utf-8") if x.startswith("CL_GIT_SCRUB_VARS=")]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+..F..
+======================================================================
+FAIL: test_read_branch_reads_the_full_ref (__main__.RoundEleven.test_read_branch_reads_the_full_ref)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 1883, in test_read_branch_reads_the_full_ref
+    self.assertEqual(E.read_branch(r, "/r"), want, out)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('other', None) != ('unknown', None)
+
+First differing element 0:
+'other'
+'unknown'
+
+- ('other', None)
++ ('unknown', None) : refs/tags/x
+refs/heads/main
+
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.063s
+
+FAILED (failures=1)
+
+Traceback (most recent call last):
+  File "<stdin>", line 8, in <module>
+OSError: [Errno 39] Directory not empty: '/mnt/DATA1TB/claude-work/tmp/tmpr0_3mk89'

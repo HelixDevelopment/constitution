@@ -1,0 +1,104 @@
+ok control needle: a brand-new empty repo reports clean via this test's own git status call
+ok control needle: a known-present untracked file IS detected by this test's own git status call
+ok control needle: a fabricated file is correctly NOT reported present
+ok verify/repo_verify.py exists -- T158 has landed; the real fixture-driven checks below run
+ok rv_good_clean: exit 0, overall CLEAN (parent + 2 submodules, 2 remotes each, all pushed)
+ok rv_good_clean: report lists main + both submodules, path-sorted
+ok rv_bad_dirty_submodule: exit 1, overall NOT_CLEAN, subB DIRTY_TREE naming f.txt
+ok rv_bad_dirty_submodule: parent also NOT_CLEAN (RV-002 --ignore-submodules=none reports the modified gitlink)
+ok rv_bad_lagging_remote: exit 1, REMOTE_TIP_DIFFERS on remoteB, both real SHAs, unpushed=1
+ok rv_bad_rejected_push: exit 1, NOT_CLEAN with REMOTE_REJECTED_LAST_PUSH even though tips are equal (RV-005)
+ok rv_bad_uninit_submodule: exit 1, subA SUBMODULE_UNINITIALISED
+ok rv_bad_unfetchable_pointer: exit 1, subB reasons include POINTER_UNFETCHABLE (['POINTER_UNFETCHABLE', 'REMOTE_TIP_DIFFERS'])
+ok rv_blind_remote: exit 4, overall UNVERIFIED (never CLEAN)
+ok rv_blind_remote: report body carries BLIND:true (C-001 code-4 convention)
+ok rv_negctrl_ignored_file: a gitignored file does NOT make the tree read dirty (exit 0, CLEAN)
+ok rv_determinism: two independent runs on the same clean state produce an identical body_hash
+ok rv_determinism: the tool's own --determinism-check flag exits 0 on the clean fixture
+ok rv_no_mutation: refs/status/objects byte-identical before and after (RV-009 read-only, no leftover temp refs)
+ok rv_bad_untracked: exit 1, overall NOT_CLEAN, parent UNTRACKED_FILES naming stray_untracked.txt (finding #7: no prior fixture covered this reason directly)
+ok rv_bad_remote_ahead: fixture control check -- the remote's new commit object is genuinely absent from repo's own object store before the run
+ok rv_bad_remote_ahead: exit 1, overall NOT_CLEAN, REMOTE_AHEAD with the real remote SHA (no prior fixture ever produced this reason -- finding #7a's gap)
+ok rv_no_mutation_remote_ahead (finding #6): refs/count-objects/whole-gitdir-tree-hash byte-identical even though a REAL never-locally-present object had to be fetched to compute REMOTE_AHEAD -- confirms the GIT_OBJECT_DIRECTORY scratch redirect, --no-write-fetch-head and GIT_OPTIONAL_LOCKS=0 fix actually holds under the one scenario that can force a genuine object transfer (the pre-existing rv_no_mutation fixture could never observe this: every object there was already local)
+ok rv_bad_detached_pointer_drift: exit 1, overall NOT_CLEAN, subA DETACHED_POINTER_DRIFT alone (pushed, so not also POINTER_UNFETCHABLE/REMOTE_TIP_DIFFERS) -- no prior fixture ever exercised this reason (finding #7b's gap)
+ok rv_bad_unreachable_submodule_remote: exit 4, overall UNVERIFIED, subA UNVERIFIED/REMOTE_UNREACHABLE (subB unaffected, still CLEAN) -- NEVER POINTER_UNFETCHABLE/NOT_CLEAN on an unreached remote (finding #1 BLOCKING fix)
+ok rv_bad_push_url_lagging: exit 1 NOT_CLEAN -- the fetch URL alone reads equal (True) but the real PUSH destination (origin:push) lags and is caught (['REMOTE_TIP_DIFFERS']) -- finding #3 fix
+ok rv_bad_zero_remotes: exit 1, overall NOT_CLEAN, UNPUSHED_COMMITS -- a repo with remotes:[] no longer reads vacuously CLEAN (finding #4 fix)
+ok rv_remotes_config: --remotes-config declaring a required remote ('upstream') that is configured NOWHERE in the clean fixture now correctly fails NOT_CLEAN/UNPUSHED_COMMITS (finding #5: the flag was previously accepted and silently discarded)
+ok rv_remotes_config: --remotes-config declaring a required remote ('origin') that IS present on every repo in the clean fixture still reads CLEAN -- the config does not over-trigger (11.4.201(1) false-positive guard)
+ok rv_submodule_name_with_space: a submodule declared with a SPACE in its config NAME ('my sub', path 'subdir') parses correctly and is walked + reported CLEAN (finding #8: the old --get-regexp split(' ',1) parsing would have corrupted the path and left the real submodule un-walked)
+ok rv_submodule_relative_remote_url: control check -- plain 'git ls-remote origin' from the submodule's own directory resolves the relative url fine
+ok rv_submodule_relative_remote_url: a submodule remote configured with a RELATIVE url reads CLEAN, no POINTER_UNFETCHABLE (finding #9: the pointer-fetch probe previously ran with cwd=None, resolving the relative url against the wrong directory)
+ok redact_url: no credential fragment leaks for either reviewer-reported embedded-'/'-or-second-'@' URL, and a GitLab subgroup path is no longer truncated to its last two segments (MINOR credential-handling fix confirmed, 11.4.10)
+ok rv_nonutf8_filename: a filename with an invalid UTF-8 byte no longer raises a raw UnicodeDecodeError inside _run() (the fix holds at that layer)
+ok rv_nonutf8_filename: HONEST GAP pinned, not claimed fully resolved -- the tool still cannot WRITE a report for this fixture (rc=2, 'body not encodable as UTF-8') because the SHARED lib/fc_common.py JSON-encode path is UTF-8-strict; an improvement over the pre-fix opaque rc=4 crash, not a full fix, and fixing the shared library is out of this task's scope
+ok rv_perf_pointer_probe: the depth/filter-limited pointer-fetch probe flags (finding #2 fix) are present in the real fetch argument list
+ok rv_perf_pointer_probe: a real multi-submodule tree verifies well within the <S> default timeout (elapsed=<S>) -- no regression to the unbounded-fetch behaviour that made CLEAN structurally unreachable before the fix
+ok rv_perf_pointer_probe: no RV-009 temp-ref sweep-survivor WARNING on stderr (the re-verified for-each-ref sweep found nothing left behind, MINOR fix confirmed)
+ok paired mutation CAUGHT: the SAME rv_blind_remote fixture, run through the mutated
+ok paired mutation CAUGHT (finding #7a): mapping REMOTE_AHEAD -> None makes the SAME rv_bad_remote_ahead fixture wrongly report CLEAN -- confirms rv_bad_remote_ahead and the REMOTE_AHEAD branch are both genuinely load-bearing
+ok paired mutation CAUGHT (T-G06): ignoring remote tips entirely makes the SAME rv_bad_lagging_remote fixture wrongly report CLEAN -- confirms the plan's own specified mutation is load-bearing
+ok paired mutation CAUGHT (finding #7b): forcing the pointer-matches comparison to always True makes subA on the SAME rv_bad_detached_pointer_drift fixture wrongly report CLEAN/[] -- confirms this fixture and the comparison are both genuinely load-bearing
+ok self_check control (finding #7c, step 1/2): with worktree_status() broken but self_check() INTACT, the tool's OWN control needle catches the break at rc=3 before producing any report -- self_check() genuinely works when present
+ok paired mutation CAUGHT (finding #7c): gutting self_check() lets the SAME broken worktree_status() escape undetected (no rc=3) and the genuinely-dirty rv_bad_untracked fixture wrongly reports CLEAN -- confirms self_check()'s control needle is genuinely load-bearing, not a decorative check
+ok rv_bad_pointer_probe_timeout (B1 repro a): a probe-specific timeout (rc=None) on an otherwise-reachable remote maps to UNVERIFIED/REMOTE_UNREACHABLE, exit 4 -- NEVER POINTER_UNFETCHABLE/NOT_CLEAN (elapsed=<S>, bounded by the <S> --timeout-per-remote)
+ok rv_bad_pointer_probe_config_not_inherited: control check -- plain 'git ls-remote origin' from the submodule's own directory resolves via its repo-local core.sshCommand with NO ambient GIT_SSH_COMMAND set
+ok rv_bad_pointer_probe_config_not_inherited (B1 repro b, CA-026-updated): post-CA026-fix, the ordinary fetch-URL check no longer inherits the submodule's repo-local core.sshCommand either (equal=False) -- BOTH it and the pointer-probe's own config-naive scratch repo now fail to resolve the SAME url the SAME config-driven way -- maps to UNVERIFIED/REMOTE_UNREACHABLE, exit 4 -- NEVER POINTER_UNFETCHABLE/NOT_CLEAN, and NEVER a silently-inherited-untrusted-config 'equal: True' either
+ok rv_ca026_sshcommand_rce (fixed tool, CA-026): a PLAIN, fully-materialised repo with nothing but an untrusted core.sshCommand remote reports honestly UNVERIFIED/REMOTE_UNREACHABLE (exit 4) WITHOUT ever firing the attacker's command -- independent re-confirmation of the disclosed finding, now CLOSED
+ok paired mutation CAUGHT (CA-026): reverting _remote_head_tip's first ls-remote call to drop --git-dir isolation makes the SAME fixture fire the attacker's core.sshCommand again (marker present) -- confirms the fixture and the isolation fix are both genuinely load-bearing
+ok rv_ca026_optioninjection_rce: control check -- the dash-leading remote URL reads back verbatim via 'git remote get-url', confirming the fixture is genuinely reachable through this tool's own _remote_url() config read
+ok rv_ca026_optioninjection_rce (fixed tool, CA-026 round 2): a dash-leading '--upload-pack=' remote URL reports honestly UNVERIFIED/REMOTE_UNREACHABLE (exit 4) WITHOUT ever firing the attacker's command -- closes reviewer finding BLOCKING-1
+ok paired mutation CAUGHT (CA-026 round 2, BLOCKING-1): dropping ONLY the '--' end-of-options marker (keeping --git-dir isolation) makes the SAME fixture fire the attacker's upload-pack command again (marker present) -- confirms the fixture and the '--' fix are BOTH genuinely load-bearing, independently of the --git-dir isolation fix
+ok rv_i1_proof: fixture control check -- the remote's new commit object is genuinely absent from repo's own object store before either run below
+ok rv_i1_proof (pre-fix repro, mutant): the OLD colon-refspec form left a REAL, permanently dangling ref (refs/fastcycle_verify_mutant_i1/origin) in the repository -- 'git cat-file -e' on it fails exactly as the review's own reproduced consequence describes ('fatal: missing object ... for refs/fastcycle_verify/...')
+ok rv_i1_proof (fixed tool, normal run): the real tool still correctly reports NOT_CLEAN/REMOTE_AHEAD for the genuine new-object-transfer fixture, AND refs are byte-identical before/after -- no ref of any kind was ever created
+ok rv_i1_proof (fixed tool, real SIGTERM mid-run): the SIGTERM handler converts the signal to exit 4 ('terminated by SIGTERM') and the submodule's refs + object counts are byte-identical before/after -- the real repo is provably untouched by an abrupt mid-flight interrupt, not merely 'cleaned up better'
+ok rv_i2n_submodule_fetch_redirect: fixture control check -- the parent's remote tip genuinely records the new submodule sha as its 'sub' gitlink (the bump commit actually landed)
+ok rv_i2n_submodule_fetch_redirect: fixture control check -- the new submodule commit is genuinely absent from the fixture's own local submodule object store before either run below
+ok rv_i2n_submodule_fetch_redirect (fixed tool, I-N2): the submodule's REAL git-dir (refs + whole-git-dir-tree-hash) is byte-identical before/after a parent-level fetch that reaches a gitlink-moving commit -- the on-demand recursive submodule fetch never wrote into the submodule's own repository (--recurse-submodules=no fix confirmed)
+ok paired mutation CAUGHT (I-N2, CA-026-updated): dropping BOTH the --git-dir isolation AND --recurse-submodules=no together lets git's default on-demand recursion write into the submodule's REAL git-dir (refs and/or whole-tree-hash changed) on the SAME rv_i2n_submodule_fetch_redirect fixture -- confirms the fixture and the combined fix are both genuinely load-bearing
+ok rv_i3n_reftx_proof: fixture control check -- the remote's new commit object is genuinely absent from repo's own object store before either run below
+ok rv_i3n_reftx_proof: observer control needle -- GIT_TRACE_REFS records both members of a real create+delete (with hooks disabled), so a zero count below is evidence, not blindness
+ok rv_i3n_reftx_proof (fixed tool, I-N3): the real tool correctly reports rc=1/NOT_CLEAN/REMOTE_AHEAD for this genuine new-object-transfer fixture (matching rv_i1_proof's own fixture semantics), AND GIT_TRACE_REFS (non-empty, so it genuinely ran) recorded ZERO ref-transaction members -- a BEHAVIOURAL guarantee (not a source-text match) that no ref of any kind, including a create-then-immediately-delete, was ever written; and the installed reference-transaction hook never fired (R17: hooks disabled inside the verifier)
+ok paired mutation CAUGHT (I-N3): GIT_TRACE_REFS recorded 2 real ref-transaction member(s) when the OLD colon-refspec fetch-then-delete pattern is restored -- caught at the BEHAVIOUR level (both the create and the delete are traced, hooks disabled or not), proving round 2's I1 regression guard is no longer enforced ONLY by a source-text anchor match
+ok redact_url (I-N1): round 2's own query-string-stripping fix no longer re-leaks credential text embedded in userinfo before a decoy '?'/'#', for all 4 of round 3's repro URLs plus the residual query-embedded-'@' edge case (T158 remediation round 3 fix confirmed, 11.4.10)
+ok rv_i2_malformed_config: truncated JSON ('{"required_remotes": ["upstream"') exits 2 naming the JSON parse failure, never silently "no requirement" (was exit 0/CLEAN pre-fix)
+ok rv_i2_malformed_config: wrong type ('required_remotes' as a string, not a list) exits 2 naming the type mismatch
+ok rv_i2_malformed_config: typo'd key ('required_remote', missing the trailing 's') exits 2 naming the unrecognised key, never silently treated as an absent 'required_remotes'
+ok rv_i2_malformed_config: top-level JSON list instead of an object exits 2 naming the shape mismatch
+ok rv_i2_malformed_config: a deliberately empty '{}' document is a VALID 'no requirement' declaration and is NOT refused (exit 0/CLEAN) -- the 11.4.201(1) false-positive guard on I2's own fix
+ok rv_bad_push_url_unreachable (I3, m2 fixture): a push URL pointing at a destination that was never even created is correctly flagged UNVERIFIED/REMOTE_UNREACHABLE via the SAME origin:push entry -- exit 4
+ok paired mutation CAUGHT (I3, m2): no-op'ing the push-URL unreachable flag makes the SAME rv_bad_push_url_unreachable fixture wrongly report CLEAN -- confirms the check is genuinely load-bearing (was previously unvalidated)
+ok rv_bad_push_url_multi_lagging (I3, m6 fixture): BOTH of two configured pushurls are checked (2 distinct origin:push entries) and the lagging SECOND one is caught -- exit 1 NOT_CLEAN
+ok paired mutation CAUGHT (I3, m6): skipping the push-URL check whenever a remote has more than one pushurl makes the SAME rv_bad_push_url_multi_lagging fixture wrongly report CLEAN -- confirms the multi-pushurl path is genuinely load-bearing (was previously unvalidated)
+ok redact_url: query-string ('?token=...') and fragment ('#...') credential material no longer leaks (T158 remediation round 2 MINOR fix confirmed, 11.4.10)
+ok redact_url (I4-1/I4-2, round 4): all 5 reviewer leak-table URLs (incl. the NEW scp-form row) and the creds-plus-'@'-in-query shape fail closed to the placeholder; positive controls still render a real host; 20000-URL seeded property test + 10000-URL multi-marker phase (I5-3) find ZERO credential/secret bytes in any output (11.4.10)
+ok paired mutation CAUGHT (I4-1): restoring round 3's '/'-before-'?'/'#' heuristic makes the round-4 checker FAIL (leak table and/or property test) -- confirms the fail-closed branch is load-bearing
+ok paired mutation CAUGHT (I4-2): an unconditional 'return pre' in the ambiguous branch leaks 'u:pw@...' and the I4-2 fixture catches it -- the creds-plus-'@'-in-query shape is now pinned
+ok paired mutation CAUGHT (I4-1b): removing the ambiguity check entirely (always render the text after the last '@') leaks query-secret bytes and the property test catches it
+ok rv_i43_stale_stat (I4-3): with stale-stat tracked files at top level AND in subA, the real tool reports CLEAN (rc=0) and leaves BOTH .git/index files byte-identical
+ok paired mutation CAUGHT (I4-3): dropping GIT_OPTIONAL_LOCKS=0 rewrites BOTH the parent's and subA's .git/index on the SAME stale-stat fixture -- confirms the env var is genuinely load-bearing at both levels
+ok paired mutation CAUGHT (I5-3): the find->rfind swap in _authority_tail fails BOTH new table rows AND the new multi-marker property phase -- the blind spot the round-5 reviewer found is now closed by two independent oracles
+ok I5-3 control: the ORIGINAL 20000-URL phase alone still reports 0 leaks on the find->rfind mutant (reproduces the reviewer's blind-spot claim -- proving the NEW phase, not the old one, is what catches it)
+ok rv_i51_push_log (I5-1): a credentialed git-stderr message, a key=value secret and a non-string message all render a FIXED category (never raw text), still NOT_CLEAN/REMOTE_REJECTED_LAST_PUSH, and the token appears in NONE of json/md/stdout/stderr (control needle: the same grep sees it in the push log itself)
+ok paired mutation CAUGHT (I5-1): removing _sanitize_push_message leaks the token into the report on the SAME fixture -- the sanitization is genuinely load-bearing
+ok rv_i52_unmapped_A (I5-2): a gitlink in the HEAD tree with no .gitmodules entry (vendor/lib) is reported NOT_CLEAN/SUBMODULE_UNMAPPED with its recorded sha (rc=1) while every mapped repo stays CLEAN -- no more false CLEAN
+ok rv_i52_unmapped_B (I5-2): a gitlink in the HEAD tree with no .gitmodules entry (nested) is reported NOT_CLEAN/SUBMODULE_UNMAPPED with its recorded sha (rc=1) while every mapped repo stays CLEAN -- no more false CLEAN
+ok paired mutation CAUGHT (I5-2): removing the unmapped-gitlink check flips the SAME fixture back to the reviewer's false rc=0 CLEAN -- the check is genuinely load-bearing
+ok rv_r5_inherited_env: with GIT_DIR (pointing at --root itself, or at an UNRELATED repo) or GIT_INDEX_FILE inherited, the tool verifies --root exactly as without them (rc=0, identical body_hash) and leaves BOTH repositories' .git byte-identical
+ok paired mutation CAUGHT (round-5 env strip + CON-402 file-level scrub): with BOTH layers removed an inherited GIT_DIR makes the tool WRITE into that (unrelated) repository's .git -- the fixture exercises the vector
+ok layer check (CON-402 file-level scrub alone): the _run() strip removed, the scrub kept -> no write into the inherited GIT_DIR repo
+ok layer check (round-5 _run() strip alone): the file-level scrub removed, the strip kept -> no write into the inherited GIT_DIR repo
+ok layer-check polarity control: the both-layers-removed mutant, measured AFTER the layer checks on a fresh repository, still writes -- the layer checks' measurement can fail (no state carried between runs)
+ok rv_i61_noncanonical_slash (I6-1): a .gitmodules path declared with a non-canonical form (variant=slash) no longer silently matches the tree gitlink -- reported NOT_CLEAN/SUBMODULE_UNMAPPED, matching real git's own 'no submodule mapping found' behaviour
+ok rv_i61_noncanonical_dot (I6-1): a .gitmodules path declared with a non-canonical form (variant=dot) no longer silently matches the tree gitlink -- reported NOT_CLEAN/SUBMODULE_UNMAPPED, matching real git's own 'no submodule mapping found' behaviour
+ok paired mutation CAUGHT (I6-1): restoring the normalized comparison flips the SAME non-canonical-path fixture back to a false rc=0 CLEAN -- the exact-string comparison is genuinely load-bearing
+ok rv_i62_push_log_oneline (I6-2): a single-line credentialed-URL push-rejection message (the shape a 'last stderr line' wrapper would most plausibly produce) also renders a fixed category, token in none of json/md/stdout/stderr
+ok paired mutation CAUGHT (I6-2): widening the push-message allow-list to admit URL characters leaks the token on the SAME single-line fixture -- the strict allow-list is genuinely load-bearing for this shape too
+ok rv_r23_control (R22-B2 needle): WITHOUT --neutralize-repo-filters, all three submodule clean drivers (local, include.path, --worktree) fire during this tool's own recursive status reads -- the fixture genuinely exercises the vector
+ok rv_r23_neutralized (R22-B1/B2): WITH --neutralize-repo-filters, none of the three hostile clean drivers runs and the verdict is still rc=0/CLEAN
+ok rv_r23_fail_closed: unreadable included config makes discovery fail -> BLIND rc=4, nothing executed
+ok paired mutation CAUGHT (mutant_r23_local): discovery narrowed back to `git config --local` (the Round 22 shape) -- include.path -- [INCLUDECLEAN WORKTREECLEAN ] fires again
+ok paired mutation CAUGHT (mutant_r23_local_wt): discovery narrowed back to `git config --local` -- --worktree -- [INCLUDECLEAN WORKTREECLEAN ] fires again
+ok paired mutation CAUGHT (mutant_r23_no_clean): `clean` dropped from the discovered driver variables (the reviewer's R22-I1 mutation) -- [INCLUDECLEAN LOCALCLEAN WORKTREECLEAN ] fires again
+ok paired mutation CAUGHT (mutant_r23_no_inject): overrides discovered but never injected after the env strip -- [INCLUDECLEAN LOCALCLEAN WORKTREECLEAN ] fires again

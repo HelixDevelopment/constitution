@@ -1,0 +1,40 @@
+M32  KILLED     by unit           49.1s  timeout does not kill the process group
+M58  KILLED     by chaos         146.8s  N3: a held lock exits 2 (= usage)
+M73  KILLED     by robustness:blind_failed   11.7s  I-1: a failure judged on a no-answer reads as FAILED, not BLIND
+M37b KILLED     by hardening     139.6s  follow after a parent that did not move in this run
+M70  KILLED     by hardening     193.9s  n-3: any existing --out file is overwritten
+RR01 KILLED     by robustness:switch_at_merge   14.9s  post-write verify ignores the branch (ff lands on another branch unnoticed)
+RR10 KILLED     by hardening     171.1s  step 3 compares only the parent HEAD tree, not the index (a staged gitlink is overwritten)
+RR12 KILLED     by unit            8.7s  the FIRST stop signal already hard-stops (final head reads refused)
+RR14 KILLED     by robustness:sigterm_pin   18.1s  the parent 'add' of an advance-pin is not final (a stop between checkout and add leaves half a write)
+RR16 KILLED     by robustness    249.9s  evidence dir resolved with abspath (a symlink into the tree is not followed)
+RR17 KILLED     by unit            8.5s  redaction cuts to the FIRST '@' (password holding '@' leaks its tail)
+RR21 KILLED     by robustness:sigterm_pin,sigterm_write   23.8s  post-write verify reads are not final (a stop during the write leaves the result unverified)
+RR27 KILLED     by robustness    248.2s  level-2 (final) calls are killed by the FIRST stop
+RR29 KILLED     by robustness:marker_inspect   18.8s  step 1 ignores in-progress markers that appear after inspection
+RR35 KILLED     by robustness:lock_overlap  612.9s  per-repository lock is a blocking flock (an overlapping run waits instead of exit 7)
+RR36 KILLED     by robustness:wrote_then_other   18.0s  head-changed-during-run only when this run wrote nothing (wrote X, other moved to Y unreported)
+RR37 KILLED     by robustness:wrote_then_other,race_other   27.3s  head-changed-during-run is not blocking (a foreign move can read as 'updated')
+RR38 KILLED     by robustness:lock_open   17.5s  a per-repository lock that cannot be opened is skipped (run proceeds unlocked)
+RR39 KILLED     by unit           16.9s  after a SECOND signal final reads still run
+RR40 KILLED     by unit            8.6s  integrate does not stop starting writes after a stop (defence in depth; Runner refuses anyway)
+Q01  KILLED     by unit            8.4s  RV5-1: a write's limit is capped by the run deadline
+Q02  KILLED     by unit            7.9s  RV5-1: a write is ended by SIGKILL at once (no SIGTERM first)
+Q03  KILLED     by unit            9.0s  RV5-1: no grace between SIGTERM and SIGKILL
+Q04  KILLED     by unit            9.5s  RV5-1: no write-in-progress marker before a write
+Q05  KILLED     by unit           11.2s  RV5-1: the marker is not cleared when the write answered
+Q06  SURVIVED   by -              16.8s  RV5-1: an earlier run's marker is ignored at inspection
+Q07  KILLED     by unit            8.3s  RV5-1: leftovers of an interrupted write read as the user's dirty tree
+Q08  KILLED     by robustness:write_kill,write_timeout   26.6s  RV5-1: a write-killed write is not FAILED
+Q09  SURVIVED   by -              16.0s  RV5-1: a marker over a clean tree is never cleared in --apply
+Q10  KILLED     by robustness:staged_root   22.4s  RV5-3: a staged gitlink the target would change is overwritten
+Q11  KILLED     by robustness:lock_open   19.7s  RV5-2: a run lock that cannot be opened reads as 'another run' (exit 7)
+Q12  KILLED     by unit(timeout)  600.2s  RV5-5: Ctrl-C at the prompt waits for Enter
+Q13  KILLED     by robustness:update_none   23.2s  RV5-7: a submodule with update=none/merge/rebase/!cmd is checked out anyway
+Q14  KILLED     by robustness:interrupted_labels   13.3s  RV5-6: a fetch refused by a stop is labelled no-answer
+Q15  KILLED     by unit            8.4s  RV5-1: final reads are refused after the deadline (the write's second half cannot run)
+Q16  KILLED     by unit            8.3s  RV5-1: a write ended by its own limit is recorded as an unknown state
+Q17  SURVIVED   by -              22.5s  RV5-1: a write gets the short read grace before SIGKILL
+sync-mutations (all): mutants 37 killed 34 equivalent 0 survived 3 harness-errors 0
+survivors: Q06,Q09,Q17
+rc=1

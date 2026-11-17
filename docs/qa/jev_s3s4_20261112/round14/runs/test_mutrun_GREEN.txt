@@ -1,0 +1,8 @@
+ok   failline: MUT M_failline KILLED-by s fails=1
+ok   rc1: MUT M_rc1 KILLED-by s rc=1 (no FAIL line)
+ok   rc0: MUT M_rc0 SURVIVED tests/x/s.sh
+ok   rc124: MUT M_rc124 NO-RESULT s (timeout rc=124, no FAIL line: the run was cut by the clock and decided nothing)
+ok   rc137: MUT M_rc137 NO-RESULT s (timeout rc=137, no FAIL line: the run was cut by the clock and decided nothing)
+ok   t124fail: MUT M_t124fail KILLED-by s fails=1
+passes=6 fails=0
+rc=0

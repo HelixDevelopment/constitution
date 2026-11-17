@@ -1,0 +1,177 @@
+# git show --stat 9ea91d3d (merge of main 09d3ad2f into the vehicle)
+commit 9ea91d3db986ff61627cc5e2f89f140a4c79a89b
+parents afebfbd3112ac27249ca34cb80b322936b71b635 09d3ad2f557da054895b7d78e06f66ebbab26500
+author Милош Васић <i@mvasic.ru>
+date Mon Nov 16 09:15:44 2026 +0100
+
+merge: integrate main (09d3ad2f) into the sync-all-upstreams vehicle (round 11)
+
+One conflict: the census line of docs/guides/full_suite_runner_guide.md,
+regenerated with scripts/run_full_suite.sh --sync-guide (total 961);
+--verify-manifest MANIFEST-OK. Every other file merged cleanly.
+
+Roadmap-Item: CON-PENDING-sync-r8
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+ config/forge/hosts.tsv                             |  12 +
+ config/full_suite_excluded.lock                    |   2 +
+ config/full_suite_manifest.tsv                     |  10 +
+ config/git_env_class_exemptions.tsv                |  11 +
+ docs/Issues.md                                     | 101 ++-
+ docs/Issues_Summary.md                             |  22 +-
+ docs/faq/forge_tool_faq.md                         |  82 ++
+ docs/guides/full_suite_runner_guide.md             |   2 +-
+ docs/guides/multiforge_release_guide.md            | 245 ++++++
+ docs/guides/release_publishing_guide.md            |   2 +
+ docs/manuals/forge_tool_manual.md                  | 117 +++
+ docs/qa/multiforge_2026_11_12/SHA256SUMS           |  11 +
+ docs/qa/multiforge_2026_11_12/codeberg.txt         |  16 +
+ docs/qa/multiforge_2026_11_12/gitflic.txt          |  14 +
+ docs/qa/multiforge_2026_11_12/github.txt           |  16 +
+ docs/qa/multiforge_2026_11_12/gitlab.txt           |  14 +
+ docs/qa/multiforge_2026_11_12/gitverse.txt         |  14 +
+ docs/qa/multiforge_2026_11_12/leak_check.txt       |  16 +
+ docs/qa/multiforge_2026_11_12/m3w.txt              |  16 +
+ docs/qa/multiforge_2026_11_12/readpaths.txt        | 153 ++++
+ docs/qa/multiforge_2026_11_12/summary.tsv          |   9 +
+ .../multiforge_2026_11_12/vasic_digital_github.txt |  15 +
+ .../multiforge_2026_11_12/vasic_digital_gitlab.txt |  14 +
+ .../README.md                                      |  62 ++
+ .../SHA256SUMS                                     |  98 +++
+ .../mutants/new/GP1.log                            |   3 +
+ .../mutants/new/GP10.log                           |   3 +
+ .../mutants/new/GP11.log                           |   3 +
+ .../mutants/new/GP12.log                           |   3 +
+ .../mutants/new/GP13.log                           |   3 +
+ .../mutants/new/GP14.log                           |   3 +
+ .../mutants/new/GP15.log                           |   3 +
+ .../mutants/new/GP16.log                           |   3 +
+ .../mutants/new/GP17.log                           |   3 +
+ .../mutants/new/GP18.log                           |   3 +
+ .../mutants/new/GP19.log                           |   3 +
+ .../mutants/new/GP2.log                            |   3 +
+ .../mutants/new/GP20.log                           |   3 +
+ .../mutants/new/GP21.log                           |   3 +
+ .../mutants/new/GP3.log                            |   3 +
+ .../mutants/new/GP4.log                            |   3 +
+ .../mutants/new/GP5.log                            |   3 +
+ .../mutants/new/GP6.log                            |   3 +
+ .../mutants/new/GP7.log                            |   3 +
+ .../mutants/new/GP8.log                            |   3 +
+ .../mutants/new/GP9.log                            |   3 +
+ .../mutants/new/RV1.log                            |   3 +
+ .../mutants/new/RV2.log                            |   3 +
+ .../mutants/new/RV3.log                            |   3 +
+ .../mutants/new/RV4.log                            |   3 +
+ .../mutants/runmut.sh.txt                          |   9 +
+ .../mutants/sample/A7.log                          |   3 +
+ .../mutants/sample/A8.log                          |   3 +
+ .../mutants/sample/AN1.log                         |   3 +
+ .../mutants/sample/AN3.log                         |   3 +
+ .../mutants/sample/AN31.log                        |   3 +
+ .../mutants/sample/AN38.log                        |   3 +
+ .../mutants/sample/AN39.log                        |   3 +
+ .../mutants/sample/EC2.log                         |   3 +
+ .../mutants/sample/G5.log                          |   3 +
+ .../mutants/sample/L1.log                          |   3 +
+ .../mutants/sample/MR10x.log                       |   3 +
+ .../mutants/sample/NN14.log                        |   3 +
+ .../mutants/sample/NN5.log                         |   3 +
+ .../mutants/sample/NR4.log                         |   3 +
+ .../mutants/sample/NR9.log                         |   3 +
+ .../mutants/sample/O6.log                          |   3 +
+ .../mutants/sample/P1.log                          |   3 +
+ .../mutants/sample/P4.log                          |   3 +
+ .../mutants/sample/P9.log                          |   3 +
+ .../mutants/sample/PN16.log                        |   3 +
+ .../mutants/sample/PN2.log                         |   3 +
+ .../mutants/sample/Q5.log                          |   3 +
+ .../mutants/sample/Q6.log                          |   3 +
+ .../mutants/sample/Q9.log                          |   3 +
+ .../mutants/sample/RT19.log                        |   3 +
+ .../mutants/sample/S5.log                          |   3 +
+ .../mutants/sample/T3.log                          |   3 +
+ .../mutants/sample/U14.log                         |   3 +
+ .../mutants/sample/U2.log                          |   3 +
+ .../mutants/sample/V13c.log                        |   3 +
+ .../mutants/sample/V4.log.summary.txt              |   6 +
+ .../mutants/sample/W2.log                          |   3 +
+ .../mutants/sample/W4.log                          |   3 +
+ .../mutants/sample/X5.log                          |   3 +
+ .../mutants/sample/X6.log                          |   3 +
+ .../mutants/sample/Y18.log                         |   3 +
+ .../mutants/sample/Y2.log                          |   3 +
+ .../mutants/sample/Y25.log                         |   3 +
+ .../mutants/sample/Y7.log                          |   3 +
+ .../mutants/sample/Y8.log                          |   3 +
+ .../mutants/sample/Z1.log                          |   3 +
+ .../mutants/sample/Z13.log                         |   3 +
+ .../mutants/sample/Z7.log                          |   3 +
+ .../mutants/sample/Z8.log                          |   3 +
+ .../mutants/sample/sample.list                     |  44 +
+ .../runs/cm_constitution_index_fresh.log           |   3 +
+ .../runs/cm_gate_ledger_ratchet.log                | 730 ++++++++++++++++
+ .../runs/fastcycle_base_probe.txt                  |   4 +
+ .../runs/fastcycle_failed.list                     | 101 +++
+ .../runs/fastcycle_run_all.summary.txt             | 102 +++
+ .../runs/glab_release_create_help_flags.txt        |   3 +
+ .../runs/glpre_green_census.log                    | 101 +++
+ .../runs/glpre_green_tar.log                       | 486 +++++++++++
+ .../runs/glpre_pin_diff.txt                        | 928 ++++++++++++++++++++
+ .../runs/glpre_red.log                             | 431 ++++++++++
+ .../runs/mut_control.log                           |  10 +
+ .../runs/reltpl_facts.txt                          |  48 ++
+ .../runs/reltpl_green.log                          |  40 +
+ .../runs/reltpl_green_realfacts.log                |  40 +
+ .../runs/reltpl_red.log                            |  40 +
+ .../runs/tar_main_baseline.log                     | 352 ++++++++
+ .../runs/verify_manifest.log                       |   3 +
+ .../runs/waiver_copy.diff                          |  44 +
+ .../suites/test_channel_census.sh.log              | 101 +++
+ .../suites/test_derive_release_facts.sh.log        | 111 +++
+ .../suites/test_land_vehicle.sh.log                | 334 ++++++++
+ .../suites/test_publish_gitea.sh.log               | 169 ++++
+ .../suites/test_redact_cut.sh.log.summary.txt      |   6 +
+ .../suites/test_render_release_entry.sh.log        |  40 +
+ .../suites/test_tag_and_release.sh.log             | 447 ++++++++++
+ .../waiver_v734.draft.corrected_copy.md            |  67 ++
+ docs/release/README.md                             |  34 +-
+ .../helixconstitution-v73.4_entry.template.md      |   4 +-
+ docs/release/multiforge_p4_patch_proposal.md       |  99 +++
+ docs/workable_items.db                             | Bin 1642496 -> 1695744 bytes
+ scripts/forge/forge.sh                             | 465 ++++++++++
+ scripts/forge/lib/common.sh                        | 167 ++++
+ scripts/forge/lib/credentials.sh                   | 230 +++++
+ scripts/forge/lib/http.sh                          | 215 +++++
+ scripts/forge/live_probe.sh                        | 136 +++
+ scripts/forge/providers/gitea.sh                   |  99 +++
+ scripts/forge/providers/gitflic.sh                 | 110 +++
+ scripts/forge/providers/github.sh                  | 129 +++
+ scripts/forge/providers/gitlab.sh                  |  65 ++
+ scripts/forge/providers/gitverse.sh                |  96 +++
+ scripts/release/render_release_entry.py            |  13 +-
+ scripts/release/tag_and_release.sh                 |  95 ++-
+ tests/forge/fixtures/curl_recorder.sh              |  12 +
+ tests/forge/fixtures/forge_fixture_server.py       |  91 ++
+ tests/forge/lib.sh                                 | 102 +++
+ tests/forge/test_forge_credentials.sh              | 654 ++++++++++++++
+ tests/forge/test_forge_detect.sh                   | 123 +++
+ tests/forge/test_forge_gitea.sh                    | 273 ++++++
+ tests/forge/test_forge_gitflic.sh                  | 108 +++
+ tests/forge/test_forge_github_gitlab.sh            | 196 +++++
+ tests/forge/test_forge_gitverse.sh                 | 198 +++++
+ tests/forge/test_forge_mutations.sh                | 160 ++++
+ tests/release/channels.tsv                         |  13 +-
+ tests/release/netgate_pin.tsv                      | 935 ++++++++++++---------
+ tests/release/test_channel_census.sh               |   4 +-
+ tests/release/test_release_tooling_mutations.sh    |  28 +
+ tests/release/test_render_release_entry.sh         |  27 +-
+ tests/release/test_tag_and_release.sh              | 120 ++-
+ 154 files changed, 10634 insertions(+), 445 deletions(-)
+
+# files changed by the vehicle vs base 09d3ad2f before round-11 fixes (merge commit tree)
+ 316 files changed, 41349 insertions(+), 7 deletions(-)
+
+# vehicle touched docs/workable_items.db before round 11?
+no (identical to main)

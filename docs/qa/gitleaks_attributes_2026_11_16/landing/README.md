@@ -1,0 +1,1 @@
+Lander note (2026-11-17): the vehicle placeholder CON-PENDINGr3g1 is landed as CON-539. The id was renamed in a scratch copy of the vehicle DB (all atm_id columns and the item text) so the plan sees a CON-prefixed own id; the landed DB is built by the engine replay. Evidence files elsewhere keep the old id.

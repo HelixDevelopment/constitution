@@ -1,0 +1,28 @@
+# tests/sync/test_faults.sh reduced to the 7 'status --porcelain=v1' calls of the plan (one line changed:
+#   done < <(grep -F 'status --porcelain=v1' "$SB/plan.tsv") ; fixture_lib.sh sourced by absolute path).
+# Engine: the round-4 engine, unmutated (control). Run 2026-11-13 under env -i in a systemd-run --user --scope, nice -n 10.
+# The reduced run fails by design on the run counts ('only 21 fault runs', 'only 7 runs', no writer-failure
+# or unreachable run): those checks expect the full plan. Read the per-run 'fault ...' lines and the oracle line.
+== sync-faults (sandbox <scratch>/syncfix4.Jiag/tmp/statusreal/helix-sync-test.nlD0cQ)
+  ok   control: APPLIED exit 0
+  ok   control: 88 git calls logged
+  ok   control: root fast-forwarded
+  ok   control: libs/a followed its new pin
+  ok   control: vendor/t advanced
+  ok   control: the report says libs/a followed its new pin
+  ok   control: root, libs/a and vendor/t moved on disk
+  ok   control: the report's moved set equals the repositories whose HEAD changed on disk
+  ok   sites: 26 git call sites enumerated from the AST
+  ok   sites: every call site is reached by the control run (and recognisable)
+  ok   oracle: the gate prints its call-site table
+  ok   oracle: the engine's call sites equal the oracle's (prefix, ok=, want=) multiset
+  ok   oracle: every logged call has exactly one exit-128 class
+  FAIL faults: only 21 fault runs
+  FAIL rc128: only 7 runs
+  FAIL rc128: only 0 writer-failure runs
+  FAIL rc128: no unreachable run
+  FAIL rc128: unreachable outcomes not both reached (0 of 0 block a follow)
+  ok   faults: every no-answer made the run BLIND and moved nothing it should not
+  ok   needle: an injected first-call failure is BLIND
+  ok   needle: the engine names the call
+sync-faults: PASS 16 FAIL 5

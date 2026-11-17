@@ -1,0 +1,50 @@
+ok control needle: implementation + libs resolve, git present
+ok B1 evidence: PRECIOUS lives only in the admin dir's modules/sub; submodule status reads clean
+ok B1 deinit'd submodule -> REFUSED (detail names: modules/sub submodule git dir inside the per-worktree admin dir)
+ok B2a evidence: the orphan commit is held by no ref, only by the per-worktree logs/HEAD
+ok B2a reflog-only commit -> REFUSED (detail names: reachable only through this worktree's own <SHA>)
+ok B2b evidence: SAVED is held only by the per-worktree ref file (not in any reflog)
+ok B2b per-worktree-ref-only commit -> REFUSED (detail names: refs/worktree/saved: a per-worktree ref <SHA>)
+ok B2c per-worktree ref to an ANCHORED commit (ref itself is per-worktree state) -> REFUSED (detail names: refs/bisect/bad: a per-worktree ref)
+ok M3a evidence: MERGE_HEAD present, no conflict
+ok M3a merge in progress -> REFUSED (detail names: MERGE_HEAD: in-progress operation state)
+ok M3b evidence: rebase-merge/ present (stopped at edit)
+ok M3b rebase stopped at edit -> REFUSED (detail names: rebase-merge: in-progress operation state)
+ok M3c unrecognised admin entry (config.worktree) -> REFUSED (detail names: config.worktree: unrecognised)
+ok I1 evidence: other.txt is in the base commit only; no ref but refs/stash holds it; the patch omits it
+ok I1 stash base history unanchored -> REFUSED (detail names: only the stash keeps them alive <SHA>)
+ok I2 evidence: with GIT_INDEX_FILE=<main index> the worktree's staged-only change is invisible to git
+ok I2 baseline (no ambient var) -> REFUSED (detail names: keep: STAGED content differs)
+ok I2 ambient GIT_INDEX_FILE -> REFUSED (detail names: keep: STAGED content differs)
+ok I2 ambient GIT_DIR -> REFUSED (detail names: keep: STAGED content differs)
+ok MINOR-1 staged-only content of '"q"' (decoy 'q' holds the same bytes) -> REFUSED (detail names: "q": STAGED content differs)
+ok G1 branch commit + tracked edit -> ALLOWED (detail names: RESTORABILITY ORACLE passed)
+ok G2 detach + back (every reflog commit anchored) -> ALLOWED
+ok G3 plain stash on a live branch -> ALLOWED
+ok G4 restorable worktree under ambient GIT_INDEX_FILE/GIT_DIR (no over-refusal) -> ALLOWED
+ok unit G5_stash_garbage_backup=False
+ok unit G5_reason_names_apply=True
+ok unit M2_tamper_after_hash=ALLOWED
+ok MINOR-4 hanging filter -> REFUSED in <S> (< the filter's <S> sleep)
+ok mutation MB1_modules_check: caught -- mutant ALLOWS what the real tool refuses
+ok mutation MB2_reflog_unanchored: caught -- mutant ALLOWS what the real tool refuses
+ok mutation MB3_per_worktree_ref_existence: caught -- mutant ALLOWS what the real tool refuses
+ok mutation MB4_in_progress_whitelisted: caught -- mutant ALLOWS what the real tool refuses
+ok mutation MB5_unknown_entry_allowed: caught -- mutant ALLOWS what the real tool refuses
+ok mutation MB6_history_gate: caught -- mutant ALLOWS what the real tool refuses
+ok mutation MI1_stash_history_check: caught -- mutant ALLOWS what the real tool refuses
+ok mutation MI2_stash_counts_as_anchor: caught -- mutant ALLOWS what the real tool refuses
+ok mutation ME1_inherit_ambient_env: caught -- mutant ALLOWS what the real tool refuses
+ok layer check ME1_scrub_only (CON-402 file-level scrub alone): in-function isolation reverted, scrub kept -> still REFUSED
+ok layer check ME1_func_only (round-15 _targeted_git_env alone): the CON-402 scrub stripped from both files, the in-function layer kept -> still REFUSED
+ok mutation MM1_stdin_paths_unquoting: caught -- mutant ALLOWS what the real tool refuses
+ok mutation MG5_stash_apply_rc_ignored: caught -- mutant gives G5_stash_garbage_backup=True
+ok mutation MM2_oracle_rereads_path: caught -- mutant gives M2_tamper_after_hash=REFUSED
+ok mutation MT1_kill_only_git: caught -- mutant took <S> (blocked on the hanging filter), real tool <S>
+ok mutation MT2_no_timeout: caught -- mutant took <S> (blocked on the hanging filter), real tool <S>
+ok B1 loss proven: after 'worktree remove --force' the PRECIOUS submodule commit exists nowhere
+ok B2 control: with the worktree STILL present, plain 'gc --prune=now' (no explicit reflog expire) leaves <SHA> intact
+ok B2 loss proven: commit <SHA> gone after 'worktree remove --force' + plain 'gc --prune=now' (removal alone, isolated from any explicit reflog expire, caused it)
+ok B3 control: with the worktree STILL present, 'gc --prune=now' run FROM THE WORKTREE leaves <SHA> intact
+ok B3 loss proven: commit <SHA> gone after remove --force + reflog expire + gc (control above shows this is removal itself, not gc's invocation context)
+ok I1 loss proven: the stash base commit <SHA> (other.txt) gone after drop + gc

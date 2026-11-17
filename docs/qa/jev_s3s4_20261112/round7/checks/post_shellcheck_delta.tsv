@@ -1,0 +1,48 @@
+file	base 02c10935	round6 eb29803b	round7 working tree	new codes vs base	new codes vs round 6
+docs/qa/jev_s3s4_20261112/t3.sh	ABSENT	clean	clean	none	none
+docs/qa/jev_s3s4_20261112/t4.sh	ABSENT	clean	clean	none	none
+docs/qa/jev_s3s4_20261112/t4_gate.sh	ABSENT	SC1091×1	SC1091×1	SC1091(+1)	none
+docs/qa/jev_s3s4_20261112/t5.sh	ABSENT	clean	clean	none	none
+scripts/gates/cm_jev_bootstrap_idempotent.sh	SC1007×1 SC2015×1	SC1007×1 SC2015×1	SC1007×1 SC2015×1	none	none
+scripts/gates/cm_jev_bootstrap_idempotent_mutation_test.sh	SC2015×1 SC2016×1 SC2181×2	SC2015×3 SC2016×2 SC2181×3	SC2015×3 SC2016×2 SC2181×3	SC2015(+2) SC2016(+1) SC2181(+1)	none
+scripts/gates/cm_jev_detection.sh	SC1007×1 SC1091×2 SC2154×1	SC1007×1 SC1091×2 SC2154×1	SC1007×1 SC1091×2 SC2154×1	none	none
+scripts/gates/cm_jev_detection_mutation_test.sh	SC2015×10 SC2016×1 SC2181×2	SC2015×10 SC2016×1 SC2181×2	SC2015×10 SC2016×1 SC2181×2	none	none
+scripts/gates/cm_jev_wiring.sh	SC1091×1	SC1091×1	SC1091×1	none	none
+scripts/jev/bootstrap.sh	SC1091×3	SC1091×3	SC1091×3	none	none
+scripts/jev/jev-calibrate.sh	SC1091×1 SC2045×1	SC1091×1 SC2045×1	SC1091×1 SC2045×1	none	none
+scripts/jev/jev-place.sh	ABSENT	SC1091×2	SC1091×2	SC1091(+2)	none
+scripts/jev/jev-probe.sh	SC1091×1	SC1091×1	SC1091×1	none	none
+scripts/jev/jev-status.sh	SC1091×1	SC1091×1 SC2015×2	SC1091×1 SC2015×2	SC2015(+2)	none
+scripts/jev/lib_decide.sh	SC1091×1 SC2015×1 SC2034×2	SC1003×2 SC1091×1 SC2015×1 SC2034×2	SC1003×2 SC1091×1 SC2015×1 SC2034×2	SC1003(+2)	none
+scripts/jev/lib_keys.sh	SC2016×1 SC2018×4 SC2019×4	SC2016×1 SC2018×4 SC2019×4	SC2016×1 SC2018×4 SC2019×4	none	none
+scripts/post_update_hook.sh	SC1091×2 SC2030×2 SC2031×2	SC1091×2 SC2030×2 SC2031×2	SC1091×2 SC2030×2 SC2031×2	none	none
+skills/jev-decision-layer/register.sh	SC1091×1	SC1091×1	SC1091×1	none	none
+tests/jev/fixtures/bin-flockgate/flock	ABSENT	ABSENT	clean	none	none
+tests/jev/fixtures/bin-place/llmctl	ABSENT	SC2231×1	SC2231×1	SC2231(+1)	none
+tests/jev/lib_assert.sh	SC2034×1 SC2126×1	SC2034×1 SC2126×1	SC2034×1 SC2126×1	none	none
+tests/jev/run_all.sh	clean	clean	clean	none	none
+tests/jev/test_bootstrap_e2e_stub_server.sh	SC1091×1	SC1091×1	SC1091×1	none	none
+tests/jev/test_bootstrap_idempotent.sh	SC1091×1	SC1091×1	SC1091×1	none	none
+tests/jev/test_bootstrap_manifest_reader.sh	SC1091×1 SC2034×1	SC1091×1 SC2034×1	SC1091×1 SC2034×1	none	none
+tests/jev/test_bootstrap_noninteractive.sh	SC1091×1	SC1091×1	SC1091×1	none	none
+tests/jev/test_bootstrap_provision_fallback.sh	SC1091×1 SC2016×1 SC2034×1	SC1091×1 SC2016×1 SC2034×1	SC1091×1 SC2016×1 SC2034×1	none	none
+tests/jev/test_calibrate_per_endpoint.sh	ABSENT	SC1091×1	SC1091×1	SC1091(+1)	none
+tests/jev/test_calibration_math.sh	SC1091×1 SC2034×1	SC1091×1 SC2034×1	SC1091×1 SC2034×1	none	none
+tests/jev/test_decision_layer_gaps.sh	SC1091×1 SC2016×1 SC2030×1 SC2031×1	SC1091×1 SC2016×1 SC2030×1 SC2031×1	SC1091×1 SC2016×1 SC2030×1 SC2031×1	none	none
+tests/jev/test_detection_matrix.sh	SC1091×1	SC1091×1	SC1091×1	none	none
+tests/jev/test_detection_producer_gate_e2e.sh	clean	clean	clean	none	none
+tests/jev/test_gate_bootstrap_hermetic.sh	ABSENT	SC2012×1	SC2012×1	SC2012(+1)	none
+tests/jev/test_gate_pairs.sh	SC2015×2 SC2034×1 SC2181×1 SC2329×1	SC2015×2 SC2034×1 SC2181×1 SC2329×1	SC2015×2 SC2034×1 SC2181×1 SC2329×1	none	none
+tests/jev/test_hosted_key_discovery.sh	SC1091×1 SC2016×1 SC2115×6	SC1091×1 SC2016×1 SC2115×6	SC1091×1 SC2016×1 SC2115×6	none	none
+tests/jev/test_jev_status.sh	SC1091×1 SC2034×1	SC1091×1 SC2034×1	SC1091×1 SC2034×1	none	none
+tests/jev/test_jev_status_health.sh	ABSENT	SC1091×1	SC1091×1	SC1091(+1)	none
+tests/jev/test_no_real_tools.sh	ABSENT	SC1091×1 SC2031×2	SC1091×1 SC2031×2	SC1091(+1) SC2031(+2)	none
+tests/jev/test_review_fixes_r2.sh	SC1091×2 SC2034×2 SC2155×1	SC1091×2 SC2034×2 SC2155×1	SC1091×2 SC2034×1 SC2155×1	none	none
+tests/jev/test_review_fixes_r3.sh	SC1003×2 SC1091×5 SC2015×1 SC2016×5 SC2030×1 SC2031×1 SC2034×1	SC1003×2 SC1091×5 SC2015×1 SC2016×5 SC2030×1 SC2031×1 SC2034×1	SC1003×2 SC1091×5 SC2015×1 SC2016×5 SC2030×1 SC2031×1 SC2034×1	none	none
+tests/jev/test_review_fixes_r5.sh	SC1090×1 SC1091×6 SC2016×1 SC2034×2	SC1090×1 SC1091×6 SC2016×1 SC2034×2	SC1090×1 SC1091×6 SC2016×1 SC2034×2	none	none
+tests/jev/test_run_all_leak_detector.sh	ABSENT	SC1091×1 SC2016×1	SC1091×1 SC2016×1	SC1091(+1) SC2016(+1)	none
+tests/jev/test_s3_bootstrap_honesty.sh	ABSENT	SC1091×1 SC2126×1	SC1091×1 SC2126×1	SC1091(+1) SC2126(+1)	none
+tests/jev/test_s4_placement.sh	ABSENT	SC1091×1 SC2015×10 SC2016×4 SC2329×3	SC1091×1 SC2015×9 SC2016×4 SC2329×3	SC1091(+1) SC2015(+9) SC2016(+4) SC2329(+3)	none
+tests/jev/test_s4_round6.sh	ABSENT	SC1090×1 SC1091×1 SC2015×4 SC2034×1	SC1090×1 SC1091×1 SC2015×4 SC2034×1	SC1090(+1) SC1091(+1) SC2015(+4) SC2034(+1)	none
+tests/jev/test_s4_round7.sh	ABSENT	ABSENT	SC1091×1	SC1091(+1)	SC1091(+1)
+tests/jev/test_tab_fields.sh	ABSENT	SC1091×2	SC1091×2	SC1091(+2)	none
