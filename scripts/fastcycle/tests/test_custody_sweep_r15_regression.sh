@@ -421,6 +421,21 @@ else
     notok "layer check ME1_scrub_only: expected REFUSED with the file-level scrub kept, got ${me1r:0:200}"
   fi
 fi
+# CON-451 round 2 (review F23-C): the round-15 in-function layer alone -- the file-level scrub stripped from both
+# files, _targeted_git_env() KEPT (an identity substitution) -> the mutant still REFUSES. ME1 above (both layers
+# removed, ALLOWED) is this check's polarity control: the same case does reach the vector without the layer.
+me1f=$(mk_mutant ME1_func_only '    child_env = _targeted_git_env() if env is None else env' \
+  '    child_env = _targeted_git_env() if env is None else env' strip-scrub)
+if [ -z "$me1f" ]; then
+  notok "layer check ME1_func_only: anchor or scrub pair not found ($(cat "$TMP/mut_ME1_func_only.log"))"
+else
+  me1fr=$(export "GIT_INDEX_FILE=$E2/main/.git/index"; run_case "$me1f" "$E2/main" worktree wt retire "$E2/wt.patch")
+  if [ "${me1fr%%$'\t'*}" = REFUSED ]; then
+    ok "layer check ME1_func_only (round-15 _targeted_git_env alone): the CON-402 scrub stripped from both files, the in-function layer kept -> still REFUSED"
+  else
+    notok "layer check ME1_func_only: expected REFUSED with the in-function layer kept, got ${me1fr:0:200}"
+  fi
+fi
 mut_allows MM1_stdin_paths_unquoting \
   '        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--"] + [p for p, _h in chunk], env=env)' \
   '        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--stdin-paths"], env=env, input_bytes="".join(p + "\n" for p, _h in chunk).encode("utf-8", "surrogateescape"))' \

@@ -345,8 +345,19 @@ fi
 # Measured on cc51c320 (3/3): with only the in-function layers reverted the victim stays untouched, so this guard
 # went BLIND. The faithful pre-R8 revert ($D3) therefore also removes that layer from every copied file; a second
 # copy ($D4) reverts ONLY the in-function layers and must keep the victim untouched -- the proof that the file-level
-# scrub alone is load-bearing for this scenario (it fails if the scrub is removed from either source file).
-r8i2_mutant() {   # r8i2_mutant DIR STRIP_FILE_SCRUB(0|1)
+# scrub alone is load-bearing for this scenario. D4 fails if the scrub is removed from BOTH files; one file's scrub
+# alone already clears the environment (fc_common.py is imported at start), so the per-file checks D5 / D6 below
+# prove that EACH file's scrub alone suffices (CON-451 round 2, review F23-B).
+#
+# CON-451 round 2 (review F23-A): every measurement below runs on its OWN fresh victim repository (r8i2_run). The
+# vector's write is idempotent (git config of the same keys and values), so a second run on a victim that an earlier
+# run already wrote shows "no change" whether or not the layer under test is present: the D4 check could not fail.
+# The control D4-POL feeds the D4 decision the both-layers-removed mutant and requires "wrote" (the tm1 shape).
+#
+# r8i2_mutant DIR MODE -- MODE: full (in-function layers reverted, scrub stripped from both files), func (in-function
+# layers reverted, scrub kept), func+tool (in-function reverted, scrub stripped from custody_sweep.py only),
+# func+lib (same, lib/fc_common.py only), scrub (in-function layers KEPT, scrub stripped from both files)
+r8i2_mutant() {
   mkdir -p "$1/orchestration" "$1/lib"
   cp "$IMPL" "$1/orchestration/custody_sweep.py"
   cp "$LIB" "$1/lib/fc_common.py"
@@ -354,7 +365,10 @@ r8i2_mutant() {   # r8i2_mutant DIR STRIP_FILE_SCRUB(0|1)
 python3 - "$1/orchestration/custody_sweep.py" "$2" "$1/lib/fc_common.py" <<'PYEOF'
 import re, sys
 p = sys.argv[1]
-strip_scrub = sys.argv[2] == "1"
+mode = sys.argv[2]
+revert_func = mode in ("full", "func", "func+tool", "func+lib")
+strip_files = {"full": (p, sys.argv[3]), "func": (), "func+tool": (p,), "func+lib": (sys.argv[3],),
+               "scrub": (p, sys.argv[3])}[mode]
 with open(p, encoding="utf-8") as fh:
     c = fh.read()
 # Strip every `, env=scratch_env` / `env=scratch_env` kwarg this fix added
@@ -381,13 +395,14 @@ old_inherit = "    child_env = _targeted_git_env() if env is None else env"
 if after.count(old_inherit) + before.count(old_inherit) != 1:
     sys.exit(1)
 before = before.replace(old_inherit, "    child_env = env")
-with open(p, "w", encoding="utf-8") as fh:
-    fh.write(before + mutated_body + after)
-if strip_scrub:
+if revert_func:
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(before + mutated_body + after)
+if strip_files:
     # the CON-402 file-level scrub pair (scripts/validation/git_env_class_census.py, python form): exactly one per
     # file, in the tool AND in the library it imports
     pair = re.compile(r'^import os as _ge_os[^\n]*\nfor _ge_v in "[A-Z_ ]+"\.split\(\): _ge_os\.environ\.pop\(_ge_v, None\)\n', re.M)
-    for f in (p, sys.argv[3]):
+    for f in strip_files:
         with open(f, encoding="utf-8") as fh:
             t = fh.read()
         t2, n = pair.subn("", t)
@@ -397,65 +412,49 @@ if strip_scrub:
             fh.write(t2)
 PYEOF
 }
-D3="$TMP/r8i2_reverted"
-r8i2_mutant "$D3" 1
-if [ $? -ne 0 ]; then
-  echo "NOT ok R8-I2 guard-viability: env-strip mutation anchor not found (content drifted)"
-  failx
-else
-  # Reset the victim repo's config to a known-clean baseline before the
-  # SECOND (unsanitized-copy) run, so this check measures ONLY that run's
-  # own effect, never residue from the first (fixed-tool) run above.
+r8i2_run() {   # r8i2_run MUTANT_DIR TAG -> prints "wrote" or "clean" (a fresh victim per run); "error" on setup fault
+  local v="$TMP/victim_$2" b a
+  mkdir -p "$v" && (
+    cd "$v" || exit 1
+    git init --quiet . && git config user.email "victim@example.invalid" && git config user.name "victim" \
+      && echo "hello" > f.txt && git add f.txt && git commit --quiet -m "initial"
+  ) >/dev/null 2>&1 || { echo error; return; }
+  b=$(md5sum "$v/.git/config" | awk '{print $1}')
   (
-    cd "$TMP/victim"
-    git config --unset core.hooksPath 2>/dev/null
-    git config user.email "victim@example.invalid"
-    git config user.name "victim"
-    git config --unset commit.gpgsign 2>/dev/null
-  )
-  BEFORE_MD5_2=$(md5sum "$TMP/victim/.git/config" | awk '{print $1}')
-  SELFTEST_OUT2="$TMP/gitdir_selftest_reverted.out"
-  (
-    export GIT_DIR="$TMP/victim/.git"
-    export GIT_WORK_TREE="$TMP/victim"
-    python3 "$D3/orchestration/custody_sweep.py" selftest --repo-root "$TMP/goodroot" --fixtures-dir "$CS_FIXDIR"
-  ) >"$SELFTEST_OUT2" 2>&1
-  AFTER_MD5_2=$(md5sum "$TMP/victim/.git/config" | awk '{print $1}')
-  if [ "$BEFORE_MD5_2" != "$AFTER_MD5_2" ]; then
-    echo "ok R8-I2 guard-viability: reverting the scratch-env isolation makes the SAME"
-    echo "   victim-GIT_DIR scenario mutate the victim's .git/config AGAIN (md5"
-    echo "   $BEFORE_MD5_2 -> $AFTER_MD5_2) -- proving the sanitized-environment fix"
-    echo "   genuinely does the work, never a tautological mutation"
+    export GIT_DIR="$v/.git"
+    export GIT_WORK_TREE="$v"
+    python3 "$1/orchestration/custody_sweep.py" selftest --repo-root "$TMP/goodroot" --fixtures-dir "$CS_FIXDIR"
+  ) >"$TMP/gitdir_selftest_$2.out" 2>&1
+  a=$(md5sum "$v/.git/config" | awk '{print $1}')
+  if [ "$b" != "$a" ]; then echo wrote; else echo clean; fi
+}
+r8_layer() {   # r8_layer NAME MODE WANT(wrote|clean) MESSAGE
+  local d="$TMP/r8i2_$1" got
+  if ! r8i2_mutant "$d" "$2"; then
+    echo "NOT ok R8-I2 $1: mutation anchor not found (content drifted)"
+    failx
+    return
+  fi
+  got=$(r8i2_run "$d" "$1")
+  if [ "$got" = "$3" ]; then
+    echo "ok R8-I2 $1: $4 (victim $got)"
   else
-    echo "NOT ok R8-I2 guard-viability BLIND: victim .git/config unchanged even with the"
-    echo "     env-sanitization stripped ($(cat "$SELFTEST_OUT2" 2>/dev/null | tail -5))"
+    echo "NOT ok R8-I2 $1: expected the victim $3, got $got -- $4"
+    echo "     ($(tail -3 "$TMP/gitdir_selftest_$1.out" 2>/dev/null))"
     failx
   fi
-fi
-
-# CON-402 layer alone: the in-function layers reverted, the file-level scrub KEPT -> the victim stays untouched
-D4="$TMP/r8i2_scrub_only"
-r8i2_mutant "$D4" 0
-if [ $? -ne 0 ]; then
-  echo "NOT ok R8-I2 file-level scrub alone: mutation anchor not found (content drifted)"
-  failx
-else
-  BEFORE_MD5_3=$(md5sum "$TMP/victim/.git/config" | awk '{print $1}')
-  (
-    export GIT_DIR="$TMP/victim/.git"
-    export GIT_WORK_TREE="$TMP/victim"
-    python3 "$D4/orchestration/custody_sweep.py" selftest --repo-root "$TMP/goodroot" --fixtures-dir "$CS_FIXDIR"
-  ) >"$TMP/gitdir_selftest_scrub_only.out" 2>&1
-  AFTER_MD5_3=$(md5sum "$TMP/victim/.git/config" | awk '{print $1}')
-  if [ "$BEFORE_MD5_2" != "$AFTER_MD5_2" ] && [ "$BEFORE_MD5_3" = "$AFTER_MD5_3" ]; then
-    echo "ok R8-I2 file-level scrub alone (CON-402 layer): with the in-function isolation reverted but the"
-    echo "   file-level scrub kept, the victim's .git/config stays byte-unchanged (md5 $BEFORE_MD5_3)"
-  else
-    echo "NOT ok R8-I2 file-level scrub alone: victim changed (md5 $BEFORE_MD5_3 -> $AFTER_MD5_3) or the"
-    echo "     full revert above did not reach the vector -- the CON-402 layer is not proven load-bearing"
-    failx
-  fi
-fi
+}
+# D3: the faithful pre-R8 revert (both layers removed) -- the vector is reached (guard-viability)
+r8_layer reverted full wrote "guard-viability: reverting the scratch-env isolation AND the CON-402 scrub makes the SAME victim-GIT_DIR scenario mutate the victim's .git/config again -- the sanitized-environment fix genuinely does the work, never a tautological mutation"
+# D4: the CON-402 layer alone (in-function layers reverted, the scrub kept in both files)
+r8_layer scrub_only func clean "file-level scrub alone (CON-402 layer): with the in-function isolation reverted but the file-level scrub kept, the victim's .git/config stays byte-unchanged"
+# D4-POL: the D4 decision fed the both-layers-removed mutant must report the write (the review's tm1 shape)
+r8_layer scrub_only_polarity full wrote "D4 polarity control: the same measurement on a fresh victim with both layers removed sees the write (the D4 check can fail)"
+# D5 / D6: one file's scrub alone suffices (F23-B)
+r8_layer scrub_lib_only func+tool clean "the scrub of lib/fc_common.py alone (custody_sweep.py's scrub stripped, in-function layers reverted) keeps the victim unchanged"
+r8_layer scrub_tool_only func+lib clean "the scrub of custody_sweep.py alone (lib/fc_common.py's scrub stripped, in-function layers reverted) keeps the victim unchanged"
+# D7: the in-function layers alone (scrub stripped from both files, in-function layers kept; review F23-C)
+r8_layer func_only scrub clean "in-function isolation alone (round-8 scratch_env + round-15 _targeted_git_env, the CON-402 scrub stripped from both files) keeps the victim unchanged"
 
 echo
 if [ "$fail" = 0 ]; then

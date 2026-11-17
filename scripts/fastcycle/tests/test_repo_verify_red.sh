@@ -2368,12 +2368,21 @@ for f in sys.argv[1:]:
     open(f, "w", encoding="utf-8").write(t2)
 PY2
 }
-r5m4_write() {   # r5m4_write MUTANT_DIR -> prints "wrote" or "clean"
-  local b a
-  b=$(tree_hash "$EV/unrelated/.git")
-  env GIT_DIR="$EV/unrelated/.git" python3 "$1/verify/repo_verify.py" --recursive --root "$EV/parent" \
+# CON-451 round 2 (review F23-A): each measurement writes into its OWN fresh unrelated repository. The vector's
+# write is idempotent (git config of the same keys and values), so a second run against a repository an earlier run
+# already wrote shows no change whether or not the layer under test is present -- the two layer checks below could
+# not fail while they shared $EV/unrelated with the both-layers-removed run. The polarity control after them feeds
+# the same measurement the both-layers-removed mutant once more and requires "wrote" (the review's tm2 / tm3 shape).
+r5m4_write() {   # r5m4_write MUTANT_DIR -> prints "wrote" or "clean" ("error" when the fresh repository cannot be made)
+  local b a u
+  # mktemp, not a counter: this function runs inside $(...), a subshell, so a counter incremented here never
+  # advances in the caller (round-2 fix measured it: every call reused one repository, the polarity control FAILED)
+  u=$(mktemp -d "$TMP/r5m4_unrelated.XXXXXX") || { echo error; return; }
+  git init -q -b main "$u" >/dev/null 2>&1 || { echo error; return; }   # plain init: NO user.* config
+  b=$(tree_hash "$u/.git")
+  env GIT_DIR="$u/.git" python3 "$1/verify/repo_verify.py" --recursive --root "$EV/parent" \
     --out "$1/env_mut.json" >"$1/env_mut.out" 2>"$1/env_mut.err"
-  a=$(tree_hash "$EV/unrelated/.git")
+  a=$(tree_hash "$u/.git")
   if [ "$b" != "$a" ]; then echo wrote; else echo clean; fi
 }
 if mk_mutant mutant_r5m4 "$TMP/r5m4_old.txt" "$TMP/r5m4_new.txt" 2>"$TMP/mutant_r5m4.err" \
@@ -2398,6 +2407,12 @@ if mk_mutant mutant_r5m4 "$TMP/r5m4_old.txt" "$TMP/r5m4_new.txt" 2>"$TMP/mutant_
     ok "layer check (round-5 _run() strip alone): the file-level scrub removed, the strip kept -> no write into the inherited GIT_DIR repo"
   else
     not_ok "layer check (round-5 _run() strip alone): the strip did not keep the inherited GIT_DIR repo untouched (r_scrub=$r_scrub)"
+  fi
+  r_pol=$(r5m4_write "$TMP/mutant_r5m4_full")
+  if [ "$r_full" = wrote ] && [ "$r_pol" = wrote ]; then
+    ok "layer-check polarity control: the both-layers-removed mutant, measured AFTER the layer checks on a fresh repository, still writes -- the layer checks' measurement can fail (no state carried between runs)"
+  else
+    not_ok "layer-check polarity control: the both-layers-removed mutant measured after the layer checks did not write (r_full=$r_full r_pol=$r_pol) -- the layer checks cannot be trusted"
   fi
 else
   not_ok "paired mutation (round-5 env strip): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r5m4.err")"
