@@ -188,11 +188,12 @@ Equivalent mutants, each with its probe (probes, not proofs for every input):
   shows a parser that drops trailing blank lines is seen (7 909 mismatches).
   Both parsers copy an item's block verbatim, so the body check cannot fire
   once the one-segment check has passed.
-- M15 (the allocated id not judged again): `probe_m15_allocated_id.txt`. The
-  allocated id differs from the `<prefix>-001` probe that `add` already
-  judged only in its digits; 48 ids (8 prefixes x 6 digit forms, one title and
-  description) all get the same verdict, and the control `CON-0-1` is
-  refused.
+- M15 (the allocated id not judged again): `probe_m15_allocated_id.txt`.
+  WITHDRAWN by the round-2 review (finding F-E): M15 was not equivalent.
+  `nextID` overflowed at an existing id `CON-9223372036854775807` and
+  allocated `CON--9223372036854775808`, which only the post-allocation gate
+  refused. Round 3 makes `nextID` refuse before it allocates; see
+  `r3/README.md` for M15R on the round-3 head.
 - M38: the review's probe of 96 118 ids found no id on which the two
   parsers disagree, and `checkIDRoundTrips` is unchanged since d3fa.
 - M39: `m39_equivalence.txt`, from `m39_equivalence_test.go.txt`: 60 000
@@ -206,6 +207,6 @@ Limits (not changed by round 2):
 - `parent_atm_id`, `destination`, `logic_group` and `session_ref` are not
   carried by the Markdown; the first `md-to-db` clears `parent_atm_id` on 17
   items (the sub-tasks of CON-033), on both engines
-  (`real_tracker_*_all_columns.txt`). Filing it as its own item is
-  recommended.
+  (`real_tracker_*_all_columns.txt`). It is already tracked as CON-396
+  (round-2 review F-C, §11.4.214: linked, not filed again).
 - The sub-task child id `ATM-025-001` does not round-trip.

@@ -144,8 +144,10 @@ forms the parser reads:
   representation (section or table), a byte-identical body, the same title,
   type, status, severity, created-by, assigned-to and state records, and for a
   table row the same closure date, round and commit. Any operator text the
-  command embeds (a description, block details, a reopen reason, evidence)
-  must also appear unchanged in that text. Otherwise the command refuses (exit
+  command embeds (a description, the four block values, a reopen reason and
+  incident path, evidence, the four obsolete-details values) must also appear
+  unchanged in that text; `obsolete-details` also refuses a line break in any
+  of its four values, because they are written into one Markdown line. Otherwise the command refuses (exit
   1, nothing written) and names the cause: the id, the title or the text.
   The commands are `add`, `update`, `move`, `block`, `reopen`, `close`,
   `obsolete-details`, `states import` and `repair-bodies`.
@@ -179,16 +181,57 @@ forms the parser reads:
   as the item, under the same checks.
 - The grammar was not widened. A four-letter key (`CATS-001`) is written in
   the legacy dot form the parser already read.
-- Behaviour changes: a table-row item in Fixed cannot be reopened into Issues
-  (`parseIssues` reads no pipe rows; the real tracker has none); `update` of a
-  field a table row cannot carry is refused; titles and severities are
-  trimmed.
+- Behaviour changes:
+  - No engine path reopens a legacy table-row item: `reopen --location
+    Issues` is refused (`parseIssues` reads no pipe rows) and `reopen
+    --location Fixed` is refused too (the row reads back as `Fixed`, not
+    `Reopened`). Main broke the next `db-to-md` in the first case and
+    silently reverted the reopen in the second. The real tracker has no table
+    rows. A reopen path for table rows (convert the row to a section) is not
+    built.
+  - `update` of a field a table row cannot carry is refused; titles and
+    severities are trimmed.
+  - Round 3: `scripts/reporting/report_item.sh` sets a Bug's states with the
+    state flags (`--reproduction-state UNREPRODUCED --investigation-state
+    not-started --states-updated-by <reporter> --states-updated-at <time>`)
+    instead of appending two record lines to the description; the engine
+    renders the records. `add` still accepts a description that carries the
+    two exact lines that script used to append (`**Reproduction:** none —
+    UNREPRODUCED (§11.4.292)` and `**Investigation:** not-started
+    (§11.4.294)`): each line, when it is a whole line, occurs once and no
+    state flag sets its block, is read as the state it names and replaced by
+    the canonical record line. No other record text in a description is read
+    as a state; it is refused as before.
+  - A tracker that already holds a Bug minted by an older engine with those
+    two lines as description text (stored state `UNSET`, body line
+    `**Reproduction:** none — UNREPRODUCED (§11.4.292)`) is reported by
+    `validate` (malformed record) and `sync md-to-db` refuses the unchanged
+    Markdown (nothing written) because the record would change the stored
+    state; `update` refuses the item too (malformed record in the body). The
+    main engine instead set the state to `UNREPRODUCED` silently on the next
+    `md-to-db`. The repair is one Markdown edit: delete ` (§11.4.292)` from
+    that line, then `sync md-to-db` imports the state and `validate` is clean
+    (measured in `docs/qa/engine_idgrammar_2026_11_17/r3/`). The real tracker
+    holds no such item.
+  - Round 3: `add --prefix` refuses, before it allocates, when an existing id
+    with that prefix has a number that does not fit a 64-bit counter or is the
+    largest one (`CON-9223372036854775807`); the next id would not exist.
+    Main allocated `CON--9223372036854775808`, which no parser reads. Use an
+    explicit `--id` in that tracker.
+  - Round 3: `sync md-to-db` keeps the stored `operator_block_details` row of
+    an Operator-blocked item whose block text in the Markdown (the
+    `**Operator-Block-Details:**` block and `**Unblock-Choices:**`) is
+    unchanged since the row was stored, instead of re-splitting the line on
+    the words `WHAT:` / `WHY:` / `UNBLOCK:` / `WHO:`. On the real tracker the
+    re-split grew CON-263's UNBLOCK from 220 to 695 characters on the first
+    cycle. An edited block is re-derived as before.
 - Known limits, not changed here: `sync md-to-db` re-derives the description
   column from the Markdown (on the real tracker it changes 279 of 491 items
   on the first round trip and none on the second); `md-to-db` does not carry
   `parent_atm_id`, `destination`, `logic_group` or `session_ref` (on the real
-  tracker 17 sub-tasks of CON-033 lose their parent link on every round trip,
-  before and after this change); a sub-task
+  tracker 17 sub-tasks of CON-033 lose their parent link on the first round
+  trip, before and after this change; later round trips have nothing left to
+  lose); this is tracked as CON-396. A sub-task
   child of a canonical parent (`ATM-025-001`, `subtaskAddCmd`, not reachable
   from the command line) does not round-trip, and `validate` reports it.
 
@@ -203,7 +246,7 @@ inserted the Fixed row without the column, and `sync md-to-db` deleted every row
 a document and inserted them again the same way; in both cases the column default
 `datetime('now')` stamped the close or sync time over the real one. Now `close`
 reads the value before the delete and inserts it again, and `sync md-to-db` takes
-one snapshot of every row's value before its two transactions and inserts each row
+one snapshot of every row's value inside its one transaction, before the delete, and inserts each row
 with its own value (an item that moved between Issues.md and Fixed.md gets the
 earliest value recorded for that id). An item new to the database still gets the
 column default. `TestCON339_CreatedAtPreservedByEveryMutatingCommand` runs

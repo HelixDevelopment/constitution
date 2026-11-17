@@ -263,8 +263,8 @@ fresh; mut append Constitution.md '### §11.4.2940 — prefix-collision decoy he
 expect_green "prefix-colliding heading §11.4.2940 is not counted as §11.4.294"
 fresh; mut block-sub Constitution.md "$N" 'Honest boundary (§11.4.6).' 'Honest boundary (§11.4.6).  '
 expect_green "whitespace-only change inside the block keeps the gate green"
-fresh; mut file-sub scripts/reporting/report_item.sh '**Investigation:** not-started (§11.4.294)' '**Investigation:** not-started (§11.4.294) '
-expect_green "whitespace-only change after the template's Investigation line keeps the gate green"
+fresh; mut file-sub scripts/reporting/report_item.sh '**Investigation:** not-started — updated' '**Investigation:** not-started  — updated'
+expect_green "whitespace-only change inside the template's Investigation preview line keeps the gate green"
 fresh; mut block-append Constitution.md 286 'Unrelated note that spells `blocked-no-device` inside another anchor block.'
 expect_green "the short spelling inside another anchor's block is not counted against §11.4.294"
 fresh; mut block-append Constitution.md "$N" 'Extra sentence that names `blocked-no-device-with-recorded-blocker` once more.'

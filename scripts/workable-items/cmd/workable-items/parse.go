@@ -630,43 +630,10 @@ type operatorBlock struct {
 // operator_block_details sub-table), so this reconstruction cannot perturb the
 // byte-identical md↔db round-trip.
 func parseOperatorBlockDetails(body string) (operatorBlock, bool) {
-	lines := strings.Split(body, "\n")
-	start := -1
-	for i, ln := range lines {
-		if strings.HasPrefix(strings.TrimSpace(ln), "**Operator-Block-Details") {
-			start = i
-			break
-		}
-	}
-	if start < 0 {
+	blockText, choices, ok := operatorBlockParts(body)
+	if !ok {
 		return operatorBlock{}, false
 	}
-	// Capture the marker line + continuation lines up to the first blank line,
-	// sibling `**Label:**` field, heading, or `---` separator. Bullet lines
-	// (`- …` / `* …`) are continuation, NOT siblings, so they are included.
-	block := []string{lines[start]}
-	for j := start + 1; j < len(lines); j++ {
-		t := strings.TrimSpace(lines[j])
-		if t == "" ||
-			(strings.HasPrefix(t, "**") && strings.Contains(t, ":**")) ||
-			strings.HasPrefix(t, "## ") || strings.HasPrefix(t, "### ") ||
-			strings.HasPrefix(t, "---") {
-			break
-		}
-		block = append(block, lines[j])
-	}
-	blockText := strings.TrimSpace(strings.Join(block, "\n"))
-
-	// A separate `**Unblock-Choices:**` line (ATM-015/356) carries the enumerated
-	// [A]…·[B]… choices OUTSIDE the OBD block; fold it into the unblock text so
-	// the §11.4.148 D3 enumerated-choice assertion sees it.
-	choices := ""
-	for _, mm := range metaLineRe.FindAllStringSubmatch(body, -1) {
-		if strings.EqualFold(mm[1], "Unblock-Choices") {
-			choices = strings.TrimSpace(mm[2])
-		}
-	}
-
 	ob := operatorBlock{
 		what: firstNonEmpty(extractOBDField(blockText, "WHAT"), blockText),
 		why:  firstNonEmpty(extractOBDField(blockText, "WHY"), blockText),
@@ -682,6 +649,59 @@ func parseOperatorBlockDetails(body string) (operatorBlock, bool) {
 	parts = append(parts, blockText) // safety net: the whole block (its bullets satisfy the enumeration check)
 	ob.unblock = strings.TrimSpace(strings.Join(parts, "\n"))
 	return ob, true
+}
+
+// operatorBlockSource is every part of body that parseOperatorBlockDetails
+// reads (the block text and the `**Unblock-Choices:**` value), joined into one
+// comparable string; ok is false when body carries no block. Two bodies with
+// the same source give the same derived row (obdSnapshot, CON-456 round 3).
+func operatorBlockSource(body string) (string, bool) {
+	blockText, choices, ok := operatorBlockParts(body)
+	if !ok {
+		return "", false
+	}
+	return choices + "\x00" + blockText, true
+}
+
+// operatorBlockParts captures the block text and the Unblock-Choices value of
+// a body (see parseOperatorBlockDetails).
+func operatorBlockParts(body string) (blockText, choices string, ok bool) {
+	lines := strings.Split(body, "\n")
+	start := -1
+	for i, ln := range lines {
+		if strings.HasPrefix(strings.TrimSpace(ln), "**Operator-Block-Details") {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return "", "", false
+	}
+	// Capture the marker line + continuation lines up to the first blank line,
+	// sibling `**Label:**` field, heading, or `---` separator. Bullet lines
+	// (`- …` / `* …`) are continuation, NOT siblings, so they are included.
+	block := []string{lines[start]}
+	for j := start + 1; j < len(lines); j++ {
+		t := strings.TrimSpace(lines[j])
+		if t == "" ||
+			(strings.HasPrefix(t, "**") && strings.Contains(t, ":**")) ||
+			strings.HasPrefix(t, "## ") || strings.HasPrefix(t, "### ") ||
+			strings.HasPrefix(t, "---") {
+			break
+		}
+		block = append(block, lines[j])
+	}
+	blockText = strings.TrimSpace(strings.Join(block, "\n"))
+
+	// A separate `**Unblock-Choices:**` line (ATM-015/356) carries the enumerated
+	// [A]…·[B]… choices OUTSIDE the OBD block; fold it into the unblock text so
+	// the §11.4.148 D3 enumerated-choice assertion sees it.
+	for _, mm := range metaLineRe.FindAllStringSubmatch(body, -1) {
+		if strings.EqualFold(mm[1], "Unblock-Choices") {
+			choices = strings.TrimSpace(mm[2])
+		}
+	}
+	return blockText, choices, true
 }
 
 // extractOBDField pulls the text of a single §11.4.21 field (key one of

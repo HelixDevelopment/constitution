@@ -875,11 +875,11 @@ func takeCreatedAtSnapshot(q sqlQueryer) (createdAtSnapshot, error) {
 }
 
 // replaceDocumentWithSnapshot is replaceDocument with an optional snapshot
-// taken by the caller before an earlier transaction. md-to-db replaces Issues
-// and Fixed in two transactions, so an item the Markdown moved from Issues to
-// Fixed has no row left when the Fixed transaction starts; the caller's
-// snapshot, taken before both, still holds its created_at. The rows present at
-// the start of this transaction always win over the caller's values.
+// taken by the caller before this transaction (CON-339). md-to-db itself
+// rebuilds Issues and Fixed in ONE transaction (replaceDocumentsAtomic, CON-456
+// round 2) and passes its snapshot there; this single-document entry keeps the
+// prior argument for callers that rebuild one tracker. The rows present at the
+// start of this transaction always win over the caller's values.
 func replaceDocumentWithSnapshot(db *sql.DB, document string, items []item, segs []segment, prior createdAtSnapshot) (err error) {
 	requestedNS := time.Now().UnixNano()
 	defer func() {
@@ -940,8 +940,14 @@ func replaceDocumentsAtomic(db *sql.DB, docs []documentImport, prior createdAtSn
 			snap[k] = v
 		}
 	}
+	// CON-456 round 3 (review F-B): read every stored operator_block_details
+	// row with the block text it was written for, before the delete below.
+	obd, err := takeOBDSnapshot(tx)
+	if err != nil {
+		return fmt.Errorf("snapshot operator_block_details: %w", err)
+	}
 	for _, d := range docs {
-		if err := replaceDocumentInTx(tx, d.document, d.items, d.segs, snap); err != nil {
+		if err := replaceDocumentInTx(tx, d.document, d.items, d.segs, snap, obd); err != nil {
 			return err
 		}
 	}
@@ -961,11 +967,77 @@ func replaceDocumentsAtomic(db *sql.DB, docs []documentImport, prior createdAtSn
 	return tx.Commit()
 }
 
+// obdSnapshot maps an atm_id to the operator_block_details row stored for it
+// and the block source (operatorBlockSource) of the Operator-blocked section
+// body it was stored with.
+//
+// CON-456 round 3 (review F-B): md-to-db rebuilds the sub-table from the one
+// `**Operator-Block-Details:**` Markdown line. parseOperatorBlockDetails splits
+// that line on the words WHAT: / WHY: / UNBLOCK: / WHO: and folds the whole
+// block into unblock_condition, so a row `block` wrote (or a value that
+// contains a separator word) read back differently although the Markdown was
+// unchanged: on the real tracker the first cycle grew CON-263's UNBLOCK from
+// 220 to 695 characters. An item whose block source is unchanged keeps its
+// stored row; an edited block is re-derived as before.
+type obdSnapshot map[string]struct {
+	src string
+	row operatorBlock
+}
+
+func takeOBDSnapshot(q sqlQueryer) (obdSnapshot, error) {
+	rows, err := q.Query(`SELECT o.atm_id, o.what, o.why_exhausted_alternatives, o.unblock_condition,
+		COALESCE(o.who,''), i.body_md
+		FROM operator_block_details o JOIN items i ON i.atm_id = o.atm_id
+		WHERE i.status = 'Operator-blocked' AND COALESCE(i.representation,'section') = 'section'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := obdSnapshot{}
+	seen := map[string]int{}
+	for rows.Next() {
+		var id, what, why, unblock, who, body string
+		if err := rows.Scan(&id, &what, &why, &unblock, &who, &body); err != nil {
+			return nil, err
+		}
+		seen[id]++
+		src, ok := operatorBlockSource(body)
+		if !ok {
+			continue
+		}
+		out[id] = struct {
+			src string
+			row operatorBlock
+		}{src, operatorBlock{what: what, why: why, unblock: unblock, who: who}}
+	}
+	// An id with more than one Operator-blocked section row has no single
+	// source to compare; it is re-derived.
+	for id, n := range seen {
+		if n > 1 {
+			delete(out, id)
+		}
+	}
+	return out, rows.Err()
+}
+
+// keep returns the stored row of id when body still carries the block source
+// that row was stored with.
+func (s obdSnapshot) keep(id, body string) (operatorBlock, bool) {
+	e, ok := s[id]
+	if !ok {
+		return operatorBlock{}, false
+	}
+	if src, ok := operatorBlockSource(body); !ok || src != e.src {
+		return operatorBlock{}, false
+	}
+	return e.row, true
+}
+
 // replaceDocumentInTx deletes one tracker's segments, items and their
 // operator_block_details rows inside tx and re-inserts them from the parsed
 // items and segments. snap carries the created_at every row held before the
 // import (CON-339), taken once for the whole transaction.
-func replaceDocumentInTx(tx *sql.Tx, document string, items []item, segs []segment, snap createdAtSnapshot) error {
+func replaceDocumentInTx(tx *sql.Tx, document string, items []item, segs []segment, snap createdAtSnapshot, obd obdSnapshot) error {
 
 	// Clear segments for this document; clear items whose current_location is
 	// this document (so a full two-document sync rebuilds everything).
@@ -1036,7 +1108,14 @@ func replaceDocumentInTx(tx *sql.Tx, document string, items []item, segs []segme
 		// representation guard skips a pipe-table 'table' row for the same id,
 		// which carries no OBD block of its own.
 		if it.Status == "Operator-blocked" && it.repOrDefault() == "section" {
-			if ob, ok := parseOperatorBlockDetails(it.BodyMD); ok {
+			if ob, ok := obd.keep(it.AtmID, it.BodyMD); ok {
+				// The block text is unchanged since the row was written:
+				// keep the stored row (a re-split would change it).
+				if _, err := insOBD.Exec(it.AtmID, ob.what, ob.why,
+					ob.unblock, nullable(ob.who)); err != nil {
+					return fmt.Errorf("insert operator_block_details %s: %w", it.AtmID, err)
+				}
+			} else if ob, ok := parseOperatorBlockDetails(it.BodyMD); ok {
 				if _, err := insOBD.Exec(it.AtmID, ob.what, ob.why,
 					ob.unblock, nullable(ob.who)); err != nil {
 					return fmt.Errorf("insert operator_block_details %s: %w", it.AtmID, err)

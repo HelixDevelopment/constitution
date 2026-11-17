@@ -80,6 +80,20 @@ func obsoleteDetailsCmd(args []string) int {
 	// item_history.evidence_path (below) on an item already in a terminal
 	// status, exactly the rows the HXC-217 validator scopes to. Refuse an
 	// unresolvable path here rather than at a later sweep.
+	// CON-456 round 3 (review F-D): the four values are written into ONE
+	// `**Obsolete-Details:**` line. A line break would split it, so a later
+	// line could read as one of the item's own metadata lines and be
+	// rewritten from the columns, and a re-run (injectObsoleteDetails drops
+	// only the marker line) would leave the tail behind. Refuse it, naming
+	// the flag.
+	for _, f := range []struct{ name, val string }{
+		{"--since", sinceVal}, {"--reason", reasonVal}, {"--superseding", supersedingVal}, {"--evidence", evidenceVal},
+	} {
+		if i := strings.IndexAny(f.val, "\r\n\u0085  "); i >= 0 {
+			fmt.Fprintf(os.Stderr, "obsolete-details: refusing (nothing written) — %s %q carries a line break; the §11.4.90 details are one Markdown line\n", f.name, f.val)
+			return exitUsage
+		}
+	}
 	if !requireEvidencePath("obsolete-details", evidenceVal) {
 		return exitUsage
 	}
@@ -126,7 +140,10 @@ func obsoleteDetailsCmd(args []string) int {
 	// read back as this item after the details line is injected.
 	gated := *cur
 	gated.BodyMD = newBody
-	if newBody, err = gateItemWrite(gated); err != nil {
+	// The operator values are judged as inputs: each must appear unchanged in
+	// the text db-to-md writes (review F-D: a metadata line inside a value was
+	// accepted and then rewritten from the columns in Fixed.md).
+	if newBody, err = gateItemWrite(gated, sinceVal, supersedingVal, evidenceVal); err != nil {
 		fmt.Fprintf(os.Stderr, "obsolete-details: refusing (nothing written) — %v\n", err)
 		return exitUsage
 	}

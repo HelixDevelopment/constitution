@@ -340,16 +340,27 @@ ${ACCEPTANCE}"
 # absence of a result (not a fifth result); the first LIVE reproduction attempt replaces it with the record:
 # result (reproduced-live | reproduced-host-fixture | not-reproducible-with-evidence |
 # blocked-no-device-with-recorded-blocker), surface, exact command, RED evidence, build, target, symptom signature.
-# The line is kept short on purpose: intake-match (intake_match.go) scores recurrences by a Jaccard
-# overlap over title + stored description, so every boilerplate token added here widens the union it divides by.
-# §11.4.294(A): the same item is born with its investigation line; the first token of each of the two lines maps to the
-# item's reproduction_state / investigation_state field (UNSET until the first assessment), the line stays the mirror and
-# the carrier of the details. Kept short for the same intake-match reason.
+# §11.4.294(A): the same item is born with its investigation line. The two records are the item's
+# reproduction_state / investigation_state columns; the body line is their mirror.
+#
+# CON-456 round 3: the records are passed to `add` as STRUCTURED state flags, never as text in the description.
+# The engine stores the two columns and renders the canonical record lines from them, so the columns and the
+# lines cannot disagree. Until round 3 this script appended the two lines to the description as text
+# (`(§11.4.292)` / `(§11.4.294)` suffixes): the engine read the first as a malformed record and the second as prose,
+# stored UNSET, and the next md-to-db silently changed the column; a round-2 engine refused the whole add, so the
+# fallback mint below failed for every Bug. `add` still recognises those two exact legacy lines (crud.go,
+# adoptLegacyTemplateStates) for any caller that copied the old template.
+# The description carries no record text, which also keeps intake-match's Jaccard score (title + stored
+# description) free of the boilerplate tokens.
+# The flags ride in the positional parameters (the argument loop above has consumed them all), not in an
+# array, so the script stays `sh -n` parseable (§11.4.67).
+set --
+STATE_PREVIEW=""
 if [ "$TYPE" = "Bug" ]; then
-	DESCRIPTION="${DESCRIPTION}
-
-**Reproduction:** none — UNREPRODUCED (§11.4.292)
-**Investigation:** not-started (§11.4.294)"
+	set -- --reproduction-state UNREPRODUCED --investigation-state not-started \
+		--states-updated-by "$REPORTED_BY" --states-updated-at "$NOW_ISO"
+	STATE_PREVIEW="**Reproduction:** none — UNREPRODUCED — updated ${NOW_ISO} — by \`${REPORTED_BY}\`
+**Investigation:** not-started — updated ${NOW_ISO} — by \`${REPORTED_BY}\`"
 fi
 
 # ---------------------------------------------------------------------------
@@ -360,6 +371,10 @@ if [ "$DRY_RUN" = "1" ]; then
 	log "  type=$TYPE severity=$SEVERITY db=$DB"
 	log "  title=$TITLE"
 	printf '%s\n' "$DESCRIPTION"
+	if [ -n "$STATE_PREVIEW" ]; then
+		log "  state records the engine renders from the state flags (not part of the description text):"
+		printf '%s\n' "$STATE_PREVIEW"
+	fi
 	exit 0
 fi
 
@@ -459,10 +474,10 @@ if [ -z "$IM_VERDICT" ] || [ -z "${ITEM_ID:-}" ]; then
 	set +e
 	if [ -n "${CFG_ID_PREFIX:-}" ]; then
 		"$WI" add "$TYPE" "$SEVERITY" --db "$DB" --title "$TITLE" --description "$DESCRIPTION" \
-			--prefix "$CFG_ID_PREFIX" --created-by "$REPORTED_BY" >"$CREATE_LOG" 2>&1
+			--prefix "$CFG_ID_PREFIX" --created-by "$REPORTED_BY" "$@" >"$CREATE_LOG" 2>&1
 	else
 		"$WI" add "$TYPE" "$SEVERITY" --db "$DB" --title "$TITLE" --description "$DESCRIPTION" \
-			--created-by "$REPORTED_BY" >"$CREATE_LOG" 2>&1
+			--created-by "$REPORTED_BY" "$@" >"$CREATE_LOG" 2>&1
 	fi
 	CREATE_RC=$?
 	set -e
