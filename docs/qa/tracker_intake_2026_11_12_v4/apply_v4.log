@@ -1,0 +1,19 @@
+$ <wi> 'update' '--db' 'docs/workable_items.db' '--id' 'CON-336' '--description' '<2023 chars>' '--reproduction-evidence' 'docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt' '--reproduction-red-cmd' '<190 chars>' '--reproduction-env' '<161 chars>' '--states-updated-by' 'Claude (tracker-intake round-4 fixer, Opus 5.5)'
+  | update: CON-336 updated in Issues (status=Queued, type=Bug)
+  rc=0
+$ <wi> 'update' '--db' 'docs/workable_items.db' '--id' 'CON-337' '--description' '<1857 chars>' '--reproduction-evidence' 'docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt' '--reproduction-red-cmd' '<194 chars>' '--reproduction-env' '<161 chars>' '--states-updated-by' 'Claude (tracker-intake round-4 fixer, Opus 5.5)'
+  | update: CON-337 updated in Issues (status=Queued, type=Bug)
+  rc=0
+$ <wi> 'update' '--db' 'docs/workable_items.db' '--id' 'CON-339' '--description' '<2171 chars>' '--reproduction-evidence' 'docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt' '--reproduction-red-cmd' '<186 chars>' '--reproduction-env' '<161 chars>' '--states-updated-by' 'Claude (tracker-intake round-4 fixer, Opus 5.5)'
+  | update: CON-339 updated in Issues (status=Queued, type=Bug)
+  rc=0
+$ <wi> 'update' '--db' 'docs/workable_items.db' '--id' 'CON-340' '--description' '<2236 chars>' '--reproduction-evidence' 'docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt' '--reproduction-red-cmd' '<190 chars>' '--reproduction-env' '<161 chars>' '--states-updated-by' 'Claude (tracker-intake round-4 fixer, Opus 5.5)'
+  | update: CON-340 updated in Issues (status=Queued, type=Bug)
+  rc=0
+$ <wi> 'update' '--db' 'docs/workable_items.db' '--id' 'CON-341' '--description' '<1936 chars>' '--reproduction-evidence' 'docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt' '--reproduction-red-cmd' '<186 chars>' '--reproduction-env' '<161 chars>' '--states-updated-by' 'Claude (tracker-intake round-4 fixer, Opus 5.5)'
+  | update: CON-341 updated in Issues (status=Queued, type=Bug)
+  rc=0
+$ <wi> 'update' '--db' 'docs/workable_items.db' '--id' 'CON-342' '--description' '<1948 chars>' '--reproduction-evidence' 'docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt' '--reproduction-red-cmd' '<186 chars>' '--reproduction-env' '<161 chars>' '--states-updated-by' 'Claude (tracker-intake round-4 fixer, Opus 5.5)'
+  | update: CON-342 updated in Issues (status=Queued, type=Bug)
+  rc=0
+RESULT: APPLIED items=6

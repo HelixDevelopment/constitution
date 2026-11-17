@@ -1,0 +1,6 @@
+CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 1: post-update hook carries the guarded bootstrap invocation block
+CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 2: two-run digests identical (1a944d201913fb0ef194f39690e3bee0f067d7099a4ab409a0b8c923f7ffdd29)
+CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 3: --defer writes pending stamp, exits 0
+CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 4: submodule-absent clone fallback pinned to helix-deps.yaml refs
+CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 5: every bootstrap run was hermetic (no network / real-tool call; guard control needle seen)
+CM-JEV-BOOTSTRAP-IDEMPOTENT: GREEN

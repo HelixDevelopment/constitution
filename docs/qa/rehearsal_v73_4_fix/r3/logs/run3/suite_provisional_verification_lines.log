@@ -1,0 +1,115 @@
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 4 items, 2 provisional, 2 ok
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 empty field value
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an option: usage exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P4 the database is unchanged
+PASS P5 real database: every Ready-for-testing and In-testing item has a complete line
+PASS P5 the checker counted the same 30 rows (needle: an independent count)
+PASS P5 without --root the paths are checked for their shape only (said on the PATHS line)
+PASS P5 the real database holds provisional items (control: 30 > 0)
+PASS P5 real database with --root: every job path that counts exists in this checkout
+PASS P5 --root is reported
+PASS P6 control: the correct checker refuses the single missing-checks item
+PASS P6 control: the correct checker refuses the single In-testing item
+PASS P6 mutant checks-not-required is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant status-in-testing-dropped is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant blind-check-dropped is caught (rc 0)
+PASS P7 grid: no mismatch
+PASS P7 grid size (needle: the grid really ran its cases)
+PASS P7 B2: the reviewer case r3:cyr_TBD_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:pending_sched_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:none_assigned_target is in the grid and as expected
+PASS P7 B2: the reviewer case r3:not_applicable_checks is in the grid and as expected
+PASS P7 B2: the reviewer case r3:T.B.D_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:TBD_underscore_target is in the grid and as expected
+PASS P7 B2: the reviewer case r3:qqq_checks is in the grid and as expected
+PASS P7 B2: the reviewer case r3:body:html_comment_only is in the grid and as expected
+PASS P7 B2: the reviewer case r3:body:prefix_glued is in the grid and as expected
+PASS P7 B2: at least 150 r3 cases pass (161; 74 the reviewer's, the rest the fixer's)
+PASS P7 M1: the case 'due: .' is in the grid and refused
+PASS P8 mutant empty-check is caught (30 grid cases)
+PASS P8 mutant pv2-strip is caught (18 grid cases)
+PASS P8 mutant punctuation-check is caught (24 grid cases)
+PASS P8 mutant strong-lead is caught (114 grid cases)
+PASS P8 mutant unconfirmed-word is caught (19 grid cases)
+PASS P8 mutant lorem-word is caught (4 grid cases)
+PASS P8 mutant weak-lead is caught (61 grid cases)
+PASS P8 mutant weak-lead-checks is caught (15 grid cases)
+PASS P8 mutant none-of-exception is caught (2 grid cases)
+PASS P8 mutant not-no-lead is caught (11 grid cases)
+PASS P8 mutant checks-not-list is caught (3 grid cases)
+PASS P8 mutant be-phrase is caught (14 grid cases)
+PASS P8 mutant compound-alone is caught (4 grid cases)
+PASS P8 mutant compound-anywhere is caught (2 grid cases)
+PASS P8 mutant punct-led is caught (6 grid cases)
+PASS P8 mutant inside is caught (19 grid cases)
+PASS P8 mutant split-letter-digit is caught (2 grid cases)
+PASS P8 mutant digit-read is caught (2 grid cases)
+PASS P8 mutant single-run-inside is caught (10 grid cases)
+PASS P8 mutant single-run-lead is caught (9 grid cases)
+PASS P8 mutant confusables is caught (9 grid cases)
+PASS P8 mutant combining-marks is caught (2 grid cases)
+PASS P8 mutant template is caught (18 grid cases)
+PASS P8 mutant nfkc is caught (6 grid cases)
+PASS P8 mutant format-chars is caught (7 grid cases)
+PASS P8 mutant job-shape is caught (7 grid cases)
+PASS P8 mutant job-shape-reads-folded is caught (1 grid cases)
+PASS P8 mutant job-id is caught (5 grid cases)
+PASS P8 mutant job-path is caught (330 grid cases)
+PASS P8 mutant job-command is caught (2 grid cases)
+PASS P8 mutant checks-shape is caught (1 grid cases)
+PASS P8 mutant target-shape is caught (5 grid cases)
+PASS P8 mutant target-words is caught (4 grid cases)
+PASS P8 mutant target-reads-folded is caught (1 grid cases)
+PASS P8 mutant layer-shape is caught (3 grid cases)
+PASS P8 mutant artifact-shape is caught (3 grid cases)
+PASS P8 mutant artifact-reads-folded is caught (1 grid cases)
+PASS P8 mutant due-not-date is caught (11 grid cases)
+PASS P8 mutant due-calendar is caught (4 grid cases)
+PASS P8 mutant due-year-range is caught (3 grid cases)
+PASS P8 mutant due-time is caught (2 grid cases)
+PASS P8 mutant fence-ignored is caught (14 grid cases)
+PASS P8 mutant fence-close-length is caught (2 grid cases)
+PASS P8 mutant colonless-form is caught (5 grid cases)
+PASS P8 mutant prefix-boundary is caught (2 grid cases)
+PASS P8 mutant comment-skipped is caught (5 grid cases)
+PASS P8 mutant comment-close is caught (1 grid cases)
+PASS P8 mutant comment-one-line is caught (1 grid cases)
+PASS P9 job: UNCONFIRMED: refused
+PASS P9 due: TODO refused
+PASS P9 every field TBD refused (the first field is named)
+PASS P9 job: - refused
+PASS P9 due: . refused (reviewer mutant PV2 shape)
+PASS P9 a line inside a code fence does not count
+PASS P10 --root: exit 1 (one job path is absent)
+PASS P10 --root: the absent path is refused
+PASS P10 --root: an existing path is accepted
+PASS P10 --root: a command with ./... needs no path
+PASS P10 --root is reported
+PASS P10 without --root the shape is enough (control)
+PASS P10 --root that is not a directory: usage exit 64
+PASS P10 --root without a value: usage exit 64
+PASS P10 mutant root-ignored is caught (rc 0, the correct checker gives 1)
+PASS P8 mutant X1-verbatim is caught (1 grid cases)
+PASS P8 mutant X2-verbatim is caught (1 grid cases)
+PASS P8 mutant X3-verbatim is caught (2 grid cases)
+PASS P8 mutant X4-port is caught (1 grid cases)
+PASS P8 mutant X5-port is caught (1 grid cases)
+PASS P8 mutant X6-port is caught (2 grid cases)
+PASS P8 mutant X7-verbatim is caught (6 grid cases)
+RESULT: pass=114 fail=0

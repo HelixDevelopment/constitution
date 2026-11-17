@@ -1,0 +1,1 @@
+s/unicodedata.category(c).startswith("C")/unicodedata.category(c)=="Cc"/

@@ -1,0 +1,20 @@
+call 12 llmctl decide status --json
+call 12 llmctl decide capacity --json
+call 12 llmctl capacity --json
+save 12 {"decide-a":{"stopping":null,"starting":null},"decide-b":{"stopping":null,"starting":null}}
+save 12 {"decide-a":{"stopping":null,"starting":null},"decide-b":{"stopping":null,"starting":null}}
+save 12 {"decide-a":{"stopping":12,"starting":null},"decide-b":{"stopping":null,"starting":null}}
+save 12 {"decide-a":{"stopping":12,"starting":null},"decide-b":{"stopping":12,"starting":null}}
+call 12 llmctl stop decide-a
+save 12 {"decide-b":{"stopping":12,"starting":null}}
+call 12 llmctl stop decide-b
+call 659 llmctl capacity --json
+save 659 {"decide-b":{"stopping":null,"starting":null}}
+call 809 llmctl decide status --json
+call 809 llmctl decide capacity --json
+call 809 llmctl capacity --json
+save 809 {"decide-b":{"stopping":null,"starting":null}}
+save 809 {"decide-b":{"stopping":null,"starting":null}}
+save 12 {}
+call 12 llmctl capacity --json
+call 1389 llmctl capacity --json

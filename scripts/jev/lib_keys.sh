@@ -121,11 +121,11 @@ jev_origin_pinned() {
   local u="$1" pv pu
   _jev_split_url "$u" || return 1
   local uo="$_U_ORIGIN"
-  while IFS=$'\t' read -r pv pu; do
+  while IFS=$'\x1f' read -r pv pu; do
     [ -n "$pv" ] || continue
     _jev_split_url "$pu" || continue
     [ "$_U_ORIGIN" = "$uo" ] && return 0
-  done < <(jev_pin_rows)
+  done < <(jev_pin_rows | tr '\t' '\037')
   return 1
 }
 
@@ -138,7 +138,7 @@ jev_pin_ok() {
   is_var_name "$v" || { echo "refused: invalid variable name" >&2; return 1; }
   _jev_split_url "$u" || { echo "refused: url is not a plain https URL ($(printf '%s' "${u%%[?#]*}" | cut -c1-80))" >&2; return 1; }
   local uo="$_U_ORIGIN" up="$_U_PATH"
-  while IFS=$'\t' read -r pv pu; do
+  while IFS=$'\x1f' read -r pv pu; do
     [ -n "$pv" ] || continue
     _jev_split_url "$pu" || continue
     po="$_U_ORIGIN"; pp="$_U_PATH"
@@ -146,14 +146,17 @@ jev_pin_ok() {
     if [ "$pv" != "$v" ]; then [ -n "$reason" ] || reason="refused: variable $v is not the pinned key variable for $uo"; continue; fi
     if [ -z "$pp" ] || [ "$up" = "$pp" ] || [ "${up#"$pp"/}" != "$up" ]; then ok=0; break; fi
     reason="refused: path is outside the pinned base path"
-  done < <(jev_pin_rows)
+  done < <(jev_pin_rows | tr '\t' '\037')
   [ "$ok" -eq 0 ] && return 0
   if [ -n "$reason" ]; then echo "$reason" >&2; return 1; fi
   echo "refused: origin $uo is not a provider pin (no key is sent to an unpinned host)" >&2
   return 1
 }
 
-# auth_probe <VAR> <url> [model] [ca_file] -> 2xx | 401 | 403 | other | timeout | unavailable | refused
+# auth_probe <VAR> <url> [model] [ca_file] -> 2xx | 401 | 402 -> no_credit | 403 | 429 -> rate_limited | other | timeout | unavailable | refused
+# Only 2xx means USABLE (2026-11-12, S3): a 402 (no credit) or 429 (rate limited) answer proves the server exists but
+# not that it serves decisions; callers record reachable=true for 2xx only (live 2026-11-12: OpenRouter answered 402
+# for every decision for ten days while the detection record said reachable=true).
 # A minimal authenticated POST with one harmless noul question (the documented wire format). The key goes to curl on
 # STDIN (-K -), never argv; only the HTTP status CLASS is returned. REFUSES (class `refused`, reason on stderr, curl
 # never started) unless jev_pin_ok VAR url holds; curl is pinned to https for the request AND any redirect.
@@ -174,7 +177,7 @@ auth_probe() {
   [ -n "$ca" ] && [ -f "$ca" ] && args+=(--cacert "$ca")
   local c
   c="$(printf 'header = "Authorization: Bearer %s"\n' "$ek" | curl "${args[@]}" "$u" 2>/dev/null)" || c=000
-  case "$c" in 000|"") echo timeout ;; 2??) echo 2xx ;; 401) echo 401 ;; 403) echo 403 ;; *) echo other ;; esac
+  case "$c" in 000|"") echo timeout ;; 2??) echo 2xx ;; 401) echo 401 ;; 402) echo no_credit ;; 403) echo 403 ;; 429) echo rate_limited ;; *) echo other ;; esac
 }
 
 keys_file_mode() { stat -c '%a' "${KEYS_FILE:-$(jev_keys_file)}" 2>/dev/null || stat -f '%Lp' "${KEYS_FILE:-$(jev_keys_file)}" 2>/dev/null || echo ""; }

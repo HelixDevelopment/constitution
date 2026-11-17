@@ -103,9 +103,12 @@ func TestNoStatusMutationLeavesDesync(t *testing.T) {
 			return db
 		}},
 		{"subtask-status", func(t *testing.T) string {
-			db := newTestDBWithParent(t, "ATM-025")
-			mustOK(t, subtaskAddCmd([]string{"ATM-025", "--db", db, "--session", "s"}))
-			mustOK(t, subtaskStatusCmd([]string{"ATM-025-001", "--db", db, "--to", "In progress"}))
+			// Parent BG: its child BG-001 is a legacy code the parser reads back,
+			// so validate judges the status sync here, not the separate
+			// canonical-parent child-id defect pinned in idgrammar_test.go.
+			db := newTestDBWithParent(t, "BG")
+			mustOK(t, subtaskAddCmd([]string{"BG", "--db", db, "--session", "s"}))
+			mustOK(t, subtaskStatusCmd([]string{"BG-001", "--db", db, "--to", "In progress"}))
 			return db
 		}},
 	}
@@ -130,9 +133,10 @@ func TestNoStatusMutationLeavesDesync(t *testing.T) {
 func TestSubtaskStatus_DesyncRedPolarity(t *testing.T) {
 	assertPreFixBluff := os.Getenv("RED_MODE") == "1"
 
-	dbPath := newTestDBWithParent(t, "ATM-025")
-	mustOK(t, subtaskAddCmd([]string{"ATM-025", "--db", dbPath, "--session", "s"}))
-	child := "ATM-025-001"
+	// Parent BG (child BG-001 round-trips); see the note in the case table above.
+	dbPath := newTestDBWithParent(t, "BG")
+	mustOK(t, subtaskAddCmd([]string{"BG", "--db", dbPath, "--session", "s"}))
+	child := "BG-001"
 
 	// Sanity: the freshly-added child is in sync (body Queued == column Queued).
 	if d := loadDesyncs(t, dbPath); len(d) != 0 {

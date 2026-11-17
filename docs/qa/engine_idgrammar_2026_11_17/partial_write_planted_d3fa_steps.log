@@ -1,0 +1,13 @@
+add G77 rc=0
+move G77 to Fixed rc=0
+planted G77 heading by SQL rc=0
+G77 row: G77|Fixed|Fixed (→ Fixed.md)|## G77.   leading partial-write probe
+
+**Status:** Fixed (→ 
+db-to-md rc=0
+moved block of CON-001 from Issues.md to Fixed.md
+before md-to-db: items=487 X=CON-001|Issues
+md-to-db rc=1
+after md-to-db: items=486 X=[] G77=[G77|Fixed]
+md-to-db stderr: Issues.md: 475 items, 475 segments
+sync md-to-db: refusing — 1 DB item(s) whose heading is still in Fixed.md would be dropped because the parser cannot read the heading (nothing written): G77 (heading "## G77.   leading partial-write probe"); an id must be <KEY>-<suffix> with KEY exactly three ASC

@@ -1,0 +1,3 @@
+# github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items
+# [github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items]
+vet: cmd/workable-items/mutate.go:578:6: declared and not used: reopenInputs

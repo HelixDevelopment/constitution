@@ -1,0 +1,74 @@
+POS p01-key-suffix MISS 
+POS p02-key-suffix-apikey-v2 MISS 
+POS p03-py-bytes MISS 
+POS p04-py-fstring MISS 
+POS p05-py-raw MISS 
+POS p06-split-concat-c MISS 
+POS p07-split-concat-plus MISS 
+POS p08-sql-identified-by MISS 
+POS p09-sql-with-password MISS 
+POS p10-openssl-pass MISS 
+POS p11-redis-cli-a MISS 
+POS p12-docker-login-p MISS 
+POS p13-azure-accountkey MISS 
+POS p14-camel-userpass MISS 
+POS p15-camel-adminpwd MISS 
+POS p16-html-entity-json MISS 
+POS p17-html-numeric-key MISS 
+POS p18-double-percent MISS 
+POS p19-octal-escape-key MISS 
+POS p20-combining-mark MISS 
+POS p21-cgj-in-key MISS 
+POS p22-variation-selector MISS 
+POS p23-latin-alpha MISS 
+POS p24-small-caps MISS 
+POS p25-armenian-o MISS 
+POS p26-cherokee-mixed MISS 
+POS p27-german-key MISS 
+POS p28-signing-key MISS 
+POS p29-encryption-key MISS 
+POS p30-master-key MISS 
+POS p31-bearer-16 MISS 
+POS p32-authorization-apikey MISS 
+POS p33-htpasswd-b MISS 
+POS p34-toml-inline-table HIT password-assign
+POS p35-ini-colon-space-key HIT password-assign-unquoted
+POS p36-k8s-stringdata-json HIT short-key-assign
+POS p37-env-json-escaped-twice HIT password-assign
+POS p38-uuencoded-url-at HIT url-userinfo-password
+POS p39-line-continuation HIT password-assign-unquoted
+POS p40-hex-escape-value HIT password-assign
+POS p41-mongo-p MISS 
+POS p42-psql-conninfo HIT password-assign-unquoted
+POS p43-unicode-escape-key-json HIT password-assign
+POS p44-fullwidth-equals HIT password-assign-unquoted
+POS p45-nbsp-around-sep HIT password-assign-unquoted
+POS p46-tab-sep-tsv MISS 
+POS p47-key-in-brackets MISS 
+POS p48-js-object-noquote HIT password-assign
+POS p49-go-struct-backtick HIT password-assign
+POS p50-gpg-passphrase HIT password-flag-space,password-space
+NEG n01-vault-ref FP password-colon-unquoted
+NEG n02-sops-enc ok 
+NEG n03-test-report FP short-key-assign
+NEG n04-ref-plus FP password-colon-unquoted
+NEG n05-k8s-secretkeyref ok 
+NEG n06-helm-tpl ok 
+NEG n07-gha-secret ok 
+NEG n08-erb ok 
+NEG n09-placeholder-angle ok 
+NEG n10-masked ok 
+NEG n11-getenv ok 
+NEG n12-prose-rule-name ok 
+NEG n13-token-count ok 
+NEG n14-url-port ok 
+NEG n15-file-flag ok 
+NEG n16-pass-ok ok 
+NEG n17-hash-field ok 
+NEG n18-doc-example ok 
+NEG n19-commit-sha-word ok 
+NEG n20-azure-keyvault-ref FP password-colon-unquoted
+SUMMARY pos=50 miss=36 neg=20 fp=4
+MISSED p01-key-suffix p02-key-suffix-apikey-v2 p03-py-bytes p04-py-fstring p05-py-raw p06-split-concat-c p07-split-concat-plus p08-sql-identified-by p09-sql-with-password p10-openssl-pass p11-redis-cli-a p12-docker-login-p p13-azure-accountkey p14-camel-userpass p15-camel-adminpwd p16-html-entity-json p17-html-numeric-key p18-double-percent p19-octal-escape-key p20-combining-mark p21-cgj-in-key p22-variation-selector p23-latin-alpha p24-small-caps p25-armenian-o p26-cherokee-mixed p27-german-key p28-signing-key p29-encryption-key p30-master-key p31-bearer-16 p32-authorization-apikey p33-htpasswd-b p41-mongo-p p46-tab-sep-tsv p47-key-in-brackets
+FPS n01-vault-ref n03-test-report n04-ref-plus n20-azure-keyvault-ref
+CONTROL positive ok; negative: True

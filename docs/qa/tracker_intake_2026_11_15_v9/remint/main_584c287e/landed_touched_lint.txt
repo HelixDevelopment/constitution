@@ -1,0 +1,5 @@
+# target items the landing wrote: CON-313
+# findings on the landed copy that the unlanded target does not have (sorted, comm -23):
+# findings on the unlanded target that the landing removed (comm -13):
+REMOVED FINDING XREF-DANGLING CON-313 CON-339
+RESULT landed=11 target=12 NEW=0 REMOVED=1

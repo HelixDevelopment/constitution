@@ -1,0 +1,626 @@
+control needles: PASS (a known member found, a prose line not reported)
+MISMATCH GAP suffix PASSWORD prod '=' v-mix
+MISMATCH GAP suffix PASSWORD prod '=' v-let
+MISMATCH GAP suffix PASSWORD prod ': ' v-mix
+MISMATCH GAP suffix PASSWORD prod ': ' v-let
+MISMATCH GAP suffix PASSWORD prod ' = "' v-mix
+MISMATCH GAP suffix PASSWORD prod ' = "' v-let
+MISMATCH GAP suffix PASSWORD v2 '=' v-mix
+MISMATCH GAP suffix PASSWORD v2 '=' v-let
+MISMATCH GAP suffix PASSWORD v2 ': ' v-mix
+MISMATCH GAP suffix PASSWORD v2 ': ' v-let
+MISMATCH GAP suffix PASSWORD v2 ' = "' v-mix
+MISMATCH GAP suffix PASSWORD v2 ' = "' v-let
+MISMATCH GAP suffix PASSWORD digit '=' v-mix
+MISMATCH GAP suffix PASSWORD digit '=' v-let
+MISMATCH GAP suffix PASSWORD digit ': ' v-mix
+MISMATCH GAP suffix PASSWORD digit ': ' v-let
+MISMATCH GAP suffix PASSWORD digit ' = "' v-mix
+MISMATCH GAP suffix PASSWORD digit ' = "' v-let
+MISMATCH GAP suffix PASSWORD us-digit '=' v-mix
+MISMATCH GAP suffix PASSWORD us-digit '=' v-let
+MISMATCH GAP suffix PASSWORD us-digit ': ' v-mix
+MISMATCH GAP suffix PASSWORD us-digit ': ' v-let
+MISMATCH GAP suffix PASSWORD us-digit ' = "' v-mix
+MISMATCH GAP suffix PASSWORD us-digit ' = "' v-let
+MISMATCH GAP suffix PASSWORD base '=' v-mix
+MISMATCH GAP suffix PASSWORD base '=' v-let
+MISMATCH GAP suffix PASSWORD base ': ' v-mix
+MISMATCH GAP suffix PASSWORD base ': ' v-let
+MISMATCH GAP suffix PASSWORD base ' = "' v-mix
+MISMATCH GAP suffix PASSWORD base ' = "' v-let
+MISMATCH GAP suffix PASSWORD dot-env '=' v-mix
+MISMATCH GAP suffix PASSWORD dot-env '=' v-let
+MISMATCH GAP suffix PASSWORD dot-env ': ' v-mix
+MISMATCH GAP suffix PASSWORD dot-env ': ' v-let
+MISMATCH GAP suffix PASSWORD dot-env ' = "' v-mix
+MISMATCH GAP suffix PASSWORD dot-env ' = "' v-let
+MISMATCH GAP suffix PASSWORD dash '=' v-mix
+MISMATCH GAP suffix PASSWORD dash '=' v-let
+MISMATCH GAP suffix PASSWORD dash ': ' v-mix
+MISMATCH GAP suffix PASSWORD dash ': ' v-let
+MISMATCH GAP suffix PASSWORD dash ' = "' v-mix
+MISMATCH GAP suffix PASSWORD dash ' = "' v-let
+MISMATCH GAP suffix password prod '=' v-mix
+MISMATCH GAP suffix password prod '=' v-let
+MISMATCH GAP suffix password prod ': ' v-mix
+MISMATCH GAP suffix password prod ': ' v-let
+MISMATCH GAP suffix password prod ' = "' v-mix
+MISMATCH GAP suffix password prod ' = "' v-let
+MISMATCH GAP suffix password v2 '=' v-mix
+MISMATCH GAP suffix password v2 '=' v-let
+MISMATCH GAP suffix password v2 ': ' v-mix
+MISMATCH GAP suffix password v2 ': ' v-let
+MISMATCH GAP suffix password v2 ' = "' v-mix
+MISMATCH GAP suffix password v2 ' = "' v-let
+MISMATCH GAP suffix password digit '=' v-mix
+MISMATCH GAP suffix password digit '=' v-let
+MISMATCH GAP suffix password digit ': ' v-mix
+MISMATCH GAP suffix password digit ': ' v-let
+MISMATCH GAP suffix password digit ' = "' v-mix
+MISMATCH GAP suffix password digit ' = "' v-let
+MISMATCH GAP suffix password us-digit '=' v-mix
+MISMATCH GAP suffix password us-digit '=' v-let
+MISMATCH GAP suffix password us-digit ': ' v-mix
+MISMATCH GAP suffix password us-digit ': ' v-let
+MISMATCH GAP suffix password us-digit ' = "' v-mix
+MISMATCH GAP suffix password us-digit ' = "' v-let
+MISMATCH GAP suffix password base '=' v-mix
+MISMATCH GAP suffix password base '=' v-let
+MISMATCH GAP suffix password base ': ' v-mix
+MISMATCH GAP suffix password base ': ' v-let
+MISMATCH GAP suffix password base ' = "' v-mix
+MISMATCH GAP suffix password base ' = "' v-let
+MISMATCH GAP suffix password dot-env '=' v-mix
+MISMATCH GAP suffix password dot-env '=' v-let
+MISMATCH GAP suffix password dot-env ': ' v-mix
+MISMATCH GAP suffix password dot-env ': ' v-let
+MISMATCH GAP suffix password dot-env ' = "' v-mix
+MISMATCH GAP suffix password dot-env ' = "' v-let
+MISMATCH GAP suffix password dash '=' v-mix
+MISMATCH GAP suffix password dash '=' v-let
+MISMATCH GAP suffix password dash ': ' v-mix
+MISMATCH GAP suffix password dash ': ' v-let
+MISMATCH GAP suffix password dash ' = "' v-mix
+MISMATCH GAP suffix password dash ' = "' v-let
+MISMATCH GAP suffix passwd prod '=' v-mix
+MISMATCH GAP suffix passwd prod '=' v-let
+MISMATCH GAP suffix passwd prod ': ' v-mix
+MISMATCH GAP suffix passwd prod ': ' v-let
+MISMATCH GAP suffix passwd prod ' = "' v-mix
+MISMATCH GAP suffix passwd prod ' = "' v-let
+MISMATCH GAP suffix passwd v2 '=' v-mix
+MISMATCH GAP suffix passwd v2 '=' v-let
+MISMATCH GAP suffix passwd v2 ': ' v-mix
+MISMATCH GAP suffix passwd v2 ': ' v-let
+MISMATCH GAP suffix passwd v2 ' = "' v-mix
+MISMATCH GAP suffix passwd v2 ' = "' v-let
+MISMATCH GAP suffix passwd digit '=' v-mix
+MISMATCH GAP suffix passwd digit '=' v-let
+MISMATCH GAP suffix passwd digit ': ' v-mix
+MISMATCH GAP suffix passwd digit ': ' v-let
+MISMATCH GAP suffix passwd digit ' = "' v-mix
+MISMATCH GAP suffix passwd digit ' = "' v-let
+MISMATCH GAP suffix passwd us-digit '=' v-mix
+MISMATCH GAP suffix passwd us-digit '=' v-let
+MISMATCH GAP suffix passwd us-digit ': ' v-mix
+MISMATCH GAP suffix passwd us-digit ': ' v-let
+MISMATCH GAP suffix passwd us-digit ' = "' v-mix
+MISMATCH GAP suffix passwd us-digit ' = "' v-let
+MISMATCH GAP suffix passwd base '=' v-mix
+MISMATCH GAP suffix passwd base '=' v-let
+MISMATCH GAP suffix passwd base ': ' v-mix
+MISMATCH GAP suffix passwd base ': ' v-let
+MISMATCH GAP suffix passwd base ' = "' v-mix
+MISMATCH GAP suffix passwd base ' = "' v-let
+MISMATCH GAP suffix passwd dot-env '=' v-mix
+MISMATCH GAP suffix passwd dot-env '=' v-let
+MISMATCH GAP suffix passwd dot-env ': ' v-mix
+MISMATCH GAP suffix passwd dot-env ': ' v-let
+MISMATCH GAP suffix passwd dot-env ' = "' v-mix
+MISMATCH GAP suffix passwd dot-env ' = "' v-let
+MISMATCH GAP suffix passwd dash '=' v-mix
+MISMATCH GAP suffix passwd dash '=' v-let
+MISMATCH GAP suffix passwd dash ': ' v-mix
+MISMATCH GAP suffix passwd dash ': ' v-let
+MISMATCH GAP suffix passwd dash ' = "' v-mix
+MISMATCH GAP suffix passwd dash ' = "' v-let
+MISMATCH GAP suffix API_KEY prod '=' v-mix
+MISMATCH GAP suffix API_KEY prod '=' v-let
+MISMATCH GAP suffix API_KEY prod ': ' v-mix
+MISMATCH GAP suffix API_KEY prod ': ' v-let
+MISMATCH GAP suffix API_KEY prod ' = "' v-mix
+MISMATCH GAP suffix API_KEY prod ' = "' v-let
+MISMATCH GAP suffix API_KEY v2 '=' v-mix
+MISMATCH GAP suffix API_KEY v2 '=' v-let
+MISMATCH GAP suffix API_KEY v2 ': ' v-mix
+MISMATCH GAP suffix API_KEY v2 ': ' v-let
+MISMATCH GAP suffix API_KEY v2 ' = "' v-mix
+MISMATCH GAP suffix API_KEY v2 ' = "' v-let
+MISMATCH GAP suffix API_KEY digit '=' v-mix
+MISMATCH GAP suffix API_KEY digit '=' v-let
+MISMATCH GAP suffix API_KEY digit ': ' v-mix
+MISMATCH GAP suffix API_KEY digit ': ' v-let
+MISMATCH GAP suffix API_KEY digit ' = "' v-mix
+MISMATCH GAP suffix API_KEY digit ' = "' v-let
+MISMATCH GAP suffix API_KEY us-digit '=' v-mix
+MISMATCH GAP suffix API_KEY us-digit '=' v-let
+MISMATCH GAP suffix API_KEY us-digit ': ' v-mix
+MISMATCH GAP suffix API_KEY us-digit ': ' v-let
+MISMATCH GAP suffix API_KEY us-digit ' = "' v-mix
+MISMATCH GAP suffix API_KEY us-digit ' = "' v-let
+MISMATCH GAP suffix API_KEY base '=' v-mix
+MISMATCH GAP suffix API_KEY base '=' v-let
+MISMATCH GAP suffix API_KEY base ': ' v-mix
+MISMATCH GAP suffix API_KEY base ': ' v-let
+MISMATCH GAP suffix API_KEY base ' = "' v-mix
+MISMATCH GAP suffix API_KEY base ' = "' v-let
+MISMATCH GAP suffix API_KEY dot-env '=' v-mix
+MISMATCH GAP suffix API_KEY dot-env '=' v-let
+MISMATCH GAP suffix API_KEY dot-env ': ' v-mix
+MISMATCH GAP suffix API_KEY dot-env ': ' v-let
+MISMATCH GAP suffix API_KEY dot-env ' = "' v-mix
+MISMATCH GAP suffix API_KEY dot-env ' = "' v-let
+MISMATCH GAP suffix API_KEY dash '=' v-mix
+MISMATCH GAP suffix API_KEY dash '=' v-let
+MISMATCH GAP suffix API_KEY dash ': ' v-mix
+MISMATCH GAP suffix API_KEY dash ': ' v-let
+MISMATCH GAP suffix API_KEY dash ' = "' v-mix
+MISMATCH GAP suffix API_KEY dash ' = "' v-let
+MISMATCH GAP suffix apiKey prod '=' v-mix
+MISMATCH GAP suffix apiKey prod '=' v-let
+MISMATCH GAP suffix apiKey prod ': ' v-mix
+MISMATCH GAP suffix apiKey prod ': ' v-let
+MISMATCH GAP suffix apiKey prod ' = "' v-mix
+MISMATCH GAP suffix apiKey prod ' = "' v-let
+MISMATCH GAP suffix apiKey v2 '=' v-mix
+MISMATCH GAP suffix apiKey v2 '=' v-let
+MISMATCH GAP suffix apiKey v2 ': ' v-mix
+MISMATCH GAP suffix apiKey v2 ': ' v-let
+MISMATCH GAP suffix apiKey v2 ' = "' v-mix
+MISMATCH GAP suffix apiKey v2 ' = "' v-let
+MISMATCH GAP suffix apiKey digit '=' v-mix
+MISMATCH GAP suffix apiKey digit '=' v-let
+MISMATCH GAP suffix apiKey digit ': ' v-mix
+MISMATCH GAP suffix apiKey digit ': ' v-let
+MISMATCH GAP suffix apiKey digit ' = "' v-mix
+MISMATCH GAP suffix apiKey digit ' = "' v-let
+MISMATCH GAP suffix apiKey us-digit '=' v-mix
+MISMATCH GAP suffix apiKey us-digit '=' v-let
+MISMATCH GAP suffix apiKey us-digit ': ' v-mix
+MISMATCH GAP suffix apiKey us-digit ': ' v-let
+MISMATCH GAP suffix apiKey us-digit ' = "' v-mix
+MISMATCH GAP suffix apiKey us-digit ' = "' v-let
+MISMATCH GAP suffix apiKey base '=' v-mix
+MISMATCH GAP suffix apiKey base '=' v-let
+MISMATCH GAP suffix apiKey base ': ' v-mix
+MISMATCH GAP suffix apiKey base ': ' v-let
+MISMATCH GAP suffix apiKey base ' = "' v-mix
+MISMATCH GAP suffix apiKey base ' = "' v-let
+MISMATCH GAP suffix apiKey dot-env '=' v-mix
+MISMATCH GAP suffix apiKey dot-env '=' v-let
+MISMATCH GAP suffix apiKey dot-env ': ' v-mix
+MISMATCH GAP suffix apiKey dot-env ': ' v-let
+MISMATCH GAP suffix apiKey dot-env ' = "' v-mix
+MISMATCH GAP suffix apiKey dot-env ' = "' v-let
+MISMATCH GAP suffix apiKey dash '=' v-mix
+MISMATCH GAP suffix apiKey dash '=' v-let
+MISMATCH GAP suffix apiKey dash ': ' v-mix
+MISMATCH GAP suffix apiKey dash ': ' v-let
+MISMATCH GAP suffix apiKey dash ' = "' v-mix
+MISMATCH GAP suffix apiKey dash ' = "' v-let
+MISMATCH GAP suffix SECRET_KEY prod '=' v-mix
+MISMATCH GAP suffix SECRET_KEY prod '=' v-let
+MISMATCH GAP suffix SECRET_KEY prod ': ' v-mix
+MISMATCH GAP suffix SECRET_KEY prod ': ' v-let
+MISMATCH GAP suffix SECRET_KEY prod ' = "' v-mix
+MISMATCH GAP suffix SECRET_KEY prod ' = "' v-let
+MISMATCH GAP suffix SECRET_KEY v2 '=' v-mix
+MISMATCH GAP suffix SECRET_KEY v2 '=' v-let
+MISMATCH GAP suffix SECRET_KEY v2 ': ' v-mix
+MISMATCH GAP suffix SECRET_KEY v2 ': ' v-let
+MISMATCH GAP suffix SECRET_KEY v2 ' = "' v-mix
+MISMATCH GAP suffix SECRET_KEY v2 ' = "' v-let
+MISMATCH GAP suffix SECRET_KEY digit '=' v-mix
+MISMATCH GAP suffix SECRET_KEY digit '=' v-let
+MISMATCH GAP suffix SECRET_KEY digit ': ' v-mix
+MISMATCH GAP suffix SECRET_KEY digit ': ' v-let
+MISMATCH GAP suffix SECRET_KEY digit ' = "' v-mix
+MISMATCH GAP suffix SECRET_KEY digit ' = "' v-let
+MISMATCH GAP suffix SECRET_KEY us-digit '=' v-mix
+MISMATCH GAP suffix SECRET_KEY us-digit '=' v-let
+MISMATCH GAP suffix SECRET_KEY us-digit ': ' v-mix
+MISMATCH GAP suffix SECRET_KEY us-digit ': ' v-let
+MISMATCH GAP suffix SECRET_KEY us-digit ' = "' v-mix
+MISMATCH GAP suffix SECRET_KEY us-digit ' = "' v-let
+MISMATCH GAP suffix SECRET_KEY base '=' v-mix
+MISMATCH GAP suffix SECRET_KEY base '=' v-let
+MISMATCH GAP suffix SECRET_KEY base ': ' v-mix
+MISMATCH GAP suffix SECRET_KEY base ': ' v-let
+MISMATCH GAP suffix SECRET_KEY base ' = "' v-mix
+MISMATCH GAP suffix SECRET_KEY base ' = "' v-let
+MISMATCH GAP suffix SECRET_KEY dot-env '=' v-mix
+MISMATCH GAP suffix SECRET_KEY dot-env '=' v-let
+MISMATCH GAP suffix SECRET_KEY dot-env ': ' v-mix
+MISMATCH GAP suffix SECRET_KEY dot-env ': ' v-let
+MISMATCH GAP suffix SECRET_KEY dot-env ' = "' v-mix
+MISMATCH GAP suffix SECRET_KEY dot-env ' = "' v-let
+MISMATCH GAP suffix SECRET_KEY dash '=' v-mix
+MISMATCH GAP suffix SECRET_KEY dash '=' v-let
+MISMATCH GAP suffix SECRET_KEY dash ': ' v-mix
+MISMATCH GAP suffix SECRET_KEY dash ': ' v-let
+MISMATCH GAP suffix SECRET_KEY dash ' = "' v-mix
+MISMATCH GAP suffix SECRET_KEY dash ' = "' v-let
+MISMATCH GAP suffix AUTH_TOKEN prod '=' v-mix
+MISMATCH GAP suffix AUTH_TOKEN prod '=' v-let
+MISMATCH GAP suffix AUTH_TOKEN prod ': ' v-mix
+MISMATCH GAP suffix AUTH_TOKEN prod ': ' v-let
+MISMATCH GAP suffix AUTH_TOKEN prod ' = "' v-mix
+MISMATCH GAP suffix AUTH_TOKEN prod ' = "' v-let
+MISMATCH GAP suffix AUTH_TOKEN v2 '=' v-mix
+MISMATCH GAP suffix AUTH_TOKEN v2 '=' v-let
+MISMATCH GAP suffix AUTH_TOKEN v2 ': ' v-mix
+MISMATCH GAP suffix AUTH_TOKEN v2 ': ' v-let
+MISMATCH GAP suffix AUTH_TOKEN v2 ' = "' v-mix
+MISMATCH GAP suffix AUTH_TOKEN v2 ' = "' v-let
+MISMATCH GAP suffix AUTH_TOKEN digit '=' v-mix
+MISMATCH GAP suffix AUTH_TOKEN digit '=' v-let
+MISMATCH GAP suffix AUTH_TOKEN digit ': ' v-mix
+MISMATCH GAP suffix AUTH_TOKEN digit ': ' v-let
+MISMATCH GAP suffix AUTH_TOKEN digit ' = "' v-mix
+MISMATCH GAP suffix AUTH_TOKEN digit ' = "' v-let
+MISMATCH GAP suffix AUTH_TOKEN us-digit '=' v-mix
+MISMATCH GAP suffix AUTH_TOKEN us-digit '=' v-let
+MISMATCH GAP suffix AUTH_TOKEN us-digit ': ' v-mix
+MISMATCH GAP suffix AUTH_TOKEN us-digit ': ' v-let
+MISMATCH GAP suffix AUTH_TOKEN us-digit ' = "' v-mix
+MISMATCH GAP suffix AUTH_TOKEN us-digit ' = "' v-let
+MISMATCH GAP suffix AUTH_TOKEN base '=' v-mix
+MISMATCH GAP suffix AUTH_TOKEN base '=' v-let
+MISMATCH GAP suffix AUTH_TOKEN base ': ' v-mix
+MISMATCH GAP suffix AUTH_TOKEN base ': ' v-let
+MISMATCH GAP suffix AUTH_TOKEN base ' = "' v-mix
+MISMATCH GAP suffix AUTH_TOKEN base ' = "' v-let
+MISMATCH GAP suffix AUTH_TOKEN dot-env '=' v-mix
+MISMATCH GAP suffix AUTH_TOKEN dot-env '=' v-let
+MISMATCH GAP suffix AUTH_TOKEN dot-env ': ' v-mix
+MISMATCH GAP suffix AUTH_TOKEN dot-env ': ' v-let
+MISMATCH GAP suffix AUTH_TOKEN dot-env ' = "' v-mix
+MISMATCH GAP suffix AUTH_TOKEN dot-env ' = "' v-let
+MISMATCH GAP suffix AUTH_TOKEN dash '=' v-mix
+MISMATCH GAP suffix AUTH_TOKEN dash '=' v-let
+MISMATCH GAP suffix AUTH_TOKEN dash ': ' v-mix
+MISMATCH GAP suffix AUTH_TOKEN dash ': ' v-let
+MISMATCH GAP suffix AUTH_TOKEN dash ' = "' v-mix
+MISMATCH GAP suffix AUTH_TOKEN dash ' = "' v-let
+MISMATCH GAP suffix client_secret prod '=' v-mix
+MISMATCH GAP suffix client_secret prod '=' v-let
+MISMATCH GAP suffix client_secret prod ': ' v-mix
+MISMATCH GAP suffix client_secret prod ': ' v-let
+MISMATCH GAP suffix client_secret prod ' = "' v-mix
+MISMATCH GAP suffix client_secret prod ' = "' v-let
+MISMATCH GAP suffix client_secret v2 '=' v-mix
+MISMATCH GAP suffix client_secret v2 '=' v-let
+MISMATCH GAP suffix client_secret v2 ': ' v-mix
+MISMATCH GAP suffix client_secret v2 ': ' v-let
+MISMATCH GAP suffix client_secret v2 ' = "' v-mix
+MISMATCH GAP suffix client_secret v2 ' = "' v-let
+MISMATCH GAP suffix client_secret digit '=' v-mix
+MISMATCH GAP suffix client_secret digit '=' v-let
+MISMATCH GAP suffix client_secret digit ': ' v-mix
+MISMATCH GAP suffix client_secret digit ': ' v-let
+MISMATCH GAP suffix client_secret digit ' = "' v-mix
+MISMATCH GAP suffix client_secret digit ' = "' v-let
+MISMATCH GAP suffix client_secret us-digit '=' v-mix
+MISMATCH GAP suffix client_secret us-digit '=' v-let
+MISMATCH GAP suffix client_secret us-digit ': ' v-mix
+MISMATCH GAP suffix client_secret us-digit ': ' v-let
+MISMATCH GAP suffix client_secret us-digit ' = "' v-mix
+MISMATCH GAP suffix client_secret us-digit ' = "' v-let
+MISMATCH GAP suffix client_secret base '=' v-mix
+MISMATCH GAP suffix client_secret base '=' v-let
+MISMATCH GAP suffix client_secret base ': ' v-mix
+MISMATCH GAP suffix client_secret base ': ' v-let
+MISMATCH GAP suffix client_secret base ' = "' v-mix
+MISMATCH GAP suffix client_secret base ' = "' v-let
+MISMATCH GAP suffix client_secret dot-env '=' v-mix
+MISMATCH GAP suffix client_secret dot-env '=' v-let
+MISMATCH GAP suffix client_secret dot-env ': ' v-mix
+MISMATCH GAP suffix client_secret dot-env ': ' v-let
+MISMATCH GAP suffix client_secret dot-env ' = "' v-mix
+MISMATCH GAP suffix client_secret dot-env ' = "' v-let
+MISMATCH GAP suffix client_secret dash '=' v-mix
+MISMATCH GAP suffix client_secret dash '=' v-let
+MISMATCH GAP suffix client_secret dash ': ' v-mix
+MISMATCH GAP suffix client_secret dash ': ' v-let
+MISMATCH GAP suffix client_secret dash ' = "' v-mix
+MISMATCH GAP suffix client_secret dash ' = "' v-let
+MISMATCH GAP suffix credential prod '=' v-mix
+MISMATCH GAP suffix credential prod '=' v-let
+MISMATCH GAP suffix credential prod ': ' v-mix
+MISMATCH GAP suffix credential prod ': ' v-let
+MISMATCH GAP suffix credential prod ' = "' v-mix
+MISMATCH GAP suffix credential prod ' = "' v-let
+MISMATCH GAP suffix credential v2 '=' v-mix
+MISMATCH GAP suffix credential v2 '=' v-let
+MISMATCH GAP suffix credential v2 ': ' v-mix
+MISMATCH GAP suffix credential v2 ': ' v-let
+MISMATCH GAP suffix credential v2 ' = "' v-mix
+MISMATCH GAP suffix credential v2 ' = "' v-let
+MISMATCH GAP suffix credential digit '=' v-mix
+MISMATCH GAP suffix credential digit '=' v-let
+MISMATCH GAP suffix credential digit ': ' v-mix
+MISMATCH GAP suffix credential digit ': ' v-let
+MISMATCH GAP suffix credential digit ' = "' v-mix
+MISMATCH GAP suffix credential digit ' = "' v-let
+MISMATCH GAP suffix credential us-digit '=' v-mix
+MISMATCH GAP suffix credential us-digit '=' v-let
+MISMATCH GAP suffix credential us-digit ': ' v-mix
+MISMATCH GAP suffix credential us-digit ': ' v-let
+MISMATCH GAP suffix credential us-digit ' = "' v-mix
+MISMATCH GAP suffix credential us-digit ' = "' v-let
+MISMATCH GAP suffix credential base '=' v-mix
+MISMATCH GAP suffix credential base '=' v-let
+MISMATCH GAP suffix credential base ': ' v-mix
+MISMATCH GAP suffix credential base ': ' v-let
+MISMATCH GAP suffix credential base ' = "' v-mix
+MISMATCH GAP suffix credential base ' = "' v-let
+MISMATCH GAP suffix credential dot-env '=' v-mix
+MISMATCH GAP suffix credential dot-env '=' v-let
+MISMATCH GAP suffix credential dot-env ': ' v-mix
+MISMATCH GAP suffix credential dot-env ': ' v-let
+MISMATCH GAP suffix credential dot-env ' = "' v-mix
+MISMATCH GAP suffix credential dot-env ' = "' v-let
+MISMATCH GAP suffix credential dash '=' v-mix
+MISMATCH GAP suffix credential dash '=' v-let
+MISMATCH GAP suffix credential dash ': ' v-mix
+MISMATCH GAP suffix credential dash ': ' v-let
+MISMATCH GAP suffix credential dash ' = "' v-mix
+MISMATCH GAP suffix credential dash ' = "' v-let
+MISMATCH GAP strprefix password b " v-mix
+MISMATCH GAP strprefix password b " v-let
+MISMATCH GAP strprefix password b ' v-mix
+MISMATCH GAP strprefix password b ' v-let
+MISMATCH GAP strprefix password f " v-mix
+MISMATCH GAP strprefix password f " v-let
+MISMATCH GAP strprefix password f ' v-mix
+MISMATCH GAP strprefix password f ' v-let
+MISMATCH GAP strprefix password r " v-mix
+MISMATCH GAP strprefix password r " v-let
+MISMATCH GAP strprefix password r ' v-mix
+MISMATCH GAP strprefix password r ' v-let
+MISMATCH GAP strprefix password rb " v-mix
+MISMATCH GAP strprefix password rb " v-let
+MISMATCH GAP strprefix password rb ' v-mix
+MISMATCH GAP strprefix password rb ' v-let
+MISMATCH GAP strprefix password B " v-mix
+MISMATCH GAP strprefix password B " v-let
+MISMATCH GAP strprefix password B ' v-mix
+MISMATCH GAP strprefix password B ' v-let
+MISMATCH GAP strprefix password u " v-mix
+MISMATCH GAP strprefix password u " v-let
+MISMATCH GAP strprefix password u ' v-mix
+MISMATCH GAP strprefix password u ' v-let
+MISMATCH GAP strprefix token b " v-mix
+MISMATCH GAP strprefix token b " v-let
+MISMATCH GAP strprefix token b ' v-mix
+MISMATCH GAP strprefix token b ' v-let
+MISMATCH GAP strprefix token f " v-mix
+MISMATCH GAP strprefix token f " v-let
+MISMATCH GAP strprefix token f ' v-mix
+MISMATCH GAP strprefix token f ' v-let
+MISMATCH GAP strprefix token r " v-mix
+MISMATCH GAP strprefix token r " v-let
+MISMATCH GAP strprefix token r ' v-mix
+MISMATCH GAP strprefix token r ' v-let
+MISMATCH GAP strprefix token rb " v-mix
+MISMATCH GAP strprefix token rb " v-let
+MISMATCH GAP strprefix token rb ' v-mix
+MISMATCH GAP strprefix token rb ' v-let
+MISMATCH GAP strprefix token B " v-mix
+MISMATCH GAP strprefix token B " v-let
+MISMATCH GAP strprefix token B ' v-mix
+MISMATCH GAP strprefix token B ' v-let
+MISMATCH GAP strprefix token u " v-mix
+MISMATCH GAP strprefix token u " v-let
+MISMATCH GAP strprefix token u ' v-mix
+MISMATCH GAP strprefix token u ' v-let
+MISMATCH GAP strprefix api_key b " v-mix
+MISMATCH GAP strprefix api_key b " v-let
+MISMATCH GAP strprefix api_key b ' v-mix
+MISMATCH GAP strprefix api_key b ' v-let
+MISMATCH GAP strprefix api_key f " v-mix
+MISMATCH GAP strprefix api_key f " v-let
+MISMATCH GAP strprefix api_key f ' v-mix
+MISMATCH GAP strprefix api_key f ' v-let
+MISMATCH GAP strprefix api_key r " v-mix
+MISMATCH GAP strprefix api_key r " v-let
+MISMATCH GAP strprefix api_key r ' v-mix
+MISMATCH GAP strprefix api_key r ' v-let
+MISMATCH GAP strprefix api_key rb " v-mix
+MISMATCH GAP strprefix api_key rb " v-let
+MISMATCH GAP strprefix api_key rb ' v-mix
+MISMATCH GAP strprefix api_key rb ' v-let
+MISMATCH GAP strprefix api_key B " v-mix
+MISMATCH GAP strprefix api_key B " v-let
+MISMATCH GAP strprefix api_key B ' v-mix
+MISMATCH GAP strprefix api_key B ' v-let
+MISMATCH GAP strprefix api_key u " v-mix
+MISMATCH GAP strprefix api_key u " v-let
+MISMATCH GAP strprefix api_key u ' v-mix
+MISMATCH GAP strprefix api_key u ' v-let
+MISMATCH GAP strprefix pwd b " v-mix
+MISMATCH GAP strprefix pwd b ' v-mix
+MISMATCH GAP strprefix pwd f " v-mix
+MISMATCH GAP strprefix pwd f ' v-mix
+MISMATCH GAP strprefix pwd r " v-mix
+MISMATCH GAP strprefix pwd r ' v-mix
+MISMATCH GAP strprefix pwd rb " v-mix
+MISMATCH GAP strprefix pwd rb ' v-mix
+MISMATCH GAP strprefix pwd B " v-mix
+MISMATCH GAP strprefix pwd B ' v-mix
+MISMATCH GAP strprefix pwd u " v-mix
+MISMATCH GAP strprefix pwd u ' v-mix
+MISMATCH GAP concat password adjacent "
+MISMATCH GAP concat password adjacent '
+MISMATCH GAP concat password plus "
+MISMATCH GAP concat password plus '
+MISMATCH GAP concat password dot "
+MISMATCH GAP concat password dot '
+MISMATCH GAP concat password pipes "
+MISMATCH GAP concat password pipes '
+MISMATCH GAP concat password tight-plus "
+MISMATCH GAP concat password tight-plus '
+MISMATCH GAP concat api_key adjacent "
+MISMATCH GAP concat api_key adjacent '
+MISMATCH GAP concat api_key plus "
+MISMATCH GAP concat api_key plus '
+MISMATCH GAP concat api_key dot "
+MISMATCH GAP concat api_key dot '
+MISMATCH GAP concat api_key pipes "
+MISMATCH GAP concat api_key pipes '
+MISMATCH GAP concat api_key tight-plus "
+MISMATCH GAP concat api_key tight-plus '
+MISMATCH GAP concat DB_PASSWORD adjacent "
+MISMATCH GAP concat DB_PASSWORD adjacent '
+MISMATCH GAP concat DB_PASSWORD plus "
+MISMATCH GAP concat DB_PASSWORD plus '
+MISMATCH GAP concat DB_PASSWORD dot "
+MISMATCH GAP concat DB_PASSWORD dot '
+MISMATCH GAP concat DB_PASSWORD pipes "
+MISMATCH GAP concat DB_PASSWORD pipes '
+MISMATCH GAP concat DB_PASSWORD tight-plus "
+MISMATCH GAP concat DB_PASSWORD tight-plus '
+MISMATCH GAP layer html-entity-json
+MISMATCH GAP layer html-numeric-key
+MISMATCH GAP layer html-hex-key
+MISMATCH GAP layer html-named-sep
+MISMATCH GAP layer double-percent
+MISMATCH GAP layer double-percent-sep
+MISMATCH GAP layer octal-key
+MISMATCH GAP invisible password combining-acute
+MISMATCH GAP invisible api_key combining-acute
+MISMATCH GAP invisible token combining-acute
+MISMATCH GAP invisible password cgj
+MISMATCH GAP invisible api_key cgj
+MISMATCH GAP invisible token cgj
+MISMATCH GAP invisible password vs16
+MISMATCH GAP invisible api_key vs16
+MISMATCH GAP invisible token vs16
+MISMATCH GAP invisible password vs1
+MISMATCH GAP invisible api_key vs1
+MISMATCH GAP invisible token vs1
+MISMATCH GAP invisible password mongolian-fvs
+MISMATCH GAP invisible api_key mongolian-fvs
+MISMATCH GAP invisible token mongolian-fvs
+MISMATCH GAP invisible password hangul-filler
+MISMATCH GAP invisible api_key hangul-filler
+MISMATCH GAP invisible token hangul-filler
+MISMATCH GAP invisible password combining-dot
+MISMATCH GAP invisible api_key combining-dot
+MISMATCH GAP invisible token combining-dot
+MISMATCH GAP lookalike-latin alpha
+MISMATCH GAP lookalike-latin small-caps
+MISMATCH GAP lookalike-latin armenian-o
+MISMATCH GAP lookalike-latin cherokee-p
+MISMATCH GAP camel-short userPass v-mix
+MISMATCH GAP camel-short userPwd v-mix
+MISMATCH GAP camel-short userAuth v-mix
+MISMATCH GAP camel-short adminPass v-mix
+MISMATCH GAP camel-short adminPwd v-mix
+MISMATCH GAP camel-short adminAuth v-mix
+MISMATCH GAP camel-short dbPass v-mix
+MISMATCH GAP camel-short dbPwd v-mix
+MISMATCH GAP camel-short dbAuth v-mix
+MISMATCH GAP camel-short rootPass v-mix
+MISMATCH GAP camel-short rootPwd v-mix
+MISMATCH GAP camel-short rootAuth v-mix
+MISMATCH GAP camel-short mysqlPass v-mix
+MISMATCH GAP camel-short mysqlPwd v-mix
+MISMATCH GAP camel-short mysqlAuth v-mix
+MISMATCH GAP camel-short redisPass v-mix
+MISMATCH GAP camel-short redisPwd v-mix
+MISMATCH GAP camel-short redisAuth v-mix
+MISMATCH GAP bracket config[password]
+MISMATCH GAP bracket os.environ["DB_PASSWORD"]
+MISMATCH GAP bracket cfg['api_key']
+MISMATCH GAP bracket env[PASSWORD][0]
+MISMATCH GAP qualified SIGNING_KEY v-mix
+MISMATCH GAP qualified SIGNING_KEY v-let
+MISMATCH GAP qualified SIGNING_KEY colon v-let
+MISMATCH GAP qualified signingKey v-mix
+MISMATCH GAP qualified signingKey v-let
+MISMATCH GAP qualified signingKey colon v-let
+MISMATCH GAP qualified encryption_key v-mix
+MISMATCH GAP qualified encryption_key v-let
+MISMATCH GAP qualified encryption_key colon v-let
+MISMATCH GAP qualified ENCRYPTION_KEY v-mix
+MISMATCH GAP qualified ENCRYPTION_KEY v-let
+MISMATCH GAP qualified ENCRYPTION_KEY colon v-let
+MISMATCH GAP qualified MASTER_KEY v-mix
+MISMATCH GAP qualified MASTER_KEY v-let
+MISMATCH GAP qualified MASTER_KEY colon v-let
+MISMATCH GAP qualified AccountKey v-mix
+MISMATCH GAP qualified AccountKey v-let
+MISMATCH GAP qualified AccountKey colon v-let
+MISMATCH GAP qualified jwt_secret colon v-let
+MISMATCH GAP qualified HMAC_KEY v-mix
+MISMATCH GAP qualified HMAC_KEY v-let
+MISMATCH GAP qualified HMAC_KEY colon v-let
+MISMATCH GAP qualified app_secret colon v-let
+MISMATCH GAP qualified webhook_secret colon v-let
+MISMATCH FP qualified-neg page_token (negative)
+MISMATCH FP qualified-neg nextToken (negative)
+MISMATCH FP qualified-neg csrf_token (negative)
+MISMATCH GAP short-bare key v-mix
+MISMATCH GAP short-bare KEY v-mix
+MISMATCH GAP short-bare session v-mix
+MISMATCH GAP short-bare sid v-mix
+MISMATCH GAP short-bare cookie v-mix
+MISMATCH GAP short-bare Cookie v-mix
+MISMATCH GAP header cookie-session
+MISMATCH GAP pin pin digits
+MISMATCH GAP pin pin four
+MISMATCH GAP pin PIN digits
+MISMATCH GAP pin PIN four
+MISMATCH GAP tool redis-cli v-mix
+MISMATCH GAP tool docker-login v-mix
+MISMATCH GAP tool mongosh v-mix
+MISMATCH GAP tool htpasswd v-mix
+MISMATCH GAP tool htpasswd-c v-mix
+MISMATCH GAP tool openssl-passout v-mix
+MISMATCH GAP tool openssl-passin v-mix
+MISMATCH GAP tool sqlcmd v-mix
+MISMATCH GAP tool smbclient v-mix
+MISMATCH GAP space-quoted ALTER v-mix
+MISMATCH GAP space-quoted CREATE v-mix
+MISMATCH GAP space-quoted create v-mix
+MISMATCH GAP space-quoted password v-mix
+MISMATCH GAP authz ApiKey v-mix
+MISMATCH GAP authz Token v-mix
+MISMATCH GAP authz Bearer v-mix
+MISMATCH GAP authz SSWS v-mix
+MISMATCH GAP authz Key v-mix
+MISMATCH GAP authz Digest-x v-mix
+MISMATCH GAP authz bearer-16
+MISMATCH FP reference vault colon (negative)
+MISMATCH FP reference vault eq (negative)
+MISMATCH FP reference ref-plus colon (negative)
+MISMATCH FP reference ref-plus eq (negative)
+MISMATCH FP reference op colon (negative)
+MISMATCH FP reference op eq (negative)
+MISMATCH FP reference keyvault colon (negative)
+MISMATCH FP reference keyvault eq (negative)
+MISMATCH FP reference gcp-sm colon (negative)
+MISMATCH FP reference gcp-sm eq (negative)
+MISMATCH FP reference arn colon (negative)
+MISMATCH FP reference arn eq (negative)
+MISMATCH FP identifier pass suite (negative)
+MISMATCH FP identifier token suite (negative)
+MISMATCH FP identifier pass dashed (negative)
+MISMATCH FP identifier token dashed (negative)
+MISMATCH FP identifier pass dotted (negative)
+MISMATCH FP identifier token dotted (negative)
+MISMATCH FP tab-in-value password (negative)
+RESULT: members=318458 hit=95580 miss_negative=192827 miss_boundary=29428 gap=601 fp=22
+rc=1

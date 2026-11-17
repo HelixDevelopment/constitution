@@ -1,0 +1,12 @@
+ok 1 - N1 the scan sees the suite files (36)
+ok 2 - N1 no test resolves a real tool by itself
+ok 3 - N1 CONTROL: a planted lookup line is found (comment lines are not)
+ok 4 - N1 CONTROL: a clean file gives no hit
+ok 5 - N2 CONTROL: a lookup through the user database reaches the decoy tripwire
+ok 6 - N2 test_review_fixes_r5.sh executed no real-tool location (decoy user database, tripwires on PATH and in the home)
+ok 7 - N2 without REAL_LLMCTL_BIN the real-binary check is an honest SKIP
+ok 8 - N2 test_review_fixes_r5.sh passes under the decoy environment
+FAIL - N3 test_gate_pairs.sh executed a real-tool location: TRIP <W>/tmp/tmp.aTFGInEQkg/decoy_bin/llmctl decide status --json 
+ok 9 - N3 test_gate_pairs.sh passes under the decoy environment
+ok 10 - N3 CONTROL: the detection gate's PATH fallback reaches the tripwire when no llmctl is named
+# test_no_real_tools.sh: pass=10 fail=1 skip=0

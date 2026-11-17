@@ -1,0 +1,33 @@
+# mkruns14.py <out.md>: the runs table of the round-14 README from runs/results.tsv and runs/final_compare.tsv
+# (mechanical, section 11.4.274). Every number is copied from those two files; nothing is typed by hand.
+import sys
+W = "/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6"
+out = sys.argv[1]
+res = {}
+for line in open(W + "/runs/results.tsv"):
+    f = line.rstrip("\n").split("\t")
+    if len(f) >= 6:
+        res[f[0]] = f  # the last line for a name wins (a re-run overwrites its file too)
+cmp_ = {}
+for line in open(W + "/runs/final_compare.tsv"):
+    f = line.rstrip("\n").split("\t")
+    if len(f) == 4:
+        cmp_[f[0]] = f
+o = ["## Runs", "",
+     "Every suite of the vehicle twice on the final tree (`tools/final14.sh.txt`, hermetic runner `tools/hrun.sh.txt`).",
+     "The normalized hash (`tools/norm.sh.txt`) covers each run's verdict lines with test numbers, temp paths and digits",
+     "masked; SAME means the two runs gave the same verdicts row by row.", "",
+     "| Suite | Run 1 | Run 2 | Normalized hashes | Same |", "|---|---|---|---|---|"]
+for n, c in cmp_.items():
+    a, b = res.get("final1_" + n), res.get("final2_" + n)
+    fa = "%s, %s, %s, %s" % (a[2], a[3], a[4], a[5]) if a else "MISSING"
+    fb = "%s, %s, %s, %s" % (b[2], b[3], b[4], b[5]) if b else "MISSING"
+    o.append("| %s (`runs/final1_%s.txt`, `runs/final2_%s.txt`) | %s | %s | %s / %s | %s |" % (n, n, n, fa, fb, c[1], c[2], c[3]))
+o += ["", "Earlier runs kept as found (all in `runs/`):", "",
+      "| Run | Suite | Result |", "|---|---|---|"]
+for n in ("RED_sweep_r13head", "GREEN_sweep_r14_try1", "r14_try1", "dbg_3b", "r13_try1", "r14_try2", "sweep14_p1", "r14_try3",
+          "sweep14_p2", "sweep_states_dbg", "r14_try4", "r14rowcheck_M9_mark_without_gate", "r14rowcheck_M10_gate_open_ignores_proc"):
+    f = res.get(n)
+    if f:
+        o.append("| `%s.txt` | `%s` | %s, %s, %s, %s |" % (n, f[1].replace(W + "/", ""), f[2], f[3], f[4], f[5]))
+open(out, "w").write("\n".join(o) + "\n")

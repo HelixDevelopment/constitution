@@ -1,0 +1,43 @@
+ok [R13TRUST-root777] _trusted_ok(mode 777, uid 0, a SHARED group) = False (want False)
+ok [R13TRUST-root1777] _trusted_ok(mode 1777, uid 0, a SHARED group) = True (want True)
+ok [R13TRUST-root755] _trusted_ok(mode 755, uid 0, a SHARED group) = True (want True)
+ok [R13TRUST-root775-shared] _trusted_ok(mode 775, uid 0, a SHARED group) = False (want False)
+ok [R13TRUST-own775-shared] _trusted_ok(mode 775, uid 1000, a SHARED group) = False (want False)
+ok [R13TRUST-own777] _trusted_ok(mode 777, uid 1000, a SHARED group) = False (want False)
+ok [R13TRUST-own1777] _trusted_ok(mode 1777, uid 1000, a SHARED group) = True (want True)
+ok [R13TRUST-own755] _trusted_ok(mode 755, uid 1000, a SHARED group) = True (want True)
+ok [R13TRUST-other755] _trusted_ok(mode 755, uid 1001, a SHARED group) = False (want False)
+ok [R13TRUST-own775-private] _trusted_ok(mode 775, uid 1000, a PRIVATE group) = True (want True)
+ok [R13TRUST-own777-private] _trusted_ok(mode 777, uid 1000, a PRIVATE group) = False (want False)
+ok [R13TRUST-root775-private] _trusted_ok(mode 775, uid 0, a PRIVATE group) = True (want True)
+ok [R13TRUST-own2775-private] _trusted_ok(mode 2775, uid 1000, a PRIVATE group) = True (want True)
+ok [R13OWNED-own770] _owned_ok(mode 770, ours, a PRIVATE group) = True (want True)
+ok [R13OWNED-own707] _owned_ok(mode 707, ours, a PRIVATE group) = False (want False)
+ok [R13OWNED-own777] _owned_ok(mode 777, ours, a PRIVATE group) = False (want False)
+ok [R13GROUP-own] this user's primary group 1000: private=True (independent: True)
+ok [R13GROUP-shared] group 4 has another member: private=False (want False)
+ok [R13GROUP-primary] group 46: its member list names only this user, but it is another account's PRIMARY group -> private=False (want False)
+ok [R13GROUP-notours] group 5 (no member, nobody's primary group, but NOT this user's: a setgid program of it could write) -> private=False (want False)
+ok [R13GROUP-unknown] a gid the database does not know -> private=False (want False)
+ok [R13REAL-shared] a 0775 directory whose group (4) has another member, on the path -> refused, the reason names the group and the remedy: refused: <P>: mode 775: writable by group 4, which has a member other than this user or is not one of this user's groups (remedy:
+ok [R13REAL-private] a 0775 directory whose group is this user's alone -> trusted
+ok [R13WALK-dotdot-untrusted] <a 0777 dir>/../sib names the proved parent's sib -> trusted
+ok [R13WALK-untrusted-mid] <a 0777 dir>/in is still refused -> refused: <P>: mode 777: writable by every user without the sticky bit (r
+ok [R13WALK-untrusted-deep] <0777>/in/../../sib: `in` is entered (no `..` right after the 0777 dir) -> refused: refused: <P>: mode 777: writable by every user witho
+ok [R13RM-name-guard] _rmtree_at(<fd of D/x>, '..' / '.' / '' / 'a/b' / '../precious') refuses each ({'..': False, '.': False, '': False, 'a/b': False, '../precious': False}); D's content intact=True
+ok [R13RM-top-swap] the top directory replaced (by a directory holding `keep`) between the look and the open is NOT cleared: keep intact (rmtree -> False)
+ok [R13RM-final-identity] an empty directory swapped in under the name before the final rmdir is NOT removed (the rmdir checks dev+ino): still there=True (rmtree -> False, looks=3)
+ok [R13RM-dotdot-cli] safepath rmtree D/x/.. -> 4, D's content intact, the reason said (NIT-3): fc_supervisor safepath rmtree: <P>: refused: '/mn
+ok [R13CLI-newline] a path argument holding a newline -> 4, nothing created (NIT-4)
+ok [R13EXCL-check] check: a 1777 dir of ours and root's /usr are trusted (0, 0); --exclusive refuses both (4, 4): trusted as a parent, not this user's ALONE
+ok [R13EXCL-workerinit] a worker handed a 1777 temp directory of ours (passes the non-exclusive check) refuses (BLIND 4): it must be this user's ALONE
+ok [R13UMASK-default] the DEFAULT flow (no --worktree-root) on a repository made under umask 002 (dirs 775, group: this user's own) -> exit 0, report written (round 6: BLIND 4)
+ok [R13UMASK-shared] a repository directory group-writable for a group with another member (4) -> BLIND 4: the reason names the group and the remedy; the BLIND line names the --worktree-root (not empty)
+ok [R13MSG-sample] replay-sample's BLIND line names the --worktree-root it could not create (V4R13-1(b))
+ok [R13SH-logs1777] a replay-logs directory of ours that is 1777 (others may create names in it) -> BLIND 4, nothing made in it
+ok [R13MSG-sites] all 3 --worktree-root sites prove into _wr and print the caller's value (none assigns over it)
+ok [R13LOCK-0600] a lock file is CREATED 0600 (others cannot open it to hold the flock) -- no replacement was needed for a fresh one (mode, replaced) = ('0o600', 0)
+ok [R13LOCK-migrate] an old 0644 lock file of ours is REPLACED while its lock is held: new inode=True, mode 600 (b'held')
+ok [R13LOCK-old-held] an fd opened on the OLD lock file before the replacement still finds it locked (else two replays could run at once): free=False
+ok [R13LOCK-new-held] the new lock file at the name is locked: free=False
+ok [R13CENSUS-self] the census refuses every needle on its own line and accepts every control: cases/failed = 267 0

@@ -1,0 +1,246 @@
+PASS  canon: exactly one '### §11.4.294' heading in Constitution.md
+PASS  canon: exactly one §11.4.294 block-start of any form in Constitution.md (no duplicate form)
+PASS  canon: block is non-empty (heading found)
+PASS  canon: heading names 'Reproduction and investigation states'
+PASS  canon: heading names 'workable-item fields'
+PASS  canon: heading names 'QUOTE both states'
+PASS  canon: heading carries the mandate date 2026-11-03
+PASS  canon: block carries marker 'the reproduction state and the investigation state of that item'
+PASS  canon: block carries marker 'This anchor adds exactly those four'
+PASS  canon: block carries marker '`reproduction_state`'
+PASS  canon: block carries marker '`investigation_state`'
+PASS  canon: block carries marker 'NEVER ASSESSED'
+PASS  canon: block carries marker 'A value is never typed twice'
+PASS  canon: block carries marker 'two sources for one fact'
+PASS  canon: block carries marker 'evidence that is gone is not evidence'
+PASS  canon: block carries marker 'the state is demoted in the next regeneration'
+PASS  canon: block carries marker '`evidence lost`'
+PASS  canon: block carries marker 'no fix against a symptom never observed'
+PASS  canon: block carries marker 'a fix before the root cause is investigated is the §11.4.102 violation'
+PASS  canon: block carries marker '`STATE-GATE`'
+PASS  canon: block carries marker 'no silent demotion, no free pass'
+PASS  canon: block carries marker 'reproduction debt'
+PASS  canon: block carries marker '`UNSET`, permanently'
+PASS  canon: block carries marker 'and only the first is contrary evidence'
+PASS  canon: block carries marker 'the reproduction regresses'
+PASS  canon: block carries marker '**Reproduction-Regress:**'
+PASS  canon: block carries marker '**Investigation-Regress:**'
+PASS  canon: block carries marker '`INCONSISTENT — red evidence lost`'
+PASS  canon: block carries marker '**Closure-Record:**'
+PASS  canon: block carries marker 'A STATE CHANGE IS NOT A STATUS CHANGE'
+PASS  canon: block carries marker 'never decides, retypes or defaults a state'
+PASS  canon: block carries marker 'it prints `UNCONFIRMED`'
+PASS  canon: block carries marker 'numbers-only cell'
+PASS  canon: block carries marker 'INDEPENDENT gate'
+PASS  canon: block carries marker 'one-way mirror'
+PASS  canon: block carries marker 'it never flows back'
+PASS  canon: block carries marker 'created=N updated=M failed=0'
+PASS  canon: block carries marker '`repro:<value>`'
+PASS  canon: block carries marker '`investigation:<value>`'
+PASS  canon: block carries marker 'Honest boundary'
+PASS  canon: block carries marker 'DOES NOT CHANGE'
+PASS  canon: block carries marker 'CM-COVENANT-114-294-PROPAGATION'
+PASS  canon: block carries marker 'CM-STATE-FIELDS-ANCHOR-WIRED'
+PASS  canon: block carries marker 'OWED-GATE-177'
+PASS  canon: block carries marker 'OWED-GATE-178'
+PASS  canon: block carries marker 'OWED-GATE-179'
+PASS  canon: block carries marker 'ONE SPELLING of every state'
+PASS  canon: block carries marker 'input alias only: `blocked-no-device`'
+PASS  canon: block names reproduction_state value UNSET
+PASS  canon: block names reproduction_state value UNREPRODUCED
+PASS  canon: block names reproduction_state value reproduced-live
+PASS  canon: block names reproduction_state value reproduced-host-fixture
+PASS  canon: block names reproduction_state value not-reproducible-with-evidence
+PASS  canon: block names reproduction_state value blocked-no-device-with-recorded-blocker
+PASS  canon: block names investigation_state value UNSET
+PASS  canon: block names investigation_state value not-started
+PASS  canon: block names investigation_state value in-progress
+PASS  canon: block names investigation_state value root-cause-found-with-evidence
+PASS  canon: block names investigation_state value root-cause-unconfirmed
+PASS  canon: block names investigation_state value closed-no-defect
+PASS  canon: the short spelling blocked-no-device occurs exactly once in the block (the input-alias sentence), never as a state
+PASS  canon: block carries transition row T1
+PASS  canon: block carries transition row T2
+PASS  canon: block carries transition row T3
+PASS  canon: block carries transition row T4
+PASS  canon: block carries transition row T5
+PASS  canon: block carries transition row T6
+PASS  canon: block carries transition row T7
+PASS  canon: block carries transition row T8
+PASS  canon: block carries transition row T9
+PASS  canon: block names escape-hatch flag --fix-without-state as forbidden
+PASS  canon: block names escape-hatch flag --skip-investigation-state as forbidden
+PASS  canon: block names escape-hatch flag --unreproduced-counts-as-verified as forbidden
+PASS  canon: block names escape-hatch flag --state-without-evidence as forbidden
+PASS  canon: block names escape-hatch flag --hand-edit-state-in-derived-doc as forbidden
+PASS  canon: block names escape-hatch flag --tracker-edit-flows-back as forbidden
+PASS  canon: block carries a line-start 'Classification: universal'
+PASS  canon: block carries a Canonical authority line
+PASS  canon: block carries the non-compliance release-blocker line
+PASS  canon: block cites §11.4.6
+PASS  canon: block cites §11.4.15
+PASS  canon: block cites §11.4.17
+PASS  canon: block cites §11.4.21
+PASS  canon: block cites §11.4.33
+PASS  canon: block cites §11.4.34
+PASS  canon: block cites §11.4.35
+PASS  canon: block cites §11.4.69
+PASS  canon: block cites §11.4.86
+PASS  canon: block cites §11.4.90
+PASS  canon: block cites §11.4.93
+PASS  canon: block cites §11.4.102
+PASS  canon: block cites §11.4.106
+PASS  canon: block cites §11.4.112
+PASS  canon: block cites §11.4.115
+PASS  canon: block cites §11.4.148
+PASS  canon: block cites §11.4.149
+PASS  canon: block cites §11.4.189
+PASS  canon: block cites §11.4.210
+PASS  canon: block cites §11.4.227
+PASS  canon: block cites §11.4.289
+PASS  canon: block cites §11.4.290
+PASS  canon: block cites §11.4.292
+PASS  canon: block cites §1.1
+PASS  refined §11.4.34: block exists exactly once
+PASS  refined §11.4.34: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.34: refinement note cites §11.4.294
+PASS  refined §11.4.93: block exists exactly once
+PASS  refined §11.4.93: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.93: refinement note cites §11.4.294
+PASS  refined §11.4.148: block exists exactly once
+PASS  refined §11.4.148: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.148: refinement note cites §11.4.294
+PASS  refined §11.4.290: block exists exactly once
+PASS  refined §11.4.290: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.290: refinement note cites §11.4.294
+PASS  refined §11.4.292: block exists exactly once
+PASS  refined §11.4.292: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.292: refinement note cites §11.4.294
+PASS  mirror CLAUDE.md: exactly one §11.4.294 block-start
+PASS  mirror CLAUDE.md: block names reproduction_state value UNSET
+PASS  mirror CLAUDE.md: block names reproduction_state value UNREPRODUCED
+PASS  mirror CLAUDE.md: block names reproduction_state value reproduced-live
+PASS  mirror CLAUDE.md: block names reproduction_state value reproduced-host-fixture
+PASS  mirror CLAUDE.md: block names reproduction_state value not-reproducible-with-evidence
+PASS  mirror CLAUDE.md: block names reproduction_state value blocked-no-device-with-recorded-blocker
+PASS  mirror CLAUDE.md: block names investigation_state value UNSET
+PASS  mirror CLAUDE.md: block names investigation_state value not-started
+PASS  mirror CLAUDE.md: block names investigation_state value in-progress
+PASS  mirror CLAUDE.md: block names investigation_state value root-cause-found-with-evidence
+PASS  mirror CLAUDE.md: block names investigation_state value root-cause-unconfirmed
+PASS  mirror CLAUDE.md: block names investigation_state value closed-no-defect
+PASS  mirror CLAUDE.md: block carries the input-alias statement for the short spelling
+PASS  mirror CLAUDE.md: the short spelling blocked-no-device occurs exactly once in the block (the input-alias clause), never as a state
+PASS  mirror CLAUDE.md: block names the Reproduction: body line
+PASS  mirror CLAUDE.md: block names the Investigation: body line
+PASS  mirror CLAUDE.md: block names gate CM-STATE-FIELDS-ANCHOR-WIRED
+PASS  mirror CLAUDE.md: block points at Constitution.md §11.4.294
+PASS  mirror AGENTS.md: exactly one §11.4.294 block-start
+PASS  mirror AGENTS.md: block names reproduction_state value UNSET
+PASS  mirror AGENTS.md: block names reproduction_state value UNREPRODUCED
+PASS  mirror AGENTS.md: block names reproduction_state value reproduced-live
+PASS  mirror AGENTS.md: block names reproduction_state value reproduced-host-fixture
+PASS  mirror AGENTS.md: block names reproduction_state value not-reproducible-with-evidence
+PASS  mirror AGENTS.md: block names reproduction_state value blocked-no-device-with-recorded-blocker
+PASS  mirror AGENTS.md: block names investigation_state value UNSET
+PASS  mirror AGENTS.md: block names investigation_state value not-started
+PASS  mirror AGENTS.md: block names investigation_state value in-progress
+PASS  mirror AGENTS.md: block names investigation_state value root-cause-found-with-evidence
+PASS  mirror AGENTS.md: block names investigation_state value root-cause-unconfirmed
+PASS  mirror AGENTS.md: block names investigation_state value closed-no-defect
+PASS  mirror AGENTS.md: block carries the input-alias statement for the short spelling
+PASS  mirror AGENTS.md: the short spelling blocked-no-device occurs exactly once in the block (the input-alias clause), never as a state
+PASS  mirror AGENTS.md: block names the Reproduction: body line
+PASS  mirror AGENTS.md: block names the Investigation: body line
+PASS  mirror AGENTS.md: block names gate CM-STATE-FIELDS-ANCHOR-WIRED
+PASS  mirror AGENTS.md: block points at Constitution.md §11.4.294
+PASS  mirror QWEN.md: exactly one §11.4.294 block-start
+PASS  mirror QWEN.md: block names reproduction_state value UNSET
+PASS  mirror QWEN.md: block names reproduction_state value UNREPRODUCED
+PASS  mirror QWEN.md: block names reproduction_state value reproduced-live
+PASS  mirror QWEN.md: block names reproduction_state value reproduced-host-fixture
+PASS  mirror QWEN.md: block names reproduction_state value not-reproducible-with-evidence
+PASS  mirror QWEN.md: block names reproduction_state value blocked-no-device-with-recorded-blocker
+PASS  mirror QWEN.md: block names investigation_state value UNSET
+PASS  mirror QWEN.md: block names investigation_state value not-started
+PASS  mirror QWEN.md: block names investigation_state value in-progress
+PASS  mirror QWEN.md: block names investigation_state value root-cause-found-with-evidence
+PASS  mirror QWEN.md: block names investigation_state value root-cause-unconfirmed
+PASS  mirror QWEN.md: block names investigation_state value closed-no-defect
+PASS  mirror QWEN.md: block carries the input-alias statement for the short spelling
+PASS  mirror QWEN.md: the short spelling blocked-no-device occurs exactly once in the block (the input-alias clause), never as a state
+PASS  mirror QWEN.md: block names the Reproduction: body line
+PASS  mirror QWEN.md: block names the Investigation: body line
+PASS  mirror QWEN.md: block names gate CM-STATE-FIELDS-ANCHOR-WIRED
+PASS  mirror QWEN.md: block points at Constitution.md §11.4.294
+PASS  mirror GEMINI.md: exactly one §11.4.294 block-start
+PASS  mirror GEMINI.md: block names reproduction_state value UNSET
+PASS  mirror GEMINI.md: block names reproduction_state value UNREPRODUCED
+PASS  mirror GEMINI.md: block names reproduction_state value reproduced-live
+PASS  mirror GEMINI.md: block names reproduction_state value reproduced-host-fixture
+PASS  mirror GEMINI.md: block names reproduction_state value not-reproducible-with-evidence
+PASS  mirror GEMINI.md: block names reproduction_state value blocked-no-device-with-recorded-blocker
+PASS  mirror GEMINI.md: block names investigation_state value UNSET
+PASS  mirror GEMINI.md: block names investigation_state value not-started
+PASS  mirror GEMINI.md: block names investigation_state value in-progress
+PASS  mirror GEMINI.md: block names investigation_state value root-cause-found-with-evidence
+PASS  mirror GEMINI.md: block names investigation_state value root-cause-unconfirmed
+PASS  mirror GEMINI.md: block names investigation_state value closed-no-defect
+PASS  mirror GEMINI.md: block carries the input-alias statement for the short spelling
+PASS  mirror GEMINI.md: the short spelling blocked-no-device occurs exactly once in the block (the input-alias clause), never as a state
+PASS  mirror GEMINI.md: block names the Reproduction: body line
+PASS  mirror GEMINI.md: block names the Investigation: body line
+PASS  mirror GEMINI.md: block names gate CM-STATE-FIELDS-ANCHOR-WIRED
+PASS  mirror GEMINI.md: block points at Constitution.md §11.4.294
+PASS  template: report_item.sh passes --investigation-state not-started to add (operative set -- line)
+PASS  template: report_item.sh passes --reproduction-state UNREPRODUCED to add (operative set -- line)
+PASS  template: both report_item.sh add calls forward the state flags ("$@")
+PASS  template: report_item.sh cites §11.4.294
+PASS  skill: reporting-workable-items cites §11.4.294
+PASS  skill: reporting-workable-items documents the **Investigation:** line
+PASS  skill: reporting-workable-items names reproduction_state
+PASS  skill: workable-item-lifecycle cites §11.4.294
+PASS  skill: workable-item-lifecycle documents the **Investigation:** line
+PASS  skill: workable-item-lifecycle documents the Reproduction-Regress: line
+PASS  skill: workable-item-lifecycle documents the Investigation-Regress: line
+PASS  skill: workable-item-lifecycle documents the Closure-Record: line
+PASS  skill: workable-item-lifecycle names reproduction_state value UNSET
+PASS  skill: workable-item-lifecycle names reproduction_state value UNREPRODUCED
+PASS  skill: workable-item-lifecycle names reproduction_state value reproduced-live
+PASS  skill: workable-item-lifecycle names reproduction_state value reproduced-host-fixture
+PASS  skill: workable-item-lifecycle names reproduction_state value not-reproducible-with-evidence
+PASS  skill: workable-item-lifecycle names reproduction_state value blocked-no-device-with-recorded-blocker
+PASS  skill: workable-item-lifecycle names investigation_state value UNSET
+PASS  skill: workable-item-lifecycle names investigation_state value not-started
+PASS  skill: workable-item-lifecycle names investigation_state value in-progress
+PASS  skill: workable-item-lifecycle names investigation_state value root-cause-found-with-evidence
+PASS  skill: workable-item-lifecycle names investigation_state value root-cause-unconfirmed
+PASS  skill: workable-item-lifecycle names investigation_state value closed-no-defect
+PASS  skill: workable-item-lifecycle carries the input-alias statement for the short spelling
+PASS  skill: workable-item-lifecycle uses the short spelling blocked-no-device exactly once (the input-alias sentence), never as a state
+PASS  index: constitution_index.yaml has an entry for 11.4.294
+PASS  index: 11.4.294 propagation_gate is CM-COVENANT-114-294-PROPAGATION
+PASS  index: 11.4.294 group is workable-items-and-tracking
+PASS  index: 11.4.294 classification is universal
+PASS  group: workable-items-and-tracking.md carries exactly one §11.4.294 block
+PASS  group: the §11.4.294 block carries the input-alias statement for the short spelling
+PASS  group: the §11.4.294 block uses the short spelling blocked-no-device exactly once (the input-alias sentence), never as a state
+PASS  progressive: rules/11.4.294.md exists
+PASS  progressive: rules/11.4.294.md carries the input-alias statement for the short spelling
+PASS  progressive: rules/11.4.294.md uses the short spelling blocked-no-device exactly once (the input-alias sentence), never as a state
+PASS  progressive: catalog.json lists §11.4.294
+PASS  progressive: catalog.json points at rules/11.4.294.md
+PASS  seam: propagation data pack has the CM-COVENANT-114-294-PROPAGATION<TAB>11.4.294 row
+PASS  seam: generated propagation gate cm_covenant_114_294_propagation.sh exists
+PASS  seam: generated propagation mutation test exists
+PASS  seam: rule_seam_bindings.tsv binds 11.4.294 to a seam
+PASS  seam: gate_ledger_deferrals.tsv has exactly one OWED-GATE-177 row
+PASS  seam: the OWED-GATE-177 deferral names a CM-* gate that the §11.4.294 block names
+PASS  seam: gate_ledger_deferrals.tsv has exactly one OWED-GATE-178 row
+PASS  seam: the OWED-GATE-178 deferral names a CM-* gate that the §11.4.294 block names
+PASS  seam: gate_ledger_deferrals.tsv has exactly one OWED-GATE-179 row
+PASS  seam: the OWED-GATE-179 deferral names a CM-* gate that the §11.4.294 block names
+PASS  seam: this gate's paired mutation test exists
+PASS  seam: post_update_hook.sh runs this gate on every pull
+PASS  seam: post_update_hook.sh names the token CM-STATE-FIELDS-ANCHOR-WIRED
+CM-STATE-FIELDS-ANCHOR-WIRED: PASS — 245/245 checks (root: /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/repo)

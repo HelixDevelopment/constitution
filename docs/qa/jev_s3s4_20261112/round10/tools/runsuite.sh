@@ -1,0 +1,14 @@
+#!/bin/bash
+# runsuite.sh <repo> <suite-key> <out-prefix> [producer] : one hermetic suite run; appends "key rc fails passes secs sha" to $R/runs/results.tsv
+set -u
+R=/mnt/DATA1TB/claude-work/scratch/jev_r10.uPH6
+REPO="${1:?}"; K="${2:?}"; O="${3:?}"; P="${4:-$REPO/scripts/jev/jev-place.sh}"
+case "$K" in r9) f=tests/jev/test_s4_round9.sh ;; r8) f=tests/jev/test_s4_round8.sh ;; r7) f=tests/jev/test_s4_round7.sh ;; r6) f=tests/jev/test_s4_round6.sh ;; pl) f=tests/jev/test_s4_placement.sh ;; r10) f=tests/jev/test_s4_round10.sh ;; *) exit 2 ;; esac
+while [ "$(cut -d. -f1 /proc/loadavg)" -ge 60 ]; do sleep 20; done
+st=$(date +%s)
+HRUN_EXTRA_ENV="S4_PLACE_UNDER_TEST=$P" systemd-run --user --scope -q -p TasksMax=2000 nice -n 10 \
+  "$R/tools/hrun.sh" "$REPO" "$O.guard.log" timeout --kill-after=10 1800 bash "$f" > "$O.txt" 2>&1
+rc=$?
+nf=$(grep -c '^FAIL\|^not ok' "$O.txt"); np=$(grep -c '^PASS\|^ok' "$O.txt")
+norm=$(grep -E '^(PASS|FAIL|ok|not ok)' "$O.txt" | sed -E 's/[0-9]{6,}//g; s/\(paused at flock call [0-9]+\)//' | sha256sum | cut -c1-16)
+printf '%s\t%s\trc=%s\tfails=%s\tpasses=%s\t%ss\tnorm=%s\n' "$(basename "$O")" "$K" "$rc" "$nf" "$np" "$(( $(date +%s) - st ))" "$norm" >> "$R/runs/results.tsv"

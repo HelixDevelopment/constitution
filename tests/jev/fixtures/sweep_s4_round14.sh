@@ -1,0 +1,317 @@
+#!/usr/bin/env bash
+# fixtures/sweep_s4_round14.sh - round 14 (2026-11-17): the EXHAUSTIVE kill sweep of the start/record sequence of
+# scripts/jev/jev-place.sh (section 11.4.291; review R13-B1 and its heuristic-tower warning, section 11.4.250 /
+# section 11.4.276(C)). GATE-LOGIC (section 11.4.289(C)(2)), stub llmctl; it proves the producer decides correctly, never
+# that a real llmctl unit behaves this way.
+#
+# Parts: the whole sweep takes about 18 minutes on the reference host, longer than the 600 s per test of
+# tests/jev/run_all.sh and the 900 s per unit of the full-suite runner, so this file is a body, not an entry point: it
+# lives under tests/jev/fixtures (not a run_all member, no manifest entry of its own). It runs as three heavy entries
+# (tier heavy, section 11.4.85), each running this file with SWEEP14_PART set: tests/jev/s4_round14_sweep_x_chaos_test.sh
+# (order X), ..._y_chaos_test.sh (order Y) and ..._zd_chaos_test.sh (order Z and the X diagonal); every part runs the
+# calibration, its cells, the control needle and the LOCKHELD count. Run directly, this file runs every part
+# (SWEEP14_PART=all).
+#
+# The class: a crash (SIGKILL) of any actor at ANY point of the start -> record sequence must leave a state from which
+# the constitution-started unit is eventually stopped or provably absent. The state space swept here:
+#   actors     A (starts decide-a; its stub start waits at a gate, so the start is in flight on demand), B (a second
+#              acquire, after A's lease and marks are past their TTL), C (an acquire with a live holder), and in order Z a
+#              fourth acquire P
+#   orders     X  B runs while A's start is in flight; then the start is let go; then C
+#              Y  A's start is let go first; then B; then C
+#              Z  B and C both run while A's start is in flight; then the start is let go; then P
+#   kill point every flock call of A (lock AND unlock; each with_lock is two calls), the point S (A SIGKILLed while its
+#              llmctl start is in flight: the start process survives it), every flock call of B (A alive), and in order X
+#              the diagonal S x every flock call of B; no kill (0) as the control of every order
+# Invariant at every quiescent point (after B, after the start ended, after C / P): a running unit is held by a lease,
+# owed a stop, named by an unanswered start intent, or recorded in a lease-less constitution-started set ("ours": the
+# state a reap of a dead holder leaves, and the state a starter killed between its noset record write and its own stop
+# leaves; it is never adopted as operator-started, the next release stops it and the next acquire joins or disposes it,
+# section 11.4.291(J)); no set is operator-owned (constitution_started false) and nothing is adopted as operator-started;
+# after the cleanup (releases, an acquire that runs every owed stop with its own start refused, its release, a reap) no
+# unit runs, no set and no start intent is left. The first sweep run (round 14) treated "ours" as a violation and failed
+# nine cells for that reason only: ord=X killA=8 (A's own dead stopping mark on the set, no intent) and the diagonal
+# ord=X killA=S killB=4 to 11 (the set with A's start intent still kept, as its start process ran at B's ticket; at
+# killB=10 and 11 also B's dead stopping mark); C and the cleanup recovered every one. That run is kept in the evidence
+# pack (round14/runs/sweep14_p1.txt); the registry states are in round14/runs/sweep_states_dbg.txt.
+# Structural evidence: every S cell checks that the start process group was alive when A was killed (in flight) and that
+# the start then brought the unit up (the hazard of R13-B1 really happened in the cell). CONTROL NEEDLE: the same S cells
+# run against a copy of the producer with the round-14 rule removed (a dead starter's intent resolved whatever its start
+# process does, the round-13 rule) must show at least one invariant violation; a sweep that cannot see that defect
+# proves nothing.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"  # HERE = tests/jev
+SWEEP14_PART="${SWEEP14_PART:-all}"
+case "$SWEEP14_PART" in all|x|y|zd) ;; *) echo "FATAL: unknown sweep part [$SWEEP14_PART] (all | x | y | zd)" >&2; exit 2 ;; esac
+echo "# SWEEP part: $SWEEP14_PART"
+# shellcheck source=lib_assert.sh
+. "$HERE/lib_assert.sh"
+PLACE="${S4_PLACE_UNDER_TEST:-$ROOT/scripts/jev/jev-place.sh}"
+GATEBIN="$FIXTURES/bin-flockgate"
+
+assert_eqx() { if [ "$1" = "$2" ]; then ok "$3"; else fail "$3 (expected [$1] got [$2])"; fi; }
+has()  { if grep -q -- "$2" "$1" 2>/dev/null; then ok "$3"; else fail "$3 (no [$2] in $1)"; fi; }
+hasnt(){ if grep -q -- "$2" "$1" 2>/dev/null; then fail "$3 (found [$2] in $1)"; else ok "$3"; fi; }
+
+cap() { # cap <file> — every field the §11.4.291(C) table requires (decide-a, decide-b fit as new starts)
+  jq -n '
+    {schema:"llmctl.capacity/1", time:1700000000, measurement:{ok:true, critical_inputs_unreadable:[]},
+     host:{cpus_online:16, mem_total_mb:20000, mem_available_mb:18000, usable_mem_mb:15000, swap_total_mb:0, swap_free_mb:0,
+           load:{"1":1.0,"5":1.0,"15":1.0}, psi:{memory:{some:0.0,full:0.0},cpu:{some:0.0},io:{some:0.0,full:0.0}}, cgroup:{memory_max_mb:null},
+           nproc:{rlimit_soft:123694, rlimit_hard:123694, user_threads:400, headroom:5000}},
+     reserve:{mem_reserved_mb:4000, cpus_reserved:4}, pressure:{ok:true, reasons:[]},
+     llmctl:{units:[]}, fallback:{recommended:"cloud", key_variable:null}, unknown_profiles:[], degraded:false, largest_decision_fit:null,
+     profiles:{"decide-a":{verdict:"fits", verdict_class:"fits", running:false, threads:3, reasons:[], headroom:{footprint_mb:1000}},
+               "decide-b":{verdict:"fits", verdict_class:"fits", running:false, threads:3, reasons:[], headroom:{footprint_mb:1000}}}}' > "$1"
+}
+TRD="$(mktemp -d)"; NTRACE=0
+case "$TRD" in "${TMPDIR:-/tmp}"/*) ;; *) echo "FATAL: trace dir outside TMPDIR ($TRD)" >&2; exit 2 ;; esac
+LOCKHELD_TOTAL=0
+count_lockheld() { local n=0; [ -n "${STUB_LOG:-}" ] && [ -f "$STUB_LOG/llmctl.log" ] && n="$(grep -c '^LOCKHELD' "$STUB_LOG/llmctl.log" || true)"; LOCKHELD_TOTAL=$((LOCKHELD_TOTAL + ${n:-0})); }
+T0=1700000000; M0=5000
+fresh() {
+  count_lockheld
+  make_fixture_env s4r12
+  NTRACE=$((NTRACE+1))
+  export PATH="$FIXTURES/bin-place:$PATH" JEV_TEST=1 PLACE_CAP_JSON="$T/cap.json" JEV_LOCK_TIMEOUT=2 JEV_TRACE_FILE="$TRD/trace.$NTRACE"
+  unset PLACE_CAP_RC PLACE_CAP_RC_FILE PLACE_CAP_SLEEP PLACE_CAP_RAW PLACE_CAP_GATE PLACE_CAP_GATE_AT PLACE_CAP_GATE_WHEN \
+        PLACE_START_RC PLACE_START_SLEEP PLACE_STOP_RC PLACE_STOP_SLEEP PLACE_DEGRADED PLACE_GONE PLACE_FULL_AFTER PLACE_DCAP_RC \
+        PLACE_STATUS_RC PLACE_STATUS_URL PLACE_STATUS_NOGW JEV_LLMCTL_TIMEOUT JEV_LLMCTL_START_TIMEOUT JEV_PLACE_MAX \
+        JEV_PLACE_PROFILES LLMCTL_GATEWAY_URL LLMCTL_CACERT LLMCTL_TENANT_ID JEV_LEASE_TTL JEV_REEVAL_CADENCE JEV_RECORD_RETRIES \
+        JEV_PROJECT FLOCK_GATE_DIR FLOCK_GATE_AT FLOCK_GATE_KILL_AT JEV_MONO_FILE \
+        JEV_NOW_FILE PLACE_CAP_CLOCK_ADD PLACE_START_CLOCK_ADD PLACE_STOP_CLOCK_ADD PLACE_START_SNAPSHOT PLACE_STOP_SNAPSHOT PLACE_STOP_GATE \
+        PLACE_START_GATE TYPESAFE_API_KEY OPENROUTER_API_KEY
+  : > "$STUB_LOG/llmctl.log"
+  cap "$T/cap.json"
+  export JEV_NOW_FILE="$T/now"; clockset "$T0"
+}
+clockset() { printf '%s\n' "$1" > "$JEV_NOW_FILE"; }
+monoset() { export JEV_MONO_FILE="$T/mono"; printf '%s\n' "$1" > "$JEV_MONO_FILE"; }
+stopsof() { grep -c "^llmctl stop $1\$" "$STUB_LOG/llmctl.log" 2>/dev/null || true; }
+L() { jq -r "$1" "$JEV_STATE_DIR/leases.json" 2>/dev/null; }
+holders() { L "[.sets[\"$1\"].leases[]?.holder] | join(\",\")"; }
+routed() { if jq -e 'any(.endpoints[]?; .provider_id == "llmctl-local")' "$CMA_PROVIDERS_DIR/jev-endpoints.json" >/dev/null 2>&1; then echo yes; else echo no; fi; }
+running() { (cd "$STUB_LOG" && for f in running.*; do [ -e "$f" ] && printf '%s ' "${f#running.}"; done); }
+wait_file() { local n=0; while [ "$n" -lt "${2:-900}" ]; do [ -e "$1" ] && return 0; sleep 0.1; n=$((n+1)); done; return 1; }
+waitb() { # bounded wait: past the deadline TERM (pid > 1 only, §11.4.263) and 124
+  local p="$1" lim n=0; lim=$(( ${2:-300} * 10 ))
+  while kill -0 "$p" 2>/dev/null; do
+    if [ "$n" -ge "$lim" ]; then
+      fail "waitb: pid $p still running after ${2:-300} s (a loop or a hang); sent TERM"
+      if [ "$p" -gt 1 ] 2>/dev/null; then kill -TERM "$p" 2>/dev/null; fi
+      wait "$p" 2>/dev/null; return 124
+    fi
+    sleep 0.1; n=$((n+1))
+  done
+  wait "$p"
+}
+proc_start_of() { local st; local -a f; st="$(cat "/proc/$1/stat" 2>/dev/null)" || return 0; st="${st##*') '}"; read -ra f <<<"$st"; printf '%s\n' "${f[19]:-}"; }
+live_proc() { sleep 600 & HP=$!; jev_track_pid "$HP"; HPST="$(proc_start_of "$HP")"; }
+gated() { # gated <gate-dir> <gate-at> <kill-at> <out-prefix> [NAME=value ...] -- <jev-place args>; sets GPID
+  local d="$1" at="$2" kat="$3" o="$4"; shift 4
+  local -a envs=()
+  while [ "$#" -gt 0 ] && [ "$1" != -- ]; do envs+=("$1"); shift; done
+  shift
+  mkdir -p "$d"
+  # shellcheck disable=SC2030
+  ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10
+    exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" ) &
+  GPID=$!; jev_track_pid "$GPID"
+}
+reach() { if wait_file "$1/reached.$2"; then ok "$3 (paused at flock call $2)"; else fail "$3: never reached flock call $2"; fi; }
+go() { : > "$1/go.$2"; }
+reachstop() { if wait_file "$1/reached.stop.$2"; then ok "$3 (its stop of $2 is in flight)"; else fail "$3: the stop of $2 never began"; fi; }
+gostop() { : > "$1/go.stop.$2"; }
+under_lock() { # a registry write by another writer, under the lock (gen raised)
+  local filt="$1"; shift
+  ( exec 8>>"$JEV_STATE_DIR/placement.lock"; flock -w 10 8 || exit 4
+    jq -c "$@" "(.gen = ((.gen // 0) + 1)) | $filt" "$JEV_STATE_DIR/leases.json" > "$JEV_STATE_DIR/leases.json.w" \
+      && mv -f -- "$JEV_STATE_DIR/leases.json.w" "$JEV_STATE_DIR/leases.json" )
+}
+reg() { jq -c "$@" > "$JEV_STATE_DIR/leases.json"; }
+
+waitany() { # waitany <pid> <file>... : until one file exists or the pid is gone (bounded 60 s) -> 0, 1 on timeout
+  local p="$1" n=0 f; shift
+  while [ "$n" -lt 600 ]; do
+    for f in "$@"; do [ -e "$f" ] && return 0; done
+    kill -0 "$p" 2>/dev/null || return 0
+    sleep 0.1; n=$((n+1))
+  done
+  return 1
+}
+starts() { grep -c "^llmctl start $1\$" "$STUB_LOG/llmctl.log" 2>/dev/null || true; }
+
+# lease-set fixtures (as in round 11)
+rset() { reg -n --argjson pid "$HP" --argjson pst "${HPST:-null}" --argjson t "$T0" "$@"; }
+craft_b() { rset '{gen:1, sets:{"decide-b":{constitution_started:true, started_at:$t, stopping:null, starting:null,
+  leases:[{holder:"sA", pid:$pid, pid_start:$pst, heartbeat_at:$t, ttl:900, project:null, started_by_this_session:true}]}}}'; : > "$STUB_LOG/running.decide-b"; }
+craft_a() { rset --arg owed "$1" '{gen:1, gateway:{url:"https://127.0.0.1:18095", ca:"", source:"crafted"}, sets:{"decide-a":({constitution_started:true, started_at:$t, stopping:null, starting:null,
+  leases:[{holder:"sA", pid:$pid, pid_start:$pst, heartbeat_at:$t, ttl:900, project:null, started_by_this_session:true}]}
+  + (if $owed == "1" then {stop_owed:{at:$t, reason:"test"}} else {} end))}}'; : > "$STUB_LOG/running.decide-a"; }
+holdlock() { # holdlock <dir>: another process takes the lease lock and keeps it until <dir>/free exists (bounded 120 s)
+  local d="$1"; mkdir -p "$d"
+  ( exec 8>>"$JEV_STATE_DIR/placement.lock"; flock -w 10 8 || exit 4; : > "$d/held"; n=0
+    while [ ! -e "$d/free" ] && [ "$n" -lt 1200 ]; do sleep 0.1 8>&-; n=$((n+1)); done ) &
+  HLP=$!; jev_track_pid "$HLP"
+  if wait_file "$d/held" 100; then ok "CONTROL: the external holder has the lease lock"; else fail "the external holder never took the lease lock"; fi
+}
+freelock() { : > "$1/free"; waitb "$HLP" 30 >/dev/null; }
+waitlog() { # waitlog <file> <fixed string> [limit-s]: 0 when the line appears
+  local n=0 lim=$(( ${3:-60} * 10 ))
+  while [ "$n" -lt "$lim" ]; do grep -qF -- "$2" "$1" 2>/dev/null && return 0; sleep 0.1; n=$((n+1)); done; return 1
+}
+rc_of() { waitb "$1" "${2:-120}"; }
+
+# ---- calibration of the A/B race (as in round 11) ------------------------------------------------------------------
+# the flock call numbers of A's record step and of B's arm step ---------------------------------------
+# A: acquire decide-a with no pid; its start waits at the stub's start gate. B: a second acquire after both clocks
+# advanced; it disposes the set and its stop waits at the stop gate. A's record step is A's next lock call; B's arm is the
+# lock call just before its stop (lock, unlock, stop), B's record step the lock call after it. Control needle: those numbers
+# must be lock calls (not `flock -u`) in the call logs.
+mc_launch() { # mc_launch <rc> <A gate list> <B gate list> [B kill-at]
+  local rc="$1" ga="$2" gb="$3" kb="${4:-0}"
+  fresh; monoset "$M0"; SG="$T/sg"; mkdir -p "$SG"
+  gated "$T/gA" "$ga" 0 "$T/a" JEV_PLACE_PROFILES=decide-a PLACE_START_GATE="$SG" PLACE_START_RC="$rc" -- acquire sA; AP=$GPID
+  wait_file "$SG/reached.start.decide-a" 1200 || { fail "mc: A's start never began"; return 1; }
+  monoset $(( M0 + 2400 ))
+  gated "$T/gB" "$gb" "$kb" "$T/b" JEV_PLACE_PROFILES=decide-a PLACE_STOP_GATE="$SG" -- acquire sB; BP=$GPID
+}
+mc_launch 0 0 0
+wait_file "$SG/reached.stop.decide-a" 300 || fail "calibration: B's stop never began"
+NA=$(( $(cat "$T/gA/count") + 1 )); NB=$(( $(cat "$T/gB/count") - 1 ))
+gostop "$SG" decide-a; waitb "$BP" 120; : > "$SG/go.start.decide-a"; waitb "$AP" 120
+if grep -q "^flock#$NA -u" "$T/gA/calls.log" || ! grep -q "^flock#$NA " "$T/gA/calls.log"; then fail "calibration: A's call $NA is not a lock call"; else ok "calibration: A records at flock call $NA"; fi
+if grep -q "^flock#$NB -u" "$T/gB/calls.log" || ! grep -q "^flock#$((NB+1)) -u" "$T/gB/calls.log"; then fail "calibration: B's call $NB is not its arm lock"; else ok "calibration: B arms at flock call $NB, records at $((NB+2))"; fi
+
+mc2() { # mc2 <A rc> <A gates> <B gates> <B env ...>: mc_launch with extra environment for B
+  local rc="$1" ga="$2" gb="$3"; shift 3
+  fresh; monoset "$M0"; SG="$T/sg"; mkdir -p "$SG"
+  gated "$T/gA" "$ga" 0 "$T/a" JEV_PLACE_PROFILES=decide-a PLACE_START_GATE="$SG" PLACE_START_RC="$rc" -- acquire sA; AP=$GPID
+  wait_file "$SG/reached.start.decide-a" 1200 || { fail "mc2: A's start never began"; return 1; }
+  monoset $(( M0 + 2400 ))
+  gated "$T/gB" "$gb" 0 "$T/b" JEV_PLACE_PROFILES=decide-a PLACE_STOP_GATE="$SG" "$@" -- acquire sB; BP=$GPID
+}
+r11one() { # the R11-1 order up to A's record: B arms, B's stop returns, A's unit comes up, A records; B waits before its record
+  reach "$T/gB" "$NB" "$1 B is paused before its arm step"
+  go "$T/gB" "$NB"; reachstop "$SG" decide-a "$1 B armed its stop"
+  gostop "$SG" decide-a; reach "$T/gB" "$((NB+2))" "$1 B's stop returned; B is paused before its record step"
+  : > "$SG/go.start.decide-a"; reach "$T/gA" "$NA" "$1 A's start returned; A is paused before its record step"
+  go "$T/gA" "$NA"; waitb "$AP" 120
+}
+
+
+
+intents() { jq -c '.start_intents // null' "$JEV_STATE_DIR/leases.json" 2>/dev/null; }
+adopts() { cat "$@" 2>/dev/null | grep -c 'joined the already-running unit' || true; }
+dead_proc() { # dead_proc: a pid (and its start time) of a process that existed and is gone now (pid > 1 only, §11.4.263)
+  sleep 600 & DP=$!; DPST="$(proc_start_of "$DP")"
+  if [ "$DP" -gt 1 ] 2>/dev/null; then kill -TERM "$DP" 2>/dev/null; fi
+  wait "$DP" 2>/dev/null; true
+}
+
+grp_alive() { [ "$1" -gt 1 ] 2>/dev/null && kill -0 -- "-$1" 2>/dev/null; }
+gone_wait() { # gone_wait <pid>: until the pid and its process group are gone (bounded 60 s) -> 0, 1 on timeout
+  local n=0
+  case "$1" in ''|null|*[!0-9]*) sleep 0.5; return 0 ;; esac
+  while [ "$n" -lt 600 ]; do
+    if [ ! -d "/proc/$1" ] && ! grp_alive "$1"; then return 0; fi
+    sleep 0.1; n=$((n+1))
+  done
+  return 1
+}
+# every flock call of A and of B in the calibration run above (lock and unlock)
+NAC="$(cat "$T/gA/count")"; NBC="$(cat "$T/gB/count")"
+LA="$(seq 1 "$NAC" | tr '\n' ' ')"; LB="$(seq 1 "$NBC" | tr '\n' ' ')"
+echo "# SWEEP A flock calls: $LA; B flock calls: $LB"
+if [ "$NAC" -ge 2 ] && grep -q '^flock#[0-9]* -u' "$T/gA/calls.log" && grep -q '^flock#[0-9]* -u' "$T/gB/calls.log"; then
+  ok "CONTROL: the sweep covers every flock call of A ($NAC) and of B ($NBC), unlock calls included"
+else fail "CONTROL: the calibration found no lock/unlock calls (A $NAC, B $NBC)"; fi
+
+NEEDLE=0; NV=0; NSIN=0; NSUP=0
+chk() { # chk <0 ok | 1 violation> <message>
+  if [ "$NEEDLE" = 1 ]; then [ "$1" = 0 ] || NV=$((NV+1)); return 0; fi
+  if [ "$1" = 0 ]; then ok "$2"; else fail "$2"; fi
+}
+inv() { # inv <tag> <point>: the invariant at a quiescent point
+  local i1 cs
+  # "ours": a lease-less set the constitution started, no owed stop; it is not adopted (constitution_started is true),
+  # release_locked stops it once no live stopping mark is on it and plan step B joins (ok) or disposes (degraded,
+  # absent) it, section 11.4.291(J). "bare": a lease-less set NOT marked constitution-started: nobody would stop it.
+  i1="$(jq -r 'if (.sets["decide-a"] // null) != null then (if ((.sets["decide-a"].leases // []) | length) > 0 then "held" elif (.sets["decide-a"].stop_owed // null) != null then "owed" elif (.sets["decide-a"].constitution_started // null) == true then "ours" else "bare" end)
+               elif ((.start_intents // {})["decide-a"] // null) != null then "intent" else "noset" end' "$JEV_STATE_DIR/leases.json" 2>/dev/null)"
+  if [ -n "$(running)" ]; then
+    case "$i1" in held|owed|intent|ours) chk 0 "SW $1 $2: the running unit is $i1" ;; *) chk 1 "SW $1 $2: a unit runs and is $i1 (no lease, no owed stop, no start intent, not a constitution-started set)" ;; esac
+  else chk 0 "SW $1 $2: no unit runs"; fi
+  cs="$(L '.sets["decide-a"].constitution_started // "noset"')"
+  if [ "$cs" != false ]; then chk 0 "SW $1 $2: no set is operator-owned ($cs)"; else chk 1 "SW $1 $2: the set is operator-owned although the constitution started the unit"; fi
+}
+acq() { # acq <holder> <out>: an acquire with a live holder, bounded
+  ( export JEV_PLACE_PROFILES=decide-a JEV_LOCK_TIMEOUT=10; exec timeout 120 "$PLACE" acquire "$1" --pid "$HP" >> "$T/$2.out" 2>> "$T/$2.err" ); true
+}
+sweep_one() { # sweep_one <order X|Y|Z> <A kill-at|S|0> <B kill-at|0>
+  local ord="$1" ka="$2" kb="$3" kat=0 tag cpid="" inflight=n up=n
+  tag="ord=$ord killA=$ka killB=$kb"
+  [ "$ka" = S ] || kat="$ka"
+  fresh; monoset "$M0"; SG="$T/sg"; mkdir -p "$SG"; live_proc; : > "$T/c.err"; : > "$T/p.err"
+  gated "$T/gA" 0 "$kat" "$T/a" JEV_PLACE_PROFILES=decide-a PLACE_START_GATE="$SG" PLACE_START_RC=0 -- acquire sA; AP=$GPID
+  waitany "$AP" "$SG/reached.start.decide-a"
+  if [ -e "$SG/reached.start.decide-a" ]; then cpid="$(L '.start_intents["decide-a"].child.pid')"; fi
+  if [ "$ka" = S ] && [ -e "$SG/reached.start.decide-a" ] && [ "$AP" -gt 1 ]; then
+    grp_alive "$cpid" && inflight=y
+    kill -9 "$AP" 2>/dev/null; wait "$AP" 2>/dev/null
+  fi
+  monoset $(( M0 + 2400 ))
+  : > "$SG/go.stop.decide-a"
+  if [ "$ord" = Y ]; then : > "$SG/go.start.decide-a"; kill -0 "$AP" 2>/dev/null && waitb "$AP" 120 >/dev/null; gone_wait "$cpid"; fi
+  gated "$T/gB" 0 "$kb" "$T/b" JEV_PLACE_PROFILES=decide-a PLACE_STOP_GATE="$SG" -- acquire sB; BP=$GPID
+  waitb "$BP" 120 >/dev/null
+  inv "$tag" "after B"
+  if [ "$ord" = Z ]; then acq sC c; inv "$tag" "after C (start in flight)"; fi
+  : > "$SG/go.start.decide-a"; kill -0 "$AP" 2>/dev/null && waitb "$AP" 120 >/dev/null
+  gone_wait "$cpid" || chk 1 "SW $tag: the start process never ended"
+  [ -n "$(running)" ] && up=y
+  inv "$tag" "after the start ended"
+  if [ "$ord" = Z ]; then acq sP p; inv "$tag" "after P"; else acq sC c; inv "$tag" "after C"; fi
+  if [ "$ka" = S ]; then
+    if [ "$inflight" = y ] && [ "$up" = y ]; then NSIN=$((NSIN+1)); chk 0 "SW $tag: A was killed while its start was in flight, and the start then brought the unit up"
+    else chk 1 "SW $tag: the S cell did not reach its hazard (in flight $inflight, unit up $up)"; fi
+  fi
+  local na; na="$(adopts "$T/a.err" "$T/b.err" "$T/c.err" "$T/p.err")"
+  if [ "$na" = 0 ]; then chk 0 "SW $tag: no adoption as operator-started"; else chk 1 "SW $tag: $na adoption(s) as operator-started"; fi
+  for h in sP sC sB sA; do "$PLACE" release "$h" > /dev/null 2>> "$T/c.err"; done
+  ( export JEV_PLACE_PROFILES=decide-a PLACE_START_RC=75; exec "$PLACE" acquire sD > /dev/null 2>> "$T/c.err" ); "$PLACE" release sD > /dev/null 2>> "$T/c.err"
+  "$PLACE" reap > /dev/null 2>> "$T/c.err"
+  local fin; fin="$(running)|$(jq -c .sets "$JEV_STATE_DIR/leases.json")|$(intents)"
+  if [ "$fin" = "|{}|null" ]; then chk 0 "SW $tag: after the cleanup nothing runs, no set, no intent (starts $(starts decide-a) stops $(stopsof decide-a) killedA=$([ -e "$T/gA/killed" ] && echo y || echo n) killedB=$([ -e "$T/gB/killed" ] && echo y || echo n))"
+  else chk 1 "SW $tag: after the cleanup [$fin] is left"; fi
+}
+# the part to run (section header): x = order X, y = order Y, zd = order Z and the X diagonal, all = every part
+want() { [ "$SWEEP14_PART" = all ] || [ "$SWEEP14_PART" = "$1" ]; }
+EXP_SIN=0
+for ord in X Y Z; do
+  case "$ord" in X) _part=x ;; Y) _part=y ;; *) _part=zd ;; esac
+  want "$_part" || continue
+  sweep_one "$ord" 0 0; sweep_one "$ord" S 0; EXP_SIN=$((EXP_SIN+1))
+  [ "$ord" = Z ] && continue
+  for ka in $LA; do sweep_one "$ord" "$ka" 0; done
+  for kb in $LB; do sweep_one "$ord" 0 "$kb"; done
+done
+if want zd; then for kb in $LB; do sweep_one X S "$kb"; done; EXP_SIN=$((EXP_SIN+NBC)); fi
+assert_eqx "$EXP_SIN" "$NSIN" "CONTROL: every S cell of part $SWEEP14_PART reached its hazard: A killed in flight, the unit brought up after"
+
+# ---- CONTROL NEEDLE: the round-13 rule (a dead starter's intent resolved whatever its start process does) ------------
+ND="$(mktemp -d)"; _JEV_FIXTURE_DIRS+=("$ND"); mkdir -p "$ND/scripts"; cp -R "$ROOT/scripts/jev" "$ND/scripts/jev"
+python3 - "$ND/scripts/jev/jev-place.sh" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = 'may still run or was not seen gone before this observation; the intent is kept"\n         continue ;;'
+assert s.count(a) == 1, "needle anchor not found"
+open(p, "w").write(s.replace(a, 'may still run or was not seen gone before this observation; the intent is kept"\n         ;;'))
+PY
+PLACE_SAVED="$PLACE"; PLACE="$ND/scripts/jev/jev-place.sh"; NEEDLE=1; NV=0
+sweep_one X S 0; sweep_one Z S 0
+NEEDLE=0; PLACE="$PLACE_SAVED"
+if [ "$NV" -ge 1 ]; then ok "CONTROL NEEDLE: the round-13 rule shows $NV invariant violation(s) in the S cells (the sweep sees the defect)"
+else fail "CONTROL NEEDLE: the round-13 rule shows no violation (the sweep is blind to R13-B1)"; fi
+count_lockheld
+assert_eqx 0 "$LOCKHELD_TOTAL" "no llmctl call ran under the lease lock in any cell (R4-3)"
+finish

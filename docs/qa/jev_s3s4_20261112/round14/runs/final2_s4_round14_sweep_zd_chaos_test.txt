@@ -1,0 +1,210 @@
+# SWEEP part: zd
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+# SWEEP A flock calls: 1 2 3 4 5 6 7 8 9 10 11 12 ; B flock calls: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 
+ok 3 - CONTROL: the sweep covers every flock call of A (12) and of B (18), unlock calls included
+ok 4 - SW ord=Z killA=0 killB=0 after B: no unit runs
+ok 5 - SW ord=Z killA=0 killB=0 after B: no set is operator-owned (noset)
+ok 6 - SW ord=Z killA=0 killB=0 after C (start in flight): no unit runs
+ok 7 - SW ord=Z killA=0 killB=0 after C (start in flight): no set is operator-owned (noset)
+ok 8 - SW ord=Z killA=0 killB=0 after the start ended: no unit runs
+ok 9 - SW ord=Z killA=0 killB=0 after the start ended: no set is operator-owned (noset)
+ok 10 - SW ord=Z killA=0 killB=0 after P: the running unit is held
+ok 11 - SW ord=Z killA=0 killB=0 after P: no set is operator-owned (true)
+ok 12 - SW ord=Z killA=0 killB=0: no adoption as operator-started
+ok 13 - SW ord=Z killA=0 killB=0: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=n)
+ok 14 - SW ord=Z killA=S killB=0 after B: no unit runs
+ok 15 - SW ord=Z killA=S killB=0 after B: no set is operator-owned (noset)
+ok 16 - SW ord=Z killA=S killB=0 after C (start in flight): no unit runs
+ok 17 - SW ord=Z killA=S killB=0 after C (start in flight): no set is operator-owned (noset)
+ok 18 - SW ord=Z killA=S killB=0 after the start ended: the running unit is intent
+ok 19 - SW ord=Z killA=S killB=0 after the start ended: no set is operator-owned (noset)
+ok 20 - SW ord=Z killA=S killB=0 after P: the running unit is held
+ok 21 - SW ord=Z killA=S killB=0 after P: no set is operator-owned (true)
+ok 22 - SW ord=Z killA=S killB=0: A was killed while its start was in flight, and the start then brought the unit up
+ok 23 - SW ord=Z killA=S killB=0: no adoption as operator-started
+ok 24 - SW ord=Z killA=S killB=0: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=n)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 10376 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 25 - SW ord=X killA=S killB=1 after B: no unit runs
+ok 26 - SW ord=X killA=S killB=1 after B: no set is operator-owned (true)
+ok 27 - SW ord=X killA=S killB=1 after the start ended: the running unit is held
+ok 28 - SW ord=X killA=S killB=1 after the start ended: no set is operator-owned (true)
+ok 29 - SW ord=X killA=S killB=1 after C: the running unit is held
+ok 30 - SW ord=X killA=S killB=1 after C: no set is operator-owned (true)
+ok 31 - SW ord=X killA=S killB=1: A was killed while its start was in flight, and the start then brought the unit up
+ok 32 - SW ord=X killA=S killB=1: no adoption as operator-started
+ok 33 - SW ord=X killA=S killB=1: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 13131 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 34 - SW ord=X killA=S killB=2 after B: no unit runs
+ok 35 - SW ord=X killA=S killB=2 after B: no set is operator-owned (true)
+ok 36 - SW ord=X killA=S killB=2 after the start ended: the running unit is held
+ok 37 - SW ord=X killA=S killB=2 after the start ended: no set is operator-owned (true)
+ok 38 - SW ord=X killA=S killB=2 after C: the running unit is held
+ok 39 - SW ord=X killA=S killB=2 after C: no set is operator-owned (true)
+ok 40 - SW ord=X killA=S killB=2: A was killed while its start was in flight, and the start then brought the unit up
+ok 41 - SW ord=X killA=S killB=2: no adoption as operator-started
+ok 42 - SW ord=X killA=S killB=2: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 15958 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 43 - SW ord=X killA=S killB=3 after B: no unit runs
+ok 44 - SW ord=X killA=S killB=3 after B: no set is operator-owned (true)
+ok 45 - SW ord=X killA=S killB=3 after the start ended: the running unit is held
+ok 46 - SW ord=X killA=S killB=3 after the start ended: no set is operator-owned (true)
+ok 47 - SW ord=X killA=S killB=3 after C: the running unit is held
+ok 48 - SW ord=X killA=S killB=3 after C: no set is operator-owned (true)
+ok 49 - SW ord=X killA=S killB=3: A was killed while its start was in flight, and the start then brought the unit up
+ok 50 - SW ord=X killA=S killB=3: no adoption as operator-started
+ok 51 - SW ord=X killA=S killB=3: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 18842 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 52 - SW ord=X killA=S killB=4 after B: no unit runs
+ok 53 - SW ord=X killA=S killB=4 after B: no set is operator-owned (true)
+ok 54 - SW ord=X killA=S killB=4 after the start ended: the running unit is ours
+ok 55 - SW ord=X killA=S killB=4 after the start ended: no set is operator-owned (true)
+ok 56 - SW ord=X killA=S killB=4 after C: the running unit is held
+ok 57 - SW ord=X killA=S killB=4 after C: no set is operator-owned (true)
+ok 58 - SW ord=X killA=S killB=4: A was killed while its start was in flight, and the start then brought the unit up
+ok 59 - SW ord=X killA=S killB=4: no adoption as operator-started
+ok 60 - SW ord=X killA=S killB=4: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 21702 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 61 - SW ord=X killA=S killB=5 after B: no unit runs
+ok 62 - SW ord=X killA=S killB=5 after B: no set is operator-owned (true)
+ok 63 - SW ord=X killA=S killB=5 after the start ended: the running unit is ours
+ok 64 - SW ord=X killA=S killB=5 after the start ended: no set is operator-owned (true)
+ok 65 - SW ord=X killA=S killB=5 after C: the running unit is held
+ok 66 - SW ord=X killA=S killB=5 after C: no set is operator-owned (true)
+ok 67 - SW ord=X killA=S killB=5: A was killed while its start was in flight, and the start then brought the unit up
+ok 68 - SW ord=X killA=S killB=5: no adoption as operator-started
+ok 69 - SW ord=X killA=S killB=5: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 24604 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 70 - SW ord=X killA=S killB=6 after B: no unit runs
+ok 71 - SW ord=X killA=S killB=6 after B: no set is operator-owned (true)
+ok 72 - SW ord=X killA=S killB=6 after the start ended: the running unit is ours
+ok 73 - SW ord=X killA=S killB=6 after the start ended: no set is operator-owned (true)
+ok 74 - SW ord=X killA=S killB=6 after C: the running unit is held
+ok 75 - SW ord=X killA=S killB=6 after C: no set is operator-owned (true)
+ok 76 - SW ord=X killA=S killB=6: A was killed while its start was in flight, and the start then brought the unit up
+ok 77 - SW ord=X killA=S killB=6: no adoption as operator-started
+ok 78 - SW ord=X killA=S killB=6: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 27598 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 79 - SW ord=X killA=S killB=7 after B: no unit runs
+ok 80 - SW ord=X killA=S killB=7 after B: no set is operator-owned (true)
+ok 81 - SW ord=X killA=S killB=7 after the start ended: the running unit is ours
+ok 82 - SW ord=X killA=S killB=7 after the start ended: no set is operator-owned (true)
+ok 83 - SW ord=X killA=S killB=7 after C: the running unit is held
+ok 84 - SW ord=X killA=S killB=7 after C: no set is operator-owned (true)
+ok 85 - SW ord=X killA=S killB=7: A was killed while its start was in flight, and the start then brought the unit up
+ok 86 - SW ord=X killA=S killB=7: no adoption as operator-started
+ok 87 - SW ord=X killA=S killB=7: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 30665 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 88 - SW ord=X killA=S killB=8 after B: no unit runs
+ok 89 - SW ord=X killA=S killB=8 after B: no set is operator-owned (true)
+ok 90 - SW ord=X killA=S killB=8 after the start ended: the running unit is ours
+ok 91 - SW ord=X killA=S killB=8 after the start ended: no set is operator-owned (true)
+ok 92 - SW ord=X killA=S killB=8 after C: the running unit is held
+ok 93 - SW ord=X killA=S killB=8 after C: no set is operator-owned (true)
+ok 94 - SW ord=X killA=S killB=8: A was killed while its start was in flight, and the start then brought the unit up
+ok 95 - SW ord=X killA=S killB=8: no adoption as operator-started
+ok 96 - SW ord=X killA=S killB=8: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 33906 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 97 - SW ord=X killA=S killB=9 after B: no unit runs
+ok 98 - SW ord=X killA=S killB=9 after B: no set is operator-owned (true)
+ok 99 - SW ord=X killA=S killB=9 after the start ended: the running unit is ours
+ok 100 - SW ord=X killA=S killB=9 after the start ended: no set is operator-owned (true)
+ok 101 - SW ord=X killA=S killB=9 after C: the running unit is held
+ok 102 - SW ord=X killA=S killB=9 after C: no set is operator-owned (true)
+ok 103 - SW ord=X killA=S killB=9: A was killed while its start was in flight, and the start then brought the unit up
+ok 104 - SW ord=X killA=S killB=9: no adoption as operator-started
+ok 105 - SW ord=X killA=S killB=9: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 37202 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 106 - SW ord=X killA=S killB=10 after B: no unit runs
+ok 107 - SW ord=X killA=S killB=10 after B: no set is operator-owned (true)
+ok 108 - SW ord=X killA=S killB=10 after the start ended: the running unit is ours
+ok 109 - SW ord=X killA=S killB=10 after the start ended: no set is operator-owned (true)
+ok 110 - SW ord=X killA=S killB=10 after C: the running unit is held
+ok 111 - SW ord=X killA=S killB=10 after C: no set is operator-owned (true)
+ok 112 - SW ord=X killA=S killB=10: A was killed while its start was in flight, and the start then brought the unit up
+ok 113 - SW ord=X killA=S killB=10: no adoption as operator-started
+ok 114 - SW ord=X killA=S killB=10: after the cleanup nothing runs, no set, no intent (starts 2 stops 1 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 40732 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 115 - SW ord=X killA=S killB=11 after B: no unit runs
+ok 116 - SW ord=X killA=S killB=11 after B: no set is operator-owned (true)
+ok 117 - SW ord=X killA=S killB=11 after the start ended: the running unit is ours
+ok 118 - SW ord=X killA=S killB=11 after the start ended: no set is operator-owned (true)
+ok 119 - SW ord=X killA=S killB=11 after C: the running unit is held
+ok 120 - SW ord=X killA=S killB=11 after C: no set is operator-owned (true)
+ok 121 - SW ord=X killA=S killB=11: A was killed while its start was in flight, and the start then brought the unit up
+ok 122 - SW ord=X killA=S killB=11: no adoption as operator-started
+ok 123 - SW ord=X killA=S killB=11: after the cleanup nothing runs, no set, no intent (starts 2 stops 2 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 44342 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 124 - SW ord=X killA=S killB=12 after B: no unit runs
+ok 125 - SW ord=X killA=S killB=12 after B: no set is operator-owned (noset)
+ok 126 - SW ord=X killA=S killB=12 after the start ended: the running unit is intent
+ok 127 - SW ord=X killA=S killB=12 after the start ended: no set is operator-owned (noset)
+ok 128 - SW ord=X killA=S killB=12 after C: the running unit is held
+ok 129 - SW ord=X killA=S killB=12 after C: no set is operator-owned (true)
+ok 130 - SW ord=X killA=S killB=12: A was killed while its start was in flight, and the start then brought the unit up
+ok 131 - SW ord=X killA=S killB=12: no adoption as operator-started
+ok 132 - SW ord=X killA=S killB=12: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 48453 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 133 - SW ord=X killA=S killB=13 after B: no unit runs
+ok 134 - SW ord=X killA=S killB=13 after B: no set is operator-owned (noset)
+ok 135 - SW ord=X killA=S killB=13 after the start ended: the running unit is intent
+ok 136 - SW ord=X killA=S killB=13 after the start ended: no set is operator-owned (noset)
+ok 137 - SW ord=X killA=S killB=13 after C: the running unit is held
+ok 138 - SW ord=X killA=S killB=13 after C: no set is operator-owned (true)
+ok 139 - SW ord=X killA=S killB=13: A was killed while its start was in flight, and the start then brought the unit up
+ok 140 - SW ord=X killA=S killB=13: no adoption as operator-started
+ok 141 - SW ord=X killA=S killB=13: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 52640 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 142 - SW ord=X killA=S killB=14 after B: no unit runs
+ok 143 - SW ord=X killA=S killB=14 after B: no set is operator-owned (noset)
+ok 144 - SW ord=X killA=S killB=14 after the start ended: the running unit is intent
+ok 145 - SW ord=X killA=S killB=14 after the start ended: no set is operator-owned (noset)
+ok 146 - SW ord=X killA=S killB=14 after C: the running unit is held
+ok 147 - SW ord=X killA=S killB=14 after C: no set is operator-owned (true)
+ok 148 - SW ord=X killA=S killB=14: A was killed while its start was in flight, and the start then brought the unit up
+ok 149 - SW ord=X killA=S killB=14: no adoption as operator-started
+ok 150 - SW ord=X killA=S killB=14: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 56944 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 151 - SW ord=X killA=S killB=15 after B: no unit runs
+ok 152 - SW ord=X killA=S killB=15 after B: no set is operator-owned (noset)
+ok 153 - SW ord=X killA=S killB=15 after the start ended: the running unit is intent
+ok 154 - SW ord=X killA=S killB=15 after the start ended: no set is operator-owned (noset)
+ok 155 - SW ord=X killA=S killB=15 after C: the running unit is held
+ok 156 - SW ord=X killA=S killB=15 after C: no set is operator-owned (true)
+ok 157 - SW ord=X killA=S killB=15: A was killed while its start was in flight, and the start then brought the unit up
+ok 158 - SW ord=X killA=S killB=15: no adoption as operator-started
+ok 159 - SW ord=X killA=S killB=15: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 61356 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 160 - SW ord=X killA=S killB=16 after B: no unit runs
+ok 161 - SW ord=X killA=S killB=16 after B: no set is operator-owned (noset)
+ok 162 - SW ord=X killA=S killB=16 after the start ended: the running unit is intent
+ok 163 - SW ord=X killA=S killB=16 after the start ended: no set is operator-owned (noset)
+ok 164 - SW ord=X killA=S killB=16 after C: the running unit is held
+ok 165 - SW ord=X killA=S killB=16 after C: no set is operator-owned (true)
+ok 166 - SW ord=X killA=S killB=16: A was killed while its start was in flight, and the start then brought the unit up
+ok 167 - SW ord=X killA=S killB=16: no adoption as operator-started
+ok 168 - SW ord=X killA=S killB=16: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 65939 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 169 - SW ord=X killA=S killB=17 after B: no unit runs
+ok 170 - SW ord=X killA=S killB=17 after B: no set is operator-owned (noset)
+ok 171 - SW ord=X killA=S killB=17 after the start ended: the running unit is intent
+ok 172 - SW ord=X killA=S killB=17 after the start ended: no set is operator-owned (noset)
+ok 173 - SW ord=X killA=S killB=17 after C: the running unit is held
+ok 174 - SW ord=X killA=S killB=17 after C: no set is operator-owned (true)
+ok 175 - SW ord=X killA=S killB=17: A was killed while its start was in flight, and the start then brought the unit up
+ok 176 - SW ord=X killA=S killB=17: no adoption as operator-started
+ok 177 - SW ord=X killA=S killB=17: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=y)
+/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/repo/tests/jev/fixtures/sweep_s4_round14.sh: line 105: 70620 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 178 - SW ord=X killA=S killB=18 after B: no unit runs
+ok 179 - SW ord=X killA=S killB=18 after B: no set is operator-owned (noset)
+ok 180 - SW ord=X killA=S killB=18 after the start ended: the running unit is intent
+ok 181 - SW ord=X killA=S killB=18 after the start ended: no set is operator-owned (noset)
+ok 182 - SW ord=X killA=S killB=18 after C: the running unit is held
+ok 183 - SW ord=X killA=S killB=18 after C: no set is operator-owned (true)
+ok 184 - SW ord=X killA=S killB=18: A was killed while its start was in flight, and the start then brought the unit up
+ok 185 - SW ord=X killA=S killB=18: no adoption as operator-started
+ok 186 - SW ord=X killA=S killB=18: after the cleanup nothing runs, no set, no intent (starts 3 stops 3 killedA=n killedB=y)
+ok 187 - CONTROL: every S cell of part zd reached its hazard: A killed in flight, the unit brought up after
+ok 188 - CONTROL NEEDLE: the round-13 rule shows 3 invariant violation(s) in the S cells (the sweep sees the defect)
+ok 189 - no llmctl call ran under the lease lock in any cell (R4-3)
+# sweep_s4_round14.sh: pass=189 fail=0 skip=0

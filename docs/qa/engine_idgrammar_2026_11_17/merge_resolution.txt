@@ -1,0 +1,39 @@
+# merge resolution of 1eae120b9418f33312e9345fd9354c1b93586967 (de3ba5d1 + origin/main ebd8818c), 2026-11-17T03:26:47Z
+conflicts: docs/workable_items.db (binary), docs/Issues_Summary.md
+1. git checkout --theirs -- docs/workable_items.db   (origin/main's database, sha256 8e73f3534b03d0daa9864ca3eaff4ca5908e8da6057ed193ffdbd1f8f5ca8453)
+2. workable-items update --id CON-456 ... (status In progress; round-1 reproduction and investigation records; description and root cause extended with round 2)
+3. workable-items repair-bodies --db docs/workable_items.db  -> 3 rewrite (CON-266, CON-267, CON-268), 488 noop
+4. workable-items export --db docs/workable_items.db --out-dir docs  (Markdown only; Fixed.md and Fixed_Summary.md unchanged against main)
+5. workable-items validate --db docs/workable_items.db -> OK, 491 items
+6. workable-items diff --db docs/workable_items.db --issues docs/Issues.md --fixed docs/Fixed.md -> in sync, 491 items
+
+database against origin/main (all tables, row sets):
+items: same ids: True 491
+  CON-266 columns changed: body_md, last_modified
+  CON-267 columns changed: body_md, last_modified
+  CON-268 columns changed: body_md, last_modified
+  CON-456 columns changed: status, description, body_md, reproduction_state, reproduction_surface, reproduction_evidence, reproduction_red_cmd, reproduction_green_cmd, reproduction_env, reproduction_signature, reproduction_updated_at, reproduction_updated_by, investigation_state, investigation_root_cause, investigation_evidence, investigation_updated_at, investigation_updated_by, last_modified
+doc_segments: +0 -0
+firebase_metadata: +0 -0
+item_history: +1 -0
+logic_groups: +0 -0
+meta: +0 -0
+obsolete_details: +0 -0
+operator_block_details: +0 -0
+repro_gate_exemptions: +0 -0
+sqlite_sequence: +1 -1
+test_diary: +0 -0
+
+Markdown against origin/main:
+ docs/Issues.md         | 9 +++++++--
+ docs/Issues_Summary.md | 6 +++---
+ 2 files changed, 10 insertions(+), 5 deletions(-)
++**Severity:** Low
++**Severity:** Low
++**Severity:** Low
+-**Status:** Queued
++**Status:** In progress
++**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/en
++**Investigation:** root-cause-found-with-evidence — root-cause `renderer canonicalIDRe [A
+-What: review F3 (important, engine source defect). workable-items add --id accepts an id 
++What: review F3 (important, engine source defect). workable-items add --id accepts an id 

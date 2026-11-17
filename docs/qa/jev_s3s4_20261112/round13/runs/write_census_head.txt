@@ -1,0 +1,16 @@
+needle: OK (definition line [504]; finish_stop_locked calls [864, 876, 890, 904])
+leases_save token lines: 21 = 17 call sites + 1 definition + 3 comment lines
+function | leases_save | delete_set | replace_set | add_lease | remove_lease | clear_leases | refresh_lease | read_only
+leases_save | [] | [] | [] | [] | [] | [] | [507] | [511]
+reap_locked | [628] | [] | [] | [] | [625] | [] | [] | []
+intents_locked | [718] | [] | [706] | [] | [] | [] | [] | []
+obs_locked | [742] | [741] | [] | [] | [] | [737] | [] | []
+finish_stop_locked | [864, 876, 890, 904] | [875] | [] | [] | [] | [] | [] | []
+arm_stop_locked | [929] | [] | [] | [] | [] | [] | [] | []
+plan_locked | [1011, 1043, 1106] | [] | [1105] | [1042] | [1042] | [] | [] | []
+mark_start_locked | [1160] | [] | [1159] | [] | [] | [] | [] | []
+finish_start_locked | [1238] | [1201] | [1189, 1192, 1199, 1204] | [] | [1227] | [] | [] | []
+gw_refuse_locked | [1244] | [] | [] | [] | [] | [] | [] | []
+release_locked | [1429, 1440] | [1439] | [] | [] | [1428] | [] | [] | []
+hb_locked | [1458] | [] | [] | [] | [] | [] | [1457] | [1507]
+closed world: every lease-write and map_values line is categorised

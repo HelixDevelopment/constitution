@@ -1,0 +1,34 @@
+import sys, os, importlib.util, subprocess, html.parser
+repo = sys.argv[1]; work = sys.argv[2]
+sys.path.insert(0, os.path.join(repo, "tests/release"))
+import pvl_fixture as F
+import pvl_blockstate as B
+spec = importlib.util.spec_from_file_location("ck", os.path.join(repo, "scripts/validation/check_provisional_verification_lines.py"))
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fx = F.make_root(work); ctx = F.checker_ctx(m, fx)
+G = F.line()
+shapes = {
+ "bang-block-div-hidden": "<!-- a --!><div hidden>\n-->\n\n@\n",
+ "bang-block-style": "<!-- a --!><style>p{display:none}</style>\n-->\n\n@\n",
+ "bang-block-oneline": "<!-- --!><div hidden> -->\n\n@\n",
+ "bang-after": "@\n\n<!-- --!><style>p{display:none}</style> -->\n",
+ "bang-plain-control": "<!-- a -->\n\n@\n",
+ "bang-inline": "@ <!-- x --!><span hidden> -->\n",
+}
+class P(html.parser.HTMLParser):
+    def __init__(s): super().__init__(); s.ev=[]
+    def handle_starttag(s,t,a): s.ev.append(("start",t,a))
+    def handle_comment(s,d): s.ev.append(("comment",d))
+    def handle_data(s,d):
+        if d.strip(): s.ev.append(("data",d.strip()[:30]))
+print("pyhtml.parser on '<!-- a --!><div hidden>x -->':", end=" ")
+p=P(); p.feed("<!-- a --!><div hidden>x -->"); p.close(); print(p.ev)
+for n, s in shapes.items():
+    b = s.replace("@", G)
+    r = m.check_body(b, ctx=ctx)
+    md = B.render_mdit(b)
+    ok, why = B.clean(md)
+    pc = subprocess.run(["pandoc","-f","commonmark","-t","html"],input=b,capture_output=True,text=True).stdout
+    okp, whyp = B.clean(pc)
+    print("%s checker=%s oracle_mdit=%s(%s) oracle_pandoc=%s(%s)" % (n, "ACCEPT" if r is None else "REFUSE:"+r[:70], ok, why[:50], okp, whyp[:50]))
+    print("   mdit html:", md.replace("\n","\\n")[:160])

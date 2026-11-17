@@ -1,0 +1,8 @@
+=== RUN   TestM05BodyEqualsTextForEverySingleItemParse
+    zz_m05_equivalence_test.go:57: single-item parses checked: 33619; other parses: 566381
+--- PASS: TestM05BodyEqualsTextForEverySingleItemParse (4.79s)
+=== RUN   TestM05ControlLossyParserIsSeen
+    zz_m05_equivalence_test.go:85: control: lossy-parser mismatches seen: 7909
+--- PASS: TestM05ControlLossyParserIsSeen (0.12s)
+PASS
+ok  	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	4.921s

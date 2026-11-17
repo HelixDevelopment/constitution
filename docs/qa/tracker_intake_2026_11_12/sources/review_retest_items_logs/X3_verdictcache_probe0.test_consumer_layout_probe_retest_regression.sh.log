@@ -1,0 +1,18 @@
+PASS: A scripts/fastcycle/tests/test_token_stability_red.sh: canon alone rc 77, no FAIL line, last line names reason=topology_unsupported
+PASS: A scripts/fastcycle/tests/test_tool_deferral_red.sh: canon alone rc 77, no FAIL line, last line names reason=topology_unsupported
+PASS: A scripts/fastcycle/tests/test_custody_sweep_red.sh: canon alone rc 77, no FAIL line, last line names reason=topology_unsupported
+PASS: A scripts/fastcycle/tests/test_verdict_cache_red.sh: canon alone rc 77, no FAIL line, last line names reason=topology_unsupported
+PASS: A scripts/fastcycle/tests/test_anchor_citations_red.sh: canon alone rc 77, no FAIL line, last line names reason=topology_unsupported
+PASS: A scripts/fastcycle/tests/test_fc_timer_golden_output.sh: canon alone rc 77, no FAIL line, last line names reason=topology_unsupported
+PASS: A scripts/fastcycle/timing/fc_timer_selftest.sh: canon alone rc 0, no FAIL line
+PASS: B1 consumer layout, data absent: rc 1, the RED-by-design check still FAILs, nothing skipped
+PASS: B2 consumer layout, data present: rc 0, nothing skipped
+PASS: B3 canon alone: rc 77, 5 consumer-data checks skipped, no FAIL, reason=topology_unsupported
+PASS: B3 control needle: the canon-runnable tolerance-read checks ran and passed
+PASS: B4 superproject at another depth: rc 77 (the probe compares the consumer root, not mere presence)
+PASS: C1 superproject with no ATM-<n> commit: rc 77, another consumer, reason=topology_unsupported
+PASS: C2 superproject with ATM commits but not the needle commits: rc 1, the FAIL is kept
+PASS: M2 mutant (ATM proof removed): C2 now SKIPs (rc 77) -- C2 kills it
+PASS: M1 mutant probe=1: canon alone now FAILs (rc 1) -- B3 kills it
+PASS: M0 mutant probe=0: the consumer's RED check is hidden (rc 77) -- B1 kills it
+SUMMARY pass=17 fail=0 skip=0

@@ -1,0 +1,97 @@
+# apply_v2.py run, 2026-11-13T11:27:00Z, on docs/workable_items.db of tree 1a307322; engine built from that tree; env -i
+$ workable-items add Task Medium --db docs/workable_items.db --id CON-334 --title <113 chars> --description <1724 chars> --created-by Claude
+  -> rc=0 add: created CON-334 (Task, status=Queued) in Issues
+$ workable-items add Task Low --db docs/workable_items.db --id CON-335 --title <153 chars> --description <1638 chars> --created-by Claude
+  -> rc=0 add: created CON-335 (Task, status=Queued) in Issues
+$ workable-items add Bug Low --db docs/workable_items.db --id CON-336 --title <116 chars> --description <1722 chars> --created-by Claude --reproduction-state reproduced-host-fixture --investigation-state in-progress --states-updated-by Claude (tracker-intake round-2 fixer, Opus 5.5) --reproduction-surface host-only --reproduction-evidence docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt --reproduction-env scratch copy of docs/workable_items.db at 1a307322; engine built from that tree --reproduction-signature history Opened row of an item added with --created-by Conductor reads by=User --reproduction-red-cmd <122 chars>
+  -> rc=0 add: created CON-336 (Bug, status=Queued) in Issues
+$ workable-items add Bug Medium --db docs/workable_items.db --id CON-337 --title <133 chars> --description <1584 chars> --created-by Claude --reproduction-state reproduced-host-fixture --investigation-state not-started --states-updated-by Claude (tracker-intake round-2 fixer, Opus 5.5) --reproduction-surface host-only --reproduction-evidence docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt --reproduction-env scratch copy of docs/workable_items.db at 1a307322; engine built from that tree --reproduction-signature <97 chars> --reproduction-red-cmd <122 chars>
+  -> rc=0 add: created CON-337 (Bug, status=Queued) in Issues
+$ workable-items add Task Medium --db docs/workable_items.db --id CON-338 --title <136 chars> --description <1744 chars> --created-by Claude
+  -> rc=0 add: created CON-338 (Task, status=Queued) in Issues
+$ workable-items update --db docs/workable_items.db --id CON-046 --description <7148 chars>
+  -> rc=0 update: CON-046 updated in Issues (status=Queued, type=Bug)
+$ workable-items update --db docs/workable_items.db --id CON-262 --description <3669 chars>
+  -> rc=0 update: CON-262 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-299 --description <3118 chars>
+  -> rc=0 update: CON-299 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-300 --description <2918 chars>
+  -> rc=0 update: CON-300 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-301 --description <1792 chars>
+  -> rc=0 update: CON-301 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-302 --description <1758 chars>
+  -> rc=0 update: CON-302 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-303 --description <1305 chars>
+  -> rc=0 update: CON-303 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-304 --description <1743 chars>
+  -> rc=0 update: CON-304 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-305 --description <1308 chars>
+  -> rc=0 update: CON-305 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-306 --description <1530 chars>
+  -> rc=0 update: CON-306 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-307 --description <1699 chars>
+  -> rc=0 update: CON-307 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-308 --description <1746 chars>
+  -> rc=0 update: CON-308 updated in Issues (status=Queued, type=Bug)
+$ workable-items update --db docs/workable_items.db --id CON-309 --description <1174 chars>
+  -> rc=0 update: CON-309 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-310 --description <925 chars>
+  -> rc=0 update: CON-310 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-311 --description <1941 chars>
+  -> rc=0 update: CON-311 updated in Issues (status=Queued, type=Bug)
+$ workable-items update --db docs/workable_items.db --id CON-312 --description <1404 chars>
+  -> rc=0 update: CON-312 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-313 --description <1286 chars>
+  -> rc=0 update: CON-313 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-314 --description <1489 chars>
+  -> rc=0 update: CON-314 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-315 --description <1618 chars>
+  -> rc=0 update: CON-315 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-316 --description <1309 chars>
+  -> rc=0 update: CON-316 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-317 --description <1473 chars>
+  -> rc=0 update: CON-317 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-318 --description <1319 chars>
+  -> rc=0 update: CON-318 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-319 --description <1398 chars>
+  -> rc=0 update: CON-319 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-320 --description <1294 chars>
+  -> rc=0 update: CON-320 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-321 --description <2040 chars>
+  -> rc=0 update: CON-321 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-322 --description <1395 chars>
+  -> rc=0 update: CON-322 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-323 --description <1494 chars>
+  -> rc=0 update: CON-323 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-324 --description <1284 chars>
+  -> rc=0 update: CON-324 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-325 --description <1298 chars>
+  -> rc=0 update: CON-325 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-326 --description <1399 chars>
+  -> rc=0 update: CON-326 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-327 --description <1303 chars>
+  -> rc=0 update: CON-327 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-328 --description <1431 chars>
+  -> rc=0 update: CON-328 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-329 --description <1654 chars>
+  -> rc=0 update: CON-329 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-330 --description <1918 chars>
+  -> rc=0 update: CON-330 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-331 --description <1650 chars>
+  -> rc=0 update: CON-331 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-332 --description <1660 chars>
+  -> rc=0 update: CON-332 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-333 --description <3558 chars>
+  -> rc=0 update: CON-333 updated in Issues (status=Queued, type=Task)
+$ workable-items update --db docs/workable_items.db --id CON-308 --reproduction-state UNREPRODUCED --states-updated-by Claude (tracker-intake round-2 fixer, Opus 5.5) --investigation-state not-started
+  -> rc=0 update: CON-308 updated in Issues (status=Queued, type=Bug)
+$ workable-items update --db docs/workable_items.db --id CON-311 --reproduction-state UNREPRODUCED --states-updated-by Claude (tracker-intake round-2 fixer, Opus 5.5) --investigation-state in-progress
+  -> rc=0 update: CON-311 updated in Issues (status=Queued, type=Bug)
+$ workable-items update --db docs/workable_items.db --id CON-046 --reproduction-state UNREPRODUCED --states-updated-by Claude (tracker-intake round-2 fixer, Opus 5.5)
+  -> rc=0 update: CON-046 updated in Issues (status=Queued, type=Bug)
+$ workable-items close CON-308 --db docs/workable_items.db --status obsolete --evidence docs/qa/tracker_intake_2026_11_12_v2/inventory/repro_I1_I2.txt
+  -> rc=0 close: moved CON-308 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=docs/qa/tracker_intake_2026_11_12_v2/inventory/repro_I1_I2.txt)
+$ workable-items obsolete-details CON-308 --db docs/workable_items.db --since 2026-11-13 --reason duplicate-of --superseding CON-262 --evidence docs/qa/tracker_intake_2026_11_12_v2/inventory/repro_I1_I2.txt
+  -> rc=0 obsolete-details: CON-308 written (Since:2026-11-13 Reason:duplicate-of Superseding:CON-262 Evidence:docs/qa/tracker_intake_2026_11_12_v2/inventory/repro_I1_I2.txt)
+new ids: N1=CON-334, N2=CON-335, N3=CON-336, N4=CON-337, N5=CON-338
+exit=0

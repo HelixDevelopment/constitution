@@ -12,6 +12,8 @@ Exit 1 with findings, 0 without. $FAKE_GITLEAKS_MODE changes the behaviour:
   rc0_nofile         exit 0, no report
   tip_only           scan only the files at the tip of every ref (no history)
   drop_pos / drop_merge  honest, but miss the findings in files named pos.env / merge.env
+$FAKE_GITLEAKS_STRIP="W1 W2 ..." drops those words from the log options (emulates a scanner or a
+git that ignores them, for example --text, so git attributes hide content again).
 $FAKE_GITLEAKS_CHATTER=1 also prints each finding (file, commit, rule) to stdout and a count to stderr,
 like the real scanner's console log, so a test can check that this output stays off the console.
 """
@@ -74,7 +76,10 @@ if mode == "tip_only":
                                   "Entropy": 4.5, "Secret": "REDACTED" if redact else pat.search(l).group(0)})
     write(found)
     sys.exit(1 if found else 0)
-log = subprocess.run(["git", "-C", target, "log", "-p", "-U0"] + shlex.split(opts), capture_output=True, text=True)
+words = shlex.split(opts)
+strip = os.environ.get("FAKE_GITLEAKS_STRIP", "").split()
+words = [w for w in words if w not in strip]
+log = subprocess.run(["git", "-C", target, "log", "-p", "-U0"] + words, capture_output=True, text=True, errors="replace")
 if log.returncode != 0:
     sys.stderr.write(log.stderr); sys.exit(126)
 pat = re.compile(r"ghp_[A-Za-z0-9]{36}")

@@ -1,7 +1,7 @@
 # workable-items — §11.4.93 SQLite-SSoT Go binary
 
-**Revision:** 6
-**Last modified:** 2026-11-13T00:00:00Z
+**Revision:** 8
+**Last modified:** 2026-11-17T00:00:00Z
 **Description:** Authoritative source-of-truth registry for every workable item in every consuming project. Bidirectional regen between SQLite DB and Markdown trackers per Constitution §11.4.93.
 
 ## Overview
@@ -124,6 +124,117 @@ so a subsequent `sync db-to-md` regenerates a well-formed, re-parseable tracker
 block regenerate `body_md` with the new status + any §11.4.34/§11.4.21 detail
 line embedded in the heading-adjacent meta block).
 
+## Id grammar (CON-456)
+
+One grammar, defined once in `cmd/workable-items/idgrammar.go`, is read by the
+renderer, the parser, `add` (and `intake-match`, which mints through `add`),
+`validate` and `sync md-to-db`. An id is written in one of the two heading
+forms the parser reads:
+
+| Shape | Pattern | Heading | Examples |
+|---|---|---|---|
+| canonical | `[A-Z]{3}-[0-9A-Za-z]+` | `## <id> — <title>` | `CON-123`, `CON-14b`, `CON-PENDINGengine` |
+| legacy code | `[A-Z][A-Za-z0-9]*` with at most one `-[A-Za-z0-9]+` part | `## <id>. <title>` | `G01`, `GS-2`, `BJ-SOURCE`, `AB-001`, `CATS-001` |
+
+- Every command that writes an item judges the WHOLE item, not only its id,
+  before it writes anything: the text `sync db-to-md` would write for the item
+  is read back by the parser of the item's tracker (`parseFixed` for Fixed,
+  `parseIssues` for Issues), and must be exactly one item segment with the
+  same id (an exact match; the `#N` dedup counter is ignored), the same
+  representation (section or table), a byte-identical body, the same title,
+  type, status, severity, created-by, assigned-to and state records, and for a
+  table row the same closure date, round and commit. Any operator text the
+  command embeds (a description, the four block values, a reopen reason and
+  incident path, evidence, the four obsolete-details values) must also appear
+  unchanged in that text; `obsolete-details` also refuses a line break in any
+  of its four values, because they are written into one Markdown line. Otherwise the command refuses (exit
+  1, nothing written) and names the cause: the id, the title or the text.
+  The commands are `add`, `update`, `move`, `block`, `reopen`, `close`,
+  `obsolete-details`, `states import` and `repair-bodies`.
+- `add` makes these checks before it opens the database, so a refused `add`
+  on a new `--db` path creates no file. It refuses an id that does not
+  round-trip (a second hyphen such as `CON-PENDING-x2`, a lowercase key,
+  digits only, an empty suffix, whitespace inside, dots, `#`, brackets, `§`,
+  an em dash, non-ASCII) and a title or description the parser would read
+  differently: a `[XX-N]` bracket in a legacy item's title (the parser takes
+  the bracket as the id), a `` — `Status` `` suffix in a title (the parser cuts
+  the title there), a line in the title or description that reads as a
+  heading (`## CON-811 — x` adds an item; `## Notes` detaches the text after
+  it), and a description line that reads as one of the item's own metadata
+  lines (`**Status:** …`, which the generator rewrites from the columns).
+  Outer whitespace around an explicit id, a title, a severity, created-by and
+  assigned-to is trimmed. A placeholder id has one hyphen:
+  `CON-PENDINGengine`, never `CON-PENDING-x`.
+- `sync db-to-md` writes each item's own `**Type:**`, `**Severity:**`,
+  `**Created-By:**` and `**Assigned-To:**` lines from the columns (the
+  symmetry the Status line and the state records already had), so a column
+  changed by a path that did not rewrite the body is no longer reverted by the
+  next `md-to-db`. `repair-bodies` stores the same lines in the body.
+- `sync md-to-db` parses and judges BOTH documents before it writes, and
+  writes both in one transaction: a refusal on the Fixed side, or a failure
+  while Fixed is written, leaves the database unchanged. It refuses when a
+  stored item would be lost or changed although its text is still in the
+  Markdown (the parser reads it as no item, as another id, as a table row, or
+  truncated). A heading removed from the Markdown is a real deletion and is
+  applied; a real edit of a field is imported.
+- `validate` reports every stored item whose rendered text does not read back
+  as the item, under the same checks.
+- The grammar was not widened. A four-letter key (`CATS-001`) is written in
+  the legacy dot form the parser already read.
+- Behaviour changes:
+  - No engine path reopens a legacy table-row item: `reopen --location
+    Issues` is refused (`parseIssues` reads no pipe rows) and `reopen
+    --location Fixed` is refused too (the row reads back as `Fixed`, not
+    `Reopened`). Main broke the next `db-to-md` in the first case and
+    silently reverted the reopen in the second. The real tracker has no table
+    rows. A reopen path for table rows (convert the row to a section) is not
+    built.
+  - `update` of a field a table row cannot carry is refused; titles and
+    severities are trimmed.
+  - Round 3: `scripts/reporting/report_item.sh` sets a Bug's states with the
+    state flags (`--reproduction-state UNREPRODUCED --investigation-state
+    not-started --states-updated-by <reporter> --states-updated-at <time>`)
+    instead of appending two record lines to the description; the engine
+    renders the records. `add` still accepts a description that carries the
+    two exact lines that script used to append (`**Reproduction:** none —
+    UNREPRODUCED (§11.4.292)` and `**Investigation:** not-started
+    (§11.4.294)`): each line, when it is a whole line, occurs once and no
+    state flag sets its block, is read as the state it names and replaced by
+    the canonical record line. No other record text in a description is read
+    as a state; it is refused as before.
+  - A tracker that already holds a Bug minted by an older engine with those
+    two lines as description text (stored state `UNSET`, body line
+    `**Reproduction:** none — UNREPRODUCED (§11.4.292)`) is reported by
+    `validate` (malformed record) and `sync md-to-db` refuses the unchanged
+    Markdown (nothing written) because the record would change the stored
+    state; `update` refuses the item too (malformed record in the body). The
+    main engine instead set the state to `UNREPRODUCED` silently on the next
+    `md-to-db`. The repair is one Markdown edit: delete ` (§11.4.292)` from
+    that line, then `sync md-to-db` imports the state and `validate` is clean
+    (measured in `docs/qa/engine_idgrammar_2026_11_17/r3/`). The real tracker
+    holds no such item.
+  - Round 3: `add --prefix` refuses, before it allocates, when an existing id
+    with that prefix has a number that does not fit a 64-bit counter or is the
+    largest one (`CON-9223372036854775807`); the next id would not exist.
+    Main allocated `CON--9223372036854775808`, which no parser reads. Use an
+    explicit `--id` in that tracker.
+  - Round 3: `sync md-to-db` keeps the stored `operator_block_details` row of
+    an Operator-blocked item whose block text in the Markdown (the
+    `**Operator-Block-Details:**` block and `**Unblock-Choices:**`) is
+    unchanged since the row was stored, instead of re-splitting the line on
+    the words `WHAT:` / `WHY:` / `UNBLOCK:` / `WHO:`. On the real tracker the
+    re-split grew CON-263's UNBLOCK from 220 to 695 characters on the first
+    cycle. An edited block is re-derived as before.
+- Known limits, not changed here: `sync md-to-db` re-derives the description
+  column from the Markdown (on the real tracker it changes 279 of 491 items
+  on the first round trip and none on the second); `md-to-db` does not carry
+  `parent_atm_id`, `destination`, `logic_group` or `session_ref` (on the real
+  tracker 17 sub-tasks of CON-033 lose their parent link on the first round
+  trip, before and after this change; later round trips have nothing left to
+  lose); this is tracked as CON-396. A sub-task
+  child of a canonical parent (`ATM-025-001`, `subtaskAddCmd`, not reachable
+  from the command line) does not round-trip, and `validate` reports it.
+
 ## created_at (CON-339)
 
 `items.created_at` is the time an item was created. It is written once, when the
@@ -135,7 +246,7 @@ inserted the Fixed row without the column, and `sync md-to-db` deleted every row
 a document and inserted them again the same way; in both cases the column default
 `datetime('now')` stamped the close or sync time over the real one. Now `close`
 reads the value before the delete and inserts it again, and `sync md-to-db` takes
-one snapshot of every row's value before its two transactions and inserts each row
+one snapshot of every row's value inside its one transaction, before the delete, and inserts each row
 with its own value (an item that moved between Issues.md and Fixed.md gets the
 earliest value recorded for that id). An item new to the database still gets the
 column default. `TestCON339_CreatedAtPreservedByEveryMutatingCommand` runs

@@ -1,0 +1,48 @@
+## final lint, intake batch (--origin 'tracker-intake vehicle 2026-11-12' --require-dup-check --repo-root .)
+RESULT: PASS selected=40 findings=0 prefix=CON
+rc=0
+## CON-046, all checks
+FINDING SECTIONS CON-046 missing: What
+FINDING SECTIONS CON-046 missing: Reproduction / context
+FINDING SECTIONS CON-046 missing: Acceptance criteria
+FINDING SECTIONS CON-046 missing: Parent / links
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/review_con046_r5.md
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/review_con046_r6.md
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/review_con046_r7.md
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/r8_runs/
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/r9_runs/
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/r10_redgreen/
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/r11_runs/
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/
+RESULT: FAIL selected=1 findings=12 prefix=CON
+rc=1
+## CON-046, --skip-check SECTIONS,PATH-MISSING (legacy text; vehicle paths not on main)
+RESULT: PASS selected=1 findings=0 prefix=CON
+rc=0
+## CON-262 (main item, context appended), all checks
+FINDING XREF-LABEL CON-262 CON-033 (vehicle/con033) vs title: Retire ref atm1220_r9 (13 unique commits incl. the HELD snap
+FINDING XREF-LABEL CON-262 CON-121 (main owned CON-092..CON-107) vs title: env-read census reported cm_github_issues_source_anchor_wire
+FINDING XREF-LABEL CON-262 CON-129 (main owns up to CON-115) vs title: test_reopen_rate_red.sh needle #2 needed the sqlite3 CLI and
+FINDING XREF-LABEL CON-262 CON-159 (main owns up to CON-145) vs title: CON-158 census wording overstates coverage: every decision p
+FINDING XREF-LABEL CON-262 CON-176 (main owns up to CON-162) vs title: fastcycle tests: patch-machinery whole-tree manifest does no
+FINDING XREF-DANGLING CON-262 CON-207
+FINDING SECTIONS CON-262 missing: Parent / links
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-145
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-243
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-261
+RESULT: FAIL selected=1 findings=10 prefix=CON
+rc=1
+## CON-262 at bundle head 1a307322 (before this round), all checks
+FINDING XREF-LABEL CON-262 CON-033 (vehicle/con033) vs title: Retire ref atm1220_r9 (13 unique commits incl. the HELD snap
+FINDING XREF-LABEL CON-262 CON-121 (main owned CON-092..CON-107) vs title: env-read census reported cm_github_issues_source_anchor_wire
+FINDING XREF-LABEL CON-262 CON-129 (main owns up to CON-115) vs title: test_reopen_rate_red.sh needle #2 needed the sqlite3 CLI and
+FINDING XREF-LABEL CON-262 CON-159 (main owns up to CON-145) vs title: CON-158 census wording overstates coverage: every decision p
+FINDING XREF-LABEL CON-262 CON-176 (main owns up to CON-162) vs title: fastcycle tests: patch-machinery whole-tree manifest does no
+FINDING XREF-DANGLING CON-262 CON-207
+FINDING SECTIONS CON-262 missing: Parent / links
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-145
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-243
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-261
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-308
+RESULT: FAIL selected=1 findings=11 prefix=CON
+rc=1

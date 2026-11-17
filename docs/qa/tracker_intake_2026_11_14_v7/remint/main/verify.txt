@@ -1,0 +1,2 @@
+RESULT: PASS mode=FAST-FORWARD items=309 mismatches=0 known=0
+rc=0

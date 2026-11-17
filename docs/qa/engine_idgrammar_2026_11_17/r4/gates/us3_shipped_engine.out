@@ -1,0 +1,7 @@
+ok control needle: an unknown subcommand yields 'unknown subcommand' through the shipped binary
+ok shipped binary recognises intake-match (got: intake-match: --config, --report and --out are all required)
+ok shipped binary recognises closure-check (got: closure-check: --config, --item, --to, --attempt and --out are all required)
+ok report_item.sh logs a greppable notice when intake-match is unavailable/fails for a Bug (no silent fallback)
+ok e2e: recurrence reopened the original E2E-001, no new id minted (items=1, status=Reopened)
+ok e2e: the Reopened row's evidence_path still resolves after report_item.sh exits (/mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/t/tmp.x3kh2z5Owz/ev/intake_match_20261117T131647Z_1505198/intake_match_reopen_evidence_E2E-001_4111592324.txt)
+SUMMARY: all hold

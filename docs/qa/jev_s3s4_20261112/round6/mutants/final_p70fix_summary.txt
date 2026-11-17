@@ -1,0 +1,4 @@
+OM03 rc=1 # test_s4_round6.sh: pass=174 fail=2 skip=0 | FAIL - P70 decide-b is never started while decide-a is stopping (mark refused) (expected [0] got [1])|FAIL - P70 the refusal is announced (no [candidate decide-b: no longer startable] in <HOME>/.cache/claude-tmp/claude-1000/-HOME-(cut)
+OM12 rc=1 # test_s4_round6.sh: pass=175 fail=1 skip=0 | FAIL - P61 the reason code is nproc_unlimited (measured: rlimit_soft null) (expected [nproc_unlimited] got [nproc_not_measured])
+OM02 rc=0 # test_s4_round6.sh: pass=176 fail=0 skip=0 | 
+REAL rc=0 # test_s4_round6.sh: pass=176 fail=0 skip=0 | 

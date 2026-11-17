@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Reviewer r3 probe: hostile + golden-FALSE values against field_problem / check_body. FAKE values only."""
+import importlib.util, sys, time, json
+repo = sys.argv[1]
+spec = importlib.util.spec_from_file_location("pvl", repo + "/scripts/validation/check_provisional_verification_lines.py")
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+H = chr  # build confusables by code point
+# (field, value, expect)  expect = "REJ" (placeholder/fake must be refused) or "OK" (legit must pass)
+cases = []
+def r(f, v, note=""): cases.append((f, v, "REJ", note))
+def ok(f, v, note=""): cases.append((f, v, "OK", note))
+# --- slash/compound placeholder shapes in job (shape-only mode is the documented invocation)
+for v in ["none/yet", "pending/scheduling", "to/be/scheduled", "not/yet/scheduled", "unknown/later", "n.a/n.a",
+          "none.sh", "pending.sh", "later/", "./pending", "nobody/knows", "TBA/x"]:
+    r("job", v, "slash/file shaped placeholder")
+r("job", "scripts/nonexistent.sh", "fake existing-shape path")
+r("job", "docs/..", "dir traversal exists")
+r("job", "docs/", "a directory, not a job")
+r("job", "/etc/passwd", "absolute path outside root")
+r("job", "git -x", "command with bogus option")
+r("job", "make -", "command with dash only")
+r("job", "ABC-0", "id-shaped fake")
+# --- Unicode beyond the closed map
+ARM_o = H(0x0585); ARM_S = H(0x054D)
+for v in ["T"+ARM_o+"d"+ARM_o+" later", "ᴛʙᴅ later", "ᴛᴏᴅᴏ", "T০D০ later",
+          "ㅤㅤㅤ", "ㅤㅤㅤ ㅤ", "ᅟᅟᅟ", "ᎢᏴᎠ later",
+          "ＴＢＤ", "\U0001D413\U0001D401\U0001D403", "T​B​D", "‮TBD", "T‏B‏D",
+          "ⅠⅠⅠ", "ⓉⒷⒹ", "\U0001F143\U0001F131\U0001F133", "TBĐ", "T́B́D",
+          "ТВD", "ΤΒD", "t b d", "T․B․D", "T·B·D", "T/B/D",
+          "T_B_D", "tbd⁣", "⠀⠀⠀", "   ", "  x"]:
+    r("checks", v, "confusable/invisible placeholder in checks")
+for f in ["job", "target", "artifact"]:
+    for v in ["T"+ARM_o+"D"+ARM_o, "ᴛʙᴅ", "ㅤ host", "n.a. build", "n.a (no build yet)",
+              "pendingㅤ host", "pеnding host", "ᎢᏴᎠ host", "nobody knows which host",
+              "board target", "nothing on any host", "no-one host", "nope host", "tba-host", "tbdhost", "host? none",
+              "host (pending)", "XXXhost", "host later", "N／A host build"]:
+        r(f, v, "fake/placeholder")
+# checks prose placeholders
+for v in ["a b c", "n.a. yet", "pending", "not yet run", "none", "nothing yet", "will check later", "see later",
+          "ask the operator", "same as above", "as usual", "etc etc", "...", "-- tbd", "(pending) a", "[none]",
+          "\"later\"", "ok", "yes", "N/A.", "n/a: see job"]:
+    r("checks", v, "checks placeholder prose")
+# layer / due
+for v in ["runtimeish", "source-ish", "gate-logicX", "sourcex", "ѕource", "artifactㅤ"]:
+    r("layer", v, "layer near-miss")
+for v in ["2026-02-30", "2026-11-23T25:00", "1999-12-31", "2026-11-23x", "２０２６-11-23",
+          "2026-11-23T10:00+25:00", "0000-00-00", "2026-1-1", "٢٠٢٦-11-23", "2026-11-23T10:00:60"]:
+    r("due", v, "bad date")
+# golden-FALSE legit
+ok("job", "bash tests/release/test_tag_and_release.sh"); ok("job", "go test ./..."); ok("job", "JOB-42 nightly")
+ok("job", "on main, run bash tests/release/test_redact_cut.sh"); ok("job", "python3 -I scripts/validation/check_provisional_verification_lines.py")
+ok("checks", "none of the mutants survives"); ok("checks", "no pending lock remains"); ok("checks", "NOT ok tool docstring counts zero")
+ok("checks", "every suite passes with 0 failed"); ok("checks", "rc 0 and VERDICT: PASS")
+ok("checks", "unknown-id-only table gives rc 1")
+ok("target", "host, repo checkout"); ok("target", "board T1 (Orange Pi) device"); ok("target", "container on the host; consumer layout UNCONFIRMED here")
+ok("artifact", "main containing 3b958793"); ok("artifact", "commit ce615e62"); ok("artifact", "sha256 of the image")
+ok("layer", "host-only (tests)"); ok("layer", "runtime on the host"); ok("layer", "gate-logic")
+ok("due", "2026-11-23"); ok("due", "2026-11-23 (UNCONFIRMED: no scheduler entry exists)"); ok("due", "2026-11-23T10:00Z")
+res = []
+for f, v, exp, note in cases:
+    t = time.perf_counter(); p = m.field_problem(f, v, repo); dt = time.perf_counter() - t
+    got = "OK" if p is None else "REJ"
+    res.append(dict(field=f, value=v, expect=exp, got=got, reason=p, ms=round(dt*1000, 3), note=note,
+                    bad=(got != exp)))
+# DoS timings on whole lines
+line_tpl = "**Verification:** provisional -- job: bash a.sh -- checks: %s -- layer: runtime -- target: host -- artifact: main -- due: 2026-11-23"
+dos = {}
+for name, payload in [("spaces20k", "x" + " " * 20000 + "y"), ("braces20k", "{{" * 10000), ("singles20k", "a." * 10000),
+                      ("dash20k", "a - " * 5000), ("dollar20k", "${" * 10000), ("lt20k", "<a" * 10000),
+                      ("path20k", "a/" * 10000 + "!")]:
+    t = time.perf_counter(); p = m.check_body(line_tpl % payload, None); dos[name] = (round(time.perf_counter() - t, 3), p)
+for name, payload in [("spaces40k", "x" + " " * 40000 + "y")]:
+    t = time.perf_counter(); p = m.check_body(line_tpl % payload, None); dos[name] = (round(time.perf_counter() - t, 3), p)
+bad = [x for x in res if x["bad"]]
+print(json.dumps(dict(total=len(res), mismatches=len(bad), dos=dos), ensure_ascii=False))
+for x in bad:
+    print("MISMATCH %-8s expect=%s got=%s %r reason=%s [%s]" % (x["field"], x["expect"], x["got"], x["value"], x["reason"], x["note"]))
+json.dump(res, open(sys.argv[2], "w"), ensure_ascii=False, indent=1)

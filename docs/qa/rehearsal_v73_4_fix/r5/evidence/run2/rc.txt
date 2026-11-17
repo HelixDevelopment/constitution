@@ -1,0 +1,18 @@
+tag_and_release rc=0
+redact_cut rc=0
+publish_gitea rc=0
+channel_census rc=0
+provisional_verification_lines rc=0
+render_release_entry rc=0
+derive_release_facts rc=0
+pin_diff rc=0
+netgate rc=0
+ratchet rc=0
+index_fresh rc=0
+git_env_census rc=0
+verify_manifest rc=3
+checker_realdb_root rc=1
+validate rc=0
+diff rc=0
+export rc=0
+DONE

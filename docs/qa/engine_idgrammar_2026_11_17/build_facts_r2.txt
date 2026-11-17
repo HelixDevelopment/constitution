@@ -1,0 +1,12 @@
+# build facts, CON-456 round 2, 2026-11-17T03:13:49Z
+$ GOEXPERIMENT=nodwarf5 go build -trimpath -buildvcs=false -ldflags=-buildid= -o <out> ./cmd/workable-items   (twice, same tree; GOTOOLCHAIN=go1.26.4 GOPROXY=off GOFLAGS=-mod=mod)
+go version go1.26.4 linux/amd64
+gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+rebuild copies:
+83e93abaeaa5ef09bbb10437595f859bbbf78a03355c4e4204d56cbe79cb9080  build_a
+83e93abaeaa5ef09bbb10437595f859bbbf78a03355c4e4204d56cbe79cb9080  build_b
+tracked binaries:
+83e93abaeaa5ef09bbb10437595f859bbbf78a03355c4e4204d56cbe79cb9080  bin/workable-items
+83e93abaeaa5ef09bbb10437595f859bbbf78a03355c4e4204d56cbe79cb9080  bin/workable-items-linux
+round-1 tracked binaries (d3fa27ac): c9884871c111fc4edfd69f9eb371c6ab7ba8fd1252017a36fa00444aa2d283b7
+bin/.source.sha256: aac21f5df3c7f6d5f7ddad54894bd02af7f2e7c14f9cfc41b431a8fb11882a31 (d3fa27ac) -> 460c5fd857389045f49bd9fd9232988b329db7447d56eb4a7dd6a76f778855a3 (formula: cd scripts/workable-items && find . -type f \( -name '*.go' -o -name go.mod -o -name go.sum \) -not -path './bin/*' | LC_ALL=en_US.UTF-8 sort | xargs sha256sum | sha256sum ; 105 files, test files included)

@@ -1,0 +1,11 @@
+took-main README.md
+took-main config/full_suite_manifest.tsv
+took-main docs/Issues.md
+took-main docs/Issues_Summary.md
+took-main docs/guides/full_suite_runner_guide.md
+took-main docs/workable_items.db
+commit rc=0 head=eac3dacaf39bb4d31b86e16007cf042016b000ab
+git-env-class-census: inventory: tracked=6880 accounted=6880 universe=1920 (go=184 js=11 other=2 py=308 sh=1415) gitlink=27 symlink=1 binary=25 data=4907 unclassified=0 absent=0 members=672 non_members=1248
+git-env-class-census: control needles seen (94 samples)
+git-env-class-census: PASS - members=672 hermetic=533 exempt=139 unscrubbed=0
+census rc=0

@@ -1,0 +1,12 @@
+# DoS RED (reconstruction, not the exact pre-fix file): the r9 checker with own mutants O102 (run bound off),
+# O103 (line-size check only after the readers) and O104 (MAX_BODY back to 1 MiB) applied, then the reviewer's
+# probe_r3 (tests/release/pvl_reviewer/probe_r3.py.txt). seconds, verdict per DoS probe:
+spaces20k 0.32 a reader does not show the verification line exactly as written: pandoc commonmark does not show the line as a paragraph of its own, exactly
+braces20k 0.0 the line holds '{' (U+007B) after its label, outside THE LINE ALPHABET (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only
+singles20k 30.516 a reader's output cannot be judged: pandoc gfm: TimeoutExpired
+dash20k 0.45 a reader does not show the verification line exactly as written: pandoc commonmark does not show the line as a paragraph of its own, exactly
+dollar20k 0.0 the line holds '$' (U+0024) after its label, outside THE LINE ALPHABET (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only
+lt20k 0.0 the body holds raw HTML ('<a<a<a<a<a<a<a<a<a<a<a<a<a<a<a' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hi
+path20k 0.008 the line holds '!' (U+0021) after its label, outside THE LINE ALPHABET (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only
+spaces40k 0.109 a reader does not show the verification line exactly as written: pandoc commonmark does not show the line as a paragraph of its own, exactly
+worst 30.516

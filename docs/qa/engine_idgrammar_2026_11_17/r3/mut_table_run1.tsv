@@ -1,0 +1,18 @@
+mutant	description	verdict	killing_tests	counts
+CONTROL	pristine	rc=1 build_failed=False		passed=872 failed=111 skipped=7 secs=59.7
+RV01	block: who and unblock not judged as inputs	KILLED	TestCON456R3_BlockWhoAndUnblockAreJudged,TestCON456R3_BlockWhoAndUnblockAreJudged/--unblock,TestCON456R3_BlockWhoAndUnblockAreJudged/--who	rc=1 passed=869 failed=114 skipped=7 secs=96.7
+RV02	reopen: incident not judged as an input	KILLED	TestCON456R3_ReopenIncidentIsJudged	rc=1 passed=871 failed=112 skipped=7 secs=113.1
+RV04	alignMetaLines: Assigned-To not aligned	KILLED	TestCON456R3_UpdateAssignedToSurvivesCycle	rc=1 passed=871 failed=112 skipped=7 secs=114.9
+RV09	input survival judged against the stored body, not the rendered text	KILLED	TestCON456R3_AddDescriptionStatusLineRefused,TestCON456R3_BlockWhoAndUnblockAreJudged,TestCON456R3_BlockWhoAndUnblockAreJudged/--unblock,TestCON456R3_BlockWhoAndUnblockAreJudged/--who,TestCON456R3_CloseEvidenceIsJudged,TestCON456R3_ReopenIncidentIsJudged	rc=1 passed=866 failed=117 skipped=7 secs=105.4
+RV16	close: the evidence path not judged as an input	KILLED	TestCON456R3_CloseEvidenceIsJudged	rc=1 passed=871 failed=112 skipped=7 secs=98.7
+M15R	M15 re-run (r3 text): add does not judge the allocated id	SURVIVED		rc=1 passed=872 failed=111 skipped=7 secs=99.9
+FX01	legacy adoption accepts a line occurring more than once	KILLED	TestCON456R3_LegacyTemplateAdoptionIsExact,TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_twice	rc=1 passed=870 failed=113 skipped=7 secs=96.6
+FX02	legacy adoption overrides an explicit --reproduction-state	SURVIVED		rc=1 passed=872 failed=111 skipped=7 secs=100.4
+FX03	legacy adoption matches a line after trimming	KILLED	TestCON456R3_LegacyTemplateAdoptionIsExact,TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_with_a_trailing_space	rc=1 passed=870 failed=113 skipped=7 secs=92.6
+FX04	legacy adoption disabled	KILLED	TestCON456R3_LegacyTemplateAdoptionIsExact,TestCON456R3_LegacyTemplateAdoptionIsExact/both_lines,TestCON456R3_LegacyTemplateAdoptionIsExact/investigation_line_only,TestCON456R3_LegacyTemplateAdoptionIsExact/reproduction_line_only,TestRev456R2_RED_BugTemplateMintsAndRoundTrips	rc=1 passed=867 failed=116 skipped=7 secs=97.4
+FX05	nextID: no refusal at the int64 maximum	SURVIVED		rc=1 passed=872 failed=111 skipped=7 secs=98.9
+FX06	idNumber: an overflowing number is read as 0	KILLED	TestCON456R3_NextIDOverflowRefusedBeforeAllocation,TestCON456R3_NextIDOverflowRefusedBeforeAllocation/CON-99999999999999999999	rc=1 passed=870 failed=113 skipped=7 secs=96.8
+FX07	obsolete-details: --superseding not checked for a line break	KILLED	TestCON456R3_ObsoleteDetailsInputsJudged,TestCON456R3_ObsoleteDetailsInputsJudged/superseding_CR,TestCON456R3_ObsoleteDetailsInputsJudged/superseding_U+2028,TestCON456R3_ObsoleteDetailsInputsJudged/superseding_plain_line_break	rc=1 passed=868 failed=115 skipped=7 secs=96.8
+FX08	obsolete-details: --since not checked for a line break	KILLED	TestCON456R3_ObsoleteDetailsInputsJudged,TestCON456R3_ObsoleteDetailsInputsJudged/since_line_break	rc=1 passed=870 failed=113 skipped=7 secs=91.9
+FX09	OBD snapshot keeps the stored row even after the block was edited	KILLED	TestCON456R3_OperatorBlockDetailsSurviveCycle	rc=1 passed=871 failed=112 skipped=7 secs=95.0
+FX10	OBD snapshot never keeps the stored row	KILLED	TestCON456R3_OperatorBlockDetailsSurviveCycle	rc=1 passed=871 failed=112 skipped=7 secs=96.6

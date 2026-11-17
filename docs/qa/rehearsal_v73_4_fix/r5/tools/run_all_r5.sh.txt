@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# CON-423 r5: every suite and check of the round, written to OUT (outside the repo). Run twice; compare with sha256.
+# r5: the real database is checked only with --root . (the job of CON-423); rc 1 is the honest refusal.
+# Usage: bash run_all_r5.sh.txt REPO OUT      (stored as .txt so it is evidence, not a tracked script entry point)
+set -u
+R="${1:?repo}"; O="${2:?out}"; mkdir -p "${O:?}/engine/export"; cd "$R" || exit 9
+for t in tag_and_release redact_cut publish_gitea channel_census provisional_verification_lines render_release_entry derive_release_facts; do
+  bash "tests/release/test_$t.sh" >"$O/suite_$t.log" 2>&1; echo "$t rc=$?" >>"$O/rc.txt"
+done
+P=(scripts/release/derive_release_facts.sh scripts/release/redact_cut.sh scripts/release/tag_and_release.sh scripts/release_publish_gitea.sh)
+python3 -I tests/release/channel_census.py pin-diff tests/release/netgate_pin.tsv "${P[@]}" >"$O/pin_diff.txt" 2>&1; echo "pin_diff rc=$?" >>"$O/rc.txt"
+python3 -I tests/release/channel_census.py netgate --pin tests/release/netgate_pin.tsv "${P[@]}" >"$O/netgate.txt" 2>&1; echo "netgate rc=$?" >>"$O/rc.txt"
+bash scripts/gates/cm_gate_ledger_ratchet.sh >"$O/ratchet.txt" 2>&1; echo "ratchet rc=$?" >>"$O/rc.txt"
+bash scripts/gates/cm_constitution_index_fresh.sh >"$O/index_fresh.txt" 2>&1; echo "index_fresh rc=$?" >>"$O/rc.txt"
+python3 -I scripts/validation/git_env_class_census.py >"$O/git_env_census.txt" 2>&1; echo "git_env_census rc=$?" >>"$O/rc.txt"
+python3 -I scripts/full_suite/run_full_suite.py --verify-manifest >"$O/verify_manifest.txt" 2>&1; echo "verify_manifest rc=$?" >>"$O/rc.txt"
+python3 -I scripts/validation/check_provisional_verification_lines.py --root . docs/workable_items.db >"$O/checker_realdb_root.txt" 2>&1; echo "checker_realdb_root rc=$?" >>"$O/rc.txt"
+E=scripts/workable-items/bin/workable-items
+cp docs/workable_items.db "$O/engine/db_copy.db"
+"$E" validate --db "$O/engine/db_copy.db" >"$O/engine/validate.txt" 2>&1; echo "validate rc=$?" >>"$O/rc.txt"
+"$E" diff --db "$O/engine/db_copy.db" --issues docs/Issues.md --fixed docs/Fixed.md >"$O/engine/diff.txt" 2>&1; echo "diff rc=$?" >>"$O/rc.txt"
+"$E" export --db "$O/engine/db_copy.db" --out-dir "$O/engine/export" --no-formats >"$O/engine/export.txt" 2>&1; echo "export rc=$?" >>"$O/rc.txt"
+for f in Issues.md Fixed.md Issues_Summary.md Fixed_Summary.md; do
+  if cmp -s "$O/engine/export/$f" "docs/$f"; then echo "EQUAL $f"; else echo "DIFFER $f"; fi
+done >"$O/engine/derived_cmp.txt" 2>&1
+git status --porcelain >"$O/git_status.txt"
+echo DONE >>"$O/rc.txt"

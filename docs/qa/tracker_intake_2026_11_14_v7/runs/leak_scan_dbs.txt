@@ -1,0 +1,6 @@
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan.py --db vehicle=docs/workable_items.db --db-base vehicle=<base 02c10935 db> --db main=<main bd0036bd db>
+control needles: PASS (one fake of each of the 37 secret kinds and the 3 identity kinds found; a plain line not reported)
+HIT vehicle items.description rowid=967 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT vehicle items.body_md rowid=967 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+RESULT: secret_hits=2 identity_hits=0 pre_existing=220 binary_skipped=0
+rc=0

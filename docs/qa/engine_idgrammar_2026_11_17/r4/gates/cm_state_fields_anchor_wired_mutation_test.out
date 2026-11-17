@@ -1,0 +1,279 @@
+[mutation:statefields] GREEN kept: GREEN control: genuine tree
+[mutation:statefields] GREEN kept: mid-body citation of §11.4.294 inside another anchor's block is not a second block
+[mutation:statefields] GREEN kept: an unrelated project H2 section after the CLAUDE.md block does not break the mirror check
+[mutation:statefields] GREEN kept: prefix-colliding heading §11.4.2940 is not counted as §11.4.294
+[mutation:statefields] GREEN kept: whitespace-only change inside the block keeps the gate green
+[mutation:statefields] GREEN kept: whitespace-only change inside the template's Investigation preview line keeps the gate green
+[mutation:statefields] GREEN kept: the short spelling inside another anchor's block is not counted against §11.4.294
+[mutation:statefields] GREEN kept: one more mention of the long spelling inside the block does not trip the single-short-mention check
+[mutation:statefields] RED flip: marker removed: the reproduction state and the investigation state of that item
+[mutation:statefields] RED flip: marker removed: This anchor adds exactly those four
+[mutation:statefields] RED flip: marker removed: `reproduction_state`
+[mutation:statefields] RED flip: marker removed: `investigation_state`
+[mutation:statefields] RED flip: marker removed: NEVER ASSESSED
+[mutation:statefields] RED flip: marker removed: A value is never typed twice
+[mutation:statefields] RED flip: marker removed: two sources for one fact
+[mutation:statefields] RED flip: marker removed: evidence that is gone is not evidence
+[mutation:statefields] RED flip: marker removed: the state is demoted in the next regeneration
+[mutation:statefields] RED flip: marker removed: `evidence lost`
+[mutation:statefields] RED flip: marker removed: no fix against a symptom never observed
+[mutation:statefields] RED flip: marker removed: a fix before the root cause is investigated is the §11.4.102 violation
+[mutation:statefields] RED flip: marker removed: `STATE-GATE`
+[mutation:statefields] RED flip: marker removed: no silent demotion, no free pass
+[mutation:statefields] RED flip: marker removed: reproduction debt
+[mutation:statefields] RED flip: marker removed: `UNSET`, permanently
+[mutation:statefields] RED flip: marker removed: and only the first is contrary evidence
+[mutation:statefields] RED flip: marker removed: the reproduction regresses
+[mutation:statefields] RED flip: marker removed: **Reproduction-Regress:**
+[mutation:statefields] RED flip: marker removed: **Investigation-Regress:**
+[mutation:statefields] RED flip: marker removed: `INCONSISTENT — red evidence lost`
+[mutation:statefields] RED flip: marker removed: **Closure-Record:**
+[mutation:statefields] RED flip: marker removed: A STATE CHANGE IS NOT A STATUS CHANGE
+[mutation:statefields] RED flip: marker removed: never decides, retypes or defaults a state
+[mutation:statefields] RED flip: marker removed: it prints `UNCONFIRMED`
+[mutation:statefields] RED flip: marker removed: numbers-only cell
+[mutation:statefields] RED flip: marker removed: INDEPENDENT gate
+[mutation:statefields] RED flip: marker removed: one-way mirror
+[mutation:statefields] RED flip: marker removed: it never flows back
+[mutation:statefields] RED flip: marker removed: created=N updated=M failed=0
+[mutation:statefields] RED flip: marker removed: `repro:<value>`
+[mutation:statefields] RED flip: marker removed: `investigation:<value>`
+[mutation:statefields] RED flip: marker removed: Honest boundary
+[mutation:statefields] RED flip: marker removed: DOES NOT CHANGE
+[mutation:statefields] RED flip: marker removed: CM-COVENANT-114-294-PROPAGATION
+[mutation:statefields] RED flip: marker removed: CM-STATE-FIELDS-ANCHOR-WIRED
+[mutation:statefields] RED flip: marker removed: OWED-GATE-177
+[mutation:statefields] RED flip: marker removed: OWED-GATE-178
+[mutation:statefields] RED flip: marker removed: OWED-GATE-179
+[mutation:statefields] RED flip: marker removed: ONE SPELLING of every state
+[mutation:statefields] RED flip: marker removed: input alias only: `blocked-no-device`
+[mutation:statefields] RED flip: reproduction_state value removed: UNSET
+[mutation:statefields] RED flip: reproduction_state value removed: UNREPRODUCED
+[mutation:statefields] RED flip: reproduction_state value removed: reproduced-live
+[mutation:statefields] RED flip: reproduction_state value removed: reproduced-host-fixture
+[mutation:statefields] RED flip: reproduction_state value removed: not-reproducible-with-evidence
+[mutation:statefields] RED flip: reproduction_state value removed: blocked-no-device-with-recorded-blocker
+[mutation:statefields] RED flip: investigation_state value removed: UNSET
+[mutation:statefields] RED flip: investigation_state value removed: not-started
+[mutation:statefields] RED flip: investigation_state value removed: in-progress
+[mutation:statefields] RED flip: investigation_state value removed: root-cause-found-with-evidence
+[mutation:statefields] RED flip: investigation_state value removed: root-cause-unconfirmed
+[mutation:statefields] RED flip: investigation_state value removed: closed-no-defect
+[mutation:statefields] RED flip: ONE SPELLING: the CHECK clause re-spells the blocked state in the short form
+[mutation:statefields] RED flip: ONE SPELLING: row T7 re-spells the blocked state in the short form
+[mutation:statefields] RED flip: ONE SPELLING: row T3 re-spells the blocked state in the short form
+[mutation:statefields] RED flip: ONE SPELLING: the clause (F) matrix row re-spells the blocked state in the short form
+[mutation:statefields] RED flip: ONE SPELLING: the input-alias sentence loses its phrase (marker)
+[mutation:statefields] RED flip: transition row removed: T1
+[mutation:statefields] RED flip: transition row removed: T2
+[mutation:statefields] RED flip: transition row removed: T3
+[mutation:statefields] RED flip: transition row removed: T4
+[mutation:statefields] RED flip: transition row removed: T5
+[mutation:statefields] RED flip: transition row removed: T6
+[mutation:statefields] RED flip: transition row removed: T7
+[mutation:statefields] RED flip: transition row removed: T8
+[mutation:statefields] RED flip: transition row removed: T9
+[mutation:statefields] RED flip: escape-hatch flag removed: --fix-without-state
+[mutation:statefields] RED flip: escape-hatch flag removed: --skip-investigation-state
+[mutation:statefields] RED flip: escape-hatch flag removed: --unreproduced-counts-as-verified
+[mutation:statefields] RED flip: escape-hatch flag removed: --state-without-evidence
+[mutation:statefields] RED flip: escape-hatch flag removed: --hand-edit-state-in-derived-doc
+[mutation:statefields] RED flip: escape-hatch flag removed: --tracker-edit-flows-back
+[mutation:statefields] RED flip: cross-reference removed: §11.4.6
+[mutation:statefields] RED flip: cross-reference removed: §11.4.15
+[mutation:statefields] RED flip: cross-reference removed: §11.4.17
+[mutation:statefields] RED flip: cross-reference removed: §11.4.21
+[mutation:statefields] RED flip: cross-reference removed: §11.4.33
+[mutation:statefields] RED flip: cross-reference removed: §11.4.34
+[mutation:statefields] RED flip: cross-reference removed: §11.4.35
+[mutation:statefields] RED flip: cross-reference removed: §11.4.69
+[mutation:statefields] RED flip: cross-reference removed: §11.4.86
+[mutation:statefields] RED flip: cross-reference removed: §11.4.90
+[mutation:statefields] RED flip: cross-reference removed: §11.4.93
+[mutation:statefields] RED flip: cross-reference removed: §11.4.102
+[mutation:statefields] RED flip: cross-reference removed: §11.4.106
+[mutation:statefields] RED flip: cross-reference removed: §11.4.112
+[mutation:statefields] RED flip: cross-reference removed: §11.4.115
+[mutation:statefields] RED flip: cross-reference removed: §11.4.148
+[mutation:statefields] RED flip: cross-reference removed: §11.4.149
+[mutation:statefields] RED flip: cross-reference removed: §11.4.189
+[mutation:statefields] RED flip: cross-reference removed: §11.4.210
+[mutation:statefields] RED flip: cross-reference removed: §11.4.227
+[mutation:statefields] RED flip: cross-reference removed: §11.4.289
+[mutation:statefields] RED flip: cross-reference removed: §11.4.290
+[mutation:statefields] RED flip: cross-reference removed: §11.4.292
+[mutation:statefields] RED flip: cross-reference removed: §1.1
+[mutation:statefields] RED flip: line-start Classification line removed
+[mutation:statefields] RED flip: Canonical authority line removed
+[mutation:statefields] RED flip: non-compliance line weakened
+[mutation:statefields] RED flip: decoy: heading demoted, mid-body citations remain
+[mutation:statefields] RED flip: duplicate canon heading
+[mutation:statefields] RED flip: second block-start form in canon
+[mutation:statefields] RED flip: heading no longer names 'Reproduction and investigation states'
+[mutation:statefields] RED flip: heading no longer names 'workable-item fields'
+[mutation:statefields] RED flip: heading no longer names 'QUOTE both states'
+[mutation:statefields] RED flip: heading loses the mandate date
+[mutation:statefields] RED flip: refinement note removed from §11.4.34
+[mutation:statefields] RED flip: refinement note in §11.4.34 no longer cites §11.4.294
+[mutation:statefields] RED flip: refinement note removed from §11.4.93
+[mutation:statefields] RED flip: refinement note in §11.4.93 no longer cites §11.4.294
+[mutation:statefields] RED flip: refinement note removed from §11.4.148
+[mutation:statefields] RED flip: refinement note in §11.4.148 no longer cites §11.4.294
+[mutation:statefields] RED flip: refinement note removed from §11.4.290
+[mutation:statefields] RED flip: refinement note in §11.4.290 no longer cites §11.4.294
+[mutation:statefields] RED flip: refinement note removed from §11.4.292
+[mutation:statefields] RED flip: refinement note in §11.4.292 no longer cites §11.4.294
+[mutation:statefields] RED flip: mirror block deleted: CLAUDE.md
+[mutation:statefields] RED flip: mirror block duplicated: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value UNSET: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value UNREPRODUCED: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value reproduced-live: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value reproduced-host-fixture: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value not-reproducible-with-evidence: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value blocked-no-device-with-recorded-blocker: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses investigation_state value UNSET: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses investigation_state value not-started: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses investigation_state value in-progress: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses investigation_state value root-cause-found-with-evidence: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses investigation_state value root-cause-unconfirmed: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses investigation_state value closed-no-defect: CLAUDE.md
+[mutation:statefields] RED flip: ONE SPELLING: mirror re-spells the blocked state in the short form: CLAUDE.md
+[mutation:statefields] RED flip: ONE SPELLING: mirror loses the input-alias statement: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses the Reproduction: body line: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses the Investigation: body line: CLAUDE.md
+[mutation:statefields] RED flip: mirror loses the gate token: CLAUDE.md
+[mutation:statefields] RED flip: mirror file missing: CLAUDE.md
+[mutation:statefields] RED flip: mirror block deleted: AGENTS.md
+[mutation:statefields] RED flip: mirror block duplicated: AGENTS.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value UNSET: AGENTS.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value UNREPRODUCED: AGENTS.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value reproduced-live: AGENTS.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value reproduced-host-fixture: AGENTS.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value not-reproducible-with-evidence: AGENTS.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value blocked-no-device-with-recorded-blocker: AGENTS.md
+[mutation:statefields] RED flip: mirror loses investigation_state value UNSET: AGENTS.md
+[mutation:statefields] RED flip: mirror loses investigation_state value not-started: AGENTS.md
+[mutation:statefields] RED flip: mirror loses investigation_state value in-progress: AGENTS.md
+[mutation:statefields] RED flip: mirror loses investigation_state value root-cause-found-with-evidence: AGENTS.md
+[mutation:statefields] RED flip: mirror loses investigation_state value root-cause-unconfirmed: AGENTS.md
+[mutation:statefields] RED flip: mirror loses investigation_state value closed-no-defect: AGENTS.md
+[mutation:statefields] RED flip: ONE SPELLING: mirror re-spells the blocked state in the short form: AGENTS.md
+[mutation:statefields] RED flip: ONE SPELLING: mirror loses the input-alias statement: AGENTS.md
+[mutation:statefields] RED flip: mirror loses the Reproduction: body line: AGENTS.md
+[mutation:statefields] RED flip: mirror loses the Investigation: body line: AGENTS.md
+[mutation:statefields] RED flip: mirror loses the gate token: AGENTS.md
+[mutation:statefields] RED flip: mirror file missing: AGENTS.md
+[mutation:statefields] RED flip: mirror block deleted: QWEN.md
+[mutation:statefields] RED flip: mirror block duplicated: QWEN.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value UNSET: QWEN.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value UNREPRODUCED: QWEN.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value reproduced-live: QWEN.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value reproduced-host-fixture: QWEN.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value not-reproducible-with-evidence: QWEN.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value blocked-no-device-with-recorded-blocker: QWEN.md
+[mutation:statefields] RED flip: mirror loses investigation_state value UNSET: QWEN.md
+[mutation:statefields] RED flip: mirror loses investigation_state value not-started: QWEN.md
+[mutation:statefields] RED flip: mirror loses investigation_state value in-progress: QWEN.md
+[mutation:statefields] RED flip: mirror loses investigation_state value root-cause-found-with-evidence: QWEN.md
+[mutation:statefields] RED flip: mirror loses investigation_state value root-cause-unconfirmed: QWEN.md
+[mutation:statefields] RED flip: mirror loses investigation_state value closed-no-defect: QWEN.md
+[mutation:statefields] RED flip: ONE SPELLING: mirror re-spells the blocked state in the short form: QWEN.md
+[mutation:statefields] RED flip: ONE SPELLING: mirror loses the input-alias statement: QWEN.md
+[mutation:statefields] RED flip: mirror loses the Reproduction: body line: QWEN.md
+[mutation:statefields] RED flip: mirror loses the Investigation: body line: QWEN.md
+[mutation:statefields] RED flip: mirror loses the gate token: QWEN.md
+[mutation:statefields] RED flip: mirror file missing: QWEN.md
+[mutation:statefields] RED flip: mirror block deleted: GEMINI.md
+[mutation:statefields] RED flip: mirror block duplicated: GEMINI.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value UNSET: GEMINI.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value UNREPRODUCED: GEMINI.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value reproduced-live: GEMINI.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value reproduced-host-fixture: GEMINI.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value not-reproducible-with-evidence: GEMINI.md
+[mutation:statefields] RED flip: mirror loses reproduction_state value blocked-no-device-with-recorded-blocker: GEMINI.md
+[mutation:statefields] RED flip: mirror loses investigation_state value UNSET: GEMINI.md
+[mutation:statefields] RED flip: mirror loses investigation_state value not-started: GEMINI.md
+[mutation:statefields] RED flip: mirror loses investigation_state value in-progress: GEMINI.md
+[mutation:statefields] RED flip: mirror loses investigation_state value root-cause-found-with-evidence: GEMINI.md
+[mutation:statefields] RED flip: mirror loses investigation_state value root-cause-unconfirmed: GEMINI.md
+[mutation:statefields] RED flip: mirror loses investigation_state value closed-no-defect: GEMINI.md
+[mutation:statefields] RED flip: ONE SPELLING: mirror re-spells the blocked state in the short form: GEMINI.md
+[mutation:statefields] RED flip: ONE SPELLING: mirror loses the input-alias statement: GEMINI.md
+[mutation:statefields] RED flip: mirror loses the Reproduction: body line: GEMINI.md
+[mutation:statefields] RED flip: mirror loses the Investigation: body line: GEMINI.md
+[mutation:statefields] RED flip: mirror loses the gate token: GEMINI.md
+[mutation:statefields] RED flip: mirror file missing: GEMINI.md
+[mutation:statefields] RED flip: template no longer passes --investigation-state not-started
+[mutation:statefields] RED flip: template no longer passes --reproduction-state UNREPRODUCED
+[mutation:statefields] RED flip: RR6: operative state-flag line removed, preview string kept
+[mutation:statefields] RED flip: an add call no longer forwards the state flags
+[mutation:statefields] RED flip: template no longer cites §11.4.294
+[mutation:statefields] RED flip: template file missing
+[mutation:statefields] RED flip: reporting skill no longer cites §11.4.294
+[mutation:statefields] RED flip: reporting skill loses the Investigation line
+[mutation:statefields] RED flip: reporting skill loses reproduction_state
+[mutation:statefields] RED flip: reporting skill file missing
+[mutation:statefields] RED flip: lifecycle skill no longer cites §11.4.294
+[mutation:statefields] RED flip: lifecycle skill loses the Investigation line
+[mutation:statefields] RED flip: lifecycle skill loses the Reproduction-Regress line
+[mutation:statefields] RED flip: lifecycle skill loses the Investigation-Regress line
+[mutation:statefields] RED flip: lifecycle skill loses the Closure-Record line
+[mutation:statefields] RED flip: lifecycle skill loses reproduction_state value UNSET
+[mutation:statefields] RED flip: lifecycle skill loses reproduction_state value UNREPRODUCED
+[mutation:statefields] RED flip: lifecycle skill loses reproduction_state value reproduced-live
+[mutation:statefields] RED flip: lifecycle skill loses reproduction_state value reproduced-host-fixture
+[mutation:statefields] RED flip: lifecycle skill loses reproduction_state value not-reproducible-with-evidence
+[mutation:statefields] RED flip: lifecycle skill loses reproduction_state value blocked-no-device-with-recorded-blocker
+[mutation:statefields] RED flip: lifecycle skill loses investigation_state value UNSET
+[mutation:statefields] RED flip: lifecycle skill loses investigation_state value not-started
+[mutation:statefields] RED flip: lifecycle skill loses investigation_state value in-progress
+[mutation:statefields] RED flip: lifecycle skill loses investigation_state value root-cause-found-with-evidence
+[mutation:statefields] RED flip: lifecycle skill loses investigation_state value root-cause-unconfirmed
+[mutation:statefields] RED flip: lifecycle skill loses investigation_state value closed-no-defect
+[mutation:statefields] RED flip: ONE SPELLING: lifecycle skill re-spells the blocked state in the short form
+[mutation:statefields] RED flip: ONE SPELLING: lifecycle skill loses the input-alias statement
+[mutation:statefields] RED flip: lifecycle skill file missing
+[mutation:statefields] RED flip: index entry for 11.4.294 gone
+[mutation:statefields] RED flip: index propagation_gate wrong
+[mutation:statefields] RED flip: index group wrong
+[mutation:statefields] RED flip: index classification wrong
+[mutation:statefields] RED flip: group file loses the block
+[mutation:statefields] RED flip: ONE SPELLING: group file re-spells the blocked state in the short form
+[mutation:statefields] RED flip: ONE SPELLING: group file loses the input-alias statement
+[mutation:statefields] RED flip: group file missing
+[mutation:statefields] RED flip: ONE SPELLING: progressive rule file re-spells the blocked state in the short form
+[mutation:statefields] RED flip: ONE SPELLING: progressive rule file loses the input-alias statement
+[mutation:statefields] RED flip: progressive rule file missing
+[mutation:statefields] RED flip: catalog entry gone
+[mutation:statefields] RED flip: catalog file pointer wrong
+[mutation:statefields] RED flip: data-pack row removed
+[mutation:statefields] RED flip: data-pack row points at the wrong anchor
+[mutation:statefields] RED flip: generated propagation gate missing
+[mutation:statefields] RED flip: generated propagation mutation test missing
+[mutation:statefields] RED flip: seam binding row removed
+[mutation:statefields] RED flip: deferral row OWED-GATE-177 removed
+[mutation:statefields] RED flip: deferral row OWED-GATE-177 carries the wrong id
+[mutation:statefields] RED flip: deferral id OWED-GATE-177 registered twice
+[mutation:statefields] RED flip: deferral row OWED-GATE-177 names a gate the canon does not name
+[mutation:statefields] RED flip: canon block no longer names the OWED-GATE-177 gate
+[mutation:statefields] RED flip: deferral row OWED-GATE-177 names no CM-* gate
+[mutation:statefields] RED flip: deferral row OWED-GATE-178 removed
+[mutation:statefields] RED flip: deferral row OWED-GATE-178 carries the wrong id
+[mutation:statefields] RED flip: deferral id OWED-GATE-178 registered twice
+[mutation:statefields] RED flip: deferral row OWED-GATE-178 names a gate the canon does not name
+[mutation:statefields] RED flip: canon block no longer names the OWED-GATE-178 gate
+[mutation:statefields] RED flip: deferral row OWED-GATE-178 names no CM-* gate
+[mutation:statefields] RED flip: deferral row OWED-GATE-179 removed
+[mutation:statefields] RED flip: deferral row OWED-GATE-179 carries the wrong id
+[mutation:statefields] RED flip: deferral id OWED-GATE-179 registered twice
+[mutation:statefields] RED flip: deferral row OWED-GATE-179 names a gate the canon does not name
+[mutation:statefields] RED flip: canon block no longer names the OWED-GATE-179 gate
+[mutation:statefields] RED flip: deferral row OWED-GATE-179 names no CM-* gate
+[mutation:statefields] RED flip: this gate's own mutation test missing
+[mutation:statefields] RED flip: hook no longer runs the gate
+[mutation:statefields] RED flip: hook no longer names the token
+[mutation:statefields] RED flip: hook file missing
+[mutation:statefields] BLIND asserted: heading extractor broken -> control needle fails
+[mutation:statefields] BLIND asserted: Constitution.md missing
+[mutation:statefields] BLIND asserted: real-file control needle (§11.4.286 heading) lost
+[mutation:statefields] PASS: 270 RED/BLIND cases and 8 GREEN cases (1 control + 7 golden-FALSE) behaved as required — cm_state_fields_anchor_wired.sh genuinely discriminates

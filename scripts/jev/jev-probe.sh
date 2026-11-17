@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # jev-probe.sh <endpoint-id> <url> — replayable reachability probe for cm_jev_detection (JEV_PROBE_CMD).
-# Exit 0 when the endpoint ANSWERED an HTTP request (any status: a 401 proves the server is there);
-# exit 1 on no answer (refused, timeout, TLS failure); exit 2 when it cannot determine (curl absent, key send refused,
+# Exit 0 when the endpoint ANSWERED an HTTP request. For a KEYED hosted endpoint only a 2xx answer counts (2026-11-12, S3:
+# a 401/402/403/429 answer proves the server exists but not that it serves decisions, so it exits 1 like no answer);
+# an UNKEYED local probe still counts any status. Exit 1 on no answer (refused, timeout, TLS failure) or a non-2xx keyed answer; exit 2 when it cannot determine (curl absent, key send refused,
 # or a URL that is neither loopback (anchored parse) nor a provider pin; the record's id is not trusted).
 # A credential is sent ONLY to an https origin that matches a provider pin and that pin's own key variable.
 # CA file: a request that carries a KEY uses system trust or the OPERATOR's JEV_CA_FILE environment variable only;
@@ -19,7 +20,7 @@ if [ -n "${JEV_DETECTION_FILE:-}" ] && [ -f "$JEV_DETECTION_FILE" ] && command -
   rec_ca="$(jq -r --arg i "$id" '[.endpoints[]? | select(.id == $i) | .ca_file // empty][0] // empty' "$JEV_DETECTION_FILE" 2>/dev/null || true)"
 fi
 # Hosted endpoint with a key variable: replay the minimal AUTHENTICATED probe (key read by NAME, sent on stdin;
-# an HTTP answer of any class proves the server is there).
+# only a 2xx answer counts as reachable for a keyed endpoint).
 if [ -n "${JEV_DETECTION_FILE:-}" ] && [ -f "$JEV_DETECTION_FILE" ] && command -v jq >/dev/null 2>&1; then
   kv="$(jq -r --arg i "$id" '[.endpoints[]? | select(.id == $i) | .key_var // empty][0] // empty' "$JEV_DETECTION_FILE" 2>/dev/null || true)"
   if [ -n "$kv" ]; then
@@ -30,7 +31,8 @@ if [ -n "${JEV_DETECTION_FILE:-}" ] && [ -f "$JEV_DETECTION_FILE" ] && command -
     refusal="$(jev_pin_ok "$kv" "${url%/}${pp}" 2>&1 >/dev/null)" || {
       echo "jev-probe: refused to send a key: $(printf '%s' "$refusal" | tr -d '\n' | cut -c1-200)" >&2; exit 2; }
     cls="$(auth_probe "$kv" "${url%/}${pp}" "$md" "$ca")"
-    case "$cls" in 2xx|401|403|other) exit 0 ;; timeout) exit 1 ;; refused) exit 2 ;; esac
+    case "$cls" in 2xx) exit 0 ;; 401|402|403|no_credit|rate_limited|other|timeout) exit 1 ;; refused|unavailable) exit 2 ;; esac
+    exit 2
   fi
 fi
 # Unkeyed plain GET. The URL comes from the untrusted record, so it is fetched ONLY when its host is loopback by the

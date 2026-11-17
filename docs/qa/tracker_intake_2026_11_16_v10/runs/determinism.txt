@@ -1,0 +1,7 @@
+lint_suite runs=3 distinct_hashes=1 hash=726ef4924b2b192f last=RESULT: pass=373 fail=0
+shapes runs=3 distinct_hashes=1 hash=134f83ad5c4ec083 last=RESULT: pass=435 fail=0 rows=413
+frontend runs=3 distinct_hashes=1 hash=6e23d2bc559357e8 last=RESULT: pass=39 fail=0
+leak_scan_test runs=3 distinct_hashes=1 hash=ee247fcc06cfa994 last=RESULT: hit_rows=264 missed=0 broader_leads=40 own_spec_wrong=0
+probe_v9_reviewer runs=3 distinct_hashes=1 hash=882510273f38293b last=SUMMARY pos=40 lint_miss=0 scan_miss=0 neg=25 lint_fp=4 scan_fp=11
+fixtures_selfcheck runs=3 distinct_hashes=1 hash=4a109abd4248cf58 last=RESULT rows=413 hit=264 problems=0
+done

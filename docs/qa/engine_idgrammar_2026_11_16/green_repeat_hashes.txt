@@ -1,0 +1,4 @@
+# sha256 of table.tsv for three GREEN runs (same command, fixed engine)
+6f5b4e3c64330f431490344ac59284330f97163d423784d3e9e84c04cfffaf47  greenF1/table.tsv
+6f5b4e3c64330f431490344ac59284330f97163d423784d3e9e84c04cfffaf47  greenF2/table.tsv
+6f5b4e3c64330f431490344ac59284330f97163d423784d3e9e84c04cfffaf47  greenF3/table.tsv

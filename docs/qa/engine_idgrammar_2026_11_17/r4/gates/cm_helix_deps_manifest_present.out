@@ -1,0 +1,30 @@
+PASS	.	root	tracked, well-formed helix-deps.yaml
+BLIND	submodules/token_optimizer	leaf	own-org repository not checked out (git submodule update --init -- submodules/token_optimizer); cannot verify
+BLIND	submodules/session_orchestrator	leaf	own-org repository not checked out (git submodule update --init -- submodules/session_orchestrator); cannot verify
+BLIND	submodules/continuum	leaf	own-org repository not checked out (git submodule update --init -- submodules/continuum); cannot verify
+BLIND	submodules/anti_bluff	leaf	own-org repository not checked out (git submodule update --init -- submodules/anti_bluff); cannot verify
+BLIND	submodules/helix_perf_cache	leaf	own-org repository not checked out (git submodule update --init -- submodules/helix_perf_cache); cannot verify
+BLIND	submodules/docs_chain	leaf	own-org repository not checked out (git submodule update --init -- submodules/docs_chain); cannot verify
+SKIP(third_party)	submodules/verification	leaf	ArcBlock/agent-skills is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/verify	leaf	KeyValueSoftwareSystems/maestro is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/repo-qa	leaf	okwinds/skills-runtime-sdk is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/repo-proof	leaf	Gary06868/repo-proof is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/donespec	leaf	xryv/DoneSpec is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/agentic-validation	leaf	Tyler-R-Kendrick/agentic_validation is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/skill-doctor	leaf	KalarisLabs/Skill-Doctor is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/verfix	leaf	verfix-dev/verfix is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/MVT	leaf	rdkcentral/MVT is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/wave-dpctf	leaf	cta-wave/device-observation-framework is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/mcp-audio-tweaker	leaf	DeveloperZo/mcp-audio-tweaker is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/polyscreen-mcp	leaf	Zyzto/polyscreen-mcp is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/video-quality-mcp	leaf	hlpsxc/video-quality-mcp is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/claude-video	leaf	bradautomates/claude-video is not in the own-org list; no manifest required
+SKIP(third_party)	submodules/watch-skill	leaf	oxbshw/watch-skill is not in the own-org list; no manifest required
+BLIND	submodules/design-toolkit	leaf	own-org repository not checked out (git submodule update --init -- submodules/design-toolkit); cannot verify
+BLIND	submodules/llmctl	leaf	own-org repository not checked out (git submodule update --init -- submodules/llmctl); cannot verify
+SKIP(third_party)	submodules/open_design	leaf	nexu-io/open-design is not in the own-org list; no manifest required
+BLIND	submodules/claude_toolkit	leaf	own-org repository not checked out (git submodule update --init -- submodules/claude_toolkit); cannot verify
+BLIND	submodules/containers	leaf	own-org repository not checked out (git submodule update --init -- submodules/containers); cannot verify
+SKIP(third_party)	submodules/superspec	leaf	WangX0111/superspec is not in the own-org list; no manifest required
+VERDICT: BLIND (pass=1 fail=0 blind=10 skip_third_party=17 known=0)
+⚠ CM-HELIX-DEPS-MANIFEST-PRESENT: BLIND (exit 2) — something could not be verified (see BLIND lines); this is not a PASS

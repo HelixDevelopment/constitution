@@ -1,0 +1,1 @@
+PROPERTY seed=290423 sentences=3000 perturbed=18000 agree=18000 agree_accepted=682 checker_only=0 oracle_only=0 sentences_refused=0

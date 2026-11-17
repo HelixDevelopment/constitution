@@ -1,0 +1,8 @@
+# id	file	old (Python literal)	new (Python literal)	why the mutant is equivalent
+# CON-423 r7: own mutants that survived mutation run 1 and that no body could tell apart from the checker (search:
+# docs/qa/rehearsal_v73_4_fix/r7/tools/survivor_search.py over every pvl_blockstate body and 154 label placements).
+# They are reported as survivors, equivalent by the argument in each row; tests/release/pvl_mutate.py checks each still
+# applies (else the row is stale) and never counts it as killed.
+# CON-PENDINGpvl8 r8: O59 survived mutation run 1 of round 8; the round 8 search compares reasons, not only verdicts
+# (docs/qa/rehearsal_v73_4_fix/r8/tools/survivor_search.py: 336 placements and the pvl_blockstate quick set, with the
+# own mutant O77 as the control that must have telling bodies). O48, O88 and O89 were searched again on the r8 text.

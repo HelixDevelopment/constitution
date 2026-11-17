@@ -1,0 +1,5 @@
+=== RUN   TestM39TitleVerdictSameInBothTrackers
+    zz_m39_equivalence_test.go:59: titles judged: accepted in both=33724 refused in both=26276 differing=0
+--- PASS: TestM39TitleVerdictSameInBothTrackers (4.50s)
+PASS
+ok  	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	4.509s

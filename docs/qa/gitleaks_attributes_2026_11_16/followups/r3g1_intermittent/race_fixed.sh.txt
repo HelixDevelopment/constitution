@@ -1,0 +1,4 @@
+set -uo pipefail
+f=$1; n=$2; pass=0
+for i in $(seq 1 $n); do if ! grep -qv "^api --hostname github.com " "$f"; then pass=$((pass+1)); fi; done
+echo "$(basename "$f") fixed form (! grep -qv): check PASS $pass/$n"

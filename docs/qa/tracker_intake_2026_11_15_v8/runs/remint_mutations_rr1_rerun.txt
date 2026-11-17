@@ -1,0 +1,3 @@
+PASS control: unmutated copy passes the suite (RESULT: pass=464 fail=0)
+PASS RR1 check_body: the landed Status line not checked (reviewer round 8, verbatim edit; the match stops before the line continuation): rc=1 first-failure=R5-1: verify FAIL on a Status line that does not name the landed status: rc=0 want=1:
+RESULT: mutants=1 all killed

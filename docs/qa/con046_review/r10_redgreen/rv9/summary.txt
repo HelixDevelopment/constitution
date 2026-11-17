@@ -1,0 +1,13 @@
+REAL rc=0
+RV9-01-cf-allowed rc=1
+RV9-02-expired-yesterday-ok rc=1
+RV9-03-horizon-plus1 rc=1
+RV9-04-utf8-replace rc=1
+RV9-05-base-prefix-bind rc=0
+RV9-06-shallow-only-true rc=1
+RV9-07-committer-only rc=1
+RV9-08-exit-order rc=1
+RV9-10-auth-zs-only-pad rc=1
+RV9-11-ident-zs-only-strip rc=1
+RV9-09-hook-norepo-exit0 rc=1
+DONE

@@ -1,0 +1,5 @@
+#!/bin/bash
+# waits for mutant batch 1, then runs batch 2 (RM15, OM02x, OM13x) on 2 lanes in the same scope settings
+W="<W>"
+until [ -e "$W/mutout7/keys_batch1.txt.done" ]; do sleep 20; done
+systemd-run --user --scope -q -p TasksMax=3000 nice -n 10 "$W/mutdrive.sh" "$W" "$W/snap/s2" "$W/mutout7/keys_batch2.txt" "$W/mutout7" 2

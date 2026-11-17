@@ -1,0 +1,97 @@
+PASS G1 rc
+PASS G1 present
+PASS G1 target
+PASS G2 rc
+PASS G2 absent
+PASS G2 not present
+PASS G3 release-get rc GAP
+PASS G3 reason
+PASS G3b release-ensure rc GAP
+PASS G3b reason
+PASS G3b no write
+PASS G4 rc
+PASS G4 notice logged
+PASS G4 patch body
+PASS G4 action
+PASS G4 readback
+PASS G4b enable not read back: rc FAIL
+PASS G4b reason
+PASS G4b no create
+PASS G5 rc
+PASS G5 created
+PASS G5 readback
+PASS G5 payload tag
+PASS G5 payload sha
+PASS G5 payload prerelease
+PASS G5 notes in payload
+PASS G5 result
+PASS G6 rc FAIL
+PASS G6 reason
+PASS G6b readback absent: rc FAIL
+PASS G6c readback target mismatch: rc FAIL
+PASS G7 rc
+PASS G7 action
+PASS G8 rc
+PASS G8 kept
+PASS G8 no write
+PASS G9 mismatch without --update: rc FAIL
+PASS G9 reason
+PASS G9 no write
+PASS G9b --update rc
+PASS G9b updated
+PASS G10 rc GAP
+PASS G10 reason
+PASS G10 no create
+PASS G10b tag at another sha: rc FAIL
+PASS G10b reason
+PASS G11 401 rc API
+PASS G11 reason
+PASS G11b 404 repo rc GAP
+PASS G11b reason
+PASS G11c redirect rc API
+PASS G11c reason
+PASS G11c redirect not followed
+PASS G11d 500 rc API
+PASS G12 rc
+PASS G12 would create
+PASS G12 no write
+PASS G13 tag sha
+PASS G13 probe rc
+PASS G13 probe version status
+PASS G13 probe repo peer
+PASS G13 probe repo keys
+PASS G13 probe is read-only
+PASS G13 unsafe tag: rc usage
+PASS G13 short sha: rc usage
+PASS G13 missing notes: rc usage
+PASS G13 --asset not implemented: rc usage
+PASS G14 no PEER line without FORGE_TRACE_PEER
+PASS G14 unsafe request id replaced in the PROBE line
+PASS G14 unsafe value not printed
+PASS G14 PEER line
+PASS G14 PEER request id
+PASS G14 plain http has no certificate
+PASS N16 other tag_name: rc FAIL
+PASS N16 reason
+PASS N16 no write
+PASS G15 rc
+PASS G15 would-create
+PASS G15 no command-not-found
+PASS G15 no write
+PASS G16 leaf certificate digest = openssl's DER sha256 of the LEAF
+PASS G16 never the issuer's digest
+PASS G16 control: the two test certificates differ
+PASS G16 subject of the leaf, spaces as _
+PASS G16 clean ip kept
+PASS G16 request id kept
+PASS G16 X13 ip outside the charset: unsafe
+PASS G16 X12 subject outside the charset: unsafe
+PASS G16 a token window in the certificate subject: unsafe
+PASS G16 subject token not printed
+PASS G16 a token in the request id: unsafe
+PASS G16 negative control: nothing marked unsafe on clean input
+PASS G17 target = sha, tag commit unreported: rc 5
+PASS G17 echo noted
+PASS G17 dry-run: rc 5
+SUMMARY: 95 passed, 0 failed
+rc=0

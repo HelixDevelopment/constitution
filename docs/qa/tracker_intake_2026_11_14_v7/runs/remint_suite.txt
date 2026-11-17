@@ -1,0 +1,461 @@
+$ env -i PATH=... HOME=<scratch> TMPDIR=<scratch> LANG=C.UTF-8 bash tests/workable_items/test_remint_ids.sh (3 runs; the raw outputs are byte-identical: sha256 83c6172642d0a03f39784a9f708d4ac6a5925a5af1c7ec0cc2347d5a27e78382 for each)
+PASS rewrite dry run counts
+PASS rewrite dry run writes nothing
+PASS rewrite --write without --target-db is a usage error
+PASS rewrite --write
+PASS tokens, no chaining, boundaries, range, sentence dot
+PASS an id the target also holds is refused as ambiguous
+PASS --own declares the ambiguous id
+PASS --foreign declares the ambiguous id
+PASS Foreign line and its ids left alone in the whole file
+PASS Foreign line text
+PASS Foreign line left alone before its colon too
+PASS Foreign line text before its colon
+PASS --foreign excludes an id
+PASS --foreign that does not parse is BLIND
+PASS partly moved range refused
+PASS a refusal writes no file at all (the first file is checked before any write)
+PASS range with non-contiguous new ids refused
+PASS short-form range refused
+PASS reverse range refused
+PASS range mixing foreign and moved ids refused
+PASS a zero-padded token of a moved id refused
+PASS an id inside a path refused (slash)
+PASS an id inside a path refused (extension)
+PASS a .db file refused
+PASS a binary file refused
+PASS a non-UTF-8 file is BLIND
+PASS map naming an id twice is BLIND
+PASS map giving two old ids one new id is BLIND
+PASS map mixing prefixes is BLIND
+PASS empty map is BLIND
+PASS map line that does not parse is BLIND
+PASS map without header is BLIND
+PASS usage: no subcommand
+PASS usage: unknown option
+PASS ROV7: ids of four and five digits are rewritten
+PASS R4-4: a spaced en dash partly-moved range is refused
+PASS R4-4: a worded 'to' partly-moved range is refused
+PASS R4-4: a worded 'through' partly-moved range is refused
+PASS R4-4: a tight three-dot partly-moved range is refused
+PASS R4-4: a spaced three-dot partly-moved range is refused
+PASS R4-4: an ellipsis partly-moved range is refused
+PASS R4-4: a spaced hyphen partly-moved range is refused
+PASS R4-4: a spaced em dash partly-moved range is refused
+PASS R4-4: a tight em dash partly-moved range is refused
+PASS R4-4: a 'between ... and' partly-moved range is refused
+PASS R4-4: ids joined by a tight hyphen are refused (the tokens are never rewritten)
+PASS R4-4: a chained range is checked link by link
+PASS R4-4: a list joined with 'and' is not a range
+PASS RV3: a tight en dash partly-moved range is refused
+PASS RV3: a tight en dash range of moved ids is rewritten
+PASS R4-4: a spaced en dash range of moved ids is rewritten
+PASS R4-4: a worded range of moved contiguous ids is rewritten id by id
+PASS R4-4: a worded range with no moved id is left alone
+PASS R4-4: a worded range mixing foreign and moved ids is refused
+PASS R4-4: a worded reverse range is refused
+PASS R4-4: a worded range mapped to non-contiguous ids is refused
+PASS R4-4: a worded short-form range is refused
+PASS R4-5: fullwidth digits of a moved id are refused
+PASS R4-5: Arabic-Indic digits of a moved id are refused
+PASS R4-5: non-ASCII digits of an id the map does not move are left alone
+PASS sweep: a tight range of foreign-declared ids is left as written
+PASS sweep: ids joined by a tight hyphen that hold no moved id are left as written
+PASS sweep: a tight range of ids that do not move is left as written
+PASS sweep: a range holding a moved id the target also holds is refused
+PASS sweep: a range whose first id is written with another zero padding is refused
+PASS sweep: a range whose second id is written with another zero padding is refused
+PASS sweep: a line that starts with a moved id and ends with a slash is rewritten
+PASS sweep: a moved id after a slash is refused as part of a path
+PASS sweep: a moved tight range after a slash is refused as part of a path
+PASS sweep: a moved en dash range with an extension is refused as part of a path
+PASS sweep: a range of ids that do not move inside a path is left as written
+PASS sweep: a tight chain whose second pair is partly moved is refused
+PASS sweep: an en dash chain whose second pair is partly moved is refused
+PASS sweep: a tight chain of moved ids is rewritten
+PASS sweep: a line with a bad tight range and a bad worded range is refused for the first one
+PASS refs lists LIVE, EVIDENCE and DATABASE
+PASS refs lines (a Foreign-only file, another .db and a binary are not listed)
+PASS refs on a repository with no tracked file is BLIND
+PASS fx_sql refuses an edit that changes no row
+PASS fx_sql refuses the real database
+PASS plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps
+PASS plan: disjoint base change merged
+PASS plan: no note for an item the vehicle left unchanged
+PASS plan: a merge line only for the item both sides changed
+PASS plan: a created_at note only for the item the vehicle's close rewrote (CON-339)
+PASS plan: the three databases are not written
+PASS plan: an update step passes --description once
+PASS plan: map file
+PASS replay dry run
+PASS dry run: own text rewritten without chaining
+PASS dry run: obsolete_details replayed on the reopened own item and on the rewritten base row
+PASS replay --apply through the engine
+PASS verify PASS after the replay
+PASS verify: the close rewriting created_at is KNOWN (CON-339), never a pass
+PASS landed: base description change carried and rewritten; target severity kept
+PASS landed: base state block with the vehicle's stamps
+PASS landed: base close with its obsolete_details row, superseding rewritten
+PASS landed: target-only title kept
+PASS landed: rewritten obsolete_details row of a closed base item
+PASS landed: base reopen with the obsolete_details row the vehicle rewrote before it
+PASS landed: own alpha text and assignee
+PASS landed: own beta keeps its fix227 id on every column (R3-2)
+PASS landed: own beta state stamps
+PASS landed: own gamma Obsolete onto alpha
+PASS landed: own delta Reopened with its obsolete_details row
+PASS landed: own epsilon status
+PASS landed: the colliding target items are untouched
+PASS validate reports no new finding on the landed copy (control needle seen)
+PASS a second replay is refused before any write
+PASS the refused second replay wrote nothing
+PASS verify FAIL: a changed own description
+PASS verify FAIL: a description changed after its last id names the piece that differs
+PASS verify FAIL: a description with an id appended gives the piece count
+PASS verify FAIL: a foreign id re-pointed to the map (R3-2)
+PASS verify FAIL: an own status
+PASS verify FAIL: an untouched target item
+PASS verify FAIL: a lost base-item change (R3-1)
+PASS verify FAIL: an obsolete_details field
+PASS verify FAIL: an obsolete_details superseding id
+PASS verify FAIL: a missing Opened history row
+PASS verify FAIL: a closure row citing other evidence
+PASS verify FAIL: a changed Reopened row
+PASS verify FAIL: a target history row
+PASS verify FAIL: another table
+PASS verify FAIL: missing landed items
+PASS verify FAIL: a base-change state stamp
+PASS verify FAIL: an extra landed item
+PASS verify --require-segments PASS (the engine's add writes the item segment)
+PASS verify --require-segments FAILs on an item with no segment
+PASS verify without --require-segments leaves doc_segments unchecked
+PASS verify FAIL: a plan map that is not the own set
+PASS verify: a plan whose map prefix is not its prefix is BLIND
+PASS verify refuses databases the plan was not made from
+PASS plan: FAST-FORWARD when the target is the base
+PASS replay refuses a FAST-FORWARD plan
+PASS verify FAST-FORWARD PASS on the vehicle database
+PASS verify FAST-FORWARD FAILs on a changed copy
+PASS verify FAST-FORWARD FAILs on a copy with an item the vehicle does not hold
+PASS verify FAST-FORWARD FAILs on a copy missing a vehicle item
+PASS verify FAST-FORWARD FAILs on a copy whose item_history differs
+PASS verify FAST-FORWARD: the item_history copy gives that one mismatch
+PASS verify FAST-FORWARD FAILs on a copy whose obsolete_details differs
+PASS verify FAST-FORWARD: the obsolete_details copy gives that one mismatch
+PASS verify FAST-FORWARD FAILs on a copy whose operator_block_details differs
+PASS verify FAST-FORWARD: the operator_block_details copy gives that one mismatch
+PASS verify FAST-FORWARD FAILs on a copy whose firebase_metadata differs
+PASS verify FAST-FORWARD: the firebase_metadata copy gives that one mismatch
+PASS verify FAST-FORWARD FAILs on a copy whose logic_groups differs
+PASS verify FAST-FORWARD: the logic_groups copy gives that one mismatch
+PASS verify FAST-FORWARD FAILs on a copy whose test_diary differs
+PASS verify FAST-FORWARD: the test_diary copy gives that one mismatch
+PASS verify FAST-FORWARD FAILs on a copy whose repro_gate_exemptions differs
+PASS verify FAST-FORWARD: the repro_gate_exemptions copy gives that one mismatch
+PASS plan --no-fast-forward replays with the own ids kept
+PASS replay of the --no-fast-forward plan
+PASS verify PASS of the --no-fast-forward landing
+PASS conflict: both sides changed one column
+PASS conflict: the plan is NOT-LANDABLE
+PASS replay refuses a plan with a conflict
+PASS --resolve vehicle
+PASS replay of --resolve vehicle
+PASS verify of --resolve vehicle
+PASS --resolve vehicle lands the vehicle's description
+PASS --resolve target
+PASS replay of --resolve target
+PASS verify of --resolve target
+PASS --resolve target keeps the target's description
+PASS --resolve that does not parse is BLIND
+PASS conflict: a lifecycle change on one side and a change on the other
+PASS conflict: the target deleted an item the vehicle changed
+PASS plan refusal: the vehicle deleted a base item
+PASS plan refusal: a new id outside the prefix
+PASS a new id outside the prefix is not an own id
+PASS plan refusal: only a state stamp changed
+PASS plan refusal: body_md changed with no column change
+PASS plan refusal: a column with no replay rule
+PASS plan refusal: another table changed
+PASS plan refusal: a base history row rewritten
+PASS plan refusal: a non-item doc segment
+PASS plan refusal: an own item with a column add cannot carry
+PASS plan refusal: an own item with another representation
+PASS plan refusal: a base text that already names an id the vehicle minted later
+PASS plan refusal: an obsolete_details row on an item left open
+PASS plan refusal: a red command whose script names a moved id
+PASS plan refusal: a red command whose script names another moved id
+PASS plan: --foreign covers the script scan too
+PASS plan: a script that declares its id foreign in a comment is not refused
+PASS plan: a script naming an id the item itself declares foreign is not refused
+PASS plan refusal: a Foreign text that is not a comment line declares nothing
+PASS plan: a missing database is BLIND
+PASS plan: an unknown table is BLIND
+PASS plan: an unknown items column is BLIND
+PASS plan: a schema_version that differs is BLIND
+PASS plan: a target without an id of the prefix is BLIND
+PASS replay: a plan of another schema is BLIND
+PASS replay: a round-4 plan (re-pointed target text, R4-1) is refused as another schema
+PASS replay: an unreadable plan is BLIND
+PASS replay: a plan without steps is BLIND
+PASS replay --apply without --engine is a usage error
+PASS replay: a missing target copy is BLIND
+PASS replay refuses a target copy with a non-empty -wal sidecar
+PASS replay refuses a target copy whose sha256 is not the plan's
+PASS the refused replay wrote nothing
+PASS R4-1a: plan of a disjoint merge whose target text names a target id the map moves
+PASS R4-1a: the merge line
+PASS R4-1a: dry run
+PASS R5-1: a field-only merge passes no --description
+PASS R4-1a: the vehicle's title (rewritten) and severity are passed
+PASS R4-1a: replay
+PASS R4-1a: verify PASS
+PASS R4-1a: landed values
+PASS R4-1a: verify FAIL when the target's text is re-pointed through the map
+PASS R4-1b: both sides changed one state block (other columns) is a CONFLICT
+PASS R4-1b: --resolve vehicle
+PASS R4-1b: replay of --resolve vehicle
+PASS R4-1b: verify of --resolve vehicle
+PASS R4-1b: --resolve vehicle lands the vehicle's whole block and stamps
+PASS R4-1b: --resolve target
+PASS R4-1b: replay of --resolve target
+PASS R4-1b: verify of --resolve target
+PASS R4-1b: the same block change on both sides converges (nothing to write)
+PASS R4-1b: replay of the converged plan
+PASS R4-1b: verify of the converged plan
+PASS R4-1b: a target stamp change on a block the vehicle changed is a CONFLICT
+PASS RV7a: a vehicle lifecycle change and a target change is a CONFLICT
+PASS verify FAIL: a target-side column the vehicle did not change (RV1)
+PASS verify FAIL: a base created_at drift with no closure (RV5)
+PASS verify FAIL: a base created_at drift with no closure carries no CON-339 note
+PASS verify FAIL: a base body_md the target did not change (RV6)
+PASS RV4: plan with an old own created_at
+PASS RV4: replay
+PASS RV4: verify reports the own created_at as KNOWN
+PASS verify FAIL: a column conflict whose --resolve vehicle is stripped
+PASS verify FAIL: a column conflict whose --resolve target is stripped
+PASS verify FAIL: a block conflict whose --resolve is stripped
+PASS --resolve vehicle of a lifecycle conflict
+PASS replay of --resolve vehicle on a lifecycle conflict
+PASS verify of --resolve vehicle on a lifecycle conflict
+PASS verify FAIL: a lifecycle conflict whose --resolve is stripped
+PASS plan refusal: a new id with non-ASCII digits
+PASS plan refusal: a vehicle close whose closure row has no evidence
+PASS R4-9: a database path holding ? and # is opened as that file
+PASS R4-9: no stray database file is created
+PASS R4-9: plan refuses a vehicle with a non-empty -wal
+PASS R4-9: plan refuses a base with a non-empty -wal
+PASS R4-9: plan refuses a target with a non-empty -wal
+PASS R4-9: verify refuses a landed copy with a non-empty -wal
+PASS R4-9: an empty -wal sidecar is not refused (control)
+PASS a block both changed to the same content with other stamps is a CONFLICT
+PASS --resolve vehicle of a same-content block with other stamps is refused
+PASS the refused item gets no steps
+PASS --resolve target of the same-content block conflict
+PASS replay of the same-content block conflict resolved for the target
+PASS verify: the target's block and stamps stay
+PASS verify FAIL: a same-content block with other stamps whose --resolve is stripped
+PASS a title both sides changed the same way (after the map) converges
+PASS the converged merge line
+PASS dry run of the converged plan
+PASS the converged title is not written, the severity is
+PASS replay of the converged plan
+PASS verify of the converged plan
+PASS verify FAIL: a vehicle-side column landed wrong
+PASS verify FAIL: an obsolete_details row the vehicle did not write
+PASS a target stamp-only change on another block merges
+PASS the merge line names the target's stamp
+PASS replay of the stamp-only merge
+PASS verify of the stamp-only merge keeps the target's stamp
+PASS plan of a vehicle close whose closure row names another kind
+PASS dry run of that plan
+PASS the close kind is the vehicle's status, not the kind of its closure row
+PASS plan of a reopen followed by an update
+PASS dry run of the reopen followed by an update
+PASS the reopen replays the last Reopened row, not the last history row
+PASS replay of the reopen followed by an update
+PASS verify of the reopen followed by an update
+PASS plan of a reopen followed by a severity update
+PASS replay of the reopen followed by a severity update
+PASS verify FAIL: the engine's stale Severity line in the vehicle body is not certified
+PASS plan refusal: a vehicle reopen with no new Reopened history row
+PASS plan of a reopen kept in Fixed
+PASS dry run of the reopen kept in Fixed
+PASS a reopen kept in Fixed is replayed with --location=Fixed
+PASS replay of the reopen kept in Fixed
+PASS landed: the reopen kept in Fixed
+PASS verify of the reopen kept in Fixed
+PASS plan refusal: a closed base item closed again with another kind
+PASS plan of a block reset to UNSET
+PASS dry run of the block reset
+PASS a block reset passes the state alone
+PASS replay of the block reset
+PASS landed: the block reset
+PASS verify of the block reset
+PASS plan of an own block naming a moved id
+PASS dry run of the own block
+PASS a block text column is rewritten through the map
+PASS replay of the own block
+PASS landed: the own block
+PASS verify of the own block
+PASS plan refusal: an evidence path naming a moved id
+PASS plan refusal: an evidence value that is a moved id
+PASS plan of an evidence path naming an id the item declares foreign
+PASS replay of the foreign evidence path
+PASS landed: the foreign evidence path as written
+PASS verify of the foreign evidence path
+PASS plan refusal: a closure evidence path naming a moved id
+PASS plan refusal: a reopen incident path naming a moved id
+PASS plan refusal: an obsolete_details evidence path naming a moved id
+PASS plan refusal: an own assignee naming a moved id
+PASS fixture: an empty --states-updated-at is stored as NULL
+PASS plan of a block with an empty stamp
+PASS replay of the empty-stamp block
+PASS landed: the empty stamp
+PASS verify of the empty-stamp block
+PASS plan refusal: a base item with two rows
+PASS plan of a vehicle whose only change is a last_modified
+PASS no created_at note when only last_modified changed
+PASS plan of a vehicle whose only change is a created_at
+PASS no last_modified note when created_at changed
+PASS plan against a target holding a higher id of another prefix
+PASS plan refusal: a new id equal to a base item the target lacks
+PASS plan of base changes on ids of mixed width and prefix
+PASS base changes are listed by prefix, then number
+PASS plan of a base item whose base text names an id the map leaves
+PASS plan refusal: a target item with two rows
+PASS plan against a target that changed a block of a merged item
+PASS plan against a target that changed the same obsolete_details row
+PASS plan refusal: a base assignee naming a moved id
+PASS plan against a target that made the vehicle's obsolete_details change
+PASS --resolve vehicle keeps the unit only the target changed (M13)
+PASS verify FAIL: a unit only the target changed, landed wrong under --resolve vehicle (M13)
+PASS fixture: the block author names a moved id
+PASS plan refusal: a block author naming a moved id
+PASS fixture: the reopen kept the base's obsolete_details row
+PASS plan of a reopen of an Obsolete item whose row the vehicle left alone
+PASS plan: the reopen only, no obsolete_details step
+PASS plan: FAST-FORWARD of a vehicle whose own item holds a column add cannot carry
+PASS plan refusal: an own item with two rows
+PASS engine fact: an empty --created-by= and --assigned-to= equal omitting them
+PASS plan of own items closed with different evidence
+PASS plan: each close step carries its own item's evidence
+PASS replay stops at the first engine step that fails
+PASS the stopped replay runs no further step
+PASS plan of an own text holding a range of ids that do not move
+PASS replay of the range of ids that do not move
+PASS landed: the range of ids that do not move, as written
+PASS verify of a text holding a range of ids that do not move
+PASS plan: FAST-FORWARD of a vehicle with an id outside the prefix is not landable
+PASS verify refuses a plan the planner did not call landable
+PASS verify FAIL: a new id outside the prefix, on a plan whose refusals were removed
+PASS verify: the id outside the prefix is the only mismatch
+PASS verify FAIL: an id whose landed item is not the item it named in the vehicle
+PASS verify FAIL: an id whose landed item has another type
+PASS verify FAIL: an id whose landed item has another title
+PASS verify FAIL: an obsolete_details evidence path
+PASS plan: a new id in non-ASCII digits is not landable
+PASS verify FAIL: a new id in non-ASCII digits, on a plan whose refusals were removed
+PASS verify: the non-ASCII id is not read into the own set
+PASS plan of an own item closed, then given obsolete details with another evidence path
+PASS plan: the close step replays the plain close's evidence
+PASS plan: a base Foreign line the vehicle drops still covers the base text
+PASS plan: no refusal for the base text the base declaration covers
+PASS verify: a plan map entry that is not a pair is BLIND
+PASS verify is BLIND when its comparator misses a needle
+PASS verify is BLIND when its landing units miss a column
+PASS v_split fact: a skeleton has one piece more than its id tokens
+PASS check_od fact: no row on either side appends nothing
+PASS check_od fact control: a row on one side only is reported
+PASS verify text rules: a range of moved ids around a foreign id mixes them
+PASS plan of an unchanged item with two rows on every side
+PASS replay with an unchanged two-row item
+PASS verify PASS: an unchanged two-row item is skipped, as the planner skips it
+PASS verify FAIL: a vehicle item with two rows, on a plan whose refusals were removed
+PASS verify: the two-row item is the only mismatch
+PASS replay of a vehicle whose only change is a last_modified
+PASS verify of a vehicle whose only change is a last_modified
+PASS verify FAIL: the landing wrote to an item it was not to touch
+PASS verify FAIL: a replayed item that landed as two rows
+PASS plan: both sides changed the assignee to texts equal only under the map
+PASS plan: a refused plan is written, with its refusal and no step
+PASS replay refuses the written refused plan
+PASS replay of the forged assignee plan
+PASS verify FAIL: a column outside the rewrite set equal only under the map is two changes
+PASS plan: a vehicle change and a target obsolete_details change of one item is a conflict
+PASS plan: --resolve vehicle of the obsolete_details conflict
+PASS replay of the obsolete_details --resolve vehicle
+PASS verify of the obsolete_details --resolve vehicle
+PASS R5-1: verify compares the body although the target changed obsolete_details
+PASS verify FAIL: a base item's obsolete_details field
+PASS verify FAIL: an obsolete_details row added to an untouched item
+PASS verify of an own item whose created_at equals the vehicle's
+PASS no created_at KNOWN line for an own item whose created_at was carried
+PASS the created_at KNOWN line of another own item stays
+PASS verify FAIL: an obsolete_details row on a landed own item that has none in the vehicle
+PASS verify FAIL: an own item's obsolete_details row missing from the landing
+PASS plan of a one-item tracker, --no-fast-forward
+PASS replay of the one-item tracker
+PASS verify is BLIND when the landing touched every target item
+PASS plan refusal: the vehicle removed a base item's obsolete_details row
+PASS plan: both sides removed the obsolete_details row (refused)
+PASS replay of the removed-row plan whose refusals were removed
+PASS verify of the stripped removed-row plan: the closure row has no step
+PASS verify: the closure row is the only mismatch of the stripped plan
+PASS verify: no obsolete_details row on either side is nothing to compare
+PASS verify FAIL: a reopened own item changed after the landing
+PASS verify: a later history row is not the Reopened row
+PASS verify FAIL: a closed own item with no landed closure row
+PASS verify FAIL: a landed closure row with no evidence
+PASS verify of the landing, for its KNOWN lines
+PASS verify: no lifecycle-count KNOWN line when the counts agree
+PASS plan of an own item closed, reopened and closed again
+PASS replay of the twice-closed own item
+PASS verify of the twice-closed own item
+PASS verify: a lifecycle-count KNOWN line when the counts differ
+PASS R5-1: plan of a field-only merge on an item with an authored body
+PASS R5-1: dry run
+PASS R5-1: the step passes no --description
+PASS R5-1: replay
+PASS R5-1: verify PASS with the body compared
+PASS R5-1: the authored body lands (target body; only the target's heading differs from the base)
+PASS R5-1: the authored lines are in the landed body
+PASS R5-1: plan when the target changed another item
+PASS R5-1: replay when the target changed another item
+PASS R5-1: verify PASS when the target changed another item
+PASS R5-1: the authored body is the vehicle's
+PASS R5-1: verify FAIL on a landing that lost authored text
+PASS R5-1: verify FAIL on a heading that does not name the landed title
+PASS R5-1: verify FAIL on a Status line that does not name the landed status
+PASS R5-1: verify FAIL on lost authored text when the target left the item alone
+PASS R5-1: a re-render of a body the target changed outside the slots is a CONFLICT
+PASS R5-1: the conflict is not also listed as a merge
+PASS R5-1: --resolve vehicle of the body conflict
+PASS R5-1: replay of --resolve vehicle
+PASS R5-1: verify of --resolve vehicle
+PASS R5-1: --resolve target of the body conflict
+PASS R5-1: a field-only change on a body the target changed is a plan
+PASS R5-1: replay of the field-only change
+PASS R5-1: verify of the field-only change
+PASS R5-1: the target's addition lands
+PASS R5-1: plan of the re-render with an untouched target
+PASS R5-1: replay of the forged plan
+PASS R5-1: verify FAIL: a re-render replaced the target's authored body
+PASS R5-1: verify of the main landing
+PASS R5-1: the main landing's body is compared
+PASS R7-F3: verify FAIL on an altered template meta line when nothing re-renders
+PASS R7-F3: a re-render over a target edit of a template meta line is a CONFLICT
+PASS R7-F3: plan (--resolve vehicle) of an Obsolete-Details rewrite on an item the target renamed
+PASS R7-F3: replay of the Obsolete-Details rewrite
+PASS R7-F3: verify PASS: the Obsolete-Details line is an engine slot
+PASS R7-F3: the landed Obsolete-Details line is the vehicle's
+PASS R7-F3: plan (--resolve vehicle) of a reopen over a legacy bulleted block
+PASS R7-F3: replay of the reopen over a legacy bulleted block
+PASS R7-F3: verify PASS: the legacy bullets, Evidence included, are engine slots
+PASS R7-F3: the fixture's target body carries the legacy Evidence bullet
+PASS R5-2: FAST-FORWARD: a base path naming an own id that does not move is not refused
+PASS R5-2: --no-fast-forward with an identity map is not refused either
+PASS R5-2: the same path is refused when the id moves
+PASS R5-2: the refused plan is written
+PASS the real database is untouched
+RESULT: pass=458 fail=0
+rc=0

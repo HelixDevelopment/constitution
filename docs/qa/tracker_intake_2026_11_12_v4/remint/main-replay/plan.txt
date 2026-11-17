@@ -1,0 +1,6 @@
+BASE-CHANGE CON-046 vehicle=description,reproduction_state target=-
+BASE-CHANGE CON-243 vehicle=description,status,current_location,obsolete_details target=-
+BASE-CHANGE CON-262 vehicle=description target=-
+NOTE CON-243: created_at changed in the vehicle (2026-11-11 15:38:57 -> 2026-11-13 13:56:42); not carried (no engine command sets it; a close rewrites it, engine defect CON-339)
+RESULT: PLAN mode=REPLAY own=44 base_changes=3 steps=68 conflicts=0 refusals=0 first=CON-299 last=CON-342
+rc=0

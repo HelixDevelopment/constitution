@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Reviewer round-6 probes (CON-046). Usage: probes_r6.sh <gate-under-test> <hook> -> one vector line on stdout.
+# Throwaway repos under a mktemp dir below $TMPDIR; HOME is a temp dir; nothing else is touched.
+set -uo pipefail
+g="${1:?gate}"; hk="${2:?hook}"
+tmp="$(mktemp -d "${TMPDIR:?}/p6.XXXXXX")"; [ -n "$tmp" ] && [ -d "$tmp" ] || exit 2
+trap 'rm -rf "${tmp:?}"' EXIT; mkdir -p "$tmp/home"; export HOME="$tmp/home"
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t GIT_CONFIG_NOSYSTEM=1
+unset EMAIL
+git config --global protocol.file.allow always; git config --global init.defaultBranch main; git config --global advice.graftFileDeprecated false
+d10="$(date -d '+10 days' +%F)"; d200="$(date -d '+200 days' +%F)"; realgit="$(command -v git)"
+lay="$tmp/lay"; mkdir -p "$lay/scripts/gates" "$lay/scripts/hooks"
+cp "$g" "$lay/scripts/gates/cm_submodule_pin_not_downgraded.sh"; cp "$hk" "$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"; chmod +x "$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"
+LH="$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"; LG="$lay/scripts/gates/cm_submodule_pin_not_downgraded.sh"
+sup() { local up; up="$(mktemp -d "$tmp/up.XXXXXX")"; git -C "$up" init -q; for i in A B; do git -C "$up" commit -q --allow-empty -m "$i"; done
+  git -C "$up" checkout -q -b side HEAD~1; git -C "$up" commit -q --allow-empty -m S; git -C "$up" checkout -q main
+  uA=$(git -C "$up" rev-parse main~1); uB=$(git -C "$up" rev-parse main); uS=$(git -C "$up" rev-parse side); SR="$(mktemp -d "$tmp/sup.XXXXXX")"; git -C "$SR" init -q
+  git -C "$SR" submodule add -q "file://$up" sub >/dev/null 2>&1; git -C "$SR/sub" fetch -q origin side 2>/dev/null; echo 0 >"$SR/notes"; git -C "$SR" add -A; git -C "$SR" commit -q --no-verify -m base
+  ln -s "$LH" "$SR/.git/hooks/pre-commit"; }
+row() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${4:-sub}" "$uB" "$uA" "${2:-ops}" "${3:-$d10}" CON-046 "$1"; } # <base> [auth] [expiry] [path]
+gc() { local r="$1"; shift; git -C "$r" commit -q "$@" >"$tmp/hout" 2>&1; echo $?; }
+pin() { case "$(git -C "$1" ls-tree "${2:-HEAD}" -- sub | awk '{print $3}')" in "$uA") echo A ;; "$uB") echo B ;; *) echo X ;; esac; }
+gate() { bash "$LG" --root "$@" >"$tmp/gout" 2>&1; echo $?; }
+rb() { local r="${1:-$SR}"; git -C "$r/sub" checkout -q "$uA"; row "$(git -C "$r" rev-parse HEAD)" "${2:-ops}" >"$r/.submodule_pin_waivers"
+  git -C "$r" add .submodule_pin_waivers; gc "$r" -a -m rollback; }
+out=""
+# KV07/KV08: committed config max_waiver_days=365 (the claimed upper bound, inclusive), expiry today+200 -> waived
+sup; r=$SR; printf 'max_waiver_days=365\n' >"$r/.submodule_pin_gate.conf"; git -C "$r" add .submodule_pin_gate.conf; git -C "$r" commit -q --no-verify -m conf
+git -C "$r/sub" checkout -q "$uA"; row "$(git -C "$r" rev-parse HEAD)" ops "$d200" >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers
+out+="KV365=$(gc "$r" -a -m rb)/$(pin "$r") "
+# KV12: authoriser with a zero-width space (category Cf) equal to the committer name after removing it -> refused (3)
+sup; r=$SR; out+="KV12ZWSP=$(GIT_COMMITTER_NAME=ops rb "$r" $'o​ps')/$(pin "$r") "
+# KV13: committer 'Strauss', authoriser 'STRAUSS' written with sharp s -> casefold makes them equal -> refused (10)
+sup; r=$SR; out+="KV13SHARPS=$(GIT_COMMITTER_NAME=Strauss rb "$r" $'STRAUß')/$(pin "$r") "
+# KV15/KV16/KVT: the first rollback R1 on P is reachable only from refs/remotes/origin/X, refs/notes/x, or a tag (control);
+# the redo of the same rollback on P must be refused (spent)
+x=""; for ref in refs/remotes/origin/X refs/notes/x refs/tags/t; do
+  sup; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; rb >/dev/null; R1=$(git -C "$r" rev-parse HEAD); git -C "$r" update-ref "$ref" "$R1"
+  git -C "$r" checkout -q main; git -C "$r" branch -q -D X; x+="$(rb)/$(pin "$r"),"; done; out+="KVREFS=$x "
+# KV17: two children of P: the spender R1 (older) and a newer child Y without a waiver file -> refused (spent)
+sup; r=$SR; git -C "$r" checkout -q -b X; GIT_COMMITTER_DATE='2020-01-01T00:00:00' rb >/dev/null; git -C "$r" checkout -q main; git -C "$r/sub" checkout -q "$uB"
+git -C "$r" checkout -q -b Y; echo y >"$r/notes"; GIT_COMMITTER_DATE='2030-01-01T00:00:00' git -C "$r" commit -q --no-verify -m y -- notes; git -C "$r" checkout -q main
+o17=$(git -C "$r" rev-list --all --parents | awk -v b="$(git -C "$r" rev-parse main)" '$2==b{print $1}' | head -1); y=$(git -C "$r" rev-parse Y)
+out+="KV17ORDER=$(rb)/$(pin "$r")/$([ "$o17" = "$y" ] && echo yfirst || echo rfirst) "
+# KV18: a gitlink at path 'a#b' with a valid row -> waived (only a FIRST field starting with # is a comment)
+up="$(mktemp -d "$tmp/u18.XXXXXX")"; git -C "$up" init -q; git -C "$up" commit -q --allow-empty -m A; a1=$(git -C "$up" rev-parse HEAD); git -C "$up" commit -q --allow-empty -m B; b1=$(git -C "$up" rev-parse HEAD)
+s="$(mktemp -d "$tmp/s18.XXXXXX")"; git -C "$s" init -q; git clone -q "$up" "$s/a#b"; git -C "$s" update-index --add --cacheinfo 160000,"$b1",'a#b'; git -C "$s" commit -q --no-verify -m base
+git -C "$s" update-index --cacheinfo 160000,"$a1",'a#b'; printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' 'a#b' "$b1" "$a1" ops "$d10" CON-046 "$(git -C "$s" rev-parse HEAD)" >"$s/.submodule_pin_waivers"; git -C "$s" add .submodule_pin_waivers
+out+="KV18HASHMID=$(gate "$s") "
+# KV19: a stale row for the same transition bound to an OLD base, then a valid row -> waived (every row is tried)
+sup; r=$SR; old=$(git -C "$r" rev-parse HEAD); echo 1 >"$r/notes"; git -C "$r" commit -q --no-verify -m n -- notes; git -C "$r/sub" checkout -q "$uA"
+{ row "$old"; row "$(git -C "$r" rev-parse HEAD)"; } >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers; out+="KV19STALEFIRST=$(gc "$r" -a -m rb)/$(pin "$r") "
+# KV20: a row with a bad expiry, then a valid row -> waived
+sup; r=$SR; git -C "$r/sub" checkout -q "$uA"; { row "$(git -C "$r" rev-parse HEAD)" ops never; row "$(git -C "$r" rev-parse HEAD)"; } >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers
+out+="KV20BADEXPFIRST=$(gc "$r" -a -m rb)/$(pin "$r") "
+# KV22: diverged pins (B -> S, complete history) while the submodule's shallow state is UNKNOWN (a git that answers
+# `unknown`): the history is not proven complete -> BLIND (2), never WARN; control with the real git: WARN (0)
+sup; r=$SR; git -C "$r" update-index --cacheinfo 160000,"$uS",sub; mkdir -p "$tmp/fk"
+printf '#!/bin/bash\nfor a in "$@"; do [ "$a" = --is-shallow-repository ] && { echo unknown; exit 0; }; done\nexec %s "$@"\n' "$realgit" >"$tmp/fk/git"; chmod +x "$tmp/fk/git"
+a=$(PATH="$tmp/fk:$PATH" gate "$r"); c=$(grep -c 'cannot be decided' "$tmp/gout"); b=$(gate "$r"); out+="KV22SUBUNKNOWN=$a/$c,$b/$(grep -c WARN "$tmp/gout") "
+# KV29: a planted unicodedata.py in the cwd (the hook runs at the work-tree top) must not change the authoriser check:
+# authoriser 't' = committer -> refused (10) even when the planted module makes every normalised string unique
+sup; r=$SR; printf 'import itertools\n_c=itertools.count()\ndef normalize(f,s): return "u%%d" %% next(_c)\ndef category(c): return "Lu"\n' >"$r/unicodedata.py"
+git -C "$r/sub" checkout -q "$uA"; row "$(git -C "$r" rev-parse HEAD)" t >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers sub
+out+="KV29PLANT=$(cd "$r" && bash "$LG" --root "$r" >"$tmp/gout" 2>&1; echo $?)/$(grep -c 'self-waive' "$tmp/gout") "
+# KV02: -h exit status
+out+="KV02HELP=$(bash "$LG" -h >/dev/null 2>&1; echo $?) "
+# KV35: no row for the transition -> the reason names the missing row (not a base mismatch)
+sup; r=$SR; git -C "$r/sub" checkout -q "$uA"; row "$(git -C "$r" rev-parse HEAD)" ops "$d10" other >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers sub
+out+="KV35=$(gate "$r")/$(grep -c 'no waiver row for' "$tmp/gout") "
+echo "$out"

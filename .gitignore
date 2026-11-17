@@ -45,6 +45,11 @@ docs/research/decisions_models
 # worktree-wide `git add -A` committed both on 2026-11-06 (844ab543). Test: tests/gates/test_workable_items_db_sidecars_ignored.sh
 docs/workable_items.db-shm
 docs/workable_items.db-wal
+# SQLite sidecars of database copies kept as QA evidence (CON-423 r5: two copies under docs/qa/ were committed in r4). A database copy
+# kept as evidence is committed after `PRAGMA wal_checkpoint(TRUNCATE)`; its sidecars never are.
+docs/qa/**/*.db-wal
+docs/qa/**/*.db-shm
+docs/qa/**/*.db-journal
 
 # Generator staging dirs (scripts/generate_agent_prefix_commands.sh; removed on exit, reaped after a kill)
 .gen.*

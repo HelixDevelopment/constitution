@@ -1,0 +1,6 @@
+import sqlite3, sys
+con = sqlite3.connect("file:%s?mode=ro" % sys.argv[1], uri=True)
+for i, s, b in con.execute("select atm_id,status,body_md from items where status in ('Ready for testing','In testing') order by atm_id"):
+    for ln in (b or "").splitlines():
+        if "Verification:" in ln:
+            print(i, "|", ln)

@@ -1,0 +1,22 @@
+probe: a description line that reads as a reproduction record (CON-456 round 2, 2026-11-17T02:02:35Z)
+engines: d3fa c9884871c111fc4edfd69f9eb371c6ab7ba8fd1252017a36fa00444aa2d283b7  r2 83e93abaeaa5ef09bbb10437595f859bbbf78a03355c4e4204d56cbe79cb9080
+[d3fa] add rc=0: add: created CON-996 (Bug, status=Queued) in Issues 
+[d3fa] db-to-md rc=0
+[d3fa] md-to-db rc=0
+[d3fa] reproduction_state before=UNSET after=reproduced-live
+[r2] add rc=1: add: refusing (nothing written) — the Markdown of CON-996 (Issues, section) would not read back as this item on the next sync md-to-db: CON-996 (Issues, section): the reproduction/investigation records read back differently from the store
+[r2] database file exists after the refusal: no
+severity with a line break, r2:
+add: refusing (nothing written) — the Markdown of CON-998 (Issues, section) would not read back as this item on the next sync md-to-db: CON-998 (Issues, section): severity reads back as "Low", stored "Low\nmore"
+ rc=1
+severity with a line break, d3fa:
+add rc=0 add: created CON-998 (Task, status=Queued) in Issues 
+md-to-db rc=0
+severity before='Low
+more' after='Low'
+
+probe: a well-formed investigation record line in a description (2026-11-17T02:04:05Z)
+[d3fa] add rc=0: add: created CON-994 (Bug, status=Queued) in Issues 
+[d3fa] stored body (| = line break): ## CON-994 — item with an investigation line in its description||**Status:** Queued|**Type:** Bug|**Severity:** Low||line one of a long enough description|||
+[r2] add rc=1: add: refusing (nothing written) — the text "line one of a long enough description\n**Investigation:** root-cause-found-with-evidence — root-cause `x`" would not survive in the Markdown of CON-994 
+[r2] database file exists after the refusal: no

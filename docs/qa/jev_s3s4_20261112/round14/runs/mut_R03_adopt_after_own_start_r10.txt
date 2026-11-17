@@ -1,0 +1,77 @@
+ok 1 - P115 (fail) A's llmctl start returned rc 1; A is paused before its record step (paused at flock call 7)
+ok 2 - P115 (fail) B joins decide-a after A's live mark aged out
+ok 3 - P115 (fail) CONTROL: B's reap cleared A's mark (the precondition of R9-1)
+ok 4 - P115a A's failed start keeps B's lease, writes no stopping mark and stops nothing under B (the unit still runs)
+ok 5 - P115a the result is recorded (start_kept, claim gone) and the kept set is not routed until an observation newer than it
+ok 6 - P115a A says what it did
+ok 7 - P115a B's lease is held (heartbeat 0); the observation in the heartbeat routes the set again
+ok 8 - P115a B's last release stops the model this producer started: never orphaned
+ok 9 - P115 (refuse) A's llmctl start returned rc 75; A is paused before its record step (paused at flock call 7)
+ok 10 - P115 (refuse) B joins decide-a after A's live mark aged out
+ok 11 - P115 (refuse) CONTROL: B's reap cleared A's mark (the precondition of R9-1)
+ok 12 - P115b A's refused start (75) keeps B's lease; the re-plan joins the running set B holds; the set is not constitution-started (rc 75 started nothing)
+ok 13 - P115b A does not adopt the unit as operator-started
+ok 14 - P115b B holds its lease; A's release is not the last one and stops nothing
+ok 15 - P115b the last release stops nothing: the unit was not started by this producer (rc 75); the set is forgotten (R10-3)
+ok 16 - P115 (handed) A's llmctl start returned rc 0; A is paused before its record step (paused at flock call 7)
+ok 17 - P115 (handed) B joins decide-a after A's live mark aged out
+ok 18 - P115 (handed) CONTROL: B's reap cleared A's mark (the precondition of R9-1)
+ok 19 - P115c A's start returns rc 0 after its own lease was released: not placed for A (no profile printed, exit 5); B keeps the set; nothing stopped
+ok 20 - P115c A says the set is kept for B and why (round 11, R10-1: the real reason is named)
+ok 21 - P115c B still holds its lease
+ok 22 - P115d A's start failed; A is paused before its record step (paused at flock call 7)
+ok 23 - P115d the set is kept for hX: A's own mark is cleared (claim ours), no stopping mark, no stop
+ok 24 - P115e A's start returned rc 0; A is paused before its record step (paused at flock call 7)
+ok 25 - P115e the other process's stopping mark is kept and A runs no stop of its own (A's own starting mark is cleared)
+ok 26 - P115f A's start failed; A is paused before its record step (paused at flock call 7)
+ok 27 - P115f CONTROL: an observer cleared A's mark
+ok 28 - P115f the set is SOLE (claim gone, no other lease): the failed start's cleanup stop runs and the set is removed
+ok 29 - P115g A's start was refused (75); A is paused before its record step (paused at flock call 7)
+FAIL - P115g A does not adopt decide-a as operator-started after its own start of it was refused (expected [5 {}] got [0 {
+  "decide-a": {
+    "constitution_started": false,
+    "stopping": null,
+    "starting": null,
+    "leases": [
+      {
+        "holder": "sA",
+        "pid": 3,
+        "pid_start": 24264764,
+        "heartbeat_at": 1700000000,
+        "heartbeat_mono": "test:1700000000",
+        "ttl": 900,
+        "project": "stubhead00000000000000000000000000000000",
+        "started_by_this_session": false
+      }
+    ],
+    "health": {
+      "state": "ok",
+      "reason": "running instance, unit status ok",
+      "seq": 2,
+      "at": 1700000000
+    }
+  }
+}])
+FAIL - P115g A says why (no [this acquire tried to start it; it is not adopted] in /mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6/tmp/tmp.FSCzcvs2d1/a115g.err)
+ok 30 - P116 the expired lease of hO is reaped; hM, named by the live mark, is kept
+ok 31 - P116 the reap says so
+ok 32 - P117 the mark older than MARK_TTL is cleared and the expired lease of the holder it named is reaped in the same reap
+ok 33 - P117 no suspension by a cleared mark
+ok 34 - P118 the release of sA stops decide-a first (its stop of decide-a is in flight)
+ok 35 - P118 decide-b's stop runs at its turn (its stop of decide-b is in flight)
+ok 36 - P118 the dead holder's lease added after the plan is reaped at the stop's turn; decide-b is stopped
+ok 37 - P118 the stop is not skipped
+ok 38 - P119 the release of sA stops decide-b (its stop of decide-b is in flight)
+ok 39 - P119 CONTROL: the set was observed ok and the registry holds an https gateway (it would be routed with a lease)
+ok 40 - P119 the kept set has health pending and no llmctl-local entry is derived for it (not routed until observed again)
+ok 41 - P120 a mark whose mono is ahead of the reader, wall age 10 s: judged on wall time, kept
+ok 42 - P120 the same mark at wall age 400 s: cleared (before round 10 it was never cleared)
+ok 43 - P120 a mark with no mono stamped 1000 s in the future: a negative age is expired, not fresh for ever
+ok 44 - P121 CONTROL: the acquire is refused (decide-b is starting) and wrote the changed gateway
+ok 45 - P121 the expired lease of the acquiring holder is reaped before the plan's gateway write
+ok 46 - P121 it is not refreshed by that write and then released as endpoint_gone
+ok 47 - P123 the release of sA stops decide-b (its stop of decide-b is in flight)
+ok 48 - P123 the set is kept with the other process's starting mark: a stop result never deletes a set another process marks
+ok 49 - P122 every bounded stop / start in this file runs under a mark written after its process's previous bounded call (mark_census: processes=28 checked_stops=6 checked_starts=7 violations=0)
+ok 50 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round10.sh: pass=50 fail=2 skip=0

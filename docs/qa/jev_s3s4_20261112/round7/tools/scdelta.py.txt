@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""scdelta.py <repo> <out.tsv>: shellcheck code counts per file at 02c10935 (true base), at eb29803b (round-6 head) and in
+the working tree, for the files of the round-6 table plus the round-7 new files; 'new vs base' and 'new vs round 6' list
+codes whose count went up. Read-only on the repo (git show into a temp file outside it)."""
+import subprocess, sys, os, tempfile, collections, json
+repo, out = sys.argv[1], sys.argv[2]
+r6tab = os.path.join(repo, "docs/qa/jev_s3s4_20261112/round6/shellcheck_delta_vs_02c10935.tsv")
+files = [l.split("\t", 1)[0] for l in open(r6tab).read().splitlines()[1:] if l.strip()]
+for f in ["tests/jev/test_s4_round7.sh", "tests/jev/fixtures/bin-flockgate/flock"]:
+    if f not in files:
+        files.append(f)
+files.sort()
+def codes(text, name):
+    if text is None:
+        return None
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, os.path.basename(name))
+        open(p, "w").write(text)
+        r = subprocess.run(["shellcheck", "-s", "bash", "-f", "json", p], capture_output=True, text=True)
+        c = collections.Counter("SC%d" % x["code"] for x in json.loads(r.stdout or "[]"))
+        return c
+def at(rev, f):
+    r = subprocess.run(["git", "-C", repo, "show", f"{rev}:{f}"], capture_output=True, text=True)
+    return r.stdout if r.returncode == 0 else None
+def fmt(c):
+    if c is None:
+        return "ABSENT"
+    return " ".join(f"{k}×{v}" for k, v in sorted(c.items())) or "clean"
+def up(a, b):
+    if b is None:
+        return "-"
+    a = a or collections.Counter()
+    d = [f"{k}(+{b[k]-a.get(k, 0)})" for k in sorted(b) if b[k] > a.get(k, 0)]
+    return " ".join(d) or "none"
+rows = ["file\tbase 02c10935\tround6 eb29803b\tround7 working tree\tnew codes vs base\tnew codes vs round 6"]
+for f in files:
+    wt = open(os.path.join(repo, f)).read() if os.path.exists(os.path.join(repo, f)) else None
+    b, r6, r7 = codes(at("02c10935", f), f), codes(at("eb29803b", f), f), codes(wt, f)
+    rows.append("\t".join([f, fmt(b), fmt(r6), fmt(r7), up(b, r7), up(r6, r7)]))
+open(out, "w").write("\n".join(rows) + "\n")
+print("\n".join(r for r in rows if r.split("\t")[-1] not in ("none",)))

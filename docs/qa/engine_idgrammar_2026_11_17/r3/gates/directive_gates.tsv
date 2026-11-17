@@ -1,0 +1,7 @@
+cm_state_fields_anchor_wired	0	1s	CM-STATE-FIELDS-ANCHOR-WIRED: PASS — 244/244 checks (root: /mnt/DATA1TB/claude-work/scratch/fix456r3_3Kpt0z/repo)
+cm_state_fields_anchor_wired_mutation_test	0	460s	[mutation:statefields] PASS: 268 RED/BLIND cases and 8 GREEN cases (1 control + 7 golden-FALSE) behaved as required — cm_state_fields_anchor_wired.sh genuinely 
+cm_repro_first_anchor_wired	0	1s	CM-REPRO-FIRST-ANCHOR-WIRED: PASS — 174/174 checks (root: /mnt/DATA1TB/claude-work/scratch/fix456r3_3Kpt0z/repo)
+cm_repro_first_anchor_wired_mutation_test	0	308s	[mutation:repro] PASS: 187 RED/BLIND cases and 5 GREEN cases (1 control + 4 golden-FALSE) behaved as required — cm_repro_first_anchor_wired.sh genuinely discrim
+cm_reporting_directives	0	10s	CM-REPORTING-DIRECTIVES: PASS
+cm_reporting_directives_mutation_test	0	54s	cm_reporting_directives_mutation_test: PASS (gate is genuine — every mutation caught)
+cm_feature_directive	0	7s	CM-FEATURE-DIRECTIVE: PASS

@@ -1,0 +1,10 @@
+#!/bin/bash
+# cmutrun.sh <mutant>: the census test (--only-census) with the mutant census; records "CMUT name KILLED|SURVIVED fails=N passes=N"
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r13.7MaT; m="${1:?}"
+O="$W/runs/cmut_$m.txt"
+systemd-run --user --scope -q -p TasksMax=2000 nice -n 10 "$W/tools/hrun.sh" "$W/repo" timeout --kill-after=10 1200 \
+  bash tests/test_git_env_class.sh --only-census --census "$W/mut/$m/scripts/validation/git_env_class_census.py" > "$O" 2>&1
+rc=$?; nf=$(grep -c '^ko\|^KO\|^FAIL' "$O"); np=$(grep -c '^ok' "$O")
+if [ "$nf" -gt 0 ] || [ "$rc" != 0 ]; then v=KILLED; else v=SURVIVED; fi
+echo "CMUT $m $v rc=$rc fails=$nf passes=$np" >> "$W/runs/mut_summary.txt"

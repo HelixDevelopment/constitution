@@ -1,0 +1,25 @@
+CLASS U01 members=4174 sampled=4174 cases=16696 mismatches=0 floor=4174
+CLASS U02 members=170 sampled=170 cases=510 mismatches=0 floor=170
+CLASS U03 members=64 sampled=64 cases=128 mismatches=0 floor=64
+CLASS U04 members=2048 sampled=68 cases=136 mismatches=0 floor=2048
+CLASS U05 members=137468 sampled=6533 cases=13066 mismatches=0 floor=137468
+CLASS U06 members=819533 sampled=2254 cases=4508 mismatches=0 floor=800000
+CLASS U07 members=2 sampled=2 cases=4 mismatches=0 floor=2
+CLASS U08 members=18 sampled=18 cases=54 mismatches=0 floor=18
+CLASS U09 members=256 sampled=256 cases=512 mismatches=0 floor=256
+CLASS U10 members=128 sampled=128 cases=257 mismatches=0 floor=128
+CLASS U11 members=12 sampled=12 cases=25 mismatches=0 floor=12
+CLASS U12 members=2238 sampled=2238 cases=4476 mismatches=0 floor=2238
+CLASS U13 members=6 sampled=6 cases=16 mismatches=0 floor=6
+CLASS U14 members=1123 sampled=1123 cases=1123 mismatches=0 floor=1123
+CLASS U15 members=225 sampled=225 cases=225 mismatches=0 floor=225
+CLASS U16 members=360 sampled=360 cases=363 mismatches=0 floor=360
+CLASS U17 members=59 sampled=59 cases=61 mismatches=0 floor=59
+CLASS U18 members=670 sampled=670 cases=804 mismatches=0 floor=670
+CLASS U19 members=137798 sampled=2045 cases=2338 mismatches=0 floor=137798
+CLASS U20 members=717 sampled=717 cases=894 mismatches=0 floor=717
+CLASS U21 members=1085 sampled=1085 cases=2173 mismatches=0 floor=1085
+CLASS U22 members=8417 sampled=8417 cases=25251 mismatches=0 floor=8417
+CLASS U23 members=34 sampled=34 cases=1611 mismatches=0 floor=34
+FOLD-CLOSURE code_points=1114112 folds_to_invisible=0
+INVENTORY classes=23 members=1116605 cases=75231 mismatches=0 below_floor=0 unicode=16.0.0

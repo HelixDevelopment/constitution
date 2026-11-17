@@ -1,0 +1,2 @@
+RESULT rows=288 hit=168 problems=0
+rc=0

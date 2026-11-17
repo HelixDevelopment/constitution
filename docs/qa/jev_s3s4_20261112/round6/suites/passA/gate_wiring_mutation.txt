@@ -1,0 +1,6 @@
+[mutation:wiring] GREEN on genuine fixture home confirmed
+[mutation:wiring] RED flip A asserted: gate fails naming kimi
+[mutation:wiring] RED flip B asserted: gate fails on decision-endpoint-in-chat-config (§11.4.284(D))
+[mutation:wiring] RED flip C asserted: missing opencode coverage-gap note rejected
+[mutation:wiring] RED flip D asserted: enforce without thresholds rejected
+[mutation:wiring] PASS: cm_jev_wiring.sh genuinely discriminates (GREEN genuine / RED mutated)

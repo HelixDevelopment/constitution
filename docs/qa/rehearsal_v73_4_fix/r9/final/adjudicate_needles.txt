@@ -1,0 +1,4 @@
+NOT-SHOWN adj_needle.json NEG deflist attached other=element <dd>,element <dl>,element <dt>
+NOT-SHOWN adj_needle.json NEG second label other=-
+SHOWN adj_needle.json POS plain other=-
+ADJUDICATE flagged=3 shown=1 not_shown=2

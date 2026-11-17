@@ -1,0 +1,20 @@
+#!/bin/bash
+# mutrun.sh <mutant>: run suites in order until one has failures; records "MUT name KILLED-by suite fails=N" or SURVIVED.
+# SUITES: suite keys of runsuite.sh, r14 / sw14 (the round-14 rows / sweep), or tests/... paths (named by file name).
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6; m="${1:?}"
+# overrides for tools/test_mutrun.sh only (a stub suite runner, its own runs dir and summary); unset in every real run
+RS="${MUTRUN_RUNSUITE:-$W/tools/runsuite.sh}"; RD="${MUTRUN_RUNS:-$W/runs}"; SUMM="${MUTRUN_SUMMARY:-$W/runs/mut_summary.txt}"
+for k in ${SUITES:-r14 r13 r12 r11 r10 pl r6 r9 r8 r7}; do
+  case "$k" in r14) k=tests/jev/test_s4_round14.sh ;; sw14) k=tests/jev/fixtures/sweep_s4_round14.sh ;; esac
+  kk="$(basename "$k" .sh)"
+  bash "$RS" "$W/repo" "$k" "$RD/mut_${m}_$kk" "$W/mut/$m/scripts/jev/jev-place.sh"
+  [ -s "$RD/mut_${m}_$kk.txt" ] || { echo "MUT $m NO-RESULT $kk (load abort or no output)" >> "$SUMM"; exit 0; }
+  nf=$(grep -c '^FAIL\|^not ok' "$RD/mut_${m}_$kk.txt")
+  if [ "$nf" -gt 0 ]; then echo "MUT $m KILLED-by $kk fails=$nf" >> "$SUMM"; exit 0; fi
+  rc="$(cat "$RD/mut_${m}_$kk.rc" 2>/dev/null || echo unknown)"
+  # rc 124 / 137: runsuite's `timeout --kill-after` cut the run; with no FAIL line it decided nothing (not a kill)
+  case "$rc" in 124|137) echo "MUT $m NO-RESULT $kk (timeout rc=$rc, no FAIL line: the run was cut by the clock and decided nothing)" >> "$SUMM"; exit 0 ;; esac
+  if [ "$rc" != 0 ]; then echo "MUT $m KILLED-by $kk rc=$rc (no FAIL line)" >> "$SUMM"; exit 0; fi
+done
+echo "MUT $m SURVIVED ${SUITES:-r14 r13 r12 r11 r10 pl r6 r9 r8 r7}" >> "$SUMM"

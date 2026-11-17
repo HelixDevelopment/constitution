@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Reviewer probe (round 8 review): two lease-less constitution-started sets are disposed by ONE plan. plan_locked writes
+# both `stopping` marks with one me_mark (time of the plan); do_stop then runs the stops one after the other. The second
+# mark therefore ages by the whole first stop before its own stop starts. Question: does an observer clear the second
+# mark while its stopper (A) is alive and its stop is in flight? GATE-LOGIC probe (stub llmctl, advancing test clock).
+# usage: p_multistop_mark.sh <repo> ; PLACE_UNDER_TEST overrides the producer.
+set -uo pipefail
+REPO="${1:?repo}"
+HERE="$REPO/tests/jev"; FIXTURES="$HERE/fixtures"
+# shellcheck source=/dev/null
+. "$HERE/lib_assert.sh"
+PLACE="${PLACE_UNDER_TEST:-$REPO/scripts/jev/jev-place.sh}"
+make_fixture_env rvq
+export JEV_TRACE_FILE="${TRACE_OUT:?TRACE_OUT}"; : > "$JEV_TRACE_FILE"
+export PATH="$FIXTURES/bin-place:$PATH" JEV_TEST=1 PLACE_CAP_JSON="$T/cap.json"
+export JEV_LLMCTL_START_TIMEOUT=10 JEV_RECORD_RETRIES=1 JEV_LOCK_TIMEOUT=1   # MARK_TTL = 10+2+1+30 = 43
+T0=1700000000; printf '%s\n' "$T0" > "$T/clock"; export JEV_NOW_FILE="$T/clock"
+jq -n '{schema:"llmctl.capacity/1", time:1700000000, measurement:{ok:true, critical_inputs_unreadable:[]},
+  host:{cpus_online:16, mem_total_mb:20000, mem_available_mb:18000, usable_mem_mb:15000, swap_total_mb:0, swap_free_mb:0,
+        load:{"1":1.0,"5":1.0,"15":1.0}, psi:{memory:{some:0.0,full:0.0},cpu:{some:0.0},io:{some:0.0,full:0.0}}, cgroup:{memory_max_mb:null},
+        nproc:{rlimit_soft:123694, rlimit_hard:123694, user_threads:400, headroom:5000}},
+  reserve:{mem_reserved_mb:4000, cpus_reserved:4}, pressure:{ok:true, reasons:[]},
+  llmctl:{units:[]}, fallback:{recommended:"cloud", key_variable:null}, unknown_profiles:[], degraded:false, largest_decision_fit:null,
+  profiles:{"decide-a":{verdict:"fits", verdict_class:"fits", running:false, threads:3, reasons:[], headroom:{footprint_mb:1000}},
+            "decide-b":{verdict:"fits", verdict_class:"fits", running:false, threads:3, reasons:[], headroom:{footprint_mb:1000}}}}' > "$T/cap.json"
+: > "$STUB_LOG/llmctl.log"
+touch "$STUB_LOG/running.decide-a" "$STUB_LOG/running.decide-b"
+jq -n --argjson t "$T0" '{gen:1, sets:{
+  "decide-a":{constitution_started:true, started_at:$t, starting:null, stopping:null, leases:[], health:{state:"degraded", reason:"crafted", seq:0, at:$t}},
+  "decide-b":{constitution_started:true, started_at:$t, starting:null, stopping:null, leases:[], health:{state:"degraded", reason:"crafted", seq:0, at:$t}}}}' > "$JEV_STATE_DIR/leases.json"
+# A: each stop takes 6 s of wall time and 44 s of test-clock time (PLACE_STOP_CLOCK_ADD)
+( export PLACE_DEGRADED=decide-a,decide-b PLACE_STOP_SLEEP=${STOPSLEEP:-6} PLACE_STOP_CLOCK_ADD=44
+  exec "$PLACE" acquire sA --pid $$ > "$T/a.out" 2> "$T/a.err" ) & A=$!
+# wait until A's SECOND stop has begun (the first stop line is followed by a second one)
+n=0; while [ "$n" -lt 300 ]; do [ "$(grep -c '^llmctl stop' "$STUB_LOG/llmctl.log" 2>/dev/null || true)" -ge 2 ] && break; sleep 0.1; n=$((n+1)); done
+echo "stops-begun: $(grep '^llmctl stop' "$STUB_LOG/llmctl.log" | paste -sd, -)"
+echo "clock-now: $(( $(cat "$T/clock") - T0 )) s after T0; A alive: $(kill -0 "$A" 2>/dev/null && echo yes || echo no)"
+echo "second-set mark before observer: $(jq -c '[.sets | to_entries[] | {p:.key, stopping:(.value.stopping.at // null)}]' "$JEV_STATE_DIR/leases.json")"
+# B: an observer (another session's reap) while A is alive and its second stop is in flight
+PLACE_DEGRADED=decide-a,decide-b "$PLACE" reap > "$T/b.out" 2> "$T/b.err"; echo "observer rc=$?"
+echo "observer stderr: $(tr '\n' ' ' < "$T/b.err")"
+echo "after observer: $(jq -c '[.sets | to_entries[] | {p:.key, stopping:(.value.stopping.at // null), health:.value.health.state, cleared:(.value.mark_cleared // null)}]' "$JEV_STATE_DIR/leases.json")"
+echo "A still alive: $(kill -0 "$A" 2>/dev/null && echo yes || echo no)"
+if [ "${VARIANT:-}" = join ]; then
+  # the unit's pressure cleared: C (another session) acquires while A's stop of decide-b is still in flight
+  ( unset PLACE_DEGRADED; exec "$PLACE" acquire sC --pid $$ > "$T/c.out" 2> "$T/c.err" ); echo "C rc=$? out=$(cat "$T/c.out")"
+  echo "C stderr: $(tr '\n' ' ' < "$T/c.err" | head -c 600)"
+  echo "after C: $(jq -c '[.sets | to_entries[] | {p:.key, stopping:(.value.stopping.at // null), health:.value.health.state, leases:[.value.leases[].holder]}]' "$JEV_STATE_DIR/leases.json")"
+  echo "cache after C: $(jq -c '[.endpoints[]? | select(.provider_id=="llmctl-local") | .model]' "$CMA_PROVIDERS_DIR"/*.json 2>/dev/null | paste -sd, -)"
+fi
+wait "$A"; echo "A rc=$?"
+echo "after A: $(jq -c '.sets' "$JEV_STATE_DIR/leases.json")"
+echo "running units after A: $(cd "$STUB_LOG" && ls running.* 2>/dev/null | paste -sd, -)"
+echo "C heartbeat: $("$PLACE" heartbeat sC > /dev/null 2>&1; echo rc=$?)"
+echo "llmctl log: $(paste -sd, "$STUB_LOG/llmctl.log")"
+if grep -q 'cleared the stopping mark of decide-b' "$T/b.err"; then echo "RESULT: LIVE stopper's mark CLEARED early"; else echo "RESULT: mark kept"; fi

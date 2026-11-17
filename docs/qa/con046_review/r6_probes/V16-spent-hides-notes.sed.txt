@@ -1,0 +1,1 @@
+s/rev-list --exclude=refs\/stash --all --parents/rev-list --exclude=refs\/stash --exclude=refs\/notes\/* --all --parents/

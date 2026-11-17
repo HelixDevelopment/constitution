@@ -1,0 +1,2295 @@
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/001/workable_items.db
+update: CON-970 updated in Issues (status=Queued, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/003/Issues.md (264 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d3086826044/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/001/workable_items.db
+update: CON-970 updated in Issues (status=Queued, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/003/Issues.md (265 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--d2794406558/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/001/workable_items.db
+update: CON-970 updated in Issues (status=In progress, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/003/Issues.md (779 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemupdate_--s4154695227/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/001/workable_items.db
+block: CON-970 set Operator-blocked in Issues (WHAT:the operator decides)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/003/Issues.md (406 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock11867459/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/001/workable_items.db
+block: CON-970 set Operator-blocked in Issues (WHAT:first decision)
+block: CON-970 set Operator-blocked in Issues (WHAT:second decision)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/003/Issues.md (401 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_twic3174298452/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/001/workable_items.db
+block: CON-970 set Operator-blocked in Issues (WHAT:the operator decides)
+update: CON-970 updated in Issues (status=Operator-blocked, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/003/Issues.md (405 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then3158289608/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/001/workable_items.db
+block: CON-970 set Operator-blocked in Issues (WHAT:the operator decides)
+update: CON-970 updated in Issues (status=In progress, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/003/Issues.md (401 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then2514942093/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/001/workable_items.db
+block: CON-970 set Operator-blocked in Issues (WHAT:the operator decides)
+move: CON-970 relocated Issues→Fixed (status=Completed (→ Fixed.md), reason=r5 probe)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/003/Issues.md (0 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/003/Fixed.md (414 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/003/Issues.md: 0 items, 0 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/003/Fixed.md: 1 items, 1 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1426577880/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/001/workable_items.db
+block: CON-970 set Operator-blocked in Issues (WHAT:the operator decides)
+reopen: CON-970 reopened in Issues (By:AI On:2026-11-17 Reason:test-failed Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/003/Issues.md (582 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then1666622545/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/001/workable_items.db
+block: CON-970 set Operator-blocked in Issues (WHAT:the operator decides)
+close: moved CON-970 Issues→Fixed (status=Completed (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/003/Issues.md (0 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/003/Fixed.md (328 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/003/Issues.md: 0 items, 0 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/003/Fixed.md: 1 items, 1 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemblock_then667980421/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/001/workable_items.db
+close: moved CON-970 Issues→Fixed (status=Completed (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/003/Issues.md (0 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/003/Fixed.md (328 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/003/Issues.md: 0 items, 0 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/003/Fixed.md: 1 items, 1 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose3926261882/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/001/workable_items.db
+close: moved CON-970 Issues→Fixed (status=Completed (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt)
+reopen: CON-970 reopened, relocated Fixed→Issues (By:AI On:2026-11-17 Reason:test-failed Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt)
+close: moved CON-970 Issues→Fixed (status=Completed (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/003/Issues.md (0 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/003/Fixed.md (512 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/003/Issues.md: 0 items, 0 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/003/Fixed.md: 1 items, 1 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_then2624032097/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/001/workable_items.db
+close: moved CON-970 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt)
+obsolete-details: CON-970 written (Since:2026-11-17 Reason:duplicate-of Superseding:CON-082 Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt)
+update: CON-970 updated in Fixed (status=Obsolete (→ Fixed.md), type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/003/Issues.md (0 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/003/Fixed.md (535 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/003/Issues.md: 0 items, 0 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/003/Fixed.md: 1 items, 1 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemclose_obso3261922924/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-970 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/002/Issues.md (169 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/001/workable_items.db
+move: CON-970 relocated Issues→Fixed (status=Completed (→ Fixed.md), reason=r5 probe)
+move: CON-970 relocated Fixed→Issues (status=Queued, reason=r5 probe back)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/003/Issues.md (774 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/003/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/003/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/003/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItemmove_to_Fi318650660/004/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+--- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem (1.70s)
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/update_--description_(same_text) (0.11s)
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: update --description (same text) dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/update_--description_(new_text) (0.11s)
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+        idgrammar_r5_cli_test.go:258: update --description (new text) dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Queued
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Replaced in round five.
+            
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/block (0.13s)
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/block_twice (0.12s)
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block twice dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: second decision WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/block_then_update_--description (0.13s)
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+        idgrammar_r5_cli_test.go:258: block then update --description dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Operator-blocked
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited while blocked.
+            
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/block_then_update_--status_(unblock) (0.11s)
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock) dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** In progress
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then update --status (unblock): status In progress with 1 operator_block_details rows, want 0
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/block_then_move_to_Fixed (0.10s)
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then move to Fixed: status Completed (→ Fixed.md) with 1 operator_block_details rows, want 0
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/block_then_reopen (0.11s)
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Reopened
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+              **Evidence:** indented quote of an evidence line in prose (RM3 input)
+            **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then reopen: status Reopened with 1 operator_block_details rows, want 0
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/block_then_close (0.14s)
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "  **Evidence:** indented quote of an evidence line in prose (RM3 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: block then close dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/close (0.12s)
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "  **Evidence:** indented quote of an evidence line in prose (RM3 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/close_then_reopen_then_close (0.15s)
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "  **Evidence:** indented quote of an evidence line in prose (RM3 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+        idgrammar_r5_cli_test.go:258: close then reopen then close dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Completed (→ Fixed.md)
+            **Type:** Task
+            **Reopened-Details:** By: AI On: 2026-11-17 Reason: test-failed Evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/002/incident.txt
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            r5 rich body probe — a sufficiently long description that clears the description floor for round two
+            
+    --- FAIL: TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem/close_obsolete_then_obsolete-details_then_update_--description (0.13s)
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "Acceptance criteria: the r5 probe line survives every body writer.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: r5 probe -- due: next run.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "**Reported-Via:** BUG directive":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "**Reported-By:** operator (r5 probe)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "**Candidate-Duplicate-Of:** CON-001 (r5 probe, undecided)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "  **Evidence:** indented quote of an evidence line in prose (RM3 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "| column a | column b |":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "### Notes":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "A note under a sub-heading.":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "**Evidence:** fenced quote under a tilde fence (RM4 input)":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "~~~":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "**Operator-Block-Details:** WHAT: a fenced quote, not a record":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "**Unblock-Choices:** [X] fenced · [Y] quote":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+        idgrammar_r5_cli_test.go:258: close obsolete then obsolete-details then update --description dropped the authored line "```":
+            ## CON-970 — r5 rich body probe
+            
+            **Status:** Obsolete (→ Fixed.md)
+            **Type:** Task
+            **Evidence:** /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Obsolete-Details:** Since: 2026-11-17; Reason: duplicate-of; Superseding-item: CON-082; Triple-check evidence: /mnt/DATA1TB/claude-work/tmp/TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem3173784034/001/ev.txt
+            **Severity:** Low
+            
+            a sufficiently long description that clears the description floor for round two Edited after.
+            
+add: created CON-971 (Task, status=Queued) in Issues
+block: CON-971 set Operator-blocked in Issues (WHAT:the operator decides)
+update: CON-971 updated in Issues (status=In progress, type=Task)
+add: created CON-971 (Task, status=Queued) in Issues
+block: CON-971 set Operator-blocked in Issues (WHAT:the operator decides)
+reopen: CON-971 reopened in Issues (By:AI On:2026-11-17 Reason:test-failed Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R5_UnblockingWritersRemoveBlockRow899955796/001/incident.txt)
+add: created CON-971 (Task, status=Queued) in Issues
+block: CON-971 set Operator-blocked in Issues (WHAT:the operator decides)
+move: CON-971 relocated Issues→Fixed (status=Completed (→ Fixed.md), reason=r5 probe)
+--- FAIL: TestCON456R5_UnblockingWritersRemoveBlockRow (0.19s)
+    --- FAIL: TestCON456R5_UnblockingWritersRemoveBlockRow/update_--status (0.06s)
+        idgrammar_r5_cli_test.go:294: update --status left 1 operator_block_details rows on a In progress item
+    --- FAIL: TestCON456R5_UnblockingWritersRemoveBlockRow/reopen (0.08s)
+        idgrammar_r5_cli_test.go:294: reopen left 1 operator_block_details rows on a Reopened item
+    --- FAIL: TestCON456R5_UnblockingWritersRemoveBlockRow/move (0.05s)
+        idgrammar_r5_cli_test.go:294: move left 1 operator_block_details rows on a Completed (→ Fixed.md) item
+add: created CON-972 (Task, status=Queued) in Issues
+block: CON-972 set Operator-blocked in Issues (WHAT:the operator decides)
+update: CON-972 updated in Issues (status=Operator-blocked, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_BlockedNoSeverityUpdateDescription378231493/002/Issues.md (300 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R5_BlockedNoSeverityUpdateDescription378231493/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_BlockedNoSeverityUpdateDescription378231493/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R5_BlockedNoSeverityUpdateDescription378231493/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R5_BlockedNoSeverityUpdateDescription378231493/003/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+add: created CON-001 (Task, status=Queued) in Issues
+add: refusing (nothing written) — the Markdown of CON-973 (Issues, section) would not read back as this item on the next sync md-to-db: CON-973 (Issues, section): the reproduction/investigation records read back differently from the stored state columns
+add: created CON-974 (Task, status=Queued) in Issues
+block: CON-974 set Operator-blocked in Issues (WHAT:the operator decides)
+update: refusing (nothing written) — the write would change the Operator-Block-Details record the next sync md-to-db reads (operator_block_details, §11.4.148 D3)
+--- FAIL: TestCON456R5_DescriptionChoicesLineIsDescriptionText (0.06s)
+    idgrammar_r5_cli_test.go:367: update --description exited 1 (the removed line was description text)
+add: created CON-927 (Task, status=Queued) in Issues
+close: moved CON-927 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R5_BlockAtFixedRefused2054166381/002/ev.txt)
+block: CON-927 set Operator-blocked in Fixed (WHAT:d)
+--- FAIL: TestCON456R5_BlockAtFixedRefused (0.06s)
+    idgrammar_r5_cli_test.go:387: block --location Fixed was accepted
+add: created CON-927 (Task, status=Queued) in Issues
+close: moved CON-927 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R5_DescriptionQuoteThenDropKeepsEvidence2909011100/002/ev.txt)
+update: CON-927 updated in Fixed (status=Obsolete (→ Fixed.md), type=Task)
+update: CON-927 updated in Fixed (status=Obsolete (→ Fixed.md), type=Task)
+--- FAIL: TestCON456R5_DescriptionQuoteThenDropKeepsEvidence (0.07s)
+    idgrammar_r5_cli_test.go:413: the closure evidence line was lost or duplicated:
+        ## CON-927 — obsolete probe
+        
+        **Status:** Obsolete (→ Fixed.md)
+        **Type:** Task
+        **Severity:** Low
+        
+        a sufficiently long description that clears the description floor for round two Edited twice.
+        
+add: created CON-960 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_BlockKeepsAuthoredBody989439469/002/Issues.md (179 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_BlockKeepsAuthoredBody989439469/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_BlockKeepsAuthoredBody989439469/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_BlockKeepsAuthoredBody989439469/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_BlockKeepsAuthoredBody989439469/001/workable_items.db
+block: CON-960 set Operator-blocked in Issues (WHAT:the operator decides)
+--- FAIL: TestRev456R4_RED_BlockKeepsAuthoredBody (0.05s)
+    idgrammar_r5_rev456r4_red_test.go:49: block dropped the authored line "**Verification:** provisional (section 11.4.290) -- job: reviewer probe -- due: next run.":
+        ## CON-960 — reviewer authored body probe
+        
+        **Status:** Operator-blocked
+        **Type:** Task
+        **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+        **Severity:** Low
+        
+        reviewer authored body probe — a sufficiently long description that clears the description floor for round two
+        
+    idgrammar_r5_rev456r4_red_test.go:49: block dropped the authored line "Acceptance criteria: the reviewer probe line survives every body writer.":
+        ## CON-960 — reviewer authored body probe
+        
+        **Status:** Operator-blocked
+        **Type:** Task
+        **Operator-Block-Details:** WHAT: the operator decides WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop WHO: operator
+        **Severity:** Low
+        
+        reviewer authored body probe — a sufficiently long description that clears the description floor for round two
+        
+add: created CON-961 (Task, status=Queued) in Issues
+block: CON-961 set Operator-blocked in Issues (WHAT:the operator decides)
+update: CON-961 updated in Issues (status=Operator-blocked, type=Task)
+update: CON-961 updated in Issues (status=Operator-blocked, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_DescriptionOwnedSkipKeepsBlockRecord2292022715/002/Issues.md (207 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_DescriptionOwnedSkipKeepsBlockRecord2292022715/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_DescriptionOwnedSkipKeepsBlockRecord2292022715/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_DescriptionOwnedSkipKeepsBlockRecord2292022715/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestRev456R4_RED_DescriptionOwnedSkipKeepsBlockRecord2292022715/001/workable_items.db
+--- FAIL: TestRev456R4_RED_DescriptionOwnedSkipKeepsBlockRecord (0.06s)
+    idgrammar_r5_rev456r4_red_test.go:87: the block record was lost: operator_block_details rows = 0, status Operator-blocked
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	2.346s
+FAIL
+rc=1
