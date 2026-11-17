@@ -17,13 +17,20 @@ harness enumerates the STATE before the line:
             open and closed fences of both characters, HTML blocks of kinds 1 to 7 open and closed, hiding elements
             (`hidden`, `display:none`, `<details>`), link reference definitions and their titles, inline constructs left
             open (code span, comment, tag, emphasis, link, backslash), GFM tables, front matter, extension syntax
-            (fenced div, attribute list), hard breaks)
+            (fenced div, attribute list), hard breaks; round 8, review r7 F1-F6: HTML5 comment ends `--!>`, `<!-->`,
+            `<!--->`, a second label hidden by variation selectors, a combining grapheme joiner, a Hangul filler, a
+            character reference, a Cyrillic look-alike, a ratio colon, a Cherokee letter, a combining mark or a code
+            span, a GFM footnote definition, raw HTML in image text, a setext heading GFM reads as a table header, a
+            U+3000 line)
   JOINS     how the line is attached (one, two, three line feeds; a quote marker; an empty quote line; 2, 3, 4 spaces; a
             tab; a list marker; a blank and then 2 or 4 spaces or a tab)
   SUFFIXES  what follows the line (nothing, a line feed, a fence, `-->`, `</div>`, setext underlines, text, a blank and
-            `</div>`)
+            `</div>`; round 8: a continuation that adds a field, a second label with a variation selector, an HTML5
+            comment end that opens a hiding element, a GFM table delimiter row)
   ENDINGS   LF, a lone CR, CR LF (every line feed of the body replaced)
-plus the r6 reviewer's shapes verbatim (review r6 probe_r6, probe_hide). Every verification line is the fixture's
+plus the r6 reviewer's shapes verbatim (review r6 probe_r6, probe_hide), the r7 reviewer's shapes (review r7
+probe_bang, probe_near, probe_shapes, probe_nested_html) and the round-8 class members (text the reader shows in the
+counted paragraph after the line: a continuation, a comment spanning lines, a hard break). Every verification line is the fixture's
 grammar sentence (tests/release/pvl_fixture.py line()) resolved under a fixture root, so the checker's real verdict
 check_body(body, ctx) is computed, never inferred.
 
@@ -32,17 +39,23 @@ THE ORACLE (independent of the checker's code): a body the checker ACCEPTS is re
 pandoc drops a lone CR and is blind to it, the needle below proves it) -- and the HTML is read with html.parser. A
 render is CLEAN when (a) it holds only the elements Markdown itself generates, with only their generated attributes
 (no raw HTML element, so nothing can hide or wrap the line), (b) exactly one top-level <p> starts with
-<strong>Verification:</strong>, and its text starts with the line's text, and (c) no other text of the document
-(text outside that paragraph, comments, attribute values, the rest of that paragraph) reads as the label once every
-character that is not a letter or a colon is removed (casefolded, NFKC, format characters removed). An accepted body
+<strong>Verification:</strong>, and its text is exactly the line's text (round 8, review r7 R7M13: "starts with"
+let a continuation through), and (c) no other text of the document (text outside that paragraph, comments, attribute
+values) reads as the label once it is read with the reference reading (scripts/validation/pvl_reading_table.py, live
+from ICU: default-ignorable code points, marks and format characters read as nothing, NFKD, the UTS #39 skeleton, case
+folding) and every character that is not a letter or a colon is removed. The checker reads with a table generated
+from the same reading; the oracle calls ICU itself, so a table that misreads a character is a DANGER here. An accepted body
 whose render is not clean in any reader is a DANGER (a FAIL). A refused body is the safe direction; the bodies
 markdown-it renders clean but the checker refuses are counted as false refusals (informational).
 
 Control needles (section 11.4.201(7)(b)): the oracle must call NEEDLE_CLEAN clean and each NEEDLE_DIRTY not clean in
 markdown-it (and in pandoc when present), and pandoc must be blind to a lone CR (it renders `x<CR>```...` with the line
-visible). A failed needle makes the run BLIND (exit 2).
+visible). Round 8 (review r7 F7: R7M13 and R7M14 weakened the oracle unnoticed): ORACLE_SELFTEST gives every check of
+clean() a rendered page that only that check refuses, with the reason it must give, and the clean page must pass; a
+self-test failure, or ICU missing, makes the run BLIND (exit 2).
 Output: per DANGER `BS-DANGER <name> <reader>: <why>`, then `BLOCKSTATE bodies=N accepted=A refused=R danger=D
-false_refusals=F contexts=C joins=J suffixes=S endings=E reviewer=K mdit=<version> pandoc=<checked|SKIP>`.
+false_refusals=F contexts=C joins=J suffixes=S endings=E reviewer=K mdit=<version> pandoc=<checked|SKIP>
+oracle_selftest=T icu=<version>`.
 Exit 0 when D is 0 and every needle holds, 1 otherwise, 2 BLIND. --quick: LF and CR LF only, no pandoc (for mutants).
 Section 11.4.289(C)(2): gate-logic.
 """
@@ -53,11 +66,22 @@ import re
 import shutil
 import subprocess
 import sys
-import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import pvl_fixture as F  # noqa: E402
+
+# the reference reading (scripts/validation/pvl_reading_table.py), live from ICU: the oracle reads a label with it, the
+# checker with its embedded table, so a table that misreads a character is caught here (round 8, review r7 F6)
+try:
+    _spec = importlib.util.spec_from_file_location(
+        "pvl_reading_ref", os.path.join(HERE, "..", "..", "scripts", "validation", "pvl_reading_table.py"))
+    _RT = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_RT)
+    _ICU = _RT.ICU()
+except Exception as _exc:  # noqa: BLE001 -- reported as BLIND, never as agreement
+    _ICU = None
+    _ICU_ERROR = str(_exc)[:120]
 
 try:
     from markdown_it import MarkdownIt
@@ -113,12 +137,26 @@ CONTEXTS = [
     ("i-emph", "x *"), ("i-link", "x ["), ("i-autolink", "<http://a>"),
     # GitHub and extension syntax
     ("gfm-table", "| a |\n| - |"), ("fenced-div", "::: {.hidden}"), ("ial", "{: .hidden}"),
+    # round 8 (review r7 F1, F2, F5, F6): HTML5 comment ends, a second label hidden by invisible or look-alike
+    # characters, character references, a colon look-alike, a GFM footnote definition, raw HTML in image text
+    ("c-bang-div", "<!-- a --!><div hidden>\n-->"), ("c-bang-inline", "x <!-- --!><span hidden> -->"),
+    ("c-empty3", "<!--->"), ("c-dashdash", "<!-- a -- b -->"),
+    ("lbl-vs16", "**Verif\ufe0fication:** provisional -- checks: FAKE pass=999"),
+    ("lbl-cgj", "Verifi\u034fcation: x"), ("lbl-hangul", "Verifi\u3164cation: x"),
+    ("lbl-ref", "Verif&#xFE0F;ication: x"), ("lbl-cyr", "V\u0435rification: x"), ("lbl-ratio", "Verification\u2236 x"),
+    ("lbl-cherokee", "\u13d9erification: x"), ("lbl-mark", "Verificat\u0323ion: x"),
+    ("lbl-code", "`Verif\ufe0fication:`"), ("fn-def", "[^1]: x"), ("img-alt-html", "![<span hidden>x</span>](u)"),
+    ("gfm-setext-table", "| x |\n---"), ("u3000-line", "\u3000"),
 ]
 JOINS = [("lf", "\n"), ("blank", "\n\n"), ("blank2", "\n\n\n"), ("quote", "\n> "), ("quote-empty", "\n>\n"),
          ("sp2", "\n  "), ("sp3", "\n   "), ("sp4", "\n    "), ("tab", "\n\t"), ("dash", "\n- "),
          ("blank-sp2", "\n\n  "), ("blank-sp4", "\n\n    "), ("blank-tab", "\n\n\t")]
 SUFFIXES = [("none", ""), ("lf", "\n"), ("fence", "\n```"), ("comment-end", "\n-->"), ("div-end", "\n</div>"),
-            ("setext1", "\n==="), ("setext2", "\n---"), ("text", "\ntext"), ("blank-div-end", "\n\n</div>")]
+            ("setext1", "\n==="), ("setext2", "\n---"), ("text", "\ntext"), ("blank-div-end", "\n\n</div>"),
+            # round 8: a continuation that adds a field the reader sees, a second label hidden by a variation selector,
+            # an HTML5 comment end that opens a hiding element, a GFM table delimiter row
+            ("cont-fake", "\n-- checks: FAKE pass=999"), ("lbl-after", "\n\n**Verif\ufe0fication:** x"),
+            ("bang-after", "\n\n<!-- --!><style>p{display:none}</style> -->"), ("table-delim", "\n|---|")]
 ENDINGS = [("LF", "\n"), ("CR", "\r"), ("CRLF", "\r\n")]
 
 # the r6 reviewer's shapes (review r6 probe_r6.txt, probe_hide.txt; @ marks the verification line)
@@ -132,6 +170,24 @@ REVIEWER = [
     ("rv6-hide_list_lazy", "- x\n\n    <span hidden>y\n@\n"), ("rv6-hide_comment_open_lazy", "x <!--\n*\n@\n-->\n"),
     # a hiding element around a top-level paragraph (found by this enumeration's h6-div-hidden context)
     ("r7-div-hidden-around", "<div hidden>\n\n@\n\n</div>"), ("r7-style-after", "@\n\n<style>p{display:none}</style>"),
+    # the r7 reviewer's shapes (review r7 probe_bang.txt, probe_near.txt, probe_shapes.txt, probe_nested_html.txt)
+    ("rv7-bang-block-div-hidden", "<!-- a --!><div hidden>\n-->\n\n@\n"),
+    ("rv7-bang-block-style", "<!-- a --!><style>p{display:none}</style>\n-->\n\n@\n"),
+    ("rv7-bang-block-oneline", "<!-- --!><div hidden> -->\n\n@\n"),
+    ("rv7-bang-after", "@\n\n<!-- --!><style>p{display:none}</style> -->\n"),
+    ("rv7-near-vs16", "@\n\n**Verif\ufe0fication:** provisional -- job: FAKE -- checks: FAKE pass=999\n"),
+    ("rv7-near-vs1", "@\n\n**Verif\ufe00ication:** provisional -- job: FAKE -- checks: FAKE pass=999\n"),
+    ("rv7-near-cgj", "@\n\n**Verifi\u034fcation:** provisional -- job: FAKE -- checks: FAKE pass=999\n"),
+    ("rv7-near-fvs1", "@\n\n**Verifi\u180bcation:** provisional -- job: FAKE -- checks: FAKE pass=999\n"),
+    ("rv7-near-hangul", "@\n\n**Verifi\u3164cation:** provisional -- job: FAKE -- checks: FAKE pass=999\n"),
+    ("rv7-near-ref", "@\n\n**Verif&#xFE0F;ication:** provisional -- job: FAKE -- checks: FAKE pass=999\n"),
+    ("rv7-gfm-table-header", "@\n-|-\n"), ("rv7-footnote", "[^1]: x\n@\n"),
+    ("rv7-footnote-indent", "[^1]: x\n    @\n"), ("rv7-comment-then-text", "<!-- a -->x\n\n@\n"),
+    ("rv7-comment-unterminated", "@\n\n<!-- x\n"), ("rv7-inline-comment", "@ -- note <!-- x -->\n"),
+    ("rv7-img-alt-html", "@\n\n![<span hidden>x</span>](u)\n"),
+    # round 8 (fixer's own class enumeration): text the reader shows in the counted paragraph after the line
+    ("r8-cont-fake", "@\n-- checks: FAKE pass=999\n"), ("r8-comment-spans", "@ -- note x <!--\n-->-- checks: FAKE pass=999\n"),
+    ("r8-hardbreak", "@ -- note x\\\nchecks: FAKE pass=999\n"),
 ]
 
 # what Markdown itself generates (any other element or attribute came from raw HTML)
@@ -142,10 +198,9 @@ GEN_ATTRS = {"href", "title", "src", "alt", "start", "class", "type", "disabled"
 
 
 def label_like(s):
-    """True when S reads as the label: casefolded, NFKC, format characters removed, then only letters and colons kept."""
-    t = unicodedata.normalize("NFKC", s)
-    t = "".join(c for c in t if unicodedata.category(c) != "Cf").casefold()
-    return "verification:" in re.sub(r"[^a-z:]", "", t)
+    """True when S reads as the label: read with the reference reading (live ICU: ignorables, marks and format
+    characters read as nothing, NFKD, UTS #39 skeleton, case folded), then only letters and colons kept."""
+    return "verification:" in re.sub(r"[^a-z:]", "", _RT.fold(_ICU, s))
 
 
 class _Walk(html.parser.HTMLParser):
@@ -223,8 +278,8 @@ def clean(rendered):
             rest.append(txt)
     if len(vps) != 1:
         return False, "%d top-level verification paragraphs" % len(vps)
-    if not vps[0].startswith(GTEXT):
-        return False, "the verification paragraph does not start with the line's text: %r" % vps[0][:60]
+    if vps[0] != GTEXT:
+        return False, "the verification paragraph does not show exactly the line's text: %r" % vps[0][-60:]
     if any(label_like(x) for x in rest):
         return False, "the label reads elsewhere in the document"
     return True, ""
@@ -245,6 +300,36 @@ NEEDLE_CLEAN = "## x\n\n" + G + "\n"
 NEEDLE_DIRTY = ["text\n" + G, "<div hidden>\n\n" + G + "\n\n</div>", G + "\n\n> " + G.replace("pass=3", "pass=9"),
                 G + "\n\n<!-- **Verification:** x -->", G + "\n\n```\n" + G + "\n```"]
 CR_NEEDLE = "x\r```\n\n" + G + "\n```\n"
+# the oracle's own checks (round 8, review r7 F7 R7M13 R7M14): each rendered page below must be found not clean by
+# exactly the check named, so removing or weakening any one check of clean() makes the run BLIND
+_P = "<p><strong>Verification:</strong>" + GTEXT[len("Verification:"):] + "</p>\n"
+ORACLE_SELFTEST = [
+    ("element", "<div>" + _P + "</div>", "raw HTML: element <div>"),
+    ("attribute", _P.replace("<p>", '<p data-x="1">'), "raw HTML: attribute data-x on <p>"),
+    ("style", _P + '<table><tr><td style="display:none">x</td></tr></table>', "raw HTML: style 'display:none' on <td>"),
+    ("declaration", "<!DOCTYPE x>\n" + _P, "raw HTML: declaration"),
+    ("pi", "<?x y?>\n" + _P, "raw HTML: processing instruction"),
+    ("none", "<p>x</p>\n", "0 top-level verification paragraphs"),
+    ("two", _P + _P, "2 top-level verification paragraphs"),
+    ("text-more", _P.replace("</p>", " -- checks: FAKE pass=999</p>"), "the verification paragraph does not show"),
+    ("text-less", _P.replace(" pass=1", ""), "the verification paragraph does not show"),
+    ("label-vs16", _P + "<p>Verif\ufe0fication: x</p>", "the label reads elsewhere"),
+    ("label-confusable", _P + "<p>V\u0435rification: x</p>", "the label reads elsewhere"),
+    ("label-colon", _P + "<p>Verification\u2236 x</p>", "the label reads elsewhere"),
+    ("label-comment", _P + "<!-- Verification: x -->", "the label reads elsewhere"),
+    ("label-attr", _P + '<p><a href="u" title="Verification: x">a</a></p>', "the label reads elsewhere"),
+]
+
+
+def oracle_selftest():
+    """None when every check of clean() fires on its own needle with its own reason and the clean page passes."""
+    if not clean(_P)[0]:
+        return "the clean page %r is not clean: %s" % (_P[:40], clean(_P)[1])
+    for name, page, want in ORACLE_SELFTEST:
+        ok, why = clean(page)
+        if ok or not why.startswith(want):
+            return "check %s: got %r, want a reason starting %r" % (name, why[:80], want)
+    return None
 
 
 def bodies(quick):
@@ -275,6 +360,13 @@ def main(argv):
         return 2
     if _MD is None:
         print("BLOCKSTATE-BLIND markdown-it-py is not importable: no reference reader")
+        return 2
+    if _ICU is None:
+        print("BLOCKSTATE-BLIND the reference reading (ICU) cannot be loaded: %s" % _ICU_ERROR)
+        return 2
+    st = oracle_selftest()
+    if st:
+        print("BLOCKSTATE-BLIND the oracle's self-test failed: %s" % st)
         return 2
     exe = None if ("--no-pandoc" in argv or quick) else shutil.which("pandoc")
     readers = [("mdit", render_mdit)]
@@ -316,9 +408,9 @@ def main(argv):
             if clean(render_mdit(body))[0]:
                 falseref += 1
     print("BLOCKSTATE bodies=%d accepted=%d refused=%d danger=%d false_refusals=%d contexts=%d joins=%d suffixes=%d "
-          "endings=%d reviewer=%d mdit=%s pandoc=%s" % (n, acc, ref, danger, falseref, len(CONTEXTS), len(JOINS),
-                                                       len(SUFFIXES), 2 if quick else len(ENDINGS), len(REVIEWER),
-                                                       MDIT_VERSION, "checked" if exe else "SKIP"))
+          "endings=%d reviewer=%d mdit=%s pandoc=%s oracle_selftest=%d icu=%s" % (
+              n, acc, ref, danger, falseref, len(CONTEXTS), len(JOINS), len(SUFFIXES), 2 if quick else len(ENDINGS),
+              len(REVIEWER), MDIT_VERSION, "checked" if exe else "SKIP", len(ORACLE_SELFTEST), _ICU.icu_version))
     return 1 if danger else 0
 
 

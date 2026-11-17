@@ -57,3 +57,12 @@ RW04	r7: the hand-written line model was replaced by the markdown-it-py parse (o
 RW05	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (tab-indented contexts) + pvl_lineend TAB member + own O49 (column-0 prefix required)
 RW06	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (setext suffixes) + pvl_linemodel M06 (setext refused) + own O48 O49
 RW10	r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (thematic-break contexts and joins) + own O46 O47
+RW03	r8: fold() decodes character references and reads every character with the reading table (no NFKC step left): api_r8 CON-962/974 (references) + own O64
+RW07	r8: status_key reads with fold() (case, white space and invisible characters): api_r6 status spellings + api_r8 CON-991/992 + own O82
+R7M01	r8: the counted paragraph must be one source line (the exact rule: map[0] and map[1]-1 are then the same line): api_r8 CON-979/985/988 + own O70 + pvl_linemodel paragraph cases
+R7M02	r8: every HTML token is refused, comments included (no comment filter left): api_r7 CON-952/963 + api_r8 CON-971/972 + own O77
+R7M03	r8: no comment regex left (every comment refused): api_r8 CON-971/972 + pvl_blockstate c-bang-* contexts + own O77
+R7M04	r8: no skip_label left; the rendered text after the label must equal the source (exact rule): api_r8 CON-980/981/982 + own O71
+R7M10	r8: equivalent by redundancy (the r7 reviewer agreed); the fence branch is own equivalent O89
+R7M12	r8: has_label reads with fold() and the reading table (UTS 39 skeleton, NFKD): api_r8 CON-973 to CON-978, CON-990 + own O64-O66
+R7M13	r8: the oracle compares the verification paragraph with the line's text for equality: own O85 + the oracle self-test (text-more, text-less)

@@ -25,13 +25,21 @@ mutants: reads the mutant tables of mutants_r2.py.txt, mutants_r3.py.txt, mutant
   that file's own suite: its map row is `OTHER-SUITE <suite>` and the suite must name the id. A not-applicable mutant
   without a map row, or a map row for a mutant of this suite that applies, is a FAIL. Then `REVIEWER mutants total=N applies=A not_applicable=K fail=F`; exit 0 when F is 0.
   `REV-MUT-SPEC <id>\\t<file>\\t<old>\\t<new>` lines (old and new as Python literals) let the suite apply the ones that
-  apply.
+  apply. Round 8 adds the r7 reviewer's table mutants_r7.tsv (R7M01-R7M15).
+probes, round 8: the r7 reviewer's probes probe_bang_r7.py.txt (HTML5 comment ends, review r7 F1), probe_near_r7.py.txt
+  (a second label written with invisible or look-alike characters, review r7 F2) and probe_shapes_r7.py.txt (GFM and
+  other shapes, review r7 F3), verbatim. Every row the checker ACCEPTS while a reader's rendering is not clean, and
+  every row it REFUSES while every reader's rendering is clean (a false refusal), must be listed in
+  pvl_reviewer/changes_r7.tsv (probe, name, kind, reason); a listed row that no longer occurs is STALE. Every
+  probe_near row must be refused. Prints `REVIEWER probes_r7 rows=N refused=R listed=L unlisted=U stale=S PASS|FAIL`;
+  pandoc missing: `REVIEWER probes_r7 SKIP pandoc not found` and exit 1 (the r7 probes call pandoc).
 """
 import ast
 import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -139,7 +147,73 @@ def mutant_tables():
                 continue
             mid, rel, old, new, _why = ln.rstrip("\n").split("\t", 4)
             out.append((mid, rel, ast.literal_eval(old), ast.literal_eval(new)))
+    # round 8: the r7 reviewer's table, vendored verbatim (every row is a reviewer mutant)
+    with open(os.path.join(RD, "mutants_r7.tsv"), encoding="utf-8") as fh:
+        for ln in fh:
+            if not ln.startswith("R7M"):
+                continue
+            mid, rel, old, new, _why = ln.rstrip("\n").split("\t", 4)
+            out.append((mid, rel, ast.literal_eval(old), ast.literal_eval(new)))
     return out
+
+
+def probes_r7(repo, work):
+    """Round 8: the r7 reviewer's probes, verbatim (see the module docstring)."""
+    if not shutil.which("pandoc"):
+        print("REVIEWER probes_r7 SKIP pandoc not found")
+        return 1
+    py = [sys.executable, "-I"]
+    env = dict(os.environ, TMPDIR=work)
+    listed = {(r[0], r[1], r[2]): r[3] for r in load_tsv("changes_r7.tsv")}
+    seen, rows, refused, unlisted, bad = set(), 0, 0, 0, 0
+    for probe in ("bang", "near", "shapes"):
+        wd = os.path.join(work, probe)
+        os.makedirs(wd, exist_ok=True)
+        p = subprocess.run(py + [os.path.join(RD, "probe_%s_r7.py.txt" % probe), repo, wd], capture_output=True,
+                           text=True, env=env, timeout=600)
+        if p.returncode != 0:
+            bad += 1
+            print("REV-R7-FAIL probe_%s rc=%d %s" % (probe, p.returncode, (p.stderr or p.stdout)[-200:]))
+            continue
+        for ln in p.stdout.splitlines():
+            if probe == "bang":
+                m = re.match(r"^(\S+) checker=(ACCEPT|REFUSE)\S* .*oracle_mdit=(True|False).*oracle_pandoc=(True|False)", ln)
+                if not m:
+                    continue
+                name, acc, clean = m.group(1), m.group(2) == "ACCEPT", m.group(3) == m.group(4) == "True"
+            elif probe == "near":
+                m = re.match(r"^(.*?)\s+checker=(ACCEPT|REFUSE)\s+oracle_clean=(True|False)", ln)
+                if not m:
+                    continue
+                name, acc, clean = m.group(1).strip(), m.group(2) == "ACCEPT", None
+            else:
+                m = re.match(r"^(\S+)\s+(ACCEPT|REFUSE)\s+(mdit=.*)$", ln)
+                if not m:
+                    continue
+                name, acc, clean = m.group(1), m.group(2) == "ACCEPT", "DIRTY" not in m.group(3)
+            rows += 1
+            refused += not acc
+            if probe == "near" and acc:
+                bad += 1
+                print("REV-R7-ACCEPTED near %s: a second label is accepted" % name)
+                continue
+            kind = "accepted-dirty" if acc and clean is False else "false-refusal" if not acc and clean else None
+            if kind is None:
+                continue
+            key = (probe, name, kind)
+            seen.add(key)
+            if key in listed:
+                print("REV-R7-LISTED %s %s %s: %s" % (probe, name, kind, listed[key]))
+            else:
+                unlisted += 1
+                print("REV-R7-UNLISTED %s %s %s" % key)
+    stale = [k for k in listed if k not in seen]
+    for k in stale:
+        print("REV-R7-STALE %s %s %s: listed but not seen" % k)
+    ok = bad == 0 and unlisted == 0 and not stale and rows > 0
+    print("REVIEWER probes_r7 rows=%d refused=%d listed=%d unlisted=%d stale=%d %s" % (
+        rows, refused, len(seen) - unlisted, unlisted, len(stale), "PASS" if ok else "FAIL"))
+    return 0 if ok else 1
 
 
 def probes_r6(repo, work):
@@ -211,7 +285,8 @@ def main(argv):
         return 2
     if len(argv) >= 4 and argv[1] == "probes":
         rc = probes(os.path.abspath(argv[2]), argv[3], "--write-changes" in argv)
-        return probes_r6(os.path.abspath(argv[2]), os.path.join(argv[3], "r6")) or rc
+        rc = probes_r6(os.path.abspath(argv[2]), os.path.join(argv[3], "r6")) or rc
+        return probes_r7(os.path.abspath(argv[2]), os.path.join(argv[3], "r7")) or rc
     if len(argv) == 3 and argv[1] == "mutants":
         return mutants(os.path.abspath(argv[2]))
     sys.stderr.write("usage: pvl_reviewer.py probes REPO WORKDIR [--write-changes] | mutants REPO\n")

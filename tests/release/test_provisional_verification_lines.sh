@@ -19,10 +19,15 @@
 #   P8b       the reference readers' self-test (tests/release/pvl_refreader.py) and the class-exhaustive line-ending
 #             and start-of-line enumeration (tests/release/pvl_lineend.py, round 6)
 #   P4c       round 7: the path resolved before the copy (a symlink), regular files only within a byte budget
-#   P8c       the container and paragraph-state class rendered by two readers (tests/release/pvl_blockstate.py)
+#   P4d       round 8 (review r7 F10): the same symlink with the database on another file system; an honest SKIP
+#             when no second writable file system exists
+#   P8c       the container and paragraph-state class rendered by two readers (tests/release/pvl_blockstate.py); round 8:
+#             the review r7 class members (comment ends, invisible and look-alike characters, footnotes, GFM tables)
+#   P8d       round 8: the reading table embedded in the checker equals the table built from ICU
+#             (scripts/validation/pvl_reading_table.py --check)
 #   P9        the member inventory of the complement (tests/release/pvl_inventory.py), class list equal to the document
 #   P10       the work bound, 1 s per case (tests/release/pvl_timing.py)
-#   P11       the reviewers' probes r3, r3b, r4 run verbatim (tests/release/pvl_reviewer.py probes)
+#   P11       the reviewers' probes r3, r3b, r4, r6 and r7 run verbatim (tests/release/pvl_reviewer.py probes)
 #   P12       the reviewers' mutants listed: applies, not applicable with covering cases, or run by another suite
 #   P13       the paired mutants (own, tests/release/pvl_mutants.tsv, and the reviewers' that apply) each killed
 #             (tests/release/pvl_mutate.py)
@@ -92,7 +97,9 @@ mkdb "$W/bad.db" "$OPEN" "CON-010|Ready for testing|2026-11-01|## [CON-010] the 
   "CON-014|Ready for testing|2026-11-01|x\\n\\n$GOOD\\n\\n$GOOD" "CON-015|In testing|2026-11-01|x\\n\\nVerification: provisional -- job: a" \
   "CON-016|Ready for testing|2026-11-01|x\\n\\n$GOOD" "CON-017|Ready for testing|2026-11-01|x\\n\\n$PROSE" \
   "CON-018|Ready for testing||x\\n\\n$GOOD" "CON-019|In testing|2026-11-25|x\\n\\n$GOOD" \
-  "CON-020|Ready for testing|2026-11-01|x\\ncontinues\\n$GOOD" "CON-021|Ready for testing|2026-11-01|x\\n\\n<!-->\\n\\n$GOOD"
+  "CON-020|Ready for testing|2026-11-01|x\\ncontinues\\n$GOOD" "CON-021|Ready for testing|2026-11-01|x\\n\\n<!-->\\n\\n$GOOD" \
+  "CON-022|Ready for testing|2026-11-01|x\\n\\n<!-- a note -->\\n\\n$GOOD" \
+  "CON-023|Ready for testing|2026-11-01|<!-- a --!><div hidden>\\n-->\\n\\n$GOOD"
 CK "$W/bad.db"
 [ "$RC" = 1 ] && ok "P2 golden bad: exit 1" || bad "P2 golden bad: exit 1 ($RC)"
 has "P2 VERDICT FAIL" '^VERDICT: FAIL$'
@@ -105,9 +112,11 @@ has "P2 prose is not a sentence of the grammar (the r4 golden-good line)" "^FAIL
 has "P2 no created date: the window cannot be checked" "^FAIL CON-018 Ready for testing: field 'due' cannot be checked: the item has no created date$"
 has "P2 due before the item was created" "^FAIL CON-019 In testing: field 'due' is 2026-11-20, before the item was created \(2026-11-25\)$"
 has "P2 a line that continues a paragraph does not count (r6: and its label refuses the body)" "^FAIL CON-020 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
-has "P2 raw HTML other than a complete comment is refused (r7: the self-closing comment opener)" '^FAIL CON-021 Ready for testing: the body holds raw HTML other than complete comments'
+has "P2 raw HTML is refused (r7: the self-closing comment opener)" '^FAIL CON-021 Ready for testing: the body holds raw HTML \('
+has "P2 a complete comment is refused too (r8, review r7 F1: comments are refused)" '^FAIL CON-022 Ready for testing: the body holds raw HTML \(.*HTML comments too'
+has "P2 a comment an HTML5 reader ends at --!> (the hidden div after it is live) is refused (r8, review r7 F1)" '^FAIL CON-023 Ready for testing: the body holds raw HTML \('
 printf '%s\n' "$OUT" | grep -q '^FAIL CON-016' && bad "P2 a complete item among bad ones is not flagged" || ok "P2 a complete item among bad ones is not flagged"
-has "P2 counts" '^CHECKED items=12 provisional_status=11 ok=1 fail=10$'
+has "P2 counts" '^CHECKED items=14 provisional_status=13 ok=1 fail=12$'
 
 # P3 blind and usage: a zero proves nothing when the instrument cannot see
 CK "$W/no_such.db"; [ "$RC" = 2 ] && printf '%s\n' "$OUT" | grep -qx 'VERDICT: BLIND' && ok "P3 missing database: BLIND, exit 2" || bad "P3 missing database ($RC: $OUT)"
@@ -165,7 +174,7 @@ has "P4b a status with a trailing space is refused, not skipped" "^FAIL CON-903 
 has "P4b a status in another case is refused, not skipped" "^FAIL CON-904 in testing: the Status 'in testing' is not written exactly as 'In testing'"
 has "P4b hour 24 is refused" "^FAIL CON-905 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00"
 has "P4b a lone CR before a fence hides the line, and its label refuses the body (review r5 I-1)" "^FAIL CON-906 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
-has "P4b a lone CR before a comment hides the line, and its label refuses the body (review r5 I-1)" "^FAIL CON-907 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
+has "P4b a lone CR before a comment hides the line; the comment refuses the body (review r5 I-1; r8: every comment is raw HTML)" "^FAIL CON-907 Ready for testing: the body holds raw HTML \("
 printf '%s\n' "$OUT" | grep -q '^FAIL CON-908' && bad "P4b the clean item among them is accepted (control)" || ok "P4b the clean item among them is accepted (control)"
 has "P4b counts: the trailing-space and other-case statuses are checked" '^CHECKED items=9 provisional_status=8 ok=1 fail=7$'
 printf 'board\tT1\n\377\376\n' >"$W/bad_reg.tsv"
@@ -222,6 +231,38 @@ CK "$W/lnk/l.db"
 : >"$W/wal3.stop"; wait "$wpid"
 has "P4c a symlinked path with a live writer: the row only in the target's -wal is read (needle CON-909, review r6 I-3)" "^FAIL CON-909 Ready for testing: no '\*\*Verification:\*\* provisional' line"
 has "P4c a symlinked path with a live writer: counts include the -wal row" '^CHECKED items=3 provisional_status=2 ok=1 fail=1$'
+# P4d review r7 F10 (round 8): the same symlinked path, with the link on the work file system and the database (and
+# its -wal) on another file system. The other file system is PVL_XFS_DIR, else /dev/shm, else XDG_RUNTIME_DIR; it
+# counts only when its device number differs from the work directory's. None found: an honest SKIP, never a pass.
+XW=""
+for cand in "${PVL_XFS_DIR:-}" /dev/shm "${XDG_RUNTIME_DIR:-}"; do
+  [ -n "$cand" ] && [ -d "$cand" ] && [ -w "$cand" ] || continue
+  [ "$(stat -c %d -- "$cand")" != "$(stat -c %d -- "$W")" ] || continue
+  XW="$(mktemp -d "$cand/pvlx.XXXXXX")" && break
+done
+if [ -n "$XW" ]; then
+  trap 'rm -rf -- "${W:?}"; rm -rf -- "${XW:?}"' EXIT
+  [ "$(stat -c %d -- "$XW")" != "$(stat -c %d -- "$W")" ] && ok "P4d the database is on another file system than the link (control)" || bad "P4d the file-system control"
+  rdb "$XW/w.db" WAL "$OPENPY" "('CON-901', 'Ready for testing', 'x\n\n' + $GOODPY, '2026-11-01')"
+  mkdir -p "$W/xlnk"; ln -s "$XW/w.db" "$W/xlnk/l.db"
+  python3 -I -c 'import sqlite3, sys, time, os
+c = sqlite3.connect(sys.argv[1]); c.execute("pragma wal_autocheckpoint=0")
+c.execute("insert into items values (?, ?, ?, ?)", ("CON-909", "Ready for testing", "x", "2026-11-01")); c.commit()
+open(sys.argv[2], "w").close()
+t = time.time()
+while not os.path.exists(sys.argv[3]) and time.time() - t < 120: time.sleep(0.05)
+c.close()' "$XW/w.db" "$W/xw.ready" "$W/xw.stop" &
+  wpid=$!
+  t=0; while [ ! -e "$W/xw.ready" ] && [ "$t" -lt 600 ]; do sleep 0.1; t=$((t + 1)); done
+  [ -e "$XW/w.db-wal" ] && [ ! -e "$W/xlnk/l.db-wal" ] && ok "P4d the -wal is beside the target on the other file system (control)" || bad "P4d the -wal placement control"
+  CK "$W/xlnk/l.db"
+  : >"$W/xw.stop"; wait "$wpid"
+  has "P4d a cross-file-system symlink with a live writer: the row only in the target's -wal is read (needle CON-909)" "^FAIL CON-909 Ready for testing: no '\*\*Verification:\*\* provisional' line"
+  has "P4d a cross-file-system symlink with a live writer: counts include the -wal row" '^CHECKED items=3 provisional_status=2 ok=1 fail=1$'
+  [ ! -e "$W/xlnk/l.db-wal" ] && [ ! -e "$W/xlnk/l.db-shm" ] && ok "P4d no sidecar appears beside the link" || bad "P4d a sidecar appeared beside the link"
+else
+  echo "SKIP P4d no second writable file system (PVL_XFS_DIR, /dev/shm, XDG_RUNTIME_DIR): topology_unsupported"
+fi
 for k in zero fifo; do
   mkdir -p "$W/m1_$k"; rdb "$W/m1_$k/w.db" ROLLBACK "$OPENPY"
 done
@@ -296,10 +337,17 @@ fi
 OUT="$(python3 -I "$HERE/pvl_blockstate.py" "$C" "$W/bs" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P8c no body accepted that a reader renders otherwise" || bad "P8c block state ($RC): $(printf '%s\n' "$OUT" | grep -E 'BS-DANGER|BLIND' | head -5 | tr '\n' '|')"
 if command -v pandoc >/dev/null 2>&1; then
-  has "P8c class needle (danger 0, both readers)" '^BLOCKSTATE bodies=39009 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=[0-9]+ joins=13 suffixes=9 endings=3 reviewer=16 mdit=3\.0\.0 pandoc=checked$'
+  has "P8c class needle (danger 0, both readers; round 8: 128 contexts, 13 suffixes, 36 reviewer shapes, the oracle's 14 self-test inputs, labels read through ICU)" '^BLOCKSTATE bodies=65004 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=128 joins=13 suffixes=13 endings=3 reviewer=36 mdit=3\.0\.0 pandoc=checked oracle_selftest=14 icu=[0-9]+\.[0-9]+$'
 else
-  has "P8c class needle (danger 0, pandoc absent)" '^BLOCKSTATE bodies=39009 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=[0-9]+ joins=13 suffixes=9 endings=3 reviewer=16 mdit=3\.0\.0 pandoc=SKIP$'
+  has "P8c class needle (danger 0, pandoc absent)" '^BLOCKSTATE bodies=65004 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=128 joins=13 suffixes=13 endings=3 reviewer=36 mdit=3\.0\.0 pandoc=SKIP oracle_selftest=14 icu=[0-9]+\.[0-9]+$'
 fi
+# P8d round 8 (review r7 F2, F4): the reading table embedded in the checker equals the one built from ICU now; a host
+# without ICU cannot rebuild it, which is a FAIL here (the harnesses that read labels through ICU are BLIND there too)
+OUT="$(python3 -I "$ROOT/scripts/validation/pvl_reading_table.py" --check 2>&1)"; RC=$?
+[ "$RC" = 0 ] && ok "P8d the embedded reading table equals the table built from ICU" || bad "P8d reading table ($RC): $(printf '%s' "$OUT" | tr '\n' '|' | cut -c1-300)"
+has "P8d reading-table needle (ICU 78.2, Unicode 17.0, the recorded sum)" '^READING-TABLE OK sha256=02a3ad6a0fc3ce69ca645e687d8c6da9d59e48e674dd6119df7d1d04652f47c7 drop_ranges=806 readings=3457 icu=78\.2 unicode=17\.0$'
+sum_ck="$(grep -oE '^READING_TABLE_SHA256 = "[0-9a-f]{64}"' "$C" | grep -oE '[0-9a-f]{64}')"
+[ "$sum_ck" = 02a3ad6a0fc3ce69ca645e687d8c6da9d59e48e674dd6119df7d1d04652f47c7 ] && ok "P8d the checker records the same sum" || bad "P8d the checker's recorded sum is '$sum_ck'"
 
 # P9 the inventory of the complement; its class list equals the document's table
 OUT="$(python3 -I "$HERE/pvl_inventory.py" "$C" "$W/inv" 2>&1)"; RC=$?
@@ -321,11 +369,12 @@ OUT="$(python3 -I "$HERE/pvl_reviewer.py" probes "$ROOT" "$W/rev" 2>&1)"; RC=$?
 has "P11 probe needle (322 cases, 33 narrowed by the grammar)" '^REVIEWER probes cases=322 kept=289 narrowed=33 unexplained=0 stale=0 reversed=0 dos_worst=0\.[0-9]{3}$'
 has "P11 separator classes: none accepted; shape-only jobs refused" '^REV-R3B PASS separator-class cases 700 accepted 0$'
 has "P11 review r6 probes verbatim: no DANGER line, the 4 hiding bodies refused (round 7)" '^REVIEWER probes_r6 rc=0,0 bodies=50 danger=0 hide=4 hide_accepted=0 PASS$'
+has "P11 review r7 probes verbatim (round 8): every comment-end, invisible-character and shape row refused or listed in changes_r7.tsv" '^REVIEWER probes_r7 rows=54 refused=49 listed=13 unlisted=0 stale=0 PASS$'
 
 # P12 the reviewers' mutants listed
 OUT="$(python3 -I "$HERE/pvl_reviewer.py" mutants "$ROOT" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P12 every reviewer mutant applies, is run by its suite, or is not applicable with covering cases" || bad "P12 reviewer mutants ($RC): $(printf '%s\n' "$OUT" | grep FAIL | head -5 | tr '\n' '|')"
-has "P12 mutant needle (78: R1-R22, X1-X12, N01-N22, RV01-RV12, RW01-RW10)" '^REVIEWER mutants total=78 applies=27 not_applicable=51 fail=0$'
+has "P12 mutant needle (93: R1-R22, X1-X12, N01-N22, RV01-RV12, RW01-RW10, R7M01-R7M15)" '^REVIEWER mutants total=93 applies=33 not_applicable=60 fail=0$'
 
 # P13 the paired mutants: each must be killed by a harness the unmutated copy passes
 OUT="$(python3 -I "$HERE/pvl_mutate.py" "$ROOT" "$W/mut" 2>&1)"; RC=$?
@@ -334,8 +383,8 @@ printf '%s\n' "$OUT" | grep '^MUT '
 has "P13 the unmutated copy passes every kill harness (control)" '^MUT-CONTROL unmutated copy passes'
 nown="$(grep -vc -e '^#' -e '^$' "$HERE/pvl_mutants.tsv")"
 [ "$nown" -ge 15 ] && ok "P13 own mutants: $nown (at least 15)" || bad "P13 own mutants: $nown (at least 15)"
-has "P13 mutant needle (own plus the 20 reviewer mutants of this suite that apply: 5 of r2-r4, RV01-RV12 except RV04 RV07 RV11, RW01-RW03 RW07-RW09; 11 retired own mutants re-proved absent; 3 equivalent own mutants O48 O50 O60 reported, not killed)" "^MUTATE total=$((nown + 20)) killed=$((nown + 20)) survived=0 not_applied=0 retired=11 equivalent=3 retired_fail=0\$"
-printf '%s\n' "$OUT" | grep -c '^MUT-EQUIVALENT ' | grep -qx 3 && ok "P13 the 3 equivalent mutants are listed with their argument" || bad "P13 equivalent mutants not listed"
+has "P13 mutant needle (own plus the 26 reviewer mutants of this suite that apply: 5 of r2-r4, RV01-RV12 except RV04 RV07 RV11, RW01 RW02 RW08 RW09, R7M05-R7M09 R7M11 R7M14 R7M15; 20 retired own mutants re-proved absent; 4 equivalent own mutants O48 O59 O88 O89 reported, not killed)" "^MUTATE total=$((nown + 26)) killed=$((nown + 26)) survived=0 not_applied=0 retired=20 equivalent=4 retired_fail=0\$"
+printf '%s\n' "$OUT" | grep -c '^MUT-EQUIVALENT ' | grep -qx 4 && ok "P13 the 4 equivalent mutants are listed with their argument" || bad "P13 equivalent mutants not listed"
 
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

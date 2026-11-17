@@ -32,6 +32,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 CHECKER = "scripts/validation/check_provisional_verification_lines.py"
 RENDER = "scripts/release/render_release_entry.py"
+READING = "scripts/validation/pvl_reading_table.py"  # round 8: pvl_blockstate's oracle reads labels with it
 HARNESS = ["pvl_fixture.py", "pvl_oracle.py", "pvl_grid.py", "pvl_linemodel.py", "pvl_property.py", "pvl_timing.py",
            "pvl_inventory.py", "pvl_refreader.py", "pvl_lineend.py", "pvl_blockstate.py"]
 KILLERS = ("grid", "linemodel", "lineend", "blockstate", "property", "timing", "inventory")
@@ -67,7 +68,8 @@ def retired_mutants(repo):
 def equivalent_mutants(repo):
     """Own mutants shown equivalent (tests/release/pvl_mutants_equivalent.tsv): each row's argument says why no body
     can tell it apart from the checker; the run checks that the mutant still applies and reports it, never counts it
-    as killed. The search that found no telling body is docs/qa/rehearsal_v73_4_fix/r7/tools/survivor_search.py."""
+    as killed. The searches that found no telling body are docs/qa/rehearsal_v73_4_fix/r7/tools/survivor_search.py
+    (verdicts) and docs/qa/rehearsal_v73_4_fix/r8/tools/survivor_search.py (reasons, with a control mutant)."""
     out = []
     path = os.path.join(repo, "tests/release/pvl_mutants_equivalent.tsv")
     if not os.path.exists(path):
@@ -94,7 +96,7 @@ def reviewer_mutants(repo):
 
 
 def sandbox(repo, base):
-    for rel in [CHECKER, RENDER] + ["tests/release/" + h for h in HARNESS]:
+    for rel in [CHECKER, RENDER, READING] + ["tests/release/" + h for h in HARNESS]:
         dst = os.path.join(base, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(os.path.join(repo, rel), dst)
@@ -191,7 +193,7 @@ def api_r6(box, work, F, fx, db):
             "FAIL CON-904 in testing: the Status 'in testing' is not written exactly as 'In testing'",
             "FAIL CON-905 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00",
             "FAIL CON-906 Ready for testing: a line a reader shows carries the Verification label",  # r7
-            "FAIL CON-907 Ready for testing: a line a reader shows carries the Verification label",  # r7
+            "FAIL CON-907 Ready for testing: the body holds raw HTML",  # r8: every comment is refused
             "CHECKED items=8 provisional_status=8 ok=1 fail=7"]
     tdir = os.path.join(work, "wal")
     os.makedirs(tdir, exist_ok=True)
@@ -319,7 +321,8 @@ def api_r7(box, work, F, fx, db):
         fh.write(b"# r\rboard\tT9\rdevice\tSER9\r")
     good = F.line(target="board T9, device SER9")
     bodies = [("CON-951", "x\n\n" + good, True),
-              ("CON-952", "x\n\n<!-- a note -->\n\n" + F.line() + "\n\nend <!-- inline note -->", True),
+              # round 8: every HTML comment is refused (review r7 F1: the HTML5 comment end differs)
+              ("CON-952", "x\n\n<!-- a note -->\n\n" + F.line() + "\n\nend <!-- inline note -->", False),
               ("CON-953", "<div hidden>\n\n" + F.line() + "\n\n</div>", False),
               ("CON-954", F.line() + "\n\nsee <span hidden>x</span>", False),
               ("CON-955", "x\n\n" + F.line() + "\n\n" + "y" * (1024 * 1024), False),
@@ -346,16 +349,16 @@ def api_r7(box, work, F, fx, db):
     failed = {ln.split()[1] for ln in p.stdout.splitlines() if ln.startswith("FAIL ")}
     if failed != {k for k, _, ok in bodies if not ok}:
         return 1
-    for k, why in (("CON-953", "raw HTML"), ("CON-954", "raw HTML"), ("CON-955", "longer than"),
+    for k, why in (("CON-952", "raw HTML"), ("CON-953", "raw HTML"), ("CON-954", "raw HTML"), ("CON-955", "longer than"),
                    ("CON-956", "label in the rendered text"), ("CON-961", "label in another source line"),
-                   ("CON-962", "label in another source line"), ("CON-963", "label in the rendered text"),
-                   ("CON-964", "label in the rendered text")):
+                   ("CON-962", "label in another source line"), ("CON-963", "raw HTML"),
+                   ("CON-964", "exactly as written")):
         if not any(ln.startswith("FAIL %s " % k) and why in ln for ln in p.stdout.splitlines()):
             return 1
     # the parser missing or untested: the module refuses every body, the command line is BLIND (fail closed)
     m.MAX_DB_BYTES = 1 << 30
     body = "x\n\n" + F.line()
-    for attr, val in (("MDIT_VERSION", "0.0.0"), ("_MarkdownIt", None)):
+    for attr, val in (("MDIT_VERSION", "0.0.0"), ("MDIT_VERSION", "3.0.1"), ("_MarkdownIt", None)):
         keep = getattr(m, attr)
         setattr(m, attr, val)
         try:
@@ -370,6 +373,172 @@ def api_r7(box, work, F, fx, db):
     p = subprocess.run([sys.executable, "-I", "-c", code] + ck[2:] + [rdb], capture_output=True, text=True, timeout=120)
     if p.returncode != 2 or "VERDICT: BLIND" not in p.stdout.splitlines() or "reader is unavailable" not in p.stdout:
         return 1
+    return api_r8(box, work, F, fx)
+
+
+def api_r8(box, work, F, fx):
+    """Round 8 cases (review r7): HTML5 comment ends (F1), a second label written with invisible, look-alike or
+    referenced characters (F2, F4), the counted line not shown exactly (continuation, character reference, emphasis,
+    strikethrough in the GFM reading, hard break, a Unicode-space second line), a GFM footnote definition and a
+    CommonMark/GFM counting difference (F3), raw HTML in image text (F5), a label in a definition BEFORE the line
+    (R7M11), a status written with an invisible character read as the status, a broken reading table (BLIND), the copy
+    budget shared by the database and its -wal (R7M06), a change during the copy (R7M07) and a hot rollback journal
+    (R7M08)."""
+    import importlib.util
+    ck = [sys.executable, "-I", os.path.join(box, CHECKER), "--today", F.TODAY.isoformat(), "--root", fx["root"]]
+    d = os.path.join(work, "r8")
+    os.makedirs(d, exist_ok=True)
+    line = F.line()
+
+    def second(word):
+        return "\n\n**" + word + ":** provisional -- job: FAKE -- checks: FAKE pass=999"
+    bodies = [("CON-971", "<!-- a --!><div hidden>\n-->\n\n" + line, "raw HTML"),
+              ("CON-972", line + "\n\n<!-- --!><style>p{display:none}</style> -->", "raw HTML"),
+              ("CON-973", line + second("Verif\ufe0fication"), "label in another source line"),
+              ("CON-974", line + second("Verif&#xFE0F;ication"), "label in another source line"),
+              ("CON-975", line + second("V\u0435rification"), "label in another source line"),
+              ("CON-976", line + "\n\nVerification\u2236 x", "label in another source line"),
+              ("CON-977", line + second("Verifi\u3164cation"), "label in another source line"),
+              ("CON-978", line + second("Verificat\u0323ion"), "label in another source line"),
+              ("CON-979", line + "\n-- checks: FAKE pass=999", "exactly as written"),
+              ("CON-980", line + " -- note a&amp;b", "exactly as written"),
+              ("CON-981", line + " -- note *x*", "exactly as written"),
+              ("CON-982", line + " -- note ~~x~~", "gfm reading"),
+              ("CON-983", "[^1]: x\n\n" + line, "footnote definition [^1]"),
+              ("CON-984", line + "\n\n![<span hidden>x</span>](u)", "raw HTML"),
+              ("CON-985", line + " -- note x\\\nchecks: FAKE pass=999", "exactly as written"),
+              ("CON-986", "[r]: /u 'Verification: x'\n\n" + line, "label in another source line"),
+              ("CON-987", line + " -- note a|b", None),
+              ("CON-988", line + "\n\u3000", "exactly as written"),
+              ("CON-989", "| x |\n---\n" + line, "the GFM reading and the CommonMark reading differ"),
+              ("CON-990", line + "\n\n\u13d9erification: x", "label in another source line")]
+    statuses = [("CON-991", "In\u034f testing", "is not written exactly as 'In testing'"),
+                ("CON-992", "Ready\ufe0f for testing", "is not written exactly as 'Ready for testing'")]
+    rdb = os.path.join(d, "r8.db")
+    if os.path.exists(rdb):
+        os.remove(rdb)
+    c = sqlite3.connect(rdb)
+    c.execute("create table items (atm_id text primary key, status text, body_md text, created_at text)")
+    c.execute("insert into items values ('CON-777','In progress','x','2026-11-01')")
+    for k, b, _ in bodies:
+        c.execute("insert into items values (?,?,?,?)", (k, "Ready for testing", b, "2026-11-01"))
+    for k, st, _ in statuses:
+        c.execute("insert into items values (?,?,?,?)", (k, st, "x\n\n" + line, "2026-11-01"))
+    c.commit()
+    c.close()
+    p = subprocess.run(ck + [rdb], capture_output=True, text=True, timeout=120)
+    out = p.stdout.splitlines()
+    n = len(bodies) + len(statuses)
+    if p.returncode != 1 or "CHECKED items=%d provisional_status=%d ok=1 fail=%d" % (n + 1, n, n - 1) not in out:
+        return 1
+    for k, _, why in bodies + statuses:
+        hit = [ln for ln in out if ln.startswith("FAIL %s " % k)]
+        if (why is None and hit) or (why is not None and not any(why in ln for ln in hit)):
+            return 1
+    spec = importlib.util.spec_from_file_location("pvl_api_r8", os.path.join(box, CHECKER))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    # a reading table that differs from its recorded sum makes the run BLIND (one reading changed)
+    keep = m._READING_TABLE
+    i = keep.index("\nR\t")
+    j = keep.index("\n", i + 1)
+    m._READING_TABLE = keep[:i] + "\nR\t0041\t62" + keep[j:]
+    m._READING.clear()
+    prob = m.reader_problem()
+    del m._READING_TABLE
+    m._READING.clear()
+    gone = m.reader_problem()
+    m._READING_TABLE = keep
+    m._READING.clear()
+    if not (isinstance(prob, str) and "reading table is not intact" in prob) or m.reader_problem() is not None:
+        return 1
+    if not (isinstance(gone, str) and "no table" in gone):
+        return 1
+    # the copy budget is shared by the database and its -wal (R7M06): each file fits, the two do not
+    w = os.path.join(d, "w6", "items.db")
+    os.makedirs(os.path.dirname(w), exist_ok=True)
+    for suf in ("", "-wal", "-shm"):
+        if os.path.lexists(w + suf):
+            os.remove(w + suf)
+    cw = sqlite3.connect(w)
+    cw.execute("pragma journal_mode=wal")
+    cw.execute("create table items (atm_id text primary key, status text, body_md text, created_at text)")
+    cw.commit()
+    cw.execute("pragma wal_autocheckpoint=0")
+    for k in range(40):
+        cw.execute("insert into items values (?,?,?,?)", ("CON-%d" % (5000 + k), "Queued", "y" * 300, "2026-11-01"))
+    cw.commit()
+    try:
+        s0, s1 = os.path.getsize(w), os.path.getsize(w + "-wal")
+        if min(s0, s1) < 2:
+            return 1
+        m.MAX_DB_BYTES = max(s0, s1) + 1
+        t6 = os.path.join(d, "t6")
+        os.makedirs(t6, exist_ok=True)
+        try:
+            m.snapshot_db(w, t6)
+            return 1
+        except OverflowError:
+            pass
+    finally:
+        cw.close()
+        m.MAX_DB_BYTES = 1 << 30
+    # a database that changes during every copy is reported as changing, never copied half-old (R7M07)
+    w7 = os.path.join(d, "w7", "items.db")
+    os.makedirs(os.path.dirname(w7), exist_ok=True)
+    shutil.copyfile(rdb, w7)
+    orig = m._copy_regular
+
+    def changing(path, dst, budget):
+        got = orig(path, dst, budget)
+        if path == w7:
+            with open(w7, "ab") as fh:
+                fh.write(b"x")
+        return got
+    m._copy_regular = changing
+    try:
+        t7 = os.path.join(d, "t7")
+        os.makedirs(t7, exist_ok=True)
+        if m.snapshot_db(w7, t7) is not None:
+            return 1
+    finally:
+        m._copy_regular = orig
+    # a hot rollback journal is copied with the database: rows of an open transaction are not seen (R7M08)
+    hj = os.path.join(d, "hj", "items.db")
+    os.makedirs(os.path.dirname(hj), exist_ok=True)
+    for suf in ("", "-journal"):
+        if os.path.lexists(hj + suf):
+            os.remove(hj + suf)
+    ch = sqlite3.connect(hj, isolation_level=None)
+    ch.execute("pragma journal_mode=delete")
+    ch.execute("create table items (atm_id text primary key, status text, body_md text, created_at text)")
+    ch.execute("begin")
+    for k in range(400):
+        ch.execute("insert into items values (?,?,?,?)", ("CON-%d" % (6000 + k), "Queued", "z" * 300, "2026-11-01"))
+    ch.execute("commit")
+    ch.execute("pragma cache_size=1")
+    ch.execute("begin")
+    ch.execute("update items set status='Ready for testing' where atm_id != 'CON-6000'")
+    try:
+        if not os.path.exists(hj + "-journal"):
+            return 1
+        # the case can tell: the database file alone already holds rows of the open transaction (a small cache spills)
+        alone = os.path.join(d, "hj_alone.db")
+        shutil.copyfile(hj, alone)
+        ca = sqlite3.connect(alone)
+        try:
+            spilled = ca.execute("select count(*) from items where status='Ready for testing'").fetchone()[0]
+        finally:
+            ca.close()
+            os.remove(alone)
+        if not spilled:
+            return 1
+        p = subprocess.run(ck + [hj], capture_output=True, text=True, timeout=120)
+        if "CHECKED items=400 provisional_status=0 ok=0 fail=0" not in p.stdout.splitlines():
+            return 1
+    finally:
+        ch.execute("rollback")
+        ch.close()
     return 0
 
 

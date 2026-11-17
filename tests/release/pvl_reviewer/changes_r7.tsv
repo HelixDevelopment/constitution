@@ -1,0 +1,14 @@
+# probe	name	kind	reason (round 8; class inventory docs/qa/rehearsal_v73_4_fix/r8/class_inventory.md)
+bang	bang-plain-control	false-refusal	every HTML comment is refused (r8 class M1): a comment's end differs between the HTML5 tokenizer and the CommonMark reader, so no comment is trusted; 0 of 486 tracker bodies hold one
+shapes	comment-multiline-block	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	comment-two-on-line	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	comment-then-text-same-line	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	comment-dashdash-inside	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	comment-empty	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	comment-dash-gt-inside	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	comment-indent3	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	comment-in-quote	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	comment-unterminated-eof	false-refusal	every HTML comment is refused (r8 class M1)
+shapes	nbsp-indent	false-refusal	the counted line starts with the label at column 0; a no-break space before it is refused (unchanged since r5)
+shapes	task-like	accepted-dirty	scoped out (r8 class M12): pandoc gfm renders a task list after the line as a checkbox (input, label); nothing is hidden and the counted paragraph is shown exactly by all three readers
+shapes	autolink-www-gfm	accepted-dirty	oracle artifact: the probe's line carries a note, and the r8 oracle compares the verification paragraph with the plain line, so every note reads "does not show"; all three readers show the note text as written (pandoc gfm makes www.example.com a link with the same text)
