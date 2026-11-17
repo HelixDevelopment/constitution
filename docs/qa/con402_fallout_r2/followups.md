@@ -46,5 +46,8 @@ widening matters there is UNCONFIRMED.
 `/mnt/DATA1TB/claude-work/scratch` and `/mnt/DATA1TB/claude-work/tmp` are `drwxrwxr-x` (group-writable, no
 sticky bit); the operator decision of 2026-11-14 placed TMPDIR under `/mnt/DATA1TB/claude-work/` with owner-only
 directories. Any TMPDIR under `scratch` is therefore classed `shared:` by the round-2 sweep probe
-(`topology_probe.txt`), and the kill ledger regenerated there is refused by the guard table (GB12). Not changed
-by this fixer (host configuration, operator's decision, section 11.4.66).
+(`topology_probe.txt`). Corrected in round 3 (review R2-8, measured sequence): under that chain the sweep's control
+is RED at `test_review_record_resolution_ground_truth.sh`, the sweep exits 1 and writes no ledger; a shared-chain
+header written into the real ledger is refused by the guard table (M4 / GT-REAL). See
+`../con402_fallout_r3/followups.md` FU-5. Not changed by this fixer (host configuration, operator's decision,
+section 11.4.66).
