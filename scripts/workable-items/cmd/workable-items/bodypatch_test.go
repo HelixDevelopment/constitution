@@ -138,6 +138,32 @@ func TestBodyPatch_OwnedLinesGateOrderAndOwnership(t *testing.T) {
 	}
 }
 
+// OM5: a second record of the same kind in the metadata block is removed, not
+// replaced by a second copy of the new record.
+func TestBodyPatch_SetRecordCollapsesDuplicateRecords(t *testing.T) {
+	b := "## CON-1 — t\n\n**Status:** Fixed\n**Type:** Task\n**Evidence:** /a\n**Evidence:** /b\n\nprose\n"
+	out := setRecord(b, recEvidence, "**Evidence:** /new")
+	if out != "## CON-1 — t\n\n**Status:** Fixed\n**Type:** Task\n**Evidence:** /new\n\nprose\n" {
+		t.Fatalf("setRecord over two records = %q", out)
+	}
+}
+
+// Class sweep (upd_sev / upd_type / upd_assign): a field update owns only the
+// lines of the fields it sets.
+func TestBodyPatch_FieldOwnership(t *testing.T) {
+	b := "## CON-1 — t\n\n**Status:** Queued\n**Type:** Task\n**Severity:** Low\n\nprose\n"
+	sev := strings.Replace(b, "**Severity:** Low", "**Severity:** High", 1)
+	if p := ownedLinesProblems(b, sev, bodyOwnership{fields: []string{"Severity"}}, "", ""); len(p) != 0 {
+		t.Fatalf("golden-FALSE: an owned Severity change was refused: %v", p)
+	}
+	if p := ownedLinesProblems(b, sev, bodyOwnership{fields: []string{"Type"}}, "", ""); len(p) == 0 {
+		t.Fatal("a Severity change by a writer owning only Type was not refused")
+	}
+	if p := ownedLinesProblems(b, strings.Replace(b, "prose", "", 1), bodyOwnership{fields: []string{"Severity"}}, "", ""); len(p) == 0 {
+		t.Fatal("a dropped prose line was not refused for a field owner")
+	}
+}
+
 // upsertMetaLine (reopen) replaces the Reopened-Details record of the
 // metadata block; a fenced quote of the same kind elsewhere is kept, and with
 // no record in the block one is inserted (round 4 replaced the first such line

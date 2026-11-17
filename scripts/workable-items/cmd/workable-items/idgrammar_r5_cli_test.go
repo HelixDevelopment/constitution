@@ -241,6 +241,44 @@ func TestCON456R5_EveryWriterKeepsAuthoredBodyOfMdReadItem(t *testing.T) {
 				t.Fatalf("the Obsolete-Details line was lost:\n%s", b)
 			}
 		}},
+		// Round-5 class sweep (mdsweep upd_sev / upd_type / upd_assign): a field
+		// update patches the item's own metadata line, so the stored body
+		// already reads what the next md-to-db leaves (r5Check cycles it).
+		{"update --severity --type --assigned-to --created-by", func(t *testing.T, dbPath, id string) {
+			if rc := updateCmd([]string{"--db", dbPath, "--id", id, "--severity", "High", "--type", "Bug",
+				"--assigned-to", "r5 assignee", "--created-by", "r5 creator"}); rc != exitOK {
+				t.Fatalf("update exited %d", rc)
+			}
+			b := r4Body(t, dbPath, id)
+			for _, want := range []string{"**Severity:** High", "**Type:** Bug", "**Assigned-To:** r5 assignee", "**Created-By:** r5 creator"} {
+				if r5Unfenced(b, want) != 1 {
+					t.Fatalf("the field update did not patch %q:\n%s", want, b)
+				}
+			}
+			if r5Unfenced(b, "**Severity:** Low") != 0 || r5Unfenced(b, "**Type:** Task") != 0 {
+				t.Fatalf("a stale metadata line is left:\n%s", b)
+			}
+		}},
+		{"update --assigned-to then clear it", func(t *testing.T, dbPath, id string) {
+			if rc := updateCmd([]string{"--db", dbPath, "--id", id, "--assigned-to", "someone"}); rc != exitOK {
+				t.Fatalf("update exited %d", rc)
+			}
+			if rc := updateCmd([]string{"--db", dbPath, "--id", id, "--assigned-to", ""}); rc != exitOK {
+				t.Fatalf("clearing update exited %d", rc)
+			}
+			if b := r4Body(t, dbPath, id); r5Unfenced(b, "**Assigned-To:**") != 0 {
+				t.Fatalf("the cleared field still has a metadata line:\n%s", b)
+			}
+		}},
+		{"block then update --severity", func(t *testing.T, dbPath, id string) {
+			r5Block(t, dbPath, id, "the operator decides")
+			if rc := updateCmd([]string{"--db", dbPath, "--id", id, "--severity", "High"}); rc != exitOK {
+				t.Fatalf("update exited %d", rc)
+			}
+			if b := r4Body(t, dbPath, id); r5Unfenced(b, "**Severity:** High") != 1 || r5Unfenced(b, "**Operator-Block-Details:**") != 1 {
+				t.Fatalf("the blocked field update lost a line:\n%s", b)
+			}
+		}},
 		{"move to Fixed and back", func(t *testing.T, dbPath, id string) {
 			if rc := moveCmd([]string{"--db", dbPath, "--id", id, "--to", "Fixed", "--status", "Completed (→ Fixed.md)",
 				"--why", "r5 probe", "--evidence", ev}); rc != exitOK {

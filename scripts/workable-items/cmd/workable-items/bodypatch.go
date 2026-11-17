@@ -323,6 +323,10 @@ type bodyOwnership struct {
 	title, status bool
 	records       []string
 	description   bool
+	// fields are the `**Key:**` lines of the item's own metadata region the
+	// writer owns (update --severity / --type / --assigned-to / --created-by),
+	// matched by key, case-insensitive.
+	fields []string
 }
 
 // unownedLines returns the non-blank lines of body that the writer does not
@@ -349,6 +353,17 @@ func unownedLines(body string, own bodyOwnership, desc string) []string {
 		}
 		if last >= 0 {
 			skip[last] = true
+		}
+	}
+	if len(own.fields) > 0 {
+		fk := map[string]bool{}
+		for _, k := range own.fields {
+			fk[strings.ToLower(k)] = true
+		}
+		for i := 0; i < limit; i++ {
+			if m := metaLineRe.FindStringSubmatch(bodyText(lines[i])); m != nil && fk[strings.ToLower(m[1])] {
+				skip[i] = true
+			}
 		}
 	}
 	sp := parseStateLines(body)

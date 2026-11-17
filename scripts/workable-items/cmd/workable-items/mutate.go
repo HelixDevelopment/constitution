@@ -405,6 +405,21 @@ func updateCmd(args []string) int {
 		}
 		newBody = canonicalizeBodyStatusLine(newBody, cur.Status)
 	}
+	// Round 5 (class sweep): a field update patches the item's own metadata
+	// line the same way db-to-md renders it (alignMetaLines), so the stored
+	// body already reads what the next md-to-db leaves. Only the lines of the
+	// fields this update sets are owned (fieldsSet below).
+	var fieldsSet []string
+	for _, f := range []struct{ flag, key string }{
+		{"type", "Type"}, {"severity", "Severity"}, {"created-by", "Created-By"}, {"assigned-to", "Assigned-To"},
+	} {
+		if set[f.flag] {
+			fieldsSet = append(fieldsSet, f.key)
+		}
+	}
+	if len(fieldsSet) > 0 {
+		newBody = alignMetaLines(newBody, *cur)
+	}
 	// Review r4 finding 3: a status change off Operator-blocked ends the
 	// block. The block record of the metadata block goes from the body and
 	// its operator_block_details row goes in the same transaction below (as
@@ -454,7 +469,7 @@ func updateCmd(args []string) int {
 		return exitUsage
 	}
 	// CON-456 round 5: the update changes only the lines it owns.
-	own := bodyOwnership{title: set["title"], status: set["status"], description: descEdit}
+	own := bodyOwnership{title: set["title"], status: set["status"], description: descEdit, fields: fieldsSet}
 	if endsBlock {
 		own.records = []string{recOBD, recChoices}
 	}
