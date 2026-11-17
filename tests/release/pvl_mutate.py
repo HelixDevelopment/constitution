@@ -192,8 +192,9 @@ def api_r6(box, work, F, fx, db):
             "FAIL CON-903 Ready for testing : the Status 'Ready for testing ' is not written exactly as 'Ready for testing'",
             "FAIL CON-904 in testing: the Status 'in testing' is not written exactly as 'In testing'",
             "FAIL CON-905 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00",
-            "FAIL CON-906 Ready for testing: a line a reader shows carries the Verification label",  # r7
-            "FAIL CON-907 Ready for testing: the body holds raw HTML",  # r8: every comment is refused
+            # r9: a lone CR is refused before any reader (THE BODY); r7/r8 refused these for the label and raw HTML
+            "FAIL CON-906 Ready for testing: the body holds a CR that is not followed by LF",
+            "FAIL CON-907 Ready for testing: the body holds a CR that is not followed by LF",
             "CHECKED items=8 provisional_status=8 ok=1 fail=7"]
     tdir = os.path.join(work, "wal")
     os.makedirs(tdir, exist_ok=True)
@@ -349,10 +350,13 @@ def api_r7(box, work, F, fx, db):
     failed = {ln.split()[1] for ln in p.stdout.splitlines() if ln.startswith("FAIL ")}
     if failed != {k for k, _, ok in bodies if not ok}:
         return 1
+    # r9: CON-956 is refused by the source label rule (both source views), CON-957/958 by the column rule, CON-964 by
+    # the line alphabet (a '[' after the label), before any reader runs
     for k, why in (("CON-952", "raw HTML"), ("CON-953", "raw HTML"), ("CON-954", "raw HTML"), ("CON-955", "longer than"),
-                   ("CON-956", "label in the rendered text"), ("CON-961", "label in another source line"),
+                   ("CON-956", "label in another source line"), ("CON-957", "does not start at column 0"),
+                   ("CON-958", "does not start at column 0"), ("CON-961", "label in another source line"),
                    ("CON-962", "label in another source line"), ("CON-963", "raw HTML"),
-                   ("CON-964", "exactly as written")):
+                   ("CON-964", "THE LINE ALPHABET")):
         if not any(ln.startswith("FAIL %s " % k) and why in ln for ln in p.stdout.splitlines()):
             return 1
     # the parser missing or untested: the module refuses every body, the command line is BLIND (fail closed)
@@ -392,6 +396,8 @@ def api_r8(box, work, F, fx):
 
     def second(word):
         return "\n\n**" + word + ":** provisional -- job: FAKE -- checks: FAKE pass=999"
+    # r9: the reasons are those of the allowlist (THE BODY, THE LINE); CON-983 (an unused definition, then the line) is
+    # accepted, every reader shows the one line; CON-987 is refused by the alphabet (a '|' after the label)
     bodies = [("CON-971", "<!-- a --!><div hidden>\n-->\n\n" + line, "raw HTML"),
               ("CON-972", line + "\n\n<!-- --!><style>p{display:none}</style> -->", "raw HTML"),
               ("CON-973", line + second("Verif\ufe0fication"), "label in another source line"),
@@ -400,17 +406,17 @@ def api_r8(box, work, F, fx):
               ("CON-976", line + "\n\nVerification\u2236 x", "label in another source line"),
               ("CON-977", line + second("Verifi\u3164cation"), "label in another source line"),
               ("CON-978", line + second("Verificat\u0323ion"), "label in another source line"),
-              ("CON-979", line + "\n-- checks: FAKE pass=999", "exactly as written"),
-              ("CON-980", line + " -- note a&amp;b", "exactly as written"),
-              ("CON-981", line + " -- note *x*", "exactly as written"),
-              ("CON-982", line + " -- note ~~x~~", "gfm reading"),
-              ("CON-983", "[^1]: x\n\n" + line, "footnote definition [^1]"),
+              ("CON-979", line + "\n-- checks: FAKE pass=999", "the line below it is not blank"),
+              ("CON-980", line + " -- note a&amp;b", "THE LINE ALPHABET"),
+              ("CON-981", line + " -- note *x*", "THE LINE ALPHABET"),
+              ("CON-982", line + " -- note ~~x~~", "THE LINE ALPHABET"),
+              ("CON-983", "[^1]: x\n\n" + line, None),
               ("CON-984", line + "\n\n![<span hidden>x</span>](u)", "raw HTML"),
-              ("CON-985", line + " -- note x\\\nchecks: FAKE pass=999", "exactly as written"),
+              ("CON-985", line + " -- note x\\\nchecks: FAKE pass=999", "the line below it is not blank"),
               ("CON-986", "[r]: /u 'Verification: x'\n\n" + line, "label in another source line"),
-              ("CON-987", line + " -- note a|b", None),
-              ("CON-988", line + "\n\u3000", "exactly as written"),
-              ("CON-989", "| x |\n---\n" + line, "the GFM reading and the CommonMark reading differ"),
+              ("CON-987", line + " -- note a|b", "THE LINE ALPHABET"),
+              ("CON-988", line + "\n\u3000", "the line below it is not blank"),
+              ("CON-989", "| x |\n---\n" + line, "the line above it is not blank"),
               ("CON-990", line + "\n\n\u13d9erification: x", "label in another source line")]
     statuses = [("CON-991", "In\u034f testing", "is not written exactly as 'In testing'"),
                 ("CON-992", "Ready\ufe0f for testing", "is not written exactly as 'Ready for testing'")]
@@ -539,6 +545,83 @@ def api_r8(box, work, F, fx):
     finally:
         ch.execute("rollback")
         ch.close()
+    return api_r9(box, work, F, fx)
+
+
+def api_r9(box, work, F, fx):
+    """Round 9 (allowlist-first) cases, each layer alone so a mutant of one layer is not hidden by the other (review r8
+    A2: "equivalent by redundancy" was false for O59). The source layer (THE BODY, THE LINE) through check_body with the
+    reason each body must get; the reader layer (THE READERS) through confirm() on bodies the source layer would stop
+    first: the reviewer's A1 link split (O59's hole), RVA01 code span, RVA03 strikethrough (GFM reading only), RVA12 hard
+    break, raw-HTML output and an unlisted tag (RVA05, O100), a doubled line (O101); a line a reader rewrites although its
+    characters are in the alphabet (an email address: pandoc gfm links it; RVA09); fold() of a ligature and of a
+    character in the last drop range (RVA10, RVA11)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("pvl_api_r9", os.path.join(box, CHECKER))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    ctx = F.checker_ctx(m, fx)
+    line = F.line()
+    rest = line[len(m.BOLD_LABEL):]
+    fake = " provisional -- job: FAKE -- checks: FAKE pass=999"
+    source = [  # (body, a substring of check_body's reason; None: accepted)
+        (line, None),
+        ("x\n\n" + line + "\n\ny", None),
+        ("x\n" + line, "the line above it is not blank"),                                      # O93
+        (line + "\n-- checks: FAKE pass=999", "the line below it is not blank"),               # O94
+        ("x\r```\n\n" + line + "\n```\n", "a CR that is not followed by LF"),                  # O90
+        (line + "\n\n&#x202E;:noitacifireV**", "bidi control U+202E"),                         # O91
+        (":::{style=display:none}\n\n" + line + "\n\n:::", "fenced div"),                     # O92
+        (line + " -- note *x*", "THE LINE ALPHABET"),                                          # O95
+        (line + " -- note _x_", "an underscore at column"),                                    # O96
+        (line + "  ", "ends with white space"),                                                # O97
+        (line + "\n\n**Verifi[cation](x):**" + fake, "label in another source line"),          # O98 (A1)
+        (line + "\n\n**Verifi`cation`:**" + fake, "label in another source line"),             # R9A01b
+        ("**Verifi[cation](x):**" + fake + "\n\n" + line, "label in another source line"),     # R7M11: a line BEFORE
+        (line + "\n\n**Verification**" + fake, "label in another source line"),                # O99 (G)
+        (line + "\n\n**Veriﬁcation:**" + fake, "label in another source line"),           # RVA10
+        (line + "\n\n**Verif\U000E0100ication:**" + fake, "label in another source line"),     # RVA11
+        ("x\n\n<!-- a note -->\n\n" + line, "raw HTML"),                                       # R9A08
+        ("   " + line, "does not start at column 0"),
+        ("<!x\n\n" + line + "\n\n>", "raw HTML"),                                           # CommonMark 0.30 vs 0.31.2
+        ("<!doctype html\n\n" + line + "\n\n>", "raw HTML"),
+        ("<search>\n\n" + line + "\n\n</search>", "raw HTML"),
+        (line + "\n\n:   a definition", "pandoc markdown does not show"),                      # O105
+        (line + " -- note wait... ok", None),                                                 # O106, O107
+        ("x\n\n---\na: *b\n---\n\n" + line, None),                                            # O108 (export reader)
+        (line + "\n\n" + line, "2 verification lines (one expected)"),                   # O61, R21
+        (line + " -- note " + "a." * 10000, "with no white space between them"),               # O102 (r3 singles20k)
+        (line + "\n\n" + "a." * 256, None),                                                  # a 512-character run is read
+        (line + " -- note" + " a." * 1500, "longer than allowed"),                             # O103
+        (line + "\n\n" + "y " * 40000, "the body is longer than 65536"),                     # O104
+        (line + " -- note mail a@b.c", "pandoc gfm does not show the line"),                   # R9A09
+    ]
+    for body, why in source:
+        r = m.check_body(body, ctx=ctx)
+        if (why is None and r is not None) or (why is not None and (r is None or why not in r)):
+            return 1
+    readers = [  # (body, the start of confirm()'s one reason; None: no reason)
+        (line, None),
+        (line + "\n\n**Verifi[cation](x):**" + fake, "label: markdown-it commonmark"),          # R9A59 (O59 analog)
+        (line + "\n\nVerifi`cation`:" + fake, "label: markdown-it commonmark"),                # R9A01, R9A07
+        (line + "\n\nVerifi~~cation~~:" + fake, "label: markdown-it gfm"),                     # R9A03
+        (line + "\n\nVeri*fi*cation\\\n:" + fake, "label: markdown-it commonmark"),            # R9A12
+        ("<div hidden>\n\n" + line + "\n\n</div>", "reader: markdown-it commonmark writes the attribute hidden"),  # R9A05
+        ("<script>x</script>\n\n" + line, "reader: markdown-it commonmark writes <script>"),   # O100
+        (line + "\n\n" + line, "exact: markdown-it commonmark"),                               # O101
+        ("<!x\n\n" + line + "\n\n>", "reader: pandoc commonmark writes"),                    # readers disagree
+        ("<!doctype html\n\n" + line + "\n\n>", "reader: pandoc commonmark writes"),
+        ("<search>\n\n" + line + "\n\n</search>", "reader: markdown-it commonmark writes <search>"),
+        (line + "\n\n:   a definition", "exact: pandoc markdown"),                              # O105 alone
+    ]
+    for body, why in readers:
+        got = m.confirm(body, rest)
+        if (why is None and got != []) or (why is not None and not (len(got) == 1 and got[0].startswith(why))):
+            return 1
+    if "<table>" not in m.render("a | b\n--- | ---\n", "markdown-it gfm"):                # O75: the GFM table rule
+        return 1
+    if m.fold("ﬁ") != "fi" or m.fold("a\U000E0100b") != "ab":
+        return 1
     return 0
 
 

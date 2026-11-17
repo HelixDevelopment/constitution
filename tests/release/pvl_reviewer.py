@@ -169,8 +169,19 @@ def probes_r7(repo, work):
     for probe in ("bang", "near", "shapes"):
         wd = os.path.join(work, probe)
         os.makedirs(wd, exist_ok=True)
-        p = subprocess.run(py + [os.path.join(RD, "probe_%s_r7.py.txt" % probe), repo, wd], capture_output=True,
-                           text=True, env=env, timeout=600)
+        src = os.path.join(RD, "probe_%s_r7.py.txt" % probe)
+        if probe == "shapes":  # round 9: the probe's own good line holds '|', outside THE LINE ALPHABET
+            text = open(src, encoding="utf-8").read()
+            old, new = 'GN = G + " -- note a|b"', 'GN = G + " -- note a b"'
+            if text.count(old) != 1:
+                bad += 1
+                print("REV-R7-FAIL probe_shapes: the adapted precondition occurs %d times, not once" % text.count(old))
+                continue
+            src = os.path.join(wd, "probe_shapes_r7_r9.py")
+            with open(src, "w", encoding="utf-8") as fh:
+                fh.write(text.replace(old, new))
+            print("REV-R7-ADAPTED shapes: %s -> %s (the only change; THE LINE ALPHABET refuses '|')" % (old, new))
+        p = subprocess.run(py + [src, repo, wd], capture_output=True, text=True, env=env, timeout=600)
         if p.returncode != 0:
             bad += 1
             print("REV-R7-FAIL probe_%s rc=%d %s" % (probe, p.returncode, (p.stderr or p.stdout)[-200:]))

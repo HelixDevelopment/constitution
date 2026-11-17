@@ -5,8 +5,9 @@
 Usage: python3 -I tests/release/pvl_linemodel.py CHECKER [--no-pandoc]
 Each body has the number of verification lines that count in the CommonMark 0.31 reading and in the older reading
 (the table's expectation; they differ only for an HTML block opener that closes itself in 0.31, and such a body must
-be refused by check_body). Round 7: the checker's visible_lines(body) must give the CommonMark number, and a body
-whose older reading differs must be refused by check_body (it holds raw HTML). With pandoc 3 (or later) on PATH, each body is also rendered to its JSON AST (pandoc -f commonmark -t json),
+be refused by check_body). Round 9 (allowlist-first): a body the checker's line model accepts (scan() clean and no
+structural grammar complaint) must have count 1 in both readings, and every body of ACCEPT_PINNED must be accepted;
+the checker no longer computes the reader's count itself. With pandoc 3 (or later) on PATH, each body is also rendered to its JSON AST (pandoc -f commonmark -t json),
 and the number of top-level Para, Plain or level-1/2 Header blocks whose first inline is Strong [Str "Verification:"]
 is compared with the older reading's number (pandoc reads the older way; the prefix itself, at column 0, is the body's
 line start). Bodies marked pandoc=False hold a case where the checker is deliberately stricter than CommonMark.
@@ -109,6 +110,12 @@ CASES = [
      "- item\n\n  ```\n" + G + "\n", 1, True),
 ]
 
+# round 9: bodies the checker must accept (one counted line, blank lines around it, no markup the source rules refuse)
+ACCEPT_PINNED = frozenset([
+    "M01 plain line", "M01 CRLF", "M02 four-space indented fence is not a fence",
+    "M04 after a blank line the quote ends",
+])
+
 
 def first_strong(inlines):
     """True when a block's inlines start with Strong [Str "Verification:"]."""
@@ -149,17 +156,23 @@ def main(argv):
     for case in CASES:
         cid, body, want = case[:3]
         old = case[4] if len(case) > 4 else want
-        # round 7: the checker reads CommonMark with markdown-it-py; a body the older reading counts differently must be
-        # refused (it holds raw HTML that is not a complete comment, e.g. `<!-->`)
-        got = len(m.visible_lines(body))
-        refused = m.check_body(body) or ""
-        amb_ok = (old == want) or refused.startswith("the body holds raw HTML")
-        if got == want and amb_ok:
-            print("LM-PASS %s" % cid)
-        else:
+        # round 9 (allowlist-first): the checker no longer models how many lines a reader shows; it accepts a body only
+        # when its source rules and both readers agree on exactly one counted line. So the table's counts (checked below
+        # against pandoc and markdown-it) are the oracle and the checker is judged in two directions: an accepted body
+        # must have count 1 in both readings (never a hidden, joined or doubled line), and every body of ACCEPT_PINNED
+        # must stay accepted (a false refusal there is a FAIL too, so a mutant that refuses everything is caught).
+        counted, problems = m.scan(body)
+        grammar = m.check_line(counted[0], m.Context(None)) if len(counted) == 1 and not problems else "-"
+        accepted = grammar is None or grammar.startswith("field ")  # a field is unresolved only for want of a root
+        why = (problems[:1] or [grammar or ""])[0]
+        if accepted and not (want == 1 and old == 1):
             mism += 1
-            print("LM-FAIL %s: counted %d, want %d (older reading %d); check_body: %s" % (
-                cid, got, want, old, refused[:80]))
+            print("LM-FAIL %s: accepted, but the readers show %d line(s) (older reading %d)" % (cid, want, old))
+        elif not accepted and cid in ACCEPT_PINNED:
+            mism += 1
+            print("LM-FAIL %s: refused, but it is pinned as accepted: %s" % (cid, why[:80]))
+        else:
+            print("LM-PASS %s (%s)" % (cid, "accepted" if accepted else "refused: " + why[:60]))
     exe = None if "--no-pandoc" in argv else shutil.which("pandoc")
     pmode, pm = "SKIP", 0
     if exe is None:

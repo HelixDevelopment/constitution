@@ -35,7 +35,8 @@ grammar sentence (tests/release/pvl_fixture.py line()) resolved under a fixture 
 check_body(body, ctx) is computed, never inferred.
 
 THE ORACLE (independent of the checker's code): a body the checker ACCEPTS is rendered to HTML by every reader present
--- markdown-it-py `commonmark`, pandoc `-f commonmark` and pandoc `-f gfm` (pandoc only for a body without a lone CR:
+-- markdown-it-py `commonmark`, pandoc `-f commonmark`, pandoc `-f gfm` and pandoc `-f markdown-yaml_metadata_block`
+(the tracker export reader; its smart extension maps -- and ... so the expected text is mapped the same way) (pandoc only for a body without a lone CR:
 pandoc drops a lone CR and is blind to it, the needle below proves it) -- and the HTML is read with html.parser. A
 render is CLEAN when (a) it holds only the elements Markdown itself generates, with only their generated attributes
 (no raw HTML element, so nothing can hide or wrap the line), (b) exactly one top-level <p> starts with
@@ -54,7 +55,7 @@ visible). Round 8 (review r7 F7: R7M13 and R7M14 weakened the oracle unnoticed):
 clean() a rendered page that only that check refuses, with the reason it must give, and the clean page must pass; a
 self-test failure, or ICU missing, makes the run BLIND (exit 2).
 Output: per DANGER `BS-DANGER <name> <reader>: <why>`, then `BLOCKSTATE bodies=N accepted=A refused=R danger=D
-false_refusals=F contexts=C joins=J suffixes=S endings=E reviewer=K mdit=<version> pandoc=<checked|SKIP>
+false_refusals=F contexts=C joins=J suffixes=S endings=E reviewer=K mdit=<version> pandoc=<checked|SKIP> readers=<1|4>
 oracle_selftest=T icu=<version>`.
 Exit 0 when D is 0 and every needle holds, 1 otherwise, 2 BLIND. --quick: LF and CR LF only, no pandoc (for mutants).
 Section 11.4.289(C)(2): gate-logic.
@@ -260,8 +261,21 @@ class _Walk(html.parser.HTMLParser):
         self.other.append(data)
 
 
-def clean(rendered):
-    """(True, '') when RENDERED is clean (see THE ORACLE), else (False, why)."""
+# pandoc markdown (the tracker export reader) applies its smart extension: the oracle's own copy of that mapping,
+# kept apart from the checker's so a wrong mapping in the checker is not hidden by the same mistake here
+_SMART = (("---", "\u2014"), ("--", "\u2013"), ("...", "\u2026"))
+
+
+def smart_text(s):
+    for a, b in _SMART:
+        s = s.replace(a, b)
+    return s
+
+
+def clean(rendered, want=None):
+    """(True, '') when RENDERED is clean (see THE ORACLE), else (False, why). WANT: the text the verification
+    paragraph must show (default GTEXT; the smart-mapped GTEXT for pandoc markdown)."""
+    want = GTEXT if want is None else want
     w = _Walk()
     w.feed(rendered)
     w.close()
@@ -278,7 +292,7 @@ def clean(rendered):
             rest.append(txt)
     if len(vps) != 1:
         return False, "%d top-level verification paragraphs" % len(vps)
-    if vps[0] != GTEXT:
+    if vps[0] != want:
         return False, "the verification paragraph does not show exactly the line's text: %r" % vps[0][-60:]
     if any(label_like(x) for x in rest):
         return False, "the label reads elsewhere in the document"
@@ -370,12 +384,16 @@ def main(argv):
         return 2
     exe = None if ("--no-pandoc" in argv or quick) else shutil.which("pandoc")
     readers = [("mdit", render_mdit)]
+    wants = {}
     if exe:
         readers += [("pandoc-commonmark", lambda b: render_pandoc(exe, "commonmark", b)),
-                    ("pandoc-gfm", lambda b: render_pandoc(exe, "gfm", b))]
+                    ("pandoc-gfm", lambda b: render_pandoc(exe, "gfm", b)),
+                    ("pandoc-markdown", lambda b: render_pandoc(exe, "markdown-yaml_metadata_block", b))]
+        wants["pandoc-markdown"] = smart_text(GTEXT)
     # control needles: the oracle sees a clean body and every dirty one, in every reader; pandoc is blind to a lone CR
     for rn, r in readers:
-        if not clean(r(NEEDLE_CLEAN))[0] or any(clean(r(d))[0] for d in NEEDLE_DIRTY):
+        w = wants.get(rn)
+        if not clean(r(NEEDLE_CLEAN), w)[0] or any(clean(r(d), w)[0] for d in NEEDLE_DIRTY):
             print("BLOCKSTATE-BLIND the oracle failed a control needle in %s" % rn)
             return 2
     if clean(render_mdit(CR_NEEDLE))[0]:
@@ -398,7 +416,7 @@ def main(argv):
             for rn, r in readers:
                 if rn != "mdit" and lone_cr:
                     continue  # pandoc drops a lone CR: blind there, never the judge
-                ok, why = clean(r(body))
+                ok, why = clean(r(body), wants.get(rn))
                 if not ok:
                     danger += 1
                     print("BS-DANGER %s %s: %s" % (name, rn, why))
@@ -408,9 +426,9 @@ def main(argv):
             if clean(render_mdit(body))[0]:
                 falseref += 1
     print("BLOCKSTATE bodies=%d accepted=%d refused=%d danger=%d false_refusals=%d contexts=%d joins=%d suffixes=%d "
-          "endings=%d reviewer=%d mdit=%s pandoc=%s oracle_selftest=%d icu=%s" % (
+          "endings=%d reviewer=%d mdit=%s pandoc=%s readers=%d oracle_selftest=%d icu=%s" % (
               n, acc, ref, danger, falseref, len(CONTEXTS), len(JOINS), len(SUFFIXES), 2 if quick else len(ENDINGS),
-              len(REVIEWER), MDIT_VERSION, "checked" if exe else "SKIP", len(ORACLE_SELFTEST), _ICU.icu_version))
+              len(REVIEWER), MDIT_VERSION, "checked" if exe else "SKIP", len(readers), len(ORACLE_SELFTEST), _ICU.icu_version))
     return 1 if danger else 0
 
 

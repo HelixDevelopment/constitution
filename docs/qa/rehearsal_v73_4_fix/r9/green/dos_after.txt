@@ -1,0 +1,10 @@
+# DoS GREEN: the r9 checker as committed, the reviewer's probe_r3. seconds, verdict per DoS probe:
+spaces20k 0.068 the verification line is longer than allowed: 20132 characters, more than 4096
+braces20k 0.0 the body is not read: line 1 holds 513 or more characters with no white space between them; a reader's time grows faster than the length of 
+singles20k 0.0 the body is not read: line 1 holds 513 or more characters with no white space between them; a reader's time grows faster than the length of 
+dash20k 0.001 the verification line is longer than allowed: 20130 characters, more than 4096
+dollar20k 0.0 the body is not read: line 1 holds 513 or more characters with no white space between them; a reader's time grows faster than the length of 
+lt20k 0.0 the body is not read: line 1 holds 513 or more characters with no white space between them; a reader's time grows faster than the length of 
+path20k 0.0 the body is not read: line 1 holds 513 or more characters with no white space between them; a reader's time grows faster than the length of 
+spaces40k 0.021 the verification line is longer than allowed: 40132 characters, more than 4096
+worst 0.068

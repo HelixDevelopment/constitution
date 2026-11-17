@@ -111,9 +111,9 @@ has "P2 a line without the bold marker does not count (r6: and its label refuses
 has "P2 prose is not a sentence of the grammar (the r4 golden-good line)" "^FAIL CON-017 Ready for testing: field 'job' does not start an invocation with a runner"
 has "P2 no created date: the window cannot be checked" "^FAIL CON-018 Ready for testing: field 'due' cannot be checked: the item has no created date$"
 has "P2 due before the item was created" "^FAIL CON-019 In testing: field 'due' is 2026-11-20, before the item was created \(2026-11-25\)$"
-has "P2 a line that continues a paragraph does not count (r6: and its label refuses the body)" "^FAIL CON-020 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
+has "P2 a line that continues a paragraph does not count (r9: the line above it must be blank)" "^FAIL CON-020 Ready for testing: the verification line is not a paragraph of its own: the line above it is not blank"
 has "P2 raw HTML is refused (r7: the self-closing comment opener)" '^FAIL CON-021 Ready for testing: the body holds raw HTML \('
-has "P2 a complete comment is refused too (r8, review r7 F1: comments are refused)" '^FAIL CON-022 Ready for testing: the body holds raw HTML \(.*HTML comments too'
+has "P2 a complete comment is refused too (r8, review r7 F1: comments are refused)" '^FAIL CON-022 Ready for testing: the body holds raw HTML \(.*HTML comments and autolinks too'
 has "P2 a comment an HTML5 reader ends at --!> (the hidden div after it is live) is refused (r8, review r7 F1)" '^FAIL CON-023 Ready for testing: the body holds raw HTML \('
 printf '%s\n' "$OUT" | grep -q '^FAIL CON-016' && bad "P2 a complete item among bad ones is not flagged" || ok "P2 a complete item among bad ones is not flagged"
 has "P2 counts" '^CHECKED items=14 provisional_status=13 ok=1 fail=12$'
@@ -173,8 +173,8 @@ has "P4b a blob body is refused, named" "^FAIL CON-902 Ready for testing: the bo
 has "P4b a status with a trailing space is refused, not skipped" "^FAIL CON-903 Ready for testing : the Status 'Ready for testing ' is not written exactly as 'Ready for testing'"
 has "P4b a status in another case is refused, not skipped" "^FAIL CON-904 in testing: the Status 'in testing' is not written exactly as 'In testing'"
 has "P4b hour 24 is refused" "^FAIL CON-905 Ready for testing: field 'due' is not a real date and time: 2026-11-20T24:00"
-has "P4b a lone CR before a fence hides the line, and its label refuses the body (review r5 I-1)" "^FAIL CON-906 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line"
-has "P4b a lone CR before a comment hides the line; the comment refuses the body (review r5 I-1; r8: every comment is raw HTML)" "^FAIL CON-907 Ready for testing: the body holds raw HTML \("
+has "P4b a lone CR before a fence hides the line; a lone CR refuses the body (review r5 I-1; r9: THE BODY)" "^FAIL CON-906 Ready for testing: the body holds a CR that is not followed by LF"
+has "P4b a lone CR before a comment hides the line; a lone CR refuses the body (review r5 I-1; r9: THE BODY, checked before raw HTML)" "^FAIL CON-907 Ready for testing: the body holds a CR that is not followed by LF"
 printf '%s\n' "$OUT" | grep -q '^FAIL CON-908' && bad "P4b the clean item among them is accepted (control)" || ok "P4b the clean item among them is accepted (control)"
 has "P4b counts: the trailing-space and other-case statuses are checked" '^CHECKED items=9 provisional_status=8 ok=1 fail=7$'
 printf 'board\tT1\n\377\376\n' >"$W/bad_reg.tsv"
@@ -337,9 +337,9 @@ fi
 OUT="$(python3 -I "$HERE/pvl_blockstate.py" "$C" "$W/bs" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P8c no body accepted that a reader renders otherwise" || bad "P8c block state ($RC): $(printf '%s\n' "$OUT" | grep -E 'BS-DANGER|BLIND' | head -5 | tr '\n' '|')"
 if command -v pandoc >/dev/null 2>&1; then
-  has "P8c class needle (danger 0, both readers; round 8: 128 contexts, 13 suffixes, 36 reviewer shapes, the oracle's 14 self-test inputs, labels read through ICU)" '^BLOCKSTATE bodies=65004 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=128 joins=13 suffixes=13 endings=3 reviewer=36 mdit=3\.0\.0 pandoc=checked oracle_selftest=14 icu=[0-9]+\.[0-9]+$'
+  has "P8c class needle (danger 0, four readers incl. the pandoc markdown export reader (round 9, operator decision 2026-11-17); 128 contexts, 13 suffixes, 36 reviewer shapes, the oracle's 14 self-test inputs, labels read through ICU)" '^BLOCKSTATE bodies=65004 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=128 joins=13 suffixes=13 endings=3 reviewer=36 mdit=3\.0\.0 pandoc=checked readers=4 oracle_selftest=14 icu=[0-9]+\.[0-9]+$'
 else
-  has "P8c class needle (danger 0, pandoc absent)" '^BLOCKSTATE bodies=65004 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=128 joins=13 suffixes=13 endings=3 reviewer=36 mdit=3\.0\.0 pandoc=SKIP oracle_selftest=14 icu=[0-9]+\.[0-9]+$'
+  has "P8c class needle (danger 0, pandoc absent)" '^BLOCKSTATE bodies=65004 accepted=[0-9]+ refused=[0-9]+ danger=0 false_refusals=[0-9]+ contexts=128 joins=13 suffixes=13 endings=3 reviewer=36 mdit=3\.0\.0 pandoc=SKIP readers=1 oracle_selftest=14 icu=[0-9]+\.[0-9]+$'
 fi
 # P8d round 8 (review r7 F2, F4): the reading table embedded in the checker equals the one built from ICU now; a host
 # without ICU cannot rebuild it, which is a FAIL here (the harnesses that read labels through ICU are BLIND there too)
@@ -369,12 +369,12 @@ OUT="$(python3 -I "$HERE/pvl_reviewer.py" probes "$ROOT" "$W/rev" 2>&1)"; RC=$?
 has "P11 probe needle (322 cases, 33 narrowed by the grammar)" '^REVIEWER probes cases=322 kept=289 narrowed=33 unexplained=0 stale=0 reversed=0 dos_worst=0\.[0-9]{3}$'
 has "P11 separator classes: none accepted; shape-only jobs refused" '^REV-R3B PASS separator-class cases 700 accepted 0$'
 has "P11 review r6 probes verbatim: no DANGER line, the 4 hiding bodies refused (round 7)" '^REVIEWER probes_r6 rc=0,0 bodies=50 danger=0 hide=4 hide_accepted=0 PASS$'
-has "P11 review r7 probes verbatim (round 8): every comment-end, invisible-character and shape row refused or listed in changes_r7.tsv" '^REVIEWER probes_r7 rows=54 refused=49 listed=13 unlisted=0 stale=0 PASS$'
+has "P11 review r7 probes (round 9: the shapes probe's good line adapted from 'a|b' to 'a b', the only change): every comment-end, invisible-character and shape row refused or listed in changes_r7.tsv" '^REVIEWER probes_r7 rows=54 refused=53 listed=13 unlisted=0 stale=0 PASS$'
 
 # P12 the reviewers' mutants listed
 OUT="$(python3 -I "$HERE/pvl_reviewer.py" mutants "$ROOT" 2>&1)"; RC=$?
 [ "$RC" = 0 ] && ok "P12 every reviewer mutant applies, is run by its suite, or is not applicable with covering cases" || bad "P12 reviewer mutants ($RC): $(printf '%s\n' "$OUT" | grep FAIL | head -5 | tr '\n' '|')"
-has "P12 mutant needle (93: R1-R22, X1-X12, N01-N22, RV01-RV12, RW01-RW10, R7M01-R7M15)" '^REVIEWER mutants total=93 applies=33 not_applicable=60 fail=0$'
+has "P12 mutant needle (93: R1-R22, X1-X12, N01-N22, RV01-RV12, RW01-RW10, R7M01-R7M15)" '^REVIEWER mutants total=93 applies=32 not_applicable=61 fail=0$'
 
 # P13 the paired mutants: each must be killed by a harness the unmutated copy passes
 OUT="$(python3 -I "$HERE/pvl_mutate.py" "$ROOT" "$W/mut" 2>&1)"; RC=$?
@@ -383,8 +383,8 @@ printf '%s\n' "$OUT" | grep '^MUT '
 has "P13 the unmutated copy passes every kill harness (control)" '^MUT-CONTROL unmutated copy passes'
 nown="$(grep -vc -e '^#' -e '^$' "$HERE/pvl_mutants.tsv")"
 [ "$nown" -ge 15 ] && ok "P13 own mutants: $nown (at least 15)" || bad "P13 own mutants: $nown (at least 15)"
-has "P13 mutant needle (own plus the 26 reviewer mutants of this suite that apply: 5 of r2-r4, RV01-RV12 except RV04 RV07 RV11, RW01 RW02 RW08 RW09, R7M05-R7M09 R7M11 R7M14 R7M15; 20 retired own mutants re-proved absent; 4 equivalent own mutants O48 O59 O88 O89 reported, not killed)" "^MUTATE total=$((nown + 26)) killed=$((nown + 26)) survived=0 not_applied=0 retired=20 equivalent=4 retired_fail=0\$"
-printf '%s\n' "$OUT" | grep -c '^MUT-EQUIVALENT ' | grep -qx 4 && ok "P13 the 4 equivalent mutants are listed with their argument" || bad "P13 equivalent mutants not listed"
+has "P13 mutant needle (own, including the r8 reviewer rows RVA* and analogs R9A*, plus the 25 vendored reviewer mutants that apply: 5 of r2-r4, RV01-RV12 except RV04 RV07 RV11, RW01 RW02 RW08 RW09, R7M05-R7M09 R7M14 R7M15; 47 retired rows re-proved absent; no equivalent rows)" "^MUTATE total=$((nown + 25)) killed=$((nown + 25)) survived=0 not_applied=0 retired=47 equivalent=0 retired_fail=0\$"
+printf '%s\n' "$OUT" | grep -c '^MUT-EQUIVALENT ' | grep -qx 0 && ok "P13 no mutant is claimed equivalent (round 9: O48 O59 O88 O89 retired with their code)" || bad "P13 an equivalent mutant is listed"
 
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

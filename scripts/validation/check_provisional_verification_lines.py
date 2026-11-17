@@ -62,58 +62,66 @@ independent implementation of the same grammar, and the suite compares the two):
   NOTE     = "note" then printable ASCII to the end of the line (at least one letter or digit); never evidence
   No term may appear twice in LAYER, TARGET or ARTIFACT; the line is at most 4096 characters.
 
-THE LINE MODEL (round 7, structural: review r6 I-1 was the third round of a hand-written CommonMark state machine
-missing a container or paragraph-state transition, section 11.4.250, section 11.4.276(E)(3)). The checker does not
-model CommonMark by hand: the body is parsed by a real CommonMark parser, markdown-it-py (the version must be one of
-MDIT_TESTED; a missing or untested parser makes the run BLIND, never a pass), and the parser's token stream is the
-only source of the decision. Round 8 (review r7 F3): the body is read TWICE, with the `commonmark` preset and with the
-same preset plus the GFM table and strikethrough rules (THE READERS), and every rule below holds in both readings:
-  COUNTED  a line counts when it is the first source line of a TOP-LEVEL paragraph (token paragraph_open at level 0,
-           its map gives the line), the source line starts with the prefix at column 0, and the paragraph's inline
-           content starts with the bold `Verification:`. Source lines are the parser's own (its line endings: LF, CR LF,
-           a lone CR; NUL read as U+FFFD), so the checker and the parser cannot split a body differently. The two
-           readings must count the same lines (a setext heading CommonMark reads where GFM reads a table header).
-  EXACT    (round 8) the counted paragraph must be that one source line, and the text a reader renders after the label
-           must equal the rest of the source line: no continuation line, hard break, emphasis, strikethrough, link,
-           code span, character reference or backslash escape (review r7 F7 R7M04: text a reader shows after the line
-           in the same paragraph, such as a second `checks:` field on the next line, was accepted).
-  RAW HTML (round 8, review r7 F1) ANY HTML block or inline HTML token, comments included and at any depth (also in
-           image and link text, review r7 F5), refuses the body: raw HTML can hide or wrap a line (`hidden`,
-           `display:none`, `<details>`, a `<style>` anywhere), and an HTML5 reader ends a comment at `--!>`, `<!-->` or
-           `<!--->` where CommonMark does not, so the text after it is live markup to a browser. A placeholder written
-           as `<name>` is raw HTML; write it inside backticks.
-  FOOTNOTE (round 8, review r7 F3) a GFM footnote definition `[^x]: ...` refuses the body: a GFM reader moves its text
-           (and any line indented under it) into a footnote, CommonMark reads it as a link reference definition.
-  ELSEWHERE the body is refused when the Verification label (THE NEAR RULE's reading) occurs anywhere other than at the
-           start of the one counted line: in any other source line, or in the text a reader renders anywhere in the
-           document (other paragraphs, headings, block quotes, list items, code spans, code blocks, fences, link titles
-           and targets, image text, and the counted paragraph after its label). Such a body is refused rather than
-           judged, because whether a reader shows that text as a verification line depends on the reader.
-The test harnesses check this against independent readers: tests/release/pvl_blockstate.py enumerates the container
-and paragraph-state class and renders every accepted body with markdown-it-py, pandoc commonmark and pandoc gfm;
-tests/release/pvl_lineend.py enumerates the line-ending and start-of-line class.
-THE NEAR RULE (round 8, review r7 F2 and F4: a closed list of look-alikes and a format-character filter left variation
-selectors, a combining grapheme joiner, Hangul fillers and every look-alike outside the list): the label is the word
-Verification and a colon, markup or spaces allowed before the colon, matched on fold() of the text. fold() decodes
-character references and reads every character with THE READING TABLE at the end of this file, generated offline from
-ICU 78.2 / Unicode 17.0 by scripts/validation/pvl_reading_table.py (ICU is not needed at run time; the table's sha256
-is checked, a broken table makes the run BLIND): a default-ignorable code point, a mark, a format, surrogate,
-private-use or unassigned code point, or a control character other than white space is read as nothing; any other
-character is decomposed with NFKD and each part read through the UTS #39 confusable skeleton and case folding, so
-`V`, `Ꮩ` (Cherokee) and `Ｖ` read as `v` and `∶` (ratio) reads as `:`. The status is read with the same fold().
+THE LINE MODEL (round 9, structural: rounds 5 to 8 each tried to judge what a reader would show, and every review
+found a body shape the model missed, section 11.4.250, section 11.4.276(E)(3)). Round 9 accepts a body only when it is
+built from a small set of shapes no reader can hide or change, and then real readers confirm it. Everything outside
+the set is refused, so some harmless bodies are refused too (the false refusals below).
+  THE BODY (no reader needed) refuses a body longer than MAX_BODY or holding a run of more than MAX_RUN characters
+           without ASCII white space (pandoc gfm's time grows faster than such a run's length: a 20000-character run
+           took more than 30 s in round 9), and a body that holds a CR not followed by LF (readers split lines
+           differently), a bidi control character, also as a character reference (it can reorder what a reader
+           shows), a line starting with `:::` (a pandoc fenced div), or `<` followed by a letter, `!`, `?` or `/` (raw HTML, a comment or an
+           autolink to some reader) anywhere outside a ``` fence that opens at column 0 as ```WORD and closes with
+           exactly ```; a code span is NOT exempt, because a link destination or a link-definition title can change
+           which backticks pair. A body holding such a `<` may not hold a link reference definition (`]:`).
+  THE LINE a line counts when it starts with the prefix at column 0 (source lines split at LF, CR LF and a lone CR;
+           NUL read as U+FFFD). Exactly one line counts; the label anywhere else, in any source line or after the label
+           in the counted line, refuses the body (THE NEAR RULE), and so does the label in a line that is not at column
+           0. The line above the counted line is blank or absent and so is the line below (otherwise a reader may join
+           them into one paragraph, a lazy continuation, or read them as one construct). After the label the line uses only THE LINE ALPHABET
+           `[A-Za-z0-9 .,;:/@()+=_-]`, the em dash only as ` — `, `_` only between two ASCII letters or digits, and it
+           does not end with white space: none of these characters starts markup at that place. The line is at most
+           MAX_LINE characters, checked before any reader runs.
+  THE READERS the body is then rendered by every reader of READERS: markdown-it-py (a version of MDIT_TESTED) with the
+           `commonmark` preset and with the GFM table and strikethrough rules, and pandoc (a version of PANDOC_TESTED)
+           `commonmark`, `gfm` and `markdown-yaml_metadata_block` (the tracker export's reader; operator decision
+           2026-11-17). The readers follow different CommonMark versions (markdown-it-py 0.30, pandoc 0.31.2: `<!x`,
+           a lowercase `<!doctype`, `<search>`); every `<` + letter or `!` outside a fence is refused by THE BODY, and a
+           line the readers show differently is refused by this step. Each must show exactly one top-level
+           paragraph `<strong>Verification:</strong>` followed by the rest of the line exactly as written (for pandoc
+           markdown after SMART: ` -- ` is shown as ` – `), must write only THE READER OUTPUT (an allowlist of
+           tags and attributes; a style only as text-align), and must not show the label anywhere else: THE NEAR RULE
+           is applied to the text a person reads with the line removed and to every attribute value. A missing or
+           untested reader, a reader error or a timeout makes the item fail or the run BLIND, never a pass. A line the
+           alphabet allows can still be refused here: pandoc `gfm` turns an email address or a bare URL into a link.
+THE NEAR RULE: the label is the word Verification then a colon (markup, spaces or link syntax allowed between them),
+a colon then the word, or the word then provisional, matched on fold() of the text. The source is read twice, as
+written and with link tails `](...)` / `][...]` and markup characters removed, so a label split by a link, an image,
+an autolink, emphasis or a code span is found. fold() decodes character references and reads every character with
+THE READING TABLE at the end of this file, generated offline from ICU 78.2 / Unicode 17.0 by
+scripts/validation/pvl_reading_table.py (ICU is not needed at run time; the table's sha256 is checked, a broken table
+makes the run BLIND): a default-ignorable code point, a mark, a format, surrogate, private-use or unassigned code point,
+or a control character other than white space is read as nothing; any other character is decomposed with NFKD and
+each part read through the UTS #39 confusable skeleton and case folding, so `V`, `Ꮩ` (Cherokee) and `Ｖ` read as `v`
+and `∶` (ratio) reads as `:`. The status is read with the same fold().
+The test harnesses check this against independent readers: tests/release/pvl_blockstate.py renders
+bodies with markdown-it-py, pandoc commonmark, pandoc gfm and pandoc markdown; tests/release/pvl_mutate.py (api_r9) tests THE
+BODY, THE LINE and THE READERS each alone, so a fault in one layer is not hidden by another.
 
 Known limits (stated): a sentence of the grammar can still be false (a real script that is not the right job, counts
 that will not be observed, a commit id that is not the fix: commit and tag ids are shape-checked, the checker runs no
 process); a selector, option or env value is accepted when the script merely mentions it. It does NOT check whether a
-due date is past (derive_release_facts.sh reports that) or whether the job was run. The readers are CommonMark and
-CommonMark with GFM tables and strikethrough; other dialects (pandoc fenced divs and attributes, kramdown attribute
-lists) are read as CommonMark text, and GFM autolinks (`www.x`) and task lists are not parsed: they change no
-character a reader sees (the enumeration renders accepted bodies with pandoc gfm too). THE READING is ICU's: an ASCII
+due date is past (derive_release_facts.sh reports that) or whether the job was run. Only the five readings of READERS
+are checked, each to HTML as the tracker export writes it (its PDF is rendered from HTML by weasyprint, its DOCX drops
+raw TeX); a LaTeX output is not checked (the export writes none; whether raw TeX can hide a line there is
+UNCONFIRMED). A body is read alone, not
+inside the exported document around it. THE READING is ICU's: an ASCII
 character is read as itself (so `l`, `I` and `1` stay different), a character whose skeleton is not ASCII is read as
 itself, and a visible gap such as U+2800 BRAILLE PATTERN BLANK is a character, not nothing; a reader whose fonts or
 rules differ from Unicode 17.0 may show a character the table reads differently. False refusals, the safe direction:
-a body holding any raw HTML or comment, a counted line with markup, a character reference or an escape after its
-label, a GFM footnote definition, or the label anywhere else (also inside code).
+a body holding a `<` placeholder anywhere outside a ``` fence (also inside a code span), a counted line with any
+character outside THE LINE ALPHABET, a line without a blank line on both sides, an email address or bare URL in the
+line, and the label anywhere else (also inside code).
 
 Output: one `FAIL <id> <status>: <reason>` line per refused item, then `ROOT: <real root>` and `TODAY: <date>
 window=<N>d`, then `CHECKED items=N provisional_status=P ok=K fail=F`, then `VERDICT: PASS|FAIL|BLIND`. Exit 0 PASS,
@@ -129,8 +137,10 @@ import html
 import os
 import pathlib
 import re
+import shutil
 import sqlite3
 import stat
+import subprocess
 import sys
 import tempfile
 import time
@@ -188,13 +198,16 @@ CONFUSABLES = {
     "χ": "x",
 }
 
-# the CommonMark parser (round 7): markdown-it-py, `commonmark` preset; only a tested version is trusted (a different
-# version may tokenise differently; extend MDIT_TESTED only after the line-model suites pass with it)
+# THE READERS (round 9). Two independent Markdown implementations confirm what the source rules (THE BODY) already
+# fix by construction: markdown-it-py (CommonMark 0.30) read twice, as CommonMark and with the GFM table and
+# strikethrough rules, and pandoc read three times, as `commonmark` and `gfm` (CommonMark 0.31.2, commonmark-hs) and as
+# the tracker export's `markdown-yaml_metadata_block` (pandoc's own Markdown). Only a
+# tested version of each is trusted; a missing or untested reader makes the run BLIND, never a pass.
 MDIT_TESTED = ("3.0.0",)
+PANDOC_TESTED = ("3.11",)
 try:
     import markdown_it as _mdit_pkg
     from markdown_it import MarkdownIt as _MarkdownIt
-    from markdown_it.rules_core.normalize import NEWLINES_RE as _MDIT_NEWLINES, NULL_RE as _MDIT_NULL
     MDIT_VERSION = _mdit_pkg.__version__
     _MDIT_ERROR = None
 except Exception as _exc:  # noqa: BLE001 -- reported as BLIND by main() and as a refusal by check_body()
@@ -202,37 +215,115 @@ except Exception as _exc:  # noqa: BLE001 -- reported as BLIND by main() and as 
     MDIT_VERSION = None
     _MDIT_ERROR = "%s: %s" % (_exc.__class__.__name__, str(_exc)[:120])
 _MD = {}
-MAX_BODY = 1024 * 1024
-# the two readings (round 8, review r7 F3): CommonMark, and CommonMark with the GFM table and strikethrough rules
-READERS = ("commonmark", "gfm")
+_PANDOC = []
+MAX_BODY = 64 * 1024  # 4.9 times the longest real body (13433, 2026-11-17); pandoc needs ~17 s per MiB
+MAX_RUN = 512  # the longest real run is 179; pandoc gfm time grows faster than a run's length
+LONG_RUN = re.compile(r"[^ \t\r\n]{%d}" % (MAX_RUN + 1))  # ASCII white space only: pandoc splits on nothing else
+PANDOC_TIMEOUT = 30
+READERS = ("markdown-it commonmark", "markdown-it gfm", "pandoc commonmark", "pandoc gfm", "pandoc markdown")
+# pandoc markdown is the tracker export's own reader (scripts/workable-items/cmd/workable-items/export.go runPandoc;
+# operator decision 2026-11-17: in scope). Its smart extension writes these characters for these sequences, and
+# nothing else in THE LINE ALPHABET; the line is compared with the export's rendering of it after this mapping.
+PANDOC_FROM = {"commonmark": "commonmark", "gfm": "gfm", "markdown": "markdown-yaml_metadata_block"}
+SMART = (("---", "\u2014"), ("--", "\u2013"), ("...", "\u2026"))
 
-# a line ending of the target registry (and of CommonMark 2.1): LF, CR LF, or a CR not followed by LF
+# a line ending: LF or CR LF (a CR that is not followed by LF is refused, THE BODY B1)
 LINE_END = re.compile(r"\r\n|\r|\n")
-# the label a person reads as a verification statement, in any case, with markup or spaces before the colon; it is
-# matched on fold() of the text (THE NEAR RULE)
-LABEL = re.compile(r"verification[\s*_~`\\]*(?:</?[a-z][^>]*>[\s*_~`\\]*)*:", re.I)
 BOLD_LABEL = "**Verification:**"
+# THE LINE ALPHABET (round 9): every character of the counted line after the label is one of these; none of them can
+# start markup in a Markdown reader on a line that starts with the bold label (see THE LINE)
+LINE_CHARS = re.compile(r"[A-Za-z0-9 .,;:/@()+=_-]*")
+# the label as a person reads it, matched on fold() of a text (THE NEAR RULE): the word and a colon, or the word and
+# the word provisional, with only characters other than ASCII letters and digits between; or a colon before the word
+NEAR = (re.compile(r"verification[^a-z0-9]*:"), re.compile(r":[^a-z0-9]*verification"),
+        re.compile(r"verification[^a-z0-9]*provisional"))
+# THE BODY: a raw-HTML start, a bidi control, a pandoc fenced div, a fence line, a simple fence opener
+TAG_START = re.compile(r"<[A-Za-z!?/]")
+BIDI_CONTROLS = frozenset("؜‎‏‪‫‬‭‮⁦⁧⁨⁩")
+DIV_FENCE = re.compile(r"[ \t]*:::")
+FENCE_LIKE = re.compile(r"[ \t]*(?:`{3}|~{3})")
+SIMPLE_FENCE_OPEN = re.compile(r"```[A-Za-z0-9_+-]*")
+REF_DEF = re.compile(r"\][ \t]*:")
+# markup a person does not read as part of a word: removed in the second source view of THE NEAR RULE (a link target or
+# a reference label first, then the characters)
+LINK_TAIL = re.compile(r"\]\([^)\n]*\)|\]\[[^\]\n]*\]")
+MARKUP_CHARS = str.maketrans("", "", "*_~`\\[]()<>!^{}|#$")
+
+# THE READER OUTPUT: every tag a reader writes must be one of these, with attributes of these names (style only as a
+# text alignment); anything else (a comment, a doctype, another tag or attribute) refuses the body
+OUT_TAGS = frozenset(
+    "a annotation blockquote br code dd del div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr img input label li ol "
+    "p pre s section span strong sub sup table tbody td tfoot th thead tr ul math semantics mrow mi mn mo ms mtext "
+    "mspace msub msup msubsup munder mover munderover mfrac msqrt mroot mtable mtr mtd mstyle".split())
+OUT_ATTRS = frozenset(
+    "alt aria-hidden checked class colspan data-emoji disabled display encoding form href id role rowspan src start "
+    "stretchy style tabindex title type xmlns mathvariant fence separator lspace rspace largeop movablelimits accent "
+    "accentunder minsize maxsize symmetric linethickness columnalign rowalign displaystyle scriptlevel".split())
+OUT_STYLE = re.compile(r"text-align: ?(?:left|right|center);?")
+OUT_TAG = re.compile(r"<(/?)([a-z][a-z0-9]*)((?: [a-z][a-z-]*(?:=\"[^\"<>]*\")?)*) ?/?>")
+OUT_ATTR = re.compile(r" ([a-z][a-z-]*)(?:=\"([^\"<>]*)\")?")
+OUT_VOID = frozenset("br hr img input".split())
+OUT_BLOCK = frozenset(
+    "blockquote dd div dl dt figcaption figure h1 h2 h3 h4 h5 h6 hr li ol p pre section table tbody td tfoot th thead "
+    "tr ul br math".split())
+
+
+def _pandoc_version():
+    """(path, version, problem) of the pandoc on PATH, computed once."""
+    if not _PANDOC:
+        path = shutil.which("pandoc")
+        version, problem = None, None
+        if path is None:
+            problem = "pandoc is not on PATH"
+        else:
+            try:
+                out = subprocess.run([path, "--version"], capture_output=True, timeout=PANDOC_TIMEOUT, check=False)
+                first = out.stdout.decode("utf-8", "replace").splitlines()[:1]
+                m = re.fullmatch(r"pandoc(?:\.exe)? ([0-9][0-9.]*)", first[0].strip()) if first else None
+                version = m.group(1) if m else None
+                if version is None:
+                    problem = "pandoc --version does not name a version"
+            except (OSError, subprocess.SubprocessError) as exc:
+                problem = "pandoc cannot be run (%s)" % exc.__class__.__name__
+        if problem is None and version not in PANDOC_TESTED:
+            problem = "pandoc %s is not a tested version (%s)" % (version, ", ".join(PANDOC_TESTED))
+        _PANDOC.append((path, version, problem))
+    return _PANDOC[0]
 
 
 def reader_problem():
-    """None when the CommonMark parser is importable and a tested version and the reading table is intact; else the
-    reason (the run is BLIND)."""
+    """None when both readers are a tested version and the reading table is intact; else the reason (the run is
+    BLIND)."""
     if _MarkdownIt is None:
         return "markdown-it-py cannot be imported (%s)" % _MDIT_ERROR
     if MDIT_VERSION not in MDIT_TESTED:
         return "markdown-it-py %s is not a tested version (%s)" % (MDIT_VERSION, ", ".join(MDIT_TESTED))
+    pp = _pandoc_version()[2]
+    if pp is not None:
+        return pp
     if _reading()[2] is not None:
         return "the reading table is not intact (%s)" % _reading()[2]
     return None
 
 
-def _md(reader):
-    if reader not in _MD:
-        md = _MarkdownIt("commonmark")
-        if reader == "gfm":
-            md.enable(["table", "strikethrough"])
-        _MD[reader] = md
-    return _MD[reader]
+def render(body, reader):
+    """The HTML READER writes for BODY (one of READERS)."""
+    if reader.startswith("markdown-it"):
+        if reader not in _MD:
+            md = _MarkdownIt("commonmark")
+            if reader.endswith("gfm"):
+                md.enable(["table", "strikethrough"])
+            _MD[reader] = md
+        return _MD[reader].render(body)
+    out = subprocess.run([_pandoc_version()[0], "-f", PANDOC_FROM[reader.split(" ")[1]], "-t", "html", "--wrap=none"],
+                         input=body.encode("utf-8"), capture_output=True, timeout=PANDOC_TIMEOUT, check=False)
+    if out.returncode != 0:
+        raise ReaderError("%s exited %d" % (reader, out.returncode))
+    return out.stdout.decode("utf-8")
+
+
+class ReaderError(Exception):
+    """A reader did not produce output (the body is refused: what a reader shows is unknown)."""
 
 
 _READING = []
@@ -281,104 +372,187 @@ def fold(s):
     return drop.sub("", t).translate(rmap)
 
 
+def near_label(s):
+    """True when S, read with fold(), holds the label (THE NEAR RULE)."""
+    t = fold(s)
+    return any(p.search(t) for p in NEAR)
+
+
 def has_label(s):
-    """True when S, read as fold() reads it, holds the word Verification followed by a colon (markup or spaces may
-    stand before the colon)."""
-    return LABEL.search(fold(s)) is not None
+    """True when S holds the label in either source view of THE NEAR RULE: as written, or with link targets,
+    reference labels and markup characters removed (so `Verifi[cation](x):` and `Verifi`cation`:` read as the
+    label)."""
+    t = fold(s)
+    return any(p.search(v) for v in (t, LINK_TAIL.sub("]", t).translate(MARKUP_CHARS)) for p in NEAR)
 
 
-def _is_label_start(ch):
-    """True when the inline tokens CH (empty text removed) start with strong_open, text `Verification:`, strong_close."""
-    return (len(ch) >= 3 and ch[0].type == "strong_open" and ch[1].type == "text" and ch[1].content == "Verification:"
-            and ch[2].type == "strong_close")
-
-
-def _rendered(children):
-    """The text a reader renders from inline CHILDREN (markup removed, so `Veri*fi*cation:` reads as the word), with
-    every attribute value (link targets and titles, image text)."""
-    out = []
-    for c in children:
-        if c.type in ("text", "code_inline"):
-            out.append(c.content)
-        elif c.type in ("softbreak", "hardbreak"):
-            out.append("\n")
-        for _k, v in (c.attrs or {}).items():
-            out.append("\n%s\n" % v)
-        if c.children:
-            out.append(_rendered(c.children))
-    return "".join(out)
-
-
-def _raw_html(tokens, out):
-    """Every raw HTML token of TOKENS, at any depth (round 8, review r7 F5: also in image text and link text)."""
-    for t in tokens:
-        if t.type in ("html_block", "html_inline"):
-            out.append(t.content)
-        if t.children:
-            _raw_html(t.children, out)
-
-
-def _read(body, lines, reader):
-    """One reading of BODY: (counted, texts, raw, exact, footnotes). COUNTED: (source line index, line) of each top-level
-    paragraph that starts with the bold label and whose first source line starts with the prefix at column 0. TEXTS:
-    the text a reader renders anywhere else (and the counted line after its label). RAW: the raw HTML tokens. EXACT:
-    the counted lines a reader does not show exactly as written (round 8: the paragraph must be that one source line,
-    and the text the reader renders after the label must equal the rest of that source line). FOOTNOTES: link reference labels that
-    start with `^` (a GFM footnote definition; CommonMark reads it as a link reference)."""
-    env = {}
-    toks = _md(reader).parse(body, env)
-    counted, texts, raw, exact = [], [], [], []
-    _raw_html(toks, raw)
-    for i, t in enumerate(toks):
-        if t.type == "inline":
-            prev = toks[i - 1]
-            ch = [c for c in t.children or [] if not (c.type == "text" and c.content == "")]
-            ln = lines[prev.map[0]] if prev.map is not None else ""
-            if (prev.type == "paragraph_open" and prev.level == 0 and prev.map is not None and _is_label_start(ch)
-                    and ln.startswith(PREFIX) and (len(ln) == len(PREFIX) or ln[len(PREFIX)] in " (")):
-                counted.append((prev.map[0], ln))
-                shown = _rendered(ch[3:])
-                if not (prev.map[1] == prev.map[0] + 1 and shown == ln[len(BOLD_LABEL):]):
-                    exact.append((prev.map[0], prev.map[1] - prev.map[0], [c.type for c in ch[3:6]]))
-                texts.append(shown)
+def body_problem(body, lines):
+    """THE BODY: the first reader-independent reason a reader could hide the counted line or write raw HTML, or None.
+    Each reason is `KIND: detail`."""
+    run = LONG_RUN.search(body)
+    if run:
+        return "run: line %d holds %d or more characters with no white space between them" % (
+            body.count("\n", 0, run.start()) + 1, MAX_RUN + 1)
+    if re.search(r"\r(?!\n)", body):
+        return "line-end: a CR that is not followed by LF (readers disagree on it)"
+    for ch in sorted(set(html.unescape(body)) & BIDI_CONTROLS):
+        return "bidi: U+%04X %s" % (ord(ch), unicodedata.name(ch, "unnamed"))
+    for j, ln in enumerate(lines):
+        if DIV_FENCE.match(ln):
+            return "div: line %d starts a pandoc fenced div" % (j + 1)
+    if not TAG_START.search(body):
+        return None
+    if REF_DEF.search(body):
+        return "raw-html: %r with a link reference definition in the body" % TAG_START.search(body).group(0)
+    in_fence = False
+    for j, ln in enumerate(lines):
+        if FENCE_LIKE.match(ln):
+            if in_fence:
+                if ln != "```":
+                    return "raw-html: %r with line %d inside a fence that is not a ``` closing line" % (
+                        TAG_START.search(body).group(0), j + 1)
+                in_fence = False
+            elif SIMPLE_FENCE_OPEN.fullmatch(ln):
+                in_fence = True
             else:
-                texts.append(_rendered(t.children or []))
-        elif t.type in ("code_block", "fence"):
-            texts.append(t.info + "\n" + t.content)
-        for _k, v in (t.attrs or {}).items():
-            texts.append(v)
-    footnotes = sorted(k for k in env.get("references", {}) if k.startswith("^"))
-    return counted, texts, raw, exact, footnotes
+                return "raw-html: %r with line %d, a fence that is not ```WORD at column 0" % (
+                    TAG_START.search(body).group(0), j + 1)
+        elif not in_fence and TAG_START.search(ln):
+            return "raw-html: %r on line %d (outside a ``` fence)" % (ln[TAG_START.search(ln).start():][:30], j + 1)
+    if in_fence:
+        return "raw-html: %r with a ``` fence that is not closed" % TAG_START.search(body).group(0)
+    return None
+
+
+def _output(h, reader):
+    """(top-level paragraphs, text, attributes) of the reader output H: the inner HTML of every top-level <p>, the text
+    a person reads (tag-free, references decoded, an image's alt text in place, a new line at every block), and every
+    other attribute value. Raises ReaderError for output outside THE READER OUTPUT."""
+    paras, text, attrs, depth, pos, start = [], [], [], 0, 0, None
+    for m in re.finditer(r"<", h):
+        if m.start() < pos:
+            continue
+        text.append(html.unescape(h[pos:m.start()]))
+        t = OUT_TAG.match(h, m.start())
+        if t is None:
+            raise ReaderError("%s writes %r, which is not a tag of THE READER OUTPUT" % (reader, h[m.start():][:30]))
+        close, name, at = t.group(1), t.group(2), t.group(3)
+        if name not in OUT_TAGS:
+            raise ReaderError("%s writes <%s>, which is not a tag of THE READER OUTPUT" % (reader, name))
+        for an, av in OUT_ATTR.findall(at):
+            if an not in OUT_ATTRS or (an == "style" and not OUT_STYLE.fullmatch(html.unescape(av))):
+                raise ReaderError("%s writes the attribute %s=%r" % (reader, an, av[:30]))
+            if name == "img" and an == "alt":
+                text.append(html.unescape(av))
+            else:
+                attrs.append(html.unescape(av))
+        if name in OUT_BLOCK:
+            text.append("\n")
+        if name not in OUT_VOID:
+            if close:
+                depth -= 1
+                if depth == 0 and name == "p":
+                    if start is not None:
+                        paras.append(h[start:m.start()])
+                    start = None
+            else:
+                if depth == 0 and name == "p":
+                    start = t.end()
+                depth += 1
+        pos = t.end()
+    text.append(html.unescape(h[pos:]))
+    return paras, "".join(text), attrs
 
 
 def scan(body):
-    """(counted, problems): the counted lines of BODY (the CommonMark reading) and the reasons it cannot be judged,
-    each `KIND: detail` with KIND raw-html, footnote, gfm, exact or label (see THE LINE MODEL). The caller checks
+    """(counted, problems): the counted lines of BODY (source lines that start with the prefix at column 0) and the
+    reasons it is refused, each `KIND: detail` (see THE BODY, THE LINE and THE READERS). The caller checks
     reader_problem() first."""
-    lines = _MDIT_NULL.sub("\ufffd", _MDIT_NEWLINES.sub("\n", body)).split("\n")
+    body = body.replace("\x00", "�")
+    lines = LINE_END.split(body)
+    counted = [j for j, ln in enumerate(lines) if ln.startswith(PREFIX)]
     problems = []
-    readings = {r: _read(body, lines, r) for r in READERS}
-    for r in READERS:
-        counted, texts, raw, exact, footnotes = readings[r]
-        problems += ["raw-html: %r" % x.strip()[:40] for x in raw]
-        problems += ["footnote: [%s]" % k[:40] for k in footnotes]
-        problems += ["exact: line %d (%s reading: %d source lines, tokens %s)" % (j + 1, r, n, ",".join(ty))
-                     for j, n, ty in exact]
-    c_cm = [j for j, _ in readings["commonmark"][0]]
-    c_gfm = [j for j, _ in readings["gfm"][0]]
-    if c_cm != c_gfm:
-        problems.append("gfm: the GFM reading counts lines %s, CommonMark %s" % (
-            [j + 1 for j in c_gfm][:5], [j + 1 for j in c_cm][:5]))
-    keep = set(c_cm)
-    if has_label("\n".join(ln for j, ln in enumerate(lines) if j not in keep)):
+    bp = body_problem(body, lines)
+    if bp:
+        problems.append(bp)
+    if not counted and not problems:
+        for j, ln in enumerate(lines):
+            if BOLD_LABEL in ln:
+                problems.append("column: line %d holds the label after %r, so a reader puts it in an indented block, a "
+                                "quote or a list item; write the verification line at column 0" % (
+                                    j + 1, ln[:ln.index(BOLD_LABEL)][-12:]))
+                break
+    keep = set(counted)  # a second counted line is refused by check_body's count, not as a label elsewhere
+    other = "\n".join(ln for j, ln in enumerate(lines) if j not in keep)
+    if has_label(other):
         problems.append("label: label in another source line")
-    elif any(has_label(x) for r in READERS for x in readings[r][1]):
-        problems.append("label: label in the rendered text")
-    return [ln for _, ln in readings["commonmark"][0]], problems
+    if len(counted) != 1 or problems:
+        return [lines[j] for j in counted], problems
+    j = counted[0]
+    line = lines[j]
+    if j > 0 and lines[j - 1].strip(" \t"):
+        problems.append("blank: the line above it is not blank, so a reader may join the two lines into one paragraph or "
+                        "read them as one construct; add a blank line before the verification line")
+    elif j + 1 < len(lines) and lines[j + 1].strip(" \t"):
+        problems.append("blank: the line below it is not blank, so a reader may join the two lines into one paragraph or "
+                        "read them as one construct; add a blank line after the verification line")
+    rest = line[len(BOLD_LABEL):]
+    if not problems and len(line) > MAX_LINE:
+        problems.append("size: %d characters, more than %d" % (len(line), MAX_LINE))
+    if not problems:
+        problems.extend(line_alphabet_problem(rest))
+    if not problems and has_label(rest):
+        problems.append("label: label in the counted line after its label")
+    if problems:
+        return [line], problems
+    return [line], confirm(body, rest)
+
+
+def confirm(body, rest):
+    """THE READERS: [] when every reader of READERS shows BODY with exactly one top-level paragraph that is the counted
+    line exactly as written (REST is that line after its label), writes only THE READER OUTPUT, and shows the label
+    nowhere else (THE NEAR RULE on the text a person reads and on every attribute value); else [the first reason].
+    It does not depend on the source rules, so it can be tested alone (tests/release/pvl_mutate.py api_r9)."""
+    for r in READERS:
+        shown_rest = smart(rest) if r == "pandoc markdown" else rest
+        want = "<strong>Verification:</strong>" + shown_rest
+        try:
+            paras, text, attrs = _output(render(body, r), r)
+        except (ReaderError, OSError, subprocess.SubprocessError, UnicodeDecodeError) as exc:
+            return ["reader: %s" % (exc if isinstance(exc, ReaderError) else "%s: %s" % (r, exc.__class__.__name__))]
+        if paras.count(want) != 1:
+            return ["exact: %s does not show the line as a paragraph of its own, exactly as written" % r]
+        shown = text.replace("Verification:" + shown_rest, "", 1)
+        if near_label(shown) or any(near_label(a) for a in attrs):
+            return ["label: %s shows the label elsewhere" % r]
+    return []
+
+
+def smart(s):
+    """S as pandoc markdown's smart extension writes it (SMART; THE LINE ALPHABET has no quote characters)."""
+    for a, b in SMART:
+        s = s.replace(a, b)
+    return s
+
+
+def line_alphabet_problem(rest):
+    """[] when REST (the counted line after its label) uses THE LINE ALPHABET only; else [reason]."""
+    for i, ch in enumerate(rest):
+        if ch == "—" and rest[i - 1:i] == " " and rest[i + 1:i + 2] == " ":
+            continue
+        if not LINE_CHARS.fullmatch(ch):
+            return ["alphabet: the line holds %r (U+%04X) after its label, outside THE LINE ALPHABET" % (ch, ord(ch))]
+        if ch == "_" and not (rest[i - 1:i].isascii() and rest[i - 1:i].isalnum() and rest[i + 1:i + 2].isascii()
+                              and rest[i + 1:i + 2].isalnum()):
+            return ["alphabet: an underscore at column %d is not between two letters or digits" % (
+                len(BOLD_LABEL) + i + 1)]
+    if rest.endswith((" ", "\t")):
+        return ["alphabet: the line ends with white space"]
+    return []
 
 
 def visible_lines(body):
-    """The lines of BODY that count (see THE LINE MODEL); [] when the parser is unavailable."""
+    """The counted lines of BODY (see THE LINE); [] when a reader is unavailable."""
     if reader_problem() is not None or not isinstance(body, str):
         return []
     return scan(body)[0]
@@ -662,35 +836,38 @@ def check_body(body, root=None, ctx=None):
         return "the body is not text (%s)" % type(body).__name__
     rp = reader_problem()
     if rp:
-        return "the CommonMark reader is unavailable: %s" % rp
+        return "a reader is unavailable: %s" % rp
     if len(body) > MAX_BODY:
         return "the body is longer than %d characters (%d)" % (MAX_BODY, len(body))
     lines, problems = scan(body)
-    kinds = {}
-    for p in problems:
-        kinds.setdefault(p.split(":", 1)[0], p.split(": ", 1)[1])
-    if "raw-html" in kinds:
-        return ("the body holds raw HTML (%s; HTML comments too): a reader may hide or wrap a line with it, so which "
-                "lines are visible is not certain; write a placeholder such as <name> inside backticks (`<name>`) so a "
-                "reader shows it as text" % kinds["raw-html"])
-    if "footnote" in kinds:
-        return ("the body holds a GFM footnote definition %s: a GFM reader moves text into a footnote, so which lines "
-                "are visible is not certain" % kinds["footnote"])
-    if "exact" in kinds:
-        return ("a reader does not show the verification line exactly as written (%s): the line must be a paragraph of "
-                "its own, one source line with no markup, character reference or escape after the label"
-                % kinds["exact"])
-    if "gfm" in kinds:
-        return "the GFM reading and the CommonMark reading differ (%s)" % kinds["gfm"]
     if problems:
-        return ("a line a reader shows carries the Verification label but is not the one counted line (the label "
-                "occurs outside the start of the one top-level paragraph that starts with the prefix at column 0: %s)"
-                % kinds.get("label", problems[0]))
+        kind, detail = problems[0].split(": ", 1)
+        return REFUSAL[kind] % detail
     if not lines:
         return "no '**Verification:** provisional' line"
     if len(lines) > 1:
         return "%d verification lines (one expected)" % len(lines)
     return check_line(lines[0], ctx)
+
+
+REFUSAL = {
+    "line-end": "the body holds %s",
+    "run": ("the body is not read: %s; a reader's time grows faster than the length of such a run (break it with a "
+            "space)"),
+    "size": "the verification line is longer than allowed: %s",
+    "bidi": "the body holds the bidi control %s: it can reorder what a reader shows",
+    "div": "the body holds a fenced div (%s): a pandoc reader can hide what is inside it",
+    "raw-html": ("the body holds raw HTML (%s; HTML comments and autolinks too): a reader may hide or wrap a line with "
+                 "it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader "
+                 "shows it as text"),
+    "label": ("a line a reader shows carries the Verification label but is not the one counted line (%s): the label "
+              "may occur only at the start of the one verification line"),
+    "blank": "the verification line is not a paragraph of its own: %s",
+    "column": "the verification line does not start at column 0: %s",
+    "alphabet": "%s (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only as a separator)",
+    "exact": "a reader does not show the verification line exactly as written: %s",
+    "reader": "a reader's output cannot be judged: %s",
+}
 
 
 def parse_date(s):
@@ -846,7 +1023,7 @@ def main(argv):
         return blind("the target registry cannot be read as UTF-8 text: %s" % exc)
     rp = reader_problem()
     if rp:
-        return blind("the CommonMark reader is unavailable: %s" % rp)
+        return blind("a reader is unavailable: %s" % rp)
     if not os.path.exists(db):
         return blind("the database cannot be read (no such file)")
     with tempfile.TemporaryDirectory(prefix="pvl_db.") as tmp:
