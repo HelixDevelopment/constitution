@@ -19,6 +19,12 @@ an EXEMPT row with its reason; the values of variables at run time beyond the pr
 
 Python (AST):
   imports      exactly PY_IMPORTS; an alias / `from` import / another module -> VIOLATION at the import and at every use
+  git-env      CON-402 (fallout fix, audit F1): the ONE modelled form of the file-level git-env scrub -- `import os as
+               _ge_os` IMMEDIATELY followed, as the first two non-docstring module statements, by `for _ge_v in
+               "<UPPERCASE WORDS>".split(): _ge_os.environ.pop(_ge_v, None)` (one body statement, no else) -- is an
+               EXEMPT row (it changes the process environment, no path); every other use of _ge_os, a second or a
+               displaced or a reshaped scrub stays a VIOLATION (fail-closed: _git_env_scrub_py); the shell form is
+               desugared, see `unset` below
   os.X         OS_PURE (no path), PY_OPS (path: classified below), PY_EXEMPT (function, op) with reason; else VIOLATION;
                a PY_OPS function REFERENCED but not called (functools.partial(os.unlink, p)) -> VIOLATION
   os.path.X    OS_PATH_PURE (strings); OS_PATH_READ -> needs a `# safepath:probe` tag; else VIOLATION
@@ -40,6 +46,27 @@ Shell (a lexer, _ShLex):
                every path operand must be PRIVATE (it starts with a PROVED variable; every other expansion in it is a
                proved variable; no '..' component, no '~', no bare relative word; a plain suffix only on a FILE
                variable), or TAGGED (param: PARAMS; devnull; procfs literal for reads)
+  git-env      CON-402: the canonical column-0 line `for _ge_v in <UPPERCASE WORDS>; do unset "$_ge_v"; done; unset _ge_v`
+               (outside a here-document body) is read as `unset <WORDS>; unset _ge_v` -- the same commands, with
+               literal NAMEs -- so every rule below still applies to each NAME; any other shape keeps its
+               non-literal `unset "$_ge_v"` and is a VIOLATION (_git_env_scrub_sh). CON-450 round 2: the desugar is
+               refused (a VIOLATION row naming the cause) when `_ge_v` is named on any other line, or a local /
+               declare / typeset -l -u -c -i -n carries a NAME that is not a plain identifier other than _ge_v --
+               bash applies such an attribute on the loop's assignment, so the loop would unset OTHER names
+               (_git_env_scrub_sh_blockers). `unset` / `unset -f` of a trusted function (SH_TRUSTED_FUNCS) is a
+               VIOLATION. CON-450 round 3 (§11.4.276(E) structural, the class "the loop or a trusted / file function
+               means something else than it reads"; enumeration: docs/qa/con402_fallout_r3/): (1) PREAMBLE ALLOW-LIST:
+               only a line-1 `#!`, blank lines and comment lines may precede the canonical line -- any other line
+               (a wrapper, a trap, `set`, `command declare ...`) refuses the desugar, so nothing can run before the
+               loop; the two blockers above stay as an independent second layer; (2) every `unset` operand that can
+               name a function (`-f`, or neither `-v` nor `-f`) must be a plain identifier AFTER quote removal
+               (escaped / quoted / brace / expansion spellings -> VIOLATION), and may not name a trusted function or
+               any other function of the file unless it is a SCOPED HELPER (defined once inside one enclosing
+               function, unset in it after its body, every mention between the two, no loop keyword in the span);
+               (3) a wrapper (command / env / exec ...) never runs a function of the file; (4) a function defined
+               inside a trap action or a `-c` program -> VIOLATION; (5) a trusted function defined more than once ->
+               VIOLATION. Boundary: code that runs BEFORE the file (BASH_ENV, a sourcing parent, an exported
+               function such as BASH_FUNC_unset%%) is outside any file-scope census.
   PROVED       a variable EVERY assignment of which is: $(_fc_safe mkdtemp ...), $(_fc_safe mkdir --exclusive ...) (a
                plain `_fc_safe mkdir` result is NOT a namespace), $(_fc_mktemp), $(mktemp [-d] "$_FC_TMPDIR/NAME") with
                NAME free of '/' and '..', ${FC_BR_TMPDIR} (proved --exclusive at worker start), or a proved variable +
@@ -76,6 +103,7 @@ import ast
 import os
 import re
 import sys
+import unicodedata
 
 SH_TAGS = {"msg", "param", "devnull"}
 # function parameters that carry a path, with the reason every caller passes a proved one (checked by name)
@@ -224,21 +252,69 @@ def _params(fn):
     return [x.arg for x in a.posonlyargs + a.args + a.kwonlyargs]
 
 
+# CON-402 (audit F1, 2026-11-16): the file-level git-env scrub of scripts/validation/git_env_class_census.py, python
+# form. Exactly ONE modelled shape; the check is structural (ast), never a text match, and anything else -- the
+# import alone, the loop alone, a non-literal word list, a second body statement, an else, a different target or
+# receiver, the pair after another statement or a second pair -- is left in the tree and refused by the ordinary
+# rules (an unmodelled import, a use of a name bound by an unmodelled import).
+_GE_WORD = re.compile(r"^[A-Z_][A-Z0-9_]*$")
+
+
+def _git_env_scrub_py(tree):
+    """index i in tree.body of the canonical scrub pair (tree.body[i] the import, tree.body[i+1] the loop), else None.
+    Only a module docstring may precede it."""
+    body = tree.body
+    i = 1 if (body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant)
+              and isinstance(body[0].value.value, str)) else 0
+    if len(body) < i + 2:
+        return None
+    imp, loop = body[i], body[i + 1]
+    if not (isinstance(imp, ast.Import) and len(imp.names) == 1 and imp.names[0].name == "os"
+            and imp.names[0].asname == "_ge_os"):
+        return None
+    if not (isinstance(loop, ast.For) and isinstance(loop.target, ast.Name) and loop.target.id == "_ge_v"
+            and not loop.orelse and len(loop.body) == 1 and isinstance(loop.body[0], ast.Expr)):
+        return None
+    it = loop.iter
+    if not (isinstance(it, ast.Call) and isinstance(it.func, ast.Attribute) and it.func.attr == "split"
+            and not it.args and not it.keywords and isinstance(it.func.value, ast.Constant)
+            and isinstance(it.func.value.value, str)):
+        return None
+    words = it.func.value.value.split()
+    if not words or not all(_GE_WORD.match(w) for w in words):
+        return None
+    c = loop.body[0].value
+    if not (isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) and c.func.attr == "pop"
+            and isinstance(c.func.value, ast.Attribute) and c.func.value.attr == "environ"
+            and isinstance(c.func.value.value, ast.Name) and c.func.value.value.id == "_ge_os"
+            and not c.keywords and len(c.args) == 2 and isinstance(c.args[0], ast.Name) and c.args[0].id == "_ge_v"
+            and isinstance(c.args[1], ast.Constant) and c.args[1].value is None):
+        return None
+    return i
+
+
 def py_census(path):
     src = open(path).read()
     lines = src.split("\n")
     tree = ast.parse(src)
-    scope, parent = _scopes(tree)
     rows = []
 
     def row(node, func, name, verdict, why):
         rows.append((os.path.basename(path), node.lineno, func, name, verdict, why))
+    # CON-402: the modelled git-env scrub pair leaves the tree (one EXEMPT row); _ge_os stays an UNMODELLED name, so
+    # any other use of it anywhere is still refused below
+    ge = _git_env_scrub_py(tree)
+    if ge is not None:
+        row(tree.body[ge], "<module>", "import os as _ge_os + environ.pop loop", "EXEMPT",
+            "the CON-402 file-level git-env scrub: os.environ.pop of literal NAMEs only, no path (_git_env_scrub_py)")
+        del tree.body[ge:ge + 2]
+    scope, parent = _scopes(tree)
     funcs = {}
     for n in ast.walk(tree):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
             funcs.setdefault(n.name, n)
     # ---- imports ----
-    unmodelled = set()
+    unmodelled = {"_ge_os"} if ge is not None else set()
     for n in ast.walk(tree):
         if isinstance(n, ast.Import):
             for al in n.names:
@@ -780,9 +856,158 @@ def _name_words(w0, args):
     return [], set()
 
 
+# CON-402 (audit F1): the canonical shell scrub line of scripts/validation/git_env_class_census.py (CANON_SH), at
+# column 0, read as the same commands with literal NAMEs. Anything that is not exactly this line is left as written.
+_GE_SH = re.compile(r'^for _ge_v in ((?:[A-Z_][A-Z0-9_]*)(?: [A-Z_][A-Z0-9_]*)*); do unset "\$_ge_v"; done; '
+                    r'unset _ge_v(?:[ \t]+#.*)?$')
+
+
+def _git_env_scrub_sh(lines):
+    """(lines with every canonical scrub line outside a here-document body rewritten to `unset WORDS; unset _ge_v`,
+    [their line numbers])"""
+    inside, end = set(), None
+    for no, raw in enumerate(lines, 1):
+        if end is not None:
+            inside.add(no)
+            if raw.strip() == end:
+                end = None
+            continue
+        if not raw.lstrip().startswith("#"):
+            m = HEREDOC_RE.search(code_part(raw))
+            if m:
+                end = m.group(2)
+    out, hits = list(lines), []
+    for no, raw in enumerate(lines, 1):
+        m = _GE_SH.match(raw)
+        if m and no not in inside:
+            out[no - 1] = "unset %s; unset _ge_v" % m.group(1)
+            hits.append(no)
+    return out, hits
+
+
+SH_TRUSTED_FUNCS = ("_fc_safe", "_fc_run_child", "_fc_mktemp")   # the functions the census gives a meaning to
+_GE_ATTR = set("lucin")      # value-transforming attributes: case (-l -u -c), arithmetic (-i), nameref (-n)
+_GE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _git_env_scrub_sh_blockers(raw_lines, ge_lines, cmds):
+    """CON-450 round 2 (review F1-A, the CLASS): the desugar `unset WORDS; unset _ge_v` is only the same command as
+    the canonical line when "$_ge_v" expands to each WORD exactly as written. Bash applies a variable's attributes on
+    every assignment, the `for` assignment included: `declare -l _ge_v` (or local / typeset, -u -c -i, -n) before the
+    line makes the loop unset OTHER names (measured: a PROVED lower-case variable and the trusted function _fc_safe).
+    The desugar is refused (the line is left to the fail-closed rules) when either holds:
+      (1) the text `_ge_v` occurs on any line other than a line that is exactly the canonical line (any declaration,
+          assignment, read or use; also in a comment or a here-document body -- conservative);
+      (2) a local / declare / typeset command carries a value-transforming attribute (-l -u -c -i -n, or an option
+          letter the census cannot read) on a NAME word that is not a plain identifier other than _ge_v (a quoted,
+          escaped, brace, glob, subscript or expanded NAME can be _ge_v at run time without the text `_ge_v`).
+    Both are decided on the whole file, so a declaration in a calling function (bash's dynamic scope) is seen.
+    CON-450 round 3 (review R2-2, §11.4.276(E) structural -- an ALLOW-LIST replaces the deny-lists as the decisive
+    rule): (0) the canonical line is desugared only when it is the FIRST statement of the file -- every line before
+    it is the line-1 `#!` line, a blank line or a comment line. Nothing of the file can then run before the loop: no
+    declaration (through any wrapper -- command, builtin, a function, a continued line), no DEBUG / ERR trap, no
+    attribute, no unset. (1) and (2) are kept as a second, independent layer (a declaration AFTER the line). What
+    runs before the FILE (BASH_ENV, a sourcing parent, an exported function) is outside every file-scope census
+    (docs/qa/con402_fallout_r3/followups.md FU-1).
+    CON-450 round 4 (review R3-1 / R3-2): (0) is only true when "blank" and "comment" mean what they mean to bash.
+    sh_census therefore runs _sh_read_as_bash first: the file is read as bytes split on LF, every character outside a
+    closed allow-list (CR, VT, FF, FS..US, NEL, NBSP and the other Unicode spaces, bidi / zero-width) is refused, and
+    line 1 may only be one of SH_SHEBANGS. On what passes that gate, raw.strip() and raw.lstrip() remove SPACE and TAB
+    only, so the test below sees the lines bash sees.
+    Returns [(line, reason)]; empty when the desugar holds."""
+    out = []
+    ge = set(ge_lines)
+    for no in ge_lines:
+        for k in range(1, no):
+            raw = raw_lines[k - 1]
+            if (k == 1 and raw.startswith("#!")) or not raw.strip() or raw.lstrip().startswith("#"):
+                continue
+            out.append((no, "line %d holds code before the canonical scrub line (the line must be the file's first "
+                            "statement: only the #! line, blank lines and comment lines may precede it)" % k))
+            break
+    for no, raw in enumerate(raw_lines, 1):
+        # a here-document body line that is exactly the canonical line (its text, never desugared) does not count
+        if no not in ge and "_ge_v" in raw and not _GE_SH.match(raw):
+            out.append((no, "the helper variable _ge_v is named outside the canonical scrub line"))
+    for cm in cmds:
+        if cm["cmd"] not in ("local", "declare", "typeset"):
+            continue
+        letters, _vals, ops = _options(cm["args"])
+        if not (letters & (_GE_ATTR | {"$"})):
+            continue
+        for o in ops:
+            nm = o.split("=", 1)[0]
+            if not _GE_NAME.match(nm) or nm == "_ge_v":
+                out.append((cm["line"], "%s -%s on a NAME (%s) that may be _ge_v at run time"
+                            % (cm["cmd"], "".join(sorted(letters & (_GE_ATTR | {"$"}))), nm[:30])))
+                break
+    return out
+
+
+# CON-450 round 4 (review R3-1 / R3-2 / R3-7, section 11.4.276(E) structural -- the class "text that bash runs and the
+# census reads as something else" escaped rounds 1 to 3 one spelling at a time). The census now READS THE FILE THE WAY
+# BASH DOES and admits only a CLOSED ALLOW-LIST of characters, so that every character Python treats as a line break or
+# as blank is one that bash treats the same way:
+#   * bytes, never Python's universal-newline text mode (open(path) turned a lone CR into a line break; bash does
+#     not, so `\r#;command declare -l _ge_v` ran in bash while the census saw a blank line and a comment);
+#   * strict UTF-8; lines split on LF only (bash's only line terminator);
+#   * every character of a CODE line is TAB or printable ASCII (0x20-0x7e); a FULL-LINE comment (only blanks and TABs
+#     before its `#`) may also carry non-ASCII letters, marks, numbers, punctuation and symbols (Unicode categories
+#     L M N P S, none of which str.isspace() accepts). Everything else -- CR (lone or CRLF), NUL, VT, FF, the C0
+#     separators FS GS RS US, DEL, NEL U+0085, NBSP and every other Unicode space, line / paragraph separators, bidi
+#     and zero-width format characters (category Cf), surrogates, private use, unassigned -- is REFUSED wherever it
+#     stands (a leading, comment, blank or code position), fail-closed, with its line and code point;
+#   * a line-1 `#!` line must be one of SH_SHEBANGS exactly: a file run directly (./file) runs its shebang's arguments
+#     before line 2 (`#!/usr/bin/env -S bash -c '...; . "$0"'`).
+# Inside the allow-list Python's str.strip / lstrip / split and the `\s` class remove only SPACE and TAB, exactly
+# bash's blanks, so the line, blank and comment decisions below mean what bash means.
+SH_SHEBANGS = ("#!/bin/bash", "#!/usr/bin/env bash")
+_SH_COMMENT_LINE = re.compile(r"[ \t]*#")
+
+
+def _sh_char_ok(ch, comment_line):
+    o = ord(ch)
+    if ch == "\t" or 0x20 <= o <= 0x7e:
+        return True
+    return comment_line and o >= 0x80 and unicodedata.category(ch)[0] in "LMNPS" and not ch.isspace()
+
+
+def _sh_read_as_bash(path):
+    """(text, [(line, reason)]) -- the file as bash reads it, and every place it leaves the census's modelled set"""
+    data = open(path, "rb").read()
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        return None, [(data[:e.start].count(b"\n") + 1, "the file is not valid UTF-8 (byte 0x%02x): outside the census's "
+                       "modelled character set (fail-closed, _sh_read_as_bash)" % data[e.start])]
+    probs = []
+    for no, raw in enumerate(text.split("\n"), 1):
+        if no == 1 and raw.startswith("#!") and raw not in SH_SHEBANGS:
+            probs.append((no, "line 1 is a #! line outside the closed set %s: run directly, its arguments run before "
+                              "the file's first line (fail-closed, _sh_read_as_bash)" % " / ".join(SH_SHEBANGS)))
+            continue
+        com = bool(_SH_COMMENT_LINE.match(raw))
+        for col, ch in enumerate(raw, 1):
+            if not _sh_char_ok(ch, com):
+                probs.append((no, "column %d holds U+%04X (%s, category %s), outside the census's modelled character set "
+                                  "(bash and Python split or strip it differently; fail-closed, _sh_read_as_bash)"
+                              % (col, ord(ch), unicodedata.name(ch, "unnamed"), unicodedata.category(ch))))
+                break
+    return text, probs
+
+
 def sh_census(path):
-    lines = open(path).read().split("\n")
+    text, gate = _sh_read_as_bash(path)
+    if gate:                                              # fail-closed: nothing of the file is censused
+        return [(os.path.basename(path), no, "<top>", "<file text>", "VIOLATION", why) for no, why in gate], set()
+    raw_lines = text.split("\n")
+    lines, ge_lines = _git_env_scrub_sh(raw_lines)
     cmds, funcs, extents = sh_commands(lines)
+    ge_blockers = _git_env_scrub_sh_blockers(raw_lines, ge_lines, cmds) if ge_lines else []
+    ge_refused = []
+    if ge_blockers:                                       # fail-closed: no desugar, the line is censused as written
+        ge_refused, ge_lines, lines = ge_lines, [], raw_lines
+        cmds, funcs, extents = sh_commands(lines)
     bodies = _heredoc_bodies(lines)
     # ---- provenance: every assignment of every variable, by function ----
     assigns = {}                                          # (func, name) -> [value]
@@ -907,6 +1132,14 @@ def sh_census(path):
                 return proved_in(fn, v)
         return K()
     rows = []
+    for no in ge_refused:                           # CON-450 round 2: the refusal is its own row, with its cause
+        rows.append((os.path.basename(path), no, func_at(extents, no), "for _ge_v ... unset", "VIOLATION",
+                     "the CON-402 git-env scrub line is NOT desugared: %s (line %d) -- the loop may unset other "
+                     "names (fail-closed, _git_env_scrub_sh_blockers)" % (ge_blockers[0][1], ge_blockers[0][0])))
+    for no in ge_lines:                             # CON-402: one row per desugared scrub line (visible, not silent)
+        rows.append((os.path.basename(path), no, func_at(extents, no), "for _ge_v ... unset", "EXEMPT",
+                     "the CON-402 file-level git-env scrub: read as `unset <literal NAMEs>`, each NAME checked by the "
+                     "rules below (_git_env_scrub_sh)"))
 
     def tag_at(no):
         raw = lines[no - 1] if no - 1 < len(lines) else ""
@@ -951,6 +1184,36 @@ def sh_census(path):
     def add(cm, kind, verdict, why):
         rows.append((os.path.basename(path), cm["line"], cm["func"], kind, verdict, why))
 
+    scan_lines = _blank_heredocs(lines)
+
+    def scoped_helper(nm, uline):
+        """CON-450 round 3: `unset -f NAME` of a function of this file is accepted only for a HELPER defined once,
+        inside one enclosing function, removed in that function after the helper's body, with every mention of the
+        name between its definition and the unset and no loop keyword in that span (so no call can follow the unset,
+        on any path through the enclosing function)"""
+        ext = [e for e in extents if e[0] == nm]
+        if len(funcs.get(nm, [])) != 1 or len(ext) != 1:
+            return False
+        _n, a, b = ext[0]
+        enc = [e for e in extents if e[1] < a and b <= e[2]]
+        if not enc:
+            return False
+        en, _ea, eb = max(enc, key=lambda e: e[1])
+        if not (b < uline <= eb) or func_at(extents, uline) != en:
+            return False
+        pat = re.compile(r"(?<![\w$])%s(?![\w])" % re.escape(nm))
+        for k, raw in enumerate(scan_lines, 1):
+            if pat.search(code_part(raw)) and not a <= k <= uline:
+                return False
+        return not [k for k in range(a, uline + 1)
+                    if re.search(r"(^|[;&|(\s])(while|until|for|select)(\s|$)", code_part(scan_lines[k - 1]))]
+
+    for nm in SH_TRUSTED_FUNCS:                           # CON-450 round 3: a trusted function defined once
+        if len(funcs.get(nm, [])) > 1:
+            rows.append((os.path.basename(path), funcs[nm][1], func_at(extents, funcs[nm][1]), "function " + nm,
+                         "VIOLATION", "the trusted function %s is defined %d times: a later definition changes what "
+                         "every ROUTED call runs (fail-closed, CON-450 round 3)" % (nm, len(funcs[nm]))))
+
     def operands(words, valued=()):
         out, skip, ddash = [], False, False
         for w in words:
@@ -980,6 +1243,10 @@ def sh_census(path):
         if w0 == '"$BASH"' and args[:1] == ["-c"] and len(args) > 1 and args[1][:1] == "'" and args[1][-1:] == "'":
             sub = _ShLex(args[1][1:-1], cm["line"])           # a literal program: lexed and censused like any code
             sub.parse_list(0, None)
+            if sub.funcs:
+                add(cm, '"$BASH" -c', "VIOLATION", "a function defined inside a -c program (%s): outside the census's "
+                    "function model (fail-closed, CON-450 round 3)" % sub.funcs[0][0][:30])
+                return
             for scm in sub.cmds:
                 scm["func"] = func
                 if scm["cmd"]:
@@ -1024,10 +1291,37 @@ def sh_census(path):
                     add(cm, "exec ${blk...}", "VIOLATION", "exec through an array not assigned only "
                                                            "(env --block-signal=INT)")
                     return
+            if rest and rest[0] in funcs:                 # CON-450 round 3: command / env / exec never run a function
+                add(cm, w0 + " " + rest[0][:30], "VIOLATION", "%s %s runs the PROGRAM of that name PATH finds, not "
+                    "the function of this file (fail-closed, CON-450 round 3)" % (w0, rest[0][:30]))
+                return
             classify(cm, rest, depth + 1)
             return
         # round 14 (V4R14-2) -> round 15 (V4R15-2, the CLASS): every variable-NAME position of every name-taking
         # builtin the tables admit (NAME_BUILTINS), after quote removal; each a VIOLATION at its own line
+        if w0 == "unset":                                 # CON-450 round 2 (F1-E) -> round 3 (review R2-1, the
+            u_letters, _uv, u_ops = _options(args)       # CLASS): an ALLOW-LIST of operand shapes, not a deny-list
+            if "$" not in u_letters:                      # (an option word holding an expansion: refused below)
+                fn_capable = "f" in u_letters or "v" not in u_letters   # `unset NAME` falls back to a function
+                for o in u_ops:
+                    lit = _lit(o)
+                    if lit is None and "f" not in u_letters:
+                        continue                          # refused below: a non-literal variable NAME (round 15)
+                    if lit is None or not _GE_NAME.match(lit):
+                        add(cm, "unset " + o[:30], "VIOLATION", "an operand of unset that is not a plain identifier "
+                            "after quote removal (%s): an expansion, brace, glob or subscript can name any variable or "
+                            "function at run time (fail-closed, CON-450 round 3)" % o[:30])
+                        return
+                    if fn_capable and lit in SH_TRUSTED_FUNCS:
+                        add(cm, "unset " + lit, "VIOLATION", "unset of the trusted function %s: every later call "
+                            "of it would run whatever command of that name PATH finds (fail-closed)" % lit)
+                        return
+                    if fn_capable and lit in funcs and not scoped_helper(lit, cm["line"]):
+                        add(cm, "unset " + lit, "VIOLATION", "unset of the function %s of this file: the census "
+                            "reads every call of it as the censused body, a call after the unset runs whatever "
+                            "command of that name PATH finds (fail-closed, CON-450 round 3; only a helper defined "
+                            "and removed inside one function after its last use is accepted)" % lit)
+                        return
         if w0 in NAME_BUILTINS:
             words, letters = _name_words(w0, args)
             if "$" in letters:
@@ -1181,6 +1475,9 @@ def sh_census(path):
                 else:
                     sub = _ShLex(act[1:-1] if act[:1] in "'\"" else act, cm["line"])
                     sub.parse_list(0, None)
+                    if sub.funcs:
+                        add(cm, "trap", "VIOLATION", "a function defined inside a trap action (%s): outside the "
+                            "census's function model (fail-closed, CON-450 round 3)" % sub.funcs[0][0][:30])
                     for scm in sub.cmds:
                         scm["func"] = cm["func"]
                         if scm["cmd"]:
@@ -1746,7 +2043,10 @@ def sh_commands(lines):
     lex.parse_list(0, None)
     for cm in lex.cmds:
         cm["func"] = func_at(lex.extents, cm["line"])
-    return sorted(lex.cmds, key=lambda c: c["line"]), {nm for nm, _ in lex.funcs}, lex.extents
+    funcs = {}                                          # name -> [the line of every definition]
+    for nm, ln in lex.funcs:
+        funcs.setdefault(nm, []).append(ln)
+    return sorted(lex.cmds, key=lambda c: c["line"]), funcs, lex.extents
 
 
 def func_at(extents, line):
@@ -1761,7 +2061,9 @@ def func_at(extents, line):
 # ---- --self-test: the forms the census must REFUSE (needles) and must ACCEPT (controls), each run on its own ----
 # the round-6 reviewer's 24 Python and 32 shell forms (v4_round6_review_20261012.md section 4) + round 13's own
 SELF_PY_MODULE = ["import os as _o2", "from os import unlink as _u", "import pathlib", "import io", "import glob",
-                  "import functools", "import codecs", "import sqlite3", "import shutil", "import tempfile"]
+                  "import functools", "import codecs", "import sqlite3", "import shutil", "import tempfile",
+                  # CON-402 (audit F1): a SECOND scrub import (only the first pair is modelled)
+                  "import os as _ge_os"]
 # "IMPORT;;LINE": the import is placed at module level, the line in a function (each needle on its own)
 SELF_PY = ['import os as _o2;;_o2.unlink(p)', 'from os import unlink as _u;;_u(p)', 'getattr(os, "unlink")(p)', 'import functools;;functools.partial(os.unlink, p)()',
            'import pathlib;;pathlib.Path(p).unlink()', 'import pathlib;;pathlib.Path(p).write_text("x")', 'import io;;io.open(p, "w")', 'import codecs;;codecs.open(p, "w")',
@@ -1783,9 +2085,13 @@ SELF_PY = ['import os as _o2;;_o2.unlink(p)', 'from os import unlink as _u;;_u(p
            # needles the census refuses (the rest are SELF_PY_OK rows below, each with the reason it is harmless)
            'locals()["os"].unlink(p)', 'dir(os)', 'help(os)', 'breakpoint()', '(lambda: 0).__code__', 'os.fspath(p)',
            'os.path.join(p, "x").__len__', 'time.sleep.__self__', 'importlib.util.spec_from_file_location("x", p)',
-           'subprocess.run(["true"])']
+           'subprocess.run(["true"])',
+           # CON-402 (audit F1): the modelled scrub binds _ge_os for ITS loop only; every other use is refused
+           '_ge_os.unlink(p)', '_ge_os.environ.pop("GIT_DIR", None)', 'x = _ge_os', 'getattr(_ge_os, "unlink")(p)']
 # needles that must be refused for a SPECIFIC reason (the rule that is meant to catch them, not a later fallback)
-SELF_REASON = {'\\rm -rf "$u/j"': "indirect", '"rm" -rf "$u/k"': "indirect", '${RMCMD:-rm} -rf "$u/m"': "indirect",
+SELF_REASON = {'_ge_os.unlink(p)': "unmodelled import", '_ge_os.environ.pop("GIT_DIR", None)': "unmodelled import",
+               'for _ge_v in GIT_DIR GIT_INDEX_FILE; do unset "$_ge_v"; done; unset _ge_v': "non-literal variable NAME",
+               '\\rm -rf "$u/j"': "indirect", '"rm" -rf "$u/k"': "indirect", '${RMCMD:-rm} -rf "$u/m"': "indirect",
                'eval "rm -rf $u/l"': "eval runs text", 'install -d "$u/a"': "not in the census's tables",
                'os.unlink(p, dir_fd=None)': "not a PROVED directory fd", '!os.listdir(fd)': "outside the trusted",
                'rm -rf "$_FC_TMPDIR/../../victim"': "not proved", 'f = os.unlink': "REFERENCED, not called",
@@ -1848,7 +2154,8 @@ SELF_PY_OK = ['os.listxattr("/proc/self/fd/%d" % fd)  # safepath:procfs', 'os.en
               'sys.stderr.buffer.raw', 'sys.stdout.reconfigure()', 'signal.signal(signal.SIGTERM, lambda *a: None)',
               'json.loads(p, object_hook=None)', '_st.S_IMODE(0)', '[o for o in (1,)]', 'print("x", file=sys.stderr)',
               'memoryview(b"x")', 'super', '(yield)']
-SELF_SH = ['install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "$u/c" "$u/d"', 'chmod 777 "$u/e"',
+SELF_SH = ['for _ge_v in GIT_DIR GIT_INDEX_FILE; do unset "$_ge_v"; done; unset _ge_v',   # CON-402: not at column 0
+           'install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "$u/c" "$u/d"', 'chmod 777 "$u/e"',
            'truncate -s0 "$u/f"', 'sed -i s/a/b/ "$u/g"', 'echo x >| "$u/h"', 'exec 3<> "$u/i"', '\\rm -rf "$u/j"',
            '"rm" -rf "$u/k"', 'eval "rm -rf $u/l"', '${RMCMD:-rm} -rf "$u/m"', "python3 -c 'import os; os.unlink(\"/x\")'",
            'git -C "$u" worktree move a b', 'git clone x "$u/n"', 'rm -rf "$_FC_TMPDIR" relative_victim',
@@ -1892,9 +2199,15 @@ SELF_SH = ['install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "
            'for BASH in a; do :; done', '(( BASH = 1 ))', ': "${BASH:=/x}"', 'BASH+=x', 'exec {BASH}>/dev/null',
            'declare -i _wr', 'local -l _wr', 'declare -u _FC_TMPDIR', 'typeset -a _wr', 'declare -A _wr',
            'read "-$o" x', 'mapfile -t _wr', 'readarray _wr', 'getopts ab _wr', 'let "_wr=1"',
-           'rm -rf "${_wr:?}/$_wr"', 'declare -g "_FC_TMPDIR=/etc"', 'typeset _FC_TMPDIR=/etc']
+           'rm -rf "${_wr:?}/$_wr"', 'declare -g "_FC_TMPDIR=/etc"', 'typeset _FC_TMPDIR=/etc',
+           # CON-450 round 3 (review R2-1, the class): an unset operand that is not a plain identifier, a trusted or
+           # other function of this file removed, a function run through a wrapper, a function defined in a trap
+           'unset -f _fc_s\\afe', "unset -f '_fc_safe'", 'unset -f _fc_safe{,}', 'unset -f "$u"', 'unset -f "${u}"',
+           'unset -f $(printf %s _fc_safe)', 'unset -f -- _fc_safe', 'unset -f _needle', 'unset _FC_TMPDIR{,}',
+           'unset -f run_gate_once', 'command _fc_safe check "$u"', "trap '_fc_safe() { :; }' EXIT"]
 SELF_SH_OK = ['printf -v _intr %s x', 'echo "$BASH"', 'x="${BASH:-bash}"', 'echo "BASH_SOURCE=$x"', 'BASH_X=1', 'printf "%s" "$BASH"', 'echo "${BASH_SOURCE[0]}"',
-               'unset FC_OUT', 'unset -f _needle', 'local -r _ro=1',   # round 14 controls
+               'unset FC_OUT', 'unset -f _rv_no_such_function', 'local -r _ro=1',   # round 14 controls (round 3:
+               # `unset -f _needle` -- a function of this file -- moved to SELF_SH, CON-450 round 3)
               'rm -f "${_FC_TMPDIR:?}/x"', 'printf x >"${_FC_TMPDIR:?}/y"', '_fc_safe rmtree "$u"', 'echo "rm -rf $u"',
               'm="$(_fc_mktemp)"; rm -f "${m:?}.t"', 'git -C "$u" rev-parse HEAD', 'printf x >&2', ': >/dev/null',
               # round 15 controls (no false refusal): the same forms on variables that are NOT proved, a literal
@@ -1912,7 +2225,7 @@ def self_test(sup, br):
     """every needle must be flagged ON ITS OWN LINE, every control must not -- each against the files under test"""
     import tempfile as _tf
     out, bad = [], 0
-    src_py, src_sh = open(sup).read(), open(br).read()
+    src_py, src_sh = open(sup).read(), open(br, encoding="utf-8", newline="").read()   # CON-450 r4: bash's bytes
     d = _tf.mkdtemp(prefix="census_self.")
     try:
         cases = [("py", x, True, True) for x in SELF_PY_MODULE] + [("py", x, False, True) for x in SELF_PY] + \
@@ -1935,7 +2248,7 @@ def self_test(sup, br):
             else:
                 body = '_needle() {\n  local u="$1"\n  %s\n}\n' % text
                 path = os.path.join(d, "br.sh")
-                open(path, "w").write(src_sh + "\n" + body)
+                open(path, "w", encoding="utf-8", newline="").write(src_sh + "\n" + body)
                 first = src_sh.count("\n") + 2
                 rows, _ = sh_census(path)
                 at = first + 2
@@ -1943,6 +2256,11 @@ def self_test(sup, br):
             if want and text in SELF_REASON:
                 hits = [r for r in hits if SELF_REASON[text] in r[5]]
             other = [r for r in rows if r[4] == "VIOLATION" and r[1] != at]
+            if lang == "sh" and "_ge_v" in text:    # CON-450 round 2: a needle naming _ge_v blocks the desugar of the
+                ge_at = {i for i, l in enumerate(src_sh.split("\n"), 1) if _GE_SH.match(l)}   # file's own scrub line
+                ge_rows = [r for r in other if r[1] in ge_at]
+                if [r for r in ge_rows if "NOT desugared" in r[5]]:      # expected there, with the new rule's row
+                    other = [r for r in other if r[1] not in ge_at]
             if text in SELF_UNPROVES:                 # elsewhere rows expected: provenance refusals only
                 hits = hits + [r for r in other if "not proved" in r[5] or "not a listed parameter" in r[5]]
                 other = [r for r in other if not ("not proved" in r[5] or "not a listed parameter" in r[5])]

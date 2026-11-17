@@ -1,0 +1,3 @@
+ok GB13-no-tmpdir-chain: meta-check FAILS (tmpdir_chain=<absent>)
+
+== guard table: ok ==

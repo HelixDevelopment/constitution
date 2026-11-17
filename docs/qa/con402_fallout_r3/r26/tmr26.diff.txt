@@ -1,0 +1,4 @@
+440c440
+<   me1fr=$(export "$ME1_VECTOR"; vector_present; run_case "$me1f" "$E2/main" worktree wt retire "$E2/wt.patch")
+---
+>   me1fr=$(vector_present; run_case "$me1f" "$E2/main" worktree wt retire "$E2/wt.patch")

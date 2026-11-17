@@ -1,0 +1,173 @@
+W01-command-declare-l-backslash                      census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W01-command-declare-l-backslash.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code bef
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W02-command-declare-l-emptyquote                     census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W02-command-declare-l-emptyquote.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code be
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W03-command-declare-c-backslash                      census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W03-command-declare-c-backslash.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code bef
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W04-command-declare-i-backslash                      census_rc=1 not_desugared=1 bash=wt_path-CHANGED scrub_ran=NO held | first: VIOLATION W04-command-declare-i-backslash.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code bef
+    bash-out: | /usr/bin/bash: line 5: /inherited/git: arithmetic syntax error: operand expected (error token is "/inherited/git")
+W05-command-local-l-in-fn                            census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W05-command-local-l-in-fn.sh:300 _rvf for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W06-caller-command-declare-gl                        census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W06-caller-command-declare-gl.sh:302 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code befor
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W07-command-command-declare-l                        census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W07-command-command-declare-l.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code befor
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W08-command-declare-l-continued                      census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W08-command-declare-l-continued.sh:300 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code bef
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W09-declare-l-continued-noprefix                     census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W09-declare-l-continued-noprefix.sh:300 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code be
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W10-env-declare-l (external, no shell effect)        census_rc=1 not_desugared=1 bash=nochange scrub_ran=yes held | first: VIOLATION W10-env-declare-l__external__no_shell_effect_.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W11-declare-l-backslash-control (author A09 shape)   census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W11-declare-l-backslash-control__author_A09_shape_.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T01-trap-debug-printf-v                              census_rc=1 not_desugared=1 bash=wt_path-UNSET scrub_ran=NO held | first: VIOLATION T01-trap-debug-printf-v.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the 
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git  |
+T02-trap-debug-declare-l                             census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION T02-trap-debug-declare-l.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T03-trap-debug-command-declare-l                     census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION T03-trap-debug-command-declare-l.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code be
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T04-trap-debug-printf-v-fc_safe                      census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION T04-trap-debug-printf-v-fc_safe.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code bef
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T05-trap-debug-read-herestring                       census_rc=1 not_desugared=1 bash=wt_path-UNSET scrub_ran=NO held | first: VIOLATION T05-trap-debug-read-herestring.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code befo
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git  |
+T06-trap-debug-declare-n-control                     census_rc=1 not_desugared=1 bash=wt_path-UNSET scrub_ran=yes held | first: VIOLATION T06-trap-debug-declare-n-control.sh:298 <top> declare -n -- a NAMEREF: an assignment through it changes another variable the provenance pass
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=[UNSET]  |
+U01-unset-f-quoted-var                               census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U01-unset-f-quoted-var.sh:299 <top> unset "$_rvu" -- an operand of unset that is not a plain identifier after quote removal ("$_rvu"): an ex
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U02-unset-f-backslash-literal                        census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U02-unset-f-backslash-literal.sh:298 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatev
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U03-unset-f-dashdash                                 census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U03-unset-f-dashdash.sh:298 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever comman
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U04-command-unset-f                                  census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U04-command-unset-f.sh:298 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever command
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U05-unset-n-literal                                  census_rc=1 not_desugared=1 bash=nochange scrub_ran=yes held | first: VIOLATION U05-unset-n-literal.sh:298 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever command
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+U06-unset-f-brace                                    census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U06-unset-f-brace.sh:298 <top> unset _fc_safe{,} -- an operand of unset that is not a plain identifier after quote removal (_fc_safe{,}): an
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U07-unset-f-cmdsubst                                 census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U07-unset-f-cmdsubst.sh:298 <top> unset $(printf %s _fc_safe) -- an operand of unset that is not a plain identifier after quote removal ($(p
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U08-unset-f-braced-var                               census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U08-unset-f-braced-var.sh:299 <top> unset "${_rvu}" -- an operand of unset that is not a plain identifier after quote removal ("${_rvu}"): a
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U09-unset-f-literal-control                          census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_run_child scrub_ran=yes held | first: VIOLATION U09-unset-f-literal-control.sh:298 <top> unset _fc_run_child -- unset of the trusted function _fc_run_child: every later call of it would ru
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_run_child  |
+U10-unset-plain-var-quoted (fallback to function)    census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U10-unset-plain-var-quoted__fallback_to_function_.sh:299 <top> unset $NAME -- a non-literal variable NAME ($) in a name position of unset NA
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U11-trap-debug-unset-f                               census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U11-trap-debug-unset-f.sh:298 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever comm
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U12-unset-f-other-file-function (FU-2)               census_rc=1 not_desugared=1 bash=FUNC_GONE:run_gate_once,PATHRUN:run_gate_once scrub_ran=yes held | first: VIOLATION U12-unset-f-other-file-function__FU-2_.sh:298 <top> unset run_gate_once -- unset of the function run_gate_once of this file: the census read
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:run_gate_once PATHRUN:run_gate_once  |
+N01-declare-n-word                                   census_rc=1 not_desugared=1 bash=wt_path-UNSET scrub_ran=yes held | first: VIOLATION N01-declare-n-word.sh:298 <top> declare -n -- a NAMEREF: an assignment through it changes another variable the provenance pass cannot follow
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=[UNSET]  |
+N02-command-declare-n-word                           census_rc=1 not_desugared=1 bash=wt_path-UNSET scrub_ran=yes held | first: VIOLATION N02-command-declare-n-word.sh:298 <top> declare -n -- a NAMEREF: an assignment through it changes another variable the provenance pass canno
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=[UNSET]  |
+N03-local-n-word-in-fn                               census_rc=1 not_desugared=1 bash=wt_path-UNSET scrub_ran=NO held | first: VIOLATION N03-local-n-word-in-fn.sh:299 _rvf local -n -- a NAMEREF: an assignment through it changes another variable the provenance pass cannot follo
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git  |
+P01-word-_FC_TMPDIR                                  census_rc=1 not_desugared=0 bash=_FC_TMPDIR-UNSET scrub_ran=yes held | first: VIOLATION P01-word-_FC_TMPDIR.sh:298 <top> unset -- unset of the PROVED variable _FC_TMPDIR outside the provenance model -- it would expand to a value
+    bash-out: _FC_TMPDIR=[UNSET] wt_path=/proved GIT_DIR=[UNSET]  |
+P02-word-FC_BR_TMPDIR                                census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+R01-readonly-backslash                               census_rc=1 not_desugared=1 bash=nochange scrub_ran=NO held | first: VIOLATION R01-readonly-backslash.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the c
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/inherited/git  | /usr/bin/bash: line 5: _ge_v: readonly variable ; /usr/bin/bash: line 5: unset: _ge_v: cannot unset: readonly variable
+R02-command-declare-r-backslash                      census_rc=1 not_desugared=1 bash=nochange scrub_ran=NO held | first: VIOLATION R02-command-declare-r-backslash.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code bef
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/inherited/git  | /usr/bin/bash: line 5: _ge_v: readonly variable ; /usr/bin/bash: line 5: unset: _ge_v: cannot unset: readonly variable
+L01-crlf-on-line                                     census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L02-nbsp-in-line                                     census_rc=1 not_desugared=0 bash=wt_path-CHANGED scrub_ran=NO held | first: VIOLATION L02-nbsp-in-line.sh:298 <top> do unset -- a quoted / escaped / indirect command word -- the census cannot see what runs (fail-closed)
+    bash-out: | /usr/bin/bash: -c: line 4: syntax error near unexpected token `$'do\302\240unset'' ; /usr/bin/bash: -c: line 4: `for _ge_v in GIT_DIR GIT_WORK_TREE; do unset "$
+L03-comment-ending-in-backslash-before-line          census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L04-line-inside-case-arm                             census_rc=1 not_desugared=1 bash=nochange scrub_ran=yes held | first: VIOLATION L04-line-inside-case-arm.sh:300 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L05-and-chain-after-line                             census_rc=1 not_desugared=0 bash=nochange scrub_ran=yes held | first: VIOLATION L05-and-chain-after-line.sh:298 <top> unset $NAME -- a non-literal variable NAME ($) in a name position of unset NAME...: the census cannot 
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L06-assignment-continuation-into-line                census_rc=1 not_desugared=1 bash=wt_path-CHANGED scrub_ran=NO held | first: VIOLATION L06-assignment-continuation-into-line.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds co
+    bash-out: | /usr/bin/bash: -c: line 5: syntax error near unexpected token `do' ; /usr/bin/bash: -c: line 5: `for _ge_v in WT_PATH _FC_SAFE GIT_DIR GIT_WORK_TREE; do unset "
+L07-set-o-posix                                      census_rc=1 not_desugared=1 bash=nochange scrub_ran=yes held | first: VIOLATION L07-set-o-posix.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the canonica
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+L08-unset-f-single-quoted                            census_rc=1 not_desugared=1 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION L08-unset-f-single-quoted.sh:298 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever c
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+W12-builtin-declare-l                                census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION W12-builtin-declare-l.sh:298 <top> builtin -- a command word not in the census's tables (fail-closed: SH_NOOP / SH_READ / SH_WRITE / git / p
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T07-trap-usr1-printf-v (async; census verdict only)  census_rc=1 not_desugared=1 bash=nochange scrub_ran=yes held | first: VIOLATION T07-trap-usr1-printf-v__async__census_verdict_only_.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: lin
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T08-trap-err-declare-l                               census_rc=1 not_desugared=1 bash=wt_path-UNSET,FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=NO held | first: VIOLATION T08-trap-err-declare-l.sh:300 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 298 holds code before the c
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=/inherited/git FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+T09-trap-exit-declare-l-control (runs too late)      census_rc=1 not_desugared=1 bash=nochange scrub_ran=yes held | first: VIOLATION T09-trap-exit-declare-l-control__runs_too_late_.sh:299 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: line 29
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+X01-command-runs-program-not-function                census_rc=1 not_desugared=0 bash=PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION X01-command-runs-program-not-function.sh:299 <top> command _fc_safe -- command _fc_safe runs the PROGRAM of that name PATH finds, not the fu
+    bash-out: PATHRUN:_fc_safe _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+X02-redefine-trusted                                 census_rc=1 not_desugared=0 bash=wt_path-UNSET scrub_ran=yes held | first: VIOLATION X02-redefine-trusted.sh:299 _fc_safe unset -- unset of the PROVED variable wt_path outside the provenance model -- it would expand to a valu
+    bash-out: _FC_TMPDIR=/proved2 wt_path=[UNSET] GIT_DIR=[UNSET]  |
+X03-trap-defines-trusted                             census_rc=1 not_desugared=0 bash=nochange scrub_ran=yes held | first: VIOLATION X03-trap-defines-trusted.sh:299 <top> trap -- a function defined inside a trap action (_fc_safe): outside the census's function model (fail-
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+X04-helper-called-after-unset                        census_rc=1 not_desugared=0 bash=PATHRUN:_rvi scrub_ran=yes held | first: VIOLATION X04-helper-called-after-unset.sh:301 _rvo unset _rvi -- unset of the function _rvi of this file: the census reads every call of it as the ce
+    bash-out: PATHRUN:_rvi _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+X05-unset-proved-brace                               census_rc=1 not_desugared=0 bash=_FC_TMPDIR-UNSET,wt_path-UNSET scrub_ran=yes held | first: VIOLATION X05-unset-proved-brace.sh:299 <top> unset _FC_TMPDIR{,} -- an operand of unset that is not a plain identifier after quote removal (_FC_TMPDI
+    bash-out: _FC_TMPDIR=[UNSET] wt_path=[UNSET] GIT_DIR=[UNSET]  |
+X06-scoped-helper-control (accepted)                 census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W01-command-declare-l-backslash@after                census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W02-command-declare-l-emptyquote@after               census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W03-command-declare-c-backslash@after                census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W04-command-declare-i-backslash@after                census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W07-command-command-declare-l@after                  census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W08-command-declare-l-continued@after                census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W09-declare-l-continued-noprefix@after               census_rc=1 not_desugared=1 bash=nochange scrub_ran=yes held | first: VIOLATION W09-declare-l-continued-noprefix_after.sh:298 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared: declare -l on a 
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W10-env-declare-l (external, no shell effect)@after  census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+W11-declare-l-backslash-control (author A09 shape)@after census_rc=1 not_desugared=1 bash=nochange scrub_ran=yes held | first: VIOLATION W11-declare-l-backslash-control__author_A09_shape__after.sh:298 <top> for _ge_v ... unset -- the CON-402 git-env scrub line is NOT desugared
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T01-trap-debug-printf-v@after                        census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T02-trap-debug-declare-l@after                       census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T03-trap-debug-command-declare-l@after               census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T04-trap-debug-printf-v-fc_safe@after                census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T05-trap-debug-read-herestring@after                 census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T06-trap-debug-declare-n-control@after               census_rc=1 not_desugared=0 bash=nochange scrub_ran=NO held | first: VIOLATION T06-trap-debug-declare-n-control_after.sh:299 <top> declare -n -- a NAMEREF: an assignment through it changes another variable the provenanc
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=/proved  |
+U01-unset-f-quoted-var@after                         census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U01-unset-f-quoted-var_after.sh:300 <top> unset "$_rvu" -- an operand of unset that is not a plain identifier after quote removal ("$_rvu"):
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U02-unset-f-backslash-literal@after                  census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U02-unset-f-backslash-literal_after.sh:299 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run 
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U03-unset-f-dashdash@after                           census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U03-unset-f-dashdash_after.sh:299 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever 
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U04-command-unset-f@after                            census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U04-command-unset-f_after.sh:299 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever c
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U05-unset-n-literal@after                            census_rc=1 not_desugared=0 bash=nochange scrub_ran=yes held | first: VIOLATION U05-unset-n-literal_after.sh:299 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whatever c
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+U06-unset-f-brace@after                              census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U06-unset-f-brace_after.sh:299 <top> unset _fc_safe{,} -- an operand of unset that is not a plain identifier after quote removal (_fc_safe{,
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U07-unset-f-cmdsubst@after                           census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U07-unset-f-cmdsubst_after.sh:299 <top> unset $(printf %s _fc_safe) -- an operand of unset that is not a plain identifier after quote remova
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U08-unset-f-braced-var@after                         census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U08-unset-f-braced-var_after.sh:300 <top> unset "${_rvu}" -- an operand of unset that is not a plain identifier after quote removal ("${_rvu
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U09-unset-f-literal-control@after                    census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_run_child scrub_ran=yes held | first: VIOLATION U09-unset-f-literal-control_after.sh:299 <top> unset _fc_run_child -- unset of the trusted function _fc_run_child: every later call of it wo
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_run_child  |
+U10-unset-plain-var-quoted (fallback to function)@after census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U10-unset-plain-var-quoted__fallback_to_function__after.sh:300 <top> unset $NAME -- a non-literal variable NAME ($) in a name position of un
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U11-trap-debug-unset-f@after                         census_rc=1 not_desugared=0 bash=FUNC_GONE:_fc_safe,PATHRUN:_fc_safe scrub_ran=yes held | first: VIOLATION U11-trap-debug-unset-f_after.sh:299 <top> unset _fc_safe -- unset of the trusted function _fc_safe: every later call of it would run whateve
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:_fc_safe PATHRUN:_fc_safe  |
+U12-unset-f-other-file-function (FU-2)@after         census_rc=1 not_desugared=0 bash=FUNC_GONE:run_gate_once,PATHRUN:run_gate_once scrub_ran=yes held | first: VIOLATION U12-unset-f-other-file-function__FU-2__after.sh:299 <top> unset run_gate_once -- unset of the function run_gate_once of this file: the censu
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET] FUNC_GONE:run_gate_once PATHRUN:run_gate_once  |
+W12-builtin-declare-l@after                          census_rc=1 not_desugared=0 bash=nochange scrub_ran=yes held | first: VIOLATION W12-builtin-declare-l_after.sh:299 <top> builtin -- a command word not in the census's tables (fail-closed: SH_NOOP / SH_READ / SH_WRITE / g
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T07-trap-usr1-printf-v (async; census verdict only)@after census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T08-trap-err-declare-l@after                         census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+T09-trap-exit-declare-l-control (runs too late)@after census_rc=0 not_desugared=0 bash=nochange scrub_ran=yes accepted-nochange | first: -
+    bash-out: _FC_TMPDIR=/proved2 wt_path=/proved GIT_DIR=[UNSET]  |
+CONTROL real=0 (want 0) literal-proved-unset=1 (want 1) S1=1 (want 1)
+SUMMARY members=85 escapes=0
+rc=0
