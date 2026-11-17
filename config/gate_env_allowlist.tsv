@@ -59,8 +59,7 @@ scripts/gates/cm_killpg_pgid_guard.sh	ok_alias	not-ambient	local of a function b
 scripts/gates/cm_killpg_pgid_guard.sh	ok_bare	not-ambient	local of a function body assigned before use at run time
 scripts/gates/cm_killpg_pgid_guard.sh	ok_qual	not-ambient	local of a function body assigned before use at run time
 scripts/gates/cm_unreferenced_gate_bound_or_retired.sh	OUT	not-ambient	assigned in the function that writes it before any read at run time
-scripts/gates/cm_installer_no_push_no_force.sh	HI_I	inert-text	string data inside the scanned-pattern table, not an environment read
-scripts/gates/cm_installer_no_push_no_force.sh	HI_U	inert-text	string data inside the scanned-pattern table, not an environment read
+scripts/gates/cm_full_suite_manifest_complete.sh	XDG0	not-ambient	script global assigned once at run time (XDG0="$TMP/xdg" after mktemp -d) before the first call of pgit or penv, the only functions that read it; never taken from the environment, the assignment overwrites any inherited value; the census reads text order only
 scripts/jev/lib_decide.sh	CLAUDE_CONFIG_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
 scripts/jev/lib_decide.sh	CLAUDE_TOOLKIT_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
 scripts/jev/lib_decide.sh	CMA_PROVIDERS_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
@@ -103,3 +102,5 @@ scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh	<eval>#bea59a1ee0f8	ind
 scripts/gates/cm_state_fields_anchor_wired.sh	<eval>#bea59a1ee0f8	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
 scripts/gates/cm_geo_substitute_anchor_wired.sh	<eval>#bea59a1ee0f8	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
 scripts/gates/cm_github_issues_source_anchor_wired.sh	<eval>#bea59a1ee0f8	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
+scripts/jev/lib_decide.sh	SHARED_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285): the shared agent-config directory the Jev hooks are installed into, read the same way as CLAUDE_CONFIG_DIR above; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	<env-dump>	inert-text	the word env here is a case label of the command-line parser (_jev_is_prefix_word): it recognises an env prefix in a parsed command; nothing is read from or dumped out of the environment

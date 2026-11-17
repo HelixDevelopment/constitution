@@ -1,0 +1,36 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+tests/jev/exp_r12f1_kill.sh: line 79:  1474 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+# EXP starCA killA_at=7 killed=yes after-ABC running=[decide-a ] sets={"decide-a":{"constitution_started":false,"stopping":null,"starting":null,"leases":[{"holder":"sC","pid":1789,"pid_start":18175109,"heartbeat_at":1700000000,"heartbeat_mono":"test:7400","ttl":900,"project":"stubhead00000000000000000000000000000000","started_by_this_session":false}],"health":{"state":"ok","reason":"running instance, unit status ok","seq":5,"at":1700000000}}}
+# EXP starCA killA_at=7 adopt=1 FINAL running=[decide-a ] sets={} stops=1 starts=1
+#   c: [jev-place] joined the already-running unit decide-a (not constitution-started; it is never stopped by this producer)
+#   c: [jev-place] route changed: local -> none (release)
+#   c: [jev-place] joined the already-running unit decide-a (not constitution-started; it is never stopped by this producer)
+#   c: [jev-place] route changed: local -> none (release)
+tests/jev/exp_r12f1_kill.sh: line 79:  4370 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+# EXP starAC killA_at=7 killed=yes after-ABC running=[decide-a ] sets={"decide-a":{"constitution_started":false,"stopping":null,"starting":null,"leases":[{"holder":"sC","pid":4698,"pid_start":18176968,"heartbeat_at":1700000000,"heartbeat_mono":"test:7400","ttl":900,"project":"stubhead00000000000000000000000000000000","started_by_this_session":false}],"health":{"state":"ok","reason":"running instance, unit status ok","seq":5,"at":1700000000}}}
+# EXP starAC killA_at=7 adopt=1 FINAL running=[decide-a ] sets={} stops=1 starts=1
+#   c: [jev-place] joined the already-running unit decide-a (not constitution-started; it is never stopped by this producer)
+#   c: [jev-place] route changed: local -> none (release)
+#   c: [jev-place] joined the already-running unit decide-a (not constitution-started; it is never stopped by this producer)
+#   c: [jev-place] route changed: local -> none (release)
+# EXP starCA killA_at=0 killed=no after-ABC running=[decide-a ] sets={"decide-a":{"constitution_started":true,"stopping":null,"starting":null,"leases":[{"holder":"sC","pid":7632,"pid_start":18178789,"heartbeat_at":1700000000,"heartbeat_mono":"test:7400","ttl":900,"project":"stubhead00000000000000000000000000000000","started_by_this_session":false}],"health":{"state":"pending","reason":"llmctl start rc 0 recorded while 1 other lease(s) held the set; not observed since","seq":5,"at":1700000000},"start_kept":{"at":1700000000,"mono":"test:7400","rc":0,"leases":1,"claim":"gone","seen_stopping":null}}}
+# EXP starCA killA_at=0 adopt=1 FINAL running=[] sets={} stops=2 starts=2
+#   c: [jev-place] joined the already-running unit decide-a (not constitution-started; it is never stopped by this producer)
+#   c: [jev-place] route changed: none -> local (the endpoint cache is derived from the lease registry and the observed unit state, §11.4.291(D)(1)(F))
+#   c: [jev-place] last lease released: llmctl stop decide-a rc=0
+#   c: [jev-place] llmctl start decide-a refused (75): does_not_fit
+#   c: [jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+#   c: [jev-place] no local placement (start_refused); fallback route none
+tests/jev/exp_r12f1_kill.sh: line 79: 10751 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+# EXP aAstrC killA_at=7 killed=yes after-ABC running=[decide-a ] sets={"decide-a":{"constitution_started":true,"started_at":1700000000,"stopping":null,"starting":null,"leases":[{"holder":"sC","pid":11102,"pid_start":18180766,"heartbeat_at":1700000000,"heartbeat_mono":"test:7400","ttl":900,"project":"stubhead00000000000000000000000000000000","started_by_this_session":true}],"health":{"state":"ok","reason":"running instance, unit status ok","seq":6,"at":1700000000}}}
+# EXP aAstrC killA_at=7 adopt=0 FINAL running=[] sets={} stops=2 starts=3
+#   c: [jev-place] started decide-a (fits, threads=3); lease holder=sC; it is routed once an observation newer than the start reads its unit ok
+#   c: [jev-place] route changed: none -> local (the endpoint cache is derived from the lease registry and the observed unit state, §11.4.291(D)(1)(F))
+#   c: [jev-place] last lease released: llmctl stop decide-a rc=0
+#   c: [jev-place] llmctl start decide-a refused (75): does_not_fit
+#   c: [jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+#   c: [jev-place] no local placement (start_refused); fallback route none
+# exp_r12f1_kill.sh: pass=2 fail=0 skip=0

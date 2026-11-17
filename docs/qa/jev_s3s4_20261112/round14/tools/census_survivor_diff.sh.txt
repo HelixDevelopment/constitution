@@ -1,0 +1,25 @@
+#!/bin/bash
+# census_survivor_diff.sh: for each surviving census mutant, the full --tsv output of the mutant census on the real tree
+# of the vehicle head is compared with the head census output (mechanical, section 11.4.274). Identical output means
+# the mutant changes nothing the census reports on this tree. Controls (section 11.4.273): the head census run twice
+# must be identical (negative control: the comparison does not invent differences), and the killed mutant W23 must
+# differ (positive control: the comparison can see a difference). Output: one line per mutant.
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6
+D="$(mktemp -d "$W/tmp/csd.XXXXXX")"
+case "$D" in "$W/tmp/csd."?*) ;; *) echo "bad tmp dir" >&2; exit 2 ;; esac
+run() { # <census.py> <out>
+  "$W/tools/hrun.sh" "$W/repo" python3 "$1" --root . --tsv > "$2" 2>&1; echo "$?" > "$2.rc"
+}
+run "$W/repo/scripts/validation/git_env_class_census.py" "$D/head1"
+run "$W/repo/scripts/validation/git_env_class_census.py" "$D/head2"
+printf 'head rc=%s lines=%s sha256=%s\n' "$(cat "$D/head1.rc")" "$(wc -l < "$D/head1")" "$(sha256sum < "$D/head1" | cut -c1-16)"
+if cmp -s "$D/head1" "$D/head2"; then echo "NEGATIVE-CONTROL head vs head: identical"; else echo "NEGATIVE-CONTROL head vs head: DIFFERENT (instrument unstable)"; fi
+for m in W23_mention_case_sensitive_both W22_mention_lookbehind_digit W24_ls_perm_any W33_mention_ascii W36_splitlines; do
+  run "$W/mut/$m/scripts/validation/git_env_class_census.py" "$D/$m"
+  n="$(diff "$D/head1" "$D/$m" | grep -c '^[<>]')"
+  if [ "$m" = W23_mention_case_sensitive_both ]; then t=POSITIVE-CONTROL; else t=SURVIVOR; fi
+  printf '%s %s rc=%s differing_lines=%s\n' "$t" "$m" "$(cat "$D/$m.rc")" "$n"
+done
+grep -E '^(PASS|FAIL|BLIND|UNSCRUBBED)|unscrubbed=' "$D/head1" | tail -3
+rm -r -- "${D:?}"

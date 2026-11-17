@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# CON-425 RED + toggle probe. $1 = checkout to test, $2 = label.
+# Fixtures: (a) secret blob replaced by a clean blob (exact-only + scanner pass),
+# (b) forced blob->tree replace (RV1 shape). Fake values built in python.
+set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v
+N=$1; L=$2; S=${3:-$N/scripts/security/history_secret_scan.sh}
+T=$(mktemp -d /mnt/DATA1TB/claude-work/tmp/c425.XXXXXX); trap 'rm -rf "${T:?}"' EXIT
+export GIT_AUTHOR_NAME=x GIT_AUTHOR_EMAIL=x@invalid GIT_COMMITTER_NAME=x GIT_COMMITTER_EMAIL=x@invalid SEC_TEST_LOG=$T/log; mkdir -p $T/log
+FAKE=$(python3 -I -c 'import secrets;print("fakeRV"+secrets.token_hex(12))')
+TOK=$(python3 -I -c 'import secrets,string;a=string.ascii_letters+string.digits;print("gh"+"p_"+"".join(secrets.choice(a) for _ in range(36)))')
+echo "== $L script sha256 $(sha256sum "$S" | cut -c1-16) git $(git --version | cut -d' ' -f3)"
+mk(){ # DIR MODE(plain|replaced|tree)
+  git init -q "$1"; printf 'K=%s\nT=%s\n' "$FAKE" "$TOK" > "$1/s.env"; git -C "$1" add s.env; git -C "$1" commit -qm s
+  sec=$(git -C "$1" rev-parse HEAD:s.env)
+  case $2 in
+    replaced) clean=$(printf 'clean\n' | git -C "$1" hash-object -w --stdin); git -C "$1" replace "$sec" "$clean" ;;
+    tree) git -C "$1" replace -f "$sec" "$(git -C "$1" rev-parse 'HEAD^{tree}')" ;;
+  esac
+}
+printf 'MYKEY=%s\n' "$FAKE" > $T/k; chmod 600 $T/k
+for mode in plain replaced tree; do
+  mk $T/$mode $mode
+  for pass in exact scanner; do
+    s=$T/s.$mode.$pass; mkdir -p $s
+    if [ $pass = exact ]; then a=(--keys-file $T/k --exact-only); else a=(); fi
+    for callerenv in none GIT_NO_REPLACE_OBJECTS=1; do
+      if [ $callerenv = none ]; then e=(); else e=($callerenv); fi
+      rm -f $s/*.tsv
+      env ${e[@]+"${e[@]}"} PATH="$N/tests/security/fixtures/bin:$PATH" SCRATCH=$s OUT=$s/o.tsv bash "$S" ${a[@]+"${a[@]}"} $T/$mode > $s/out 2> $s/err; rc=$?
+      k=$( { tr "\t\n" "= " < $s/o.tsv.keys.tsv; } 2>/dev/null); f=$( { wc -l < $s/o.tsv; } 2>/dev/null || echo -)
+      leak=$(grep -rlF -e "$FAKE" -e "$TOK" $s 2>/dev/null | wc -l)
+      echo "mode=$mode pass=$pass caller_env=$callerenv rc=$rc keys=[$k] scanner_findings=$f replace_line=[$(grep -m1 '^replace refs' $s/out)] stderr=[$(head -c 120 $s/err | tr '\n' ' ')] fake_value_files=$leak"
+    done
+  done
+done

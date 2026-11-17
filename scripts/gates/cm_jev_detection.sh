@@ -10,6 +10,8 @@
 #   JEV_PROBE_CMD              probe command, invoked as "$JEV_PROBE_CMD <id> <url>";
 #                              default: fail-closed probe (claims of reachability
 #                              require an explicit probe mechanism)
+#   JEV_LLMCTL_BIN             llmctl consulted by the clause-7 cross-check (guarded override: honoured only under
+#                              HELIX_TEST_MODE=1 with a path under the temp root; a named non-executable = absent)
 #   JEV_FIXTURE_ROOT           root for resolving relative tools.*.path entries
 #                              (default: directory containing the detection file)
 set -uo pipefail
@@ -155,12 +157,12 @@ if [ "${nt:-0}" -gt 0 ]; then
   if [ -z "$PROBE" ]; then
     err "probe: $nt endpoint(s) claim reachable=true but no JEV_PROBE_CMD mechanism is configured - unverifiable claims are bluffs (§7.1). Supply the replayable probe exactly as bootstrap does: JEV_PROBE_CMD=<constitution>/scripts/jev/jev-probe.sh JEV_DETECTION_FILE=<record> bash scripts/gates/cm_jev_detection.sh"
   else
-    while IFS="$(printf '\t')" read -r id url; do
+    while IFS=$'\x1f' read -r id url; do
       [ -n "$url" ] || continue
       if ! "$PROBE" "$id" "$url" >/dev/null 2>&1; then
         err "probe: endpoint '$id' claimed reachable=true but probe replay FAILED in this environment"
       fi
-    done < <(jq -r '.endpoints[] | select(.reachable == true) | [.id, (.url // "")] | @tsv' "$DETECTION")
+    done < <(jq -r '.endpoints[] | select(.reachable == true) | [.id, (.url // "")] | @tsv' "$DETECTION" | tr '\t' '\037')
   fi
 fi
 ok "clause 6: probe replay consistent with recorded reachability ($nt claimed reachable)"
@@ -174,7 +176,7 @@ if [ -f "$_lib" ]; then
   # shellcheck source=../jev/lib_keys.sh
   . "$_lib"
   _fallback_noted=0
-  while IFS="$(printf '\t')" read -r _id _kv _rc; do
+  while IFS=$'\x1f' read -r _id _kv _rc; do
     [ -n "$_kv" ] || continue
     # The verdict is judged on the key state RECORDED at detection time (key_discovery.vars[]), so it is the same on
     # every host that re-runs the gate. Only a record that carries no such state falls back to the RUNNER's own
@@ -191,7 +193,19 @@ if [ -f "$_lib" ]; then
     if [ "$_kst" = "real" ]; then
       err "key: endpoint '$_id' (key variable $_kv) holds a real key but reachable=$_rc - the endpoint was not proven reachable (re-run detection with hosted probing enabled)"
     fi
-  done < <(jq -r '.endpoints[]? | select((.key_var // "") != "" and .reachable != true) | [.id, .key_var, (.reachable | tostring)] | @tsv' "$DETECTION" 2>/dev/null)
+  done < <(jq -r '.endpoints[]? | select((.key_var // "") != "" and .reachable != true)
+                  | select((.reachable == false and (.reachable_basis // "") == "probe"
+                           and ((.auth_status_class // "") | IN("401","403","no_credit","rate_limited","other","timeout"))) | not)
+                  | [.id, .key_var, (.reachable | tostring)] | @tsv' "$DETECTION" 2>/dev/null | tr '\t' '\037')
+  # A PROBED endpoint that answered non-2xx (2026-11-12, S3) is an honest record, not an unproven one: it is NOTED as
+  # unusable with its class, never counted as reachable (reachable=true means "answered 2xx").
+  while IFS=$'\x1f' read -r _id _cls; do
+    [ -n "$_id" ] && note "clause 8: endpoint '$_id' was probed and is NOT usable (auth_status_class=$_cls); reachable=false is recorded honestly"
+  done < <(jq -r '.endpoints[]? | select(.reachable == false and (.reachable_basis // "") == "probe" and ((.auth_status_class // "") | IN("401","403","no_credit","rate_limited","other","timeout"))) | [.id, .auth_status_class] | @tsv' "$DETECTION" 2>/dev/null | tr '\t' '\037')
+  # Consistency (S3): reachable must agree with the recorded probe class (2xx <=> reachable=true).
+  _contra="$(jq -r '[.endpoints[]? | select((.auth_status_class // "") != "" and (.auth_status_class != "not-probed")
+                     and ((.reachable == true and .auth_status_class != "2xx") or (.reachable == false and .auth_status_class == "2xx"))) | .id] | join(",")' "$DETECTION" 2>/dev/null)"
+  [ -z "$_contra" ] || err "key: endpoint(s) $_contra record reachable inconsistent with auth_status_class (reachable=true iff the probe answered 2xx)"
 else
   note "lib_keys.sh not found next to the gates: the key-present/unproven-endpoint check was not run"
 fi
@@ -205,38 +219,48 @@ if [ "$n" -eq 0 ]; then
   if ! declare -F jev_usable_live >/dev/null 2>&1; then
     # the shared decision library failed to load (a `.` failure is non-fatal): the contradiction check is disabled
     blind_or_note "scripts/jev/lib_decide.sh missing or unreadable (jev_usable_live undefined): the empty record cannot be cross-checked"
-  elif command -v llmctl >/dev/null 2>&1; then
-    _llm_path="$(command -v llmctl)"
-    cm_gate_env_set _tmo JEV_TOOL_TIMEOUT 30 value   # a tiny timeout would skip the cross-check (note only)
-    # (SIGTTIN/SIGTTOU ignored in a subshell for timeout only: uutils timeout does not ignore them itself and would be
-    # stopped with a child that touches the terminal, so the limit would never fire)
-    if command -v timeout >/dev/null 2>&1; then _run() { (trap '' TTIN TTOU; exec timeout --kill-after=2 "$_tmo" "$@"); }; else _run() { "$@"; }; fi
-    st="$(_run llmctl decide status --json 2>/dev/null)"; _src=$?
-    if [ "$_src" -eq 124 ] || [ "$_src" -eq 137 ]; then
-      blind_or_note "llmctl decide status timed out after ${_tmo}s: the empty record cannot be cross-checked"
-    elif [ "$_src" -ne 0 ]; then
-      # valid JSON next to a non-zero exit (for example {"error":"daemon down"}) is an error report, not a registry
-      blind_or_note "llmctl decide status exited $_src (output is not a registry answer): the empty record cannot be cross-checked"
-    elif ! st="$(printf '%s' "$st" | jq -c '.' 2>/dev/null)" || [ -z "$st" ]; then
-      blind_or_note "llmctl decide status gave no parsable JSON: the empty record cannot be cross-checked"
-    elif ! printf '%s' "$st" | jq -e 'type == "object" and (.profiles | type == "array")' >/dev/null 2>&1; then
-      blind_or_note "llmctl decide status JSON has the wrong shape (want an object with an array .profiles): the empty record cannot be cross-checked"
-    else
-      cap="$(_run llmctl decide capacity --json 2>/dev/null | jq -c '.' 2>/dev/null)" || cap=""
-      [ -n "$cap" ] || cap='{}'
-      # A gateway with nothing behind it, and a profile that speaks the jev-verdict protocol (decide-tiny has no
-      # driver and is not a usable decision endpoint), are the two LAWFUL empty states. Everything else running is a
-      # contradiction. A running profile whose protocol is unknown is counted live (conservative).
-      live="$(jev_usable_live "$st" "$cap")"; _lrc=$?
-      if [ "$_lrc" -ne 0 ]; then
-        blind_or_note "jev_usable_live could not read the llmctl status (rc $_lrc): the empty record cannot be cross-checked"
-      elif [ -n "$live" ]; then
-        err "contradiction: the record lists 0 endpoints but llmctl reports live decision infrastructure ($live) - re-run detection (§11.4.279(A), false-null §11.4.201(6))"
-      fi
-    fi
   else
-    blind_or_note "llmctl not on PATH: the empty record cannot be cross-checked against llmctl's registry"
-  fi
+    # The llmctl consulted: JEV_LLMCTL_BIN (the bootstrap's explicit binary, round 4 R3-2) when the guarded override honours
+    # it, else the one on PATH. The override is GUARDED (a fake llmctl answering an empty registry would turn a
+    # contradiction GREEN), and a named file that is not an executable is "absent", never a fall-back to PATH.
+    cm_gate_env_set _llm_ovr JEV_LLMCTL_BIN "" path
+    _llm=""; _llm_why="llmctl not on PATH"
+    if [ -n "$_llm_ovr" ]; then
+      if [ -f "$_llm_ovr" ] && [ -x "$_llm_ovr" ]; then _llm="$_llm_ovr"; else _llm_why="JEV_LLMCTL_BIN is not an executable file"; fi
+    elif command -v llmctl >/dev/null 2>&1; then _llm="$(command -v llmctl)"; fi
+    if [ -n "$_llm" ]; then
+      _llm_path="$_llm"
+      cm_gate_env_set _tmo JEV_TOOL_TIMEOUT 30 value   # a tiny timeout would skip the cross-check (note only)
+      # (SIGTTIN/SIGTTOU ignored in a subshell for timeout only: uutils timeout does not ignore them itself and would be
+      # stopped with a child that touches the terminal, so the limit would never fire; main CON-314)
+      if command -v timeout >/dev/null 2>&1; then _run() { (trap '' TTIN TTOU; exec timeout --kill-after=2 "$_tmo" "$@"); }; else _run() { "$@"; }; fi
+      st="$(_run "$_llm" decide status --json 2>/dev/null)"; _src=$?
+      if [ "$_src" -eq 124 ] || [ "$_src" -eq 137 ]; then
+        blind_or_note "llmctl decide status timed out after ${_tmo}s: the empty record cannot be cross-checked"
+      elif [ "$_src" -ne 0 ]; then
+        # valid JSON next to a non-zero exit (for example {"error":"daemon down"}) is an error report, not a registry
+        blind_or_note "llmctl decide status exited $_src (output is not a registry answer): the empty record cannot be cross-checked"
+      elif ! st="$(printf '%s' "$st" | jq -c '.' 2>/dev/null)" || [ -z "$st" ]; then
+        blind_or_note "llmctl decide status gave no parsable JSON: the empty record cannot be cross-checked"
+      elif ! printf '%s' "$st" | jq -e 'type == "object" and (.profiles | type == "array")' >/dev/null 2>&1; then
+        blind_or_note "llmctl decide status JSON has the wrong shape (want an object with an array .profiles): the empty record cannot be cross-checked"
+      else
+        cap="$(_run "$_llm" decide capacity --json 2>/dev/null | jq -c '.' 2>/dev/null)" || cap=""
+        [ -n "$cap" ] || cap='{}'
+        # A gateway with nothing behind it, and a profile that speaks the jev-verdict protocol (decide-tiny has no
+        # driver and is not a usable decision endpoint), are the two LAWFUL empty states. Everything else running is a
+        # contradiction. A running profile whose protocol is unknown is counted live (conservative).
+        live="$(jev_usable_live "$st" "$cap")"; _lrc=$?
+        if [ "$_lrc" -ne 0 ]; then
+          blind_or_note "jev_usable_live could not read the llmctl status (rc $_lrc): the empty record cannot be cross-checked"
+        elif [ -n "$live" ]; then
+          err "contradiction: the record lists 0 endpoints but llmctl reports live decision infrastructure ($live) - re-run detection (§11.4.279(A), false-null §11.4.201(6))"
+        fi
+      fi
+    else
+      blind_or_note "$_llm_why: the empty record cannot be cross-checked against llmctl's registry"
+    fi
+    fi
 fi
 ok "clause 7: empty record consistent with llmctl's registry (or n/a: $n endpoints)"
 

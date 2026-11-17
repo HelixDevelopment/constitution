@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""Round-9 mutants of scripts/jev/jev-place.sh: the reviewer's RV01-RV12 ported to the round-9 text (each freezes ONE
+age-bearing write or judgement to the process-start clock: T_START wall, T_MONO_T / T_MONO_TOK monotonic) and the
+fixer's own O9-01..O9-19 (each removes ONE round-9 rule). Writes <out>/<K>/jev-place.sh and <out>/index.tsv.
+usage: mkmut9.py <producer> <out> [K1,K2,...]. Each mutant is a FULL copy of the producer's directory (it sources lib_decide.sh and
+lib_keys.sh from its own directory) with one file changed; CTRL is the frozen base with NO change and must survive. Every substitution must match exactly once (an assert, never a silent no-op)."""
+import os, sys, hashlib, shutil
+src, out = sys.argv[1], sys.argv[2]
+base = open(src).read()
+ANCHOR = 'clock_refresh\nfor n in "$RTMO"'
+assert base.count(ANCHOR) == 1
+base_t = base.replace(ANCHOR, 'clock_refresh\nT_START="$NOW"; T_MONO_T="$MONO_T"; T_MONO_TOK="$MONO_TOK"\nfor n in "$RTMO"', 1)
+
+def sub(text, old, new, hint):
+    n = text.count(old)
+    assert n == 1, (hint, n)
+    return text.replace(old, new, 1)
+
+FROZEN = 'NOW="$T_START"; MONO_T="$T_MONO_T"; MONO_TOK="$T_MONO_TOK"; '
+M = {}
+M['CTRL'] = ('CONTROL: the T_START-frozen base, no change (must survive every suite)', lambda t: t)
+# ---- the reviewer's mutants, ported -------------------------------------------------------------------------------
+M['RV01'] = ('lease_json: heartbeat_at / heartbeat_mono stamped with the process-start clocks',
+  lambda t: sub(sub(t, '--arg pst "$3" --argjson now "$NOW" --argjson ttl "$4"', '--arg pst "$3" --argjson now "$T_START" --argjson ttl "$4"', 'lj now'),
+                '--arg proj "$PROJECT" \\\n    --arg mo "$MONO_TOK"', '--arg proj "$PROJECT" \\\n    --arg mo "$T_MONO_TOK"', 'lj mo'))
+M['RV02'] = ('obs_locked: health.at stamped with the process-start clock',
+  lambda t: sub(t, '--argjson t "$OBS_TICKET" --argjson now "$NOW" \'.sets[$p].health = {state:$s', '--argjson t "$OBS_TICKET" --argjson now "$T_START" \'.sets[$p].health = {state:$s', 'obs'))
+M['RV03'] = ('obs_locked: gone.at stamped with the process-start clock',
+  lambda t: sub(t, '--arg d "$det" --argjson now "$NOW" \'.sets[$p].leases = []', '--arg d "$det" --argjson now "$T_START" \'.sets[$p].leases = []', 'gone'))
+M['RV04'] = ('write_placement: evaluated_at stamped with the process-start clock',
+  lambda t: sub(t, '--arg kv "$kv" --argjson now "$NOW"', '--arg kv "$kv" --argjson now "$T_START"', 'evaluated_at'))
+M['RV05'] = ('finish_stop_locked (dispose): stop_owed.at / stop_failed.at stamped with the process-start clock',
+  lambda t: sub(t, 'dispose) cur="$(jq -c --arg p "$p" --argjson now "$NOW"', 'dispose) cur="$(jq -c --arg p "$p" --argjson now "$T_START"', 'dispose'))
+M['RV06'] = ('reap_locked: mark_cleared / health stamped with the process-start clocks',
+  lambda t: sub(t, '--arg m "$mk" --argjson now "$NOW" --arg mo "$MONO_TOK"', '--arg m "$mk" --argjson now "$T_START" --arg mo "$T_MONO_TOK"', 'reap clear'))
+M['RV07'] = ('hb_locked: heartbeat refreshed with the process-start clocks',
+  lambda t: sub(t, 'c="$(jq -c --arg h "$1" --argjson now "$NOW" --arg mo "$MONO_TOK"', 'c="$(jq -c --arg h "$1" --argjson now "$T_START" --arg mo "$T_MONO_TOK"', 'hb'))
+M['RV08'] = ('reap_locked: a mark\'s age is judged with the process-start clocks',
+  lambda t: sub(t, 'age="$(age_of "$sat" "$smo")"', 'age="$(' + FROZEN + 'age_of "$sat" "$smo")"', 'mark age'))
+M['RV09'] = ('holder_alive: a lease heartbeat\'s age is judged with the process-start clocks',
+  lambda t: sub(t, '[ "$(age_of "$hb" "${5:-}")" -le "$ttl" ]', '[ "$(' + FROZEN + 'age_of "$hb" "${5:-}")" -le "$ttl" ]', 'hb age'))
+M['RV10'] = ('finish_start_locked (released): started_at stamped with the process-start clock',
+  lambda t: sub(t, "--argjson now \"$NOW\" --argjson m \"$(me_mark)\" '.sets[$p] = ((.sets[$p] // {constitution_started:true, leases:[]}) + {started_at:$now",
+                   "--argjson now \"$T_START\" --argjson m \"$(me_mark)\" '.sets[$p] = ((.sets[$p] // {constitution_started:true, leases:[]}) + {started_at:$now", 'released'))
+M['RV11'] = ('finish_start_locked (failed): started_at / start_failed.at stamped with the process-start clock',
+  lambda t: sub(t, '--argjson now "$NOW" --argjson src "$src" --argjson m "$(me_mark)"', '--argjson now "$T_START" --argjson src "$src" --argjson m "$(me_mark)"', 'failed'))
+M['RV12'] = ('me_mark: pid_start not recorded',
+  lambda t: sub(t, 'pid:($pid|tonumber), pid_start:($pst|tonumber? // null), holder:', 'pid:($pid|tonumber), pid_start:null, holder:', 'me_mark pst'))
+# ---- the fixer's own round-9 mutants -------------------------------------------------------------------------------
+M['O9-01'] = ('finish_stop_locked rc 0: the set is deleted even when it holds a lease (R8-2 removed)',
+  lambda t: sub(t, 'if [ "$leased" = 0 ] && { [ "$ours" = true ] || [ "$(jq -r --arg p "$p" \'(.sets[$p].stopping // null) == null\' <<<"$cur")" = true ]; }; then', 'if true; then', 'r8-2'))
+M['O9-02'] = ('arm_stop_locked stamps the mark with the PLAN\'s clock (the round-8 defect: a mark written for a later call)',
+  lambda t: sub(sub(t, '  BASE_GEN=""\n  # THE freshness rule (round 7, NF-2), first seam', '  BASE_GEN=""; PLAN_NOW="$NOW"; PLAN_MONO="$MONO_TOK"\n  # THE freshness rule (round 7, NF-2), first seam', 'plan clock'),
+                '--argjson m "$(me_mark)" \'.sets[$p].stopping = $m\' <<<"$cur")"\n  printf \'%s\\n\' "$cur" | leases_save\n}',
+                '--argjson m "$(NOW="${PLAN_NOW:-$NOW}"; MONO_TOK="${PLAN_MONO:-$MONO_TOK}"; me_mark)" \'.sets[$p].stopping = $m\' <<<"$cur")"\n  printf \'%s\\n\' "$cur" | leases_save\n}', 'arm mark'))
+M['O9-03'] = ('arm_stop_locked does not judge the set again at its turn',
+  lambda t: sub(t, 'if [ -n "$why" ]; then log "stop of $p ($kind) not run at its turn', 'if false; then log "stop of $p ($kind) not run at its turn', 'rejudge'))
+M['O9-04'] = ('finish_stop_locked treats every mark as its own',
+  lambda t: sub(t, 'ours="$(jq -r --arg p "$p" --arg pid "$$"', 'ours=true; : "$(jq -r --arg p "$p" --arg pid "$$"', 'ours'))
+M['O9-05'] = ('age_of ignores the monotonic clock (wall time only)',
+  lambda t: sub(t, 'if [ -n "$MONO_TOK" ] && [ -n "$mo" ] && [ "$mo" != null ]; then', 'if false; then', 'wall'))
+M['O9-06'] = ('reap_locked: no lease-TTL suspension while a live mark names the holder',
+  lambda t: sub(t, 'case "$live_h" in *" $h "*)', 'case "$live_h" in *" NEVER-$h "*)', 'suspension'))
+M['O9-07'] = ('plan_locked: the join is taken in a plan that also stops a set',
+  lambda t: sub(t, 'if [ "$hs" = ok ] && [ -n "$PLAN_STOPS" ]; then', 'if false; then', 'join defer'))
+M['O9-08'] = ('leases_save: no heartbeat refresh of the acquire\'s holder',
+  lambda t: sub(t, "if $rf == \"1\" and $h != \"\" then", "if false then", 'acq refresh'))
+M['O9-09'] = ('me_mark: holder not recorded',
+  lambda t: sub(t, 'holder:(if $h=="" then null else $h end)}\'; }', 'holder:null}\'; }', 'holder'))
+M['O9-10'] = ('me_mark: mono not recorded',
+  lambda t: sub(t, '{at:$now, mono:(if $mo=="" then null else $mo end), pid:', '{at:$now, mono:null, pid:', 'mark mono'))
+M['O9-11'] = ('age_of: a record from another boot is fresh (age 0)',
+  lambda t: sub(t, 'then echo $(( MONO_T - t )); else echo "$AGE_EXPIRED"; fi', 'then echo $(( MONO_T - t )); else echo 0; fi', 'boot'))
+M['O9-12'] = ('clock_refresh: an unreadable monotonic clock is not a config error',
+  lambda t: sub(t, "case \"$MONO_TOK\" in '!'*) echo", "case \"$MONO_TOK\" in '!NEVER'*) echo", 'mono err'))
+M['O9-13'] = ('pid_dead: a recorded pid is never dead (a dead holder is kept by a live mark naming it)',
+  lambda t: sub(t, 'case "$rc" in 0) return 1 ;; 1) return 0 ;; esac\n  kill -0', 'return 1\n  kill -0', 'pid_dead'))
+M['O9-14'] = ('release_locked marks every stop candidate at release time (the round-8 rule)',
+  lambda t: sub(t, '    echo "$prof"; stops+=" $prof"\n', '    echo "$prof"; stops+=" $prof"\n    cur="$(jq -c --arg p "$prof" --argjson m "$(me_mark)" \'.sets[$p].stopping = $m\' <<<"$cur")"\n', 'release mark'))
+M['O9-15'] = ('hb_locked: heartbeat_mono not refreshed',
+  lambda t: sub(t, '.heartbeat_mono = (if $mo=="" then null else $mo end) else . end))\' <<<"$c")"', '.heartbeat_mono = .heartbeat_mono else . end))\' <<<"$c")"', 'hb mono'))
+M['O9-16'] = ('lease_json: heartbeat_mono not recorded',
+  lambda t: sub(t, 'heartbeat_mono:(if $mo=="" then null else $mo end), ttl:$ttl,', 'heartbeat_mono:null, ttl:$ttl,', 'lj mono'))
+M['O9-17'] = ('arm_stop_locked (dispose): the recorded-health check is removed',
+  lambda t: sub(t, 'elif $k == "dispose" and ((($s.health.state // "") | IN("degraded", "absent")) | not) then', 'elif false then', 'dispose health'))
+M['O9-18'] = ('arm_stop_locked: the "holds a lease now" check is removed',
+  lambda t: sub(t, 'elif (($s.leases // []) | length) > 0 then "it holds', 'elif false then "it holds', 'leases now'))
+M['O9-19'] = ('finish_stop_locked rc 0 with a lease or a foreign mark: the mark is cleared even when it is another stopper\'s',
+  lambda t: sub(t, "'(if $ours == \"true\" then .sets[$p].stopping = null else . end)\n       | .sets[$p].stopped_while_held",
+                   "'(.sets[$p].stopping = null)\n       | .sets[$p].stopped_while_held", 'foreign mark'))
+# ---- composites: a survivor analysed as EQUIVALENT by construction must die once the rule that masks it is removed --
+_rv01, _o916, _o908 = M['RV01'][1], M['O9-16'][1], M['O9-08'][1]
+M['C-RV01+O9-08'] = ('RV01 with the ACQ_REFRESH of leases_save removed (proves RV01 is masked only by that refresh)',
+  lambda t: _o908(_rv01(t)))
+M['C-O9-16+O9-08'] = ('O9-16 with the ACQ_REFRESH of leases_save removed (proves O9-16 is masked only by that refresh)',
+  lambda t: _o908(_o916(t)))
+ONLY = set(sys.argv[3].split(',')) if len(sys.argv) > 3 else None
+if ONLY:
+    assert ONLY <= set(M), ONLY - set(M)
+    M = {k: v for k, v in M.items() if k in ONLY}
+os.makedirs(out, exist_ok=True)
+with open(os.path.join(out, 'index_partial.tsv' if ONLY else 'index.tsv'), 'w') as idx:
+    for k, (desc, f) in M.items():
+        m = f(base_t)
+        d = os.path.join(out, k, 'scripts', 'jev')
+        shutil.copytree(os.path.dirname(os.path.abspath(src)), d)
+        p = os.path.join(d, 'jev-place.sh')
+        open(p, 'w').write(m); os.chmod(p, 0o755)
+        idx.write(f"{k}\t{desc}\t{hashlib.sha256(m.encode()).hexdigest()}\n")
+print('ok', len(M))

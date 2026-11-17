@@ -1,0 +1,4 @@
+forced blob->tree replace accepted
+batch-check type of ce013625030ba8dba906f756967f9e9ca394464a: ce013625030ba8dba906f756967f9e9ca394464a blob
+cat-file --batch header for ce013625030ba8dba906f756967f9e9ca394464a: ce013625030ba8dba906f756967f9e9ca394464a tree 29
+control (no replace): ce013625030ba8dba906f756967f9e9ca394464a blob 6

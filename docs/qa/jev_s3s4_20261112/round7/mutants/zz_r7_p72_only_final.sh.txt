@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# test_s4_round7.sh — round 7 (2026-11-13, structural) of the S4 placement producer scripts/jev/jev-place.sh (§11.4.291),
+# review of eb29803b (docs/qa/jev_s3s4_20261112/round7/). GATE-LOGIC tests (§11.4.289(C)(2)): the stub llmctl in
+# tests/jev/fixtures/bin-place answers from a declared file; these prove the producer DECIDES correctly, never that a
+# local model runs. Every row that targets a round-7 change was run RED-first against eb29803b (round7/red_*.txt); the
+# rows marked "mutant row" pass on eb29803b as well and exist to kill a named mutant (round7/mutants.md).
+#
+# Races are replayed in a FIXED order, never by sleeping: tests/jev/fixtures/bin-flockgate/flock pauses one jev-place
+# process at a numbered flock call until the test lets it go (FLOCK_GATE_AT), or SIGKILLs it there (FLOCK_GATE_KILL_AT);
+# the stub's PLACE_CAP_GATE pauses one capacity call. Flock calls of one acquire (with_lock = lock + `flock -u`):
+#   ticket 1-2, plan 3-4, mark 5-6, record 7-8; with JEV_PLACE_MAX > 1 the next start: ticket 9-10, mark 11-12, ...;
+#   a re-plan after a stale mark: ticket, plan, mark again (the 2nd mark is call 11, the 3rd 17, the 4th 23);
+#   the post-start observation ticket after one start: 9. An observer (status): ticket 1-2, finalize 3-4.
+#
+#   P72 (NF-1)  THE WHOLE §11.4.291(C) CONTRACT TABLE: every required field, absent and of a wrong type, makes the answer
+#               undetermined and the reason names the field; nothing is started. The field list below is written from
+#               the canon table (Constitution.md §11.4.291(C)), not from the producer. Plus llmctl's
+#               measurement.critical_inputs_unreadable, and the producer's own pressure guard (VM01)
+#   P73 (NF-2a) a stale answer is never started on: B's answer predates A's start of decide-a; B joins decide-a (the
+#               review's repro: B used to start decide-b on the pre-start answer)
+#   P74 (NF-2b) the same with B's own candidate: B used to start decide-a next to C's decide-b
+#   P75 (NF-2)  a writer that does not know the generation (an older constitution pin shares the per-user registry):
+#               the HASH part of the freshness token catches it
+#   P75b (NF-2) ABA: a start that fails and is cleaned up leaves the registry bytes as they were except the generation;
+#               an answer read while that unit briefly ran is not used (the GENERATION part catches it)
+#   P76 (VM13)  mutant row: a set created after the answer, while the answer lags, is never overwritten by the mark
+#   P77 (VM10)  mutant row: the plan's freshness check (seam 1): B re-reads and joins instead of being refused
+#   P78 (NF-3)  a reap that clears a dead starter's mark sets a floor: an older answer never marks the set gone
+#   P79 (VM06)  a live starter's mark is kept until MARK_TTL (start timeout + 2 + retries x lock timeout + 30) and
+#               cleared one second later
+#   P80 (VM07)  mutant row: a heartbeat refreshes only its holder's lease; the stale holder is reaped by a later release
+#   P81 (NF-2)  INVENTORY PROPERTY: in llmctl's call log no `llmctl start` follows another start or a stop without a
+#               capacity answer in between (refused start, failed start + cleanup, disposal stop)
+#   P82 (NF-2)  bounded: the registry changes before every start mark -> STALE_MAX re-plans, then no start (stale_answer)
+#   P82b (NF-2) bounded: the registry changes during every capacity read -> STALE_MAX re-reads, then a plan with joins
+#               and stops only (stale_answer, no start)
+#   P83 (NF-2)  mutant row: a plan that changes nothing writes nothing, so a concurrent acquire is not made stale for no
+#               reason (the conditional gateway write)
+#   P84 (N6-b)  `status` with no placement record yet exits 0 and says so
+#   P85 (N6-e)  an undetermined candidate's reason is in the record (nproc_unlimited)
+#   P86 (NF-2)  mutant row: an owed stop that fails again is tried once per acquire (STOP_TRIED), so the re-plan ends
+#   P87 (R5-1)  mutant row (OM03): on the further-start path (JEV_PLACE_MAX > 1) a set that was already stopping when the
+#               fresh answer's ticket was taken refuses the mark (the token cannot see it: it predates the ticket)
+#   P88 (NF-2)  the lease this acquire took is the authority for every further start: once it is released, no further
+#               start (round 6 P70 relied on the stopping mark alone and became timing-dependent under the round-7 rule)
+#   P89 (NF-3)  mutant row (NM02): an acquire whose own reap clears a dead starter's mark after its capacity read reads
+#               again (its old ticket is not newer than the floor) and joins the running unit. On eb29803b only its
+#               log-line assertion fails (round 6 set no floor at the reap, so the old answer still judged the set)
+#   P90 (NF-2)  mutant row (NM07): a start this acquire saw fail (rc 1) or refused (rc 75) is not tried again by it, so
+#               a start that keeps failing cannot loop; every wait on a gated process is bounded (waitb), so a loop or a
+#               hang is a named FAIL, never a hang of the whole suite
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
+# shellcheck source=lib_assert.sh
+. "$HERE/lib_assert.sh"
+PLACE="${S4_PLACE_UNDER_TEST:-$ROOT/scripts/jev/jev-place.sh}"
+STUB="$FIXTURES/bin-place/llmctl"
+GATEBIN="$FIXTURES/bin-flockgate"
+
+assert_eqx() { if [ "$1" = "$2" ]; then ok "$3"; else fail "$3 (expected [$1] got [$2])"; fi; }
+has()  { if grep -q -- "$2" "$1" 2>/dev/null; then ok "$3"; else fail "$3 (no [$2] in $1)"; fi; }
+hasnt(){ if grep -q -- "$2" "$1" 2>/dev/null; then fail "$3 (found [$2] in $1)"; else ok "$3"; fi; }
+
+cap() { # cap <file> [a-verdict] [b-verdict] [headroom|none] — every field the §11.4.291(C) table requires
+  jq -n --arg va "${2:-fits}" --arg vb "${3:-fits}" --arg hr "${4:-5000}" '
+    {schema:"llmctl.capacity/1", time:1700000000, measurement:{ok:true, critical_inputs_unreadable:[]},
+     host:({cpus_online:16, mem_total_mb:20000, mem_available_mb:18000, usable_mem_mb:15000, swap_total_mb:0, swap_free_mb:0,
+            load:{"1":1.0,"5":1.0,"15":1.0}, psi:{memory:{some:0.0,full:0.0},cpu:{some:0.0},io:{some:0.0,full:0.0}}, cgroup:{memory_max_mb:null}}
+           + (if $hr=="none" then {} else {nproc:{rlimit_soft:123694, rlimit_hard:123694, user_threads:400, headroom:($hr|tonumber)}} end)),
+     reserve:{mem_reserved_mb:4000, cpus_reserved:4}, pressure:{ok:true, reasons:[]},
+     llmctl:{units:[]}, fallback:{recommended:"cloud", key_variable:null}, unknown_profiles:[], degraded:false, largest_decision_fit:null,
+     profiles:{"decide-a":{verdict:$va, verdict_class:$va, running:false, threads:(if $va=="does_not_fit" then 0 else 3 end), reasons:[], headroom:{footprint_mb:1000}},
+               "decide-b":{verdict:$vb, verdict_class:$vb, running:false, threads:(if $vb=="does_not_fit" then 0 else 3 end), reasons:[], headroom:{footprint_mb:1000}}}}' > "$1"
+}
+LOCKHELD_TOTAL=0
+count_lockheld() { local n=0; [ -n "${STUB_LOG:-}" ] && [ -f "$STUB_LOG/llmctl.log" ] && n="$(grep -c '^LOCKHELD' "$STUB_LOG/llmctl.log" || true)"; LOCKHELD_TOTAL=$((LOCKHELD_TOTAL + ${n:-0})); }
+fresh() {
+  count_lockheld
+  make_fixture_env s4r7
+  export PATH="$FIXTURES/bin-place:$PATH" JEV_TEST=1 PLACE_CAP_JSON="$T/cap.json" JEV_LOCK_TIMEOUT=2
+  unset PLACE_CAP_RC PLACE_CAP_RC_FILE PLACE_CAP_SLEEP PLACE_CAP_RAW PLACE_CAP_GATE PLACE_CAP_GATE_AT PLACE_CAP_GATE_WHEN \
+        PLACE_START_RC PLACE_START_SLEEP PLACE_STOP_RC PLACE_STOP_SLEEP PLACE_DEGRADED PLACE_GONE PLACE_FULL_AFTER PLACE_DCAP_RC \
+        PLACE_STATUS_RC PLACE_STATUS_URL PLACE_STATUS_NOGW JEV_LLMCTL_TIMEOUT JEV_LLMCTL_START_TIMEOUT JEV_PLACE_MAX \
+        JEV_PLACE_PROFILES LLMCTL_GATEWAY_URL LLMCTL_CACERT LLMCTL_TENANT_ID JEV_LEASE_TTL JEV_REEVAL_CADENCE JEV_RECORD_RETRIES \
+        JEV_PROJECT FLOCK_GATE_DIR FLOCK_GATE_AT FLOCK_GATE_KILL_AT
+  : > "$STUB_LOG/llmctl.log"
+  cap "$T/cap.json"
+}
+starts() { grep -c '^llmctl start' "$STUB_LOG/llmctl.log" 2>/dev/null || true; }
+startsof() { grep -c "^llmctl start $1\$" "$STUB_LOG/llmctl.log" 2>/dev/null || true; }
+stops()  { grep -c '^llmctl stop' "$STUB_LOG/llmctl.log" 2>/dev/null || true; }
+pl() { jq -r "$1" "$JEV_STATE_DIR/placement.json" 2>/dev/null; }
+L() { jq -r "$1" "$JEV_STATE_DIR/leases.json" 2>/dev/null; }
+running() { (cd "$STUB_LOG" && for f in running.*; do [ -e "$f" ] && printf '%s ' "${f#running.}"; done); }
+wait_file() { local n=0; while [ "$n" -lt "${2:-900}" ]; do [ -e "$1" ] && return 0; sleep 0.1; n=$((n+1)); done; return 1; }
+# waitb <pid> [secs]: `wait` bounded by a deadline (default 300 s). A gated process that loops or hangs is a FAIL here,
+# never a hang of the whole suite: past the deadline it is sent TERM (pid > 1 only, §11.4.263) and 124 is returned.
+waitb() {
+  local p="$1" lim n=0; lim=$(( ${2:-300} * 10 ))
+  while kill -0 "$p" 2>/dev/null; do
+    if [ "$n" -ge "$lim" ]; then
+      fail "waitb: pid $p still running after ${2:-300} s (a loop or a hang); sent TERM"
+      if [ "$p" -gt 1 ] 2>/dev/null; then kill -TERM "$p" 2>/dev/null; fi
+      wait "$p" 2>/dev/null; return 124
+    fi
+    sleep 0.1; n=$((n+1))
+  done
+  wait "$p"
+}
+# field 22 of /proc/<pid>/stat (the start time), read after the LAST ") " so a command name with spaces cannot shift it
+proc_start_of() { local st; local -a f; st="$(cat "/proc/$1/stat" 2>/dev/null)" || return 0; st="${st##*') '}"; read -ra f <<<"$st"; printf '%s\n' "${f[19]:-}"; }
+
+# gated <gate-dir> <gate-at (comma list, 0 none)> <kill-at (0 none)> <out-prefix> [NAME=value ...] -- <jev-place args>
+# runs "$PLACE" in the background behind the flock gate; GPID = its pid (registered for the EXIT cleanup)
+gated() {
+  local d="$1" at="$2" kat="$3" o="$4"; shift 4
+  local -a envs=()
+  while [ "$#" -gt 0 ] && [ "$1" != -- ]; do envs+=("$1"); shift; done
+  shift
+  mkdir -p "$d"
+  # shellcheck disable=SC2030  # the gated process gets its own lock timeout; the change is meant to stay in the subshell
+  ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10
+    exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" ) &
+  GPID=$!; jev_track_pid "$GPID"
+}
+# reach <gate-dir> <n> <label>: waits until the gated process is paused at flock call <n>
+reach() { if wait_file "$1/reached.$2"; then ok "$3 (paused at flock call $2)"; else fail "$3: never reached flock call $2"; fi; }
+go() { : > "$1/go.$2"; }
+# registry_write <note>: a registry write by another session (under the lock, the generation raised as this producer
+# does); only a field no decision reads changes, so the write makes an answer stale without changing any verdict
+registry_write() {
+  [ -s "$JEV_STATE_DIR/leases.json" ] || { fail "registry_write: no registry to write (the instrument would write nothing)"; return 1; }
+  ( exec 8>>"$JEV_STATE_DIR/placement.lock"; flock -w 10 8 || exit 4
+    jq -c --arg n "$1" '.gen = ((.gen // 0) + 1) | .other_session_note = $n' "$JEV_STATE_DIR/leases.json" > "$JEV_STATE_DIR/leases.json.w" \
+      && mv -f -- "$JEV_STATE_DIR/leases.json.w" "$JEV_STATE_DIR/leases.json" )
+}
+# older_pin_place <profile> <holder>: a producer of an OLDER constitution pin (no `gen`; the registry is per user and
+# host-level, §11.4.291(J)) adds a held, constitution-started set under the lock, then starts the stub unit
+older_pin_place() {
+  ( exec 8>>"$JEV_STATE_DIR/placement.lock"; flock -w 10 8 || exit 4
+    jq -c --arg p "$1" --arg h "$2" --argjson now "$JEV_NOW_EPOCH" --argjson pid "$$" \
+      '.sets[$p] = {constitution_started:true, started_at:$now, starting:null, stopping:null,
+                    leases:[{holder:$h, pid:$pid, pid_start:null, heartbeat_at:$now, ttl:900, project:null, started_by_this_session:true}]}' \
+      "$JEV_STATE_DIR/leases.json" > "$JEV_STATE_DIR/leases.json.w" && mv -f -- "$JEV_STATE_DIR/leases.json.w" "$JEV_STATE_DIR/leases.json" )
+  "$STUB" start "$1" >/dev/null
+}
+# inv_violations: in llmctl.log, a `llmctl start` that follows another start or a stop with no `llmctl capacity --json`
+# in between (the NF-2 inventory property: every start is decided on an answer read after the last start / stop)
+inv_violations() {
+  awk 'BEGIN{f=0; bad=0} /^llmctl capacity --json/{f=0} /^llmctl start /{ if (f) bad++; f=1 } /^llmctl stop /{f=1} END{print bad}' "$STUB_LOG/llmctl.log"
+}
+
+# ---- P72 (NF-1): the whole contract table ---------------------------------------------------------------------------
+# The base document carries every field the canon table requires, plus one foreign unit (so the per-unit fields exist).
+# Each case is served RAW (the stub returns the document unchanged): <label> <jq edit> <expected verdict> <needle>.
+p72_case() {
+  local label="$1" edit="$2" ev="$3" needle="$4" rc r v
+  fresh; cap "$T/base.json"
+  jq ".llmctl.units = [{unit:\"llmctl-llama@other.service\", profile:\"other\", owner:\"other\", status:\"ok\", reasons:[]}] | $edit" "$T/base.json" > "$T/cap.json" \
+    || { fail "P72 $label: the test edit is not valid jq"; return; }
+  export PLACE_CAP_RAW=1 JEV_PLACE_PROFILES=decide-a
+  "$PLACE" acquire s1 --pid $$ >/dev/null 2>"$T/e72"; rc=$?
+  r="$(pl .placement.reason)"; v="$(pl .placement.verdict)"
+  if [ "$rc $(starts) $v" = "5 0 $ev" ] && printf '%s' "$r" | grep -qF -- "$needle"; then
+    ok "P72 $label: verdict $ev, nothing started, the reason names [$needle]"
+  else fail "P72 $label (expected rc 5, 0 starts, verdict $ev, a reason naming [$needle]; got rc $rc, $(starts) starts, verdict $v, reason [$r])"; fi
+  unset PLACE_CAP_RAW JEV_PLACE_PROFILES
+}
+# CONTROLS: the full document (served raw and computed) starts decide-a, so a row's refusal is caused by its edit
+fresh; cap "$T/base.json"
+jq '.llmctl.units = [{unit:"llmctl-llama@other.service", profile:"other", owner:"other", status:"ok", reasons:[]}]' "$T/base.json" > "$T/cap.json"
+PLACE_CAP_RAW=1 JEV_PLACE_PROFILES=decide-a "$PLACE" acquire s1 --pid $$ > "$T/c72.out" 2>"$T/c72.err"; rc=$?
+assert_eqx "0 decide-a 1" "$rc $(cat "$T/c72.out") $(starts)" "P72 CONTROL: the full document served raw starts decide-a"
+fresh
+JEV_PLACE_PROFILES=decide-a "$PLACE" acquire s1 --pid $$ > "$T/c72b.out" 2>/dev/null; rc=$?
+assert_eqx "0 decide-a 1" "$rc $(cat "$T/c72b.out") $(starts)" "P72 CONTROL: the full document served computed starts decide-a"
+U=undetermined
+# required top-level fields (canon table rows 1, 2, 5-9), absent and of a wrong type
+p72_case "schema absent"                    'del(.schema)'                        "$U" schema
+p72_case "schema of another version"        '.schema = "llmctl.capacity/2"'       "$U" schema
+p72_case "time absent"                      'del(.time)'                          "$U" time
+p72_case "time a string"                    '.time = "1700000000"'                "$U" time
+for f in cpus_online mem_total_mb mem_available_mb usable_mem_mb swap_total_mb swap_free_mb; do
+  p72_case "host.$f absent"                 "del(.host.$f)"                       "$U" "host.$f"
+  p72_case "host.$f a string"               ".host.$f = \"16\""                   "$U" "host.$f"
+done
+p72_case "host.load absent"                 'del(.host.load)'                     "$U" host.load
+p72_case "host.load a string"               '.host.load = "1.0 1.0 1.0"'          "$U" host.load
+p72_case "host.load.5 absent"               'del(.host.load["5"])'                "$U" host.load
+p72_case "host.psi absent"                  'del(.host.psi)'                      "$U" host.psi
+p72_case "host.psi a string"                '.host.psi = "none"'                  "$U" host.psi
+p72_case "host.psi.cpu absent"              'del(.host.psi.cpu)'                  "$U" host.psi
+p72_case "host.cgroup absent"               'del(.host.cgroup)'                   "$U" host.cgroup
+p72_case "host.cgroup an array"             '.host.cgroup = []'                   "$U" host.cgroup
+# the host row is implied by its nine field rows for the decision (a field of a non-object host is never a number), so
+# its own effect is the reason: the row itself must be named, before its first field (mutant CT04)
+p72_case "host absent"                      'del(.host)'                          "$U" host,host.cpus_online
+p72_case "host a string"                    '.host = "none"'                      "$U" host,host.cpus_online
+p72_case "reserve absent"                   'del(.reserve)'                       "$U" reserve
+p72_case "reserve a string"                 '.reserve = "4000"'                   "$U" reserve
+p72_case "pressure absent"                  'del(.pressure)'                      "$U" pressure
+p72_case "pressure.ok a string"             '.pressure.ok = "yes"'                "$U" pressure.ok
+p72_case "pressure.reasons absent"          'del(.pressure.reasons)'              "$U" pressure.reasons
+p72_case "llmctl.units absent"              'del(.llmctl.units)'                  "$U" llmctl.units
+p72_case "llmctl.units an object"           '.llmctl.units = {}'                  "$U" llmctl.units
+p72_case "llmctl.units[].profile absent"    'del(.llmctl.units[0].profile)'       "$U" llmctl.units
+p72_case "llmctl.units[].profile a number"  '.llmctl.units[0].profile = 1'        "$U" llmctl.units
+p72_case "llmctl.units[].status absent"     'del(.llmctl.units[0].status)'        "$U" llmctl.units
+p72_case "llmctl.units[].status a number"   '.llmctl.units[0].status = 1'         "$U" llmctl.units
+p72_case "llmctl.units[].reasons absent"    'del(.llmctl.units[0].reasons)'       "$U" llmctl.units
+p72_case "llmctl.units[].reasons a string"  '.llmctl.units[0].reasons = "x"'      "$U" llmctl.units
+p72_case "fallback.recommended absent"      'del(.fallback.recommended)'          "$U" fallback.recommended
+p72_case "fallback.recommended outside the set" '.fallback.recommended = "maybe"' "$U" fallback.recommended
+p72_case "fallback.key_variable absent"     'del(.fallback.key_variable)'         "$U" fallback.key_variable
+p72_case "fallback.key_variable a number"   '.fallback.key_variable = 42'         "$U" fallback.key_variable
+p72_case "unknown_profiles absent"          'del(.unknown_profiles)'              "$U" unknown_profiles
+p72_case "unknown_profiles an object"       '.unknown_profiles = {}'              "$U" unknown_profiles
+p72_case "degraded absent"                  'del(.degraded)'                      "$U" degraded
+p72_case "degraded a string"                '.degraded = "false"'                 "$U" degraded
+p72_case "largest_decision_fit absent"      'del(.largest_decision_fit)'          "$U" largest_decision_fit
+p72_case "largest_decision_fit a number"    '.largest_decision_fit = 42'          "$U" largest_decision_fit
+p72_case "profiles absent"                  'del(.profiles)'                      "$U" profiles
+# per-profile fields (canon table rows 3-4) of the candidate. The needle is the contract phrase with the field, so a
+# field of a wrong type is refused BY the contract check and named there, not only by a later value check (mutant NM14:
+# without the verdict type check a number verdict was still undetermined, as "verdict outside the closed set")
+CF="contract fields of profiles.decide-a missing or wrong:"
+for f in verdict threads reasons headroom; do
+  p72_case "profiles.decide-a.$f absent"    "del(.profiles[\"decide-a\"].$f)"   "$U" "$CF $f"
+done
+p72_case "profiles.decide-a.verdict a number"   '.profiles["decide-a"].verdict = 1'        "$U" "$CF verdict"
+p72_case "profiles.decide-a.threads a string"   '.profiles["decide-a"].threads = "3"'      "$U" "$CF threads"
+p72_case "profiles.decide-a.reasons a string"   '.profiles["decide-a"].reasons = "none"'   "$U" "$CF reasons"
+p72_case "profiles.decide-a.headroom a number"  '.profiles["decide-a"].headroom = 1000'    "$U" "$CF headroom"
+# llmctl's own list of inputs it could not read (non-strict mode keeps measurement.ok true)
+p72_case "measurement.critical_inputs_unreadable non-empty" \
+  '.measurement.critical_inputs_unreadable = ["host.psi.memory: /proc/pressure/memory unreadable"]' "$U" host.psi.memory
+# VM01: the producer's own pressure guard — an answer with pressure.ok false is never read as fits, even when the
+# profile's verdict says fits (the computed stub converts it; a raw answer does not)
+p72_case "pressure.ok false with verdict fits (VM01)" \
+  '.pressure = {ok:false, reasons:["psi full avg10 3.1 > 2"]}' does_not_fit "psi full avg10 3.1"
+
+
+count_lockheld
+finish

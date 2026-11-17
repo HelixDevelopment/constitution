@@ -1,0 +1,15 @@
+nameref->wt_path           prefix=none      -> wt_path=/proved GIT_DIR=[UNSET]
+nameref->wt_path           prefix=unset -v  -> wt_path=[UNSET] GIT_DIR=[UNSET]
+nameref->wt_path           prefix=unset -n  -> wt_path=/proved GIT_DIR=[UNSET]
+lowercase attr             prefix=none      -> wt_path=[UNSET] GIT_DIR=/x
+lowercase attr             prefix=unset -v  -> wt_path=/proved GIT_DIR=[UNSET]
+lowercase attr             prefix=unset -n  -> wt_path=[UNSET] GIT_DIR=/x
+DEBUG trap                 prefix=none      -> wt_path=[UNSET] GIT_DIR=[UNSET]
+DEBUG trap                 prefix=unset -v  -> wt_path=[UNSET] GIT_DIR=[UNSET]
+DEBUG trap                 prefix=unset -n  -> wt_path=[UNSET] GIT_DIR=[UNSET]
+exported unset function    prefix=none      -> wt_path=[UNSET] GIT_DIR=/x
+exported unset function    prefix=unset -v  -> wt_path=[UNSET] GIT_DIR=/x
+exported unset function    prefix=unset -n  -> wt_path=[UNSET] GIT_DIR=/x
+control (no state)         prefix=none      -> wt_path=/proved GIT_DIR=[UNSET]
+control (no state)         prefix=unset -v  -> wt_path=/proved GIT_DIR=[UNSET]
+control (no state)         prefix=unset -n  -> wt_path=/proved GIT_DIR=[UNSET]

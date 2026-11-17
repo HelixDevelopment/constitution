@@ -1,0 +1,9 @@
+base=1dfbb4d19bdd3b3e482d45814a9b9ad831f1c730
+control_base_rc=0
+tools/repro_pr_path.sh: line 23: docs/qa/pr_path_drift_2026_11_16/README.md: No such file or directory
+head=77c4952051b12704b199b815710e2895a083e5da
+control_head_rc=1
+pr_landing_check=absent rc=-
+forge_main=79744a481f257ce5c05fb46f38a670f60c0b29f3 parent2=77c4952051b12704b199b815710e2895a083e5da
+forge_main_badge_check_rc=1
+RESULT LANDED-STALE

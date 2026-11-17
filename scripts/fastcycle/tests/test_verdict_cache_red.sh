@@ -105,7 +105,12 @@ else
     echo "     assumed"
 fi
 
-if [ -f "$WS10_POC" ]; then
+# CON-093: the WS10 POC is CONSUMER research data ($FC/../../.. is the consumer root); on canon alone only this
+# needle is skipped (SKIP-SECTION, reason=topology_unsupported), every other section still runs and reports.
+. "$(dirname "$0")/lib/consumer_section.sh"
+if ! fc_consumer_section "WS10 POC control needle" "$WS10_POC"; then
+    :
+elif [ -f "$WS10_POC" ]; then
     ok "control needle: the WS10 POC plan.md T-C01 cites as its reuse"
     echo "   target (ATM-659 verdict_cache_poc.py) genuinely exists at"
     echo "   $WS10_POC"
@@ -401,5 +406,4 @@ echo "  the 'never cached while FLAKY' half."
 
 echo
 echo "SUMMARY pass=$PASS fail=$FAIL"
-[ "$FAIL" -eq 0 ] && exit 0
-exit 1
+if [ "$FAIL" -eq 0 ]; then fc_consumer_exit 0; else fc_consumer_exit 1; fi

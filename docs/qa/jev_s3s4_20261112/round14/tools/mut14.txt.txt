@@ -1,0 +1,73 @@
+@@@ M1_intent_resolved_regardless scripts/jev/jev-place.sh
+    case $'\n'"$OBS_GONE"$'\n' in
+      *$'\n'"$(intent_id "$p" "$ipid" "$ipst" "$cpid" "$cpst")"$'\n'*) ;;
+      *) log "start intent of $p (pid $ipid): its starter is gone, its start process ($cpid) may still run or was not seen gone before this observation; the intent is kept"
+         continue ;;
+    esac
+===
+>>>
+@@@ M2_group_ignored scripts/jev/jev-place.sh
+    kill -0 -- "-$c" 2>/dev/null && return 0
+    return 1
+  fi
+===
+    return 1
+  fi
+>>>
+@@@ M3_child_reuse_ignored scripts/jev/jev-place.sh
+      if [ -n "$cur" ] && [ "$cur" != "$cs" ]; then return 1; fi
+===
+>>>
+@@@ M4_ungated_start scripts/jev/jev-start-gate.sh
+IFS= read -r w <&3 || exit 79
+[ "$w" = go ] || exit 79
+===
+IFS= read -r w <&3
+>>>
+@@@ M5_child_judged_at_resolve_time scripts/jev/jev-place.sh
+    case $'\n'"$OBS_GONE"$'\n' in
+      *$'\n'"$(intent_id "$p" "$ipid" "$ipst" "$cpid" "$cpst")"$'\n'*) ;;
+      *) log "start intent of $p (pid $ipid): its starter is gone, its start process ($cpid) may still run or was not seen gone before this observation; the intent is kept"
+         continue ;;
+    esac
+===
+    if [ "$cpid" != null ] && child_running "$cpid" "$cpst"; then
+      log "start intent of $p (pid $ipid): its starter is gone, its start process ($cpid) may still run or was not seen gone before this observation; the intent is kept"
+      continue
+    fi
+>>>
+@@@ M6_intent_without_child scripts/jev/jev-place.sh
+.start_intents[$p] = ($m + {child:{pid:$cp, pid_start:$cs}})' <<<"$cur")"
+===
+.start_intents[$p] = $m' <<<"$cur")"
+>>>
+@@@ M7a_legacy_always_gone scripts/jev/jev-place.sh
+      [ "$(age_of "$iat" "$imo")" -gt "$MARK_TTL" ] || continue
+===
+      :
+>>>
+@@@ M7b_legacy_never_gone scripts/jev/jev-place.sh
+      [ "$(age_of "$iat" "$imo")" -gt "$MARK_TTL" ] || continue
+===
+      continue
+>>>
+@@@ M8_no_went_check scripts/jev/jev-place.sh
+  if [ ! -e "$WORK/start.out.went" ]; then
+    log "the start process of $p (pid $GATE_PID) exited $rc before it ran llmctl (its gate could not be read): nothing was started; recorded as a refused start (rc 75)"
+    rc=75
+  fi
+===
+>>>
+@@@ M9_mark_without_gate scripts/jev/jev-place.sh
+  if [ -z "$GATE_PID" ] || [ -z "$GATE_PST" ]; then log "candidate $p: no gated start process (${GATE_WHY:-its start time is unreadable}); not started"; return 1; fi
+===
+>>>
+@@@ M10_gate_open_ignores_proc scripts/jev/jev-place.sh
+  if [ ! -d /proc/self/fd ]; then GATE_WHY="no /proc/self/fd: the start process cannot be gated and named (fail-closed, no start)"; return 1; fi
+===
+>>>
+@@@ M11_no_child_start_is_gone scripts/jev/jev-place.sh
+      [ -n "$cs" ] && [ "$cs" != null ] || return 0
+===
+      [ -n "$cs" ] && [ "$cs" != null ] || return 1
+>>>

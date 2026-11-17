@@ -1,0 +1,2 @@
+scratch-tmp: shared:/mnt/DATA1TB/claude-work/scratch
+own: owner-only

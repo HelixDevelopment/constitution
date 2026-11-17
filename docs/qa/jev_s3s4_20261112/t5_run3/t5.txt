@@ -1,0 +1,10 @@
+unit_before: ActiveState=failed SubState=failed MainPID=0 
+acquire_rc: 5
+unit_after_acquire: ActiveState=failed SubState=failed MainPID=0 
+placement: {"profile":null,"verdict":null,"route":null,"constitution_started":null}
+leases: 
+cache: 
+release_rc: 0
+unit_after_release: ActiveState=failed SubState=failed MainPID=0 
+leases_after: {}
+cache_after: 

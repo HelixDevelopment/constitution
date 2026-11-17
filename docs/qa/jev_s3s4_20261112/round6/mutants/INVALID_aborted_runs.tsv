@@ -1,0 +1,15 @@
+RM01	test_s4_round6	rc=1	283s	fails=3	# test_s4_round6.sh: pass=157 fail=3 skip=0	P52 reap: lease dropped, cache entry removed, no stop (expected [0 0 0 0] got [0 1 1 0])|P52 status reports the fallback route (none: no hosted key) (expected [none] got [local])
+RM11	test_s4_round6	rc=0	289s	fails=0	# test_s4_round6.sh: pass=160 fail=0 skip=0	
+OM07	test_s4_round6	rc=0	289s	fails=0	# test_s4_round6.sh: pass=160 fail=0 skip=0	
+RM11	test_s4_placement	rc=1	273s	fails=1	# test_s4_placement.sh: pass=264 fail=1 skip=0	P1 local gateway in the cache at priority 10 (expected [10] got [100])
+OM07	test_s4_placement	rc=0	274s	fails=0	# test_s4_placement.sh: pass=265 fail=0 skip=0	
+RM02	test_s4_round6	rc=1	283s	fails=1	# test_s4_round6.sh: pass=162 fail=1 skip=0	P64 the re-judgement is logged (no [fresh] in <HOME>/.cache/claude-tmp/claude-1000/-HOME-
+RM12	test_s4_round6	rc=0	268s	fails=0	# test_s4_round6.sh: pass=163 fail=0 skip=0	
+OM08	test_s4_round6	rc=0	270s	fails=0	# test_s4_round6.sh: pass=163 fail=0 skip=0	
+RM03	test_s4_round6	rc=1	268s	fails=2	# test_s4_round6.sh: pass=161 fail=2 skip=0	P58 a stopping set: reason_code endpoint_stopping (expected [5 refused_stopping endpoint_stopping] got [5 no_f|P58 reason [no candidate profile fits]
+RM12	test_s4_placement	rc=1	222s	fails=1	# test_s4_placement.sh: pass=264 fail=1 skip=0	P30 a zombie holder is dead: its lease is reaped (expected [0] got [1])
+OM08	test_s4_placement	rc=0	223s	fails=0	# test_s4_placement.sh: pass=265 fail=0 skip=0	
+RM04	test_s4_round6	rc=0	225s	fails=0	# test_s4_round6.sh: pass=163 fail=0 skip=0	
+RM13	test_s4_round6	rc=2	171s	fails=3	tests/jev/test_s4_round6.sh: line 226: `t_eqx "$s0 $t0" "$(starts) $(stops)" "P55 [$tr x $sub] no llmctl start or stop" ;; esac'	P54 decide status fails: placement still proceeds (expected [0 decide-a] got [5 ])|P54 the failure default is https://127.0.0.1:8095 (RM13) (expected [https://127.0.0.1:8095] got [])
+OM09	test_s4_round6	rc=2	173s	fails=0	tests/jev/test_s4_round6.sh: line 226: `t_eqx "$s0 $t0" "$(starts) $(stops)" "P55 [$tr x $sub] no llmctl start or stop" ;; esac'	
+RM04	test_s4_placement	rc=1	219s	fails=1	# test_s4_placement.sh: pass=264 fail=1 skip=0	P31 the same mark older than the stop timeout + 30 s is cleared (expected [false] got [true])

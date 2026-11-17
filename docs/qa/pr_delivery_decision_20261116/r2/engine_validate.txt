@@ -1,0 +1,7 @@
+# command: scripts/workable-items/bin/workable-items validate --db docs/workable_items.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 390 items, all invariants satisfied
+# exit: 0
+# command: scripts/workable-items/bin/workable-items diff --db docs/workable_items.db --issues docs/Issues.md --fixed docs/Fixed.md
+diff: DB and Markdown are in sync (compared 390 Markdown item(s) against 390 DB item(s); read docs/Issues.md, docs/Fixed.md)
+# exit: 0

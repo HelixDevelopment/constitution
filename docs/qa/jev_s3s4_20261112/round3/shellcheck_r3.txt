@@ -1,0 +1,3 @@
+c/scripts/jev/jev-calibrate.sh:247:12: warning: Iterating over ls output is fragile. Use globs. [SC2045]
+c/scripts/jev/lib_decide.sh:43:31: warning: u appears unused. Verify use (or export if used externally). [SC2034]
+c/scripts/jev/lib_decide.sh:208:3: warning: try appears unused. Verify use (or export if used externally). [SC2034]

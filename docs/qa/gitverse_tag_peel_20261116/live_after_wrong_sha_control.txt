@@ -1,0 +1,11 @@
+AUTH: env:GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: helixdevelopment/HelixConstitution
+PEER: GET /repos/helixdevelopment/HelixConstitution status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/git/matching-refs/tags/helixconstitution-v73.3 status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/git/tags/e915eef70f7ed70a811b348113a3686d05e07a72 status=400 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+PEER: GET /repos/helixdevelopment/HelixConstitution/commits/e915eef70f7ed70a811b348113a3686d05e07a72 status=200 peer=185.65.149.102:443 http=2 tls_verify=0 cert_sha256=8fe542a44edc1f2055d1c825d796641dc1a2a0c5a9725a7b0860bab7053b22bc subject=CN_=_*.gitverse.ru request_id=none
+forge: the tag on the forge points at another commit than --sha
+REASON: tag_sha_mismatch
+RESULT: FAIL
+rc=1

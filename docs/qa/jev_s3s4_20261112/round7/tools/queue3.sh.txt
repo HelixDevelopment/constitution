@@ -1,0 +1,7 @@
+#!/bin/bash
+# queue3.sh: the s3 runs for P90 (NM07), the final P72 needles (NM14) and the REAL control on every s3 extract
+W="<W>"
+"$W/runmut7c.sh" "$W" "$W/snap/s3" REAL "$W/mutout7" r7p72f,r7p90,r7p75b
+"$W/runmut7c.sh" "$W" "$W/snap/s3" NM14 "$W/mutout7" r7p72f
+"$W/runmut7c.sh" "$W" "$W/snap/s3" NM07 "$W/mutout7" r7p90
+: > "$W/mutout7/queue3.done"

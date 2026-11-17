@@ -1,0 +1,5 @@
+# repo: vasic-digital/claude_toolkit
+{"default_branch":"main","full_name":"vasic-digital/claude_toolkit","permissions":{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}}
+# exit: 0
+[]
+# exit: 0

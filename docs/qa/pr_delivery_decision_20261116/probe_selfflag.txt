@@ -1,0 +1,6 @@
+# probe clone at bbdf4ac198a8f71ead8ca848817d277e2bbaa3d5, untracked: config/delivery.conf
+PASS  structure: mirror GEMINI.md §11.4.297 block carries no @-mention
+FAIL  account '<reviewer-account>' appears in config/delivery.conf:40
+FAIL  account '<reviewer-account>' appears in config/delivery.conf:41
+CM-PR-DELIVERY-ACCOUNT-NAME-FREE: FAIL — 2 of 7 checks failed over 370 corpus files (1 named by --changed-since HEAD) (root: /mnt/DATA1TB/claude-work/scratch/prdeliv.mD7v/probe)
+# exit: 1

@@ -1,0 +1,40 @@
+ok 1 - G1 bootstrap rc 0
+ok 2 - G1 healthy registry decide service detected; unhealthy and non-decide services are NOT
+ok 3 - G1 the service's own URL is recorded
+ok 4 - G1-NEG unhealthy registry service is not an endpoint
+ok 5 - G1 profile reported by both profiles[] and registry yields ONE endpoint
+ok 6 - I2 gateway URL taken from llmctl's registry (non-default port)
+FAIL - I2 reachable=true because the URL really answered /healthz (expected [true] got [false])
+ok 7 - I2 reachable_basis=probe
+ok 8 - I2-NEG running-but-unreachable gateway is reachable=false (was true from 'running')
+ok 9 - I2 LLMCTL_ENDPOINT env supplies the URL when status has none
+FAIL - I2 env-supplied URL probed reachable (expected [true] got [false])
+ok 10 - I2 documented default only as last resort
+ok 11 - I2-NEG default port with nothing listening is reachable=false
+ok 12 - I4 running decide-tiny (protocol jev-verdict, no driver) is NOT an endpoint
+ok 13 - I4 and contributes no parallel capacity
+ok 14 - I4 the evidence says why (protocol jev-verdict has no driver)
+ok 15 - I4-NEG same profile with a native protocol IS an endpoint (exclusion is by protocol, not by name)
+ok 16 - G2 empty endpoints + llmctl reports a healthy decide service => gate FAILs
+ok 17 - G2 the failure names the llmctl contradiction
+ok 18 - G2 empty endpoints + llmctl says only the gateway is running (no usable decision profile) => lawful, gate passes (review I1; the contradiction is a running USABLE profile, see test_review_fixes.sh)
+ok 19 - G2-NEG lawful reasoned-empty record PASSes when llmctl reports nothing running
+ok 20 - G2-NEG llmctl absent under the documented test mode (HELIX_TEST_MODE=1): reasoned-empty record passes (contradiction unverifiable, noted)
+ok 21 - G2 llmctl-absent case is NOTEd, not silent
+ok 22 - G2 llmctl absent WITHOUT test mode: BLIND rc 2, never GREEN (F4)
+ok 23 - G3 absent record => gate FAILs
+ok 24 - G3 no 'cd: .jev: No such file' noise from the gate
+ok 25 - G3 the real reason is reported
+ok 26 - G3 report-stage detection gate PASSes against this run's record from a foreign cwd
+ok 27 - G4 no real BEFORE/AFTER pair configured => BLIND (rc 2), not GREEN on synthetic fixtures
+ok 28 - G4 the output says BLIND
+ok 29 - G4 bootstrap reports BLIND for the token gate
+ok 30 - G4 bootstrap does not print PASS for the token gate from fixtures
+ok 31 - G4 missing artifacts => RED
+ok 32 - G4 no 'ok: clause 1' line after the clause-1 FAIL
+ok 33 - G4-NEG an explicitly configured pair is still evaluated (GREEN)
+ok 34 - I5 env file found in the relocated JEV_CONFIG_DIR
+ok 35 - I5-NEG relocated dir without env: clause 3 not satisfied by a stale default
+ok 36 - I3 hostile-env run: no ambient tool-location / key / mode variable reaches a test
+ok 37 - I3 the probe test actually ran (non-vacuous)
+# test_decision_layer_gaps.sh: pass=37 fail=2 skip=0

@@ -1,0 +1,28 @@
+CTRL	CONTROL: frozen base, no change	097c9242f85347da59d55bec3f2564434de76dea20cf398f8defdcd93acf5e3b
+R9-01	leases_save ACQ_REFRESH stamps heartbeat with the process-start clocks	72f85125a12b833b8d15a7e54f33f88e59afc45125ea0177e60ea9ce4b881567
+R9-02	reap_locked: the holder of a CLEARED mark also suspends lease TTLs	4bac1c6e8087cc11988dd16905dac625a0c0a2275ad06f8a4aa77e60b6dfdcf2
+R9-03	set_view: ownership by pid only (pid_start ignored) [re-anchored: finish_stop now uses set_view]	3c4aceb5e1ae82384cd0b57179b4cb688e1a9dcac64264a42c9c0416a24050df
+R9-04	arm_stop_locked: no reap before the re-judgement	3ba0a8dcc5f1bd69e7d0615fecd7b7beafd57e640ce38789f6a59059932f647c
+R9-05	age_of: a record from another boot is judged on wall time [re-anchored]	a293bf6358a9126b488bbc03f4dad2c352674b0fc49e6ae92eeccdfa4b540dea
+R9-06	MARK_TTL without the record waits	0c70f29a1f43643e1741e5f47fbda093a55dbc41ef476e1ed6285b3ab198fac9
+R9-07	finish_stop_locked rc 0: deleted with another stopper's mark [re-anchored: finish_stop's rule_sole ignores the other mark]	e863bc8ab2ddae8d8d010ecc17c80ef5fe7d5bf89e6607adefec4dcdfe07daab
+R9-08	mark_start_locked: a stopping mark elsewhere no longer refuses a start mark	5d8a9878c7d0bab76c2092584a30f85dd91888176a83c4f8fc09bcf46132fd33
+R9-09	arm_stop_locked: the stopping mark mono is the process-start monotonic clock	6454882fb3613b7c1ff5eb90ef20f304358b431d92f73eaad6a99df82a458816
+R9-10	reap_locked: ANY live mark suspends EVERY lease TTL	b452f8e1a3e34a4333577cc49525187447f68c0d156d256668d535b0f425659e
+R9-11	finish_stop_locked kept set: health not set pending (stays routable)	d1645cfeb8c87137d26ef27050a14dc4363c12b8cfb7fd7cc7dcadef0ad14799
+R9-12	lease_json: pid_start not recorded	94500294e17e0675add150168f49fd7021b992bec18efa6322c8f2a781fd4e22
+R9-13	holder_alive: a heartbeat exactly TTL old is expired (-lt)	e523d895ac50f6294ae089c2ced7670779907445875f64763b101b3cfe1cefa1
+M10-01	rule_sole ignores other holders	f78ccb31a0216ba802afbbb8f44276fcfaff5a8b0019541a6bac93283d3e6385
+M10-02	rule_sole ignores a foreign mark	9899bc7b6aa52e063b3c11ecbc35aea08d0552f63d3332d18f8b15d0bc943645
+M10-03	rule_sole: a cleared mark (claim gone) is never sole	8fa11fdc85b0ee99a2830f95ea37dd378df81ebdb59880eb0887c498cf6fdde4
+M10-04	finish_start: placed without checking this acquire still holds a lease	899dff67af0ffdbbdf583aa4b0171e73a139a84403c64d402fbf60f8f8a74fba
+M10-05	adoption guard removed: a profile this acquire tried to start can be adopted	937fbfd768af99818101a8a39a277410ec0936940065a03e9067812212049712
+M10-06	age_of: a monotonic time ahead of the reader gives a negative age (pre-round-10)	3bda9d00d7e8d1407c07953e98766bc9374cbcdd615e042291010d1f57162c5d
+M10-07	age_of: a future wall time gives a negative age	23156ee0e6a4fb8483ff863496afe9a943d7fb15e7b450c837b0735716569b70
+M10-08	plan_locked: the gateway write before the reap (pre-round-10 order)	a381301552b15e55b942f19d0261e9126aa3924acee5ccdab94f8f127eb1f7d0
+M10-09	not-sole start result: no health pending (kept set stays routable)	a933445ca1a67f2fcf52f78eda16b444631df37b00fb173aa8b762236c723ca7
+M10-10	not-sole start result: every lease dropped (pre-round-10 leases:[])	c6087c0d1e629fec35a7e9341604fec5116afab86569b30f6cd0b64749596eb2
+M10-11	not-sole start result: a foreign mark is cleared too	5b36e3a6ce14dac89d0afed5aad0d9b163ae05fd1972d8fd5aa6018ca4c6d010
+M10-12	not-sole rc 0 reported placed (handed -> placed)	fb4bbdb95d6a5e227d07e7e22bdf4ceb4ed9e8c3509e1d7c3dfeee7109ad7a2c
+M10-13	not-sole failure reported failed: the caller runs a cleanup stop under the other holders	2f29792ffb398861f40a64e3af71ab31ceb6f68f62b190b597493326bb8827c7
+M10-14	not-sole start result: constitution_started not forced true	81cd620bda1ae9cd1a2b3e0d72b5ba22f07183304e58c13c9677c329eb1f39a8

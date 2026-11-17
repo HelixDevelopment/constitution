@@ -1,0 +1,49 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+tests/jev/exp_r12f1_kill.sh: line 79:  1483 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+# EXP starCA killA_at=7 killed=yes after-ABC running=[decide-a ] sets={}
+# EXP starCA killA_at=7 adopt=0 FINAL running=[] sets={} stops=2 starts=2
+#   c: [jev-place] candidate decide-a: a start of it by pid 1483 is in flight (start intent, unanswered); a unit running now is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: ok/ (running instance, unit status ok)
+#   c: [jev-place] no local placement (no_fit); fallback route none
+#   c: [jev-place] start intent of decide-a (pid 1483) was never answered and its starter is gone; the unit runs (ok) with no lease set: it is recorded constitution-started with an owed stop (never adopted as operator-started, §11.4.291(G))
+#   c: [jev-place] last lease released: llmctl stop decide-a rc=0
+#   c: [jev-place] llmctl start decide-a refused (75): does_not_fit
+#   c: [jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+#   c: [jev-place] no local placement (start_refused); fallback route none
+tests/jev/exp_r12f1_kill.sh: line 79:  4623 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+# EXP starAC killA_at=7 killed=yes after-ABC running=[decide-a ] sets={"decide-a":{"constitution_started":true,"started_at":1700000000,"stopping":null,"starting":null,"leases":[{"holder":"sC","pid":4955,"pid_start":18196573,"heartbeat_at":1700000000,"heartbeat_mono":"test:7400","ttl":900,"project":"stubhead00000000000000000000000000000000","started_by_this_session":true}],"health":{"state":"ok","reason":"running instance, unit status ok","seq":7,"at":1700000000}}}
+# EXP starAC killA_at=7 adopt=0 FINAL running=[] sets={} stops=3 starts=3
+#   c: [jev-place] start intent of decide-a (pid 4623) was never answered and its starter is gone; the unit runs (ok) with no lease set: it is recorded constitution-started with an owed stop (never adopted as operator-started, §11.4.291(G))
+#   c: [jev-place] candidate decide-a: a lease set already exists (not joinable); skipped
+#   c: [jev-place] retried the cleanup stop of decide-a (its start or its disposal stop had failed): rc 0, set removed
+#   c: [jev-place] this acquire stopped a model; reading the capacity answer again (a fresh plan) before any start
+#   c: [jev-place] candidate decide-a: this acquire stopped it; a unit running now is not adopted as operator-started
+#   c: [jev-place] started decide-a (fits, threads=3); lease holder=sC; it is routed once an observation newer than the start reads its unit ok
+#   c: [jev-place] route changed: none -> local (the endpoint cache is derived from the lease registry and the observed unit state, §11.4.291(D)(1)(F))
+#   c: [jev-place] last lease released: llmctl stop decide-a rc=0
+#   c: [jev-place] llmctl start decide-a refused (75): does_not_fit
+#   c: [jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+#   c: [jev-place] no local placement (start_refused); fallback route none
+# EXP starCA killA_at=0 killed=no after-ABC running=[] sets={}
+# EXP starCA killA_at=0 adopt=0 FINAL running=[] sets={} stops=2 starts=2
+#   c: [jev-place] candidate decide-a: a start of it by pid 8360 is in flight (start intent, unanswered); a unit running now is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: ok/ (running instance, unit status ok)
+#   c: [jev-place] no local placement (no_fit); fallback route none
+#   c: [jev-place] llmctl start decide-a refused (75): does_not_fit
+#   c: [jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+#   c: [jev-place] no local placement (start_refused); fallback route none
+tests/jev/exp_r12f1_kill.sh: line 79: 11716 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+# EXP aAstrC killA_at=7 killed=yes after-ABC running=[decide-a ] sets={"decide-a":{"constitution_started":true,"started_at":1700000000,"stopping":null,"starting":null,"leases":[{"holder":"sC","pid":12072,"pid_start":18200300,"heartbeat_at":1700000000,"heartbeat_mono":"test:7400","ttl":900,"project":"stubhead00000000000000000000000000000000","started_by_this_session":true}],"health":{"state":"ok","reason":"running instance, unit status ok","seq":6,"at":1700000000}}}
+# EXP aAstrC killA_at=7 adopt=0 FINAL running=[] sets={} stops=2 starts=3
+#   c: [jev-place] started decide-a (fits, threads=3); lease holder=sC; it is routed once an observation newer than the start reads its unit ok
+#   c: [jev-place] route changed: none -> local (the endpoint cache is derived from the lease registry and the observed unit state, §11.4.291(D)(1)(F))
+#   c: [jev-place] last lease released: llmctl stop decide-a rc=0
+#   c: [jev-place] llmctl start decide-a refused (75): does_not_fit
+#   c: [jev-place] candidate decide-a: this acquire tried to start it; it is not adopted as operator-started
+#   c: [jev-place] candidate decide-a: its start by this acquire was refused or failed; not started again by it
+#   c: [jev-place] no local placement (start_refused); fallback route none
+# exp_r12f1_kill.sh: pass=2 fail=0 skip=0

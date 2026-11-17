@@ -1,0 +1,25 @@
+control ok   forge_branch_protect.sh
+control ok   github_actions_inventory_disable.sh
+control ok   history_secret_scan.sh
+killed   HM1 (FAIL 15 tip-only scanner (no history) -> BLIND 3 on the history needle first)
+killed   HM2 (FAIL 18 always-find scanner -> 3 (negative needle))
+killed   HM3 (FAIL 4 scanner called with --redact and --log-opts=--all -m on the bare mirror)
+killed   HM4 (FAIL 1 clean repo -> exit 0, findings=0)
+killed   HM5 (FAIL 9 scanner exits 126 after writing [] -> SCANNER-ERROR 6)
+killed   HM6 (FAIL 17 scanner misses only the merge-only needle -> BLIND 3 naming it)
+killed   HM7 (FAIL 21 missing safe_rm.sh -> 5 (not 1))
+killed   HM8 (FAIL 30 --keys-file is performed: KEY_A found, KEY_B not, exit 1)
+killed   HM9 (FAIL 27 https URL with a user part -> 2)
+killed   HM10 (FAIL 19 exit 0 with findings (inconsistent) -> 6)
+killed   HM11 (FAIL 14 scanner exit 0 with no report -> SCANNER-ERROR 6, never clean)
+killed   HM12 (FAIL 15 tip-only scanner (no history) -> BLIND 3 on the history needle first)
+killed   HR2 (FAIL 40 exact-match pass blind to the blobs -> BLIND 3 (present control not found))
+killed   HR4 (FAIL 37 non-http URL with user:password (ssh://u:pw@) -> 2, URL not printed)
+killed   HR5 (FAIL 36 secret reachable only from a tag of the 2nd remote -> found, exit 1)
+killed   HR9 (FAIL 39 scanner console output is kept off the console (only the value-free summary is pri)
+killed   HM13 (FAIL 41 short keys-file values are not searched and are counted in a note (names only))
+killed   Z3 (FAIL 45 always-find exact matcher -> BLIND 3 (negative control found))
+killed   Z4 (FAIL 43 group-readable (0640) keys file -> 2, no scan)
+killed   Z8 (FAIL 30 --keys-file is performed: KEY_A found, KEY_B not, exit 1)
+killed   R3K1 (FAIL 44 other-readable (0604) keys file -> 2)
+RESULT: killed 21/21 mutants; problems: 0

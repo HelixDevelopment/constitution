@@ -1,0 +1,18 @@
+# finalchecks.sh summary (guard dir first on PATH: curl wget llmctl claude-providers claude systemctl refuse with 97 and record)
+gate_pairs_nokeys rc=0
+gate_pairs_fakekeys rc=0
+gate_bootstrap_idempotent_mutation rc=0
+gate_detection_mutation rc=0
+gate_token_reduction_mutation rc=0
+gate_wiring_mutation rc=0
+verify_manifest rc=3
+gate_ledger_ratchet rc=0
+fake key values in outputs: 0
+guard calls: 6
+FINALCHECKS-END
+# attribution re-run, one guard log per gate mutation test:
+cm_jev_detection_mutation_test.sh: 1 x llmctl decide status --json
+cm_jev_bootstrap_idempotent_mutation_test.sh: 1 x curl --version (mutation I, ambient PATH first by design)
+cm_jev_token_reduction_mutation_test.sh: 0
+cm_jev_wiring_mutation_test.sh: 0
+# first run verify_manifest rc=3 (guide census stale after the new manifest row); --sync-guide rc=0; re-run MANIFEST-OK

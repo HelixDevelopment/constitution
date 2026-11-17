@@ -1,0 +1,4 @@
+shellcheck(warning+) scripts/jev/jev-place.sh now=0 base=0
+shellcheck(warning+) tests/jev/fixtures/bin-place/llmctl now=0 base=0
+shellcheck(warning+) tests/jev/test_s4_round8.sh now=0 base=0
+shellcheck(warning+) tests/jev/test_s4_round7.sh now=0 base=0

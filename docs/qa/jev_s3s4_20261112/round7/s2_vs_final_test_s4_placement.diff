@@ -1,0 +1,21 @@
+--- snap/s2/tests/jev/test_s4_placement.sh	2026-11-13 18:09:18.226430093 +0100
++++ repo/tests/jev/test_s4_placement.sh	2026-11-13 18:58:19.452054991 +0100
+@@ -167,14 +167,14 @@
+ # round-6 `<= 4 s` row flaky). A capacity call that runs to its end appends a line to $STUB_LOG/cap.done AFTER its
+ # PLACE_CAP_SLEEP; a call killed by the producer's timeout never writes it. Control needle: the call above (no sleep)
+ # wrote it.
+-[ -s "$STUB_LOG/cap.done" ] && ok "P5 CONTROL: a capacity call that completes writes the completion marker" \
+-  || fail "P5 CONTROL: no completion marker after a completed capacity call (the instrument is blind)"
++if [ -s "$STUB_LOG/cap.done" ]; then ok "P5 CONTROL: a capacity call that completes writes the completion marker"
++else fail "P5 CONTROL: no completion marker after a completed capacity call (the instrument is blind)"; fi
+ : > "$STUB_LOG/cap.done"
+ unset PLACE_CAP_RC; export PLACE_CAP_SLEEP=30 JEV_LLMCTL_TIMEOUT=1
+ "$PLACE" acquire s1 >/dev/null 2>"$T/e5b"; rc=$?
+ assert_eqx "5 0" "$rc $(starts)" "P5 slow capacity -> rc 5, no start"
+-[ ! -s "$STUB_LOG/cap.done" ] && ok "P5 llmctl call bounded: the 30 s capacity call never ran to its end" \
+-  || fail "P5 call not bounded: the slow capacity call completed ($(wc -l < "$STUB_LOG/cap.done") completion lines)"
++if [ ! -s "$STUB_LOG/cap.done" ]; then ok "P5 llmctl call bounded: the 30 s capacity call never ran to its end"
++else fail "P5 call not bounded: the slow capacity call completed ($(wc -l < "$STUB_LOG/cap.done") completion lines)"; fi
+ has "$T/e5b" "timed out" "P5 reason says timed out"
+ unset PLACE_CAP_SLEEP JEV_LLMCTL_TIMEOUT
+ 

@@ -35,15 +35,17 @@ fx a1
 assert_eq "enforce" "$(eff enforce "$LOOP" "$T/det.json" | cut -f1)" "I5-1 enforce reachable with a validator that rejects '--' and extra args"
 assert_contains "$STUB_LOG/rv.log" "args=decide" "I5-1 the validator receives exactly: <profile>"
 assert_not_contains "$STUB_LOG/rv.log" "args=--" "I5-1 no '--' in the validator argv"
-# the REAL pinned llmctl, when its tree is present: the arity contract the stub imitates
-LLB=""; for c in "$REPO/submodules/llmctl/bin/llmctl" "$(getent passwd "$(id -u)" | cut -d: -f6)/Projects/catalogizer/constitution/submodules/llmctl/bin/llmctl" "${REAL_LLMCTL_BIN:-/nonexistent}"; do [ -x "$c" ] && { LLB="$c"; break; }; done
+# The REAL pinned llmctl checks the arity contract the stub imitates, but ONLY when the operator names it explicitly with
+# REAL_LLMCTL_BIN (review R4-5): the suite never looks a real binary up by itself (no submodule path, no user-database
+# home lookup, no PATH search), because a found binary would run real commands against the operator's own llmctl state.
+LLB=""; [ -n "${REAL_LLMCTL_BIN:-}" ] && [ -x "$REAL_LLMCTL_BIN" ] && LLB="$REAL_LLMCTL_BIN"
 if [ -n "$LLB" ]; then
   r1="$(env -u LLMCTL_API_KEY "$LLB" require-validated -- no-such-profile-r5 2>&1 >/dev/null)"; rc1=$?
   r2="$(env -u LLMCTL_API_KEY "$LLB" require-validated no-such-profile-r5 2>&1 >/dev/null)"; rc2=$?
   assert_eq "2" "$rc1" "I5-1 real llmctl: 'require-validated -- X' is rejected (rc 2)"
   case "$r1" in *usage*) ok "I5-1 real llmctl: '--' form is a usage error";; *) fail "I5-1 real llmctl '--' output: $r1";; esac
   case "$r2" in *"unknown profile"*) ok "I5-1 real llmctl: single-arg form reaches the profile lookup";; *) fail "I5-1 real llmctl single-arg output: $r2";; esac
-else assert_skip "I5-1 real pinned llmctl tree absent"; fi
+else assert_skip "I5-1 real pinned llmctl not named (set REAL_LLMCTL_BIN to an llmctl binary to run this check)"; fi
 
 # ---- I5-2: one config-dir derivation -----------------------------------------------------------------------------------
 fx b1; unset JEV_CONFIG_DIR

@@ -75,7 +75,7 @@ case "$r" in *override-ignored*) assert_eq 1 1 "EM-m-r3-2 the ignore is noted in
 setup bs; unset JEV_TEST
 bs() { bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive "$@" >"$T/bs.out" 2>"$T/bs.err"; RC=$?; }
 unpromoted "$JEV_CONFIG_DIR/jev-thresholds.json"
-bs --enforce; assert_rc 0 "$RC" "BS-1 bootstrap --enforce rc 0"
+bs --enforce; assert_rc 5 "$RC" "BS-1 bootstrap --enforce rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_eq "shadow" "$(grep -s '^JEV_MODE=' "$JEV_CONFIG_DIR/env" | cut -d= -f2)" "BS-I3-1 --enforce + an unpromoted thresholds file stays shadow"
 promoted "$JEV_CONFIG_DIR/jev-thresholds.json"
 bs --enforce

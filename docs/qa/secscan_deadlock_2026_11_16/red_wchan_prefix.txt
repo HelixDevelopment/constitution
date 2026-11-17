@@ -1,0 +1,42 @@
+878289	do_wait	S	bash ev/hss_prefix.sh --keys-file /mnt/DATA1TB/claude-work/t
+881553	anon_pipe_write	S	python3 -I -c 
+import subprocess, sys
+raw = sys.stdin.buffer.read().split(b"\0")
+pairs = [(raw[i].decode(), raw[i + 1]) for i in range(0, len
+bad = (b"YOUR", b"CHANGE", b"placeholder", b"xxxx")
+vals, short, place = [], [], []
+for n, v in pairs:
+    if n.startswith("__HSS_CONTROL_"):
+        vals.append((n, v))
+    elif len(v) < 12:
+        short.append(n)
+    elif any(b in v for b in bad):
+        place.append(n)
+    else:
+        vals.append((n, v))
+cnt = {n: 0 for n, _ in vals}
+ids = subprocess.run(["git", "-C", sys.argv[1], "cat-file", 
+                     capture_output=True, check=True).stdout
+blobs = [l.split()[0] for l in ids if l.endswith(b" blob")]
+p = subprocess.Popen(["git", "-C", sys.argv[1], "cat-file", 
+p.stdin.write(b"".join(b + b"\n" for b in blobs)); p.stdin.c
+for _ in blobs:
+    size = int(p.stdout.readline().split()[2]); data = p.std
+    for n, v in vals:
+        if v in data:
+            cnt[n] += 1
+if p.wait() != 0:
+    sys.exit(7)
+for n in cnt:
+    print("%s\t%d" % (n, cnt[n]))
+print("__HSS_SKIP_SHORT__\t%d\t%s" % (len(short), ",".join(s
+print("__HSS_SKIP_PLACE__\t%d\t%s" % (len(place), ",".join(p
+881940	anon_pipe_write	S	git -C /mnt/DATA1TB/claude-work/tmp/tmp.Pnlnji8VVK/scr/hss.l
+script still running after 25s: yes
+stdout of run:
+needles: history=1 merge=2 negative=0 (control OK)
+findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.Pnlnji8VVK/scr/o.tsv (classify each: fixture vs real)
+stderr tail:
+    print("%s\t%d" % (n, cnt[n]))
+print("__HSS_SKIP_SHORT__\t%d\t%s" % (len(short), ",".join(short)))
+print("__HSS_SKIP_PLACE__\t%d\t%s" % (len(place), ",".join(place)))' "$M" > "$WORK/keys.tsv"
