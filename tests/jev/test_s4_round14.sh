@@ -4,7 +4,7 @@
 # llmctl in tests/jev/fixtures/bin-place answers from a declared file; these rows prove the producer DECIDES correctly,
 # never that a local model runs. Each row names the finding or mutant it kills (round14/mutants.md). The helpers are
 # those of test_s4_round13.sh (each round file carries its own copy). The exhaustive kill sweep of the start/record
-# sequence is tests/jev/test_s4_round14_sweep.sh.
+# sequence is tests/jev/fixtures/sweep_s4_round14.sh, run in three heavy parts (tests/jev/s4_round14_sweep_*_chaos_test.sh).
 #
 #   R14-1  (R13-B1, RED-first) the starter A is SIGKILLed while its start is in flight (the start process survives it).
 #          B: the intent is kept (its start process runs), no second start, no adoption; the start then brings the unit
@@ -28,6 +28,10 @@
 #          stopping mark belongs to a dead process, the starter killed between its no-set record write and its own stop)
 #          is never orphaned: a release by any holder stops it; an acquire joins it as constitution-started (no start, no
 #          adoption) and its release stops it
+#   R14-7  (M9) the start time of the start process cannot be read (an injected fault in a copy of the producer, the
+#          state a host without /proc gives): the mark is refused, no llmctl start runs, no set and no intent is left, and
+#          the start process is cancelled (it never outlives the acquire). M10 (gate_open without its /proc check) is not
+#          killable one at a time: this row is the check that refuses its case (round14/mutants.md)
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
 . "$HERE/lib_assert.sh"
@@ -354,6 +358,40 @@ assert_eqx "0 0 0 sE true" "$arc $(starts decide-a) $(adopts "$T/6b.err") $(hold
   "R14-6b an acquire joins it as constitution-started: no start, no adoption as operator-started"
 "$PLACE" release sE > /dev/null 2>> "$T/6b.err"
 assert_eqx "1 " "$(stopsof decide-a) $(running)" "R14-6b its release stops the unit"
+
+# ---- R14-7 (M9): no start time for the start process, no mark, no start ----------------------------------------------
+# A copy of the producer under test whose gate_open cannot read the start time of the start process it created (the
+# only line changed; on a host without /proc this value is empty too). The mark must be refused: the intent could not
+# name its start process, so a dead starter's start could never be judged.
+GD7="$(mktemp -d)"; _JEV_FIXTURE_DIRS+=("$GD7"); mkdir -p "$GD7/scripts"; cp -R "$(dirname "$PLACE")" "$GD7/scripts/jev"
+python3 - "$GD7/scripts/jev/jev-place.sh" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = '  GATE_PST="$(proc_start "$GATE_PID")"\n'
+assert s.count(a) == 1, "gate_open anchor not found"
+open(p, "w").write(s.replace(a, '  GATE_PST=""\n'))
+PY
+fresh
+( export JEV_PLACE_PROFILES=decide-a; exec "$GD7/scripts/jev/jev-place.sh" acquire sG > /dev/null 2> "$T/7.err" )
+has "$T/7.err" "no gated start process (its start time is unreadable); not started" "R14-7 the mark is refused when the start process has no start time"
+assert_eqx "0 0 null null" "$(grep -c '^llmctl start' "$STUB_LOG/llmctl.log") $(stopsof decide-a) $(jq -c '.sets["decide-a"] // null' "$JEV_STATE_DIR/leases.json" 2>/dev/null || echo null) $(intents)" \
+  "R14-7 no llmctl start, no stop, no set and no intent of decide-a (M9)"
+argv_procs() { # argv_procs <path>: how many processes have <path> as one whole argument (find, not a /proc glob: see run_all.sh)
+  local d a x
+  find /proc -maxdepth 1 -name '[0-9]*' 2>/dev/null | while IFS= read -r d; do
+    [ -r "$d/cmdline" ] || continue
+    a="$(tr '\0' '\n' < "$d/cmdline" 2>/dev/null)" || continue
+    # compared in the shell, never as an argument of a child (a grep given the path would match itself, section 12.12)
+    while IFS= read -r x; do if [ "$x" = "$1" ]; then printf '%s\n' "${d#/proc/}"; break; fi; done <<<"$a"
+  done | wc -l | tr -d ' '
+}
+# the needle waits in the shell itself (a read on a fifo it holds open, bounded 30 s): no child outlives its kill
+mkfifo -m 600 "$GD7/needle7.fifo"; printf 'exec 3<>"$1"; read -r -t 30 _ <&3\n' > "$GD7/needle7.sh"
+bash "$GD7/needle7.sh" "$GD7/needle7.fifo" & NP7=$!; jev_track_pid "$NP7"
+c7=0; n7=0; while [ "$n7" -lt 50 ]; do c7="$(argv_procs "$GD7/needle7.sh")"; [ "$c7" = 1 ] && break; sleep 0.1; n7=$((n7+1)); done
+assert_eqx 1 "$c7" "R14-7 CONTROL: the process scan sees a live process by its script path"
+if [ "$NP7" -gt 1 ] 2>/dev/null; then kill -TERM "$NP7" 2>/dev/null; wait "$NP7" 2>/dev/null; fi
+assert_eqx 0 "$(argv_procs "$GD7/scripts/jev/jev-start-gate.sh")" "R14-7 the cancelled start process of this copy is gone (gate_cancel waits for it)"
 
 count_lockheld
 assert_eqx 0 "$LOCKHELD_TOTAL" "no llmctl call ran under the lease lock in any row (R4-3)"

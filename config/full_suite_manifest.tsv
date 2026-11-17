@@ -856,11 +856,15 @@ tests/jev/fixtures/bin/kimi	sh	fixture	-	-	-	fixture path (not a test entry poin
 tests/jev/fixtures/bin/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/jev_server.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/mark_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/sweep_s4_round14.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/install.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/jev-setup.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/write_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/lib_assert.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/jev/test_anchor_renumber_integrity.sh
 tests/jev/run_all.sh	runall	entry	default	runall-whole	-	auto
+tests/jev/s4_round14_sweep_x_chaos_test.sh	sh	entry	heavy	bash	-	auto
+tests/jev/s4_round14_sweep_y_chaos_test.sh	sh	entry	heavy	bash	-	auto
+tests/jev/s4_round14_sweep_zd_chaos_test.sh	sh	entry	heavy	bash	-	auto
 tests/jev/test_anchor_renumber_integrity.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_e2e_stub_server.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_header_truth.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
@@ -899,6 +903,7 @@ tests/jev/test_s4_round11.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invo
 tests/jev/test_s4_round12.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_round12_mc.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_round13.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round14.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_round6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_round7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_round8.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh

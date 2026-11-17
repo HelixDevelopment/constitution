@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-# test_s4_round14_sweep.sh - round 14 (2026-11-17): the EXHAUSTIVE kill sweep of the start/record sequence of
+# fixtures/sweep_s4_round14.sh - round 14 (2026-11-17): the EXHAUSTIVE kill sweep of the start/record sequence of
 # scripts/jev/jev-place.sh (section 11.4.291; review R13-B1 and its heuristic-tower warning, section 11.4.250 /
 # section 11.4.276(C)). GATE-LOGIC (section 11.4.289(C)(2)), stub llmctl; it proves the producer decides correctly, never
 # that a real llmctl unit behaves this way.
+#
+# Parts: the whole sweep takes about 18 minutes on the reference host, longer than the 600 s per test of
+# tests/jev/run_all.sh and the 900 s per unit of the full-suite runner, so this file is a body, not an entry point: it
+# lives under tests/jev/fixtures (not a run_all member, no manifest entry of its own). It runs as three heavy entries
+# (tier heavy, section 11.4.85), each running this file with SWEEP14_PART set: tests/jev/s4_round14_sweep_x_chaos_test.sh
+# (order X), ..._y_chaos_test.sh (order Y) and ..._zd_chaos_test.sh (order Z and the X diagonal); every part runs the
+# calibration, its cells, the control needle and the LOCKHELD count. Run directly, this file runs every part
+# (SWEEP14_PART=all).
 #
 # The class: a crash (SIGKILL) of any actor at ANY point of the start -> record sequence must leave a state from which
 # the constitution-started unit is eventually stopped or provably absent. The state space swept here:
@@ -22,13 +30,19 @@
 # section 11.4.291(J)); no set is operator-owned (constitution_started false) and nothing is adopted as operator-started;
 # after the cleanup (releases, an acquire that runs every owed stop with its own start refused, its release, a reap) no
 # unit runs, no set and no start intent is left. The first sweep run (round 14) treated "ours" as a violation and failed
-# the cell ord=X killA=8 for that reason only; that run is kept in the evidence pack.
+# nine cells for that reason only: ord=X killA=8 (A's own dead stopping mark on the set, no intent) and the diagonal
+# ord=X killA=S killB=4 to 11 (the set with A's start intent still kept, as its start process ran at B's ticket; at
+# killB=10 and 11 also B's dead stopping mark); C and the cleanup recovered every one. That run is kept in the evidence
+# pack (round14/runs/sweep14_p1.txt); the registry states are in round14/runs/sweep_states_dbg.txt.
 # Structural evidence: every S cell checks that the start process group was alive when A was killed (in flight) and that
 # the start then brought the unit up (the hazard of R13-B1 really happened in the cell). CONTROL NEEDLE: the same S cells
 # run against a copy of the producer with the round-14 rule removed (a dead starter's intent resolved whatever its start
 # process does, the round-13 rule) must show at least one invariant violation; a sweep that cannot see that defect
 # proves nothing.
-HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"  # HERE = tests/jev
+SWEEP14_PART="${SWEEP14_PART:-all}"
+case "$SWEEP14_PART" in all|x|y|zd) ;; *) echo "FATAL: unknown sweep part [$SWEEP14_PART] (all | x | y | zd)" >&2; exit 2 ;; esac
+echo "# SWEEP part: $SWEEP14_PART"
 # shellcheck source=lib_assert.sh
 . "$HERE/lib_assert.sh"
 PLACE="${S4_PLACE_UNDER_TEST:-$ROOT/scripts/jev/jev-place.sh}"
@@ -270,14 +284,19 @@ sweep_one() { # sweep_one <order X|Y|Z> <A kill-at|S|0> <B kill-at|0>
   if [ "$fin" = "|{}|null" ]; then chk 0 "SW $tag: after the cleanup nothing runs, no set, no intent (starts $(starts decide-a) stops $(stopsof decide-a) killedA=$([ -e "$T/gA/killed" ] && echo y || echo n) killedB=$([ -e "$T/gB/killed" ] && echo y || echo n))"
   else chk 1 "SW $tag: after the cleanup [$fin] is left"; fi
 }
+# the part to run (section header): x = order X, y = order Y, zd = order Z and the X diagonal, all = every part
+want() { [ "$SWEEP14_PART" = all ] || [ "$SWEEP14_PART" = "$1" ]; }
+EXP_SIN=0
 for ord in X Y Z; do
-  sweep_one "$ord" 0 0; sweep_one "$ord" S 0
+  case "$ord" in X) _part=x ;; Y) _part=y ;; *) _part=zd ;; esac
+  want "$_part" || continue
+  sweep_one "$ord" 0 0; sweep_one "$ord" S 0; EXP_SIN=$((EXP_SIN+1))
   [ "$ord" = Z ] && continue
   for ka in $LA; do sweep_one "$ord" "$ka" 0; done
   for kb in $LB; do sweep_one "$ord" 0 "$kb"; done
 done
-for kb in $LB; do sweep_one X S "$kb"; done
-assert_eqx "$(( 3 + NBC ))" "$NSIN" "CONTROL: every S cell (X, Y, Z and the X diagonal) reached its hazard: A killed in flight, the unit brought up after"
+if want zd; then for kb in $LB; do sweep_one X S "$kb"; done; EXP_SIN=$((EXP_SIN+NBC)); fi
+assert_eqx "$EXP_SIN" "$NSIN" "CONTROL: every S cell of part $SWEEP14_PART reached its hazard: A killed in flight, the unit brought up after"
 
 # ---- CONTROL NEEDLE: the round-13 rule (a dead starter's intent resolved whatever its start process does) ------------
 ND="$(mktemp -d)"; _JEV_FIXTURE_DIRS+=("$ND"); mkdir -p "$ND/scripts"; cp -R "$ROOT/scripts/jev" "$ND/scripts/jev"
