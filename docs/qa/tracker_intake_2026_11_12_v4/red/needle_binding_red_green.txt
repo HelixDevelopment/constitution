@@ -1,0 +1,11 @@
+# selfcheck() of the lint with one check switched off, before (snapshot a, round-4 draft) and after the needle-binding fix
+# pre  sha256 dd0a252d08193315c4e7a4657ef4cf389875d9aa17336a1fe780a87adcfd8491
+# post sha256 f3728da0a449b23e116dc97e199fb756220d1e4c471087b15d23f35f5a236f9e
+== N24 pre:  SELFCHECK failed=0 
+== N24 post: SELFCHECK failed=1 BODY-SYNC/header-line-separator
+== N10 pre:  SELFCHECK failed=1 EPHEMERAL/mktemp-default-lowercase
+== N10 post: SELFCHECK failed=2 EPHEMERAL/mktemp-default EPHEMERAL/mktemp-default-lowercase
+== LC8 pre:  SELFCHECK failed=0 
+== LC8 post: SELFCHECK failed=1 XREF-DANGLING/range-interior-150
+== control pre:  SELFCHECK failed=0 
+== control post: SELFCHECK failed=0 

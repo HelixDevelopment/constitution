@@ -1,0 +1,41 @@
+git version 2.53.0
+== 1 for-each-ref %(symref): symbolic refs/remotes/origin/dev -> refs/heads/evil
+refs/remotes/origin/HEAD|refs/remotes/origin/main|commit|6e6ee878dd4cc0acf92e55f2f7db545aba264eae
+refs/remotes/origin/dev|refs/heads/evil|commit|9fe7ebcb404bc32f08da42dfb00c443a43dbd682
+refs/remotes/origin/main||commit|6e6ee878dd4cc0acf92e55f2f7db545aba264eae
+== 2 --contains X with %(refname)%00%(symref) (NUL shown as |)
+refs/remotes/origin/dev|refs/heads/evil
+== 2b control: --contains of main's commit
+refs/remotes/origin/HEAD|refs/remotes/origin/main
+refs/remotes/origin/dev|refs/heads/evil
+refs/remotes/origin/main|
+== 3 a tracked file named HEAD
+fatal: ambiguous argument 'HEAD': both revision and filename
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+rc=128 (bare HEAD)
+2
+rc=0 (HEAD --)
+0	0
+rc=0 (HEAD...HEAD)
+0	0
+rc=0 (HEAD...HEAD --)
+0	0
+rc=0 (obj...obj --)
+== 4 pathspec: add -- 'lib[1]' with files lib1 and lib[1]
+
+
+lib1 lib[1] (default)
+lib[1] (LITERAL=1)
+fatal: pathspec ':!x' did not match any files
+rc=128
+(LITERAL=1, :!x)
+fatal: global 'literal' pathspec setting is incompatible with all other global pathspec settings
+rc=128 (ICASE+LITERAL)
+== 5 core.ignoreCase=true, files lib and LIB, add -- lib with LITERAL=1
+lib (ignoreCase)
+== 6 GIT_LITERAL_PATHSPECS=1 does not change status / ls-files output
+2
+2
+== needle negative: for-each-ref of an absent name prints nothing
+0

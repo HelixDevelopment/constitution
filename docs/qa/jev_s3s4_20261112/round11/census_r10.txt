@@ -1,0 +1,13 @@
+needle: OK (definition line [503]; finish_stop_locked calls [800, 814, 828])
+leases_save token lines: 19 = 15 call sites + 1 definition + 3 comment lines
+function | leases_save | delete_set | replace_set | add_lease
+reap_locked | [627] | [] | [] | []
+obs_locked | [693] | [692] | [] | []
+finish_stop_locked | [800, 814, 828] | [799] | [] | []
+arm_stop_locked | [852] | [] | [] | []
+plan_locked | [922, 954, 1008] | [] | [1007] | [953]
+mark_start_locked | [1059] | [] | [1058] | []
+finish_start_locked | [1119] | [1100] | [1088, 1091, 1098, 1103] | []
+gw_refuse_locked | [1125] | [] | [] | []
+release_locked | [1310, 1321] | [1320] | [] | []
+hb_locked | [1339] | [] | [] | []

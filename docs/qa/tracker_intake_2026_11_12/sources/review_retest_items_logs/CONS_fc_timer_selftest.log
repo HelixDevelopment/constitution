@@ -1,0 +1,171 @@
+PASS[1]: fc_timer.sh parses cleanly (bash -n)
+PASS[2]: sourcing fc_timer.sh defines fc_timer_start as a function
+PASS[3]: fc_timer_enabled is true by default (FC_TIMING unset)
+PASS[4]: fc_timer_run_id is stable across repeated calls in one process ('selftest-run-fixed-id')
+PASS[5]: FC_TIMER_RUN_ID env override is honoured verbatim
+PASS[6]: FC_TIMER_CANDIDATE_FINGERPRINT env override is honoured verbatim (real HEAD is 'ae19a5f2091ee094e18db96e17cb4cc9c118f0df', override used instead)
+PASS[7]: single start/end wrote exactly one row
+PASS[8]: TSV header has the documented 11 columns in order
+PASS[9]: row 1 has 11 tab-separated fields (11 found)
+PASS[10]: row 1's run_id column matches the fixed override
+PASS[11]: row 1's candidate_fingerprint column matches the fixed override
+PASS[12]: row 1's id column matches the started section id
+PASS[13]: row 1's default verdict is PASS with no counters tracked
+PASS[14]: fc_timer_rows_written reports 1 after one completed section
+PASS[15]: explicit fails=0 warns=0 -> verdict PASS
+PASS[16]: explicit fails=0 warns=2 -> verdict WARN
+PASS[17]: explicit fails=1 warns=2 -> verdict FAIL (fails wins over warns)
+PASS[18]: explicit --checks/--fails/--warns values land verbatim in their columns (5/1/2)
+PASS[19]: nesting (start A, start B, end B, end A) writes exactly two rows
+PASS[20]: inner B's real timestamps land strictly inside outer A's window (A_start<=B_start<=B_end<=A_end)
+PASS[21]: B row (inner, written first) has id 'inner-B'
+PASS[22]: A row (outer, written second) has id 'outer-A'
+PASS[23]: auto-tracked section 1: checks delta = 3 (not cumulative 3)
+PASS[24]: auto-tracked section 1: warns delta = 1 -> verdict WARN
+PASS[25]: auto-tracked section 2: checks DELTA = 7, never the cumulative total 10
+PASS[26]: auto-tracked section 2: no new fails/warns since section 1 ended -> verdict PASS
+PASS[27]: an id/extra with embedded tab+newline still yields exactly 11 tab-separated columns
+PASS[28]: a near-instant timer with --min-ms 100000 (100s) writes NO row
+PASS[29]: the SAME near-instant timer with no --min-ms (section-style) DOES write a row
+PASS[30]: fc_timer_gate_end with no explicit --min-ms applies the >=1s default threshold (an instant gate writes no row)
+PASS[31]: FC_TIMER_GATE_THRESHOLD_MS=0 lets even an instant gate write a row
+PASS[32]: dropping one section's end-timer writes exactly one row (the sibling), never the dropped one
+PASS[33]: the one row that WAS written is the sibling's, not the dropped section's
+PASS[34]: the dropped section's id never appears anywhere in the TSV
+PASS[35]: the dangling frame is still on the stack (never silently auto-flushed)
+PASS[36]: stack depth is 0 again after manually cleaning up the dangling frame
+PASS[37]: fc_timer_end with a mismatched expected id emits a warning to stderr
+PASS[38]: ...but still records the REAL (actual) frame's id in the row, never the mismatched guess
+PASS[39]: fc_timer_end on an empty stack warns to stderr and returns 0
+PASS[40]: fc_timer_reset zeroes the stack depth
+PASS[41]: fc_timer_reset zeroes the rows-written counter
+PASS[42]: after reset (with no FC_TIMER_RUN_ID override), a run id is generated automatically (non-empty)
+PASS[43]: the freshly generated run id differs from the earlier fixed override
+PASS[44]: with no FC_TIMER_CANDIDATE_FINGERPRINT override, the default resolves to this checkout's real git HEAD
+PASS[45]: fc_timer_end with an unknown flag returns nonzero (2)
+PASS[46]: ...and the rejected call's frame is STILL on the stack (never silently lost)
+PASS[47]: ...and a correct retry successfully pops it (stack depth back to 0)
+PASS[48]: fc_timer_end with a non-numeric --checks value returns nonzero (2)
+PASS[49]: ...and that frame is ALSO still on the stack (validate-before-pop applies uniformly)
+PASS[50]: ...and a correct retry (no --checks override) successfully pops it too
+PASS[51]: R1-I1: unpinned run id is identical across two $(...) reads 1.1s apart and the parent's own row ('20261112T175844Z_2132688' / '20261112T175844Z_2132688' / '20261112T175844Z_2132688')
+PASS[52]: M3: the fingerprint memoised by fc_timer_init survives a later HEAD move (row=87d9e0a105aa257912d9f062b4b139102476b195, init-time HEAD=87d9e0a105aa257912d9f062b4b139102476b195, moved HEAD=d2ca1119dcdf484a6b71294aa10c8d2a4376817c)
+PASS[53]: M4: auto-tracked deltas checks=5 fails=2 warns=0 and verdict FAIL (5/2/0/FAIL)
+PASS[54]: M6: fc_timer_gate_end --extra '--min-ms' still applies the default >=1s threshold (no row for an instant gate)
+PASS[55]: I2: fc_timer_close_all --rc 3 writes inner then outer, both FAIL with result=aborted;rc=3 (inner-open:FAIL:result=aborted;rc=3 outer-open:FAIL:result=aborted;rc=3 )
+PASS[56]: I2: fc_timer_close_all --rc 0 on a still-open frame records WARN (a frame left open at a clean exit is a wiring bug, never a silent PASS)
+PASS[57]: I2: fc_timer_close_all on an empty stack writes nothing and prints nothing
+PASS[58]: RN4: fc_timer_close_all --rc abc records FAIL with result=aborted;rc=255 (an unknown status is never a clean exit)
+PASS[59]: RN2: fc_timer_reset re-mints the run timestamp -- two resets 1 s apart give distinct auto run ids (20261112T175846Z_2132688 vs 20261112T175848Z_2132688)
+PASS[60]: FC_TIMING=0 subprocess exits 0
+PASS[61]: FC_TIMING=0: FC_TIMER_TSV is never created at all (true no-op, zero filesystem side effects)
+PASS[62]: sourcing fc_timer.sh + a normal start/end sequence under 'set -euo pipefail' does not abort the caller
+PASS[63]: the strict-mode run produced exactly one real TSV row
+PASS[64]: timing enabled with FC_TIMER_TSV unset: fc_timer_start returns nonzero (2), never silently succeeds
+PASS[65]: the FC_TIMER_TSV-unset failure names the missing variable on stderr (never a bare/guessed failure)
+PASS[66]: executing fc_timer.sh directly (not sourcing it) exits 1
+PASS[67]: ...and prints a clear 'meant to be sourced' usage message
+PASS[68]: sourcing fc_timer.sh twice then running one start/end still writes exactly one row (rows_written=1)
+PASS[69]: double-sourcing produces exactly one data row in the TSV (not two)
+PASS[70]: a normal start/end (+gate) sequence writes ZERO bytes to stdout (golden-output safety)
+PASS[71]: I2: a set -e abort with an open frame -> exactly ONE aborted FAIL row (double install is idempotent) (will-abort:FAIL:result=aborted;rc=1 )
+PASS[72]: I2: the caller's prior EXIT trap still ran and saw the ORIGINAL status 1 (old-trap-rc=1)
+PASS[73]: I2: the process exit status is unchanged by the flush (rc=1, want 1) and nothing after the abort ran
+PASS[74]: I2: an explicit exit 9 with two open frames -> both rows, innermost first, rc=9, exit status 9 (explicit-exit-inner:result=aborted;rc=9 explicit-exit:result=aborted;rc=9  rc=9)
+PASS[75]: I2: FC_TIMING=0 -> the exit flush writes nothing (no TSV created) and the status is untouched (rc=4)
+PASS[76]: F1-class: the library's flush signal class equals the pinned 11-signal class (library 'HUP INT TERM USR1 USR2 ALRM PIPE XCPU XFSZ VTALRM PROF'; pinned 'HUP INT TERM USR1 USR2 ALRM PIPE XCPU XFSZ VTALRM PROF', 11 signals)
+PASS[77]: F1-HUP: a process killed by SIGHUP mid-frame records FAIL rc=129 and exits 129 (row='sig-HUP:FAIL:result=aborted;rc=129 ' rc=129)
+PASS[78]: F1-INT: a process killed by SIGINT mid-frame records FAIL rc=130 and exits 130 (row='sig-INT:FAIL:result=aborted;rc=130 ' rc=130)
+PASS[79]: F1-TERM: a process killed by SIGTERM mid-frame records FAIL rc=143 and exits 143 (row='sig-TERM:FAIL:result=aborted;rc=143 ' rc=143)
+PASS[80]: F1-USR1: a process killed by SIGUSR1 mid-frame records FAIL rc=138 and exits 138 (row='sig-USR1:FAIL:result=aborted;rc=138 ' rc=138)
+PASS[81]: F1-USR2: a process killed by SIGUSR2 mid-frame records FAIL rc=140 and exits 140 (row='sig-USR2:FAIL:result=aborted;rc=140 ' rc=140)
+PASS[82]: F1-ALRM: a process killed by SIGALRM mid-frame records FAIL rc=142 and exits 142 (row='sig-ALRM:FAIL:result=aborted;rc=142 ' rc=142)
+PASS[83]: F1-PIPE: a process killed by SIGPIPE mid-frame records FAIL rc=141 and exits 141 (row='sig-PIPE:FAIL:result=aborted;rc=141 ' rc=141)
+PASS[84]: F1-XCPU: a process killed by SIGXCPU mid-frame records FAIL rc=152 and exits 152 (row='sig-XCPU:FAIL:result=aborted;rc=152 ' rc=152)
+PASS[85]: F1-XFSZ: a process killed by SIGXFSZ mid-frame records FAIL rc=153 and exits 153 (row='sig-XFSZ:FAIL:result=aborted;rc=153 ' rc=153)
+PASS[86]: F1-VTALRM: a process killed by SIGVTALRM mid-frame records FAIL rc=154 and exits 154 (row='sig-VTALRM:FAIL:result=aborted;rc=154 ' rc=154)
+PASS[87]: F1-PROF: a process killed by SIGPROF mid-frame records FAIL rc=155 and exits 155 (row='sig-PROF:FAIL:result=aborted;rc=155 ' rc=155)
+PASS[88]: F1-INT-signaled: the process dies BY SIGINT (python returncode -2, want -2)
+PASS[89]: F1-TERM-signaled: the process dies BY SIGTERM (python returncode -15, want -15)
+PASS[90]: F1-QUIT: SIGQUIT (ignored by bash) is not turned into a death by the flush (sig-QUIT:PASS  rc=0)
+PASS[91]: F1-off: FC_TIMING=0 installs no signal trap (traps=[])
+PASS[92]: F1-compose-return: a prior TERM handler that returns still runs, the script continues, rc=0 (prior-return:WARN:result=aborted;rc=0;signals=untracked-nonclass  rc=0)
+PASS[93]: F1-compose-exit0: a prior TERM handler exiting 0 keeps rc=0 but the open frame is FAIL rc=143 (prior-exit0:FAIL:result=aborted;rc=143  rc=0)
+PASS[94]: F1-compose-ignored: an ignored TERM stays ignored (SURVIVED, rc=0, frame closed normally: ignored:PASS  rc=0)
+PASS[95]: F-A-default-HUP: without --signals a SIGHUP with a foreground child behaves exactly like the uninstrumented script (control rc=-1 422ms survived=0; flush rc=-1 560ms survived=0)
+PASS[96]: F-A-default-HUP: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[97]: F-A-default-HUP: the death is immediate (560ms < 1500ms with a 3s foreground child) and BY the signal (rc=-1)
+PASS[98]: F-A-run-HUP: --signals + fc_timer_run: SIGHUP with a 3s foreground child takes effect at once (560ms < 1500ms), FAIL rc=129, death by the signal (rc=-1) (fa-frame:FAIL:result=aborted;rc=129 )
+PASS[99]: F-A-default-INT: without --signals a SIGINT with a foreground child behaves exactly like the uninstrumented script (control rc=0 3023ms survived=1; flush rc=0 3121ms survived=1)
+PASS[100]: F-A-run-INT: --signals + fc_timer_run: SIGINT with a 3s foreground child takes effect at once (555ms < 1500ms), FAIL rc=130, death by the signal (rc=-2) (fa-frame:FAIL:result=aborted;rc=130 )
+PASS[101]: F-A-default-TERM: without --signals a SIGTERM with a foreground child behaves exactly like the uninstrumented script (control rc=-15 413ms survived=0; flush rc=-15 517ms survived=0)
+PASS[102]: F-A-default-TERM: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[103]: F-A-default-TERM: the death is immediate (517ms < 1500ms with a 3s foreground child) and BY the signal (rc=-15)
+PASS[104]: F-A-run-TERM: --signals + fc_timer_run: SIGTERM with a 3s foreground child takes effect at once (628ms < 1500ms), FAIL rc=143, death by the signal (rc=-15) (fa-frame:FAIL:result=aborted;rc=143 )
+PASS[105]: F-A-default-USR1: without --signals a SIGUSR1 with a foreground child behaves exactly like the uninstrumented script (control rc=-10 425ms survived=0; flush rc=-10 531ms survived=0)
+PASS[106]: F-A-default-USR1: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[107]: F-A-default-USR1: the death is immediate (531ms < 1500ms with a 3s foreground child) and BY the signal (rc=-10)
+PASS[108]: F-A-run-USR1: --signals + fc_timer_run: SIGUSR1 with a 3s foreground child takes effect at once (551ms < 1500ms), FAIL rc=138, death by the signal (rc=-10) (fa-frame:FAIL:result=aborted;rc=138 )
+PASS[109]: F-A-default-USR2: without --signals a SIGUSR2 with a foreground child behaves exactly like the uninstrumented script (control rc=-12 415ms survived=0; flush rc=-12 529ms survived=0)
+PASS[110]: F-A-default-USR2: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[111]: F-A-default-USR2: the death is immediate (529ms < 1500ms with a 3s foreground child) and BY the signal (rc=-12)
+PASS[112]: F-A-run-USR2: --signals + fc_timer_run: SIGUSR2 with a 3s foreground child takes effect at once (548ms < 1500ms), FAIL rc=140, death by the signal (rc=-12) (fa-frame:FAIL:result=aborted;rc=140 )
+PASS[113]: F-A-default-ALRM: without --signals a SIGALRM with a foreground child behaves exactly like the uninstrumented script (control rc=-14 416ms survived=0; flush rc=-14 526ms survived=0)
+PASS[114]: F-A-default-ALRM: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[115]: F-A-default-ALRM: the death is immediate (526ms < 1500ms with a 3s foreground child) and BY the signal (rc=-14)
+PASS[116]: F-A-run-ALRM: --signals + fc_timer_run: SIGALRM with a 3s foreground child takes effect at once (570ms < 1500ms), FAIL rc=142, death by the signal (rc=-14) (fa-frame:FAIL:result=aborted;rc=142 )
+PASS[117]: F-A-default-PIPE: without --signals a SIGPIPE with a foreground child behaves exactly like the uninstrumented script (control rc=-13 415ms survived=0; flush rc=-13 512ms survived=0)
+PASS[118]: F-A-default-PIPE: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[119]: F-A-default-PIPE: the death is immediate (512ms < 1500ms with a 3s foreground child) and BY the signal (rc=-13)
+PASS[120]: F-A-run-PIPE: --signals + fc_timer_run: SIGPIPE with a 3s foreground child takes effect at once (645ms < 1500ms), FAIL rc=141, death by the signal (rc=-13) (fa-frame:FAIL:result=aborted;rc=141 )
+PASS[121]: F-A-default-XCPU: without --signals a SIGXCPU with a foreground child behaves exactly like the uninstrumented script (control rc=-24 608ms survived=0; flush rc=-24 732ms survived=0)
+PASS[122]: F-A-default-XCPU: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[123]: F-A-default-XCPU: the death is immediate (732ms < 1500ms with a 3s foreground child) and BY the signal (rc=-24)
+PASS[124]: F-A-run-XCPU: --signals + fc_timer_run: SIGXCPU with a 3s foreground child takes effect at once (747ms < 1500ms), FAIL rc=152, death by the signal (rc=-24) (fa-frame:FAIL:result=aborted;rc=152 )
+PASS[125]: F-A-default-XFSZ: without --signals a SIGXFSZ with a foreground child behaves exactly like the uninstrumented script (control rc=-25 602ms survived=0; flush rc=-25 691ms survived=0)
+PASS[126]: F-A-default-XFSZ: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[127]: F-A-default-XFSZ: the death is immediate (691ms < 1500ms with a 3s foreground child) and BY the signal (rc=-25)
+PASS[128]: F-A-run-XFSZ: --signals + fc_timer_run: SIGXFSZ with a 3s foreground child takes effect at once (722ms < 1500ms), FAIL rc=153, death by the signal (rc=-25) (fa-frame:FAIL:result=aborted;rc=153 )
+PASS[129]: F-A-default-VTALRM: without --signals a SIGVTALRM with a foreground child behaves exactly like the uninstrumented script (control rc=-26 414ms survived=0; flush rc=-26 534ms survived=0)
+PASS[130]: F-A-default-VTALRM: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('fa-frame:WARN:result=aborted;rc=0;signals=untracked ')
+PASS[131]: F-A-default-VTALRM: the death is immediate (534ms < 1500ms with a 3s foreground child) and BY the signal (rc=-26)
+PASS[132]: F-A-run-VTALRM: --signals + fc_timer_run: SIGVTALRM with a 3s foreground child takes effect at once (575ms < 1500ms), FAIL rc=154, death by the signal (rc=-26) (fa-frame:FAIL:result=aborted;rc=154 )
+PASS[133]: F-A-default-PROF: without --signals a SIGPROF with a foreground child behaves exactly like the uninstrumented script (control rc=-27 420ms survived=0; flush rc=-27 472ms survived=0)
+PASS[134]: F-A-default-PROF: an untrapped SIGPROF death writes no row (bash runs no EXIT trap for it): ''
+PASS[135]: F-A-default-PROF: the death is immediate (472ms < 1500ms with a 3s foreground child) and BY the signal (rc=-27)
+PASS[136]: F-A-run-PROF: --signals + fc_timer_run: SIGPROF with a 3s foreground child takes effect at once (551ms < 1500ms), FAIL rc=155, death by the signal (rc=-27) (fa-frame:FAIL:result=aborted;rc=155 )
+PASS[137]: F-A-contract: --signals with a PLAIN foreground child defers the TERM until the child exits (3166ms >= 2000ms) and then records FAIL rc=143 (fa-frame:FAIL:result=aborted;rc=143  rc=-15)
+PASS[138]: F-A-traps: a default install arms no signal trap; a later --signals arms all 11 class signals (default=[] armed=xxxxxxxxxxx )
+PASS[139]: F-A-badflag: an unknown install flag is refused (rc=2) and installs nothing (rc=2 exit=[])
+PASS[140]: F-A-run-status: fc_timer_run returns the child's own exit status (want status=7)
+PASS[141]: F-A-run-stdin: fc_timer_run passes the caller's stdin to the child (a background job would read /dev/null)
+PASS[142]: F-A-run-intquit: the child does NOT ignore SIGINT/SIGQUIT (SigIgn=0000000000000000; a bare background job ignores both)
+PASS[143]: F-A-run-ignored: a caller-ignored INT stays ignored in the child (SigIgn=0000000000000002), exactly as in the foreground
+PASS[144]: F-A-run-childsig: a child that dies of SIGTERM is reported 143 (got 143)
+PASS[145]: F-A-run-function: a shell function still runs in place (its global assignment survives)
+PASS[146]: F-A-run-builtin-cd: fc_timer_run cd changes the CALLER's directory (got '0 pwd=/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/t.Qd3e/tmp.sPkj2zr6aw', want '0 pwd=/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/t.Qd3e/tmp.sPkj2zr6aw')
+PASS[147]: F-A-run-builtin-read: fc_timer_run read assigns the CALLER's variable (got '0 val=read-value')
+PASS[148]: F-A-run-closed-stdin: with stdin closed the command still runs and returns 0 (got '0', marker='closed-stdin-ran')
+PASS[149]: F-A-run-resets: the reset list is INT QUIT / QUIT / none / INT / INT QUIT for default, INT ignored, both ignored, INT handled + QUIT ignored, restored (got 'default=INT QUIT;int-ignored=QUIT;both-ignored=none;int-handler-quit-ignored=INT;restored=INT QUIT;', rc=0)
+PASS[150]: F-A-run-resets-posix: the reset list is INT QUIT / QUIT / none / INT / INT QUIT for default, INT ignored, both ignored, INT handled + QUIT ignored, restored (got 'default=INT QUIT;int-ignored=QUIT;both-ignored=none;int-handler-quit-ignored=INT;restored=INT QUIT;', rc=0)
+PASS[151]: F-A-run-intquit-posix: in posix mode the child does NOT ignore SIGINT/SIGQUIT (SigIgn=0000000000000000)
+PASS[152]: F-A-run-ignored-posix: in posix mode a caller-ignored INT stays ignored in the child (SigIgn=0000000000000002)
+PASS[153]: F-A-run-compose: a prior TERM handler that returns runs once, and fc_timer_run still returns the child's status 7 (rc=0 status=7 )
+PASS[154]: F-A-run-unarmed: without --signals fc_timer_run is a plain call (status=5, stdin passed)
+PASS[155]: F1-late-trap-WINCH: a returning WINCH trap interrupts wait, yet fc_timer_run returns the child's own status 4 only after the child finished (status=4 child=done  handler=handled)
+PASS[156]: F1-late-trap-USR2: a returning USR2 trap interrupts wait, yet fc_timer_run returns the child's own status 4 only after the child finished (status=4 child=done  handler=handled)
+PASS[157]: F1-repeat-WINCH: five returning WINCH traps interrupt the wait five times, yet fc_timer_run returns the child's own status 4 only after the child finished (status=4 child=done  handlers=5)
+PASS[158]: F3-exit-cleanup: an armed SIGTERM death records FAIL rc=143 AND still runs the caller's EXIT cleanup (mark='CALLER-EXIT-CLEANUP-RAN' row='f3-frame:FAIL:result=aborted;rc=143 ' rc=143)
+PASS[159]: F4-subshell: an armed subshell killed by SIGTERM dies itself (subrc=143) while its parent survives (rc=0) (subrc=143 OUTER-SURVIVED  row='f4-sub:FAIL:result=aborted;rc=143 ' rc=0)
+PASS[160]: F6-armed-nonclass: armed + an untrapped ABRT death records WARN rc=0 WITH the signals=untracked-nonclass note ('f6-frame:WARN:result=aborted;rc=0;signals=untracked-nonclass ' rc=134)
+PASS[161]: F-D: an inherited _FC_TIMER_SIGNAL_RC=143 does not make a clean exit 0 record a signal death (fd-frame:WARN:result=aborted;rc=0;signals=untracked-nonclass  rc=0)
+PASS[162]: F-D: the marker is not re-exported to this process's children (child-sees=[unset])
+PASS[163]: F-E: a failed append returns 2 with the frame KEPT (depth 1), a retry writes it (append-fail rc=2 depth=1 append-retry rc=0 depth=0 date-fail rc=2 depth=1 date-retry rc=0 depth=0 )
+PASS[164]: F-E: a failed end-time read returns 2 with the frame KEPT (depth 1), a retry writes it
+PASS[165]: F-E: exactly the two frames were written, once each (fe-append fe-date )
+PASS[166]: F-B: a prior TERM trap body with a single quote runs verbatim ('it's handled')
+PASS[167]: F-B: a prior EXIT trap body with a single quote runs verbatim ('it's the exit')
+PASS[168]: M2: a backward clock step yields duration_ms 0 with the raw stamps kept (skewed:2000000000000000000:1999999999000000000:0)
+PASS[169]: shellcheck reports zero findings against fc_timer.sh
+PASS[170]: assertion count: 169 assertions ran before this one (want 169)
+SUMMARY: 170 pass / 0 fail / 0 skip of 170 assertions

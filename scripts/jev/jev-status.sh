@@ -9,7 +9,15 @@
 #    "mode": "<shadow|enforce|unknown>",          # the EFFECTIVE mode (shared jev_effective_mode), never just the stored text
 #    "mode_stored": "<value of JEV_MODE in the env file | unknown>",
 #    "mode_reason": "<why the effective mode is what it is>",
-#    "mcp_mode_mismatch": <bool>}   # true when any MCP jev entry's JEV_MODE differs from the env file's stored JEV_MODE
+#    "mcp_mode_mismatch": <bool>,   # true when any MCP jev entry's JEV_MODE differs from the env file's stored JEV_MODE
+#    "health": {<endpoint>: {total, ok, last_success, last_seen, by_result}},  # from the gate's decisions.jsonl rows;
+#        one event per attempt when a row has attempts[] (ok = result "ok"), else one per row (ok = no fallback and no
+#        non-2xx http_status); times in epoch SECONDS (the gate writes ms); a row with no endpoint counts as "unknown"
+#    "calibration_age_s": <int|null>,  # now - thresholds.calibrated_at; null when no thresholds exist (never 0)
+#    "consent": <consent.json .consent | null>,
+#    "wiring": {"claude": <bool>, "claude_settings": [{file, wired}]},  # wired = a PreToolUse hook referencing jev-gate.sh in a
+#        settings file the toolkit installer writes ($CLAUDE_CONFIG_DIR, ~/.claude-shared, ~/.claude, ~/.claude-*)
+#    "placement": <placement.json .placement | null>, "leases": <leases.json | null>}   # local placement (jev-place.sh, §11.4.291)
 # A state file that exists but is not valid JSON is reported as null on stdout
 # and named on stderr; it is never silently treated as healthy.
 #
@@ -76,20 +84,21 @@ MODE_STORED="$MODE"; MODE_REASON="as-stored"
 if [ "$MODE_STORED" = "enforce" ]; then
   MODE="shadow"; MODE_REASON="unknown"
   # no base URL is passed: the shared function resolves it (env, MCP entry, cache) like bootstrap and register do
-  IFS=$'\t' read -r MODE MODE_REASON < <(JEV_SKIP_VALIDATION="$([ "$NO_VALIDATE" = 1 ] && echo 1 || echo 0)" jev_effective_mode enforce "" "$DETECTION_FILE") || true
+  IFS=$'\x1f' read -r MODE MODE_REASON < <(JEV_SKIP_VALIDATION="$([ "$NO_VALIDATE" = 1 ] && echo 1 || echo 0)" jev_effective_mode enforce "" "$DETECTION_FILE" | tr '\t' '\037') || true
   case "$MODE_REASON" in validation-skipped*) MODE="unknown" ;; *) [ "$MODE" = "enforce" ] || MODE="shadow" ;; esac
 fi
 MCP_MISMATCH=false
 # r6 m6-1: compare every MCP entry with the EFFECTIVE mode (what is really in force), also when the env file is absent
 # (stored `unknown`): an MCP entry saying enforce while the effective mode is not enforce is a mismatch.
-while IFS=$'\t' read -r _f _m; do
+while IFS=$'\x1f' read -r _f _m; do
   [ -z "${_m:-}" ] || [ "$_m" = "$MODE" ] || MCP_MISMATCH=true
-done < <(jev_mcp_modes)
+done < <(jev_mcp_modes | tr '\t' '\037')
 TEST_OVERRIDE=false
 { [ "${JEV_TEST:-}" = "1" ] && { [ -n "${JEV_DECISION_PROFILES:-}" ] || [ -n "${JEV_REQUIRE_VALIDATED_CMD:-}" ]; }; } && TEST_OVERRIDE=true
 
 PENDING=false
 [ -f "$PENDING_FILE" ] && PENDING=true
+NOW="$(date +%s)"; [ "${JEV_TEST:-}" != "1" ] || NOW="${JEV_NOW_EPOCH:-$NOW}"
 
 valid_json() { # valid_json <file>
   if [ "$HAVE_JQ" = "1" ]; then jq -e . "$1" >/dev/null 2>&1
@@ -108,6 +117,46 @@ inline_or_null() { # inline_or_null <file> -> compact JSON body, or null
   fi
 }
 
+# ---- control view (2026-11-12): health, calibration age, consent, wiring, placement. Read-only, jq only. ----
+HEALTH='{}'; CAL_AGE=null; CONSENT=null; WIRING='{"claude":false}'; PLACEMENT=null; LEASES=null
+if [ "$HAVE_JQ" = "1" ]; then
+  if [ -s "$JEV_STATE_DIR/decisions.jsonl" ]; then
+    # The rows are what the toolkit gate (claude_toolkit scripts/jev-gate.sh `_log`) really writes (review 2026-11-12 F3):
+    # class "gate", ts in MILLISECONDS, `fallback` = the failure reason (null on success), optional attempts[] with
+    # {endpoint, http_status, result ("ok" or a fallback reason)}. Same event model as the toolkit's jev-stats.sh: a row with
+    # attempts counts one event per attempt (ok = result "ok"); otherwise one event for .endpoint (ok = no fallback and no
+    # non-2xx http_status). ts is normalised to epoch SECONDS (ms when > 1e11).
+    HEALTH="$(jq -cs '[.[] | objects
+         | ((.ts // 0) | if . > 100000000000 then (. / 1000 | floor) else . end) as $t
+         | if ((.attempts | type) == "array" and (.attempts | length) > 0)
+           then .attempts[] | {e:(.endpoint // "unknown"), ok:((.result // "") == "ok"), r:(.result // "unrecorded"), t:$t}
+           else (((.fallback // null) == null) and (((.http_status // 200) >= 200) and ((.http_status // 200) < 300))) as $ok
+             | {e:(.endpoint // .provider_id // "unknown"), ok:$ok, r:(if $ok then "ok" else (.fallback // "http_\(.http_status)") end), t:$t} end]
+       | group_by(.e) | map({key:.[0].e,
+       value:{total:length,
+              ok:([.[] | select(.ok)] | length),
+              last_success:([.[] | select(.ok) | .t] | max),
+              last_seen:([.[].t] | max),
+              by_result:(group_by(.r) | map({key:.[0].r, value:length}) | from_entries)}}) | from_entries' \
+       "$JEV_STATE_DIR/decisions.jsonl" 2>/dev/null || echo '{}')"
+  fi
+  if [ -f "$THRESHOLDS_FILE" ] && valid_json "$THRESHOLDS_FILE"; then
+    CAL_AGE="$(jq -r --argjson now "$NOW" 'if (.calibrated_at|type)=="number" then ($now - .calibrated_at) else null end' "$THRESHOLDS_FILE")"
+  fi
+  [ -f "$JEV_STATE_DIR/consent.json" ] && valid_json "$JEV_STATE_DIR/consent.json" && CONSENT="$(jq -c '.consent // null' "$JEV_STATE_DIR/consent.json")"
+  # wired = a PreToolUse hook referencing jev-gate.sh in a settings file the toolkit installer writes (shared resolver,
+  # review 2026-11-12 F4); every inspected file is named so a reader sees WHERE it is (or is not) wired
+  _ws='[]'
+  while IFS= read -r _d; do
+    [ -f "$_d/settings.json" ] || continue
+    if jev_settings_wired "$_d/settings.json"; then _w=true; else _w=false; fi
+    _ws="$(jq -c --arg f "$_d/settings.json" --argjson w "$_w" '. + [{file:$f, wired:$w}]' <<<"$_ws")"
+  done < <(jev_claude_settings_dirs)
+  WIRING="$(jq -c '{claude:(any(.[]; .wired)), claude_settings:.}' <<<"$_ws")"
+  [ -f "$JEV_STATE_DIR/placement.json" ] && valid_json "$JEV_STATE_DIR/placement.json" && PLACEMENT="$(jq -c '.placement // null' "$JEV_STATE_DIR/placement.json")"
+  [ -f "$JEV_STATE_DIR/leases.json" ] && valid_json "$JEV_STATE_DIR/leases.json" && LEASES="$(jq -c . "$JEV_STATE_DIR/leases.json")"
+fi
+
 if [ "$JSON_OUT" = "1" ]; then
   det_json="$(inline_or_null "$DETECTION_FILE")"
   thr_json="$(inline_or_null "$THRESHOLDS_FILE")"
@@ -121,8 +170,11 @@ if [ "$JSON_OUT" = "1" ]; then
       --argjson pending "$PENDING" \
       --argjson test_override "$TEST_OVERRIDE" \
       --arg mode "$MODE" --arg mode_stored "$MODE_STORED" --arg mode_reason "$MODE_REASON" --argjson mcp_mismatch "$MCP_MISMATCH" \
+      --argjson health "$HEALTH" --argjson cal_age "$CAL_AGE" --argjson consent "$CONSENT" --argjson wiring "$WIRING" \
+      --argjson placement "$PLACEMENT" --argjson leases "$LEASES" \
       '{version:$version, detection:$detection, thresholds:$thresholds,
-        bootstrap:{stamp:$stamp, pending:$pending}, mode:$mode, mode_stored:$mode_stored, mode_reason:$mode_reason, test_override:$test_override, mcp_mode_mismatch:$mcp_mismatch}'
+        bootstrap:{stamp:$stamp, pending:$pending}, mode:$mode, mode_stored:$mode_stored, mode_reason:$mode_reason, test_override:$test_override, mcp_mode_mismatch:$mcp_mismatch,
+        health:$health, calibration_age_s:$cal_age, consent:$consent, wiring:$wiring, placement:$placement, leases:$leases}'
   elif [ "$HAVE_PY" = "1" ]; then
     JEV_DET="$det_json" JEV_THR="$thr_json" JEV_STAMP="$stamp_json" \
     JEV_PENDING="$PENDING" JEV_MODE="$MODE" JEV_VER="$SCHEMA_VERSION" JEV_MODE_STORED="$MODE_STORED" JEV_MODE_REASON="$MODE_REASON" JEV_TEST_OVERRIDE="$TEST_OVERRIDE" JEV_MCP_MISMATCH="$MCP_MISMATCH" \
@@ -142,6 +194,8 @@ print(json.dumps({
     "mode_reason": os.environ["JEV_MODE_REASON"],
     "test_override": os.environ.get("JEV_TEST_OVERRIDE") == "true",
     "mcp_mode_mismatch": os.environ.get("JEV_MCP_MISMATCH") == "true",
+    # the control view needs jq; without it these are reported as unknown (null), never as healthy
+    "health": None, "calibration_age_s": None, "consent": None, "wiring": None, "placement": None, "leases": None,
 }, indent=2))
 PY
   else
@@ -212,6 +266,21 @@ fi
 if [ -f "$JEV_STATE_DIR/enforce-deferred" ]; then
   echo "  $(cat "$JEV_STATE_DIR/enforce-deferred")"
 fi
+echo ""
+
+echo "Endpoint health (from decisions.jsonl; ok = the gate got an answer with no fallback):"
+if [ "$HEALTH" != "{}" ]; then
+  jq -r 'to_entries[] | "  - \(.key): total=\(.value.total) ok=\(.value.ok) last_success=\(.value.last_success) results=\(.value.by_result | to_entries | map("\(.key):\(.value)") | join(","))"' <<<"$HEALTH"
+else
+  echo "  (no decision rows yet)"
+fi
+echo ""
+echo "Calibration: age=$( [ "$CAL_AGE" = null ] && echo "none (no thresholds: shadow only)" || echo "${CAL_AGE}s" )"
+echo "Consent: $( [ "$CONSENT" = null ] && echo "no record (bootstrap has not run with --default-on/--yes)" || jq -r '"default_on=\(.default_on) basis=\(.basis // "-") reason=\(.reason // "-")"' <<<"$CONSENT")"
+echo "Wiring: claude=$(jq -r .claude <<<"$WIRING") (a PreToolUse hook referencing jev-gate.sh)"
+jq -r '.claude_settings[]? | "  - \(.file): \(if .wired then "wired" else "not wired" end)"' <<<"$WIRING"
+echo "Placement: $( [ "$PLACEMENT" = null ] && echo "none" || jq -r '"profile=\(.profile) verdict=\(.verdict) event=\(.event // "-") route=\(.route) reason=\(.reason // "-")"' <<<"$PLACEMENT")"
+[ "$LEASES" = null ] || jq -r '.sets | to_entries[] | "  lease set \(.key): leases=\(.value.leases|length) constitution_started=\(.value.constitution_started) stopping=\(.value.stopping != null) starting=\(.value.starting != null)"' <<<"$LEASES"
 echo ""
 
 echo "Bootstrap:"

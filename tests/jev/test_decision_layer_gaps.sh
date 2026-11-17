@@ -47,7 +47,7 @@ svc() { # svc <name> <kind> <profile> <healthy> <url>
 make_fixture_env g1
 make_fixture_constitution_root with-submodules
 nice -n 10 python3 "$FIXTURES/jev_server.py" 0 >"$T/srv.port" 2>/dev/null & SRV=$!
-trap 'kill "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null; rm -rf "$T"' EXIT
+jev_track_pid "$SRV"; trap _jev_cleanup_fixtures EXIT   # a later make_fixture_env re-installs the same trap: the server is still killed
 for _ in $(seq 1 50); do grep -q '^PORT ' "$T/srv.port" 2>/dev/null && break; sleep 0.1; done
 PORT="$(sed -n 's/^PORT //p' "$T/srv.port" | head -1)"
 [ -n "$PORT" ] || { fail "stub gateway did not start"; finish; exit $?; }
@@ -58,7 +58,7 @@ REG="$( { svc decide-nli decide decide-nli true "http://127.0.0.1:9"; svc decide
 mk_status "$T/status.json" true "$BASE" "$REG" "$(prof_list decide-nli:false decide-julia:false)"
 export LLMCTL_STATUS_JSON="$T/status.json"
 run_bs g1
-assert_rc 0 "$RC" "G1 bootstrap rc 0"
+assert_rc 5 "$RC" "G1 bootstrap rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_eq "llmctl-decide-nli" "$(jq -r '[.endpoints[].id]|join(" ")' "$DET")" "G1 healthy registry decide service detected; unhealthy and non-decide services are NOT"
 assert_eq "http://127.0.0.1:9" "$(jq -r '.endpoints[0].url' "$DET")" "G1 the service's own URL is recorded"
 # NEG: registry says nothing healthy -> still honestly empty (no invention)

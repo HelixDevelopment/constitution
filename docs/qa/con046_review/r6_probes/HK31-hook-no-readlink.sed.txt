@@ -1,0 +1,1 @@
+s/self="\$(readlink -f "\${BASH_SOURCE\[0\]:-\$0}")"/self="${BASH_SOURCE[0]:-$0}"/

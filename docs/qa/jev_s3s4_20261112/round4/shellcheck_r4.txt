@@ -1,0 +1,16 @@
+1	1	scripts/gates/cm_jev_bootstrap_idempotent.sh
+0	0	scripts/gates/cm_jev_bootstrap_idempotent_mutation_test.sh
+2	2	scripts/gates/cm_jev_detection.sh
+0	0	scripts/jev/bootstrap.sh
+1	1	scripts/jev/jev-calibrate.sh
+0	0	scripts/jev/jev-place.sh
+0	0	scripts/jev/jev-status.sh
+2	2	scripts/jev/lib_decide.sh
+0	0	scripts/jev/lib_keys.sh
+0	0	scripts/post_update_hook.sh
+0	0	tests/jev/run_all.sh
+new-file	0	tests/jev/test_gate_bootstrap_hermetic.sh
+0	0	tests/jev/test_jev_status_health.sh
+0	0	tests/jev/test_s3_bootstrap_honesty.sh
+0	0	tests/jev/test_s4_placement.sh
+new-file	0	tests/jev/test_tab_fields.sh

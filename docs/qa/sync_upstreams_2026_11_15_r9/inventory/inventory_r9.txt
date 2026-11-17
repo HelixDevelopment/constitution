@@ -1,0 +1,37 @@
+control needle: def write_git found 1 (want 1); write_markerX calls 0 (want 0)
+control needle R5: os.open calls 4 (want >= 1); os.openX calls 0 (want 0)
+
+== write paths: r.run(..., write=True) (3)
+  line 1767  in write_git    token=tok from begin_write
+  line 1769  in write_git    token=tok from begin_write
+  line 1821  in write_git    token=tok2 from begin_write
+
+== marker calls (4)
+  line 1168  write_marker in begin_write
+  line 1174  clear_marker in begin_write
+  line 1192  clear_marker in end_write
+  line 2284  clear_marker in run
+
+== R4 token checked at the spawn choke point: yes
+
+== filesystem operations (14)
+  line 899  os.makedirs      in fs_ensure_dir
+  line 905  tempfile.mkstemp in fs_write_atomic
+  line 922  os.open          in fs_open_tty
+  line 779  os.lstat         in path_kind
+  line 799  os.open          in fs_read
+  line 828  os.open          in fs_create_excl
+  line 854  os.unlink        in fs_remove
+  line 871  os.open          in fs_open_lock
+  line 889  os.makedirs      in fs_probe_dir
+  line 890  tempfile.mkstemp in fs_probe_dir
+  line 892  os.unlink        in fs_probe_dir
+  line 911  os.replace       in fs_write_atomic
+  line 907  os.fdopen        in fs_write_atomic
+  line 914  os.unlink        in fs_write_atomic
+
+== lock sets: write subcommands ['add', 'checkout', 'merge']; GITDIR_LOCKS {'merge': ('index.lock', 'HEAD.lock', 'ORIG_HEAD.lock', 'AUTO_MERGE.lock'), 'checkout': ('index.lock', 'HEAD.lock', 'AUTO_MERGE.lock'), 'add': ('index.lock',)}; COMMON_LOCKS {'merge': ('packed-refs.lock', 'refs/heads/{branch}.lock', 'reftable/tables.list.lock'), 'checkout': ('packed-refs.lock', 'reftable/tables.list.lock'), 'add': ()}; OP_GIT {'fast-forward': 'merge', 'advance-pin': 'checkout', 'follow-pin': 'checkout', 'stage-pin': 'add'}
+
+== violations (0)
+
+INSTRUMENT: SEES

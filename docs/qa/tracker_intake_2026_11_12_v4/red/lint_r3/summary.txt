@@ -1,0 +1,18 @@
+DM0 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DMN rc=1 1 RESULT: FAIL selected=44 findings=1 prefix=CON
+DM4 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM4b rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM5 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM6 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM11 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM11b rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM12 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM2 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM3 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM7 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM8 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM9 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM10 rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM10b rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM10c rc=0 0 RESULT: PASS selected=44 findings=0 prefix=CON
+DM13b rc=1 0 TypeError: a bytes-like object is required, not 'str'

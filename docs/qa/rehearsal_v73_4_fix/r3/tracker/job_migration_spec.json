@@ -1,0 +1,38 @@
+[
+ {
+  "id": "CON-159",
+  "edits": [
+   [
+    "-- job: re-run the new guard in a clean checkout",
+    "-- job: re-run the new guard, bash scripts/validation/test_decision_mutant_census_wording_r1_regression.sh (the green-command of the Reproduction record; named here by the CON-423 r3 fixer when the checker began to require a path, command or job id), in a clean checkout"
+   ]
+  ]
+ },
+ {
+  "id": "CON-160",
+  "edits": [
+   [
+    "-- job: re-run the new guard in a clean checkout",
+    "-- job: re-run the new guard, bash scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh (the green-command of the Reproduction record; named here by the CON-423 r3 fixer when the checker began to require a path, command or job id), in a clean checkout"
+   ]
+  ]
+ },
+ {
+  "id": "CON-161",
+  "edits": [
+   [
+    "-- job: re-run the new guard in a clean checkout",
+    "-- job: re-run the new guard, bash scripts/fastcycle/tests/test_host_report_probe_thread_headroom_r2_regression.sh (the green-command of the Reproduction record; named here by the CON-423 r3 fixer when the checker began to require a path, command or job id), in a clean checkout"
+   ]
+  ]
+ },
+ {
+  "id": "CON-162",
+  "edits": [
+   [
+    "-- job: re-run the new guard in a clean checkout",
+    "-- job: re-run the new guard, bash scripts/validation/test_enumerate_decision_mutants_r2_regression.sh (the green-command of the Reproduction record; named here by the CON-423 r3 fixer when the checker began to require a path, command or job id), in a clean checkout"
+   ]
+  ]
+ }
+]

@@ -1,0 +1,22 @@
+# engine fail-open reproduction, 2026-11-13T11:21:22Z; engine built from tree 1a307322 (go build ./cmd/workable-items); scratch copy of docs/workable_items.db; env -i PATH=/usr/bin:/bin; script: this directory's engine_repro.sh
+== M4: update --status with values outside the closed set
+$ '<wi>' 'update' '--db' '<db>' '--id' 'CON-306' '--status' 'Done'
+  | update: CON-306 updated in Issues (status=Queued, type=Task)
+  rc=0
+  status after: Queued
+$ '<wi>' 'update' '--db' '<db>' '--id' 'CON-306' '--status' 'Bogus'
+  | update: CON-306 updated in Issues (status=Queued, type=Task)
+  rc=0
+  status after: Queued
+== M5: add with a type outside the closed set
+$ '<wi>' 'add' 'Story' 'Low' '--db' '<db>' '--title' 'repro type probe' '--description' 'a probe item for the type closed set check only' '--created-by' 'Conductor'
+  | add: created CON-334 (Task, status=Queued) in Issues
+  rc=0
+  newest item: CON-334|Task|Conductor
+== I9: history attribution of the add above
+  history Opened row (atm_id|by): CON-334|User
+== control: a closed-set value is accepted and changes the row
+$ '<wi>' 'update' '--db' '<db>' '--id' 'CON-306' '--status' 'In progress'
+  | update: CON-306 updated in Issues (status=In progress, type=Task)
+  rc=0
+  status after: In progress

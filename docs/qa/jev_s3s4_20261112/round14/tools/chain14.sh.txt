@@ -1,0 +1,43 @@
+#!/bin/bash
+# chain14.sh: the round-14 mutant chain, one mutant at a time (one heavy job at a time); results in runs/mut_summary.txt.
+# Each mutant runs its suites in order and stops at the first suite with a failure (tools/mutrun.sh); the cheap suites
+# come first and the sweep (about 18 minutes) last, so the sweep runs only for a mutant no cheaper suite kills.
+#   1. the fixer's round-14 mutants M1-M11 (r14 rows, r13, the sweep)
+#   2. the adopted round-12 reviewer mutants R01-R08: r14, r13, then the suite that killed each in round 13
+#   3. the round-13 reviewer witnesses V01, V02, V08 (new rows R14-2f, R14-2g, R14-2h) and the other V mutants
+#   4. the census mutants W22-W36 against the census test
+#   5. RCTRL (no change, run from a mutant directory): r14 and the sweep, expected to survive
+# A SURVIVED line names the suites it ran. The final double runs of every suite on the unmutated tree are the control
+# for the suites RCTRL does not run.
+set -u
+W=/mnt/DATA1TB/claude-work/scratch/jev_r14.R5N6
+cd "$W" || exit 1
+for m in M1_intent_resolved_regardless M2_group_ignored M3_child_reuse_ignored M4_ungated_start \
+         M5_child_judged_at_resolve_time M6_intent_without_child M7a_legacy_always_gone M7b_legacy_never_gone \
+         M8_no_went_check M9_mark_without_gate M10_gate_open_ignores_proc M11_no_child_start_is_gone; do
+  SUITES="r14 r13 sw14" bash tools/mutrun.sh "$m"
+done
+SUITES="r14 r13" bash tools/mutrun.sh R01_arm_no_retry
+SUITES="r14 r13 r8" bash tools/mutrun.sh R02_markttl_no_recordwaits
+SUITES="r14 r13 r10" bash tools/mutrun.sh R03_adopt_after_own_start
+SUITES="r14 r13 pl" bash tools/mutrun.sh R04_adopt_degraded
+SUITES="r14 r13 r11" bash tools/mutrun.sh R05_rc75_counts_after_arm
+SUITES="r14 r13" bash tools/mutrun.sh R06_stopowed_for_rc75
+SUITES="r14 r13 r11" bash tools/mutrun.sh R07_noset_rc75_released
+SUITES="r14 r13" bash tools/mutrun.sh R08_owed_retry_fail_is_success
+for m in V01_intent_reuse_blind V02_degraded_intent_kept V08_mark_intent_refusal_is_stale; do
+  SUITES="r14" bash tools/mutrun.sh "$m"
+done
+for m in V03_intent_state_always_unknown V04_setexists_keeps_intent V05a_finish_leaves_empty_map \
+         V05b_recover_leaves_empty_map V06_intent_is_lease V07_adopt_checks_other_profile V14_finish_removes_only_on_rc0; do
+  SUITES="r14 r13" bash tools/mutrun.sh "$m"
+done
+for m in V10_recover_after_observe V15_adopt_skips_only_live_intent V20_finish_drops_start_half; do
+  SUITES="r14 r13 sw14" bash tools/mutrun.sh "$m"
+done
+for m in W22_mention_lookbehind_digit W23_mention_case_sensitive_both W24_ls_perm_any W25_rc_max_999 \
+         W26_no_trailing_pop W27_scope_no_slash W28_exec_ignored W33_mention_ascii W35_shape_mention_first_4k W36_splitlines; do
+  bash tools/cmutrun.sh "$m"
+done
+SUITES="r14 sw14" bash tools/mutrun.sh RCTRL
+echo "CHAIN14 DONE" >> "$W/runs/mut_summary.txt"

@@ -1,0 +1,25 @@
+== ff
+"work/.git/AUTO_MERGE.lock"
+"work/.git/HEAD.lock"
+"work/.git/index.lock"
+"work/.git/objects/maintenance.lock"
+"work/.git/ORIG_HEAD.lock"
+"work/.git/packed-refs.lock"
+"work/.git/refs/heads/main.lock"
+== detach
+"work/.git/AUTO_MERGE.lock"
+"work/.git/HEAD.lock"
+"work/.git/index.lock"
+"work/.git/packed-refs.lock"
+== add
+"par/.git/index.lock"
+== wt_ff
+"work/.git/objects/maintenance.lock"
+"work/.git/packed-refs.lock"
+"work/.git/refs/heads/wtb.lock"
+"work/.git/worktrees/wt/AUTO_MERGE.lock"
+"work/.git/worktrees/wt/HEAD.lock"
+"work/.git/worktrees/wt/index.lock"
+"work/.git/worktrees/wt/ORIG_HEAD.lock"
+git: git version 2.53.0
+SANDBOX /mnt/DATA1TB/claude-work/tmp/glp.8KgS

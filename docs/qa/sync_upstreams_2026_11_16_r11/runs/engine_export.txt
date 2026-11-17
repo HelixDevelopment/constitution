@@ -1,0 +1,5 @@
+export: wrote /mnt/DATA1TB/claude-work/tmp/r11exp.007S/Issues.md
+export: wrote /mnt/DATA1TB/claude-work/tmp/r11exp.007S/Fixed.md
+export: wrote /mnt/DATA1TB/claude-work/tmp/r11exp.007S/Issues_Summary.md
+export: wrote /mnt/DATA1TB/claude-work/tmp/r11exp.007S/Fixed_Summary.md
+export: formats export disabled (source=constitution-default; constitution/config/formats_export.conf default false, operator order 2026-10-26) -- Markdown only, no .html/.pdf/.docx written. Enable explicitly: --formats, or DOCS_EXPORT=1, or 'enabled=1' in docs/context/doc_export.policy

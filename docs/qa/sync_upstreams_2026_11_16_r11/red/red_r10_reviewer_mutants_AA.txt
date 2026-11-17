@@ -1,0 +1,16 @@
+AA01 SURVIVED   by -             636.8s  branch ref lock path case-folded (Dev -> refs/heads/dev.lock)
+AA02 KILLED     by unit           10.4s  write_settled compares only the LENGTH of the index listing (a half-merge changes shas, same length)
+AA03 KILLED     by unit           10.3s  write_settled ignores a HEAD that moved during a failed write
+AA04 KILLED     by unit           10.3s  merge lock set loses reftable/tables.list.lock
+AA05 KILLED     by unit           10.3s  in_progress no longer sees an interactive rebase (rebase-merge)
+AA06 KILLED     by unit           10.3s  a symbolic link at the marker path is not reported by in_progress
+AA07 SURVIVED   by -             749.2s  register_site keys the site by the unresolved git dir spelling
+AA08 KILLED     by unit           10.0s  end_write clears the marker for any answered write, settled or not
+AA09 KILLED     by robustness    303.0s  write-time step 1 ignores in-progress operations (only the status output counts)
+AA10 SURVIVED   by -             529.8s  read_marker returns any op string from the marker (no closed vocabulary)
+AA11 SURVIVED   by -             564.8s  lock_paths decides worktree split by string, not realpath
+AA12 KILLED     by unit           10.2s  a failed stage-pin whose parent index cannot be read counts as settled
+C1   SURVIVED   by -             566.7s  CONTROL (must SURVIVE): a section-banner comment changed
+C2   KILLED     by unit           10.2s  CONTROL (must DIE): Z04 again
+sync-mutations (all): mutants 14 killed 9 equivalent 0 survived 5 harness-errors 0
+survivors: AA01,AA07,AA10,AA11,C1

@@ -1,0 +1,221 @@
+INV-FAIL U01 U+00AD checks '3 pas\xadsed' want=REJ got=accepted
+INV-FAIL U01 U+034F checks '3 pas͏sed' want=REJ got=accepted
+INV-FAIL U01 U+061C checks '3 pas\u061csed' want=REJ got=accepted
+INV-FAIL U01 U+115F checks '3 pasᅟsed' want=REJ got=accepted
+INV-FAIL U01 U+115F checks 'TᅟBD later' want=REJ got=accepted
+INV-FAIL U01 U+1160 checks '3 pasᅠsed' want=REJ got=accepted
+INV-FAIL U01 U+1160 checks 'TᅠBD later' want=REJ got=accepted
+INV-FAIL U01 U+17B4 checks '3 pas឴sed' want=REJ got=accepted
+INV-FAIL U01 U+17B5 checks '3 pas឵sed' want=REJ got=accepted
+INV-FAIL U01 U+180B checks '3 pas᠋sed' want=REJ got=accepted
+CLASS U01 members=4174 sampled=4174 cases=16696 mismatches=8089 floor=4174
+INV-FAIL U02 U+00AD checks '3 pas\xadsed' want=REJ got=accepted
+INV-FAIL U02 U+0600 checks '3 pas\u0600sed' want=REJ got=accepted
+INV-FAIL U02 U+0601 checks '3 pas\u0601sed' want=REJ got=accepted
+INV-FAIL U02 U+0602 checks '3 pas\u0602sed' want=REJ got=accepted
+INV-FAIL U02 U+0603 checks '3 pas\u0603sed' want=REJ got=accepted
+INV-FAIL U02 U+0604 checks '3 pas\u0604sed' want=REJ got=accepted
+INV-FAIL U02 U+0605 checks '3 pas\u0605sed' want=REJ got=accepted
+INV-FAIL U02 U+061C checks '3 pas\u061csed' want=REJ got=accepted
+INV-FAIL U02 U+06DD checks '3 pas\u06ddsed' want=REJ got=accepted
+INV-FAIL U02 U+070F checks '3 pas\u070fsed' want=REJ got=accepted
+CLASS U02 members=170 sampled=170 cases=510 mismatches=340 floor=170
+INV-FAIL U03 U+0033 checks '3 pas\x00sed' want=REJ got=accepted
+INV-FAIL U03 U+0054 checks 'T\x00BD later' want=REJ got=accepted
+INV-FAIL U03 U+0033 checks '3 pas\x01sed' want=REJ got=accepted
+INV-FAIL U03 U+0054 checks 'T\x01BD later' want=REJ got=accepted
+INV-FAIL U03 U+0033 checks '3 pas\x02sed' want=REJ got=accepted
+INV-FAIL U03 U+0054 checks 'T\x02BD later' want=REJ got=accepted
+INV-FAIL U03 U+0033 checks '3 pas\x03sed' want=REJ got=accepted
+INV-FAIL U03 U+0054 checks 'T\x03BD later' want=REJ got=accepted
+INV-FAIL U03 U+0033 checks '3 pas\x04sed' want=REJ got=accepted
+INV-FAIL U03 U+0054 checks 'T\x04BD later' want=REJ got=accepted
+CLASS U03 members=64 sampled=64 cases=128 mismatches=128 floor=64
+INV-FAIL U04 U+D800 checks '3 pas\ud800sed' want=REJ got=accepted
+INV-FAIL U04 U+D800 checks 'T\ud800BD later' want=REJ got=accepted
+INV-FAIL U04 U+D81F checks '3 pas\ud81fsed' want=REJ got=accepted
+INV-FAIL U04 U+D81F checks 'T\ud81fBD later' want=REJ got=accepted
+INV-FAIL U04 U+D83E checks '3 pas\ud83esed' want=REJ got=accepted
+INV-FAIL U04 U+D83E checks 'T\ud83eBD later' want=REJ got=accepted
+INV-FAIL U04 U+D85D checks '3 pas\ud85dsed' want=REJ got=accepted
+INV-FAIL U04 U+D85D checks 'T\ud85dBD later' want=REJ got=accepted
+INV-FAIL U04 U+D87C checks '3 pas\ud87csed' want=REJ got=accepted
+INV-FAIL U04 U+D87C checks 'T\ud87cBD later' want=REJ got=accepted
+CLASS U04 members=2048 sampled=68 cases=136 mismatches=136 floor=2048
+INV-FAIL U05 U+E000 checks '3 pas\ue000sed' want=REJ got=accepted
+INV-FAIL U05 U+E000 checks 'T\ue000BD later' want=REJ got=accepted
+INV-FAIL U05 U+E001 checks '3 pas\ue001sed' want=REJ got=accepted
+INV-FAIL U05 U+E001 checks 'T\ue001BD later' want=REJ got=accepted
+INV-FAIL U05 U+E002 checks '3 pas\ue002sed' want=REJ got=accepted
+INV-FAIL U05 U+E002 checks 'T\ue002BD later' want=REJ got=accepted
+INV-FAIL U05 U+E003 checks '3 pas\ue003sed' want=REJ got=accepted
+INV-FAIL U05 U+E003 checks 'T\ue003BD later' want=REJ got=accepted
+INV-FAIL U05 U+E004 checks '3 pas\ue004sed' want=REJ got=accepted
+INV-FAIL U05 U+E004 checks 'T\ue004BD later' want=REJ got=accepted
+CLASS U05 members=137468 sampled=6533 cases=13066 mismatches=13066 floor=137468
+INV-FAIL U06 U+0378 checks '3 pas\u0378sed' want=REJ got=accepted
+INV-FAIL U06 U+0378 checks 'T\u0378BD later' want=REJ got=accepted
+INV-FAIL U06 U+0379 checks '3 pas\u0379sed' want=REJ got=accepted
+INV-FAIL U06 U+0379 checks 'T\u0379BD later' want=REJ got=accepted
+INV-FAIL U06 U+0380 checks '3 pas\u0380sed' want=REJ got=accepted
+INV-FAIL U06 U+0380 checks 'T\u0380BD later' want=REJ got=accepted
+INV-FAIL U06 U+0381 checks '3 pas\u0381sed' want=REJ got=accepted
+INV-FAIL U06 U+0381 checks 'T\u0381BD later' want=REJ got=accepted
+INV-FAIL U06 U+0382 checks '3 pas\u0382sed' want=REJ got=accepted
+INV-FAIL U06 U+0382 checks 'T\u0382BD later' want=REJ got=accepted
+CLASS U06 members=819533 sampled=2254 cases=4508 mismatches=4508 floor=800000
+INV-FAIL U07 U+2028 checks '3 pas\u2028sed' want=REJ got=accepted
+INV-FAIL U07 U+2028 checks 'T\u2028BD later' want=REJ got=accepted
+INV-FAIL U07 U+2029 checks '3 pas\u2029sed' want=REJ got=accepted
+INV-FAIL U07 U+2029 checks 'T\u2029BD later' want=REJ got=accepted
+CLASS U07 members=2 sampled=2 cases=4 mismatches=4 floor=2
+CLASS U08 members=18 sampled=18 cases=54 mismatches=0 floor=18
+INV-FAIL U09 U+FE00 checks '3 pas︀sed' want=REJ got=accepted
+INV-FAIL U09 U+FE01 checks '3 pas︁sed' want=REJ got=accepted
+INV-FAIL U09 U+FE02 checks '3 pas︂sed' want=REJ got=accepted
+INV-FAIL U09 U+FE03 checks '3 pas︃sed' want=REJ got=accepted
+INV-FAIL U09 U+FE04 checks '3 pas︄sed' want=REJ got=accepted
+INV-FAIL U09 U+FE05 checks '3 pas︅sed' want=REJ got=accepted
+INV-FAIL U09 U+FE06 checks '3 pas︆sed' want=REJ got=accepted
+INV-FAIL U09 U+FE07 checks '3 pas︇sed' want=REJ got=accepted
+INV-FAIL U09 U+FE08 checks '3 pas︈sed' want=REJ got=accepted
+INV-FAIL U09 U+FE09 checks '3 pas︉sed' want=REJ got=accepted
+CLASS U09 members=256 sampled=256 cases=512 mismatches=256 floor=256
+INV-FAIL U10 U+E0000 checks '3 pas\U000e0000sed' want=REJ got=accepted
+INV-FAIL U10 U+E0000 checks 'T\U000e0000BD later' want=REJ got=accepted
+INV-FAIL U10 U+E0001 checks '3 pas\U000e0001sed' want=REJ got=accepted
+INV-FAIL U10 U+E0002 checks '3 pas\U000e0002sed' want=REJ got=accepted
+INV-FAIL U10 U+E0002 checks 'T\U000e0002BD later' want=REJ got=accepted
+INV-FAIL U10 U+E0003 checks '3 pas\U000e0003sed' want=REJ got=accepted
+INV-FAIL U10 U+E0003 checks 'T\U000e0003BD later' want=REJ got=accepted
+INV-FAIL U10 U+E0004 checks '3 pas\U000e0004sed' want=REJ got=accepted
+INV-FAIL U10 U+E0004 checks 'T\U000e0004BD later' want=REJ got=accepted
+INV-FAIL U10 U+E0005 checks '3 pas\U000e0005sed' want=REJ got=accepted
+CLASS U10 members=128 sampled=128 cases=257 mismatches=159 floor=128
+INV-FAIL U11 U+061C checks '3 pas\u061csed' want=REJ got=accepted
+INV-FAIL U11 U+200E checks '3 pas\u200esed' want=REJ got=accepted
+INV-FAIL U11 U+200F checks '3 pas\u200fsed' want=REJ got=accepted
+INV-FAIL U11 U+202A checks '3 pas\u202ased' want=REJ got=accepted
+INV-FAIL U11 U+202B checks '3 pas\u202bsed' want=REJ got=accepted
+INV-FAIL U11 U+202C checks '3 pas\u202csed' want=REJ got=accepted
+INV-FAIL U11 U+202D checks '3 pas\u202dsed' want=REJ got=accepted
+INV-FAIL U11 U+202E checks '3 pas\u202esed' want=REJ got=accepted
+INV-FAIL U11 U+2066 checks '3 pas\u2066sed' want=REJ got=accepted
+INV-FAIL U11 U+2067 checks '3 pas\u2067sed' want=REJ got=accepted
+CLASS U11 members=12 sampled=12 cases=25 mismatches=13 floor=12
+INV-FAIL U12 U+0488 checks 'T҈BD later' want=REJ got=accepted
+INV-FAIL U12 U+0489 checks 'T҉BD later' want=REJ got=accepted
+INV-FAIL U12 U+0903 checks 'TःBD later' want=REJ got=accepted
+INV-FAIL U12 U+093B checks 'TऻBD later' want=REJ got=accepted
+INV-FAIL U12 U+093E checks 'TाBD later' want=REJ got=accepted
+INV-FAIL U12 U+093F checks 'TिBD later' want=REJ got=accepted
+INV-FAIL U12 U+0940 checks 'TीBD later' want=REJ got=accepted
+INV-FAIL U12 U+0949 checks 'TॉBD later' want=REJ got=accepted
+INV-FAIL U12 U+094A checks 'TॊBD later' want=REJ got=accepted
+INV-FAIL U12 U+094B checks 'TोBD later' want=REJ got=accepted
+CLASS U12 members=2238 sampled=2238 cases=4476 mismatches=481 floor=2238
+INV-FAIL U13 U+3164 checks 'ㅤㅤㅤ' want=REJ got=accepted
+INV-FAIL U13 U+115F checks 'ᅟᅟᅟ' want=REJ got=accepted
+INV-FAIL U13 U+1160 checks 'ᅠᅠᅠ' want=REJ got=accepted
+INV-FAIL U13 U+FFA0 checks 'ﾠﾠﾠ' want=REJ got=accepted
+INV-FAIL U13 U+3164 target 'ㅤ host' want=REJ got=accepted
+INV-FAIL U13 U+115F target 'ᅟ host' want=REJ got=accepted
+INV-FAIL U13 U+1160 target 'ᅠ host' want=REJ got=accepted
+INV-FAIL U13 U+FFA0 target 'ﾠ host' want=REJ got=accepted
+INV-FAIL U13 U+3164 checks 'pendingㅤ host' want=REJ got=accepted
+INV-FAIL U13 U+115F checks 'pendingᅟ host' want=REJ got=accepted
+CLASS U13 members=6 sampled=6 cases=16 mismatches=13 floor=6
+INV-FAIL U14 U+215F checks 'F⅟XME later' want=REJ got=accepted
+INV-FAIL U14 U+2474 checks 'F⑴XME later' want=REJ got=accepted
+INV-FAIL U14 U+2488 checks 'F⒈XME later' want=REJ got=accepted
+INV-FAIL U14 U+249C checks 'TB⒜ later' want=REJ got=accepted
+INV-FAIL U14 U+249D checks 'T⒝D later' want=REJ got=accepted
+INV-FAIL U14 U+249F checks 'TB⒟ later' want=REJ got=accepted
+INV-FAIL U14 U+24A0 checks 'FIXM⒠ later' want=REJ got=accepted
+INV-FAIL U14 U+24A1 checks '⒡IXME later' want=REJ got=accepted
+INV-FAIL U14 U+24A4 checks 'F⒤XME later' want=REJ got=accepted
+INV-FAIL U14 U+24A8 checks 'FIX⒨E later' want=REJ got=accepted
+CLASS U14 members=1123 sampled=1123 cases=1123 mismatches=26 floor=1123
+INV-FAIL U15 U+FF01 checks 'T！B！D later' want=REJ got=accepted
+INV-FAIL U15 U+FF02 checks 'T＂B＂D later' want=REJ got=accepted
+INV-FAIL U15 U+FF03 checks 'T＃B＃D later' want=REJ got=accepted
+INV-FAIL U15 U+FF04 checks 'T＄B＄D later' want=REJ got=accepted
+INV-FAIL U15 U+FF05 checks 'T％B％D later' want=REJ got=accepted
+INV-FAIL U15 U+FF06 checks 'T＆B＆D later' want=REJ got=accepted
+INV-FAIL U15 U+FF07 checks 'T＇B＇D later' want=REJ got=accepted
+INV-FAIL U15 U+FF08 checks 'T（B（D later' want=REJ got=accepted
+INV-FAIL U15 U+FF09 checks 'T）B）D later' want=REJ got=accepted
+INV-FAIL U15 U+FF0A checks 'T＊B＊D later' want=REJ got=accepted
+CLASS U15 members=225 sampled=225 cases=225 mismatches=50 floor=225
+INV-FAIL U16 U+24AF checks '⒯⒝⒟ later' want=REJ got=accepted
+CLASS U16 members=360 sampled=360 cases=363 mismatches=1 floor=360
+CLASS U17 members=59 sampled=59 cases=61 mismatches=0 floor=59
+INV-FAIL U18 U+0660 checks '3 passed ٠' want=REJ got=accepted
+INV-FAIL U18 U+0660 checks 'T٠D٠ later' want=REJ got=accepted
+INV-FAIL U18 U+0661 checks '3 passed ١' want=REJ got=accepted
+INV-FAIL U18 U+0662 checks '3 passed ٢' want=REJ got=accepted
+INV-FAIL U18 U+0663 checks '3 passed ٣' want=REJ got=accepted
+INV-FAIL U18 U+0664 checks '3 passed ٤' want=REJ got=accepted
+INV-FAIL U18 U+0665 checks '3 passed ٥' want=REJ got=accepted
+INV-FAIL U18 U+0666 checks '3 passed ٦' want=REJ got=accepted
+INV-FAIL U18 U+0667 checks '3 passed ٧' want=REJ got=accepted
+INV-FAIL U18 U+0668 checks '3 passed ٨' want=REJ got=accepted
+CLASS U18 members=670 sampled=670 cases=804 mismatches=737 floor=670
+INV-FAIL U19 U+0149 checks '3 passed ŉ' want=REJ got=accepted
+INV-FAIL U19 U+02B9 checks '3 passed ʹ' want=REJ got=accepted
+INV-FAIL U19 U+02BA checks '3 passed ʺ' want=REJ got=accepted
+INV-FAIL U19 U+02BB checks '3 passed ʻ' want=REJ got=accepted
+INV-FAIL U19 U+02C7 checks '3 passed ˇ' want=REJ got=accepted
+INV-FAIL U19 U+0374 checks '3 passed ʹ' want=REJ got=accepted
+INV-FAIL U19 U+03E2 checks '3 passed Ϣ' want=REJ got=accepted
+INV-FAIL U19 U+03E3 checks '3 passed ϣ' want=REJ got=accepted
+INV-FAIL U19 U+03E4 checks '3 passed Ϥ' want=REJ got=accepted
+INV-FAIL U19 U+0531 checks '3 passed Ա' want=REJ got=accepted
+CLASS U19 members=137798 sampled=2045 cases=2338 mismatches=2338 floor=137798
+INV-FAIL U20 U+00D8 checks 'TØDO later' want=REJ got=accepted
+INV-FAIL U20 U+00F8 checks 'TøDO later' want=REJ got=accepted
+INV-FAIL U20 U+0110 checks 'TBĐ later' want=REJ got=accepted
+INV-FAIL U20 U+0111 checks 'TBđ later' want=REJ got=accepted
+INV-FAIL U20 U+0131 checks 'FıXME later' want=REJ got=accepted
+INV-FAIL U20 U+0166 checks 'ŦBD later' want=REJ got=accepted
+INV-FAIL U20 U+0167 checks 'ŧBD later' want=REJ got=accepted
+INV-FAIL U20 U+0180 checks 'TƀD later' want=REJ got=accepted
+INV-FAIL U20 U+0181 checks 'TƁD later' want=REJ got=accepted
+INV-FAIL U20 U+0182 checks 'TƂD later' want=REJ got=accepted
+CLASS U20 members=717 sampled=717 cases=894 mismatches=177 floor=717
+INV-FAIL U21 U+00B5 checks '3 passed xµ' want=REJ got=accepted
+INV-FAIL U21 U+0370 checks '3 passed xͰ' want=REJ got=accepted
+INV-FAIL U21 U+0371 checks '3 passed xͱ' want=REJ got=accepted
+INV-FAIL U21 U+0372 checks '3 passed xͲ' want=REJ got=accepted
+INV-FAIL U21 U+0373 checks '3 passed xͳ' want=REJ got=accepted
+INV-FAIL U21 U+0376 checks '3 passed xͶ' want=REJ got=accepted
+INV-FAIL U21 U+0377 checks '3 passed xͷ' want=REJ got=accepted
+INV-FAIL U21 U+037B checks '3 passed xͻ' want=REJ got=accepted
+INV-FAIL U21 U+037C checks '3 passed xͼ' want=REJ got=accepted
+INV-FAIL U21 U+037D checks '3 passed xͽ' want=REJ got=accepted
+CLASS U21 members=1085 sampled=1085 cases=2173 mismatches=1085 floor=1085
+INV-FAIL U22 U+00A1 checks 'T¡B¡D later' want=REJ got=accepted
+INV-FAIL U22 U+00A1 checks 'every suite T¡B¡D' want=REJ got=accepted
+INV-FAIL U22 U+00A2 checks 'T¢B¢D later' want=REJ got=accepted
+INV-FAIL U22 U+00A2 checks 'every suite T¢B¢D' want=REJ got=accepted
+INV-FAIL U22 U+00A3 checks 'T£B£D later' want=REJ got=accepted
+INV-FAIL U22 U+00A3 checks 'every suite T£B£D' want=REJ got=accepted
+INV-FAIL U22 U+00A4 checks 'T¤B¤D later' want=REJ got=accepted
+INV-FAIL U22 U+00A4 checks 'every suite T¤B¤D' want=REJ got=accepted
+INV-FAIL U22 U+00A5 checks 'T¥B¥D later' want=REJ got=accepted
+INV-FAIL U22 U+00A5 checks 'every suite T¥B¥D' want=REJ got=accepted
+CLASS U22 members=8417 sampled=8417 cases=25251 mismatches=16738 floor=8417
+INV-FAIL U23 U+0054 checks 'T!B!D later' want=REJ got=accepted
+INV-FAIL U23 U+0054 target 'T!B!D host' want=REJ got=accepted
+INV-FAIL U23 U+0054 artifact 'T!B!D build' want=REJ got=accepted
+INV-FAIL U23 U+0054 job 'T!B!D bash a.sh' want=REJ got=accepted
+INV-FAIL U23 U+0065 checks 'every suite T!B!D' want=REJ got=accepted
+INV-FAIL U23 U+0054 checks 'T!O!D!O later' want=REJ got=accepted
+INV-FAIL U23 U+0054 target 'T!O!D!O host' want=REJ got=accepted
+INV-FAIL U23 U+0054 artifact 'T!O!D!O build' want=REJ got=accepted
+INV-FAIL U23 U+0054 job 'T!O!D!O bash a.sh' want=REJ got=accepted
+INV-FAIL U23 U+0065 checks 'every suite T!O!D!O' want=REJ got=accepted
+CLASS U23 members=34 sampled=34 cases=1611 mismatches=1300 floor=34
+INV-FAIL FOLD-CLOSURE BLIND the checker has no is_invisible/clean (cannot check the fold closure)
+FOLD-CLOSURE BLIND
+INVENTORY classes=23 members=1116605 cases=75231 mismatches=49646 below_floor=0 unicode=16.0.0

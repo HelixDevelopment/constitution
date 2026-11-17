@@ -1,0 +1,2 @@
+S04  KILLED     by robustness:refused_stage   12.8s  RV6-1: a stage-pin refused now still gets a marker (no pre-check at the second write site)
+sync-mutations (all): mutants 1 killed 1 equivalent 0 survived 0 harness-errors 0

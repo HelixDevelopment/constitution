@@ -1,0 +1,23 @@
+--- r8/scripts/jev/jev-place.sh	2026-11-15 00:09:38.000000000 +0100
++++ needle/r8t/scripts/jev/jev-place.sh	2026-11-15 12:46:22.684368063 +0100
+@@ -202,8 +202,10 @@
+ HOLDER=""            # the holder of the running subcommand (acquire / heartbeat / release), named in the placement record
+ GW_DEFAULT="https://127.0.0.1:8095"
+ 
++trace_ev() { [ "${JEV_TEST:-}" = "1" ] && [ -n "${JEV_TRACE_FILE:-}" ] && printf '%s %s %s\n' "$1" "$$" "$2" >> "$JEV_TRACE_FILE"; return 0; }
+ bounded() { # bounded <seconds> <out> cmd... -> rc of cmd (124/137 on timeout)
+   local t="$1" o="$2" rc=0; shift 2
++  trace_ev call "$*"
+   timeout --kill-after=2 "$t" "$@" >"$o" 2>"$o.err" </dev/null || rc=$?
+   return "$rc"
+ }
+@@ -414,6 +416,9 @@
+   local g; g="$(leases_gen)"
+   jq -c --argjson g "$(( g + 1 ))" '.gen = $g' > "$WORK/leases.next" || { log "internal: the lease registry write was not JSON; nothing written"; return 2; }
+   jev_write_atomic "$LEASES" < "$WORK/leases.next"
++  if [ "${JEV_TEST:-}" = "1" ] && [ -n "${JEV_TRACE_FILE:-}" ]; then
++    trace_ev save "$(jq -c '(.sets // {}) | if type == "object" then map_values({stopping: (.stopping.pid? // null), starting: (.starting.pid? // null)}) else {} end' "$WORK/leases.next" 2>/dev/null || echo '{}')"
++  fi
+   derive_cache || log "endpoint cache could not be derived (rc $?)"
+ }
+ 

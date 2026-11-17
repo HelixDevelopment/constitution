@@ -1,0 +1,7 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+ok 3 - R12-10 all 60 three-process interleavings: a running unit is always held or owed a stop, and after the cleanup no unit and no set is left
+ok 4 - R12-10 KNOWN FINDING R12-F1 (characterised, open): C adopts the unit as operator-started in exactly these orders (B deleted the set after A's start returned and before A recorded it); any change to this list is a change of behaviour
+ok 5 - R12-10 CONTROL: C both joined a running set (count 4) and started the unit itself (count 16) in some orders
+ok 6 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round12_mc.sh: pass=6 fail=0 skip=0

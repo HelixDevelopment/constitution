@@ -1,0 +1,21 @@
+class	probe	MENTION(member)	r12 shaped_data	head shaped_data	r12 disagrees with MENTION	head disagrees
+case	GIT word only	True	True	False	YES	-
+case	Git=1	True	True	False	YES	-
+case	gIt	True	True	False	YES	-
+left-boundary	x_git (underscore before)	True	True	False	YES	-
+left-boundary	1git (digit before)	True	True	False	YES	-
+right-boundary	gitx (letter after)	True	True	False	YES	-
+right-boundary	github	True	True	False	YES	-
+right-boundary	git_dir (underscore after)	True	True	False	YES	-
+GIT_ alternative	AGIT_X (letter before GIT_)	False	False	True	-	-
+unicode-casefold	U+0131 dotless i: gıt	True	True	False	YES	-
+unicode-casefold	U+0130 dotted I: GİT	True	True	False	YES	-
+unicode-digit	.rc U+0661 U+0662	False	True	False	-	-
+unicode-digit	total U+0668	False	True	False	-	-
+unicode-digit	listing link count U+0661	False	True	False	-	-
+unicode-space	listing U+2003 em space	False	True	False	-	-
+unicode-space	listing U+00A0 no-break space	False	True	False	-	-
+control	digit (no mention)	False	True	True	-	-
+control	legitimate (no mention)	False	True	True	-	-
+control	.rc 0	False	True	True	-	-
+control	git lowercase word	True	False	False	-	-

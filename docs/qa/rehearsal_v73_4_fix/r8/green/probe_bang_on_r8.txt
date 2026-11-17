@@ -1,0 +1,13 @@
+pyhtml.parser on '<!-- a --!><div hidden>x -->': [('comment', ' a '), ('start', 'div', [('hidden', None)]), ('data', 'x -->')]
+bang-block-div-hidden checker=REFUSE:the body holds raw HTML ('<!-- a --!><div hidden>\n-->'; HTML comments oracle_mdit=False(raw HTML: attribute hidden on <div>, element <div>) oracle_pandoc=False(raw HTML: attribute hidden on <div>, element <div>)
+   mdit html: <!-- a --!><div hidden>\n-->\n<p><strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=
+bang-block-style checker=REFUSE:the body holds raw HTML ('<!-- a --!><style>p{display:none}</style'; H oracle_mdit=False(raw HTML: element <style>) oracle_pandoc=False(raw HTML: element <style>)
+   mdit html: <!-- a --!><style>p{display:none}</style>\n-->\n<p><strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks
+bang-block-oneline checker=REFUSE:the body holds raw HTML ('<!-- --!><div hidden> -->'; HTML comments to oracle_mdit=False(raw HTML: attribute hidden on <div>, element <div>) oracle_pandoc=False(raw HTML: attribute hidden on <div>, element <div>)
+   mdit html: <!-- --!><div hidden> -->\n<p><strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; 
+bang-after checker=REFUSE:the body holds raw HTML ('<!-- --!><style>p{display:none}</style> '; H oracle_mdit=False(raw HTML: element <style>) oracle_pandoc=False(raw HTML: element <style>)
+   mdit html: <p><strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer:
+bang-plain-control checker=REFUSE:the body holds raw HTML ('<!-- a -->'; HTML comments too): a reader ma oracle_mdit=True() oracle_pandoc=True()
+   mdit html: <!-- a -->\n<p><strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass
+bang-inline checker=REFUSE:the body holds raw HTML ('<span hidden>'; HTML comments too): a reader oracle_mdit=False(raw HTML: attribute hidden on <span>, element <spa) oracle_pandoc=False(raw HTML: attribute hidden on <span>, element <spa)
+   mdit html: <p><strong>Verification:</strong> provisional -- job: bash tests/t.sh -k case12; python3 -I tests/p.py -- checks: tests/t.sh pass=3; tests/p.py pass=1 -- layer:

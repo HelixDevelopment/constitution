@@ -1,0 +1,11 @@
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 392 items, all invariants satisfied
+rc=0
+export: wrote /mnt/DATA1TB/claude-work/scratch/jev_r12.9XGE/repo/docs/Issues.md
+export: wrote /mnt/DATA1TB/claude-work/scratch/jev_r12.9XGE/repo/docs/Fixed.md
+export: wrote /mnt/DATA1TB/claude-work/scratch/jev_r12.9XGE/repo/docs/Issues_Summary.md
+export: wrote /mnt/DATA1TB/claude-work/scratch/jev_r12.9XGE/repo/docs/Fixed_Summary.md
+export: --no-formats set; skipped HTML/PDF/DOCX sibling generation
+rc=0
+diff: DB and Markdown are in sync (compared 392 Markdown item(s) against 392 DB item(s); read docs/Issues.md, docs/Fixed.md)
+rc=0

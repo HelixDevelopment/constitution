@@ -1,0 +1,66 @@
+== T051 RED: content-addressed verdict cache (plan T-C01; FR-007, FR-014, FR-021, SC-002) ==
+ok tool exists at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S/constitution/scripts/fastcycle/gates/verdict_cache.py -- T068 has landed; the invocation checks
+   in Section C below are the real functional tests to run
+FAIL: control needle FAILED: the WS10 POC does not exist at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S/constitution/scripts/fastcycle/../../../docs/research/tokens/ws10_testing_strategy/POC/verdict_cache_poc.py --
+   plan.md T-C01's Origin line ('ATM-659 WS10 POC reused') cannot
+   be verified against a real file
+PASS: control needle: RC-43 ('no verdict cache: identical checks re-run
+   on unchanged inputs ... no reuse construct') confirmed LIVE --
+   nothing under /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S/constitution/scripts/fastcycle/gates/ imports or invokes the WS10 POC today
+PASS: reference DEC-07 key builder runs and produces a key (6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e)
+PASS: control needle: reordering every JSON object's keys and the observed_inputs array does not change the reference key (6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e) -- the builder canonicalises order, it does not accidentally hash it
+PASS: unchanged_hit: reference keys of put/get envelopes are IDENTICAL (6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e), matching expected=HIT
+PASS: vc_flip_env: reference keys of put/get envelopes DIFFER (put=6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e get=728bfca19e09f7b793fcd400d320a91e915780fcfdc1d63ae68735a4304da8e3), matching expected=MISS
+PASS: vc_flip_mutation_id: reference keys of put/get envelopes DIFFER (put=6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e get=ca9f63091f05cbbfa8bca861a12627b3248dc821ff31a7901d7bd6b8f7d974ed), matching expected=MISS
+PASS: vc_flip_tool_version: reference keys of put/get envelopes DIFFER (put=6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e get=b7b0ea69042c44da9030fbd3dd9777290d4616257226481b621d957314b2d906), matching expected=MISS
+PASS: vc_key_completeness_drop: reference keys of put/get envelopes DIFFER (put=6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e get=52a7141476f05670b47b461a57f51fbfc6aef8e2a7a6fb52bb77a5e08169b590), matching expected=MISS
+PASS: vc_negctrl_irrelevant_file: reference keys of put/get envelopes are IDENTICAL (6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e), matching expected=HIT
+PASS: vc_negctrl_mtime_only: reference keys of put/get envelopes are IDENTICAL (6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e), matching expected=HIT
+PASS: vc_one_byte_flip: reference keys of put/get envelopes DIFFER (put=6379ecf2790d5361201604ca842d76dea7c7154b116597b5783aad0833cd768e get=cb2e088e391b894d75740e31dc932873c573d44723e52432f6a317321445edb7), matching expected=MISS
+PASS: vc_admission_skip_never_cached: reference keys of put/get envelopes are IDENTICAL (52a7141476f05670b47b461a57f51fbfc6aef8e2a7a6fb52bb77a5e08169b590) -- the expected MISS is provably an admission-policy refusal (VC-003), not a key mismatch
+PASS: named check: mtime-only difference does not change the reference key (content, not mtime, decides -- VC-002)
+PASS: unchanged_hit: get reports HIT as expected (rc=0)
+PASS: vc_one_byte_flip: get reports MISS as expected (rc=1)
+PASS: vc_one_byte_flip: MISS output contains no stale verdict= token (FR-007 satisfied)
+PASS: vc_key_completeness_drop: get reports MISS as expected (rc=1)
+PASS: vc_negctrl_mtime_only: get reports HIT as expected (rc=0)
+PASS: vc_flip_tool_version: get reports MISS as expected (rc=1)
+PASS: vc_flip_env: get reports MISS as expected (rc=1)
+PASS: vc_flip_mutation_id: get reports MISS as expected (rc=1)
+PASS: vc_negctrl_irrelevant_file: get reports HIT as expected (rc=0)
+PASS: vc_admission_skip_never_cached: get reports MISS as expected (rc=1)
+
+=== T051 contract stub 1/3: get/put/purge wire format (derived, ===
+===   binding on T068 per the header comment above) ===
+NOT YET IMPLEMENTED: verdict_cache.py MUST accept 'put --cache-dir <dir>
+  --gate <gate_id> --inputs <trace.json> --verdict PASS|FAIL --evidence
+  <path>' (exit 0, stdout 'PUT key=<hex64> verdict=<v>' on a cacheable
+  verdict; a non-PASS/FAIL verdict per VC-003 MAY be refused at put-time
+  or silently not stored -- either is acceptable, but MUST NOT be
+  servable by a later get) and 'get --cache-dir <dir> --gate <gate_id>
+  --inputs <trace.json>' (exit 0 + 'HIT key=<hex64> verdict=<v>
+  evidence=<path>' on a key match recomputed from the CURRENT bytes of
+  every trace.json component per VC-001/VC-002; exit 1 + 'MISS
+  key=<hex64>' with NO verdict= token anywhere in stdout otherwise).
+
+=== T051 contract stub 2/3: --inputs envelope (see fixtures/ ===
+===   verdict_cache/README.md for the full schema + rationale) ===
+NOT YET IMPLEMENTED: the 7 DEC-07 key components (gate-script bytes,
+  gate id, observed_inputs[].{path,sha256} sorted by path,
+  tool_versions, env_allowlist, target_fingerprint, mutation_id) are
+  carried in ONE JSON document passed via --inputs; recorded_mtime on
+  each observed_inputs entry (if present) and verdict/evidence (put
+  only) are explicitly OUTSIDE the key per VC-002/data-model.md §5.
+
+=== T051 contract stub 3/3: admission + honest scope (VC-003) ===
+NOT YET IMPLEMENTED: only PASS/FAIL verdicts from a COMPLETE run are
+  ever servable by get -- vc_admission_skip_never_cached/ proves a SKIP
+  verdict must MISS on the very next get even with byte-identical
+  inputs. VC-003's '>=2 consecutive identical verdicts before
+  admission' rule and VC-004's flaky-purge rule are NOT exercised by
+  this RED test's fixtures (see fixtures/verdict_cache/README.md
+  'What this RED test does NOT cover') -- T068's own implementation
+  tests must cover them; test_flake_ledger_red.sh (T059) contract-binds
+  the 'never cached while FLAKY' half.
+
+SUMMARY pass=23 fail=1 skip=0

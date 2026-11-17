@@ -1,0 +1,9 @@
+# $ REMINT_IDS_MUT_JOBS=2 REMINT_IDS_MUT_ONLY=RV2,RV6,N7 bash tests/workable_items/test_remint_ids_mutations.sh (the three remapped mutants)
+PASS control: unmutated copy passes the suite (RESULT: pass=448 fail=0)
+PASS RV2 plan: merged base item always takes the vehicle description (round-4 reviewer; remapped to the round-6 update argv): rc=1 first-failure=plan: an update step passes --description once: got: 2 want: 1
+PASS RV6 verify: base-item body_md not compared (round-4 reviewer; remapped to the round-6 check_body call): rc=1 first-failure=verify FAIL: a base body_md the target did not change (RV6): rc=0 want=1: KNOWN CON-3
+PASS N7 plan: the target description runs through the map (R4-1a reverted; remapped to the round-6 update argv): rc=1 first-failure=R4-1a: plan of a disjoint merge whose target text names a target id the map moves: rc
+RESULT: mutants=3 all killed
+
+[exited with code 0]
+# scrubbed copy (tools/scrub_paths.py): <work> x0, <cache> x0, <home> x0, <tmp> x0

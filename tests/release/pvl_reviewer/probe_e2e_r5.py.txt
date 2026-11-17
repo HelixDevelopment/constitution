@@ -1,0 +1,85 @@
+"""Reviewer probe r5: end-to-end CLI probes against a fixture root (bypass + robustness + DB write)."""
+import hashlib, os, sqlite3, subprocess, sys
+repo, work = sys.argv[1], sys.argv[2]
+sys.path.insert(0, repo + "/tests/release")
+import pvl_fixture as F
+fx = F.make_root(work); root = fx["root"]
+CK = repo + "/scripts/validation/check_provisional_verification_lines.py"
+GOOD = F.line()
+OPEN = ("CON-777", "In progress", "2026-11-01", "x")
+def mkdb(path, rows, wal=False, created_type=str):
+    if os.path.exists(path): os.remove(path)
+    con = sqlite3.connect(path)
+    if wal: con.execute("pragma journal_mode=wal")
+    con.execute("create table items (atm_id text primary key, status text, body_md, created_at)")
+    for r in rows: con.execute("insert into items values (?,?,?,?)", r)
+    con.commit(); con.close()
+def run(db, *extra):
+    p = subprocess.run([sys.executable, "-I", CK, "--root", root, "--today", "2026-11-16", *extra, db],
+                       capture_output=True, text=True, timeout=120)
+    out = (p.stdout + p.stderr).strip().splitlines()
+    verdict = [l for l in out if l.startswith("VERDICT") or l.startswith("FAIL ") or "Error" in l or "Traceback" in l]
+    return p.returncode, verdict
+def case(name, body, expect, created="2026-11-01", status="Ready for testing", **kw):
+    db = os.path.join(work, "p.db")
+    mkdb(db, [OPEN, ("CON-900", status, body, created)])
+    rc, v = run(db)
+    flag = "AS-EXPECTED" if rc == expect else "UNEXPECTED"
+    print("%-12s rc=%s want=%s %s | %s" % (flag, rc, expect, name, " | ".join(v)[:260]))
+# 1 lone CR hides the accepted line inside a CommonMark code block / comment (markdown-it renders it hidden)
+case("CR: grammar line hidden in fenced code", "x\r```\n\n" + GOOD + "\n```\n", 1)
+case("CR: grammar line hidden in comment", "x\r<!--\n\n" + GOOD + "\n-->\n", 1)
+prose = "**Verification:** provisional -- job: not scheduled yet"
+case("CR: visible prose line, hidden grammar line", "x\r" + prose + "\r```\n\n" + GOOD + "\n```\n", 1)
+# 2 robustness of the database read
+case("created_at as integer", "x\n\n" + GOOD, 1, created=20261101)
+case("body_md as blob", ("x\n\n" + GOOD).encode(), 1)
+case("status with trailing space escapes the check", "x", 1, status="Ready for testing ")
+# 3 date window
+case("due = today + 60 (2027-01-15)", "x\n\n" + F.line(due="2027-01-15"), 0)
+case("due = today + 61 (2027-01-16)", "x\n\n" + F.line(due="2027-01-16"), 1)
+case("due = created (2026-11-01)", "x\n\n" + F.line(due="2026-11-01"), 0)
+case("due = created - 1", "x\n\n" + F.line(due="2026-10-31"), 1)
+case("due in the past (2026-11-02, overdue)", "x\n\n" + F.line(due="2026-11-02"), 0)
+case("due hour 24", "x\n\n" + F.line(due="2026-11-20T24:00"), 1)
+case("due offset +23:59", "x\n\n" + F.line(due="2026-11-20T10:00+23:59"), 0)
+case("due fullwidth digits", "x\n\n" + F.line(due="２０２６-11-20"), 1)
+# 4 false values inside the grammar (stated limits)
+case("checks verdict=FAIL fail=9", "x\n\n" + F.line(checks="tests/t.sh fail=9 verdict=FAIL; tests/p.py survived=4"), 0)
+case("checks pass=0 only", "x\n\n" + F.line(checks="tests/t.sh pass=0; tests/p.py pass=0"), 0)
+case("note TBD", "x\n\n" + F.line(note="TBD: job not really scheduled"), 0)
+case("selector mentioned only in a comment", "x\n\n" + F.line(job="bash tests/t.sh suite3", checks="suite3 pass=1"), 0)
+case("option --level=nightly", "x\n\n" + F.line(job="bash tests/t.sh --level=nightly", checks="tests/t.sh pass=1"), 0)
+case("env STRICT=docs (a path value)", "x\n\n" + F.line(job="STRICT=docs bash tests/t.sh", checks="tests/t.sh pass=1"), 0)
+# 5 Unicode and separator escapes
+case("NBSP inside SEP", "x\n\n" + GOOD.replace(" -- checks", " -- checks"), 1)
+case("en dash SEP", "x\n\n" + GOOD.replace(" -- ", " – "), 1)
+case("em dash with ZWJ", "x\n\n" + GOOD.replace(" -- checks", " —‍ checks"), 1)
+case("U+2028 in job", "x\n\n" + F.line(job="bash tests/t.sh case12"), 1)
+case("fullwidth TBD in artifact", "x\n\n" + F.line(artifact="main, tag ＴＢＤ1"), 1)
+case("tab in job", "x\n\n" + F.line(job="bash\ttests/t.sh"), 1)
+case("placeholder as path arg (README.md)", "x\n\n" + F.line(job="bash tests/t.sh README.md", checks="tests/t.sh pass=1"), 0)
+# 6 symlink inside the root with another extension
+os.symlink("p.py", os.path.join(root, "tests", "pylink.sh")) if not os.path.lexists(os.path.join(root, "tests", "pylink.sh")) else None
+case("bash on a .sh symlink to a .py", "x\n\n" + F.line(job="bash tests/pylink.sh", checks="tests/pylink.sh pass=1"), 0)
+# 7 the item itself as JOB, Fixed item as JOB
+case("job = the item itself", "x\n\n" + F.line(job="CON-900", checks="CON-900 pass=1"), 1)
+# 8 target registry not UTF-8
+reg = os.path.join(work, "bad_reg.tsv"); open(reg, "wb").write(b"board\tT1\n\xff\xfe\n")
+db = os.path.join(work, "p.db"); mkdb(db, [OPEN, ("CON-900", "Ready for testing", "x\n\n" + GOOD, "2026-11-01")])
+rc, v = run(db, "--targets", reg); print("%-12s rc=%s %s | %s" % ("INFO", rc, "registry with non-UTF-8 bytes", " | ".join(v)[:200]))
+# 9 DB write: WAL database, closed cleanly (no sidecars), then with a live writer holding -wal
+for label, live in (("WAL db closed", False), ("WAL db with live -wal", True)):
+    d = os.path.join(work, "w_%d" % live); os.makedirs(d, exist_ok=True)
+    db = os.path.join(d, "w.db")
+    for f in os.listdir(d): os.remove(os.path.join(d, f))
+    mkdb(db, [OPEN, ("CON-900", "Ready for testing", "x\n\n" + GOOD, "2026-11-01")], wal=True)
+    holder = None
+    if live:
+        holder = sqlite3.connect(db); holder.execute("insert into items values ('CON-901','Queued','x','2026-11-01')"); holder.commit()
+    before = {f: hashlib.sha256(open(os.path.join(d, f), "rb").read()).hexdigest() for f in sorted(os.listdir(d))}
+    rc, v = run(db)
+    after = {f: hashlib.sha256(open(os.path.join(d, f), "rb").read()).hexdigest() for f in sorted(os.listdir(d))}
+    print("%-12s rc=%s %s files_before=%s files_after=%s changed=%s | %s" % ("DBWRITE", rc, label, sorted(before), sorted(after),
+          sorted(k for k in after if before.get(k) != after[k]), " | ".join(v)[:160]))
+    if holder: holder.close()

@@ -1,0 +1,1 @@
+[test_gate_pairs] GREEN: CM-JEV-BOOTSTRAP-IDEMPOTENT on genuine fixture state

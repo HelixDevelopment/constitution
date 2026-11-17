@@ -1,0 +1,13 @@
+KILLED X1 fence closed by the other fence character rc=1 RESULT: pass=111 fail=3 first_fail=FAIL P7 grid: mismatches (rc 1): GRID cases=433 refused=372 accepted=61 mismatches=1 checker_rc=1
+KILLED X2 fence closed by an opening line with an info string rc=1 RESULT: pass=111 fail=3 first_fail=FAIL P7 grid: mismatches (rc 1): GRID cases=433 refused=372 accepted=61 mismatches=1 checker_rc=1
+KILLED X3 4-space-indented ``` opens a fence rc=1 RESULT: pass=111 fail=3 first_fail=FAIL P7 grid: mismatches (rc 1): GRID cases=433 refused=372 accepted=61 mismatches=2 checker_rc=1
+STALE X4 XXX inside a value no longer refused (count 0)
+STALE X5 TBA inside a value no longer refused (count 0)
+STALE X6 single-word job needs no digit or punctuation (count 0)
+KILLED X7 template ${...} no longer refused rc=1 RESULT: pass=111 fail=3 first_fail=FAIL P7 grid: mismatches (rc 1): GRID cases=433 refused=372 accepted=61 mismatches=6 checker_rc=1
+KILLED X8 render: TODO after an underscore accepted (MY_TODO) rc=1 RESULT: pass=94 fail=2 first_fail=FAIL M4 r3 refused: MY_TODO the list (0: )
+KILLED X9 render: DRAFT preceded by a digit accepted (2DRAFT) rc=1 RESULT: pass=94 fail=2 first_fail=FAIL M4 r3 refused: see 2DRAFT list (0: )
+KILLED X10 repo_key host not case-folded rc=1 RESULT: pass=452 fail=3 first_fail=FAIL RH16 upper-case .GIT suffix (host:GitHub.com/acc/one vs host:github.com/acc/one)
+KILLED X11 repo_key doubled slash folded to nothing rc=1 RESULT: pass=451 fail=4 first_fail=FAIL RH16 doubled slash in the path (host:github.com/accone vs host:github.com/acc/one)
+KILLED X12 token shape outside the C locale rc=1 RESULT: pass=444 fail=1 first_fail=FAIL K12 a non-ASCII letter (got 'fits', want 'refused')
+DONE

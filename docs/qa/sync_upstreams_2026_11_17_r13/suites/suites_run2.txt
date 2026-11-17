@@ -1,0 +1,2110 @@
+=== test_unit
+..........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+...............................................sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+sync-upstreams: ERROR: invalid --branch
+..........................................................................
+----------------------------------------------------------------------
+Ran 147 tests in 10.752s
+
+OK
+sync-unit: PASS 147 FAIL 0 SKIP 0
+=== test_unit OK
+=== test_integration
+== sync-integration (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.4NZRuA)
+  ok   fresh clone: exit 0
+  ok   fresh clone: verdict CURRENT
+  ok   discovery: 4 repositories
+  ok   discovery: nested inner found
+  ok   control needle ok
+  ok   own-org detected for libs/a
+  ok   third-party detected for vendor/t
+  ok   pin at-main for libs/a
+  ok   fetch ran once per remote (4)
+  ok   behind: exit 3
+  ok   behind: verdict
+  ok   root behind by 1
+  ok   libs/a pin behind-main
+  ok   check changed nothing (root)
+  ok   check changed nothing (libs/a)
+  ok   tsv has 5 lines (header + 4)
+  ok   dry-run: exit 3 (refs already fetched)
+  ok   dry-run: no fetch in the shim log
+  ok   dry-run: no change
+  ok   no-fetch: no fetch in the shim log
+  ok   no-fetch: sees only already-fetched refs (behind 1)
+  ok   apply: exit 3 (libs/a pin still behind: not fully current)
+  ok   apply: verdict UPDATES-AVAILABLE
+  ok   apply: root at upstream main
+  ok   apply: root result updated
+  ok   apply: libs/a unchanged without --advance-pins
+  ok   apply: libs/a still reported behind
+  ok   apply: root on branch main still
+  ok   apply: exactly one merge, and it is --ff-only
+  ok   advance-pins: exit 0
+  ok   advance-pins: libs/a at upstream main
+  ok   advance-pins: gitlink staged in root
+  ok   advance-pins: no commit created
+  ok   advance-pins: third-party untouched
+  ok   advance-pins: third-party behind is informational (current)
+  ok   advance-third-party: vendor/t advanced
+  ok   idempotent: exit 4 (staged pins await the user's commit)
+  ok   idempotent: staged pins reported
+  ok   idempotent: no write attempted
+  ok   idempotent: root unchanged
+  ok   idempotent: index unchanged
+  ok   idempotent: no repo updated
+  ok   follow: exit 0
+  ok   follow: libs/a followed root's new gitlink
+  ok   follow: inner followed libs/a's new gitlink
+  ok   follow: tree clean after follow
+  ok   dirty child: not followed
+  ok   dirty child: reason recorded
+  ok   dirty child: edit kept
+  ok   dirty: exit 4
+  ok   dirty: reason dirty-tree
+  ok   dirty: blocked by the precondition
+  ok   dirty: no write was attempted
+  ok   dirty: root not moved
+  ok   dirty: local edit kept
+  ok   merge in progress: exit 4
+  ok   merge in progress: reason
+  ok   index.lock: exit 4
+  ok   index.lock: root not moved
+  ok   local ahead: exit 4
+  ok   local ahead: reason
+  ok   diverged: exit 4
+  ok   diverged: reason local-diverged
+  ok   diverged: local commit kept
+  ok   root on topic: exit 4
+  ok   root on topic: reason
+  ok   two remotes linear: exit 0
+  ok   two remotes linear: newest main wins
+  ok   two remotes linear: mirror state is measured against the head before the run (equal)
+  ok   two remotes diverged: exit 4
+  ok   two remotes diverged: upstreams-diverged
+  ok   two remotes diverged: nothing moved
+  ok   pin not on main: exit 4
+  ok   pin not on main: state
+  ok   pin unfetchable: state
+  ok   pin unfetchable: exit 4
+  ok   uninitialised: state
+  ok   uninitialised: not attention by default
+  ok   uninitialised + --strict-pins: exit 4
+  ok   no mode: exit 2
+  ok   --out inside the work tree: exit 2
+  ok   --out inside: nothing written
+  ok   --root not a top level: exit 2
+  ok   --root outside any work tree: exit 2
+  ok   untracked: exit 4
+  ok   untracked: reason dirty-tree
+  ok   untracked: root not moved
+  ok   untracked: file kept
+  ok   submodule on branch: root moved
+  ok   submodule on branch: not moved
+  ok   submodule on branch: still on topic
+  ok   submodule on branch: reason recorded
+  ok   submodule on branch: reason kept-on-branch:follow-pin
+  ok   submodule on main: ff to upstream main
+  ok   submodule on main: exit 4 (parent gitlink modified)
+  ok   submodule on main: reason gitlink-modified:libs/a
+  ok   submodule on main: nothing staged in the parent
+  ok   topic root + advance-pins: exit 4
+  ok   topic root: index untouched
+  ok   topic root: still on topic
+  ok   topic root: libs/a reported parent-not-integrated
+  ok   feature/main pin: not-on-main
+  ok   main gone upstream: remote state no-main
+  ok   main gone upstream: exit 4
+  ok   main gone upstream: reason upstream-branch-gone:origin
+  ok   main gone upstream: refs/remotes/origin/main kept
+  ok   broken gitfile: exit 6
+  ok   broken gitfile: verdict BLIND
+  ok   broken gitfile: libs/a blind
+  ok   broken gitfile: pin state unreadable
+  ok   broken gitfile: the no-answer is git's exit 128
+  ok   broken gitfile: reason pin-unreadable
+  ok   broken gitfile: the blind row is printed under --quiet
+  ok   broken gitfile: the root is current (the control below is about a real current row)
+  ok   broken gitfile: a current row is not printed under --quiet (control)
+  ok   unknown extension: exit 6
+  ok   unknown extension: libs/a blind
+  ok   unknown extension: pin state unreadable
+  ok   unknown extension: a no-answer is recorded
+  ok   unknown extension: the blind row is printed under --quiet
+  ok   symlinked submodule: pin state not-a-directory
+  ok   symlinked submodule: reason pin-not-a-directory
+  ok   symlinked submodule: attention
+  ok   symlinked submodule: exit 4
+  ok   follow then blocked: libs/a at the new pin
+  ok   follow then blocked: it was not there before
+  ok   follow then blocked: followed
+  ok   follow then blocked: head_after is the real head
+  ok   follow then blocked: moved
+  ok   follow then blocked: attention, never updated
+  ok   follow then blocked: reason unreachable:origin
+  ok   follow then blocked: exit 4
+  ok   advance-pins, submodule on branch: not moved
+  ok   advance-pins, submodule on branch: still on topic
+  ok   advance-pins, submodule on branch: action recorded
+  ok   advance-pins, submodule on branch: reason kept-on-branch:advance-pin
+  ok   advance-pins, submodule on branch: nothing staged
+  ok   advance-pins, submodule on branch: exit 4
+  ok   advance-pins control (detached): starts at the recorded pin
+  ok   advance-pins control (detached): starts detached
+  ok   advance-pins control (detached): advanced
+  ok   advance-pins control (detached): staged
+  ok   follow blocked: the new pin is not present in the child (precondition)
+  ok   follow blocked: the parent moved to the new pin
+  ok   follow blocked: libs/a stays where it was
+  ok   follow blocked: libs/a failed
+  ok   follow blocked: one follow-blocked action
+  ok   follow blocked: exit 1
+  ok   follow blocked: verdict FAILED
+sync-integration: PASS 149 FAIL 0
+=== test_integration OK (127s)
+=== test_e2e
+== sync-e2e (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.g5IUFl)
+  ok   --help: exit 0
+  ok   --help lists --apply
+  ok   user run from a subdirectory: exit 0
+  ok   default evidence under XDG_CACHE_HOME
+  ok   schema id
+  ok   run id
+  ok   mode
+  ok   exit code recorded
+  ok   verdict recorded
+  ok   control needle recorded and ok
+  ok   timestamps are UTC ISO-8601
+  ok   root head_before = pre-run HEAD
+  ok   root head_after = HEAD now
+  ok   root action recorded (fast-forward rc 0)
+  ok   every repository has a result
+  ok   canonical hash recorded
+  ok   TSV header
+  ok   TSV row per repository
+  ok   TSV root row result
+  ok   stderr summary lists the root
+  ok   contract: behind -> 3
+  ok   contract: dirty -> 4
+  ok   contract: two modes -> 2
+  ok   contract: bad run id -> 2
+sync-e2e: PASS 24 FAIL 0
+=== test_e2e OK (11s)
+=== test_full_automation
+== sync-full-automation (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.Z1Ortk)
+  ok   off: verdict OFF
+  ok   off: prints the command
+  ok   offline: CURRENT (nothing fetched yet)
+  ok   offline: no fetch
+  ok   check: UPDATES-AVAILABLE
+  ok   check: rc 3
+  ok   offline after a fetch: UPDATES-AVAILABLE
+  ok   apply: CURRENT verdict (exit 0)
+  ok   apply: step returns 0
+  ok   apply: root fast-forwarded
+  ok   ask without a terminal: SKIP, never run unasked
+  ok   unknown mode: SKIP
+  ok   missing engine: SKIP
+  ok   not a work tree: SKIP
+  ok   apply on a dirty tree: ATTENTION, step still returns 0
+  ok   hook: STEP 5c reached
+  ok   hook: default offline check ran the engine
+  ok   hook: verdict reported, informational
+  ok   hook: offline check changed nothing
+  ok   hook: off
+  ok   hook: unknown mode is a warning
+  ok   hook: fetch mode runs --check
+  ok   hook: fetch mode never integrates
+  ok   hook: constitution without scripts/sync is a SKIP
+  ok   setup default: exit 0
+  ok   setup default: sync off, hint printed
+  ok   setup env check: UPDATES-AVAILABLE reported
+  ok   setup env check: setup still exits 0
+  ok   setup --sync-upstreams=apply: exit 0
+  ok   setup apply: engine ran
+  ok   setup apply: consumer fast-forwarded to its upstream main
+  ok   setup --sync-upstreams=bogus: exit 2
+  ok   setup bad env value: exit 2
+  ok   setup --check-only never runs the sync
+sync-full-automation: PASS 34 FAIL 0
+=== test_full_automation OK (26s)
+=== test_security
+== sync-security (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.dcM5x4)
+  ok   full apply: exit 0
+  ok   control needle: the shim recorded 115 calls
+  ok   no ' push ' in any git call
+  ok   no ' reset ' in any git call
+  ok   no ' rebase ' in any git call
+  ok   no ' commit ' in any git call
+  ok   no '--force' in any git call
+  ok   no ' -f ' in any git call
+  ok   no '--hard' in any git call
+  ok   no '--upload-pack' in any git call
+  ok   no 'ext::' in any git call
+  ok   no ' -s ours' in any git call
+  ok   no '--amend' in any git call
+  ok   no ' clean ' in any git call
+  ok   no ' update-ref ' in any git call
+  ok   no ' gc ' in any git call
+  ok   no ' stash ' in any git call
+  ok   no ' --prune ' in any git call
+  ok   no ' --tags ' in any git call
+  ok   every + refspec writes only refs/remotes/<remote>/*
+  ok   control needle: 4 engine-owned refspecs seen
+  ok   every git call carries core.hooksPath=/dev/null
+  ok   subcommand 'add' is on the allow-list
+  ok   subcommand 'checkout' is on the allow-list
+  ok   subcommand 'config' is on the allow-list
+  ok   subcommand 'fetch' is on the allow-list
+  ok   subcommand 'for-each-ref' is on the allow-list
+  ok   subcommand 'ls-files' is on the allow-list
+  ok   subcommand 'ls-tree' is on the allow-list
+  ok   subcommand 'merge' is on the allow-list
+  ok   subcommand 'merge-base' is on the allow-list
+  ok   subcommand 'remote' is on the allow-list
+  ok   subcommand 'rev-list' is on the allow-list
+  ok   subcommand 'rev-parse' is on the allow-list
+  ok   subcommand 'status' is on the allow-list
+  ok   subcommand 'symbolic-ref' is on the allow-list
+  ok   control needle: merge was among the recorded subcommands
+  ok   leaky remote: attention (unreachable)
+  ok   leaky remote: reported unreachable
+  ok   secret absent everywhere
+  ok   userinfo absent everywhere
+  ok   control needle: the redacted URL itself is reported
+  ok   ambient GIT_DIR: exit 4 (the pins section 1 staged)
+  ok   ambient GIT_DIR: every reason is a staged gitlink
+  ok   ambient GIT_DIR: control needle, a staged pin is reported
+  ok   ambient GIT_DIR: the decoy repository was not touched
+  ok   ambient GIT_DIR: the real tree was inspected (4 repos)
+  ok   metachar remote name: nothing executed
+  ok   metachar remote name: flagged invalid
+  ok   evidence dir mode 0700
+  ok   no interactive prompt (finished in 3s)
+  ok   mirror refspec + prune config, --check: every ref of ours identical
+  ok   --check: no tag auto-followed
+  ok   --apply: exit 0
+  ok   --apply: refs/heads/wip kept
+  ok   --apply: refs/heads/wip still present
+  ok   --apply: refs/tags/localonly kept
+  ok   --apply: refs/tags/localonly still present
+  ok   --apply: refs/remotes/origin/oldbranch kept
+  ok   --apply: refs/remotes/origin/oldbranch still present
+  ok   --apply: main fast-forwarded
+  ok   variant B --apply: exit 0
+  ok   variant B: local-only tag kept
+  ok   variant B: stale remote-tracking ref kept
+  ok   variant B: local branch kept
+  ok   --tags: the new upstream tag is fetched (control needle)
+  ok   --tags: local-only tag still present
+  ok   hooks: root fast-forwarded
+  ok   hooks: no repository hook ran
+  ok   hooks: fsmonitor never ran
+  ok   hooks: control needle: a plain git checkout DOES run the hook
+  ok   hooks: control needle: a plain git status DOES run fsmonitor
+  ok   ignored dir whose files the target does not touch: no false refusal (exit 0)
+  ok   ignored dir: moved
+  ok   ignored dir: ignored file kept
+  ok   ignored secret.env: exit 4
+  ok   ignored secret.env: reason
+  ok   ignored secret.env: content kept
+  ok   ignored secret.env: not moved
+  ok   ignored secret.env: content never in the report
+  ok   core.sshCommand: the repository's command was used
+  ok   core.sshCommand: report names it
+  ok   core.sshCommand: remote reported unreachable
+sync-security: PASS 83 FAIL 0
+=== test_security OK (36s)
+=== test_determinism
+== sync-determinism (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.PfLTXx)
+  ok   --check: 3 identical canonical hashes
+  ok   --check: 3 identical TSV files
+  ok   --check: the JSON hash field equals the printed one
+  ok   --dry-run: 3 identical canonical hashes
+  ok   --dry-run: 3 identical TSV files
+  ok   --dry-run: the JSON hash field equals the printed one
+  ok   --check --no-fetch: 3 identical canonical hashes
+  ok   --check --no-fetch: 3 identical TSV files
+  ok   --check --no-fetch: the JSON hash field equals the printed one
+  ok   an unfetched upstream change does not change the offline hash
+  ok   control needle: a real state change changes the hash
+  ok   apply 1: exit 0
+  ok   apply 1: something moved
+  ok   apply 2 and 3: identical hash
+  ok   apply 3: nothing moved
+sync-determinism: PASS 15 FAIL 0
+=== test_determinism OK (43s)
+=== test_ui
+== sync-ui (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.zksyT7)
+  ok   prompt 1 shows the scope
+  ok   prompt 1 asks before fetching
+  ok   no: zero fetch calls
+  ok   no: nothing changed
+  ok   no: consent recorded as interactive
+  ok   enter: zero fetch calls
+  ok   prompt 2 asks before fast-forwarding
+  ok   yes-no: exit 3
+  ok   yes-no: nothing changed
+  ok   yes-no: verdict shown on the terminal
+  ok   prompt 3 asks before staging pins
+  ok   yes: exit 0
+  ok   yes: root fast-forwarded
+  ok   yes: libs/a advanced
+  ok   transcripts never show the token
+  ok   transcripts never show userinfo
+  ok   check: exactly one prompt
+  ok   check: exit 4 (the staged pin is attention)
+  ok   check: the only reason is the staged pin
+  ok   check after commit: exit 0 (current)
+  ok   pins-only: fixture premise X != Y
+  ok   pins-only: no fast-forward prompt (nothing behind on main)
+  ok   pins-only: libs/a advanced
+  ok   pins-only: libs/a/inner followed liba's new pin (X), not upstream main (Y)
+  ok   no terminal: exit 2
+  ok   no terminal: says why
+sync-ui: PASS 26 FAIL 0
+=== test_ui OK (28s)
+=== test_hardening
+== sync-hardening (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.6cXd7c)
+  ok   hooks: control needle: a plain git checkout DOES run a hook here
+  ok   hooks: --apply over ff + follow + advance-pin: exit 0
+  ok   hooks: root fast-forwarded
+  ok   hooks: libs/a followed
+  ok   hooks: vendor/t advanced
+  ok   hooks: no hook ran on any write path
+  ok   ignored, follow path: libs/a not moved
+  ok   ignored, follow path: local file kept
+  ok   ignored, follow path: reason recorded
+  ok   ignored, follow path: ATTENTION exit 4
+  ok   ignored, advance-pin path: libs/a not moved
+  ok   ignored, advance-pin path: local file kept
+  ok   ignored, advance-pin path: nothing staged in the root
+  ok   ignored, advance-pin path: reason recorded
+  ok   ignored, fast-forward path: root not moved
+  ok   ignored, fast-forward path: local file kept
+  ok   ignored, fast-forward path: reason recorded
+  ok   status re-read killed: root not moved
+  ok   status re-read killed: BLIND exit 6
+  ok   status re-read killed: action names it
+  ok   status re-read exit 128: root not moved
+  ok   status re-read exit 128: BLIND exit 6
+  ok   status re-read exit 128: action names it
+  ok   status re-read exit 128: the repository is blind
+  ok   tree changed before the write: root not moved
+  ok   tree changed before the write: blocked
+  ok   tree changed before the write: the user's edit is kept
+  ok   status control needle: without the fault the root fast-forwards
+  ok   inspect status killed: root not moved
+  ok   inspect status killed: dirty-tree (an unread status is never clean)
+  ok   token in URL path: absent from every output
+  ok   token in URL path: the field itself was redacted (backstop found nothing)
+  ok   token in URL path: remote reported unreachable
+  ok   GIT_CONFIG_PARAMETERS: dropped (no core.sshCommand seen)
+  ok   GIT_CONFIG_COUNT/KEY/VALUE: dropped
+  ok   control needle: a real repository core.sshCommand IS seen
+  ok   credential shapes: 'Xq9pwd' absent
+  ok   credential shapes: 'Zz7mark' absent
+  ok   credential shapes: 'cepw0rdmark' absent
+  ok   credential shapes: 'spa cepw' absent
+  ok   credential shapes: 'a@b@c' absent
+  ok   credential shapes: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWX' absent
+  ok   credential shapes: backstop found nothing
+  ok   credential shapes: the token-named remote is still fetched (by its real name)
+  ok   --out with a user's file: usage exit 2
+  ok   --out with a user's file: file untouched
+  ok   --out with a symlinked tsv: usage exit 2
+  ok   --out with a symlinked tsv: target untouched
+  ok   --out with a symlinked tsv: still a symlink
+  ok   --out control: a second run over our own report is allowed
+  ok   no remote: ATTENTION exit 4, never CURRENT
+  ok   no remote: reason no-upstream-main
+  ok   remote without main: ATTENTION exit 4
+  ok   remote without main: reason no-upstream-main
+  ok   moved tag: remote fetch state tag-rejected (the remote answered)
+  ok   moved tag: reason tag-rejected:origin
+  ok   moved tag: never labelled unreachable
+  ok   moved tag: the branch was still fetched and evaluated (behind 1)
+  ok   moved tag: local tag kept (never forced)
+  ok   moved tag: ATTENTION exit 4
+  ok   moved tag, --apply: integration blocked (exit 4), nothing moved
+  ok   M37: the concurrent staging happened (control needle)
+  ok   M37: libs/a never checked out at the staged gitlink
+  ok   M37b: a root that did not move makes no child follow (no follow action at all)
+  ok   M37b: pre-staged gitlink, root not moved: no follow action for libs/a
+  ok   M37b: libs/a not moved
+  ok   extra args: anything but --out is ignored, with a note
+  ok   extra args: --apply smuggled into a check never moved the root
+  ok   extra args: --out /dir is honoured
+  ok   partial guard: no config line
+  ok   partial guard: promisor false
+  ok   partial guard: promisor with an empty value (git reads it as false), a remote name with a space
+  ok   partial guard: no / OFF / 0
+  ok   partial guard: value-less promisor (a boolean true)
+  ok   partial guard: promisor true
+  ok   partial guard: promisor Yes (the round-3 pattern missed it)
+  ok   partial guard: promisor 1
+  ok   partial guard: promisor on
+  ok   partial guard: partialclonefilter
+  ok   partial guard: value-less partialclonefilter
+  ok   partial guard: extensions.partialclone
+  ok   partial guard: mixed-case extensions.partialClone
+  ok   partial guard: a later promisor true after a false
+  ok   partial guard: a line it cannot read
+  ok   partial guard: large input, the match on line 1 (the fail-open shape)
+  ok   partial guard: large input, the match on the last line
+  ok   partial guard: large input, nothing partial (golden false)
+  ok   partial guard: control needle: the round-3 pipeline returns 141 on the large input
+  ok   partial guard, _refuse_shallow: large partial config
+  ok   partial guard, _refuse_shallow: large config, nothing partial (golden false)
+  ok   partial guard, _refuse_shallow: config read exits 3 (cannot read it)
+  ok   partial guard, _refuse_shallow: shallow source
+  ok   partial guard, _refuse_shallow: rev-parse fails
+  ok   partial guard: six parallel guards on a large partial config: none accepted
+  ok   partial guard: six parallel guards ran
+  ok   partial guard, real repository: a full clone is accepted
+  ok   partial guard, real repository: a partial-clone configuration is refused
+  ok   pipe lint: positive control: every early-exit reader is found
+  ok   pipe lint: negative control: nothing else is flagged
+  ok   pipe lint: 21 shell files listed
+  ok   pipe lint: no early-exit pipe in the 21 shell files of this vehicle
+  ok   pipe lint: the only allowed pipeline is the section-12 control needle
+  ok   M67: the concurrent staging happened after discovery (control needle)
+  ok   M67: libs/a not checked out at the new pin
+  ok   M67: the gitlink the other writer staged is kept
+  ok   M67: the writer names the changed index
+  ok   M67: a blocked write is attention, exit 4
+  ok   M67: the blocked write is a reason
+  ok   M67 control: without the other writer libs/a is advanced
+  ok   M67 control: and its new gitlink is staged
+  ok   M67 control: exit 0
+  ok   M70: a real report to link to (exit 0)
+  ok   M70: a symlink to a report of ours: usage exit 2
+  ok   M70: a symlink to a report of ours: named as not ours
+  ok   M70: the symlink is still a symlink
+  ok   M70: the report it points at is unchanged
+  ok   M70: a FIFO at the report path: usage exit 2 (124 = the engine blocked on it)
+  ok   M70: the FIFO is still a FIFO
+  ok   M70 control: a regular report of ours is reused (exit 0)
+sync-hardening: PASS 119 FAIL 0
+=== test_hardening OK (118s)
+=== test_chaos
+== sync-chaos (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.b84o0m)
+  ok   unreachable: exit 4
+  ok   unreachable remote state
+  ok   garbage remote state
+  ok   origin still fetched and evaluated
+  ok   repo with an unreachable remote is not integrated
+  ok   third-party repo unaffected
+  ok   slow remote: fetch state timeout
+  ok   slow remote: reported unreachable
+  ok   slow remote: run bounded (5s)
+  ok   slow remote: the process count sees this sandbox's needle
+  ok   slow remote: no surviving upload-pack process
+  ok   deadline: run bounded (4s)
+  ok   deadline: slow remote not fetched in time
+  ok   concurrent run: exit 7 (locked, distinct from usage 2)
+  ok   concurrent run: says the lock is held
+  ok   concurrent run: nothing changed
+  ok   after the holder exits the lock is free (exit 0)
+  ok   re-run after SIGKILL: exit 0
+  ok   re-run: root at upstream main
+  ok   re-run: libs/a at upstream main
+  ok   re-run: no index.lock left
+  ok   many: exit 4 (one broken)
+  ok   many: 13 repositories discovered
+  ok   many: broken one is attention
+  ok   many: three own-org pins advanced
+  ok   many: three gitlinks staged
+  ok   stalled HEAD read, --check: exit 5 (INCONCLUSIVE)
+  ok   stalled HEAD read: root result unresolved
+  ok   stalled HEAD read: verdict INCONCLUSIVE
+  ok   stalled read: bounded (10s)
+  ok   stalled HEAD read, --apply: exit 5
+  ok   stalled HEAD read, --apply: root not moved
+  ok   stalled HEAD read, --apply: never reported updated
+  ok   HEAD read stalls only after the move: exit 5, not 0
+  ok   after-move stall: result unresolved, never updated-with-unknown-head
+  ok   after-move stall: the move itself happened (real HEAD)
+  ok   stalled reads: no surviving stalled process
+  ok   control needle: without the stall the root is read (result current)
+  ok   control needle: without the stall the verdict is not INCONCLUSIVE
+  ok   escaped grandchild: run bounded (5s)
+  ok   escaped grandchild: remote reported unreachable
+  ok   escaped grandchild: control needle: it really started (pid 2933082)
+  ok   escaped grandchild: control needle: its stderr is a pipe
+  ok   failed HEAD read: control needle: the failure was injected
+  ok   HEAD read rc 128, --check: exit 6 (BLIND), never 0, 3 or 4
+  ok   HEAD read rc 128, --check: root result blind
+  ok   HEAD read rc 128, --check: reason names the call
+  ok   failed HEAD read, --apply: the failure was injected
+  ok   HEAD read rc 128, --apply: exit 6
+  ok   HEAD read rc 128, --apply: root not moved
+  ok   HEAD read rc 128, --apply: integration blocked as unresolved
+  ok   HEAD read rc 128, --apply: never reported updated
+  ok   8b: the rc-1 answer was injected
+  ok   8b: HEAD read rc 1 (unborn): exit 4 (ATTENTION)
+  ok   8b: reason head-unreadable
+  ok   8b, --apply: root not moved
+  ok   8b, --apply: integration blocked by head-unreadable
+  ok   control needle: without the failure the root is behind (exit 3)
+sync-chaos: PASS 58 FAIL 0
+=== test_chaos OK (136s)
+=== test_perf
+== sync-perf (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.uE0jAE)
+  ok   jobs 1: exit 0
+  ok   jobs 1: 31 repositories
+  ok   jobs 1: exactly one fetch per remote
+  ok   jobs 1: report records the job count
+  ok   jobs 1: git calls 467 <= 16 per repository
+  ok   jobs 1: wall 18337 ms < 180 s
+  ok   jobs 4: exit 0
+  ok   jobs 4: 31 repositories
+  ok   jobs 4: exactly one fetch per remote
+  ok   jobs 4: report records the job count
+  ok   jobs 4: git calls 467 <= 16 per repository
+  ok   jobs 4: wall 17806 ms < 180 s
+  ok   jobs ceiling: 1000 is clamped to at most 8
+-- benchmark (host load at start: 48.54 47.78 47.07)
+jobs	wall_ms	fetch_calls	git_calls	repos
+1	18337	31	467	31
+4	17806	31	467	31
+sync-perf: PASS 13 FAIL 0
+=== test_perf OK (79s)
+=== test_faults
+== sync-faults (sandbox /mnt/DATA1TB/claude-work/tmp/helix-sync-test.Yo7KI1)
+  ok   control: APPLIED exit 0
+  ok   control: 112 git calls logged
+  ok   control: root fast-forwarded
+  ok   control: libs/a followed its new pin
+  ok   control: vendor/t advanced
+  ok   control: the report says libs/a followed its new pin
+  ok   control: root, libs/a and vendor/t moved on disk
+  ok   control: the report's moved set equals the repositories whose HEAD changed on disk
+  ok   sites: 30 git call sites enumerated from the AST
+  ok   sites: every call site is reached by the control run (and recognisable)
+  ok   oracle: the gate prints its call-site table
+  ok   oracle: the engine's call sites equal the oracle's (prefix, ok=, want=) multiset
+  ok   oracle: every logged call has exactly one exit-128 class
+  ok   faults: 375 fault runs over 112 calls (sigkill rc77 rc128 garbage)
+  ok   rc128: 112 runs with a real exit 128
+  ok   rc128: 4 runs where 128 is a writer failure
+  ok   rc128: 4 runs where 128 is an unreachable remote
+  ok   rc128: 1 of 4 unreachable runs block a pin follow (FAILED), the rest are ATTENTION
+  ok   faults: every no-answer made the run BLIND and moved nothing it should not
+  ok   needle: an injected first-call failure is BLIND
+  ok   needle: the engine names the call
+sync-faults: PASS 21 FAIL 0
+=== test_faults OK (2576s)
+=== test_robustness
+== race_commit
+  ok   race_commit.action_fired
+  ok   race_commit.user_commit_still_checked_out
+  ok   race_commit.not_reported_updated
+  ok   race_commit.run_not_applied
+  ok   race_commit.refusal_recorded
+== race_switch
+  ok   race_switch.action_fired
+  ok   race_switch.topic_not_moved
+  ok   race_switch.main_not_moved
+  ok   race_switch.run_not_applied
+  ok   race_switch.refusal_recorded
+== race_sub_branch
+  ok   race_sub_branch.action_fired
+  ok   race_sub_branch.submodule_still_on_branch
+  ok   race_sub_branch.head_not_moved
+== race_control
+  ok   race_control.user_commit_kept_on_main
+  ok   race_control.not_applied
+== race_other
+  ok   race_other.action_fired_control
+  ok   race_other.head_moved_recorded
+  ok   race_other.reason_head_changed_during_run
+  ok   race_other.changed_by_other
+  ok   race_other.not_reported_updated
+== autostash
+  ok   autostash.action_fired
+  ok   autostash.head_not_moved
+  ok   autostash.no_stash_created
+  ok   autostash.user_edit_kept
+  ok   autostash.failed_verdict
+  ok   autostash.no_marker_after_answered_failure
+== sigterm_write
+  ok   sigterm_write.signal_sent
+  ok   sigterm_write.exit_8
+  ok   sigterm_write.result_line
+  ok   sigterm_write.report_written
+  ok   sigterm_write.move_recorded
+  ok   sigterm_write.root_really_at_r2
+  ok   sigterm_write.no_traceback
+== no_new_call
+  ok   no_new_call.control_trigger_seen
+  ok   no_new_call.control_interrupted
+  ok   no_new_call.only_final_reads_after_stop
+  ok   no_new_call.no_call_started_after_stop
+== final_cap
+  ok   final_cap.control_interrupted
+  ok   final_cap.control_final_reads_started_and_hung
+  ok   final_cap.ends_within_cap
+  ok   final_cap.timed_out_read_recorded
+== sigterm_fetch
+  ok   sigterm_fetch.fetch_hanging
+  ok   sigterm_fetch.exits_fast
+  ok   sigterm_fetch.exit_8
+  ok   sigterm_fetch.no_traceback
+  ok   sigterm_fetch.no_orphan
+  ok   sigterm_fetch.report_interrupted
+== sigint_fetch
+  ok   sigint_fetch.fetch_hanging
+  ok   sigint_fetch.exits_fast
+  ok   sigint_fetch.exit_8
+  ok   sigint_fetch.no_traceback
+  ok   sigint_fetch.no_orphan
+  ok   sigint_fetch.report_interrupted
+== staged_gitlink
+  ok   staged_gitlink.index_untouched
+  ok   staged_gitlink.reason_reported
+  ok   staged_gitlink.attention
+== escaped_after_exit
+  ok   escaped_after_exit.control_grandchild_alive_after_run
+  ok   escaped_after_exit.answer_not_waiting_for_the_pipe
+  ok   escaped_after_exit.remote_reachable
+  ok   escaped_after_exit.root_behind_exit_3
+== long_line
+  ok   long_line.bounded_time
+  ok   long_line.report_written
+== huge_stderr
+  ok   huge_stderr.peak_rss_bounded
+  ok   huge_stderr.run_ended_with_report
+== askpass
+  ok   askpass.core_askPass_not_run
+  ok   askpass.GIT_ASKPASS_not_run
+  ok   askpass.SSH_ASKPASS_not_run
+  ok   askpass.remote_reported_unreachable_auth
+== askpass_ssh_only
+  ok   askpass_ssh_only.not_run
+== ext_env
+  ok   ext_env.helper_not_run
+== ext_repo
+  ok   ext_repo.helper_not_run
+== protocol_from_user
+  ok   protocol_from_user.fetched
+== trace_env
+  ok   trace_env.no_trace_file
+== auth_header
+  ok   auth_header.control_needle_seen
+  ok   auth_header.value_redacted
+  ok   auth_header.failed_merge_exit_1
+== secret8
+  ok   secret8.absent_everywhere
+== ctrl_url
+  ok   ctrl_url.url_reported
+  ok   ctrl_url.no_del_or_c1
+== invalid_remote
+  ok   invalid_remote[bad.lock].not_moved
+  ok   invalid_remote[bad.lock].attention
+  ok   invalid_remote[-dash].not_moved
+  ok   invalid_remote[-dash].attention
+== diverged
+  ok   diverged.child_held
+  ok   diverged.attention
+== no_upstream_main
+  ok   no_upstream_main.child_held
+  ok   no_upstream_main.attention
+== lock_symlink
+  ok   lock_symlink.exit_1
+  ok   lock_symlink.target_not_created
+  ok   lock_symlink.submodule_exit_1
+  ok   lock_symlink.submodule_target_not_created
+  ok   lock_symlink.control_no_link_runs
+== lock_overlap
+  ok   lock_overlap.exit_7
+  ok   lock_overlap.root_not_moved
+== out_unwritable
+  ok   out_unwritable.exit_2
+  ok   out_unwritable.not_moved
+  ok   out_unwritable.existing_dir_exit_2
+  ok   out_unwritable.existing_dir_not_moved
+  ok   out_unwritable.control_writable_dir_accepted
+== out_lost
+  ok   out_lost.moved
+  ok   out_lost.exit_1
+  ok   out_lost.move_on_stderr
+== default_out_symlink
+  ok   default_out_symlink.refused
+  ok   default_out.nothing_in_tree
+== default_out_relative
+  ok   default_out_relative.refused
+  ok   default_out_relative.nothing_in_tree
+  ok   default_out_relative.outside_cwd_refused
+  ok   default_out_relative.outside_cwd_nothing_written
+  ok   default_out_relative.control_absolute_accepted
+== unsafe_path
+  ok   unsafe_path[-dash].reported
+  ok   unsafe_path[-dash].attention
+  ok   unsafe_path[back\slash].reported
+  ok   unsafe_path[back\slash].attention
+== outside_parent
+  ok   outside_parent.not_inspected
+  ok   outside_parent.attention
+== write_deadline
+  ok   write_deadline.control_slow
+  ok   write_deadline.head_at_target
+  ok   write_deadline.no_index_lock
+  ok   write_deadline.tree_clean
+  ok   write_deadline.move_recorded
+  ok   write_deadline.not_unresolved
+  ok   write_deadline.applied
+  ok   write_deadline.marker_removed
+== write_timeout
+  ok   write_timeout.failed_exit_1
+  ok   write_timeout.ended_before_finish
+  ok   write_timeout.reason_write_killed
+  ok   write_timeout.term_sufficed
+  ok   write_timeout.no_index_lock_after_term
+  ok   write_timeout.head_not_moved
+  ok   write_timeout.recovery_steps
+  ok   write_timeout.recovery_printed
+  ok   write_timeout.marker_kept
+  ok   write_timeout.control_leftovers_present
+  ok   write_timeout.rerun_attributes
+  ok   write_timeout.rerun_no_plain_dirty_tree
+  ok   write_timeout.rerun_attention_not_moved
+  ok   write_timeout.recovered_apply
+  ok   write_timeout.marker_cleared
+  ok   write_timeout.marker_clear_noted
+== write_kill
+  ok   write_kill.failed_exit_1
+  ok   write_kill.reason
+  ok   write_kill.named_signal
+  ok   write_kill.locks_listed_when_left
+  ok   write_kill.bounded
+== marker_success
+  ok   marker_success.applied
+  ok   marker_success.no_marker
+== switch_at_merge
+  ok   switch_at_merge.fired
+  ok   switch_at_merge.reported
+  ok   switch_at_merge.not_updated
+== sigterm_pin
+  ok   sigterm_pin.signalled
+  ok   sigterm_pin.exit_8
+  ok   sigterm_pin.child_at_s2
+  ok   sigterm_pin.index_staged_s2
+  ok   sigterm_pin.action_verified
+== marker_inspect
+  ok   marker_inspect.fired
+  ok   marker_inspect.root_not_moved
+  ok   marker_inspect.attention
+== wrote_then_other
+  ok   wrote_then_other.fired
+  ok   wrote_then_other.reason
+  ok   wrote_then_other.changed_by_other
+  ok   wrote_then_other.attention
+== staged_root
+  ok   staged_root.attention_exit_4
+  ok   staged_root.blocked_before_write
+  ok   staged_root.root_not_moved
+  ok   staged_root.stage_kept
+  ok   staged_root.control_moved
+  ok   staged_root.control_stage_kept
+== lock_open
+  ok   lock_open.sub_exit_1
+  ok   lock_open.sub_own_message
+  ok   lock_open.root_exit_1
+  ok   lock_open.root_own_message
+  ok   lock_open.control_runs
+== ctrl_c
+  ok   ctrl_c.prompted
+  ok   ctrl_c.ends_without_enter
+  ok   ctrl_c.exit_8
+  ok   ctrl_c.nothing_moved
+== update_none
+  ok   update_none.root_moved
+  ok   update_none.child_not_followed
+  ok   update_none.reason
+  ok   update_none.attention
+  ok   update_none.gitmodules_root_moved
+  ok   update_none.gitmodules_rebase_not_followed
+  ok   update_none.gitmodules_reason
+  ok   update_none.control_follows
+== interrupted_labels
+  ok   interrupted_labels.exit_8
+  ok   interrupted_labels.no_unreachable
+  ok   interrupted_labels.no_no_upstream
+  ok   interrupted_labels.labelled
+== blind_failed
+  ok   blind_failed.fired
+  ok   blind_failed.malformed_recorded
+  ok   blind_failed.blind_exit_6
+== stale_marker
+  ok   stale_marker.check_keeps
+  ok   stale_marker.check_notes_present
+  ok   stale_marker.check_not_blocked
+  ok   stale_marker.apply_clears
+  ok   stale_marker.apply_notes_cleared
+  ok   stale_marker.apply_current
+== refused_marker
+  ok   refused_marker.ff.stop-after-marker.ran
+  ok   refused_marker.ff.stop-after-marker.not_moved
+  ok   refused_marker.ff.stop-after-marker.no_marker
+  ok   refused_marker.ff.stop-after-marker.marker_was_written
+  ok   refused_marker.ff.stop-after-marker.user_edit_is_users
+  ok   refused_marker.ff.stop-after-marker.not_blamed_on_engine
+  ok   refused_marker.ff.deadline-after-marker.ran
+  ok   refused_marker.ff.deadline-after-marker.not_moved
+  ok   refused_marker.ff.deadline-after-marker.no_marker
+  ok   refused_marker.ff.deadline-after-marker.marker_was_written
+  ok   refused_marker.ff.deadline-after-marker.user_edit_is_users
+  ok   refused_marker.ff.deadline-after-marker.not_blamed_on_engine
+  ok   refused_marker.ff.stop-before-marker.ran
+  ok   refused_marker.ff.stop-before-marker.not_moved
+  ok   refused_marker.ff.stop-before-marker.no_marker
+  ok   refused_marker.ff.stop-before-marker.marker_never_written
+  ok   refused_marker.ff.stop-before-marker.user_edit_is_users
+  ok   refused_marker.ff.stop-before-marker.not_blamed_on_engine
+  ok   refused_marker.ff.deadline-before-marker.ran
+  ok   refused_marker.ff.deadline-before-marker.not_moved
+  ok   refused_marker.ff.deadline-before-marker.no_marker
+  ok   refused_marker.ff.deadline-before-marker.marker_never_written
+  ok   refused_marker.ff.deadline-before-marker.user_edit_is_users
+  ok   refused_marker.ff.deadline-before-marker.not_blamed_on_engine
+  ok   refused_marker.ff.spawn-fails-write.ran
+  ok   refused_marker.ff.spawn-fails-write.not_moved
+  ok   refused_marker.ff.spawn-fails-write.no_marker
+  ok   refused_marker.ff.spawn-fails-write.marker_was_written
+  ok   refused_marker.ff.spawn-fails-write.user_edit_is_users
+  ok   refused_marker.ff.spawn-fails-write.not_blamed_on_engine
+  ok   refused_marker.pin.stop-after-marker.ran
+  ok   refused_marker.pin.stop-after-marker.not_moved
+  ok   refused_marker.pin.stop-after-marker.no_marker
+  ok   refused_marker.pin.stop-after-marker.marker_was_written
+  ok   refused_marker.pin.stop-after-marker.user_edit_is_users
+  ok   refused_marker.pin.stop-after-marker.not_blamed_on_engine
+  ok   refused_marker.pin.deadline-after-marker.ran
+  ok   refused_marker.pin.deadline-after-marker.not_moved
+  ok   refused_marker.pin.deadline-after-marker.no_marker
+  ok   refused_marker.pin.deadline-after-marker.marker_was_written
+  ok   refused_marker.pin.deadline-after-marker.user_edit_is_users
+  ok   refused_marker.pin.deadline-after-marker.not_blamed_on_engine
+  ok   refused_marker.pin.spawn-fails-write.ran
+  ok   refused_marker.pin.spawn-fails-write.not_moved
+  ok   refused_marker.pin.spawn-fails-write.no_marker
+  ok   refused_marker.pin.spawn-fails-write.marker_was_written
+  ok   refused_marker.pin.spawn-fails-write.user_edit_is_users
+  ok   refused_marker.pin.spawn-fails-write.not_blamed_on_engine
+== refused_stage
+  ok   refused_stage.markers
+  ok   refused_stage.child_moved
+  ok   refused_stage.not_staged
+  ok   refused_stage.reported_unresolved
+  ok   refused_stage.no_parent_marker
+  ok   refused_stage.no_child_marker
+  ok   refused_stage.user_edit_is_users
+  ok   refused_stage.not_blamed_on_engine
+  ok   refused_stage.before.child_moved
+  ok   refused_stage.before.stage_marker_never_written
+  ok   refused_stage.before.no_parent_marker
+  ok   refused_stage.before.not_staged
+  ok   refused_stage.after_pre_index.fired
+  ok   refused_stage.after_pre_index.stage_marker_never_written
+  ok   refused_stage.after_pre_index.no_parent_marker
+  ok   refused_stage.after_pre_index.not_staged
+  ok   refused_stage.after_pre_index.reported_unresolved
+== marker_lock
+  ok   marker_lock.control_tree_clean
+  ok   marker_lock.exit_4
+  ok   marker_lock.attributed
+  ok   marker_lock.not_users
+  ok   marker_lock.marker_kept
+  ok   marker_lock.control_users
+== flock_error
+  ok   flock_error.flock-error-root.exit_1
+  ok   flock_error.flock-error-root.message
+  ok   flock_error.flock-error-root.not_another_run
+  ok   flock_error.flock-error-root.result_failed
+  ok   flock_error.flock-error-repo.exit_1
+  ok   flock_error.flock-error-repo.message
+  ok   flock_error.flock-error-repo.not_another_run
+  ok   flock_error.flock-error-repo.result_failed
+  ok   flock_error.flock-held-repo.exit_7
+  ok   flock_error.flock-held-repo.message
+== sibling_kill
+  ok   sibling_kill.every_write_held_its_own_marker
+  ok   sibling_kill.exit_1
+  ok   sibling_kill.one_add_only
+  ok   sibling_kill.a_moved
+  ok   sibling_kill.b_not_moved
+  ok   sibling_kill.b_blocked_before_move
+  ok   sibling_kill.marker_kept
+  ok   sibling_kill.marker_is_the_killed_writes
+  ok   sibling_kill.lock_left
+  ok   sibling_kill.later_run_attributes
+  ok   sibling_kill.not_blamed_on_user
+  ok   sibling_kill.control.every_write_held_its_own_marker
+  ok   sibling_kill.control_exit_0
+  ok   sibling_kill.control_both_staged
+  ok   sibling_kill.control_nothing_left
+== sibling_wipe
+  ok   sibling_wipe.every_write_held_its_own_marker
+  ok   sibling_wipe.one_add_only
+  ok   sibling_wipe.b_not_moved
+  ok   sibling_wipe.b_blocked_by_state
+== marker_pre
+  ok   marker_pre.plant-ff.planted
+  ok   marker_pre.plant-ff.foreign_marker_intact
+  ok   marker_pre.plant-ff.no_write_into_that_git_dir
+  ok   marker_pre.plant-ff.every_write_held_its_own_marker
+  ok   marker_pre.plant-ff.not_exit_0
+  ok   marker_pre.plant-ff.not_moved
+  ok   marker_pre.plant-ff.reported
+  ok   marker_pre.plant-pin.planted
+  ok   marker_pre.plant-pin.foreign_marker_intact
+  ok   marker_pre.plant-pin.no_write_into_that_git_dir
+  ok   marker_pre.plant-pin.every_write_held_its_own_marker
+  ok   marker_pre.plant-pin.not_exit_0
+  ok   marker_pre.plant-pin.not_moved
+  ok   marker_pre.plant-pin.reported
+  ok   marker_pre.plant-follow.planted
+  ok   marker_pre.plant-follow.foreign_marker_intact
+  ok   marker_pre.plant-follow.no_write_into_that_git_dir
+  ok   marker_pre.plant-follow.every_write_held_its_own_marker
+  ok   marker_pre.plant-follow.not_exit_0
+  ok   marker_pre.plant-follow.not_moved
+  ok   marker_pre.plant-follow.reported
+  ok   marker_pre.plant-stage.planted
+  ok   marker_pre.plant-stage.foreign_marker_intact
+  ok   marker_pre.plant-stage.no_write_into_that_git_dir
+  ok   marker_pre.plant-stage.every_write_held_its_own_marker
+  ok   marker_pre.plant-stage.not_exit_0
+  ok   marker_pre.plant-stage.reported
+  ok   marker_pre.race-ff.planted
+  ok   marker_pre.race-ff.foreign_marker_intact
+  ok   marker_pre.race-ff.no_write_into_that_git_dir
+  ok   marker_pre.race-ff.every_write_held_its_own_marker
+  ok   marker_pre.race-ff.not_exit_0
+  ok   marker_pre.race-ff.not_moved
+  ok   marker_pre.race-ff.reported
+  ok   marker_pre.race-pin.planted
+  ok   marker_pre.race-pin.foreign_marker_intact
+  ok   marker_pre.race-pin.no_write_into_that_git_dir
+  ok   marker_pre.race-pin.every_write_held_its_own_marker
+  ok   marker_pre.race-pin.not_exit_0
+  ok   marker_pre.race-pin.not_moved
+  ok   marker_pre.race-pin.reported
+  ok   marker_pre.race-follow.planted
+  ok   marker_pre.race-follow.foreign_marker_intact
+  ok   marker_pre.race-follow.no_write_into_that_git_dir
+  ok   marker_pre.race-follow.every_write_held_its_own_marker
+  ok   marker_pre.race-follow.not_exit_0
+  ok   marker_pre.race-follow.not_moved
+  ok   marker_pre.race-follow.reported
+  ok   marker_pre.race-stage.planted
+  ok   marker_pre.race-stage.foreign_marker_intact
+  ok   marker_pre.race-stage.no_write_into_that_git_dir
+  ok   marker_pre.race-stage.every_write_held_its_own_marker
+  ok   marker_pre.race-stage.not_exit_0
+  ok   marker_pre.race-stage.reported
+  ok   marker_pre.swap-ff.planted
+  ok   marker_pre.swap-ff.foreign_marker_intact
+  ok   marker_pre.swap-ff.no_write_into_that_git_dir
+  ok   marker_pre.swap-ff.every_write_held_its_own_marker
+  ok   marker_pre.swap-ff.not_exit_0
+  ok   marker_pre.swap-ff.not_moved
+  ok   marker_pre.swap-ff.reported
+  ok   marker_pre.swap-pin.planted
+  ok   marker_pre.swap-pin.foreign_marker_intact
+  ok   marker_pre.swap-pin.no_write_into_that_git_dir
+  ok   marker_pre.swap-pin.every_write_held_its_own_marker
+  ok   marker_pre.swap-pin.not_exit_0
+  ok   marker_pre.swap-pin.not_moved
+  ok   marker_pre.swap-pin.reported
+  ok   marker_pre.swap-follow.planted
+  ok   marker_pre.swap-follow.foreign_marker_intact
+  ok   marker_pre.swap-follow.no_write_into_that_git_dir
+  ok   marker_pre.swap-follow.every_write_held_its_own_marker
+  ok   marker_pre.swap-follow.not_exit_0
+  ok   marker_pre.swap-follow.not_moved
+  ok   marker_pre.swap-follow.reported
+  ok   marker_pre.swap-stage.planted
+  ok   marker_pre.swap-stage.foreign_marker_intact
+  ok   marker_pre.swap-stage.no_write_into_that_git_dir
+  ok   marker_pre.swap-stage.every_write_held_its_own_marker
+  ok   marker_pre.swap-stage.not_exit_0
+  ok   marker_pre.swap-stage.reported
+  ok   marker_pre.plant-pinparent.planted
+  ok   marker_pre.plant-pinparent.foreign_marker_intact
+  ok   marker_pre.plant-pinparent.no_write_into_that_git_dir
+  ok   marker_pre.plant-pinparent.every_write_held_its_own_marker
+  ok   marker_pre.plant-pinparent.not_exit_0
+  ok   marker_pre.plant-pinparent.not_moved
+  ok   marker_pre.plant-pinparent.reported
+== stop_pin
+  ok   stop_pin.every_write_held_its_own_marker
+  ok   stop_pin.exit_8
+  ok   stop_pin.add_ran
+  ok   stop_pin.staged_s2
+  ok   stop_pin.nothing_left
+== parent_lock
+  ok   parent_lock.not_exit_0
+  ok   parent_lock.child_not_moved
+  ok   parent_lock.no_write_started
+  ok   parent_lock.blocked_before_move
+  ok   parent_lock.lock_kept
+  ok   parent_lock.late.exit_1
+  ok   parent_lock.late.no_add_started
+  ok   parent_lock.late.stage_blocked_reported
+  ok   parent_lock.late.child_failed
+  ok   parent_lock.late.lock_kept_no_marker
+== lock_matrix
+  ok   lock_matrix.ff.index.lock.not_moved
+  ok   lock_matrix.ff.index.lock.no_half_write
+  ok   lock_matrix.ff.index.lock.lock_untouched
+  ok   lock_matrix.ff.index.lock.not_exit_0
+  ok   lock_matrix.ff.index.lock.lock_named
+  ok   lock_matrix.ff.index.lock.marker.not_moved
+  ok   lock_matrix.ff.index.lock.marker.no_half_write
+  ok   lock_matrix.ff.index.lock.marker.lock_untouched
+  ok   lock_matrix.ff.index.lock.marker.not_exit_0
+  ok   lock_matrix.ff.index.lock.marker.lock_named
+  ok   lock_matrix.ff.index.lock.marker.marker_kept
+  ok   lock_matrix.ff.index.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.HEAD.lock.not_moved
+  ok   lock_matrix.ff.HEAD.lock.no_half_write
+  ok   lock_matrix.ff.HEAD.lock.lock_untouched
+  ok   lock_matrix.ff.HEAD.lock.not_exit_0
+  ok   lock_matrix.ff.HEAD.lock.lock_named
+  ok   lock_matrix.ff.HEAD.lock.marker.not_moved
+  ok   lock_matrix.ff.HEAD.lock.marker.no_half_write
+  ok   lock_matrix.ff.HEAD.lock.marker.lock_untouched
+  ok   lock_matrix.ff.HEAD.lock.marker.not_exit_0
+  ok   lock_matrix.ff.HEAD.lock.marker.lock_named
+  ok   lock_matrix.ff.HEAD.lock.marker.marker_kept
+  ok   lock_matrix.ff.HEAD.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.ORIG_HEAD.lock.not_moved
+  ok   lock_matrix.ff.ORIG_HEAD.lock.no_half_write
+  ok   lock_matrix.ff.ORIG_HEAD.lock.lock_untouched
+  ok   lock_matrix.ff.ORIG_HEAD.lock.not_exit_0
+  ok   lock_matrix.ff.ORIG_HEAD.lock.lock_named
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.not_moved
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.no_half_write
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.lock_untouched
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.not_exit_0
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.lock_named
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.marker_kept
+  ok   lock_matrix.ff.ORIG_HEAD.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.AUTO_MERGE.lock.not_moved
+  ok   lock_matrix.ff.AUTO_MERGE.lock.no_half_write
+  ok   lock_matrix.ff.AUTO_MERGE.lock.lock_untouched
+  ok   lock_matrix.ff.AUTO_MERGE.lock.not_exit_0
+  ok   lock_matrix.ff.AUTO_MERGE.lock.lock_named
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.not_moved
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.no_half_write
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.lock_untouched
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.not_exit_0
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.lock_named
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.marker_kept
+  ok   lock_matrix.ff.AUTO_MERGE.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.common_packed-refs.lock.not_moved
+  ok   lock_matrix.ff.common_packed-refs.lock.no_half_write
+  ok   lock_matrix.ff.common_packed-refs.lock.lock_untouched
+  ok   lock_matrix.ff.common_packed-refs.lock.not_exit_0
+  ok   lock_matrix.ff.common_packed-refs.lock.lock_named
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.not_moved
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.no_half_write
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.lock_untouched
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.not_exit_0
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.lock_named
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.marker_kept
+  ok   lock_matrix.ff.common_packed-refs.lock.marker.never_left_nothing
+  ok   lock_matrix.ff.common_refs_heads_main.lock.not_moved
+  ok   lock_matrix.ff.common_refs_heads_main.lock.no_half_write
+  ok   lock_matrix.ff.common_refs_heads_main.lock.lock_untouched
+  ok   lock_matrix.ff.common_refs_heads_main.lock.not_exit_0
+  ok   lock_matrix.ff.common_refs_heads_main.lock.lock_named
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.not_moved
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.no_half_write
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.lock_untouched
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.not_exit_0
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.lock_named
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.marker_kept
+  ok   lock_matrix.ff.common_refs_heads_main.lock.marker.never_left_nothing
+  ok   lock_matrix.pin.index.lock.not_moved
+  ok   lock_matrix.pin.index.lock.no_half_write
+  ok   lock_matrix.pin.index.lock.lock_untouched
+  ok   lock_matrix.pin.index.lock.not_exit_0
+  ok   lock_matrix.pin.index.lock.lock_named
+  ok   lock_matrix.pin.HEAD.lock.not_moved
+  ok   lock_matrix.pin.HEAD.lock.no_half_write
+  ok   lock_matrix.pin.HEAD.lock.lock_untouched
+  ok   lock_matrix.pin.HEAD.lock.not_exit_0
+  ok   lock_matrix.pin.HEAD.lock.lock_named
+  ok   lock_matrix.pin.AUTO_MERGE.lock.not_moved
+  ok   lock_matrix.pin.AUTO_MERGE.lock.no_half_write
+  ok   lock_matrix.pin.AUTO_MERGE.lock.lock_untouched
+  ok   lock_matrix.pin.AUTO_MERGE.lock.not_exit_0
+  ok   lock_matrix.pin.AUTO_MERGE.lock.lock_named
+  ok   lock_matrix.pin.common_packed-refs.lock.not_moved
+  ok   lock_matrix.pin.common_packed-refs.lock.no_half_write
+  ok   lock_matrix.pin.common_packed-refs.lock.lock_untouched
+  ok   lock_matrix.pin.common_packed-refs.lock.not_exit_0
+  ok   lock_matrix.pin.common_packed-refs.lock.lock_named
+  ok   lock_matrix.follow.index.lock.not_moved
+  ok   lock_matrix.follow.index.lock.no_half_write
+  ok   lock_matrix.follow.index.lock.lock_untouched
+  ok   lock_matrix.follow.index.lock.not_exit_0
+  ok   lock_matrix.follow.index.lock.lock_named
+  ok   lock_matrix.follow.HEAD.lock.not_moved
+  ok   lock_matrix.follow.HEAD.lock.no_half_write
+  ok   lock_matrix.follow.HEAD.lock.lock_untouched
+  ok   lock_matrix.follow.HEAD.lock.not_exit_0
+  ok   lock_matrix.follow.HEAD.lock.lock_named
+  ok   lock_matrix.follow.AUTO_MERGE.lock.not_moved
+  ok   lock_matrix.follow.AUTO_MERGE.lock.no_half_write
+  ok   lock_matrix.follow.AUTO_MERGE.lock.lock_untouched
+  ok   lock_matrix.follow.AUTO_MERGE.lock.not_exit_0
+  ok   lock_matrix.follow.AUTO_MERGE.lock.lock_named
+  ok   lock_matrix.follow.common_packed-refs.lock.not_moved
+  ok   lock_matrix.follow.common_packed-refs.lock.no_half_write
+  ok   lock_matrix.follow.common_packed-refs.lock.lock_untouched
+  ok   lock_matrix.follow.common_packed-refs.lock.not_exit_0
+  ok   lock_matrix.follow.common_packed-refs.lock.lock_named
+  ok   lock_matrix.golden_false.common_refs_heads_other.lock.exit_0
+  ok   lock_matrix.golden_false.common_refs_heads_other.lock.moved
+  ok   lock_matrix.golden_false.common_config.lock.exit_0
+  ok   lock_matrix.golden_false.common_config.lock.moved
+== worktree_locks
+  ok   worktree.common_refs_heads_main.lock.fixture_split
+  ok   worktree.common_refs_heads_main.lock.not_moved
+  ok   worktree.common_refs_heads_main.lock.no_half_write
+  ok   worktree.common_refs_heads_main.lock.not_exit_0
+  ok   worktree.common_refs_heads_main.lock.lock_untouched
+  ok   worktree.common_packed-refs.lock.fixture_split
+  ok   worktree.common_packed-refs.lock.not_moved
+  ok   worktree.common_packed-refs.lock.no_half_write
+  ok   worktree.common_packed-refs.lock.not_exit_0
+  ok   worktree.common_packed-refs.lock.lock_untouched
+  ok   worktree.wt_HEAD.lock.fixture_split
+  ok   worktree.wt_HEAD.lock.not_moved
+  ok   worktree.wt_HEAD.lock.no_half_write
+  ok   worktree.wt_HEAD.lock.not_exit_0
+  ok   worktree.wt_HEAD.lock.lock_untouched
+  ok   worktree.wt_index.lock.fixture_split
+  ok   worktree.wt_index.lock.not_moved
+  ok   worktree.wt_index.lock.no_half_write
+  ok   worktree.wt_index.lock.not_exit_0
+  ok   worktree.wt_index.lock.lock_untouched
+  ok   worktree.common_HEAD.lock.fixture_split
+  ok   worktree.common_HEAD.lock.golden_false_exit_0
+  ok   worktree.common_HEAD.lock.golden_false_moved
+  ok   worktree.common_HEAD.lock.lock_untouched
+== marker_kind
+  ok   marker_kind.fifo.check.bounded
+  ok   marker_kind.fifo.check.untouched
+  ok   marker_kind.fifo.check.not_moved
+  ok   marker_kind.fifo.check.exit_4
+  ok   marker_kind.fifo.check.named
+  ok   marker_kind.fifo.apply.bounded
+  ok   marker_kind.fifo.apply.untouched
+  ok   marker_kind.fifo.apply.not_moved
+  ok   marker_kind.fifo.apply.exit_4
+  ok   marker_kind.fifo.apply.named
+  ok   marker_kind.fifo.dry-run.bounded
+  ok   marker_kind.fifo.dry-run.untouched
+  ok   marker_kind.fifo.dry-run.not_moved
+  ok   marker_kind.fifo.dry-run.exit_4
+  ok   marker_kind.fifo.dry-run.named
+  ok   marker_kind.dir.check.bounded
+  ok   marker_kind.dir.check.untouched
+  ok   marker_kind.dir.check.not_moved
+  ok   marker_kind.dir.check.exit_4
+  ok   marker_kind.dir.check.named
+  ok   marker_kind.dir.apply.bounded
+  ok   marker_kind.dir.apply.untouched
+  ok   marker_kind.dir.apply.not_moved
+  ok   marker_kind.dir.apply.exit_4
+  ok   marker_kind.dir.apply.named
+  ok   marker_kind.dir.dry-run.bounded
+  ok   marker_kind.dir.dry-run.untouched
+  ok   marker_kind.dir.dry-run.not_moved
+  ok   marker_kind.dir.dry-run.exit_4
+  ok   marker_kind.dir.dry-run.named
+  ok   marker_kind.symlink.check.bounded
+  ok   marker_kind.symlink.check.untouched
+  ok   marker_kind.symlink.check.not_moved
+  ok   marker_kind.symlink.check.exit_4
+  ok   marker_kind.symlink.check.named
+  ok   marker_kind.symlink.apply.bounded
+  ok   marker_kind.symlink.apply.untouched
+  ok   marker_kind.symlink.apply.not_moved
+  ok   marker_kind.symlink.apply.exit_4
+  ok   marker_kind.symlink.apply.named
+  ok   marker_kind.symlink.dry-run.bounded
+  ok   marker_kind.symlink.dry-run.untouched
+  ok   marker_kind.symlink.dry-run.not_moved
+  ok   marker_kind.symlink.dry-run.exit_4
+  ok   marker_kind.symlink.dry-run.named
+  ok   marker_kind.dangling.check.bounded
+  ok   marker_kind.dangling.check.untouched
+  ok   marker_kind.dangling.check.not_moved
+  ok   marker_kind.dangling.check.exit_4
+  ok   marker_kind.dangling.check.named
+  ok   marker_kind.dangling.apply.bounded
+  ok   marker_kind.dangling.apply.untouched
+  ok   marker_kind.dangling.apply.not_moved
+  ok   marker_kind.dangling.apply.exit_4
+  ok   marker_kind.dangling.apply.named
+  ok   marker_kind.dangling.dry-run.bounded
+  ok   marker_kind.dangling.dry-run.untouched
+  ok   marker_kind.dangling.dry-run.not_moved
+  ok   marker_kind.dangling.dry-run.exit_4
+  ok   marker_kind.dangling.dry-run.named
+  ok   marker_kind.socket.check.bounded
+  ok   marker_kind.socket.check.untouched
+  ok   marker_kind.socket.check.not_moved
+  ok   marker_kind.socket.check.exit_4
+  ok   marker_kind.socket.check.named
+  ok   marker_kind.socket.apply.bounded
+  ok   marker_kind.socket.apply.untouched
+  ok   marker_kind.socket.apply.not_moved
+  ok   marker_kind.socket.apply.exit_4
+  ok   marker_kind.socket.apply.named
+  ok   marker_kind.socket.dry-run.bounded
+  ok   marker_kind.socket.dry-run.untouched
+  ok   marker_kind.socket.dry-run.not_moved
+  ok   marker_kind.socket.dry-run.exit_4
+  ok   marker_kind.socket.dry-run.named
+== lock_kind
+  ok   lock_kind.fifo.bounded
+  ok   lock_kind.fifo.exit_1
+  ok   lock_kind.fifo.cannot_open
+  ok   lock_kind.fifo.untouched
+  ok   lock_kind.fifo.not_moved
+  ok   lock_kind.socket.bounded
+  ok   lock_kind.socket.exit_1
+  ok   lock_kind.socket.cannot_open
+  ok   lock_kind.socket.untouched
+  ok   lock_kind.socket.not_moved
+  ok   lock_kind.dir.bounded
+  ok   lock_kind.dir.exit_1
+  ok   lock_kind.dir.cannot_open
+  ok   lock_kind.dir.untouched
+  ok   lock_kind.dir.not_moved
+== half_write
+  ok   half_write.ff.HEAD.lock.fixture_effect
+  ok   half_write.ff.HEAD.lock.not_exit_0
+  ok   half_write.ff.HEAD.lock.marker_kept
+  ok   half_write.ff.HEAD.lock.reported
+  ok   half_write.ff.HEAD.lock.exit_failed
+  ok   half_write.ff.HEAD.lock.repo_result_failed
+  ok   half_write.ff.HEAD.lock.next_run_attributes
+  ok   half_write.ff.common_refs_heads_main.lock.fixture_effect
+  ok   half_write.ff.common_refs_heads_main.lock.not_exit_0
+  ok   half_write.ff.common_refs_heads_main.lock.marker_kept
+  ok   half_write.ff.common_refs_heads_main.lock.reported
+  ok   half_write.ff.common_refs_heads_main.lock.exit_failed
+  ok   half_write.ff.common_refs_heads_main.lock.repo_result_failed
+  ok   half_write.ff.common_refs_heads_main.lock.next_run_attributes
+  ok   half_write.pin.HEAD.lock.fixture_effect
+  ok   half_write.pin.HEAD.lock.not_exit_0
+  ok   half_write.pin.HEAD.lock.marker_kept
+  ok   half_write.pin.HEAD.lock.reported
+  ok   half_write.pin.HEAD.lock.exit_failed
+  ok   half_write.pin.HEAD.lock.repo_result_failed
+  ok   half_write.pin.HEAD.lock.next_run_attributes
+  ok   half_write.ff.ORIG_HEAD.lock.fixture_effect
+  ok   half_write.ff.ORIG_HEAD.lock.not_exit_0
+  ok   half_write.ff.ORIG_HEAD.lock.golden_false_marker_removed
+  ok   half_write.ff.ORIG_HEAD.lock.golden_false_nothing_attributed
+  ok   half_write.ff.index.lock.fixture_effect
+  ok   half_write.ff.index.lock.not_exit_0
+  ok   half_write.ff.index.lock.golden_false_marker_removed
+  ok   half_write.ff.index.lock.golden_false_nothing_attributed
+== marker_vanish
+  ok   vanish.ff.no_write_without_marker
+  ok   vanish.ff.every_spawn_marked
+  ok   vanish.ff.not_exit_0
+  ok   vanish.ff.not_moved
+  ok   vanish.ff.reported
+  ok   vanish.pin.no_write_without_marker
+  ok   vanish.pin.every_spawn_marked
+  ok   vanish.pin.not_exit_0
+  ok   vanish.pin.not_moved
+  ok   vanish.pin.reported
+  ok   vanish.follow.no_write_without_marker
+  ok   vanish.follow.every_spawn_marked
+  ok   vanish.follow.not_exit_0
+  ok   vanish.follow.not_moved
+  ok   vanish.follow.reported
+  ok   vanish.stage.no_write_without_marker
+  ok   vanish.stage.every_spawn_marked
+  ok   vanish.stage.not_exit_0
+  ok   vanish.stage.reported
+== earlier_lock
+  ok   earlier_lock.index.lock.marker_kept
+  ok   earlier_lock.index.lock.noted_kept
+  ok   earlier_lock.index.lock.never_left_nothing
+  ok   earlier_lock.index.lock.attributed
+  ok   earlier_lock.HEAD.lock.marker_kept
+  ok   earlier_lock.HEAD.lock.noted_kept
+  ok   earlier_lock.HEAD.lock.never_left_nothing
+  ok   earlier_lock.HEAD.lock.attributed
+  ok   earlier_lock.ORIG_HEAD.lock.marker_kept
+  ok   earlier_lock.ORIG_HEAD.lock.noted_kept
+  ok   earlier_lock.ORIG_HEAD.lock.never_left_nothing
+  ok   earlier_lock.ORIG_HEAD.lock.attributed
+  ok   earlier_lock.AUTO_MERGE.lock.marker_kept
+  ok   earlier_lock.AUTO_MERGE.lock.noted_kept
+  ok   earlier_lock.AUTO_MERGE.lock.never_left_nothing
+  ok   earlier_lock.AUTO_MERGE.lock.attributed
+  ok   earlier_lock.packed-refs.lock.marker_kept
+  ok   earlier_lock.packed-refs.lock.noted_kept
+  ok   earlier_lock.packed-refs.lock.never_left_nothing
+  ok   earlier_lock.packed-refs.lock.attributed
+  ok   earlier_lock.refs_heads_main.lock.marker_kept
+  ok   earlier_lock.refs_heads_main.lock.noted_kept
+  ok   earlier_lock.refs_heads_main.lock.never_left_nothing
+  ok   earlier_lock.refs_heads_main.lock.attributed
+  ok   earlier_lock.control.cleared
+  ok   earlier_lock.control.noted
+== marker_unremovable
+  ok   marker_unremovable.no_internal_error
+  ok   marker_unremovable.kept
+  ok   marker_unremovable.noted
+  ok   marker_unremovable.never_left_nothing
+== branch_lock
+  ok   branch_lock.plain.main.not_moved
+  ok   branch_lock.plain.main.no_half_write
+  ok   branch_lock.plain.main.exit_4
+  ok   branch_lock.plain.main.lock_untouched
+  ok   branch_lock.plain.main.reason
+  ok   branch_lock.plain.main.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.plain.main.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.plain.dev.not_moved
+  ok   branch_lock.plain.dev.no_half_write
+  ok   branch_lock.plain.dev.exit_4
+  ok   branch_lock.plain.dev.lock_untouched
+  ok   branch_lock.plain.dev.reason
+  ok   branch_lock.plain.dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.plain.dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.plain.dev.earlier_marker.not_moved
+  ok   branch_lock.plain.dev.earlier_marker.no_half_write
+  ok   branch_lock.plain.dev.earlier_marker.exit_4
+  ok   branch_lock.plain.dev.earlier_marker.marker_kept
+  ok   branch_lock.plain.dev.earlier_marker.never_left_nothing
+  ok   branch_lock.plain.feature_x.not_moved
+  ok   branch_lock.plain.feature_x.no_half_write
+  ok   branch_lock.plain.feature_x.exit_4
+  ok   branch_lock.plain.feature_x.lock_untouched
+  ok   branch_lock.plain.feature_x.reason
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_x.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.plain.feature_x.earlier_marker.not_moved
+  ok   branch_lock.plain.feature_x.earlier_marker.no_half_write
+  ok   branch_lock.plain.feature_x.earlier_marker.exit_4
+  ok   branch_lock.plain.feature_x.earlier_marker.marker_kept
+  ok   branch_lock.plain.feature_x.earlier_marker.never_left_nothing
+  ok   branch_lock.plain.Dev.not_moved
+  ok   branch_lock.plain.Dev.no_half_write
+  ok   branch_lock.plain.Dev.exit_4
+  ok   branch_lock.plain.Dev.lock_untouched
+  ok   branch_lock.plain.Dev.reason
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_DEV.lock.golden_false_exit_0
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_DEV.lock.golden_false_moved
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.plain.Dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.plain.Dev.earlier_marker.not_moved
+  ok   branch_lock.plain.Dev.earlier_marker.no_half_write
+  ok   branch_lock.plain.Dev.earlier_marker.exit_4
+  ok   branch_lock.plain.Dev.earlier_marker.marker_kept
+  ok   branch_lock.plain.Dev.earlier_marker.never_left_nothing
+  ok   branch_lock.plain.Feature_X.not_moved
+  ok   branch_lock.plain.Feature_X.no_half_write
+  ok   branch_lock.plain.Feature_X.exit_4
+  ok   branch_lock.plain.Feature_X.lock_untouched
+  ok   branch_lock.plain.Feature_X.reason
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_Feature_x.lock.golden_false_exit_0
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_Feature_x.lock.golden_false_moved
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_feature_X.lock.golden_false_exit_0
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_feature_X.lock.golden_false_moved
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_X.lock.golden_false_exit_0
+  ok   branch_lock.plain.Feature_X.golden_false.refs_heads_X.lock.golden_false_moved
+  ok   branch_lock.plain.Feature_X.earlier_marker.not_moved
+  ok   branch_lock.plain.Feature_X.earlier_marker.no_half_write
+  ok   branch_lock.plain.Feature_X.earlier_marker.exit_4
+  ok   branch_lock.plain.Feature_X.earlier_marker.marker_kept
+  ok   branch_lock.plain.Feature_X.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.main.not_moved
+  ok   branch_lock.wt.main.no_half_write
+  ok   branch_lock.wt.main.exit_4
+  ok   branch_lock.wt.main.lock_untouched
+  ok   branch_lock.wt.main.reason
+  ok   branch_lock.wt.main.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.wt.main.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.wt.dev.not_moved
+  ok   branch_lock.wt.dev.no_half_write
+  ok   branch_lock.wt.dev.exit_4
+  ok   branch_lock.wt.dev.lock_untouched
+  ok   branch_lock.wt.dev.reason
+  ok   branch_lock.wt.dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.wt.dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.wt.dev.earlier_marker.not_moved
+  ok   branch_lock.wt.dev.earlier_marker.no_half_write
+  ok   branch_lock.wt.dev.earlier_marker.exit_4
+  ok   branch_lock.wt.dev.earlier_marker.marker_kept
+  ok   branch_lock.wt.dev.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.feature_x.not_moved
+  ok   branch_lock.wt.feature_x.no_half_write
+  ok   branch_lock.wt.feature_x.exit_4
+  ok   branch_lock.wt.feature_x.lock_untouched
+  ok   branch_lock.wt.feature_x.reason
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_x.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.feature_x.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.wt.feature_x.earlier_marker.not_moved
+  ok   branch_lock.wt.feature_x.earlier_marker.no_half_write
+  ok   branch_lock.wt.feature_x.earlier_marker.exit_4
+  ok   branch_lock.wt.feature_x.earlier_marker.marker_kept
+  ok   branch_lock.wt.feature_x.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.Dev.not_moved
+  ok   branch_lock.wt.Dev.no_half_write
+  ok   branch_lock.wt.Dev.exit_4
+  ok   branch_lock.wt.Dev.lock_untouched
+  ok   branch_lock.wt.Dev.reason
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_dev.lock.golden_false_exit_0
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_dev.lock.golden_false_moved
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_DEV.lock.golden_false_exit_0
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_DEV.lock.golden_false_moved
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_main.lock.golden_false_exit_0
+  ok   branch_lock.wt.Dev.golden_false.refs_heads_main.lock.golden_false_moved
+  ok   branch_lock.wt.Dev.earlier_marker.not_moved
+  ok   branch_lock.wt.Dev.earlier_marker.no_half_write
+  ok   branch_lock.wt.Dev.earlier_marker.exit_4
+  ok   branch_lock.wt.Dev.earlier_marker.marker_kept
+  ok   branch_lock.wt.Dev.earlier_marker.never_left_nothing
+  ok   branch_lock.wt.Feature_X.not_moved
+  ok   branch_lock.wt.Feature_X.no_half_write
+  ok   branch_lock.wt.Feature_X.exit_4
+  ok   branch_lock.wt.Feature_X.lock_untouched
+  ok   branch_lock.wt.Feature_X.reason
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_feature_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_feature_x.lock.golden_false_moved
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_Feature_x.lock.golden_false_exit_0
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_Feature_x.lock.golden_false_moved
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_feature_X.lock.golden_false_exit_0
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_feature_X.lock.golden_false_moved
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_X.lock.golden_false_exit_0
+  ok   branch_lock.wt.Feature_X.golden_false.refs_heads_X.lock.golden_false_moved
+  ok   branch_lock.wt.Feature_X.earlier_marker.not_moved
+  ok   branch_lock.wt.Feature_X.earlier_marker.no_half_write
+  ok   branch_lock.wt.Feature_X.earlier_marker.exit_4
+  ok   branch_lock.wt.Feature_X.earlier_marker.marker_kept
+  ok   branch_lock.wt.Feature_X.earlier_marker.never_left_nothing
+== wt_param
+  ok   wt_param.own.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.own.HEAD.lock.plain.not_moved
+  ok   wt_param.own.HEAD.lock.plain.no_half_write
+  ok   wt_param.own.HEAD.lock.plain.exit_4
+  ok   wt_param.own.HEAD.lock.plain.named
+  ok   wt_param.own.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.own.MERGE_HEAD.plain.not_moved
+  ok   wt_param.own.MERGE_HEAD.plain.no_half_write
+  ok   wt_param.own.MERGE_HEAD.plain.exit_4
+  ok   wt_param.own.MERGE_HEAD.plain.named
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.not_moved
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.no_half_write
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.exit_4
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.named
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress.fifo.untouched
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.fixture_ids_differ
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.not_moved
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.no_half_write
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.exit_4
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.marker_kept
+  ok   wt_param.own.helix-sync-upstreams.write-in-progress_index.lock.earlier.attributed
+  ok   wt_param.common.packed-refs.lock.plain.fixture_ids_differ
+  ok   wt_param.common.packed-refs.lock.plain.not_moved
+  ok   wt_param.common.packed-refs.lock.plain.no_half_write
+  ok   wt_param.common.packed-refs.lock.plain.exit_4
+  ok   wt_param.common.packed-refs.lock.plain.named
+  ok   wt_param.other.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.other.HEAD.lock.plain.golden_false_exit_0
+  ok   wt_param.other.HEAD.lock.plain.golden_false_moved
+  ok   wt_param.other.HEAD.lock.plain.golden_false_untouched
+  ok   wt_param.other.index.lock.plain.fixture_ids_differ
+  ok   wt_param.other.index.lock.plain.golden_false_exit_0
+  ok   wt_param.other.index.lock.plain.golden_false_moved
+  ok   wt_param.other.index.lock.plain.golden_false_untouched
+  ok   wt_param.other.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_exit_0
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_moved
+  ok   wt_param.other.MERGE_HEAD.plain.golden_false_untouched
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_exit_0
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_moved
+  ok   wt_param.other.helix-sync-upstreams.write-in-progress.fifo.golden_false_untouched
+  ok   wt_param.common.HEAD.lock.plain.fixture_ids_differ
+  ok   wt_param.common.HEAD.lock.plain.golden_false_exit_0
+  ok   wt_param.common.HEAD.lock.plain.golden_false_moved
+  ok   wt_param.common.HEAD.lock.plain.golden_false_untouched
+  ok   wt_param.common.MERGE_HEAD.plain.fixture_ids_differ
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_exit_0
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_moved
+  ok   wt_param.common.MERGE_HEAD.plain.golden_false_untouched
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.fixture_ids_differ
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_exit_0
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_moved
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.earlier.golden_false_untouched
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.fixture_ids_differ
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_exit_0
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_moved
+  ok   wt_param.common.helix-sync-upstreams.write-in-progress.fifo.golden_false_untouched
+== run_lock
+  ok   run_lock.common.holder_ready
+  ok   run_lock.common.exit_7
+  ok   run_lock.common.not_moved
+  ok   run_lock.own.holder_ready
+  ok   run_lock.own.golden_false_exit_0
+  ok   run_lock.own.golden_false_moved
+== write_race
+  ok   write_race.0.control.golden_false_exit_0
+  ok   write_race.0.control.golden_false_moved
+  ok   write_race.0.control_calls
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.fired
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.not_moved
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.no_half_write
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.exit_4
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.lock_untouched
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.fetch.reason
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.fired
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.not_moved
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.no_half_write
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.exit_4
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.lock_untouched
+  ok   write_race.plain.dev.common.refs_heads_dev.lock.last-read.reason
+  ok   write_race.1.control.golden_false_exit_0
+  ok   write_race.1.control.golden_false_moved
+  ok   write_race.1.control_calls
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.fired
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.not_moved
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.no_half_write
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.exit_4
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.lock_untouched
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.fetch.reason
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.fired
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.not_moved
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.no_half_write
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.exit_4
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.lock_untouched
+  ok   write_race.wt.feature_x.common.refs_heads_feature_x.lock.last-read.reason
+  ok   write_race.2.control.golden_false_exit_0
+  ok   write_race.2.control.golden_false_moved
+  ok   write_race.2.control_calls
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.fired
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.not_moved
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.no_half_write
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.exit_4
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.lock_untouched
+  ok   write_race.wt.feature_x.common.packed-refs.lock.fetch.reason
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.fired
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.not_moved
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.no_half_write
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.exit_4
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.lock_untouched
+  ok   write_race.wt.feature_x.common.packed-refs.lock.last-read.reason
+  ok   write_race.3.control.golden_false_exit_0
+  ok   write_race.3.control.golden_false_moved
+  ok   write_race.3.control_calls
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.fired
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.not_moved
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.no_half_write
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.exit_4
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.lock_untouched
+  ok   write_race.wt.feature_x.own.HEAD.lock.fetch.reason
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.fired
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.not_moved
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.no_half_write
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.exit_4
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.lock_untouched
+  ok   write_race.wt.feature_x.own.HEAD.lock.last-read.reason
+  ok   write_race.4.control.golden_false_exit_0
+  ok   write_race.4.control.golden_false_moved
+  ok   write_race.4.control_calls
+  ok   write_race.plain.dev.own.index.lock.fetch.fired
+  ok   write_race.plain.dev.own.index.lock.fetch.not_moved
+  ok   write_race.plain.dev.own.index.lock.fetch.no_half_write
+  ok   write_race.plain.dev.own.index.lock.fetch.exit_4
+  ok   write_race.plain.dev.own.index.lock.fetch.lock_untouched
+  ok   write_race.plain.dev.own.index.lock.fetch.reason
+  ok   write_race.plain.dev.own.index.lock.last-read.fired
+  ok   write_race.plain.dev.own.index.lock.last-read.not_moved
+  ok   write_race.plain.dev.own.index.lock.last-read.no_half_write
+  ok   write_race.plain.dev.own.index.lock.last-read.exit_4
+  ok   write_race.plain.dev.own.index.lock.last-read.lock_untouched
+  ok   write_race.plain.dev.own.index.lock.last-read.reason
+== marker_read
+  ok   marker_read.too_large.check.fixture_size
+  ok   marker_read.too_large.check.exit_3
+  ok   marker_read.too_large.check.noted_unknown
+  ok   marker_read.too_large.check.marker_untouched
+  ok   marker_read.too_large.apply.fixture_size
+  ok   marker_read.too_large.apply.exit_0
+  ok   marker_read.too_large.apply.cleared_noted
+  ok   marker_read.too_large.apply.marker_removed
+  ok   marker_read.too_large.apply.moved
+  ok   marker_read.unreadable.check.fixture_size
+  ok   marker_read.unreadable.check.exit_3
+  ok   marker_read.unreadable.check.noted_unknown
+  ok   marker_read.unreadable.check.marker_untouched
+  ok   marker_read.unreadable.apply.fixture_size
+  ok   marker_read.unreadable.apply.exit_0
+  ok   marker_read.unreadable.apply.cleared_noted
+  ok   marker_read.unreadable.apply.marker_removed
+  ok   marker_read.unreadable.apply.moved
+  ok   marker_read.invalid_json.check.fixture_size
+  ok   marker_read.invalid_json.check.exit_3
+  ok   marker_read.invalid_json.check.noted_unknown
+  ok   marker_read.invalid_json.check.marker_untouched
+  ok   marker_read.invalid_json.apply.fixture_size
+  ok   marker_read.invalid_json.apply.exit_0
+  ok   marker_read.invalid_json.apply.cleared_noted
+  ok   marker_read.invalid_json.apply.marker_removed
+  ok   marker_read.invalid_json.apply.moved
+== wt_only
+  ok   wt_only.index_lock.worktree_changed_known_limit.fixture_effect
+  ok   wt_only.index_lock.worktree_changed_known_limit.head_not_moved
+  ok   wt_only.index_lock.worktree_changed_known_limit.marker_removed
+  ok   wt_only.index_lock.worktree_changed_known_limit.not_reported_left_changes
+  ok   wt_only.index_lock.worktree_changed_known_limit.exit_failed
+  ok   wt_only.index_lock.worktree_changed_known_limit.next_run_sees_dirty
+  ok   wt_only.index_lock.worktree_changed_known_limit.file_kept
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.fixture_effect
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.head_not_moved
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.marker_removed
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.not_reported_left_changes
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.exit_failed
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.next_run_sees_dirty
+  ok   wt_only.ORIG_HEAD_lock.worktree_changed_known_limit.file_kept
+  ok   wt_only.index_lock.golden_false.fixture_effect
+  ok   wt_only.index_lock.golden_false.head_not_moved
+  ok   wt_only.index_lock.golden_false.marker_removed
+  ok   wt_only.index_lock.golden_false.not_reported_left_changes
+  ok   wt_only.index_lock.golden_false.exit_failed
+== branch_shape
+  ok   branch_shape.plain.tag.own_lock.not_moved
+  ok   branch_shape.plain.tag.own_lock.no_half_write
+  ok   branch_shape.plain.tag.own_lock.exit_4
+  ok   branch_shape.plain.tag.own_lock.lock_untouched
+  ok   branch_shape.plain.tag.own_lock.reason
+  ok   branch_shape.plain.tag.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.tag.no_lock.golden_false_exit_0
+  ok   branch_shape.plain.tag.no_lock.golden_false_moved
+  ok   branch_shape.plain.tag.no_lock.still_on_branch
+  ok   branch_shape.plain.tag.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.toplevel_ref.own_lock.not_moved
+  ok   branch_shape.plain.toplevel_ref.own_lock.no_half_write
+  ok   branch_shape.plain.toplevel_ref.own_lock.exit_4
+  ok   branch_shape.plain.toplevel_ref.own_lock.lock_untouched
+  ok   branch_shape.plain.toplevel_ref.own_lock.reason
+  ok   branch_shape.plain.toplevel_ref.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.toplevel_ref.no_lock.golden_false_exit_0
+  ok   branch_shape.plain.toplevel_ref.no_lock.golden_false_moved
+  ok   branch_shape.plain.toplevel_ref.no_lock.still_on_branch
+  ok   branch_shape.plain.toplevel_ref.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.remote.own_lock.not_moved
+  ok   branch_shape.plain.remote.own_lock.no_half_write
+  ok   branch_shape.plain.remote.own_lock.exit_4
+  ok   branch_shape.plain.remote.own_lock.lock_untouched
+  ok   branch_shape.plain.remote.own_lock.reason
+  ok   branch_shape.plain.remote.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.remote.no_lock.golden_false_exit_0
+  ok   branch_shape.plain.remote.no_lock.golden_false_moved
+  ok   branch_shape.plain.remote.no_lock.still_on_branch
+  ok   branch_shape.plain.remote.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.heads_dev_upstream.own_lock.not_moved
+  ok   branch_shape.plain.heads_dev_upstream.own_lock.no_half_write
+  ok   branch_shape.plain.heads_dev_upstream.own_lock.exit_4
+  ok   branch_shape.plain.heads_dev_upstream.own_lock.lock_untouched
+  ok   branch_shape.plain.heads_dev_upstream.own_lock.reason
+  ok   branch_shape.plain.heads_dev_upstream.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.heads_dev_upstream.no_lock.not_moved
+  ok   branch_shape.plain.heads_dev_upstream.no_lock.no_half_write
+  ok   branch_shape.plain.heads_dev_upstream.no_lock.exit_4
+  ok   branch_shape.plain.heads_dev_upstream.no_lock.reason
+  ok   branch_shape.plain.heads_dev_upstream.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.literal.own_lock.not_moved
+  ok   branch_shape.plain.literal.own_lock.no_half_write
+  ok   branch_shape.plain.literal.own_lock.exit_4
+  ok   branch_shape.plain.literal.own_lock.lock_untouched
+  ok   branch_shape.plain.literal.own_lock.reason
+  ok   branch_shape.plain.literal.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.literal.no_lock.golden_false_exit_0
+  ok   branch_shape.plain.literal.no_lock.golden_false_moved
+  ok   branch_shape.plain.literal.no_lock.still_on_branch
+  ok   branch_shape.plain.literal.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.literal.other_lock.golden_false_exit_0
+  ok   branch_shape.plain.literal.other_lock.golden_false_moved
+  ok   branch_shape.plain.literal.other_lock.still_on_branch
+  ok   branch_shape.plain.literal.other_lock.golden_false_lock_untouched
+  ok   branch_shape.plain.literal.other_lock.branch_recorded_exactly
+  ok   branch_shape.plain.case.own_lock.not_moved
+  ok   branch_shape.plain.case.own_lock.no_half_write
+  ok   branch_shape.plain.case.own_lock.exit_4
+  ok   branch_shape.plain.case.own_lock.lock_untouched
+  ok   branch_shape.plain.case.own_lock.reason
+  ok   branch_shape.plain.case.own_lock.branch_recorded_exactly
+  ok   branch_shape.plain.case.no_lock.golden_false_exit_0
+  ok   branch_shape.plain.case.no_lock.golden_false_moved
+  ok   branch_shape.plain.case.no_lock.still_on_branch
+  ok   branch_shape.plain.case.no_lock.branch_recorded_exactly
+  ok   branch_shape.plain.case.other_lock.golden_false_exit_0
+  ok   branch_shape.plain.case.other_lock.golden_false_moved
+  ok   branch_shape.plain.case.other_lock.still_on_branch
+  ok   branch_shape.plain.case.other_lock.golden_false_lock_untouched
+  ok   branch_shape.plain.case.other_lock.branch_recorded_exactly
+  ok   branch_shape.wt.tag.own_lock.not_moved
+  ok   branch_shape.wt.tag.own_lock.no_half_write
+  ok   branch_shape.wt.tag.own_lock.exit_4
+  ok   branch_shape.wt.tag.own_lock.lock_untouched
+  ok   branch_shape.wt.tag.own_lock.reason
+  ok   branch_shape.wt.tag.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.tag.no_lock.golden_false_exit_0
+  ok   branch_shape.wt.tag.no_lock.golden_false_moved
+  ok   branch_shape.wt.tag.no_lock.still_on_branch
+  ok   branch_shape.wt.tag.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.toplevel_ref.own_lock.not_moved
+  ok   branch_shape.wt.toplevel_ref.own_lock.no_half_write
+  ok   branch_shape.wt.toplevel_ref.own_lock.exit_4
+  ok   branch_shape.wt.toplevel_ref.own_lock.lock_untouched
+  ok   branch_shape.wt.toplevel_ref.own_lock.reason
+  ok   branch_shape.wt.toplevel_ref.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.toplevel_ref.no_lock.golden_false_exit_0
+  ok   branch_shape.wt.toplevel_ref.no_lock.golden_false_moved
+  ok   branch_shape.wt.toplevel_ref.no_lock.still_on_branch
+  ok   branch_shape.wt.toplevel_ref.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.remote.own_lock.not_moved
+  ok   branch_shape.wt.remote.own_lock.no_half_write
+  ok   branch_shape.wt.remote.own_lock.exit_4
+  ok   branch_shape.wt.remote.own_lock.lock_untouched
+  ok   branch_shape.wt.remote.own_lock.reason
+  ok   branch_shape.wt.remote.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.remote.no_lock.golden_false_exit_0
+  ok   branch_shape.wt.remote.no_lock.golden_false_moved
+  ok   branch_shape.wt.remote.no_lock.still_on_branch
+  ok   branch_shape.wt.remote.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.heads_dev_upstream.own_lock.not_moved
+  ok   branch_shape.wt.heads_dev_upstream.own_lock.no_half_write
+  ok   branch_shape.wt.heads_dev_upstream.own_lock.exit_4
+  ok   branch_shape.wt.heads_dev_upstream.own_lock.lock_untouched
+  ok   branch_shape.wt.heads_dev_upstream.own_lock.reason
+  ok   branch_shape.wt.heads_dev_upstream.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.heads_dev_upstream.no_lock.not_moved
+  ok   branch_shape.wt.heads_dev_upstream.no_lock.no_half_write
+  ok   branch_shape.wt.heads_dev_upstream.no_lock.exit_4
+  ok   branch_shape.wt.heads_dev_upstream.no_lock.reason
+  ok   branch_shape.wt.heads_dev_upstream.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.literal.own_lock.not_moved
+  ok   branch_shape.wt.literal.own_lock.no_half_write
+  ok   branch_shape.wt.literal.own_lock.exit_4
+  ok   branch_shape.wt.literal.own_lock.lock_untouched
+  ok   branch_shape.wt.literal.own_lock.reason
+  ok   branch_shape.wt.literal.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.literal.no_lock.golden_false_exit_0
+  ok   branch_shape.wt.literal.no_lock.golden_false_moved
+  ok   branch_shape.wt.literal.no_lock.still_on_branch
+  ok   branch_shape.wt.literal.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.literal.other_lock.golden_false_exit_0
+  ok   branch_shape.wt.literal.other_lock.golden_false_moved
+  ok   branch_shape.wt.literal.other_lock.still_on_branch
+  ok   branch_shape.wt.literal.other_lock.golden_false_lock_untouched
+  ok   branch_shape.wt.literal.other_lock.branch_recorded_exactly
+  ok   branch_shape.wt.case.own_lock.not_moved
+  ok   branch_shape.wt.case.own_lock.no_half_write
+  ok   branch_shape.wt.case.own_lock.exit_4
+  ok   branch_shape.wt.case.own_lock.lock_untouched
+  ok   branch_shape.wt.case.own_lock.reason
+  ok   branch_shape.wt.case.own_lock.branch_recorded_exactly
+  ok   branch_shape.wt.case.no_lock.golden_false_exit_0
+  ok   branch_shape.wt.case.no_lock.golden_false_moved
+  ok   branch_shape.wt.case.no_lock.still_on_branch
+  ok   branch_shape.wt.case.no_lock.branch_recorded_exactly
+  ok   branch_shape.wt.case.other_lock.golden_false_exit_0
+  ok   branch_shape.wt.case.other_lock.golden_false_moved
+  ok   branch_shape.wt.case.other_lock.still_on_branch
+  ok   branch_shape.wt.case.other_lock.golden_false_lock_untouched
+  ok   branch_shape.wt.case.other_lock.branch_recorded_exactly
+== branch_param
+  ok   branch_param.bad_0.exit_2
+  ok   branch_param.bad_0.nothing_fetched
+  ok   branch_param.bad_0.no_report
+  ok   branch_param.bad_1.exit_2
+  ok   branch_param.bad_1.nothing_fetched
+  ok   branch_param.bad_1.no_report
+  ok   branch_param.bad_2.exit_2
+  ok   branch_param.bad_2.nothing_fetched
+  ok   branch_param.bad_2.no_report
+  ok   branch_param.bad_3.exit_2
+  ok   branch_param.bad_3.nothing_fetched
+  ok   branch_param.bad_3.no_report
+  ok   branch_param.bad_4.exit_2
+  ok   branch_param.bad_4.nothing_fetched
+  ok   branch_param.bad_4.no_report
+  ok   branch_param.bad_5.exit_2
+  ok   branch_param.bad_5.nothing_fetched
+  ok   branch_param.bad_5.no_report
+  ok   branch_param.bad_6.exit_2
+  ok   branch_param.bad_6.nothing_fetched
+  ok   branch_param.bad_6.no_report
+  ok   branch_param.bad_7.exit_2
+  ok   branch_param.bad_7.nothing_fetched
+  ok   branch_param.bad_7.no_report
+  ok   branch_param.bad_8.exit_2
+  ok   branch_param.bad_8.nothing_fetched
+  ok   branch_param.bad_8.no_report
+  ok   branch_param.bad_9.exit_2
+  ok   branch_param.bad_9.nothing_fetched
+  ok   branch_param.bad_9.no_report
+  ok   branch_param.golden_false.exit_4
+  ok   branch_param.golden_false.reason
+  ok   branch_param.unicode_root.exit_4
+  ok   branch_param.unicode_root.reason
+  ok   branch_param.unicode_root.not_moved
+  ok   branch_param.unicode_root.branch_recorded
+== marker_foreign
+  ok   marker_foreign.foreign.exit_3
+  ok   marker_foreign.foreign.noted
+  ok   marker_foreign.foreign.planted_text_absent
+  ok   marker_foreign.foreign.notes_one_line
+  ok   marker_foreign.known.exit_3
+  ok   marker_foreign.known.noted
+  ok   marker_foreign.known.planted_text_absent
+  ok   marker_foreign.known.notes_one_line
+== ref_exact
+  ok   ref_exact.tag.apply.not_moved
+  ok   ref_exact.tag.apply.never_the_planted_ref
+  ok   ref_exact.tag.apply.exit_4
+  ok   ref_exact.tag.apply.reason
+  ok   ref_exact.tag.apply.still_on_dev
+  ok   ref_exact.tag.check.not_moved
+  ok   ref_exact.tag.check.never_the_planted_ref
+  ok   ref_exact.tag.check.exit_4
+  ok   ref_exact.tag.check.reason
+  ok   ref_exact.tag.check.still_on_dev
+  ok   ref_exact.tag.dry-run.not_moved
+  ok   ref_exact.tag.dry-run.never_the_planted_ref
+  ok   ref_exact.tag.dry-run.exit_4
+  ok   ref_exact.tag.dry-run.reason
+  ok   ref_exact.tag.dry-run.still_on_dev
+  ok   ref_exact.branch.apply.not_moved
+  ok   ref_exact.branch.apply.never_the_planted_ref
+  ok   ref_exact.branch.apply.exit_4
+  ok   ref_exact.branch.apply.reason
+  ok   ref_exact.branch.apply.still_on_dev
+  ok   ref_exact.branch.check.not_moved
+  ok   ref_exact.branch.check.never_the_planted_ref
+  ok   ref_exact.branch.check.exit_4
+  ok   ref_exact.branch.check.reason
+  ok   ref_exact.branch.check.still_on_dev
+  ok   ref_exact.branch.dry-run.not_moved
+  ok   ref_exact.branch.dry-run.never_the_planted_ref
+  ok   ref_exact.branch.dry-run.exit_4
+  ok   ref_exact.branch.dry-run.reason
+  ok   ref_exact.branch.dry-run.still_on_dev
+  ok   ref_exact.golden_false.exit_0
+  ok   ref_exact.golden_false.moved_to_remote
+== checkout_exact
+  ok   checkout_exact.exit_0
+  ok   checkout_exact.at_target
+  ok   checkout_exact.detached
+  ok   checkout_exact.staged_target
+  ok   checkout_exact.hex_branch_untouched
+== objvis
+  ok   objvis.replace.not_moved
+  ok   objvis.replace.local_commit_kept
+  ok   objvis.replace.exit_4
+  ok   objvis.replace.reason
+  ok   objvis.replace_env_noreplace.not_moved
+  ok   objvis.replace_env_noreplace.local_commit_kept
+  ok   objvis.replace_env_noreplace.exit_4
+  ok   objvis.replace_env_noreplace.reason
+  ok   objvis.replace_config_on.not_moved
+  ok   objvis.replace_config_on.local_commit_kept
+  ok   objvis.replace_config_on.exit_4
+  ok   objvis.replace_config_on.reason
+  ok   objvis.info_grafts.not_moved
+  ok   objvis.info_grafts.local_commit_kept
+  ok   objvis.info_grafts.exit_4
+  ok   objvis.info_grafts.reason
+  ok   objvis.graft_file_env.not_moved
+  ok   objvis.graft_file_env.local_commit_kept
+  ok   objvis.graft_file_env.exit_4
+  ok   objvis.graft_file_env.reason
+  ok   objvis.golden_false.golden_false_exit_0
+  ok   objvis.golden_false.golden_false_moved
+== symref
+  ok   symref.branch.apply_no-fetch.not_moved
+  ok   symref.branch.apply_no-fetch.never_the_target
+  ok   symref.branch.apply_no-fetch.exit_4
+  ok   symref.branch.apply_no-fetch.reason_symbolic
+  ok   symref.branch.apply_no-fetch.reason_no_upstream
+  ok   symref.branch.check_no-fetch.not_moved
+  ok   symref.branch.check_no-fetch.never_the_target
+  ok   symref.branch.check_no-fetch.exit_4
+  ok   symref.branch.check_no-fetch.reason_symbolic
+  ok   symref.branch.check_no-fetch.reason_no_upstream
+  ok   symref.branch.dry-run.not_moved
+  ok   symref.branch.dry-run.never_the_target
+  ok   symref.branch.dry-run.exit_4
+  ok   symref.branch.dry-run.reason_symbolic
+  ok   symref.branch.dry-run.reason_no_upstream
+  ok   symref.branch.apply.not_moved
+  ok   symref.branch.apply.never_the_target
+  ok   symref.branch.apply.exit_0_or_4
+  ok   symref.tag.apply_no-fetch.not_moved
+  ok   symref.tag.apply_no-fetch.never_the_target
+  ok   symref.tag.apply_no-fetch.exit_4
+  ok   symref.tag.apply_no-fetch.reason_symbolic
+  ok   symref.tag.apply_no-fetch.reason_no_upstream
+  ok   symref.tag.check_no-fetch.not_moved
+  ok   symref.tag.check_no-fetch.never_the_target
+  ok   symref.tag.check_no-fetch.exit_4
+  ok   symref.tag.check_no-fetch.reason_symbolic
+  ok   symref.tag.check_no-fetch.reason_no_upstream
+  ok   symref.tag.dry-run.not_moved
+  ok   symref.tag.dry-run.never_the_target
+  ok   symref.tag.dry-run.exit_4
+  ok   symref.tag.dry-run.reason_symbolic
+  ok   symref.tag.dry-run.reason_no_upstream
+  ok   symref.tag.apply.not_moved
+  ok   symref.tag.apply.never_the_target
+  ok   symref.tag.apply.exit_0_or_4
+  ok   symref.other.apply_no-fetch.not_moved
+  ok   symref.other.apply_no-fetch.never_the_target
+  ok   symref.other.apply_no-fetch.exit_4
+  ok   symref.other.apply_no-fetch.reason_symbolic
+  ok   symref.other.apply_no-fetch.reason_no_upstream
+  ok   symref.other.check_no-fetch.not_moved
+  ok   symref.other.check_no-fetch.never_the_target
+  ok   symref.other.check_no-fetch.exit_4
+  ok   symref.other.check_no-fetch.reason_symbolic
+  ok   symref.other.check_no-fetch.reason_no_upstream
+  ok   symref.other.dry-run.not_moved
+  ok   symref.other.dry-run.never_the_target
+  ok   symref.other.dry-run.exit_4
+  ok   symref.other.dry-run.reason_symbolic
+  ok   symref.other.dry-run.reason_no_upstream
+  ok   symref.other.apply.not_moved
+  ok   symref.other.apply.never_the_target
+  ok   symref.other.apply.exit_0_or_4
+  ok   symref.golden_false.origin_head_is_symbolic
+  ok   symref.golden_false.golden_false_exit_0
+  ok   symref.golden_false.golden_false_moved
+== pin_symref
+  ok   pin_symref.symbolic.exit_4
+  ok   pin_symref.symbolic.pin_not_on_any_remote
+  ok   pin_symref.symbolic.reason
+  ok   pin_symref.control.exit_4
+  ok   pin_symref.control.pin_not_on_any_remote
+  ok   pin_symref.control.reason
+== pathspec
+  ok   pathspec.bracket.a_staged_new
+  ok   pathspec.bracket.b_not_staged
+  ok   pathspec.bracket.exit_4
+  ok   pathspec.star.a_staged_new
+  ok   pathspec.star.b_not_staged
+  ok   pathspec.star.exit_4
+  ok   pathspec.icase_wrapper.a_staged_new
+  ok   pathspec.icase_wrapper.b_not_staged
+  ok   pathspec.icase_wrapper.exit_4
+  ok   pathspec.icase_direct.a_staged_new
+  ok   pathspec.icase_direct.b_not_staged
+  ok   pathspec.icase_direct.exit_4
+  ok   pathspec.golden_false.a_staged_new
+  ok   pathspec.golden_false.b_not_staged
+  ok   pathspec.golden_false.exit_4
+== head_file
+  ok   head_file.check_no-fetch.exit_0
+  ok   head_file.check_no-fetch.no_unresolved
+  ok   head_file.check.exit_0
+  ok   head_file.check.no_unresolved
+  ok   head_file.apply.exit_0
+  ok   head_file.apply.no_unresolved
+== stage_verify
+  ok   stage_verify.race.fired
+  ok   stage_verify.race.reason
+  ok   stage_verify.race.why
+  ok   stage_verify.race.names_other
+  ok   stage_verify.race.nonzero
+  ok   stage_verify.race.not_applied
+  ok   stage_verify.race.user_file_still_staged
+  ok   stage_verify.control.exit_0
+  ok   stage_verify.control.no_reason
+  ok   stage_verify.control.staged_target
+== pre_index
+  ok   pre_index.hang.fired
+  ok   pre_index.hang.why
+  ok   pre_index.hang.no_add_ran
+  ok   pre_index.hang.index_kept_old_pin
+  ok   pre_index.hang.nonzero
+  ok   pre_index.hang.not_applied
+  ok   pre_index.control.exit_0
+  ok   pre_index.control.staged_target
+sync-robustness: PASS 1383 FAIL 0
+=== test_robustness OK (867s)
+=== gate
+CM-SYNC-UPSTREAMS-FF-ONLY: PASS — imports and module attributes on the allow-list, no dynamic access; one spawn point (proc_run_git: argv from git_argv(check_git_args(args))) and one guarded signal point (proc_kill_group); 30 git call sites (plus the g_out forwarder) with literal allow-listed argv and bounded answer statuses, equal to the 30-row call-site oracle; 26 accepted shapes carry the exact safe argv (each safe key once); git_env scrubs 27 injectors; 15 redaction shapes + 4 secret paths; 89/89 forbidden shapes refused; control needle 26/26 accepted
+gate rc=0
+=== inventories
+class-inventory-r13: PASS
+class-inventory-names: PASS - sites=58 classified-keys=42 unclassified=0 stale=0
+=== census
+git-env-class-census: PASS - members=678 hermetic=519 exempt=159 unscrubbed=0
+=== git_env_class
+ok   K4: every canonical scrub line keeps the ceiling and clears all 14 (K4 sh=428 py=82 distinct=5 bad=0)
+ok   K5: tests/install/lib.sh sandbox ceiling survives lib-mode sourcing of the installer
+[git-env-class] passed=142 failed=0 skipped=1
+DONE

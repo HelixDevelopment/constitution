@@ -1,0 +1,119 @@
+REV-MUT X1 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+REV-MUT X2 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+REV-MUT X3 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+REV-MUT X4 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the placeholder blacklist was removed: pvl_inventory G01 (placeholders in every field) + pvl_grid placeholder cases
+REV-MUT X5 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the placeholder blacklist was removed: pvl_inventory G01 + pvl_grid placeholder cases
+REV-MUT X6 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by ID_TOKEN removed: the target grammar is closed (pvl_inventory G08, pvl_grid target cases, own O12 O13)
+REV-MUT X7 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by TEMPLATE blacklist removed: pvl_inventory G01 (<job>, {{job}}, ${JOB}) + pvl_grid
+REV-MUT X8 APPLIES scripts/release/render_release_entry.py run-by tests/release/test_render_release_entry.sh
+REV-MUT X9 APPLIES scripts/release/render_release_entry.py run-by tests/release/test_render_release_entry.sh
+REV-MUT X10 APPLIES scripts/release/tag_and_release.sh run-by tests/release/test_derive_release_facts.sh
+REV-MUT X11 APPLIES scripts/release/tag_and_release.sh run-by tests/release/test_publish_gitea.sh
+REV-MUT X12 APPLIES scripts/release/redact_cut.sh run-by tests/release/test_redact_cut.sh
+REV-MUT R1 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT R2 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT R3 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT R4 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT R5 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT R6 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the word rules were removed: pvl_inventory G07 (checks shapes) + pvl_grid checks cases + own O08 O09
+REV-MUT R7 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the lead-phrase rule was removed: pvl_inventory G01 (to be determined, will check later) + G07
+REV-MUT R8 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by a path always resolves under the root now: pvl_inventory G04 G05 + pvl_grid job cases + own O04 O05
+REV-MUT R9 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the word-pair rule was removed: pvl_inventory G01 + pvl_property
+REV-MUT R10 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by JOB_ID replaced by ID_RE plus a database lookup: pvl_inventory G04 (CON-999, CON-778, CON-779) + own O17 O18
+REV-MUT R11 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT R12 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 2 times) covered-by HEX is a module string now (own O14) + pvl_inventory G09 + pvl_grid artifact cases
+REV-MUT R13 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the year bound was replaced by the created..today+window window: pvl_inventory G10 + own O15 O16
+REV-MUT R14 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+REV-MUT R15 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R15	scripts/validation/check_provisional_verification_lines.py	'"live-target", "gate-logic")'	'"live-target")'
+REV-MUT R16 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the stop-word list was removed: pvl_inventory G01 (lorem ipsum, UNCONFIRMED:)
+REV-MUT R17 APPLIES scripts/release/render_release_entry.py run-by tests/release/test_release_tooling_mutations.sh
+REV-MUT R18 APPLIES scripts/release/render_release_entry.py run-by tests/release/test_release_tooling_mutations.sh
+REV-MUT R19 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R19	scripts/validation/check_provisional_verification_lines.py	'"ρ": "p", "υ": "u"'	'"υ": "u"'
+REV-MUT R20 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the prefix rule is in check_line and visible_lines: own O02 O24 + pvl_grid prefix cases + pvl_property
+REV-MUT R21 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R21	scripts/validation/check_provisional_verification_lines.py	'if len(lines) > 1:'	'if len(lines) > 99:'
+REV-MUT R22 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by field order: own O03 + pvl_inventory G12 (every order, omission, repetition)
+REV-MUT N01 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by SEP is ' (?:--|—) ' now: own O01 + pvl_property (both separators) + pvl_grid
+REV-MUT N02 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT N03 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT N04 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT N05 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT N06 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT N07 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT N08 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT N09 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the word rules were removed: pvl_inventory G01 (not yet, none yet) + G07
+REV-MUT N10 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by real_root no longer exists; main() keeps root = os.path.realpath(...): that mutation is the r5 reviewer's RV12, killed in round 6 by pvl_mutate api (--root through a symlink must print the real ROOT); Context.__init__ and resolve() keep their own realpath (own O04, tests/esc.sh leaves the root; pvl_inventory G04). r6 correction: the r5 row named only O04, which covers resolve(), not main()'s root
+REV-MUT N11 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by the word-boundary rule was removed: pvl_inventory G01 (placeholder before and after every value)
+REV-MUT N12 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by HEX holds no digit look-ahead (a hex id of letters is a hex id): own O14 + pvl_inventory G09
+REV-MUT N13 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_inventory G02/G03 (every code point refused outside printable ASCII) + G01 + pvl_property perturbations + own O19
+REV-MUT N14 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by TEMPLATE removed: pvl_inventory G01 (<job>) + pvl_grid
+REV-MUT N15 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC N15	scripts/validation/check_provisional_verification_lines.py	'MAX_LINE = 4096\n'	'MAX_LINE = 40960\n'
+REV-MUT N16 APPLIES tests/release/pvl_timing.py
+REV-MUT-SPEC N16	tests/release/pvl_timing.py	'else 1.0\n'	'else 100.0\n'
+REV-MUT N17 NOT-APPLICABLE tests/release/pvl_inventory.py (old text occurs 0 times) covered-by pvl_inventory judge() rewritten: the clean control and own O19 (alphabet) must show a G02/G03 mismatch
+REV-MUT N18 NOT-APPLICABLE tests/release/pvl_inventory.py (old text occurs 0 times) covered-by pvl_inventory invisible-class shortcut removed: every code point is judged; own O19 kills through G02/G03
+REV-MUT N19 NOT-APPLICABLE tests/release/pvl_grid.py (old text occurs 0 times) covered-by pvl_grid reason check rewritten (want-part in the reason): pvl_grid GRID-FAIL on a wrong reason; own mutants O06-O18
+REV-MUT N20 NOT-APPLICABLE tests/release/pvl_grid.py (old text occurs 0 times) covered-by pvl_grid CLI always passes --root (the grammar needs a root): pvl_grid cli_mismatches + api harness
+REV-MUT N21 NOT-APPLICABLE tests/release/pvl_inventory.py (old text occurs 0 times) covered-by pvl_inventory range table removed: the whole code space U+0000..U+10FFFF is enumerated (code_points=1114112 needle)
+REV-MUT N22 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by pvl_linemodel cases (fences, HTML kinds 1-7, lazy continuation, paragraph start) + pandoc cross-check + own O20 O23-O27
+REV-MUT RV01 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV01	scripts/validation/check_provisional_verification_lines.py	'return re.search(r"(?<![A-Za-z0-9_.-])%s(?![A-Za-z0-9_.-])" % re.escape(word), self.text(real)) is not None'	'return re.search(r"%s" % re.escape(word), self.text(real)) is not None'
+REV-MUT RV02 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV02	scripts/validation/check_provisional_verification_lines.py	'        return "names a target twice"\n'	'        return None\n'
+REV-MUT RV03 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV03	scripts/validation/check_provisional_verification_lines.py	'(WORD_RE.fullmatch(v) and ctx.occurs(script, v))'	'(WORD_RE.fullmatch(v))'
+REV-MUT RV04 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r6: the fromisoformat call it removes no longer exists; it was redundant (DUE_RE fixes the shape, datetime.date the date, the explicit ranges hour 0..23, minute and second 0..59, offset at most 23:59 the time); grid due cases T25:00, T24:00, T10:60, T10:00:60, T23:59:60Z, +25:00, +01:60, -24:00 refused, T10:00Z, T10:00:00+01:00, T23:59:59-05:30 accepted; own O36 (the hour range)
+REV-MUT RV05 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV05	scripts/validation/check_provisional_verification_lines.py	'        if "" in toks:\n            return "holds an empty word (two spaces'	'        if False:\n            return "holds an empty word (two spaces'
+REV-MUT RV06 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV06	scripts/validation/check_provisional_verification_lines.py	'            if k in keys:\n'	'            if False:\n'
+REV-MUT RV07 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (fence contexts, inner fence lengths, both readers) + pvl_lineend S01 S08 S15 + pvl_linemodel fence cases
+REV-MUT RV08 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV08	scripts/validation/check_provisional_verification_lines.py	'        if not (" " <= ch <= "~"):\n'	'        if not (" " <= ch <= "\\x7f"):\n'
+REV-MUT RV09 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV09	scripts/validation/check_provisional_verification_lines.py	'        if p == self.root or os.path.commonpath'	'        if os.path.commonpath'
+REV-MUT RV10 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV10	scripts/validation/check_provisional_verification_lines.py	'    if parts[0] != "":\n'	'    if False:\n'
+REV-MUT RV11 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (comment contexts and suffixes) + the raw-HTML refusal (only complete comments pass) + own O44 O45 O58
+REV-MUT RV12 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RV12	scripts/validation/check_provisional_verification_lines.py	'    root = os.path.realpath(os.path.abspath(opts["--root"]))\n'	'    root = os.path.abspath(opts["--root"])\n'
+REV-MUT RW01 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RW01	scripts/validation/check_provisional_verification_lines.py	'DB_SUFFIXES = ("", "-wal", "-journal")'	'DB_SUFFIXES = ("", "-journal")'
+REV-MUT RW02 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RW02	scripts/validation/check_provisional_verification_lines.py	'LINE_END = re.compile(r"\\r\\n|\\r|\\n")'	'LINE_END = re.compile(r"\\r\\n|\\n")'
+REV-MUT RW03 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r8: fold() decodes character references and reads every character with the reading table (no NFKC step left): api_r8 CON-962/974 (references) + own O64
+REV-MUT RW04 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (quote and list contexts with a labelled line) + own O46 O47 O48 (label elsewhere refused, nested paragraph never counts)
+REV-MUT RW05 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (tab-indented contexts) + pvl_lineend TAB member + own O49 (column-0 prefix required)
+REV-MUT RW06 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (setext suffixes) + pvl_linemodel M06 (setext refused) + own O48 O49
+REV-MUT RW07 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r8: status_key reads with fold() (case, white space and invisible characters): api_r6 status spellings + api_r8 CON-991/992 + own O82
+REV-MUT RW08 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RW08	scripts/validation/check_provisional_verification_lines.py	'(int(off[1:3]) > 23 or int(off[4:6]) > 59)'	'False'
+REV-MUT RW09 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC RW09	scripts/validation/check_provisional_verification_lines.py	'    if d > last:\n'	'    if d > last + datetime.timedelta(days=1):\n'
+REV-MUT RW10 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r7: the hand-written line model was replaced by the markdown-it-py parse (old text occurs 0 times); covered by pvl_blockstate (thematic-break contexts and joins) + own O46 O47
+REV-MUT R7M01 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r8: the counted paragraph must be one source line (the exact rule: map[0] and map[1]-1 are then the same line): api_r8 CON-979/985/988 + own O70 + pvl_linemodel paragraph cases
+REV-MUT R7M02 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r8: every HTML token is refused, comments included (no comment filter left): api_r7 CON-952/963 + api_r8 CON-971/972 + own O77
+REV-MUT R7M03 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r8: no comment regex left (every comment refused): api_r8 CON-971/972 + pvl_blockstate c-bang-* contexts + own O77
+REV-MUT R7M04 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r8: no skip_label left; the rendered text after the label must equal the source (exact rule): api_r8 CON-980/981/982 + own O71
+REV-MUT R7M05 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R7M05	scripts/validation/check_provisional_verification_lines.py	'    if MDIT_VERSION not in MDIT_TESTED:\n'	'    if not str(MDIT_VERSION).startswith("3."):\n'
+REV-MUT R7M06 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R7M06	scripts/validation/check_provisional_verification_lines.py	'                budget -= _copy_regular(db + suf, dst + suf, budget)\n'	'                _copy_regular(db + suf, dst + suf, budget)\n'
+REV-MUT R7M07 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R7M07	scripts/validation/check_provisional_verification_lines.py	'        if _stats(db) == before:\n'	'        if True:\n'
+REV-MUT R7M08 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R7M08	scripts/validation/check_provisional_verification_lines.py	'DB_SUFFIXES = ("", "-wal", "-journal")\n'	'DB_SUFFIXES = ("", "-wal")\n'
+REV-MUT R7M09 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R7M09	scripts/validation/check_provisional_verification_lines.py	'                if n > budget:\n'	'                if n > budget + (1 << 20):\n'
+REV-MUT R7M10 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r8: equivalent by redundancy (the r7 reviewer agreed); the fence branch is own equivalent O89
+REV-MUT R7M11 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r9: the source-line scan reads every line that is not a counted line, before and after it (keep = all counted lines; a second counted line is refused by the count): api_r9 label before the line + own O61 O98
+REV-MUT R7M12 NOT-APPLICABLE scripts/validation/check_provisional_verification_lines.py (old text occurs 0 times) covered-by r8: has_label reads with fold() and the reading table (UTS 39 skeleton, NFKD): api_r8 CON-973 to CON-978, CON-990 + own O64-O66
+REV-MUT R7M13 NOT-APPLICABLE tests/release/pvl_blockstate.py (old text occurs 0 times) covered-by r8: the oracle compares the verification paragraph with the line's text for equality: own O85 + the oracle self-test (text-more, text-less)
+REV-MUT R7M14 APPLIES tests/release/pvl_blockstate.py
+REV-MUT-SPEC R7M14	tests/release/pvl_blockstate.py	'        if k not in GEN_ATTRS:\n'	'        if False:\n'
+REV-MUT R7M15 APPLIES scripts/validation/check_provisional_verification_lines.py
+REV-MUT-SPEC R7M15	scripts/validation/check_provisional_verification_lines.py	'        if not stat.S_ISREG(os.fstat(fd).st_mode):\n'	'        if stat.S_ISCHR(os.fstat(fd).st_mode):\n'
+REVIEWER mutants total=93 applies=32 not_applicable=61 fail=0

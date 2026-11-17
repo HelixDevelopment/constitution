@@ -1,0 +1,3 @@
+mdit   '<p>run <version>-x and <real uid> then <code>&lt;helper&gt;</code></p>\n'
+pandoc '<p>run <version>-x and <real uid> then <code>&lt;helper&gt;</code></p>\n'
+visible text 'run -x and  then <helper>\n'

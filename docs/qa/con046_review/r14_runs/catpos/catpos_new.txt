@@ -1,0 +1,25 @@
+real expression: any(unicodedata.category(c).startswith("C") for c in a)
+control (real True on all 26 fixtures): OK
+a[1:]                                killed                     by AUTHPOS14  4/12, with off-by-one  4/20
+a[:-1]                               killed                     by AUTHPOS14  4/12, with off-by-one  4/20
+a[1:-1]                              killed                     by AUTHPOS14  8/12, with off-by-one  8/20
+a[2:]                                killed                     by AUTHPOS14  4/12, with off-by-one  8/20
+a[:-2]                               killed                     by AUTHPOS14  4/12, with off-by-one  8/20
+a[::2]                               killed                     by AUTHPOS14  8/12, with off-by-one 12/20
+a[1::2]                              killed                     by AUTHPOS14  4/12, with off-by-one  8/20
+a[:1]                                killed                     by AUTHPOS14  8/12, with off-by-one 16/20
+a[-1:]                               killed                     by AUTHPOS14  8/12, with off-by-one 16/20
+a[:len(a)//2]                        killed                     by AUTHPOS14  4/12, with off-by-one  8/20
+a[len(a)//2:]                        killed                     by AUTHPOS14  8/12, with off-by-one 12/20
+a.strip()                            EQUIVALENT(strip-conjunct; C-whitespace 10, interior kept, edge stripped: True) by AUTHPOS14  0/12, with off-by-one  0/20
+a[0:len(a)-1]                        killed                     by AUTHPOS14  4/12, with off-by-one  4/20
+a.lower()[1:]                        killed                     by AUTHPOS14  4/12, with off-by-one  4/20
+set(a[1:])                           killed                     by AUTHPOS14  4/12, with off-by-one  4/20
+a[:5]                                killed                     by AUTHPOS14  8/12, with off-by-one 12/20
+a[5:]                                killed                     by AUTHPOS14  4/12, with off-by-one  8/20
+reversed(a[1:])                      killed                     by AUTHPOS14  4/12, with off-by-one  4/20
+pred:any(unicodedata.category(c).startswith("Cc") for c in a) killed                     by AUTHPOS14  9/12, with off-by-one 15/20
+pred:any(unicodedata.category(c) in ("Cc","Cf") for c in a) killed                     by AUTHPOS14  6/12, with off-by-one 10/20
+pred:any(unicodedata.category(c) in ("Cf","Co","Cn") for c in a) killed                     by AUTHPOS14  3/12, with off-by-one  5/20
+pred:all(unicodedata.category(c).startswith("C") for c in a) killed                     by AUTHPOS14 12/12, with off-by-one 20/20
+variants 22 not killed by AUTHPOS14: 0

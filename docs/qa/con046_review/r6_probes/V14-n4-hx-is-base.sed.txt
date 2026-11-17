@@ -1,0 +1,1 @@
+s/ 2>\/dev\/null \&\& hx="\$headc"$/ 2>\/dev\/null \&\& hx="$basec"/

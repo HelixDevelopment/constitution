@@ -1,0 +1,49 @@
+E1 list item, blank, line at col 0           human=one    checker=ACCEPT  <== DANGER pandoc-md-export(real line not a top-level p)
+E2 empty list item then line                 human=one    checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E3 ordered empty item then line              human=one    checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E4 quote then lazy line                      human=none   checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E5 list item lazy line                       human=none   checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E6 nested quote lazy                         human=none   checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E7 table row then line (gfm)                 human=?      checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E8 footnote-like then line                   human=?      checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E9 line after html block                     human=?      checker=REFUSE 
+    reason: the body holds raw HTML ('<div>' on line 1 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholde
+E10 line in list item tight                  human=none   checker=REFUSE 
+    reason: the verification line does not start at column 0: line 1 holds the label after '- ', so a reader puts it in an indented block, a quote or a list item; write the
+E11 prefix with escaped star                 human=?      checker=REFUSE 
+    reason: the verification line does not start at column 0: line 1 holds the label after '\\', so a reader puts it in an indented block, a quote or a list item; write the
+E12 backtick before prefix                   human=?      checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E13 link bracket open before                 human=?      checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E14 link def then line                       human=one    checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E15 link def title continues                 human=?      checker=REFUSE 
+    reason: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one c
+E16 fence info with label                    human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+E17 code block with entity label             human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+E18 fence with label in content              human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+E19 tilde fence info label                   human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+E20 code span split label                    human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+E21 code span split, colon in span           human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+E22 autolink split label                     human=two    checker=REFUSE 
+    reason: the body holds raw HTML ('<cation:>** provisional -- job' on line 3 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line wi
+E23 ligature fi label                        human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+E24 strike split label (gfm)                 human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+E25 emphasis split label                     human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th

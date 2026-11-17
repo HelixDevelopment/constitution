@@ -1,0 +1,3 @@
+git-env-class-census: inventory: tracked=7438 accounted=7438 universe=1984 (go=184 js=12 other=2 py=321 sh=1465) gitlink=27 symlink=1 binary=25 data=5401 unclassified=0 absent=0 members=715 non_members=1269
+git-env-class-census: control needles seen (94 samples)
+git-env-class-census: PASS - members=715 hermetic=558 exempt=157 unscrubbed=0

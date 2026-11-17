@@ -1,0 +1,25 @@
+strict-refusal               checker=0 legacy=0 pandoc_cm=1 pandoc_gfm=1  lone CR before fence opener
+strict-refusal               checker=0 legacy=0 pandoc_cm=1 pandoc_gfm=1  lone CR before comment opener
+strict-refusal               checker=0 legacy=0 pandoc_cm=1 pandoc_gfm=1  lone CR before tilde fence
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  lone CR then G on same LF line
+DANGER-checker-counts-hidden checker=1 legacy=1 pandoc_cm=0 pandoc_gfm=0  lone CR heading
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  star thematic break with spaces
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  dash thematic break with spaces
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  setext === underline
+strict-refusal               checker=0 legacy=0 pandoc_cm=1 pandoc_gfm=1  link reference definition
+strict-refusal               checker=0 legacy=0 pandoc_cm=1 pandoc_gfm=1  list item with fence after blank, indented 2
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  list item opened HTML comment, column 0 line
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  quote opened HTML comment, column 0 line
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  quote kind 6
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  lazy quote then line
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  nested list lazy
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  list item empty marker
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  ordered list starting not 1 interrupts? (cannot)
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  html7 after blank
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  NBSP indented
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  form feed line before
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  tab blank line
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  vertical tab blank line
+OK                           checker=1 legacy=1 pandoc_cm=1 pandoc_gfm=1  fence in list item closed by column0 fence
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=0  backslash hard break
+OK                           checker=0 legacy=0 pandoc_cm=0 pandoc_gfm=1  table row before

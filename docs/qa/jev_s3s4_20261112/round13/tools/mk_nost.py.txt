@@ -1,0 +1,12 @@
+# mk_nost.py <mutdir> <mutant>...: for each census mutant, a second copy "<mutant>_noST" whose built-in shape control
+# needles are switched off (the loop over `shapes` iterates nothing), so the test file's own rows must do the killing.
+import sys, os, shutil
+md = sys.argv[1]
+OLD = "    for sp, se, st_, sx, want in shapes:\n"; NEW = "    for sp, se, st_, sx, want in ():\n"
+for m in sys.argv[2:]:
+    src, dst = os.path.join(md, m), os.path.join(md, m + "_noST")
+    if os.path.exists(dst): shutil.rmtree(dst)
+    shutil.copytree(src, dst)
+    f = os.path.join(dst, "scripts/validation/git_env_class_census.py"); t = open(f, encoding="utf-8").read()
+    if t.count(OLD) != 1: print(m, "MATCH COUNT", t.count(OLD)); sys.exit(1)
+    open(f, "w", encoding="utf-8").write(t.replace(OLD, NEW)); print(m + "_noST ok")

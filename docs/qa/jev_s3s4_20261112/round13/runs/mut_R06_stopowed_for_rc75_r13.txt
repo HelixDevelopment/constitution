@@ -1,0 +1,81 @@
+ok 1 - calibration: A records at flock call 7
+ok 2 - calibration: B arms at flock call 9, records at 11
+tests/jev/test_s4_round13.sh: line 87:  1510 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 3 - R13-1 starCA kill=k: the running unit is intent after A, B and C
+ok 4 - R13-1 starCA kill=k: the set (if any) is not operator-owned (constitution_started noset)
+ok 5 - R13-1 starCA kill=k: no process adopted the unit as operator-started
+ok 6 - R13-1 starCA kill=k: after the cleanup no unit runs, no set and no start intent is left (stops 2, starts 2)
+tests/jev/test_s4_round13.sh: line 87:  4661 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 7 - R13-1 starAC kill=k: the running unit is held after A, B and C
+ok 8 - R13-1 starAC kill=k: the set (if any) is not operator-owned (constitution_started true)
+ok 9 - R13-1 starAC kill=k: no process adopted the unit as operator-started
+ok 10 - R13-1 starAC kill=k: after the cleanup no unit runs, no set and no start intent is left (stops 3, starts 3)
+tests/jev/test_s4_round13.sh: line 87:  8405 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 11 - R13-1 straCA kill=k: the running unit is intent after A, B and C
+ok 12 - R13-1 straCA kill=k: the set (if any) is not operator-owned (constitution_started noset)
+ok 13 - R13-1 straCA kill=k: no process adopted the unit as operator-started
+ok 14 - R13-1 straCA kill=k: after the cleanup no unit runs, no set and no start intent is left (stops 2, starts 2)
+tests/jev/test_s4_round13.sh: line 87: 11649 Killed                     ( export PATH="$GATEBIN:$PATH" FLOCK_GATE_DIR="$d" FLOCK_GATE_AT="$at" FLOCK_GATE_KILL_AT="$kat" JEV_LOCK_TIMEOUT=10; exec env "${envs[@]}" "$PLACE" "$@" > "$o.out" 2> "$o.err" )
+ok 15 - R13-1 aAstrC kill=k: the running unit is held after A, B and C
+ok 16 - R13-1 aAstrC kill=k: the set (if any) is not operator-owned (constitution_started true)
+ok 17 - R13-1 aAstrC kill=k: no process adopted the unit as operator-started
+ok 18 - R13-1 aAstrC kill=k: after the cleanup no unit runs, no set and no start intent is left (stops 2, starts 3)
+ok 19 - R13-1 starCA CONTROL: A was not killed
+ok 20 - R13-1 starCA kill=-: no unit runs after A, B and C
+ok 21 - R13-1 starCA kill=-: the set (if any) is not operator-owned (constitution_started noset)
+ok 22 - R13-1 starCA kill=-: no process adopted the unit as operator-started
+ok 23 - R13-1 starCA kill=-: after the cleanup no unit runs, no set and no start intent is left (stops 2, starts 2)
+ok 24 - R13-1 starAC CONTROL: A was not killed
+ok 25 - R13-1 starAC kill=-: the running unit is held after A, B and C
+ok 26 - R13-1 starAC kill=-: the set (if any) is not operator-owned (constitution_started true)
+ok 27 - R13-1 starAC kill=-: no process adopted the unit as operator-started
+ok 28 - R13-1 starAC kill=-: after the cleanup no unit runs, no set and no start intent is left (stops 3, starts 3)
+ok 29 - R13-1 straCA CONTROL: A was not killed
+ok 30 - R13-1 straCA kill=-: no unit runs after A, B and C
+ok 31 - R13-1 straCA kill=-: the set (if any) is not operator-owned (constitution_started noset)
+ok 32 - R13-1 straCA kill=-: no process adopted the unit as operator-started
+ok 33 - R13-1 straCA kill=-: after the cleanup no unit runs, no set and no start intent is left (stops 2, starts 2)
+ok 34 - R13-1 aAstrC CONTROL: A was not killed
+ok 35 - R13-1 aAstrC kill=-: the running unit is held after A, B and C
+ok 36 - R13-1 aAstrC kill=-: the set (if any) is not operator-owned (constitution_started true)
+ok 37 - R13-1 aAstrC kill=-: no process adopted the unit as operator-started
+ok 38 - R13-1 aAstrC kill=-: after the cleanup no unit runs, no set and no start intent is left (stops 2, starts 3)
+ok 39 - R13-1 CONTROL: A was SIGKILLed at its record lock call in all four kill orders
+ok 40 - R13-2a a dead starter's unanswered intent with the unit running becomes an owed stop
+ok 41 - R13-2a the owed stop ran: no unit, no intent, no adoption
+ok 42 - R13-2a' a release recovers the intent and stops the unit (rc 0, one stop, nothing left)
+ok 43 - R13-2b a dead starter's intent with no unit is removed
+ok 44 - R13-2b the acquire then starts decide-a (the old intent never blocks a start)
+ok 45 - R13-2c a live starter's intent refuses adoption (the log names it)
+ok 46 - R13-2c not adopted, not stopped, the intent kept, no set made
+ok 47 - R13-2c CONTROL: with no intent the same running unit IS adopted as operator-started (the row can see an adoption)
+ok 48 - R13-2d a live starter's intent refuses a second start (the log names it)
+ok 49 - R13-2d no start ran; the intent is kept
+ok 50 - R13-2e a dead intent and an existing set: the set is made constitution-started, the intent removed
+ok 51 - R13-2f an unknown unit state keeps the dead starter's intent; nothing is stopped or made
+ok 52 - R13-2f the log says why
+ok 53 - R13-2g the intent is in the registry while the start runs, removed by its record; another profile's intent is untouched
+ok 54 - R13-2h the start's record never removes another live process's intent (only its own)
+ok 55 - R13-3 (stop rc 1) the release's stop is armed and in flight (its stop of decide-b is in flight)
+ok 56 - R13-3 (rc 1) the owed retry runs
+ok 57 - R13-3 (rc 1) the release whose owed retry failed exits 6; two stops ran; the set is kept with stop_failed; the unit runs
+ok 58 - R13-3 (stop rc 0) the release's stop is armed and in flight (its stop of decide-b is in flight)
+ok 59 - R13-3 golden-FALSE (rc 0): the same release whose owed retry succeeds exits 0; the set and the unit are gone
+ok 60 - R13-3c (rc 1) the cleanup stop's owed retry runs
+ok 61 - R13-3c (rc 1) the owed retry failed: the next candidate is never started (the old model may be resident)
+ok 62 - R13-3c (rc 1) the acquire says why it stops
+ok 63 - R13-3c CONTROL (rc 0): with the owed retry succeeding the next candidate IS started (the row can see a second start)
+ok 64 - R13-4 calibration: the release stops decide-b (its stop of decide-b is in flight)
+ok 65 - R13-4 calibration: the release arms at flock call 5
+ok 66 - R13-4 the release is paused before its arm lock (paused at flock call 5)
+ok 67 - CONTROL: the external holder has the lease lock
+ok 68 - R13-4 the first arm wait timed out (the producer says so)
+ok 69 - R13-4 the second arm wait succeeds: one stop, the release exits 0, the set and the unit are gone
+ok 70 - R13-5 (rc 75) the record took the non-sole branch with no other lease (the log names it)
+ok 71 - R13-5 a refused start (rc 75) under another process's stopping mark, no other lease: no owed stop, no stop run, the set is gone
+ok 72 - R13-5 CONTROL: a failed start (rc 1) in the same place carries an owed stop (the row can see stop_owed)
+ok 73 - R13-5c (rc 75) the record took the non-sole branch with no other lease
+FAIL - R13-5c a refused start (rc 75) on a set already constitution-started, under a foreign stopping mark: the set is kept for its stopper, no owed stop, no stop run (kills R06) (expected [75 true sStopper false 0] got [75 true sStopper true 0])
+ok 74 - R13-5c CONTROL: rc 1 in the same place carries an owed stop
+ok 75 - P68 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round13.sh: pass=75 fail=1 skip=0

@@ -1,0 +1,8 @@
+# target items the landing wrote: CON-313,CON-387,CON-388
+# findings on the landed copy that the unlanded target does not have (sorted, comm -23):
+# findings on the unlanded target that the landing removed (comm -13):
+REMOVED FINDING XREF-LABEL CON-387 CON-308 (the intake vehicle's id map) vs title: CON-234 follow-up: limits of the round-6 channel census (sta
+REMOVED FINDING XREF-UNLABELLED CON-313 CON-308 without a label in a clause that shares no title word: CON-234 follow-up: limits of the round-6 channel census (sta
+REMOVED FINDING XREF-UNLABELLED CON-313 CON-339 without a label in a clause that shares no title word: Git identity guard F9/F10: conservative-refusal wording; opt
+REMOVED FINDING XREF-UNLABELLED CON-387 CON-308 without a label in a clause that shares no title word: CON-234 follow-up: limits of the round-6 channel census (sta
+RESULT landed=33 target=37 NEW=0 REMOVED=4

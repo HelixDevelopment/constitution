@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+# mutants_r5.py <src-tree> <mutant-tree> <hrun> <out-tsv> [id...]
+# For each mutant: restore the pristine file from <src-tree>, apply ONE exact-once text replacement, run the target test
+# hermetically (through <hrun>), record rc + pass/fail counts, restore. Killed = the test exits non-zero with fail > 0.
+import os, re, shutil, subprocess, sys, time
+SRC, MUT, HRUN, OUT = sys.argv[1:5]
+ONLY = set(sys.argv[5:])
+S4 = "tests/jev/test_s4_placement.sh"; HE = "tests/jev/test_jev_status_health.sh"
+TAB = "tests/jev/test_tab_fields.sh"; NRT = "tests/jev/test_no_real_tools.sh"
+PL = "scripts/jev/jev-place.sh"; LD = "scripts/jev/lib_decide.sh"; ST = "tests/jev/fixtures/bin-place/llmctl"
+M = [
+ ("M01-R4M2", PL, "elif ($routable | index($loc.model)) then .", "elif ($routable | length) > 0 then .", S4,
+  "R4M2 shape: the cache entry is kept while ANY routable set remains, even when it names the model just stopped"),
+ ("M02-R4M12", LD, r'elif [[ "$1" =~ ^[-+][A-Za-z]*c[A-Za-z]*$ ]]; then', r'elif [ "$1" = -c ]; then', HE,
+  "R4M12 shape: the interpreter recurses only on an exact -c (not -lc / -ec)"),
+ ("M03-stop-cache", PL, '    cache_normalize "$cur" ${CAP_BAD:-}\n    write_placement "$p" "" "llmctl stop $p rc=0 ($kind)"',
+  '    write_placement "$p" "" "llmctl stop $p rc=0 ($kind)"', S4,
+  "single stop helper: a successful stop no longer normalises the endpoint cache"),
+ ("M04-stop-under-lock", PL, '  bounded "$STMO" "$WORK/stop.out" "$LLMCTL" stop "$p" || src=$?',
+  '  exec 9>>"$LOCK"; bounded "$STMO" "$WORK/stop.out" "$LLMCTL" stop "$p" || src=$?; exec 9>&-', S4,
+  "single stop helper: the llmctl stop runs with the lease lock file open"),
+ ("M05-stub-status-running", ST, 'status:(if ($rs | length) > 0 then "degraded" else "ok" end)',
+  'status:(if ($rs | length) > 0 then "degraded" else "running" end)', S4,
+  "real-shape stub: a started unit reports status running (the round-4 shape llmctl never emits)"),
+ ("M06-stub-keeps-fits", ST, '.value = (.value + {verdict:"running", verdict_class:null,', '.value = (.value + {verdict_class:null,', S4,
+  "real-shape stub: a running profile keeps its fits verdict (the round-4 shape)"),
+ ("M07-measurement-alt", PL, "if [ \"$(jq -r '.measurement.ok == false' \"$WORK/cap.json\")\" = true ]; then",
+  "if [ \"$(jq -r '(.measurement.ok // true) == false' \"$WORK/cap.json\")\" = true ]; then", S4,
+  "the measurement check uses the jq alternative operator (false // true is true: never fires)"),
+ ("M08-stub-ignores-gone", ST, '      case ",${PLACE_GONE:-}," in *",$r,"*) continue ;; esac; run="$run$r,"; done',
+  '      run="$run$r,"; done', S4, "real-shape stub: a crashed unit (PLACE_GONE) is still reported"),
+ ("M09-degraded-as-ok", PL, 'elif ($sts | index("degraded")) then out("degraded"; "does_not_fit"; 0;',
+  'elif ($sts | index("degraded")) then out("ok"; ""; 0;', S4, "a degraded own unit is treated as ok (joinable)"),
+ ("M10-noexec-cluster", LD, '      elif [[ "$1" =~ ^-[A-Za-z]+$ ]]; then [[ "$1" == *n* ]] && noexec=1; shift',
+  '      elif [[ "$1" =~ ^-[A-Za-z]+$ ]]; then shift', HE, "matcher: bash -n (noexec cluster) counts as running the gate"),
+ ("M11-command-v", LD, '[[ "$1" == *[vV]* ]] && return 1; shift', 'shift', HE, "matcher: command -v counts as running the gate"),
+ ("M12-timeout-duration", LD, '      [ $# -gt 0 ] || return 1; shift   # the DURATION; the command follows it\n',
+  '      [ $# -gt 0 ] || return 1\n', HE, "matcher: timeout does not skip its DURATION word"),
+ ("M13-register-tab", "skills/jev-decision-layer/register.sh",
+  "  while IFS=$'\\x1f' read -r _mf _mm; do", "  while IFS=$'\\t' read -r _mf _mm; do", TAB,
+  "N1: register.sh reads the MCP mode rows with IFS=TAB again"),
+ ("M14-r5-passwd-lookup", "tests/jev/test_review_fixes_r5.sh",
+  'LLB=""; [ -n "${REAL_LLMCTL_BIN:-}" ] && [ -x "$REAL_LLMCTL_BIN" ] && LLB="$REAL_LLMCTL_BIN"',
+  'LLB=""; for c in "$(getent passwd "$(id -u)" | cut -d: -f6)/Projects/catalogizer/constitution/submodules/llmctl/bin/llmctl" "${REAL_LLMCTL_BIN:-/nonexistent}"; do [ -x "$c" ] && { LLB="$c"; break; }; done',
+  NRT, "R4-5: test_review_fixes_r5.sh looks a real llmctl up through the user database again"),
+ ("M15-status-no-starting", "scripts/jev/jev-status.sh", ' starting=\\(.value.starting != null)"', '"', S4,
+  "jev-status hides the starting mark"),
+ ("M16-cache-bad-ignored", PL, '| .key | select(. as $k | $bad | index($k) | not)]) as $routable', '| .key]) as $routable', S4,
+  "cache_normalize ignores the not-ok profile list (a degraded set stays routable)"),
+ ("M17-nproc", PL, 'elif $np < $e.threads then', 'elif $np < 0 then', S4, "RLIMIT_NPROC headroom below the start threads is ignored"),
+ ("M18-own-unit-other-tenant", PL, '| select(((.owner // "self") == "self") and ((.profile // "") == $key))]',
+  '| select(((.owner // "self") == "self") and (((.profile // "") | split("--") | last) == $p))]', S4,
+  "another tenant's unit of the same profile counts as this user's own unit"),
+ ("M19-held-degraded-cached", PL, '    [ -z "$CAP_BAD" ] || cache_normalize "$cur" $CAP_BAD\n', '', S4,
+  "P50 fix removed: a held set that is degraded in this answer stays in the endpoint cache"),
+]
+def counts(txt):
+  m = re.findall(r'^# \S+: pass=(\d+) fail=(\d+) skip=(\d+)', txt, re.M)
+  return m[-1] if m else ("?", "?", "?")
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
+with open(OUT, "w") as out:
+  out.write("id\tfile\ttest\trc\tpass\tfail\tskip\tverdict\tsecs\tdescription\n")
+  for mid, f, old, new, test, desc in M:
+    if ONLY and mid not in ONLY: continue
+    pristine = open(os.path.join(SRC, f)).read()
+    n = pristine.count(old)
+    if n != 1:
+      out.write(f"{mid}\t{f}\t{test}\t-\t-\t-\t-\tAPPLY-FAILED(count={n})\t0\t{desc}\n"); out.flush(); continue
+    target = os.path.join(MUT, f)
+    try:
+      open(target, "w").write(pristine.replace(old, new, 1))
+      shutil.copymode(os.path.join(SRC, f), target)
+      t0 = time.time()
+      p = subprocess.run(["timeout", "900", "nice", "-n", "10", HRUN, "bash", os.path.join(MUT, test)],
+                         capture_output=True, text=True)
+      secs = int(time.time() - t0)
+      txt = p.stdout + p.stderr
+      open(os.path.join(os.path.dirname(OUT), mid + ".out"), "w").write(txt)
+      ps, fl, sk = counts(txt)
+      v = "KILLED" if p.returncode != 0 and fl not in ("0", "?") else ("SURVIVED" if p.returncode == 0 else f"UNCLEAR(rc={p.returncode})")
+      out.write(f"{mid}\t{f}\t{test}\t{p.returncode}\t{ps}\t{fl}\t{sk}\t{v}\t{secs}\t{desc}\n"); out.flush()
+    finally:
+      open(target, "w").write(pristine); shutil.copymode(os.path.join(SRC, f), target)
+print("done")

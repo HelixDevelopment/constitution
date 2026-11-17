@@ -1,0 +1,17 @@
+#!/bin/bash
+# hrun.sh <workdir> <guardlog> cmd... : hermetic run for the round-7 review (real home hidden by tmpfs, no network,
+# own pid/ipc ns, env -i, refusal guards first on PATH). The fake HOME is a fresh mktemp dir under $R/homes, checked
+# non-empty and under that root before use (§11.4.287(C)(2)).
+set -u
+R="$(cat /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/.jev_r8_root)"
+[ -n "$R" ] && [ -d "$R/homes" ] || { echo "hrun: review dir unresolved" >&2; exit 2; }
+WD="${1:?workdir}"; GL="${2:?guardlog}"; shift 2
+H="$(mktemp -d "$R/homes/h.XXXXXX")"
+case "$H" in "$R/homes/h."?*) ;; *) echo "hrun: fake home not under $R/homes: [$H]" >&2; exit 2 ;; esac
+REALHOME="$(getent passwd "$(id -u)" | cut -d: -f6)"
+[ -n "$REALHOME" ] && [ "$REALHOME" != / ] || { echo "hrun: cannot resolve the real home to hide" >&2; exit 2; }
+exec bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --tmpfs "$REALHOME" --tmpfs /run/user/1000 \
+  --bind "$R" "$R" --unshare-net --unshare-pid --unshare-ipc --die-with-parent --chdir "$WD" \
+  /usr/bin/env -i PATH="$R/guard:/usr/bin:/bin" HOME="${H:?}" LANG=C.UTF-8 LC_ALL=C.UTF-8 TERM=dumb USER=reviewer LOGNAME=reviewer \
+  TMPDIR="$R/tmp" JEV_HOSTED_PROBE=0 GIT_SSH_COMMAND=/bin/false GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 REVIEW_GUARD_LOG="$GL" \
+  ${HRUN_EXTRA_ENV:-} "$@"

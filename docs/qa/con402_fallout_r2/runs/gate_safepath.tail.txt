@@ -1,0 +1,3 @@
+PRIVATE baseline_replay.sh:1966 cmd_replay_sample rm -- inside a proved directory (entries_file)
+ROUTED baseline_replay.sh:2008 <top> _fc_safe -- the trusted-parent helper (mkdtemp)
+SUMMARY operations=160 EXEMPT=13 PRIVATE=54 ROOT=1 ROUTED=61 TAGGED=31 violations=0 proved_shell_vars=_FC_LEDGER_FILE,_FC_LOG_DIR,_FC_LOG_LEDGER,_FC_RUN_TIMING,_FC_TMPDIR,_FC_WT_LEDGER,_FC_WT_PATH,_sm_mk,_wa_log,_wa_mk,_wr,body1,body2,d,entries_file,errf,ids_file,list_file,log_pend,marker,run_log_dir,wt_path,wt_pend

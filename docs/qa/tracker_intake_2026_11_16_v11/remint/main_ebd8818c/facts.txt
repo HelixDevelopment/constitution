@@ -1,0 +1,7 @@
+HOLDS R3-1a CON-243 closed as in the vehicle: vehicle 'Obsolete (→ Fixed.md)'/'Fixed', landed 'Obsolete (→ Fixed.md)'/'Fixed'
+HOLDS R3-1b CON-243 obsolete_details duplicate-of CON-262: vehicle ('duplicate-of', 'CON-262'), landed ('duplicate-of', 'CON-262')
+HOLDS R3-1c CON-262 carries the vehicle's description: vehicle 4631 characters, landed 4631
+HOLDS R3-1d CON-046 carries the vehicle's description and reproduction state: vehicle 7148 characters UNREPRODUCED, landed 7148 characters UNREPRODUCED
+HOLDS R3-2 the landed CON-330 title still names fix227's CON-310: landed CON-558 title: 'fix227 CON-310 amendment (vehicle id): add the leading-blank'
+RESULT: PASS facts=5 failed=0
+rc=0

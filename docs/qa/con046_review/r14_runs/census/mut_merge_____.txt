@@ -1,0 +1,1 @@
+git-env-class-census: BLIND - control needle: sh guard, merge-tree write: got EXEMPT, want UNSCRUBBED (subject-follows-caller: x)

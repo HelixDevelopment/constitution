@@ -1,0 +1,20 @@
+CON-046 round 10 (CON-194) RED/GREEN evidence, 2026-11-11 (host anton, GNU date 9.7 pinned first on PATH, uutils date 0.8.0 the alternative)
+
+RED: each round-10 killer mutant through GATE_UNDER_TEST on the round-9 suite (vehicle head 1dba697e, clean clone), redold.sh, old.*.log, summary_old.txt:
+  rc 0 (survives the round-9 suite): base-nocase, base-suffix12, lev-gt-1, prefix-min-3, RV9-02-expired-yesterday-ok,
+    RV9-05-base-prefix-bind, RV9-10-auth-zs-only-pad, RV9-11-ident-zs-only-strip, spent-base-prefix12, spent-new-prefix12,
+    spent-old-prefix12, waiver-new-prefix12, waiver-old-prefix12 (13)
+  rc 1: days-min-2 (already killed in round 9 by DAYS100; adopted as the off-by-one partner of the DAYSBND pair, not as a gap)
+GREEN: the round-10 suite, MUT_ONLY runs on snapshots of the working tree that became the commits:
+  new.mutonly1_71b1952b-worktree.log: RV9-02, RV9-10, RV9-11, lev-gt-1, days-min-2, prefix-min-3: 6 killed, 0 survived, rc 0
+  new.mutonly2_14353b05-worktree.log: RV9-05, base-suffix12, base-nocase, waiver-old/new-prefix12, spent-old/new/base-prefix12:
+    8 killed, 0 survived, rc 0
+  both: static lint findings 0, the real gate's vector equals want under both dates
+Reviewer mutants RV9-01..RV9-11 (review N4) through GATE_UNDER_TEST on the 71b1952b working-tree suite, rv9/ (run.sh, summary.txt):
+  REAL rc 0; RV9-01..04, 06..11 rc 1 (killed); RV9-05 rc 0 (SURVIVED that suite) -> fixed in 14353b05 (SHANEAR, SPENTNEAR),
+  killed in new.mutonly2. (Corrected in round 11, review r10 F7: an earlier version of this line also said "and in
+  the three full screens (r10_runs/)"; no r10_runs/ directory was committed and only two of the three round-10 screens
+  had run when the round-10 review read it, so that part was evidence ahead of its run (§11.4.6) and is withdrawn. The
+  round-11 screens and their logs are in ../r11_runs/.) RV9-09 runs from a copy whose hook carries the
+  reviewer's `|| exit 0` (rv9/run.sh, wt), killed by HOOKNOREPO.
+Paths of the scratch area are written <scratch>.

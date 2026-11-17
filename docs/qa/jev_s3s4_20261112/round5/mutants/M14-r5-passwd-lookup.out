@@ -1,0 +1,9 @@
+ok 1 - N1 the scan sees the suite files (36)
+FAIL - N1 real-tool lookup in a test: <HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r5.jiIp/mut2/tests/jev/test_review_fixes_r5.sh:41:LLB=""; for c in "$(getent passwd "$(id -u)" | cut -d: -f6)/Projects/catalogizer/constitution/submodules/llmctl/
+ok 2 - N1 CONTROL: a planted lookup line is found (comment lines are not)
+ok 3 - N1 CONTROL: a clean file gives no hit
+ok 4 - N2 CONTROL: a lookup through the user database reaches the decoy tripwire
+FAIL - N2 a real-tool location was executed by test_review_fixes_r5.sh: TRIP <HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r5.jiIp/tmp/tmp.BCdiwiNL5t/decoy_home/Projects/catalogizer/constitution/submodules/llmctl/bin/llmctl require-validated -- no-such-profile-r5 TRIP <HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r5.jiIp/tmp/tmp.BCdiwiNL5t/decoy_home/Projects/catalogizer/constitution/submodules/llmctl/bin/llmctl require-validated no-such-profile-r5 
+FAIL - N2 without REAL_LLMCTL_BIN the real-binary check is an honest SKIP (no [skip - I5-1 real pinned llmctl not named] in <HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r5.jiIp/tmp/tmp.BCdiwiNL5t/r5.out)
+FAIL - N2 test_review_fixes_r5.sh passes under the decoy environment (expected [0] got [1])
+# test_no_real_tools.sh: pass=4 fail=4 skip=0

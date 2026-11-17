@@ -1,0 +1,49 @@
+$ REMINT_BRANCH_SWEEP=red/remint_branch_sweep_pre_fix.py.txt WORKABLE_ITEMS=$WI bash tests/workable_items/test_remint_branch_sweep.sh
+# RED of B4 (the sweep without its unmutated control and its setup exits): the final sweep suite on the
+# sweep source as it was before the fix (kept as red/remint_branch_sweep_pre_fix.py.txt; sha256 of that source without its header 20fb4131a79253b2378949a29315bbbe04348d3445d331353f33876de1c16855); run 2026-11-13T23:47:42Z
+PASS list: the inventory counts every target branch point, two mutants each
+PASS list: a condition after a non-ASCII character on its line keeps its exact key
+PASS list: a key holding a comma is printed whole
+PASS list: a while True loop is listed as skipped
+PASS list: a function outside the targets is not listed
+PASS full run: an unregistered survivor and a SETUP verdict fail the sweep
+FAIL full run: the unmutated control is reported: /^CONTROL: the unmutated source passes the suite$/ not in: make_plan|if|n > 2#1=True	5	KILLED	make_plan 1|make_plan|if|n > 2#1=False	5	KILLED	make_plan 3|block_steps|if|isinstance(n, int) and n == 7#1=True	11	SURVIVED	|block_steps|if|isinstance(n, int) and n == 7#1=False	11	SURVIVED	|lifecycle_steps|if|not s#1=True	17	KILLED	lifecycle_steps|lifecycle_steps|if|not s#1=False	17	EQUIVALENT	fixture: the guard returns what the fall-through returns for the empt
+PASS full run: a branch tested both ways is killed when forced True
+PASS full run: a branch tested both ways is killed when forced False
+PASS full run: an untested branch survives when forced True
+PASS full run: an untested branch survives when forced False
+PASS full run: a tested guard is killed
+PASS full run: a registered survivor is EQUIVALENT
+PASS full run: a conditional expression is killed when forced True
+PASS full run: a conditional expression is killed when forced False
+PASS full run: a loop forced to run forever is a TIMEOUT
+PASS full run: a loop forced never to run is killed
+PASS full run: a mutant that breaks the suite is a SETUP verdict
+PASS full run: a second registered survivor is EQUIVALENT
+PASS full run: a suite exit 1 without a FAIL line is a SETUP verdict, never KILLED
+PASS full run: a third registered survivor is EQUIVALENT
+PASS full run: a comprehension filter is killed when forced True
+PASS full run: a comprehension filter is killed when forced False
+PASS full run: --out holds the same 16 rows as stdout
+PASS --only: killed, equivalent and timeout verdicts pass the sweep
+PASS --only: a key holding a comma is never split, and its survivor fails the sweep
+PASS --only: a SETUP verdict fails the sweep
+PASS --only-file: the first TAB field of each line names a key
+PASS usage: an unknown --only key is a setup error
+PASS usage: a missing --only-file is a setup error
+PASS usage: --jobs 0 is a setup error
+PASS register: a minimal tree with every branch killed passes
+PASS register: a stale entry fails a full run
+PASS register: a stale entry is named
+PASS register: a stale entry is reported but not counted with --only
+FAIL register: a line without a TAB and a reason is a setup error: rc=1 want=2: setup: <work>/tmp/<tmp>/b/tests/workable_items/remint_branch_equivalents.tsv line 3: want <key>TAB<reason>|
+PASS register: an entry does not turn a killed mutant into an equivalent
+FAIL control: a suite that fails on the unmutated source is a setup error: rc=0 want=2: make_plan|if|n > 2#1=True	2	KILLED	control: this suite fails on every input|make_plan|if|n > 2#1=False	2	KILLED	control: this suite fails on every input|RESULT: mutants=2 KILLED=2 skipped=0 stale-register=0 PASS|
+FAIL control: no mutant is run when the control fails: 'KILLED' found in: make_plan|if|n > 2#1=True	2	KILLED	control: this suite fails on every input|make_plan|if|n > 2#1=False	2	KILLED	control: this suite fails on every input|RESULT: mutants=2 KILLED=2 skipped=0 stale-register=0 PASS|
+FAIL setup: a missing remint_ids.py is a setup error: rc=1 want=2: Traceback (most recent call last):|  File "<work>/tmp/<tmp>/d/tests/workable_items/remint_branch_sweep.py", line 233, in <module>|    sys.exit(main())|             ~~~~^^|  File "<home>/.cache/claude-tmp/claude-1000/<session>
+FAIL setup: a missing suite is a setup error: rc=1 want=2: make_plan|if|n > 2#1=True	2	SETUP	suite rc=127 bash: <work>/|make_plan|if|n > 2#1=False	2	SETUP	suite rc=127 bash: <home>/.cache/claude-tmp/claude-1000/<session>
+FAIL needle: a span taken from byte offsets as characters is a setup error: rc=1 want=2: setup: the span of the condition at line 24 does not parse back to it: 'n(s) > 0 e'|
+RESULT: pass=35 fail=7
+rc=1
+# scrubbed copy (tools/scrub_paths.py): <tmp> x0, <work> x3, <home> x2, <tmp> x2
+# cut path fragments replaced: 2

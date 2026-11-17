@@ -1,0 +1,10 @@
+#!/bin/bash
+# chain7.sh <W>: RED of the final round-7 suite on the round-6 producer (eb29803b), then suite passes A and B, sequential
+W="$1"; R="$W/repo"
+st=$(date +%s)
+HRUN_EXTRA_ENV="S4_PLACE_UNDER_TEST=$W/old/scripts/jev/jev-place.sh" "$W/hrun.sh" "$R" "$W/runs4/g_red.log" \
+  timeout --kill-after=10 1800 bash tests/jev/test_s4_round7.sh > "$W/runs4/red_final.txt" 2>&1
+echo "rc=$? secs=$(( $(date +%s) - st ))" >> "$W/runs4/red_final.txt"; : > "$W/runs4/red_final.done"
+"$W/suites7.sh" "$W" A
+"$W/suites7.sh" "$W" B
+: > "$W/out7/chain.done"

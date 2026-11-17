@@ -1,0 +1,28 @@
+== sync-ui (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix5.VjLJ/tmp/helix-sync-test.uiUtwj)
+  ok   prompt 1 shows the scope
+  ok   prompt 1 asks before fetching
+  ok   no: zero fetch calls
+  ok   no: nothing changed
+  ok   no: consent recorded as interactive
+  ok   enter: zero fetch calls
+  ok   prompt 2 asks before fast-forwarding
+  ok   yes-no: exit 3
+  ok   yes-no: nothing changed
+  ok   yes-no: verdict shown on the terminal
+  ok   prompt 3 asks before staging pins
+  ok   yes: exit 0
+  ok   yes: root fast-forwarded
+  ok   yes: libs/a advanced
+  ok   transcripts never show the token
+  ok   transcripts never show userinfo
+  ok   check: exactly one prompt
+  ok   check: exit 4 (the staged pin is attention)
+  ok   check: the only reason is the staged pin
+  ok   check after commit: exit 0 (current)
+  ok   pins-only: fixture premise X != Y
+  ok   pins-only: no fast-forward prompt (nothing behind on main)
+  ok   pins-only: libs/a advanced
+  ok   pins-only: libs/a/inner followed liba's new pin (X), not upstream main (Y)
+  ok   no terminal: exit 2
+  ok   no terminal: says why
+sync-ui: PASS 26 FAIL 0

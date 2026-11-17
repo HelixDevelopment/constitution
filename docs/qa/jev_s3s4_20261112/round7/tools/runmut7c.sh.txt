@@ -1,0 +1,27 @@
+#!/bin/bash
+# runmut7c.sh <W> <snap> <K> <outdir> [targets]: as runmut7b.sh, plus the suites r7p89, r7p90, r7p75b and r7p72f (the P89-, P90-, P75b- and final P72-only extracts of snapshot s3) and an optional targets list overriding the index; runs mutant K (its producer $W/mut/K/scripts/jev/jev-place.sh) against the frozen
+# test tree <snap>, HERMETIC (hrun.sh: bwrap, own pid namespace, no network, real home hidden), suite by suite in the
+# order of its `targets` column, until one suite kills it. A kill is the first FAIL line (the namespace is then torn
+# down: killing bwrap kills every process in it, so no gated fixture process is left behind) or a non-zero exit of a
+# suite that ran to its end (a timeout included). One result line per suite run in <outdir>/results.tsv.
+W="$1"; S="$2"; K="$3"; O="$4"; mkdir -p "$O"
+P="$W/mut/$K/scripts/jev/jev-place.sh"
+[ -f "$P" ] || { printf '%s\t-\tERROR\tno producer\n' "$K" >> "$O/results.tsv"; exit 2; }
+targets="${5:-$(awk -F'\t' -v k="$K" '$1==k{print $2}' "$W/mut/index.tsv")}"
+IFS=, read -ra TS <<<"$targets"
+for t in "${TS[@]}"; do
+  case "$t" in r7) f=tests/jev/test_s4_round7.sh ;; r6) f=tests/jev/test_s4_round6.sh ;; pl) f=tests/jev/test_s4_placement.sh ;;
+    r7p72) f=tests/jev/zz_r7_p72_only.sh ;; r7p89) f=tests/jev/zz_r7_p89_only.sh ;; r7p90) f=tests/jev/zz_r7_p90_only.sh ;; r7p72f) f=tests/jev/zz_r7_p72_only.sh ;; r7p75b) f=tests/jev/zz_r7_p75b_only.sh ;; *) printf '%s\t%s\tERROR\tunknown target\n' "$K" "$t" >> "$O/results.tsv"; exit 2 ;; esac
+  out="$O/${K}_$t.txt"; st=$(date +%s); early=0
+  HRUN_EXTRA_ENV="S4_PLACE_UNDER_TEST=$P" "$W/hrun.sh" "$S" "$O/g_${K}_$t.log" timeout --kill-after=10 1800 bash "$f" > "$out" 2>&1 &
+  bp=$!
+  while kill -0 "$bp" 2>/dev/null; do
+    if grep -q '^FAIL' "$out" 2>/dev/null; then early=1; kill -TERM "$bp" 2>/dev/null; break; fi
+    sleep 2
+  done
+  wait "$bp"; rc=$?
+  nf=$(grep -c '^FAIL' "$out"); first="$(grep -m1 '^FAIL' "$out" | sed 's/^FAIL - //' | cut -c1-160)"
+  verdict=survived; { [ "$nf" -gt 0 ] || [ "$rc" != 0 ]; } && verdict=killed
+  printf '%s\t%s\t%s\trc=%s\tearly=%s\tfails=%s\t%ss\t%s\n' "$K" "$t" "$verdict" "$rc" "$early" "$nf" "$(( $(date +%s) - st ))" "$first" >> "$O/results.tsv"
+  [ "$verdict" = killed ] && break
+done

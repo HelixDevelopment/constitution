@@ -172,6 +172,10 @@ if ltext is not None:
             hdr["analyzer"] = line.split("=", 1)[1]
         elif line.startswith("# genuine_sha256="):
             hdr["genuine"] = line.split("=", 1)[1]
+        elif line.startswith("# tmpdir_chain="):
+            hdr["chain"] = line.split("=", 1)[1]
+        elif line.startswith("# control_passing_checks="):
+            hdr["npass"] = line.split("=", 1)[1]
         elif line.startswith("# suite "):
             name, h = line[len("# suite "):].split(" sha256=")
             hdr["suite:" + name] = h
@@ -180,6 +184,13 @@ if ltext is not None:
             if len(f) != 6:
                 fails.append("M4: malformed ledger row %r" % line[:80]); continue
             got[f[0]] = f
+    # CON-251 round 2 (review F4-A): the first isolating cases are only comparable on the topology class they were
+    # measured on; the sweep records it, and only an owner-only TMPDIR chain gives a GREEN control with every leg
+    if hdr.get("chain") != "owner-only":
+        fails.append("M4: kill ledger records tmpdir_chain=%s, not owner-only -- not comparable; re-run the sweep with "
+                     "a TMPDIR whose whole ancestor chain is owner-only" % hdr.get("chain", "<absent>"))
+    if not (hdr.get("npass") or "").isdigit():
+        fails.append("M4: kill ledger records no control_passing_checks count")
     cur = {"tool": sha(tool), "analyzer": sha(analyzer),
            "genuine": sha(os.path.join(here, "lib", "review_record_genuine.sh"))}
     suites = [k[6:] for k in hdr if k.startswith("suite:")]
@@ -286,6 +297,12 @@ golden_bad GB10-stale-tag "outside the cmd_gate/cmd_record call graph" "$S/gb10.
 # GB11: a sub-clause row deleted from the ledger.
 awk -F'\t' '!/^#/ && !d {d=1; next} {print}' "$LEDGER" > "$S/gb11.tsv"
 golden_bad GB11-missing-row "has no ledger row" "$TOOL" "$RUNNER" "$S/gb11.tsv" "$EQUIV" "$DATA_GUARDS"
+# GB12 (CON-251 round 2, review F4-A): a ledger measured on a shared (group/other-writable) TMPDIR chain.
+sed 's|^# tmpdir_chain=.*|# tmpdir_chain=shared:/fake/group-writable|' "$LEDGER" > "$S/gb12.tsv"
+golden_bad GB12-shared-tmpdir-chain "not owner-only -- not comparable" "$TOOL" "$RUNNER" "$S/gb12.tsv" "$EQUIV" "$DATA_GUARDS"
+# GB13: a ledger with no recorded topology class (written before the class was measured).
+grep -v '^# tmpdir_chain=' "$LEDGER" > "$S/gb13.tsv"
+golden_bad GB13-no-tmpdir-chain "tmpdir_chain=<absent>" "$TOOL" "$RUNNER" "$S/gb13.tsv" "$EQUIV" "$DATA_GUARDS"
 
 echo ""
 [ "$FAIL" -eq 0 ] && { echo "== guard table: ok =="; exit 0; }

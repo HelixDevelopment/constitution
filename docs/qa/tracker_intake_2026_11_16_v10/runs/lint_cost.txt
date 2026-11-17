@@ -1,0 +1,8 @@
+r9 fixtures texts=413 best_s=0.045 per_text_ms=0.108
+r9 prose texts=400 best_s=0.086 per_text_ms=0.215
+r9 line40k texts=2 best_s=0.201 per_text_ms=100.699
+r10 fixtures texts=413 best_s=0.054 per_text_ms=0.131
+r10 prose texts=400 best_s=0.082 per_text_ms=0.206
+r10 line40k texts=2 best_s=0.164 per_text_ms=81.795
+rc=0
+load=34.95 34.34 32.05 note: wall-clock on a shared host, best of 3; r9 = HEAD 8f688bf1 lint, r10 = working tree

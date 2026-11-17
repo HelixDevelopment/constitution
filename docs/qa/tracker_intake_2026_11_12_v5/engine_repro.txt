@@ -1,0 +1,62 @@
+== preconditions: HELIX_RELEASE_PREFIX=CON; <open> and <probe> are open items of Type Task; <obsolete> is Obsolete with an obsolete_details row
+== F1 (review M4): update --status with values outside the closed set
+$ '<wi>' 'update' '--db' '<db>' '--id' '<probe>' '--status' 'Done'
+  | update: <probe> updated in Issues (status=Queued, type=Task)
+  rc=0
+  status after: Queued
+$ '<wi>' 'update' '--db' '<db>' '--id' '<probe>' '--status' 'Bogus'
+  | update: <probe> updated in Issues (status=Queued, type=Task)
+  rc=0
+  status after: Queued
+== F2 (review M5): add with a type outside the closed set
+$ '<wi>' 'add' 'Story' 'Low' '--db' '<db>' '--title' 'repro type probe' '--description' 'a probe item for the type closed set check only' '--created-by' 'Conductor'
+  | add: created <other id> (Task, status=Queued) in Issues
+  rc=0
+  items before: 307; after: 308
+  added item (id|type|created_by): <added>|Task|Conductor
+== F3 (review I9): history attribution of the add above
+  history Opened row (atm_id|by): <added>|User
+== F4 control: a closed-set value is accepted and changes the row
+$ '<wi>' 'update' '--db' '<db>' '--id' '<probe>' '--status' 'In progress'
+  | update: <probe> updated in Issues (status=In progress, type=Task)
+  rc=0
+  status after: In progress
+== G1 (review R2-9): close rewrites created_at
+  created_at before: 2026-11-11 15:38:57
+$ '<wi>' 'close' '<open>' '--db' '<db>' '--status' 'completed' '--evidence' 'docs/qa/tracker_intake_2026_11_12_v5/engine_repro.sh'
+  | close: moved <open> Issues→Fixed (status=Completed (→ Fixed.md), evidence=docs/qa/tracker_intake_2026_11_12_v5/engine_repro.sh)
+  rc=0
+  created_at after:  2026-11-13 19:57:02
+  created_at changed by close: yes
+== G4 (review R2-6 D7a): obsolete-details and validate accept a superseding id that does not exist
+  <absent> exists: 0
+$ '<wi>' 'obsolete-details' '<obsolete>' '--db' '<db>' '--since' '2026-11-13' '--reason' 'duplicate-of' '--superseding' '<absent>' '--evidence' 'docs/qa/tracker_intake_2026_11_12_v5/engine_repro.sh'
+  | obsolete-details: <obsolete> written (Since:2026-11-13 Reason:duplicate-of Superseding:<absent> Evidence:docs/qa/tracker_intake_2026_11_12_v5/engine_repro.sh)
+  rc=0
+  obsolete_details now: duplicate-of|<absent>
+$ '<wi>' 'validate' '--db' '<db>'
+  | validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+  | validate: OK — 308 items, all invariants satisfied
+  rc=0
+  (restore the superseding id <superseding> for the later probes)
+$ '<wi>' 'obsolete-details' '<obsolete>' '--db' '<db>' '--since' '2026-11-13' '--reason' 'duplicate-of' '--superseding' '<superseding>' '--evidence' 'docs/qa/tracker_intake_2026_11_12_v5/engine_repro.sh'
+  | obsolete-details: <obsolete> written (Since:2026-11-13 Reason:duplicate-of Superseding:<superseding> Evidence:docs/qa/tracker_intake_2026_11_12_v5/engine_repro.sh)
+  rc=0
+== G2 (review R2-9): reopen leaves the obsolete_details row
+  status before: Obsolete (→ Fixed.md); obsolete_details: duplicate-of|<superseding>
+$ '<wi>' 'reopen' '--db' '<db>' '--id' '<obsolete>' '--why' 'design-reconsidered' '--who' 'AI' '--when' '2026-11-13' '--incident' 'docs/qa/tracker_intake_2026_11_12_v5/engine_repro.sh'
+  | reopen: <obsolete> reopened, relocated Fixed→Issues (By:AI On:2026-11-13 Reason:design-reconsidered Evidence:docs/qa/tracker_intake_2026_11_12_v5/engine_repro.sh)
+  rc=0
+  status after: Reopened; obsolete_details: duplicate-of|<superseding>
+  body header keys after reopen: Status,Type,Reopened-Details,Evidence,Severity,Created-By,Reproduction,Investigation,Obsolete-Details
+== G3: update re-renders the body header and drops the Reopened-Details line
+$ '<wi>' 'update' '--db' '<db>' '--id' '<obsolete>' '--description' '<2466 chars>'
+  | update: <obsolete> updated in Issues (status=Reopened, type=Bug)
+  rc=0
+  body header keys after update: Status,Type,Severity,Created-By,Reproduction,Investigation
+  reopen history rows kept: 2
+  obsolete_details on the Reopened item: duplicate-of|<superseding>
+$ '<wi>' 'validate' '--db' '<db>'
+  | validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+  | validate: OK — 308 items, all invariants satisfied
+  rc=0

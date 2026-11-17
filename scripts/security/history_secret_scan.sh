@@ -20,8 +20,17 @@
 #               evil merge), deleted in the next commit  -> MUST be found
 #               (proves the merge-diff option -m is really applied)
 #        neg    a plain text file                        -> MUST NOT be found
+#        attr   a fabricated token in a path the mirror's info/attributes marks
+#               -diff (history only)                      -> MUST be found
+#               (proves --text is really applied)
+#        tconv  a fabricated token in a path whose diff driver has a textconv
+#               that prints nothing (history only)        -> MUST be found
+#               (proves --no-textconv is really applied)
 #      Needle values are random per run and never printed.
-#   3. ONE scan: gitleaks git --redact --log-opts="--all -m" over the mirror.
+#      A shallow mirror (a remote is a shallow clone) is BLIND (exit 3): its
+#      older history cannot be scanned.
+#   3. ONE scan: gitleaks git --redact --log-opts="--all -m --text
+#      --no-textconv" over the mirror.
 #      The scanner's own console output (file paths, commits, rule ids) goes
 #      to a file inside $WORK, never to this script's stdout or stderr.
 #      Only gitleaks exit 0 (no leak) or 1 (leaks) is accepted, with a JSON
@@ -60,6 +69,14 @@
 #   (fetched into refs/fetched/r<n>/replace/*) is listed in $OUT.replace.tsv
 #   (ref, object id, type; ids only) and counted as a finding (exit 1): a
 #   replace ref in a scanned history is something to classify by hand.
+# Git attributes (CON-453, CON-438 class): git applies diff attributes to
+#   the scanner's `git log -p`, so a path marked -diff (or binary, or a diff
+#   driver with binary=true or a textconv) hides its added lines. The caller's
+#   core.attributesFile (any config level), $XDG_CONFIG_HOME/git/attributes,
+#   GIT_CONFIG_PARAMETERS/COUNT and GIT_ATTR_SOURCE all reached this scan and
+#   gave exit 0 with the secret missed (measured with gitleaks 8.30.1, git
+#   2.53.0). --text and --no-textconv, last in the log options, cancel the
+#   effect whatever the source; the attr and tconv needles prove it on every run.
 # Scanner: gitleaks from $GITLEAKS or PATH (a pinned, pre-installed v8
 # binary). Nothing is downloaded at run time; without it the exit is 4.
 # URLs carrying credentials (http(s) with user info, or user:password@) are
@@ -132,6 +149,14 @@ for u in "${URLS[@]:1}"; do
     || fail 7 "git error: fetch of remote #$((i+1)) failed"
 done
 
+# ---- shallow mirror (CON-453): refused --------------------------------------------------
+# Cloning or fetching from a shallow repository (a real one, or one whose .git/shallow names a
+# commit it fully holds) makes the mirror shallow, and git log then stops at the shallow commits:
+# older history is never scanned, while the needles (fresh root commits) are still found. So a
+# shallow mirror is BLIND, never a scan of part of the history reported as clean.
+[ ! -e "$M/shallow" ] || fail 3 "BLIND: the mirror is shallow (a remote is a shallow clone): history before the shallow commits cannot be scanned"
+# Grafts: the mirror has no info/grafts (clone never copies it) and GIT_GRAFT_FILE is scrubbed.
+
 # ---- replace refs (CON-425): listed and counted, never followed -------------------------------
 RPL="$OUT.replace.tsv"
 git -C "$M" for-each-ref --format='%(refname)%09%(objectname)%09%(objecttype)' refs/replace/ refs/fetched/ >"$WORK/refs.tsv" 2>"$WORK/git.err" \
@@ -144,7 +169,7 @@ echo "replace refs: $rh -> $RPL (each would show another object in place of the 
 export GIT_AUTHOR_NAME=hss-needle GIT_AUTHOR_EMAIL=needle@invalid GIT_COMMITTER_NAME=hss-needle GIT_COMMITTER_EMAIL=needle@invalid
 export GIT_AUTHOR_DATE='2000-01-01T00:00:00Z' GIT_COMMITTER_DATE='2000-01-01T00:00:00Z'
 rnd(){ python3 -I -c 'import secrets,string,sys;a=string.ascii_letters+string.digits;print("".join(secrets.choice(a) for _ in range(int(sys.argv[1]))))' "$1"; }
-POS="ghp_$(rnd 36)"; MRG="ghp_$(rnd 36)"; NEGV="hss$(rnd 37)"
+POS="ghp_$(rnd 36)"; MRG="ghp_$(rnd 36)"; NEGV="hss$(rnd 37)"; ATR="ghp_$(rnd 36)"; TCV="ghp_$(rnd 36)"
 blob(){ printf '%s\n' "$1" | git -C "$M" hash-object -w --stdin; }
 # ntree NAME=BLOB... -> a tree with the files under __hss_needle__/
 ntree(){
@@ -158,6 +183,14 @@ B_POS=$(blob "T=$POS"); B_MRG=$(blob "T=$MRG"); B_NEG=$(blob "hss negative contr
 p1=$(commit "$(ntree pos.env="$B_POS")"); p2=$(commit "$EMPTY" -p "$p1")
 git -C "$M" update-ref refs/fetched/needle/pos "$p2"
 git -C "$M" update-ref refs/fetched/needle/neg "$(commit "$(ntree neg.txt="$B_NEG")")"
+# attribute needles: hidden by the mirror's own attributes and diff driver unless the scan
+# passes --text (attr) and --no-textconv (tconv); the textconv command `true` prints nothing
+mkdir -p "$M/info"
+printf '%s\n' '__hss_needle__/attr.env -diff' '__hss_needle__/tconv.env diff=hssneedle' >> "$M/info/attributes"
+git -C "$M" config diff.hssneedle.textconv true
+B_ATR=$(blob "T=$ATR"); B_TCV=$(blob "T=$TCV")
+a1=$(commit "$(ntree attr.env="$B_ATR" tconv.env="$B_TCV")"); a2=$(commit "$EMPTY" -p "$a1")
+git -C "$M" update-ref refs/fetched/needle/attr "$a2"
 x=$(commit "$(ntree base.txt="$B_BASE")")
 y1=$(commit "$(ntree base.txt="$B_BASE" a.txt="$B_A")" -p "$x")
 y2=$(commit "$(ntree base.txt="$B_BASE" b.txt="$B_B")" -p "$x")
@@ -170,7 +203,7 @@ if [ "$EXACT_ONLY" = 1 ]; then
   echo "scanner not run (--exact-only): only the exact-match controls guard this run"
 else
 REP="$WORK/scan.json"
-grc=0; "$GL" git --redact --no-banner --log-opts="--all -m" -f json -r "$REP" "$M" >"$WORK/gl.out" 2>&1 || grc=$?
+grc=0; "$GL" git --redact --no-banner --log-opts="--all -m --text --no-textconv" -f json -r "$REP" "$M" >"$WORK/gl.out" 2>&1 || grc=$?
 case "$grc" in 0|1) ;; *) fail 6 "SCANNER-ERROR: gitleaks exited $grc" ;; esac
 [ -s "$REP" ] || fail 6 "SCANNER-ERROR: no report written"
 len=$(jq -e 'if type=="array" then length else error("not an array") end' "$REP" 2>/dev/null) || fail 6 "SCANNER-ERROR: report is not a JSON array"
@@ -180,12 +213,16 @@ fi
 npos=$(jq '[.[]|select(.File=="__hss_needle__/pos.env")]|length' "$REP")
 nmrg=$(jq '[.[]|select(.File=="__hss_needle__/merge.env")]|length' "$REP")
 nneg=$(jq '[.[]|select(.File=="__hss_needle__/neg.txt")]|length' "$REP")
+natr=$(jq '[.[]|select(.File=="__hss_needle__/attr.env")]|length' "$REP")
+ntcv=$(jq '[.[]|select(.File=="__hss_needle__/tconv.env")]|length' "$REP")
 [ "$npos" -ge 1 ] || fail 3 "BLIND: the history needle was not found (the scan did not see deleted history)"
 [ "$nmrg" -ge 1 ] || fail 3 "BLIND: the merge-only needle was not found (merge diffs were not scanned)"
 [ "$nneg" -eq 0 ] || fail 3 "BLIND: the negative needle was flagged (the scanner flags everything)"
+[ "$natr" -ge 1 ] || fail 3 "BLIND: the -diff attribute needle was not found (git attributes hide content from this scan)"
+[ "$ntcv" -ge 1 ] || fail 3 "BLIND: the textconv needle was not found (a diff driver textconv hides content from this scan)"
 jq -r '.[]|select(.File|startswith("__hss_needle__/")|not)|[.RuleID,"\(.File):\(.StartLine)",(.Commit//""|.[0:12]),(.Entropy|tostring)]|@tsv' "$REP" | sort -u > "$OUT"
 nf=$(wc -l < "$OUT")
-echo "needles: history=$npos merge=$nmrg negative=$nneg (control OK)"
+echo "needles: history=$npos merge=$nmrg negative=$nneg attr=$natr textconv=$ntcv (control OK)"
 echo "findings=$nf -> $OUT (classify each: fixture vs real)"
 fi
 

@@ -1,0 +1,16 @@
+== flock_error
+  ok   flock_error.flock-error-root.exit_1
+  ok   flock_error.flock-error-root.message
+  ok   flock_error.flock-error-root.not_another_run
+  ok   flock_error.flock-error-root.result_failed
+  FAIL flock_error.flock-error-repo.exit_1  (rc=7 sync-upstreams: ERROR: another sync run holds /mnt/DATA1TB/claude-work/tmp/helix-sync-robust.flock_error.ioj495j5/work/p/.git/modules/libs/a/helix-sync-upstreams.lock (exit 7, nothing fetched or changed)
+)
+  FAIL flock_error.flock-error-repo.message  (sync-upstreams: ERROR: another sync run holds /mnt/DATA1TB/claude-work/tmp/helix-sync-robust.flock_error.ioj495j5/work/p/.git/modules/libs/a/helix-sync-upstreams.lock (exit 7, nothing fetched or changed)
+)
+  FAIL flock_error.flock-error-repo.not_another_run  (sync-upstreams: ERROR: another sync run holds /mnt/DATA1TB/claude-work/tmp/helix-sync-robust.flock_error.ioj495j5/work/p/.git/modules/libs/a/helix-sync-upstreams.lock (exit 7, nothing fetched or changed)
+)
+  FAIL flock_error.flock-error-repo.result_failed  (DRIVER {"rc": 7, "markers": []}
+)
+  ok   flock_error.flock-held-repo.exit_7
+  ok   flock_error.flock-held-repo.message
+sync-robustness: PASS 6 FAIL 4

@@ -1,0 +1,11 @@
+# the remint suite's engine-fact case, reproduced with the two adds 1.5 s apart (run 2026-11-14T00:12:15Z)
+# engine: $WI (the engine built from this tree); databases: two scratch copies of docs/workable_items.db
+$ workable-items add Task Low --db e1.db --id CON-900 ... --created-by= --assigned-to=   # then sleep 1.5
+rc=0
+$ workable-items add Task Low --db e2.db --id CON-900 ...   # the flags omitted
+rc=0
+# RED: the comparison as the case made it (history leaves out id and occurred_at only)
+differ in part [1]
+  part 1: columns that differ: ['created_at']
+# GREEN: the comparison as the fixed case makes it (history also leaves out created_at and on_date, both wall-clock)
+same

@@ -1,0 +1,14 @@
+control-plain (must REFUSE)                   checker=REFUSE  oracle_clean=False 2 top-level verification paragraphs
+control-ZWJ Cf (must REFUSE)                  checker=REFUSE  oracle_clean=False the label reads elsewhere in the document
+VS16 U+FE0F (Mn)                              checker=ACCEPT  oracle_clean=False the label reads elsewhere in the document
+VS1 U+FE00 (Mn)                               checker=ACCEPT  oracle_clean=False the label reads elsewhere in the document
+CGJ U+034F (Mn)                               checker=ACCEPT  oracle_clean=False the label reads elsewhere in the document
+Mongolian FVS1 U+180B (Mn)                    checker=ACCEPT  oracle_clean=False the label reads elsewhere in the document
+Hangul filler U+3164 (Lo)                     checker=ACCEPT  oracle_clean=False the label reads elsewhere in the document
+combining dot below U+0323                    checker=ACCEPT  oracle_clean=True 
+Cherokee V U+13D9                             checker=ACCEPT  oracle_clean=True 
+Latin dotless i U+0131                        checker=REFUSE  oracle_clean=True 
+Armenian o U+0585                             checker=ACCEPT  oracle_clean=True 
+Cyrillic komi? U+0501 d no; Latin small capital?  checker=REFUSE  oracle_clean=True 
+entity zwnj in source &zwnj;                  checker=REFUSE  oracle_clean=False the label reads elsewhere in the document
+entity VS16 &#xFE0F;                          checker=ACCEPT  oracle_clean=False the label reads elsewhere in the document

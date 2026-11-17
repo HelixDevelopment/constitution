@@ -1,0 +1,27 @@
+mdit 3.0.0 needle True
+AGREE                checker=0 mdit=0  lone CR before fence opener
+AGREE                checker=0 mdit=0  lone CR before comment opener
+AGREE                checker=0 mdit=0  lone CR before tilde fence
+AGREE                checker=0 mdit=0  lone CR then G on same LF line
+AGREE                checker=1 mdit=1  lone CR heading
+AGREE                checker=1 mdit=1  star thematic break with spaces
+AGREE                checker=1 mdit=1  dash thematic break with spaces
+AGREE                checker=1 mdit=1  setext === underline
+CHECKER-STRICTER     checker=0 mdit=1  link reference definition
+CHECKER-STRICTER     checker=0 mdit=1  list item with fence after blank, indented 2
+AGREE                checker=1 mdit=1  list item opened HTML comment, column 0 line
+AGREE                checker=1 mdit=1  quote opened HTML comment, column 0 line
+AGREE                checker=1 mdit=1  quote kind 6
+AGREE                checker=0 mdit=0  lazy quote then line
+AGREE                checker=0 mdit=0  nested list lazy
+AGREE                checker=1 mdit=1  list item empty marker
+AGREE                checker=0 mdit=0  ordered list starting not 1 interrupts? (cannot)
+AGREE                checker=0 mdit=0  html7 after blank
+CHECKER-STRICTER     checker=0 mdit=1  NBSP indented
+CHECKER-STRICTER     checker=0 mdit=1  form feed line before
+AGREE                checker=1 mdit=1  tab blank line
+AGREE                checker=0 mdit=0  vertical tab blank line
+AGREE                checker=1 mdit=1  fence in list item closed by column0 fence
+AGREE                checker=0 mdit=0  backslash hard break
+AGREE                checker=0 mdit=0  table row before
+PROBE-LM-MDIT cases=25 checker_counts_more=0

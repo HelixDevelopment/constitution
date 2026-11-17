@@ -1,0 +1,4 @@
+UTS39 single-cp skeleton classes, NFD(map(NFD(NFKD(x)))), split: round-13 relation 100 (chars 1161); round-14 relation 0 (chars 0)
+UTS39 single-cp skeleton classes, NFD(map(NFD(x))) [review r13], split: round-13 relation 165 (chars 1390); round-14 relation 0 (chars 0)
+round-14 split classes holding an ASCII letter/digit: 0
+empty-or-blank skeleton: f 287, e 287, differ 0

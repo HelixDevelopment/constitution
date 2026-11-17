@@ -1,0 +1,105 @@
+== CON-299 Tracker intake wave 2026-11-12 (umbrella): operator request, review fo
+    (9, 'CON-253', 'Queued', 'kedge gitlink removal: operator ratification (section 11.4.122)', ['child', 'decision', 'docs', 'history', 'landing', 'only', 'operator', 'registered'])
+    (9, 'CON-249', 'Queued', 'CON-033 M5: owed anchors seam (regenerate_if_stale + index_commit_seam + post_up', ['change', 'child', 'closed', 'evidence', 'finding', 'history', 'landing', 'only'])
+== CON-300 Regular recursive fetch and pull of all upstreams and submodules, wire
+    (8, 'CON-290', 'Queued', 'full-suite runner: tree_state hashes ignored files in the root only, so an ignor', ['docs', 'engine', 'every', 'existing', 'first', 'guides', 'into', 'live'])
+    (8, 'CON-253', 'Queued', 'kedge gitlink removal: operator ratification (section 11.4.122)', ['docs', 'engine', 'exists', 'held', 'minted', 'only', 'operator', 'owns'])
+== CON-301 Retest follow-up F1: leg A of test_consumer_layout_probe_retest_regres
+    (11, 'CON-256', 'Completed (→ Fixed.md)', 'store tier: no case kills reviewer mutant RVM-B (ledger_path dropped from _store', ['every', 'fastcycle', 'follow', 'host', 'instrumentation', 'killed', 'mutant', 'only'])
+    (9, 'CON-296', 'Queued', 'full-suite runner self-test oracle shares the engine formula; compare marker_ign', ['expected', 'follow', 'instrumentation', 'mutant', 'only', 'pass', 'pins', 'regression'])
+== CON-302 Retest follow-up F2: the consumer-layout path (probe=1, data absent, e
+    (7, 'CON-296', 'Queued', 'full-suite runner self-test oracle shares the engine formula; compare marker_ign', ['expected', 'follow', 'instrumentation', 'into', 'mutant', 'only', 'regression', 'shared'])
+    (7, 'CON-256', 'Completed (→ Fixed.md)', 'store tier: no case kills reviewer mutant RVM-B (ledger_path dropped from _store', ['every', 'fastcycle', 'follow', 'instrumentation', 'killed', 'mutant', 'only', 'scripts'])
+== CON-303 Retest follow-up F3: the two section 11.4.201 guards of the anchor_cit
+    (10, 'CON-092', 'Queued', 'Fastcycle consumer-data guard: skip per section, not the whole test (review F3)', ['consumer', 'fastcycle', 'guard', 'skip'])
+    (9, 'CON-224', 'Ready for testing', 'CON-183 follow-up: reviewer mutant RV-C (pwd -P in the consumer-root resolution)', ['consumer', 'follow', 'mutant', 'survives'])
+== CON-304 Retest follow-up F4: the consumer-layout probe is a 6x copy-paste; mov
+    (9, 'CON-237', 'Queued', 'tests/test_consumer_required_helper.sh fails when run directly under dash (bash ', ['bash', 'dash', 'library', 'scripts', 'sourced', 'test_consumer_required_helper'])
+    (8, 'CON-261', 'Queued', 'test_review_record_backfill_evidence_r2_regression.sh exits 2 when run as sh (it', ['bash', 'fastcycle', 'line', 'same', 'scripts', 'suite', 'there', 'uses'])
+== CON-305 Retest follow-up F5: anchor_citations dead fallback block after the ne
+    (8, 'CON-229', 'Queued', "CON-226 follow-up: the v73.4 entry template's waiver wording 'recorded operator ", ['follow', 'only', 'override', 'recorded'])
+    (7, 'CON-259', 'Completed (→ Fixed.md)', 'sweep red test: no HUP/INT exit case, no N_ROWS != N_TODO refusal case; two suit', ['behaviour', 'fastcycle', 'follow', 'history', 'only', 'remove', 'scripts'])
+== CON-306 Retest follow-up F6: in canon alone token_stability skips its GOLDEN a
+    (10, 'CON-093', 'Queued', 'Nine more fastcycle tests fail on canon alone for missing consumer data, not con', ['alone', 'canon', 'consumer', 'fastcycle'])
+    (8, 'CON-092', 'Queued', 'Fastcycle consumer-data guard: skip per section, not the whole test (review F3)', ['consumer', 'fastcycle', 'whole'])
+== CON-307 Retest follow-up F7 and F8: commit message wording (test_triple_harnes
+    (12, 'CON-024', 'Queued', 'full-suite runner R5-3: ignored files can change the code that runs while ident ', ['change', 'code', 'dirty', 'runner', 'runs', 'says', 'suite'])
+    (11, 'CON-296', 'Queued', 'full-suite runner self-test oracle shares the engine formula; compare marker_ign', ['code', 'follow', 'instrumentation', 'landing', 'only', 'optional', 'pass', 'regression'])
+== CON-308 run_all.sh counts rc 77 (SKIP) as FAIL while run_full_suite.sh reports
+    (10, 'CON-243', 'Queued', 'CON-222 follow-up: run_all.sh counts the new exit 77 of the helper test as FAIL ', ['counts', 'exit', 'fail', 'run_all'])
+    (10, 'CON-098', 'Queued', 'Eleven fastcycle tests pass alone but fail in the batch (inventory class B)', ['alone', 'batch', 'fail', 'fastcycle'])
+== CON-309 test_anchor_citations_red: the post-needle synthetic sections never ru
+    (18, 'CON-093', 'Queued', 'Nine more fastcycle tests fail on canon alone for missing consumer data, not con', ['alone', 'canon', 'consumer', 'data', 'fail', 'fastcycle'])
+    (16, 'CON-092', 'Queued', 'Fastcycle consumer-data guard: skip per section, not the whole test (review F3)', ['consumer', 'data', 'fastcycle', 'skip', 'whole'])
+== CON-310 test_custody_sweep_red REAL-STATE block reads stash and worktree state
+    (11, 'CON-126', 'Queued', 'test_precheck_pack_build_red.sh fails when run alone (not only in a batch), and ', ['alone', 'only', 'real', 'repository'])
+    (11, 'CON-097', 'Queued', '62 fastcycle tests hard-code $ROOT/constitution/, so they run only when the cano', ['canon', 'fastcycle', 'only', 'root'])
+== CON-311 test_triple_harness_red leaves a tmp.XXXXXXXXXX harness work dir after
+    (8, 'CON-293', 'Queued', 'full-suite runner self-test: one run lost files from its own mktemp tree mid-run', ['candidates', 'cause', 'fc57ad0c', 'fixture', 'full', 'removed', 'reproduced', 'runner'])
+    (7, 'CON-261', 'Queued', 'test_review_record_backfill_evidence_r2_regression.sh exits 2 when run as sh (it', ['fastcycle', 'fc57ad0c', 'full', 'green', 'runner', 'same', 'scripts', 'suite'])
+== CON-312 Multiforge r4 follow-up U3: the fg_scrub multi-line test checks substr
+    (10, 'CON-222', 'Ready for testing', "CON-185 follow-up: a skipped L29 leg does not change the helper suite's result (", ['does', 'follow', 'mutants', 'suite', 'survive'])
+    (8, 'CON-070', 'Queued', 'CON-030 class follow-up: whitespace and line splitting of git submodule names/pa', ['against', 'compare', 'every', 'finding', 'follow', 'line', 'lines', 'newline'])
+== CON-313 Multiforge r4 follow-up: the three forge docs (guide, manual, FAQ) mov
+    (7, 'CON-267', 'Queued', 'CON-033 R7-M2: self-test RED for mutate_tier_legs.py (a planted survivor must ma', ['docs', 'finding', 'follow', 'must'])
+    (6, 'CON-248', 'Queued', 'CON-235 follow-up (review N-1): the full-suite guide should state that a symlink', ['docs', 'finding', 'follow', 'guide', 'process'])
+== CON-314 Multiforge r4 lander duties: real Roadmap-Item trailers (no placeholde
+    (14, 'CON-271', 'Queued', "README-link review F3: commits carry 'Roadmap-Item: none-doc-only', which is not", ['carry', 'commit', 'commits', 'landing', 'merge', 'process', 'roadmap', 'which'])
+    (11, 'CON-252', 'Queued', 'SPECKIT004 diagrams: mmd-08 and mmd-09 images missing on main', ['defect', 'engine', 'finding', 'landing', 'merge', 'minted', 'must', 'roadmap'])
+== CON-315 GitLab pre-release F1: the read-back glab api call has no --hostname a
+    (6, 'CON-247', 'Queued', 'CON-235 follow-up (review M-2): a lock reached through a symlinked config/ direc', ['defect', 'directory', 'docs', 'self', 'source'])
+    (6, 'CON-246', 'Queued', "CON-235 follow-up (review M-1): excl_accept opens its temp file lock_path+'.tmp.", ['defect', 'docs', 'scripts', 'self', 'source'])
+== CON-316 GitLab pre-release F2: abort after a failed mktemp for GL_NOTES prints
+    (9, 'CON-144', 'Ready for testing', 'Env-read gate CM-GATE-ENV-READS-ALLOWLISTED fails on main: BLK read-before-assig', ['before', 'fails', 'read', 'release'])
+    (8, 'CON-247', 'Queued', 'CON-235 follow-up (review M-2): a lock reached through a symlinked config/ direc', ['defect', 'docs', 'false', 'first', 'source', 'write'])
+== CON-317 GitLab pre-release F3: released_at read back from the server is printe
+    (6, 'CON-247', 'Queued', 'CON-235 follow-up (review M-2): a lock reached through a symlinked config/ direc', ['defect', 'docs', 'never', 'passes', 'source'])
+    (6, 'CON-246', 'Queued', "CON-235 follow-up (review M-1): excl_accept opens its temp file lock_path+'.tmp.", ['defect', 'docs', 'never', 'scripts', 'source'])
+== CON-318 GitLab pre-release F4: a final run over an existing PROVISIONAL-marked
+    (7, 'CON-247', 'Queued', 'CON-235 follow-up (review M-2): a lock reached through a symlinked config/ direc', ['defect', 'docs', 'document', 'existing', 'source'])
+    (7, 'CON-246', 'Queued', "CON-235 follow-up (review M-1): excl_accept opens its temp file lock_path+'.tmp.", ['defect', 'docs', 'existing', 'scripts', 'source'])
+== CON-319 GitLab pre-release F5: --gitlab-released-at without a gitlab spec is a
+    (6, 'CON-247', 'Queued', 'CON-235 follow-up (review M-2): a lock reached through a symlinked config/ direc', ['check', 'defect', 'docs', 'does', 'source'])
+    (6, 'CON-231', 'Queued', 'CON-226 follow-up: template fixed status/severity keys let a new value at cut ti', ['release', 'silently', 'time'])
+== CON-320 GitLab pre-release F6: --gitlab-released-at needs GNU date -d; BSD and
+    (7, 'CON-144', 'Ready for testing', 'Env-read gate CM-GATE-ENV-READS-ALLOWLISTED fails on main: BLK read-before-assig', ['fails', 'read', 'release'])
+    (6, 'CON-270', 'Queued', 'README-link review F2: no gate CM-README-DOC-ENTRYPOINT-COMPLETE (silent gate de', ['docs', 'fails', 'readme', 'scripts'])
+== CON-321 GitLab pre-release F7: uncovered paths M03, M06, M11, M13, M15, M18, M
+    (8, 'CON-293', 'Queued', 'full-suite runner self-test: one run lost files from its own mktemp tree mid-run', ['docs', 'every', 'fail', 'fixture', 'into', 'line', 'paths', 'removed'])
+    (6, 'CON-298', 'Queued', 'full-suite runner mutation table should adopt reviewer mutants M8c and M8b as ro', ['docs', 'instrumentation', 'into', 'killed', 'mutants', 'survive'])
+== CON-322 GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming bad
+    (7, 'CON-272', 'Queued', 'README-link review F4: README Fixed header cell lists revisions only up to R14 (', ['only', 'process', 'readme', 'there'])
+    (6, 'CON-269', 'Queued', 'README-link review F1: 164 docs/*.md are not linked from README, contradicting t', ['docs', 'only', 'process', 'readme', 'release', 'scripts'])
+== CON-323 GitLab pre-release S1: re-application on fix227 would clobber fix227's
+    (5, 'CON-259', 'Completed (→ Fixed.md)', 'sweep red test: no HUP/INT exit case, no N_ROWS != N_TODO refusal case; two suit', ['exit', 'merge', 'scripts', 'source', 'trap'])
+    (5, 'CON-255', 'Fixed (→ Fixed.md)', "fc_timer_run keeps a caller's ignored INT/QUIT only for the 'SIGINT' trap -p spe", ['keeps', 'merge', 'scripts', 'source', 'trap'])
+== CON-324 GitLab pre-release S2: the new glab api call must go through nt (fix22
+    (7, 'CON-246', 'Queued', "CON-235 follow-up (review M-1): excl_accept opens its temp file lock_path+'.tmp.", ['defect', 'scripts', 'source', 'status', 'through'])
+    (6, 'CON-112', 'Queued', 'ownership wave 2 FU (round 4 N8): gates run cm_label_sync_render hangs forever a', ['every', 'timeout', 'under'])
+== CON-325 GitLab pre-release S3: new invocations need rows in tests/release/chan
+    (5, 'CON-094', 'Queued', 'Manifest-triage wording nits: 24 not 26 tests, census 844 not 843, row order (re', ['census', 'order'])
+    (4, 'CON-156', 'Queued', 'Census gate for test PASS branches that print fail words after the summary line', ['census', 'fail'])
+== CON-326 GitLab pre-release S4: server-derived text (read-back result, released
+    (6, 'CON-268', 'Queued', 'CON-033 R7-N1: mutate_tier_legs.py --keys must compute equivalence-key staleness', ['against', 'must', 'only', 'printed'])
+    (6, 'CON-144', 'Ready for testing', 'Env-read gate CM-GATE-ENV-READS-ALLOWLISTED fails on main: BLK read-before-assig', ['before', 'read', 'release'])
+== CON-327 GitLab pre-release S5: under rc_env_clean glab sees only allow-listed 
+    (6, 'CON-244', 'Queued', 'CON-219 follow-up: the census wording guard uses a closed verb list (reviewer RV', ['census', 'list', 'passes'])
+    (6, 'CON-238', 'Queued', 'Consumer-required helper: L16 pins a NULL-only id register as SKIP; record the d', ['only', 'pins', 'under'])
+== CON-328 GitLab pre-release S6: fix227's test_release_tooling_mutations.sh cata
+    (9, 'CON-227', 'Queued', 'CON-226 follow-up: tests that kill the 7 surviving reviewer mutants T2-T6 (tag_a', ['kill', 'mutants'])
+    (8, 'CON-298', 'Queued', 'full-suite runner mutation table should adopt reviewer mutants M8c and M8b as ro', ['instrumentation', 'killed', 'mutants', 'round'])
+== CON-329 fix227 landing note: 9 of 21 vehicle commits (9cd1539a, 66b411ef, 1089
+    (14, 'CON-271', 'Queued', "README-link review F3: commits carry 'Roadmap-Item: none-doc-only', which is not", ['carries', 'commit', 'commits', 'landing', 'merge', 'process', 'rewritten', 'roadmap'])
+    (9, 'CON-290', 'Queued', 'full-suite runner: tree_state hashes ignored files in the root only, so an ignor', ['commit', 'commits', 'docs', 'finding', 'history', 'lists', 'measured', 'merge'])
+== CON-330 fix227 CON-310 amendment (vehicle id): add the leading-blanks URL shap
+    (5, 'CON-271', 'Queued', "README-link review F3: commits carry 'Roadmap-Item: none-doc-only', which is not", ['before', 'carries', 'process', 'such'])
+    (5, 'CON-269', 'Queued', 'README-link review F1: 164 docs/*.md are not linked from README, contradicting t', ['amendment', 'process', 'release', 'scripts', 'sentence', 'then'])
+== CON-331 Git identity guard: record the operator decision of 2026-11-12 (night)
+    (7, 'CON-253', 'Queued', 'kedge gitlink removal: operator ratification (section 11.4.122)', ['decided', 'decision', 'docs', 'engine', 'operator', 'recorded', 'roadmap', 'round'])
+    (6, 'CON-294', 'Queued', 'full-suite runner: guide census near-marker test does not cover blank glyphs or ', ['carry', 'decision', 'docs', 'engine', 'evidence', 'head', 'operator', 'recorded'])
+== CON-332 Apply the hardened security scripts after independent review GO, with 
+    (8, 'CON-229', 'Queued', "CON-226 follow-up: the v73.4 entry template's waiver wording 'recorded operator ", ['decision', 'follow', 'only', 'operator', 'recorded'])
+    (6, 'CON-294', 'Queued', 'full-suite runner: guide census near-marker test does not cover blank glyphs or ', ['block', 'decision', 'evidence', 'follow', 'operator', 'recorded', 'scripts', 'through'])
+== CON-333 Secrets found in other own-org repositories: report only (repository n
+    (8, 'CON-292', 'Queued', 'full-suite runner: the resume context omits --timeout and the --env-extra variab', ['change', 'control', 'credential', 'decision', 'directory', 'each', 'finding', 'fixture'])
+    (7, 'CON-293', 'Queued', 'full-suite runner self-test: one run lost files from its own mktemp tree mid-run', ['change', 'directory', 'files', 'fixture', 'found', 'live', 'other', 'paths'])

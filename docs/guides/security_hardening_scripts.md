@@ -98,17 +98,20 @@ SCRATCH=/abs/scratch/dir bash scripts/security/history_secret_scan.sh --keys-fil
 ```
 
 - All remotes are fetched into one bare mirror.
-- Three control needles are planted inside that same mirror, under `refs/fetched/needle/*`, so they go through the same path, options and refs as the real history:
+- Five control needles are planted inside that same mirror, under `refs/fetched/needle/*`, so they go through the same path, options and refs as the real history:
   - **pos:** a fabricated token added in one commit and deleted in the next. It must be found.
   - **merge:** a fabricated token that exists only in a merge commit's diff. It must be found, which proves the `-m` option is really applied.
   - **neg:** a plain file. It must not be found.
-- One gitleaks run covers everything: `--redact --log-opts="--all -m"`. Only exit 0 or 1 with a consistent JSON report is accepted; anything else is SCANNER-ERROR (exit 6). A failed needle is BLIND (exit 3).
+  - **attr:** a fabricated token in a path that the mirror's own `info/attributes` marks `-diff`. It must be found, which proves `--text` is really applied.
+  - **textconv:** a fabricated token in a path whose diff driver has a `textconv` that prints nothing. It must be found, which proves `--no-textconv` is really applied.
+- One gitleaks run covers everything: `--redact --log-opts="--all -m --text --no-textconv"`. Only exit 0 or 1 with a consistent JSON report is accepted; anything else is SCANNER-ERROR (exit 6). A failed needle is BLIND (exit 3).
 - Findings go to `$OUT` as a value-free TSV.
 - `--keys-file` really performs an exact-match pass over every blob. The values travel on a pipe, never in argv. The output is `$OUT.keys.tsv`, with variable names and blob counts only. A present control and an absent control guard this pass too. Values shorter than 12 characters and placeholder values are not searched; a note names them and counts them (names only).
 - **Known limit:** a value shorter than 12 characters is never searched (too many chance matches). The note `not searched: N shorter than 12 characters (NAME,...)` is printed on every run with `--keys-file`, also when N is 0, so the skip is never silent. Check such values by another means.
 - The exact-match pass gives the blob ids to `git cat-file --batch` from a file in the work directory. Before 2026-11-16 it wrote all ids into a pipe before it read any answer; with a few thousand blobs both pipes filled and the run hung (deadlock, CON-423; evidence in `docs/qa/secscan_deadlock_2026_11_16/`). Every reply is now checked against the requested id; a missing or wrong reply is exit 7.
 - `--exact-only` (needs `--keys-file`) runs only the exact-match pass: gitleaks is not run and not needed, and only the exact-match controls guard the result.
 - **Replace refs (CON-425).** A `refs/replace/<id>` entry makes git tools show another object in place of `<id>`, and `git clone --mirror` copies these refs. Before 2026-11-16 a secret blob replaced by a clean blob (or by a tree), or a secret commit replaced by a clean commit, was hidden from both the exact-match pass and the scanner. The script now exports `GIT_NO_REPLACE_OBJECTS=1` right after the git-env scrub, so every git call it makes, and the scanner's own git (which inherits the environment), reads the stored objects. On git 2.53.0 this setting also wins over a `core.useReplaceRefs=true` setting. Replace refs of every other remote are fetched into `refs/fetched/r<n>/replace/*`. Every replace ref is listed in `$OUT.replace.tsv` (ref, object id, type; ids only), the count is printed as `replace refs: N`, and any replace ref makes the exit 1: classify it by hand. Whether the real gitleaks binary runs `git` with the inherited environment is UNCONFIRMED (no run with the real binary yet); the tests use the fake scanner, which does.
+- **Git attributes (CON-453, CON-438 class).** `git log -p` honours diff attributes: a path marked `-diff` or `binary` is printed as `Binary files differ`, and a `textconv` driver can print nothing, so gitleaks never sees the added lines and exits 0 with no leaks. Measured with gitleaks 8.30.1 and git 2.53.0 for the caller's `core.attributesFile`, `$XDG_CONFIG_HOME/git/attributes` and `GIT_ATTR_SOURCE`. `--text` makes git print every change as text whatever any attribute source says, and `--no-textconv` turns every textconv off. A bare mirror does not read a committed `.gitattributes`, and `git clone --mirror` copies neither `info/attributes` nor `info/grafts`, so those shapes do not reach this script (measured). It does copy shallow state: a mirror that is shallow (a remote is a shallow clone) is refused as BLIND (exit 3), because the history behind it cannot be scanned. Evidence: `docs/qa/gitleaks_attributes_2026_11_16/`.
 - The scanner's own console output (file paths, commits, rule ids) is written to a file inside the work directory, never to the script's stdout or stderr.
 - Credential-carrying URLs are refused for every scheme, not only http(s): `scheme://user:password@host`.
 - Nothing is downloaded at run time. Without a pre-installed gitleaks the exit is 4.
@@ -131,6 +134,8 @@ SCRATCH=/abs/scratch/dir bash scripts/security/history_secret_scan.sh --keys-fil
 | `tests/security/test_history_secret_scan_replace.sh` | 17 | normal (replace-ref fixtures, fake gitleaks, real git) |
 | `tests/security/test_history_secret_scan_replace_mutations.sh` | 14 mutants | normal (about 1 minute) |
 | `tests/security/test_security_scripts_mutations.sh` | 119 mutants | heavy (each mutant must make its test fail) |
+| `tests/security/test_history_read_time_hiding.sh` | 33 with the fake scanners, 27 with the real gitleaks (`GLRS_GITLEAKS=`) | normal (attribute, textconv, graft, shallow and merge fixtures; covers `gitleaks_run_scan.sh` too) |
+| `tests/security/test_history_read_time_hiding_mutations.sh` | 24 mutants (15 with the real gitleaks; the other 9 need a deliberately broken scanner) | heavy |
 
 All tests use fake tokens and loopback endpoints only. No test writes to a real forge. They are hermetic gate-logic tests (§11.4.289(C)(2)): they prove that the scripts decide correctly, not that a real forge accepted a rule.
 

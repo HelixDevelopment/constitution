@@ -1,0 +1,216 @@
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan.py --diff 02c10935 (staged change)
+control needles: PASS (one fake of each of the 37 secret kinds and the 3 identity kinds found; a plain line not reported)
+HIT docs/Issues.md line=4387 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/Issues_Summary.md line=304 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_fix227_r8.md line=69 kind=url-cred len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_fix227_r8.md line=69 kind=auth-header len=30 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_multiforge_r4.md line=8 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_multiforge_r4.md line=8 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_fc_timer_selftest.log line=146 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_fc_timer_selftest.log line=146 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_fc_timer_selftest.log line=146 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_anchor_citations_red.log line=1 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_anchor_citations_red.log line=1 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_anchor_citations_red.log line=1 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=4 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=4 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=4 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=17 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=17 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=17 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=33 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=33 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_custody_sweep_red.log line=33 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_fc_timer_golden_output.log line=1 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_fc_timer_golden_output.log line=1 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_fc_timer_golden_output.log line=1 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_fc_timer_golden_output.log line=2 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_fc_timer_golden_output.log line=2 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_fc_timer_golden_output.log line=2 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_token_stability_red.log line=5 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_token_stability_red.log line=5 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_token_stability_red.log line=5 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_token_stability_red.log line=32 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_token_stability_red.log line=32 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_token_stability_red.log line=32 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_tool_deferral_red.log line=5 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_tool_deferral_red.log line=5 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_tool_deferral_red.log line=5 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_tool_deferral_red.log line=12 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_tool_deferral_red.log line=12 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_tool_deferral_red.log line=12 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=2 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=2 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=2 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=4 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=4 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=4 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=9 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=9 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/CONS_test_verdict_cache_red.log line=9 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=1 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=1 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=1 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=325 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=325 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=325 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=327 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=327 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=327 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=369 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=369 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/runner_sel.log line=369 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=32 kind=lint:url-userinfo-password len=19 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=33 kind=url-cred len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=50 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=50 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=50 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=71 kind=url-cred len=19 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=72 kind=url-cred len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=74 kind=url-cred len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=87 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=89 kind=url-cred len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_emptyhome.log line=89 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=24 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=56 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=66 kind=lint:url-userinfo-password len=19 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=67 kind=url-cred len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=84 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=84 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=84 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=105 kind=url-cred len=19 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=106 kind=url-cred len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=108 kind=url-cred len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=121 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=123 kind=url-cred len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/rv_mut_nocommitter.log line=123 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v2/inventory/inv_I2_xref.txt line=48 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v2/secret_scan.py line=26 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v2/secret_scan.py line=26 kind=lint:password-assign len=23 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v3/remint/plan.jsonl line=35 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md line=266 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md line=266 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=2 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=2 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=2 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=5 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=5 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=5 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=8 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=8 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/lint_r3/DM13b.out line=8 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/od_reopen_red.txt line=56 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/od_reopen_red.txt line=56 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/red/od_reopen_red.txt line=56 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/plan.json line=927 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/remint/main-replay/plan.json line=927 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_mutations.txt line=18 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=59 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=113 kind=assignment len=14 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=119 kind=assignment len=14 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=121 kind=assignment len=16 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=125 kind=assignment len=14 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=129 kind=assignment len=14 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=133 kind=assignment len=17 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=135 kind=assignment len=14 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=141 kind=assignment len=14 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=143 kind=assignment len=14 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=252 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=252 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/lint_red_r3.txt line=252 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=8 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=8 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=39 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=39 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=48 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=48 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=49 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=49 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=51 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_mutations.txt line=51 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=3 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=3 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=3 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=4 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=4 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=4 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=7 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=7 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=7 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=8 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=8 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=8 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=14 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=14 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=14 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=18 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=18 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=18 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=19 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=19 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=19 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=21 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=21 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=21 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=22 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=22 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=22 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=23 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=23 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=23 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=26 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=26 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=26 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=40 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=40 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=40 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=41 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=41 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=41 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=48 kind=home-path
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=48 kind=home-fragment
+HIT docs/qa/tracker_intake_2026_11_12_v4/runs/remint_red_r3.txt line=48 kind=user-name
+HIT docs/qa/tracker_intake_2026_11_12_v5/remint/fix227/plan.json line=927 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/remint/main-replay/plan.json line=927 kind=url-cred len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/runs/lint_mutations.txt line=20 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/runs/lint_mutations.txt line=99 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/runs/lint_mutations.txt line=105 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/runs/lint_mutations.txt line=106 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/sources/review_r4_rvmut.tsv line=15 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan.py line=64 kind=lint:password-assign-spaced len=39 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/README.md line=66 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/README.md line=129 kind=assignment len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/class_inventory.md line=87 kind=assignment len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/remint/fix227/plan.json line=935 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/remint/main-replay/plan.json line=935 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/leak_scan.txt line=46 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/lint_mutations.txt line=19 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/lint_mutations.txt line=98 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/lint_mutations.txt line=112 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/lint_mutations.txt line=117 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan.py line=82 kind=lint:password-assign-spaced len=39 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/README.md line=66 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/class_inventory.md line=38 kind=lint:password-assign-spaced len=24 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/class_inventory.md line=65 kind=assignment len=16 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/remint/fix227/plan.json line=935 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/remint/main-replay/plan.json line=935 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=19 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=98 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=112 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=117 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=133 kind=lint:password-flag-space len=20 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=139 kind=lint:url-userinfo-password len=12 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=141 kind=assignment len=24 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan.py line=87 kind=lint:password-assign-spaced len=39 prefix=<redacted by round 8, review N6>
+HIT scripts/workable-items/intake_lint.py line=175 kind=lint:url-userinfo-password len=12 prefix=<redacted by round 8, review N6>
+HIT scripts/workable-items/intake_lint.py line=203 kind=lint:password-flag-space len=20 prefix=<redacted by round 8, review N6>
+HIT scripts/workable-items/intake_lint.py line=1016 kind=lint:password-assign-spaced len=26 prefix=<redacted by round 8, review N6>
+HIT scripts/workable-items/intake_lint.py line=1193 kind=assignment len=27 prefix=<redacted by round 8, review N6>
+HIT scripts/workable-items/intake_lint.py line=1268 kind=assignment len=27 prefix=<redacted by round 8, review N6>
+HIT tests/workable_items/test_intake_lint_mutations.sh line=153 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT tests/workable_items/test_intake_lint_mutations.sh line=167 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT tests/workable_items/test_intake_lint_mutations.sh line=172 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT tests/workable_items/test_intake_lint_mutations.sh line=188 kind=lint:password-flag-space len=20 prefix=<redacted by round 8, review N6>
+HIT tests/workable_items/test_intake_lint_mutations.sh line=194 kind=lint:url-userinfo-password len=12 prefix=<redacted by round 8, review N6>
+RESULT: secret_hits=79 identity_hits=133 pre_existing=0 binary_skipped=1
+rc=0

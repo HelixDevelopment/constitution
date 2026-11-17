@@ -1,0 +1,11 @@
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 393 items, all invariants satisfied
+rc=0
+export: wrote <repo>/docs/Issues.md
+export: wrote <repo>/docs/Fixed.md
+export: wrote <repo>/docs/Issues_Summary.md
+export: wrote <repo>/docs/Fixed_Summary.md
+export: --no-formats set; skipped HTML/PDF/DOCX sibling generation
+rc=0
+diff: DB and Markdown are in sync (compared 393 Markdown item(s) against 393 DB item(s); read docs/Issues.md, docs/Fixed.md)
+rc=0

@@ -1,0 +1,70 @@
+LE-READERS-DIFFER S04 member at the start NEL: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start VT: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start FF: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start LS: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start PS: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start BOM: pandoc 1 mdit 0 checker 0 refused
+LE-READERS-DIFFER S04 member at the start FS: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start GS: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start RS: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start US: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start SP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start SP3: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start NBSP: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S04 member at the start IDSP: pandoc 0 mdit 1 checker 0 refused
+LE-READERS-DIFFER S18 self-closing comment opener LF: pandoc 0 mdit 1 checker 1 refused
+LE-READERS-DIFFER S18 self-closing comment opener CRLF: pandoc 0 mdit 1 checker 1 refused
+LE-READERS-DIFFER S19 decimal reference label then the line LF: pandoc 2 mdit 2 checker 1 refused
+LE-READERS-DIFFER S19 decimal reference label then the line CRLF: pandoc 2 mdit 2 checker 1 refused
+LE-READERS-DIFFER S19 decimal reference label then the line NEL: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line VT: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line FF: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line LS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line PS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line NUL: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line BOM: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line FS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line GS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line RS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line US: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line DEL: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line SP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line SP3: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line SP4: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line TAB: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line NBSP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line ZWSP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line ZWJ: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line WJ: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line SHY: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line IDSP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line LRM: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S19 decimal reference label then the line RLO: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line LF: pandoc 2 mdit 2 checker 1 refused
+LE-READERS-DIFFER S20 hex reference label then the line CRLF: pandoc 2 mdit 2 checker 1 refused
+LE-READERS-DIFFER S20 hex reference label then the line NEL: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line VT: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line FF: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line LS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line PS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line NUL: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line BOM: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line FS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line GS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line RS: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line US: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line DEL: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line SP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line SP3: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line SP4: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line TAB: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line NBSP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line ZWSP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line ZWJ: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line WJ: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line SHY: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line IDSP: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line LRM: pandoc 1 mdit 1 checker 0 refused
+LE-READERS-DIFFER S20 hex reference label then the line RLO: pandoc 1 mdit 1 checker 0 refused
+LE-PANDOC shapes without a lone CR where a reader differs: 68, accepted by the checker: 0
+LINEEND variants=19350 agree=17200 refused=2150 danger=0 members=30 mdit=3.0.0 pandoc=checked pandoc_cr_blind=yes
