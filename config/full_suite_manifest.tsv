@@ -997,8 +997,11 @@ tests/release/pvl_reviewer.py	py	member	default	-	tests/release/test_provisional
 tests/release/pvl_timing.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
+tests/release/test_derive_release_facts_injection.sh	sh	entry	default	bash	-	auto
+tests/release/test_derive_release_facts_injection_mutants.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_derive_release_facts_provisional.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts_provisional_mutants.sh	sh	entry	heavy	bash	-	auto
+tests/release/test_fact_value_guard.sh	sh	entry	default	bash	-	auto
 tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
 tests/release/test_pr_landing_check.sh	sh	entry	default	bash	-	auto
 tests/release/test_provisional_verification_lines.sh	sh	entry	default	bash	-	auto

@@ -282,7 +282,7 @@ m T4 "$TAR" '[ -z "$(rc_net git status --porcelain --untracked-files=normal 2>/d
 m T6 "$TAR" '[ "$(rc_net git rev-parse HEAD)" = "$SHA" ] || abort "HEAD $(rc_net git rev-parse HEAD) != $SHA"' 'true'
 GT='        3) if printf '"'"'%s\n'"'"' "$x_gitea" | grep -q '"'"'^SKIPPED-NO-TOKEN:'"'"'; then gap'
 m T5 "$TAR" "$GT" '        3) if true; then printf "OK RELEASE $spec SKIPPED-OR-REFUSED rc=3 (token absent or precondition)"; gap'
-m D1 "$DRF" "coalesce(closure_date,'') > '\$PREV_DATE'" "coalesce(closure_date,'') >= '\$PREV_DATE'"
+m D1 "$DRF" 'closure_day "$vclos" && [ "$CDAY" \> "$PREV_DATE" ]' 'closure_day "$vclos" && ! [ "$CDAY" \< "$PREV_DATE" ]'   # round 3: V is a bash loop over calendar days (N5); the same > to >= boundary mutant
 m D5 "$DRF" "(reproduction_state!='UNSET' or investigation_state!='UNSET')" "(reproduction_state!='UNSET' )"
 # --- fixer's earlier mutants; O1 and the other fetch-print mutants re-applied to the round-5 fetch line, where
 # git's message is classified and never printed (FP); each mutant prints it again in its own way ---

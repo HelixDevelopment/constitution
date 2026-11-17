@@ -2114,6 +2114,10 @@ class RoundThirteen(unittest.TestCase):  # review round 13 (RV12-1 .. RV12-8)
         self.bad("rev-list", "--left-right", "--count", o + "..." + "main", "--")
         self.bad("rev-list", "--left-right", "--count", "main..." + o, "--")
         self.bad("rev-list", "--left-right", "--count", "HEAD...main", "--")
+        # RV13-4 (reviewer mutant RV13J): HEAD is accepted only as the exact HEAD...HEAD needle, never beside an id
+        self.bad("rev-list", "--left-right", "--count", "HEAD..." + o, "--")
+        self.bad("rev-list", "--left-right", "--count", o + "...HEAD", "--")
+        self.bad("rev-list", "--left-right", "--count", "HEAD..." + SHA, "--")
         # for-each-ref --contains: valid object in position 1, every other position wrong in turn
         self.ok("for-each-ref", "--contains", o, "--format=" + E.FER_CONTAINS_FORMAT, "refs/remotes")
         self.bad("for-each-ref", "--contains", o, "--format=%(refname)", "refs/remotes")  # the r12 (symref-blind) format
@@ -2193,6 +2197,20 @@ class RoundThirteen(unittest.TestCase):  # review round 13 (RV12-1 .. RV12-8)
         # golden-FALSE: the ordinary refs/remotes/origin/HEAD symref beside the real main changes nothing
         st, _ = self.pin("refs/remotes/origin/HEAD\0refs/remotes/origin/main\nrefs/remotes/origin/main\0\n", target=SHA)
         self.assertEqual(st, "at-main")
+        # RV13-3 (reviewer mutants RV13A, RV13C): a symbolic line is dropped whatever it points at - a local tag, a
+        # local branch, another remote-tracking ref - so the pin is on no remote
+        for tgt in ("refs/tags/v1", "refs/heads/local", "refs/remotes/other/x", "refs/remotes/origin/feature"):
+            st, _ = self.pin("refs/remotes/origin/main\0%s\n" % tgt, target=SHA)
+            self.assertEqual(st, "not-on-any-remote", tgt)
+        # RV13-5: a ref under a remote that is NOT configured is not "on a remote"; under a configured one it is
+        st, _ = self.pin("refs/remotes/ghost/x\0\n")
+        self.assertEqual(st, "not-on-any-remote")
+        st, _ = self.pin("refs/remotes/ghost/x\0\nrefs/remotes/origin/main\0\n", target="b" * 40)
+        self.assertEqual(st, "behind-main")  # golden-FALSE: the real origin/main beside the stale ghost ref (scripted: ancestor)
+        st, _ = self.pin("refs/remotes/origin2/main\0\n")  # prefix of a configured name is not that remote
+        self.assertEqual(st, "not-on-any-remote")
+        st, _ = self.pin("refs/remotes/ghost/x\0\n", remotes=("origin", "ghost"))
+        self.assertEqual(st, "not-on-main")  # golden-FALSE: configured, so on a remote (not on main)
         # malformed output is no answer, never "not on any remote"
         for out in ("refs/remotes/origin/main\n", "refs/heads/x\0\n", "a\0b\0c\n"):
             st, _ = self.pin(out)
@@ -2243,6 +2261,43 @@ class RoundThirteen(unittest.TestCase):  # review round 13 (RV12-1 .. RV12-8)
                          ("other-entries", ["README"]))  # an entry removed
         self.assertEqual(self.verify(base, exact + ent("160000", B, "lib[1]", "1")), ("not-staged", []))  # a conflict stage
         self.assertEqual(self.verify(base, exact, answer=False), ("no-answer", []))
+
+    def test_stage_pin_conflict_stages_are_distinct_entries(self):  # RV13-4 (reviewer mutant RV13H)
+        A, B = SHA, "b" * 40
+        ent = lambda m, s, p, st="0": "%s %s %s\t%s\0" % (m, s, st, p)
+        base = ent("100644", A, "X") + ent("160000", A, "lib[1]")
+        # X turned into a conflict: stage 1 B, stage 3 A (the stage-0 entry gone); collapsing the stages onto 0 would
+        # read the LAST one (A) as the unchanged stage-0 entry and miss the change
+        after = ent("160000", B, "lib[1]") + ent("100644", B, "X", "1") + ent("100644", A, "X", "3")
+        self.assertEqual(self.verify(base, after), ("other-entries", ["X"]))
+        self.assertEqual(E.index_entries(after)[("X", "1")], ("100644", B, "1"))
+        self.assertEqual(E.index_entries(after)[("X", "3")], ("100644", A, "3"))
+
+    def test_stage_pin_other_entries_are_recorded_with_a_restore_command(self):  # RV13-1
+        A, B, L = SHA, "b" * 40, "c" * 40
+        ent = lambda m, s, p: "%s %s 0\t%s\0" % (m, s, p)
+        base = ent("160000", A, "LIB") + ent("160000", L, "lib") + ent("100644", A, "new file")
+        after = ent("160000", B, "LIB") + ent("160000", B, "lib") + ent("100644", A, "new file")
+        detail = []
+        parent = E.Repo("/nonexistent/p", ".", 0, None)
+        repo = E.Repo("/nonexistent/p/LIB", "LIB", 1, parent)
+        repo.rec.update(path_in_parent="LIB")
+        r = scripted_runner(lambda repo_, a: ("exit", 0, after, ""))
+        self.assertEqual(E.stage_pin_verified(r, repo, B, base, detail), ("other-entries", ["lib"]))
+        self.assertEqual(detail, [{"path": "lib", "stage": "0", "before": "160000 %s 0" % L,
+                                   "after": "160000 %s 0" % B,
+                                   "restore": "git -C /nonexistent/p -c core.ignoreCase=false update-index "
+                                              "--cacheinfo 160000,%s,lib" % L}])
+        # an entry the add CREATED is removed with 'rm --cached'; a conflict stage has no one-command restore
+        self.assertEqual(E.restore_command("/p", "new file", "0", None),
+                         "GIT_LITERAL_PATHSPECS=1 git -C /p -c core.ignoreCase=false rm --cached -- 'new file'")
+        self.assertIsNone(E.restore_command("/p", "x", "2", ("100644", A, "2")))
+        # golden-FALSE: an exact result records no detail
+        detail = []
+        ok_after = ent("160000", B, "LIB") + ent("160000", L, "lib") + ent("100644", A, "new file")
+        r = scripted_runner(lambda repo_, a: ("exit", 0, ok_after, ""))
+        self.assertEqual(E.stage_pin_verified(r, repo, B, base, detail), ("exact", []))
+        self.assertEqual(detail, [])
 
     def test_index_entries(self):
         raw = "160000 %s 0\tlib[1]\x00100644 %s 0\ta b\x00" % (SHA, "b" * 40)
