@@ -28,6 +28,7 @@ import http.server
 import json
 import os
 import resource
+import shlex
 import shutil
 import signal
 import subprocess
@@ -2851,8 +2852,16 @@ def pushed_local_pin_tree(b, symref):
     b.git(work, "add", "--", "sub")
     b.git(work, "commit", "-q", "-m", "pin sub at local-only L")
     b.git(work, "push", "-q", "origin", "HEAD:main")
-    if symref:
+    if symref is True:
         b.git(sp, "symbolic-ref", "refs/remotes/origin/main", "refs/heads/local")
+    elif symref == "tag":  # RV13-3 (reviewer mutant RV13A): the symbolic ref points at a local TAG holding L
+        b.git(sp, "tag", "t_local", L)
+        b.git(sp, "symbolic-ref", "refs/remotes/origin/main", "refs/tags/t_local")
+    elif symref == "remote":  # RV13-3 (RV13C): ... at another remote-tracking ref holding L
+        b.git(sp, "update-ref", "refs/remotes/other/x", L)
+        b.git(sp, "symbolic-ref", "refs/remotes/origin/main", "refs/remotes/other/x")
+    elif symref == "ghost":  # RV13-5: no symbolic ref; L only under refs/remotes/ghost/x, remote 'ghost' not configured
+        b.git(sp, "update-ref", "refs/remotes/ghost/x", L)
     return work, L
 
 
@@ -2861,9 +2870,10 @@ def c_pin_symbolic_ref(box):
     a REAL remote-tracking ref. A symbolic refs/remotes/origin/main that points at a local branch holding the pin
     does not make the pin fetchable: --check --no-fetch reports the pin not-on-any-remote, exit 4. r12: state
     at-main, exit 0 CURRENT. Control (the same tree without the symbolic ref): not-on-any-remote, exit 4 (both
-    versions)."""
-    for symref in (True, False):
-        tag = "pin_symref.%s" % ("symbolic" if symref else "control")
+    versions). Round 14: the symbolic ref may point at a local tag or at another remote-tracking ref (RV13-3), and a
+    ref under a remote that is not configured ('ghost') is not 'on a remote' (RV13-5): not-on-any-remote each."""
+    for symref in (True, "tag", "remote", "ghost", False):
+        tag = "pin_symref.%s" % {True: "symbolic", False: "control"}.get(symref, symref)
         b = Box("ps_%s" % symref)
         try:
             work, L = pushed_local_pin_tree(b, symref)
@@ -2990,8 +3000,11 @@ def c_stage_pin_verified(box):
                 ok(tag + ".why", bool(acts) and acts[-1].get("why") == "stage-pin-not-exact:other-entries", acts)
                 ok(tag + ".names_other", bool(acts) and "user_staged.txt" in (acts[-1].get("staged_other") or []),
                    acts)
-                ok(tag + ".nonzero", rc != 0, "rc=%s" % rc)
-                ok(tag + ".not_applied", (rep or {}).get("verdict") not in (None, "APPLIED"), (rep or {}).get("verdict"))
+                # RV13-2: FAILED, exit 1, the action and both records marked failed (never ATTENTION / rc 4)
+                ok(tag + ".exit_1", rc == 1, "rc=%s" % rc)
+                ok(tag + ".verdict_failed", (rep or {}).get("verdict") == "FAILED", (rep or {}).get("verdict"))
+                ok(tag + ".action_failed", bool(acts) and acts[-1].get("failed") is True, acts)
+                ok(tag + ".child_failed", (rec(rep, "libs/a") or {}).get("failed") is True, rec(rep, "libs/a"))
                 ok(tag + ".user_file_still_staged", staged(b, work, "user_staged.txt") is not None)
             else:
                 ok(tag + ".exit_0", rc == 0, "rc=%s %s %s" % (rc, rs, se[-200:]))
@@ -3001,6 +3014,63 @@ def c_stage_pin_verified(box):
             ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
         finally:
             b.cleanup()
+
+
+def c_stage_pin_icase(box):
+    """RV13-1 (round-13 reviewer, probes/p_icase_config.py): the parent's own config core.ignoreCase=true with the
+    gitlinks LIB and lib; 'git add -- LIB' folds the case and rewrites the index entry 'lib' to LIB's new commit, a
+    commit of the other submodule's repository. The engine detects it (FAILED, exit 1, never 'updated'), records the
+    value of EVERY other changed entry before and after the add and the command that restores it (it does not run
+    the restore itself: git's own case folding made the change), and the recorded command, run by the user, puts
+    the index back exactly. Control: the same tree without core.ignoreCase stages only the pin (exit 4, the local-ahead
+    attention of B, no stage-pin reason)."""
+    for icase in (True, False):
+        tag = "stage_icase.%s" % ("on" if icase else "off")
+        b = Box("si_%s" % icase)
+        try:
+            work, a_new, b_pin, b_local = two_sub_tree(b, "LIB", "lib", "si")
+            if icase:
+                b.git(work, "config", "core.ignoreCase", "true")
+            before = b.git(work, "ls-files", "-s", "-z")
+            rc, so, se, rep, _ = b.run("--apply", "--advance-pins", "--root", work, "--quiet", timeout=300)
+            rs = reasons_of(rep)
+            acts = [a for a in (rec(rep, "LIB") or {}).get("actions") or [] if a.get("op") == "advance-pin"]
+            if icase:
+                ok(tag + ".exit_1", rc == 1, "rc=%s" % rc)
+                ok(tag + ".verdict_failed", (rep or {}).get("verdict") == "FAILED", (rep or {}).get("verdict"))
+                ok(tag + ".reason", "stage-pin-not-exact:other-entries" in rs, rs)
+                det = (acts[-1].get("staged_other_detail") if acts else None) or []
+                ok(tag + ".one_detail", len(det) == 1 and det[0].get("path") == "lib", det)
+                d = det[0] if det else {}
+                ok(tag + ".before_recorded", d.get("before") == "160000 %s 0" % b_pin, d)
+                ok(tag + ".after_is_foreign", d.get("after") not in (None, d.get("before")), d)
+                cmd = d.get("restore") or ""
+                ok(tag + ".restore_command", "update-index --cacheinfo 160000,%s,lib" % b_pin in cmd
+                   and "core.ignoreCase=false" in cmd, cmd)
+                ok(tag + ".index_changed", b.git(work, "ls-files", "-s", "-z") != before)
+                if cmd:
+                    p = subprocess.run(shlex.split(cmd), env=b.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       text=True, timeout=60)
+                    after = b.git(work, "ls-files", "-s", "-z")
+                    ok(tag + ".restore_exact", p.returncode == 0 and entry_of(after, "lib") == entry_of(before, "lib"),
+                       "rc=%s %s" % (p.returncode, p.stderr[-200:]))
+            else:
+                ok(tag + ".exit_4", rc == 4, "rc=%s %s" % (rc, rs))
+                ok(tag + ".no_reason", not [x for x in rs if x.startswith("stage-pin-not-exact")], rs)
+                ok(tag + ".staged_target", staged(b, work, "LIB") == a_new)
+                ok(tag + ".other_untouched", staged(b, work, "lib") == b_pin)
+        except Exception as e:
+            ok(tag + ".fixture", False, "%s: %s" % (type(e).__name__, e))
+        finally:
+            b.cleanup()
+
+
+def entry_of(raw, path):
+    for line in raw.split("\0"):
+        meta, _, p = line.partition("\t")
+        if p == path:
+            return meta
+    return None
 
 
 def c_stage_pin_pre_index_unread(box):
@@ -3090,6 +3160,8 @@ CHECKS = [
     # review round 13
     ("symref", c_symbolic_tracking_ref), ("pin_symref", c_pin_symbolic_ref), ("pathspec", c_pathspec_literal),
     ("head_file", c_head_file), ("stage_verify", c_stage_pin_verified), ("pre_index", c_stage_pin_pre_index_unread),
+    # review round 14
+    ("stage_icase", c_stage_pin_icase),
 ]
 
 
