@@ -1,0 +1,341 @@
+#!/usr/bin/env python3
+"""Attribute-shape reproduction probe (scratch only, not shipped).
+
+Usage: attr_repro.py <repo-checkout> <gitleaks> <workdir> [shape ...]
+Runs scripts/gitleaks/gitleaks_run_scan.sh (S) and
+scripts/security/history_secret_scan.sh (H) of <repo-checkout> against one
+throwaway repository per attribute shape and prints one line per shape and
+script: FOUND (the hidden secret is in the report) or MISSED, plus the exit.
+Secrets are random per run, built here, and never printed.
+"""
+import json, os, secrets, shutil, string, subprocess, sys
+
+repo, gl, work = sys.argv[1:4]
+only = set(sys.argv[4:])
+S = os.path.join(repo, "scripts/gitleaks/gitleaks_run_scan.sh")
+H = os.path.join(repo, "scripts/security/history_secret_scan.sh")
+GIT = shutil.which("git")
+
+
+def tok():
+    a = string.ascii_letters + string.digits
+    return "gh" + "p_" + "".join(secrets.choice(a) for _ in range(36))
+
+
+BASE_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+BASE_ENV.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@invalid", GIT_COMMITTER_NAME="t",
+                GIT_COMMITTER_EMAIL="t@invalid", GIT_AUTHOR_DATE="2001-01-01T00:00:00Z",
+                GIT_COMMITTER_DATE="2001-01-01T00:00:00Z", GIT_CONFIG_NOSYSTEM="1")
+
+
+def g(d, *a, env=None, inp=None):
+    return subprocess.run([GIT, "-C", d] + list(a), env=env or BASE_ENV, check=True,
+                          capture_output=True, input=inp).stdout.decode().strip()
+
+
+def commit_all(d, msg):
+    g(d, "add", "-A")
+    g(d, "commit", "-q", "--allow-empty", "-m", msg)
+
+
+def build(name, attr_line=None, attr_where="head", extra_cfg=()):
+    """Repo with a.txt, then optionally .gitattributes, then the secret in s.env."""
+    d = os.path.join(work, name)
+    shutil.rmtree(d, ignore_errors=True)
+    os.makedirs(d)
+    g(d, "init", "-q", "-b", "main")
+    for k, v in extra_cfg:
+        g(d, "config", k, v)
+    with open(os.path.join(d, "a.txt"), "w") as f:
+        f.write("plain\n")
+    commit_all(d, "base")
+    if attr_line and attr_where in ("head", "hist"):
+        with open(os.path.join(d, ".gitattributes"), "w") as f:
+            f.write(attr_line + "\n")
+        commit_all(d, "attrs")
+    sec = tok()
+    with open(os.path.join(d, "s.env"), "w") as f:
+        f.write("TOKEN=%s\n" % sec)
+    commit_all(d, "secret")
+    os.remove(os.path.join(d, "s.env"))
+    commit_all(d, "drop secret")
+    if attr_line and attr_where == "hist":
+        os.remove(os.path.join(d, ".gitattributes"))
+        commit_all(d, "drop attrs")
+    if attr_line and attr_where == "info":
+        os.makedirs(os.path.join(d, ".git/info"), exist_ok=True)
+        with open(os.path.join(d, ".git/info/attributes"), "w") as f:
+            f.write(attr_line + "\n")
+    return d, sec
+
+
+def tree_with_attrs(d, line):
+    b = g(d, "hash-object", "-w", "--stdin", inp=(line + "\n").encode())
+    return g(d, "mktree", inp=("100644 blob %s\t.gitattributes\n" % b).encode())
+
+
+def run_S(d, env):
+    p = subprocess.run(["bash", S, d], env=env, capture_output=True, text=True)
+    ev = os.path.join(d, "qa-results/gitleaks")
+    found = 0
+    if os.path.isdir(ev):
+        last = sorted(os.listdir(ev))[-1]
+        fj = os.path.join(ev, last, "findings.json")
+        if os.path.exists(fj) and os.path.getsize(fj):
+            found = sum(1 for x in json.load(open(fj)) if x.get("File") == "s.env")
+        shutil.rmtree(os.path.join(d, "qa-results"))
+    return p.returncode, found, (p.stdout + p.stderr).strip().splitlines()[-3:]
+
+
+def run_H(d, env):
+    scr = os.path.join(work, "hss_scratch")
+    os.makedirs(scr, exist_ok=True)
+    out = os.path.join(scr, "out.tsv")
+    for f in (out, out + ".replace.tsv"):
+        if os.path.exists(f):
+            os.remove(f)
+    e = dict(env, SCRATCH=scr, OUT=out, GITLEAKS=gl)
+    p = subprocess.run(["bash", H, d], env=e, capture_output=True, text=True)
+    found = 0
+    if os.path.exists(out):
+        found = sum(1 for l in open(out) if "\ts.env:" in l)
+    return p.returncode, found, (p.stdout + p.stderr).strip().splitlines()[-2:]
+
+
+def env_with(**kv):
+    e = dict(BASE_ENV)
+    e["PATH"] = os.path.dirname(gl) + ":" + e["PATH"]
+    e.update(kv)
+    return e
+
+
+cfgdir = os.path.join(work, "cfg")
+os.makedirs(cfgdir, exist_ok=True)
+
+
+def cfgfile(name, text):
+    p = os.path.join(cfgdir, name)
+    with open(p, "w") as f:
+        f.write(text)
+    return p
+
+
+SH = []  # (shape name, builder) -> returns (dir, secret, env)
+
+
+def shape(name):
+    def deco(fn):
+        SH.append((name, fn))
+        return fn
+    return deco
+
+
+@shape("control-none")
+def _():
+    d, s = build("control"); return d, env_with()
+
+
+@shape("head-gitattributes--diff")
+def _():
+    d, s = build("headdiff", "*.env -diff"); return d, env_with()
+
+
+@shape("hist-only-gitattributes--diff")
+def _():
+    d, s = build("histdiff", "*.env -diff", "hist"); return d, env_with()
+
+
+@shape("head-binary-macro")
+def _():
+    d, s = build("bin", "*.env binary"); return d, env_with()
+
+
+@shape("head--text")
+def _():
+    d, s = build("mtext", "*.env -text"); return d, env_with()
+
+
+@shape("head-export-ignore")
+def _():
+    d, s = build("expign", "*.env export-ignore"); return d, env_with()
+
+
+@shape("head-eol-crlf")
+def _():
+    d, s = build("eol", "*.env eol=crlf"); return d, env_with()
+
+
+@shape("head-filter-driver")
+def _():
+    d, s = build("filt", "*.env filter=hssf",
+                 extra_cfg=[("filter.hssf.clean", "cat"), ("filter.hssf.smudge", "cat")])
+    gc = cfgfile("filt.cfg", "[filter \"hssf\"]\n\tclean = cat\n\tsmudge = cat\n")
+    return d, env_with(GIT_CONFIG_GLOBAL=gc)
+
+
+@shape("head-diff-driver-textconv-global")
+def _():
+    d, s = build("tconv", "*.env diff=hssd")
+    gc = cfgfile("tconv.cfg", "[diff \"hssd\"]\n\ttextconv = true\n")
+    return d, env_with(GIT_CONFIG_GLOBAL=gc)
+
+
+@shape("head-diff-driver-binary-global")
+def _():
+    d, s = build("dbin", "*.env diff=hssb")
+    gc = cfgfile("dbin.cfg", "[diff \"hssb\"]\n\tbinary = true\n")
+    return d, env_with(GIT_CONFIG_GLOBAL=gc)
+
+
+@shape("head-diff-driver-textconv-repocfg")
+def _():
+    d, s = build("tconvr", "*.env diff=hssd", extra_cfg=[("diff.hssd.textconv", "true")])
+    return d, env_with()
+
+
+@shape("info-attributes")
+def _():
+    d, s = build("info", "*.env -diff", "info"); return d, env_with()
+
+
+@shape("global-core.attributesFile")
+def _():
+    d, s = build("gaf")
+    af = cfgfile("gaf.attr", "s.env -diff\n")
+    gc = cfgfile("gaf.cfg", "[core]\n\tattributesFile = %s\n" % af)
+    return d, env_with(GIT_CONFIG_GLOBAL=gc)
+
+
+@shape("system-cfg-core.attributesFile")
+def _():
+    d, s = build("saf")
+    af = cfgfile("saf.attr", "s.env -diff\n")
+    sc = cfgfile("saf.cfg", "[core]\n\tattributesFile = %s\n" % af)
+    e = env_with(GIT_CONFIG_SYSTEM=sc)
+    e.pop("GIT_CONFIG_NOSYSTEM", None)
+    return d, e
+
+
+@shape("xdg-default-attributes")
+def _():
+    d, s = build("xdg")
+    x = os.path.join(work, "xdg")
+    os.makedirs(os.path.join(x, "git"), exist_ok=True)
+    with open(os.path.join(x, "git/attributes"), "w") as f:
+        f.write("s.env -diff\n")
+    return d, env_with(XDG_CONFIG_HOME=x)
+
+
+@shape("GIT_CONFIG_PARAMETERS-attributesFile")
+def _():
+    d, s = build("gcp")
+    af = cfgfile("gcp.attr", "s.env -diff\n")
+    return d, env_with(GIT_CONFIG_PARAMETERS="'core.attributesFile'='%s'" % af)
+
+
+@shape("GIT_CONFIG_COUNT-attributesFile")
+def _():
+    d, s = build("gcc")
+    af = cfgfile("gcc.attr", "s.env -diff\n")
+    return d, env_with(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="core.attributesFile",
+                       GIT_CONFIG_VALUE_0=af)
+
+
+@shape("GIT_ATTR_SOURCE-caller")
+def _():
+    d, s = build("gas")
+    t = tree_with_attrs(d, "s.env -diff")
+    return d, env_with(GIT_ATTR_SOURCE=t)
+
+
+@shape("attr.tree-repocfg")
+def _():
+    d, s = build("atr")
+    t = tree_with_attrs(d, "s.env -diff")
+    g(d, "config", "attr.tree", t)
+    return d, env_with()
+
+
+@shape("attr.tree-global")
+def _():
+    d, s = build("atg")
+    t = tree_with_attrs(d, "s.env -diff")
+    c = g(d, "commit-tree", t, "-m", "attr-tree")
+    g(d, "update-ref", "refs/heads/attrtree", c)
+    gc = cfgfile("atg.cfg", "[attr]\n\ttree = %s\n" % t)
+    return d, env_with(GIT_CONFIG_GLOBAL=gc)
+
+
+@shape("bigFileThreshold-global")
+def _():
+    d, s = build("bft")
+    gc = cfgfile("bft.cfg", "[core]\n\tbigFileThreshold = 1\n")
+    return d, env_with(GIT_CONFIG_GLOBAL=gc)
+
+
+@shape("macro-in-attributes")
+def _():
+    d, s = build("macro", "[attr]hss -diff\n*.env hss"); return d, env_with()
+
+
+def build_merge(name):
+    d = os.path.join(work, name)
+    shutil.rmtree(d, ignore_errors=True); os.makedirs(d)
+    g(d, "init", "-q", "-b", "main")
+    open(os.path.join(d, "a.txt"), "w").write("plain\n"); commit_all(d, "base")
+    g(d, "checkout", "-q", "-b", "side")
+    open(os.path.join(d, "b.txt"), "w").write("side\n"); commit_all(d, "side")
+    g(d, "checkout", "-q", "main")
+    open(os.path.join(d, "c.txt"), "w").write("main\n"); commit_all(d, "main2")
+    g(d, "merge", "-q", "--no-commit", "--no-ff", "side")
+    open(os.path.join(d, "s.env"), "w").write("TOKEN=%s\n" % tok())
+    g(d, "add", "-A"); g(d, "commit", "-q", "-m", "evil merge")
+    os.remove(os.path.join(d, "s.env")); commit_all(d, "drop")
+    return d
+
+
+@shape("evil-merge-only")
+def _():
+    return build_merge("evil"), env_with()
+
+
+@shape("grafts-hide-secret")
+def _():
+    d, s = build("graft")
+    head = g(d, "rev-parse", "HEAD")
+    open(os.path.join(d, ".git/info/grafts"), "w").write(head + "\n")
+    return d, env_with()
+
+
+@shape("fake-shallow-hides-secret")
+def _():
+    d, s = build("fshal")
+    head = g(d, "rev-parse", "HEAD")
+    open(os.path.join(d, ".git/shallow"), "w").write(head + "\n")
+    return d, env_with()
+
+
+@shape("real-shallow-clone")
+def _():
+    d, s = build("rshal_src")
+    d2 = os.path.join(work, "rshal")
+    shutil.rmtree(d2, ignore_errors=True)
+    subprocess.run([GIT, "clone", "-q", "--depth", "1", "file://" + d, d2], env=BASE_ENV, check=True)
+    return d2, env_with()
+
+
+@shape("caller-GIT_GRAFT_FILE")
+def _():
+    d, s = build("cgraft")
+    gf = cfgfile("cgraft.grafts", g(d, "rev-parse", "HEAD") + "\n")
+    return d, env_with(GIT_GRAFT_FILE=gf)
+
+
+for name, fn in SH:
+    if only and name not in only:
+        continue
+    d, env = fn()
+    for tag, runner in (("S", run_S), ("H", run_H)):
+        rc, found, tail = runner(d, env)
+        print("%-40s %s rc=%s %s" % (name, tag, rc, "FOUND" if found else "MISSED"))
+        sys.stdout.flush()

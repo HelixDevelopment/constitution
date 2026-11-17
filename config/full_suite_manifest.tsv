@@ -1003,6 +1003,8 @@ tests/security/test_forge_branch_protect.sh	sh	entry	default	bash	-	auto
 tests/security/test_github_actions_inventory_disable.sh	sh	entry	default	bash	-	auto
 tests/security/test_gitleaks_run_scan_replace.sh	sh	entry	default	bash	-	auto
 tests/security/test_gitleaks_run_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/security/test_history_read_time_hiding.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_read_time_hiding_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_history_secret_scan.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_deadlock.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_deadlock_mutations.sh	sh	entry	heavy	bash	-	auto

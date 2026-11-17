@@ -1,0 +1,159 @@
+scanner: fake
+ok   1 S0 precondition: a committed -diff attribute hides the secret from git log -p; --text shows it
+ok   2 S1 control: secret found (exit 1)
+FAIL 3 S2 committed .gitattributes -diff: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff/qa-results/gitleaks/20261116T191549Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff/qa-results/gitleaks/20261116T191549Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 4 S3 committed binary macro: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_bin/qa-results/gitleaks/20261116T191549Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_bin
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_bin/qa-results/gitleaks/20261116T191549Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 5 S4 diff driver textconv in repo config: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_tcv/qa-results/gitleaks/20261116T191549Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_tcv
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_tcv/qa-results/gitleaks/20261116T191549Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 6 S5 .git/info/attributes: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_info/qa-results/gitleaks/20261116T191550Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_info
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_info/qa-results/gitleaks/20261116T191550Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 7 S6 caller core.attributesFile: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gaf/qa-results/gitleaks/20261116T191550Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gaf
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gaf/qa-results/gitleaks/20261116T191550Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 8 S7 caller XDG attributes: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_xdg/qa-results/gitleaks/20261116T191550Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_xdg
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_xdg/qa-results/gitleaks/20261116T191550Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 9 S8 caller GIT_ATTR_SOURCE: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gas/qa-results/gitleaks/20261116T191551Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gas
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gas/qa-results/gitleaks/20261116T191551Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 10 S9 caller GIT_CONFIG_PARAMETERS: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gcp/qa-results/gitleaks/20261116T191551Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gcp
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_gcp/qa-results/gitleaks/20261116T191551Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 11 S10 caller --log-opts (two words): secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff/qa-results/gitleaks/20261116T191551Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff/qa-results/gitleaks/20261116T191551Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 12 S11 caller --log-opts= (one word): secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff/qa-results/gitleaks/20261116T191552Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff/qa-results/gitleaks/20261116T191552Z
+     | [gitleaks] running gitleaks detect (full history) ...
+Automatic merge went well; stopped before committing as requested
+FAIL 13 S12 secret only in a merge commit: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_merge/qa-results/gitleaks/20261116T191552Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_merge
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_merge/qa-results/gitleaks/20261116T191552Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 14 S13 .git/info/grafts: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_graft/qa-results/gitleaks/20261116T191553Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_graft
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_graft/qa-results/gitleaks/20261116T191553Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 15 S14 .git/shallow with parents present: secret not found (rc=0, findings=0)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_fshal/qa-results/gitleaks/20261116T191553Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_fshal
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_fshal/qa-results/gitleaks/20261116T191553Z
+     | [gitleaks] running gitleaks detect (full history) ...
+FAIL 16 S15 real shallow clone: rc=0 (expected 3)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_rshal/qa-results/gitleaks/20261116T191553Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_rshal
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_rshal/qa-results/gitleaks/20261116T191553Z
+     | [gitleaks] running gitleaks detect (full history) ...
+ok   17 S16 negative control: exit 0, zero findings
+FAIL 18 S17 --log-opts with no value: rc=1
+     | ----------------------------------------------------------------------
+     | FAIL: gitleaks scan completed — 1 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_ctl/qa-results/gitleaks/20261116T191554Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_ctl
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_ctl/qa-results/gitleaks/20261116T191554Z
+     | [gitleaks] running gitleaks detect (full history) ...
+ok   19 S18 no glrs_selfcheck.* directory left behind
+FAIL 20 S19 scanner ignoring --log-opts: rc=0 (expected 3)
+     | ----------------------------------------------------------------------
+     | PASS: gitleaks scan completed — 0 real leak(s) found
+     |       [evidence: /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff/qa-results/gitleaks/20261116T191554Z]
+     | ----------------------------------------------------------------------
+     | [gitleaks] project root : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff
+     | [gitleaks] evidence dir : /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/s_diff/qa-results/gitleaks/20261116T191554Z
+     | [gitleaks] running gitleaks detect (full history) ...
+ok   21 H1 control: secret found (exit 1)
+FAIL 22 H2 caller core.attributesFile: secret not found (rc=0)
+     | replace refs: 0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_21.tsv.replace.tsv (each would show another object in place of the one named; this scan read the stored objects; classify each)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_21.tsv (classify each: fixture vs real)
+FAIL 23 H3 caller GIT_ATTR_SOURCE: secret not found (rc=0)
+     | replace refs: 0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_22.tsv.replace.tsv (each would show another object in place of the one named; this scan read the stored objects; classify each)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_22.tsv (classify each: fixture vs real)
+FAIL 24 H4 caller XDG attributes: secret not found (rc=0)
+     | replace refs: 0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_23.tsv.replace.tsv (each would show another object in place of the one named; this scan read the stored objects; classify each)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_23.tsv (classify each: fixture vs real)
+ok   25 H5 caller textconv driver: secret found (exit 1)
+ok   26 H6 source with .git/info/grafts: secret found (exit 1)
+FAIL 27 H7 shallow source: rc=0 (expected 3)
+     | replace refs: 0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_26.tsv.replace.tsv (each would show another object in place of the one named; this scan read the stored objects; classify each)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_26.tsv (classify each: fixture vs real)
+ok   28 H8 negative control: exit 0
+FAIL 29 H9 scanner dropping --text: rc=1 (expected 3)
+     | replace refs: 0 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_28.tsv.replace.tsv (each would show another object in place of the one named; this scan read the stored objects; classify each)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=1 -> /mnt/DATA1TB/claude-work/tmp/tmp.RR9AJH65Dq/scratch/out_28.tsv (classify each: fixture vs real)
+RESULT: 8/29 passed (scanner: fake)

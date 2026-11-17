@@ -1,0 +1,58 @@
+PASS H1 rc
+PASS H1 canonical name
+PASS H1 present
+PASS H1 bearer auth
+PASS H1 api version header
+PASS H2 rc
+PASS H2 created
+PASS H2 readback
+PASS H2 target not a sha -> noted, tag sha checked instead
+PASS H2 payload draft false
+PASS H3 draft flagged
+PASS H3b draft: rc FAIL
+PASS H3b reason
+PASS H3b never kept
+PASS H4 unverified commit: rc 5
+PASS H4 reason
+PASS H4 result
+PASS H4 never OK
+PASS H4b target = sha, tag unverified: rc 5
+PASS H4b echo noted
+PASS H4b never OK
+PASS N18 other ref: tag absent
+PASS N18 sha not reported
+PASS M1 422 invalid: rc API
+PASS M1 reason
+PASS M1b 422 already_exists: rc 0
+PASS M1b not created
+PASS M4 draft found
+PASS M4 rc FAIL
+PASS M4 reason
+PASS M4 no POST
+PASS M4b release-get shows the draft
+PASS L1 rc
+PASS L1 PRIVATE-TOKEN header
+PASS L1 path url-encoded
+PASS L1 created
+PASS L1 prerelease unsupported noted
+PASS L1 readback
+PASS L1 no Authorization header sent
+PASS L2 dotted tag id shown
+PASS L2 update rc
+PASS L2 updated
+PASS L2 one PUT
+PASS N11 409: rc 0
+PASS N11 not created
+PASS N11 kept
+PASS L3 derived target of a present release: rc 0
+PASS L3 tag commit not reported
+PASS L3 kept
+PASS L3 dry-run the same
+PASS L3b derived target differs: rc 1
+PASS L3c created on an unverified tag: rc 5
+PASS L3c created
+PASS L3c dry-run: rc 5 too
+PASS L3d exists after create, derived target read after the write: rc 5
+PASS L3d kept
+SUMMARY: 56 passed, 0 failed
+rc=0
