@@ -22,6 +22,14 @@
 # [GE-sh-gf-*] golden-false controls: an attribute on another plain NAME, IFS, `unset -v` of a non-proved name are
 #             accepted (the new rules do not over-refuse, section 11.4.201(1)).
 # [GE-sh-trailing-code, GE-sh-unset-trusted-*, GE-py-expr-first, GE-py-os-receiver]  review F1-B / F1-E / F1-C.
+# [GE-sh-pre-*]  CON-450 round 3 (review R2-2, section 11.4.276(E) structural): ANY code before the canonical line (a
+#             `command` / `builtin` wrapper, a DEBUG / ERR trap, `set`) is refused by the preamble allow-list; comments
+#             and blank lines stay accepted (GE-sh-pre-gf-comments).
+# [GE-sh-post-*] CON-450 round 3 (review R2-1 and the rest of the class), text AFTER the canonical line: every spelling
+#             of an unset operand (backslash, quotes, brace, variable, command substitution), unset of another function
+#             of the file, a wrapper running a file function, a redefinition, a trap that defines a function, and the
+#             second-layer blockers (the RVM1 / RVM2 targets); golden-false post rows (GE-sh-gf-*) stay accepted.
+# [RVM1-*, RVM2-*] the reviewer's surviving round-2 mutants, adopted verbatim.
 # [GE-mut-*]  paired mutants of the census itself (each must make at least one row above fail).
 #
 # Env: FC_CENSUS_UNDER_TEST / FC_SUP_UNDER_TEST / FC_BR_UNDER_TEST -- the files under test.
@@ -120,6 +128,9 @@ SH_CASES = {
     "GE-sh-trailing-code": 'for _ge_v in GIT_DIR; do unset "$_ge_v"; done; unset _ge_v; rm -f "$FAKE_TARGET"',
 }
 WT = LINE.replace("for _ge_v in ", "for _ge_v in WT_PATH ", 1)
+BS = "\\"
+G_BS = "_g" + BS + "e_v"           # _ge_v spelled with a backslash: the text "_ge_v" does not occur
+FS_BS = "_fc_s" + BS + "afe"       # _fc_safe spelled with a backslash
 # id: (text inserted before the line, inside a function?, the line, True = refused by the NEW rule ("NOT desugared") /
 #      a str = refused with that text in the output / False = golden-false, must be accepted)
 SH_INSERT = {
@@ -135,9 +146,53 @@ SH_INSERT = {
     "GE-sh-sole-assign": ("_ge_v=x", False, LINE, True),
     "GE-sh-unset-trusted-f": ("unset -f _fc_safe", False, LINE, "unset of the trusted function"),
     "GE-sh-unset-trusted-plain": ("unset _fc_safe", False, LINE, "unset of the trusted function"),
-    "GE-sh-gf-other-attr": ("declare -l _rv_other", False, LINE, False),
-    "GE-sh-gf-ifs": ("IFS=_", False, LINE, False),
-    "GE-sh-gf-unset-v": ("unset -v _fc_safe", False, LINE, False),
+    # CON-450 round 3 (review R2-2, the class): the canonical line must be the file's FIRST statement, so any code in
+    # front of it is refused, through any wrapper or trap -- the reviewer's members W01..W08, T01..T05, T08, W12
+    "GE-sh-pre-command-declare-l": ("command declare -l " + G_BS, False, WT, True),
+    "GE-sh-pre-command-declare-emptyquote": ("command declare -l _g''e_v", False, WT, True),
+    "GE-sh-pre-command-local-l-func": ("command local -l " + G_BS, True, WT, True),
+    "GE-sh-pre-builtin-declare-l": ("builtin declare -l " + G_BS, False, WT, True),
+    "GE-sh-pre-command-declare-continued": ("command declare -l _g\\\ne_v", False, WT, True),
+    "GE-sh-pre-trap-debug-printf-v": ("trap 'printf -v " + G_BS + " %s wt_path' DEBUG", False, LINE, True),
+    "GE-sh-pre-trap-err-declare-l": ("trap 'declare -l " + G_BS + "' ERR\nfalse", False, WT, True),
+    "GE-sh-pre-set-option": ("set -o posix", False, WT, True),
+    "GE-sh-pre-gf-comments": ("# a comment line\n\n   # an indented comment line", False, LINE, False),
+}
+# CON-450 round 3: text inserted AFTER the canonical line (the preamble rule cannot fire there), so each row pins one
+# rule on its own. id: (text, True = "NOT desugared" / a str = refused with that text / False = golden-false)
+SH_AFTER = {
+    # review R2-1 (the class): an unset operand is an allow-listed plain identifier, never a trusted function
+    "GE-sh-post-unset-f-backslash": ("unset -f " + FS_BS, "unset of the trusted function"),
+    "GE-sh-post-unset-f-squote": ("unset -f '_fc_safe'", "unset of the trusted function"),
+    "GE-sh-post-unset-f-brace": ("unset -f _fc_safe{,}", "not a plain identifier"),
+    "GE-sh-post-unset-f-var": ('_rvu=_fc_safe\nunset -f "$_rvu"', "not a plain identifier"),
+    "GE-sh-post-unset-f-bracevar": ('_rvu=_fc_safe\nunset -f "${_rvu}"', "not a plain identifier"),
+    "GE-sh-post-unset-f-cmdsubst": ("unset -f $(printf %s _fc_safe)", "not a plain identifier"),
+    "GE-sh-post-unset-plain-trusted": ("unset _fc_safe", "unset of the trusted function"),
+    "GE-sh-post-unset-proved-brace": ("unset _FC_TMPDIR{,}", "not a plain identifier"),
+    "GE-sh-post-trap-unset-f": ("trap 'unset -f " + FS_BS + "' EXIT", "unset of the trusted function"),
+    "GE-sh-post-command-unset-f": ("command unset -f '_fc_safe'", "unset of the trusted function"),
+    # FU-2 closed: a function of this file removed, then called (the census reads the call as the censused body)
+    "GE-sh-post-unset-other-func": ("unset -f run_gate_once", "of this file"),
+    "GE-sh-post-helper-call-after": ("_rvo() {\n_rvi() { :; }\n_rvi\nunset -f _rvi\n_rvi\n}", "of this file"),
+    "GE-sh-post-helper-loop": ("_rvo() {\n_rvi() { :; }\nwhile false; do _rvi; unset -f _rvi; done\n}", "of this file"),
+    "GE-sh-post-command-func": ('command _fc_safe check "${_FC_TMPDIR:?}"', "not the function"),
+    "GE-sh-post-redefine-trusted": ("_fc_safe() { :; }", "defined 2 times"),
+    "GE-sh-post-trap-defines-func": ("trap '_fc_safe() { :; }' EXIT", "inside a trap action"),
+    # the second, independent layer (blocker 2): a value-transforming attribute on a NAME that may be _ge_v
+    # (review R2-4: RVM1 drops -i, RVM2 checks `declare` only -- each row below kills one)
+    "GE-sh-post-attr-declare-i-escaped": ("declare -i " + G_BS, "may be _ge_v at run time"),
+    "GE-sh-post-attr-local-l-func": ("_rvg() {\nlocal -l " + G_BS + "\n}", "may be _ge_v at run time"),
+    "GE-sh-post-attr-typeset-u-escaped": ("typeset -u " + G_BS, "may be _ge_v at run time"),
+    # ... and blocker 1 (any other line naming _ge_v), on its own
+    "GE-sh-post-sole-readonly": ("readonly _ge_v", True),
+    "GE-sh-post-sole-assign": ("_ge_v=x", True),
+    # golden-false controls (section 11.4.201(1)): the new rules do not over-refuse
+    "GE-sh-gf-other-attr": ("declare -l _rv_other", False),
+    "GE-sh-gf-ifs": ("IFS=_", False),
+    "GE-sh-gf-unset-v": ("unset -v _fc_safe", False),
+    "GE-sh-gf-unset-f-undefined": ("unset -f _rv_no_such_function", False),
+    "GE-sh-gf-scoped-helper": ("_rvo() {\n_rvi() { :; }\n_rvi\nunset -f _rvi\n}", False),
 }
 
 
@@ -186,6 +241,17 @@ def cases(cen):
             needle = "NOT desugared" if want is True else want
             return rc == 1 and needle in o, "rc=%d refusal-reason-present=%s" % (rc, needle in o)
         out.append((k, t))
+
+    for k, (text, want) in SH_AFTER.items():
+        def ta(k=k, text=text, want=want):
+            assert BR_SRC.count(LINE) == 1
+            rc, o = run(cen, br_text=BR_SRC.replace(LINE, LINE + "\n" + text), tag=k)
+            if want is False:
+                return rc == 0, "rc=%d (golden-false: must be accepted) %s" % (
+                    rc, " | ".join(l for l in o.splitlines() if l.startswith("VIOLATION"))[:200])
+            needle = "NOT desugared" if want is True else want
+            return rc == 1 and needle in o, "rc=%d refusal-reason-present=%s" % (rc, needle in o)
+        out.append((k, ta))
 
     def heredoc():   # a canonical line inside a here-document body is TEXT: no EXEMPT row, the census still passes
         hd = BR_SRC.rstrip("\n") + "\n: <<'FAKE_HD_END'\n" + LINE + "\nFAKE_HD_END\n"
@@ -246,7 +312,7 @@ MUTANTS.update({
     "GE-mut-attr-name-exact": ('            if not _GE_NAME.match(nm) or nm == "_ge_v":', '            if nm == "_ge_v":'),
     "GE-mut-attr-any-name": ('            if not _GE_NAME.match(nm) or nm == "_ge_v":', '            if True:'),
     "GE-mut-attr-nameref-only": ('_GE_ATTR = set("lucin")', '_GE_ATTR = set("n")'),
-    "GE-mut-unset-trusted": ('                    if _unq(o) in SH_TRUSTED_FUNCS:', '                    if False:'),
+    "GE-mut-unset-trusted": ('                    if fn_capable and lit in SH_TRUSTED_FUNCS:', '                    if False:'),
     "GE-mut-RM2-trailing-anything": ("unset _ge_v(?:[ \\t]+#.*)?$')", "unset _ge_v(?:.*)?$')"),
     "GE-mut-RM3-any-expr-first": ("    i = 1 if (body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant)\n"
                                   "              and isinstance(body[0].value.value, str)) else 0",
@@ -254,11 +320,44 @@ MUTANTS.update({
     "GE-mut-RM6-any-receiver": ('and isinstance(c.func.value.value, ast.Name) and c.func.value.value.id == "_ge_os"',
                                 'and isinstance(c.func.value.value, ast.Name)'),
 })
+MUTANTS.update({
+    # CON-450 round 3 (review R2-1 / R2-2 / R2-4): the allow-list rules, and the reviewer's RVM1 / RVM2 VERBATIM
+    "RVM1-attr-set-luc": ('_GE_ATTR = set("lucin")', '_GE_ATTR = set("luc")'),
+    "RVM2-blocker2-declare-only": ('        if cm["cmd"] not in ("local", "declare", "typeset"):\n            continue\n        letters,',
+                                   '        if cm["cmd"] not in ("declare",):\n            continue\n        letters,'),
+    "GE-mut-RVM4-f-only": ('                fn_capable = "f" in u_letters or "v" not in u_letters',
+                           '                fn_capable = "f" in u_letters'),
+    "GE-mut-no-preamble": ('            if (k == 1 and raw.startswith("#!")) or not raw.strip() or raw.lstrip().startswith("#"):',
+                           '            if True:'),
+    "GE-mut-preamble-set-ok": ('            if (k == 1 and raw.startswith("#!")) or not raw.strip() or raw.lstrip().startswith("#"):',
+                               '            if (k == 1 and raw.startswith("#!")) or not raw.strip() or raw.lstrip().startswith(("#", "set ")):'),
+    "GE-mut-preamble-no-comment": ('            if (k == 1 and raw.startswith("#!")) or not raw.strip() or raw.lstrip().startswith("#"):',
+                                   '            if (k == 1 and raw.startswith("#!")) or not raw.strip():'),
+    "GE-mut-unset-nonident-ok": ('                    if lit is None or not _GE_NAME.match(lit):', '                    if lit is None:'),
+    "GE-mut-unset-f-expansion-ok": ('                    if lit is None and "f" not in u_letters:', '                    if lit is None:'),
+    "GE-mut-unset-file-funcs-ok": ('                    if fn_capable and lit in funcs and not scoped_helper(lit, cm["line"]):',
+                                   '                    if False:'),
+    "GE-mut-helper-any-mention": ('            if pat.search(code_part(raw)) and not a <= k <= uline:', '            if False:'),
+    "GE-mut-helper-loop-ok": ("        return not [k for k in range(a, uline + 1)", "        return not [k for k in range(0)"),
+    "GE-mut-helper-always": ('        ext = [e for e in extents if e[0] == nm]\n', '        return True\n'),
+    "GE-mut-wrapper-func-ok": ("            if rest and rest[0] in funcs:", "            if False:"),
+    "GE-mut-trap-funcdef-ok": ("                    if sub.funcs:\n                        add(cm, \"trap\"",
+                               "                    if False:\n                        add(cm, \"trap\""),
+    "GE-mut-dup-trusted-ok": ("        if len(funcs.get(nm, [])) > 1:", "        if False:"),
+})
 KILLERS = {   # rows tried first (time only; any broken row kills)
-    "GE-mut-blockers-ignored": ("GE-sh-attr-declare-l",), "GE-mut-no-sole-use": ("GE-sh-sole-readonly",),
+    "GE-mut-blockers-ignored": ("GE-sh-attr-declare-l",), "GE-mut-no-sole-use": ("GE-sh-post-sole-readonly",),
     "GE-mut-no-attr-rule": ("GE-sh-attr-backslash",), "GE-mut-attr-name-exact": ("GE-sh-attr-backslash",),
     "GE-mut-attr-any-name": ("GE-sh-gf-other-attr",), "GE-mut-attr-nameref-only": ("GE-sh-attr-backslash",),
-    "GE-mut-unset-trusted": ("GE-sh-unset-trusted-f",), "GE-mut-RM2-trailing-anything": ("GE-sh-trailing-code",),
+    "GE-mut-unset-trusted": ("GE-sh-post-unset-f-squote",), "RVM1-attr-set-luc": ("GE-sh-post-attr-declare-i-escaped",),
+    "RVM2-blocker2-declare-only": ("GE-sh-post-attr-local-l-func",), "GE-mut-RVM4-f-only": ("GE-sh-post-unset-plain-trusted",),
+    "GE-mut-no-preamble": ("GE-sh-pre-command-declare-l",), "GE-mut-preamble-set-ok": ("GE-sh-pre-set-option",),
+    "GE-mut-preamble-no-comment": ("GE-sh-pre-gf-comments", "GE-real"),
+    "GE-mut-unset-nonident-ok": ("GE-sh-post-unset-f-brace",), "GE-mut-unset-f-expansion-ok": ("GE-sh-post-unset-f-var",),
+    "GE-mut-unset-file-funcs-ok": ("GE-sh-post-unset-other-func",), "GE-mut-helper-any-mention": ("GE-sh-post-helper-call-after",),
+    "GE-mut-helper-loop-ok": ("GE-sh-post-helper-loop",), "GE-mut-helper-always": ("GE-sh-post-unset-other-func",),
+    "GE-mut-wrapper-func-ok": ("GE-sh-post-command-func",), "GE-mut-trap-funcdef-ok": ("GE-sh-post-trap-defines-func",),
+    "GE-mut-dup-trusted-ok": ("GE-sh-post-redefine-trusted",), "GE-mut-RM2-trailing-anything": ("GE-sh-trailing-code",),
     "GE-mut-RM3-any-expr-first": ("GE-py-expr-first",), "GE-mut-RM6-any-receiver": ("GE-py-os-receiver",),
 }
 for name, (old, new) in MUTANTS.items():

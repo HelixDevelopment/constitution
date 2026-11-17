@@ -54,7 +54,19 @@ Shell (a lexer, _ShLex):
                declare / typeset -l -u -c -i -n carries a NAME that is not a plain identifier other than _ge_v --
                bash applies such an attribute on the loop's assignment, so the loop would unset OTHER names
                (_git_env_scrub_sh_blockers). `unset` / `unset -f` of a trusted function (SH_TRUSTED_FUNCS) is a
-               VIOLATION.
+               VIOLATION. CON-450 round 3 (§11.4.276(E) structural, the class "the loop or a trusted / file function
+               means something else than it reads"; enumeration: docs/qa/con402_fallout_r3/): (1) PREAMBLE ALLOW-LIST:
+               only a line-1 `#!`, blank lines and comment lines may precede the canonical line -- any other line
+               (a wrapper, a trap, `set`, `command declare ...`) refuses the desugar, so nothing can run before the
+               loop; the two blockers above stay as an independent second layer; (2) every `unset` operand that can
+               name a function (`-f`, or neither `-v` nor `-f`) must be a plain identifier AFTER quote removal
+               (escaped / quoted / brace / expansion spellings -> VIOLATION), and may not name a trusted function or
+               any other function of the file unless it is a SCOPED HELPER (defined once inside one enclosing
+               function, unset in it after its body, every mention between the two, no loop keyword in the span);
+               (3) a wrapper (command / env / exec ...) never runs a function of the file; (4) a function defined
+               inside a trap action or a `-c` program -> VIOLATION; (5) a trusted function defined more than once ->
+               VIOLATION. Boundary: code that runs BEFORE the file (BASH_ENV, a sourcing parent, an exported
+               function such as BASH_FUNC_unset%%) is outside any file-scope census.
   PROVED       a variable EVERY assignment of which is: $(_fc_safe mkdtemp ...), $(_fc_safe mkdir --exclusive ...) (a
                plain `_fc_safe mkdir` result is NOT a namespace), $(_fc_mktemp), $(mktemp [-d] "$_FC_TMPDIR/NAME") with
                NAME free of '/' and '..', ${FC_BR_TMPDIR} (proved --exclusive at worker start), or a proved variable +
@@ -889,9 +901,24 @@ def _git_env_scrub_sh_blockers(raw_lines, ge_lines, cmds):
           letter the census cannot read) on a NAME word that is not a plain identifier other than _ge_v (a quoted,
           escaped, brace, glob, subscript or expanded NAME can be _ge_v at run time without the text `_ge_v`).
     Both are decided on the whole file, so a declaration in a calling function (bash's dynamic scope) is seen.
+    CON-450 round 3 (review R2-2, §11.4.276(E) structural -- an ALLOW-LIST replaces the deny-lists as the decisive
+    rule): (0) the canonical line is desugared only when it is the FIRST statement of the file -- every line before
+    it is the line-1 `#!` line, a blank line or a comment line. Nothing of the file can then run before the loop: no
+    declaration (through any wrapper -- command, builtin, a function, a continued line), no DEBUG / ERR trap, no
+    attribute, no unset. (1) and (2) are kept as a second, independent layer (a declaration AFTER the line). What
+    runs before the FILE (BASH_ENV, a sourcing parent, an exported function) is outside every file-scope census
+    (docs/qa/con402_fallout_r3/followups.md FU-1).
     Returns [(line, reason)]; empty when the desugar holds."""
     out = []
     ge = set(ge_lines)
+    for no in ge_lines:
+        for k in range(1, no):
+            raw = raw_lines[k - 1]
+            if (k == 1 and raw.startswith("#!")) or not raw.strip() or raw.lstrip().startswith("#"):
+                continue
+            out.append((no, "line %d holds code before the canonical scrub line (the line must be the file's first "
+                            "statement: only the #! line, blank lines and comment lines may precede it)" % k))
+            break
     for no, raw in enumerate(raw_lines, 1):
         # a here-document body line that is exactly the canonical line (its text, never desugared) does not count
         if no not in ge and "_ge_v" in raw and not _GE_SH.match(raw):
@@ -1096,6 +1123,36 @@ def sh_census(path):
     def add(cm, kind, verdict, why):
         rows.append((os.path.basename(path), cm["line"], cm["func"], kind, verdict, why))
 
+    scan_lines = _blank_heredocs(lines)
+
+    def scoped_helper(nm, uline):
+        """CON-450 round 3: `unset -f NAME` of a function of this file is accepted only for a HELPER defined once,
+        inside one enclosing function, removed in that function after the helper's body, with every mention of the
+        name between its definition and the unset and no loop keyword in that span (so no call can follow the unset,
+        on any path through the enclosing function)"""
+        ext = [e for e in extents if e[0] == nm]
+        if len(funcs.get(nm, [])) != 1 or len(ext) != 1:
+            return False
+        _n, a, b = ext[0]
+        enc = [e for e in extents if e[1] < a and b <= e[2]]
+        if not enc:
+            return False
+        en, _ea, eb = max(enc, key=lambda e: e[1])
+        if not (b < uline <= eb) or func_at(extents, uline) != en:
+            return False
+        pat = re.compile(r"(?<![\w$])%s(?![\w])" % re.escape(nm))
+        for k, raw in enumerate(scan_lines, 1):
+            if pat.search(code_part(raw)) and not a <= k <= uline:
+                return False
+        return not [k for k in range(a, uline + 1)
+                    if re.search(r"(^|[;&|(\s])(while|until|for|select)(\s|$)", code_part(scan_lines[k - 1]))]
+
+    for nm in SH_TRUSTED_FUNCS:                           # CON-450 round 3: a trusted function defined once
+        if len(funcs.get(nm, [])) > 1:
+            rows.append((os.path.basename(path), funcs[nm][1], func_at(extents, funcs[nm][1]), "function " + nm,
+                         "VIOLATION", "the trusted function %s is defined %d times: a later definition changes what "
+                         "every ROUTED call runs (fail-closed, CON-450 round 3)" % (nm, len(funcs[nm]))))
+
     def operands(words, valued=()):
         out, skip, ddash = [], False, False
         for w in words:
@@ -1125,6 +1182,10 @@ def sh_census(path):
         if w0 == '"$BASH"' and args[:1] == ["-c"] and len(args) > 1 and args[1][:1] == "'" and args[1][-1:] == "'":
             sub = _ShLex(args[1][1:-1], cm["line"])           # a literal program: lexed and censused like any code
             sub.parse_list(0, None)
+            if sub.funcs:
+                add(cm, '"$BASH" -c', "VIOLATION", "a function defined inside a -c program (%s): outside the census's "
+                    "function model (fail-closed, CON-450 round 3)" % sub.funcs[0][0][:30])
+                return
             for scm in sub.cmds:
                 scm["func"] = func
                 if scm["cmd"]:
@@ -1169,17 +1230,36 @@ def sh_census(path):
                     add(cm, "exec ${blk...}", "VIOLATION", "exec through an array not assigned only "
                                                            "(env --block-signal=INT)")
                     return
+            if rest and rest[0] in funcs:                 # CON-450 round 3: command / env / exec never run a function
+                add(cm, w0 + " " + rest[0][:30], "VIOLATION", "%s %s runs the PROGRAM of that name PATH finds, not "
+                    "the function of this file (fail-closed, CON-450 round 3)" % (w0, rest[0][:30]))
+                return
             classify(cm, rest, depth + 1)
             return
         # round 14 (V4R14-2) -> round 15 (V4R15-2, the CLASS): every variable-NAME position of every name-taking
         # builtin the tables admit (NAME_BUILTINS), after quote removal; each a VIOLATION at its own line
-        if w0 == "unset":                                 # CON-450 round 2 (review F1-E): the trusted functions
-            u_letters, _uv, u_ops = _options(args)
-            if "v" not in u_letters:                      # `unset NAME` falls back to a function; -f is a function
+        if w0 == "unset":                                 # CON-450 round 2 (F1-E) -> round 3 (review R2-1, the
+            u_letters, _uv, u_ops = _options(args)       # CLASS): an ALLOW-LIST of operand shapes, not a deny-list
+            if "$" not in u_letters:                      # (an option word holding an expansion: refused below)
+                fn_capable = "f" in u_letters or "v" not in u_letters   # `unset NAME` falls back to a function
                 for o in u_ops:
-                    if _unq(o) in SH_TRUSTED_FUNCS:
-                        add(cm, "unset " + _unq(o), "VIOLATION", "unset of the trusted function %s: every later call "
-                            "of it would run whatever command of that name PATH finds (fail-closed)" % _unq(o))
+                    lit = _lit(o)
+                    if lit is None and "f" not in u_letters:
+                        continue                          # refused below: a non-literal variable NAME (round 15)
+                    if lit is None or not _GE_NAME.match(lit):
+                        add(cm, "unset " + o[:30], "VIOLATION", "an operand of unset that is not a plain identifier "
+                            "after quote removal (%s): an expansion, brace, glob or subscript can name any variable or "
+                            "function at run time (fail-closed, CON-450 round 3)" % o[:30])
+                        return
+                    if fn_capable and lit in SH_TRUSTED_FUNCS:
+                        add(cm, "unset " + lit, "VIOLATION", "unset of the trusted function %s: every later call "
+                            "of it would run whatever command of that name PATH finds (fail-closed)" % lit)
+                        return
+                    if fn_capable and lit in funcs and not scoped_helper(lit, cm["line"]):
+                        add(cm, "unset " + lit, "VIOLATION", "unset of the function %s of this file: the census "
+                            "reads every call of it as the censused body, a call after the unset runs whatever "
+                            "command of that name PATH finds (fail-closed, CON-450 round 3; only a helper defined "
+                            "and removed inside one function after its last use is accepted)" % lit)
                         return
         if w0 in NAME_BUILTINS:
             words, letters = _name_words(w0, args)
@@ -1334,6 +1414,9 @@ def sh_census(path):
                 else:
                     sub = _ShLex(act[1:-1] if act[:1] in "'\"" else act, cm["line"])
                     sub.parse_list(0, None)
+                    if sub.funcs:
+                        add(cm, "trap", "VIOLATION", "a function defined inside a trap action (%s): outside the "
+                            "census's function model (fail-closed, CON-450 round 3)" % sub.funcs[0][0][:30])
                     for scm in sub.cmds:
                         scm["func"] = cm["func"]
                         if scm["cmd"]:
@@ -1899,7 +1982,10 @@ def sh_commands(lines):
     lex.parse_list(0, None)
     for cm in lex.cmds:
         cm["func"] = func_at(lex.extents, cm["line"])
-    return sorted(lex.cmds, key=lambda c: c["line"]), {nm for nm, _ in lex.funcs}, lex.extents
+    funcs = {}                                          # name -> [the line of every definition]
+    for nm, ln in lex.funcs:
+        funcs.setdefault(nm, []).append(ln)
+    return sorted(lex.cmds, key=lambda c: c["line"]), funcs, lex.extents
 
 
 def func_at(extents, line):
@@ -2052,9 +2138,15 @@ SELF_SH = ['for _ge_v in GIT_DIR GIT_INDEX_FILE; do unset "$_ge_v"; done; unset 
            'for BASH in a; do :; done', '(( BASH = 1 ))', ': "${BASH:=/x}"', 'BASH+=x', 'exec {BASH}>/dev/null',
            'declare -i _wr', 'local -l _wr', 'declare -u _FC_TMPDIR', 'typeset -a _wr', 'declare -A _wr',
            'read "-$o" x', 'mapfile -t _wr', 'readarray _wr', 'getopts ab _wr', 'let "_wr=1"',
-           'rm -rf "${_wr:?}/$_wr"', 'declare -g "_FC_TMPDIR=/etc"', 'typeset _FC_TMPDIR=/etc']
+           'rm -rf "${_wr:?}/$_wr"', 'declare -g "_FC_TMPDIR=/etc"', 'typeset _FC_TMPDIR=/etc',
+           # CON-450 round 3 (review R2-1, the class): an unset operand that is not a plain identifier, a trusted or
+           # other function of this file removed, a function run through a wrapper, a function defined in a trap
+           'unset -f _fc_s\\afe', "unset -f '_fc_safe'", 'unset -f _fc_safe{,}', 'unset -f "$u"', 'unset -f "${u}"',
+           'unset -f $(printf %s _fc_safe)', 'unset -f -- _fc_safe', 'unset -f _needle', 'unset _FC_TMPDIR{,}',
+           'unset -f run_gate_once', 'command _fc_safe check "$u"', "trap '_fc_safe() { :; }' EXIT"]
 SELF_SH_OK = ['printf -v _intr %s x', 'echo "$BASH"', 'x="${BASH:-bash}"', 'echo "BASH_SOURCE=$x"', 'BASH_X=1', 'printf "%s" "$BASH"', 'echo "${BASH_SOURCE[0]}"',
-               'unset FC_OUT', 'unset -f _needle', 'local -r _ro=1',   # round 14 controls
+               'unset FC_OUT', 'unset -f _rv_no_such_function', 'local -r _ro=1',   # round 14 controls (round 3:
+               # `unset -f _needle` -- a function of this file -- moved to SELF_SH, CON-450 round 3)
               'rm -f "${_FC_TMPDIR:?}/x"', 'printf x >"${_FC_TMPDIR:?}/y"', '_fc_safe rmtree "$u"', 'echo "rm -rf $u"',
               'm="$(_fc_mktemp)"; rm -f "${m:?}.t"', 'git -C "$u" rev-parse HEAD', 'printf x >&2', ': >/dev/null',
               # round 15 controls (no false refusal): the same forms on variables that are NOT proved, a literal
