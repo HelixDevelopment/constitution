@@ -44,7 +44,6 @@ import json
 import os
 import re
 import select
-import shlex
 import shutil
 import signal
 import stat
@@ -1898,7 +1897,10 @@ def restore_command(parent_path, path, stage, before):
     is reported, not restorable by one command."""
     if stage != "0":
         return None
-    q = shlex.quote
+    def q(text):  # POSIX single-quote quoting (no shlex: the gate allow-lists the imports)
+        if text and re.match(r"[A-Za-z0-9@%+=:,./_-]+\Z", text):
+            return text
+        return "'" + text.replace("'", "'\"'\"'") + "'"
     base = "git -C %s -c core.ignoreCase=false" % q(parent_path)
     if before is None:
         return "GIT_LITERAL_PATHSPECS=1 %s rm --cached -- %s" % (base, q(path))
