@@ -1,5 +1,8 @@
 3e14b7032bc2bec2766724a5a4947dd1511b02e282869c76bd2c1503c46d0439  ./build/build_facts.txt
 1b191dc2957b3f06ed7afdebf3bcd0b749a351cac4ff3a58fa3d020afdf530fb  ./class/fencesweep_r6.json
+357569bd46afaf61c7515d9b5b22b3a31da4d2429b696b31563b074ce598c1cc  ./gates/gates.tsv
+1baf458fcdcad87df7113201d371635afc3f1a762975419078b37f89c2358d2d  ./gates/head.txt
+22ab532f2bc3e203fc9876a29bdbf71bcaca3c857b52a157a7a77a62e5b42022  ./gates/sh_n.txt
 26c1945fc78f24dca091677a3716bcd44e20136fb10d7b238aafade3d06c94b8  ./gotest/gotest_final_run1_verdicts.txt
 26c1945fc78f24dca091677a3716bcd44e20136fb10d7b238aafade3d06c94b8  ./gotest/gotest_final_run2_verdicts.txt
 99a586845860c9f3b1c1cb1ccc8a8df1e0b69b137191edb28ba9dbef888e6178  ./mutants/killtable.py
