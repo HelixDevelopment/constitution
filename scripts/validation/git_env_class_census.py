@@ -166,7 +166,7 @@ LIMIT_VARS = ("GIT_CEILING_DIRECTORIES", "GIT_DISCOVERY_ACROSS_FILESYSTEM")
 # symbolic-ref with read flags only and ONE name (`symbolic-ref -q HEAD`) only reads (CON-046 round 14: the gate's
 # broken-HEAD check, review r13 R13-4); a second argument (set) or -d / --delete (delete) is a write. The lookahead
 # needs whitespace after the subcommand, so python and go argument lists stay classified as writes (conservative).
-SYMREF_READ = r"""(?!(?:\s+(?:-q|--quiet|--short|--no-recurse))*\s+[^\s;&|)"'`<>-][^\s;&|)"'`<>]*\s*(?:[;&|)"'`]|[0-9]?>|$))"""
+SYMREF_READ = r"""(?!(?:\s+(?:-q|--quiet|--short|--no-recurse))*\s+[^\s;&|)"'`<>-][^\s;&|)"'`<>]*\s*(?:[;&|)]|[0-9]?>|$))"""
 WRITE = (r"init|add|commit|config|branch|tag|checkout|switch|update-ref|update-index|read-tree|merge(?!-base\b)|reset|"
          r"stash|rm|mv|push|worktree|apply|am|cherry-pick|rebase|clone|submodule|fetch|pull|notes|gc|repack|"
          r"checkout-index|commit-tree|hash-object|symbolic-ref" + SYMREF_READ + r"|restore|clean|write-tree|fast-import|bundle|"
@@ -1110,6 +1110,10 @@ def needles(canon):
         ("sh guard, symbolic-ref set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD refs/heads/x\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
         ("sh guard, symbolic-ref quiet set write", "sh", "#!/bin/bash\ngit symbolic-ref -q HEAD refs/heads/x 2>/dev/null\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
         ("sh guard, symbolic-ref delete write", "sh", "#!/bin/bash\ngit symbolic-ref -d HEAD\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        # review of PR #22 (R14-C1): a quoted, single-quoted or command-substituted second argument still sets HEAD
+        ("sh guard, symbolic-ref quoted set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD \"$r\"\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref single-quoted set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD 'refs/heads/x'\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
+        ("sh guard, symbolic-ref backtick set write", "sh", "#!/bin/bash\ngit symbolic-ref HEAD `cat f`\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
         ("sh guard, symbolic-ref long delete write", "sh", "#!/bin/bash\ngit symbolic-ref --delete HEAD\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
     ]
     # CON-450 round 4 (review R3-1 / R3-2 / R3-5): the closed allow-list of the interpreter's reading. Each refused
