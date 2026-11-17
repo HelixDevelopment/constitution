@@ -1,0 +1,30 @@
+engine sha256: a792788df5f07ac951553d63107aa5ebf82fbbf77c89fe00bd9e4e1bdf0fd1a7
+db0 sha256: 1ca8399e2d44719dba402a433b24a252d760b99e3096a3e044107865d255f8d0
+db0 items: 491
+OK   validate db0
+OK   diff db0 vs committed Issues.md + Fixed.md
+OK   export 1
+OK   export 1 Issues == committed
+OK   export 1 Fixed == committed
+OK   md-to-db cycle 1
+db1 items: 491
+OK   validate db1
+OK   side tables db0 == db1 (operator_block_details, obsolete_details)
+OK   export 2
+OK   export 2 Issues == export 1
+OK   export 2 Fixed == export 1
+OK   md-to-db cycle 2
+db2 items: 491
+OK   validate db2
+OK   side tables db0 == db2 (operator_block_details, obsolete_details)
+OK   export 3
+OK   export 3 Issues == export 1
+OK   export 3 Fixed == export 1
+side rows: 4 (control needle: OBD rows 2, OD rows 1)
+body changed db0->db1: 0
+description changed db0->db1: 279
+states changed db0->db1: 0
+body changed db1->db2: 0
+description changed db1->db2: 0
+states changed db1->db2: 0
+FAILS=0

@@ -1,0 +1,3 @@
+Running as unit: run-p360220-i235108490.scope; invocation ID: b44bffc96ce54338bca6f967551a5708
+AB08 KILLED     by unit           10.4s  RV10-1: read_branch accepts a multi-line answer
+sync-mutations (no-gate): mutants 1 killed 1 equivalent 0 survived 0 harness-errors 0

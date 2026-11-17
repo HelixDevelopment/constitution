@@ -1,0 +1,37 @@
+# The six slowest unit tests on the real (round-4) engine: python3 -I tests/sync/test_unit.py --durations 6
+.........................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+............................................
+Slowest test durations
+----------------------------------------------------------------------
+9.940s     test_long_secrets (__main__.LongSecrets.test_long_secrets)
+0.701s     test_fuzz (__main__.LongSecrets.test_fuzz)
+0.052s     test_write_atomic_unpredictable (__main__.Evidence.test_write_atomic_unpredictable)
+0.025s     test_never_signals_a_pgid_that_is_not_the_childs_own (__main__.KillGroup.test_never_signals_a_pgid_that_is_not_the_childs_own)
+0.023s     test_real_child_in_our_group_is_never_signalled (__main__.KillGroup.test_real_child_in_our_group_is_never_signalled)
+0.017s     test_only_our_files (__main__.Evidence.test_only_our_files)
+
+----------------------------------------------------------------------
+Ran 69 tests in 10.822s
+
+OK
+sync-unit: PASS 69 FAIL 0 SKIP 0

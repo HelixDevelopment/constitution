@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "<scratch>/trackintake_v3/constitution/scripts/workable-items/intake_lint.py", line 691, in <module>
+    sys.exit(main(sys.argv[1:]))
+             ~~~~^^^^^^^^^^^^^^
+  File "<scratch>/trackintake_v3/constitution/scripts/workable-items/intake_lint.py", line 681, in main
+    for f in lint_items(sel, items, prefix, a.require_dup_check, a.repo_root):
+             ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<scratch>/trackintake_v3/constitution/scripts/workable-items/intake_lint.py", line 299, in lint_items
+    fids = foreign_ids(desc, prefix)
+  File "<scratch>/trackintake_v3/constitution/scripts/workable-items/intake_lint.py", line 204, in foreign_ids
+    for m in FOREIGN_LINE.finditer(desc):
+             ~~~~~~~~~~~~~~~~~~~~~^^^^^^
+TypeError: expected string or bytes-like object, got 'NoneType'

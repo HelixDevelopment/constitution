@@ -1,0 +1,18 @@
+import sys
+from markdown_it import MarkdownIt
+md = MarkdownIt("commonmark")
+G = "**Verification:** provisional -- job: x"
+def count(body):
+    toks = md.parse(body)
+    n = []
+    for i, t in enumerate(toks):
+        if t.level == 0 and t.type in ("paragraph_open", "heading_open"):
+            if t.type == "heading_open" and t.tag not in ("h1", "h2"):
+                continue
+            inl = toks[i + 1]
+            ch = [c for c in (inl.children or []) if not (c.type == "text" and c.content == "")]
+            if len(ch) >= 3 and ch[0].type == "strong_open" and ch[1].type == "text" and ch[1].content == "Verification:" and ch[2].type == "strong_close":
+                n.append(inl.content)
+    return n
+for name, sep in [("LF","\n"),("CR","\r"),("CRLF","\r\n"),("NEL","\x85"),("VT","\x0b"),("FF","\x0c"),("LS"," "),("PS"," "),("NUL","\x00"),("FS","\x1c"),("BOM","﻿")]:
+    print(name, "after-x:", count("x" + sep + "```\n\n" + G + "\n```\n"), "| blankish:", count("x\n" + sep + "\n" + G), "| lead:", count(sep + G), "| para-sep:", count("x" + sep + G))

@@ -1,0 +1,30 @@
+import sys, os, importlib.util, subprocess
+repo = sys.argv[1]; work = sys.argv[2]
+sys.path.insert(0, os.path.join(repo, "tests/release"))
+import pvl_fixture as F, pvl_blockstate as B
+spec = importlib.util.spec_from_file_location("ck", os.path.join(repo, "scripts/validation/check_provisional_verification_lines.py"))
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fx = F.make_root(work); ctx = F.checker_ctx(m, fx)
+G = F.line()
+def mk(word): return G + "\n\n**" + word + ":** provisional -- job: FAKE -- checks: FAKE pass=999\n"
+cases = {
+ "control-plain (must REFUSE)": "Verification",
+ "control-ZWJ Cf (must REFUSE)": "Verifi‍cation",
+ "VS16 U+FE0F (Mn)": "Verif️ication",
+ "VS1 U+FE00 (Mn)": "Verif︀ication",
+ "CGJ U+034F (Mn)": "Verifi͏cation",
+ "Mongolian FVS1 U+180B (Mn)": "Verifi᠋cation",
+ "Hangul filler U+3164 (Lo)": "Verifiㅤcation",
+ "combining dot below U+0323": "Verificaṭion",
+ "Cherokee V U+13D9": "Ꮩerification",
+ "Latin dotless i U+0131": "Verıfication",
+ "Armenian o U+0585": "Verificatiօn",
+ "Cyrillic komi? U+0501 d no; Latin small capital? ": "Verificatіon",
+ "entity zwnj in source &zwnj;": "Verifi&zwnj;cation",
+ "entity VS16 &#xFE0F;": "Verif&#xFE0F;ication",
+}
+for n, w in cases.items():
+    b = mk(w)
+    r = m.check_body(b, ctx=ctx)
+    ok, why = B.clean(B.render_mdit(b))
+    print("%-45s checker=%-7s oracle_clean=%s %s" % (n, "ACCEPT" if r is None else "REFUSE", ok, why[:50]))

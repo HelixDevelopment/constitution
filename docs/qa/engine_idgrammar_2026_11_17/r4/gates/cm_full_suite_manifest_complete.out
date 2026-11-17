@@ -1,0 +1,3 @@
+CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (missing row, stale row, unaccepted excluded set, stale guide block, duplicated row)
+CM-FULL-SUITE-MANIFEST-COMPLETE: NOTE: the work tree differs from HEAD c27b123db054 (staged: no, unstaged: yes, untracked: yes); those changes were NOT judged — commit them to have them judged
+CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/repo (HEAD c27b123db054): manifest matches the census (965 census file(s))

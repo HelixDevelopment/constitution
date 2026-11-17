@@ -1,0 +1,38 @@
+# referential-integrity census (the checks of the round-4 review probe p07), 2026-11-14T01:36:18Z
+# landed copies rebuilt from the committed plans: <target> = git show <rev>:docs/workable_items.db; then
+#   python3 -I scripts/workable-items/remint_ids.py replay --plan docs/qa/tracker_intake_2026_11_12_v5/remint/<name>/plan.json --apply --engine $WI --db <landed>
+#   (FAST-FORWARD: <landed> is a copy of the vehicle database), and verify must PASS on it
+fix227: replay rc=0, RESULT: APPLIED steps=68 items=44
+fix227: verify rc=0, RESULT: PASS mode=REPLAY items=47 mismatches=0 known=46
+main: FAST-FORWARD, landed = vehicle copy
+main: verify rc=0, RESULT: PASS mode=FAST-FORWARD items=307 mismatches=0 known=0
+main-replay: replay rc=0, RESULT: APPLIED steps=68 items=44
+main-replay: verify rc=0, RESULT: PASS mode=REPLAY items=47 mismatches=0 known=46
+$ python3 -I docs/qa/tracker_intake_2026_11_12_v5/tools/ref_integrity.py base=<base.db> vehicle=docs/workable_items.db fix227-r11=<fix227 target> main=<main target> fix227-landed=<landed> main-landed=<landed> main-replay-landed=<landed>
+control needles: PASS (a clean fixture reads CLEAN; a dirty fixture reports each of its 10 defects)
+base items=263 hist(max,count,min)=(509, 509, 1) seq=509 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=263 fk=[] integrity=ok CLEAN
+vehicle items=307 hist(max,count,min)=(629, 629, 1) seq=629 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=307 fk=[] integrity=ok CLEAN
+fix227-r11 items=275 hist(max,count,min)=(531, 531, 1) seq=531 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=275 fk=[] integrity=ok CLEAN
+main items=263 hist(max,count,min)=(509, 509, 1) seq=509 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=263 fk=[] integrity=ok CLEAN
+fix227-landed items=319 hist(max,count,min)=(599, 599, 1) seq=599 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=319 fk=[] integrity=ok CLEAN
+main-landed items=307 hist(max,count,min)=(629, 629, 1) seq=629 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=307 fk=[] integrity=ok CLEAN
+main-replay-landed items=307 hist(max,count,min)=(577, 577, 1) seq=577 gaps=0 orphan_hist=0 orphan_od=0 orphan_obd=0 obsolete_without_od=0 od_on_open=0 no_opened_row=0 dup_ids=0 seg_mismatch=0 segs=307 fk=[] integrity=ok CLEAN
+RESULT: CLEAN databases=7
+rc=0
+$ python3 -I docs/qa/tracker_intake_2026_11_12_v5/tools/ref_integrity_mutations.py
+KILLED gaps
+KILLED orphan_hist
+KILLED orphan_od
+KILLED orphan_obd
+KILLED obsolete_without_od
+KILLED od_on_open
+KILLED no_opened_row
+KILLED dup_ids
+KILLED seg_mismatch_items
+KILLED seg_mismatch_segments
+KILLED clean_verdict
+KNOWN integrity_verdict rc=2: no fixture holds a corrupt database, so the integrity_check verdict has no dirty needle; its value is printed on every line
+RESULT: mutants=12 bad=0 known=1
+rc=0
+# scrubbed copy (tools/scrub_paths.py): <tmp> x0, <work> x0, <home> x0, <tmp> x0
+# cut path fragments replaced: 0

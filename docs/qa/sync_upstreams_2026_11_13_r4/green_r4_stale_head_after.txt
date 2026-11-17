@@ -1,0 +1,14 @@
+rc=4
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/r4_stale_head_after/helix-sync-test.iCQNRe/out/r1/sync_report.json
+CANONICAL_SHA256=08abeb4b78b3ee20d097c362a09333512a26c38dca548ae59ca89eff697d35a1
+RESULT: ATTENTION exit=4
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/r4_stale_head_after/helix-sync-test.iCQNRe/work/root: 4 repositories, 4 initialised, 4 remotes, mode apply, jobs 4
+[sync-upstreams] .                                        updated         -
+[sync-upstreams] libs/a                                   attention       unreachable:origin
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -
+old=8c1f80dd15cc633485bc7c79e029aafd5f730510 new=553ff04268a869e24aff2849140fa79fa06c2e58 actual_head=553ff04268a869e24aff2849140fa79fa06c2e58
+report head_before=8c1f80dd15cc633485bc7c79e029aafd5f730510 head_after=553ff04268a869e24aff2849140fa79fa06c2e58 followed=True result=attention
+actions=[{'error': '', 'op': 'follow-pin', 'rc': 0, 'to': '553ff04268a869e24aff2849140fa79fa06c2e58'}, {'op': 'none', 'why': 'unreachable:origin'}]
+tsv:
+libs/a	submodule	1	true	-	8c1f80dd15cc633485bc7c79e029aafd5f730510	553ff04268a869e24aff2849140fa79fa06c2e58	553ff04268a869e24aff2849140fa79fa06c2e58	linear	behind	behind-main	1	false	attention	unreachable:origin	origin=unreachable:0/1

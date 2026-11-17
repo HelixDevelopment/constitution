@@ -1,0 +1,54 @@
+n=342
+BASE-CHANGE CON-343 vehicle=description target=severity
+BASE-CHANGE CON-344 vehicle=reproduction_state target=-
+BASE-CHANGE CON-345 vehicle=status,current_location,obsolete_details target=-
+MERGE CON-343: vehicle description, target severity (disjoint columns)
+NOTE CON-345: created_at changed in the vehicle (2026-11-13 16:27:21 -> 2026-11-13 16:27:23); not carried (no engine command sets it; a close rewrites it, engine defect CON-339)
+RESULT: PLAN mode=REPLAY own=5 base_changes=3 steps=17 conflicts=0 refusals=0 first=CON-349 last=CON-353
+plan rc=0
+["update", "--id=CON-343", "--db", "{DB}", "--location=Issues", "--description=**What:** remint fixture item for the remint_ids test, never landed in a tracker. Base item one, changed by the vehicle; see CON-351."]
+["update", "--id=CON-344", "--db", "{DB}", "--location=Issues", "--reproduction-state=UNREPRODUCED", "--reproduction-surface=", "--reproduction-evidence=", "--reproduction-red-cmd=", "--reproduction-green-cmd=", "--reproduction-env=", "--reproduction-signature=", "--reproduction-blocker=", "--states-updated-by=remint test", "--states-updated-at=2026-11-13T11:00:00Z"]
+["close", "CON-345", "--db", "{DB}", "--status=obsolete", "--evidence=docs/qa/x.txt"]
+["obsolete-details", "CON-345", "--db", "{DB}", "--since=2026-11-13", "--reason=superseded-by-design-change", "--superseding=CON-349", "--evidence=docs/qa/x.txt"]
+["add", "Task", "Low", "--db", "{DB}", "--id=CON-349", "--title=Remint fixture alpha item", "--description=**What:** remint fixture item for the remint_ids test, never landed in a tracker. Parent / links: see CON-351 (remint fixture gamma) and the range CON-349..CON-350.", "--created-by=Claude", "--assigned-to=Conductor"]
+["add", "Bug", "Medium", "--db", "{DB}", "--id=CON-350", "--title=Remint fixture beta item, seen in fix227 CON-349", "--description=**What:** remint fixture item for the remint_ids test, never landed in a tracker. Links to CON-349.\nForeign ids (fix227 tracker): CON-349", "--created-by=Claude"]
+["update", "--id=CON-350", "--db", "{DB}", "--location=Issues", "--reproduction-state=UNREPRODUCED", "--reproduction-surface=", "--reproduction-evidence=", "--reproduction-red-cmd=", "--reproduction-green-cmd=", "--reproduction-env=", "--reproduction-signature=", "--reproduction-blocker=", "--states-updated-by=remint test", "--states-updated-at=2026-11-13T10:00:00Z"]
+["update", "--id=CON-350", "--db", "{DB}", "--location=Issues", "--investigation-state=not-started", "--investigation-root-cause=", "--investigation-evidence=", "--states-updated-by=remint test", "--states-updated-at=2026-11-13T10:00:00Z"]
+["add", "Task", "Low", "--db", "{DB}", "--id=CON-351", "--title=Remint fixture gamma item", "--description=**What:** remint fixture item for the remint_ids test, never landed in a tracker. Duplicate of CON-349.", "--created-by=Claude"]
+["close", "CON-351", "--db", "{DB}", "--status=obsolete", "--evidence=docs/qa/x.txt"]
+["obsolete-details", "CON-351", "--db", "{DB}", "--since=2026-11-13", "--reason=duplicate-of", "--superseding=CON-349", "--evidence=docs/qa/x.txt"]
+["add", "Task", "Low", "--db", "{DB}", "--id=CON-352", "--title=Remint fixture delta item", "--description=**What:** remint fixture item for the remint_ids test, never landed in a tracker. Was closed onto CON-350, then reopened.", "--created-by=Claude"]
+["close", "CON-352", "--db", "{DB}", "--status=obsolete", "--evidence=docs/qa/x.txt"]
+["obsolete-details", "CON-352", "--db", "{DB}", "--since=2026-11-13", "--reason=duplicate-of", "--superseding=CON-350", "--evidence=docs/qa/x.txt"]
+["reopen", "--id=CON-352", "--db", "{DB}", "--why=design-reconsidered", "--who=AI", "--when=2026-11-13", "--incident=docs/qa/x.txt"]
+["add", "Task", "Low", "--db", "{DB}", "--id=CON-353", "--title=Remint fixture epsilon item", "--description=**What:** remint fixture item for the remint_ids test, never landed in a tracker. Plain own item, now in progress.", "--created-by=Claude"]
+["update", "--id=CON-353", "--db", "{DB}", "--location=Issues", "--status=In progress"]
+RESULT: DRY-RUN steps=17
+step 1 update CON-343 rc=0
+step 2 update-reproduction CON-344 rc=0
+step 3 close CON-345 rc=0
+step 4 obsolete-details CON-345 rc=0
+step 5 add CON-349 rc=0
+step 6 add CON-350 rc=0
+step 7 update-reproduction CON-350 rc=0
+step 8 update-investigation CON-350 rc=0
+step 9 add CON-351 rc=0
+step 10 close CON-351 rc=0
+step 11 obsolete-details CON-351 rc=0
+step 12 add CON-352 rc=0
+step 13 close CON-352 rc=0
+step 14 obsolete-details CON-352 rc=0
+step 15 reopen CON-352 rc=0
+step 16 add CON-353 rc=0
+step 17 update-status CON-353 rc=0
+RESULT: APPLIED steps=17 items=5
+replay rc=0
+KNOWN CON-343: body_md not compared (the target also changed the item: severity)
+KNOWN CON-345 created_at: landed 2026-11-13 16:27:24, target 2026-11-13 16:27:21 (KNOWN engine defect CON-339: close rewrites it)
+KNOWN CON-349 created_at: replay time 2026-11-13 16:27:24 (vehicle 2026-11-13 16:27:22), not carried
+KNOWN CON-350 created_at: replay time 2026-11-13 16:27:24 (vehicle 2026-11-13 16:27:22), not carried
+KNOWN CON-351 created_at: replay time 2026-11-13 16:27:25 (vehicle 2026-11-13 16:27:22), not carried
+KNOWN CON-352 created_at: replay time 2026-11-13 16:27:25 (vehicle 2026-11-13 16:27:22), not carried
+KNOWN CON-353 created_at: replay time 2026-11-13 16:27:25 (vehicle 2026-11-13 16:27:23), not carried
+RESULT: PASS mode=REPLAY items=8 mismatches=0 known=7
+verify rc=0

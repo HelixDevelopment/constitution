@@ -1,0 +1,162 @@
+=== RUN   TestCON456R3_ReportItemStateFlagsMintAndRoundTrip
+add: created CON-920 (Bug, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/002/Issues.md (987 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/003/rt.db
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/004/Issues.md (987 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/004/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/004/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/004/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReportItemStateFlagsMintAndRoundTrip3330340520/005/rt.db
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 1 items, all invariants satisfied
+--- PASS: TestCON456R3_ReportItemStateFlagsMintAndRoundTrip (0.14s)
+=== RUN   TestCON456R3_LegacyTemplateAdoptionIsExact
+=== RUN   TestCON456R3_LegacyTemplateAdoptionIsExact/both_lines
+add: refusing (nothing written) — the Markdown of CON-921 (Issues, section) would not read back as this item on the next sync md-to-db: CON-921 (Issues, section): the reproduction/investigation records read back differently from the stored state columns
+    idgrammar_r3_cli_test.go:125: add of the legacy template exited 1
+=== RUN   TestCON456R3_LegacyTemplateAdoptionIsExact/reproduction_line_only
+add: refusing (nothing written) — the Markdown of CON-921 (Issues, section) would not read back as this item on the next sync md-to-db: CON-921 (Issues, section): the reproduction/investigation records read back differently from the stored state columns
+    idgrammar_r3_cli_test.go:125: add of the legacy template exited 1
+=== RUN   TestCON456R3_LegacyTemplateAdoptionIsExact/investigation_line_only
+add: created CON-921 (Bug, status=Queued) in Issues
+    idgrammar_r3_cli_test.go:129: states = "UNSET|UNSET", want "UNSET|not-started"
+=== RUN   TestCON456R3_LegacyTemplateAdoptionIsExact/canonical_record_as_text
+add: refusing (nothing written) — the text "A legacy-shaped report, long enough for the description floor of add.\n\n**Reproduction:** none — UNREPRODUCED" would not survive in the Markdown of CON-921 (Issues, section): a line in it that reads as one of the item's own metadata lines (for example `**Status:**`, `**Severity:**`) is rewritten from the item's columns
+=== RUN   TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_twice
+add: refusing (nothing written) — the Markdown of CON-921 (Issues, section) would not read back as this item on the next sync md-to-db: CON-921 (Issues, section): the reproduction/investigation records read back differently from the stored state columns
+=== RUN   TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_with_a_trailing_space
+add: refusing (nothing written) — the Markdown of CON-921 (Issues, section) would not read back as this item on the next sync md-to-db: CON-921 (Issues, section): the reproduction/investigation records read back differently from the stored state columns
+=== RUN   TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_and_a_state_flag
+add: refusing (nothing written) — the Markdown of CON-921 (Issues, section) would not read back as this item on the next sync md-to-db: CON-921 (Issues, section): the reproduction/investigation records read back differently from the stored state columns
+--- FAIL: TestCON456R3_LegacyTemplateAdoptionIsExact (0.06s)
+    --- FAIL: TestCON456R3_LegacyTemplateAdoptionIsExact/both_lines (0.00s)
+    --- FAIL: TestCON456R3_LegacyTemplateAdoptionIsExact/reproduction_line_only (0.00s)
+    --- FAIL: TestCON456R3_LegacyTemplateAdoptionIsExact/investigation_line_only (0.05s)
+    --- PASS: TestCON456R3_LegacyTemplateAdoptionIsExact/canonical_record_as_text (0.00s)
+    --- PASS: TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_twice (0.00s)
+    --- PASS: TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_with_a_trailing_space (0.00s)
+    --- PASS: TestCON456R3_LegacyTemplateAdoptionIsExact/legacy_line_and_a_state_flag (0.00s)
+=== RUN   TestCON456R3_BlockWhoAndUnblockAreJudged
+=== RUN   TestCON456R3_BlockWhoAndUnblockAreJudged/--who
+add: created CON-922 (Task, status=Queued) in Issues
+block: refusing (nothing written) — the text "person\n**Status:** Fixed" would not survive in the Markdown of CON-922 (Issues, section): a line in it that reads as one of the item's own metadata lines (for example `**Status:**`, `**Severity:**`) is rewritten from the item's columns
+=== RUN   TestCON456R3_BlockWhoAndUnblockAreJudged/--unblock
+add: created CON-922 (Task, status=Queued) in Issues
+block: refusing (nothing written) — the text "person\n**Status:** Fixed" would not survive in the Markdown of CON-922 (Issues, section): a line in it that reads as one of the item's own metadata lines (for example `**Status:**`, `**Severity:**`) is rewritten from the item's columns
+--- PASS: TestCON456R3_BlockWhoAndUnblockAreJudged (0.12s)
+    --- PASS: TestCON456R3_BlockWhoAndUnblockAreJudged/--who (0.06s)
+    --- PASS: TestCON456R3_BlockWhoAndUnblockAreJudged/--unblock (0.06s)
+=== RUN   TestCON456R3_ReopenIncidentIsJudged
+add: created CON-923 (Task, status=Queued) in Issues
+close: moved CON-923 Issues→Fixed (status=Completed (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReopenIncidentIsJudged2221432754/002/ev.txt)
+reopen: refusing (nothing written) — the text "/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ReopenIncidentIsJudged2221432754/002/ev.txt\n**Type:** Bug" would not survive in the Markdown of CON-923 (Issues, section): a line in it that reads as one of the item's own metadata lines (for example `**Status:**`, `**Severity:**`) is rewritten from the item's columns
+--- PASS: TestCON456R3_ReopenIncidentIsJudged (0.08s)
+=== RUN   TestCON456R3_UpdateAssignedToSurvivesCycle
+add: created CON-924 (Task, status=Queued) in Issues
+update: CON-924 updated in Issues (status=Queued, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_UpdateAssignedToSurvivesCycle3325582762/002/Issues.md (186 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_UpdateAssignedToSurvivesCycle3325582762/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_UpdateAssignedToSurvivesCycle3325582762/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_UpdateAssignedToSurvivesCycle3325582762/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R3_UpdateAssignedToSurvivesCycle3325582762/003/rt.db
+--- PASS: TestCON456R3_UpdateAssignedToSurvivesCycle (0.10s)
+=== RUN   TestCON456R3_AddDescriptionStatusLineRefused
+add: refusing (nothing written) — the text "a sufficiently long description that clears the description floor for round two\n**Status:** Fixed" would not survive in the Markdown of CON-925 (Issues, section): a line in it that reads as one of the item's own metadata lines (for example `**Status:**`, `**Severity:**`) is rewritten from the item's columns
+--- PASS: TestCON456R3_AddDescriptionStatusLineRefused (0.00s)
+=== RUN   TestCON456R3_CloseEvidenceIsJudged
+add: created CON-926 (Task, status=Queued) in Issues
+close: refusing (nothing written) — the text "/mnt/DATA1TB/claude-work/tmp/TestCON456R3_CloseEvidenceIsJudged3169344497/002/ev\n**Type:** Bug" would not survive in the Markdown of CON-926 (Fixed, section): a line in it that reads as one of the item's own metadata lines (for example `**Status:**`, `**Severity:**`) is rewritten from the item's columns
+--- PASS: TestCON456R3_CloseEvidenceIsJudged (0.06s)
+=== RUN   TestCON456R3_NextIDOverflowRefusedBeforeAllocation
+=== RUN   TestCON456R3_NextIDOverflowRefusedBeforeAllocation/CON-9223372036854775807
+add: created CON-9223372036854775807 (Task, status=Queued) in Issues
+add: refusing (nothing written) — id "CON--9223372036854775808" does not round-trip through Issues.md (the heading "## CON--9223372036854775808. id grammar probe" parses to no item); an id must be <KEY>-<suffix> with KEY exactly three ASCII uppercase letters and suffix one or more of [0-9A-Za-z] (e.g. CON-123, CON-14b, CON-PENDINGengine), or a legacy code [A-Z][A-Za-z0-9]* with at most one -[A-Za-z0-9]+ part (e.g. G01, GS-2); a second hyphen, a lowercase or non-three-letter key followed by more than one part, whitespace, dots, '#', brackets, '§' and non-ASCII characters cannot round-trip through the Markdown trackers
+=== RUN   TestCON456R3_NextIDOverflowRefusedBeforeAllocation/CON-99999999999999999999
+add: created CON-99999999999999999999 (Task, status=Queued) in Issues
+add: created CON-7766279631452241920 (Task, status=Queued) in Issues
+    idgrammar_r3_cli_test.go:247: add --prefix CON after CON-99999999999999999999 was accepted
+add: created CON-9223372036854775806 (Task, status=Queued) in Issues
+add: created CON-9223372036854775807 (Task, status=Queued) in Issues
+--- FAIL: TestCON456R3_NextIDOverflowRefusedBeforeAllocation (0.23s)
+    --- PASS: TestCON456R3_NextIDOverflowRefusedBeforeAllocation/CON-9223372036854775807 (0.06s)
+    --- FAIL: TestCON456R3_NextIDOverflowRefusedBeforeAllocation/CON-99999999999999999999 (0.08s)
+=== RUN   TestCON456R3_ObsoleteDetailsInputsJudged
+=== RUN   TestCON456R3_ObsoleteDetailsInputsJudged/superseding_Severity_line
+add: created CON-927 (Task, status=Queued) in Issues
+close: moved CON-927 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsuperseding_Severity_li2842165128/002/ev.txt)
+obsolete-details: CON-927 written (Since:2026-11-17 Reason:duplicate-of Superseding:CON-082
+**Severity:** Critical Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsuperseding_Severity_li2842165128/002/ev.txt)
+    idgrammar_r3_cli_test.go:295: obsolete-details superseding Severity line was accepted
+=== RUN   TestCON456R3_ObsoleteDetailsInputsJudged/superseding_plain_line_break
+add: created CON-927 (Task, status=Queued) in Issues
+close: moved CON-927 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsuperseding_plain_line_2099879352/002/ev.txt)
+obsolete-details: CON-927 written (Since:2026-11-17 Reason:duplicate-of Superseding:CON-082
+more Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsuperseding_plain_line_2099879352/002/ev.txt)
+    idgrammar_r3_cli_test.go:295: obsolete-details superseding plain line break was accepted
+=== RUN   TestCON456R3_ObsoleteDetailsInputsJudged/superseding_CR
+add: created CON-927 (Task, status=Queued) in Issues
+close: moved CON-927 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsuperseding_CR3957807833/002/ev.txt)
+obsolete-details: CON-927 written (Since:2026-11-17 Reason:duplicate-of Superseding:CON-082more Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsuperseding_CR3957807833/002/ev.txt)
+    idgrammar_r3_cli_test.go:295: obsolete-details superseding CR was accepted
+=== RUN   TestCON456R3_ObsoleteDetailsInputsJudged/superseding_U+2028
+add: created CON-927 (Task, status=Queued) in Issues
+close: moved CON-927 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsuperseding_U+2028838824555/002/ev.txt)
+obsolete-details: CON-927 written (Since:2026-11-17 Reason:duplicate-of Superseding:CON-082 more Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsuperseding_U+2028838824555/002/ev.txt)
+    idgrammar_r3_cli_test.go:295: obsolete-details superseding U+2028 was accepted
+=== RUN   TestCON456R3_ObsoleteDetailsInputsJudged/since_line_break
+add: created CON-927 (Task, status=Queued) in Issues
+close: moved CON-927 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsince_line_break1685133492/002/ev.txt)
+obsolete-details: CON-927 written (Since:2026-11-17
+**Type:** Bug Reason:duplicate-of Superseding:CON-082 Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudgedsince_line_break1685133492/002/ev.txt)
+    idgrammar_r3_cli_test.go:295: obsolete-details since line break was accepted
+add: created CON-927 (Task, status=Queued) in Issues
+close: moved CON-927 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudged2484438217/002/ev.txt)
+obsolete-details: CON-927 written (Since:2026-11-17 Reason:duplicate-of Superseding:CON-082; Reason: not really Evidence:/mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudged2484438217/002/ev.txt)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudged2484438217/003/Issues.md (0 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_ObsoleteDetailsInputsJudged2484438217/003/Fixed.md (511 bytes)
+--- FAIL: TestCON456R3_ObsoleteDetailsInputsJudged (0.63s)
+    --- FAIL: TestCON456R3_ObsoleteDetailsInputsJudged/superseding_Severity_line (0.12s)
+    --- FAIL: TestCON456R3_ObsoleteDetailsInputsJudged/superseding_plain_line_break (0.11s)
+    --- FAIL: TestCON456R3_ObsoleteDetailsInputsJudged/superseding_CR (0.10s)
+    --- FAIL: TestCON456R3_ObsoleteDetailsInputsJudged/superseding_U+2028 (0.11s)
+    --- FAIL: TestCON456R3_ObsoleteDetailsInputsJudged/since_line_break (0.10s)
+=== RUN   TestCON456R3_OperatorBlockDetailsSurviveCycle
+add: created CON-928 (Task, status=Queued) in Issues
+block: CON-928 set Operator-blocked in Issues (WHAT:the operator decides WHY: here)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/002/Issues.md (336 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/003/rt.db
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/004/Issues.md (336 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/004/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/004/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/004/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R3_OperatorBlockDetailsSurviveCycle1652173987/005/rt.db
+    idgrammar_r3_cli_test.go:338: operator_block_details changed on a cycle:
+         got "the operator decides|here WHY: every alternative was tried|[A] keep · [B] drop,\n**Operator-Block-Details:** WHAT: the operator decides WHY: here WHY: every alternative was tried UNBLOCK: [A] keep · [B] drop, WHO: decides WHO: operator|decides WHO: operator"
+        want "the operator decides WHY: here|every alternative was tried|[A] keep · [B] drop, WHO: decides|operator"
+--- FAIL: TestCON456R3_OperatorBlockDetailsSurviveCycle (0.17s)
+=== RUN   TestRev456R2_AllocatedIDAfterInt64MaxIsRefused
+add: created CON-9223372036854775807 (Task, status=Queued) in Issues
+add: refusing (nothing written) — id "CON--9223372036854775808" does not round-trip through Issues.md (the heading "## CON--9223372036854775808. id grammar probe" parses to no item); an id must be <KEY>-<suffix> with KEY exactly three ASCII uppercase letters and suffix one or more of [0-9A-Za-z] (e.g. CON-123, CON-14b, CON-PENDINGengine), or a legacy code [A-Z][A-Za-z0-9]* with at most one -[A-Za-z0-9]+ part (e.g. G01, GS-2); a second hyphen, a lowercase or non-three-letter key followed by more than one part, whitespace, dots, '#', brackets, '§' and non-ASCII characters cannot round-trip through the Markdown trackers
+--- PASS: TestRev456R2_AllocatedIDAfterInt64MaxIsRefused (0.06s)
+=== RUN   TestRev456R2_RED_BugTemplateMintsAndRoundTrips
+add: refusing (nothing written) — the Markdown of CON-910 (Issues, section) would not read back as this item on the next sync md-to-db: CON-910 (Issues, section): the reproduction/investigation records read back differently from the stored state columns
+    idgrammar_r3_rev456r2_red_test.go:24: add of the report_item.sh Bug template exited 1 (the §11.4.202 fallback mint fails)
+--- FAIL: TestRev456R2_RED_BugTemplateMintsAndRoundTrips (0.00s)
+=== RUN   TestRev456R2_RED_ObsoleteSupersedingSurvivesOrIsRefused
+add: created CON-911 (Task, status=Queued) in Issues
+close: moved CON-911 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestRev456R2_RED_ObsoleteSupersedingSurvivesOrIsRefused3960226120/002/ev.txt)
+obsolete-details: CON-911 written (Since:2026-11-17 Reason:duplicate-of Superseding:CON-082
+**Severity:** Critical Evidence:/mnt/DATA1TB/claude-work/tmp/TestRev456R2_RED_ObsoleteSupersedingSurvivesOrIsRefused3960226120/002/ev.txt)
+wrote /mnt/DATA1TB/claude-work/tmp/TestRev456R2_RED_ObsoleteSupersedingSurvivesOrIsRefused3960226120/003/Issues.md (0 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestRev456R2_RED_ObsoleteSupersedingSurvivesOrIsRefused3960226120/003/Fixed.md (392 bytes)
+    idgrammar_r3_rev456r2_red_test.go:70: obsolete-details accepted --superseding "CON-082\n**Severity:** Critical" but the rendered Fixed.md does not carry it (or the evidence) verbatim
+--- FAIL: TestRev456R2_RED_ObsoleteSupersedingSurvivesOrIsRefused (0.24s)
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	1.896s
+FAIL

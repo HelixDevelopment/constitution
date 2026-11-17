@@ -111,8 +111,11 @@ func classifyRepair(it item) (repairAction, string) {
 			it.Description, it.Status, it.CreatedBy, it.AssignedTo)
 		return repairPopulate, canonicalizeStateLines(body, it.States, it.repOrDefault())
 	}
-	newBody := ensureTrailingNewline(canonicalizeStateLines(
-		canonicalizeBodyStatusLine(it.BodyMD, it.Status), it.States, it.repOrDefault()))
+	// CON-456 round 2: renderedItemBody is the one composition of the
+	// column-authoritative transforms (Status line, own Type / Severity /
+	// Created-By / Assigned-To lines, state records), so a repaired body is
+	// exactly what sync db-to-md writes and diff stays in sync after a repair.
+	newBody := ensureTrailingNewline(renderedItemBody(it))
 	if newBody == it.BodyMD {
 		return repairNoop, it.BodyMD
 	}
@@ -245,6 +248,7 @@ func repairBodiesCmd(args []string) int {
 		newBody string
 	}
 	var toApply []plan
+	var gateErrs []string
 	var nRewrite, nPopulate, nNoop int
 	for _, it := range items {
 		action, newBody := classifyRepair(it)
@@ -257,16 +261,34 @@ func repairBodiesCmd(args []string) int {
 			nNoop++
 			continue
 		}
+		// One round trip (idgrammar.go, CON-456): a repaired body must read
+		// back as the item on the next md-to-db; judged for every item before
+		// anything is written (the refusal below writes nothing).
+		gated := it
+		gated.BodyMD = newBody
+		if body, gerr := gateItemWrite(gated); gerr != nil {
+			gateErrs = append(gateErrs, gerr.Error())
+		} else {
+			newBody = body
+		}
 		toApply = append(toApply, plan{it: it, action: action, newBody: newBody})
 		if *dryRun {
 			detail := fmt.Sprintf("empty body -> render **Status:** %s", it.Status)
 			if action == repairRewrite {
 				old, _ := lastBodyStatus(it.BodyMD)
 				detail = fmt.Sprintf("stale **Status:** %q -> column %q", old, it.Status)
+				if old == it.Status {
+					detail = "own metadata or record lines -> columns, or trailing newline"
+				}
 			}
 			fmt.Printf("  %s [%s/%s]: %s (%s)\n",
 				it.AtmID, it.CurrentLocation, it.repOrDefault(), action, detail)
 		}
+	}
+
+	if len(gateErrs) > 0 {
+		fmt.Fprintf(os.Stderr, "repair-bodies: refusing (nothing written) — %s\n", strings.Join(gateErrs, "; "))
+		return exitUsage
 	}
 
 	backfillPlan, err := planSegmentBackfill(db, items)

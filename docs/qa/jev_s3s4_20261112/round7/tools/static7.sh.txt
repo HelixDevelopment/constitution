@@ -1,0 +1,21 @@
+#!/bin/bash
+# static7.sh <W> <tag>: the static checks on the repo tree, hermetic (hrun.sh): manifest verification, constitution
+# index freshness, gate-ledger ratchet, the §11.4.282 / §11.4.291 propagation gates and their mutation tests, the
+# shellcheck delta. Writes <W>/checks/<tag>_*.txt and <W>/checks/<tag>_summary.txt (one line per check: name, rc, last line).
+W="${1:?W}"; T="${2:?tag}"; R="$W/repo"; C="$W/checks"; S="$C/${T}_summary.txt"; : > "$S"
+one() { local n="$1"; shift; local rc=0
+  "$W/hrun.sh" "$R" "$C/${T}_g_$n.log" "$@" > "$C/${T}_$n.txt" 2>&1 || rc=$?
+  printf '%s\trc=%s\tguard=%s\t%s\n' "$n" "$rc" "$( [ -s "$C/${T}_g_$n.log" ] && wc -l < "$C/${T}_g_$n.log" || echo 0)" \
+    "$(grep -v '^[[:space:]]*$' "$C/${T}_$n.txt" | tail -1 | cut -c1-200)" >> "$S"; }
+one verify_manifest python3 scripts/full_suite/run_full_suite.py --root "$R" --verify-manifest
+one cm_constitution_index_fresh bash scripts/gates/cm_constitution_index_fresh.sh
+one cm_gate_ledger_ratchet bash scripts/gates/cm_gate_ledger_ratchet.sh
+for a in 282 291; do
+  one "cm_covenant_114_${a}_propagation" bash "scripts/gates/cm_covenant_114_${a}_propagation.sh"
+  one "cm_covenant_114_${a}_propagation_mutation_test" bash "scripts/gates/cm_covenant_114_${a}_propagation_mutation_test.sh"
+done
+python3 -I "$W/scdelta.py" "$R" "$C/${T}_shellcheck_delta.tsv" > "$C/${T}_shellcheck_delta.out" 2>&1
+scrc=$?
+printf 'shellcheck_delta\trc=%s\t-\t%s\n' "$scrc" "$(awk -F'\t' 'NR>1 && $6!="none"{n++} END{print (n+0) " files with a new code vs round 6"}' "$C/${T}_shellcheck_delta.tsv")" >> "$S"
+( cd "$R" && git diff --stat eb29803b -- Constitution.md ) > "$C/${T}_constitution_diffstat.txt" 2>&1
+echo "STATIC_DONE $T" >> "$S"

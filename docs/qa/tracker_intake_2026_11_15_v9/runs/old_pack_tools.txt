@@ -1,0 +1,45 @@
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan_mutations.py
+KILLED report_dropped rc=3
+CONTROL FAILED: the unmutated scan rc=3 hits=0 on the one-hit file
+RESULT: mutants=15 bad=1
+rc=1 elapsed=2s
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/ref_integrity_mutations.py
+KILLED integrity_verdict
+KILLED corrupt_key_write
+RESULT: mutants=13 bad=0 known=0
+rc=0 elapsed=1s
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan_mutations.py
+KILLED report_dropped rc=3
+CONTROL FAILED: the unmutated scan rc=3 hits=0 on the one-hit file
+RESULT: mutants=16 bad=1
+rc=1 elapsed=2s
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v7/tools/ref_integrity_mutations.py
+KILLED integrity_verdict
+KILLED corrupt_key_write
+RESULT: mutants=13 bad=0 known=0
+rc=0 elapsed=1s
+$ python3 -I docs/qa/tracker_intake_2026_11_15_v8/tools/leak_scan_mutations.py
+CONTROL: the unmutated scan reports the fake hit and prints none of it
+CONTROL FAILED: leak_scan_test.py on the unmutated scan rc=1
+RESULT: mutants=31 bad=1
+rc=1 elapsed=6s
+$ python3 -I docs/qa/tracker_intake_2026_11_15_v8/tools/leak_scan_test.py
+PASS scan negative scan-neg-path
+PASS scan negative scan-neg-call
+RESULT: hit_rows=168 missed=35 broader_leads=28 own_spec_wrong=0
+rc=1 elapsed=0s
+
+# the same three failing tools run on a `git archive de89a604` copy (the round-8 head):
+== de89a604: docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan_mutations.py
+CONTROL FAILED: the unmutated scan rc=3 hits=0 on the one-hit file
+RESULT: mutants=15 bad=1
+== de89a604: docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan_mutations.py
+CONTROL FAILED: the unmutated scan rc=3 hits=0 on the one-hit file
+RESULT: mutants=16 bad=1
+== de89a604: docs/qa/tracker_intake_2026_11_15_v8/tools/leak_scan_test.py
+RESULT: hit_rows=94 missed=0 broader_leads=22 own_spec_wrong=0
+# reading: the v6 and v7 scans load the live lint's SECRET patterns (rc=3 "control needle FAILED"), which
+# round 8 rebuilt, so they fail on de89a604 already; the v8 test passes on its own round's fixtures and misses
+# 35 rows added in round 9 (classes the v8 scan does not cover, the same RED as red/census_r9_on_v8.txt).
+# The rows stay `entry` in the manifest; excluding them needs an operator acceptance on
+# config/full_suite_excluded.lock, which this fixer does not make (follow-up in README).

@@ -1,0 +1,52 @@
+# mkmut.py <R>: builds $R/mut/<K>/scripts/jev/ (a copy of the r7 scripts/jev) with ONE exact edit of jev-place.sh per
+# mutant (each `old` must occur exactly once, asserted), plus FIX1 (the fix-direction control for the MARK_TTL origin).
+import sys, os, shutil
+R = sys.argv[1]
+src_dir = os.path.join(R, "repo", "scripts", "jev")
+base = open(os.path.join(src_dir, "jev-place.sh")).read()
+M = {
+ "OWN01": ("obs_locked: an observation with ticket EQUAL to the recorded seq (the reap floor) judges the set",
+   [("'((.sets[$p].health.seq // -1) < $t)'", "'((.sets[$p].health.seq // -1) <= $t)'")]),
+ "OWN02": ("reap_locked: the floor recorded when a mark is cleared is one below the current observation counter",
+   [('--argjson f "$(obs_counter)"', '--argjson f "$(( $(obs_counter) - 1 ))"')]),
+ "OWN03": ("mark_start_locked: the freshness check (seam 2) runs BEFORE the reap, not after it",
+   [('  if [ -z "$BASE_GEN" ] || [ "$(leases_token)" != "$BASE_GEN" ]; then return 2; fi\n  cur="$(leases_load)"', '  cur="$(leases_load)"'),
+    ('  reap_locked\n  if [ -n "$held" ]', '  if [ -z "$BASE_GEN" ] || [ "$(leases_token)" != "$BASE_GEN" ]; then return 2; fi\n  reap_locked\n  if [ -n "$held" ]')]),
+ "OWN04": ("with_lock: the lock is never released (fd 9 stays open until the next with_lock or exit)",
+   [('  flock -u 9; exec 9>&-\n  return "$rc"', '  return "$rc"')]),
+ "OWN05": ("with_lock: a non-blocking flock (-n): a contended lock fails at once instead of waiting LOCK_TMO",
+   [('if ! flock -w "$LOCK_TMO" 9; then', 'if ! flock -n 9; then')]),
+ "OWN06": ("reap_locked: a mark is cleared AT MARK_TTL (-ge), not after it",
+   [('[ $(( NOW - sat )) -gt "$MARK_TTL" ]', '[ $(( NOW - sat )) -ge "$MARK_TTL" ]')]),
+ "OWN07": ("reap_locked: a mark's pid is checked without its recorded start time (a reused pid keeps a dead marker's mark)",
+   [('pid_alive "$spid" "$sst" || arc=$?', 'pid_alive "$spid" "" || arc=$?')]),
+ "OWN08": ("mark_start_locked: only a STOPPING set elsewhere refuses the mark (another set's starting mark is ignored)",
+   [("if jq -e 'any(.sets[]?; (.starting // null) != null or (.stopping // null) != null)' <<<\"$cur\" >/dev/null; then return 1; fi",
+     "if jq -e 'any(.sets[]?; (.stopping // null) != null)' <<<\"$cur\" >/dev/null; then return 1; fi")]),
+ "OWN09": ("STALE_MAX is 1 instead of 3",
+   [('STALE_MAX=3', 'STALE_MAX=1')]),
+ "OWN10": ("release_locked: a lease-less set that is still STARTING is marked stopping and stopped by the release",
+   [("select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null and (.value.starting // null) == null) | .key' <<<\"$cur\")\n  # an empty set",
+     "select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null) | .key' <<<\"$cur\")\n  # an empty set")]),
+ "OWN11": ("finish_start_locked: a refused start (75) keeps its set (with the starting mark and the lease)",
+   [("    cur=\"$(jq -c --arg p \"$p\" 'del(.sets[$p])' <<<\"$cur\")\"\n    START_RES=refused", "    START_RES=refused")]),
+ "OWN12": ("holder_alive: a pid-less lease is dead AT its TTL (-lt), not after it",
+   [('[ $(( NOW - hb )) -le "$ttl" ]', '[ $(( NOW - hb )) -lt "$ttl" ]')]),
+ "FIX1": ("fix-direction control (not a mutant): me_mark records the time the mark is SET (real clock; the test clock when JEV_TEST=1 and JEV_NOW_EPOCH is set)",
+   [('me_mark() { jq -nc --argjson now "$NOW" --arg pid',
+     'me_mark() { local t; t="$(date +%s)"; [ "${JEV_TEST:-}" != "1" ] || [ -z "${JEV_NOW_EPOCH:-}" ] || t="$NOW"; jq -nc --argjson now "$t" --arg pid')]),
+}
+idx = open(os.path.join(R, "mut", "index.tsv"), "w")
+for k, (desc, edits) in M.items():
+    s = base
+    for old, new in edits:
+        c = s.count(old)
+        assert c == 1, (k, c, old[:60])
+        s = s.replace(old, new)
+    d = os.path.join(R, "mut", k, "scripts", "jev")
+    if os.path.isdir(d): shutil.rmtree(d)
+    shutil.copytree(src_dir, d)
+    open(os.path.join(d, "jev-place.sh"), "w").write(s)
+    os.chmod(os.path.join(d, "jev-place.sh"), 0o755)
+    idx.write(f"{k}\t{desc}\n")
+print("built", len(M))

@@ -1,0 +1,18 @@
+verify_manifest	0	7s	RESULT: MANIFEST-OK
+cm_full_suite_manifest_complete	0	10s	CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — /mnt/DATA1TB/claude-work/scratch/fix456r6_5Dgr6t/repo (HEAD 58739150a2f5): manifest matches the census (966 census file(s))
+test_constitution_cmd	0	80s	
+cm_gate_ledger_ratchet	0	39s	✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanished name
+cm_constitution_index_fresh	0	2s	CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+gitenv_census	0	16s	git-env-class-census: PASS - members=668 hermetic=512 exempt=156 unscrubbed=0
+cm_helix_deps_manifest_present	2	0s	⚠ CM-HELIX-DEPS-MANIFEST-PRESENT: BLIND (exit 2) — something could not be verified (see BLIND lines); this is not a PASS
+cm_state_fields_anchor_wired	0	1s	CM-STATE-FIELDS-ANCHOR-WIRED: PASS — 245/245 checks (root: /mnt/DATA1TB/claude-work/scratch/fix456r6_5Dgr6t/repo)
+cm_repro_first_anchor_wired	0	1s	CM-REPRO-FIRST-ANCHOR-WIRED: PASS — 175/175 checks (root: /mnt/DATA1TB/claude-work/scratch/fix456r6_5Dgr6t/repo)
+cm_reporting_directives	0	5s	CM-REPORTING-DIRECTIVES: PASS
+cm_feature_directive	0	4s	CM-FEATURE-DIRECTIVE: PASS
+test_report_item_bug_states	0	0s	report_item bug states: 3 passed, 0 failed
+us3_shipped_engine	0	1s	SUMMARY: all hold
+test_constitution_cmd	0	75s	PASS=292 FAIL=0
+cm_state_fields_anchor_wired_mutation_test	0	387s	[mutation:statefields] PASS: 270 RED/BLIND cases and 8 GREEN cases (1 control + 7 golden-FALSE) behaved as required — cm_state_fields_anchor_wired.sh genuinely discriminates
+cm_state_fields_anchor_wired_mutation_test	0	387s	[mutation:statefields] PASS: 270 RED/BLIND cases and 8 GREEN cases (1 control + 7 golden-FALSE) behaved as required — cm_state_fields_anchor_wired.sh genuinely discriminates
+cm_repro_first_anchor_wired_mutation_test	0	190s	
+GATES-DONE

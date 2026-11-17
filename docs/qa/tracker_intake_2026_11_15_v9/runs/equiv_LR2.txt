@@ -1,0 +1,4 @@
+EDIT edit_sha256=78cd8d3b4a42bc654dc18ea9faa4c110fe616668e2284e0f6fa074ebb9d93386
+CONTROL needle (SECRET_FOLD off): hit_differences>=1 ok
+RESULT corpus=2742618 view_differences=0 hit_differences=0 fuzz=200000 codepoints=True
+rc=0

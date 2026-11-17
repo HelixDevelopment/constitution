@@ -1,0 +1,135 @@
+ok 1 - P72 CONTROL: the full document served raw starts decide-a
+ok 2 - P72 CONTROL: the full document served computed starts decide-a
+ok 3 - P72 schema absent: verdict undetermined, nothing started, the reason names [schema]
+ok 4 - P72 schema of another version: verdict undetermined, nothing started, the reason names [schema]
+ok 5 - P72 time absent: verdict undetermined, nothing started, the reason names [time]
+ok 6 - P72 time a string: verdict undetermined, nothing started, the reason names [time]
+ok 7 - P72 host.cpus_online absent: verdict undetermined, nothing started, the reason names [host.cpus_online]
+ok 8 - P72 host.cpus_online a string: verdict undetermined, nothing started, the reason names [host.cpus_online]
+ok 9 - P72 host.mem_total_mb absent: verdict undetermined, nothing started, the reason names [host.mem_total_mb]
+ok 10 - P72 host.mem_total_mb a string: verdict undetermined, nothing started, the reason names [host.mem_total_mb]
+ok 11 - P72 host.mem_available_mb absent: verdict undetermined, nothing started, the reason names [host.mem_available_mb]
+ok 12 - P72 host.mem_available_mb a string: verdict undetermined, nothing started, the reason names [host.mem_available_mb]
+ok 13 - P72 host.usable_mem_mb absent: verdict undetermined, nothing started, the reason names [host.usable_mem_mb]
+ok 14 - P72 host.usable_mem_mb a string: verdict undetermined, nothing started, the reason names [host.usable_mem_mb]
+ok 15 - P72 host.swap_total_mb absent: verdict undetermined, nothing started, the reason names [host.swap_total_mb]
+ok 16 - P72 host.swap_total_mb a string: verdict undetermined, nothing started, the reason names [host.swap_total_mb]
+ok 17 - P72 host.swap_free_mb absent: verdict undetermined, nothing started, the reason names [host.swap_free_mb]
+ok 18 - P72 host.swap_free_mb a string: verdict undetermined, nothing started, the reason names [host.swap_free_mb]
+ok 19 - P72 host.load absent: verdict undetermined, nothing started, the reason names [host.load]
+ok 20 - P72 host.load a string: verdict undetermined, nothing started, the reason names [host.load]
+ok 21 - P72 host.load.5 absent: verdict undetermined, nothing started, the reason names [host.load]
+ok 22 - P72 host.psi absent: verdict undetermined, nothing started, the reason names [host.psi]
+ok 23 - P72 host.psi a string: verdict undetermined, nothing started, the reason names [host.psi]
+ok 24 - P72 host.psi.cpu absent: verdict undetermined, nothing started, the reason names [host.psi]
+ok 25 - P72 host.cgroup absent: verdict undetermined, nothing started, the reason names [host.cgroup]
+ok 26 - P72 host.cgroup an array: verdict undetermined, nothing started, the reason names [host.cgroup]
+ok 27 - P72 host absent: verdict undetermined, nothing started, the reason names [host,host.cpus_online]
+ok 28 - P72 host a string: verdict undetermined, nothing started, the reason names [host,host.cpus_online]
+ok 29 - P72 reserve absent: verdict undetermined, nothing started, the reason names [reserve]
+ok 30 - P72 reserve a string: verdict undetermined, nothing started, the reason names [reserve]
+ok 31 - P72 pressure absent: verdict undetermined, nothing started, the reason names [pressure]
+ok 32 - P72 pressure.ok a string: verdict undetermined, nothing started, the reason names [pressure.ok]
+ok 33 - P72 pressure.reasons absent: verdict undetermined, nothing started, the reason names [pressure.reasons]
+ok 34 - P72 llmctl.units absent: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 35 - P72 llmctl.units an object: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 36 - P72 llmctl.units[].profile absent: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 37 - P72 llmctl.units[].profile a number: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 38 - P72 llmctl.units[].status absent: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 39 - P72 llmctl.units[].status a number: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 40 - P72 llmctl.units[].reasons absent: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 41 - P72 llmctl.units[].reasons a string: verdict undetermined, nothing started, the reason names [llmctl.units]
+ok 42 - P72 fallback.recommended absent: verdict undetermined, nothing started, the reason names [fallback.recommended]
+ok 43 - P72 fallback.recommended outside the set: verdict undetermined, nothing started, the reason names [fallback.recommended]
+ok 44 - P72 fallback.key_variable absent: verdict undetermined, nothing started, the reason names [fallback.key_variable]
+ok 45 - P72 fallback.key_variable a number: verdict undetermined, nothing started, the reason names [fallback.key_variable]
+ok 46 - P72 unknown_profiles absent: verdict undetermined, nothing started, the reason names [unknown_profiles]
+ok 47 - P72 unknown_profiles an object: verdict undetermined, nothing started, the reason names [unknown_profiles]
+ok 48 - P72 degraded absent: verdict undetermined, nothing started, the reason names [degraded]
+ok 49 - P72 degraded a string: verdict undetermined, nothing started, the reason names [degraded]
+ok 50 - P72 largest_decision_fit absent: verdict undetermined, nothing started, the reason names [largest_decision_fit]
+ok 51 - P72 largest_decision_fit a number: verdict undetermined, nothing started, the reason names [largest_decision_fit]
+ok 52 - P72 profiles absent: verdict undetermined, nothing started, the reason names [profiles]
+ok 53 - P72 profiles.decide-a.verdict absent: verdict undetermined, nothing started, the reason names [contract fields of profiles.decide-a missing or wrong: verdict]
+ok 54 - P72 profiles.decide-a.threads absent: verdict undetermined, nothing started, the reason names [contract fields of profiles.decide-a missing or wrong: threads]
+ok 55 - P72 profiles.decide-a.reasons absent: verdict undetermined, nothing started, the reason names [contract fields of profiles.decide-a missing or wrong: reasons]
+ok 56 - P72 profiles.decide-a.headroom absent: verdict undetermined, nothing started, the reason names [contract fields of profiles.decide-a missing or wrong: headroom]
+ok 57 - P72 profiles.decide-a.verdict a number: verdict undetermined, nothing started, the reason names [contract fields of profiles.decide-a missing or wrong: verdict]
+ok 58 - P72 profiles.decide-a.threads a string: verdict undetermined, nothing started, the reason names [contract fields of profiles.decide-a missing or wrong: threads]
+ok 59 - P72 profiles.decide-a.reasons a string: verdict undetermined, nothing started, the reason names [contract fields of profiles.decide-a missing or wrong: reasons]
+ok 60 - P72 profiles.decide-a.headroom a number: verdict undetermined, nothing started, the reason names [contract fields of profiles.decide-a missing or wrong: headroom]
+ok 61 - P72 measurement.critical_inputs_unreadable non-empty: verdict undetermined, nothing started, the reason names [host.psi.memory]
+ok 62 - P72 pressure.ok false with verdict fits (VM01): verdict does_not_fit, nothing started, the reason names [psi full avg10 3.1]
+ok 63 - P73 B planned decide-a on an answer read before any start (paused at flock call 5)
+ok 64 - P73 A starts decide-a while B waits at its start mark
+ok 65 - P73 B joins decide-a (a fresh plan after the stale mark)
+ok 66 - P73 one start in all; decide-b is never started on B's pre-start answer
+ok 67 - P73 only decide-a runs
+ok 68 - P73 B announces the stale answer and the fresh plan
+ok 69 - P73 every start follows a capacity answer read after the previous start
+ok 70 - P74 B planned decide-a (paused at flock call 5)
+ok 71 - P74 C starts decide-b while B waits
+ok 72 - P74 B re-plans and joins decide-b (its fresh answer says decide-a does not fit)
+ok 73 - P74 decide-a is never started next to decide-b on B's stale answer
+ok 74 - P75 A planned decide-a (paused at flock call 5)
+ok 75 - P75 the older-pin writer left the generation unchanged (the instrument)
+ok 76 - P75 A re-plans and joins the set the older-pin writer created
+ok 77 - P75 only the writer's start; decide-b is never started on A's stale answer
+ok 78 - P75 the writer's lease is kept, A's is added
+ok 79 - P75b B took its ticket; its capacity call waits
+ok 80 - P75b C's start of decide-a failed with the unit up; its record waits (paused at flock call 7)
+ok 81 - P75b B read its answer while C's unit was up (paused at flock call 3)
+ok 82 - P75b C cleaned up: rc 5, no unit left
+ok 83 - P75b CONTROL: the registry bytes are as B's ticket saw them, except the generation (1 -> 4)
+ok 84 - P75b B re-reads and STARTS decide-a; it never adopts the gone unit
+ok 85 - P75b decide-a runs
+ok 86 - P76 A started decide-a; its next ticket waits (paused at flock call 9)
+ok 87 - P76 A placed decide-a
+ok 88 - P76 decide-b is started once (by the writer), never again by A's mark
+ok 89 - P76 A announces it did not start decide-b
+ok 90 - P77 B read its answer (paused at flock call 3)
+ok 91 - P77 A started decide-a; its post-start observation waits (paused at flock call 9)
+ok 92 - P77 A's set is pending (floored at the start)
+ok 93 - P77 B re-reads (its answer predates the start) and joins
+ok 94 - P77 A finishes; one start
+ok 95 - P78 the observer read its answer before any start (paused at flock call 3)
+ok 96 - P78 the starter was killed after llmctl start rc 0, before its record (the instrument)
+ok 97 - P78 the unit runs; the set still carries the dead starter's mark
+ok 98 - P78 the observer clears the mark and does NOT mark the set gone (its answer predates the start)
+ok 99 - P78 the set is pending (floor), its mark cleared
+ok 100 - P78 no endpoint_gone
+ok 101 - P78 sA still holds its lease; a newer observation reads the unit ok
+ok 102 - P78 another holder's release stops nothing (the set keeps sA's lease)
+ok 103 - P79 a live starter's mark is kept at MARK_TTL (138 s)
+ok 104 - P79 it is cleared one second later
+ok 105 - P79 the clearing is recorded
+ok 106 - P80 sB's heartbeat leaves sA's heartbeat_at at its own value
+ok 107 - P80 sA (no heartbeat for 1000 s > TTL 900) is reaped; the last release stops the model
+ok 108 - P81a both starts refused (75): each tried once, rc 5
+ok 109 - P81a after a refused start the next start is decided on a fresh answer
+ok 110 - P81a the fresh answer comes from the planned re-plan, never from the stale-mark backstop
+ok 111 - P81c both starts fail; each cleaned up, rc 5, no unit left
+ok 112 - P81c after a failed start and its cleanup stop the next start is decided on a fresh answer
+ok 113 - P81c the fresh answer comes from the planned re-plan, never from the stale-mark backstop
+ok 114 - P81b CONTROL shape: the degraded lease-less set is disposed, then decide-b placed
+ok 115 - P81b after the disposal stop the start is decided on a fresh answer
+ok 116 - P81b the fresh answer comes from the planned re-plan, never from the stale-mark backstop
+ok 117 - P81 CONTROL: the property checker sees a start right after a start
+ok 118 - P82 B is at start mark 5 (paused at flock call 5)
+ok 119 - P82 B is at start mark 11 (paused at flock call 11)
+ok 120 - P82 B is at start mark 17 (paused at flock call 17)
+ok 121 - P82 B is at start mark 23 (paused at flock call 23)
+ok 122 - P82 four stale marks: no start, undetermined (stale_answer)
+ok 123 - P82 STALE_MAX (3) re-plans, then it stops
+ok 124 - P82b B is at plan 3 (paused at flock call 3)
+ok 125 - P82b B is at plan 7 (paused at flock call 7)
+ok 126 - P82b B is at plan 11 (paused at flock call 11)
+ok 127 - P82b three stale reads: a plan with joins only, no start (stale_answer)
+ok 128 - P82b the joins-only plan is announced
+ok 129 - P83 B is at its start mark (paused at flock call 5)
+ok 130 - P83 C's acquire on an undetermined answer wrote nothing to the registry
+ok 131 - P83 B starts on its answer (one read before the plan, one after the start: no re-read)
+ok 132 - P84 status exits 0 when no placement has been recorded yet
+ok 133 - P84 it says so
+FAIL - P85 an unlimited RLIMIT_NPROC: undetermined, no start (expected [5 undetermined] got [0 undetermined])
+ok 134 - P85 the record names the candidate's reason (nproc_unlimited)

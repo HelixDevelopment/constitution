@@ -1,0 +1,8 @@
+SHOWN probe_cases_a.json C2 good alone other=-
+SHOWN probe_cases_c.json P6 pandoc line block before other=element <div>
+SHOWN probe_cases_c.json P7 pandoc definition list other=element <dd>,element <dl>,element <dt>
+SHOWN probe_cases_c.json P8 pandoc percent title other=-
+SHOWN probe_cases_c.json P10 pandoc raw latex other=-
+SHOWN probe_cases_c.json P12 pandoc span hides nothing (control) other=element <span>
+SHOWN probe_cases_eq.json E1 list item, blank, line at col 0 other=-
+ADJUDICATE flagged=7 shown=7 not_shown=0

@@ -1,0 +1,26 @@
+killed AM1 by: FAIL 2 S1 control: secret not found (rc=3, findings=0)
+killed AM2 by: FAIL 2 S1 control: secret not found (rc=3, findings=0)
+killed AM3 by: FAIL 2 S1 control: secret not found (rc=3, findings=0)
+killed AM4 by: FAIL 11 S10 caller --log-opts (two words): secret not found (rc=0, findings=0)
+killed AM5 by: FAIL 12 S11 caller --log-opts= (one word): secret not found (rc=0, findings=0)
+killed AM6 by: FAIL 3 S2 committed .gitattributes -diff: secret not found (rc=0, findings=0)
+killed AM7 by: FAIL 20 S19 scanner ignoring --log-opts: rc=0 (expected 3)
+killed AM8 by: FAIL 21 S20 scanner dropping only --text: rc=1 (expected 3)
+killed AM9 by: FAIL 22 S21 scanner dropping only --no-textconv: rc=1 (expected 3)
+killed AM10 by: FAIL 23 S22 scanner dropping only -m: rc=1 (expected 3)
+killed AM11 by: FAIL 14 S13 .git/info/grafts: secret not found (rc=3, findings=0)
+killed AM12 by: FAIL 15 S14 .git/shallow with parents present: secret not found (rc=0, findings=0)
+killed AM13 by: FAIL 2 S1 control: secret not found (rc=3, findings=0)
+killed AM14 by: FAIL 16 S15 real shallow clone: rc=0 (expected 3)
+killed AM15 by: FAIL 20 S19 scanner ignoring --log-opts: rc=0 (expected 3)
+killed AM16 by: FAIL 19 S18 a glrs_selfcheck.* directory was left behind
+killed AM17 by: FAIL 18 S17 --log-opts with no value: rc=3
+killed AM18 by: FAIL 24 H1 control: secret not found (rc=3)
+killed AM19 by: FAIL 24 H1 control: secret not found (rc=3)
+killed AM20 by: FAIL 30 H7 shallow source: rc=0 (expected 3)
+killed AM21 by: FAIL 32 H9 scanner dropping only --text: rc=1 (expected 3)
+killed AM22 by: FAIL 33 H10 scanner dropping only --no-textconv: rc=1 (expected 3)
+killed AM23 by: FAIL 32 H9 scanner dropping only --text: rc=1 (expected 3)
+killed AM24 by: FAIL 33 H10 scanner dropping only --no-textconv: rc=1 (expected 3)
+RESULT: killed=24 skipped=0 failed=0
+rc=0

@@ -1,0 +1,3 @@
+CONTROL needle (SECRET_FOLD off): hit_differences>=1 ok
+RESULT corpus=718740 view_differences=0 hit_differences=14 fuzz=400000 codepoints=False
+rc=1

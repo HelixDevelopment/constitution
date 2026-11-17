@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Sequential evidence legs for the attribute fix: GREEN and RED x3 (fake and real) on the
+# final suite, then every existing security and forge suite twice. One run at a time.
+set -u
+W="${1:?workdir}"
+GL=/mnt/DATA1TB/claude-work/tools/gitleaks/bin/gitleaks
+export TMPDIR=/mnt/DATA1TB/claude-work/tmp
+cd "${W:?}/c" || exit 2
+run() { systemd-run --user --scope -q -p TasksMax=2000 nice -n 10 "$@"; }
+mkdir -p "$W/ev/green2" "$W/ev/red2" "$W/ev/suites"
+for i in 1 2 3; do
+  run bash tests/security/test_history_read_time_hiding.sh > "$W/ev/green2/green_fake_$i.txt" 2>&1; echo "green fake $i rc=$?"
+  GLRS_GITLEAKS=$GL run bash tests/security/test_history_read_time_hiding.sh > "$W/ev/green2/green_real_$i.txt" 2>&1; echo "green real $i rc=$?"
+  GLRS_SCRIPT="$W/red/scripts/gitleaks/gitleaks_run_scan.sh" HSS_SCRIPT="$W/red/scripts/security/history_secret_scan.sh" \
+    run bash tests/security/test_history_read_time_hiding.sh > "$W/ev/red2/red_fake_$i.txt" 2>&1; echo "red fake $i rc=$?"
+  GLRS_GITLEAKS=$GL GLRS_SCRIPT="$W/red/scripts/gitleaks/gitleaks_run_scan.sh" HSS_SCRIPT="$W/red/scripts/security/history_secret_scan.sh" \
+    run bash tests/security/test_history_read_time_hiding.sh > "$W/ev/red2/red_real_$i.txt" 2>&1; echo "red real $i rc=$?"
+done
+for k in 1 2; do
+  for t in tests/security/test_*.sh tests/forge/test_*.sh; do
+    case "$t" in *read_time_hiding*) continue ;; esac
+    n=$(basename "$t" .sh)
+    run bash "$t" > "$W/ev/suites/${n}_$k.txt" 2>&1; echo "$n $k rc=$?"
+  done
+  for t in tests/security/test_gitleaks_run_scan_replace.sh; do
+    GLRS_GITLEAKS=$GL run bash "$t" > "$W/ev/suites/$(basename "$t" .sh)_real_$k.txt" 2>&1; echo "$(basename "$t" .sh) real $k rc=$?"
+  done
+done
+echo LEGS-DONE

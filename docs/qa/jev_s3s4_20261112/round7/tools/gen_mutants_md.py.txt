@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""gen_mutants_md.py <W> <out.md>: the round-7 mutant table, generated from <W>/mut/index.tsv (mutant id, suite order,
+sha256, description) and <W>/mutout7/results.tsv (one line per suite run). A mutant is KILLED when a suite run says so,
+EQUIVALENT only when it survived every suite it was given AND an argument is recorded below, SURVIVED otherwise.
+Paths are redacted (<W> scratch work dir, <HOME> operator home). Prints the totals and exits 1 on any SURVIVED/MISSING."""
+import sys, os, collections
+
+W, OUT = sys.argv[1], sys.argv[2]
+HOME = "<HOME>"
+SUITE = {"r7": "test_s4_round7.sh", "r6": "test_s4_round6.sh", "pl": "test_s4_placement.sh",
+         "r7p72": "P72 extract of test_s4_round7.sh", "r7p89": "P89 extract of the final test_s4_round7.sh",
+         "r7p90": "P90 extract of the final test_s4_round7.sh", "r7p75b": "P75b extract of the final test_s4_round7.sh",
+         "r7p72f": "P72 extract of the final test_s4_round7.sh"}
+
+EQUIV = {
+    "RM09": "derive_cache drops `stopping == null`. Equivalent over every reachable registry state, re-checked on the "
+            "round-7 code: every writer of a `stopping` mark writes it on a set with no lease (`plan_locked` owed stop "
+            "line 682, selected with `leases | length == 0`; disposal line 707, guarded by `leased = 0`; "
+            "`finish_start_locked` released line 815, guarded by `leased = 0`, and failed line 830, `leases: []`; "
+            "`release_locked` line 1020, selected with `leases | length == 0`), and every writer that adds a lease "
+            "excludes a marked set (the join line 699 runs only on sets selected with `stopping == null and starting == "
+            "null`; the adoption line 753 and `mark_start_locked` line 804 create an absent set, the latter after the "
+            "line 802 check). Reap, release and `endpoint_gone` only remove leases. All writes run under the lease lock. "
+            "A lease on a stopping set is never produced, so the dropped term never changes the cache. Same argument as "
+            "round 6.",
+    "OM13": "`refused_stopping) code=endpoint_stopping` removed from the code map in `write_placement`. Equivalent: the "
+            "only site that yields `refused_stopping` / `refused_starting` (`plan_locked` line 727) sets "
+            "`F_CODE=\"endpoint_$foreign\"` itself, so the map entry is never consulted for it. Control OM13x removes both "
+            "and is killed (below).",
+    "NM04": "`leases_token` uses the hash only (no generation prefix). Equivalent: `leases_save` writes the new `gen` "
+            "INTO the file before hashing (line 392), so two registry states that differ only in `gen` already have "
+            "different hashes; the ABA case the generation guards (a refused start deleting the set it created) always "
+            "changes `gen` and therefore the bytes. Re-checked on the final producer: `leases_gen` (line 378) reads `gen` "
+            "from the same file the hash reads, and line 393 (`leases_save`) is the only write of the registry in the "
+            "producer, so the full token is a function of the file bytes and the hash alone separates every pair of "
+            "states the full token separates (up to a sha256 collision). Survived the round-7, round-6 and placement "
+            "suites. Kept as two parts so the argument does not depend on where `gen` is "
+            "stored (inventory.md, class 2).",
+}
+CONTROL = {"REAL": "control: must SURVIVE every suite (the unmodified round-7 producer)",
+           "OM02x": "control for OM02", "OM13x": "control for the OM13 equivalence argument"}
+
+
+def red(s):
+    return s.replace(W, "<W>").replace(HOME, "<HOME>")
+
+
+idx = collections.OrderedDict()
+for line in open(os.path.join(W, "mut", "index.tsv")):
+    f = line.rstrip("\n").split("\t")
+    if len(f) >= 4 and f[0]:
+        idx[f[0]] = (f[1], f[2], f[3])
+runs = collections.defaultdict(list)
+for line in open(os.path.join(W, "mutout7", "results.tsv")):
+    f = line.rstrip("\n").split("\t")
+    if len(f) >= 3:
+        runs[f[0]].append(f)
+
+rows, tot, bad = [], collections.Counter(), []
+for k, (targets, sha, desc) in idx.items():
+    rs = runs.get(k, [])
+    killed = [r for r in rs if r[2] == "killed"]
+    errs = [r for r in rs if r[2] == "ERROR"]
+    ran = [r[1] for r in rs]
+    if k == "REAL":
+        ok = rs and not killed and not errs and set(ran) >= set(targets.split(","))
+        verdict = "control survived all" if ok else "CONTROL FAILED"
+        if not ok:
+            bad.append(k)
+    elif killed:
+        verdict = "killed"
+    elif errs or not rs:
+        verdict = "MISSING"
+        bad.append(k)
+    elif set(ran) >= set(targets.split(",")):
+        verdict = "equivalent" if k in EQUIV else "SURVIVED"
+        if k not in EQUIV:
+            bad.append(k)
+    else:
+        verdict = "INCOMPLETE"
+        bad.append(k)
+    tot[verdict] += 1
+    seq = "; ".join(f"{SUITE.get(r[1], r[1])}: {r[2]} ({r[6] if len(r) > 6 else '?'})" for r in rs) or "-"
+    named = [r for r in killed if len(r) > 7 and r[7].strip()]
+    if named:
+        dec = red(named[0][7]) + (f" ({SUITE.get(named[0][1], named[0][1])})" if named[0] is not killed[0] else "")
+    elif killed:
+        dec = f"no named row: the suite ended {killed[0][3]} (a timeout is rc=124)"
+    else:
+        dec = "argument below" if verdict == "equivalent" else "-"
+    dec = dec.replace("|", "\\|")
+    note = CONTROL.get(k, "")
+    rows.append(f"| {k} | {desc.replace('|', '/')}{' (' + note + ')' if note else ''} | {seq} | {verdict} | {dec} |")
+
+hdr = f"""# CON-299 S3/S4 round 7 — mutants
+
+| Field | Value |
+|---|---|
+| Revision | 1 |
+| Created | 2026-11-13 |
+| Last modified | 2026-11-13 |
+| Status | evidence (generated from the run records by `gen_mutants_md.py`; no GO claimed) |
+| Evidence class | gate-logic only (stub llmctl, §11.4.289(C)(2)) |
+
+Every mutant is one edit of `scripts/jev/jev-place.sh` (round-7 working tree, before commit 1 only in test helpers and
+messages; the producer is byte-identical to the committed one), run HERMETIC (bwrap, real home hidden, no network, own
+pid namespace, `env -i`, refusal guards first on PATH) through `S4_PLACE_UNDER_TEST`, suite by suite in the order of the
+"runs" column, stopping at the first suite that kills it (the first `FAIL` line, or a non-zero exit). The edits of
+RM01 to RM14, OM01 to OM16 (and VM05 = OM09) are the round-6 standing set rebuilt on the round-7 producer; VM01 to VM13
+are the round-6 reviewer's probe mutants; NM01 to NM26 and CT01 to CT22 are new in round 7 (one per new guard, one per
+contract-table row); RM15, OM02x and OM13x are the round-6 extra mutant and controls; REAL is the unmodified producer.
+
+NM02 survived the round-7 and round-6 suites of the snapshot (the placement suite killed it later); the killing row P89 was then added to `test_s4_round7.sh` (snapshot `s3` = the
+committed tests plus P89 at that time; it later received the final test file) and NM02 and REAL were run on its extract (`r7p89`, `zz_r7_p89_only.sh`).
+
+NM05 (the generation is not raised) was first killed by the CONTROL row of P75b, which checks that the scenario is the
+ABA the row needs; a control row alone is not a behaviour kill, so NM05 and REAL were also run on the whole P75b block
+without stopping at the first FAIL (`zz_r7_p75b_only.sh`, records under `p75b/`): REAL 7/0; NM05 4/3, failing the
+control row AND both behaviour rows (`B re-reads and STARTS decide-a; it never adopts the gone unit`: expected
+`0 decide-a placed`, got `0 decide-a joined_running`; `decide-a runs`: got no unit). NM05 is a behaviour kill.
+
+NM07 was killed on `s2` only by the runner's 1800 s timeout (the acquire loops; no named row); P90 and the bounded
+waits were then added, and NM07 was run on the P90 extract (`r7p90`). NM14 survived the P72 extract of `s2`; the
+per-profile P72 needles now name the contract phrase, and NM14 was run on the final P72 extract (`r7p72f`).
+CT04 survived the P72 extract of `s2` (the host row is implied by its field rows for the decision; only the reason
+lost `host`); the P72 host cases now require `host,host.cpus_online`, and CT04 was run on the final P72 extract. `REAL`
+ran `r7p72f` twice, before and after that needle.
+
+Totals: {', '.join(f'{v} {n}' for v, n in sorted(tot.items()))}.
+
+| Mutant | Mutation | Runs (suite: result (seconds)) | Result | Decisive row (first FAIL) |
+|---|---|---|---|---|
+"""
+notes = "\n## Equivalence arguments\n\n" + "\n\n".join(f"- **{k}**: {v}" for k, v in EQUIV.items()) + "\n"
+open(OUT, "w").write(hdr + "\n".join(rows) + "\n" + notes)
+print("totals:", dict(tot), "bad:", bad)
+sys.exit(1 if bad else 0)

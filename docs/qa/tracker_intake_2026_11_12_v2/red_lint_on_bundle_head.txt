@@ -1,0 +1,113 @@
+FINDING EPHEMERAL CON-299 bare-review-file: review_retest_items.md
+FINDING DUP-CHECK CON-299 no `Duplicate check (section 11.4.214):` line
+FINDING XREF-LABEL CON-300 CON-296 (GitHub issues sync) vs title: full-suite runner self-test oracle shares the engine formula
+FINDING DUP-CHECK CON-300 no `Duplicate check (section 11.4.214):` line
+FINDING STATE-PROSE CON-301 prose says reproduced-host-fixture, reproduction_state is UNSET
+FINDING EPHEMERAL CON-301 bare-review-file: review_retest_items_logs/
+FINDING EPHEMERAL CON-301 bundle-file: retest_new1-4.bundle
+FINDING EPHEMERAL CON-301 bare-review-file: review_retest_items.md
+FINDING DUP-CHECK CON-301 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-302 bundle-file: retest_new1-4.bundle
+FINDING EPHEMERAL CON-302 bare-review-file: review_retest_items.md
+FINDING DUP-CHECK CON-302 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-303 bundle-file: retest_new1-4.bundle
+FINDING EPHEMERAL CON-303 bare-review-file: review_retest_items.md
+FINDING DUP-CHECK CON-303 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-304 bundle-file: retest_new1-4.bundle
+FINDING EPHEMERAL CON-304 bare-review-file: review_retest_items.md
+FINDING DUP-CHECK CON-304 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-304 test_consumer_required_helper.sh also named by open CON-183
+FINDING SHARED-PATH CON-304 test_consumer_required_helper.sh also named by open CON-237
+FINDING EPHEMERAL CON-305 bundle-file: retest_new1-4.bundle
+FINDING EPHEMERAL CON-305 bare-review-file: review_retest_items.md
+FINDING DUP-CHECK CON-305 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-306 bundle-file: retest_new1-4.bundle
+FINDING EPHEMERAL CON-306 bare-review-file: review_retest_items.md
+FINDING DUP-CHECK CON-306 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-307 bundle-file: retest_new1-4.bundle
+FINDING EPHEMERAL CON-307 bare-review-file: review_retest_items.md
+FINDING DUP-CHECK CON-307 no `Duplicate check (section 11.4.214):` line
+FINDING STATE-PROSE CON-308 prose says UNREPRODUCED, reproduction_state is UNSET
+FINDING EPHEMERAL CON-308 bare-review-file: rtfix_lander_items.md
+FINDING DUP-CHECK CON-308 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-145
+FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-243
+FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-261
+FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-262
+FINDING DUP-CHECK CON-309 no `Duplicate check (section 11.4.214):` line
+FINDING DUP-CHECK CON-310 no `Duplicate check (section 11.4.214):` line
+FINDING STATE-PROSE CON-311 prose says reproduced-host-fixture, reproduction_state is UNSET
+FINDING STATE-PROSE CON-311 prose says Investigation: in-progress, investigation_state is UNSET
+FINDING DUP-CHECK CON-311 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-311 test_check_deps.sh also named by open CON-174
+FINDING EPHEMERAL CON-312 mktemp-dir: mf_r4_bundle.6mLoJd
+FINDING EPHEMERAL CON-312 bundle-file: mf_r4_bundle.6mLoJd/multiforge_r4.bundle
+FINDING EPHEMERAL CON-312 bare-review-file: review_multiforge_r4.md
+FINDING DUP-CHECK CON-312 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-313 mktemp-dir: mf_r4_bundle.6mLoJd
+FINDING EPHEMERAL CON-313 bundle-file: mf_r4_bundle.6mLoJd/multiforge_r4.bundle
+FINDING EPHEMERAL CON-313 bare-review-file: review_multiforge_r4.md
+FINDING DUP-CHECK CON-313 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-314 mktemp-dir: mf_r4_bundle.6mLoJd
+FINDING EPHEMERAL CON-314 bundle-file: mf_r4_bundle.6mLoJd/multiforge_r4.bundle
+FINDING EPHEMERAL CON-314 bare-review-file: review_multiforge_r4.md
+FINDING DUP-CHECK CON-314 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-315 bare-review-file: review_gitlab_prerelease.md
+FINDING DUP-CHECK CON-315 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-315 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-315 tag_and_release.sh also named by open CON-233
+FINDING EPHEMERAL CON-316 bare-review-file: review_gitlab_prerelease.md
+FINDING DUP-CHECK CON-316 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-316 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-316 tag_and_release.sh also named by open CON-233
+FINDING EPHEMERAL CON-317 bare-review-file: review_gitlab_prerelease.md
+FINDING DUP-CHECK CON-317 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-317 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-317 tag_and_release.sh also named by open CON-233
+FINDING EPHEMERAL CON-318 bare-review-file: review_gitlab_prerelease.md
+FINDING DUP-CHECK CON-318 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-318 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-318 tag_and_release.sh also named by open CON-233
+FINDING EPHEMERAL CON-319 bare-review-file: review_gitlab_prerelease.md
+FINDING DUP-CHECK CON-319 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-319 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-319 tag_and_release.sh also named by open CON-233
+FINDING EPHEMERAL CON-320 bare-review-file: review_gitlab_prerelease.md
+FINDING DUP-CHECK CON-320 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-320 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-320 tag_and_release.sh also named by open CON-233
+FINDING STATE-PROSE CON-321 prose says reproduced-host-fixture, reproduction_state is UNSET
+FINDING EPHEMERAL CON-321 bare-review-file: review_gitlab_prerelease_mutants.txt
+FINDING EPHEMERAL CON-321 bare-review-file: review_gitlab_prerelease.md
+FINDING DUP-CHECK CON-321 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-321 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-321 tag_and_release.sh also named by open CON-233
+FINDING EPHEMERAL CON-322 bare-review-file: review_gitlab_prerelease.md
+FINDING DUP-CHECK CON-322 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-322 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-322 tag_and_release.sh also named by open CON-233
+FINDING DUP-CHECK CON-323 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-323 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-323 tag_and_release.sh also named by open CON-233
+FINDING DUP-CHECK CON-324 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-324 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-324 tag_and_release.sh also named by open CON-233
+FINDING DUP-CHECK CON-325 no `Duplicate check (section 11.4.214):` line
+FINDING DUP-CHECK CON-326 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-326 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-326 tag_and_release.sh also named by open CON-233
+FINDING DUP-CHECK CON-327 no `Duplicate check (section 11.4.214):` line
+FINDING SHARED-PATH CON-327 tag_and_release.sh also named by open CON-227
+FINDING SHARED-PATH CON-327 tag_and_release.sh also named by open CON-233
+FINDING DUP-CHECK CON-328 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-329 bare-review-file: review_fix227_r8.md
+FINDING DUP-CHECK CON-329 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-330 bare-review-file: review_fix227_r8.md
+FINDING DUP-CHECK CON-330 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-331 mktemp-dir: idg3.Yabv
+FINDING DUP-CHECK CON-331 no `Duplicate check (section 11.4.214):` line
+FINDING DUP-CHECK CON-332 no `Duplicate check (section 11.4.214):` line
+FINDING EPHEMERAL CON-333 scratchpad: scratchpad
+FINDING DUP-CHECK CON-333 no `Duplicate check (section 11.4.214):` line
+RESULT: FAIL selected=35 findings=111 prefix=CON
+rc=1

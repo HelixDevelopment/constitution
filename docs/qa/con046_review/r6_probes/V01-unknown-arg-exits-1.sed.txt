@@ -1,0 +1,1 @@
+s/^    \*) echo "\$GATE: unknown argument \$1" >&2; exit 2 ;;$/    *) echo "$GATE: unknown argument $1" >\&2; exit 1 ;;/

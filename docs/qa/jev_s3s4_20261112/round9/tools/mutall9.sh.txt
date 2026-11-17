@@ -1,0 +1,7 @@
+#!/bin/bash
+# mutall9.sh <tree>: run every mutant listed in mut9/index.tsv, two at a time (host-safety concurrency cap 2).
+set -u
+R=/mnt/DATA1TB/claude-work/scratch/jev_r9.y2nX
+T="${1:?tree}"
+cut -f1 "$R/mut9/index.tsv" | xargs -P 1 -I{} bash "$R/tools/runmut9.sh" "$T" {}
+echo "mutall9 done: $(cut -f1,3 "$R/mutruns9/verdicts.tsv" | grep -c killed) killed-suite lines"

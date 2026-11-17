@@ -1,0 +1,4 @@
+clock (injected, one instant for the whole run): 2000-06-15T12:00:00Z
+date (pinned, first on PATH): /usr/bin/gnudate: date (GNU coreutils) 9.7
+date (alternative, the host default): /usr/bin/date: date (uutils coreutils) 0.10.0
+META: the clock pin in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/con046_r11/diag/red/tmp.3IGGMr4VPv/dpin/gnu is blind: got 2026-11-12/2026-11-13/2026-11-11/2000-01-01, want 2000-06-15/2000-06-16/2000-06-14/2000-01-01 (SUITE_NOW 2000-06-15T12:00:00Z)

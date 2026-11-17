@@ -44,6 +44,15 @@ twice (so this reader, which would keep the last copy, and a reader that keeps t
 no key or value may hold a character of the Unicode categories Cc, Cf, Zl or Zp (controls, line separators, bidi
 controls, invisible format characters) or bytes that are not UTF-8. Any violation: exit 3, nothing on stdout, and the
 message names the line number, never the value.
+Marker words (CON-423 / CON-521, merged with B-M4 at the landing on main): TODO, TBD and DRAFT are matched with no
+ASCII letter (A-Z, a-z) on either side (CON-423 review r1, M4; r3, N2): DRAFT_1, DRAFT2, 2DRAFT, v-DRAFT-3, TODO_1 and
+MY_TODO are markers, DRAFTED, DRAFTS, REDRAFT and TODOS are other words. The value is folded first (CON-423 r3): NFKD
+with combining marks removed, NFKC (a full-width DRAFT is DRAFT), format characters such as U+200B removed, then the
+Cyrillic and Greek look-alike map CONFUSABLES (the same table as scripts/validation/check_provisional_verification_lines.py;
+the render suite checks the two copies are equal). Lower and mixed case (draft, Draft) are accepted by design.
+Look-alikes outside that small map are a known limit. cut_date (the entry heading takes it whole) must be a real
+calendar date YYYY-MM-DD; at the landing the B-M4 design was kept, so --draft relaxes that check together with the other
+placeholder checks (the CON-521 D9 rule "a date also with --draft" is a tracked follow-up, not enforced here).
 """
 import ast
 import datetime
@@ -61,13 +70,38 @@ AUTOLINK = re.compile(r"<https?://[^\s<>]+>")
 HTML_TAG = re.compile(r'</?[a-z][a-z0-9]*(\s+[a-z][a-z-]*="[^"<>]*")*\s*/?>')   # every attribute needs ="value"
 
 
+# Cyrillic and Greek letters that look like Latin ones (CON-423 r3). Keep equal to the copy in
+# scripts/validation/check_provisional_verification_lines.py (tests/release/test_render_release_entry.sh compares them).
+CONFUSABLES = {
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H", "О": "O",
+    "Р": "P", "С": "C", "Т": "T", "Х": "X", "У": "Y", "І": "I", "Ј": "J",
+    "Ѕ": "S", "Ԁ": "D", "Ү": "Y", "а": "a", "е": "e", "о": "o", "р": "p",
+    "с": "c", "у": "y", "х": "x", "і": "i", "ј": "j", "ѕ": "s", "ԁ": "d",
+    "ԛ": "q", "ԝ": "w", "һ": "h", "ӏ": "l", "ү": "y",
+    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I", "Κ": "K",
+    "Μ": "M", "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+    "α": "a", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p", "υ": "u",
+    "χ": "x",
+}
+DRAFT_WORD = re.compile(r"(?<![A-Za-z])DRAFT(?![A-Za-z])")
+PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z])(TODO|TBD)(?![A-Za-z])")
+
+
+def fold(val):
+    """What the marker words see: NFKD with combining marks (Mn) removed, NFKC, format characters (Cf, such as U+200B)
+    removed, then the look-alike letters of CONFUSABLES mapped to Latin."""
+    val = "".join(ch for ch in unicodedata.normalize("NFKD", val) if unicodedata.category(ch) != "Mn")
+    val = "".join(ch for ch in unicodedata.normalize("NFKC", val) if unicodedata.category(ch) != "Cf")
+    return "".join(CONFUSABLES.get(ch, ch) for ch in val)
+
+
 def placeholder_reason(name, val):
     """Why a MANUAL value is still a placeholder (B-M4), or None."""
     for m in ANGLE.finditer(val):
         t = m.group(0)
         if not (AUTOLINK.fullmatch(t) or HTML_TAG.fullmatch(t)):
             return "angle-bracket placeholder %s" % t
-    if re.search(r"\bDRAFT\b", val):
+    if DRAFT_WORD.search(fold(val)):
         return "the word DRAFT"
     if "UNCONFIRMED-CUT-DATE" in val:
         return "UNCONFIRMED-CUT-DATE"
@@ -186,7 +220,7 @@ def main(argv):
         if key.startswith("MANUAL:"):
             name = key[len("MANUAL:"):]
             val = manual.get(name)
-            if val is None or not val.strip() or re.search(r"\b(TODO|TBD)\b", val):
+            if val is None or not val.strip() or PLACEHOLDER_WORD.search(fold(val)):
                 missing.append(key)
                 return m.group(0)
             why = None if draft else placeholder_reason(name, val)

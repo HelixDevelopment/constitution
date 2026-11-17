@@ -1,0 +1,11 @@
+M53  KILLED     by robustness:escaped_after_exit   22.4s  F8: the stderr pipe of an escaped grandchild is waited for
+V04  KILLED     by robustness:auth_header    6.7s  _AUTH: Authorization header values no longer redacted
+V16  KILLED     by gate           36.0s  git_env: SSH_ASKPASS kept
+P05  KILLED     by robustness:race_other    9.4s  RV4-1: a ref moved by someone else during the run is reported as this run's update
+P14  KILLED     by robustness:no_new_call    8.8s  RV4-5: new calls after a stop are not refused
+P24  KILLED     by robustness:out_unwritable    7.3s  RV4-8: the evidence directory is not probed before the run
+P27  KILLED     by robustness:lock_symlink   11.2s  RV4-11: repository lock taken without O_NOFOLLOW
+P29  KILLED     by robustness:default_out_relative    6.6s  RV4-12: a relative cache directory is accepted
+P33  KILLED     by robustness:final_cap   99.0s  RV4-5: final reads after a stop get no time cap
+P34  KILLED     by gate            8.2s  RV4-6: core.askPass not pinned empty by -c
+sync-mutations (all): mutants 10 killed 10 equivalent 0 survived 0 harness-errors 0

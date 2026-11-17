@@ -1,0 +1,10 @@
+PASS control: the unmutated copy passes the suite
+PASS R1 killed: FAIL partly mapped range refused: /partly mapped/ not in: Traceback (most recent call last):|  File "<scratch>
+PASS R2 killed: FAIL tokens, no chaining, boundaries, range: got: see CON-3 and CON-3; CON-12 CON-1-x xCON-1 stays|range CON-20..CON-22 
+PASS R3 killed: FAIL range with non-contiguous new ids refused: rc=0 want=1: <scratch>
+PASS R4 killed: FAIL Foreign line left alone before its colon too: /replaced=1$/ not in: <scratch>
+PASS R5 killed: FAIL second replay refused before any write: rc=1 add: item CON-345 already exists in Issues|step 1 add CON-345 rc=1|RES
+PASS R6 killed: FAIL a .db file refused: rc=0 want=1: <scratch>
+PASS R7 killed: FAIL rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=3$/ not in: <scratch>
+PASS R8 killed: FAIL plan refuses a new id held by an item that stays: rc=0 want=1: old	new|CON-006	CON-006|CON-007	CON-007|CON-008	CON-
+RESULT: pass=9 fail=0

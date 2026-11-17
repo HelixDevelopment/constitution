@@ -1,0 +1,56 @@
+api --paginate /orgs/HelixDevelopment/repos?per_page=100&type=all --jq .[]|[.full_name,.visibility,.archived,.fork]|@tsv
+api /repos/HelixDevelopment/agent/actions/workflows?per_page=100
+api /repos/HelixDevelopment/agent/actions/permissions
+api /repos/HelixDevelopment/agent/pages
+api /repos/HelixDevelopment/agent/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api /repos/HelixDevelopment/HelixGitpx/actions/workflows?per_page=100
+api /repos/HelixDevelopment/HelixGitpx/actions/permissions
+api /repos/HelixDevelopment/HelixGitpx/pages
+api /repos/HelixDevelopment/HelixGitpx/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api /repos/HelixDevelopment/HelixPlay/actions/workflows?per_page=100
+api /repos/HelixDevelopment/HelixPlay/actions/permissions
+api /repos/HelixDevelopment/HelixPlay/pages
+api /repos/HelixDevelopment/HelixPlay/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api /repos/HelixDevelopment/terminator/actions/workflows?per_page=100
+api /repos/HelixDevelopment/terminator/actions/permissions
+api /repos/HelixDevelopment/terminator/pages
+api /repos/HelixDevelopment/terminator/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api /repos/HelixDevelopment/vpn/actions/workflows?per_page=100
+api /repos/HelixDevelopment/vpn/actions/permissions
+api /repos/HelixDevelopment/vpn/pages
+api /repos/HelixDevelopment/vpn/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api --paginate /orgs/vasic-digital/repos?per_page=100&type=all --jq .[]|[.full_name,.visibility,.archived,.fork]|@tsv
+api /repos/vasic-digital/caf-git-mcp/actions/workflows?per_page=100
+api /repos/vasic-digital/caf-git-mcp/actions/permissions
+api /repos/vasic-digital/caf-git-mcp/pages
+api /repos/vasic-digital/caf-git-mcp/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api /repos/vasic-digital/Courses-Creator/actions/workflows?per_page=100
+api /repos/vasic-digital/Courses-Creator/actions/permissions
+api /repos/vasic-digital/Courses-Creator/pages
+api /repos/vasic-digital/Courses-Creator/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api /repos/vasic-digital/ShareConnect/actions/workflows?per_page=100
+api /repos/vasic-digital/ShareConnect/actions/permissions
+api /repos/vasic-digital/ShareConnect/pages
+api /repos/vasic-digital/ShareConnect/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api /repos/vasic-digital/TransmissionConnect/actions/workflows?per_page=100
+api /repos/vasic-digital/TransmissionConnect/actions/permissions
+api /repos/vasic-digital/TransmissionConnect/pages
+api /repos/vasic-digital/TransmissionConnect/actions/runs?per_page=1 --jq .workflow_runs[0]|"\(.created_at // "-")|\(.actor.login // "-")|\(.event // "-")"
+api -X PUT /repos/HelixDevelopment/HelixGitpx/actions/permissions -F enabled=false
+api /repos/HelixDevelopment/HelixGitpx/actions/permissions --jq .enabled
+api -X PUT /repos/HelixDevelopment/HelixPlay/actions/permissions -F enabled=false
+api /repos/HelixDevelopment/HelixPlay/actions/permissions --jq .enabled
+api -X PUT /repos/HelixDevelopment/agent/actions/permissions -F enabled=false
+api /repos/HelixDevelopment/agent/actions/permissions --jq .enabled
+api -X PUT /repos/HelixDevelopment/terminator/actions/permissions -F enabled=false
+api /repos/HelixDevelopment/terminator/actions/permissions --jq .enabled
+api -X PUT /repos/HelixDevelopment/vpn/actions/permissions -F enabled=false
+api /repos/HelixDevelopment/vpn/actions/permissions --jq .enabled
+api -X PUT /repos/vasic-digital/Courses-Creator/actions/permissions -F enabled=false
+api /repos/vasic-digital/Courses-Creator/actions/permissions --jq .enabled
+api -X PUT /repos/vasic-digital/ShareConnect/actions/permissions -F enabled=false
+api /repos/vasic-digital/ShareConnect/actions/permissions --jq .enabled
+api -X PUT /repos/vasic-digital/TransmissionConnect/actions/permissions -F enabled=false
+api /repos/vasic-digital/TransmissionConnect/actions/permissions --jq .enabled
+api -X PUT /repos/vasic-digital/caf-git-mcp/actions/permissions -F enabled=false
+api /repos/vasic-digital/caf-git-mcp/actions/permissions --jq .enabled

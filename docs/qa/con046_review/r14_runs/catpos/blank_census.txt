@@ -1,0 +1,2 @@
+refused blank (non-C, not stripped): 268 {'Lo': 4, 'Mn': 263, 'So': 1} empty 268 whitespace-only 0 []
+U+2800: '' U+3164: '' U+1D159: So '𝅙'

@@ -1,0 +1,24 @@
+Auto-merging CHANGELOG.md
+CONFLICT (content): Merge conflict in CHANGELOG.md
+Auto-merging Constitution.md
+CONFLICT (content): Merge conflict in Constitution.md
+Auto-merging config/full_suite_manifest.tsv
+Auto-merging config/git_env_class_exemptions.tsv
+CONFLICT (content): Merge conflict in config/git_env_class_exemptions.tsv
+Auto-merging constitution_index.yaml
+CONFLICT (content): Merge conflict in constitution_index.yaml
+Auto-merging docs/Issues.md
+CONFLICT (content): Merge conflict in docs/Issues.md
+Auto-merging docs/Issues_Summary.md
+CONFLICT (content): Merge conflict in docs/Issues_Summary.md
+Auto-merging docs/guides/full_suite_runner_guide.md
+CONFLICT (content): Merge conflict in docs/guides/full_suite_runner_guide.md
+warning: Cannot merge binary files: docs/workable_items.db (HEAD vs. origin/main)
+Auto-merging docs/workable_items.db
+CONFLICT (content): Merge conflict in docs/workable_items.db
+Auto-merging progressive/catalog.json
+CONFLICT (content): Merge conflict in progressive/catalog.json
+Auto-merging progressive/rules_manifest.json
+CONFLICT (content): Merge conflict in progressive/rules_manifest.json
+Auto-merging scripts/post_update_hook.sh
+Automatic merge failed; fix conflicts and then commit the result.

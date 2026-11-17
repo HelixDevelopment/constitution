@@ -1,0 +1,53 @@
+PASS P0 fixture self-check
+PASS P0 oracle self-check
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 6 items, 3 provisional, 3 ok
+PASS P1 the root is reported
+PASS P1 --today and the window are reported
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 fields out of order
+PASS P2 two lines
+FAIL P2 a line without the bold marker does not count (no line /^FAIL CON-015 In testing: no '\*\*Verification:\*\* provisional' line$/: FAIL CON-010 Ready for testing: no '**Verification:** provisional' line|FAIL CON-011 Ready for testing: the fields are not job, checks, layer, target, artifact, due in that order: job, layer, target, artifact, due|FAIL CON-013 Ready for testing: the fields are not job, checks, layer, target, artifac)
+PASS P2 prose is not a sentence of the grammar (the r4 golden-good line)
+PASS P2 no created date: the window cannot be checked
+PASS P2 due before the item was created
+FAIL P2 a line that continues a paragraph does not count (no line /^FAIL CON-020 Ready for testing: no '\*\*Verification:\*\* provisional' line$/: FAIL CON-010 Ready for testing: no '**Verification:** provisional' line|FAIL CON-011 Ready for testing: the fields are not job, checks, layer, target, artifact, due in that order: job, layer, target, artifact, due|FAIL CON-013 Ready for testing: the fields are not job, checks, layer, target, artifac)
+PASS P2 a body the two readers read differently is refused
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an unknown option: usage exit 64
+PASS P3 a root that is not a directory: exit 64
+PASS P3 a --today that is not a date: exit 64
+PASS P3 a window above 3650: exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P3 a database path with a space opens (pathlib URI)
+PASS P4 the database is unchanged
+PASS P4 no -wal, -shm or -journal sidecar
+PASS P4b typed values: exit 1
+PASS P4b typed values: no traceback
+PASS P4b an integer created_at is refused, named
+PASS P4b a blob body is refused, named
+PASS P4b a status with a trailing space is refused, not skipped
+PASS P4b a status in another case is refused, not skipped
+PASS P4b hour 24 is refused
+PASS P4b a lone CR before a fence hides the line (review r5 I-1)
+PASS P4b a lone CR before a comment hides the line (review r5 I-1)
+PASS P4b the clean item among them is accepted (control)
+PASS P4b counts: the trailing-space and other-case statuses are checked
+PASS P4b a target registry that is not UTF-8: BLIND
+PASS P4b registry not UTF-8: no traceback
+PASS P4b a closed WAL-mode database is read
+PASS P4b a closed WAL-mode database: no -wal or -shm created, bytes unchanged
+PASS P4b the live writer committed its row (control)
+PASS P4b a WAL database with a live writer: the row only in -wal is read (needle CON-909)
+PASS P4b a WAL database with a live writer: counts include the -wal row
+PASS P4b a WAL database with a live writer: its files unchanged byte for byte
+RESULT: pass=50 fail=2

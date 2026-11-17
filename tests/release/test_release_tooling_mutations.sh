@@ -155,6 +155,7 @@ fi
 
 TAR="$ROOT/scripts/release/tag_and_release.sh"; DRF="$ROOT/scripts/release/derive_release_facts.sh"
 RRE="$ROOT/scripts/release/render_release_entry.py"
+TPL="$ROOT/docs/release/helixconstitution-v73.4_entry.template.md"   # CON-423: the v73.4 entry template, mutated in a copy and passed as RRE_TEMPLATE
 RFS="$ROOT/scripts/full_suite/run_full_suite.py"   # B-M1: the one source of the verdict words, copied beside every renderer copy
 LIB="$ROOT/scripts/release/redact_cut.sh"; PUB="$ROOT/scripts/release_publish_gitea.sh"
 CENPY="$HERE/channel_census.py"   # round 11: the network-spawn gate, mutated in a copy and passed as CEN_PY
@@ -203,6 +204,7 @@ suite_for() { case "$1" in *tag_and_release.sh) echo "TAR_SCRIPT $HERE/test_tag_
   *release_publish_gitea.sh) echo "PUBLISH_SCRIPT $HERE/test_publish_gitea.sh" ;;
   *derive_release_facts.sh) echo "DRF_SCRIPT $HERE/test_derive_release_facts.sh" ;;
   *render_release_entry.py) echo "RRE_SCRIPT $HERE/test_render_release_entry.sh" ;;
+  *_entry.template.md) echo "RRE_TEMPLATE $HERE/test_render_release_entry.sh" ;;
   *env_allow.sh) echo "ENV_ALLOW_LIB $HERE/test_channel_census.sh" ;;
   *channel_census.py) echo "CEN_PY $HERE/test_channel_census.sh" ;;
   *env_census.py) echo "ENV_CENSUS_PY $HERE/test_redact_cut.sh" ;; esac; }
@@ -223,7 +225,7 @@ runs() { # runs SCRIPTCOPY ORIGINAL -> rc of the matching suite against the copy
 hupskip() { grep -q '^SKIP .*HUP' "$W/last.out"; }
 
 # control: unmodified copies pass their suites
-for f in "$TAR" "$DRF" "$RRE" "$PUB" "$LIB" "$EAL" "$CENPY" "$ECPY"; do
+for f in "$TAR" "$DRF" "$RRE" "$TPL" "$PUB" "$LIB" "$EAL" "$CENPY" "$ECPY"; do
   [ -n "$ONLY" ] && [ "$ONLY" != control ] && continue
   [ -n "${STALE_ONLY:-}" ] && continue   # round 7: STALE_ONLY checks the replaced texts only (no suite runs)
   cpy="$(setup_dir "$W/ctrl_$(basename "$f")" "$f")"
@@ -377,7 +379,7 @@ m U6 "$TAR" 'timeout -k 10 "$NET_TIMEOUT" "$@"' '"$@"'   # round 6: re-applied, 
 m U7 "$PUB" 'x_curl="$(printf '"'"'header = "Authorization: token %s"\n'"'"' "$_rpg_tok" | rc_net curl "${args[@]}"' \
             'printf '"'"'header = "Authorization: token %s"\n'"'"' "$_rpg_tok" >"$W/k.cfg"; x_curl="$(rc_net curl -K "$W/k.cfg" "${args[@]}"'   # token in a file
 m U8 "$TAR" "elif [ -z \"\${1:-}\" ]; then printf -- '-'; else printf 'NOT-AN-OBJECT-ID'; fi; }" "else printf '%s' \"\${1:--}\"; fi; }"   # server ids printed unvalidated
-m U9 "$TAR" '      [[ $id =~ ^[0-9]{1,20}$ ]] || id=""' '      :'                                              # GitHub id printed unvalidated
+m U9 "$TAR" $'\n      [[ $id =~ ^[0-9]{1,20}$ ]] || id=""' $'\n      :'                                              # GitHub id printed unvalidated
 m U10 "$LIB" "  else printf '<url not shown>'; fi" "  else printf '%s' \"\$1\"; fi"                         # rc_safe_url passes an unsafe URL through
 m U11 "$LIB" '      if (length(line) > lmax) {' '      if (0) {'                                               # very long lines printed
 m U12 "$LIB" '        # R3 URL userinfo, whole line' '        if (match(low, /(^|[^a-z0-9_-])[a-z0-9_-]*(authorization|token|secret|password|passwd|api-key|apikey|api_key|cookie|credential)[ \t]*:/)) { line = substr(line, 1, RSTART + RLENGTH - 1) " <redacted>"; low = tolower(line) }
@@ -755,13 +757,13 @@ mp GP11 $'GL1 ' "$TAR" $'GL_ARGS=(--no-update)' $'GL_ARGS=()'   # --no-update dr
 mp GP12 $'GL12 ' "$TAR" $'        [ "$PRERELEASE" -eq 1 ] && gl_readback "$spec" "$target"; continue; fi' $'        continue; fi'   # a kept release not read back
 mp GP13 $'GL7 ' "$TAR" $'  [ "$arc" -eq 0 ] || { gap "RELEASE $1 PRERELEASE-READBACK UNCONFIRMED (glab api read failed' $'  [ "$arc" -eq 0 ] || true || { gap "RELEASE $1 PRERELEASE-READBACK UNCONFIRMED (glab api read failed'   # a failed read-back not reported as a GAP
 mp GP14 $'GL8 ' "$TAR" $'    marked) ;;\n    unmarked) fail' $'    marked|unparsable) ;;\n    unmarked) fail'   # an unparsable read-back accepted as marked
-mp GP15 $'GL13 ' "$TAR" $'      gitlab:*:1) printf \'PLAN release' $'      gitlab:*:1) nt glab auth status >/dev/null 2>&1; printf \'PLAN release'   # the dry run calls glab
+mp GP15 $'GL13 ' "$TAR" $'      gitlab:*:1) printf \'PLAN release' $'      gitlab:*:1) nt glab release create "$TAG" -R x >/dev/null 2>&1; printf \'PLAN release'   # the dry run makes a write call (CON-423: since D3 the dry run reads with auth status, so the mutant is a create call)
 mp GP16 $'GL13 ' "$TAR" $'      gitlab:*:1) printf \'PLAN release' $'      *:*:1) printf \'PLAN release'   # the marking plan line on every forge
 mp GP17 $'GL14 ' "$TAR" $'gap "RELEASE $spec SKIPPED-NO-TOKEN (glab not authenticated)"; continue; fi' $'printf \'RELEASE %s CREATED\\n\' "$spec"; continue; fi'   # glab not authenticated reported as CREATED
 mp GP18 $'GL15 |GL16 ' "$TAR" $'  j="$(nt glab api --hostname' $'  j="$(glab api --hostname'   # the read-back without the timeout wrapper nt
 mp GP19 $'GL10b? ' "$TAR" $'  elif [ "$rat" = NOT-AN-ISO-TIME ] || [ "$(date -u -d "$rat" +%s 2>/dev/null)" != "$GL_AT" ]; then' $'  elif false; then'   # a different upcoming date accepted
 mp GP20 $'GL11 ' "$TAR" $'|| rat=NOT-AN-ISO-TIME\n' $'|| :\n'   # a server released_at that is not an ISO time printed raw
-mp GP21 $'GL1 ' "$TAR" $'nt glab api --hostname "$GL_HOST" "projects/' $'nt glab api "projects/'   # the read-back host not pinned with --hostname
+mp GP21 $'GL1 ' "$TAR" $'nt glab api --hostname "$GL_HOST" "projects/$enc/releases/' $'nt glab api "projects/$enc/releases/'   # the read-back host not pinned with --hostname (landing merge: the dry-run probe also reads projects/$enc, so the release read-back line is named)
 # CON-417 (2026-11-15): the retest_statement verdict check of render_release_entry.py; B-M1 (2026-11-16) rewrote the
 # check (verdict words from the runner's RETEST_RESULTS), so RV1-RV4 are re-applied to the lines that now do the same job
 mp RV1 $'retest value without a leading verdict token refused' "$RRE" $'                rv = retest_value(val, words)\n                if rv is None:' $'                rv = val\n                if False:'   # the verdict check removed
@@ -780,7 +782,7 @@ mp BM4C $'B-M4 placeholder refused without --draft: cut_date=(2026-11-31|16.11.2
 mp BM4D $'B-M4 (the same value renders with --draft|--draft render|--draft without a heading)' "$RRE" $'        lines.insert(at, DRAFT_MARK)' $'        pass'   # a draft render without its marker
 mp BM4E $'B-M4 --draft still refuses' "$RRE" $'    if missing:' $'    if missing and not draft:'   # --draft relaxes every refusal, not only the placeholder one
 mp BM4F $'C54 draft notes: (exit 1|RESULT FAIL|no local tag|r1)' "$TAR" $'  [ "$DRY" -eq 1 ] || abort "the release notes of $TAG' $'  [ "$DRY" -eq 1 ] || printf \'%s\\n\' "the release notes of $TAG'   # a real run cuts a release from draft notes
-mp BM4G $'C54 draft notes, dry run' "$TAR" $'  if [ "$DRAFT_NOTES" -eq 1 ]; then' $'  if false; then'   # the dry run does not say a real run refuses
+mp BM4G $'C54 draft notes, dry run' "$TAR" $'  if [ "$DRAFT_NOTES" -eq 1 ]; then\n    printf \'PLAN refuse' $'  if false; then\n    printf \'PLAN refuse' $'  if [ "$DRAFT_NOTES" -eq 1 ]; then\n    printf \'RESULT: OK dry-run' $'  if false; then\n    printf \'RESULT: OK dry-run'   # the dry run does not say a real run refuses
 mp BM4H $'C54 control' "$TAR" $'if grep -qF \'DRAFT RENDER — not a release entry\' "$NOTES"; then' $'if rc_net git show "$SHA:CHANGELOG.md" | grep -qF \'DRAFT RENDER — not a release entry\'; then'   # the marker of an older section refuses the release
 # B-M2 (2026-11-16): the gitea token variable is required and bound to the host (config/forge/hosts.tsv)
 mp BM2A $'B-M2 (codeberg with M3W_GITEA_TOKEN|unknown host|loopback URL with M3W_GITEA_TOKEN)' "$PUB" $'rc_gitea_binding "$BASE_URL" "$TOKEN_VAR"; _rpg_b=$?' $'_rpg_b=0'   # the publisher skips the binding check
@@ -794,6 +796,44 @@ mp BM2H $'C56 codeberg with M3W_GITEA_TOKEN' "$TAR" $'    rc_gitea_binding "$gba
 mp BM2I $'C56 the token variables each call' "$TAR" $'export "${tv?}"; bash scripts/release_publish_gitea.sh' $'export "${tv?}" M3W_GITEA_TOKEN CODEBERG_TOKEN 2>/dev/null; bash scripts/release_publish_gitea.sh'   # every token variable reaches every publisher call
 mp BM2J $'C56 the token variables each call|C17' "$TAR" $'*) _tar_reads="$_tar_reads $_tar_v" ;; esac' $'*) : ;; esac'   # the spec variables are not carried over the re-execution
 mp BM2K $'C56 the old four-field spec' "$TAR" $'$SEG/$SEG:[A-Z][A-Z0-9_]{0,63}\\$"' $'$SEG/$SEG(:[A-Z][A-Z0-9_]{0,63})?\\$"'   # the old four-field spec is accepted by the pattern
+# CON-423 (2026-11-16, rehearsal of the v73.4 cut): D3/D4 dry-run probes and plan lines, D10 one remote per
+# repository (tag_and_release.sh), D5 --draft and D9 cut_date (render_release_entry.py), D9 the template dot
+mp DP1 $'RH2 |RH3 |RH6 ' "$TAR" $'  for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do\n    kind="${spec%%:*}"' $'  for spec in; do\n    kind="${spec%%:*}"'   # the dry-run probes removed
+mp DP2 $'RH1 |GL13 ' "$TAR" $'      *:1) printf \'PLAN release %s prerelease=flag\\n\' "$spec" ;;' $'      *:1) printf \'PLAN release %s\\n\' "$spec" ;;'   # the pre-release flag not shown in the plan
+mp DP3 $'RH10 ' "$TAR" $'else wgap "$spec" "ACCESS-UNCONFIRMED (token variable set, value not shown;' $'else wgap "$spec" "ACCESS-UNCONFIRMED ($M3W_GITEA_TOKEN) (token variable set, value not shown;'   # the gitea token printed
+mp DP4 $'RH3 ' "$TAR" $'        if [ "$GH_AUTH_RC" -ne 0 ]; then wgap' $'        if false; then wgap'   # gh not logged in not reported
+mp DP5 $'RH6 ' "$TAR" $'[ "$pt" != object ]' $'[ "$pt" = NOT-A-TYPE ]'   # a GitLab answer that is not a JSON object accepted
+mp DP6 $'RH6 ' "$TAR" $'would-fail=%d would-gap=%d)\\n\' "$WF" "$WG"; exit 1; fi' $'would-fail=%d would-gap=%d)\\n\' "$WF" "$WG"; exit 0; fi'   # a would-fail dry run exits 0
+mp DP7 $'RH5 ' "$TAR" $'        if [ -n "${DGH_SEEN[$id]:-}" ]; then printf' $'        if false; then printf'   # GitHub legs of one repository id not de-duplicated in the dry run
+mp RN1 $'RH12 ' "$TAR" $'case "$_seen" in *" $r "*) die_usage' $'case "$_seen" in *" NOT-A-REMOTE "*) die_usage'   # a repeated remote name accepted
+mp RN2 $'RH11 ' "$TAR" $'    if [ -n "${PUSHID[$k]:-}" ] && [ "${PUSHID[$k]}" != "$r" ]; then' $'    if false; then'   # two remotes of one repository (by URL) accepted
+mp RN3 $'RH11 ' "$TAR" $'p="${p#/}"; p="${p,,}"; p="${p%.git}"; printf \'host:%s/%s\' "${h,,}" "$p"' $'p="${p#/}"; p="${p%.git}"; printf \'host:%s/%s\' "$h" "$p"'   # host and path not case-folded
+mp RN4 $'RH13 ' "$TAR" $'        if [ -n "${GHID_OF[$gid]:-}" ] && [ "${GHID_OF[$gid]}" != "$r" ]; then' $'        if false; then'   # two remotes of one GitHub repository id accepted
+mp RN5 $'RH11 the push URL' "$TAR" $'abort "remotes ${PUSHID[$k]} and $r push to the same repository (' $'abort "remotes ${PUSHID[$k]} and $r push to the same repository $u ('   # the push URL printed
+mp DP8 $'RH2 the gitlab project is read on the pinned host' "$TAR" $'pj="$(nt glab api --hostname "$GL_HOST" "projects/$enc" 2>/dev/null)"' $'pj="$(nt glab api "projects/$enc" 2>/dev/null)"'   # the dry-run project read not pinned to the host
+mp DR1 $'D5 a DRAFT' "$RRE" $'    if DRAFT_WORD.search(fold(val)):' $'    if False:'   # a DRAFT manual value accepted
+mp DR3 $'M4 golden FALSE, accepted: (DRAFTS|REDRAFT)' "$RRE" $'DRAFT_WORD = re.compile(r"(?<![A-Za-z])DRAFT(?![A-Za-z])")' $'DRAFT_WORD = re.compile(r"DRAFT")'   # DRAFT matched inside a word
+# CON-423 review r1 (r2 fixer): M3 repo_key and M4 marker-word boundaries, each killed by its own RH16 / M4 check
+mp RK1 $'RH16 doubled slash in the path' "$TAR" $'  while [[ $p == *//* ]]; do p="${p%%//*}/${p#*//}"; done' $'  :'   # doubled slashes not folded
+mp RK2 $'RH16 upper-case .GIT suffix' "$TAR" $'p="${p#/}"; p="${p,,}"; p="${p%.git}"; printf' $'p="${p#/}"; p="${p%.git}"; p="${p,,}"; printf'   # .git stripped before the case fold (.GIT kept)
+mp RK3 $'RH16 local /srv/repo.git and /srv/repo are two directories' "$TAR" $'  else printf \'local:%s\' "$p"; fi' $'  else printf \'local:%s\' "${p%.git}"; fi'   # a local .git suffix folded away
+mp RK4 $'RH16 local paths keep their case' "$TAR" $'  else printf \'local:%s\' "$p"; fi' $'  else printf \'local:%s\' "${p,,}"; fi'   # a local path case-folded
+mp RK5 $'RH16 local doubled and trailing slashes' "$TAR" $'  while [[ $p == */ ]]; do p="${p%/}"; done' $'  :'   # trailing slashes kept
+mp DR4 $'M4 a DRAFT marker is refused: (DRAFT_1|see DRAFT2|v-DRAFT-3)' "$RRE" $'DRAFT_WORD = re.compile(r"(?<![A-Za-z])DRAFT(?![A-Za-z])")' $'DRAFT_WORD = re.compile(r"\\bDRAFT\\b")'   # the old \b boundary: DRAFT_1 and DRAFT2 accepted
+mp DR5 $'M4 TODO/TBD glued: (TODO_1|TBD2)' "$RRE" $'PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z])(TODO|TBD)(?![A-Za-z])")' $'PLACEHOLDER_WORD = re.compile(r"\\b(TODO|TBD)\\b")'   # the old \b boundary for TODO/TBD
+mp DR6 $'M4 golden FALSE, accepted: (TODOS|XTBD)' "$RRE" $'PLACEHOLDER_WORD = re.compile(r"(?<![A-Za-z])(TODO|TBD)(?![A-Za-z])")' $'PLACEHOLDER_WORD = re.compile(r"(TODO|TBD)")'   # TODO/TBD matched inside a word
+mp DR7 $'M4 a DRAFT marker is refused: (ＤＲＡＦＴ|DR)' "$RRE" $'    val = "".join(ch for ch in unicodedata.normalize("NFKC", val) if unicodedata.category(ch) != "Cf")' $'    val = val'   # no NFKC fold, no format-character removal
+# CON-423 review r1 (r2 fixer): M8, the one gitea token shape (redact_cut.sh) and its two callers
+mp TS1 $'K12 7 characters' "$LIB" $'rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{8,200}$ ]]; }' $'rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{1,200}$ ]]; }'   # the length floor dropped
+mp TS2 $'K12 201 characters' "$LIB" $'rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{8,200}$ ]]; }' $'rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{8,200} ]]; }'   # the end anchor dropped: a longer token fits
+mp TS3 $'M8 a token outside the shared shape is refused' "$PUB" $'if [ -n "$_rpg_tok" ] && ! rc_gitea_token_shape_ok "$_rpg_tok"; then' $'if false; then'   # the publisher no longer checks the shape
+mp TS4 $'RH17 a token outside the shape' "$TAR" $'        elif ! rc_gitea_token_shape_ok "${!gtv}"; then wfail' $'        elif false; then wfail'   # the dry run no longer reports TOKEN-SHAPE
+mp TPL1 $'D9 no ' "$TPL" $'\n{{unmerged_refs_block}}\n' $'\n{{unmerged_refs_block}}.\n'   # the stray dot after the refs list back
+# landing merge with B-M4 (2026-11-17): D9 cut_date is now B-M4's placeholder_reason check (not under --draft);
+# CD1-CD3 retargeted to its lines; DR2 dropped (the marker insertion is BM4D); RV1-RV4 and GP21 are main's B-M1 versions
+mp CD1 $'D9 cut_date not a bare date refused' "$RRE" $'    if name == "cut_date":' $'    if name == "NOT-A-NAME":'   # cut_date not checked
+mp CD2 $'D9 cut_date not a bare date refused: (20261116|2026-W46-1)' "$RRE" $'            if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", v):\n                raise ValueError' $'            if False:\n                raise ValueError'   # the YYYY-MM-DD shape not required
+mp CD3 $'D9 cut_date not a bare date refused: (2026-13-01|2026-02-30|2027-02-29)' "$RRE" $'            datetime.date.fromisoformat(v)' $'            pass'   # a date that does not exist accepted
 # round 8 (N5): --only NAME that names no mutant ran nothing; that is a usage error (exit 2), never a vacuous pass
 if [ -n "$ONLY" ] && [ "$ONLY" != control ] && [ "$matched" -eq 0 ]; then
   echo "FAIL --only $ONLY: no mutant has that name, nothing was run"

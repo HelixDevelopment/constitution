@@ -1,0 +1,36 @@
+== sync-full-automation (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix6.gk0k/tmp/helix-sync-test.2na2kG)
+  ok   off: verdict OFF
+  ok   off: prints the command
+  ok   offline: CURRENT (nothing fetched yet)
+  ok   offline: no fetch
+  ok   check: UPDATES-AVAILABLE
+  ok   check: rc 3
+  ok   offline after a fetch: UPDATES-AVAILABLE
+  ok   apply: CURRENT verdict (exit 0)
+  ok   apply: step returns 0
+  ok   apply: root fast-forwarded
+  ok   ask without a terminal: SKIP, never run unasked
+  ok   unknown mode: SKIP
+  ok   missing engine: SKIP
+  ok   not a work tree: SKIP
+  ok   apply on a dirty tree: ATTENTION, step still returns 0
+  ok   hook: STEP 5c reached
+  ok   hook: default offline check ran the engine
+  ok   hook: verdict reported, informational
+  ok   hook: offline check changed nothing
+  ok   hook: off
+  ok   hook: unknown mode is a warning
+  ok   hook: fetch mode runs --check
+  ok   hook: fetch mode never integrates
+  ok   hook: constitution without scripts/sync is a SKIP
+  ok   setup default: exit 0
+  ok   setup default: sync off, hint printed
+  ok   setup env check: UPDATES-AVAILABLE reported
+  ok   setup env check: setup still exits 0
+  ok   setup --sync-upstreams=apply: exit 0
+  ok   setup apply: engine ran
+  ok   setup apply: consumer fast-forwarded to its upstream main
+  ok   setup --sync-upstreams=bogus: exit 2
+  ok   setup bad env value: exit 2
+  ok   setup --check-only never runs the sync
+sync-full-automation: PASS 34 FAIL 0

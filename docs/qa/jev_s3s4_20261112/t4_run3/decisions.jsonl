@@ -1,0 +1,2 @@
+{"ts":1794504321000,"agent":"unknown","tool":"Bash","state_hash":"1df8bccaec747dc6","question":"gate","class":"gate","answer":"allow","risky_p":0,"confidence":0,"latency_ms":110,"endpoint":"jev-openrouter","mode":"shadow","enforced":false,"fallback":"endpoint_error"}
+{"ts":1794504321000,"agent":"unknown","tool":"Bash","state_hash":"1df8bccaec747dc6","question":"gate","class":"gate","answer":"allow","risky_p":0.06,"confidence":0.98,"latency_ms":213,"endpoint":"jev-typesafe","mode":"shadow","enforced":false,"fallback":null}

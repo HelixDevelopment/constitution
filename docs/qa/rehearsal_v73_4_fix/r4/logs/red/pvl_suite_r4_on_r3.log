@@ -1,0 +1,180 @@
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 4 items, 2 provisional, 2 ok
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 empty field value
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an option: usage exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P4 the database is unchanged
+PASS P5 real database: every Ready-for-testing and In-testing item has a complete line
+PASS P5 the checker counted the same 30 rows (needle: an independent count)
+PASS P5 without --root the paths are checked for their shape only (said on the PATHS line)
+PASS P5 the real database holds provisional items (control: 30 > 0)
+PASS P5 real database with --root: every job path that counts exists in this checkout
+PASS P5 --root is reported
+PASS P6 control: the correct checker refuses the single missing-checks item
+PASS P6 control: the correct checker refuses the single In-testing item
+PASS P6 mutant checks-not-required is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant status-in-testing-dropped is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant blind-check-dropped is caught (rc 0)
+GRID-FAIL CON-5434 r4:B1_slash: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5435 r4:B1_comma: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5436 r4:B1_pipe: want 'field 'target' is a placeholder...', got accepted
+GRID-FAIL CON-5437 r4:B1_middot: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5438 r4:B1_bullet: want 'field 'artifact' is a placeholder...', got accepted
+GRID-FAIL CON-5439 r4:B1_uhyphen: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5440 r4:B1_inside_slash: want 'field 'checks' holds the placeholder word...', got accepted
+GRID-FAIL CON-5441 r4:B1_todo_plus: want 'field 'checks' is a placeholder...', got accepted
+GRID-FAIL CON-5442 r4:B2_none_yet: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5443 r4:B2_pending_sched: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5444 r4:B2_to_be: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5445 r4:B2_na_na: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5446 r4:B2_pending_sh: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5447 r4:B2_none_sh: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5448 r4:B2_sometime_maybe: want 'field 'job' does not name a job...', got accepted
+GRID-FAIL CON-5449 r4:B3_hangul_filler: want 'field 'checks' is empty...', got 'field 'checks' is too short to name anything (at least 3 letters or digits)'
+GRID-FAIL CON-5450 r4:B3_hangul_choseong: want 'field 'target' holds an invisible...', got accepted
+GRID-FAIL CON-5451 r4:B3_filler_inside: want 'field 'checks' holds an invisible...', got accepted
+GRID-FAIL CON-5452 r4:B3_halfwidth_filler: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5454 r4:F3_host_later: want 'field 'target' ends with a placeholder...', got accepted
+FAIL P7 grid: mismatches (rc 1): GRID cases=733 refused=602 accepted=131 mismatches=193 checker_rc=1
+FAIL P7 grid size (needle: the grid really ran its cases) (no line /^GRID cases=7[0-9][0-9] refused=6[0-9][0-9] accepted=1[0-9][0-9] mismatches=0 checker_rc=1$/: GRID-PASS CON-5001 job:empty|GRID-PASS CON-5002 job:spaces|GRID-PASS CON-5003 job:dot|GRID-PASS CON-5004 job:dash|GRID-PASS CON-5005 job:endash|GRID-PASS CON-5006 job:ellipsis|GRID-PASS CON-5007 job:ellipsis_char|GRID-PASS CON-5008 job:question|GRID-PASS CON-5009 job:dashes|GRID-PASS CON-5010 job:TB)
+PASS P7 B2: the reviewer case r3:cyr_TBD_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:pending_sched_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:none_assigned_target is in the grid and as expected
+PASS P7 B2: the reviewer case r3:not_applicable_checks is in the grid and as expected
+PASS P7 B2: the reviewer case r3:T.B.D_job is in the grid and as expected
+PASS P7 B2: the reviewer case r3:TBD_underscore_target is in the grid and as expected
+PASS P7 B2: the reviewer case r3:qqq_checks is in the grid and as expected
+PASS P7 B2: the reviewer case r3:body:html_comment_only is in the grid and as expected
+PASS P7 B2: the reviewer case r3:body:prefix_glued is in the grid and as expected
+PASS P7 B2: at least 150 r3 cases pass (161; 74 the reviewer's, the rest the fixer's)
+FAIL P7 r4: r4 cases (20)
+FAIL P7 r4: inventory sample cases (87)
+FAIL P7 r4: the case r4:B1_slash
+FAIL P7 r4: the case r4:B1_middot
+FAIL P7 r4: the case r4:B2_none_yet
+FAIL P7 r4: the case r4:B2_pending_sh
+FAIL P7 r4: the case r4:B3_hangul_filler
+FAIL P7 r4: the case r4:F4_foo
+FAIL P7 r4: the case r4:root:F2_etc_passwd
+PASS P7 r4: the case r4:R10_one_letter_key is in the grid and as expected
+PASS P7 r4: the case r4:R12_hex6 is in the grid and as expected
+FAIL P7 r4: the case r4:body:line_too_long
+PASS P7 M1: the case 'due: .' is in the grid and refused
+FAIL P8 mutant O01-default-ignorable did not apply exactly once
+FAIL P8 mutant O02-tab-not-invisible did not apply exactly once
+FAIL P8 mutant O03-compat-fold did not apply exactly once
+FAIL P8 mutant O05-skeleton-decimal did not apply exactly once
+FAIL P8 mutant O06-skeleton-confusables did not apply exactly once
+FAIL P8 mutant O07-skeleton-latin-name did not apply exactly once
+FAIL P8 mutant O08-single-runs did not apply exactly once
+FAIL P8 mutant O09-lead-letters did not apply exactly once
+FAIL P8 mutant O10-weak-path did not apply exactly once
+FAIL P8 mutant O11-path-dotdot did not apply exactly once
+FAIL P8 mutant O12-path-commonpath did not apply exactly once
+FAIL P8 mutant O13-path-root-itself did not apply exactly once
+FAIL P8 mutant O14-trailing did not apply exactly once
+FAIL P8 mutant O15-note did not apply exactly once
+FAIL P8 mutant O16-mixed-script did not apply exactly once
+FAIL P8 mutant O17-declared-script did not apply exactly once
+FAIL P8 mutant O18-outcome-shape did not apply exactly once
+FAIL P8 mutant O19-max-line did not apply exactly once
+FAIL P8 mutant O20-lead-only did not apply exactly once
+FAIL P8 mutant O21-checks-trail-none did not apply exactly once
+FAIL P8 mutant O22-invisible-refused did not apply exactly once
+FAIL P8 mutant O23-strong-lead did not apply exactly once
+FAIL P8 mutant O24-weak-lead did not apply exactly once
+FAIL P8 mutant O25-inside did not apply exactly once
+FAIL P8 mutant O26-inside-run did not apply exactly once
+FAIL P8 mutant O27-template did not apply exactly once
+PASS P8 mutant O28-punct-led is caught (199 grid cases)
+FAIL P8 mutant O29-run-prefixes did not apply exactly once
+FAIL P8 mutant O30-not-no-lead did not apply exactly once
+FAIL P8 mutant O31-checks-not did not apply exactly once
+FAIL P8 mutant O32-target-words did not apply exactly once
+FAIL P8 mutant O33-compat-char-single did not apply exactly once
+PASS P8 mutant O34-fence-ignored is caught (207 grid cases)
+PASS P8 mutant O35-colonless-form is caught (198 grid cases)
+PASS P8 mutant O36-due-calendar is caught (197 grid cases)
+PASS P8 mutant O37-due-time is caught (195 grid cases)
+PASS P8 mutant O38-layer-shape is caught (199 grid cases)
+PASS P8 mutant O39-artifact-shape is caught (197 grid cases)
+PASS P8 mutant O40-job-shape is caught (205 grid cases)
+PASS P8 mutant O41-job-command is caught (195 grid cases)
+PASS P8 mutant O42-comment-skipped is caught (198 grid cases)
+PASS P9 job: UNCONFIRMED: refused
+PASS P9 due: TODO refused
+PASS P9 every field TBD refused (the first field is named)
+PASS P9 job: - refused
+PASS P9 due: . refused (reviewer mutant PV2 shape)
+PASS P9 a line inside a code fence does not count
+PASS P10 --root: exit 1 (one job path is absent)
+PASS P10 --root: the absent path is refused
+PASS P10 --root: an existing path is accepted
+PASS P10 --root: a command with ./... needs no path
+PASS P10 --root is reported
+PASS P10 without --root the shape is enough (control)
+PASS P10 --root that is not a directory: usage exit 64
+PASS P10 --root without a value: usage exit 64
+FAIL P10 mutant root-ignored did not apply
+FAIL P8 mutant R1-port did not apply exactly once
+FAIL P8 mutant R2-port did not apply exactly once
+FAIL P8 mutant R3-port did not apply exactly once
+FAIL P8 mutant R4-port did not apply exactly once
+FAIL P8 mutant R5-port did not apply exactly once
+FAIL P8 mutant R6-port did not apply exactly once
+FAIL P8 mutant R7-port did not apply exactly once
+FAIL P8 mutant R8-port did not apply exactly once
+PASS P8 mutant R9-verbatim is caught (194 grid cases)
+PASS P8 mutant R10-verbatim is caught (194 grid cases)
+FAIL P8 mutant R11-port did not apply exactly once
+PASS P8 mutant R12-verbatim is caught (194 grid cases)
+PASS P8 mutant R13-verbatim is caught (195 grid cases)
+PASS P8 mutant R14-verbatim is caught (194 grid cases)
+PASS P8 mutant R15-verbatim is caught (195 grid cases)
+PASS P8 mutant R16-verbatim is caught (197 grid cases)
+PASS P8 mutant R19-verbatim is caught (194 grid cases)
+PASS P8 mutant R20-verbatim is caught (195 grid cases)
+PASS P8 mutant R21-verbatim is caught (194 grid cases)
+PASS P8 mutant R22-verbatim is caught (194 grid cases)
+PASS P8 mutant X1-verbatim is caught (194 grid cases)
+PASS P8 mutant X2-verbatim is caught (194 grid cases)
+PASS P8 mutant X3-verbatim is caught (195 grid cases)
+PASS P8 mutant X4-port is caught (194 grid cases)
+PASS P8 mutant X5-port is caught (194 grid cases)
+FAIL P8 mutant X6-port did not apply exactly once
+PASS P8 mutant X7-verbatim is caught (199 grid cases)
+INV-FAIL U01 U+00AD checks '3 pas\xadsed' want=REJ got=accepted
+INV-FAIL U01 U+034F checks '3 pas͏sed' want=REJ got=accepted
+INV-FAIL U01 U+061C checks '3 pas\u061csed' want=REJ got=accepted
+INV-FAIL U01 U+115F checks '3 pasᅟsed' want=REJ got=accepted
+INV-FAIL U01 U+115F checks 'TᅟBD later' want=REJ got=accepted
+INV-FAIL U01 U+1160 checks '3 pasᅠsed' want=REJ got=accepted
+INV-FAIL U01 U+1160 checks 'TᅠBD later' want=REJ got=accepted
+INV-FAIL U01 U+17B4 checks '3 pas឴sed' want=REJ got=accepted
+INV-FAIL U01 U+17B5 checks '3 pas឵sed' want=REJ got=accepted
+INV-FAIL U01 U+180B checks '3 pas᠋sed' want=REJ got=accepted
+FAIL P12 inventory (rc 1): 
+FAIL P12 inventory size (needle: the sweep really ran) (no line /^INVENTORY classes=23 members=1[0-9]{6} cases=[0-9]{5,} mismatches=0 below_floor=0 unicode=[0-9.]+$/: INV-FAIL U01 U+00AD checks '3 pas\xadsed' want=REJ got=accepted|INV-FAIL U01 U+034F checks '3 pas͏sed' want=REJ got=accepted|INV-FAIL U01 U+061C checks '3 pas\u061csed' want=REJ got=accepted|INV-FAIL U01 U+115F checks '3 pasᅟsed' want=REJ got=accepted|INV-FAIL U01 U+115F checks 'TᅟBD later' want=REJ)
+FAIL P12 fold closure: no character's fold holds an invisible character (no line /^FOLD-CLOSURE code_points=1114112 folds_to_invisible=0$/: INV-FAIL U01 U+00AD checks '3 pas\xadsed' want=REJ got=accepted|INV-FAIL U01 U+034F checks '3 pas͏sed' want=REJ got=accepted|INV-FAIL U01 U+061C checks '3 pas\u061csed' want=REJ got=accepted|INV-FAIL U01 U+115F checks '3 pasᅟsed' want=REJ got=accepted|INV-FAIL U01 U+115F checks 'TᅟBD later' want=REJ)
+PASS P12 the document lists the generator's classes, in order (U01 U02 U03 U04 U05 U06 U07 U08 U09 U10 U11 U12 U13 U14 U15 U16 U17 U18 U19 U20 U21 U22 U23 )
+PASS P12 mutant: a renamed class makes the lists differ (the comparison can fail)
+PASS P12 mutant: a floor above the members is reported BELOW-FLOOR (rc 1)
+FAIL P13 timing (rc 1): TIMING cases=98 worst=12.067s limit=1.00s SLOW|
+FAIL P13 timing size (needle) (no line /^TIMING cases=98 worst=[0-9.]+s limit=1.00s OK$/: split40k 12.0671s parts=7|field40k 0.0241s accepted|TIMING cases=98 worst=12.067s limit=1.00s SLOW)
+FAIL P13 mutant quadratic-split did not apply
+PASS P13 mutant quadratic-split is caught ()
+RESULT: pass=89 fail=60

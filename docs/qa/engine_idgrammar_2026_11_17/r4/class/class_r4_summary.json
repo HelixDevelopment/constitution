@@ -1,0 +1,8 @@
+{
+ "cases": 579,
+ "controls_ok": true,
+ "verdicts": {
+  "REFUSED": 194,
+  "RT_OK": 385
+ }
+}

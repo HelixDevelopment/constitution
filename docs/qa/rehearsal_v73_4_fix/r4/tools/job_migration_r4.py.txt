@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+"""CON-423 r4: the job text of CON-423 runs the checker with --root . (review r3, B2: shape-only is too weak for the
+item's own job). Edit through the engine only: `workable-items update --description` on a COPY first, compare the
+copy's body with the expected body, then the real database, compare again. Stored as .txt (evidence, not an entry
+point). Usage: python3 -I job_migration_r4.py.txt REPO OUTDIR"""
+import os, shutil, sqlite3, subprocess, sys, hashlib
+repo, out = sys.argv[1], sys.argv[2]
+db = os.path.join(repo, "docs/workable_items.db")
+eng = os.path.join(repo, "scripts/workable-items/bin/workable-items")
+ID = "CON-423"
+OLD = "python3 -I scripts/validation/check_provisional_verification_lines.py docs/workable_items.db"
+NEW = "python3 -I scripts/validation/check_provisional_verification_lines.py --root . docs/workable_items.db"
+def row(path):
+    c = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+    r = c.execute("select description, body_md from items where atm_id=?", (ID,)).fetchone()
+    c.close()
+    return r
+log = open(os.path.join(out, "job_migration_run.txt"), "w")
+log.write("db sha256 before %s\n" % hashlib.sha256(open(db, "rb").read()).hexdigest())
+desc, body = row(db)
+assert desc.count(OLD) == 1 and body.count(OLD) == 1, (desc.count(OLD), body.count(OLD))
+open(os.path.join(out, ID + ".before.txt"), "w").write(body)
+nd, nb = desc.replace(OLD, NEW), body.replace(OLD, NEW)
+open(os.path.join(out, ID + ".desc.txt"), "w").write(nd)
+open(os.path.join(out, ID + ".expected.txt"), "w").write(nb)
+cp = os.path.join(out, "db_copy.db")
+shutil.copyfile(db, cp)
+for tag, path in (("copy", cp), ("real", db)):
+    p = subprocess.run([eng, "update", "--db", path, "--id", ID, "--description", nd], capture_output=True, text=True)
+    open(os.path.join(out, "%s.update_%s.out.txt" % (ID, tag)), "w").write(p.stdout + p.stderr + "rc=%d\n" % p.returncode)
+    got = row(path)
+    ok = p.returncode == 0 and got[0] == nd and got[1] == nb
+    log.write("%s %s %s\n" % (tag, ID, "MATCH" if ok else "MISMATCH rc=%d" % p.returncode))
+    if not ok:
+        sys.exit(1)
+os.remove(cp)
+log.write("db sha256 after %s\nDONE items=1\n" % hashlib.sha256(open(db, "rb").read()).hexdigest())

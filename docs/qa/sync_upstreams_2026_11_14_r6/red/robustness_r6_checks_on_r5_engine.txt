@@ -1,0 +1,98 @@
+== write_deadline
+  FAIL write_deadline.control_slow  (4.2s)
+  FAIL write_deadline.head_at_target  ()
+  FAIL write_deadline.no_index_lock  ()
+  FAIL write_deadline.tree_clean  (?? .gitattributes
+?? f0.slow)
+  FAIL write_deadline.move_recorded  (moved False head_after None)
+  FAIL write_deadline.not_unresolved  (['head-unreadable', 'unresolved:merge:timeout', 'unresolved:rev-parse:deadline'])
+  FAIL write_deadline.applied  (rc=5 result=unresolved)
+  ok   write_deadline.marker_removed
+== write_timeout
+  FAIL write_timeout.failed_exit_1  (rc=2)
+  ok   write_timeout.ended_before_finish
+  FAIL write_timeout.reason_write_killed  (None)
+  FAIL write_timeout.term_sufficed  ([])
+  ok   write_timeout.no_index_lock_after_term
+  ok   write_timeout.head_not_moved
+  FAIL write_timeout.recovery_steps  (None)
+  FAIL write_timeout.recovery_printed  (                    [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: unrecognized arguments: --write-timeout 3
+)
+  FAIL write_timeout.marker_kept  ()
+  FAIL write_timeout.control_leftovers_present  ()
+  FAIL write_timeout.rerun_attributes  ([])
+  FAIL write_timeout.rerun_no_plain_dirty_tree  ([])
+  FAIL write_timeout.rerun_attention_not_moved  (rc=0)
+  ok   write_timeout.recovered_apply
+  ok   write_timeout.marker_cleared
+  FAIL write_timeout.marker_clear_noted  (None)
+== write_kill
+  FAIL write_kill.failed_exit_1  (rc=2)
+  FAIL write_kill.reason  (None)
+  FAIL write_kill.named_signal  ([])
+  ok   write_kill.locks_listed_when_left
+  ok   write_kill.bounded
+== marker_success
+  ok   marker_success.applied
+  ok   marker_success.no_marker
+== switch_at_merge
+  ok   switch_at_merge.fired
+  ok   switch_at_merge.reported
+  ok   switch_at_merge.not_updated
+== sigterm_pin
+  ok   sigterm_pin.signalled
+  ok   sigterm_pin.exit_8
+  ok   sigterm_pin.child_at_s2
+  ok   sigterm_pin.index_staged_s2
+  ok   sigterm_pin.action_verified
+== marker_inspect
+  ok   marker_inspect.fired
+  ok   marker_inspect.root_not_moved
+  ok   marker_inspect.attention
+== wrote_then_other
+  ok   wrote_then_other.fired
+  ok   wrote_then_other.reason
+  ok   wrote_then_other.changed_by_other
+  ok   wrote_then_other.attention
+== staged_root
+  FAIL staged_root.attention_exit_4  (rc=1 [{'error': 'error: Your local changes to the following files would be overwritten by merge:\n\tlibs/a\nPlease commit your changes or stash them before you merge.\nAborting', 'op': 'fast-forward', 'rc': 1, 'to': 'a3632e1b180dcf8b7cc2444a8ea83e1541791adb'}])
+  FAIL staged_root.blocked_before_write  (['gitlink-staged:libs/a'])
+  ok   staged_root.root_not_moved
+  ok   staged_root.stage_kept
+  ok   staged_root.control_moved
+  ok   staged_root.control_stage_kept
+== lock_open
+  FAIL lock_open.sub_exit_1  (rc=7)
+  FAIL lock_open.sub_own_message  (other sync run holds /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix6.gk0k/tmp/helix-sync-robust.lock_open.ymbiay0b/work/p/.git/modules/libs/a/helix-sync-upstreams.lock (exit 7, nothing fetched or changed)
+)
+  FAIL lock_open.root_exit_1  (rc=7)
+  FAIL lock_open.root_own_message  (sync-upstreams: ERROR: another sync run holds /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix6.gk0k/tmp/helix-sync-robust.lock_open.ymbiay0b/work/p/.git/helix-sync-upstreams.lock (exit 7, nothing done)
+)
+  ok   lock_open.control_runs
+== ctrl_c
+  ok   ctrl_c.prompted
+  FAIL ctrl_c.ends_without_enter  (done=False 15.1s)
+  FAIL ctrl_c.exit_8  (code=None)
+  ok   ctrl_c.nothing_moved
+== update_none
+  ok   update_none.root_moved
+  FAIL update_none.child_not_followed  ()
+  FAIL update_none.reason  ([])
+  FAIL update_none.attention  (rc=0)
+  ok   update_none.gitmodules_rebase_not_followed
+  ok   update_none.control_follows
+== interrupted_labels
+  ok   interrupted_labels.exit_8
+  FAIL interrupted_labels.no_unreachable  (['unreachable:origin', 'no-upstream-main', 'unresolved:fetch:interrupted', 'unresolved:rev-parse:interrupted', 'unreachable:origin', 'unresolved:fetch:interrupted', 'unresolved:rev-parse:interrupted'])
+  FAIL interrupted_labels.no_no_upstream  (['unreachable:origin', 'no-upstream-main', 'unresolved:fetch:interrupted', 'unresolved:rev-parse:interrupted', 'unreachable:origin', 'unresolved:fetch:interrupted', 'unresolved:rev-parse:interrupted'])
+  FAIL interrupted_labels.labelled  (['no-answer', 'no-answer'])
+== blind_failed
+  ok   blind_failed.fired
+  ok   blind_failed.malformed_recorded
+  ok   blind_failed.blind_exit_6
+sync-robustness: PASS 39 FAIL 35

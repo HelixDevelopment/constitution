@@ -1,0 +1,128 @@
+CT01	r7p72	killed	rc=143	early=1	fails=1	8s	P72 schema absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [schema]; got rc 0, 1 starts, verdict fits, reason [])
+REAL	r7p72	survived	rc=0	early=0	fails=0	89s	
+REAL	r7	survived	rc=0	early=0	fails=0	308s	
+RM02	r7	survived	rc=0	early=0	fails=0	391s	
+RM01	r7	survived	rc=0	early=0	fails=0	393s	
+RM01	r6	killed	rc=143	early=1	fails=2	52s	P52 reap: lease dropped, cache entry removed, no stop (expected [0 0 0 0] got [0 1 1 0])
+REAL	r6	survived	rc=0	early=0	fails=0	436s	
+RM03	r7	survived	rc=0	early=0	fails=0	388s	
+RM02	r6	survived	rc=0	early=0	fails=0	524s	
+RM02	pl	killed	rc=143	early=1	fails=1	140s	P24 a reused pid (start time differs) is reaped (expected [0] got [1])
+REAL	pl	survived	rc=0	early=0	fails=0	394s	
+RM03	r6	killed	rc=143	early=1	fails=2	395s	P58 a stopping set: reason_code endpoint_stopping (expected [5 refused_stopping endpoint_stopping] got [5 no_fit null])
+RM04	pl	killed	rc=143	early=1	fails=1	242s	P31 the same mark older than the stop timeout + 30 s is cleared (expected [false] got [true])
+RM06	r6	killed	rc=143	early=1	fails=1	15s	P51 the outcome is announced: lease held, start recorded late (no [start recorded late] in <SESSION-TMP>
+RM05	pl	killed	rc=143	early=1	fails=1	93s	P20 releasing the last lease of an operator-started unit never stops it (expected [0] got [1])
+RM08	pl	killed	rc=143	early=1	fails=2	18s	P4 key variable NAME recorded (expected [TYPESAFE_API_KEY] got [tsk-s4-787294741-realvalue])
+RM07	pl	killed	rc=143	early=1	fails=1	75s	P16 heartbeat refreshed (expected [1700000050] got [1700000000])
+RM10	pl	killed	rc=143	early=1	fails=2	33s	P7 nproc headroom unmeasured -> rc 5, no start (undetermined is never fits) (expected [5 0] got [0 1])
+RM11	pl	killed	rc=143	early=1	fails=1	4s	P1 local gateway in the cache at priority 10 (expected [10] got [100])
+RM12	pl	killed	rc=143	early=1	fails=1	280s	P30 a zombie holder is dead: its lease is reaped (expected [0] got [1])
+RM13	r6	killed	rc=143	early=1	fails=2	71s	P54 decide status fails: placement still proceeds (expected [0 decide-a] got [5 ])
+RM09	r7	survived	rc=0	early=0	fails=0	444s	
+RM14	pl	killed	rc=143	early=1	fails=1	74s	P16 pid-less lease past TTL reaped (expected [0] got [1])
+OM01	r6	killed	rc=143	early=1	fails=1	59s	P52 setup: one (dead) lease and one cache entry (expected [1 1] got [1 0])
+OM02	r6	killed	rc=143	early=1	fails=1	51s	P51d JEV_PLACE_MAX=2: after the late-recorded start decide-b is never considered (found [candidate decide-b] in <SESSION-TMP>
+RM09	r6	survived	rc=0	early=0	fails=0	654s	
+OM03	r6	survived	rc=0	early=0	fails=0	640s	
+RM09	pl	survived	rc=0	early=0	fails=0	512s	
+OM04	r6	killed	rc=143	early=1	fails=2	88s	P54 an http:// registry URL is refused: no start, no entry (expected [5 0 0 gateway_refused] got [0 1 0 placed])
+OM03	r7	killed	rc=143	early=1	fails=2	444s	P87 decide-b is not started while decide-c is stopping (expected [0 decide-a 0] got [0 decide-a 1])
+OM05	r6	killed	rc=143	early=1	fails=1	460s	P57 heartbeat of a holder that never held a lease exits 3 (expected [3] got [0])
+OM06	r6	killed	rc=143	early=1	fails=2	456s	P56 --ttl 1 is a config error: refused, no start (expected [2 0] got [0 1])
+OM07	r6	killed	rc=143	early=1	fails=1	506s	P68 the slow older (degraded) answer did not overwrite the newer ok observation; still routed (expected [ok 5 1] got [degraded 4 0])
+OM08	r6	killed	rc=143	early=1	fails=2	521s	P69 the pre-start answer (no unit) did not release the started set: one start, lease kept, routed, health ok (expected [1 1 1 ok] got [1 0 0 ok])
+OM09	r6	killed	rc=143	early=1	fails=2	372s	P58 unit gone: endpoint_gone recorded; the heartbeat tells s1 it holds no lease (rc 3) (expected [3 endpoint_gone endpoint_gone] got [0 endpoint_gone endpoint_g
+OM10	r6	killed	rc=143	early=1	fails=2	382s	P59 decide capacity fails: undetermined, not does_not_fit (expected [5 0 undetermined undetermined] got [5 0 does_not_fit no_fit])
+OM11	r6	killed	rc=143	early=1	fails=2	559s	P63 the lost placement record is logged (no [NOT written] in <SESSION-TMP>
+OM12	r6	killed	rc=143	early=1	fails=1	544s	P61 the reason code is nproc_unlimited (measured: rlimit_soft null) (expected [nproc_unlimited] got [nproc_not_measured])
+OM14	r6	killed	rc=143	early=1	fails=1	468s	P63 the lost placement record is logged (no [NOT written] in <SESSION-TMP>
+OM13	r6	survived	rc=0	early=0	fails=0	578s	
+OM15	r6	killed	rc=143	early=1	fails=1	350s	P58 unit gone: endpoint_gone recorded; the heartbeat tells s1 it holds no lease (rc 3) (expected [3 endpoint_gone endpoint_gone] got [3 joined null])
+OM13	r7	survived	rc=0	early=0	fails=0	329s	
+OM13	pl	survived	rc=0	early=0	fails=0	329s	
+OM16	r6	killed	rc=143	early=1	fails=2	409s	P71 the failed fresh answer is announced (no [the fresh answer is undetermined] in <SESSION-TMP>
+VM01	r7p72	killed	rc=143	early=1	fails=1	81s	P72 pressure.ok false with verdict fits (VM01) (expected rc 5, 0 starts, verdict does_not_fit, a reason naming [psi full avg10 3.1]; got rc 0, 1 starts, verdict
+VM03	pl	killed	rc=143	early=1	fails=1	18s	P8 headroom < threads -> does_not_fit, no start (expected [5 0] got [0 1])
+VM02	pl	killed	rc=143	early=1	fails=1	302s	P47 the reason names the failed measurement (no [measurement failed] in <SESSION-TMP>
+VM04	r7	survived	rc=0	early=0	fails=0	269s	
+VM06	r7	killed	rc=143	early=1	fails=1	160s	P79 a live starter's mark is kept at MARK_TTL (138 s) (expected [3] got [null])
+VM07	r7	killed	rc=143	early=1	fails=2	206s	P80 sB's heartbeat leaves sA's heartbeat_at at its own value (expected [0 1700000000] got [0 1700000800])
+VM04	r6	killed	rc=143	early=1	fails=1	328s	P64 once decide-a is resident the fresh answer says decide-b does not fit: one start (expected [0 decide-a 1] got [0 decide-a 2])
+VM09	pl	killed	rc=143	early=1	fails=3	75s	P5 slow capacity -> rc 5, no start (expected [5 0] got [0 1])
+VM10	r7	killed	rc=143	early=1	fails=2	146s	P75b B re-reads and STARTS decide-a; it never adopts the gone unit (expected [0 decide-a placed] got [0 decide-a joined_running])
+VM08	r7	survived	rc=0	early=0	fails=0	312s	
+VM11	r7	killed	rc=143	early=1	fails=1	255s	P81b CONTROL shape: the degraded lease-less set is disposed, then decide-b placed (expected [0 decide-b 1 1] got [5  1 0])
+VM12	pl	killed	rc=143	early=1	fails=2	10s	P5 capacity exit 1 -> rc 5, no start (expected [5 0] got [0 1])
+VM13	r7	killed	rc=143	early=1	fails=2	150s	P76 decide-b is started once (by the writer), never again by A's mark (expected [1 1] got [1 2])
+NM01	r7	killed	rc=143	early=1	fails=4	85s	P73 B joins decide-a (a fresh plan after the stale mark) (expected [0 decide-a] got [0 decide-b])
+VM08	r6	survived	rc=0	early=0	fails=0	440s	
+VM08	pl	killed	rc=143	early=1	fails=1	71s	P20 releasing the last lease of an operator-started unit never stops it (expected [0] got [1])
+NM03	r7	killed	rc=143	early=1	fails=3	132s	P75 A re-plans and joins the set the older-pin writer created (expected [0 decide-a] got [0 decide-b])
+NM02	r7	survived	rc=0	early=0	fails=0	337s	
+NM04	r7	survived	rc=0	early=0	fails=0	452s	
+NM02	r7p89	killed	rc=1	early=0	fails=3	6s	P89 C reads again after its own reap cleared the mark, joins the running unit and starts nothing (expected [0 decide-a joined 1] got [5  refused_join 1])
+REAL	r7p89	survived	rc=0	early=0	fails=0	8s	
+NM02	r6	survived	rc=0	early=0	fails=0	787s	
+NM02	pl	killed	rc=143	early=1	fails=2	189s	P21 after a failed stop a new acquire joins the kept model (unit ok; no second start) (expected [0 decide-a 1] got [5  1])
+NM04	r6	survived	rc=0	early=0	fails=0	879s	
+NM05	r7	killed	rc=143	early=1	fails=1	351s	P75b CONTROL: the registry is not an ABA of B's ticket (the row would not test the generation): {
+NM04	pl	survived	rc=0	early=0	fails=0	736s	
+NM06	r7	killed	rc=143	early=1	fails=1	656s	P86 the owed stop fails: tried once by this acquire, which ends (rc 5) (expected [5 1] got [124 33])
+NM08	r7	killed	rc=143	early=1	fails=3	440s	P78 the observer clears the mark and does NOT mark the set gone (its answer predates the start) (expected [0 null 1] got [0 {
+NM09	r7	killed	rc=143	early=1	fails=1	388s	P79 a live starter's mark is kept at MARK_TTL (138 s) (expected [3] got [null])
+NM10	r7p72	killed	rc=143	early=1	fails=1	206s	P72 measurement.critical_inputs_unreadable non-empty (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.psi.memory]; got rc 0, 1 starts, verd
+NM11	r7p72	killed	rc=143	early=1	fails=1	178s	P72 profiles.decide-a.headroom absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [headroom]; got rc 0, 1 starts, verdict fits, reason [])
+NM12	r7p72	killed	rc=143	early=1	fails=1	169s	P72 profiles.decide-a.threads absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [threads]; got rc 0, 1 starts, verdict fits, reason [])
+NM13	r7p72	killed	rc=143	early=1	fails=1	194s	P72 profiles.decide-a.reasons absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [reasons]; got rc 5, 0 starts, verdict does_not_fit, reason
+NM07	r7	killed	rc=124	early=0	fails=0	1806s	
+NM14	r7p72	survived	rc=0	early=0	fails=0	206s	
+REAL	r7p72f	survived	rc=0	early=0	fails=0	188s	
+REAL	r7p90	survived	rc=0	early=0	fails=0	13s	
+REAL	r7p75b	survived	rc=0	early=0	fails=0	20s	
+NM14	r7p72f	killed	rc=143	early=1	fails=1	148s	P72 profiles.decide-a.verdict absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [contract fields of profiles.decide-a missing or wrong: ver
+NM15	r7	killed	rc=143	early=1	fails=1	612s	P82b three stale reads: a plan with joins only, no start (stale_answer) (expected [5 0 stale_answer] got [0 1 null])
+NM14	r7	survived	rc=0	early=0	fails=0	723s	
+NM07	r7p90	killed	rc=143	early=1	fails=2	302s	P90 a start that ends rc 1 is tried once by this acquire, which ends rc 5 with no unit (expected [5 1 ] got [124 90 ])
+NM16	r7	killed	rc=143	early=1	fails=1	487s	P83 C's acquire on an undetermined answer wrote nothing to the registry (expected [5 1] got [5 2])
+NM17	r7	killed	rc=143	early=1	fails=1	313s	P81a the fresh answer comes from the planned re-plan, never from the stale-mark backstop (found [stale answer] in <SESSION-TMP>
+NM14	r6	survived	rc=0	early=0	fails=0	687s	
+NM18	r7	killed	rc=143	early=1	fails=1	438s	P81c the fresh answer comes from the planned re-plan, never from the stale-mark backstop (found [stale answer] in <SESSION-TMP>
+NM14	pl	killed	rc=143	early=1	fails=1	687s	P36 the cleanup stop was not bounded (10s)
+NM19	r7	killed	rc=143	early=1	fails=2	698s	P88 decide-b is never started for the released sA; sA holds no lease (expected [0 0] got [1 1])
+NM20	r7	killed	rc=143	early=1	fails=2	620s	P88 decide-b is never started for the released sA; sA holds no lease (expected [0 0] got [1 1])
+NM21	r7	killed	rc=143	early=1	fails=2	450s	P82 four stale marks: no start, undetermined (stale_answer) (expected [5 0 undetermined stale_answer] got [0 1 placed null])
+NM23	r7	killed	rc=143	early=1	fails=1	164s	P72 profiles.decide-a.verdict absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [verdict]; got rc 5, 0 starts, verdict undetermined, reason
+NM22	r7	killed	rc=143	early=1	fails=2	481s	P82b three stale reads: a plan with joins only, no start (stale_answer) (expected [5 0 stale_answer] got [0 1 null])
+NM24	r7p72	killed	rc=143	early=1	fails=1	179s	P72 pressure.ok false with verdict fits (VM01) (expected rc 5, 0 starts, verdict does_not_fit, a reason naming [psi full avg10 3.1]; got rc 5, 0 starts, verdict
+NM25	r7	killed	rc=143	early=1	fails=1	330s	P78 the observer clears the mark and does NOT mark the set gone (its answer predates the start) (expected [0 null 1] got [1 null 1])
+CT02	r7p72	killed	rc=143	early=1	fails=1	25s	P72 time absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [time]; got rc 0, 1 starts, verdict fits, reason [])
+NM26	r7	killed	rc=143	early=1	fails=1	286s	P76 A announces it did not start decide-b (no [candidate decide-b: not started] in <SESSION-TMP>
+CT03	r7p72	killed	rc=143	early=1	fails=1	148s	P72 profiles absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [profiles]; got rc 5, 0 starts, verdict undetermined, reason [no candidate f
+CT05	r7p72	killed	rc=143	early=1	fails=1	29s	P72 host.cpus_online absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.cpus_online]; got rc 0, 1 starts, verdict fits, reason [])
+CT06	r7p72	killed	rc=143	early=1	fails=1	35s	P72 host.mem_total_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.mem_total_mb]; got rc 0, 1 starts, verdict fits, reason [])
+CT04	r7p72	survived	rc=0	early=0	fails=0	183s	
+CT07	r7p72	killed	rc=143	early=1	fails=1	42s	P72 host.mem_available_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.mem_available_mb]; got rc 0, 1 starts, verdict fits, reas
+CT08	r7p72	killed	rc=143	early=1	fails=1	45s	P72 host.usable_mem_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.usable_mem_mb]; got rc 0, 1 starts, verdict fits, reason [])
+CT09	r7p72	killed	rc=143	early=1	fails=1	54s	P72 host.swap_total_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.swap_total_mb]; got rc 0, 1 starts, verdict fits, reason [])
+CT10	r7p72	killed	rc=143	early=1	fails=1	60s	P72 host.swap_free_mb absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.swap_free_mb]; got rc 0, 1 starts, verdict fits, reason [])
+CT11	r7p72	killed	rc=143	early=1	fails=1	53s	P72 host.load absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.load]; got rc 0, 1 starts, verdict fits, reason [])
+REAL	r7p72f	survived	rc=0	early=0	fails=0	135s	
+CT12	r7p72	killed	rc=143	early=1	fails=1	68s	P72 host.psi absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.psi]; got rc 0, 1 starts, verdict fits, reason [])
+CT04	r7p72f	killed	rc=143	early=1	fails=2	57s	P72 host absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host,host.cpus_online]; got rc 5, 0 starts, verdict undetermined, reason [contr
+CT13	r7p72	killed	rc=143	early=1	fails=1	61s	P72 host.cgroup absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [host.cgroup]; got rc 0, 1 starts, verdict fits, reason [])
+CT14	r7p72	killed	rc=143	early=1	fails=1	63s	P72 reserve absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [reserve]; got rc 0, 1 starts, verdict fits, reason [])
+CT15	r7p72	killed	rc=143	early=1	fails=1	68s	P72 pressure.ok a string (expected rc 5, 0 starts, verdict undetermined, a reason naming [pressure.ok]; got rc 0, 1 starts, verdict fits, reason [])
+CT04	r7	survived	rc=0	early=0	fails=0	504s	
+CT16	r7p72	killed	rc=143	early=1	fails=1	72s	P72 pressure.reasons absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [pressure.reasons]; got rc 0, 1 starts, verdict fits, reason [])
+CT17	r7p72	killed	rc=143	early=1	fails=1	96s	P72 llmctl.units absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [llmctl.units]; got rc 0, 1 starts, verdict fits, reason [])
+CT18	r7p72	killed	rc=143	early=1	fails=1	103s	P72 fallback.recommended absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [fallback.recommended]; got rc 0, 1 starts, verdict fits, reason
+CT19	r7p72	killed	rc=143	early=1	fails=1	117s	P72 fallback.key_variable absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [fallback.key_variable]; got rc 0, 1 starts, verdict fits, reas
+CT20	r7p72	killed	rc=143	early=1	fails=1	142s	P72 unknown_profiles absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [unknown_profiles]; got rc 0, 1 starts, verdict fits, reason [])
+CT21	r7p72	killed	rc=143	early=1	fails=1	141s	P72 degraded absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [degraded]; got rc 0, 1 starts, verdict fits, reason [])
+CT04	r6	survived	rc=0	early=0	fails=0	706s	
+CT22	r7p72	killed	rc=143	early=1	fails=1	148s	P72 largest_decision_fit absent (expected rc 5, 0 starts, verdict undetermined, a reason naming [largest_decision_fit]; got rc 0, 1 starts, verdict fits, reason
+CT04	pl	survived	rc=0	early=0	fails=0	555s	
+RM15	r6	killed	rc=143	early=1	fails=1	14s	P51 rc 0 and the profile: the lease IS held (it is in the registry since the mark) (expected [0 decide-a] got [4 ])
+OM02x	r6	killed	rc=143	early=1	fails=2	61s	P51d JEV_PLACE_MAX=2: after the late-recorded start decide-b is never considered (found [candidate decide-b] in <SESSION-TMP>
+OM13x	r6	killed	rc=143	early=1	fails=1	424s	P58 a stopping set: reason_code endpoint_stopping (expected [5 refused_stopping endpoint_stopping] got [5 refused_stopping null])

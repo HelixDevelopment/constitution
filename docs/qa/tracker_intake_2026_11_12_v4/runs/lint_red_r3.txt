@@ -1,0 +1,257 @@
+FAIL golden-good fixture: pattern /^RESULT: PASS selected=1 findings=0 prefix=FX rendered=Issues.md,Issues_Summary.md$/ not in: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad XREF-DANGLING
+PASS golden-bad XREF-DANGLING/title
+PASS golden-bad XREF-DANGLING/foreign-declared-only
+PASS golden-bad XREF-DANGLING/range-endpoint
+PASS golden-bad XREF-DANGLING/range-interior
+PASS golden-bad XREF-DANGLING/range-interior-150
+FAIL golden-bad XREF-DANGLING/state-column: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad XREF-LABEL
+PASS golden-bad XREF-LABEL/one-shared-word
+PASS golden-bad XREF-UNLABELLED
+PASS golden-bad FOREIGN-STALE
+PASS golden-bad STATE-PROSE
+PASS golden-bad STATE-PROSE/unreproduced-family
+PASS golden-bad STATE-PROSE/investigation-token
+PASS golden-bad STATE-PROSE/investigation-label
+PASS golden-bad STATE-PROSE/structured
+PASS golden-bad STATE-PROSE/structured-investigation
+FAIL golden-bad STATE-EVIDENCE/no-sha: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad STATE-EVIDENCE/no-path: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad STATE-EVIDENCE/missing-file: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad STATE-EVIDENCE/sha-mismatch: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad STATE-EVIDENCE/not-reproducible: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad STATE-EVIDENCE/blocker: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad STATE-EVIDENCE/investigation: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad STATE-EVIDENCE/investigation-sha: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad SECTIONS
+PASS golden-bad BODY-SYNC
+PASS golden-bad BODY-SYNC/empty
+PASS golden-bad BODY-SYNC/description-missing
+PASS golden-bad BODY-SYNC/extra-paragraph
+PASS golden-bad BODY-SYNC/text-before
+PASS golden-bad BODY-SYNC/prose-before-description
+PASS golden-bad BODY-SYNC/heading-title
+PASS golden-bad BODY-SYNC/heading-id
+FAIL golden-bad BODY-SYNC/status-value: pattern /^FINDING BODY-SYNC FX-002 body_md Status line differs/ not in: FINDING BODY-SYNC FX-002 body_md Status line disagrees with the status column 'Queued'|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad BODY-SYNC/status-twice: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/type: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/severity: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/severity-missing: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/created-by: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/assigned-to-extra: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/assigned-to-differs: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/reproduction-missing: pattern /^FINDING BODY-SYNC FX-002 body_md lacks the Reproduction line its source gives$/ not in: FINDING BODY-SYNC FX-002 body_md Reproduction line disagrees with reproduction_state reproduced-host-fixture|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad BODY-SYNC/reproduction-detail: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/investigation-differs: pattern /^FINDING BODY-SYNC FX-002 body_md Investigation line differs/ not in: FINDING BODY-SYNC FX-002 body_md Investigation line disagrees with investigation_state in-progress|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad BODY-SYNC/investigation-extra: pattern /^FINDING BODY-SYNC FX-002 body_md has an Investigation line while its source gives none$/ not in: FINDING BODY-SYNC FX-002 body_md has an Investigation line while investigation_state is UNSET|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad BODY-SYNC/obsolete-missing: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/obsolete-content: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/obsolete-on-open: pattern /^FINDING BODY-SYNC FX-002 body_md has an Obsolete-Details line while its source gives none$/ not in: FINDING BODY-SYNC FX-002 body_md shows Obsolete-Details on an item that is not Obsolete|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad BODY-SYNC/evidence-not-closure: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/reopened-without-row: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/reopened-differs: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/block-without-row: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/block-differs: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/reopens-count: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad BODY-SYNC/unknown-key
+PASS golden-bad BODY-SYNC/header-line-separator
+FAIL golden-bad SECRET: pattern /^FINDING SECRET FX-002 aws-access-key-id on description,body_md$/ not in: FINDING SECRET FX-002 aws-access-key-id|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad SECRET/title: pattern /^FINDING SECRET FX-002 aws-access-key-id on title,body_md$/ not in: FINDING SECRET FX-002 aws-access-key-id|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad SECRET/body-only: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad SECRET/items-column: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad SECRET/state-column: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad SECRET/obsolete-details: pattern /^FINDING SECRET FX-002 aws-access-key-id on obsolete_details.triple_check_evidence$/ not in: FINDING OBSOLETE-STALE FX-002 obsolete_details row (duplicate-of) on a Reopened item|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad SECRET/operator-block-details: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad SECRET/item-history: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad EPHEMERAL: pattern /^FINDING EPHEMERAL FX-002 bare-review-file: review_fixture_r1.md on description,body_md$/ not in: FINDING EPHEMERAL FX-002 bare-review-file: review_fixture_r1.md|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS golden-bad EPHEMERAL/note-covers-own-line-only
+FAIL golden-bad EPHEMERAL/word-without-note: pattern /^FINDING EPHEMERAL FX-002 tmp-path: /tmp/fx/x on/ not in: FINDING EPHEMERAL FX-002 tmp-path: /tmp/fx/x|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS golden-bad EPHEMERAL/mktemp-default
+PASS golden-bad EPHEMERAL/mktemp-default-bare
+PASS golden-bad EPHEMERAL/mktemp-default-lowercase
+PASS golden-bad EPHEMERAL/lowercase-dir
+PASS golden-bad EPHEMERAL/four-char-mixed
+FAIL golden-bad EPHEMERAL/var-tmp: pattern /^FINDING EPHEMERAL FX-002 tmp-path: /var/tmp/fx_out.txt on description,body_md$/ not in: FINDING EPHEMERAL FX-002 tmp-path: /var/tmp/fx_out.txt|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS golden-bad EPHEMERAL/scratchpad
+FAIL golden-bad EPHEMERAL/home-path: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad EPHEMERAL/home-dotdir: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad EPHEMERAL/session-store: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad EPHEMERAL/state-column: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad EPHEMERAL/item-history: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad CONTROL-CHAR/nul: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad CONTROL-CHAR/u2028-description: pattern /^FINDING CONTROL-CHAR FX-002 U\+2028 on description,body_md$/ not in: FINDING SECTIONS FX-002 missing: Reproduction / context|RESULT: FAIL selected=1 findings=1 prefix=FX|
+FAIL golden-bad CONTROL-CHAR/u2029-title: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad CONTROL-CHAR/c1: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad CONTROL-CHAR/del: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad CONTROL-CHAR/title-tab: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad CONTROL-CHAR/obsolete-details: pattern /^FINDING CONTROL-CHAR FX-002 U\+0007 on obsolete_details.triple_check_evidence$/ not in: FINDING OBSOLETE-STALE FX-002 obsolete_details row (duplicate-of) on a Reopened item|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS golden-bad SHARED-PATH
+PASS golden-bad DUP-CHECK
+PASS golden-bad DUP-CHECK/missing
+PASS golden-bad DUP-CHECK/same-defect-no-id
+PASS golden-bad DUP-SAME-OPEN
+PASS golden-bad DUP-SAME-OPEN/wrong-head
+PASS golden-bad DUP-SAME-OPEN/head-is-first-id
+PASS golden-bad DUP-SAME-OPEN/dangling-superseding
+PASS golden-bad DUP-HEAD/target-obsolete
+FAIL golden-bad DUP-HEAD/other-names-head: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad DUP-HEAD/other-dup-line: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad DUP-HEAD/reverse: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad DUP-HEAD/stale-row: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad DUP-UNDECIDED
+PASS golden-bad DUP-UNDECIDED/closed
+PASS golden-bad DUP-STATUS
+PASS golden-bad OBSOLETE-STALE
+PASS golden-bad OBSOLETE-STALE/note-names-closed-item
+PASS golden-bad PATH-MISSING
+PASS golden-bad PATH-MISSING/decisions
+FAIL SECRET positive needle aws-access-key-id: pattern /^FINDING SECRET FX-002 aws-access-key-id on description,body_md$/ not in: FINDING SECRET FX-002 aws-access-key-id|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle aws-access-key-id
+FAIL SECRET positive needle aws-secret-assign: pattern /^FINDING SECRET FX-002 aws-secret-assign on description,body_md$/ not in: FINDING SECRET FX-002 aws-secret-assign|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle aws-secret-assign
+FAIL SECRET positive needle github-token: pattern /^FINDING SECRET FX-002 github-token on description,body_md$/ not in: FINDING SECRET FX-002 github-token|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle github-token
+FAIL SECRET positive needle github-fine-grained-pat: pattern /^FINDING SECRET FX-002 github-fine-grained-pat on description,body_md$/ not in: FINDING SECRET FX-002 github-fine-grained-pat|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle github-fine-grained-pat
+FAIL SECRET positive needle gitlab-pat: pattern /^FINDING SECRET FX-002 gitlab-pat on description,body_md$/ not in: FINDING SECRET FX-002 gitlab-pat|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle gitlab-pat
+FAIL SECRET positive needle gitlab-other-token: pattern /^FINDING SECRET FX-002 gitlab-other-token on description,body_md$/ not in: FINDING SECRET FX-002 gitlab-other-token|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle gitlab-other-token
+FAIL SECRET positive needle gcp-api-key: pattern /^FINDING SECRET FX-002 gcp-api-key on description,body_md$/ not in: FINDING SECRET FX-002 gcp-api-key|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle gcp-api-key
+FAIL SECRET positive needle private-key-block: pattern /^FINDING SECRET FX-002 private-key-block on description,body_md$/ not in: FINDING SECRET FX-002 private-key-block|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle private-key-block
+FAIL SECRET positive needle huggingface-token: pattern /^FINDING SECRET FX-002 huggingface-token on description,body_md$/ not in: FINDING SECRET FX-002 huggingface-token|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle huggingface-token
+FAIL SECRET positive needle jwt: pattern /^FINDING SECRET FX-002 jwt on description,body_md$/ not in: FINDING SECRET FX-002 jwt|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle jwt
+FAIL SECRET positive needle slack-token: pattern /^FINDING SECRET FX-002 slack-token on description,body_md$/ not in: FINDING SECRET FX-002 slack-token|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle slack-token
+FAIL SECRET positive needle openai-anthropic-key: pattern /^FINDING SECRET FX-002 openai-anthropic-key on description,body_md$/ not in: FINDING SECRET FX-002 openai-anthropic-key|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle openai-anthropic-key
+FAIL SECRET positive needle url-userinfo-password: pattern /^FINDING SECRET FX-002 url-userinfo-password on description,body_md$/ not in: FINDING SECRET FX-002 url-userinfo-password|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle url-userinfo-password
+FAIL SECRET positive needle bearer-token: pattern /^FINDING SECRET FX-002 bearer-token on description,body_md$/ not in: FINDING SECRET FX-002 bearer-token|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle bearer-token
+FAIL SECRET positive needle password-assign: pattern /^FINDING SECRET FX-002 password-assign on description,body_md$/ not in: FINDING SECRET FX-002 password-assign|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle password-assign
+FAIL SECRET positive needle stripe-key: pattern /^FINDING SECRET FX-002 stripe-key on description,body_md$/ not in: FINDING SECRET FX-002 stripe-key|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle stripe-key
+FAIL SECRET positive needle npm-token: pattern /^FINDING SECRET FX-002 npm-token on description,body_md$/ not in: FINDING SECRET FX-002 npm-token|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle npm-token
+FAIL SECRET positive needle telegram-bot-token: pattern /^FINDING SECRET FX-002 telegram-bot-token on description,body_md$/ not in: FINDING SECRET FX-002 telegram-bot-token|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle telegram-bot-token
+PASS golden-good shared path named by the Duplicate check line
+PASS golden-good shared path named by a closed item only
+PASS golden-good SAME-DEFECT closed Obsolete duplicate-of the named open head
+PASS golden-good SAME-DEFECT head whose candidate is closed
+PASS golden-good SAME-DEFECT head named by another item without a duplicate word
+PASS golden-good SAME-DEFECT head named by a DISTINCT Duplicate check line
+PASS golden-good SAME-DEFECT head with a noted stale row on another item
+PASS golden-good UNDECIDED with open candidates on an open item
+PASS golden-good stale obsolete_details row noted with an open engine item
+PASS golden-good structured reproduction line agrees with the column
+PASS golden-good structured investigation line agrees with the column
+PASS golden-good investigation with its evidence and sha256
+PASS golden-good blocked state with its blocker
+PASS golden-good not-reproducible with evidence and sha256
+PASS golden-good operator-blocked item with its block row
+PASS golden-good assigned item
+PASS golden-good existing operator_decisions path
+PASS golden-good existing path followed by a sentence dot
+PASS golden-good declared foreign range
+FAIL golden-good range whose interior exists: rc=1 want=0: FINDING XREF-UNLABELLED FX-002 FX-003 without a label in a clause that shares no title word: Unrelated open item|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS golden-good label whose extra words are stopwords
+PASS golden-good unlabelled id in a clause that shares a title word
+PASS golden-good mktemp template string
+PASS golden-good ephemeral note in parentheses exempts its line
+PASS golden-good the words home and tmp in prose
+FAIL rendered: SECRET in the summary row: rc=2 want=1: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL rendered: EPHEMERAL in the item section: rc=2 want=1: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL rendered: CONTROL-CHAR in the item section: rc=2 want=1: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL rendered: another item's section is not this item's surface: rc=2 want=0: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL BLIND: selected item absent from every rendered document: rc=2 want=3: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL BLIND: no rendered document: rc=2 want=3: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL BLIND: unreadable rendered document: rc=2 want=3: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL usage: --rendered with --no-rendered: pattern /exclude each other/ not in: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL --no-rendered scans no rendered document: rc=2 want=0: usage: intake_lint.py [-h] --db DB [--origin ORIGIN] [--ids IDS]|                      [--prefix PREFIX] [--require-dup-check] [--embeddings]|                      [--no-selfcheck] [--skip-check SKIP_CHECK]|                      [--repo-root REPO_ROOT]|intake_lint.py: error: unrecognized arguments: 
+FAIL no --repo-root: no rendered document by default: pattern /^RESULT: PASS .* rendered=none$/ not in: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL secret value never printed: no SECRET finding (control)
+PASS --skip-check drops only the named code
+PASS usage: no selection
+PASS usage: unknown --skip-check code
+PASS usage: unknown --skip-check code with --embeddings
+PASS usage: --repo-root not a directory
+PASS BLIND: database missing
+PASS BLIND: database unreadable
+PASS BLIND: database holds no items
+FAIL BLIND: required table operator_block_details missing: rc=0 want=3: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL BLIND: required tables item_history and obsolete_details missing: rc=0 want=3: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL BLIND: NULL description: pattern /item FX-002 has a NULL or non-text description/ not in: BLIND: item(s) with a NULL title, description, status or location: FX-002|
+FAIL BLIND: NULL title: pattern /item FX-002 has a NULL or non-text title/ not in: BLIND: item(s) with a NULL title, description, status or location: FX-002|
+FAIL BLIND: BLOB body_md: pattern /a BLOB value in items.body_md \(row FX-002\)/ not in: BLIND: the lint crashed (TypeError: argument should be integer or bytes-like object, not 'str'): no verdict|
+FAIL BLIND: BLOB description: pattern /a BLOB value in items.description \(row FX-002\)/ not in: BLIND: the lint crashed (TypeError: cannot use a string pattern on a bytes-like object): no verdict|
+FAIL BLIND: BLOB in obsolete_details: rc=0 want=3: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL BLIND: BLOB in a state column: pattern /a BLOB value in items.reproduction_state/ not in: BLIND: the lint crashed (TypeError: can only concatenate str (not "bytes") to str): no verdict|
+FAIL BLIND: a crash is BLIND, never a traceback: rc=0 want=3: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS BLIND: unknown id
+PASS BLIND: empty origin selection
+PASS BLIND: --prefix that no item carries
+FAIL prefix auto-detection takes the most common prefix: pattern /^RESULT: PASS selected=1 findings=0 prefix=FX rendered=Issues.md,Issues_Summary.md$/ not in: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS prefix auto-detection sees the dangling FX id
+PASS --embeddings namespaces main and foreign
+PASS --embeddings namespaces own and unknown (title included)
+PASS --embeddings lists the interior ids of a range
+PASS refused cleanup exits 2 and names the dir
+PASS cleanup with HOME set exits 0 (control)
+PASS needle control: the unchanged copy passes its needles
+PASS needle: the header line-separator check off is named, though the Status compare also fires
+FAIL needle: the mktemp-default pattern off is named, though the tmp-path pattern also fires: rc=3: BLIND: control needle failed: EPHEMERAL/mktemp-default-lowercase|
+FAIL real DB: intake batch clean (44 items, rendered documents read): pattern /^RESULT: PASS selected=44 findings=0 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md$/ not in: RESULT: PASS selected=44 findings=0 prefix=CON|
+PASS reviewer M2: description diverges from body_md
+PASS reviewer M3: umbrella CON-299 changed to CON-999
+PASS reviewer M7: delete a referenced row
+FAIL reviewer M9: AWS-key-shaped string in CON-333: pattern /^FINDING SECRET CON-333 aws-access-key-id on description,body_md$/ not in: FINDING SECRET CON-333 aws-access-key-id|RESULT: FAIL selected=44 findings=1 prefix=CON|
+PASS reviewer M10: Acceptance criteria header removed
+PASS reviewer M11: structured reproduction line vs column
+PASS round-2 D1: default mktemp dir in CON-315
+PASS round-2 D1b: all-lowercase 4-character suffix
+FAIL round-2 D2: GitLab PAT-shaped string in CON-315: pattern /^FINDING SECRET CON-315 gitlab-pat / not in: FINDING SECRET CON-315 gitlab-pat|RESULT: FAIL selected=44 findings=1 prefix=CON|
+PASS round-2 D3: CON-332 in its round-1 form, no label
+PASS round-2 D3b: a wrong label sharing one title word
+PASS round-2 D5: empty body_md on CON-310
+PASS round-2 D6: contradiction in body_md only
+PASS round-2 D7a: CON-308 closed duplicate-of an id that does not exist
+PASS round-2 D7b: CON-308 superseding swapped to CON-243
+PASS round-2 D8: Obsolete duplicate-of with the verdict UNDECIDED
+PASS replay R2-1: CON-243 back as a second open head (an UNDECIDED candidate of CON-262)
+PASS replay R2-1 with the round-2 line of CON-308 verbatim
+PASS replay I1: CON-308 open while SAME-DEFECT of open CON-262
+PASS UNDECIDED verdict without a candidate on CON-308
+PASS CON-308 reopened with its obsolete_details row and no stale note
+PASS replay I2: anchor 296 cited as an item
+FAIL round-3 DM1: a second Status line in the CON-310 body: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM2: Severity Low to Critical in the CON-310 body: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM3: Type Task to Bug in the CON-310 body: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM4: a key in the CON-336 reproduction_env column only: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM4b: URL userinfo in the CON-336 red command, column and body (an engine update): rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM5: a key on the CON-310 Created-By line (body only): rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM6: a mktemp /tmp path in the CON-336 red command column only: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM7: the CON-308 Obsolete-Details line removed: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM8: the CON-308 Obsolete-Details superseding id swapped: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM9: CON-243 reopened (row removed) with an UNDECIDED Duplicate check line: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM10: CON-243 reopened; CON-262 names it a candidate (lower-case undecided): rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM10b: CON-243 reopened; CON-262 calls it a possible second head: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM10c: CON-243 reopened, nothing else: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DMC: CON-243 reopened; CON-262 names it with merge UNDECIDED: pattern /^FINDING DUP-HEAD CON-308 more than one head \(section 11\.4\.214\(0\)\): CON-243 names CON-262 as a duplicate$/ not in: FINDING DUP-HEAD CON-308 CON-262 records open UNDECIDED candidate(s) CON-243: more than one head, the verdict is UNDECIDED (section 11.4.214(0))|RESULT: FAIL selected=44 findings=1 prefix=CON|
+FAIL round-3 DM11: U+2028 in the CON-310 title and heading: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM11b: U+2028 instead of a newline in the CON-310 description: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM12: a NUL in the CON-310 description: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-3 DM13: the CON-310 body_md stored as a BLOB: pattern /^BLIND: a BLOB value in items\.body_md \(row CON-310\)$/ not in: BLIND: the lint crashed (TypeError: argument should be integer or bytes-like object, not 'str'): no verdict|
+FAIL round-3 DM13b: the CON-310 description stored as a BLOB: rc=1 want=3: Traceback (most recent call last):|  File "/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/trackintake_r4.hZZW/red/intake_lint_r3.py", line 717, in <module>|    sys.exit(main(sys.argv[1:]))|             ~~~~^^^^^^^
+FAIL round-3 DM14: the CON-336 Investigation line names another state: pattern /^FINDING BODY-SYNC CON-336 body_md Investigation line differs from its source$/ not in: FINDING BODY-SYNC CON-336 body_md Investigation line disagrees with investigation_state in-progress|RESULT: FAIL selected=44 findings=1 prefix=CON|
+FAIL round-3 DM15: an Obsolete-Details line in the body of open CON-321: pattern /^FINDING BODY-SYNC CON-321 body_md has an Obsolete-Details line while its source gives none$/ not in: FINDING BODY-SYNC CON-321 body_md shows Obsolete-Details on an item that is not Obsolete|RESULT: FAIL selected=44 findings=1 prefix=CON|
+PASS round-3 DM16: the CON-321 heading names CON-320
+FAIL round-3 DMN: a key appended to the CON-333 description (control of DM5): pattern /^FINDING SECRET CON-333 aws-access-key-id on description,body_md$/ not in: FINDING SECRET CON-333 aws-access-key-id|RESULT: FAIL selected=44 findings=1 prefix=CON|
+RESULT: pass=132 fail=124

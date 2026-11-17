@@ -1,0 +1,64 @@
+# X05 and M08 as the mutation harness runs them, with the suite output kept: a copy of tests/sync/test_mutations.py
+# that differs only in HERE (pointed at the repository's tests/sync) and one added print of each killing suite's
+# output tail (tmp/harnessdbg/test_mutations_dbg.py). Command: test_mutations_dbg.py --only X05,M08 --no-gate.
+# Both suites ran all 69 unit tests and failed on assertions (FAIL 9 and FAIL 2), not on a crash; the suite ends
+# in about 0.1 s because LongSecrets.test_long_secrets, which takes about 10 s on the real engine (its 65536-
+# character case, unit_durations_real.txt), stops at its first failing length.
+---- unit output (tail) ----
+info)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 233, in test_structural_userinfo
+    self.assertNotIn(secret, out, url)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 'ss@' unexpectedly found in 'https://u:p@ss@host/r.git' : https://u:p@ss@host/r.git
+
+======================================================================
+FAIL: test_userinfo (__main__.Redaction.test_userinfo)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 208, in test_userinfo
+    self.assertEqual(E.redact("https://user:s3cret@github.com/o/r.git"), "https://github.com/o/r.git")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'https://user:s3cret@github.com/o/r.git' != 'https://github.com/o/r.git'
+- https://user:s3cret@github.com/o/r.git
+?         ------------
++ https://github.com/o/r.git
+
+
+----------------------------------------------------------------------
+Ran 69 tests in 0.107s
+
+FAILED (failures=9)
+sync-unit: PASS 60 FAIL 9 SKIP 0
+
+----
+M08  KILLED     by unit            0.3s  URL userinfo not redacted
+---- unit output (tail) ----
+t/o/r.git/': The requested URL returned error: 403
+?                                  -------------------------
++ fatal: unable to access 'https://host/o/r.git/': The requested URL returned error: 403
+ : (1, 'i qmgYg$o+NdM:b_éßM/本3Hg@YQßKrvjT9YIYO#g%4[1T!7mK')
+
+======================================================================
+FAIL: test_long_secrets (__main__.LongSecrets.test_long_secrets)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<scratch>/syncfix4.Jiag/repo/tests/sync/test_unit.py", line 730, in test_long_secrets
+    self.assertEqual(E.redact(self.LINE % secret), self.CLEAN, n)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "fata[24 chars]ps://user:p4ss-w0rd.p4ss-w0rd.p4ss-w0rd.p4ss-w[61 chars] 403" != "fata[24 chars]ps://host/o/r.git/': The requested URL returned error: 403"
+- fatal: unable to access 'https://user:p4ss-w0rd.p4ss-w0rd.p4ss-w0rd.p4ss-w0rd.p4ss-w0@host/o/r.git/': The requested URL returned error: 403
+?                                  -----------------------------------------------------
++ fatal: unable to access 'https://host/o/r.git/': The requested URL returned error: 403
+ : 47
+
+----------------------------------------------------------------------
+Ran 69 tests in 0.109s
+
+FAILED (failures=2)
+sync-unit: PASS 67 FAIL 2 SKIP 0
+
+----
+X05  KILLED     by unit            0.3s  userinfo cut looks only 48 chars past scheme:// (long password leaks)
+sync-mutations (no-gate): mutants 2 killed 2 equivalent 0 survived 0 harness-errors 0

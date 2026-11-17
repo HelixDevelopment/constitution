@@ -214,4 +214,18 @@ for b in hi_resolve_ref_in hi_lock_helpers hi_text_safe hi_remote_live hi_gitlin
   eq "block $b identical in installer and updater" "$(sha256sum <<<"$x")" "$(sha256sum <<<"$y")"
 done
 
+echo "# make_upstream refuses a shallow source (fixer round 2, F6: a shallow source set off a process storm)"
+shallow="$SB/shallow-src"; git clone -q --depth 1 --no-local "file://$REPO" "$shallow" 2>/dev/null
+eq "control: the fixture source really is shallow" true "$(git -C "$shallow" rev-parse --is-shallow-repository)"
+mkdir -p "$SB/shup"
+out="$( (REPO="$shallow"; make_upstream "$SB/shup") 2>&1)"; rc=$?
+eq "shallow source: make_upstream fails" 1 "$rc"
+case "$out" in *"refusing a shallow or partial source repository"*) ok "shallow source: says why" ;; *) nok "shallow source: message [$out]" ;; esac
+eq "shallow source: no upstream was created" no "$([ -e "$SB/shup/upstream.git" ] && echo yes || echo no)"
+mkdir -p "$SB/shseed/upstream.git"; git init -q --bare "$SB/shseed/upstream.git"
+echo 0000000000000000000000000000000000000000 >"$SB/shseed/upstream.git/shallow"
+out="$( (HELIX_TEST_UPSTREAM_SEED="$SB/shseed"; make_upstream "$SB/shup") 2>&1)"; rc=$?
+eq "shallow seed: make_upstream fails" 1 "$rc"
+case "$out" in *"seed upstream"*) ok "shallow seed: says why" ;; *) nok "shallow seed: message [$out]" ;; esac
+
 finish

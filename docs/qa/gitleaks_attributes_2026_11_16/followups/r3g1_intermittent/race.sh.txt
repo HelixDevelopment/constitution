@@ -1,0 +1,7 @@
+set -uo pipefail
+f=$1; n=$2; pass=0; st=""
+for i in $(seq 1 $n); do
+  if ! grep -v "^api --hostname github.com " "$f" | grep -q .; then pass=$((pass+1)); fi
+done
+grep -v "^api --hostname github.com " "$f" | grep -q .; st="${PIPESTATUS[*]}"
+echo "$(basename "$f") GNU grep $(grep --version | head -1 | cut -d' ' -f4): check PASS $pass/$n last PIPESTATUS $st"

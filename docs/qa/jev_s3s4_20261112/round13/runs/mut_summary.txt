@@ -1,0 +1,67 @@
+MUT R08_owed_retry_fail_is_success KILLED-by r13 fails=2
+MUT R01_arm_no_retry KILLED-by r13 fails=2
+CMUT CR12_round12_census KILLED rc=1 fails=3 passes=115
+MUT R06_stopowed_for_rc75 SURVIVED r13
+CMUT CMR1_shape_rule_r12_case_sensitive KILLED rc=1 fails=116 passes=2
+CMUT CMR1b_shape_rule_r12_exact KILLED rc=1 fails=116 passes=2
+CMUT CMR2_scope_docs KILLED rc=1 fails=1 passes=117
+CMUT CMR3_no_total_header KILLED rc=1 fails=116 passes=2
+CMUT CMR4_rc_ws_tolerant SURVIVED rc=0 fails=0 passes=118
+CMUT CF1_rc_unicode_digits KILLED rc=1 fails=116 passes=2
+CMUT CF2_ls_unicode KILLED rc=1 fails=116 passes=2
+CMUT CF3_total_unicode KILLED rc=1 fails=116 passes=2
+MUT F11_no_intent_write KILLED-by r13 fails=9
+CMUT CF4_shape_mention_case_sensitive KILLED rc=1 fails=116 passes=2
+CMUT CF5_shape_mention_word_boundary KILLED rc=1 fails=116 passes=2
+CMUT CCTRL SURVIVED rc=0 fails=0 passes=118
+CMUT CMR1_shape_rule_r12_case_sensitive_noST KILLED rc=1 fails=3 passes=115
+CMUT CMR1b_shape_rule_r12_exact_noST KILLED rc=1 fails=3 passes=115
+CMUT CMR3_no_total_header_noST KILLED rc=1 fails=1 passes=117
+MUT F12_adopt_ignores_intent KILLED-by r13 fails=6
+CMUT CF1_rc_unicode_digits_noST SURVIVED rc=0 fails=0 passes=118
+CMUT CF2_ls_unicode_noST SURVIVED rc=0 fails=0 passes=118
+CMUT CF3_total_unicode_noST KILLED rc=1 fails=1 passes=121
+CMUT CF4_shape_mention_case_sensitive_noST KILLED rc=1 fails=2 passes=120
+CMUT CF5_shape_mention_word_boundary_noST KILLED rc=1 fails=1 passes=121
+CMUT CCTRL_noST SURVIVED rc=0 fails=0 passes=122
+== census final: tests/test_git_env_class.sh sha256 ed054a70e762ded6
+MUT F13_mark_ignores_intent KILLED-by r13 fails=2
+CMUT CR12_round12_census KILLED rc=1 fails=8 passes=114
+CMUT CMR1_shape_rule_r12_case_sensitive KILLED rc=1 fails=120 passes=2
+CMUT CMR1b_shape_rule_r12_exact KILLED rc=1 fails=120 passes=2
+CMUT CMR2_scope_docs KILLED rc=1 fails=1 passes=121
+CMUT CMR3_no_total_header KILLED rc=1 fails=120 passes=2
+CMUT CMR4_rc_ws_tolerant SURVIVED rc=0 fails=0 passes=122
+CMUT CF1_rc_unicode_digits KILLED rc=1 fails=120 passes=2
+MUT F14_recovery_no_stop_owed KILLED-by r13 fails=2
+CMUT CF2_ls_unicode KILLED rc=1 fails=120 passes=2
+CMUT CF3_total_unicode KILLED rc=1 fails=120 passes=2
+CMUT CF4_shape_mention_case_sensitive KILLED rc=1 fails=120 passes=2
+CMUT CF5_shape_mention_word_boundary KILLED rc=1 fails=120 passes=2
+CMUT CCTRL SURVIVED rc=0 fails=0 passes=122
+CMUT CMR1_shape_rule_r12_case_sensitive_noST KILLED rc=1 fails=3 passes=119
+CMUT CMR1b_shape_rule_r12_exact_noST KILLED rc=1 fails=3 passes=119
+MUT F15_finish_drops_any_intent SURVIVED r13
+CMUT CMR3_no_total_header_noST KILLED rc=1 fails=2 passes=120
+CMUT CF1_rc_unicode_digits_noST KILLED rc=1 fails=1 passes=121
+CMUT CF2_ls_unicode_noST KILLED rc=1 fails=3 passes=119
+CMUT CF3_total_unicode_noST KILLED rc=1 fails=1 passes=121
+CMUT CF4_shape_mention_case_sensitive_noST KILLED rc=1 fails=2 passes=120
+MUT F16_unknown_state_removes_intent KILLED-by r13 fails=2
+CMUT CF5_shape_mention_word_boundary_noST KILLED rc=1 fails=1 passes=121
+CMUT CCTRL_noST SURVIVED rc=0 fails=0 passes=122
+MUT F17_live_intent_treated_dead KILLED-by r13 fails=14
+MUT F18_recovery_operator_owned KILLED-by r13 fails=6
+MUT F19_no_recovery_call KILLED-by r13 fails=11
+MUT F1A_dead_intent_set_stays_operator KILLED-by r13 fails=1
+MUT F1B_absent_keeps_intent KILLED-by r13 fails=2
+== full chain (final r13 file d7612dbc8a2ef743)
+MUT R06_stopowed_for_rc75 KILLED-by r13 fails=1
+MUT F15b_finish_drops_every_intent KILLED-by r13 fails=1
+MUT R02_markttl_no_recordwaits KILLED-by r8 fails=2
+MUT R03_adopt_after_own_start KILLED-by r10 fails=2
+MUT R04_adopt_degraded KILLED-by pl fails=3
+MUT R05_rc75_counts_after_arm KILLED-by r11 fails=3
+MUT R07_noset_rc75_released KILLED-by r11 fails=5
+MUT F15_finish_drops_any_intent SURVIVED r13 r12 r11 r10 pl r6 r9 r8 r7
+MUT RCTRL SURVIVED r13 r12 r11 r10 pl r6 r9 r8 r7

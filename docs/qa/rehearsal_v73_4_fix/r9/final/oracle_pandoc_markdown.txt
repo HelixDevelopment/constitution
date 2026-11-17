@@ -1,0 +1,4 @@
+# blockstate oracle, pandoc-markdown leg (markdown-yaml_metadata_block), want = smart(GTEXT)
+clean with-smart (True, '') without-smart False
+deflist-attached with-smart (False, 'raw HTML: element <dd>, element <dl>, element <dt>') without-smart False
+second-label with-smart (False, 'the label reads elsewhere in the document') without-smart False

@@ -1,0 +1,85 @@
+== sync-security (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix6.gk0k/tmp/helix-sync-test.BmcUFN)
+  ok   full apply: exit 0
+  ok   control needle: the shim recorded 111 calls
+  ok   no ' push ' in any git call
+  ok   no ' reset ' in any git call
+  ok   no ' rebase ' in any git call
+  ok   no ' commit ' in any git call
+  ok   no '--force' in any git call
+  ok   no ' -f ' in any git call
+  ok   no '--hard' in any git call
+  ok   no '--upload-pack' in any git call
+  ok   no 'ext::' in any git call
+  ok   no ' -s ours' in any git call
+  ok   no '--amend' in any git call
+  ok   no ' clean ' in any git call
+  ok   no ' update-ref ' in any git call
+  ok   no ' gc ' in any git call
+  ok   no ' stash ' in any git call
+  ok   no ' --prune ' in any git call
+  ok   no ' --tags ' in any git call
+  ok   every + refspec writes only refs/remotes/<remote>/*
+  ok   control needle: 4 engine-owned refspecs seen
+  ok   every git call carries core.hooksPath=/dev/null
+  ok   subcommand 'add' is on the allow-list
+  ok   subcommand 'checkout' is on the allow-list
+  ok   subcommand 'config' is on the allow-list
+  ok   subcommand 'fetch' is on the allow-list
+  ok   subcommand 'for-each-ref' is on the allow-list
+  ok   subcommand 'ls-files' is on the allow-list
+  ok   subcommand 'ls-tree' is on the allow-list
+  ok   subcommand 'merge' is on the allow-list
+  ok   subcommand 'merge-base' is on the allow-list
+  ok   subcommand 'remote' is on the allow-list
+  ok   subcommand 'rev-list' is on the allow-list
+  ok   subcommand 'rev-parse' is on the allow-list
+  ok   subcommand 'status' is on the allow-list
+  ok   subcommand 'symbolic-ref' is on the allow-list
+  ok   control needle: merge was among the recorded subcommands
+  ok   leaky remote: attention (unreachable)
+  ok   leaky remote: reported unreachable
+  ok   secret absent everywhere
+  ok   userinfo absent everywhere
+  ok   control needle: the redacted URL itself is reported
+  ok   ambient GIT_DIR: exit 4 (the pins section 1 staged)
+  ok   ambient GIT_DIR: every reason is a staged gitlink
+  ok   ambient GIT_DIR: control needle, a staged pin is reported
+  ok   ambient GIT_DIR: the decoy repository was not touched
+  ok   ambient GIT_DIR: the real tree was inspected (4 repos)
+  ok   metachar remote name: nothing executed
+  ok   metachar remote name: flagged invalid
+  ok   evidence dir mode 0700
+  ok   no interactive prompt (finished in 3s)
+  ok   mirror refspec + prune config, --check: every ref of ours identical
+  ok   --check: no tag auto-followed
+  ok   --apply: exit 0
+  ok   --apply: refs/heads/wip kept
+  ok   --apply: refs/heads/wip still present
+  ok   --apply: refs/tags/localonly kept
+  ok   --apply: refs/tags/localonly still present
+  ok   --apply: refs/remotes/origin/oldbranch kept
+  ok   --apply: refs/remotes/origin/oldbranch still present
+  ok   --apply: main fast-forwarded
+  ok   variant B --apply: exit 0
+  ok   variant B: local-only tag kept
+  ok   variant B: stale remote-tracking ref kept
+  ok   variant B: local branch kept
+  ok   --tags: the new upstream tag is fetched (control needle)
+  ok   --tags: local-only tag still present
+  ok   hooks: root fast-forwarded
+  ok   hooks: no repository hook ran
+  ok   hooks: fsmonitor never ran
+  ok   hooks: control needle: a plain git checkout DOES run the hook
+  ok   hooks: control needle: a plain git status DOES run fsmonitor
+  ok   ignored dir whose files the target does not touch: no false refusal (exit 0)
+  ok   ignored dir: moved
+  ok   ignored dir: ignored file kept
+  ok   ignored secret.env: exit 4
+  ok   ignored secret.env: reason
+  ok   ignored secret.env: content kept
+  ok   ignored secret.env: not moved
+  ok   ignored secret.env: content never in the report
+  ok   core.sshCommand: the repository's command was used
+  ok   core.sshCommand: report names it
+  ok   core.sshCommand: remote reported unreachable
+sync-security: PASS 83 FAIL 0

@@ -1,0 +1,126 @@
+ok 1 - H1 HTTP 200 => class 2xx
+ok 2 - H1 HTTP 200 => reachable=true (2xx only)
+ok 3 - H1 HTTP 200 => usable=true
+ok 4 - H1 HTTP 200 => basis probe (a probed answer, never resolution-only)
+ok 5 - H1 HTTP 402 => class no_credit
+ok 6 - H1 HTTP 402 => reachable=false (2xx only)
+ok 7 - H1 HTTP 402 => usable=false
+ok 8 - H1 HTTP 402 => basis probe (a probed answer, never resolution-only)
+ok 9 - H1 402 is reported loudly on stderr as no_credit
+ok 10 - H1 402 never prints a bare 'detect-models: ok' (false green)
+ok 11 - H1 HTTP 429 => class rate_limited
+ok 12 - H1 HTTP 429 => reachable=false (2xx only)
+ok 13 - H1 HTTP 429 => usable=false
+ok 14 - H1 HTTP 429 => basis probe (a probed answer, never resolution-only)
+ok 15 - H1 HTTP 401 => class 401
+ok 16 - H1 HTTP 401 => reachable=false (2xx only)
+ok 17 - H1 HTTP 401 => usable=false
+ok 18 - H1 HTTP 401 => basis probe (a probed answer, never resolution-only)
+ok 19 - H1 HTTP 403 => class 403
+ok 20 - H1 HTTP 403 => reachable=false (2xx only)
+ok 21 - H1 HTTP 403 => usable=false
+ok 22 - H1 HTTP 403 => basis probe (a probed answer, never resolution-only)
+ok 23 - H1 HTTP 500 => class other
+ok 24 - H1 HTTP 500 => reachable=false (2xx only)
+ok 25 - H1 HTTP 500 => usable=false
+ok 26 - H1 HTTP 500 => basis probe (a probed answer, never resolution-only)
+ok 27 - H1 HTTP 000 => class timeout
+ok 28 - H1 HTTP 000 => reachable=false (2xx only)
+ok 29 - H1 HTTP 000 => usable=false
+ok 30 - H1 HTTP 000 => basis probe (a probed answer, never resolution-only)
+ok 31 - H1c toolkit-cache probe HTTP 402 => class no_credit
+ok 32 - H1c toolkit-cache probe HTTP 402 => reachable=false (2xx only)
+ok 33 - H1c toolkit-cache probe HTTP 200 => class 2xx
+ok 34 - H1c toolkit-cache probe HTTP 200 => reachable=true (2xx only)
+ok 35 - H2 jev-probe replay of HTTP 200 exits 0 (usable = 2xx only)
+ok 36 - H2 jev-probe replay of HTTP 402 exits 1 (usable = 2xx only)
+ok 37 - H2 jev-probe replay of HTTP 401 exits 1 (usable = 2xx only)
+ok 38 - H2 jev-probe replay of HTTP 429 exits 1 (usable = 2xx only)
+ok 39 - H3 probed-unusable (402, real key) is an honest record: gate PASS
+ok 40 - H3 the gate names the unusable class
+ok 41 - H3 reachable=false with class 2xx is a contradiction => RED
+ok 42 - H3 reachable=true with class no_credit is a contradiction => RED
+ok 43 - H3 reachable=null with a real key stays RED
+ok 44 - H3 reachable=false with NO recorded class is unproven => RED
+ok 45 - H4 a usable endpoint detected but no agent wired => rc 5 (never 0)
+ok 46 - H4 the reason is printed
+ok 47 - H4-NEG no key, nothing detected => rc 0 (reasoned-empty record)
+ok 48 - H4 only an unusable (402) endpoint => rc 5 (no usable endpoint), never 0
+ok 49 - H4 no-usable reason printed
+ok 50 - H5 default-on is logged loudly
+ok 51 - H5 the log says how to undo it
+ok 52 - H5 the fixture agent home was wired
+ok 53 - H5 jev-setup ran with --yes (consent applied)
+ok 54 - H5 detected AND wired => rc 0
+ok 55 - H5 consent record says default_on=true
+ok 56 - H5 consent basis recorded
+ok 57 - H5-NEG placeholder key => default-on not engaged (logged)
+ok 58 - H5-NEG placeholder key => nothing wired
+ok 59 - H5-NEG opt-out marker honoured and named
+ok 60 - H5-NEG opt-out marker => nothing wired
+ok 61 - H5-NEG explicit opt-out => rc 0 (a declared state, not a failure)
+ok 62 - H5-NEG opt-out => the RESULT line says NOT wired, never serving
+ok 63 - H5-NEG opt-out never claims serving
+ok 64 - H5-NEG no --default-on and no --yes => nothing wired
+ok 65 - H5 the key value appears in no output/state file
+ok 66 - H5 CONTROL NEEDLE: the scan sees the key in the keys file
+ok 67 - H7 run 1 (402): rc 5, class no_credit
+ok 68 - H7 402 -> 200 (credit added): the record is rewritten to 2xx / reachable=true
+ok 69 - H7 402 -> 200: stage 3 is NOT a stale no-change
+ok 70 - H7 run 2: one stage-3 probe (memo reused by the stage) + one cm_jev_detection replay of the reachable endpoint
+ok 71 - H7 CONTROL: run 2 did run the detection gate whose replay is the second probe
+ok 72 - H7 200 -> 402 (credit lost): the record no longer calls the endpoint usable
+ok 73 - H7 200 -> 402: rc 5 (no usable endpoint)
+ok 74 - H7 200 -> 402: no_credit reported
+ok 75 - H7 an unchanged answer (402, 402) is a no-change
+ok 76 - H7 the unchanged run leaves the record byte-identical
+ok 77 - H7 the unchanged run still probed once (so a later change is seen)
+ok 78 - H7 toolkit-cache 402 -> 200: the record is rewritten
+ok 79 - H8 JEV_WIRING=off => default-on not engaged, and the reason is named
+ok 80 - H8 JEV_WIRING=off => nothing wired
+ok 81 - H8 JEV_WIRING=off => rc 0 (a declared opt-out)
+ok 82 - H8 JEV_WIRING=off => RESULT says NOT wired
+ok 83 - H8 consent record default_on=false
+ok 84 - H8 CONTROL: without JEV_WIRING=off the same run wires
+ok 85 - H9 setup: default-on engaged (the leak path is exercised)
+ok 86 - H9 consent.json names the key variable only
+ok 87 - H9 CONTROL NEEDLE: the scan of the run dir can see a planted needle
+ok 88 - H9 CONTROL: the scan sees the key in the keys file
+ok 89 - H9 the key value is in no bootstrap output, log, consent.json or state file of the default-on run
+ok 90 - H9 stderr/stdout/consent.json carry no key value
+ok 91 - H10 run 1 (fresh state, hosted 200): stage 3 runs
+ok 92 - H10 run 2 (unchanged probe answer): stage 3 is a no-change
+ok 93 - H10 run 2 leaves the detection record byte-identical
+ok 94 - H10 run 2 leaves the stamp byte-identical
+ok 95 - H10 run 3 (unchanged): stage 3 is still a no-change
+ok 96 - H10 run 3 leaves the detection record byte-identical
+ok 97 - H10 run 4 (200 -> 402): stage 3 re-runs
+ok 98 - H10 run 4 rewrote the record to no_credit
+ok 99 - H10 run 5 (402 unchanged): no-change
+ok 100 - H10 run 6 (402 -> 200): stage 3 re-runs
+ok 101 - H10 run 6 rewrote the record to 2xx / reachable=true
+ok 102 - H11 run 1: the local gateway answered healthz (reachable=true)
+ok 103 - H11 run 2 (healthz unchanged): no-change
+ok 104 - H11 run 3 (healthz now fails): stage 3 re-runs (the local health answer is in the key)
+ok 105 - H11 run 3 rewrote the record: reachable=false
+ok 106 - H11 run 4 (healthz still failing): no-change
+ok 107 - H12 run 1: the record carries the gateway's CA file
+ok 108 - H12 run 1: the gateway healthz is probed exactly once (the signature reuses the stage's probe)
+ok 109 - H12 run 1: every healthz probe carries --cacert
+ok 110 - H12 run 2 (unchanged): no-change
+ok 111 - H12 run 2: exactly one healthz probe
+ok 112 - H12 run 2: the signature probe carries --cacert
+ok 113 - H13 non-executable overrides: no llmctl / claude-providers on PATH was called
+ok 114 - H13 the absent llmctl is logged
+ok 115 - H13 the absent claude-providers is logged
+ok 116 - H13 llmctl absent: no local endpoint is read
+ok 117 - H13 executable overrides: the PATH spies are still not called
+ok 118 - H13 the explicit llmctl is used (its status names the running decide-tiny)
+ok 119 - H13 CONTROL: with no override the llmctl on PATH is used (the spies can see a call)
+ok 120 - H6 a real key present and no Jev change => bootstrap still runs, --default-on
+ok 121 - H6 the hook says why it ran
+ok 122 - H6 bootstrap rc 5 never fails the pull
+ok 123 - H6 rc 5 is surfaced as a warning
+ok 124 - H6 rc 5 is NOT deferred over
+ok 125 - H6-NEG no key and no Jev change => no bootstrap (never invoked)
+# test_s3_bootstrap_honesty.sh: pass=125 fail=0 skip=0

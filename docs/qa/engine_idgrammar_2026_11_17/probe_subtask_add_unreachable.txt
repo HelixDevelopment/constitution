@@ -1,0 +1,9 @@
+subtask-add reachability (2026-11-17T02:13:35Z), engine r2 sha256 83e93abaeaa5ef09bbb10437595f859bbbf78a03355c4e4204d56cbe79cb9080
+dispatch verbs in main.go:
+case "sync" case "diff" case "validate" case "repair-bodies" case "version-tags" case "add" case "update" case "reopen" case "move" case "block" case "close" case "closure-check" case "obsolete-details" case "intake-match" case "report" case "diary" case "export" case "group" case "validate-groups" case "assign" case "classify" case "correct-history-evidence" case "restore-created-at" case "states" case "-h" case "md-to-db" case "db-to-md" 
+-- run: wi_r2 subtask-add
+rc=1
+unknown subcommand: subtask-add
+-- positive control: wi_r2 validate --help is a known verb
+rc=1
+unknown-subcommand lines: 0

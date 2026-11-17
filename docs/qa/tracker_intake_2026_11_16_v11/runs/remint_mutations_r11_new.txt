@@ -1,0 +1,20 @@
+PASS control: unmutated copy passes the suite (RESULT: pass=583 fail=0)
+PASS T4 r10 plan: a supersede the target text does not back accepted (remapped round 11 into dup_rule_errors): rc=1 first-failure=R9-F2: refused: --supersede with no record that the two are one defect: rc=0 want=1: 
+PASS T5 r10 plan: a same-number supersede accepted (remapped round 11 into dup_rule_errors; the reviewer r10 RM-b intent): rc=1 first-failure=R10-7: refused: --supersede of an id onto itself: /^REFUSED --supersede CON-357=CON-3
+PASS T6 r10 verify: supersede backing not checked (remapped round 11: verify drops the backing errors of the shared rules): rc=1 first-failure=R10-7: verify FAIL: the middle supersede's SAME-DEFECT row removed: rc=0 want=1: KNOW
+PASS T14 r11 plan: the planner drops the backing errors of the shared rules: rc=1 first-failure=R9-F2: refused: --supersede with no record that the two are one defect: rc=0 want=1: 
+PASS T15 r11 dup_rule_errors: a SAME-DEFECT row does not back VID=VID (the reviewer r10 RM-a intent ported: verify refused the witness): rc=1 first-failure=R11 (REV-SELF): plan VID=VID with a SAME-DEFECT row: rc=1 want=0: BASE-CHANGE CON-345
+PASS T16 r11 dup_rule_errors: a SAME-DEFECT row backs nothing: rc=1 first-failure=R9-F2: plan superseding a middle own id: rc=1 want=0: BASE-CHANGE CON-345 vehicle=des
+PASS T17 r11 plan: the target text read from the description only: rc=1 first-failure=R9-F2: plan with --supersede, --annotate-foreign and --dup-resolution: rc=1 want=0: B
+PASS RM-c dup rule: reason id check dropped (reviewer round 10, verbatim): rc=1 first-failure=R9-F3: refused: a reason that names an id: rc=0 want=1: BASE-CHANGE CON-345 vehicle=d
+PASS RM-d dup rule: semicolon check dropped (reviewer round 10, verbatim): rc=1 first-failure=R9-F2: verify FAIL: a dup row whose reason holds a ';': /^MISMATCH plan dup-resolutio
+PASS RM-e shared path: basename minimum 8 -> 9 (reviewer round 10, verbatim): rc=1 first-failure=R11 (RM-e): an 8-character basename is a SHARED-PATH: rc=0 want=1: BASE-CHANGE CON-34
+PASS RM-f shared path: closed targets count (reviewer round 10, verbatim): rc=1 first-failure=R11 (RM-f): a closed target item naming the file needs no verdict: rc=1 want=0: BASE-
+PASS RM-g target-own: bare form covers REBOUND too (reviewer round 10, verbatim): rc=1 first-failure=R11 (RM-g): bare --target-own leaves the REBOUND id undeclared: /^REFUSED XREF-REBOUN
+PASS RM-h decl spec: repeated TID accepted (reviewer round 10, verbatim): rc=1 first-failure=R10-7: a declaration given twice for one item is BLIND: rc=0 want=3: BASE-CHANGE CON-
+PASS RM-i refuse both meanings check dropped (reviewer round 10, verbatim): rc=1 first-failure=R10-7: refused: --target-own and --annotate-foreign for one id: rc=0 want=1: BASE-CHA
+PASS RM-j verify: target_own may name an id the target lacks (reviewer round 10, verbatim): rc=1 first-failure=R11 (RM-j): verify FAIL: a minted id moved into target_own: /^MISMATCH the plan's ann
+PASS RM-k git top-of-repo check dropped (reviewer round 10, verbatim): rc=1 first-failure=refs under an ambient GIT_DIR on a subdirectory of a repository is BLIND: rc=0 want=3
+PASS RM-l dup rule: duplicate pair accepted (reviewer round 10, verbatim): rc=1 first-failure=R9-F3: refused: a row given twice: rc=0 want=1: BASE-CHANGE CON-345 vehicle=descripti
+PASS RM-m dup rule: Duplicate check line count check dropped (reviewer round 10, verbatim): rc=1 first-failure=R9-F3: refused: an own item with no Duplicate check line: /^REFUSED --dup-resolution 
+RESULT: mutants=18 equivalent=0 all killed

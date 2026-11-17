@@ -1,0 +1,5 @@
+#!/bin/bash
+# mutdrive.sh <W> <snap> <keys-file> <outdir> <lanes>
+W="$1"; S="$2"; KF="$3"; O="$4"; L="$5"
+xargs -a "$KF" -P "$L" -I{} "$W/runmut7b.sh" "$W" "$S" {} "$O"
+: > "$O/$(basename "$KF").done"

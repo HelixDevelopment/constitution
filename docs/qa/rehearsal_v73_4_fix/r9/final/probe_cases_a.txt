@@ -1,0 +1,49 @@
+L1 link mid-word                             human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L2 linked colon                              human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L2b linked colon, href x                     human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L3 link on V (control)                       human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L4 image mid-word                            human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L5 link with title                           human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L6 reference link                            human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L7 empty href colon (control)                human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L8 link mid-word in heading                  human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L9 link mid-word in list item                human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L10 link mid-word in quote                   human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L11 link mid-word in table (gfm)             human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+L12 fake BEFORE real                         human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+B1 RLO reversed fake                         human=two    checker=REFUSE 
+    reason: the body holds the bidi control U+202E RIGHT-TO-LEFT OVERRIDE: it can reorder what a reader shows
+B2 RLO entity                                human=two    checker=REFUSE 
+    reason: the body holds the bidi control U+202E RIGHT-TO-LEFT OVERRIDE: it can reorder what a reader shows
+B3 RLI reversed fake + PDI                   human=two    checker=REFUSE 
+    reason: the body holds the bidi control U+202C POP DIRECTIONAL FORMATTING: it can reorder what a reader shows
+B4 RLO in heading                            human=two    checker=REFUSE 
+    reason: the body holds the bidi control U+202E RIGHT-TO-LEFT OVERRIDE: it can reorder what a reader shows
+B5 RTL paragraph, colon before word          human=?      checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+B6 RLO in list item                          human=two    checker=REFUSE 
+    reason: the body holds the bidi control U+202E RIGHT-TO-LEFT OVERRIDE: it can reorder what a reader shows
+B7 RLO, fake before real                     human=two    checker=REFUSE 
+    reason: the body holds the bidi control U+202E RIGHT-TO-LEFT OVERRIDE: it can reorder what a reader shows
+N1 bold word, no colon                       human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+N2 bold word, dash                           human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+N3 bold word, period                         human=two    checker=REFUSE 
+    reason: a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of th
+C1 plain duplicate                           human=two    checker=REFUSE 
+    reason: 2 verification lines (one expected)
+C2 good alone                                human=one    checker=ACCEPT  <== DANGER pandoc-md-export(real line not a top-level p)

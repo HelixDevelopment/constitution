@@ -1,0 +1,20 @@
+mutants=18 stale=0 
+KILLED LM1 fixpoint steps 64 -> 4 rc=1 first=FAIL SECRET shape oracle: rc=1: FAIL shape r10-rv-q04-pct-6-beyond (got none, want password-assign-unquoted)|FAIL shape r10-own-pct-8 (got none, want 
+SURVIVED LM2 base64 decoded minimum 8 -> 12 rc=0 first=
+SURVIVED LM3 base64 decoded needs '=' only (colon form dropped) rc=0 first=
+SURVIVED LM4 base64 run minimum 16 -> 20 rc=0 first=
+KILLED LM5 stand-in letters: at most half -> under half rc=1 first=FAIL SECRET front-end contracts: rc=1: FAIL C2 password with 4 of 8 stand-ins: contract broken|
+KILLED LM6 split heads: three-part form dropped rc=1 first=FAIL SECRET shape oracle: rc=1: FAIL shape r10-own-split-mot-de-passe (got none, want password-assign-unquoted)|
+SURVIVED LM7 ticket value not anchored at end rc=0 first=
+SURVIVED LM8 version: a bare number is a version rc=0 first=
+SURVIVED LM9 ref scheme: any text after the colon rc=0 first=
+KILLED LM10 R '<<-' arrow dropped rc=1 first=FAIL SECRET shape oracle: rc=1: FAIL shape r10-own-r-assign-dash-arrow (got none, want password-assign)|
+SURVIVED LM11 set command only at line start rc=0 first=
+SURVIVED LM12 table row needs a closing pipe rc=0 first=
+SURVIVED LM13 join: '&' and '~' operators dropped rc=0 first=
+KILLED LM14 set command: generic keys dropped rc=1 first=FAIL SECRET shape oracle: rc=1: FAIL shape r10-own-set-semicolon (got none, want set-command)|
+SURVIVED LM15 table row: numeric tier admitted rc=0 first=
+SURVIVED LM16 attribute key 'id' dropped rc=0 first=
+SURVIVED LM17 paren literal window 1024 -> 12 rc=0 first=
+KILLED LM18 entity view returned even when unchanged rc=1 first=FAIL SECRET front-end contracts: rc=1: FAIL C8 bare ampersand gives no entity view: contract broken|
+RESULT kind=lint mutants=18 killed=6 survived=12 stale=0

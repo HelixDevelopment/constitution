@@ -1,0 +1,17 @@
+    idgrammar_r4_cli_test.go:67: control: the body before the update lacks "**Evidence:** /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/t/TestCON456R4_UpdateDescriptionKeepsEveryDetailKind772344840/002/ev1.txt":
+--- FAIL: TestCON456R4_UpdateDescriptionKeepsEveryDetailKind (0.14s)
+    idgrammar_r4_cli_test.go:111: update --description dropped the Obsolete-Details line:
+--- FAIL: TestCON456R4_UpdateDescriptionKeepsObsoleteDetails (0.15s)
+    idgrammar_r4_cli_test.go:135: block dropped a detail line:
+--- FAIL: TestCON456R4_BlockKeepsOtherDetailLines (0.15s)
+    idgrammar_r4_cli_test.go:153: close dropped the Reopened-Details line:
+--- FAIL: TestCON456R4_CloseKeepsReopenedDetailsAndReplacesEvidence (0.13s)
+--- PASS: TestCON456R4_DescriptionOwnedAndFencedLinesNotCarried (0.09s)
+--- PASS: TestCON456R4_ObsoleteDetailsEvidenceLineBreakRefused (0.28s)
+--- PASS: TestCON456R4_UnblockChoicesOnlyEditRederived (0.14s)
+    idgrammar_r4_cli_test.go:246: task: the legacy lines were adopted as states "UNREPRODUCED|not-started"
+    idgrammar_r4_cli_test.go:246: fenced bug: the legacy lines were adopted as states "UNREPRODUCED|not-started"
+--- FAIL: TestCON456R4_LegacyAdoptionBugOnlyAndNotFenced (0.15s)
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	1.253s
+FAIL

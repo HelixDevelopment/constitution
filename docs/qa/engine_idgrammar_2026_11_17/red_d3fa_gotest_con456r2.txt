@@ -1,0 +1,242 @@
+=== RUN   TestCON456R2_AddRefusesTextTheParserCannotCarry
+=== RUN   TestCON456R2_AddRefusesTextTheParserCannotCarry/F1_legacy_id_bracket_title
+add: created GS-72 (Task, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:232: add accepted "[ABC-9] first probe item"; its Markdown does not read back as this item
+=== RUN   TestCON456R2_AddRefusesTextTheParserCannotCarry/F1_legacy_id_bracket_collision
+add: created G71 (Task, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:232: add accepted "crash in [CON-123] path probe"; its Markdown does not read back as this item
+=== RUN   TestCON456R2_AddRefusesTextTheParserCannotCarry/O2_status_suffix_title
+add: created G74 (Task, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:232: add accepted "thing — `Fixed (→ Fixed.md)` probe"; its Markdown does not read back as this item
+=== RUN   TestCON456R2_AddRefusesTextTheParserCannotCarry/O1_heading_in_title
+add: created CON-810 (Task, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:232: add accepted "a\n## CON-811 — injected"; its Markdown does not read back as this item
+=== RUN   TestCON456R2_AddRefusesTextTheParserCannotCarry/O1_heading_in_description
+add: created CON-812 (Task, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:232: add accepted "t canon desc heading"; its Markdown does not read back as this item
+=== RUN   TestCON456R2_AddRefusesTextTheParserCannotCarry/O1_heading_in_title_prefix_mode
+add: created CON-001 (Task, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:232: add accepted "a\n## CON-811 — injected"; its Markdown does not read back as this item
+--- FAIL: TestCON456R2_AddRefusesTextTheParserCannotCarry (0.13s)
+    --- FAIL: TestCON456R2_AddRefusesTextTheParserCannotCarry/F1_legacy_id_bracket_title (0.02s)
+    --- FAIL: TestCON456R2_AddRefusesTextTheParserCannotCarry/F1_legacy_id_bracket_collision (0.02s)
+    --- FAIL: TestCON456R2_AddRefusesTextTheParserCannotCarry/O2_status_suffix_title (0.02s)
+    --- FAIL: TestCON456R2_AddRefusesTextTheParserCannotCarry/O1_heading_in_title (0.02s)
+    --- FAIL: TestCON456R2_AddRefusesTextTheParserCannotCarry/O1_heading_in_description (0.03s)
+    --- FAIL: TestCON456R2_AddRefusesTextTheParserCannotCarry/O1_heading_in_title_prefix_mode (0.03s)
+=== RUN   TestCON456R2_AddTrimsAndRoundTrips
+add: created CON-996 (Task, status=Queued) in Issues
+add: created G73 (Task, status=Queued) in Issues
+    idgrammar_r2_cli_test.go:271: stored items:
+         got CON-996|Issues|section|"  leading probe title  "
+        G73|Issues|section|"  leading legacy probe"
+        
+        want CON-996|Issues|section|"leading probe title"
+        G73|Issues|section|"leading legacy probe"
+--- FAIL: TestCON456R2_AddTrimsAndRoundTrips (0.05s)
+=== RUN   TestCON456R2_MDToDBIsAtomicAcrossDocuments
+=== RUN   TestCON456R2_MDToDBIsAtomicAcrossDocuments/control_move_is_imported
+add: created CON-001 (Task, status=Queued) in Issues
+add: created CON-002 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentscontrol_move_is_impor1241880886/002/Issues.md (358 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentscontrol_move_is_impor1241880886/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentscontrol_move_is_impor1241880886/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentscontrol_move_is_impor1241880886/002/Fixed.md: 1 items, 2 segments
+synced 2 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentscontrol_move_is_impor1241880886/001/workable_items.db
+=== RUN   TestCON456R2_MDToDBIsAtomicAcrossDocuments/refusal_on_the_Fixed_side
+add: created CON-001 (Task, status=Queued) in Issues
+add: created CON-002 (Task, status=Queued) in Issues
+add: created G77 (Task, status=Queued) in Issues
+move: G77 relocated Issues→Fixed (status=Fixed (→ Fixed.md), reason=test: put an item in Fixed)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentsrefusal_on_the_Fixed_1325607566/002/Issues.md (358 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentsrefusal_on_the_Fixed_1325607566/002/Fixed.md (187 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentsrefusal_on_the_Fixed_1325607566/002/Issues.md: 1 items, 1 segments
+sync md-to-db: refusing — 1 DB item(s) whose heading is still in /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentsrefusal_on_the_Fixed_1325607566/002/Fixed.md would be dropped because the parser cannot read the heading (nothing written): G77 (heading "## G77.   leading partial-write probe"); an id must be <KEY>-<suffix> with KEY exactly three ASCII uppercase letters and suffix one or more of [0-9A-Za-z] (e.g. CON-123, CON-14b, CON-PENDINGengine), or a legacy code [A-Z][A-Za-z0-9]* with at most one -[A-Za-z0-9]+ part (e.g. G01, GS-2); a second hyphen, a lowercase or non-three-letter key followed by more than one part, whitespace, dots, '#', brackets, '§' and non-ASCII characters cannot round-trip through the Markdown trackers
+    idgrammar_r2_cli_test.go:349: a refused md-to-db changed the database:
+        line 339:
+          orig: doc_segments: "1" "Issues" "0" "item" "CON-001" "section" "<nil>"
+          regen: doc_segments: "4" "Fixed" "0" "item" "G77" "section" "<nil>"
+=== RUN   TestCON456R2_MDToDBIsAtomicAcrossDocuments/failure_of_the_Fixed_leg
+add: created CON-001 (Task, status=Queued) in Issues
+add: created CON-002 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentsfailure_of_the_Fixed_3321921030/002/Issues.md (358 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentsfailure_of_the_Fixed_3321921030/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBIsAtomicAcrossDocumentsfailure_of_the_Fixed_3321921030/002/Issues.md: 1 items, 1 segments
+sync md-to-db: persist fixed: insert item CON-001 [section]: forced failure of the Fixed leg
+    idgrammar_r2_cli_test.go:362: a failed md-to-db left a partial write:
+        line 342:
+          orig: doc_segments: "1" "Issues" "0" "item" "CON-001" "section" "<nil>"
+          regen: doc_segments: "3" "Issues" "0" "item" "CON-002" "section" "<nil>"
+--- FAIL: TestCON456R2_MDToDBIsAtomicAcrossDocuments (0.19s)
+    --- PASS: TestCON456R2_MDToDBIsAtomicAcrossDocuments/control_move_is_imported (0.05s)
+    --- FAIL: TestCON456R2_MDToDBIsAtomicAcrossDocuments/refusal_on_the_Fixed_side (0.08s)
+    --- FAIL: TestCON456R2_MDToDBIsAtomicAcrossDocuments/failure_of_the_Fixed_leg (0.07s)
+=== RUN   TestCON456R2_MDToDBRefusesWhatTheParserWouldLose
+=== RUN   TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/F1_legacy_bracket_title
+add: created CON-001 (Task, status=Queued) in Issues
+add: created GS-72 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack2043578899/002/Issues.md (342 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack2043578899/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack2043578899/002/Issues.md: 2 items, 2 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack2043578899/002/Fixed.md: 0 items, 0 segments
+synced 2 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack2043578899/001/workable_items.db
+    idgrammar_r2_cli_test.go:430: md-to-db accepted Markdown that loses or changes a stored item; items now:
+        ABC-9|Issues|section|"first probe"
+        CON-001|Issues|section|"an ordinary neighbour item"
+=== RUN   TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/F1_legacy_bracket_title_description_edited
+add: created CON-001 (Task, status=Queued) in Issues
+add: created GS-72 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack3703624327/002/Issues.md (342 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack3703624327/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack3703624327/002/Issues.md: 2 items, 2 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack3703624327/002/Fixed.md: 0 items, 0 segments
+synced 2 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF1_legacy_brack3703624327/001/workable_items.db
+    idgrammar_r2_cli_test.go:430: md-to-db accepted Markdown that loses or changes a stored item; items now:
+        ABC-9|Issues|section|"first probe"
+        CON-001|Issues|section|"an ordinary neighbour item"
+=== RUN   TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/O1_heading_line_in_description
+add: created CON-001 (Task, status=Queued) in Issues
+add: created CON-810 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO1_heading_line3569047080/002/Issues.md (319 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO1_heading_line3569047080/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO1_heading_line3569047080/002/Issues.md: 3 items, 3 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO1_heading_line3569047080/002/Fixed.md: 0 items, 0 segments
+synced 3 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO1_heading_line3569047080/001/workable_items.db
+    idgrammar_r2_cli_test.go:430: md-to-db accepted Markdown that loses or changes a stored item; items now:
+        CON-001|Issues|section|"an ordinary neighbour item"
+        CON-810|Issues|section|"description holds a heading"
+        CON-811|Issues|section|"injected"
+=== RUN   TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/O2_status_suffix_title
+add: created CON-001 (Task, status=Queued) in Issues
+add: created G74 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO2_status_suffi1224369750/002/Issues.md (359 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO2_status_suffi1224369750/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO2_status_suffi1224369750/002/Issues.md: 2 items, 2 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO2_status_suffi1224369750/002/Fixed.md: 0 items, 0 segments
+synced 2 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseO2_status_suffi1224369750/001/workable_items.db
+    idgrammar_r2_cli_test.go:430: md-to-db accepted Markdown that loses or changes a stored item; items now:
+        CON-001|Issues|section|"an ordinary neighbour item"
+        G74|Issues|section|"thing"
+=== RUN   TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/F4_fixed_section_read_as_table_row
+add: created CON-001 (Task, status=Queued) in Issues
+add: created CON-900 (Bug, status=Queued) in Issues
+move: CON-900 relocated Issues→Fixed (status=Fixed (→ Fixed.md), reason=test: put an item in Fixed)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF4_fixed_sectio2488694483/002/Issues.md (177 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF4_fixed_sectio2488694483/002/Fixed.md (88 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF4_fixed_sectio2488694483/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF4_fixed_sectio2488694483/002/Fixed.md: 1 items, 2 segments
+synced 2 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBRefusesWhatTheParserWouldLoseF4_fixed_sectio2488694483/001/workable_items.db
+    idgrammar_r2_cli_test.go:430: md-to-db accepted Markdown that loses or changes a stored item; items now:
+        CON-001|Issues|section|"an ordinary neighbour item"
+        CON-900|Fixed|table|"CON-900 thing"
+--- FAIL: TestCON456R2_MDToDBRefusesWhatTheParserWouldLose (0.30s)
+    --- FAIL: TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/F1_legacy_bracket_title (0.07s)
+    --- FAIL: TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/F1_legacy_bracket_title_description_edited (0.06s)
+    --- FAIL: TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/O1_heading_line_in_description (0.06s)
+    --- FAIL: TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/O2_status_suffix_title (0.05s)
+    --- FAIL: TestCON456R2_MDToDBRefusesWhatTheParserWouldLose/F4_fixed_section_read_as_table_row (0.06s)
+=== RUN   TestCON456R2_MDToDBImportsRealEdits
+add: created CON-001 (Task, status=Queued) in Issues
+add: created CON-002 (Task, status=Queued) in Issues
+add: created CON-003 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBImportsRealEdits761006608/002/Issues.md (527 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBImportsRealEdits761006608/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBImportsRealEdits761006608/002/Issues.md: 3 items, 3 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBImportsRealEdits761006608/002/Fixed.md: 0 items, 0 segments
+synced 3 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R2_MDToDBImportsRealEdits761006608/001/workable_items.db
+--- PASS: TestCON456R2_MDToDBImportsRealEdits (0.06s)
+=== RUN   TestCON456R2_UpdateTitleRoundTrips
+add: created G76 (Task, status=Queued) in Issues
+add: created CON-997 (Task, status=Queued) in Issues
+update: G76 updated in Issues (status=Queued, type=Task)
+update: CON-997 updated in Issues (status=Queued, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_UpdateTitleRoundTrips216243606/002/Issues.md (342 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_UpdateTitleRoundTrips216243606/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_UpdateTitleRoundTrips216243606/002/Issues.md: 2 items, 2 segments
+/mnt/DATA1TB/claude-work/tmp/TestCON456R2_UpdateTitleRoundTrips216243606/002/Fixed.md: 0 items, 0 segments
+synced 2 total items into /mnt/DATA1TB/claude-work/tmp/TestCON456R2_UpdateTitleRoundTrips216243606/003/rt.db
+    idgrammar_r2_cli_test.go:493: items after the round trip:
+         got CON-997|Issues|section|"new canonical title words"
+        G76|Issues|section|"old legacy title words"
+        
+        want CON-997|Issues|section|"new canonical title words"
+        G76|Issues|section|"new legacy title words"
+--- FAIL: TestCON456R2_UpdateTitleRoundTrips (0.09s)
+=== RUN   TestCON456R2_UpdateSeverityReachesMarkdown
+add: created CON-997 (Task, status=Queued) in Issues
+update: CON-997 updated in Issues (status=Queued, type=Task)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_UpdateSeverityReachesMarkdown3132870928/002/Issues.md (178 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_UpdateSeverityReachesMarkdown3132870928/002/Fixed.md (0 bytes)
+    idgrammar_r2_cli_test.go:519: exported Markdown does not carry the new severity:
+        ## CON-997 — item whose severity changes
+        
+        **Status:** Queued
+        **Type:** Task
+        **Severity:** Low
+        
+        a sufficiently long description that clears the description floor for round two
+        
+--- FAIL: TestCON456R2_UpdateSeverityReachesMarkdown (0.04s)
+=== RUN   TestCON456R2_ColumnBodyDesyncHealed
+add: created CON-997 (Task, status=Queued) in Issues
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_ColumnBodyDesyncHealed1633961176/002/Issues.md (182 bytes)
+wrote /mnt/DATA1TB/claude-work/tmp/TestCON456R2_ColumnBodyDesyncHealed1633961176/002/Fixed.md (0 bytes)
+    idgrammar_r2_cli_test.go:539: db-to-md did not render the severity from the column:
+        ## CON-997 — item with a stale severity line
+        
+        **Status:** Queued
+        **Type:** Task
+        **Severity:** Low
+        
+        a sufficiently long description that clears the description floor for round two
+        
+--- FAIL: TestCON456R2_ColumnBodyDesyncHealed (0.06s)
+=== RUN   TestCON456R2_BlockDetailsCannotInjectAnItem
+add: created CON-998 (Task, status=Queued) in Issues
+block: CON-998 set Operator-blocked in Issues (WHAT:blocked action
+## CON-999 — injected)
+    idgrammar_r2_cli_test.go:565: block accepted details holding a heading line
+--- FAIL: TestCON456R2_BlockDetailsCannotInjectAnItem (0.04s)
+=== RUN   TestCON456R2_MoveRefusesAnItemFixedCannotRead
+add: created CON-001 (Task, status=Queued) in Issues
+add: created GS-72 (Task, status=Queued) in Issues
+move: GS-72 relocated Issues→Fixed (status=Fixed (→ Fixed.md), reason=test: move an item whose heading reads as another id)
+    idgrammar_r2_cli_test.go:596: move accepted an item whose Markdown reads back as ABC-9
+--- FAIL: TestCON456R2_MoveRefusesAnItemFixedCannotRead (0.05s)
+=== RUN   TestCON456R2_BodyWritersRefuseAnItemTheParserSplits
+=== RUN   TestCON456R2_BodyWritersRefuseAnItemTheParserSplits/close
+add: created CON-020 (Task, status=Queued) in Issues
+add: created CON-021 (Task, status=Queued) in Issues
+close: moved CON-020 Issues→Fixed (status=Completed (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/tmp/TestCON456R2_BodyWritersRefuseAnItemTheParserSplitsclose1283153521/002/close.md)
+    idgrammar_r2_cli_test.go:651: close accepted an item whose Markdown reads back as two items
+=== RUN   TestCON456R2_BodyWritersRefuseAnItemTheParserSplits/obsolete-details
+add: created CON-030 (Bug, status=Queued) in Issues
+close: moved CON-030 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=docs/qa/CON-030/evidence.md)
+add: created CON-031 (Bug, status=Queued) in Issues
+close: moved CON-031 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=docs/qa/CON-031/evidence.md)
+obsolete-details: CON-030 written (Since:2026-06-09 Reason:not-reproducible Superseding:none Evidence:docs/qa/CON-030/evidence.md)
+    idgrammar_r2_cli_test.go:674: obsolete-details accepted an item whose Markdown reads back as two items
+=== RUN   TestCON456R2_BodyWritersRefuseAnItemTheParserSplits/states-import
+add: created CON-050 (Bug, status=Queued) in Issues
+add: created CON-051 (Bug, status=Queued) in Issues
+states import: 1 row(s), 1 change(s), 0 unchanged
+  investigation=in-progress 1
+  reproduction=UNREPRODUCED 1
+states import: applied 1 change(s) from states.tsv
+    idgrammar_r2_cli_test.go:693: states import accepted an item whose Markdown reads back as two items
+=== RUN   TestCON456R2_BodyWritersRefuseAnItemTheParserSplits/repair-bodies
+add: created CON-040 (Task, status=Queued) in Issues
+repair-bodies: scanned 1 items — already canonical (0 rewrite, 0 populate, 0 backfill-segment); no changes
+    idgrammar_r2_cli_test.go:709: repair-bodies accepted an item whose Markdown reads back as two items
+--- FAIL: TestCON456R2_BodyWritersRefuseAnItemTheParserSplits (0.30s)
+    --- FAIL: TestCON456R2_BodyWritersRefuseAnItemTheParserSplits/close (0.06s)
+    --- FAIL: TestCON456R2_BodyWritersRefuseAnItemTheParserSplits/obsolete-details (0.10s)
+    --- FAIL: TestCON456R2_BodyWritersRefuseAnItemTheParserSplits/states-import (0.08s)
+    --- FAIL: TestCON456R2_BodyWritersRefuseAnItemTheParserSplits/repair-bodies (0.06s)
+=== RUN   TestCON456R2_MDToDBWithoutDocumentsCreatesNoDatabase
+sync md-to-db: at least one of --issues / --fixed is required
+    idgrammar_r2_cli_test.go:724: md-to-db with a usage error created the database file (err=<nil>)
+--- FAIL: TestCON456R2_MDToDBWithoutDocumentsCreatesNoDatabase (0.02s)
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	1.356s
+FAIL

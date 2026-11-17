@@ -1,0 +1,9 @@
+# reftable probe, git git version 2.53.0: ff with a stale reftable/tables.list.lock
+locks created by a normal ff:
+"w/.git/index.lock"
+"w/.git/objects/maintenance.lock"
+"w/.git/reftable/0x000000000001-0x000000000005-b7897205.ref.lock"
+"w/.git/reftable/0x000000000006-0x000000000006-95545178.ref.lock"
+"w/.git/reftable/0x000000000007-0x000000000007-7b56132f.ref.lock"
+"w/.git/reftable/tables.list.lock"
+with stale tables.list.lock: fatal: update_ref failed for ref 'ORIG_HEAD': cannot lock references, rc=128, status clean

@@ -1,0 +1,34 @@
+PASS rewrite dry run counts
+PASS rewrite dry run writes nothing
+PASS rewrite --write
+PASS tokens, no chaining, boundaries, range
+PASS Foreign line and its ids left alone
+PASS Foreign line text
+PASS Foreign line left alone before its colon too
+PASS Foreign line text before its colon
+PASS --foreign excludes an id
+PASS partly mapped range refused
+PASS a refusal writes no file at all
+PASS range with non-contiguous new ids refused
+PASS a .db file refused
+PASS a binary file refused
+PASS map naming an id twice is BLIND
+PASS map without header is BLIND
+PASS usage: no subcommand
+PASS plan maps own ids in order to max(target)+1
+PASS plan map file
+PASS plan refuses a new id held by an item that stays
+PASS plan BLIND when nothing is own
+PASS plan BLIND when a database is missing
+PASS plan BLIND when the target holds no id of the prefix
+PASS plan on engine-built databases
+PASS replay dry run rewrites text without chaining
+PASS replay --apply through the engine
+PASS validate reports no new finding on the replayed target
+PASS verify PASS after replay
+PASS statuses and superseding ids replayed (gamma Obsolete onto alpha, delta Reopened)
+PASS second replay refused before any write
+PASS verify FAILs on a changed description
+PASS verify FAILs when the items are missing
+PASS the real database is untouched
+RESULT: pass=33 fail=0

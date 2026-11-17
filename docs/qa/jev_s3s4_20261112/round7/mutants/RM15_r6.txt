@@ -1,0 +1,7 @@
+ok 1 - P51 no further candidate is considered after the late-recorded start
+ok 2 - P51 no fresh answer is read for a next candidate
+ok 3 - P51 exactly one llmctl start when the record step cannot take the lock (never a second candidate)
+ok 4 - P51 only decide-a runs
+FAIL - P51 rc 0 and the profile: the lease IS held (it is in the registry since the mark) (expected [0 decide-a] got [4 ])
+ok 5 - P51 the outcome is announced: lease held, start recorded late
+ok 6 - P51 the registry holds s1's lease on decide-a

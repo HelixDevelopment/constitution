@@ -1,0 +1,60 @@
+package main
+
+// zz_m39_equivalence_test.go - scratch instrument for CON-456 round 2, NOT
+// shipped. Claim under test (mutant M39, "the title is judged in Issues
+// only"): no title round-trips under an id in Issues.md while failing in
+// Fixed.md (or the reverse), so dropping the Fixed leg of titleRoundTrips
+// changes no verdict. Method: deterministic random titles assembled from
+// fragments that each parser treats specially, under canonical and legacy ids,
+// each judged per tracker exactly as titleRoundTrips judges it. Control: the
+// per-tracker verdicts must split into accepted and refused titles (the
+// instrument can see both outcomes).
+
+import (
+	"math/rand"
+	"strings"
+	"testing"
+)
+
+func titleVerdictIn(id, title, doc, status string) bool {
+	const probeDesc = "title round-trip probe description, long enough for the description floor."
+	it := item{AtmID: id, Title: title, Type: "Task", Status: status, CurrentLocation: doc, Representation: "section"}
+	it.BodyMD = renderItemBody(id, title, "Task", "", probeDesc, status, "", "")
+	return len(roundTripProblems(it)) == 0
+}
+
+func TestM39TitleVerdictSameInBothTrackers(t *testing.T) {
+	ids := []string{"CON-001", "CON-1000", "G76", "GO", "BJ-SOURCE", "ATM-248", "GS-2", "U"}
+	frags := []string{
+		"plain words", " ", "  ", "[ABC-9]", "[CON-002]", " — ", " — `Fixed (→ Fixed.md)`", " `Completed x`",
+		" [migrated 2026]", "## ", "| a | b |", "|", "§FL", "**Status:** Queued", "`code`", "(paren)", "—",
+		"#", "\t", "Fixed (→ Fixed.md)", ". ", "x. y", "* ", "- ", "> ", "1. ", "CON-003", "**", "Obsolete",
+	}
+	r := rand.New(rand.NewSource(39))
+	accepted, refused, split := 0, 0, 0
+	for i := 0; i < 60000; i++ {
+		var b strings.Builder
+		for j, k := 0, 1+r.Intn(5); j < k; j++ {
+			b.WriteString(frags[r.Intn(len(frags))])
+		}
+		title := b.String()
+		id := ids[r.Intn(len(ids))]
+		inIssues := titleVerdictIn(id, title, "Issues", "Queued")
+		inFixed := titleVerdictIn(id, title, "Fixed", "Fixed (→ Fixed.md)")
+		switch {
+		case inIssues && inFixed:
+			accepted++
+		case !inIssues && !inFixed:
+			refused++
+		default:
+			split++
+			if split <= 10 {
+				t.Errorf("verdicts differ for id %q title %q: Issues=%v Fixed=%v", id, title, inIssues, inFixed)
+			}
+		}
+	}
+	if accepted == 0 || refused == 0 {
+		t.Fatalf("control: the instrument saw only one outcome (accepted=%d refused=%d)", accepted, refused)
+	}
+	t.Logf("titles judged: accepted in both=%d refused in both=%d differing=%d", accepted, refused, split)
+}

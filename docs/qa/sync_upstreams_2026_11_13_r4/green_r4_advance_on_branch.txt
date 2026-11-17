@@ -1,0 +1,12 @@
+rc=4
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/r4_advance_on_branch/helix-sync-test.64awmv/out/r1/sync_report.json
+CANONICAL_SHA256=8474f288853e423a6c5cc776bd83f34f00677dd44abc3b645d90d8e96327f149
+RESULT: ATTENTION exit=4
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/r4_advance_on_branch/helix-sync-test.64awmv/work/root: 4 repositories, 4 initialised, 4 remotes, mode apply, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   attention       kept-on-branch:advance-pin
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -
+branch before=feature after=feature head=6e9486596d70bcd4e9317d8f7c5dfda1f7b9e5ce
+actions=[{'op': 'none', 'why': 'advance-skipped:submodule-on-branch'}] result=attention
+feature ref=6e9486596d70bcd4e9317d8f7c5dfda1f7b9e5ce

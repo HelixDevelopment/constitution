@@ -80,7 +80,11 @@ assert_contains "$T/cal.out" "insufficient-sample" "tiny reason reported"
 
 # canonicalized byte-compare against exact expected thresholds document
 CANON='walk(if type=="number" then .+0 else . end)'
-jq -S "$CANON" "$THR" > "$T/actual.canon.json"
+# 2026-11-12: the document gained two ADDITIVE keys (per_endpoint, main_llm_alias), checked on their own below; the exact
+# per_type document is still compared byte for byte
+jq -S "del(.per_endpoint, .main_llm_alias) | $CANON" "$THR" > "$T/actual.canon.json"
+assert_eq "40 30 38 10" "$(jq -r '[.per_endpoint["unknown|unknown"] | .gate.n, .edge.n, .route.n, .tiny.n] | map(tostring) | join(" ")' "$THR")" "per_endpoint: rows without endpoint/model grouped as unknown|unknown with the per-type n"
+assert_eq "claude default" "$(jq -r '.main_llm_alias | "\(.name) \(.source)"' "$THR")" "main_llm_alias recorded (default)"
 cat > "$T/expected.json" <<'JSON'
 {"version":1,"calibrated_at":1700000000,"floor":0.9,"min_sample":30,"sample_per_type":50,
  "per_type":{

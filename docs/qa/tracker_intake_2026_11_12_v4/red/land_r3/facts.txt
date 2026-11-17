@@ -1,0 +1,6 @@
+FAILS R3-1a CON-243 closed as in the vehicle: vehicle 'Obsolete (→ Fixed.md)'/'Fixed', landed 'Queued'/'Issues'
+FAILS R3-1b CON-243 obsolete_details duplicate-of CON-262: vehicle ('duplicate-of', 'CON-262'), landed None
+FAILS R3-1c CON-262 carries the vehicle's description: vehicle 4164 characters, landed 2981
+FAILS R3-1d CON-046 carries the vehicle's description and reproduction state: vehicle 7148 characters UNREPRODUCED, landed 90 characters UNSET
+FAILS R3-2 the landed CON-330 title still names fix227's CON-310: landed CON-343 title: 'fix227 CON-323 amendment (vehicle id): add the leading-blank'
+RESULT: FAIL facts=5 failed=5

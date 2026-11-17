@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""fu1_probe_r3.py OUTDIR -- FU-1 (round 3): which prefix of the canonical loop survives an INHERITED state.
+Each case: a BASH_ENV file (or an exported environment function) sets state, the program runs PREFIX + the loop,
+and prints whether the proved wt_path survives. Program text is built here (no shell heredoc)."""
+import os, subprocess, sys
+out = sys.argv[1]
+LOOP = 'for _ge_v in WT_PATH GIT_DIR; do unset "$_ge_v"; done; unset _ge_v'
+POST = '\necho "wt_path=${wt_path-[UNSET]} GIT_DIR=${GIT_DIR-[UNSET]}"'
+PRE = 'wt_path=/proved; GIT_DIR=/x\n'
+PREFIX = {"none": "", "unset -v": "unset -v _ge_v; ", "unset -n": "unset -n _ge_v; "}
+STATE = {
+    "nameref->wt_path": ("bashenv", "declare -n _ge_v=wt_path"),
+    "lowercase attr": ("bashenv", "declare -l _ge_v"),
+    "DEBUG trap": ("bashenv", "set -T; trap 'case \"$BASH_COMMAND\" in unset*) unset wt_path;; esac' DEBUG"),
+    "exported unset function": ("env", "() { builtin unset wt_path; }"),
+    "control (no state)": ("bashenv", ""),
+}
+os.makedirs(out, exist_ok=True)
+for sname, (kind, text) in STATE.items():
+    for pname, pre in PREFIX.items():
+        env = {"PATH": "/usr/bin:/bin"}
+        if kind == "bashenv":
+            f = os.path.join(out, "bashenv.sh")
+            open(f, "w").write(text + "\n")
+            env["BASH_ENV"] = f
+        else:
+            env["BASH_FUNC_unset%%"] = text
+        prog = PRE + pre + LOOP + POST
+        p = subprocess.run(["/usr/bin/bash", "--norc", "--noprofile", "-c", prog], capture_output=True, text=True,
+                           env=env, timeout=20, cwd=out)
+        print("%-26s prefix=%-9s -> %s" % (sname, pname, (p.stdout.strip() + " " + p.stderr.strip()[:80]).strip()))

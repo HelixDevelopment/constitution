@@ -1,0 +1,17 @@
+W07	r11	survived	
+W07	r10	survived	
+W07	r9	survived	
+W09	r11	killed	FAIL - R11-10 the set is kept for hX (stopped_while_held), the unit hX holds is not stopped again (expected [1 decide-a  hX 1] got [1 decide-a  hX null])
+W07	r8	survived	
+W07	r7	survived	
+W07	r6	survived	
+RCTRL	r11	survived	
+RCTRL	r10	survived	
+RCTRL	r9	survived	
+W07	pl	survived	
+RCTRL	r8	survived	
+RCTRL	r7	survived	
+RCTRL	r6	survived	
+RCTRL	pl	survived	
+W07	r11	killed	FAIL - R11-11 B's stop result never treats the refused start as a start (found [was recorded after this stop was armed] in /mnt/DATA1TB/claude-work/scratch/jev_r11.jB5s/tmp/tmp.ckdGTpxJbS/b.err)
+RCTRL	r11	survived	(final test file, RCTRL2_r11 59/0)

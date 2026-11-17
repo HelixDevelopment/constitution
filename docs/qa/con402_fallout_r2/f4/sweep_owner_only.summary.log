@@ -1,0 +1,32 @@
+== control: unmutated mirror must be fully GREEN ==
+tmpdir_chain=owner-only
+ok control GREEN: 460 passing checks across 13 suites
+== sweeping 345 sub-clause mutants at -j 2 ==
+ok G-A-BINDING-EQUAL#4 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-D-LIVE-REVIEWED#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-E-NAMED#2 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-E-SELF-CHECK-ON#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-E-COMMONPATH#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-E-SELF-CITATION#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-E-OWN-REALPATH#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-V-LISTS#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-NL-NONE-BOOL#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-T-OWNER-DECLARED#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-T-PRODUCER-DECLARED#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-FL-ABSENT#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-FL-ABSENT#2 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-FL-CLOSED-SET#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-RV-ABSENT#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-SV-ABSENT#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-SV-GO-SLICE-FINDING#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-CF-LOCATED#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-CF-LOCATED#2 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-CF-LOCATED#3 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-CF-MARKER-MATCH#1 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-CF-MARKER-MATCH#2 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-CF-MARKER-MATCH#3 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ok G-R-BATCH-CHANGES-OK#3 SURVIVED but listed EQUIVALENT (reason in review_record_equivalent_subclauses.tsv)
+ledger written: scripts/fastcycle/tests/fixtures/review_record_subclause_kills.tsv (345 rows)
+
+== sub-clause sweep: every mutant KILLED ==
+rc=0

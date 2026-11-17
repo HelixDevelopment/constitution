@@ -19,6 +19,21 @@ docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	py	excluded	-	-	-	overrid
 docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven reviewer mutant generator (usage: reviewer_mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; a standalone run without arguments fails; not a test
 docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	py	excluded	-	-	-	override: reason: tool: one-shot editor of tests/release/test_land_vehicle.sh (usage: edit_tests_r5.py <test file> <helpers file> <r5 section file>), kept as round-5 evidence; running it would edit a test file; not a test
 docs/qa/land_vehicle_r5_2026_11_13/tools/mk_mutant_table.py	py	excluded	-	-	-	override: reason: tool: argv-driven table builder (usage: mk_mutant_table.py <index.tsv> <notes.tsv> <out.md> <results.tsv>...) of the round-5 mutant evidence; a standalone run without arguments fails; not a test
+docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_12_v5/tools/ref_integrity_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_14_v6/tools/ref_integrity_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_14_v7/tools/ref_integrity_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_15_v8/tools/leak_scan_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_15_v8/tools/leak_scan_test.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_15_v9/tools/leak_scan_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_15_v9/tools/leak_scan_test.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
+docs/qa/tracker_intake_2026_11_16_v10/probes/rev_mutants_v9_reviewer.py	py	excluded	-	-	-	override: reason: tool: the round-9 reviewer's mutant driver, kept verbatim as evidence; it needs a v9 root, an output dir and a mode, and reads a probe from the reviewer's scratch dir
+docs/qa/tracker_intake_2026_11_16_v10/tools/leak_scan_mutations.py	py	entry	heavy	python3	-	auto
+docs/qa/tracker_intake_2026_11_16_v10/tools/leak_scan_test.py	py	entry	default	python3	-	auto
+docs/qa/tracker_intake_2026_11_16_v11/tools/leak_scan_mutations.py	py	entry	heavy	python3	-	auto
+docs/qa/tracker_intake_2026_11_16_v11/tools/leak_scan_test.py	py	entry	default	python3	-	auto
 docs/research/quality/solutions/poc/sol01_status_custody/test_sol01.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol02_verdict_coverage/test_sol02.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol03_needled_measurement/test_sol03.sh	sh	entry	default	bash	-	auto
@@ -303,6 +318,7 @@ scripts/fastcycle/tests/test_fc_common_red.sh	sh	member	default	-	scripts/fastcy
 scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_entry_r10_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_safepath_gitenv_scrub.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_safepath_v4r12.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_safepath_v4r13.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_safepath_v4r14.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
@@ -622,7 +638,9 @@ scripts/gates/cm_scope_and_image_noworse_anchor_wired_mutation_test.sh	sh	entry	
 scripts/gates/cm_setup_prompt_latest_present.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test (in the census only because 'latest' contains 'test'); its paired test is cm_setup_prompt_latest_present_mutation_test.sh; also run by the pre-build gate sweep
 scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 scripts/gates/cm_state_fields_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_submodule_pin_not_downgraded_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_subsystem_shortcuts_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_sync_upstreams_ff_only_mutation_test.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 scripts/gates/cm_test_mock_pid_explicit_int.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh
 scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_track_branch_label_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -844,7 +862,9 @@ tests/install/test_unit.sh	sh	member	default	-	tests/install/run_all.sh	auto: ru
 tests/install/test_updater.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_upstream_main.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
 tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	sh	excluded	-	-	-	reason: fake: recording stub used by post_update_hook trigger tests
+tests/jev/fixtures/bin-flockgate/flock	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin-hosted/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/bin-place/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude-providers	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -853,10 +873,16 @@ tests/jev/fixtures/bin/jev-label-stub	sh	fixture	-	-	-	fixture path (not a test 
 tests/jev/fixtures/bin/kimi	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/jev_server.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/mark_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/sweep_s4_round14.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/install.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/jev-setup.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/jev/fixtures/write_census.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/lib_assert.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/jev/test_anchor_renumber_integrity.sh
 tests/jev/run_all.sh	runall	entry	default	runall-whole	-	auto
+tests/jev/s4_round14_sweep_x_chaos_test.sh	sh	entry	heavy	bash	-	auto
+tests/jev/s4_round14_sweep_y_chaos_test.sh	sh	entry	heavy	bash	-	auto
+tests/jev/s4_round14_sweep_zd_chaos_test.sh	sh	entry	heavy	bash	-	auto
 tests/jev/test_anchor_renumber_integrity.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_e2e_stub_server.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_header_truth.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
@@ -865,16 +891,20 @@ tests/jev/test_bootstrap_manifest_reader.sh	sh	member	default	-	tests/jev/run_al
 tests/jev/test_bootstrap_noninteractive.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_provision_fallback.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_summary_mode_default.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_calibrate_per_endpoint.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_calibration_math.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_decision_layer_gaps.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_gate_blind_without_llmctl.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_matrix.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_detection_producer_gate_e2e.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_failopen_and_coverage_gaps.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_gate_bootstrap_hermetic.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_gate_pairs.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_hosted_key_discovery.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_jev_status.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_jev_status_health.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_mcp_register_hardening.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_no_real_tools.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_post_update_hook_trigger.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r2.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
@@ -883,7 +913,21 @@ tests/jev/test_review_fixes_r4.sh	sh	member	default	-	tests/jev/run_all.sh	auto:
 tests/jev/test_review_fixes_r5.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_run_all_leak_detector.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s3_bootstrap_honesty.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_placement.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round10.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round11.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round12.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round12_mc.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round13.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round14.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round8.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round9.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_tab_fields.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/layout/hermetic_lint.py	py	excluded	-	-	-	reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point
 tests/layout/lib_layout_harness.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/layout/test_canonical_root_layout.sh
 tests/layout/run_all.sh	runall	entry	default	runall-whole	-	auto
@@ -938,6 +982,18 @@ tests/release/channel_census.py	py	excluded	-	-	-	reason: oracle: channel census
 tests/release/env_allow.sh	sh	excluded	-	-	-	reason: library: shell library sourced (through $HERE) by the tag, publisher and derive suites and the mutation harness: allow-list, dirty entries, hup_ignored and its control; not a test entry point
 tests/release/env_census.py	py	excluded	-	-	-	reason: tool: runtime environment census (recorders and check) run by the tag, publisher and derive suites (C48, case 29, L2); not a test entry point
 tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network probe run by tests/release/test_tag_and_release.sh (cases C41, C43, C44); not a test entry point
+tests/release/pvl_blockstate.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_fixture.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_grid.py	py	excluded	-	-	-	reason: oracle: case grid of the provisional-verification checker (the r2 to r5 cases: placeholder shapes x six fields, per-field shapes, job and target positive shapes, look-alike letters, due dates, whole-line structure (separators, field order, notes, length), the target registry, golden-FALSE accepts; it has no code-fence, HTML or other block-context case, those are in tests/release/pvl_blockstate.py and the suite's P-checks) judged by the API, the command line and the independent oracle tests/release/pvl_oracle.py, run by tests/release/test_provisional_verification_lines.sh (P6) and by tests/release/pvl_mutate.py (P13); not a test entry point
+tests/release/pvl_inventory.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_lineend.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_linemodel.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_mutate.py	py	member	heavy	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_oracle.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_property.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_refreader.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_reviewer.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_timing.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts_injection.sh	sh	entry	default	bash	-	auto
@@ -947,6 +1003,7 @@ tests/release/test_derive_release_facts_provisional_mutants.sh	sh	entry	heavy	ba
 tests/release/test_fact_value_guard.sh	sh	entry	default	bash	-	auto
 tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
 tests/release/test_pr_landing_check.sh	sh	entry	default	bash	-	auto
+tests/release/test_provisional_verification_lines.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
 tests/release/test_release_template_delivery_paragraph.sh	sh	entry	default	bash	-	auto
@@ -954,6 +1011,7 @@ tests/release/test_release_template_delivery_paragraph_mutants.sh	sh	entry	heavy
 tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
+tests/reporting/test_report_item_bug_states.sh	sh	entry	default	bash	-	auto
 tests/security/fixtures/bin/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/bin/gh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/security/fixtures/bin/gitleaks	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -965,12 +1023,28 @@ tests/security/test_forge_branch_protect.sh	sh	entry	default	bash	-	auto
 tests/security/test_github_actions_inventory_disable.sh	sh	entry	default	bash	-	auto
 tests/security/test_gitleaks_run_scan_replace.sh	sh	entry	default	bash	-	auto
 tests/security/test_gitleaks_run_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/security/test_history_read_time_hiding.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_read_time_hiding_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_history_secret_scan.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_deadlock.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_deadlock_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_history_secret_scan_replace.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/sync/run_all.sh	runall	entry	default	runall-members	-	auto: covers 5 heavy member(s)
+tests/sync/test_chaos.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_determinism.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_e2e.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_faults.sh	sh	member	heavy	-	tests/sync/run_all.sh	override: tier heavy: about 213 full --apply runs, one fault each (skipped by run_all.sh --quick)
+tests/sync/test_full_automation.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_hardening.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_integration.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_mutations.py	py	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_perf.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_robustness.sh	sh	member	default	-	tests/sync/run_all.sh	auto: invoked by tests/sync/run_all.sh
+tests/sync/test_security.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_ui.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_unit.py	py	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
 tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto
 tests/test_git_env_class.sh	sh	entry	default	bash	-	auto
@@ -986,3 +1060,16 @@ tests/test_verify_helix_deps_manifests.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/meta_test_token_efficiency.sh	sh	entry	heavy	bash	-	auto
 tests/token_efficiency/test_token_efficiency_integration.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/test_token_efficiency_unit.sh	sh	entry	default	bash	-	auto
+tests/workable_items/remint_branch_sweep.py	py	entry	heavy	python3	-	auto
+tests/workable_items/remint_branch_sweep_mutations.py	py	entry	heavy	python3	-	auto
+tests/workable_items/secret_shape_fixtures.py	py	entry	default	python3	-	override: class entry: the shared secret-shape fixture rows; run alone it checks its own invariants (labels once, hit rows with their EXPECT_RULES tuple, miss rows with a reason, the reviewer lists at their verbatim sizes)
+tests/workable_items/secret_shape_fixtures_r11.py	py	excluded	-	-	-	override: reason: data: the round-10 reviewer's 51 positive and 25 negative probe rows, verbatim; no entry point of its own, it is read by tests/workable_items/test_secret_shapes_r11.py and docs/qa/tracker_intake_2026_11_16_v11/tools/leak_scan_test.py
+tests/workable_items/test_intake_lint.sh	sh	entry	default	bash	-	auto
+tests/workable_items/test_intake_lint_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/workable_items/test_remint_branch_sweep.sh	sh	entry	default	bash	-	auto
+tests/workable_items/test_remint_ids.sh	sh	entry	default	bash	-	auto
+tests/workable_items/test_remint_ids_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/workable_items/test_secret_canon.py	py	entry	default	python3	-	auto
+tests/workable_items/test_secret_frontend.py	py	entry	default	python3	-	auto
+tests/workable_items/test_secret_shapes.py	py	entry	default	python3	-	auto
+tests/workable_items/test_secret_shapes_r11.py	py	entry	default	python3	-	auto

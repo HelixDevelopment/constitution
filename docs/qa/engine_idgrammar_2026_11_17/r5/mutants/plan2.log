@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "<string>", line 2, in <module>
+    import sys; f,o,n=sys.argv[1:4]; s=open(f).read(); c=s.count(o)
+                                       ~~~~^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/DATA1TB/claude-work/scratch/con456r5_Ipwnma/mut/CONTROL2/x'
+CONTROL2 APPLY-FAIL
+RM1b2 go-test rc=1 fails=36
+OM42 go-test rc=1 fails=2
+OM52 go-test rc=1 fails=2
+OM16 go-test rc=1 fails=3
+OM17 go-test rc=1 fails=13
+OM18 go-test rc=1 fails=2
+OM112 go-test rc=1 fails=2
+PLAN2-DONE

@@ -1,0 +1,134 @@
+....F....................sync-upstreams: ERROR: choose one mode: --check, --dry-run or --apply
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --dry-run: not allowed with argument --check
+sync-upstreams: ERROR: --timeout must be a positive integer
+sync-upstreams: ERROR: --advance-third-party needs --advance-pins
+usage: sync_all_upstreams.sh [-h] [--check | --dry-run | --apply]
+                             [--root ROOT] [--branch BRANCH] [--no-fetch]
+                             [--tags] [--advance-pins] [--advance-third-party]
+                             [--strict-pins] [--own-org OWN_ORG] [--jobs JOBS]
+                             [--timeout TIMEOUT] [--deadline DEADLINE]
+                             [--write-timeout WRITE_TIMEOUT]
+                             [--max-depth MAX_DEPTH] [--out OUT]
+                             [--run-id RUN_ID] [--quiet] [--interactive |
+                             --non-interactive]
+sync_all_upstreams.sh: error: argument --branch: expected one argument
+............................................../mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py:1929: ResourceWarning: unclosed file <_io.TextIOWrapper name='/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/../../scripts/lib/constitution_layout.sh' mode='r' encoding='utf-8'>
+  line = [x for x in open(lib, encoding="utf-8") if x.startswith("CL_GIT_SCRUB_VARS=")]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+FF.FFE....F...................................................
+======================================================================
+ERROR: test_valid_branch_name (__main__.RoundEleven.test_valid_branch_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 1915, in test_valid_branch_name
+    self.assertTrue(E.valid_branch_name(n), n)
+                    ^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'sync_engine' has no attribute 'valid_branch_name'
+
+======================================================================
+FAIL: test_read_only_shapes (__main__.AllowList.test_read_only_shapes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 111, in test_read_only_shapes
+    self.bad("symbolic-ref", "--short", "-q", "HEAD")  # round 11 (RV10-1): --short disambiguates (heads/dev)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 36, in bad
+    with self.assertRaises(E.GitRefused):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+AssertionError: GitRefused not raised
+
+======================================================================
+FAIL: test_engine_scrub_covers_the_canonical_list (__main__.RoundEleven.test_engine_scrub_covers_the_canonical_list)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 1933, in test_engine_scrub_covers_the_canonical_list
+    self.assertEqual(sorted(set(names) - set(E._SCRUB)), [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['GIT_GRAFT_FILE', 'GIT_NO_REPLACE_OBJECTS'] != []
+
+First list contains 2 additional elements.
+First extra element 0:
+'GIT_GRAFT_FILE'
+
+- ['GIT_GRAFT_FILE', 'GIT_NO_REPLACE_OBJECTS']
++ []
+
+======================================================================
+FAIL: test_invalid_branch_parameter_is_a_usage_error (__main__.RoundEleven.test_invalid_branch_parameter_is_a_usage_error)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 1925, in test_invalid_branch_parameter_is_a_usage_error
+    self.assertEqual(E.main(["--check", "--no-fetch", "--branch=" + br, "--root", self.d]), E.EXIT_USAGE, br)
+                     ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/r10eng/scripts/sync/sync_all_upstreams.py", line 2132, in main
+    res = r.run(start_dir, ["rev-parse", "--show-toplevel"], ok=(0, 128), want=ABS_PATH_RE)
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/r10eng/scripts/sync/sync_all_upstreams.py", line 647, in run
+    kind, code, out, err = proc_run_git(self.git, repo, args, self.env_repo_ssh if repo_ssh else self.env,
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                        limit, level)
+                                        ^^^^^^^^^^^^^
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 1923, in <lambda>
+    E.proc_run_git = lambda *a, **k: self.fail("git must not run for an invalid --branch")
+                                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: git must not run for an invalid --branch
+
+======================================================================
+FAIL: test_read_branch_reads_the_full_ref (__main__.RoundEleven.test_read_branch_reads_the_full_ref)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 1880, in test_read_branch_reads_the_full_ref
+    self.assertEqual(E.read_branch(r, "/r"), want, out)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('branch', 'refs/heads/dev') != ('branch', 'dev')
+
+First differing element 1:
+'refs/heads/dev'
+'dev'
+
+- ('branch', 'refs/heads/dev')
+?             -----------
+
++ ('branch', 'dev') : refs/heads/dev
+
+
+======================================================================
+FAIL: test_symbolic_ref_short_is_refused (__main__.RoundEleven.test_symbolic_ref_short_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 1885, in test_symbolic_ref_short_is_refused
+    with self.assertRaises(E.GitRefused):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+AssertionError: GitRefused not raised
+
+======================================================================
+FAIL: test_read_branch_three_states (__main__.RoundFive.test_read_branch_three_states)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/syncfix11.ZGqG/repo/tests/sync/test_unit.py", line 1036, in test_read_branch_three_states
+    self.assertEqual(E.read_branch(r, "/r"), ("branch", "main"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('branch', 'refs/heads/main') != ('branch', 'main')
+
+First differing element 1:
+'refs/heads/main'
+'main'
+
+- ('branch', 'refs/heads/main')
+?             -----------
+
++ ('branch', 'main')
+
+----------------------------------------------------------------------
+Ran 133 tests in 9.920s
+
+FAILED (failures=6, errors=1)
+sync-unit: PASS 126 FAIL 7 SKIP 0

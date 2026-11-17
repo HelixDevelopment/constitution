@@ -1,0 +1,11 @@
+go version: go version go1.26.8 linux/amd64
+build command (scripts/workable-items): GOEXPERIMENT=nodwarf5 GOPROXY=off go build -trimpath -buildvcs=false -ldflags=-buildid= -o <out> ./cmd/workable-items
+5257247d7974e7ce24dca43fe7e9687d50220a0d85f1674e502bdb4da459297e  ev/build1
+5257247d7974e7ce24dca43fe7e9687d50220a0d85f1674e502bdb4da459297e  ev/build2
+5257247d7974e7ce24dca43fe7e9687d50220a0d85f1674e502bdb4da459297e  ev/r5b/final1
+5257247d7974e7ce24dca43fe7e9687d50220a0d85f1674e502bdb4da459297e  ev/r5b/final2
+5257247d7974e7ce24dca43fe7e9687d50220a0d85f1674e502bdb4da459297e  repo/scripts/workable-items/bin/workable-items
+5257247d7974e7ce24dca43fe7e9687d50220a0d85f1674e502bdb4da459297e  repo/scripts/workable-items/bin/workable-items-linux
+bin/.source.sha256: 2a13d1681432be2800434acf09080db8acfb09028a2133a72973dacbb650a90e (recomputed at HEAD: equal)
+base 94c95d83 rebuilt with this toolchain: cc8ab7201dc98596f2b6ad4b57fef768a0a3a52f209d0ca73f7e022c1bfe0957
+main control binary (ebd8818c bin/workable-items): e048a077db3dfcda380ac8cf77bef223db15570b63c6bc9152c171a3dda3d93d

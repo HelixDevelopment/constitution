@@ -1,0 +1,4 @@
+real rc 1 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: FAIL sub — staged pin 128c6ec is an ANCESTOR of the base pin d549d20 (downgrade; waiver: authoriser 'ᾴ' is the committer or author (producer cannot self-waive)). Advan
+mutant rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub d549d20 -> 128c6ec (waiver row bound to parent 39b5a41c82b9 in index :.submodule_pin_waivers)
+real-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub d549d20 -> 128c6ec (waiver row bound to parent 39b5a41c82b9 in index :.submodule_pin_waivers)
+mutant-ctl rc 0 | CM-SUBMODULE-PIN-NOT-DOWNGRADED: WAIVED sub d549d20 -> 128c6ec (waiver row bound to parent 39b5a41c82b9 in index :.submodule_pin_waivers)

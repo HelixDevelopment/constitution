@@ -1,0 +1,1 @@
+s/2>\/dev\/null)" != false \]; then kidsrc=shallow/2>\/dev\/null)" = true ]; then kidsrc=shallow/
