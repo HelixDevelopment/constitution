@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# red_shell.sh REPO -- RED probes F4 (SIGPIPE fail-open), F5 (X04 passes the gate), F8 (X01 + real 128 at the
+# status re-read moves the root). Prints RED/GREEN lines. Runs in a private mktemp sandbox under $TMPDIR.
+set -u
+REPO="${1:?repo}"
+W0="$(mktemp -d "${TMPDIR:?}/red.XXXXXX")" || exit 2
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/safe_rm.sh"
+export SAFE_RM_ALLOWED_ROOTS="${TMPDIR:?}"
+trap 'chmod -R u+w "${W0:?}" 2>/dev/null; safe_rm_rf "${W0:?}"' EXIT
+
+# ── F4: the partial-clone guard on a deterministic large input (match on line 1, then > 128 KiB)
+f4="$(
+  # shellcheck source=/dev/null
+  . "$REPO/tests/install/lib.sh"
+  git() {
+    case "$*" in
+      *is-shallow-repository*) echo false ;;
+      *get-regexp*) printf 'extensions.partialclone origin\n'
+                    i=0; while [ $i -lt 8000 ]; do printf 'remote.r%d.promisor false\n' "$i"; i=$((i+1)); done ;;
+      *) return 1 ;;
+    esac
+  }
+  if _refuse_shallow /nonexistent label 2>/dev/null; then echo "not-refused"; else echo "refused"; fi
+)"
+if [ "$f4" = refused ]; then echo "GREEN F4-large-input guard refuses"; else echo "RED F4-large-input guard: $f4 (fail-open)"; fi
+
+# ── F5 / F8: mutated engine copies
+mk() { # mk ID OLD NEW -> $W0/ID/scripts/sync/
+  python3 -I - "$REPO" "$W0/$1" "$2" "$3" <<'PY'
+import os, shutil, sys
+repo, d, old, new = sys.argv[1:5]
+src = open(os.path.join(repo, "scripts/sync/sync_all_upstreams.py"), encoding="utf-8").read()
+old = old.encode().decode("unicode_escape"); new = new.encode().decode("unicode_escape")
+assert src.count(old) == 1, "anchor count %d" % src.count(old)
+sd = os.path.join(d, "scripts", "sync"); os.makedirs(sd)
+open(os.path.join(sd, "sync_all_upstreams.py"), "w", encoding="utf-8").write(src.replace(old, new))
+shutil.copy(os.path.join(repo, "scripts/sync/sync_all_upstreams.sh"), sd)
+PY
+}
+mk X04 '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' '    if isinstance(pgid, int) and (pgid > 1 or True):'
+g="$(bash "$REPO/scripts/gates/cm_sync_upstreams_ff_only.sh" --root "$W0/X04" 2>&1)"; grc=$?
+if [ "$grc" -eq 0 ]; then echo "RED F5-gate X04 passes the gate (rc 0)"; else echo "GREEN F5-gate X04 refused (rc $grc): ${g%%$'\n'*}"; fi
+n="$(grep -c 'proc_kill_group' "$REPO/tests/sync/test_unit.py")"
+if [ "$n" -eq 0 ]; then echo "RED F5-tests no unit test references proc_kill_group"; else echo "GREEN F5-tests $n references"; fi
+
+mk X01 '    st = r.run(p, STATUS_ARGS, ok=(0,))\n    if not st.answered:\n        rec["actions"].append({"op": "none", "why": "unresolved:status-recheck"' \
+       '    st = r.run(p, STATUS_ARGS, ok=(0, 128))\n    if not st.answered:\n        rec["actions"].append({"op": "none", "why": "unresolved:status-recheck"'
+for which in r3 X01; do
+  eng="$REPO/scripts/sync/sync_all_upstreams.sh"; [ "$which" = X01 ] && eng="$W0/X01/scripts/sync/sync_all_upstreams.sh"
+  res="$(
+    T_NAME=red-f8; SX_ENGINE="$eng"
+    # shellcheck source=/dev/null
+    . "$REPO/scripts/sync/fixture_lib.sh"
+    sx_sandbox >/dev/null
+    sx_std_tree; sx_commit "$U_ROOT" "s1"; r_before="$(sx_head "$W")"
+    mkdir -p "$SB/st"
+    printf '#!/usr/bin/env bash\ncase " $* " in *" --no-optional-locks status "*)\n  n=$(( $(cat "%s/st.n" 2>/dev/null || echo 0) + 1 )); echo "$n" >"%s/st.n"\n  [ "$2" = "%s" ] && [ "$n" -gt 4 ] && { echo "fatal: injected 128" >&2; exit 128; } ;;\nesac\nexec "%s" "$@"\n' "$SB" "$SB" "$W" "$SX_GIT" >"$SB/st/git"
+    chmod +x "$SB/st/git"
+    out="$(PATH="$SB/st:$PATH" bash "$SX_ENGINE" --apply --jobs 1 --root "$W" --out "$SB/out/f8" --run-id f8 2>/dev/null)"; rc=$?
+    moved=no; [ "$(sx_head "$W")" != "$r_before" ] && moved=yes
+    echo "rc=$rc moved=$moved ${out##*RESULT: }"
+  )"
+  case "$res" in
+    "rc=6 moved=no"*) echo "GREEN F8-$which status re-read 128: $res" ;;
+    *) echo "RED F8-$which status re-read 128: $res" ;;
+  esac
+done

@@ -1,0 +1,99 @@
+ok   GOLDEN (rc=0)
+ok   PUSH-IN-WRITE (rc=1) :: WRITE_SUBCOMMANDS is ['add', 'checkout', 'fetch', 'merge', 'push'], expected exactly {fetc
+ok   RESET-IN-READ (rc=1) :: allow-list contains ['reset']
+ok   CATFILE-IN-READ (rc=1) :: allow-list contains ['cat-file']
+ok   NO-PLUS-CHECK (rc=1) :: ACCEPTED a forbidden shape: git rev-parse +refs/heads/main
+ok   MERGE-ANY (rc=1) :: ACCEPTED a forbidden shape: git merge 0123456789abcdef0123456789abcdef01234567
+ok   CHECKOUT-ANY (rc=1) :: ACCEPTED a forbidden shape: git checkout -f 0123456789abcdef0123456789abcdef01234567
+ok   SECOND-SPAWN (rc=1) :: module use os.system is not on the allow-list (line 715)
+ok   NO-CHECK-IN-CHOKE (rc=1) :: `checked = check_git_args(args)` is not bound exactly once, at the top of proc_run_git, be
+ok   CHECKED-REBOUND (rc=1) :: `checked = check_git_args(args)` is not bound exactly once, at the top of proc_run_git, be
+ok   ARGS-REBOUND (rc=1) :: proc_run_git rebinds its parameter `args`
+ok   ARGV-NOT-GIT-ARGV (rc=1) :: the Popen argv is not git_argv(git_bin, repo, checked) in proc_run_git(git_bin, repo, args
+ok   NO-PGID-GUARD (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and pgid == p.pid`, not exactly `isinstan
+ok   NO-ISOLATED-PY (rc=1) :: wrapper does not exec the engine with python3 -I
+ok   REFUSE-ALL (rc=1) :: control needle: REFUSED a shape the engine uses: git status --porcelain=v1 --ignore-submod
+ok   R1-MERGE-FF (rc=1) :: ACCEPTED a forbidden shape: git merge --ff 0123456789abcdef0123456789abcdef01234567
+ok   R2-GETATTR-SPAWN (rc=1) :: dynamic-access name getattr (line 715)
+ok   FROM-IMPORT (rc=1) :: `from` import is not allowed (line 51)
+ok   IMPORT-ALIAS (rc=1) :: import subprocess as subprocess is not on the allow-list (line 50)
+ok   IMPORTLIB-IMPORT (rc=1) :: import importlib is not on the allow-list (line 51)
+ok   MODULE-ALIAS (rc=1) :: module use subprocess is not on the allow-list (line 714)
+ok   DUNDER (rc=1) :: dunder attribute .__dict__ (line 715)
+ok   SHADOW (rc=1) :: definition shadows eval (line 714)
+ok   GLOBAL-STMT (rc=1) :: global/nonlocal statement (line 715)
+ok   K01-POPEN-ALIAS (rc=1) :: subprocess.Popen used outside proc_run_git (line 715)
+ok   K02-POPEN-MAP (rc=1) :: subprocess.Popen used outside proc_run_git (line 715)
+ok   K03-KILLPG-ALIAS (rc=1) :: os.killpg used outside proc_kill_group (line 715)
+ok   K04-HOOKS-MERGE (rc=1) :: git_argv for git merge --ff-only 0123456789abcdef0123456789abcdef01234567 is not [git -C r
+ok   POPEN-OUTSIDE (rc=1) :: subprocess.Popen used outside proc_run_git (line 715)
+ok   NESTED-DEF-POPEN (rc=1) :: subprocess.Popen used outside proc_run_git (line 420)
+ok   KILLPG-ELSEWHERE (rc=1) :: os.killpg used outside proc_kill_group (line 715)
+ok   KILL-ATTR (rc=1) :: signal-sending attribute .kill (line 462)
+ok   SECOND-CHOKE-CALL (rc=1) :: proc_run_git must be referenced exactly once, called from Runner.run (found 2 reference(s)
+ok   CHOKE-REBOUND (rc=1) :: proc_run_git is bound 2 time(s) (must be exactly once, at module level)
+ok   RUN-AS-VALUE (rc=1) :: .run used as a value, not called (line 715)
+ok   COMPUTED-ARGS (rc=1) :: git call at line 1061 does not pass a literal allow-listed argument list
+ok   NO-OK-DECLARED (rc=1) :: git call at line 1318 does not declare its answer statuses as a literal ok=(0, ...) tuple
+ok   OK-NOT-LITERAL (rc=1) :: git call at line 1061 does not declare its answer statuses as a literal ok=(0, ...) tuple
+ok   POPEN-SHELL-KW (rc=1) :: Popen uses ['shell']
+ok   NO-HOOKSPATH (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   NO-FSMONITOR (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   NO-OPTIONAL-LOCKS (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   K16-ENV (rc=1) :: git_env keeps injecting variables ['GIT_CONFIG_PARAMETERS']
+ok   S1-REDACT (rc=1) :: redact('https://user:pa ss@word@example.org/r.git') = 'https://word@example.org/r.git' (a 
+ok   NO-REFMAP (rc=1) :: fetch_args(tags=False) lacks --refmap=
+ok   PRUNE-IN-FETCH (rc=1) :: fetch_args(tags=False) lacks --no-prune
+ok   MIRROR-REFSPEC (rc=1) :: fetch_args(tags=False) refspecs are ['fetch', '--no-prune', '--no-prune-tags', '--no-recur
+ok   FORCED-TAGS (rc=1) :: fetch_args(tags=True) refspecs are ['fetch', '--no-prune', '--no-prune-tags', '--no-recurs
+ok   X01-STATUS-OK128 (rc=1) :: call site not in the oracle table (1x): write_git STATUS_ARGS ok=(0, 128) want=-
+ok   X02-DIRECT-MERGE (rc=1) :: git merge call at line 1683 is outside write_git, the one guarded writer
+ok   X02B-DIRECT-MERGE-RECORDED (rc=1) :: git merge call at line 1683 is outside write_git, the one guarded writer
+ok   X04-OR-TRUE (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and (pgid > 1 or True)`, not exactly `isi
+ok   X05-WINDOW-48 (rc=1) :: redact("fatal: unable to access 'https://user:QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
+ok   X06-OK-ALL (rc=1) :: git call at line 1061 declares ok=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1
+ok   X07-HOOKS-OVERRIDE (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   KILLPG-OR (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and pgid > 1 or pgid == p.pid`, not exact
+ok   KILLPG-NOT (rc=1) :: the guard of os.killpg is `not (isinstance(pgid, int) and pgid > 1 and (pgid == p.pid))`, 
+ok   KILLPG-GE1 (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and pgid >= 1 and (pgid == p.pid)`, not e
+ok   KILLPG-EXTRA-TERM (rc=1) :: the guard of os.killpg is `isinstance(pgid, int) and pgid > 1 and (pgid == p.pid) and (pgi
+ok   KILLPG-ELSE (rc=1) :: os.killpg is not in the body of an `if` (found else before any `if`) (§11.4.263)
+ok   KILLPG-REBIND (rc=1) :: pgid is not bound exactly once, as `pgid = os.getpgid(p.pid)`, in proc_kill_group (§11.4.2
+ok   KILLPG-OWN-GROUP (rc=1) :: pgid is not bound exactly once, as `pgid = os.getpgid(p.pid)`, in proc_kill_group (§11.4.2
+ok   KILLPG-SIG9 (rc=1) :: `sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_gro
+ok   KILLPG-SIGKILL-ONLY (rc=1) :: `sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_gro
+ok   KILLPG-ORDER-REVERSED (rc=1) :: `sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_gro
+ok   KILLPG-SIGINT (rc=1) :: signal.SIGINT used outside proc_on_stop_signals (line 525)
+ok   KILLPG-SIG-REBOUND (rc=1) :: `sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_gro
+ok   SELECT-OUTSIDE (rc=1) :: select.select used outside proc_run_git / Tty.ask (line 715)
+ok   WAITID-OUTSIDE (rc=1) :: os.waitid used outside proc_kill_group (line 715)
+ok   UPDATE-STRATEGY-OK-128 (rc=1) :: call site not in the oracle table (1x): update_strategies ['config', '-z', '--get-regexp',
+ok   CONFIG-WRITE-SHAPE (rc=1) :: call site not in the oracle table (1x): update_strategies ['config', '-z', '--unset-all', 
+ok   NO-NEW-SESSION (rc=1) :: the one Popen does not pass start_new_session=True (the group it kills must be its own)
+ok   OK-128-AT-READ (rc=1) :: call site not in the oracle table (1x): index_gitlinks ['ls-files', '-s', '-z'] ok=(0, 128
+ok   OK-TWO (rc=1) :: git call at line 1061 declares ok=(0, 2): an answer set is a subset of {0, 1, 128} with at
+ok   WANT-DROPPED (rc=1) :: call site not in the oracle table (1x): read_head ['rev-parse', '--verify', '-q', 'HEAD^{c
+ok   FETCH-ELSEWHERE (rc=1) :: fetch_args(...) is passed at line 715 outside fetch_repo
+ok   WRITE-VIA-CONST (rc=1) :: git merge call at line 718 is outside write_git, the one guarded writer
+ok   CFG-CASE-OVERRIDE (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   CFG-EXTRA-KEY (rc=1) :: git_argv for git fetch --no-prune --no-prune-tags is not [git -C repo] + each safe -c pair
+ok   TRACE-KEPT (rc=1) :: git_env keeps injecting variables ['GIT_TRACE', 'GIT_TRACE2', 'GIT_TRACE2_EVENT', 'GIT_TRA
+ok   CURL-VERBOSE-KEPT (rc=1) :: git_env keeps injecting variables ['GIT_CURL_VERBOSE']
+ok   AUTH-NOT-REDACTED (rc=1) :: redact('< Authorization: Basic dXNlcjpzM2NyM3Q=') = '< Authorization: Basic dXNlcjpzM2NyM3
+ok   REDACT-URL-LINEWISE (rc=1) :: redact_url('https://u:pa\nS3cr3tPwXY@example.org/r.git') = 'https://u:pa\nS3cr3tPwXY@examp
+ok   REPORT-KEY-RAW (rc=1) :: redact_report leaves a secret in a KEY or does not report it: {'https://u:S3cr3tKey9@h.exa
+ok   REGISTRY-OFF (rc=1) :: a registered remote secret survives in text without its URL: 'error: RegS3cr3t77 rejected 
+ok   ARGPARSE-RAW (rc=1) :: an argument-parser error prints a secret: '                 [--run-id RUN_ID] [--quiet] [-
+ok   SITE-MOVED (rc=1) :: call site not in the oracle table (1x): <Lambda> ['remote'] ok=(0,) want=-
+ok   STAT-NAME-UNLISTED (rc=1) :: module use stat.filemode is not on the allow-list (line 854)
+ok   ERRNO-ALIASED (rc=1) :: import errno as e_ is not on the allow-list (line 40)
+ok   ORACLE-ROW-DROPPED (rc=1) :: call site not in the oracle table (1x): index_gitlinks ['ls-files', '-s', '-z'] ok=(0,) wa
+ok   ORACLE-CLASS-WRONG (rc=1) :: oracle row index_gitlinks ['ls-files', '-s', '-z']: class failed does not match ok=(0,) (b
+ok   R11-SCRUB-SYSTEM (rc=1) :: import os as _ge_os is not on the allow-list (line 55)
+ok   R11-SCRUB-ALIAS-ELSEWHERE (rc=1) :: _ge_os used outside the canonical git-env scrub (line 715)
+ok   R11-SCRUB-OTHER-MODULE (rc=2)
+ok   R11-SCRUB-LOOPVAR-ELSEWHERE (rc=1) :: _ge_v used outside the canonical git-env scrub (line 715)
+ok   SYNTAX (rc=2)
+ok   MISSING (rc=2)
+cases: 97
+CM-SYNC-UPSTREAMS-FF-ONLY mutation test: PASS (97 cases)

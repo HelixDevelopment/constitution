@@ -1,0 +1,5 @@
+delay=90 harness_wait_s=90
+pause_seen=no
+A_rc_line=rc=3
+  FAIL mutant (no re-check): A took the lock (rc=0)
+lockrepro: PASS 0 FAIL 1

@@ -1,0 +1,12 @@
+# EXAMPLE ONLY — not installed by anything in this repository. Pair with helix-sync-upstreams.service.
+[Unit]
+Description=Run the Helix sync-all-upstreams check every 6 hours
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=6h
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

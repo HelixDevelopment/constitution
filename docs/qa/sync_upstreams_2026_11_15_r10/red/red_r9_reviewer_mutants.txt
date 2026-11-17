@@ -1,0 +1,7 @@
+Z01  SURVIVED   by -             645.7s  a failed stage-pin (git add) is always settled: the marker is cleared whatever the parent index shows
+Z04  SURVIVED   by -             647.3s  the branch ref lock is always refs/heads/main.lock whatever branch is checked out
+Z07  SURVIVED   by -             574.1s  write-time step 1 re-check drops the common dir and branch (git-dir locks only)
+Z11  SURVIVED   by -             579.0s  the marker read accepts a too-large marker as unknown->None (no marker): read_marker ignores too-large
+sync-mutations (all): mutants 4 killed 0 equivalent 0 survived 4 harness-errors 0
+survivors: Z01,Z04,Z07,Z11
+rc=1

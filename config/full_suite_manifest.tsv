@@ -624,6 +624,7 @@ scripts/gates/cm_setup_prompt_latest_present.sh	sh	excluded	-	-	-	reason: gate: 
 scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 scripts/gates/cm_state_fields_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_subsystem_shortcuts_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_sync_upstreams_ff_only_mutation_test.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 scripts/gates/cm_test_mock_pid_explicit_int.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh
 scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_track_branch_label_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -995,6 +996,20 @@ tests/security/test_history_secret_scan_deadlock_mutations.sh	sh	entry	heavy	bas
 tests/security/test_history_secret_scan_replace.sh	sh	entry	default	bash	-	auto
 tests/security/test_history_secret_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/sync/run_all.sh	runall	entry	default	runall-members	-	auto: covers 5 heavy member(s)
+tests/sync/test_chaos.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_determinism.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_e2e.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_faults.sh	sh	member	heavy	-	tests/sync/run_all.sh	override: tier heavy: about 213 full --apply runs, one fault each (skipped by run_all.sh --quick)
+tests/sync/test_full_automation.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_hardening.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_integration.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_mutations.py	py	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_perf.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_robustness.sh	sh	member	default	-	tests/sync/run_all.sh	auto: invoked by tests/sync/run_all.sh
+tests/sync/test_security.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_ui.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_unit.py	py	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
 tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto
 tests/test_git_env_class.sh	sh	entry	default	bash	-	auto

@@ -1,0 +1,35 @@
+X01  KILLED     by gate            0.9s  writer status re-read accepts rc 128 as a clean answer (ok-set widened at a write guard)
+X02  KILLED     by gate            1.1s  fast-forward bypasses the one guarded writer (direct merge call site in integrate)
+X03  KILLED     by gate            0.8s  a second spawn site (git --version precheck) inside proc_run_git
+X04  KILLED     by gate            1.2s  tautological pgid guard: (pgid > 1 or True), pgid == p.pid dropped
+X05  KILLED     by gate            1.2s  userinfo cut looks only 48 chars past scheme:// (long password leaks)
+X06  KILLED     by gate            0.9s  a call site whose 'declared' ok set is every status 0..255 (ls-files -s, index gitlinks)
+X07  KILLED     by gate            1.1s  SAFE_CONFIG: a trailing core.hooksPath pair overrides /dev/null (presence-only argv check)
+X02b KILLED     by gate            0.9s  fast-forward bypasses write_git but still records the action (guards skipped, record intact)
+N01  SURVIVED   by -               0.9s  F1/B: a path lstat cannot read is "absent"
+N02  SURVIVED   by -               1.0s  F1/A: a submodule whose rev-parse exits 128 is "uninitialised"
+N03  SURVIVED   by -               1.1s  F1/A: a foreign top level (git walked up to the parent) is accepted as the submodule
+N04  SURVIVED   by -               0.9s  F1/A: a foreign top level is "uninitialised" with no no-answer recorded (the r3 shape)
+N05  SURVIVED   by -               1.2s  F1/B: an operation marker that cannot be read is not "in progress"
+N06  SURVIVED   by -               1.4s  F1/A start-dir: exit 128 with a .git present is "not a work tree" (usage), never BLIND
+N07  SURVIVED   by -               1.0s  F2: head_after is a copy of head_before, never re-read after the pass
+N08  SURVIVED   by -               1.0s  F2: a repository that moved and is blocked afterwards is "updated"
+N09  SURVIVED   by -               1.0s  F3: --advance-pins detaches a submodule checked out on a branch
+N10  SURVIVED   by -               0.8s  F3: kept-on-branch is never a reason (a kept submodule reads as current)
+N11  SURVIVED   by -               1.0s  F1: a path that is not a directory (a symbolic link) needs no attention
+N12  SURVIVED   by -               0.8s  F1: an unreadable submodule carries no pin-unreadable reason
+N13  KILLED     by gate            0.8s  F9: userinfo cut at the FIRST "@" (a password holding "@" leaks its tail)
+N14  KILLED     by gate            0.8s  F9: the URL token ends at a space (a password holding a space leaks its tail)
+N15  KILLED     by gate            0.9s  F9: only secrets of 64 characters or more are remembered
+N16  KILLED     by gate            1.0s  F9: a remembered secret said without its URL is not removed
+N17  SURVIVED   by -               0.8s  F9: the lines of a multi-line userinfo are not remembered one by one
+N18  KILLED     by gate            1.0s  class D: report keys are written unredacted
+N19  KILLED     by gate            0.9s  class D: a usage error echoes its argument unredacted
+N20  KILLED     by gate            0.9s  F7: GIT_TRACE* variables are no longer dropped (prefix)
+N21  KILLED     by gate            1.0s  F7: GIT_CURL_VERBOSE is no longer dropped
+N22  KILLED     by gate            1.0s  F5: the group guard drops "pgid == p.pid" (a foreign group can be signalled)
+N23  KILLED     by gate            1.0s  F5: the group is assumed to be the pid, never read
+N24  SURVIVED   by -               0.9s  F1: --quiet hides blind and not-initialised rows (the r3 shape)
+N25  SURVIVED   by -               1.0s  F8 class: a child that cannot fetch its new pin is not failed
+sync-mutations (gate-only): mutants 33 killed 18 equivalent 0 survived 15 harness-errors 0
+survivors: N01,N02,N03,N04,N05,N06,N07,N08,N09,N10,N11,N12,N17,N24,N25

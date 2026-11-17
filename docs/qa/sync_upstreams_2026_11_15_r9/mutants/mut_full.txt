@@ -1,0 +1,302 @@
+M01  KILLED     by unit           10.4s  +refspec allowed
+M02  KILLED     by unit           10.3s  transport helper :: allowed
+M03  KILLED     by unit           10.3s  push on the write allow-list
+M04  KILLED     by unit           10.3s  merge shape not enforced
+M05  KILLED     by unit           10.3s  checkout shape not enforced
+M06  KILLED     by unit           10.3s  add path not checked
+M07  KILLED     by unit           10.3s  fetch shape not enforced
+M08  KILLED     by unit            9.9s  URL userinfo not redacted
+M09  KILLED     by unit           10.3s  tokens not redacted
+M10  KILLED     by unit           10.4s  git may prompt
+M11  KILLED     by unit           10.3s  ambient GIT_DIR kept
+M12  KILLED     by unit           10.3s  jobs ceiling 64
+M13  KILLED     by unit           10.4s  behind classified as ahead
+M14  KILLED     by unit           10.3s  newest = first, not the linear maximum
+M15  KILLED     by unit           10.4s  MERGE_HEAD not detected
+M16  KILLED     by integration    84.2s  dirty tree not detected
+M17  KILLED     by integration    79.2s  dirty tree does not block integration
+M18  KILLED     by ui             23.3s  fast-forward without consent
+M19  KILLED     by integration    81.1s  dry-run fetches
+M20  KILLED     by integration    80.1s  --no-fetch ignored
+M21  KILLED     by integration    87.3s  third-party pins advanced without the flag
+M22  KILLED     by integration    81.9s  children never follow
+M23  KILLED     by integration    79.5s  pin not on main not reported
+M24  KILLED     by integration    79.8s  unfetchable pin reported at-main
+M25  KILLED     by unit           10.5s  timestamp enters the canonical hash
+M26  KILLED     by integration    87.5s  --out inside the work tree allowed
+M27  KILLED     by chaos         120.5s  lock per process (no mutual exclusion)
+M28  KILLED     by integration    88.3s  behind reported as exit 0
+M29  KILLED     by unit           10.6s  third-party pin behind counts as an update
+M30  KILLED     by unit           10.6s  root not on main not reported
+M31  KILLED     by integration    92.3s  control needle always fails
+M32  KILLED     by unit           90.2s  timeout does not kill the process group
+M33  KILLED     by chaos         116.8s  failed fetch not reported unreachable
+M34  KILLED     by ui             25.7s  Enter means yes
+M35  KILLED     by integration    86.7s  dirty child followed
+M36  KILLED     by ui             25.5s  follow only under the fast-forward consent (pin consent ignored)
+M37  EQUIVALENT by -              25.6s  follow consent guard removed
+M38  KILLED     by unit           10.5s  R1: merge --ff accepted
+M39  KILLED     by integration    89.5s  R3: follow detaches a submodule on a branch
+M40  KILLED     by unit           10.4s  R4: control characters not stripped
+M41  KILLED     by integration    87.9s  R5: untracked files do not make a tree dirty
+M42  KILLED     by chaos         121.0s  R6: an unreachable remote does not block
+M43  KILLED     by unit           10.4s  F1: fetch prunes
+M44  KILLED     by unit           10.4s  F1: configured refspecs apply (no --refmap=)
+M45  KILLED     by unit           10.4s  F1: tags forced
+M46  KILLED     by unit           10.4s  F2: repository hooks run
+M47  KILLED     by unit           10.4s  F2: fsmonitor runs
+M48  KILLED     by unit           10.6s  F3: a local timeout is not recorded
+M49  KILLED     by chaos         119.3s  F3: unresolved never classified
+M50  KILLED     by chaos         118.0s  F3: an unreadable HEAD is not flagged (reads as current)
+M51  KILLED     by security       27.1s  F4: ignored files never checked
+M52  KILLED     by integration    80.4s  F7: a topic root does not block its pins
+M53  KILLED     by robustness:escaped_after_exit   26.4s  F8: the stderr pipe of an escaped grandchild is waited for
+M54  KILLED     by security       26.7s  F9: core.sshCommand ignored
+M55  KILLED     by integration    74.5s  F11: a modified parent gitlink is not reported
+M56  KILLED     by integration    76.6s  F13: refs/remotes/<r>/feature/main counts as main
+M57  KILLED     by integration    70.8s  an upstream branch deleted upstream is not reported
+M58  KILLED     by chaos         107.7s  N3: a held lock exits 2 (= usage)
+M59  KILLED     by faults       1145.1s  F3: moved computed with an unknown head
+M60  KILLED     by chaos         112.4s  F3: an unreadable HEAD does not block integration
+M61  KILLED     by faults       1073.2s  I-1: the guarded writer writes a repository with an earlier no-answer
+M62  KILLED     by unit           10.2s  I-1: a signal-killed git reads as an answer
+M63  KILLED     by unit           10.1s  I-1: any exit status is an answer (declared ok ignored)
+M64  KILLED     by unit           10.1s  I-1: a malformed rc-0 output reads as an answer (n-5)
+M65  KILLED     by hardening      55.6s  I-3: the status re-read before a write is skipped (K11 class)
+M66  KILLED     by hardening      57.0s  I-3: a tree changed before the write is written anyway
+M67  KILLED     by unit           10.1s  I-3: the parent index is not re-checked before staging a pin
+M73  KILLED     by robustness:blind_failed   11.8s  I-1: a failure judged on a no-answer reads as FAILED, not BLIND
+M37b KILLED     by hardening      59.6s  follow after a parent that did not move in this run
+M68  KILLED     by unit           10.1s  m-4: a moved upstream tag is not labelled tag-rejected
+M69  KILLED     by hardening      58.0s  m-2: no upstream main reads as current
+M70  KILLED     by unit           10.1s  n-3: any existing --out file is overwritten
+M71  KILLED     by unit           10.1s  S-1: the report backstop keeps raw '_' fields
+M72  KILLED     by chaos         107.9s  BLIND: a non-time no-answer is reported as INCONCLUSIVE
+K01  KILLED     by gate            1.0s  gate-evading spawn: Popen bound to an alias, then called
+K02  KILLED     by gate            1.0s  gate-evading spawn: Popen passed as a callable to map()
+K03  KILLED     by gate            1.0s  killpg through an alias, no pgid>1 guard, outside the signal point
+K04  KILLED     by gate            1.0s  core.hooksPath=/dev/null dropped for merge/checkout only
+K05  KILLED     by hardening      69.4s  credentials: remote URL written unredacted (the backstop must report it)
+K06  KILLED     by hardening      72.8s  data overwrite: ignored-file guard skipped on the follow path
+K07  KILLED     by hardening      72.5s  data overwrite: ignored-file guard skipped on the advance-pin path
+K07b KILLED     by security       24.0s  data overwrite: ignored-file guard skipped on the fast-forward path
+K08  KILLED     by gate            1.1s  fetch shape: forced refspec into refs/heads/*
+K09  KILLED     by gate            1.1s  fetch shape: check_git_args accepts any fetch
+K10  KILLED     by unit           11.1s  empty rc-0 read equivalence: a failed read returns ''
+K11  KILLED     by hardening     211.0s  a failing status call reads as a clean tree
+K12  KILLED     by hardening     172.6s  credentials: fetch_error written unredacted
+K13  KILLED     by gate            1.0s  credentials: GitLab token shape no longer redacted
+K14  KILLED     by gate            1.0s  --no-optional-locks dropped
+K15  KILLED     by gate            1.0s  diff-driver path: a git diff call added after a fast-forward
+K16  KILLED     by gate            1.0s  ambient GIT_CONFIG_PARAMETERS no longer scrubbed
+K17  KILLED     by unit           11.1s  per-call limit ignores the run deadline
+R1   KILLED     by gate            1.0s  merge --ff accepted
+R2   KILLED     by gate            1.0s  getattr spawn
+R3   KILLED     by integration    65.0s  follow detaches a submodule on a branch
+R4   KILLED     by gate            1.0s  control characters not stripped
+R5   KILLED     by integration    65.8s  untracked files do not make a tree dirty
+R6   KILLED     by chaos         110.6s  an unreachable remote does not block
+X01  KILLED     by gate            1.1s  writer status re-read accepts rc 128 as a clean answer (ok-set widened at a write guard)
+X02  KILLED     by gate            1.1s  fast-forward bypasses the one guarded writer (direct merge call site in integrate)
+X03  KILLED     by gate            1.1s  a second spawn site (git --version precheck) inside proc_run_git
+X04  KILLED     by gate            1.2s  tautological pgid guard: (pgid > 1 or True), pgid == p.pid dropped
+X05  KILLED     by gate            1.2s  userinfo cut looks only 48 chars past scheme:// (long password leaks)
+X06  KILLED     by gate            1.2s  a call site whose 'declared' ok set is every status 0..255 (ls-files -s, index gitlinks)
+X07  KILLED     by gate            1.2s  SAFE_CONFIG: a trailing core.hooksPath pair overrides /dev/null (presence-only argv check)
+X02b KILLED     by gate            1.1s  fast-forward bypasses write_git but still records the action (guards skipped, record intact)
+N01  KILLED     by unit           11.1s  F1/B: a path lstat cannot read is "absent"
+N02  KILLED     by unit           11.2s  F1/A: a submodule whose rev-parse exits 128 is "uninitialised"
+N03  KILLED     by unit           11.2s  F1/A: a foreign top level (git walked up to the parent) is accepted as the submodule
+N04  KILLED     by unit           11.2s  F1/A: a foreign top level is "uninitialised" with no no-answer recorded (the r3 shape)
+N05  KILLED     by unit           11.2s  F1/B: an operation marker that cannot be read is not "in progress"
+N06  KILLED     by unit           11.3s  F1/A start-dir: exit 128 with a .git present is "not a work tree" (usage), never BLIND
+N07  KILLED     by unit           11.4s  F2: head_after is a copy of head_before, never re-read after the pass
+N08  KILLED     by integration    75.9s  F2: a repository that moved and is blocked afterwards is "updated"
+N09  KILLED     by unit           11.3s  F3: --advance-pins detaches a submodule checked out on a branch
+N10  KILLED     by unit           11.3s  F3: kept-on-branch is never a reason (a kept submodule reads as current)
+N11  KILLED     by integration    69.5s  F1: a path that is not a directory (a symbolic link) needs no attention
+N12  KILLED     by integration    75.8s  F1: an unreadable submodule carries no pin-unreadable reason
+N13  KILLED     by gate            1.2s  F9: userinfo cut at the FIRST "@" (a password holding "@" leaks its tail)
+N14  KILLED     by gate            1.2s  F9: the URL token ends at a space (a password holding a space leaks its tail)
+N15  KILLED     by gate            1.2s  F9: only secrets of 64 characters or more are remembered
+N16  KILLED     by gate            1.1s  F9: a remembered secret said without its URL is not removed
+N17  KILLED     by unit           11.4s  F9: the lines of a multi-line userinfo are not remembered one by one
+N18  KILLED     by gate            1.3s  class D: report keys are written unredacted
+N19  KILLED     by gate            1.2s  class D: a usage error echoes its argument unredacted
+N20  KILLED     by gate            1.1s  F7: GIT_TRACE* variables are no longer dropped (prefix)
+N21  KILLED     by gate            1.2s  F7: GIT_CURL_VERBOSE is no longer dropped
+N22  KILLED     by gate            1.1s  F5: the group guard drops "pgid == p.pid" (a foreign group can be signalled)
+N23  KILLED     by gate            1.2s  F5: the group is assumed to be the pid, never read
+N24  KILLED     by integration    71.3s  F1: --quiet hides blind and not-initialised rows (the r3 shape)
+N25  KILLED     by integration    71.4s  F8 class: a child that cannot fetch its new pin is not failed
+V01  KILLED     by robustness:ext_repo   11.3s  SAFE_CONFIG: protocol.ext.allow=never dropped
+V02  KILLED     by robustness:autostash   12.1s  SAFE_CONFIG: merge.autoStash=false dropped
+V03  KILLED     by unit           10.2s  SAFE_CONFIG: submodule.recurse=false dropped
+V04  KILLED     by robustness:auth_header   11.1s  _AUTH: Authorization header values no longer redacted
+V05  KILLED     by unit           10.1s  in_progress: rebase-merge not detected
+V06  KILLED     by unit           10.2s  in_progress: CHERRY_PICK_HEAD not detected
+V07  KILLED     by unit           10.2s  in_progress: index.lock not detected
+V08  KILLED     by robustness:invalid_remote   11.9s  BLOCKING_PREFIXES: invalid-remote does not block
+V09  KILLED     by robustness:diverged   11.7s  BLOCKING_PREFIXES: upstreams-diverged does not block
+V10  KILLED     by unit           10.1s  safe_remote: names ending in .lock or . accepted
+V11  KILLED     by unit           10.1s  safe_relpath: backslash accepted
+V12  KILLED     by chaos         143.1s  lock: blocking flock (no LOCK_NB)
+V13  KILLED     by robustness:lock_symlink   12.2s  lock: O_NOFOLLOW dropped on the root lock (lock path may be a symlink)
+V14  KILLED     by integration    67.5s  evaluate_pin: any on-main pin reads at-main
+V15  KILLED     by unit           10.1s  git_env: GIT_PROXY_COMMAND kept
+V16  KILLED     by gate           28.1s  git_env: SSH_ASKPASS kept
+V17  KILLED     by robustness:secret8   11.0s  register_secret: 8-character secrets no longer remembered (threshold 9)
+V18  KILLED     by robustness:ctrl_url   11.0s  _CTRL: DEL and C1 controls kept
+V19  KILLED     by unit           10.1s  _CTRL: ESC kept (terminal escape injection)
+V20  KILLED     by unit           10.2s  git_env: ssh without BatchMode
+V21  KILLED     by hardening      60.4s  BLOCKING_PREFIXES: tag-rejected does not block
+V22  KILLED     by robustness:no_upstream_main   11.5s  BLOCKING_PREFIXES: no-upstream- does not block
+V23  KILLED     by unit           10.1s  redact_report: a key that carried a secret is not recorded as a backstop hit
+V24  KILLED     by unit           10.1s  classify_fetch_failure: tag clobber read only on rc 128 (never on 1)
+P01  KILLED     by unit           10.0s  RV4-1: HEAD not re-read before a write (a user commit is overwritten)
+P02  KILLED     by unit           10.1s  RV4-1: the symbolic ref is not re-checked before a write
+P03  KILLED     by unit           10.2s  RV4-1: an unread symbolic ref at write time is treated as detached
+P04  KILLED     by unit           10.3s  RV4-1: the write is not verified (HEAD not compared with the target afterwards)
+P05  KILLED     by robustness:race_other   13.2s  RV4-1: a ref moved by someone else during the run is reported as this run's update
+P06  KILLED     by robustness:staged_gitlink   11.7s  RV4-2: a gitlink the user staged is not reported
+P07  KILLED     by unit           10.1s  RV4-2: the parent HEAD tree is not compared at write time
+P08  KILLED     by robustness:staged_gitlink   12.2s  RV4-2: a staged gitlink is reported only when HEAD has no entry for the path
+P09  KILLED     by unit           10.6s  RV4-5: a read ignores the first stop signal
+P10  KILLED     by unit           10.1s  RV4-5: a write is killed by the stop signal (level 1)
+P11  KILLED     by robustness:sigterm_fetch,sigint_fetch   42.9s  RV4-5: no signal handlers installed
+P12  KILLED     by unit           10.1s  RV4-5: the second signal never hard-stops
+P13  KILLED     by robustness:sigterm_fetch,sigint_fetch   13.3s  RV4-5: an interrupted run is not reported INTERRUPTED (exit 8)
+P14  KILLED     by unit           10.2s  RV4-5: new calls after a stop are not refused
+P15  KILLED     by unit           10.2s  RV4-4: stdout is not capped
+P16  KILLED     by unit           10.1s  RV4-4: stderr tail not trimmed (whole stream kept)
+P17  KILLED     by unit           10.2s  RV4-3: the partial first line of a trimmed stderr tail is kept (half a URL)
+P18  KILLED     by unit           10.1s  RV4-3: redaction ignores the scheme letter rule (cuts at any ://)
+P19  KILLED     by unit           10.2s  RV4-6: GIT_ASKPASS left to the environment
+P20  KILLED     by unit           10.1s  RV4-6: SSH_ASKPASS_REQUIRE not forced to never
+P21  KILLED     by unit           10.1s  RV4-7: GIT_ALLOW_PROTOCOL kept from the environment
+P22  KILLED     by unit           10.2s  RV4-7: GIT_PROTOCOL_FROM_USER kept from the environment
+P23  KILLED     by unit           10.2s  RV4-7: GIT_SSL_NO_VERIFY kept from the environment
+P24  KILLED     by robustness:out_unwritable   11.5s  RV4-8: the evidence directory is not probed before the run
+P25  KILLED     by robustness:out_lost   11.9s  RV4-8: evidence lost after the write exits 2 (usage)
+P26  KILLED     by robustness:lock_overlap   11.8s  RV4-11: repository locks of the tree not taken (overlapping roots)
+P27  KILLED     by robustness:lock_symlink   12.2s  RV4-11: repository lock taken without O_NOFOLLOW
+P28  KILLED     by robustness:default_out_symlink   11.0s  RV4-12: an evidence directory inside the work tree is accepted
+P29  KILLED     by robustness:default_out_relative   11.2s  RV4-12: a relative cache directory is accepted
+P30  KILLED     by robustness:unsafe_path   10.8s  RV4-13: an unsafe gitlink path is not reported
+P31  KILLED     by robustness:outside_parent   11.4s  RV4-15: a submodule reached through a link leaving the parent is inspected
+P32  KILLED     by unit           10.2s  RV4-1: a malformed symbolic-ref answer (exit 0, empty) reads as a branch
+P33  KILLED     by robustness:final_cap  102.5s  RV4-5: final reads after a stop get no time cap
+P34  KILLED     by gate           12.3s  RV4-6: core.askPass not pinned empty by -c
+RR01 KILLED     by robustness:switch_at_merge   13.3s  post-write verify ignores the branch (ff lands on another branch unnoticed)
+RR10 KILLED     by hardening      63.4s  step 3 compares only the parent HEAD tree, not the index (a staged gitlink is overwritten)
+RR12 KILLED     by unit           10.1s  the FIRST stop signal already hard-stops (final head reads refused)
+RR14 KILLED     by robustness:sigterm_pin   14.6s  the parent 'add' of an advance-pin is not final (a stop between checkout and add leaves half a write)
+RR16 KILLED     by robustness    235.6s  evidence dir resolved with abspath (a symlink into the tree is not followed)
+RR17 KILLED     by unit            9.8s  redaction cuts to the FIRST '@' (password holding '@' leaks its tail)
+RR21 KILLED     by robustness:sigterm_pin,sigterm_write   19.8s  post-write verify reads are not final (a stop during the write leaves the result unverified)
+RR27 KILLED     by robustness    218.4s  level-2 (final) calls are killed by the FIRST stop
+RR29 KILLED     by robustness:marker_inspect   13.0s  step 1 ignores in-progress markers that appear after inspection
+RR35 KILLED     by robustness:lock_overlap  611.4s  per-repository lock is a blocking flock (an overlapping run waits instead of exit 7)
+RR36 KILLED     by robustness:wrote_then_other   15.1s  head-changed-during-run only when this run wrote nothing (wrote X, other moved to Y unreported)
+RR37 KILLED     by robustness:wrote_then_other,race_other   18.2s  head-changed-during-run is not blocking (a foreign move can read as 'updated')
+RR38 KILLED     by robustness:lock_open   12.8s  a per-repository lock that cannot be opened is skipped (run proceeds unlocked)
+RR39 KILLED     by unit           10.3s  after a SECOND signal final reads still run
+RR40 KILLED     by unit           10.4s  integrate does not stop starting writes after a stop (defence in depth; Runner refuses anyway)
+Q01  KILLED     by unit           10.3s  RV5-1: a write's limit is capped by the run deadline
+Q02  KILLED     by unit            9.1s  RV5-1: a write is ended by SIGKILL at once (no SIGTERM first)
+Q03  KILLED     by unit            9.1s  RV5-1: no grace between SIGTERM and SIGKILL
+Q04  KILLED     by unit           10.4s  RV5-1: no write-in-progress marker before a write
+Q05  KILLED     by unit           10.4s  RV5-1: the marker is not cleared when the write answered
+Q06  KILLED     by robustness:write_timeout   15.7s  RV5-1: an earlier run's marker is ignored at inspection
+Q07  KILLED     by unit           10.4s  RV5-1: leftovers of an interrupted write read as the user's dirty tree
+Q08  KILLED     by robustness:write_kill,write_timeout   18.9s  RV5-1: a write-killed write is not FAILED
+Q09  KILLED     by robustness:stale_marker,write_timeout   16.7s  RV5-1: a marker over a clean tree is never cleared in --apply
+Q10  KILLED     by robustness:staged_root   13.6s  RV5-3: a staged gitlink the target would change is overwritten
+Q11  KILLED     by robustness:lock_open   13.1s  RV5-2: a run lock that cannot be opened reads as 'another run' (exit 7)
+Q12  KILLED     by unit           13.6s  RV5-5: Ctrl-C at the prompt waits for Enter
+Q13  KILLED     by robustness:update_none   16.6s  RV5-7: a submodule with update=none/merge/rebase/!cmd is checked out anyway
+Q14  KILLED     by robustness:interrupted_labels   14.1s  RV5-6: a fetch refused by a stop is labelled no-answer
+Q15  KILLED     by unit           10.6s  RV5-1: final reads are refused after the deadline (the write's second half cannot run)
+Q16  KILLED     by unit           10.4s  RV5-1: a write ended by its own limit is recorded as an unknown state
+Q17  KILLED     by unit           10.8s  RV5-1: a write gets the short read grace before SIGKILL
+Q18  KILLED     by unit           10.5s  RV5-1: a marker that cannot be written does not stop the write
+Q19  KILLED     by unit           10.6s  RV5-1: the parent's 'add' of an advance-pin ended by its limit is not write-killed
+RV6A KILLED     by robustness:write_deadline,write_timeout,write_kill,marker_success,marker_inspect,stale_marker,staged_root,lock_open,update_none,sigterm_pin,ctrl_c,interrupted_labels   87.8s  marker of an earlier run cleared in every mode (check / dry-run too), not only --apply
+RV6B KILLED     by unit           10.4s  an in-progress operation is not a leftover of an interrupted write (labels)
+RV6C KILLED     by unit           10.4s  proc_kill_group reaps the child while waiting (WNOWAIT dropped: pid/pgid may be reused before SIGKILL)
+RV6D KILLED     by robustness:write_deadline,write_timeout,write_kill,marker_success,marker_inspect,stale_marker,staged_root,lock_open,update_none,sigterm_pin,ctrl_c,interrupted_labels   79.5s  update=rebase is followed like checkout
+RV6E KILLED     by unit           10.6s  a per-repository lock that cannot be taken (not held by another run) reads as 'another run' (exit 7)
+RV6F KILLED     by unit           10.5s  the stage-pin marker in the parent is never cleared after the add answered
+RV6G KILLED     by unit           10.3s  a write ended by its own limit is reported as unresolved (not write-killed)
+S01  KILLED     by robustness:refused_marker   20.9s  RV6-1: a write refused now still gets a marker (no pre-check at the first write site)
+S02  KILLED     by robustness:refused_marker   23.2s  RV6-1: the marker of a write whose git never started is kept (first write site)
+S03  KILLED     by robustness:refused_stage   15.5s  RV6-1: the stage-pin marker of an add that never started is kept
+S04  KILLED     by robustness:refused_stage   15.0s  RV6-1: a stage-pin refused now still gets a marker (no pre-check at the second write site)
+S05  KILLED     by unit           10.5s  RV6-1: a git the kernel could not start counts as started
+S06  KILLED     by unit           10.5s  RV6-1: a call refused by a stop counts as started
+S07  KILLED     by unit           10.3s  RV6-1: a call refused by the deadline counts as started
+S08  KILLED     by unit           10.4s  RV6-1: a call refused by the allow-list counts as started
+S09  KILLED     by unit           10.6s  a marker created but not written is left behind (reads 'unknown' later)
+S10  KILLED     by unit           10.5s  a failed marker write removes an EARLIER run's marker
+S11  KILLED     by unit           10.6s  RV6-1: the pre-check refuses a final write after the FIRST signal (the add then runs without a marker)
+S12  KILLED     by unit           10.3s  RV6-1: the pre-check ignores the deadline
+S13  KILLED     by robustness:flock_error   13.9s  RV6-3: a root run lock whose flock fails (not held) reads as 'another run' (exit 7)
+S14  KILLED     by robustness:refused_stage   16.2s  a refused stage-pin add has no 'why' in its action
+RV7A KILLED     by unit           10.6s  a write whose git did not start clears the git dir's marker even when that marker is not its own (re-anchored: end_write's not-ours branch removed)
+RV7B KILLED     by robustness:sibling_kill,sibling_wipe,marker_pre,stop_pin,parent_lock,autostash   60.5s  a write that got no marker of its own clears the marker already there (re-anchored: begin_write's exists branch)
+RV7C KILLED     by robustness:sibling_kill,sibling_wipe,marker_pre,stop_pin,parent_lock,autostash   55.7s  stage-pin pre-check uses the NON-final predicate: after one stop (or the deadline) the add runs without a marker (re-anchored)
+RV7D KILLED     by unit           10.6s  a write git ended by an outside signal (OOM kill, kill -9) counts as never started: its marker is cleared
+RV7E KILLED     by unit           11.1s  a write git refused itself (declared rc 1/128) keeps its marker: a later run blames leftovers on it (re-anchored)
+RV7F KILLED     by robustness:refused_marker,refused_stage,marker_lock,flock_error,write_deadline,write_timeout,write_kill,marker_success,marker_inspect,stale_marker,staged_root,lock_open,lock_overlap,update_none,sigterm_pin,sigterm_write,ctrl_c,interrupted_labels,blind_failed  729.0s  per-repository run lock taken BLOCKING: a second run waits forever instead of exit 7
+RV7G KILLED     by chaos         412.6s  root run lock taken BLOCKING: a second run waits forever instead of exit 7
+RV7H KILLED     by unit           10.4s  a stage-pin marker reads as 'unknown' (label of the interrupted write lost)
+RV7I KILLED     by unit           10.5s  the marker is opened so that an earlier marker is overwritten (O_EXCL replaced by O_TRUNC; re-anchored: round 8 made overwrite impossible, so this is the killable form)
+RV7J KILLED     by unit           10.3s  the non-final pre-check ignores a stop signal (the marker is written, then r.run refuses)
+RV7K KILLED     by unit           10.3s  a git the kernel cannot start is reported as exit 127 (counts as started: marker kept)
+RV7L KILLED     by unit           10.2s  run() lets a final call through after the SECOND signal (the stage-pin add runs without its marker)
+T01  KILLED     by unit           10.4s  RV7-1: an unresolved state of the git dir does not block a write (only the disk does)
+T02  KILLED     by unit           10.4s  RV7-1: a lock / operation in progress in the git dir does not block a write (step 3a sees nothing)
+T03  KILLED     by robustness:sibling_kill,parent_lock   12.8s  RV7-1: step 3a removed (the parent is checked only after the child moved)
+T04  KILLED     by robustness:marker_pre   20.0s  RV7-1: Runner.run does not check the write token (a write starts without its own marker)
+T05  KILLED     by robustness:marker_pre   22.2s  RV7-1: the marker on disk is not compared with the token (a swapped marker is written over)
+T06  KILLED     by unit           10.2s  RV7-1: a token whose write already ended still lets a write start
+T07  KILLED     by unit           10.3s  RV7-1: a killed git dir may take a new write (transition table)
+T08  KILLED     by unit           10.4s  RV7-1: a write ended by its own limit is recorded as interrupted, not killed
+T09  KILLED     by unit           10.4s  RV7-1: GD_KILLED is not an unresolved state
+T10  KILLED     by unit           10.3s  RV7-1: GD_INTERRUPTED is not an unresolved state
+T11  KILLED     by robustness:flock_error,lock_open    3.6s  RV7-6: the flock / open wording is swapped
+T12  KILLED     by unit           10.0s  RV7-1: the marker does not carry the write id (no write can prove its marker is its own)
+T13  KILLED     by unit           10.2s  RV7-1: an unknown git dir is not refused by the block check
+T14  KILLED     by unit           10.5s  RV7-1: end_write without a token is not a no-op (a refused stage-pin crashes)
+T15  KILLED     by robustness:parent_lock,marker_pre   23.2s  RV7-1: a stage-pin blocked by its git dir does not mark the child's record failed
+T16  KILLED     by robustness:marker_pre   19.4s  RV7-1: a write blocked by begin_write still runs git (without a token)
+T17  KILLED     by unit           10.4s  RV7-1: begin_write's checks are skipped (only O_EXCL protects an unresolved git dir)
+W01  KILLED     by robustness    303.8s  earlier marker cleared in --apply although an operation/lock is in progress (only dirty keeps it)
+W02  KILLED     by unit           10.4s  a cleared git dir can never take a second write (sibling stage-pins after the first fail)
+W03  KILLED     by robustness    278.1s  a token whose marker vanished (removed under it) still lets the write start without a marker
+W04  KILLED     by unit           10.4s  a write refused before git started (stop/deadline after begin_write) keeps its marker (re-anchored)
+W05  KILLED     by robustness    266.4s  step 3a checks the CHILD git dir instead of the parent one
+W06  KILLED     by unit           10.2s  a half-written marker (write/fsync error) is left on disk (re-anchored to fs_create_excl)
+W07  KILLED     by unit           10.3s  a killed stage-pin does not mark the PARENT write_killed (no recovery hint for the root)
+W08  KILLED     by unit           10.3s  a not-ours marker at run() time moves the git dir to CLEARED (a later write may start there)
+W09  KILLED     by unit           10.4s  begin_write moves the state to WRITING BEFORE the marker is created (a failed create leaves WRITING)
+W10  KILLED     by unit           10.3s  the stage-pin begin_write is told the CHILD git dir (the root index is written with no root marker)
+U01  KILLED     by unit           10.3s  RV8-1: in_progress checks no lock at all (operations only)
+U02  KILLED     by unit           10.4s  RV8-1: HEAD.lock is not in any git-dir lock set (the measured half-write)
+U03  KILLED     by unit           10.3s  RV8-1: the branch ref lock is not in the merge lock set (the measured half-write)
+U04  KILLED     by unit           10.5s  RV8-1 linked worktree: common-dir locks are looked for in the per-worktree git dir
+U05  KILLED     by unit           20.4s  RV8-2: a marker read opens without O_NONBLOCK (a FIFO swapped in after the lstat blocks forever)
+U06  KILLED     by unit           10.3s  RV8-2: a read trusts the open descriptor without the fstat S_ISREG check
+U07  KILLED     by unit           10.3s  RV8-4: fs_remove removes any kind of object (a FIFO, a socket, a link at the marker path)
+U08  KILLED     by unit           10.2s  RV8-1: end_write clears the marker after any answered write (a half-applied merge included)
+U09  KILLED     by unit           10.5s  RV8-1: a failed write is settled without comparing the index (the half-applied merge is missed)
+U10  KILLED     by unit           10.4s  RV8-1: a failed write is settled although HEAD moved
+U11  KILLED     by robustness:marker_unremovable   11.6s  RV8-4: an earlier marker that could not be removed is reported cleared
+U12  KILLED     by unit           10.4s  RV8-2: the run lock is any object that opens (a FIFO is taken as the lock)
+U13  KILLED     by robustness:lock_symlink   13.0s  the run lock open follows a symbolic link (O_NOFOLLOW dropped in fs_open_lock)
+U14  KILLED     by integration    75.9s  inspection registers no git dir (every write is refused as unknown-git-dir: nothing is ever written)
+U15  KILLED     by unit           10.2s  RV8-2: a non-regular object at the marker path is not reported by in_progress (check reads clean)
+U16  KILLED     by unit           10.1s  RV8-1: the reftable lock is not in any lock set
+U17  KILLED     by robustness:half_write   18.2s  RV8-1: a half-applied write is reported but not FAILED (the run reads as attention, not failed)
+U18  KILLED     by unit           20.4s  RV8-2: FETCH_HEAD is read with a blocking open (a FIFO there hangs the fetch evaluation)
+sync-mutations (all): mutants 301 killed 300 equivalent 1 survived 0 harness-errors 0

@@ -1,0 +1,17 @@
+== sync-determinism (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix5.VjLJ/tmp/helix-sync-test.5onsuT)
+  ok   --check: 3 identical canonical hashes
+  ok   --check: 3 identical TSV files
+  ok   --check: the JSON hash field equals the printed one
+  ok   --dry-run: 3 identical canonical hashes
+  ok   --dry-run: 3 identical TSV files
+  ok   --dry-run: the JSON hash field equals the printed one
+  ok   --check --no-fetch: 3 identical canonical hashes
+  ok   --check --no-fetch: 3 identical TSV files
+  ok   --check --no-fetch: the JSON hash field equals the printed one
+  ok   an unfetched upstream change does not change the offline hash
+  ok   control needle: a real state change changes the hash
+  ok   apply 1: exit 0
+  ok   apply 1: something moved
+  ok   apply 2 and 3: identical hash
+  ok   apply 3: nothing moved
+sync-determinism: PASS 15 FAIL 0

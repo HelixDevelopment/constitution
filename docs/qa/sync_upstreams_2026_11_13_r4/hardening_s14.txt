@@ -1,0 +1,29 @@
+# Hardening section 14 (I-3 / M67), run standalone with tmp/m67case/run_section14.sh (the section exactly as it is
+# pasted into tests/sync/test_hardening.sh, sourced after fixture_lib.sh and the suite's own fresh()), under the
+# hermetic wrapper. First on the round-4 engine (GREEN, 8 of 8), then on the round-4 M67 mutant (SX_ENGINE and
+# SYNC_ENGINE_PY pointing at the mutant copy): 4 checks fail (RED). The control needle (the concurrent staging
+# happened) passes on both, so the case reaches the writer's re-read on both engines.
+
+## section 14 on the round-4 engine
+  ok   M67: the concurrent staging happened after discovery (control needle)
+  ok   M67: libs/a not checked out at the new pin
+  ok   M67: the gitlink the other writer staged is kept
+  ok   M67: the writer names the changed index
+  ok   M67: libs/a stays behind, exit 3
+  ok   M67 control: without the other writer libs/a is advanced
+  ok   M67 control: and its new gitlink is staged
+  ok   M67 control: exit 0
+sync-hardening-s14: PASS 8 FAIL 0
+real rc=0
+
+## section 14 on the round-4 M67 mutant
+  ok   M67: the concurrent staging happened after discovery (control needle)
+  FAIL M67: libs/a not checked out at the new pin (expected [4ded913181edf290222dad458ff85eb735ea781a] got [ba3fa5f03f5793331d8940a356bb54e373de3d57])
+  FAIL M67: the gitlink the other writer staged is kept (expected [8481bd68fd705018f95669f566e630049ed25106] got [ba3fa5f03f5793331d8940a356bb54e373de3d57])
+  FAIL M67: the writer names the changed index (missing [blocked:parent-index-changed])
+  FAIL M67: libs/a stays behind, exit 3 (expected [3 behind] got [0 updated])
+  ok   M67 control: without the other writer libs/a is advanced
+  ok   M67 control: and its new gitlink is staged
+  ok   M67 control: exit 0
+sync-hardening-s14: PASS 4 FAIL 4
+m67 rc=1

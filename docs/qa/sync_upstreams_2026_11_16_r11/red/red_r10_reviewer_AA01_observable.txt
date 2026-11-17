@@ -1,0 +1,13 @@
+symbolic-ref --short: Dev
+rc 1
+REPORT_JSON=/mnt/DATA1TB/claude-work/scratch/rev_sync_r10.nAYA/probes/amb.ndt_akfe/out/sync_report.json
+CANONICAL_SHA256=90cecbb39e548420ed50fc584354daa169acab93c4794fe915eec7c844a1378a
+RESULT: FAILED exit=1
+
+[sync-upstreams] .                                        failed          write-left-changes:fast-forward
+[sync-upstreams] next step (never run automatically): write-left-changes recovery for .: git ended a fast-forward with an error after it changed the repository; inspect 'git -C /mnt/DATA1TB/claude-work/scratch/rev_sync_r10.nAYA/probes/amb.ndt_akfe/w status'; keep any leftovers with 'git -C /mnt/DATA1TB/claude-work/scratch/rev_sync_r10.nAYA/probes/amb.ndt_akfe/w stash push --include-untracked -m helix-sync-write-left-changes'; remove a lock file only after making sure no git process runs; the marker helix-sync-upstreams.write-in-progress stays until a later --apply finds the tree clean
+
+HEAD moved: False
+status: 'M  f'
+lock still present: True
+rec branch Dev reasons ['write-left-changes:fast-forward'] in_progress []

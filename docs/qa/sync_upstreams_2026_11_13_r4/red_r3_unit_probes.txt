@@ -1,0 +1,9 @@
+RED F9a-scheme-in-password https://user:pa://example.org/r.git
+BOUNDARY F9b-free-text-unregistered 'https://u:pa\nS3cr3tPw@example.org/r.git'
+RED F9b-configured-value no redact_url: the url field is redacted line by line
+RED F9b-registered-free-text no secret registry
+GREEN F9c-long-secret fatal: unable to access 'https://example.org/r.git/': 403
+RED F9d-argparse-error rc=2 stderr='-quiet] [--interactive |\n                             --non-interactive]\nsync_all_upstreams.sh: error: unrecognized arguments: https://u:S3cr3tPw@example.org/x\n'
+RED F9e-report-key {'https://u:S3cr3tPw@h/x': 1}
+RED F7-trace-env ['GIT_CURL_VERBOSE', 'GIT_TRACE2', 'GIT_TRACE2_EVENT', 'GIT_TRACE_PERFORMANCE']
+GREEN F5-behaviour bad-pgid signals=[] own-pgid signals=[4242]
