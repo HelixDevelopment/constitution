@@ -1,0 +1,7 @@
+base=695de4d91b43508d5b4bbba0a157be72ed30df63
+control_base_rc=0
+tools/repro_pr_path.sh: line 23: docs/qa/pr_path_drift_2026_11_16/README.md: No such file or directory
+head=24abebb6b60d5843d83640d65133b28bb0c666d4
+control_head_rc=1
+pr_landing_check=present rc=1
+RESULT REFUSED
