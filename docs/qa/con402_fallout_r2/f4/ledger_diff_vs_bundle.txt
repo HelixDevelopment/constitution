@@ -1,0 +1,12 @@
+9c9
+< G-A-EVIDENCE-VERIFIED#1	ev is None	False	KILLED	1	test_review_record_tier_legs_regression.sh::G-T-LINK-LOOP 39 chained symlinks: resolver agrees with the kernel|
+---
+> G-A-EVIDENCE-VERIFIED#1	ev is None	False	KILLED	1	test_review_record_finding_layer_red.sh::1: pre-existing finding_layer-less record parses cleanly through gate (no parse/field erro|
+90c90
+< G-V-LATEST-COVERS#2	is_latest	True	KILLED	1	test_review_record_backfill_evidence_r2_regression.sh::R6 (R3-I4 'precheck_used' half): a LIVE record whose own precheck_used==false (no precheck|
+---
+> G-V-LATEST-COVERS#2	is_latest	True	KILLED	1	test_review_record_gate_authority_r2_regression.sh::P3f: a change dropped from its only batch's latest round is UNCOVERED (the latest round no|
+94c94
+< G-V-BACKFILL-BLOCKS#1	hist['verdict'] == 'GO'	True	KILLED	1	test_review_record_gate_authority_r4_regression.sh::R4-SV: a reviewer NO-GO slice verdict refuses coverage even after slice_lines is edited do|
+---
+> G-V-BACKFILL-BLOCKS#1	hist['verdict'] == 'GO'	True	KILLED	1	test_review_record_subclause_cases.sh::G-V-BACKFILL-BLOCKS#1: a zero-finding backfill NO-GO still blocks (the verdict decides, no|
