@@ -155,18 +155,26 @@ fi
 
 TAR="$ROOT/scripts/release/tag_and_release.sh"; DRF="$ROOT/scripts/release/derive_release_facts.sh"
 RRE="$ROOT/scripts/release/render_release_entry.py"
+RFS="$ROOT/scripts/full_suite/run_full_suite.py"   # B-M1: the one source of the verdict words, copied beside every renderer copy
 LIB="$ROOT/scripts/release/redact_cut.sh"; PUB="$ROOT/scripts/release_publish_gitea.sh"
 CENPY="$HERE/channel_census.py"   # round 11: the network-spawn gate, mutated in a copy and passed as CEN_PY
 ECPY="$HERE/env_census.py"   # round 11: the runtime recorder, mutated in a copy and passed as ENV_CENSUS_PY (race check)
 EAL="$HERE/env_allow.sh"   # round 9: the suites' helper (suite_exit, E1), mutated in a copy and passed as ENV_ALLOW_LIB
-# place SRC (a script, or the helper) into its own directory D with the helper where the scripts look for
-# it (beside the release scripts, and under release/ for the publisher); the helper copy is the mutated one
-# when SRC is the helper
+# place SRC (a script, or the helper) into its own directory D, laid out like the repository (B-M2, 2026-11-16):
+# D/scripts/release/ holds the helper, the tag script and the other release scripts, D/scripts/ the publisher,
+# D/config/forge/hosts.tsv the host table the helper's rc_gitea_binding reads (two directories above the helper),
+# D/scripts/full_suite/ the runner the renderer reads its verdict words from (B-M1). The helper copy is the mutated
+# one when SRC is the helper.
+HOSTS="$ROOT/config/forge/hosts.tsv"
 setup_dir() { # setup_dir D SRC -> prints the path of SRC's copy
-  local d="$1" src="$2"; mkdir -p "$d/release"
-  case "$src" in *redact_cut.sh) cp -- "$src" "$d/redact_cut.sh"; cp -- "$src" "$d/release/redact_cut.sh"
-                  cp -- "$TAR" "$d/tag_and_release.sh"; cp -- "$PUB" "$d/release_publish_gitea.sh"; printf '%s' "$d/redact_cut.sh" ;;
-    *) cp -- "$LIB" "$d/redact_cut.sh"; cp -- "$LIB" "$d/release/redact_cut.sh"; cp -- "$src" "$d/$(basename "$src")"; printf '%s' "$d/$(basename "$src")" ;;
+  local d="$1" src="$2" s="$1/scripts"; mkdir -p "$s/release" "$d/config/forge"; cp -- "$HOSTS" "$d/config/forge/hosts.tsv"
+  case "$src" in
+    *redact_cut.sh) cp -- "$src" "$s/release/redact_cut.sh"; cp -- "$TAR" "$s/release/tag_and_release.sh"; cp -- "$PUB" "$s/release_publish_gitea.sh"
+                    printf '%s' "$s/release/redact_cut.sh" ;;
+    *release_publish_gitea.sh) cp -- "$LIB" "$s/release/redact_cut.sh"; cp -- "$src" "$s/release_publish_gitea.sh"; printf '%s' "$s/release_publish_gitea.sh" ;;
+    *) cp -- "$LIB" "$s/release/redact_cut.sh"; cp -- "$src" "$s/release/$(basename "$src")"
+       case "$src" in *render_release_entry.py) mkdir -p "$s/full_suite"; cp -- "$RFS" "$s/full_suite/run_full_suite.py" ;; esac
+       printf '%s' "$s/release/$(basename "$src")" ;;
   esac
 }
 
@@ -288,8 +296,8 @@ m O6 "$RRE" '    if unrendered:' '    if False:'
 m F1 "$TAR" "$FP" '  [ "$frc" -eq 0 ] || { printf '"'"'%s\n'"'"' "$x_fetch" | rc_redact_cut 400; abort "fetch of $r main failed"; }'   # the round-4 design: redacted message printed
 m R2 "$TAR" "grep -q '^SKIPPED-NO-TOKEN:'; then gap" "grep -q 'SKIPPED-NO-TOKEN'; then gap"
 m R5 "$DRF" '"$DBDIR/out" "$DBDIR/qfail" "$EXTERR"; do' '"$DBDIR/qfail" "$EXTERR"; do'
-m R6 "$TAR" '      x_gitea="$(pub "${args[@]}" 2>&1 >/dev/null)"; rc=$?' \
-            '      x_gitea="$(pub "${args[@]}" 2>&1 >/dev/null)"; rc=$?; printf "%s" "$x_gitea" >"$RUNDIR/gitea.err"'   # round 6: re-applied, the publisher runs through pub
+m R6 "$TAR" '      x_gitea="$(pub "$gtv" "${args[@]}" 2>&1 >/dev/null)"; rc=$?' \
+            '      x_gitea="$(pub "$gtv" "${args[@]}" 2>&1 >/dev/null)"; rc=$?; printf "%s" "$x_gitea" >"$RUNDIR/gitea.err"'   # round 6: re-applied, the publisher runs through pub
 m F6 "$DRF" 'git cat-file -e "$B:CHANGELOG.md" 2>/dev/null || echo changelog >>"$QFAIL"' 'git cat-file -e "$B:CHANGELOG.md" 2>/dev/null || :'
 # --- round 3: N1, N2, N4, P1-P10, re-applied to the round-5 helper and lines where the old text is gone ---
 m N1 "$LIB" 'k = index(w, "="); S = S + k; L = L - k; put("<redacted>"); pos = S + 10; continue }' \
@@ -411,13 +419,13 @@ m X19 "$LIB" '  LC_ALL=C tr -d '"'"'\000'"'"' | LC_ALL=C awk '"'"'
     { print; t = t'                                                                                              # classifier also echoes its input
 m X20 "$TAR" '      gmsg="$(own1 "$x_gitea" 200)"' '      gmsg="$(printf '"'"'%s\n'"'"' "$x_gitea" | grep -m1 '"'"'^release_publish_gitea: '"'"' | head -c 200)"'   # own line not redacted
 mp Y1 C41 "$TAR" 'timeout -k 10 "$NET_TIMEOUT" "$@"' 'timeout --foreground -k 10 "$NET_TIMEOUT" "$@"'   # K2: --foreground back
-mp Y2 'C4[348]' "$TAR" 'rc_env_clean "RELEASE_NET_TIMEOUT M3W_GITEA_TOKEN" "$@"; _rc=$?' '_rc=0'   # K3: tag lockdown removed (round 7: re-applied, the lockdown runs inside rc_env_clean)
+mp Y2 'C4[348]' "$TAR" 'rc_env_clean "$_tar_reads" "$@"; _rc=$?' '_rc=0'   # K3: tag lockdown removed (round 7: re-applied, the lockdown runs inside rc_env_clean)
 mp Y3 'K3|29' "$PUB" 'rc_env_clean "$_rpg_tv" "$@"; _rc=$?' '_rc=0'   # K3: publisher lockdown removed (round 7: re-applied to the rc_env_clean line)
 mp Y4 'K3|L2' "$DRF" 'rc_env_clean "" "$@"; _rc=$?' '_rc=0'   # K3: derive lockdown removed (round 7: re-applied to the rc_env_clean line)
 mp Y5 'K1|C42' "$LIB" 'rc_url_has_userinfo() {' 'rc_url_has_userinfo() { return 1;'   # K1: userinfo check always allows
 mp Y6 'push URL' "$TAR" '; rc_net git remote get-url --push --all "$r" 2>/dev/null)' ')'   # K1: push URLs not checked
-mp Y7 'C4[48]' "$TAR" 'rc_env_clean "RELEASE_NET_TIMEOUT M3W_GITEA_TOKEN" "$@"; _rc=$?' 'rc_env_clean "RELEASE_NET_TIMEOUT M3W_GITEA_TOKEN" "$@"; _rc=$?; [ -n "${M3W_GITEA_TOKEN+x}" ] && export M3W_GITEA_TOKEN'   # K3: token exported to every child (round 7: re-applied after rc_env_clean)
-mp Y8 C44 "$TAR" 'x_gitea="$(pub "${args[@]}" 2>&1 >/dev/null)"' 'x_gitea="$(export M3W_GITEA_TOKEN; nt bash scripts/release_publish_gitea.sh "${args[@]}" 2>&1 >/dev/null)"'   # K3: publisher run under timeout(1), which then holds the token
+mp Y7 'C4[48]' "$TAR" 'rc_env_clean "$_tar_reads" "$@"; _rc=$?' 'rc_env_clean "$_tar_reads" "$@"; _rc=$?; [ -n "${M3W_GITEA_TOKEN+x}" ] && export M3W_GITEA_TOKEN'   # K3: token exported to every child (round 7: re-applied after rc_env_clean)
+mp Y8 C44 "$TAR" 'x_gitea="$(pub "$gtv" "${args[@]}" 2>&1 >/dev/null)"' 'x_gitea="$(export "${gtv?}"; nt bash scripts/release_publish_gitea.sh --token-var "$gtv" "${args[@]}" 2>&1 >/dev/null)"'   # K3: publisher run under timeout(1), which then holds the token
 mp Y9 K3 "$LIB" '    [[ ${v^^} =~ TOK|SECRET|PASS|PWD|KEY|CRED|AUTH|COOKIE|SESSION|JWT|PROXY ]] && continue' '    :'   # K3: RELEASE_ENV_KEEP may name a credential
 mp Y10 'N1c|N1d' "$LIB" '        each("\"[a-z0-9_.-]*(token|secret|password|passwd|pwd|pass|key|sig|signature|auth|credential|session|jwt)\"[ \t]*:[ \t]*\"[^\"]*\"", "json")' '        :'   # N1: JSON rule removed
 mp Y11 N1a "$LIB" '        each("[a-z0-9_.-]*(token|secret|password|passwd|pwd|pass|key|sig|signature|auth|credential|session|jwt)%3d[^&#; \t\"'"'"'\'"'"''"'"'<>]*", "param3d")' '        :'   # N1: percent-encoded rule removed
@@ -431,13 +439,13 @@ mp Y18 'base URL accepted' "$PUB" 'http://127.0.0.1:[0-9]*|' 'http://*|'   # pla
 
 mp Y19 '28 X11' "$PUB" '    -h|--help) HELP=1; shift ;;' '    -h|--help) sed -n '"'"'2,29p'"'"' "$0"; exit 0 ;;'   # X11 class: an external command (the help sed) before the token is dropped
 mp Y20 '28 X11' "$PUB" 'unset -v _rpg_tok
-_rpg_tok="${!TOKEN_VAR:-}"
-unset -v "$TOKEN_VAR" 2>/dev/null || true
+_rpg_tok=""
+if [ -n "$TOKEN_VAR" ]; then _rpg_tok="${!TOKEN_VAR:-}"; unset -v "$TOKEN_VAR" 2>/dev/null || true; fi
 ' '' 'case "$REPO" in *..*|./*|*/.) die "repo has dot segments: refusing" 2 ;; esac
 ' 'case "$REPO" in *..*|./*|*/.) die "repo has dot segments: refusing" 2 ;; esac
 unset -v _rpg_tok
-_rpg_tok="${!TOKEN_VAR:-}"
-unset -v "$TOKEN_VAR" 2>/dev/null || true
+_rpg_tok=""
+if [ -n "$TOKEN_VAR" ]; then _rpg_tok="${!TOKEN_VAR:-}"; unset -v "$TOKEN_VAR" 2>/dev/null || true; fi
 '   # X11 class: the token is read and dropped only after the first grep
 mp Y21 'K3 _rpg_tok' "$LIB" '=~ TOK|SECRET' '=~ TOKEN|SECRET'   # X12 class: RELEASE_ENV_KEEP may keep the publisher's holding variable _rpg_tok exported
 # K5 class (round 6; round 7: rc_env_clean is the first command): an external command before rc_env_clean gets the caller's whole environment; killed by the L1 case
@@ -477,7 +485,7 @@ mp W7 'K6 READS|31 --token-var' "$LIB" '    _rc_env_reserved "$v" && return 2
   done' '    :
   done'   # a READS name bash gives a meaning of its own accepted
 mp W8 '30 --token-var' "$PUB" '    --token-var) _rpg_tv="${_rpg_a[_rpg_i+1]:-}"; _rpg_i=$((_rpg_i + 2)) ;;' '    --token-var) _rpg_i=$((_rpg_i + 2)) ;;'   # prescan ignores --token-var
-mp W9 'C4[48]' "$TAR" 'rc_env_clean "RELEASE_NET_TIMEOUT M3W_GITEA_TOKEN" "$@"' 'rc_env_clean "RELEASE_NET_TIMEOUT" "$@"'   # the tag script's READS lose the token
+mp W9 'C4[48]' "$TAR" 'rc_env_clean "$_tar_reads" "$@"' 'rc_env_clean "RELEASE_NET_TIMEOUT" "$@"'   # the tag script's READS lose the token
 mp W10 C49 "$TAR" 'timeout -k 10 "$NET_TIMEOUT" "$@"' 'timeout -k 600 "$NET_TIMEOUT" "$@"'   # the KILL comes too late
 mp W11 'fd 9|descriptor 9' "$LIB" '    exec 9<&-
   fi' '  fi'   # the state pipe stays open in every child
@@ -491,7 +499,7 @@ mp A5 'LC_ZZTOKEN|LC_|N1' "$LIB" $'  for v in $(compgen -e); do\n    # shellchec
 mp A5b 'LC_ZZTOKEN|LC_|N1' "$LIB" $'  for v in $(compgen -e); do\n    # shellcheck disable=SC2163   # indirect on purpose: the variable NAMED by $v is un-exported' $'  for v in $(compgen -e); do\n    # shellcheck disable=SC2163   # indirect on purpose: the variable NAMED by $v is un-exported\n    case "$v" in LC_*) continue ;; esac'   # the round-7 shape itself (an LC_* prefix)
 m A6 "$LIB" 'e) printf -v "$n" '"'"'%s'"'"' "$val" 2>/dev/null && export "${n?}" ;;' 'e) printf -v "$n" '"'"'%s'"'"' "$val" 2>/dev/null ;;'
 mp A7 'K6 blind|N2' "$LIB" $'    blind) return 3 ;;\n' $'    blind) ;;\n'   # round 7 killed this only by a 900 s hang; the loop guard turns it into a FAIL
-m A8 "$TAR" 'rc_env_clean "RELEASE_NET_TIMEOUT M3W_GITEA_TOKEN" "$@"' 'rc_env_clean "M3W_GITEA_TOKEN" "$@"'
+m A8 "$TAR" '_tar_reads="RELEASE_NET_TIMEOUT"; _tar_a=' '_tar_reads=""; _tar_a='
 m A9 "$LIB" $'    _rc_env_reserved "$v" && return 2\n' $'\n'
 mp A10 'K10 R9-2' "$LIB" $'  rc_env_lockdown\n  shopt -s execfail' '  shopt -s execfail'   # round 10 (R9-2): NOT equivalent (the round-8 record was wrong): every caller variable became a shell variable of the re-executed script (HELP=1 printed the publisher's help and exited 0); K10 R9-2 now kills it
 m A11 "$LIB" $'    exec 9<&-\n  fi\n  rc_env_lockdown\n' $'    exec 9<&-\n  fi\n'
@@ -754,11 +762,38 @@ mp GP18 $'GL15 |GL16 ' "$TAR" $'  j="$(nt glab api --hostname' $'  j="$(glab api
 mp GP19 $'GL10b? ' "$TAR" $'  elif [ "$rat" = NOT-AN-ISO-TIME ] || [ "$(date -u -d "$rat" +%s 2>/dev/null)" != "$GL_AT" ]; then' $'  elif false; then'   # a different upcoming date accepted
 mp GP20 $'GL11 ' "$TAR" $'|| rat=NOT-AN-ISO-TIME\n' $'|| :\n'   # a server released_at that is not an ISO time printed raw
 mp GP21 $'GL1 ' "$TAR" $'nt glab api --hostname "$GL_HOST" "projects/' $'nt glab api "projects/'   # the read-back host not pinned with --hostname
-# CON-417 (2026-11-15): the retest_statement verdict check of render_release_entry.py
-mp RV1 $'retest value without a leading verdict token refused' "$RRE" $'            if name == "retest_statement" and not RETEST_VERDICT.match(val.strip()):' $'            if False:'   # the verdict check removed
-mp RV2 $'retest value without a leading verdict token refused: the retest: PASS-FULL' "$RRE" $'not RETEST_VERDICT.match(val.strip())' $'not RETEST_VERDICT.search(val.strip())'   # the verdict token anywhere, not at the start
-mp RV3 $'refused: (PASS-FULLY done|FAILED)' "$RRE" $'(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)(?![\\w-])"' $'(PASS-FULL|PARTIAL-TOPOLOGY|FAIL|NOT RUN)"'   # a longer word starting with a token accepted
-mp RV4 $'retest verdict accepted: NOT' "$RRE" $'|FAIL|NOT RUN)(?![\\w-])"' $'|FAIL)(?![\\w-])"'   # NOT RUN refused (an honest not-run entry cannot be written)
+# CON-417 (2026-11-15): the retest_statement verdict check of render_release_entry.py; B-M1 (2026-11-16) rewrote the
+# check (verdict words from the runner's RETEST_RESULTS), so RV1-RV4 are re-applied to the lines that now do the same job
+mp RV1 $'retest value without a leading verdict token refused' "$RRE" $'                rv = retest_value(val, words)\n                if rv is None:' $'                rv = val\n                if False:'   # the verdict check removed
+mp RV2 $'retest value without a leading verdict token refused: the retest: PASS-FULL' "$RRE" $'        if v.startswith(w) and not re.match(r"[\\w-]", v[len(w):len(w) + 1]):' $'        if re.search(re.escape(w) + r"(?![\\w-])", v):'   # the verdict word anywhere, not at the start
+mp RV3 $'refused: (PASS-FULLY done|FAILED)|not a run verdict refused: (PASS-FULL-WITH|PARTIAL-TOPOLOGYX)' "$RRE" $' and not re.match(r"[\\w-]", v[len(w):len(w) + 1]):' $':'   # a longer word starting with a verdict word accepted
+mp RV4 $'retest verdict accepted: NOT' "$RRE" $'    return sorted(words + [("NOT RUN", "not-run")], key=lambda x: -len(x[0]))' $'    return sorted(words, key=lambda x: -len(x[0]))'   # NOT RUN refused (an honest not-run entry cannot be written)
+# B-M1 (2026-11-16, fixer's own): the gap notes and the fail-closed read of the runner's table
+mp BM1A $'B-M1 runner verdict PARTIAL-DEFAULT-SET rendered as gap|B-M1 PARTIAL-SKIPS never rendered bare' "$RRE" $'         "gap": "[gap: not a section 11.4.40 full retest; (L6) stays open]",' $'         "gap": "",'   # a PARTIAL verdict rendered as if it were a pass
+mp BM1B $'B-M1 runner verdict (MANIFEST-MISMATCH|REFUSED-TOPOLOGY) rendered as gap-not-run' "$RRE" $'         "gap-not-run": "[gap: nothing was run; not a section 11.4.40 retest; (L6) stays open]"}' $'         "gap-not-run": "[gap: not a section 11.4.40 full retest; (L6) stays open]"}'   # a run that ran nothing reads as a partial run
+mp BM1C $'B-M1 (malformed runner table|absent runner)' "$RRE" $'    except (OSError, SyntaxError, ValueError, TypeError, IndexError):\n' $'    except (OSError, SyntaxError, ValueError, TypeError, IndexError):\n        return [("PASS-FULL", "retest"), ("PARTIAL-TOPOLOGY", "retest"), ("FAIL", "fail"), ("NOT RUN", "not-run")]\n'   # the old fixed list as a silent fallback
+mp BM1D $'B-M1 not a run verdict refused: MANIFEST-OK' "$RRE" $'    return sorted(words + [("NOT RUN", "not-run")]' $'    return sorted(words + [("NOT RUN", "not-run"), ("MANIFEST-OK", "retest")]'   # a --verify-manifest result accepted as a retest verdict
+# B-M4 (v73.4 dry run): placeholders refused unless --draft; a --draft render carries the marker; tag_and_release.sh refuses it
+mp BM4A $'B-M4 placeholder refused without --draft' "$RRE" $'            why = None if draft else placeholder_reason(name, val)' $'            why = None'   # the placeholder check never runs
+mp BM4B $'B-M4 placeholder refused without --draft: block' "$RRE" $'        if not (AUTOLINK.fullmatch(t) or HTML_TAG.fullmatch(t)):' $'        if not (AUTOLINK.fullmatch(t) or HTML_TAG.fullmatch(t) or " " in t):'   # an angle placeholder with a space passes
+mp BM4C $'B-M4 placeholder refused without --draft: cut_date=(2026-11-31|16.11.2026)' "$RRE" $'    if name == "cut_date":' $'    if False:'   # cut_date not checked as a date
+mp BM4D $'B-M4 (the same value renders with --draft|--draft render|--draft without a heading)' "$RRE" $'        lines.insert(at, DRAFT_MARK)' $'        pass'   # a draft render without its marker
+mp BM4E $'B-M4 --draft still refuses' "$RRE" $'    if missing:' $'    if missing and not draft:'   # --draft relaxes every refusal, not only the placeholder one
+mp BM4F $'C54 draft notes: (exit 1|RESULT FAIL|no local tag|r1)' "$TAR" $'  [ "$DRY" -eq 1 ] || abort "the release notes of $TAG' $'  [ "$DRY" -eq 1 ] || printf \'%s\\n\' "the release notes of $TAG'   # a real run cuts a release from draft notes
+mp BM4G $'C54 draft notes, dry run' "$TAR" $'  if [ "$DRAFT_NOTES" -eq 1 ]; then' $'  if false; then'   # the dry run does not say a real run refuses
+mp BM4H $'C54 control' "$TAR" $'if grep -qF \'DRAFT RENDER — not a release entry\' "$NOTES"; then' $'if rc_net git show "$SHA:CHANGELOG.md" | grep -qF \'DRAFT RENDER — not a release entry\'; then'   # the marker of an older section refuses the release
+# B-M2 (2026-11-16): the gitea token variable is required and bound to the host (config/forge/hosts.tsv)
+mp BM2A $'B-M2 (codeberg with M3W_GITEA_TOKEN|unknown host|loopback URL with M3W_GITEA_TOKEN)' "$PUB" $'rc_gitea_binding "$BASE_URL" "$TOKEN_VAR"; _rpg_b=$?' $'_rpg_b=0'   # the publisher skips the binding check
+mp BM2B $'B-M2 no --token-var' "$PUB" $'TOKEN_VAR="" GENERIC=0' $'TOKEN_VAR="M3W_GITEA_TOKEN" GENERIC=0'   # the old default variable is back
+mp BM2C $'C56 a loopback URL with M3W_GITEA_TOKEN' "$LIB" $'    [ "$tv" = GITEA_LOOPBACK_TEST_TOKEN ] && return 0; return 1 ;;' $'    return 0 ;;'   # a loopback URL takes any token variable
+mp BM2D $'C56 no host table beside the script' "$LIB" $'  { [ -f "$f" ] && [ -r "$f" ]; } || return 3' $'  { [ -f "$f" ] && [ -r "$f" ]; } || return 0'   # a missing table means any host
+mp BM2E $'C56 a name that is only part of a listed name' "$LIB" $'    case ",$t," in *",$tv,"*) return 0 ;; esac' $'    case "$t" in *"$tv"*) return 0 ;; esac'   # substring match on the token_vars list
+mp BM2F $'C56 a host that is only a prefix of a listed one' "$LIB" $'    [ "$a" = "$base/api/v1" ] || continue' $'    case "$a" in "$base"*) ;; *) continue ;; esac'   # prefix match on api_base
+mp BM2G $'C56 (control: the codeberg call|the token variables each call)' "$TAR" $'bash scripts/release_publish_gitea.sh --token-var "$tv" "$@"' $'bash scripts/release_publish_gitea.sh --token-var M3W_GITEA_TOKEN "$@"'   # the publisher is told the default variable
+mp BM2H $'C56 codeberg with M3W_GITEA_TOKEN' "$TAR" $'    rc_gitea_binding "$gbase" "$gtv"; gb=$?' $'    gb=0'   # the tag script skips the binding check
+mp BM2I $'C56 the token variables each call' "$TAR" $'export "${tv?}"; bash scripts/release_publish_gitea.sh' $'export "${tv?}" M3W_GITEA_TOKEN CODEBERG_TOKEN 2>/dev/null; bash scripts/release_publish_gitea.sh'   # every token variable reaches every publisher call
+mp BM2J $'C56 the token variables each call|C17' "$TAR" $'*) _tar_reads="$_tar_reads $_tar_v" ;; esac' $'*) : ;; esac'   # the spec variables are not carried over the re-execution
+mp BM2K $'C56 the old four-field spec' "$TAR" $'$SEG/$SEG:[A-Z][A-Z0-9_]{0,63}\\$"' $'$SEG/$SEG(:[A-Z][A-Z0-9_]{0,63})?\\$"'   # the old four-field spec is accepted by the pattern
 # round 8 (N5): --only NAME that names no mutant ran nothing; that is a usage error (exit 2), never a vacuous pass
 if [ -n "$ONLY" ] && [ "$ONLY" != control ] && [ "$matched" -eq 0 ]; then
   echo "FAIL --only $ONLY: no mutant has that name, nothing was run"

@@ -5752,32 +5752,50 @@ What: docs/release/helixconstitution-v73.4_entry.template.md line 66 (at 6017743
 
 ## CON-513 — render_release_entry.py accepts DRAFT and placeholder text in manual keys (cut_date not checked as YYYY-MM-DD) and exits 0 (rehearsal B-M4)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `/mnt/DATA1TB/claude-work/scratch/rel_v734_dryrun_20261116T183651/run2/renderer_probes/summary.txt` — updated 2026-11-17T15:08:15Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `render_release_entry.py checked only TODO/TBD; no cut_date date check and no draft mode` — evidence `/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md` — updated 2026-11-17T15:08:15Z — by `AI`
 
 What: rehearsal B-M4: scripts/release/render_release_entry.py refuses only TODO/TBD; cut_date = DRAFT or 'UNCONFIRMED-CUT-DATE ...', retest_item_id = '<CON-NNN>', waiver_expiry = '<recorded date + 30 days>' and killpg_summary_line = '<paste ...>' all render with rc 0 (negative controls rc 3 confirm the check runs); cut_date is never checked as a bare YYYY-MM-DD date and there is no --draft mode, so a rehearsal render and a cut render look alike. Evidence: /mnt/DATA1TB/claude-work/scratch/rel_v734_dryrun_20261116T183651/run2/renderer_probes/summary.txt (sha256 502693f4e27f7b15c3f215f5da755e5c3e16fdec0855697c7411346aecac062c). The lander confirmed statically at 60177435 that the renderer has no cut_date check. Acceptance: RED cases first, then cut_date must match ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ and placeholder/DRAFT shapes in any manual key exit non-zero; paired mutants. The rehearsal-fix vehicle (bundle /mnt/DATA1TB/claude-work/scratch/fix7_con423_abwj/fix_rehearsal_v73_4_r7.bundle, sha256 56f1626d38827487a9a73b3a90c950c31aa16813b02cffcd1f574b4fc5e1e5d8, head 3a5b462d, 19 commits not on main) names itself CON-423 in its commit subjects; on main CON-423 is the history_secret_scan.sh deadlock, so that id collides and the vehicle has no item on main yet. Its D5 and D9 fix this class; link or close this item when that vehicle lands. Source: v73.4 cut rehearsal /mnt/DATA1TB/claude-work/scratch/rel_v734_dryrun_20261116T183651/BLOCKERS.md (outside the repository; sha256 dfbd4377ad1bdad5ec485f6bb6202b83cd1074622f4a8990aac4626da720cfe6; directory SHA256SUMS sha256 07c59dacec8a9aa792f0f1d8d4a48bcb256c62df05555b532e108326c17a2fb4, 90 entries verified OK by the lander 2026-11-17), carried into /mnt/DATA1TB/claude-work/scratch/relprep.GRc4vl/draft/CUT_DAY_CHECKLIST.md.
 
 Link (section 11.4.214, open original, link only; 2026-11-17): the rehearsal-fix vehicle that fixes this class is tracked as CON-521 (the vehicle's own CON-423 id collides with main and is re-minted to CON-521 at landing).
 
+Implementation (landing 2026-11-17): landed by merge e1dab6f8 (main), merge of the release-machinery stack prefix 85f4e880 onto ebd8818c; the stack commits carry the placeholder trailers CON-PENDING-relmach-bm1 (=CON-514), CON-PENDING-relmach-bm4 (=CON-513) and CON-PENDING-relmach-bm2 (=CON-515), mapped here because history is not rewritten (section 11.4.113; review N7). B-M3 (CON-516) is not in this landing. Commit: 87923dc6 (B-M4). Review: GO-with-follow-ups, Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander. Follow-ups: CON-527, CON-528, CON-532, CON-535.
+
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/release/test_render_release_entry.sh (expect 100 passed, 0 failed), tests/release/test_publish_gitea.sh (238/0), tests/release/test_tag_and_release.sh (459/0) and tests/release/test_channel_census.sh (100/0) on main after landing -- checks: the RED cases of the slice stay GREEN and the paired mutants stay killed -- layer: gate-logic (host-only; class floor not met for a runtime claim) -- target: host, repo checkout -- artifact: main at merge e1dab6f8 -- due: next full-suite run.
+
 ## CON-514 — render_release_entry.py retest verdict vocabulary (PASS-FULL, PARTIAL-TOPOLOGY, FAIL, NOT RUN) differs from run_full_suite.sh's, so a true result can only be written as a wrong word (rehearsal B-M1)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `/mnt/DATA1TB/claude-work/scratch/rel_v734_dryrun_20261116T183651/run2/renderer_probes/summary.txt` — updated 2026-11-17T15:08:15Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `RETEST_VERDICT in render_release_entry.py was a hand-kept list narrower than the runner's verdict table` — evidence `/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md` — updated 2026-11-17T15:08:15Z — by `AI`
 
 What: rehearsal B-M1: render_release_entry.py RETEST_VERDICT accepts only PASS-FULL, PARTIAL-TOPOLOGY, FAIL, NOT RUN (line 38 at 60177435), while scripts/run_full_suite.sh reports more verdicts, among them 3 MANIFEST-MISMATCH, 5 PARTIAL-DEFAULT-SET (the default tier the retest runs first), 6 PARTIAL-SKIPS, 7 PASS-FULL-WITH-KNOWN, 9 REFUSED-TOPOLOGY (header lines 98-104). Those are refused (rc 3), so the entry can only say FAIL or NOT RUN. Evidence: /mnt/DATA1TB/claude-work/scratch/rel_v734_dryrun_20261116T183651/run2/renderer_probes/summary.txt (sha256 502693f4e27f7b15c3f215f5da755e5c3e16fdec0855697c7411346aecac062c). Acceptance: the renderer's set derived from (or equal to) the runner's, a RED case per missing verdict, the open question Q-7 answered. Related: CON-381 (the retest), CON-417, CON-421 (verdict token not bound to a machine verdict). Source: v73.4 cut rehearsal /mnt/DATA1TB/claude-work/scratch/rel_v734_dryrun_20261116T183651/BLOCKERS.md (outside the repository; sha256 dfbd4377ad1bdad5ec485f6bb6202b83cd1074622f4a8990aac4626da720cfe6; directory SHA256SUMS sha256 07c59dacec8a9aa792f0f1d8d4a48bcb256c62df05555b532e108326c17a2fb4, 90 entries verified OK by the lander 2026-11-17), carried into /mnt/DATA1TB/claude-work/scratch/relprep.GRc4vl/draft/CUT_DAY_CHECKLIST.md.
 
+Implementation (landing 2026-11-17): landed by merge e1dab6f8 (main), merge of the release-machinery stack prefix 85f4e880 onto ebd8818c; the stack commits carry the placeholder trailers CON-PENDING-relmach-bm1 (=CON-514), CON-PENDING-relmach-bm4 (=CON-513) and CON-PENDING-relmach-bm2 (=CON-515), mapped here because history is not rewritten (section 11.4.113; review N7). B-M3 (CON-516) is not in this landing. Commit: 87d61ba4 (B-M1). Review: GO-with-follow-ups, Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander. Follow-ups: CON-529, CON-531, CON-533.
+
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/release/test_render_release_entry.sh (expect 100 passed, 0 failed), tests/release/test_publish_gitea.sh (238/0), tests/release/test_tag_and_release.sh (459/0) and tests/release/test_channel_census.sh (100/0) on main after landing -- checks: the RED cases of the slice stay GREEN and the paired mutants stay killed -- layer: gate-logic (host-only; class floor not met for a runtime claim) -- target: host, repo checkout -- artifact: main at merge e1dab6f8 -- due: next full-suite run.
+
 ## CON-515 — tag_and_release.sh gitea leg passes no --token-var, so the m3w token is sent to whatever https host a gitea spec names (codeberg included) (rehearsal B-M2)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Bug
 **Severity:** High
 **Created-By:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-17T15:08:15Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `the gitea leg passed no --token-var and the publisher defaulted to the m3w token for any https base URL` — evidence `/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md` — updated 2026-11-17T15:08:15Z — by `AI`
 
 What: rehearsal B-M2, credential routing (section 11.4.10). The gitea) case of scripts/release/tag_and_release.sh (line 397 at 60177435) builds the publisher arguments without --token-var, and scripts/release_publish_gitea.sh defaults TOKEN_VAR=M3W_GITEA_TOKEN (line 38) and accepts any https base URL, so a spec gitea:codeberg:https://codeberg.org:... would send the git.m3w.org token to codeberg.org. Static evidence only (code reading, re-read by the lander); not exercised at runtime because that would send a token. Mitigation now: the cut-day checklist forbids a codeberg gitea spec (codeberg goes through scripts/forge/forge.sh, per-host token map). Acceptance: the token variable bound to the spec's host (or the spec refused when the host is not the token's), a RED case with a fake token and a local listener, paired mutant. Source: v73.4 cut rehearsal /mnt/DATA1TB/claude-work/scratch/rel_v734_dryrun_20261116T183651/BLOCKERS.md (outside the repository; sha256 dfbd4377ad1bdad5ec485f6bb6202b83cd1074622f4a8990aac4626da720cfe6; directory SHA256SUMS sha256 07c59dacec8a9aa792f0f1d8d4a48bcb256c62df05555b532e108326c17a2fb4, 90 entries verified OK by the lander 2026-11-17), carried into /mnt/DATA1TB/claude-work/scratch/relprep.GRc4vl/draft/CUT_DAY_CHECKLIST.md.
+
+Implementation (landing 2026-11-17): landed by merge e1dab6f8 (main), merge of the release-machinery stack prefix 85f4e880 onto ebd8818c; the stack commits carry the placeholder trailers CON-PENDING-relmach-bm1 (=CON-514), CON-PENDING-relmach-bm4 (=CON-513) and CON-PENDING-relmach-bm2 (=CON-515), mapped here because history is not rewritten (section 11.4.113; review N7). B-M3 (CON-516) is not in this landing. Commit: 85f4e880 (B-M2). Review: GO-with-follow-ups, Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander. Follow-ups: CON-530, CON-534. Reproduction stays UNREPRODUCED: the original finding was static and a live reproduction would send a real token to a foreign host (section 11.4.10); the fix is exercised only with a fake token and a curl shim (gate-logic), so this item tops out at PROVISIONAL-DONE labelled UNREPRODUCED (section 11.4.292(D)).
+
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/release/test_render_release_entry.sh (expect 100 passed, 0 failed), tests/release/test_publish_gitea.sh (238/0), tests/release/test_tag_and_release.sh (459/0) and tests/release/test_channel_census.sh (100/0) on main after landing -- checks: the RED cases of the slice stay GREEN and the paired mutants stay killed -- layer: gate-logic (host-only; class floor not met for a runtime claim) -- target: host, repo checkout -- artifact: main at merge e1dab6f8 -- due: next full-suite run.
 
 ## CON-516 — tag_and_release.sh verifies with git ls-remote, which reads the remote's fetch URL, while git push uses its push URL; a remote whose two differ is verified against another server (rehearsal B-M3)
 
@@ -5890,4 +5908,94 @@ What: review F4 (minor, test-instrumentation). Surviving reviewer mutants of tes
 **Created-By:** AI
 
 What: review F7 (nit, test-instrumentation, pre-existing, not introduced by the CON-443 vehicle). In the reviewer's determinism runs (/mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/det.log) tests/release/test_land_vehicle.sh gave pass=360 fail=0 twice with an identical verdict set, but the line hash differed because case R5-N3b embeds a count that varies between runs (78 vs 77) in its PASS line. Acceptance: the PASS text carries no run-varying value (move the count to a separate diagnostic line or assert a bound), so two runs give identical PASS/FAIL/RESULT lines; two-run evidence. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/REVIEW.md (outside the repository; sha256 cc212d7e5c4920d907f7033a82c1d0a85af31a8f94740ae50daa6346dbd57d51; directory SHA256SUMS sha256 04dc8138780b45e24389c116741af9ac551eed651bb97e685d16728029d7ee78, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the CON-443/CON-444 vehicle head f27f64c5, landed on main by merge 22de662c. Follow-up per section 11.4.276(G.2); not re-run by the lander.
+
+## CON-527 — CON-513 follow-up (review N1): reviewer mutant MV3 survives, no case puts a placeholder after a valid autolink or HTML tag in one value
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review N1 (minor, test-instrumentation). Mutant MV3 (only the first angle token of a value is checked) survives tests/release/test_render_release_entry.sh 100/0 (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/mut_MV3_render.txt); HEAD refuses the shape (rc 3 vs 0, /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/survivor_probe.txt), so this is a test gap, not a defect. Scope: tests/release/test_render_release_entry.sh. Acceptance: a case 'see <https://x> and <CON-NNN>' in one manual value expects exit 3; MV3 then killed. Parent: CON-513. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-528 — CON-513 follow-up (review N2): reviewer mutant MV11 survives, DRAFT on a non-first line of a multi-line MANUAL block is untested
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review N2 (nit, test-instrumentation). Mutant MV11 (DRAFT searched only on the first line of a value) survives the renderer suite 100/0 (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/mut_MV11_render.txt); HEAD refuses the shape (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/survivor_probe.txt). Scope: tests/release/test_render_release_entry.sh. Acceptance: a multi-line MANUAL value with DRAFT on its second line expects exit 3 (and renders with --draft); MV11 then killed. Parent: CON-513. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-529 — CON-514 follow-up (review N3): reviewer mutant MV1 survives, no runner table with one malformed row among good rows
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review N3 (nit, test-instrumentation). Mutant MV1 (drop the len(words) != len(table) check, so a malformed runner-table row is silently dropped) survives tests/release/test_render_release_entry.sh 100/0 (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/mut_MV1_render.txt). The mutant's effect is still fail-closed for the dropped word, hence nit. Scope: tests/release/test_render_release_entry.sh. Acceptance: a temp-tree runner table with one malformed row among good rows expects exit 3; MV1 then killed. Parent: CON-514. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-530 — rc_gitea_binding treats a host-table row with fewer than four TABs (no note column, or CRLF) as not a row, while forge.sh accepts it (review N4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review N4 (minor, source-defect, fails closed). The gitea token binding (rc_gitea_binding, used by scripts/release/tag_and_release.sh and scripts/release_publish_gitea.sh) skips a line with fewer than four TABs, while scripts/forge/forge.sh reads the same table with IFS=$'\t' read -r h p a t _note and accepts a row without the note column. A gitea row with no note (or a CRLF row ending in the token column) makes the release tools refuse with 'no gitea row' (exit 2/3) while forge.sh accepts it (reviewer probes T1, T3 in /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/probe_binding.txt). No token is misrouted; parser and message divergence only. Scope: the binding helper and its tests. Reproduction: host fixture by the reviewer (probe file above); not re-run by the lander. Acceptance: one shared parser, or 3-TAB rows (and CRLF) accepted identically by both readers; RED cases T1 and T3 first; paired mutant. Parent: CON-515. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-531 — render_release_entry.py verdict-word match is a prefix match: 'PASS-FULL<TAB>WITH-KNOWN' and other separators render as bare PASS-FULL (review N5, carried F1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review N5 (minor, source-defect), extending the prior review's F1 (fu_plan row FU-RM-F1, /mnt/DATA1TB/claude-work/scratch/fu_plan_20261117_101442/fu_plan.tsv sha256 3fdea5fc1a4d22eeca8b1275c186d7af11d8b7ebd657b1f1ba0d7ffde1e05237): the retest verdict word is accepted when the next character is anything outside [\w-] (TAB, U+2013, '/', '.'), so 'PASS-FULL<TAB>WITH-KNOWN' renders as bare PASS-FULL (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/probe_render.txt). Scope: scripts/release/render_release_entry.py and its tests. Reproduction: host fixture by the reviewer; not re-run by the lander. Acceptance: whole-token match (the verdict word followed by end of line or a single space and text), RED cases for the TAB and lookalike separators first; paired mutant. Parent: CON-514. Related: CON-421. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-532 — render_release_entry.py lets one-word lower-case angle tokens (<sha>, <todo>, <date>) and lookalike placeholders render rc 0, also inside retest_statement (review N6, carried F2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review N6 (minor, source-defect), part of the prior review's F2 (fu_plan row FU-RM-F2, /mnt/DATA1TB/claude-work/scratch/fu_plan_20261117_101442/fu_plan.tsv) and the renderer's documented limit: one-word lower-case angle tokens (<sha>, <todo>, <date>, 'PASS-FULL on base <sha>') and the F2 lookalikes (Cyrillic DRAFT, ZWSP, _DRAFT_, fullwidth <CON-NNN>, &lt;CON-NNN&gt;, padded cut_date) render with rc 0 (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/probe_render.txt). Scope: scripts/release/render_release_entry.py and its tests. Reproduction: host fixture by the reviewers; not re-run by the lander. Acceptance: an allowlist of the accepted angle forms (autolinks, the documented HTML subset) with every other angle token and the listed lookalikes refused (exit 3) unless --draft; RED cases first; paired mutants. Parent: CON-513. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-533 — render_release_entry.py: a retest_statement starting with a blank line renders the verdict word on the next line (review N8)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review N8 (nit, source-defect, cosmetic). A retest_statement whose first line is blank renders as 'retest:  ' followed by the verdict word on the next line (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/probe_render.txt). Scope: scripts/release/render_release_entry.py. Reproduction: host fixture by the reviewer; not re-run by the lander. Acceptance: leading blank lines refused or stripped, with a case. Parent: CON-514. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-534 — CON-515 follow-up (carried review F5): rc_gitea_binding accepts loopback look-alike forms for the loopback test token at library level (callers refuse first)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: carried F5 of the prior release-machinery review (nit, test-instrumentation; fu_plan row FU-RM-F5, /mnt/DATA1TB/claude-work/scratch/fu_plan_20261117_101442/fu_plan.tsv; prior mutant RV6): the binding helper accepts three loopback look-alike forms for the loopback test-token variable; its callers refuse them first, so no token is misrouted. Still open after this landing per /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md section 7. Scope: the binding helper's tests. Acceptance: the helper refuses the look-alike forms itself, with cases; RV6 killed. Parent: CON-515. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-535 — CON-513 follow-up (carried review F8): UNCONFIRMED-CUT-DATE in a field other than cut_date is not tested (prior mutant RV2 survives)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: carried F8 of the prior release-machinery review (nit, test-instrumentation; fu_plan row FU-RM-F8, /mnt/DATA1TB/claude-work/scratch/fu_plan_20261117_101442/fu_plan.tsv): no case puts UNCONFIRMED-CUT-DATE in a manual key other than cut_date, so the prior reviewer's mutant RV2 survives. Still open after this landing per /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md section 7. Scope: tests/release/test_render_release_entry.sh. Acceptance: such a case expects exit 3 (renders with --draft); RV2 killed. Parent: CON-513. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
+
+## CON-536 — test environment note: test_redact_cut.sh K8 N1 reports BLIND under bwrap --unshare-net because ssh -G rejects root-owned config files seen as the overflow uid
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: test-environment note (minor; not a defect of the code under test). Under bwrap --unshare-net, tests/release/test_redact_cut.sh gives 434/1 with K8 N1 BLIND, on the base ebd8818c as well (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/base_redact_nonet.txt) and 435/0 with host network (/mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/ev/base_redact_hostnet.txt). Root cause reproduced by the reviewer: inside the bwrap user namespace ssh -G exits 255 with 'Bad owner or permissions on /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf' (root-owned files show as the overflow uid); ssh -G -F /dev/null prints the needle. The instrument correctly fails closed. Reproduction: reproduced on the host fixture by the reviewer; not re-run by the lander. Acceptance: either the test runs ssh -G against a controlled config (-F) where the system config is not under test, or the sandbox limit is documented in the test's guide with the expected BLIND; no change to the BLIND-is-never-PASS rule. Related: CON-362 (K8 N2, a different case). Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander.
 
