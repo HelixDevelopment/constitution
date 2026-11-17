@@ -505,7 +505,7 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
         F = fresh_engine("sync_engine_killgroup")
         calls = []
 
-        def killpg(pg, sig):
+        def killpg(pg, sig):  # killpg-gate:allow recording stand-in; forwards only to our own child's group after pgid>1 check
             calls.append((pg, sig))
             if (child_pid is not None and type(pg) is int and pg == child_pid and pg > 1
                     and sig in (E.signal.SIGTERM, E.signal.SIGKILL) and os.getpgid(child_pid) == child_pid):
@@ -515,7 +515,7 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
             if child_pid is not None and pid == child_pid:
                 return os.waitid(idtype, pid, options)
             return object()
-        ns = types.SimpleNamespace(getpgid=getpgid, killpg=killpg, waitid=waitid, P_PID=os.P_PID, WEXITED=os.WEXITED,
+        ns = types.SimpleNamespace(getpgid=getpgid, killpg=killpg, waitid=waitid, P_PID=os.P_PID, WEXITED=os.WEXITED,  # killpg-gate:allow stand-in killpg handed to the engine copy under test
                                    WNOHANG=os.WNOHANG, WNOWAIT=os.WNOWAIT)
         F.os = ns
         self.assertIs(F.proc_kill_group.__globals__["os"], ns)  # the patch took before it is used
@@ -554,9 +554,9 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
         import types
         F = fresh_engine("sync_engine_killgroup_err")
 
-        def killpg(pg, sig):
+        def killpg(pg, sig):  # killpg-gate:allow stand-in that raises; sends nothing
             raise ProcessLookupError("already gone")
-        F.os = types.SimpleNamespace(getpgid=lambda pid: pid, killpg=killpg, waitid=lambda *a: None, P_PID=os.P_PID,
+        F.os = types.SimpleNamespace(getpgid=lambda pid: pid, killpg=killpg, waitid=lambda *a: None, P_PID=os.P_PID,  # killpg-gate:allow stand-in killpg handed to the engine copy under test
                                      WEXITED=os.WEXITED, WNOHANG=os.WNOHANG, WNOWAIT=os.WNOWAIT)
         self.assertIsNone(F.proc_kill_group(types.SimpleNamespace(pid=4242), 1))  # must not raise
 
