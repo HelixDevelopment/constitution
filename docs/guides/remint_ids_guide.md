@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-11-13 |
-| Last modified | 2026-11-16T19:45:00Z |
+| Last modified | 2026-11-17T02:10:00Z |
 | Status | active |
 | Status summary | User guide and manual for landing a vehicle's tracker changes onto a target tracker: a three-way plan (base, vehicle, target), ids the vehicle minted moved to the target's next free numbers, every change replayed through the workable-items engine, conflicts reported, never guessed. |
 | Authority | Constitution §11.4.54 (ids never renumbered once landed), §11.4.93 (the engine is the only writer of the database), §11.4.249 (the verifier is not the producer), §11.4.288 (landing on `main`) — the canonical text wins where this guide and the constitution disagree. |
@@ -414,6 +414,8 @@ reopened, then changed the severity; the replay updates first and closes after, 
 body again), the two bodies differ in that line, and verify refuses to certify it (the suite pins this as
 a characterization case). Not carried: the vehicle's history rows (the engine writes new
 ones on replay; the old rows stay in the vehicle bundle), `created_at` (the replay time for own
-items; for a base item it closes, the engine's close rewrites it, a known engine defect) and
+items; for a base item it closes, an engine older than CON-313's fix (commit 5da39508) rewrote it on
+close, so a vehicle made with that engine carries the rewritten value; the KNOWN line still names
+that defect) and
 `last_modified`. `verify` reports these as KNOWN, never as a pass. The engine's own defects reproduce
 on replay. A plan is valid only for the target whose sha256 it records; plan once, replay once.

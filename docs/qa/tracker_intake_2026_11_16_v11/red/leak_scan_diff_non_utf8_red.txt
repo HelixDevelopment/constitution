@@ -1,0 +1,4 @@
+# RED: leak_scan_test.py (round 11, with the non-UTF-8 diff case) against the unfixed scan of commit ffda6a9b
+FAIL scan diff non-utf8: exit 1, RESULT line absent
+RESULT: hit_rows=264 missed=0 broader_leads=1 own_spec_wrong=1 r11_wrong=0
+rc=1

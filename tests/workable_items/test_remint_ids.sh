@@ -309,6 +309,10 @@ W update --id "$(id 13)" --db docs/v.db --location Issues --status "In progress"
 W update --id "$(id 1)" --db docs/v.db --location Issues --description "$D Base item one, changed by the vehicle; see $(id 11)."
 W update --id "$(id 2)" --db docs/v.db --location Issues --reproduction-state UNREPRODUCED --states-updated-by "remint test" --states-updated-at 2026-11-13T11:00:00Z
 W close "$(id 3)" --db docs/v.db --status obsolete --evidence "$EV"
+# round 11: main's engine keeps created_at on close since CON-313 (commit 5da39508), so the close above no
+# longer rewrites it. Vehicles made by an older engine still carry the rewritten value (this vehicle does), so
+# the fixture writes that value directly and the note and KNOWN cases below keep testing that path.
+fx_sql "$repo/docs/v.db" "update items set created_at='2026-11-13 10:00:00' where atm_id=?" "$(id 3)"
 W obsolete-details "$(id 3)" --db docs/v.db --since 2026-11-13 --reason superseded-by-design-change --superseding "$(id 9)" --evidence "$EV"
 W obsolete-details "$(id 5)" --db docs/v.db --since 2026-11-12 --reason not-reproducible --superseding none --evidence "$EV"
 W obsolete-details "$(id 6)" --db docs/v.db --since 2026-11-12 --reason superseded-by-later-mandate --superseding none --evidence "$EV"
@@ -339,6 +343,12 @@ cpdb t r
 (cd "$repo" && "$wi" validate --db docs/r.db) >"$tmp/val.before" 2>&1
 xp "replay --apply through the engine" 0 '^RESULT: APPLIED steps=20 items=5$' replay --plan "$tmp/plan.json" --apply --engine "$wi" --db docs/r.db
 xp "verify PASS after the replay" 0 '^RESULT: PASS mode=REPLAY items=10 mismatches=0 known=[0-9]+$' verify --plan "$tmp/plan.json" "${PLAN[@]}" --db docs/r.db
+# round 11: the engine keeps created_at on close since CON-313, so the replayed close leaves it equal to the
+# target's and verify has nothing to say about it ...
+grep -qE "^(KNOWN|MISMATCH) $(id 3) created_at:" "$tmp/out" && bad "verify: no created_at line for the base item the engine closed (engine keeps it)" "$(grep " $(id 3) created_at:" "$tmp/out" | cut -c1-300)" || ok "verify: no created_at line for the base item the engine closed (engine keeps it)"
+# ... and a landing made with an older engine (its close rewrote created_at) is still KNOWN, never a pass
+cpdb r r_oldeng; fx_sql "$repo/docs/r_oldeng.db" "update items set created_at='2026-11-17 00:00:00' where atm_id=?" "$(id 3)"
+xp "verify PASS with KNOWN on an older-engine landing" 0 '^RESULT: PASS mode=REPLAY items=10 mismatches=0 known=[0-9]+$' verify --plan "$tmp/plan.json" "${PLAN[@]}" --db docs/r_oldeng.db
 grep -q "^KNOWN $(id 3) created_at: .*KNOWN engine defect: close rewrites it" "$tmp/out" && ok "verify: the close rewriting created_at is KNOWN (the known engine defect), never a pass" || bad "verify: engine-defect KNOWN line" "$(tr '\n' '|' <"$tmp/out" | cut -c1-300)"
 # the landed values, read directly (a third angle beside the planner and verify)
 R=$repo/docs/r.db

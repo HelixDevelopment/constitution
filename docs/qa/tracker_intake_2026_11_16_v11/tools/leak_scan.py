@@ -342,8 +342,10 @@ def main(argv):
 
     if a.diff:
         try:
+            # bytes, decoded with replacement (round 11): a tracked file that is not UTF-8 made text=True
+            # raise UnicodeDecodeError (exit 1, no RESULT line) on the merged tree; --file reads the same way
             d = subprocess.run(["git", "diff", "--cached", "--no-color", "-U0", a.diff], capture_output=True,
-                               text=True, check=True).stdout
+                               check=True).stdout.decode("utf-8", errors="replace")
         except (OSError, subprocess.CalledProcessError) as e:
             print("BLIND: git diff: %s" % type(e).__name__)
             return 3

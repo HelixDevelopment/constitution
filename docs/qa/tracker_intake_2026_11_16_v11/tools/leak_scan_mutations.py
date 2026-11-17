@@ -70,6 +70,7 @@ MUTANTS = [
     ("r11_set_cmd_dropped", '        found += [("set-command", m.group(1)) for m in SET_CMD.finditer(t)',
      '        found += [] and [("set-command", m.group(1)) for m in SET_CMD.finditer(t)'),
     ("r11_canon_call_dropped", "    for kind, s in CANON.hits(text):\n", "    for kind, s in []:\n"),
+    ("r11_diff_text_decode", 'check=True).stdout.decode("utf-8", errors="replace")', 'text=True, check=True).stdout'),
 ]
 # round 11: mutants of the shared module secret_canon.py (the same list as the C-mutants of
 # tests/workable_items/test_intake_lint_mutations.sh): the copy is passed to this scan through LEAK_SCAN_CANON

@@ -9,12 +9,18 @@ usage: leak_scan_test.py [--scan PATH]   (default: leak_scan.py next to this fil
 Round 11: also the round-10 reviewer's rows (tests/workable_items/secret_shape_fixtures_r11.py, adopted
 verbatim): every positive must be reported and every negative must NOT be (here a negative is judged:
 bypass=... and secretary=... were the round-10 false positives).
+Round 11 (merged tree): also --diff over a staged non-UTF-8 file (counted in own_spec_wrong).
 exit 0 every hit row found; 1 a hit row missed; 2 load error; 3 BLIND (a control needle failed).
 Evidence class: gate-logic only (section 11.4.289).
 """
 import importlib.util
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
+import os as _ge_os
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 
 # the scan's own specification beyond the shared rows: positives it must report and lookalikes it must not
 # (fragment-built; the lint is not asked about these)
@@ -48,6 +54,36 @@ SCAN_NEGATIVE = [
 ]
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
+
+
+def diff_non_utf8(scan):
+    """Round 11: --diff over a staged file that is not UTF-8 (a Latin-1 byte) must still finish with a
+    RESULT line, exit 0, and report the fake credential on that file. A temporary repository only;
+    deleted afterwards (the path is checked to be a fresh directory under the temp root first)."""
+    tmp = tempfile.mkdtemp(prefix="leakdiff.")
+    if os.path.dirname(os.path.realpath(tmp)) != os.path.realpath(tempfile.gettempdir()):
+        return "refused: the temporary directory is not a child of the temp root"
+    try:
+        g = ["git", "-C", tmp, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"]
+        subprocess.run(["git", "init", "-q", tmp], check=True, capture_output=True)
+        with open(os.path.join(tmp, "a.txt"), "w") as fh:
+            fh.write("base\n")
+        subprocess.run(g + ["add", "a.txt"], check=True, capture_output=True)
+        subprocess.run(g + ["commit", "-q", "-m", "base"], check=True, capture_output=True)
+        with open(os.path.join(tmp, "latin1.txt"), "wb") as fh:
+            fh.write(b"caf\xe9 au lait\n" + ("pass" + "word=" + "Zq7Zq7Zq" + "\n").encode())
+        subprocess.run(g + ["add", "latin1.txt"], check=True, capture_output=True)
+        r = subprocess.run([sys.executable, "-I", scan, "--diff", "HEAD"], cwd=tmp, capture_output=True)
+        out = r.stdout.decode("utf-8", errors="replace")
+        if r.returncode != 0 or "RESULT: " not in out:
+            return "exit %d, RESULT line %s" % (r.returncode, "present" if "RESULT: " in out else "absent")
+        if "HIT latin1.txt line=2 " not in out:
+            return "the fake credential on line 2 of the non-UTF-8 file was not reported"
+        return None
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return "setup: %s" % type(exc).__name__
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def main(argv):
@@ -106,6 +142,12 @@ def main(argv):
             print("FAIL r11 negative %s: reported" % label)
         else:
             print("PASS r11 negative %s" % label)
+    why = diff_non_utf8(scan)
+    if why:
+        wrong += 1
+        print("FAIL scan diff non-utf8: %s" % why)
+    else:
+        print("PASS scan diff non-utf8")
     print("RESULT: hit_rows=%d missed=%d broader_leads=%d own_spec_wrong=%d r11_wrong=%d"
           % (hit_rows, missed, flagged_miss, wrong, r11_wrong))
     return 1 if missed or wrong or r11_wrong else 0
