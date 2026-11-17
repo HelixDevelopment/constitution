@@ -1,0 +1,211 @@
+clock (injected, one instant for the whole run): 2026-11-16T12:00:00Z
+date (pinned, first on PATH): /usr/bin/gnudate: date (GNU coreutils) 9.7
+date (alternative, the host default): /usr/bin/date: date (uutils coreutils) 0.10.0
+Unicode Zs: 17 characters enumerated
+Unicode isspace(): 29 characters enumerated (Zs 17 of them; 27 can sit inside a TSV field)
+isspace() characters git keeps at the end of a name and an email: 19 (measured through git var)
+casefold-only characters (Unicode 16.0.0, confusables table pinned): 163 in 18 classes that change the equality, 6 killable one by one, 86 relation-equal (enumerated over the whole code space)
+casefold-only classes no class mutant can be told from (killed only by FOLD13ALL): 1/Ll/COPTIC:1 1/Ll/LATIN:1 1/Ll/MATHEMATICAL:10 1/Lm/GREEK:1 1/Lm/MODIFIER:1 1/Lu/COPTIC:1 1/Lu/GREEK:3 1/Lu/LATIN:1 2/Ll/GREEK:33 2/Lt/GREEK:27 2/Lu/LATIN:1 3/Ll/GREEK:3
+locale fixtures: wide locale en_US.UTF-8 (its [0-9] matches U+0660), narrow controls C and C.UTF-8
+cgroup pids/oom event counter: 527 (none = unreadable: only stderr signatures are checked)
+gate vector: DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 UNBORN256=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHCF=1 AUTHCO=1 AUTHCN=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/169 F_HELPSHORT=0/169 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 ARGNEAR=00000/22222222222222 CONFHASH=0,1,1, CONFKEYNEAR=0/11111/0/111 CONFSPLIT=1/1/0 CRMID=1/1 DOWN2=1/1 DUPNEAR=1/1/0 HASHMID=0 IDDELIM=1/1 ITEMCASE=1,1,0, NULROW=1/1,1/1,1/1,1/1,0 PATHNEAR=0/111111111 PATHWS=1,1, SEPINJECT=1/1 SPENTFIELDS=0,0,1 SPENTPATHNEAR=000000000/1 SYMNEAR=2/1,2/1, TSVSPACE=1,0 TZPAIR=0,1,1,0/+1400/-1200 WSID4=11111111/8/19/0 FOLD13ALL=1 FOLD13CLS=1,1,1,1,1,1 COMPAT13=1,1,1,1,1,1,1,1,0,1,1,1,0,0,0 CONF13=0,1m,1,1,0 LOC13=1/1/1,1/1/1,1/1/1,0/0/0,1/1/1,0/0/0,1/1/1,1/1/1 HLOC13=1/B,1/B,1/B,0/A AUTHPOS14=111111111111111111111111111111111111/12 BRAILLE14=1,1,1,1,0 CASE14=1,1,1,1,1,1,1,1,0 QNFD14=1 FTWIN14=11111111111111111/11111111/0 ROUNDS14=0,1,1 CONFDIR14=1m UNBORNBAD14=2/1,2/1,2/1,2/1
+gate vector date: 2026-11-16~2026-11-16
+gate vector date under the alternative date: 2026-11-16~2026-11-16
+ok   gate vector under the alternative date (/usr/bin/date) equals want
+lint static: rows 260, code lines 202, registered 422, needles [3, 5, 2]+(3,1), findings 0
+ok   lint control needle: a broken inventory is refused (L1, L3, L5)
+site lint static: sites 162, rows 162, data rows 108, needles [9, 3, 1]+(3), findings 0
+ok   site lint control needles: an added compare, a removed row and an emptied data row are refused (S1, S1, S3)
+ok   member ledger current: 154 generated members, 154 viable
+ok   judge unit check: survived,killed,inconclusive,inconclusive,inconclusive,inconclusive
+note 3 job(s) INCONCLUSIVE (another date than the real gate's vector, or a resource failure: 4 result file(s)); recomputing it and re-running them
+note   j163.res.resfail: events 530->530 fatal: fork failed: Resource temporarily unavailable
+note   j28.res.resfail: events 527->530 
+note   j29.res.resfail: events 527->530 
+note   j30.res.resfail: events 529->530 
+ok   mutant shallow-unchecked killed
+ok   mutant hook-env-inherited killed
+ok   mutant RV7-lazy-fetch killed
+ok   mutant RV6-own-repo-unchecked killed
+ok   mutant RV1-config-unreadable-as-absent killed
+ok   mutant RV3-duplicate-key-allowed killed
+ok   mutant RV4-prefix-unvalidated killed
+ok   mutant RV5-365-cap-removed killed
+ok   mutant self-authoriser-allowed killed
+ok   mutant no-casefold-no-nfc killed
+ok   mutant casefold-without-nfc killed
+ok   mutant RVR11-01-outer-nfc-dropped killed
+ok   mutant RVR11-02-inner-nfc-dropped killed
+ok   mutant conf-sha-unchecked killed
+ok   mutant conf-missing-is-ok killed
+ok   mutant conf-path-ignored killed
+ok   mutant skel-map-dropped killed
+ok   mutant skel-fixpoint-one-pass killed
+ok   mutant skel-nfkd-to-nfd killed
+ok   mutant empty-skeleton-authoriser-ok killed
+ok   mutant conf-default-path-wrong killed
+ok   mutant conf-read-argv0 killed
+ok   mutant conf-table-dict-dropped killed
+ok   mutant conf-table-first-line-only killed
+ok   mutant conf-table-key-unparsed killed
+ok   mutant skel-fixpoint-zero-rounds killed
+ok   mutant skel-loop-no-skeleton killed
+ok   mutant skel-fixpoint-no-advance killed
+ok   mutant conf-rc5-message-lost killed
+ok   mutant skel-rc5-as-ok killed
+ok   mutant braille-row-dropped killed
+ok   mutant blank-skeleton-split-dropped killed
+ok   mutant q-map-dropped killed
+ok   mutant e-outer-f-dropped killed
+ok   mutant e-is-f killed
+ok   mutant f-default-q killed
+ok   mutant e-check-dropped killed
+ok   mutant e-check-always killed
+ok   mutant e-author-email-dropped killed
+ok   mutant e-skip-committer-name killed
+ok   mutant ident-skip-committer-name killed
+ok   mutant auth-category-skips-last-char killed
+ok   mutant brokenhead-check-skipped killed
+ok   mutant brokenhead-symref-failure-ignored killed
+ok   mutant brokenhead-rev-parse-dropped killed
+ok   mutant brokenhead-exists-inverted killed
+ok   mutant RVR13-01-rounds-2 killed
+ok   mutant RVR13-03-proto-first-char-only killed
+ok   mutant RVR13-04-category-skips-first-char killed
+ok   mutant RVR13-05-table-last-row-dropped killed
+ok   mutant RVR13-06-authoriser-not-skeletonised killed
+ok   mutant RVR13-08-lang-not-lc-all killed
+ok   mutant RVR13-10-sha256-empty-tree-offbyone killed
+ok   mutant RVR13-11-sha1-empty-tree-offbyone killed
+ok   mutant RVR13-12-skeleton-inner-k-dropped killed
+ok   mutant RVR13-13-return-on-shrink killed
+ok   mutant RVR13-14-author-email-dropped killed
+ok   mutant RVR13-15-only-filenotfound killed
+ok   mutant RVX-01-nfc-to-nfkc-both killed
+ok   mutant RVX-02-casefold-to-upper killed
+ok   mutant RVX-03-nfc-to-nfd-both killed
+ok   mutant RVX-04-auth-strip-ascii-only killed
+ok   mutant RVX-05-category-C-to-Cc-only killed
+ok   mutant RVX-06-any-to-all killed
+ok   mutant RVX-07-ident-strip-ascii-only killed
+ok   mutant RVX-08-names-only-no-emails killed
+ok   mutant RVX-11-days-digit-class killed
+ok   mutant RVX-12-casefold-lower-sharp-s-fix killed
+ok   mutant RVX-13-locale-en-forced killed
+ok   mutant locale-unpinned killed
+ok   mutant locale-pin-en killed
+ok   mutant unborn-base-fallback-dropped killed
+ok   mutant unborn-sha256-arm-dropped killed
+ok   mutant unborn-object-format-unchecked killed
+ok   mutant conf-comments-not-skipped killed
+ok   mutant conf-non-kv-unnamed killed
+ok   mutant conf-days-regex-loosened killed
+ok   mutant conf-unknown-key-accepted killed
+ok   mutant authoriser-control-chars-allowed killed
+ok   mutant fetchfix-swapped killed
+ok   mutant V12-authoriser-only-Cc killed
+ok   mutant V13-casefold-to-lower killed
+ok   mutant V29-python-not-isolated killed
+ok   mutant conf-blank-not-skipped killed
+ok   mutant conf-hash-not-skipped killed
+ok   mutant conf-kv-inverted killed
+ok   mutant conf-kv-always-error killed
+ok   mutant conf-dup-always-error killed
+ok   mutant conf-days-366 killed
+ok   mutant conf-days-always-error killed
+ok   mutant conf-prefix-always-error killed
+ok   mutant conf-unknown-key-always killed
+ok   mutant auth-lt-dropped killed
+ok   mutant auth-gt-dropped killed
+ok   mutant auth-form-always killed
+ok   mutant normalise-to-empty killed
+ok   mutant self-always killed
+ok   mutant crash-is-ok killed
+ok   mutant shallow-always killed
+ok   mutant shallow-reason-dropped killed
+ok   mutant auth-arg-is-committer killed
+ok   mutant ident-always killed
+ok   mutant shallow-test-never killed
+ok   mutant shallow-says-spent killed
+ok   mutant hook-skip-always killed
+ok   mutant hook-root-wrong killed
+ok   mutant hook-skip-exits-1 killed
+ok   mutant hook-root-fail-ignored killed
+ok   mutant RV7-01-keep-drops-COUNT killed
+ok   mutant RV7-02-keep-drops-PARAMETERS killed
+ok   mutant RV7-03-item-exactly-3-digits killed
+ok   mutant RV7-04-authoriser-lstrip-only killed
+ok   mutant RV7-05-help-long-dropped killed
+ok   mutant RV8-01-ident-compare-unstripped killed
+ok   mutant RV8-02-authoriser-ascii-strip killed
+ok   mutant RV9-02-expired-yesterday-ok killed
+ok   mutant RV9-10-auth-zs-only-pad killed
+ok   mutant RV9-11-ident-zs-only-strip killed
+ok   mutant RV9-05-base-prefix-bind killed
+ok   mutant RV10-01-downgrade-one-step killed
+ok   mutant RV10-03-spent-first-parent-only killed
+ok   mutant RV10-04-argloop-gt1 killed
+ok   mutant RV10-05-email-space-strip killed
+ok   mutant RV10-07-spent-path-ignored killed
+ok   mutant RV10-08-spent-exclude-head-always killed
+ok   mutant RV10-11-waiver-path-nocase killed
+ok   mutant ident-names-ascii-strip killed
+ok   mutant conf-read-ifs-dropped killed
+ok   mutant conf-hash-anywhere killed
+ok   mutant conf-nul-unchecked killed
+ok   mutant gen-cmp-d48974649d killed
+ok   mutant gen-strip-4b0e524724 killed
+ok   mutant gen-strip-f6802ebcac killed
+ok   mutant gen-pybool-65b9a4cbb3 killed
+ok   mutant gen-pybool-4eddc7783b killed
+ok   mutant gen-pybool-3defd62a48 killed
+ok   mutant gen-pybool-a9e2e40ab0 killed
+ok   mutant gen-pybool-71888b8254 killed
+ok   mutant gen-norm-3b60d3edec killed
+ok   mutant gen-norm-2729785147 killed
+ok   mutant gen-norm-f2115cfd8a killed
+ok   mutant gen-normcls-c3f1160714 killed
+ok   mutant gen-normcls-a9e3e534c1 killed
+ok   mutant gen-normcls-b5c78f06c9 killed
+ok   mutant gen-normcls-3ba015f6f5 killed
+ok   mutant gen-normcls-bf4a492311 killed
+ok   mutant gen-normcls-8d2f1100c3 killed
+ok   mutant gen-norm-8fe5e21fe2 killed
+ok   mutant gen-pybool-a6c3940415 killed
+ok   mutant gen-strip-1548a14cd3 killed
+ok   mutant gen-strip-3d94e08116 killed
+ok   mutant gen-norm-995cd40192 killed
+ok   mutant gen-norm-e3d33e5c81 killed
+ok   generated member gen-strip-99db10f56c survives: claimed equivalent by proof eq-ident-strip-truthiness (checked below)
+ok   generated member gen-strip-7144af3e42 survives: claimed equivalent by proof eq-ident-strip-truthiness (checked below)
+ok   mutant gen-strip-38f694f31b killed
+ok   mutant gen-strip-a8ce0752e7 killed
+ok   generated member gen-pybool-6ef1faee03 survives: claimed equivalent by proof eq-idpy-strip-and-dropped (checked below)
+ok   mutant gen-pybool-5018f48fae killed
+ok   mutant gen-norm-8961072579 killed
+ok   mutant gen-norm-fbc19b3fc8 killed
+ok   date self-test: a job one day behind is INCONCLUSIVE (never killed)
+ok   resource self-test: a job with a refused fork is INCONCLUSIVE (never killed): events 530->530 fatal: fork failed: Resource temporarily unavailable
+ok   eqproof eq-ident-strip-truthiness: whole-suite vector equals the real gate's
+ok   eqproof eq-idpy-len-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-idpy-strip-and-dropped: whole-suite vector equals the real gate's
+ok   eqproof RVX-09-prefix-upper-class: whole-suite vector equals the real gate's
+ok   eqproof RVX-10-item-digit-class: whole-suite vector equals the real gate's
+ok   eqproof RVX-14-expiry-collation-le: whole-suite vector equals the real gate's
+ok   eqproof RVR13-02-rounds-3: whole-suite vector equals the real gate's
+ok   eqproof RVR13-07-locale-c-utf8: whole-suite vector equals the real gate's
+ok   eqproof RVR13-09-lc-all-not-exported: whole-suite vector equals the real gate's
+ok   eqproof outer-k-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-ident-strip-truthiness: probe real=eq [padname:1/1,zsname:1/1,padmail:1]; control differs [padname:0/0,zsname:0/0,padmail:0]; alternative date: real=eq [padname:1/1,zsname:1/1,padmail:1], control differs [padname:0/0,zsname:0/0,padmail:0] (pinned date survived, alternative date survived)
+ok   eqproof eq-idpy-len-dropped: probe real=eq [ok:0,noemail:0,self:1,badutf8:1/1]; control differs [ok:1,noemail:1,self:1,badutf8:1/1]; alternative date: real=eq [ok:0,noemail:0,self:1,badutf8:1/1], control differs [ok:1,noemail:1,self:1,badutf8:1/1] (pinned date survived, alternative date survived)
+ok   eqproof eq-idpy-strip-and-dropped: probe real=eq [ok:0,noemail:0,self:1,badutf8:1/1]; control differs [ok:0,noemail:0,self:0,badutf8:1/1]; alternative date: real=eq [ok:0,noemail:0,self:1,badutf8:1/1], control differs [ok:0,noemail:0,self:0,badutf8:1/1] (pinned date survived, alternative date survived)
+ok   eqproof RVX-09-prefix-upper-class: probe real=eq [1,1,0,1,1]; control differs [0,0,0,1,0]; alternative date: real=eq [1,1,0,1,1], control differs [0,0,0,1,0] (pinned date survived, alternative date survived)
+ok   eqproof RVX-10-item-digit-class: probe real=eq [1,1,0,1,1]; control differs [1,1,0,0,1]; alternative date: real=eq [1,1,0,1,1], control differs [1,1,0,0,1] (pinned date survived, alternative date survived)
+ok   eqproof RVX-14-expiry-collation-le: probe real=eq [1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,]; control differs [0,0,1,1,1,0,0,1,1,1,0,0,1,1,1,]; alternative date: real=eq [1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,], control differs [0,0,1,1,1,0,0,1,1,1,0,0,1,1,1,] (pinned date survived, alternative date survived)
+ok   eqproof RVR13-02-rounds-3: probe real=eq [pct:0,pctself:1,shr:1]; control differs [pct:1,pctself:1,shr:1]; alternative date: real=eq [pct:0,pctself:1,shr:1], control differs [pct:1,pctself:1,shr:1] (pinned date survived, alternative date survived)
+ok   eqproof RVR13-07-locale-c-utf8: probe real=eq [1,1,0,1,1]; control differs [0,0,0,1,0]; alternative date: real=eq [1,1,0,1,1], control differs [0,0,0,1,0] (pinned date survived, alternative date survived)
+ok   eqproof RVR13-09-lc-all-not-exported: probe real=eq [1,1,0,1,1]; control differs [0,0,0,1,0]; alternative date: real=eq [1,1,0,1,1], control differs [0,0,0,1,0] (pinned date survived, alternative date survived)
+ok   eqproof outer-k-dropped: probe real=eq [1,1,1,1,0]; control differs [0,0,0,0,0]; alternative date: real=eq [1,1,1,1,0], control differs [0,0,0,0,0] (pinned date survived, alternative date survived)
+mutants: 173 (killed 158, survived 0, equivalent-with-proof 13, inconclusive 0)
+hook: plain downgrade rc=1 forward rc=0 downgrade-after rc=1 ; real-submodule worktree (real) forward rc=0 downgrade rc=1 ; persist rollback rc=0 fwd rc=0 snapshot rc=1 pin=B ; layout-skip rc=0 [CM-SUBMODULE-PIN-NOT-DOWNGRADED: SKIP — gate not found beside this hook (/mnt/]
+rc=0

@@ -1,0 +1,14 @@
+tree=8f688bf19a343b6bbcff37fe481c8933ddf66da4 (plus the uncommitted round-10 changes)
+== docs/qa/tracker_intake_2026_11_15_v8/tools/leak_scan_test.py sha256=99b973da7c371a0f3e97cfd8731f32ce30a31acb5a45f9609b24022f0c968f82
+FAIL leak missed r10-own-join-pipe-operator
+FAIL leak missed r10-own-folded-alpha-short-key
+RESULT: hit_rows=264 missed=98 broader_leads=38 own_spec_wrong=0
+rc=1
+== docs/qa/tracker_intake_2026_11_15_v9/tools/leak_scan_test.py sha256=5422cf1e5e12328a420196eee6a10acd00f267d5a06d6d1eeb7c97c8fe15d45e
+FAIL leak missed r10-own-lisu-capitals
+FAIL leak missed r10-own-join-pipe-operator
+RESULT: hit_rows=264 missed=47 broader_leads=45 own_spec_wrong=0
+rc=1
+== docs/qa/tracker_intake_2026_11_16_v10/tools/leak_scan_test.py sha256=dce3cbc84484bbabb6dea9360a68a348e7e8c743c1e970c4230f5514570e58f7
+RESULT: hit_rows=264 missed=0 broader_leads=40 own_spec_wrong=0
+rc=0

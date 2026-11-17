@@ -1,0 +1,80 @@
+PASS P1 golden good: exit 0
+PASS P1 VERDICT PASS
+PASS P1 counts: 4 items, 2 provisional, 2 ok
+PASS P1 negative control: Queued and Fixed items are not checked
+PASS P2 golden bad: exit 1
+PASS P2 VERDICT FAIL
+PASS P2 no line
+PASS P2 missing checks (the CON-190/CON-191 shape)
+PASS P2 empty field value
+PASS P2 fields out of order
+PASS P2 two lines
+PASS P2 a line without the bold marker does not count
+PASS P2 a complete item among bad ones is not flagged
+PASS P2 counts
+PASS P3 missing database: BLIND, exit 2
+PASS P3 empty items table: BLIND, exit 2
+PASS P3 no items table: BLIND, exit 2
+PASS P3 an option: usage exit 64
+PASS P3 no provisional item at all: PASS with the count 0 (items readable: 1)
+PASS P4 the database is unchanged
+PASS P5 real database: every Ready-for-testing and In-testing item has a complete line
+PASS P5 the checker counted the same 30 rows (needle: an independent count)
+PASS P5 the real database holds provisional items (control: 30 > 0)
+PASS P6 control: the correct checker refuses the single missing-checks item
+PASS P6 control: the correct checker refuses the single In-testing item
+PASS P6 mutant checks-not-required is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant status-in-testing-dropped is caught (rc 0, the correct checker gives 1)
+PASS P6 mutant blind-check-dropped is caught (rc 0)
+GRID-FAIL CON-5004 job:dash: want 'field 'job' is punctuation only...', got accepted
+GRID-FAIL CON-5005 job:endash: want 'field 'job' is punctuation only...', got accepted
+GRID-FAIL CON-5007 job:ellipsis_char: want 'field 'job' is empty...', got accepted
+GRID-FAIL CON-5008 job:question: want 'field 'job' is punctuation only...', got accepted
+GRID-FAIL CON-5009 job:dashes: want 'field 'job' is punctuation only...', got accepted
+GRID-FAIL CON-5010 job:TBD: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5011 job:tbd_lower: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5012 job:TBA: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5013 job:TODO: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5014 job:FIXME: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5015 job:XXX: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5016 job:TBD_dot: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5017 job:TODO_colon: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5018 job:UNCONFIRMED_colon: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5019 job:UNCONFIRMED_reason: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5020 job:UNCONFIRMED_paren: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5021 job:unknown: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5022 job:pending: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5023 job:pending_paren: want 'field 'job' is a placeholder...', got accepted
+GRID-FAIL CON-5024 job:na: want 'field 'job' is a placeholder...', got accepted
+FAIL P7 grid: mismatches (rc 1): GRID cases=272 refused=248 accepted=24 mismatches=227 checker_rc=1
+FAIL P7 grid size (needle: the grid really ran its cases) (no line /^GRID cases=2[0-9][0-9] refused=2[0-9][0-9] accepted=2[0-9] mismatches=0 checker_rc=1$/: GRID-PASS CON-5001 job:empty|GRID-PASS CON-5002 job:spaces|GRID-PASS CON-5003 job:dot|GRID-FAIL CON-5004 job:dash: want 'field 'job' is punctuation only...', got accepted|GRID-FAIL CON-5005 job:endash: want 'field 'job' is punctuation only...', got accepted|GRID-PASS CON-5006 job:ellipsis|GRID-FAIL )
+PASS P7 M1: the case 'due: .' is in the grid and refused
+FAIL P8 mutant empty-check did not apply exactly once
+FAIL P8 mutant punctuation-check did not apply exactly once
+FAIL P8 mutant strong-placeholder did not apply exactly once
+FAIL P8 mutant unconfirmed-word did not apply exactly once
+FAIL P8 mutant weak-placeholder did not apply exactly once
+FAIL P8 mutant placeholder-phrase did not apply exactly once
+FAIL P8 mutant placeholder-inside did not apply exactly once
+FAIL P8 mutant template did not apply exactly once
+FAIL P8 mutant nfkc did not apply exactly once
+FAIL P8 mutant format-chars did not apply exactly once
+FAIL P8 mutant job-shape did not apply exactly once
+FAIL P8 mutant checks-shape did not apply exactly once
+FAIL P8 mutant target-shape did not apply exactly once
+FAIL P8 mutant layer-shape did not apply exactly once
+FAIL P8 mutant artifact-shape did not apply exactly once
+FAIL P8 mutant due-not-date did not apply exactly once
+FAIL P8 mutant due-calendar did not apply exactly once
+FAIL P8 mutant due-year-range did not apply exactly once
+FAIL P8 mutant due-time did not apply exactly once
+FAIL P8 mutant fence-ignored did not apply exactly once
+FAIL P8 mutant fence-close-length did not apply exactly once
+FAIL P8 mutant colonless-form did not apply exactly once
+FAIL P9 job: UNCONFIRMED: refused (no line /^FAIL CON-040 Ready for testing: field 'job' is a placeholder/: FAIL CON-044 Ready for testing: field 'due' is empty|CHECKED items=6 provisional_status=6 ok=5 fail=1|VERDICT: FAIL)
+FAIL P9 due: TODO refused (no line /^FAIL CON-041 Ready for testing: field 'due' is a placeholder/: FAIL CON-044 Ready for testing: field 'due' is empty|CHECKED items=6 provisional_status=6 ok=5 fail=1|VERDICT: FAIL)
+FAIL P9 every field TBD refused (the first field is named) (no line /^FAIL CON-042 Ready for testing: field 'job' is a placeholder/: FAIL CON-044 Ready for testing: field 'due' is empty|CHECKED items=6 provisional_status=6 ok=5 fail=1|VERDICT: FAIL)
+FAIL P9 job: - refused (no line /^FAIL CON-043 Ready for testing: field 'job' is punctuation only/: FAIL CON-044 Ready for testing: field 'due' is empty|CHECKED items=6 provisional_status=6 ok=5 fail=1|VERDICT: FAIL)
+PASS P9 due: . refused (reviewer mutant PV2 shape)
+FAIL P9 a line inside a code fence does not count (no line /^FAIL CON-045 Ready for testing: no '\*\*Verification:\*\* provisional' line$/: FAIL CON-044 Ready for testing: field 'due' is empty|CHECKED items=6 provisional_status=6 ok=5 fail=1|VERDICT: FAIL)
+RESULT: pass=30 fail=29

@@ -1,0 +1,7 @@
+CONTROL	-	pass=998 fail=0 skip=6	
+RR2	KILLED	pass=998 fail=1 skip=6	TestCON456R4_ObsoleteDetailsEvidenceLineBreakRefused
+RR3b	BUILD-FAIL(killed by compiler)	pass=0 fail=0 skip=0	
+RR5	SURVIVED	pass=999 fail=0 skip=6	
+RR1	KILLED	pass=996 fail=3 skip=6	TestCON456R3_ObsoleteDetailsInputsJudged,TestCON456R3_ObsoleteDetailsInputsJudged/superseding_U+2028,TestCON456R4_ObsoleteDetailsEvidenceLineBreakRefused
+RR1+RR5	KILLED	pass=996 fail=3 skip=6	TestCON456R3_ObsoleteDetailsInputsJudged,TestCON456R3_ObsoleteDetailsInputsJudged/superseding_U+2028,TestCON456R4_ObsoleteDetailsEvidenceLineBreakRefused
+M1	KILLED	pass=995 fail=4 skip=6	TestCON456R4_UpdateDescriptionKeepsEveryDetailKind,TestCON456R4_UpdateDescriptionKeepsObsoleteDetails,TestRev456R3_RED_UpdateDescriptionKeepsBlockRecord,TestRev456R3_RED_UpdateDescriptionKeepsClosureEvidenceLine

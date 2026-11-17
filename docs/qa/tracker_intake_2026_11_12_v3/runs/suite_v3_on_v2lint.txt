@@ -1,0 +1,139 @@
+PASS golden-good fixture
+PASS golden-bad XREF-DANGLING
+PASS golden-bad XREF-DANGLING/title
+PASS golden-bad XREF-DANGLING/foreign-declared-only
+PASS golden-bad XREF-DANGLING/range-interior
+PASS golden-bad XREF-LABEL
+FAIL golden-bad XREF-LABEL/one-shared-word: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad XREF-UNLABELLED: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad FOREIGN-STALE
+PASS golden-bad STATE-PROSE
+PASS golden-bad STATE-PROSE/unreproduced-family
+PASS golden-bad STATE-PROSE/investigation
+PASS golden-bad STATE-PROSE/structured
+PASS golden-bad SECTIONS
+PASS golden-bad BODY-SYNC
+FAIL golden-bad BODY-SYNC/empty: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/extra-paragraph: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/text-before: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/heading: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/status-line: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/unknown-key: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad BODY-SYNC/reproduction-line: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad SECRET
+PASS golden-bad SECRET/title
+PASS golden-bad EPHEMERAL
+PASS golden-bad EPHEMERAL/note-covers-own-line-only
+FAIL golden-bad EPHEMERAL/mktemp-default: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad EPHEMERAL/mktemp-default-bare: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad EPHEMERAL/lowercase-dir: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad EPHEMERAL/four-char-mixed
+FAIL golden-bad EPHEMERAL/tmp-path: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad SHARED-PATH
+PASS golden-bad DUP-CHECK
+PASS golden-bad DUP-CHECK/missing
+FAIL golden-bad DUP-CHECK/same-defect-no-id: pattern /^FINDING DUP-CHECK FX-002 / not in: FINDING DUP-SAME-OPEN FX-002 SAME-DEFECT but not Obsolete duplicate-of a named id|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS golden-bad DUP-SAME-OPEN
+PASS golden-bad DUP-SAME-OPEN/wrong-head
+FAIL golden-bad DUP-SAME-OPEN/head-is-first-id: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad DUP-SAME-OPEN/dangling-superseding
+FAIL golden-bad DUP-HEAD/target-obsolete: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad DUP-HEAD/two-open-heads: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad DUP-UNDECIDED: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad DUP-UNDECIDED/closed: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad DUP-STATUS: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad OBSOLETE-STALE: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+FAIL golden-bad OBSOLETE-STALE/note-names-closed-item: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS golden-bad PATH-MISSING
+PASS golden-bad PATH-MISSING/decisions
+PASS SECRET positive needle aws-access-key-id
+PASS SECRET negative needle aws-access-key-id
+FAIL SECRET positive needle aws-secret-assign: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle aws-secret-assign
+FAIL SECRET positive needle github-token: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle github-token
+FAIL SECRET positive needle github-fine-grained-pat: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle github-fine-grained-pat
+FAIL SECRET positive needle gitlab-pat: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle gitlab-pat
+FAIL SECRET positive needle gitlab-other-token: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle gitlab-other-token
+PASS SECRET positive needle gcp-api-key
+PASS SECRET negative needle gcp-api-key
+PASS SECRET positive needle private-key-block
+PASS SECRET negative needle private-key-block
+PASS SECRET positive needle huggingface-token
+PASS SECRET negative needle huggingface-token
+PASS SECRET positive needle jwt
+PASS SECRET negative needle jwt
+PASS SECRET positive needle slack-token
+PASS SECRET negative needle slack-token
+FAIL SECRET positive needle openai-anthropic-key: pattern /^FINDING SECRET FX-002 openai-anthropic-key$/ not in: FINDING SECRET FX-002 openai-style-key|RESULT: FAIL selected=1 findings=1 prefix=FX|
+PASS SECRET negative needle openai-anthropic-key
+FAIL SECRET positive needle url-userinfo-password: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle url-userinfo-password
+FAIL SECRET positive needle bearer-token: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle bearer-token
+FAIL SECRET positive needle password-assign: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle password-assign
+FAIL SECRET positive needle stripe-key: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle stripe-key
+FAIL SECRET positive needle npm-token: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle npm-token
+FAIL SECRET positive needle telegram-bot-token: rc=0 want=1: RESULT: PASS selected=1 findings=0 prefix=FX|
+PASS SECRET negative needle telegram-bot-token
+PASS golden-good shared path named by the Duplicate check line
+PASS golden-good SAME-DEFECT closed Obsolete duplicate-of the named id
+PASS golden-good SAME-DEFECT head whose UNDECIDED candidate is closed
+PASS golden-good UNDECIDED with open candidates on an open item
+PASS golden-good stale obsolete_details row noted with an open engine item
+PASS golden-good structured line agrees with the column
+PASS golden-good shared path named by a closed item only
+PASS golden-good existing operator_decisions path
+PASS golden-good declared foreign range
+PASS golden-good label whose extra words are stopwords
+PASS golden-good unlabelled id in a clause that shares a title word
+PASS golden-good mktemp template string
+PASS golden-good Reopened header lines in the body
+PASS secret value never printed
+PASS --skip-check drops only the named code
+PASS usage: no selection
+PASS usage: unknown --skip-check code
+FAIL usage: unknown --skip-check code with --embeddings: rc=0 want=2: item	embedded_id	namespace	count|FX-002	FX-001	main	1|FX-002	FX-900	foreign	2|
+PASS usage: --repo-root not a directory
+PASS BLIND: database missing
+PASS BLIND: database unreadable
+PASS BLIND: database holds no items
+PASS BLIND: unknown id
+PASS BLIND: empty origin selection
+FAIL BLIND: --prefix that no item carries: rc=0 want=3: RESULT: PASS selected=1 findings=0 prefix=ZZ|
+PASS prefix auto-detection takes the most common prefix
+PASS prefix auto-detection sees the dangling FX id
+PASS --embeddings namespaces main and foreign
+PASS --embeddings namespaces own and unknown (title included)
+FAIL --embeddings lists the interior ids of a range: item	embedded_id	namespace	count|FX-002	FX-001	main	1|FX-002	FX-900	foreign	2|FX-002	FX-903	foreign	2|
+PASS refused cleanup exits 2 and names the dir
+PASS cleanup with HOME set exits 0 (control)
+PASS real DB: intake batch clean
+PASS reviewer M2: description diverges from body_md
+PASS reviewer M3: umbrella CON-299 changed to CON-999
+PASS reviewer M7: delete a referenced row
+PASS reviewer M9: AWS-key-shaped string in CON-333
+PASS reviewer M10: Acceptance criteria header removed
+PASS reviewer M11: structured reproduction line vs column
+FAIL round-2 D1: default mktemp dir in CON-315: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-2 D1b: all-lowercase 4-character suffix: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-2 D2: GitLab PAT-shaped string in CON-315: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-2 D3: CON-332 in its round-1 form, no label: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-2 D3b: a wrong label sharing one title word: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-2 D5: empty body_md on CON-310: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL round-2 D6: contradiction in body_md only: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+PASS round-2 D7a: CON-308 closed duplicate-of an id that does not exist
+PASS round-2 D7b: CON-308 superseding swapped to CON-243
+FAIL round-2 D8: Obsolete duplicate-of with the verdict UNDECIDED: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+FAIL replay R2-1: CON-308 closed onto CON-262 while CON-243 is a second open head: pattern /^FINDING DUP-HEAD / not in: FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-145|FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-243|FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-261|RESULT: FAIL selected=44 findings=3 prefix=CON|
+PASS replay I1: CON-308 open while SAME-DEFECT of open CON-262
+FAIL UNDECIDED verdict without a candidate on CON-308: pattern /^FINDING DUP-UNDECIDED / not in: FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-145|FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-243|FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-261|FINDING SHARED-PATH CON-308 run_all.sh also named by open CON-262|RESULT: FAIL selected=44 findings=4 
+FAIL stale obsolete_details note removed from CON-308: rc=0 want=1: RESULT: PASS selected=44 findings=0 prefix=CON|
+PASS replay I2: anchor 296 cited as an item
+RESULT: pass=90 fail=48

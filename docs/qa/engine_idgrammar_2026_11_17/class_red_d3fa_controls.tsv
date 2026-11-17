@@ -1,0 +1,5 @@
+name	block	verdict	at	id	validate_rc	desc_changed	body_same	detail	control
+CTL_pos_replaced	CTL	RT_REPLACED		GS-972	1(+1)	-	-	lost=[('GS-972', 'Issues', 'section')] new=[('ABC-9', 'Issues', 'section')]	CONTROL-OK
+CTL_pos_phantom	CTL	RT_PHANTOM		CON-9810	0(=base)	yes	no	new=[('CON-9811', 'Issues', 'section')]	CONTROL-OK
+CTL_pos_field	CTL	RT_FIELD		GZ974	0(=base)	yes	yes	GZ974.title	CONTROL-OK
+CTL_neg_plain	CTL	RT_OK		CON-9999	0(=base)	yes	yes		CONTROL-OK

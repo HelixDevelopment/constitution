@@ -1,0 +1,13 @@
+## git_env_class_census
+git-env-class-census: inventory: tracked=6457 accounted=6457 universe=1893 (go=184 js=11 other=2 py=267 sh=1429) gitlink=27 symlink=1 binary=24 data=4512 unclassified=0 absent=0 members=660 non_members=1233
+git-env-class-census: FAIL - UNSCRUBBED scripts/gates/cm_submodule_pin_not_downgraded.sh (line 199): row subject-follows-caller, but a git write is detected: sref="$(pg symbolic-ref -q HEAD 2>/dev/null)" || blind0 "HEAD is not a commit and not a symbolic ref (detached at a miss
+git-env-class-census: FAIL - members=660 hermetic=495 exempt=164 unscrubbed=1
+rc 1
+## index_fresh
+check: no drift
+CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+rc 0
+## ledger ratchet
+LEDGER: unimplemented=394 baseline=394 fails=0
+✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanished name
+rc 0

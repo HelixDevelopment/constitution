@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -u
+T="${1:?tree}"; E="${2:?ev}"
+cd "$T" || exit 9
+bash tests/release/test_redact_cut.sh >"$E/rc_red_m8_r2.log" 2>&1; echo "rc rc=$?" >>"$E/red_m8_rc.txt"
+bash tests/release/test_tag_and_release.sh >"$E/tar_red_m8_r2.log" 2>&1; echo "tar rc=$?" >>"$E/red_m8_rc.txt"
+echo DONE >>"$E/red_m8_rc.txt"

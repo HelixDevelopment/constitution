@@ -256,7 +256,10 @@ DYN_SITES = {("redact_cut.sh", "rc_net", ("builtin", "exec", '"$@"')),
              ("release_publish_gitea.sh", "", ("unset", "-v", '"$TOKEN_VAR"')),
              ("tag_and_release.sh", "pub", ("export", '"${tv?}"'))}   # B-M2: the gitea spec's token variable (matched RE_GT's [A-Z][A-Z0-9_]{0,63})
 # (script, name): the names an indirect expansion ${!name} may read (each validated as a variable name before use)
-INDIRECT_OK = {("redact_cut.sh", "_rc_v"), ("redact_cut.sh", "v"), ("release_publish_gitea.sh", "TOKEN_VAR")}
+# ("tag_and_release.sh", "gtv"): the dry-run gitea probe reads the token variable the spec names (B-M2 fifth field,
+# matched by RE_GT and bound by rc_gitea_binding before the probe runs); merged at the landing of CON-521 on main.
+INDIRECT_OK = {("redact_cut.sh", "_rc_v"), ("redact_cut.sh", "v"), ("release_publish_gitea.sh", "TOKEN_VAR"),
+               ("tag_and_release.sh", "gtv")}
 # (script, raw source word, the analysed script it loads): the only source commands (round 13, R22: round 12 accepted
 # any path whose base name was an analysed script)
 SOURCE_OK = {("derive_release_facts.sh", '"$(cd "$_rc_d" && pwd)/redact_cut.sh"', "redact_cut.sh"),

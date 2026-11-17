@@ -1,0 +1,5 @@
+FINDING SECRET CON-336 url-userinfo-password on body_md,items.reproduction_red_cmd
+FINDING STATE-EVIDENCE CON-339 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-340 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-341 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-342 reproduction_state reproduced-host-fixture carries no evidence sha256

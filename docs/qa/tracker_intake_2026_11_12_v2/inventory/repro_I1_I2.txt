@@ -1,0 +1,20 @@
+# repro on 1a3073229cf032124c58488a7dcd3216867167ba 2026-11-13T11:00:09Z
+## I1
+CON-243|Queued|Task|CON-222 follow-up: run_all.sh counts the new exit 77 of the helper test as FAIL and has no tier awareness for the heavy L29 test
+CON-262|Queued|Task|Wider SKIP class: suites and runners that print SKIP but exit 0, and run_all.sh labels exit 77 FAIL
+CON-308|Queued|Bug|run_all.sh counts rc 77 (SKIP) as FAIL while run_full_suite.sh reports SKIP (lander item C-2)
+-- run_all.sh mentions:
+CON-124|Queued
+CON-145|Queued
+CON-243|Queued
+CON-262|Queued
+CON-308|Queued
+-- CON-308 links:
+CON-092 CON-098 CON-299 
+## I2
+CON-296|full-suite runner self-test oracle shares the engine formula; compare marker_ignorable with the perl-derived set (CON-030 review r8 N2)
+CON-300
+CON-332
+CON-300|et minted); related CON-296 (GitHub issues sync) is a different featur
+CON-332|2_night.md; related CON-296 not a parent; umbrella CON-299
+Origin: tra

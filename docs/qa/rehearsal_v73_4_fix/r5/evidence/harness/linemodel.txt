@@ -1,0 +1,96 @@
+LM-PASS M01 plain line
+LM-PASS M01 heading then the line
+LM-PASS M01 CRLF
+LM-PASS M01 U+001C stays inside a quoted line (review r4 L1)
+LM-PASS M01 U+2028 stays inside a quoted line (review r4 L2)
+LM-PASS M01 U+0085 stays inside a quoted line
+LM-PASS M01 two lines
+LM-PASS M02 backtick fence hides
+LM-PASS M02 tilde fence hides
+LM-PASS M02 backtick info string with a backtick is not a fence (review r4 L4; the next ``` opens a real fence)
+LM-PASS M02 tilde fence may hold a backtick in its info string
+LM-PASS M02 a shorter close does not close
+LM-PASS M02 the other character does not close
+LM-PASS M02 a close with text after it does not close
+LM-PASS M02 four-space indented fence is not a fence
+LM-PASS M02 unclosed fence runs to the end
+LM-PASS M02 three-space fence
+LM-PASS M03 comment block hides
+LM-PASS M03 <!--> ends at once in 0.31, not in the older reading (review r4 L3)
+LM-PASS M03 <!---> ends at once in 0.31, not in the older reading
+LM-PASS M03 <?> ends at once in 0.31, not in the older reading
+LM-PASS M03 comment that ends on its start line
+LM-PASS M03 script block
+LM-PASS M03 processing instruction
+LM-PASS M03 declaration
+LM-PASS M03 CDATA
+LM-PASS M03 div block ends at a blank line
+LM-PASS M03 kind 7 tag alone
+LM-PASS M03 kind 7 cannot interrupt a paragraph
+LM-PASS M04 lazy quote continuation
+LM-PASS M04 lazy list continuation
+LM-PASS M04 ordered list lazy continuation
+LM-PASS M04 after a blank line the quote ends
+LM-PASS M04 a heading in a quote ends its paragraph
+LM-PASS M04 an ATX heading after a quote paragraph is not lazy (r5 own mutant O25)
+LM-PASS M04 a thematic break after a list paragraph is not lazy
+LM-PASS M03 kind 7 cannot interrupt a paragraph, a fence can (r5 own mutant O26)
+LM-PASS M04 fence inside a quote
+LM-PASS M05 indented line does not count
+LM-PASS M05 tab-indented line does not count
+LM-PASS M06 continuation of a paragraph does not count
+LM-PASS M06 code span reaching into the line
+LM-PASS M06 inline comment reaching into the line
+LM-PASS M06 after a thematic break
+LM-PASS M06 after an indented code block
+LM-PASS M06 setext heading still counts (visible)
+LM-PASS M06 prefix glued to text (visible, but not the prefix)
+PANDOC: pandoc 3.11
+PANDOC-PASS M01 plain line
+PANDOC-PASS M01 heading then the line
+PANDOC-PASS M01 CRLF
+PANDOC-PASS M01 U+001C stays inside a quoted line (review r4 L1)
+PANDOC-PASS M01 U+2028 stays inside a quoted line (review r4 L2)
+PANDOC-PASS M01 U+0085 stays inside a quoted line
+PANDOC-PASS M01 two lines
+PANDOC-PASS M02 backtick fence hides
+PANDOC-PASS M02 tilde fence hides
+PANDOC-PASS M02 backtick info string with a backtick is not a fence (review r4 L4; the next ``` opens a real fence)
+PANDOC-PASS M02 tilde fence may hold a backtick in its info string
+PANDOC-PASS M02 a shorter close does not close
+PANDOC-PASS M02 the other character does not close
+PANDOC-PASS M02 a close with text after it does not close
+PANDOC-PASS M02 four-space indented fence is not a fence
+PANDOC-PASS M02 unclosed fence runs to the end
+PANDOC-PASS M02 three-space fence
+PANDOC-PASS M03 comment block hides
+PANDOC-PASS M03 <!--> ends at once in 0.31, not in the older reading (review r4 L3)
+PANDOC-PASS M03 <!---> ends at once in 0.31, not in the older reading
+PANDOC-PASS M03 <?> ends at once in 0.31, not in the older reading
+PANDOC-PASS M03 comment that ends on its start line
+PANDOC-PASS M03 script block
+PANDOC-PASS M03 processing instruction
+PANDOC-PASS M03 declaration
+PANDOC-PASS M03 CDATA
+PANDOC-PASS M03 div block ends at a blank line
+PANDOC-PASS M03 kind 7 tag alone
+PANDOC-PASS M03 kind 7 cannot interrupt a paragraph
+PANDOC-PASS M04 lazy quote continuation
+PANDOC-PASS M04 lazy list continuation
+PANDOC-PASS M04 ordered list lazy continuation
+PANDOC-PASS M04 after a blank line the quote ends
+PANDOC-PASS M04 a heading in a quote ends its paragraph
+PANDOC-PASS M04 an ATX heading after a quote paragraph is not lazy (r5 own mutant O25)
+PANDOC-PASS M04 a thematic break after a list paragraph is not lazy
+PANDOC-PASS M03 kind 7 cannot interrupt a paragraph, a fence can (r5 own mutant O26)
+PANDOC-PASS M04 fence inside a quote
+PANDOC-STRICTER M05 indented line does not count (the checker is stricter than CommonMark here, by design)
+PANDOC-PASS M05 tab-indented line does not count
+PANDOC-PASS M06 continuation of a paragraph does not count
+PANDOC-PASS M06 code span reaching into the line
+PANDOC-PASS M06 inline comment reaching into the line
+PANDOC-PASS M06 after a thematic break
+PANDOC-PASS M06 after an indented code block
+PANDOC-PASS M06 setext heading still counts (visible)
+PANDOC-STRICTER M06 prefix glued to text (visible, but not the prefix) (the checker is stricter than CommonMark here, by design)
+LINEMODEL cases=47 mismatches=0 pandoc=checked pandoc_mismatches=0

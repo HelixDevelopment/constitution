@@ -1,0 +1,17 @@
+# Branch sweep, --only re-run (round 5) of the survivors of runs/branch_sweep_partial_bytebug.txt after cases
+# were written for them (eight killed, one registered equivalent); output ended 2026-11-13T20:57:06Z.
+# Command: python3 -I tests/workable_items/remint_branch_sweep.py --jobs 3 --only <key> ... --out <out>. Its
+# inputs' sha256 were NOT recorded; the line numbers name a source that is not kept.
+Rewriter|compif|not foreign.has(n)#1=True	270	KILLED	sweep: a tight range of foreign-declared ids is left as written: got: 1|Foreign ids (other): CON-5..CON-7|see CON-5..CON
+Rewriter|if|not text#1=False	273	EQUIVALENT	Equivalent: every caller of Rewriter.text passes a str (norm() of a column, the literal "none", or the text of a file), so the only input the guard catches is the empty string; with the guard forced off, "" is split into one empty line, no pattern matches it, and the method returns ("", 0), the same value the guard returns.
+Rewriter|if|self.moved_in(min(lo, hi), max(lo, hi), foreign)#1=True	318	KILLED	sweep: ids joined by a tight hyphen that hold no moved id are left as written: got: 1|see CON-40-CON-50 want: 0|see CON-
+Rewriter|if|not moved#1=False	326	KILLED	sweep: a tight range of foreign-declared ids is left as written: got: 0|Foreign ids (other): CON-5..CON-7|see CON-20..CO
+Rewriter|if|k in self.ambiguous#1=False	349	KILLED	sweep: a range holding a moved id the target also holds is refused: rc=0 want=1: <home>/.cache/claude-tmp/clau
+Rewriter|if|self.by_num[a] != r.group(1) or self.by_num[b] != "%s-%s" % (self.prefix, r.group(5))#1=False	351	KILLED	sweep: a range whose first id is written with another zero padding is refused: rc=0 want=1: <home>/.cache/clau
+Rewriter|ifexp|pos > 0#1=True	371	KILLED	sweep: a line that starts with a moved id and ends with a slash is rewritten: got: 1|CON-1 see docs/ want: 0|CON-2 see d
+Rewriter|ifexp|pos > 0#1=False	371	KILLED	sweep: a moved id after a slash is refused as part of a path: rc=0 want=1: <home>/.cache/claude-tmp/claude-100
+lifecycle_steps|if|not ev#1=False	454	KILLED	plan refusal: a vehicle close whose closure row has no evidence: /^REFUSED base CON-350: the vehicle closed it but has n
+RESULT: mutants=9 EQUIVALENT=1 KILLED=8 skipped=2 stale-register=0 PASS
+rc=0 secs=205
+# scrubbed copy (tools/scrub_paths.py): <work> x0, <home> x3, <tmp> x0
+# cut path fragments replaced: 0

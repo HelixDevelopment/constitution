@@ -1,0 +1,437 @@
+# Branch sweep run 5: the complete run on the round-5 source before the final-sweep fixes (the source is
+# red/remint_ids_pre_finalsweep.py.txt without its header) with the suite and the register of that time.
+# Started 2026-11-13T22:44:49Z, ended 2026-11-14T00:53:01Z. Command:
+#   python3 -I tests/workable_items/remint_branch_sweep.py --jobs 3 --timeout 900 --out <out>
+# Inputs (sha256), recorded at start and the same at the end:
+#   f005df40912fa44269f09cb32ac5d4e774b0ddb876b7819825b54c1d01833c8e  scripts/workable-items/remint_ids.py
+#   dbcffdd572fdf523450990d7e7137c9dd29edb79d9ddd1c129b7bb9a02a9ae6f  tests/workable_items/test_remint_ids.sh
+#   9f86e05a1aedd1b7c91bc39bd1b91b79abed49039544e09641cf5f6cf29163b6  tests/workable_items/remint_branch_equivalents.tsv
+#   223a0c27dd60c08b030cc3e8c81475c3644843786ebb6f9764aa030967a8b6e9  tests/workable_items/remint_branch_sweep.py
+#   9edd2dc3dfe33dd33ad4583256bd8c96650cf7edd01b77da5022d701f2a70e2c  the workable-items engine binary (built from scripts/workable-items)
+# The line numbers name that source. Its 35 survivors became cases of the final suite (one of them also a
+# planner refusal, B10) and one register entry; the final run on the final inputs is runs/branch_sweep.tsv.
+CONTROL: the unmutated source passes the suite
+Rewriter|compif|not foreign.has(n)#1=True	270	KILLED	sweep: a tight range of foreign-declared ids is left as written: got: 1|Foreign ids (other): CON-5..CON-7|see CON-5..CON
+Rewriter|compif|not foreign.has(n)#1=False	270	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|not text#1=True	273	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|not text#1=False	273	EQUIVALENT	Equivalent: every caller of Rewriter.text passes a str (norm() of a column, the literal "none", or the text of a file), so the only input the guard catches is the empty string; with the guard forced off, "" is split into one empty line, no pattern matches it, and the method returns ("", 0), the same value the guard returns.
+Rewriter|if|FOREIGN_LINE.match(line)#1=True	278	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|FOREIGN_LINE.match(line)#1=False	278	KILLED	Foreign line left alone before its colon too: /replaced=1$/ not in: <home>/.cache/claude-tmp/claude-1000/-home
+Rewriter|if|n#1=True	303	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: REFUSED: base CON-344 reproduct
+Rewriter|if|n#1=False	303	KILLED	plan refusal: an evidence value that is a moved id: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity
+Rewriter|if|d.isascii()#1=True	318	KILLED	R4-5: fullwidth digits of a moved id are refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/-home-milo
+Rewriter|if|d.isascii()#1=False	318	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|n in self.by_num and not foreign.has(n)#1=True	321	KILLED	R4-5: non-ASCII digits of an id the map does not move are left alone: got: 1|see CON-４４ want: 0|see CON-４４
+Rewriter|if|n in self.by_num and not foreign.has(n)#1=False	321	KILLED	R4-5: fullwidth digits of a moved id are refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/-home-milo
+Rewriter|if|not r#1=True	327	KILLED	R4-4: a spaced en dash partly-moved range is refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/-home-
+Rewriter|if|not r#1=False	327	KILLED	rewrite dry run counts: rc=1 want=0: Traceback (most recent call last):|  File "<home>/.cache/claude-tmp/claud
+Rewriter|if|r.group(3) == "-"#1=True	330	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|r.group(3) == "-"#1=False	330	KILLED	R4-4: ids joined by a tight hyphen are refused (the tokens are never rewritten): rc=0 want=1: <home>/.cache/cl
+Rewriter|if|self.moved_in(min(lo, hi), max(lo, hi), foreign)#1=True	332	KILLED	sweep: ids joined by a tight hyphen that hold no moved id are left as written: got: 1|see CON-40-CON-50 want: 0|see CON-
+Rewriter|if|self.moved_in(min(lo, hi), max(lo, hi), foreign)#1=False	332	KILLED	R4-4: ids joined by a tight hyphen are refused (the tokens are never rewritten): rc=0 want=1: <home>/.cache/cl
+Rewriter|if|not moved#1=True	340	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|not moved#1=False	340	KILLED	sweep: a tight range of foreign-declared ids is left as written: got: 0|Foreign ids (other): CON-5..CON-7|see CON-20..CO
+Rewriter|if|not moved#2=True	351	KILLED	partly moved range refused: /is partly moved \(2 of 3 ids\)/ not in: Traceback (most recent call last):|  File "<home>
+Rewriter|if|not moved#2=False	351	KILLED	R4-4: a worded range with no moved id is left alone: got: 1|see CON-40 to CON-50 want: 0|see CON-40 to CON-50
+Rewriter|if|r.group(4) is None#1=True	353	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|r.group(4) is None#1=False	353	KILLED	short-form range refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|lo > hi#1=True	355	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|lo > hi#1=False	355	KILLED	reverse range refused: /reverse range CON-7\.\.CON-5/ not in: REFUSED: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|foreign.any_in(a, b)#1=True	357	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|foreign.any_in(a, b)#1=False	357	KILLED	range mixing foreign and moved ids refused: /mixes foreign and moved ids/ not in: REFUSED: <home>/.cache/claud
+Rewriter|if|len(moved) != b - a + 1#1=True	359	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|len(moved) != b - a + 1#1=False	359	KILLED	partly moved range refused: /is partly moved \(2 of 3 ids\)/ not in: Traceback (most recent call last):|  File "<home>
+Rewriter|if|k in self.ambiguous#1=True	363	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|k in self.ambiguous#1=False	363	KILLED	sweep: a range holding a moved id the target also holds is refused: rc=0 want=1: <home>/.cache/claude-tmp/clau
+Rewriter|if|self.by_num[a] != r.group(1) or self.by_num[b] != "%s-%s" % (self.prefix, r.group(5))#1=True	365	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|self.by_num[a] != r.group(1) or self.by_num[b] != "%s-%s" % (self.prefix, r.group(5))#1=False	365	KILLED	sweep: a range whose first id is written with another zero padding is refused: rc=0 want=1: <home>/.cache/clau
+Rewriter|if|new != list(range(new[0], new[0] + len(new)))#1=True	368	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|new != list(range(new[0], new[0] + len(new)))#1=False	368	KILLED	range with non-contiguous new ids refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|n not in self.by_num or foreign.has(n)#1=True	378	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|n not in self.by_num or foreign.has(n)#1=False	378	KILLED	rewrite dry run counts: rc=1 want=0: Traceback (most recent call last):|  File "<home>/.cache/claude-tmp/claud
+Rewriter|if|t.group(0) != k#1=True	381	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|t.group(0) != k#1=False	381	KILLED	a zero-padded token of a moved id refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|ifexp|pos > 0#1=True	385	KILLED	sweep: a line that starts with a moved id and ends with a slash is rewritten: got: 1|CON-1 see docs/ want: 0|CON-2 see d
+Rewriter|ifexp|pos > 0#1=False	385	KILLED	sweep: a moved id after a slash is refused as part of a path: rc=0 want=1: <home>/.cache/claude-tmp/claude-100
+Rewriter|if|before == "/" or after[:1] == "/" or re.match(r"\.\w", after)#1=True	387	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|before == "/" or after[:1] == "/" or re.match(r"\.\w", after)#1=False	387	KILLED	an id inside a path refused (slash): rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|k in self.ambiguous#2=True	389	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|k in self.ambiguous#2=False	389	KILLED	an id the target also holds is refused as ambiguous: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/-home-m
+lifecycle_steps|if|not ev#1=True	468	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|not ev#1=False	468	KILLED	plan refusal: a vehicle close whose closure row has no evidence: /^REFUSED base CON-350: the vehicle closed it but has n
+lifecycle_steps|ifexp|t_term#1=True	471	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|ifexp|t_term#1=False	471	KILLED	the close kind is the vehicle's status, not the kind of its closure row: ["close", "CON-350", "--db", "{DB}", "--status=
+lifecycle_steps|if|word is None#1=True	472	KILLED	the close kind is the vehicle's status, not the kind of its closure row: ["close", "CON-350", "--db", "{DB}", "--status=
+lifecycle_steps|if|word is None#1=False	472	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|compif|h["event_type"] in CLOSURE_EVENTS#1=True	473	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|compif|h["event_type"] in CLOSURE_EVENTS#1=False	473	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|ifexp|cl#1=True	474	EQUIVALENT	Equivalent: the expression is reached only when close() found evidence (`ev` non-empty), and closure_evidence returns a non-empty value only from a row whose event_type is in CLOSURE_EVENTS; that same row is in `cl`, so `cl` is never empty there and forcing the test True changes nothing.
+lifecycle_steps|ifexp|cl#1=False	474	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|word not in CLOSE_STATUS#1=True	475	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|word not in CLOSE_STATUS#1=False	475	EQUIVALENT	Equivalent: `word` is either status_word(ts) under t_term (in CLOSE_STATUS by the definition of t_term) or the event_type of the last row of a non-empty `cl` (in CLOSURE_EVENTS, which is set(CLOSE_STATUS)); the refusal is a guard no input reaches, so forcing the test False changes nothing.
+lifecycle_steps|if|v_od is None or status is None#1=True	486	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+lifecycle_steps|if|v_od is None or status is None#1=False	486	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|status_word(status) != "Obsolete"#1=True	488	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|status_word(status) != "Obsolete"#1=False	488	KILLED	plan refusal: an obsolete_details row on an item left open: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=
+lifecycle_steps|compif|h["event_type"] == "Reopened"#1=True	501	KILLED	the reopen replays the last Reopened row, not the last history row: ["reopen", "--id=CON-350", "--db", "{DB}", "--why=",
+lifecycle_steps|compif|h["event_type"] == "Reopened"#1=False	501	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|not ro_rows#1=True	502	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|not ro_rows#1=False	502	KILLED	plan refusal: a vehicle reopen with no new Reopened history row: /^REFUSED base CON-350: the vehicle reopened it but has
+lifecycle_steps|if|tl == "Fixed"#1=True	509	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+lifecycle_steps|if|tl == "Fixed"#1=False	509	KILLED	a reopen kept in Fixed is replayed with --location=Fixed: ["reopen", "--id=CON-350", "--db", "{DB}", "--why=design-recon
+lifecycle_steps|if|(fs, fl) == (ts, tl) or (t_term and f_term and status_word(fs) == status_word(ts) and fl == tl)#1=True	513	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|(fs, fl) == (ts, tl) or (t_term and f_term and status_word(fs) == status_word(ts) and fl == tl)#1=False	513	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|t_term and not f_term#1=True	515	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|t_term and not f_term#1=False	515	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|ifexp|close()#1=True	516	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+lifecycle_steps|ifexp|close()#1=False	516	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+lifecycle_steps|if|ts == "Reopened" and f_term#1=True	517	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|ts == "Reopened" and f_term#1=False	517	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|ts == "Reopened" and not f_term#1=True	520	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|ts == "Reopened" and not f_term#1=False	520	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|not t_term and not f_term and fl == tl#1=True	523	KILLED	plan refusal: a closed base item closed again with another kind: /^REFUSED base CON-347: no engine path from 'Obsolete/ 
+lifecycle_steps|if|not t_term and not f_term and fl == tl#1=False	523	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+block_steps|if|state in ("", "UNSET")#1=True	536	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+block_steps|if|state in ("", "UNSET")#1=False	536	KILLED	a block reset passes the state alone: ["update", "--id=CON-350", "--db", "{DB}", "--location=Issues", "--reproduction-st
+block_steps|if|c in TEXT_REWRITE#1=True	541	KILLED	plan refusal: an evidence value that is a moved id: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity
+block_steps|if|c in TEXT_REWRITE#1=False	541	KILLED	plan of an own block naming a moved id: rc=1 want=0: REFUSED: own CON-352 reproduction_signature: 'fails like CON-351' n
+make_plan|if|len(set(sv.values())) != 1 or None in sv.values()#1=True	587	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=3 want=0: BLIND: schema_version differs o
+make_plan|if|len(set(sv.values())) != 1 or None in sv.values()#1=False	587	KILLED	plan: a schema_version that differs is BLIND: rc=0 want=3: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-
+make_plan|if|not rx.fullmatch(i)#1=True	598	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|not rx.fullmatch(i)#1=False	598	KILLED	plan refusal: a new id outside the prefix: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHA
+make_plan|ifexp|rx_uni.fullmatch(i)#1=True	599	KILLED	plan refusal: a new id outside the prefix: /^REFUSED AA-001: a new vehicle id outside the CON prefix/ not in: BASE-CHANG
+make_plan|ifexp|rx_uni.fullmatch(i)#1=False	599	KILLED	plan refusal: a new id with non-ASCII digits: /^REFUSED CON-９０１: a new vehicle id with non-ASCII digits/ not in: BASE-CH
+make_plan|compif|rx.fullmatch(i)#1=True	601	KILLED	a new id outside the prefix is not an own id: RESULT: NOT-LANDABLE mode=REPLAY own=6 base_changes=5 steps=21 conflicts=0
+make_plan|compif|rx.fullmatch(i)#1=False	601	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|tables["vehicle"][t] != tables["base"][t]#1=True	611	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|tables["vehicle"][t] != tables["base"][t]#1=False	611	KILLED	plan refusal: another table changed: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHANGE CO
+make_plan|if|[tuple(r) for r in con["vehicle"].execute(seg_non_item)] != [tuple(r) for r in con["base"].execute(seg_non_item)]#1=True	614	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|[tuple(r) for r in con["vehicle"].execute(seg_non_item)] != [tuple(r) for r in con["base"].execute(seg_non_item)]#1=False	614	KILLED	plan refusal: a non-item doc segment: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHANGE C
+make_plan|if|hist["vehicle"].get(hid) != h#1=True	617	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|hist["vehicle"].get(hid) != h#1=False	617	KILLED	plan refusal: a base history row rewritten: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CH
+make_plan|if|fast_forward and not a.no_fast_forward#1=True	620	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|fast_forward and not a.no_fast_forward#1=False	620	KILLED	plan: FAST-FORWARD when the target is the base: /^RESULT: PLAN mode=FAST-FORWARD own=5 base_changes=5 steps=0 conflicts=
+make_plan|if|not own#1=True	625	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: Traceback (most recent call las
+make_plan|if|not own#1=False	625	KILLED	R4-1b: both sides changed one state block (other columns) is a CONFLICT: /^CONFLICT CON-350: both changed the reproducti
+make_plan|if|not any(rx.fullmatch(i) for i in T)#1=True	628	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=3 want=0: BLIND: the target holds no CON 
+make_plan|if|not any(rx.fullmatch(i) for i in T)#1=False	628	KILLED	plan: a target without an id of the prefix is BLIND: rc=1 want=3: Traceback (most recent call last):|  File "<home>
+make_plan|compif|rx.fullmatch(i)#2=True	631	KILLED	plan against a target holding a higher id of another prefix: /^RESULT: PLAN mode=REPLAY own=5 .* first=CON-353 last=CON-
+make_plan|compif|rx.fullmatch(i)#2=False	631	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: Traceback (most recent call las
+make_plan|if|new in T#1=True	635	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|new in T#1=False	635	EQUIVALENT	Equivalent: every new id is the prefix and an ASCII number start+k, start being one more than the largest number among the target ids that fully match the prefix pattern; a target id equal to a new id would itself match that pattern with a larger number, a contradiction, so the test is always False.
+make_plan|if|new in stay#1=True	637	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|new in stay#1=False	637	KILLED	plan refusal: a new id equal to a base item the target lacks: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description targe
+make_plan|if|not mm#1=True	643	KILLED	--resolve vehicle: rc=3 want=0: BLIND: --resolve 'CON-343=vehicle': want ID=target or ID=vehicle|
+make_plan|if|not mm#1=False	643	KILLED	--resolve that does not parse is BLIND: rc=1 want=3: Traceback (most recent call last):|  File "<home>/.cache/
+make_plan|if|len(r) != 1#1=True	652	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: REFUSED CON-343: 1 rows (one ex
+make_plan|if|len(r) != 1#1=False	652	KILLED	plan refusal: a base item with two rows: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHANG
+make_plan|ifexp|rx.fullmatch(x)#1=True	657	KILLED	plan of base changes on ids of mixed width and prefix: rc=1 want=0: Traceback (most recent call last):|  File "<home>
+make_plan|ifexp|rx.fullmatch(x)#1=False	657	KILLED	base changes are listed by prefix, then number: got: AA-x1 CON-343 CON-99  want: AA-x1 CON-99 CON-343 
+make_plan|if|V[i] == B[i] and obs["vehicle"].get(i) == obs["base"].get(i)#1=True	658	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|V[i] == B[i] and obs["vehicle"].get(i) == obs["base"].get(i)#1=False	658	KILLED	plan: no note for an item the vehicle left unchanged: NOTE CON-001: only last_modified differs from the base; nothing to
+make_plan|if|b is None or v is None#1=True	661	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|b is None or v is None#1=False	661	KILLED	plan refusal: a base item with two rows: /^REFUSED CON-350: 2 rows \(one expected\)/ not in: Traceback (most recent call
+make_plan|if|vb_od != bb_od#1=True	665	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|vb_od != bb_od#1=False	665	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|compif|not changed(v, b, cols) and changed(v, b, [n + "_updated_at", n + "_updated_by"])#1=True	667	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|compif|not changed(v, b, cols) and changed(v, b, [n + "_updated_at", n + "_updated_by"])#1=False	667	KILLED	plan refusal: only a state stamp changed: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHAN
+make_plan|if|not dv#1=True	671	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: NOTE CON-345: created_at differ
+make_plan|if|not dv#1=False	671	KILLED	plan refusal: body_md changed with no column change: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severit
+make_plan|if|norm(v["body_md"]) != norm(b["body_md"])#1=True	672	KILLED	plan of a vehicle whose only change is a last_modified: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description target=seve
+make_plan|if|norm(v["body_md"]) != norm(b["body_md"])#1=False	672	KILLED	plan refusal: body_md changed with no column change: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severit
+make_plan|if|norm(v["created_at"]) != norm(b["created_at"])#1=True	674	KILLED	no created_at note when only last_modified changed: NOTE CON-345: created_at changed in the vehicle (2026-11-13 23:17:01
+make_plan|if|norm(v["created_at"]) != norm(b["created_at"])#1=False	674	KILLED	plan of a vehicle whose only change is a created_at: /^NOTE CON-350: created_at differs from the base with no other chan
+make_plan|if|not stamp_only and norm(v["body_md"]) == norm(b["body_md"]) and norm(v["created_at"]) == norm(b["created_at"])#1=True	676	KILLED	no last_modified note when created_at changed: NOTE CON-345: created_at changed in the vehicle (2026-11-13 23:18:39 -> 2
+make_plan|if|not stamp_only and norm(v["body_md"]) == norm(b["body_md"]) and norm(v["created_at"]) == norm(b["created_at"])#1=False	676	KILLED	plan of a vehicle whose only change is a last_modified: /^NOTE CON-350: only last_modified differs from the base; nothin
+make_plan|if|c in REFUSED_COLS#1=True	680	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|c in REFUSED_COLS#1=False	680	KILLED	plan refusal: a column with no replay rule: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CH
+make_plan|compif|h["atm_id"] == i and hid not in hist["base"]#1=True	682	KILLED	plan refusal: a vehicle close whose closure row has no evidence: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description ta
+make_plan|compif|h["atm_id"] == i and hid not in hist["base"]#1=False	682	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|int(t.group(1)) in rewr.by_num and not foreign.has(int(t.group(1)))#1=True	686	KILLED	plan of a base item whose base text names an id the map leaves: rc=1 want=0: BASE-CHANGE CON-346 vehicle=title target=-|
+make_plan|if|int(t.group(1)) in rewr.by_num and not foreign.has(int(t.group(1)))#1=False	686	KILLED	plan refusal: a base text that already names an id the vehicle minted later: rc=0 want=1: BASE-CHANGE CON-343 vehicle=de
+make_plan|if|i not in T#1=True	688	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: CONFLICT CON-343: the target de
+make_plan|if|i not in T#1=False	688	KILLED	conflict: the target deleted an item the vehicle changed: /^CONFLICT CON-344: the target deleted the item; the vehicle c
+make_plan|if|t is None#1=True	692	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|t is None#1=False	692	KILLED	plan refusal: a target item with two rows: /^REFUSED CON-343: 2 rows \(one expected\)/ not in: Traceback (most recent ca
+make_plan|if|not changed(t, b, cols)#1=True	697	KILLED	plan against a target that changed a block of a merged item: /^MERGE CON-343: vehicle description, target severity,repro
+make_plan|if|not changed(t, b, cols)#1=False	697	KILLED	the merge line names the target's stamp: MERGE CON-343: vehicle description, target severity (disjoint columns)|
+make_plan|if|tb_od != bb_od#1=True	699	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|tb_od != bb_od#1=False	699	KILLED	plan against a target that changed the same obsolete_details row: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description t
+make_plan|if|c in TEXT_REWRITE#1=True	705	KILLED	plan refusal: a base assignee naming a moved id: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity|BA
+make_plan|if|c in TEXT_REWRITE#1=False	705	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: REFUSED: base CON-343 descripti
+make_plan|if|c in dv and c in dt#1=True	714	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|c in dv and c in dt#1=False	714	KILLED	conflict: both sides changed one column: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity,descriptio
+make_plan|ifexp|vland(c) == norm(t[c])#1=True	715	KILLED	conflict: both sides changed one column: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity,descriptio
+make_plan|ifexp|vland(c) == norm(t[c])#1=False	715	KILLED	a title both sides changed the same way (after the map) converges: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description 
+make_plan|if|"obsolete_details" in dv and "obsolete_details" in dt#1=True	716	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|"obsolete_details" in dv and "obsolete_details" in dt#1=False	716	KILLED	plan against a target that changed the same obsolete_details row: /^CONFLICT CON-347: both changed obsolete_details / no
+make_plan|ifexp|vb_od == tb_od#1=True	717	KILLED	plan against a target that changed the same obsolete_details row: /^CONFLICT CON-347: both changed obsolete_details / no
+make_plan|ifexp|vb_od == tb_od#1=False	717	KILLED	plan against a target that made the vehicle's obsolete_details change: /^CONFLICT CON-347: a lifecycle change on one sid
+make_plan|compif|changed(v, b, cols)#1=True	718	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|compif|changed(v, b, cols)#1=False	718	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|compif|changed(t, b, cols + STAMPS[n])#1=True	719	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|compif|changed(t, b, cols + STAMPS[n])#1=False	719	KILLED	R4-1b: both sides changed one state block (other columns) is a CONFLICT: rc=0 want=1: BASE-CHANGE CON-350 vehicle=reprod
+make_plan|if|n in v_blocks and n in t_blocks#1=True	721	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|n in v_blocks and n in t_blocks#1=False	721	KILLED	R4-1b: both sides changed one state block (other columns) is a CONFLICT: rc=0 want=1: BASE-CHANGE CON-350 vehicle=reprod
+make_plan|ifexp|converged#1=True	723	KILLED	R4-1b: both sides changed one state block (other columns) is a CONFLICT: rc=0 want=1: BASE-CHANGE CON-350 vehicle=reprod
+make_plan|ifexp|converged#1=False	723	KILLED	R4-1b: the same block change on both sides converges (nothing to write): rc=1 want=0: BASE-CHANGE CON-350 vehicle=reprod
+make_plan|if|clash or (dt and life_v) or (dv and life_t)#1=True	729	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|clash or (dt and life_v) or (dv and life_t)#1=False	729	KILLED	conflict: both sides changed one column: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity,descriptio
+make_plan|ifexp|clash#1=True	730	KILLED	conflict: a lifecycle change on one side and a change on the other: /^CONFLICT CON-343: a lifecycle change on one side a
+make_plan|ifexp|clash#1=False	730	KILLED	conflict: both sides changed one column: /^CONFLICT CON-343: both changed description .*--resolve CON-343=target or =veh
+make_plan|if|res is None#1=True	731	KILLED	--resolve vehicle: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description target=severity,description resolved=vehicle|BAS
+make_plan|if|res is None#1=False	731	KILLED	conflict: both sides changed one column: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity,descriptio
+make_plan|if|dt#1=True	734	KILLED	plan: a merge line only for the item both sides changed: got: 5 want: 1
+make_plan|if|dt#1=False	734	KILLED	plan: disjoint base change merged: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHANGE CON-344 vehicle=r
+make_plan|ifexp|same#1=True	736	KILLED	plan: disjoint base change merged: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHANGE CON-344 vehicle=r
+make_plan|ifexp|same#1=False	736	KILLED	the converged merge line: MERGE CON-343: vehicle description, target severity (disjoint columns)|MERGE CON-350: vehicle 
+make_plan|if|res == "vehicle"#1=True	737	KILLED	--resolve target of the same-content block conflict: rc=1 want=0: BASE-CHANGE CON-350 vehicle=reproduction_env target=re
+make_plan|if|res == "vehicle"#1=False	737	KILLED	--resolve vehicle of a same-content block with other stamps is refused: rc=0 want=1: BASE-CHANGE CON-350 vehicle=reprodu
+make_plan|compif|"the %s block" % n in clash and all(vland(c) == norm(t[c]) for c in cols)#1=True	741	KILLED	--resolve vehicle: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description target=severity,description resolved=vehicle|BAS
+make_plan|compif|"the %s block" % n in clash and all(vland(c) == norm(t[c]) for c in cols)#1=False	741	KILLED	--resolve vehicle of a same-content block with other stamps is refused: rc=0 want=1: BASE-CHANGE CON-350 vehicle=reprodu
+make_plan|if|stuck#1=True	746	KILLED	verify of --resolve vehicle: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: descrip
+make_plan|if|stuck#1=False	746	KILLED	the refused item gets no steps: RESULT: NOT-LANDABLE mode=REPLAY own=0 base_changes=1 steps=1 conflicts=0 refusals=1 fir
+make_plan|if|res == "target"#1=True	748	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|res == "target"#1=False	748	KILLED	verify of --resolve target: rc=1 want=0: KNOWN CON-345 created_at: landed 2026-11-13 23:41:28, target 2026-11-13 23:41:0
+make_plan|compif|c in dv and vland(c) != norm(t[c])#1=True	751	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|compif|c in dv and vland(c) != norm(t[c])#1=False	751	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|ucols#1=True	752	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|ucols#1=False	752	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|ifexp|"description" in ucols#1=True	755	KILLED	R4-1a: the target's description is passed verbatim: ["update", "--id=CON-350", "--db", "{DB}", "--location=Issues", "--d
+make_plan|ifexp|"description" in ucols#1=False	755	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+make_plan|if|c != "description"#1=True	758	KILLED	plan: an update step passes --description once: got: 2 want: 1
+make_plan|if|c != "description"#1=False	758	KILLED	R4-1a: the vehicle's columns: ["update", "--id=CON-350", "--db", "{DB}", "--location=Issues", "--description=**What:** r
+make_plan|if|n in v_blocks and "the %s block" % n not in same#1=True	762	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|n in v_blocks and "the %s block" % n not in same#1=False	762	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|life_v#1=True	765	KILLED	--resolve vehicle of a lifecycle conflict: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description target=severity,status,c
+make_plan|if|life_v#1=False	765	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|ifexp|"obsolete_details" in dv#1=True	766	KILLED	plan of a reopen of an Obsolete item whose row the vehicle left alone: /^RESULT: PLAN mode=REPLAY own=0 base_changes=1 s
+make_plan|ifexp|"obsolete_details" in dv#1=False	766	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|norm(v["created_at"]) != norm(b["created_at"])#2=True	769	KILLED	plan: a created_at note only for the item the vehicle's close rewrote (CON-339): got: NOTE CON-343: created_at changed i
+make_plan|if|norm(v["created_at"]) != norm(b["created_at"])#2=False	769	KILLED	plan: a created_at note only for the item the vehicle's close rewrote (CON-339): got:  want: NOTE CON-345: created_at ch
+make_plan|if|mode == "REPLAY"#1=True	773	KILLED	plan: FAST-FORWARD of a vehicle whose own item holds a column add cannot carry: rc=1 want=0: BASE-CHANGE CON-343 vehicle
+make_plan|if|mode == "REPLAY"#1=False	773	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|v is None#1=True	776	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|v is None#1=False	776	KILLED	plan refusal: an own item with two rows: /^REFUSED CON-355: 2 rows \(one expected\)/ not in: Traceback (most recent call
+make_plan|if|kv["created_by"]#1=True	788	EQUIVALENT	Equivalent: forced True, the own add passes "--created-by=" with an empty value where the code omits the flag; the engine's --created-by defaults to '' (its add --help), and the remint suite's case "engine fact: an empty --created-by= and --assigned-to= equal omitting them" checks on every run that the stored item, its history row and its segment are the same either way.
+make_plan|if|kv["created_by"]#1=False	788	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+make_plan|if|kv["assigned_to"]#1=True	790	KILLED	engine fact: an empty --created-by= and --assigned-to= equal omitting them: got: differ in part [1] want: same
+make_plan|if|kv["assigned_to"]#1=False	790	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+make_plan|if|norm(v[cols[0]]) not in ("", "UNSET")#1=True	794	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|norm(v[cols[0]]) not in ("", "UNSET")#1=False	794	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+make_plan|if|norm(v[c]) and c != "representation"#1=True	798	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|norm(v[c]) and c != "representation"#1=False	798	KILLED	plan refusal: an own item with a column add cannot carry: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=se
+make_plan|if|norm(v["representation"]) not in ("", "section")#1=True	800	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|norm(v["representation"]) not in ("", "section")#1=False	800	KILLED	plan refusal: an own item with another representation: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=sever
+make_plan|compif|h["atm_id"] == old#1=True	802	KILLED	plan of a vehicle close whose closure row names another kind: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description targe
+make_plan|compif|h["atm_id"] == old#1=False	802	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+make_plan|if|a.repo_root and mode == "REPLAY"#1=True	806	KILLED	plan: FAST-FORWARD when the target is the base: rc=1 want=0: Traceback (most recent call last):|  File "<home>
+make_plan|if|a.repo_root and mode == "REPLAY"#1=False	806	KILLED	plan refusal: a red command whose script names a moved id: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=s
+make_plan|ifexp|mode == "REPLAY"#1=True	819	KILLED	plan: FAST-FORWARD when the target is the base: /^RESULT: PLAN mode=FAST-FORWARD own=5 base_changes=5 steps=0 conflicts=
+make_plan|ifexp|mode == "REPLAY"#1=False	819	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT: PLAN mode=REPLAY own=5 base_change
+cmd_replay|if|plan["conflicts"] or plan["refusals"]#1=True	867	KILLED	replay dry run: rc=1 want=0: REFUSED: the plan has 0 conflict(s) and 0 refusal(s); it cannot be replayed|
+cmd_replay|if|plan["conflicts"] or plan["refusals"]#1=False	867	KILLED	replay refuses a plan with a conflict: rc=0 want=1: ["update", "--id=CON-344", "--db", "{DB}", "--location=Issues", "--r
+cmd_replay|if|plan["mode"] != "REPLAY"#1=True	869	KILLED	replay dry run: rc=1 want=0: REFUSED: the plan is REPLAY: copy the vehicle database, there is nothing to replay|
+cmd_replay|if|plan["mode"] != "REPLAY"#1=False	869	KILLED	replay refuses a FAST-FORWARD plan: rc=0 want=1: RESULT: APPLIED steps=0 items=5|
+cmd_replay|if|not a.apply#1=True	872	KILLED	replay --apply through the engine: /^RESULT: APPLIED steps=20 items=5$/ not in: ["update", "--id=CON-343", "--db", "{DB}
+cmd_replay|if|not a.apply#1=False	872	KILLED	replay dry run: rc=2 want=0: remint_ids: --apply needs --engine and --db|
+cmd_replay|if|not a.engine or not a.db#1=True	877	KILLED	replay --apply through the engine: rc=2 want=0: remint_ids: --apply needs --engine and --db|
+cmd_replay|if|not a.engine or not a.db#1=False	877	KILLED	replay --apply without --engine is a usage error: rc=1 want=2: Traceback (most recent call last):|  File "<home>
+cmd_replay|if|not os.path.isfile(a.db)#1=True	880	KILLED	replay --apply through the engine: rc=3 want=0: BLIND: target copy not found: docs/r.db|
+cmd_replay|if|not os.path.isfile(a.db)#1=False	880	KILLED	replay: a missing target copy is BLIND: /target copy not found/ not in: BLIND: FileNotFoundError: [Errno 2] No such file
+cmd_replay|if|os.path.isfile(wal) and os.path.getsize(wal) > 0#1=True	883	KILLED	replay --apply through the engine: rc=1 want=0: REFUSED: docs/r.db has a non-empty -wal sidecar; checkpoint it before th
+cmd_replay|if|os.path.isfile(wal) and os.path.getsize(wal) > 0#1=False	883	KILLED	replay refuses a target copy with a non-empty -wal sidecar: rc=0 want=1: step 1 update CON-343 rc=0|step 2 update-reprod
+cmd_replay|if|got != plan["sha256"]["target"]#1=True	886	KILLED	replay --apply through the engine: rc=1 want=0: REFUSED: the target copy's sha256 041404d9ce8b is not the plan's target 
+cmd_replay|if|got != plan["sha256"]["target"]#1=False	886	KILLED	a second replay is refused before any write: /re-plan against this target/ not in: close: item CON-345 not found in Issu
+cmd_replay|if|r.returncode != 0#1=True	892	KILLED	replay --apply through the engine: rc=1 want=0: update: CON-343 updated in Issues (status=Queued, type=Task)|step 1 upda
+cmd_replay|if|r.returncode != 0#1=False	892	SURVIVED	
+v_text_rules|if|not u.group(1).isascii() and int(u.group(1)) in moved and not v_is_foreign(int(u.group(1)), fset)#1=True	974	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'P-5 and P-6' -> 'P-21 and P-6' e
+v_text_rules|if|not u.group(1).isascii() and int(u.group(1)) in moved and not v_is_foreign(int(u.group(1)), fset)#1=False	974	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-５' -> 'see P-５' expected m
+v_text_rules|if|not r#1=True	981	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-4 to P-6' -> 'see P-4 to P
+v_text_rules|if|not r#1=False	981	KILLED	verify PASS after the replay: rc=1 want=0: Traceback (most recent call last):|  File "<home>/.cache/claude-tmp
+v_text_rules|if|conn == "and" and not r.group(1)#1=True	985	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-4 to P-6' -> 'see P-4 to P
+v_text_rules|if|conn == "and" and not r.group(1)#1=False	985	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'P-5 and P-6' -> 'P-21 and P-6' e
+v_text_rules|compif|a <= n <= b and not v_is_foreign(n, fset)#1=True	989	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-4 to P-6' -> 'see P-4 to P
+v_text_rules|compif|a <= n <= b and not v_is_foreign(n, fset)#1=False	989	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-4 to P-6' -> 'see P-4 to P
+v_text_rules|if|not inside#1=True	990	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-4 to P-6' -> 'see P-4 to P
+v_text_rules|if|not inside#1=False	990	SURVIVED	
+v_text_rules|if|r.group(3) == "-"#1=True	994	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5..P-7' -> 'see P-21..P-23
+v_text_rules|if|r.group(3) == "-"#1=False	994	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5-P-6' -> 'see P-5-P-6' ex
+v_text_rules|if|r.group(4) is None#1=True	996	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5..P-7' -> 'see P-21..P-23
+v_text_rules|if|r.group(4) is None#1=False	996	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5 to 7' -> 'see P-21 to 7'
+v_text_rules|if|lo > hi#1=True	998	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5..P-7' -> 'see P-21..P-23
+v_text_rules|if|lo > hi#1=False	998	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-7 to P-5' -> 'see P-23 to 
+v_text_rules|if|any(a <= n <= b for n in nums) or any(not (h < a or l > b) for l, h in spans)#1=True	1000	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5..P-7' -> 'see P-21..P-23
+v_text_rules|if|any(a <= n <= b for n in nums) or any(not (h < a or l > b) for l, h in spans)#1=False	1000	KILLED	engine fact: an empty --created-by= and --assigned-to= equal omitting them: got: differ in part [1] want: same
+v_text_rules|if|len(inside) != b - a + 1#1=True	1002	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5..P-7' -> 'see P-21..P-23
+v_text_rules|if|len(inside) != b - a + 1#1=False	1002	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-4 to P-6' -> 'see P-4 to P
+v_text_rules|if|new != list(range(new[0], new[0] + len(new)))#1=True	1004	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5..P-7' -> 'see P-21..P-23
+v_text_rules|if|new != list(range(new[0], new[0] + len(new)))#1=False	1004	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-5 to P-6' -> 'see P-21 to 
+v_compare|if|rule#1=True	1011	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'P-5 and P-6' -> 'P-21 and P-22' 
+v_compare|if|rule#1=False	1011	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'see P-4 to P-6' -> 'see P-4 to P
+v_compare|if|sk_w != sk_g#1=True	1015	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'P-5 and P-6' -> 'P-21 and P-6' e
+v_compare|if|sk_w != sk_g#1=False	1015	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'P-5 x' -> 'P-21 y' expected mism
+v_compare|if|x != y#1=True	1017	KILLED	engine fact: an empty --created-by= and --assigned-to= equal omitting them: got: differ in part [1] want: same
+v_compare|if|x != y#1=False	1017	SURVIVED	
+v_compare|if|len(tk_w) != len(tk_g)#1=True	1020	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'P-5 and P-6' -> 'P-21 and P-6' e
+v_compare|if|len(tk_w) != len(tk_g)#1=False	1020	SURVIVED	
+v_compare|if|y != e#1=True	1024	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'P-5 and P-6' -> 'P-21 and P-6' e
+v_compare|if|y != e#1=False	1024	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needle 'P-5 and P-6' -> 'P-21 and P-22' 
+cmd_verify|if|needle#1=True	1065	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: None|
+cmd_verify|if|needle#1=False	1065	SURVIVED	
+cmd_verify|if|sorted(V_UNITS) != sorted(ITEM_COLUMNS) or len(set(V_UNITS)) != len(V_UNITS)#1=True	1067	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: verify's landing units do not partition the item columns: []|
+cmd_verify|if|sorted(V_UNITS) != sorted(ITEM_COLUMNS) or len(set(V_UNITS)) != len(V_UNITS)#1=False	1067	SURVIVED	
+cmd_verify|if|not os.path.isfile(p) or sha256_file(p) != plan["sha256"][k]#1=True	1071	KILLED	verify PASS after the replay: rc=1 want=0: REFUSED: the vehicle database is not the one the plan was made from|
+cmd_verify|if|not os.path.isfile(p) or sha256_file(p) != plan["sha256"][k]#1=False	1071	KILLED	verify refuses databases the plan was not made from: /the vehicle database is not the one the plan was made from/ not in
+cmd_verify|if|not (isinstance(pair, list) and len(pair) == 2)#1=True	1075	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: plan map entry does not parse: ['CON-351', 'CON-353']|
+cmd_verify|if|not (isinstance(pair, list) and len(pair) == 2)#1=False	1075	SURVIVED	
+cmd_verify|if|m#1=True	1079	KILLED	R4-1b: verify of --resolve vehicle: rc=3 want=0: BLIND: map is empty|
+cmd_verify|if|m#1=False	1079	KILLED	verify: a plan whose map prefix is not its prefix is BLIND: rc=1 want=3: KNOWN CON-343: body_md not compared (the target
+cmd_verify|if|mp != prefix#1=True	1081	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: plan map prefix CON is not the plan prefix CON|
+cmd_verify|if|mp != prefix#1=False	1081	KILLED	verify: a plan whose map prefix is not its prefix is BLIND: rc=1 want=3: KNOWN CON-343: body_md not compared (the target
+cmd_verify|compif|idrx.fullmatch(i)#1=True	1090	SURVIVED	
+cmd_verify|compif|idrx.fullmatch(i)#1=False	1090	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|sorted(m) != own#1=True	1091	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|sorted(m) != own#1=False	1091	KILLED	verify FAIL: a plan map that is not the own set: /^MISMATCH the plan's map keys are not the own set/ not in: KNOWN CON-3
+cmd_verify|if|plan["mode"] == "FAST-FORWARD"#1=True	1093	KILLED	verify PASS after the replay: rc=1 want=0: MISMATCH FAST-FORWARD: the landed ids are not the vehicle ids|MISMATCH FAST-F
+cmd_verify|if|plan["mode"] == "FAST-FORWARD"#1=False	1093	KILLED	verify FAST-FORWARD PASS on the vehicle database: /^RESULT: PASS mode=FAST-FORWARD items=[0-9]+ mismatches=0/ not in: KN
+cmd_verify|if|set(R) != set(V)#1=True	1094	KILLED	verify FAST-FORWARD PASS on the vehicle database: rc=1 want=0: MISMATCH FAST-FORWARD: the landed ids are not the vehicle
+cmd_verify|if|set(R) != set(V)#1=False	1094	KILLED	engine fact: an empty --created-by= and --assigned-to= equal omitting them: got: differ in part [1] want: same
+cmd_verify|if|R[i] != V[i]#1=True	1097	KILLED	verify FAST-FORWARD PASS on the vehicle database: rc=1 want=0: MISMATCH FAST-FORWARD: CON-001 differs from the vehicle|M
+cmd_verify|if|R[i] != V[i]#1=False	1097	KILLED	verify FAST-FORWARD FAILs on a changed copy: /^MISMATCH FAST-FORWARD: CON-351 differs from the vehicle/ not in: MISMATCH
+cmd_verify|if|table_rows(cr, t) != table_rows(cv, t)#1=True	1100	KILLED	verify FAST-FORWARD PASS on the vehicle database: rc=1 want=0: MISMATCH FAST-FORWARD: table operator_block_details diffe
+cmd_verify|if|table_rows(cr, t) != table_rows(cv, t)#1=False	1100	KILLED	engine fact: an empty --created-by= and --assigned-to= equal omitting them: got: differ in part [1] want: same
+cmd_verify|if|set(R) != want_ids#1=True	1104	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|set(R) != want_ids#1=False	1104	KILLED	verify FAIL: missing landed items: /^MISMATCH landed ids: missing/ not in: KNOWN CON-343: body_md not compared (the targ
+cmd_verify|if|why#1=True	1114	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|why#1=False	1114	KILLED	verify FAIL: a changed own description: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the it
+cmd_verify|if|x != y and "." not in x and "–" not in x#1=True	1121	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|x != y and "." not in x and "–" not in x#1=False	1121	SURVIVED	
+cmd_verify|if|not vr or not rr or v_split(norm(vr[0]["title"]), prefix)[0] != v_split(norm(rr[0]["title"]), prefix)[0] \ or vr[0]["type"] != rr[0]["type"] or norm(vr[0]["created_by"]) != norm(rr[0]["created_by"])#1=True	1123	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|not vr or not rr or v_split(norm(vr[0]["title"]), prefix)[0] != v_split(norm(rr[0]["title"]), prefix)[0] \ or vr[0]["type"] != rr[0]["type"] or norm(vr[0]["created_by"]) != norm(rr[0]["created_by"])#1=False	1123	SURVIVED	
+cmd_verify|if|norm(want[c]) != norm(got[c])#1=True	1131	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|norm(want[c]) != norm(got[c])#1=False	1131	KILLED	verify FAIL: an own status: /^MISMATCH CON-357 status: landed 'Queued', expected 'In progress'/ not in: KNOWN CON-343: b
+cmd_verify|compif|c not in TEXT_REWRITE + ["body_md", "atm_id", "created_at", "last_modified"]#1=True	1134	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|compif|c not in TEXT_REWRITE + ["body_md", "atm_id", "created_at", "last_modified"]#1=False	1134	KILLED	verify FAIL: an own status: /^MISMATCH CON-357 status: landed 'Queued', expected 'In progress'/ not in: KNOWN CON-343: b
+cmd_verify|if|vb_same#1=True	1138	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-353 created_at: replay time 2026-11-14 00:14:46 (vehicle 2026-11-14
+cmd_verify|if|vb_same#1=False	1138	SURVIVED	
+cmd_verify|if|len(V[i]) != 1 or len(B[i]) != 1#1=True	1140	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-353 created_at: replay time 2026-11-14 00:14:57 (vehicle 2026-11-14
+cmd_verify|if|len(V[i]) != 1 or len(B[i]) != 1#1=False	1140	SURVIVED	
+cmd_verify|compif|norm(v[c]) != norm(b[c])#1=True	1144	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|compif|norm(v[c]) != norm(b[c])#1=False	1144	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-345 created_at: landed 2026-11-14 00:15:48, target 2026-11-14 00:15
+cmd_verify|if|not dv and not od_changed#1=True	1146	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-353 created_at: replay time 2026-11-14 00:16:11 (vehicle 2026-11-14
+cmd_verify|if|not dv and not od_changed#1=False	1146	SURVIVED	
+cmd_verify|if|res.get(i) == "target" or i not in T#1=True	1148	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-353 created_at: replay time 2026-11-14 00:17:01 (vehicle 2026-11-14
+cmd_verify|if|res.get(i) == "target" or i not in T#1=False	1148	KILLED	verify of --resolve target: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: descript
+cmd_verify|if|i not in R or len(R[i]) != 1#1=True	1151	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-353 created_at: replay time 2026-11-14 00:17:24 (vehicle 2026-11-14
+cmd_verify|if|i not in R or len(R[i]) != 1#1=False	1151	SURVIVED	
+cmd_verify|compif|c not in ("atm_id", "body_md", "created_at", "last_modified") and norm(t[c]) != norm(b[c])#1=True	1158	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: assign
+cmd_verify|compif|c not in ("atm_id", "body_md", "created_at", "last_modified") and norm(t[c]) != norm(b[c])#1=False	1158	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-345 created_at: landed 2026-11-14 00:18:20, target 2026-11-14 00:18
+cmd_verify|if|c in TEXT_REWRITE#1=True	1161	SURVIVED	
+cmd_verify|if|c in TEXT_REWRITE#1=False	1161	KILLED	verify of the converged plan: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|side == "vehicle"#1=True	1166	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|side == "vehicle"#1=False	1166	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|c in TEXT_REWRITE#2=True	1167	KILLED	verify FAIL: a base-change state stamp: /^MISMATCH CON-344 reproduction_updated_at: landed '2026-11-14T00:00:00Z', vehic
+cmd_verify|if|c in TEXT_REWRITE#2=False	1167	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|norm(v[c]) != norm(r[c])#1=True	1169	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|norm(v[c]) != norm(r[c])#1=False	1169	KILLED	verify FAIL: a base-change state stamp: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the it
+cmd_verify|if|norm(t[c]) != norm(r[c])#1=True	1171	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|norm(t[c]) != norm(r[c])#1=False	1171	KILLED	R4-1a: verify FAIL when the target's text is re-pointed through the map: rc=0 want=1: KNOWN CON-343: body_md not compare
+cmd_verify|if|c not in dv#1=True	1177	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|c not in dv#1=False	1177	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|c in tch and same_change(c)#1=True	1179	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|c in tch and same_change(c)#1=False	1179	KILLED	verify of the converged plan: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|c in tch and not rv#1=True	1181	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|c in tch and not rv#1=False	1181	KILLED	verify FAIL: a column conflict whose --resolve vehicle is stripped: rc=0 want=1: KNOWN CON-343: body_md not compared (th
+cmd_verify|if|not v_ch#1=True	1188	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|not v_ch#1=False	1188	KILLED	verify of the stamp-only merge keeps the target's stamp: rc=1 want=0: KNOWN CON-343: body_md not compared (the target al
+cmd_verify|if|t_ch and all(same_change(c) for c in cols) and all(norm(v[c]) == norm(t[c]) for c in STAMPS[n])#1=True	1191	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|t_ch and all(same_change(c) for c in cols) and all(norm(v[c]) == norm(t[c]) for c in STAMPS[n])#1=False	1191	KILLED	R4-1b: verify of the converged plan: rc=1 want=0: KNOWN CON-350: body_md not compared (the target also changed the item:
+cmd_verify|if|t_ch and not rv#1=True	1194	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|t_ch and not rv#1=False	1194	KILLED	verify FAIL: a block conflict whose --resolve is stripped: rc=0 want=1: KNOWN CON-350: body_md not compared (the target 
+cmd_verify|if|not rv and ((life_v and (tch or t_od)) or (life_t and (dv or od_changed)))#1=True	1201	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|not rv and ((life_v and (tch or t_od)) or (life_t and (dv or od_changed)))#1=False	1201	KILLED	verify FAIL: a lifecycle conflict whose --resolve is stripped: rc=0 want=1: KNOWN CON-343: body_md not compared (the tar
+cmd_verify|ifexp|life_v#1=True	1204	KILLED	verify of --resolve vehicle on a lifecycle conflict: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also c
+cmd_verify|ifexp|life_v#1=False	1204	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|not od_changed and OR.get(i) != OT.get(i)#1=True	1205	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|not od_changed and OR.get(i) != OT.get(i)#1=False	1205	KILLED	verify FAIL: an obsolete_details row the vehicle did not write: rc=0 want=1: KNOWN CON-343: body_md not compared (the ta
+cmd_verify|ifexp|t_od#1=True	1207	KILLED	verify FAIL: a base body_md the target did not change (RV6): rc=0 want=1: KNOWN CON-343: body_md not compared (the targe
+cmd_verify|ifexp|t_od#1=False	1207	SURVIVED	
+cmd_verify|if|not tdiff#1=True	1208	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-345 created_at: landed 2026-11-14 00:27:16, target 2026-11-14 00:27
+cmd_verify|if|not tdiff#1=False	1208	KILLED	verify FAIL: a base body_md the target did not change (RV6): rc=0 want=1: KNOWN CON-343: body_md not compared (the targe
+cmd_verify|if|od_changed#1=True	1212	SURVIVED	
+cmd_verify|if|od_changed#1=False	1212	SURVIVED	
+cmd_verify|if|norm(r["created_at"]) != norm(t["created_at"])#1=True	1214	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|norm(r["created_at"]) != norm(t["created_at"])#1=False	1214	KILLED	verify: CON-339 KNOWN line: KNOWN CON-343: body_md not compared (the target also changed the item: severity)|KNOWN CON-3
+cmd_verify|compif|h["atm_id"] == i and h["id"] not in HT and h["event_type"] in CLOSURE_EVENTS#1=True	1215	KILLED	verify FAIL: a base created_at drift with no closure (RV5): rc=0 want=1: KNOWN CON-343: body_md not compared (the target
+cmd_verify|compif|h["atm_id"] == i and h["id"] not in HT and h["event_type"] in CLOSURE_EVENTS#1=False	1215	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|ifexp|closed#1=True	1216	KILLED	verify FAIL: a base created_at drift with no closure (RV5): rc=0 want=1: KNOWN CON-343: body_md not compared (the target
+cmd_verify|ifexp|closed#1=False	1216	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|ifexp|closed#2=True	1217	KILLED	engine fact: an empty --created-by= and --assigned-to= equal omitting them: got: differ in part [1] want: same
+cmd_verify|ifexp|closed#2=False	1217	KILLED	verify: CON-339 KNOWN line: KNOWN CON-343: body_md not compared (the target also changed the item: severity)|KNOWN CON-3
+cmd_verify|if|i in replayed#1=True	1221	KILLED	verify FAIL: an untouched target item: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the ite
+cmd_verify|if|i in replayed#1=False	1221	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|R.get(i) != T[i]#1=True	1223	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|R.get(i) != T[i]#1=False	1223	KILLED	verify FAIL: an untouched target item: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the ite
+cmd_verify|if|OR.get(i) != OT.get(i)#1=True	1225	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|OR.get(i) != OT.get(i)#1=False	1225	SURVIVED	
+cmd_verify|if|new is None or new not in R or len(R[new]) != 1 or len(V[old]) != 1#1=True	1230	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|new is None or new not in R or len(R[new]) != 1 or len(V[old]) != 1#1=False	1230	KILLED	verify FAIL: missing landed items: /^MISMATCH landed ids: missing/ not in: Traceback (most recent call last):|  File "/h
+cmd_verify|if|norm(r["created_at"]) != norm(v["created_at"])#1=True	1238	SURVIVED	
+cmd_verify|if|norm(r["created_at"]) != norm(v["created_at"])#1=False	1238	KILLED	RV4: verify reports the own created_at as KNOWN: /^KNOWN CON-357 created_at: replay time .*\(vehicle 2026-01-01 00:00:00
+cmd_verify|if|OV.get(old) is not None or OR.get(new) is not None#1=True	1240	KILLED	engine fact: an empty --created-by= and --assigned-to= equal omitting them: got: differ in part [1] want: same
+cmd_verify|if|OV.get(old) is not None or OR.get(new) is not None#1=False	1240	KILLED	verify FAIL: an obsolete_details field: /^MISMATCH CON-355 obsolete_details.since: landed '2026-11-01', vehicle '2026-11
+cmd_verify|if|HR.get(hid) != h#1=True	1245	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|HR.get(hid) != h#1=False	1245	KILLED	verify FAIL: a target history row: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the item: s
+cmd_verify|if|table_rows(cr, t) != table_rows(ct, t)#1=True	1248	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+cmd_verify|if|table_rows(cr, t) != table_rows(ct, t)#1=False	1248	KILLED	verify FAIL: another table: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the item: severity
+cmd_verify|if|a.require_segments#1=True	1250	SURVIVED	
+cmd_verify|if|a.require_segments#1=False	1250	KILLED	verify --require-segments FAILs on an item with no segment: rc=0 want=1: KNOWN CON-343: body_md not compared (the target
+cmd_verify|if|i not in segs#1=True	1253	KILLED	verify --require-segments PASS (the engine's add writes the item segment): rc=1 want=0: KNOWN CON-343: body_md not compa
+cmd_verify|if|i not in segs#1=False	1253	KILLED	verify --require-segments FAILs on an item with no segment: rc=0 want=1: KNOWN CON-343: body_md not compared (the target
+cmd_verify|if|not [i for i in T if i not in replayed]#1=True	1255	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: no untouched target item to compare (the control comparison saw nothin
+cmd_verify|if|not [i for i in T if i not in replayed]#1=False	1255	SURVIVED	
+cmd_verify|compif|i not in replayed#1=True	1255	SURVIVED	
+cmd_verify|compif|i not in replayed#1=False	1255	KILLED	verify PASS after the replay: rc=3 want=0: BLIND: no untouched target item to compare (the control comparison saw nothin
+check_od|if|(want is None) != (got is None)#1=True	1261	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_od|if|(want is None) != (got is None)#1=False	1261	KILLED	verify FAIL: missing landed items: /^MISMATCH landed ids: missing/ not in: Traceback (most recent call last):|  File "/h
+check_od|ifexp|want#1=True	1262	SURVIVED	
+check_od|ifexp|want#1=False	1262	SURVIVED	
+check_od|if|want is None#1=True	1264	KILLED	verify FAIL: an obsolete_details field: /^MISMATCH CON-355 obsolete_details.since: landed '2026-11-01', vehicle '2026-11
+check_od|if|want is None#1=False	1264	SURVIVED	
+check_od|if|norm(want[c]) != norm(got[c])#1=True	1267	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_od|if|norm(want[c]) != norm(got[c])#1=False	1267	KILLED	verify FAIL: an obsolete_details field: /^MISMATCH CON-355 obsolete_details.since: landed '2026-11-01', vehicle '2026-11
+check_od|if|why#1=True	1270	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_od|if|why#1=False	1270	KILLED	verify FAIL: an obsolete_details superseding id: /^MISMATCH CON-355 obsolete_details.superseding_item: id CON-351 landed
+check_history|compif|h["atm_id"] == old and hid not in HB#1=True	1275	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|compif|h["atm_id"] == old and hid not in HB#1=False	1275	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|compif|h["atm_id"] == new and hid not in HT#1=True	1276	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|compif|h["atm_id"] == new and hid not in HT#1=False	1276	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|own_item and not any(h["event_type"] == "Opened" for h in r_new)#1=True	1277	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|own_item and not any(h["event_type"] == "Opened" for h in r_new)#1=False	1277	KILLED	verify FAIL: a missing Opened history row: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the
+check_history|compif|h["event_type"] in CLOSURE_EVENTS and norm(h["evidence_path"])#1=True	1279	SURVIVED	
+check_history|compif|h["event_type"] in CLOSURE_EVENTS and norm(h["evidence_path"])#1=False	1279	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|compif|h["event_type"] in CLOSURE_EVENTS#1=True	1280	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|compif|h["event_type"] in CLOSURE_EVENTS#1=False	1280	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|norm(h["evidence_path"]) not in v_ev#1=True	1282	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|norm(h["evidence_path"]) not in v_ev#1=False	1282	KILLED	verify FAIL: a closure row citing other evidence: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also chan
+check_history|if|h["event_type"] in CLOSURE_EVENTS | {"Reopened"}#1=True	1286	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|h["event_type"] in CLOSURE_EVENTS | {"Reopened"}#1=False	1286	KILLED	verify FAIL: a changed Reopened row: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the item:
+check_history|if|v_last and v_last["event_type"] == "Reopened"#1=True	1288	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|v_last and v_last["event_type"] == "Reopened"#1=False	1288	KILLED	verify FAIL: a changed Reopened row: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the item:
+check_history|compif|h["event_type"] == "Reopened"#1=True	1289	SURVIVED	
+check_history|compif|h["event_type"] == "Reopened"#1=False	1289	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|not r_ro or tuple(norm(r_ro[-1][k]) for k in key) != tuple(norm(v_last[k]) for k in key)#1=True	1291	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|not r_ro or tuple(norm(r_ro[-1][k]) for k in key) != tuple(norm(v_last[k]) for k in key)#1=False	1291	KILLED	verify FAIL: a changed Reopened row: rc=0 want=1: KNOWN CON-343: body_md not compared (the target also changed the item:
+check_history|if|v_last and not r_cl#1=True	1293	KILLED	verify PASS after the replay: rc=1 want=0: KNOWN CON-343: body_md not compared (the target also changed the item: severi
+check_history|if|v_last and not r_cl#1=False	1293	SURVIVED	
+check_history|compif|h["event_type"] in CLOSURE_EVENTS | {"Reopened"}#1=True	1295	SURVIVED	
+check_history|compif|h["event_type"] in CLOSURE_EVENTS | {"Reopened"}#1=False	1295	SURVIVED	
+check_history|compif|h["event_type"] in CLOSURE_EVENTS | {"Reopened"}#2=True	1296	SURVIVED	
+check_history|compif|h["event_type"] in CLOSURE_EVENTS | {"Reopened"}#2=False	1296	SURVIVED	
+check_history|if|life_v != life_r#1=True	1297	SURVIVED	
+check_history|if|life_v != life_r#1=False	1297	SURVIVED	
+RESULT: mutants=420 EQUIVALENT=5 KILLED=380 SURVIVED=35 skipped=2 stale-register=0 FAIL
+rc=1 end=2026-11-14T00:53:01Z
+# scrubbed copy (tools/scrub_paths.py): <work> x0, <home> x38, <tmp> x0
+# cut path fragments replaced: 21

@@ -1,0 +1,192 @@
+LM-PASS M01 plain line
+LM-PASS M01 heading then the line
+LM-PASS M01 CRLF
+LM-PASS M01 U+001C stays inside a quoted line (review r4 L1)
+LM-PASS M01 U+2028 stays inside a quoted line (review r4 L2)
+LM-PASS M01 U+0085 stays inside a quoted line
+LM-PASS M01 two lines
+LM-PASS M02 backtick fence hides
+LM-PASS M02 tilde fence hides
+LM-PASS M02 backtick info string with a backtick is not a fence (review r4 L4; the next ``` opens a real fence)
+LM-PASS M02 tilde fence may hold a backtick in its info string
+LM-PASS M02 a shorter close does not close
+LM-PASS M02 the other character does not close
+LM-PASS M02 a close with text after it does not close
+LM-PASS M02 four-space indented fence is not a fence
+LM-PASS M02 unclosed fence runs to the end
+LM-PASS M02 three-space fence
+LM-PASS M03 comment block hides
+LM-PASS M03 <!--> ends at once in 0.31, not in the older reading (review r4 L3)
+LM-PASS M03 <!---> ends at once in 0.31, not in the older reading
+LM-PASS M03 <?> ends at once in 0.31, not in the older reading
+LM-PASS M03 comment that ends on its start line
+LM-PASS M03 script block
+LM-PASS M03 processing instruction
+LM-PASS M03 declaration
+LM-PASS M03 CDATA
+LM-PASS M03 div block ends at a blank line
+LM-PASS M03 kind 7 tag alone
+LM-PASS M03 kind 7 cannot interrupt a paragraph
+LM-PASS M04 lazy quote continuation
+LM-PASS M04 lazy list continuation
+LM-PASS M04 ordered list lazy continuation
+LM-PASS M04 after a blank line the quote ends
+LM-PASS M04 a heading in a quote ends its paragraph
+LM-PASS M04 an ATX heading after a quote paragraph is not lazy (r5 own mutant O25)
+LM-PASS M04 a thematic break after a list paragraph is not lazy
+LM-PASS M03 kind 7 cannot interrupt a paragraph, a fence can (r5 own mutant O26)
+LM-PASS M04 fence inside a quote
+LM-PASS M05 indented line does not count
+LM-PASS M05 tab-indented line does not count
+LM-PASS M06 continuation of a paragraph does not count
+LM-PASS M06 code span reaching into the line
+LM-PASS M06 inline comment reaching into the line
+LM-PASS M06 after a thematic break
+LM-PASS M06 after an indented code block
+LM-PASS M06 setext heading still counts (visible)
+LM-PASS M06 prefix glued to text (visible, but not the prefix)
+LM-FAIL M07 lone CR ends a line: a fence opened after it hides the line (review r5 I-1): counted 1 and 1 (older reading), want 0 and 0; check_body: field 'job' cannot be resolved: no root
+LM-FAIL M07 lone CR ends a line: a comment opened after it hides the line (review r5 I-1): counted 1 and 1 (older reading), want 0 and 0; check_body: field 'job' cannot be resolved: no root
+LM-FAIL M07 lone CR: a prose line continues the paragraph, the grammar line is fenced (review r5 I-1): counted 1 and 1 (older reading), want 0 and 0; check_body: field 'job' cannot be resolved: no root
+LM-FAIL M07 lone CR after a heading: the line starts a paragraph: counted 0 and 0 (older reading), want 1 and 1; check_body: no '**Verification:** provisional' line
+LM-FAIL M07 CR CR is a blank line: counted 0 and 0 (older reading), want 1 and 1; check_body: no '**Verification:** provisional' line
+LM-FAIL M07 CR LF then CR: two line endings, a blank line: counted 0 and 0 (older reading), want 1 and 1; check_body: no '**Verification:** provisional' line
+LM-FAIL M07 a body with CR line endings only: counted 0 and 0 (older reading), want 1 and 1; check_body: no '**Verification:** provisional' line
+LM-FAIL M07 lone CR line endings open and close a fence: counted 0 and 0 (older reading), want 1 and 1; check_body: no '**Verification:** provisional' line
+LM-PASS M07 lone CR inside a paragraph: the line continues it
+LM-PASS M08 an inner fence of a quote does not close on a shorter run (review r5 RV07)
+LM-FAIL M09 a thematic break of spaced stars is not a list item (review r5 M-6): counted 0 and 0 (older reading), want 1 and 1; check_body: no '**Verification:** provisional' line
+LM-FAIL M09 a thematic break of spaced dashes is not a list item (review r5 M-6): counted 0 and 0 (older reading), want 1 and 1; check_body: no '**Verification:** provisional' line
+LM-FAIL M09 a setext === underline ends a top-level paragraph (review r5 M-6): counted 0 and 0 (older reading), want 1 and 1; check_body: no '**Verification:** provisional' line
+LM-PASS M09 a setext === after a quote is lazy text, not an underline
+LM-PASS M09 a link reference definition before the line: stricter (stated, review r5 M-6)
+LM-PASS M09 a fence in a list item after a blank: stricter (stated, review r5 M-6)
+PANDOC: pandoc 3.11
+PANDOC-PASS M01 plain line
+PANDOC-PASS M01 heading then the line
+PANDOC-PASS M01 CRLF
+PANDOC-PASS M01 U+001C stays inside a quoted line (review r4 L1)
+PANDOC-PASS M01 U+2028 stays inside a quoted line (review r4 L2)
+PANDOC-PASS M01 U+0085 stays inside a quoted line
+PANDOC-PASS M01 two lines
+PANDOC-PASS M02 backtick fence hides
+PANDOC-PASS M02 tilde fence hides
+PANDOC-PASS M02 backtick info string with a backtick is not a fence (review r4 L4; the next ``` opens a real fence)
+PANDOC-PASS M02 tilde fence may hold a backtick in its info string
+PANDOC-PASS M02 a shorter close does not close
+PANDOC-PASS M02 the other character does not close
+PANDOC-PASS M02 a close with text after it does not close
+PANDOC-PASS M02 four-space indented fence is not a fence
+PANDOC-PASS M02 unclosed fence runs to the end
+PANDOC-PASS M02 three-space fence
+PANDOC-PASS M03 comment block hides
+PANDOC-PASS M03 <!--> ends at once in 0.31, not in the older reading (review r4 L3)
+PANDOC-PASS M03 <!---> ends at once in 0.31, not in the older reading
+PANDOC-PASS M03 <?> ends at once in 0.31, not in the older reading
+PANDOC-PASS M03 comment that ends on its start line
+PANDOC-PASS M03 script block
+PANDOC-PASS M03 processing instruction
+PANDOC-PASS M03 declaration
+PANDOC-PASS M03 CDATA
+PANDOC-PASS M03 div block ends at a blank line
+PANDOC-PASS M03 kind 7 tag alone
+PANDOC-PASS M03 kind 7 cannot interrupt a paragraph
+PANDOC-PASS M04 lazy quote continuation
+PANDOC-PASS M04 lazy list continuation
+PANDOC-PASS M04 ordered list lazy continuation
+PANDOC-PASS M04 after a blank line the quote ends
+PANDOC-PASS M04 a heading in a quote ends its paragraph
+PANDOC-PASS M04 an ATX heading after a quote paragraph is not lazy (r5 own mutant O25)
+PANDOC-PASS M04 a thematic break after a list paragraph is not lazy
+PANDOC-PASS M03 kind 7 cannot interrupt a paragraph, a fence can (r5 own mutant O26)
+PANDOC-PASS M04 fence inside a quote
+PANDOC-STRICTER M05 indented line does not count (the checker is stricter than CommonMark here, by design)
+PANDOC-PASS M05 tab-indented line does not count
+PANDOC-PASS M06 continuation of a paragraph does not count
+PANDOC-PASS M06 code span reaching into the line
+PANDOC-PASS M06 inline comment reaching into the line
+PANDOC-PASS M06 after a thematic break
+PANDOC-PASS M06 after an indented code block
+PANDOC-PASS M06 setext heading still counts (visible)
+PANDOC-STRICTER M06 prefix glued to text (visible, but not the prefix) (the checker is stricter than CommonMark here, by design)
+PANDOC-BLIND M07 lone CR ends a line: a fence opened after it hides the line (review r5 I-1) (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-BLIND M07 lone CR ends a line: a comment opened after it hides the line (review r5 I-1) (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-BLIND M07 lone CR: a prose line continues the paragraph, the grammar line is fenced (review r5 I-1) (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-BLIND M07 lone CR after a heading: the line starts a paragraph (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-BLIND M07 CR CR is a blank line (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-BLIND M07 CR LF then CR: two line endings, a blank line (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-BLIND M07 a body with CR line endings only (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-BLIND M07 lone CR line endings open and close a fence (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-BLIND M07 lone CR inside a paragraph: the line continues it (pandoc drops a lone CR; markdown-it is the reference)
+PANDOC-PASS M08 an inner fence of a quote does not close on a shorter run (review r5 RV07)
+PANDOC-PASS M09 a thematic break of spaced stars is not a list item (review r5 M-6)
+PANDOC-PASS M09 a thematic break of spaced dashes is not a list item (review r5 M-6)
+PANDOC-PASS M09 a setext === underline ends a top-level paragraph (review r5 M-6)
+PANDOC-PASS M09 a setext === after a quote is lazy text, not an underline
+PANDOC-STRICTER M09 a link reference definition before the line: stricter (stated, review r5 M-6) (the checker is stricter than CommonMark here, by design)
+PANDOC-STRICTER M09 a fence in a list item after a blank: stricter (stated, review r5 M-6) (the checker is stricter than CommonMark here, by design)
+MDIT: markdown-it-py 3.0.0 commonmark
+MDIT-PASS M01 plain line
+MDIT-PASS M01 heading then the line
+MDIT-PASS M01 CRLF
+MDIT-PASS M01 U+001C stays inside a quoted line (review r4 L1)
+MDIT-PASS M01 U+2028 stays inside a quoted line (review r4 L2)
+MDIT-PASS M01 U+0085 stays inside a quoted line
+MDIT-PASS M01 two lines
+MDIT-PASS M02 backtick fence hides
+MDIT-PASS M02 tilde fence hides
+MDIT-PASS M02 backtick info string with a backtick is not a fence (review r4 L4; the next ``` opens a real fence)
+MDIT-PASS M02 tilde fence may hold a backtick in its info string
+MDIT-PASS M02 a shorter close does not close
+MDIT-PASS M02 the other character does not close
+MDIT-PASS M02 a close with text after it does not close
+MDIT-PASS M02 four-space indented fence is not a fence
+MDIT-PASS M02 unclosed fence runs to the end
+MDIT-PASS M02 three-space fence
+MDIT-PASS M03 comment block hides
+MDIT-PASS M03 <!--> ends at once in 0.31, not in the older reading (review r4 L3)
+MDIT-PASS M03 <!---> ends at once in 0.31, not in the older reading
+MDIT-PASS M03 <?> ends at once in 0.31, not in the older reading
+MDIT-PASS M03 comment that ends on its start line
+MDIT-PASS M03 script block
+MDIT-PASS M03 processing instruction
+MDIT-PASS M03 declaration
+MDIT-PASS M03 CDATA
+MDIT-PASS M03 div block ends at a blank line
+MDIT-PASS M03 kind 7 tag alone
+MDIT-PASS M03 kind 7 cannot interrupt a paragraph
+MDIT-PASS M04 lazy quote continuation
+MDIT-PASS M04 lazy list continuation
+MDIT-PASS M04 ordered list lazy continuation
+MDIT-PASS M04 after a blank line the quote ends
+MDIT-PASS M04 a heading in a quote ends its paragraph
+MDIT-PASS M04 an ATX heading after a quote paragraph is not lazy (r5 own mutant O25)
+MDIT-PASS M04 a thematic break after a list paragraph is not lazy
+MDIT-PASS M03 kind 7 cannot interrupt a paragraph, a fence can (r5 own mutant O26)
+MDIT-PASS M04 fence inside a quote
+MDIT-STRICTER M05 indented line does not count (the checker is stricter than CommonMark here, by design)
+MDIT-PASS M05 tab-indented line does not count
+MDIT-PASS M06 continuation of a paragraph does not count
+MDIT-PASS M06 code span reaching into the line
+MDIT-PASS M06 inline comment reaching into the line
+MDIT-PASS M06 after a thematic break
+MDIT-PASS M06 after an indented code block
+MDIT-PASS M06 setext heading still counts (visible)
+MDIT-STRICTER M06 prefix glued to text (visible, but not the prefix) (the checker is stricter than CommonMark here, by design)
+MDIT-PASS M07 lone CR ends a line: a fence opened after it hides the line (review r5 I-1)
+MDIT-PASS M07 lone CR ends a line: a comment opened after it hides the line (review r5 I-1)
+MDIT-PASS M07 lone CR: a prose line continues the paragraph, the grammar line is fenced (review r5 I-1)
+MDIT-PASS M07 lone CR after a heading: the line starts a paragraph
+MDIT-PASS M07 CR CR is a blank line
+MDIT-PASS M07 CR LF then CR: two line endings, a blank line
+MDIT-PASS M07 a body with CR line endings only
+MDIT-PASS M07 lone CR line endings open and close a fence
+MDIT-PASS M07 lone CR inside a paragraph: the line continues it
+MDIT-PASS M08 an inner fence of a quote does not close on a shorter run (review r5 RV07)
+MDIT-PASS M09 a thematic break of spaced stars is not a list item (review r5 M-6)
+MDIT-PASS M09 a thematic break of spaced dashes is not a list item (review r5 M-6)
+MDIT-PASS M09 a setext === underline ends a top-level paragraph (review r5 M-6)
+MDIT-PASS M09 a setext === after a quote is lazy text, not an underline
+MDIT-STRICTER M09 a link reference definition before the line: stricter (stated, review r5 M-6) (the checker is stricter than CommonMark here, by design)
+MDIT-STRICTER M09 a fence in a list item after a blank: stricter (stated, review r5 M-6) (the checker is stricter than CommonMark here, by design)
+LINEMODEL cases=63 mismatches=11 pandoc=checked pandoc_mismatches=0 mdit=checked mdit_mismatches=0

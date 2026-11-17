@@ -124,6 +124,11 @@ carrier_block() {
 }
 has()    { grep -F -q -- "$2" "$1"; }
 has_re() { grep -E -q -- "$2" "$1"; }
+# active_count FILE ERE -> lines matching ERE outside comment lines. The template
+# checks read the operative lines of report_item.sh: the dry-run STATE_PREVIEW
+# string and the comments mention the records too, so a plain substring check
+# would pass on a carrier (CON-456 round 4, review mutant RR6, section 11.4.201(7)(a)).
+active_count() { grep -v -E '^[[:space:]]*#' "$1" | grep -c -E -- "$2"; }
 
 NPASS=0; NFAIL=0
 pass() { NPASS=$((NPASS + 1)); [ "$QUIET" = 1 ] || printf 'PASS  %s\n' "$*"; }
@@ -272,7 +277,8 @@ done
 # ── 4. item template and workable-item skills carry the Reproduction field ───
 TPL="$ROOT/scripts/reporting/report_item.sh"
 if [ -f "$TPL" ]; then
-    chk "template: report_item.sh renders the '**Reproduction:** none — UNREPRODUCED' line" has "$TPL" "**Reproduction:** none — UNREPRODUCED"
+    chk "template: report_item.sh passes --reproduction-state UNREPRODUCED to add (operative set -- line)" [ "$(active_count "$TPL" '^[[:space:]]*set -- --reproduction-state UNREPRODUCED')" = 1 ]
+    chk "template: both report_item.sh add calls forward the state flags (\"\$@\")" [ "$(active_count "$TPL" '--created-by "\$REPORTED_BY" "\$@"')" = 2 ]
     chk "template: report_item.sh cites §11.4.$N" has "$TPL" "§11.4.$N"
 else
     fail "template: scripts/reporting/report_item.sh missing"

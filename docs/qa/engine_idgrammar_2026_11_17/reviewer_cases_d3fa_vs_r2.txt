@@ -1,0 +1,16 @@
+same base DB (db_branch_d3fa.sqlite, 486 items); fields: add_rc,m2d_rc,rt_same_id,rt_title_same,rt_desc_same,items_after,phantoms,validate_rc
+legacy_bracket_title        d3fa=('0', '1', '1', '1', '1', '487', 'none', '1')
+                            r2  =('1', '-', '-', '-', '-', '-', '-', '-')
+legacy_bracket_title2       d3fa=('0', '0', '0', '0', '0', '487', 'ABC-9,', '1')
+                            r2  =('1', '-', '-', '-', '-', '-', '-', '-')
+legacy_leading_space_title  d3fa=('0', '1', '1', '1', '1', '487', 'none', '1')
+                            r2  =('0', '0', '1', '1', '0', '487', 'none', '0')
+legacy_status_title         d3fa=('0', '0', '1', '0', '0', '487', 'none', '0')
+                            r2  =('1', '-', '-', '-', '-', '-', '-', '-')
+canon_newline_title         d3fa=('0', '0', '1', '0', '0', '488', 'CON-811,', '0')
+                            r2  =('1', '-', '-', '-', '-', '-', '-', '-')
+canon_desc_heading          d3fa=('0', '0', '1', '1', '0', '488', 'CON-813,', '0')
+                            r2  =('1', '-', '-', '-', '-', '-', '-', '-')
+legacy_desc_heading         d3fa=('0', '0', '1', '1', '0', '487', 'none', '0')
+                            r2  =('1', '-', '-', '-', '-', '-', '-', '-')
+unchanged cases: 31 of 38

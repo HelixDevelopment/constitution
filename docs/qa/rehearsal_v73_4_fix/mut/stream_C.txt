@@ -1,0 +1,6 @@
+RN4 PASS RN4 killed by its property (FAIL RH13 one GitHub repository id behind two URLs: exit 1 (got '0', want '1'))
+RN5 PASS RN5 killed by its property (FAIL RH11 the push URL is not shown)
+GP15 PASS GP15 killed by its property (FAIL GL13 dry run calls only read-only glab and gh subcommands (got: glab release create fixture-v9.1 -R x))
+GP16 PASS GP16 killed by its property (FAIL GL13 github plan line states the pre-release flag (no line matching /^PLAN release github:r1:acc/one prerelease=fla)
+U9 PASS U9 killed (FAIL C38 non-numeric repository id: GAPS exit 5 (got '0', want '5'))
+GP21 PASS GP21 killed by its property (FAIL GL1 read back through glab api on the pinned host)

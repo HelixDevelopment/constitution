@@ -500,6 +500,28 @@ func statesImportCmd(args []string) int {
 	for _, k := range sortedKeys(counts) {
 		fmt.Printf("  %s %d\n", k, counts[k])
 	}
+	// One round trip (idgrammar.go, CON-456): every item this import changes
+	// must still read back as itself, with its new records, on the next
+	// md-to-db. Judged for every row before anything is written.
+	var gateErrs []string
+	for i := range plan {
+		if !plan[i].changed {
+			continue
+		}
+		gated := plan[i].it
+		gated.States = plan[i].rec
+		gated.BodyMD = plan[i].body
+		body, gerr := gateItemWrite(gated)
+		if gerr != nil {
+			gateErrs = append(gateErrs, gerr.Error())
+			continue
+		}
+		plan[i].body = body
+	}
+	if len(gateErrs) > 0 {
+		fmt.Fprintf(os.Stderr, "states import: refusing (nothing written) — %s\n", strings.Join(gateErrs, "; "))
+		return exitUsage
+	}
 	if *dryRun {
 		fmt.Println("states import: --dry-run, nothing written")
 		return exitOK

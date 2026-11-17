@@ -1,0 +1,20 @@
+import sys, os, importlib.util, tempfile, datetime
+repo = sys.argv[1]
+sys.path.insert(0, os.path.join(repo, "tests/release"))
+import pvl_fixture as F, pvl_refreader as R
+from markdown_it import MarkdownIt
+spec = importlib.util.spec_from_file_location("ck", os.path.join(repo, "scripts/validation/check_provisional_verification_lines.py"))
+C = importlib.util.module_from_spec(spec); spec.loader.exec_module(C)
+w = tempfile.mkdtemp(dir=os.environ.get("TMPDIR"))
+root = F.make_root(os.path.join(w, "fx"))["root"]
+G = F.line()
+ctx = C.Context(root, {}, "CON-1", datetime.date(2026, 11, 1), datetime.date(2026, 11, 16), 60, None)
+md = MarkdownIt("commonmark")
+for name, body in [
+  ("hide_empty_bullet", 'x <span hidden>\n*\n' + G + '\n'),
+  ("hide_quote_kind7", '> x\n> <span style="display:none">\n' + G + '\n'),
+  ("hide_list_lazy", '- x\n\n    <span hidden>y\n' + G + '\n'),
+  ("hide_comment_open_lazy", 'x <!--\n*\n' + G + '\n-->\n'),
+]:
+    print("== %s accept=%s mdit_lines=%r" % (name, C.check_body(body, ctx=ctx) is None, R.mdit_lines(body)))
+    print(md.render(body))

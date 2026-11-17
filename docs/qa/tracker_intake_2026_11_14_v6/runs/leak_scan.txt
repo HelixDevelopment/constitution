@@ -1,0 +1,49 @@
+# secret and identity scan of the round-6 change, 2026-11-14T21:03:32Z
+# the identity needles come from $HOME (the real home directory) at run time; no hit prints matched identity text
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan.py --diff aee7489f   (the staged round-6 change)
+control needles: PASS (one fake of each of the 31 secret kinds and the 3 identity kinds found; a plain line not reported)
+HIT docs/Issues.md line=4387 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/Issues_Summary.md line=304 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/guides/intake_lint_guide.md line=97 kind=assignment len=13 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/README.md line=66 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/README.md line=129 kind=assignment len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/class_inventory.md line=87 kind=assignment len=18 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/remint/fix227/plan.json line=935 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/remint/main-replay/plan.json line=935 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/lint_mutations.txt line=19 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/lint_mutations.txt line=98 kind=assignment len=15 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/lint_mutations.txt line=112 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT docs/qa/tracker_intake_2026_11_14_v6/runs/lint_mutations.txt line=117 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+HIT tests/workable_items/test_intake_lint_mutations.sh line=165 kind=assignment len=22 prefix=<redacted by round 8, review N6>
+RESULT: secret_hits=13 identity_hits=0 pre_existing=0 binary_skipped=1
+rc=0
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan.py --db vehicle=<staged docs/workable_items.db> --db-base r5=<aee7489f:docs/workable_items.db>
+control needles: PASS (one fake of each of the 31 secret kinds and the 3 identity kinds found; a plain line not reported)
+HIT vehicle items.description rowid=967 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT vehicle items.body_md rowid=967 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+RESULT: secret_hits=2 identity_hits=0 pre_existing=110 binary_skipped=0
+rc=0
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan.py --db vehicle=<staged docs/workable_items.db> --db-base base=<02c10935:docs/workable_items.db>
+control needles: PASS (one fake of each of the 31 secret kinds and the 3 identity kinds found; a plain line not reported)
+HIT vehicle items.description rowid=967 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+HIT vehicle items.body_md rowid=967 kind=url-cred len=26 prefix=<redacted by round 8, review N6>
+RESULT: secret_hits=2 identity_hits=0 pre_existing=110 binary_skipped=0
+rc=0
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan.py --db base=<02c10935:docs/workable_items.db>   (the base alone)
+control needles: PASS (one fake of each of the 31 secret kinds and the 3 identity kinds found; a plain line not reported)
+RESULT: secret_hits=0 identity_hits=110 pre_existing=0 binary_skipped=0
+rc=0
+$ HOME=<home> python3 -I docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan_mutations.py
+KILLED report_dropped rc=3
+CONTROL: the unmutated scan reports the one fake hit
+RESULT: mutants=15 bad=0
+rc=0
+# identity HIT lines of the databases are counted here, not listed (they carry no matched text either)
+# base alone, compared with the round-5 tool on the same file: round-5 tool 154 hit lines, round-6 tool 110.
+# The sets of distinct (row, kind) hits are identical (diff of the sorted unique HIT lines is empty; 38 rows).
+# The round-6 tool reports one hit per matched text in a value (the lint patterns overlap the file's own kinds),
+# so a value that repeats the same identity string counts once. CON-344's 154 counts occurrences.
+# Every secret HIT above was read: each is a placeholder example (https://<user>:<password>@...), a pattern
+# description in a guide, or a mutation-suite line that names a SECRET pattern; none is a credential.
+# The 2 vehicle-only database hits are CON-330 rowid 967, its placeholder-only example (owed item 7).
+# scrubbed copy (tools/scrub_paths.py): <work> x0, <cache> x0, <home> x0, <tmp> x0

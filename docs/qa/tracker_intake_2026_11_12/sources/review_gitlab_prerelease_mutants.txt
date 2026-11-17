@@ -1,0 +1,22 @@
+M01_drop_released_at KILLED RESULT: pass=69 fail=4 FAIL C14 exit 0 (got '5', want '0');FAIL C14 --released-at passed;FAIL C14 upcoming read back;FAIL C20 exit 0 (got '5', want '0');
+M02_no_future_check KILLED RESULT: pass=71 fail=2 FAIL C15 past date is usage (got '0', want '2');FAIL C15 nothing written (got '226acf30bb9737be085f2023117ed3b2ea275c88', want '79440b390fe0e0b63cb122a9d5ebeff685fff516');
+M03_regex_Z_only SURVIVED RESULT: pass=73 fail=0 
+M04_no_iso_regex KILLED RESULT: pass=71 fail=2 FAIL C15 malformed date is usage (got '0', want '2');FAIL C15 nothing written (got '089a2ff68319bf6e5dc54103b96af24c8be7f9c1', want '124c656d3ce1eb0e1c32519bc42a8e4270b56f76');
+M05_date_without_prerelease KILLED RESULT: pass=71 fail=2 FAIL C15 date without --prerelease is usage (got '0', want '2');FAIL C15 nothing written (got '2258194a62eb35aaa104bae2c53efdfa16c2ae48', want 'cf2a1ad7c129d38f068fecd0beaf4f3a7bf23ca8');
+M06_double_prefix SURVIVED RESULT: pass=73 fail=0 
+M07_marks_on_final KILLED RESULT: pass=71 fail=2 FAIL C16 name unmarked (got 'PROVISIONAL pre-release: fixture-v9.1', want 'fixture-v9.1');FAIL C16 description unmarked (got '**PROVISIONAL pre-release.** GitLab has no pre-release flag: this line and the release title are its only marking. It is not a final release.', want '## fixture-v9.1 — 2026-01-01 — PROVISIONAL pre-release');
+M08_no_body_marker KILLED RESULT: pass=64 fail=9 FAIL C13 exit 0 (got '1', want '0');FAIL C13 description first line marked (got '## fixture-v9.1 — 2026-01-01 — PROVISIONAL pre-release', want '**PROVISIONAL pre-release.** GitLab has no pre-release flag: this line and the release title are its only marking. It is not a final release.');FAIL C13 honest marking line;FAIL C14 exit 0 (got '1', want '0');
+M09_readback_always_ok KILLED RESULT: pass=71 fail=2 FAIL C17 exit 1 (got '0', want '1');FAIL C17 missing mark is a FAIL;
+M10_readback_name_or_desc KILLED RESULT: pass=71 fail=2 FAIL C17 exit 1 (got '0', want '1');FAIL C17 missing mark is a FAIL;
+M11_api_fail_silent_ok SURVIVED RESULT: pass=73 fail=0 
+M12_upcoming_always_true KILLED RESULT: pass=71 fail=2 FAIL C18 exit 5 (got '0', want '5');FAIL C18 upcoming gap;
+M13_dryrun_writes_glab SURVIVED RESULT: pass=73 fail=0 
+M14_token_printed KILLED RESULT: pass=72 fail=1 FAIL C20 no token value printed or passed;
+M15_wrong_forge_plan SURVIVED RESULT: pass=73 fail=0 
+M16_drop_no_update KILLED RESULT: pass=72 fail=1 FAIL C13 --no-update;
+M17_no_readback_on_kept KILLED RESULT: pass=72 fail=1 FAIL C19 existing release read back;
+M18_unparsable_is_marked SURVIVED RESULT: pass=73 fail=0 
+M19_gitlab_marks_on_github SURVIVED RESULT: pass=73 fail=0 
+M20_skipped_no_token_ok SURVIVED RESULT: pass=73 fail=0 
+M21_mark_fail_is_gap KILLED RESULT: pass=71 fail=2 FAIL C17 exit 1 (got '5', want '1');FAIL C17 missing mark is a FAIL;
+DONE

@@ -1,0 +1,34 @@
+KILLED cf_strip_dropped
+KILLED nfkc_dropped
+KILLED fold_dropped
+KILLED unescape_views_dropped
+KILLED percent_view_dropped
+KILLED quoted_value_dropped
+KILLED quoted_no_escape
+KILLED word_pwd_dropped
+KILLED word_token_dropped
+KILLED word_auth_dropped
+KILLED filler_value_dropped
+KILLED minlen_9
+KILLED special_dropped
+KILLED digit_required_dropped
+KILLED quoted_letters_dropped
+KILLED url_case_dropped
+KILLED url_digits_dropped
+KILLED short_flag_user_dropped
+KILLED short_flag_joined_dropped
+KILLED pgpass_star_dropped
+KILLED pgpass_dropped
+KILLED window_dropped
+KILLED key_rest_kept
+KILLED vendor_aws
+KILLED vendor_github
+KILLED vendor_slack
+KILLED vendor_auth_header
+KILLED home_path
+KILLED user_name
+KILLED report_dropped
+KILLED prints_match
+CONTROL: the unmutated scan reports the fake hit and prints none of it
+CONTROL: leak_scan_test.py passes on the unmutated scan
+RESULT: mutants=31 bad=0

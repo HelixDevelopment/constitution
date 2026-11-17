@@ -1,0 +1,3 @@
+CONTROL needle (start = max + 0): collisions=1683 ok
+RESULT cases=200000 collisions=0
+rc=0

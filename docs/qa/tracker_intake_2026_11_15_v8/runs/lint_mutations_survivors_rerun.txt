@@ -1,0 +1,6 @@
+PASS control: unmutated copy passes the suite and its control needles
+PASS LR3 SECRET: an unquoted value starting with > read (remapped): cases-kill=yes first-failure=SECRET shape oracle: rc=1: FAIL shape own-lr3-redirect (got passw needle-kill=no (declared no)
+PASS LR5 SECRET: an escaped closing quote (JSON in a string) not read (remapped onto _QVAL): cases-kill=yes first-failure=SECRET shape oracle: rc=1: FAIL shape own-lr5-double-escaped (got needle-kill=no (declared no)
+PASS R8-18 SECRET: the mysql flag read in any case (-P port read as -p): cases-kill=yes first-failure=SECRET shape oracle: rc=1: FAIL shape own-r818-port (got short-fl needle-kill=no (declared no)
+PASS R8-34 SECRET: percent decoding applied to the first view only: cases-kill=yes first-failure=SECRET shape oracle: rc=1: FAIL shape own-r834-escape-then-percen needle-kill=no (declared no)
+RESULT: mutants=4 all killed as declared

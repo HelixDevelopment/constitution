@@ -517,7 +517,7 @@ func TestCON339_CommandEnumerationGuard(t *testing.T) {
 //     it is reviewed.
 func TestCON339_ItemsWriteSitesCarryCreatedAt(t *testing.T) {
 	newItemCreators := map[string]bool{"addCmd": true, "subtaskAddCmd": true}
-	deleteAllowed := map[string]bool{"closeCmd": true, "replaceDocumentWithSnapshot": true}
+	deleteAllowed := map[string]bool{"closeCmd": true, "replaceDocumentInTx": true}
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("glob: %v", err)

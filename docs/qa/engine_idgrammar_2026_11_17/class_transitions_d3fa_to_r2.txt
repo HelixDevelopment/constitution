@@ -1,0 +1,42 @@
+RED(d3fa) verdict -> GREEN(round 2) verdict, non-control cases
+RT_FIELD     -> REFUSED  84
+RT_FIELD     -> RT_OK    36
+RT_OK        -> REFUSED  29
+RT_OK        -> RT_OK    289
+RT_PARTIAL   -> REFUSED  3
+RT_PARTIAL   -> RT_OK    3
+RT_PHANTOM   -> REFUSED  21
+RT_REPLACED  -> REFUSED  15
+RT_STUCK     -> REFUSED  6
+RT_STUCK     -> RT_OK    3
+
+RT_OK on d3fa (field-only oracle) but REFUSED on round 2:
+B_canon_heading_raw_Issues | d3fa body_same=no validate=0(=base)
+B_canon_heading_raw_Fixed | d3fa body_same=no validate=0(=base)
+B_canon_status_line_Issues | d3fa body_same=no validate=1(+1)
+B_canon_status_line_Fixed | d3fa body_same=yes validate=0(=base)
+B_legacy_heading_raw_Issues | d3fa body_same=no validate=0(=base)
+B_legacy_heading_raw_Fixed | d3fa body_same=no validate=0(=base)
+B_legacy_status_line_Issues | d3fa body_same=no validate=1(+1)
+B_legacy_status_line_Fixed | d3fa body_same=yes validate=0(=base)
+B_legacy1_heading_raw_Issues | d3fa body_same=no validate=0(=base)
+B_legacy1_heading_raw_Fixed | d3fa body_same=no validate=0(=base)
+B_legacy1_status_line_Issues | d3fa body_same=no validate=1(+1)
+B_legacy1_status_line_Fixed | d3fa body_same=yes validate=0(=base)
+B_pfx_canon_heading_raw_Issues | d3fa body_same=no validate=0(=base)
+B_pfx_canon_heading_raw_Fixed | d3fa body_same=no validate=0(=base)
+B_pfx_canon_status_line_Issues | d3fa body_same=no validate=1(+1)
+B_pfx_canon_status_line_Fixed | d3fa body_same=yes validate=0(=base)
+B_pfx_legacy_heading_raw_Issues | d3fa body_same=no validate=0(=base)
+B_pfx_legacy_heading_raw_Fixed | d3fa body_same=no validate=0(=base)
+B_pfx_legacy_status_line_Issues | d3fa body_same=no validate=1(+1)
+B_pfx_legacy_status_line_Fixed | d3fa body_same=yes validate=0(=base)
+C_update_desc_canon_heading_raw | d3fa body_same=no validate=0(=base)
+C_update_desc_canon_status_line | d3fa body_same=no validate=1(+1)
+C_block_canon_nl_status | d3fa body_same=no validate=1(+2)
+C_update_desc_legacy_heading_raw | d3fa body_same=no validate=0(=base)
+C_update_desc_legacy_status_line | d3fa body_same=no validate=1(+1)
+C_block_legacy_nl_status | d3fa body_same=no validate=1(+2)
+C_update_desc_legacy1_heading_raw | d3fa body_same=no validate=0(=base)
+C_update_desc_legacy1_status_line | d3fa body_same=no validate=1(+1)
+C_block_legacy1_nl_status | d3fa body_same=no validate=1(+2)

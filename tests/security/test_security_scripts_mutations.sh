@@ -79,7 +79,7 @@ AM13	github_actions_inventory_disable.sh	'[ -n "$REPOS_FILE" ] || { echo "REFUSE
 HM1	history_secret_scan.sh	'[ "$npos" -ge 1 ] || fail 3'	'true || fail 3'
 HM2	history_secret_scan.sh	'[ "$nneg" -eq 0 ] || fail 3'	'true || fail 3'
 HM3	history_secret_scan.sh	'"$GL" git --redact --no-banner'	'"$GL" git --no-banner'
-HM4	history_secret_scan.sh	'--no-banner --log-opts="--all -m"'	'--no-banner --log-opts="--all"'
+HM4	history_secret_scan.sh	'--no-banner --log-opts="--all -m --text --no-textconv"'	'--no-banner --log-opts="--all --text --no-textconv"'
 HM5	history_secret_scan.sh	'case "$grc" in 0|1) ;;'	'case "$grc" in *) ;;'
 HM6	history_secret_scan.sh	'[ "$nmrg" -ge 1 ] || fail 3'	'true || fail 3'
 HM7	history_secret_scan.sh	'[ -f "$SAFE_RM" ] && [ -r "$SAFE_RM" ] || fail 5'	'[ -f "$SAFE_RM" ] && [ -r "$SAFE_RM" ] || fail 1'

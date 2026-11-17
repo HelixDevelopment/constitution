@@ -1,0 +1,34 @@
+shape	id	add_rc	db_has	md_heading	rt_kept	rt_same_id	validate_rc	diff_rc
+golden	CON-999	0	1	5181:## CON-999 — idshape golden	1	1	0	0
+golden_alnum_suffix	CON-14b	0	1	5181:## CON-14b — idshape golden_alnum_suffix	1	1	0	0
+golden_4digit	CON-0999	0	1	5181:## CON-0999 — idshape golden_4digit	1	1	0	0
+second_hyphen	CON-PENDING-x2	0	1	5181:## CON-PENDING-x2. idshape second_hyphen	0	0	0	1
+second_hyphen_digits	CON-033-001	0	1	5181:## CON-033-001. idshape second_hyphen_digits	0	0	0	1
+lowercase_prefix	con-998	0	1	5181:## con-998. idshape lowercase_prefix	0	0	0	1
+mixedcase_prefix	Con-997	0	1	5181:## Con-997. idshape mixedcase_prefix	1	1	0	0
+two_letter_key	AB-001	0	1	5181:## AB-001. idshape two_letter_key	1	1	0	0
+four_letter_key	CATS-001	0	1	5181:## CATS-001 — idshape four_letter_key	0	0	0	1
+digits_only	123	0	1	5181:## 123. idshape digits_only	0	0	0	1
+letters_only	CONX	0	1	5181:## CONX. idshape letters_only	1	1	0	0
+empty_suffix	CON-	0	1	5181:## CON-. idshape empty_suffix	0	0	0	1
+leading_hyphen	-001	0	1	5181:## -001. idshape leading_hyphen	0	0	0	1
+unicode_prefix	ČON-001	0	1	5181:## ČON-001. idshape unicode_prefix	0	0	0	1
+unicode_suffix	CON-00ž	0	1	5181:## CON-00ž. idshape unicode_suffix	0	0	0	1
+inner_space	CON 001	0	1	5181:## CON 001. idshape inner_space	0	0	0	1
+outer_space	  CON-996  	0	1	5181:## CON-996 — idshape outer_space	1	1	0	0
+tab_inside	CON-9~9	0	1	5181:## CON-9 9. idshape tab_inside	0	0	0	1
+very_long	CON-99999999999999999999	0	1	5181:## CON-99999999999999999999999999999999999999999999999999999999999999999999	1	1	0	0
+dot_inside	CON-1.2	0	1	5181:## CON-1.2. idshape dot_inside	0	0	0	1
+legacy_letter_code	G01	0	1	5181:## G01. idshape legacy_letter_code	1	1	0	0
+legacy_code_hyphen	GS-2	0	1	5181:## GS-2. idshape legacy_code_hyphen	1	1	0	0
+hash_suffix	CON-995#2	0	1	5181:## CON-995#2. idshape hash_suffix	0	0	0	1
+bracket	[CON-994]	0	1	5181:## [CON-994]. idshape bracket	0	0	0	1
+section_sign	§FL	0	1	5181:## §FL. idshape section_sign	1	0	0	1
+paren	CON-993(x)	0	1	5181:## CON-993(x). idshape paren	0	0	0	1
+emdash	CON—992	0	1	5181:## CON—992. idshape emdash	0	0	0	1
+underscore	CON_991	0	1	5181:## CON_991. idshape underscore	0	0	0	1
+prefix_4letter	PREFIX:CATS	0	1	5181:## CATS-001 — idshape prefix_4letter	0	0	0	1
+prefix_lower	PREFIX:cat	0	1	5181:## cat-001. idshape prefix_lower	0	0	0	1
+prefix_2letter	PREFIX:AB	0	1	5181:## AB-001. idshape prefix_2letter	1	1	0	0
+prefix_hyphen	PREFIX:CON-X	0	1	5181:## CON-X-001. idshape prefix_hyphen	0	0	0	1
+subtask_child	SUBTASK:CON-033	1	0	<none>	0	0	0	0

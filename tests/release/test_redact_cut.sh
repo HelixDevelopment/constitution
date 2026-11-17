@@ -220,6 +220,21 @@ ui at-in-path 'https://h.invalid/a@b' allow
 ui local-abs '/srv/repo.git' allow
 ui local-rel './repo@x' allow
 ui file-url 'file:///srv/r.git' allow
+# K12 (CON-423 review r1, M8): rc_gitea_token_shape_ok, the one definition of the gitea token shape the publisher
+# refuses on and the tag script's dry run reports TOKEN-SHAPE on: 8 to 200 characters of [A-Za-z0-9._~+/=-]
+if declare -F rc_gitea_token_shape_ok >/dev/null; then
+  ts(){ if rc_gitea_token_shape_ok "$2"; then r=fits; else r=refused; fi; chk "K12 $1" "$r" "$3"; }
+  ts "8 characters (the shortest)" 'abcd1234' fits
+  ts "200 characters (the longest)" "$(printf 'a%.0s' $(seq 200))" fits
+  ts "every allowed punctuation" 'aA0._~+/=-' fits
+  ts "7 characters" 'abc1234' refused
+  ts "201 characters" "$(printf 'a%.0s' $(seq 201))" refused
+  ts "a space inside" 'abcd 1234' refused
+  ts "a percent sign" 'abcd%1234' refused
+  ts "a non-ASCII letter" $'abcd\u00e91234' refused
+  ts "a trailing newline" $'abcd1234\n' refused
+  ts "empty" '' refused
+else bad "K12 rc_gitea_token_shape_ok is not defined by the library under test"; fi
 # K3: rc_env_lockdown keeps only the allow-list (plus RELEASE_ENV_KEEP) in the environment of children, keeps the
 # values in this shell, un-exports functions and refuses credential-like names in RELEASE_ENV_KEEP
 out="$(env -i PATH="$PATH" HOME=/h ZZK3_TOKEN=a XYZ=b GH_TOKEN=c KEEPME=d RELEASE_ENV_KEEP="KEEPME GH_TOKEN bad-name" bash -c '

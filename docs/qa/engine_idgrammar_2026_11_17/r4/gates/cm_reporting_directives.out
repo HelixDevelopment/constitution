@@ -1,0 +1,24 @@
+  PASS  [CM-REPORTING-DIRECTIVES] registry declares the action: ISSUE
+  PASS  [CM-REPORTING-DIRECTIVES] registry declares the action: BUG
+  PASS  [CM-REPORTING-DIRECTIVES] registry declares the action: TASK
+  PASS  [CM-REPORTING-DIRECTIVES] grammar declares the §11.4.202 single-colon form
+  PASS  [CM-REPORTING-DIRECTIVES] single-colon form is registered-action-only (prose never ASKs)
+  PASS  [CM-REPORTING-DIRECTIVES] engine present: /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/repo/scripts/reporting/report_item.sh
+  PASS  [CM-REPORTING-DIRECTIVES] engine is executable
+  PASS  [CM-REPORTING-DIRECTIVES] engine parses under bash -n (§11.4.67)
+  PASS  [CM-REPORTING-DIRECTIVES] engine parses under sh -n (§11.4.67)
+  PASS  [CM-REPORTING-DIRECTIVES] engine carries no project literal (§11.4.28 decoupled)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: BUG: expands (single-colon form)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: ISSUE: expands (single-colon form)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: TASK: expands (single-colon form)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: BUG :: expands (§11.4.140 form 1)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: TASK ---> expands (§11.4.140 form 5)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: registered NOTE: expands (§11.4.140 severity marker — was prose, now a registered action)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: registered CRITICAL: expands (§11.4.140 severity marker)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: prose TODO: is a NO-OP (never an ASK)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: prose FIXME: is a NO-OP (never an ASK)
+  PASS  [CM-REPORTING-DIRECTIVES] runtime: \BUG: escapes to literal
+  PASS  [CM-REPORTING-DIRECTIVES] engine defines the honest SKIP reason: credentials_absent
+  PASS  [CM-REPORTING-DIRECTIVES] engine defines the honest SKIP reason: tracker_client_absent
+  PASS  [CM-REPORTING-DIRECTIVES] tracker PASS is gated on a real command exit 0 (no faked push)
+CM-REPORTING-DIRECTIVES: PASS

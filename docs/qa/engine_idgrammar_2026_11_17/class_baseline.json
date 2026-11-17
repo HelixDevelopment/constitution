@@ -1,0 +1,11 @@
+{
+ "db_to_md_rc": 0,
+ "field_drift": [],
+ "field_drift_values": {},
+ "lost": [],
+ "md_to_db_err": "",
+ "md_to_db_rc": 0,
+ "new": [],
+ "validate_lines": [],
+ "validate_rc": 0
+}

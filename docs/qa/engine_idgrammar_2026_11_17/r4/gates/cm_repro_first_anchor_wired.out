@@ -1,0 +1,176 @@
+PASS  canon: exactly one '### §11.4.292' heading in Constitution.md
+PASS  canon: exactly one §11.4.292 block-start of any form in Constitution.md (no duplicate form)
+PASS  canon: block is non-empty (heading found)
+PASS  canon: heading names 'Reproduce first'
+PASS  canon: heading names REPRODUCED LIVE
+PASS  canon: heading names UNREPRODUCED
+PASS  canon: heading carries the mandate date 2026-11-03
+PASS  canon: block carries marker 'critical and absolute first priority'
+PASS  canon: block carries marker 'reproduce the reported symptom LIVE'
+PASS  canon: block carries marker 'wait until the record exists'
+PASS  canon: block carries marker '`reproduced-live`'
+PASS  canon: block carries marker '`reproduced-host-fixture`'
+PASS  canon: block carries marker '`not-reproducible-with-evidence`'
+PASS  canon: block carries marker '`blocked-no-device-with-recorded-blocker`'
+PASS  canon: block carries marker 'There is no fifth result'
+PASS  canon: block carries marker '`REPRODUCED`'
+PASS  canon: block carries marker '`UNREPRODUCED`'
+PASS  canon: block carries marker '`host-only`'
+PASS  canon: block carries marker '`live-target`'
+PASS  canon: block carries marker '**Reproduction:**'
+PASS  canon: block carries marker '**Reproduction:** none — UNREPRODUCED'
+PASS  canon: block carries marker 'exact command'
+PASS  canon: block carries marker 'captured RED output'
+PASS  canon: block carries marker 'environment / build id'
+PASS  canon: block carries marker 'board serial'
+PASS  canon: block carries marker 'fixture sha256'
+PASS  canon: block carries marker 'symptom signature'
+PASS  canon: block carries marker 'UNCONFIRMED: <reason>'
+PASS  canon: block carries marker 'RED BEFORE, GREEN AFTER'
+PASS  canon: block carries marker 'SAME recorded command'
+PASS  canon: block carries marker 'SAME target identity'
+PASS  canon: block carries marker 'SAME symptom signature'
+PASS  canon: block carries marker 'promote nothing'
+PASS  canon: block carries marker 'CANNOT reach VERIFIED-DONE while `UNREPRODUCED`'
+PASS  canon: block carries marker 'only as PROVISIONAL-DONE'
+PASS  canon: block carries marker 'blocker record'
+PASS  canon: block carries marker 'positive control needle'
+PASS  canon: block carries marker 'no fix is written against the unobserved symptom'
+PASS  canon: block carries marker 'established as FACT'
+PASS  canon: block carries marker 'decisive experiment'
+PASS  canon: block carries marker 'LIVE coverage test'
+PASS  canon: block carries marker 'deterministic'
+PASS  canon: block carries marker '`host-substitute`'
+PASS  canon: block carries marker 'Honest boundary'
+PASS  canon: block carries marker 'DOES NOT CHANGE'
+PASS  canon: block carries marker 'CM-COVENANT-114-292-PROPAGATION'
+PASS  canon: block carries marker 'CM-REPRO-FIRST-ANCHOR-WIRED'
+PASS  canon: block carries marker 'OWED-GATE-174'
+PASS  canon: block names escape-hatch flag --fix-before-reproduce as forbidden
+PASS  canon: block names escape-hatch flag --skip-live-reproduction as forbidden
+PASS  canon: block names escape-hatch flag --hypothesis-as-root-cause as forbidden
+PASS  canon: block names escape-hatch flag --unreproduced-counts-as-verified as forbidden
+PASS  canon: block names escape-hatch flag --green-without-red as forbidden
+PASS  canon: block names escape-hatch flag --green-on-other-signature as forbidden
+PASS  canon: block names escape-hatch flag --host-fixture-as-live as forbidden
+PASS  canon: block names escape-hatch flag --blocked-means-verified as forbidden
+PASS  canon: block names escape-hatch flag --fix-unobserved-symptom as forbidden
+PASS  canon: block names escape-hatch flag --unlabelled-unreproduced as forbidden
+PASS  canon: block carries a line-start 'Classification: universal'
+PASS  canon: block carries a Canonical authority line
+PASS  canon: block carries the non-compliance release-blocker line
+PASS  canon: block cites §11.4.3
+PASS  canon: block cites §11.4.6
+PASS  canon: block cites §11.4.7
+PASS  canon: block cites §11.4.15
+PASS  canon: block cites §11.4.21
+PASS  canon: block cites §11.4.33
+PASS  canon: block cites §11.4.34
+PASS  canon: block cites §11.4.35
+PASS  canon: block cites §11.4.43
+PASS  canon: block cites §11.4.50
+PASS  canon: block cites §11.4.90
+PASS  canon: block cites §11.4.102
+PASS  canon: block cites §11.4.108
+PASS  canon: block cites §11.4.111
+PASS  canon: block cites §11.4.114
+PASS  canon: block cites §11.4.115
+PASS  canon: block cites §11.4.123
+PASS  canon: block cites §11.4.135
+PASS  canon: block cites §11.4.146
+PASS  canon: block cites §11.4.199
+PASS  canon: block cites §11.4.200
+PASS  canon: block cites §11.4.201
+PASS  canon: block cites §11.4.226
+PASS  canon: block cites §11.4.227
+PASS  canon: block cites §11.4.242
+PASS  canon: block cites §11.4.262
+PASS  canon: block cites §11.4.267
+PASS  canon: block cites §11.4.273
+PASS  canon: block cites §11.4.289
+PASS  canon: block cites §11.4.290
+PASS  canon: block cites §1.1
+PASS  canon: block cites §7.1
+PASS  refined §11.4.43: block exists exactly once
+PASS  refined §11.4.43: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.43: refinement note cites §11.4.292
+PASS  refined §11.4.115: block exists exactly once
+PASS  refined §11.4.115: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.115: refinement note cites §11.4.292
+PASS  refined §11.4.146: block exists exactly once
+PASS  refined §11.4.146: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.146: refinement note cites §11.4.292
+PASS  refined §11.4.199: block exists exactly once
+PASS  refined §11.4.199: carries 'Refinement note (2026-11-03)'
+PASS  refined §11.4.199: refinement note cites §11.4.292
+PASS  mirror CLAUDE.md: exactly one §11.4.292 block-start
+PASS  mirror CLAUDE.md: block names result reproduced-live
+PASS  mirror CLAUDE.md: block names result reproduced-host-fixture
+PASS  mirror CLAUDE.md: block names result not-reproducible-with-evidence
+PASS  mirror CLAUDE.md: block names result blocked-no-device-with-recorded-blocker
+PASS  mirror CLAUDE.md: block names the Reproduction: carrier
+PASS  mirror CLAUDE.md: block names the UNREPRODUCED label
+PASS  mirror CLAUDE.md: block names gate CM-REPRO-FIRST-ANCHOR-WIRED
+PASS  mirror CLAUDE.md: block points at Constitution.md §11.4.292
+PASS  mirror AGENTS.md: exactly one §11.4.292 block-start
+PASS  mirror AGENTS.md: block names result reproduced-live
+PASS  mirror AGENTS.md: block names result reproduced-host-fixture
+PASS  mirror AGENTS.md: block names result not-reproducible-with-evidence
+PASS  mirror AGENTS.md: block names result blocked-no-device-with-recorded-blocker
+PASS  mirror AGENTS.md: block names the Reproduction: carrier
+PASS  mirror AGENTS.md: block names the UNREPRODUCED label
+PASS  mirror AGENTS.md: block names gate CM-REPRO-FIRST-ANCHOR-WIRED
+PASS  mirror AGENTS.md: block points at Constitution.md §11.4.292
+PASS  mirror QWEN.md: exactly one §11.4.292 block-start
+PASS  mirror QWEN.md: block names result reproduced-live
+PASS  mirror QWEN.md: block names result reproduced-host-fixture
+PASS  mirror QWEN.md: block names result not-reproducible-with-evidence
+PASS  mirror QWEN.md: block names result blocked-no-device-with-recorded-blocker
+PASS  mirror QWEN.md: block names the Reproduction: carrier
+PASS  mirror QWEN.md: block names the UNREPRODUCED label
+PASS  mirror QWEN.md: block names gate CM-REPRO-FIRST-ANCHOR-WIRED
+PASS  mirror QWEN.md: block points at Constitution.md §11.4.292
+PASS  mirror GEMINI.md: exactly one §11.4.292 block-start
+PASS  mirror GEMINI.md: block names result reproduced-live
+PASS  mirror GEMINI.md: block names result reproduced-host-fixture
+PASS  mirror GEMINI.md: block names result not-reproducible-with-evidence
+PASS  mirror GEMINI.md: block names result blocked-no-device-with-recorded-blocker
+PASS  mirror GEMINI.md: block names the Reproduction: carrier
+PASS  mirror GEMINI.md: block names the UNREPRODUCED label
+PASS  mirror GEMINI.md: block names gate CM-REPRO-FIRST-ANCHOR-WIRED
+PASS  mirror GEMINI.md: block points at Constitution.md §11.4.292
+PASS  template: report_item.sh passes --reproduction-state UNREPRODUCED to add (operative set -- line)
+PASS  template: both report_item.sh add calls forward the state flags ("$@")
+PASS  template: report_item.sh cites §11.4.292
+PASS  skill: reporting-workable-items cites §11.4.292
+PASS  skill: reporting-workable-items documents the **Reproduction:** field
+PASS  skill: reporting-workable-items names the UNREPRODUCED label
+PASS  skill: reporting-workable-items names result reproduced-live
+PASS  skill: reporting-workable-items names result reproduced-host-fixture
+PASS  skill: reporting-workable-items names result not-reproducible-with-evidence
+PASS  skill: reporting-workable-items names result blocked-no-device-with-recorded-blocker
+PASS  skill: workable-item-lifecycle cites §11.4.292
+PASS  skill: workable-item-lifecycle documents the **Reproduction:** field
+PASS  skill: workable-item-lifecycle names the UNREPRODUCED label
+PASS  skill: workable-item-lifecycle names result reproduced-live
+PASS  skill: workable-item-lifecycle names result reproduced-host-fixture
+PASS  skill: workable-item-lifecycle names result not-reproducible-with-evidence
+PASS  skill: workable-item-lifecycle names result blocked-no-device-with-recorded-blocker
+PASS  index: constitution_index.yaml has an entry for 11.4.292
+PASS  index: 11.4.292 propagation_gate is CM-COVENANT-114-292-PROPAGATION
+PASS  index: 11.4.292 group is testing-and-tdd
+PASS  index: 11.4.292 classification is universal
+PASS  group: testing-and-tdd.md carries exactly one §11.4.292 block
+PASS  progressive: rules/11.4.292.md exists
+PASS  progressive: catalog.json lists §11.4.292
+PASS  progressive: catalog.json points at rules/11.4.292.md
+PASS  seam: propagation data pack has the CM-COVENANT-114-292-PROPAGATION<TAB>11.4.292 row
+PASS  seam: generated propagation gate cm_covenant_114_292_propagation.sh exists
+PASS  seam: generated propagation mutation test exists
+PASS  seam: rule_seam_bindings.tsv binds 11.4.292 to a seam
+PASS  seam: gate_ledger_deferrals.tsv has exactly one OWED-GATE-174 row
+PASS  seam: the OWED-GATE-174 deferral names a CM-* gate that the §11.4.292 block names
+PASS  seam: this gate's paired mutation test exists
+PASS  seam: post_update_hook.sh runs this gate on every pull
+PASS  seam: post_update_hook.sh names the token CM-REPRO-FIRST-ANCHOR-WIRED
+CM-REPRO-FIRST-ANCHOR-WIRED: PASS — 175/175 checks (root: /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/repo)

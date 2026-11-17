@@ -326,8 +326,14 @@ done
 
 # ── RED: item template and skills ────────────────────────────────────────────
 TPL=scripts/reporting/report_item.sh
-fresh; mut file-sub "$TPL" '**Reproduction:** none — UNREPRODUCED' '**Repro:** pending'
-expect_red "template no longer renders the Reproduction line" "FAIL  template: report_item.sh renders the '**Reproduction:** none — UNREPRODUCED' line"
+fresh; mut file-sub "$TPL" 'set -- --reproduction-state UNREPRODUCED' 'set -- --reproduction-state UNSET'
+expect_red "template no longer passes --reproduction-state UNREPRODUCED" "FAIL  template: report_item.sh passes --reproduction-state UNREPRODUCED to add (operative set -- line)"
+# RR6 (CON-456 round 4): the operative state-flag line removed while the dry-run
+# STATE_PREVIEW string and the comments still mention the records (a carrier).
+fresh; mut del-lines "$TPL" '^\s*set -- --reproduction-state UNREPRODUCED'
+expect_red "RR6: operative state-flag line removed, preview string kept" "FAIL  template: report_item.sh passes --reproduction-state UNREPRODUCED to add (operative set -- line)"
+fresh; mut file-sub "$TPL" '--created-by "$REPORTED_BY" "$@" >' '--created-by "$REPORTED_BY" >'
+expect_red "an add call no longer forwards the state flags" "FAIL  template: both report_item.sh add calls forward the state flags (\"\$@\")"
 fresh; mut file-sub "$TPL" "§11.4.$N" '§11.4.X92'
 expect_red "template no longer cites §11.4.$N" "FAIL  template: report_item.sh cites §11.4.$N"
 fresh; rm -f "${W:?}/${TPL:?}"

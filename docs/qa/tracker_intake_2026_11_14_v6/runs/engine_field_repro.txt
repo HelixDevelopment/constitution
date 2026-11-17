@@ -1,0 +1,8 @@
+# command: HELIX_RELEASE_PREFIX=CON bash docs/qa/tracker_intake_2026_11_14_v6/tools/engine_field_repro.sh scripts/workable-items/bin/workable-items docs/workable_items.db <empty mktemp dir> (env -i, scratch HOME; source = the vehicle database before CON-343 and CON-344 were added)
+engine sha256: 9edd2dc3dfe33dd33ad4583256bd8c96650cf7edd01b77da5022d701f2a70e2c
+source sha256: 97cbe65f89d0dff63ded2aedaca278705bfd2dc8ceda9f9fb2de2ffe81d1e3c5
+STALE --severity: column Medium -> High; body line: **Severity:** Medium
+STALE --type: column Task -> Bug; body line: **Type:** Task
+STALE --created-by: column probe-opener -> probe-author; body line: **Created-By:** probe-opener
+STALE --assigned-to: column probe-owner -> probe-assignee; body line: **Assigned-To:** probe-owner
+rc=0

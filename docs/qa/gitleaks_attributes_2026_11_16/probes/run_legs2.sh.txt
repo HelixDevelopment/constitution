@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Resumable, load-bounded evidence legs on the final tree (CON-453). One job at a time, each in
+# its own systemd user scope unit. Pause before a job while load1 > 50; stop the running job (its
+# unit only, never by pattern) when load1 > 60, then wait and retry, at most 2 retries. A finished
+# job writes "<out>.done"; a rerun of this script skips it.
+set -u
+W="${1:?workdir}"
+GL=/mnt/DATA1TB/claude-work/tools/gitleaks/bin/gitleaks
+export TMPDIR=/mnt/DATA1TB/claude-work/tmp
+O="$W/ev/final"; mkdir -p "$O"
+cd "${W:?}/c" || exit 2
+load1() { cut -d' ' -f1 /proc/loadavg | cut -d. -f1; }
+waitload() { while [ "$(load1)" -gt 50 ]; do echo "pause: load $(cut -d' ' -f1 /proc/loadavg)"; sleep 60; done; }
+n=0
+job() { # job <outname> <env assignments...> -- <cmd...>
+  local out="$O/$1.txt"; shift; n=$((n+1))
+  [ -e "$out.done" ] && { echo "skip $(basename "$out")"; return 0; }
+  local envs=(); while [ "$1" != "--" ]; do envs+=("$1"); shift; done; shift
+  local try unit rc
+  for try in 1 2 3; do
+    waitload
+    unit="attrleg-$$-$n-$try"
+    env "${envs[@]}" systemd-run --user --scope -q --unit="$unit" -p TasksMax=2000 nice -n 10 "$@" </dev/null > "$out" 2>&1 &
+    local bp=$! stopped=0
+    while kill -0 "$bp" 2>/dev/null; do
+      if [ "$(load1)" -gt 60 ]; then
+        echo "stop: load $(cut -d' ' -f1 /proc/loadavg), stopping $unit"; systemctl --user stop "$unit.scope" 2>/dev/null; stopped=1
+      fi
+      sleep 15
+    done
+    wait "$bp"; rc=$?
+    if [ "$stopped" = 1 ]; then echo "$(basename "$out") try $try STOPPED-LOAD"; continue; fi
+    echo "rc=$rc" >> "$out"; : > "$out.done"; echo "$(basename "$out") rc=$rc"; return 0
+  done
+  echo "$(basename "$out") GAVE-UP after 3 tries (load)"; return 1
+}
+R="tests/security/test_history_read_time_hiding.sh"
+for i in 1 2 3; do
+  job "green_fake_$i" X=1 -- bash "$R"
+  job "green_real_$i" GLRS_GITLEAKS=$GL -- bash "$R"
+done
+job mut_fake_1 X=1 -- bash tests/security/test_history_read_time_hiding_mutations.sh
+job mut_real_1 GLRS_GITLEAKS=$GL -- bash tests/security/test_history_read_time_hiding_mutations.sh
+for k in 1 2; do
+  for t in tests/security/test_*.sh tests/forge/test_*.sh; do
+    case "$t" in *read_time_hiding*) continue ;; esac
+    job "$(basename "$t" .sh)_$k" X=1 -- bash "$t"
+  done
+  job "test_gitleaks_run_scan_replace_real_$k" GLRS_GITLEAKS=$GL -- bash tests/security/test_gitleaks_run_scan_replace.sh
+  job "test_gitleaks_run_scan_replace_mutations_real_$k" GLRS_GITLEAKS=$GL -- bash tests/security/test_gitleaks_run_scan_replace_mutations.sh
+done
+echo LEGS-DONE

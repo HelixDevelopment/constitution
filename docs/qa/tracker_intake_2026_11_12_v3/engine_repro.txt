@@ -1,0 +1,38 @@
+== G1 (R2-9): close rewrites created_at
+  created_at before: 2026-11-12 22:48:51
+$ '<wi>' 'close' 'CON-310' '--db' '<db>' '--status' 'completed' '--evidence' 'docs/qa/tracker_intake_2026_11_12_v3/README.md'
+  | close: moved CON-310 Issues→Fixed (status=Completed (→ Fixed.md), evidence=docs/qa/tracker_intake_2026_11_12_v3/README.md)
+  rc=0
+  created_at after:  2026-11-13 13:08:10
+== G4 (R2-6 D7a): obsolete-details and validate accept a superseding id that does not exist
+  CON-838 exists: 0
+$ '<wi>' 'obsolete-details' 'CON-308' '--db' '<db>' '--since' '2026-11-13' '--reason' 'duplicate-of' '--superseding' 'CON-838' '--evidence' 'docs/qa/tracker_intake_2026_11_12_v3/README.md'
+  | obsolete-details: CON-308 written (Since:2026-11-13 Reason:duplicate-of Superseding:CON-838 Evidence:docs/qa/tracker_intake_2026_11_12_v3/README.md)
+  rc=0
+  obsolete_details now: duplicate-of|CON-838
+$ '<wi>' 'validate' '--db' '<db>'
+  | validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+  | validate: OK — 303 items, all invariants satisfied
+  rc=0
+  (restore the superseding id CON-262 for the later probes)
+$ '<wi>' 'obsolete-details' 'CON-308' '--db' '<db>' '--since' '2026-11-13' '--reason' 'duplicate-of' '--superseding' 'CON-262' '--evidence' 'docs/qa/tracker_intake_2026_11_12_v3/README.md'
+  | obsolete-details: CON-308 written (Since:2026-11-13 Reason:duplicate-of Superseding:CON-262 Evidence:docs/qa/tracker_intake_2026_11_12_v3/README.md)
+  rc=0
+== G2 (R2-9): reopen leaves the obsolete_details row
+  status before: Obsolete (→ Fixed.md); obsolete_details: duplicate-of|CON-262
+$ '<wi>' 'reopen' '--db' '<db>' '--id' 'CON-308' '--why' 'design-reconsidered' '--who' 'AI' '--when' '2026-11-13' '--incident' 'docs/qa/tracker_intake_2026_11_12_v3/README.md'
+  | reopen: CON-308 reopened, relocated Fixed→Issues (By:AI On:2026-11-13 Reason:design-reconsidered Evidence:docs/qa/tracker_intake_2026_11_12_v3/README.md)
+  rc=0
+  status after: Reopened; obsolete_details: duplicate-of|CON-262
+  body header keys after reopen: Status,Type,Reopened-Details,Evidence,Severity,Created-By,Reproduction,Investigation,Obsolete-Details
+== G3: update re-renders the body header and drops the Reopened-Details line
+$ '<wi>' 'update' '--db' '<db>' '--id' 'CON-308' '--description' '<1789 chars>'
+  | update: CON-308 updated in Issues (status=Reopened, type=Bug)
+  rc=0
+  body header keys after update: Status,Type,Severity,Created-By,Reproduction,Investigation
+  reopen history rows kept: 1
+  obsolete_details on the Reopened item: duplicate-of|CON-262
+$ '<wi>' 'validate' '--db' '<db>'
+  | validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+  | validate: OK — 303 items, all invariants satisfied
+  rc=0

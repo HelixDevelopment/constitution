@@ -311,7 +311,7 @@ func followDuplicateChain(db *sql.DB, id string) string {
 			return cur
 		}
 		next := strings.TrimSpace(superseding)
-		if next == "" || strings.EqualFold(next, "none") || !canonicalIDRe.MatchString(next) {
+		if next == "" || strings.EqualFold(next, "none") || !itemIDRe.MatchString(next) {
 			return cur
 		}
 		cur = next

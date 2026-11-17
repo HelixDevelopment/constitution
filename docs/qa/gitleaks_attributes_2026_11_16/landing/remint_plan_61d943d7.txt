@@ -1,0 +1,2 @@
+BASE-CHANGE CON-453 vehicle=title,description,reproduction_evidence,reproduction_red_cmd,reproduction_green_cmd,reproduction_env,reproduction_signature,investigation_state,investigation_root_cause,investigation_evidence,status target=-
+RESULT: PLAN mode=REPLAY own=1 base_changes=1 steps=7 conflicts=0 refusals=0 first=CON-539 last=CON-539

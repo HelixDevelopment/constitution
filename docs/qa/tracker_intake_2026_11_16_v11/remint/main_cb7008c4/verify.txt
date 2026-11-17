@@ -1,0 +1,49 @@
+KNOWN CON-243 created_at: landed 2026-11-16 18:46:43, target 2026-11-11 15:34:35 (KNOWN engine defect: close rewrites it)
+KNOWN CON-443 created_at: replay time 2026-11-16 18:46:43 (vehicle 2026-11-12 22:48:17), not carried
+KNOWN CON-444 created_at: replay time 2026-11-16 18:46:43 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-445 created_at: replay time 2026-11-16 18:46:43 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-446 created_at: replay time 2026-11-16 18:46:43 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-447 created_at: replay time 2026-11-16 18:46:43 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-448 created_at: replay time 2026-11-16 18:46:43 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-449 created_at: replay time 2026-11-16 18:46:43 (vehicle 2026-11-12 22:48:50), not carried
+KNOWN CON-450 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-451 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-452 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-13 13:56:42), not carried
+KNOWN CON-452: lifecycle history rows vehicle 5, landed 2 (history is not carried; M-14)
+KNOWN CON-453 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-454 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-455 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:48:51), not carried
+KNOWN CON-456 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-457 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-458 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-459 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-460 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-461 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-462 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-463 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-464 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:23), not carried
+KNOWN CON-465 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-466 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-467 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-468 created_at: replay time 2026-11-16 18:46:44 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-469 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-470 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-471 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-472 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:24), not carried
+KNOWN CON-473 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-474 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-475 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-476 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-477 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-12 22:49:58), not carried
+KNOWN CON-478 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-479 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-480 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-481 created_at: replay time 2026-11-16 18:46:45 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-482 created_at: replay time 2026-11-16 18:46:46 (vehicle 2026-11-13 11:27:00), not carried
+KNOWN CON-483 created_at: replay time 2026-11-16 18:46:46 (vehicle 2026-11-13 13:09:02), not carried
+KNOWN CON-484 created_at: replay time 2026-11-16 18:46:46 (vehicle 2026-11-13 13:09:02), not carried
+KNOWN CON-485 created_at: replay time 2026-11-16 18:46:46 (vehicle 2026-11-13 13:09:02), not carried
+KNOWN CON-486 created_at: replay time 2026-11-16 18:46:46 (vehicle 2026-11-14 17:39:42), not carried
+KNOWN CON-487 created_at: replay time 2026-11-16 18:46:46 (vehicle 2026-11-14 17:39:42), not carried
+RESULT: PASS mode=REPLAY items=49 mismatches=0 known=47
+rc=0

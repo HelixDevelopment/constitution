@@ -1,0 +1,37 @@
+=== RUN   TestRev456R3_RED_UpdateDescriptionKeepsBlockRecord
+add: created CON-940 (Task, status=Queued) in Issues
+block: CON-940 set Operator-blocked in Issues (WHAT:the decision)
+update: CON-940 updated in Issues (status=Operator-blocked, type=Task)
+    idgrammar_r4_rev456r3_red_test.go:26: update --description dropped the Operator-Block-Details line:
+        ## CON-940 — blocked probe
+        
+        **Status:** Operator-blocked
+        **Type:** Task
+        **Severity:** Low
+        
+        a sufficiently long description that clears the description floor for round two Edited.
+        
+wrote /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/t/TestRev456R3_RED_UpdateDescriptionKeepsBlockRecord3031751089/002/Issues.md (182 bytes)
+wrote /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/t/TestRev456R3_RED_UpdateDescriptionKeepsBlockRecord3031751089/002/Fixed.md (0 bytes)
+/mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/t/TestRev456R3_RED_UpdateDescriptionKeepsBlockRecord3031751089/002/Issues.md: 1 items, 1 segments
+/mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/t/TestRev456R3_RED_UpdateDescriptionKeepsBlockRecord3031751089/002/Fixed.md: 0 items, 0 segments
+synced 1 total items into /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/t/TestRev456R3_RED_UpdateDescriptionKeepsBlockRecord3031751089/003/rt.db
+    idgrammar_r4_rev456r3_red_test.go:36: operator_block_details rows after one cycle = 0, want 1
+--- FAIL: TestRev456R3_RED_UpdateDescriptionKeepsBlockRecord (0.22s)
+=== RUN   TestRev456R3_RED_UpdateDescriptionKeepsClosureEvidenceLine
+add: created CON-941 (Task, status=Queued) in Issues
+close: moved CON-941 Issues→Fixed (status=Completed (→ Fixed.md), evidence=/mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/t/TestRev456R3_RED_UpdateDescriptionKeepsClosureEvidenceLine1092441287/002/ev.txt)
+update: CON-941 updated in Fixed (status=Completed (→ Fixed.md), type=Task)
+    idgrammar_r4_rev456r3_red_test.go:57: update --description dropped the closure Evidence line:
+        ## CON-941 — closed probe
+        
+        **Status:** Completed (→ Fixed.md)
+        **Type:** Task
+        **Severity:** Low
+        
+        a sufficiently long description that clears the description floor for round two Edited.
+        
+--- FAIL: TestRev456R3_RED_UpdateDescriptionKeepsClosureEvidenceLine (0.19s)
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	0.419s
+FAIL

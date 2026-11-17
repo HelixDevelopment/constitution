@@ -1,0 +1,785 @@
+full-suite runner  sha=a3b8564efea9 tree=bc3f5299bbd4 ctx=32baae9441a77168 mode=default out=/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/run/r1
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=27 py/fixture=14 py/member=24 runall/entry=9 sh/entry=357 sh/excluded=26 sh/fixture=111 sh/member=314 total=902
+topology: layout=standalone submodules=27 gaps=27 (allowed)
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/MVT
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/agentic-validation
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/anti_bluff
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/claude-video
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/claude_toolkit
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/containers
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/continuum
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/design-toolkit
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/docs_chain
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/donespec
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/helix_perf_cache
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/llmctl
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/mcp-audio-tweaker
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/open_design
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/polyscreen-mcp
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/repo-proof
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/repo-qa
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/session_orchestrator
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/skill-doctor
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/superspec
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/token_optimizer
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/verfix
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/verification
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/verify
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/video-quality-mcp
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/watch-skill
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/wave-dpctf
+identity: head=a3b8564efea9 subs=81bf3cb57109cc22 dirty=clean
+[11/641] SKIPPED-heavy meta_test_inheritance.sh  (heavy_excluded)
+[12/641] SKIPPED-heavy progressive/mutation_matrix.py  (heavy_excluded)
+[21/641] SKIPPED-heavy scripts/codegraph/tests/test_bulk_classify_mutate.py  (heavy_excluded)
+[22/641] SKIPPED-heavy scripts/codegraph/tests/test_bulk_classify_mutations.sh  (heavy_excluded)
+[25/641] SKIPPED-heavy scripts/codegraph/tests/test_codegraph_mcp_mutations.sh  (heavy_excluded)
+[27/641] SKIPPED-heavy scripts/codegraph/tests/test_codegraph_mcp_preflight_mutations.sh  (heavy_excluded)
+[29/641] SKIPPED-heavy scripts/codegraph/tests/test_fk_cascade_probe_mutations.sh  (heavy_excluded)
+[32/641] SKIPPED-heavy scripts/codegraph/tests/test_mcp_readonly_mutations.sh  (heavy_excluded)
+[33/641] SKIPPED-heavy scripts/codegraph/tests/test_memfloor_mutate.py  (heavy_excluded)
+[34/641] SKIPPED-heavy scripts/codegraph/tests/test_memfloor_mutations.sh  (heavy_excluded)
+[36/641] SKIPPED-heavy scripts/codegraph/tests/test_owed_report_mutations.sh  (heavy_excluded)
+[38/641] SKIPPED-heavy scripts/codegraph/tests/test_patch_machinery_mutations.sh  (heavy_excluded)
+[40/641] SKIPPED-heavy scripts/codegraph/tests/test_resolve1_mutate.py  (heavy_excluded)
+[41/641] SKIPPED-heavy scripts/codegraph/tests/test_resolve1_mutations.sh  (heavy_excluded)
+[43/641] SKIPPED-heavy scripts/codegraph/tests/test_resolve2_mutate.py  (heavy_excluded)
+[44/641] SKIPPED-heavy scripts/codegraph/tests/test_resolve2_mutations.sh  (heavy_excluded)
+[46/641] SKIPPED-heavy scripts/codegraph/tests/test_scope_exceptions_mutations.sh  (heavy_excluded)
+[51/641] SKIPPED-heavy scripts/codegraph/tests/test_watch_startup_race_mutations.sh  (heavy_excluded)
+[55/641] SKIPPED-heavy scripts/extensions/validate_bridge_mutation_test.sh  (heavy_excluded)
+[56/641] SKIPPED-heavy scripts/fastcycle/tests/run_all.sh  (heavy_excluded (covers heavy members; default members run alone))
+[60/641] SKIP (topology_unsupported) scripts/fastcycle/tests/test_anchor_citations_red.sh 0.1s
+[83/641] PASS scripts/fastcycle/tests/test_consumer_layout_probe_retest_regression.sh 69.7s
+[86/641] SKIPPED-heavy scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[87/641] SKIPPED-heavy scripts/fastcycle/tests/test_consumer_required_mutations.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[99/641] SKIP (topology_unsupported) scripts/fastcycle/tests/test_custody_sweep_red.sh 0.8s
+[109/641] SKIPPED-heavy scripts/fastcycle/tests/test_fastcycle_r6_mutations.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[110/641] SKIPPED-heavy scripts/fastcycle/tests/test_fc_commit_stage_timer_mutations.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[125/641] SKIP (topology_unsupported) scripts/fastcycle/tests/test_fc_timer_golden_output.sh 0.1s
+[133/641] SKIPPED-heavy scripts/fastcycle/tests/test_fc_timer_prebuild_mutations.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[136/641] SKIPPED-heavy scripts/fastcycle/tests/test_foundational_mutations.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[137/641] SKIPPED-heavy scripts/fastcycle/tests/test_foundational_mutations_descendants_filter.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[138/641] SKIPPED-heavy scripts/fastcycle/tests/test_foundational_mutations_kill_tree.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[139/641] SKIPPED-heavy scripts/fastcycle/tests/test_foundational_mutations_killtree_root_guard.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[179/641] SKIPPED-heavy scripts/fastcycle/tests/test_metatest_per_mutant_r4_regression.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[180/641] SKIPPED-heavy scripts/fastcycle/tests/test_metatest_per_mutant_red.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[181/641] SKIPPED-heavy scripts/fastcycle/tests/test_mutation_anchor_census.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[182/641] SKIPPED-heavy scripts/fastcycle/tests/test_mutation_reuse_red.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[193/641] SKIPPED-heavy scripts/fastcycle/tests/test_precheck_slicer_c2a_mutants.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[201/641] PASS scripts/fastcycle/tests/test_repo_verify_red.sh 96.4s leaked=2
+[206/641] SKIPPED-heavy scripts/fastcycle/tests/test_review_record_gate_authority_mutations.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[228/641] SKIP (topology_unsupported) scripts/fastcycle/tests/test_token_stability_red.sh 0.6s
+[229/641] SKIP (topology_unsupported) scripts/fastcycle/tests/test_tool_deferral_red.sh 0.8s
+[233/641] SKIPPED-heavy scripts/fastcycle/tests/test_verdict_cache_mutation_reuse_r2_key_coverage_regression.sh  (heavy_excluded (member of scripts/fastcycle/tests/run_all.sh))
+[234/641] SKIP (topology_unsupported) scripts/fastcycle/tests/test_verdict_cache_red.sh 4.5s
+[235/641] PASS scripts/fastcycle/timing/fc_timer_selftest.sh 45.6s
+[236/641] SKIPPED-heavy scripts/fastcycle/timing/fc_timer_selftest_mutations.sh  (heavy_excluded)
+[241/641] SKIPPED-heavy scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh  (heavy_excluded)
+[243/641] SKIPPED-heavy scripts/gates/cm_agent_type_label_mutation_test.sh  (heavy_excluded)
+[244/641] SKIPPED-heavy scripts/gates/cm_anchor_detects_tail_truncation_mutation_test.sh  (heavy_excluded)
+[245/641] SKIPPED-heavy scripts/gates/cm_anchor_record_complete_mutation_test.sh  (heavy_excluded)
+[246/641] SKIPPED-heavy scripts/gates/cm_badge_closed_color_vocabulary_mutation_test.sh  (heavy_excluded)
+[247/641] SKIPPED-heavy scripts/gates/cm_badge_machine_derived_source_mutation_test.sh  (heavy_excluded)
+[248/641] SKIPPED-heavy scripts/gates/cm_badge_self_validated_mutation_test.sh  (heavy_excluded)
+[249/641] SKIPPED-heavy scripts/gates/cm_bridge_layer_presence_mutation_test.sh  (heavy_excluded)
+[250/641] SKIPPED-heavy scripts/gates/cm_build_on_source_proven_not_test_side_mutation_test.sh  (heavy_excluded)
+[251/641] SKIPPED-heavy scripts/gates/cm_canonical_root_clarity_mutation_test.sh  (heavy_excluded)
+[252/641] SKIPPED-heavy scripts/gates/cm_chain_entry_union_rule_mutation_test.sh  (heavy_excluded)
+[253/641] SKIPPED-heavy scripts/gates/cm_chain_integrity_detects_alteration_mutation_test.sh  (heavy_excluded)
+[254/641] SKIPPED-heavy scripts/gates/cm_cli_agent_plugins_wired_mutation_test.sh  (heavy_excluded)
+[255/641] SKIPPED-heavy scripts/gates/cm_codegraph_mcp_health_mutation_test.sh  (heavy_excluded)
+[256/641] SKIPPED-heavy scripts/gates/cm_constitution_index_fresh_mutation_test.sh  (heavy_excluded)
+[257/641] SKIPPED-heavy scripts/gates/cm_continuum_resume_engine_present_mutation_test.sh  (heavy_excluded)
+[258/641] SKIPPED-heavy scripts/gates/cm_control_needle_required_mutation_test.sh  (heavy_excluded)
+[259/641] SKIPPED-heavy scripts/gates/cm_core_scripts_project_literal_free_mutation_test.sh  (heavy_excluded)
+[260/641] SKIPPED-heavy scripts/gates/cm_covenant_114_162_propagation_mutation_test.sh  (heavy_excluded)
+[261/641] SKIPPED-heavy scripts/gates/cm_covenant_114_167_propagation_mutation_test.sh  (heavy_excluded)
+[262/641] SKIPPED-heavy scripts/gates/cm_covenant_114_176_propagation_mutation_test.sh  (heavy_excluded)
+[263/641] SKIPPED-heavy scripts/gates/cm_covenant_114_187_propagation_mutation_test.sh  (heavy_excluded)
+[264/641] SKIPPED-heavy scripts/gates/cm_covenant_114_190_propagation_mutation_test.sh  (heavy_excluded)
+[265/641] SKIPPED-heavy scripts/gates/cm_covenant_114_191_propagation_mutation_test.sh  (heavy_excluded)
+[266/641] SKIPPED-heavy scripts/gates/cm_covenant_114_192_propagation_mutation_test.sh  (heavy_excluded)
+[267/641] SKIPPED-heavy scripts/gates/cm_covenant_114_193_propagation_mutation_test.sh  (heavy_excluded)
+[268/641] SKIPPED-heavy scripts/gates/cm_covenant_114_195_propagation_mutation_test.sh  (heavy_excluded)
+[269/641] SKIPPED-heavy scripts/gates/cm_covenant_114_196_propagation_mutation_test.sh  (heavy_excluded)
+[270/641] SKIPPED-heavy scripts/gates/cm_covenant_114_197_propagation_mutation_test.sh  (heavy_excluded)
+[271/641] SKIPPED-heavy scripts/gates/cm_covenant_114_198_propagation_mutation_test.sh  (heavy_excluded)
+[272/641] SKIPPED-heavy scripts/gates/cm_covenant_114_199_propagation_mutation_test.sh  (heavy_excluded)
+[273/641] SKIPPED-heavy scripts/gates/cm_covenant_114_200_propagation_mutation_test.sh  (heavy_excluded)
+[274/641] SKIPPED-heavy scripts/gates/cm_covenant_114_201_propagation_mutation_test.sh  (heavy_excluded)
+[275/641] SKIPPED-heavy scripts/gates/cm_covenant_114_202_propagation_mutation_test.sh  (heavy_excluded)
+[276/641] SKIPPED-heavy scripts/gates/cm_covenant_114_207_propagation_mutation_test.sh  (heavy_excluded)
+[277/641] SKIPPED-heavy scripts/gates/cm_covenant_114_208_propagation_mutation_test.sh  (heavy_excluded)
+[278/641] SKIPPED-heavy scripts/gates/cm_covenant_114_209_propagation_mutation_test.sh  (heavy_excluded)
+[279/641] SKIPPED-heavy scripts/gates/cm_covenant_114_210_propagation_mutation_test.sh  (heavy_excluded)
+[280/641] SKIPPED-heavy scripts/gates/cm_covenant_114_211_propagation_mutation_test.sh  (heavy_excluded)
+[281/641] SKIPPED-heavy scripts/gates/cm_covenant_114_212_propagation_mutation_test.sh  (heavy_excluded)
+[282/641] SKIPPED-heavy scripts/gates/cm_covenant_114_213_propagation_mutation_test.sh  (heavy_excluded)
+[283/641] SKIPPED-heavy scripts/gates/cm_covenant_114_214_propagation_mutation_test.sh  (heavy_excluded)
+[284/641] SKIPPED-heavy scripts/gates/cm_covenant_114_215_propagation_mutation_test.sh  (heavy_excluded)
+[285/641] SKIPPED-heavy scripts/gates/cm_covenant_114_216_propagation_mutation_test.sh  (heavy_excluded)
+[286/641] SKIPPED-heavy scripts/gates/cm_covenant_114_217_propagation_mutation_test.sh  (heavy_excluded)
+[287/641] SKIPPED-heavy scripts/gates/cm_covenant_114_218_propagation_mutation_test.sh  (heavy_excluded)
+[288/641] SKIPPED-heavy scripts/gates/cm_covenant_114_219_propagation_mutation_test.sh  (heavy_excluded)
+[289/641] SKIPPED-heavy scripts/gates/cm_covenant_114_220_propagation_mutation_test.sh  (heavy_excluded)
+[290/641] SKIPPED-heavy scripts/gates/cm_covenant_114_221_propagation_mutation_test.sh  (heavy_excluded)
+[291/641] SKIPPED-heavy scripts/gates/cm_covenant_114_222_propagation_mutation_test.sh  (heavy_excluded)
+[292/641] SKIPPED-heavy scripts/gates/cm_covenant_114_223_propagation_mutation_test.sh  (heavy_excluded)
+[293/641] SKIPPED-heavy scripts/gates/cm_covenant_114_224_propagation_mutation_test.sh  (heavy_excluded)
+[294/641] SKIPPED-heavy scripts/gates/cm_covenant_114_225_propagation_mutation_test.sh  (heavy_excluded)
+[295/641] SKIPPED-heavy scripts/gates/cm_covenant_114_226_propagation_mutation_test.sh  (heavy_excluded)
+[296/641] SKIPPED-heavy scripts/gates/cm_covenant_114_227_propagation_mutation_test.sh  (heavy_excluded)
+[297/641] SKIPPED-heavy scripts/gates/cm_covenant_114_228_propagation_mutation_test.sh  (heavy_excluded)
+[298/641] SKIPPED-heavy scripts/gates/cm_covenant_114_229_propagation_mutation_test.sh  (heavy_excluded)
+[299/641] SKIPPED-heavy scripts/gates/cm_covenant_114_230_propagation_mutation_test.sh  (heavy_excluded)
+[300/641] SKIPPED-heavy scripts/gates/cm_covenant_114_231_propagation_mutation_test.sh  (heavy_excluded)
+[301/641] SKIPPED-heavy scripts/gates/cm_covenant_114_232_propagation_mutation_test.sh  (heavy_excluded)
+[302/641] SKIPPED-heavy scripts/gates/cm_covenant_114_233_propagation_mutation_test.sh  (heavy_excluded)
+[303/641] SKIPPED-heavy scripts/gates/cm_covenant_114_234_propagation_mutation_test.sh  (heavy_excluded)
+[304/641] SKIPPED-heavy scripts/gates/cm_covenant_114_235_propagation_mutation_test.sh  (heavy_excluded)
+[305/641] SKIPPED-heavy scripts/gates/cm_covenant_114_236_propagation_mutation_test.sh  (heavy_excluded)
+[306/641] SKIPPED-heavy scripts/gates/cm_covenant_114_237_propagation_mutation_test.sh  (heavy_excluded)
+[307/641] SKIPPED-heavy scripts/gates/cm_covenant_114_238_propagation_mutation_test.sh  (heavy_excluded)
+[308/641] SKIPPED-heavy scripts/gates/cm_covenant_114_239_propagation_mutation_test.sh  (heavy_excluded)
+[309/641] SKIPPED-heavy scripts/gates/cm_covenant_114_240_propagation_mutation_test.sh  (heavy_excluded)
+[310/641] SKIPPED-heavy scripts/gates/cm_covenant_114_241_propagation_mutation_test.sh  (heavy_excluded)
+[311/641] SKIPPED-heavy scripts/gates/cm_covenant_114_242_propagation_mutation_test.sh  (heavy_excluded)
+[312/641] SKIPPED-heavy scripts/gates/cm_covenant_114_243_propagation_mutation_test.sh  (heavy_excluded)
+[313/641] SKIPPED-heavy scripts/gates/cm_covenant_114_244_propagation_mutation_test.sh  (heavy_excluded)
+[314/641] SKIPPED-heavy scripts/gates/cm_covenant_114_245_propagation_mutation_test.sh  (heavy_excluded)
+[315/641] SKIPPED-heavy scripts/gates/cm_covenant_114_246_propagation_mutation_test.sh  (heavy_excluded)
+[316/641] SKIPPED-heavy scripts/gates/cm_covenant_114_247_propagation_mutation_test.sh  (heavy_excluded)
+[317/641] SKIPPED-heavy scripts/gates/cm_covenant_114_248_propagation_mutation_test.sh  (heavy_excluded)
+[318/641] SKIPPED-heavy scripts/gates/cm_covenant_114_249_propagation_mutation_test.sh  (heavy_excluded)
+[319/641] SKIPPED-heavy scripts/gates/cm_covenant_114_250_propagation_mutation_test.sh  (heavy_excluded)
+[320/641] SKIPPED-heavy scripts/gates/cm_covenant_114_251_propagation_mutation_test.sh  (heavy_excluded)
+[321/641] SKIPPED-heavy scripts/gates/cm_covenant_114_252_propagation_mutation_test.sh  (heavy_excluded)
+[322/641] SKIPPED-heavy scripts/gates/cm_covenant_114_253_propagation_mutation_test.sh  (heavy_excluded)
+[323/641] SKIPPED-heavy scripts/gates/cm_covenant_114_254_propagation_mutation_test.sh  (heavy_excluded)
+[324/641] SKIPPED-heavy scripts/gates/cm_covenant_114_255_propagation_mutation_test.sh  (heavy_excluded)
+[325/641] SKIPPED-heavy scripts/gates/cm_covenant_114_256_propagation_mutation_test.sh  (heavy_excluded)
+[326/641] SKIPPED-heavy scripts/gates/cm_covenant_114_257_propagation_mutation_test.sh  (heavy_excluded)
+[327/641] SKIPPED-heavy scripts/gates/cm_covenant_114_258_propagation_mutation_test.sh  (heavy_excluded)
+[328/641] SKIPPED-heavy scripts/gates/cm_covenant_114_259_propagation_mutation_test.sh  (heavy_excluded)
+[329/641] SKIPPED-heavy scripts/gates/cm_covenant_114_260_propagation_mutation_test.sh  (heavy_excluded)
+[330/641] SKIPPED-heavy scripts/gates/cm_covenant_114_261_propagation_mutation_test.sh  (heavy_excluded)
+[331/641] SKIPPED-heavy scripts/gates/cm_covenant_114_262_propagation_mutation_test.sh  (heavy_excluded)
+[332/641] SKIPPED-heavy scripts/gates/cm_covenant_114_263_propagation_mutation_test.sh  (heavy_excluded)
+[333/641] SKIPPED-heavy scripts/gates/cm_covenant_114_264_propagation_mutation_test.sh  (heavy_excluded)
+[334/641] SKIPPED-heavy scripts/gates/cm_covenant_114_265_propagation_mutation_test.sh  (heavy_excluded)
+[335/641] SKIPPED-heavy scripts/gates/cm_covenant_114_266_propagation_mutation_test.sh  (heavy_excluded)
+[336/641] SKIPPED-heavy scripts/gates/cm_covenant_114_267_propagation_mutation_test.sh  (heavy_excluded)
+[337/641] SKIPPED-heavy scripts/gates/cm_covenant_114_268_propagation_mutation_test.sh  (heavy_excluded)
+[338/641] SKIPPED-heavy scripts/gates/cm_covenant_114_269_propagation_mutation_test.sh  (heavy_excluded)
+[339/641] SKIPPED-heavy scripts/gates/cm_covenant_114_270_propagation_mutation_test.sh  (heavy_excluded)
+[340/641] SKIPPED-heavy scripts/gates/cm_covenant_114_271_propagation_mutation_test.sh  (heavy_excluded)
+[341/641] SKIPPED-heavy scripts/gates/cm_covenant_114_272_propagation_mutation_test.sh  (heavy_excluded)
+[342/641] SKIPPED-heavy scripts/gates/cm_covenant_114_273_propagation_mutation_test.sh  (heavy_excluded)
+[343/641] SKIPPED-heavy scripts/gates/cm_covenant_114_274_propagation_mutation_test.sh  (heavy_excluded)
+[344/641] SKIPPED-heavy scripts/gates/cm_covenant_114_275_propagation_mutation_test.sh  (heavy_excluded)
+[345/641] SKIPPED-heavy scripts/gates/cm_covenant_114_276_propagation_mutation_test.sh  (heavy_excluded)
+[346/641] SKIPPED-heavy scripts/gates/cm_covenant_114_277_propagation_mutation_test.sh  (heavy_excluded)
+[347/641] SKIPPED-heavy scripts/gates/cm_covenant_114_278_propagation_mutation_test.sh  (heavy_excluded)
+[348/641] SKIPPED-heavy scripts/gates/cm_covenant_114_279_propagation_mutation_test.sh  (heavy_excluded)
+[349/641] SKIPPED-heavy scripts/gates/cm_covenant_114_27_propagation_mutation_test.sh  (heavy_excluded)
+[350/641] SKIPPED-heavy scripts/gates/cm_covenant_114_280_propagation_mutation_test.sh  (heavy_excluded)
+[351/641] SKIPPED-heavy scripts/gates/cm_covenant_114_281_propagation_mutation_test.sh  (heavy_excluded)
+[352/641] SKIPPED-heavy scripts/gates/cm_covenant_114_282_propagation_mutation_test.sh  (heavy_excluded)
+[353/641] SKIPPED-heavy scripts/gates/cm_covenant_114_283_propagation_mutation_test.sh  (heavy_excluded)
+[354/641] SKIPPED-heavy scripts/gates/cm_covenant_114_284_propagation_mutation_test.sh  (heavy_excluded)
+[355/641] SKIPPED-heavy scripts/gates/cm_covenant_114_285_propagation_mutation_test.sh  (heavy_excluded)
+[356/641] SKIPPED-heavy scripts/gates/cm_covenant_114_286_propagation_mutation_test.sh  (heavy_excluded)
+[357/641] SKIPPED-heavy scripts/gates/cm_covenant_114_287_propagation_mutation_test.sh  (heavy_excluded)
+[358/641] SKIPPED-heavy scripts/gates/cm_covenant_114_288_propagation_mutation_test.sh  (heavy_excluded)
+[359/641] SKIPPED-heavy scripts/gates/cm_covenant_114_289_propagation_mutation_test.sh  (heavy_excluded)
+[360/641] SKIPPED-heavy scripts/gates/cm_covenant_114_290_propagation_mutation_test.sh  (heavy_excluded)
+[361/641] SKIPPED-heavy scripts/gates/cm_covenant_114_291_propagation_mutation_test.sh  (heavy_excluded)
+[362/641] SKIPPED-heavy scripts/gates/cm_covenant_114_292_propagation_mutation_test.sh  (heavy_excluded)
+[363/641] SKIPPED-heavy scripts/gates/cm_covenant_114_293_propagation_mutation_test.sh  (heavy_excluded)
+[364/641] SKIPPED-heavy scripts/gates/cm_covenant_114_294_propagation_mutation_test.sh  (heavy_excluded)
+[365/641] SKIPPED-heavy scripts/gates/cm_covenant_114_295_propagation_mutation_test.sh  (heavy_excluded)
+[366/641] SKIPPED-heavy scripts/gates/cm_covenant_114_296_propagation_mutation_test.sh  (heavy_excluded)
+[367/641] SKIPPED-heavy scripts/gates/cm_covenant_114_297_propagation_mutation_test.sh  (heavy_excluded)
+[368/641] SKIPPED-heavy scripts/gates/cm_covenant_114_298_propagation_mutation_test.sh  (heavy_excluded)
+[369/641] SKIPPED-heavy scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh  (heavy_excluded)
+[370/641] SKIPPED-heavy scripts/gates/cm_decisions_override_valid_mutation_test.sh  (heavy_excluded (member of tests/decisions/run_all.sh))
+[371/641] SKIPPED-heavy scripts/gates/cm_decisions_wizard_safety_mutation_test.sh  (heavy_excluded (member of tests/decisions/run_all.sh))
+[372/641] SKIPPED-heavy scripts/gates/cm_dependency_adoption_admitted_mutation_test.sh  (heavy_excluded)
+[373/641] SKIPPED-heavy scripts/gates/cm_dependency_register_verdicts_mutation_test.sh  (heavy_excluded)
+[374/641] SKIPPED-heavy scripts/gates/cm_diagram_embedded_not_orphan_mutation_test.sh  (heavy_excluded)
+[376/641] SKIPPED-heavy scripts/gates/cm_every_finding_closed_or_tracked_mutation_test.sh  (heavy_excluded)
+[377/641] SKIPPED-heavy scripts/gates/cm_evidence_analyzer_self_validated_mutation_test.sh  (heavy_excluded)
+[378/641] SKIPPED-heavy scripts/gates/cm_faq_from_real_questions_mutation_test.sh  (heavy_excluded)
+[379/641] SKIPPED-heavy scripts/gates/cm_feature_directive_mutation_test.sh  (heavy_excluded)
+[380/641] SKIPPED-heavy scripts/gates/cm_first_refusal_observed_mutation_test.sh  (heavy_excluded)
+[381/641] SKIPPED-heavy scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh  (heavy_excluded)
+[382/641] SKIPPED-heavy scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh  (heavy_excluded)
+[383/641] SKIPPED-heavy scripts/gates/cm_geo_substitute_anchor_wired_mutation_test.sh  (heavy_excluded)
+[384/641] SKIPPED-heavy scripts/gates/cm_git_hooks_installed_mutation_test.sh  (heavy_excluded)
+[385/641] SKIPPED-heavy scripts/gates/cm_github_issues_source_anchor_wired_mutation_test.sh  (heavy_excluded)
+[386/641] SKIPPED-heavy scripts/gates/cm_gitlink_on_remote_mutation_test.sh  (heavy_excluded)
+[387/641] SKIPPED-heavy scripts/gates/cm_guard_class_p_not_overridable_mutation_test.sh  (heavy_excluded)
+[388/641] SKIPPED-heavy scripts/gates/cm_guide_per_user_workflow_mutation_test.sh  (heavy_excluded)
+[389/641] SKIPPED-heavy scripts/gates/cm_healthcheck_covers_served_ports_mutation_test.sh  (heavy_excluded)
+[390/641] SKIPPED-heavy scripts/gates/cm_helix_deps_manifest_present_mutation_test.sh  (heavy_excluded)
+[391/641] SKIPPED-heavy scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh  (heavy_excluded)
+[392/641] SKIPPED-heavy scripts/gates/cm_hub_engine_no_ownorg_nesting_mutation_test.sh  (heavy_excluded)
+[393/641] SKIPPED-heavy scripts/gates/cm_installer_no_push_no_force_mutation_test.sh  (heavy_excluded (member of tests/install/run_all.sh))
+[394/641] SKIPPED-heavy scripts/gates/cm_installer_script_modes_mutation_test.sh  (heavy_excluded (member of tests/install/run_all.sh))
+[395/641] SKIPPED-heavy scripts/gates/cm_installer_snippets_consistent_mutation_test.sh  (heavy_excluded (member of tests/install/run_all.sh))
+[396/641] SKIPPED-heavy scripts/gates/cm_installer_truncation_safe_mutation_test.sh  (heavy_excluded (member of tests/install/run_all.sh))
+[397/641] SKIPPED-heavy scripts/gates/cm_instrument_trap_scan_mutation_test.sh  (heavy_excluded)
+[398/641] SKIPPED-heavy scripts/gates/cm_jev_bootstrap_idempotent_mutation_test.sh  (heavy_excluded)
+[399/641] SKIPPED-heavy scripts/gates/cm_jev_detection_mutation_test.sh  (heavy_excluded)
+[400/641] SKIPPED-heavy scripts/gates/cm_jev_token_reduction_mutation_test.sh  (heavy_excluded)
+[401/641] SKIPPED-heavy scripts/gates/cm_jev_wiring_mutation_test.sh  (heavy_excluded)
+[402/641] SKIPPED-heavy scripts/gates/cm_killpg_pgid_guard_mutation_test.sh  (heavy_excluded)
+[404/641] SKIPPED-heavy scripts/gates/cm_label_sync_adapters_mutation_test.sh  (heavy_excluded)
+[405/641] SKIPPED-heavy scripts/gates/cm_label_sync_core_mutation_test.sh  (heavy_excluded)
+[406/641] SKIPPED-heavy scripts/gates/cm_label_sync_hooks_mutation_test.sh  (heavy_excluded)
+[407/641] SKIPPED-heavy scripts/gates/cm_label_sync_mcp_mutation_test.sh  (heavy_excluded)
+[408/641] SKIPPED-heavy scripts/gates/cm_label_sync_render_mutation_test.sh  (heavy_excluded)
+[409/641] SKIPPED-heavy scripts/gates/cm_ledger_row_typed_from_closed_vocabulary_mutation_test.sh  (heavy_excluded)
+[410/641] SKIPPED-heavy scripts/gates/cm_llmctl_submodule_nonrecursive_mutation_test.sh  (heavy_excluded)
+[411/641] SKIPPED-heavy scripts/gates/cm_machine_evidence_at_every_gate_mutation_test.sh  (heavy_excluded)
+[412/641] SKIPPED-heavy scripts/gates/cm_mechanism_observed_refusing_mutation_test.sh  (heavy_excluded)
+[413/641] SKIPPED-heavy scripts/gates/cm_multitrack_engine_in_constitution_mutation_test.sh  (heavy_excluded)
+[414/641] SKIPPED-heavy scripts/gates/cm_mutation_score_on_diff_mutation_test.sh  (heavy_excluded)
+[415/641] SKIPPED-heavy scripts/gates/cm_no_narrative_only_pass_mutation_test.sh  (heavy_excluded)
+[416/641] SKIPPED-heavy scripts/gates/cm_no_nested_markdown_fence_leak_mutation_test.sh  (heavy_excluded)
+[417/641] SKIPPED-heavy scripts/gates/cm_opendesign_ui_system_mutation_test.sh  (heavy_excluded)
+[418/641] SKIPPED-heavy scripts/gates/cm_oracle_strategy_named_and_independent_mutation_test.sh  (heavy_excluded)
+[419/641] SKIPPED-heavy scripts/gates/cm_pr_delivery_account_name_free_mutation_test.sh  (heavy_excluded)
+[420/641] SKIPPED-heavy scripts/gates/cm_pr_delivery_anchor_wired_mutation_test.sh  (heavy_excluded)
+[421/641] SKIPPED-heavy scripts/gates/cm_provisional_done_anchor_wired_mutation_test.sh  (heavy_excluded)
+[422/641] SKIPPED-heavy scripts/gates/cm_readme_badge_row_at_top_mutation_test.sh  (heavy_excluded)
+[423/641] SKIPPED-heavy scripts/gates/cm_release_gate_anchor_wired_mutation_test.sh  (heavy_excluded)
+[424/641] SKIPPED-heavy scripts/gates/cm_reporting_directives_mutation_test.sh  (heavy_excluded)
+[425/641] SKIPPED-heavy scripts/gates/cm_repro_first_anchor_wired_mutation_test.sh  (heavy_excluded)
+[426/641] SKIPPED-heavy scripts/gates/cm_rule_binds_to_seam_mutation_test.sh  (heavy_excluded)
+[427/641] SKIPPED-heavy scripts/gates/cm_scope_and_image_noworse_anchor_wired_mutation_test.sh  (heavy_excluded)
+[428/641] SKIPPED-heavy scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[429/641] SKIPPED-heavy scripts/gates/cm_state_fields_anchor_wired_mutation_test.sh  (heavy_excluded)
+[430/641] SKIPPED-heavy scripts/gates/cm_subsystem_shortcuts_mutation_test.sh  (heavy_excluded)
+[431/641] SKIPPED-heavy scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh  (heavy_excluded)
+[432/641] SKIPPED-heavy scripts/gates/cm_track_branch_label_mutation_test.sh  (heavy_excluded)
+[433/641] SKIPPED-heavy scripts/gates/cm_unchallenged_capability_blocks_release_mutation_test.sh  (heavy_excluded)
+[434/641] SKIPPED-heavy scripts/gates/cm_unreferenced_gate_bound_or_retired_mutation_test.sh  (heavy_excluded)
+[435/641] SKIPPED-heavy scripts/gates/cm_user_manual_per_component_mutation_test.sh  (heavy_excluded)
+[436/641] SKIPPED-heavy scripts/gates/cm_version_increment_on_deploy_mutation_test.sh  (heavy_excluded)
+[437/641] SKIPPED-heavy scripts/gates/cm_zero_findings_audit_sweep_mutation_test.sh  (heavy_excluded)
+[438/641] SKIPPED-heavy scripts/gates/cm_zero_findings_monotone_ratchet_mutation_test.sh  (heavy_excluded)
+[440/641] SKIPPED-heavy scripts/gates/covenant_propagation_engine_compact_mutation_test.sh  (heavy_excluded)
+[441/641] SKIPPED-heavy scripts/gates/covenant_propagation_suite_accounting_mutation_test.sh  (heavy_excluded)
+[446/641] SKIPPED-heavy scripts/gates/scanner_gate_false_positive_repairs_mutation_test.sh  (heavy_excluded)
+[448/641] SKIPPED-heavy scripts/gates/suite_verdict_set_check_mutation_test.sh  (heavy_excluded)
+[453/641] SKIPPED-heavy scripts/hooks/test_credential_scan_lib_subsuite_mutation_test.sh  (heavy_excluded)
+[466/641] SKIPPED-heavy scripts/label-sync/mcp/prove_mcp_mutations.sh  (heavy_excluded)
+[467/641] SKIPPED-heavy scripts/label-sync/prove_adapter_mutations.sh  (heavy_excluded)
+[468/641] SKIPPED-heavy scripts/label-sync/prove_hook_mutations.sh  (heavy_excluded)
+[469/641] SKIPPED-heavy scripts/label-sync/prove_mutations.sh  (heavy_excluded)
+[470/641] SKIPPED-heavy scripts/label-sync/render/prove_mutations.sh  (heavy_excluded)
+[477/641] SKIPPED-heavy scripts/mechanical/tests/run_all.sh  (heavy_excluded (covers heavy members; default members run alone))
+[482/641] SKIPPED-heavy scripts/mechanical/tests/test_mutation_harness.sh  (heavy_excluded (member of scripts/mechanical/tests/run_all.sh))
+[501/641] SKIPPED-heavy scripts/multitrack/test_multitrack_redpin_mutations.sh  (heavy_excluded)
+[511/641] SKIPPED-heavy scripts/scheduled-work-engine/test/live_smoke.sh  (heavy_excluded)
+[512/641] SKIPPED-heavy scripts/scheduled-work-engine/test/meta_mutation.sh  (heavy_excluded)
+[515/641] SKIPPED-heavy scripts/validation/enumerate_decision_mutants.py  (heavy_excluded)
+[516/641] SKIPPED-heavy scripts/validation/meta_test_verification.sh  (heavy_excluded)
+[520/641] SKIPPED-heavy scripts/validation/test_meta_test_verification_r1_regression.sh  (heavy_excluded)
+[522/641] SKIPPED-heavy scripts/workable-items/mutation/states_mutation_runner.py  (heavy_excluded)
+[523/641] SKIPPED-heavy tests/action_prefix/meta_test_action_prefix_grammar.sh  (heavy_excluded)
+[527/641] SKIPPED-heavy tests/constitution_cmd/mutation_test_constitution_cmd.sh  (heavy_excluded)
+[529/641] SKIPPED-heavy tests/constitution_cmd/test_constitution_cmd_pty.sh  (heavy_excluded)
+[533/641] SKIPPED-heavy tests/constitution_cmd/test_wiring_cmd_mutations.sh  (heavy_excluded)
+[534/641] SKIPPED-heavy tests/decisions/run_all.sh  (heavy_excluded (covers heavy members; default members run alone))
+[535/641] SKIPPED-heavy tests/decisions/test_chaos_stress.sh  (heavy_excluded (member of tests/decisions/run_all.sh))
+[538/641] SKIPPED-heavy tests/decisions/test_own_mutants.sh  (heavy_excluded (member of tests/decisions/run_all.sh))
+[539/641] SKIPPED-heavy tests/decisions/test_repo_guard_mutants.sh  (heavy_excluded (member of tests/decisions/run_all.sh))
+[553/641] SKIPPED-heavy tests/extensions/test_chaos.sh  (heavy_excluded (dropped by --quick of tests/extensions/run_all.sh))
+[554/641] SKIPPED-heavy tests/extensions/test_integration.sh  (heavy_excluded (dropped by --quick of tests/extensions/run_all.sh))
+[555/641] SKIPPED-heavy tests/extensions/test_mutations.sh  (heavy_excluded (dropped by --quick of tests/extensions/run_all.sh))
+[556/641] SKIPPED-heavy tests/extensions/test_ownership_e01_mutations.sh  (heavy_excluded (dropped by --quick of tests/extensions/run_all.sh))
+[557/641] SKIPPED-heavy tests/extensions/test_stress_perf.sh  (heavy_excluded (dropped by --quick of tests/extensions/run_all.sh))
+[558/641] SKIPPED-heavy tests/extensions/test_wiring_ledger_mutations.sh  (heavy_excluded (dropped by --quick of tests/extensions/run_all.sh))
+[569/641] SKIPPED-heavy tests/gates/test_manifest_structural_parser_mutation_test.sh  (heavy_excluded)
+[576/641] SKIPPED-heavy tests/install/mutants_round11.sh  (heavy_excluded)
+[577/641] SKIPPED-heavy tests/install/run_all.sh  (heavy_excluded (covers heavy members; default members run alone))
+[579/641] SKIPPED-heavy tests/install/test_chaos.sh  (heavy_excluded (member of tests/install/run_all.sh))
+[594/641] SKIPPED-heavy tests/install/test_stress_perf.sh  (heavy_excluded (member of tests/install/run_all.sh))
+[600/641] SKIPPED-heavy tests/layout/test_layout_mutations.sh  (heavy_excluded)
+[601/641] SKIPPED-heavy tests/prompts/run_all.sh  (heavy_excluded (covers heavy members; default members run alone))
+[602/641] SKIPPED-heavy tests/prompts/test_rotate_chaos.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[608/641] SKIPPED-heavy tests/prompts/test_rotate_lock_race_mutants.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[610/641] SKIPPED-heavy tests/prompts/test_rotate_stress_perf.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[616/641] SKIPPED-heavy tests/prompts/test_setup_prompt_round3_mutants.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[618/641] SKIPPED-heavy tests/prompts/test_setup_prompt_round4_mutants.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[620/641] SKIPPED-heavy tests/prompts/test_setup_prompt_round5_mutants.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[622/641] SKIPPED-heavy tests/prompts/test_setup_prompt_round5_stops_mutants.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[624/641] SKIPPED-heavy tests/prompts/test_setup_prompt_round7_mutants.sh  (heavy_excluded (member of tests/prompts/run_all.sh))
+[635/641] SKIPPED-heavy tests/test_run_full_suite_go_mutations.sh  (heavy_excluded)
+[636/641] SKIPPED-heavy tests/test_run_full_suite_mutations.sh  (heavy_excluded)
+[637/641] SKIPPED-heavy tests/test_run_full_suite_mutations_table.sh  (heavy_excluded)
+[639/641] SKIPPED-heavy tests/token_efficiency/meta_test_token_efficiency.sh  (heavy_excluded)
+full-suite summary  sha=a3b8564efea9e51e5fc5ed69e78628b1d8baba08 tree=bc3f5299bbd46c979ea0e7ee1af282cc0ef012c6ed2c95a2af5e0a44c398c42a ctx=32baae9441a77168 mode=default root=/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/constitution
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=27 py/fixture=14 py/member=24 runall/entry=9 sh/entry=357 sh/excluded=26 sh/fixture=111 sh/member=314 total=902
+units=641 (run in this mode=357, heavy not run=284); known-failures table: 2 open row(s) (/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/constitution/config/full_suite_known_failures.tsv)
+PASS           3
+FAIL           0
+SKIP           6
+TIMEOUT        0
+ERROR          0
+SKIPPED-heavy  284
+NOT-RUN        348
+PASS with verdict_source=exit-code-only (no suite summary recognised): 1
+KNOWN (failing, matched to an open row of the CURRENT table): 0
+NONDETERMINISTIC (records of one key disagree; the worst verdict counts): 0
+leaked processes killed after their unit: 2
+topology: layout=standalone submodules=27 gaps=27 (allowed)
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/MVT
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/agentic-validation
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/anti_bluff
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/claude-video
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/claude_toolkit
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/containers
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/continuum
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/design-toolkit
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/docs_chain
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/donespec
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/helix_perf_cache
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/llmctl
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/mcp-audio-tweaker
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/open_design
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/polyscreen-mcp
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/repo-proof
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/repo-qa
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/session_orchestrator
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/skill-doctor
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/superspec
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/token_optimizer
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/verfix
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/verification
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/verify
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/video-quality-mcp
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/watch-skill
+TOPOLOGY GAP (allowed): uninitialised submodule: submodules/wave-dpctf
+identity of the code that ran: head=a3b8564efea9 subs=81bf3cb57109cc22 dirty=clean
+members also run alone because their covering script discards their exit status: 4
+EXCLUDED (manifest rows never run; reviewed set pinned by /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/constitution/config/full_suite_excluded.lock): 58
+EXCLUDED  scripts/amendment_log/tests/independent_lossless_rebuild.py  (reason: library: library used by the amendment_log status-summary tests; not a test entry point)
+EXCLUDED  scripts/anchors/tests/_paths.py  (reason: library: path-setup module imported by the anchors python tests)
+EXCLUDED  scripts/catalog-engine/lib/parse_mutation.py  (reason: library: parser library imported by scripts/catalog-engine/lib/scan.py (the catalog generator); tested by scripts/catalog-engine/tests/test_parse_mutation.sh)
+EXCLUDED  scripts/codegraph/tests/cg_fp.py  (reason: library: fingerprint helper module called by test_codegraph_mcp.sh and test_mcp_readonly.sh)
+EXCLUDED  scripts/codegraph/tests/t_scope_cases.py  (reason: data: case data module used by run_scope_tests.sh)
+EXCLUDED  scripts/codegraph/tests/t_scope_fixture.py  (reason: library: fixture builder imported by t_scope_cases.py, which run_scope_tests.sh runs directly and t_scope_mutations.py runs against each mutant)
+EXCLUDED  scripts/codegraph/tests/test_resolve1_count_hook.js  (override: reason: tool: node --require hook loaded by test_resolve1.sh (shell model cannot see the node invocation); exits 0 alone, so a standalone run is a vacuous PASS; not a test)
+EXCLUDED  scripts/codegraph/tests/test_resolve1_drive.js  (override: reason: tool: node driver that needs <distDir> <db> args, run by test_resolve1.sh and test_resolve2.sh (shell model cannot see the node invocation); not a test)
+EXCLUDED  scripts/codegraph/tests/test_resolve1_dump.py  (override: reason: tool: argv-driven helper (usage: test_resolve1_dump.py <db> <outprefix>) invoked by test_resolve1.sh and test_resolve2.sh, which check its output; with no arguments it raises IndexError, so a standalone run is a false FAIL; not a test)
+EXCLUDED  scripts/codegraph/tests/test_resolve1_equiv_real.js  (override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve2.sh (shell model cannot see the node invocation); not a test)
+EXCLUDED  scripts/codegraph/tests/test_resolve1_fixture.py  (override: reason: tool: argv-driven fixture generator (usage: test_resolve1_fixture.py <outdir> <n_filler> <n_probe> [--mixed|--novue]) invoked by test_resolve1.sh; with no arguments it raises IndexError, so a standalone run is a false FAIL; not a test)
+EXCLUDED  scripts/codegraph/tests/test_resolve1_probe.js  (override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve1.sh (shell model cannot see the node invocation); not a test)
+EXCLUDED  scripts/codegraph/tests/test_resolve2_probe.js  (override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve2.sh (shell model cannot see the node invocation); not a test)
+EXCLUDED  scripts/fastcycle/gates/mutation_reuse.py  (reason: library: fastcycle gate library; exercised only by heavy-tier members test_mutation_reuse_red.sh and test_verdict_cache_mutation_reuse_r2_key_coverage_regression.sh of scripts/fastcycle/tests/run_all.sh)
+EXCLUDED  scripts/fastcycle/tests/capture_fc_timer_triplet.sh  (reason: tool: evidence producer exercised by test_capture_fc_timer_triplet.sh; not a test)
+EXCLUDED  scripts/fastcycle/tests/check_deps.sh  (reason: tool: tool-presence probe used by fastcycle tests; not a test)
+EXCLUDED  scripts/fastcycle/tests/check_safepath_census.py  (reason: tool: path-operation census of fc_supervisor.py and baseline_replay.sh, run by test_fc_safepath_v4r12.sh..v4r15.sh (default members of scripts/fastcycle/tests/run_all.sh) and mutated by test_fastcycle_r6_mutations.sh; not a test entry point)
+EXCLUDED  scripts/fastcycle/tests/lib/bb_ref_bisect.py  (reason: oracle: reference bisector used as an oracle by test_batch_bisect_red.sh)
+EXCLUDED  scripts/fastcycle/tests/lib/consumer_required.sh  (reason: helper: sourced by scripts/fastcycle/tests/test_churn_rank_red.sh)
+EXCLUDED  scripts/fastcycle/tests/lib/dec07_key_ref.py  (reason: oracle: reference implementation used as an oracle by test_verdict_cache_red.sh (test_batch_bisect_red.sh and test_gate_shard_red.sh name it only in comments))
+EXCLUDED  scripts/fastcycle/tests/lib/dec15_flake_ref.py  (reason: oracle: reference implementation used as an oracle by test_flake_ledger_red.sh)
+EXCLUDED  scripts/fastcycle/tests/lib/dec17_drift_ref.py  (reason: oracle: reference implementation used as an oracle by test_backstop_red.sh)
+EXCLUDED  scripts/fastcycle/tests/lib/dec23_key_ref.py  (reason: oracle: reference implementation used as an oracle by test_mutation_reuse_red.sh (heavy tier only))
+EXCLUDED  scripts/fastcycle/tests/lib/foreign_uid_cause.sh  (reason: tool: host probe that prints the measured foreign-uid SKIP cause; called by test_fc_safepath_v4r12.sh..v4r15.sh and test_fc_supervisor_unit.sh; exits 0 always (a probe, never a gate))
+EXCLUDED  scripts/fastcycle/tests/lib/golden_triplet_fixture.sh  (reason: helper: sourced by scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh)
+EXCLUDED  scripts/fastcycle/tests/lib/guard_freshness_ref.py  (reason: oracle: reference implementation used as an oracle by test_backstop_red.sh)
+EXCLUDED  scripts/fastcycle/tests/lib/render_keys_ref.py  (reason: oracle: reference implementation that generated the key fixtures under scripts/fastcycle/tests/fixtures/render_keys/; test_render_keys_red.sh only checks that it exists; no unit runs it (CON-088))
+EXCLUDED  scripts/fastcycle/tests/lib/review_record_genuine.sh  (reason: helper: sourced by scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh)
+EXCLUDED  scripts/fastcycle/tests/lib/review_record_guard_analyzer.py  (reason: tool: guard-site analyzer (list/mutate) used by sweep_review_record_subclauses.sh and test_review_record_guard_table.sh; not a test entry point)
+EXCLUDED  scripts/fastcycle/tests/lib/shard_ref.py  (reason: oracle: reference implementation used as an oracle by test_gate_shard_red.sh (test_gate_shard_r1_regression.sh names it only in a comment))
+EXCLUDED  scripts/fastcycle/tests/lib/tce_normalize_ref.py  (reason: oracle: reference implementation used as an oracle by test_mutation_reuse_red.sh (heavy tier only))
+EXCLUDED  scripts/fastcycle/tests/lib/triple_harness.sh  (reason: library: self-validation runner library used by fastcycle tests)
+EXCLUDED  scripts/fastcycle/tests/mutate_tier_legs.py  (reason: tool: ~30-minute enumerator of single-edit mutants of the review_record.py tier legs (run by hand); its output is the tracked equivalence list fixtures/review_record_tier_leg_equivalents.tsv)
+EXCLUDED  scripts/fastcycle/tests/sweep_review_record_subclauses.sh  (reason: tool: ~70-minute generator of fixtures/review_record_subclause_kills.tsv (run by hand with --out); its control logic is tested by test_sweep_review_record_subclauses_red.sh)
+EXCLUDED  scripts/gates/cm_build_on_source_proven_not_test_side.sh  (reason: gate: a gate, not a test; its paired test is cm_build_on_source_proven_not_test_side_mutation_test.sh)
+EXCLUDED  scripts/gates/cm_mutation_score_on_diff.sh  (reason: gate: a gate, not a test; its paired test is cm_mutation_score_on_diff_mutation_test.sh)
+EXCLUDED  scripts/gates/cm_setup_prompt_latest_present.sh  (reason: gate: a gate, not a test (in the census only because 'latest' contains 'test'); its paired test is cm_setup_prompt_latest_present_mutation_test.sh; also run by the pre-build gate sweep)
+EXCLUDED  scripts/gates/cm_test_mock_pid_explicit_int.sh  (reason: gate: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh)
+EXCLUDED  scripts/gates/lib/covenant_propagation_mutation_engine.sh  (reason: library: mutation engine library called by the cm_covenant_*_mutation_test.sh entries)
+EXCLUDED  scripts/gates/lib/gate_mutation_harness.sh  (reason: library: mutation harness library called by cm_*_mutation_test.sh entries)
+EXCLUDED  scripts/gates/lib/shell_mutation_engine.sh  (reason: library: mutation engine library used by cm_mutation_score_on_diff.sh)
+EXCLUDED  scripts/label-sync/adapters/tests/fake_openai.py  (reason: fake: unit-class fake server used by cm_label_sync_adapters gate tests (section 11.4.289(C)(2)))
+EXCLUDED  scripts/label-sync/hook_mutants.py  (reason: library: mutant catalogue module used by prove_hook_mutations.sh and cm_label_sync_hooks)
+EXCLUDED  scripts/lumen/tests/fake_ollama.py  (reason: fake: unit-class fake server used by test_gen_lumenignore.sh (section 11.4.289(C)(2)))
+EXCLUDED  scripts/mechanical/mutation_harness.sh  (reason: tool: a tool that applies one named mutation; tested by scripts/mechanical/tests/test_mutation_harness.sh and called by gate mutation tests; not a test)
+EXCLUDED  scripts/mechanical/tests/lib/assert.sh  (reason: helper: sourced by scripts/mechanical/tests/test_anchor_census.sh)
+EXCLUDED  tests/decisions/lib.sh  (reason: helper: sourced by tests/decisions/test_chaos_stress.sh)
+EXCLUDED  tests/decisions/repo_guard.sh  (reason: helper: sourced by tests/decisions/run_all.sh)
+EXCLUDED  tests/extensions/lib.sh  (reason: helper: sourced by tests/extensions/test_attacks.sh)
+EXCLUDED  tests/install/lib.sh  (reason: helper: sourced by tests/install/test_agent.sh)
+EXCLUDED  tests/jev/fixtures-shared/jev_scripts/bootstrap.sh  (reason: fake: recording stub used by post_update_hook trigger tests)
+EXCLUDED  tests/jev/lib_assert.sh  (reason: helper: sourced by tests/jev/test_anchor_renumber_integrity.sh)
+EXCLUDED  tests/layout/hermetic_lint.py  (reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point)
+EXCLUDED  tests/layout/lib_layout_harness.sh  (reason: helper: sourced by tests/layout/test_canonical_root_layout.sh)
+EXCLUDED  tests/lib/make_fixture_tracker.sh  (reason: library: fixture-tracker builder library used by tests/gates tests)
+EXCLUDED  tests/prompts/allowlist_bypass_forms.py  (reason: library: bypass-form injector used by tests/prompts round tests)
+EXCLUDED  tests/prompts/git_allowlist.py  (reason: library: allow-list guard module used by tests/prompts tests)
+EXCLUDED  tests/prompts/lib.sh  (reason: helper: sourced by tests/prompts/test_rotate_chaos.sh)
+EXCLUDED set last accepted_by: i@mvasic.ru
+--- non-PASS, nondeterministic and exit-code-only units
+NOT-RUN  docs/research/quality/solutions/poc/sol01_status_custody/test_sol01.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol02_verdict_coverage/test_sol02.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol03_needled_measurement/test_sol03.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol04_evidence_class/test_sol04.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol05_gate_ledger/test_sol05.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol06_anchor_integrity/test_sol06.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol07_intake_dedup/test_sol07.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol08_scope_coverage/test_sol08.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol09_detection_pressure/test_sol09.sh
+NOT-RUN  docs/research/quality/solutions/poc/sol10_mu_layer/test_sol10.sh
+NOT-RUN  scripts/amendment_log/tests/test_status_summary_archive.sh
+NOT-RUN  scripts/anchors/tests/run_all.sh
+NOT-RUN  scripts/badges/test_static_badges.sh
+NOT-RUN  scripts/badges/test_twins_badge_formats_switch.sh
+NOT-RUN  scripts/catalog-engine/tests/test_parse_gate_wrappers.sh
+NOT-RUN  scripts/catalog-engine/tests/test_parse_mutation.sh
+NOT-RUN  scripts/codegraph/tests/lib_test.sh
+NOT-RUN  scripts/codegraph/tests/run_scope_tests.sh
+NOT-RUN  scripts/codegraph/tests/test_codegraph_launch_class.py
+NOT-RUN  scripts/codegraph/tests/test_codegraph_mcp.sh
+NOT-RUN  scripts/codegraph/tests/test_codegraph_mcp_preflight.sh
+NOT-RUN  scripts/codegraph/tests/test_fk_cascade_probe.py
+NOT-RUN  scripts/codegraph/tests/test_guard.sh
+NOT-RUN  scripts/codegraph/tests/test_mcp_readonly.sh
+NOT-RUN  scripts/codegraph/tests/test_owed_report.py
+NOT-RUN  scripts/codegraph/tests/test_patch_machinery.py
+NOT-RUN  scripts/codegraph/tests/test_resolve1.sh
+NOT-RUN  scripts/codegraph/tests/test_resolve2.sh
+NOT-RUN  scripts/codegraph/tests/test_scope_exceptions.py
+NOT-RUN  scripts/codegraph/tests/test_tripwire.sh
+NOT-RUN  scripts/codegraph/tests/test_unit_safe.sh
+NOT-RUN  scripts/codegraph/tests/test_update_and_resync.sh
+NOT-RUN  scripts/codegraph/tests/test_watch_startup_race.py
+NOT-RUN  scripts/credscan/tests/test_credscan.py
+NOT-RUN  scripts/doc_integrity
+NOT-RUN  scripts/extensions/install_speckit_superpowers_bridge_test.sh
+NOT-RUN  scripts/fastcycle/tests/test_2nd_display_triage_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_affected_set_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_alias_spread_red.sh
+SKIP  scripts/fastcycle/tests/test_anchor_citations_red.sh  (topology_unsupported) logs/000020.log
+NOT-RUN  scripts/fastcycle/tests/test_backstop_compare_exit_codes_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_backstop_compare_r3_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_backstop_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_baseline_replay_r2_findings.sh
+NOT-RUN  scripts/fastcycle/tests/test_baseline_replay_r4_findings.sh
+NOT-RUN  scripts/fastcycle/tests/test_baseline_replay_r6_findings.sh
+NOT-RUN  scripts/fastcycle/tests/test_baseline_replay_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_baseline_replay_worktree_cleanup.sh
+NOT-RUN  scripts/fastcycle/tests/test_batch_bisect_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_batch_bisect_r3_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_batch_bisect_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_batch_bisect_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_build_deploy_qa_events_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh
+NOT-RUN  scripts/fastcycle/tests/test_catchset_compare_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_catchset_compare_seed_independence_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_catchset_compare_sourced_hash_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_check_deps.sh
+NOT-RUN  scripts/fastcycle/tests/test_churn_rank_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_collect_baseline_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_consumer_audit_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_consumer_enumerate_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_consumer_migrate_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_consumer_required_helper.sh
+NOT-RUN  scripts/fastcycle/tests/test_core_ondemand_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r19_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r21_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r7_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r8_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_r9_regression.sh
+SKIP  scripts/fastcycle/tests/test_custody_sweep_red.sh  (topology_unsupported) logs/000024.log
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_cycle_report_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_cycle_report_s12_fix_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_disk_floor_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_dispatch_stamp_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_escape_classify_malformed_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_escape_classify_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_evidence_ref_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_commit_stage_timer_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_common_atomic_backup_collision_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_common_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_entry_r10_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_safepath_v4r12.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_safepath_v4r13.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_safepath_v4r14.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_safepath_v4r15.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_supervisor_unit.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh
+SKIP  scripts/fastcycle/tests/test_fc_timer_golden_output.sh  (topology_unsupported) logs/000027.log
+NOT-RUN  scripts/fastcycle/tests/test_fc_timer_golden_output_r10_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_timer_golden_output_r14_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_timer_golden_output_r1restart_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_timer_golden_output_r22_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_timer_golden_output_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_timer_golden_output_r7_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_timer_golden_output_r8_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_fc_timer_prebuild_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_flake_ledger_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_gate_audit_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_gate_determinism_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_gate_order_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_gate_shard_protected_serial_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_gate_shard_r1_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_gate_shard_r3_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_gate_shard_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_governance_subset_conservative.sh
+NOT-RUN  scripts/fastcycle/tests/test_governance_subset_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_handoff_i4_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_handoff_r11_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_handoff_r6_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_handoff_r7_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_handoff_r8_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_handoff_r9_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_handoff_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_heartbeat_liveness_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_host_attribute_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_host_cleanup_refusal_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_host_exclusive_bytes_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_host_guard_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_host_limits_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_host_needle_scratch_dir_safety_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_host_report_probe_thread_headroom_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_host_report_thread_limit_r1_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_io_trace_build_map_r3_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_io_trace_build_map_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_io_trace_build_map_r6_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_io_trace_build_map_setsid_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_io_trace_fork_cwd_and_faccessat_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_io_trace_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_limit_class_place_r5i3_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_limit_class_r11_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_limit_class_r6_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_limit_class_r7_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_limit_class_r8_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_limit_class_r9_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_limit_class_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_plan_struct_causes_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_plan_struct_full_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_plan_struct_landing_rulediff_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_plan_struct_triple_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_prebuild_tsv_root_wiring_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_precheck_pack_build_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_precheck_pack_multi_slice_sibling_search_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_precheck_shellcheck_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_precheck_sibling_blast_radius_honest_verdict_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_precheck_sibling_search_unmeasured_literal_r6_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_precheck_slicer_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_prefix_cache_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_render_keys_concurrent_edit_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_render_keys_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_render_keys_wiring_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_reopen_rate_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_reopen_rate_state_red.sh
+PASS [exit-code-only]  scripts/fastcycle/tests/test_repo_verify_red.sh  () logs/000038.log
+NOT-RUN  scripts/fastcycle/tests/test_resume_revalidate_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_evidence_hash_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_finding_layer_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_gate_authority_r1_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_gate_authority_r2_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_gate_authority_r3_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_gate_authority_r4_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_guard_table.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_resolution_ground_truth.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_round_budget_boundary_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_skip_status_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_store_tier_all_entries_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_store_tier_noncanonical_tmpdir_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_subclause_cases.sh
+NOT-RUN  scripts/fastcycle/tests/test_review_record_tier_legs_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_run_all.sh
+NOT-RUN  scripts/fastcycle/tests/test_select_sample_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tests/test_shipped_workable_items_us3_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_sibling_search_check_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_sweep_review_record_subclauses_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_tier_route_failclosed.sh
+NOT-RUN  scripts/fastcycle/tests/test_tier_routing_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_token_attribution_red.sh
+SKIP  scripts/fastcycle/tests/test_token_stability_red.sh  (topology_unsupported) logs/000040.log
+SKIP  scripts/fastcycle/tests/test_tool_deferral_red.sh  (topology_unsupported) logs/000041.log
+NOT-RUN  scripts/fastcycle/tests/test_tower_detector_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_triple_harness_red.sh
+NOT-RUN  scripts/fastcycle/tests/test_unparseable_timestamp_regression.sh
+SKIP  scripts/fastcycle/tests/test_verdict_cache_red.sh  (topology_unsupported) logs/000043.log
+NOT-RUN  scripts/fastcycle/tokens/test_dispatch_stamp.sh
+NOT-RUN  scripts/fastcycle/tokens/test_dispatch_stamp_class.sh
+NOT-RUN  scripts/fastcycle/tokens/test_dispatch_stamp_r4_regression.sh
+NOT-RUN  scripts/fastcycle/tokens/test_dispatch_stamp_r5_regression.sh
+NOT-RUN  scripts/fastcycle/tokens/test_dispatch_stamp_r7_matrix.sh
+NOT-RUN  scripts/gates/cm_escape_ratchet_selftest.sh
+NOT-RUN  scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh
+NOT-RUN  scripts/gates/covenant_propagation_default_root_test.sh
+NOT-RUN  scripts/gates/covenant_propagation_suite_default_root_test.sh
+NOT-RUN  scripts/gates/covenant_propagation_superspec_exclusion_test.sh
+NOT-RUN  scripts/gates/covenant_propagation_superspec_exclusion_topology_test.sh
+NOT-RUN  scripts/gates/covenant_propagation_third_party_hub_exclusion_test.sh
+NOT-RUN  scripts/gates/scanner_gate_false_positive_repairs_test.sh
+NOT-RUN  scripts/gates/test_289_clause_d_not_overbroad.sh
+NOT-RUN  scripts/gates/test_wiring_sweep_precondition.sh
+NOT-RUN  scripts/hooks/test_credential_scan_lib.sh
+NOT-RUN  scripts/hooks/test_credential_scan_lib_akia_literal_free.sh
+NOT-RUN  scripts/hooks/test_guard_agent_type_label.sh
+NOT-RUN  scripts/hooks/test_guard_branch_consistency.sh
+NOT-RUN  scripts/hooks/test_guard_destructive_paths.sh
+NOT-RUN  scripts/hooks/test_guard_evidence_store_write.sh
+NOT-RUN  scripts/hooks/test_guard_forbidden_commands.sh
+NOT-RUN  scripts/hooks/test_guard_nul_regression.sh
+NOT-RUN  scripts/hooks/test_guard_track_branch_label.sh
+NOT-RUN  scripts/hooks/test_guard_work_track_binding.sh
+NOT-RUN  scripts/hooks/test_label_sync_hooks.sh
+NOT-RUN  scripts/label-sync
+NOT-RUN  scripts/label-sync/adapters/tests/test_adapters.sh
+NOT-RUN  scripts/label-sync/adapters/tests/test_real_agents.sh
+NOT-RUN  scripts/label-sync/render/tests/test_render.sh
+NOT-RUN  scripts/lib/test_safe_rm.sh
+NOT-RUN  scripts/lib/test_user_bus_env.sh
+NOT-RUN  scripts/llm-alias-health
+NOT-RUN  scripts/lumen/tests/test_gen_lumenignore.sh
+NOT-RUN  scripts/lumen/tests/test_lumen_verify.sh
+NOT-RUN  scripts/mechanical/tests/test_anchor_census.sh
+NOT-RUN  scripts/mechanical/tests/test_await_condition.sh
+NOT-RUN  scripts/mechanical/tests/test_census_query.sh
+NOT-RUN  scripts/mechanical/tests/test_mech_common.sh
+NOT-RUN  scripts/mechanical/tests/test_residue_scan.sh
+NOT-RUN  scripts/mechanical/tests/test_suite_fanout.sh
+NOT-RUN  scripts/multitrack/test_gen_agent_label_defs.sh
+NOT-RUN  scripts/multitrack/test_install_agent_label_defs.sh
+NOT-RUN  scripts/multitrack/test_multitrack_alias_priority_limits.sh
+NOT-RUN  scripts/multitrack/test_multitrack_bootstrap.sh
+NOT-RUN  scripts/multitrack/test_multitrack_conductor_autoarm.sh
+NOT-RUN  scripts/multitrack/test_multitrack_cwd_hook_consumer_root.sh
+NOT-RUN  scripts/multitrack/test_multitrack_cwd_hook_owner_guard.sh
+NOT-RUN  scripts/multitrack/test_multitrack_excluded_aliases.sh
+NOT-RUN  scripts/multitrack/test_multitrack_host_budget_jvm_daemons.sh
+NOT-RUN  scripts/multitrack/test_multitrack_host_budget_rb02_pgrep.sh
+NOT-RUN  scripts/multitrack/test_multitrack_monday_dryrun.sh
+NOT-RUN  scripts/multitrack/test_multitrack_native_first_fallback.sh
+NOT-RUN  scripts/multitrack/test_multitrack_orchestrator_reconcile.sh
+NOT-RUN  scripts/multitrack/test_multitrack_orchestrator_reconcile_rc.sh
+NOT-RUN  scripts/multitrack/test_multitrack_owner_lock_probe_race.sh
+NOT-RUN  scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh
+NOT-RUN  scripts/multitrack/test_multitrack_ruler_suite.sh
+NOT-RUN  scripts/multitrack/test_multitrack_sessions_argparse.sh
+NOT-RUN  scripts/multitrack/test_multitrack_sessions_balance_autoselect.sh
+NOT-RUN  scripts/multitrack/test_multitrack_sessions_pid_status.sh
+NOT-RUN  scripts/multitrack/test_multitrack_supervisor.sh
+NOT-RUN  scripts/multitrack/test_multitrack_supervisor_wiring.sh
+NOT-RUN  scripts/multitrack/test_multitrack_work_binding_submodule_db.sh
+NOT-RUN  scripts/multitrack/test_ruler_suite_discovery.sh
+NOT-RUN  scripts/scheduled-work-engine
+NOT-RUN  scripts/skill_activation/test_skill_activation.sh
+NOT-RUN  scripts/test_portable_skill_symlink.sh
+NOT-RUN  scripts/validation/test_decision_mutant_census_wording_r1_regression.sh
+NOT-RUN  scripts/validation/test_enumerate_decision_mutants.sh
+NOT-RUN  scripts/validation/test_enumerate_decision_mutants_r2_regression.sh
+NOT-RUN  scripts/workable-items
+NOT-RUN  tests/action_prefix/test_action_prefix_grammar.sh
+NOT-RUN  tests/action_prefix/test_hook_e2e.sh
+NOT-RUN  tests/action_prefix/test_subsystem_shortcuts.sh
+NOT-RUN  tests/constitution_cmd/test_constitution_cmd.sh
+NOT-RUN  tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh
+NOT-RUN  tests/constitution_cmd/test_register.sh
+NOT-RUN  tests/constitution_cmd/test_wiring_cmd.sh
+NOT-RUN  tests/decisions/test_core.sh
+NOT-RUN  tests/decisions/test_is_locked_contract.sh
+NOT-RUN  tests/decisions/test_round10.sh
+NOT-RUN  tests/decisions/test_round11.sh
+NOT-RUN  tests/decisions/test_round2.sh
+NOT-RUN  tests/decisions/test_round3.sh
+NOT-RUN  tests/decisions/test_round4.sh
+NOT-RUN  tests/decisions/test_round5.sh
+NOT-RUN  tests/decisions/test_round6.sh
+NOT-RUN  tests/decisions/test_round7.sh
+NOT-RUN  tests/decisions/test_round8.sh
+NOT-RUN  tests/decisions/test_round9.sh
+NOT-RUN  tests/decisions/test_tty_e2e.sh
+NOT-RUN  tests/docs/test_no_dead_methodology_link.sh
+NOT-RUN  tests/extensions/run_all.sh --quick
+NOT-RUN  tests/gates/test_con144_blk_read_order.sh
+NOT-RUN  tests/gates/test_default_scan_root.sh
+NOT-RUN  tests/gates/test_execution_record_selfpath.sh
+NOT-RUN  tests/gates/test_fastcycle_real_db.sh
+NOT-RUN  tests/gates/test_gate_env_census_closure.sh
+NOT-RUN  tests/gates/test_gate_env_census_jq_regions.sh
+NOT-RUN  tests/gates/test_gate_env_overrides_guarded.sh
+NOT-RUN  tests/gates/test_helix_deps_field.sh
+NOT-RUN  tests/gates/test_help_full_header.sh
+NOT-RUN  tests/gates/test_manifest_structural_parser.sh
+NOT-RUN  tests/gates/test_oracle_frozen_exclusions.sh
+NOT-RUN  tests/gates/test_oracle_ratchet_and_consumer_skips.sh
+NOT-RUN  tests/gates/test_oracle_verdict_fields.sh
+NOT-RUN  tests/gates/test_standalone_canon_gates.sh
+NOT-RUN  tests/gates/test_workable_items_db_sidecars_ignored.sh
+NOT-RUN  tests/hooks_range/test_post_update_hook_range.sh
+NOT-RUN  tests/install/test_agent.sh
+NOT-RUN  tests/install/test_detection.sh
+NOT-RUN  tests/install/test_determinism.sh
+NOT-RUN  tests/install/test_e2e.sh
+NOT-RUN  tests/install/test_git_wrapper.sh
+NOT-RUN  tests/install/test_integration.sh
+NOT-RUN  tests/install/test_lock.sh
+NOT-RUN  tests/install/test_minor.sh
+NOT-RUN  tests/install/test_round10.sh
+NOT-RUN  tests/install/test_round11.sh
+NOT-RUN  tests/install/test_round6.sh
+NOT-RUN  tests/install/test_round8.sh
+NOT-RUN  tests/install/test_round9.sh
+NOT-RUN  tests/install/test_security.sh
+NOT-RUN  tests/install/test_self_guard.sh
+NOT-RUN  tests/install/test_unit.sh
+NOT-RUN  tests/install/test_updater.sh
+NOT-RUN  tests/install/test_upstream_main.sh
+NOT-RUN  tests/jev/run_all.sh
+NOT-RUN  tests/layout/run_all.sh
+NOT-RUN  tests/prompts/test_rotate_e2e.sh
+NOT-RUN  tests/prompts/test_rotate_hardening.sh
+NOT-RUN  tests/prompts/test_rotate_idem_determinism.sh
+NOT-RUN  tests/prompts/test_rotate_integration.sh
+NOT-RUN  tests/prompts/test_rotate_lock_race.sh
+NOT-RUN  tests/prompts/test_rotate_security.sh
+NOT-RUN  tests/prompts/test_rotate_unit.sh
+NOT-RUN  tests/prompts/test_setup_prompt_behaviour.sh
+NOT-RUN  tests/prompts/test_setup_prompt_content.sh
+NOT-RUN  tests/prompts/test_setup_prompt_extract_equivalence.sh
+NOT-RUN  tests/prompts/test_setup_prompt_round3.sh
+NOT-RUN  tests/prompts/test_setup_prompt_round4.sh
+NOT-RUN  tests/prompts/test_setup_prompt_round5.sh
+NOT-RUN  tests/prompts/test_setup_prompt_round5_stops.sh
+NOT-RUN  tests/prompts/test_setup_prompt_round7.sh
+NOT-RUN  tests/release/test_derive_release_facts.sh
+NOT-RUN  tests/release/test_publish_gitea.sh
+NOT-RUN  tests/release/test_render_release_entry.sh
+NOT-RUN  tests/release/test_tag_and_release.sh
+NOT-RUN  tests/test_cli_agent_plugins.sh
+NOT-RUN  tests/test_no_head_red_builder.sh
+NOT-RUN  tests/test_no_head_red_builder_mutations.sh
+NOT-RUN  tests/test_post_update_hub_gates.sh
+NOT-RUN  tests/test_run_full_suite.sh
+NOT-RUN  tests/test_run_full_suite_go.sh
+NOT-RUN  tests/test_verify_helix_deps_manifests.sh
+NOT-RUN  tests/token_efficiency/test_token_efficiency_integration.sh
+NOT-RUN  tests/token_efficiency/test_token_efficiency_unit.sh
+RESULT: PARTIAL-TOPOLOGY (27 topology gap(s) allowed by --allow-topology-gaps; SKIP=6 exit-code-only-PASS=1 KNOWN=0 NONDETERMINISTIC=0; 58 excluded (listed in summary.txt); head=a3b8564efea9 subs=81bf3cb57109cc22 dirty=clean) -- not a section 11.4.40 full retest

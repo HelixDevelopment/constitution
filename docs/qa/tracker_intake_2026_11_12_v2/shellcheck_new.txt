@@ -1,0 +1,2 @@
+# shellcheck -x -P SCRIPTDIR tests/workable_items/test_intake_lint.sh tests/workable_items/test_intake_lint_mutations.sh docs/qa/tracker_intake_2026_11_12_v2/engine_repro.sh
+rc=0

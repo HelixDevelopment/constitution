@@ -1,0 +1,44 @@
+PASS K1-b64-short base64 of an 11-character assignment is decoded
+PASS K1-b64-colon base64 of a colon assignment is decoded
+PASS K1-b64-run16 a base64 run of exactly 16 characters is decoded
+PASS K1-fixpoint five percent layers are decoded
+PASS K1-brace-escape \u{70} escapes are decoded
+PASS K1-long-escape \U00000070 escapes are decoded
+PASS K1-join-amp literals joined by & are joined
+PASS K1-join-tilde literals joined by ~ are joined
+PASS K1-layer-view a single-decoder view keeps a hit the full fixpoint over-decodes (percent key, base64-looking value)
+PASS K1-b64-specials base64 of an assignment with many special characters (54% alphanumeric) is decoded
+PASS K2-mn-mark a combining mark inside a key is dropped
+PASS K2-mc-mark a spacing mark standing for a letter is read by the wildcard
+PASS K2-cherokee-s the Cherokee small s folds to s
+PASS K2-cherokee-s-many Cherokee small s folds even when the wildcard cannot cover it
+PASS K2-wildcard-half a word that is mostly non-ASCII is not a lookalike key
+PASS K3-dot-split pass.word is one key
+PASS K3-three-part mot de passe is one key
+PASS K3-squash p_a_s_s_w_o_r_d is one key
+PASS K3-number-gap a count after a kind name is not part of the key (gcp-api-key 24, private-key 12)
+PASS K3-number-attached a number attached to the key still extends it (api_key_24=V, key24=V)
+PASS K4-fingerprint-tail a fingerprint tail is not a key
+PASS K4-sha-tail a sha256 tail is not a key
+PASS K4-substring bypass and secretary are not keys
+PASS K4-pin4 a 4-digit pin is read
+PASS K5-set-after-semicolon set after a semicolon is a set command
+PASS K5-r-arrow the R <<- arrow is an assignment
+PASS K5-triple-quote a triple-quoted value is read (no own knob: the quote reader reads it)
+PASS K4-value-tail a value suffix extends the key (password_value=V)
+PASS K5-table a table row is read
+PASS K5-colon-value a value holding a colon is read whole
+PASS K6-ticket a ticket id after a generic key is not a value
+PASS K6-version a version after a generic key is not a value (also at 8 or more characters, past the length floor)
+PASS K6-ref a vault reference is not a value
+PASS K6-ref-uri a URI reference with an unlisted scheme is not a value
+PASS K6-url-placeholder a URL user-info placeholder is not a value
+PASS K6-url-value a URL user-info value is read
+PASS K6-short a 7-character value is not read
+PASS K6-ident-label an identifier with a mixed part after a short key is not a value (PASS: case_one_a1b2)
+PASS K4-join-negative a short key attached to a word that makes an English word is not a key (byPass, oAuth, bypwd)
+PASS K3-suffix-single the suffix rules read one written word only (x bypwd is not xbypwd; ldappwd is a key)
+PASS K5-short-colon-label a short key, a colon and an unquoted value is a label; quoted it is read
+PASS K6-ref-name a secret-store reference by name is not a value (kms:DB_PASSWORD, k8s:DB_PASSWORD)
+PASS K6-ident-random a random mixed string after a short key is read (no word part)
+RESULT: pass=43 fail=0

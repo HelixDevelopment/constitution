@@ -1,0 +1,5 @@
+column changes over md-to-db of the engine's own export (keys kept: True)
+description                cycle1 279  cycle2   0
+body_md                    cycle1   3  cycle2   0
+parent_atm_id              cycle1  17  cycle2   0
+last_modified              cycle1 491  cycle2 491

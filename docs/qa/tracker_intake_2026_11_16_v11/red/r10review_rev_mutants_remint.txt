@@ -1,0 +1,15 @@
+mutants=13 stale=0 
+SURVIVED RM-a verify: VID=VID always bad dropped rc=0 first=
+KILLED RM-b planner: VID=VID check dropped rc=1 first=FAIL R10-7: refused: --supersede of an id onto itself: /^REFUSED --supersede CON-357=CON-357: nothing records that the two are one defect: a shared nu
+KILLED RM-c dup rule: reason id check dropped rc=1 first=FAIL R9-F3: refused: a reason that names an id: rc=0 want=1: BASE-CHANGE CON-345 vehicle=description target=severity|BASE-CHANGE CON-346 vehicle=repro
+KILLED RM-d dup rule: semicolon check dropped rc=1 first=FAIL R9-F2: verify FAIL: a dup row whose reason holds a ';': /^MISMATCH plan dup-resolution row CON-354/CON-348: the reason is empty or holds a semico
+SURVIVED RM-e shared path: basename minimum 8 -> 9 rc=0 first=
+SURVIVED RM-f shared path: closed targets count rc=0 first=
+SURVIVED RM-g target-own: bare form covers REBOUND too rc=0 first=
+KILLED RM-h decl spec: repeated TID accepted rc=1 first=FAIL R10-7: a declaration given twice for one item is BLIND: rc=0 want=3: BASE-CHANGE CON-345 vehicle=description target=severity|BASE-CHANGE CON-346 
+KILLED RM-i refuse both meanings check dropped rc=1 first=FAIL R10-7: refused: --target-own and --annotate-foreign for one id: rc=0 want=1: BASE-CHANGE CON-345 vehicle=description target=severity|BASE-CHANGE 
+SURVIVED RM-j verify: target_own may name an id the target lacks rc=0 first=
+KILLED RM-k git top-of-repo check dropped rc=1 first=FAIL refs under an ambient GIT_DIR on a subdirectory of a repository is BLIND: rc=0 want=3: LIVE	g.md	CON-2|RESULT: REFS live=1 evidence=0 database=0|
+KILLED RM-l dup rule: duplicate pair accepted rc=1 first=FAIL R9-F3: refused: a row given twice: rc=0 want=1: BASE-CHANGE CON-345 vehicle=description target=severity|BASE-CHANGE CON-346 vehicle=reproduction_
+KILLED RM-m dup rule: Duplicate check line count check dropped rc=1 first=FAIL R9-F3: refused: an own item with no Duplicate check line: /^REFUSED --dup-resolution line 2: CON-355 has no Duplicate check line/ not in: Traceba
+RESULT kind=remint mutants=13 killed=8 survived=5 stale=0

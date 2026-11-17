@@ -1,0 +1,59 @@
+import sys, os, importlib.util, subprocess
+repo = sys.argv[1]; work = sys.argv[2]
+sys.path.insert(0, os.path.join(repo, "tests/release"))
+import pvl_fixture as F, pvl_blockstate as B
+spec = importlib.util.spec_from_file_location("ck", os.path.join(repo, "scripts/validation/check_provisional_verification_lines.py"))
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fx = F.make_root(work); ctx = F.checker_ctx(m, fx)
+G = F.line()
+GN = G + " -- note a|b"
+assert m.check_body(GN, ctx=ctx) is None, m.check_body(GN, ctx=ctx)
+def pd(fmt, b): return subprocess.run(["pandoc","-f",fmt,"-t","html"],input=b,capture_output=True,text=True).stdout
+shapes = {
+ "gfm-table-header": GN + "\n-|-\n",
+ "gfm-table-header2": GN + "\n---|---\n",
+ "gfm-table-pipe-start": G + " -- note |x|\n|-|\n",
+ "lref-before": "[a]: /u\n" + G + "\n",
+ "lref-title-multiline-open": "[a]: /u '\n" + G + "\n'\n",
+ "lref-title-multiline-dq": "[a]: /u \"x\n" + G + "\n\"\n",
+ "frontmatter-yaml": "---\na: b\n...\n" + G + "\n",
+ "setext-after-blank": G + "\n\n===\n",
+ "hr-after": G + "\n***\n",
+ "paragraph-cont-setext-eq": G + "\n=\n",
+ "paragraph-cont-setext-dash-sp": G + "\n  ---\n",
+ "tab-before-setext": G + "\n\t===\n",
+ "trailing-bs-then-hr": G + "\\\n---\n",
+ "footnote-def-gfm": "[^1]: x\n" + G + "\n",
+ "footnote-def-gfm-indent": "[^1]: x\n    " + G + "\n",
+ "task-like": G + "\n- [ ] x\n",
+ "html-block-kind7-after-blank-inline-in-p": G + "\n\n<x-y hidden>\n",
+ "autolink-www-gfm": G + " -- note www.example.com\n",
+ "strike-gfm": G + " -- note ~~x~~\n",
+ "fenced-div-pandoc": "::: hidden\n" + G + "\n:::\n",
+ "comment-multiline-block": "<!--\nx\n-->\n\n" + G + "\n",
+ "comment-two-on-line": "<!-- a --> <!-- b -->\n\n" + G + "\n",
+ "comment-then-text-same-line": "<!-- a -->x\n\n" + G + "\n",
+ "comment-dashdash-inside": "<!-- a -- b -->\n\n" + G + "\n",
+ "comment-empty": "<!---->\n\n" + G + "\n",
+ "comment-dash-gt-inside": "<!-- a -> b -->\n\n" + G + "\n",
+ "comment-indent3": "   <!-- a -->\n" + G + "\n",
+ "comment-in-quote": "> <!-- a -->\n\n" + G + "\n",
+ "comment-unterminated-eof": G + "\n\n<!-- x\n",
+ "inline-comment-in-label-para": G + " -- note <!-- x -->\n",
+ "inline-comment-multiline-in-para": G + " -- note <!--\nhidden\n-->\n",
+ "bom-first": "﻿" + G + "\n",
+ "nbsp-indent": " " + G + "\n",
+ "entity-label-line": "&#42;&#42;Verification:&#42;&#42; provisional x\n\n" + G + "\n",
+}
+for n, b in shapes.items():
+    r = m.check_body(b, ctx=ctx)
+    res = []
+    for rn, html in (("mdit", B.render_mdit(b)), ("pd-cm", pd("commonmark", b)), ("pd-gfm", pd("gfm", b))):
+        ok, why = B.clean(html)
+        res.append("%s=%s%s" % (rn, "clean" if ok else "DIRTY", "" if ok else "(" + why[:40] + ")"))
+    acc = r is None
+    flag = ""
+    if acc and any("DIRTY" in x for x in res): flag = "  <== ACCEPTED-BUT-DIRTY"
+    if not acc and all("clean" in x for x in res): flag = "  (false refusal)"
+    print("%-42s %-7s %s%s" % (n, "ACCEPT" if acc else "REFUSE", " ".join(res), flag))
+    if not acc: print("      reason:", r[:110])

@@ -1,0 +1,20 @@
+  PASS  [CM-FEATURE-DIRECTIVE] registry declares the action: FEATURE
+  PASS  [CM-FEATURE-DIRECTIVE] grammar declares the §11.4.202 single-colon form (shared by FEATURE)
+  PASS  [CM-FEATURE-DIRECTIVE] single-colon form is registered-action-only (prose 'feature: ...' never ASKs)
+  PASS  [CM-FEATURE-DIRECTIVE] engine present: /mnt/DATA1TB/claude-work/scratch/fix456r4_yMqgA1/repo/scripts/feature/schedule_feature_research.sh
+  PASS  [CM-FEATURE-DIRECTIVE] engine is executable
+  PASS  [CM-FEATURE-DIRECTIVE] engine parses under bash -n (§11.4.67)
+  PASS  [CM-FEATURE-DIRECTIVE] engine parses under sh -n (§11.4.67)
+  PASS  [CM-FEATURE-DIRECTIVE] engine carries no project literal (§11.4.28 decoupled)
+  PASS  [CM-FEATURE-DIRECTIVE] runtime: FEATURE: expands (single-colon form)
+  PASS  [CM-FEATURE-DIRECTIVE] runtime: FEATURE :: expands (§11.4.140 form 1)
+  PASS  [CM-FEATURE-DIRECTIVE] runtime: FEATURE ---> expands (§11.4.140 form 5)
+  PASS  [CM-FEATURE-DIRECTIVE] runtime: /FEATURE expands (§11.4.140 form 3, bare slash)
+  PASS  [CM-FEATURE-DIRECTIVE] runtime: /DEFAULT::FEATURE expands (§11.4.140 form 4, namespaced slash)
+  PASS  [CM-FEATURE-DIRECTIVE] runtime: \FEATURE: escapes to literal
+  PASS  [CM-FEATURE-DIRECTIVE] runtime: lowercase feature: is a NO-OP (action tokens are UPPERCASE-only)
+  PASS  [CM-FEATURE-DIRECTIVE] runtime: unrelated prose TODO: stays a NO-OP (never an ASK)
+  PASS  [CM-FEATURE-DIRECTIVE] FEATURE expansion frames the directive as SCHEDULING (not synchronous execution)
+  PASS  [CM-FEATURE-DIRECTIVE] engine DELEGATES to report_item.sh (§11.4.202) — no duplicate tracker/DB-write logic
+  PASS  [CM-FEATURE-DIRECTIVE] engine appends scheduled requests to the durable feature_queue.md (never silently dropped)
+CM-FEATURE-DIRECTIVE: PASS

@@ -1,0 +1,24 @@
+"""Cross-check of the r5 reviewer probe probe_lm.py.txt with markdown-it-py: its CASES are read by AST (G and the
+literal concatenations evaluated with no builtins), each body counted by the checker and by markdown-it."""
+import ast, importlib.util, sys
+repo, probe = sys.argv[1], sys.argv[2]
+sys.path.insert(0, repo + "/tests/release")
+import pvl_refreader as R
+spec = importlib.util.spec_from_file_location("ck", repo + "/scripts/validation/check_provisional_verification_lines.py")
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+tree = ast.parse(open(probe, encoding="utf-8").read())
+env = {}
+for n in tree.body:
+    if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name):
+        if n.targets[0].id == "G":
+            env["G"] = ast.literal_eval(n.value)
+        elif n.targets[0].id == "CASES":
+            cases = [eval(compile(ast.Expression(e), "case", "eval"), {"__builtins__": {}}, env) for e in n.value.elts]
+print("mdit", R.MDIT_VERSION, "needle", R.mdit_lines(R.NEEDLE_VISIBLE) == [R.NEEDLE_LINE] and R.mdit_lines(R.NEEDLE_HIDDEN) == [])
+bad = 0
+for name, body in cases:
+    c, r = len(m.visible_lines(body)), len(R.mdit_lines(body))
+    tag = "AGREE" if c == r else ("CHECKER-STRICTER" if c < r else "CHECKER-COUNTS-MORE")
+    bad += tag == "CHECKER-COUNTS-MORE"
+    print("%-20s checker=%d mdit=%d  %s" % (tag, c, r, name))
+print("PROBE-LM-MDIT cases=%d checker_counts_more=%d" % (len(cases), bad))

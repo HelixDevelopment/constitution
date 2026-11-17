@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# RED: the reviewer's r3 probes on the unchanged r3 checker in this clone (expect 168/39 and 700/575)
+set -u
+B="${1:?base}"; cd "$B" || exit 9
+python3 -I review_bin/probe_r3.py "$B/repo" red/probe_r3.json > red/probe_r3.txt 2>&1; echo "probe_r3 rc=$?"
+python3 -I review_bin/probe_r3b.py "$B/repo" > red/probe_r3b.txt 2>&1; echo "probe_r3b rc=$?"
+head -c 300 red/probe_r3.txt; echo; head -1 red/probe_r3b.txt

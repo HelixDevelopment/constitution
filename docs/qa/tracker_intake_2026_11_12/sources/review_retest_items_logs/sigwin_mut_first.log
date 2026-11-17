@@ -1,0 +1,3 @@
+SKIP zsh_unavailable (signal window plainzsh)
+FAIL r6-f1/f2/r7 signal window (harness, postwait): got 'RESULT fired=0 rc=1 orphan=0 sleeper=na canary=na' want 'RESULT fired=1 rc=2 orphan=0 sleeper=na canary=na'
+FAIL r6-f1/f2/r7 signal window (harness, postcanary): got 'RESULT fired=0 rc=1 orphan=0 sleeper=na canary=dead' want 'RESULT fired=1 rc=2 orphan=0 sleeper=na canary=alive'

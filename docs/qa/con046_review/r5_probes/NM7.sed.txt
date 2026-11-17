@@ -1,0 +1,1 @@
+s/pg cat-file -e "\$1^{tree}"/pg cat-file -e "$1"/

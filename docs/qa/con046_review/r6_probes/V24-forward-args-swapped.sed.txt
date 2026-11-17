@@ -1,0 +1,1 @@
+s/merge-base --is-ancestor "\$osha" "\$nsha" 2>\/dev\/null; fwd=/merge-base --is-ancestor "$nsha" "$osha" 2>\/dev\/null; fwd=/

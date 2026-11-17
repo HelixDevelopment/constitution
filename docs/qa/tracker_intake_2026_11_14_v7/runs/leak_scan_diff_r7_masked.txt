@@ -1,0 +1,21 @@
+$ python3 -I mask_hits.py repo repo/docs/qa/tracker_intake_2026_11_14_v7/runs/leak_scan_diff_r7.txt   (alphanumerics masked; no value printed)
+docs/qa/tracker_intake_2026_11_14_v7/README.md:66 url-cred tags=angle-placeholder shape=  `a{5}://<a{4}>:<a{8}>@<a{4}>/<a{4}>`. a{6} a{5}: a{4} `<a{4}>`, a{8} a 99-a{9}
+docs/qa/tracker_intake_2026_11_14_v7/class_inventory.md:38 lint:password-assign-spaced tags=NONE shape=| a9 | a a{6} aaa a{6} aa a a{6} aa a{7} (`a{10}=`) | a{6} | `_aaa_a{4}` a{6} a a{6}, a{5}, `.` aa `-` a{6} aaa aaa |
+docs/qa/tracker_intake_2026_11_14_v7/class_inventory.md:65 assignment tags=NONE shape=| a9 | a a{7}-a{4} a{5} a{5} a a{7} aaa a{4} aa a{8} a{5} (`a{5}: a{7}`) | 999 | a{5} a{6} `a{5}: ...` |
+docs/qa/tracker_intake_2026_11_14_v7/remint/fix227/plan.json:935 url-cred tags=angle-placeholder,fixture-word shape=    "--a{11}=**a{4}:** a{6} a{5} 9 a{7} a9 (aaa, a{7}-aaa, aaa-999 a{5}): aa_aaa_aaa_a{8} aa aa a{5} aaa
+docs/qa/tracker_intake_2026_11_14_v7/remint/main-replay/plan.json:935 url-cred tags=angle-placeholder,fixture-word shape=    "--a{11}=**a{4}:** a{6} a{5} 9 a{7} a9 (aaa, a{7}-aaa, aaa-999 a{5}): aa_aaa_aaa_a{8} aa aa a{5
+docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt:19 assignment tags=fixture-word shape=a{4} a99 a{6} a{6} aaa a{7} a{6} (a{8} a{4} a{6}_a{4}, a{5} 9): a{5}-a{4}=aaa a{5}-a{7}=a{6}-aaa a{6}: a{7} /^a{7} a{6} a
+docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt:98 assignment tags=fixture-word shape=a{4} aa9 a{6}: a{7} a{8} aa aaa a{7} a{5} (a{5}-9 a{8}; a{8} a{4} a{6}_a{4}): a{5}-a{4}=aaa a{5}-a{7}=a{6}-aaa a{6}: aa=9
+docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt:112 assignment tags=fixture-word shape=a{4} aa9 a{6}: a{13}: a{5} aaa a{4}: a{5}-a{4}=aaa a{5}-a{7}=a{6} a{5} a{13}-a{5}: aa=9 a{4}=9: a{6}: a{4} a{5} a{6}-a{4
+docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt:117 assignment tags=fixture-word shape=a{4} aa9 a{6}: a{13}: a{5} aaa a{8}: a{5}-a{4}=aaa a{5}-a{7}=a{6} a{8} a{6} a{5}-a{4}: aa=9 a{4}=9: a{6}: a{4} a{4} a{6}
+docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt:133 lint:password-flag-space tags=fixture-word shape=a{4} aa9 a{6}: aa a{5}-a{4} a{4} a{11} (--a{8} a{8}) a{4} aa a a{5}: a{5}-a{4}=aaa a{5}-a{7}=a{6} aaa-a{5}
+docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt:139 lint:url-userinfo-password tags=fixture-word shape=a{4} aa99 a{6}: a aaa a{4} aa a{5} a{4} a{4} (a{5}://:aa@a) aaa a{4}: a{5}-a{4}=aaa a{5}-a{7}=a{6} a{5} 
+docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt:141 assignment tags=fixture-word shape=a{4} aa99 a{6}: a aaa a{4} aaa a{4} a{4} aa a a{8}: a{5}-a{4}=aaa a{5}-a{7}=a{6} aaa-a{5} aaa-a{4}-a{4}: aa=9 a{7} a{6} 
+docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan.py:87 lint:password-assign-spaced tags=NONE shape=        "a{7}-aaa": "-----a{5} aaa a{7} " + "aaa-----",
+scripts/workable-items/intake_lint.py:175 lint:url-userinfo-password tags=angle-placeholder shape=    # aaa aa a{5} (a{5}://:aa@a); a a{9} ($aaa, <a>, {a}, %a%) aa a a{4} (*, a) aa aaa a a{5}, aaa
+scripts/workable-items/intake_lint.py:203 lint:password-flag-space tags=fixture-word shape=    # a a{6} aaa a a{5} a{5} a a{7} aa a{5} aaa; aa a{5}-a{4} a{11} (--a{8} a{8})
+tests/workable_items/test_intake_lint_mutations.sh:153 assignment tags=NONE shape=  $'aa9 a{6}: a{7} a{8} aa aaa a{7} a{5} (a{5}-9 a{8}; a{8} a{4} a{6}_a{4})|a|aaa|        a = aaa.a{6}(a)|||        a = aaa.a{5}(a)'
+tests/workable_items/test_intake_lint_mutations.sh:188 lint:password-flag-space tags=regex-source,fixture-word shape=  $'aa9 a{6}: aa a{5}-a{4} a{4} a{11} (--a{8} a{8}) a{4} aa a a{5}|a|aa|(?!(?-a:[a-a][a-a9-9_]*)(?:[\\a
+tests/workable_items/test_intake_lint_mutations.sh:194 lint:url-userinfo-password tags=regex-source shape=  $'aa99 a{6}: a aaa a{4} aa a{5} a{4} a{4} (a{5}://:aa@a) aaa a{4}|a|aa|://[^/\\a:@]*:|||://[^/\\a:@]+:'
+
+REVIEW (round-7 fixer, by masked shape and tag): 18 of 18 hits are prose rule descriptions, code comments, regex source, <placeholder> examples or a needle assembled from fragments; 0 credential values.

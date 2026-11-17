@@ -1,0 +1,33 @@
+FAIL CON-015 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_census_jq_regions.sh (expec'
+FAIL CON-016 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_census_jq_regions.sh (52 pa'
+FAIL CON-023 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_overrides_guarded.sh on mai'
+FAIL CON-043 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_oracle_frozen_exclusions.sh, tests/g'
+FAIL CON-144 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verification:** provisional (section 11.4.290) -- job: re-run scripts/gates/cm'
+FAIL CON-159 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard, bash scripts/validation/test_decision_'
+FAIL CON-160 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard, bash scripts/fastcycle/tests/test_cust'
+FAIL CON-161 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard, bash scripts/fastcycle/tests/test_host'
+FAIL CON-162 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard, bash scripts/validation/test_enumerate'
+FAIL CON-183 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run bash scripts/fastcycle/tests/test_consumer_required_m'
+FAIL CON-184 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run bash scripts/fastcycle/tests/test_consumer_required_m'
+FAIL CON-185 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run bash scripts/fastcycle/tests/test_consumer_required_h'
+FAIL CON-186 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verification:** provisional (section 11.4.290) -- job: bash tests/test_run_ful'
+FAIL CON-189 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verification:** provisional (section 11.4.290) -- job: bash tests/test_run_ful'
+FAIL CON-190 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verification:** provisional (section 11.4.290) -- job: bash scripts/run_full_s'
+FAIL CON-191 Ready for testing: a line a reader shows carries the Verification label but is not the one counted line (it does not start a top-level paragraph with the prefix at column 0): '**Verification:** provisional (section 11.4.290) -- job: read both texts; script'
+FAIL CON-211 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, re-run bash scripts/codegraph/tests/test_unit_safe.'
+FAIL CON-216 Ready for testing: field 'job' passes and, which is not an integer, an option, a path or a selector scripts/fastcycle/tests/test_host_report_probe_thread_headro names
+FAIL CON-217 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_enumerate_decision_mutants_r2_regres names
+FAIL CON-218 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_enumerate_decision_mutants_r2_regres names
+FAIL CON-219 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_decision_mutant_census_wording_r1_re names
+FAIL CON-220 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_enumerate_decision_mutants_r2_regres names
+FAIL CON-222 Ready for testing: field 'job' passes and, which is not an integer, an option, a path or a selector scripts/fastcycle/tests/test_consumer_required_helper_l29_sk names
+FAIL CON-223 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/fastcycle/tests/test_consumer_required_helper_l29_sk names
+FAIL CON-224 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/fastcycle/tests/test_consumer_required_mutations.sh names
+FAIL CON-226 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/release/test_tag_and_release.sh (45 passed, 0 f'
+FAIL CON-235 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, re-run bash tests/test_run_full_suite.sh, the paire'
+FAIL CON-236 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, re-run bash tests/test_run_full_suite_mutations_tab'
+FAIL CON-265 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 'on main, re-run bash scripts/fastcycle/tests/run_all.sh (it '
+ROOT: /mnt/DATA1TB/claude-work/scratch/fix6_con423_kwge/repo
+TODAY: 2026-11-16 window=60d
+CHECKED items=407 provisional_status=29 ok=0 fail=29
+VERDICT: FAIL

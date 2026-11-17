@@ -1,0 +1,7 @@
+NOOP3 go-test rc=0 fails=0
+RM1b3 go-test rc=1 fails=34
+OM43 go-test rc=1 fails=1
+OM53 go-test rc=1 fails=1
+OM113 go-test rc=1 fails=1
+M23 go-test rc=1 fails=1
+PLAN3-DONE

@@ -1,0 +1,5 @@
+body-length probe on a copy of the merged tracker (PR #18 r6 engine on main 68af5edb), 2026-11-17
+CON-015 block: 3916 -> 3981
+CON-016 block: 2778 -> 2843
+CON-023 update --description <same>: 1914 -> 1914
+(validate on the copy flags only the probe-typed unblock text; the copy was discarded)

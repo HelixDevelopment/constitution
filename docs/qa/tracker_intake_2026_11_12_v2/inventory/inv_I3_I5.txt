@@ -1,0 +1,38 @@
+## I3 state-vocabulary tokens in intake items (column values in brackets)
+CON-301 Task [UNSET/UNSET] ['reproduced-host-fixture']
+CON-308 Bug [UNSET/UNSET] ['Reproduction state: UNREPRODUCED.']
+CON-311 Bug [UNSET/UNSET] ['Reproduction state: reproduced-host-fixture', 'Investigation: in-progress']
+CON-321 Task [UNSET/UNSET] ['reproduced-host-fixture']
+## I5 ephemeral-location / unit inventory
+8:review_retest_items.md
+16:scratch clones with local bare remotes
+25:scratch clones against local bare remotes with deterministic machine-produced evidence (section 11
+36:review_retest_items_logs/
+41:review_retest_items.md
+55:review_retest_items.md
+69:review_retest_items.md
+83:review_retest_items.md
+97:review_retest_items.md
+111:review_retest_items.md
+125:review_retest_items.md
+195:mf_r4_bundle.6mLoJd/multiforge_r4.bundle
+195:review_multiforge_r4.md
+209:mf_r4_bundle.6mLoJd/multiforge_r4.bundle
+209:review_multiforge_r4.md
+223:mf_r4_bundle.6mLoJd/multiforge_r4.bundle
+223:review_multiforge_r4.md
+237:review_gitlab_prerelease.md
+251:review_gitlab_prerelease.md
+265:review_gitlab_prerelease.md
+279:review_gitlab_prerelease.md
+293:review_gitlab_prerelease.md
+307:review_gitlab_prerelease.md
+316:review_gitlab_prerelease_mutants.txt
+316:scratch
+321:review_gitlab_prerelease.md
+335:review_gitlab_prerelease.md
+433:review_fix227_r8.md
+447:review_fix227_r8.md
+478:scratchpad security_followup/other_repos_scan/real_by_path
+478:1082 rows
+481:scratchpad

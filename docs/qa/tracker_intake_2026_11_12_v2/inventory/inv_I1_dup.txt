@@ -1,0 +1,73 @@
+intake 35 others 263
+== CON-303 Retest follow-up F3: the two section 11.4.201 guards of the anchor_citations 'an
+    (14, 1, 'CON-305', 'Queued', 'Retest follow-up F5: anchor_citations dead fallback block after the new early SKIP and a w')
+== CON-305 Retest follow-up F5: anchor_citations dead fallback block after the new early SK
+    (14, 1, 'CON-303', 'Queued', "Retest follow-up F3: the two section 11.4.201 guards of the anchor_citations 'another cons")
+== CON-308 run_all.sh counts rc 77 (SKIP) as FAIL while run_full_suite.sh reports SKIP (lan
+    (17, 1, 'CON-262', 'Queued', 'Wider SKIP class: suites and runners that print SKIP but exit 0, and run_all.sh labels exi')
+== CON-315 GitLab pre-release F1: the read-back glab api call has no --hostname and the tag
+    (28, 1, 'CON-324', 'Queued', "GitLab pre-release S2: the new glab api call must go through nt (fix227's network timeout ")
+    (22, 3, 'CON-317', 'Queued', 'GitLab pre-release F3: released_at read back from the server is printed raw and never comp')
+    (22, 0, 'CON-328', 'Queued', "GitLab pre-release S6: fix227's test_release_tooling_mutations.sh catalogue has no GitLab ")
+    (19, 1, 'CON-327', 'Queued', 'GitLab pre-release S5: under rc_env_clean glab sees only allow-listed variables; pass --ho')
+== CON-316 GitLab pre-release F2: abort after a failed mktemp for GL_NOTES prints 'aborted 
+    (16, 3, 'CON-322', 'Queued', 'GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOTES created')
+    (11, 3, 'CON-320', 'Queued', 'GitLab pre-release F6: --gitlab-released-at needs GNU date -d; BSD and macOS date refuse e')
+    (11, 3, 'CON-319', 'Queued', 'GitLab pre-release F5: --gitlab-released-at without a gitlab spec is accepted silently; th')
+    (11, 3, 'CON-317', 'Queued', 'GitLab pre-release F3: released_at read back from the server is printed raw and never comp')
+== CON-317 GitLab pre-release F3: released_at read back from the server is printed raw and 
+    (29, 1, 'CON-326', 'Queued', 'GitLab pre-release S4: server-derived text (read-back result, released_at) must go through')
+    (22, 3, 'CON-315', 'Queued', 'GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the AP')
+    (18, 3, 'CON-319', 'Queued', 'GitLab pre-release F5: --gitlab-released-at without a gitlab spec is accepted silently; th')
+    (17, 3, 'CON-321', 'Queued', 'GitLab pre-release F7: uncovered paths M03, M06, M11, M13, M15, M18, M20 (reviewer mutants')
+== CON-318 GitLab pre-release F4: a final run over an existing PROVISIONAL-marked GitLab re
+    (16, 3, 'CON-315', 'Queued', 'GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the AP')
+    (12, 3, 'CON-322', 'Queued', 'GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOTES created')
+    (12, 3, 'CON-319', 'Queued', 'GitLab pre-release F5: --gitlab-released-at without a gitlab spec is accepted silently; th')
+    (12, 3, 'CON-317', 'Queued', 'GitLab pre-release F3: released_at read back from the server is printed raw and never comp')
+== CON-319 GitLab pre-release F5: --gitlab-released-at without a gitlab spec is accepted si
+    (23, 3, 'CON-322', 'Queued', 'GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOTES created')
+    (18, 3, 'CON-317', 'Queued', 'GitLab pre-release F3: released_at read back from the server is printed raw and never comp')
+    (17, 3, 'CON-320', 'Queued', 'GitLab pre-release F6: --gitlab-released-at needs GNU date -d; BSD and macOS date refuse e')
+    (13, 1, 'CON-324', 'Queued', "GitLab pre-release S2: the new glab api call must go through nt (fix227's network timeout ")
+== CON-320 GitLab pre-release F6: --gitlab-released-at needs GNU date -d; BSD and macOS dat
+    (17, 3, 'CON-319', 'Queued', 'GitLab pre-release F5: --gitlab-released-at without a gitlab spec is accepted silently; th')
+    (12, 3, 'CON-322', 'Queued', 'GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOTES created')
+    (12, 3, 'CON-317', 'Queued', 'GitLab pre-release F3: released_at read back from the server is printed raw and never comp')
+    (12, 3, 'CON-315', 'Queued', 'GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the AP')
+== CON-321 GitLab pre-release F7: uncovered paths M03, M06, M11, M13, M15, M18, M20 (review
+    (17, 3, 'CON-317', 'Queued', 'GitLab pre-release F3: released_at read back from the server is printed raw and never comp')
+    (16, 3, 'CON-315', 'Queued', 'GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the AP')
+    (14, 1, 'CON-326', 'Queued', 'GitLab pre-release S4: server-derived text (read-back result, released_at) must go through')
+    (9, 3, 'CON-322', 'Queued', 'GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOTES created')
+== CON-322 GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOT
+    (23, 3, 'CON-319', 'Queued', 'GitLab pre-release F5: --gitlab-released-at without a gitlab spec is accepted silently; th')
+    (16, 3, 'CON-316', 'Queued', "GitLab pre-release F2: abort after a failed mktemp for GL_NOTES prints 'aborted before any")
+    (13, 3, 'CON-317', 'Queued', 'GitLab pre-release F3: released_at read back from the server is printed raw and never comp')
+    (13, 1, 'CON-324', 'Queued', "GitLab pre-release S2: the new glab api call must go through nt (fix227's network timeout ")
+== CON-323 GitLab pre-release S1: re-application on fix227 would clobber fix227's EXIT trap
+    (21, 0, 'CON-328', 'Queued', "GitLab pre-release S6: fix227's test_release_tooling_mutations.sh catalogue has no GitLab ")
+    (16, 1, 'CON-324', 'Queued', "GitLab pre-release S2: the new glab api call must go through nt (fix227's network timeout ")
+    (13, 1, 'CON-326', 'Queued', 'GitLab pre-release S4: server-derived text (read-back result, released_at) must go through')
+    (12, 1, 'CON-322', 'Queued', 'GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOTES created')
+== CON-324 GitLab pre-release S2: the new glab api call must go through nt (fix227's networ
+    (28, 1, 'CON-315', 'Queued', 'GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the AP')
+    (24, 1, 'CON-326', 'Queued', 'GitLab pre-release S4: server-derived text (read-back result, released_at) must go through')
+    (23, 0, 'CON-328', 'Queued', "GitLab pre-release S6: fix227's test_release_tooling_mutations.sh catalogue has no GitLab ")
+    (21, 0, 'CON-325', 'Queued', 'GitLab pre-release S3: new invocations need rows in tests/release/channels.tsv (glab api, ')
+== CON-325 GitLab pre-release S3: new invocations need rows in tests/release/channels.tsv (
+    (21, 0, 'CON-324', 'Queued', "GitLab pre-release S2: the new glab api call must go through nt (fix227's network timeout ")
+== CON-326 GitLab pre-release S4: server-derived text (read-back result, released_at) must 
+    (29, 1, 'CON-317', 'Queued', 'GitLab pre-release F3: released_at read back from the server is printed raw and never comp')
+    (24, 1, 'CON-324', 'Queued', "GitLab pre-release S2: the new glab api call must go through nt (fix227's network timeout ")
+    (18, 1, 'CON-315', 'Queued', 'GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the AP')
+    (14, 1, 'CON-321', 'Queued', 'GitLab pre-release F7: uncovered paths M03, M06, M11, M13, M15, M18, M20 (reviewer mutants')
+== CON-327 GitLab pre-release S5: under rc_env_clean glab sees only allow-listed variables;
+    (19, 1, 'CON-315', 'Queued', 'GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the AP')
+    (15, 1, 'CON-324', 'Queued', "GitLab pre-release S2: the new glab api call must go through nt (fix227's network timeout ")
+    (11, 1, 'CON-322', 'Queued', 'GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOTES created')
+    (11, 1, 'CON-319', 'Queued', 'GitLab pre-release F5: --gitlab-released-at without a gitlab spec is accepted silently; th')
+== CON-328 GitLab pre-release S6: fix227's test_release_tooling_mutations.sh catalogue has 
+    (23, 0, 'CON-324', 'Queued', "GitLab pre-release S2: the new glab api call must go through nt (fix227's network timeout ")
+    (22, 0, 'CON-315', 'Queued', 'GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the AP')
+    (21, 0, 'CON-323', 'Queued', "GitLab pre-release S1: re-application on fix227 would clobber fix227's EXIT trap (trap fin")
