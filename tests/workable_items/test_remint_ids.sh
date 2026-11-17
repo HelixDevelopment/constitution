@@ -1472,7 +1472,7 @@ cpdb t9s r9m
 xp "R10-7: replay of the middle supersede" 0 '^RESULT: APPLIED ' replay --plan "$tmp/p9m.json" --apply --engine "$wi" --db docs/r9m.db
 xp "R10-7: verify PASS of the middle supersede" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/p9m.json" "${P9S[@]}" --db docs/r9m.db
 python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["dup_resolutions"]=[r for r in p["dup_resolutions"] if r[2]!="SAME-DEFECT"];json.dump(p,open(sys.argv[2],"w"))' "$tmp/p9m.json" "$tmp/p9me.json" || exit 2
-xp "R10-7: verify FAIL: the middle supersede's SAME-DEFECT row removed" 1 "^MISMATCH $(id 11) -> $(id 12): the supersede is backed neither by the target item naming the id nor by a SAME-DEFECT row" \
+xp "R10-7: verify FAIL: the middle supersede's SAME-DEFECT row removed" 1 "^MISMATCH --supersede $(id 11)=$(id 12): nothing records that the two are one defect: the target's $(id 12) does not name $(id 11)" \
   verify --plan "$tmp/p9me.json" "${P9S[@]}" --db docs/r9m.db
 # SHARED-PATH (R9-6): an own item and an open target item name one file; every such pair needs a verdict
 cpdb v9s v10s
@@ -1490,6 +1490,38 @@ xp "R10-6: SHARED-PATH: verify PASS" 0 '^RESULT: PASS mode=REPLAY .* mismatches=
 python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["dup_resolutions"]=[r for r in p["dup_resolutions"] if r[1]!=sys.argv[3]];json.dump(p,open(sys.argv[2],"w"))' "$tmp/p10s.json" "$tmp/p10se.json" "$(id 7)" || exit 2
 xp "R10-6: verify FAIL: the SHARED-PATH row removed from the plan" 1 "^MISMATCH SHARED-PATH $(id 10): names needle_scope_file.sh, which the target's open $(id 7) names too" \
   verify --plan "$tmp/p10se.json" "${P10S[@]}" --db docs/r10s.db
+# round 11 (review r10, RM-a): the supersede backing is ONE rule of dup_rule_errors for plan and verify.
+# The reviewer's witness, verbatim: --supersede VID=VID with a SAME-DEFECT row plans, replays and verifies.
+{ cat "$tmp/dup9s.tsv"; printf '%s\t%s\tSAME-DEFECT\tthe same fixture defect filed on both sides\n' "$(id 13)" "$(id 13)"; } >"$tmp/dupself.tsv"
+xp "R11 (REV-SELF): plan VID=VID with a SAME-DEFECT row" 0 '^RESULT: PLAN mode=REPLAY .* refusals=0 ' plan "${P9H[@]}" --out "$tmp/pself.json" --supersede "$(id 13)=$(id 13)" --dup-resolution "$tmp/dupself.tsv"
+cpdb t9h rself
+xp "R11 (REV-SELF): replay" 0 '^RESULT: APPLIED ' replay --plan "$tmp/pself.json" --apply --engine "$wi" --db docs/rself.db
+xp "R11 (REV-SELF): verify PASS" 0 '^RESULT: PASS mode=REPLAY .* mismatches=0 ' verify --plan "$tmp/pself.json" "${P9H[@]}" --db docs/rself.db
+python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["dup_resolutions"]=[r for r in p["dup_resolutions"] if r[2]!="SAME-DEFECT"];json.dump(p,open(sys.argv[2],"w"))' "$tmp/pself.json" "$tmp/pselfe.json" || exit 2
+xp "R11: verify FAIL: VID=VID with its SAME-DEFECT row removed" 1 "^MISMATCH --supersede $(id 13)=$(id 13): nothing records that the two are one defect: a shared number is not a shared defect" \
+  verify --plan "$tmp/pselfe.json" "${P9H[@]}" --db docs/rself.db
+# round 11 (review r10, RM-e): the SHARED-PATH basename minimum is 8 characters, exactly
+cpdb v9s v11e
+W update --id "$(id 10)" --db docs/v11e.db --location Issues --description "$D Links to $(id 9).${NL}Foreign ids (fix227 tracker): $(id 11)${NL}Duplicate check (section 11.4.214): DISTINCT; fixture method.${NL}${NL}**Affected scope / file-scope manifest:**${NL}- x/ndl_8.sh${NL}- x/ndl7.sh${NL}"
+cpdb t9s t11e; W update --id "$(id 7)" --db docs/t11e.db --location Issues --description "$D Base item 7; edits x/ndl_8.sh."
+cpdb t9s t11s; W update --id "$(id 7)" --db docs/t11s.db --location Issues --description "$D Base item 7; edits x/ndl7.sh."
+xp "R11 (RM-e): an 8-character basename is a SHARED-PATH" 1 "^REFUSED SHARED-PATH $(id 10): names ndl_8.sh, which the target's open $(id 7) names too" \
+  plan --vehicle-db docs/v11e.db --base-db docs/b.db --target-db docs/t11e.db --out "$tmp/p11e.json" "${S10S[@]}" --dup-resolution "$tmp/dup9s.tsv"
+xp "R11 (RM-e): a 7-character basename is not" 0 '^RESULT: PLAN mode=REPLAY own=5 .* refusals=0 ' \
+  plan --vehicle-db docs/v11e.db --base-db docs/b.db --target-db docs/t11s.db --out "$tmp/p11s.json" "${S10S[@]}" --dup-resolution "$tmp/dup9s.tsv"
+# round 11 (review r10, RM-f): a CLOSED target item naming the file is not a SHARED-PATH pair
+cpdb t10s t11f; W close "$(id 7)" --db docs/t11f.db --status obsolete --evidence "$EV"
+xp "R11 (RM-f): a closed target item naming the file needs no verdict" 0 '^RESULT: PLAN mode=REPLAY own=5 .* refusals=0 ' \
+  plan --vehicle-db docs/v10s.db --base-db docs/b.db --target-db docs/t11f.db --out "$tmp/p11f.json" "${S10S[@]}" --dup-resolution "$tmp/dup9s.tsv"
+# round 11 (review r10, RM-g): the bare --target-own form covers XREF-AMBIGUOUS ids only; a REBOUND id the
+# item also names stays undeclared (refused as XREF-REBOUND, never as a --target-own of that id)
+cpdb t9x t11g; W update --id "$(id 4)" --db docs/t11g.db --location Issues --description "$D Base item 4; it waits on $(id 15) and on $(id 11)."
+xp "R11 (RM-g): bare --target-own leaves the REBOUND id undeclared" 1 "^REFUSED XREF-REBOUND $(id 4): names $(id 15)" \
+  plan --vehicle-db docs/v9s.db --base-db docs/b.db --target-db docs/t11g.db --out "$tmp/p11g.json" "${S9S[@]}" --target-own "$(id 4)"
+if grep -q "^REFUSED --target-own $(id 4)" "$tmp/out"; then bad "R11 (RM-g): bare --target-own claimed the REBOUND id" "$(grep '^REFUSED --target-own' "$tmp/out" | head -1)"; else ok "R11 (RM-g): bare --target-own claimed no REBOUND id"; fi
+# round 11 (review r10, RM-j): verify refuses a target_own id the target does not hold (a minted id, not superseded)
+python3 -I -c 'import json,sys;p=json.load(open(sys.argv[1]));p["annotations"].pop(sys.argv[3]);p["target_own"][sys.argv[3]]=[sys.argv[4]];json.dump(p,open(sys.argv[2],"w"))' "$tmp/p9x.json" "$tmp/p9xj.json" "$(id 4)" "$(id 15)" || exit 2
+xp "R11 (RM-j): verify FAIL: a minted id moved into target_own" 1 "^MISMATCH the plan's annotations .*wrong: $(id 4)\)$" verify --plan "$tmp/p9xj.json" "${P9X[@]}" --db docs/r9x.db
 same "the real database is untouched" "$(sha256sum "$realdb" | cut -d' ' -f1)" "$real_sha"
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

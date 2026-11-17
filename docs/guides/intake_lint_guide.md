@@ -2,17 +2,17 @@
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 9 |
 | Created | 2026-11-13 |
-| Last modified | 2026-11-15T19:00:00Z |
+| Last modified | 2026-11-16T20:40:00Z |
 | Status | active |
 | Status summary | User guide and manual for the read-only content lint of an intake batch of workable items (cross-references, states, sections, secrets, ephemeral locations, duplicates, cited paths). |
 | Authority | Constitution §11.4.148, §11.4.214, §11.4.215, §11.4.294, §11.4.10 — the canonical text wins where this guide and the constitution disagree. |
 | Scope | Universal (§11.4.17); the id prefix, the database path and the origin text are consumer DATA (§11.4.35). |
 | Issues | not yet wired into a seam: the reporting and landing paths and the pre-build sweep do not run it (tracked as an item, see the tracker-intake v2 report) |
 | Issues summary | Run it by hand before landing an intake batch. |
-| Fixed | round 9 (review r9 F1, F4, F5): the key half of the SECRET rule is a structural classifier, not lists of spellings in each extractor: a key token is split into words (camelCase, snake_case, kebab-case, dots, brackets, letter-digit boundaries) and a head word followed only by non-property words makes it a key, so suffixed, qualified, bracketed and prefix-joined keys are read and property names (password_policy, token_count) are not; the front end also removes combining marks and Hangul fillers, folds Latin small capitals and similar letters by name, and decodes HTML entities, octal escapes and joined string literals, up to three layers; secret-manager references and identifiers are not reported; two mutants that cannot change an answer are listed as equivalent with their evidence; round 8 (review N1, N2, N4, N6): the SECRET rule is rebuilt as a front end (NFKC, format characters removed, Cyrillic and Greek lookalike letters folded, escape and percent decoding), keyed extractors per syntax and one value classifier; quoted values holding a backslash are read again (the round-7 regression), and argument pairs, setter calls, XML key/value attributes, tool short flags, YAML block scalars, pgpass lines, percent-encoded separators and upper-case URL schemes are read; paths, code calls and placeholders are not reported; round 7 (review F1): the secret-shape class is enumerated by a census and closed (prefixes joined by nothing, short keys, backtick and escaped quotes, quoted values with a space, --flag values, netrc, XML elements, URL user-info with a slash or an empty user, the NFKC form; `=>` with a short value no longer reported); round 6 (review R5-3): the keyed-credential shape class (key quoting, every separator, colon values, header keys, URL query and user-info of any length, the Token scheme, references and masks) is SECRET; round 5 (review R4-3, R4-5, R4-6, R4-9): unquoted password assignments and `Authorization: Basic` are SECRET; Unicode format characters (bidi, BOM, soft hyphen, zero-width) are CONTROL-CHAR; ids are ASCII digits only and an id written with other digits is XREF-DANGLING; every location row of an item is linted, not only the first; the database path is quoted in the read-only URI and a non-empty `-wal` sidecar is BLIND; round 4 (review R3-3 and minors): SECRET, EPHEMERAL and CONTROL-CHAR on every surface (every items column, the obsolete_details, operator_block_details and item_history rows, the rendered documents); STATE-EVIDENCE; every engine header key compared; the range-end clause fix; golden-bad needles bound to their own check; round 3 (review R2-2 to R2-8): XREF-UNLABELLED, DUP-HEAD, DUP-UNDECIDED, DUP-STATUS, OBSOLETE-STALE; BODY-SYNC both directions; a crash or a NULL column is BLIND |
-| Fixed summary | Revision 8 is round 9; revision 7 round 8; revision 6 round 7; revision 5 round 6; revision 4 round 5; revision 3 round 4; revision 2 round 3; revision 1 the initial creation (round 2). |
+| Fixed | round 11 (review r10 item 1): the keyword half of the SECRET rule moved into one shared module, `scripts/workable-items/secret_canon.py`, read by the lint and by the leak scan alike: decode every layer to a fixpoint, fold to one spelling, split into words and join up to four parts, read the value by layout, decide by the value's shape; the lint reports its hits only when none of its named rules fired; a count after a kind name (`gcp-api-key 24`), a URL user-info placeholder (`<password>`), a short key attached to a word that makes an English word (`byPass`, `oAuth`, ported from round 10), a suffix key joined across parts, a short-key colon label (`PASS: case_one_a1b2`), an identifier with mixed parts and a secret-store reference by name (`kms:DB_PASSWORD`) are not reported; round 9 (review r9 F1, F4, F5): the key half of the SECRET rule is a structural classifier, not lists of spellings in each extractor: a key token is split into words (camelCase, snake_case, kebab-case, dots, brackets, letter-digit boundaries) and a head word followed only by non-property words makes it a key, so suffixed, qualified, bracketed and prefix-joined keys are read and property names (password_policy, token_count) are not; the front end also removes combining marks and Hangul fillers, folds Latin small capitals and similar letters by name, and decodes HTML entities, octal escapes and joined string literals, up to three layers; secret-manager references and identifiers are not reported; two mutants that cannot change an answer are listed as equivalent with their evidence; round 8 (review N1, N2, N4, N6): the SECRET rule is rebuilt as a front end (NFKC, format characters removed, Cyrillic and Greek lookalike letters folded, escape and percent decoding), keyed extractors per syntax and one value classifier; quoted values holding a backslash are read again (the round-7 regression), and argument pairs, setter calls, XML key/value attributes, tool short flags, YAML block scalars, pgpass lines, percent-encoded separators and upper-case URL schemes are read; paths, code calls and placeholders are not reported; round 7 (review F1): the secret-shape class is enumerated by a census and closed (prefixes joined by nothing, short keys, backtick and escaped quotes, quoted values with a space, --flag values, netrc, XML elements, URL user-info with a slash or an empty user, the NFKC form; `=>` with a short value no longer reported); round 6 (review R5-3): the keyed-credential shape class (key quoting, every separator, colon values, header keys, URL query and user-info of any length, the Token scheme, references and masks) is SECRET; round 5 (review R4-3, R4-5, R4-6, R4-9): unquoted password assignments and `Authorization: Basic` are SECRET; Unicode format characters (bidi, BOM, soft hyphen, zero-width) are CONTROL-CHAR; ids are ASCII digits only and an id written with other digits is XREF-DANGLING; every location row of an item is linted, not only the first; the database path is quoted in the read-only URI and a non-empty `-wal` sidecar is BLIND; round 4 (review R3-3 and minors): SECRET, EPHEMERAL and CONTROL-CHAR on every surface (every items column, the obsolete_details, operator_block_details and item_history rows, the rendered documents); STATE-EVIDENCE; every engine header key compared; the range-end clause fix; golden-bad needles bound to their own check; round 3 (review R2-2 to R2-8): XREF-UNLABELLED, DUP-HEAD, DUP-UNDECIDED, DUP-STATUS, OBSOLETE-STALE; BODY-SYNC both directions; a crash or a NULL column is BLIND |
+| Fixed summary | Revision 9 is round 11 (round 10 kept revision 8); revision 8 is round 9; revision 7 round 8; revision 6 round 7; revision 5 round 6; revision 4 round 5; revision 3 round 4; revision 2 round 3; revision 1 the initial creation (round 2). |
 | Continuation | — |
 
 ## Table of contents
@@ -25,6 +25,7 @@
 - [Exit codes](#exit-codes)
 - [The embedded-id table for a re-mint](#the-embedded-id-table-for-a-re-mint)
 - [Skipping a code](#skipping-a-code)
+- [Credential shapes](#credential-shapes)
 - [Tests](#tests)
 - [Honest boundary](#honest-boundary)
 
@@ -152,6 +153,33 @@ lists those places.
 wherever the result is cited. Use it for legacy items whose old text predates the rules, never to
 pass a new batch.
 
+## Credential shapes
+
+Round 11 reads keyed credentials through ONE module, `scripts/workable-items/secret_canon.py`, shared
+by the lint and by the leak scan of the evidence packs, so the two readers can no longer disagree on a
+spelling, an encoding or a layout. `hits(text)` returns `(rule, span)` pairs. The pipeline:
+
+1. `canonical_views()` decodes escapes, percent, entities, quoted-printable, joined literals, hex,
+   base32 and base64 to a fixpoint and keeps one view per decoder as well (a full fixpoint can
+   over-decode a value);
+2. `fold()` gives one spelling: NFKC, marks and fillers dropped, a spacing mark as one placeholder
+   letter, confusable letters mapped, case folded;
+3. `words()` and `key_spans()` split the text into words, squash single-letter runs and join up to
+   `JOIN_MAX` (4) parts, then `word_tier()` matches the joined form against the vocabulary; a number
+   after a space never joins a key, an attached number does;
+4. the layout readers find the value after the key (assignments, R arrows, quotes, YAML, tables,
+   records, setter calls, tool forms, URL user-info, XML);
+5. `credential_value()` decides by the value's shape: masks, placeholders (`is_placeholder()`), paths,
+   references, tickets and versions are not values.
+
+Each reader keeps its own value-shape detectors that need no key word (vendor token formats, URL
+user-info, private-key armour). The class inventory is
+`docs/qa/tracker_intake_2026_11_16_v11/class_inventory.md`; the contracts of each part are
+`tests/workable_items/test_secret_canon.py` (`test_secret_canon.py [<path>]`, exit 0 pass, 1 a
+contract failed, 2 load error, 3 BLIND). The round-10 reviewer's 51 positive and 25 negative shapes are
+fixture rows of `tests/workable_items/secret_shape_fixtures_r11.py`, run by
+`tests/workable_items/test_secret_shapes_r11.py`.
+
 ## Tests
 
 - `tests/workable_items/test_intake_lint.sh` (283 cases): golden-good and golden-bad fixture
@@ -186,6 +214,11 @@ pass a new batch.
   LN1..LN12, and the suite's own cleanup); each must be killed by the
   suite's own cases, and the check mutants declared so also by the built-in control needles.
   `INTAKE_LINT_MUT_JOBS` sets the parallelism (default 3).
+
+- Round 11: the mutation harness has a third target, C, a copy of `secret_canon.py` next to the lint,
+  so a mutant of the shared module is killed by the lint suite as well; the leak scan's harness runs
+  the same module's mutants (`CANON_MUTANTS`, through `LEAK_SCAN_CANON`). The counts are in the round-11
+  evidence pack.
 
 ## Honest boundary
 

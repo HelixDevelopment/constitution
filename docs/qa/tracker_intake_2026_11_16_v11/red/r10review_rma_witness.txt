@@ -1,0 +1,12 @@
+== original
+PASS REV-SELF: plan VID=VID with a SAME-DEFECT row
+PASS REV-SELF: replay
+FAIL REV-SELF: verify: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-16 14:43:35, target 2026-02-03 04:05:06 (KNOWN engine defect: close rewrites it)|KNOWN CON-358 created_at: replay time 2026
+PASS REV-SELF: verify of the normal p9h landing (control)
+RESULT: pass=576 fail=1
+== rma
+PASS REV-SELF: plan VID=VID with a SAME-DEFECT row
+PASS REV-SELF: replay
+PASS REV-SELF: verify
+PASS REV-SELF: verify of the normal p9h landing (control)
+RESULT: pass=577 fail=0

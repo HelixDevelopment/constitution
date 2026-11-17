@@ -41,6 +41,10 @@
 #   and verify, refs of a subdirectory). G1 and G2, the two git-scrub halves, are equivalent one at a time
 #   (each alone keeps git away from an ambient GIT_DIR); their evidence tool is
 #   docs/qa/tracker_intake_2026_11_16_v10/remint/equiv_git_scrub.sh.
+#   Round 11: the supersede backing moved into dup_rule_errors (review r10 RM-a), so T4, T5 and T6 are remapped
+#   onto it and T14..T17 cover its two call sites and its SAME-DEFECT branch; RM-c..RM-m are the round-10
+#   reviewer's re-mint mutants verbatim (RM-a and RM-b target the two removed checks: RM-b's intent is T5,
+#   RM-a's is T15, the inverse edit, since RM-a's own edit is now the code's behaviour).
 #   S-mutants: the suite's own fixture instrument (fx_sql).
 # ENV   WORKABLE_ITEMS        path of the workable-items engine binary (default: the tracked
 #                             scripts/workable-items/bin/workable-items; exit 2 when not executable)
@@ -292,9 +296,9 @@ mutants=(
   'T1 r10 dup_rule_errors: SAME-DEFECT legal for any pair|T|            if sup.get(vid) != tid:|||            if False:'
   'T2 r10 plan: SHARED-PATH pairs need no verdict|T|            if (vid, tid) not in decided:\n                refuse("SHARED-PATH|||            if False:\n                refuse("SHARED-PATH'
   'T3 r10 verify: SHARED-PATH coverage not checked|T|        if (vid, tid) not in decided:\n            bad.append("SHARED-PATH|||        if False:\n            bad.append("SHARED-PATH'
-  'T4 r10 plan: a supersede the target text does not back accepted|T|            elif vid not in t_toks:|||            elif False:'
-  'T5 r10 plan: a same-number supersede accepted|T|            if vid == tid:\n                refuse("--supersede %s=%s: nothing records|||            if False:\n                refuse("--supersede %s=%s: nothing records'
-  'T6 r10 verify: supersede backing not checked|T|            bad.append("%s -> %s: the supersede is backed neither|||            ("%s -> %s: the supersede is backed neither'
+  'T4 r10 plan: a supersede the target text does not back accepted (remapped round 11 into dup_rule_errors)|T|        elif not re.search(r"(?<![\w-])" + re.escape(vid) + r"\b(?!-)", target_text(tid)):|||        elif False:'
+  'T5 r10 plan: a same-number supersede accepted (remapped round 11 into dup_rule_errors; the reviewer r10 RM-b intent)|T|        if vid == tid:\n            errs.append("--supersede %s=%s: nothing records|||        if False:\n            errs.append("--supersede %s=%s: nothing records'
+  'T6 r10 verify: supersede backing not checked (remapped round 11: verify drops the backing errors of the shared rules)|T|    for e in dup_rule_errors(rows_ok, set(T), set(minted), sup, dl_count, t_text):\n        bad.append(e)|||    for e in dup_rule_errors(rows_ok, set(T), set(minted), sup, dl_count, t_text):\n        if not e.startswith("--supersede"):\n            bad.append(e)'
   'T7 r10 plan: AMBIGUOUS read as REBOUND (the absence rule of round 9)|T|cls = "XREF-AMBIGUOUS" if x in T else "XREF-REBOUND"|||cls = "XREF-REBOUND"'
   'T8 r10 plan: --target-own accepted on a REBOUND or SUPERSEDED id|T|                if fl[x] != "XREF-AMBIGUOUS":|||                if False:'
   'T9 r10 plan: an id declared both ways accepted|T|            for x in sorted(a_ids & o_ids, key=num):|||            for x in []:'
@@ -302,6 +306,21 @@ mutants=(
   'T11 r10 verify: the annotations and target_own union not compared with the need set|T|(a_ids | o_ids) != need|||False'
   'T12 r10 refs: a subdirectory of a repository accepted|T|    if os.path.realpath(top) != os.path.realpath(a.repo_root):|||    if False:'
   'T13 r10 parse_decl: a declaration given twice accepted|T|            raise Blind("%s %s: given twice" % (opt, mm.group(1)))|||            pass'
+  'T14 r11 plan: the planner drops the backing errors of the shared rules|T|        for e in errs:\n            refuse(e)|||        for e in errs:\n            if not e.startswith("--supersede"):\n                refuse(e)'
+  'T15 r11 dup_rule_errors: a SAME-DEFECT row does not back VID=VID (the reviewer r10 RM-a intent ported: verify refused the witness)|T|        if (vid, tid) in same:\n            continue|||        if (vid, tid) in same and vid != tid:\n            continue'
+  'T16 r11 dup_rule_errors: a SAME-DEFECT row backs nothing|T|        if (vid, tid) in same:\n            continue|||        if False:\n            continue'
+  'T17 r11 plan: the target text read from the description only|T|        t_text = lambda tid: "\\n".join(norm(T[tid][0][c]) for c in TEXT_REWRITE) if len(T.get(tid, [])) == 1 else ""\n        errs = dup_rule_errors(|||        t_text = lambda tid: ""\n        errs = dup_rule_errors('
+  'RM-c dup rule: reason id check dropped (reviewer round 10, verbatim)|T|elif re.search(r"(?<![\w-])[A-Z]+-[0-9]+\b", reason):|||elif False:'
+  'RM-d dup rule: semicolon check dropped (reviewer round 10, verbatim)|T|elif not reason.strip() or ";" in reason or "\\n" in reason:|||elif not reason.strip() or "\\n" in reason:'
+  'RM-e shared path: basename minimum 8 -> 9 (reviewer round 10, verbatim)|T|names = {n for n in names if len(n) >= 8}|||names = {n for n in names if len(n) >= 9}'
+  'RM-f shared path: closed targets count (reviewer round 10, verbatim)|T|if len(T[tid]) == 1 and str(T[tid][0]["current_location"] or "") == "Issues"]|||if len(T[tid]) == 1]'
+  'RM-g target-own: bare form covers REBOUND too (reviewer round 10, verbatim)|T|            o_ids = {x for x, c in fl.items() if c == "XREF-AMBIGUOUS"} - a_ids|||            o_ids = set(fl) - a_ids'
+  'RM-h decl spec: repeated TID accepted (reviewer round 10, verbatim)|T|        if mm.group(1) in out:\n            raise Blind|||        if False:\n            raise Blind'
+  'RM-i refuse both meanings check dropped (reviewer round 10, verbatim)|T|            for x in sorted(a_ids & o_ids, key=num):\n                refuse(|||            for x in sorted(set(), key=num):\n                refuse('
+  'RM-j verify: target_own may name an id the target lacks (reviewer round 10, verbatim)|T|any(x not in T or sup.get(x) == i for x in o_ids)|||any(sup.get(x) == i for x in o_ids)'
+  'RM-k git top-of-repo check dropped (reviewer round 10, verbatim)|T|    if os.path.realpath(top) != os.path.realpath(a.repo_root):\n        raise Blind|||    if False:\n        raise Blind'
+  'RM-l dup rule: duplicate pair accepted (reviewer round 10, verbatim)|T|        elif (vid, tid) in seen:|||        elif False:'
+  'RM-m dup rule: Duplicate check line count check dropped (reviewer round 10, verbatim)|T|elif verdict != "SAME-DEFECT" and dup_line_count(vid) != 1:|||elif False:'
 )
 
 # Equivalent mutants (section 11.4.276(D), review r9 F4): an edit that cannot change the tool's answer is not

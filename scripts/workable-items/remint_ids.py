@@ -276,12 +276,15 @@ def parse_decl(opt, specs):
     return out
 
 
-def dup_rule_errors(rows, target_ids, minted_own, sup, dup_line_count):
+def dup_rule_errors(rows, target_ids, minted_own, sup, dup_line_count, target_text):
     """The duplicate-resolution rules, ONE function for the planner (each error a refusal) and for verify
     (each error a mismatch), so a hand-edited plan meets the same rules as a made one (round 10, R9-6).
     rows: (tag, vehicle_id, target_id, verdict, reason). SAME-DEFECT is legal only for a pair --supersede
     lands (the superseded item has no row a landing check could go on); every other verdict needs an own
-    item this landing mints."""
+    item this landing mints. target_text(tid): the target item's text columns joined ("" when the target
+    holds no single row of tid). Round 11 (review r10, RM-a): the supersede backing is checked here too, so
+    plan and verify cannot read it differently: a --supersede VID=TID is backed by a SAME-DEFECT row for the
+    pair, or, when VID differs from TID, by the target's TID naming VID."""
     errs, seen = [], {}
     for tag, vid, tid, verdict, reason in rows:
         if verdict == "SAME-DEFECT":
@@ -305,6 +308,17 @@ def dup_rule_errors(rows, target_ids, minted_own, sup, dup_line_count):
             errs.append(tag + "%s has no Duplicate check line, or more than one" % vid)
         else:
             seen[(vid, tid)] = tag.strip(": ")
+    same = {(vid, tid) for _, vid, tid, verdict, _ in rows if verdict == "SAME-DEFECT" and sup.get(vid) == tid}
+    for vid, tid in sorted(sup.items()):
+        if (vid, tid) in same:
+            continue
+        if vid == tid:
+            errs.append("--supersede %s=%s: nothing records that the two are one defect: a shared number is not a "
+                        "shared defect (the target's item calling itself %s says nothing), and no --dup-resolution "
+                        "row gives the pair SAME-DEFECT" % (vid, tid, tid))
+        elif not re.search(r"(?<![\w-])" + re.escape(vid) + r"\b(?!-)", target_text(tid)):
+            errs.append("--supersede %s=%s: nothing records that the two are one defect: the target's %s does not "
+                        "name %s, and no --dup-resolution row gives the pair SAME-DEFECT" % (vid, tid, tid, vid))
     return errs
 
 
@@ -1158,7 +1172,8 @@ def make_plan(a):
         rows_in = [("--dup-resolution line %d: " % n, vid, tid, verdict, reason)
                    for n, vid, tid, verdict, reason in (read_dup_resolution(a.dup_resolution) if a.dup_resolution else [])]
         dl_count = lambda vid: len(DUP_LINE.findall(norm(V[vid][0]["description"]))) if len(V.get(vid, [])) == 1 else 0
-        errs = dup_rule_errors(rows_in, set(T), set(minted_new.values()), sup, dl_count)
+        t_text = lambda tid: "\n".join(norm(T[tid][0][c]) for c in TEXT_REWRITE) if len(T.get(tid, [])) == 1 else ""
+        errs = dup_rule_errors(rows_in, set(T), set(minted_new.values()), sup, dl_count, t_text)
         for e in errs:
             refuse(e)
         if not errs:
@@ -1168,19 +1183,7 @@ def make_plan(a):
             if (vid, tid) not in decided:
                 refuse("SHARED-PATH %s: names %s, which the target's open %s names too, and no --dup-resolution row "
                        "gives the pair a verdict (section 11.4.214)" % (vid, name, tid))
-        # round 10 (R9-7): a --supersede is a SAME-DEFECT claim; it is backed only by the target item naming the
-        # vehicle id (the target filed it knowing the vehicle's item) or by a SAME-DEFECT row for the pair
-        for vid, tid in sorted(sup.items(), key=lambda x: num(x[0])):
-            t_toks = {x.group(0) for c in TEXT_REWRITE for x in tok.finditer(norm(T[tid][0][c]))} if len(T[tid]) == 1 else set()
-            if [vid, tid, "SAME-DEFECT"] in [r_[:3] for r_ in dup_rows]:
-                continue
-            if vid == tid:
-                refuse("--supersede %s=%s: nothing records that the two are one defect: a shared number is not a "
-                       "shared defect (the target's item calling itself %s says nothing), and no --dup-resolution row "
-                       "gives the pair SAME-DEFECT" % (vid, tid, tid))
-            elif vid not in t_toks:
-                refuse("--supersede %s=%s: nothing records that the two are one defect: the target's %s does not name "
-                       "%s, and no --dup-resolution row gives the pair SAME-DEFECT" % (vid, tid, tid, vid))
+        # the --supersede backing (round 10, R9-7) is one of the dup_rule_errors rules since round 11
         target_sha = sha256_file(paths["target"])
         for vid in sorted({r_[0] for r_ in dup_rows if r_[2] != "SAME-DEFECT"}, key=num):
             rows_ = sorted(((t_, v_, r_) for o_, t_, v_, r_ in dup_rows if o_ == vid), key=lambda x: num(x[0]))
@@ -1755,19 +1758,14 @@ def cmd_verify(a):
         rows_ok.append(("plan dup-resolution row %s/%s: " % (row[0], row[1]), row[0], row[1], row[2], row[3]))
     dl_count = lambda vid: len(re.findall(r"(?m)^Duplicate check \(section 11\.4\.214\):", norm(V[vid][0]["description"]))) \
         if len(V.get(vid, [])) == 1 else 0
-    for e in dup_rule_errors(rows_ok, set(T), set(minted), sup, dl_count):
+    t_text = lambda tid: "\n".join(norm(T[tid][0][c]) for c in TEXT_REWRITE) if len(T.get(tid, [])) == 1 else ""
+    for e in dup_rule_errors(rows_ok, set(T), set(minted), sup, dl_count, t_text):
         bad.append(e)
     decided = {(r_[1], r_[2]) for r_ in rows_ok} | set(sup.items())
     for vid, tid, name in shared_path_pairs(V, T, own, m, sup, prefix):
         if (vid, tid) not in decided:
             bad.append("SHARED-PATH %s: names %s, which the target's open %s names too, and the plan gives the pair "
                        "no verdict" % (vid, name, tid))
-    for vid, tid in sup.items():
-        t_txt = " ".join(norm(T[tid][0][c]) for c in TEXT_REWRITE) if len(T.get(tid, [])) == 1 else ""
-        if vid == tid or not re.search(r"(?<![\w-])" + re.escape(vid) + r"\b(?!-)", t_txt) \
-                and not any(r_[1:4] == (vid, tid, "SAME-DEFECT") for r_ in rows_ok):
-            bad.append("%s -> %s: the supersede is backed neither by the target item naming the id nor by a "
-                       "SAME-DEFECT row" % (vid, tid))
     for _, vid, tid, verdict, reason in rows_ok:
         if verdict == "SAME-DEFECT" or vid not in minted or tid not in T:
             continue

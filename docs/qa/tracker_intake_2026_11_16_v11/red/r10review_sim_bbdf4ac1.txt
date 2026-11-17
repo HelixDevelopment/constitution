@@ -1,0 +1,7 @@
+vehicle=bd2ce25955013b5de4caf9e3e407677a8f8318b7 main=bbdf4ac198a8f71ead8ca848817d277e2bbaa3d5
+landing simulations written under docs/qa/tracker_intake_2026_11_16_v10/remint
+sim rc=0
+RESULT: FAIL facts=5 failed=5
+RESULT landed=37 target=37 NEW=0 REMOVED=0
+RESULT: NOT-LANDABLE mode=REPLAY own=46 base_changes=3 steps=72 conflicts=0 refusals=48 first=CON-423 last=CON-467
+RESULT: PASS selected=46 findings=0 prefix=CON rendered=none

@@ -4,7 +4,9 @@
 #
 # Documentation (section 11.4.18): docs/guides/intake_lint_guide.md.
 #
-# WHAT  Each mutant is one exact text replacement in a COPY of the lint, or of the suite (target S);
+# WHAT  Each mutant is one exact text replacement in a COPY of the lint, of the suite (target S), or of the
+#   shared credential primitive secret_canon.py (target C, round 11; the copy is placed next to an
+#   unmutated lint copy, and every lint copy gets an unmutated canon next to it);
 #   the replaced text must occur exactly once, otherwise the mutant is stale and the test fails.
 #   For each mutant: (a) the suite runs with --no-selfcheck (and stops at its first failing case),
 #   so the suite's own cases must kill it; (b) for a lint mutant declared "yes", the shipped lint's
@@ -45,8 +47,9 @@ for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 root=$(cd "$here/../.." && pwd) || exit 2
 src=$root/scripts/workable-items/intake_lint.py
+canon=$root/scripts/workable-items/secret_canon.py
 suite=$here/test_intake_lint.sh
-[ -f "$src" ] && [ -f "$suite" ] || { echo "setup: lint or suite missing" >&2; exit 2; }
+[ -f "$src" ] && [ -f "$canon" ] && [ -f "$suite" ] || { echo "setup: lint or suite missing" >&2; exit 2; }
 # shellcheck source=../../scripts/lib/safe_rm.sh
 . "$root/scripts/lib/safe_rm.sh" || exit 2
 tmp=$(mktemp -d) || exit 2
@@ -60,7 +63,7 @@ jobs=${INTAKE_LINT_MUT_JOBS:-3}
 case "$jobs" in ''|*[!0-9]*|0) echo "setup: INTAKE_LINT_MUT_JOBS must be a positive integer" >&2; exit 2 ;; esac
 
 # Escapes in old/new: \n is a newline, \\n is a literal backslash-n (as written in Python source).
-# id | target (L lint, S suite) | needle (yes: the control needles must stop it too) | old ||| new
+# id | target (L lint, S suite, C shared primitive) | needle (yes: the control needles must stop it too) | old ||| new
 # (old and new are split at the first "|||", so either may contain a single "|")
 mutants=(
   'O1 XREF-DANGLING check off|L|yes|            if ref not in fids and ref not in all_items:|||            if False:'
@@ -312,6 +315,60 @@ mutants=(
   'R10-19 SECRET: the type= attribute key (input type=password) not read|L|no|\b(?:key|name|type|id)\s*=\s*(?P<q1>|||\b(?:key|name|id)\s*=\s*(?P<q1>'
   'XL13 entity view on a text html.unescape leaves unchanged (reviewer round 9, ported: round 10 gates the view on a change, not on _ENT)|L|no|    d = html.unescape(t)\n    return d if d != t else None|||    d = html.unescape(t)\n    return d'
   'R10-20 SECRET: named entities (&equals;) not decoded|L|no|    d = html.unescape(t)\n    return d if d != t else None|||    d = re.sub(r"&#(\d+);?", lambda m: chr(int(m.group(1))), t)\n    return d if d != t else None'
+  # round 11 (review r10 item 2): the round-10 reviewer's lint mutants LM1..LM18 VERBATIM (tools/rev_mutants.py
+  # of that review; LM2 and LM15 are in equivalent=() below), and the C-mutants of the shared primitive
+  # scripts/workable-items/secret_canon.py (target C: a mutated canon next to an unmutated lint): the
+  # reviewer's scan mutants SM1..SM16 ported onto the same knob of the shared module (the round-11 scan
+  # has no reader of its own for them any more) and own mutants K2a..K6d, one per part of the primitive
+  'LM1 fixpoint steps 64 -> 4 (reviewer round 10, verbatim)|L|no|SECRET_FIXPOINT_STEPS = 64|||SECRET_FIXPOINT_STEPS = 4'
+  'LM3 base64 decoded needs '\''='\'' only (colon form dropped) (reviewer round 10, verbatim)|L|no|if len(d) < 8 or not re.search(r"[=:]", d)|||if len(d) < 8 or not re.search(r"[=]", d)'
+  'LM4 base64 run minimum 16 -> 20 (reviewer round 10, verbatim)|L|no|(?:[A-Za-z0-9+/_-]{4}){4,}|||(?:[A-Za-z0-9+/_-]{4}){5,}'
+  'LM5 stand-in letters: at most half -> under half (reviewer round 10, verbatim)|L|no|return 2 * odd <= len(h)|||return 2 * odd < len(h)'
+  'LM6 split heads: three-part form dropped (reviewer round 10, verbatim)|L|no|for j in (i + 2, i + 3):|||for j in (i + 2,):'
+  'LM7 ticket value not anchored at end (reviewer round 10, verbatim)|L|no|_TICKET_VALUE = re.compile(r"^[A-Z][A-Z0-9]{1,9}-[0-9]{1,7}$")|||_TICKET_VALUE = re.compile(r"^[A-Z][A-Z0-9]{1,9}-[0-9]{1,7}")'
+  'LM8 version: a bare number is a version (reviewer round 10, verbatim)|L|no|_VERSION_VALUE = re.compile(r"^v?[0-9]+(?:\.[0-9]+){1,3}|||_VERSION_VALUE = re.compile(r"^v?[0-9]+(?:\.[0-9]+){0,3}'
+  'LM9 ref scheme: any text after the colon (reviewer round 10, verbatim)|L|no|r"awssm|azkv|k8s|kms):[A-Za-z_$]")|||r"awssm|azkv|k8s|kms):")'
+  'LM10 R '\''<<-'\'' arrow dropped (reviewer round 10, verbatim)|L|no|_SEP_Q = r"\s*(?::=|=>|<<-|<-|:|=)\s*"|||_SEP_Q = r"\s*(?::=|=>|<-|:|=)\s*"'
+  'LM11 set command only at line start (reviewer round 10, verbatim)|L|no|_RX_SET_CMD = re.compile(r"(?im)(?:^|[;\[{])|||_RX_SET_CMD = re.compile(r"(?im)(?:^)'
+  'LM12 table row needs a closing pipe (reviewer round 10, verbatim)|L|no|`?[ \t]*(?:\||$)")|||`?[ \t]*\|")'
+  'LM13 join: '\''&'\'' and '\''~'\'' operators dropped (reviewer round 10, verbatim)|L|no|\s*(?:\+|\.\.?|\|\||&|~)?\s*\1|||\s*(?:\+|\.\.?|\|\|)?\s*\1'
+  'LM14 set command: generic keys dropped (reviewer round 10, verbatim)|L|no|if tier in ("strong", "generic") and _has_ld(v) and credential_value(tier, v, ""):\n            yield "set-command"|||if tier == "strong" and _has_ld(v) and credential_value(tier, v, ""):\n            yield "set-command"'
+  'LM16 attribute key '\''id'\'' dropped (reviewer round 10, verbatim)|L|no|_ATTR_KEY = r"\b(?:key|name|type|id)\s*|||_ATTR_KEY = r"\b(?:key|name|type)\s*'
+  'LM17 paren literal window 1024 -> 12 (reviewer round 10, verbatim)|L|no|[^()]{0,1024}?|||[^()]{0,12}?'
+  'LM18 entity view returned even when unchanged (reviewer round 10, verbatim)|L|no|    return d if d != t else None\n\n\ndef _v_join|||    return d\n\n\ndef _v_join'
+  'SM1c fixpoint 16 -> 1 and layers 3 -> 0|C|no|SECRET_LAYERS = 3 |||SECRET_LAYERS = 0 '
+  'SM1d full fixpoint 16 -> 1|C|no|    for _ in range(16):\n        u = t|||    for _ in range(1):\n        u = t'
+  'SM2c base64 run minimum 8 -> 20|C|no|(?:[A-Za-z0-9+/]{4}){2,}(?:[A-Za-z0-9+/]{2}==|||(?:[A-Za-z0-9+/]{4}){5,}(?:[A-Za-z0-9+/]{2}=='
+  'SM3c base64 decoded: half alnum -> three quarters|C|no|if sum(1 for c in s if c.isalnum()) * 2 < len(s):|||if sum(1 for c in s if c.isalnum()) * 4 < len(s) * 3:'
+  'SM4c base64 decoder dropped|C|no|    lambda t: _B64.sub(lambda m: _blob(m, base64.b64decode), t),\n|||'
+  'SM5c Mn marks kept|C|no|if cat in ("Mn", "Me", "Cf")|||if cat in ("Me", "Cf")'
+  'SM6c brace escapes dropped|C|no||\\u\{([0-9A-Fa-f]{1,6})\}|||||\\u\{(ZZZZ)\}|'
+  'SM7c long U escape dropped|C|no||\\U([0-9A-Fa-f]{8})|||||\\U(ZZZZ)|'
+  'SM8c join: & and ~ dropped|C|no|(?:\+|\.\.?|\|\||&|~)?\s*\1")|||(?:\+|\.\.?|\|\|)?\s*\1")'
+  'SM11c mot de passe dropped|C|no|"credentials", "motdepasse",|||"credentials",'
+  'SM13c set only at line start|C|no|(?:^|[;\[{\\n])[ \t]*(?:set|setenv|||(?:^)[ \t]*(?:set|setenv'
+  'SM14c Cherokee small s dropped|C|no|"\uabaa": "s", |||'
+  'SM15c pin needs 5 digits|C|no|r"[0-9]{4,12}", v|||r"[0-9]{5,12}", v'
+  'K2a Mc placeholder dropped|C|no|            r = MC_MARK|||            r = '\'''\'''
+  'K3a squash off|C|no|SQUASH_MIN = 3 |||SQUASH_MIN = 99 '
+  'K3b join max 4 -> 2|C|no|JOIN_MAX = 4 |||JOIN_MAX = 2 '
+  'K4a wildcard: any share of ASCII|C|no|return asc * 2 >= len(w) and|||return asc >= 0 and'
+  'K6a value min 8 -> 6|C|no|    if len(v) < 8 or len(v) > 4096:|||    if len(v) < 6 or len(v) > 4096:'
+  'K6b ticket accepted|C|no|(_IDENT.match(v) or _TICKET.match(v) or _VERSION.match(v)):\n        return False\n    if tier == "space"|||(_IDENT.match(v) or _VERSION.match(v)):\n        return False\n    if tier == "space"'
+  'K6c version accepted|C|no|(_IDENT.match(v) or _TICKET.match(v) or _VERSION.match(v)):\n        return False\n    if tier == "space"|||(_IDENT.match(v) or _TICKET.match(v)):\n        return False\n    if tier == "space"'
+  'K6d ref uri accepted|C|no|if _PATH.match(v) or _REF_URI.match(v) or|||if _PATH.match(v) or'
+  'SM10c dot separator dropped|C|no|_JOINGAP = re.compile(r"^[ \t_.\-|||_JOINGAP = re.compile(r"^[ \t_\-'
+  'SM12c tail loop never extends (ported: round 11 removed the cancel flag)|C|no|            e = ws[q][2]\n            q += 1\n        out.append|||            break\n        out.append'
+  'SM12d any attached word is a tail|C|no|            if not (nw in TAIL_OK or nw.isdigit()|||            if not (True or nw.isdigit()'
+  'C25 r11 a number joins a split key word across a space|C|no|            if k > 1 and lows[j + 1].isdigit() and re.search(|||            if False and lows[j + 1].isdigit() and re.search('
+  'C26 r11 a URL user-info placeholder is a value|C|no|"${<[(" and not is_placeholder(v) and not re.fullmatch|||"${" and not re.fullmatch'
+  'C27 r11 the value classifier keeps placeholders|C|no|    if is_placeholder(v):\n        return False\n    literal|||    if False:\n        return False\n    literal'
+  'C28 r11 an identifier needs letters-then-digits parts again|C|no|(?=(?:[a-z0-9]+[_.-])*[a-z]{3,}(?:[_.-]|$))[a-z][a-z0-9]*(?:[_.-][a-z0-9]+)+$|||[a-z]+[0-9]*(?:[_.-](?:[a-z]+[0-9]*|[0-9]+))+$'
+  'C29 r11 the attached join-negative words are keys again|C|no|            if t == "short" and j > 0 and view[ws[j - 1][2]:ws[j][1]] == "" and lows[j - 1] in SHORT_JOIN_NEGATIVE:|||            if False:'
+  'C30 r11 the suffix rules read joined forms too|C|no|            t = word_tier(joined, prev, k == 1)|||            t = word_tier(joined, prev, True)'
+  'C31 r11 a reference by name is a value|C|no| or _REF_NAME.match(v) or ||| or '
+  'C32 r11 a short key colon label is read|C|no|    if tier == "short" and not quoted and op in (":", "\uff1a"):\n        return False|||    if False:\n        return False'
+  'C33 r11 the suffix join-negative prefix check off|C|no| and w[:-len(h)] not in SHORT_JOIN_NEGATIVE:|||:'
 )
 
 # Equivalent mutants (section 11.4.276(D), review r9 F4): an edit the harness would apply but that cannot
@@ -323,9 +380,11 @@ mutants=(
 # view_differences=0 hit_differences=0 with the control needle ok.
 # id description | evidence file (repo-relative) | old ||| new
 equivalent=(
-  'RV2 escape view without NFKC (reviewer round 9): _clean() applies NFKD then NFKC to every non-ASCII view, and NFKD(NFKC(s)) = NFKD(s)|docs/qa/tracker_intake_2026_11_16_v10/runs/equiv_RV2.txt|                d = _clean(unicodedata.normalize("NFKC", d))|||                d = _clean(d)'
-  'LR2 SECRET_NFKC off: the same identity for the first view; an ASCII text is NFKC-invariant|docs/qa/tracker_intake_2026_11_16_v10/runs/equiv_LR2.txt|SECRET_NFKC = True|||SECRET_NFKC = False'
-  'XL12 U+3164 dropped from the fillers (reviewer round 9): NFKC folds HANGUL FILLER U+3164 to U+1160, which stays a filler|docs/qa/tracker_intake_2026_11_16_v10/runs/equiv_XL12.txt|_FILLERS = frozenset("\u115f\u1160\u3164\uffa0")|||_FILLERS = frozenset("\u115f\u1160\uffa0")'
+  'RV2 escape view without NFKC (reviewer round 9): _clean() applies NFKD then NFKC to every non-ASCII view, and NFKD(NFKC(s)) = NFKD(s)|docs/qa/tracker_intake_2026_11_16_v11/runs/equiv_RV2.txt|                d = _clean(unicodedata.normalize("NFKC", d))|||                d = _clean(d)'
+  'LR2 SECRET_NFKC off: the same identity for the first view; an ASCII text is NFKC-invariant|docs/qa/tracker_intake_2026_11_16_v11/runs/equiv_LR2.txt|SECRET_NFKC = True|||SECRET_NFKC = False'
+  'XL12 U+3164 dropped from the fillers (reviewer round 9): NFKC folds HANGUL FILLER U+3164 to U+1160, which stays a filler|docs/qa/tracker_intake_2026_11_16_v11/runs/equiv_XL12.txt|_FILLERS = frozenset("\u115f\u1160\u3164\uffa0")|||_FILLERS = frozenset("\u115f\u1160\uffa0")'
+  'LM2 base64 decoded minimum 8 -> 12 (reviewer round 10): the run regex needs 16 or more base64 characters, which decode to 12 or more bytes, so no decoded text is shorter than 12|docs/qa/tracker_intake_2026_11_16_v11/runs/equiv_LM2.txt|if len(d) < 8 or not re.search(r"[=:]", d)|||if len(d) < 12 or not re.search(r"[=:]", d)'
+  'LM15 table row admits the numeric tier (reviewer round 10): a numeric value is digits only (credential_value) while _has_ld needs a letter, so the conjunction is false for the numeric tier either way|docs/qa/tracker_intake_2026_11_16_v11/runs/equiv_LM15.txt|if tier and tier != "numeric" and _has_ld(v) and credential_value(tier, v, ""):|||if tier and _has_ld(v) and credential_value(tier, v, ""):'
 )
 
 mkcopy() { # mkcopy <src> <dest> <old> <new>  (\n in old/new is a newline)
@@ -357,7 +416,13 @@ one_mutant() {
     a=$?
     nb=n/a
   else
-    if ! mkcopy "$src" "$d/m.py" "$old" "$new" 2>"$d/err"; then echo "FAIL $id: stale mutant"; return; fi
+    if [ "$target" = C ]; then  # the shared primitive: a mutated canon next to an unmutated lint
+      if ! mkcopy "$canon" "$d/secret_canon.py" "$old" "$new" 2>"$d/err"; then echo "FAIL $id: stale mutant"; return; fi
+      mkcopy "$src" "$d/m.py" "" "" || { echo "FAIL $id: no copy"; return; }
+    else
+      if ! mkcopy "$src" "$d/m.py" "$old" "$new" 2>"$d/err"; then echo "FAIL $id: stale mutant"; return; fi
+      cp "$canon" "$d/secret_canon.py" || { echo "FAIL $id: no canon copy"; return; }
+    fi
     INTAKE_LINT=$d/m.py INTAKE_LINT_EXTRA=--no-selfcheck INTAKE_LINT_FAILFAST=1 bash "$suite" >"$d/log" 2>&1
     a=$?
     python3 -I "$d/m.py" --db "$d/none.db" --ids X-1 >"$d/needle" 2>&1
@@ -371,6 +436,7 @@ one_mutant() {
 
 fail=0
 mkcopy "$src" "$tmp/ctl.py" "" "" || exit 2
+cp "$canon" "$tmp/secret_canon.py" || exit 2
 INTAKE_LINT=$tmp/ctl.py INTAKE_LINT_EXTRA=--no-selfcheck bash "$suite" >"$tmp/ctl.log" 2>&1; a=$?
 python3 -I "$tmp/ctl.py" --db "$tmp/none.db" --ids X-1 >"$tmp/ctl.needle" 2>&1
 if [ "$a" = 0 ] && grep -q 'BLIND: database not found' "$tmp/ctl.needle"; then echo "PASS control: unmutated copy passes the suite and its control needles"
@@ -383,7 +449,7 @@ for i in "${!mutants[@]}"; do
   sel+=("$i")
 done
 export -f one_mutant mkcopy
-export tmp root src suite
+export tmp root src suite canon
 # bash cannot export arrays: hand each worker the mutant list through a file
 printf '%s\n' "${mutants[@]}" >"$tmp/mutants.txt"
 printf '%s\n' "${sel[@]}" | xargs -P "$jobs" -I{} bash -c 'mapfile -t mutants <"$tmp/mutants.txt"; one_mutant "$1" >"$tmp/v$1"' _ {}

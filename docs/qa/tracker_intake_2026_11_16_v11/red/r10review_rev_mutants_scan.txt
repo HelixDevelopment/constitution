@@ -1,0 +1,18 @@
+mutants=16 stale=0 
+KILLED SM1 fixpoint rounds 64 -> 2 rc=1 first=FAIL leak missed r10-rv-q02-pct-3
+SURVIVED SM2 base64 run minimum 16 -> 20 rc=0 first=
+SURVIVED SM3 base64 decoded minimum 8 -> 12 rc=0 first=
+SURVIVED SM4 base64 colon form dropped rc=0 first=
+KILLED SM5 clean keeps Mn marks rc=1 first=FAIL leak missed r9-pos-p21-cgj-in-key
+KILLED SM6 brace escapes dropped rc=1 first=FAIL leak missed r10-rv-q07-js-brace-escape
+KILLED SM7 long U escape dropped rc=1 first=FAIL leak missed r10-rv-q08-py-long-escape
+SURVIVED SM8 join: '&' and '~' dropped rc=0 first=
+SURVIVED SM9 triple quotes not read rc=0 first=
+SURVIVED SM10 split word: dot separator dropped rc=0 first=
+SURVIVED SM11 mot de passe dropped rc=0 first=
+SURVIVED SM12 fingerprint tail no longer a property rc=0 first=
+SURVIVED SM13 set command only at line start rc=0 first=
+KILLED SM14 Cherokee small s fold dropped rc=1 first=FAIL leak missed r10-rv-q15-coptic-cherokee
+KILLED SM15 pin needs 5 digits rc=1 first=FAIL leak missed r10-rv-n06-pin-year
+SURVIVED SM16 colon value window 8 -> 10 rc=0 first=
+RESULT kind=scan mutants=16 killed=6 survived=10 stale=0

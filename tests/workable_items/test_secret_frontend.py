@@ -131,6 +131,32 @@ def main(argv):
     for i, w in enumerate(witnesses, 1):
         check("C9 closure witness %d is reported" % i, list(m.secret_hits(w)))
 
+    # C10 (round 11, review r10 item 2): the lint's own named rule must report these shapes; the shared
+    # primitive (secret_canon.py) would report them too, as a canonical-* fallback, so a weakened named
+    # rule shows up here as a CHANGED rule name. Reviewer mutants LM3, LM4, LM7, LM8, LM9, LM11, LM12,
+    # LM13, LM16, LM17 are killed here (LM2 and LM15 are equivalent, see the harness).
+    import base64
+    vv = "Kq7" + "Zx9wPL3mn"
+    pwk = "pass" + "word"
+    def named(text, want):
+        got = sorted({r for r, _ in m.secret_hits(text)})
+        return got == sorted(want), "got %s" % ",".join(got)
+    b64 = lambda t: base64.b64encode(t.encode()).decode()  # noqa: E731
+    for name, text, want in (
+            ("C10 base64 colon form (LM3)", "x " + b64(pwk + ": " + vv) + " y", ["password-colon-unquoted"]),
+            ("C10 base64 run of 16 (LM4)", "x " + b64("pw=" + "Kq7Zx9w!A") + " y", ["short-key-assign"]),
+            ("C10 ticket prefix is not a ticket (LM7)", "tok" + "en=ABCD-12x9Qzk", ["password-assign-unquoted"]),
+            ("C10 a bare number is not a version (LM8)", "sec" + "ret=123456789", ["password-assign-unquoted"]),
+            ("C10 ref scheme needs a name after the colon (LM9)", "tok" + "en=kms:9Qz7wXk2a", ["password-assign-unquoted"]),
+            ("C10 set after a semicolon (LM11)", "x; set " + pwk + " " + vv, ["set-command"]),
+            ("C10 table row without a closing pipe (LM12)", "| " + pwk + " | " + vv, ["table-row-pair"]),
+            ("C10 literals joined by & (LM13)", pwk + '="' + vv[:4] + '" & "' + vv[4:] + '"', ["password-assign"]),
+            ("C10 literals joined by ~ (LM13)", pwk + '="' + vv[:4] + '" ~ "' + vv[4:] + '"', ["password-assign"]),
+            ("C10 attribute key id (LM16)", '<input id="' + pwk + '" value="' + vv + '">', ["xml-attribute-pair"]),
+            ("C10 parenthesised literal over 12 characters (LM17)", pwk + ' = ("' + vv + 'xyz")', ["password-assign"])):
+        ok, why = named(text, want)
+        check(name, ok, why)
+
     passed = sum(1 for _, ok, _ in res if ok)
     for name, ok, why in res:
         print(("PASS %s" % name) if ok else ("FAIL %s: %s" % (name, why or "contract broken")))

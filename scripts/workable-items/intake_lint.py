@@ -107,6 +107,22 @@ import os
 import re
 import sqlite3
 import sys
+import importlib.util as _ilu
+
+
+def _load_canon():
+    """The ONE shared credential rule set (round 11): secret_canon.py next to this file (a mutation copy
+    gets its own copy next to it). Missing means BLIND, never a silent pass."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secret_canon.py")
+    spec = _ilu.spec_from_file_location("secret_canon_%x" % (hash(path) & 0xFFFFFFFF), path)
+    if spec is None or not os.path.isfile(path):
+        raise ImportError("secret_canon.py not found next to the lint: " + path)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+CANON = _load_canon()
 import unicodedata
 import urllib.parse
 
@@ -205,6 +221,9 @@ SECRET_SPLIT_HEADS = True
 SECRET_SPLIT_KEYS = True
 SECRET_WILDCARD = True
 SECRET_VIEW_LAYERS = 3
+# round 11: the shared canonical rule set (secret_canon.py) behind the named extractors
+SECRET_CANONICAL = True
+CANON_RULE_NAMES = ("canonical-key", "canonical-record", "canonical-tool", "canonical-url", "canonical-xml")
 SECRET_MAX_VIEWS = 24
 # the fixpoint view: at most this many rounds of every transform (each round must change the text)
 SECRET_FIXPOINT_STEPS = 64
@@ -1386,6 +1405,15 @@ def secret_hits(text):
     for name in SECRET_RULE_NAMES:
         if name in found:
             yield name, found[name]
+    # round 11 (review r10 finding 1): the shared canonical primitive closes the class; it is reported by
+    # its own rule names only where none of the named extractors above read the text, so a shape keeps
+    # the rule that names it and a form no extractor knows is still a finding
+    if not found and SECRET_CANONICAL:
+        seen = set()
+        for name, s in CANON.hits(text):
+            if name not in seen:
+                seen.add(name)
+                yield name, s
 
 
 def scan_surfaces(r, rendered):
@@ -1885,6 +1913,17 @@ def raw_body(row, body):
     return row
 
 
+def canon_needles():
+    """(rule, positive, negative) for the canonical rules a fixture row reaches behind the extractors."""
+    v = "Ne" + "ed1e" + "Zq9x"
+    pw = "pass" + "word"
+    spaced = "_".join(pw)
+    return [
+        ("canonical-key", spaced + "=" + v, spaced + "_policy=" + v),
+        ("canonical-record", '{"key": "' + pw + '", "value": "' + v + '"}', '{"key": "' + pw + '", "value": "<redacted>"}'),
+    ]
+
+
 def selfcheck():
     """Control needles (section 11.4.201(7)(b)): every check must stay silent on the golden-good
     texts and fire on its golden-bad text; every secret pattern must fire on its positive needle and
@@ -2117,6 +2156,13 @@ def selfcheck():
             failed.append("SECRET/" + name)
     if sorted(n for n, _, _ in secret_needles()) != sorted(SECRET_RULE_NAMES):
         failed.append("SECRET/needle-count")
+    # round 11: the canonical rule set behind the extractors, with a positive no extractor reads and a
+    # negative of the same spelling
+    for name, pos, neg in canon_needles():
+        got_pos = [n for n, _ in secret_hits(pos)]
+        got_neg = [n for n, _ in secret_hits(neg)]
+        if name not in got_pos or got_neg:
+            failed.append("SECRET/" + name)
     return failed
 
 

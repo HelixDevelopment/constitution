@@ -84,6 +84,28 @@ else
   bad "SECRET front-end contracts" "rc=$front_rc: $(grep -E '^(FAIL|BLIND|setup)' "$front_out" | head -n 8 | tr '\n' '|')"
 fi
 
+# (0c) round 11 (review r10 item 1): the round-10 reviewer's probe rows, adopted verbatim
+# (tests/workable_items/secret_shape_fixtures_r11.py): every positive reported with its pinned rule names,
+# every negative not reported
+r11_out=$tmp/shapes_r11.txt
+python3 -I "$root/tests/workable_items/test_secret_shapes_r11.py" "$lint" >"$r11_out" 2>&1
+r11_rc=$?
+if [ "$r11_rc" = 0 ]; then
+  ok "SECRET r11 probe oracle: $(tail -n 1 "$r11_out")"
+else
+  bad "SECRET r11 probe oracle" "rc=$r11_rc: $(grep -E '^(FAIL|BLIND|LOAD)' "$r11_out" | head -n 8 | tr '\n' '|')"
+fi
+
+# (0d) round 11: the shared primitive's contracts (secret_canon.py next to the lint under test)
+canon_out=$tmp/canon.txt
+python3 -I "$root/tests/workable_items/test_secret_canon.py" "$(dirname "$lint")/secret_canon.py" >"$canon_out" 2>&1
+canon_rc=$?
+if [ "$canon_rc" = 0 ]; then
+  ok "SECRET canon contracts: $(tail -n 1 "$canon_out")"
+else
+  bad "SECRET canon contracts" "rc=$canon_rc: $(grep -E '^(FAIL|BLIND|LOAD)' "$canon_out" | head -n 8 | tr '\n' '|')"
+fi
+
 # run_lint <out-file> <args...>  -> sets rc
 run_lint() {
   local out=$1; shift
@@ -696,6 +718,10 @@ if sys.argv[3] and s.count(sys.argv[3]) != 1:  # an empty <old> is the unchanged
     sys.exit("the check text is not in the lint exactly once")
 open(sys.argv[2], "w", encoding="utf-8").write(s.replace(sys.argv[3], sys.argv[4]))
 PY
+  [ $? = 0 ] || return 1
+  # round 11: the lint loads the shared rule set from its own directory, so the copy gets it too
+  # (taken next to the lint under test, which is a mutated copy in the mutation harness)
+  cp -- "$(dirname -- "$lint")/secret_canon.py" "$tmp/secret_canon.py"
 }
 needle_case() { # needle_case <name> <copy> <want-pattern>
   python3 -I "$tmp/$2.py" --db "$tmp/none.db" --ids FX-002 >"$tmp/out" 2>&1; rc=$?

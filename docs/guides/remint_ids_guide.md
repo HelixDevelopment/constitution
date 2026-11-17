@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 6 |
+| Revision | 7 |
 | Created | 2026-11-13 |
-| Last modified | 2026-11-16T09:00:00Z |
+| Last modified | 2026-11-16T19:45:00Z |
 | Status | active |
 | Status summary | User guide and manual for landing a vehicle's tracker changes onto a target tracker: a three-way plan (base, vehicle, target), ids the vehicle minted moved to the target's next free numbers, every change replayed through the workable-items engine, conflicts reported, never guessed. |
 | Authority | Constitution §11.4.54 (ids never renumbered once landed), §11.4.93 (the engine is the only writer of the database), §11.4.249 (the verifier is not the producer), §11.4.288 (landing on `main`) — the canonical text wins where this guide and the constitution disagree. |
 | Scope | Universal (§11.4.17); the prefix, the database paths and the file list are consumer DATA (§11.4.35). |
 | Issues | not wired into a seam: a lander runs it by hand |
 | Issues summary | The vehicle's history rows, `created_at` and `last_modified` are not carried (see the honest boundary); verify reports them as KNOWN. |
-| Fixed | revision 6: tracker-intake round 10 (review R9-5, R9-6, R9-7, R9-9): cross-references decided on id identity (XREF-AMBIGUOUS added; `--target-own`; `--annotate-foreign TID=ID,ID`); one shared duplicate-resolution rule set for plan and verify, every SHARED-PATH pair needs a verdict, every `--supersede` needs backing; declaration refusals; every git call without the repository-locating GIT_* variables, so `refs` of a directory that is no repository is BLIND; revision 5: tracker-intake round 9 (review F2, F3): `--supersede`, `--annotate-foreign`, `--dup-resolution`; XREF-REBOUND and XREF-SUPERSEDED refusals; verify checks the superseded audit copy, the annotations and the landing checks; revision 4: tracker-intake round 6 (review R5-1, R5-2, R5-4, R5-6): an update step passes `--description` only when the vehicle changed it, so a field-only change keeps the target's body; a re-render (a close, or an update with `--description`) over a body the target changed outside the engine slots is a CONFLICT; verify compares body_md (kept text, heading, Status line) instead of a KNOWN line; a path naming an id that does not move is not refused, and a refused plan is still written (mode REFUSED); revision 3: tracker-intake round 5 (review R4-1, R4-2, R4-4, R4-5, R4-9): a merge never rewrites target text and passes only the units the vehicle changed; a state block both sides changed is a conflict; every range form is checked, a chain of tight ranges pair by pair; ASCII digits only; read-only URIs quoted and `-wal` sidecars refused everywhere; an automated branch sweep of the planner and verify, and the defects it found (a value passed as written that names a moved id, an empty block stamp, a reopen kept in Fixed.md); revision 2: tracker-intake round 4 (review findings R3-1, R3-2 and the minors): three-way plan, base-item changes, conflicts, FAST-FORWARD, a separate verify oracle; revision 1: tracker-intake round 3 (review R2-7) |
+| Fixed | revision 7: tracker-intake round 11 (review r10 RM-a, RM-e, RM-f, RM-g, RM-j): the `--supersede` backing is one of the shared `dup_rule_errors` rules, so plan and verify read it alike and `VID=VID` with a `SAME-DEFECT` row verifies; suite cases for the 8-character SHARED-PATH minimum, a closed target item, the bare `--target-own` form and a `target_own` id the target lacks; revision 6: tracker-intake round 10 (review R9-5, R9-6, R9-7, R9-9): cross-references decided on id identity (XREF-AMBIGUOUS added; `--target-own`; `--annotate-foreign TID=ID,ID`); one shared duplicate-resolution rule set for plan and verify, every SHARED-PATH pair needs a verdict, every `--supersede` needs backing; declaration refusals; every git call without the repository-locating GIT_* variables, so `refs` of a directory that is no repository is BLIND; revision 5: tracker-intake round 9 (review F2, F3): `--supersede`, `--annotate-foreign`, `--dup-resolution`; XREF-REBOUND and XREF-SUPERSEDED refusals; verify checks the superseded audit copy, the annotations and the landing checks; revision 4: tracker-intake round 6 (review R5-1, R5-2, R5-4, R5-6): an update step passes `--description` only when the vehicle changed it, so a field-only change keeps the target's body; a re-render (a close, or an update with `--description`) over a body the target changed outside the engine slots is a CONFLICT; verify compares body_md (kept text, heading, Status line) instead of a KNOWN line; a path naming an id that does not move is not refused, and a refused plan is still written (mode REFUSED); revision 3: tracker-intake round 5 (review R4-1, R4-2, R4-4, R4-5, R4-9): a merge never rewrites target text and passes only the units the vehicle changed; a state block both sides changed is a conflict; every range form is checked, a chain of tight ranges pair by pair; ASCII digits only; read-only URIs quoted and `-wal` sidecars refused everywhere; an automated branch sweep of the planner and verify, and the defects it found (a value passed as written that names a moved id, an empty block stamp, a reopen kept in Fixed.md); revision 2: tracker-intake round 4 (review findings R3-1, R3-2 and the minors): three-way plan, base-item changes, conflicts, FAST-FORWARD, a separate verify oracle; revision 1: tracker-intake round 3 (review R2-7) |
 | Fixed summary | Round 4 merged an item the target also changed by replaying the vehicle's whole state block and its text re-pointed through the map, so a target change was lost or its reference re-pointed at a re-minted item (R4-1). Round 3 replayed only the items the vehicle minted, so a landing lost the vehicle's changes to base items (R3-1) and verify re-ran the producer's own logic (R3-2). |
 | Continuation | — |
 
@@ -248,7 +248,13 @@ held the id, not by whose item the id was; that verify trusted the plan's duplic
   REBOUND or SUPERSEDED id. A malformed or repeated declaration is BLIND.
 - **`--supersede` needs backing (R9-7)**: the target's TID names VID, or a `--dup-resolution` row
   gives the pair `SAME-DEFECT` (the one place that verdict is legal). `VID=VID` (the same number on
-  both sides) is refused without that row: a shared number is not a shared defect.
+  both sides) is refused without that row: a shared number is not a shared defect, and the target's
+  item naming its own number backs nothing. `VID=VID` WITH a `SAME-DEFECT` row is legal: it plans,
+  replays and verifies (round 11, review r10 RM-a: until round 11 verify read the backing with its own
+  check and refused this case that the planner accepted). The backing is one of the `dup_rule_errors`
+  rules since round 11, so the planner and verify cannot read it differently; both report the same
+  text (`--supersede VID=TID: nothing records that the two are one defect: ...`), the planner as
+  `REFUSED`, verify as `MISMATCH`.
 - **Every SHARED-PATH pair needs a verdict (R9-6)**: the plan applies the intake lint's rule (a file
   of 8 or more characters named in an own item's `**Affected scope / file-scope manifest:**` section
   and by an OPEN target item, unless the item's Duplicate check line names that item); a pair with no
@@ -256,7 +262,8 @@ held the id, not by whose item the id was; that verify trusted the plan's duplic
 - **verify re-applies the rules (R9-6)**: the duplicate-resolution rules are ONE function
   (`dup_rule_errors`) that the planner and verify both call; verify also recomputes, from the
   databases alone, every SHARED-PATH pair, every flagged id each target item needs declared (the
-  plan's annotations and `target_own` together must equal it), and every supersede's backing. A plan
+  plan's annotations and `target_own` together must equal it, and `target_own` never names an id the
+  target does not hold), and, through the same `dup_rule_errors` call, every supersede's backing. A plan
   edited after it was made fails verify; the reviewer's plan-edit probe now gives FAIL.
 - **git without ambient variables (R9-9)**: the file clears the repository-locating GIT_* variables
   when it starts (the canonical census scrub) and every git call runs with them removed, so `refs` of a
