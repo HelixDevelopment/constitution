@@ -997,7 +997,7 @@ tests/token_efficiency/test_token_efficiency_unit.sh	sh	entry	default	bash	-	aut
 tests/workable_items/remint_branch_sweep.py	py	entry	heavy	python3	-	auto
 tests/workable_items/remint_branch_sweep_mutations.py	py	entry	heavy	python3	-	auto
 tests/workable_items/secret_shape_fixtures.py	py	entry	default	python3	-	override: class entry: the shared secret-shape fixture rows; run alone it checks its own invariants (labels once, hit rows with their EXPECT_RULES tuple, miss rows with a reason, the reviewer lists at their verbatim sizes)
-tests/workable_items/secret_shape_fixtures_r11.py	py	excluded	-	-	-	override: reason: data module: the round-10 reviewer's 51 positive and 25 negative probe rows, verbatim; no entry point of its own, it is read by tests/workable_items/test_secret_shapes_r11.py and docs/qa/tracker_intake_2026_11_16_v11/tools/leak_scan_test.py
+tests/workable_items/secret_shape_fixtures_r11.py	py	excluded	-	-	-	override: reason: data: the round-10 reviewer's 51 positive and 25 negative probe rows, verbatim; no entry point of its own, it is read by tests/workable_items/test_secret_shapes_r11.py and docs/qa/tracker_intake_2026_11_16_v11/tools/leak_scan_test.py
 tests/workable_items/test_intake_lint.sh	sh	entry	default	bash	-	auto
 tests/workable_items/test_intake_lint_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/workable_items/test_remint_branch_sweep.sh	sh	entry	default	bash	-	auto
