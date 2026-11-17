@@ -113,7 +113,7 @@ dead starter's intent judged whatever its start process does) and must show at l
 
 ![Start sequence of an acquire with the gated start process](start_intent.svg)
 
-Source: `start_intent.mmd` (rendered with mermaid-cli, `mmdc.log`).
+Source: the mermaid block in `start_intent.md`, byte-identical to the file mermaid-cli rendered (`mmdc.log`).
 
 ## Why every kill point ends in a recoverable state (the argument the sweep tests)
 
@@ -242,10 +242,32 @@ runner's timeout and RCTRL2 re-ran it; `mutants.md`); every other survivor has i
 
 ## Gates
 
-Each gate ran twice on the final tree (`tools/gates.sh.txt` and the extra checks it lists); the outputs are copied verbatim:
+The gates are `tools/gates.sh.txt` and the extra checks it lists: index fresh, ledger ratchet, propagation 279 to 286 and
+291, `--verify-manifest`, engine validate and diff, `--sync-guide` leaves the guide unchanged, no generate drift, the
+progressive split reproducible, the git-env census, and the tracked working tree after the gates.
 
-- `runs/gates_final1.txt`
-- `runs/gates_final2.txt`
+Runs 1 and 2 (identical output, every check rc=0) ran on the code tree before this pack was committed, while the pack was
+still untracked. Run 3 ran on the pack commit c67876a4 and the git-env census failed (rc=1, with unscrubbed=0): the pack
+held the diagram source as `start_intent.mmd`, and the census is closed-world over tracked files, with no `.mmd` type
+(neither code nor in its data list). The repository keeps diagrams as mermaid blocks in Markdown (no `.mmd` file is
+tracked on origin/main; 36 `.md` files carry a mermaid block), so the fix is in the pack, not in the census: the source
+is now `start_intent.md`, its mermaid block byte-identical to the rendered file (sha256 de55c98d7eae98ea...).
+
+Run 3 also showed a defect of `tools/gates.sh`: its census step kept only lines containing `unscrubbed=` (its other
+pattern never matched, since every census line starts with the tool name), so the FAIL reason line was dropped and only
+the exit code showed the failure. The step now prints every verdict line of the census (`census_step_on_c67876a4.txt`:
+on c67876a4 it prints the reason). On a passing tree it prints the same single line as before, so the outputs of runs 1
+and 2 stay comparable. The lesson, kept for later rounds: gates count as evidence only on a committed tree that holds
+the evidence pack.
+
+Gate outputs in this pack (copied verbatim):
+
+- `runs/gates_final1.txt`: run 1, code tree before the pack was committed
+- `runs/gates_final2.txt`: run 2, the same tree
+- `runs/gates_run3_c67876a4.txt`: run 3, commit c67876a4 (the pack commit): the census FAIL
+- `runs/census_step_on_c67876a4.txt`: the fixed census step on c67876a4: it names the reason
+- run 4, the fix commit: added by the next commit (it runs on this commit's tree)
+- run 5, the fix commit: added by the next commit (it runs on this commit's tree)
 
 ## Open questions (for the operator and the reviewer)
 

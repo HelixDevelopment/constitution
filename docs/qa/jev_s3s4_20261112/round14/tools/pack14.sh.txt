@@ -20,7 +20,10 @@ cp "$W/notes/exp_r14_sweep_draft.sh" "$E/tools/exp_rev_killsweep.sh.txt"
 cp "$W/dbg/sweep_states.sh" "$E/tools/sweep_states.sh.txt"
 cp "$W/dbg/r14_3b.sh" "$E/tools/r14_3b.sh.txt"
 cp "$W/mmd/pptr.json" "$E/tools/pptr.json.txt"
-cp "$W/mmd/start_intent.mmd" "$W/mmd/start_intent.svg" "$W/mmd/mmdc.log" "$E/"
+# the diagram source ships as Markdown with a mermaid block (byte-identical to the rendered .mmd): the git-env census
+# is closed-world and has no .mmd type, and the repository keeps diagrams as mermaid blocks in .md (gate run 3)
+cp "$W/mmd/start_intent.md" "$W/mmd/start_intent.svg" "$W/mmd/mmdc.log" "$E/"
+[ ! -e "$E/start_intent.mmd" ] || { echo "pack14: a stale start_intent.mmd is in the evidence dir (git rm it)" >&2; exit 2; }
 chmod 644 "$E"/tools/* "$E"/runs/* "$E"/start_intent.* "$E"/mmdc.log
 python3 "$W/tools/mkruns14.py" "$W/notes/runs14_table.md"
 cat "$W/notes/runs14_table.md" > "$W/notes/readme14_runs.md"

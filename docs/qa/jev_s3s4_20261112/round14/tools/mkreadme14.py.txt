@@ -11,7 +11,7 @@ parts.append("""## The start sequence (diagram)
 
 ![Start sequence of an acquire with the gated start process](start_intent.svg)
 
-Source: `start_intent.mmd` (rendered with mermaid-cli, `mmdc.log`).""")
+Source: the mermaid block in `start_intent.md`, byte-identical to the file mermaid-cli rendered (`mmdc.log`).""")
 parts.append(open(W + "/notes/readme14_limits.md").read().rstrip("\n"))
 parts.append(open(runs).read().rstrip("\n"))
 # mutant counts, computed from runs/mut_summary.txt (the table and the survivor arguments are in mutants.md)
@@ -35,9 +35,18 @@ mp = ["## Mutants", "",
       "runner's timeout and RCTRL2 re-ran it; `mutants.md`); every other survivor has its argument in `mutants.md`."]
 parts.append("\n".join(mp))
 # gate outputs (two runs on the final tree, copied verbatim into runs/)
-gp = ["## Gates", "", "Each gate ran twice on the final tree (`tools/gates.sh.txt` and the extra checks it lists); the outputs are copied verbatim:", ""]
-for f in ("gates_final1.txt", "gates_final2.txt"):
-    gp.append("- `runs/%s`%s" % (f, "" if os.path.exists(W + "/runs/" + f) else ": MISSING"))
+gp = ["## Gates", "", open(W + "/notes/readme14_gates.md").read().rstrip("\n"), "",
+      "Gate outputs in this pack (copied verbatim):", ""]
+for f, what in (("gates_final1.txt", "run 1, code tree before the pack was committed"),
+                ("gates_final2.txt", "run 2, the same tree"),
+                ("gates_run3_c67876a4.txt", "run 3, commit c67876a4 (the pack commit): the census FAIL"),
+                ("census_step_on_c67876a4.txt", "the fixed census step on c67876a4: it names the reason"),
+                ("gates_final4.txt", "run 4, the fix commit"),
+                ("gates_final5.txt", "run 5, the fix commit")):
+    if os.path.exists(W + "/runs/" + f):
+        gp.append("- `runs/%s`: %s" % (f, what))
+    else:
+        gp.append("- %s: added by the next commit (it runs on this commit's tree)" % what)
 parts.append("\n".join(gp))
 parts.append(open(W + "/notes/readme14_tail.md").read().rstrip("\n"))
 open(out, "w").write("\n\n".join(parts) + "\n")

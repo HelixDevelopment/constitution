@@ -12,5 +12,6 @@ git diff --quiet -- docs/guides/full_suite_runner_guide.md; echo "guide unchange
 echo "== gate_constitution_generate_no_drift"; bash scripts/gates/gate_constitution_generate_no_drift.sh 2>&1 | tail -2; echo "rc=${PIPESTATUS[0]}"
 echo "== progressive split --check"; python3 progressive/generate_split.py --check 2>&1 | tail -2; echo "rc=${PIPESTATUS[0]}"
 echo "== git-env census (unscrubbed must be 0)"; python3 scripts/validation/git_env_class_census.py --root . --tsv > "${TMPDIR:?}/gates_census.$$" 2>&1; c=$?
-grep -E 'unscrubbed=|^(PASS|FAIL|BLIND)' "$TMPDIR/gates_census.$$" | tail -2; echo "rc=$c"; rm -f -- "${TMPDIR:?}/gates_census.$$"
+# every verdict line of the census (each FAIL reason, then the summary); no tail, so no reason line is dropped
+grep -E '^git-env-class-census: (PASS|FAIL|BLIND) ' "$TMPDIR/gates_census.$$"; echo "rc=$c"; rm -f -- "${TMPDIR:?}/gates_census.$$"
 echo "== working tree after the gates (tracked files only)"; git status --short --untracked-files=no | head -5; echo "end"
