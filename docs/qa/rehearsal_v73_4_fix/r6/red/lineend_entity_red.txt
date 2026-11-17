@@ -1,0 +1,28 @@
+LE-DANGER S19 decimal reference label then the line member LF: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#86;erification:** provisional -- job', '**Verification:** provisional -- job: ba']
+LE-DANGER S19 decimal reference label then the line member CR: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#86;erification:** provisional -- job', '**Verification:** provisional -- job: ba']
+LE-DANGER S19 decimal reference label then the line member CRLF: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#86;erification:** provisional -- job', '**Verification:** provisional -- job: ba']
+LE-DANGER S19 decimal reference label then the line member LFCR: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#86;erification:** provisional -- job', '**Verification:** provisional -- job: ba']
+LE-DANGER S19 decimal reference label then the line member CRCR: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#86;erification:** provisional -- job', '**Verification:** provisional -- job: ba']
+LE-DANGER S19 decimal reference label then the line member CRCRLF: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#86;erification:** provisional -- job', '**Verification:** provisional -- job: ba']
+LE-DANGER S20 hex reference label then the line member LF: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#x56;erification:** provisional -- jo', '**Verification:** provisional -- job: ba']
+LE-DANGER S20 hex reference label then the line member CR: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#x56;erification:** provisional -- jo', '**Verification:** provisional -- job: ba']
+LE-DANGER S20 hex reference label then the line member CRLF: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#x56;erification:** provisional -- jo', '**Verification:** provisional -- job: ba']
+LE-DANGER S20 hex reference label then the line member LFCR: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#x56;erification:** provisional -- jo', '**Verification:** provisional -- job: ba']
+LE-DANGER S20 hex reference label then the line member CRCR: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#x56;erification:** provisional -- jo', '**Verification:** provisional -- job: ba']
+LE-DANGER S20 hex reference label then the line member CRCRLF: checker ['**Verification:** provisional -- job: ba'] mdit ['**&#x56;erification:** provisional -- jo', '**Verification:** provisional -- job: ba']
+LE-READERS-DIFFER S04 member at the start NEL: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start VT: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start FF: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start LS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start PS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start BOM: pandoc 1 mdit 0
+LE-READERS-DIFFER S04 member at the start FS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start GS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start RS: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start US: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start NBSP: pandoc 0 mdit 1
+LE-READERS-DIFFER S04 member at the start IDSP: pandoc 0 mdit 1
+LE-READERS-DIFFER S18 self-closing comment opener LF: pandoc 0 mdit 1
+LE-READERS-DIFFER S18 self-closing comment opener CRLF: pandoc 0 mdit 1
+LE-PANDOC shapes without a lone CR where the two readers differ: 14
+LINEEND variants=19350 agree=17200 refused=2138 danger=12 members=30 mdit=3.0.0 pandoc=checked pandoc_cr_blind=yes

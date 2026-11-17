@@ -1,0 +1,13 @@
+import importlib.util,sys
+spec=importlib.util.spec_from_file_location("c",sys.argv[1]);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+root=sys.argv[2]
+cases=[("job","A-1 run",None),("job","AB-1",None),("artifact","abc123",None),("artifact","abc1234",None),
+("checks","3 passed · 4 failed",None),("checks","no review yet, 3 passed",None),("checks","foo bar baz",None),("checks","limit",None),
+("job","/etc/passwd",root),("job","docs/..",root),("job","bash /etc/passwd",root),("job",".",root),("job","scripts/validation/check_provisional_verification_lines.py",root),
+("job","scripts/nonexistent.sh",root),("job","ask/operator",root),("job","scripts/nonexistent.sh",None),("job","ask/operator",None),
+("checks","3 passed ж",None),("checks","3 passed ʣ",None),("job","git -x",None),("target","board target",None),
+("checks","x"*4097,None),("target","host later",None),("target","host (pending)",None),("target","host? none",None),("target","host (pending scheduler)",None),
+("job","pending/scheduling",None),("job","to/be/scheduled",None),("job","n.a/n.a",None),("job","none.sh",None),("job","sometime/maybe",None),
+("checks","ㅤ",None),("checks","T·B·D later",None),("target","na-west-2 runner",None),("job","XTBD-9 run",None),("checks","3 passed œ",None),("checks","3 passed тест",None)]
+for f,v,r in cases:
+    print("%-8s %-45r root=%-5s -> %s"%(f,v[:45],bool(r),m.field_problem(f,v,r) or "ACCEPT"))

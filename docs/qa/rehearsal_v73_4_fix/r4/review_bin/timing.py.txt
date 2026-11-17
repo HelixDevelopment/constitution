@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""F1 timing: pathological values just under the 4096-character cap, in every field, and the 40k-space line.
+Usage: timing.py CHECKER [LIMIT_SECONDS]   exit 1 when one case takes longer than LIMIT (default 0.5)."""
+import importlib.util, sys, time
+spec = importlib.util.spec_from_file_location("pvl", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+limit = float(sys.argv[2]) if len(sys.argv) > 2 else 0.5
+GOOD = {"job": "bash a.sh", "checks": "3 passed", "layer": "runtime", "target": "host", "artifact": "main", "due": "2026-11-23"}
+def line(f, v):
+    d = dict(GOOD); d[f] = v
+    return "**Verification:** provisional" + "".join(" -- %s: %s" % (k, d[k]) for k in m.FIELDS)
+worst = 0; n = 0
+for f in m.FIELDS:
+    room = m.MAX_LINE - len(line(f, ""))
+    pay = {"spaces": "x" + " " * (room - 2) + "y", "braces": "{{" * (room // 2), "braces_a": "{{a" * (room // 3),
+           "dollar_a": "${a" * (room // 3), "singles": "a." * (room // 2), "dash": "a - " * (room // 4),
+           "lt": "<a" * (room // 2), "lt_sp": "<a " * (room // 3), "path": "a/" * (room // 2 - 1) + "!",
+           "brackets": "(a" * (room // 2), "letters": "a " * (room // 2), "sep": " --x" * (room // 4),
+           "digits": "1-" * (room // 2), "tabs": "a\t" * (room // 2), "dots": "." * room, "words": "pass " * (room // 5)}
+    for k, v in pay.items():
+        L = line(f, v)
+        t = time.perf_counter(); r = m.check_body(L); dt = time.perf_counter() - t; worst = max(worst, dt); n += 1
+        if dt > limit:
+            print("SLOW %-8s %-9s len=%d %.3fs" % (f, k, len(L), dt))
+t = time.perf_counter(); r = m.check_body(line("checks", "x" + " " * 40000 + "y")); dt = time.perf_counter() - t
+print("spaces40k %.4fs %s" % (dt, r)); worst = max(worst, dt); n += 1
+print("TIMING cases=%d worst=%.3fs limit=%.2fs %s" % (n, worst, limit, "OK" if worst <= limit else "SLOW"))
+sys.exit(0 if worst <= limit else 1)

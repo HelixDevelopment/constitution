@@ -1,0 +1,19 @@
+MUT-CONTROL unmutated copy passes api grid linemodel lineend property timing inventory
+MUT O31 KILLED by api (rc 1)
+MUT O32 KILLED by lineend (rc 1)
+MUT O33 KILLED by linemodel (rc 1)
+MUT O34 KILLED by linemodel (rc 1)
+MUT O35 KILLED by linemodel (rc 1)
+MUT O36 KILLED by api (rc 1)
+MUT O37 KILLED by api (rc 1)
+MUT O38 SURVIVED
+MUT O39 KILLED by api (rc 1)
+MUT O40 KILLED by api (rc 1)
+MUT O41 KILLED by api (rc 1)
+MUT O42 KILLED by lineend (rc 1)
+MUT O43 KILLED by lineend (rc 1)
+MUT RV05 KILLED by grid (rc 1)
+MUT RV07 KILLED by linemodel (rc 1)
+MUT RV09 KILLED by grid (rc 1)
+MUT RV12 KILLED by api (rc 1)
+MUTATE total=17 killed=16 survived=1 not_applied=0

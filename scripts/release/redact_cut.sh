@@ -80,6 +80,11 @@ rc_safe_url() {
   else printf '<url not shown>'; fi
 }
 
+# rc_gitea_token_shape_ok VALUE: 0 when VALUE fits the gitea publisher's token charset and length, else 1. The ONE
+# definition of that shape (CON-423 review r1, M8): release_publish_gitea.sh refuses a token outside it and the
+# tag script's dry run reports TOKEN-SHAPE for it, so the two can never disagree. Nothing is printed.
+rc_gitea_token_shape_ok() { local LC_ALL=C; [[ ${1:-} =~ ^[A-Za-z0-9._~+/=-]{8,200}$ ]]; }
+
 rc_git_env() {
   local v
   for v in $(compgen -e); do case "$v" in GIT_TRACE*|GIT_CURL_VERBOSE) unset -v "$v" ;; esac; done

@@ -1,0 +1,3 @@
+split40k 13.3001s parts=7
+field40k 0.0443s accepted
+TIMING cases=98 worst=13.300s limit=1.00s SLOW

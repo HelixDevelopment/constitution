@@ -1,0 +1,2 @@
+update: CON-423 updated in Issues (status=Ready for testing, type=Bug)
+rc=0

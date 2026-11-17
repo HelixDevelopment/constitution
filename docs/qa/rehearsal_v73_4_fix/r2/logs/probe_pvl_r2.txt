@@ -1,0 +1,16 @@
+rc 1
+empty          REFUSED
+spaces         REFUSED
+dash_value     REFUSED
+unconfirmed    REFUSED
+todo           REFUSED
+tbd_all        REFUSED
+nocolon_canon  REFUSED
+in_codefence   REFUSED
+indented       REFUSED
+extra_fields   REFUSED
+status:CON-980 NOT-CHECKED
+status:CON-981 NOT-CHECKED
+status:CON-982 NOT-CHECKED
+status:CON-983 NOT-CHECKED
+CHECKED items=14 provisional_status=10 ok=0 fail=10

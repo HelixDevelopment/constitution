@@ -1,0 +1,2 @@
+diff: DB and Markdown are in sync (compared 392 Markdown item(s) against 392 DB item(s); read docs/Issues.md, docs/Fixed.md)
+rc=0

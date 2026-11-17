@@ -1,0 +1,5 @@
+FAIL CON-022 Ready for testing: the body holds raw HTML ('<!-- a note -->'; HTML comments too): a reader may hide or wrap a line with it, so which lines are visible is not certain; write a placeholder such as <name> insi
+FAIL CON-023 Ready for testing: the body holds raw HTML ('<!-- a --!><div hidden>\n-->'; HTML comments too): a reader may hide or wrap a line with it, so which lines are visible is not certain; write a placeholder such a
+CHECKED items=3 provisional_status=3 ok=1 fail=2
+VERDICT: FAIL
+F1ROWS rc=1 accepted=CON-016 refused=CON-022,CON-023

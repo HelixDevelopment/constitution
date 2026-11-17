@@ -1,0 +1,7 @@
+DR1 PASS DR1 killed by its property (FAIL D5 a DRAFT manual value is refused without --draft (0: ))
+DR2 PASS DR2 killed by its property (FAIL D5 a draft rendering starts with the fixed marker line (got: ## v1 -- 2026-11-11))
+DR3 PASS DR3 killed by its property (FAIL D5 not the word DRAFT, accepted: DRAFTED by the conductor (3: render_release_entry: unfilled placeholders: MANUAL:b)
+CD1 PASS CD1 killed by its property (FAIL D9 cut_date not a bare date refused (also with --draft): 2026-11-16 (DRAFT) (0: render_release_entry: draft renderi)
+CD2 PASS CD2 killed by its property (FAIL D9 cut_date not a bare date refused (also with --draft): 20261116 (0: render_release_entry: draft rendering (--draf)
+CD3 PASS CD3 killed by its property (FAIL D9 cut_date not a bare date refused (also with --draft): 2026-13-01 (0: render_release_entry: draft rendering (--dr)
+TPL1 PASS TPL1 killed by its property (FAIL D9 no '.' after the last ref name)

@@ -1,0 +1,63 @@
+gfm-table-header                           REFUSE  mdit=DIRTY(the verification paragraph does not show) pd-cm=DIRTY(the verification paragraph does not show) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a reader does not show the verification line exactly as written (line 1 (commonmark reading: 2 source lines, t
+gfm-table-header2                          REFUSE  mdit=DIRTY(the verification paragraph does not show) pd-cm=DIRTY(the verification paragraph does not show) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a reader does not show the verification line exactly as written (line 1 (commonmark reading: 2 source lines, t
+gfm-table-pipe-start                       REFUSE  mdit=DIRTY(the verification paragraph does not show) pd-cm=DIRTY(the verification paragraph does not show) pd-gfm=DIRTY(the verification paragraph does not show)
+      reason: a reader does not show the verification line exactly as written (line 1 (commonmark reading: 2 source lines, t
+lref-before                                ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+lref-title-multiline-open                  REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+lref-title-multiline-dq                    REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+frontmatter-yaml                           REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=clean
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+setext-after-blank                         ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+hr-after                                   ACCEPT  mdit=clean pd-cm=clean pd-gfm=clean
+paragraph-cont-setext-eq                   REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+paragraph-cont-setext-dash-sp              REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+tab-before-setext                          REFUSE  mdit=DIRTY(the verification paragraph does not show) pd-cm=DIRTY(the verification paragraph does not show) pd-gfm=DIRTY(the verification paragraph does not show)
+      reason: a reader does not show the verification line exactly as written (line 1 (commonmark reading: 2 source lines, t
+trailing-bs-then-hr                        REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+footnote-def-gfm                           REFUSE  mdit=clean pd-cm=clean pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: the body holds a GFM footnote definition [^1]: a GFM reader moves text into a footnote, so which lines are vis
+footnote-def-gfm-indent                    REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=clean pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: the body holds a GFM footnote definition [^1]: a GFM reader moves text into a footnote, so which lines are vis
+task-like                                  ACCEPT  mdit=clean pd-cm=clean pd-gfm=DIRTY(raw HTML: element <label>)  <== ACCEPTED-BUT-DIRTY
+html-block-kind7-after-blank-inline-in-p   REFUSE  mdit=DIRTY(raw HTML: attribute hidden on <x-y>, ele) pd-cm=DIRTY(raw HTML: attribute hidden on <x-y>, ele) pd-gfm=DIRTY(raw HTML: attribute hidden on <x-y>, ele)
+      reason: the body holds raw HTML ('<x-y hidden>'; HTML comments too): a reader may hide or wrap a line with it, so whic
+autolink-www-gfm                           ACCEPT  mdit=DIRTY(the verification paragraph does not show) pd-cm=DIRTY(the verification paragraph does not show) pd-gfm=DIRTY(the verification paragraph does not show)  <== ACCEPTED-BUT-DIRTY
+strike-gfm                                 REFUSE  mdit=DIRTY(the verification paragraph does not show) pd-cm=DIRTY(the verification paragraph does not show) pd-gfm=DIRTY(the verification paragraph does not show)
+      reason: a reader does not show the verification line exactly as written (line 1 (gfm reading: 1 source lines, tokens t
+fenced-div-pandoc                          REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=DIRTY(0 top-level verification paragraphs) pd-gfm=DIRTY(0 top-level verification paragraphs)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+comment-multiline-block                    REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!--\nx\n-->'; HTML comments too): a reader may hide or wrap a line with it, so whic
+comment-two-on-line                        REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!-- a --> <!-- b -->'; HTML comments too): a reader may hide or wrap a line with it
+comment-then-text-same-line                REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!-- a -->x'; HTML comments too): a reader may hide or wrap a line with it, so which
+comment-dashdash-inside                    REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!-- a -- b -->'; HTML comments too): a reader may hide or wrap a line with it, so w
+comment-empty                              REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!---->'; HTML comments too): a reader may hide or wrap a line with it, so which lin
+comment-dash-gt-inside                     REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!-- a -> b -->'; HTML comments too): a reader may hide or wrap a line with it, so w
+comment-indent3                            REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!-- a -->'; HTML comments too): a reader may hide or wrap a line with it, so which 
+comment-in-quote                           REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!-- a -->'; HTML comments too): a reader may hide or wrap a line with it, so which 
+comment-unterminated-eof                   REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: the body holds raw HTML ('<!-- x'; HTML comments too): a reader may hide or wrap a line with it, so which line
+inline-comment-in-label-para               REFUSE  mdit=DIRTY(the verification paragraph does not show) pd-cm=DIRTY(the verification paragraph does not show) pd-gfm=DIRTY(the verification paragraph does not show)
+      reason: the body holds raw HTML ('<!-- x -->'; HTML comments too): a reader may hide or wrap a line with it, so which 
+inline-comment-multiline-in-para           REFUSE  mdit=DIRTY(the verification paragraph does not show) pd-cm=DIRTY(the verification paragraph does not show) pd-gfm=DIRTY(the verification paragraph does not show)
+      reason: the body holds raw HTML ('<!--\nhidden\n-->'; HTML comments too): a reader may hide or wrap a line with it, so
+bom-first                                  REFUSE  mdit=DIRTY(0 top-level verification paragraphs) pd-cm=clean pd-gfm=clean
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+nbsp-indent                                REFUSE  mdit=clean pd-cm=clean pd-gfm=clean  (false refusal)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
+entity-label-line                          REFUSE  mdit=DIRTY(the label reads elsewhere in the documen) pd-cm=DIRTY(the label reads elsewhere in the documen) pd-gfm=DIRTY(the label reads elsewhere in the documen)
+      reason: a line a reader shows carries the Verification label but is not the one counted line (the label occurs outside
