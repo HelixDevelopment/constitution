@@ -140,7 +140,7 @@ process); a selector, option or env value is accepted when the script merely men
 due date is past (derive_release_facts.sh reports that) or whether the job was run. Only the five readings of READERS
 are checked, each to HTML as the tracker export writes it (its PDF is rendered from HTML by weasyprint, its DOCX drops
 raw TeX); a LaTeX output is not checked (the export writes none; whether raw TeX can hide a line there is
-UNCONFIRMED); DOCX and PDF outputs are not read (review r9 F6, a follow-up). cmark-gfm, GitHub's reader, is not run by the
+UNCONFIRMED); DOCX and PDF outputs are not read (review r9 F6, a follow-up). cmark-gfm, the GFM reference reader, is not run by the
 checker (the host Python has no cmarkgfm); it was run on the round 10 fixtures and on main as evidence
 (r10/cmark_gfm_*.txt). THE DOCUMENT is read without renderDocument's rewrite of the Status and state lines (a no-op for an
 item in sync); a segment ending with no blank line is joined by one LF, and what that changes is caught only when it
