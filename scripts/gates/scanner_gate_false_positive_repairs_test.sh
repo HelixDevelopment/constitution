@@ -32,6 +32,7 @@ set -uo pipefail
 export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 export ORACLE_GUARD_STRICT=1   # oracle gate is ratchet-by-default; these fixtures test strict mode
 
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GD="${CM_REPAIR_TEST_GATE_DIR:-$HERE}"
 ORACLE="$GD/cm_oracle_strategy_named_and_independent.sh"
@@ -572,7 +573,17 @@ done
 unset DANGEROUS_COMBO_PYTHON
 
 echo "== e2e: canon root + consumer-shaped root =="
-if [ "${CM_REPAIR_SKIP_E2E:-0}" != 1 ]; then
+# Precondition (audit 2026-11-16 F10, §11.4.3 / §11.4.201(6)): the canon legs need at least one
+# of the third_party:true submodules (superspec, open_design) checked out. In a clone without
+# them both "never names" legs pass vacuously and the opt-in leg cannot find anything, so all
+# three are an honest SKIP (topology_unsupported), never a PASS and never a FAIL.
+E2E_TP_POP=0
+for _tp in superspec open_design; do
+    if [ -d "$CANON/submodules/$_tp" ] && [ -n "$(find "$CANON/submodules/$_tp" -type f -print -quit 2>/dev/null)" ]; then E2E_TP_POP=1; fi
+done
+if [ "${CM_REPAIR_SKIP_E2E:-0}" != 1 ] && [ "$E2E_TP_POP" = 0 ]; then
+    skp "e2e canon (3 legs): topology_unsupported - submodules/superspec and submodules/open_design are not checked out"
+elif [ "${CM_REPAIR_SKIP_E2E:-0}" != 1 ]; then
     run bash -c "cd '$TMP' && '$ORACLE' --root '$CANON' --quiet"
     expect_noout "e2e canon: oracle output never names third_party:true submodules" 'submodules/(superspec|open_design)/'
     ORC=$(printf '%s\n' "$OUT" | grep -c 'no oracle-strategy annotation')

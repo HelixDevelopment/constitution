@@ -56,11 +56,13 @@
 # derived directly from the Round 7 review's findings text and this
 # session's own live reproduction of each one (never imported from, nor
 # shared with, custody_sweep.py's own implementation).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/custody_sweep"
 PINDIR="$FIXDIR/_pinned"
 IMPL="$FC/orchestration/custody_sweep.py"
@@ -308,7 +310,7 @@ fi
 echo
 echo "=== R7-I6: selftest's golden-good case is fully self-contained ==="
 FIXED_SELFTEST_OUT="$TMP/r76_selftest.out"
-python3 "$IMPL" selftest --repo-root "$ROOT/constitution" >"$FIXED_SELFTEST_OUT" 2>&1
+python3 "$IMPL" selftest --repo-root "$FC_CANON_ROOT" >"$FIXED_SELFTEST_OUT" 2>&1
 FIXED_SELFTEST_RC=$?
 if [ "$FIXED_SELFTEST_RC" = "0" ] && grep -q "ok proposal_golden_good_verified_hash.json -> ALLOWED" "$FIXED_SELFTEST_OUT"; then
   echo "ok R7-I6 real (fixed) tool: selftest rc=0, golden-good fixture resolves ALLOWED"
@@ -326,7 +328,7 @@ fi
 # this is a genuine before/after divergence, not a coincidence of this
 # particular host's state at authoring time.
 PIN_SELFTEST_OUT="$TMP/r76_selftest.pin.out"
-run_against_pinned selftest --repo-root "$ROOT/constitution" --fixtures-dir "$FIXDIR" >"$PIN_SELFTEST_OUT" 2>&1
+run_against_pinned selftest --repo-root "$FC_CANON_ROOT" --fixtures-dir "$FIXDIR" >"$PIN_SELFTEST_OUT" 2>&1
 PIN_SELFTEST_RC=$?
 if [ "$PIN_SELFTEST_RC" != "0" ] && grep -q "NOT ok proposal_golden_good_verified_hash.json -> REFUSED, expected ALLOWED" "$PIN_SELFTEST_OUT"; then
   echo "ok R7-I6 guard-viability: pinned pre-R7-fix copy's selftest genuinely FAILS"
@@ -429,7 +431,7 @@ if [ $? -ne 0 ]; then
   failx
 else
   LIVE_OUT="$TMP/live_boundary.out.json"
-  python3 "$LIVE_BOUNDARY_ROOT/scripts/fastcycle/orchestration/custody_sweep.py" inventory --repo-root "$ROOT/constitution" --out "$LIVE_OUT" \
+  python3 "$LIVE_BOUNDARY_ROOT/scripts/fastcycle/orchestration/custody_sweep.py" inventory --repo-root "$FC_CANON_ROOT" --out "$LIVE_OUT" \
       >"$TMP/live_boundary.err" 2>&1
   LIVE_RC=$?
   if [ "$LIVE_RC" = "2" ] && [ -f "$LIVE_OUT" ] && ! grep -q "^Traceback" "$TMP/live_boundary.err" \
@@ -504,7 +506,7 @@ for doc in "${FUZZ_PROPOSAL_DOCS[@]}"; do
   f="$TMP/fuzz_prop_$j.json"
   printf '%s' "$doc" > "$f"
   out="$TMP/fuzz_prop_$j.out.json"
-  python3 "$IMPL" verify-proposal --proposal "$f" --repo-root "$ROOT/constitution" --out "$out" \
+  python3 "$IMPL" verify-proposal --proposal "$f" --repo-root "$FC_CANON_ROOT" --out "$out" \
       >"$TMP/fuzz_prop_$j.err" 2>&1
   rc=$?
   if grep -q "^Traceback" "$TMP/fuzz_prop_$j.err"; then

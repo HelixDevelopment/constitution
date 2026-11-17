@@ -1,0 +1,6 @@
+5da8c3673aed8065 r2_red_fake_1.txt
+5da8c3673aed8065 r2_red_fake_2.txt
+5da8c3673aed8065 r2_red_fake_3.txt
+a7bc9d6ad8afebf6 r2_red_real_1.txt
+a7bc9d6ad8afebf6 r2_red_real_2.txt
+a7bc9d6ad8afebf6 r2_red_real_3.txt

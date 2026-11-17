@@ -1,0 +1,107 @@
+== (a) third-party pruning: unit/integration ==
+ok   oracle default prunes third_party:true tree (golden-TRUE)
+ok   dcfc   default prunes third_party:true tree (golden-TRUE)
+ok   oracle --include-third-party sees it (opt-in)
+ok   dcfc   --include-third-party sees it (opt-in)
+ok   oracle env opt-in
+ok   dcfc env opt-in
+ok   oracle still flags first-party violation
+ok   oracle first-party hit names tests/test_fp.py
+ok   oracle output never names the pruned tree
+ok   dcfc still flags first-party violation
+ok   dcfc output never names the pruned tree
+ok   helix-deps third_party:true (default + explicit path) pruned
+ok   helix-deps non-third-party entry still scanned (golden-FALSE)
+ok   …and it is the own-org file
+ok   consumer-shaped root: gitlinked but NOT third_party trees ARE scanned (own-org)
+ok   …constitution/test_k.py reported
+ok   …submodules/lib/test_l.py reported
+ok   consumer-shaped root: third_party:true entries pruned, app clean
+ok   own-org submodule scanned (golden-FALSE of the prune)
+ok   …own-org helix-deps entry file reported
+ok   …submodule absent from helix-deps.yaml is scanned
+ok   …directory name third_party pruned
+ok   …directory name site-packages pruned
+ok   dcfc own-org violation flagged
+ok   …dcfc names submodules/mine/m.py
+ok   …dcfc names submodules/gm_only/g.py
+ok   lib unit: helix-deps prune list exact (+ dir names)
+ok   lib unit: .gitmodules paths never pruned
+ok   lib unit: explicit third_party:false not pruned; trailing slash normalised
+ok   lib unit: nested third_party entries emitted with submodule prefix
+ok   lib unit nested: hostile paths dropped, own-org kept, pruned submodule's manifest not read
+ok   nested third_party tree pruned (oracle)
+ok   nested own-org (not marked) still scanned (oracle)
+ok   nested unlisted submodules/* dir still scanned (oracle)
+ok   hostile nested path does not prune first-party tests
+ok   …marking the entry third_party:true now prunes it
+ok   …gm_only (still absent from helix-deps) stays scanned
+== (F1) manifest parsing: keys not substrings; symlink guard; depth cap ==
+ok   F1 lib unit: comment/value text never read as path:/third_party: keys; block ends at next top-level key
+third_party_prune: manifest marks submodules/llmctl/submodules/colibri third_party but it is not an unambiguous recorded gitlink; NOT pruned (scanning it)
+third_party_prune: manifest marks submodules/llmctl/submodules/llama.cpp third_party but it is not an unambiguous recorded gitlink; NOT pruned (scanning it)
+ok   F1 canon manifest (unpopulated llmctl): own-org parents not pruned, nothing nested emitted unrecorded
+SKIP F1 canon manifest: nested llama.cpp prune needs a populated llmctl (not populated here)
+third_party_prune: manifest /mnt/DATA1TB/claude-work/tmp/cm_repair.f3WqE5/lnk/submodules/real/helix-deps.yaml is not the recorded copy (one stage-0 mode-100644 index entry whose bytes equal the regular, non-executable, non-symlink worktree file of at most 1 MiB; reason=entry); manifest marks ignored
+ok   F1 symlinked submodule dir and symlinked manifest are never followed
+ok   F1 depth cap: manifests read through depth 3, level-4 manifest not read
+== (round 3) whole-list-item manifest parse; quoted '#'; root-anchored prune ==
+ok   I1/M2 lib unit: dep opening with ssh_url:/ref:, any field order; quoted # kept (unsafe path dropped, not truncated)
+ok   M3 oracle: first-party app/vend/ still scanned (single-segment path is root-anchored)
+ok   M3 oracle: <root>/vend pruned
+ok   M3 oracle: literal dir name third_party still pruned at any depth
+ok   M3 dcfc: first-party app/vend/y.py still scanned
+ok   M3 dcfc: <root>/vend/x.py pruned
+== (a) security: hostile .gitmodules / helix-deps paths ==
+ok   hostile paths never prune first-party code (oracle)
+ok   …tests/test_s.py still reported
+ok   hostile paths never prune first-party code (dcfc)
+== (a) chaos: malformed manifests ==
+ok   binary .gitmodules + garbage helix-deps: no crash, violation kept (oracle)
+ok   empty .gitmodules: violation kept
+ok   dangling-symlink .gitmodules: clean tree passes
+== (b) oracle matcher: closed-set grammar vs prose ==
+ok   prose-only tests still FAIL (no real annotation)
+ok   prose never parsed as unknown strategy (RAW/THE/DEEPSEEK_V)
+ok   all four reported as missing annotation
+ok   exactly four missing-annotation hits
+ok   prose line before a real annotation does not mask it
+ok   every legitimate annotation form still accepted (golden-TRUE)
+ok   malformed real annotation (VIBES) still FAILs
+ok   …as unknown strategy
+== (c) dangerous-combination: exception-assertion idiom ==
+ok   [ast] assert-False idiom in tests is not a swallow (golden-TRUE)
+ok   [ast] golden-FALSE carrier still flagged: test_helper_not_test
+ok   [ast] golden-FALSE carrier still flagged: test_broad
+ok   [ast] golden-FALSE carrier still flagged: test_bare
+ok   [ast] golden-FALSE carrier still flagged: test_assertionerror
+ok   [ast] golden-FALSE carrier still flagged: test_tuple_with_broad
+ok   [ast] golden-FALSE carrier still flagged: test_real_swallow
+ok   [ast] golden-FALSE carrier still flagged: test_assert_not_last
+ok   [ast] golden-FALSE carrier still flagged: test_assert_true
+ok   [ast] golden-FALSE carrier still flagged: test_silent_default
+ok   [ast] golden-FALSE carrier still flagged: test_nested_assert
+ok   [text] assert-False idiom in tests is not a swallow (golden-TRUE)
+ok   [text] golden-FALSE carrier still flagged: test_helper_not_test
+ok   [text] golden-FALSE carrier still flagged: test_broad
+ok   [text] golden-FALSE carrier still flagged: test_bare
+ok   [text] golden-FALSE carrier still flagged: test_assertionerror
+ok   [text] golden-FALSE carrier still flagged: test_tuple_with_broad
+ok   [text] golden-FALSE carrier still flagged: test_real_swallow
+ok   [text] golden-FALSE carrier still flagged: test_assert_not_last
+ok   [text] golden-FALSE carrier still flagged: test_assert_true
+ok   [text] golden-FALSE carrier still flagged: test_silent_default
+ok   [text] golden-FALSE carrier still flagged: test_nested_assert
+== e2e: canon root + consumer-shaped root ==
+ok   e2e canon: oracle output never names third_party:true submodules
+     (oracle first-party missing-annotation count: 0)
+ok   e2e canon: opt-in includes third_party:true submodules
+ok   e2e canon: dcfc output never names third_party:true submodules
+== stress / performance budget / determinism x3 / idempotency ==
+ok   stress: 1500 first-party tests + 200 pruned files pass
+ok   performance budget: oracle stress <= 30s (6s)
+ok   determinism x3 (oracle): identical output
+ok   determinism x3 (dcfc): identical output
+ok   idempotency/read-only: scanned tree byte-identical after 6 runs
+======================================================================
+RESULT: 91 ok, 0 failed, 1 skipped

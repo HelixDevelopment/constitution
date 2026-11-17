@@ -1,0 +1,366 @@
+PASS K1 plain text untouched
+PASS K2 URL without userinfo or credential parameter untouched
+PASS K3 scp-style git@host:path untouched
+PASS K4 mail address untouched
+PASS K5 non-credential query parameter untouched
+PASS U1 basic userinfo
+PASS U2 raw '/' in the password (git 2.53 prints it verbatim)
+PASS U3 raw '@' in the password
+PASS U4 raw space in the password
+PASS U5 raw '?' and '#' in the password
+PASS U6 raw quote in the password
+PASS U7 percent-encoded password
+PASS U8 two URLs on one line
+PASS U9 colon in the user part
+PASS U10 userinfo longer than 64 bytes (300)
+PASS U11 ssh:// scheme
+PASS U12 git:// scheme
+PASS U13 ftp:// scheme
+PASS U14 svn+ssh:// scheme
+PASS U15 http:// scheme
+PASS U16 upper-case scheme
+PASS U17 user only, no password
+PASS U18 scheme-less user:password@host:path
+PASS U19 the host part is kept
+PASS U20 a path '@' after :// is over-redacted (by design: detail lost, never a secret)
+PASS Q-access_token query value
+PASS Q-token query value
+PASS Q-private_token query value
+PASS Q-private-token query value
+PASS Q-key query value
+PASS Q-api_key query value
+PASS Q-apikey query value
+PASS Q-password query value
+PASS Q-passwd query value
+PASS Q-pwd query value
+PASS Q-secret query value
+PASS Q-client_secret query value
+PASS Q-sig query value
+PASS Q-signature query value
+PASS Q-auth query value
+PASS Q-X-Amz-Signature query value
+PASS Q-X-Amz-Credential query value
+PASS Q-X-Amz-Security-Token query value
+PASS Q-refresh_token query value
+PASS Q-id_token query value
+PASS Q-session query value
+PASS Q-jwt query value
+PASS Q-upper Access_Token
+PASS Q-first parameter
+PASS Q-form outside a URL
+PASS Q-fragment value
+PASS Q-other parameters kept
+PASS Q-two credential parameters on one line
+PASS Q-two URLs each with a credential parameter
+PASS A1 Authorization: Basic
+PASS A2 Authorization: Bearer
+PASS A3 authorization lower case
+PASS A4 PRIVATE-TOKEN header
+PASS A5 X-Gitlab-Token header
+PASS A6 X-Api-Key header
+PASS A7 Cookie header
+PASS A8 Proxy-Authorization header
+PASS A9 bare Bearer token in prose
+PASS T1 GitHub classic token
+PASS T2 GitHub fine-grained token
+PASS T3 GitLab token
+PASS L1 invalid UTF-8 byte under a UTF-8 caller locale
+PASS L2 NUL byte in the password
+PASS L3 several lines each redacted
+PASS L4 CRLF line end
+PASS C1 redact first, then cut
+PASS C2 budget is exact
+PASS C3 '@' near the cut at offset 1990
+PASS C3 '@' near the cut at offset 1995
+PASS C3 '@' near the cut at offset 1998
+PASS C3 '@' near the cut at offset 2000
+PASS C3 '@' near the cut at offset 2003
+PASS C4 a 100000-byte line is processed within 20 s
+PASS C5 secret at the end of a 100000-byte line
+PASS C6 a truncated flush says so
+PASS C7 an untruncated flush has no marker
+PASS C8 empty input prints nothing
+PASS C9 a missing byte count is refused
+PASS C10 a non-numeric byte count is refused
+PASS C11 the byte budget holds under a UTF-8 caller locale
+PASS C12 NUL bytes are dropped from the output
+PASS J1a password with 'token:' inside the userinfo (R1 must not run before R3)
+PASS J1b password with 'secret: ' inside the userinfo
+PASS J1c the host after the userinfo is kept (positive needle)
+PASS J1d scheme-less user:password@host with 'token:' in the password (R4 before R1)
+PASS J2a a 4500-byte credential value does not let the next parameter through
+PASS J2b 12000-byte value, second parameter and token shape
+PASS J2c a line longer than 16384 bytes is not printed, only its length
+PASS J2d a line of exactly 16384 bytes is still printed (boundary)
+PASS V3 Cookie header with a non-credential cookie name
+PASS V4 a token shape straddling the cut prints no prefix of it
+PASS V5 Bearer followed by a TAB
+PASS E1 real git: raw '/' in the password
+PASS E2 real git: unknown host
+PASS E3 real git: missing local repository
+PASS E4 real git: connection refused
+PASS E5 HTTP 403
+PASS E6 authentication failed
+PASS E7 hook declined, the deciding phrase on the LAST line (multi-line input, V11 class)
+PASS E8 non-fast-forward
+PASS E9 empty input
+PASS E10 text with no known phrase
+PASS E11 TLS
+PASS E12 remote ref
+PASS E13 the deciding phrase after 5000 bytes is still seen
+PASS E14 upper case phrase
+PASS E15 seven hostile inputs: one closed-set word each, no input byte
+PASS E16 NUL bytes and a UTF-8 caller locale
+PASS W1 https with path and query
+PASS W2 userinfo is never printed
+PASS W3 user only
+PASS W4 plain host
+PASS W5 IPv6 literal
+PASS W6 not a URL
+PASS W7 a raw '/' password (git verbatim shape)
+PASS W8 empty
+PASS G1 trace switches removed, redaction forced, prompts off, trace2 disabled
+PASS N1a percent-encoded =
+PASS N1b spaced PASSWORD = X
+PASS N1c JSON token
+PASS N1d JSON password, spaced colon
+PASS N1e JSON control (no credential key)
+PASS N1f spaced control (no credential key)
+PASS K1 https-userpass: https://u:ZZK1@h.invalid/r
+PASS K1 https-user-only: https://ghp_ZZK1TOKEN@h.invalid/r
+PASS K1 http-userpass: http://u:ZZK1@h.invalid/r
+PASS K1 upper-scheme: HTTPS://u:ZZK1@h.invalid/r
+PASS K1 ftp: ftp://u@h.invalid/r
+PASS K1 ssh-userpass: ssh://u:ZZK1@h.invalid/r
+PASS K1 ssh-pct3a: ssh://u%3AZZK1@h.invalid/r
+PASS K1 scp-userpass: u:ZZK1@h.invalid:r.git
+PASS K1 ssh-user-only: ssh://git@h.invalid/r
+PASS K1 scp-user-only: git@h.invalid:r.git
+PASS K1 https-plain: https://h.invalid/r
+PASS K1 at-in-path: https://h.invalid/a@b
+PASS K1 local-abs: /srv/repo.git
+PASS K1 local-rel: ./repo@x
+PASS K1 file-url: file:///srv/r.git
+PASS K3 lockdown census ran (control needle)
+PASS K3 allow-listed HOME kept
+PASS K3 RELEASE_ENV_KEEP name kept
+PASS K3 non-listed and credential-like names do not reach children (GH_TOKEN refused even when in RELEASE_ENV_KEEP)
+PASS K3 the shell keeps the values
+PASS K3 exported functions are un-exported
+PASS K3 _rpg_tok: the census sees a kept name (control needle)
+PASS K3 _rpg_tok: RELEASE_ENV_KEEP refuses _rpg_tok and MYTOK
+PASS K6 the script re-executes itself with an empty environment (argv[0] rc-clean-env, environ empty)
+PASS K6 an allow-listed name reaches a child (control needle)
+PASS K6 no READS name, plain variable or non-identifier entry reaches a child
+PASS K6 the READS value is kept in the shell
+PASS K6 the state pipe (fd 9) is closed before any child runs
+PASS K6 an inherited allexport (SHELLOPTS) does not cross the re-execution
+PASS K6 marker with a dirty environment: refused with status 4 (never taken as clean, never re-executed again)
+PASS K6 injected records: the PATH record is restored (control needle)
+PASS K6 an injected e record outside the allow-list is not exported (rc_env_lockdown decides again)
+PASS K6 an s record is set only for a READS name
+PASS K6 READS BASH_ENV: status 2
+PASS K6 READS not an identifier: status 2
+PASS K6 /proc unreadable (blind): status 3, no re-execution
+PASS K6 the script path is not a file: status 4
+PASS K6 _rc_env_state: clean / dirty / blind
+PASS K8 fds.py sees a passed descriptor (control needle)
+PASS K8 N3 probe ran (control needle)
+PASS K8 N3 no descriptor above 2 reaches a child (fd 63 of the exec and the caller's fd 7 are closed)
+PASS K8 N2 a marked process that is not clean refuses (status 4) instead of re-executing again
+PASS K8 N4 sourced: the wrapper runs once
+PASS K8 N4 sourced: rc_env_clean refuses with status 4
+PASS K8 N4 the same probe run directly is accepted (control)
+PASS K8 N1 kept: LC_TIME=C (control needle)
+PASS K8 N1 kept: LANG=C.UTF-8 (control needle)
+PASS K8 N1 kept: TZ=Europe/Belgrade (control needle)
+PASS K8 N1 kept: GITLAB_HOST=gitlab.example.com (control needle)
+PASS K8 N1 dropped: ZZLCT8
+PASS K8 N1 dropped: ZZLCG8
+PASS K8 N1 dropped: ZZLCV8
+PASS K8 N1 dropped: ZZLCP8
+PASS K8 N1 dropped: ZZGH8
+PASS K8 N1 dropped: SSH_AUTH_SOCK
+PASS K8 N1 dropped: ZZVAR8
+PASS K8 N1 dropped: ZZTERM8
+PASS K8 N1 re-execution: LC_TIME reaches a child, LC_ZZTOKEN and the badly shaped LC_MESSAGES do not
+PASS K8 N1 class table: every allow-listed name drops URL user information, token shapes and control characters (CLASSES names=44 findings=0)
+PASS K9 F2 fds.py sees descriptors of 1, 3, 5 and 6 digits (control needle)
+PASS K9 F1 probe ran (control needle)
+PASS K9 F1 no descriptor of 1, 3, 5 or 6 digits reaches a child (7, 300, 12345, 100000 closed)
+PASS K9 F1 _rc_env_closefds decisions: fd 9 kept, flags unreadable closed, close-on-exec kept, inheritable closed
+PASS K9 F1 _rc_env_closefds on a directory that cannot be listed: status 1
+PASS K9 F1 descriptors that cannot be listed: rc_env_clean refuses with status 3
+PASS K9 F3 token shape ghp_ in a locale value: LC_TIME
+PASS K9 F3 token shape ghp_ in PATH: PATH
+PASS K9 F3 token shape ghp_ in USER: USER
+PASS K9 F3 token shape gho_ in a locale value: LC_TIME
+PASS K9 F3 token shape gho_ in PATH: PATH
+PASS K9 F3 token shape gho_ in USER: USER
+PASS K9 F3 token shape ghu_ in a locale value: LC_TIME
+PASS K9 F3 token shape ghu_ in PATH: PATH
+PASS K9 F3 token shape ghu_ in USER: USER
+PASS K9 F3 token shape ghs_ in a locale value: LC_TIME
+PASS K9 F3 token shape ghs_ in PATH: PATH
+PASS K9 F3 token shape ghs_ in USER: USER
+PASS K9 F3 token shape ghr_ in a locale value: LC_TIME
+PASS K9 F3 token shape ghr_ in PATH: PATH
+PASS K9 F3 token shape ghr_ in USER: USER
+PASS K9 F3 token shape github_pat_ in a locale value: LC_TIME
+PASS K9 F3 token shape github_pat_ in PATH: PATH
+PASS K9 F3 token shape github_pat_ in USER: USER
+PASS K9 F3 token shape glpat- in a locale value: LC_TIME
+PASS K9 F3 token shape glpat- in PATH: PATH
+PASS K9 F3 token shape glpat- in USER: USER
+PASS K9 F3 token shape GHS_ in a locale value: LC_TIME
+PASS K9 F3 token shape GHS_ in PATH: PATH
+PASS K9 F3 token shape GHS_ in USER: USER
+PASS K9 F3 token shape GLPAT- in a locale value: LC_TIME
+PASS K9 F3 token shape GLPAT- in PATH: PATH
+PASS K9 F3 token shape GLPAT- in USER: USER
+PASS K9 F3 control: a locale word with gh_ but no token shape is kept: LC_TIME
+PASS K9 F4 control character 0x01 in PATH: PATH
+PASS K9 F4 control character 0x01 in GIT_SSH_COMMAND: GIT_SSH_COMMAND
+PASS K9 F4 control character 0x07 in PATH: PATH
+PASS K9 F4 control character 0x07 in GIT_SSH_COMMAND: GIT_SSH_COMMAND
+PASS K9 F4 control character 0x09 in PATH: PATH
+PASS K9 F4 control character 0x09 in GIT_SSH_COMMAND: GIT_SSH_COMMAND
+PASS K9 F4 control character 0x0d in PATH: PATH
+PASS K9 F4 control character 0x0d in GIT_SSH_COMMAND: GIT_SSH_COMMAND
+PASS K9 F4 control character 0x1b in PATH: PATH
+PASS K9 F4 control character 0x1b in GIT_SSH_COMMAND: GIT_SSH_COMMAND
+PASS K9 F4 control character 0x7f in PATH: PATH
+PASS K9 F4 control character 0x7f in GIT_SSH_COMMAND: GIT_SSH_COMMAND
+PASS K9 F4 a PATH of exactly 4096 bytes is kept (boundary): PATH
+PASS K9 F4 a PATH of 4097 bytes is dropped: PATH
+PASS K9 F4 a GIT_SSH_COMMAND of 4097 bytes is dropped: GIT_SSH_COMMAND
+PASS K9 F4 SSH_AUTH_SOCK naming a socket is kept (control needle): SSH_AUTH_SOCK
+PASS K9 F4 SSH_AUTH_SOCK naming a regular file is dropped: SSH_AUTH_SOCK
+PASS K9 F4 SSH_AUTH_SOCK naming a directory is dropped: SSH_AUTH_SOCK
+PASS K9 F4 user information with no scheme in a locale value: LANG
+PASS K9 F4 a ':' in a locale value: LANG
+PASS K9 F4 a '/' in a locale value: LANG
+PASS K9 F4 a locale value is kept (control needle): LANG
+PASS K9 F4 user information with no scheme in a locale value: LC_ALL
+PASS K9 F4 a ':' in a locale value: LC_ALL
+PASS K9 F4 a '/' in a locale value: LC_ALL
+PASS K9 F4 a locale value is kept (control needle): LC_ALL
+PASS K9 F4 user information with no scheme in a locale value: LC_TIME
+PASS K9 F4 a ':' in a locale value: LC_TIME
+PASS K9 F4 a '/' in a locale value: LC_TIME
+PASS K9 F4 a locale value is kept (control needle): LC_TIME
+PASS K9 F4 user information with no scheme in a locale value: LC_MESSAGES
+PASS K9 F4 a ':' in a locale value: LC_MESSAGES
+PASS K9 F4 a '/' in a locale value: LC_MESSAGES
+PASS K9 F4 a locale value is kept (control needle): LC_MESSAGES
+PASS K9 F7 a RELEASE_ENV_KEEP name with a plain value is kept (control needle)
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: GIT_CONFIG_PARAMETERS
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: ZZGCP9
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: GIT_CONFIG_COUNT
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: GIT_CONFIG_KEY_0
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: ZZGCV9
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: ZZDBU9
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: ZZTOK9
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: ZZNL9
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: ZZPS49
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: zzcd9
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: zzurl9
+PASS K9 F7 RELEASE_ENV_KEEP does not pass on: zzuri9
+PASS K10 R9-3 RELEASE_ENV_KEEP keeps: KEEPME (control needle)
+PASS K10 R9-3 RELEASE_ENV_KEEP keeps: XGIT_ZZ10 (control needle)
+PASS K10 R9-3 RELEASE_ENV_KEEP keeps: XLC_ZZ10 (control needle)
+PASS K10 R9-3 RELEASE_ENV_KEEP keeps: MYLANG10 (control needle)
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: GIT_ZZX10
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: SSH_ZZX10
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: CURL_ZZX10
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: GH_ZZX10
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: GLAB_ZZX10
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: GITLAB_ZZX10
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: LD_ZZX10
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: ZZX10_URL
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: ZZX10_URI
+PASS K10 R9-3 RELEASE_ENV_KEEP (prefix) does not pass on: zzx10_url
+PASS K10 R9-1 RELEASE_ENV_KEEP keeps: KEEPME (control needle)
+PASS K10 R9-1 RELEASE_ENV_KEEP (SendEnv class) does not pass on: LC_ZZ10
+PASS K10 R9-1 RELEASE_ENV_KEEP (SendEnv class) does not pass on: LC_X10
+PASS K10 R9-1 RELEASE_ENV_KEEP (SendEnv class) does not pass on: lc_zz10
+PASS K10 R9-1 RELEASE_ENV_KEEP (SendEnv class) does not pass on: LANGX10
+PASS K10 R9-1 RELEASE_ENV_KEEP (SendEnv class) does not pass on: LANG_ZZ10
+PASS K10 R9-1 RELEASE_ENV_KEEP (SendEnv class) does not pass on: COLORTERM
+PASS K10 R9-1 RELEASE_ENV_KEEP (SendEnv class) does not pass on: NO_COLOR
+PASS K10 R9-1 static class (no run-time pattern) keeps: KEEPME (control needle)
+PASS K10 R9-1 static class (no run-time pattern) does not pass on: LC_ZZ10
+PASS K10 R9-1 static class (no run-time pattern) does not pass on: LC_X10
+PASS K10 R9-1 static class (no run-time pattern) does not pass on: lc_zz10
+PASS K10 R9-1 static class (no run-time pattern) does not pass on: LANGX10
+PASS K10 R9-1 static class (no run-time pattern) does not pass on: LANG_ZZ10
+PASS K10 R9-1 static class (no run-time pattern) does not pass on: COLORTERM
+PASS K10 R9-1 static class (no run-time pattern) does not pass on: NO_COLOR
+PASS K10 R9-1 runtime SendEnv keeps: KEEPME (control needle)
+PASS K10 R9-1 runtime SendEnv keeps: ZZSENDD10 (control needle)
+PASS K10 R9-1 runtime SendEnv (~/.ssh/config, its Include, the -F file of GIT_SSH_COMMAND) does not pass on: ZZSENDA10_X
+PASS K10 R9-1 runtime SendEnv (~/.ssh/config, its Include, the -F file of GIT_SSH_COMMAND) does not pass on: ZZSENDB10
+PASS K10 R9-1 runtime SendEnv (~/.ssh/config, its Include, the -F file of GIT_SSH_COMMAND) does not pass on: ZZSENDC10
+PASS K10 R9-1 runtime SendEnv (~/.ssh/config, its Include, the -F file of GIT_SSH_COMMAND) does not pass on: ZZSENDE10
+PASS K10 R9-1 fail closed (GIT_SSH_COMMAND ssh -F /home/milosvasic/.cache/claude-tmp/k6.E9qdcg/f10b.cfg) keeps: HOME (control needle)
+PASS K10 R9-1 fail closed (GIT_SSH_COMMAND ssh -F /home/milosvasic/.cache/claude-tmp/k6.E9qdcg/f10b.cfg) does not pass on: KEEPME
+PASS K10 R9-1 fail closed (GIT_SSH_COMMAND ssh -o SendEnv=ZZSENDF10) keeps: HOME (control needle)
+PASS K10 R9-1 fail closed (GIT_SSH_COMMAND ssh -o SendEnv=ZZSENDF10) does not pass on: KEEPME
+PASS K10 R9-1 fail closed (GIT_CONFIG_GLOBAL /home/milosvasic/.cache/claude-tmp/k6.E9qdcg/g10.cfg) keeps: HOME (control needle)
+PASS K10 R9-1 fail closed (GIT_CONFIG_GLOBAL /home/milosvasic/.cache/claude-tmp/k6.E9qdcg/g10.cfg) does not pass on: KEEPME
+PASS K10 census: ssh -G shows a SendEnv pattern (control needle)
+PASS K10 census: the library reads a pattern of a user config (control needle)
+PASS K10 census: the host's ssh configuration reads as plain patterns
+PASS K10 census: ssh -G pattern LANG is read by the library
+PASS K10 census: ssh -G pattern LC_* is read by the library
+PASS K10 census: ssh -G pattern COLORTERM is read by the library
+PASS K10 census: ssh -G pattern NO_COLOR is read by the library
+PASS K10 census keeps: KEEPME (control needle)
+PASS K10 census: a name matching an ssh -G SendEnv pattern does not pass on: LC_ZZ10
+PASS K10 census: a name matching an ssh -G SendEnv pattern does not pass on: COLORTERM
+PASS K10 census: a name matching an ssh -G SendEnv pattern does not pass on: NO_COLOR
+PASS K10 R9-1 _rc_env_pwhome reads the home of this uid
+PASS K10 R9-1 the passwd home's ssh config is read when HOME points elsewhere
+PASS K10 R9-1 /etc/ssh/ssh_config is read
+PASS K10 R9-4 credential words keeps: KEEPME (control needle)
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_TOK
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_SECRET
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_PASS
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_PWD
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_KEY
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_CRED
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_AUTH
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_COOKIE
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_SESSION
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_JWT
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: ZW_PROXY
+PASS K10 R9-4 RELEASE_ENV_KEEP (credential word) does not pass on: zw_passwd
+PASS K10 N2 glob keeps: KEEPME (control needle)
+PASS K10 N2 RELEASE_ENV_KEEP glob-expanded does not pass on: ZZG10A
+PASS K10 R9-2 a caller variable off the list is not a variable of the re-executed script
+PASS K10 R9-4 probe with descriptors 3..64 ran (control needle)
+PASS K10 R9-4 none of the descriptors 3..64 reaches a child
+PASS K9 F8 locale value kept (control needle) 'en_US.UTF-8': LANG
+PASS K9 F8 locale value kept (control needle) 'C': LANG
+PASS K9 F8 locale value kept (control needle) 'POSIX': LANG
+PASS K9 F8 locale value kept (control needle) 'C.UTF-8': LANG
+PASS K9 F8 locale value kept (control needle) 'sr_RS.UTF-8@latin': LANG
+PASS K9 F8 locale value kept (control needle) 'ca_ES.UTF-8@valencia': LANG
+PASS K9 F8 locale value kept (control needle) 'de_DE.ISO-8859-15@euro': LANG
+PASS K9 F8 locale value kept (control needle) 'es_419.UTF-8': LANG
+PASS K9 F8 locale value kept (control needle) 'ast_ES': LANG
+PASS K9 F8 locale value kept (control needle) '': LANG
+PASS K9 F8 not a locale: '0123456789abcdef0123456789abcdef01234567': LC_TIME
+PASS K9 F8 not a locale: 'ZZTOKEN10ZZ': LC_TIME
+PASS K9 F8 not a locale: 'japanese': LC_TIME
+PASS K9 F8 not a locale: 'en_us.UTF-8': LC_TIME
+PASS K9 F8 not a locale: 'user@host': LC_TIME
+PASS K9 F8 LANGUAGE kept (control needle) 'sr_RS@latin:en_US:en': LANGUAGE
+PASS K9 F8 LANGUAGE kept (control needle) 'en': LANGUAGE
+PASS K9 F8 LANGUAGE kept (control needle) '': LANGUAGE
+PASS K9 F8 LANGUAGE kept (control needle) 'de:en': LANGUAGE
+PASS K9 F8 LANGUAGE dropped 'user:ZZPW10@host': LANGUAGE
+PASS K9 F8 LANGUAGE dropped '0123456789abcdef0123456789abcdef01234567': LANGUAGE
+PASS K9 F8 LANGUAGE dropped 'en:ZZTOKEN10': LANGUAGE
+PASS K9 F8 LANGUAGE dropped 'en:japanese': LANGUAGE
+RESULT: pass=365 fail=0

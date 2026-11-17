@@ -19,46 +19,81 @@
 #   V (verified)    = items in the Fixed tracker whose closure_date is after the previous tag's date.
 #
 # Exit status: 0 facts printed; 2 usage; 3 data missing (no tracker at COMMIT, unknown tag, sqlite3
-# absent) — never a partial set of facts reported as complete.
+# absent, or any tracker query failed, e.g. a missing column) — never a partial set of facts: the
+# facts are buffered and printed only when every query succeeded; on exit 3 stdout stays empty.
+# Verified count boundary: an item closed ON the previous tag's date is not counted (the tag date
+# has day granularity, so a same-day closure cannot be shown to postdate the tag).
+set +x   # first: an inherited xtrace (bash -x, SHELLOPTS=xtrace) traces this one line only
 set -u
+unset -v GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py; written as unset -v because the network-spawn gate of tests/release/channel_census.py admits only that form)
 LC_ALL=C; export LC_ALL
-BASE="" PREV="" REMOTES="" TODAY="$(date +%F)"
-die() { printf 'derive_release_facts: %s\n' "$1" >&2; exit "$2"; }
+BASE="" PREV="" REMOTES="" TODAY=""
+DIE_FD=2
+die() { printf 'derive_release_facts: %s\n' "$1" >&"$DIE_FD"; exit "$2"; }
+# the one redact-then-cut helper for external-command output (round 3, CON-234 n-4 class)
+# shellcheck source=scripts/release/redact_cut.sh
+_rc_d="${BASH_SOURCE[0]}"; case "$_rc_d" in */*) _rc_d="${_rc_d%/*}" ;; *) _rc_d=. ;; esac   # no external command before the lockdown (round 6)
+. "$(cd "$_rc_d" && pwd)/redact_cut.sh" || die "cannot load redact_cut.sh" 3
+rc_env_clean "" "$@"; _rc=$?   # children get an environment built from the allow-list only (round 7, L1 L2; K3)
+[ "$_rc" -eq 0 ] || die "cannot build a clean environment for the child processes (rc_env_clean status $_rc; Linux /proc is required)" 3
+rc_git_env   # no git trace anywhere, no terminal prompt, GIT_TRACE_REDACT=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --base) [ $# -ge 2 ] || die "--base needs a value" 2; BASE="$2"; shift 2 ;;
     --prev-tag) [ $# -ge 2 ] || die "--prev-tag needs a value" 2; PREV="$2"; shift 2 ;;
     --remotes) [ $# -ge 2 ] || die "--remotes needs a value" 2; REMOTES="$2"; shift 2 ;;
     --today) [ $# -ge 2 ] || die "--today needs a value" 2; TODAY="$2"; shift 2 ;;
-    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
-    *) die "unknown argument: $1" 2 ;;
+    -h|--help) awk 'NR>1 && /^#/{print; next} NR>1{exit}' "$0"; exit 0 ;;
+    *) if [[ $1 =~ ^--?[A-Za-z][A-Za-z0-9-]{0,40}$ ]]; then die "unknown argument: $1" 2
+       else die "unknown argument (not shown: it is not shaped like an option)" 2; fi ;;
   esac
 done
 [ -n "$BASE" ] && [ -n "$PREV" ] || die "--base and --prev-tag are required" 2
+# caller values are printed in messages and facts, so they are checked first and never echoed when invalid
+# (round 5, CON-234 class): a revision name has no ":" (so it cannot be a URL), a tag and a remote are names
+[[ $BASE =~ ^[A-Za-z0-9][A-Za-z0-9._/~^-]{0,199}$ ]] || die "--base is not a revision name of [A-Za-z0-9._/~^-] (the value is not shown)" 2
+[[ $PREV =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$ ]] || die "--prev-tag has unsafe characters (the value is not shown)" 2
+_n=0
+for _r in $REMOTES; do
+  _n=$((_n + 1)); [[ $_r =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$ ]] || die "remote name number $_n in --remotes has unsafe characters (not shown)" 2
+done
+[ -n "$TODAY" ] || TODAY="$(date +%F)"   # after the lockdown: date gets the allow-listed environment
 printf '%s' "$TODAY" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || die "--today must be YYYY-MM-DD" 2
 command -v sqlite3 >/dev/null 2>&1 || die "sqlite3 is required" 3
-B="$(git rev-parse -q --verify "$BASE^{commit}")" || die "base $BASE is not a commit" 3
-P="$(git rev-parse -q --verify "refs/tags/$PREV^{commit}")" || die "tag $PREV not found" 3
+B="$(rc_net git rev-parse -q --verify "$BASE^{commit}")" || die "base $BASE is not a commit" 3
+P="$(rc_net git rev-parse -q --verify "refs/tags/$PREV^{commit}")" || die "tag $PREV not found" 3
 DBDIR="$(mktemp -d "${TMPDIR:-/tmp}/rf_db.XXXXXX")" || die "cannot create a temp dir" 3
-DB="${DBDIR:?}/items.db"
+DB="${DBDIR:?}/items.db"; chmod 700 "$DBDIR"
 # a WAL-mode database leaves -shm/-wal side files even when opened read-only; remove exactly those
-cleanup() { for _f in "$DB" "$DB-shm" "$DB-wal" "$DB-journal"; do [ -f "$_f" ] && unlink "$_f"; done; [ -d "$DBDIR" ] && rmdir "$DBDIR"; }
+# stderr of every external command (sqlite3, git) goes to EXTERR and is printed once at exit through the
+# helper (redacted, then cut at 2000 bytes); the script's own messages use fd 3 (the original stderr).
+EXTERR="$DBDIR/exterr"; exec 3>&2 2>"$EXTERR"; DIE_FD=3
+cleanup() { [ -f "$EXTERR" ] && rc_redact_cut 2000 mark <"$EXTERR" >&3; for _f in "$DB" "$DB-shm" "$DB-wal" "$DB-journal" "$DBDIR/out" "$DBDIR/qfail" "$EXTERR"; do [ -f "$_f" ] && unlink "$_f"; done; [ -d "$DBDIR" ] && rmdir "$DBDIR"; }
 trap cleanup EXIT
-git show "$B:docs/workable_items.db" >"$DB" 2>/dev/null && [ -s "$DB" ] || die "no docs/workable_items.db at $B" 3
-q() { sqlite3 -readonly -batch -noheader "$DB" "$1"; }
+trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM   # signals end the run through cleanup (round 4)
+rc_net git show "$B:docs/workable_items.db" >"$DB" 2>/dev/null && [ -s "$DB" ] || die "no docs/workable_items.db at $B" 3
+# Every query records a failure in a flag file (a query inside $(...) or a pipeline cannot stop the
+# script itself); the flag is checked before any fact is released (review m-2, CON-228).
+QFAIL="$DBDIR/qfail"
+# -safe (round 12, F1 of the round-11 review): the dot-commands that run a program (.system, .shell, the |cmd
+# forms of .output, .once, .import, .read) and file access other than the database are refused
+q() { sqlite3 -safe -readonly -batch -noheader "$DB" "$1" || { echo query >>"$QFAIL"; return 1; }; }
 # ascii mode: columns end with US (0x1f), rows with RS (0x1e), values raw (the default mode escapes
 # control characters, so a separator built with char(31) would come back as the two characters ^_)
-qa() { sqlite3 -readonly -batch -noheader -ascii "$DB" "$1"; }
+qa() { sqlite3 -safe -readonly -batch -noheader -ascii "$DB" "$1" || { echo query >>"$QFAIL"; return 1; }; }
 ids() { q "$1" | sort -V | tr '\n' ' ' | sed 's/ $//'; }
 kv() { printf '%s=%s\n' "$1" "$2"; }
 
+# stdout is buffered: nothing reaches the caller until every query has succeeded
+exec 4>&1 >"$DBDIR/out"
 kv base "$B"
-kv prev_tag "$PREV"; kv prev_tag_object "$(git rev-parse "refs/tags/$PREV")"; kv prev_tag_commit "$P"
-PREV_DATE="$(git log -1 --format=%cs "$P")"; kv prev_tag_date "$PREV_DATE"
-kv commits_since_prev "$(git rev-list --count "$P..$B")"
-kv shortstat_since_prev "$(git diff --shortstat "$P" "$B" | sed 's/^ *//')"
-kv merges_since_prev "$(git rev-list --merges --count "$P..$B")"
-kv changelog_first_heading "$(git show "$B:CHANGELOG.md" | awk '/^## /{print substr($0,4); exit}' | cut -c1-120)"
+kv prev_tag "$PREV"; kv prev_tag_object "$(rc_net git rev-parse "refs/tags/$PREV")"; kv prev_tag_commit "$P"
+PREV_DATE="$(rc_net git log -1 --format=%cs "$P")"; kv prev_tag_date "$PREV_DATE"
+kv commits_since_prev "$(rc_net git rev-list --count "$P..$B")"
+kv shortstat_since_prev "$(rc_net git diff --shortstat "$P" "$B" | sed 's/^ *//')"
+kv merges_since_prev "$(rc_net git rev-list --merges --count "$P..$B")"
+rc_net git cat-file -e "$B:CHANGELOG.md" 2>/dev/null || echo changelog >>"$QFAIL"
+kv changelog_first_heading "$(rc_net git show "$B:CHANGELOG.md" | awk '/^## /{print substr($0,4); exit}' | cut -c1-120)"
 kv db_sha256 "$(sha256sum "$DB" | cut -d' ' -f1)"
 
 O="current_location='Issues'"
@@ -89,6 +124,9 @@ kv reopened_ids "$(ids "select atm_id from items where status='Reopened'")"
 # §11.4.290(4): V verified + P provisional (O overdue). Bodies come out with newlines replaced by RS
 # (ascii mode, one RS-terminated row per item); the id is never interpolated back into SQL.
 PROV="" OVER=""
+# round 8 (N3 class): the rows are read from a here-string, never from a process substitution, whose pipe bash
+# leaves open (without close-on-exec) in every command the loop body runs
+rows="$(qa "select atm_id, body_md from items where $O and body_md like '%**Verification:** provisional%'")"
 while IFS=$'\x1f' read -r -d $'\x1e' id body; do
   PROV="$PROV $id"
   due="$(printf '%s\n' "$body" | grep -m1 -F '**Verification:** provisional' | sed -n 's/.*due:[[:space:]]*\([^[:space:]]*\).*/\1/p')"
@@ -97,7 +135,7 @@ while IFS=$'\x1f' read -r -d $'\x1e' id body; do
   else
     OVER="$OVER $id"     # no date: UNSCHEDULED, treated as OVERDUE
   fi
-done < <(qa "select atm_id, body_md from items where $O and body_md like '%**Verification:** provisional%'")
+done <<<"$rows"
 sv() { printf '%s\n' $1 | sed '/^$/d' | sort -V | tr '\n' ' ' | sed 's/ $//'; }
 PROV="$(sv "$PROV")"; OVER="$(sv "$OVER")"
 kv provisional_ids "$PROV"; kv overdue_ids "$OVER"
@@ -111,11 +149,19 @@ kv count_line "$(words "$VER") verified + $(words "$PROV") provisional ($(words 
 # §11.4.288 debt: remote refs other than main/HEAD with commits not on the base, per remote counted
 for r in $REMOTES; do
   n=0 list=""
+  refs="$(rc_net git for-each-ref --format='%(refname)' "refs/remotes/$r/")"   # a here-string below, not a process substitution (N3 class)
   while IFS= read -r ref; do
-    case "$ref" in "refs/remotes/$r/main"|"refs/remotes/$r/HEAD") continue ;; esac
-    c="$(git rev-list --count "$B..$ref")"
+    case "$ref" in ""|"refs/remotes/$r/main"|"refs/remotes/$r/HEAD") continue ;; esac
+    c="$(rc_net git rev-list --count "$B..$ref")"
     [ "$c" -gt 0 ] && { n=$((n+1)); list="$list ${ref#refs/remotes/"$r"/}:$c"; }
-  done < <(git for-each-ref --format='%(refname)' "refs/remotes/$r/")
+  done <<<"$refs"
   kv "unmerged_refs_count[$r]" "$n"; kv "unmerged_refs[$r]" "${list# }"
 done
+exec 1>&4 4>&-
+if [ -e "$QFAIL" ]; then
+  grep -q '^changelog$' "$QFAIL" && printf 'derive_release_facts: CHANGELOG.md is missing at the base %s; no facts printed\n' "$B" >&3
+  grep -q '^query$' "$QFAIL" && printf 'derive_release_facts: a tracker query failed (the sqlite3 error is printed after this line); no facts printed\n' >&3
+  exit 3
+fi
+cat -- "$DBDIR/out"
 exit 0

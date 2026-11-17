@@ -1,0 +1,49 @@
+CONTROL	host	PASS	8		no mutation	80.02325463294983
+RM01	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_layout gitlink check back to `| grep -q`	1
+RM02	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_verify legacy-path check back to the double pipe	1
+RM03	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_resolve_ref_in tag lookup back to `| awk ... exit`	1
+RM04	host	KILLED	1	scripts/update_constitution.sh (scan exit 1): <scratch>	updater registered-submodule check back to `| grep -q`	1
+RM05	host	KILLED	1	scripts/update_constitution.sh (scan exit 1): <scratch>	updater hook capability probe back to `head | grep -qE`	1
+RM06	host	KILLED	1	scripts/install_cli_agent_plugins.sh (scan exit 1): <scratch>	CLI plugin check back to `claude plugin list | grep -q`	1
+RM07	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_upstream_ok back to `| grep -qxF`	1
+RM08	host	KILLED	3	normal, 0 tail lines: control needle and all 15 cases	Z check reads the before-marks only	8
+RM09	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_layout check as `| LC_ALL=C grep -q`	1
+RM10	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	`| grep -m1 . >/dev/null` added to hi_resolve_ref_in	1
+RM11	host	KILLED	1	scripts/install_cli_agent_plugins.sh (scan exit 1): <scratch>	CLI plugin check as `|& grep -q`	1
+RM12	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	Z check as `| command grep -q`	0
+RM13	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	R membership as `| command grep -qxF`	0
+RM14	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	L membership as `| command grep -qxF`	0
+RM15	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	N membership as `| command grep -qxF`	1
+RM16	host	KILLED	3	normal, 0 tail lines: control needle and all 15 cases	Z check moved after the M-line comparison	8
+RM17	host	KILLED	1	scripts/update_constitution.sh (scan exit 1): <scratch>	updater hook probe as `| egrep -q`	1
+N01	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	Z check as a here-string	1
+N02	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	after-marks split by a here-string loop	0
+N03	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_upstream_ok through a here-document	1
+N04	host	KILLED	2	the hi_shell_state block is identical in the installer and the updater	reset call removed (installer)	1
+N05	host	KILLED	2	the hi_shell_state block is identical in the installer and the updater	reset call moved after the first <( (installer)	1
+N06	host	KILLED	2	the installer refuses (exit 3) when process substitution does not work	installer no longer checks process substitution	1
+N07	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_layout check as `| fgrep -q`	1
+N08	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_layout check as `| \grep -q`	1
+N09	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	legacy-path check as `| egrep -qv`	0
+N10	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_resolve_ref_in through `| head -n 1`	0
+N11	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_upstream_ok through `| sed -n ...q`	0
+N12	host	KILLED	7	read-only .claude/skills: exit 1, every failure counted and warned, nothing linked	CLI no longer counts a link it could not create	32
+N13	host	KILLED	7	read-only .claude/skills: exit 1, every failure counted and warned, nothing linked	CLI ignores failed links in its exit status	32
+N14	host	KILLED	3	normal, 0 tail lines: control needle and all 15 cases	R pre-filter keeps only a bare R	8
+N15	host	KILLED	3	normal, 0 tail lines: control needle and all 15 cases	before-marks pre-filter drops U	8
+N16	host	KILLED	2	the hi_shell_state block is identical in the installer and the updater	hi_read_fields keeps trailing blanks	2
+N17	host	KILLED	2	the hi_shell_state block is identical in the installer and the updater	hi_split_lines without set -f (globbing on)	2
+N18	host	KILLED	2	the hi_shell_state block is identical in the installer and the updater	hi_line_in matches a substring	1
+N19	host	KILLED	2	the hi_shell_state block is identical in the installer and the updater	hi_has_line_prefix matches anywhere	1
+N20	host	KILLED	4	normal: installer helpers	hi_legacy_path_in without the submodules/ exclusion	23
+N21	host	KILLED	2	hi_reset_shell_state in scripts/update_constitution.sh is identical to the installer's	reset no longer unsets BASH_COMPAT at its end	1
+N22	host	KILLED	2	hi_reset_shell_state in scripts/update_constitution.sh is identical to the installer's	reset leaves posix mode on	2
+N23	host	KILLED	6	notemp50: unchanged marks with command text read as unchanged, a moved ref as moved	R membership via [[ -v assoc[key] ]]	31
+N24	host	KILLED	4	normal: installer helpers	hi_on_remote stops at the first remote commit that does not contain it	24
+N25	host	KILLED	4	normal: updater up_hook_declares_project_root agrees with the regex it replaces	updater hook regex not anchored	26
+N26	host	KILLED	2	scripts/install_cli_agent_plugins.sh: reset called in run mode, right before set -euo pipefail	CLI reset call removed	1
+N27	host	KILLED	2	the hi_shell_state block is identical in the installer and the updater	installer resets even when sourced	2
+N28	host	KILLED	1	scripts/install_constitution.sh (scan exit 1): <scratch>	hi_upstream_ok as a here-string	1
+N29	host	KILLED	2	the hi_shell_state block is identical in the installer and the updater	updater copy of hi_has_line_prefix matches anywhere	1
+N30	host	KILLED	3	normal, 200 tail lines: control needle and all 15 cases	before-marks cut at 8 KiB (class e)	11
+killed 47 / 47

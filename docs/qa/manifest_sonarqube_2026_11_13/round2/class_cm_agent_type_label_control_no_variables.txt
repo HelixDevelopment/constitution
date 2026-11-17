@@ -1,0 +1,46 @@
+# run: rc=0 wall=372s load_start=52.98 load_end=107.34 cmd=env -u GIT_DIR -u GIT_INDEX_FILE timeout 1500 bash scripts/gates/cm_agent_type_label.sh
+✅ PRESENCE+PARSE: generator
+✅ PRESENCE+PARSE: installer
+✅ PRESENCE+PARSE: hook
+✅ PRESENCE+PARSE: frontmatter checker
+✅ PRESENCE: colour data
+✅ DOC: gen_agent_label_defs.md
+✅ DOC: install_agent_label_defs.md
+✅ DOC: guard-track-branch-label.md
+✅ GENERATION: 10 files, exact T<N>-<branch>-<model>-<effort> names
+✅ GENERATION: every file passes the strict independent frontmatter parse
+✅ GENERATION: the §11.4.209/§11.4.211 reviewer text is in the opus-xhigh body only
+✅ IDEMPOTENCE: rerun byte-identical, written=0
+✅ DETERMINISM: same bytes in a second out-dir
+✅ CHECK: clean tree -> 0
+✅ CHECK: missing generated file -> 1
+✅ CHECK: hand-edited generated file -> 1
+✅ REFUSAL: hand-made colliding file refused (exit 3) and unchanged
+✅ INSTALLER: current checkout T1/main installed (10 files)
+✅ INSTALLER: hand-made agents untouched
+✅ INSTALLER: stale GENERATED file pruned
+✅ INSTALLER: a --models sonnet run keeps the 5 opus files
+✅ INSTALLER: an undeclared file outside the --models filter is kept
+✅ INSTALLER: declared-but-unresolvable track T2 NOT pruned
+✅ INSTALLER: with no usable config nothing is pruned
+✅ INSTALLER: refuses a dangling ~/.claude-* symlink, a symlinked HOME's real target, an unresolvable home; keeps track-007 files when its mount is absent
+✅ INSTALLER: refuses --out-dir / and // , a system directory, and an out-dir equal to a user config dir
+✅ INSTALLER: refusal holds without GNU realpath ('..', '/..'), fails closed on an unreadable link; ordinary paths still accepted
+✅ INSTALLER: /tmp and /srv/<child> refused; /usrx, ~/.claudeless and /tmp/<child> accepted
+✅ INSTALLER: per-process links refused, symlink resolved before '..', kernel cross-check and canon failure each refuse, un-enterable root exits 2; an ordinary symlink-then-'..' accepted
+✅ INSTALLER: partial-prefix kernel cross-check, '-' never OLDPWD, CDPATH ignored, PATH_MAX / NAME_MAX / ENOTDIR / EACCES / newline refused, ENOENT lexical, writers get the canonical path
+✅ INSTALLER: byte-exact captures (newline in a link target / cwd / kernel answer / canon output / project root / own directory refused), PATH_MAX / NAME_MAX / EACCES / multibyte boundaries in both directions, option-like --classify name, failing sha256 never writes
+✅ INSTALLER: refuses a symlinked ~/.claude (out-dir and target), an out-dir containing it, an empty-HOME passwd home, HOME itself and an ancestor of HOME
+✅ INSTALLER: refuses the user-level config dir (exit 6, nothing written)
+✅ HOOK: general-purpose + generated types -> WARN, exit 0
+✅ HOOK: ENFORCE=1 blocks general-purpose (exit 2)
+✅ HOOK: ENFORCE=1 blocks an empty subagent_type (exit 2)
+✅ HOOK: label type dispatches silently
+✅ HOOK: specialist/plugin types never touched (enforce)
+✅ HOOK: a type of ANOTHER track warns (exit 0) and blocks under ENFORCE (exit 2)
+✅ HOOK: a model/effort parameter that overrides the type blocks under ENFORCE; matching parameters pass
+✅ HOOK: WARN payload is valid JSON for a subagent_type with a quote and a backslash
+✅ HOOK: empty bypass reason does not bypass
+✅ HOOK: hand-made T<N> types do not count as generated (golden-FALSE)
+----------------------------------------------------------------------
+✅ CM-AGENT-TYPE-LABEL: PASS — generator, installer and hook produce, protect and enforce the T<N>-<branch>-<model>-<effort> agent types

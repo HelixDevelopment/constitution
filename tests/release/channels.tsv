@@ -1,0 +1,154 @@
+# tests/release/channels.tsv — channel census of the release scripts (round 6). One row per external command
+# invocation found by tests/release/channel_census.py; checked by tests/release/test_channel_census.sh.
+# Columns (closed vocabulary in channel_census.py): script, command, key (sha256/8 of the line), argv, env, stdin,
+# files, bound, note. env 'allowlist' = the environment rc_env_clean builds from the allow-list of rc_env_lockdown
+# (round 7: built positively by a clean re-execution, so no inherited entry reaches a child); 'empty' = no
+# environment at all; 'net-allowlist' (round 11) = the environment rc_net gives a network child: the fixed
+# network allow-list of redact_cut.sh, value-checked, never RELEASE_ENV_KEEP (the lint checks that exactly the
+# rows reached through rc_net, nt or net carry it). Only three rows may carry the token: the publisher's curl
+# (stdin token-config), the tag script's publisher call (env allowlist+token) and the re-execution of rc_env_clean (stdin state-pipe: fd 9).
+# Rows with command '-' are lines that name a secret variable without running a command (secret-ref).
+# A changed script line makes its row stale: re-run 'channel_census.py list', re-classify the row by hand.
+#script	command	key	argv	env	stdin	files	bound	note
+derive_release_facts.sh	awk	30f58115	validated-data	allowlist	none	none	local	
+derive_release_facts.sh	date	649cfe2c	fixed	allowlist	none	none	local	
+derive_release_facts.sh	grep	0d3cc75c	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	git	feb7dd5a	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	git	3e591f2d	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	mktemp	c8d72438	validated-data	allowlist	none	temp-create	local	
+derive_release_facts.sh	chmod	ef2b8a65	validated-data	allowlist	none	rundir	local	
+derive_release_facts.sh	unlink	3c484663	validated-data	allowlist	none	temp-remove	local	
+derive_release_facts.sh	rmdir	3c484663	validated-data	allowlist	none	temp-remove	local	
+derive_release_facts.sh	git	95c7f3eb	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	sqlite3	fdaef393	validated-data	allowlist	none	none	local	
+derive_release_facts.sh	sqlite3	9d146727	validated-data	allowlist	none	none	local	
+derive_release_facts.sh	sort	068140ce	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	tr	068140ce	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sed	068140ce	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	git	47770773	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	git	33843491	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	git	5f15fd96	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	git	ac18bad8	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	sed	ac18bad8	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	git	df53159c	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	git	1f8cc176	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	git	513af769	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	awk	513af769	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	cut	513af769	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sha256sum	098d0155	validated-data	allowlist	none	none	local	
+derive_release_facts.sh	cut	098d0155	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	awk	d079755d	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sort	919c60fd	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	tr	919c60fd	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sed	919c60fd	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sort	e639c7f0	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	grep	3fe815d3	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	tr	3062847e	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sed	3062847e	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	grep	dde6144b	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sed	dde6144b	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	grep	ba69dffe	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sed	91525da3	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	sort	91525da3	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	tr	91525da3	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	grep	67264daf	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	wc	1b5de5e4	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	tr	1b5de5e4	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	git	83c7bf45	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	git	bf8bc6fc	validated-data	net-allowlist	none	none	local	
+derive_release_facts.sh	grep	beb7f7d9	validated-data	allowlist	none	none	local	
+derive_release_facts.sh	grep	f6b7fd9d	validated-data	allowlist	none	none	local	
+derive_release_facts.sh	cat	6d6ad1d6	validated-data	allowlist	none	none	local	
+redact_cut.sh	tr	84bb8322	fixed	allowlist	pipe-network-text	none	local	redaction input: stderr of external commands
+redact_cut.sh	awk	84bb8322	fixed	allowlist	pipe-local	none	local	
+redact_cut.sh	tr	74bb9bca	validated-data	allowlist	pipe-network-text	none	local	redaction input: stderr of external commands
+redact_cut.sh	awk	74bb9bca	validated-data	allowlist	pipe-local	none	local	
+redact_cut.sh	bash	a614cc7f	own-argv	empty	state-pipe	none	local	rc_env_clean re-execution (round 7): empty environment; the allow-listed values and the READS values (the token variable of the tag script and the publisher) travel on the fd 9 pipe, written by builtins
+tag_and_release.sh	awk	27f0468a	validated-data	allowlist	none	none	local	
+tag_and_release.sh	mktemp	3b8a2af1	validated-data	allowlist	none	temp-create	local	
+tag_and_release.sh	chmod	0b6071f4	validated-data	allowlist	none	rundir	local	
+tag_and_release.sh	rm	6a9a603a	validated-data	allowlist	none	temp-remove	local	
+tag_and_release.sh	rmdir	d104966e	validated-data	allowlist	none	temp-remove	local	
+tag_and_release.sh	timeout	761f8147	validated-data	net-allowlist	none	none	nt-timeout	GNU timeout without --foreground: signals the whole process group (K2)
+tag_and_release.sh	git	132a83e7	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	bash	16ab0fc9	validated-data	allowlist+token	none	none	publisher	publisher: the only child that gets M3W_GITEA_TOKEN (K3)
+tag_and_release.sh	grep	914694d1	validated-data	allowlist	pipe-local	none	local	
+tag_and_release.sh	date	2e0dc767	validated-data	allowlist	none	none	local	
+tag_and_release.sh	git	7764bd3e	fixed	net-allowlist	none	none	local	
+tag_and_release.sh	git	ac8e82c2	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	9ab956f2	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	bbb5058d	fixed	net-allowlist	none	none	local	
+tag_and_release.sh	git	01f29a26	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	46a39b34	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	735ba31d	validated-data	net-allowlist	none	repo-refs	nt-timeout	
+tag_and_release.sh	git	1915e3a3	fixed	net-allowlist	none	none	local	
+tag_and_release.sh	git	681c537b	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	7217d318	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	awk	7217d318	validated-data	allowlist	pipe-local	none	local	
+tag_and_release.sh	git	76a0dfb5	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	awk	76a0dfb5	validated-data	allowlist	pipe-local	none	local	
+tag_and_release.sh	bash	01d2a3c2	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	1ded4509	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	3f0691b3	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	29c24c71	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	d96915bc	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	awk	d96915bc	validated-data	allowlist	pipe-network-text	none	local	
+tag_and_release.sh	git	47dfddf2	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	b581333a	validated-data	net-allowlist	none	repo-tags	local	
+tag_and_release.sh	git	606d3b9b	validated-data	net-allowlist	none	none	local	
+tag_and_release.sh	git	d03c8174	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	awk	ede0e7d9	validated-data	allowlist	pipe-network-text	none	local	
+tag_and_release.sh	awk	2814bf40	validated-data	allowlist	pipe-network-text	none	local	
+tag_and_release.sh	awk	af7e355f	validated-data	allowlist	pipe-network-text	none	local	
+tag_and_release.sh	git	9f9daf7a	validated-data	net-allowlist	none	repo-refs	nt-timeout	
+tag_and_release.sh	git	5cde3a0c	validated-data	net-allowlist	none	repo-refs	nt-timeout	
+tag_and_release.sh	cut	b91f9fa4	validated-data	allowlist	pipe-local	none	local	
+tag_and_release.sh	git	ed2e99da	validated-data	net-allowlist	none	repo-refs	nt-timeout	
+tag_and_release.sh	gh	aee52524	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	gh	d1c5c119	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	gh	a84e0b2e	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	gh	72b9ec20	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	gh	91929723	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	glab	8d2b1a5e	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	glab	05f5c9cf	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	glab	6e402e2e	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	glab	76c05f6a	validated-data	net-allowlist	none	none	nt-timeout	
+tag_and_release.sh	glab	ac30cc5d	validated-data	net-allowlist	none	none	nt-timeout	glpre: the GitLab release read-back (glab api --hostname H, H value-checked)
+tag_and_release.sh	jq	611b094e	validated-data	allowlist	pipe-local	none	local	glpre: @uri of the GROUP/REPO target (matched RE_GL before)
+tag_and_release.sh	jq	227b3dc4	fixed	allowlist	pipe-network-text	none	local	glpre: parses the read-back; prints fixed words and a released_at reduced to [0-9A-Za-z:.+-]
+tag_and_release.sh	date	c78696d5	validated-data	allowlist	none	none	local	glpre: the read-back released_at, ISO-shape checked first
+tag_and_release.sh	cat	82c33b23	validated-data	allowlist	none	rundir	local	glpre: the marked GitLab notes copy in the run directory
+tag_and_release.sh	date	a0f83e9d	validated-data	allowlist	none	none	local	glpre: --gitlab-released-at, ISO-shape checked first
+tag_and_release.sh	date	10dc5311	fixed	allowlist	none	none	local	glpre: now, for the future check
+tag_and_release.sh	grep	15c512f6	validated-data	allowlist	pipe-network-text	none	local	
+tag_and_release.sh	date	2778ea72	fixed	allowlist	none	none	local	
+release_publish_gitea.sh	sed	5d507d9e	validated-data	allowlist	none	none	local	
+release_publish_gitea.sh	grep	248ca227	validated-data	allowlist	pipe-local	none	local	
+release_publish_gitea.sh	grep	18e7f307	validated-data	allowlist	pipe-local	none	local	
+release_publish_gitea.sh	git	e392a527	validated-data	net-allowlist	none	none	local	
+release_publish_gitea.sh	mktemp	4ca29cc3	validated-data	allowlist	none	temp-create	local	
+release_publish_gitea.sh	rm	66ca0270	validated-data	allowlist	none	temp-remove	local	
+release_publish_gitea.sh	rmdir	66ca0270	validated-data	allowlist	none	temp-remove	local	
+release_publish_gitea.sh	chmod	a8ae192b	validated-data	allowlist	none	rundir	local	
+release_publish_gitea.sh	cp	d29e00a9	caller-path	allowlist	none	rundir	local	
+release_publish_gitea.sh	awk	d50b55f3	fixed	allowlist	none	none	local	
+release_publish_gitea.sh	git	4fe0bea8	validated-data	net-allowlist	none	none	local	
+release_publish_gitea.sh	jq	fefb2b66	validated-data	allowlist	none	none	local	
+release_publish_gitea.sh	wc	e93f7742	validated-data	allowlist	none	none	local	
+release_publish_gitea.sh	curl	7312d4f2	url-validated	net-allowlist	token-config	none	curl-m60	token as a curl config on stdin (-K -); URL validated by rc_safe_url
+release_publish_gitea.sh	cat	1e3fe218	validated-data	allowlist	none	none	local	
+release_publish_gitea.sh	cat	7c81e0df	validated-data	allowlist	none	none	local	
+release_publish_gitea.sh	jq	f81f2212	fixed	allowlist	pipe-network-text	none	local	
+release_publish_gitea.sh	jq	c6bfdb13	fixed	allowlist	pipe-network-text	none	local	
+release_publish_gitea.sh	jq	20495e77	fixed	allowlist	pipe-network-text	none	local	
+release_publish_gitea.sh	-	7b40a860	fixed	allowlist	none	none	local	secret-ref: PRERELEASE=false DRAFT=false DRY=0 TOKEN_VAR="M3W_GITEA_TOKEN" GENERIC
+release_publish_gitea.sh	-	4966cd72	fixed	allowlist	none	none	local	secret-ref: --token-var) need_val $# "$1"; TOKEN_VAR="$2"; shift 2 ;;
+release_publish_gitea.sh	-	1037ab69	fixed	allowlist	none	none	local	secret-ref: [[ $TOKEN_VAR =~ ^[A-Z_][A-Z0-9_]*$ ]] || die "--token-var must be an 
+release_publish_gitea.sh	-	9bf5b5f7	fixed	allowlist	none	none	local	secret-ref: unset -v _rpg_tok
+release_publish_gitea.sh	-	5af5a79d	fixed	allowlist	none	none	local	secret-ref: _rpg_tok="${!TOKEN_VAR:-}"
+release_publish_gitea.sh	-	5b7f0373	fixed	allowlist	none	none	local	secret-ref: unset "$TOKEN_VAR" 2>/dev/null || true
+release_publish_gitea.sh	-	30e035ac	fixed	allowlist	none	none	local	secret-ref: if [ -z "$_rpg_tok" ] && [ "$DRY" -eq 0 ]; then
+release_publish_gitea.sh	-	4c38ab71	fixed	allowlist	none	none	local	secret-ref: printf 'SKIPPED-NO-TOKEN: env var %s is not set; nothing was published
+release_publish_gitea.sh	-	299e46fd	fixed	allowlist	none	none	local	secret-ref: if [ -n "$_rpg_tok" ] && ! [[ $_rpg_tok =~ ^[A-Za-z0-9._~+/=-]{8,200}$
+tag_and_release.sh	-	84b4c1a0	fixed	allowlist	none	none	local	secret-ref: rc_env_clean READS names M3W_GITEA_TOKEN: its value is kept in this shell, never exported
+release_publish_gitea.sh	-	a3da2cb7	fixed	allowlist	none	none	local	secret-ref: _rpg_tv=M3W_GITEA_TOKEN (prescan of --token-var for rc_env_clean READS)

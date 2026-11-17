@@ -1,0 +1,24 @@
+=== test_channel_census (GREEN: round-6 scripts and table), 2026-11-12T00:01:19+01:00, private TMPDIR, one suite at a time
+PASS instrument: the fixture invocations are found exactly (quotes, comments, case patterns, wrappers)
+PASS instrument: a line naming a secret variable is listed (control needle)
+PASS lint: the table matches the scripts (rc 0)
+PASS lint: the census counts 127 invocations (positive needle)
+PASS lint finds: a new command with no row
+PASS lint finds: a changed line (stale row and no row)
+PASS lint finds: a new reference to the token
+PASS lint finds: a new command fed the token by a pipe
+PASS lint finds: an external command before the lockdown
+PASS lint finds: a secret channel on a row that may not carry it
+PASS lint finds: a value outside the vocabulary
+PASS lint finds: the curl row removed (no row, and its token line is unlisted)
+PASS lint: an empty table is BLIND (rc 2), never clean
+PASS runtime: 24 commands (24 from the table) get a recorder (control needle)
+PASS runtime: the publisher run completes (control, rc 0)
+PASS runtime: the curl call is recorded (control needle)
+PASS runtime: the request URL is in the recorded argv (positive needle)
+PASS runtime: every command the publisher ran is in the table
+PASS runtime: no argv and no environment of any child holds the token
+PASS runtime: no caller *TOKEN* variable reaches a child
+PASS runtime: the environment census reads PATH (control needle)
+RESULT: pass=21 fail=0
+exit=0

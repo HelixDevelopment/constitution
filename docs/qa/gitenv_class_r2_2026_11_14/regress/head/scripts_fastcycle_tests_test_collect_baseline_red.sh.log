@@ -1,0 +1,20 @@
+ok [C-F12] under an ambient FC_OUT every item froze to a real commit, ATM-953 replayed, and no child wrote to FC_OUT
+ok [C-F9] the Bug cold median pools the 5 PASS runs only (554ms); the 1 crashed run is counted as excluded
+ok [C-F22] the reopen rate counts only items reopened after an in-window closure (Bug rate 0.333333 = 1/3)
+ok [C-F21] --replay-item-ids naming an id outside the sample is refused (exit 2, id named)
+ok [C-F21] the owed-follow-up note appears for a reduced run (1 of 6 items) and not for a full 10/10 run over every eligible item
+ok [C-HE] a gate that cannot start makes the run exit 4; the baseline is still written with the reason (replay harness error rc=4: baseline_replay: BLIND: the gate command could not be started (HARNESS_ERROR, see the report's runs[].verdict_reason))
+ok [C-HE] a freeze that fails (repo root is not a git repo) is a harness error (exit 4), never 'no commit found'
+ok [C-FRESH] a --fresh-execution-json path that does not exist is refused (exit 2), not recorded as NOT_YET_RECORDED
+ok [C-V43] every gate run crashed (10/10 x 6 items, 0 measured): exit 4, the note does not claim the protocol ('UNMEASURED: no gate run was measured -- 0 PASS runs at or above the plausibility floor (0 ...')
+ok [C-V43] one item whose every run crashed (ATM-954): the protocol is NOT claimed met and the item is named
+ok [C-V43] a sample of zero items exits 4 and does not claim the protocol
+ok [C-V43] a zero-item sample exits 4 even under --skip-gate-replay
+ok [C-V43] --skip-gate-replay is a dry run (exit 0) whose note does not claim the protocol
+ok [C-V411] the token baseline states that this tool searched nothing, and claims no corpus search
+ok [C-V413] a sampled item id holding '/' and '..' is refused (exit 4, id named) and nothing is written for it
+ok [C-V413] a sampled item id holding a bare '/' (no '..') is refused too (exit 4, id named, nothing written)
+ok [C-FRESHJ] a truncated / non-object --fresh-execution-json is refused at start-up (exit 2, file named, nothing written, no traceback); a valid object is recorded (tokens=1234)
+ok [C-ONDATE] a closure + reopen timestamped on the window's last day (2026-08-01T10:00:00+05:00) are in the window (closed=1 reopened=1 any=1), the calendar-day rule select_sample.py uses
+----
+SUMMARY pass=18 fail=0

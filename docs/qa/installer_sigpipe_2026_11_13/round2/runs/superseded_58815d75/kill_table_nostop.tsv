@@ -1,0 +1,4 @@
+id	bash	verdict	section	first_failing_check	mutation	seconds
+N04	host	KILLED	2,<<,8 (4 FAIL)	the hi_shell_state block is identical in the installer and the updater	reset call removed (installer)	131
+N05	host	KILLED	2,<< (2 FAIL)	the hi_shell_state block is identical in the installer and the updater	reset call moved after the first <( (installer)	116
+N26	host	KILLED	2,7 (2 FAIL)	scripts/install_cli_agent_plugins.sh: reset called in run mode, right before set -euo pipefail	CLI reset call removed	130

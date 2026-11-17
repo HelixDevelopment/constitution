@@ -1,0 +1,27 @@
+#!/bin/bash
+# run_m4.sh <gen> <mode> <id>... : apply each mutant (gen = rv: reviewer mk_rv.py verbatim; m4: own mk_m4.py) to a
+# fresh detached worktree of the round-4 head, run the census and tests/test_git_env_class.sh (mode only: --only-census;
+# mode full: --fast), print one TSV row: id census_rc test_rc verdict summary. NONE is the control (must SURVIVE).
+set -u
+for v in $(env | sed -n 's/^\(GIT_[A-Z_]*\)=.*/\1/p'); do unset "$v"; done
+: "${TMPDIR:?}"
+B=/mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR
+R=$B/repo
+gen=${1:?gen}; mode=${2:?mode}; shift 2
+case "$gen" in rv) MK=/mnt/DATA1TB/claude-work/scratch/rev4_gitenv.Dhis/tools/mk_rv.py ;; m4) MK=$B/tools/mk_m4.py ;; *) exit 64 ;; esac
+case "$mode" in only) TF=--only-census ;; full) TF=--fast ;; *) exit 64 ;; esac
+mkdir -p "$B/mut"
+for id in "$@"; do
+  W="$B/mut/wt_$id"
+  if [ -e "$W" ]; then git -C "$R" worktree remove --force "$W" 2>/dev/null; fi
+  git -C "$R" worktree add -q --detach "$W" HEAD || { printf '%s\tSETUP\n' "$id"; continue; }
+  if [ "$id" != NONE ]; then
+    python3 "$MK" "$W" "$id" >"$B/mut/$id.apply" 2>&1 || { printf '%s\tAPPLYFAIL\t%s\n' "$id" "$(tail -1 "$B/mut/$id.apply")"; git -C "$R" worktree remove --force "$W"; continue; }
+  fi
+  crc=0; python3 -I "$W/scripts/validation/git_env_class_census.py" --root "$W" >"$B/mut/$id.census" 2>&1 || crc=$?
+  trc=0; bash "$W/tests/test_git_env_class.sh" $TF >"$B/mut/$id.test" 2>&1 || trc=$?
+  summ=$(grep -E 'passed=|^FAIL ' "$B/mut/$id.test" | head -n 3 | tr '\n' ' ' | cut -c1-300)
+  v=SURVIVED; { [ "$crc" != 0 ] || [ "$trc" != 0 ]; } && v=KILLED
+  printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$crc" "$trc" "$v" "$(tail -n 1 "$B/mut/$id.census" | cut -c1-140) | $summ"
+  git -C "$R" worktree remove --force "$W"
+done

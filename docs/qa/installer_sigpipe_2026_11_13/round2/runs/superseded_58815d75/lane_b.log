@@ -1,0 +1,6 @@
+2026-11-14T00:10:22Z lane B start (commit 58815d755620f1e71a8be4380209fcf8a620a5f1)
+2026-11-14T01:26:08Z runall host r1 rc=1 secs=4546 bash=5.3.9(1)-release RUN_ALL: FAIL (cm_installer_no_push_no_force.sh cm_installer_no_push_no_force_mutation_test.sh)
+2026-11-14T02:50:16Z runall 5.2.37 r1 rc=1 secs=5048 bash=5.2.37(1)-release RUN_ALL: FAIL (cm_installer_no_push_no_force.sh cm_installer_no_push_no_force_mutation_test.sh)
+2026-11-14T04:19:46Z runall host r2 rc=1 secs=5370 bash=5.3.9(1)-release RUN_ALL: FAIL (cm_installer_no_push_no_force.sh cm_installer_no_push_no_force_mutation_test.sh)
+2026-11-14T05:37:27Z runall 5.2.37 r2 rc=1 secs=4661 bash=5.2.37(1)-release RUN_ALL: FAIL (test_agent cm_installer_no_push_no_force.sh cm_installer_no_push_no_force_mutation_test.sh)
+2026-11-14T06:12:19Z lane B stopped during runall host r3: results are for the superseded head 58815d75 (gate broken by round 2, fixed in commit 3); lane B is re-run on the new head

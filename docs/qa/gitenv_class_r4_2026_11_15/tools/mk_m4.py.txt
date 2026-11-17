@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""mk_m4.py <worktree> <id>: the round-4 fixer's own mutants (each must be KILLED by the census or the test).
+  RV9EQ  universe restricted to scripts/ and tests/ (equivalent of reviewer RV9, whose anchor no longer exists)
+  M01    an executable file without a shebang is no longer shell
+  M02    an unknown extension is counted as data (no unclassified problem)
+  M03    a data extension wins over the executable bit
+  M04    binary files are no longer counted (closed-world accounting must go BLIND)
+  M05    preamble `set` alternative unanchored (`set -e; git ...` accepted again, R4-3)
+  M06    R4-2 reader check disabled
+  M07    R4-2 accepts a reader with any row reason
+  M08    entry_function_problem always None (R4-4 off)
+  M09    entry function: top-level git mention allowed
+  M10    entry function: git before the clear allowed
+  M11    list clear accepts a loop over a list that does not expand to the canonical one (R4-5)
+  M12    list clear reads heredoc bodies again (R4-5)
+  M13    ECHO_ONLY loses its pipe/eval/sh exclusions
+  M14    subject-follows-caller ignores every detected write
+  M15    SH_GIT no longer sees a quoted "git" word
+  M16    guard-branch-consistency.sh scrubbed again (row becomes stale)
+  M17    guard-work-track-binding.sh `git status` takes the optional lock again (behaviour, B4_guard_status)
+  M18    install_upstreams.sh scrub removed
+  M19    C1d write instrument blinded (its regex never matches)
+  M20    progressive/mutation_matrix.py scrub placed after a top-level statement
+  M21    the label guard scrubs inside its git fallback (behaviour: B4_guard_label)
+"""
+import re
+import sys
+
+wt, mid = sys.argv[1], sys.argv[2]
+CEN = "scripts/validation/git_env_class_census.py"
+TST = "tests/test_git_env_class.sh"
+CANON_RE = re.compile(r'^for _ge_v in [A-Z_ ]+; do unset "\$_ge_v"; done; unset _ge_v.*\n', re.M)
+PY_RE = re.compile(r'^import os as _ge_os.*\nfor _ge_v in ".*\n', re.M)
+
+
+def rd(rel):
+    return open(wt + "/" + rel, encoding="utf-8").read()
+
+
+def wr(rel, t):
+    open(wt + "/" + rel, "w", encoding="utf-8").write(t)
+
+
+def sub1(rel, a, b):
+    t = rd(rel)
+    if t.count(a) != 1:
+        sys.exit("mutant %s: anchor count %d in %s: %r" % (mid, t.count(a), rel, a[:70]))
+    wr(rel, t.replace(a, b, 1))
+
+
+if mid == "RV9EQ":
+    sub1(CEN, '"ls-files", "-z", "-s"]', '"ls-files", "-z", "-s", "--", "scripts", "tests"]')
+elif mid == "M01":
+    sub1(CEN, "    if executable:\n        return \"sh\"\n    return None", "    return None")
+elif mid == "M02":
+    sub1(CEN, "            if ext and ext not in DATA_EXT:", "            if False:")
+elif mid == "M03":
+    sub1(CEN, "lang = None if (ext in DATA_EXT and not executable) else", "lang = None if (ext in DATA_EXT) else")
+elif mid == "M04":
+    sub1(CEN, '        if b"\\0" in b:\n            inv["binary"] += 1\n            continue',
+         '        if b"\\0" in b:\n            continue')
+elif mid == "M05":
+    sub1(CEN, 'PREAMBLE = re.compile(r"""^(?:set(?:[ \\t]+(?:[-+][A-Za-z]+|[a-z]+|--))+[ \\t]*$|',
+         'PREAMBLE = re.compile(r"""^(?:set\\b.*$|')
+elif mid == "M06":
+    sub1(CEN, "        if not SOURCE_RE.search(code):\n            continue\n        for lib_",
+         "        if True:\n            continue\n        for lib_")
+elif mid == "M07":
+    sub1(CEN, 'r[0] == "EXEMPT" and reasons.get(f) in ("sourced-library", "entry-function-scrub")', 'r[0] == "EXEMPT"')
+elif mid == "M08":
+    sub1(CEN, '    mention git; inside the entry function no line before the clear mentions git or calls a function that does."""\n',
+         '    mention git; inside the entry function no line before the clear mentions git or calls a function that does."""\n    return None\n')
+elif mid == "M09":
+    sub1(CEN, "        if MENTION.search(l):\n            return \"the top level (outside every function) mentions git",
+         "        if False:\n            return \"the top level (outside every function) mentions git")
+elif mid == "M10":
+    sub1(CEN, "        if MENTION.search(l):\n            return \"line %d of the entry function %s mentions git before the clear\"",
+         "        if False:\n            return \"line %d of the entry function %s mentions git before the clear\"")
+elif mid == "M11":
+    sub1(CEN, "        if names is None or not set(canon) <= names:\n            continue",
+         "        if names is None:\n            continue")
+elif mid == "M12":
+    sub1(CEN, "    hd = heredoc_blank(text)\n    nq = quote_blank(hd)\n    joined", "    hd = text\n    nq = quote_blank(hd)\n    joined")
+elif mid == "M13":
+    sub1(CEN, r'''ECHO_ONLY = re.compile(r"""^(?:echo|printf)\b(?!.*(?:\||`|\$\(|\beval\b|;|&&|\bsh\b|\bbash\b))""")''',
+         r'''ECHO_ONLY = re.compile(r"""^(?:echo|printf)\b""")''')
+elif mid == "M14":
+    sub1(CEN, "        ws = [w for w in ws if not ECHO_ONLY.match(w[1])]", "        ws = []")
+elif mid == "M15":
+    sub1(CEN, '''SH_GIT = r"(?:(?<![\\w./$-])[\\"']?(?:/(?:[\\w.-]+/)*)?git\\b[\\"']?|''', '''SH_GIT = r"(?:(?<![\\w./$-])(?:/(?:[\\w.-]+/)*)?git\\b|''')
+elif mid == "M16":
+    canon = rd("scripts/lib/constitution_layout.sh")
+    lst = re.search(r'^CL_GIT_SCRUB_VARS="([^"]*)"', canon, re.M).group(1)
+    sub1("scripts/hooks/guard-branch-consistency.sh", "set -uo pipefail\n",
+         'set -uo pipefail\nfor _ge_v in %s; do unset "$_ge_v"; done; unset _ge_v\n' % lst)
+elif mid == "M17":
+    sub1("scripts/hooks/guard-work-track-binding.sh", "git --no-optional-locks status --porcelain", "git status --porcelain")
+elif mid == "M18":
+    t = rd("install_upstreams.sh")
+    m = CANON_RE.search(t)
+    wr("install_upstreams.sh", t[:m.start()] + t[m.end():])
+elif mid == "M19":
+    sub1(TST, 'W = re.compile(r"(?<![\\w./-])git(?:', 'W = re.compile(r"(?!x)x(?<![\\w./-])git(?:')
+elif mid == "M20":
+    t = rd("progressive/mutation_matrix.py")
+    m = PY_RE.search(t)
+    wr("progressive/mutation_matrix.py", t[:m.start()] + "X_M20 = 1\n" + t[m.start():])
+elif mid == "M21":
+    sub1("scripts/hooks/guard-track-branch-label.sh", '  _br="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"',
+         '  _br="$(env -u GIT_DIR -u GIT_WORK_TREE git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"')
+else:
+    sys.exit("unknown mutant " + mid)
+print("applied", mid)

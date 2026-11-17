@@ -1,0 +1,1 @@
+BADGES: README badge row matches the computed row

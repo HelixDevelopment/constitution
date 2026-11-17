@@ -1,0 +1,39 @@
+ok 1 - calibrate rc 0
+ok 2 - jev-thresholds.json written
+ok 3 - thresholds mirrored to evidence dir
+ok 4 - gate threshold 0.9
+ok 5 - gate n=40
+ok 6 - gate agreement 0.9500
+ok 7 - gate promoted
+ok 8 - gate mode enforce
+ok 9 - route threshold null (below floor)
+ok 10 - route n=38 labeled (2 label_errors excluded)
+ok 11 - route label_errors=2 counted, never guessed
+ok 12 - route agreement 0.8947
+ok 13 - route not promoted
+ok 14 - route mode shadow
+ok 15 - edge threshold 0.9
+ok 16 - edge agreement exactly at floor 0.9000
+ok 17 - edge promoted (floor boundary is inclusive)
+ok 18 - tiny not promoted (insufficient sample)
+ok 19 - tiny n=10
+ok 20 - tiny reason reported
+ok 21 - thresholds document byte-equal (canonicalized) to exact expected
+ok 22 - demotion run rc 0
+ok 23 - demotion recorded loudly on stderr
+ok 24 - demoted type reverts to shadow
+ok 25 - previous thresholds preserved as .<epoch>.json
+ok 26 - dry-run rc 0
+ok 27 - dry-run writes no thresholds
+ok 28 - dry-run reported
+ok 29 - negative-control calibrate rc 0
+ok 30 - NEG: 0% agreement type is NOT promoted
+ok 31 - NEG: 0% agreement type has null threshold
+ok 32 - NEG: 26/30 (0.8667) just below floor is NOT promoted
+ok 33 - NEG: below-floor type stays in shadow
+ok 34 - NEG: lowering floor to 0.80 promotes the 0.8667 type (floor is honoured)
+ok 35 - NEG: failing labeler => every row counted as label_error, none guessed
+ok 36 - NEG: failing labeler never promotes
+ok 37 - NEG: calibrate with no decisions exits nonzero
+ok 38 - NEG: no thresholds fabricated from nothing
+# test_calibration_math.sh: pass=38 fail=0 skip=0

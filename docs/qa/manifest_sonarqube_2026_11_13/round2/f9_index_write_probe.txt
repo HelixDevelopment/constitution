@@ -1,0 +1,8 @@
+# F9 probe: which read-only-looking git commands rewrite the index of a repository with a stat-dirty file
+# git version 2.53.0; 2026-11-13T22:15:06Z; each row: a fresh repo, one committed file, touch (content unchanged), run the command, compare .git/index sha256+mtime
+stat-dirty-precondition(diff-files rc)=1 | git --no-optional-locks diff --quiet -- | rc=0 | index CHANGED
+stat-dirty-precondition(diff-files rc)=1 | git --no-optional-locks diff --quiet --no-ext-diff --no-textconv --ignore-submodules=dirty -- | rc=0 | index CHANGED
+stat-dirty-precondition(diff-files rc)=1 | git --no-optional-locks diff --cached --quiet HEAD -- | rc=0 | index unchanged
+stat-dirty-precondition(diff-files rc)=1 | git --no-optional-locks status --porcelain=v1 -z --untracked-files=normal --ignore-submodules=dirty | rc=0 | index unchanged
+stat-dirty-precondition(diff-files rc)=1 | git --no-optional-locks ls-files -o --exclude-standard --directory --no-empty-directory | rc=0 | index unchanged
+stat-dirty-precondition(diff-files rc)=1 | git diff-files --quiet | rc=1 | index unchanged

@@ -1,0 +1,62 @@
+FAIL C1: census of this tree exit 2, universe 'none' members 'none' (want 0, PASS, >= 1000, >= 400): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C1b: independent query found 489 files; not census members: scripts/action_prefix_lib.sh scripts/anchors/anchor_lib.py scripts/anchors/constitution_generate.py scripts/anchors/constitution_wiring_audit.py scripts/anchors/tests/test_anchor_lib.py 
+FAIL C1c: scripts/gates/cm_rule_binds_to_seam.sh is not HERMETIC: 
+FAIL C1c: scripts/gates/cm_rule_binds_to_seam_mutation_test.sh is not HERMETIC: 
+FAIL C1c: scripts/gates/cm_gitlink_on_remote_mutation_test.sh is not HERMETIC: 
+FAIL C1c: scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh is not HERMETIC: 
+FAIL C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh is not HERMETIC: 
+FAIL C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh is not HERMETIC: 
+FAIL C1c: scripts/fastcycle/cycle/fc_supervisor.py is not HERMETIC: 
+FAIL C1c: scripts/codegraph/scope_enumerate.js is not HERMETIC: 
+FAIL C2a: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2b: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2c: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2d: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2e: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2f: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2g: census exit 2 (want 0 and 'exempt=2'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2g2: census exit 2 (want 1 and 'row no-git-execution, but a git write is detected'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2h: census exit 2 (want 1 and 'stale row'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2i: census exit 2 (want 1 and 'malformed'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2j: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2j2: census exit 2 (want 1 and 'discovery limit'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2k: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2l: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2m: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2m2: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2n: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2o: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2o2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2p: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2p2: census exit 2 (want 1 and 'no sourced-library row'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2p3: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2q: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2r: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2s: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2s2: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2t: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2u: census exit 2 (want 1 and 'no file-level scrub'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2v: census exit 2 (want 1 and 'is not effective'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2w: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2x: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2x2: census exit 2 (want 1 and 'row no-git-execution, but a git write is detected'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2y: census exit 2 (want 1 and 'row sourced-library, but'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2z: census exit 2 (want 1 and 'row no-git-execution, but a git write is detected'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2aa: census exit 2 (want 1 and 'row no-git-execution, but a git write is detected'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ab: census exit 2 (want 1 and 'no row in the exemption list'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ac: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ac2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ad: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ad2: census exit 2 (want 1 and 'UNSCRUBBED scripts/z.js'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ae: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ae2: census exit 2 (want 1 and 'needs its own row'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ae3: census exit 2 (want 1 and 'prefix row'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2af: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2af2: census exit 2 (want 1 and 'no list-operating clear'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ah: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ai: census exit 2 (want 1 and 'UNSCRUBBED scripts/z.js'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ai2: census exit 2 (want 1 and 'UNSCRUBBED scripts/z.js'): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+FAIL C2ag: census exit 2 (want 0 and 'members=1 '): git-env-class-census: BLIND - control needle: js scrub late: got HERMETIC, want UNSCRUBBED (canonical scrub at line 3) 
+ok   C3: census exit 2, 'BLIND'
+ok   C3b: census exit 2, 'holds the discovery limit GIT_CEILING_DIRECTORIES'
+[git-env-class] passed=2 failed=59 skipped=0 (census cases only)

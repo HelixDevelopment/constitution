@@ -1,0 +1,6 @@
+DONE head=8e0ef48ba935915e9eada2c355873ec9dc88ff79 rc=1 seconds=28117
+RESULT: killed=374 survived=1 equivalent=8 stale=0 control_failures=0 inconclusive=0
+verdict_lines=391 controls_pass=8 killed=375 equivalent=8
+FAIL and SKIP lines:
+FAIL B2 killed, but not by its property /N2/ (FAIL K6 marker with a dirty environment was taken as clean or re-executed: rc=0)
+sha256 bb7a9f30f5a31156d3328c240bb11f75fd941181bce4d204a46a47e0727f85a8

@@ -1,0 +1,56 @@
+FAIL 1 blob replaced by a clean blob, --exact-only: exit 1 and MYKEY counted 1 (the stored secret blob is read)
+     | scanner not run (--exact-only): only the exact-match controls guard this run
+     | exact-match: 1 variables searched, 0 found in a blob -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.keys.tsv (names + counts only)
+     | exact-match note: not searched: 0 shorter than 12 characters (), 0 placeholder ()
+awk: fatal: cannot open file `/mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.replace.tsv' for reading: No such file or directory
+FAIL 2 the replace ref is listed: one row, ref refs/replace/<secret blob id>, object id, type blob
+     | scanner not run (--exact-only): only the exact-match controls guard this run
+     | exact-match: 1 variables searched, 0 found in a blob -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.keys.tsv (names + counts only)
+     | exact-match note: not searched: 0 shorter than 12 characters (), 0 placeholder ()
+FAIL 3 the replace ref count is printed
+     | scanner not run (--exact-only): only the exact-match controls guard this run
+     | exact-match: 1 variables searched, 0 found in a blob -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.keys.tsv (names + counts only)
+     | exact-match note: not searched: 0 shorter than 12 characters (), 0 placeholder ()
+ok   4 no fake value in stdout, stderr or any output file
+FAIL 5 blob force-replaced by a tree, --exact-only: exit 1, MYKEY=1 (no type-confused reply, not exit 7)
+     | scanner not run (--exact-only): only the exact-match controls guard this run
+     | exact-match: unexpected reply from git cat-file --batch
+     | git error: exact-match pass failed
+FAIL 6 a caller's core.useReplaceRefs=true (GIT_CONFIG_COUNT) does not hide the secret: exit 1, MYKEY=1
+     | scanner not run (--exact-only): only the exact-match controls guard this run
+     | exact-match: 1 variables searched, 0 found in a blob -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.keys.tsv (names + counts only)
+     | exact-match note: not searched: 0 shorter than 12 characters (), 0 placeholder ()
+FAIL 7 blob replaced by a clean blob, scanner pass: exit 1, the fake token in s.env is reported
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv (classify each: fixture vs real)
+ok   8 scanner pass: no fake value in any output
+FAIL 9 blob force-replaced by a tree, scanner pass: exit 1, s.env reported
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv (classify each: fixture vs real)
+FAIL 10 commit replaced by a clean commit, scanner pass: exit 1, s.env of the hidden commit reported
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv (classify each: fixture vs real)
+awk: fatal: cannot open file `/mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.replace.tsv' for reading: No such file or directory
+FAIL 11 commit replace ref listed with type commit
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv (classify each: fixture vs real)
+FAIL 12 the scanner process gets GIT_NO_REPLACE_OBJECTS=1 (its own git reads the stored objects)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv (classify each: fixture vs real)
+FAIL 13 clean repository without replace refs: exit 0, 'replace refs: 0', an empty replace list is written
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv (classify each: fixture vs real)
+FAIL 14 a harmless replace ref with no secret anywhere: exit 1 (replace ref to classify), MYKEY=0
+     | scanner not run (--exact-only): only the exact-match controls guard this run
+     | exact-match: 1 variables searched, 0 found in a blob -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.keys.tsv (names + counts only)
+     | exact-match note: not searched: 0 shorter than 12 characters (), 0 placeholder ()
+FAIL 15 same, scanner pass: exit 1 with findings=0 (only the replace ref)
+     | needles: history=1 merge=2 negative=0 (control OK)
+     | findings=0 -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv (classify each: fixture vs real)
+awk: fatal: cannot open file `/mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.replace.tsv' for reading: No such file or directory
+FAIL 16 second remote carries the replace ref: listed as refs/fetched/r1/replace/<id>, MYKEY=1, exit 1
+     | scanner not run (--exact-only): only the exact-match controls guard this run
+     | exact-match: 1 variables searched, 1 found in a blob -> /mnt/DATA1TB/claude-work/tmp/tmp.FyDkzJWMc5/scratch/out.tsv.keys.tsv (names + counts only)
+     | exact-match note: not searched: 0 shorter than 12 characters (), 0 placeholder ()
+ok   17 git that honours replace refs + blob->tree replace: exit 7 (type check), no counts written
+RESULT: 3/17 passed

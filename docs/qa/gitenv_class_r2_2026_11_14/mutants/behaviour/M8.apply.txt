@@ -1,0 +1,1 @@
+scripts/full_suite/run_full_suite.py

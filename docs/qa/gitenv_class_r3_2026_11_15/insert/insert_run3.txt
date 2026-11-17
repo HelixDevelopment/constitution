@@ -1,0 +1,8 @@
+INSERT tests/decisions/lib.sh:8 (sh)
+INSERT tests/decisions/repo_guard.sh:32 (sh)
+INSERT tests/extensions/lib.sh:20 (sh)
+INSERT tests/install/lib.sh:17 (sh)
+INSERT tests/jev/lib_assert.sh:6 (sh)
+INSERT tests/layout/lib_layout_harness.sh:25 (sh)
+INSERT scripts/fastcycle/tests/lib/consumer_required.sh:23 (sh)
+INSERT scripts/fastcycle/tests/lib/golden_triplet_fixture.sh:43 (sh)

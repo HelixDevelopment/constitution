@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# anchor_block_probe.sh: run the verbatim block with GIT_DIR aimed at a fresh sentinel; report the sentinel.
+set -u
+base="$(dirname "$0")"
+SEN="$(mktemp -d "$base/sen_anchor.XXXXXX")"; TMPB="$(mktemp -d "$base/anchor_tmp.XXXXXX")"
+gi() { env -u GIT_DIR -u GIT_INDEX_FILE GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git -C "$SEN" -c user.email=s@s -c user.name=s -c core.hooksPath=/dev/null "$@"; }
+gi init -q -b sentinelbranch; printf 'sentinel\n' >"$SEN/keep.txt"; gi add keep.txt; gi commit -q -m sentinel
+before="$(gi for-each-ref --format='%(refname) %(objectname:short)'; gi config --local --list | LC_ALL=C sort; gi ls-files -s)"
+GIT_DIR="$SEN/.git" bash "$base/anchor_block.sh" "$TMPB"
+after="$(gi for-each-ref --format='%(refname) %(objectname:short)'; gi config --local --list | LC_ALL=C sort; gi ls-files -s)"
+if [ "$before" = "$after" ]; then echo "SENTINEL: unchanged"; else echo "SENTINEL: CHANGED"; diff <(printf '%s\n' "$before") <(printf '%s\n' "$after"); fi
+echo "--- block log:"; cat "$TMPB/build.log"

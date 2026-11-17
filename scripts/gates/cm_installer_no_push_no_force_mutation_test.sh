@@ -17,10 +17,14 @@
 #   resolution and set-url checks. The last S mutants (round 5) run code from a path (python FILE, -m) and
 #   replace user files (cp/ln/mv/touch outside their sanctioned places, rsync, curl, ssh). G7: python -c LITERAL
 #   and the push-mark count literal still PASS. Golden-FALSE G5/G6: /dev/null and fd redirections, IFS prefix, the exact
-#   fetch shape, a literal trap and arithmetic reads still PASS.
+#   fetch shape, a literal trap and arithmetic reads still PASS. SP-*: the shell-state reset's pinned shopt calls and
+#   the multi-line printf/echo literal carrier (installer SIGPIPE round 2). ST-*: an allow-list entry (PROGS,
+#   EXT_EXACT, GX_EXACT, SANCTIONED_FILE_CMDS) that no scanned line uses any more is reported as stale
+#   (installer follow-ups).
 # The table printed at the end says, per mutant, which check killed it: static (a)/(b)/(c) or runtime (d).
 # Usage: cm_installer_no_push_no_force_mutation_test.sh   Exit 0 proof holds · 1 survivor/misclassified · 2 env.
 # Classification: universal (§11.4.17).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 gate="$here/cm_installer_no_push_no_force.sh"; inst="$here/../install_constitution.sh"; upd="$here/../update_constitution.sh"
@@ -368,6 +372,47 @@ n=R12-A8; d="$(mkcase)"
 edit_in_fn "$d" install_constitution.sh hi_marker_set '  [ -L "$pend" ] && return 0' '  hi_marker_path() { printf "%s" "$O_ROOT/.gitmodules"; }
   [ -L "$pend" ] && return 0'
 run "R12 mutant A8: hi_marker_path redefined NESTED inside hi_marker_set" 1 "$d"
+
+# installer SIGPIPE round 2 (2026-11-14): the shell-state reset's two shopt calls are sanctioned as exact text (option
+# lists included), and a multi-line literal argument of printf/echo is printed text for the raw scan (c), like a quoted
+# data heredoc. SP-G1 is golden-FALSE; every SP-M* mutant MUST fail.
+n=SP-G1; d="$(mkcase)"; inject "$d/install_constitution.sh" "printf '%s\n' 'never git push --force,
+never reset --hard, never rebase' >&2"
+run "golden-FALSE: a multi-line printf literal (help text) with push/--force/reset words" 0 "$d"
+n=SP-M1; d="$(mkcase)"; inject "$d/install_constitution.sh" "x='never
+git push origin main
+done'"
+run "a multi-line literal that is not printed (an assignment) is still raw-scanned" 1 "$d"
+n=SP-M2; d="$(mkcase)"; inject "$d/install_constitution.sh" "printf '%s\n' 'a
+b'; git -C \"\$sub\" push origin main"
+run "code after a multi-line printf literal, on its last line" 1 "$d"
+n=SP-M3; d="$(mkcase)"; inject "$d/install_constitution.sh" "y=\"
+printf '%s\n' 'a
+\"; hi_gx push origin main; z='
+'"
+run "a printf line inside a double-quoted string is not a printed literal" 1 "$d"
+n=SP-M4; d="$(mkcase)"; edit_both "$d" 'shopt -s extquote globasciiranges 2>/dev/null' 'shopt -s extquote globasciiranges expand_aliases 2>/dev/null'
+run "the sanctioned shopt -s call with one more option (expand_aliases), both copies" 1 "$d"
+n=SP-M5; d="$(mkcase)"; inject "$d/install_constitution.sh" 'shopt -s expand_aliases'
+run "shopt outside the shell-state reset" 1 "$d"
+n=SP-M6; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_version_of "awk 'NR == 1'" "awk 'NR <= 2'"
+run "hi_version_of awk program changed (not on the allow-list)" 1 "$d"
+n=SP-M7; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_parse_stream "import json, re, sys" "import json, os, re, sys"
+run "hi_parse_stream program imports os" 1 "$d"
+
+# installer follow-ups (2026-11-14): an allow-list entry of PROGS, EXT_EXACT, GX_EXACT or SANCTIONED_FILE_CMDS that
+# no scanned line uses any more is reported as stale (as EXEMPT and DYN_NAME_EXEMPT already were). Each ST-* mutant
+# removes the only use of one entry without adding a finding of its own; only the stale check can kill it.
+n=ST-1; d="$(mkcase)"
+OLD="| awk 'NR <= 20' |" NEW="| awk 'NR <= 10' |" python3 -I -c 'import os,sys
+p=sys.argv[1]; s=open(p).read(); assert s.count(os.environ["OLD"])==1; open(p,"w").write(s.replace(os.environ["OLD"], os.environ["NEW"], 1))' "$d/update_constitution.sh" || exit 2
+run "PROGS entry 'NR <= 20' no longer used (updater)" 1 "$d"
+n=ST-2; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_run_agent ' && chmod 600 "$log" "$log.stderr" ||' ' ||'
+run "EXT_EXACT entry chmod 600 of the agent logs no longer used (installer)" 1 "$d"
+n=ST-3; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_do_add '  hi_gx -C "$stage" config helix-installer.clone true || return 1' '  true || return 1'
+run "GX_EXACT entry (marker write) no longer used (installer)" 1 "$d"
+n=ST-4; d="$(mkcase)"; edit_in_fn "$d" install_constitution.sh hi_restore ' && cp -p -- "$dir/files/$norm" "$rootabs/$norm" &&' ' &&'
+run "SANCTIONED_FILE_CMDS entry (--restore copy) no longer used (installer)" 1 "$d"
 
 total="$(grep -c . "$TABLE")"
 echo "# $total cases; table: rc / checks that fired (a structure, b allow-list, c raw denylist, d runtime) / mutant"

@@ -1,0 +1,53 @@
+control ok   forge_branch_protect.sh
+control ok   github_actions_inventory_disable.sh
+control ok   history_secret_scan.sh
+killed   FM1 (FAIL 4 FORGE_PROTECT_APPLY=YES (not exact) -> 3)
+killed   FM2 (FAIL 2 confirm names another target -> 3)
+killed   FM3 (FAIL 12 POST body is exactly the reviewed ruleset)
+killed   FM4 (FAIL 12 POST body is exactly the reviewed ruleset)
+killed   FM5 (FAIL 12 POST body is exactly the reviewed ruleset)
+killed   FM6 (FAIL 13 token never in curl argv, stdout or stderr)
+killed   FM7 (FAIL 16 compliant ruleset under another name -> 0 POST, rc 0)
+killed   FM8 (FAIL 25 POST 422 -> rc 1 even when a read-back would pass)
+killed   FM9 (FAIL 32 m3w POST body is exactly the reviewed body (enable_force_push false, enable_push t)
+SURVIVED FM10
+killed   FM11 (FAIL 12 POST body is exactly the reviewed ruleset)
+killed   FM12 (FAIL 26 403 rate limit -> RATE-LIMITED, rc 4, not BLOCKED-PLAN)
+killed   FM13 (FAIL 7 apply to a target outside the allowlist (gitlab_vd) -> 3)
+killed   FM14 (FAIL 5 unknown --target (probe) -> 2)
+killed   FM15 (FAIL 34 existing rule with enable_force_push true -> NON-COMPLIANT, 0 POST, rc 1)
+SURVIVED FM16
+killed   FM17 (FAIL 15 token not printed under bash -x)
+killed   FM18 (FAIL 2 confirm names another target -> 3)
+killed   FM19 (FAIL 22 read-back rule from another ruleset -> rc 1)
+killed   FM20 (FAIL 50 jq missing -> 5)
+SURVIVED FM21
+killed   FM22 (FAIL 9 targets-file override without FORGE_PROTECT_ALLOW_TARGETS_OVERRIDE -> 3)
+killed   FM23 (FAIL 20 unreadable existing ruleset detail -> 0 POST, rc 1)
+killed   AM1 (FAIL 2 archived repo not selected)
+killed   AM2 (FAIL 4 dynamic Pages repo excluded)
+killed   AM3 (FAIL 27 a live-selected repo outside the pin -> refused 3, diff printed, no PUT)
+killed   AM4 (FAIL 23 apply pinned 3 repos across 2 orgs -> exit 0)
+killed   AM5 (FAIL 19 apply without GH_ACTIONS_APPLY -> 3, no PUT)
+killed   AM6 (FAIL 8 permissions GET failure -> ERR row (scope never silently shrinks))
+killed   AM7 (FAIL 5 Pages deployed by a custom workflow (GET /pages build_type workflow) excluded)
+killed   AM8 (FAIL 32 read-back still enabled=true -> exit 1)
+killed   AM9 (FAIL 31 a failed PUT -> exit 1 (other repos still done))
+killed   AM10 (FAIL 30 an ERR row in a pinned org -> apply refused, exit 1, no PUT)
+killed   AM11 (FAIL 21 apply with a wrong confirm token -> 3, no PUT)
+killed   AM12 (FAIL 14 org listing failure -> ERR row, exit 1, other org still listed)
+SURVIVED AM13
+SURVIVED HM1
+killed   HM2 (FAIL 14 always-find scanner -> 3 (negative needle))
+killed   HM3 (FAIL 4 scanner called with --redact and --log-opts=--all -m on the bare mirror)
+killed   HM4 (FAIL 1 clean repo -> exit 0, findings=0)
+killed   HM5 (FAIL 9 scanner exits 126 after writing [] -> SCANNER-ERROR 6)
+killed   HM6 (FAIL 15 scanner misses only the merge-only needle -> BLIND 3 naming it)
+killed   HM7 (FAIL 19 missing safe_rm.sh -> 5 (not 1))
+killed   HM8 (FAIL 28 --keys-file is performed: KEY_A found, KEY_B not, exit 1)
+killed   HM9 (FAIL 25 https URL with a user part -> 2)
+killed   HM10 (FAIL 17 exit 0 with findings (inconsistent) -> 6)
+SURVIVED HM11
+killed   HM12 ()
+RESULT: killed 42/48 mutants; problems: 6
+rc=1

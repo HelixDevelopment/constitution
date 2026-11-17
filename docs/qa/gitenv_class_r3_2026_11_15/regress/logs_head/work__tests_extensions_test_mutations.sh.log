@@ -1,0 +1,29 @@
+  ok   control: unmutated copy passes unit security e2e chaos integration attacks provenance reviewfix
+  ok   KILLED [R2-symlink (check_tree + copy layer)] by: security
+  ok   KILLED [R2-dotdot (manifest + tree_problems layer)] by: unit
+  ok   KILLED [R2-abs-path (manifest + tree_problems layer)] by: unit
+  ok   KILLED [R2-control-chars (RM2)] by: unit
+  ok   KILLED [R2-setuid] by: unit
+  ok   KILLED [R2-file-size] by: security
+  ok   KILLED [R2-leading-dash (RM7)] by: unit
+  ok   KILLED [R3-unknown-key] by: unit
+  ok   KILLED [R3-duplicate-key] by: unit
+  ok   KILLED [R3-depth-limit] by: unit
+  ok   KILLED [R3-size-limit (parser layer)] by: unit
+  ok   KILLED [R3-int-cap] by: unit
+  ok   KILLED [R3-yaml11-scalar] by: unit
+  ok   KILLED [R3-yaml11-key] by: unit
+  ok   KILLED [R3-bad-chars (bidi/format)] by: unit
+  ok   KILLED [R3-trust-tier] by: attacks
+  ok   KILLED [R3-id-regex] by: unit
+  ok   KILLED [R4-git-pin] by: integration
+  ok   KILLED [R4-dir-pin] by: security
+  ok   KILLED [R4-sha256] by: integration
+  ok   KILLED [R5-consent] by: security
+  ok   KILLED [R5-consent-no-tty (RM6)] by: attacks
+  ok   KILLED [R5-default-disabled] by: security
+  ok   KILLED [R5-components-consistent] by: unit
+  ok   KILLED [R6-secret-patterns] by: unit
+  ok   KILLED [R6-secret-scan] by: unit
+  ok   KILLED [R1-no-exec (inject hook execution)] by: security
+  ok   KILLED [R7-rollback] by: chaos

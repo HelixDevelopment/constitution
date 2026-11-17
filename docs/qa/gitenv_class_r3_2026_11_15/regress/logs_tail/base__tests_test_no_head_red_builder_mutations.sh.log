@@ -1,0 +1,15 @@
+PASS: control: unmutated guard passes in the scratch clone
+PASS: own-file: the census does not flag the guard's own fixture text
+PASS: never-match mutant killed (rc=1): golden-TRUE and the positive control fail
+PASS: ignore-write mutant killed (rc=1): golden-FALSE fails
+PASS: new-builder mutant killed (rc=1): the census names the added line
+PASS: r1-option mutant killed (rc=1): the census names the added line
+PASS: r1-at-alias mutant killed (rc=1): the census names the added line
+PASS: r1-fd1 mutant killed (rc=1): the census names the added line
+PASS: r1-two-step mutant killed (rc=1): the census names the added line
+PASS: r1-rev-parse mutant killed (rc=1): the census names the added line
+PASS: r1-archive mutant killed (rc=1): the census names the added line
+PASS: r1-py-fstring mutant killed (rc=1): the census names the new python test
+PASS: r1-untracked mutant killed (rc=1): the census scans an untracked new test
+
+PASS=13 FAIL=0 SKIP=0

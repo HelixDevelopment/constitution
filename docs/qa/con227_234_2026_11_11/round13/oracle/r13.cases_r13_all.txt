@@ -1,0 +1,85 @@
+CAUGHT	D1_compgen_W	gate_rc=1/1	bash_rc=1	leak=1	ctrl=1		FINDING builtin compgen other than compgen -e or compgen -A function (-C, -F, -W and -X run code): fx.sh:3 | k
+CAUGHT	D2_mapfile_tC	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin mapfile is not on the closed list of builtins the release scripts use (it can run, define or l
+CAUGHT	D2b_mapfile_C_attached	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin mapfile is not on the closed list of builtins the release scripts use (it can run, define or l
+CAUGHT	D3_declare_gn_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin declare other than declare -A NAME: fx.sh:3 | key=49d94ba3
+CAUGHT	D6_sqlite_nonce	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING sqlite3 that can run a command or is not on the pin: fx.sh:3 (the option -nonce (not on SQLITE_OPTS)) 
+CAUGHT	D7_awk_attached_f	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: the redirection operator <<: fx.sh:3 in - | key=1d639ae7
+CAUGHT	D8_read_r_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a write to PATH (read; it changes how a command is found, run or loaded): fx.sh:3 | key=8181e451
+CAUGHT	D9_sort_compress_sep	gate_rc=1/1	bash_rc=0	leak=215	ctrl=1		FINDING unmodelled construct, refused: for (( ... )) (an arithmetic loop): fx.sh:3 in - | key=3975ed8a
+CAUGHT	MR5a_LD_LIBRARY_PATH_prefix	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to LD_LIBRARY_PATH (prefix; it changes how a command is found, run or loaded): fx.sh:3 | key=8
+CAUGHT	MR5b_export_LD_AUDIT	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to LD_AUDIT (export; it changes how a command is found, run or loaded): fx.sh:3 | key=9fd25941
+CAUGHT	MR10a_shopt_extdebug	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin shopt other than shopt -s execfail: fx.sh:3 | key=638312bf
+CAUGHT	MR10b_set_o_extdebug	gate_rc=1/1	bash_rc=2	leak=0	ctrl=1		FINDING builtin set other than +f +x -f -u: fx.sh:3 | key=b4d03f33
+CAUGHT	O01_old_arith_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: $[ ... ] (the old arithmetic expansion): fx.sh:3 in - | key=e50e4d23
+CAUGHT	O02_for_arith_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: for (( ... )) (an arithmetic loop): fx.sh:3 in - | key=609ebc5f
+CAUGHT	O03_function_keyword	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: the function keyword (a definition is NAME() { ... } at the top level):
+CAUGHT	O04_background	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: & (a background job runs past the statement that started it): fx.sh:3 i
+CAUGHT	O05_pipe_stderr	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: |& (a pipe of standard error): fx.sh:3 in - | key=839b6b23
+CAUGHT	O06_heredoc_comsub	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: the redirection operator <<: fx.sh:3 in - | key=a7128642
+CAUGHT	O07_backtick_escaped_nested	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: a backquote command substitution (use $( )): fx.sh:3 in - | key=8f4e3bb
+CAUGHT	O08_locale_string_comsub	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: $"..." (a locale translation of a string): fx.sh:3 in - | key=79f2c2d0
+CAUGHT	O09_cond_eq_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: [[ ]] outside the closed grammar: the operator -eq (an arithmetic or fi
+CAUGHT	O10_cond_v_subscript	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: [[ ]] outside the closed grammar: the operator -v: fx.sh:3 in - | key=c
+CAUGHT	O11_param_replace_comsub	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: ${y/a/$(git fetch origin)}: the operator / (:= and = assign; @, / and t
+CAUGHT	O12_param_P_transform	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: ${p@P}: the operator @ (:= and = assign; @, / and the others are not on
+CAUGHT	O13_compgen_V	gate_rc=1/1	bash_rc=1	leak=0	ctrl=1		FINDING builtin compgen other than compgen -e or compgen -A function (-C, -F, -W and -X run code): fx.sh:3 | k
+CAUGHT	O14_hash_p	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin hash is not on the closed list of builtins the release scripts use (it can run, define or look
+CAUGHT	O15_command_p	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin command other than command -v NAME: fx.sh:3 | key=4568ada3
+CAUGHT	O16_CDPATH	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to CDPATH (assign; it changes how a command is found, run or loaded): fx.sh:3 | key=a79cb73c
+CAUGHT	O17_BASH_ARGV0	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to BASH_ARGV0 (assign; it changes how a command is found, run or loaded): fx.sh:3 | key=10c91a
+CAUGHT	O18_POSIXLY_CORRECT	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to POSIXLY_CORRECT (assign; it changes how a command is found, run or loaded): fx.sh:3 | key=e
+CAUGHT	O19_indirect_default_assign	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: ${!n:=1}: an indirect expansion of n (only the validated names of INDIR
+CAUGHT	O20_arith_name_holds_assignment	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a value that is not a number written to n, which is read in arithmetic in the top level (its text is e
+CAUGHT	O21_nested_function	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a function defined outside the top level (in a function, a compound command, a subshell or a substitut
+CAUGHT	O22_call_before_definition	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a function called before its definition (bash would run a program or a builtin of that name): fx.sh:3 
+CAUGHT	O23_duplicate_definition	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a function defined twice in one process (the later one replaces it at run time): fx.sh:4 g | key=a332c
+CAUGHT	O24_function_named_like_builtin	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a function named like a builtin or a program (it changes what the name runs): fx.sh:3 read | key=4aa5a
+CAUGHT	O25_sqlite_safe_not_first	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sqlite3 that can run a command or is not on the pin: fx.sh:3 (-safe is not the first argument (an opti
+CAUGHT	O26_unpinned_awk	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING awk that can run a command or is not on the pin: fx.sh:3 (a awk program that is not on the whitelist o
+CAUGHT	O27_unpinned_sed	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sed that can run a command or is not on the pin: fx.sh:3 (a sed program that is not on the whitelist o
+CAUGHT	O28_sort_compress_attached	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sort that can run a command or is not on the pin: fx.sh:3 (an argument other than -V (--compress-progr
+CAUGHT	O29_exec_program	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin exec of a command not on ALLOW_EXEC: fx.sh:3 | key=323e07fe
+CAUGHT	O30_printf_v_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin printf with a format that is not a static string, or with an option (-v writes a name): fx.sh:
+CAUGHT	O31_printf_dynamic_format	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin printf with a format that is not a static string, or with an option (-v writes a name): fx.sh:
+CAUGHT	O32_trap_USR1	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin trap other than trap ACTION SIGNAL... with a static action and a signal of EXIT, HUP, INT, TER
+CAUGHT	O33_shopt_expand_aliases	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin shopt other than shopt -s execfail: fx.sh:3 | key=0a4fa3d9
+CAUGHT	O34_set_o_posix	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin set other than +f +x -f -u: fx.sh:3 | key=c5ef7cb3
+CAUGHT	O35_unset_f_rc_net	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin unset other than unset -v NAME... or unset 'NAME[SUBSCRIPT]': fx.sh:3 | key=a113bb6c
+CAUGHT	O36_declare_n	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin declare other than declare -A NAME: fx.sh:3 | key=8d7929c2
+CAUGHT	O37_local_i	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin local of a word that is not NAME or NAME=VALUE: fx.sh:3 | key=8c7ec2ec
+CAUGHT	O38_read_a	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin read with the option -a (only -r and -d): fx.sh:3 | key=2033fc4b
+CAUGHT	O39_redirect_read_write	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: the redirection operator <>: fx.sh:3 in - | key=358f224f
+CAUGHT	O40_redirect_both	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: the redirection operator &>: fx.sh:3 in - | key=da55a574
+CAUGHT	O41_redirect_fd_variable	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: a {name} redirection (it assigns the name): fx.sh:3 in - | key=5cfee814
+CAUGHT	O42_process_substitution	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: a process substitution that is not the target of a redirection: fx.sh:3
+CAUGHT	O43_subscript_assigns_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a subscript of the indexed array a outside the arithmetic grammar (it is evaluated): fx.sh:3 (the char
+CAUGHT	O44_exec_fd5	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: a redirection of file descriptor 5: fx.sh:3 in - | key=5150e5f4
+CAUGHT	O45_dev_tcp	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING unmodelled construct, refused: the redirection operator <>: fx.sh:3 in - | key=8862b796
+CAUGHT	O46_alias	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin alias is not on the closed list of builtins the release scripts use (it can run, define or loo
+CAUGHT	O47_source_other	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin . other than the exact forms of SOURCE_OK at the top level of a script (round 13, R22): fx.sh:
+CAUGHT	O48_eval	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin eval outside the exact sites of DYN_SITES: fx.sh:3 | key=a12e901f
+CAUGHT	O49_enable	gate_rc=1/1	bash_rc=1	leak=0	ctrl=1		FINDING builtin enable is not on the closed list of builtins the release scripts use (it can run, define or lo
+CAUGHT	O50_IFS_dynamic	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to IFS (assign; it changes how a command is found, run or loaded): fx.sh:3 | key=99ec814a
+CAUGHT	O51_export_BASH_ENV	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to BASH_ENV (export; it changes how a command is found, run or loaded): fx.sh:3 | key=29a3aedf
+CAUGHT	O52_LD_PRELOAD_prefix	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to LD_PRELOAD (prefix; it changes how a command is found, run or loaded): fx.sh:3 | key=f3190d
+CAUGHT	O53_ENV	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to ENV (assign; it changes how a command is found, run or loaded): fx.sh:3 | key=1fb54fd1
+CAUGHT	O54_sqlite_init	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sqlite3 that can run a command or is not on the pin: fx.sh:3 (the option -init (not on SQLITE_OPTS)) |
+CAUGHT	O55_type_p	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin type is not on the closed list of builtins the release scripts use (it can run, define or look
+CAUGHT	O56_coproc	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: coproc: fx.sh:3 in - | key=dfa8d9e0
+CAUGHT	O57_select	gate_rc=1/1	bash_rc=1	leak=0	ctrl=1		FINDING unmodelled construct, refused: select: fx.sh:3 in - | key=cbf34498
+CAUGHT	O58_fd_name_written_text	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING a value that is not a file descriptor number written to FD, which is a redirection target (a file name
+CAUGHT	O59_GCONV_prefix	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to GCONV_PATH (prefix; it changes how a command is found, run or loaded): fx.sh:3 | key=d37d9c
+CAUGHT	O60_trap_action_function_late	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a function called before its definition (bash would run a program or a builtin of that name): fx.sh:3 
+CAUGHT	O61_name_not_on_pin	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to a name that is not on the name list of the pin (ZZTOKEN, assign): fx.sh:3 | key=4840dbd3
+CAUGHT	O62_awk_pinned_operand_inet	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING awk that can run a command or is not on the pin: fx.sh:3 (the operand '/inet/tcp/0/127.0.0.1/35871' (a
+CAUGHT	O63_sed_e_option	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sed that can run a command or is not on the pin: fx.sh:3 (an option other than -n, or a script the gat
+CAUGHT	O64_builtin_builtin	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin builtin of a word that is not a builtin of the closed list: fx.sh:3 | key=2cba27ad
+CAUGHT	O65_awk_v_escape	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING awk that can run a command or is not on the pin: fx.sh:3 (an awk -v value with inet or an escape (awk 
+CAUGHT	O66_arith_increment	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: arithmetic outside the closed grammar: ++ (an increment assigns): fx.sh
+CAUGHT	O67_indirect_plain	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unmodelled construct, refused: ${!n}: an indirect expansion of n (only the validated names of INDIRECT
+CAUGHT	O68_funsub_unquoted	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: ${ command; } substitution (bash 5.3): a command list inside a paramete
+CAUGHT	O69_valuesub_unquoted	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: ${ command; } substitution (bash 5.3): a command list inside a paramete
+CAUGHT	O70_sort_long_option_alone	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sort that can run a command or is not on the pin: fx.sh:3 (an argument other than -V (--compress-progr
+CAUGHT	O71_sort_long_options_spill	gate_rc=1/1	bash_rc=0	leak=215	ctrl=1		FINDING sort that can run a command or is not on the pin: fx.sh:3 (an argument other than -V (--compress-progr
+CAUGHT	O72_GCONV_prefix_other	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a write to GCONV_ZZ (prefix; it changes how a command is found, run or loaded): fx.sh:3 | key=3bc015be
+CAUGHT	O73_heredoc_body_read	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: the redirection operator <<: fx.sh:3 in - | key=2fefd0a6

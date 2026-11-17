@@ -1,0 +1,9 @@
+CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (the runner reports a tracked census file without a row)
+CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL — tracked census file without manifest row: scripts/sonarqube/tests/test_registry_login.sh
+CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL — tracked census file without manifest row: scripts/sonarqube/tests/test_registry_login_mutation_test.sh
+CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL — tracked census file without manifest row: scripts/sonarqube/tests/test_registry_login_wiring.sh
+CM-FULL-SUITE-MANIFEST-COMPLETE: FAIL — <scratch>/pristine_bd0036bd: 3 manifest problem(s) in the committed tree (0 more in the working tree only).
+  fix: bash scripts/run_full_suite.sh --generate-manifest --write && bash scripts/run_full_suite.sh --sync-guide,
+       review the new rows, commit them with the test files; an excluded-set change needs the operator's
+       --verify-manifest --accept-excluded-change <rostered id>
+rc=1

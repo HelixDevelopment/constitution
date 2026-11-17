@@ -1,0 +1,10 @@
+vet exit=0
+run1 exit=0
+run2 exit=0
+run1 PASS=672 FAIL=0 SKIP=6 total=678
+ok  	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	85.884s
+run2 PASS=672 FAIL=0 SKIP=6 total=678
+ok  	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	93.033s
+VERDICTS_IDENTICAL
+round-1 verdicts (642): every one present and unchanged in round 2; 36 new (TestCON339R2_* and TestRestoreCreatedAtR2_*)
+go: go version go1.26.4 linux/amd64; head b81b8756; date -u: 2026-11-13T23:40:54Z

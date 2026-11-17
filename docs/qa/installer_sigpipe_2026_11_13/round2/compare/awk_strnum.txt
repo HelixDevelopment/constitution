@@ -1,0 +1,5 @@
+# input lines: '1.0 aaaa' then '1.00 bbbb'; program: awk -v n=1.00 '$1 == n {print $2; exit}'
+awk (/usr/bin/awk): ref 1.00 -> aaaa (bbbb is the right answer)
+gawk (/usr/bin/gawk): ref 1.00 -> aaaa (bbbb is the right answer)
+mawk (/usr/bin/mawk): ref 1.00 -> aaaa (bbbb is the right answer)
+busybox awk (/usr/bin/busybox): ref 1.00 -> aaaa (bbbb is the right answer)

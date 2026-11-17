@@ -1,0 +1,7 @@
+PASS S1: docs/workable_items.db is tracked and not ignored (anchor 11.4.95 holds)
+PASS S2: docs/workable_items.db-shm and docs/workable_items.db-wal are ignored by the root .gitignore
+PASS S3: no sidecar of the tracked database is tracked
+PASS S4: with both sidecars on disk and the connection open, 'git add -A' stages the unrelated file and no sidecar
+PASS M1: mutation (the two entries removed from .gitignore) is caught: both sidecars get staged
+PASS M2: mutation (a force-added sidecar) is caught by the S3 predicate
+== 6 passed, 0 failed ==

@@ -154,6 +154,7 @@
 # runner's parser records that check 8 did not run (a PASS with s=1, never a bare PASS). The exit code is the
 # inner run's; a SKIP (exit 77) or any other code passes through with no SUMMARY line appended.
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 if [ "${FC_S12_INNER:-0}" != 1 ]; then
   _s12_out=$(mktemp "${TMPDIR:-/tmp}/s12_out.XXXXXX") || { echo "NOT ok mktemp for the summary copy failed"; exit 1; }
   FC_S12_INNER=1 bash "$0" "$@" | tee "$_s12_out"
@@ -173,7 +174,8 @@ fi
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 CYCLE_REPORT="$FC/cycle/cycle_report.py"
 DB="$ROOT/docs/workable_items.db"
 
@@ -933,7 +935,7 @@ fi
 
 echo
 echo "=== check 11 (S12-remediation follow-up round, F7): CLOSURE_EVENT_TO_STATUS (Python) stays in sync with closeStatusMap (Go, crud.go) ==="
-GO_CRUD="$ROOT/constitution/scripts/workable-items/cmd/workable-items/crud.go"
+GO_CRUD="$FC_CANON_ROOT/scripts/workable-items/cmd/workable-items/crud.go"
 if [ ! -f "$GO_CRUD" ]; then
   echo "NOT ok check 11 (F7): $GO_CRUD not found -- cannot cross-check"
   failx

@@ -1,0 +1,3 @@
+CM-GATE-ENV-READS-ALLOWLISTED: STALE allowlist line 62: scripts/gates/cm_installer_no_push_no_force.sh HI_I (inert-text) matches no census read
+CM-GATE-ENV-READS-ALLOWLISTED: STALE allowlist line 63: scripts/gates/cm_installer_no_push_no_force.sh HI_U (inert-text) matches no census read
+VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=169 guarded=54 allowlisted=115 uncovered=0 stale=2 needle=ok

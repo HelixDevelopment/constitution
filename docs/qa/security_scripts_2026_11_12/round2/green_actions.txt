@@ -1,0 +1,41 @@
+ok   1 workflow repo selected
+ok   2 archived repo not selected
+ok   3 fork with a workflow selected
+ok   4 dynamic Pages repo excluded
+ok   5 Pages deployed by a custom workflow (GET /pages build_type workflow) excluded
+ok   6 repo without workflows not selected
+ok   7 repo with Actions already disabled not selected
+ok   8 permissions GET failure -> ERR row (scope never silently shrinks)
+ok   9 workflows GET failure -> ERR row
+ok   10 Pages GET failure (not 404) -> ERR row
+ok   11 every row has 11 columns
+ok   12 ERR rows -> exit 1
+ok   13 clean org -> exit 0
+ok   14 org listing failure -> ERR row, exit 1, other org still listed
+ok   15 --select enabled selects every enabled non-archived repo
+ok   16 workflows list with an unread page (total_count > listed) -> ERR row, exit 1
+ok   17 no mode given -> list (read-only): exit 0, rows printed, no PUT even with GH_ACTIONS_APPLY=yes
+ok   18 --org with --repos-file -> 2
+ok   19 unknown argument -> 2
+ok   20 bad repos-file line -> 2
+ok   21 apply without GH_ACTIONS_APPLY -> 3, no PUT
+ok   22 apply without --repos-file -> 3, no PUT, refused for the missing pin
+ok   23 apply with a wrong confirm token -> 3, no PUT
+ok   24 plan prints the confirm token of the committed allowlist and SCOPE MATCH, exit 0
+ok   25 apply with a repos file outside the allowlist and its own token -> 3, no PUT
+ok   26 apply with a subset (8 of 9) of the allowlist and its own token -> 3, no PUT
+ok   27 apply with a subset and the allowlist token -> 3, no PUT
+ok   28 plan with a repos file outside the allowlist -> says apply would be refused, exit 1, no token for that file
+ok   29 apply of the 9 allowlisted repos (any order) -> exit 0
+ok   30 exactly the 9 allowlisted repos were PUT, each with enabled=false
+ok   31 every read-back reported DISABLED
+ok   32 re-run after apply: already-disabled, no PUT, exit 0
+ok   33 a live-selected repo outside the pin -> refused 3, diff printed, no PUT
+ok   34 plan with a scope difference -> exit 1, SCOPE DIFF printed, no SCOPE MATCH
+ok   35 a pinned repo not selected live (archived) -> refused 3, no PUT
+ok   36 a pinned repo that serves Pages -> refused 3, no PUT
+ok   37 an ERR row in a pinned org -> apply refused, exit 1, no PUT
+ok   38 a failed PUT -> exit 1 (other repos still done)
+ok   39 read-back still enabled=true -> exit 1
+ok   40 shipped allowlist lists exactly 9 repos
+RESULT: 40/40 passed

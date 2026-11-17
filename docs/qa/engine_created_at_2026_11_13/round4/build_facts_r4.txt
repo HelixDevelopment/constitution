@@ -1,0 +1,13 @@
+# build facts, round 4, 2026-11-14T21:34:28Z
+$ GOEXPERIMENT=nodwarf5 go build -trimpath -buildvcs=false -ldflags=-buildid= -o <out> ./cmd/workable-items   (twice: once in a worktree of the round-4 tree, once in the round-4 clone; GOPROXY=off GOFLAGS=-mod=mod GOTOOLCHAIN=local)
+go version go1.26.4 linux/amd64
+gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+rebuild copies:
+e048a077db3dfcda380ac8cf77bef223db15570b63c6bc9152c171a3dda3d93d  wi
+e048a077db3dfcda380ac8cf77bef223db15570b63c6bc9152c171a3dda3d93d  wi_2
+tracked binaries (unchanged from round 3):
+e048a077db3dfcda380ac8cf77bef223db15570b63c6bc9152c171a3dda3d93d  bin/workable-items
+e048a077db3dfcda380ac8cf77bef223db15570b63c6bc9152c171a3dda3d93d  bin/workable-items-linux
+bin/.source.sha256: d507794385b4c5f539aa3896e19bd5bb7b95434ea5cd9b8be8a5e894feb1620f (round 2, 100 files; stale since round 3 added created_at_r3_test.go) -> ff62d935e461a3fac1f3ac7ccf3b0ebe5f7cf81ef724aaa66ccb128cd17de746 (same formula as round 1: cd scripts/workable-items && find . -type f \( -name '*.go' -o -name go.mod -o -name go.sum \) -not -path './bin/*' | LC_ALL=en_US.UTF-8 sort | xargs sha256sum | sha256sum ; 102 files, test files included)
+no Go production file changed in round 4: git diff --name-only 50b4863f -- scripts/workable-items/cmd ':!*_test.go' gives:
+(end of list)

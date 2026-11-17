@@ -1,0 +1,3 @@
+control failed
+CONTROL	unmutated	test_timeout_tty.sh	CONTROL-FAILED rc=2 1s	BLIND driver: a process left in the session is not counted (rc=0 secs=0.0 left=0)
+rc=0

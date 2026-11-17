@@ -1,0 +1,204 @@
+PASS T1 prepare exits 0
+PASS T1 placeholder trailers replaced with minted id
+PASS T1 engine mint output committed
+PASS V8c T1 mint changes recorded in evidence (name-status equals the mint commit)
+PASS T2 tree-equality evidence: 2 rows PASS
+PASS T2 independent tree re-check
+PASS T1 derived-file steps printed
+PASS T1 mint path integrates by merge (documented)
+PASS T1 publish exits 0
+PASS T1 all 9 remotes at landed main, 9 PASS rows
+PASS SH1 T1 publish made 9 plain pushes (argv recorded by the shim)
+PASS T3 rejecting remote reported FAIL, 8 PASS (rc=1)
+PASS T3 verify read-back flags the lagging remote (rc=1)
+PASS S8 re-run of publish recovers (8 up-to-date + 1 pushed)
+PASS T4 non-ff remote refused at preflight (rc=1)
+PASS T4 no remote moved (8 not-pushed-preflight, 1 refused-non-ff)
+PASS T5 no force flag in lander
+PASS T5 guard catches: git push --force "$r" main
+PASS T5 guard catches: git push -f "$r" main
+PASS T5 guard catches: git push "$r" +main:refs/heads/main
+PASS T5 guard catches: git push --force-with-lease "$r" main
+PASS T6 wrong bundle sha256 refused (rc=1)
+PASS T7 head not a ref tip in the bundle refused (rc=1)
+PASS T8 moved main integrated by merge, old main is ancestor
+PASS T9 diverged remote mains refused (rc=3)
+PASS T10 mint outside a 'constitution' dir refused (rc=2)
+PASS T10 refused before any clone was created
+PASS T11 dirty tree refused (rc=2)
+PASS T11 no remote moved
+PASS S1 merge-commit vehicle: prepare exits 0
+PASS S1 merges keep 2 parents, no placeholder, no old sha, 4 trees equal, one real trailer each
+PASS S1 publish exits 0
+PASS S2-S5 prepare exits 0
+PASS S2 <TO-BE-MINTED...> placeholder replaced
+PASS S3 CRLF trailer replaced, CR stripped
+PASS S4 body prose line kept verbatim, real trailer appended
+PASS S4b only the git-parsed trailer block is rewritten
+PASS S5a missing trailer appended, Co-Authored-By kept
+PASS S5b two placeholders become one trailer, Co-Authored-By kept
+PASS S5c lowercase key replaced, no second trailer
+PASS S5e an existing real id is kept
+PASS S5f 'Roadmap-Item : X' (space before the colon) replaced, one trailer
+PASS S5g a real id containing 050 (CON-0501) is kept
+PASS S5h a --- line in the body is not a divider; trailer replaced
+PASS S2-S5 publish exits 0
+PASS S5d prepare exits 0
+PASS S5d author name, email and date preserved
+PASS S5d dropped signature recorded in evidence
+PASS S6 publish refuses when the landed vehicle is not on main (rc=1)
+PASS S6 no remote moved
+PASS S7 --item-id path fast-forwards
+PASS S7 first publish exits 0
+PASS S7 second publish: 9 up-to-date, exit 0
+PASS S7 re-run of prepare refused with a recovery hint (rc=2)
+PASS S10 mint and merge commits run without ambient hooks
+PASS S11 empty mirror refused at prepare (rc=1)
+PASS S12 untrailered commit refused at publish (rc=1)
+PASS S12 no remote moved
+PASS S13 lands only up to the given tip
+PASS M11 mint whose last line is not an id refused (rc=1)
+PASS M11 bogus --item-id refused (rc=2)
+PASS M12 vehicle already on main refused (rc=3)
+PASS M13 extra remote name refused (rc=2)
+PASS M13 duplicate remote name refused (rc=2)
+PASS M13 missing remote name refused (rc=2)
+PASS M15 publish refuses a main without the prepared base (rc=1)
+PASS X14 two distinct ids in one commit refused at prepare (rc=1)
+PASS X14b unrecognised Roadmap-Item value refused at prepare (rc=1)
+PASS X8 interpret-trailers failure aborts prepare (rc=1)
+PASS X8 nothing integrated after the abort
+PASS X8b interpret-trailers append failure aborts prepare (rc=1)
+PASS X8b nothing integrated after the abort
+PASS P1 remote without main refused at preflight (rc=1)
+PASS P1 no remote was pushed
+PASS L4 missing option value is a usage error (rc=2)
+PASS L4 option followed by another option is a usage error (rc=2)
+PASS L5 failing fetch names the remote, not its URL
+PASS L6 --key-prefix ABC: placeholder replaced with ABC-12
+PASS L6 publish with a key prefix other than the prepared one refused (rc=2)
+PASS L6 publish reads the key prefix from the state
+PASS L6 malformed key prefix refused (rc=2)
+PASS L6 --item-id with another key refused (rc=2)
+PASS U1 prepare with the older remotes file exits 0
+PASS U1 publish refuses a clone whose origin URL differs from --remotes-file (rc=2)
+PASS U1 nothing pushed, not even to the old URL; no read-back written
+PASS U1 verify refuses the URL mismatch too (rc=2)
+PASS U2 publish refuses an origin re-pointed after prepare (rc=2)
+PASS U2 nothing pushed
+PASS U3 publish refuses a push URL other than the declared one (rc=2)
+PASS U3b publish refuses remote.<name>.mirror (rc=2)
+PASS U3 nothing pushed
+PASS U3c publish exits 0 once the clone config matches again
+PASS U4 mint that prints an id but changes nothing is refused (rc=1)
+PASS U4 nothing landed (main = base, no state)
+PASS U5 mint that writes outside the clone is refused (rc=1)
+PASS U5 control: the outside mint really ran
+PASS U6 mint whose changes do not contain the id is refused (rc=1)
+PASS U7 mint that commits by itself is refused (rc=1)
+PASS U8 engine read command confirms the minted id
+PASS U8b --item-id the engine does not know is refused (rc=1)
+PASS U8b the engine itself said no such item
+PASS U8b nothing landed
+PASS U8c an engine read that does not print the id is refused (rc=1)
+PASS U9 an edited prepare state is refused (rc=2)
+PASS U9 no remote moved
+PASS U9c edited landed_vehicle_head refused (rc=2)
+PASS U9d edited vehicle_head refused (rc=2)
+PASS U9e landed head whose tree is not the vehicle tree refused (rc=2)
+PASS U9c-e no remote moved
+PASS U9b untrailered commit refused even with state and ref edited (rc=1)
+PASS U9b no remote moved
+PASS U10 already-published untrailered commit is not refused; 9 remotes at main
+PASS V4 U10 the 8 remotes that receive the untrailered commit get a WARN row (gitverse none)
+PASS U11 prepare refused while another run holds the workdir lock (rc=2)
+PASS U11 no clone created while locked
+PASS U11 prepare exits 0 once the lock is free
+PASS U11 publish refused while locked (rc=2)
+PASS U11 no remote moved while locked
+PASS U11b concurrent prepares: one 0, one 2 (the loser says it holds the lock)
+PASS U21 a background child of the mint does not hold the workdir lock
+PASS U12 --clone-name '../escape' refused (rc=2)
+PASS U12 --clone-name 'a/b' refused (rc=2)
+PASS U12 --clone-name '..' refused (rc=2)
+PASS U12 --clone-name '.' refused (rc=2)
+PASS U12 --clone-name '-x' refused (rc=2)
+PASS U12 --clone-name 'a..b' refused (rc=2)
+PASS U12 empty --clone-name refused (rc=2)
+PASS U12 nothing created outside or inside the workdir
+PASS U12 a plain --clone-name is accepted
+PASS U13 no ambient hook ran in the clone (prepare+publish, merge and ff paths)
+PASS U13 control: the ambient hooks are live
+PASS U14 --help prints the whole usage incl. the exit codes, rc 0
+PASS U14 prepare --help
+PASS U15 verify without prepare state refused (rc=2)
+PASS U15 no evidence dir created
+PASS U15 verify without a clone refused (rc=2)
+PASS U16 trailing # comment paragraph refused (fail closed) (rc=1)
+PASS U16 folded Roadmap-Item value refused (fail closed) (rc=1)
+PASS U17 prepare takes the newest remote tip (origin ahead) as main_before
+PASS U17 publish exits 0 (8 behind remotes fast-forwarded)
+PASS U18 publish refuses a clone not on main (rc=2)
+PASS U18 no remote moved
+PASS U19 rejected push: URL kept out of the output (and present in the stderr log: control)
+PASS U19 unreadable remote: ls-remote URL kept out of the output (control: in the log)
+PASS U19 verify: URL kept out of the output
+PASS U20 bundle with a missing prerequisite refused by git bundle verify (rc=1)
+PASS V1 a remotes line holding only a URL is refused by its line number (rc=2)
+PASS V1 a remotes line with a third field is refused (line 10) (rc=2)
+PASS V1 a remote name that is not a plain name is refused by line number (rc=2)
+PASS V1 the credential token appears 0 times in output and workdir (control: present in the inputs)
+PASS V1d remote name '-x' refused before any git call (rc=2)
+PASS V1d remote name 'a/b' refused before any git call (rc=2)
+PASS V1d remote name '.x' refused before any git call (rc=2)
+PASS V1e a URL starting with '-' is refused by line number (rc=2)
+PASS V2a exported GIT_DIR: prepare+publish land in the fresh clone, the victim repo is byte-identical
+PASS V2b exported GIT_WORK_TREE: prepare exits 0, the victim directory is unchanged
+PASS V2c exported GIT_INDEX_FILE: the victim index is byte-identical, the clone uses its own index
+PASS V2d exported GIT_NAMESPACE: refs/heads/main of all 9 remotes moved, no namespaced ref
+PASS V2e config injected via the environment is ignored (control: it redirects a plain git call)
+PASS V2f config injected via the environment is ignored (control: it redirects a plain git call)
+PASS V2g GIT_TRACE* cleared: no URL in the output (control: GIT_TRACE prints it for a plain git call)
+PASS V3a a mint that prints a PRE-EXISTING id is refused (rc=1)
+PASS V3a nothing landed
+PASS V3b a new id CON-777 is accepted although CON-7770 was already there (no false refusal)
+PASS V3c id CON-77 is not found inside CON-777 (token match) (rc=1)
+PASS V3d an engine read printing CON-7770 does not confirm CON-777 (rc=1)
+PASS V3e binary tracker: CON-777 inside CON-7775 counts as already there (fail closed) (rc=1)
+PASS V4 a placeholder commit already on github gets a WARN row for each of the 8 remotes it reaches
+PASS V4 publish_warnings.tsv has a header and exactly 8 rows
+PASS V5 a gpg child left running by a signed commit does not hold the workdir lock (2 gpg runs: control)
+PASS V6 push.followTags=true in the caller config: 0 of 9 remotes got the tag
+PASS V7 an untracked file is seen although status.showUntrackedFiles=no (rc=2)
+PASS V7 no remote moved
+PASS V8a a mint that deletes a tracked file is refused (rc=1)
+PASS V8a the deletion is recorded in mint_changes.tsv; nothing landed
+PASS V8b a mint that writes outside LANDER_TRACKER_PATHS is refused (rc=1)
+PASS V8c a mint that leaves the tracker path as a symlink is refused (rc=1)
+PASS V8d deleting a file that IS a tracker path is still refused as a deletion (rc=1)
+PASS V14 LANDER_REMOTES holding 'a/b' is refused (rc=2)
+PASS V15 a mint commit that differs from the recorded mint changes is refused (rc=1)
+PASS V15 the fault was really injected (control); nothing landed
+PASS V16 an id that a clean filter strips from the staged tracker is refused (rc=1)
+PASS V16 control: the worktree holds CON-777 and the staged blob holds CON-XXX
+PASS V9a a second push URL after the declared one is refused (rc=2)
+PASS V9a nothing pushed, the sink got nothing
+PASS V9b remote.origin.receivepack set in the clone is refused (rc=2)
+PASS V9b remote.origin.uploadpack set in the clone is refused (rc=2)
+PASS V9b no remote moved
+PASS V9c a mint that switches the branch is refused (rc=1)
+PASS V9d a push the server rewound is FAIL in the read-back, not PASS
+PASS V9e a clone URL that merely starts with the declared URL is refused (rc=2)
+PASS V9e no remote moved
+PASS V11 --workdir '-' refused (rc=2)
+PASS V11 --workdir '-Pzz' refused (rc=2)
+PASS V11 '--workdir -' did not take OLDPWD as the workdir
+PASS V11 a relative --workdir is resolved against the current directory, not CDPATH
+PASS V12 a dangling symlink at the clone path is refused (exit 2, not a raw git code) (rc=2)
+PASS V12 nothing created at the symlink target
+PASS V13 a failing git call exits 1 (not git's 128) with a message (rc=1)
+PASS V13 the fault was really injected (control)
+PASS SH0 the lander has exactly one push call site (control: an added push line counts 2)
+PASS SH0 the push call site is the plain main:refs/heads/main push
+PASS SH2 all 199 recorded pushes are plain main:refs/heads/main pushes
+RESULT pass=203 fail=0

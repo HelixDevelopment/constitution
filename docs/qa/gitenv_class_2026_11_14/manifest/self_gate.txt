@@ -1,0 +1,2 @@
+CM-FULL-SUITE-MANIFEST-COMPLETE: control needle seen (missing row, stale row, unaccepted excluded set, stale guide block, duplicated row)
+CM-FULL-SUITE-MANIFEST-COMPLETE: PASS — <scratch>/gitenv_class.MjjE/repo (HEAD 7f893bef5934): manifest matches the census (907 census file(s))

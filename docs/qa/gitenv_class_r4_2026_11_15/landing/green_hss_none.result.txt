@@ -1,0 +1,14 @@
+label=green_hss_none mode=none script=tests/security/test_history_secret_scan.sh rc=0 seconds=22
+repo_head=e90d4aeaf4ce49fd4da99b5903b5cc31356ba01d
+sentinel_fingerprint_before=a145c35076c2890267bb4936a92a5b6e1bfc5810562348fef3aa4852ef59a86f
+sentinel_fingerprint_after=a145c35076c2890267bb4936a92a5b6e1bfc5810562348fef3aa4852ef59a86f
+sentinel_head_before=5ff37ba61ecad92399c6e9735f9758de5cfe1981 after=5ff37ba61ecad92399c6e9735f9758de5cfe1981 branch_before=refs/heads/sentinel after=refs/heads/sentinel
+sentinel_index_entries_after=1
+SENTINEL=UNCHANGED
+--- log tail ---
+ok   41 short keys-file values are not searched and are counted in a note (names only)
+ok   42 placeholder values are counted in the note
+ok   43 group-readable (0640) keys file -> 2, no scan
+ok   44 other-readable (0604) keys file -> 2
+ok   45 always-find exact matcher -> BLIND 3 (negative control found)
+RESULT: 45/45 passed

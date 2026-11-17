@@ -1,0 +1,5 @@
+G0	rc=0	✅ CM-INSTALLER-NO-PUSH-NO-FORCE: PASS (2 file(s); structure + allow-list + raw scan + runtime: 52 allowed forms reached git, every forbidden form refused; control needles ok) 
+ST-1	rc=1	  FAIL update_constitution.sh:0 (a) PROGS entry no longer used (remove it from the gate): None 'NR <= 20' ❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (1 finding(s)) 
+ST-2	rc=1	  FAIL install_constitution.sh:0 (a) EXT_EXACT entry no longer used (remove it from the gate): hi_run_agent chmod 600 "$log" "$log.stderr" ❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (1 finding(s)) 
+ST-3	rc=1	  FAIL install_constitution.sh:0 (a) GX_EXACT entry no longer used (remove it from the gate): hi_do_add hi_gx -C "$stage" config helix-installer.clone true ❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (1 finding(s)) 
+ST-4	rc=1	  FAIL install_constitution.sh:0 (a) SANCTIONED_FILE_CMDS entry no longer used (remove it from the gate): hi_restore cp -p -- "$dir/files/$norm" "$rootabs/$norm" ❌ CM-INSTALLER-NO-PUSH-NO-FORCE: FAIL (1 finding(s)) 

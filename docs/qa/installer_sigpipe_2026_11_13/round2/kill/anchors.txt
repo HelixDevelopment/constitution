@@ -1,0 +1,1 @@
+57 mutants (47 main, 10 twins), 0 bad anchors

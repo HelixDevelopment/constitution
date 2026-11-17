@@ -1,0 +1,19 @@
+=== paired §1.1 mutation for cm_mechanism_observed_refusing.sh ===
+tracked target (READ-ONLY to this harness): /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r4/scripts/gates/cm_mechanism_observed_refusing.sh
+mutating an out-of-repo copy at:            /mnt/DATA1TB/claude-work/tmp/gm_pair.UrNZY6/gates/cm_mechanism_observed_refusing.sh
+--- direction 0: baseline on the unmutated copy ---
+  [ok]   baseline MOR-A3-DANGLING-REF-REFUSED = PASS (there is something for the mutation to flip)
+  [ok]   baseline MOR-A1-UNOBSERVED-REFUSED = PASS (surgical control)
+  [ok]   baseline MOR-A2-OBSERVED-ADMITTED = PASS (surgical control)
+--- applying the BEHAVIOURAL mutation ---
+  [ok]   the mutated copy still parses — the flip is behavioural, not a syntax error
+  [ok]   the copy differs from the tracked file (the mutation applied)
+--- direction 1: mutated -> MOR-A3-DANGLING-REF-REFUSED must FAIL ---
+  [ok]   MOR-A3-DANGLING-REF-REFUSED flipped PASS -> FAIL under the mutation
+  [ok]   MOR-A1-UNOBSERVED-REFUSED stayed PASS — the mutation is SURGICAL (§11.4.194(6)(d))
+  [ok]   MOR-A2-OBSERVED-ADMITTED stayed PASS — the mutation is SURGICAL (§11.4.194(6)(d))
+--- direction 2: restored -> MOR-A3-DANGLING-REF-REFUSED must return to PASS ---
+  [ok]   MOR-A3-DANGLING-REF-REFUSED restored to PASS — the flip tracks the mutation in BOTH directions
+  [ok]   tracked file unchanged (sha256 185698e75c23585411ecde8e91ef90a787a4ca89b2065171d24fba96d57adfe8) — single-resource-owner respected (§11.4.84)
+
+=== MUTATION PAIR VALID ===

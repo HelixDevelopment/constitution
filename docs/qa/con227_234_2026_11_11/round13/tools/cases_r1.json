@@ -1,0 +1,131 @@
+[
+ {
+  "name": "R01_jobs_x",
+  "body": "#!/usr/bin/env bash\nrc_net git status\njobs -x git fetch origin\n"
+ },
+ {
+  "name": "R02_builtin_jobs_x",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nbuiltin jobs -x git fetch origin\n"
+ },
+ {
+  "name": "R03_func_defined_after_use",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ngit fetch origin\ngit() { :; }\n"
+ },
+ {
+  "name": "R04_func_in_subshell",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n( git() { :; } )\ngit fetch origin\n"
+ },
+ {
+  "name": "R05_func_in_dead_branch",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nif false; then git() { :; }; fi\ngit fetch origin\n"
+ },
+ {
+  "name": "R06_allow_exec_comment",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nbash -c 'git fetch origin' # bash scripts/release_publish_gitea.sh\n",
+  "script": "tag_and_release.sh"
+ },
+ {
+  "name": "R07_allow_exec_same_line",
+  "body": "#!/usr/bin/env bash\nrc_net git status\necho bash scripts/release_publish_gitea.sh; bash -c 'git fetch origin'\n",
+  "script": "tag_and_release.sh"
+ },
+ {
+  "name": "R08_printf_v_attached_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nprintf -vPATH %s \"$PWD/evil\"\ncat /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R09_arith_assign_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n((PATH=0))\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R10_param_default_assign_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nunset -v PATH\n: \"${PATH:=$PWD/evil}\"\ncat /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R11_wait_p_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n: &\np=$!\ncp -r \"$PWD/evil\" \"./$p\"\nwait -p PATH \"$p\"\ncat /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "R12_wait_p_subscript",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n: &\nwait -p 'a[$(git fetch origin)]' \"$!\"\n"
+ },
+ {
+  "name": "R13_printf_v_attached_subscript",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nprintf -v'a[$(git fetch origin)]' %s x\n"
+ },
+ {
+  "name": "R14_set_a_bash_env",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nset -a\n: \"${BASH_ENV:=$PWD/evil.sh}\"\nbash scripts/release_publish_gitea.sh\n",
+  "script": "tag_and_release.sh",
+  "files": {
+   "scripts/release_publish_gitea.sh": "#!/bin/bash\n:\n",
+   "evil.sh": "git fetch origin\n"
+  }
+ },
+ {
+  "name": "R15_heredoc_delim_continuation",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncat <<EOF\nEO\\\nF\ngit fetch origin\nEOF\n"
+ },
+ {
+  "name": "R16_heredoc_body_in_comsub",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncat <<EOF; x=$(echo hi\ngit fetch origin\nEOF\n)\n"
+ },
+ {
+  "name": "R17_sqlite_separator_eats_safe",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nsqlite3 -separator -safe :memory: '.system git fetch origin'\n"
+ },
+ {
+  "name": "R18_sqlite_nullvalue_eats_safe",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nsqlite3 -nullvalue -safe :memory: '.shell git fetch origin'\n"
+ },
+ {
+  "name": "R19_gawk_inet_computed",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk 'BEGIN { f = \"/in\" \"et/tcp/0/127.0.0.1/@PORT@\"; print \"x\" > f; close(f) }'\n",
+  "listen": true
+ },
+ {
+  "name": "R20_gawk_inet_octal_escape",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk 'BEGIN { print \"x\" > \"/\\151net/tcp/0/127.0.0.1/@PORT@\" }'\n",
+  "listen": true
+ },
+ {
+  "name": "R21_gawk_inet_operand",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk '{ print }' /inet/tcp/0/127.0.0.1/@PORT@\n",
+  "listen": true
+ },
+ {
+  "name": "R22_source_same_basename",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n. @SB@/evil/fx.sh\n",
+  "files": {
+   "evil/fx.sh": "git fetch origin\n"
+  }
+ },
+ {
+  "name": "R23_cond_procsubst",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n[[ -n <(git fetch origin) ]]\n"
+ },
+ {
+  "name": "R90_ctrl_plain_git",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ngit fetch origin\n"
+ },
+ {
+  "name": "R91_ctrl_comment_continuation",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n# x \\\ngit fetch origin\n"
+ },
+ {
+  "name": "R92_ctrl_neg_clean",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncat /dev/null\n"
+ }
+]

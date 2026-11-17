@@ -10,6 +10,7 @@
 set -uo pipefail
 KP="kill""pg"   # call name assembled from fragments in the printf-written fixtures; line 191 keeps one literal call inside a GUARDED fixture (isinstance + pgid <= 1 check), which the gate accepts as guarded
 export CONSTITUTION_JEV_HOOK=off
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 unset ORACLE_GUARD_STRICT ORACLE_GUARD_BASELINE ORACLE_GUARD_BASE ORACLE_GUARD_ROOT ORACLE_GUARD_EXCLUDE ORACLE_GUARD_GLOB \
       DANGEROUS_COMBO_EXCLUDE DANGEROUS_COMBO_EXT DANGEROUS_COMBO_MAX_DEPTH KILLPG_GUARD_EXCLUDE KILLPG_GUARD_EXT KILLPG_GUARD_ALLOW_PATHS \
       MOCK_PID_GUARD_EXCLUDE MOCK_PID_GUARD_GLOB HELIX_TEST_MODE CONSUMER_ROOT

@@ -99,12 +99,14 @@
 #         per-fixture expected outcome); exit 1 today = correct RED state
 #         (the real tool is absent, so every real-invocation assertion
 #         below correctly cannot match its fixture's expected outcome).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 . "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer device/rockchip/rk3588/tests/regression_guard/registry.tsv scripts/testing/meta_test_false_positive_proof.sh
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/catchset_compare"
 SHARED="$FIXDIR/_shared"
 CATCHSET_COMPARE="$FC/gates/catchset_compare.py"

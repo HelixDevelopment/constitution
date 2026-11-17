@@ -1,4 +1,5 @@
 #!/bin/sh
+# fastcycle-timeout-s: 1500
 # T021 RED test (plan T-A07; FR-013, SC-005): constitution/scripts/fastcycle/context/anchor_citations.py
 # (T039) must record, per work item, the real section-anchor ids cited in its commits/diaries/
 # review-records/closure-evidence as {item_id, anchor_id, source}, checked against the LIVE anchor-
@@ -74,6 +75,7 @@
 # needle DESIGN (G1/G2/G3/false-positive guard, independent of the tool) passes now, but the tool-
 # existence + tool-output assertions correctly FAIL because the implementation does not exist yet.
 
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC="$HERE/../lib/fc_common.py"
 IMPL="$HERE/../context/anchor_citations.py"
@@ -105,13 +107,19 @@ REPO_ROOT=$(git -C "$HERE" rev-parse --show-superproject-working-tree 2>/dev/nul
 # history -- e.g. a scratch `git clone --shared` whose constitution/Constitution.md was amended after
 # the index was generated, the simulation that proves the Step C checksum branch (R4-01).
 if [ -n "${ANCHOR_CITATIONS_REPO_ROOT:-}" ]; then REPO_ROOT=$ANCHOR_CITATIONS_REPO_ROOT; fi
+# CON-092 / CON-093: with no superproject and no override, canon is tested standalone and there is NO
+# consuming project's working tree at all. Steps A and C (real consumer data) are then skipped ALONE
+# (SKIP-SECTION, reason=topology_unsupported) and Steps B, D, D2 and E (synthetic, canon-runnable) still
+# run; the test ends with fc_consumer_exit (77 = passed but skipped, never a PASS). Formerly this case
+# exited 4 (BLIND) before any step. A consumer tree WITHOUT the ATM-277 commits still FAILs as before.
+. "$HERE/lib/consumer_section.sh"
+CONSUMER_DATA=1
 if [ -z "$REPO_ROOT" ]; then
-  # Not currently consumed as a submodule of anything (e.g. constitution tested fully standalone):
-  # honestly fall back to its own working tree. The ATM-277 control-needle commits below will then
-  # not resolve there, which the resolvability checks immediately after report as BLIND, never a
-  # silent pass (11.4.201(6): an absent/unreachable target is never read as "0 findings").
-  REPO_ROOT=$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null)
+  CONSUMER_DATA=0
+  FC_CONSUMER_SECTIONS_SKIPPED=$(( ${FC_CONSUMER_SECTIONS_SKIPPED:-0} + 1 ))
+  echo "SKIP-SECTION: Steps A and C (real ATM-277 data): canon is standalone, no consuming project's working tree (no superproject, ANCHOR_CITATIONS_REPO_ROOT unset) reason=topology_unsupported"
 fi
+if [ "$CONSUMER_DATA" -eq 1 ]; then
 [ -n "$REPO_ROOT" ] && [ -d "$REPO_ROOT" ] || { echo "BLIND: could not resolve the consuming project's working tree" >&2; exit 4; }
 ANCHOR_INDEX="$REPO_ROOT/$ANCHOR_INDEX_REL"
 [ -f "$ANCHOR_INDEX" ] || { echo "BLIND: anchor index absent at $ANCHOR_INDEX" >&2; exit 4; }
@@ -123,10 +131,12 @@ else
   echo "SUMMARY pass=$PASS fail=$FAIL"
   exit 1
 fi
+fi
 
 TMP=$(mktemp -d) || { echo "BLIND: mktemp failed" >&2; exit 4; }
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
 
+if [ "$CONSUMER_DATA" -eq 1 ]; then
 # --- Step A: self-validate the control-needle DESIGN, live, independent of anchor_citations.py ---
 # Live anchor ids from --anchor-index (never a frozen copy: a future anchor addition/removal is
 # picked up automatically, matching T-A07's "never a literal" mandate).
@@ -222,6 +232,8 @@ else
   ok "G3 mutation-simulation: an empty (commit-scan-skipped) haystack correctly FAILS the needle -- proves G3 would catch the T027 mutation once GREEN"
 fi
 
+fi  # end of Step A (consumer data)
+
 # --- Step B: the actual RED gate -- the implementation does not exist yet ---
 if [ ! -f "$IMPL" ]; then
   echo "RED: anchor_citations.py absent at $IMPL (T039 not yet landed)"
@@ -231,6 +243,7 @@ if [ ! -f "$IMPL" ]; then
 fi
 
 # --- Step C: once T039 lands, exercise the real tool end-to-end against the SAME control needle ---
+if [ "$CONSUMER_DATA" -eq 1 ]; then
 OUT="$TMP/anchor_citations.out.json"
 python3 "$IMPL" --item-id "$ITEM_ID" --repo "$REPO_ROOT" --anchor-index "$ANCHOR_INDEX" --out "$OUT" 2>"$TMP/impl.err"
 IMPL_RC=$?
@@ -352,6 +365,8 @@ PY
   if [ "$TWOSEG_RC" -eq 0 ]; then ok "R8-F1 real data: every two-segment commit citation for $ITEM_ID is spelled with a section sign in its commit ($(cat "$TMP/twoseg.out"))"
   else bad "R8-F1 real data: two-segment citation(s) with no section sign in the commit: $(cat "$TMP/twoseg.out") $(cat "$TMP/twoseg.err")"; fi
 fi
+
+fi  # end of Step C (consumer data)
 
 # --- Step D: behaviour regression checks on a SYNTHETIC repository (R8 F1-F4, F10-F14, F17) ---
 # Each check drives the REAL tool through its real CLI against a small git repository built here,
@@ -1253,4 +1268,4 @@ else
 fi
 
 echo "SUMMARY pass=$PASS fail=$FAIL"
-[ "$FAIL" -eq 0 ]
+if [ "$FAIL" -eq 0 ]; then fc_consumer_exit 0; else fc_consumer_exit 1; fi

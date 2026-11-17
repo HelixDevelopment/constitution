@@ -13,6 +13,7 @@
 # shell's own job table (`jobs`; bare-pid lines and zsh's whole-line `[N] [+-] PID ...` lines are both
 # understood), so no window leaves the probe group alive.
 # FC_PROBE_TIMEOUT_S bounds each `<tool> --version`; 5 s bounds the `timeout` self-probe.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 PROBE_TIMEOUT_S=${FC_PROBE_TIMEOUT_S-30}
 SELF_PROBE_TIMEOUT_S=5
 KILL_AFTER_S=2   # SIGKILL grace after TERM so a TERM-ignoring tool cannot overrun

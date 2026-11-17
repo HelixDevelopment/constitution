@@ -1,0 +1,234 @@
+PASS[1]: emit rc=0
+PASS[2]: canonical JSON sorted keys compact
+PASS[3]: body_hash equal across differing run_meta
+PASS[4]: body_hash differs when body differs
+PASS[5]: sh fc_body_hash matches py
+PASS[6]: code 3 exits 3
+PASS[7]: code 3 writes no result file
+PASS[8]: code 4 exits 4 (never 0)
+PASS[9]: code 4 output flagged BLIND
+PASS[10]: needle ok rc 0
+PASS[11]: needle missing set member -> 3
+PASS[12]: needle fabricated found -> 3
+PASS[13]: determinism-check stable -> 0
+PASS[14]: determinism-check differing body_hash -> 1
+PASS[15]: windowed without --as-of -> 2
+PASS[16]: windowed with --as-of -> 0
+PASS[17]: reserved body key BLIND refused rc=2, no file
+PASS[18]: reserved body key schema refused rc=2, no file
+PASS[19]: reserved body key run_meta refused rc=2, no file
+PASS[20]: reserved body key body_hash refused rc=2, no file
+PASS[21]: BLIND doc hash differs from clean doc hash
+PASS[22]: stored body_hash == recomputed (BLIND doc)
+PASS[23]: schema participates in body_hash
+PASS[24]: non-ASCII written raw (ensure_ascii=False)
+PASS[25]: non-ASCII body_hash pinned
+PASS[26]: emit into missing dir -> 2 not 1
+PASS[27]: lone surrogate -> 2 not 1
+PASS[28]: body-hash on non-object -> 2 not 1
+PASS[29]: needle --present null -> 2 not 1
+PASS[30]: needle string haystack -> 2
+PASS[31]: needle object haystack -> 2
+PASS[32]: needle string --present -> 2
+PASS[33]: needle nested-list member -> 2
+PASS[34]: determinism-check: tool exiting 1 (finding) but stable -> 0
+PASS[35]: determinism-check: signal death -> 4 (BLIND, not 247)
+PASS[36]: determinism-check: missing command -> 4 not 1
+PASS[37]: determinism-check: non-JSON doc -> 4 not 1
+PASS[38]: determinism-check mismatch prints a diff
+PASS[39]: as-of '20260926' -> 2
+PASS[40]: as-of '2026-W39-5' -> 2
+PASS[41]: as-of '2026-13-45' -> 2
+PASS[42]: as-of '2026-9-26' -> 2
+PASS[43]: as-of '' -> 2
+PASS[44]: as-of 2026-09-26 -> 0
+PASS[45]: NaN body refused rc=2 no file
+PASS[46]: Infinity body refused rc=2
+PASS[47]: duplicate keys refused rc=2
+PASS[48]: emit 1e999 body refused rc=2, no file
+PASS[49]: emit 1e999 run_meta refused rc=2, no file
+PASS[50]: needle 1e999 -> 2
+PASS[51]: needle present 1 not satisfied by true -> 3
+PASS[52]: needle present 0 not satisfied by false -> 3
+PASS[53]: needle fabricated true not matched by 1 -> 0
+PASS[54]: needle same-type members still match -> 0
+PASS[55]: uncaught internal error -> 4 (in C-001 table)
+PASS[56]: deeply nested JSON -> 2 (unparseable input), no file
+PASS[57]: determinism-check runs command under LC_ALL=C (both runs)
+PASS[58]: empty --present -> 3
+PASS[59]: empty --fabricated -> 3
+PASS[60]: emit with a directory as --out -> 2
+PASS[61]: no .fc_emit.* temp file left after failure
+PASS[62]: body-hash duplicate keys -> 2
+PASS[63]: body-hash NaN -> 2
+PASS[64]: body-hash 1e999 -> 2
+PASS[65]: determinism-check: rc 0 then 1, same body -> 1 (nondeterministic)
+PASS[66]: emit honours umask 022 -> mode 644
+PASS[67]: emit honours umask 027 -> mode 640
+PASS[68]: schema '' refused rc=2, no file
+PASS[69]: schema 'nov' refused rc=2, no file
+PASS[70]: schema 't/v' refused rc=2, no file
+PASS[71]: schema 't/vx' refused rc=2, no file
+PASS[72]: schema '/v1' refused rc=2, no file
+PASS[73]: schema 'a b/v1' refused rc=2, no file
+PASS[74]: schema 't/v1/x' refused rc=2, no file
+PASS[75]: schema fc-tool_x/v12 accepted
+PASS[76]: determinism-check: command rc 2 twice, same doc -> 4 (no honest verdict)
+PASS[77]: determinism-check: command rc 4 twice, same doc -> 4 (no honest verdict)
+PASS[78]: determinism-check: command rc 5 twice, same doc -> 4 (no honest verdict)
+PASS[79]: determinism-check: command rc 70 twice, same doc -> 4 (no honest verdict)
+PASS[80]: determinism-check: command rc 128 twice, same doc -> 4 (no honest verdict)
+PASS[81]: determinism-check: command rc 255 twice, same doc -> 4 (no honest verdict)
+PASS[82]: determinism-check: command rc 3 -> 3
+PASS[83]: determinism-check: rc 0 but no doc -> 4
+PASS[84]: needle present 1.0 satisfied by 1 -> 0
+PASS[85]: needle present 1 satisfied by 1.0 -> 0
+PASS[86]: needle fabricated 2.0 matched by 2 -> 3
+PASS[87]: needle bool never equals number (1 vs true) -> 3
+PASS[88]: needle bool never equals number (true vs 1/1.0) -> 3
+PASS[89]: needle string never equals number -> 3
+PASS[90]: run_meta '[1,2]' refused rc=2, no file
+PASS[91]: run_meta '""' refused rc=2, no file
+PASS[92]: run_meta '1' refused rc=2, no file
+PASS[93]: run_meta 'null' refused rc=2, no file
+PASS[94]: run_meta '"x"' refused rc=2, no file
+PASS[95]: run_meta empty string refused rc=2, no file
+PASS[96]: run_meta {} accepted
+PASS[97]: header documents exit 4 both meanings consistently
+PASS[98]: determinism-check: hanging command -> 4 (not a verdict), within bound
+PASS[99]: determinism-check: timeout leaves no orphan child (control needle: pgrep saw it)
+PASS[100]: determinism-check: TERM-ignoring hang -> 4 (SIGKILL after grace)
+PASS[101]: determinism-check: TERM-ignoring hang leaves no orphan (control needle: pgrep saw it)
+PASS[102]: determinism-check: normal command with a stray background child -> 0
+PASS[103]: determinism-check: stray child of a finished command is reaped (control needle: pgrep saw it)
+PASS[104]: FC_DETERMINISM_TIMEOUT_S='0' refused rc=2
+PASS[105]: FC_DETERMINISM_TIMEOUT_S='-1' refused rc=2
+PASS[106]: FC_DETERMINISM_TIMEOUT_S='abc' refused rc=2
+PASS[107]: FC_DETERMINISM_TIMEOUT_S='1.5' refused rc=2
+PASS[108]: FC_DETERMINISM_TIMEOUT_S='' refused rc=2
+PASS[109]: FC_DETERMINISM_TIMEOUT_S='1000000' refused rc=2
+PASS[110]: FC_DETERMINISM_TIMEOUT_S=' 5' refused rc=2
+PASS[111]: FC_DETERMINISM_TIMEOUT_S=999999 (max, 6 digits) accepted
+PASS[112]: FC_DETERMINISM_TIMEOUT_S=1 (min) accepted
+PASS[113]: timeout default named + marked operator-tunable, no measured basis
+PASS[114]: bad JSON --body-json names the flag
+PASS[115]: bad JSON exits at once (no second 'must be an object' message)
+PASS[116]: duplicate-key diagnostic
+PASS[117]: NaN diagnostic
+PASS[118]: 1e999 diagnostic
+PASS[119]: nesting diagnostic
+PASS[120]: --body-json non-object diagnostic
+PASS[121]: reserved-key diagnostic lists keys in order
+PASS[122]: bad JSON --run-meta-json names the flag
+PASS[123]: --run-meta-json non-object diagnostic
+PASS[124]: code 3 diagnostic
+PASS[125]: schema diagnostic quotes the value
+PASS[126]: unencodable diagnostic
+PASS[127]: cannot-write diagnostic
+PASS[128]: body-hash unreadable diagnostic
+PASS[129]: body-hash non-object diagnostic
+PASS[130]: body-hash duplicate key surfaces the loader message
+PASS[131]: body-hash success exits 0
+PASS[132]: needle non-list --present names its own flag
+PASS[133]: needle non-list --fabricated names its own flag
+PASS[134]: needle non-list --haystack names its own flag
+PASS[135]: needle bad JSON --present names the flag
+PASS[136]: needle bad JSON --fabricated names the flag
+PASS[137]: needle bad JSON --haystack names the flag
+PASS[138]: needle empty-set diagnostic
+PASS[139]: needle missing-member diagnostic
+PASS[140]: needle fabricated-found diagnostic
+PASS[141]: windowed diagnostic
+PASS[142]: bad as-of diagnostic
+PASS[143]: require-as-of without flags -> 0
+PASS[144]: no subcommand -> 2 with fc_common usage
+PASS[145]: unknown subcommand -> 2
+PASS[146]: --help -> 0
+PASS[147]: missing required option -> 2 (emit --body-json {} --out <tmp>/tmp.hzuDkEqYyJ/x.json)
+PASS[148]: missing required option -> 2 (emit --schema t/v1 --out <tmp>/tmp.hzuDkEqYyJ/x.json)
+PASS[149]: missing required option -> 2 (emit --schema t/v1 --body-json {})
+PASS[150]: missing required option -> 2 (body-hash)
+PASS[151]: missing required option -> 2 (needle --fabricated [1] --haystack [1])
+PASS[152]: missing required option -> 2 (needle --present [1] --haystack [1])
+PASS[153]: missing required option -> 2 (needle --present [1] --fabricated [2])
+PASS[154]: emit --code 0 exits 0 and writes the file
+PASS[155]: emit --code 1 exits 1 and writes the file
+PASS[156]: emit --code 2 refused rc=2, no file
+PASS[157]: emit --code 5 refused rc=2, no file
+PASS[158]: emit --code -1 refused rc=2, no file
+PASS[159]: emit default code exits 0
+PASS[160]: internal error diagnostic exact
+PASS[161]: determinism-check no command -> 2 + diagnostic
+PASS[162]: determinism-check bare -- -> 2
+PASS[163]: determinism-check accepts the command without --
+PASS[164]: cannot-run diagnostic
+PASS[165]: timeout diagnostic names run 1 and the bound
+PASS[166]: determinism-check second-run rc5 -> 4, run 2 named
+PASS[167]: determinism-check second-run rc3 -> 3, run 2 named
+PASS[168]: determinism-check second-run hang -> 4, run 2 named
+PASS[169]: determinism-check second-run array -> 4, run 2 named
+PASS[170]: determinism-check second-run junk -> 4, run 2 named
+PASS[171]: self-test-failed diagnostic names run 1
+PASS[172]: no-honest-verdict names run 1, rc and doc presence
+PASS[173]: no-doc verdict says doc_present=False
+PASS[174]: determinism-check mismatch report exact (header + unified diff, n=1, sorted, raw UTF-8)
+PASS[175]: mismatch report names run1 hash first, run2 hash second, and they differ
+PASS[176]: rc mismatch report: rc 0 for run1, rc 1 for run2, equal hashes
+PASS[177]: mismatch diff is capped: 1 header + 40 diff lines
+PASS[178]: run_meta-only difference is stable (0)
+PASS[179]: timeout: SIGTERM is delivered first and the grace lets a 1s cleanup finish (marker written)
+PASS[180]: graceful TERM exit is noticed promptly (<1.8s total for a 1s bound; measured 1444ms)
+PASS[181]: normal command returns without waiting the kill grace (<3s for 2 runs; measured 314ms)
+PASS[182]: TERM-ignoring hang: SIGKILL only after the 2s grace (>=3.8s total for a 2s bound; measured 4103ms)
+PASS[183]: finished command's TERM-ignoring stray child is SIGKILLed after the grace (control needle: pgrep saw it)
+PASS[184]: in-process unit checks (constants, canon NaN, _group_alive, _reap_group guard, umask restore)
+PASS[185]: waitid/WNOWAIT handoff mechanism: leader stays an un-reaped zombie until _reap_group's own real wait (T014 R10 MINOR-7)
+PASS[186]: failed emit leaves no stray entry of any name next to --out
+PASS[187]: emit temp-file prefix is exactly '.fc_emit.' (leftover-name contract)
+PASS[188]: unwritable --out dir: stderr names '.fc_emit.<random>' temp path (no '~')
+PASS[189]: reap loop polls with sleep(0.05) between group-alive probes (no busy-wait)
+PASS[190]: determinism-check hands the command FC_OUT basenames run1.json then run2.json
+SKIP: zsh not installed (reason: shell_not_present) - sh7 $0 fallback untestable here
+PASS[191]: R5-F3 body-hash on a doc with a lone surrogate exits 2 (same class as emit), not 4
+PASS[192]: R5-F3 the surrogate refusal names the encoding problem and prints no hash
+PASS[193]: R5-F3 body-hash --verify on the surrogate doc also exits 2
+PASS[194]: F13 --verify on an intact doc exits 0
+PASS[195]: F13 --verify success prints the hash
+PASS[196]: F13 --verify on a tampered body exits 1 (a finding)
+PASS[197]: F13 mismatch prints both the stored and the recomputed hash
+PASS[198]: F13 tampered run_meta does not change the hash: --verify exits 0
+PASS[199]: F13 tampered run_meta recomputes the identical hash
+PASS[200]: F13 --verify with no stored body_hash exits 2
+PASS[201]: F13 --verify with a non-string stored body_hash exits 2
+PASS[202]: F13 --verify on a missing doc exits 2
+PASS[203]: F13 body-hash without --verify still prints only the hash (exit 0)
+PASS[204]: R5-F3 surrogate refusal line is exactly 'fc_common: body not encodable as UTF-8: <codec error>'
+PASS[205]: F13 no-stored-hash refusal line is exactly the documented message
+PASS[206]: F13 mismatch line is exactly 'fc_common: body_hash mismatch: stored=<h> recomputed=<h>'
+PASS[207]: R7 stored body_hash upper-cased exits 2
+PASS[208]: R7 stored body_hash mixed-case (first char upper) exits 2
+PASS[209]: R7 stored body_hash space-padded exits 2
+PASS[210]: R7 stored body_hash trailing-newline exits 2
+PASS[211]: R7 stored body_hash truncated (63 chars) exits 2
+PASS[212]: R7 stored body_hash too long (65 chars) exits 2
+PASS[213]: R7 stored body_hash non-hex (g) exits 2
+PASS[214]: R7 stored body_hash 0x-prefixed 64 exits 2
+PASS[215]: R7 stored body_hash unicode look-alike digit (arabic-indic 0) exits 2
+PASS[216]: R7 stored body_hash a list exits 2
+PASS[217]: R7 stored body_hash null exits 2
+PASS[218]: R7 stored body_hash true exits 2
+PASS[219]: R7 stored body_hash a float exits 2
+PASS[220]: R7 stored body_hash an object exits 2
+PASS[221]: R7 stored body_hash a 1-char string exits 2
+PASS[222]: R7 malformed-hash refusal line is exactly the documented message
+PASS[223]: R6-F4 empty stored body_hash exits 2 with the documented no-stored-hash message (not the malformed one)
+PASS[224]: R7 a well-formed but wrong lowercase stored hash exits 1 (mismatch), not 2
+PASS[225]: R6-F3 emit-produced doc with its hash upper-cased is NOT accepted (exit 2, never 0)
+PASS[226]: R7 stored hash differing from the recomputed one in only hex char #0 exits 1 (mismatch)
+PASS[227]: R7 stored hash differing from the recomputed one in only hex char #31 exits 1 (mismatch)
+PASS[228]: R7 stored hash differing from the recomputed one in only hex char #63 exits 1 (mismatch)
+PASS[229]: SIGCHLD=SIG_IGN inherited via execvp: always-rc5 command -> 4, NEVER 0 (no fabricated verdict)
+PASS[230]: SIGCHLD=SIG_IGN case: an honest 'no honest verdict' diagnostic is printed (never silently clean)
+PASS[231]: SIGCHLD belt-and-suspenders: _leader_reap_honest independently fails closed even if the reset itself is bypassed
+PASS[232]: no child spawned by this test survives it (leaked=0, control needle: pgrep -f "$TMP" saw it: 1)
+SUMMARY: 232 pass-lines / FAIL=0 of 232 assertions

@@ -1,0 +1,16 @@
+=== T228 paired §1.1 mutation for CM-CONTROL-NEEDLE-REQUIRED ===
+tracked library (READ-ONLY to this harness): /mnt/DATA1TB/claude-work/scratch/gitenv_r4.R1kR/wt_r3/scripts/gates/lib/control_needle.sh
+mutating an out-of-repo copy at:            /mnt/DATA1TB/claude-work/tmp/cm_cnr_mut.dgYfEK/gates/lib/control_needle.sh
+--- direction 0: unmutated copy ---
+  [ok]   baseline CNR-A3 = PASS (the assertion this mutation targets is live)
+  [ok]   baseline CNR-A1 = PASS (the false-refusal guard is live)
+  [ok]   mutation applied to the copy (needle-hits comparison disabled, all literals intact)
+  [ok]   the mutated copy still parses (the flip is behavioural, not a syntax error)
+--- direction 1: needle-hits comparison removed -> CNR-A3 must FAIL ---
+  [ok]   CNR-A3 flipped PASS -> FAIL: with the comparison gone, a needle that found NOTHING is accepted as certification
+  [ok]   CNR-A1 stayed PASS — the mutation is SURGICAL, it did not simply break the gate
+--- direction 2: restore -> CNR-A3 must return to PASS ---
+  [ok]   CNR-A3 restored to PASS — the flip tracks the mutation in both directions
+  [ok]   tracked library unchanged (sha256 236c5abcc3408646594309ff010f57ce5953340efd4153ef4de2d4361d0022fa) — single-resource-owner respected (§11.4.84)
+
+=== MUTATION PAIR VALID — CNR-A3 is load-bearing on the needle-hits comparison ===

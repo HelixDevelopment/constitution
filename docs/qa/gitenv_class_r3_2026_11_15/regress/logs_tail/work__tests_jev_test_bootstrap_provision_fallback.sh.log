@@ -1,0 +1,37 @@
+ok 1 - (a) run rc 0
+ok 2 - (a) llmctl source=submodule
+ok 3 - (a) llmctl path is submodule checkout
+ok 4 - (a) no git clone attempted when submodule present
+ok 5 - (b0) no-consent run exits 0 (degraded, not fatal)
+ok 6 - (b0) git was not invoked at all without consent
+ok 7 - (b0) no llmctl clone dir created without consent
+ok 8 - (b0) no claude_toolkit clone dir created without consent
+ok 9 - (b0) no checkout recorded
+ok 10 - (b0) llmctl recorded source=unavailable
+ok 11 - (b0) unavailable carries a reason
+ok 12 - (b0) pending stamp written
+ok 13 - (b0) pending reason names the missing consent
+ok 14 - (b0) --yes also grants cloning
+ok 15 - (b0) JEV_BOOTSTRAP_ALLOW_CLONE=1 grants cloning
+ok 16 - (b4) no-consent run 1 runs provision
+ok 17 - (b4) no-consent run 2 RETRIES provision (not cached as no-change)
+ok 18 - (b4) NEG: unavailable provision never reported no-change
+ok 19 - (b4) consented run succeeds after the failed ones
+ok 20 - (b4) successful provision is cached (no-change)
+ok 21 - (b4) two successful runs leave byte-identical state
+ok 22 - (b) run rc 0
+ok 23 - (b) git stub recorded clone
+ok 24 - (b) clone url+dest for llmctl
+ok 25 - (b) clone url+dest for toolkit
+ok 26 - (b) pinned llmctl ref from helix-deps.yaml checked out
+ok 27 - (b) pinned toolkit ref from helix-deps.yaml checked out
+ok 28 - (b) llmctl source=clone
+ok 29 - (b) llmctl ref pinned in provenance
+ok 30 - (b2) clone URL comes from helix-deps.yaml ssh_url
+ok 31 - (b2) NEG: no hard-coded fallback URL used when the manifest has one
+ok 32 - (b3) failed clone does not abort the wizard
+ok 33 - (b3) failed clone recorded as source=unavailable
+ok 34 - (c) diverged managed clone -> rc != 0
+ok 35 - (c) error names operator-required stop
+ok 36 - (c) local changes untouched
+# test_bootstrap_provision_fallback.sh: pass=36 fail=0 skip=0

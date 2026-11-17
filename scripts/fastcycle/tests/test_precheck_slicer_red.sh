@@ -74,9 +74,11 @@
 
 set -u
 
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
 REPO_ROOT=$(cd "$FC/../../.." && pwd)
+FC_CANON_ROOT=$(cd "$FC/../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
 REVIEW_DIR="$FC/review"
 SLICER="$REVIEW_DIR/slicer.py"
 PRECHECK="$REVIEW_DIR/precheck_pack.sh"
@@ -209,7 +211,7 @@ fi
 # this one check alone, defeating the point of a fast-dev-cycles test;
 # fixed to search only the two directories the plan itself names).
 GUARD_HITS=0
-for HOOKS_DIR in "$REPO_ROOT/scripts/hooks" "$REPO_ROOT/constitution/scripts/hooks"; do
+for HOOKS_DIR in "$REPO_ROOT/scripts/hooks" "$FC_CANON_ROOT/scripts/hooks"; do
     if [ -d "$HOOKS_DIR" ]; then
         HITS=$(find "$HOOKS_DIR" -maxdepth 1 -iname 'review_dispatch_guard*' 2>/dev/null | wc -l)
         GUARD_HITS=$((GUARD_HITS + HITS))

@@ -18,11 +18,16 @@
 # Every anchor below is LITERAL source text -- never expanded here.
 # shellcheck disable=SC2016
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 REL="device/rockchip/rk3588/tests"
 PBV="$ROOT/$REL/pre_build_verification.sh"
 TEST="$HERE/test_fc_timer_prebuild_red.sh"
+# CON-093: the mutated input is a CONSUMER-root script; on canon alone the whole test is an honest SKIP naming
+# that effective path (exit 77), while a missing canon test file stays the FATAL below.
+. "$HERE/lib/consumer_required.sh"
+fc_require_consumer "$PBV"
 [ -f "$PBV" ] && [ -f "$TEST" ] || { echo "FATAL: inputs missing"; exit 2; }
 TMP="$(mktemp -d)" || exit 2
 trap 'rm -rf "$TMP"' EXIT

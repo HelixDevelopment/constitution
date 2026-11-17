@@ -1,0 +1,4 @@
+# command: gh pr view 9 -R HelixDevelopment/HelixConstitution --json number,state,author,mergedBy,mergeCommit,headRefName,headRefOid,reviewRequests,reviews,baseRefName
+# time: 2026-11-16T13:10:35Z
+{"author":{"id":"MDQ6VXNlcjE4MDM1OTc=","is_bot":false,"login":"<reviewer-account>","name":"Милош Васић 🇷🇸 🇷🇺"},"baseRefName":"main","headRefName":"task/ATM-2190-pr0b-f9-f9b-l8","headRefOid":"2bf4b96f0df74fcb38c2780572c60372ade2ad8d","mergeCommit":{"oid":"bbdf4ac198a8f71ead8ca848817d277e2bbaa3d5"},"mergedBy":{"id":"MDQ6VXNlcjE4MDM1OTc=","is_bot":false,"login":"<reviewer-account>","name":"Милош Васић 🇷🇸 🇷🇺"},"number":9,"reviewRequests":[],"reviews":[],"state":"MERGED"}
+# exit: 0

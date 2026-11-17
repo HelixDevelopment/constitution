@@ -48,3 +48,5 @@ Options: `--notes-file FILE` or `--generic-notes`, `--title TITLE` (default: the
 `SKIPPED-NO-TOKEN` is never success: a release that was skipped for a missing token is not published (§11.4.201). Honest limit: this guide was written from the script's header and `--help`; a live publish is UNCONFIRMED.
 
 Related: [installer manual](../manuals/installer_manual.md), [troubleshooting](troubleshooting_guide.md).
+
+Multi-forge release tool (`scripts/forge/forge.sh`, all six forges, REST, PROVISIONAL): [guide](multiforge_release_guide.md), [manual](../manuals/forge_tool_manual.md), [FAQ](../faq/forge_tool_faq.md), [P4 wiring proposal](../release/multiforge_p4_patch_proposal.md), [live read-only evidence](../qa/multiforge_2026_11_12/).

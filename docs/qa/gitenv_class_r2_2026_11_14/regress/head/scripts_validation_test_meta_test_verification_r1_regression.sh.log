@@ -1,0 +1,76 @@
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run (minimum of 3 measured runs) 1.546 s
+NOT ok G-TERM stopped by TERM: the checked tree changed (or scratch left) at delay(s) 0.031(tmpdir-left)
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run, 14 of 14 before the summary): the checked tree never changed
+ok G (fixture) good tree -> rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-
+ok B1 -> rc=1 fail=2 msg=1 tmp=0 diag=- stop=- (✗ real gate passed despite the missing)
+ok B2 -> rc=1 fail=2 msg=1 tmp=0 diag=1 stop=- (✗ real gate does not pass on the real tree)
+ok B3 -> rc=1 fail=1 msg=1 tmp=0 diag=1 stop=- (✗ weakened gate still exits non-zero)
+ok B4 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the weakened gate)
+ok B5 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=- (✗ real gate passed despite the missing)
+ok B6 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=- (✗ real gate does not pass on the real tree)
+ok B7 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ verification script not found)
+ok B8 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ test submodule not present)
+ok B9 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B10 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-2 scratch root)
+ok B11 -> rc=1 fail=1 msg=1 tmp=0 diag=1 stop=- (✗ the weakened gate does not parse)
+ok B13 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the weakened gate)
+ok B14 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B15 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B16 -> rc=0 fail=0 msg=1 tmp=0 diag=1 stop=- (stderr diagnostic captured)
+ok B12 -> rc=1 fail=none msg=1 tmp=0 diag=- stop=- (✗ mktemp failed, no summary)
+ok STERM stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0
+ok SINT stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0
+ok SHUP stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0
+ok SCLEAN_TERM stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok SCLEAN_INT stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok SCLEAN_HUP stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok mutation DP1_script_missing_ok caught by B7 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP2_submodule_missing_ok caught by B8 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation Ma_control_verdict_ignored caught by B6 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=-)
+ok mutation DP4_m1_root_failure_ok caught by B9 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation Mb_mutation1_verdict_ignored caught by B5 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=-)
+ok mutation MT9_anchor_failure_ok caught by B4 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP7_unparsable_ok caught by B11 (rc=0 fail=0 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP7b_no_syntax_check caught by B11 (rc=1 fail=1 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP8_m2_root_failure_ok caught by B10 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation MT1_mut2_verdict_ignored caught by B3 (rc=0 fail=0 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10a_always_exit_0 caught by B2 (rc=0 fail=2 msg=1 tmp=0 diag=1 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10b_always_exit_1 caught by G (rc=1 fail=0 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10c_notok_not_counted caught by B2 (rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11a_no_exit_trap caught by G (rc=0 fail=0 msg=1 tmp=1 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11b_cleanup_noop caught by G (rc=0 fail=0 msg=1 tmp=1 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11c_no_term_trap caught by STERM (mark=1 seen=1 sum=0 tmp=0 end=sig=15 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0)
+ok mutation DP11d_no_int_trap caught by SINT (mark=1 seen=1 sum=0 tmp=0 end=sig=2 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0)
+ok mutation DP11e_no_hup_trap caught by SHUP (mark=1 seen=1 sum=0 tmp=0 end=sig=1 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0)
+ok mutation DP11f_cleanup_signals_not_ignored caught by SCLEAN_TERM (mark=1 seen=1 sum=1 tmp=1 end=exit=143 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation DP12a_test_submodule_not_skipped caught by G (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP12b_gate_file_ignored caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13a_requirement_kept caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13b_check_kept caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13c_mutation1_on_real_tree caught by G (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13d_mutation2_on_m1_root caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation R1b_int_hup_not_ignored_in_cleanup caught by SCLEAN_INT (mark=1 seen=1 sum=1 tmp=1 end=sig=2 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation R1b_int_hup_not_ignored_in_cleanup_hup caught by SCLEAN_HUP (mark=1 seen=1 sum=1 tmp=1 end=sig=1 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation R2_mktemp_failure_exit_0 caught by B12 (rc=0 fail=none msg=1 tmp=0 diag=- stop=-, original rc=1 fail=none msg=1 tmp=0 diag=- stop=-)
+ok mutation R3_duplicate_anchor_accepted caught by B13 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R4_cp_failure_ignored caught by B14 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R5b_int_exits_143 caught by SINT (mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0)
+ok mutation DP14a_control_stderr_dropped caught by B2 (rc=1 fail=2 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14b_control_output_not_captured caught by B2 (rc=1 fail=2 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14c_m1_stderr_dropped caught by B16 (rc=0 fail=0 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14d_m1_output_not_captured caught by G (rc=0 fail=0 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14e_parse_errors_not_captured caught by B11 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14f_m2_stderr_dropped caught by B3 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14g_m2_output_not_captured caught by B3 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP15a_m1_root_failure_no_finish caught by B9 (rc=1 fail=1 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP15b_mkdir_failure_ignored caught by B9 (rc=1 fail=1 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP15c_m2_root_failure_no_finish caught by B10 (rc=1 fail=2 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R7_ln_failure_ignored caught by B15 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+=== meta_test_verification regression guard (CON-158): pass=74 fail=1 ===

@@ -1,0 +1,46 @@
+PASS C1 exit 0
+PASS C1 RESULT OK
+PASS C1 r1 main
+PASS C1 r2 tag peels to release
+PASS C1 annotated tag
+PASS C2 exit 1
+PASS C2 RESULT FAIL
+PASS C2 r2 has no tag
+PASS C2 r2 main unchanged
+PASS C2 r1 still OK
+PASS C2 MISMATCH reported for r2
+PASS C3 resume exit 0
+PASS C3 tag object reused
+PASS C3 r2 tag object equals local
+PASS C3 OK remote skipped
+PASS C4 exit 1
+PASS C4 fetch abort
+PASS C4 no local tag
+PASS C4 r1 untouched
+PASS C5 exit 1
+PASS C5 ancestor abort
+PASS C5 no local tag
+PASS C6 exit 1
+PASS C6 heading abort
+PASS C7 exit 1
+PASS C7 r2 has no tag
+PASS C7 fallback path taken
+PASS C7 fallback completes on resume
+PASS C7 r2 tag
+PASS C8 exit 1
+PASS C8 impostor kept
+PASS C8 r1 untouched
+PASS C9 exit 1 (r2 not OK)
+PASS C9 no release on the non-OK remote
+PASS C9 glab gets --ref SHA
+PASS C9 one github create for one repository id
+PASS C9 gh --verify-tag
+PASS C9 resume with an inaccessible repo exits 5 (GAPS)
+PASS C9 existing releases not re-created
+PASS C9 resumed release on the now-OK remote
+PASS C10 exit 0
+PASS C10 no tag
+PASS C10 r1 untouched
+PASS C11 missing --remotes is usage error
+PASS C12 no force/delete in script
+RESULT: pass=45 fail=0

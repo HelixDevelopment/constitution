@@ -1,0 +1,3 @@
+# command: <root>/scripts/workable-items/bin/workable-items diff --db <root>/docs/workable_items.db --issues <root>/docs/Issues.md --fixed <root>/docs/Fixed.md
+diff: DB and Markdown are in sync (compared 402 Markdown item(s) against 402 DB item(s); read <root>/docs/Issues.md, <root>/docs/Fixed.md)
+# exit: 0

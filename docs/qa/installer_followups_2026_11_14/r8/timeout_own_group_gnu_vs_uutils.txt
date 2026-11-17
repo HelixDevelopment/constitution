@@ -1,0 +1,10 @@
+== /usr/bin/gnutimeout (/usr/bin/gnutimeout)
+ 876737  876737  876737 bash
+ 876748  876748  876737 gnutimeout
+ 876776  876748  876737 sleep
+ 877657  876737  876737 ps
+== /usr/bin/timeout (/usr/lib/cargo/bin/coreutils/timeout)
+ 878426  878426  878426 bash
+ 878441  878441  878426 timeout
+ 878450  878441  878426 sleep
+ 879203  878426  878426 ps

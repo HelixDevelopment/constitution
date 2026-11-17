@@ -1,0 +1,5 @@
+  GNU timeout: /usr/bin/gnutimeout   uutils timeout: /usr/bin/timeout
+  ok   driver control needle: a process left in the session is counted (rc=0 secs=2.2 left=1)
+  BLIND timeout census: control needles failed (got: a.sh|fa|yes
+a.sh|fb|no)
+timeout_tty: PASS 1 FAIL 0

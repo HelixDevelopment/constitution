@@ -1,0 +1,33 @@
+# Round 2 (fix of review_fix227.md F1-F7), 2026-11-11; RED = new tests against the scripts of 5b630578, GREEN = against the fixed scripts
+## RED tag_and_release.sh (5b630578)
+PASS C1 RESULT OK
+PASS C2 RESULT FAIL
+FAIL C21b long message: secret prefix not printed
+RESULT: pass=83 fail=1
+## RED derive_release_facts.sh (5b630578)
+FAIL F6: no CHANGELOG.md at the base exits 3 (got 0)
+FAIL F6: no partial facts on stdout
+RESULT: pass=45 fail=2
+## GREEN tag_and_release
+PASS C1 RESULT OK
+PASS C2 RESULT FAIL
+PASS C20 gitea rc 4 exit 1
+PASS C20b gitea rc 3 with the token mid-line is a FAIL (exit 1)
+PASS C20b mid-line token is not a GAP
+PASS C20c private TMPDIR exists (control)
+PASS C20c gitea stderr temp file removed (all rcs)
+PASS C21 exit 1
+PASS C21 userinfo not printed
+PASS C21 fetch abort (control)
+PASS C21 redaction marker is printed (positive needle)
+PASS C21b exit 1
+PASS C21b long message: secret prefix not printed
+PASS C21b fetch abort (control)
+RESULT: pass=84 fail=0
+## GREEN derive
+PASS F6: no CHANGELOG.md at the base exits 3
+PASS F6: no partial facts on stdout
+PASS F6: the refusal names CHANGELOG.md
+PASS temp files removed
+PASS temp-file counter sees a leftover (control)
+RESULT: pass=47 fail=0

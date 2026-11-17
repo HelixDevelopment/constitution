@@ -1,0 +1,35 @@
+ok 1 - human run rc 0
+ok 2 - human section: Mode: enforce
+ok 3 - human section: Endpoints:
+ok 4 - human section: llmctl-local-1
+ok 5 - human section: Tools:
+ok 6 - human section: Thresholds:
+ok 7 - human section: gate: threshold=0.9
+ok 8 - human section: Bootstrap:
+ok 9 - human section: PENDING
+ok 10 - --json run rc 0
+ok 11 - --json top-level keys exact
+ok 12 - --json bootstrap keys exact
+ok 13 - --json version=1
+ok 14 - --json detection inlined
+ok 15 - --json thresholds inlined
+ok 16 - --json pending true
+ok 17 - --json stamp inlined
+ok 18 - --json mode
+ok 19 - --json mode_stored
+ok 20 - I3-2 stored enforce + no thresholds => status says shadow
+ok 21 - I3-2 the stored text is still shown as stored
+ok 22 - I3-2 the reason is named
+ok 23 - I3-2 human Mode line is shadow
+ok 24 - I3-2 human output says the stored value is not in force
+ok 25 - empty state: detection null
+ok 26 - empty state: thresholds null
+ok 27 - empty state: stamp null
+ok 28 - empty state: pending false
+ok 29 - empty-state human run rc 0 (status never errors on a fresh host)
+ok 30 - NEG: empty state does not claim a pending bootstrap
+ok 31 - NEG: empty state invents no thresholds
+ok 32 - NEG: empty state invents no endpoints
+ok 33 - NEG: corrupt detection file handled without crash (rc 0)
+ok 34 - NEG: corrupt file yields no phantom endpoint
+# test_jev_status.sh: pass=34 fail=0 skip=0

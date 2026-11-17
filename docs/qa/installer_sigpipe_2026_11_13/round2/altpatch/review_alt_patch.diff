@@ -1,0 +1,35 @@
+9c9
+<   done <<<"$b"
+---
+>   done < <(printf '%s\n' "$b")
+13c13,14
+<   if grep -q '^Z ' <<<"$b"$'\n'"$a"; then   # a remote answered but no fingerprint tool exists: fail closed
+---
+>   local nl=$'\n'
+>   if [[ "$nl$b$nl$a$nl" == *"${nl}Z "* ]]; then   # a remote answered but no fingerprint tool exists: fail closed
+22c23
+<     grep -qxF -- "R $i $r $s ${f:-0}" <<<"$b" && continue
+---
+>     [[ "$nl$b$nl" == *"$nl""R $i $r $s ${f:-0}""$nl"* ]] && continue
+24c25
+<   done <<<"$a"
+---
+>   done < <(printf '%s\n' "$a")
+27c28
+<     grep -qxF -- "L $i $r $h" <<<"$a" && continue
+---
+>     [[ "$nl$a$nl" == *"$nl""L $i $r $h""$nl"* ]] && continue
+29c30
+<   done <<<"$b"
+---
+>   done < <(printf '%s\n' "$b")
+32,33c33,34
+<     grep -qxF -- "N $i $r" <<<"$a" || return 0
+<   done <<<"$b"
+---
+>     [[ "$nl$a$nl" == *"$nl""N $i $r""$nl"* ]] || return 0
+>   done < <(printf '%s\n' "$b")
+45c46
+<   done <<<"$b"
+---
+>   done < <(printf '%s\n' "$b")

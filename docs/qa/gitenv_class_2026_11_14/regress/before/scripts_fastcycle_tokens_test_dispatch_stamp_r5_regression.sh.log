@@ -1,0 +1,163 @@
+-- control needle: HELIX_RELEASE_PREFIX / HELIX_PROJECT_ROOT genuinely unset before exercising directory-dependent resolution --
+  PASS  HELIX_RELEASE_PREFIX is genuinely unset (checked via ${VAR+x} presence-test, not merely empty-string)
+  PASS  HELIX_PROJECT_ROOT is genuinely unset (checked via ${VAR+x} presence-test, not merely empty-string)
+T048/US1 S8 regression guard: release_prefix.sh / dispatch_stamp.sh CWD-independence
+tool:            <scratch>/gitenv_class.MjjE/red/scripts/fastcycle/tokens/dispatch_stamp.sh
+release_prefix:  <scratch>/gitenv_class.MjjE/red/scripts/release_prefix.sh
+superproject:    <none: standalone constitution checkout>
+
+  SKIP  cases A/B: this constitution checkout is not a registered submodule of any superproject (superproject='' toplevel='<scratch>/gitenv_class.MjjE/red'), so the embedded-layout CWD matrix does not apply; cases C onward still run
+
+-- C. STANDALONE layout: constitution/'s OWN top-level-repo use case --
+  PASS  fixture is genuinely standalone: no superproject (''), own git toplevel == its own directory ('<tmp>/HelixConstitutionStandaloneFixture')
+  standalone fixture result: helix_standalone_fixture_r5_expected
+  PASS  standalone layout: release_prefix.sh resolves ITS OWN repo's .env prefix ('helix_standalone_fixture_r5_expected') -- F1's superproject-vs-toplevel split correctly falls through to case 2 (own git toplevel) here, never case 1 (no superproject exists to resolve)
+
+-- D. UNREGISTERED-NESTED-CONSTITUTION layout: a parent project's own .env / .gitmodules evidence is preferred over the narrower nested-repo toplevel --
+  PASS  D fixture precondition is genuinely real: constitution/ has no superproject (''), its own git toplevel is itself ('<tmp>/parent_project/constitution'), and that differs from the real parent directory ('<tmp>/parent_project') that carries the .env evidence -- the unregistered-nested scenario is real on this fixture, not assumed
+  unregistered-nested fixture result: parent_project_r5_expected
+  PASS  N1: an unregistered nested constitution/ repo resolves the REAL parent project's .env prefix ('parent_project_r5_expected') via the new .env-evidence heuristic, rather than silently degrading to its own basename-derived prefix ('constitution')
+  negative-control (no parent evidence) result: constitution
+  PASS  negative control: with NO parent-project evidence at all, the heuristic correctly does NOT widen -- still resolves to the nested repo's own standalone prefix ('constitution'), proving N1's fix is not a false-positive-prone over-widening
+  .gitmodules-only evidence result: parent_project
+  PASS  N1 .gitmodules branch: with ONLY a .gitmodules entry naming 'constitution' as a submodule path (no .env), the heuristic still prefers the real parent directory, deriving its snake_case basename ('parent_project') -- the .gitmodules evidence path is independently load-bearing
+
+-- D2 (B1): content-irrelevant parent .env does NOT widen --
+  content-irrelevant-.env fixture result: constitution
+  PASS  B1: a parent .env with NO HELIX_RELEASE_PREFIX= assignment (file exists, content irrelevant) correctly does NOT widen -- stays 'constitution' (the pre-B1-fix bug treated ANY readable .env, regardless of content, as sufficient evidence)
+  mutated (content-check reverted to bare existence) result: parent_irrelevant_env
+  PASS  D2 mutation-discrimination: the SAME content-irrelevant-.env fixture, run against a copy with the .env evidence check reverted to a bare file-existence test (the exact pre-B1-fix shape), DOES incorrectly widen ('parent_irrelevant_env') -- proving D2's negative control above is genuinely load-bearing, not vacuously true
+
+-- D3 (B1/I3): .gitmodules entry mentioning 'constitution' only as a substring of a different path does NOT widen --
+  .gitmodules-substring-only fixture result: constitution
+  PASS  B1/I3: a .gitmodules entry naming 'constitution' only as a substring of a different path ('other/constitution-utils', never the exact value 'constitution') correctly does NOT widen -- stays 'constitution' (proves the real grep is value-anchored, not a substring match)
+  mutated (anchored grep reverted to bare substring match) result: parent_substring_gitmodules
+  PASS  D3 mutation-discrimination: the SAME .gitmodules-substring fixture, run against a copy with the anchored exact-value grep reverted to a bare unanchored 'grep -q constitution' (the exact I3 reviewer-mutation shape), DOES incorrectly widen ('parent_substring_gitmodules') -- proving D3's negative control above is genuinely load-bearing, not vacuously true
+
+-- D6 (I-A): .gitmodules entry value starting with 'constitution' but carrying a non-whitespace suffix does NOT widen (trailing-anchor-drop mutation) --
+  .gitmodules-trailing-suffix fixture result: constitution
+  PASS  I-A: a .gitmodules entry whose value STARTS with 'constitution' but carries a non-whitespace suffix ('constitution-extra', never the complete exact value 'constitution') correctly does NOT widen -- stays 'constitution' (proves the real grep's trailing $ end-anchor is genuinely load-bearing, not merely the leading ^ one D3 already covers)
+  mutated (trailing \$ anchor dropped) result: parent_trailing_gitmodules
+  PASS  D6 mutation-discrimination: the SAME .gitmodules-trailing-suffix fixture, run against a copy with ONLY the anchored grep's trailing $ end-anchor dropped (the exact I-A reviewer-named mutation shape), DOES incorrectly widen ('parent_trailing_gitmodules') -- proving D6's negative control above is genuinely load-bearing, not vacuously true
+
+-- D7 (I-A): .gitmodules entry whose real key merely ENDS WITH 'path' (not literally 'path') does NOT widen (leading-anchor-drop mutation) --
+  .gitmodules-mid-line-substring fixture result: constitution
+  PASS  I-A: a .gitmodules line whose real key is 'notpath' (NOT the literal key 'path') correctly does NOT widen even though 'path = constitution' appears as a mid-line substring -- stays 'constitution' (proves the real grep's leading ^ start-anchor is genuinely load-bearing)
+  mutated (leading ^ anchor dropped) result: parent_leading_gitmodules
+  PASS  D7 mutation-discrimination: the SAME .gitmodules-mid-line-substring fixture, run against a copy with ONLY the anchored grep's leading ^ start-anchor dropped (the exact I-A reviewer-named mutation shape), DOES incorrectly widen ('parent_leading_gitmodules') -- proving D7's negative control above is genuinely load-bearing, not vacuously true
+
+-- D8 (I-A): .env mentioning the variable NAME in prose (no '=' at all) does NOT widen (bare-grep-for-var-name mutation) --
+  bare-grep-for-var-name fixture result: constitution
+  PASS  I-A: a parent .env that merely MENTIONS 'HELIX_RELEASE_PREFIX' in prose (a comment, never a real assignment, no '=' adjacent at all) correctly does NOT widen -- stays 'constitution' (proves the real check calls the full _hrp_from_env_file() parser, never a bare var-name grep)
+  mutated (bare grep-for-var-name) result: parent_bare_varname_env
+  PASS  D8 mutation-discrimination: the SAME bare-grep-for-var-name fixture, run against a copy with the _hrp_from_env_file() call reverted to a bare, unanchored 'grep -q HELIX_RELEASE_PREFIX' (the exact I-A reviewer-named mutation shape), DOES incorrectly widen ('parent_bare_varname_env') -- proving D8's negative control above is genuinely load-bearing, not vacuously true
+
+-- D9 (I-A): .env with a commented-out 'KEY=value' assignment does NOT widen (grep-for-key-only mutation) --
+  grep-for-key-only fixture result: constitution
+  PASS  I-A: a parent .env whose ONLY 'HELIX_RELEASE_PREFIX=' occurrence is inside a comment documenting a DISABLED assignment ('# old config: HELIX_RELEASE_PREFIX=disabled_value', never a real line-start assignment) correctly does NOT widen -- stays 'constitution' (proves the real check calls the full _hrp_from_env_file() parser, never a bare key-only grep)
+  mutated (grep-for-key-only) result: parent_key_only_env
+  PASS  D9 mutation-discrimination: the SAME grep-for-key-only fixture, run against a copy with the _hrp_from_env_file() call reverted to a bare, unanchored 'grep -q HELIX_RELEASE_PREFIX=' (the exact I-A reviewer-named mutation shape), DOES incorrectly widen ('parent_key_only_env') -- proving D9's negative control above is genuinely load-bearing, not vacuously true
+
+-- SWEEP (I-1 full remediation): table-driven near-miss basename matrix -- SUBSTRING / PREFIX / SUFFIX / CASE-FOLD attack classes, plus truncation + trailing-whitespace safety rows -- none widen on the real code, each class's representative mutant DOES widen on at least one row of that class --
+
+-- SWEEP row 1/9: 'my-constitution' -- SUFFIX (subsumes the former D11 case) --
+  PASS  SWEEP row 'my-constitution' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'my-constitution' -- not assumed
+  real-code result: my_constitution (want my_constitution)
+  PASS  SWEEP row 'my-constitution' (SUFFIX (subsumes the former D11 case)): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'my_constitution', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  mutated (SUFFIX (subsumes the former D11 case), kind=basename_insert_suffix) result: wrong_widen (want wrong_widen)
+  PASS  SWEEP row 'my-constitution' mutation-discrimination: the SAME fixture, run against a copy with ONLY the SUFFIX (subsumes the former D11 case) attack applied (kind=basename_insert_suffix), DOES incorrectly widen to the parent's unrelated prefix ('wrong_widen') -- proving this row's negative control is genuinely load-bearing for the SUFFIX (subsumes the former D11 case) attack class, not vacuously true
+
+-- SWEEP row 2/9: 'xconstitutionx' -- SUBSTRING (isolates it uniquely -- not a prefix, not a suffix match) --
+  PASS  SWEEP row 'xconstitutionx' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'xconstitutionx' -- not assumed
+  real-code result: xconstitutionx (want xconstitutionx)
+  PASS  SWEEP row 'xconstitutionx' (SUBSTRING (isolates it uniquely -- not a prefix, not a suffix match)): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'xconstitutionx', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  mutated (SUBSTRING (isolates it uniquely -- not a prefix, not a suffix match), kind=basename_insert_before) result: wrong_widen (want wrong_widen)
+  PASS  SWEEP row 'xconstitutionx' mutation-discrimination: the SAME fixture, run against a copy with ONLY the SUBSTRING (isolates it uniquely -- not a prefix, not a suffix match) attack applied (kind=basename_insert_before), DOES incorrectly widen to the parent's unrelated prefix ('wrong_widen') -- proving this row's negative control is genuinely load-bearing for the SUBSTRING (isolates it uniquely -- not a prefix, not a suffix match) attack class, not vacuously true
+
+-- SWEEP row 3/9: 'HelixConstitution' -- CASE-FOLD (subsumes the former D10 case) --
+  PASS  SWEEP row 'HelixConstitution' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'HelixConstitution' -- not assumed
+  real-code result: helix_constitution (want helix_constitution)
+  PASS  SWEEP row 'HelixConstitution' (CASE-FOLD (subsumes the former D10 case)): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'helix_constitution', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  mutated (CASE-FOLD (subsumes the former D10 case), kind=basename_insert_casefold) result: wrong_widen (want wrong_widen)
+  PASS  SWEEP row 'HelixConstitution' mutation-discrimination: the SAME fixture, run against a copy with ONLY the CASE-FOLD (subsumes the former D10 case) attack applied (kind=basename_insert_casefold), DOES incorrectly widen to the parent's unrelated prefix ('wrong_widen') -- proving this row's negative control is genuinely load-bearing for the CASE-FOLD (subsumes the former D10 case) attack class, not vacuously true
+
+-- SWEEP row 4/9: 'constitution-fork' -- PREFIX (closes mC) --
+  PASS  SWEEP row 'constitution-fork' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'constitution-fork' -- not assumed
+  real-code result: constitution_fork (want constitution_fork)
+  PASS  SWEEP row 'constitution-fork' (PREFIX (closes mC)): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'constitution_fork', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  mutated (PREFIX (closes mC), kind=basename_insert_prefix) result: wrong_widen (want wrong_widen)
+  PASS  SWEEP row 'constitution-fork' mutation-discrimination: the SAME fixture, run against a copy with ONLY the PREFIX (closes mC) attack applied (kind=basename_insert_prefix), DOES incorrectly widen to the parent's unrelated prefix ('wrong_widen') -- proving this row's negative control is genuinely load-bearing for the PREFIX (closes mC) attack class, not vacuously true
+
+-- SWEEP row 5/9: 'constitution.bak' -- PREFIX (belt-and-suspenders, a different separator) --
+  PASS  SWEEP row 'constitution.bak' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'constitution.bak' -- not assumed
+  real-code result: constitution_bak (want constitution_bak)
+  PASS  SWEEP row 'constitution.bak' (PREFIX (belt-and-suspenders, a different separator)): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'constitution_bak', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  mutated (PREFIX (belt-and-suspenders, a different separator), kind=basename_insert_prefix) result: wrong_widen (want wrong_widen)
+  PASS  SWEEP row 'constitution.bak' mutation-discrimination: the SAME fixture, run against a copy with ONLY the PREFIX (belt-and-suspenders, a different separator) attack applied (kind=basename_insert_prefix), DOES incorrectly widen to the parent's unrelated prefix ('wrong_widen') -- proving this row's negative control is genuinely load-bearing for the PREFIX (belt-and-suspenders, a different separator) attack class, not vacuously true
+
+-- SWEEP row 6/9: 'Constitution' -- CASE-FOLD (closes mD) --
+  PASS  SWEEP row 'Constitution' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'Constitution' -- not assumed
+  real-code result: constitution (want constitution)
+  PASS  SWEEP row 'Constitution' (CASE-FOLD (closes mD)): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'constitution', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  mutated (CASE-FOLD (closes mD), kind=basename_insert_casefold) result: wrong_widen (want wrong_widen)
+  PASS  SWEEP row 'Constitution' mutation-discrimination: the SAME fixture, run against a copy with ONLY the CASE-FOLD (closes mD) attack applied (kind=basename_insert_casefold), DOES incorrectly widen to the parent's unrelated prefix ('wrong_widen') -- proving this row's negative control is genuinely load-bearing for the CASE-FOLD (closes mD) attack class, not vacuously true
+
+-- SWEEP row 7/9: 'CONSTITUTION' -- CASE-FOLD (closes mD's class more thoroughly -- all-caps) --
+  PASS  SWEEP row 'CONSTITUTION' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'CONSTITUTION' -- not assumed
+  real-code result: constitution (want constitution)
+  PASS  SWEEP row 'CONSTITUTION' (CASE-FOLD (closes mD's class more thoroughly -- all-caps)): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'constitution', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  mutated (CASE-FOLD (closes mD's class more thoroughly -- all-caps), kind=basename_insert_casefold) result: wrong_widen (want wrong_widen)
+  PASS  SWEEP row 'CONSTITUTION' mutation-discrimination: the SAME fixture, run against a copy with ONLY the CASE-FOLD (closes mD's class more thoroughly -- all-caps) attack applied (kind=basename_insert_casefold), DOES incorrectly widen to the parent's unrelated prefix ('wrong_widen') -- proving this row's negative control is genuinely load-bearing for the CASE-FOLD (closes mD's class more thoroughly -- all-caps) attack class, not vacuously true
+
+-- SWEEP row 8/9: 'constitutio' -- none -- TRUNCATION real-code safety row only --
+  PASS  SWEEP row 'constitutio' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'constitutio' -- not assumed
+  real-code result: constitutio (want constitutio)
+  PASS  SWEEP row 'constitutio' (none -- TRUNCATION real-code safety row only): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'constitutio', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  NOTE  SWEEP row 'constitutio': no attack-class mutant applies to this row by design (a pure real-code safety check -- none -- TRUNCATION real-code safety row only) -- mutation-discrimination intentionally skipped for this row
+
+-- SWEEP row 9/9: 'constitution ' -- none -- trailing-WHITESPACE real-code safety row only --
+  PASS  SWEEP row 'constitution ' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally 'constitution ' -- not assumed
+  real-code result: constitution (want constitution)
+  PASS  SWEEP row 'constitution ' (none -- trailing-WHITESPACE real-code safety row only): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived 'constitution', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env
+  NOTE  SWEEP row 'constitution ': no attack-class mutant applies to this row by design (a pure real-code safety check -- none -- trailing-WHITESPACE real-code safety row only) -- mutation-discrimination intentionally skipped for this row
+
+-- D4 (B1): mismatched sibling name ('other_dir', not 'constitution') with an otherwise-valid parent .gitmodules entry does NOT widen --
+  PASS  D4 fixture precondition is genuinely real: the examined directory's own git toplevel basename is 'other_dir', NOT 'constitution' -- the mismatched-name scenario is real on this fixture, not assumed
+  mismatched-sibling-name fixture result: other_dir
+  PASS  B1: a directory NOT named 'constitution' (basename 'other_dir') correctly does NOT widen even though its parent carries an otherwise-valid, exact-matching .gitmodules 'path = constitution' entry AND a valid HELIX_RELEASE_PREFIX .env -- stays 'other_dir' (the basename gate refuses to treat this sibling's own evidence as applying to a DIFFERENT directory)
+
+-- D5 (B1): unreadable parent .env (chmod 000, dir genuinely named 'constitution') does NOT widen --
+  PASS  D5 fixture precondition: '<tmp>/parent_unreadable_env/.env' is genuinely unreadable (chmod 000, confirmed via [ -r ])
+  unreadable-parent-.env fixture result: constitution
+  PASS  B1: an unreadable parent .env (chmod 000) -- even one that genuinely contains a HELIX_RELEASE_PREFIX= assignment -- correctly does NOT widen, since it cannot be verified to contain anything -- stays 'constitution'
+
+-- E. invalid HELIX_PROJECT_ROOT override: warns on stderr, falls through correctly on stdout --
+  PASS  E fixture precondition: '/nonexistent/path/hrp_r5_e_fixture_248103' genuinely does not exist
+  stdout: red
+  stderr: release_prefix.sh: WARNING: HELIX_PROJECT_ROOT='/nonexistent/path/hrp_r5_e_fixture_248103' is set but is not an existing, readable, and searchable (executable-bit) directory -- ignoring this explicit override and falling through to the next resolution tier (§11.4.6: a directed error, never a silent guess)
+  exit:   0
+  PASS  N2: an invalid HELIX_PROJECT_ROOT override prints a stderr WARNING naming the specific invalid path ('/nonexistent/path/hrp_r5_e_fixture_248103'), rather than silently falling through with no indication the caller's explicit override was ignored
+  PASS  N2: resolution still correctly falls through to the next tier on stdout (got 'red', exit 0) despite the invalid override -- a WARNING, never a hard failure, for this non-critical path-resolution tool
+
+-- E2 (M1): readable-but-not-searchable HELIX_PROJECT_ROOT (chmod 444) warns on stderr, falls through correctly on stdout --
+  PASS  E2 fixture precondition: '<tmp>' is genuinely a directory ([ -d ]), readable ([ -r ]), but NOT searchable ([ -x ] fails, confirmed live)
+  stdout: red
+  stderr: release_prefix.sh: WARNING: HELIX_PROJECT_ROOT='<tmp>' is set but is not an existing, readable, and searchable (executable-bit) directory -- ignoring this explicit override and falling through to the next resolution tier (§11.4.6: a directed error, never a silent guess)
+  exit:   0
+  PASS  M1: a readable-but-not-searchable HELIX_PROJECT_ROOT override prints a stderr WARNING naming the specific path ('<tmp>'), rather than silently crashing or producing empty output with no indication of why
+  PASS  M1: resolution still correctly falls through to the next tier on stdout (got 'red', exit 0) despite the readable-but-not-searchable override -- the SAME warn-and-fall-through contract as every other invalid-override shape, never the pre-M1-fix empty-stdout/exit-1 crash
+
+-- F (R4-I1). registered submodule at vendor/constitution, parent without .env: the superproject tier alone finds the parent --
+  PASS  case F fixture: vendor/constitution is a registered submodule of my_parent_proj, the parent has no .env, and .gitmodules has no 'path = constitution' line
+  PASS  case F fixture: both tools are byte-identical copies of the real files
+  PASS  case F: release_prefix.sh resolves the superproject's own name 'my_parent_proj' (not 'constitution')
+  PASS  case F: dispatch_stamp.sh in the registered submodule extracts item=MYP-7 (ticket prefix derived from the superproject)
+
+-- G (R4-M5). .env value parsing: quotes stripped, last assignment wins --
+  PASS  G double_quoted: .env -> 'quoted_dq_value'
+  PASS  G single_quoted: .env -> 'quoted_sq_value'
+  PASS  G last_wins: .env -> 'second_value'
+  PASS  G commented_last: .env -> 'live_value'
+
+  total: PASS=63 FAIL=0
+  RESULT: PASS (all 63 cases) -- release_prefix.sh / dispatch_stamp.sh resolution is genuinely CWD-independent

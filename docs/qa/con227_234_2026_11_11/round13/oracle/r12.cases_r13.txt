@@ -1,0 +1,76 @@
+CAUGHT	D1_compgen_W	gate_rc=1/1	bash_rc=1	leak=1	ctrl=1		FINDING compgen with -C, -F, -W, -X or an argument the gate cannot read (they run code): fx.sh:3 | compgen -W 
+CAUGHT	D2_mapfile_tC	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING mapfile assigns a name the gate cannot read: fx.sh:3 'git fetch origin' | mapfile -tC 'git fetch origi
+CAUGHT	D2b_mapfile_C_attached	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING mapfile with a callback or an argument the gate cannot read (-C runs a command): fx.sh:3 | mapfile -Cg
+CAUGHT	D3_declare_gn_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING declare -n (a name reference can alias any variable): fx.sh:3 | declare -gn r=PATH
+CAUGHT	D6_sqlite_nonce	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING sqlite3 that can run a command: fx.sh:3 (the option -nonce) | printf '.nonce zz\n.system git fetch ori
+CAUGHT	D7_awk_attached_f	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING awk program that can run a command: fx.sh:3 (the option -f/dev/stdin (-f, -e, -E, -i, -l and the long 
+CAUGHT	D8_read_r_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING assignment to PATH (it changes how a command is found or run): fx.sh:3 | read -r PATH <<<"$PWD/evil"
+CAUGHT	D9_sort_compress_sep	gate_rc=1/1	bash_rc=0	leak=214	ctrl=1		FINDING sort that can run a command: fx.sh:3 (the long option --compress-program (--compress-program and its p
+CAUGHT	MR5a_LD_LIBRARY_PATH_prefix	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING assignment to LD_LIBRARY_PATH (it changes how a command is found or run): fx.sh:3 | LD_LIBRARY_PATH=/x
+CAUGHT	MR5b_export_LD_AUDIT	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING assignment to LD_AUDIT (it changes how a command is found or run): fx.sh:3 | export LD_AUDIT=/x/a.so
+CAUGHT	MR10a_shopt_extdebug	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING shopt that turns on xtrace, verbose, posix or extdebug, or with an argument the gate cannot read (PS4 
+CAUGHT	MR10b_set_o_extdebug	gate_rc=1/1	bash_rc=2	leak=0	ctrl=1		FINDING set that turns on xtrace, verbose, posix or extdebug, or with an argument the gate cannot read (PS4 an
+BYPASS	O01_old_arith_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	O02_for_arith_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+NO-LEAK	O03_function_keyword	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O04_background	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O05_pipe_stderr	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O06_heredoc_comsub	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:4 git (via -) | $(git fetch origin)
+CAUGHT	O07_backtick_escaped_nested	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:3 git (via -) | x=`echo \`git fetch origin\``
+CAUGHT	O08_locale_string_comsub	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:3 git (via -) | x=$"$(git fetch origin)"
+BYPASS	O09_cond_eq_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	O10_cond_v_subscript	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+CAUGHT	O11_param_replace_comsub	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING network command outside rc_net: fx.sh:3 git (via -) | x=${y/a/$(git fetch origin)}
+CAUGHT	O12_param_P_transform	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING ${...@P} (prompt expansion runs the command substitutions of the value): fx.sh:4 in - | x=${p@P}
+NO-LEAK	O13_compgen_V	gate_rc=0/0	bash_rc=1	leak=0	ctrl=1		
+CAUGHT	O14_hash_p	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING hash other than hash -r (it changes how a command is found): fx.sh:3 | hash -p /home/milosvasic/.cache
+NO-LEAK	O15_command_p	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O16_CDPATH	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O17_BASH_ARGV0	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O18_POSIXLY_CORRECT	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O19_indirect_default_assign	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+BYPASS	O20_arith_name_holds_assignment	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+NO-LEAK	O21_nested_function	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O22_call_before_definition	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O23_duplicate_definition	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O24_function_named_like_builtin	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING a function named like the builtin read (POSIX mode and command run the builtin): fx.sh:3 in - | read()
+NO-LEAK	O25_sqlite_safe_not_first	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O26_unpinned_awk	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O27_unpinned_sed	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O28_sort_compress_attached	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sort that can run a command: fx.sh:3 (the long option --compress-program=./cp.sh (--compress-program a
+NO-LEAK	O29_exec_program	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O30_printf_v_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING assignment to PATH (it changes how a command is found or run): fx.sh:3 | printf -v PATH %s /home/milos
+NO-LEAK	O31_printf_dynamic_format	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O32_trap_USR1	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O33_shopt_expand_aliases	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O34_set_o_posix	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING set that turns on xtrace, verbose, posix or extdebug, or with an argument the gate cannot read (PS4 an
+CAUGHT	O35_unset_f_rc_net	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING unset -f, or unset of a name the gate cannot read without -v (a later call of the name would run a pro
+CAUGHT	O36_declare_n	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING declare -n (a name reference can alias any variable): fx.sh:3 | declare -n r=PATH
+NO-LEAK	O37_local_i	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O38_read_a	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O39_redirect_read_write	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O40_redirect_both	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O41_redirect_fd_variable	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O42_process_substitution	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:3 git (via -) | cat <(git fetch origin)
+BYPASS	O43_subscript_assigns_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+NO-LEAK	O44_exec_fd5	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O45_dev_tcp	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING a /dev/tcp or /dev/udp redirection (bash opens a network connection itself): fx.sh:3 in - | exec 3<>/d
+CAUGHT	O46_alias	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING builtin alias (it defines or loads a command the gate cannot follow): fx.sh:3 | alias cat='git fetch o
+CAUGHT	O47_source_other	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING source of a file the gate does not read: fx.sh:3 ./x.sh | . ./x.sh
+CAUGHT	O48_eval	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING eval: fx.sh:3 in - | eval 'git fetch origin'
+CAUGHT	O49_enable	gate_rc=1/1	bash_rc=1	leak=0	ctrl=1		FINDING builtin enable (it defines or loads a command the gate cannot follow): fx.sh:3 | enable -n cat
+NO-LEAK	O50_IFS_dynamic	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O51_export_BASH_ENV	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING assignment to BASH_ENV (it changes how a command is found or run): fx.sh:3 | export BASH_ENV=/home/mil
+CAUGHT	O52_LD_PRELOAD_prefix	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING assignment to LD_PRELOAD (it changes how a command is found or run): fx.sh:3 | LD_PRELOAD=/x cat /dev/
+CAUGHT	O53_ENV	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING assignment to ENV (it changes how a command is found or run): fx.sh:3 | ENV=/x
+CAUGHT	O54_sqlite_init	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sqlite3 that can run a command: fx.sh:3 (the option -init) | sqlite3 -safe -init /dev/null :memory: 's
+NO-LEAK	O55_type_p	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O56_coproc	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING coproc (a coprocess the gate does not follow): fx.sh:3 in - | coproc git fetch origin
+NO-LEAK	O57_select	gate_rc=0/0	bash_rc=1	leak=0	ctrl=1		
+BYPASS	O58_fd_name_written_text	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	
+CAUGHT	O59_GCONV_prefix	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING assignment to GCONV_PATH (it changes how a command is found or run): fx.sh:3 | GCONV_PATH=/x cat /dev/
+NO-LEAK	O60_trap_action_function_late	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O61_name_not_on_pin	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+BYPASS	O62_awk_pinned_operand_inet	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	
+NO-LEAK	O63_sed_e_option	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O64_builtin_builtin	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		

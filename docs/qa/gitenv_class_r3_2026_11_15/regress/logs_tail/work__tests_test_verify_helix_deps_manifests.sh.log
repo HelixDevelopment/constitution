@@ -1,0 +1,94 @@
+ok   GOOD (rc=0)
+ok   THIRD-PARTY-SKIP-NOT-PASS (rc=0)
+ok   MISSING-LEAF (rc=1)
+ok   MISSING-ROOT (rc=1)
+ok   HTTPS-URL (rc=1)
+ok   MISSING-WHY (rc=1)
+ok   PLACEHOLDER-WHY (rc=1)
+ok   BAD-LAYOUT (rc=1)
+ok   UNKNOWN-KEY (rc=1)
+ok   DUPLICATE-KEY (rc=1)
+ok   SCHEMA-VERSION (rc=1)
+ok   ROOT-UNDECLARED (rc=1)
+ok   NESTED-OWNORG (rc=1)
+ok   NESTED-KNOWN (rc=0)
+warning: adding embedded git repository: submodules/a
+warning: adding embedded git repository: submodules/tp
+ok   UNINIT-BLIND (rc=2)
+ok   ROOT-ABSENT (rc=2)
+ok   NO-ROOT-USAGE (rc=64)
+ok   UNTRACKED (rc=1)
+ok   HUB-LEAF-MISSING (rc=1)
+ok   HUB-GOOD (rc=0)
+ok   CUSTOM-ORGS (rc=1)
+ok   FOREIGN-DEP-UNMARKED (rc=1)
+ok   THIRD-PARTY-NO-LICENCE (rc=1)
+ok   THIRD-PARTY-DECLARED (rc=0)
+ok   VALIDATE-FILE-GOOD (rc=0)
+ok   VALIDATE-FILE-BAD (rc=1)
+ok   SCAFFOLD-PRINT (rc=0)
+ok   SCAFFOLD-CONTENT
+ok   SCAFFOLD-IS-NOT-A-PASS (rc=1)
+ok   SCAFFOLD-FILLED-PASSES (rc=0)
+ok   SCAFFOLD-WRITE (rc=0)
+ok   SCAFFOLD-WRITE-CREATED
+ok   SCAFFOLD-NEVER-OVERWRITES (rc=1)
+ok   SCAFFOLD-FILE-UNCHANGED
+ok   URL-HTTPS-SINGLE-SEGMENT (rc=0)
+ok   URL-HTTPS-THIRDPARTY (rc=0)
+ok   URL-HTTPS-NESTED-GROUP (rc=0)
+ok   URL-SSH-URL-THIRDPARTY (rc=0)
+ok   URL-SCP-SINGLE-SEGMENT (rc=0)
+warning: adding embedded git repository: submodules/a
+hint: You've added another git repository inside your current repository.
+hint: Clones of the outer repository will not contain the contents of
+hint: the embedded repository and will not know how to obtain it.
+hint: If you meant to add a submodule, use:
+hint:
+hint: 	git submodule add <url> submodules/a
+hint:
+hint: If you added this path by mistake, you can remove it from the
+hint: index with:
+hint:
+hint: 	git rm --cached submodules/a
+hint:
+hint: See "git help submodule" for more information.
+hint: Disable this message with "git config set advice.addEmbeddedRepo false"
+warning: adding embedded git repository: submodules/h
+warning: adding embedded git repository: submodules/tp
+ok   URL-OWNORG-HTTPS-PASS (rc=0)
+ok   URL-OWNORG-HTTPS-UNDECLARED (rc=1)
+warning: adding embedded git repository: submodules/a
+hint: You've added another git repository inside your current repository.
+hint: Clones of the outer repository will not contain the contents of
+hint: the embedded repository and will not know how to obtain it.
+hint: If you meant to add a submodule, use:
+hint:
+hint: 	git submodule add <url> submodules/a
+hint:
+hint: If you added this path by mistake, you can remove it from the
+hint: index with:
+hint:
+hint: 	git rm --cached submodules/a
+hint:
+hint: See "git help submodule" for more information.
+hint: Disable this message with "git config set advice.addEmbeddedRepo false"
+warning: adding embedded git repository: submodules/tp
+ok   URL-OWNORG-SSHURL-UNINIT-BLIND (rc=2)
+ok   URL-UNPARSEABLE-FTP (rc=2)
+ok   URL-UNPARSEABLE-NO-PATH (rc=2)
+ok   URL-UNPARSEABLE-DOTDOT (rc=2)
+ok   URL-UNPARSEABLE-SPACES (rc=2)
+ok   RELATIVE-NESTED-OWNORG (rc=1)
+ok   RELATIVE-NESTED-THIRDPARTY (rc=0)
+ok   RELATIVE-NESTED-UNRESOLVABLE (rc=2)
+ok   RELATIVE-ROOT-UNDECLARED (rc=1)
+ok   RELATIVE-ROOT-DECLARED (rc=0)
+ok   RELATIVE-ROOT-UNRESOLVABLE (rc=2)
+ok   HUB-NAME-NESTED-FOREIGN-OWNER (rc=1)
+ok   CONFLICT-RESOLUTION (rc=1)
+ok   EMPTY-GITDIR-NOT-A-CHECKOUT (rc=2)
+ok   SYMLINKED-CHECKOUT (rc=0)
+ok   SELFTEST (rc=0)
+cases=57
+PASS — verify_helix_deps_manifests.sh classifies every case

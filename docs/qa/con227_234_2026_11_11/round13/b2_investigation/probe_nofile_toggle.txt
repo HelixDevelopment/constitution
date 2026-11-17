@@ -1,0 +1,19 @@
+=== scope, ulimit -n 1024 (mutant)
+nofile_soft=1024
+r8=0
+/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/fix227_r13.dOOJ/b2rc.5KIF/redact_cut.sh: redirection error: cannot duplicate fd: Too many open files
+/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/fix227_r13.dOOJ/b2rc.5KIF/redact_cut.sh: line 365: /dev/fd/1022: Too many open files
+rc=4
+a0=rc-clean-env
+envn=0
+child:PWD _ 
+zzread=unset zzs=unset
+fd9=open
+K8_N2=ok (the mutant passes K8 N2)
+seconds=8
+=== scope, ulimit -n 524288 (mutant)
+nofile_soft=524288
+r8=124
+
+K8_N2=bad (the mutant is caught by K8 N2)
+seconds=30

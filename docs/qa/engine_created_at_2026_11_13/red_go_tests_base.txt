@@ -1,0 +1,163 @@
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-001 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/c1.md)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-001 Issues→Fixed (status=Fixed (→ Fixed.md), evidence=qa/con339/c2.md)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-002 Issues→Fixed (status=Completed (→ Fixed.md), evidence=qa/con339/c3.md)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+update: WIT-002 updated in Issues (status=Queued, type=Task)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+update: WIT-003 updated in Fixed (status=Obsolete (→ Fixed.md), type=Bug)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+reopen: WIT-003 reopened, relocated Fixed→Issues (By:AI On:2026-11-13 Reason:test-failed Evidence:qa/con339/reopen.log)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+move: WIT-003 relocated Fixed→Issues (status=Ready for testing, reason=con339 property case: Fixed to Issues)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+move: WIT-004 relocated Issues→Fixed (status=Obsolete (→ Fixed.md), reason=con339 property case: Issues to Fixed)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+block: WIT-002 set Operator-blocked in Issues (WHAT:needs an operator decision on the fixture)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+obsolete-details: WIT-003 written (Since:2026-11-13 Reason:not-reproducible Superseding:none Evidence:qa/con339/od.md)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+states import: 1 row(s), 1 change(s), 0 unchanged
+  investigation=in-progress 1
+  reproduction=UNREPRODUCED 1
+states import: applied 1 change(s) from states.tsv
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+states freeze: 1 closed item(s) would be exempted (closed before arming, no reproduction record); 0 unconditional closure problem(s) stay reported by validate
+states freeze: gate armed at 2026-11-03T12:00:00Z by conductor; 1 exemption(s) recorded
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+repair-bodies: scanned 4 items — already canonical (0 rewrite, 0 populate, 0 backfill-segment); no changes
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+version-tags: populated 4 item(s) in <scratch>/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandversion-tags360276324/001/workable_items.db
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+group add: created grp-con339 (destination=main priority=3 state=open)
+group set: classified WIT-002 -> group=grp-con339 destination=main
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+correct-history-evidence: WIT-003 history id=5 (Obsolete) evidence_path set to qa/con339/corrected.md (audit row appended)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+diary add: recorded entry_id=1 on WIT-001 (SKIP, tested_by=AI-agent)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+add: created WIT-005 (Task, status=Queued) in Issues
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+wrote <scratch>/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr3463042967/003/Issues.md (522 bytes)
+wrote <scratch>/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr3463042967/003/Fixed.md (249 bytes)
+<scratch>/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr3463042967/003/Issues.md: 3 items, 3 segments
+<scratch>/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr3463042967/003/Fixed.md: 1 items, 1 segments
+synced 4 total items into <scratch>/gotmp/TestCON339_CreatedAtPreservedByEveryMutatingCommandsync-roundtr3463042967/001/workable_items.db
+--- FAIL: TestCON339_CreatedAtPreservedByEveryMutatingCommand (9.98s)
+    --- FAIL: TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-obsolete (0.59s)
+        created_at_preservation_test.go:285: close-obsolete: WIT-001|Fixed|section created_at "2026-11-13 20:32:22", want "2020-01-01 01:01:01" (CON-339: the command rewrote created_at)
+    --- FAIL: TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-fixed (0.41s)
+        created_at_preservation_test.go:285: close-fixed: WIT-001|Fixed|section created_at "2026-11-13 20:32:22", want "2020-01-01 01:01:01" (CON-339: the command rewrote created_at)
+    --- FAIL: TestCON339_CreatedAtPreservedByEveryMutatingCommand/close-completed (0.49s)
+        created_at_preservation_test.go:285: close-completed: WIT-002|Fixed|section created_at "2026-11-13 20:32:23", want "2020-02-02 02:02:02" (CON-339: the command rewrote created_at)
+    --- FAIL: TestCON339_CreatedAtPreservedByEveryMutatingCommand/sync-roundtrip (0.64s)
+        created_at_preservation_test.go:285: sync-roundtrip: WIT-001|Issues|section created_at "2026-11-13 20:32:31", want "2020-01-01 01:01:01" (CON-339: the command rewrote created_at)
+        created_at_preservation_test.go:285: sync-roundtrip: WIT-002|Issues|section created_at "2026-11-13 20:32:31", want "2020-02-02 02:02:02" (CON-339: the command rewrote created_at)
+        created_at_preservation_test.go:285: sync-roundtrip: WIT-004|Issues|section created_at "2026-11-13 20:32:31", want "2020-04-04 04:04:04" (CON-339: the command rewrote created_at)
+        created_at_preservation_test.go:285: sync-roundtrip: WIT-003|Fixed|section created_at "2026-11-13 20:32:31", want "2020-03-03 03:03:03" (CON-339: the command rewrote created_at)
+add: created WIT-001 (Bug, status=Queued) in Issues
+add: created WIT-002 (Task, status=Queued) in Issues
+add: created WIT-003 (Bug, status=Queued) in Issues
+add: created WIT-004 (Task, status=Queued) in Issues
+close: moved WIT-003 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/WIT-003-close.md)
+close: moved WIT-001 Issues→Fixed (status=Obsolete (→ Fixed.md), evidence=qa/con339/md-move.md)
+add: created WIT-006 (Task, status=Queued) in Issues
+wrote <scratch>/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt1406250304/004/Issues.md (530 bytes)
+wrote <scratch>/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt1406250304/004/Fixed.md (473 bytes)
+<scratch>/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt1406250304/004/Issues.md: 3 items, 3 segments
+<scratch>/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt1406250304/004/Fixed.md: 2 items, 2 segments
+synced 5 total items into <scratch>/gotmp/TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt1406250304/001/workable_items.db
+--- FAIL: TestCON339_MDToDBMoveAcrossDocumentsKeepsCreatedAt (0.55s)
+    created_at_preservation_test.go:360: WIT-001 moved Issues->Fixed by md-to-db: created_at "2026-11-13 20:32:32", want "2020-01-01 01:01:01"
+    created_at_preservation_test.go:364: WIT-002: created_at "2026-11-13 20:32:32", want "2020-02-02 02:02:02"
+    created_at_preservation_test.go:364: WIT-004: created_at "2026-11-13 20:32:32", want "2020-04-04 04:04:04"
+    created_at_preservation_test.go:368: WIT-003: created_at "2026-11-13 20:32:32", want "2020-03-03 03:03:03"
+--- FAIL: TestCON339_CommandEnumerationGuard (0.00s)
+    created_at_preservation_test.go:486: classified subcommand "restore-created-at" is not dispatched by main()
+--- FAIL: TestCON339_ItemsWriteSitesCarryCreatedAt (0.16s)
+    created_at_preservation_test.go:569: crud.go: closeCmd: INSERT INTO items without created_at re-stamps the column default (CON-339)
+    created_at_preservation_test.go:569: db.go: replaceDocument: INSERT INTO items without created_at re-stamps the column default (CON-339)
+    created_at_preservation_test.go:586: DELETE FROM items in replaceDocument: a delete-and-recreate writer must carry created_at and be listed here after review
+    created_at_preservation_test.go:591: BLIND: expected a DELETE FROM items in replaceDocumentWithSnapshot and found none (the scan or the allow-list is stale)
+FAIL
+FAIL	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	10.725s
+FAIL
+exit=1

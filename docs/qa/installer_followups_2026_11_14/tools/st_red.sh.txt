@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Runs the gate on the real pair (G0) and on the three ST-* stale-entry mutants; prints rc per case.
+# usage: st_red.sh REPO OUTDIR
+set -uo pipefail
+repo="${1:?}"; out="${2:?}"; mkdir -p "$out"; out="$(cd "$out" && pwd)"
+w="$(mktemp -d "$out/st.XXXXXX")"
+g="$repo/scripts/gates/cm_installer_no_push_no_force.sh"
+mk() { mkdir -p "$w/$1"; cp "$repo/scripts/install_constitution.sh" "$repo/scripts/update_constitution.sh" "$w/$1/"; }
+sub() { OLD="$3" NEW="$4" python3 -I -c 'import os,sys
+p=sys.argv[1]; s=open(p).read(); assert s.count(os.environ["OLD"])==1, s.count(os.environ["OLD"]); open(p,"w").write(s.replace(os.environ["OLD"], os.environ["NEW"], 1))' "$w/$1/$2"; }
+mk G0
+mk ST-1; sub ST-1 update_constitution.sh "| awk 'NR <= 20' |" "| awk 'NR <= 10' |"
+mk ST-2; sub ST-2 install_constitution.sh ' && chmod 600 "$log" "$log.stderr" ||' ' ||'
+mk ST-4; sub ST-4 install_constitution.sh ' && cp -p -- "$dir/files/$norm" "$rootabs/$norm" &&' ' &&'
+mk ST-3; sub ST-3 install_constitution.sh '  hi_gx -C "$stage" config helix-installer.clone true || return 1' '  true || return 1'
+for c in G0 ST-1 ST-2 ST-3 ST-4; do
+  o="$(bash "$g" --file "$w/$c/install_constitution.sh" --file "$w/$c/update_constitution.sh" 2>&1)"; rc=$?
+  printf '%s\trc=%s\t%s\n' "$c" "$rc" "$(printf '%s\n' "$o" | grep -F -e 'no longer used' -e 'PASS' -e 'FAIL (' | head -3 | tr '\n' ' ')"
+done

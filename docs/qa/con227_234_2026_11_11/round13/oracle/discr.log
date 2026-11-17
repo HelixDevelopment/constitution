@@ -1,0 +1,21 @@
+MR1_compgen_W_X
+  orig:   CAUGHT	D1_compgen_W	gate_rc=1/1	bash_rc=1	leak=1	ctrl=1		FINDING compgen with -C, -F, -W, -X or an argument the gate cannot read (they run code): fx.sh:3 | compgen -W
+  mutant: BYPASS	D1_compgen_W	gate_rc=0/0	bash_rc=1	leak=1	ctrl=1
+MR2_mapfile_C_combined
+  orig:   CAUGHT	D2_mapfile_tC	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING mapfile assigns a name the gate cannot read: fx.sh:3 'git fetch origin' | mapfile -tC 'git fetch origi
+  mutant: CAUGHT	D2_mapfile_tC	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING mapfile assigns a name the gate cannot read: fx.sh:3 'git fetch origin' | mapfile -tC 'git fetch origi
+MR3_declare_n_combined
+  orig:   CAUGHT	D3_declare_gn_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING declare -n (a name reference can alias any variable): fx.sh:3 | declare -gn r=PATH
+  mutant: BYPASS	D3_declare_gn_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1
+MR6_sqlite_nonce_allowed
+  orig:   CAUGHT	D6_sqlite_nonce	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING sqlite3 that can run a command: fx.sh:3 (the option -nonce) | printf '.nonce zz\n.system git fetch ori
+  mutant: BYPASS	D6_sqlite_nonce	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1
+MR7_awk_attached_f
+  orig:   CAUGHT	D7_awk_attached_f	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING awk program that can run a command: fx.sh:3 (the option -f/dev/stdin (-f, -e, -E, -i, -l and the long
+  mutant: BYPASS	D7_awk_attached_f	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1
+MR8_read_r_eats_name
+  orig:   CAUGHT	D8_read_r_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING assignment to PATH (it changes how a command is found or run): fx.sh:3 | read -r PATH <<<"$PWD/evil"
+  mutant: BYPASS	D8_read_r_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1
+MR9_sort_long_opt_needs_eq
+  orig:   CAUGHT	D9_sort_compress_sep	gate_rc=1/1	bash_rc=0	leak=214	ctrl=1		FINDING sort that can run a command: fx.sh:3 (the long option --compress-program (--compress-program and its p
+  mutant: BYPASS	D9_sort_compress_sep	gate_rc=0/0	bash_rc=0	leak=215	ctrl=1

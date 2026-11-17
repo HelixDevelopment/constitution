@@ -1,0 +1,322 @@
+### B1r wiring-file path injection, current relative format
+  ok   no traceback: unwire --agent all
+  ok   B1r unwire with ../ outside entry refused
+  ok   B1r outside victim survives
+  ok   no traceback: verify
+  ok   B1r verify refuses planted relative wiring (5)
+  ok   no traceback: unwire --agent all
+  ok   B1r in-project non-shim relative path refused
+  ok   B1r project README survives
+  ok   no traceback: unwire --agent all
+  ok   B1r relative foreign symlink target refused
+  ok   B1r foreign link survives
+  ok   no traceback: unwire --agent all
+  ok   B1r marked file at a non-shim path refused (5)
+  ok   B1r refusal names the shim-path rule
+  ok   B1r marked non-shim file survives
+### B1 wiring-file path injection
+  ok   no traceback: unwire --agent all
+  ok   B1 unwire with planted outside entry refused (nonzero)
+  ok   B1 outside victim survives unwire
+  ok   B1 message names the wiring file
+  ok   no traceback: verify
+  ok   B1 verify refuses planted wiring (5)
+  ok   no traceback: unwire --agent all
+  ok   B1 in-project non-shim path refused
+  ok   B1 project README survives
+  ok   no traceback: unwire --agent all
+  ok   B1 hostile command name in wiring refused
+  ok   B1 shim-shaped file survives hostile-name entry
+  ok   no traceback: unwire --agent all
+  ok   B1 symlink entry with foreign target refused
+  ok   B1 foreign link survives
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/b1ext --waiver-id WB1 --yes
+  ok   B1 setup add
+  ok   no traceback: remove a1 --yes
+  ok   B1 remove with planted entry refused
+  ok   B1 victim survives remove
+  ok   no traceback: disable a1
+  ok   B1 disable with planted entry refused
+  ok   B1 victim survives disable
+  ok   no traceback: remove a1 --yes
+  ok   B1 cleanup remove
+  ok   no traceback: enable hello-fixture --yes
+  ok   B1 enable bundled
+  ok   no traceback: wire --agent opencode --target <tmp>/helix-ext-test.G6SEuY/outdir
+  ok   B1 wire --target outside project refused (3)
+  ok   B1 nothing written outside
+  ok   no traceback: wire --agent gemini --target <tmp>/helix-ext-test.G6SEuY/proj
+  ok   B1 wire through symlinked agent dir refused (3)
+  ok   B1 nothing written through the symlink
+  ok   no traceback: wire --agent all --target <tmp>/helix-ext-test.G6SEuY/proj
+  ok   B1 normal wire still works
+  ok   no traceback: verify
+  ok   B1 verify after normal wire
+  ok   no traceback: unwire --agent all --target <tmp>/helix-ext-test.G6SEuY/proj
+  ok   B1 normal unwire
+  ok   B1 normal unwire removed the shim
+### B2 journal path injection
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/b2ext --waiver-id WB2 --yes
+  ok   B2 setup add
+  ok   no traceback: list
+  ok   B2 list with unbound journal rc 0
+  ok   B2 a7 survives unbound journal
+  ok   B2 loud message about the journal
+  ok   no traceback: verify a7
+  ok   B2 a7 still verifies
+  ok   no traceback: list
+  ok   B2 a7 survives non-object journal
+  ok   B2 non-object journal reported
+  ok   no traceback: list
+  ok   B2 a7 survives garbage journal
+  ok   no traceback: list
+  ok   B2 aux outside _installed not touched
+  ok   B2 a7 survives
+  ok   no traceback: list
+  ok   B2 aux naming another extension not deleted
+  ok   no traceback: list
+  ok   B2 add journal with different sha never deletes a locked tree
+  ok   no traceback: verify a7
+  ok   B2 a7 verifies after all planted journals
+  ok   B2 generated .gitignore exists
+  ok   B2 .gitignore lists the journal
+  ok   B2 .gitignore lists tmp files
+  ok   B2 .gitignore lists the local state
+  ok   no traceback: remove a7 --yes
+  ok   B2 cleanup
+### B3 concurrent add of the same id with different content
+  ok   B3 n=2 round 1: exactly one winner
+  ok   B3 n=2 round 1: no traceback
+  ok   B3 n=2 round 1: verify rc 0
+  ok   B3 n=2 round 1: no journal left
+  ok   B3 n=2 round 1: cleanup
+  ok   B3 n=2 round 2: exactly one winner
+  ok   B3 n=2 round 2: no traceback
+  ok   B3 n=2 round 2: verify rc 0
+  ok   B3 n=2 round 2: no journal left
+  ok   B3 n=2 round 2: cleanup
+  ok   B3 n=2 round 3: exactly one winner
+  ok   B3 n=2 round 3: no traceback
+  ok   B3 n=2 round 3: verify rc 0
+  ok   B3 n=2 round 3: no journal left
+  ok   B3 n=2 round 3: cleanup
+  ok   B3 n=2 round 4: exactly one winner
+  ok   B3 n=2 round 4: no traceback
+  ok   B3 n=2 round 4: verify rc 0
+  ok   B3 n=2 round 4: no journal left
+  ok   B3 n=2 round 4: cleanup
+  ok   B3 n=8 round 1: exactly one winner
+  ok   B3 n=8 round 1: no traceback
+  ok   B3 n=8 round 1: verify rc 0
+  ok   B3 n=8 round 1: no journal left
+  ok   B3 n=8 round 1: cleanup
+  ok   B3 n=8 round 2: exactly one winner
+  ok   B3 n=8 round 2: no traceback
+  ok   B3 n=8 round 2: verify rc 0
+  ok   B3 n=8 round 2: no journal left
+  ok   B3 n=8 round 2: cleanup
+  ok   B3 n=8 round 3: exactly one winner
+  ok   B3 n=8 round 3: no traceback
+  ok   B3 n=8 round 3: verify rc 0
+  ok   B3 n=8 round 3: no journal left
+  ok   B3 n=8 round 3: cleanup
+### B4 embedded git repositories
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/b4a --waiver-id W --yes
+  ok   B4 nested .git refused (3)
+  ok   B4 not installed
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/b4a --dev --waiver-id W --yes
+  ok   B4 nested .git refused with --dev (3)
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/b4b --waiver-id W --yes
+  ok   B4 .GIT (case) refused (3)
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/b4c --waiver-id W --yes
+  ok   B4 bare-repo triple refused (3)
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/b4drepo --waiver-id W --yes
+  ok   B4 local git repo as source installs via git path
+  ok   B4 installed git source has no .git
+  ok   no traceback: remove b4d --yes
+  ok   B4 fsmonitor never ran
+### I1 credentials in source URLs
+  ok   no traceback: add https://user:<fake_token:gh>@example.invalid/x.git --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --yes
+  ok   I1 userinfo URL refused (3)
+  ok   I1 token not echoed
+  ok   no traceback: add https://<fake_token:gh>@example.invalid/x.git --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --yes
+  ok   I1 token-as-user refused (3)
+  ok   no traceback: add https://example.invalid/x.git?t=<fake_token:gh> --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --yes
+  ok   I1 secret-shaped URL refused (3)
+  ok   I1 token not echoed (query)
+  ok   I1 token never in lock
+  ok   no traceback: catalog <tmp>/helix-ext-test.G6SEuY/cat_cred.json
+  ok   I1 catalog URL with userinfo refused (1)
+  ok   I1 catalog token not echoed
+### I2 git environment and config scrubbing
+  ok   no traceback: add file://<tmp>/helix-ext-test.G6SEuY/i2repo --sha 84f8b32fd912e825721a8dd40ab9aba432d84509 --sha256 1b15e0a21770ba0eca5af4a776b5138c2519796fed35fb8feed10a73807b134f --yes
+  ok   I2 install with hostile global filter ok
+  ok   I2 global filter driver never ran
+  ok   no traceback: remove i2 --yes
+  ok   I2 inherited GIT_DIR does not misdirect (install ok)
+  ok   no traceback: I2 GIT_DIR
+  ok   I2 installed from the right repo
+  ok   I2 project repo untouched
+  ok   no traceback: remove i2c --yes
+  ok   no traceback: add file://<tmp>/helix-ext-test.G6SEuY/i2srepo --sha 42366649bd04335e6037ccccb70c45bca4cd89e9 --waiver-id WI2S --yes
+  ok   I2 symlink blob in git source refused (3)
+  ok   I2 symlink source not installed
+### I3 lock tampering against the local state record
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/i3 --waiver-id WI3 --yes
+  ok   I3 setup add
+  ok   no traceback: verify i3
+  ok   I3 untampered verifies
+  ok   no traceback: verify i3
+  ok   I3 tampered enabled fails verify (5)
+  ok   I3 enabled message is precise
+  ok   no traceback: verify i3
+  ok   I3 tampered consent fails verify (5)
+  ok   I3 consent message is precise
+  ok   no traceback: verify i3
+  ok   I3 tampered waiver fails verify (5)
+  ok   I3 waiver message is precise
+  ok   no traceback: verify i3
+  ok   I3 tampered source fails verify (5)
+  ok   I3 source message is precise
+  ok   no traceback: verify i3
+  ok   I3 restored lock verifies
+  ok   no traceback: verify i3
+  ok   I3 missing state record fails verify (5)
+  ok   I3 names the state record
+  ok   no traceback: verify i3
+  ok   I3 record forged without the key fails verify (5)
+  ok   no traceback: verify i3
+  ok   I3 lock+record forged consistently without the key fails verify (5)
+  ok   I3 consistent forgery named as integrity failure
+  ok   I3 key file mode 0600
+  ok   I3 state dir ignored by git
+  ok   I3 lock not ignored by git
+### RM1 transport helpers inside an otherwise allowed URL
+  ok   no traceback: add file://<tmp>/helix-ext-test.G6SEuY/x::y --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --yes
+  ok   RM1 '::' refused (3)
+  ok   RM1 names transport helpers
+### RM6 consent without a terminal and without CONSTITUTION_EXT_NO_TTY
+  ok   RM6 no tty, no --yes refused (3)
+  ok   RM6 says consent
+  ok   RM6 not installed
+### RM7 file names starting with '-'
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/rm7 --waiver-id W7 --yes
+  ok   RM7 leading-dash file refused (3)
+### MINOR hardlinks, huge integers, bidi/C1, trust tier, symlinked state, dir count
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/hl --waiver-id W --yes
+  ok   hardlinked file refused (3)
+  ok   hardlink not installed
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/hi
+  ok   5000-digit integer: clean failure (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/hv
+  ok   5000-digit semver: clean failure (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/hc
+  ok   5000-digit constraint: clean failure (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/bd
+  ok   bidi override refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/bd2
+  ok   bidi override in a text field refused (1)
+  ok   names bidi
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/c1
+  ok   C1 control refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/tt
+  ok   self-declared builtin trust tier refused (1)
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/tc --waiver-id W --yes
+  ok   trust: add
+  ok   installed trust tier assigned by engine
+  ok   bundled trust tier assigned by engine
+  ok   no traceback: remove tcm --yes
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/dc
+  ok   too many directories refused (1)
+  ok   no traceback: symlock
+  ok   symlinked lock: add fails
+  ok   symlinked lock target untouched
+  ok   no traceback: symstate
+  ok   symlinked state dir refused
+  ok   nothing written through symlinked state dir
+  ok   no traceback: symaudit
+  ok   symlinked audit log target untouched
+  ok   no traceback: symread
+  ok   lock read through a symlink refused (5)
+### MINOR test seams and version override outside a sandbox
+  ok   kill seam inert without the sandbox nonce (add completes)
+  ok   no traceback: remove ts --yes
+  ok   version override refused outside a test sandbox (3)
+  ok   version override warning is loud
+  ok   kill seam inert outside the sandbox even with the nonce env
+### MINOR catalog robustness and revocation retention
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/cj --waiver-id W --yes
+  ok   corrupt catalog: add fails cleanly
+  ok   no traceback: verify
+  ok   corrupt catalog: verify fails cleanly
+  ok   no traceback: catalog <tmp>/helix-ext-test.G6SEuY/cr1.json
+  ok   catalog with revocation imported
+  ok   no traceback: catalog <tmp>/helix-ext-test.G6SEuY/cr2.json
+  ok   second catalog imported
+  ok   kept revocations reported
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/cj --waiver-id W --yes
+  ok   previous revocation still honoured (3)
+  ok   no traceback: catalog <tmp>/helix-ext-test.G6SEuY/cr2.json --replace
+  ok   explicit --replace
+  ok   --replace warns about dropped revocations
+  ok   no traceback: add <tmp>/helix-ext-test.G6SEuY/cj --waiver-id W --yes
+  ok   add after explicit replace
+  ok   no traceback: remove cj --yes
+### MINOR wire never overwrites a user-edited recorded shim
+  ok   no traceback: wire hello-fixture --agent pi --target <tmp>/helix-ext-test.G6SEuY/proj
+  ok   wire pi
+  ok   no traceback: wire hello-fixture --agent pi --target <tmp>/helix-ext-test.G6SEuY/proj
+  ok   re-wire over user-edited shim refused (3)
+  ok   user edit preserved
+  ok   no traceback: unwire --agent pi --target <tmp>/helix-ext-test.G6SEuY/proj
+### MINOR YAML 1.1 ambiguous scalars
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [010] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [0x10] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [yes] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [No] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [on] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [1.0] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [1_000] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [2026-10-29] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [.inf] refused (1)
+  ok   no traceback: validate <tmp>/helix-ext-test.G6SEuY/ya
+  ok   ambiguous plain scalar [+5] refused (1)
+### EXTRA shim directory symlinked out of the project (R11 contained)
+  ok   no traceback: unwire --agent all
+  ok   EXTRA unwire through symlinked shim dir refused
+  ok   EXTRA outside file survives
+  ok   no traceback: unwire --agent all
+  ok   EXTRA relative unwire through symlinked shim dir refused
+  ok   EXTRA outside file survives relative entry
+  ok   no traceback: unwire --agent all
+  ok   EXTRA marked outside file behind symlinked shim dir refused (5)
+  ok   EXTRA refusal names the containment rule
+  ok   EXTRA marked outside file survives
+### EXTRA tampered lock entries cannot be wired, enabled or laundered (R17)
+  ok   no traceback: enable hello-fixture --yes
+  ok   EXTRA enable bundled
+  ok   no traceback: lock
+  ok   no traceback: verify hello-fixture
+  ok   EXTRA lock does not launder a tampered bundled entry (5)
+  ok   no traceback: wire i3 --agent pi --target <tmp>/helix-ext-test.G6SEuY/proj
+  ok   EXTRA wire refuses a tampered entry
+  ok   EXTRA no shim for tampered entry
+  ok   no traceback: enable i3 --yes
+  ok   EXTRA enable refuses over a tampered entry (5)
+  ok   no traceback: lock
+  ok   EXTRA lock reports (not launders) a changed installed tree
+  ok   no traceback: verify i3
+  ok   EXTRA changed installed tree still fails verify (5)
+  ok   no traceback: verify
+  ok   EXTRA restored lock verifies
+  ok   extension code never executed
+attacks: PASS 303 FAIL 0

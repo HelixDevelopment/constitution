@@ -1,0 +1,7 @@
+test_redact_cut	0	27s	435	0	RESULT: pass=435 fail=0	b3b76270642d8991
+test_channel_census	0	37s	68	0	RESULT: pass=68 fail=0	fec4b492c2cbbd7b
+test_derive_release_facts	0	38s	109	0	RESULT: pass=109 fail=0	87b6dcc150914c3e
+test_publish_gitea	0	23s	167	0	RESULT pass=167 fail=0	4b44c16d96a6cb79
+test_tag_and_release	0	201s	310	0	RESULT: pass=310 fail=0	4cfc71e5e2a1178a
+test_render_release_entry	0	2s	19	0	RESULT: pass=19 fail=0	d1e6eed27a7d90b9
+DONE

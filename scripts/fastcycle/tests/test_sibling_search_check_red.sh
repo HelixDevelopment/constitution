@@ -67,9 +67,11 @@
 
 set -u
 
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
 REPO_ROOT=$(cd "$FC/../../.." && pwd)
+FC_CANON_ROOT=$(cd "$FC/../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
 TOOL="$FC/closure/sibling_search_check.sh"
 FIXDIR="$HERE/fixtures/sibling_search_check"
 HARNESS="$HERE/lib/triple_harness.sh"
@@ -137,7 +139,7 @@ fi
 # Section C's real tool invocations -- it only proves the mechanism T096's
 # implementer will validate artefacts OF is sound.
 # =============================================================================
-WI_DIR="$REPO_ROOT/constitution/scripts/workable-items/cmd/workable-items"
+WI_DIR="$FC_CANON_ROOT/scripts/workable-items/cmd/workable-items"
 if [ ! -d "$WI_DIR" ]; then
     bad "self-check FAILED: $WI_DIR does not exist -- the control needle"
     echo "   every fixture in $FIXDIR cites (crud.go:requireEvidencePath)"

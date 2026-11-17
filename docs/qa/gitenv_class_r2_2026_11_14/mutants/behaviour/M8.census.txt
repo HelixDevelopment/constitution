@@ -1,0 +1,2 @@
+git-env-class-census: FAIL - UNSCRUBBED scripts/full_suite/run_full_suite.py (line 1596): python scrub at line 44 is not effective (not the top-level `_ge_os.environ.pop` form)
+git-env-class-census: FAIL - members=133 hermetic=129 exempt=3 unscrubbed=1

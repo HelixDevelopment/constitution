@@ -1,0 +1,9 @@
+  ok   baseline selftest PASS
+  killed  G1_top_level_disabled (needle BAD  pos_new_top_file (want fail got pass))
+  killed  G2_scoping_removed (needle BAD  neg_other_stream (want pass got fail))
+  killed  G3_artefacts_disabled (needle BAD  pos_artefact_deep (want fail got pass))
+  killed  G4_block_region_disabled (needle BAD  pos_doc_block_added (want fail got pass))
+  killed  G5_docfull_always_compared (needle BAD  neg_doc_edit_by_owner (want pass got fail))
+  killed  G6_own_hashes_disabled (needle BAD  pos_own_changed (want fail got pass))
+  killed  G7_removed_own_ignored (needle BAD  pos_own_removed (want fail got pass))
+repo guard mutants: applied=7 killed=7 survived=0 not_applied=0

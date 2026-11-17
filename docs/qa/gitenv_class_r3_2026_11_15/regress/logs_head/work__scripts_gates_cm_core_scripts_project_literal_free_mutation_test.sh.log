@@ -1,0 +1,37 @@
+INFO: consumer regexes: built-in mirror (no consumer source given; see header)
+PASS: S2 WIDE_RE contains each of the 2 consumer regex(es) as a whole alternation member (superset by construction)
+PASS: S1 21 needles generated from the consumer regex(es), each matched by its source regex AND by WIDE_RE
+PASS: S1x WIDE_RE matches every extra-member needle (14, including the round-3 N3 forms)
+PASS: G0 control needle: injected org literal is seen by the scan
+PASS: N0 negative control: genericised look-alikes are not matched (hits 0 == 0)
+PASS: G* scripts/hooks/credential_scan_lib.sh is project-literal-free
+PASS: G* scripts/fastcycle/tokens/transcript_ingest.py is project-literal-free
+PASS: G* scripts/fastcycle/gates/lib/io_trace_build_map.py is project-literal-free
+PASS: G* scripts/gates/lib/covenant_propagation_engine.sh is project-literal-free
+PASS: G* scripts/gates/cm_version_increment_on_deploy_mutation_test.sh is project-literal-free
+PASS: G* scripts/gates/lib/covenant_propagation_mutation_engine.sh is project-literal-free
+PASS: G* scripts/gates/covenant_propagation_engine_compact_mutation_test.sh is project-literal-free
+PASS: G* scripts/gates/covenant_propagation_suite.sh is project-literal-free
+PASS: G* scripts/gates/covenant_propagation_suite_accounting_mutation_test.sh is project-literal-free
+PASS: G* scripts/gates/cm_constitution_index_fresh.sh is project-literal-free
+PASS: G* scripts/gates/cm_constitution_index_fresh_mutation_test.sh is project-literal-free
+PASS: G* scripts/gates/suite_verdict_set_check.sh is project-literal-free
+PASS: G* scripts/gates/suite_verdict_set_check_mutation_test.sh is project-literal-free
+PASS: G* scripts/hooks/test_credential_scan_lib_akia_literal_free.sh is project-literal-free
+PASS: G* scripts/hooks/test_credential_scan_lib_subsuite_mutation_test.sh is project-literal-free
+PASS: G* scripts/skill_activation/test_skill_activation.sh is project-literal-free
+PASS: M1 mutation caught in scripts/hooks/credential_scan_lib.sh
+PASS: M2 mutation caught in scripts/fastcycle/tokens/transcript_ingest.py
+PASS: M3 mutation caught in scripts/fastcycle/gates/lib/io_trace_build_map.py
+PASS: M4 mutation caught in scripts/fastcycle/tokens/transcript_ingest.py
+PASS: M5 mutation caught in scripts/fastcycle/gates/lib/io_trace_build_map.py
+PASS: M6 mutation caught in scripts/gates/lib/covenant_propagation_engine.sh
+PASS: M7 mutation caught in scripts/gates/cm_version_increment_on_deploy_mutation_test.sh
+PASS: M8 mutation caught in scripts/fastcycle/tokens/transcript_ingest.py
+PASS: M9 mutation caught in scripts/fastcycle/tokens/transcript_ingest.py
+PASS: M10 mutation caught in scripts/fastcycle/gates/lib/io_trace_build_map.py
+PASS: M11 mutation caught in scripts/gates/lib/covenant_propagation_engine.sh
+PASS: MC 21 consumer-regex needles, each injected into a guard-set copy, are caught by the scan
+PASS: CD consumer-data path: 11 directions demonstrated, RX7 + TK1 + TK5 caught, TK2-TK4 seen (fixture consumer)
+SUMMARY pass=34 fail=0
+CORE-SCRIPTS-LITERAL-FREE: PASS

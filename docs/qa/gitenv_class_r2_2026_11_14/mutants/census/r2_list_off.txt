@@ -1,0 +1,32 @@
+FAIL C1: census of this tree exit 2, members 'none' (want 0, PASS, >= 100): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2a: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2b: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2c: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2d: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2e: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2f: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2g: census exit 2 (want 0 and 'exempt=1'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2h: census exit 2 (want 1 and 'stale row'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2i: census exit 2 (want 1 and 'malformed'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2j: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2j2: census exit 2 (want 1 and 'discovery limit'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2k: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2l: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2m: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2m2: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2n: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2o: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2o2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2p: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2p2: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2q: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2r: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2s: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2s2: census exit 2 (want 1 and 'UNSCRUBBED scripts/x.sh'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2t: census exit 2 (want 0 and 'PASS'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2u: census exit 2 (want 1 and 'never clears'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2v: census exit 2 (want 1 and 'comes after the first git write'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+FAIL C2w: census exit 2 (want 1 and 'UNSCRUBBED scripts/y.py'): git-env-class-census: BLIND - control needle: sh scrub short: got True/HERMETIC, want True/UNSCRUBBED 
+ok   C3: census exit 2, 'BLIND'
+ok   C3b: census exit 2, 'holds the discovery limit GIT_CEILING_DIRECTORIES'
+[git-env-class] passed=2 failed=29 skipped=0 (census cases only)

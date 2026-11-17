@@ -215,7 +215,7 @@ main() {
     # scripts/lib/constitution_layout.sh CL_GIT_SCRUB_VARS (this engine file may
     # run without the lib; tests/layout/test_round8_git_env.sh checks equality).
     local _v _dropped=""
-    for _v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do
+    for _v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do
         if [ -n "${!_v+x}" ]; then _dropped="${_dropped:+$_dropped }$_v"; unset "$_v"; fi
     done
     [ -z "$_dropped" ] || printf '[constitution-sync] NOTICE: ignoring the ambient git environment (%s); each checkout is addressed by its own path.\n' "$_dropped" >&2

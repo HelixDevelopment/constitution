@@ -1,0 +1,354 @@
+[
+ {
+  "name": "D1_compgen_W",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncompgen -W '$(git fetch origin)' x\n"
+ },
+ {
+  "name": "D2_mapfile_tC",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nmapfile -tC 'git fetch origin' -c 1 a <<<x\n"
+ },
+ {
+  "name": "D2b_mapfile_C_attached",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nmapfile -Cgit -c 1 a <<<x\n"
+ },
+ {
+  "name": "D3_declare_gn_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ndeclare -gn r=PATH\nr=\"$PWD/evil\"\ncat /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "D6_sqlite_nonce",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nprintf '.nonce zz\\n.system git fetch origin\\n' | sqlite3 -safe -nonce zz :memory:\n"
+ },
+ {
+  "name": "D7_awk_attached_f",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk -f/dev/stdin /dev/null <<'A'\nBEGIN { system(\"git fetch origin\") }\nA\n"
+ },
+ {
+  "name": "D8_read_r_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nread -r PATH <<<\"$PWD/evil\"\ncat /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "D9_sort_compress_sep",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nfor ((i = 0; i < 20000; i++)); do echo \"$i\"; done | sort -S 1k -T . --compress-program ./cp.sh >/dev/null\n",
+  "files": {
+   "cp.sh": "#!/bin/bash\n@SB@/bin/git fetch origin\nexec cat\n"
+  }
+ },
+ {
+  "name": "MR5a_LD_LIBRARY_PATH_prefix",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nLD_LIBRARY_PATH=/x cat /dev/null\n"
+ },
+ {
+  "name": "MR5b_export_LD_AUDIT",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexport LD_AUDIT=/x/a.so\n"
+ },
+ {
+  "name": "MR10a_shopt_extdebug",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nshopt -s extdebug\n"
+ },
+ {
+  "name": "MR10b_set_o_extdebug",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nset -o extdebug\n"
+ },
+ {
+  "name": "O01_old_arith_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n: $[PATH=0]\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "O02_for_arith_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nfor ((PATH=0; 0; )); do :; done\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "O03_function_keyword",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nfunction f { :; }\nf\n"
+ },
+ {
+  "name": "O04_background",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncat /dev/null &\nwait\n"
+ },
+ {
+  "name": "O05_pipe_stderr",
+  "body": "#!/usr/bin/env bash\nrc_net git status\necho x |& cat\n"
+ },
+ {
+  "name": "O06_heredoc_comsub",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncat <<E\n$(git fetch origin)\nE\n"
+ },
+ {
+  "name": "O07_backtick_escaped_nested",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nx=`echo \\`git fetch origin\\``\n"
+ },
+ {
+  "name": "O08_locale_string_comsub",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nx=$\"$(git fetch origin)\"\n"
+ },
+ {
+  "name": "O09_cond_eq_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n[[ 1 -eq PATH=0 ]]\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "O10_cond_v_subscript",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n[[ -v 'a[PATH=0]' ]]\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "O11_param_replace_comsub",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nx=${y/a/$(git fetch origin)}\n"
+ },
+ {
+  "name": "O12_param_P_transform",
+  "body": "#!/usr/bin/env bash\nrc_net git status\np='$(git fetch origin)'\nx=${p@P}\n"
+ },
+ {
+  "name": "O13_compgen_V",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncompgen -V a x\n"
+ },
+ {
+  "name": "O14_hash_p",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nhash -p @SB@/bin/git cat\ncat /dev/null\n"
+ },
+ {
+  "name": "O15_command_p",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncommand -p true\n"
+ },
+ {
+  "name": "O16_CDPATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nCDPATH=/x\n"
+ },
+ {
+  "name": "O17_BASH_ARGV0",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nBASH_ARGV0=x\n"
+ },
+ {
+  "name": "O18_POSIXLY_CORRECT",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nPOSIXLY_CORRECT=1\n"
+ },
+ {
+  "name": "O19_indirect_default_assign",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nn=ZZ\n: \"${!n:=1}\"\n"
+ },
+ {
+  "name": "O20_arith_name_holds_assignment",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nn='PATH=0'\n: $((n+1))\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "O21_nested_function",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nf() { g() { :; }; }\nf\n"
+ },
+ {
+  "name": "O22_call_before_definition",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ng\ng() { :; }\n"
+ },
+ {
+  "name": "O23_duplicate_definition",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ng() { :; }\ng() { :; }\ng\n"
+ },
+ {
+  "name": "O24_function_named_like_builtin",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nread() { :; }\n"
+ },
+ {
+  "name": "O25_sqlite_safe_not_first",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nsqlite3 -batch -safe :memory: 'select 1'\n"
+ },
+ {
+  "name": "O26_unpinned_awk",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk '{print $2}' /dev/null\n"
+ },
+ {
+  "name": "O27_unpinned_sed",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nsed 's/a/b/' /dev/null\n"
+ },
+ {
+  "name": "O28_sort_compress_attached",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nsort --compress-program=./cp.sh /dev/null\n"
+ },
+ {
+  "name": "O29_exec_program",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexec cat /dev/null\n"
+ },
+ {
+  "name": "O30_printf_v_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nprintf -v PATH %s @SB@/evil\ncat /dev/null\n",
+  "files": {
+   "evil/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "O31_printf_dynamic_format",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nf=%s\nprintf \"$f\" x\n"
+ },
+ {
+  "name": "O32_trap_USR1",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ntrap ':' USR1\n"
+ },
+ {
+  "name": "O33_shopt_expand_aliases",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nshopt -s expand_aliases\n"
+ },
+ {
+  "name": "O34_set_o_posix",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nset -o posix\n"
+ },
+ {
+  "name": "O35_unset_f_rc_net",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nunset -f rc_net\n"
+ },
+ {
+  "name": "O36_declare_n",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ndeclare -n r=PATH\n"
+ },
+ {
+  "name": "O37_local_i",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nf() { local -i x; }\nf\n"
+ },
+ {
+  "name": "O38_read_a",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nread -a arr <<<x\n"
+ },
+ {
+  "name": "O39_redirect_read_write",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexec 3<>/dev/null\n"
+ },
+ {
+  "name": "O40_redirect_both",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncat /dev/null &>/dev/null\n"
+ },
+ {
+  "name": "O41_redirect_fd_variable",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexec {fd}</dev/null\n"
+ },
+ {
+  "name": "O42_process_substitution",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncat <(git fetch origin)\n"
+ },
+ {
+  "name": "O43_subscript_assigns_PATH",
+  "body": "#!/usr/bin/env bash\nrc_net git status\na[PATH=0]=1\ncat /dev/null\n",
+  "files": {
+   "0/cat": "#!/bin/bash\n@SB@/bin/git fetch origin\n"
+  }
+ },
+ {
+  "name": "O44_exec_fd5",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexec 5>/dev/null\n"
+ },
+ {
+  "name": "O45_dev_tcp",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexec 3<>/dev/tcp/127.0.0.1/@PORT@\n",
+  "listen": true
+ },
+ {
+  "name": "O46_alias",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nalias cat='git fetch origin'\n"
+ },
+ {
+  "name": "O47_source_other",
+  "body": "#!/usr/bin/env bash\nrc_net git status\n. ./x.sh\n",
+  "files": {
+   "x.sh": "git fetch origin\n"
+  }
+ },
+ {
+  "name": "O48_eval",
+  "body": "#!/usr/bin/env bash\nrc_net git status\neval 'git fetch origin'\n"
+ },
+ {
+  "name": "O49_enable",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nenable -n cat\n"
+ },
+ {
+  "name": "O50_IFS_dynamic",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nIFS=\"$x\"\n"
+ },
+ {
+  "name": "O51_export_BASH_ENV",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexport BASH_ENV=@SB@/e.sh\n"
+ },
+ {
+  "name": "O52_LD_PRELOAD_prefix",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nLD_PRELOAD=/x cat /dev/null\n"
+ },
+ {
+  "name": "O53_ENV",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nENV=/x\n"
+ },
+ {
+  "name": "O54_sqlite_init",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nsqlite3 -safe -init /dev/null :memory: 'select 1'\n"
+ },
+ {
+  "name": "O55_type_p",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ntype -p git\n"
+ },
+ {
+  "name": "O56_coproc",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ncoproc git fetch origin\n"
+ },
+ {
+  "name": "O57_select",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nselect x in a; do break; done </dev/null\n"
+ },
+ {
+  "name": "O58_fd_name_written_text",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nFD=/dev/tcp/127.0.0.1/@PORT@\necho x >&\"$FD\"\n",
+  "listen": true
+ },
+ {
+  "name": "O59_GCONV_prefix",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nGCONV_PATH=/x cat /dev/null\n"
+ },
+ {
+  "name": "O60_trap_action_function_late",
+  "body": "#!/usr/bin/env bash\nrc_net git status\ntrap g EXIT\ng() { :; }\n"
+ },
+ {
+  "name": "O61_name_not_on_pin",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nZZTOKEN=v\n"
+ },
+ {
+  "name": "O62_awk_pinned_operand_inet",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk '$2==t{print $1; exit}' /inet/tcp/0/127.0.0.1/@PORT@\n",
+  "listen": true
+ },
+ {
+  "name": "O63_sed_e_option",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nsed -e 's/a/b/' /dev/null\n"
+ },
+ {
+  "name": "O64_builtin_builtin",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nbuiltin builtin true\n"
+ },
+ {
+  "name": "O65_awk_v_escape",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk -vt='\\151net' '$2==t{print $1; exit}' /dev/null\n"
+ },
+ {
+  "name": "O66_arith_increment",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nx=1\n: $((x++))\n"
+ },
+ {
+  "name": "O67_indirect_plain",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nn=PATH\necho \"${!n}\"\n"
+ }
+]

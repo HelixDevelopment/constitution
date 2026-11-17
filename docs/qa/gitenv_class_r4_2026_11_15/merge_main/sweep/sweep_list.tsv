@@ -1,0 +1,15 @@
+census_print_sites	300	none,both	python3	docs/qa/con227_234_2026_11_11/round5/census_print_sites.py	.
+make_spawn_sites	300	none,both	python3	docs/qa/con227_234_2026_11_11/round11/make_spawn_sites.py
+channel_census_lint	300	none,both	python3	tests/release/channel_census.py	lint	tests/release/channels.tsv	scripts/release/tag_and_release.sh	scripts/release/derive_release_facts.sh	scripts/release_publish_gitea.sh	scripts/release/redact_cut.sh
+created_at_runner_list	300	none,both	python3	scripts/workable-items/mutation/created_at_r2_mutation_runner.py	--list
+apply_restore_plan_noargs	120	none,both	bash	docs/qa/engine_created_at_2026_11_13/apply_restore_plan.sh
+test_redact_cut	1200	none,both	bash	tests/release/test_redact_cut.sh
+test_channel_census	1200	none,both	bash	tests/release/test_channel_census.sh
+test_derive_release_facts	1200	none,both	bash	tests/release/test_derive_release_facts.sh
+test_tag_and_release	1800	none,both	bash	tests/release/test_tag_and_release.sh
+test_publish_gitea	1800	none,both	bash	tests/release/test_publish_gitea.sh
+test_land_vehicle	1800	none,both	bash	tests/release/test_land_vehicle.sh
+test_sigpipe	1200	none,both	bash	tests/install/test_sigpipe.sh
+test_timeout_tty	1200	none,both	bash	tests/install/test_timeout_tty.sh
+test_apply_restore_plan	1200	none,both	bash	docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh
+test_release_tooling_mutations	3600	none	bash	tests/release/test_release_tooling_mutations.sh

@@ -1,0 +1,4 @@
+# github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items
+# [github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items]
+vet: cmd/workable-items/created_at_r2_test.go:518:21: undefined: rcaBeforeWriteHook
+exit=1

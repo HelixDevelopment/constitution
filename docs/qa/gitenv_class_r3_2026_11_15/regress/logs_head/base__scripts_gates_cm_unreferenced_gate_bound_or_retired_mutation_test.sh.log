@@ -1,0 +1,16 @@
+── NEG  negative control: every gate bound or cited-retired ───────────
+PASS  NEG -> ALLOW (rc=0): the sweep is not a refuse-everything engine
+── M1  strip the retirement citation ──────────────────────────────────
+PASS  M1 mutant -> REFUSE (rc=2) naming cm_retired.sh + the missing citation — the anti-gaming assertion flipped
+── M1b malformed citation: prose with no commit id ────────────────────
+PASS  M1b mutant -> REFUSE (rc=2): prose is not a citation, so there is no placeholder escape
+── M2  a fixture gate with neither record ─────────────────────────────
+PASS  M2 mutant -> REFUSE (rc=2) NAMING cm_no_record_at_all.sh
+── M3  SOURCE: neutralise the citation VALIDATION on a copy ───────────
+PASS  M3 mutation applied to the COPY (citation validation neutralised; repo untouched)
+PASS  M3 mutated copy still parses (the flip is behavioural, not a syntax error)
+PASS  M3 mutant -> the citation refusal DISAPPEARS (rc=0): M1's flip is caused by the citation check itself
+── §11.4.84 residue check ─────────────────────────────────────────────
+PASS  the real gate is byte-identical before/after (cksum 1442160320 29502) — no mutation residue
+
+cm_unreferenced_gate_bound_or_retired_mutation_test.sh: pass=8 fail=0

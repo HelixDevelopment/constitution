@@ -1,0 +1,13 @@
+empty_empty: same old=[rc=1 z=0 int_err=0] new=[rc=1 z=0 int_err=0] old5_identical=y new5_identical=y
+empty_S: same old=[rc=0 z=0 int_err=0] new=[rc=0 z=0 int_err=0] old5_identical=y new5_identical=y
+S_empty: same old=[rc=0 z=0 int_err=0] new=[rc=0 z=0 int_err=0] old5_identical=y new5_identical=y
+S_S: same old=[rc=1 z=0 int_err=0] new=[rc=1 z=0 int_err=0] old5_identical=y new5_identical=y
+S_trailingNL: same old=[rc=1 z=0 int_err=0] new=[rc=1 z=0 int_err=0] old5_identical=y new5_identical=y
+CRLF_CRLF: same old=[rc=1 z=0 int_err=0] new=[rc=1 z=0 int_err=0] old5_identical=y new5_identical=y
+unicode_ref_same: same old=[rc=1 z=0 int_err=0] new=[rc=1 z=0 int_err=0] old5_identical=y new5_identical=y
+regex_meta_ref_same: same old=[rc=1 z=0 int_err=0] new=[rc=1 z=0 int_err=0] old5_identical=y new5_identical=y
+regex_meta_ref_vs_other: same old=[rc=0 z=0 int_err=0] new=[rc=0 z=0 int_err=0] old5_identical=y new5_identical=y
+dash_remote_same: same old=[rc=1 z=0 int_err=0] new=[rc=1 z=0 int_err=0] old5_identical=y new5_identical=y
+Z_in_after_only: DIFF old=[rc=0 z=1 int_err=0] new=[rc=1 z=0 int_err=0] old5_identical=y new5_identical=y
+Z_in_before_only: same old=[rc=0 z=1 int_err=0] new=[rc=0 z=1 int_err=0] old5_identical=y new5_identical=y
+SUMMARY cases=12 differences=1

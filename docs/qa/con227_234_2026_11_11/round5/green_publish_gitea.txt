@@ -1,0 +1,82 @@
+PASS missing token -> SKIPPED-NO-TOKEN rc=3
+PASS create
+PASS notes = exactly the tag's section (no vNEXT, no other tag)
+PASS flags and tag sent
+PASS re-run updates
+PASS PATCH goes to /releases/<id>
+PASS flags last-write-wins
+PASS bad token -> rc=4
+PASS token not echoed (control: server rejected with 401 above)
+PASS unsafe tag refused
+PASS missing tag refused
+PASS base URL refused: http://evil.example
+PASS base URL refused: http://localhost:@example.invalid
+PASS base URL refused: http://127.0.0.1:1@example.invalid
+PASS base URL refused: http://127.0.0.1:80/x
+PASS base URL refused: https://user@host.example
+PASS trailing --tag does not hang (rc 2)
+PASS trailing --repo does not hang (rc 2)
+PASS repo dot segments refused
+PASS hostile/short token refused
+PASS hostile/short token refused
+PASS hostile/short token refused
+PASS no changelog -> refused
+PASS no matching section -> refused (never publishes Unreleased)
+PASS --generic-notes
+PASS 200 KB notes publish (no argv limit)
+PASS big body delivered intact
+PASS dry-run names the target
+PASS argv instrument sees the request (control needle found)
+PASS token absent from curl argv
+PASS curl runs with -q (no curlrc)
+PASS no redirects, protocol allow-list
+PASS curl failure reported (control, rc 4)
+PASS curl stderr: no secret printed
+PASS curl failure: exit status and reason class printed (positive needle)
+PASS curl stderr: no byte of curl's message printed
+PASS git warning does not fail the run (control)
+PASS git stderr flushed redacted (positive needle)
+PASS git stderr: no secret printed
+PASS run dir census: success run (control rc 0)
+PASS run dir is created under TMPDIR (control needle)
+PASS nothing left in TMPDIR after a success
+PASS nothing left in TMPDIR after a curl failure (err.out removed)
+PASS nothing left in TMPDIR after a refusal
+PASS TERM: the publisher ends through its trap (rc 143)
+PASS TERM: nothing left in TMPDIR
+PASS TERM: no secret printed
+PASS HUP: the publisher ends through its trap (rc 129)
+PASS HUP: nothing left in TMPDIR
+PASS HUP: no secret printed
+PASS non-numeric created id refused (rc 4)
+PASS server-controlled id not printed
+PASS Authorization header value not printed
+PASS the failure is reported by exit status and class (positive needle)
+PASS no byte of the header line is printed
+PASS curl reads its config from stdin (-K -)
+PASS the token reaches curl on stdin (control needle)
+PASS the TMPDIR census read files during the run (control needle)
+PASS no file under TMPDIR holds the token while curl runs
+PASS the environment census of curl works (control needle)
+PASS the token is not in curl's environment, even with a caller TOKEN exported
+PASS the run directory mode is read during the run (control needle)
+PASS the run directory is mode 700 (V13)
+PASS curl runs with a connect timeout and a total timeout (J5)
+PASS SIGKILL leaves the run directory behind (control needle)
+PASS SIGKILL: no file under TMPDIR holds the token
+PASS the environment census of git works (control needle)
+PASS the token is not in git's environment, even with a caller TOKEN exported
+PASS the git environment census saw rev-list (control needle)
+PASS git runs with GIT_TRACE_REDACT=1, GIT_TERMINAL_PROMPT=0 and no GIT_TRACE
+PASS credential-shaped unknown argument: usage (rc 2)
+PASS the unknown argument is not echoed
+PASS an option-shaped unknown argument is named (control)
+PASS unreadable notes file refused (control, rc 3)
+PASS the notes path is not echoed
+PASS a base URL with userinfo is refused (rc 2)
+PASS the bad base URL is not echoed
+PASS curl timeout reported with the class timeout (rc 4)
+PASS curl timeout: message not printed
+PASS a non-numeric HTTP status is a failure (rc 4)
+PASS the non-numeric status is not printed
+RESULT pass=81 fail=0

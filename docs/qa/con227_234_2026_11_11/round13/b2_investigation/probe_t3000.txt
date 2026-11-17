@@ -1,0 +1,6 @@
+cgroup=/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/run-p239761-i251808.scope pids.max=3000
+r8=124 elapsed=30.018279913
+
+output_lines=0
+K8_N2=bad (the mutant is caught by K8 N2)
+max_pids=9

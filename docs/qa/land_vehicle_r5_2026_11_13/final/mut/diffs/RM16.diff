@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM16)
+@@ -1049,7 +1049,7 @@
+     fi
+   done
+   # pass 1b: two refusing checks, then the WARN rows
+-  if [ "$mode" = push ] && [ "$PREFLIGHT_BLOCKED" -eq 0 ]; then
++  if [ "$mode" = push ]; then
+     check_trailers "; every commit after the prepared base must carry one, even when a remote already has it: if another lander published it, run prepare again in a new workdir so it becomes part of the base" \
+       "$local_main" --not "$main_before"
+     check_trailers "" "$local_main" --not "${before[@]}"

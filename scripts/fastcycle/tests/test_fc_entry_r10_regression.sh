@@ -57,11 +57,13 @@
 # derived directly from the Round 10 review findings text (docs/
 # CONTINUATION.md ADDENDUM 114) and this session's own live reproduction
 # of each one, never imported from fc_entry.py's own implementation.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 LIB="$FC/lib/fc_entry.py"
 CMN="$FC/lib/fc_common.py"
 H="$FC/orchestration/handoff.py"
@@ -211,6 +213,8 @@ echo
 echo "=== B1: emit_result propagates a write/flush failure; diag swallows it ==="
 
 REPO="$ROOT"
+# CON-097: a standalone canon clone (its consumer root is not a git checkout) is itself the real checkout to inventory.
+[ -e "$REPO/.git" ] || [ ! -e "$FC_CANON_ROOT/.git" ] || REPO="$FC_CANON_ROOT"
 if [ ! -d /dev ] || [ ! -e /dev/full ]; then
   echo "NOT ok B1 control needle FAILED: /dev/full not present on this host -- cannot"
   echo "     exercise a genuine, real write-failure surface"

@@ -113,10 +113,11 @@ set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/alias_spread"
 IMPL="$FC/orchestration/limit_class.py"
-ANCHOR_INDEX="$ROOT/constitution/constitution_index.yaml"
+ANCHOR_INDEX="$FC_CANON_ROOT/constitution_index.yaml"
 RESEARCH_MD="$ROOT/specs/004-fast-dev-cycles/research.md"
 DB="$ROOT/docs/workable_items.db"
 

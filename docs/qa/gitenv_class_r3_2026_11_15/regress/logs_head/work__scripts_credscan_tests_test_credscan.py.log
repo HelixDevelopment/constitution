@@ -1,0 +1,431 @@
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:171: ResourceWarning: unclosed file <_io.BufferedWriter name='<tmp>/credscan_suite.lcwc0bnv/credscan_h.w155y4gl/bin.dat'>
+  open(os.path.join(self.t, "bin.dat"), "wb").write(b"\0\1\2" + b"x" * 100)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:172: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_h.w155y4gl/big.txt' mode='w' encoding='UTF-8'>
+  big = os.path.join(self.t, "big.txt"); open(big, "w").write("y" * 5000)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:173: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_h.w155y4gl/locked.txt' mode='w' encoding='UTF-8'>
+  unreadable = os.path.join(self.t, "locked.txt"); open(unreadable, "w").write("z\n"); os.chmod(unreadable, 0)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..<scratch>/work/scripts/credscan/tests/test_credscan.py:183: ResourceWarning: unclosed file <_io.BufferedWriter name='<tmp>/credscan_suite.lcwc0bnv/credscan_h.jzbhjbi7/bin.dat'>
+  open(os.path.join(self.t, "bin.dat"), "wb").write(b"\0" * 10)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+......<scratch>/work/scripts/credscan/tests/test_credscan.py:104: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r.5u3mae5z/x.txt' mode='w' encoding='UTF-8'>
+  open(self.f, "w").write("\n".join(fake("github") for _ in range(n)) + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:122: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r.5u3mae5z/y.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(self.t, "y.txt"), "w").write(fake("sk") + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:104: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r.t05fakvp/x.txt' mode='w' encoding='UTF-8'>
+  open(self.f, "w").write("\n".join(fake("github") for _ in range(n)) + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:109: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r.t05fakvp/base.json' mode='r' encoding='UTF-8'>
+  raw = open(self.b).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:111: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r.t05fakvp/x.txt' mode='r' encoding='UTF-8'>
+  for v in [l.strip() for l in open(self.f)]: self.assertNotIn(v, raw)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:287: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.d9j18j1l/root/locked/x.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(root, "locked", "x.txt"), "w").write(fake("github") + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..<scratch>/work/scripts/credscan/tests/test_credscan.py:306: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.li3sx3m9/root/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(root, "a.txt"), "w").write(fake("sk") + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:308: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.li3sx3m9/st.json' mode='w' encoding='UTF-8'>
+  json.dump({"state": "ok", "exit": 0}, open(st, "w"))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:309: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.li3sx3m9/b.json' mode='w' encoding='UTF-8'>
+  json.dump({"schema": 1, "files": []}, open(self.b, "w"))   # wrong shape: list
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:313: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.li3sx3m9/st.json' mode='r' encoding='UTF-8'>
+  self.assertEqual(json.load(open(st))["state"], "baseline_invalid")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:317: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.sl2tgqbv/st.json' mode='w' encoding='UTF-8'>
+  st = os.path.join(self.t, "st.json"); json.dump({"state": "ok"}, open(st, "w"))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:320: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.sl2tgqbv/st.json' mode='r' encoding='UTF-8'>
+  self.assertEqual(r.returncode, 4); self.assertEqual(json.load(open(st))["state"], "error")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..<scratch>/work/scripts/credscan/tests/test_credscan.py:329: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.v7ngpv5q/k.txt' mode='w' encoding='UTF-8'>
+  f = os.path.join(self.t, "k.txt"); open(f, "w").write("-----BEGIN " + "RSA PRIVATE KEY-----\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+...<scratch>/work/scripts/credscan/tests/test_credscan.py:360: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.x48ya181/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(self.t, "a.txt"), "w").write("clean line\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:355: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.to8txaig/st.json' mode='r' encoding='UTF-8'>
+  self.assertIn("skipped", json.load(open(st)))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:346: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r2.hetx4g0_/root/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(root, "a.txt"), "w").write(fake("github") + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..<scratch>/work/scripts/credscan/tests/test_credscan.py:432: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.5spjn3je/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.makedirs(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:434: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.5spjn3je/st.json' mode='r' encoding='UTF-8'>
+  def state(self): return json.load(open(self.st))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:432: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.itlpqsru/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.makedirs(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:434: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.itlpqsru/st.json' mode='r' encoding='UTF-8'>
+  def state(self): return json.load(open(self.st))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:432: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.ikgvlmqb/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.makedirs(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:434: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.ikgvlmqb/st.json' mode='r' encoding='UTF-8'>
+  def state(self): return json.load(open(self.st))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:432: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.ritc_yd0/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.makedirs(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:432: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.fl2el8kc/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.makedirs(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:432: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.p_2mxk1o/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.makedirs(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:457: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.p_2mxk1o/st.json' mode='w' encoding='UTF-8'>
+  json.dump({"state": "ok", "exit": 0}, open(self.st, "w"))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:434: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r3.p_2mxk1o/st.json' mode='r' encoding='UTF-8'>
+  def state(self): return json.load(open(self.st))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+...<scratch>/work/scripts/credscan/tests/test_credscan.py:579: ResourceWarning: unclosed file <_io.TextIOWrapper name='<scratch>/work/scripts/credscan/tests/../credscan.py' mode='r' encoding='UTF-8'>
+  d = tempfile.mkdtemp(prefix="credscan_v."); src = open(SCAN).read() + extra
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:580: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_v.m5lu8jtu/credscan.py' mode='w' encoding='UTF-8'>
+  open(os.path.join(d, "credscan.py"), "w").write(src)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:580: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_v.e_nr63zh/credscan.py' mode='w' encoding='UTF-8'>
+  open(os.path.join(d, "credscan.py"), "w").write(src)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:568: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.y179rcnn/a.txt' mode='w' encoding='UTF-8'>
+  p = os.path.join(self.t, "a.txt"); v = fake("github"); open(p, "w").write("n" * len(v) + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:572: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.y179rcnn/a.txt.new' mode='w' encoding='UTF-8'>
+  q = p + ".new"; open(q, "w").write(v + "\n"); os.utime(q, ns=(st.st_atime_ns, st.st_mtime_ns)); os.replace(q, p)   # new inode, same size+mtime
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:560: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.lac078f8/a.txt' mode='w' encoding='UTF-8'>
+  p = os.path.join(self.t, "a.txt"); open(p, "w").write("nothing\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:564: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.lac078f8/a.txt' mode='w' encoding='UTF-8'>
+  open(p, "w").write("now " + fake("github") + "\n"); os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:538: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.660_78h0/a.txt' mode='w' encoding='UTF-8'>
+  open(p, "w").write("nothing\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:545: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_c.r1bikirs/cache.json' mode='r' encoding='UTF-8'>
+  c = json.load(open(cache)); self.assertTrue(c["counts_only"])
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:546: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_c.r1bikirs/cache.json' mode='r' encoding='UTF-8'>
+  self.assertNotIn(v, open(cache).read())
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:549: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_c.r1bikirs/cache.json' mode='w' encoding='UTF-8'>
+  c["files"][key][5] = {"sk": 1}; json.dump(c, open(cache, "w"))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:553: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.660_78h0/a.txt' mode='w' encoding='UTF-8'>
+  open(p, "w").write("now " + v + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:605: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.qtbunmz4/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(self.t, "a.txt"), "w").write("nothing\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:606: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.qtbunmz4/c.json' mode='w' encoding='UTF-8'>
+  cache = os.path.join(self.t, "c.json"); open(cache, "w").write("{not json")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:610: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.qtbunmz4/c.json' mode='r' encoding='UTF-8'>
+  self.assertEqual(json.load(open(cache))["schema"], 1)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:585: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.gtkd_im3/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(self.t, "a.txt"), "w").write("nothing\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:588: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.gtkd_im3/c.json' mode='r' encoding='UTF-8'>
+  c = json.load(open(cache)); k = [x for x in c["files"] if x.endswith("a.txt")][0]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:589: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.gtkd_im3/c.json' mode='w' encoding='UTF-8'>
+  c["files"][k] = [1, 2, 3, 4, 5, "bad", None]; json.dump(c, open(cache, "w"))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f0.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f1.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f2.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f3.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f4.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f5.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f6.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f7.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f8.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f9.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f10.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f11.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f12.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f13.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f14.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f15.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f16.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f17.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f18.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f19.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f20.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f21.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f22.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f23.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f24.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f25.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f26.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f27.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f28.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f29.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f30.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f31.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f32.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f33.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f34.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f35.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f36.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f37.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f38.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f39.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f40.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f41.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f42.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f43.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f44.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f45.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f46.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f47.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f48.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:594: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/f49.txt' mode='w' encoding='UTF-8'>
+  for i in range(50): open(os.path.join(self.t, "f%d.txt" % i), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:597: ResourceWarning: unclosed file <_io.TextIOWrapper name='<scratch>/work/scripts/credscan/tests/../credscan.py' mode='r' encoding='UTF-8'>
+  src = open(SCAN).read().replace("def scan_file(path):", "def scan_file(path):\n    import time; time.sleep(0.2)", 1)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:598: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_s.nnio9vdr/credscan.py' mode='w' encoding='UTF-8'>
+  self.assertIn("time.sleep(0.2)", src); open(d, "w").write(src)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:602: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_r4.6zllzugd/c.json' mode='r' encoding='UTF-8'>
+  files = json.load(open(cache))["files"]; self.assertTrue(0 < len(files) < 50, len(files))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:614: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_fb.bd16ak94/python3' mode='w' encoding='UTF-8'>
+  open(os.path.join(bindir, "python3"), "w").write("#!/bin/sh\nexit 0\n"); os.chmod(os.path.join(bindir, "python3"), 0o755)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+........<scratch>/work/scripts/credscan/tests/test_credscan.py:82: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_real.pbsuczh7/s.jsonl' mode='w' encoding='UTF-8'>
+  open(os.path.join(real, "s.jsonl"), "w").write(v + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..<scratch>/work/scripts/credscan/tests/test_credscan.py:196: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_s.eqzomhl1/x.txt' mode='w' encoding='UTF-8'>
+  v = fake("github"); open(self.f, "w").write(v + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:193: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_s.eqzomhl1/status.json' mode='r' encoding='UTF-8'>
+  return json.load(open(self.st))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:202: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_s.eqzomhl1/x.txt' mode='a' encoding='UTF-8'>
+  open(self.f, "a").write(fake("github") + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:206: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_s.eqzomhl1/status.json' mode='r' encoding='UTF-8'>
+  self.assertNotIn(v, open(self.st).read())
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:209: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_s.gvrjkfk6/x.txt' mode='w' encoding='UTF-8'>
+  open(self.f, "w").write("hello\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:193: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_s.gvrjkfk6/status.json' mode='r' encoding='UTF-8'>
+  return json.load(open(self.st))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:222: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w.udi8n8c5/root/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(self.root, "a.txt"), "w").write("nothing\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:238: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w.udi8n8c5/root/leak.txt' mode='w' encoding='UTF-8'>
+  v = fake("sk"); open(os.path.join(self.root, "leak.txt"), "w").write(v + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:241: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w.udi8n8c5/state/status.json' mode='r' encoding='UTF-8'>
+  self.assertNotIn(v, r.stdout + r.stderr + open(os.path.join(self.state, "status.json")).read())
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:242: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w.udi8n8c5/state/status.json' mode='r' encoding='UTF-8'>
+  self.assertEqual(json.load(open(os.path.join(self.state, "status.json")))["state"], "ratchet_violated")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:222: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w.4jrel9xz/root/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(self.root, "a.txt"), "w").write("nothing\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:222: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w.5byu6aen/root/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(self.root, "a.txt"), "w").write("nothing\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:232: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w.5byu6aen/state/status.json' mode='r' encoding='UTF-8'>
+  self.assertEqual(json.load(open(os.path.join(self.state, "status.json")))["state"], "baseline_missing")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:222: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w.jh9a2zag/root/a.txt' mode='w' encoding='UTF-8'>
+  open(os.path.join(self.root, "a.txt"), "w").write("nothing\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..<scratch>/work/scripts/credscan/tests/test_credscan.py:261: ResourceWarning: unclosed file <_io.TextIOWrapper name='<scratch>/work/scripts/credscan/tests/../systemd/credscan-check.service' mode='r' encoding='UTF-8'>
+  def read(self, n): return open(os.path.join(self.D, n)).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:261: ResourceWarning: unclosed file <_io.TextIOWrapper name='<scratch>/work/scripts/credscan/tests/../systemd/credscan-check.timer' mode='r' encoding='UTF-8'>
+  def read(self, n): return open(os.path.join(self.D, n)).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:382: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.y__s4onp/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:404: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.y__s4onp/state/status.json' mode='w' encoding='UTF-8'>
+  json.dump({"state": "ok", "exit": 0}, open(os.path.join(self.state, "status.json"), "w"))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:406: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.y__s4onp/state/status.json' mode='r' encoding='UTF-8'>
+  self.assertNotEqual(json.load(open(os.path.join(self.state, "status.json")))["state"], "ok")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:382: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.382dyk41/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:382: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.r3fcvst9/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:425: ResourceWarning: unclosed file <_io.TextIOWrapper name='<scratch>/work/scripts/credscan/tests/../systemd/credscan-check.service' mode='r' encoding='UTF-8'>
+  t = open(os.path.join(HERE, "..", "systemd", n)).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:425: ResourceWarning: unclosed file <_io.TextIOWrapper name='<scratch>/work/scripts/credscan/tests/../systemd/credscan-check.timer' mode='r' encoding='UTF-8'>
+  t = open(os.path.join(HERE, "..", "systemd", n)).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:382: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.ooq0kneo/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:382: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.uriv77bw/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:418: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_h2.5n60b500/bad.json' mode='w' encoding='UTF-8'>
+  home = tempfile.mkdtemp(prefix="credscan_h2."); bad = os.path.join(home, "bad.json"); open(bad, "w").write("{}")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:382: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.grybkb00/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:412: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.grybkb00/slow/python3' mode='w' encoding='UTF-8'>
+  open(os.path.join(bindir, "python3"), "w").write("#!/bin/sh\nexec sleep 30\n"); os.chmod(os.path.join(bindir, "python3"), 0o755)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:414: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w2.grybkb00/state/status.json' mode='r' encoding='UTF-8'>
+  d = json.load(open(os.path.join(self.state, "status.json")))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:483: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.4zbrf0a8/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:479: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.4zbrf0a8/fbin/python3' mode='w' encoding='UTF-8'>
+  p = os.path.join(bindir, "python3"); open(p, "w").write("#!/bin/sh\n" + body + "\n"); os.chmod(p, 0o755)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:485: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.4zbrf0a8/state/status.json' mode='r' encoding='UTF-8'>
+  def status(self): return json.load(open(os.path.join(self.state, "status.json")))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:483: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.xux6ceck/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:479: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.xux6ceck/fbin/python3' mode='w' encoding='UTF-8'>
+  p = os.path.join(bindir, "python3"); open(p, "w").write("#!/bin/sh\n" + body + "\n"); os.chmod(p, 0o755)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:485: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.xux6ceck/state/status.json' mode='r' encoding='UTF-8'>
+  def status(self): return json.load(open(os.path.join(self.state, "status.json")))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.<scratch>/work/scripts/credscan/tests/test_credscan.py:483: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.eoy7qh8g/root/a' mode='w' encoding='UTF-8'>
+  self.root = os.path.join(self.t, "root"); os.mkdir(self.root); open(os.path.join(self.root, "a"), "w").write("x\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:479: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.eoy7qh8g/fbin/python3' mode='w' encoding='UTF-8'>
+  p = os.path.join(bindir, "python3"); open(p, "w").write("#!/bin/sh\n" + body + "\n"); os.chmod(p, 0o755)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<scratch>/work/scripts/credscan/tests/test_credscan.py:501: ResourceWarning: unclosed file <_io.TextIOWrapper name='<tmp>/credscan_suite.lcwc0bnv/credscan_w3.eoy7qh8g/state/seen.json' mode='r' encoding='UTF-8'>
+  self.assertEqual(json.load(open(os.path.join(self.state, "seen.json")))["state"], "running")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.
+----------------------------------------------------------------------
+Ran 67 tests in 12.137s
+
+OK

@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F7)
+@@ -345,7 +345,7 @@
+     --bundle|--sha256|--head|--workdir|--remotes-file|--mint-cmd|--item-id|--id-verify-cmd|--evidence-dir|--placeholder-re|--clone-name|--key-prefix) ;;
+     *) die 2 "unknown argument: $1" ;;
+   esac
+-  if [ $# -lt 2 ] || [ -z "$2" ] || [[ "$2" == -* ]]; then
++  if [ $# -lt 2 ] || [ -z "$2" ]; then
+     die 2 "option $1 needs a value: $1 must not start with '-' and must not be empty (write ./NAME for a path that starts with '-')"
+   fi
+   [ -z "${SEEN[$1]:-}" ] || die 2 "option $1 given more than once"

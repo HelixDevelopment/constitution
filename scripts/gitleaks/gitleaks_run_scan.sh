@@ -18,6 +18,14 @@
 # Dependencies : bash, gitleaks
 # Cross-ref    : §11.4.184(I) · §11.4.5 · §11.4.6 · §11.4.69 · §11.4.177
 set -uo pipefail
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+# CON-435: gitleaks detect reads the full history through its own `git log -p`, which follows
+# refs/replace/* unless GIT_NO_REPLACE_OBJECTS is set, so a replace ref can hide a secret commit
+# or blob. Export it AFTER the scrub above (which clears a caller's value) so the scanner, which
+# inherits this environment, reads the stored objects. git honours any value; measured with
+# gitleaks 8.30.1 and git 2.53.0 it also wins over core.useReplaceRefs=true in the repository
+# config and in GIT_CONFIG_PARAMETERS (tests/security/test_gitleaks_run_scan_replace.sh).
+export GIT_NO_REPLACE_OBJECTS=1
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=./gitleaks_lib.sh
 . "${SCRIPT_DIR}/gitleaks_lib.sh"

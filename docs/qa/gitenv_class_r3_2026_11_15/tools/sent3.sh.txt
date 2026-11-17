@@ -1,0 +1,28 @@
+#!/bin/bash
+# sent3.sh <repo> <mode: none|git_dir|both> <timeout-s> <relative script> [args...]
+# Runs <script> from <repo> with the ambient variable(s) aimed at a fresh sentinel repository and prints
+# whether the sentinel changed (fingerprint of HEAD, every ref, object count, index, config, worktrees).
+# Fixer-authored (round 3). Prints one machine line: script= mode= rc= sentinel=UNCHANGED|CHANGED objects= head=
+set -u
+R="${1:?repo}"; MODE="${2:?mode}"; TO="${3:?timeout}"; S="${4:?script}"; shift 4
+export TMPDIR=<tmp>
+B="$(mktemp -d "$TMPDIR/sent3.XXXXXX")" || exit 9
+SEN="${B:?}/sentinel"
+for v in $(env | sed -n 's/^\(GIT_[A-Z_]*\)=.*/\1/p'); do unset "$v"; done
+export GIT_CONFIG_NOSYSTEM=1
+git init -q -b sentinel "$SEN" && echo s > "$SEN/s" && git -C "$SEN" add s && \
+  git -C "$SEN" -c user.name=s -c user.email=s@s commit -qm sentinel || exit 9
+snap() { (cd "$SEN" && { git rev-parse HEAD; git for-each-ref; git count-objects -v | grep -E '^count|^in-pack'; sha256sum .git/index .git/config; ls .git/worktrees 2>/dev/null; } 2>&1 | sha256sum | cut -c1-16); }
+before="$(snap)"
+cd "$R" || exit 9
+case "$MODE" in
+  none) timeout "$TO" bash "$S" "$@" > "$B/out.txt" 2>&1; rc=$? ;;
+  git_dir) GIT_DIR="$SEN/.git" timeout "$TO" bash "$S" "$@" > "$B/out.txt" 2>&1; rc=$? ;;
+  both) GIT_DIR="$SEN/.git" GIT_INDEX_FILE="$SEN/.git/index" timeout "$TO" bash "$S" "$@" > "$B/out.txt" 2>&1; rc=$? ;;
+  *) echo "bad mode"; exit 64 ;;
+esac
+after="$(snap)"
+if [ "$before" = "$after" ]; then st=UNCHANGED; else st=CHANGED; fi
+echo "script=$S args=$* mode=$MODE rc=$rc sentinel=$st objects=$(git -C "$SEN" count-objects -v | sed -n 's/^count: //p') head=$(git -C "$SEN" log --oneline -1 | cut -c1-40)"
+tail -n 2 "$B/out.txt" | sed 's/^/  out: /'
+rm -rf -- "${B:?}"

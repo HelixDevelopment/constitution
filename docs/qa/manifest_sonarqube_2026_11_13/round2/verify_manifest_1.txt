@@ -1,0 +1,3 @@
+# run: rc=0 wall=9s load_start=96.39 load_end=94.85 cmd=bash scripts/run_full_suite.sh --verify-manifest
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=27 py/fixture=14 py/member=24 runall/entry=9 sh/entry=362 sh/excluded=26 sh/fixture=111 sh/member=313 total=906
+RESULT: MANIFEST-OK

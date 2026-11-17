@@ -1,0 +1,18 @@
+=== control (unmutated library), ulimit -n 1024
+r8=0
+rc=4
+a0=rc-clean-env
+envn=0
+child:PWD SHLVL _ 
+zzread=unset zzs=unset
+fd9=open
+K8_N2=ok (the mutant passes K8 N2)
+=== control (unmutated library), ulimit -n 524288
+r8=0
+rc=4
+a0=rc-clean-env
+envn=0
+child:PWD SHLVL _ 
+zzread=unset zzs=unset
+fd9=open
+K8_N2=ok (the mutant passes K8 N2)

@@ -1,0 +1,2 @@
+# run: rc=0 wall=1s load_start=94.82 load_end=94.82 cmd=python3 progressive/generate_split.py --check
+check: reproducible (311 artifact(s), byte-identical)

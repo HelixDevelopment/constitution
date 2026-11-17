@@ -1,0 +1,20 @@
+CAUGHT	R06_allow_exec_comment	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING interpreter or exec wrapper not on the allow-list: tag_and_release.sh:3 bash (via -) | key=886a3ec8
+CAUGHT	R07_allow_exec_same_line	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING interpreter or exec wrapper not on the allow-list: tag_and_release.sh:3 bash (via -) | key=326ebfb1
+CAUGHT	R14_set_a_bash_env	gate_rc=1/1	bash_rc=timeout	leak=0	ctrl=1		FINDING unmodelled construct, refused: ${BASH_ENV:=$PWD/evil.sh}: the operator := (:= and = assign; @, / and t
+CAUGHT	R24_getopts_dashdash_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin getopts is not on the closed list of builtins the release scripts use (it can run, define or l
+CAUGHT	R25_let_comma_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin let is not on the closed list of builtins the release scripts use (it can run, define or look 
+CAUGHT	R26_declare_i_value_assigns_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin declare other than declare -A NAME: fx.sh:3 | key=3e211078
+CAUGHT	R30_subscript_assigns_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a subscript of the indexed array a outside the arithmetic grammar (it is evaluated): fx.sh:3 (the char
+CAUGHT	R32_arith_expansion_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: arithmetic outside the closed grammar: the character '=' (an assignment
+CAUGHT	R33_cond_eq_assigns_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: [[ ]] outside the closed grammar: the operator -eq (an arithmetic or fi
+CAUGHT	R42_set_k_PATH_in_args	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin set other than +f +x -f -u: fx.sh:3 | key=9c42c0d3
+CAUGHT	R27_cond_eq_literal_subscript	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: [[ ]] outside the closed grammar: the operator -eq (an arithmetic or fi
+CAUGHT	R28_int_var_literal_assignment	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin declare other than declare -A NAME: fx.sh:3 | key=a4fa61e4
+CAUGHT	R29_cond_v_literal_subscript	gate_rc=1/1	bash_rc=1	leak=1	ctrl=1		FINDING unmodelled construct, refused: [[ ]] outside the closed grammar: the operator -v: fx.sh:3 in - | key=b
+CAUGHT	R31_gawk_inet_via_v	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING awk that can run a command or is not on the pin: fx.sh:3 (an awk -v value with inet or an escape (awk 
+CAUGHT	R43_heredoc_delim_paren_in_comsub	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING parse error (the gate refuses what it cannot read): fx.sh:7: here-document 'EOF' ended by the end of t
+CAUGHT	R93_ctrl_ansi_c_command_word	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING command word the gate cannot classify (quoted or escaped): fx.sh:3 $'\x67it' in - | key=fa17b3b3
+CAUGHT	R94_ctrl_dev_tcp	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING unmodelled construct, refused: the redirection operator <>: fx.sh:3 in - | key=dc134129
+CAUGHT	R95_ctrl_printf_v_separate_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING builtin printf with a format that is not a static string, or with an option (-v writes a name): fx.sh:
+CAUGHT	R96_ctrl_sed_e_command	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING sed that can run a command or is not on the pin: fx.sh:3 (the e command (it runs a command or opens a 
+CAUGHT	R97_ctrl_prefix_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a write to PATH (prefix; it changes how a command is found, run or loaded): fx.sh:3 | key=c7cd044e

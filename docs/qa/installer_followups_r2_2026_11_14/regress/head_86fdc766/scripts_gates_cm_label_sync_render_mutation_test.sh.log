@@ -1,0 +1,13 @@
+✅ META OK:   clean fixture — gate passed as required
+✅ META OK:   statusline.sh missing — gate failed as required
+✅ META OK:   labelrun not executable — gate failed as required
+✅ META OK:   title.sh lacks header — gate failed as required
+✅ META OK:   shell-hook.sh syntax error — gate failed as required
+✅ META OK:   RENDERERS.md missing — gate failed as required
+✅ META OK:   RENDERERS.md lacks UNCONFIRMED — gate failed as required
+✅ META OK:   shell-hook.sh drops ARGV0-ONLY policy — gate failed as required
+✅ META OK:   command text passed as argument — gate failed as required
+✅ META OK:   command text passed as --argv0 — gate failed as required
+✅ META OK:   command text piped to the helper — gate failed as required
+✅ META OK:   jq/go/python3 absent — gate exit 2 (cannot determine), not a pass
+✅ META: all expectations held

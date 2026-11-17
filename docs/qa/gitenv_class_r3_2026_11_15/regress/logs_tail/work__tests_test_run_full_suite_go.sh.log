@@ -1,0 +1,101 @@
+ok   fixture: the full private cache holds dep (control needle)
+ok   fixture: the full private cache holds the case-escaped Dep2 (control needle)
+ok   fixture: the empty cache is empty (negative control)
+ok   P1 module-mode shape
+ok   P2 workspace shape names mod@ver
+ok   P3 graph-level abort line
+ok   P4 rc 0 is never reclassified
+ok   P5 rc 2 is never reclassified
+ok   P6 a real test failure beside it
+ok   P7 a compile error beside it
+ok   P8 go.sum gap (missing go.sum entry)
+ok   P9 a passing package beside it is allowed
+ok   P10 no lookup line at all
+ok   P11 output not complete (log cut)
+ok   P12 GOPROXY not off
+ok   P13 GOFLAGS not -mod=readonly
+ok   P14 vendor/modules.txt present
+ok   P15 an unknown line (fail closed)
+ok   P16 lookup line but no failing package or abort
+ok   P17 empty output
+ok   P18 panic beside it
+ok   P19 lookup text inside a longer line (not the shape)
+ok   P20 unnamed module (no downloading line)
+ok   P classifier table
+ok   A1pass fixture: winonly is NOT in the cache (control)
+ok   A1pass fixture: dep IS in the cache (needle)
+ok   A1pass windows-only dependency uncached: verdict is go test's own (PASS)
+ok   A1pass tree clean
+ok   A1fail fixture: winonly is NOT in the cache (control)
+ok   A1fail fixture: dep IS in the cache (needle)
+ok   A1fail windows-only dependency uncached: verdict is go test's own (FAIL)
+ok   A1fail tree clean
+ok   A1t host GOFLAGS (-tags=windows) does not reach the unit: PASS
+ok   A2 fixture: rep2 zip cached (needle)
+ok   A2 fixture: no go.sum (control)
+ok   A2 replacement cached + go.sum gap -> FAIL
+ok   A2 tree clean
+ok   A2c replacement cached + complete go.sum -> PASS
+ok   A2e replacement not cached + complete go.sum -> SKIP
+ok   A2e names the module Go tried to fetch
+ok   A2e a SKIP is never a green run (exit 6)
+ok   A2e tree clean
+ok   A3 cached dependency, no go.sum -> FAIL
+ok   A3 uncached dependency, no go.sum -> FAIL (go test reports the go.sum gap first)
+ok   A3 no needs-network line for a go.sum gap
+ok   A3s GOSUMDB=off passed through: still FAIL
+ok   A3n GONOSUMDB passed through: still FAIL
+ok   A3 tree clean after all runs
+ok   A4 modline only, cached -> FAIL
+ok   A4 modline only, not cached -> FAIL
+ok   A4 modline tree clean
+ok   A4 zipline only, cached -> FAIL
+ok   A4 zipline only, not cached -> SKIP
+ok   A4 zipline tree clean
+ok   A5 dep not cached, complete go.sum -> SKIP
+ok   A5 dep is named
+ok   A5 dep cached -> PASS
+ok   A5 dep tree clean
+ok   A5 Dep2 not cached, complete go.sum -> SKIP
+ok   A5 Dep2 is named
+ok   A5 Dep2 cached -> PASS
+ok   A5 Dep2 tree clean
+ok   A5x host GOPROXY=file:// is overridden: still SKIP
+ok   A5x no module content reached the private cache
+ok   A6 testfail beside an uncached module -> FAIL
+ok   A6 testfail tree clean
+ok   A6 compilefail beside an uncached module -> FAIL
+ok   A6 compilefail tree clean
+ok   A6 passes beside an uncached module -> SKIP
+ok   A6 passes tree clean
+ok   A7 workspace gosum -> SKIP
+ok   A7 workspace gosum names the module
+ok   A7 workspace gosum tree clean (no go.work.sum written)
+ok   A7 workspace nogosum -> SKIP
+ok   A7 workspace nogosum names the module
+ok   A7 workspace nogosum tree clean (no go.work.sum written)
+ok   A7c workspace, complete go.sum, cached -> PASS
+ok   A8 fixture: vendor/modules.txt exists
+ok   A8 vendored module, cache empty -> FAIL (not reclassified)
+ok   A8 the log names the vendor reason
+ok   A8 tree clean
+ok   A9 goline -> FAIL
+ok   A9 goline tree clean
+ok   A9 toolchain -> PASS
+ok   A9 toolchain tree clean
+ok   A10 retracted version required, cached -> PASS
+ok   A10 tree clean
+ok   A11 fixture: other is NOT in the cache (control)
+ok   A11 nested module's uncached dependency -> unit PASS
+ok   A11t test-only import uncached -> SKIP
+ok   A11 trees clean
+ok   A12 malformed go.mod -> FAIL
+ok   A12 tree clean
+ok   A13 fixture: the unit log is over 1 MiB (control needle)
+ok   A13 big real failure + uncached dep in another package -> FAIL
+ok   A13 tree clean
+ok   A14 fixture: vendor/ exists and vendor/modules.txt does not (control needle)
+ok   A14 vendor/ without modules.txt, cache empty -> FAIL (not reclassified, G4-1)
+ok   A14 the log names the vendor reason
+ok   A14 tree clean
+SUMMARY pass=80 fail=0

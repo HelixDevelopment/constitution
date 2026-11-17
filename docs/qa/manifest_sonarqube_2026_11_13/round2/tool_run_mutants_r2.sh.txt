@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# run_mutants_r2.sh <repo> <evdir> <shard-index> <shard-count> <mutant.sh>...
+# For each mutant (round-robin shard): run the paired mutation test with --gate <mutant>; when it
+# survives that, run tests/test_full_suite_manifest_gate_git_env.sh --gate <mutant>. A mutant is
+# KILLED when either suite exits non-zero. One summary line per mutant.
+set -u
+repo="${1:?}"; ev="${2:?}"; si="${3:?}"; sc="${4:?}"; shift 4
+mkdir -p "$ev"
+sum="$ev/summary_shard$si.txt"
+: >"$sum"
+i=0
+for m in "$@"; do
+    if [ $((i % sc)) != "$si" ]; then i=$((i + 1)); continue; fi
+    i=$((i + 1))
+    id="$(basename "$m" .sh)"
+    s=$(date +%s)
+    rc1=0; (cd "$repo" && nice -n 10 bash scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh --quiet --gate "$m") >"$ev/mut_$id.txt" 2>&1 || rc1=$?
+    rc2=skip
+    if [ "$rc1" = 0 ]; then
+        rc2=0; (cd "$repo" && nice -n 10 bash tests/test_full_suite_manifest_gate_git_env.sh --gate "$m") >"$ev/gitenv_$id.txt" 2>&1 || rc2=$?
+    fi
+    if [ "$rc1" != 0 ] || { [ "$rc2" != skip ] && [ "$rc2" != 0 ]; }; then v=KILLED; else v=SURVIVED; fi
+    nf=$(grep -c '^FAIL ' "$ev/mut_$id.txt")
+    first=$(grep -m1 '^FAIL ' "$ev/mut_$id.txt" | cut -c1-150)
+    [ "$rc1" = 0 ] && [ "$rc2" != skip ] && first="git-env: $(grep -m1 '^FAIL ' "$ev/gitenv_$id.txt" | cut -c1-140)"
+    printf '%s mut_rc=%s gitenv_rc=%s failing_cases=%s %s wall=%ss first=%s\n' "$id" "$rc1" "$rc2" "$nf" "$v" "$(( $(date +%s) - s ))" "$first" >>"$sum"
+done
+echo "shard $si done" >>"$sum"

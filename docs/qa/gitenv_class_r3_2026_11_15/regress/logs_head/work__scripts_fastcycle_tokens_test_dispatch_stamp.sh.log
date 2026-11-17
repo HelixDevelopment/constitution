@@ -1,0 +1,340 @@
+T036 dispatch_stamp.sh hermetic test suite
+tool:     <scratch>/work/scripts/fastcycle/tokens/dispatch_stamp.sh
+fixtures: <scratch>/work/scripts/fastcycle/tokens/../tests/fixtures/dispatch_stamp
+
+  PASS  no-jq PATH control needle: jq genuinely unresolvable            
+
+-- A. fixture-driven base cases --
+  PASS  fixture golden-good GUARD                                        (exit 0)
+  PASS  fixture golden-good EXTRACT                                      (stdout="ATM-1041" exit=0)
+  PASS  fixture golden-bad GUARD                                         (exit 2)
+  PASS  fixture golden-bad EXTRACT                                       (stdout="" exit=0)
+  PASS  fixture negative-control GUARD                                   (exit 0)
+  PASS  fixture negative-control EXTRACT                                 (stdout="" exit=0)
+
+-- B. honest '?' item form --
+  PASS  item=? honest-unknown GUARD                                      (exit 0)
+  PASS  item=? honest-unknown EXTRACT prints '?'                         (stdout="?" exit=0)
+
+-- C. token-boundary adversarial cases --
+  PASS  fused 'prefixitem=ATM-99' BLOCKED (not a token)                  (exit 2)
+  PASS  fused 'prefixitem=ATM-99' EXTRACT empty (not a token)            (stdout="" exit=0)
+  PASS  'item=ATM-' no digits BLOCKED                                    (exit 2)
+  PASS  'item=ATM-' no digits EXTRACT empty                              (stdout="" exit=0)
+
+-- D. subagent-field fallback --
+  PASS  subagent-field item=ATM-2000 GUARD allowed                       (exit 0)
+  PASS  subagent-field item=ATM-2000 EXTRACT                             (stdout="ATM-2000" exit=0)
+
+-- E. additional tool_name coverage --
+  PASS  TaskCreate item=ATM-3000 GUARD allowed                           (exit 0)
+  PASS  TaskCreate missing item= BLOCKED                                 (exit 2)
+  PASS  non-agent Read tool always allowed (no item= anywhere)           (exit 0)
+  PASS  non-agent Edit tool always allowed (no item= anywhere)           (exit 0)
+
+-- F. EXTRACTION-mode always-exit-0 robustness --
+  PASS  malformed truncated JSON -> empty, exit 0                        (stdout="" exit=0)
+  PASS  empty stdin -> empty, exit 0                                     (stdout="" exit=0)
+  PASS  bare 'null' -> empty, exit 0                                     (stdout="" exit=0)
+  PASS  bare number '42' -> empty, exit 0                                (stdout="" exit=0)
+  PASS  bare string '"hello"' -> empty, exit 0                           (stdout="" exit=0)
+
+-- G. jq-absent AWK-fallback path --
+  PASS  AWK-fallback golden-good GUARD                                   (exit 0)
+  PASS  AWK-fallback golden-good EXTRACT                                 (stdout="ATM-1041" exit=0)
+  PASS  AWK-fallback golden-bad GUARD                                    (exit 2)
+  PASS  AWK-fallback negative-control GUARD                              (exit 0)
+  PASS  AWK-fallback subagent-field item=ATM-2000 GUARD                  (exit 0)
+  PASS  AWK-fallback subagent-field item=ATM-2000 EXTRACT                (stdout="ATM-2000" exit=0)
+
+-- H. extra prefixes, full override, right boundary --
+  PASS  unconfigured: item=SPK-609 BLOCKED (default stays the derived prefix) (exit 2)
+  PASS  unconfigured: item=SPK-609 EXTRACT empty                         (stdout="" exit=0)
+  PASS  FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk (lowercase): item=SPK-609 allowed (exit 0)
+  PASS  FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk: EXTRACT SPK-609             (stdout="SPK-609" exit=0)
+  PASS  FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk: the derived ATM prefix still works (stdout="ATM-2000" exit=0)
+  PASS  FC_DISPATCH_EXTRA_ITEM_PREFIXES='foo|bar, spk' (mixed separators): EXTRACT SPK-609 (stdout="SPK-609" exit=0)
+  PASS  FC_DISPATCH_EXTRA_ITEM_PREFIXES='foo|bar, spk': EXTRACT BAR-7    (stdout="BAR-7" exit=0)
+  PASS  FC_DISPATCH_ITEM_ID_RE wins over extra prefixes (SPK-609 not extracted) (stdout="" exit=0)
+  PASS  FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+': EXTRACT XYZ-5               (stdout="XYZ-5" exit=0)
+  PASS  right boundary: 'item=ATM-12x' BLOCKED (not a whole token)       (exit 2)
+  PASS  right boundary: 'item=ATM-12x' EXTRACT empty                     (stdout="" exit=0)
+  PASS  right boundary: 'item=?foo' BLOCKED (not the honest '?' token)   (exit 2)
+  PASS  right boundary: 'item=ATM-12,' EXTRACT ATM-12 (punctuation ends a token) (stdout="ATM-12" exit=0)
+  PASS  right boundary: 'item=ATM-12' at end of string EXTRACT ATM-12    (stdout="ATM-12" exit=0)
+
+-- I. underscore boundary, refusal text, exact-path parsing, fail-closed --
+  PASS  right boundary: 'item=ATM-12_x' BLOCKED ('_' continues the token) (exit 2)
+  PASS  right boundary: 'item=ATM-12_x' EXTRACT empty                    (stdout="" exit=0)
+  PASS  V1-M3: zeta consumer blocks item=ATM-12 (exit 2)                
+  PASS  V1-M3: refusal names the resolved form item=<ZET-nnnn>          
+  PASS  V1-M3: refusal example uses the resolved prefix (item=ZET-1041) 
+  PASS  V1-M3: refusal text carries no ATM-nnnn / ATM-1041 literal      
+  PASS  V1-M3: refusal lists every accepted prefix (ZET, SPK)           
+  PASS  V1-M3: with a full override the refusal quotes the configured pattern
+  PASS  jq: nested description before the real untagged one BLOCKED      (exit 2)
+  PASS  jq: nested description before the real one EXTRACT empty         (stdout="" exit=0)
+  PASS  jq: only a nested description BLOCKED                            (exit 2)
+  PASS  jq: duplicate key refused by the shared reader, EXTRACT empty    (stdout="" exit=0)
+  PASS  jq: duplicate key refused by the shared reader, BLOCKED          (exit 2)
+  PASS  jq: escapes, \u and a surrogate pair, tag extracted              (stdout="ATM-77" exit=0)
+  PASS  jq: descriptions inside arrays ignored, real one ATM-3           (stdout="ATM-3" exit=0)
+  PASS  jq: nested tool_name ignored, top-level Agent untagged BLOCKED   (exit 2)
+  PASS  jq: unparseable/non-object payload '{"tool_name":"Agent","tool_input":{' BLOCKED (fail closed) (exit 2)
+  PASS  jq: unparseable/non-object payload '{"tool_name":"Read"' BLOCKED (fail closed) (exit 2)
+  PASS  jq: unparseable/non-object payload 'null' BLOCKED (fail closed)  (exit 2)
+  PASS  jq: unparseable/non-object payload '42' BLOCKED (fail closed)    (exit 2)
+  PASS  jq: unparseable/non-object payload '"hello"' BLOCKED (fail closed) (exit 2)
+  PASS  jq: unparseable/non-object payload '[1]' BLOCKED (fail closed)   (exit 2)
+  PASS  jq: unparseable/non-object payload '{"tool_name":"Agent"} trailing' BLOCKED (fail closed) (exit 2)
+  PASS  jq: empty payload allowed (no tool named)                        (exit 0)
+  PASS  awk: nested description before the real untagged one BLOCKED     (exit 2)
+  PASS  awk: nested description before the real one EXTRACT empty        (stdout="" exit=0)
+  PASS  awk: only a nested description BLOCKED                           (exit 2)
+  PASS  awk: duplicate key refused, EXTRACT empty                        (stdout="" exit=0)
+  PASS  awk: R3V1-M1 repeated key BLOCKED: {"tool_name":"Agent","tool_input":{"description":"(T1) item=ATM-1 x"},"tool_input":{"subagent":"y"}} (exit 2)
+  PASS  awk: R3V1-M1 repeated key EXTRACT empty: {"tool_name":"Agent","tool_input":{"description":"(T1) item=ATM-1 x"},"tool_input":{"subagent":"y"}} (stdout="" exit=0)
+  PASS  awk: R3V1-M1 repeated key BLOCKED: {"tool_name":"Agent","tool_input":{"description":"(T1) item=ATM-1 x","description":null}} (exit 2)
+  PASS  awk: R3V1-M1 repeated key EXTRACT empty: {"tool_name":"Agent","tool_input":{"description":"(T1) item=ATM-1 x","description":null}} (stdout="" exit=0)
+  PASS  awk: R3V1-M1 repeated key BLOCKED: {"tool_name":"Agent","tool_input":{"description":"(T1) item=ATM-1 x","description":7}} (exit 2)
+  PASS  awk: R3V1-M1 repeated key EXTRACT empty: {"tool_name":"Agent","tool_input":{"description":"(T1) item=ATM-1 x","description":7}} (stdout="" exit=0)
+  PASS  awk: R3V1-M1 repeated key BLOCKED: {"tool_name":"Agent","tool_input":{"description":"(T1) item=ATM-1 x"},"tool_input":5} (exit 2)
+  PASS  awk: R3V1-M1 repeated key EXTRACT empty: {"tool_name":"Agent","tool_input":{"description":"(T1) item=ATM-1 x"},"tool_input":5} (stdout="" exit=0)
+  PASS  awk: escapes, \u and a surrogate pair, tag extracted             (stdout="ATM-77" exit=0)
+  PASS  awk: descriptions inside arrays ignored, real one ATM-3          (stdout="ATM-3" exit=0)
+  PASS  awk: nested tool_name ignored, top-level Agent untagged BLOCKED  (exit 2)
+  PASS  awk: a tagged top-level description is ALLOWED                   (exit 0)
+  PASS  awk: a non-agent tool is ALLOWED                                 (exit 0)
+  PASS  awk: unparseable/non-object payload '{"tool_name":"Agent","tool_input":{' BLOCKED (fail closed) (exit 2)
+  PASS  awk: unparseable/non-object payload '{"tool_name":"Agent","tool_input":{' EXTRACT empty (stdout="" exit=0)
+  PASS  awk: unparseable/non-object payload '{"tool_name":"Read"' BLOCKED (fail closed) (exit 2)
+  PASS  awk: unparseable/non-object payload '{"tool_name":"Read"' EXTRACT empty (stdout="" exit=0)
+  PASS  awk: unparseable/non-object payload 'null' BLOCKED (fail closed) (exit 2)
+  PASS  awk: unparseable/non-object payload 'null' EXTRACT empty         (stdout="" exit=0)
+  PASS  awk: unparseable/non-object payload '42' BLOCKED (fail closed)   (exit 2)
+  PASS  awk: unparseable/non-object payload '42' EXTRACT empty           (stdout="" exit=0)
+  PASS  awk: unparseable/non-object payload '"hello"' BLOCKED (fail closed) (exit 2)
+  PASS  awk: unparseable/non-object payload '"hello"' EXTRACT empty      (stdout="" exit=0)
+  PASS  awk: unparseable/non-object payload '[1]' BLOCKED (fail closed)  (exit 2)
+  PASS  awk: unparseable/non-object payload '[1]' EXTRACT empty          (stdout="" exit=0)
+  PASS  awk: unparseable/non-object payload '{"tool_name":"Agent"} trailing' BLOCKED (fail closed) (exit 2)
+  PASS  awk: unparseable/non-object payload '{"tool_name":"Agent"} trailing' EXTRACT empty (stdout="" exit=0)
+  PASS  awk: unparseable/non-object payload '{"tool_name":"Agent","tool_input":{"description":"bad \q escape"}}' BLOCKED (fail closed) (exit 2)
+  PASS  awk: unparseable/non-object payload '{"tool_name":"Agent","tool_input":{"description":"bad \q escape"}}' EXTRACT empty (stdout="" exit=0)
+  PASS  awk: empty payload allowed (no tool named)                       (exit 0)
+  PASS  awk reader decodes escapes to the same text as jq               
+
+-- J. item=??, short-prefix padding, tool_name contract, non-gawk awk --
+  PASS  T1: 'item=??' EXTRACT prints the one-mark '?' (the contract is empty | ? | <prefix>-nnnn) (stdout="?" exit=0)
+  PASS  T1: 'item=??' GUARD allowed (it is the honest unknown)           (exit 0)
+  PASS  T1: awk path, 'item=??' EXTRACT prints '?'                       (stdout="?" exit=0)
+  PASS  T2: release prefix 'ab' derives the key ABX (item=ABX-5 allowed) (exit 0)
+  PASS  T2: release prefix 'ab': EXTRACT ABX-5                           (stdout="ABX-5" exit=0)
+  PASS  T2: release prefix 'ab': the key padded with Z (ABZ) is NOT accepted (exit 2)
+  PASS  T2: release prefix 'a' derives the key AXX (item=AXX-5 allowed)  (exit 0)
+  PASS  T2: release prefix 'a': EXTRACT AXX-5                            (stdout="AXX-5" exit=0)
+  PASS  T2: release prefix 'a': the key padded with Z (AXZ) is NOT accepted (exit 2)
+  PASS  T2: release prefix 'a1b' derives the key ABX (item=ABX-5 allowed) (exit 0)
+  PASS  T2: release prefix 'a1b': EXTRACT ABX-5                          (stdout="ABX-5" exit=0)
+  PASS  T2: release prefix 'a1b': the key padded with Z (ABZ) is NOT accepted (exit 2)
+  PASS  T2: release prefix '12' derives the key WIT (item=WIT-5 allowed) (exit 0)
+  PASS  T2: release prefix '12': EXTRACT WIT-5                           (stdout="WIT-5" exit=0)
+  PASS  T2: release prefix '12': the key padded with Z (WIZ) is NOT accepted (exit 2)
+  PASS  S2: tool_name=null (present, not a string) BLOCKED (fail closed) (exit 2)
+  PASS  S2: tool_name=null BLOCKED even when the description is tagged   (exit 2)
+  PASS  S2: tool_name=null EXTRACT still reads the tag (extraction never gates on tool_name) (stdout="ATM-12" exit=0)
+  PASS  S2: awk path, tool_name=null BLOCKED (same as jq)                (exit 2)
+  PASS  S2: tool_name=5 (present, not a string) BLOCKED (fail closed)    (exit 2)
+  PASS  S2: tool_name=5 BLOCKED even when the description is tagged      (exit 2)
+  PASS  S2: tool_name=5 EXTRACT still reads the tag (extraction never gates on tool_name) (stdout="ATM-12" exit=0)
+  PASS  S2: awk path, tool_name=5 BLOCKED (same as jq)                   (exit 2)
+  PASS  S2: tool_name=true (present, not a string) BLOCKED (fail closed) (exit 2)
+  PASS  S2: tool_name=true BLOCKED even when the description is tagged   (exit 2)
+  PASS  S2: tool_name=true EXTRACT still reads the tag (extraction never gates on tool_name) (stdout="ATM-12" exit=0)
+  PASS  S2: awk path, tool_name=true BLOCKED (same as jq)                (exit 2)
+  PASS  S2: tool_name=["Agent"] (present, not a string) BLOCKED (fail closed) (exit 2)
+  PASS  S2: tool_name=["Agent"] BLOCKED even when the description is tagged (exit 2)
+  PASS  S2: tool_name=["Agent"] EXTRACT still reads the tag (extraction never gates on tool_name) (stdout="ATM-12" exit=0)
+  PASS  S2: awk path, tool_name=["Agent"] BLOCKED (same as jq)           (exit 2)
+  PASS  S2: tool_name={"a":1} (present, not a string) BLOCKED (fail closed) (exit 2)
+  PASS  S2: tool_name={"a":1} BLOCKED even when the description is tagged (exit 2)
+  PASS  S2: tool_name={"a":1} EXTRACT still reads the tag (extraction never gates on tool_name) (stdout="ATM-12" exit=0)
+  PASS  S2: awk path, tool_name={"a":1} BLOCKED (same as jq)             (exit 2)
+  PASS  S2: tool_name=1.5e2 (present, not a string) BLOCKED (fail closed) (exit 2)
+  PASS  S2: tool_name=1.5e2 BLOCKED even when the description is tagged  (exit 2)
+  PASS  S2: tool_name=1.5e2 EXTRACT still reads the tag (extraction never gates on tool_name) (stdout="ATM-12" exit=0)
+  PASS  S2: awk path, tool_name=1.5e2 BLOCKED (same as jq)               (exit 2)
+  PASS  S2: allowed: {}                                                  (exit 0)
+  PASS  S2: awk path, allowed: {}                                        (exit 0)
+  PASS  S2: allowed: {"session_id":"s"}                                  (exit 0)
+  PASS  S2: awk path, allowed: {"session_id":"s"}                        (exit 0)
+  PASS  S2: allowed: {"tool_input":{"description":"(T1/main - x) no tag at all"}} (exit 0)
+  PASS  S2: awk path, allowed: {"tool_input":{"description":"(T1/main - x) no tag at all"}} (exit 0)
+  PASS  S2: allowed: {"tool_name":"Read"}                                (exit 0)
+  PASS  S2: awk path, allowed: {"tool_name":"Read"}                      (exit 0)
+  PASS  S2: allowed: {"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12 ok"}} (exit 0)
+  PASS  S2: awk path, allowed: {"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12 ok"}} (exit 0)
+  PASS  S2: whitespace-only stdin allowed (not a dispatch)               (exit 0)
+  PASS  S2: awk path, whitespace-only stdin allowed                      (exit 0)
+  PASS  S2: the refusal of a non-string tool_name says so (not the generic JSON text)
+  PASS  S2: a real PreToolUse Agent payload is allowed                   (exit 0)
+  PASS  S2: a real PostToolUse Agent payload (tool_response with nulls, arrays, numbers) is allowed (exit 0)
+  PASS  S2: a real TaskCreate payload is allowed                         (exit 0)
+  PASS  S2: a real PreToolUse Agent payload EXTRACT                      (stdout="ATM-12" exit=0)
+  PASS  S2: awk path, a real PreToolUse Agent payload is allowed         (exit 0)
+  PASS  S2: awk path, a real PostToolUse payload is allowed              (exit 0)
+  PASS  S2: awk path, a real TaskCreate payload is allowed               (exit 0)
+  PASS  P2 control needle: the stand-in awk lacks RT (gawk --traditional)
+  PASS  P2: a non-gawk awk makes the guard refuse (exit 2) even for a tagged dispatch
+  PASS  P2: the refusal says the awk is not gawk-compatible and only gawk is verified
+  PASS  P2: extraction with a non-gawk awk prints nothing, exits 0 and writes nothing to stderr
+  PASS  P2 control needle: the second stand-in awk yields a multi-byte %c
+  PASS  P2: an awk whose %c is not a single byte makes the guard refuse (exit 2)
+
+-- K. exact UTF-8 keys, unexpanded extra prefixes, bounded time --
+  PASS  MA: a 4-byte key written raw and as \u escapes is a duplicate, BLOCKED (exit 2)
+  PASS  MA: a 4-byte key and a DIFFERENT escaped character are two keys, allowed (exit 0)
+  PASS  MA: awk path, 4-byte raw/escaped duplicate BLOCKED               (exit 2)
+  PASS  MA: awk path, 4-byte raw/different escaped character allowed     (exit 0)
+  PASS  MA: a 2-byte key written raw and as \u escapes is a duplicate, BLOCKED (exit 2)
+  PASS  MA: a 2-byte key and a DIFFERENT escaped character are two keys, allowed (exit 0)
+  PASS  MA: awk path, 2-byte raw/escaped duplicate BLOCKED               (exit 2)
+  PASS  MA: awk path, 2-byte raw/different escaped character allowed     (exit 0)
+  PASS  MA: a 3-byte key written raw and as \u escapes is a duplicate, BLOCKED (exit 2)
+  PASS  MA: a 3-byte key and a DIFFERENT escaped character are two keys, allowed (exit 0)
+  PASS  MA: awk path, 3-byte raw/escaped duplicate BLOCKED               (exit 2)
+  PASS  MA: awk path, 3-byte raw/different escaped character allowed     (exit 0)
+  PASS  F9 control needle: in the test directory the glob Q* expands to QRS
+  PASS  F9: token 'Q*' is not glob-expanded: item=QRS-1 BLOCKED         
+  PASS  F9: token 'Q*': item=QRS-1 EXTRACT empty                        
+  PASS  F9/RV11-1: token 'Q*' is not a prefix (ignored, never a regex): item=Q-1 BLOCKED
+  PASS  F9/RV11-1: token 'Q*': item=Q-1 EXTRACT empty                   
+  PASS  F9: token 'Q?S' is not glob-expanded: item=QRS-1 BLOCKED        
+  PASS  F9: token '*' is not glob-expanded: item=ABC-1 BLOCKED          
+  PASS  F9: token '*' is ignored: the derived prefix still works (item=ATM-12 allowed)
+  PASS  F9: token '*': EXTRACT ATM-12, silently                         
+  PASS  F9: tokens 'QRS,Q*': the valid one is kept (item=QRS-1 allowed) 
+  PASS  F9/RV11-1: GUARD mode says the token is ignored                 
+  PASS  F3: 4.2 MB of \u escapes, jq on PATH: allowed (exit 0) within 30s (took 2895 ms)
+  PASS  F3: 4.2 MB of \u escapes, no jq: allowed (exit 0) within 30s (took 10306 ms)
+  PASS  F3: no jq, 4x the input takes < 8x the time (1.05 MB 2722 ms, 4.2 MB 10306 ms; quadratic would be ~16x)
+
+-- L. extra prefixes are data: bash and Python extract the same id for a generated token corpus --
+68
+  PASS  L control needle: the corpus produced cases (got 680, want >= 600)
+  PASS  L RV11-1: bash --extract-item-id == transcript_ingest.py for every token x description (680 pairs, 0 differ), extraction silent
+  PASS  L RV11-1: GUARD allows exactly the dispatches the extraction names, for every token (0 wrong)
+  PASS  L RV11-1: the GUARD notice 'ignored' appears exactly when the ingest tool also ignores a token (0 differ)
+  PASS  L RV11-1 absolute: token ')', item=ATM-1 -> extract 'ATM-1', guard exit 0
+  PASS  L RV11-1 absolute: token ')', item=? -> extract '?', guard exit 0
+  PASS  L RV11-1 absolute: token '{', item={-9 -> extract '', guard exit 2
+  PASS  L RV11-1 absolute: token '\D', item=X-4 -> extract '', guard exit 2
+  PASS  L RV11-1 absolute: token 'ATM-1', item=ATM-1-2 -> extract 'ATM-1', guard exit 0
+  PASS  L RV11-1 absolute: token 'spk', item=SPK-5 -> extract 'SPK-5', guard exit 0
+
+-- L2. an invalid FC_DISPATCH_ITEM_ID_RE falls back to the derived prefix --
+  PASS  L2: FC_DISPATCH_ITEM_ID_RE='ATM-(' does not compile: item=ATM-12 is still allowed (derived prefix)
+  PASS  L2: ...and GUARD mode says the configured pattern is not a valid regex
+  PASS  L2: ...and the extraction prints ATM-12 with nothing on stderr  
+  PASS  L2: ...and an id the derived prefix does not name is refused (exit 2)
+
+-- M. near-linear reader time across payload shapes (jq and no jq) --
+  PASS  M control needle: the shape generator wrote 12 payloads         
+  PASS  M RV11-3: deep_arrays (jq): small 61 ms, 4x 110 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: deep_arrays (no jq): small 85 ms, 4x 244 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: deep_objects (jq): small 77 ms, 4x 165 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: deep_objects (no jq): small 131 ms, 4x 398 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: long_keys (jq): small 67 ms, 4x 103 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: long_keys (no jq): small 75 ms, 4x 195 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: escapes (jq): small 423 ms, 4x 1565 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: escapes (no jq): small 1372 ms, 4x 5238 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: many_small (jq): small 346 ms, 4x 1098 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: many_small (no jq): small 818 ms, 4x 3246 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: tag_noise (jq): small 333 ms, 4x 1196 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+  PASS  M RV11-3: tag_noise (no jq): small 851 ms, 4x 3330 ms -- both allowed, 4x within 10s and < 8 x small + 300 ms
+
+-- N. hostile caller environments do not change any verdict --
+  PASS  N control: the clean verdicts are the expected ones (tagged allowed, untagged / lower-case refused, other tool allowed, bad JSON and null tool_name refused; extraction ATM-12, silent)
+  PASS  N control: 'a ~/.jq redefining objects' parsed into its 1 assignment(s)
+  PASS  N RV11-2/RV11-5: a ~/.jq redefining objects: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'a ~/.jq with a syntax error' parsed into its 1 assignment(s)
+  PASS  N RV11-2/RV11-5: a ~/.jq with a syntax error: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'POSIXLY_CORRECT' parsed into its 1 assignment(s)    
+  PASS  N RV11-2/RV11-5: POSIXLY_CORRECT: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'AWKPATH and AWKLIBPATH' parsed into its 2 assignment(s)
+  PASS  N RV11-2/RV11-5: AWKPATH and AWKLIBPATH: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'GAWK_READ_TIMEOUT=1' parsed into its 1 assignment(s)
+  PASS  N RV11-2/RV11-5: GAWK_READ_TIMEOUT=1: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'BASH_ENV setting functions and options' parsed into its 1 assignment(s)
+  PASS  N RV11-2/RV11-5: BASH_ENV setting functions and options: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'ENV' parsed into its 1 assignment(s)                
+  PASS  N RV11-2/RV11-5: ENV: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'IFS' parsed into its 1 assignment(s)                
+  PASS  N RV11-2/RV11-5: IFS: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'SHELLOPTS' parsed into its 1 assignment(s)          
+  FAIL  N RV11-2/RV11-5: SHELLOPTS: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)  [nojq=0 payload=0 extract: got '0|ATM-12|noisy' clean '0|ATM-12|silent'] [nojq=0 payload=1 extract: got '0||noisy' clean '0||silent'] [nojq=0 payload=2 extract: got '0||noisy' clean '0||silent'] [nojq=0 payload=3 extract: got '0||noisy' clean '0||silent'] [nojq=0 payload=4 extract: got '0||noisy' clean '0||silent'] [nojq=0 payload=5 extract: got '0|ATM-12|noisy' clean '0|ATM-12|silent'] [nojq=1 payload=0 extract: got '0|ATM-12|noisy' clean '0|ATM-12|silent'] [nojq=1 payload=1 extract: got '0||noisy' clean '0||silent'] [nojq=1 payload=2 extract: got '0||noisy' clean '0||silent'] [nojq=1 payload=3 extract: got '0||noisy' clean '0||silent'] [nojq=1 payload=4 extract: got '0||noisy' clean '0||silent'] [nojq=1 payload=5 extract: got '0|ATM-12|noisy' clean '0|ATM-12|silent']
+  PASS  N control: 'BASHOPTS' parsed into its 1 assignment(s)           
+  PASS  N RV11-2/RV11-5: BASHOPTS: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'exported functions' parsed into its 4 assignment(s) 
+  PASS  N RV11-2/RV11-5: exported functions: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'LC_ALL=C.UTF-8' parsed into its 1 assignment(s)     
+  PASS  N RV11-2/RV11-5: LC_ALL=C.UTF-8: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'LANG=tr_TR.UTF-8, LC_CTYPE=en_US.UTF-8' parsed into its 3 assignment(s)
+  PASS  N RV11-2/RV11-5: LANG=tr_TR.UTF-8, LC_CTYPE=en_US.UTF-8: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'JQ_COLORS and JQ_LIBRARY_PATH' parsed into its 2 assignment(s)
+  PASS  N RV11-2/RV11-5: JQ_COLORS and JQ_LIBRARY_PATH: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  PASS  N control: 'TMPDIR, CDPATH, GLOBIGNORE, GIT_DIR' parsed into its 4 assignment(s)
+  PASS  N RV11-2/RV11-5: TMPDIR, CDPATH, GLOBIGNORE, GIT_DIR: every verdict equals the clean run (6 payloads x guard/extract x jq/no jq)
+  NOTE  no tr_TR locale on this host: the LANG=tr_TR row ran with an unknown locale (still a hostile value)
+
+-- O. CR, LF and TAB between tokens are whitespace (absolute verdicts, both paths) --
+  PASS  V1: CR between every token: allowed                              (exit 0)
+  PASS  V1: CR between every token: EXTRACT ATM-12                       (stdout="ATM-12" exit=0)
+  PASS  V1: awk path, CR between every token: allowed                    (exit 0)
+  PASS  V1: awk path, CR between every token: EXTRACT ATM-12             (stdout="ATM-12" exit=0)
+  PASS  V1: LF between every token: allowed                              (exit 0)
+  PASS  V1: LF between every token: EXTRACT ATM-12                       (stdout="ATM-12" exit=0)
+  PASS  V1: awk path, LF between every token: allowed                    (exit 0)
+  PASS  V1: awk path, LF between every token: EXTRACT ATM-12             (stdout="ATM-12" exit=0)
+  PASS  V1: TAB between every token: allowed                             (exit 0)
+  PASS  V1: TAB between every token: EXTRACT ATM-12                      (stdout="ATM-12" exit=0)
+  PASS  V1: awk path, TAB between every token: allowed                   (exit 0)
+  PASS  V1: awk path, TAB between every token: EXTRACT ATM-12            (stdout="ATM-12" exit=0)
+
+-- P. a failed clean-environment re-execution refuses (GUARD) / stays silent (EXTRACTION) --
+  PASS  P control needle: bash started as /nonexistent/fc-no-bash/bash reports that path as $BASH
+  PASS  P: GUARD refuses a tagged dispatch when it cannot re-execute itself cleanly (exit 2, says so)
+  PASS  P: EXTRACTION prints nothing, exits 0 and writes nothing to stderr
+
+-- Q. the value is read at exactly the wanted path (both paths) --
+  PASS  RV11-3 path: tool_input is an array holding the tag (exit 2)     (exit 2)
+  PASS  RV11-3 path: tool_input is an array holding the tag: EXTRACT ''  (stdout="" exit=0)
+  PASS  RV11-3 path, awk path: tool_input is an array holding the tag (exit 2) (exit 2)
+  PASS  RV11-3 path, awk path: tool_input is an array holding the tag: EXTRACT '' (stdout="" exit=0)
+  PASS  RV11-3 path: description under another top-level key (exit 2)    (exit 2)
+  PASS  RV11-3 path: description under another top-level key: EXTRACT '' (stdout="" exit=0)
+  PASS  RV11-3 path, awk path: description under another top-level key (exit 2) (exit 2)
+  PASS  RV11-3 path, awk path: description under another top-level key: EXTRACT '' (stdout="" exit=0)
+  PASS  RV11-3 path: description one level too deep (exit 2)             (exit 2)
+  PASS  RV11-3 path: description one level too deep: EXTRACT ''          (stdout="" exit=0)
+  PASS  RV11-3 path, awk path: description one level too deep (exit 2)   (exit 2)
+  PASS  RV11-3 path, awk path: description one level too deep: EXTRACT '' (stdout="" exit=0)
+  PASS  RV11-3 path: key tool_inpu (a prefix of tool_input) (exit 2)     (exit 2)
+  PASS  RV11-3 path: key tool_inpu (a prefix of tool_input): EXTRACT ''  (stdout="" exit=0)
+  PASS  RV11-3 path, awk path: key tool_inpu (a prefix of tool_input) (exit 2) (exit 2)
+  PASS  RV11-3 path, awk path: key tool_inpu (a prefix of tool_input): EXTRACT '' (stdout="" exit=0)
+  PASS  RV11-3 path: key description2 next to an untagged description (exit 2) (exit 2)
+  PASS  RV11-3 path: key description2 next to an untagged description: EXTRACT '' (stdout="" exit=0)
+  PASS  RV11-3 path, awk path: key description2 next to an untagged description (exit 2) (exit 2)
+  PASS  RV11-3 path, awk path: key description2 next to an untagged description: EXTRACT '' (stdout="" exit=0)
+  PASS  RV11-3 path: the right value next to arrays of look-alikes (exit 0) (exit 0)
+  PASS  RV11-3 path: the right value next to arrays of look-alikes: EXTRACT 'ATM-12' (stdout="ATM-12" exit=0)
+  PASS  RV11-3 path, awk path: the right value next to arrays of look-alikes (exit 0) (exit 0)
+  PASS  RV11-3 path, awk path: the right value next to arrays of look-alikes: EXTRACT 'ATM-12' (stdout="ATM-12" exit=0)
+  PASS  RV11-3 path: a raw line feed inside the description is refused (exit 2) (exit 2)
+  PASS  RV11-3 path: a raw line feed inside the description is refused: EXTRACT '' (stdout="" exit=0)
+  PASS  RV11-3 path, awk path: a raw line feed inside the description is refused (exit 2) (exit 2)
+  PASS  RV11-3 path, awk path: a raw line feed inside the description is refused: EXTRACT '' (stdout="" exit=0)
+
+  total: PASS=294 FAIL=1
+  RESULT: FAIL

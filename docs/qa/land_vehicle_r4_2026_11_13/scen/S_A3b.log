@@ -1,0 +1,5 @@
+== S_A3b real workable-items engine on a DB copy (LIVE engine binary; DB copy of 2026-11-11)
+(i) raw engine add as --mint-cmd: rc=1 :: land_vehicle: ERROR: mint did not print an id matching ^CON-[0-9]+$ as its last line
+(ii) wrapper extracting the created id: rc=0 :: land_vehicle: step 3: tracker id = CON-166
+(iii) real add, prints old id CON-001: rc=1 :: land_vehicle: ERROR: the mint command printed CON-001 but CON-001 already appears in docs/wi.db before the mint: the id is not new; refusing; nothing was landed
+== scenarios done

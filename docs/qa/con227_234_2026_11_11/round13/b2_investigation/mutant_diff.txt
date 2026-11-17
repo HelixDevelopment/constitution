@@ -1,0 +1,11 @@
+--- scripts/release/redact_cut.sh	2026-11-13 23:43:36.758966895 +0100
++++ <E>/redact_cut.sh	2026-11-14 12:45:36.238260846 +0100
+@@ -356,7 +356,7 @@
+   # loop guard (N2): argv[0] read again here, independently of _rc_env_state
+   local a0=""
+   { IFS= read -r -d '' a0 <"/proc/$$/cmdline"; } 2>/dev/null
+-  [ "$a0" = "$_RC_ENV_MARK" ] && return 4
++
+   # sourced (N4): the caller of this function must be the script bash runs ($0), at the top of the source stack
+   { [ "${#BASH_SOURCE[@]}" -ge 2 ] && [ "${BASH_SOURCE[1]}" = "$0" ] && [ "${BASH_SOURCE[-1]}" = "$0" ]; } || return 4
+   { [ -n "${BASH:-}" ] && [ -f "$0" ] && [ -r "$0" ]; } || return 4

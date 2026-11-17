@@ -19,6 +19,7 @@
 # ── Side-effects / dependencies ───────────────────────────────────────────
 #   Everything happens in a mktemp -d removed with safe_rm_rf; bash, git, python3, PyYAML, sha256sum.
 #   Paired mutation test: cm_decisions_wizard_safety_mutation_test.sh. Classification: universal (§11.4.17).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 GATE="CM-DECISIONS-WIZARD-SAFETY"
 const="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"

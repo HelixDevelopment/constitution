@@ -1,0 +1,2 @@
+VERDICT: PASS CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=171 guarded=54 allowlisted=117 uncovered=0 stale=0 needle=ok
+env-allowlist rc=0

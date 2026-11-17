@@ -1,0 +1,4 @@
+# command: gh api user --jq .login
+# time: 2026-11-16T13:10:32Z
+<reviewer-account>
+# exit: 0

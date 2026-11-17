@@ -1,0 +1,14 @@
+Running as unit: run-p3299215-i275762538.scope; invocation ID: b876112873d94a83a7aa7784d179d834
+SURVIVED RV4 dl=PASS hss=PASS
+SURVIVED RV5 dl=PASS hss=PASS
+SURVIVED RV6 dl=PASS hss=PASS
+killed RV7 dl=FAIL(FAIL 2 big repo: exit 1 (KEY_A found)) hss=FAIL(FAIL 30 --keys-file is performed: KEY_A found, KEY_B not, exit 1)
+killed RV8 dl=FAIL(FAIL 12 --exact-only works without a scanner binary: clean repo -> exit 0) hss=FAIL(FAIL 30 --keys-file is performed: KEY_A found, KEY_B not, exit 1)
+killed RV9 dl=FAIL(FAIL 2 big repo: exit 1 (KEY_A found)) hss=FAIL(FAIL 30 --keys-file is performed: KEY_A found, KEY_B not, exit 1)
+killed RV10 dl=FAIL(FAIL 12 --exact-only works without a scanner binary: clean repo -> exit 0) hss=PASS
+killed RV11 dl=PASS hss=FAIL(FAIL 40 exact-match pass blind to the blobs -> BLIND 3 (present control not foun)
+killed RV12 dl=PASS hss=FAIL(FAIL 45 always-find exact matcher -> BLIND 3 (negative control found))
+killed RV13 dl=FAIL(FAIL 2 big repo: exit 1 (KEY_A found)) hss=FAIL(FAIL 30 --keys-file is performed: KEY_A found, KEY_B not, exit 1)
+killed RV14 dl=FAIL(FAIL 6 short values skipped and named, count 2 (KEY_11, KEY_3)) hss=FAIL(FAIL 41 short keys-file values are not searched and are counted in a note (names)
+killed RV15 dl=FAIL(FAIL 11 --exact-only does not run the scanner) hss=PASS
+SURVIVED RV16 dl=PASS hss=PASS

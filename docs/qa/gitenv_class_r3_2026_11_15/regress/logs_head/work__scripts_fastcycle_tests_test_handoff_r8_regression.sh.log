@@ -1,0 +1,43 @@
+=== R8 regression guard: control needle -- fixed tool + lib both exist ===
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/orchestration/handoff.py not found
+NOT ok control needle FAILED: <scratch>/constitution/scripts/fastcycle/lib/fc_common.py not found
+
+=== R8-I1: {KeyError, IndexError, AttributeError, RecursionError} injected at the top of cmd_validate ===
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.Fcbp6XqtnD/inj_KeyError/orchestration/handoff.py'
+NOT ok R8-I1 (KeyError) mutation anchor not found (content drifted)
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.Fcbp6XqtnD/inj_IndexError/orchestration/handoff.py'
+NOT ok R8-I1 (IndexError) mutation anchor not found (content drifted)
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.Fcbp6XqtnD/inj_AttributeError/orchestration/handoff.py'
+NOT ok R8-I1 (AttributeError) mutation anchor not found (content drifted)
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.Fcbp6XqtnD/inj_RecursionError/orchestration/handoff.py'
+NOT ok R8-I1 (RecursionError) mutation anchor not found (content drifted)
+
+=== R8-I1(b): write with a non-UTF-8 --handoff path refuses UP FRONT, never write-then-report-failure ===
+/usr/bin/python3: can't open file '<scratch>/constitution/scripts/fastcycle/orchestration/handoff.py': [Errno 2] No such file or directory
+NOT ok R8-I1(b) FAILED: result=RESULT_FAIL stderr=
+
+=== R8-I1(e): resume-check refuses an absolute/escaping external_deps[].locator before any filesystem access ===
+NOT ok R8-I1(e) (locator=abs) FAILED: rc=2 
+NOT ok R8-I1(e) (locator=dotdot) FAILED: rc=2 
+
+=== R8 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

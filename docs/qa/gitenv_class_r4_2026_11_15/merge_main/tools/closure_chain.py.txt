@@ -1,0 +1,40 @@
+import os,re,sys
+root=sys.argv[1]; target=sys.argv[2]; entries=sys.argv[3:]
+REF = re.compile(r"([A-Za-z0-9_.-]+\.(?:sh|bash|py))\b")
+VREF = re.compile(r"\$\{?([A-Za-z_]\w*)\}?\.(sh|bash|py)\b")
+LOOP = re.compile(r"\bfor\s+([A-Za-z_]\w*)\s+in\s+([^;&|]+?)\s*(?:;|$)")
+SKIP = (".git", "submodules", "node_modules", "tests")
+base={}
+for dp,dn,fn in os.walk(root):
+    dn[:]=sorted(x for x in dn if x not in SKIP); rel=os.path.relpath(dp,root)
+    for f in fn:
+        if f.endswith((".sh",".bash",".py")): base.setdefault(f,[]).append(os.path.normpath(os.path.join(rel,f)))
+par={e:None for e in entries}; seen=set(); todo=list(entries)
+while todo:
+    f=todo.pop()
+    if f in seen: continue
+    seen.add(f)
+    try: text=open(os.path.join(root,f),encoding="utf-8",errors="replace").read().splitlines()
+    except OSError: continue
+    code=[l for l in text if not l.lstrip().startswith("#")]
+    loops={}
+    for line in code:
+        for m in LOOP.finditer(line):
+            loops.setdefault(m.group(1),[]).extend(w for w in m.group(2).split() if re.fullmatch(r"[\w.-]+",w))
+    def pick(name,tok):
+        cands=base.get(name,[]); k=tok.rfind("scripts/")
+        return [c for c in cands if k>=0 and c.endswith(tok[k:])] or [c for c in cands if os.path.dirname(c)==os.path.dirname(f)] or cands
+    for line in code:
+        hits=[]
+        for m in VREF.finditer(line):
+            pre=line[max(0,m.start()-200):m.start()]
+            for w in loops.get(m.group(1),[]):
+                n=w+"."+m.group(2); hits+=pick(n,pre+n)
+        for m in REF.finditer(line):
+            hits+=pick(m.group(1),line[max(0,m.start()-200):m.end()])
+        for c in hits:
+            if c not in seen and c not in par: par[c]=(f,line.strip()[:160])
+            if c not in seen: todo.append(c)
+c=target
+while par.get(c):
+    p,l=par[c]; print(p,"->",c,"|",l); c=p

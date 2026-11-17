@@ -1,0 +1,130 @@
+PASS V1 rc GAP
+PASS V1 reason
+PASS V1 not absent
+PASS V1 Accept header sent
+PASS V1 Bearer auth
+PASS V1b ensure rc GAP
+PASS V1b reason
+PASS V1b no write without opt-in
+PASS V2 rc
+PASS V2 notice
+PASS V2 created
+PASS V2 readback
+PASS V2b create refused: rc GAP
+PASS V2b reason
+PASS V2c 201 without read-back: rc FAIL
+PASS V3 rc
+PASS V3 absent
+PASS V4 rc
+PASS V4 prerelease unverified note
+PASS V5 rc API
+PASS V6 annotated tag dereferenced (and v10 not mistaken for v1)
+PASS V7 rc
+PASS V7 present, commit unverified
+PASS V7 no page-cap reason
+PASS V7 the tag-object sha is never shown as the commit
+PASS V8 rc 5
+PASS V8 reason
+PASS V8 last line
+PASS V8 never OK
+PASS V8 dry-run rc 5 too
+PASS V8b target = sha but tag unverified: rc 5
+PASS V8b echo noted
+PASS V8b never OK
+PASS V8b dry-run rc 5 too
+PASS V8c verified tag commit: rc 0
+PASS V8c OK
+PASS Q1 echo of own target: rc 5
+PASS Q1 the write did happen
+PASS Q1 read back
+PASS Q1 last line
+PASS Q1 dry-run of the same state: rc 5 (no disagreement)
+PASS Q1 dry-run would-create
+PASS Q1 dry-run wrote nothing
+PASS Q5 would-update
+PASS Q5 dry-run update: no write
+PASS Q5 rc 0 (tag commit verified)
+PASS Q5b control: without --dry-run the PATCH is sent
+PASS Q4 dry-run ambiguous: no write
+PASS Q2 reflected token not printed by probe
+PASS Q2 nor a 12-character part of it
+PASS Q2 the field is shown as unsafe
+PASS Q2 control: the probe ran
+PASS Q2b reflected token not printed in PEER lines
+PASS Q2b control: PEER lines printed
+PASS Q3 x-trace-id reflection (token inside a longer id) not printed
+PASS Q3b a 14-character part of the token not printed
+PASS Q3c token as a JSON key name not printed
+PASS Q3c the word holding it is shown as unsafe, the key kept
+PASS Q3d another variable's token reflected: not printed
+PASS G1 rc
+FAIL G1 annotated tag commit read via commits/{tag-object-sha} (missing [TAG: present sha=0123456789abcdef0123456789abcdef01234567])
+  out: AUTH: env:TEST_GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: o/r
+TAG: present sha=unknown
+RESULT: OK
+  err: 
+FAIL G1 the request used the tag-object sha (missing [/repos/o/r/commits/2222222222222222222222222222222222222222])
+  out: AUTH: env:TEST_GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: o/r
+TAG: present sha=unknown
+RESULT: OK
+  err: 
+PASS G1 never by tag name
+FAIL G2 dry-run rc 0 (expected [0], got [5])
+  out: AUTH: env:TEST_GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: o/r
+NOTE: tag_sha_unverified (the forge did not report the tag's commit)
+ACTION: would-create
+REASON: commit_unverified
+RESULT: UNVERIFIED-COMMIT
+  err: forge: NOTICE: release list is ambiguous (404 for an existing repository); trying the create, the read-back decides
+forge: the tag's commit was not verified, and no release target derived from the tag was read before any write: the release is not proven to be on --sha
+FAIL G2 tag commit shown (missing [TAG: present sha=0123456789abcdef0123456789abcdef01234567])
+  out: AUTH: env:TEST_GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: o/r
+NOTE: tag_sha_unverified (the forge did not report the tag's commit)
+ACTION: would-create
+REASON: commit_unverified
+RESULT: UNVERIFIED-COMMIT
+  err: forge: NOTICE: release list is ambiguous (404 for an existing repository); trying the create, the read-back decides
+forge: the tag's commit was not verified, and no release target derived from the tag was read before any write: the release is not proven to be on --sha
+PASS G2 would-create
+FAIL G2 not unverified (must not contain [tag_sha_unverified])
+PASS G2 dry-run wrote nothing
+FAIL G3 mismatch rc 1 (expected [1], got [5])
+  out: AUTH: env:TEST_GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: o/r
+NOTE: tag_sha_unverified (the forge did not report the tag's commit)
+ACTION: would-create
+REASON: commit_unverified
+RESULT: UNVERIFIED-COMMIT
+  err: forge: NOTICE: release list is ambiguous (404 for an existing repository); trying the create, the read-back decides
+forge: the tag's commit was not verified, and no release target derived from the tag was read before any write: the release is not proven to be on --sha
+FAIL G3 reason (missing [REASON: tag_sha_mismatch])
+  out: AUTH: env:TEST_GITVERSE_TOKEN
+PROVIDER: gitverse
+REPO: o/r
+NOTE: tag_sha_unverified (the forge did not report the tag's commit)
+ACTION: would-create
+REASON: commit_unverified
+RESULT: UNVERIFIED-COMMIT
+  err: forge: NOTICE: release list is ambiguous (404 for an existing repository); trying the create, the read-back decides
+forge: the tag's commit was not verified, and no release target derived from the tag was read before any write: the release is not proven to be on --sha
+PASS G4 echo of the tag-object sha is unknown
+PASS G4 tag-object sha never shown as the commit
+PASS G5 refused commit lookup: rc 5
+PASS G5 unverified note
+PASS G6 short sha is unknown
+PASS G7 no sha field is unknown
+PASS G8 git/tags answer used
+PASS G8 commits lookup not made
+PASS S1 one OK exit in release-ensure
+PASS S1 that exit is guarded by FG_COMMIT_OK
+PASS S1 control: the definition is found
+SUMMARY: 74 passed, 7 failed

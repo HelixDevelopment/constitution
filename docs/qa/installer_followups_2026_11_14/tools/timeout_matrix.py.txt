@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Matrix probe under a real controlling pty. A bash caller (non-session-leader child of the pty's session
+leader, as when a script is run from an interactive shell) runs `[PRE] TIMEOUT [OPTS] 3 CHILD`; we time the
+exit. PRE is either nothing or `trap '' TTIN TTOU` (inherited SIG_IGN across exec). Prints TSV:
+impl opts pre child rc elapsed verdict. A run still alive after CAP seconds is killed (whole session) = UNBOUNDED."""
+import re, os, pty, sys, time, signal, select, subprocess
+CAP = 15.0
+RESET = ("python3 -I -c 'import signal,termios,sys,os,time\n"
+         "signal.signal(signal.SIGTTOU, signal.SIG_DFL); signal.signal(signal.SIGTTIN, signal.SIG_DFL)\n"
+         "fd=os.open(\"/dev/tty\",os.O_RDWR); a=termios.tcgetattr(fd); termios.tcsetattr(fd,termios.TCSANOW,a); time.sleep(100)'")
+CHILDREN = {"tcsetattr": "stty -echo </dev/tty; sleep 100", "read": "read x </dev/tty; sleep 100",
+            "resets_ttou": RESET, "no_tty": "sleep 100"}
+PRES = {"none": "", "ign": "trap '' TTIN TTOU; "}
+def kill_session(sid):
+    assert sid > 1 and sid != os.getsid(0), "refusing to signal our own session"
+    out = subprocess.run(["ps", "-s", str(sid), "-o", "pid="], capture_output=True, text=True).stdout.split()
+    for p in out:
+        p = int(p)
+        if p > 1 and p != os.getpid():
+            try: os.kill(p, signal.SIGKILL)
+            except ProcessLookupError: pass
+def run(tbin, opts, pre, child):
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvp("bash", ["bash", "-c", pre + '"$@"; echo "PROBE_RC=$?"', "probe", tbin] + opts + ["3", "sh", "-c", child])
+    t0 = time.monotonic(); out = b""; rc = None
+    sid = None
+    while True:
+        if sid is None:
+            try:
+                g = os.getsid(pid)
+                if g == pid: sid = g   # only once the child IS its own session leader (never our session)
+            except ProcessLookupError: pass
+        r, _, _ = select.select([fd], [], [], 0.2)
+        if r:
+            try: out += os.read(fd, 4096)
+            except OSError: pass
+        w, st = os.waitpid(pid, os.WNOHANG)
+        if w == pid:
+            try:
+                while True:
+                    b = os.read(fd, 4096)
+                    if not b: break
+                    out += b
+            except OSError: pass
+            m = re.search(rb"PROBE_RC=(\d+)", out); rc = int(m.group(1)) if m else "norc"; break
+        if time.monotonic() - t0 > CAP:
+            if sid: kill_session(sid)
+            os.waitpid(pid, 0); rc = "CAPPED"; break
+    el = time.monotonic() - t0
+    if sid:  # anything left in the session (a stray) is killed and reported
+        left = subprocess.run(["ps", "-s", str(sid), "-o", "pid="], capture_output=True, text=True).stdout.split()
+        if left: kill_session(sid)
+    else: left = []
+    os.close(fd)
+    return rc, el, len(left)
+impls = {"gnu": "/usr/bin/gnutimeout", "uutils": "/usr/lib/cargo/bin/coreutils/timeout"}
+for opts in ([], ["--kill-after=2"], ["--foreground"]):
+    for iname, tbin in impls.items():
+        for pname, pre in PRES.items():
+            for cname, child in CHILDREN.items():
+                rc, el, left = run(tbin, opts, pre, child)
+                v = "BOUNDED" if rc != "CAPPED" and el < 3 + 4 else "UNBOUNDED"
+                print(f"{iname}\t{' '.join(opts) or '-'}\t{pname}\t{cname}\t{rc}\t{el:.1f}\t{v}\tleft={left}", flush=True)

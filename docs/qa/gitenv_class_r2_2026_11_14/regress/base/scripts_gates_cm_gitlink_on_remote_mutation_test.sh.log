@@ -1,0 +1,22 @@
+ok   - 0 control: pin is a published commit (rc=0)
+ok   - 1 MUTATION: local-only nested commit recorded => UNPUBLISHED (rc=1)
+ok   - 1b the verdict line names UNPUBLISHED
+ok   - 2 no nested repository or gitdir => BLIND (rc=2)
+ok   - 3 shallow nested clone with an unpublished commit => BLIND (never a false FAIL or PASS) (rc=2)
+ok   - 4 no gitlink in the index => BLIND (rc=2)
+ok   - 5a without --online the unfetched tip is not a PASS (rc=2)
+ok   - 5b --online upgrades a remote tip to PUBLISHED (rc=0)
+ok   - 6 no remote refs fetched => BLIND (rc=2)
+ok   - 7 the neutered gate passes the unpublished pin (so case 1 truly discriminates) (rc=0)
+ok   - 8 N2 local tag + local branch on an unpushed commit => UNPUBLISHED (rc=1)
+ok   - 9 N3 foreign remote ref holding the unpushed commit => UNPUBLISHED (rc=1)
+ok   - 10a N4 index restored to the published pin: the default run passes (rc=0)
+ok   - 10b N4 --rev HEAD judges the commit that records the unpushed pin (rc=1)
+ok   - 11 N5 --online on an unpublished commit (tips fetched) => UNPUBLISHED (rc=1)
+fatal: remote name 'origin/backup' is a subset of existing remote 'origin'
+FAIL - 13 R3-F4 NB foreign remote named origin/backup holding the unpushed commit => UNPUBLISHED: want rc=1 got rc=0
+ok   - 14 R3-F5b --online shallow nested repo, pin below the shallow boundary => BLIND (never a false UNPUBLISHED) (rc=2)
+ok   - 12 mutant heads-counted lets the bad pin through (rc=0), so the real gate's refusal is meaningful
+ok   - 12 mutant online-any lets the bad pin through (rc=0), so the real gate's refusal is meaningful
+== RESULT: 18 passed, 1 failed ==
+❌ META FAIL

@@ -63,6 +63,7 @@
 # against the real neighbouring anchor §11.4.286 in the real files.
 #
 # Dependencies: bash, awk, grep, mktemp, sha256sum or shasum. Classification: universal (§11.4.17).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -u -o pipefail
 export LC_ALL=C
 
@@ -188,8 +189,8 @@ done
 # pinned as its whole paragraph (the lines between two blank lines or headings around the marker line), so a sentence
 # added on the line after the note, or on the line before it, with no blank line between, is pinned text too (audit 3
 # of 2026-11-07, B1: a pin of the marker line alone let a continuation line through).
-PIN_CANON='f492ef1638ead21cc17a199082323b414e11b5079efe1918372a2ad6e4ea4287'       # the §11.4.297 block of Constitution.md
-PIN_CARRIER='37e69a1012661856a78c6ff421163e1ce12bf6f8e79501bed098c8c47809b4fb'     # the §11.4.297 block of each mirror (CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md)
+PIN_CANON='3787831130a0377bef584d78b20d20d7ff917ece4a1b57a6f97b12914034d93d'       # the §11.4.297 block of Constitution.md
+PIN_CARRIER='cc91b9e44187386663048469d118369e9260e365e2a8f0587da1c62bad44d3d6'     # the §11.4.297 block of each mirror (CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md)
 PIN_NOTE_288='9bd14bfd64117be09395b474610cce5ed7fb6287a18b3d3605d5f3168cad0352'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.288
 PIN_NOTE_292='f42431ef5888ffbda7c5aa4fa41a0ed7ce6e6a909e1511e159f9690cc4d82d56'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.292
 PIN_NOTE_293='58cc6e8b8fc88f53b733c5e3183da26ae7e735c3f3c5bb1033f183c8f70634db'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.293
@@ -378,7 +379,9 @@ MARKERS=(
     'OWED-GATE-182'
     'OWED-GATE-183'
     'OWED-GATE-184'
-    'It merges only when all of these are read back: (a) the source-correctness GO is recorded, as a record the merger reads, for exactly the head being merged (a GO for an earlier head, a GO that cannot be read, or no GO refuses the merge); (b) its self-review of that head is on the platform with every finding answered; (c) the reviewer requests of clause (D) are shown by the platform, or a refused reviewer is reported under clause (D)(4); (d) the head on the platform equals the reviewed head (a head that moved after the self-review or the GO is reviewed again first, and the merge call pins the reviewed head where the platform offers it); (e) the serial order of clause (B)(5) admits it; (f) every approval the project configures as required is present; (g) the remote base tip, fetched right before the merge, is an ancestor of the reviewed head (when the base has moved, it is merged into the task branch under clause (B)(5) and the new head is reviewed again first). It merges only in the declared form of point (A.3).'
+    '(6) AUTHOR-ONLY REVIEWER LIST (amendment of 2026-11-16).'
+    'This relaxes exactly one merge condition, (c) of clause (C)(2): for that list, (c) holds once the report is read back, instead of a reviewer request the platform shows; the reviewer step still ends non-zero and that result no longer blocks the merge. Nothing else is relaxed'
+    'It merges only when all of these are read back: (a) the source-correctness GO is recorded, as a record the merger reads, for exactly the head being merged (a GO for an earlier head, a GO that cannot be read, or no GO refuses the merge); (b) its self-review of that head is on the platform with every finding answered; (c) the reviewer requests of clause (D) are shown by the platform, or a refused reviewer is reported under clause (D)(4), or, for an author-only reviewer list declared under clause (D)(6), the report that point requires is read back; (d) the head on the platform equals the reviewed head (a head that moved after the self-review or the GO is reviewed again first, and the merge call pins the reviewed head where the platform offers it); (e) the serial order of clause (B)(5) admits it; (f) every approval the project configures as required is present; (g) the remote base tip, fetched right before the merge, is an ancestor of the reviewed head (when the base has moved, it is merged into the task branch under clause (B)(5) and the new head is reviewed again first). It merges only in the declared form of point (A.3).'
     'then no agent presses a merge button or calls a merge interface of the hosting platform: the author agent self-reviews, reports the pull request ready with (a) to (g) read back, and the human merger lands it.'
     '(A.3) THE LANDING FORM. The landing is a fast-forward of `main` to the reviewed head (the form of §11.4.288(B)(3)) or a merge commit on `main` whose first parent is the previous `main` tip and whose second parent is the reviewed head.'
     'the task branch is deleted locally and on every upstream that holds it only when its head is an ancestor of `main` on every declared upstream (the §11.4.288(B)(4) count is zero). A platform option that deletes the branch at merge time is used only when the platform is the only declared upstream; otherwise the branch is deleted after the parity read-back of clause (F)(4), never at merge time. A task id whose merged branch'

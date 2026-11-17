@@ -1,0 +1,39 @@
+# curl | bash over HTTP
+  ok   curl|bash exit 0
+  ok   curl|bash: gitlink = newest tag
+  ok   curl|bash: CLAUDE.md inheritance
+  ok   curl|bash: report status
+  ok   http server really served the script
+# update path via curl | bash after the upstream advances
+  ok   curl|bash update exit 0
+  ok   update fast-forwarded
+  ok   update staged gitlink
+  ok   fast-forward relation
+# curl file:// | bash
+  ok   file:// curl|bash exit 0
+  ok   file:// gitlink
+# sh invocation
+  ok   sh FILE re-execs under bash: exit 0
+  ok   sh FILE says so and works
+curl: (23) Failure writing output to destination, passed 16384 returned 4096
+  ok   curl|sh refused with exit 2
+  ok   curl|sh tells the user to pipe into bash
+  ok   curl|sh wrote nothing
+# interactive run on a real pseudo-terminal
+  ok   interactive dry-run-then-decline exit 0
+  ok   interactive: questions were shown on the terminal
+  ok   interactive: plan shown
+  ok   interactive decline: nothing written
+  ok   interactive decline: full tree incl. .git byte-identical
+  ok   interactive decline: no backup dir
+  ok   interactive apply exit 0
+  ok   interactive apply: gitlink
+  ok   interactive apply: CLAUDE.md written
+# interactive limits are validated (0 and over-cap refused, re-asked; EOF -> exit 2)
+  ok   interactive timeout 0 / 86401 then EOF -> exit 2
+  ok   interactive timeout: invalid answer shown twice
+  ok   interactive budget 0 / 50.01 then EOF -> exit 2
+  ok   interactive budget: invalid answer shown twice
+  ok   interactive limit refusals: the agent never ran
+  ok   interactive limit refusals wrote nothing
+e2e: PASS 31 FAIL 0

@@ -1,0 +1,2 @@
+suite=redact_cut rc=0 secs=13 RESULT: pass=433 fail=0
+suite=channel_census rc=0 secs=16 RESULT: pass=63 fail=0

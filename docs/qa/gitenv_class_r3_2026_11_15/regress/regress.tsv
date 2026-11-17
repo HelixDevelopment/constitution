@@ -1,0 +1,194 @@
+test	base_rc	base_secs	base_last	fixed_rc	fixed_secs	fixed_last
+scripts/anchors/tests/test_anchor_lib.py	0	0	PASS	0	1	PASS
+scripts/anchors/tests/test_cwd_independence.py	0	131	6/6 passed	0	134	6/6 passed
+scripts/anchors/tests/test_query_us2.py	0	3	PASS	0	3	PASS
+scripts/anchors/tests/test_regeneration_matches_committed.py	0	1	5/5 passed	0	2	5/5 passed
+scripts/credscan/tests/test_credscan.py	0	12	OK	0	12	OK
+scripts/fastcycle/tests/test_backstop_red.sh	1	1	SUMMARY pass=15 fail=1	1	1	SUMMARY pass=15 fail=1
+scripts/fastcycle/tests/test_catchset_compare_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: device/rockchip/rk3588/tests/regression_guard/registry.tsv scripts/te	77	0	SKIP: consumer-project files absent under <scratch>: device/rockchip/rk3588/tests/regression_guard/registry.tsv scripts/te
+scripts/fastcycle/tests/test_check_deps.sh	0	129	PASS test_check_deps	0	126	PASS test_check_deps
+scripts/fastcycle/tests/test_consumer_enumerate_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: config/fastcycle/fastcycle.yaml (test targets a consumer layout, not 	77	0	SKIP: consumer-project files absent under <scratch>: config/fastcycle/fastcycle.yaml (test targets a consumer layout, not 
+scripts/fastcycle/tests/test_consumer_required_helper.sh	0	91	SUMMARY: 370 pass / 0 fail / 0 skip	0	90	SUMMARY: 370 pass / 0 fail / 0 skip
+scripts/fastcycle/tests/test_core_ondemand_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: CLAUDE.md (test targets a consumer layout, not canon alone) reason=to	77	1	SKIP: consumer-project files absent under <scratch>: CLAUDE.md (test targets a consumer layout, not canon alone) reason=to
+scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh	1	0	=== R6 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===	1	1	=== R6 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===
+scripts/fastcycle/tests/test_cycle_report_s12_fix_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: docs/workable_items.db (test targets a consumer layout, not canon alo	77	0	SKIP: consumer-project files absent under <scratch>: docs/workable_items.db (test targets a consumer layout, not canon alo
+scripts/fastcycle/tests/test_escape_classify_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: config/fastcycle/fastcycle.yaml docs/workable_items.db (test targets 	77	0	SKIP: consumer-project files absent under <scratch>: config/fastcycle/fastcycle.yaml docs/workable_items.db (test targets 
+scripts/fastcycle/tests/test_evidence_ref_red.sh	1	5	    contract T117 must satisfy to turn this GREEN. ===	1	5	    contract T117 must satisfy to turn this GREEN. ===
+scripts/fastcycle/tests/test_fc_common_red.sh	0	49	SUMMARY: 232 pass-lines / FAIL=0 of 232 assertions	0	49	SUMMARY: 232 pass-lines / FAIL=0 of 232 assertions
+scripts/fastcycle/tests/test_fc_timer_golden_output.sh	2	0	FATAL: no real pre_build evidence log found (no triplet manifest, and no FC_TIMER_GOLDEN_LOG / prebuild_full_run_*.log in <scratch>/giten	2	0	FATAL: no real pre_build evidence log found (no triplet manifest, and no FC_TIMER_GOLDEN_LOG / prebuild_full_run_*.log in <scratch>/giten
+scripts/fastcycle/tests/test_fc_timer_golden_output_r10_regression.sh	0	7	=== T048 ROUND-10 FINDINGS REGRESSION GUARD (R10-M3/M4): ALL CHECKS PASS ===	0	6	=== T048 ROUND-10 FINDINGS REGRESSION GUARD (R10-M3/M4): ALL CHECKS PASS ===
+scripts/fastcycle/tests/test_fc_timer_golden_output_r14_regression.sh	0	4	=== T048 ROUND-14 FINDINGS REGRESSION GUARD (R14-I2): ALL CHECKS PASS ===	0	4	=== T048 ROUND-14 FINDINGS REGRESSION GUARD (R14-I2): ALL CHECKS PASS ===
+scripts/fastcycle/tests/test_fc_timer_golden_output_r8_regression.sh	0	7	=== T048 ROUND-8 GOLDEN REGRESSION GUARD (R8-I3): ALL CHECKS PASS ===	0	8	=== T048 ROUND-8 GOLDEN REGRESSION GUARD (R8-I3): ALL CHECKS PASS ===
+scripts/fastcycle/tests/test_fc_timer_prebuild_mutations.sh	2	0	FATAL: inputs missing	2	0	FATAL: inputs missing
+scripts/fastcycle/tests/test_fc_timer_prebuild_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: <scratch>/device/rockchip/rk358	77	0	SKIP: consumer-project files absent under <scratch>: <scratch>/device/rockchip/rk358
+scripts/fastcycle/tests/test_handoff_i4_regression.sh	1	2	=== I4+R2-I2+R3-I1+R4-I1+R5-I1+R5-I2 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ===	1	2	=== I4+R2-I2+R3-I1+R4-I1+R5-I1+R5-I2 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ===
+scripts/fastcycle/tests/test_handoff_r6_regression.sh	1	0	=== R6 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===	1	1	=== R6 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===
+scripts/fastcycle/tests/test_handoff_r8_regression.sh	1	0	=== R8 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===	1	1	=== R8 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===
+scripts/fastcycle/tests/test_handoff_r9_regression.sh	1	2	=== R9 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===	1	1	=== R9 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ===
+scripts/fastcycle/tests/test_host_attribute_red.sh	1	0	SUMMARY pass=1 fail=3	1	1	SUMMARY pass=1 fail=3
+scripts/fastcycle/tests/test_io_trace_build_map_r6_regression.sh	1	2	== Summary: ok 6 / NOT ok 3 ==	1	2	== Summary: ok 7 / NOT ok 2 ==
+scripts/fastcycle/tests/test_io_trace_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: CLAUDE.md (test targets a consumer layout, not canon alone) reason=to	77	0	SKIP: consumer-project files absent under <scratch>: CLAUDE.md (test targets a consumer layout, not canon alone) reason=to
+scripts/fastcycle/tests/test_limit_class_place_r5i3_regression.sh	1	1	=== R5-I3 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ===	1	0	=== R5-I3 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ===
+scripts/fastcycle/tests/test_limit_class_r6_regression.sh	1	1	=== R6 REGRESSION GUARD (limit_class.py): FAILURES ABOVE -- see 'NOT ok' lines. ===	1	0	=== R6 REGRESSION GUARD (limit_class.py): FAILURES ABOVE -- see 'NOT ok' lines. ===
+scripts/fastcycle/tests/test_limit_class_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: docs/requests/agent_registry.jsonl (test targets a consumer layout, n	77	0	SKIP: consumer-project files absent under <scratch>: docs/requests/agent_registry.jsonl (test targets a consumer layout, n
+scripts/fastcycle/tests/test_metatest_per_mutant_r4_regression.sh	77	0	SKIP: consumer-project files absent under <scratch>: <scratch>/scripts/testing/meta_	77	0	SKIP: consumer-project files absent under <scratch>: <scratch>/scripts/testing/meta_
+scripts/fastcycle/tests/test_metatest_per_mutant_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: scripts/testing/meta_test_false_positive_proof.sh (test targets a con	77	0	SKIP: consumer-project files absent under <scratch>: scripts/testing/meta_test_false_positive_proof.sh (test targets a con
+scripts/fastcycle/tests/test_plan_struct_causes_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: specs/004-fast-dev-cycles/research.md (test targets a consumer layout	77	0	SKIP: consumer-project files absent under <scratch>: specs/004-fast-dev-cycles/research.md (test targets a consumer layout
+scripts/fastcycle/tests/test_precheck_slicer_red.sh	0	1	== Summary: ok 16 / NOT ok 0 ==	0	1	== Summary: ok 16 / NOT ok 0 ==
+scripts/fastcycle/tests/test_prefix_cache_red.sh	0	2	SUMMARY pass=18 fail=0 total=18	0	1	SUMMARY pass=18 fail=0 total=18
+scripts/fastcycle/tests/test_render_keys_red.sh	77	0	SKIP: consumer-project files absent under <scratch>: scripts/testing/sync_all_markdown_exports.sh (test targets a consumer	77	0	SKIP: consumer-project files absent under <scratch>: scripts/testing/sync_all_markdown_exports.sh (test targets a consumer
+scripts/fastcycle/tests/test_reopen_rate_red.sh	1	2	    the interim contract T100 must satisfy to turn this GREEN. ===	1	2	    the interim contract T100 must satisfy to turn this GREEN. ===
+scripts/fastcycle/tests/test_resume_revalidate_red.sh	1	5	    interim contract T134 must satisfy to turn this GREEN. ===	1	4	    interim contract T134 must satisfy to turn this GREEN. ===
+scripts/fastcycle/tests/test_select_sample_r5_regression.sh	77	0	SKIP: <scratch>/constitution/scripts/fastcycle/cycle/select_sample.py or the consumer tracker DB <work>/	77	0	SKIP: <scratch>/constitution/scripts/fastcycle/cycle/select_sample.py or the consumer tracker DB <work>/
+scripts/fastcycle/tests/test_sibling_search_check_red.sh	1	1	== Summary: ok 3 / NOT ok 1 ==	1	0	== Summary: ok 3 / NOT ok 1 ==
+scripts/fastcycle/tests/test_token_attribution_red.sh	0	58	SUMMARY pass=255 fail=0 derived_default_prefix=BAS derived_default_prefix_blind=0	0	56	SUMMARY pass=255 fail=0 derived_default_prefix=WOR derived_default_prefix_blind=0
+scripts/fastcycle/tokens/test_dispatch_stamp.sh	0	125	  RESULT: PASS (all 295 cases)	1	126	  RESULT: FAIL
+scripts/fastcycle/tokens/test_dispatch_stamp_r7_matrix.sh	0	44	  RESULT: PASS (all 229 checks)	0	44	  RESULT: PASS (all 229 checks)
+scripts/gates/cm_anchor_record_complete_mutation_test.sh	4	0	   Nothing was decided. This is not a pass (§11.4.201(6)).	4	0	   Nothing was decided. This is not a pass (§11.4.201(6)).
+scripts/gates/cm_codegraph_mcp_health_mutation_test.sh	0	58	META PASS — CM-CODEGRAPH-MCP-HEALTH classifies every fixture and kills every mutant	0	57	META PASS — CM-CODEGRAPH-MCP-HEALTH classifies every fixture and kills every mutant
+scripts/gates/cm_continuum_resume_engine_present_mutation_test.sh	0	1	======================================================================	0	1	======================================================================
+scripts/gates/cm_core_scripts_project_literal_free_mutation_test.sh	0	89	CORE-SCRIPTS-LITERAL-FREE: PASS	0	90	CORE-SCRIPTS-LITERAL-FREE: PASS
+scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	0	25	META_EXIT=0	0	24	META_EXIT=0
+scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	0	13	cm_decisions_wizard_safety mutation test: pass=9 fail=0	0	14	cm_decisions_wizard_safety mutation test: pass=9 fail=0
+scripts/gates/cm_git_hooks_installed_mutation_test.sh	0	1	MUTATION-TEST GREEN (baseline fires / mutation silences / neg-control quiet / repo clean)	0	1	MUTATION-TEST GREEN (baseline fires / mutation silences / neg-control quiet / repo clean)
+scripts/gates/cm_github_issues_source_anchor_wired_mutation_test.sh	0	123	[mutation:ghissues] PASS: 167 RED/BLIND cases and 5 GREEN cases (1 control + 4 golden-FALSE) behaved as required — cm_github_issues_source_anchor_wired.sh genui	0	120	[mutation:ghissues] PASS: 167 RED/BLIND cases and 5 GREEN cases (1 control + 4 golden-FALSE) behaved as required — cm_github_issues_source_anchor_wired.sh genui
+scripts/gates/cm_gitlink_on_remote_mutation_test.sh	1	3	❌ META FAIL	1	3	❌ META FAIL
+scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh	0	3	✅ META: all expectations held	0	2	✅ META: all expectations held
+scripts/gates/cm_installer_snippets_consistent_mutation_test.sh	0	0	META PASS: CM-INSTALLER-SNIPPETS-CONSISTENT kills every mutant	0	1	META PASS: CM-INSTALLER-SNIPPETS-CONSISTENT kills every mutant
+scripts/gates/cm_jev_bootstrap_idempotent_mutation_test.sh	0	69	[mutation:bootstrap] PASS: cm_jev_bootstrap_idempotent.sh genuinely discriminates (GREEN genuine / RED mutated)	0	70	[mutation:bootstrap] PASS: cm_jev_bootstrap_idempotent.sh genuinely discriminates (GREEN genuine / RED mutated)
+scripts/gates/cm_jev_detection_mutation_test.sh	0	7	[mutation:detection] PASS: cm_jev_detection.sh genuinely discriminates (GREEN genuine / RED mutated)	0	8	[mutation:detection] PASS: cm_jev_detection.sh genuinely discriminates (GREEN genuine / RED mutated)
+scripts/gates/cm_label_sync_hooks_mutation_test.sh	0	9	✅ META: all expectations held	0	10	✅ META: all expectations held
+scripts/gates/cm_pr_delivery_anchor_wired_mutation_test.sh	0	542	[mutation:pr-delivery] PASS: 365 RED/BLIND cases and 10 GREEN cases (1 control + 9 golden-FALSE) behaved as required — cm_pr_delivery_anchor_wired.sh genuinely 	0	587	[mutation:pr-delivery] PASS: 365 RED/BLIND cases and 10 GREEN cases (1 control + 9 golden-FALSE) behaved as required — cm_pr_delivery_anchor_wired.sh genuinely 
+scripts/gates/cm_rule_binds_to_seam_mutation_test.sh	0	2	cm_rule_binds_to_seam_mutation_test.sh: pass=12 fail=0	0	2	cm_rule_binds_to_seam_mutation_test.sh: pass=12 fail=0
+scripts/gates/cm_unreferenced_gate_bound_or_retired_mutation_test.sh	0	2	cm_unreferenced_gate_bound_or_retired_mutation_test.sh: pass=8 fail=0	0	1	cm_unreferenced_gate_bound_or_retired_mutation_test.sh: pass=8 fail=0
+scripts/gates/covenant_propagation_default_root_test.sh	0	1	# pass=6 fail=0	0	0	# pass=6 fail=0
+scripts/gates/scanner_gate_false_positive_repairs_mutation_test.sh	1	708	META FAIL	1	703	META FAIL
+scripts/gates/scanner_gate_false_positive_repairs_test.sh	1	82	RESULT: 90 ok, 1 failed, 1 skipped	1	83	RESULT: 90 ok, 1 failed, 1 skipped
+scripts/hooks/test_guard_agent_type_label.sh	0	5	  RESULT: PASS	0	5	  RESULT: PASS
+scripts/hooks/test_guard_bypasses.py	0	259	guard bypass tests: pass=2429 fail=0	0	263	guard bypass tests: pass=2429 fail=0
+scripts/multitrack/test_multitrack_alias_priority_limits.sh	0	1	Evidence: <scratch>/qa-results/multitrack_alias_priority_limits/20261115T011828Z	0	1	Evidence: <scratch>/qa-results/multitrack_alias_priority_limits/20261115T011829Z
+scripts/multitrack/test_multitrack_bootstrap.sh	0	0	Evidence: <scratch>/qa-results/multitrack/rb08_test_2026-11-15T01-18-30Z-1153880	0	1	Evidence: <scratch>/qa-results/multitrack/rb08_test_2026-11-15T01-18-30Z-1153964
+scripts/multitrack/test_multitrack_conductor_autoarm.sh	0	0	== conductor auto-arm test : PASS == (evidence: <scratch>/qa-results/multitrack_native_first_resume/20261115T011831Z/autoa	0	1	== conductor auto-arm test : PASS == (evidence: <scratch>/qa-results/multitrack_native_first_resume/20261115T011831Z/autoa
+scripts/multitrack/test_multitrack_host_budget_jvm_daemons.sh	0	1	Evidence: <scratch>/base/qa-results/multitrack/hbjvm_test_2026-11-15T01-18-32Z-1154481	0	0	Evidence: <scratch>/work/qa-results/multitrack/hbjvm_test_2026-11-15T01-18-33Z-1154803
+scripts/multitrack/test_multitrack_host_budget_rb02_pgrep.sh	0	0	Evidence: <scratch>/qa-results/multitrack/rb02_pgrep_test_20261115T011833Z	0	1	Evidence: <scratch>/qa-results/multitrack/rb02_pgrep_test_20261115T011833Z
+scripts/multitrack/test_multitrack_monday_dryrun.sh	0	2	Evidence: <scratch>/qa-results/multitrack/rb13_test_2026-11-15T01-18-34Z-1155401	0	2	Evidence: <scratch>/qa-results/multitrack/rb13_test_2026-11-15T01-18-36Z-1156107
+scripts/multitrack/test_multitrack_native_first_fallback.sh	0	0	== native-first test (RED_MODE=1) : PASS == (evidence: <scratch>/qa-results/multitrack_native_first_resume/20261115T011838	0	0	== native-first test (RED_MODE=1) : PASS == (evidence: <scratch>/qa-results/multitrack_native_first_resume/20261115T011838
+scripts/multitrack/test_multitrack_orchestrator_reconcile.sh	0	4	Evidence: <scratch>/base/qa-results/multitrack/reconcile_test_2026-11-15T01-18-38Z-1157118	0	3	Evidence: <scratch>/work/qa-results/multitrack/reconcile_test_2026-11-15T01-18-42Z-1158396
+scripts/multitrack/test_multitrack_orchestrator_reconcile_rc.sh	0	5	Evidence: <scratch>/base/qa-results/multitrack/reconcile_rc_test_2026-11-15T01-18-45Z-1159620	0	4	Evidence: <scratch>/work/qa-results/multitrack/reconcile_rc_test_2026-11-15T01-18-50Z-1161100
+scripts/multitrack/test_multitrack_ruler_suite.sh	0	146	=================================================	0	146	=================================================
+scripts/multitrack/test_multitrack_sessions_argparse.sh	0	8	Evidence: <scratch>/base/qa-results/multitrack/argparse_test_2026-11-15T01-23-47Z-1220297	0	8	Evidence: <scratch>/work/qa-results/multitrack/argparse_test_2026-11-15T01-23-55Z-1221326
+scripts/multitrack/test_multitrack_sessions_balance_autoselect.sh	77	0	SKIP: no outer project root: canon is not nested in a consumer reason=topology_unsupported	77	0	SKIP: no outer project root: canon is not nested in a consumer reason=topology_unsupported
+scripts/multitrack/test_multitrack_sessions_pid_status.sh	77	0	SKIP: the RB-05 mock claude is not reachable (no outer project root above <scratch>/base, no MT_TEST_MOCK_CLAUDE; looked f	77	0	SKIP: the RB-05 mock claude is not reachable (no outer project root above <scratch>/work, no MT_TEST_MOCK_CLAUDE; looked f
+scripts/multitrack/test_multitrack_supervisor.sh	0	2	=== RB-07 supervisor test summary (RED_MODE=1): PASS=7 FAIL=0 ===	0	2	=== RB-07 supervisor test summary (RED_MODE=1): PASS=7 FAIL=0 ===
+scripts/multitrack/test_multitrack_supervisor_wiring.sh	77	0	SKIP: the RB-05 mock claude is not reachable (no outer project root above <scratch>/base, no MT_TEST_MOCK_CLAUDE; looked f	77	0	SKIP: the RB-05 mock claude is not reachable (no outer project root above <scratch>/work, no MT_TEST_MOCK_CLAUDE; looked f
+scripts/skill_activation/test_skill_activation.sh	0	15	== 46 passed, 0 failed ==	0	15	== 46 passed, 0 failed ==
+scripts/test_portable_skill_symlink.sh	0	0	== summary: PASS=2 FAIL=0 SKIP=0 (evidence: <tmp>/portable_symlink_test_20261115T012437Z-1235468) ==	0	1	== summary: PASS=2 FAIL=0 SKIP=0 (evidence: <tmp>/portable_symlink_test_20261115T012437Z-1235579) ==
+tests/action_prefix/test_action_prefix_grammar.sh	0	32	ALL PASS	0	32	ALL PASS
+tests/action_prefix/test_hook_e2e.sh	0	18	RESULT: GREEN	0	17	RESULT: GREEN
+tests/action_prefix/test_subsystem_shortcuts.sh	0	19	ALL PASS	0	17	ALL PASS
+tests/constitution_cmd/test_constitution_cmd.sh	0	66	PASS=292 FAIL=0	0	67	PASS=292 FAIL=0
+tests/constitution_cmd/test_constitution_cmd_pty.sh	124	900	  ok   mutant PM2_adopt_not_interactive killed (12 failures)	124	900	  ok   mutant PM2_adopt_not_interactive killed (12 failures)
+tests/constitution_cmd/test_wiring_cmd.sh	0	7	wiring-cmd: PASS 36 FAIL 0	0	6	wiring-cmd: PASS 36 FAIL 0
+tests/decisions/test_core.sh	0	13	test_core: pass=100 fail=0	0	14	test_core: pass=100 fail=0
+tests/decisions/test_own_mutants.sh		124	900	  killed  P14_doc_symlink_escape (test_round3: pass=185 fail=2; first: FAIL symlink into .git refused (want rc=3 got rc=0))
+tests/decisions/test_repo_guard_mutants.sh	0	30	repo guard mutants: applied=7 killed=7 survived=0 not_applied=0	0	29	repo guard mutants: applied=7 killed=7 survived=0 not_applied=0
+tests/decisions/test_round10.sh	0	27	test_round10: pass=78 fail=0	0	28	test_round10: pass=78 fail=0
+tests/decisions/test_round11.sh	0	24	test_round11: pass=29 fail=0	0	25	test_round11: pass=29 fail=0
+tests/decisions/test_round2.sh	0	46	test_round2: pass=136 fail=0	0	45	test_round2: pass=136 fail=0
+tests/decisions/test_round3.sh	0	20	test_round3: pass=187 fail=0	0	20	test_round3: pass=187 fail=0
+tests/decisions/test_round4.sh	0	29	test_round4: pass=162 fail=0	0	28	test_round4: pass=162 fail=0
+tests/decisions/test_round5.sh	0	17	test_round5: pass=114 fail=0	0	18	test_round5: pass=114 fail=0
+tests/decisions/test_round6.sh	0	24	test_round6: pass=94 fail=0	0	25	test_round6: pass=94 fail=0
+tests/decisions/test_round7.sh	0	21	test_round7: pass=58 fail=0	0	21	test_round7: pass=58 fail=0
+tests/decisions/test_round8.sh	0	96	test_round8: pass=68 fail=0	0	96	test_round8: pass=68 fail=0
+tests/decisions/test_round9.sh	0	2	test_round9: pass=16 fail=0	0	1	test_round9: pass=16 fail=0
+tests/docs/test_no_dead_methodology_link.sh	0	62	PASS: 0 dead links (12 mentions kept; inline, reference-style, href and autolink mutants detected over all tracked md/html)	0	61	PASS: 0 dead links (12 mentions kept; inline, reference-style, href and autolink mutants detected over all tracked md/html)
+tests/extensions/test_attacks.sh	0	37	attacks: PASS 303 FAIL 0	0	38	attacks: PASS 303 FAIL 0
+tests/extensions/test_e2e.sh	0	5	e2e: PASS 43 FAIL 0	0	5	e2e: PASS 43 FAIL 0
+tests/extensions/test_integration.sh	0	13	integration: PASS 62 FAIL 0	0	13	integration: PASS 62 FAIL 0
+tests/extensions/test_mutations.sh	124	901	  ok   KILLED [R7-rollback] by: chaos	124	900	  ok   KILLED [R7-rollback] by: chaos
+tests/extensions/test_ownership_e01.sh	0	15	ownership-e01: PASS 150 FAIL 0	0	14	ownership-e01: PASS 150 FAIL 0
+tests/extensions/test_provenance.sh	0	33	provenance: PASS 283 FAIL 0	0	33	provenance: PASS 283 FAIL 0
+tests/extensions/test_security.sh	0	28	security: PASS 300 FAIL 0	0	26	security: PASS 300 FAIL 0
+tests/extensions/test_unit.py	0	22	unit: PASS 213 FAIL 0	0	22	unit: PASS 213 FAIL 0
+tests/extensions/test_wiring_ledger.sh	0	17	wiring-ledger: PASS 241 FAIL 0	0	17	wiring-ledger: PASS 241 FAIL 0
+tests/extensions/test_wiring_ledger_mutations.sh	0	788	wiring-ledger-mutations: PASS 44 FAIL 0	0	804	wiring-ledger-mutations: PASS 44 FAIL 0
+tests/gates/test_default_scan_root.sh	0	2	passed=25 failed=0	0	1	passed=25 failed=0
+tests/gates/test_gate_env_census_jq_regions.sh	3	4	== 52 passed, 0 failed, 5 known-failure ==	3	3	== 52 passed, 0 failed, 5 known-failure ==
+tests/gates/test_gate_env_overrides_guarded.sh	0	63	== 117 passed, 0 failed ==	0	63	== 117 passed, 0 failed ==
+tests/gates/test_manifest_structural_parser.sh	0	11	== 50 passed, 0 failed ==	0	10	== 50 passed, 0 failed ==
+tests/gates/test_manifest_structural_parser_mutation_test.sh	0	123	== all mutants killed ==	0	122	== all mutants killed ==
+tests/gates/test_oracle_frozen_exclusions.sh	0	14	RESULT: pass=69 fail=0	0	15	RESULT: pass=69 fail=0
+tests/gates/test_oracle_ratchet_and_consumer_skips.sh	1	34	passed=122 failed=1	1	39	passed=122 failed=1
+tests/gates/test_oracle_verdict_fields.sh	0	0	== 4 passed, 0 failed ==	0	0	== 4 passed, 0 failed ==
+tests/gates/test_standalone_canon_gates.sh	0	5	# test_standalone_canon_gates: pass=50 fail=0	0	4	# test_standalone_canon_gates: pass=50 fail=0
+tests/gates/test_workable_items_db_sidecars_ignored.sh	0	0	== 6 passed, 0 failed ==	0	1	== 6 passed, 0 failed ==
+tests/hooks_range/test_post_update_hook_range.sh	0	12	== hooks_range summary: 10 passed, 0 failed ==	0	12	== hooks_range summary: 10 passed, 0 failed ==
+tests/install/test_agent.sh	0	183	agent_unit_fake: PASS 204 FAIL 0	0	182	agent_unit_fake: PASS 204 FAIL 0
+tests/install/test_chaos.sh	0	104	chaos: PASS 31 FAIL 0	0	104	chaos: PASS 31 FAIL 0
+tests/install/test_detection.sh	0	22	detection: PASS 41 FAIL 0	0	22	detection: PASS 41 FAIL 0
+tests/install/test_determinism.sh	0	17	determinism: PASS 5 FAIL 0	0	16	determinism: PASS 5 FAIL 0
+tests/install/test_e2e.sh	0	32	e2e: PASS 31 FAIL 0	0	32	e2e: PASS 31 FAIL 0
+tests/install/test_git_wrapper.sh	0	8	git-wrapper: PASS 138 FAIL 0	0	8	git-wrapper: PASS 138 FAIL 0
+tests/install/test_integration.sh	0	106	integration: PASS 146 FAIL 0	0	99	integration: PASS 146 FAIL 0
+tests/install/test_lock.sh	0	261	lock: PASS 84 FAIL 0	0	261	lock: PASS 84 FAIL 0
+tests/install/test_minor.sh	0	28	minor: PASS 24 FAIL 0	0	29	minor: PASS 24 FAIL 0
+tests/install/test_round10.sh	0	126	round10: PASS 104 FAIL 0	0	128	round10: PASS 104 FAIL 0
+tests/install/test_round11.sh	0	61	round11: PASS 47 FAIL 0	0	62	round11: PASS 47 FAIL 0
+tests/install/test_round6.sh	0	115	round6: PASS 140 FAIL 0	0	114	round6: PASS 140 FAIL 0
+tests/install/test_round8.sh	0	152	round8: PASS 86 FAIL 0	0	150	round8: PASS 86 FAIL 0
+tests/install/test_round9.sh	0	184	round9: PASS 118 FAIL 0	0	187	round9: PASS 118 FAIL 0
+tests/install/test_security.sh	0	70	security: PASS 95 FAIL 0	0	71	security: PASS 95 FAIL 0
+tests/install/test_self_guard.sh	0	45	self-guard: PASS 117 FAIL 0	0	47	self-guard: PASS 117 FAIL 0
+tests/install/test_stress_perf.sh	0	89	stress_perf: PASS 12 FAIL 0	0	90	stress_perf: PASS 12 FAIL 0
+tests/install/test_unit.sh	0	2	unit: PASS 220 FAIL 0	0	2	unit: PASS 220 FAIL 0
+tests/install/test_updater.sh	0	43	updater: PASS 110 FAIL 0	0	42	updater: PASS 110 FAIL 0
+tests/install/test_upstream_main.sh	0	6	test_upstream_main: PASS 8 FAIL 0	0	6	test_upstream_main: PASS 8 FAIL 0
+tests/jev/test_bootstrap_manifest_reader.sh	0	8	# test_bootstrap_manifest_reader.sh: pass=17 fail=0 skip=0	0	9	# test_bootstrap_manifest_reader.sh: pass=17 fail=0 skip=0
+tests/jev/test_bootstrap_provision_fallback.sh	0	14	# test_bootstrap_provision_fallback.sh: pass=36 fail=0 skip=0	0	13	# test_bootstrap_provision_fallback.sh: pass=36 fail=0 skip=0
+tests/jev/test_bootstrap_summary_mode_default.sh	0	0	== RESULT: 6 passed, 0 failed ==	0	0	== RESULT: 6 passed, 0 failed ==
+tests/jev/test_detection_matrix.sh	0	14	# test_detection_matrix.sh: pass=40 fail=0 skip=0	0	13	# test_detection_matrix.sh: pass=40 fail=0 skip=0
+tests/jev/test_detection_producer_gate_e2e.sh	0	4	# test_detection_producer_gate_e2e.sh: pass=20 fail=0 skip=0	0	4	# test_detection_producer_gate_e2e.sh: pass=20 fail=0 skip=0
+tests/jev/test_hosted_key_discovery.sh	0	56	# test_hosted_key_discovery.sh: pass=111 fail=0 skip=0	0	56	# test_hosted_key_discovery.sh: pass=111 fail=0 skip=0
+tests/jev/test_mcp_register_hardening.sh	0	19	# test_mcp_register_hardening.sh: pass=42 fail=0 skip=0	0	20	# test_mcp_register_hardening.sh: pass=42 fail=0 skip=0
+tests/jev/test_post_update_hook_trigger.sh	0	29	# test_post_update_hook_trigger.sh: pass=26 fail=0 skip=0	0	29	# test_post_update_hook_trigger.sh: pass=26 fail=0 skip=0
+tests/layout/test_constitution_layout_lib.sh	0	3	constitution_layout_lib: PASS=38 FAIL=0	0	2	constitution_layout_lib: PASS=38 FAIL=0
+tests/layout/test_consumer_trust_lock.sh	0	53	consumer_trust_lock: PASS=53 FAIL=0	0	53	consumer_trust_lock: PASS=53 FAIL=0
+tests/layout/test_deps_manifest_layout.sh	0	4	deps_manifest_layout: PASS=13 FAIL=0	0	3	deps_manifest_layout: PASS=13 FAIL=0
+tests/layout/test_fastcycle_layout.sh	0	6	fastcycle_layout: PASS=23 FAIL=0	0	7	fastcycle_layout: PASS=23 FAIL=0
+tests/layout/test_generator_atomic.sh	0	367	generator_atomic: PASS=57 FAIL=0	0	362	generator_atomic: PASS=57 FAIL=0
+tests/layout/test_hermetic_generator.sh	0	44	hermetic_generator: PASS=28 FAIL=0	0	44	hermetic_generator: PASS=28 FAIL=0
+tests/layout/test_multitrack_sync_layout.sh	0	3	multitrack_sync_layout: PASS=9 FAIL=0	0	3	multitrack_sync_layout: PASS=9 FAIL=0
+tests/layout/test_pending_update_layout.sh	0	12	pending_update_layout: PASS=49 FAIL=0	0	12	pending_update_layout: PASS=49 FAIL=0
+tests/layout/test_post_merge_layout.sh	0	6	post_merge_layout: PASS=38 FAIL=0	0	6	post_merge_layout: PASS=38 FAIL=0
+tests/layout/test_round4_hardening.sh	0	131	round4_hardening: PASS=32 FAIL=0	0	131	round4_hardening: PASS=32 FAIL=0
+tests/layout/test_round6_hardening.sh	0	20	round6_hardening: PASS=59 FAIL=0	0	19	round6_hardening: PASS=59 FAIL=0
+tests/layout/test_round7_ambient.sh	0	508	round7_ambient: PASS=41 FAIL=0	0	507	round7_ambient: PASS=41 FAIL=0
+tests/layout/test_setup_layout.sh	0	23	setup_layout: PASS=99 FAIL=0	0	24	setup_layout: PASS=99 FAIL=0
+tests/prompts/test_rotate_hardening.sh	0	5	RESULT: hardening pass=52 fail=0 skip=0	0	4	RESULT: hardening pass=52 fail=0 skip=0
+tests/prompts/test_rotate_integration.sh	0	1	RESULT: integration pass=27 fail=0 skip=0	0	1	RESULT: integration pass=27 fail=0 skip=0
+tests/prompts/test_setup_prompt_behaviour.sh	0	9	RESULT: behaviour pass=84 fail=0 skip=0	0	9	RESULT: behaviour pass=84 fail=0 skip=0
+tests/prompts/test_setup_prompt_content.sh	0	1	RESULT: content pass=69 fail=0 skip=0	0	0	RESULT: content pass=69 fail=0 skip=0
+tests/prompts/test_setup_prompt_round3.sh	0	12	RESULT: round3 pass=65 fail=0 skip=0	0	12	RESULT: round3 pass=65 fail=0 skip=0
+tests/prompts/test_setup_prompt_round3_mutants.sh	1	12	RESULT: round3_mutants pass=0 fail=1 skip=0	1	13	RESULT: round3_mutants pass=0 fail=1 skip=0
+tests/prompts/test_setup_prompt_round4.sh	0	7	RESULT: round4 pass=97 fail=0 skip=1	0	7	RESULT: round4 pass=97 fail=0 skip=1
+tests/prompts/test_setup_prompt_round4_mutants.sh	0	178	RESULT: round4_mutants pass=25 fail=0 skip=0	0	178	RESULT: round4_mutants pass=25 fail=0 skip=0
+tests/prompts/test_setup_prompt_round5.sh	0	41	RESULT: round5 pass=56 fail=0 skip=0	0	41	RESULT: round5 pass=56 fail=0 skip=0
+tests/prompts/test_setup_prompt_round5_mutants.sh	0	184	RESULT: round5_mutants pass=33 fail=0 skip=0	0	184	RESULT: round5_mutants pass=33 fail=0 skip=0
+tests/prompts/test_setup_prompt_round5_stops.sh	0	34	RESULT: round5_stops pass=158 fail=0 skip=0	0	35	RESULT: round5_stops pass=158 fail=0 skip=0
+tests/prompts/test_setup_prompt_round5_stops_mutants.sh	0	50	RESULT: round5_stops_mutants pass=76 fail=0 skip=0	0	50	RESULT: round5_stops_mutants pass=76 fail=0 skip=0
+tests/prompts/test_setup_prompt_round7.sh	0	60	RESULT: round7 pass=38 fail=0 skip=0	0	59	RESULT: round7 pass=38 fail=0 skip=0
+tests/prompts/test_setup_prompt_round7_mutants.sh	0	167	RESULT: round7_mutants pass=16 fail=0 skip=0	0	167	RESULT: round7_mutants pass=16 fail=0 skip=0
+tests/release/test_derive_release_facts.sh	0	1	RESULT: pass=29 fail=0	0	1	RESULT: pass=29 fail=0
+tests/release/test_publish_gitea.sh	0	2	RESULT pass=32 fail=0	0	2	RESULT pass=32 fail=0
+tests/release/test_tag_and_release.sh	0	6	RESULT: pass=45 fail=0	0	5	RESULT: pass=45 fail=0
+tests/test_cli_agent_plugins.sh	0	46	== cli-agent-plugins summary: 16 passed, 0 failed, 0 finding(s) ==	0	48	== cli-agent-plugins summary: 16 passed, 0 failed, 0 finding(s) ==
+tests/test_full_suite_manifest_gate_git_env.sh	0	73	[git-env] passed=14 failed=0	0	69	[git-env] passed=14 failed=0
+tests/test_git_env_class.sh	0	163	[git-env-class] passed=47 failed=0 skipped=1	0	196	[git-env-class] passed=93 failed=0 skipped=1
+tests/test_no_head_red_builder.sh	0	2	PASS=6 FAIL=0 SKIP=0	0	2	PASS=6 FAIL=0 SKIP=0
+tests/test_no_head_red_builder_mutations.sh	0	23	PASS=13 FAIL=0 SKIP=0	0	24	PASS=13 FAIL=0 SKIP=0
+tests/test_post_update_hub_gates.sh	0	9	PASS — post_update_hook.sh invokes the hub gates + the manifest gate + the provisional-done, repro-first, no-worse, state-fields, geo-substitute, github-issues,	0	10	PASS — post_update_hook.sh invokes the hub gates + the manifest gate + the provisional-done, repro-first, no-worse, state-fields, geo-substitute, github-issues,
+tests/test_run_full_suite.sh	0	309	passed=1190 failed=0	0	308	passed=1190 failed=0
+tests/test_run_full_suite_go.sh	0	120	SUMMARY pass=80 fail=0	0	121	SUMMARY pass=80 fail=0
+tests/test_run_full_suite_mutations.sh	124	900	killed M1 (2 failing check(s))	124	900	killed M1 (2 failing check(s))
+tests/test_verify_helix_deps_manifests.sh	0	12	PASS — verify_helix_deps_manifests.sh classifies every case	0	13	PASS — verify_helix_deps_manifests.sh classifies every case

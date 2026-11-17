@@ -1,0 +1,338 @@
+NOT ok control needle #1 failed: a KNOWN-PRESENT sibling file
+     (<scratch>/constitution/scripts/fastcycle/lib/fc_common.py) does not resolve -- this test's relative-path
+     computation is broken, so the absence check below proves
+     nothing (section 11.4.273)
+NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is unavailable
+     in this environment -- this is an environment gap, not a finding
+NOT ok control needle #3 BLIND: fc_common.py absent at <scratch>/constitution/scripts/fastcycle/lib/fc_common.py
+-- <scratch>/constitution/scripts/fastcycle/context does not exist at all yet
+NOT ok context/evidence_ref.py is absent -- T117 (plan.md T-E05's
+     implementation task, a SEPARATE later task from this RED test) has
+     not landed yet. THIS IS THE CORRECT, EXPECTED T108 RED BASELINE --
+     the fixtures + independent derivation below stand as the interim
+     contract T117 must satisfy to turn this GREEN.
+NOT ok fixture er_unchanged/ref.json missing
+NOT ok fixture er_unchanged/expected_consume.json missing
+NOT ok fixture er_unchanged/scenario.json missing
+NOT ok fixture er_changed_input/ref.json missing
+NOT ok fixture er_changed_input/expected_consume.json missing
+NOT ok fixture er_changed_input/scenario.json missing
+NOT ok fixture er_changed_verifier/ref.json missing
+NOT ok fixture er_changed_verifier/expected_consume.json missing
+NOT ok fixture er_changed_verifier/scenario.json missing
+NOT ok fixture er_changed_target/ref.json missing
+NOT ok fixture er_changed_target/expected_consume.json missing
+NOT ok fixture er_changed_target/scenario.json missing
+NOT ok fixture er_evidence_tampered/ref.json missing
+NOT ok fixture er_evidence_tampered/expected_consume.json missing
+NOT ok fixture er_evidence_tampered/scenario.json missing
+NOT ok fixture er_negctrl_unrelated_file/ref.json missing
+NOT ok fixture er_negctrl_unrelated_file/expected_consume.json missing
+NOT ok fixture er_negctrl_unrelated_file/scenario.json missing
+ok all six scenario directories carry ref.json + expected_consume.json + scenario.json
+
+=== T108 contract fixture table (six rows), independent DERIVED oracle ===
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/scenario.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/scenario.json'
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.PFV3IlvNoj/er_unchanged.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_unchanged.derived.json'
+NOT ok er_unchanged: 
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/scenario.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/scenario.json'
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.PFV3IlvNoj/er_changed_input.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_changed_input.derived.json'
+NOT ok er_changed_input: 
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/scenario.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/scenario.json'
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.PFV3IlvNoj/er_changed_verifier.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_changed_verifier.derived.json'
+NOT ok er_changed_verifier: 
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/scenario.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/scenario.json'
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.PFV3IlvNoj/er_changed_target.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_changed_target.derived.json'
+NOT ok er_changed_target: 
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/scenario.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/scenario.json'
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.PFV3IlvNoj/er_evidence_tampered.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_evidence_tampered.derived.json'
+NOT ok er_evidence_tampered: 
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/scenario.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/scenario.json'
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.PFV3IlvNoj/er_negctrl_unrelated_file.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_negctrl_unrelated_file.derived.json'
+NOT ok er_negctrl_unrelated_file: 
+
+=== ER-005 bonus check: er_changed_target with --target OMITTED entirely ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<tmp>/tmp.PFV3IlvNoj/er_changed_target.absent.derived.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_changed_target.absent.derived.json'
+NOT ok er_changed_target(absent target): 
+
+=== ER-003 no-silent-reuse check: verdict key present iff outcome==REUSED ===
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/expected_consume.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/expected_consume.json'
+NOT ok er_unchanged: outcome= but expected_consume.json STILL carries a verdict
+     key -- ER-003 requires the old verdict be absent on any non-REUSED
+     outcome (no silent reuse)
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/expected_consume.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/expected_consume.json'
+NOT ok er_changed_input: outcome= but expected_consume.json STILL carries a verdict
+     key -- ER-003 requires the old verdict be absent on any non-REUSED
+     outcome (no silent reuse)
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/expected_consume.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/expected_consume.json'
+NOT ok er_changed_verifier: outcome= but expected_consume.json STILL carries a verdict
+     key -- ER-003 requires the old verdict be absent on any non-REUSED
+     outcome (no silent reuse)
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/expected_consume.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/expected_consume.json'
+NOT ok er_changed_target: outcome= but expected_consume.json STILL carries a verdict
+     key -- ER-003 requires the old verdict be absent on any non-REUSED
+     outcome (no silent reuse)
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/expected_consume.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/expected_consume.json'
+NOT ok er_evidence_tampered: outcome= but expected_consume.json STILL carries a verdict
+     key -- ER-003 requires the old verdict be absent on any non-REUSED
+     outcome (no silent reuse)
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    d = json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/expected_consume.json'))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/expected_consume.json'
+NOT ok er_negctrl_unrelated_file: outcome= but expected_consume.json STILL carries a verdict
+     key -- ER-003 requires the old verdict be absent on any non-REUSED
+     outcome (no silent reuse)
+
+=== Self-validation discrimination needles (section 11.4.107(10)/11.4.201(1)) ===
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_unchanged/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_negctrl_unrelated_file/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_target/expected_consume.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_evidence_tampered/expected_consume.json'
+NOT ok discrimination: er_unchanged (golden-good) must expect REUSED, got 
+NOT ok discrimination: er_negctrl_unrelated_file (negative-control) must
+     expect REUSED despite the unrelated file's real content change, got
+      -- a derivation that flags ANY on-disk change under the
+     scenario directory (rather than only the DECLARED inputs) would fail
+     this needle, which is exactly the false-positive guard this fixture exists for
+
+=== Paired mutation 1/2 (contract's own, verbatim): drop verifier-version -> er_changed_verifier wrongly REUSED ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<tmp>/tmp.PFV3IlvNoj/er_changed_verifier.mut_no_vv.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_changed_verifier.mut_no_vv.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_verifier/expected_consume.json'
+NOT ok mutation 1 FAILED: mutated= correct= (expected
+     mutated=REUSED, correct=REVERIFY_REQUIRED) -- this fixture would not
+     catch this mutation and needs revising
+
+=== Paired mutation 2/2 (this dispatch's own instructions, verbatim at dispatch time -- see the HONEST NOTE at the top of this file): compare paths instead of content hashes -> er_changed_input wrongly REUSED ===
+Traceback (most recent call last):
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "<tmp>/tmp.PFV3IlvNoj/derive.py", line 160, in main
+    with open(ref_path, encoding="utf-8") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/ref.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<tmp>/tmp.PFV3IlvNoj/er_changed_input.mut_paths_only.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.PFV3IlvNoj/er_changed_input.mut_paths_only.json'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; print(json.load(open('<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/expected_consume.json'))['outcome'])
+                                 ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/constitution/scripts/fastcycle/tests/fixtures/evidence_ref/er_changed_input/expected_consume.json'
+NOT ok mutation 2 FAILED: mutated= correct= (expected
+     mutated=REUSED, correct=REVERIFY_REQUIRED) -- this fixture would not
+     catch this mutation and needs revising
+
+=== Real-tool invocation checks SKIPPED: context/evidence_ref.py not present ===
+NOT ok real-invocation checks skipped -- this contributes to the overall
+     RED exit below, which is the CORRECT state until T117 lands.
+
+=== T108 RED BASELINE CONFIRMED: context/evidence_ref.py does not exist
+    yet (T117 is a separate, later task). The six-row contract fixture
+    table + the ER-005/ER-003 bonus checks + both named paired mutations,
+    all independently re-derived and self-validated above, are the interim
+    contract T117 must satisfy to turn this GREEN. ===

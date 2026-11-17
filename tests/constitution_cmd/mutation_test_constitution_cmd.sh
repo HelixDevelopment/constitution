@@ -4,8 +4,25 @@
 # to change the file) to a COPY of the engine; the test suite is re-run against the copy with
 # CMD_SRC_ROOT and must FAIL (mutant killed). The unmutated engine must PASS first (baseline).
 # ONLY=name1,name2 runs just those mutants (baseline still runs).
-# Exit 0 only if the baseline passes and every mutant is killed.
+# --shard K/N runs the baseline and the mutants i (1-based, file order) with (i - 1) mod N == K - 1; the full-suite
+# units are the wrappers mutation_test_constitution_cmd_shard_K.sh (the whole list does not fit the suite runner's
+# default 900 s per unit, which the pull-request CI uses: run as one unit it reached the limit at 900.1 s with 46 of the
+# 48 mutants killed and none survived); every shard checks that all N wrappers exist, run their own shard and are heavy
+# manifest entries, and that it selected exactly (n - K) / N + 1 mutants (integer division, computed from the mutant
+# count n alone, not by the selection rule), so the union of the units is the whole list.
+# The last line is the suite summary `mutants: shard=K shards=N selected=S killed=X survived=Y total=n` (counter items only,
+# so the suite runner judges a unit by it: a survivor is FAIL even at exit 0).
+# Exit 0 only if the baseline passes and every selected mutant is killed.
 set -u
+SK=1; SN=1; SHARDED=0
+case "${1:-}" in
+    "") ;;
+    --shard)
+        if [[ "${2:-}" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] && [ "${BASH_REMATCH[1]}" -le "${BASH_REMATCH[2]}" ]; then
+            SK="${BASH_REMATCH[1]}"; SN="${BASH_REMATCH[2]}"; SHARDED=1
+        else echo "usage: mutation_test_constitution_cmd.sh [--shard K/N] (1 <= K <= N)"; exit 2; fi ;;
+    *) echo "usage: mutation_test_constitution_cmd.sh [--shard K/N]"; exit 2 ;;
+esac
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REAL="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=/dev/null
@@ -22,10 +39,12 @@ run_suite() { CMD_SRC_ROOT="$1" bash "$HERE/test_constitution_cmd.sh" >"$MS/out.
 mkdir -p "$MS/base/scripts/constitution_cmd"; cp "$REAL/$ENG" "$MS/base/$ENG"; cp "$REAL/$HLP" "$MS/base/$HLP"
 if run_suite "$MS/base"; then echo "baseline: PASS"; else echo "baseline FAILED (suite must pass unmutated)"; tail -5 "$MS/out.log"; exit 1; fi
 
-killed=0; survived=0; n=0
+killed=0; survived=0; n=0; sel=0
 mutant() {   # name, old, new
     local name="$1" old="$2" new="$3" old2="${4:-}" new2="${5:-}" d="$MS/m$n"; n=$((n+1))
     if [ -n "${ONLY:-}" ]; then case ",$ONLY," in *",$name,"*) ;; *) return ;; esac; fi
+    [ $(( (n - 1) % SN )) -eq $((SK - 1)) ] || return 0
+    sel=$((sel+1))
     mkdir -p "$d/scripts/constitution_cmd"
     local mf="${MUT_FILE:-$ENG}"
     cp "$REAL/$ENG" "$d/$ENG"; cp "$REAL/$HLP" "$d/$HLP"
@@ -113,5 +132,29 @@ mutant h-filename-anchor-loose  'ID_RE = re.compile(r"constitution_args_[a-z0-9]
 mutant h-not-consumed           'os.unlink(name, dir_fd=dfd)' 'pass'
 unset MUT_FILE
 
-echo "mutants: killed=$killed survived=$survived total=$n"
-[ "$survived" -eq 0 ]
+bad=0
+[ "$sel" -ge 1 ] || { echo "EMPTY shard $SK/$SN: no mutant selected"; bad=1; }
+# the selection count, computed from the mutant count n alone (independently of the selection rule in mutant()): the
+# mutants i in 1..n with (i - 1) mod SN == SK - 1 are (n - SK) / SN + 1 when n >= SK, else none; ONLY= runs a hand-picked
+# subset, so the count is not checked then
+if [ -z "${ONLY:-}" ]; then
+    if [ "$n" -ge "$SK" ]; then want=$(( (n - SK) / SN + 1 )); else want=0; fi
+    [ "$sel" -eq "$want" ] || { echo "SHARD-SELECTION-MISMATCH shard $SK/$SN selected $sel of $n mutants, want $want"; bad=1; }
+fi
+if [ "$SHARDED" -eq 1 ]; then
+    for j in $(seq 1 "$SN"); do
+        w="$HERE/mutation_test_constitution_cmd_shard_$j.sh"
+        if [ ! -f "$w" ]; then echo "SHARD-SET-INCOMPLETE tests/constitution_cmd/mutation_test_constitution_cmd_shard_$j.sh is missing"; bad=1
+        # its code lines (comments and blank lines aside) must be exactly these two, so a wrapper that only names its shard
+        # in a comment or a no-op command, and runs nothing, is refused
+        elif [ "$(grep -v -E '^[[:space:]]*(#|$)' "$w")" != "set -uo pipefail
+exec bash \"\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")\" && pwd)/mutation_test_constitution_cmd.sh\" --shard $j/$SN" ]; then
+            echo "SHARD-SET-INCONSISTENT tests/constitution_cmd/mutation_test_constitution_cmd_shard_$j.sh does not run --shard $j/$SN (its code is not exactly 'set -uo pipefail' and the exec of this driver with --shard $j/$SN)"; bad=1
+        elif ! grep -q "^tests/constitution_cmd/mutation_test_constitution_cmd_shard_$j\.sh	sh	entry	heavy	bash	" "$REAL/config/full_suite_manifest.tsv"; then
+            echo "SHARD-SET-UNWIRED tests/constitution_cmd/mutation_test_constitution_cmd_shard_$j.sh is not a heavy entry of config/full_suite_manifest.tsv"; bad=1
+        fi
+    done
+    [ ! -f "$HERE/mutation_test_constitution_cmd_shard_$((SN + 1)).sh" ] || { echo "SHARD-SET-INCONSISTENT a wrapper numbered $((SN + 1)) exists beyond N=$SN"; bad=1; }
+fi
+echo "mutants: shard=$SK shards=$SN selected=$sel killed=$killed survived=$survived total=$n"
+[ "$survived" -eq 0 ] && [ "$bad" -eq 0 ]

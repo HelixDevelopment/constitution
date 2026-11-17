@@ -1,0 +1,14 @@
+== S_A29 exported GIT_WORK_TREE pointing at a scratch 'victim' directory (LIVE git; scratch victim)
+victim dir before: files=a.txt,keep.txt, sums=cff38616755266248e54ba6f5e926cf904206b82a53b01827a3b99f7e3b50e81  a.txt f660a7996deacfbc7560e4240054a8ad82eb02fe25a95064257e07084bcacb85  keep.txt 
+prepare rc=0; output tail:
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-929"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/repo/scripts/release/land_vehicle.sh publish --workdir $T/a29/work --remotes-file $T/a29/remotes.txt --evidence-dir $T/a29/ev
+victim dir after: files=a.txt,keep.txt, a.txt=[precious-a ] keep.txt=[keep ]
+clone core.worktree=unset; clone dir files=.git,a.txt,v1.txt,v2.txt,
+== scenarios done

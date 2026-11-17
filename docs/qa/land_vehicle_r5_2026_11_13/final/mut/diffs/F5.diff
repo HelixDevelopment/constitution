@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F5)
+@@ -472,7 +472,7 @@
+   -c gc.auto=0 -c maintenance.auto=false
+   -c submodule.recurse=false -c fetch.recurseSubmodules=false
+   -c fetch.prune=false -c fetch.pruneTags=false -c fetch.bundleURI= -c transfer.bundleURI=false
+-  -c push.pushOption= -c push.gpgSign=false -c push.followTags=false
++  -c push.gpgSign=false -c push.followTags=false
+   -c push.recurseSubmodules=no -c push.default=nothing
+   -c protocol.ext.allow=never
+   -c pull.twohead=ort -c pull.octopus=octopus -c branch.main.mergeOptions= -c merge.renormalize=false

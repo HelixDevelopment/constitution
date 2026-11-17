@@ -1,0 +1,679 @@
+scripts/install_constitution.sh	35	6	PATMATCH	-	andor-left>andor-left>if-cond	case "$0"
+scripts/install_constitution.sh	61	5	SETOPT	hi_reset_shell_state	func	set +o "$o"
+scripts/install_constitution.sh	63	36	SETOPT	hi_reset_shell_state	func	set -o "$o"
+scripts/install_constitution.sh	66	3	SETOPT	hi_reset_shell_state	func	shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar \ ⏎  failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit local…
+scripts/install_constitution.sh	69	3	SETOPT	hi_reset_shell_state	func	shopt -s extquote globasciiranges
+scripts/install_constitution.sh	76	22	PROCSUB	hi_plumbing_ok	func	<(printf 'ok\n')
+scripts/install_constitution.sh	82	3	PATMATCH	hi_split_lines	func	case $-
+scripts/install_constitution.sh	83	3	SETOPT	hi_split_lines	func	set -f
+scripts/install_constitution.sh	85	19	SETOPT	hi_split_lines	andor-right>func	set +f
+scripts/install_constitution.sh	90	3	PATMATCH	hi_split	func	case $-
+scripts/install_constitution.sh	91	3	SETOPT	hi_split	func	set -f
+scripts/install_constitution.sh	93	19	SETOPT	hi_split	andor-right>func	set +f
+scripts/install_constitution.sh	112	6	PATMATCH	hi_has_line_prefix	func	"$nl$1" == *"$nl$2"*
+scripts/install_constitution.sh	118	8	PATMATCH	hi_line_in	andor-left>func	"$nl$2$nl" == *"$nl$p$nl"*
+scripts/install_constitution.sh	163	10	PROCSUB	hi_print_snippets	func	<(hi_upstream_table)
+scripts/install_constitution.sh	289	18	PIPE	hi_term_safe	func	ops=| readers=hi_text_filter:FUNC | printf '%s' "$1" | hi_text_filter
+scripts/install_constitution.sh	289	18	READER	hi_term_safe	func	hi_text_filter:FUNC | printf '%s' "$1" | hi_text_filter
+scripts/install_constitution.sh	294	34	PIPE	hi_out	func	ops=| readers=hi_text_filter:FUNC | printf "$f" "$@" | hi_text_filter >&7
+scripts/install_constitution.sh	294	34	READER	hi_out	func	hi_text_filter:FUNC | printf "$f" "$@" | hi_text_filter >&7
+scripts/install_constitution.sh	305	9	PATMATCH	hi_json_str	if-cond>func	"$s" =~ [[:cntrl:]]
+scripts/install_constitution.sh	308	13	PATMATCH	hi_json_str	if-cond>func	"$c" =~ [[:cntrl:]]
+scripts/install_constitution.sh	318	9	PATMATCH	hi_sanitize_url	if-cond>func	"$u" =~ ^([A-Za-z][A-Za-z0-9+.-]*://)(.*)$
+scripts/install_constitution.sh	321	11	PATMATCH	hi_sanitize_url	if-cond>func	"$auth" == *@*
+scripts/install_constitution.sh	322	13	PATMATCH	hi_sanitize_url	andor-left>if-cond>func	"$scheme" =~ ^[Hh][Tt][Tt][Pp][Ss]?://$
+scripts/install_constitution.sh	322	62	PATMATCH	hi_sanitize_url	andor-right>if-cond>func	"${auth%@*}" == *:*
+scripts/install_constitution.sh	326	9	PATMATCH	hi_sanitize_url	if-cond>func	"$u" == *\?*
+scripts/install_constitution.sh	328	23	PATMATCH	hi_sanitize_url	andor-left>func	"$q" == *#*
+scripts/install_constitution.sh	331	10	PATMATCH	hi_sanitize_url	andor-left>func	"$kv" == *=*
+scripts/install_constitution.sh	339	6	PATMATCH	hi_url_has_password	andor-left>andor-left>func	"$1" =~ ^[A-Za-z][A-Za-z0-9+.-]*://[^/?#@]*:[^/?#]*@
+scripts/install_constitution.sh	339	68	PATMATCH	hi_url_has_password	andor-right>andor-left>func	"$1" =~ ^[Hh][Tt][Tt][Pp][Ss]?://[^/?#]+@
+scripts/install_constitution.sh	340	19	PIPE	hi_url_has_password	cmdsubst>func	ops=| readers=tr:ALL | printf '%s' "$1" | tr 'A-Z' 'a-z'
+scripts/install_constitution.sh	341	6	PATMATCH	hi_url_has_password	func	"$lc" =~ [?\&](private_token|access_token|token|oauth_token|password|passwd|pwd|secret|api_key|apikey|key|auth|sig|signature|x-oauth-basic)=
+scripts/install_constitution.sh	359	17	PIPE	hi_gx_refuse	cmdsubst>func	ops=|,| readers=sed:ALL,ENV+tr:ALL | printf '%s ' "$@" | sed -E 's|(://)[^/?#[:space:]]*@|\1|g; s/([?&][^=&#[:space:]]*=)[^&#[:space:]]*/\1REDACTED/g' | LC_ALL=C tr -cd '\40-\176'
+scripts/install_constitution.sh	364	19	PATMATCH	hi_gx_repo_ok	func	case "$1"
+scripts/install_constitution.sh	365	22	PATMATCH	hi_gx_name_ok	func	"$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$
+scripts/install_constitution.sh	370	5	PATMATCH	hi_gx_check	func	case "$a"
+scripts/install_constitution.sh	374	5	PATMATCH	hi_gx_check	func	case "$a"
+scripts/install_constitution.sh	374	5	VERS	hi_gx_check	func	case pattern bracket range (globasciiranges) -[A-Za-z]*
+scripts/install_constitution.sh	381	9	PATMATCH	hi_gx_check	func	case "$a"
+scripts/install_constitution.sh	384	3	PATMATCH	hi_gx_check	func	case "$sub"
+scripts/install_constitution.sh	387	64	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_name_ok
+scripts/install_constitution.sh	392	12	FUNCCOND	hi_gx_check	andor-right>andor-left>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	392	39	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	395	17	PATMATCH	hi_gx_check	func	case "${c[0]:-}"
+scripts/install_constitution.sh	397	55	FUNCCOND	hi_gx_check	andor-right>andor-left>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	397	82	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	403	26	PATMATCH	hi_gx_check	andor-right>andor-left>andor-left>func	"${!#}" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$
+scripts/install_constitution.sh	403	76	PATMATCH	hi_gx_check	andor-right>andor-left>func	" $* " == *" --detach "*
+scripts/install_constitution.sh	404	41	PATMATCH	hi_gx_check	func	case "$a"
+scripts/install_constitution.sh	409	9	PATMATCH	hi_gx_check	func	case "$a"
+scripts/install_constitution.sh	415	7	PATMATCH	hi_gx_check	func	case "${c[0]:-}"
+scripts/install_constitution.sh	417	52	PATMATCH	hi_gx_check	andor-right>andor-left>func	"${c[1]}" == submodule.*
+scripts/install_constitution.sh	424	43	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_name_ok
+scripts/install_constitution.sh	425	67	PATMATCH	hi_gx_check	andor-right>andor-left>andor-left>func	"$3" == /*
+scripts/install_constitution.sh	425	84	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	428	82	FUNCCOND	hi_gx_check	andor-right>andor-left>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	428	104	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	429	106	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	430	70	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/install_constitution.sh	444	6	PATMATCH	hi_gx_bin	andor-left>andor-left>func	"$HI_GX_BIN" == /*
+scripts/install_constitution.sh	450	5	PATMATCH	hi_gx	func	case "$1"
+scripts/install_constitution.sh	458	3	FUNCCOND	hi_gx	andor-left>func	hi_gx_check
+scripts/install_constitution.sh	459	3	FUNCCOND	hi_gx	andor-left>func	hi_gx_bin
+scripts/install_constitution.sh	461	14	VERS	hi_gx	func	${!prefix@} ${!GIT_*}
+scripts/install_constitution.sh	462	7	PATMATCH	hi_gx	func	case "$v"
+scripts/install_constitution.sh	476	29	PATMATCH	hi_validate_agent_id	func	"$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+scripts/install_constitution.sh	477	29	PATMATCH	hi_validate_model	func	"$1" =~ ^[A-Za-z0-9][]A-Za-z0-9._:/[-]{0,127}$
+scripts/install_constitution.sh	478	26	PATMATCH	hi_validate_effort	func	case "$1"
+scripts/install_constitution.sh	479	29	PATMATCH	hi_validate_number	func	"$1" =~ ^[0-9]{1,6}(\.[0-9]{1,4})?$
+scripts/install_constitution.sh	480	29	PATMATCH	hi_validate_uint	func	"$1" =~ ^[0-9]{1,6}$
+scripts/install_constitution.sh	484	26	FUNCCOND	hi_validate_timeout	andor-left>andor-left>func	hi_validate_uint
+scripts/install_constitution.sh	485	26	FUNCCOND	hi_validate_budget	andor-left>func	hi_validate_number
+scripts/install_constitution.sh	488	26	PATMATCH	hi_validate_onoff	func	case "$1"
+scripts/install_constitution.sh	489	44	PATMATCH	hi_validate_path	andor-right>andor-left>func	"$1" != *$'\n'*
+scripts/install_constitution.sh	489	69	PATMATCH	hi_validate_path	andor-right>func	"$1" != -*
+scripts/install_constitution.sh	492	21	PATMATCH	hi_validate_ref	andor-right>andor-left>andor-left>func	"$r" != -*
+scripts/install_constitution.sh	492	41	PATMATCH	hi_validate_ref	andor-right>andor-left>func	"$r" =~ ^[A-Za-z0-9._/-]{1,200}$
+scripts/install_constitution.sh	493	6	PATMATCH	hi_validate_ref	andor-left>func	"$r" =~ ^[0-9a-f]{7,40}$
+scripts/install_constitution.sh	498	21	PATMATCH	hi_validate_url	andor-right>andor-left>andor-left>func	"$u" != -*
+scripts/install_constitution.sh	498	41	PATMATCH	hi_validate_url	andor-right>andor-left>func	"$u" != *::*
+scripts/install_constitution.sh	499	6	PATMATCH	hi_validate_url	andor-left>func	"$u" =~ ^[A-Za-z0-9._~:/@%+=-]+$
+scripts/install_constitution.sh	500	6	PATMATCH	hi_validate_url	andor-left>func	"$u" =~ ^(https?|ssh|git|file)://[A-Za-z0-9]
+scripts/install_constitution.sh	501	6	PATMATCH	hi_validate_url	andor-left>func	"$u" =~ ^file:///[A-Za-z0-9._~/-]
+scripts/install_constitution.sh	502	6	PATMATCH	hi_validate_url	andor-left>andor-left>func	"$u" =~ ^/[A-Za-z0-9._~/-]*
+scripts/install_constitution.sh	502	43	PATMATCH	hi_validate_url	andor-right>andor-left>func	"$u" != *:*
+scripts/install_constitution.sh	503	6	PATMATCH	hi_validate_url	andor-left>func	"$u" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._~/][A-Za-z0-9._~/-]*$
+scripts/install_constitution.sh	533	3	PATMATCH	hi_followup_requires	func	case "$v"
+scripts/install_constitution.sh	542	3	PIPE	hi_newest_tag	func	ops=|,|,|,| readers=grep:ALL,sort:ALL,sort:ALL,tail:ALL | awk '{ r = $2; sub(/^refs\/tags\//, "", r); sub(/\^\{\}$/, "", r); print r }' | ⏎  grep -E "$HI_RELEASE_TAG_RE" | sort -u | sort -V | tail -n 1
+scripts/install_constitution.sh	574	5	PIPE	hi_parse_stream	func	ops=| readers=awk:ALL | jq -n -R -r --arg rl "$rl" '[inputs | fromjson? | select(type=="object")] as $e ⏎       | ($e | map(select(.type=="system" and .subtype=="init")) | (.[0].session_id // "")) as $s0 ⏎       | ($e | …
+scripts/install_constitution.sh	590	49	PIPE	hi_uuid	func	ops=| readers=tr:ALL | uuidgen | tr 'A-Z' 'a-z'
+scripts/install_constitution.sh	597	16	PIPE	hi_version_of	andor-right>cmdsubst>func	ops=| readers=awk:ALL | timeout 5 "$1" --version </dev/null 2>&1 | awk 'NR == 1'
+scripts/install_constitution.sh	608	10	PROCSUB	hi_detect_agents	func	<(hi_agent_table)
+scripts/install_constitution.sh	611	5	PIPE	hi_detect_agents	func	ops=|,|,| readers=awk:ALL,sort:ALL,while-loop:ALL | timeout 20 claude-list-accounts 2>/dev/null </dev/null | awk '$1 ~ /^claude[0-9]+$/ { print $1 "|" $3 }' | sort -u | ⏎  while IFS='|' read -r a st; do ⏎   printf '%s|native-alias|drivable|%s|%s|%s…
+scripts/install_constitution.sh	617	5	PIPE	hi_detect_agents	func	ops=|,| readers=awk:ALL,while-loop:ALL | timeout 20 claude-providers list 2>/dev/null </dev/null | awk ' ⏎       /^##/ { done = 1 } done { next } NR == 1 { next } NF >= 3 && $1 ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ { print $1 "|" $3 }' | ⏎  w…
+scripts/install_constitution.sh	620	11	FUNCCOND	hi_detect_agents	andor-left>pipe-stage>func	hi_validate_agent_id
+scripts/install_constitution.sh	634	10	PROCSUB	hi_detect_agents_json	func	<(hi_detect_agents)
+scripts/install_constitution.sh	645	11	FUNCCOND	hi_layout	cmdsubst>andor-left>if-cond>func	hi_gx
+scripts/install_constitution.sh	645	67	FUNCCOND	hi_layout	andor-right>if-cond>func	hi_has_line_prefix
+scripts/install_constitution.sh	646	8	FUNCCOND	hi_layout	if-cond>func	hi_gx
+scripts/install_constitution.sh	647	15	FUNCCOND	hi_layout	cmdsubst>andor-left>if-cond>func	hi_gx
+scripts/install_constitution.sh	647	72	FUNCCOND	hi_layout	andor-right>if-cond>func	hi_has_line_prefix
+scripts/install_constitution.sh	650	8	FUNCCOND	hi_layout	cmdsubst>andor-left>andor-left>func	hi_gx
+scripts/install_constitution.sh	650	67	FUNCCOND	hi_layout	andor-right>andor-left>func	hi_has_line_prefix
+scripts/install_constitution.sh	655	9	FUNCCOND	hi_layout	andor-right>if-cond>func	hi_gx
+scripts/install_constitution.sh	663	21	PIPE	hi_norm_url	cmdsubst>func	ops=| readers=tr:ALL | printf '%s' "$1" | tr 'A-Z' 'a-z'
+scripts/install_constitution.sh	664	9	PATMATCH	hi_norm_url	if-cond>func	"$u" == *://*
+scripts/install_constitution.sh	670	12	PATMATCH	hi_norm_url	while-cond>func	"$p" == *//*
+scripts/install_constitution.sh	688	44	FUNCCOND	hi_is_constitution_repo	cmdsubst>andor-right>if-cond>func	hi_gx
+scripts/install_constitution.sh	693	3	FUNCCOND	hi_is_constitution_repo	andor-left>func	hi_gx
+scripts/install_constitution.sh	694	8	PIPE	hi_is_constitution_repo	cmdsubst>func	ops=| readers=grep:ALL | hi_gx -C "$d" rev-list --max-parents=0 HEAD 2>/dev/null | grep -cxF "$HI_FIRST_COMMIT"
+scripts/install_constitution.sh	696	12	PIPE	hi_is_constitution_repo	cmdsubst>func	ops=|,| readers=awk:ALL,while-loop:ALL | hi_upstream_table | awk -F'|' '{ print $3; print $4 }' | while IFS= read -r u; do ⏎  hi_norm_url "$u" ⏎  printf '\n' ⏎ done
+scripts/install_constitution.sh	699	10	FUNCCOND	hi_is_constitution_repo	cmdsubst>andor-left>func	hi_gx
+scripts/install_constitution.sh	700	8	FUNCCOND	hi_is_constitution_repo	if-cond>func	hi_line_in
+scripts/install_constitution.sh	700	22	FUNCCOND	hi_is_constitution_repo	cmdsubst>if-cond>func	hi_norm_url
+scripts/install_constitution.sh	703	10	PROCSUB	hi_is_constitution_repo	func	<(hi_gx -C "$d" remote 2>/dev/null)
+scripts/install_constitution.sh	719	45	FUNCCOND	hi_init_state	andor-right>if-cond>func	hi_validate_uint
+scripts/install_constitution.sh	724	19	PATMATCH	hi_was_set	func	"$O_SET" == *" $1 "*
+scripts/install_constitution.sh	727	3	PATMATCH	hi_value_flag	func	case "$1"
+scripts/install_constitution.sh	742	11	PATMATCH	hi_parse_args	if-cond>func	"$a" == --*=*
+scripts/install_constitution.sh	744	7	FUNCCOND	hi_parse_args	andor-left>func	hi_value_flag
+scripts/install_constitution.sh	746	10	FUNCCOND	hi_parse_args	if-cond>func	hi_value_flag
+scripts/install_constitution.sh	752	5	PATMATCH	hi_parse_args	func	case "$a"
+scripts/install_constitution.sh	753	23	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_path
+scripts/install_constitution.sh	754	19	FUNCCOND	hi_parse_args	andor-left>func	hi_upstream_ok
+scripts/install_constitution.sh	755	23	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_url
+scripts/install_constitution.sh	757	14	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_ref
+scripts/install_constitution.sh	758	37	FUNCCOND	hi_parse_args	andor-right>andor-left>func	hi_validate_agent_id
+scripts/install_constitution.sh	759	19	PATMATCH	hi_parse_args	andor-left>func	"$v" =~ ^[0-9]+$
+scripts/install_constitution.sh	761	16	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_model
+scripts/install_constitution.sh	762	17	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_effort
+scripts/install_constitution.sh	763	25	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_budget
+scripts/install_constitution.sh	764	22	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_timeout
+scripts/install_constitution.sh	765	20	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_onoff
+scripts/install_constitution.sh	766	25	PATMATCH	hi_parse_args	func	case "$v"
+scripts/install_constitution.sh	767	26	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_onoff
+scripts/install_constitution.sh	768	25	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_onoff
+scripts/install_constitution.sh	769	20	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_onoff
+scripts/install_constitution.sh	770	17	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_onoff
+scripts/install_constitution.sh	771	22	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_path
+scripts/install_constitution.sh	772	18	FUNCCOND	hi_parse_args	andor-left>func	hi_validate_path
+scripts/install_constitution.sh	794	24	PATMATCH	hi_insecure_url	andor-left>func	"$1" == http://*
+scripts/install_constitution.sh	794	50	PATMATCH	hi_insecure_url	andor-right>func	"$1" == git://*
+scripts/install_constitution.sh	798	5	FUNCCOND	hi_check_insecure	andor-left>func	hi_insecure_url
+scripts/install_constitution.sh	826	11	PATMATCH	hi_yn	func	case "$1"
+scripts/install_constitution.sh	827	15	PATMATCH	hi_is_yes	func	case "$1"
+scripts/install_constitution.sh	828	46	PATMATCH	hi_agent_answer_ok	andor-right>andor-left>func	"$1" =~ ^[0-9]{1,4}$
+scripts/install_constitution.sh	829	20	PATMATCH	hi_decision_ok	func	case "$1"
+scripts/install_constitution.sh	830	34	PIPE	hi_upstream_ok	cmdsubst>func	ops=| readers=cut:ALL | hi_upstream_table | cut -d'|' -f1
+scripts/install_constitution.sh	831	25	FUNCCOND	hi_onoff_from_yn	if-cond>func	hi_is_yes
+scripts/install_constitution.sh	836	8	FUNCCOND	hi_interactive_questions	if-cond>func	hi_was_set
+scripts/install_constitution.sh	843	12	PROCSUB	hi_interactive_questions	func	<(hi_detect_agents)
+scripts/install_constitution.sh	845	7	FUNCCOND	hi_interactive_questions	andor-left>func	hi_ask
+scripts/install_constitution.sh	846	10	PATMATCH	hi_interactive_questions	andor-left>func	"$ans" =~ ^[0-9]+$
+scripts/install_constitution.sh	853	6	FUNCCOND	hi_interactive_questions	andor-left>if-cond>func	hi_agent_unrestricted
+scripts/install_constitution.sh	857	5	FUNCCOND	hi_interactive_questions	andor-left>func	hi_ask
+scripts/install_constitution.sh	858	8	FUNCCOND	hi_interactive_questions	if-cond>func	hi_is_yes
+scripts/install_constitution.sh	861	8	FUNCCOND	hi_interactive_questions	if-cond>func	hi_agent_honors_limits
+scripts/install_constitution.sh	862	7	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	862	31	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	863	7	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	863	32	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	864	7	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	864	40	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	868	5	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	868	35	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	869	5	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	869	33	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	871	37	FUNCCOND	hi_interactive_questions	andor-right>if-cond>func	hi_was_set
+scripts/install_constitution.sh	872	5	FUNCCOND	hi_interactive_questions	andor-left>func	hi_ask
+scripts/install_constitution.sh	872	36	PIPE	hi_interactive_questions	cmdsubst>andor-left>func	ops=|,| readers=cut:ALL,paste:ALL | hi_upstream_table | cut -d'|' -f1 | paste -sd' ' -
+scripts/install_constitution.sh	872	36	FUNCCOND	hi_interactive_questions	pipe-stage>pipe-stage>cmdsubst>andor-left>func	hi_upstream_table
+scripts/install_constitution.sh	874	3	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	874	36	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	875	3	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	875	37	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	876	3	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	876	36	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	877	3	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	877	31	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	878	3	FUNCCOND	hi_interactive_questions	andor-left>func	hi_was_set
+scripts/install_constitution.sh	878	28	FUNCCOND	hi_interactive_questions	andor-left>andor-right>func	hi_ask
+scripts/install_constitution.sh	884	24	PATMATCH	hi_is_local_url	andor-left>func	"$1" == /*
+scripts/install_constitution.sh	884	44	PATMATCH	hi_is_local_url	andor-right>func	"$1" == file://*
+scripts/install_constitution.sh	887	6	FUNCCOND	hi_git_url	if-cond>func	hi_is_local_url
+scripts/install_constitution.sh	893	24	PATMATCH	hi_clone_url	if-cond>func	"$1" == /*
+scripts/install_constitution.sh	898	3	PIPE	hi_candidates	func	ops=| readers=awk:ALL | hi_upstream_table | awk -F'|' -v k="$O_UPSTREAM" -v c="$col" '$1 == k { print $1 "|" $c }'
+scripts/install_constitution.sh	899	3	PIPE	hi_candidates	func	ops=| readers=awk:ALL | hi_upstream_table | awk -F'|' -v k="$O_UPSTREAM" -v c="$col" '$1 != k { print $1 "|" $c }'
+scripts/install_constitution.sh	904	8	FUNCCOND	hi_probe_upstream	if-cond>func	hi_url_has_password
+scripts/install_constitution.sh	906	15	FUNCCOND	hi_probe_upstream	cmdsubst>andor-left>if-cond>func	hi_gx
+scripts/install_constitution.sh	907	11	FUNCCOND	hi_probe_upstream	andor-right>if-cond>func	hi_gx
+scripts/install_constitution.sh	911	10	PROCSUB	hi_probe_upstream	func	<(hi_candidates)
+scripts/install_constitution.sh	917	8	PATMATCH	hi_resolve_ref	andor-left>func	"$O_REF" =~ ^[0-9a-f]{7,40}$
+scripts/install_constitution.sh	919	10	FUNCCOND	hi_resolve_ref	cmdsubst>andor-left>andor-left>func	hi_gx
+scripts/install_constitution.sh	923	12	PIPE	hi_resolve_ref	cmdsubst>func	ops=| readers=hi_newest_tag:FUNC | printf '%s\n' "$S_TAGS" | hi_newest_tag
+scripts/install_constitution.sh	923	12	READER	hi_resolve_ref	cmdsubst>func	hi_newest_tag:FUNC | printf '%s\n' "$S_TAGS" | hi_newest_tag
+scripts/install_constitution.sh	934	35	PATMATCH	hi_status_paths	andor-left>func	"${rec:0:2}" == *[RC]*
+scripts/install_constitution.sh	935	10	PROCSUB	hi_status_paths	func	<(hi_git --no-optional-locks status --porcelain -z 2>/dev/null)
+scripts/install_constitution.sh	951	8	PATMATCH	hi_backup_dir	andor-left>func	"$ex" == /*
+scripts/install_constitution.sh	959	3	FUNCCOND	hi_backup_file	andor-left>func	hi_backup_dir
+scripts/install_constitution.sh	970	3	FUNCCOND	hi_move_aside	andor-left>func	hi_backup_dir
+scripts/install_constitution.sh	975	3	PATMATCH	hi_block_for	func	case "$1"
+scripts/install_constitution.sh	982	3	PATMATCH	hi_has_block	func	case "$1"
+scripts/install_constitution.sh	995	5	FUNCCOND	hi_docs_preflight	andor-left>func	hi_has_block
+scripts/install_constitution.sh	997	31	FUNCCOND	hi_docs_preflight	andor-right>if-cond>func	hi_path_dirty
+scripts/install_constitution.sh	998	10	PROCSUB	hi_docs_preflight	func	<(hi_doc_targets)
+scripts/install_constitution.sh	1005	8	FUNCCOND	hi_write_docs	if-cond>func	hi_has_block
+scripts/install_constitution.sh	1006	5	FUNCCOND	hi_write_docs	andor-left>func	hi_backup_file
+scripts/install_constitution.sh	1008	7	FUNCCOND	hi_write_docs	andor-left>func	hi_block_for
+scripts/install_constitution.sh	1013	10	PROCSUB	hi_write_docs	func	<(hi_doc_targets)
+scripts/install_constitution.sh	1030	6	PATMATCH	hi_holder_alive	andor-left>andor-left>func	"$p" =~ ^[0-9]+$
+scripts/install_constitution.sh	1032	5	PATMATCH	hi_holder_alive	func	case "$msg"
+scripts/install_constitution.sh	1038	6	PATMATCH	hi_holder_alive	andor-left>func	"$start" =~ ^[0-9]+$
+scripts/install_constitution.sh	1038	30	PATMATCH	hi_holder_alive	andor-left>func	"$hz" =~ ^[1-9][0-9]*$
+scripts/install_constitution.sh	1038	56	PATMATCH	hi_holder_alive	andor-left>func	"$bt" =~ ^[0-9]+$
+scripts/install_constitution.sh	1038	77	PATMATCH	hi_holder_alive	andor-left>func	"$mt" =~ ^[0-9]+$
+scripts/install_constitution.sh	1056	3	PIPE	hi_lock_pid	func	ops=| readers=tr:ALL | timeout 5 head -c 20 -- "$f" 2>/dev/null | tr -cd '0-9'
+scripts/install_constitution.sh	1064	9	FUNCCOND	hi_lock	cmdsubst>andor-left>func	hi_gx
+scripts/install_constitution.sh	1076	45	FUNCCOND	hi_lock	andor-right>if-cond>func	hi_holder_alive
+scripts/install_constitution.sh	1096	26	PATMATCH	hi_report_leftover_staging	andor-right>andor-left>func	"$d" == "$S_BK"/*
+scripts/install_constitution.sh	1097	11	PIPE	hi_report_leftover_staging	cmdsubst>func	ops=| readers=awk:ALL | du -sk -- "$d" 2>/dev/null | awk '{ print $1 }'
+scripts/install_constitution.sh	1105	36	FUNCCOND	hi_unlock_tmp	cmdsubst>andor-right>andor-left>func	hi_lock_pid
+scripts/install_constitution.sh	1111	28	FUNCCOND	hi_unlock	cmdsubst>andor-right>andor-left>func	hi_lock_pid
+scripts/install_constitution.sh	1120	12	VERS	hi_scrub_git_env	func	${!prefix@} ${!GIT_*}
+scripts/install_constitution.sh	1121	5	PATMATCH	hi_scrub_git_env	func	case "$v"
+scripts/install_constitution.sh	1138	6	PATMATCH	hi_stop_agent	andor-left>andor-left>andor-left>func	"$p" =~ ^[1-9][0-9]*$
+scripts/install_constitution.sh	1145	9	PATMATCH	hi_stop_agent	andor-left>andor-left>andor-left>if-cond>func	"$pg" =~ ^[1-9][0-9]*$
+scripts/install_constitution.sh	1166	9	FUNCCOND	hi_has_marker	cmdsubst>andor-left>func	hi_gx
+scripts/install_constitution.sh	1168	27	FUNCCOND	hi_has_marker	cmdsubst>andor-right>andor-left>func	hi_gx
+scripts/install_constitution.sh	1176	3	FUNCCOND	hi_complete_interrupted_add	andor-left>func	hi_has_marker
+scripts/install_constitution.sh	1178	20	FUNCCOND	hi_complete_interrupted_add	andor-right>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1180	3	FUNCCOND	hi_complete_interrupted_add	andor-left>func	hi_git
+scripts/install_constitution.sh	1181	20	FUNCCOND	hi_complete_interrupted_add	andor-right>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1184	6	FUNCCOND	hi_complete_interrupted_add	if-cond>func	hi_has_marker
+scripts/install_constitution.sh	1189	8	FUNCCOND	hi_staged_only_gitlink	cmdsubst>andor-left>andor-left>func	hi_git
+scripts/install_constitution.sh	1189	57	FUNCCOND	hi_staged_only_gitlink	andor-right>andor-left>func	hi_has_line_prefix
+scripts/install_constitution.sh	1190	17	FUNCCOND	hi_staged_only_gitlink	cmdsubst>andor-left>andor-right>func	hi_gx
+scripts/install_constitution.sh	1196	3	FUNCCOND	hi_gitmodules_user_dirty	andor-left>func	hi_gx
+scripts/install_constitution.sh	1197	3	FUNCCOND	hi_gitmodules_user_dirty	andor-left>func	hi_gx
+scripts/install_constitution.sh	1199	8	PIPE	hi_gitmodules_user_dirty	cmdsubst>func	ops=| readers=sort:ALL | hi_gx config -f "$tw" --list 2>/dev/null | sort
+scripts/install_constitution.sh	1199	64	PIPE	hi_gitmodules_user_dirty	cmdsubst>func	ops=| readers=sort:ALL | hi_gx config -f "$ti" --list 2>/dev/null | sort
+scripts/install_constitution.sh	1200	8	PIPE	hi_gitmodules_user_dirty	cmdsubst>func	ops=| readers=sort:ALL | hi_gx config -f "$th" --list 2>/dev/null | sort
+scripts/install_constitution.sh	1207	6	FUNCCOND	hi_add_preflight	andor-left>if-cond>func	hi_symlinked_parent
+scripts/install_constitution.sh	1211	6	FUNCCOND	hi_add_preflight	andor-left>if-cond>func	hi_staged_only_gitlink
+scripts/install_constitution.sh	1211	34	FUNCCOND	hi_add_preflight	andor-right>if-cond>func	hi_has_marker
+scripts/install_constitution.sh	1217	61	FUNCCOND	hi_add_preflight	andor-right>if-cond>func	hi_has_marker
+scripts/install_constitution.sh	1222	6	FUNCCOND	hi_add_preflight	if-cond>func	hi_gitmodules_user_dirty
+scripts/install_constitution.sh	1231	6	FUNCCOND	hi_recover_partial	if-cond>func	hi_staged_only_gitlink
+scripts/install_constitution.sh	1232	5	FUNCCOND	hi_recover_partial	andor-left>func	hi_git
+scripts/install_constitution.sh	1236	59	FUNCCOND	hi_recover_partial	andor-right>if-cond>func	hi_has_marker
+scripts/install_constitution.sh	1237	7	FUNCCOND	hi_recover_partial	andor-left>func	hi_move_aside
+scripts/install_constitution.sh	1244	15	FUNCCOND	hi_recover_partial	andor-left>func	hi_backup_dir
+scripts/install_constitution.sh	1248	6	FUNCCOND	hi_recover_partial	if-cond>func	hi_gx
+scripts/install_constitution.sh	1249	5	FUNCCOND	hi_recover_partial	andor-left>func	hi_backup_file
+scripts/install_constitution.sh	1262	3	PATMATCH	hi_gitlink_of	func	case "$l"
+scripts/install_constitution.sh	1266	3	FUNCCOND	hi_do_add	andor-left>func	hi_recover_partial
+scripts/install_constitution.sh	1267	37	FUNCCOND	hi_do_add	andor-left>andor-right>func	hi_backup_file
+scripts/install_constitution.sh	1268	3	FUNCCOND	hi_do_add	andor-left>func	hi_backup_dir
+scripts/install_constitution.sh	1281	39	PIPE	hi_do_add	cmdsubst>func	ops=|,| readers=hi_scrub:FUNC,tail:ALL | printf '%s' "$err" | hi_scrub | tail -n 1
+scripts/install_constitution.sh	1281	39	READER	hi_do_add	cmdsubst>func	hi_scrub:FUNC | printf '%s' "$err" | hi_scrub | tail -n 1
+scripts/install_constitution.sh	1283	12	FUNCCOND	hi_do_add	cmdsubst>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1283	114	FUNCCOND	hi_do_add	cmdsubst>cmdsubst>andor-left>func	hi_clone_url
+scripts/install_constitution.sh	1284	40	PIPE	hi_do_add	cmdsubst>andor-right>func	ops=|,| readers=hi_scrub:FUNC,tail:ALL | printf '%s' "$err" | hi_scrub | tail -n 3
+scripts/install_constitution.sh	1284	40	READER	hi_do_add	cmdsubst>andor-right>func	hi_scrub:FUNC | printf '%s' "$err" | hi_scrub | tail -n 3
+scripts/install_constitution.sh	1286	3	FUNCCOND	hi_do_add	andor-left>func	hi_gx
+scripts/install_constitution.sh	1287	6	PATMATCH	hi_do_add	andor-left>func	"$S_URL" == /*
+scripts/install_constitution.sh	1290	10	FUNCCOND	hi_do_add	cmdsubst>andor-left>func	hi_resolve_ref_in
+scripts/install_constitution.sh	1293	11	PIPE	hi_do_add	cmdsubst>func	ops=| readers=awk:ALL | hi_remote_live "$stage" origin | awk 'NF && !s[$0]++'
+scripts/install_constitution.sh	1294	3	FUNCCOND	hi_do_add	andor-left>func	hi_on_remote
+scripts/install_constitution.sh	1298	27	PIPE	hi_do_add	cmdsubst>func	ops=| readers=grep:ALL | hi_gx -C "$stage" rev-list --objects --missing=print --max-count=1 "$sha" 2>/dev/null | grep -c '^?'
+scripts/install_constitution.sh	1303	3	FUNCCOND	hi_do_add	andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1304	3	FUNCCOND	hi_do_add	andor-left>func	hi_symlinked_parent
+scripts/install_constitution.sh	1305	3	FUNCCOND	hi_do_add	andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1308	28	FUNCCOND	hi_do_add	andor-right>cmdsubst>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1309	46	PIPE	hi_do_add	cmdsubst>andor-right>func	ops=|,| readers=hi_scrub:FUNC,tail:ALL | printf '%s' "$err" | hi_scrub | tail -n 3
+scripts/install_constitution.sh	1309	46	READER	hi_do_add	cmdsubst>andor-right>func	hi_scrub:FUNC | printf '%s' "$err" | hi_scrub | tail -n 3
+scripts/install_constitution.sh	1310	20	FUNCCOND	hi_do_add	andor-right>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1312	3	FUNCCOND	hi_do_add	andor-left>func	hi_git
+scripts/install_constitution.sh	1313	20	FUNCCOND	hi_do_add	andor-right>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1332	28	FUNCCOND	hi_resolve_ref_in	cmdsubst>andor-right>if-cond>func	hi_gx
+scripts/install_constitution.sh	1333	13	FUNCCOND	hi_resolve_ref_in	cmdsubst>if-cond>func	hi_gx
+scripts/install_constitution.sh	1336	15	FUNCCOND	hi_resolve_ref_in	cmdsubst>if-cond>func	hi_gx
+scripts/install_constitution.sh	1337	10	PROCSUB	hi_resolve_ref_in	func	<(hi_gx -C "$d" remote 2>/dev/null | awk '$0 == "origin" { print; next } { o[++n] = $0 } END { for (i = 1; i <= n; i++) print o[i] }')
+scripts/install_constitution.sh	1337	12	PIPE	hi_resolve_ref_in	procsubst>func	ops=| readers=awk:ALL | hi_gx -C "$d" remote 2>/dev/null | awk '$0 == "origin" { print; next } { o[++n] = $0 } END { for (i = 1; i <= n; i++) print o[i] }'
+scripts/install_constitution.sh	1338	9	PATMATCH	hi_resolve_ref_in	andor-left>if-cond>func	"$ref" =~ ^[0-9a-f]{7,40}$
+scripts/install_constitution.sh	1338	49	FUNCCOND	hi_resolve_ref_in	cmdsubst>andor-right>if-cond>func	hi_gx
+scripts/install_constitution.sh	1339	13	FUNCCOND	hi_resolve_ref_in	cmdsubst>andor-left>if-cond>func	hi_gx
+scripts/install_constitution.sh	1340	16	FUNCCOND	hi_resolve_ref_in	cmdsubst>andor-right>if-cond>func	hi_gx
+scripts/install_constitution.sh	1354	5	PIPE	hi_remote_live	func	ops=| readers=awk:ALL | HI_GX_TIMEOUT=60 hi_gx -C "$d" ls-remote "$k" "$r" 2>/dev/null | ⏎  awk '$1 ~ /^[0-9a-f]+$/ && (length($1) == 40 || length($1) == 64) { print $1 }'
+scripts/install_constitution.sh	1360	3	PIPE	hi_remote_tags_of	func	ops=| readers=awk:ALL | HI_GX_TIMEOUT=60 hi_gx -C "$1" ls-remote --tags "$2" 2>/dev/null | ⏎  awk '$2 !~ /\^\{\}$/ { n = $2; sub(/^refs\/tags\//, "", n); print n, $1 }'
+scripts/install_constitution.sh	1367	6	PATMATCH	hi_on_remote	andor-left>func	"$2" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$
+scripts/install_constitution.sh	1371	5	FUNCCOND	hi_on_remote	andor-left>func	hi_gx
+scripts/install_constitution.sh	1384	6	PATMATCH	hi_gitlink_rel	andor-left>andor-left>func	"$b" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$
+scripts/install_constitution.sh	1384	50	FUNCCOND	hi_gitlink_rel	andor-right>andor-left>func	hi_gx
+scripts/install_constitution.sh	1385	6	FUNCCOND	hi_gitlink_rel	if-cond>func	hi_gx
+scripts/install_constitution.sh	1386	8	FUNCCOND	hi_gitlink_rel	if-cond>func	hi_gx
+scripts/install_constitution.sh	1392	3	PATMATCH	hi_gitlink_committed	func	case "$l"
+scripts/install_constitution.sh	1404	8	FUNCCOND	hi_marker_path	cmdsubst>andor-left>func	hi_gx
+scripts/install_constitution.sh	1405	3	PATMATCH	hi_marker_path	func	case "$p"
+scripts/install_constitution.sh	1410	11	FUNCCOND	hi_marker_set	cmdsubst>andor-left>func	hi_marker_path
+scripts/install_constitution.sh	1417	11	FUNCCOND	hi_marker_clear	cmdsubst>andor-left>func	hi_marker_path
+scripts/install_constitution.sh	1423	11	FUNCCOND	hi_marker_get	cmdsubst>andor-left>func	hi_marker_path
+scripts/install_constitution.sh	1431	3	PATMATCH	hi_marker_honored	func	case "$line"
+scripts/install_constitution.sh	1438	11	FUNCCOND	hi_builtin_update	cmdsubst>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1441	8	FUNCCOND	hi_builtin_update	if-cond>func	hi_gx
+scripts/install_constitution.sh	1445	10	PROCSUB	hi_builtin_update	func	<(hi_gx -C "$sub" remote)
+scripts/install_constitution.sh	1447	11	PIPE	hi_builtin_update	cmdsubst>func	ops=| readers=awk:ALL | printf '%s\n' "$live" | awk 'NF && !s[$0]++'
+scripts/install_constitution.sh	1449	3	FUNCCOND	hi_builtin_update	andor-left>func	hi_on_remote
+scripts/install_constitution.sh	1451	18	PIPE	hi_builtin_update	cmdsubst>func	ops=|,|,|,|,| readers=awk:ALL,grep:ALL,sort:ALL,sort:ALL,tail:ALL | printf '%s\n' "$rtags" | awk '{ print $1 }' | grep -E "$HI_RELEASE_TAG_RE" | sort -u | sort -V | tail -n 1
+scripts/install_constitution.sh	1453	21	FUNCCOND	hi_builtin_update	cmdsubst>andor-left>func	hi_resolve_ref_in
+scripts/install_constitution.sh	1456	3	FUNCCOND	hi_builtin_update	andor-left>func	hi_on_remote
+scripts/install_constitution.sh	1464	5	PATMATCH	hi_builtin_update	func	case "$(hi_gitlink_rel "$sub" "$cur" "$gls")"
+scripts/install_constitution.sh	1474	87	FUNCCOND	hi_builtin_update	andor-right>if-cond>func	hi_marker_honored
+scripts/install_constitution.sh	1484	7	FUNCCOND	hi_builtin_update	andor-left>func	hi_git
+scripts/install_constitution.sh	1490	6	FUNCCOND	hi_builtin_update	if-cond>func	hi_gx
+scripts/install_constitution.sh	1491	3	FUNCCOND	hi_builtin_update	andor-left>func	hi_gx
+scripts/install_constitution.sh	1493	22	FUNCCOND	hi_builtin_update	andor-right>andor-left>func	hi_gx
+scripts/install_constitution.sh	1497	3	FUNCCOND	hi_builtin_update	andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1498	3	FUNCCOND	hi_builtin_update	andor-left>func	hi_git
+scripts/install_constitution.sh	1507	22	FUNCCOND	hi_do_update	andor-right>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1543	3	FUNCCOND	hi_manifest_step	andor-left>func	hi_backup_file
+scripts/install_constitution.sh	1544	50	FUNCCOND	hi_manifest_step	andor-right>andor-left>cmdsubst>func	hi_scrub_git_env
+scripts/install_constitution.sh	1546	79	PIPE	hi_manifest_step	cmdsubst>func	ops=|,| readers=hi_scrub:FUNC,tail:ALL | printf '%s' "$out" | hi_scrub | tail -n 2
+scripts/install_constitution.sh	1546	79	READER	hi_manifest_step	cmdsubst>func	hi_scrub:FUNC | printf '%s' "$out" | hi_scrub | tail -n 2
+scripts/install_constitution.sh	1550	23	FUNCCOND	hi_manifest_step	andor-right>andor-left>if-cond>func	hi_scrub_git_env
+scripts/install_constitution.sh	1551	5	FUNCCOND	hi_manifest_step	andor-left>func	hi_git
+scripts/install_constitution.sh	1568	3	PATMATCH	hi_agent_kind	func	case "$id"
+scripts/install_constitution.sh	1569	8	PIPE	hi_agent_kind	cmdsubst>func	ops=| readers=awk:ALL | hi_agent_table | awk -F'|' -v i="$id" '$1 == i { print $2 }'
+scripts/install_constitution.sh	1571	9	PATMATCH	hi_agent_kind	if-cond>func	"$id" =~ ^claude[0-9]+$
+scripts/install_constitution.sh	1576	28	PATMATCH	hi_agent_honors_limits	func	case "$(hi_agent_kind "$1")"
+scripts/install_constitution.sh	1579	6	FUNCCOND	hi_limits_text	if-cond>func	hi_agent_honors_limits
+scripts/install_constitution.sh	1592	3	FUNCCOND	hi_check_unrestricted_consent	andor-left>func	hi_agent_unrestricted
+scripts/install_constitution.sh	1603	8	FUNCCOND	hi_permissions_text	if-cond>func	hi_agent_unrestricted
+scripts/install_constitution.sh	1612	3	FUNCCOND	hi_check_agent_limits	andor-left>func	hi_agent_honors_limits
+scripts/install_constitution.sh	1614	8	FUNCCOND	hi_check_agent_limits	if-cond>func	hi_was_set
+scripts/install_constitution.sh	1626	3	PATMATCH	hi_agent_preflight	func	case "$k"
+scripts/install_constitution.sh	1630	60	FUNCCOND	hi_agent_preflight	cmdsubst>andor-right>andor-left>andor-left>func	hi_alias_file
+scripts/install_constitution.sh	1630	126	FUNCCOND	hi_agent_preflight	cmdsubst>andor-right>andor-left>func	hi_alias_file
+scripts/install_constitution.sh	1651	3	PATMATCH	hi_run_agent	func	case "$k"
+scripts/install_constitution.sh	1663	54	FUNCCOND	hi_run_agent	andor-right>andor-left>func	hi_scrub_git_env
+scripts/install_constitution.sh	1668	3	PATMATCH	hi_run_agent	func	case "$k"
+scripts/install_constitution.sh	1670	17	FUNCCOND	hi_run_agent	cmdsubst>andor-left>func	hi_parse_stream
+scripts/install_constitution.sh	1672	10	PATMATCH	hi_run_agent	func	"$parsed" == result=success*
+scripts/install_constitution.sh	1679	20	PIPE	hi_budget_left	func	ops=| readers=sed:ALL | awk -v b="$O_BUDGET" -v s="$S_SPENT" 'BEGIN { r = b - s; if (r < 0) r = 0; printf "%.4f", r }' | sed -E 's/\.?0+$//; s/^$/0/'
+scripts/install_constitution.sh	1681	17	PIPE	hi_account_cost	cmdsubst>func	ops=| readers=sed:ALL | printf '%s' "$1" | sed -n 's/.* cost=\([^ ]*\).*/\1/p'
+scripts/install_constitution.sh	1682	9	PATMATCH	hi_account_cost	if-cond>func	"$c" =~ ^[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$
+scripts/install_constitution.sh	1712	67	PIPE	hi_mark_hash	cmdsubst>andor-left>func	ops=| readers=sha256sum:ALL | LC_ALL=C sort | sha256sum 2>/dev/null
+scripts/install_constitution.sh	1713	61	PIPE	hi_mark_hash	cmdsubst>andor-left>func	ops=| readers=cksum:ALL | LC_ALL=C sort | cksum 2>/dev/null
+scripts/install_constitution.sh	1725	14	PIPE	hi_push_marks	cmdsubst>func	ops=| readers=grep:ALL | hi_gx -C "$d" log -g --format=%gs "$r" -- 2>/dev/null | grep -c '^update by push'
+scripts/install_constitution.sh	1728	14	PIPE	hi_push_marks	cmdsubst>func	ops=| readers=grep:ALL | hi_gx -C "$d" log -g --format=%gs "$r" -- 2>/dev/null | grep -c '^fetch'
+scripts/install_constitution.sh	1729	14	PROCSUB	hi_push_marks	func	<(hi_gx -C "$d" for-each-ref --format='%(refname)' refs/remotes 2>/dev/null)
+scripts/install_constitution.sh	1733	17	FUNCCOND	hi_push_marks	cmdsubst>if-cond>func	hi_gx
+scripts/install_constitution.sh	1734	19	PIPE	hi_push_marks	cmdsubst>if-cond>func	ops=| readers=hi_mark_hash:FUNC | printf '%s\n' "$o" | hi_mark_hash
+scripts/install_constitution.sh	1734	19	READER	hi_push_marks	cmdsubst>if-cond>func	hi_mark_hash:FUNC | printf '%s\n' "$o" | hi_mark_hash
+scripts/install_constitution.sh	1734	40	FUNCCOND	hi_push_marks	pipe-stage>cmdsubst>if-cond>func	hi_mark_hash
+scripts/install_constitution.sh	1738	19	FUNCCOND	hi_push_marks	cmdsubst>if-cond>func	hi_gx
+scripts/install_constitution.sh	1739	21	PIPE	hi_push_marks	cmdsubst>if-cond>func	ops=| readers=hi_mark_hash:FUNC | printf '%s\n' "$o" | hi_mark_hash
+scripts/install_constitution.sh	1739	21	READER	hi_push_marks	cmdsubst>if-cond>func	hi_mark_hash:FUNC | printf '%s\n' "$o" | hi_mark_hash
+scripts/install_constitution.sh	1739	42	FUNCCOND	hi_push_marks	pipe-stage>cmdsubst>if-cond>func	hi_mark_hash
+scripts/install_constitution.sh	1741	16	PROCSUB	hi_push_marks	func	<({ ⏎  hi_gx -C "$d" config --get-all "remote.$r.url" ⏎  hi_gx -C "$d" config --get-all "remote.$r.pushurl" ⏎ } 2>/dev/null | awk '!s[$0]++')
+scripts/install_constitution.sh	1741	18	PIPE	hi_push_marks	procsubst>func	ops=| readers=awk:ALL | { hi_gx -C "$d" config --get-all "remote.$r.url" ⏎ hi_gx -C "$d" config --get-all "remote.$r.pushurl" ⏎ } 2>/dev/null | awk '!s[$0]++'
+scripts/install_constitution.sh	1742	14	PROCSUB	hi_push_marks	func	<(hi_gx -C "$d" remote 2>/dev/null)
+scripts/install_constitution.sh	1762	3	VERS	hi_push_changed	func	local -A (-A 4.0, -n 4.3)
+scripts/install_constitution.sh	1771	5	PATMATCH	hi_push_changed	func	case "$line"
+scripts/install_constitution.sh	1773	5	PATMATCH	hi_push_changed	func	case "$k"
+scripts/install_constitution.sh	1776	72	PIPE	hi_push_changed	cmdsubst>func	ops=| readers=hi_scrub:FUNC | printf '%s' "$r" | hi_scrub
+scripts/install_constitution.sh	1776	72	READER	hi_push_changed	cmdsubst>func	hi_scrub:FUNC | printf '%s' "$r" | hi_scrub
+scripts/install_constitution.sh	1785	5	PATMATCH	hi_push_changed	func	case "$line"
+scripts/install_constitution.sh	1792	6	FUNCCOND	hi_push_changed	if-cond>func	hi_has_line_prefix
+scripts/install_constitution.sh	1798	5	PATMATCH	hi_push_changed	func	case "$line"
+scripts/install_constitution.sh	1801	8	PATMATCH	hi_push_changed	andor-left>func	"$s" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$
+scripts/install_constitution.sh	1807	5	PATMATCH	hi_push_changed	func	case "$line"
+scripts/install_constitution.sh	1814	5	PATMATCH	hi_push_changed	func	case "$line"
+scripts/install_constitution.sh	1820	5	PATMATCH	hi_push_changed	func	case "$line"
+scripts/install_constitution.sh	1827	12	FUNCCOND	hi_push_changed	cmdsubst>andor-left>func	hi_gx
+scripts/install_constitution.sh	1828	13	PIPE	hi_push_changed	cmdsubst>andor-left>func	ops=| readers=hi_mark_hash:FUNC | printf '%s\n' "$o" | hi_mark_hash
+scripts/install_constitution.sh	1828	13	READER	hi_push_changed	cmdsubst>andor-left>func	hi_mark_hash:FUNC | printf '%s\n' "$o" | hi_mark_hash
+scripts/install_constitution.sh	1828	34	FUNCCOND	hi_push_changed	pipe-stage>cmdsubst>andor-left>func	hi_mark_hash
+scripts/install_constitution.sh	1839	3	PATMATCH	hi_strip_lead	func	case "$t"
+scripts/install_constitution.sh	1850	13	FUNCCOND	hi_agent_step	cmdsubst>andor-left>func	hi_extract_prompt
+scripts/install_constitution.sh	1851	21	FUNCCOND	hi_agent_step	andor-left>func	hi_backup_dir
+scripts/install_constitution.sh	1857	12	PIPE	hi_agent_step	cmdsubst>func	ops=| readers=sed:ALL | printf '%s' "$line" | sed -n 's/.*session=\([^ ]*\).*/\1/p'
+scripts/install_constitution.sh	1858	30	PATMATCH	hi_agent_step	andor-right>if-cond>func	"$S_SID" =~ ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+scripts/install_constitution.sh	1862	23	PIPE	hi_agent_step	cmdsubst>func	ops=| readers=sed:ALL | printf '%s' "$line" | sed -n 's/.*evidence=\([^ ]*\).*/\1/p'
+scripts/install_constitution.sh	1863	9	PATMATCH	hi_agent_step	if-cond>func	"$line" == *rate_limited=1*
+scripts/install_constitution.sh	1864	9	PATMATCH	hi_agent_step	if-cond>func	"$line" == *timeout=1*
+scripts/install_constitution.sh	1873	3	PATMATCH	hi_agent_step	func	case "$(hi_agent_kind "$O_AGENT")"
+scripts/install_constitution.sh	1892	8	FUNCCOND	hi_agent_step	if-cond>func	hi_run_agent
+scripts/install_constitution.sh	1899	60	PATMATCH	hi_agent_step	andor-left>func	"$x" == *"|failure"
+scripts/install_constitution.sh	1909	28	FUNCCOND	hi_verify	andor-right>andor-left>func	hi_check
+scripts/install_constitution.sh	1910	9	PIPE	hi_verify	cmdsubst>func	ops=| readers=awk:ALL | hi_git ls-files -s -- "$HI_SUB" | awk '$1 == "160000" { print $2 }'
+scripts/install_constitution.sh	1911	19	FUNCCOND	hi_verify	andor-right>andor-left>func	hi_check
+scripts/install_constitution.sh	1913	42	FUNCCOND	hi_verify	andor-right>andor-left>func	hi_check
+scripts/install_constitution.sh	1914	3	FUNCCOND	hi_verify	andor-left>andor-left>andor-left>func	hi_gx
+scripts/install_constitution.sh	1914	82	FUNCCOND	hi_verify	cmdsubst>andor-right>andor-left>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	1915	8	FUNCCOND	hi_verify	andor-right>andor-left>func	hi_check
+scripts/install_constitution.sh	1917	38	FUNCCOND	hi_verify	andor-left>andor-left>func	hi_has_block
+scripts/install_constitution.sh	1917	59	FUNCCOND	hi_verify	andor-right>andor-left>func	hi_check
+scripts/install_constitution.sh	1918	87	FUNCCOND	hi_verify	andor-right>andor-left>func	hi_check
+scripts/install_constitution.sh	1921	8	FUNCCOND	hi_verify	if-cond>func	hi_legacy_path_in
+scripts/install_constitution.sh	1929	5	PATMATCH	hi_verify	func	case "$p"
+scripts/install_constitution.sh	1930	5	PATMATCH	hi_verify	func	case "$p:$S_MANIFEST"
+scripts/install_constitution.sh	1938	51	PATMATCH	hi_verify	andor-left>func	"$p" == *"|fail"
+scripts/install_constitution.sh	1949	78	FUNCCOND	hi_write_report	andor-left>func	hi_agent_unrestricted
+scripts/install_constitution.sh	1953	50	FUNCCOND	hi_write_report	andor-right>andor-left>func	hi_agent_honors_limits
+scripts/install_constitution.sh	1992	8	PATMATCH	hi_legacy_path_in	andor-left>func	$l =~ $re
+scripts/install_constitution.sh	1993	8	PATMATCH	hi_legacy_path_in	andor-left>func	$l == *submodules/constitution/*
+scripts/install_constitution.sh	2002	6	PATMATCH	hi_symlinked_parent	andor-left>func	"$rel" == */*
+scripts/install_constitution.sh	2012	3	PATMATCH	hi_restore_rel	func	case "$e"
+scripts/install_constitution.sh	2013	6	PATMATCH	hi_restore_rel	andor-left>func	"$e" =~ [^\ -~]
+scripts/install_constitution.sh	2014	6	PATMATCH	hi_restore_rel	andor-left>func	"$e" == *\\*
+scripts/install_constitution.sh	2017	5	PATMATCH	hi_restore_rel	func	case "$seg"
+scripts/install_constitution.sh	2018	12	PIPE	hi_restore_rel	cmdsubst>func	ops=| readers=tr:ALL | printf '%s' "$seg" | tr 'A-Z' 'a-z'
+scripts/install_constitution.sh	2018	60	PATMATCH	hi_restore_rel	while-cond>func	"$low" == *[.\ ]
+scripts/install_constitution.sh	2023	10	PIPE	hi_restore_rel	cmdsubst>func	ops=| readers=tr:ALL | printf '%s' "$out" | tr 'A-Z' 'a-z'
+scripts/install_constitution.sh	2024	3	PATMATCH	hi_restore_rel	func	case "$low/"
+scripts/install_constitution.sh	2037	14	FUNCCOND	hi_restore	cmdsubst>if-cond>func	hi_gx
+scripts/install_constitution.sh	2045	13	FUNCCOND	hi_restore	cmdsubst>andor-left>func	hi_restore_rel
+scripts/install_constitution.sh	2048	8	FUNCCOND	hi_restore	if-cond>func	hi_symlinked_parent
+scripts/install_constitution.sh	2050	8	FUNCCOND	hi_restore	if-cond>func	hi_symlinked_parent
+scripts/install_constitution.sh	2051	5	FUNCCOND	hi_restore	andor-left>andor-left>andor-left>func	hi_user_umask
+scripts/install_constitution.sh	2062	3	PATMATCH	hi_print_plan	func	case "$S_MODE"
+scripts/install_constitution.sh	2090	3	SETOPT	main	func	set -- "${@:1:$(($# - 1))}"
+scripts/install_constitution.sh	2091	3	FUNCCOND	main	andor-left>func	hi_bash_ok
+scripts/install_constitution.sh	2093	3	SETOPT	main	func	set -u -o pipefail
+scripts/install_constitution.sh	2096	3	FUNCCOND	main	andor-left>func	hi_parse_args
+scripts/install_constitution.sh	2097	3	FUNCCOND	main	andor-left>func	hi_check_insecure
+scripts/install_constitution.sh	2098	3	PATMATCH	main	func	case "$O_ACTION"
+scripts/install_constitution.sh	2099	5	FUNCCOND	main	andor-left>func	hi_plumbing_ok
+scripts/install_constitution.sh	2101	3	PATMATCH	main	func	case "$O_ACTION"
+scripts/install_constitution.sh	2110	3	PATMATCH	main	func	case "$O_ACTION"
+scripts/install_constitution.sh	2112	34	PIPE	main	func	ops=| readers=hi_text_filter:FUNC | hi_detect_agents_json | hi_text_filter
+scripts/install_constitution.sh	2112	34	READER	main	func	hi_text_filter:FUNC | hi_detect_agents_json | hi_text_filter
+scripts/install_constitution.sh	2113	12	PIPE	main	func	ops=|,| readers=awk:ALL,hi_text_filter:FUNC | hi_detect_agents | awk -F'|' '{ printf "%-36s %-15s %-12s %-6s %s\n", $1, $2, $3, $4, $6 }' | hi_text_filter
+scripts/install_constitution.sh	2113	12	READER	main	func	hi_text_filter:FUNC | hi_detect_agents | awk -F'|' '{ printf "%-36s %-15s %-12s %-6s %s\n", $1, $2, $3, $4, $6 }' | hi_text_filter
+scripts/install_constitution.sh	2122	12	FUNCCOND	main	cmdsubst>andor-left>func	hi_is_constitution_repo
+scripts/install_constitution.sh	2128	3	PATMATCH	main	func	case "$O_ACTION"
+scripts/install_constitution.sh	2136	3	FUNCCOND	main	andor-left>func	hi_gx_bin
+scripts/install_constitution.sh	2144	5	FUNCCOND	main	andor-left>func	hi_open_tty
+scripts/install_constitution.sh	2150	8	FUNCCOND	main	if-cond>func	hi_gx
+scripts/install_constitution.sh	2152	61	FUNCCOND	main	andor-left>func	hi_ask
+scripts/install_constitution.sh	2153	33	FUNCCOND	main	andor-right>if-cond>func	hi_is_yes
+scripts/install_constitution.sh	2154	29	FUNCCOND	main	andor-right>andor-left>func	hi_say
+scripts/install_constitution.sh	2154	91	FUNCCOND	main	andor-left>andor-right>func	hi_user_umask
+scripts/install_constitution.sh	2163	8	FUNCCOND	main	if-cond>func	hi_was_set
+scripts/install_constitution.sh	2166	33	FUNCCOND	main	andor-left>func	hi_interactive_questions
+scripts/install_constitution.sh	2168	25	PIPE	main	cmdsubst>func	ops=| readers=awk:ALL | df -Pk -- "$O_ROOT" 2>/dev/null | awk 'NR == 2 { print $4 }'
+scripts/install_constitution.sh	2170	3	FUNCCOND	main	andor-left>func	hi_agent_preflight
+scripts/install_constitution.sh	2171	3	FUNCCOND	main	andor-left>func	hi_check_agent_limits
+scripts/install_constitution.sh	2172	3	FUNCCOND	main	andor-left>func	hi_check_unrestricted_consent
+scripts/install_constitution.sh	2175	3	PATMATCH	main	func	case "$S_LAYOUT"
+scripts/install_constitution.sh	2183	5	FUNCCOND	main	andor-left>func	hi_add_preflight
+scripts/install_constitution.sh	2184	5	FUNCCOND	main	andor-left>func	hi_probe_upstream
+scripts/install_constitution.sh	2185	5	FUNCCOND	main	andor-left>func	hi_resolve_ref
+scripts/install_constitution.sh	2190	31	FUNCCOND	main	andor-left>andor-right>func	hi_docs_preflight
+scripts/install_constitution.sh	2194	14	FUNCCOND	main	andor-left>func	hi_ask
+scripts/install_constitution.sh	2195	8	FUNCCOND	main	if-cond>func	hi_is_yes
+scripts/install_constitution.sh	2196	7	PIPE	main	func	ops=| readers=hi_text_filter:FUNC | hi_print_plan | hi_text_filter >&7
+scripts/install_constitution.sh	2196	7	READER	main	func	hi_text_filter:FUNC | hi_print_plan | hi_text_filter >&7
+scripts/install_constitution.sh	2197	17	FUNCCOND	main	andor-left>func	hi_ask
+scripts/install_constitution.sh	2198	7	FUNCCOND	main	andor-left>func	hi_is_yes
+scripts/install_constitution.sh	2203	5	PIPE	main	func	ops=| readers=hi_text_filter:FUNC | hi_print_plan | hi_text_filter
+scripts/install_constitution.sh	2203	5	READER	main	func	hi_text_filter:FUNC | hi_print_plan | hi_text_filter
+scripts/install_constitution.sh	2208	3	FUNCCOND	main	andor-left>func	hi_lock
+scripts/install_constitution.sh	2211	3	PATMATCH	main	func	case "$S_MODE"
+scripts/install_constitution.sh	2213	47	FUNCCOND	main	andor-right>andor-left>func	hi_complete_interrupted_add
+scripts/install_constitution.sh	2225	5	FUNCCOND	main	andor-left>func	hi_write_docs
+scripts/install_constitution.sh	2231	5	FUNCCOND	main	andor-left>func	hi_manifest_step
+scripts/install_constitution.sh	2234	46	FUNCCOND	main	andor-right>andor-left>func	hi_scrub_git_env
+scripts/install_constitution.sh	2248	46	FUNCCOND	main	andor-right>andor-left>andor-left>func	hi_scrub_git_env
+scripts/install_constitution.sh	2260	8	FUNCCOND	main	if-cond>func	hi_push_changed
+scripts/install_constitution.sh	2260	34	FUNCCOND	main	cmdsubst>if-cond>func	hi_push_marks
+scripts/install_constitution.sh	2269	5	FUNCCOND	main	andor-left>func	hi_verify
+scripts/install_constitution.sh	2275	16	FUNCCOND	main	cmdsubst>if-cond>func	hi_git
+scripts/install_constitution.sh	2277	7	FUNCCOND	main	andor-left>andor-left>func	hi_git
+scripts/install_constitution.sh	2278	12	FUNCCOND	main	andor-right>andor-left>func	hi_say
+scripts/update_constitution.sh	69	5	SETOPT	hi_reset_shell_state	func	set +o "$o"
+scripts/update_constitution.sh	71	36	SETOPT	hi_reset_shell_state	func	set -o "$o"
+scripts/update_constitution.sh	74	3	SETOPT	hi_reset_shell_state	func	shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar \ ⏎  failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit local…
+scripts/update_constitution.sh	77	3	SETOPT	hi_reset_shell_state	func	shopt -s extquote globasciiranges
+scripts/update_constitution.sh	84	22	PROCSUB	hi_plumbing_ok	func	<(printf 'ok\n')
+scripts/update_constitution.sh	90	3	PATMATCH	hi_split_lines	func	case $-
+scripts/update_constitution.sh	91	3	SETOPT	hi_split_lines	func	set -f
+scripts/update_constitution.sh	93	19	SETOPT	hi_split_lines	andor-right>func	set +f
+scripts/update_constitution.sh	98	3	PATMATCH	hi_split	func	case $-
+scripts/update_constitution.sh	99	3	SETOPT	hi_split	func	set -f
+scripts/update_constitution.sh	101	19	SETOPT	hi_split	andor-right>func	set +f
+scripts/update_constitution.sh	120	6	PATMATCH	hi_has_line_prefix	func	"$nl$1" == *"$nl$2"*
+scripts/update_constitution.sh	126	8	PATMATCH	hi_line_in	andor-left>func	"$nl$2$nl" == *"$nl$p$nl"*
+scripts/update_constitution.sh	132	1	SETOPT	-	top	set -uo pipefail
+scripts/update_constitution.sh	154	18	PIPE	hi_term_safe	func	ops=| readers=hi_text_filter:FUNC | printf '%s' "$1" | hi_text_filter
+scripts/update_constitution.sh	154	18	READER	hi_term_safe	func	hi_text_filter:FUNC | printf '%s' "$1" | hi_text_filter
+scripts/update_constitution.sh	158	11	PIPE	usage	func	ops=| readers=sed:ALL | sed -n '2,/^# Classification/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+scripts/update_constitution.sh	173	17	PIPE	hi_gx_refuse	cmdsubst>func	ops=|,| readers=sed:ALL,ENV+tr:ALL | printf '%s ' "$@" | sed -E 's|(://)[^/?#[:space:]]*@|\1|g; s/([?&][^=&#[:space:]]*=)[^&#[:space:]]*/\1REDACTED/g' | LC_ALL=C tr -cd '\40-\176'
+scripts/update_constitution.sh	178	19	PATMATCH	hi_gx_repo_ok	func	case "$1"
+scripts/update_constitution.sh	179	22	PATMATCH	hi_gx_name_ok	func	"$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$
+scripts/update_constitution.sh	184	5	PATMATCH	hi_gx_check	func	case "$a"
+scripts/update_constitution.sh	188	5	PATMATCH	hi_gx_check	func	case "$a"
+scripts/update_constitution.sh	188	5	VERS	hi_gx_check	func	case pattern bracket range (globasciiranges) -[A-Za-z]*
+scripts/update_constitution.sh	195	9	PATMATCH	hi_gx_check	func	case "$a"
+scripts/update_constitution.sh	198	3	PATMATCH	hi_gx_check	func	case "$sub"
+scripts/update_constitution.sh	201	64	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_name_ok
+scripts/update_constitution.sh	206	12	FUNCCOND	hi_gx_check	andor-right>andor-left>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	206	39	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	209	17	PATMATCH	hi_gx_check	func	case "${c[0]:-}"
+scripts/update_constitution.sh	211	55	FUNCCOND	hi_gx_check	andor-right>andor-left>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	211	82	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	217	26	PATMATCH	hi_gx_check	andor-right>andor-left>andor-left>func	"${!#}" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$
+scripts/update_constitution.sh	217	76	PATMATCH	hi_gx_check	andor-right>andor-left>func	" $* " == *" --detach "*
+scripts/update_constitution.sh	218	41	PATMATCH	hi_gx_check	func	case "$a"
+scripts/update_constitution.sh	223	9	PATMATCH	hi_gx_check	func	case "$a"
+scripts/update_constitution.sh	229	7	PATMATCH	hi_gx_check	func	case "${c[0]:-}"
+scripts/update_constitution.sh	231	52	PATMATCH	hi_gx_check	andor-right>andor-left>func	"${c[1]}" == submodule.*
+scripts/update_constitution.sh	238	43	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_name_ok
+scripts/update_constitution.sh	239	67	PATMATCH	hi_gx_check	andor-right>andor-left>andor-left>func	"$3" == /*
+scripts/update_constitution.sh	239	84	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	242	82	FUNCCOND	hi_gx_check	andor-right>andor-left>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	242	104	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	243	106	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	244	70	FUNCCOND	hi_gx_check	andor-right>andor-left>func	hi_gx_repo_ok
+scripts/update_constitution.sh	258	6	PATMATCH	hi_gx_bin	andor-left>andor-left>func	"$HI_GX_BIN" == /*
+scripts/update_constitution.sh	264	5	PATMATCH	hi_gx	func	case "$1"
+scripts/update_constitution.sh	272	3	FUNCCOND	hi_gx	andor-left>func	hi_gx_check
+scripts/update_constitution.sh	273	3	FUNCCOND	hi_gx	andor-left>func	hi_gx_bin
+scripts/update_constitution.sh	275	14	VERS	hi_gx	func	${!prefix@} ${!GIT_*}
+scripts/update_constitution.sh	276	7	PATMATCH	hi_gx	func	case "$v"
+scripts/update_constitution.sh	299	5	PIPE	hi_remote_live	func	ops=| readers=awk:ALL | HI_GX_TIMEOUT=60 hi_gx -C "$d" ls-remote "$k" "$r" 2>/dev/null | ⏎  awk '$1 ~ /^[0-9a-f]+$/ && (length($1) == 40 || length($1) == 64) { print $1 }'
+scripts/update_constitution.sh	305	3	PIPE	hi_remote_tags_of	func	ops=| readers=awk:ALL | HI_GX_TIMEOUT=60 hi_gx -C "$1" ls-remote --tags "$2" 2>/dev/null | ⏎  awk '$2 !~ /\^\{\}$/ { n = $2; sub(/^refs\/tags\//, "", n); print n, $1 }'
+scripts/update_constitution.sh	312	6	PATMATCH	hi_on_remote	andor-left>func	"$2" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$
+scripts/update_constitution.sh	316	5	FUNCCOND	hi_on_remote	andor-left>func	hi_gx
+scripts/update_constitution.sh	329	6	PATMATCH	hi_gitlink_rel	andor-left>andor-left>func	"$b" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$
+scripts/update_constitution.sh	329	50	FUNCCOND	hi_gitlink_rel	andor-right>andor-left>func	hi_gx
+scripts/update_constitution.sh	330	6	FUNCCOND	hi_gitlink_rel	if-cond>func	hi_gx
+scripts/update_constitution.sh	331	8	FUNCCOND	hi_gitlink_rel	if-cond>func	hi_gx
+scripts/update_constitution.sh	337	3	PATMATCH	hi_gitlink_committed	func	case "$l"
+scripts/update_constitution.sh	357	6	PATMATCH	hi_holder_alive	andor-left>andor-left>func	"$p" =~ ^[0-9]+$
+scripts/update_constitution.sh	359	5	PATMATCH	hi_holder_alive	func	case "$msg"
+scripts/update_constitution.sh	365	6	PATMATCH	hi_holder_alive	andor-left>func	"$start" =~ ^[0-9]+$
+scripts/update_constitution.sh	365	30	PATMATCH	hi_holder_alive	andor-left>func	"$hz" =~ ^[1-9][0-9]*$
+scripts/update_constitution.sh	365	56	PATMATCH	hi_holder_alive	andor-left>func	"$bt" =~ ^[0-9]+$
+scripts/update_constitution.sh	365	77	PATMATCH	hi_holder_alive	andor-left>func	"$mt" =~ ^[0-9]+$
+scripts/update_constitution.sh	384	3	PIPE	up_lock_pid	func	ops=| readers=tr:ALL | timeout 5 head -c 20 -- "$f" 2>/dev/null | tr -cd '0-9'
+scripts/update_constitution.sh	392	9	FUNCCOND	up_lock	cmdsubst>andor-left>andor-left>func	hi_gx
+scripts/update_constitution.sh	399	11	PATMATCH	up_lock	andor-left>andor-left>andor-left>if-cond>func	"$dlg" =~ ^[1-9][0-9]*$
+scripts/update_constitution.sh	399	86	FUNCCOND	up_lock	andor-right>if-cond>func	hi_holder_alive
+scripts/update_constitution.sh	412	45	FUNCCOND	up_lock	andor-right>if-cond>func	hi_holder_alive
+scripts/update_constitution.sh	430	32	FUNCCOND	up_unlock_tmp	cmdsubst>andor-right>andor-left>func	up_lock_pid
+scripts/update_constitution.sh	436	29	FUNCCOND	up_unlock	cmdsubst>andor-right>andor-left>func	up_lock_pid
+scripts/update_constitution.sh	444	39	PATMATCH	up_hook_declares_project_root	andor-left>func	$l =~ $re
+scripts/update_constitution.sh	452	1	FUNCCOND	-	andor-left	hi_plumbing_ok
+scripts/update_constitution.sh	453	1	FUNCCOND	-	andor-left	hi_gx_bin
+scripts/update_constitution.sh	457	3	PATMATCH	-	top	case "$1"
+scripts/update_constitution.sh	465	7	PATMATCH	-	top	case "$2"
+scripts/update_constitution.sh	466	10	PATMATCH	-	andor-left	"$2" != *$'\n'*
+scripts/update_constitution.sh	474	6	PATMATCH	-	andor-left	"$REF" =~ ^[A-Za-z0-9._/-]{1,200}$
+scripts/update_constitution.sh	475	6	PATMATCH	-	andor-left>andor-left	"$REF" =~ ^[0-9a-f]{7,40}$
+scripts/update_constitution.sh	475	39	FUNCCOND	-	andor-right>andor-left	hi_gx
+scripts/update_constitution.sh	479	8	FUNCCOND	-	cmdsubst>andor-left	hi_gx
+scripts/update_constitution.sh	486	1	PATMATCH	-	top	case "$ROOT/"
+scripts/update_constitution.sh	487	1	PATMATCH	-	top	case "$SUB/"
+scripts/update_constitution.sh	489	18	FUNCCOND	-	cmdsubst>andor-left>if-cond	hi_gx
+scripts/update_constitution.sh	489	62	FUNCCOND	-	andor-right>if-cond	hi_has_line_prefix
+scripts/update_constitution.sh	493	1	FUNCCOND	-	andor-left	up_lock
+scripts/update_constitution.sh	494	12	FUNCCOND	-	cmdsubst>if-cond	hi_gx
+scripts/update_constitution.sh	496	3	PATMATCH	-	top	case "$PEND0"
+scripts/update_constitution.sh	498	68	PIPE	-	cmdsubst	ops=|,|,| readers=cut:ALL,cut:ALL,tr:ALL | head -n 1 -- "$PEND0" 2>/dev/null | cut -d' ' -f1 | cut -b 1-64 | tr -cd '0-9a-f'
+scripts/update_constitution.sh	506	6	FUNCCOND	-	if-cond	hi_gx
+scripts/update_constitution.sh	511	8	PROCSUB	-	top	<(hi_gx -C "$SUB" remote)
+scripts/update_constitution.sh	527	28	FUNCCOND	hi_resolve_ref_in	cmdsubst>andor-right>if-cond>func	hi_gx
+scripts/update_constitution.sh	528	13	FUNCCOND	hi_resolve_ref_in	cmdsubst>if-cond>func	hi_gx
+scripts/update_constitution.sh	531	15	FUNCCOND	hi_resolve_ref_in	cmdsubst>if-cond>func	hi_gx
+scripts/update_constitution.sh	532	10	PROCSUB	hi_resolve_ref_in	func	<(hi_gx -C "$d" remote 2>/dev/null | awk '$0 == "origin" { print; next } { o[++n] = $0 } END { for (i = 1; i <= n; i++) print o[i] }')
+scripts/update_constitution.sh	532	12	PIPE	hi_resolve_ref_in	procsubst>func	ops=| readers=awk:ALL | hi_gx -C "$d" remote 2>/dev/null | awk '$0 == "origin" { print; next } { o[++n] = $0 } END { for (i = 1; i <= n; i++) print o[i] }'
+scripts/update_constitution.sh	533	9	PATMATCH	hi_resolve_ref_in	andor-left>if-cond>func	"$ref" =~ ^[0-9a-f]{7,40}$
+scripts/update_constitution.sh	533	49	FUNCCOND	hi_resolve_ref_in	cmdsubst>andor-right>if-cond>func	hi_gx
+scripts/update_constitution.sh	534	13	FUNCCOND	hi_resolve_ref_in	cmdsubst>andor-left>if-cond>func	hi_gx
+scripts/update_constitution.sh	535	16	FUNCCOND	hi_resolve_ref_in	cmdsubst>andor-right>if-cond>func	hi_gx
+scripts/update_constitution.sh	541	31	PIPE	on_remote	cmdsubst>func	ops=| readers=awk:ALL | printf '%s' "$RLIVE" | awk 'NF && !s[$0]++'
+scripts/update_constitution.sh	543	1	FUNCCOND	-	andor-left	on_remote
+scripts/update_constitution.sh	546	13	PIPE	-	cmdsubst	ops=|,|,|,|,| readers=awk:ALL,grep:ALL,sort:ALL,sort:ALL,tail:ALL | printf '%s' "$RTAGS" | awk '{ print $1 }' | grep -E "$HI_RELEASE_TAG_RE" | sort -u | sort -V | tail -n 1
+scripts/update_constitution.sh	549	8	FUNCCOND	-	cmdsubst>andor-left	hi_resolve_ref_in
+scripts/update_constitution.sh	552	1	FUNCCOND	-	andor-left	on_remote
+scripts/update_constitution.sh	562	3	PATMATCH	up_gitlink_of	func	case "$l"
+scripts/update_constitution.sh	570	55	PATMATCH	up_marker_honored	func	case "$l"
+scripts/update_constitution.sh	575	1	PATMATCH	-	top	case "$PEND"
+scripts/update_constitution.sh	582	3	PATMATCH	-	top	case "$(hi_gitlink_rel "$SUB" "$CUR" "$gl_sha")"
+scripts/update_constitution.sh	594	9	FUNCCOND	-	andor-right>if-cond	up_marker_honored
+scripts/update_constitution.sh	600	47	FUNCCOND	-	cmdsubst>andor-right>andor-left	up_marker_target
+scripts/update_constitution.sh	602	46	FUNCCOND	-	andor-right>andor-left	hi_gx
+scripts/update_constitution.sh	612	24	FUNCCOND	-	andor-right>if-cond	hi_gx
+scripts/update_constitution.sh	618	3	FUNCCOND	-	andor-left	hi_gx
+scripts/update_constitution.sh	621	25	FUNCCOND	-	andor-right>andor-left	hi_gx
+scripts/update_constitution.sh	631	3	FUNCCOND	-	andor-left	hi_gx
+scripts/update_constitution.sh	633	3	PIPE	-	top	ops=|,|,| readers=awk:ALL,hi_text_filter:FUNC,sed:ALL | hi_gx -C "$SUB" log --oneline --no-decorate "$CUR..$TSHA" | awk 'NR <= 20' | hi_text_filter | sed 's/^/  /' >&2
+scripts/update_constitution.sh	633	3	READER	-	top	hi_text_filter:FUNC | hi_gx -C "$SUB" log --oneline --no-decorate "$CUR..$TSHA" | awk 'NR <= 20' | hi_text_filter | sed 's/^/  /' >&2
+scripts/update_constitution.sh	634	3	PIPE	-	top	ops=|,|,| readers=hi_text_filter:FUNC,sed:ALL,awk:ALL | hi_gx -C "$SUB" diff "$CUR" "$TSHA" -- CHANGELOG.md 2>/dev/null | hi_text_filter | sed -n 's/^+## /  changelog: /p' | awk 'NR <= 10' >&2
+scripts/update_constitution.sh	634	3	READER	-	top	hi_text_filter:FUNC | hi_gx -C "$SUB" diff "$CUR" "$TSHA" -- CHANGELOG.md 2>/dev/null | hi_text_filter | sed -n 's/^+## /  changelog: /p' | awk 'NR <= 10' >&2
+scripts/update_constitution.sh	636	1	FUNCCOND	-	andor-left	hi_gx
+scripts/update_constitution.sh	656	10	FUNCCOND	-	andor-right>andor-left	up_hook_declares_project_root
+scripts/update_constitution.sh	659	29	VERS	-	andor-right>andor-left	${!prefix@} ${!GIT_*}
+scripts/update_constitution.sh	659	43	PATMATCH	-	andor-right>andor-left	case "$v"
+scripts/update_constitution.sh	661	44	FUNCCOND	-	cmdsubst>andor-left	up_holder_pid
+scripts/update_constitution.sh	670	3	FUNCCOND	-	andor-left>andor-left	hi_gx
+scripts/update_constitution.sh	671	8	FUNCCOND	-	andor-right>andor-left	say
+scripts/install_cli_agent_plugins.sh	72	5	SETOPT	hi_reset_shell_state	func	set +o "$o"
+scripts/install_cli_agent_plugins.sh	74	36	SETOPT	hi_reset_shell_state	func	set -o "$o"
+scripts/install_cli_agent_plugins.sh	77	3	SETOPT	hi_reset_shell_state	func	shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar \ ⏎  failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit local…
+scripts/install_cli_agent_plugins.sh	80	3	SETOPT	hi_reset_shell_state	func	shopt -s extquote globasciiranges
+scripts/install_cli_agent_plugins.sh	86	1	SETOPT	-	top	set -euo pipefail
+scripts/install_cli_agent_plugins.sh	105	3	PATMATCH	-	top	case "$1"
+scripts/install_cli_agent_plugins.sh	156	3	PATMATCH	ic_dir_inside_project	func	case "$r"
+scripts/install_cli_agent_plugins.sh	162	3	PATMATCH	ic_link_owned	func	case "$r"
+scripts/install_cli_agent_plugins.sh	180	10	PIPE	regen_commands	cmdsubst>func	ops=|,| readers=wc:ALL,tr:ALL | find "$const_root/plugins/$PLUGIN_NAME/commands" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' '
+scripts/install_cli_agent_plugins.sh	202	5	PATMATCH	link_skills	func	case "$claude_real"
+scripts/install_cli_agent_plugins.sh	208	3	PATMATCH	link_skills	func	case "$(cd "$skills_dst" && pwd -P)"
+scripts/install_cli_agent_plugins.sh	217	48	FUNCCOND	link_skills	andor-right>if-cond>func	ic_link_owned
+scripts/install_cli_agent_plugins.sh	240	78	FUNCCOND	link_skills	andor-right>andor-right>if-cond>func	ic_link_owned
+scripts/install_cli_agent_plugins.sh	283	10	FUNCCOND	link_agent_commands	if-cond>func	ic_dir_inside_project
+scripts/install_cli_agent_plugins.sh	295	50	FUNCCOND	link_agent_commands	andor-right>if-cond>func	ic_link_owned
+scripts/install_cli_agent_plugins.sh	306	73	FUNCCOND	link_agent_commands	andor-right>if-cond>func	ic_link_owned
+scripts/install_cli_agent_plugins.sh	336	8	FUNCCOND	wire_prompt_hook	andor-left>if-cond>func	ic_dir_inside_project
+scripts/install_cli_agent_plugins.sh	336	59	FUNCCOND	wire_prompt_hook	andor-right>if-cond>func	ic_dir_inside_project
+scripts/install_cli_agent_plugins.sh	359	3	PATMATCH	marketplace_hint_path	func	case "$rel"
+scripts/install_cli_agent_plugins.sh	382	60	PATMATCH	install_plugin	andor-right>if-cond>func	"$plugin_list" == *"$PLUGIN_NAME"*
+scripts/install_cli_agent_plugins.sh	399	13	PIPE	-	cmdsubst	ops=|,| readers=wc:ALL,tr:ALL | find "$const_root/plugins/$PLUGIN_NAME/commands" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' '
+scripts/install_cli_agent_plugins.sh	401	15	PIPE	-	cmdsubst	ops=|,| readers=wc:ALL,tr:ALL | find "$const_root/skills" -maxdepth 2 -name 'SKILL.md' 2>/dev/null | wc -l | tr -d ' '
+scripts/install_cli_agent_plugins.sh	407	15	PIPE	-	cmdsubst	ops=|,| readers=wc:ALL,tr:ALL | find "$project_root/.claude/skills" -maxdepth 1 -type l 2>/dev/null | wc -l | tr -d ' '
+scripts/install_cli_agent_plugins.sh	421	62	PATMATCH	-	andor-right>if-cond	"$plugin_list" == *"$PLUGIN_NAME"*
+scripts/install_cli_agent_plugins.sh	430	22	FUNCCOND	-	andor-right>andor-left	ok
+scripts/install_cli_agent_plugins.sh	436	3	FUNCCOND	-	andor-left	regen_commands
+scripts/install_cli_agent_plugins.sh	437	3	FUNCCOND	-	andor-left	link_agent_commands
+scripts/install_cli_agent_plugins.sh	438	3	FUNCCOND	-	andor-left	wire_prompt_hook
+scripts/install_cli_agent_plugins.sh	440	1	FUNCCOND	-	andor-left	link_skills
+scripts/install_cli_agent_plugins.sh	444	3	FUNCCOND	-	andor-left	install_plugin
+scripts/install_action_prefix.sh	62	5	SETOPT	hi_reset_shell_state	func	set +o "$o"
+scripts/install_action_prefix.sh	64	36	SETOPT	hi_reset_shell_state	func	set -o "$o"
+scripts/install_action_prefix.sh	67	3	SETOPT	hi_reset_shell_state	func	shopt -u compat31 compat32 compat40 compat41 compat42 compat43 compat44 nocasematch nocaseglob extglob globstar \ ⏎  failglob nullglob dotglob lastpipe xpg_echo expand_aliases localvar_inherit local…
+scripts/install_action_prefix.sh	70	3	SETOPT	hi_reset_shell_state	func	shopt -s extquote globasciiranges
+scripts/install_action_prefix.sh	76	1	SETOPT	-	top	set -euo pipefail
+scripts/install_action_prefix.sh	94	1	PATMATCH	-	top	case "$const_root"
+scripts/install_action_prefix.sh	99	1	PATMATCH	-	top	case "$hook_cmd"
+scripts/install_action_prefix.sh	99	1	VERS	-	top	case pattern bracket range (globasciiranges) *[!A-Za-z0-9_@%+=:,./-]*
+scripts/install_action_prefix.sh	100	42	PIPE	-	cmdsubst	ops=| readers=sed:ALL | printf '%s' "$hook_cmd" | sed "s/'/'\\\\''/g"
+scripts/install_action_prefix.sh	110	3	PATMATCH	-	top	case "$_r"
+scripts/install_action_prefix.sh	123	1	PATMATCH	-	top	case "$settings_dir_real"
+scripts/install_action_prefix.sh	164	9	PIPE	-	cmdsubst>if-cond	ops=|,| readers=od:ALL,tr:ALL | head -c 3 -- "$settings" | od -An -tx1 | tr -d ' \n'
+scripts/install_action_prefix.sh	281	3	FUNCCOND	-	andor-left	merge_with_jq
+scripts/install_action_prefix.sh	283	3	FUNCCOND	-	andor-left	merge_with_python
+scripts/lib/constitution_layout.sh	123	14	FUNCCOND	cl_project_root_of	cmdsubst>andor-left>func	cl__abs
+scripts/lib/constitution_layout.sh	128	22	FUNCCOND	cl_project_root_of	cmdsubst>andor-left>func	cl__git
+scripts/lib/constitution_layout.sh	131	9	PATMATCH	cl_project_root_of	func	case "$_cl_phys"
+scripts/lib/constitution_layout.sh	135	17	PATMATCH	cl_project_root_of	func	case "$_cl_c"
+scripts/lib/constitution_layout.sh	148	5	PATMATCH	cl_project_root_of	func	case "$_cl_c"
+scripts/lib/constitution_layout.sh	169	14	FUNCCOND	cl_owner_project_of	cmdsubst>andor-left>func	cl__abs
+scripts/lib/constitution_layout.sh	172	14	FUNCCOND	cl_owner_project_of	cmdsubst>andor-left>func	cl__git
+scripts/lib/constitution_layout.sh	176	14	FUNCCOND	cl_owner_project_of	cmdsubst>andor-left>func	cl__git
+scripts/lib/constitution_layout.sh	180	14	FUNCCOND	cl_owner_project_of	cmdsubst>andor-left>func	cl_project_root_of
+scripts/lib/constitution_layout.sh	205	5	PIPE	cl__gitmodules_paths	func	ops=|,| readers=tr:ALL,while-loop:ALL | cl__git config -z -f "$1/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null | tr '\n\000' '\t\n' | ⏎  while IFS= read -r _cl_gl; do ⏎   case "$_cl_gl" in *"$_cl_gt"*) ;; *) continue ;; …
+scripts/lib/constitution_layout.sh	207	9	PATMATCH	cl__gitmodules_paths	pipe-stage>func	case "$_cl_gl"
+scripts/lib/constitution_layout.sh	209	9	PATMATCH	cl__gitmodules_paths	pipe-stage>func	case "$_cl_gp"
+scripts/lib/constitution_layout.sh	220	42	FUNCCOND	cl_find_in_project	andor-right>if-cond>func	cl_is_constitution_dir
+scripts/lib/constitution_layout.sh	232	14	FUNCCOND	cl_find_in_project_no_override	cmdsubst>andor-left>func	cl__abs
+scripts/lib/constitution_layout.sh	241	9	PATMATCH	cl_find_in_project_no_override	func	case $-
+scripts/lib/constitution_layout.sh	242	9	SETOPT	cl_find_in_project_no_override	func	set -f
+scripts/lib/constitution_layout.sh	246	13	FUNCCOND	cl_find_in_project_no_override	andor-left>func	cl_is_constitution_dir
+scripts/lib/constitution_layout.sh	247	16	PIPE	cl_find_in_project_no_override	if-cond>func	ops=| readers=awk:ALL | cl__git -C "$_cl_r" --literal-pathspecs ls-files -s -- "$_cl_rel" 2>/dev/null | ⏎  awk -v p="$_cl_rel" '$1 == "160000" { sub(/^[^\t]*\t/, ""); if ($0 == p) f = 1 } END { exit !f }'
+scripts/lib/constitution_layout.sh	247	16	FUNCCOND	cl_find_in_project_no_override	pipe-stage>if-cond>func	cl__git
+scripts/lib/constitution_layout.sh	249	59	SETOPT	cl_find_in_project_no_override	andor-right>func	set +f
+scripts/lib/constitution_layout.sh	253	51	SETOPT	cl_find_in_project_no_override	andor-right>func	set +f
+scripts/lib/constitution_layout.sh	256	12	FUNCCOND	cl_find_in_project_no_override	if-cond>func	cl_is_constitution_dir
+scripts/lib/constitution_layout.sh	262	5	PATMATCH	cl_find_in_project_no_override	func	case $-
+scripts/lib/constitution_layout.sh	263	5	SETOPT	cl_find_in_project_no_override	func	set -f
+scripts/lib/constitution_layout.sh	267	12	FUNCCOND	cl_find_in_project_no_override	if-cond>func	cl_is_constitution_dir
+scripts/lib/constitution_layout.sh	268	55	SETOPT	cl_find_in_project_no_override	andor-right>func	set +f
+scripts/lib/constitution_layout.sh	272	47	SETOPT	cl_find_in_project_no_override	andor-right>func	set +f
+scripts/lib/constitution_layout.sh	279	5	PATMATCH	cl_rel_path	func	case "${2:-}"
+scripts/lib/constitution_layout.sh	289	57	FUNCCOND	cl_git_hooks_dir	andor-right>andor-left>cmdsubst>andor-left>func	cl_scrub_git_env
+scripts/lib/constitution_layout.sh	291	61	FUNCCOND	cl_git_hooks_dir	andor-right>andor-left>cmdsubst>andor-left>func	cl_scrub_git_env
+scripts/lib/constitution_layout.sh	292	9	PATMATCH	cl_git_hooks_dir	func	case "$_cl_h"
+scripts/lib/constitution_layout.sh	300	5	PATMATCH	cl_is_git_hook_name	func	case "${1:-}"

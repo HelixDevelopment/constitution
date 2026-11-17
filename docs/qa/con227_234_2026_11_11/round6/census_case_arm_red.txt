@@ -1,0 +1,8 @@
+Instrument blind spot found during round 6 (a command after a case-arm pattern), and its fix.
+Input: case "$1" in -h|--help) sed -n 1p "$0" ;; *) id -u ;; esac
+== channel_census.py without case_arms (the first version):
+(nothing found)
+== channel_census.py with case_arms:
+1	sed
+1	id
+Effect on the real scripts: two rows the first table lacked, the publisher's help sed (then before the token was dropped, X11 class) and the derive script's help awk.

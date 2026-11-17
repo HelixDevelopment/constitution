@@ -21,6 +21,7 @@
 #   cm_helix_deps_manifest_present_mutation_test.sh   Exit: 0 proof holds · 1 misclassified/survivor · 2 env error.
 # Side-effects: temp dir under $TMPDIR (trap-cleaned). Dependencies: bash, git, python3 + PyYAML, sed.
 # Classification: universal (§11.4.17).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"

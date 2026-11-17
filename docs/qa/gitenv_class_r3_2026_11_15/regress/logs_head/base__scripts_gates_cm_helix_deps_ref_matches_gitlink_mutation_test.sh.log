@@ -1,0 +1,14 @@
+✅ META OK:   clean fixture (hex prefix + resolvable tag) — control — gate exit 0 as required
+✅ META OK:   hex ref disagrees with its gitlink — gate exit 1 as required
+✅ META OK:   dep url in no .gitmodules entry — gate exit 2 as required
+✅ META OK:   tag ref not resolvable — gate exit 2 as required
+✅ META OK:   empty deps list — gate exit 2 as required
+✅ META OK:   nested path entry matching the nested gitlink — gate exit 0 as required
+✅ META OK:   nested path entry ref disagrees with nested gitlink — gate exit 1 as required
+✅ META OK:   nested path whose parent has no root gitlink — gate exit 2 as required
+✅ META OK:   root-level entry with path: and matching url — gate exit 0 as required
+✅ META OK:   root-level entry with path: but url differs from .gitmodules (a determinable manifest lie = DRIFT, round 3 N1) — gate exit 1 as required
+✅ META OK:   nested entry with an attacker ssh_url (parent .gitmodules says otherwise) — gate exit 1 as required
+✅ META OK:   deps whose items open with ssh_url:/ref: (any field order), quoted values, trailing comments — gate exit 0 as required
+✅ META OK:   order-independent parse still BLINDs on an unresolvable tag — gate exit 2 as required
+✅ META: all expectations held

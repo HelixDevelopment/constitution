@@ -208,7 +208,9 @@ if [ "$n" -eq 0 ]; then
   elif command -v llmctl >/dev/null 2>&1; then
     _llm_path="$(command -v llmctl)"
     cm_gate_env_set _tmo JEV_TOOL_TIMEOUT 30 value   # a tiny timeout would skip the cross-check (note only)
-    if command -v timeout >/dev/null 2>&1; then _run() { timeout --kill-after=2 "$_tmo" "$@"; }; else _run() { "$@"; }; fi
+    # (SIGTTIN/SIGTTOU ignored in a subshell for timeout only: uutils timeout does not ignore them itself and would be
+    # stopped with a child that touches the terminal, so the limit would never fire)
+    if command -v timeout >/dev/null 2>&1; then _run() { (trap '' TTIN TTOU; exec timeout --kill-after=2 "$_tmo" "$@"); }; else _run() { "$@"; }; fi
     st="$(_run llmctl decide status --json 2>/dev/null)"; _src=$?
     if [ "$_src" -eq 124 ] || [ "$_src" -eq 137 ]; then
       blind_or_note "llmctl decide status timed out after ${_tmo}s: the empty record cannot be cross-checked"

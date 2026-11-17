@@ -1,0 +1,121 @@
+# F4 the H-1 message says NEWER (not only 'git submodule update', which every refusal says)
+  ok   recorded newer: exit 3
+  ok   updater message: the recorded gitlink is NEWER than the checkout
+  ok   updater message: not the diverged wording
+  ok   installer re-run: exit 3
+  ok   installer re-run (delegated): NEWER wording
+# F5 a hand-staged gitlink (committed V0 < staged V1 < checkout V2) is never overwritten
+  ok   precondition: committed V0
+  ok   precondition: staged V1
+  ok   precondition: no update-pending marker
+  ok   updater (plain): staged differs from committed and checkout -> exit 3
+  ok   updater (plain): staged gitlink kept
+  ok   updater --check: staged differs from committed and checkout -> exit 3
+  ok   updater --check: staged gitlink kept
+  ok   updater --dry-run: staged differs from committed and checkout -> exit 3
+  ok   updater --dry-run: staged gitlink kept
+  ok   updater --commit: staged differs from committed and checkout -> exit 3
+  ok   updater --commit: staged gitlink kept
+  ok   message names the staged gitlink and says it is not overwritten
+  ok   message gives the way out (git add or git restore --staged)
+  ok   no commit made
+  ok   --check does not say UPDATE_AVAILABLE=yes
+  ok   installer re-run (delegated): exit 3
+  ok   installer re-run: staged gitlink kept
+  ok   with a newer target (fast-forward path): exit 3
+  ok   fast-forward path: staged kept
+  ok   fast-forward path: checkout not moved
+# F5 controls: staged == checkout, or staged == committed, still update
+  ok   staged == checkout: exit 0
+  ok   staged the target
+  ok   staged == committed: exit 0
+  ok   staged the target (v999.3)
+# F5 positive control: a REAL interrupted double update (--no-hook) is finished
+  ok   first update (staged, not committed): exit 0
+  ok   first update staged V1
+  ok   second update cut off by a held index.lock: exit 1
+  ok   cut-off state: checkout moved to V2
+  ok   cut-off state: staged still V1
+  ok   cut-off state: committed still V0
+  ok   re-run finishes the interrupted update: exit 0
+  ok   re-run staged V2
+  ok   says it finished an interrupted update
+  ok   marker gone after the finished update
+# F5 the same with the hook enabled (the hook never runs: the add is what fails)
+  ok   hook case: first update exit 0
+  ok   hook case: cut off exit 1
+  ok   hook case: the marker names the cut-off target
+  ok   hook case: re-run (--no-hook) finishes: exit 0
+  ok   hook case: staged V2
+# F5 a marker naming ANOTHER commit does not license the overwrite
+  ok   foreign marker: exit 3
+  ok   foreign marker: staged kept
+# F5 built-in updater (checkout without update_constitution.sh): committed v71 < staged v72 < checkout v72.1
+  ok   install at v71 exit 0
+  ok   control: the checkout has no updater script (built-in path)
+  ok   built-in: staged differs -> exit 3
+  ok   built-in path really used (control needle)
+  ok   built-in: staged kept
+  ok   built-in: checkout not moved
+  ok   built-in: message names the staged gitlink
+  ok   built-in, target == checkout (finish path): exit 3 too
+  ok   built-in finish path: staged kept
+  ok   built-in control: staged == checkout -> exit 0
+# F5 built-in: a REAL interrupted double update (v71 -> v72 staged, v72 -> v72.1 cut off by index.lock) is finished
+  ok   built-in first update: exit 0
+  ok   built-in first update staged v72
+  ok   built-in first update really built-in (control needle)
+  ok   built-in second update cut off: non-zero exit
+  ok   built-in cut-off: checkout at v72.1
+  ok   built-in cut-off: staged still v72
+  ok   built-in re-run finishes it: exit 0
+  ok   built-in re-run staged v72.1
+  ok   built-in marker gone after the finish
+# F3 a DANGLING helix-deps.yaml symlink counts as present: never written through, never replaced
+  ok   dangling symlink: report manifest=present
+  ok   dangling symlink: still a symlink
+  ok   dangling symlink: target unchanged
+  ok   dangling symlink: nothing written through it
+  ok   dangling symlink: no 'created helix-deps.yaml'
+# F3 umask 077: the created manifest is 600
+  ok   umask 077: report manifest=created
+  ok   umask 077: helix-deps.yaml is 600
+# F2 push detection fails closed on a remote that answered before and cannot be asked after
+warning: You appear to have cloned an empty repository.
+warning: You appear to have cloned an empty repository.
+  ok   no push (control)
+  ok   plain tag push detected (control)
+  ok   tag push then insteadOf to a dead path detected
+  ok   insteadOf control: the tag reached the remote
+  ok   tag push then protocol.file.allow=never detected
+  ok   protocol control: the tag reached the remote
+  ok   tag push then chmod 000 of the bare remote detected
+  ok   chmod control: the tag reached the remote
+  ok   tag push then mv of the bare remote detected
+  ok   mv control: the tag reached the remote
+  ok   no push after the restores (control)
+  ok   no push, but the remote answered before and cannot be asked BY NAME after (url still answers): fails closed
+  ok   no push after restoring uploadpack (control)
+# F2 index 1 (the constitution checkout) and the pushurl
+  ok   index 1: tag push then chmod 000 detected
+  ok   push to the PUSHURL, then the pushurl repository made unaskable: detected
+  ok   pushurl control: the tag landed in the pushurl repository
+# F2 the fingerprint tool: cksum absent (sha256sum used, the test_agent sandbox shape), and no tool at all (fail closed)
+  ok   control needle: no cksum in the sha256sum-only PATH
+  ok   control needle: no hasher at all in the bare PATH
+  ok   sha256sum only, no push: not flagged
+  ok   sha256sum only: L lines carry a non-empty fingerprint
+  ok   sha256sum only: tag push detected
+  ok   no fingerprint tool at all: fails closed
+  ok   no fingerprint tool: says so
+  ok   no fingerprint tool: Z lines written, never an empty hash
+# F2 a remote that could NOT be asked before the run is skipped (not trusted) and named
+  ok   control needle: marks record deadremote as unaskable (U)
+  ok   control needle: marks record its url as unaskable (X)
+  ok   unaskable both times, no push: not flagged
+  ok   the skipped remote is named
+  ok   a push to origin with deadremote present: still detected
+  ok   --help: a remote that answered before and not after fails the run
+  ok   --help: only a remote that could not be asked before the run either is skipped
+  ok   --help: the old blanket 'a remote that cannot be asked is skipped' is gone
+round10: PASS 104 FAIL 0

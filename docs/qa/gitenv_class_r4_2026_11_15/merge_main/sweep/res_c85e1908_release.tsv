@@ -1,0 +1,4 @@
+test_tag_and_release	none	rc=0	UNCHANGED	hits=0	164s
+test_tag_and_release	both	rc=0	UNCHANGED	hits=0	166s
+test_channel_census	none	rc=0	UNCHANGED	hits=0	53s
+test_channel_census	both	rc=0	UNCHANGED	hits=0	55s

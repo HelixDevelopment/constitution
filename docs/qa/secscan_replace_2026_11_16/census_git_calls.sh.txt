@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# CON-425 class census: every git invocation in scripts/security/* and the libs the history scanner loads.
+# Control needle: a known git call must be found by the same pattern.
+set -u
+N=$1; cd "$N" || exit 2
+pat='(^|[^A-Za-z_./-])git( |")|"git",|\bgh +api|\bcurl\b'
+echo "== per-file matches of pattern: $pat"
+for f in scripts/security/*.sh scripts/lib/safe_rm.sh; do
+  printf '%s\t%s\n' "$f" "$(grep -cE "$pat" "$f")"
+done
+echo "== history_secret_scan.sh git invocations (line: text)"
+grep -nE '(^|[^A-Za-z_./-])git( |")|"git",' scripts/security/history_secret_scan.sh | grep -v '^[0-9]*:#' | cut -c1-160
+echo "== git invocations in the other two security scripts and safe_rm.sh (expect none)"
+for f in scripts/security/forge_branch_protect.sh scripts/security/github_actions_inventory_disable.sh scripts/lib/safe_rm.sh; do
+  c=$(grep -cE '(^|[^A-Za-z_./-])git -C|(^|[^A-Za-z_./-])git (clone|fetch|log|cat-file|rev-list|show|for-each-ref|hash-object)|"git",' "$f"); rc=$?
+  printf '%s\tlocal-git-calls=%s\tgrep_rc=%s\n' "$f" "$c" "$rc"
+done
+echo "== positive control: the same pattern on history_secret_scan.sh finds the clone call"
+grep -cE '(^|[^A-Za-z_./-])git -C|(^|[^A-Za-z_./-])git (clone|fetch|log|cat-file|rev-list|show|for-each-ref|hash-object)|"git",' scripts/security/history_secret_scan.sh
+echo "== negative control: fabricated token"
+grep -c 'zzNOSUCHgitcallzz' scripts/security/history_secret_scan.sh
+echo "== env -i / env -u / env= that could drop GIT_NO_REPLACE_OBJECTS in history_secret_scan.sh"
+grep -nE 'env -i|env -u|[^.]env=' scripts/security/history_secret_scan.sh | cut -c1-160
+echo "== GIT_NO_REPLACE_OBJECTS occurrences"
+grep -n 'GIT_NO_REPLACE_OBJECTS' scripts/security/history_secret_scan.sh | cut -c1-120

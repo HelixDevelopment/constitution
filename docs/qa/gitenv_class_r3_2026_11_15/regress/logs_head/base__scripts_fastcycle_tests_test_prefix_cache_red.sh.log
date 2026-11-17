@@ -1,0 +1,58 @@
+=== control needle #1: relative-path resolution mechanism ===
+PASS[1]: control needle #1: known-present sibling tokens/transcript_ingest.py (T038, Oracle B's own real instrument) resolves through this file's exact path-construction mechanism -- proving the absence check below is trustworthy
+
+=== control needle #2: fixture id namespace collision (live grep) ===
+PASS[2]: none of this file's new fixture ids collide with any sibling suite's already-committed fixture (fixtures/ tree-wide grep)
+
+=== control needle #3: Oracle B's real instrument discriminates (sibling T020 fixture) ===
+INFO: control needle #3: the real instrument correctly reports the sibling fixture's cold turn (cache_read=0) and warm turn (cache_read=1200) -- it can genuinely tell a hit from a non-hit
+PASS[3]: control needle #3: Oracle B's instrument discriminates hit-vs-miss on the sibling T020 cache_hits fixture
+
+=== Section 1: context/dispatch_prefix.py RED baseline (live) ===
+INFO: <scratch>/base/scripts/fastcycle/context exists, holding 5 *.py file(s) right now (T039's already-landed anchor_citations.py lives here too)
+INFO: context/dispatch_prefix.py now exists -- T115 has landed. The forward-compatible real-tool invocation block below will exercise it for real.
+PASS[4]: context/dispatch_prefix.py has landed (T115) -- expected to FAIL today (RED)
+
+=== Fixture presence ===
+PASS[5]: all 10 fixtures under fixtures/prefix_cache/ are present
+
+=== Oracle A: structural [core][subset][per-item] ordering proof ===
+INFO: len(core)+len(subset)=602  len(dispatch_1_per_item)=145
+INFO: correct-order shared-prefix length (two same-class dispatches) = 617
+INFO: broken-order (golden-bad: per-item BEFORE subset) shared-prefix length = 15
+PASS[6]: correct ordering ([core][subset][per-item]): shared-prefix length >= len(core)+len(subset) -- the identical [core][subset] block is guaranteed a common prefix
+PASS[7]: golden-bad ordering (per-item timestamp placed BEFORE the subset): shared-prefix length < len(dispatch_1_per_item) -- it can never cross into the trailing [core][subset] bytes at all once the per-item texts diverge
+PASS[8]: Oracle A discrimination: correct-order shared-prefix length (617) strictly exceeds broken-order's (15) -- proving the derivation genuinely tells the two orderings apart, not decoration that always reports the same answer
+PASS[9]: paired mutation caught: a mutated derivation that ALWAYS composes per-item-first (even when asked for 'correct') collapses its own 'correct'-request shared-prefix length (15) down to the broken bound (< len(dispatch_1_per_item)=145), diverging from the real correct-order result (617) -- a real meta-test built against this fixture, once T115 lands, would genuinely catch this regression
+
+=== Oracle B: real-transcript cache-read consequence (good_order) ===
+INFO: good_order: ingest rc=0 (transcript_ingest: files=3 assistant_turns_read=4 rows=4 new=4 measured=4 unmeasured=0 duplicate_merged_grew=0 duplicate_unchanged=0 reattributed_to_parent=0 attribution_filled=0 unreadable_files=0 unparseable_lines=0 invalid_utf8_lines=0 malformed_fields=0 rejected_records=0 rejected_reasons=none replayed_lines=0 replayed_dispatches=0 dispatch_without_description=0 item_from_sidecar=0 bad_sidecars=0 agents_without_item=2 unmapped_agents=0 db=<tmp>/tmp.rC73ti3aQj/good_order.db); dispatch1 cache_creation=1500; dispatch2 usage_status=measured cache_read=1500
+PASS[10]: good_order: transcript_ingest.py runs cleanly (rc=0) against the real-schema two-dispatch fixture
+PASS[11]: good_order: dispatch 2's own first turn is MEASURED with a real, positive cache_read_input_tokens value (1500 > 0) that equals dispatch 1's own cache_creation_input_tokens (1500) -- the real captured oracle for 'two consecutive same-class dispatches show a cache read on the second'
+
+=== Oracle B: real-transcript cache-read consequence (bad_order, golden-bad) ===
+INFO: bad_order: ingest rc=0 (transcript_ingest: files=3 assistant_turns_read=4 rows=4 new=4 measured=4 unmeasured=0 duplicate_merged_grew=0 duplicate_unchanged=0 reattributed_to_parent=0 attribution_filled=0 unreadable_files=0 unparseable_lines=0 invalid_utf8_lines=0 malformed_fields=0 rejected_records=0 rejected_reasons=none replayed_lines=0 replayed_dispatches=0 dispatch_without_description=0 item_from_sidecar=0 bad_sidecars=0 agents_without_item=2 unmapped_agents=0 db=<tmp>/tmp.rC73ti3aQj/bad_order.db); dispatch2 usage_status=measured cache_read=0
+PASS[12]: bad_order: transcript_ingest.py runs cleanly (rc=0) against the real-schema two-dispatch golden-bad fixture
+PASS[13]: bad_order: dispatch 2's own first turn is MEASURED with a real, genuinely-captured cache_read_input_tokens of exactly 0 (never NULL/unmeasured -- this is a deliberate, measured zero, not an absent instrument) -- the real captured oracle for 'a per-item timestamp placed before the subset shows no read'
+
+=== Oracle B discrimination: good_order vs bad_order ===
+PASS[14]: Oracle B discrimination: dispatch 2's own cache_read_input_tokens differs between good_order (1500) and bad_order (0) -- proving the real instrument genuinely tells the two scenarios apart, not decoration that always reports the same answer
+
+=== Oracle B: U-12 honesty branch (no_cache_metric) ===
+INFO: no_cache_metric: ingest rc=0 (transcript_ingest: files=3 assistant_turns_read=4 rows=4 new=4 measured=3 unmeasured=1 duplicate_merged_grew=0 duplicate_unchanged=0 reattributed_to_parent=0 attribution_filled=0 unreadable_files=0 unparseable_lines=0 invalid_utf8_lines=0 malformed_fields=0 rejected_records=0 rejected_reasons=none replayed_lines=0 replayed_dispatches=0 dispatch_without_description=0 item_from_sidecar=0 bad_sidecars=0 agents_without_item=2 unmapped_agents=0 db=<tmp>/tmp.rC73ti3aQj/no_cache_metric.db); dispatch2 usage_status=UNMEASURED cache_read_is_null=1
+PASS[15]: no_cache_metric: transcript_ingest.py runs cleanly (rc=0) against the real-schema two-dispatch no-metric fixture
+U-12 LIMITATION RECORDED: dispatch 2's own subagent transcript carries no usage block at all for its first turn (missing_instrument: message.usage (assistant record msg_fixture_t106_nc_sub_a2 in <scratch>/base/scripts/fastcycle/tests/fixtures/prefix_cache/no_cache_metric/parent_session/subagents/agent-fcpcnc02.jsonl: no "usage" block present)). Per research.md U-12 ('The CLI exposes prompt-cache hit metrics per subagent -- UNCONFIRMED, R5:157') and tasks.md T106's own literal wording, this test does NOT claim a cache hit (nor a cache miss) for this dispatch -- it records the limitation and moves on. This is the CORRECT, HONEST outcome for this scenario -- not a defect in dispatch_prefix.py's ordering (dispatch 1's cache_creation and dispatch 2's structural prompt ordering are untouched by this scenario; only dispatch 2's own real captured usage metric is absent).
+PASS[16]: no_cache_metric: dispatch 2 is genuinely UNMEASURED (usage_status=UNMEASURED, cache_read_input_tokens IS NULL -- never coerced to 0, missing_instrument populated) AND this test's own U-12 branch records the limitation instead of claiming a hit
+
+=== Self-validation triple: three DISTINCT observed states ===
+INFO: good_order state='measured:1500'  bad_order state='measured:0'  no_cache_metric state='UNMEASURED:null=1'
+PASS[17]: self-validation triple: good_order, bad_order and no_cache_metric each produce a genuinely DISTINCT observed state from the SAME real oracle -- proving the oracle discriminates a hit from a miss from an honest absence, not merely two of the three
+
+=== Real-tool invocation: context/dispatch_prefix.py compose ===
+PASS[18]: real dispatch_prefix.py compose: two same-class 'correct'-order dispatches share a byte-prefix >= len(core)+len(subset) (602), matching Oracle A's independent prediction (617 >= 602)
+
+=== ALL CHECKS PASS -- unexpected today (T115 not yet landed); if you see
+    this, context/dispatch_prefix.py must have landed AND every fixture
+    check passed against the real tool. ===
+
+SUMMARY pass=18 fail=0 total=18

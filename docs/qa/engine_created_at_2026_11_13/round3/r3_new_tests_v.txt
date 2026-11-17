@@ -1,0 +1,464 @@
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_missing_reason/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_missing_reason/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_multi-line_reason/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_multi-line_reason/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_positional_argument/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_positional_argument/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_unknown_flag/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_unknown_flag/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_location/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_location/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_representation/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_representation/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_by/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_by/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_ISO-8601/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_ISO-8601/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_impossible_date/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_impossible_date/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_leading_space/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_leading_space/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/sha:_not_hex/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/sha:_not_hex/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/sha:_mismatch/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/sha:_mismatch/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/db:_missing/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/db:_missing/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_unresolved/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_unresolved/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_a_directory/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_a_directory/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_the_live_db/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_the_live_db/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_non-empty_-wal/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_non-empty_-wal/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_non-empty_-journal/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_non-empty_-journal/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/db:_unreadable/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/db:_unreadable/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_not_found/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_not_found/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_in_lower_case/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_in_lower_case/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_with_trailing_space/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_with_trailing_space/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_with_leading_space/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_with_leading_space/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_ambiguous/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_ambiguous/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_not_a_database/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_not_a_database/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_absent/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_absent/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_in_lower_case/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_in_lower_case/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_with_trailing_space/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_with_trailing_space/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_names_another_item/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_names_another_item/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_does_not_attest/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_does_not_attest/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_item_row_unreadable/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_item_row_unreadable/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_tracker_minimum_not_a_real_time/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_tracker_minimum_not_a_real_time/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_none/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_none/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_after_the_first_event/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_after_the_first_event/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_before_the_tracker_(items_row_attests)/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_before_the_tracker_(items_row_attests)/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_before_the_tracker_(Opened_row_attests)/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_before_the_tracker_(Opened_row_attests)/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/current:_unreadable/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/current:_unreadable/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_later_than_current/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_later_than_current/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun (38.03s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_missing_reason/real (0.29s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_missing_reason/dry-run (0.26s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_multi-line_reason/real (0.28s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_multi-line_reason/dry-run (0.27s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_positional_argument/real (0.30s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_positional_argument/dry-run (0.29s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_unknown_flag/real (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_unknown_flag/dry-run (0.37s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_location/real (0.28s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_location/dry-run (0.33s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_representation/real (0.33s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_representation/dry-run (0.31s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_by/real (0.66s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/usage:_bad_by/dry-run (0.33s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_ISO-8601/real (2.45s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_ISO-8601/dry-run (0.38s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_impossible_date/real (0.38s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_impossible_date/dry-run (0.38s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_leading_space/real (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_leading_space/dry-run (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/sha:_not_hex/real (0.35s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/sha:_not_hex/dry-run (0.33s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/sha:_mismatch/real (0.37s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/sha:_mismatch/dry-run (0.37s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/db:_missing/real (0.34s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/db:_missing/dry-run (0.41s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_unresolved/real (0.39s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_unresolved/dry-run (0.63s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_a_directory/real (0.36s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_a_directory/dry-run (0.32s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_the_live_db/real (0.36s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_the_live_db/dry-run (0.44s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_non-empty_-wal/real (0.41s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_non-empty_-wal/dry-run (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_non-empty_-journal/real (0.37s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_non-empty_-journal/dry-run (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/db:_unreadable/real (0.46s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/db:_unreadable/dry-run (0.77s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_not_found/real (0.41s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_not_found/dry-run (0.51s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_in_lower_case/real (1.25s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_in_lower_case/dry-run (0.69s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_with_trailing_space/real (0.41s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_with_trailing_space/dry-run (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_with_leading_space/real (0.50s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_id_with_leading_space/dry-run (0.37s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_ambiguous/real (1.33s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/item:_ambiguous/dry-run (3.08s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_not_a_database/real (0.33s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_not_a_database/dry-run (0.33s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_absent/real (0.52s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_absent/dry-run (0.53s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_in_lower_case/real (0.35s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_in_lower_case/dry-run (0.39s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_with_trailing_space/real (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_id_with_trailing_space/dry-run (0.39s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_names_another_item/real (0.29s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_names_another_item/dry-run (0.30s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_does_not_attest/real (0.37s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/evidence:_does_not_attest/dry-run (0.49s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_item_row_unreadable/real (0.52s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_item_row_unreadable/dry-run (0.75s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_tracker_minimum_not_a_real_time/real (0.56s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_tracker_minimum_not_a_real_time/dry-run (0.53s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_none/real (0.44s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/history:_none/dry-run (0.41s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_after_the_first_event/real (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_after_the_first_event/dry-run (0.49s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_before_the_tracker_(items_row_attests)/real (0.42s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_before_the_tracker_(items_row_attests)/dry-run (0.49s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_before_the_tracker_(Opened_row_attests)/real (0.50s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_before_the_tracker_(Opened_row_attests)/dry-run (0.55s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/current:_unreadable/real (0.33s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/current:_unreadable/dry-run (0.38s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_later_than_current/real (0.56s)
+    --- PASS: TestRestoreCreatedAtR3_EveryRefusalSameInDryRun/value:_later_than_current/dry-run (0.45s)
+=== RUN   TestRestoreCreatedAtR3_RefusalTableNamesEveryCode
+    created_at_r3_test.go:323: 23 refusal codes in the source, 21 in the dry-run table, 2 write-only
+--- PASS: TestRestoreCreatedAtR3_RefusalTableNamesEveryCode (0.00s)
+=== RUN   TestRestoreCreatedAtR3_WriteCodesOnlyInARealRun
+=== RUN   TestRestoreCreatedAtR3_WriteCodesOnlyInARealRun/CONCURRENT-CHANGE
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_WriteCodesOnlyInARealRun/WRITE
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR3_WriteCodesOnlyInARealRun (0.85s)
+    --- PASS: TestRestoreCreatedAtR3_WriteCodesOnlyInARealRun/CONCURRENT-CHANGE (0.49s)
+    --- PASS: TestRestoreCreatedAtR3_WriteCodesOnlyInARealRun/WRITE (0.36s)
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2000-01-01_00:00:00/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2000-01-01_00:00:00/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2026-01-01_09:58:59/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2026-01-01_09:58:59/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2026-01-01_09:59:00/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2026-01-01_09:59:00/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2000-01-01_00:00:00/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2000-01-01_00:00:00/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2026-01-01_09:58:59/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2026-01-01_09:58:59/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2026-01-01_09:59:00/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2026-01-01_09:59:00/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations (5.17s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2000-01-01_00:00:00/real (0.32s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2000-01-01_00:00:00/dry-run (0.34s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2026-01-01_09:58:59/real (0.37s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2026-01-01_09:58:59/dry-run (0.45s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2026-01-01_09:59:00/real (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/items-row/2026-01-01_09:59:00/dry-run (0.36s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2000-01-01_00:00:00/real (0.48s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2000-01-01_00:00:00/dry-run (0.62s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2026-01-01_09:58:59/real (0.45s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2026-01-01_09:58:59/dry-run (0.58s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2026-01-01_09:59:00/real (0.40s)
+    --- PASS: TestRestoreCreatedAtR3_TrackerBoundBothAttestations/opened-event/2026-01-01_09:59:00/dry-run (0.39s)
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/bug/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/bug/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/BUG/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/BUG/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/_Bug/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/_Bug/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/Bug_/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/Bug_/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/BugTAB/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/type/BugTAB/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/Restore_fixture_item_ten/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/Restore_fixture_item_ten/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/RESTORE_FIXTURE_ITEM_TEN/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/RESTORE_FIXTURE_ITEM_TEN/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/_restore_fixture_item_ten/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/_restore_fixture_item_ten/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/restore_fixture_item_ten_/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/restore_fixture_item_ten_/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/restore_fixture_item_tenLF/real
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+=== RUN   TestRestoreCreatedAtR3_IdentityNearMiss/title/restore_fixture_item_tenLF/dry-run
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+add: created WIT-010 (Bug, status=Queued) in Issues
+add: created WIT-011 (Task, status=Queued) in Issues
+--- PASS: TestRestoreCreatedAtR3_IdentityNearMiss (9.94s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/bug/real (0.42s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/bug/dry-run (0.50s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/BUG/real (0.57s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/BUG/dry-run (0.57s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/_Bug/real (0.61s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/_Bug/dry-run (0.50s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/Bug_/real (0.50s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/Bug_/dry-run (0.44s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/BugTAB/real (0.43s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/type/BugTAB/dry-run (0.54s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/Restore_fixture_item_ten/real (0.39s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/Restore_fixture_item_ten/dry-run (0.43s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/RESTORE_FIXTURE_ITEM_TEN/real (0.36s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/RESTORE_FIXTURE_ITEM_TEN/dry-run (0.61s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/_restore_fixture_item_ten/real (0.45s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/_restore_fixture_item_ten/dry-run (0.37s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/restore_fixture_item_ten_/real (0.38s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/restore_fixture_item_ten_/dry-run (0.41s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/restore_fixture_item_tenLF/real (0.36s)
+    --- PASS: TestRestoreCreatedAtR3_IdentityNearMiss/title/restore_fixture_item_tenLF/dry-run (0.47s)
+=== RUN   TestCON339R3_CloseRefusesUnreadableCreatedAt
+=== RUN   TestCON339R3_CloseRefusesUnreadableCreatedAt/null-created-at
+add: created WIT-010 (Bug, status=Queued) in Issues
+=== RUN   TestCON339R3_CloseRefusesUnreadableCreatedAt/control-readable
+add: created WIT-010 (Bug, status=Queued) in Issues
+close: moved WIT-010 Issues→Fixed (status=Fixed (→ Fixed.md), evidence=docs/qa/WIT-010/close.md)
+--- PASS: TestCON339R3_CloseRefusesUnreadableCreatedAt (0.75s)
+    --- PASS: TestCON339R3_CloseRefusesUnreadableCreatedAt/null-created-at (0.30s)
+    --- PASS: TestCON339R3_CloseRefusesUnreadableCreatedAt/control-readable (0.45s)
+PASS
+ok  	github.com/HelixDevelopment/HelixConstitution/scripts/workable-items/cmd/workable-items	54.745s

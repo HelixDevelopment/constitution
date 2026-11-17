@@ -5,6 +5,7 @@
 # unit-class tests import the engine from the repo; never write __pycache__ into the repo tree. `python3 -I`
 # ignores this variable, so every import site also sets sys.dont_write_bytecode = True before importing.
 export PYTHONDONTWRITEBYTECODE=1
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 DEC_TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEC_REPO="$(cd "$DEC_TESTS_DIR/../.." && pwd)"
 DEC_CLI="${DECISIONS_CLI:-$DEC_REPO/scripts/decisions/constitution_decisions.sh}"

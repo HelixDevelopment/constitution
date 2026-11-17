@@ -1,0 +1,11 @@
+PASS: [submodules/constitution] for-alias exits 0 (rc=0)
+PASS: [submodules/constitution] constitution fast-forwarded (SYNCED, HEAD moved)
+PASS: [submodules/constitution] idempotent: second run reports ALREADY-CURRENT
+PASS: [constitution] for-alias exits 0 (rc=0)
+PASS: [constitution] constitution fast-forwarded (SYNCED, HEAD moved)
+PASS: [constitution] idempotent: second run reports ALREADY-CURRENT
+PASS: CONSTITUTION_DIR elsewhere: the WORKTREE's constitution is synced (rc=0)
+PASS: CONSTITUTION_DIR elsewhere: the override checkout is left untouched
+PASS: no constitution: exit 0 + logged SKIPPED-no-constitution (never silent)
+----
+multitrack_sync_layout: PASS=9 FAIL=0

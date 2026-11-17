@@ -14,6 +14,8 @@ canonical Constitution.md. Applying the same grouped+YAML-index treatment
 to docs/PROJECT_GOVERNANCE_ANCHORS.md is a tracked future iteration (filed
 below), not silently done, not silently declined.
 """
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 import re
 
 # The `(?:\.[A-Z]|\([A-Z]+\))?` suffix on every id pattern below recognizes
@@ -410,6 +412,7 @@ EXPLICIT_ID_GROUPS = {
     "12.2": "host-and-resource-safety",
     "12.3": "host-and-resource-safety",
     "11.4.184(I)": "governance-and-constitution-meta",
+    "11.4.184(J)": "governance-and-constitution-meta",
     # --- added 2026-10-08 — bare `### N.M` heading form (see _BARE_FORM_NOTE) ---
     # §1.1 False-positive immunity (paired-mutation rule, under "## 1. Test
     # coverage is mandatory"); §2.1 Multi-upstream push (under "## 2. Commit

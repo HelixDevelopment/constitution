@@ -189,13 +189,15 @@
 #   FC_CORE_ONDEMAND_SKIP_SWEEP=1   skip the full 82-anchor block-integrity/
 #     lockstep sweep (section 5, ~1-2 min wall-clock) -- prints an explicit
 #     "SKIPPED (env override)" line, never silently counted as a PASS.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 . "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer CLAUDE.md
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 FC="$(cd "$HERE/.." && pwd)"
 ROOT="$(cd "$FC/../../.." && pwd)"
-GATES="$ROOT/constitution/scripts/gates"
+FC_CANON_ROOT=$(cd "$FC/../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+GATES="$FC_CANON_ROOT/scripts/gates"
 FIXDIR="$HERE/fixtures/core_ondemand"
 
 TMP="$(mktemp -d)" || { echo "cannot create temp dir (TMPDIR unusable)" >&2; exit 2; }
@@ -266,7 +268,7 @@ chk "the real P-20 row's note contains '200k limit' (the exact recorded threshol
 echo
 echo "=== Section 2: P-20 reproduction (governance-context payload size) ==="
 CLAUDE_PROJECT="$ROOT/CLAUDE.md"
-CLAUDE_CONSTITUTION="$ROOT/constitution/CLAUDE.md"
+CLAUDE_CONSTITUTION="$FC_CANON_ROOT/CLAUDE.md"
 
 for f in "$CLAUDE_PROJECT" "$CLAUDE_CONSTITUTION"; do
   if [ ! -f "$f" ]; then
@@ -302,15 +304,15 @@ echo
 echo "=== Section 3: substance-check baseline capture ==="
 
 DECLARED_FILES=(
-  "$ROOT/constitution/CLAUDE.md"
-  "$ROOT/constitution/AGENTS.md"
-  "$ROOT/constitution/QWEN.md"
-  "$ROOT/constitution/GEMINI.md"
+  "$FC_CANON_ROOT/CLAUDE.md"
+  "$FC_CANON_ROOT/AGENTS.md"
+  "$FC_CANON_ROOT/QWEN.md"
+  "$FC_CANON_ROOT/GEMINI.md"
   "$ROOT/CLAUDE.md"
   "$ROOT/AGENTS.md"
   "$ROOT/QWEN.md"
   "$ROOT/GEMINI.md"
-  "$ROOT/constitution/CLAUDE_ANCHORS_FULL.md"
+  "$FC_CANON_ROOT/CLAUDE_ANCHORS_FULL.md"
   "$ROOT/docs/PROJECT_GOVERNANCE_ANCHORS.md"
 )
 
@@ -467,7 +469,7 @@ with open(sys.argv[2], "w", encoding="utf-8") as fh:
   # -----------------------------------------------------------------------
   echo
   echo "--- the real before==after comparison (T113's contract) ---"
-  MANIFEST="$ROOT/constitution/scripts/fastcycle/context/core_ondemand_manifest.json"
+  MANIFEST="$FC_CANON_ROOT/scripts/fastcycle/context/core_ondemand_manifest.json"
   if [ -f "$MANIFEST" ]; then
     info "core_ondemand_manifest.json FOUND -- T113 appears to have landed; attempting the real after-comparison"
     ON_DEMAND_FILES="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('\n'.join(d.get('on_demand_files', [])))" "$MANIFEST" 2>/dev/null)"

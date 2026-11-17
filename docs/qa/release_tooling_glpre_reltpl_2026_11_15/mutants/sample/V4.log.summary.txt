@@ -1,0 +1,6 @@
+# summary only: the full log contains fake token-shaped fixture strings (e.g. ZZK1TOKEN); kept out of the repository. Full log at /mnt/DATA1TB/claude-work/scratch/glrel.cJed/ev/
+PASS V4 killed (FAIL J2a no marker (fatal: https://h/r?id_token=<withheld>
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=0
+rc=0
+PASS lines: 1
+FAIL lines: 0

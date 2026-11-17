@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""Paired mutants of the installer follow-ups. usage: python3 -I fu_mutants.py REPO COMMIT WORKROOT OUTTSV [ID...]
+
+Each mutant: a detached git worktree of COMMIT under WORKROOT, one exact replacement (every OLD must occur exactly
+the stated number of times), then the named test runs there; the mutant is KILLED when the test exits non-zero.
+A control run on the unmutated worktree must exit 0 first. The worktrees are removed with `git worktree remove`.
+"""
+import os, subprocess, sys, time
+
+I, U = "scripts/install_constitution.sh", "scripts/update_constitution.sh"
+GX_OLD = "then trap '' TTIN TTOU; exec timeout"
+GX_NEW = "then exec timeout"
+TT, PY, PS = "tests/install/test_timeout_tty.sh", "tests/install/test_python_isolation.sh", "tests/install/test_shell_state_patsub.sh"
+GM = os.path.join(os.path.dirname(os.path.abspath(__file__)), "st_check.sh")
+MUT = [
+    ("TT-M1", "hi_gx ignore removed (both files, block kept identical)", [(I, GX_OLD, GX_NEW, 1), (U, GX_OLD, GX_NEW, 1)], TT),
+    ("TT-M2", "hi_version_of ignore removed", [(I, "cd / && trap '' TTIN TTOU && timeout 5", "cd / && timeout 5", 1)], TT),
+    ("TT-M3", "hi_detect_agents ignore removed (claude-list-accounts)",
+     [(I, "{ trap '' TTIN TTOU; timeout 20 claude-list-accounts 2>/dev/null </dev/null; }", "timeout 20 claude-list-accounts 2>/dev/null </dev/null", 1)], TT),
+    ("TT-M4", "hi_detect_agents ignore removed (claude-providers list)",
+     [(I, "{ trap '' TTIN TTOU; timeout 20 claude-providers list 2>/dev/null </dev/null; }", "timeout 20 claude-providers list 2>/dev/null </dev/null", 1)], TT),
+    ("TT-M5", "hi_run_agent ignore removed", [(I, "(trap '' TTIN TTOU; cd \"$O_ROOT\" && umask", "(cd \"$O_ROOT\" && umask", 1)], TT),
+    ("PY-M1", "install_action_prefix.sh python3 without -I", [("scripts/install_action_prefix.sh", "python3 -I -c \"$prog\"", "python3 -c \"$prog\"", 1)], PY),
+    ("PS-M1", "installer header comment back to 'to bash's defaults' with no exception (both files)",
+     [(f, "to bash's defaults, with one exception:\n# `patsub_replacement` is turned OFF (bash 5.2 and later turn it on), so `&` in the replacement of\n# ${var//pat/rep} stays a literal `&`, as in bash 5.1 and older. It runs",
+       "to bash's defaults. It runs", 1) for f in (I, U)], PS),
+    ("PS-M2", "patsub_replacement dropped from the reset's shopt -u (all four copies)",
+     [(f, " array_expand_once patsub_replacement 2>/dev/null", " array_expand_once 2>/dev/null", 1)
+      for f in (I, U, "scripts/install_cli_agent_plugins.sh", "scripts/install_action_prefix.sh")], PS),
+]
+for k, line in (("ST-M1", "PROGS"), ("ST-M2", "EXT_EXACT"), ("ST-M3", "GX_EXACT"), ("ST-M4", "SANCTIONED_FILE_CMDS")):
+    pfx = {"PROGS": '    stale = [(b, "prog"', "EXT_EXACT": '    stale += [(b, "ext:"', "GX_EXACT": '    stale += [(b, "gx:"',
+           "SANCTIONED_FILE_CMDS": '    stale += [(b, "file:"'}[line]
+    MUT.append((k, "stale check of %s removed from the gate" % line, [("scripts/gates/cm_installer_no_push_no_force.sh", pfx, pfx.replace("[(b,", "0 * [(b,"), 1)], GM))
+
+
+def sh(args, cwd=None, log=None, env=None):
+    return subprocess.run(args, cwd=cwd, stdout=log or subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+
+
+def main():
+    repo, commit, root, out = sys.argv[1:5]
+    want = set(sys.argv[5:])
+    root = os.path.abspath(root); os.makedirs(root, exist_ok=True)
+    rows = []
+    cases = [("CONTROL", "unmutated", [], None)] + [m for m in MUT if not want or m[0] in want]
+    tests_needed = sorted({m[3] for m in cases if m[3]})
+    for mid, desc, edits, test in cases:
+        wt = os.path.join(root, mid)
+        r = sh(["git", "-C", repo, "worktree", "add", "-q", "--detach", wt, commit])
+        if r.returncode: print("worktree add failed", r.stdout); sys.exit(2)
+        ok = True
+        for f, old, new, n in edits:
+            p = os.path.join(wt, f); s = open(p, encoding="utf-8").read()
+            if s.count(old) != n: print("%s: anchor count %d != %d in %s" % (mid, s.count(old), n, f)); ok = False; break
+            open(p, "w", encoding="utf-8").write(s.replace(old, new))
+        runs = [test] if test else tests_needed
+        res = []
+        for t in runs if ok else []:
+            lp = os.path.join(root, "%s__%s.log" % (mid, os.path.basename(t)))
+            t0 = time.time()
+            with open(lp, "w") as lf:
+                rc = sh(["systemd-run", "--user", "--scope", "-q", "-p", "TasksMax=2000", "nice", "-n", "10", "bash", t], cwd=wt, log=lf).returncode
+            first = ""
+            for line in open(lp, encoding="utf-8", errors="replace"):
+                if line.startswith("  FAIL") or line.startswith("  BLIND"): first = line.strip()[:160]; break
+            res.append((t, rc, round(time.time() - t0), first))
+        sh(["git", "-C", repo, "worktree", "remove", "--force", wt])
+        if not ok: rows.append((mid, desc, "-", "ANCHOR-MISSING", "")); continue
+        for t, rc, secs, first in res:
+            if mid == "CONTROL": verdict = "PASS" if rc == 0 else "CONTROL-FAILED"
+            else: verdict = "KILLED" if rc != 0 else "SURVIVED"
+            rows.append((mid, desc, os.path.basename(t), "%s rc=%d %ds" % (verdict, rc, secs), first))
+        if mid == "CONTROL" and any(r[1] != 0 for r in res):
+            print("control failed"); break
+    with open(out, "w") as f:
+        for r in rows: f.write("\t".join(map(str, r)) + "\n")
+    for r in rows: print("\t".join(map(str, r)))
+
+
+main()

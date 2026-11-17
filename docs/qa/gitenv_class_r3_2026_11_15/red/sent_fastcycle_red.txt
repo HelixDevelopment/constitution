@@ -1,0 +1,16 @@
+script=scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh args= mode=none rc=0 sentinel=UNCHANGED objects=3 head=50f6ec3 sentinel
+  out: ok [R8SKIP] env wrapper re-opens closed fds on this host: True (closed-* cells SKIPPED honestly)
+  out: SUMMARY pass=235 fail=0 skip=95
+  secs=694
+script=scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh args= mode=git_dir rc=124 sentinel=CHANGED objects=9 head=6aa25eb ATM-9 r9 matrix item
+  out: NOT ok [R8MATRIX] kill-worker x dead-out: setup: the held gate / its supervisor chain never appeared (rc=4)
+  out: NOT ok [R8MATRIX] kill-run x dead-out: setup: the held gate / its supervisor chain never appeared (rc=4)
+  secs=1200
+script=scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh args= mode=none rc=124 sentinel=UNCHANGED objects=3 head=0fc0272 sentinel
+  out: ok [R9WIN] main remove_statedir.2.body.0 x term-main: rc 0, report on disk, quiescent
+  out: ok [R9WIN] main remove_statedir.2.body.0 x kill-self: rc -9, report on disk, quiescent
+  secs=1201
+script=scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh args= mode=git_dir rc=1 sentinel=CHANGED objects=6 head=7b03db4 base
+  out:   File "<stdin>", line 517, in <module>
+  out: PermissionError: [Errno 13] Permission denied: '/proc/4047622/fd/2'
+  secs=83

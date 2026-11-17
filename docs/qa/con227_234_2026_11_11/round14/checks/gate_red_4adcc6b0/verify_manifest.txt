@@ -1,0 +1,3 @@
+MANIFEST: census file without manifest row: docs/qa/con227_234_2026_11_11/round13/tools/make_mutants_md.py
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=30 py/fixture=14 py/member=24 runall/entry=9 sh/entry=360 sh/excluded=27 sh/fixture=111 sh/member=313 total=908
+RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)

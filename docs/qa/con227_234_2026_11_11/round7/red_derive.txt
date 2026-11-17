@@ -1,0 +1,6 @@
+# RED: the round-7 derive suite against the round-6 derive script (git 2765038f, 2026-11-12T11:46:50Z)
+FAIL L2 shellopts: FINDING grep: 'A.TOKEN' is not on the allow-list (and holds a marker) FINDING grep: 'BAD-NAME' is not on the allow-list (and holds a marker) FINDING grep: 'npm_config_//h.invalid/:_authToken' is not on the allow-list (and holds a marker) FINDING grep: 'PREV' is not on the allow-list 
+FAIL L2 dasha: ENVCENSUS records=51 checked=0 findings=0 BLIND: fewer checked records than --min 
+FAIL L1 external command before rc_env_clean: FINDING derive_release_facts.sh loads redact_cut.sh but never calls rc_env_clean
+FAIL L1 needle: a date inserted at line 2 is not found
+RESULT: pass=86 fail=4

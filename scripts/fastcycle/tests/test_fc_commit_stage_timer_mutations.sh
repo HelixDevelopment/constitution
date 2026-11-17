@@ -16,11 +16,16 @@
 #           background (§11.4.89). No network; nothing outside mktemp is written.
 # Every anchor below is LITERAL source text of commit_all.sh -- never expanded here.
 # shellcheck disable=SC2016
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 CA="$ROOT/scripts/commit_all.sh"
 TEST="$HERE/test_fc_commit_stage_timer_red.sh"
+# CON-093: the mutated input is a CONSUMER-root script; on canon alone the whole test is an honest SKIP naming
+# that effective path (exit 77), while a missing canon test file stays the FATAL below.
+. "$HERE/lib/consumer_required.sh"
+fc_require_consumer "$CA"
 [ -f "$CA" ] && [ -f "$TEST" ] || { echo "FATAL: commit_all.sh / test not found"; exit 2; }
 command -v python3 >/dev/null 2>&1 || { echo "FATAL: python3 required"; exit 2; }
 TMP="$(mktemp -d)" || exit 2

@@ -11,6 +11,7 @@
 # Usage: bash tests/install/test_lock.sh   Exit 0 all pass · 1 a case failed · 2 env error.
 T_NAME=lock
 # shellcheck source=lib.sh
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 new_sandbox
 N=8; ROUNDS=20
@@ -170,6 +171,9 @@ reclaim_race() { # script body
   clean_lock
   sleep 0 & dead=$!; wait "$dead" 2>/dev/null; printf '%s\n' "$dead" >"$LOCK"
   sleep 300 & live=$!
+  # empty A's output file HERE, before A starts: the `>"$SB/ra"` below runs in the child, so the poll could
+  # otherwise read the PREVIOUS race's "TEST PAUSE reclaim" and swap the lock before A has even read it
+  : >"$SB/ra"
   HELIX_INSTALLER_TEST=1 HELIX_INSTALLER_TEST_PAUSE=reclaim HELIX_INSTALLER_TEST_RESUME="$SB/resume" \
     bash -c "$2" a "$1" "$P" >"$SB/ra" 2>&1 &
   a=$!

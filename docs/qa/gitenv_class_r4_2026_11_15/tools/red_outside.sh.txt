@@ -1,0 +1,28 @@
+#!/bin/bash
+# red_outside.sh <tree> <outdir>: sentinel runs of the writers outside the round-3 universe.
+#   install_upstreams.sh runs in a throwaway repository T that holds a copy of the script and upstreams/;
+#   progressive/mutation_matrix.py make_sandbox through the reviewer's extraction mm_sandbox.py;
+#   multitrack_device_lock.sh --help (a non-member that sources the multitrack_config.sh sourced-library row).
+set -u
+for v in $(env | sed -n 's/^\(GIT_[A-Z_]*\)=.*/\1/p'); do unset "$v"; done
+: "${TMPDIR:?}"
+TREE=${1:?tree}; OUT=${2:?outdir}
+H=$(cd "$(dirname "$0")" && pwd)
+mkdir -p "$OUT"
+T=$(mktemp -d "$TMPDIR/iu.XXXXXX")
+case "$T" in "$TMPDIR"/iu.*) ;; *) echo "bad tmp"; exit 9 ;; esac
+git init -q "$T/r"
+cp "$TREE/install_upstreams.sh" "$T/r/"
+cp -r "$TREE/upstreams" "$T/r/"
+for m in none gitdir both; do
+  ( cd "$T/r" && SENT_KEEP="$OUT/keep" "$H/sent.sh" "$m" 120 install_upstreams bash ./install_upstreams.sh ) </dev/null
+  git -C "$T/r" config --local --remove-section remote.origin >/dev/null 2>&1 || true
+  for r in $(git -C "$T/r" remote); do git -C "$T/r" remote remove "$r"; done
+done
+for m in none gitdir both; do
+  ( cd "$TREE" && SENT_KEEP="$OUT/keep" "$H/sent.sh" "$m" 120 mutation_matrix.make_sandbox python3 "$H/mm_sandbox.py" "$TREE" ) </dev/null
+done
+for m in none gitdir; do
+  ( cd "$TREE" && SENT_KEEP="$OUT/keep" "$H/sent.sh" "$m" 60 multitrack_device_lock.help bash scripts/multitrack/multitrack_device_lock.sh --help ) </dev/null
+done
+case "$T" in "$TMPDIR"/iu.*) rm -rf -- "${T:?}" ;; esac

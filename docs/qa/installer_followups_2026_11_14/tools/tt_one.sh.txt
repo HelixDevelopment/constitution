@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# debug: source the test's definitions up to the loop, run T1 for gnu once with TT_DEBUG=1
+f="$1"; sed '/^blind=0$/,$d' "$f" > "$2/tt_head.sh"
+cat >> "$2/tt_head.sh" <<'X'
+bin="$SB/bin-gnu"; mkdir -p "$bin"; cp "$STUB"/* "$bin/"; ln -s "$GNU" "$bin/timeout"
+TT_DEBUG=1 drive 15 "$(pro_i "$bin")HI_GX_TIMEOUT=2 hi_gx status; rc=\$?"
+X
+cd "$(dirname "$f")" && bash "$2/tt_head.sh"

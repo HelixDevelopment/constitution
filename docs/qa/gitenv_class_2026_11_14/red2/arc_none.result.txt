@@ -1,0 +1,14 @@
+label=arc_none mode=none script=scripts/gates/cm_anchor_record_complete.sh rc=0 seconds=7
+repo_head=42fd128819608ef1d110e32cd1b9d4a6de6c335c
+sentinel_fingerprint_before=a187fc18b2a18fc58c57e8e2ebdb2225cf8971d4623dbda4d78cda259cfa2312
+sentinel_fingerprint_after=a187fc18b2a18fc58c57e8e2ebdb2225cf8971d4623dbda4d78cda259cfa2312
+sentinel_head_before=edfff2bc7500cf6125a8122a9eab41297a165d18 after=edfff2bc7500cf6125a8122a9eab41297a165d18 branch_before=refs/heads/sentinel after=refs/heads/sentinel
+sentinel_index_entries_after=1
+SENTINEL=UNCHANGED
+--- log tail ---
+RESULT A12b_missing_entry_count_refused PASS
+✅ PASS     A12b_missing_entry_count_refused — pkg/anchor behaved as required (err=anchor: entry_count is absent (an anchor without a count cannot detect wholesale deletion) (got 0))
+RESULT A12c_missing_head_digest_refused PASS
+✅ PASS     A12c_missing_head_digest_refused — pkg/anchor behaved as required (err=anchor: head_digest is absent or malformed (got ""))
+──────────────────────────────────────────────────────────────────────
+✅ CM-ANCHOR-RECORD-COMPLETE: PASS — the anchor record is complete (head_digest + entry_count) and its strength equals the probe's verified result; unprobed 'mechanism' is refused and probe-verified 'mechanism' is accepted

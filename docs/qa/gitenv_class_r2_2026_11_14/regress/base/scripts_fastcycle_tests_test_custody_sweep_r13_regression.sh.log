@@ -1,0 +1,264 @@
+=== R13 regression guard: control needle -- tool + libs exist, git usable ===
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py not found
+
+=== B-1.1 assume-unchanged edit (invisible to git diff) ===
+ok B-1.1 evidence: the canonical backup omits the assume-unchanged edit; a plain restore LOSES it
+NOT ok B-1.1 assume-unchanged: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.10057.json')
+
+=== B-1.1b skip-worktree edit ===
+NOT ok B-1.1b skip-worktree: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.14694.json')
+
+=== B-1.2 worktree: staged content differs from the worktree file ===
+ok B-1.2 evidence: STAGED_ONLY lives only in the index; 'git diff HEAD' never carries it
+NOT ok B-1.2 worktree staged divergence: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.27891.json')
+
+=== B-1.3 stash: the ^2 index parent holds staged-only content ===
+ok B-1.3 evidence: the stash's ^2 holds STAGED_ONLY; the stash patch (git diff <ref>^1 <ref>) omits it
+NOT ok B-1.3 stash staged divergence: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.19357.json')
+
+=== B-1.4 lossy clean filter ===
+ok B-1.4 evidence: the backup holds the FILTERED content; a plain restore loses SECRET=keepme
+NOT ok B-1.4 lossy clean filter: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.4259.json')
+
+=== I-1 gitignored file in a linked worktree ===
+NOT ok I-1 ignored .env + tracked edit: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.4061.json')
+
+=== golden-good controls: the oracle must NOT over-refuse restorable work ===
+NOT ok G1 plain text change: expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.6014.json')
+NOT ok G2 exec bit + intent-to-add symlink: expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.1081.json')
+NOT ok G3 staged rename + further edit: expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.20833.json')
+NOT ok G4 fully-staged change (index == worktree): expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.31650.json')
+warning: in the working copy of 'k.txt', LF will be replaced by CRLF the next time Git touches it
+NOT ok G5 eol=crlf attribute: expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.14515.json')
+ok G6 evidence: core.autocrlf=true checked the linked worktree out with CRLF
+NOT ok G6 core.autocrlf=true repo (conversion config transferred): expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.18631.json')
+NOT ok G7 stash with a fully-staged + an unstaged change: expected ALLOWED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.8614.json')
+
+=== I-2.1 unmerged (UU) merge-conflict worktree ===
+ok I-2.1 evidence: the worktree holds a real 'u UU' unmerged entry
+NOT ok I-2.1 unmerged worktree: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.18821.json')
+
+=== I-2.2 dirty submodule hidden by submodule.<name>.ignore=all in repo config ===
+ok I-2.2 evidence: a plain 'git status' hides the dirty submodule; --ignore-submodules=none shows it
+NOT ok I-2.2 dirty submodule under ignore=all: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.6357.json')
+
+=== M-1 --repo-root given as a SYMLINK to a linked worktree ===
+NOT ok M-1 symlinked --repo-root, entry addressed by name: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.28685.json')
+NOT ok M-1 symlinked --repo-root, entry addressed as MAIN: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/out.2134286.4421.json')
+
+=== M-2/M-3 exit-code contract (live code == docstring == --help) ===
+ok M-3 missing --inventory is rc=2 both outside a checkout (repo root resolved first) and inside one
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok M-2/M-3 docstring check failed
+NOT ok M-2 --help does not carry the exit-code gating contract
+
+=== oracle internals (unit level, real tool) ===
+NOT ok oracle unit expected U1_worktree_wrong_content=False; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U2_worktree_empty_backup=False; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U3_worktree_garbage=False; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U4_worktree_correct=True; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U5_stash_wrong_tree=False; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U6_stash_correct=True; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U7_clean_worktree_garbage=False; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U8_no_scratch_space=False; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U9_scratch_inside_worktree=False; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok oracle unit expected U9_reason_named=True; got: Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+
+=== guard viability (paired mutations) ===
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO1a_oracle_gate_assume: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO1a_oracle_gate_assume/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO1b_oracle_gate_skipwt: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO1b_oracle_gate_skipwt/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO1c_oracle_gate_filter: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO1c_oracle_gate_filter/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO1d_oracle_gate_ignored: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO1d_oracle_gate_ignored/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO1e_oracle_gate_wt_staged: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO1e_oracle_gate_wt_staged/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO1f_oracle_gate_stash_staged: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO1f_oracle_gate_stash_staged/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO2_tree_compare_blind: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO2_tree_compare_blind/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO3_snapshot_skips_hidden: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO3_snapshot_skips_hidden/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO4_wt_index_check: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO4_wt_index_check/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO5_wt_index_hash_compare: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO5_wt_index_hash_compare/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO6_stash_index_only: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO6_stash_index_only/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO7_no_config_transfer: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO7_no_config_transfer/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO8_rename_blob_exempt: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO8_rename_blob_exempt/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MO9_ita_visible: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MO9_ita_visible/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MI1_has_unmerged_check: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MI1_has_unmerged_check/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MI2_ignore_submodules_none: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MI2_ignore_submodules_none/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MI3_rename_counter: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MI3_rename_counter/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MM1_symlink_realpath: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MM1_symlink_realpath/orchestration/custody_sweep.py')
+
+=== guard viability: oracle internals (unit level) ===
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MU1_stash_tree_compare: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MU1_stash_tree_compare/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MU2_apply_rc_ignored: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MU2_apply_rc_ignored/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MU4_space_check: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MU4_space_check/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MU5_scratch_inside_check: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MU5_scratch_inside_check/orchestration/custody_sweep.py')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MU3_problems_ignored: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.bQ9jTwZhef/mut_MU3_problems_ignored/orchestration/custody_sweep.py')
+
+summary: 8 check(s) passed
+=== R13 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

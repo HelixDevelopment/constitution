@@ -115,7 +115,8 @@ ls_kick_build() {
 ls_ctl() {
   local lt="${LABEL_SYNC_HOOK_LOCK_TIMEOUT:-500ms}"
   if [ -n "${LABEL_SYNC_CTL_TIMEOUT:-}" ] && command -v timeout >/dev/null 2>&1; then
-    timeout "$LABEL_SYNC_CTL_TIMEOUT" "$LS_CTL_BIN" --lock-timeout "$lt" "$@" 2>/dev/null
+    # subshell: SIGTTIN/SIGTTOU are ignored for timeout only (uutils timeout does not ignore them itself)
+    (trap '' TTIN TTOU; exec timeout "$LABEL_SYNC_CTL_TIMEOUT" "$LS_CTL_BIN" --lock-timeout "$lt" "$@" 2>/dev/null)
   else
     "$LS_CTL_BIN" --lock-timeout "$lt" "$@" 2>/dev/null
   fi

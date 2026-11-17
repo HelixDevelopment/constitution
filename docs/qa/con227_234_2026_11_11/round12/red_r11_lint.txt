@@ -1,0 +1,17 @@
+== RED, r11 (fed933c0) census, table and scripts: lint of a copy whose publisher ends in an unterminated quote (want rc 1 with a parse error)
+CENSUS invocations=128 rows=124 secret_lines=13 findings=0
+rc=0
+== RED, r11: lint of the r11 scripts with the normal PATH (no sqlite3 on it) and with an empty PATH (want identical, rc 0)
+CENSUS invocations=128 rows=124 secret_lines=13 findings=0
+rc=0
+FINDING stale row (table line 133): release_publish_gitea.sh cat key=7c81e0df
+CENSUS invocations=17 rows=124 secret_lines=13 findings=107
+rc=1
+== RED, r11 netgate with an empty PATH over the r11 scripts
+NETGATE invocations=17 network_through_rc_net=11 findings=0
+== GREEN, r12 (this tree), the same three checks
+FINDING parse error (the gate refuses what it cannot read): release_publish_gitea.sh:214: an unterminated double quote
+CENSUS invocations=128 rows=124 secret_lines=13 findings=1
+CENSUS invocations=128 rows=124 secret_lines=13 findings=0
+CENSUS invocations=128 rows=124 secret_lines=13 findings=0
+NETGATE invocations=128 network_through_rc_net=51 findings=0

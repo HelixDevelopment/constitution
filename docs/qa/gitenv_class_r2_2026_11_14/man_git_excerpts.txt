@@ -1,0 +1,27 @@
+       GIT_NAMESPACE
+	   Set the Git namespace; see gitnamespaces(7) for details. The
+	   --namespace command-line option also sets this value.
+
+       GIT_CEILING_DIRECTORIES
+	   This should be a colon-separated list of absolute paths. If set, it
+	   is a list of directories that Git should not chdir up into while
+	   looking for a repository directory (useful for excluding
+	   slow-loading network directories). It will not exclude the current
+	   working directory or a GIT_DIR set on the command line or in the
+	   environment. Normally, Git has to read the entries in this list and
+--
+       GIT_DISCOVERY_ACROSS_FILESYSTEM
+	   When run in a directory that does not have ".git" repository
+	   directory, Git tries to find such a directory in the parent
+	   directories to find the top of the working tree, but by default it
+	   does not cross filesystem boundaries. This Boolean environment
+	   variable can be set to true to tell Git not to stop at filesystem
+	   boundaries. Like GIT_CEILING_DIRECTORIES, this will not affect an
+--
+       GIT_NO_REPLACE_OBJECTS
+	   Setting and exporting this environment variable tells Git to ignore
+	   replacement refs and do not replace Git objects.
+
+       GIT_LITERAL_PATHSPECS
+	   Setting this Boolean environment variable to true will cause Git to
+	   treat all pathspecs literally, rather than as glob patterns. For

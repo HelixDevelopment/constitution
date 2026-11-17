@@ -14,6 +14,11 @@
 #           test-named file is excluded only with `override: reason: <category>: <why>`. The excluded
 #           set is pinned by config/full_suite_excluded.lock (accept a change with
 #           --verify-manifest --accept-excluded-change <reviewer>).
+docs/qa/engine_created_at_2026_11_13/round2/test_apply_restore_plan.sh	sh	entry	default	bash	-	auto
+docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven mutant generator (usage: mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; writes mutated copies, a standalone run without arguments fails; not a test
+docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven reviewer mutant generator (usage: reviewer_mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; a standalone run without arguments fails; not a test
+docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	py	excluded	-	-	-	override: reason: tool: one-shot editor of tests/release/test_land_vehicle.sh (usage: edit_tests_r5.py <test file> <helpers file> <r5 section file>), kept as round-5 evidence; running it would edit a test file; not a test
+docs/qa/land_vehicle_r5_2026_11_13/tools/mk_mutant_table.py	py	excluded	-	-	-	override: reason: tool: argv-driven table builder (usage: mk_mutant_table.py <index.tsv> <notes.tsv> <out.md> <results.tsv>...) of the round-5 mutant evidence; a standalone run without arguments fails; not a test
 docs/qa/tracker_intake_2026_11_12_v5/tools/leak_scan_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
 docs/qa/tracker_intake_2026_11_12_v5/tools/ref_integrity_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
 docs/qa/tracker_intake_2026_11_14_v6/tools/leak_scan_mutations.py	py	excluded	-	-	-	override: reason: tool: historical tracker-intake review-round evidence tool, frozen with its round's pack; it reads the shared secret-shape fixtures or the live tree, which later rounds changed, so it no longer describes the current code (v8 and v9 leak_scan_test measured red on the round-10 fixtures, docs/qa/tracker_intake_2026_11_16_v10/runs/old_pack_tools.txt); superseded by docs/qa/tracker_intake_2026_11_16_v10/tools
@@ -233,6 +238,7 @@ scripts/fastcycle/tests/fixtures/triple_harness/stub_tool.sh	sh	fixture	-	-	-	fi
 scripts/fastcycle/tests/fixtures/verdict_cache/gate_script.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/lib/bb_ref_bisect.py	py	excluded	-	-	-	reason: oracle: reference bisector used as an oracle by test_batch_bisect_red.sh
 scripts/fastcycle/tests/lib/consumer_required.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_churn_rank_red.sh
+scripts/fastcycle/tests/lib/consumer_section.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_anchor_citations_red.sh
 scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_verdict_cache_red.sh (test_batch_bisect_red.sh and test_gate_shard_red.sh name it only in comments)
 scripts/fastcycle/tests/lib/dec15_flake_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_flake_ledger_red.sh
 scripts/fastcycle/tests/lib/dec17_drift_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_backstop_red.sh
@@ -266,6 +272,8 @@ scripts/fastcycle/tests/test_batch_bisect_r3_regression.sh	sh	member	default	-	s
 scripts/fastcycle/tests/test_batch_bisect_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_batch_bisect_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_build_deploy_qa_events_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_canon_root_rename_con097_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_canon_root_rename_con097_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_catchset_compare_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_catchset_compare_seed_independence_r2_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -279,6 +287,8 @@ scripts/fastcycle/tests/test_consumer_migrate_red.sh	sh	member	default	-	scripts
 scripts/fastcycle/tests/test_consumer_required_helper.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	override: tier heavy: runs the whole helper test 5 times on a copy of scripts/ (about 3.5 min measured; CON-222, CON-223)
 scripts/fastcycle/tests/test_consumer_required_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_section_con092_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_section_con092_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_core_ondemand_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -412,6 +422,8 @@ scripts/fastcycle/tests/test_review_record_store_tier_noncanonical_tmpdir_red.sh
 scripts/fastcycle/tests/test_review_record_subclause_cases.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_tier_legs_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_run_all.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_run_all_skip77_con262_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_run_all_skip77_con262_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_select_sample_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_shipped_workable_items_us3_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_sibling_search_check_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -573,6 +585,7 @@ scripts/gates/cm_evidence_analyzer_self_validated_mutation_test.sh	sh	entry	heav
 scripts/gates/cm_faq_from_real_questions_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_feature_directive_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_first_refusal_observed_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_full_suite_manifest_complete_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_geo_substitute_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -719,6 +732,9 @@ scripts/scheduled-work-engine	go	entry	default	go-test	-	auto: Go module with *_
 scripts/scheduled-work-engine/test/live_smoke.sh	sh	entry	heavy	bash	-	auto
 scripts/scheduled-work-engine/test/meta_mutation.sh	sh	entry	heavy	bash	-	auto
 scripts/skill_activation/test_skill_activation.sh	sh	entry	default	bash	-	auto
+scripts/sonarqube/tests/test_registry_login.sh	sh	entry	default	bash	-	auto
+scripts/sonarqube/tests/test_registry_login_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/sonarqube/tests/test_registry_login_wiring.sh	sh	entry	default	bash	-	auto
 scripts/test_portable_skill_symlink.sh	sh	entry	default	bash	-	auto
 scripts/validation/enumerate_decision_mutants.py	py	entry	heavy	python3	-	override: the decision-mutant census (CON-158 / CON-147 round 6): runs every single-edit mutant of meta_test_verification.sh, host_guard.sh and host_report.py against its regression test; exit 0 only when each is KILLED or listed EQUIVALENT with a proof; takes hours, so heavy
 scripts/validation/meta_test_verification.sh	sh	entry	heavy	bash	-	auto
@@ -727,12 +743,18 @@ scripts/validation/test_enumerate_decision_mutants.sh	sh	entry	default	bash	-	ov
 scripts/validation/test_enumerate_decision_mutants_r2_regression.sh	sh	entry	default	bash	-	override: tier default: real run_bounded on a `timeout` child (3 s bound) plus the stale-ledger classifier (CON-162 n1, n2); no census run, seconds
 scripts/validation/test_meta_test_verification_r1_regression.sh	sh	entry	heavy	bash	-	auto
 scripts/workable-items	go	entry	default	go-test	-	auto: Go module with *_test.go
+scripts/workable-items/mutation/created_at_mutation_runner.py	py	entry	heavy	python3	-	override: tier heavy: builds one Go test binary per mutant (27 mutants, 17 to 23 minutes measured on 2026-11-13); CON-339
+scripts/workable-items/mutation/created_at_r2_mutation_runner.py	py	entry	heavy	python3	-	override: tier heavy: 135 mutants in a temporary worktree of HEAD, full mode about 60 minutes in two shards measured on 2026-11-14 at load 29 to 46; CON-339 rounds 2 to 4
 scripts/workable-items/mutation/states_mutation_runner.py	py	entry	heavy	python3	-	auto
 tests/action_prefix/meta_test_action_prefix_grammar.sh	sh	entry	heavy	bash	-	auto
 tests/action_prefix/test_action_prefix_grammar.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_hook_e2e.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_subsystem_shortcuts.sh	sh	entry	default	bash	-	auto
-tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	member	heavy	-	tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh	override: run in four shards by tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh to _4.sh (--shard K/4, one unit each, under the runner's 900 s default; as one unit the whole list reached the limit at 900.1 s with 46 of the 48 mutants killed); covered_by names shard 1 (one entry per row); every shard checks the other three exist and are entries
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_1.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_2.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_3.sh	sh	entry	heavy	bash	-	auto
+tests/constitution_cmd/mutation_test_constitution_cmd_shard_4.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_constitution_cmd.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_constitution_cmd_pty.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh	sh	entry	default	bash	-	auto
@@ -782,6 +804,16 @@ tests/extensions/test_stress_perf.sh	sh	member	heavy	-	tests/extensions/run_all.
 tests/extensions/test_unit.py	py	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_wiring_ledger.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: invoked by tests/extensions/run_all.sh
 tests/extensions/test_wiring_ledger_mutations.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: invoked by tests/extensions/run_all.sh
+tests/forge/fixtures/curl_recorder.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/forge/fixtures/forge_fixture_server.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/forge/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/forge/test_forge_credentials.sh
+tests/forge/test_forge_credentials.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_detect.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_gitea.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_gitflic.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_github_gitlab.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_gitverse.sh	sh	entry	default	bash	-	auto
+tests/forge/test_forge_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/gates/test_con144_blk_read_order.sh	sh	entry	default	bash	-	auto
 tests/gates/test_default_scan_root.sh	sh	entry	default	bash	-	auto
 tests/gates/test_execution_record_selfpath.sh	sh	entry	default	bash	-	auto
@@ -811,6 +843,7 @@ tests/install/test_git_wrapper.sh	sh	member	default	-	tests/install/run_all.sh	a
 tests/install/test_integration.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_lock.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_minor.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_python_isolation.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_round10.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_round11.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_round6.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
@@ -818,7 +851,10 @@ tests/install/test_round8.sh	sh	member	default	-	tests/install/run_all.sh	auto: 
 tests/install/test_round9.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_security.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_self_guard.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_shell_state_patsub.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_sigpipe.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
 tests/install/test_stress_perf.sh	sh	member	heavy	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_timeout_tty.sh	sh	member	heavy	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_unit.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_updater.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_upstream_main.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
@@ -913,11 +949,39 @@ tests/prompts/test_setup_prompt_round5_stops.sh	sh	member	default	-	tests/prompt
 tests/prompts/test_setup_prompt_round5_stops_mutants.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/prompts/test_setup_prompt_round7.sh	sh	member	default	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/prompts/test_setup_prompt_round7_mutants.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
+tests/release/channel_census.py	py	excluded	-	-	-	reason: oracle: channel census instrument and lint run by tests/release/test_channel_census.sh and case L1 of the tag, publisher and derive suites; tested (control-needled) by test_channel_census.sh
+tests/release/env_allow.sh	sh	excluded	-	-	-	reason: library: shell library sourced (through $HERE) by the tag, publisher and derive suites and the mutation harness: allow-list, dirty entries, hup_ignored and its control; not a test entry point
+tests/release/env_census.py	py	excluded	-	-	-	reason: tool: runtime environment census (recorders and check) run by the tag, publisher and derive suites (C48, case 29, L2); not a test entry point
+tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network probe run by tests/release/test_tag_and_release.sh (cases C41, C43, C44); not a test entry point
+tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
+tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
+tests/release/test_pr_landing_check.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
+tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
+tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
+tests/security/fixtures/bin/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/bin/gh	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/bin/gitleaks	sh	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/fake_gh.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/fake_gitleaks.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/fake_gitleaks_detect.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/fixtures/forge_fixture.py	py	fixture	-	-	-	fixture path (not a test entry point)
+tests/security/test_forge_branch_protect.sh	sh	entry	default	bash	-	auto
+tests/security/test_github_actions_inventory_disable.sh	sh	entry	default	bash	-	auto
+tests/security/test_gitleaks_run_scan_replace.sh	sh	entry	default	bash	-	auto
+tests/security/test_gitleaks_run_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/security/test_history_secret_scan.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_secret_scan_deadlock.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_secret_scan_deadlock_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/security/test_history_secret_scan_replace.sh	sh	entry	default	bash	-	auto
+tests/security/test_history_secret_scan_replace_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/security/test_security_scripts_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
+tests/test_full_suite_manifest_gate_git_env.sh	sh	entry	default	bash	-	auto
+tests/test_git_env_class.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder_mutations.sh	sh	entry	default	bash	-	override: fast (measured 5.6 s, one shared clone, no sweep); paired mutations of the redpin census guard
 tests/test_post_update_hub_gates.sh	sh	entry	default	bash	-	auto

@@ -1,0 +1,42 @@
+#!/bin/bash
+# reviewer round-3 shell probes: <applier> <engine> <case> ; prints rc and observations. Scratch under $TMPDIR only.
+set -u
+APPLIER=$1 ENGINE=$2 CASE=$3
+T=$(mktemp -d "${TMPDIR:?}/shprobe.XXXXXX") || exit 9
+DESC="a sufficiently long description that clears the section 11.4.91 floor for the applier tests"
+L=$T/live.db
+"$ENGINE" add --db "$L" --description "$DESC" --id WIT-010 --title "applier item ten" Bug High >/dev/null || exit 9
+python3 -I -c 'import sqlite3,sys
+c=sqlite3.connect(sys.argv[1]);c.execute("UPDATE item_history SET created_at=\"2026-01-01 10:00:00\" WHERE event_type=\"Opened\"");c.execute("UPDATE items SET created_at=\"2026-01-01 10:00:00\"");c.commit();c.execute("PRAGMA wal_checkpoint(TRUNCATE)");c.close()' "$L"
+mkdir -p "$T/ev/docs"; git -C "$T/ev" init -q; cp "$L" "$T/ev/docs/w.db"; git -C "$T/ev" add docs/w.db
+git -C "$T/ev" -c user.name=t -c user.email=t@example.invalid commit -q -m e; C=$(git -C "$T/ev" rev-parse --short=12 HEAD); SHA=$(sha256sum "$T/ev/docs/w.db"|cut -c1-64)
+python3 -I -c 'import sqlite3,sys
+c=sqlite3.connect(sys.argv[1]);c.execute("UPDATE items SET created_at=\"2026-01-05 12:00:00\"");c.commit();c.execute("PRAGMA wal_checkpoint(TRUNCATE)");c.close()' "$L"
+R=$T/root; mkdir -p "$R"; EVF=evidence/snap.db
+case "$CASE" in
+  dslash) mkdir -p "$R/a" "$R/tgt_in"; ln -s "$R/tgt_in" "$R/a/b"; EVF="a//b/snap.db" ;;
+  dot) EVF="." ;;
+  destdir) mkdir -p "$R/evidence/snap.db" ;;
+  dangle) mkdir -p "$R/evidence"; ln -s "$R/nowhere.db" "$R/evidence/snap.db" ;;
+  dangledir) ln -s "$R/nowhere" "$R/evidence" ;;
+  loop) ln -s "$R/evidence" "$R/evidence" ;;
+  tslashes) EVF="evidence///snap.db" ;;
+  dotonly) EVF=".." ;;
+  dirdot) mkdir -p "$R/evidence"; EVF="evidence/." ;;
+  dirslash) mkdir -p "$R/evidence"; EVF="evidence/" ;;
+  fileslash) EVF="evidence/snap.db/" ;;
+  middot) EVF="evidence/./snap.db" ;;
+  leaddot) EVF="./evidence/snap.db" ;;
+  noexec) cp "$ENGINE" "$T/eng"; chmod 0644 "$T/eng"; ENGINE_RUN=$T/eng ;;
+  tmpleft|gitfail) ;;
+esac
+P=$T/plan.tsv
+COMMITCOL=$C; [ "$CASE" = gitfail ] && COMMITCOL=deadbeef0000
+printf 'vehicle_id\tid_main\tid_fix227\tvalue\tevidence_commit\tevidence_path_in_commit\tevidence_sha256\tevidence_file\tattests\treason\n' >"$P"
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' WIT-010 WIT-010 WIT-010 "2026-01-01 10:00:00" "$COMMITCOL" docs/w.db "$SHA" "$EVF" "Opened row" probe >>"$P"
+( cd "$R" && bash "$APPLIER" --engine "${ENGINE_RUN:-$ENGINE}" --db "$L" --repo "$T/ev" --root "$R" --landing main --plan "$P" --apply ) >"$T/out" 2>&1
+echo "rc=$?"; sed 's/^/  | /' "$T/out" | cut -c1-200
+echo "created_at=$(python3 -I -c 'import sqlite3,sys;print(sqlite3.connect("file:"+sys.argv[1]+"?mode=ro",uri=True).execute("select created_at from items").fetchone()[0])' "$L")"
+echo "files under root:"; (cd "$R" && find . -mindepth 1 | sort | sed 's/^/  - /')
+[ -d "$R/tgt_in" ] && echo "tgt_in contents: $(ls -A "$R/tgt_in" | tr '\n' ' ')"
+. "$(git -C "$(dirname "$APPLIER")" rev-parse --show-toplevel)/scripts/lib/safe_rm.sh" && safe_rm_rf "${T:?}"

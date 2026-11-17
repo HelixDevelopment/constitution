@@ -1,0 +1,120 @@
+# RED (final tests of this vehicle) on the UNFIXED scripts of 24bdca78 (git show 24bdca78:scripts/release/<f>), and on the reviewer mutants T2-T6, D1, D5 (verbatim files of rev_rel734c/mut/, written against those same unfixed scripts). Run 2026-11-11T16:00:03+01:00, nice -n 10.
+4cc6fe0f95e4be21e9ae62fe1e07daf96612294584941c3901fe5189dc5fe2c0  unfixed/derive_release_facts.sh
+9caac765af2ba8071bfcce8caec4170868eeda7dc2cd90ae0a535e619c2061a0  unfixed/render_release_entry.py
+719da40f8a1cfc9183fc31348ca67c6dd4b7d0d138e01942398057f5b3ce29b9  unfixed/tag_and_release.sh
+07d07912837a7096138cf1e8414a0a4653598fc2a7ae1a29297ce87d412b0989  T2.sh
+ba2e6ebc2cfa7e59c48750825570f6fabc2c9c8935c378e94c1f83e0cf533f31  T3.sh
+ca2e9ed757eef9cc49c7cee4f81d7a8ce5efdbd9ba36dbde0ca8ef558d7b337c  T4.sh
+2c0c55bb514a45176060feafee2e68ad4fd80d3c896d056e0c472818d7d676d2  T5.sh
+65a4d89e065d532047a065dac5942bd775fc72f52dba25e7344f7f0854d102f3  T6.sh
+d2c11ade36663d4b2ab4bd28115e61c20ea531d60a57add1a13f7a0e7d72af39  D1.sh
+4aea4f0a42ef99a572434f2e0f6f869737356d181e4f92ca11f46c5449165ff3  D5.sh
+== tag_and_release.sh unfixed
+FAIL C18 SKIPPED-NO-TOKEN gap
+FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1')
+FAIL C19 refusal named
+FAIL C22 SKIPPED-NO-TOKEN gap
+FAIL C23 real publisher, bad token charset: FAIL exit 1 (got '5', want '1')
+FAIL C23 refusal names the publisher's reason
+FAIL C21 userinfo not printed
+RESULT: pass=69 fail=7
+== reviewer mutant T2
+FAIL C16 exit 0 (got '1', want '0')
+FAIL C16 r2 tag pushed (got '-', want '5339299d3ba07ecc1a61405da99ec61473eb6832')
+FAIL C16 r2 not skipped
+FAIL C18 SKIPPED-NO-TOKEN gap
+FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1')
+FAIL C19 refusal named
+FAIL C22 SKIPPED-NO-TOKEN gap
+FAIL C23 real publisher, bad token charset: FAIL exit 1 (got '5', want '1')
+FAIL C23 refusal names the publisher's reason
+FAIL C21 userinfo not printed
+RESULT: pass=66 fail=10
+== reviewer mutant T3
+FAIL C15 different-object abort
+FAIL C15 r1 untouched (got '7e58dea91aaa279d0ef02bb3e1b14c7f9f7abd91', want 'cab91e26fb2987fe72b262eec32d99194a91eb88')
+FAIL C18 SKIPPED-NO-TOKEN gap
+FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1')
+FAIL C19 refusal named
+FAIL C22 SKIPPED-NO-TOKEN gap
+FAIL C23 real publisher, bad token charset: FAIL exit 1 (got '5', want '1')
+FAIL C23 refusal names the publisher's reason
+FAIL C21 userinfo not printed
+RESULT: pass=67 fail=9
+== reviewer mutant T4
+FAIL C13 dirty tree exit 1 (got '0', want '1')
+FAIL C13 dirty-tree abort
+FAIL C13 no local tag (got 'yes', want 'no')
+FAIL C13 r1 untouched (got '7531be32ee5c7091a7ac2796cd7b6a9c4bf0df0d', want '9aebfb339f10ed51eb3aae26ce59e71437105479')
+FAIL C18 SKIPPED-NO-TOKEN gap
+FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1')
+FAIL C19 refusal named
+FAIL C22 SKIPPED-NO-TOKEN gap
+FAIL C23 real publisher, bad token charset: FAIL exit 1 (got '5', want '1')
+FAIL C23 refusal names the publisher's reason
+FAIL C21 userinfo not printed
+RESULT: pass=65 fail=11
+== reviewer mutant T5
+FAIL C18 gitea missing token is a GAP (exit 5) (got '0', want '5')
+FAIL C18 SKIPPED-NO-TOKEN gap
+FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '0', want '1')
+FAIL C19 refusal named
+FAIL C22 real publisher, no token: GAP exit 5 (got '0', want '5')
+FAIL C22 SKIPPED-NO-TOKEN gap
+FAIL C23 real publisher, bad token charset: FAIL exit 1 (got '0', want '1')
+FAIL C23 refusal names the publisher's reason
+FAIL C21 userinfo not printed
+RESULT: pass=67 fail=9
+== reviewer mutant T6
+FAIL C14 HEAD!=SHA exit 1 (got '0', want '1')
+FAIL C14 HEAD!=SHA abort
+FAIL C14 no local tag (got 'yes', want 'no')
+FAIL C14 r1 untouched (got 'c623d8bae0db683535d23d3436463461a7fdcee9', want '07e97de090c430ea0fbd711fc03895c4d6107dea')
+FAIL C18 SKIPPED-NO-TOKEN gap
+FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1')
+FAIL C19 refusal named
+FAIL C22 SKIPPED-NO-TOKEN gap
+FAIL C23 real publisher, bad token charset: FAIL exit 1 (got '5', want '1')
+FAIL C23 refusal names the publisher's reason
+FAIL C21 userinfo not printed
+RESULT: pass=65 fail=11
+== derive_release_facts.sh unfixed
+FAIL CON-228 [reproduction_state]: missing column exits 3 (got 0)
+FAIL CON-228 [reproduction_state]: no partial facts on stdout (got 23 lines)
+FAIL CON-228 [reproduction_state]: the refusal is named on stderr
+FAIL CON-228 [closure_date]: missing column exits 3 (got 0)
+FAIL CON-228 [closure_date]: no partial facts on stdout (got 25 lines)
+FAIL CON-228 [closure_date]: the refusal is named on stderr
+FAIL CON-228 [body_md]: missing column exits 3 (got 0)
+FAIL CON-228 [body_md]: no partial facts on stdout (got 25 lines)
+FAIL CON-228 [body_md]: the refusal is named on stderr
+RESULT: pass=34 fail=9
+== reviewer mutant D1
+FAIL D1: closed on the tag date is not verified since it (missing line: verified_since_prev_ids=T-006)
+FAIL D1: count line (missing line: count_line=1 verified + 3 provisional (2 overdue))
+FAIL CON-228 [reproduction_state]: missing column exits 3 (got 0)
+FAIL CON-228 [reproduction_state]: no partial facts on stdout (got 23 lines)
+FAIL CON-228 [reproduction_state]: the refusal is named on stderr
+FAIL CON-228 [closure_date]: missing column exits 3 (got 0)
+FAIL CON-228 [closure_date]: no partial facts on stdout (got 25 lines)
+FAIL CON-228 [closure_date]: the refusal is named on stderr
+FAIL CON-228 [body_md]: missing column exits 3 (got 0)
+FAIL CON-228 [body_md]: no partial facts on stdout (got 25 lines)
+FAIL CON-228 [body_md]: the refusal is named on stderr
+RESULT: pass=32 fail=11
+== reviewer mutant D5
+FAIL D5: UNSET reproduction with a set investigation state counts (missing line: open_items_with_any_state=5)
+FAIL CON-228 [reproduction_state]: missing column exits 3 (got 0)
+FAIL CON-228 [reproduction_state]: no partial facts on stdout (got 23 lines)
+FAIL CON-228 [reproduction_state]: the refusal is named on stderr
+FAIL CON-228 [closure_date]: missing column exits 3 (got 0)
+FAIL CON-228 [closure_date]: no partial facts on stdout (got 25 lines)
+FAIL CON-228 [closure_date]: the refusal is named on stderr
+FAIL CON-228 [body_md]: missing column exits 3 (got 0)
+FAIL CON-228 [body_md]: no partial facts on stdout (got 25 lines)
+FAIL CON-228 [body_md]: the refusal is named on stderr
+RESULT: pass=33 fail=10
+== render_release_entry.py unfixed
+FAIL CON-231 a status/severity value the template does not render is refused (0: )
+SKIP shipped template renders from real facts: RRE_FACTS is not set to a facts file (run derive_release_facts.sh and set RRE_FACTS=<file> to run it)
+RESULT: pass=18 fail=1

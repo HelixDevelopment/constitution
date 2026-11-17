@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (N3a)
+@@ -288,7 +288,7 @@
+ # ---------------------------------------------------------------- environment
+ unset CDPATH
+ # the clone holds the remote URLs (they may carry a credential): owner-only files
+-umask 077
++umask 022
+ lander_scrub_env() {
+   local v
+   for v in $(compgen -e); do

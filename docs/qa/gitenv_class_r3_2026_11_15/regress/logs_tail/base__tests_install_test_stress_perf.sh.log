@@ -1,0 +1,20 @@
+# performance: fresh ADD
+  ok   ADD exit 0
+  ok   ADD under 60 s (took 4.13s)
+# stress: 50 repeated runs on the installed project
+  ok   50 runs: all exit 0
+  ok   50 runs: state never changed
+  ok   50 runs: slowest no-op run under 15 s (slowest 1.37s, total 70.36s)
+  measured: 50 no-op runs total=70.36s slowest=1.37s
+# stress: large consumer repository
+  ok   large repo ADD exit 0
+  ok   large repo gitlink
+  ok   large repo ADD under 120 s (took 4.38s)
+  ok   large repo: tracked files untouched
+# memory: peak RSS of a full ADD
+  ok   peak RSS under 512 MiB (measured 195928 KiB)
+  measured: peak RSS 195928 KiB (largest single process: bash or git)
+# latency of read-only modes
+  ok   --print-snippets under 1 s (0.03s)
+  ok   --help under 1 s (0.03s)
+stress_perf: PASS 12 FAIL 0

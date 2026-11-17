@@ -1,0 +1,426 @@
+#!/usr/bin/env bash
+# test_sigpipe.sh — regression test for CON-PENDING-INSTALLER-SIGPIPE: bash features that can silently change what
+# the install scripts decide. Five classes, one rule each (docs/qa/installer_sigpipe_2026_11_13/round2/README.md):
+#   (a) no writable temporary file: no here-string and no here-document in the scripts' code (bash keeps those in a
+#       temporary file; when it cannot be written the command is skipped and a check reads as passed)
+#   (b) the caller's shell: BASH_COMPAT, POSIXLY_CORRECT, SHELLOPTS, BASHOPTS, CDPATH, GLOBIGNORE, TMOUT never change
+#       a decision: hi_reset_shell_state runs first when a script is RUN (a test that sources it keeps its shell)
+#   (c) pipefail + SIGPIPE: no pipe into a reader that can exit before it has read all of its input
+#   (d) errexit off (a function called as `f || rc=1`): a step whose failure matters is checked explicitly
+#   (e) large input: text is split and compared inside the shell, at any size
+#
+# Sections:
+#   1. static scan, classes (a) and (c): the scanner below (sigscan, run with python3 -I) reads the six scripts
+#      token by token and reports every here-string, here-document and pipe whose reader is not known to read all
+#      of its input (deny by default). Control needles: every known spelling of the class is flagged and the safe
+#      forms are not; a violation appended to each file is found and printed with its original line; a file the
+#      scanner cannot lex is reported as blind (exit 2), never as clean.
+#   2. class (b): one hi_reset_shell_state text in the four files that carry it, called before anything else when
+#      the file is run; it undoes what a caller changed; a sourced copy keeps the caller's shell; with any of the
+#      variables above in the environment, the installer prints exactly what a clean run prints.
+#   3. hi_push_changed (the no-push check), real installer in library mode, under three conditions: a writable
+#      temporary directory; no writable temporary file with BASH_COMPAT=50 (what bash 5.0 does); the same with
+#      BASH_COMPAT=44 (bash 4.4). A control needle per condition: a here-string must fail where no temporary file
+#      can be written. Fifteen cases from both sides (unchanged, R moved / new, L changed / unaskable, N removed /
+#      added, V changed, Z before only / after only / both / with M lines that differ, M lines that differ, U before)
+#      on small, mid (about 14 KB per mark, above bash's 8 KiB pipe limit) and large marks; three runs, identical.
+#   4. the other helpers, under the same three conditions: hi_legacy_path_in, hi_has_line_prefix, hi_line_in,
+#      hi_upstream_ok, hi_resolve_ref_in ("1.0" is not "1.00"), hi_on_remote, and the updater's
+#      up_hook_declares_project_root (checked against the regex the updater used before).
+#   5. differential fuzz: hi_read_fields against `read -r`, hi_split against `IFS=sep read -r -a`, hi_split_lines
+#      against a read loop, hi_line_in against `grep -qxF`, hi_has_line_prefix against awk index().
+#   6. ref names and urls carrying $(...) and backticks: compared as data, never run.
+#   7. class (d), CLI installer: a link that cannot be created is counted, reported and fails the step; a clean run
+#      and a run with SHELLOPTS=noglob link the same skills.
+#   8. behavioural paired mutants: each must misread at least one case of sections 2 and 3 (proves those cases
+#      discriminate) and, where it brings back a forbidden form, be flagged by the static scan.
+#
+# TEST-CLASS LABEL (§11.4.289): gate-logic / unit class. No network, no agent; the marks are constructed strings fed
+# to the real functions, and the "no temporary file" condition is emulated with `ulimit -f 0` (writes to regular
+# files fail) inside a subshell. This is not live evidence of an agent run.
+# Usage: bash tests/install/test_sigpipe.sh   Exit 0 all pass · 1 a case failed.
+# shellcheck disable=SC1090,SC1003,SC2016  # the files under test are sourced by variable; quoted needle and mutant text is literal on purpose
+# shellcheck disable=SC2034  # T_NAME is read by finish() in lib.sh
+T_NAME=sigpipe
+# shellcheck source=lib.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+new_sandbox
+
+CLI="$REPO/scripts/install_cli_agent_plugins.sh"
+PREFIX="$REPO/scripts/install_action_prefix.sh"
+SCRIPTS=("$INSTALLER" "$UPDATER" "$CLI" "$PREFIX" "$REPO/scripts/portable_symlink_lib.sh" "$REPO/scripts/lib/constitution_layout.sh")
+ALLOW=hi_text_filter,hi_scrub,hi_mark_hash,hi_newest_tag   # functions verified to read all of their input
+nl=$'\n'
+has() { case "$1" in *"$2"*) echo 1 ;; *) echo 0 ;; esac; }
+rel() { printf '%s' "${1#"$REPO"/}"; }
+
+# ── the scanner (identical to docs/qa/installer_sigpipe_2026_11_13/round2/tools/sigscan.py) ──
+# shellcheck disable=SC2016  # Python source: nothing in it is meant to expand
+prog='@@SIGSCAN@@'
+scan() { python3 -I -c "$prog" --allow-func "$ALLOW" "$@"; }   # → FILE:LINE: CLASS detail | original line
+scan_lines() { scan "$@" | cut -d: -f2 | sort -n | tr '\n' ' ' | sed 's/ $//'; }
+
+echo "# 1. static scan, classes (a) and (c)"
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "  SKIP static scan: python3 is not on PATH (reason: tool_not_present; the scan did NOT run)"
+else
+  N="$SB/needles.sh"
+@@NEEDLES@@
+  out="$(scan "$N")"; rc=$?
+  expect="@@NEEDLE_EXPECT@@"
+  eq "needles: the scanner flags every known spelling and no safe form (@@NEEDLE_COUNT@@ needle lines)" "$expect" "$(scan_lines "$N")"
+  eq "needles: exit 1 when something is found" 1 "$rc"
+  eq "needles: one finding per flagged line" "$(printf '%s\n' "$expect" | wc -w | tr -d ' ')" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
+  printf 'echo "never closed\n' >"$SB/unlexable.sh"
+  out="$(scan "$SB/unlexable.sh")"; rc=$?
+  eq "needle: a file the scanner cannot read is reported blind (exit 2), never clean" "2 1" "$rc $(has "$out" 'cannot lex')"
+  # shellcheck disable=SC2016  # the appended needle is literal on purpose
+  needle='printf '"'"'%s\n'"'"' "$x" | LC_ALL=C grep -q '"'"'needle text'"'"
+  for f in "${SCRIPTS[@]}"; do
+    [ -f "$f" ] || { nok "scan target exists: $(rel "$f")"; continue; }
+    out="$(scan "$f")"; rc=$?
+    if [ "$rc" = 0 ] && [ -z "$out" ]; then ok "no here-string, here-document or early reader in $(rel "$f")"
+    else nok "$(rel "$f") (scan exit $rc): $out"; fi
+    { cat "$f"; printf '\n%s\n' "$needle"; } >"$SB/needle_copy"
+    n="$(wc -l <"$SB/needle_copy" | tr -d ' ')"
+    out="$(scan "$SB/needle_copy")"
+    eq "needle appended to $(rel "$f"): exactly one finding, at its line, printed with the original line" \
+      "1 $n 1" "$(printf '%s\n' "$out" | grep -c .) $(printf '%s' "$out" | cut -d: -f2) $(has "$out" "| $needle")"
+  done
+fi
+
+echo "# 2. class (b): the caller's shell state"
+fn_text() { awk '/^hi_reset_shell_state\(\) \{$/ { on = 1 } on { print } on && /^}$/ { exit }' "$1"; }
+ref_fn="$(fn_text "$INSTALLER")"
+if [ -n "$ref_fn" ]; then ok "hi_reset_shell_state found in the installer"; else nok "hi_reset_shell_state found in the installer"; fi
+for f in "$UPDATER" "$CLI" "$PREFIX"; do
+  eq "hi_reset_shell_state in $(rel "$f") is identical to the installer's" "$ref_fn" "$(fn_text "$f")"
+done
+blk() { awk '/^# >>> hi_shell_state /{ on = 1 } on { print } /^# <<< hi_shell_state/ { exit }' "$1"; }
+eq "the hi_shell_state block is identical in the installer and the updater" "$(blk "$INSTALLER")" "$(blk "$UPDATER")"
+for f in "$INSTALLER" "$UPDATER"; do
+  c="$(grep -n '^\[ "\${HI_SOURCED:-0}" = 1 \] || hi_reset_shell_state' "$f" | cut -d: -f1)"
+  s="$(grep -n '^HI_SOURCED=0; (return 0 2>/dev/null) && HI_SOURCED=1' "$f" | cut -d: -f1)"
+  p="$(grep -n '^[^#]*<(' "$f" | head -n 1 | cut -d: -f1)"
+  if [ -n "$c" ] && [ -n "$s" ] && [ -n "$p" ] && [ "$s" -lt "$c" ] && [ "$c" -lt "$p" ]; then
+    ok "$(rel "$f"): HI_SOURCED set (line $s), reset called (line $c) before the first <( (line $p)"
+  else nok "$(rel "$f"): HI_SOURCED line [$s], reset call [$c], first <( [$p]"; fi
+done
+# the /dev/fd boundary: process substitution is checked before the first one a run depends on (refuse, exit 3)
+eq "the installer refuses (exit 3) when process substitution does not work" 1 \
+  "$(grep -c '^    hi_plumbing_ok || { hi_err "process substitution does not work here.*exit 3; } ;;$' "$INSTALLER")"
+eq "the updater refuses (exit 3) when process substitution does not work" 1 \
+  "$(grep -c '^hi_plumbing_ok || die 3 "process substitution does not work here' "$UPDATER")"
+for f in "$CLI" "$PREFIX"; do
+  eq "$(rel "$f"): reset called in run mode, right before set -euo pipefail" \
+    "(return 0 2>/dev/null) || hi_reset_shell_state${nl}set -euo pipefail" \
+    "$(grep -A1 '^(return 0 2>/dev/null) || hi_reset_shell_state$' "$f")"
+done
+state() { # → the shell state the reset must restore, one word per item
+  printf '%s' "$-" | tr -d 'hBiclsr'; printf ' compat=%s posix=%s cdpath=%s globignore=%s tmout=%s' "${BASH_COMPAT-unset}" \
+    "$(shopt -oq posix && echo on || echo off)" "${CDPATH-unset}" "${GLOBIGNORE-unset}" "${TMOUT-unset}"
+  shopt nocasematch nocaseglob extglob nullglob failglob dotglob lastpipe xpg_echo expand_aliases | awk '{ printf " %s=%s", $1, $2 }'
+}
+clean_state="$(bash --norc -c "$(declare -f state); state" 2>&1)"
+# shellcheck disable=SC2030,SC2031  # every change below lives in a subshell on purpose
+got="$( HELIX_INSTALLER_LIB_MODE=1 . "$INSTALLER" >/dev/null 2>&1
+  set -f -u -e; set -o posix; shopt -s nocasematch nocaseglob extglob nullglob failglob dotglob lastpipe xpg_echo expand_aliases
+  BASH_COMPAT=44; CDPATH=/nonexistent; GLOBIGNORE='*'; TMOUT=7
+  hi_reset_shell_state; state )"
+eq "hi_reset_shell_state undoes what a caller changed (options, BASH_COMPAT, CDPATH, GLOBIGNORE, TMOUT)" "$clean_state" "$got"
+for pair in "INSTALLER HELIX_INSTALLER_LIB_MODE" "UPDATER HELIX_UPDATER_LIB_MODE"; do
+  v="${pair%% *}"; m="${pair#* }"
+  got="$( shopt -s nocasematch; export "$m"=1; . "${!v}" >/dev/null 2>&1; shopt -q nocasematch && echo kept || echo reset )"
+  eq "a SOURCED $(rel "${!v}") keeps the caller's shell" kept "$got"
+done
+HOSTILE=(POSIXLY_CORRECT=1 SHELLOPTS=posix SHELLOPTS=noglob:nounset SHELLOPTS=errexit
+         BASHOPTS=nocasematch:extglob:failglob:nullglob BASH_COMPAT=44 CDPATH=/nonexistent GLOBIGNORE='*' TMOUT=1)
+run_inst() { (cd "$SB" && env "$@" bash "$INSTALLER_RUN" "${ARGS[@]}" 2>&1; echo "rc=$?"); }
+hostile_check() { # installer-file label → number of (flag, environment) pairs whose output differs from a clean run
+  local a e n=0 clean
+  INSTALLER_RUN="$1"
+  for a in --version --help --print-snippets; do
+    ARGS=("$a"); clean="$(run_inst LC_ALL=C)"
+    for e in "${HOSTILE[@]}"; do
+      [ "$(run_inst LC_ALL=C "$e")" = "$clean" ] || { n=$((n + 1)); [ -n "$2" ] && echo "    differs: $a with $e" >&2; }
+    done
+  done
+  echo "$n"
+}
+eq "run with any of ${#HOSTILE[@]} inherited settings, the installer prints what a clean run prints (--version --help --print-snippets)" \
+  0 "$(hostile_check "$INSTALLER" show)"
+
+echo "# 3. hi_push_changed under three temporary-file conditions"
+sha=0123456789abcdef0123456789abcdef01234567
+sha2=1123456789abcdef0123456789abcdef01234567
+tail_lines() { local j; for ((j = 0; j < $1; j++)); do printf 'R 0 refs/remotes/origin/x%s %s 1\n' "$j" "$sha"; done; }
+base_mark() { # tail → before-marks of one repository with every kind of line, then a tail of fetched R lines
+  printf 'D 0 /p\nM 0 refs/remotes/origin/main 1\nR 0 refs/remotes/origin/main %s 0\nN 0 origin\nL 0 origin sha256sum:aa\nV 0 sha256sum:bb https://h.invalid/r.git\n%s' "$sha" "$1"
+}
+case_marks() { # name tail → CB (before) CA (after)
+  local m; m="$(base_mark "$2")"; CB="$m"; CA="$m"
+  case "$1" in
+    same) ;;
+    r_moved) CA="${m/"main $sha 0"/"main $sha2 0"}" ;;
+    r_new_fetched) CA="$m${nl}R 0 refs/remotes/origin/new $sha 2" ;;
+    r_new_unfetched) CA="$m${nl}R 0 refs/remotes/origin/new $sha 0" ;;
+    l_changed) CA="${m/"sha256sum:aa"/"sha256sum:cc"}" ;;
+    l_unaskable) CA="${m/"L 0 origin sha256sum:aa"/"U 0 origin"}" ;;
+    n_removed) CA="${m/"N 0 origin$nl"/}" ;;
+    n_added) CA="$m${nl}N 0 upstream" ;;
+    v_changed) CA="${m/"sha256sum:bb"/"sha256sum:dd"}" ;;
+    z_before) CB="$m${nl}Z 0 origin" ;;
+    z_after) CA="$m${nl}Z 0 origin" ;;
+    z_both) CB="$m${nl}Z 0 origin"; CA="$CB" ;;
+    z_m_differ) CB="$m${nl}Z 0 origin"; CA="${m/"main 1$nl"/"main 2$nl"}" ;;
+    m_differ) CA="${m/"main 1$nl"/"main 2$nl"}" ;;
+    u_before) CB="$m${nl}U 0 upstream" ;;
+  esac
+}
+CASES="same r_moved r_new_fetched r_new_unfetched l_changed l_unaskable n_removed n_added v_changed z_before z_after z_both z_m_differ m_differ u_before"
+expect_cases() { # names → the expected lines (rc, Z error printed, "could not be asked before" warning printed)
+  local c
+  for c in $1; do
+    case "$c" in
+      same|r_new_fetched|n_added) echo "$c=1 z=0 w=0" ;;
+      u_before) echo "$c=1 z=0 w=1" ;;
+      z_*) echo "$c=0 z=1 w=0" ;;
+      *) echo "$c=0 z=0 w=0" ;;
+    esac
+  done
+}
+cond_on() { # condition → applied to the current (sub)shell
+  case "$1" in
+    normal) ;;
+    notemp50) trap '' XFSZ; ulimit -f 0; BASH_COMPAT=50 ;;
+    notemp44) trap '' XFSZ; ulimit -f 0; BASH_COMPAT=44 ;;
+  esac
+}
+# control needle: a here-string of 100 KB (above every pipe buffer, so bash must use a temporary file) fails
+# exactly where no temporary file can be written
+printf -v BIGX '%*s' 100000 ''; BIGX="${BIGX// /x}"
+ctl_here() { if { grep -q x <<<"$BIGX"; } 2>/dev/null; then echo here-string-ok; else echo here-string-failed; fi; }
+small_here() { if { grep -q x <<<"x"; } 2>/dev/null; then echo ok; else echo failed; fi; }
+expect_ctl() { case "$1" in normal) echo "ctl=here-string-ok" ;; *) echo "ctl=here-string-failed" ;; esac; }
+push_run() { # installer condition tail-lines names → ctl line + one line per case
+  ( HELIX_INSTALLER_LIB_MODE=1 . "$1" >/dev/null 2>&1 || { echo "source=failed"; exit 0; }
+    set -u -o pipefail
+    local T="" c out rc
+    [ "$3" -gt 0 ] && T="$(tail_lines "$3")"
+    cond_on "$2"
+    echo "ctl=$(ctl_here)"
+    for c in $4; do
+      case_marks "$c" "$T"
+      out="$(hi_push_changed "$CB" "$CA" 2>&1)"; rc=$?
+      echo "$c=$rc z=$(has "$out" 'no cksum or sha256sum') w=$(has "$out" 'could not be asked before')"
+    done ) 2>&1
+}
+for cond in normal notemp50 notemp44; do
+  echo "  info: $cond: a SMALL here-string $( (cond_on "$cond"; small_here) ) under bash $BASH_VERSION (not a check: bash 5.1 uses a pipe for it even with BASH_COMPAT=50)"
+  for size in 0 200; do
+    want="$(expect_ctl "$cond")$nl$(expect_cases "$CASES")"
+    r1="$(push_run "$INSTALLER" "$cond" "$size" "$CASES")"; r2="$(push_run "$INSTALLER" "$cond" "$size" "$CASES")"
+    r3="$(push_run "$INSTALLER" "$cond" "$size" "$CASES")"
+    eq "$cond, $size tail lines: control needle and all 15 cases" "$want" "$r1"
+    eq "$cond, $size tail lines: runs 1, 2 and 3 identical" "$r1|$r1|$r1" "$r1|$r2|$r3"
+  done
+done
+LARGE="same z_before z_after r_moved"
+for cond in normal notemp50; do
+  r1="$(push_run "$INSTALLER" "$cond" 2000 "$LARGE")"
+  eq "$cond, 2000 tail lines (about 136 KB per mark): $LARGE" "$(expect_ctl "$cond")$nl$(expect_cases "$LARGE")" "$r1"
+done
+
+echo "# 4. the other helpers under the same conditions"
+filler() { local j; for ((j = 0; j < $1; j++)); do printf 'line %s of text that names no path\n' "$j"; done; }
+if ! { git init -q "$SB/rr" && git -C "$SB/rr" commit -q --allow-empty -m a && A="$(git -C "$SB/rr" rev-parse HEAD)" \
+  && git -C "$SB/rr" commit -q --allow-empty -m b && B="$(git -C "$SB/rr" rev-parse HEAD)" \
+  && git -C "$SB/rr" checkout -q --orphan other && git -C "$SB/rr" commit -q --allow-empty -m c \
+  && C="$(git -C "$SB/rr" rev-parse HEAD)"; }; then nok "fixture repository for hi_resolve_ref_in / hi_on_remote"; fi
+helper_run() { # installer condition → one line per helper case
+  ( HELIX_INSTALLER_LIB_MODE=1 . "$1" >/dev/null 2>&1 || { echo "source=failed"; exit 0; }
+    set -u -o pipefail; exec 9>&2
+    local big; big="$(filler 2000)"
+    cond_on "$2"
+    t() { local n="$1"; shift; "$@" >/dev/null 2>&1; echo "$n=$?"; }
+    t lp1 hi_legacy_path_in 'see constitution/x'
+    t lp2 hi_legacy_path_in 'see submodules/constitution/x'
+    t lp3 hi_legacy_path_in 'a/constitution/x'
+    t lp4 hi_legacy_path_in 'myconstitution/x'
+    t lp5 hi_legacy_path_in '_constitution/x'
+    t lp6 hi_legacy_path_in '(constitution/x)'
+    t lp7 hi_legacy_path_in 'constitution/x and submodules/constitution/y'
+    t lp8 hi_legacy_path_in "ok${nl}see constitution/x"
+    t lp9 hi_legacy_path_in "$big${nl}constitution/x"
+    t lp10 hi_legacy_path_in "$big"
+    t lp11 hi_legacy_path_in 'Constitution/x'
+    t hp1 hi_has_line_prefix '160000 abc' '160000 '
+    t hp2 hi_has_line_prefix "100644 x${nl}160000 y" '160000 '
+    t hp3 hi_has_line_prefix 'x160000 y' '160000 '
+    t hp4 hi_has_line_prefix '' '160000 '
+    t hp5 hi_has_line_prefix '160000' '160000 '
+    t hp6 hi_has_line_prefix "$big${nl}160000 y" '160000 '
+    t li1 hi_line_in b "a${nl}b${nl}c"
+    t li2 hi_line_in b "a${nl}bb${nl}c"
+    t li3 hi_line_in 'a b' "x${nl}a b"
+    t li4 hi_line_in z "$big${nl}z"
+    t uo1 hi_upstream_ok github
+    t uo2 hi_upstream_ok gitlab-vasic
+    t uo3 hi_upstream_ok gitflic
+    t uo4 hi_upstream_ok git
+    t uo5 hi_upstream_ok GitHub
+    t uo6 hi_upstream_ok ''
+    t uo7 hi_upstream_ok 'github|x'
+    echo "rr1=$(hi_resolve_ref_in "$SB/rr" 1.0 "1.00 $A${nl}1.0 $B" 2>&1)"
+    echo "rr2=$(hi_resolve_ref_in "$SB/rr" 1.00 "1.00 $A${nl}1.0 $B" 2>&1)"
+    t or1 hi_on_remote "$SB/rr" "$A" "$B"
+    t or2 hi_on_remote "$SB/rr" "$C" "$B"
+    t or3 hi_on_remote "$SB/rr" "$B" "$C${nl}$B"
+    t or4 hi_on_remote "$SB/rr" "not-a-sha" "$B" ) 2>&1
+}
+HELPER_WANT="$(printf '%s\n' lp1=0 lp2=1 lp3=1 lp4=1 lp5=1 lp6=0 lp7=1 lp8=0 lp9=0 lp10=1 lp11=1 \
+  hp1=0 hp2=0 hp3=1 hp4=1 hp5=1 hp6=0 li1=0 li2=1 li3=0 li4=0 uo1=0 uo2=0 uo3=0 uo4=1 uo5=1 uo6=1 uo7=1 \
+  "rr1=remote-tag ${B:-}" "rr2=remote-tag ${A:-}" or1=0 or2=1 or3=0 or4=1)"
+hook_run() { # condition → one line per case of the updater's capability probe
+  ( HELIX_UPDATER_LIB_MODE=1 . "$UPDATER" >/dev/null 2>&1 || { echo "source=failed"; exit 0; }
+    set -u -o pipefail
+    local big head; big="$(filler 2000)"; head="$(head -n 80 -- "$REPO/scripts/post_update_hook.sh")"
+    cond_on "$1"
+    t() { local n="$1"; shift; "$@" >/dev/null 2>&1; echo "$n=$?"; }
+    t hk1 up_hook_declares_project_root '# HELIX_HOOK_CAPABILITIES: project-root'
+    t hk2 up_hook_declares_project_root '#HELIX_HOOK_CAPABILITIES: a project-root b'
+    t hk3 up_hook_declares_project_root '# HELIX_HOOK_CAPABILITIES: project-rootx'
+    t hk4 up_hook_declares_project_root ' # HELIX_HOOK_CAPABILITIES: project-root'
+    t hk5 up_hook_declares_project_root '# HELIX_HOOK_CAPABILITIES: xproject-root'
+    t hk6 up_hook_declares_project_root "$big${nl}# HELIX_HOOK_CAPABILITIES: project-root"
+    t hk7 up_hook_declares_project_root "$big"
+    t hk8 up_hook_declares_project_root "$head" ) 2>&1
+}
+HOOK_RE='^#[[:space:]]*HELIX_HOOK_CAPABILITIES:([^[:cntrl:]]*[[:space:]])?project-root([[:space:]]|$)'
+re_rc() { LC_ALL=C grep -qE "$HOOK_RE" <<<"$1"; echo $?; }
+big_ref="$(filler 2000)"
+HOOK_WANT="hk1=$(re_rc '# HELIX_HOOK_CAPABILITIES: project-root')
+hk2=$(re_rc '#HELIX_HOOK_CAPABILITIES: a project-root b')
+hk3=$(re_rc '# HELIX_HOOK_CAPABILITIES: project-rootx')
+hk4=$(re_rc ' # HELIX_HOOK_CAPABILITIES: project-root')
+hk5=$(re_rc '# HELIX_HOOK_CAPABILITIES: xproject-root')
+hk6=$(re_rc "$big_ref${nl}# HELIX_HOOK_CAPABILITIES: project-root")
+hk7=$(re_rc "$big_ref")
+hk8=$(re_rc "$(head -n 80 -- "$REPO/scripts/post_update_hook.sh")")"
+eq "the reference regex: the shipped hook declares project-root, the near misses do not" "0 0 1 1 1 0 1 0" \
+  "$(printf '%s\n' "$HOOK_WANT" | cut -d= -f2 | tr '\n' ' ' | sed 's/ $//')"
+for cond in normal notemp50 notemp44; do
+  eq "$cond: installer helpers" "$HELPER_WANT" "$(helper_run "$INSTALLER" "$cond")"
+  eq "$cond: updater up_hook_declares_project_root agrees with the regex it replaces" "$HOOK_WANT" "$(hook_run "$cond")"
+done
+
+echo "# 5. differential fuzz against the bash builtins and grep / awk"
+fuzz_run() {
+  ( HELIX_INSTALLER_LIB_MODE=1 . "$1" >/dev/null 2>&1 || { echo "source=failed"; exit 0; }
+    local -a ch=(a b ' ' $'\t' '\' '*' '?' '[' ']' '$' "'" '"' '&' '/' '-' '!' '(' ')' '{' '}' '~' '#' '%' $'\r' 'é' x y)
+    local i j n s s2 m p bad=0 cnt=0 r g v1 v2 v3 v4 sep l
+    local -a arr=() ref=()
+    jn() { local IFS=$'\x1f'; printf '%s' "$*"; }
+    miss() { bad=$((bad + 1)); [ "$bad" -le 3 ] && printf 'mismatch %s: %q ref=%q got=%q\n' "$1" "$2" "$3" "$4"; }
+    rnd() { local k; s=""; for ((k = 0; k < $1; k++)); do s+="${ch[RANDOM % ${#ch[@]}]}"; done; }
+    RANDOM=20261113
+    for ((i = 0; i < 250; i++)); do
+      rnd $((RANDOM % 14)); s2="$s"
+      v1="" v2="" v3="" v4=""
+      IFS=$' \t\n' read -r v1 <<<"$s2"; r="$(jn "$v1")"; hi_read_fields "$s2" 1; g="$(jn "${HI_F[@]}")"
+      cnt=$((cnt + 1)); [ "$r" = "$g" ] || miss read1 "$s2" "$r" "$g"
+      IFS=$' \t\n' read -r v1 v2 <<<"$s2"; r="$(jn "$v1" "$v2")"; hi_read_fields "$s2" 2; g="$(jn "${HI_F[@]}")"
+      cnt=$((cnt + 1)); [ "$r" = "$g" ] || miss read2 "$s2" "$r" "$g"
+      IFS=$' \t\n' read -r v1 v2 v3 <<<"$s2"; r="$(jn "$v1" "$v2" "$v3")"; hi_read_fields "$s2" 3; g="$(jn "${HI_F[@]}")"
+      cnt=$((cnt + 1)); [ "$r" = "$g" ] || miss read3 "$s2" "$r" "$g"
+      IFS=$' \t\n' read -r v1 v2 v3 v4 <<<"$s2"; r="$(jn "$v1" "$v2" "$v3" "$v4")"; hi_read_fields "$s2" 4; g="$(jn "${HI_F[@]}")"
+      cnt=$((cnt + 1)); [ "$r" = "$g" ] || miss read4 "$s2" "$r" "$g"
+      rnd $((RANDOM % 6)); s2="$s2$nl$s"
+      for sep in '&' / $' \t\n'; do
+        ref=(); IFS="$sep" read -r -a ref <<<"$s2"; r="$(jn ${ref[@]+"${ref[@]}"})"
+        hi_split "$sep" "$s2"; g="$(jn ${HI_SPLIT[@]+"${HI_SPLIT[@]}"})"
+        cnt=$((cnt + 1)); [ "$r" = "$g" ] || miss "split[$sep]" "$s2" "$r" "$g"
+      done
+      m=""; for ((j = RANDOM % 5; j > 0; j--)); do rnd $((RANDOM % 5)); m+="$s$nl"; done; [ $((RANDOM % 2)) = 0 ] && m="${m%"$nl"}"
+      ref=(); while IFS= read -r l || [ -n "$l" ]; do [ -n "$l" ] && ref+=("$l"); done <<<"$m"
+      r="$(jn ${ref[@]+"${ref[@]}"})"; hi_split_lines "$m"; g="$(jn ${HI_LINES[@]+"${HI_LINES[@]}"})"
+      cnt=$((cnt + 1)); [ "$r" = "$g" ] || miss split_lines "$m" "$r" "$g"
+      rnd $((RANDOM % 4 + 1)); p="$s"; [ $((RANDOM % 3)) = 0 ] && m="$m$nl$p"
+      LC_ALL=C grep -qxF -- "$p" <<<"$m"; r=$?; hi_line_in "$p" "$m"; g=$?
+      cnt=$((cnt + 1)); [ "$r" = "$g" ] || miss line_in "$p|$m" "$r" "$g"
+      P="$p" LC_ALL=C awk 'index($0, ENVIRON["P"]) == 1 { f = 1 } END { exit !f }' <<<"$m"; r=$?; hi_has_line_prefix "$m" "$p"; g=$?
+      cnt=$((cnt + 1)); [ "$r" = "$g" ] || miss line_prefix "$p|$m" "$r" "$g"
+    done
+    echo "compared=$cnt mismatches=$bad" ) 2>&1
+}
+f1="$(fuzz_run "$INSTALLER")"
+eq "2500 comparisons, no mismatch" "compared=2500 mismatches=0" "$(printf '%s\n' "$f1" | tail -n 1)"
+[ "$(printf '%s\n' "$f1" | wc -l | tr -d ' ')" = 1 ] || printf '%s\n' "$f1" | head -n 3
+
+echo "# 6. ref names and urls with \$(...) and backticks are data"
+mk_hostile() { # sha → marks whose names carry command text
+  # shellcheck disable=SC2016  # literal command text, never meant to run
+  printf 'D 0 /p\nR 0 refs/remotes/origin/$(touch${IFS}%s/pwn1) %s 0\nR 0 refs/remotes/origin/`touch %s/pwn2` %s 0\nR 0 refs/remotes/origin/a]b %s 0\nR 0 refs/remotes/origin/* %s 0\nN 0 o$(touch${IFS}%s/pwn3)\nL 0 o`touch %s/pwn4` sha256sum:aa\nV 0 sha256sum:bb https://h.invalid/$(touch${IFS}%s/pwn5)\n' \
+    "$SB" "$1" "$SB" "$1" "$1" "$1" "$SB" "$SB" "$SB"
+}
+H1="$(mk_hostile "$sha")"; H2="${H1/"pwn1) $sha 0"/"pwn1) $sha2 0"}"
+for cond in normal notemp50; do
+  got="$( HELIX_INSTALLER_LIB_MODE=1 . "$INSTALLER" >/dev/null 2>&1; set -u -o pipefail; cond_on "$cond"
+    hi_push_changed "$H1" "$H1" >/dev/null 2>&1; a=$?; hi_push_changed "$H1" "$H2" >/dev/null 2>&1; echo "$a $?" )"
+  eq "$cond: unchanged marks with command text read as unchanged, a moved ref as moved" "1 0" "$got"
+done
+eq "no command text was run (no pwn file in the sandbox)" 0 "$(find "$SB" -maxdepth 1 -name 'pwn*' | wc -l | tr -d ' ')"
+
+echo "# 7. class (d): the CLI installer counts a link it cannot create"
+P1="$SB/proj_rw"; P2="$SB/proj_ro"; P3="$SB/proj_noglob"
+mkdir -p "$P1" "$P2/.claude/skills" "$P3"
+n_skills="$(find "$REPO/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')"
+o1="$(bash "$CLI" --project-root "$P1" --skills-only 2>&1)"; rc1=$?
+eq "writable: exit 0, every skill linked, none failed" "0 $n_skills 1" \
+  "$rc1 $(find "$P1/.claude/skills" -mindepth 1 -maxdepth 1 -type l | wc -l | tr -d ' ') $(has "$o1" ", 0 failed)")"
+o3="$(env SHELLOPTS=noglob bash "$CLI" --project-root "$P3" --skills-only 2>&1)"; rc3=$?
+eq "SHELLOPTS=noglob inherited: the same skills are linked (class b)" "0 $n_skills" \
+  "$rc3 $(find "$P3/.claude/skills" -mindepth 1 -maxdepth 1 -type l | wc -l | tr -d ' ')"
+if [ "$(id -u)" = 0 ]; then
+  echo "  SKIP read-only link case: running as root, a read-only directory does not stop root (reason: topology_unsupported)"
+else
+  chmod 555 "$P2/.claude/skills"
+  o2="$(bash "$CLI" --project-root "$P2" --skills-only 2>&1)"; rc2=$?
+  chmod 755 "$P2/.claude/skills"
+  eq "read-only .claude/skills: exit 1, every failure counted and warned, nothing linked" "1 $n_skills $n_skills 0" \
+    "$rc2 $(printf '%s\n' "$o2" | grep -c 'could not link') $(printf '%s' "$o2" | sed -n 's/.*, \([0-9]*\) failed).*/\1/p') $(find "$P2/.claude/skills" -mindepth 1 -maxdepth 1 -type l | wc -l | tr -d ' ')"
+fi
+
+echo "# 8. behavioural paired mutants (each must misread a case above)"
+mutate() { # source-file out-file old new → 0 when old occurs exactly once and was replaced
+  local src; src="$(cat "$1")"
+  local n=0 t="$src"
+  while [[ "$t" == *"$3"* ]]; do n=$((n + 1)); t="${t#*"$3"}"; done
+  [ "$n" = 1 ] || { nok "mutant anchor occurs once in $(rel "$1") (found $n): $3"; return 1; }
+  printf '%s\n' "${src/"$3"/"$4"}" >"$2"
+}
+Z_SITE="if hi_has_line_prefix \"\$b\$nl\$a\" 'Z '; then"
+# shellcheck disable=SC2016
+LOOP_SITE='hi_split_lines "$a"; al=(${HI_LINES[@]+"${HI_LINES[@]}"})'
+M="$SB/mut.sh"
+if mutate "$INSTALLER" "$M" "$Z_SITE" "if hi_has_line_prefix \"\$b\" 'Z '; then"; then
+  eq "mutant Z-reads-before-only: the after-only Z case misreads" "ctl=here-string-ok${nl}z_after=1 z=0 w=0" "$(push_run "$M" normal 200 z_after)"
+fi
+if mutate "$INSTALLER" "$M" "$Z_SITE" "if printf '%s\\n%s\\n' \"\$b\" \"\$a\" | grep -q '^Z '; then"; then
+  eq "mutant Z-pipe: a large before-only Z case misreads (SIGPIPE under pipefail)" "ctl=here-string-ok${nl}z_before=1 z=0 w=0" "$(push_run "$M" normal 2000 z_before)"
+  command -v python3 >/dev/null 2>&1 && eq "mutant Z-pipe: flagged by the static scan" 1 "$(scan "$M" | grep -c 'EARLY-READER')"
+fi
+if mutate "$INSTALLER" "$M" "$Z_SITE" "if grep -q '^Z ' <<<\"\$b\$nl\$a\"; then"; then
+  eq "mutant Z-here-string: the Z case misreads with no temporary file" "ctl=here-string-failed${nl}z_before=1 z=0 w=0" "$(push_run "$M" notemp50 2000 z_before)"
+  command -v python3 >/dev/null 2>&1 && eq "mutant Z-here-string: flagged by the static scan" 1 "$(scan "$M" | grep -c 'HERESTR')"
+fi
+if mutate "$INSTALLER" "$M" "$LOOP_SITE" 'al=(); while IFS= read -r line; do al+=("$line"); done <<<"$a"'; then
+  eq "mutant loop-here-string: unchanged marks read as a push with no temporary file" "ctl=here-string-failed${nl}same=0 z=0 w=0" "$(push_run "$M" notemp50 2000 same)"
+  command -v python3 >/dev/null 2>&1 && eq "mutant loop-here-string: flagged by the static scan" 1 "$(scan "$M" | grep -c 'HERESTR')"
+fi
+if mutate "$INSTALLER" "$M" '[ "${HI_SOURCED:-0}" = 1 ] || hi_reset_shell_state' ':'; then
+  n="$(hostile_check "$M" "")"
+  if [ "$n" -gt 0 ]; then ok "mutant no-reset: $n (flag, environment) pairs differ from a clean run"
+  else nok "mutant no-reset: no hostile environment changed the output (the class (b) case does not discriminate)"; fi
+fi
+finish

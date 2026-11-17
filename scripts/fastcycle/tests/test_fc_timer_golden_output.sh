@@ -110,6 +110,7 @@
 # ROUND-21 ARCHITECTURE note above section (d) below for the strict
 # 3-way rule that replaced the whole cascade.
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # T048 round 12 (R12-M2): FC_TIMER_GOLDEN_ROOT overrides the parent-repo-
 # root default (measured, not assumed, S11.4.6: the default is derived from
@@ -474,6 +475,14 @@ if [ "$TRIPLET_STATE" = none ]; then
   BASELINE_LOG="${FC_TIMER_GOLDEN_LOG:-}"
   if [ -z "$BASELINE_LOG" ] && [ -d "$EVIDENCE_DIR" ]; then
     BASELINE_LOG="$(find "$EVIDENCE_DIR" -maxdepth 1 -name 'prebuild_full_run_*.log' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n1 | cut -d' ' -f2-)"
+  fi
+  # CON-093: on canon alone (no override given, and the default CONSUMER evidence dir does not exist) there is no
+  # real log to check and no canon-runnable check: honest SKIP naming that effective path. An existing evidence
+  # dir without a log, or an explicit override that points nowhere, stays the FATAL below.
+  if [ -z "$BASELINE_LOG" ] && [ -z "${FC_TIMER_GOLDEN_ROOT:-}" ] && [ -z "${FC_TIMER_GOLDEN_EVIDENCE_DIR:-}" ] \
+     && [ -z "${FC_TIMER_GOLDEN_TRIPLET:-}" ] && [ ! -e "$EVIDENCE_DIR" ]; then
+    . "$HERE/lib/consumer_required.sh"
+    fc_require_consumer "$EVIDENCE_DIR"
   fi
   if [ -z "$BASELINE_LOG" ] || [ ! -f "$BASELINE_LOG" ]; then
     echo "FATAL: no real pre_build evidence log found (no triplet manifest, and no" \

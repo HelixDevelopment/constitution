@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+W="$1"; S="$W/tools/sentinel_run.sh"
+( bash "$S" "$W/red" "$W/ev/red" atl_git_dir git_dir scripts/gates/cm_agent_type_label.sh; bash "$S" "$W/red" "$W/ev/red" atl_git_index_file git_index_file scripts/gates/cm_agent_type_label.sh ) &
+( bash "$S" "$W/red" "$W/ev/red" arc_git_dir git_dir scripts/gates/cm_anchor_record_complete.sh; bash "$S" "$W/red" "$W/ev/red" arc_git_index_file git_index_file scripts/gates/cm_anchor_record_complete.sh; bash "$S" "$W/red" "$W/ev/red" arc_none none scripts/gates/cm_anchor_record_complete.sh ) &
+wait
+echo DONE

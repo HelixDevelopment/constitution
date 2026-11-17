@@ -79,9 +79,10 @@ set -euo pipefail
 # goes through jb__git, which drops the repository-locating variables in a subshell.
 # The list equals CL_GIT_SCRUB_VARS (scripts/lib/constitution_layout.sh);
 # tests/layout/test_round8_git_env.sh checks that.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 jb__git() {
     ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
-            GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE \
+            GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE \
             GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH \
             GIT_INTERNAL_SUPER_PREFIX 2>/dev/null; exec git "$@" )
 }
@@ -94,7 +95,7 @@ jb__git() {
 # go through the scrub too, so it cannot matter.
 jb__scrubbed() {
     env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_PREFIX -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY \
-        -u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_NAMESPACE -u GIT_CEILING_DIRECTORIES -u GIT_SHALLOW_FILE \
+        -u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_NAMESPACE -u GIT_SHALLOW_FILE \
         -u GIT_GRAFT_FILE -u GIT_REPLACE_REF_BASE -u GIT_NO_REPLACE_OBJECTS -u GIT_QUARANTINE_PATH \
         -u GIT_INTERNAL_SUPER_PREFIX "$@"
 }
@@ -386,7 +387,9 @@ tool_path() { # tool_path <tool> -> checkout path recorded in provenance ('' if 
 TIMED_OUT_NOTES=""
 run_bounded() {
   local t="$1" out="$2" rc=0; shift 2
-  if command -v timeout >/dev/null 2>&1; then timeout --kill-after=2 "$t" "$@" >"$out" 2>/dev/null </dev/null || rc=$?
+  # SIGTTIN/SIGTTOU ignored in the subshell only: uutils timeout does not ignore them itself and would be stopped with a
+  # tool that touches the terminal (its background process group), so the limit would never fire (CON-112 class)
+  if command -v timeout >/dev/null 2>&1; then (trap '' TTIN TTOU; exec timeout --kill-after=2 "$t" "$@" >"$out" 2>/dev/null </dev/null) || rc=$?
   else "$@" >"$out" 2>/dev/null </dev/null || rc=$?; fi
   if [ "$rc" = "124" ] || [ "$rc" = "137" ]; then
     TIMED_OUT_NOTES="${TIMED_OUT_NOTES:+$TIMED_OUT_NOTES; }$(basename "$1") $2 timed out after ${t}s"
@@ -397,7 +400,7 @@ run_bounded() {
 TOOL_TMO="${JEV_TOOL_TIMEOUT:-30}"; GATE_TMO="${JEV_GATE_TIMEOUT:-60}"
 run_gate() { # run_gate <script> <outfile> -> the gate's rc (124/137 = timeout); stdout+stderr to <outfile>
   local rc=0
-  if command -v timeout >/dev/null 2>&1; then timeout --kill-after=2 "$GATE_TMO" bash "$1" >"$2" 2>&1 </dev/null || rc=$?
+  if command -v timeout >/dev/null 2>&1; then (trap '' TTIN TTOU; exec timeout --kill-after=2 "$GATE_TMO" bash "$1" >"$2" 2>&1 </dev/null) || rc=$?
   else bash "$1" >"$2" 2>&1 </dev/null || rc=$?; fi
   return "$rc"
 }

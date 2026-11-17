@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (N1b)
+@@ -978,7 +978,7 @@
+     [ "$after" = "$new_head" ] || die 1 "main is not the vehicle head after the fast-forward"
+     log "step 5: main fast-forwarded to $new_head"
+   else
+-    if ! g merge --no-verify -q --no-ff --no-edit --no-verify-signatures --no-log --cleanup=strip -s ort \
++    if ! g merge --no-verify -q --no-ff --no-edit --no-verify-signatures --no-log --cleanup=strip \
+          -m "Merge vehicle $HEAD_SHA onto main" -m "Roadmap-Item: $id" "$new_head" 2>>"$ERRLOG"; then
+       g merge --abort 2>>"$ERRLOG" || true
+       die 3 "merge conflict integrating the vehicle; resolve by hand (merge, never rebase)"

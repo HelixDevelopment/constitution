@@ -1,0 +1,2 @@
+NOTE scripts/fastcycle/tests/test_consumer_enumerate_red.sh: original already fails sh -n (work/scripts/fastcycle/tests/test_consumer_enumerate_red.sh.orig_parse_probe: 244: Syntax error: "(" unexpected); parse-checked with bash -n
+INSERT scripts/fastcycle/tests/test_consumer_enumerate_red.sh:53 (sh)

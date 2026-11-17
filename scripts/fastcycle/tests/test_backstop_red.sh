@@ -71,6 +71,7 @@
 # =============================================================================
 set -u
 
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
 REPO_ROOT=$(cd "$FC/../../.." && pwd)
@@ -114,6 +115,10 @@ else
     echo "   phase (T001-T006) has not created it"
 fi
 
+# CON-093: the contracts needle reads consumer-project data (specs/ at the consumer root); in canon alone
+# only that section is skipped (fc_consumer_section) and the test ends with fc_consumer_exit (77 = passed
+# but skipped, never a PASS).
+. "$(dirname "$0")/lib/consumer_section.sh"
 CONTRACTS_DIR=$(cd "$REPO_ROOT/specs/004-fast-dev-cycles/contracts" 2>/dev/null && pwd)
 if [ -n "$CONTRACTS_DIR" ]; then
     if find "$CONTRACTS_DIR" -maxdepth 1 -iname '*backstop*' 2>/dev/null | grep -q .; then
@@ -140,7 +145,8 @@ if [ -n "$CONTRACTS_DIR" ]; then
         echo "   or the line changed) -- re-check whether a contract now"
         echo "   governs backstop.sh before trusting this file's invented CLI"
     fi
-else
+elif fc_consumer_section "contracts control needle" "specs/004-fast-dev-cycles/contracts"; then
+    # CON-093: the consumer path EXISTS but could not be entered -- a real failure, not a skip.
     bad "control needle FAILED: specs/004-fast-dev-cycles/contracts/ itself"
     echo "   could not be resolved -- cannot confirm the no-contract claim"
 fi
@@ -521,5 +527,4 @@ echo "  fixtures/backstop/README.md 'What this RED test does NOT cover'."
 
 echo
 echo "SUMMARY pass=$PASS fail=$FAIL"
-[ "$FAIL" -eq 0 ] && exit 0
-exit 1
+if [ "$FAIL" -eq 0 ]; then fc_consumer_exit 0; else fc_consumer_exit 1; fi

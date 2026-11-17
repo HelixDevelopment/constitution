@@ -1,0 +1,23 @@
+# GREEN: tests/release/test_render_release_entry.sh on the round-7 working tree (base 2765038f), 2026-11-12
+PASS exit 0
+PASS manual value
+PASS fact value
+PASS empty fact rendered as none
+PASS states block, ids listed
+PASS UNSET/UNSET not in states block
+PASS refs block
+PASS multi-line manual
+PASS leading comment dropped
+PASS no placeholder left
+PASS missing manual refused
+PASS TODO value refused
+PASS unused manual block refused
+PASS missing fact refused
+PASS usage exit 2
+PASS CON-231 every status/severity key rendered: exit 0
+PASS CON-231 a status/severity value the template does not render is refused
+PASS shipped template: 31 fact keys named (control: more than 10)
+PASS shipped template renders from synthetic facts
+SKIP shipped template renders from real facts: RRE_FACTS is not set to a facts file (run derive_release_facts.sh and set RRE_FACTS=<file> to run it)
+RESULT: pass=19 fail=0
+EXIT 0

@@ -1,0 +1,65 @@
+  ok   work clone carries Constitution.md
+  ok   work clone is on branch main
+  ok   bare repository HEAD is main
+--- layout constitution
+  ok   submodule add at constitution
+  ok   engine present in submodule
+  ok   doctor layout (constitution)
+  ok   doctor project root (constitution)
+  ok   bundled fixture visible (constitution)
+  ok   enable bundled (constitution)
+  ok   lock file at project/.constitution (constitution)
+  ok   foreign cwd refused (constitution)
+  ok   names --project-root (constitution)
+  ok   project untouched by foreign cwd (constitution)
+  ok   other project untouched (constitution)
+  ok   no .constitution in the other project (constitution)
+  ok   git add pinned (constitution)
+  ok   installed under _installed (constitution)
+  ok   no .git copied (constitution)
+  ok   exclude has _installed (constitution)
+  ok   submodule worktree clean (constitution)
+  ok   lock records git sha (constitution)
+  ok   lock records consent (constitution)
+  ok   hooks disabled by default (constitution)
+  ok   verify all (constitution)
+  ok   re-add same pin is idempotent (constitution)
+  ok   says already
+  ok   remove (constitution)
+  ok   tree gone (constitution)
+--- layout submodules/constitution
+  ok   submodule add at submodules/constitution
+  ok   engine present in submodule
+  ok   doctor layout (submodules/constitution)
+  ok   doctor project root (submodules/constitution)
+  ok   bundled fixture visible (submodules/constitution)
+  ok   enable bundled (submodules/constitution)
+  ok   lock file at project/.constitution (submodules/constitution)
+  ok   foreign cwd refused (submodules/constitution)
+  ok   names --project-root (submodules/constitution)
+  ok   project untouched by foreign cwd (submodules/constitution)
+  ok   other project untouched (submodules/constitution)
+  ok   no .constitution in the other project (submodules/constitution)
+  ok   git add pinned (submodules/constitution)
+  ok   installed under _installed (submodules/constitution)
+  ok   no .git copied (submodules/constitution)
+  ok   exclude has _installed (submodules/constitution)
+  ok   submodule worktree clean (submodules/constitution)
+  ok   lock records git sha (submodules/constitution)
+  ok   lock records consent (submodules/constitution)
+  ok   hooks disabled by default (submodules/constitution)
+  ok   verify all (submodules/constitution)
+  ok   re-add same pin is idempotent (submodules/constitution)
+  ok   says already
+  ok   remove (submodules/constitution)
+  ok   tree gone (submodules/constitution)
+  ok   unknown sha refused (5)
+  ok   unpinned git refused (3)
+  ok   mentions waiver
+  ok   unpinned with waiver accepted
+  ok   waiver recorded
+  ok   local dir pinned by sha256
+  ok   sha256 mismatch (5)
+  ok   nothing left after mismatch
+  ok   submodule still clean
+integration: PASS 62 FAIL 0

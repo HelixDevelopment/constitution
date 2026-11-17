@@ -1,4 +1,6 @@
 # constitution/scripts/anchors/tests/test_query_us2.py
+import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
+for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 import subprocess, tempfile, os, yaml
 from _paths import SRC, CANON  # noqa: E402
 
@@ -96,13 +98,15 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # "Classification: universal (§11.4.17)"): universal 194 -> 195 = +1. 195 + 110 + 2 mixed = 307.
         # Re-measured 2026-11-07 (§11.4.298 release gate per product added,
         # "Classification: universal (§11.4.17)"): universal 195 -> 196 = +1. 196 + 110 + 2 mixed = 308.
+        # Re-measured 2026-11-12: unstated 110 -> 111 = +1 for the §11.4.184(J) EXTENSION
+        # paragraph (no Classification line; universal stays 196).
         assert len(universal) == 196, (
             f"expected exactly 196 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )
-        assert len(unstated) == 110, (
-            f"expected exactly 110 anchors with no Classification line at all "
+        assert len(unstated) == 111, (
+            f"expected exactly 111 anchors with no Classification line at all "
             f"(independently re-measured against the real corpus), got {len(unstated)}"
         )
 

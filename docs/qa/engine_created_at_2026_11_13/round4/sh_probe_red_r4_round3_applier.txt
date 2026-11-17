@@ -1,0 +1,90 @@
+### dslash
+rc=3
+  | BLIND: row WIT-010: evidence path component is a symbolic link: /mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.5uwRs2/root/a/b
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./a
+  - ./a/b
+  - ./tgt_in
+tgt_in contents: 
+### dot
+rc=3
+  | mv: '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.pzDMPm/root/IiBd8d' and '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.pzDMPm/root/./IiBd8d' are the same file
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./IiBd8d
+### dirdot
+rc=3
+  | mv: '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.IvMlLd/root/evidence/pz9hkx' and '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.IvMlLd/root/evidence/./pz9hkx' ar
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./evidence
+  - ./evidence/pz9hkx
+### dirslash
+rc=3
+  | mv: '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.oKpfqM/root/evidence/.8LcVCE' and '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.oKpfqM/root/evidence/.8LcVCE' ar
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./evidence
+  - ./evidence/.8LcVCE
+### fileslash
+rc=3
+  | mktemp: failed to create file via template '/mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.TSeF9y/root/evidence/snap.db/.XXXXXX': No such file or directory
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./evidence
+### middot
+rc=0
+  | == WIT-010 -> WIT-010 (main): created_at := 2026-01-01 10:00:00 (evidence 5bf3e9f61369:docs/w.db, Opened row)
+  | restore-created-at: WIT-010 [Issues/section] created_at "2026-01-05 12:00:00" -> "2026-01-01 10:00:00" (attested-by=items-row:WIT-010, evidence-sha256=3bb2aa038ec86490faba1cf4df05a74a6eac67220d977
+  | RESULT: rows=1 refused=0 mode=apply
+created_at=2026-01-01 10:00:00
+files under root:
+  - ./evidence
+  - ./evidence/snap.db
+### leaddot
+rc=0
+  | == WIT-010 -> WIT-010 (main): created_at := 2026-01-01 10:00:00 (evidence 0650e66c0ec8:docs/w.db, Opened row)
+  | restore-created-at: WIT-010 [Issues/section] created_at "2026-01-05 12:00:00" -> "2026-01-01 10:00:00" (attested-by=items-row:WIT-010, evidence-sha256=d1b3f24930989ac77258c3e786b95ed250c874b81ca7c
+  | RESULT: rows=1 refused=0 mode=apply
+created_at=2026-01-01 10:00:00
+files under root:
+  - ./evidence
+  - ./evidence/snap.db
+### destdir
+rc=3
+  | sha256sum: /mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.gQc928/root/evidence/snap.db: Is a directory
+  | BLIND: evidence/snap.db sha256  is not the plan's bc93e80b60523e6b050dd09d421a61bd8d79a80c64bc0da56d46e17b869e37eb
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./evidence
+  - ./evidence/snap.db
+  - ./evidence/snap.db/snap.db.C1WzwB
+### dangle
+rc=3
+  | BLIND: row WIT-010: evidence path component is a symbolic link: /mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.R6XPfX/root/evidence/snap.db
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./evidence
+  - ./evidence/snap.db
+### dangledir
+rc=3
+  | BLIND: row WIT-010: evidence path component is a symbolic link: /mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.XZDALF/root/evidence
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./evidence
+### loop
+rc=3
+  | BLIND: row WIT-010: evidence path component is a symbolic link: /mnt/DATA1TB/claude-work/scratch/engine_r4.t3ZN7h/tmp/shprobe.IZQexq/root/evidence
+created_at=2026-01-05 12:00:00
+files under root:
+  - ./evidence
+### tslashes
+rc=0
+  | == WIT-010 -> WIT-010 (main): created_at := 2026-01-01 10:00:00 (evidence f844a5ab1f03:docs/w.db, Opened row)
+  | restore-created-at: WIT-010 [Issues/section] created_at "2026-01-05 12:00:00" -> "2026-01-01 10:00:00" (attested-by=items-row:WIT-010, evidence-sha256=b40c174b410ec1e2870a2a3ad1c1c6f0b003534070505
+  | RESULT: rows=1 refused=0 mode=apply
+created_at=2026-01-01 10:00:00
+files under root:
+  - ./evidence
+  - ./evidence/snap.db

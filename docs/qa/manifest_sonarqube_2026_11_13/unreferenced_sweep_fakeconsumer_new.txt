@@ -1,0 +1,2 @@
+REFUSE: mechanism_NEVER_OBSERVED_REFUSING — declared dispatcher constitution/scripts/gates/covenant_propagation_suite.sh is NOT referenced from any declared seam file, so the gates it dispatches are not seam-reachable through it; binding them via this rule would be a coverage bluff
+unref rc=2

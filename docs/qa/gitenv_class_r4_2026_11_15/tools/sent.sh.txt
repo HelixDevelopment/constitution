@@ -1,0 +1,45 @@
+#!/bin/bash
+# Reviewer sentinel harness (round-3 review of gitenv class).
+# usage: sent.sh <mode: none|gitdir|both> <timeout-s> <label> <cmd...>      (run from the repo root)
+# Builds a fresh sentinel repo S, optionally exports GIT_DIR=S/.git (and GIT_INDEX_FILE=S/.git/index for "both"),
+# puts a shim `git` first on PATH that logs every invocation that still sees a class variable pointing into S,
+# runs the command, and prints one line: label mode rc changed shim_hits.
+set -u
+for v in $(env | sed -n 's/^\(GIT_[A-Z_]*\)=.*/\1/p'); do unset "$v"; done
+mode=$1; to=$2; label=$3; shift 3
+: "${TMPDIR:?}"
+S=$(mktemp -d "$TMPDIR/sent.XXXXXX")
+REALGIT=/usr/bin/git
+mkdir -p "$S/shim"
+cat >"$S/shim/git" <<EOF
+#!/bin/bash
+for _n in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY; do
+  _val="\${!_n-}"
+  case "\$_val" in *"$S"*) printf '%s\t%s\t%s\t%s\n' "\$_n" "\$PWD" "\$*" "\$(tr '\\0' ' ' </proc/\$PPID/cmdline 2>/dev/null | cut -c1-200)" >>"$S/hits";; esac
+done
+exec $REALGIT "\$@"
+EOF
+chmod +x "$S/shim/git"
+$REALGIT init -q "$S/r"
+printf 'x\n' >"$S/r/f"
+$REALGIT -C "$S/r" add f
+$REALGIT -C "$S/r" -c user.name=s -c user.email=s@x commit -q -m base
+snap() { ( cd "$S/r" && $REALGIT for-each-ref; $REALGIT rev-parse HEAD; sha256sum .git/config .git/index; find .git/objects -type f | wc -l; $REALGIT stash list; ls .git/worktrees 2>/dev/null; ls .git/modules 2>/dev/null ) 2>&1 | sha256sum | cut -c1-16; }
+a=$(snap)
+export PATH="$S/shim:$PATH"
+case "$mode" in
+  none)   timeout -k 5 "$to" "$@" >"$S/out" 2>&1; rc=$? ;;
+  gitdir) GIT_DIR="$S/r/.git" timeout -k 5 "$to" "$@" >"$S/out" 2>&1; rc=$? ;;
+  both)   GIT_DIR="$S/r/.git" GIT_INDEX_FILE="$S/r/.git/index" timeout -k 5 "$to" "$@" >"$S/out" 2>&1; rc=$? ;;
+  *) echo "bad mode"; exit 64 ;;
+esac
+b=$(snap)
+hits=0; [ -f "$S/hits" ] && hits=$(wc -l <"$S/hits")
+ch=UNCHANGED; [ "$a" = "$b" ] || ch=CHANGED
+printf '%s\t%s\trc=%s\t%s\thits=%s\n' "$label" "$mode" "$rc" "$ch" "$hits"
+if [ -n "${SENT_KEEP:-}" ]; then
+  mkdir -p "$SENT_KEEP"; safe="${label//\//_}"
+  cp "$S/out" "$SENT_KEEP/$safe.$mode.out" 2>/dev/null
+  [ -f "$S/hits" ] && cp "$S/hits" "$SENT_KEEP/$safe.$mode.hits"
+fi
+case "$S" in "$TMPDIR"/sent.*) rm -rf -- "${S:?}" ;; esac

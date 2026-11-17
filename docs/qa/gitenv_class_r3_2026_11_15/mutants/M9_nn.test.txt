@@ -1,0 +1,62 @@
+ok   C1: census of this tree PASS, universe 1627, 513 members
+ok   C1b: all 489 files the independent query finds are census members
+ok   C1c: scripts/gates/cm_rule_binds_to_seam.sh is HERMETIC
+ok   C1c: scripts/gates/cm_rule_binds_to_seam_mutation_test.sh is HERMETIC
+ok   C1c: scripts/gates/cm_gitlink_on_remote_mutation_test.sh is HERMETIC
+ok   C1c: scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh is HERMETIC
+ok   C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh is HERMETIC
+ok   C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh is HERMETIC
+ok   C1c: scripts/fastcycle/cycle/fc_supervisor.py is HERMETIC
+ok   C1c: scripts/codegraph/scope_enumerate.js is HERMETIC
+ok   C2a: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2b: census exit 0, 'PASS'
+ok   C2c: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2d: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2e: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2f: census exit 0, 'PASS'
+ok   C2g: census exit 0, 'exempt=2'
+ok   C2g2: census exit 1, 'row no-git-execution, but a git write is detected'
+ok   C2h: census exit 1, 'stale row'
+ok   C2i: census exit 1, 'malformed'
+ok   C2j: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2j2: census exit 1, 'discovery limit'
+ok   C2k: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2l: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2m: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2m2: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2n: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2o: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2o2: census exit 0, 'PASS'
+ok   C2p: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2p2: census exit 1, 'no sourced-library row'
+ok   C2p3: census exit 0, 'PASS'
+ok   C2q: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2r: census exit 0, 'PASS'
+ok   C2s: census exit 0, 'PASS'
+ok   C2s2: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2t: census exit 0, 'PASS'
+ok   C2u: census exit 1, 'no file-level scrub'
+ok   C2v: census exit 1, 'is not effective'
+ok   C2w: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2x: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2x2: census exit 1, 'row no-git-execution, but a git write is detected'
+ok   C2y: census exit 1, 'row sourced-library, but'
+ok   C2z: census exit 1, 'row no-git-execution, but a git write is detected'
+ok   C2aa: census exit 1, 'row no-git-execution, but a git write is detected'
+FAIL C2ab: census exit 0 (want 1 and 'no row in the exemption list'): git-env-class-census: control needles seen (80 samples) git-env-class-census: PASS - members=1 hermetic=0 exempt=1 unscrubbed=0 
+ok   C2ac: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2ac2: census exit 0, 'PASS'
+ok   C2ad: census exit 0, 'PASS'
+ok   C2ad2: census exit 1, 'UNSCRUBBED scripts/z.js'
+ok   C2ae: census exit 0, 'PASS'
+ok   C2ae2: census exit 1, 'needs its own row'
+ok   C2ae3: census exit 1, 'prefix row'
+ok   C2af: census exit 0, 'PASS'
+ok   C2af2: census exit 1, 'no list-operating clear'
+ok   C2ah: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2ai: census exit 1, 'UNSCRUBBED scripts/z.js'
+ok   C2ai2: census exit 1, 'UNSCRUBBED scripts/z.js'
+ok   C2ag: census exit 0, 'members=1 '
+ok   C3: census exit 2, 'BLIND'
+ok   C3b: census exit 2, 'holds the discovery limit GIT_CEILING_DIRECTORIES'
+[git-env-class] passed=60 failed=1 skipped=0 (census cases only)

@@ -1,0 +1,44 @@
+# agents (real host detection vs independent oracle)
+  ok   --detect-agents exit 0
+  ok   --detect-agents output is JSON
+  ok   claude installed flag matches command -v
+  ok   claude path matches command -v
+  ok   claude version [2.1.325 (Claude Code)] is a substring of the real --version output
+  ok   claude tier
+  ok   kimi installed flag matches command -v
+  ok   kimi path matches command -v
+  ok   kimi version [2.5.3] is a substring of the real --version output
+  ok   kimi tier
+  ok   opencode installed flag matches command -v
+  ok   opencode path matches command -v
+  ok   opencode version [opencode v2.2.0] is a substring of the real --version output
+  ok   opencode tier
+  ok   pi installed flag matches command -v
+  ok   pi path matches command -v
+  ok   pi version [1.3.0] is a substring of the real --version output
+  ok   pi tier
+  ok   aider installed flag matches command -v
+  ok   aider path matches command -v
+  ok   aider version [aider 0.86.2] is a substring of the real --version output
+  ok   aider tier
+  ok   codex installed flag matches command -v
+  ok   codex tier
+  ok   gemini installed flag matches command -v
+  ok   gemini tier
+  ok   qwen installed flag matches command -v
+  ok   qwen tier
+  ok   cursor-agent installed flag matches command -v
+  ok   cursor-agent tier
+  ok   amp installed flag matches command -v
+  ok   amp tier
+  ok   goose installed flag matches command -v
+  ok   goose tier
+  ok   native aliases match claude-list-accounts
+  ok   detection made no file in the sandbox cwd
+# layout detection
+  ok   no constitution -> none
+  ok   submodules/constitution -> standard
+  ok   ./constitution -> legacy
+  ok   both -> both
+  ok   plain directory (not a registered submodule) -> partial
+detection: PASS 41 FAIL 0

@@ -1,0 +1,89 @@
+# head 34bbeb4e7a0ada77ed5d354d432e9716fdf4bcd3 + working tree; 2026-11-11T17:44:59Z
+PASS K1 plain text untouched
+PASS K2 URL without userinfo or credential parameter untouched
+PASS K3 scp-style git@host:path untouched
+PASS K4 mail address untouched
+PASS K5 non-credential query parameter untouched
+PASS U1 basic userinfo
+PASS U2 raw '/' in the password (git 2.53 prints it verbatim)
+PASS U3 raw '@' in the password
+PASS U4 raw space in the password
+PASS U5 raw '?' and '#' in the password
+PASS U6 raw quote in the password
+PASS U7 percent-encoded password
+PASS U8 two URLs on one line
+PASS U9 colon in the user part
+PASS U10 userinfo longer than 64 bytes (300)
+PASS U11 ssh:// scheme
+PASS U12 git:// scheme
+PASS U13 ftp:// scheme
+PASS U14 svn+ssh:// scheme
+PASS U15 http:// scheme
+PASS U16 upper-case scheme
+PASS U17 user only, no password
+PASS U18 scheme-less user:password@host:path
+PASS U19 the host part is kept
+PASS U20 a path '@' after :// is over-redacted (by design: detail lost, never a secret)
+PASS Q-access_token query value
+PASS Q-token query value
+PASS Q-private_token query value
+PASS Q-private-token query value
+PASS Q-key query value
+PASS Q-api_key query value
+PASS Q-apikey query value
+PASS Q-password query value
+PASS Q-passwd query value
+PASS Q-pwd query value
+PASS Q-secret query value
+PASS Q-client_secret query value
+PASS Q-sig query value
+PASS Q-signature query value
+PASS Q-auth query value
+PASS Q-X-Amz-Signature query value
+PASS Q-X-Amz-Credential query value
+PASS Q-X-Amz-Security-Token query value
+PASS Q-refresh_token query value
+PASS Q-id_token query value
+PASS Q-session query value
+PASS Q-jwt query value
+PASS Q-upper Access_Token
+PASS Q-first parameter
+PASS Q-form outside a URL
+PASS Q-fragment value
+PASS Q-other parameters kept
+PASS Q-two credential parameters on one line
+PASS Q-two URLs each with a credential parameter
+PASS A1 Authorization: Basic
+PASS A2 Authorization: Bearer
+PASS A3 authorization lower case
+PASS A4 PRIVATE-TOKEN header
+PASS A5 X-Gitlab-Token header
+PASS A6 X-Api-Key header
+PASS A7 Cookie header
+PASS A8 Proxy-Authorization header
+PASS A9 bare Bearer token in prose
+PASS T1 GitHub classic token
+PASS T2 GitHub fine-grained token
+PASS T3 GitLab token
+PASS L1 invalid UTF-8 byte under a UTF-8 caller locale
+PASS L2 NUL byte in the password
+PASS L3 several lines each redacted
+PASS L4 CRLF line end
+PASS C1 redact first, then cut
+PASS C2 budget is exact
+PASS C3 '@' near the cut at offset 1990
+PASS C3 '@' near the cut at offset 1995
+PASS C3 '@' near the cut at offset 1998
+PASS C3 '@' near the cut at offset 2000
+PASS C3 '@' near the cut at offset 2003
+PASS C4 a 100000-byte line is processed within 20 s
+PASS C5 secret at the end of a 100000-byte line
+PASS C6 a truncated flush says so
+PASS C7 an untruncated flush has no marker
+PASS C8 empty input prints nothing
+PASS C9 a missing byte count is refused
+PASS C10 a non-numeric byte count is refused
+PASS C11 the byte budget holds under a UTF-8 caller locale
+PASS C12 NUL bytes are dropped from the output
+RESULT: pass=86 fail=0
+exit=0

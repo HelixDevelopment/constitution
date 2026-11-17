@@ -36,14 +36,16 @@
 # ok()/bad() are print-only reporters that always return 0, so `cond && ok .. || bad ..` never
 # mis-fires the || branch.
 # shellcheck disable=SC2015  # ok()/bad() are print-only reporters that always return 0, so `cond && ok || bad` never mis-fires the || branch
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
 REAL_COMMIT_ALL="${FC_COMMIT_STAGE_COMMIT_ALL:-$ROOT/scripts/commit_all.sh}"
 REAL_COMMON="$ROOT/scripts/lib/common.sh"
 REAL_PUSH_ALL="$ROOT/scripts/push_all.sh"
-REAL_FC_TIMER="$ROOT/constitution/scripts/fastcycle/timing/fc_timer.sh"
+REAL_FC_TIMER="$FC_CANON_ROOT/scripts/fastcycle/timing/fc_timer.sh"
 # consumer-data guard on the EFFECTIVE inputs this run reads (after env overrides; review F2)
 . "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$REAL_COMMIT_ALL" "$REAL_COMMON" "$REAL_PUSH_ALL"
 

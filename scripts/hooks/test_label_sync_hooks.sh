@@ -40,6 +40,7 @@
 # Cross-refs: §11.4.182, §11.4.208, §11.4.228, §11.4.164, §1.1, §11.4.201,
 #           docs/label-sync/HOOKS.md, scripts/gates/cm_label_sync_hooks.sh.
 # Classification: universal (§11.4.17).
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -107,14 +108,23 @@ export CLAUDE_CONFIG_DIR="$CFG1"
 
 OUT=""; RC=0; MS=0
 CPUMS=0
+# CPU time comes from two snapshots of the `times` builtin (user+sys of this shell and of its waited-for
+# children: the getrusage figures the `time` reserved word reports). Never the `time` reserved word: some
+# distribution builds of bash have none (ALT Linux bash 4.4/5.2: `compgen -k` lacks it), and there
+# `{ time { ...; } ; }` parses `time` as /usr/bin/time and closes this function early.
+cpu_ms_delta() { # times-before times-after -> integer ms of user+sys between the two snapshots
+  awk 'function sec(x,  m) { gsub(",", ".", x); m = x; sub(/m.*/, "", m); sub(/^[0-9]+m/, "", x); sub(/s$/, "", x); return m * 60 + x }
+       FNR == NR { for (i = 1; i <= NF; i++) a += sec($i); next }
+       { for (i = 1; i <= NF; i++) b += sec($i) }
+       END { d = (b - a) * 1000; printf "%d", (d < 0 ? 0 : d + 0.5) }' "$1" "$2" 2>/dev/null || echo 0
+}
 run_hook() { # script json [env assignments...]  -> OUT RC MS (wall) CPUMS (user+sys)
   local s="$1" j="$2"; shift 2
-  local t0 t1 u sy TIMEFORMAT='%3U %3S'
-  t0=$(date +%s%N)
-  { time { OUT="$(printf '%s' "$j" | env "$@" bash "$HK/$s" 2>"$T/hook.err")"; RC=$?; } ; } 2>"$T/hook.time"
-  t1=$(date +%s%N); MS=$(( (t1 - t0) / 1000000 ))
-  read -r u sy <"$T/hook.time" 2>/dev/null || { u=0; sy=0; }
-  CPUMS=$(awk -v a="${u:-0}" -v b="${sy:-0}" 'BEGIN{printf "%d", (a+b)*1000}')
+  local t0 t1
+  t0=$(date +%s%N); times >"$T/hook.t0"
+  OUT="$(printf '%s' "$j" | env "$@" bash "$HK/$s" 2>"$T/hook.err")"; RC=$?
+  times >"$T/hook.t1"; t1=$(date +%s%N); MS=$(( (t1 - t0) / 1000000 ))
+  CPUMS=$(cpu_ms_delta "$T/hook.t0" "$T/hook.t1")
 }
 j() { # event extra-json-object
   jq -nc --arg sid "$SID" --arg cwd "$PROJ" --arg ev "$1" --argjson x "${2:-{\}}" \
@@ -393,7 +403,8 @@ for k in "${!LAT[@]}"; do
   esac
 done
 # unit cases for the decision rule + the loadavg override guard (injected files, no wall-clock dependence)
-LA="$T/loadavg_inj"; printf '9.00 8.00 7.00 1/100 1\n' >"$LA"
+# the "loaded" fixture scales with the core count (9.00 per core): a fixed 9.00 is not above 0.25/core on a host with 36+ cores
+LA="$T/loadavg_inj"; LA_HI="$(( $(nproc 2>/dev/null || echo 1) * 9 )).00"; printf '%s 8.00 7.00 1/100 1\n' "$LA_HI" >"$LA"
 eq "latency rule: slow + loaded => SKIP" "$(lat_decide 170 100 150 1 '')" SKIP
 eq "latency rule: slow + not loaded + no contention => strict FAIL" "$(lat_decide 170 100 150 0 '')" FAIL
 eq "latency rule: slow + not loaded + CPU contention + cpu under bound => CPU_PASS" "$(lat_decide 170 100 150 0 1)" CPU_PASS
@@ -401,13 +412,20 @@ eq "latency rule: slow wall + CPU median over the bound + loaded => FAIL (genuin
 eq "latency rule: slow wall + CPU median over the bound + contended => FAIL" "$(lat_decide 400 390 150 0 1)" FAIL
 eq "latency rule: fast => PASS even when loaded" "$(lat_decide 120 90 150 1 '')" PASS
 r="$(LS_LOADAVG_FILE="$LA" HELIX_TEST_MODE=1 host_load_per_core)"; set -- $r
-eq "injected loadavg 9.00 honoured (HELIX_TEST_MODE=1, temp path) => loaded flag" "$3" 1
+eq "injected loadavg $LA_HI (9.00 per core) honoured (HELIX_TEST_MODE=1, temp path) => loaded flag" "$3" 1
 printf '0.01 0.01 0.01 1/100 1\n' >"$LA"
 r="$(LS_LOADAVG_FILE="$LA" HELIX_TEST_MODE=1 host_load_per_core)"; set -- $r
 eq "injected loadavg 0.01 => not loaded flag" "$3" 0
 printf '9999.00 8.00 7.00 1/100 1\n' >"$LA"
 eq "injected loadavg IGNORED without HELIX_TEST_MODE=1 (reads /proc/loadavg)" "$(LS_LOADAVG_FILE="$LA" loadavg_src 2>/dev/null)" /proc/loadavg
 eq "injected loadavg IGNORED outside the temp root" "$(LS_LOADAVG_FILE=/etc/hostname HELIX_TEST_MODE=1 loadavg_src 2>/dev/null)" /proc/loadavg
+# run_hook's CPU figure is real: a single-threaded busy child (awk loop, about 0.1-0.5 s of CPU) through run_hook
+# reads CPUMS >= 30 and not above its own wall time (+20 ms rounding); a measure stuck at 0 or one that misses the
+# children's time fails here, not silently in the load-aware rule above.
+mkdir -p "$T/cpuprobe"; printf '%s\n' 'cat >/dev/null; awk '"'"'BEGIN { for (i = 0; i < 4000000; i++) s += i; if (s < 0) print s }'"'" >"$T/cpuprobe/burn.sh"
+HK="$T/cpuprobe" run_hook burn.sh '{}'
+check "run_hook CPU time measured: busy child CPUMS=$CPUMS ms (>= 30), wall MS=$MS ms" test "$CPUMS" -ge 30
+check "run_hook CPU time not above wall time: CPUMS=$CPUMS <= MS=$MS + 20" test "$CPUMS" -le "$((MS + 20))"
 
 # =========================================================================
 echo "== 9. toolkit wrapper (cma_label_hook.sh) =="

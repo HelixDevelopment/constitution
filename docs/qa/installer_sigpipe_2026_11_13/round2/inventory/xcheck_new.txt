@@ -1,0 +1,7 @@
+scripts/install_constitution.sh          shenum= 74 sigscan= 74 rc=0 SAME
+scripts/update_constitution.sh           shenum= 23 sigscan= 23 rc=0 SAME
+scripts/install_cli_agent_plugins.sh     shenum=  8 sigscan=  8 rc=0 SAME
+scripts/install_action_prefix.sh         shenum=  3 sigscan=  3 rc=0 SAME
+scripts/portable_symlink_lib.sh          shenum=  0 sigscan=  0 rc=0 SAME
+scripts/lib/constitution_layout.sh       shenum=  3 sigscan=  3 rc=0 SAME
+XCHECK PASS

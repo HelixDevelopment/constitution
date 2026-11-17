@@ -1,0 +1,21 @@
+# 1. static class scan (control needles first)
+  ok   needle: the scanner flags the four violation shapes and nothing else (lines 1, 3, 4, 6)
+  ok   no pipe into grep -q in scripts/install_constitution.sh
+  ok   needle: a violation appended to scripts/install_constitution.sh is found
+  ok   no pipe into grep -q in scripts/update_constitution.sh
+  ok   needle: a violation appended to scripts/update_constitution.sh is found
+  ok   no pipe into grep -q in scripts/install_cli_agent_plugins.sh
+  ok   needle: a violation appended to scripts/install_cli_agent_plugins.sh is found
+  ok   no pipe into grep -q in scripts/install_action_prefix.sh
+  ok   needle: a violation appended to scripts/install_action_prefix.sh is found
+# 2. hi_push_changed on the real installer (3 runs, identical)
+  ok   run 1: no push read as no push (R L N), Z fails closed, small marks unchanged, a moved ref is seen
+  ok   runs 1, 2 and 3 identical
+# 3. paired mutant: the membership tests put back into the pipe form
+  ok   mutant: all four membership tests found and reverted
+  ok   mutant misreads (the cases discriminate): R=0 L=0 N=0 Z=1 z_err=0 small=1 moved=0
+  ok   mutant: R case reads the unchanged marks as a push
+  ok   mutant: Z case misses its fail-closed error
+  ok   mutant: static scan flags the four reverted lines
+sigpipe: PASS 16 FAIL 0
+rc=0

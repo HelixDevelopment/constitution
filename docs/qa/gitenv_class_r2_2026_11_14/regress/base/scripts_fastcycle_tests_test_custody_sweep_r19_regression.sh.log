@@ -1,0 +1,65 @@
+=== R19 regression guard: control needle -- tool + libs exist, git/python/mkfifo usable ===
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py not found
+NOT ok control needle: <scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py not found
+
+=== IMPORTANT a symlinked admin refs/ subdirectory hides a commit anchored only through it ===
+ok S1 evidence: refs/worktree is a real symlink, and git sees refs/worktree/saved (through it) anchoring 5265f003b2457e765e5e1a061b81e0999c0c2954
+NOT ok S1 symlinked admin refs/ subdirectory: expected REFUSED, got NO_DOC ([Errno 2] No such file or directory: '<tmp>/tmp.BvrmBd8aVw/out.2721199.18244.json')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR19_1_dir_symlink_check_removed: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.BvrmBd8aVw/mut_MR19_1_dir_symlink_check_removed/orchestration/custody_sweep.py')
+
+=== evidence: performing the destructive action really loses the data (same shape as the r15 B3 fix) ===
+ok S1 control: with the worktree STILL present, 'gc --prune=now' run FROM THE WORKTREE leaves 5265f003b2457e765e5e1a061b81e0999c0c2954 intact
+ok S1 loss proven: commit 5265f003b2457e765e5e1a061b81e0999c0c2954 gone after 'worktree remove --force' (deletes the SYMLINK, not its target) + gc (control above shows this is removal itself, not the gc's invocation context)
+
+=== minor sibling: a FIFO under admin refs/ is refused instantly, never blocks on open() ===
+NOT ok F1 expected a non-hang (rc!=124) REFUSED in <5s naming non-regular, got rc=2 verdict=NO_DOC elapsed=0s ([Errno 2] No such file or directory: '<tmp>/tmp.BvrmBd8aVw/out.2721199.4090.json')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR19_2_nonregular_check_removed: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.BvrmBd8aVw/mut_MR19_2_nonregular_check_removed/orchestration/custody_sweep.py')
+
+=== MINOR-A (unit level): _group_has_survivor excludes zombie members of the process group ===
+NOT ok unit expected Z1=False; got: Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok unit expected Z2=True; got: Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+NOT ok unit expected Z3=False; got: Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 892, in get_code
+  File "<frozen importlib._bootstrap_external>", line 950, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py'
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR19_3_zombie_exclusion_removed: anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.BvrmBd8aVw/mut_MR19_3_zombie_exclusion_removed/orchestration/custody_sweep.py')
+
+=== MINOR-A (CLI level): a setsid-escaped clean-filter parent holding the tool's pipe is correctly bounded, not mistaken for a real survivor by its own killed-and-zombied in-group child ===
+NOT ok Z1 expected a bounded (<12s) REFUSED, got rc=2 verdict=NO_DOC elapsed=0s ([Errno 2] No such file or directory: '<tmp>/tmp.BvrmBd8aVw/out.2721199.16135.json')
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/orchestration/custody_sweep.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_common.py': No such file or directory
+cp: cannot stat '<scratch>/mutwt/constitution/scripts/fastcycle/lib/fc_entry.py': No such file or directory
+NOT ok mutation MR19_3_zombie_exclusion_removed (CLI): anchor not found (Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '<tmp>/tmp.BvrmBd8aVw/mut_MR19_3_zombie_exclusion_removed/orchestration/custody_sweep.py')
+
+summary: 3 check(s) passed
+=== R19 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===

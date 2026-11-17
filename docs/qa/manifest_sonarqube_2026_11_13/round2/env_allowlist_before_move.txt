@@ -1,0 +1,3 @@
+# run: rc=1 wall=11s load_start=103.17 load_end=101.95 cmd=bash scripts/gates/cm_gate_env_reads_allowlisted.sh
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_full_suite_manifest_complete.sh:180 TMP (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=195 reads=172 guarded=54 allowlisted=117 uncovered=1 stale=0 needle=ok

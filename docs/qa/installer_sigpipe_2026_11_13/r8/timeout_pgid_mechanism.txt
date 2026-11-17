@@ -1,0 +1,11 @@
+timeout (uutils coreutils) 0.10.0   (host /usr/bin/timeout, 2026-11-13)
+command: setsid bash -c 'timeout 20 sleep 19.732 & wait' &  ; then kill -TERM -- -<bash pgid>
+before:
+1253603 1253603 bash -c timeout 20 sleep 19.732 & wait
+1253628 1253628 timeout 20 sleep 19.732
+1253673 1253628 sleep 19.732
+after TERM to group 1253603 (+0.5 s):
+1253628 1253628 timeout 20 sleep 19.732
+1253673 1253628 sleep 19.732
+=> timeout puts itself and its child in a NEW process group; a signal to the caller's group does not reach them.
+   (leftovers terminated by pid after cmdline check)

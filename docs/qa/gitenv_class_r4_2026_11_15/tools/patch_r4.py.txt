@@ -1,0 +1,254 @@
+#!/usr/bin/env python3
+"""patch_r4.py <census.py>: replace names_all/list_clear with the round-4 forms (R4-5), add the heredoc/quote
+neutraliser, the unwrapped-git-call finder (R4-2), the entry-function check (R4-4), the anchored preamble (R4-3),
+the quoted-word git detector and the subject-follows-caller reason (R4-7)."""
+import sys
+
+p = sys.argv[1]
+t = open(p, encoding="utf-8").read()
+
+a = t.index("def names_all(text, canon):")
+b = t.index("def block_scrubs(body, canon):")
+NEW = r'''def names_all(text, canon):
+    """Every variable of the list is named in the text outside heredoc bodies (round 4, R4-5)."""
+    hd = heredoc_blank(text)
+    return all(re.search(r"\b" + v + r"\b", hd) for v in canon)
+
+
+HEREDOC_RE = re.compile(r"""(?<![<\w])<<(?!<)(-?)\s*(["']?)([A-Za-z_]\w*)\2""")
+
+
+def heredoc_blank(text):
+    """The text with every heredoc body replaced by blank lines (same numbering): a heredoc is data for the shell
+    that reads it, so a scrub written there clears nothing (round 4, R4-5)."""
+    out = []
+    pending = []
+    for line in text.split("\n"):
+        if pending:
+            word, dash = pending[0]
+            out.append("")
+            if (line.lstrip("\t") if dash else line) == word:
+                pending.pop(0)
+            continue
+        out.append(line)
+        for m in HEREDOC_RE.finditer(strip_sh_comment(line)):
+            pending.append((m.group(3), m.group(1) == "-"))
+    return "\n".join(out)
+
+
+KEEP_QUOTED = re.compile(r"^(?:[A-Za-z_]\w*|\$[A-Za-z_]\w*|\$\{[A-Za-z_]\w*(?:\[[@*]\])?\})$")
+
+
+def quote_blank(text):
+    """The text with the content of every quoted string replaced by `x` (newlines kept), except a string that is one
+    bare name or one expansion ("$_v", "${arr[@]}", "GIT_DIR"): text inside a string is a payload, not a statement
+    (round 4, R4-5)."""
+    out = []
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c == "\\" and i + 1 < n:
+            out.append(text[i:i + 2])
+            i += 2
+            continue
+        if c == "#" and (i == 0 or text[i - 1] in " \t\n;&|("):
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            out.append(" " * (j - i))
+            i = j
+            continue
+        if c in "'\"":
+            j = i + 1
+            while j < n and text[j] != c:
+                if c == '"' and text[j] == "\\":
+                    j += 1
+                j += 1
+            body = text[i + 1:j]
+            if KEEP_QUOTED.match(body):
+                out.append(c + body + c)
+            else:
+                out.append(c + "".join("\n" if ch == "\n" else "x" for ch in body) + c)
+            i = j + 1
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+UNSET_AT_CMD = re.compile(r"(?:^|[;&|({]|\bthen\b|\bdo\b|\belse\b)[ \t]*unset[ \t]+(?:-v[ \t]+)?(?:--[ \t]+)?([^;&|\n]*)", re.M)
+FOR_IN = re.compile(r"(?:^|[;&|({]|\bthen\b|\bdo\b|\belse\b)[ \t]*for[ \t]+([A-Za-z_]\w*)[ \t]+in[ \t]+([^;\n]*?)[ \t]*(?:;|\n)[ \t\n]*do\b", re.M)
+
+
+def loop_words(words, hd):
+    """The names a `for V in <words>` list expands to, resolving "${ARR[@]}" and "$V" against array and string
+    assignments of the same text (heredoc bodies excluded); None when a word cannot be resolved."""
+    names = set()
+    for w in words.split():
+        w = w.strip("\"'")
+        m = re.match(r"^\$\{([A-Za-z_]\w*)\[[@*]\]\}$", w)
+        if m:
+            am = None
+            for am in re.finditer(r"(?:^|[\s;&|(])(?:local\s+|declare\s+-a\s+|readonly\s+)?" + re.escape(m.group(1)) + r"=\(([^)]*)\)", hd):
+                pass
+            if am is None:
+                return None
+            names.update(x.strip("\"'") for x in am.group(1).split())
+            continue
+        m = re.match(r"^\$\{?([A-Za-z_]\w*)\}?$", w)
+        if m:
+            vm = None
+            for vm in re.finditer(r"(?:^|[\s;&|(])(?:local\s+|readonly\s+|export\s+)?" + re.escape(m.group(1)) + r"=([\"']?)([^\"'\n]*)\1", hd):
+                pass
+            if vm is None:
+                return None
+            names.update(vm.group(2).split())
+            continue
+        if re.match(r"^[A-Za-z_]\w*$", w):
+            names.add(w)
+            continue
+        return None
+    return names
+
+
+def list_clear_at(text, canon):
+    """Line number (1-based) of the first statement that clears exactly the list, or 0: an `unset` at command
+    position naming every variable, or a `for V in <list>` loop whose list expands to every variable and whose body
+    runs `unset "$V"`. Heredoc bodies, comments and string payloads never count (round 4, R4-5: an unset loop over
+    another list, or an `unset LIST` inside a heredoc, is a carrier)."""
+    hd = heredoc_blank(text)
+    nq = quote_blank(hd)
+    joined = re.sub(r"\\\n", "  ", nq)
+    hits = []
+    for m in UNSET_AT_CMD.finditer(joined):
+        if all(re.search(r"(?<![\w$])" + v + r"\b", m.group(1)) for v in canon):
+            hits.append(m.start(1))
+    for m in FOR_IN.finditer(joined):
+        var = m.group(1)
+        names = loop_words(m.group(2), hd)
+        if names is None or not set(canon) <= names:
+            continue
+        tail = joined[m.end():m.end() + 4000]
+        dm = re.search(r"\bdone\b", tail)
+        body = tail[:dm.start()] if dm else tail
+        if re.search(r"""(?:^|[;&|({]|\bthen\b|\bdo\b|\belse\b)?[ \t]*\bunset[ \t]+(?:-v[ \t]+)?(?:--[ \t]+)?["']?\$\{?""" + re.escape(var) + r"""\b""", body):
+            hits.append(m.start(1))
+    if not hits:
+        return 0
+    return joined[:min(hits)].count("\n") + 1
+
+
+def list_clear(text, canon):
+    """True iff the text holds a statement that clears exactly the list (see list_clear_at)."""
+    return list_clear_at(text, canon) > 0
+
+
+SOURCE_RE = re.compile(r"(?:^|[\s;&|(])(?:\.|source)\s+[\"'$\w/~.{]", re.M)
+SH_GITCALL = re.compile(r"(?:(?<![\w./$-])[\"']?(?:/(?:[\w.-]+/)*)?git\b[\"']?|\$\{\w+:-(?:/(?:[\w.-]+/)*)?git\})" + r"(?:\s+(?:-C\s+\S+|-c\s+\S+|--[\w-]+(?:=\S+)?))*" + r"\s+[A-Za-z-]")
+
+
+def unwrapped_git_calls(text, canon):
+    """[(line, src)] of shell lines that run git (any subcommand, read or write) outside a function whose body
+    scrubs (a scrubbing wrapper or a function with its own clear): the calls a sourcing caller's environment
+    reaches (round 4, R4-2)."""
+    code = code_lines("sh", heredoc_blank(text))
+    gv = git_vars(code)
+    wraps, funcs = wrappers(code, canon, gv)
+    covered = [(s, e) for name, (s, e, body) in funcs.items() if wraps.get(name) or block_scrubs(body, canon)]
+    vre = None
+    if gv:
+        vre = re.compile(r"""["']?\$\{?(?:""" + "|".join(re.escape(v) for v in sorted(gv)) + r""")(?:\[[@*]\])?\}?["']?\s+[A-Za-z-]""")
+    out = []
+    for i, line in enumerate(code, 1):
+        if not line.strip() or any(s <= i <= e for s, e in covered):
+            continue
+        if SH_GITCALL.search(line) or (vre is not None and vre.search(line)):
+            out.append((i, line.strip()))
+    return out
+
+
+ENTRY_CALL = re.compile(r'^\s*(?:exec\s+)?([A-Za-z_]\w*)(?:\s+"\$@")?\s*(?:;\s*)?(?:exit\s+\$\?\s*)?$')
+
+
+def entry_function_problem(text, canon):
+    """None when the file runs only through one entry function that clears the list before its first git use, else
+    the reason (round 4, R4-4): the top level (every function body blanked) must not mention git or source a file;
+    the last top-level statement calls the entry function; every other function called at top level must not
+    mention git; inside the entry function no line before the clear mentions git or calls a function that does."""
+    code = code_lines("sh", text)
+    funcs = sh_functions(code)
+    tl = top_level(code, funcs)
+    last = 0
+    for i, l in enumerate(tl, 1):
+        if not l.strip():
+            continue
+        last = i
+        if MENTION.search(l):
+            return "the top level (outside every function) mentions git at line %d: %s" % (i, l.strip()[:100])
+        if SOURCE_RE.search(l):
+            return "the top level sources a file at line %d (its code would run before the entry function's clear)" % i
+    if not last:
+        return "no top-level statement calls an entry function"
+    m = ENTRY_CALL.match(tl[last - 1])
+    if not m or m.group(1) not in funcs:
+        return "the last top-level statement (line %d) is not a call of a function of this file" % last
+    entry = m.group(1)
+    gitfuncs = {n for n, (_s, _e, body) in funcs.items() if MENTION.search(body)}
+    toptext = "\n".join(tl)
+    for n in sorted(gitfuncs - {entry}):
+        if re.search(r"(?<![\w-])" + re.escape(n) + r"\b", toptext):
+            return "function %s, called at top level, mentions git (it runs before the entry function's clear)" % n
+    s, e, body = funcs[entry]
+    lines = body.split("\n")
+    at = list_clear_at(body, canon)
+    if not at:
+        return "the entry function %s holds no statement that clears every variable of the list" % entry
+    for k, l in enumerate(lines[:at - 1], 1):
+        if k == 1:
+            l = re.sub(r"^\s*(?:function\s+)?\w+\s*\(\)\s*\{?", "", l)
+        if MENTION.search(l):
+            return "line %d of the entry function %s mentions git before the clear" % (s + k - 1, entry)
+        for n in sorted(gitfuncs - {entry}):
+            if re.search(r"(?<![\w-])" + re.escape(n) + r"\b", l):
+                return "line %d of the entry function %s calls %s, which mentions git, before the clear" % (s + k - 1, entry, n)
+    return None
+
+
+'''
+t = t[:a] + NEW + t[b:]
+
+# R4-3: anchor each preamble form to a whole statement
+old_pre = 'PREAMBLE = re.compile(r"""^(?:set\\s|shopt\\s|umask\\s|'
+assert old_pre in t, "preamble anchor"
+t = t.replace(old_pre, 'PREAMBLE = re.compile(r"""^(?:set(?:[ \\t]+(?:[-+][A-Za-z]+|[a-z]+|--))+[ \\t]*$|shopt(?:[ \\t]+-[su])+(?:[ \\t]+[a-z_]+)+[ \\t]*$|umask[ \\t]+[0-7]{3,4}[ \\t]*$|')
+
+# quoted-word git detector ("git" commit), review RV8b
+old_sh = 'SH_GIT = r"(?:(?<![\\w./$-])(?:/(?:[\\w.-]+/)*)?git\\b|'
+assert old_sh in t, "sh_git anchor"
+t = t.replace(old_sh, 'SH_GIT = r"(?:(?<![\\w./$-])[\\"\']?(?:/(?:[\\w.-]+/)*)?git\\b[\\"\']?|')
+
+# R4-7 reason
+t = t.replace('''    "go-binary-owed": "Go source compiled into a committed binary; the fix needs a reviewed rebuild of that binary (owed, tracked)",
+}''', '''    "go-binary-owed": "Go source compiled into a committed binary; the fix needs a reviewed rebuild of that binary (owed, tracked)",
+    "subject-follows-caller": "a read-only guard that must inspect the same repository as the command it guards, which the caller's variables select; it runs no writing git command",
+}''')
+assert '"subject-follows-caller"' in t
+
+old_ef = '''    if reason == "entry-function-scrub":
+        if not (names_all(text, canon) and list_clear(text, canon)):
+            return "UNSCRUBBED", line, "row entry-function-scrub, but no list-operating clear of every variable is in the file"
+        return "EXEMPT", line, reason + ": " + just'''
+assert old_ef in t
+t = t.replace(old_ef, '''    if reason == "entry-function-scrub":
+        if not (names_all(text, canon) and list_clear(text, canon)):
+            return "UNSCRUBBED", line, "row entry-function-scrub, but no list-operating clear of every variable is in the file"
+        why = entry_function_problem(text, canon)
+        if why is not None:
+            return "UNSCRUBBED", line, "row entry-function-scrub, but " + why
+        return "EXEMPT", line, reason + ": " + just
+    if reason == "subject-follows-caller":
+        if ws:
+            return "UNSCRUBBED", ws[0][0], "row subject-follows-caller, but a git write is detected: %s" % ws[0][1][:120]
+        return "EXEMPT", line, reason + ": " + just''')
+open(p, "w", encoding="utf-8").write(t)
+print("patched")

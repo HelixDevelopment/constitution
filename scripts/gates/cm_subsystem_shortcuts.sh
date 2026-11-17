@@ -78,6 +78,7 @@
 
 set -uo pipefail
 
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 GATE="CM-SUBSYSTEM-SHORTCUTS"
 
@@ -199,12 +200,12 @@ for f in "$lib" "$0"; do
         *bash*) declared_sh="bash" ;;
         *)      declared_sh="sh"   ;;
     esac
-    if "$declared_sh" -n "$f" 2>/tmp/cm_subsys_pn.$$; then
+    if "$declared_sh" -n "$f" 2>"${TMPDIR:-/tmp}"/cm_subsys_pn.$$; then
         ok "PARSEABILITY: ${rel} clean under its declared interpreter (${declared_sh} -n)"
     else
-        bad "PARSEABILITY: ${rel} fails ${declared_sh} -n (its DECLARED interpreter): $(tr '\n' ' ' < /tmp/cm_subsys_pn.$$)"
+        bad "PARSEABILITY: ${rel} fails ${declared_sh} -n (its DECLARED interpreter): $(tr '\n' ' ' < "${TMPDIR:-/tmp}"/cm_subsys_pn.$$)"
     fi
-    rm -f /tmp/cm_subsys_pn.$$
+    rm -f "${TMPDIR:-/tmp}"/cm_subsys_pn.$$
 done
 
 echo "----------------------------------------------------------------------"

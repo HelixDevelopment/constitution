@@ -1,0 +1,4 @@
+GN1	34s	rc=0	PASS GN1 killed by its property (FAIL netgate misses git in backticks (rc 2): NETGATE invocations=0 network_through_rc_net=0 findings=0 BLIND: no invocat)
+GN2	36s	rc=0	PASS GN2 killed by its property (FAIL netgate misses a bare git (rc 1): FINDING unclassified command (default deny): ng.sh:2 git | git fetch -q origin NE)
+GN3	37s	rc=0	PASS GN3 killed by its property (FAIL netgate misses git through an untrusted nt (rc 1): FINDING network command outside rc_net: ng.sh:2 timeout (via -) )
+SUMMARY mutants=3 killed_by_property=3 failed=0 other=0

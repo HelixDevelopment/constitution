@@ -1,0 +1,48 @@
+── building the fixture index with the stock writer
+── Part 1: fixture classification with the real gate
+ok   HEALTHY -> gate rc 0
+ok   HEALTHY carries both controls (positive + negative)
+ok   STALE-LOCK-DEAD -> gate rc 0
+ok   STALE-LOCK-DEAD is reported (WARN) but is not a FAIL
+ok   LOCK-LIVE-NON-CODEGRAPH -> gate rc 0
+ok   ANCHOR-DRIFT -> gate rc 1
+ok   ANCHOR-DRIFT names the REFUSED patch (H3) AND the client-visible EOF (H8)
+ok   MISSING-WRAPPER -> gate rc 1
+ok   VERSION-PIN-MISMATCH -> gate rc 1
+ok   SERVER-EXITS-EARLY -> gate rc 1
+ok   SERVER-HANGS-AFTER-INIT -> gate rc 1
+ok   SERVER-EMPTY-TOOLS -> gate rc 1
+ok   SEARCH-MATCHES-ANYTHING -> gate rc 1
+ok   WRAPPER-WRITES-DAEMON-FILE -> gate rc 1
+ok   WRAPPER-WRITES-DAEMON-FILE names the created file
+ok   TOOL-EXITS-0-WITHOUT-ROUNDTRIP -> gate rc 2
+ok   BUSY -> gate rc 3
+ok   NOTHING-DECLARED -> gate rc 3
+ok   NOTHING-DECLARED-GITIGNORE-ONLY -> gate rc 3
+ok   INDEXED-NOT-DECLARED -> gate rc 1
+ok   GATE-REFUSES-HEAL -> gate rc 2
+ok   GATE-REFUSES-NO-ROUNDTRIP -> gate rc 2
+── Part 1b: tool-level cases (WAL thresholds + self-heal safety)
+ok   WAL-OVERSIZE (2 GiB WAL, fail >= 1 GiB) -> H5 FAIL, rc 1
+ok   WAL-SMALL healthy copy -> H5 PASS (golden-FALSE for the WAL check)
+ok   HEAL-REAPS-DEAD-LOCK moves dead-holder files aside (reversible), nothing deleted
+ok   HEAL-REAPS-PID-REUSE: a live NON-codegraph pid does not make a lock live
+ok   HEAL-KEEPS-LIVE-CODEGRAPH-HOLDER: a live codegraph holder's lock is never touched and the holder is not killed
+ok   HEAL-CHECKPOINT: WAL 3118872 -> 0 bytes via wal_checkpoint(TRUNCATE) with no live holder
+ok   HEAL-CHECKPOINT-SKIPPED-WITH-HOLDER: no checkpoint while a process holds the database open
+ok   HEAL-NEVER-FAKES: under anchor drift --heal reports NEEDS-PATCH-UPDATE and the verdict stays FAIL (stock never substituted)
+── Part 2: mutants (each MUST be killed)
+ok   mutant M1-empty-tools-accepted killed
+ok   mutant M2-init-failure-not-fail killed
+ok   mutant M3-version-pin-ignored killed
+ok   mutant M4-liveness-by-pid-only killed
+ok   mutant M5-reap-without-liveness killed
+ok   mutant M6-wal-never-fails killed
+ok   mutant M7-checkpoint-despite-holder killed
+ok   mutant M8-created-files-unchecked killed
+ok   mutant M9-negative-control-dropped killed
+ok   mutant M10-drift-not-reported killed
+ok   gate mutant G1-no-roundtrip-evidence-required killed
+ok   gate mutant G2-busy-reads-as-pass killed
+ok   gate mutant G3-heal-allowed killed
+META PASS — CM-CODEGRAPH-MCP-HEALTH classifies every fixture and kills every mutant

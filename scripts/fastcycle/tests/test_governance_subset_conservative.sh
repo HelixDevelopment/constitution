@@ -23,6 +23,7 @@
 # resolved keeps its exact narrow selection (no spurious fallback), and a
 # complete usage block under the bound still reports within_bound=true.
 # Hermetic: builds a throwaway git repo + tracker DB under mktemp.
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC="$HERE/.."
@@ -77,7 +78,9 @@ else
 fi
 
 # 2 golden-FALSE: fully-resolved item-record keeps its narrow 10-anchor selection
-python3 "$GS" select --config "$RT" --item FC-GS-SAMPLE-001 --item-record "$GOOD" \
+# CON-097: --repo "$R" ($R/constitution -> this canon), so the anchor bodies are found whatever the canon
+# directory is named; without it the tool takes <parent of canon> as the body root.
+python3 "$GS" select --config "$RT" --item FC-GS-SAMPLE-001 --item-record "$GOOD" --repo "$R" \
   --index "$IDX" --out "$TMP/good_sel.json" >/dev/null 2>&1
 n=$(jget "$TMP/good_sel.json" "len(d['selected_anchors'])" 2>/dev/null); fb=$(jget "$TMP/good_sel.json" "d.get('fallback')" 2>/dev/null)
 [ "$n" = 10 ] && [ "$fb" = null ] && ok "fully-resolved item keeps narrow 10-anchor selection" \

@@ -1,0 +1,173 @@
+[mutation:ghissues] GREEN kept: GREEN control: genuine tree
+[mutation:ghissues] GREEN kept: mid-body citation of §11.4.296 inside another anchor's block is not a second block
+[mutation:ghissues] GREEN kept: an unrelated project H2 section after the CLAUDE.md block does not break the mirror check
+[mutation:ghissues] GREEN kept: prefix-colliding heading §11.4.2960 is not counted as §11.4.296
+[mutation:ghissues] GREEN kept: whitespace-only change inside the block keeps the gate green
+[mutation:ghissues] RED flip: marker removed: We will be importing and maintaining already opened issues (workable items) from GitHub Issues but we will NOT import our other workable items there
+[mutation:ghissues] RED flip: marker removed: the ticket is a source and a mirror target, never a second source of truth
+[mutation:ghissues] RED flip: marker removed: Only an issue that ALREADY EXISTS on the platform and is assigned to a declared account is imported
+[mutation:ghissues] RED flip: marker removed: The direction is platform to tracker, one way in
+[mutation:ghissues] RED flip: marker removed: the sync tooling never creates, transfers or exports an issue
+[mutation:ghissues] RED flip: marker removed: `gh issue create`
+[mutation:ghissues] RED flip: marker removed: a tracker item that did not come from an imported issue never receives a comment, a label or a state change on the platform
+[mutation:ghissues] RED flip: marker removed: `GitHub-Issue: <owner>/<repo>#<number>`
+[mutation:ghissues] RED flip: marker removed: the interval is at most 24 hours
+[mutation:ghissues] RED flip: marker removed: the write-back mode (`dry-run` or `apply`, default `dry-run`)
+[mutation:ghissues] RED flip: marker removed: `pull` (read-only;
+[mutation:ghissues] RED flip: marker removed: Every run writes ONE run record, also when it fails, is offline or changes nothing
+[mutation:ghissues] RED flip: marker removed: A run that cannot reach the platform records the outcome `INCONCLUSIVE`, writes nothing to the tracker and is never a PASS
+[mutation:ghissues] RED flip: marker removed: compared case-insensitively on owner and repository
+[mutation:ghissues] RED flip: marker removed: Exactly one tracker item (one identifier, §11.4.54) carries the marker of a given key
+[mutation:ghissues] RED flip: marker removed: two items with one key are a duplicate and a failure
+[mutation:ghissues] RED flip: marker removed: The key, never the title, decides identity
+[mutation:ghissues] RED flip: marker removed: are neither deleted nor silently merged: they are GROUPED
+[mutation:ghissues] RED flip: marker removed: the sha256 of a canonical serialisation
+[mutation:ghissues] RED flip: marker removed: `GitHub-Content-Sha256:`
+[mutation:ghissues] RED flip: marker removed: A closure of the issue on the platform side NEVER closes the item
+[mutation:ghissues] RED flip: marker removed: an item is never deleted by the sync
+[mutation:ghissues] RED flip: marker removed: ONE closed vocabulary that the consumer declares as data
+[mutation:ghissues] RED flip: marker removed: `in-progress`, `in-testing`, `resolved`, `done`, `blocked`, `reopened`
+[mutation:ghissues] RED flip: marker removed: one status label (the previous status label is removed)
+[mutation:ghissues] RED flip: marker removed: a closed issue only for the class `done`
+[mutation:ghissues] RED flip: marker removed: is GUARDED
+[mutation:ghissues] RED flip: marker removed: pre-write re-read
+[mutation:ghissues] RED flip: marker removed: `write-failed`
+[mutation:ghissues] RED flip: marker removed: `no-credentials`, `no-network`, `no-board`, `operator-deferred`
+[mutation:ghissues] RED flip: marker removed: never `synced`, never a PASS
+[mutation:ghissues] RED flip: marker removed: A run that changed an item and left a derived document stale is a failure
+[mutation:ghissues] RED flip: marker removed: consecutive run starts are at most the interval plus the grace apart
+[mutation:ghissues] RED flip: marker removed: no issue is left `unfiled`
+[mutation:ghissues] RED flip: marker removed: a first-response comment with the word `acknowledged` is posted
+[mutation:ghissues] RED flip: marker removed: are data, never evidence of done
+[mutation:ghissues] RED flip: marker removed: exit 3: offline, or no snapshot or no database supplied
+[mutation:ghissues] RED flip: marker removed: a result is never a PASS without evidence
+[mutation:ghissues] RED flip: marker removed: Honest boundary
+[mutation:ghissues] RED flip: marker removed: CM-COVENANT-114-296-PROPAGATION
+[mutation:ghissues] RED flip: marker removed: CM-GITHUB-ISSUES-SOURCE-ANCHOR-WIRED
+[mutation:ghissues] RED flip: marker removed: OWED-GATE-181
+[mutation:ghissues] RED flip: clause heading removed: **(A) SOURCE DECLARATION AND DIRECTION.**
+[mutation:ghissues] RED flip: clause heading removed: **(B) PERIODIC SYNC AND THE RUN RECORD.**
+[mutation:ghissues] RED flip: clause heading removed: **(C) ONE ITEM PER ISSUE, NO DUPLICATES.**
+[mutation:ghissues] RED flip: clause heading removed: **(D) RE-CHECK BY CONTENT HASH.**
+[mutation:ghissues] RED flip: clause heading removed: **(E) STATUS WRITE-BACK.**
+[mutation:ghissues] RED flip: clause heading removed: **(F) EXTERNAL-TRACKER LEG.**
+[mutation:ghissues] RED flip: clause heading removed: **(G) DERIVED DOCUMENTS STAY IN SYNC.**
+[mutation:ghissues] RED flip: clause heading removed: **(H) RESPONSE TIME.**
+[mutation:ghissues] RED flip: clause heading removed: **(I) THE DONE LADDER IS NOT BYPASSED.**
+[mutation:ghissues] RED flip: clause heading removed: **(J) THE EVIDENCE GATE.**
+[mutation:ghissues] RED flip: clause heading removed: **(K) WHAT THIS ANCHOR DOES NOT CHANGE.**
+[mutation:ghissues] RED flip: escape-hatch flag removed: --create-issue-on-platform
+[mutation:ghissues] RED flip: escape-hatch flag removed: --export-items-to-platform
+[mutation:ghissues] RED flip: escape-hatch flag removed: --writeback-unmarked-item
+[mutation:ghissues] RED flip: escape-hatch flag removed: --writeback-default-apply
+[mutation:ghissues] RED flip: escape-hatch flag removed: --import-unassigned-issues
+[mutation:ghissues] RED flip: escape-hatch flag removed: --dedupe-by-delete
+[mutation:ghissues] RED flip: escape-hatch flag removed: --skip-hash-recheck
+[mutation:ghissues] RED flip: escape-hatch flag removed: --external-leg-fake-synced
+[mutation:ghissues] RED flip: escape-hatch flag removed: --offline-run-is-pass
+[mutation:ghissues] RED flip: escape-hatch flag removed: --close-issue-before-done
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.2
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.6
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.10
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.15
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.17
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.21
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.33
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.35
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.54
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.90
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.93
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.106
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.148
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.201
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.202
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.227
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.273
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.290
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.292
+[mutation:ghissues] RED flip: cross-reference removed: §11.4.294
+[mutation:ghissues] RED flip: cross-reference removed: §1.1
+[mutation:ghissues] RED flip: line-start Classification line removed
+[mutation:ghissues] RED flip: Canonical authority line removed
+[mutation:ghissues] RED flip: non-compliance line weakened
+[mutation:ghissues] RED flip: decoy: heading demoted, mid-body citations remain
+[mutation:ghissues] RED flip: duplicate canon heading
+[mutation:ghissues] RED flip: second block-start form in canon
+[mutation:ghissues] RED flip: heading no longer names 'GitHub Issues are a source of workable items'
+[mutation:ghissues] RED flip: heading no longer names 'one tracker item per issue'
+[mutation:ghissues] RED flip: heading no longer names 'GitHub to tracker only'
+[mutation:ghissues] RED flip: heading loses the mandate date
+[mutation:ghissues] RED flip: refinement note removed from §11.4.93
+[mutation:ghissues] RED flip: refinement note in §11.4.93 no longer cites §11.4.296
+[mutation:ghissues] RED flip: refinement note removed from §11.4.148
+[mutation:ghissues] RED flip: refinement note in §11.4.148 no longer cites §11.4.296
+[mutation:ghissues] RED flip: refinement note removed from §11.4.294
+[mutation:ghissues] RED flip: refinement note in §11.4.294 no longer cites §11.4.296
+[mutation:ghissues] RED flip: mirror block deleted: CLAUDE.md
+[mutation:ghissues] RED flip: mirror block duplicated: CLAUDE.md
+[mutation:ghissues] RED flip: mirror loses the marker line: CLAUDE.md
+[mutation:ghissues] RED flip: mirror loses the issue-creation ban: CLAUDE.md
+[mutation:ghissues] RED flip: mirror loses the closed write-back words: CLAUDE.md
+[mutation:ghissues] RED flip: mirror loses the quoted scope ruling: CLAUDE.md
+[mutation:ghissues] RED flip: mirror loses the default mode: CLAUDE.md
+[mutation:ghissues] RED flip: mirror loses the content hash: CLAUDE.md
+[mutation:ghissues] RED flip: mirror loses the gate token: CLAUDE.md
+[mutation:ghissues] RED flip: mirror file missing: CLAUDE.md
+[mutation:ghissues] RED flip: mirror block deleted: AGENTS.md
+[mutation:ghissues] RED flip: mirror block duplicated: AGENTS.md
+[mutation:ghissues] RED flip: mirror loses the marker line: AGENTS.md
+[mutation:ghissues] RED flip: mirror loses the issue-creation ban: AGENTS.md
+[mutation:ghissues] RED flip: mirror loses the closed write-back words: AGENTS.md
+[mutation:ghissues] RED flip: mirror loses the quoted scope ruling: AGENTS.md
+[mutation:ghissues] RED flip: mirror loses the default mode: AGENTS.md
+[mutation:ghissues] RED flip: mirror loses the content hash: AGENTS.md
+[mutation:ghissues] RED flip: mirror loses the gate token: AGENTS.md
+[mutation:ghissues] RED flip: mirror file missing: AGENTS.md
+[mutation:ghissues] RED flip: mirror block deleted: QWEN.md
+[mutation:ghissues] RED flip: mirror block duplicated: QWEN.md
+[mutation:ghissues] RED flip: mirror loses the marker line: QWEN.md
+[mutation:ghissues] RED flip: mirror loses the issue-creation ban: QWEN.md
+[mutation:ghissues] RED flip: mirror loses the closed write-back words: QWEN.md
+[mutation:ghissues] RED flip: mirror loses the quoted scope ruling: QWEN.md
+[mutation:ghissues] RED flip: mirror loses the default mode: QWEN.md
+[mutation:ghissues] RED flip: mirror loses the content hash: QWEN.md
+[mutation:ghissues] RED flip: mirror loses the gate token: QWEN.md
+[mutation:ghissues] RED flip: mirror file missing: QWEN.md
+[mutation:ghissues] RED flip: mirror block deleted: GEMINI.md
+[mutation:ghissues] RED flip: mirror block duplicated: GEMINI.md
+[mutation:ghissues] RED flip: mirror loses the marker line: GEMINI.md
+[mutation:ghissues] RED flip: mirror loses the issue-creation ban: GEMINI.md
+[mutation:ghissues] RED flip: mirror loses the closed write-back words: GEMINI.md
+[mutation:ghissues] RED flip: mirror loses the quoted scope ruling: GEMINI.md
+[mutation:ghissues] RED flip: mirror loses the default mode: GEMINI.md
+[mutation:ghissues] RED flip: mirror loses the content hash: GEMINI.md
+[mutation:ghissues] RED flip: mirror loses the gate token: GEMINI.md
+[mutation:ghissues] RED flip: mirror file missing: GEMINI.md
+[mutation:ghissues] RED flip: index entry for 11.4.296 gone
+[mutation:ghissues] RED flip: index propagation_gate wrong
+[mutation:ghissues] RED flip: index group wrong
+[mutation:ghissues] RED flip: index classification wrong
+[mutation:ghissues] RED flip: group file loses the block
+[mutation:ghissues] RED flip: group file missing
+[mutation:ghissues] RED flip: progressive rule file missing
+[mutation:ghissues] RED flip: catalog entry gone
+[mutation:ghissues] RED flip: catalog file pointer wrong
+[mutation:ghissues] RED flip: data-pack row removed
+[mutation:ghissues] RED flip: data-pack row points at the wrong anchor
+[mutation:ghissues] RED flip: generated propagation gate missing
+[mutation:ghissues] RED flip: generated propagation mutation test missing
+[mutation:ghissues] RED flip: seam binding row removed
+[mutation:ghissues] RED flip: deferral row OWED-GATE-181 removed
+[mutation:ghissues] RED flip: deferral row OWED-GATE-181 carries the wrong id
+[mutation:ghissues] RED flip: deferral id OWED-GATE-181 registered twice
+[mutation:ghissues] RED flip: deferral row OWED-GATE-181 names a gate the canon does not name
+[mutation:ghissues] RED flip: canon block no longer names the OWED-GATE-181 gate
+[mutation:ghissues] RED flip: deferral row OWED-GATE-181 names no CM-* gate
+[mutation:ghissues] RED flip: this gate's own mutation test missing
+[mutation:ghissues] RED flip: hook no longer runs the gate
+[mutation:ghissues] RED flip: hook no longer names the token
+[mutation:ghissues] RED flip: hook file missing
+[mutation:ghissues] BLIND asserted: heading extractor broken -> control needle fails
+[mutation:ghissues] BLIND asserted: Constitution.md missing
+[mutation:ghissues] BLIND asserted: real-file control needle (§11.4.286 heading) lost
+[mutation:ghissues] PASS: 167 RED/BLIND cases and 5 GREEN cases (1 control + 4 golden-FALSE) behaved as required — cm_github_issues_source_anchor_wired.sh genuinely discriminates

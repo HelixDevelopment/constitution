@@ -1,0 +1,139 @@
+# H-1 real teammate flow: teammate bumps the gitlink to main (beyond the newest tag), user git pull, no submodule update
+  ok   precondition: the project records the teammate's commit
+  ok   precondition: the checkout is still the old commit (pull did not update it)
+  ok   updater: recorded gitlink AHEAD of HEAD -> exit 3
+  ok   updater: tells to run git submodule update
+  ok   updater: the newer gitlink is kept
+  ok   updater: nothing staged
+  ok   updater: checkout not moved
+  ok   --check: exit 3
+  ok   --check does NOT say UPDATE_AVAILABLE=yes
+  ok   --dry-run: exit 3
+  ok   --commit: exit 3
+  ok   --commit: no commit made
+  ok   --commit: gitlink kept
+  ok   --ref older than the recorded gitlink: exit 3
+  ok   --ref older: gitlink kept
+  ok   installer re-run (delegated updater): exit 3
+  ok   installer re-run: gitlink kept
+  ok   installer re-run: nothing staged
+  ok   installer re-run: report status blocked
+# H-1 the fix the message names converges
+  ok   after git submodule update: updater exit 0
+  ok   after git submodule update: gitlink still the newer commit (never moved back)
+# H-1 recorded gitlink ahead, newest tag == the recorded gitlink
+  ok   ahead (== newest tag): exit 3
+  ok   nothing staged
+  ok   --check not yes
+# H-1 DIVERGED: recorded gitlink on a side branch, checkout at the newest tag (old code: 'finished an interrupted update')
+  ok   diverged: exit 3
+  ok   diverged: recorded gitlink kept
+  ok   diverged: nothing staged
+  ok   diverged --check: exit 3
+  ok   diverged --check not yes
+  ok   diverged: installer re-run exit 3
+  ok   diverged: installer kept the gitlink
+# H-1 recorded gitlink unknown to the checkout (never fetched): refused, not treated as interrupted
+  ok   unknown recorded commit: exit 3
+  ok   unknown: gitlink kept
+# H-1 positive controls: the recorded gitlink OLDER than HEAD (an interrupted update) is still finished
+  ok   precondition: recorded gitlink is the older v999.0
+  ok   older recorded, HEAD == target: exit 0
+  ok   staged the HEAD commit
+  ok   says it finished an interrupted update
+# M-2 --commit never commits a staged gitlink that moves the committed one backwards
+  ok   staged downgrade + --commit: exit 3
+  ok   no commit made
+  ok   committed gitlink unchanged
+  ok   staged downgrade without --commit: exit 3 too
+# H-1 built-in updater (constitution version without update_constitution.sh)
+  ok   install at v71 exit 0
+  ok   control: v71 has no updater script
+  ok   built-in: recorded gitlink ahead, older --ref: exit 3
+  ok   built-in: gitlink kept
+  ok   built-in: nothing staged
+  ok   built-in: names git submodule update
+  ok   built-in path was really used (control needle)
+  ok   built-in: default target: exit 3 too
+  ok   built-in default: gitlink kept
+  ok   built-in: no commit
+  ok   built-in: staged downgrade, committed newer: exit 3
+  ok   built-in: committed gitlink unchanged
+  ok   built-in: the staged gitlink was not moved
+  ok   built-in: still no commit
+# M-1 dirty submodule while the update-pending marker names an interrupted update
+  ok   dirty + marker: exit 3
+  ok   message names the interrupted update (not only 'your local changes')
+  ok   dirty without marker: the plain local-changes message
+  ok   dirty without marker: no interrupted claim
+# H-3 shipped scripts are executable; the fixture records them 100755 without any chmod in lib.sh
+  ok   fixture commit records the installer 100755
+  ok   fixture commit records the updater 100755
+  ok   lib.sh carries no chmod of the shipped scripts
+  ok   update with a chmod +x hook: exit 0
+  ok   the submodule is clean after the hook chmod-ed every script (shipped modes)
+  ok   the next update is not blocked by a dirty submodule
+# I-1 push detection (REAL clones and bare remotes; clone-based fixture, never push-seeded)
+warning: You appear to have cloned an empty repository.
+warning: You appear to have cloned an empty repository.
+  ok   control needle: the clone has no 'update by push' reflog (not push-seeded)
+  ok   control needle: marks name the project's remote
+  ok   control needle: marks name the constitution's remote (index 1)
+  ok   no push (control)
+  ok   no push in the constitution (control)
+  ok   C1 push then 'git remote remove origin' detected
+  ok   C1 control: the push really reached the remote
+  ok   C5 tag push then remote removal detected
+  ok   a remote removed during the run fails closed (no push needed)
+  ok   index 1: tag push from the constitution detected
+  ok   index 1: push then remote removal detected
+  ok   index 1: branch push with reflogs off detected
+# I-2 the constitution submodule's remote (index 1): every advertised-ref change, reflogs OFF (no M/R evidence)
+  ok   index 1: branch push (reflogs off) detected
+  ok   index 1 branch control: the branch reached the remote
+  ok   index 1: tag push (reflogs off) detected
+  ok   index 1 tag control: the tag reached the remote
+  ok   index 1: notes push (reflogs off) detected
+  ok   index 1 notes control: the notes ref reached the remote
+  ok   index 1: tag DELETION push detected
+  ok   index 1 deletion control: the tag is gone from the remote
+  ok   index 1: branch DELETION push detected
+  ok   index 1 branch-deletion control: the branch is gone from the remote
+  ok   index 1: no push after the cases (control)
+  ok   control needle: marks carry the pushurl as its own V line
+  ok   tag push to the remote's PUSHURL detected
+  ok   pushurl control: the tag landed in the pushurl repository
+  ok   tag push then set-url (url and pushurl) to a dead path detected
+  ok   --help LIMITS still list the unconfigured-URL push
+  ok   --help names remote removal as detected
+# H-2 fresh project, NO helix-deps.yaml, DEFAULTS (setup.sh runs): exit 0, manifest scaffolded, valid, staged
+  ok   fresh project, defaults: exit 0
+  ok   setup.sh really ran (control needle)
+  ok   helix-deps.yaml created
+  ok   helix-deps.yaml staged (tracked)
+  ok   helix-deps.yaml mode follows the user's umask (022 -> 644)
+PASS	<tmp>/helix-install-test.EYbe2c/h2/helix-deps.yaml	file	well-formed helix-deps.yaml
+  ok   the manifest validates
+  ok   report lists helix-deps.yaml among written_files
+  ok   backup records helix-deps.yaml as created
+# H-2 same with --commit on: the manifest is committed with the constitution
+  ok   --commit on, no manifest: exit 0
+  ok   --commit on: helix-deps.yaml is in the commit
+  ok   --commit on: submodule in the commit
+# H-2 a scaffold that needs human input (an own-org submodule): untracked, exact steps, distinct status
+  ok   needs completion: exit 1
+  ok   needs completion: distinct report status
+  ok   needs completion: file left untracked
+  ok   needs completion: prints the validate step
+  ok   needs completion: prints the git add step
+  ok   needs completion: says the manifest needs completion
+  ok   needs completion: not reported as a bare setup failure
+# H-2 an existing manifest is never touched (manifest-present path)
+  ok   manifest present: exit 0
+  ok   manifest present: content unchanged
+  ok   manifest present: not listed as written
+# H-2 dry run names the manifest step and writes nothing
+  ok   dry run exit 0
+  ok   plan names helix-deps.yaml
+  ok   dry run changed nothing
+round9: PASS 118 FAIL 0

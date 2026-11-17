@@ -1,0 +1,1 @@
+rtm_only_X15	2400	none,both	bash	tests/release/test_release_tooling_mutations.sh	--only	X15

@@ -1,0 +1,27 @@
+"""hook_mutants.py <green-root> <outdir>: per mutant, <outdir>/<id>/{scripts/post_update_hook.sh,tests/test_post_update_hub_gates.sh}."""
+import os
+import shutil
+import sys
+
+g, outdir = sys.argv[1], sys.argv[2]
+hook = open(os.path.join(g, "scripts/post_update_hook.sh"), encoding="utf-8").read()
+M = {
+    # the new gate dropped from the loop (configured, not in use)
+    "hm1_gate_not_in_loop": (" cm_release_gate_anchor_wired.sh cm_full_suite_manifest_complete.sh; do",
+                             " cm_release_gate_anchor_wired.sh; do"),
+    # the gate pointed at the CONSUMER root instead of the hub
+    "hm2_root_is_project": ('cm_full_suite_manifest_complete.sh)   tok="CM-FULL-SUITE-MANIFEST-COMPLETE" ;;',
+                            'cm_full_suite_manifest_complete.sh)   tok="CM-FULL-SUITE-MANIFEST-COMPLETE"; groot="$PROJECT_ROOT" ;;'),
+    # the token mapping lost (the previous gate's token is reported)
+    "hm3_token_unmapped": ('            cm_full_suite_manifest_complete.sh)   tok="CM-FULL-SUITE-MANIFEST-COMPLETE" ;;\n', ''),
+}
+for k, (a, b) in M.items():
+    if hook.count(a) != 1:
+        print("NOAPPLY", k, hook.count(a)); sys.exit(2)
+    d = os.path.join(outdir, k)
+    os.makedirs(os.path.join(d, "scripts"), exist_ok=True)
+    os.makedirs(os.path.join(d, "tests"), exist_ok=True)
+    with open(os.path.join(d, "scripts/post_update_hook.sh"), "w", encoding="utf-8") as fh:
+        fh.write(hook.replace(a, b))
+    shutil.copy2(os.path.join(g, "tests/test_post_update_hub_gates.sh"), os.path.join(d, "tests/test_post_update_hub_gates.sh"))
+    print("wrote", d)

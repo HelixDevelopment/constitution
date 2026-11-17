@@ -1,0 +1,34 @@
+  ok   SIGINT after 0.05s (first run rc=130): clean re-run converged
+  ok   SIGINT after 0.15s (first run rc=130): clean re-run converged
+  ok   SIGINT after 0.3s (first run rc=130): clean re-run converged
+  ok   SIGINT after 0.5s (first run rc=130): clean re-run converged
+  ok   SIGINT after 0.8s (first run rc=130): clean re-run converged
+  ok   SIGINT after 1.2s (first run rc=130): clean re-run converged
+  ok   SIGINT after 1.8s (first run rc=130): clean re-run converged
+  ok   SIGINT after 2.6s (first run rc=130): clean re-run converged
+  ok   SIGTERM after 0.05s (first run rc=143): clean re-run converged
+  ok   SIGTERM after 0.15s (first run rc=143): clean re-run converged
+  ok   SIGTERM after 0.3s (first run rc=143): clean re-run converged
+  ok   SIGTERM after 0.5s (first run rc=143): clean re-run converged
+  ok   SIGTERM after 0.8s (first run rc=143): clean re-run converged
+  ok   SIGTERM after 1.2s (first run rc=143): clean re-run converged
+  ok   SIGTERM after 1.8s (first run rc=143): clean re-run converged
+  ok   SIGTERM after 2.6s (first run rc=143): clean re-run converged
+  ok   signals really interrupted most first runs (16 of 16 non-zero)
+# backup is restorable
+  ok   install with existing docs exit 0
+  ok   backup dir recorded and present
+  ok   --restore exit 0
+  ok   CLAUDE.md restored byte-identical
+  ok   AGENTS.md restored byte-identical
+  ok   --restore outside the project backup root refused (exit 2)
+# network loss then recovery
+  ok   upstream gone -> exit 3
+  ok   network loss wrote nothing
+  ok   upstream back -> exit 0
+  ok   recovered gitlink
+  ok   update with upstream gone -> exit 3
+  ok   failed update wrote nothing
+  ok   update after recovery exit 0
+  ok   update after recovery reached new tag
+chaos: PASS 31 FAIL 0

@@ -1,0 +1,2 @@
+BYPASS	R14b_set_a_bash_env	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+CAUGHT	R14c_ctrl_bash_env_named_assignment	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING assignment to BASH_ENV (it changes how a command is found or run): tag_and_release.sh:3 | export BASH_

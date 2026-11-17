@@ -1,0 +1,115 @@
+$ bash docs/qa/engine_created_at_2026_11_13/landing_demo.sh <tree b48091ea> V.db B.db T.db ff/plan.json noff/plan.json <old engine 9edd2dc3> <new engine> <repo>
+date -u: 2026-11-13T21:00:26Z
+inputs:
+  0906cc9317fe1fbb205ef094711776ff575ba93c98870328b23cd4aad319a73f  V.db
+  117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4  B.db
+  117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4  T.db
+  9edd2dc3dfe33dd33ad4583256bd8c96650cf7edd01b77da5022d701f2a70e2c  workable-items
+  f65557693113b6f6b1bbf937135f756038bc09ac29de12857f603f2bfcbc13ff  wi_final_1
+  aa63ed5f5f7598904a8a23ecd121f644050a5b7a66141b238a61be7d3dc6e0db  remint_ids.py
+  f1872a828a1458bf1fd8d28bad60cb7afe0e3bf7a170628f2794565b7ab1bbd1  restore_plan.tsv
+===== FF (fast-forward: the landed database is a copy of the vehicle)
+    CON-243 created_at=2026-11-13 13:56:42
+    CON-308 created_at=2026-11-13 13:56:42
+  verify[ff-before] exit=0 RESULT: PASS mode=FAST-FORWARD items=307 mismatches=0 known=0
+    KNOWN lines by kind: own created_at=0 base created_at=0 lifecycle history=0 body_md=0
+  dry run of the plan (extracts the evidence databases, runs every check, writes nothing):
+    == CON-243 -> CON-243 (main): created_at := 2026-11-11 15:34:35 (evidence bd0036bd:docs/workable_items.db, item_history id 455 (Opened, by User, 2026-11-11 15:34:35); the items row holds 2026-11-11 15:38:57, an md-to-db stamp later than that event)
+    restore-created-at: dry-run: would set CON-243 [Fixed/section] created_at "2026-11-13 13:56:42" -> "2026-11-11 15:34:35" (attested-by=opened-event:CON-243, evidence-sha256=117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4); nothing written
+       engine exit=0
+    == CON-308 -> CON-308 (main): created_at := 2026-11-12 22:48:51 (evidence 1a307322:docs/workable_items.db, items row (Issues, section, created_at 2026-11-12 22:48:51); item_history id 519 (Opened) holds the same time)
+    restore-created-at: dry-run: would set CON-308 [Fixed/section] created_at "2026-11-13 13:56:42" -> "2026-11-12 22:48:51" (attested-by=items-row:CON-308, evidence-sha256=6854c6a124c2c55e0172d2bc2c6d4bc6af1a1da6b8e8cd9a16e2964f5b13a10f); nothing written
+       engine exit=0
+    RESULT: rows=2 refused=0 mode=dry-run
+  apply_restore_plan[ff-dry] exit=0
+    CON-243 created_at=2026-11-13 13:56:42
+    CON-308 created_at=2026-11-13 13:56:42
+  control: the target's own CON-243 value (2026-11-11 15:38:57, also recorded by the evidence items row)
+  is later than the item's first history row and must be refused (dry run, before the plan, so only that guard can refuse):
+    restore-created-at: refused [VALUE-AFTER-FIRST-EVENT]: --value "2026-11-11 15:38:57" is later than the first history row of CON-243 ("2026-11-11 15:34:35"); an item cannot be created after its first recorded event
+  control exit=1 (want 1, refused [VALUE-AFTER-FIRST-EVENT])
+    == CON-243 -> CON-243 (main): created_at := 2026-11-11 15:34:35 (evidence bd0036bd:docs/workable_items.db, item_history id 455 (Opened, by User, 2026-11-11 15:34:35); the items row holds 2026-11-11 15:38:57, an md-to-db stamp later than that event)
+    restore-created-at: CON-243 [Fixed/section] created_at "2026-11-13 13:56:42" -> "2026-11-11 15:34:35" (attested-by=opened-event:CON-243, evidence-sha256=117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4)
+       engine exit=0
+    == CON-308 -> CON-308 (main): created_at := 2026-11-12 22:48:51 (evidence 1a307322:docs/workable_items.db, items row (Issues, section, created_at 2026-11-12 22:48:51); item_history id 519 (Opened) holds the same time)
+    restore-created-at: CON-308 [Fixed/section] created_at "2026-11-13 13:56:42" -> "2026-11-12 22:48:51" (attested-by=items-row:CON-308, evidence-sha256=6854c6a124c2c55e0172d2bc2c6d4bc6af1a1da6b8e8cd9a16e2964f5b13a10f)
+       engine exit=0
+    RESULT: rows=2 refused=0 mode=apply
+  apply_restore_plan[ff] exit=0
+    CON-243 created_at=2026-11-11 15:34:35
+    CON-308 created_at=2026-11-12 22:48:51
+  validate[ff] exit=0 validate: OK — 307 items, all invariants satisfied
+  verify[ff-after] exit=1 RESULT: FAIL mode=FAST-FORWARD items=307 mismatches=3 known=0
+    MISMATCH FAST-FORWARD: CON-243 differs from the vehicle
+    MISMATCH FAST-FORWARD: CON-308 differs from the vehicle
+    MISMATCH FAST-FORWARD: table item_history differs from the vehicle
+    KNOWN lines by kind: own created_at=0 base created_at=0 lifecycle history=0 body_md=0
+===== R-OLD (replay onto a copy of the target with the OLD engine, then the plan with the NEW engine)
+  replay exit=0 RESULT: APPLIED steps=68 items=44
+    CON-243 created_at=2026-11-13 21:00:32
+    CON-308 created_at=2026-11-13 21:00:34
+  verify[rOLD-before] exit=0 RESULT: PASS mode=REPLAY items=47 mismatches=0 known=46
+    KNOWN CON-243 created_at: landed 2026-11-13 21:00:32, target 2026-11-11 15:38:57 (KNOWN engine defect CON-339: close rewrites it)
+    KNOWN CON-308 created_at: replay time 2026-11-13 21:00:34 (vehicle 2026-11-13 13:56:42), not carried
+    KNOWN CON-308: lifecycle history rows vehicle 5, landed 2 (history is not carried; M-14)
+    KNOWN lines by kind: own created_at=44 base created_at=1 lifecycle history=1 body_md=0
+    == CON-243 -> CON-243 (main): created_at := 2026-11-11 15:34:35 (evidence bd0036bd:docs/workable_items.db, item_history id 455 (Opened, by User, 2026-11-11 15:34:35); the items row holds 2026-11-11 15:38:57, an md-to-db stamp later than that event)
+    restore-created-at: CON-243 [Fixed/section] created_at "2026-11-13 21:00:32" -> "2026-11-11 15:34:35" (attested-by=opened-event:CON-243, evidence-sha256=117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4)
+       engine exit=0
+    == CON-308 -> CON-308 (main): created_at := 2026-11-12 22:48:51 (evidence 1a307322:docs/workable_items.db, items row (Issues, section, created_at 2026-11-12 22:48:51); item_history id 519 (Opened) holds the same time)
+    restore-created-at: CON-308 [Fixed/section] created_at "2026-11-13 21:00:34" -> "2026-11-12 22:48:51" (attested-by=items-row:CON-308, evidence-sha256=6854c6a124c2c55e0172d2bc2c6d4bc6af1a1da6b8e8cd9a16e2964f5b13a10f)
+       engine exit=0
+    RESULT: rows=2 refused=0 mode=apply
+  apply_restore_plan[rOLD] exit=0
+    CON-243 created_at=2026-11-11 15:34:35
+    CON-308 created_at=2026-11-12 22:48:51
+  validate[rOLD] exit=0 validate: OK — 307 items, all invariants satisfied
+  verify[rOLD-after] exit=0 RESULT: PASS mode=REPLAY items=47 mismatches=0 known=46
+    KNOWN CON-243 created_at: landed 2026-11-11 15:34:35, target 2026-11-11 15:38:57 (KNOWN engine defect CON-339: close rewrites it)
+    KNOWN CON-308 created_at: replay time 2026-11-12 22:48:51 (vehicle 2026-11-13 13:56:42), not carried
+    KNOWN CON-308: lifecycle history rows vehicle 5, landed 2 (history is not carried; M-14)
+    KNOWN lines by kind: own created_at=44 base created_at=1 lifecycle history=1 body_md=0
+  second apply (idempotence):
+    == CON-243 -> CON-243 (main): created_at := 2026-11-11 15:34:35 (evidence bd0036bd:docs/workable_items.db, item_history id 455 (Opened, by User, 2026-11-11 15:34:35); the items row holds 2026-11-11 15:38:57, an md-to-db stamp later than that event)
+    restore-created-at: CON-243 [Fixed/section] created_at is already "2026-11-11 15:34:35"; nothing written
+       engine exit=0
+    == CON-308 -> CON-308 (main): created_at := 2026-11-12 22:48:51 (evidence 1a307322:docs/workable_items.db, items row (Issues, section, created_at 2026-11-12 22:48:51); item_history id 519 (Opened) holds the same time)
+    restore-created-at: CON-308 [Fixed/section] created_at is already "2026-11-12 22:48:51"; nothing written
+       engine exit=0
+    RESULT: rows=2 refused=0 mode=apply
+  apply_restore_plan[rOLD-again] exit=0
+===== R-NEW (replay onto a copy of the target with the NEW engine, then the plan with the NEW engine)
+  replay exit=0 RESULT: APPLIED steps=68 items=44
+    CON-243 created_at=2026-11-11 15:38:57
+    CON-308 created_at=2026-11-13 21:00:50
+  verify[rNEW-before] exit=0 RESULT: PASS mode=REPLAY items=47 mismatches=0 known=45
+    KNOWN CON-308 created_at: replay time 2026-11-13 21:00:50 (vehicle 2026-11-13 13:56:42), not carried
+    KNOWN CON-308: lifecycle history rows vehicle 5, landed 2 (history is not carried; M-14)
+    KNOWN lines by kind: own created_at=44 base created_at=0 lifecycle history=1 body_md=0
+    == CON-243 -> CON-243 (main): created_at := 2026-11-11 15:34:35 (evidence bd0036bd:docs/workable_items.db, item_history id 455 (Opened, by User, 2026-11-11 15:34:35); the items row holds 2026-11-11 15:38:57, an md-to-db stamp later than that event)
+    restore-created-at: CON-243 [Fixed/section] created_at "2026-11-11 15:38:57" -> "2026-11-11 15:34:35" (attested-by=opened-event:CON-243, evidence-sha256=117126b045a86f4387e3092836867e0dd82b6fa17676e23098ca81c70b2fcbf4)
+       engine exit=0
+    == CON-308 -> CON-308 (main): created_at := 2026-11-12 22:48:51 (evidence 1a307322:docs/workable_items.db, items row (Issues, section, created_at 2026-11-12 22:48:51); item_history id 519 (Opened) holds the same time)
+    restore-created-at: CON-308 [Fixed/section] created_at "2026-11-13 21:00:50" -> "2026-11-12 22:48:51" (attested-by=items-row:CON-308, evidence-sha256=6854c6a124c2c55e0172d2bc2c6d4bc6af1a1da6b8e8cd9a16e2964f5b13a10f)
+       engine exit=0
+    RESULT: rows=2 refused=0 mode=apply
+  apply_restore_plan[rNEW] exit=0
+    CON-243 created_at=2026-11-11 15:34:35
+    CON-308 created_at=2026-11-12 22:48:51
+  validate[rNEW] exit=0 validate: OK — 307 items, all invariants satisfied
+  verify[rNEW-after] exit=0 RESULT: PASS mode=REPLAY items=47 mismatches=0 known=46
+    KNOWN CON-243 created_at: landed 2026-11-11 15:34:35, target 2026-11-11 15:38:57 (KNOWN engine defect CON-339: close rewrites it)
+    KNOWN CON-308 created_at: replay time 2026-11-12 22:48:51 (vehicle 2026-11-13 13:56:42), not carried
+    KNOWN CON-308: lifecycle history rows vehicle 5, landed 2 (history is not carried; M-14)
+    KNOWN lines by kind: own created_at=44 base created_at=1 lifecycle history=1 body_md=0
+  second apply (idempotence):
+    == CON-243 -> CON-243 (main): created_at := 2026-11-11 15:34:35 (evidence bd0036bd:docs/workable_items.db, item_history id 455 (Opened, by User, 2026-11-11 15:34:35); the items row holds 2026-11-11 15:38:57, an md-to-db stamp later than that event)
+    restore-created-at: CON-243 [Fixed/section] created_at is already "2026-11-11 15:34:35"; nothing written
+       engine exit=0
+    == CON-308 -> CON-308 (main): created_at := 2026-11-12 22:48:51 (evidence 1a307322:docs/workable_items.db, items row (Issues, section, created_at 2026-11-12 22:48:51); item_history id 519 (Opened) holds the same time)
+    restore-created-at: CON-308 [Fixed/section] created_at is already "2026-11-12 22:48:51"; nothing written
+       engine exit=0
+    RESULT: rows=2 refused=0 mode=apply
+  apply_restore_plan[rNEW-again] exit=0
+RESULT: OK
+exit=0

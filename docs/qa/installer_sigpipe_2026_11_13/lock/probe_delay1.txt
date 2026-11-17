@@ -1,0 +1,5 @@
+grep: <scratch>/tmp/helix-install-test.ajguAe/ra: No such file or directory
+iter 1 FAIL: A said: [constitution] ERROR: another installer run (pid 855717) holds <scratch>/tmp/helix-install-test.ajguAe/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: TEST PAUSE reclaim|[update-constitution] another run took <scratch>/tmp/helix-install-test.ajguAe/proj/.git/helix-constitution-install.lock|rc=3|
+iter 2 FAIL: A said: [constitution] ERROR: another installer run (pid 860449) holds <scratch>/tmp/helix-install-test.ajguAe/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: TEST PAUSE reclaim|[update-constitution] another run took <scratch>/tmp/helix-install-test.ajguAe/proj/.git/helix-constitution-install.lock|rc=3|
+iter 3 FAIL: A said: [constitution] ERROR: another installer run (pid 864796) holds <scratch>/tmp/helix-install-test.ajguAe/proj/.git/helix-constitution-install.lock|rc=3| ; ra at break: TEST PAUSE reclaim|[update-constitution] another run took <scratch>/tmp/helix-install-test.ajguAe/proj/.git/helix-constitution-install.lock|rc=3|
+DELAY=1 ITER=3 mutant_case_fail=3 stale_read_then_refused=3

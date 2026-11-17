@@ -1,0 +1,18 @@
+======================================================================
+§1.1 paired-mutation meta-test for CM-CONTINUUM-RESUME-ENGINE-PRESENT
+fixtures under: <tmp>/cm_continuum_mut.dwGLAG
+======================================================================
+✅ META OK:   engine present / clean fixture — gate correctly PASSed on clean fixture
+✅ META OK:   engine directory absent — gate correctly FAILed on the mutation
+✅ META OK:   go.mod without 'module ' declaration — gate correctly FAILed on the mutation
+✅ META OK:   helix-deps.yaml declares a non-empty own-org dep — gate correctly FAILed on the mutation
+✅ META OK:   project-specific literal planted in engine source — gate correctly FAILed on the mutation
+✅ META OK:   LARGE-SELFCHECK (405095 B, markers first) PASSes — iteration 1
+✅ META OK:   LARGE-SELFCHECK (405095 B, markers first) PASSes — iteration 2
+✅ META OK:   LARGE-SELFCHECK (405095 B, markers first) PASSes — iteration 3
+✅ META OK:   LARGE-SELFCHECK (405095 B, markers first) PASSes — iteration 4
+✅ META OK:   LARGE-SELFCHECK (405095 B, markers first) PASSes — iteration 5
+✅ META OK:   LARGE-SELFCHECK with bad=PASS correctly FAILs
+======================================================================
+✅ META PASS: CM-CONTINUUM-RESUME-ENGINE-PRESENT is a genuine (non-bluff) gate
+======================================================================

@@ -1,0 +1,4 @@
+mirror replace refs: 1
+log -p --all -m sees fake: 0
+same with --no-replace-objects: 1
+positive control cat-file --no-replace-objects: 1

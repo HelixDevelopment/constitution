@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# regress.sh LIST TREE OUTDIR : run each test of LIST in TREE (at most 2 at a time), rc per test to OUTDIR/rc.tsv
+list="${1:?list}"; tree="${2:?tree}"; out="${3:?outdir}"
+mkdir -p "$out"; : >"$out/rc.tsv"
+run1() {
+  local t="$1" log
+  log="$out/$(printf '%s' "$t" | tr '/' '_').log"
+  (cd "$tree" && timeout -k 10 3600 systemd-run --user --scope -q -p TasksMax=2000 nice -n 10 bash "$t") >"$log" 2>&1
+  printf '%s\t%s\n' "$t" "$?" >>"$out/rc.tsv"
+}
+export -f run1; export out tree
+xargs -a "$list" -P 2 -I{} bash -c 'run1 "$1"' _ {}
+echo DONE >>"$out/rc.tsv"

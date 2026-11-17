@@ -1,0 +1,55 @@
+PASS: RM1: checkout of the OLD commit (CUR != gitlink) does not run the old checkout's hook
+PASS: RM1: ... and does not mark the gitlink applied
+PASS: RM1: ... and the stamp stays pending
+PASS: RM6: a FILE checkout ($3=0) never runs propagation
+PASS: RM7: CONSTITUTION_PENDING_UPDATE_RUNNING=1 -> not run
+PASS: control: branch checkout at the gitlink runs it once with OLD=old NEW=new
+PASS: RM2: stamp with a foreign ROOT and no applied ref -> nothing run (never guesses)
+PASS: RM2: foreign-ROOT stamp ignored, OLD taken from the applied ref
+PASS: lock: empty lock dir older than 60 s -> reclaimed (WARNING), propagation runs once, lock released
+PASS: lock: fresh empty lock dir -> NOT reclaimed, loud WARNING with the command, stamp stays
+PASS: lock: owner pid dead -> reclaimed, runs once
+PASS: lock: owner pid alive but REUSED (start time differs) -> reclaimed, runs once
+PASS: RM3: live holder (pid + start time match) -> NEVER reclaimed, WARNING, stamp stays, lock intact
+PASS: lock: symlinked lock -> renamed away (WARNING), target untouched, runs once
+PASS: m6: two concurrent reclaimers of a stale lock -> exactly one run, no leftover lock (ok 3/3)
+PASS: I6: hostile gitlink NOT reachable from upstream main -> checkout made, hook NOT run
+PASS: I6: ... one WARNING says not reachable + the exact manual command
+PASS: I6: ... the stamp stays pending, nothing recorded applied
+PASS: I6: once reachable from origin/main -> run once with OLD=v1 NEW=evil
+PASS: I6 opt-out: CONSTITUTION_AUTO_PROPAGATE=off -> not run, NOTE + manual command, stamp kept
+PASS: I6 opt-out: git config constitution.autoPropagate false -> not run
+PASS: I6 opt-out: unreadable boolean value -> treated as disabled (not run)
+PASS: I6 opt-in again (true): runs once with OLD=evil NEW=v3
+PASS: m1/I6: plain branch switch to an older gitlink + submodule update -> checkout moved, hook NOT run
+PASS: m1/I6: ... WARNING names the downgrade + the manual command
+PASS: m1: applied ref stays at v3 (not rewritten to the older gitlink)
+PASS: m1: back on main / recurse switches: still nothing run (stale applied ref harmless)
+PASS: m1: the next real upgrade runs once with OLD=v3 NEW=v4
+PASS: I6: post-merge direct path (checkout already at the hostile gitlink) -> NOT run, WARNING
+PASS: I2: setup in the linked worktree exits 0 and installs its own submodule consumer (rc=0)
+PASS: I2: state lives in the worktree git dir (.git/worktrees/wt2), not the common dir
+PASS: I2: main worktree pull -> ran once (OLD=ecdee51f6f2e333ea0e180481bc6714a3b5d933e NEW=b8af594d4dfe4f05a0b1888e0b0404713ff94fee)
+PASS: I2: the linked worktree's plain merge writes ITS stamp (worktree git dir), not the common dir's
+PASS: I2: the LINKED worktree's update is NOT skipped: runs once more there (calls=2)
+PASS: I2: each worktree recorded its own applied ref
+PASS: N4: lock taken over during the run -> the foreign owner's lock survives our release
+PASS: N4: ... and the hook warned that the lock was no longer ours
+PASS: N4 control: untouched lock is released by its owner (no lock left)
+PASS: N4 control: propagation ran once
+PASS: R1: stale lock + a reclaimer whose snapshot went out of date -> the winner still runs exactly once (calls=1)
+PASS: R1: ... the late reclaimer never renamed the winner's live lock away
+PASS: R1: ... no lock and no renamed lock left behind
+PASS: R1: ... the late reclaimer backed off without running
+PASS: R1b: a reclaimer between re-check and rename blocks the other reclaimer (it did not acquire meanwhile: early=0)
+PASS: R1b: ... exactly one run (calls=1), no lock or renamed lock left
+PASS: R2-F1: FIFO at the reclaim mutex path -> the hook returns (rc=0, never 124), nothing run, WARNING names the mutex
+PASS: R2-F2: the consumer does not pass the re-check while the shared mutex is held elsewhere (early=0)
+PASS: R2-F2: ... and reclaims + runs once after it is released (calls=1)
+PASS: R2-F3 control needle: the no-flock PATH has git but no flock
+PASS: R2-F3: no flock -> stale lock NOT reclaimed, WARNING names flock, nothing run, stamp kept (rc=0)
+PASS: R1 seam: HELIX_TEST_MODE unset -> pause ignored, run completes (rc=0, calls=1)
+PASS: R1 seam: pause dir outside the temp root -> ignored (rc=0, calls=1)
+PASS: consumer hook parses under bash -n
+----
+consumer_trust_lock: PASS=53 FAIL=0

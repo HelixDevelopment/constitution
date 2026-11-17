@@ -10,6 +10,7 @@
 # the engine; FSR_RUNNER selects the runner under test). Every failing check prints a line that
 # starts with `FAIL ` (the mutation harness counts a kill only when such a line exists).
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 R=${FSR_RUNNER:-$HERE/scripts/run_full_suite.sh}
 ENGINE="$(cd "$(dirname "$R")" && pwd)/full_suite/run_full_suite.py"

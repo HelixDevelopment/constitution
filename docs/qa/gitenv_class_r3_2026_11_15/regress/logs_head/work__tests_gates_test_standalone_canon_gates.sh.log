@@ -1,0 +1,51 @@
+PASS [cm_control_needle_required] RED: without --standalone-canon the gate fails closed (rc=1), no SKIP
+PASS [cm_control_needle_required] GREEN: --standalone-canon -> honest SKIP (rc=0)
+PASS [cm_control_needle_required] determinism: 3 identical runs
+PASS [cm_control_needle_required] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_control_needle_required] performance: under 120 s for 5 runs
+PASS [cm_mechanism_observed_refusing] RED: without --standalone-canon the gate fails closed (rc=1), no SKIP
+PASS [cm_mechanism_observed_refusing] GREEN: --standalone-canon -> honest SKIP (rc=0)
+PASS [cm_mechanism_observed_refusing] determinism: 3 identical runs
+PASS [cm_mechanism_observed_refusing] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_mechanism_observed_refusing] performance: under 120 s for 5 runs
+PASS [cm_dependency_register_verdicts] RED: without --standalone-canon the gate fails closed (rc=1), no SKIP
+PASS [cm_dependency_register_verdicts] GREEN: --standalone-canon -> honest SKIP (rc=0)
+PASS [cm_dependency_register_verdicts] determinism: 3 identical runs
+PASS [cm_dependency_register_verdicts] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_dependency_register_verdicts] performance: under 120 s for 5 runs
+PASS [cm_escape_ratchet] RED: without --standalone-canon the gate fails closed (rc=2), no SKIP
+PASS [cm_escape_ratchet] GREEN: --standalone-canon -> honest SKIP (rc=3)
+PASS [cm_escape_ratchet] determinism: 3 identical runs
+PASS [cm_escape_ratchet] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_escape_ratchet] performance: under 120 s for 5 runs
+PASS [cm_unreferenced_gate_bound_or_retired] RED: without --standalone-canon the gate fails closed (rc=2), no SKIP
+PASS [cm_unreferenced_gate_bound_or_retired] GREEN: --standalone-canon -> honest SKIP (rc=3)
+PASS [cm_unreferenced_gate_bound_or_retired] determinism: 3 identical runs
+PASS [cm_unreferenced_gate_bound_or_retired] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_unreferenced_gate_bound_or_retired] performance: under 120 s for 5 runs
+PASS [cm_git_hooks_installed] RED: without --standalone-canon the gate fails closed (rc=2), no SKIP
+PASS [cm_git_hooks_installed] GREEN: --standalone-canon -> honest SKIP (rc=3)
+PASS [cm_git_hooks_installed] determinism: 3 identical runs
+PASS [cm_git_hooks_installed] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_git_hooks_installed] performance: under 120 s for 5 runs
+PASS [cm_zero_findings_audit_sweep] RED: without --standalone-canon the gate fails closed (rc=1), no SKIP
+PASS [cm_zero_findings_audit_sweep] GREEN: --standalone-canon -> honest SKIP (rc=3)
+PASS [cm_zero_findings_audit_sweep] determinism: 3 identical runs
+PASS [cm_zero_findings_audit_sweep] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_zero_findings_audit_sweep] performance: under 120 s for 5 runs
+PASS [cm_zero_findings_monotone_ratchet] RED: without --standalone-canon the gate fails closed (rc=1), no SKIP
+PASS [cm_zero_findings_monotone_ratchet] GREEN: --standalone-canon -> honest SKIP (rc=3)
+PASS [cm_zero_findings_monotone_ratchet] determinism: 3 identical runs
+PASS [cm_zero_findings_monotone_ratchet] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_zero_findings_monotone_ratchet] performance: under 120 s for 5 runs
+PASS [cm_bridge_layer_presence] RED: without --standalone-canon the gate fails closed (rc=1), no SKIP
+PASS [cm_bridge_layer_presence] GREEN: --standalone-canon -> honest SKIP (rc=3)
+PASS [cm_bridge_layer_presence] determinism: 3 identical runs
+PASS [cm_bridge_layer_presence] §1.1 mutation: neutralised flag handler -> SKIP expectation flips
+PASS [cm_bridge_layer_presence] performance: under 120 s for 5 runs
+PASS [neg] escape_ratchet: ledger present + flag -> evaluated, not skipped
+PASS [neg] git_hooks_installed: map present + flag -> evaluated, not skipped
+PASS [neg] control_needle_required: reader present + flag -> A5 PASS, not SKIP
+PASS [sec] hostile ledger name without the flag stays a refusal (rc=2)
+PASS idempotency: sandbox byte-identical after all runs
+# test_standalone_canon_gates: pass=50 fail=0
