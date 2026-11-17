@@ -643,10 +643,11 @@ func TestCON456R2_BodyWritersRefuseAnItemTheParserSplits(t *testing.T) {
 		if err := os.WriteFile(ev, []byte("captured closure evidence\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		// close rebuilds the body from the description COLUMN (renderItemBody),
-		// so a line planted only in body_md is discarded and the close is
-		// correct; the plant that reaches close's gate is in the column.
-		g456Exec(t, dbPath, `UPDATE items SET description='line one'||char(10)||'## CON-811 — injected'||char(10)||description WHERE atm_id='CON-020'`)
+		// CON-456 round 5: close patches the stored body in place
+		// (bodypatch.go) instead of rebuilding it from the description column,
+		// so the plant that reaches close's gate is in body_md (rounds 2 to 4
+		// planted it in the column, which close no longer renders).
+		g456PlantHeadingInDescription(t, dbPath, "CON-020")
 		before := g456Dump(t, dbPath)
 		refusedByGate(t, "close", func() int {
 			return closeCmd([]string{"--db", dbPath, "--status", "completed", "--evidence", ev, "CON-020"})

@@ -489,15 +489,25 @@ func closeCmd(args []string) int {
 	}
 
 	// §11.4.104: closure preserves the attribution columns unchanged.
-	closedBody := renderItemBody(id, src.Title, src.Type, src.Severity, src.Description, mapping.status, src.CreatedBy, src.AssignedTo)
-	closedBody = appendEvidence(closedBody, *evidence)
-	// CON-456 round 4: close writes its own evidence line and ends a block;
-	// every other engine-written detail line of the old body is kept
-	// (detailcarry.go).
-	closeReplaces := supersedes(detailEvidence, detailOBD, detailChoices)
-	closedBody = carryDetailBlocks(src.BodyMD, closedBody, src.Description, closeReplaces)
-	// §11.4.292: the regenerated body carries the item's records again (the
-	// state columns move with the row below).
+	//
+	// CON-456 round 5 (review r4 finding 1, structural): close patches the body
+	// in place — its Status line, its closure Evidence record, and (when it
+	// ends a block) the block record — and keeps every other line
+	// (bodypatch.go). Only an empty body is rendered from the columns.
+	var closedBody, endedRecord string
+	endsBlock := src.Status == "Operator-blocked"
+	if strings.TrimSpace(src.BodyMD) == "" {
+		closedBody = renderItemBody(id, src.Title, src.Type, src.Severity, src.Description, mapping.status, src.CreatedBy, src.AssignedTo)
+		closedBody = appendEvidence(closedBody, *evidence)
+	} else {
+		closedBody = canonicalizeBodyStatusLine(src.BodyMD, mapping.status)
+		closedBody = setRecord(closedBody, recEvidence, "**Evidence:** "+*evidence)
+	}
+	// A closed item carries no block record (Fixed.md has no Operator-blocked
+	// section); the row goes in the transaction below.
+	closedBody, endedRecord = dropRecords(closedBody, recOBD, recChoices)
+	// §11.4.292: the body carries the item's records (the state columns move
+	// with the row below).
 	closedBody = canonicalizeStateLines(closedBody, src.States, src.repOrDefault())
 	// One round trip (idgrammar.go, CON-456): the closed item's Markdown in
 	// Fixed.md must read back as the closed item on the next md-to-db.
@@ -509,7 +519,7 @@ func closeCmd(args []string) int {
 		fmt.Fprintf(os.Stderr, "close: refusing (nothing written) — %v\n", err)
 		return exitUsage
 	}
-	if probs := detailLossProblems(src.BodyMD, closedBody, src.Description, closeReplaces); len(probs) > 0 {
+	if probs := ownedLinesProblems(src.BodyMD, closedBody, bodyOwnership{status: true, records: []string{recEvidence, recOBD, recChoices}}, src.Description, src.Description); len(probs) > 0 {
 		fmt.Fprintf(os.Stderr, "close: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
@@ -578,20 +588,22 @@ func closeCmd(args []string) int {
 		fmt.Fprintf(os.Stderr, "close: append Fixed segment: %v\n", err)
 		return exitUsage
 	}
+	// CON-456 round 4 (class sweep, RT_SIDE) and round 5: a closed item has
+	// no block, so the operator_block_details row goes in the same
+	// transaction; when close ended a block, the removed record is kept in
+	// item_history (endBlockInTx).
+	if endsBlock || endedRecord != "" {
+		if err := endBlockInTx(tx, id, endedRecord); err != nil {
+			fmt.Fprintf(os.Stderr, "close: %v\n", err)
+			return exitUsage
+		}
+	} else if _, err := tx.Exec(`DELETE FROM operator_block_details WHERE atm_id=?`, id); err != nil {
+		fmt.Fprintf(os.Stderr, "close: remove the block record: %v\n", err)
+		return exitUsage
+	}
 	if err := recordHistory(tx, id, mapping.event, "AI", "", *evidence); err != nil {
 		fmt.Fprintf(os.Stderr, "close: history: %v\n", err)
 		return exitUsage
-	}
-	// CON-456 round 4 (class sweep, RT_SIDE): close ends a block and the
-	// closed body carries no Operator-Block-Details record (closeReplaces), so
-	// the operator_block_details row goes in the same transaction. Before, the
-	// row stayed until the next sync md-to-db deleted it, and the database
-	// and the Markdown disagreed in between.
-	if _, ok := operatorBlockSource(closedBody); !ok {
-		if _, err := tx.Exec(`DELETE FROM operator_block_details WHERE atm_id=?`, id); err != nil {
-			fmt.Fprintf(os.Stderr, "close: remove the block record: %v\n", err)
-			return exitUsage
-		}
 	}
 	// Per §11.4.90, Obsolete closures carry triple-check evidence in their own
 	// table when the operator supplies the required fields; the minimal close
@@ -818,12 +830,19 @@ func recordHistory(tx *sql.Tx, id, event, by, reason, evidence string) error {
 // STRICT no-op (no Status line to rewrite), matching the empty-body class that
 // repair-bodies / renderItemBody own — so this helper never fabricates a body.
 func setStatusAndSyncBody(tx *sql.Tx, atmID, location, newStatus string) error {
-	var body string
-	if err := tx.QueryRow(`SELECT COALESCE(body_md,'') FROM items
-		WHERE atm_id=? AND current_location=?`, atmID, location).Scan(&body); err != nil {
+	var body, oldStatus string
+	if err := tx.QueryRow(`SELECT COALESCE(body_md,''), status FROM items
+		WHERE atm_id=? AND current_location=?`, atmID, location).Scan(&body, &oldStatus); err != nil {
 		return err
 	}
 	synced := canonicalizeBodyStatusLine(body, newStatus)
+	// CON-456 round 5 (review r4 finding 3, writer sweep): a status write off
+	// Operator-blocked ends the block — body record and row together.
+	endsBlock := oldStatus == "Operator-blocked" && newStatus != "Operator-blocked"
+	var endedRecord string
+	if endsBlock {
+		synced, endedRecord = dropRecords(synced, recOBD, recChoices)
+	}
 	res, err := tx.Exec(`UPDATE items SET status=?, body_md=?, last_modified=datetime('now')
 		WHERE atm_id=? AND current_location=?`, newStatus, synced, atmID, location)
 	if err != nil {
@@ -831,6 +850,9 @@ func setStatusAndSyncBody(tx *sql.Tx, atmID, location, newStatus string) error {
 	}
 	if n, _ := res.RowsAffected(); n != 1 {
 		return fmt.Errorf("setStatusAndSyncBody: %s [%s] affected %d rows (expected 1)", atmID, location, n)
+	}
+	if endsBlock {
+		return endBlockInTx(tx, atmID, endedRecord)
 	}
 	return nil
 }

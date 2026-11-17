@@ -74,9 +74,13 @@ func TestCON456R4_UpdateDescriptionKeepsEveryDetailKind(t *testing.T) {
 		t.Fatalf("update --description exited %d", rc)
 	}
 	after := r4Body(t, dbPath, "CON-950")
-	for _, b := range detailBlocks(before, "") {
-		if !strings.Contains(after, b.text()) {
-			t.Errorf("update --description dropped the %s block %q:\n%s", b.kind, b.text(), after)
+	// Round 5: detailcarry.go is gone (bodypatch.go); the check names the
+	// detail lines of the old body directly.
+	for _, ln := range strings.Split(before, "\n") {
+		for _, p := range []string{"**Evidence:**", "**Reopened-Details:**", "**Operator-Block-Details", "**Unblock-Choices:**", "- **"} {
+			if strings.HasPrefix(ln, p) && !strings.Contains(after, ln) {
+				t.Errorf("update --description dropped the detail line %q:\n%s", ln, after)
+			}
 		}
 	}
 	if !strings.Contains(after, "Edited once.") {
@@ -176,57 +180,46 @@ func TestCON456R4_DescriptionOwnedAndFencedLinesNotCarried(t *testing.T) {
 	}
 }
 
+// Round 5: the round-4 detail-loss gate (detailcarry.go) is replaced by the
+// owned-lines gate (bodypatch.go); the same cases, judged by ownership.
 func TestCON456R4_DetailLossGate(t *testing.T) {
 	old := "## CON-1 — t\n\n**Status:** Operator-blocked\n**Type:** Task\n**Evidence:** /e\n" +
 		"**Operator-Block-Details:** WHAT: w WHY: y\n- choice bullet\n**Reopened-Details:** By: AI On: 2026 Reason: r Evidence: /i\n- **By:** AI\n\nprose\n"
-	if p := detailLossProblems(old, old, "", nil); len(p) != 0 {
+	none := bodyOwnership{}
+	if p := ownedLinesProblems(old, old, none, "", ""); len(p) != 0 {
 		t.Fatalf("golden-FALSE: an unchanged body was refused: %v", p)
 	}
 	noEv := strings.Replace(old, "**Evidence:** /e\n", "", 1)
-	if p := detailLossProblems(old, noEv, "", nil); len(p) != 1 || !strings.Contains(p[0], "Evidence") {
+	if p := ownedLinesProblems(old, noEv, none, "", ""); len(p) != 1 || !strings.Contains(p[0], "Evidence") {
 		t.Fatalf("a dropped Evidence line: %v", p)
 	}
-	if p := detailLossProblems(old, noEv, "", supersedes(detailEvidence)); len(p) != 0 {
-		t.Fatalf("a replaced kind was refused: %v", p)
+	if p := ownedLinesProblems(old, noEv, bodyOwnership{records: []string{recEvidence}}, "", ""); len(p) != 0 {
+		t.Fatalf("an owned record was refused: %v", p)
 	}
 	noBullet := strings.Replace(old, "- choice bullet\n", "", 1)
-	if p := detailLossProblems(old, noBullet, "", nil); len(p) == 0 {
+	if p := ownedLinesProblems(old, noBullet, none, "", ""); len(p) == 0 {
 		t.Fatal("a changed block record (continuation bullet dropped) was not refused")
 	}
 	noAttr := strings.Replace(old, "- **By:** AI\n", "", 1)
-	if p := detailLossProblems(old, noAttr, "", nil); len(p) == 0 {
+	if p := ownedLinesProblems(old, noAttr, none, "", ""); len(p) == 0 {
 		t.Fatal("a dropped Reopened-Details attribution bullet was not refused")
 	}
 	choices := strings.Replace(old, "prose\n", "prose\n**Unblock-Choices:** [A] x · [B] y\n", 1)
-	if p := detailLossProblems(choices, old, "", nil); len(p) == 0 {
-		t.Fatal("a dropped Unblock-Choices line was not refused")
-	}
-	if p := detailLossProblems(old, noEv, "**Evidence:** /e", nil); len(p) != 0 {
-		t.Fatalf("a description-owned line was refused: %v", p)
+	if p := ownedLinesProblems(choices, old, bodyOwnership{records: []string{recChoices}}, "", ""); len(p) == 0 {
+		t.Fatal("a dropped Unblock-Choices line outside the metadata block was not refused")
 	}
 	fenced := "## CON-1 — t\n\n**Type:** Task\n\n```\n**Evidence:** /e\n```\n"
-	if p := detailLossProblems(fenced, "## CON-1 — t\n\n**Type:** Task\n", "", nil); len(p) != 0 {
-		t.Fatalf("a fenced line was refused: %v", p)
+	if p := ownedLinesProblems(fenced, "## CON-1 — t\n\n**Type:** Task\n", bodyOwnership{records: []string{recEvidence}}, "", ""); len(p) == 0 {
+		t.Fatal("a dropped fenced line was not refused (a fenced line is never a record a writer owns)")
 	}
-	// Own mutant M9: every old block is still present verbatim, but a new
-	// `**Operator-Block-Details` line ahead of it changes the record the next
-	// md-to-db reads (operatorBlockParts takes the first marker). Only the
-	// source comparison catches this; a block write replaces the record, so
-	// it is not judged there (golden-FALSE).
+	// Own mutant M9 (round 4): a new marker ahead of the record changes what
+	// the next md-to-db reads; blockRecordKept refuses it.
 	forged := strings.Replace(old, "**Type:** Task\n", "**Type:** Task\n**Operator-Block-Details:** WHAT: forged\n\n", 1)
-	if p := detailLossProblems(old, forged, "", nil); len(p) == 0 {
+	if p := blockRecordKept(old, forged); len(p) == 0 {
 		t.Fatal("a changed Operator-Block-Details source (forged marker ahead of the record) was not refused")
 	}
-	if p := detailLossProblems(old, forged, "", supersedes(detailOBD, detailChoices)); len(p) != 0 {
-		t.Fatalf("golden-FALSE: a write that replaces the record was judged on its source: %v", p)
-	}
-	// The carry inserts what is missing, once.
-	carried := carryDetailBlocks(old, "## CON-1 — t\n\n**Status:** Operator-blocked\n**Type:** Task\n\nnew\n", "", nil)
-	if p := detailLossProblems(old, carried, "", nil); len(p) != 0 {
-		t.Fatalf("carryDetailBlocks left a loss: %v\n%s", p, carried)
-	}
-	if again := carryDetailBlocks(old, carried, "", nil); again != carried {
-		t.Fatalf("carryDetailBlocks is not idempotent:\n%s", again)
+	if p := blockRecordKept(old, old); len(p) != 0 {
+		t.Fatalf("golden-FALSE: an unchanged record was refused: %v", p)
 	}
 }
 

@@ -4,21 +4,21 @@
 // transitions the §11.4.74 LVA-3 migration found OWED:
 //
 //   - update  — change fields (title / severity / description / type / status /
-//               created-by / assigned-to) on an existing item; append an
-//               item_history 'Updated' row (§11.4.34 audit). Rejects unknown IDs.
+//     created-by / assigned-to) on an existing item; append an
+//     item_history 'Updated' row (§11.4.34 audit). Rejects unknown IDs.
 //   - reopen  — §11.4.34 reopened-source attribution. Flips status to Reopened
-//               and records all four attribution facts (By / On / Reason /
-//               Evidence). Rejects partial attribution; --why drawn from the
-//               §11.4.34 closed reason vocabulary.
+//     and records all four attribution facts (By / On / Reason /
+//     Evidence). Rejects partial attribution; --why drawn from the
+//     §11.4.34 closed reason vocabulary.
 //   - block   — §11.4.21 operator-blocked status. Flips status to
-//               Operator-blocked and records operator_block_details. Rejects
-//               empty details.
+//     Operator-blocked and records operator_block_details. Rejects
+//     empty details.
 //   - move    — the general REVERSE-OF-CLOSE relocation: moves an item between the
-//               Issues and Fixed trackers (row + doc_segment) with an optional new
-//               status, WITHOUT the §11.4.34 reopen semantics (no Reopened-Details
-//               block, no 'Reopened' history event, so the §11.4.55 reopens_count
-//               signal is never inflated by a non-demotion transition). Refuses any
-//               destination/status pair that would create an INTEG-03 desync.
+//     Issues and Fixed trackers (row + doc_segment) with an optional new
+//     status, WITHOUT the §11.4.34 reopen semantics (no Reopened-Details
+//     block, no 'Reopened' history event, so the §11.4.55 reopens_count
+//     signal is never inflated by a non-demotion transition). Refuses any
+//     destination/status pair that would create an INTEG-03 desync.
 //
 // All four keep the byte-identical round-trip invariant intact, and all four are
 // BODY-PRESERVING: a mutation patches ONLY the slots it actually changes in the
@@ -49,12 +49,12 @@ import (
 // one of these (free-text is permitted only by the markdown clause, not the CLI,
 // which keeps the audit-log query-able per §11.4.34).
 var reopenReasons = map[string]bool{
-	"test-failed":                    true,
-	"manual-testing-detected":        true,
-	"captured-evidence-contradicts":  true,
-	"end-user-report":                true,
-	"cycle-re-discovered":            true,
-	"design-reconsidered":            true,
+	"test-failed":                   true,
+	"manual-testing-detected":       true,
+	"captured-evidence-contradicts": true,
+	"end-user-report":               true,
+	"cycle-re-discovered":           true,
+	"design-reconsidered":           true,
 }
 
 func reopenReasonList() string {
@@ -132,8 +132,9 @@ func updateCmd(args []string) int {
 		return exitUsage
 	}
 
-	// The stored description and body before this update (detailcarry.go).
-	oldDescription, oldBody := cur.Description, cur.BodyMD
+	// The stored description, body and status before this update
+	// (bodypatch.go: the update may change only the lines it owns).
+	oldDescription, oldBody, oldStatus := cur.Description, cur.BodyMD, cur.Status
 
 	// Apply only the explicitly-set fields onto the loaded item.
 	if set["title"] {
@@ -382,18 +383,37 @@ func updateCmd(args []string) int {
 	// --severity/--status, which is a proven no-op-safe path for this shape
 	// (replaceHeadingTitle/canonicalizeBodyStatusLine both require "## "/"**" -
 	// prefixed lines that a pipe-row never contains, so they leave it unchanged).
+	//
+	// CON-456 round 5 (review r4 findings 1 and 2, structural): --description
+	// no longer regenerates the body either. It replaces exactly the
+	// description region (the lines equal to the old description column) in
+	// place, or inserts the new text after the metadata block when the body
+	// holds no such region (an item read by md-to-db, whose description
+	// column is derived); every other line stays (bodypatch.go). Only an
+	// empty body is rendered from the columns: there is nothing to keep.
+	descEdit := set["description"] && cur.repOrDefault() != "table"
 	var newBody string
-	if set["description"] && cur.repOrDefault() != "table" {
+	if descEdit && strings.TrimSpace(cur.BodyMD) == "" {
 		newBody = renderItemBody(cur.AtmID, cur.Title, cur.Type, cur.Severity, cur.Description, cur.Status, cur.CreatedBy, cur.AssignedTo)
-		// CON-456 round 4 (review finding 1): the regenerated body keeps the
-		// engine-written detail lines of the old one (detailcarry.go).
-		newBody = carryDetailBlocks(cur.BodyMD, newBody, oldDescription, nil)
 	} else {
 		newBody = cur.BodyMD
+		if descEdit {
+			newBody = replaceDescription(newBody, oldDescription, cur.Description)
+		}
 		if set["title"] {
 			newBody = replaceHeadingTitle(newBody, cur.AtmID, cur.Title)
 		}
 		newBody = canonicalizeBodyStatusLine(newBody, cur.Status)
+	}
+	// Review r4 finding 3: a status change off Operator-blocked ends the
+	// block. The block record of the metadata block goes from the body and
+	// its operator_block_details row goes in the same transaction below (as
+	// close does), so the database already holds what the next md-to-db
+	// leaves; the ended record is kept in item_history.
+	endsBlock := oldStatus == "Operator-blocked" && cur.Status != "Operator-blocked"
+	var endedRecord string
+	if endsBlock {
+		newBody, endedRecord = dropRecords(newBody, recOBD, recChoices)
 	}
 	// ATM-627-part-2 STORE-side normalization (defense-in-depth). A field-only
 	// update PROPAGATES the existing cur.BodyMD verbatim; a pre-existing body that
@@ -421,7 +441,10 @@ func updateCmd(args []string) int {
 		}
 	}
 	var inputs []string
-	if set["description"] && cur.repOrDefault() != "table" {
+	// Round 5: an unchanged description changes no line of the body (the
+	// description column of an item read by md-to-db is derived and is not
+	// in the body verbatim), so only a changed one is judged as an input.
+	if descEdit && cur.Description != oldDescription {
 		inputs = append(inputs, cur.Description)
 	}
 	gated := *cur
@@ -430,8 +453,16 @@ func updateCmd(args []string) int {
 		fmt.Fprintf(os.Stderr, "update: refusing (nothing written) — %v\n", err)
 		return exitUsage
 	}
-	// CON-456 round 4: update replaces no detail line, so it may lose none.
-	if probs := detailLossProblems(oldBody, newBody, oldDescription, nil); len(probs) > 0 {
+	// CON-456 round 5: the update changes only the lines it owns.
+	own := bodyOwnership{title: set["title"], status: set["status"], description: descEdit}
+	if endsBlock {
+		own.records = []string{recOBD, recChoices}
+	}
+	probs := ownedLinesProblems(oldBody, newBody, own, oldDescription, cur.Description)
+	if cur.Status == "Operator-blocked" {
+		probs = append(probs, blockRecordKept(oldBody, newBody)...)
+	}
+	if len(probs) > 0 {
 		fmt.Fprintf(os.Stderr, "update: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
@@ -458,6 +489,12 @@ func updateCmd(args []string) int {
 			*id, loc, cur.repOrDefault())...); err != nil {
 		fmt.Fprintf(os.Stderr, "update: %v\n", err)
 		return exitUsage
+	}
+	if endsBlock {
+		if err := endBlockInTx(tx, *id, endedRecord); err != nil {
+			fmt.Fprintf(os.Stderr, "update: %v\n", err)
+			return exitUsage
+		}
 	}
 	if err := recordHistory(tx, *id, "Updated", "AI", statesReason, ""); err != nil {
 		fmt.Fprintf(os.Stderr, "update: history: %v\n", err)
@@ -579,8 +616,15 @@ func reopenCmd(args []string) int {
 	// migration so reopen strands a Fixed item in Fixed again.
 	dest := strings.TrimSpace(*location)
 
+	oldBody, oldStatus := cur.BodyMD, cur.Status
 	cur.Status = "Reopened"
 	newBody := reopenedBody(cur, byVal, *when, *why, *incident)
+	// Review r4 finding 3: reopening an Operator-blocked item ends its block.
+	endsBlock := oldStatus == "Operator-blocked"
+	var endedRecord string
+	if endsBlock {
+		newBody, endedRecord = dropRecords(newBody, recOBD, recChoices)
+	}
 	// One round trip (idgrammar.go, CON-456): the reopened item's Markdown in
 	// its destination tracker must read back as the reopened item.
 	reopened := *cur
@@ -592,6 +636,15 @@ func reopenCmd(args []string) int {
 	}
 	if newBody, err = gateItemWrite(reopened, reopenInputs...); err != nil {
 		fmt.Fprintf(os.Stderr, "reopen: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+	// CON-456 round 5: reopen changes only the lines it owns.
+	reopenOwn := bodyOwnership{status: true, records: []string{recReopened}}
+	if endsBlock {
+		reopenOwn.records = append(reopenOwn.records, recOBD, recChoices)
+	}
+	if probs := ownedLinesProblems(oldBody, newBody, reopenOwn, cur.Description, cur.Description); len(probs) > 0 && reopened.repOrDefault() != "table" {
+		fmt.Fprintf(os.Stderr, "reopen: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
 
@@ -633,6 +686,12 @@ func reopenCmd(args []string) int {
 		}
 		if err := appendSegment(tx, dest, *id); err != nil {
 			fmt.Fprintf(os.Stderr, "reopen: append %s segment: %v\n", dest, err)
+			return exitUsage
+		}
+	}
+	if endsBlock {
+		if err := endBlockInTx(tx, *id, endedRecord); err != nil {
+			fmt.Fprintf(os.Stderr, "reopen: %v\n", err)
 			return exitUsage
 		}
 	}
@@ -718,6 +777,19 @@ func reopenedBody(it *item, by, when, why, incident string) string {
 // contradictory detail lines is a §11.4.6 ambiguity, not an audit trail (the audit
 // trail is the append-only item_history table, which correctly keeps EVERY reopen).
 func upsertMetaLine(body, key, metaLine string) string {
+	// CON-456 round 5: a record of the item's own metadata block is replaced
+	// in place (bodypatch.go setRecord); a line of the same kind elsewhere in
+	// the body (a quote in prose or in a fence) is the operator's text and is
+	// never matched.
+	if kind := strings.TrimSuffix(strings.TrimPrefix(key, "**"), ":**"); recordKindOf(key+" x") == kind {
+		lines := splitKeepNewlines(body)
+		for _, r := range metaRecords(lines, metaBlockOf(lines)) {
+			if r.kind == kind {
+				return setRecord(body, kind, metaLine)
+			}
+		}
+		return insertMetaLine(body, metaLine)
+	}
 	lines := splitKeepNewlines(body)
 	for i, ln := range lines {
 		if strings.HasPrefix(strings.TrimRight(ln, "\n"), key) {
@@ -908,6 +980,12 @@ func moveCmd(args []string) int {
 	// line when the status actually changed (canonicalizeBodyStatusLine is a STRICT
 	// no-op otherwise, so a pure relocation leaves body_md byte-identical).
 	newBody := ensureTrailingNewline(canonicalizeBodyStatusLine(cur.BodyMD, newStatus))
+	// Review r4 finding 3: a move off Operator-blocked ends the block.
+	endsBlock := cur.Status == "Operator-blocked" && newStatus != "Operator-blocked"
+	var endedRecord string
+	if endsBlock {
+		newBody, endedRecord = dropRecords(newBody, recOBD, recChoices)
+	}
 	// One round trip (idgrammar.go, CON-456): the moved item's Markdown must
 	// read back as the moved item in its destination tracker.
 	moved := *cur
@@ -916,6 +994,19 @@ func moveCmd(args []string) int {
 	moved.BodyMD = newBody
 	if newBody, err = gateItemWrite(moved); err != nil {
 		fmt.Fprintf(os.Stderr, "move: refusing (nothing written) — %v\n", err)
+		return exitUsage
+	}
+	// CON-456 round 5: move changes only the lines it owns.
+	moveOwn := bodyOwnership{status: true}
+	if endsBlock {
+		moveOwn.records = []string{recOBD, recChoices}
+	}
+	probs := ownedLinesProblems(cur.BodyMD, newBody, moveOwn, cur.Description, cur.Description)
+	if newStatus == "Operator-blocked" {
+		probs = append(probs, blockRecordKept(cur.BodyMD, newBody)...)
+	}
+	if len(probs) > 0 && cur.repOrDefault() != "table" {
+		fmt.Fprintf(os.Stderr, "move: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
 
@@ -959,6 +1050,12 @@ func moveCmd(args []string) int {
 	// 'Obsolete') and a relocation is deliberately NOT a 'Reopened' event (see the
 	// §11.4.55 reopens_count rationale above). Adding a 'Moved' member would be a
 	// live-schema migration whose blast radius exceeds this fix.
+	if endsBlock {
+		if err := endBlockInTx(tx, *id, endedRecord); err != nil {
+			fmt.Fprintf(os.Stderr, "move: %v\n", err)
+			return exitUsage
+		}
+	}
 	if err := recordHistory(tx, *id, "Updated", "AI", *why, strings.TrimSpace(*evidence)); err != nil {
 		fmt.Fprintf(os.Stderr, "move: history: %v\n", err)
 		return exitUsage
@@ -1005,8 +1102,15 @@ func blockCmd(args []string) int {
 		return exitUsage
 	}
 	loc := strings.TrimSpace(*location)
-	if loc != "Issues" && loc != "Fixed" {
-		fmt.Fprintln(os.Stderr, "block: --location must be Issues or Fixed")
+	// CON-456 round 5 (review r4 finding 6): Operator-blocked is an open
+	// status; blocking an item of the Fixed file (Obsolete, Completed, ...)
+	// wrote a blocked item into the closed file. Reopen it first.
+	if loc == "Fixed" {
+		fmt.Fprintln(os.Stderr, "block: refusing --location Fixed — Operator-blocked is an open status; reopen the item first")
+		return exitUsage
+	}
+	if loc != "Issues" {
+		fmt.Fprintln(os.Stderr, "block: --location must be Issues")
 		return exitUsage
 	}
 	// §11.4.21: Operator-blocked is a last-resort classification. The WHAT
@@ -1034,12 +1138,26 @@ func blockCmd(args []string) int {
 		return exitUsage
 	}
 
+	if cur.repOrDefault() == "table" {
+		fmt.Fprintf(os.Stderr, "block: refusing — %s is a table-row item; a table row has no body to carry the §11.4.21 block record\n", *id)
+		return exitUsage
+	}
+
+	oldBody := cur.BodyMD
 	cur.Status = "Operator-blocked"
-	newBody := renderBlockedBody(cur, *details, *why, *unblock, *who)
-	// CON-456 round 4: block writes its own block record and keeps every
-	// other engine-written detail line of the old body (detailcarry.go).
-	blockReplaces := supersedes(detailOBD, detailChoices)
-	newBody = carryDetailBlocks(cur.BodyMD, newBody, cur.Description, blockReplaces)
+	// CON-456 round 5 (review r4 finding 1, structural): block patches the
+	// body in place — the Status line and its own block record — and keeps
+	// every other line (bodypatch.go). Only an empty body is rendered.
+	var newBody string
+	rec := operatorBlockLine(*details, *why, *unblock, *who)
+	if strings.TrimSpace(oldBody) == "" {
+		newBody = renderBlockedBody(cur, *details, *why, *unblock, *who)
+	} else {
+		newBody = canonicalizeBodyStatusLine(oldBody, cur.Status)
+		newBody, _ = dropRecords(newBody, recChoices)
+		newBody = setRecord(newBody, recOBD, rec)
+		newBody = canonicalizeStateLines(newBody, cur.States, cur.repOrDefault())
+	}
 	// One round trip (idgrammar.go, CON-456): the blocked item's Markdown must
 	// read back as the blocked item, and the operator's block text must
 	// survive in it verbatim.
@@ -1049,7 +1167,12 @@ func blockCmd(args []string) int {
 		fmt.Fprintf(os.Stderr, "block: refusing (nothing written) — %v\n", err)
 		return exitUsage
 	}
-	if probs := detailLossProblems(cur.BodyMD, newBody, cur.Description, blockReplaces); len(probs) > 0 {
+	probs := ownedLinesProblems(oldBody, newBody, bodyOwnership{status: true, records: []string{recOBD, recChoices}}, cur.Description, cur.Description)
+	// The block record the next md-to-db reads is the one just written.
+	if got, _, _ := operatorBlockParts(newBody); strings.TrimSpace(got) != strings.TrimSpace(rec) {
+		probs = append(probs, fmt.Sprintf("the body's block record reads back as %q, not the record written", got))
+	}
+	if len(probs) > 0 {
 		fmt.Fprintf(os.Stderr, "block: refusing (nothing written) — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
@@ -1105,6 +1228,12 @@ func blockCmd(args []string) int {
 // adjacent meta block.
 func renderBlockedBody(it *item, what, why, unblock, who string) string {
 	body := renderItemBody(it.AtmID, it.Title, it.Type, it.Severity, it.Description, "Operator-blocked", it.CreatedBy, it.AssignedTo)
+	// §11.4.292: the regenerated body carries the item's records again.
+	return canonicalizeStateLines(insertMetaLine(body, operatorBlockLine(what, why, unblock, who)), it.States, it.repOrDefault())
+}
+
+// operatorBlockLine is the one-line §11.4.21 block record block writes.
+func operatorBlockLine(what, why, unblock, who string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "**Operator-Block-Details:** WHAT: %s", what)
 	if strings.TrimSpace(why) != "" {
@@ -1116,8 +1245,7 @@ func renderBlockedBody(it *item, what, why, unblock, who string) string {
 	if strings.TrimSpace(who) != "" {
 		fmt.Fprintf(&b, " WHO: %s", who)
 	}
-	// §11.4.292: the regenerated body carries the item's records again.
-	return canonicalizeStateLines(insertMetaLine(body, b.String()), it.States, it.repOrDefault())
+	return b.String()
 }
 
 // replaceHeadingTitle surgically rewrites the title portion of an item body's
