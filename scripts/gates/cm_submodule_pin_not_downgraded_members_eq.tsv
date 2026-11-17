@@ -1,0 +1,17 @@
+# Generated members (cm_submodule_pin_not_downgraded_members.tsv) claimed EQUIVALENT, round 8, revised round 9 (CON-146, re-minted CON-194, then CON-280). Columns (TAB):
+# generated name, the differential proof (an eqp registered in cm_submodule_pin_not_downgraded_mutation_test.sh that must
+# pass), the argument why no input reaches the member. A generated member not listed here must be killed. The test checks
+# that each listed member survives the whole suite, that its proof passed, and that every row names a real member and proof.
+# Round 9 (review F1/F2): every claim is proven under the pinned GNU date AND the host's alternative date (uutils on the
+# reference host), and the whole suite it must survive includes the non-ASCII fixtures ZSID and ZSAUTH. Withdrawn as FALSE, now killed members: gen-strip-38f694f31b and gen-strip-a8ce0752e7 (git keeps
+# U+00A0 in an ident name; fixture ZSID), gen-rxq-9efb96babf ({4,}) and gen-rxq-07a5aa0cf0 (^ dropped) (GNU date round-trips
+# a five-digit year; fixture YEAR5).
+gen-andor-5d778c1c49	eq-need-argc-redundant	every caller passes "${2:-}": argc < 2 implies an empty value, refused by the -n member
+gen-rxq-1faaa1a2b7	eq-maxdays-upper-bound-by-le	a 4-digit value is >= 1000 > 365: the -le 365 member refuses it
+gen-strip-99db10f56c	eq-ident-strip-truthiness	i.lstrip() is empty exactly when i.strip() is, for every string (truthiness only; the comparison half is a killed member)
+gen-strip-7144af3e42	eq-ident-strip-truthiness	i.rstrip() is empty exactly when i.strip() is, for every string (truthiness only)
+gen-pybool-6ef1faee03	eq-idpy-strip-and-dropped	a is non-empty and f(a) is non-empty (round 13: an empty-skeleton authoriser is refused first, rc 3), so an empty i never matches
+gen-rxq-774fef6d84	eq-expiry-tail-by-roundtrip	month digits loosened: `date +%Y-%m-%d` prints a two-digit month (GNU and uutils), so `= "$e"` refuses any other width
+gen-rxq-53ad123043	eq-expiry-tail-by-roundtrip	day digits loosened: the round trip prints a two-digit day, so `= "$e"` refuses any other width
+gen-rxq-da7dc34398	eq-expiry-tail-by-roundtrip	$ dropped: the round trip prints nothing after the day, so `= "$e"` refuses any trailing text
+gen-andor-2468ed98ae	eq-V28-missing-checkout-no-empty-check	the same edit as the round-6 V28 claim: an empty subp only comes from a failed cd, after which rev-parse --git-dir on the path fails too

@@ -1,0 +1,6 @@
+2026-11-15T10:41:33+01:00 drive start day 2026-11-15 SUITE_NOW 2026-11-15T12:00:00Z head 892aa4ea05bfbef660c26d418ddaefaf2e8b4447
+2026-11-15T10:41:34+01:00 screen 1 start (time left 47606s, longest 0s)
+2026-11-15T15:32:26+01:00 screen 1 rc=0 duration 17452s
+2026-11-15T15:32:26+01:00 screen 2 start (time left 30154s, longest 17452s)
+2026-11-15T19:35:10+01:00 screen 2 rc=0 duration 14564s
+2026-11-15T19:35:10+01:00 screen 3 REFUSED: 15590s left today, longest screen 17452s (needs 1.5x)

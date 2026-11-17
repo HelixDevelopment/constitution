@@ -1,0 +1,529 @@
+start 2026-11-12T18:55:53+01:00 head 7bdffcf6b8bca1fca6225010d4fd0e45fe5dd04b clean-tree-lines 0 host anton load 26.11 27.58 29.70
+date (pinned, first on PATH): /usr/bin/gnudate: date (GNU coreutils) 9.7
+date (alternative, the host default): /usr/bin/date: date (uutils coreutils) 0.10.0
+Unicode Zs: 17 characters enumerated
+Unicode isspace(): 29 characters enumerated (Zs 17 of them; 27 can sit inside a TSV field)
+isspace() characters git keeps at the end of a name and an email: 19 (measured through git var)
+gate vector: DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/135 F_HELPSHORT=0/135 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 ARGNEAR=00000/22222222222222 CONFHASH=0,1,1, CONFKEYNEAR=0/11111/0/111 CONFSPLIT=1/1/0 CRMID=1/1 DOWN2=1/1 DUPNEAR=1/1/0 HASHMID=0 IDDELIM=1/1 ITEMCASE=1,1,0, NULROW=1/1,1/1,1/1,1/1,0 PATHNEAR=0/111111111 PATHWS=1,1, SEPINJECT=1/1 SPENTFIELDS=0,0,1 SPENTPATHNEAR=000000000/1 SYMNEAR=2/1,2/1, TSVSPACE=1,0 TZPAIR=0,1,1,0/+1400/-1200 WSID4=11111111/8/19/0
+gate vector date: 2026-11-12~2026-11-12
+gate vector date under the alternative date: 2026-11-12~2026-11-12
+ok   gate vector under the alternative date (/usr/bin/date) equals want
+lint static: rows 234, code lines 173, registered 348, needles [3, 5, 2]+(3,1), findings 0
+ok   lint control needle: a broken inventory is refused (L1, L3, L5)
+site lint static: sites 153, rows 153, data rows 103, needles [9, 3, 1]+(3), findings 0
+ok   site lint control needles: an added compare, a removed row and an emptied data row are refused (S1, S1, S3)
+ok   member ledger current: 136 generated members, 136 viable
+ok   judge unit check: survived,killed,inconclusive,inconclusive,inconclusive,inconclusive
+ok   mutant downgrade-never-detected killed
+ok   mutant always-ancestor killed
+ok   mutant forward-not-checked-first killed
+ok   mutant shallow-unchecked killed
+ok   mutant undecided-is-ok killed
+ok   mutant diverged-silent killed
+ok   mutant blind-is-pass killed
+ok   mutant fail-is-pass killed
+ok   mutant blind-outranks-fail killed
+ok   mutant presence-checks-removed killed
+ok   mutant hook-env-inherited killed
+ok   mutant commit-graph-honoured killed
+ok   mutant replace-refs-honoured killed
+ok   mutant R3m1-grafts-honoured killed
+ok   mutant RV7-lazy-fetch killed
+ok   mutant RV6-own-repo-unchecked killed
+ok   mutant diff-status-ignored killed
+ok   mutant root-not-normalised killed
+ok   mutant RM2-ignore-submodules killed
+ok   mutant RM3-renames killed
+ok   mutant no-z-parsing killed
+ok   mutant logical-paths killed
+ok   mutant base-ignored killed
+ok   mutant base-unbound killed
+ok   mutant merge-allowed killed
+ok   mutant spent-unchecked killed
+ok   mutant spent-head-counted killed
+ok   mutant spent-base-ignored killed
+ok   mutant spent-unreadable-ignored killed
+ok   mutant spent-history-error-ignored killed
+ok   mutant spent-grafts-honoured killed
+ok   mutant RM8-scope-branches-only killed
+ok   mutant RM9-super-replace-honoured killed
+ok   mutant RM10-super-lazy-fetch killed
+ok   mutant RM11-spent-ignores-path killed
+ok   mutant RM12-spent-ignores-old killed
+ok   mutant RM13-spent-cannot-tell-is-unspent killed
+ok   mutant RM14-single-worktree killed
+ok   mutant M1-tree-missing-is-absent killed
+ok   mutant M1-shallow-superproject-unchecked killed
+ok   mutant M2-stash-counted killed
+ok   mutant N4-head-always-excluded killed
+ok   mutant waiver-ignores-old-sha killed
+ok   mutant waiver-ignores-new-sha killed
+ok   mutant waiver-ignores-path killed
+ok   mutant R3n1-numeric-compare killed
+ok   mutant RM4-extra-fields killed
+ok   mutant six-field-rows killed
+ok   mutant RM5-first-bad-row-aborts killed
+ok   mutant cr-not-named killed
+ok   mutant waiver-from-worktree killed
+ok   mutant waiver-ignores-expiry killed
+ok   mutant expiry-boundary killed
+ok   mutant expiry-format-unchecked killed
+ok   mutant horizon-unchecked killed
+ok   mutant horizon-boundary killed
+ok   mutant item-format-unchecked killed
+ok   mutant item-prefix-hardcoded killed
+ok   mutant config-from-index killed
+ok   mutant config-error-ignored killed
+ok   mutant RV1-config-unreadable-as-absent killed
+ok   mutant RV3-duplicate-key-allowed killed
+ok   mutant RV4-prefix-unvalidated killed
+ok   mutant RV5-365-cap-removed killed
+ok   mutant RM1-ident-guard killed
+ok   mutant self-authoriser-allowed killed
+ok   mutant R3n4-failure-reported-as-self killed
+ok   mutant no-casefold-no-nfc killed
+ok   mutant casefold-without-nfc killed
+ok   mutant authoriser-form-unchecked killed
+ok   mutant empty-authoriser-allowed killed
+ok   mutant author-not-compared killed
+ok   mutant help-truncated killed
+ok   mutant NM1-n4-ignore-submodules-dropped killed
+ok   mutant NM2-shallow-unknown-is-deep killed
+ok   mutant NM3-first-parent-only killed
+ok   mutant NM4-spent-ignores-new killed
+ok   mutant NM5-spent-whitespace-split killed
+ok   mutant NM6-n4-worktree-not-index-ADAPTED killed
+ok   mutant NM7-tree-check-not-peeled killed
+ok   mutant NM8-stash-exclude-after-all killed
+ok   mutant NM9-spent-extra-fields killed
+ok   mutant usage-value-unchecked killed
+ok   mutant usage-empty-value-accepted killed
+ok   mutant unknown-arg-accepted killed
+ok   mutant root-cd-fail-ignored killed
+ok   mutant not-a-worktree-unchecked killed
+ok   mutant local-env-vars-unchecked killed
+ok   mutant unborn-base-fallback-dropped killed
+ok   mutant base-resolve-unchecked killed
+ok   mutant base-peel-dropped killed
+ok   mutant blob-absent-is-unreadable killed
+ok   mutant blob-unreadable-is-absent killed
+ok   mutant conf-comments-not-skipped killed
+ok   mutant conf-non-kv-unnamed killed
+ok   mutant conf-days-regex-loosened killed
+ok   mutant conf-unknown-key-accepted killed
+ok   mutant waivers-file-not-read killed
+ok   mutant no-data-unnamed killed
+ok   mutant idname-empty killed
+ok   mutant idmail-empty killed
+ok   mutant authoriser-control-chars-allowed killed
+ok   mutant authoriser-crash-uncaught killed
+ok   mutant python3-missing-unnamed killed
+ok   mutant form-reason-unnamed killed
+ok   mutant item-digits-loosened killed
+ok   mutant item-anchor-dropped killed
+ok   mutant expiry-roundtrip-dropped killed
+ok   mutant waiver-comment-rows-honoured killed
+ok   mutant spent-numeric-path killed
+ok   mutant spent-any-parent-is-base killed
+ok   mutant spent-no-parents killed
+ok   mutant N4-porcelain-diff killed
+ok   mutant N4-quiet-dropped killed
+ok   mutant N4-compares-base killed
+ok   mutant new-gitlink-judged killed
+ok   mutant deleted-gitlink-judged killed
+ok   mutant count-not-incremented killed
+ok   mutant missing-checkout-unnamed killed
+ok   mutant symlink-unchecked killed
+ok   mutant fetchfix-swapped killed
+ok   mutant old-presence-unnamed killed
+ok   mutant new-presence-unnamed killed
+ok   mutant old-peel-dropped killed
+ok   mutant new-peel-dropped killed
+ok   mutant diverged-needs-no-rc1 killed
+ok   mutant V01-unknown-arg-exits-1 killed
+ok   mutant V02-help-exits-1 killed
+ok   mutant V03-env-keeps-GIT_DIR killed
+ok   mutant V05-mergehead-wrong-ref killed
+ok   mutant V06-blob-cat-p killed
+ok   mutant V07-conf-days-max-99 killed
+ok   mutant V08-conf-days-365-exclusive killed
+ok   mutant V09-conf-seen-no-space killed
+ok   mutant V10-waivers-from-head killed
+ok   mutant V11-author-is-committer killed
+ok   mutant V12-authoriser-only-Cc killed
+ok   mutant V13-casefold-to-lower killed
+ok   mutant V14-n4-hx-is-base killed
+ok   mutant V15-spent-hides-remotes killed
+ok   mutant V16-spent-hides-notes killed
+ok   mutant V17-spent-fileless-kid-ends-scan killed
+ok   mutant V18-comment-hash-anywhere killed
+ok   mutant V19-base-mismatch-aborts-rows killed
+ok   mutant V20-bad-expiry-aborts-rows killed
+ok   mutant V21-horizon-minus-1 killed
+ok   mutant V22-sub-shallow-unknown-is-complete killed
+ok   mutant V24-forward-args-swapped killed
+ok   mutant V25-meta-colon-kept killed
+ok   mutant V26-blind-exits-1 killed
+ok   mutant V27-dstat-wrong-index killed
+ok   mutant V29-python-not-isolated killed
+ok   mutant HK30-hook-ignores-gate-exit killed
+ok   mutant HK31-hook-no-readlink killed
+ok   mutant HK32-hook-drops-GIT_INDEX_FILE killed
+ok   mutant lastpipe-dropped killed
+ok   mutant root-default-wrong killed
+ok   mutant usage-argc-off-by-one killed
+ok   mutant base-arg-dropped killed
+ok   mutant waivers-arg-dropped killed
+ok   mutant blind0-exits-0 killed
+ok   mutant lev-check-always-blind killed
+ok   mutant headc-empty killed
+ok   mutant mergeh-always killed
+ok   mutant mergeh-never killed
+ok   mutant today-past killed
+ok   mutant today-future killed
+ok   mutant default-days-31 killed
+ok   mutant default-days-29 killed
+ok   mutant default-prefix-wrong killed
+ok   mutant conf-blank-not-skipped killed
+ok   mutant conf-hash-not-skipped killed
+ok   mutant conf-kv-inverted killed
+ok   mutant conf-kv-always-error killed
+ok   mutant conf-dup-always-error killed
+ok   mutant conf-days-366 killed
+ok   mutant conf-days-always-error killed
+ok   mutant days-assign-dropped killed
+ok   mutant prefix-plus-to-star killed
+ok   mutant prefix-anchor-start-dropped killed
+ok   mutant prefix-anchor-end-dropped killed
+ok   mutant conf-prefix-always-error killed
+ok   mutant prefix-assign-dropped killed
+ok   mutant conf-unknown-key-always killed
+ok   mutant horizon-plus-1 killed
+ok   mutant cident-empty killed
+ok   mutant idpy-split-wrong killed
+ok   mutant auth-lt-dropped killed
+ok   mutant auth-gt-dropped killed
+ok   mutant auth-form-always killed
+ok   mutant normalise-to-empty killed
+ok   mutant self-always killed
+ok   mutant crash-is-ok killed
+ok   mutant shallow-always killed
+ok   mutant kidsrc-err-is-ok killed
+ok   mutant spent-hides-tags killed
+ok   mutant shallow-reason-dropped killed
+ok   mutant spent-absent-is-spent killed
+ok   mutant spent-unreadable-is-unspent killed
+ok   mutant spent-awk-always-match killed
+ok   mutant spent-default-spent killed
+ok   mutant spender-ignored killed
+ok   mutant unspent-not-honoured killed
+ok   mutant auth-arg-is-committer killed
+ok   mutant rows-exhausted-is-waived killed
+ok   mutant base-always-mismatch killed
+ok   mutant cr-always killed
+ok   mutant expiry-always-bad killed
+ok   mutant item-always-bad killed
+ok   mutant python3-always-missing killed
+ok   mutant fail-init-1 killed
+ok   mutant blind-init-1 killed
+ok   mutant fail-not-set killed
+ok   mutant blind-exit-dropped killed
+ok   mutant pass-exits-1 killed
+ok   mutant checkout-check-dropped killed
+ok   mutant checkout-always-missing killed
+ok   mutant symlink-always killed
+ok   mutant ownrepo-always killed
+ok   mutant old-presence-always killed
+ok   mutant new-presence-always killed
+ok   mutant forward-is-refused killed
+ok   mutant diverged-is-blind killed
+ok   mutant waived-always-refused killed
+ok   mutant gitlink-filter-inverted killed
+ok   mutant diff-status-always-blind killed
+ok   mutant no-data-always killed
+ok   mutant conferr-always killed
+ok   mutant cand-always-empty killed
+ok   mutant horizon-always killed
+ok   mutant expired-always killed
+ok   mutant ident-always killed
+ok   mutant crc-unreadable-always killed
+ok   mutant blob-tree-always-missing killed
+ok   mutant kids-awk-never-matches killed
+ok   mutant site-cr-aborts killed
+ok   mutant site-expired-aborts killed
+ok   mutant site-horizon-aborts killed
+ok   mutant site-item-aborts killed
+ok   mutant site-self-aborts killed
+ok   mutant site-pyfail-aborts killed
+ok   mutant not-a-worktree-always killed
+ok   mutant root-cd-top-fails killed
+ok   mutant blob-always-absent killed
+ok   mutant shallow-test-never killed
+ok   mutant shallow-says-spent killed
+ok   mutant history-test-always killed
+ok   mutant spent-absent-is-unreadable killed
+ok   mutant spent-kids-all-skipped killed
+ok   mutant conferr-waives killed
+ok   mutant no-data-waives killed
+ok   mutant no-row-waives killed
+ok   mutant path-read-not-nul killed
+ok   mutant path-test-inverted killed
+ok   mutant gitlink-filter-continue-dropped killed
+ok   mutant unchanged-test-inverted killed
+ok   mutant diff-status-exit-0 killed
+ok   mutant fail-test-never killed
+ok   mutant blind-test-never killed
+ok   mutant hook-skip-always killed
+ok   mutant hook-root-wrong killed
+ok   mutant hook-skip-exits-1 killed
+ok   mutant hook-root-fail-ignored killed
+ok   mutant cand-empty-unchecked killed
+ok   mutant config-params-all-unset killed
+ok   mutant diverged-fwd-member-dropped killed
+ok   mutant diverged-back-member-dropped killed
+ok   mutant RV7-01-keep-drops-COUNT killed
+ok   mutant RV7-02-keep-drops-PARAMETERS killed
+ok   mutant RV7-03-item-exactly-3-digits killed
+ok   mutant RV7-04-authoriser-lstrip-only killed
+ok   mutant RV7-05-help-long-dropped killed
+ok   mutant RV8-01-ident-compare-unstripped killed
+ok   mutant RV8-02-authoriser-ascii-strip killed
+ok   mutant RV9-02-expired-yesterday-ok killed
+ok   mutant RV9-10-auth-zs-only-pad killed
+ok   mutant RV9-11-ident-zs-only-strip killed
+ok   mutant lev-gt-1 killed
+ok   mutant days-min-2 killed
+ok   mutant prefix-min-3 killed
+ok   mutant RV9-05-base-prefix-bind killed
+ok   mutant base-suffix12 killed
+ok   mutant base-nocase killed
+ok   mutant waiver-old-prefix12 killed
+ok   mutant waiver-new-prefix12 killed
+ok   mutant spent-old-prefix12 killed
+ok   mutant spent-new-prefix12 killed
+ok   mutant spent-base-prefix12 killed
+ok   mutant RV10-01-downgrade-one-step killed
+ok   mutant RV10-03-spent-first-parent-only killed
+ok   mutant RV10-04-argloop-gt1 killed
+ok   mutant RV10-05-email-space-strip killed
+ok   mutant RV10-07-spent-path-ignored killed
+ok   mutant RV10-08-spent-exclude-head-always killed
+ok   mutant RV10-11-waiver-path-nocase killed
+ok   mutant today-local killed
+ok   mutant ident-names-ascii-strip killed
+ok   mutant arg-nocasematch killed
+ok   mutant argflag-prefix killed
+ok   mutant confkey-prefix killed
+ok   mutant itemkey-prefix killed
+ok   mutant conf-read-ifs-dropped killed
+ok   mutant conf-hash-anywhere killed
+ok   mutant dupkey-nospace killed
+ok   mutant confsplit-last killed
+ok   mutant blob-nul-unchecked killed
+ok   mutant waiver-nul-unchecked killed
+ok   mutant wnul-file-zero killed
+ok   mutant wnul-index-zero killed
+ok   mutant spent-nul-unchecked killed
+ok   mutant conf-nul-unchecked killed
+ok   mutant spent-nf-ge7 killed
+ok   mutant spent-path-nocase killed
+ok   mutant spent-path-prefix killed
+ok   mutant spent-fs-whitespace killed
+ok   mutant waiver-fs-whitespace killed
+ok   mutant waiver-hash-anywhere killed
+ok   mutant waiver-path-prefix killed
+ok   mutant waiver-path-trim killed
+ok   mutant waiver-path-slash killed
+ok   mutant read-drop-remainder killed
+ok   mutant ifs036-tab killed
+ok   mutant crlf-endonly killed
+ok   mutant item-nocase killed
+ok   mutant pathread-ifs-dropped killed
+ok   mutant subp-prefix killed
+ok   mutant subp-nocase killed
+ok   mutant toplevel-prefix killed
+ok   mutant blob-nul-as-unreadable killed
+ok   mutant spent-nul-as-unspent killed
+ok   mutant waiver-nul-continues killed
+ok   mutant gen-cmp-096f51844e killed
+ok   mutant gen-cmp-65ff2d6021 killed
+ok   generated member gen-andor-5d778c1c49 survives: claimed equivalent by proof eq-need-argc-redundant (checked below)
+ok   mutant gen-andor-9082915805 killed
+ok   mutant gen-andor-137718c793 killed
+ok   mutant gen-cmp-8aa89c6412 killed
+ok   mutant gen-casealt-016efc9f5b killed
+ok   mutant gen-casealt-ae5a0da945 killed
+ok   mutant gen-cmp-a2593f2346 killed
+ok   mutant gen-andor-1e239bbd3f killed
+ok   mutant gen-casealt-b25c805f4f killed
+ok   mutant gen-casealt-ead001482a killed
+ok   mutant gen-cmp-73365c135d killed
+ok   mutant gen-cmp-8fb0eeda60 killed
+ok   mutant gen-andor-544f5dc082 killed
+ok   mutant gen-cmp-51bc0637b4 killed
+ok   mutant gen-andor-be0b07ad84 killed
+ok   mutant gen-cmp-c69b07facf killed
+ok   mutant gen-cmp-8ffc6d6119 killed
+ok   mutant gen-cmp-72f8438192 killed
+ok   mutant gen-casealt-8b13de08c4 killed
+ok   mutant gen-casealt-5377b8607f killed
+ok   mutant gen-cmp-7abf3c1f7e killed
+ok   mutant gen-andor-7b2a3661cc killed
+ok   generated member gen-rxq-1faaa1a2b7 survives: claimed equivalent by proof eq-maxdays-upper-bound-by-le (checked below)
+ok   mutant gen-rxq-77597e1a68 killed
+ok   mutant gen-rxq-745822ba29 killed
+ok   mutant gen-rxq-72a559d943 killed
+ok   mutant gen-rxq-18f717f300 killed
+ok   mutant gen-rxq-e6782bd45a killed
+ok   mutant gen-cmp-7ce0debf1c killed
+ok   mutant gen-andor-2f993ccc79 killed
+ok   mutant gen-andor-214840ccee killed
+ok   mutant gen-andor-74adb4a538 killed
+ok   mutant gen-rxq-c822946a4d killed
+ok   mutant gen-rxq-925cc8b3fa killed
+ok   mutant gen-rxq-c8f5aeed1d killed
+ok   mutant gen-rxq-7b91816365 killed
+ok   mutant gen-rxq-b23a67aa44 killed
+ok   mutant gen-andor-790f9e326e killed
+ok   mutant gen-cmp-c6ca389652 killed
+ok   mutant gen-strip-4b0e524724 killed
+ok   mutant gen-strip-f6802ebcac killed
+ok   mutant gen-pybool-65b9a4cbb3 killed
+ok   mutant gen-pybool-4eddc7783b killed
+ok   mutant gen-pybool-3defd62a48 killed
+ok   mutant gen-pybool-a9e2e40ab0 killed
+ok   mutant gen-pybool-71888b8254 killed
+ok   generated member gen-strip-99db10f56c survives: claimed equivalent by proof eq-ident-strip-truthiness (checked below)
+ok   generated member gen-strip-7144af3e42 survives: claimed equivalent by proof eq-ident-strip-truthiness (checked below)
+ok   mutant gen-strip-38f694f31b killed
+ok   mutant gen-strip-a8ce0752e7 killed
+ok   generated member gen-pybool-6ef1faee03 survives: claimed equivalent by proof eq-idpy-strip-and-dropped (checked below)
+ok   mutant gen-pybool-5018f48fae killed
+ok   mutant gen-cmp-e4baf2058f killed
+ok   mutant gen-cmp-7493aea0b0 killed
+ok   mutant gen-cmp-5b34bd4e40 killed
+ok   mutant gen-andor-5926aa45da killed
+ok   mutant gen-cmp-a0f2846ca8 killed
+ok   mutant gen-andor-9063e45337 killed
+ok   mutant gen-cmp-feb2dad665 killed
+ok   mutant gen-andor-41906e6896 killed
+ok   mutant gen-cmp-f8cc41965b killed
+ok   mutant gen-andor-9659cb8093 killed
+ok   mutant gen-cmp-e1322a38e0 killed
+ok   mutant gen-andor-32dcb1b86c killed
+ok   mutant gen-cmp-fe697c4a28 killed
+ok   mutant gen-andor-1eb7b71484 killed
+ok   mutant gen-cmp-7efc3d6edf killed
+ok   mutant gen-andor-0b9fc643ca killed
+ok   mutant gen-cmp-4bcdddc890 killed
+ok   mutant gen-andor-1993c730f0 killed
+ok   mutant gen-cmp-cf2bf39153 killed
+ok   mutant gen-andor-e17688b453 killed
+ok   mutant gen-cmps-066db5660a killed
+ok   mutant gen-andor-2a79738930 killed
+ok   mutant gen-cmp-f55ef94535 killed
+ok   mutant gen-andor-6eb46360ef killed
+ok   mutant gen-rxq-9efb96babf killed
+ok   mutant gen-rxq-ed5d880da9 killed
+ok   generated member gen-rxq-774fef6d84 survives: claimed equivalent by proof eq-expiry-tail-by-roundtrip (checked below)
+ok   mutant gen-rxq-4044696b7e killed
+ok   generated member gen-rxq-53ad123043 survives: claimed equivalent by proof eq-expiry-tail-by-roundtrip (checked below)
+ok   mutant gen-rxq-f66a245bc9 killed
+ok   mutant gen-rxq-07a5aa0cf0 killed
+BAD  generated member gen-rxq-da7dc34398 is claimed equivalent (eq-expiry-tail-by-roundtrip) but the suite kills it (pinned date survived, alternative date killed)
+ok   mutant gen-cmp-1b964f3ae6 killed
+ok   mutant gen-andor-3d5462c23c killed
+ok   mutant gen-andor-1087734e92 killed
+ok   mutant gen-andor-914c703639 killed
+ok   mutant gen-cmps-a724cc8b29 killed
+ok   mutant gen-andor-aee6852224 killed
+ok   mutant gen-cmps-ec3fd80456 killed
+ok   mutant gen-andor-a86455f52e killed
+ok   mutant gen-rxq-a76181bac2 killed
+ok   mutant gen-rxq-d61af646cb killed
+ok   mutant gen-rxq-4f50a49ba0 killed
+ok   mutant gen-rxq-7b5922b20f killed
+ok   mutant gen-andor-d9c0f98307 killed
+ok   mutant gen-cmp-e5dbec73be killed
+ok   mutant gen-andor-aaf1d94bd1 killed
+ok   mutant gen-cmp-08ba020fc0 killed
+ok   mutant gen-cmp-dfd5e3d827 killed
+ok   mutant gen-andor-96fae5ed6d killed
+ok   mutant gen-andor-fddf58a534 killed
+ok   mutant gen-andor-8dde6a3654 killed
+ok   mutant gen-cmp-292da363aa killed
+ok   mutant gen-andor-3204af7a65 killed
+ok   mutant gen-cmp-63a7f8ce37 killed
+ok   mutant gen-cmp-e2fa846c69 killed
+ok   mutant gen-andor-f1fdb64d4d killed
+ok   mutant gen-andor-8008788b7b killed
+ok   mutant gen-andor-7aa791b041 killed
+ok   mutant gen-cmp-667ee4ee6e killed
+ok   mutant gen-andor-83a1492efe killed
+ok   mutant gen-cmp-79c748e9ea killed
+ok   generated member gen-andor-2468ed98ae survives: claimed equivalent by proof eq-V28-missing-checkout-no-empty-check (checked below)
+ok   mutant gen-cmp-176994b18a killed
+ok   mutant gen-cmp-4f111dbf3c killed
+ok   mutant gen-cmp-2d7cf799f4 killed
+ok   mutant gen-neg-5d9cd093c1 killed
+ok   mutant gen-neg-bf768d12ae killed
+ok   mutant gen-cmp-51c03927f6 killed
+ok   mutant gen-cmp-72102b543a killed
+ok   mutant gen-cmp-61259aaab8 killed
+ok   mutant gen-cmp-7f302f59ba killed
+ok   mutant gen-cmp-98c76b7e14 killed
+ok   mutant gen-andor-0a828776fd killed
+ok   mutant gen-andor-8e0da5dfd6 killed
+ok   mutant gen-andor-398f243854 killed
+ok   mutant gen-cmp-86a145ea6a killed
+ok   mutant gen-andor-49c0d7f8e4 killed
+ok   mutant gen-cmp-0a28f5477d killed
+ok   mutant gen-andor-1bb4ec02e3 killed
+ok   mutant gen-cmp-28417d356d killed
+ok   mutant gen-andor-b6f8df78b1 killed
+ok   date self-test: a job one day behind is INCONCLUSIVE (never killed)
+ok   eqproof eq-need-argc-redundant: whole-suite vector equals the real gate's
+ok   eqproof eq-maxdays-upper-bound-by-le: whole-suite vector equals the real gate's
+ok   eqproof eq-ident-strip-truthiness: whole-suite vector equals the real gate's
+ok   eqproof eq-V28-missing-checkout-no-empty-check: whole-suite vector equals the real gate's
+ok   eqproof eq-spent-absent-continue-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-blob-absent-as-empty: whole-suite vector equals the real gate's
+ok   eqproof eq-conf-crc0-is-else: whole-suite vector equals the real gate's
+ok   eqproof eq-idpy-len-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-idpy-strip-and-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-expiry-tail-by-roundtrip: whole-suite vector equals the real gate's
+ok   eqproof eq-empty-path-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-unchanged-entry-dropped: whole-suite vector equals the real gate's
+ok   eqproof eq-site-merge-aborts: whole-suite vector equals the real gate's
+BAD  eqproof eq-site-ident-aborts: the suite kills it, so it is NOT equivalent (pinned date survived, alternative date killed)
+BAD  eqproof eq-site-nopy-aborts: the suite kills it, so it is NOT equivalent (pinned date survived, alternative date killed)
+ok   eqproof eq-site-spent-aborts: whole-suite vector equals the real gate's
+BAD  eqproof eq-site-cannottell-aborts: the suite kills it, so it is NOT equivalent (pinned date killed, alternative date killed)
+ok   eqproof eq-need-argc-redundant: probe real=eq [last:2,empty:2,lastw:2,emptyw:2]; control differs [last:2,empty:0,lastw:2,emptyw:0]; alternative date: real=eq [last:2,empty:2,lastw:2,emptyw:2], control differs [last:2,empty:0,lastw:2,emptyw:0] (pinned date survived, alternative date survived)
+ok   eqproof eq-maxdays-upper-bound-by-le: probe real=eq [999:1,1000:1,365:0,]; control differs [999:0,1000:1,365:0,]; alternative date: real=eq [999:1,1000:1,365:0,], control differs [999:0,1000:1,365:0,] (pinned date survived, alternative date survived)
+ok   eqproof eq-ident-strip-truthiness: probe real=eq [padname:1/1,zsname:1/1,padmail:1]; control differs [padname:0/0,zsname:0/0,padmail:0]; alternative date: real=eq [padname:1/1,zsname:1/1,padmail:1], control differs [padname:0/0,zsname:0/0,padmail:0] (pinned date survived, alternative date survived)
+ok   eqproof eq-V28-missing-checkout-no-empty-check: probe real=eq [absent:2/1,file:2/1,mode000:2/1,emptydir:2/0,]; control differs [absent:2/0,file:2/0,mode000:2/0,emptydir:2/0,]; alternative date: real=eq [absent:2/1,file:2/1,mode000:2/1,emptydir:2/0,], control differs [absent:2/0,file:2/0,mode000:2/0,emptydir:2/0,] (pinned date survived, alternative date survived)
+ok   eqproof eq-spent-absent-continue-dropped: probe real=eq [nowaiver:0,otherrow:0,]; control differs [nowaiver:1,otherrow:0,]; alternative date: real=eq [nowaiver:0,otherrow:0,], control differs [nowaiver:1,otherrow:0,] (pinned date survived, alternative date survived)
+ok   eqproof eq-blob-absent-as-empty: probe real=eq [nowaiver:0,otherrow:0,]; control differs [nowaiver:1,otherrow:1,]; alternative date: real=eq [nowaiver:0,otherrow:0,], control differs [nowaiver:1,otherrow:1,] (pinned date survived, alternative date survived)
+ok   eqproof eq-conf-crc0-is-else: probe real=eq [absent:0,cat:0]; control differs [absent:1,cat:1]; alternative date: real=eq [absent:0,cat:0], control differs [absent:1,cat:1] (pinned date survived, alternative date survived)
+ok   eqproof eq-idpy-len-dropped: probe real=eq [ok:0,noemail:0,self:1,badutf8:1/1]; control differs [ok:1,noemail:1,self:1,badutf8:1/1]; alternative date: real=eq [ok:0,noemail:0,self:1,badutf8:1/1], control differs [ok:1,noemail:1,self:1,badutf8:1/1] (pinned date survived, alternative date survived)
+ok   eqproof eq-idpy-strip-and-dropped: probe real=eq [ok:0,noemail:0,self:1,badutf8:1/1]; control differs [ok:0,noemail:0,self:0,badutf8:1/1]; alternative date: real=eq [ok:0,noemail:0,self:1,badutf8:1/1], control differs [ok:0,noemail:0,self:0,badutf8:1/1] (pinned date survived, alternative date survived)
+ok   eqproof eq-expiry-tail-by-roundtrip: probe real=eq [0/0,1/1,1/1,0/0,1/1,1/1,1/1,1/1,1/1,1/1,1/1,]; control differs [0/0,1/0,1/0,0/0,1/0,1/0,0/0,0/0,1/0,1/0,0/0,]; alternative date: real=eq [0/0,1/1,1/1,0/0,1/1,1/1,1/1,1/1,1/1,1/1,1/1,], control differs [0/0,1/0,1/0,0/0,1/0,1/0,0/0,0/0,1/0,1/0,0/0,] (pinned date survived, alternative date survived)
+ok   eqproof eq-empty-path-dropped: probe real=eq [down:1,ren:1/1,plain:0/(1 staged]; control differs [down:0,ren:0/0,plain:0/(0 staged]; alternative date: real=eq [down:1,ren:1/1,plain:0/(1 staged], control differs [down:0,ren:0/0,plain:0/(0 staged] (pinned date survived, alternative date survived)
+ok   eqproof eq-unchanged-entry-dropped: probe real=eq [same:0/(0 staged,wtonly:0/(0 staged,down:1,gl2f:0/(0 staged,f2gl:0/(0 staged]; control differs [same:0/(0 staged,wtonly:0/(0 staged,down:1,gl2f:0/(0 staged,f2gl:2/]; alternative date: real=eq [same:0/(0 staged,wtonly:0/(0 staged,down:1,gl2f:0/(0 staged,f2gl:0/(0 staged], control differs [same:0/(0 staged,wtonly:0/(0 staged,down:1,gl2f:0/(0 staged,f2gl:2/] (pinned date survived, alternative date survived)
+ok   eqproof eq-site-merge-aborts: probe real=eq [merge:1/1]; control differs [merge:0/0]; alternative date: real=eq [merge:1/1], control differs [merge:0/0] (pinned date survived, alternative date survived)
+BAD  eqproof eq-site-ident-aborts: probe real [ident:1/1] eq [ident:1/1] control [ident:0/0]; alternative date real [ident:1/1] eq [ident:1/1] control [ident:0/0] (pinned date survived, alternative date killed)
+BAD  eqproof eq-site-nopy-aborts: probe real [nopy:1/1] eq [nopy:1/1] control [nopy:1/0]; alternative date real [nopy:1/1] eq [nopy:1/1] control [nopy:1/0] (pinned date survived, alternative date killed)
+ok   eqproof eq-site-spent-aborts: probe real=eq [spent:1/1]; control differs [spent:0/0]; alternative date: real=eq [spent:1/1], control differs [spent:0/0] (pinned date survived, alternative date survived)
+BAD  eqproof eq-site-cannottell-aborts: probe real [badref:1/1] eq [badref:1/1] control [badref:0/0]; alternative date real [badref:1/1] eq [badref:1/1] control [badref:0/0] (pinned date killed, alternative date killed)
+mutants: 485 (killed 458, survived 0, equivalent-with-proof 22, inconclusive 0)
+lint dynamic: rows 234, code lines 173, registered 348, needles [3, 5, 2]+(3,1), findings 3
+BAD  lint DYN I121: proof eq-site-ident-aborts did not pass
+BAD  lint DYN I123: proof eq-site-nopy-aborts did not pass
+BAD  lint DYN I129: proof eq-site-cannottell-aborts did not pass
+ok   dynamic lint control needle: all-ch directions refused (140 findings), empty is BLIND
+site lint dynamic: sites 153, rows 153, data rows 103, needles [9, 3, 1]+(3), findings 0
+ok   dynamic site lint control needle: empty directions are BLIND
+hook: plain downgrade rc=1 forward rc=0 downgrade-after rc=1 ; real-submodule worktree (real) forward rc=0 downgrade rc=1 ; persist rollback rc=0 fwd rc=0 snapshot rc=1 pin=B ; layout-skip rc=0 [CM-SUBMODULE-PIN-NOT-DOWNGRADED: SKIP — gate not found beside this hook (/home]
+rc=1
+end 2026-11-13T00:45:32+01:00 head 7bdffcf6b8bca1fca6225010d4fd0e45fe5dd04b clean-tree-lines 0

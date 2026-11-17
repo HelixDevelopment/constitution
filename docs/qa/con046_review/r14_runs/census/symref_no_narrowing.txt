@@ -1,0 +1,1 @@
+git-env-class-census: BLIND - control needle: sh guard, symbolic-ref read: got UNSCRUBBED, want EXEMPT (row subject-follows-caller, but a git write is detected: sref="$(git symbolic-ref -q HEAD 2>/dev/nul); sh guard, symbolic-ref short read: got UNSCRUBBED, want EXEMPT (row subject-follows-caller, but a git write is detected: git symbolic-ref --short HEAD)

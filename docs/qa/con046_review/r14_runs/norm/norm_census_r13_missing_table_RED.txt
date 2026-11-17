@@ -1,0 +1,41 @@
+gate.sh	161	L	locale-var	export LC_ALL=C
+gate.sh	221	L	range-in-regex	max_waiver_days) [[ "$v" =~ ^[1-9][0-9]{0,2}$ ]] && [ "$v" -le 365 ] || { conferr="config max_waiver_days='$v' not an integer 1..365"; break; }; maxd="$v" ;;
+gate.sh	222	L	range-in-regex	item_prefix) [[ "$v" =~ ^[A-Z][A-Z0-9]+$ ]] || { conferr="config item_prefix='$v' does not match ^[A-Z][A-Z0-9]+\$"; break; }; prefix="$v" ;;
+gate.sh	235	E	codec	p=[x.decode("utf-8") for x in sys.stdin.buffer.read().split(b"\0")]
+gate.sh	238	W	strip	if not a or a!=a.strip() or "<" in a or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3
+gate.sh	238	U	unicode-property	if not a or a!=a.strip() or "<" in a or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3
+gate.sh	245	E	codec	for l in b.decode("utf-8").split("\n")[:-1]:
+gate.sh	248	N	normalize	k=lambda s: unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())
+gate.sh	248	N	normalize	k=lambda s: unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())
+gate.sh	248	N	casefold	k=lambda s: unicodedata.normalize("NFKD", unicodedata.normalize("NFD", s).casefold())
+gate.sh	254	N	normalize	q=lambda s: "".join(T.get(d,d) for d in unicodedata.normalize("NFD", s))
+gate.sh	263	W	strip	if any(e(i.strip())==e(a) for i in p[1:]): return 10
+gate.sh	264	N	f-operand	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0
+gate.sh	264	W	strip	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0
+gate.sh	264	W	strip	return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0
+gate.sh	312	L	range-in-regex	[[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && [ "$(date -d "$e" +%Y-%m-%d 2>/dev/null)" = "$e" ] || { WHY="expiry '$e' is not a real YYYY-MM-DD date"; continue; }
+gate.sh	313	C	collate-compare	[[ "$e" < "$today" ]] && { WHY="waiver expired $e"; continue; }
+gate.sh	314	C	collate-compare	[[ "$e" > "$lim" ]] && { WHY="expiry $e is beyond today + max_waiver_days=$maxd ($lim)"; continue; }
+gate.sh	315	L	range-in-regex	[[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]] || { WHY="tracked item '$i' does not match ${prefix}-NNN"; continue; }
+# hits per class/token: C/collate-compare=2, E/codec=2, L/locale-var=1, L/range-in-regex=4, N/casefold=1, N/f-operand=1, N/normalize=3, U/unicode-property=1, W/strip=4
+# tokens searched: 23 (each needled on its own line), negative control: 0 hits
+# NORM coverage line 248: members 3, generated NORM mutants 3
+# NORM coverage line 254: members 1, generated NORM mutants 1
+# NORM coverage line 263: members 0, generated NORM mutants 2  MISMATCH
+# NORM coverage line 264: members 2, generated NORM mutants 2
+# W coverage line 238 (strip): covered
+# U coverage line 238 (unicode-property): covered
+# W coverage line 263 (strip): covered
+# W coverage line 264 (strip): covered
+# W coverage line 264 (strip): covered
+# C coverage line 313 (collate-compare): covered
+# C coverage line 314 (collate-compare): covered
+# locale pin line 161, first range/compare site line 221: ok
+Traceback (most recent call last):
+  File "/mnt/DATA1TB/claude-work/scratch/fx14.xn59/repo/docs/qa/con046_review/r13_runs/norm_census.py", line 206, in <module>
+    main()
+    ~~~~^^
+  File "/mnt/DATA1TB/claude-work/scratch/fx14.xn59/repo/docs/qa/con046_review/r13_runs/norm_census.py", line 169, in main
+    for l in open(os.path.join(os.path.dirname(gate), 'cm_submodule_pin_not_downgraded_confusables.tsv'), encoding='utf-8').read().split('\n')[:-1]:
+             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'probe/nt/cm_submodule_pin_not_downgraded_confusables.tsv'

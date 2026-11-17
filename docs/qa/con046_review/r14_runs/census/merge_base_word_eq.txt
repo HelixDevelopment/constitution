@@ -1,0 +1,12 @@
+git version 2.53.0
+merge subcommands:
+merge
+mergetool
+merge-tree
+merge-file
+merge-index
+merge-base
+merge-one-file
+positive control (^merge-base$): 1
+matching ^merge-base[A-Za-z0-9_]: 0
+negative control (^zzmerge): 0
